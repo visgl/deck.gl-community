@@ -1,0 +1,28 @@
+{
+  "name": "@visgl-project-template/submodule",
+  "description": "Project description",
+  "license": "MIT",
+  "version": "0.0.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "webgl",
+    "visualization"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/project-template.gl.git"
+  },
+  "main": "dist/es5/index.js",
+  "module": "dist/esm/index.js",
+  "esnext": "dist/es6/index.js",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
+  "scripts": {},
+  "dependencies": {},
+  "peerDependencies": {}
+}
