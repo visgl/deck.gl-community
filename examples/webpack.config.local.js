@@ -43,7 +43,8 @@ module.exports = config => {
     LOCAL_DEVELOPMENT_CONFIG.resolve.alias
   );
 
-  config.module.rules = config.module.rules.concat(LOCAL_DEVELOPMENT_CONFIG.module.rules);
+  config.module = config.module || {};
+  config.module.rules = (config.module.rules || []).concat(LOCAL_DEVELOPMENT_CONFIG.module.rules);
   config.devtool = LOCAL_DEVELOPMENT_CONFIG.devtool;
   return config;
 };
