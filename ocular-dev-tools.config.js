@@ -1,10 +1,18 @@
 module.exports = {
   lint: {
     paths: ['docs', 'modules', 'examples', 'test'],
-    extensions: ['js', 'md']
+    extensions: ['js']
   },
 
-  aliases: {},
+  aliases: {
+    '@deck.gl/core': `${__dirname}/node_modules/@deck.gl/core`,
+    '@deck.gl/layers': `${__dirname}/node_modules/@deck.gl/layers`,
+    '@deck.gl/aggregation-layers': `${__dirname}/node_modules/@deck.gl/aggregation-layers`,
+    '@deck.gl/geo-layers': `${__dirname}/node_modules/@deck.gl/geo-layers`,
+    '@deck.gl/mesh-layers': `${__dirname}/node_modules/@deck.gl/mesh-layers`,
+    '@deck.gl/extensions': `${__dirname}/node_modules/@deck.gl/extensions`,
+    '@deck.gl/react': `${__dirname}/node_modules/@deck.gl/react`
+  },
 
   browserTest: {
     server: {wait: 5000}
