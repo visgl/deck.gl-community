@@ -1,0 +1,8 @@
+{
+  "id": "edge1",
+  "sourceId": "node1",
+  "targetId": "node2",
+  "property1": 1,
+  "property2": true,
+  "property3": "sf"
+}

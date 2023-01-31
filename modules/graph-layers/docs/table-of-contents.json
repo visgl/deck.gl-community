@@ -1,0 +1,108 @@
+{
+  "id": "table-of-contents",
+  "chapters": [
+    {
+      "title": "Overview",
+      "entries": [
+        {
+          "entry": "docs/README"
+        },
+        {
+          "entry": "docs/version-policy"
+        }
+      ]
+    },
+    {
+      "title": "API Reference",
+      "chapters": [
+        {
+          "title": "GraphGL",
+          "entries": [
+            {
+              "entry": "docs/api-reference/graphgl"
+            },
+            {
+              "entry": "docs/api-reference/node-style"
+            },
+            {
+              "entry": "docs/api-reference/edge-style"
+            },
+            {
+              "entry": "docs/api-reference/interactions"
+            },
+            {
+              "entry": "docs/api-reference/viewport"
+            },
+            {
+              "entry": "docs/api-reference/layout"
+            }
+          ]
+        },
+        {
+          "title": "Node style",
+          "entries": [
+            {
+              "entry": "docs/api-reference/node-style-circle"
+            },
+            {
+              "entry": "docs/api-reference/node-style-rectangle"
+            },
+            {
+              "entry": "docs/api-reference/node-style-marker"
+            },
+            {
+              "entry": "docs/api-reference/node-style-label"
+            }
+          ]
+        },
+        {
+          "title": "Edge decorators",
+          "entries": [
+            {
+              "entry": "docs/api-reference/edge-style-label"
+            },
+            {
+              "entry": "docs/api-reference/edge-style-flow"
+            }
+          ]
+        },
+        {
+          "title": "Layouts",
+          "entries": [
+            {
+              "entry": "docs/api-reference/simple-layout"
+            },
+            {
+              "entry": "docs/api-reference/d3-layout"
+            }
+          ]
+        },
+        {
+          "title": "Core Data Structures",
+          "entries": [
+            {
+              "entry": "docs/api-reference/graph"
+            },
+            {
+              "entry": "docs/api-reference/node"
+            },
+            {
+              "entry": "docs/api-reference/edge"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Advanced",
+      "entries": [
+        {
+          "entry": "docs/advanced/custom-layout"
+        },
+        {
+          "entry": "docs/advanced/gallery"
+        }
+      ]
+    }
+  ]
+}

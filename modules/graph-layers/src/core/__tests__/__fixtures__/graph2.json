@@ -1,0 +1,15 @@
+{
+  "nodes": [
+    {"name": "Thenardier", "x": -100, "y": 100},
+    {"name": "Cosette", "x": 100, "y": 100},
+    {"name": "Javert", "x": 100, "y": -100},
+    {"name": "Fantine", "x": -100, "y": -100}
+  ],
+  "edges": [
+    {"name": "1", "source": "Thenardier", "target": "Fantine"},
+    {"name": "2", "source": "Cosette", "target": "Thenardier"},
+    {"name": "3", "source": "Javert", "target": "Fantine"},
+    {"name": "4", "source": "Javert", "target": "Thenardier"},
+    {"name": "5", "source": "Javert", "target": "Cosette"}
+  ]
+}
