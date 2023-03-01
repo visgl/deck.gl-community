@@ -35,7 +35,7 @@ const LOCAL_DEVELOPMENT_CONFIG = {
   }
 };
 
-module.exports = config => {
+module.exports = (config) => {
   config.resolve = config.resolve || {};
   config.resolve.alias = Object.assign(
     {},

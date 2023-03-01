@@ -4,7 +4,7 @@ import getDeckOverlay from './deck-overlay';
 const BING_MAPS_API_URL = 'https://www.bing.com/api/maps/mapcontrol?callback=__loadBingMaps';
 
 export default function loadModule(moduleNames) {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     // Callback
     window.__loadBingMaps = () => {
       /* global Microsoft */
@@ -13,7 +13,7 @@ export default function loadModule(moduleNames) {
       delete window.__loadBingMaps;
 
       if (moduleNames) {
-        Promise.all(moduleNames.map(m => awaitCallback(namespace.loadModule, m))).then(() =>
+        Promise.all(moduleNames.map((m) => awaitCallback(namespace.loadModule, m))).then(() =>
           resolve(namespace)
         );
       } else {
@@ -30,7 +30,7 @@ export default function loadModule(moduleNames) {
 }
 
 function awaitCallback(func, ...args) {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     func(...args, resolve);
   });
 }

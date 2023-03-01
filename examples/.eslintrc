@@ -1,4 +1,16 @@
 {
+  "env" : {
+    "browser" : true,
+    "node" : true,
+    "es6" : true
+  },
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 11,
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
   "rules": {
     "import/no-unresolved": 0,
     "import/no-extraneous-dependencies": 0

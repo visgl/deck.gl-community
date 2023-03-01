@@ -13,7 +13,7 @@ test.onFailure(() => {
 
 // tap-browser-color alternative
 enableDOMLogging({
-  getStyle: message => ({
+  getStyle: (message) => ({
     background: failed ? '#F28E82' : '#8ECA6C',
     position: 'absolute',
     top: '500px',

@@ -1,16 +1,17 @@
 {
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "start": "webpack-dev-server --progress --hot --open",
     "start-local": "webpack-dev-server --env.local --progress --hot --open",
     "build": "webpack -p"
   },
   "dependencies": {
-    "deck.gl": "^8.4.0"
+    "deck.gl": "^8.8.26"
   },
   "devDependencies": {
-    "webpack": "^4.20.2",
-    "webpack-cli": "^3.1.2",
-    "webpack-dev-server": "^3.1.11"
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1",
+    "webpack-dev-server": "^4.11.1"
   }
 }

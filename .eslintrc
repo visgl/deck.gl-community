@@ -1,0 +1,43 @@
+{
+  "plugins": [
+    "import"
+  ],
+  "extends": [
+    "prettier", "plugin:import/errors"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "*.spec.js", "webpack.config.js"
+      ],
+      "rules": {
+        "import/no-extraneous-dependencies": 0
+      }
+    }
+  ],
+  "settings": {},
+  "rules": {
+    "guard-for-in": 0,
+    "no-inline-comments": 0,
+    "import/no-unresolved": [
+      "error", {
+        "ignore": [
+          "test"
+        ]}],
+    "import/no-extraneous-dependencies": [
+      "error", {
+        "devDependencies": false, "peerDependencies": true}]
+  },
+  "env" : {
+    "browser" : true,
+    "node" : true,
+    "es6" : true
+  },
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 11,
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  }
+}
