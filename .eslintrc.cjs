@@ -1,4 +1,4 @@
-{
+module.exports = {
   "plugins": [
     "import"
   ],
@@ -26,18 +26,22 @@
         ]}],
     "import/no-extraneous-dependencies": [
       "error", {
-        "devDependencies": false, "peerDependencies": true}]
+        "devDependencies": true, "peerDependencies": true}]
   },
   "env" : {
     "browser" : true,
     "node" : true,
     "es6" : true
   },
+  "parser": "@babel/eslint-parser",
   "parserOptions": {
     "sourceType": "module",
-    "ecmaVersion": 11,
+    "ecmaVersion": 2022,
     "ecmaFeatures": {
       "jsx": true
-    }
+    },
+    babelOptions: {
+      rootMode: "upward"
+    },
   }
-}
+};

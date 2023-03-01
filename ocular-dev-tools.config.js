@@ -1,7 +1,7 @@
 const config = {
   lint: {
     paths: ['docs', 'modules', 'examples', 'test'],
-    extensions: ['js']
+    extensions: ['js', 'jsx']
   },
 
   aliases: {
