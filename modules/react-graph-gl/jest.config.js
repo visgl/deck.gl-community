@@ -1,11 +1,12 @@
 export default {
-  collectCoverageFrom: ['src/**/*.js'],
-  coveragePathIgnorePatterns: ['__fixtures__', 'stories'],
-  testPathIgnorePatterns: ['/node_modules/', '.cache'],
-  transformIgnorePatterns: ['node_modules/(?!(gatsby)/)'],
-  setupFilesAfterEnv: ['./utils/setup-tests.js'],
-  moduleNameMapper: {
-    d3: '<rootDir>/node_modules/d3/dist/d3.min.js'
+  roots: ['./src'],
+  collectCoverageFrom: ['./src/**/*.js'],
+  setupFilesAfterEnv: ['./test/utils/setup-tests.js'],
+  testEnvironment: 'jsdom',
+  transform: {
+    '^.+\\.(js|jsx)$': 'babel-jest'
   },
-  testEnvironment: 'jsdom'
+  moduleNameMapper: {
+    '^d3-(.*)': '<rootDir>/../../node_modules/d3-$1/dist/d3-$1.js'
+  }
 };

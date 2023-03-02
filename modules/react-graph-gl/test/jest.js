@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
-import {run} from 'jest';
+import {runCLI} from 'jest';
 
-run();
+runCLI([], ['./modules/react-graph-gl']);

@@ -1,2 +1,2 @@
 import '@deck.gl-community/submodule/test';
-import '@deck.gl-community/react-graph-gl/jest';
+import '../modules/react-graph-gl/test/jest';

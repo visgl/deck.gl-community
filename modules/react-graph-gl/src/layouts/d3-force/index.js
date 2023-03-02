@@ -1,6 +1,7 @@
 import BaseLayout from '../../core/base-layout';
 
-import * as d3 from 'd3-force';
+import {forceLink, forceSimulation, forceManyBody, forceCenter, forceCollide} from 'd3-force';
+
 import {EDGE_TYPE} from '../../index';
 
 const defaultOptions = {
@@ -73,22 +74,20 @@ export default class D3ForceLayout extends BaseLayout {
       this._options;
 
     const g = this._d3Graph;
-    this._simulator = d3
-      .forceSimulation(g.nodes)
+    this._simulator = forceSimulation(g.nodes)
       .force(
         'edge',
-        d3.forceLink(g.edges).id((n) => n.id)
+        forceLink(g.edges).id((n) => n.id)
       )
       .force(
         'charge',
-        d3
-          .forceManyBody()
+        forceManyBody()
           .strength(nBodyStrength)
           .distanceMin(nBodyDistanceMin)
           .distanceMax(nBodyDistanceMax)
       )
-      .force('center', d3.forceCenter())
-      .force('collision', d3.forceCollide().radius(getCollisionRadius))
+      .force('center', forceCenter())
+      .force('collision', forceCollide().radius(getCollisionRadius))
       .alpha(alpha);
     // register event callbacks
     this._simulator
