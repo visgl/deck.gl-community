@@ -1,11 +1,11 @@
-import React, {PureComponent, useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
 import {extent} from 'd3-array';
+import ViewControl from './components/view-control.jsx';
 
-import {log} from './utils/log';
-import {BaseLayout, Graph, GraphEngine, GraphLayer, ViewControl, SimpleLayout} from './index';
+import {Graph, log, SimpleLayout} from '@deck.gl-community/graph-gl';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view
