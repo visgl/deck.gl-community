@@ -1,4 +1,4 @@
-# @visgl-project-template/submodule
+# @deck.gl-community/submodule
 
 vis.gl project template.
 

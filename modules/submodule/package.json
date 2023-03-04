@@ -1,5 +1,5 @@
 {
-  "name": "@visgl-project-template/submodule",
+  "name": "@deck.gl-community/submodule",
   "description": "Project description",
   "private": true,
   "license": "MIT",
@@ -15,14 +15,15 @@
     "type": "git",
     "url": "https://github.com/visgl/deck.gl-community.gl.git"
   },
-  "main": "dist/es5/index.js",
-  "module": "dist/esm/index.js",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
   "files": [
     "dist",
     "src"
   ],
   "sideEffects": false,
   "scripts": {},
-  "dependencies": {},
-  "peerDependencies": {}
+  "devDependencies": {
+    "tape-catch": "^1.0.6"
+  }
 }

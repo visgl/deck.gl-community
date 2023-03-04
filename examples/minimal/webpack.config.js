@@ -25,4 +25,4 @@ const config = {
   plugins: [new HtmlWebpackPlugin({title: 'deck.gl example'})]
 };
 
-module.exports = env => env && env.local ? require('../webpack.config.local')(config) : config;
+module.exports = (env) => (env && env.local ? require('../webpack.config.local')(config) : config);

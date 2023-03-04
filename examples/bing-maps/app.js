@@ -33,28 +33,28 @@ loadModule().then(({Map, MapTypeId, Location, DeckOverlay}) => {
         filled: true,
         pointRadiusMinPixels: 2,
         pointRadiusScale: 2000,
-        getRadius: f => 11 - f.properties.scalerank,
+        getRadius: (f) => 11 - f.properties.scalerank,
         getFillColor: [200, 0, 80, 180],
         // Interactive props
         pickable: true,
         autoHighlight: true,
-        onClick: info =>
+        onClick: (info) =>
           // eslint-disable-next-line
           info.object && alert(`${info.object.properties.name} (${info.object.properties.abbrev})`)
       }),
       new ArcLayer({
         id: 'arcs',
         data: AIR_PORTS,
-        dataTransform: d => d.features.filter(f => f.properties.scalerank < 4),
+        dataTransform: (d) => d.features.filter((f) => f.properties.scalerank < 4),
         // Styles
-        getSourcePosition: f => [-0.4531566, 51.4709959], // London
-        getTargetPosition: f => f.geometry.coordinates,
+        getSourcePosition: (f) => [-0.4531566, 51.4709959], // London
+        getTargetPosition: (f) => f.geometry.coordinates,
         getSourceColor: [0, 128, 200],
         getTargetColor: [200, 0, 80],
         getWidth: 1
       })
     ],
-    getTooltip: info => info.object && info.object.properties.name
+    getTooltip: (info) => info.object && info.object.properties.name
   });
   map.layers.insert(deckOverlay);
 });

@@ -1,1 +1,1 @@
-export * from '@visgl-project-template/submodule';
+export * from '@deck.gl-community/submodule';

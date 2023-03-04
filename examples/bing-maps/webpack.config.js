@@ -10,4 +10,4 @@ const config = {
   plugins: [new webpack.EnvironmentPlugin(['BingMapsAPIKey'])]
 };
 
-module.exports = env => (env && env.local ? require('../webpack.config.local')(config) : config);
+module.exports = (env) => (env && env.local ? require('../webpack.config.local')(config) : config);

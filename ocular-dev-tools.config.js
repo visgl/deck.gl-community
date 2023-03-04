@@ -1,17 +1,18 @@
-module.exports = {
+const config = {
   lint: {
     paths: ['docs', 'modules', 'examples', 'test'],
-    extensions: ['js']
+    extensions: ['js', 'jsx']
   },
 
   aliases: {
-    '@deck.gl/core': `${__dirname}/node_modules/@deck.gl/core`,
-    '@deck.gl/layers': `${__dirname}/node_modules/@deck.gl/layers`,
-    '@deck.gl/aggregation-layers': `${__dirname}/node_modules/@deck.gl/aggregation-layers`,
-    '@deck.gl/geo-layers': `${__dirname}/node_modules/@deck.gl/geo-layers`,
-    '@deck.gl/mesh-layers': `${__dirname}/node_modules/@deck.gl/mesh-layers`,
-    '@deck.gl/extensions': `${__dirname}/node_modules/@deck.gl/extensions`,
-    '@deck.gl/react': `${__dirname}/node_modules/@deck.gl/react`
+    '@deck.gl/core': './node_modules/@deck.gl/core',
+    '@deck.gl/layers': './node_modules/@deck.gl/layers',
+    '@deck.gl/aggregation-layers': './node_modules/@deck.gl/aggregation-layers',
+    '@deck.gl/geo-layers': './node_modules/@deck.gl/geo-layers',
+    '@deck.gl/mesh-layers': './node_modules/@deck.gl/mesh-layers',
+    '@deck.gl/extensions': './node_modules/@deck.gl/extensions',
+    '@deck.gl/react': './node_modules/@deck.gl/react',
+    test: './test'
   },
 
   browserTest: {
@@ -19,10 +20,12 @@ module.exports = {
   },
 
   entry: {
-    test: 'test/node.js',
+    test: 'test/node.cjs',
     'test-browser': 'test/browser.js',
     bench: 'test/bench/node.js',
     'bench-browser': 'test/bench/browser.js',
     size: 'test/size/submodule.js'
   }
 };
+
+export default config;

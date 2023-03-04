@@ -1,1 +1,2 @@
-import '@visgl-project-template/submodule/test';
+import '@deck.gl-community/submodule/test';
+import './jest';
