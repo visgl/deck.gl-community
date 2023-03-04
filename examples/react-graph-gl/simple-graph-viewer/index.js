@@ -1,6 +1,5 @@
 import React, {Component} from 'react';
 
-// graph.gl
 import GraphGL, {D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/react-graph-gl';
 
 import SAMPLE_GRAPH_DATASETS from '../../utils/data/sample-datasets';
