@@ -141,7 +141,7 @@ const config = {
             position: 'left'
           },
           {
-            href: 'https://github.com/visgl/deck.gl',
+            href: 'https://github.com/visgl/deck.gl-community',
             label: 'GitHub',
             position: 'right'
           }
