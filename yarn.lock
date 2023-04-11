@@ -6606,14 +6606,6 @@ global@^4.4.0:
     min-document "^2.19.0"
     process "^0.11.10"
 
-global@~4.3.0:
-  version "4.3.2"
-  resolved "https://registry.yarnpkg.com/global/-/global-4.3.2.tgz#e76989268a6c74c38908b1305b10fc0e394e9d0f"
-  integrity sha512-/4AybdwIDU4HkCUbJkZdWpe4P6vuw/CUtu+0I1YlLIPe7OlUO7KNJ+q/rO70CW2/NW6Jc6I62++Hzsf5Alu6rQ==
-  dependencies:
-    min-document "^2.19.0"
-    process "~0.5.1"
-
 globals@^11.1.0:
   version "11.12.0"
   resolved "https://registry.yarnpkg.com/globals/-/globals-11.12.0.tgz#ab8795338868a0babd8525758018c2a7eb95c42e"
@@ -9747,11 +9739,6 @@ process@^0.11.10:
   resolved "https://registry.yarnpkg.com/process/-/process-0.11.10.tgz#7332300e840161bda3e69a1d1d91a7d4bc16f182"
   integrity sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A==
 
-process@~0.5.1:
-  version "0.5.2"
-  resolved "https://registry.yarnpkg.com/process/-/process-0.5.2.tgz#1638d8a8e34c2f440a91db95ab9aeb677fc185cf"
-  integrity sha512-oNpcutj+nYX2FjdEW7PGltWhXulAnFlM0My/k48L90hARCOJtvBbQXc/6itV2jDvU5xAAtonP+r6wmQgCcbAUA==
-
 progress@2.0.3, progress@^2.0.0:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/progress/-/progress-2.0.3.tgz#7e8cf8d8f5b8f239c1bc68beb4eb78567d572ef8"
@@ -11145,13 +11132,6 @@ table@^6.0.9:
     slice-ansi "^4.0.0"
     string-width "^4.2.3"
     strip-ansi "^6.0.1"
-
-tape-catch@^1.0.6:
-  version "1.0.6"
-  resolved "https://registry.yarnpkg.com/tape-catch/-/tape-catch-1.0.6.tgz#12931d5ea60a03a97d9bd19d0d7d8cfc3f6cecf1"
-  integrity sha512-YnnfczmfAlVu+iAPiGfpMx+qNs6crYM3qPLJ0b9mKaiN0Sc0vOiBNr0yQ9WZqybngJvdlh7MzdutFwGrqYxlsA==
-  dependencies:
-    global "~4.3.0"
 
 tape-promise@^4.0.0:
   version "4.0.0"
