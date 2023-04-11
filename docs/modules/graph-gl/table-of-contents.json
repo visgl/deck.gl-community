@@ -1,0 +1,63 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/graph-gl",
+  "items": [
+    "modules/graph-gl/README",
+    "modules/graph-gl/version-policy",
+    {
+      "type": "category",
+      "label": "GraphGL",
+      "items": [
+        "modules/graph-gl/api-reference/graphgl",
+        "modules/graph-gl/api-reference/node-style",
+        "modules/graph-gl/api-reference/edge-style",
+        "modules/graph-gl/api-reference/interactions",
+        "modules/graph-gl/api-reference/viewport",
+        "modules/graph-gl/api-reference/layout"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Node style",
+      "items": [
+        "modules/graph-gl/api-reference/node-style-circle",
+        "modules/graph-gl/api-reference/node-style-rectangle",
+        "modules/graph-gl/api-reference/node-style-marker",
+        "modules/graph-gl/api-reference/node-style-label"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Edge decorators",
+      "items": [
+        "modules/graph-gl/api-reference/edge-style-label",
+        "modules/graph-gl/api-reference/edge-style-flow"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Layouts",
+      "items": [
+        "modules/graph-gl/api-reference/simple-layout",
+        "modules/graph-gl/api-reference/d3-layout"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Core Data Structures",
+      "items": [
+        "modules/graph-gl/api-reference/graph",
+        "modules/graph-gl/api-reference/node",
+        "modules/graph-gl/api-reference/edge"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Advanced",
+      "items": [
+        "modules/graph-gl/advanced/custom-layout",
+        "modules/graph-gl/advanced/gallery"
+      ]
+    }
+  ]
+}
