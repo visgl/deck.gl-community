@@ -1,0 +1,7 @@
+{
+  "type": "category",
+  "label": "deck.gl-bing-maps",
+  "items": [
+    "modules/bing-maps/README"
+  ]
+}
