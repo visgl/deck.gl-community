@@ -12,15 +12,14 @@ test.onFailure(() => {
 });
 
 // tap-browser-color alternative
-// enableDOMLogging({
-//   getStyle: (message) => ({
-//     background: failed ? '#F28E82' : '#8ECA6C',
-//     position: 'absolute',
-//     top: '500px',
-//     width: '100%'
-//   })
-// });
+enableDOMLogging({
+  getStyle: (message) => ({
+    background: failed ? '#F28E82' : '#8ECA6C',
+    position: 'absolute',
+    top: '500px',
+    width: '100%'
+  })
+});
 
-// require('./modules');
-// import '../modules/bing-maps/test';
-console.log('browser')
+import '../modules/bing-maps/test';
+// import './modules';

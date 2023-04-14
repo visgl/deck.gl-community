@@ -19,7 +19,7 @@
     "build": "ocular-clean && ocular-build && lerna run build",
     "lint": "ocular-lint",
     "cover": "ocular-test cover",
-    "publish": "ocular-publish",
+    "publish": "# ocular-publish",
     "test": "ocular-test",
     "test-fast": "ocular-test fast",
     "metrics": "ocular-metrics"
@@ -32,10 +32,9 @@
     "coveralls": "^3.1.1",
     "eslint-config-prettier": "^8.6.0",
     "eslint-plugin-import": "^2.27.5",
-    "ocular-dev-tools": "^2.0.0-alpha.8",
+    "ocular-dev-tools": "^2.0.0-alpha.10",
     "pre-commit": "^1.2.2",
-    "pre-push": "^0.1.4",
-    "reify": "^0.20.12"
+    "pre-push": "^0.1.4"
   },
   "pre-commit": [
     "test-fast"
