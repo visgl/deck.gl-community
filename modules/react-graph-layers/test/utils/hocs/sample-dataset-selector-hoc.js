@@ -3,7 +3,7 @@ import React from 'react';
 import {select} from '@storybook/addon-knobs';
 import SAMPLE_GRAPH_DATASETS from '../data/sample-datasets';
 
-import {JSONLoader} from '@deck.gl-community/graph-gl';
+import {JSONLoader} from '@deck.gl-community/graph-layers';
 
 const defaultLoader = (data) => JSONLoader({json: data});
 const SampleDatasetSelectorHOC = (WrappedComponent, loader = defaultLoader) => {

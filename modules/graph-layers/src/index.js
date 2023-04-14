@@ -1,4 +1,4 @@
-// react-graph-gl core
+// react-graph-layers core
 export {default as GraphEngine} from './core/graph-engine';
 export {default as Graph} from './core/graph';
 export {default as Node} from './core/node';
@@ -12,17 +12,17 @@ export {
   MARKER_TYPE
 } from './core/constants';
 
-// react-graph-gl layouts
+// react-graph-layers layouts
 export {default as BaseLayout} from './core/base-layout';
 export {default as D3ForceLayout} from './layouts/d3-force/index';
 export {default as SimpleLayout} from './layouts/simple-layout/index';
 
-// react-graph-gl loaders
+// react-graph-layers loaders
 export {default as JSONLoader} from './loaders/json-loader';
 export {basicNodeParser} from './loaders/node-parsers';
 export {basicEdgeParser} from './loaders/edge-parsers';
 
-// react-graph-gl utils
+// react-graph-layers utils
 export {default as createGraph} from './utils/create-graph';
 export * from './utils/layer-utils';
 export * from './utils/log';

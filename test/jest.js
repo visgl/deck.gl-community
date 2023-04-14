@@ -1,3 +1,3 @@
 import {runCLI} from 'jest';
 
-runCLI([], ['./modules/graph-gl', './modules/react-graph-gl']);
+runCLI([], ['./modules/graph-layers', './modules/react-graph-layers']);

@@ -8,8 +8,8 @@ PRs and bug reports are welcome, and we are actively looking for new maintainers
 
 The **master** branch is the active development branch.
 
-Building <project> locally from the source requires node.js `>=10`.
-We use [yarn](https://yarnpkg.com/en/docs/install) to manage the dependencies.
+Building <project> locally from the source requires Node.js `>=16`.
+We use [yarn](https://yarnpkg.com/en/docs/install) to manage the dependencies. (currently yarn 1.x)
 
 ```bash
 git checkout master

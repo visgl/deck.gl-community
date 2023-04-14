@@ -10,7 +10,7 @@
  */
 
  const bingMapsDocs = require('../../docs/modules/bing-maps/table-of-contents.json');
- const graphGLDocs = require('../../docs/modules/graph-gl/table-of-contents.json');
+ const graphGLDocs = require('../../docs/modules/graph-layers/table-of-contents.json');
 
  
  const sidebars = {

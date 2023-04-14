@@ -5,7 +5,7 @@ import {OrthographicView} from '@deck.gl/core';
 import {extent} from 'd3-array';
 import ViewControl from './components/view-control.jsx';
 
-import {Graph, log, SimpleLayout} from '@deck.gl-community/graph-gl';
+import {Graph, log, SimpleLayout} from '@deck.gl-community/graph-layers';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view

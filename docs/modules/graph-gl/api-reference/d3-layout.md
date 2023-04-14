@@ -5,11 +5,11 @@
 </p>
 
 
-This layout is an integration between [d3-force](https://github.com/d3/d3-force) and react-graph-gl to render the layout in a WebGL context.
+This layout is an integration between [d3-force](https://github.com/d3/d3-force) and react-graph-layers to render the layout in a WebGL context.
 
 ## Configurations
 
-You can set the custom configuration to the d3-force layout directed by passing a configuration object when instnatiating the layout object for GraphGL.
+You can set the custom configuration to the d3-force layout directed by passing a configuration object when instantiating the layout object for GraphGL.
 
 ```js
 <GraphGL

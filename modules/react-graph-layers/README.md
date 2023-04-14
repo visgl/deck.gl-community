@@ -2,15 +2,15 @@
   <img src="https://i.imgur.com/BF9aOEu.png" height="400" />
 </p>
 
-# react-graph-gl
+# react-graph-layers
 
 ## Abstract
-react-graph-gl is a React component for visualizing large graphs with several utility functions. It can build a highly customizable graph visualization through its composable API. The rendering is powered by deck.gl which is a WebGL based visualization framework.  With react-graph-gl, users are enabled to build various type of graph/network applications with minimum efforts while having the capability to extend the existing styles and layouts.
+react-graph-layers is a React component for visualizing large graphs with several utility functions. It can build a highly customizable graph visualization through its composable API. The rendering is powered by deck.gl which is a WebGL based visualization framework.  With react-graph-layers, users are enabled to build various type of graph/network applications with minimum efforts while having the capability to extend the existing styles and layouts.
 
 ## Motivation
 Uber originally started this project as Graph.gl. After stopping efforts on Graph.gl, the OpenJS Foundation has resumed efforts.
 
-With react-graph-gl, developers are allowed to create graph visualization with minimum efforts while having the capability to override anything they want in the library.
+With react-graph-layers, developers are allowed to create graph visualization with minimum efforts while having the capability to override anything they want in the library.
 
 ## Roadmap
 
@@ -22,7 +22,7 @@ import GraphGL, {
   JSONLoader,
   NODE_TYPE,
   D3ForceLayout
-} from 'react-graph-gl';
+} from '@deck.gl-community/react-graph-layers';
 
 const App = ({data}) => {
   const graph = JSONLoader({
@@ -63,7 +63,7 @@ const App = ({data}) => {
 #### Clone the repo:
 
 ```
-git clone git@github.com:visgl/react-graph-gl.git
+git clone git@github.com:deck.gl-community/react-graph-layers.git
 ```
 
 #### Install yarn
@@ -81,15 +81,12 @@ yarn install
 
 #### Local Development
 
-FIXME: storybook setup is currently broken and will be restored soon.
-
-You can write a story and open it in the storybook:
+You can write a story and open it in the docusaurus (using yarn 1.x):
 ```
-yarn storybook
+cd website
+yarn
+yarn start
 ```
-Please create a new story in stories.js in one of the existing folder or make new folder if necessary.
-Each folder should have a readme file to explain what your story does.
-
 
 #### Testing
 
@@ -108,7 +105,9 @@ yarn cover
 You can add your documentation (markdown) in `docs/` folder and the new chapter in `docs/table-of-contents.json`.
 Open the local website:
 ```
-yarn website
+cd website
+yarn
+yarn start
 ```
 
 #### Contributing

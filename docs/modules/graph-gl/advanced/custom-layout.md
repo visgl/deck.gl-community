@@ -2,7 +2,7 @@
 
 Here's the method you will likely to implement when creating your own custom layout:
 ```js
-import {BaseLayout} from 'react-graph-gl';
+import {BaseLayout} from 'react-graph-layers';
 
 export default class MyLayout extends BaseLayout {
   // initialize the layout
@@ -159,7 +159,7 @@ GraphGL will keep retrieving the position of nodes and edges from the layout. Yo
 ### Full source code
 
 ```js
-import {BaseLayout} from 'react-graph-gl';
+import {BaseLayout} from 'react-graph-layers';
 
 export default class RandomLayout extends BaseLayout {
   constructor(options) {

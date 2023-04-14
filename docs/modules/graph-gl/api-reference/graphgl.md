@@ -11,7 +11,7 @@ import GraphGL, {
   JSONLoader,
   NODE_TYPE,
   D3ForceLayout
-} from 'react-graph-gl';
+} from 'react-graph-layers';
 
 const App = ({data}) => {
   const graph = JSONLoader({
@@ -63,12 +63,12 @@ const data = {
 
 Then, you can convert the data into `Graph` by `JSONLoader`:
 ```js
-import {JSONLoader} from 'react-graph-gl';
+import {JSONLoader} from 'react-graph-layers';
 const graph = JSONLoader({json: data});
 ```
 
 ### `layout` (Layout, required)
-Use one of the layouts provided by react-graph-gl or create a new custom layout class by following the [instruction](/docs/advanced/custom-layout). For more detail, please see the [Layout](/docs/api-reference/layout) section.
+Use one of the layouts provided by react-graph-layers or create a new custom layout class by following the [instruction](/docs/advanced/custom-layout). For more detail, please see the [Layout](/docs/api-reference/layout) section.
 
 ### `initialViewState` (Object, optional)
 For more detail, please see [here](/docs/api-reference/viewport).
@@ -76,17 +76,17 @@ For more detail, please see [here](/docs/api-reference/viewport).
 ### `nodeStyle` (Array, required)
 
 A node is made of a set of layers. nodeStyle is a set of style objects to describe the style for each layer.
-For more detail, please see the explanation of nodeStyle at [here](docs/api-reference/node-style).
+For more detail, please see the (explanation of nodeStyle](docs/api-reference/node-style).
 
 ### `nodeEvents` (Object, optional)
-For more detail, please see [here](/docs/api-reference/interactions).
+For more detail, please see [the interactions reference](/docs/api-reference/interactions).
 
 ### `edgeStyle`  (Object, required)
 
-For more detail, please see the explanation of edgeStyle at [here](docs/api-reference/edge-style)
+For more detail, please see the explanation of [edgeStyle](docs/api-reference/edge-style)
 
 ### `edgeEvents` (Object, optional)
-For more detail, please see [here](docs/api-reference/interactions).
+For more detail, please see [api-reference interactions](docs/api-reference/interactions).
 
 ### Source
-[src/graphgl.js](TBD/master/src/graphgl.js)
+[src/graphgl.js](https://github.com/deck.gl-community/master/src/modules/graph-layers/graphgl.js)
