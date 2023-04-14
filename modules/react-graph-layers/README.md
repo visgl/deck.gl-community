@@ -22,7 +22,7 @@ import GraphGL, {
   JSONLoader,
   NODE_TYPE,
   D3ForceLayout
-} from '@deck.gl-community/react-graph-layers';
+} from 'react-deck-graph-layers';
 
 const App = ({data}) => {
   const graph = JSONLoader({

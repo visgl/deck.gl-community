@@ -1,6 +1,6 @@
 {
   "type": "category",
-  "label": "@deck.gl-community/graph-layers",
+  "label": "deck-graph-layers",
   "items": [
     "modules/graph-layers/README",
     "modules/graph-layers/version-policy",

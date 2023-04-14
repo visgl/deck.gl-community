@@ -2,6 +2,6 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "deck.gl": "^@deck.gl-community/react-graph-gl"
+    "deck.gl": "^react-deck-graph-gl"
   }
 }
