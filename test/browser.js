@@ -1,6 +1,6 @@
 /* global window */
-const test = require('tape');
-const {_enableDOMLogging: enableDOMLogging} = require('@probe.gl/test-utils');
+import test from 'tape';
+import {_enableDOMLogging as enableDOMLogging} from '@probe.gl/test-utils';
 
 // require('@luma.gl/debug');
 
@@ -12,13 +12,15 @@ test.onFailure(() => {
 });
 
 // tap-browser-color alternative
-enableDOMLogging({
-  getStyle: (message) => ({
-    background: failed ? '#F28E82' : '#8ECA6C',
-    position: 'absolute',
-    top: '500px',
-    width: '100%'
-  })
-});
+// enableDOMLogging({
+//   getStyle: (message) => ({
+//     background: failed ? '#F28E82' : '#8ECA6C',
+//     position: 'absolute',
+//     top: '500px',
+//     width: '100%'
+//   })
+// });
 
 // require('./modules');
+// import '../modules/bing-maps/test';
+console.log('browser')

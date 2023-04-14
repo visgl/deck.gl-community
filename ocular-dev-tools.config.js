@@ -22,9 +22,9 @@ const config = {
   entry: {
     test: 'test/node.cjs',
     'test-browser': 'test/browser.js',
-    bench: 'test/bench/node.js',
-    'bench-browser': 'test/bench/browser.js',
-    size: 'test/size/submodule.js'
+    bench: 'test/bench/node.ts',
+    'bench-browser': 'test/bench/browser.ts',
+    size: 'test/size/submodule.ts'
   }
 };
 
