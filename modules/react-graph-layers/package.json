@@ -1,6 +1,6 @@
 {
   "name": "react-deck-graph-layers",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "WebGL2-Powered React Components for Graph Visualization",
   "keywords": [
     "graph",
@@ -18,7 +18,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "deck-graph-layers": "^1.0.0",
+    "deck-graph-layers": "^0.0.0",
     "@deck.gl/core": "^8.8.26",
     "@deck.gl/react": "^8.8.26",
     "d3": "^7.8.2",
