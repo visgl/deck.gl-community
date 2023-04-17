@@ -1,6 +1,6 @@
 {
   "name": "react-deck-graph-layers",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "WebGL2-Powered React Components for Graph Visualization",
   "keywords": [
     "graph",
@@ -10,15 +10,27 @@
     "deck.gl",
     "react"
   ],
-  "main": "dist/index.js",
-  "module": "dist/index.js",
+  "main": "./dist-node-cjs/index.js",
+  "module": "./dist-node-esm/index.js",
+  "browser": {
+    "./dist-node-cjs/index.js": "./dist-browser-cjs/index.js",
+    "./dist-node-esm/index.js": "./dist-browser-esm/index.js"
+  },
+  "es2015": {
+    "./dist/browser.es5.es.js": "./dist-browser-es2015/index.js"
+  },
+  "es2017": {
+    "./dist/browser.es5.es.js": "./dist-browser-es2017/index.js",
+    "./dist/browser.es2015.es.js": "./dist-browser-es2017/index.js"
+  },
   "files": [
     "dist",
     "src"
   ],
   "license": "MIT",
   "dependencies": {
-    "deck-graph-layers": "^0.0.0",
+    "@deck.gl/react": "^8.8.26",
+    "deck-graph-layers": "^0.0.2",
     "@deck.gl/core": "^8.8.26",
     "@deck.gl/react": "^8.8.26",
     "d3": "^7.8.2",
@@ -39,5 +51,9 @@
     "jest": "^29.2.2",
     "jest-environment-jsdom": "^29.3.0",
     "ngraph.generators": "^20.1.0"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   }
 }

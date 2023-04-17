@@ -1,6 +1,6 @@
 {
   "name": "deck-graph-layers",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "WebGL2-Powered library for Graph Visualization",
   "keywords": [
     "graph",
@@ -9,8 +9,19 @@
     "gpu",
     "deck.gl"
   ],
-  "main": "dist/index.js",
-  "module": "dist/index.js",
+  "main": "./dist-node-cjs/index.js",
+  "module": "./dist-node-esm/index.js",
+  "browser": {
+    "./dist-node-cjs/index.js": "./dist-browser-cjs/index.js",
+    "./dist-node-esm/index.js": "./dist-browser-esm/index.js"
+  },
+  "es2015": {
+    "./dist/browser.es5.es.js": "./dist-browser-es2015/index.js"
+  },
+  "es2017": {
+    "./dist/browser.es5.es.js": "./dist-browser-es2017/index.js",
+    "./dist/browser.es2015.es.js": "./dist-browser-es2017/index.js"
+  },
   "files": [
     "dist",
     "src"
@@ -31,7 +42,9 @@
     "global": "^4.4.0",
     "lodash.isequal": "^4.5.0",
     "lodash.pick": "^4.4.0",
-    "probe.gl": "^3.6.0"
+    "probe.gl": "^3.6.0",
+    "raf": "^3.4.1",
+    "styled-components": "^5.3.6"
   },
   "devDependencies": {
     "@babel/preset-flow": "^7.18.6",
