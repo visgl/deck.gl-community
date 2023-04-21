@@ -10,7 +10,7 @@
     "type": "git",
     "url": ""
   },
-  "type": "module",
+  "type": "commonjs",
   "workspaces": [
     "modules/*"
   ],

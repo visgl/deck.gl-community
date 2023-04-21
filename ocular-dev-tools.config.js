@@ -1,4 +1,4 @@
-const config = {
+module.exports = {
   lint: {
     paths: ['docs', 'modules', 'examples', 'test'],
     extensions: ['js', 'jsx']
@@ -28,4 +28,3 @@ const config = {
   }
 };
 
-export default config;
