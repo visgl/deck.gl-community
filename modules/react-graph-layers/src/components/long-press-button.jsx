@@ -10,14 +10,14 @@ export default class LongPressButton extends PureComponent {
   // repeat onClick when long press
   _repeat = () => {
     this.props.onClick();
-    this.buttonPressTimer = setTimeout(this._repeat, 100);
+    this.buttonPressTimer = (window ?? global).setTimeout(this._repeat, 100);
   };
 
   // onMouseDown
   _handleButtonPress = () => this._repeat();
 
   // onMouseUp
-  _handleButtonRel1ease = () => clearTimeout(this.buttonPressTimer);
+  _handleButtonRel1ease = () => (window ?? global).clearTimeout(this.buttonPressTimer);
 
   render() {
     return (
