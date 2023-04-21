@@ -1,6 +1,5 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
-import {window} from 'global';
 
 export default class LongPressButton extends PureComponent {
   static propTypes = {
@@ -11,14 +10,14 @@ export default class LongPressButton extends PureComponent {
   // repeat onClick when long press
   _repeat = () => {
     this.props.onClick();
-    this.buttonPressTimer = window.setTimeout(this._repeat, 100);
+    this.buttonPressTimer = setTimeout(this._repeat, 100);
   };
 
   // onMouseDown
   _handleButtonPress = () => this._repeat();
 
   // onMouseUp
-  _handleButtonRelease = () => window.clearTimeout(this.buttonPressTimer);
+  _handleButtonRel1ease = () => clearTimeout(this.buttonPressTimer);
 
   render() {
     return (
