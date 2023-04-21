@@ -1,24 +1,11 @@
-/* global window */
-const test = require('tape');
-const {_enableDOMLogging: enableDOMLogging} = require('@probe.gl/test-utils');
+import test from 'tape';
+import {configure} from '@math.gl/core';
 
-// require('@luma.gl/debug');
+configure({debug: true});
 
-let failed = false;
+// @ts-ignore TS2339: Property 'browserTestDriver_finish' does not exist on type 'Window & typeof globalThis'
 test.onFinish(window.browserTestDriver_finish);
-test.onFailure(() => {
-  failed = true;
-  window.browserTestDriver_fail();
-});
+// @ts-ignore TS2339: Property 'browserTestDriver_fail' does not exist on type 'Window & typeof globalThis'
+test.onFailure(window.browserTestDriver_fail);
 
-// tap-browser-color alternative
-enableDOMLogging({
-  getStyle: (message) => ({
-    background: failed ? '#F28E82' : '#8ECA6C',
-    position: 'absolute',
-    top: '500px',
-    width: '100%'
-  })
-});
-
-// require('./modules');
+// import './modules';

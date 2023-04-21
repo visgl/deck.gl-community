@@ -7,20 +7,20 @@
  * ```
  */
 
-var INPUT_DIR = process.argv[2];
-var OUTPUT_IMAGE = process.argv[3] + 'marker-atlas.png';
-var OUTPUT_MAPPING = process.argv[3] + 'marker-mapping.js';
-var OUTPUT_DATA_URL = process.argv[3] + 'atlas-data-url.js';
-var OUTPUT_LIST = process.argv[3] + 'marker-list.js';
-var IMAGE_PATTERN = /\.(png|jpg|jpeg|gif|bmp|tiff)$/i;
+const INPUT_DIR = process.argv[2];
+const OUTPUT_IMAGE = `${process.argv[3]}marker-atlas.png`;
+const OUTPUT_MAPPING = `${process.argv[3]}marker-mapping.js`;
+const OUTPUT_DATA_URL = `${process.argv[3]}atlas-data-url.js`;
+const OUTPUT_LIST = `${process.argv[3]}marker-list.js`;
+const IMAGE_PATTERN = /\.(png|jpg|jpeg|gif|bmp|tiff)$/i;
 
-var fs = require('fs'),
-  path = require('path'),
-  ndarray = require('ndarray'),
-  savePixels = require('save-pixels'),
-  getPixels = require('get-pixels'),
-  pack = require('bin-pack'),
-  Datauri = require('datauri');
+const fs = require('fs');
+const path = require('path');
+const ndarray = require('ndarray');
+const savePixels = require('save-pixels');
+const getPixels = require('get-pixels');
+const pack = require('bin-pack');
+const Datauri = require('datauri');
 
 // Get all images in the input path
 const fileNames = fs.readdirSync(INPUT_DIR).filter((name) => IMAGE_PATTERN.test(name));
@@ -61,9 +61,9 @@ Promise.all(fileNames.map((name) => readImage(path.resolve(INPUT_DIR, name)))).t
 /* Utils */
 
 function copyPixels(fromImage, toImage, x, y) {
-  const width = fromImage.shape[0],
-    height = fromImage.shape[1],
-    channels = fromImage.shape[2];
+  const width = fromImage.shape[0];
+  const height = fromImage.shape[1];
+  const channels = fromImage.shape[2];
 
   for (let i = 0; i < width; i++) {
     for (let j = 0; j < height; j++) {

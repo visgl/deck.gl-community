@@ -1,4 +1,3 @@
-/* global document, process */
 import {loadModule} from 'deck.gl-bing-maps';
 import {GeoJsonLayer, ArcLayer} from 'deck.gl';
 

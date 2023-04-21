@@ -1,8 +1,8 @@
 const genAllPairs = (s) => {
   const length = s.length;
   const pairs = [];
-  for (var i = 0; i < length - 1; i += 1) {
-    for (var j = i + 1; j < length; j += 1) {
+  for (let i = 0; i < length - 1; i += 1) {
+    for (let j = i + 1; j < length; j += 1) {
       pairs.push([s[i], s[j]]);
     }
   }

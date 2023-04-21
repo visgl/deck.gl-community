@@ -5,7 +5,7 @@ import {OrthographicView} from '@deck.gl/core';
 import {extent} from 'd3-array';
 import ViewControl from './components/view-control.jsx';
 
-import {Graph, log, SimpleLayout} from 'deck-graph-layers';
+import {Graph, log, SimpleLayout, BaseLayout, GraphEngine, GraphLayer} from 'deck-graph-layers';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view
@@ -65,11 +65,11 @@ const GraphGl = ({
 }) => {
   if (!(graph instanceof Graph)) {
     log.error('Invalid graph data class')();
-    return;
+    return null;
   }
   if (!(layout instanceof BaseLayout)) {
     log.error('Invalid layout class')();
-    return;
+    return null;
   }
 
   const [viewState, setViewState] = useState({
@@ -84,7 +84,10 @@ const GraphGl = ({
     engine.run(graph, layout);
   }, [graph, layout]);
 
-  const onViewStateChange = useCallback(({viewState}) => setViewState(viewState), [setViewState]);
+  const onViewStateChange = useCallback(
+    ({viewState: nextViewState}) => setViewState(nextViewState),
+    [setViewState]
+  );
 
   const onResize = useCallback(
     ({width, height}) =>

@@ -10,7 +10,7 @@
     "type": "git",
     "url": ""
   },
-  "type": "commonjs",
+  "type": "module",
   "workspaces": [
     "modules/*"
   ],
@@ -21,22 +21,16 @@
     "cover": "ocular-test cover",
     "prepublishOnly": "ocular-build && node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', {encoding: 'utf8'})); delete pkg.engines; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); console.log(pkg)\"",
     "publish": "ocular-publish",
-    "test": "ocular-test fast",
+    "test": "ocular-test",
     "test-fast": "ocular-test fast",
     "metrics": "ocular-metrics"
   },
   "devDependencies": {
-    "@babel/preset-react": "^7.18.6",
     "@probe.gl/test-utils": "^4.0.1",
-    "@babel/eslint-parser": "^7.19.1",
     "babel-loader": "^9.1.2",
-    "coveralls": "^3.1.1",
-    "eslint-config-prettier": "^8.6.0",
-    "eslint-plugin-import": "^2.27.5",
-    "ocular-dev-tools": "^2.0.0-alpha.8",
+    "ocular-dev-tools": "^2.0.0-alpha.11",
     "pre-commit": "^1.2.2",
-    "pre-push": "^0.1.4",
-    "reify": "^0.20.12"
+    "pre-push": "^0.1.4"
   },
   "pre-commit": [
     "test-fast"

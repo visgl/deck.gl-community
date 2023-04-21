@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {cleanup, fireEvent, render} from '@testing-library/react';
-import LongPressButton from '../../components/long-press-button.jsx';
+import LongPressButton from '../src/components/long-press-button.jsx';
 
 // NOTE: this line is important! It will clean up the jsdom properly.
 afterEach(cleanup);

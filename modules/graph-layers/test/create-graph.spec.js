@@ -1,5 +1,5 @@
 import SAMPLE_GRAPH from './__fixtures__/graph';
-import createGraph from '../create-graph';
+import createGraph from '../src/utils/create-graph';
 
 describe('util/create-graph', () => {
   it('test createGraph with custom parsers', () => {

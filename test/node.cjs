@@ -1,3 +1,0 @@
-require('reify');
-
-require('./modules');

@@ -1,4 +1,3 @@
-/* global document, window */
 import getDeckOverlay from './deck-overlay';
 
 const BING_MAPS_API_URL = 'https://www.bing.com/api/maps/mapcontrol?callback=__loadBingMaps';

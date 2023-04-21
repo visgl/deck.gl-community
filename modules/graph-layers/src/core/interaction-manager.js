@@ -91,7 +91,7 @@ export default class InteractionManager {
     if (!(lastHoveredNode.isSelectable() && lastHoveredNode.getState() === NODE_STATE.SELECTED)) {
       // reset the last hovered node's state
       const newState =
-        this._lastSelectedNode != null && this._lastSelectedNode.id === this._lastHoveredNode?.id
+        this._lastSelectedNode !== null && this._lastSelectedNode.id === this._lastHoveredNode?.id
           ? NODE_STATE.SELECTED
           : NODE_STATE.DEFAULT;
       setNodeState(this._lastHoveredNode, newState);

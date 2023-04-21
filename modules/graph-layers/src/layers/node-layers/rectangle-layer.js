@@ -1,5 +1,5 @@
 import {CompositeLayer} from '@deck.gl/core';
-import {PolygonLayer, SolidPolygonLayer} from '@deck.gl/layers';
+import {PolygonLayer} from '@deck.gl/layers';
 
 const generateRectangle = (node, {getWidth, getHeight, getPosition}) => {
   const pos = getPosition(node);

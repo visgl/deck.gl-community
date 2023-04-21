@@ -32,6 +32,7 @@ const defaultProps = {
   getSpeed: {type: 'accessor', value: 0}
 };
 
+/* eslint-disable camelcase */
 export default class FlowPathLayer extends LineLayer {
   getShaders() {
     const projectModule = this.use64bitProjection() ? 'project64' : 'project32';

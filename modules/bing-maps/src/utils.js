@@ -1,4 +1,3 @@
-/* global document */
 import {Deck, MapView} from '@deck.gl/core';
 
 export function createContainer(style) {

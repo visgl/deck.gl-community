@@ -128,15 +128,15 @@ function generateAccessor(key, value) {
   const formatter = PROPERTY_FORMATTERS[key] || IDENTITY;
   // ex: key = 'fill', value = {defaut: 'red', hover: 'blue'}
   // valueMap => {defaut: [255, 0, 0], hover: [0, 0, 255]}
-  const valueMap = Object.keys(value).reduce((res, key) => {
-    res[key] = value[key];
+  const valueMap = Object.keys(value).reduce((res, key0) => {
+    res[key0] = value[key0];
     return res;
   }, {});
 
   return (node) => {
     const statefulValue = valueMap[node.state];
     if (!node.state || typeof statefulValue === 'undefined') {
-      return valueMap['default'] || DEFAULT_STYLES[key];
+      return valueMap.default || DEFAULT_STYLES[key];
     }
     // else has stateful value
     // check if the value is a function

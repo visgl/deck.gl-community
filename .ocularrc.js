@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   lint: {
     paths: ['docs', 'modules', 'examples', 'test'],
     extensions: ['js', 'jsx']
@@ -20,11 +20,12 @@ module.exports = {
   },
 
   entry: {
-    test: 'test/node.cjs',
+    test: 'test/node.js',
     'test-browser': 'test/browser.js',
     bench: 'test/bench/node.js',
     'bench-browser': 'test/bench/browser.js',
-    size: 'test/size/submodule.js'
+    size: [
+      'test/size/graph-layers.js'
+    ]
   }
 };
-

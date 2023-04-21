@@ -10,19 +10,9 @@
     "deck.gl",
     "react"
   ],
-  "main": "./dist-node-cjs/index.js",
-  "module": "./dist-node-esm/index.js",
-  "browser": {
-    "./dist-node-cjs/index.js": "./dist-browser-cjs/index.js",
-    "./dist-node-esm/index.js": "./dist-browser-esm/index.js"
-  },
-  "es2015": {
-    "./dist/browser.es5.es.js": "./dist-browser-es2015/index.js"
-  },
-  "es2017": {
-    "./dist/browser.es5.es.js": "./dist-browser-es2017/index.js",
-    "./dist/browser.es2015.es.js": "./dist-browser-es2017/index.js"
-  },
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "files": [
     "dist",
     "src"
