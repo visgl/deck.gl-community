@@ -1,6 +1,6 @@
 {
   "name": "deck-graph-layers",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "WebGL2-Powered library for Graph Visualization",
   "keywords": [
     "graph",
@@ -18,8 +18,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deck.gl/core": "^8.8.26",
-    "@deck.gl/layers": "^8.8.26",
+    "@deck.gl/core": "~8.8.26",
+    "@deck.gl/layers": "~8.8.26",
     "@luma.gl/core": "^8.5.18",
     "cardinal-spline-js": "^2.3.10",
     "color": "^4.2.3",

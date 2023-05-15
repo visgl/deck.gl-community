@@ -22,7 +22,6 @@
     "src"
   ],
   "sideEffects": false,
-  "scripts": {},
   "dependencies": {
     "@deck.gl/core": "^8.8.26"
   }
