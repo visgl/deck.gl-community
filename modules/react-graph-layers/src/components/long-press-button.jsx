@@ -18,7 +18,7 @@ export default class LongPressButton extends PureComponent {
   _handleButtonPress = () => this._repeat();
 
   // onMouseUp
-  _handleButtonRel1ease = () => (window ?? global).clearTimeout(this.buttonPressTimer);
+  _handleButtonRelease = () => (window ?? global).clearTimeout(this.buttonPressTimer);
 
   render() {
     return (
