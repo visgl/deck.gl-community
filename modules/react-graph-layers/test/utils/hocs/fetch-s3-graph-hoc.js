@@ -16,6 +16,7 @@ const FetchS3GraphHOC = (url, graphLoader = defaultLoader) => {
       };
 
       componentDidMount() {
+        // eslint-disable-next-line react/no-did-mount-set-state
         this.setState({
           loading: true,
           success: false,
