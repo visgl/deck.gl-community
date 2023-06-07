@@ -22,6 +22,11 @@ module.exports = getESLintConfig({
         }
       }
     ],
+    parserOptions: {
+      babelOptions: {
+        "presets": ["@babel/preset-react"]
+      }
+    },
     rules: {
       // custom rules
     }
