@@ -2,6 +2,7 @@ import {ScatterplotLayer} from '@deck.gl/layers';
 import customFragmentShader from './rounded-rectangle-layer-fragment';
 
 export default class RoundedRectangleLayer extends ScatterplotLayer {
+  static layerName = 'RoundedRectangleLayer';
   draw({uniforms}) {
     super.draw({
       uniforms: {
