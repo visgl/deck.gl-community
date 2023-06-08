@@ -14,7 +14,7 @@ const EDGE_LAYER_MAP = {
 export default class EdgeLayer extends CompositeLayer {
   static layerName = 'EdgeLayer';
 
-  static defautlProps = {
+  static defaultProps = {
     data: [],
     pickable: true,
     getLayoutInfo: (d) => ({

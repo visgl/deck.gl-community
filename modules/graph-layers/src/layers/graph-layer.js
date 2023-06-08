@@ -64,7 +64,7 @@ const SHARED_LAYER_PROPS = {
 };
 
 export default class GraphLayer extends CompositeLayer {
-  static defautlProps = {
+  static defaultProps = {
     pickable: true
   };
 
