@@ -35,11 +35,13 @@ import ImageLayer from './node-layers/image-layer';
 import NodeLabelLayer from './node-layers/label-layer';
 import RectangleLayer from './node-layers/rectangle-layer';
 import RoundedRectangleLayer from './node-layers/rounded-rectangle-layer.js';
+import PathBasedRoundedRectangleLayer from './node-layers/path-rounded-rectange-layer';
 import ZoomableMarkerLayer from './node-layers/zoomable-marker-layer';
 
 const NODE_LAYER_MAP = {
   [NODE_TYPE.RECTANGLE]: RectangleLayer,
   [NODE_TYPE.ROUNDED_RECTANGLE]: RoundedRectangleLayer,
+  [NODE_TYPE.PATH_ROUNDED_RECTANGLE]: PathBasedRoundedRectangleLayer,
   [NODE_TYPE.ICON]: ImageLayer,
   [NODE_TYPE.CIRCLE]: CircleLayer,
   [NODE_TYPE.LABEL]: NodeLabelLayer,
