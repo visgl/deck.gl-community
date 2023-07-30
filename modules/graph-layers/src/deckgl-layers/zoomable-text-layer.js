@@ -43,7 +43,11 @@ export default class ZoomableTextLayer extends CompositeLayer {
       getAlignmentBaseline,
       getAngle,
       scaleWithZoom,
-      updateTriggers
+      updateTriggers,
+      fontFamily,
+      textWordUnits,
+      textWordBreak,
+      textMaxWidth
     } = this.props;
 
     const sizeUpdateTrigger = scaleWithZoom ? [getSize, this.context.viewport.zoom] : false;
@@ -64,6 +68,11 @@ export default class ZoomableTextLayer extends CompositeLayer {
           getAlignmentBaseline,
           getAngle,
           getText: newGetText,
+          maxWidth: textMaxWidth ?? 12,
+          wordBreak: textWordBreak ?? 'break-all',
+          fontFamily: fontFamily ?? 'Red Hat Text',
+          wordUnits: textWordUnits ?? 'pixels',
+          sizeMinPixels: 9,
           updateTriggers: {
             getSize: sizeUpdateTrigger,
             getAngle: [sizeUpdateTrigger, updateTriggers.getPosition],

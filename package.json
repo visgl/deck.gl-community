@@ -33,6 +33,8 @@
     "reify": "^0.20.12"
   },
   "dependencies": {
-    "esbuild": "^0.17.19"
-  }
+    "esbuild": "^0.17.19",
+    "lerna": "^7.1.1"
+  },
+  "packageManager": "yarn@4.0.0-rc.48"
 }

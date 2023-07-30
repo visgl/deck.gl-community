@@ -3,7 +3,7 @@ import {PolygonLayer} from '@deck.gl/layers';
 
 const generateRectangle = (node, {getWidth, getHeight, getPosition}) => {
   const pos = getPosition(node);
-  const width = typeof getWidth === 'function' ? getWidth(node) : getWidth;
+  const width = typeof getWidth === 'function' ? getWidth(node._data.label.length * 12) : getWidth;
   const height = typeof getWidth === 'function' ? getHeight(node) : getHeight;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
