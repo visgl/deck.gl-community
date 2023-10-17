@@ -85,6 +85,7 @@ const PROPERTY_FORMATTERS = {
   textAnchor: String,
   alignmentBaseline: String,
   angle: getNumber,
+  textSizeMinPixels: getNumber,
 
   // edges
   speed: getNumber,
@@ -115,6 +116,7 @@ const DEFAULT_STYLES = {
   textAnchor: 'middle',
   alignmentBaseline: 'center',
   angle: 0,
+  textSizeMinPixels: 9,
 
   speed: 0,
   tailLength: 1,
