@@ -1,41 +1,48 @@
-import {forceLink, forceSimulation, forceManyBody, forceCenter, forceCollide} from 'd3-force';
+importScripts('https://d3js.org/d3-collection.v1.min.js');
+importScripts('https://d3js.org/d3-dispatch.v1.min.js');
+importScripts('https://d3js.org/d3-quadtree.v1.min.js');
+importScripts('https://d3js.org/d3-timer.v1.min.js');
+importScripts('https://d3js.org/d3-force.v1.min.js');
 
-export default onmessage = function (event) {
-  const {nodes, edges} = event.d3Graph;
+onmessage = function (event) {
+  const {nodes, edges} = event.data;
+
   const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
-    event.options;
-  const simulation = forceSimulation(nodes)
+    event.data.options;
+  const simulation = d3
+    .forceSimulation(nodes)
     .force(
       'edge',
-      forceLink(edges).id((n) => n.id)
+      d3.forceLink(edges).id((n) => n.id)
     )
     .force(
       'charge',
-      forceManyBody()
+      d3
+        .forceManyBody()
         .strength(nBodyStrength)
         .distanceMin(nBodyDistanceMin)
         .distanceMax(nBodyDistanceMax)
     )
-    .force('center', forceCenter())
-    .force('collision', forceCollide().radius(getCollisionRadius))
+    .force('center', d3.forceCenter())
+    .force('collision', d3.forceCollide().radius(getCollisionRadius))
     .stop();
-
-  // var simulation = d3.forceSimulation(nodes)
-  //   .force("charge", d3.forceManyBody())
-  //   .force("link", d3.forceLink(links).distance(20).strength(1))
-  //   .force("x", d3.forceX())
-  //   .force("y", d3.forceY())
-  //   .stop();
-
   for (
     let i = 0,
       n = Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay()));
     i < n;
     ++i
   ) {
-    postMessage({type: 'tick', progress: i / n});
+    postMessage({
+      type: 'tick',
+      progress: i / n,
+      options: event.data.options
+    });
     simulation.tick();
   }
-
-  postMessage({type: 'end', nodes, edges});
+  postMessage({
+    type: 'end',
+    nodes,
+    edges,
+    options: event.data.options
+  });
 };

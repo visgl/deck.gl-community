@@ -4,7 +4,7 @@ import {forceLink, forceSimulation, forceManyBody, forceCenter, forceCollide} fr
 
 import {EDGE_TYPE} from '../../index';
 
-import worker from './worker.js';
+import {Graph} from 'deck-graph-layers';
 
 const defaultOptions = {
   alpha: 0.3,
@@ -46,7 +46,8 @@ export default class D3ForceLayout extends BaseLayout {
         y,
         fx: locked ? x : null,
         fy: locked ? y : null,
-        collisionRadius
+        collisionRadius,
+        locked
       };
       this._nodeMap[node.id] = d3Node;
       return d3Node;
@@ -98,36 +99,58 @@ export default class D3ForceLayout extends BaseLayout {
   }
 
   start() {
-    this._worker = new Worker(worker);
+    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
+      this._options;
     this._worker.postMessage({
       nodes: this._d3Graph.nodes,
-      edges: this._d3Graph.edges
+      edges: this._d3Graph.edges,
+      options: {
+        alpha,
+        nBodyStrength,
+        nBodyDistanceMin,
+        nBodyDistanceMax,
+        //FIXME can not clone functions into messages
+        getCollisionRadius: 60
+      }
     });
     this._worker.onmessage = (event) => {
       switch (event.data.type) {
         case 'tick':
-          return ticked(event.data);
+          return this.ticked(event.data);
         case 'end':
-          return ended(event.data);
+          return this.ended(event.data);
       }
     };
   }
-
-  ticked(data) {
-    // var progress = data.progress;
-    // meter.style.width = 100 * progress + "%";
-  }
-
+  ticked(data) {}
   ended(data) {
     const {nodes, edges} = data;
-
-    this.updateGraph({nodes, edges});
+    const newGraph = new Graph();
+    const existingNodes = this._graph.getNodes();
+    const existingEdges = this._graph.getEdges();
+    newGraph.batchAddNodes(
+      nodes.map((node) => {
+        const existingNode = existingNodes.find((n) => n.getId() === node.id);
+        existingNode.setDataProperty('locked', node.locked);
+        existingNode.setDataProperty('x', node.x);
+        existingNode.setDataProperty('y', node.y);
+        existingNode.setDataProperty('collisionRadius', node.collisionRadius);
+        return existingNode;
+      })
+    );
+    newGraph.batchAddEdges(
+      edges.map((edge) => {
+        return existingEdges.find((e) => e.getId() === edge.id);
+      })
+    );
+    this.updateGraph(newGraph);
+    this._callbacks.onLayoutChange();
+    this._callbacks.onLayoutDone();
   }
-
   resume() {
     this._worker.resume();
   }
-
   stop() {
     this._worker.stop();
   }
