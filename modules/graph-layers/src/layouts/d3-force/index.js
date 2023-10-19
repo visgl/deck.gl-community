@@ -4,6 +4,8 @@ import {forceLink, forceSimulation, forceManyBody, forceCenter, forceCollide} fr
 
 import {EDGE_TYPE} from '../../index';
 
+import worker from './worker.js';
+
 const defaultOptions = {
   alpha: 0.3,
   resumeAlpha: 0.1,
@@ -96,17 +98,38 @@ export default class D3ForceLayout extends BaseLayout {
   }
 
   start() {
-    this._generateSimulator();
-    this._simulator.restart();
+    this._worker = new Worker(worker);
+    this._worker.postMessage({
+      nodes: this._d3Graph.nodes,
+      edges: this._d3Graph.edges
+    });
+    this._worker.onmessage = (event) => {
+      switch (event.data.type) {
+        case 'tick':
+          return ticked(event.data);
+        case 'end':
+          return ended(event.data);
+      }
+    };
+  }
+
+  ticked(data) {
+    // var progress = data.progress;
+    // meter.style.width = 100 * progress + "%";
+  }
+
+  ended(data) {
+    const {nodes, edges} = data;
+
+    this.updateGraph({nodes, edges});
   }
 
   resume() {
-    const {resumeAlpha} = this._options;
-    this._simulator.alpha(resumeAlpha).restart();
+    this._worker.resume();
   }
 
   stop() {
-    this._simulator.stop();
+    this._worker.stop();
   }
 
   // for steaming new data on the same graph
