@@ -12,7 +12,7 @@ const defaultOptions = {
   nBodyStrength: -900,
   nBodyDistanceMin: 100,
   nBodyDistanceMax: 400,
-  getCollisionRadius: (d) => d.collisionRadius
+  getCollisionRadius: 0,
 };
 
 export default class D3ForceLayout extends BaseLayout {
@@ -110,8 +110,7 @@ export default class D3ForceLayout extends BaseLayout {
         nBodyStrength,
         nBodyDistanceMin,
         nBodyDistanceMax,
-        //FIXME can not clone functions into messages
-        getCollisionRadius: 60
+        getCollisionRadius,
       }
     });
     this._worker.onmessage = (event) => {
