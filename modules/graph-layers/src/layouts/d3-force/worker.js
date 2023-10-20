@@ -1,3 +1,5 @@
+/* global importScripts, d3*/
+
 importScripts('https://d3js.org/d3-collection.v1.min.js');
 importScripts('https://d3js.org/d3-dispatch.v1.min.js');
 importScripts('https://d3js.org/d3-quadtree.v1.min.js');
@@ -7,7 +9,7 @@ importScripts('https://d3js.org/d3-force.v1.min.js');
 onmessage = function (event) {
   const {nodes, edges} = event.data;
 
-  const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
+  const {nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
     event.data.options;
   const simulation = d3
     .forceSimulation(nodes)
