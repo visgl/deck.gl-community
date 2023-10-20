@@ -1,7 +1,5 @@
 import BaseLayout from '../../core/base-layout';
 
-import {forceLink, forceSimulation, forceManyBody, forceCenter, forceCollide} from 'd3-force';
-
 import {EDGE_TYPE} from '../../index';
 
 const defaultOptions = {
@@ -10,7 +8,7 @@ const defaultOptions = {
   nBodyStrength: -900,
   nBodyDistanceMin: 100,
   nBodyDistanceMax: 400,
-  getCollisionRadius: (d) => d.collisionRadius
+  getCollisionRadius: 0
 };
 
 export default class D3ForceLayout extends BaseLayout {
@@ -44,7 +42,8 @@ export default class D3ForceLayout extends BaseLayout {
         y,
         fx: locked ? x : null,
         fy: locked ? y : null,
-        collisionRadius
+        collisionRadius,
+        locked
       };
       this._nodeMap[node.id] = d3Node;
       return d3Node;
@@ -65,48 +64,46 @@ export default class D3ForceLayout extends BaseLayout {
     };
   }
 
-  _generateSimulator() {
-    if (this._simulator) {
-      this._simulator.on('tick', null).on('end', null);
-      this._simulator = null;
-    }
+  start() {
+    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this._options;
-
-    const g = this._d3Graph;
-    this._simulator = forceSimulation(g.nodes)
-      .force(
-        'edge',
-        forceLink(g.edges).id((n) => n.id)
-      )
-      .force(
-        'charge',
-        forceManyBody()
-          .strength(nBodyStrength)
-          .distanceMin(nBodyDistanceMin)
-          .distanceMax(nBodyDistanceMax)
-      )
-      .force('center', forceCenter())
-      .force('collision', forceCollide().radius(getCollisionRadius))
-      .alpha(alpha);
-    // register event callbacks
-    this._simulator
-      .on('tick', this._callbacks.onLayoutChange)
-      .on('end', this._callbacks.onLayoutDone);
+    this._worker.postMessage({
+      nodes: this._d3Graph.nodes,
+      edges: this._d3Graph.edges,
+      options: {
+        alpha,
+        nBodyStrength,
+        nBodyDistanceMin,
+        nBodyDistanceMax,
+        getCollisionRadius
+      }
+    });
+    this._worker.onmessage = (event) => {
+      switch (event.data.type) {
+        case 'tick':
+          this.ticked(event.data);
+          break;
+        case 'end':
+          this.ended(event.data);
+          break;
+        default:
+          break;
+      }
+    };
   }
-
-  start() {
-    this._generateSimulator();
-    this._simulator.restart();
+  ticked(data) {}
+  ended(data) {
+    const {nodes, edges} = data;
+    this.updateD3Graph({nodes, edges});
+    this._callbacks.onLayoutChange();
+    this._callbacks.onLayoutDone();
   }
-
   resume() {
-    const {resumeAlpha} = this._options;
-    this._simulator.alpha(resumeAlpha).restart();
+    this._worker.resume();
   }
-
   stop() {
-    this._simulator.stop();
+    this._worker.stop();
   }
 
   // for steaming new data on the same graph
@@ -150,6 +147,35 @@ export default class D3ForceLayout extends BaseLayout {
       newEdgeMap[edge.id] = newD3Edge;
       return newD3Edge;
     });
+    this._edgeMap = newEdgeMap;
+    this._d3Graph.edges = newD3Edges;
+  }
+
+  updateD3Graph(graph) {
+    const existingNodes = this._graph.getNodes();
+    // update internal layout data
+    // nodes
+    const newNodeMap = {};
+    const newD3Nodes = graph.nodes.map((node) => {
+      // Update existing _graph with the new values
+      const existingNode = existingNodes.find((n) => n.getId() === node.id);
+      existingNode.setDataProperty('locked', node.locked);
+      existingNode.setDataProperty('x', node.x);
+      existingNode.setDataProperty('y', node.y);
+      existingNode.setDataProperty('collisionRadius', node.collisionRadius);
+
+      newNodeMap[node.id] = node;
+      return node;
+    });
+    this._nodeMap = newNodeMap;
+    this._d3Graph.nodes = newD3Nodes;
+    // edges
+    const newEdgeMap = {};
+    const newD3Edges = graph.edges.map((edge) => {
+      newEdgeMap[edge.id] = edge;
+      return edge;
+    });
+    this._graph.triggerUpdate();
     this._edgeMap = newEdgeMap;
     this._d3Graph.edges = newD3Edges;
   }

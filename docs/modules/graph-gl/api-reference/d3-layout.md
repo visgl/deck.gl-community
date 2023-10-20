@@ -42,13 +42,9 @@ Sets the minimum distance between nodes over which this force is considered. If 
 #### nBodyDistanceMax (Number, optional)
 Sets the maximum distance between nodes over which this force is considered. If distance is not 'nBodyDistanceMin', returns the current minimum distance, which defaults to 400.
 
-#### getCollisionRadius (Function, optional)
-The [collision force](https://github.com/d3/d3-force#collision) treats nodes as circles with a given radius, rather than points, and prevents nodes from overlapping.  The `getCollisionRadius` expects a function as:
-```js
-getCollisionRadius: node => node.collisionRadius
-```
-The function will iterated each node and return the raidus for collision detection.
-If getCollisionRadius is not specified, it defaults to zero radius for all nodes.
+#### getCollisionRadius (Number, optional)
+Sets the radius for collision detection. If getCollisionRadius is not specified, it defaults to zero radius for all nodes.
+The [collision force](https://github.com/d3/d3-force#collision) treats nodes as circles with a given radius, rather than points, and prevents nodes from overlapping.
 
 ## Source
 

@@ -5,7 +5,15 @@ import {OrthographicView} from '@deck.gl/core';
 import {extent} from 'd3-array';
 import ViewControl from './components/view-control.jsx';
 
-import {Graph, log, SimpleLayout, BaseLayout, GraphEngine, GraphLayer} from 'deck-graph-layers';
+import {
+  Graph,
+  log,
+  SimpleLayout,
+  BaseLayout,
+  GraphEngine,
+  GraphLayer,
+  LAYOUT_STATE
+} from 'deck-graph-layers';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view
@@ -61,7 +69,8 @@ const GraphGl = ({
   doubleClickZoom = true,
   enablePanning = true,
   enableDragging = false,
-  resumeLayoutAfterDragging = false
+  resumeLayoutAfterDragging = false,
+  zoomToFitOnLoad = false
 }) => {
   if (!(graph instanceof Graph)) {
     log.error('Invalid graph data class')();
@@ -143,6 +152,16 @@ const GraphGl = ({
     },
     [maxZoom, minZoom, viewState, setViewState]
   );
+
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (engine.getLayoutState() === LAYOUT_STATE.DONE && !loaded) {
+      if (zoomToFitOnLoad) {
+        fitBounds();
+      }
+      setLoaded(true);
+    }
+  }, [engine.getLayoutState()]);
 
   return (
     <div>

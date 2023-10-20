@@ -285,6 +285,13 @@ export default class Graph {
   }
 
   /**
+   * Trigger an update to the graph.
+   */
+  triggerUpdate() {
+    this._touchLastUpdate();
+  }
+
+  /**
    * Return true if the graph is empty.
    * @return {Boolean} Return true if the graph is empty.
    */

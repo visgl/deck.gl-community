@@ -55,7 +55,8 @@ const DECKGL_ACCESSOR_MAP = {
     getTextAnchor: 'textAnchor',
     getAlignmentBaseline: 'alignmentBaseline',
     getAngle: 'angle',
-    scaleWithZoom: 'scaleWithZoom'
+    scaleWithZoom: 'scaleWithZoom',
+    textSizeMinPixels: 'textSizeMinPixels'
   },
 
   [NODE_TYPE.MARKER]: {
@@ -77,7 +78,8 @@ const DECKGL_ACCESSOR_MAP = {
     getSize: 'fontSize',
     getTextAnchor: 'textAnchor',
     getAlignmentBaseline: 'alignmentBaseline',
-    scaleWithZoom: 'scaleWithZoom'
+    scaleWithZoom: 'scaleWithZoom',
+    textSizeMinPixels: 'textSizeMinPixels'
   },
   [EDGE_DECORATOR_TYPE.FLOW]: {
     getColor: 'color',
