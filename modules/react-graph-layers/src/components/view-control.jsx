@@ -27,7 +27,7 @@ export const NavigationButton = styled.div`
   left: ${(props) => props.left};
   position: absolute;
   top: ${(props) => props.top};
-  font-size: ${(props) => props.fontsize};
+  transform: rotate(${(props) => props.rotate || 0}deg);
 
   &:hover {
     color: #00ade6;
@@ -115,21 +115,21 @@ export default class ViewControl extends PureComponent {
   render() {
     // navigational buttons
     const buttons = [
-      {top: -8, left: 13,fontsize: 20,onClick: this.panUp, content: '▲'},
-      {top: 10, left: 2, fontsize: 15,onClick: this.panLeft, content: '◀'},
-      {top: 10, left: 32, fontsize: 15,onClick: this.panRight, content: '▶'},
-      {top: 21, left: 13, fontsize: 20,onClick: this.panDown, content: '▼'}
+      {top: -2, left: 14, rotate: 0, onClick: this.panUp, content: '▲'},
+      {top: 12, left: 0, rotate: -90, onClick: this.panLeft, content: '▲'},
+      {top: 12, left: 28, rotate: 90, onClick: this.panRight, content: '▲'},
+      {top: 25, left: 14, rotate: 180, onClick: this.panDown, content: '▲'}
     ];
 
     return (
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b) => (
-            <NavigationButton key={b.content} top={`${b.top}px`} left={`${b.left}px`} fontsize={`${b.fontsize}px`}>
+            <NavigationButton key={b.content} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}
-          <NavigationButton top={'11px'} left={'17.5px'} onClick={this.props.fitBounds}>
+          <NavigationButton top={'12px'} left={'16px'} onClick={this.props.fitBounds}>
             {'¤'}
           </NavigationButton>
         </NavigationButtonContainer>
