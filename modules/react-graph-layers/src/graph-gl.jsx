@@ -85,11 +85,13 @@ const GraphGl = ({
     ...INITIAL_VIEW_STATE,
     ...initialViewState
   });
+  const [loaded, setLoaded] = useState(false);
 
   const [engine] = useState(new GraphEngine());
 
   useEffect(() => {
     engine.clear();
+    setLoaded(false);
     engine.run(graph, layout);
   }, [graph, layout]);
 
@@ -153,7 +155,6 @@ const GraphGl = ({
     [maxZoom, minZoom, viewState, setViewState]
   );
 
-  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     if (engine.getLayoutState() === LAYOUT_STATE.DONE && !loaded) {
       if (zoomToFitOnLoad) {
