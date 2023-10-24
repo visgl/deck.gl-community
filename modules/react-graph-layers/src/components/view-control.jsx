@@ -18,7 +18,6 @@ export const NavigationButtonContainer = styled.div`
   border: 0.5px solid #eaeaea;
   box-shadow: inset 11px 11px 5px -7px rgba(230, 230, 230, 0.49);
   height: 46px;
-  position: relative;
   width: 46px;
 `;
 
@@ -28,6 +27,7 @@ export const NavigationButton = styled.div`
   left: ${(props) => props.left};
   position: absolute;
   top: ${(props) => props.top};
+  font-size: ${(props) => props.fontsize};
 
   &:hover {
     color: #00ade6;
@@ -51,7 +51,7 @@ export const VerticalSlider = styled.div`
   padding: 0;
   width: 10px;
 
-  > input {
+  > input[type=range][orient=vertical] {
     -webkit-appearance: slider-vertical;
     height: 100px;
     padding: 0;
@@ -115,21 +115,21 @@ export default class ViewControl extends PureComponent {
   render() {
     // navigational buttons
     const buttons = [
-      {top: -3, left: 15, onClick: this.panUp, content: '▲'},
-      {top: 12, left: 0, onClick: this.panLeft, content: '◀'},
-      {top: 14, left: 34, onClick: this.panRight, content: '▶'},
-      {top: 28, left: 15, onClick: this.panDown, content: '▼'}
+      {top: -8, left: 13,fontsize: 20,onClick: this.panUp, content: '▲'},
+      {top: 10, left: 2, fontsize: 15,onClick: this.panLeft, content: '◀'},
+      {top: 10, left: 32, fontsize: 15,onClick: this.panRight, content: '▶'},
+      {top: 21, left: 13, fontsize: 20,onClick: this.panDown, content: '▼'}
     ];
 
     return (
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b) => (
-            <NavigationButton key={b.content} top={`${b.top}px`} left={`${b.left}px`}>
+            <NavigationButton key={b.content} top={`${b.top}px`} left={`${b.left}px`} fontsize={`${b.fontsize}px`}>
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}
-          <NavigationButton top={'14px'} left={'19px'} onClick={this.props.fitBounds}>
+          <NavigationButton top={'11px'} left={'17.5px'} onClick={this.props.fitBounds}>
             {'¤'}
           </NavigationButton>
         </NavigationButtonContainer>
@@ -145,6 +145,7 @@ export default class ViewControl extends PureComponent {
               max={this.props.maxZoom}
               step={this.props.deltaZoom}
               onChange={this.onChangeZoomLevel}
+              orient="vertical"
             />
           </VerticalSlider>
           <ZoomControlButton>
