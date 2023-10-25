@@ -36,5 +36,5 @@
     "esbuild": "^0.17.19",
     "lerna": "^7.1.1"
   },
-  "packageManager": "yarn@4.0.0-rc.48"
+  "packageManager": "yarn@4.0.0"
 }
