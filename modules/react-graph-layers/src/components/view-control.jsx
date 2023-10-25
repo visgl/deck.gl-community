@@ -115,17 +115,17 @@ export default class ViewControl extends PureComponent {
   render() {
     // navigational buttons
     const buttons = [
-      {top: -2, left: 14, rotate: 0, onClick: this.panUp, content: '▲'},
-      {top: 12, left: 0, rotate: -90, onClick: this.panLeft, content: '▲'},
-      {top: 12, left: 28, rotate: 90, onClick: this.panRight, content: '▲'},
-      {top: 25, left: 14, rotate: 180, onClick: this.panDown, content: '▲'}
+      {top: -2, left: 14, rotate: 0, onClick: this.panUp, content: '▲', key: 'up'},
+      {top: 12, left: 0, rotate: -90, onClick: this.panLeft, content: '▲', key: 'left'},
+      {top: 12, left: 28, rotate: 90, onClick: this.panRight, content: '▲', key: 'right'},
+      {top: 25, left: 14, rotate: 180, onClick: this.panDown, content: '▲', key: 'down'}
     ];
 
     return (
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b) => (
-            <NavigationButton key={b.content} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
+            <NavigationButton key={b.key} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}
