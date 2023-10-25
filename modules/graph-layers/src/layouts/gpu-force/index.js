@@ -94,11 +94,10 @@ export default class D3ForceLayout extends BaseLayout {
   }
   ticked(data) {}
   ended(data) {
-    console.log('DATA', data);
-    // const {nodes, edges} = data;
-    // this.updateD3Graph({nodes, edges});
-    // this._callbacks.onLayoutChange();
-    // this._callbacks.onLayoutDone();
+    const {nodes, edges} = data;
+    this.updateD3Graph({nodes, edges});
+    this._callbacks.onLayoutChange();
+    this._callbacks.onLayoutDone();
   }
   resume() {
     this._worker.resume();
