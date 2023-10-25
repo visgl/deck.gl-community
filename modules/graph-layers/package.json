@@ -30,6 +30,7 @@
     "d3-format": "^3.1.0",
     "d3-scale": "^4.0.2",
     "global": "^4.4.0",
+    "gpu.js": "^2.16.0",
     "lodash.isequal": "^4.5.0",
     "lodash.pick": "^4.4.0",
     "probe.gl": "^3.6.0",
