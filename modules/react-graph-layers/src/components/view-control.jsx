@@ -125,7 +125,12 @@ export default class ViewControl extends PureComponent {
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b) => (
-            <NavigationButton key={b.key} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
+            <NavigationButton
+              key={b.content}
+              top={`${b.top}px`}
+              left={`${b.left}px`}
+              rotate={b.rotate}
+            >
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}

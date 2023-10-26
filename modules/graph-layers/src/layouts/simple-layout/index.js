@@ -22,8 +22,9 @@ export default class SimpleLayout extends BaseLayout {
   }
 
   _notifyLayoutComplete() {
-    this._callbacks.onLayoutChange();
-    this._callbacks.onLayoutDone();
+    this._onLayoutStart();
+    this._onLayoutChange();
+    this._onLayoutDone();
   }
 
   start() {
@@ -65,7 +66,7 @@ export default class SimpleLayout extends BaseLayout {
 
   lockNodePosition = (node, x, y) => {
     this._nodePositionMap[node.getId()] = [x, y];
-    this._callbacks.onLayoutChange();
-    this._callbacks.onLayoutDone();
+    this._onLayoutChange();
+    this._onLayoutDone();
   };
 }

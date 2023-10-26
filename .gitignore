@@ -21,3 +21,12 @@ package-lock.json
 .DS_Store
 *.log
 .exit_code
+
+# https://yarnpkg.com/getting-started/qa#which-files-should-be-gitignored
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

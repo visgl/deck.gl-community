@@ -1,44 +1,77 @@
 import isEqual from 'lodash.isequal';
 import {EDGE_TYPE} from './constants';
 
-// All the layout classes are extended from this base layout class.
-export default class BaseLayout {
+/**
+ * All the layout classes are extended from this base layout class.
+ */
+export default class BaseLayout extends EventTarget {
   /**
    * Constructor of BaseLayout
    * @param  {Object} options extra configuration options of the layout
    */
   constructor(options) {
+    super();
+
     // the name of the layout
     this._name = 'BaseLayout';
     // extra configuration options of the layout
     this._options = {};
-    // registered callbacks
-    this._callbacks = {
-      onLayoutChange: () => {},
-      onLayoutDone: () => {},
-      onLayoutError: () => {}
-    };
   }
 
   /**
-   * Register event callbacks ({onLayoutChange, onLayoutDone, onLayoutError})
-   * @param  {Object} callbacks
-   *         {Function} callbacks.onLayoutChange:
-   *           a callback will be triggered on every layout calculation iteration
-   *         {Function} callbacks.onLayoutDone:
-   *           a callback will be triggered when the layout calculation is done
-   *         {Function} callbacks.onLayoutError:
-   *           a callback will be triggered when the layout calculation goes wrong
+   * @fires BaseLayout#onLayoutStart
+   * @protected
    */
-  registerCallbacks(callbacks) {
-    this._callbacks = callbacks;
+  _onLayoutStart() {
+    /**
+     * Layout calculation start.
+     *
+     * @event BaseLayout#onLayoutChange
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutStart'));
   }
 
   /**
-   * unregister all event callbacks.
+   * @fires BaseLayout#onLayoutChange
+   * @protected
    */
-  unregisterCallbacks() {
-    this._callbacks = {};
+  _onLayoutChange() {
+    /**
+     * Layout calculation iteration.
+     *
+     * @event BaseLayout#onLayoutChange
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutChange'));
+  }
+
+  /**
+   * @fires BaseLayout#onLayoutDone
+   * @protected
+   */
+  _onLayoutDone() {
+    /**
+     * Layout calculation is done.
+     *
+     * @event BaseLayout#onLayoutDone
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutDone'));
+  }
+
+  /**
+   * @fires BaseLayout#onLayoutError
+   * @protected
+   */
+  _onLayoutError() {
+    /**
+     * Layout calculation went wrong.
+     *
+     * @event BaseLayout#onLayoutError
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutError'));
   }
 
   /**
