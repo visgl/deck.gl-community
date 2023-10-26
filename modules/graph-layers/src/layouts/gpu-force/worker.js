@@ -106,4 +106,6 @@ onmessage = function (event) {
     nodes: newNodes,
     edges: newEdges
   });
+
+  this.self.close();
 };
