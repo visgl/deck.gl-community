@@ -126,7 +126,7 @@ export default class ViewControl extends PureComponent {
         <NavigationButtonContainer>
           {buttons.map((b) => (
             <NavigationButton
-              key={b.content}
+              key={b.key}
               top={`${b.top}px`}
               left={`${b.left}px`}
               rotate={b.rotate}
