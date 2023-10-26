@@ -44,6 +44,9 @@ A layout goes through the following phases:
 
 
 There are a few events that should be triggered when the layout changes:
+- `this._onLayoutStart()`
+    When the layout starts, `onLayoutStart` should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
+
  - `this._onLayoutChange()`
   Every time when the layout changes, `onLayoutChange` should be triggered to notify GraphGL to re-render and update the view. Then GraphGL will use `getNodePosition` and `getEdgePosition` to get the position information to render the graph. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
 

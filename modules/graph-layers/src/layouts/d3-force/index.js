@@ -91,6 +91,7 @@ export default class D3ForceLayout extends BaseLayout {
           break;
       }
     };
+    this._onLayoutStart();
   }
   ticked(data) {}
   ended(data) {

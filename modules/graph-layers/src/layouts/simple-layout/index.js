@@ -22,6 +22,7 @@ export default class SimpleLayout extends BaseLayout {
   }
 
   _notifyLayoutComplete() {
+    this._onLayoutStart();
     this._onLayoutChange();
     this._onLayoutDone();
   }

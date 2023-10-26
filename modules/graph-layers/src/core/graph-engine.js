@@ -51,6 +51,19 @@ export default class GraphEngine extends EventTarget {
   };
 
   /**
+   * @fires GraphEngine#onLayoutStart
+   */
+  _onLayoutStart = () => {
+    this._layoutState = LAYOUT_STATE.START;
+
+    /**
+     * @event GraphEngine#onLayoutStart
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutStart'));
+  };
+
+  /**
    * @fires GraphEngine#onLayoutChange
    */
   _onLayoutChange = () => {
@@ -97,11 +110,11 @@ export default class GraphEngine extends EventTarget {
     this._graph = graph;
     this._layout = layout;
     this._layout.initializeGraph(graph);
+    this._layout.addEventListener('onLayoutStart', this._onLayoutStart);
     this._layout.addEventListener('onLayoutChange', this._onLayoutChange);
     this._layout.addEventListener('onLayoutDone', this._onLayoutDone);
     this._layout.addEventListener('onLayoutError', this._onLayoutError);
     this._layout.start();
-    this._layoutState = LAYOUT_STATE.START;
   };
 
   resume = () => {

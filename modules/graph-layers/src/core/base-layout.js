@@ -19,6 +19,20 @@ export default class BaseLayout extends EventTarget {
   }
 
   /**
+   * @fires BaseLayout#onLayoutStart
+   * @protected
+   */
+  _onLayoutStart() {
+    /**
+     * Layout calculation start.
+     *
+     * @event BaseLayout#onLayoutChange
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutStart'));
+  }
+
+  /**
    * @fires BaseLayout#onLayoutChange
    * @protected
    */
