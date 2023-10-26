@@ -102,12 +102,18 @@ const GraphGl = ({
 
     engine.addEventListener('onLayoutStart', layoutStarted, {once: true});
     engine.addEventListener('onLayoutDone', layoutEnded, {once: true});
+
+    return () => {
+      engine.removeEventListener('onLayoutStart', layoutStarted);
+      engine.removeEventListener('onLayoutDone', layoutEnded);
+    };
+  }, [engine]);
+
+  useEffect(() => {
     engine.run(graph, layout);
 
     return () => {
       engine.clear();
-      engine.removeEventListener('onLayoutStart', layoutStarted);
-      engine.removeEventListener('onLayoutDone', layoutEnded);
     };
   }, [graph, layout]);
 
