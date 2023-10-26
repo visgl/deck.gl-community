@@ -51,7 +51,7 @@ export const VerticalSlider = styled.div`
   padding: 0;
   width: 10px;
 
-  > input[type=range][orient=vertical] {
+  > input[type='range'][orient='vertical'] {
     -webkit-appearance: slider-vertical;
     height: 100px;
     padding: 0;
@@ -125,7 +125,12 @@ export default class ViewControl extends PureComponent {
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b) => (
-            <NavigationButton key={b.content} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
+            <NavigationButton
+              key={b.content}
+              top={`${b.top}px`}
+              left={`${b.left}px`}
+              rotate={b.rotate}
+            >
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}

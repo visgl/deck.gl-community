@@ -1,8 +1,10 @@
 import {SimpleLayout, LAYOUT_STATE} from '../index';
 
 // Graph engine controls the graph data and layout calculation
-export default class GraphEngine {
+export default class GraphEngine extends EventTarget {
   constructor() {
+    super();
+
     // graph data
     this._graph = null;
     // layout algorithm
@@ -11,12 +13,6 @@ export default class GraphEngine {
     this._layoutState = LAYOUT_STATE.INIT;
     // last layout update time stamp
     this._lastUpdate = 0;
-    // event callbacks
-    this._callbacks = {
-      onLayoutChange: () => {},
-      onLayoutDone: () => {},
-      onLayoutError: () => {}
-    };
   }
 
   /** Getters */
@@ -45,43 +41,53 @@ export default class GraphEngine {
 
   clear = () => {
     if (this._layout) {
-      this._layout.unregisterCallbacks();
+      this._layout.removeEventListener('onLayoutChange', this._onLayoutChange);
+      this._layout.removeEventListener('onLayoutDone', this._onLayoutDone);
+      this._layout.removeEventListener('onLayoutError', this._onLayoutError);
     }
     this._graph = null;
     this._layout = null;
     this._layoutState = LAYOUT_STATE.INIT;
   };
 
-  /** Event callbacks */
-
-  registerCallbacks = (callbacks) => {
-    this._callbacks = callbacks;
-  };
-
-  unregisterCallbacks = () => {
-    this._callbacks = {};
-  };
-
+  /**
+   * @fires GraphEngine#onLayoutChange
+   */
   _onLayoutChange = () => {
     this._lastUpdate = Date.now();
     this._layoutState = LAYOUT_STATE.CALCULATING;
-    if (this._callbacks.onLayoutChange) {
-      this._callbacks.onLayoutChange();
-    }
+
+    /**
+     * @event GraphEngine#onLayoutChange
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutChange'));
   };
 
+  /**
+   * @fires GraphEngine#onLayoutDone
+   */
   _onLayoutDone = () => {
     this._layoutState = LAYOUT_STATE.DONE;
-    if (this._callbacks.onLayoutDone) {
-      this._callbacks.onLayoutDone();
-    }
+
+    /**
+     * @event GraphEngine#onLayoutDone
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutDone'));
   };
 
+  /**
+   * @fires GraphEngine#onLayoutError
+   */
   _onLayoutError = () => {
     this._layoutState = LAYOUT_STATE.ERROR;
-    if (this._callbacks.onLayoutError) {
-      this._callbacks.onLayoutError();
-    }
+
+    /**
+     * @event GraphEngine#onLayoutError
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutError'));
   };
 
   /** Layout calculations */
@@ -91,11 +97,9 @@ export default class GraphEngine {
     this._graph = graph;
     this._layout = layout;
     this._layout.initializeGraph(graph);
-    this._layout.registerCallbacks({
-      onLayoutChange: this._onLayoutChange,
-      onLayoutDone: this._onLayoutDone,
-      onLayoutError: this._onLayoutError
-    });
+    this._layout.addEventListener('onLayoutChange', this._onLayoutChange);
+    this._layout.addEventListener('onLayoutDone', this._onLayoutDone);
+    this._layout.addEventListener('onLayoutError', this._onLayoutError);
     this._layout.start();
     this._layoutState = LAYOUT_STATE.START;
   };

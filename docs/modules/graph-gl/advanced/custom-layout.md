@@ -43,11 +43,11 @@ A layout goes through the following phases:
   `updageGraph` => `start`
 
 
-There are a few callbacks should be triggered when the layout changes:
- - `this._callbacks.onLayoutChange()`
-  Every time when the layout changes, `onLayoutChange` callback should be triggered to notify GraphGL to re-render and update the view. Then GraphGL will use `getNodePosition` and `getEdgePosition` to get the position information to render the graph. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
+There are a few events that should be triggered when the layout changes:
+ - `this._onLayoutChange()`
+  Every time when the layout changes, `onLayoutChange` should be triggered to notify GraphGL to re-render and update the view. Then GraphGL will use `getNodePosition` and `getEdgePosition` to get the position information to render the graph. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
 
- - `this._callbacks.onLayoutDone()`
+ - `this._onLayoutDone()`
   When the layout is completed, 'onLayoutDone' should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: remove the spinner from the UI.
 
 If you want to implement the drag & drag interaction on nodes, you will have to implement:
@@ -113,8 +113,8 @@ In this case, we can just simply update the `this._nodePositionMap` by going thr
 
 GraphGL will call `start()` of the layout to kick start the layout calculation.
 In this case, the computation is easy as assigning random position for each node only.
-Once the layout is completed, you will need to call `this._callbacks.onLayoutChange()` to notify the render redraw.
-Then call `this._callbacks.onLayoutDone()` to notify the render that layout is completed.
+Once the layout is completed, you will need to call `this._onLayoutChange()` to notify the render redraw.
+Then call `this._onLayoutDone()` to notify the render that layout is completed.
 
 ```js
   start() {
@@ -123,8 +123,8 @@ Then call `this._callbacks.onLayoutDone()` to notify the render that layout is c
       res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
       return res;
     }, {});
-    this._callbacks.onLayoutChange();
-    this._callbacks.onLayoutDone();
+    this._onLayoutChange();
+    this._onLayoutDone();
   }
 ```
 
@@ -191,8 +191,8 @@ export default class RandomLayout extends BaseLayout {
       res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
       return res;
     }, {});
-    this._callbacks.onLayoutChange();
-    this._callbacks.onLayoutDone();
+    this._onLayoutChange();
+    this._onLayoutDone();
   }
 
   getNodePosition = node => this._nodePositionMap[node.getId()];
