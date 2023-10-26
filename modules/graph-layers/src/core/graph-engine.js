@@ -41,6 +41,7 @@ export default class GraphEngine extends EventTarget {
 
   clear = () => {
     if (this._layout) {
+      this._layout.removeEventListener('onLayoutStart', this._onLayoutStart);
       this._layout.removeEventListener('onLayoutChange', this._onLayoutChange);
       this._layout.removeEventListener('onLayoutDone', this._onLayoutDone);
       this._layout.removeEventListener('onLayoutError', this._onLayoutError);

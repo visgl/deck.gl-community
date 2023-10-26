@@ -22,10 +22,14 @@ const loadingReducer = (state, action) => {
     case 'startLayout':
       return {loaded: false, rendered: false, isLoading: true};
     case 'layoutDone':
-      return {...state, loaded: true};
+      return state.loaded ? state : {...state, loaded: true};
     case 'afterRender':
+      if (!state.loaded) {
+        return state;
+      }
+
       // not interested after the first render, the state won't change
-      return state.isLoading ? {...state, rendered: true, isLoading: !state.loaded} : state;
+      return state.rendered ? state : {...state, rendered: true, isLoading: false};
     default:
       throw new Error(`Unhandled action type: ${action.type}`);
   }
@@ -100,8 +104,8 @@ const GraphGl = ({
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    engine.addEventListener('onLayoutStart', layoutStarted, {once: true});
-    engine.addEventListener('onLayoutDone', layoutEnded, {once: true});
+    engine.addEventListener('onLayoutStart', layoutStarted);
+    engine.addEventListener('onLayoutDone', layoutEnded);
 
     return () => {
       engine.removeEventListener('onLayoutStart', layoutStarted);
