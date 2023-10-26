@@ -1,19 +1,11 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState, useReducer} from 'react';
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
 import {extent} from 'd3-array';
 import ViewControl from './components/view-control.jsx';
 
-import {
-  Graph,
-  log,
-  SimpleLayout,
-  BaseLayout,
-  GraphEngine,
-  GraphLayer,
-  LAYOUT_STATE
-} from 'deck-graph-layers';
+import {Graph, log, SimpleLayout, BaseLayout, GraphEngine, GraphLayer} from 'deck-graph-layers';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view
@@ -24,6 +16,20 @@ const INITIAL_VIEW_STATE = {
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
+
+const loadingReducer = (state, action) => {
+  switch (action.type) {
+    case 'startLayout':
+      return {loaded: false, rendered: false, isLoading: true};
+    case 'layoutDone':
+      return {...state, loaded: true};
+    case 'afterRender':
+      // not interested after the first render, the state won't change
+      return state.isLoading ? {...state, rendered: true, isLoading: !state.loaded} : state;
+    default:
+      throw new Error(`Unhandled action type: ${action.type}`);
+  }
+};
 
 // A wrapper for positioning the ViewControl component
 const PositionedViewControl = ({fitBounds, panBy, zoomBy, zoomLevel, maxZoom, minZoom}) => (
@@ -70,7 +76,8 @@ const GraphGl = ({
   enablePanning = true,
   enableDragging = false,
   resumeLayoutAfterDragging = false,
-  zoomToFitOnLoad = false
+  zoomToFitOnLoad = false,
+  loader = null
 }) => {
   if (!(graph instanceof Graph)) {
     log.error('Invalid graph data class')();
@@ -85,14 +92,29 @@ const GraphGl = ({
     ...INITIAL_VIEW_STATE,
     ...initialViewState
   });
-  const [loaded, setLoaded] = useState(false);
 
   const [engine] = useState(new GraphEngine());
+  const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
   useEffect(() => {
-    engine.clear();
-    setLoaded(false);
+    const layoutStarted = () => loadingDispatch({type: 'startLayout'});
+    const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
+
+    engine.addEventListener('onLayoutStart', layoutStarted, {once: true});
+    engine.addEventListener('onLayoutDone', layoutEnded, {once: true});
+
+    return () => {
+      engine.removeEventListener('onLayoutStart', layoutStarted);
+      engine.removeEventListener('onLayoutDone', layoutEnded);
+    };
+  }, [engine]);
+
+  useEffect(() => {
     engine.run(graph, layout);
+
+    return () => {
+      engine.clear();
+    };
   }, [graph, layout]);
 
   const onViewStateChange = useCallback(
@@ -156,56 +178,61 @@ const GraphGl = ({
   );
 
   useEffect(() => {
-    if (engine.getLayoutState() === LAYOUT_STATE.DONE && !loaded) {
-      if (zoomToFitOnLoad) {
-        fitBounds();
-      }
-      setLoaded(true);
+    if (zoomToFitOnLoad) {
+      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
     }
-  }, [engine.getLayoutState()]);
+
+    return () => {
+      engine.removeEventListener('onLayoutDone', fitBounds);
+    };
+  }, [fitBounds, zoomToFitOnLoad]);
 
   return (
-    <div>
-      <DeckGL
-        width="100%"
-        height="100%"
-        getCursor={() => DEFAULT_CURSOR}
-        viewState={viewState}
-        onResize={onResize}
-        onViewStateChange={onViewStateChange}
-        views={[
-          new OrthographicView({
-            controller: {
-              minZoom,
-              maxZoom,
-              scrollZoom: enableZooming,
-              touchZoom: enableZooming,
-              doubleClickZoom: enableZooming && doubleClickZoom,
-              dragPan: enablePanning
-            }
-          })
-        ]}
-        layers={[
-          new GraphLayer({
-            engine,
-            nodeStyle,
-            nodeEvents,
-            edgeStyle,
-            edgeEvents,
-            enableDragging,
-            resumeLayoutAfterDragging
-          })
-        ]}
-      />
-      <ViewControlComponent
-        fitBounds={fitBounds}
-        panBy={panBy}
-        zoomBy={zoomBy}
-        zoomLevel={viewState.zoom}
-        maxZoom={maxZoom}
-        minZoom={minZoom}
-      />
-    </div>
+    <>
+      {isLoading && loader}
+      <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
+        <DeckGL
+          onAfterRender={() => loadingDispatch({type: 'afterRender'})}
+          width="100%"
+          height="100%"
+          getCursor={() => DEFAULT_CURSOR}
+          viewState={viewState}
+          onResize={onResize}
+          onViewStateChange={onViewStateChange}
+          views={[
+            new OrthographicView({
+              controller: {
+                minZoom,
+                maxZoom,
+                scrollZoom: enableZooming,
+                touchZoom: enableZooming,
+                doubleClickZoom: enableZooming && doubleClickZoom,
+                dragPan: enablePanning
+              }
+            })
+          ]}
+          layers={[
+            new GraphLayer({
+              engine,
+              nodeStyle,
+              nodeEvents,
+              edgeStyle,
+              edgeEvents,
+              enableDragging,
+              resumeLayoutAfterDragging
+            })
+          ]}
+        />
+        <ViewControlComponent
+          fitBounds={fitBounds}
+          panBy={panBy}
+          zoomBy={zoomBy}
+          zoomLevel={viewState.zoom}
+          maxZoom={maxZoom}
+          minZoom={minZoom}
+        />
+      </div>
+    </>
   );
 };
 
@@ -260,7 +287,9 @@ GraphGl.propTypes = {
   /** Whether dragging the node is enabled */
   enableDragging: PropTypes.bool,
   /** Resume layout calculation after dragging a node */
-  resumeLayoutAfterDragging: PropTypes.bool
+  resumeLayoutAfterDragging: PropTypes.bool,
+  /** The component to show while the graph is loading. */
+  loader: PropTypes.element
 };
 
 export default GraphGl;

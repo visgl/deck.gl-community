@@ -70,11 +70,17 @@ export default class GraphLayer extends CompositeLayer {
     pickable: true
   };
 
+  forceUpdate = () => {
+    if (this.context && this.context.layerManager) {
+      this.setNeedsUpdate();
+      this.setChangeFlags({dataChanged: true});
+    }
+  };
+
   constructor(props) {
     super(props);
-    props.engine.registerCallbacks({
-      onLayoutChange: () => this.forceUpdate()
-    });
+
+    props.engine.addEventListener('onLayoutChange', this.forceUpdate);
   }
 
   initializeState() {
@@ -91,14 +97,7 @@ export default class GraphLayer extends CompositeLayer {
   }
 
   finalize() {
-    this.props.engine.unregisterCallbacks();
-  }
-
-  forceUpdate() {
-    if (this.context && this.context.layerManager) {
-      this.setNeedsUpdate();
-      this.setChangeFlags({dataChanged: true});
-    }
+    this.props.engine.removeEventListener('onLayoutChange', this.forceUpdate);
   }
 
   createNodeLayers() {

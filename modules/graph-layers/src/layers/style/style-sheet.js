@@ -92,6 +92,12 @@ const DECKGL_ACCESSOR_MAP = {
 const DECKGL_UPDATE_TRIGGERS = {
   [NODE_TYPE.CIRCLE]: ['getFillColor', 'getRadius', 'getLineColor', 'getLineWidth'],
   [NODE_TYPE.RECTANGLE]: ['getFillColor', 'getLineColor', 'getLineWidth'],
+  [NODE_TYPE.ROUNDED_RECTANGLE]: [
+    'getFillColor',
+    'getLineColor',
+    'getLineWidth',
+    'getCornerRadius'
+  ],
   [NODE_TYPE.PATH_ROUNDED_RECTANGLE]: [
     'getFillColor',
     'getLineColor',

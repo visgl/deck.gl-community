@@ -60,7 +60,7 @@ export default class ZoomableTextLayer extends CompositeLayer {
         this.getSubLayerProps({
           id: '__text-layer',
           data,
-          sizeScale: scaleWithZoom ? Math.max(0, this.context.viewport.zoom) : 1,
+          sizeScale: scaleWithZoom ? Math.pow(2, this.context.viewport.zoom - 1) : 1,
           characterSet: this.state.characterSet,
           getPosition,
           getColor,

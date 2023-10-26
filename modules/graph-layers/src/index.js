@@ -15,6 +15,7 @@ export {
 // react-graph-layers layouts
 export {default as BaseLayout} from './core/base-layout';
 export {default as D3ForceLayout} from './layouts/d3-force/index';
+export {default as GPUForceLayout} from './layouts/gpu-force/index';
 export {default as SimpleLayout} from './layouts/simple-layout/index';
 
 // react-graph-layers loaders

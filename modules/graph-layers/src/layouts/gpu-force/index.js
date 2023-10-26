@@ -91,14 +91,13 @@ export default class D3ForceLayout extends BaseLayout {
           break;
       }
     };
-    this._onLayoutStart();
   }
   ticked(data) {}
   ended(data) {
     const {nodes, edges} = data;
     this.updateD3Graph({nodes, edges});
-    this._onLayoutChange();
-    this._onLayoutDone();
+    this._callbacks.onLayoutChange();
+    this._callbacks.onLayoutDone();
   }
   resume() {
     this._worker.resume();
@@ -215,8 +214,8 @@ export default class D3ForceLayout extends BaseLayout {
     d3Node.y = y;
     d3Node.fx = x;
     d3Node.fy = y;
-    this._onLayoutChange();
-    this._onLayoutDone();
+    this._callbacks.onLayoutChange();
+    this._callbacks.onLayoutDone();
   };
 
   unlockNodePosition = (node) => {
