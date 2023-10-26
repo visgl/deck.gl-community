@@ -1,6 +1,6 @@
 // import {ScatterplotLayer} from '@deck.gl/layers';
 import customFragmentShader from './rounded-rectangle-layer-fragment';
-import RectangleLayer from "./rectangle-layer.js";
+import RectangleLayer from './rectangle-layer.js';
 
 export default class RoundedRectangleLayer extends RectangleLayer {
   static layerName = 'RoundedRectangleLayer';
