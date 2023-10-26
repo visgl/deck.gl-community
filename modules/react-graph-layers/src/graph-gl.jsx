@@ -5,15 +5,7 @@ import {OrthographicView} from '@deck.gl/core';
 import {extent} from 'd3-array';
 import ViewControl from './components/view-control.jsx';
 
-import {
-  Graph,
-  log,
-  SimpleLayout,
-  BaseLayout,
-  GraphEngine,
-  GraphLayer,
-  LAYOUT_STATE
-} from 'deck-graph-layers';
+import {Graph, log, SimpleLayout, BaseLayout, GraphEngine, GraphLayer} from 'deck-graph-layers';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view
@@ -85,13 +77,11 @@ const GraphGl = ({
     ...INITIAL_VIEW_STATE,
     ...initialViewState
   });
-  const [loaded, setLoaded] = useState(false);
 
   const [engine] = useState(new GraphEngine());
 
   useEffect(() => {
     engine.clear();
-    setLoaded(false);
     engine.run(graph, layout);
   }, [graph, layout]);
 
@@ -156,13 +146,14 @@ const GraphGl = ({
   );
 
   useEffect(() => {
-    if (engine.getLayoutState() === LAYOUT_STATE.DONE && !loaded) {
-      if (zoomToFitOnLoad) {
-        fitBounds();
-      }
-      setLoaded(true);
+    if (zoomToFitOnLoad) {
+      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
     }
-  }, [engine.getLayoutState()]);
+
+    return () => {
+      engine.removeEventListener('onLayoutDone', fitBounds);
+    };
+  }, [fitBounds, zoomToFitOnLoad]);
 
   return (
     <div>
