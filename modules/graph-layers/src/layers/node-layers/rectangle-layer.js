@@ -36,6 +36,7 @@ export default class RectangleLayer extends CompositeLayer {
               getHeight: stylesheet.getDeckGLAccessor('getHeight')
             }),
           filled: Boolean(getFillColor),
+          jointRounded: true,
           stroked: Boolean(getLineWidth),
           ...stylesheet.getDeckGLAccessors(),
           updateTriggers: {
