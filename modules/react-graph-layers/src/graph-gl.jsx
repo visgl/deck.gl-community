@@ -77,7 +77,8 @@ const GraphGl = ({
   enableDragging = false,
   resumeLayoutAfterDragging = false,
   zoomToFitOnLoad = false,
-  loader = null
+  loader = null,
+  getTooltip
 }) => {
   if (!(graph instanceof Graph)) {
     log.error('Invalid graph data class')();
@@ -222,6 +223,7 @@ const GraphGl = ({
               resumeLayoutAfterDragging
             })
           ]}
+          getTooltip={getTooltip}
         />
         <ViewControlComponent
           fitBounds={fitBounds}
@@ -289,7 +291,9 @@ GraphGl.propTypes = {
   /** Resume layout calculation after dragging a node */
   resumeLayoutAfterDragging: PropTypes.bool,
   /** The component to show while the graph is loading. */
-  loader: PropTypes.element
+  loader: PropTypes.element,
+  /** The tooltip to show when hovering over a node or an edge. */
+  getTooltip: PropTypes.func
 };
 
 export default GraphGl;
