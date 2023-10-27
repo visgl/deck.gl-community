@@ -180,12 +180,12 @@ export default class GraphLayer extends CompositeLayer {
     return [edgeLayer, decoratorLayers];
   }
 
-  onClick(info) {
-    this.state.interactionManager.onClick(info);
+  onClick(info, event) {
+    this.state.interactionManager.onClick(info, event);
   }
 
-  onHover(info) {
-    this.state.interactionManager.onHover(info);
+  onHover(info, event) {
+    this.state.interactionManager.onHover(info, event);
   }
 
   onDragStart(info, event) {
