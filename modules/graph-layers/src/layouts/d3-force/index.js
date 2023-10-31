@@ -165,7 +165,10 @@ export default class D3ForceLayout extends BaseLayout {
       existingNode.setDataProperty('y', node.y);
       existingNode.setDataProperty('collisionRadius', node.collisionRadius);
 
-      newNodeMap[node.id] = node;
+      const {id, x, y, fx, fy, collisionRadius} = node;
+      const oldD3Node = this._nodeMap[node.id];
+      const newD3Node = oldD3Node ? oldD3Node : {id, x, y, fx, fy, collisionRadius};
+      newNodeMap[node.id] = newD3Node;
       return node;
     });
     this._nodeMap = newNodeMap;

@@ -52,6 +52,7 @@ const PositionedViewControl = ({fitBounds, panBy, zoomBy, zoomLevel, maxZoom, mi
 const GraphGl = ({
   graph = new Graph(),
   layout = new SimpleLayout(),
+  glOptions = {},
   nodeStyle = [],
   nodeEvents = {
     onMouseEnter: null,
@@ -69,6 +70,7 @@ const GraphGl = ({
     onClick: null,
     onHover: null
   },
+  onError = (error) => console.error(error),
   initialViewState = INITIAL_VIEW_STATE,
   ViewControlComponent = PositionedViewControl,
   minZoom = -20,
@@ -197,6 +199,8 @@ const GraphGl = ({
       {isLoading && loader}
       <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
         <DeckGL
+          glOptions={glOptions}
+          onError={onError}
           onAfterRender={() => loadingDispatch({type: 'afterRender'})}
           width="100%"
           height="100%"
@@ -247,6 +251,8 @@ GraphGl.propTypes = {
   graph: PropTypes.object.isRequired,
   /** Layout algorithm */
   layout: PropTypes.object.isRequired,
+  /** Options for the WebGL context */
+  glOptions: PropTypes.object,
   /** Node event callbacks */
   nodeEvents: PropTypes.shape({
     onClick: PropTypes.func,
@@ -267,6 +273,8 @@ GraphGl.propTypes = {
     onClick: PropTypes.func,
     onHover: PropTypes.func
   }),
+  /** Error callback */
+  onError: PropTypes.func,
   /** The initial view state of the viewport */
   initialViewState: PropTypes.shape({
     target: PropTypes.arrayOf(PropTypes.number),

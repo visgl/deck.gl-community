@@ -85,6 +85,8 @@ const PROPERTY_FORMATTERS = {
   textAnchor: String,
   alignmentBaseline: String,
   angle: getNumber,
+  textMaxWidth: getNumber,
+  textWordBreak: String,
   textSizeMinPixels: getNumber,
 
   // edges
@@ -116,6 +118,8 @@ const DEFAULT_STYLES = {
   textAnchor: 'middle',
   alignmentBaseline: 'center',
   angle: 0,
+  textMaxWidth: -1,
+  textWordBreak: 'break-all',
   textSizeMinPixels: 9,
 
   speed: 0,
