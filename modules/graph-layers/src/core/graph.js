@@ -1,12 +1,14 @@
 import {log} from '../utils/log';
 
 // Basic graph data structure
-export default class Graph {
+export default class Graph extends EventTarget {
   /**
    * The constructor of the Graph class.
    * @param  {Object} graph - copy the graph if this exists.
    */
   constructor(graph = null) {
+    super();
+
     // list object of nodes/edges
     this._nodeMap = {};
     this._edgeMap = {};
@@ -77,6 +79,7 @@ export default class Graph {
     this._nodeMap[node.getId()] = node;
     // update last update time stamp
     this._touchLastUpdate();
+    this.dispatchEvent(new CustomEvent('onNodeAdded', {node}));
   }
 
   /**
@@ -88,6 +91,7 @@ export default class Graph {
     this._nodeMap = nodes.reduce(
       (res, node) => {
         res[node.getId()] = node;
+        this.dispatchEvent(new CustomEvent('onNodeAdded', {node}));
         return res;
       },
       {...this._nodeMap}
@@ -121,6 +125,12 @@ export default class Graph {
    */
   findNode(nodeId) {
     return this._nodeMap[nodeId];
+  }
+
+  updateNode(node) {
+    this._nodeMap[node.getId()] = node;
+    this._touchLastUpdate();
+    this.dispatchEvent(new CustomEvent('onNodeUpdated', {node}));
   }
 
   /**
@@ -168,6 +178,7 @@ export default class Graph {
     // remove the node from map
     delete this._nodeMap[nodeId];
     this._touchLastUpdate();
+    this.dispatchEvent(new CustomEvent('onNodeRemoved', {node}));
   }
 
   /**

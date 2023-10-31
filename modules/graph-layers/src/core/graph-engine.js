@@ -40,14 +40,21 @@ export default class GraphEngine extends EventTarget {
   };
 
   clear = () => {
+    if (this._graph) {
+      this._graph.removeEventListener('onNodeAdded', this._updateLayout);
+      this._graph.removeEventListener('onNodeRemoved', this._updateLayout);
+      this._graph.removeEventListener('onNodeUpdated', this._onNodeUpdated);
+    }
+    this._graph = null;
+
     if (this._layout) {
       this._layout.removeEventListener('onLayoutStart', this._onLayoutStart);
       this._layout.removeEventListener('onLayoutChange', this._onLayoutChange);
       this._layout.removeEventListener('onLayoutDone', this._onLayoutDone);
       this._layout.removeEventListener('onLayoutError', this._onLayoutError);
     }
-    this._graph = null;
     this._layout = null;
+
     this._layoutState = LAYOUT_STATE.INIT;
   };
 
@@ -104,12 +111,23 @@ export default class GraphEngine extends EventTarget {
     this.dispatchEvent(new CustomEvent('onLayoutError'));
   };
 
+  _onNodeUpdated = (node) => {
+    this.dispatchEvent(new CustomEvent('onNodeUpdated', {node}));
+  }
+
   /** Layout calculations */
 
   run = (graph, layout = new SimpleLayout(), options) => {
     this.clear();
+
     this._graph = graph;
     this._layout = layout;
+
+    // TODO: edges
+    this._graph.addEventListener('onNodeAdded', () => this._layout.start());
+    this._graph.addEventListener('onNodeRemoved', () => this._layout.start());
+    this._graph.addEventListener('onNodeUpdated', this._onNodeUpdated);
+
     this._layout.initializeGraph(graph);
     this._layout.addEventListener('onLayoutStart', this._onLayoutStart);
     this._layout.addEventListener('onLayoutChange', this._onLayoutChange);
@@ -129,4 +147,8 @@ export default class GraphEngine extends EventTarget {
       this._layout.stop();
     }
   };
+
+  _updateLayout = () => {
+    this._layout?.start();
+  }
 }

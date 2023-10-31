@@ -80,7 +80,10 @@ export default class GraphLayer extends CompositeLayer {
   constructor(props) {
     super(props);
 
+    // added or removed a node, or in general something layout related changed
     props.engine.addEventListener('onLayoutChange', this.forceUpdate);
+    // data of a node changed
+    props.engine.addEventListener('onNodeUpdated', this.forceUpdate);
   }
 
   initializeState() {

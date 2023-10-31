@@ -30,7 +30,14 @@ export default class D3ForceLayout extends BaseLayout {
     this._nodeMap = {};
     this._edgeMap = {};
     // nodes
-    const d3Nodes = graph.getNodes().map((node) => {
+    // this._d3Graph = {
+    //   nodes: d3Nodes,
+    //   edges: d3Edges
+    // };
+  }
+
+  _getD3Graph() {
+    const d3Nodes = this._graph.getNodes().map((node) => {
       const id = node.id;
       const locked = node.getPropertyValue('locked') || false;
       const x = node.getPropertyValue('x') || 0;
@@ -48,8 +55,9 @@ export default class D3ForceLayout extends BaseLayout {
       this._nodeMap[node.id] = d3Node;
       return d3Node;
     });
+
     // edges
-    const d3Edges = graph.getEdges().map((edge) => {
+    const d3Edges = this._graph.getEdges().map((edge) => {
       const d3Edge = {
         id: edge.id,
         source: this._nodeMap[edge.getSourceNodeId()],
@@ -58,10 +66,8 @@ export default class D3ForceLayout extends BaseLayout {
       this._edgeMap[edge.id] = d3Edge;
       return d3Edge;
     });
-    this._d3Graph = {
-      nodes: d3Nodes,
-      edges: d3Edges
-    };
+
+    return { nodes: d3Nodes, edges: d3Edges };
   }
 
   start() {
@@ -69,8 +75,9 @@ export default class D3ForceLayout extends BaseLayout {
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this._options;
     this._worker.postMessage({
-      nodes: this._d3Graph.nodes,
-      edges: this._d3Graph.edges,
+      // nodes: this._d3Graph.nodes,
+      // edges: this._d3Graph.edges,
+      ...this._getD3Graph(),
       options: {
         alpha,
         nBodyStrength,
