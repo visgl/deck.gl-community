@@ -150,6 +150,7 @@ export default class Graph extends EventTarget {
     sourceNode.addConnectedEdges(edge);
     targetNode.addConnectedEdges(edge);
     this._touchLastUpdate();
+    this.dispatchEvent(new CustomEvent('onEdgeAdded', {edge}));
   }
 
   /**

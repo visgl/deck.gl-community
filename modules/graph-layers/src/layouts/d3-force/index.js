@@ -67,7 +67,7 @@ export default class D3ForceLayout extends BaseLayout {
       return d3Edge;
     });
 
-    return { nodes: d3Nodes, edges: d3Edges };
+    return {nodes: d3Nodes, edges: d3Edges};
   }
 
   start() {
@@ -183,8 +183,13 @@ export default class D3ForceLayout extends BaseLayout {
     // edges
     const newEdgeMap = {};
     const newD3Edges = graph.edges.map((edge) => {
-      newEdgeMap[edge.id] = edge;
-      return edge;
+      const newD3Edge = {
+        id: edge.id,
+        source: newNodeMap[edge.source.id],
+        target: newNodeMap[edge.target.id]
+      };
+      newEdgeMap[edge.id] = newD3Edge;
+      return newD3Edge;
     });
     this._graph.triggerUpdate();
     this._edgeMap = newEdgeMap;

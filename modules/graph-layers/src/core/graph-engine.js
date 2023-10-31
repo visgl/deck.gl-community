@@ -113,7 +113,7 @@ export default class GraphEngine extends EventTarget {
 
   _onNodeUpdated = (node) => {
     this.dispatchEvent(new CustomEvent('onNodeUpdated', {node}));
-  }
+  };
 
   /** Layout calculations */
 
@@ -123,10 +123,13 @@ export default class GraphEngine extends EventTarget {
     this._graph = graph;
     this._layout = layout;
 
-    // TODO: edges
+    // Nodes
     this._graph.addEventListener('onNodeAdded', () => this._layout.start());
     this._graph.addEventListener('onNodeRemoved', () => this._layout.start());
     this._graph.addEventListener('onNodeUpdated', this._onNodeUpdated);
+
+    // TODO: Edges
+    this._graph.addEventListener('onEdgeAdded', () => this._layout.start());
 
     this._layout.initializeGraph(graph);
     this._layout.addEventListener('onLayoutStart', this._onLayoutStart);
@@ -150,5 +153,5 @@ export default class GraphEngine extends EventTarget {
 
   _updateLayout = () => {
     this._layout?.start();
-  }
+  };
 }
