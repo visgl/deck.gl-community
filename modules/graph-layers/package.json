@@ -1,6 +1,6 @@
 {
   "name": "deck-graph-layers",
-  "version": "0.0.18",
+  "version": "0.0.20",
   "description": "WebGL2-Powered library for Graph Visualization",
   "keywords": [
     "graph",
