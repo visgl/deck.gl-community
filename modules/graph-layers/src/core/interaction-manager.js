@@ -57,7 +57,7 @@ export default class InteractionManager {
     return this._lastInteraction;
   }
 
-  onClick(info) {
+  onClick(info, event) {
     const {object} = info;
 
     if (!object) {
@@ -76,12 +76,12 @@ export default class InteractionManager {
       }
 
       if (this.nodeEvents.onClick) {
-        this.nodeEvents.onClick(info);
+        this.nodeEvents.onClick(info, event);
       }
     }
 
     if (object.isEdge && this.edgeEvents.onClick) {
-      this.edgeEvents.onClick(info);
+      this.edgeEvents.onClick(info, event);
     }
   }
 
@@ -114,7 +114,7 @@ export default class InteractionManager {
     }
   }
 
-  onHover(info) {
+  onHover(info, event) {
     if (!info.object) {
       if (this._lastHoveredNode) {
         this._mouseLeaveNode();
