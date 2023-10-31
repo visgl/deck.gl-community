@@ -11,7 +11,7 @@ const defaultOptions = {
   getCollisionRadius: 0
 };
 
-export default class D3ForceLayout extends BaseLayout {
+export default class GPUForceLayout extends BaseLayout {
   constructor(options) {
     super(options);
     this._name = 'D3';
@@ -96,8 +96,8 @@ export default class D3ForceLayout extends BaseLayout {
   ended(data) {
     const {nodes, edges} = data;
     this.updateD3Graph({nodes, edges});
-    this._callbacks.onLayoutChange();
-    this._callbacks.onLayoutDone();
+    this._onLayoutChange();
+    this._onLayoutDone();
   }
   resume() {
     throw new Error('Resume unavailable');
