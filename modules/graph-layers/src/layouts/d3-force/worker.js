@@ -47,4 +47,6 @@ onmessage = function (event) {
     edges,
     options: event.data.options
   });
+
+  this.self.close();
 };

@@ -101,10 +101,10 @@ export default class D3ForceLayout extends BaseLayout {
     this._onLayoutDone();
   }
   resume() {
-    this._worker.resume();
+    throw new Error('Resume unavailable');
   }
   stop() {
-    this._worker.stop();
+    this._worker.terminate();
   }
 
   // for steaming new data on the same graph
