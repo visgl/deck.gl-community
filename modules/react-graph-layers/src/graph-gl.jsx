@@ -85,7 +85,8 @@ const GraphGl = ({
   resumeLayoutAfterDragging = false,
   zoomToFitOnLoad = false,
   loader = null,
-  getTooltip
+  getTooltip,
+  onHover
 }) => {
   if (!(graph instanceof Graph)) {
     log.error('Invalid graph data class')();
@@ -233,6 +234,7 @@ const GraphGl = ({
             })
           ]}
           getTooltip={getTooltip}
+          onHover={onHover}
         />
         <ViewControlComponent
           fitBounds={fitBounds}
