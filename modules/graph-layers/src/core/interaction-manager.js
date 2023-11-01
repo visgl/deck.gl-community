@@ -151,10 +151,15 @@ export default class InteractionManager {
     if (this.nodeEvents.onDragStart) {
       this.nodeEvents.onDragStart(info);
     }
+    this._lastDragNode = info.object;
   }
 
   onDrag(info, event) {
     // only nodes are draggable
+    if (!info.coordinate) {
+      // assume cursor dragged outside graph canvas
+      return;
+    }
     if (!info.object.isNode || !this.enableDragging) {
       return;
     }
@@ -176,6 +181,6 @@ export default class InteractionManager {
       this.engine.resume();
     }
     setNodeState(info.object, NODE_STATE.DEFAULT);
-    this.engine.unlockNodePosition(info.object);
+    this.engine.unlockNodePosition(info.object ?? this._lastDragNode);
   }
 }

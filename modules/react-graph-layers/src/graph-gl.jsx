@@ -70,6 +70,7 @@ const GraphGl = ({
     onClick: null,
     onHover: null
   },
+  // eslint-disable-next-line no-console
   onError = (error) => console.error(error),
   initialViewState = INITIAL_VIEW_STATE,
   ViewControlComponent = PositionedViewControl,
