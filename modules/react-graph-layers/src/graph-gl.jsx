@@ -187,10 +187,11 @@ const GraphGl = ({
   );
 
   useEffect(() => {
-    if (zoomToFitOnLoad) {
-      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+    if (zoomToFitOnLoad && isLoading) {
+      engine.addEventListener('onLayoutDone', fitBounds, {
+        once: true
+      });
     }
-
     return () => {
       engine.removeEventListener('onLayoutDone', fitBounds);
     };

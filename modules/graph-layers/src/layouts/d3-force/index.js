@@ -38,6 +38,16 @@ export default class D3ForceLayout extends BaseLayout {
   }
 
   start() {
+    this._engageWorker();
+
+    this._onLayoutStart();
+  }
+
+  update() {
+    this._engageWorker();
+  }
+
+  _engageWorker() {
     // prevent multiple start
     if (this._worker) {
       this._worker.terminate();
@@ -68,8 +78,6 @@ export default class D3ForceLayout extends BaseLayout {
       this._onLayoutChange();
       this._onLayoutDone();
     };
-
-    this._onLayoutStart();
   }
 
   resume() {

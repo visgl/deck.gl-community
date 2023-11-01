@@ -149,6 +149,6 @@ export default class GraphEngine extends EventTarget {
 
   _updateLayout = () => {
     this._layout?.updateGraph(this._graph);
-    this._layout?.start();
+    this._layout?.update();
   };
 }
