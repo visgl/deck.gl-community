@@ -91,7 +91,7 @@ export default class BaseLayout extends EventTarget {
   // first time to pass the graph data into this layout
   initializeGraph(graph) {}
   // update the existing graph
-  updateGraph(grpah) {}
+  updateGraph(graph) {}
   // start the layout calculation
   start() {}
   // resume the layout calculation

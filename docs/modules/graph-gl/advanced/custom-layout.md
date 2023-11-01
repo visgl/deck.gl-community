@@ -40,7 +40,7 @@ A layout goes through the following phases:
 - Mounting:
   `constructor` => `initializeGraph` => `start`
 - Updating:
-  `updageGraph` => `start`
+  `updateGraph` => `start`
 
 
 There are a few events that should be triggered when the layout changes:

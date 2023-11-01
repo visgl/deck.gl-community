@@ -118,40 +118,37 @@ export default class GraphEngine extends EventTarget {
   /** Layout calculations */
 
   run = (graph, layout = new SimpleLayout(), options) => {
-    this.clear();
+    if (this._graph || this._layout) {
+      throw new Error('Graph engine is already running, did you forget to clear it?');
+    }
 
     this._graph = graph;
-    this._layout = layout;
-
-    // Nodes
-    this._graph.addEventListener('onNodeAdded', () => this._layout.start());
-    this._graph.addEventListener('onNodeRemoved', () => this._layout.start());
+    this._graph.addEventListener('onNodeAdded', this._updateLayout);
+    this._graph.addEventListener('onNodeRemoved', this._updateLayout);
     this._graph.addEventListener('onNodeUpdated', this._onNodeUpdated);
+    this._graph.addEventListener('onEdgeAdded', this._updateLayout);
+    // TODO: Edge removed
 
-    // TODO: Edges
-    this._graph.addEventListener('onEdgeAdded', () => this._layout.start());
-
-    this._layout.initializeGraph(graph);
+    this._layout = layout;
     this._layout.addEventListener('onLayoutStart', this._onLayoutStart);
     this._layout.addEventListener('onLayoutChange', this._onLayoutChange);
     this._layout.addEventListener('onLayoutDone', this._onLayoutDone);
     this._layout.addEventListener('onLayoutError', this._onLayoutError);
+
+    this._layout.initializeGraph(graph);
     this._layout.start();
   };
 
   resume = () => {
-    if (this._layout) {
-      this._layout.resume();
-    }
+    this._layout?.resume();
   };
 
   stop = () => {
-    if (this._layout) {
-      this._layout.stop();
-    }
+    this._layout?.stop();
   };
 
   _updateLayout = () => {
+    this._layout?.updateGraph(this._graph);
     this._layout?.start();
   };
 }
