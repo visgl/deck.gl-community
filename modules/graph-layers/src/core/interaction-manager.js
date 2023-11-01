@@ -152,13 +152,14 @@ export default class InteractionManager {
       this.nodeEvents.onDragStart(info);
     }
     this._lastDragNode = info.object;
+    this._lastCoordinate = info.coordinate;
   }
 
   onDrag(info, event) {
     // only nodes are draggable
     if (!info.coordinate) {
       // assume cursor dragged outside graph canvas
-      return;
+      info.coordinate = this._lastCoordinate;
     }
     if (!info.object.isNode || !this.enableDragging) {
       return;
