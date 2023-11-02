@@ -151,24 +151,23 @@ export default class InteractionManager {
     if (this.nodeEvents.onDragStart) {
       this.nodeEvents.onDragStart(info);
     }
-    this._lastDragNode = info.object;
-    this._lastCoordinate = info.coordinate;
   }
 
   onDrag(info, event) {
-    // only nodes are draggable
-    if (!info.coordinate) {
-      // assume cursor dragged outside graph canvas
-      info.coordinate = this._lastCoordinate;
-    } else {
-      this._lastCoordinate = info.coordinate;
-    }
-
     if (!info.object.isNode || !this.enableDragging) {
       return;
     }
     event.stopImmediatePropagation();
-    this.engine.lockNodePosition(info.object, info.coordinate[0], info.coordinate[1]);
+
+    // info.viewport is undefined when the object is offscreen, so we use viewport from onDragStart
+    const coordinates = info.layer.context.viewport.unproject([info.x, info.y]);
+
+    // limit the node position to be within bounds of the viewport
+    const bounds = info.layer.context.viewport.getBounds(); // [minX, minY, maxX, maxY]
+    const x = Math.min(Math.max(coordinates[0], bounds[0]), bounds[2]);
+    const y = Math.min(Math.max(coordinates[1], bounds[1]), bounds[3]);
+    this.engine.lockNodePosition(info.object, x, y);
+
     setNodeState(info.object, NODE_STATE.DRAGGING);
     this._lastInteraction = Date.now();
     this.notifyCallback();
@@ -185,6 +184,6 @@ export default class InteractionManager {
       this.engine.resume();
     }
     setNodeState(info.object, NODE_STATE.DEFAULT);
-    this.engine.unlockNodePosition(info.object ?? this._lastDragNode);
+    this.engine.unlockNodePosition(info.object);
   }
 }
