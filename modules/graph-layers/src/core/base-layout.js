@@ -1,5 +1,5 @@
 import isEqual from 'lodash.isequal';
-import {EDGE_TYPE} from './constants';
+import {EDGE_TYPE, LAYOUT_STATE} from './constants';
 
 /**
  * All the layout classes are extended from this base layout class.
@@ -16,6 +16,8 @@ export default class BaseLayout extends EventTarget {
     this._name = 'BaseLayout';
     // extra configuration options of the layout
     this._options = {};
+    this.version = 0;
+    this.state = LAYOUT_STATE.INIT;
   }
 
   /**
@@ -23,6 +25,8 @@ export default class BaseLayout extends EventTarget {
    * @protected
    */
   _onLayoutStart() {
+    this._updateState(LAYOUT_STATE.CALCULATING);
+
     /**
      * Layout calculation start.
      *
@@ -37,6 +41,8 @@ export default class BaseLayout extends EventTarget {
    * @protected
    */
   _onLayoutChange() {
+    this._updateState(LAYOUT_STATE.CALCULATING);
+
     /**
      * Layout calculation iteration.
      *
@@ -51,6 +57,8 @@ export default class BaseLayout extends EventTarget {
    * @protected
    */
   _onLayoutDone() {
+    this._updateState(LAYOUT_STATE.DONE);
+
     /**
      * Layout calculation is done.
      *
@@ -65,6 +73,8 @@ export default class BaseLayout extends EventTarget {
    * @protected
    */
   _onLayoutError() {
+    this._updateState(LAYOUT_STATE.ERROR);
+
     /**
      * Layout calculation went wrong.
      *
@@ -127,4 +137,9 @@ export default class BaseLayout extends EventTarget {
    * @param  {Object} node Node to be unlocked
    */
   unlockNodePosition(node) {}
+
+  _updateState(state) {
+    this.state = state;
+    this.version += 1;
+  }
 }

@@ -1,4 +1,5 @@
 import {log} from '../utils/log';
+import {Cache} from './cache.js';
 
 // Basic graph data structure
 export default class Graph extends EventTarget {
@@ -16,15 +17,11 @@ export default class Graph extends EventTarget {
     // If the name of the graph is not specified,
     // will fall back to current time stamp.
     this._name = Date.now();
-    // the last updated timestamp of the graph.
-    this._lastUpdate = 0;
+    // the version the graph. A version is a number that is incremented every time the graph is updated.
+    this.version = 0;
 
     // cached data: create array data from maps.
-    this._cache = {
-      nodes: [],
-      edges: []
-    };
-    this._lastCacheUpdate = -1;
+    this._cache = new Cache();
 
     // copy the graph if it exists in the parameter
     if (graph) {
@@ -33,26 +30,6 @@ export default class Graph extends EventTarget {
       this._edgeMap = graph._edgeMap;
       this._name = graph && graph.name;
     }
-  }
-
-  /**
-   * update last update time stamp
-   */
-  _touchLastUpdate() {
-    // update last update time stamp
-    this._lastUpdate += 1;
-  }
-
-  /**
-   * update local data cache and _lastCacheUpdate.
-   */
-  _updateCache() {
-    // create array data from maps.
-    this._cache = {
-      nodes: Object.values(this._nodeMap),
-      edges: Object.values(this._edgeMap)
-    };
-    this._lastCacheUpdate = this._lastUpdate;
   }
 
   /**
@@ -78,7 +55,7 @@ export default class Graph extends EventTarget {
     // add it to the list and map
     this._nodeMap[node.getId()] = node;
     // update last update time stamp
-    this._touchLastUpdate();
+    this._bumpVersion();
     this.dispatchEvent(new CustomEvent('onNodeAdded', {node}));
   }
 
@@ -96,7 +73,7 @@ export default class Graph extends EventTarget {
       },
       {...this._nodeMap}
     );
-    this._touchLastUpdate();
+    this._bumpVersion();
   }
 
   /**
@@ -104,10 +81,9 @@ export default class Graph extends EventTarget {
    * @return {Node[]} - get all the nodes in the graph.
    */
   getNodes() {
-    if (this._lastCacheUpdate !== this._lastUpdate) {
-      this._updateCache();
-    }
-    return this._cache.nodes;
+    this._updateCache('nodes', () => Object.values(this._nodeMap));
+
+    return this._cache.get('nodes');
   }
 
   /**
@@ -129,7 +105,7 @@ export default class Graph extends EventTarget {
 
   updateNode(node) {
     this._nodeMap[node.getId()] = node;
-    this._touchLastUpdate();
+    this._bumpVersion();
     this.dispatchEvent(new CustomEvent('onNodeUpdated', {node}));
   }
 
@@ -149,7 +125,7 @@ export default class Graph extends EventTarget {
     this._edgeMap[edge.getId()] = edge;
     sourceNode.addConnectedEdges(edge);
     targetNode.addConnectedEdges(edge);
-    this._touchLastUpdate();
+    this._bumpVersion();
     this.dispatchEvent(new CustomEvent('onEdgeAdded', {edge}));
   }
 
@@ -159,7 +135,7 @@ export default class Graph extends EventTarget {
    */
   batchAddEdges(edges) {
     edges.forEach((edge) => this.addEdge(edge));
-    this._touchLastUpdate();
+    this._bumpVersion();
   }
 
   /**
@@ -178,7 +154,7 @@ export default class Graph extends EventTarget {
     });
     // remove the node from map
     delete this._nodeMap[nodeId];
-    this._touchLastUpdate();
+    this._bumpVersion();
     this.dispatchEvent(new CustomEvent('onNodeRemoved', {node}));
   }
 
@@ -187,10 +163,9 @@ export default class Graph extends EventTarget {
    * @return {Edge[]} get all the edges in the graph.
    */
   getEdges() {
-    if (this._lastCacheUpdate !== this._lastUpdate) {
-      this._updateCache();
-    }
-    return this._cache.edges;
+    this._updateCache('edges', () => Object.values(this._edgeMap));
+
+    return this._cache.get('edges');
   }
 
   /**
@@ -217,7 +192,7 @@ export default class Graph extends EventTarget {
     delete this._edgeMap[edgeId];
     sourceNode.removeConnectedEdges(edge);
     targetNode.removeConnectedEdges(edge);
-    this._touchLastUpdate();
+    this._bumpVersion();
   }
 
   /**
@@ -276,7 +251,7 @@ export default class Graph extends EventTarget {
    */
   resetNodes() {
     this._nodeMap = {};
-    this._touchLastUpdate();
+    this._bumpVersion();
   }
 
   /**
@@ -284,7 +259,7 @@ export default class Graph extends EventTarget {
    */
   resetEdges() {
     this._edgeMap = {};
-    this._touchLastUpdate();
+    this._bumpVersion();
   }
 
   /**
@@ -293,14 +268,14 @@ export default class Graph extends EventTarget {
   reset() {
     this.resetNodes();
     this.resetEdges();
-    this._touchLastUpdate();
+    this._bumpVersion();
   }
 
   /**
    * Trigger an update to the graph.
    */
   triggerUpdate() {
-    this._touchLastUpdate();
+    this._bumpVersion();
   }
 
   /**
@@ -320,6 +295,14 @@ export default class Graph extends EventTarget {
     if (!g || !(g instanceof Graph)) {
       return false;
     }
-    return this._lastUpdate === g._lastUpdate;
+    return this.version === g.version;
+  }
+
+  _bumpVersion() {
+    this.version += 1;
+  }
+
+  _updateCache(key, updateValue) {
+    this._cache.set(key, updateValue(), this.version);
   }
 }

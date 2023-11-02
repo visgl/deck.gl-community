@@ -20,7 +20,8 @@ export default class MyLayout extends BaseLayout {
   resume() {}
   // stop the layout calculation manually
   stop() {}
-  // access the position of the node in the layout
+  // Access the position of the node in the layout
+  // If the position is not available (not calculated), returning nullish will hide the node.
   getNodePosition(node) {}
   // access the layout information of the edge
   getEdgePosition(edge) {}
@@ -158,7 +159,7 @@ Then call `this._onLayoutDone()` to notify the render that layout is completed.
 
 GraphGL will keep retrieving the position of nodes and edges from the layout. You will need to provide two getters `getNodePosition` and `getEdgePosition`.
 
-- getNodePosition: return the position of the node [x, y].
+- getNodePosition: return the position of the node [x, y]. If the position is not available (not calculated), returning nullish will hide the node.
 - getEdgePosition: return the rendering information of the edge, including:
   -- type: the type of the edge, it should be 'LINE', 'SPLINE_CURVE', or 'PATH'.
   -- sourcePosition: the position of source node.

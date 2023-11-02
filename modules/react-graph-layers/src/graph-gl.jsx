@@ -1,11 +1,12 @@
-import React, {useCallback, useEffect, useState, useReducer} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react';
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
 import {extent} from 'd3-array';
-import ViewControl from './components/view-control.jsx';
-
-import {Graph, log, SimpleLayout, BaseLayout, GraphEngine, GraphLayer} from 'deck-graph-layers';
+import {BaseLayout, Graph, GraphLayer, log, SimpleLayout} from 'deck-graph-layers';
+import {useGraphEngine} from './use-graph-engine.jsx';
+import {useLoading} from './hooks/use-loading.jsx';
+import {PositionedViewControl} from './components/positioned-view-control.jsx';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view
@@ -16,38 +17,6 @@ const INITIAL_VIEW_STATE = {
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
-
-const loadingReducer = (state, action) => {
-  switch (action.type) {
-    case 'startLayout':
-      return {loaded: false, rendered: false, isLoading: true};
-    case 'layoutDone':
-      return state.loaded ? state : {...state, loaded: true};
-    case 'afterRender':
-      if (!state.loaded) {
-        return state;
-      }
-
-      // not interested after the first render, the state won't change
-      return state.rendered ? state : {...state, rendered: true, isLoading: false};
-    default:
-      throw new Error(`Unhandled action type: ${action.type}`);
-  }
-};
-
-// A wrapper for positioning the ViewControl component
-const PositionedViewControl = ({fitBounds, panBy, zoomBy, zoomLevel, maxZoom, minZoom}) => (
-  <div style={{position: 'relative', top: '20px', left: '20px'}}>
-    <ViewControl
-      fitBounds={fitBounds}
-      panBy={panBy}
-      zoomBy={zoomBy}
-      zoomLevel={zoomLevel}
-      maxZoom={maxZoom}
-      minZoom={minZoom}
-    />
-  </div>
-);
 
 const GraphGl = ({
   graph = new Graph(),
@@ -102,48 +71,21 @@ const GraphGl = ({
     ...initialViewState
   });
 
-  const [engine] = useState(new GraphEngine());
-  const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
+  const engine = useGraphEngine(graph, layout);
 
-  useEffect(() => {
-    const layoutStarted = () => loadingDispatch({type: 'startLayout'});
-    const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
+  const [{isLoading}, loadingDispatch] = useLoading(engine);
 
-    engine.addEventListener('onLayoutStart', layoutStarted);
-    engine.addEventListener('onLayoutDone', layoutEnded);
-
-    return () => {
-      engine.removeEventListener('onLayoutStart', layoutStarted);
-      engine.removeEventListener('onLayoutDone', layoutEnded);
-    };
-  }, [engine]);
-
-  useEffect(() => {
-    engine.run(graph, layout);
+  useLayoutEffect(() => {
+    engine.run();
 
     return () => {
       engine.clear();
     };
-  }, [graph, layout]);
-
-  const onViewStateChange = useCallback(
-    ({viewState: nextViewState}) => setViewState(nextViewState),
-    [setViewState]
-  );
-
-  const onResize = useCallback(
-    ({width, height}) =>
-      setViewState({
-        ...viewState,
-        width,
-        height
-      }),
-    [viewState, setViewState]
-  );
+  }, [engine]);
 
   const fitBounds = useCallback(() => {
     const {width, height} = viewState;
-    const data = engine.getGraph().getNodes();
+    const data = engine.getNodes();
 
     // get the projected position of all nodes
     const positions = data.map((d) => engine.getNodePosition(d));
@@ -188,14 +130,12 @@ const GraphGl = ({
 
   useEffect(() => {
     if (zoomToFitOnLoad && isLoading) {
-      engine.addEventListener('onLayoutDone', fitBounds, {
-        once: true
-      });
+      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
     }
     return () => {
       engine.removeEventListener('onLayoutDone', fitBounds);
     };
-  }, [fitBounds, zoomToFitOnLoad]);
+  }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
 
   return (
     <>
@@ -204,36 +144,60 @@ const GraphGl = ({
         <DeckGL
           glOptions={glOptions}
           onError={onError}
-          onAfterRender={() => loadingDispatch({type: 'afterRender'})}
+          onAfterRender={useCallback(
+            () => loadingDispatch({type: 'afterRender'}),
+            [loadingDispatch]
+          )}
           width="100%"
           height="100%"
-          getCursor={() => DEFAULT_CURSOR}
+          getCursor={useCallback(() => DEFAULT_CURSOR, [])}
           viewState={viewState}
-          onResize={onResize}
-          onViewStateChange={onViewStateChange}
-          views={[
-            new OrthographicView({
-              controller: {
-                minZoom,
-                maxZoom,
-                scrollZoom: enableZooming,
-                touchZoom: enableZooming,
-                doubleClickZoom: enableZooming && doubleClickZoom,
-                dragPan: enablePanning
-              }
-            })
-          ]}
-          layers={[
-            new GraphLayer({
+          onResize={useCallback(
+            ({width, height}) => setViewState((prev) => ({...prev, width, height})),
+            []
+          )}
+          onViewStateChange={useCallback(
+            ({viewState: nextViewState}) => setViewState(nextViewState),
+            []
+          )}
+          views={useMemo(
+            () => [
+              new OrthographicView({
+                controller: {
+                  minZoom,
+                  maxZoom,
+                  scrollZoom: enableZooming,
+                  touchZoom: enableZooming,
+                  doubleClickZoom: enableZooming && doubleClickZoom,
+                  dragPan: enablePanning
+                }
+              })
+            ],
+            [minZoom, maxZoom, enableZooming, doubleClickZoom, enablePanning]
+          )}
+          layers={useMemo(
+            () => [
+              new GraphLayer({
+                engine,
+                nodeStyle,
+                nodeEvents,
+                edgeStyle,
+                edgeEvents,
+                enableDragging,
+                resumeLayoutAfterDragging
+              })
+            ],
+            [
               engine,
+              engine.getGraphVersion(),
               nodeStyle,
               nodeEvents,
               edgeStyle,
               edgeEvents,
               enableDragging,
               resumeLayoutAfterDragging
-            })
-          ]}
+            ]
+          )}
           getTooltip={getTooltip}
           onHover={onHover}
         />

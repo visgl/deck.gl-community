@@ -91,6 +91,9 @@ export default class D3ForceLayout extends BaseLayout {
   getEdgePosition = (edge) => {
     const sourceNode = this._graph.findNode(edge.getSourceNodeId());
     const targetNode = this._graph.findNode(edge.getTargetNodeId());
+    if (!this.getNodePosition(sourceNode) || !this.getNodePosition(targetNode)) {
+      return null;
+    }
 
     return {
       type: EDGE_TYPE.LINE,
@@ -105,7 +108,8 @@ export default class D3ForceLayout extends BaseLayout {
     if (d3Node) {
       return [d3Node.x, d3Node.y];
     }
-    return [0, 0];
+
+    return null;
   };
 
   lockNodePosition = (node, x, y) => {
