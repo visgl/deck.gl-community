@@ -35,6 +35,8 @@ onmessage = function (event) {
     }
     return [currentNode[1], currentNode[2]];
   }
+  // FIXME correct lint errors
+  // eslint-disable-next-line max-params
   function forceLink(nodes, edges, currentNode, nodesSize, edgesSize, radius) {
     let x1 = currentNode[1];
     let y1 = currentNode[2];
@@ -44,6 +46,7 @@ onmessage = function (event) {
         const otherNodeId = edge[0] === currentNode[0] ? edge[1] : edge[0];
         // FIXME: deal with the fact that GPUjs doesn't like array.find or undefined
         for (let j = 0; j < nodesSize; j++) {
+          // eslint-disable-next-line max-depth
           if (nodes[i][0] === otherNodeId) {
             const otherNode = nodes[j];
             const x2 = otherNode[1];
@@ -52,6 +55,7 @@ onmessage = function (event) {
             const dy = y1 - y2;
             const distance = Math.sqrt(dx * dx + dy * dy);
             const force = 1;
+            // eslint-disable-next-line max-depth
             if (distance > radius + force) {
               x1 = dx > 0 ? x1 - force / 2 : x1 + force / 2;
               y1 = dy > 0 ? y1 - force / 2 : y1 + force / 2;

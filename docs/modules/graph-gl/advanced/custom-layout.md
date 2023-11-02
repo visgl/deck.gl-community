@@ -1,6 +1,7 @@
 # Write your own custom layout
 
 Here's the method you will likely to implement when creating your own custom layout:
+
 ```js
 import {BaseLayout} from 'react-graph-layers';
 
@@ -13,6 +14,8 @@ export default class MyLayout extends BaseLayout {
   updateGraph(grpah) {}
   // start the layout calculation
   start() {}
+  // update the layout calculation
+  update() {}
   // resume the layout calculation manually
   resume() {}
   // stop the layout calculation manually
@@ -30,10 +33,9 @@ export default class MyLayout extends BaseLayout {
 
 We will start with a `RandomLayout` as an example, you can follow the steps one by one and find the source code at the bottom.
 
-
 ### Lifecycles
 
-For a graph layout, everything goes through a set of events. In each event, the layout will need to take the inputs and do the different computations.  Lifecycle methods are various methods which are invoked at different phases of the lifecycle of a graph layout. If you are aware of these lifecycle events, it will enable you to control their entire flow and it will definitely help us to produce better results.
+For a graph layout, everything goes through a set of events. In each event, the layout will need to take the inputs and do the different computations. Lifecycle methods are various methods which are invoked at different phases of the lifecycle of a graph layout. If you are aware of these lifecycle events, it will enable you to control their entire flow and it will definitely help us to produce better results.
 
 A layout goes through the following phases:
 
@@ -42,21 +44,22 @@ A layout goes through the following phases:
 - Updating:
   `updateGraph` => `start`
 
-
 There are a few events that should be triggered when the layout changes:
-- `this._onLayoutStart()`
-    When the layout starts, `onLayoutStart` should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
 
- - `this._onLayoutChange()`
+- `this._onLayoutStart()`
+  When the layout starts, `onLayoutStart` should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
+
+- `this._onLayoutChange()`
   Every time when the layout changes, `onLayoutChange` should be triggered to notify GraphGL to re-render and update the view. Then GraphGL will use `getNodePosition` and `getEdgePosition` to get the position information to render the graph. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
 
- - `this._onLayoutDone()`
+- `this._onLayoutDone()`
   When the layout is completed, 'onLayoutDone' should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: remove the spinner from the UI.
 
 If you want to implement the drag & drag interaction on nodes, you will have to implement:
- - `lockNodePosition`: pin the node at the designated position.
- - `unlockNodePosition`: free the node from the position.
- - `resume`: resume the layout calculation.
+
+- `lockNodePosition`: pin the node at the designated position.
+- `unlockNodePosition`: free the node from the position.
+- `resume`: resume the layout calculation.
 
 The sequence of the events is like:
 startDragging => lockNodePosition => release => unlockNodePosition => resume
@@ -67,9 +70,7 @@ In the constructor, you can initialize some internal object you'll need for the 
 The most important part is to create a 'map' to keep the position of nodes.
 
 ```js
-
 export default class RandomLayout extends BaseLayout {
-
   static defaultOptions = {
     viewportWidth: 1000,
     viewportHeight: 1000
@@ -83,7 +84,7 @@ export default class RandomLayout extends BaseLayout {
     // combine the default options with user input
     this._options = {
       ...this.defaultOptions,
-      ...options,
+      ...options
     };
     // a map to persis the position of nodes.
     this._nodePositionMap = {};
@@ -92,6 +93,7 @@ export default class RandomLayout extends BaseLayout {
 ```
 
 ### Update the graph data
+
 GraphGL will call `initializeGraph` to pass the graph data into the layout.
 If the graph is the same one but part ofthe data is changed, GraphGL will call `updateGraph` method to notify the layout.
 
@@ -110,7 +112,6 @@ In this case, we can just simply update the `this._nodePositionMap` by going thr
     }, {});
   }
 ```
-
 
 ### Compute layout
 
@@ -135,29 +136,27 @@ Then call `this._onLayoutDone()` to notify the render that layout is completed.
 
 GraphGL will keep retrieving the position of nodes and edges from the layout. You will need to provide two getters `getNodePosition` and `getEdgePosition`.
 
- - getNodePosition: return the position of the node [x, y].
- - getEdgePosition: return the rendering information of the edge, including:
-   -- type: the type of the edge, it should be 'LINE', 'SPLINE_CURVE', or 'PATH'.
-   -- sourcePosition: the position of source node.
-   -- targetPosition: the position of target node.
-   -- controlPoints: a set of control points for 'SPLINE_CURVE', or 'PATH' edge.
-
+- getNodePosition: return the position of the node [x, y].
+- getEdgePosition: return the rendering information of the edge, including:
+  -- type: the type of the edge, it should be 'LINE', 'SPLINE_CURVE', or 'PATH'.
+  -- sourcePosition: the position of source node.
+  -- targetPosition: the position of target node.
+  -- controlPoints: a set of control points for 'SPLINE_CURVE', or 'PATH' edge.
 
 ```js
-  getNodePosition = node => this._nodePositionMap[node.getId()];
+getNodePosition = (node) => this._nodePositionMap[node.getId()];
 
-  getEdgePosition = edge => {
-    const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
-    const targetPos = this._nodePositionMap[edge.getTargetNodeId()];
-    return {
-      type: EDGE_TYPE.LINE,
-      sourcePosition: sourcePos,
-      targetPosition: targetPos,
-      controlPoints: [],
-    };
+getEdgePosition = (edge) => {
+  const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
+  const targetPos = this._nodePositionMap[edge.getTargetNodeId()];
+  return {
+    type: EDGE_TYPE.LINE,
+    sourcePosition: sourcePos,
+    targetPosition: targetPos,
+    controlPoints: []
   };
+};
 ```
-
 
 ### Full source code
 
@@ -170,7 +169,7 @@ export default class RandomLayout extends BaseLayout {
     this._name = 'RandomLayout';
     this._options = {
       ...defaultOptions,
-      ...options,
+      ...options
     };
     this._nodePositionMap = {};
   }
@@ -198,16 +197,16 @@ export default class RandomLayout extends BaseLayout {
     this._onLayoutDone();
   }
 
-  getNodePosition = node => this._nodePositionMap[node.getId()];
+  getNodePosition = (node) => this._nodePositionMap[node.getId()];
 
-  getEdgePosition = edge => {
+  getEdgePosition = (edge) => {
     const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
     const targetPos = this._nodePositionMap[edge.getTargetNodeId()];
     return {
       type: EDGE_TYPE.LINE,
       sourcePosition: sourcePos,
       targetPosition: targetPos,
-      controlPoints: [],
+      controlPoints: []
     };
   };
 }

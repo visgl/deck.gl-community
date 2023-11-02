@@ -11,10 +11,11 @@ const defaultOptions = {
   getCollisionRadius: 0
 };
 
+// TODO: this layout should be updated with the organizational and logic improvements made in d3-force
 export default class GPUForceLayout extends BaseLayout {
   constructor(options) {
     super(options);
-    this._name = 'D3';
+    this._name = 'GPU';
     this._options = {
       ...defaultOptions,
       ...options
@@ -65,6 +66,19 @@ export default class GPUForceLayout extends BaseLayout {
   }
 
   start() {
+    this._engageWorker();
+  }
+
+  update() {
+    this._engageWorker();
+  }
+
+  _engageWorker() {
+    // prevent multiple start
+    if (this._worker) {
+      this._worker.terminate();
+    }
+
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this._options;

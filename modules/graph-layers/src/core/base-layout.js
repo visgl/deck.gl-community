@@ -94,6 +94,8 @@ export default class BaseLayout extends EventTarget {
   updateGraph(graph) {}
   // start the layout calculation
   start() {}
+  // update the layout calculation
+  update() {}
   // resume the layout calculation
   resume() {}
   // stop the layout calculation
