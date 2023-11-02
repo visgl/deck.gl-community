@@ -42,12 +42,12 @@ A layout goes through the following phases:
 - Mounting:
   `constructor` => `initializeGraph` => `start`
 - Updating:
-  `updateGraph` => `start`
+  `updateGraph` => `update`
 
 There are a few events that should be triggered when the layout changes:
 
 - `this._onLayoutStart()`
-  When the layout starts, `onLayoutStart` should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
+  When the layout starts, `onLayoutStart` should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate a new layout is computing.
 
 - `this._onLayoutChange()`
   Every time when the layout changes, `onLayoutChange` should be triggered to notify GraphGL to re-render and update the view. Then GraphGL will use `getNodePosition` and `getEdgePosition` to get the position information to render the graph. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
@@ -116,12 +116,34 @@ In this case, we can just simply update the `this._nodePositionMap` by going thr
 ### Compute layout
 
 GraphGL will call `start()` of the layout to kick start the layout calculation.
+Before starting the calculation you should call `this._onLayoutStart()` to notify that a new layout has been started
 In this case, the computation is easy as assigning random position for each node only.
 Once the layout is completed, you will need to call `this._onLayoutChange()` to notify the render redraw.
 Then call `this._onLayoutDone()` to notify the render that layout is completed.
 
 ```js
   start() {
+    const {viewportWidth, viewportHeight} = this._options;
+    this._onLayoutStart();
+    this._nodePositionMap = Object.keys(this._nodePositionMap).reduce((res, nodeId) => {
+      res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
+      return res;
+    }, {});
+    this._onLayoutChange();
+    this._onLayoutDone();
+  }
+```
+
+### Update layout
+
+GraphGL will call `update()` of the layout to update the layout calculation when a full new layout is not required.
+Most commonly this will be when nodes or edges of the graph are updated.
+In this case we will simply assign a random position for each node.
+Once the layout is completed, you will need to call `this._onLayoutChange()` to notify the render redraw.
+Then call `this._onLayoutDone()` to notify the render that layout is completed.
+
+```js
+  update() {
     const {viewportWidth, viewportHeight} = this._options;
     this._nodePositionMap = Object.keys(this._nodePositionMap).reduce((res, nodeId) => {
       res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
@@ -188,6 +210,17 @@ export default class RandomLayout extends BaseLayout {
   }
 
   start() {
+    const {viewportWidth, viewportHeight} = this._options;
+    this._onLayoutStart();
+    this._nodePositionMap = Object.keys(this._nodePositionMap).reduce((res, nodeId) => {
+      res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
+      return res;
+    }, {});
+    this._onLayoutChange();
+    this._onLayoutDone();
+  }
+
+  update() {
     const {viewportWidth, viewportHeight} = this._options;
     this._nodePositionMap = Object.keys(this._nodePositionMap).reduce((res, nodeId) => {
       res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
