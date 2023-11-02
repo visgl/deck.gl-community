@@ -160,7 +160,7 @@ export default class InteractionManager {
     if (!info.coordinate) {
       // assume cursor dragged outside graph canvas
       info.coordinate = this._lastCoordinate;
-    }else{
+    } else {
       this._lastCoordinate = info.coordinate;
     }
 
