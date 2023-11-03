@@ -8,23 +8,32 @@ export default class LongPressButton extends PureComponent {
     children: PropTypes.any.isRequired
   };
 
-  // repeat onClick when long press
+  componentDidMount() {
+    (document ?? global.document).addEventListener('mouseup', this._handleButtonRelease);
+  }
+
+  componentWillUnmount() {
+    (window ?? global).clearTimeout(this.buttonPressTimer);
+    (document ?? global.document).removeEventListener('mouseup', this._handleButtonRelease);
+  }
+
   _repeat = () => {
-    this.props.onClick();
+    if (this.buttonPressTimer) {
+      this.props.onClick();
+      this.buttonPressTimer = (window ?? global).setTimeout(this._repeat, 100);
+    }
+  };
+
+  _handleButtonPress = () => {
     this.buttonPressTimer = (window ?? global).setTimeout(this._repeat, 100);
   };
 
-  // onMouseDown
-  _handleButtonPress = () => this._repeat();
-
-  // onMouseUp
-  _handleButtonRelease = () => (window ?? global).clearTimeout(this.buttonPressTimer);
+  _handleButtonRelease = () => {
+    (window ?? global).clearTimeout(this.buttonPressTimer);
+    this.buttonPressTimer = null;
+  };
 
   render() {
-    return (
-      <div onMouseDown={this._handleButtonPress} onMouseUp={this._handleButtonRelease}>
-        {this.props.children}
-      </div>
-    );
+    return <div onMouseDown={this._handleButtonPress}>{this.props.children}</div>;
   }
 }
