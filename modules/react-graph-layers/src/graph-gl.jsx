@@ -104,7 +104,7 @@ const GraphGl = ({
       target: newTarget,
       zoom: newZoom
     });
-  }, [viewState, setViewState, viewportPadding, minZoom, maxZoom]);
+  }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
 
   // Relatively pan the graph by a specified position vector.
   const panBy = useCallback(
