@@ -8,6 +8,8 @@ export default class GraphEngine extends EventTarget {
     this._graph = graph;
     this._layout = layout;
     this._cache = new Cache();
+    this._layoutDirty = false;
+    this._transactionInProgress = false;
   }
 
   /** Getters */
@@ -88,15 +90,18 @@ export default class GraphEngine extends EventTarget {
     this.dispatchEvent(new CustomEvent('onLayoutError'));
   };
 
-  /**
-   * @fires GraphEngine#onNodeUpdated
-   */
-  _onNodeUpdated = (node) => {
-    /**
-     * @event GraphEngine#onNodeUpdated
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onNodeUpdated', {node}));
+  _onGraphStructureChanged = (entity) => {
+    this._layoutDirty = true;
+    this._graphChanged();
+  };
+
+  _onTransactionStart = () => {
+    this._transactionInProgress = true;
+  };
+
+  _onTransactionEnd = () => {
+    this._transactionInProgress = false;
+    this._graphChanged();
   };
 
   /** Layout calculations */
@@ -104,11 +109,12 @@ export default class GraphEngine extends EventTarget {
   run = () => {
     // TODO: throw if running on a cleared engine
 
-    this._graph.addEventListener('onNodeAdded', this._updateLayout);
-    this._graph.addEventListener('onNodeRemoved', this._updateLayout);
-    this._graph.addEventListener('onNodeUpdated', this._onNodeUpdated);
-    this._graph.addEventListener('onEdgeAdded', this._updateLayout);
-    // TODO: Edge removed
+    this._graph.addEventListener('transactionStart', this._onTransactionStart);
+    this._graph.addEventListener('transactionEnd', this._onTransactionEnd);
+    this._graph.addEventListener('onNodeAdded', this._onGraphStructureChanged);
+    this._graph.addEventListener('onNodeRemoved', this._onGraphStructureChanged);
+    this._graph.addEventListener('onEdgeAdded', this._onGraphStructureChanged);
+    this._graph.addEventListener('onEdgeRemoved', this._onGraphStructureChanged);
 
     this._layout.addEventListener('onLayoutStart', this._onLayoutStart);
     this._layout.addEventListener('onLayoutChange', this._onLayoutChange);
@@ -120,10 +126,13 @@ export default class GraphEngine extends EventTarget {
   };
 
   clear = () => {
-    this._graph.removeEventListener('onNodeAdded', this._updateLayout);
-    this._graph.removeEventListener('onNodeRemoved', this._updateLayout);
+    this._graph.removeEventListener('transactionStart', this._onTransactionStart);
+    this._graph.removeEventListener('transactionEnd', this._onTransactionEnd);
+    this._graph.removeEventListener('onNodeAdded', this._onGraphStructureChanged);
+    this._graph.removeEventListener('onNodeRemoved', this._onGraphStructureChanged);
     this._graph.removeEventListener('onNodeUpdated', this._onNodeUpdated);
-    this._graph.removeEventListener('onEdgeAdded', this._updateLayout);
+    this._graph.removeEventListener('onEdgeAdded', this._onGraphStructureChanged);
+    this._graph.removeEventListener('onEdgeRemoved', this._onGraphStructureChanged);
 
     this._layout.removeEventListener('onLayoutStart', this._onLayoutStart);
     this._layout.removeEventListener('onLayoutChange', this._onLayoutChange);
@@ -135,9 +144,16 @@ export default class GraphEngine extends EventTarget {
 
   stop = () => this._layout.stop();
 
+  _graphChanged = () => {
+    if (this._layoutDirty && !this._transactionInProgress) {
+      this._updateLayout();
+    }
+  };
+
   _updateLayout = () => {
     this._layout.updateGraph(this._graph);
     this._layout.update();
+    this._layoutDirty = false;
   };
 
   _updateCache(key, updateValue) {

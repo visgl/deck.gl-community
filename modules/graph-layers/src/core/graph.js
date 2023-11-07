@@ -48,6 +48,19 @@ export default class Graph extends EventTarget {
   }
 
   /**
+   * Perform a batch of operations defined by cb before indicating graph is updated
+   * @param {function} cb - a callback fuction containing the operations to perform
+   */
+  transaction(cb) {
+    try {
+      this.dispatchEvent(new CustomEvent('transactionStart'));
+      return cb();
+    } finally {
+      this.dispatchEvent(new CustomEvent('transactionEnd'));
+    }
+  }
+
+  /**
    * Add a new node to the graph.
    * @param {Node} node - expect a Node object to be added to the graph.
    */
@@ -103,6 +116,10 @@ export default class Graph extends EventTarget {
     return this._nodeMap[nodeId];
   }
 
+  /**
+   * Update the indicated node to the provided value
+   * @param {Node} node
+   */
   updateNode(node) {
     this._nodeMap[node.getId()] = node;
     this._bumpVersion();
@@ -136,6 +153,20 @@ export default class Graph extends EventTarget {
   batchAddEdges(edges) {
     edges.forEach((edge) => this.addEdge(edge));
     this._bumpVersion();
+  }
+
+  /**
+   * Update the indicated edge to the provided value
+   * @param {Edge} edge
+   */
+  updateEdge(edge) {
+    this._edgeMap[edge.getId()] = edge;
+    this._bumpVersion();
+    this.dispatchEvent(
+      new CustomEvent('onEdgeUpdated', {
+        edge
+      })
+    );
   }
 
   /**
