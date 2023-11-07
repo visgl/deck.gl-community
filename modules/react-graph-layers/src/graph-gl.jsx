@@ -84,8 +84,12 @@ const GraphGl = ({
   }, [engine]);
 
   const fitBounds = useCallback(() => {
-    const {width, height} = viewState;
     const data = engine.getNodes();
+    if (!data.length) {
+      return;
+    }
+
+    const {width, height} = viewState;
 
     // get the projected position of all nodes
     const positions = data.map((d) => engine.getNodePosition(d));
