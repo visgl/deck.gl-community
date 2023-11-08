@@ -151,14 +151,10 @@ export default class Node {
    */
   addConnectedEdges(edge) {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];
-    this._connectedEdges = iterableEdges.reduce(
-      (res, e) => {
-        res[e.id] = e;
-        e.addNode(this);
-        return res;
-      },
-      {...this._connectedEdges}
-    );
+    iterableEdges.forEach((e) => {
+      this._connectedEdges[e.id] = edge;
+      e.addNode(this);
+    });
   }
 
   /**
