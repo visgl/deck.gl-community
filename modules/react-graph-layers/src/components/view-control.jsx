@@ -29,7 +29,8 @@ export const NavigationButton = styled.div`
   top: ${(props) => props.top};
   transform: rotate(${(props) => props.rotate || 0}deg);
 
-  &:hover {
+  &:hover,
+  &:active {
     color: #00ade6;
   }
 `;
@@ -66,7 +67,8 @@ export const ZoomControlButton = styled.div`
   font-weight: 500;
   margin: -4px;
 
-  &:hover {
+  &:hover,
+  &:active {
     color: #00ade6;
   }
 `;

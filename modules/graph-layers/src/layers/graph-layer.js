@@ -80,6 +80,7 @@ export default class GraphLayer extends CompositeLayer {
   constructor(props) {
     super(props);
 
+    // added or removed a node, or in general something layout related changed
     props.engine.addEventListener('onLayoutChange', this.forceUpdate);
   }
 
@@ -119,7 +120,7 @@ export default class GraphLayer extends CompositeLayer {
       return new LayerType({
         ...SHARED_LAYER_PROPS,
         id: `node-rule-${idx}`,
-        data: engine.getGraph().getNodes(),
+        data: engine.getNodes(),
         getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
         pickable,
         positionUpdateTrigger: [
@@ -147,7 +148,7 @@ export default class GraphLayer extends CompositeLayer {
     const edgeLayer = new CompositeEdgeLayer({
       ...SHARED_LAYER_PROPS,
       id: 'edge-layer',
-      data: engine.getGraph().getEdges(),
+      data: engine.getEdges(),
       getLayoutInfo: engine.getEdgePosition,
       pickable: true,
       positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
@@ -170,7 +171,7 @@ export default class GraphLayer extends CompositeLayer {
       return new DecoratorLayer({
         ...SHARED_LAYER_PROPS,
         id: `edge-decorator-${idx}`,
-        data: engine.getGraph().getEdges(),
+        data: engine.getEdges(),
         getLayoutInfo: engine.getEdgePosition,
         pickable: true,
         positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
@@ -201,9 +202,6 @@ export default class GraphLayer extends CompositeLayer {
   }
 
   renderLayers() {
-    if (!this.props.engine.getGraph()) {
-      return [];
-    }
     return [this.createEdgeLayers(), this.createNodeLayers()];
   }
 }
