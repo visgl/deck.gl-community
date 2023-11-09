@@ -1,6 +1,6 @@
 {
   "name": "react-deck-graph-layers",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "WebGL2-Powered React Components for Graph Visualization",
   "keywords": [
     "graph",
@@ -23,7 +23,7 @@
     "@deck.gl/react": "^8.9.18",
     "d3": "^7.8.2",
     "d3-array": "^3.2.2",
-    "deck-graph-layers": "^0.0.20",
+    "deck-graph-layers": "^0.0.21",
     "global": "^4.4.0",
     "prop-types": "^15.8.1",
     "styled-components": "^5.3.8"
