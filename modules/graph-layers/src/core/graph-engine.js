@@ -130,7 +130,6 @@ export default class GraphEngine extends EventTarget {
     this._graph.removeEventListener('transactionEnd', this._onTransactionEnd);
     this._graph.removeEventListener('onNodeAdded', this._onGraphStructureChanged);
     this._graph.removeEventListener('onNodeRemoved', this._onGraphStructureChanged);
-    this._graph.removeEventListener('onNodeUpdated', this._onNodeUpdated);
     this._graph.removeEventListener('onEdgeAdded', this._onGraphStructureChanged);
     this._graph.removeEventListener('onEdgeRemoved', this._onGraphStructureChanged);
 
