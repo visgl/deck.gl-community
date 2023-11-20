@@ -52,12 +52,12 @@ export default class EdgeLayer extends CompositeLayer {
   }
 
   renderLayers() {
-    const {getLayoutInfo, pickable, positionUpdateTrigger, stylesheet} = this.props;
+    const {getLayoutInfo, pickable, positionUpdateTrigger, stylesheet, id} = this.props;
 
     const {typedEdgeData} = this.state;
 
     // render lines by types (straight line, path, curves)
-    return Object.entries(typedEdgeData).map((e) => {
+    return Object.entries(typedEdgeData).map((e, idx) => {
       const [type, edgeData] = e;
       const Layer = EDGE_LAYER_MAP[type];
       // invalid edge layer type
@@ -65,6 +65,7 @@ export default class EdgeLayer extends CompositeLayer {
         return null;
       }
       return new Layer({
+        id: `${id}-${idx}`,
         data: edgeData,
         getLayoutInfo,
         getColor: stylesheet.getDeckGLAccessor('getColor'),

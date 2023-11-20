@@ -30,11 +30,13 @@ const GraphGl = ({
     onClick: null,
     onDrag: null
   },
-  edgeStyle = {
-    decorators: [],
-    stroke: 'black',
-    strokeWidth: 1
-  },
+  edgeStyle = [
+    {
+      decorators: [],
+      stroke: 'black',
+      strokeWidth: 1
+    }
+  ],
   edgeEvents = {
     onClick: null,
     onHover: null
@@ -235,11 +237,16 @@ GraphGl.propTypes = {
   /** Declarative node style */
   nodeStyle: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool])),
   /** Declarative edge style */
-  edgeStyle: PropTypes.shape({
-    stroke: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
-    strokeWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
-    decorators: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool]))
-  }).isRequired,
+  edgeStyle: PropTypes.oneOfType([
+    PropTypes.object,
+    PropTypes.arrayOf(
+      PropTypes.shape({
+        stroke: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
+        strokeWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
+        decorators: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool]))
+      })
+    )
+  ]).isRequired,
   /** Edge event callbacks */
   edgeEvents: PropTypes.shape({
     onClick: PropTypes.func,
