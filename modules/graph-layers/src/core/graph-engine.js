@@ -156,6 +156,6 @@ export default class GraphEngine extends EventTarget {
   };
 
   _updateCache(key, updateValue) {
-    this._cache.set(key, updateValue(), this._graph.version + this._layout.version);
+    this._cache.set(key, updateValue, this._graph.version + this._layout.version);
   }
 }

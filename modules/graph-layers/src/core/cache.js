@@ -13,10 +13,10 @@ export class Cache {
 
   /**
    * @param key The key of the cache
-   * @param value The value of the cache
+   * @param createValue A callback to create the value of the cache if it is needed.
    * @param version The version of the cache. If the version is smaller than the current version, the cache will not be updated.
    */
-  set(key, value, version) {
+  set(key, createValue, version) {
     const cached = this._keys.get(key);
 
     const keyUpdated = cached === undefined || version > cached.version;
@@ -24,6 +24,6 @@ export class Cache {
       return;
     }
 
-    this._keys.set(key, {version, value});
+    this._keys.set(key, {version, value: createValue()});
   }
 }
