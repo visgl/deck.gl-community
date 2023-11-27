@@ -73,7 +73,13 @@ export default class D3ForceLayout extends BaseLayout {
         return;
       }
 
-      event.data.nodes.forEach(({id, ...d3}) => this._positionsByNodeId.set(id, d3));
+      event.data.nodes.forEach(({id, ...d3}) =>
+        this._positionsByNodeId.set(id, {
+          ...d3,
+          // precompute so that when we return the node position we do not need to do the conversion
+          coordinates: [d3.x, d3.y]
+        })
+      );
 
       this._onLayoutChange();
       this._onLayoutDone();
@@ -106,7 +112,7 @@ export default class D3ForceLayout extends BaseLayout {
   getNodePosition = (node) => {
     const d3Node = this._positionsByNodeId.get(node.id);
     if (d3Node) {
-      return [d3Node.x, d3Node.y];
+      return d3Node.coordinates;
     }
 
     return null;
@@ -114,10 +120,14 @@ export default class D3ForceLayout extends BaseLayout {
 
   lockNodePosition = (node, x, y) => {
     const d3Node = this._positionsByNodeId.get(node.id);
-    d3Node.x = x;
-    d3Node.y = y;
-    d3Node.fx = x;
-    d3Node.fy = y;
+    this._positionsByNodeId.set(node.id, {
+      ...d3Node,
+      x,
+      y,
+      fx: x,
+      fy: y,
+      coordinates: [x, y]
+    });
     this._onLayoutChange();
     this._onLayoutDone();
   };

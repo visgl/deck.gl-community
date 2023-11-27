@@ -39,7 +39,7 @@ export default class EdgeLayer extends CompositeLayer {
     const typedEdgeData = data.reduce(
       (res, d) => {
         const {type} = getLayoutInfo(d);
-        res[type] = res[type].concat(d);
+        res[type].push(d);
         return res;
       },
       {
