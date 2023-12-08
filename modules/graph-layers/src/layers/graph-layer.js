@@ -107,7 +107,7 @@ export default class GraphLayer extends CompositeLayer {
       return [];
     }
     return nodeStyle.filter(Boolean).map((style, idx) => {
-      const {pickable = true, ...restStyle} = style;
+      const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
       const LayerType = NODE_LAYER_MAP[style.type];
       if (!LayerType) {
         log.error(`Invalid node type: ${style.type}`)();
@@ -120,7 +120,7 @@ export default class GraphLayer extends CompositeLayer {
       return new LayerType({
         ...SHARED_LAYER_PROPS,
         id: `node-rule-${idx}`,
-        data: engine.getNodes(),
+        data: data(engine.getNodes()),
         getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
         pickable,
         positionUpdateTrigger: [
@@ -128,57 +128,68 @@ export default class GraphLayer extends CompositeLayer {
           engine.getLayoutState(),
           stylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
         ].join(),
-        stylesheet
+        stylesheet,
+        visible
       });
     });
   }
 
   createEdgeLayers() {
     const {edgeStyle, engine} = this.props;
-    const {decorators, ...restEdgeStyle} = edgeStyle;
-    const stylesheet = new Stylesheet(
-      {
-        type: 'Edge',
-        ...restEdgeStyle
-      },
-      {
-        stateUpdateTrigger: this.state.interactionManager.getLastInteraction()
-      }
-    );
-    const edgeLayer = new CompositeEdgeLayer({
-      ...SHARED_LAYER_PROPS,
-      id: 'edge-layer',
-      data: engine.getEdges(),
-      getLayoutInfo: engine.getEdgePosition,
-      pickable: true,
-      positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
-      stylesheet
-    });
-    if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
-      return edgeLayer;
+
+    if (!edgeStyle) {
+      return [];
     }
 
-    const decoratorLayers = decorators.filter(Boolean).map((style, idx) => {
-      const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[style.type];
-      // invalid decorator layer type
-      if (!DecoratorLayer) {
-        log.error(`Invalid edge decorator type: ${style.type}`)();
-        throw new Error(`Invalid edge decorator type: ${style.type}`);
-      }
-      const decoratorStylesheet = new Stylesheet(style, {
-        stateUpdateTrigger: this.state.interactionManager.getLastInteraction()
+    return (Array.isArray(edgeStyle) ? edgeStyle : [edgeStyle])
+      .filter(Boolean)
+      .flatMap((style, idx) => {
+        const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
+        const stylesheet = new Stylesheet(
+          {
+            type: 'Edge',
+            ...restEdgeStyle
+          },
+          {
+            stateUpdateTrigger: this.state.interactionManager.getLastInteraction()
+          }
+        );
+
+        const edgeLayer = new CompositeEdgeLayer({
+          ...SHARED_LAYER_PROPS,
+          id: `edge-layer-${idx}`,
+          data: data(engine.getEdges()),
+          getLayoutInfo: engine.getEdgePosition,
+          pickable: true,
+          positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+          stylesheet,
+          visible
+        });
+
+        if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
+          return edgeLayer;
+        }
+        const decoratorLayers = decorators.filter(Boolean).flatMap((decoratorStyle, idx2) => {
+          const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
+          if (!DecoratorLayer) {
+            log.error(`Invalid edge decorator type: ${decoratorStyle.type}`)();
+            throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
+          }
+          const decoratorStylesheet = new Stylesheet(decoratorStyle, {
+            stateUpdateTrigger: this.state.interactionManager.getLastInteraction()
+          });
+          return new DecoratorLayer({
+            ...SHARED_LAYER_PROPS,
+            id: `edge-decorator-${idx2}`,
+            data: data(engine.getEdges()),
+            getLayoutInfo: engine.getEdgePosition,
+            pickable: true,
+            positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+            stylesheet: decoratorStylesheet
+          });
+        });
+        return [edgeLayer, decoratorLayers];
       });
-      return new DecoratorLayer({
-        ...SHARED_LAYER_PROPS,
-        id: `edge-decorator-${idx}`,
-        data: engine.getEdges(),
-        getLayoutInfo: engine.getEdgePosition,
-        pickable: true,
-        positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
-        stylesheet: decoratorStylesheet
-      });
-    });
-    return [edgeLayer, decoratorLayers];
   }
 
   onClick(info, event) {

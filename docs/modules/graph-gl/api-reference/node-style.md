@@ -14,6 +14,8 @@ Example of nodeStyle:
       type: NODE_TYPE.CIRCLE,
       radius: 10,
       color: '#f00'
+      data: data => data,
+      visible: true
     }
   ]}
 />
@@ -38,6 +40,14 @@ Example of nodeStyle:
 
 - Default: `9`
 - Sets the minimum text size permitted by pixels
+
+### `data` (Function, optional)
+
+Allows setting of the layer data via accessor
+
+### `visible` (Boolean, optional)
+
+Determines if the layer is visible
 
 ## Source
 

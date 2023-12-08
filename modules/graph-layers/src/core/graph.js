@@ -334,6 +334,6 @@ export default class Graph extends EventTarget {
   }
 
   _updateCache(key, updateValue) {
-    this._cache.set(key, updateValue(), this.version);
+    this._cache.set(key, updateValue, this.version);
   }
 }
