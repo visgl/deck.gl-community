@@ -24,6 +24,7 @@
     "@deck.gl/mesh-layers": "^8.9.28",
     "@deck.gl/react": "^8.9.28",
     "@loaders.gl/core": "^4.0.0",
+    "@loaders.gl/i3s": "^4.0.0",
     "@loaders.gl/loader-utils": "^4.0.0"
   },
   "devDependencies": {
