@@ -1,5 +1,5 @@
 {
-  "name": "experimental-layers",
+  "name": "@deck.gl-community/layers",
   "version": "0.0.0",
   "description": "Experimental layers for deck.gl",
   "license": "MIT",
