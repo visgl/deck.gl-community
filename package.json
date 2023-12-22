@@ -36,5 +36,11 @@
     "esbuild": "^0.17.19",
     "lerna": "^7.1.1"
   },
-  "packageManager": "yarn@4.0.0"
+  "resolutions": {
+    "gl": "6.0.2"
+  },
+  "volta": {
+    "node": "18.18.2",
+    "yarn": "1.22.0"
+  }
 }
