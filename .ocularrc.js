@@ -5,13 +5,6 @@ export default {
   },
 
   aliases: {
-    '@deck.gl/core': './node_modules/@deck.gl/core',
-    '@deck.gl/layers': './node_modules/@deck.gl/layers',
-    '@deck.gl/aggregation-layers': './node_modules/@deck.gl/aggregation-layers',
-    '@deck.gl/geo-layers': './node_modules/@deck.gl/geo-layers',
-    '@deck.gl/mesh-layers': './node_modules/@deck.gl/mesh-layers',
-    '@deck.gl/extensions': './node_modules/@deck.gl/extensions',
-    '@deck.gl/react': './node_modules/@deck.gl/react',
     test: './test'
   },
 

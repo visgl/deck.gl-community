@@ -3,19 +3,18 @@
   "version": "0.0.0",
   "description": "Experimental layers for deck.gl",
   "license": "MIT",
-  "keywords": [
-    "layers",
-    "visualization",
-    "gpu",
-    "deck.gl"
-  ],
+  "keywords": ["layers", "visualization", "gpu", "deck.gl"],
   "type": "module",
-  "main": "dist/index.cjs",
-  "module": "dist/index.js",
-  "files": [
-    "dist",
-    "src"
-  ],
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "main": "./dist/index.cjs",
+      "module": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
   "dependencies": {
     "@deck.gl/core": "^8.9.28",
     "@deck.gl/extensions": "8.9.28",

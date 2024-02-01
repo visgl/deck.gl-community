@@ -2,20 +2,18 @@
   "name": "deck-graph-layers",
   "version": "0.0.22",
   "description": "WebGL2-Powered library for Graph Visualization",
-  "keywords": [
-    "graph",
-    "visualization",
-    "force-directed layout",
-    "gpu",
-    "deck.gl"
-  ],
+  "keywords": ["graph", "visualization", "force-directed layout", "gpu", "deck.gl"],
   "type": "module",
-  "main": "dist/index.cjs",
-  "module": "dist/index.js",
-  "files": [
-    "dist",
-    "src"
-  ],
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
   "license": "MIT",
   "dependencies": {
     "@deck.gl/core": "^8.9.18",

@@ -1,5 +1,5 @@
 import React from 'react';
-import {add} from '@deck.gl-community/submodule';
+import {add} from '@deck.gl-community/template';
 
 export default function App() {
   const a = 1;

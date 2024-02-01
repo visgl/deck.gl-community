@@ -1,12 +1,13 @@
 {
-  "name": "@deck.gl-community/bing-maps",
-  "description": "deck.gl integration with Bing Maps",
+  "name": "@deck.gl-community/template",
+  "private": true,
+  "description": "Project description",
   "license": "MIT",
-  "version": "0.1.0-beta.0",
+  "version": "0.0.1",
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["webgl", "visualization", "bing maps"],
+  "keywords": ["webgl", "visualization"],
   "repository": {
     "type": "git",
     "url": "https://github.com/visgl/deck.gl-community.gl.git"
@@ -22,7 +23,8 @@
     }
   },
   "files": ["dist", "src"],
-  "dependencies": {
-    "@deck.gl/core": "^8.8.26"
+  "scripts": {},
+  "devDependencies": {
+    "tape-catch": "^1.0.6"
   }
 }
