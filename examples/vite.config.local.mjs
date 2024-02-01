@@ -17,13 +17,11 @@ export default defineConfig(async () => {
   return {
     resolve: {
       alias: {
-        ...aliases
+        ...aliases,
         // Use root dependencies
-        // '@luma.gl': join(rootDir, './node_modules/@luma.gl'),
-        // '@math.gl': join(rootDir, './node_modules/@math.gl'),
-        // '@loaders.gl/core': join(rootDir, './node_modules/@loaders.gl/core'),
-        // '@deck.gl-community/submodule': join(rootDir, './modules-wip/submodule'),
-        // 'deck.gl-bing-maps': join(rootDir, './modules/bing-maps')
+        '@luma.gl': join(rootDir, './node_modules/@luma.gl'),
+        '@math.gl': join(rootDir, './node_modules/@math.gl'),
+        '@loaders.gl': join(rootDir, './node_modules/@loaders.gl')
       }
     },
     define: {
