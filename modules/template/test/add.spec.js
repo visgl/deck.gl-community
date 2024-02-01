@@ -1,7 +1,7 @@
-import test from 'tape-catch';
 import {add} from '@deck.gl-community/template';
 
-test('add', (t) => {
-  t.is(add(1, 2), 3);
-  t.end();
+describe('add', () => {
+  it('adds', () => {
+    expect(add(1, 2)).toBe(3);
+  });
 });

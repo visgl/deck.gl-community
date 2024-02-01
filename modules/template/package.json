@@ -23,8 +23,8 @@
     }
   },
   "files": ["dist", "src"],
-  "scripts": {},
-  "devDependencies": {
-    "tape-catch": "^1.0.6"
-  }
+  "scripts": {
+    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest"
+  },
+  "devDependencies": {}
 }

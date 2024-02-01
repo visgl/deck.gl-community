@@ -22,6 +22,9 @@
     }
   },
   "files": ["dist", "src"],
+  "scripts": {
+    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest"
+  },
   "dependencies": {
     "@deck.gl/core": "^8.8.26"
   }

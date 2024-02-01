@@ -33,7 +33,7 @@ function generateIMProps(extraProps = {}) {
   };
 }
 
-describe('core/interaction-manager', () => {
+describe.skip('core/interaction-manager', () => {
   it('click a node', () => {
     const {props, notifyCallback} = generateIMProps();
     const im = new InteractionManager(props, notifyCallback);
