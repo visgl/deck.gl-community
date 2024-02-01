@@ -21,14 +21,12 @@
   },
   "devDependencies": {
     "@probe.gl/test-utils": "^4.0.4",
+    "esbuild": "^0.20.0",
+    "lerna": "^8.0.2",
     "ocular-dev-tools": "^2.0.0-alpha.22",
     "pre-commit": "^1.2.2",
     "pre-push": "^0.1.4",
     "reify": "^0.20.12"
-  },
-  "dependencies": {
-    "esbuild": "^0.17.19",
-    "lerna": "^7.1.1"
   },
   "resolutions": {
     "gl": "6.0.2"
