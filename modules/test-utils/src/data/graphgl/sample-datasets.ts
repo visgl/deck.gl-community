@@ -1,11 +1,11 @@
 import NgraphGenerators from 'ngraph.generators';
 
-import lesGraph from './les-miserable.json';
-import randomGraphGenerator from './random-graph-generator';
+import {lesGraph} from './les-miserable';
+import {randomGraphGenerator} from './random-graph-generator';
 
 const convertNgraphDataset = (ngraph) => {
-  const nodes = [];
-  const edges = [];
+  const nodes = [] as unknown[];
+  const edges = [] as unknown[];
   ngraph.forEachNode((n) => {
     nodes.push({id: n.id});
   });
@@ -19,7 +19,7 @@ const convertNgraphDataset = (ngraph) => {
   return {nodes, edges};
 };
 
-const SAMPLE_GRAPH_DATASETS = {
+export const SAMPLE_GRAPH_DATASETS = {
   'Les Miserable': () => lesGraph,
   'Random (20, 40)': () => randomGraphGenerator(20, 40, 'Random (20, 40)'),
   'Random (100, 200)': () => randomGraphGenerator(100, 200, 'Random (100, 200)'),
@@ -32,5 +32,3 @@ const SAMPLE_GRAPH_DATASETS = {
   'WattsStrogatz (100, 10, 0.06)': () =>
     convertNgraphDataset(NgraphGenerators.wattsStrogatz(100, 10, 0.06))
 };
-
-export default SAMPLE_GRAPH_DATASETS;

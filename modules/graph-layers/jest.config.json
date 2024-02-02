@@ -1,18 +1,9 @@
 {
-  "roots": [
-    "./src",
-    "./test"
-  ],
-  "collectCoverageFrom": [
-    "./src/**/*.js"
-  ],
-  "setupFilesAfterEnv": [
-    "./test/utils/setup-tests.js"
-  ],
+  "roots": ["./src", "./test"],
+  "collectCoverageFrom": ["./src/**/*.js"],
+  "setupFilesAfterEnv": ["./test/utils/setup-tests.js"],
   "testEnvironment": "jsdom",
-  "transform": {
-    "^.+\\.(js|jsx)$": "babel-jest"
-  },
+  "transform": {},
   "moduleNameMapper": {
     "^d3-(.*)": "<rootDir>/../../node_modules/d3-$1/dist/d3-$1.js"
   }

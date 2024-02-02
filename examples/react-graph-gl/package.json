@@ -1,13 +1,14 @@
 {
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "start": "vite --open",
     "start-local": "vite --config ../vite.config.local.mjs"
   },
   "dependencies": {
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "@deck.gl-community/template": "^0.0.1"
+    "deck.gl": "^8.8.26",
+    "deck-graph-layers": "^0.0.22",
+    "react-deck-graph-layers": "^0.0.24"
   },
   "devDependencies": {
     "vite": "^5.0.12"

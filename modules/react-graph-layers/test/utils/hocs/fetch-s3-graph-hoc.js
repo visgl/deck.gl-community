@@ -1,6 +1,6 @@
 // @noflow
 import React, {Component} from 'react';
-import {fetchJSONFromS3} from '../data/io';
+import {fetchJSONFromS3} from '@deck.gl-community/test-utils';
 import {JSONLoader} from 'deck-graph-layers';
 
 const defaultLoader = (data) => JSONLoader({json: data});

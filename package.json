@@ -20,21 +20,26 @@
     "lint": "ocular-lint",
     "prepublishOnly": "ocular-build && node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', {encoding: 'utf8'})); delete pkg.engines; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); console.log(pkg)\"",
     "publish": "ocular-publish",
-    "test": "ocular-lint",
-    "test-fast": "ocular-lint fast",
+    "test": "lerna run test",
+    "test-fast": "lerna run test",
     "metrics": "ocular-metrics"
   },
   "devDependencies": {
+    "@babel/preset-flow": "^7.18.6",
     "@probe.gl/test-utils": "^4.0.4",
-    "babel-loader": "^9.1.2",
-    "ocular-dev-tools": "^2.0.0-alpha.12",
+    "@testing-library/jest-dom": "^5.16.5",
+    "babel-jest": "^29.4.3",
+    "esbuild": "^0.20.0",
+    "eslint-plugin-jest": "^27.2.1",
+    "jest": "^29.2.2",
+    "jest-environment-jsdom": "^29.3.0",
+    "lerna": "^8.0.2",
+    "ocular-dev-tools": "^2.0.0-alpha.22",
     "pre-commit": "^1.2.2",
     "pre-push": "^0.1.4",
-    "reify": "^0.20.12"
-  },
-  "dependencies": {
-    "esbuild": "^0.17.19",
-    "lerna": "^7.1.1"
+    "reify": "^0.20.12",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2"
   },
   "resolutions": {
     "gl": "6.0.2"

@@ -1,7 +1,0 @@
-{
-  "license": "MIT",
-  "type": "module",
-  "dependencies": {
-    "deck.gl": "^react-deck-graph-gl"
-  }
-}
