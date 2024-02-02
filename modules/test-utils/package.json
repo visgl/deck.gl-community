@@ -1,17 +1,9 @@
 {
-  "name": "@deck.gl-community/template",
+  "name": "@deck.gl-community/test-utils",
   "private": true,
-  "description": "Project description",
+  "description": "Internal utilities for tests and examples",
   "license": "MIT",
-  "version": "0.0.1",
-  "publishConfig": {
-    "access": "public"
-  },
-  "keywords": ["webgl", "visualization"],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/visgl/deck.gl-community.gl.git"
-  },
+  "version": "0.0.0",
   "type": "module",
   "sideEffects": false,
   "types": "./dist/index.d.ts",
@@ -24,9 +16,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
   "scripts": {
     "test": "vitest --run"
-  },
-  "devDependencies": {}
+  }
 }

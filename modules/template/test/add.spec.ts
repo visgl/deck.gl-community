@@ -1,3 +1,4 @@
+import {describe, it, expect} from 'vitest';
 import {add} from '@deck.gl-community/template';
 
 describe('add', () => {
