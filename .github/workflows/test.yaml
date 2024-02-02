@@ -1,0 +1,36 @@
+name: test
+
+# On every pull request, but only on push to master
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-node:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      contents: read
+
+    # NOTE: Pin official GitHub actions to a version number, pin third-party actions to a SHA1.
+    # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-third-party-actions
+    steps:
+      - uses: actions/checkout@v4.1.1
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '18.x'
+
+      - name: Install dependencies
+        run: |
+          yarn bootstrap
+
+      - name: Run tests
+        run: |
+          yarn test
