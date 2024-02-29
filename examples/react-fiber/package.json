@@ -1,0 +1,24 @@
+{
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@adobe/react-spectrum": "^3.34.1",
+    "@deck.gl/core": "^9.0.0-beta.5",
+    "@deck.gl/extensions": "^9.0.0-beta.5",
+    "@deck.gl/geo-layers": "^9.0.0-beta.5",
+    "@deck.gl/layers": "^9.0.0-beta.5",
+    "@deck.gl/mesh-layers": "^9.0.0-beta.5",
+    "@turf/random": "^6.5.0",
+    "@turf/sample": "^6.5.0",
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.12"
+  }
+}
