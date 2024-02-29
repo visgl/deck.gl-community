@@ -1,5 +1,9 @@
-import {Tile3DLayer, Tile3DLayerProps} from '@deck.gl/geo-layers/typed';
-import {UpdateParameters, Viewport, DefaultProps} from '@deck.gl/core/typed';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {Tile3DLayer, Tile3DLayerProps} from '@deck.gl/geo-layers';
+import {UpdateParameters, Viewport, DefaultProps} from '@deck.gl/core';
 import {TILE_TYPE, Tile3D, Tileset3D} from '@loaders.gl/tiles';
 import {load} from '@loaders.gl/core';
 
