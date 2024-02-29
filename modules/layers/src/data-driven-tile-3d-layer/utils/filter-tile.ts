@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {Tile3D} from '@loaders.gl/tiles';
 import {FiltersByAttribute} from '../data-driven-tile-3d-layer';
 import {AttributeStorageInfo, I3SAttributeLoader} from '@loaders.gl/i3s';

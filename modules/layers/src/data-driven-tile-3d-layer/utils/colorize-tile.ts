@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {customizeColors} from '@loaders.gl/i3s';
 import {Tile3D} from '@loaders.gl/tiles';
 import {ColorsByAttribute} from '../data-driven-tile-3d-layer';
