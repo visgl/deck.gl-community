@@ -3,7 +3,12 @@
   "version": "9.0.0-alpha.1",
   "description": "Experimental layers for deck.gl",
   "license": "MIT",
-  "keywords": ["layers", "visualization", "gpu", "deck.gl"],
+  "keywords": [
+    "layers",
+    "visualization",
+    "gpu",
+    "deck.gl"
+  ],
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -14,7 +19,10 @@
       "module": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "dependencies": {
     "@deck.gl/core": "^9.0.0-beta.5",
     "@deck.gl/extensions": "9.0.0-beta.5",
