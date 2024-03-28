@@ -18,7 +18,7 @@
     },
     {
       "type": "category",
-      "label": "API Reference (Layers)",
+      "label": "Layers",
       "items": [
         "modules/editor-layers/api-reference/editable-geojson-layer",
         "modules/editor-layers/api-reference/selection-layer",
@@ -29,12 +29,12 @@
     },
     {
       "type": "category",
-      "label": "API Reference (Modes)",
+      "label": "Modes",
       "items": ["modules/edit-modes/api-reference/README"]
     },
     {
       "type": "category",
-      "label": "API Reference (Overlays)",
+      "label": "Overlays",
       "items": [
         "modules/react-overlays/api-reference/html-overlay",
         "modules/react-overlays/api-reference/html-cluster-overlay",
