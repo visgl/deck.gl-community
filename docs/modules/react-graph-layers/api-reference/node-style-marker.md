@@ -30,8 +30,3 @@
 - The value can be hex code, color name, or color array `[r, g, b, a]` (each component is in the 0 - 255 range).
 If a color value (hex code, color name, or array) is provided, it is used as the global color for all objects.
 - If a function is provided, it is called on each object to retrieve its color.
-
-
-## Source
-
-[Storybook example](TBD/master/stories/node-types/stories.js)

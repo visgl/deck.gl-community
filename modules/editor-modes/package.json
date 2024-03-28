@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@nebula.gl/edit-modes",
   "description": "GeoJSON editing modes for nebula.gl",
   "license": "MIT",

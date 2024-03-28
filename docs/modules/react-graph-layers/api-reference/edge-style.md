@@ -43,4 +43,4 @@ Determines if the layer is visible
 
 ### `decorators` (Array, optional)
 
-A set of decorators on edges. Please see more detail in the ['Edge decorators'](/docs/api-reference/edge-style-label) chapter.
+A set of decorators on edges. Please see more detail in the 'Edge decorators' chapter.

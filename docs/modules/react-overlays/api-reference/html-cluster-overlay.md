@@ -6,7 +6,7 @@ and cluster based on the zoom level.
 
 ## Example
 
-For example code see [Unesco World Heritage](/docs/interactive-examples/world-heritage).
+For example code see Unesco World Heritage /docs/interactive-examples/world-heritage.
 
 ## Methods to override
 

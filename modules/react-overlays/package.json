@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@nebula.gl/overlays",
   "description": "React overlays for deck.gl",
   "license": "MIT",

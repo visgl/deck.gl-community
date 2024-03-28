@@ -24,7 +24,7 @@ Example of nodeStyle:
 ### `type` (String, required)
 
 - `Type` can only be `CIRCLE`, `MARKER`, `RECTANGLE`, or `LABEL`.
-- Different type of layer may requires different properties. See more details in the ['Node style'](/docs/api-reference/node-style-circle) chapter below.
+- Different type of layer may requires different properties. See more details in the 'Node style' /docs/api-reference/node-style-circle chapter below.
 
 ### `offset` (null | Array, optional)
 
@@ -48,7 +48,3 @@ Allows setting of the layer data via accessor
 ### `visible` (Boolean, optional)
 
 Determines if the layer is visible
-
-## Source
-
-[Storybook example](TBD/master/stories/node-types/stories.js)

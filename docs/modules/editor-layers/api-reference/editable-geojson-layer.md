@@ -43,7 +43,7 @@ class App extends React.Component {
 
 Inherits all [deck.gl's Base Layer](https://deck.gl/docs/api-reference/core/layer) properties.
 
-`EditableGeoJSONLayer` is a [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer) of [GeoJSONLayer](https://deck.gl/docs/api-reference/layers/geojson-layer), [ScatterPlotLayer](https://deck.gl/docs/api-reference/layers/scatterplot-layer), and [IconLayer](https://deck.gl/docs/api-reference/layers/icon-layer). Many of the properties and data getters of those layers are aliased.
+`EditableGeoJSONLayer` is a [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer) of [GeoJSONLayer](https://deck.gl/docs/modules/editor-layers/api-reference/geojson-layer), [ScatterPlotLayer](https://deck.gl/docs/modules/editor-layers/api-reference/scatterplot-layer), and [IconLayer](https://deck.gl/docs/modules/editor-layers/api-reference/icon-layer). Many of the properties and data getters of those layers are aliased.
 
 #### `data` (Object, optional)
 
@@ -67,7 +67,7 @@ _Note: passing a single `Feature` is not supported. However, you can pass a `Fea
 
 The `mode` property defines the mode used to handle user interaction events (e.g. pointer events) in order to accomplish edits. This can either be a constructor for an `EditMode` or an instance of `EditMode`.
 
-There are a extensive number of modes that come out-of-the-box with nebula.gl. See [modes overview](../modes/overview.md).
+There are a extensive number of modes that come out-of-the-box with nebula.gl. 
 
 #### `modeConfig` (Object, optional)
 
@@ -143,7 +143,7 @@ The `onEdit` event is the core event provided by this layer and must be handled 
 
 * `featureIndexes` (Array&lt;number&gt;): The indexes of the edited/added features.
 
-* `editContext` (Object): `null` or an object containing additional context about the edit. This is populated by the active mode, see [modes overview](../modes/overview.md).
+* `editContext` (Object): `null` or an object containing additional context about the edit. This is populated by the active mode.
 
 ### Guide style properties and data getters
 
@@ -166,19 +166,19 @@ See the 'Edit Handles' section below.
 
 - Default: `[0, 0, 0, 255]`
 
-The line color for features that are being edited and are not yet finalized. See `getLineColor`in [DeckGl GeoJSONLayer](https://deck.gl/docs/api-reference/layers/geojson-layer).
+The line color for features that are being edited and are not yet finalized. See `getLineColor`in [DeckGl GeoJSONLayer](https://deck.gl/docs/modules/editor-layers/api-reference/geojson-layer).
 
 #### `getTentativeFillColor` (Array|Function, optional)
 
 - Default `[0, 0, 0, 255]`
 
-The fill color for features that are being edited and are not yet finalized. See `getFillColor`in [DeckGl GeoJSONLayer](https://deck.gl/docs/api-reference/layers/geojson-layer).
+The fill color for features that are being edited and are not yet finalized. See `getFillColor`in [DeckGl GeoJSONLayer](https://deck.gl/docs/modules/editor-layers/api-reference/geojson-layer).
 
 #### `getTentativeLineWidth` (Function|Number, optional)
 
 - Default `3`
 
-The line width for features that are being edited and are not yet finalized, in units specified by lineWidthUnits (default meters). See `getLineWidth`in [DeckGl GeoJSONLayer](https://deck.gl/docs/api-reference/layers/geojson-layer).
+The line width for features that are being edited and are not yet finalized, in units specified by lineWidthUnits (default meters). See `getLineWidth`in [DeckGl GeoJSONLayer](https://deck.gl/docs/modules/editor-layers/api-reference/geojson-layer).
 
 If a number is provided, it is used as the outline width for all objects.
 If a function is provided, it is called on each object to retrieve its outline width.
@@ -188,13 +188,13 @@ If not provided, it falls back to strokeWidth.
 
 - Default: `1`
 
-A global radius multiplier for all edit handle points. See `radiusScale` in [DeckGl ScatterplotLayer](https://deck.gl/docs/api-reference/layers/scatterplot-layer).
+A global radius multiplier for all edit handle points. See `radiusScale` in [DeckGl ScatterplotLayer](https://deck.gl/docs/modules/editor-layers/api-reference/scatterplot-layer).
 
 #### `editHandlePointOutline`: (Boolean|Function, optional)
 
 - Default: `true`
 
-Only draw outline of points. It falls back to outline if not provided. See `stroke` in [DeckGl ScatterplotLayer](https://deck.gl/docs/api-reference/layers/scatterplot-layer).
+Only draw outline of points. It falls back to outline if not provided. See `stroke` in [DeckGl ScatterplotLayer](https://deck.gl/docs/modules/editor-layers/api-reference/scatterplot-layer).
 
 #### `editHandlePointStrokeWidth`: (Function|Number)
 
@@ -204,13 +204,13 @@ Only draw outline of points. It falls back to outline if not provided. See `stro
 
 - Default: `4`
 
-The minimum radius of the edit handle in pixels. This prop can be used to prevent the circle from getting too small when zoomed out. See `radiusMinPixels` in [DeckGl ScatterplotLayer](https://deck.gl/docs/api-reference/layers/scatterplot-layer).
+The minimum radius of the edit handle in pixels. This prop can be used to prevent the circle from getting too small when zoomed out. See `radiusMinPixels` in [DeckGl ScatterplotLayer](https://deck.gl/docs/modules/editor-layers/api-reference/scatterplot-layer).
 
 #### `editHandlePointRadiusMaxPixels`: (Function|Number, optional)
 
 - Default: `8`
 
-The maximum radius of the edit handle in pixels. This prop can be used to prevent the circle from getting too big when zoomed in. See `radiusMaxPixels` in [DeckGl ScatterplotLayer](https://deck.gl/docs/api-reference/layers/scatterplot-layer).
+The maximum radius of the edit handle in pixels. This prop can be used to prevent the circle from getting too big when zoomed in. See `radiusMaxPixels` in [DeckGl ScatterplotLayer](https://deck.gl/docs/modules/editor-layers/api-reference/scatterplot-layer).
 
 #### `getEditHandlePointColor` (Array|Function, optional)
 
@@ -222,7 +222,7 @@ If an array is provided, it is used as the filled color for all objects.
 
 If a function is provided, it is called on each object to retrieve its color.
 
-See `getFillColor` in [DeckGl ScatterplotLayer](https://deck.gl/docs/api-reference/layers/scatterplot-layer).
+See `getFillColor` in [DeckGl ScatterplotLayer](https://deck.gl/docs/modules/editor-layers/api-reference/scatterplot-layer).
 
 #### `getEditHandlePointOutlineColor` (Array|Function, optional)
 
@@ -236,7 +236,7 @@ If an array is provided, it is used as the outline color for all objects.
 
 If a function is provided, it is called on each object to retrieve its color.
 
-See `getLineColor` in [DeckGl ScatterplotLayer](https://deck.gl/docs/api-reference/layers/scatterplot-layer).
+See `getLineColor` in [DeckGl ScatterplotLayer](https://deck.gl/docs/modules/editor-layers/api-reference/scatterplot-layer).
 
 #### `getEditHandlePointRadius` (Function|Number, optional)
 
@@ -248,7 +248,7 @@ If a number is provided, it is used as the radius for all objects.
 
 If a function is provided, it is called on each object to retrieve its radius.
 
-See `getRadius` in [DeckGl ScatterplotLayer](https://deck.gl/docs/api-reference/layers/scatterplot-layer).
+See `getRadius` in [DeckGl ScatterplotLayer](https://deck.gl/docs/modules/editor-layers/api-reference/scatterplot-layer).
 
 ---
 
@@ -256,7 +256,7 @@ See `getRadius` in [DeckGl ScatterplotLayer](https://deck.gl/docs/api-reference/
 
 Default: `null`
 
-See `iconAtlas`in [DeckGl IconLayer](https://deck.gl/docs/api-reference/layers/icon-layer).
+See `iconAtlas`in [DeckGl IconLayer](https://deck.gl/docs/modules/editor-layers/api-reference/icon-layer).
 
 #### `editHandleIconMapping` (Object|String, optional)
 
@@ -272,7 +272,7 @@ If you go with pre-packed strategy, this prop is required.
 
 If you choose to use auto packing, this prop should be left empty.
 
-See `iconMapping` in [DeckGl IconLayer](https://deck.gl/docs/api-reference/layers/icon-layer).
+See `iconMapping` in [DeckGl IconLayer](https://deck.gl/docs/modules/editor-layers/api-reference/icon-layer).
 
 #### `editHandleIconSizeScale` (Number, optional)
 
@@ -280,7 +280,7 @@ See `iconMapping` in [DeckGl IconLayer](https://deck.gl/docs/api-reference/layer
 
 Edit handle icon size multiplier.
 
-See `sizeScale` in [DeckGl IconLayer](https://deck.gl/docs/api-reference/layers/icon-layer).
+See `sizeScale` in [DeckGl IconLayer](https://deck.gl/docs/modules/editor-layers/api-reference/icon-layer).
 
 #### `getEditHandleIcon` (Function, optional)
 
@@ -300,7 +300,7 @@ If you choose to use auto packing, then getIcon should return an object which co
 
 `IconLayer` use `id` (fallback to url) to dedupe icons. If for the same icon identifier, getIcon returns different `width` or `height`, `IconLayer` will only apply the first occurrence and ignore the rest of them.
 
-See `getIcon` in [DeckGl IconLayer](https://deck.gl/docs/api-reference/layers/icon-layer).
+See `getIcon` in [DeckGl IconLayer](https://deck.gl/docs/modules/editor-layers/api-reference/icon-layer).
 
 #### `getEditHandleIconSize` (Function|Number, optional)
 
@@ -311,7 +311,7 @@ The height of each edit handle icon, in units specified by `sizeUnits` (default 
 If a number is provided, it is used as the size for all objects.
 If a function is provided, it is called on each object to retrieve its size.
 
-See `getSize` in [DeckGl IconLayer](https://deck.gl/docs/api-reference/layers/icon-layer).
+See `getSize` in [DeckGl IconLayer](https://deck.gl/docs/modules/editor-layers/api-reference/icon-layer).
 
 #### `getEditHandleIconColor` (Function|Array, optional)
 
@@ -323,7 +323,7 @@ The rgba color is in the format of `[r, g, b, [a]]`. Each channel is a number be
 - If a function is provided, it is called on each object to retrieve its color.
 - If `mask` = false, only the alpha component will be used to control the opacity of the icon.
 
-See `getColor` in [DeckGl IconLayer](https://deck.gl/docs/api-reference/layers/icon-layer).
+See `getColor` in [DeckGl IconLayer](https://deck.gl/docs/modules/editor-layers/api-reference/icon-layer).
 
 #### `getEditHandleIconAngle` (Function|Number, optional)
 
@@ -334,7 +334,7 @@ The rotating angle of each edit handle icon, in degrees.
 - If a number is provided, it is used as the angle for all objects.
 - If a function is provided, it is called on each object to retrieve its angle.
 
-See `getAngle` in [DeckGl IconLayer](https://deck.gl/docs/api-reference/layers/icon-layer).
+See `getAngle` in [DeckGl IconLayer](https://deck.gl/docs/modules/editor-layers/api-reference/icon-layer).
 
 #### `billboard` (Boolean, optional)
 
@@ -386,9 +386,9 @@ Additional line width in pixels used for picking. Can be useful when `EditableGe
 
 `EditableGeoJsonLayer` renders the following sub-layers:
 
-- `geojson`: a [GeoJsonLayer](https://deck.gl/docs/api-reference/layers/geojson-layer) that renders the GeoJSON features passed into the `data` property.
-- `guides`: a [GeoJsonLayer](https://deck.gl/docs/api-reference/layers/geojson-layer) that renders GeoJSON features that aid in editing.
-- `tooltips`: a [TextLayer](https://deck.gl/docs/api-reference/layers/text-layer) that renders tooltips used in some editing modes.
+- `geojson`: a [GeoJsonLayer](https://deck.gl/docs/modules/editor-layers/api-reference/geojson-layer) that renders the GeoJSON features passed into the `data` property.
+- `guides`: a [GeoJsonLayer](https://deck.gl/docs/modules/editor-layers/api-reference/geojson-layer) that renders GeoJSON features that aid in editing.
+- `tooltips`: a [TextLayer](https://deck.gl/docs/modules/editor-layers/api-reference/text-layer) that renders tooltips used in some editing modes.
 
 The styling and functionality of `EditableGeoJsonLayer` can be customized by providing the [\_subLayerProps](https://deck.gl/docs/api-reference/core/composite-layer#_sublayerprops) property. For example:
 

@@ -154,16 +154,8 @@ const config = {
             title: 'Resources',
             items: [
               {
-                label: 'API Reference',
-                to: '/docs/api-reference/core/deck'
-              },
-              {
                 label: 'Starter templates',
                 href: 'https://github.com/visgl/deck.gl/tree/master/examples/get-started'
-              },
-              {
-                label: 'Playground',
-                href: '/playground'
               },
               {
                 label: 'Codepen demos',

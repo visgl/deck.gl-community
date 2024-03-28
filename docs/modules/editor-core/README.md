@@ -33,7 +33,7 @@ That said, if you are already using `deck.gl` the additional overhead of nebula.
 
 ### EditableGeoJsonLayer
 
-[EditableGeoJsonLayer](/docs/api-reference/layers/editable-geojson-layer) is implemented as a [deck.gl](https://deck.gl) layer. It provides the ability to view and edit multiple types of geometry formatted as [GeoJSON](https://tools.ietf.org/html/rfc7946) (an open standard format for geometry) including polygons, lines, and points.
+[EditableGeoJsonLayer](/docs/modules/editor-layers/api-reference/editable-geojson-layer) is implemented as a [deck.gl](https://deck.gl) layer. It provides the ability to view and edit multiple types of geometry formatted as [GeoJSON](https://tools.ietf.org/html/rfc7946) (an open standard format for geometry) including polygons, lines, and points.
 
 #### Callbacks
 
@@ -43,4 +43,4 @@ When there is the ability to edit, callbacks are provided to inform you of edits
 
 The overlay layers are based on HTML and rendered by the browser. You can use them
 for complicated objects that follow map points. They are less performant
-but more flexible. For more details see [Using Html Overlays](/docs/api-reference/overlays/html-overlay)
+but more flexible. For more details see [Using Html Overlays](/docs/modules/react-overlays/api-reference/html-overlay)

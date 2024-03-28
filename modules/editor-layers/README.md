@@ -71,7 +71,7 @@ yarn add @deck.gl/layers
 
 ### `EditableGeoJsonLayer`
 
-[EditableGeoJsonLayer](/docs/api-reference/layers/editable-geojson-layer.md) is implemented as a [deck.gl](https://deck.gl) layer. It provides the ability to view and edit multiple types of geometry formatted as [GeoJSON](https://tools.ietf.org/html/rfc7946) (an open standard format for geometry) including polygons, lines, and points.
+[EditableGeoJsonLayer](/docs/modules/editor-layers/api-reference/editable-geojson-layer.md) is implemented as a [deck.gl](https://deck.gl) layer. It provides the ability to view and edit multiple types of geometry formatted as [GeoJSON](https://tools.ietf.org/html/rfc7946) (an open standard format for geometry) including polygons, lines, and points.
 
 ```jsx
 import DeckGL from '@deck.gl/react';

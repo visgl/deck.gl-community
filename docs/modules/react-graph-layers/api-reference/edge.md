@@ -80,9 +80,3 @@ The key of the property
 ##### `value` (Any, required)
 
 The value of the property.
-
-
-
-## Source
-
-[src/core/edge.js](TBD/blob/master/src/core/edge.js)

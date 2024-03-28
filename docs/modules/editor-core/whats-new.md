@@ -21,7 +21,3 @@ Release date: TBD
 ### EditableGeojsonLayer
 
 - `pickingLineWidthExtraPixels` property to specify additional line width in pixels for picking. Can be useful when `EditableGeojsonLayer` is over a deck.gl layer and precise picking is problematic, and when usage of `pickingDepth` introduces performance issues.
-
-### Other
-
-- Check [CHANGELOG](../CHANGELOG.md) for full list of changes.

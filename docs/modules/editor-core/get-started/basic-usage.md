@@ -70,6 +70,6 @@ export function GeometryEditor() {
 Live example on [codesandbox](https://codesandbox.io/s/nebula-react-basic-example-q7t9u?file=/src/App.js)
 ## See Also
 
-- [EditableGeoJsonLayer](https://nebula.gl/docs/api-reference/layers/editable-geojson-layer)
+- [EditableGeoJsonLayer](https://nebula.gl/docs/modules/editor-layers/api-reference/editable-geojson-layer)
 - [Using deck.gl with React](https://deck.gl/docs/get-started/using-with-react)
 - [Using deck.gl with a Base Map](https://deck.gl/docs/get-started/using-with-map)

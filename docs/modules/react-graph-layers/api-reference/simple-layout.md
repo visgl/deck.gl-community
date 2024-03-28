@@ -26,8 +26,3 @@ Example:
   }
 />
 ````
-
-## Source
- - [simple-layout.js](TBD/master/src/layouts/simple-layout/index.js)
-
- - [Storybook example](TBD/master/stories/basic-layouts/stories.js#L30-L45)

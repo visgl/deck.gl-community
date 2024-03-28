@@ -44,7 +44,7 @@ const App = ({data}) => {
 
 ### `graph` (Graph, required)
 
-The graph data will need to be processed through JSONLoader and converted into [`Graph`](docs/api-reference/graph) object. The expected data should be an object includes two arrays: `nodes` and `edges`. Each node require an unique `id`. Each edge should have `id` as edge ID, `sourceId` as the ID of the source node, and `targetId` as the ID of the target node. For example:
+The graph data will need to be processed through JSONLoader and converted into `Graph` object. The expected data should be an object includes two arrays: `nodes` and `edges`. Each node require an unique `id`. Each edge should have `id` as edge ID, `sourceId` as the ID of the source node, and `targetId` as the ID of the target node. For example:
 
 ```js
 const data = {
@@ -66,11 +66,11 @@ const graph = JSONLoader({json: data});
 
 ### `layout` (Layout, required)
 
-Use one of the layouts provided by react-graph-layers or create a new custom layout class by following the [instruction](/docs/advanced/custom-layout). For more detail, please see the [Layout](/docs/api-reference/layout) section.
+Use one of the layouts provided by react-graph-layers or create a new custom layout class by following the instruction. For more detail, please see the Layout docs/api-reference/layout section.
 
 ### `initialViewState` (Object, optional)
 
-For more detail, please see [here](/docs/api-reference/viewport).
+For more detail, please see /docs/api-reference/viewport.
 
 ### `nodeStyle` (Array, required)
 
@@ -79,16 +79,12 @@ For more detail, please see the (explanation of nodeStyle](docs/api-reference/no
 
 ### `nodeEvents` (Object, optional)
 
-For more detail, please see [the interactions reference](/docs/api-reference/interactions).
+For more detail, please see the interactions reference /docs/api-reference/interactions.
 
 ### `edgeStyle` (Object | Array, required)
 
-For more detail, please see the explanation of [edgeStyle](docs/api-reference/edge-style)
+For more detail, please see the explanation of edgeStyle docs/api-reference/edge-style
 
 ### `edgeEvents` (Object, optional)
 
-For more detail, please see [api-reference interactions](docs/api-reference/interactions).
-
-### Source
-
-[src/graphgl.js](https://github.com/deck.gl-community/master/src/modules/graph-layers/graphgl.js)
+For more detail, please see api-reference interactions docs/api-reference/interactions.

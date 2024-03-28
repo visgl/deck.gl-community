@@ -38,8 +38,3 @@ The alignment baseline. Available options include 'top', 'center' and 'bottom'.
 - The rotating angle of each text label, in degrees.
 - If a number is provided, it is used as the angle for all objects.
 - If a function is provided, it is called on each object to retrieve its angle.
-
-
-## Source
-
-[Storybook example](TBD/master/stories/node-types/stories.js)

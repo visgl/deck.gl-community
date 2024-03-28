@@ -45,9 +45,3 @@ Sets the maximum distance between nodes over which this force is considered. If 
 #### getCollisionRadius (Number, optional)
 Sets the radius for collision detection. If getCollisionRadius is not specified, it defaults to zero radius for all nodes.
 The [collision force](https://github.com/d3/d3-force#collision) treats nodes as circles with a given radius, rather than points, and prevents nodes from overlapping.
-
-## Source
-
- - [d3-force.js](TBD/blob/master/src/layouts/d3-force/index.js)
-
- - [Storybook example](TBD/blob/master/stories/basic-layouts/stories.js#L56-L71)

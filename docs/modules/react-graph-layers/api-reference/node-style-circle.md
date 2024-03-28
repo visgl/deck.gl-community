@@ -26,8 +26,3 @@ If an accessor function is provided, the function will be called to retrieve the
 - The width of the outline of each rectangle.
 - If a number is provided, it is used as the outline width for all rectangles.
 - If a function is provided, it is called on each rectangle to retrieve its outline width.
-
-
-## Source
-
-[Storybook example](TBD/master/stories/node-types/stories.js)

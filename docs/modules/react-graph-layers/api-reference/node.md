@@ -96,8 +96,3 @@ Remove edges from `this._connectedEdges`
 ## clearConnectedEdges()
 
 Clear `this._connectedEdges`
-
-
-## Source
-
-[src/core/node.js](TBD/master/src/core/node.js)
