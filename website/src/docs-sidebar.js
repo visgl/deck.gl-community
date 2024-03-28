@@ -29,7 +29,7 @@
     },
     {
       "type": "category",
-      "label": "Submodule API Reference",
+      "label": "API Reference",
       "items": [
         layerDocs,
         editorDocs,
