@@ -65,9 +65,9 @@ const deckOverlay = new DeckOverlay({...});
 map.layers.insert(deckOverlay);
 ```
 
-The constructor accepts a props object that is passed to the [Deck](https://deck.gl/docs/api-reference/core/deck) constructor. See the [limitations](#supported-features-and-limitations) section below for more details.
+The constructor accepts a props object that is passed to the `Deck` constructor. See the [limitations](#supported-features-and-limitations) section below for more details.
 
-The following [Deck methods](https://deck.gl/docs/api-reference/core/deck#methods) can be called directly from a `DeckOverlay` instance:
+The following `Deck` methods can be called directly from a `DeckOverlay` instance:
 
 - `deckOverlay.setProps`
 - `deckOverlay.pickObject`

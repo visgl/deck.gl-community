@@ -11,7 +11,7 @@ const config = {
   title: 'deck.gl-community',
   tagline: 'Unofficial layers, basemaps and add-ons for deck.gl',
   url: 'https://deck.gl-community',
-  baseUrl: process.env.STAGING ? '/deck.gl-community/' : '/',
+  baseUrl: '/deck.gl-community/', // process.env.STAGING ? '/deck.gl-community/' : '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   favicon: '/favicon.ico',
@@ -113,7 +113,7 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: 'deck.gl',
+        title: 'deck.gl-community',
         logo: {
           alt: 'vis.gl Logo',
           src: 'images/visgl-logo-dark.png',
@@ -154,16 +154,8 @@ const config = {
             title: 'Resources',
             items: [
               {
-                label: 'API Reference',
-                to: '/docs/api-reference/core/deck'
-              },
-              {
                 label: 'Starter templates',
                 href: 'https://github.com/visgl/deck.gl/tree/master/examples/get-started'
-              },
-              {
-                label: 'Playground',
-                href: '/playground'
               },
               {
                 label: 'Codepen demos',

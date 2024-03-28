@@ -1,11 +1,16 @@
 # What's New
 
+### `@deck.gl-community/editable-layers` v9.0.0
 
-### @deck.gl-community/layers@9.0.0
+- Target Release date: April, 2024
+- Port of nebula.gl
 
-- Release date: March 26, 2024
+### `@deck.gl-community/layers` v9.0.0
+
+- Target Release date: March 26, 2024
 - New version of the `@deck.gl-community/layers` module for deck.gl v9.
 
-## 0.0.1
+### `@deck-graph-layers` v9.0.0
+
 
 Initial release.
