@@ -1,0 +1,35 @@
+{
+  "name": "@nebula.gl/overlays",
+  "description": "React overlays for deck.gl",
+  "license": "MIT",
+  "version": "1.0.4",
+  "author": "Georgios Karnas <georgios@uber.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uber/nebula.gl"
+  },
+  "keywords": [
+    "webgl",
+    "visualization",
+    "overlay",
+    "layer"
+  ],
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "types": "dist/index.d.ts",
+  "typings": "dist/index.d.ts",
+  "dependencies": {
+    "@turf/helpers": "^6.5.0",
+    "@types/supercluster": "5.0.3",
+    "supercluster": "^6.0.2"
+  },
+  "peerDependencies": {
+    "react": "^16.14 || ^17",
+    "react-dom": "^16.14 || ^17"
+  },
+  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
+}

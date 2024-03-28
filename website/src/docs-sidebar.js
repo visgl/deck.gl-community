@@ -9,8 +9,9 @@
  Create as many sidebars as you want.
  */
 
- const bingMapsDocs = require('../../docs/modules/bing-maps/table-of-contents.json');
- const graphGLDocs = require('../../docs/modules/graph-layers/table-of-contents.json');
+ const bingMapsDocs = require('../../docs/modules/bing-maps/sidebar.json');
+ const graphGLDocs = require('../../docs/modules/react-graph-layers/sidebar.json');
+ const editorDocs = require('../../docs/modules/editor-core/sidebar.json');
 
  
  const sidebars = {
@@ -30,7 +31,8 @@
       "label": "Submodule API Reference",
       "items": [
         bingMapsDocs,
-        graphGLDocs
+        graphGLDocs,
+        editorDocs
       ]
     }
   ]  

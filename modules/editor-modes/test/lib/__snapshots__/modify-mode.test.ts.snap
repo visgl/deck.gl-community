@@ -1,0 +1,900 @@
+// Vitest Snapshot v1
+
+exports[`Rectangular polygon feature preserves shape 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          -100,
+          -100,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          100,
+          -100,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          100,
+          100,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -100,
+          100,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          3,
+        ],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`Rectangular polygon feature preserves shape 2`] = `
+{
+  "geometry": {
+    "coordinates": [
+      [
+        [
+          -100,
+          -100,
+        ],
+        [
+          -100,
+          115,
+        ],
+        [
+          110,
+          115,
+        ],
+        [
+          110,
+          -100,
+        ],
+        [
+          -100,
+          -100,
+        ],
+      ],
+    ],
+    "type": "Polygon",
+  },
+  "properties": {
+    "shape": "Rectangle",
+  },
+  "type": "Feature",
+}
+`;
+
+exports[`getGuides() > gets edit handles for LineString 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          2,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          2,
+          3,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          3,
+          4,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`getGuides() > gets edit handles for MultiLineString 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          2,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          2,
+          3,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          3,
+          4,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          5,
+          6,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          6,
+          7,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          7,
+          8,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`getGuides() > gets edit handles for MultiPoint 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          2,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          3,
+          4,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`getGuides() > gets edit handles for MultiPolygon 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          -1,
+          -1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          0,
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          -1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          0,
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          0,
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -1,
+          1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          0,
+          3,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.5,
+          -0.5,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          1,
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.5,
+          0.5,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          1,
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          0.5,
+          0.5,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          1,
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          0.5,
+          -0.5,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          1,
+          3,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          2,
+          -1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          0,
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          4,
+          -1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          0,
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          4,
+          1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          0,
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          2,
+          1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          0,
+          3,
+        ],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`getGuides() > gets edit handles for Point 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          2,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`getGuides() > gets edit handles for Polygon 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          -1,
+          -1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          -1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -1,
+          1,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+          3,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.5,
+          -0.5,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.5,
+          0.5,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          0.5,
+          0.5,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          0.5,
+          -0.5,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+          3,
+        ],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`getGuides() > gets edit handles for all selected features in collection 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          2,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          2,
+          3,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          3,
+          4,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          2,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 2,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          3,
+          4,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 2,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`getGuides() > includes an intermediate edit handle 1`] = `
+{
+  "geometry": {
+    "coordinates": [
+      -122.4385053241134,
+      37.77770362630828,
+    ],
+    "type": "Point",
+  },
+  "properties": {
+    "editHandleType": "intermediate",
+    "featureIndex": 0,
+    "guideType": "editHandle",
+    "positionIndexes": [
+      2,
+    ],
+  },
+  "type": "Feature",
+}
+`;

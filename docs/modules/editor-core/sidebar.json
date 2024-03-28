@@ -1,0 +1,45 @@
+{
+  "type": "category",
+  "label": "editor-core",
+  "items": [
+    {
+      "type": "category",
+      "label": "Overview",
+      "items": ["modules/editor-core/README", "modules/editor-core/whats-new", "modules/editor-core/roadmap", "modules/editor-core/faq"]
+    },
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        "modules/editor-core/get-started/installing",
+        "modules/editor-core/get-started/basic-usage",
+        "modules/editor-core/get-started/html-overlays"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference (Layers)",
+      "items": [
+        "modules/editor-layers/api-reference/editable-geojson-layer",
+        "modules/editor-layers/api-reference/selection-layer",
+        "modules/editor-layers/api-reference/path-marker-layer",
+        "modules/editor-layers/api-reference/mesh-layer",
+        "modules/editor-layers/api-reference/outline"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference (Modes)",
+      "items": ["modules/edit-modes/api-reference/README"]
+    },
+    {
+      "type": "category",
+      "label": "API Reference (Overlays)",
+      "items": [
+        "modules/react-overlays/api-reference/html-overlay",
+        "modules/react-overlays/api-reference/html-cluster-overlay",
+        "modules/react-overlays/api-reference/html-overlay-item"
+      ]
+    }
+  ]
+}
