@@ -5,6 +5,6 @@ This module provides a suite of non-official layers for [deck.gl](https://deck.g
 ## Installation
 
 ```bash
-npm install deck.gl-community/layers
+npm install @deck.gl-community/layers
 ```
 

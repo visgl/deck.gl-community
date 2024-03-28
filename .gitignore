@@ -22,9 +22,16 @@ package-lock.json
 *.log
 .exit_code
 
+*/**/yarn.lock
+!website/yarn.lock
+
+*/**/.yarn/*
+*/**/yarn-error.log
+
 # https://yarnpkg.com/getting-started/qa#which-files-should-be-gitignored
 .pnp.*
 .yarn/*
+!.yarn/cache
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases

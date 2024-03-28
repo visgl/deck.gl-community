@@ -153,11 +153,11 @@ export function Example() {
           ...existingCluster,
           hexIds: updatedHexagonIDs,
         };
-      } else {
+      } 
         return {
           hexIds: updatedHexagonIDs,
         };
-      }
+      
     },
     selectedIndexes,
     resolution: 9,
