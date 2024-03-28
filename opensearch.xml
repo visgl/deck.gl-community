@@ -4,8 +4,8 @@
   <ShortName>deck.gl-community</ShortName>
   <Description>Search deck.gl-community</Description>
   <InputEncoding>UTF-8</InputEncoding>
-  <Image width="16" height="16" type="image/x-icon">https://deck.gl-community/favicon.ico</Image>
-  <Url type="text/html" method="get" template="https://deck.gl-community/search?q={searchTerms}"/>
-  <Url type="application/opensearchdescription+xml" rel="self" template="https://deck.gl-community/opensearch.xml" />
-  <moz:SearchForm>https://deck.gl-community/</moz:SearchForm>
+  <Image width="16" height="16" type="image/x-icon">https://deck.gl-community/deck.gl-community/favicon.ico</Image>
+  <Url type="text/html" method="get" template="https://deck.gl-community/deck.gl-community/search?q={searchTerms}"/>
+  <Url type="application/opensearchdescription+xml" rel="self" template="https://deck.gl-community/deck.gl-community/opensearch.xml" />
+  <moz:SearchForm>https://deck.gl-community/deck.gl-community/</moz:SearchForm>
 </OpenSearchDescription>
