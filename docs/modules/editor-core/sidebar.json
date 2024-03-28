@@ -2,11 +2,8 @@
   "type": "category",
   "label": "deck.gl-editable-layers",
   "items": [
-    {
-      "type": "category",
-      "label": "Overview",
-      "items": ["modules/editor-core/README", "modules/editor-core/whats-new", "modules/editor-core/roadmap", "modules/editor-core/faq"]
-    },
+    "modules/editor-core/README",
+    "modules/editor-core/whats-new",
     {
       "type": "category",
       "label": "Get Started",
