@@ -30,9 +30,9 @@
       "type": "category",
       "label": "Submodule API Reference",
       "items": [
-        bingMapsDocs,
+        editorDocs,
         graphGLDocs,
-        editorDocs
+        bingMapsDocs
       ]
     }
   ]  

@@ -1184,7 +1184,7 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@deck.gl/core@^8.8.26", "@deck.gl/core@^8.9.18":
+"@deck.gl/core@^8.9.18":
   version "8.9.34"
   resolved "https://registry.yarnpkg.com/@deck.gl/core/-/core-8.9.34.tgz#eaf08295225d2a317acebd944306734fcb4f7169"
   integrity sha512-VDne26NevBBvD9Xq6pIBuBt2ffZhzW1COU3IogqhJLhejECiC3RQhWtDRWQqUZpQYKTU2SlyKZcu+Nj7kaLBWA==

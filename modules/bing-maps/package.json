@@ -26,6 +26,6 @@
     "test": "node --experimental-vm-modules ../../node_modules/.bin/jest"
   },
   "dependencies": {
-    "@deck.gl/core": "^8.8.26"
+    "@deck.gl/core": "^9.0.1"
   }
 }

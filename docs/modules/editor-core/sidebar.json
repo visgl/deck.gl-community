@@ -1,6 +1,6 @@
 {
   "type": "category",
-  "label": "editor-core",
+  "label": "deck.gl-editable-layers",
   "items": [
     {
       "type": "category",

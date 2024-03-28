@@ -3,7 +3,6 @@
   "label": "deck-graph-layers",
   "items": [
     "modules/react-graph-layers/README",
-    "modules/react-graph-layers/version-policy",
     {
       "type": "category",
       "label": "GraphGL",
