@@ -13,7 +13,7 @@ import {
   getPickedSnapSourceEditHandle,
   getPickedEditHandles,
   getEditHandlesForGeometry,
-} from '../utils';
+} from './utils';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 
 type MovementTypeEvent = PointerMoveEvent | StartDraggingEvent | StopDraggingEvent | DraggingEvent;

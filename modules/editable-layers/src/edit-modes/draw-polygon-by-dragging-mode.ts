@@ -7,7 +7,7 @@ import {
   ModeProps,
 } from '../types';
 import { Polygon, FeatureCollection } from '../geojson-types';
-import { getPickedEditHandle } from '../utils';
+import { getPickedEditHandle } from './utils';
 import { DrawPolygonMode } from './draw-polygon-mode';
 
 type DraggingHandler = (event: DraggingEvent, props: ModeProps<FeatureCollection>) => void;

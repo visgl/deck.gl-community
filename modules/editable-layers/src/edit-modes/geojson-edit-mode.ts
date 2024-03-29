@@ -17,7 +17,7 @@ import {
   TentativeFeature,
 } from '../types';
 import { FeatureCollection, Feature, Polygon, Geometry, Position } from '../geojson-types';
-import { getPickedEditHandles, getNonGuidePicks } from '../utils';
+import { getPickedEditHandles, getNonGuidePicks } from './utils';
 import { EditMode } from './edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';
 

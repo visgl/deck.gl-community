@@ -7,7 +7,7 @@ import type {
   Feature as TurfFeature,
   Geometry as TurfGeometry,
 } from '@turf/helpers';
-import { mapCoords } from './utils';
+import { mapCoords } from './edit-modes/utils';
 import type { AnyCoordinates, Position } from './';
 
 // This function takes feature's center, moves it,

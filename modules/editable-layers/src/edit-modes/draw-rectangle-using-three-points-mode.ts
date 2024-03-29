@@ -1,4 +1,4 @@
-import { generatePointsParallelToLinePoints } from '../utils';
+import { generatePointsParallelToLinePoints } from './utils';
 import { Position, Polygon, FeatureOf } from '../geojson-types';
 import { ThreeClickPolygonMode } from './three-click-polygon-mode';
 

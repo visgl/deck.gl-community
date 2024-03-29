@@ -10,7 +10,7 @@ import {
   getPickedIntermediateEditHandle,
   updateRectanglePosition,
   NearestPointType,
-} from '../utils';
+} from './utils';
 import { LineString, Point, Polygon, FeatureCollection, FeatureOf } from '../geojson-types';
 import {
   ModeProps,

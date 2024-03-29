@@ -1,6 +1,6 @@
 import { ModeProps, PointerMoveEvent, StopDraggingEvent } from '../types';
 import { Position, FeatureCollection } from '../geojson-types';
-import { getPickedEditHandle } from '../utils';
+import { getPickedEditHandle } from './utils';
 import { ModifyMode } from './modify-mode';
 
 function defaultCalculateElevationChange({

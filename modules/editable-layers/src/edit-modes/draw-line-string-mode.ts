@@ -9,7 +9,7 @@ import {
   GuideFeature,
   Tooltip,
 } from '../types';
-import { getPickedEditHandle } from '../utils';
+import { getPickedEditHandle } from './utils';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 
 export class DrawLineStringMode extends GeoJsonEditMode {

@@ -9,7 +9,7 @@ import {
   GuideFeature,
 } from '../types';
 import { Polygon, FeatureCollection } from '../geojson-types';
-import { getPickedEditHandle } from '../utils';
+import { getPickedEditHandle } from './utils';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 
 export class DrawPolygonMode extends GeoJsonEditMode {

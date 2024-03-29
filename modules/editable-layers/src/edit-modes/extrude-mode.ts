@@ -3,9 +3,9 @@ import {
   generatePointsParallelToLinePoints,
   getPickedEditHandle,
   getPickedIntermediateEditHandle,
-} from '../utils';
+} from './utils';
 import { FeatureCollection } from '../geojson-types';
-import { ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent } from '../types';
+import { ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent } from './types';
 import { ModifyMode } from './modify-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';
 

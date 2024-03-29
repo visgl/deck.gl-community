@@ -7,7 +7,7 @@ import {
   generatePointsParallelToLinePoints,
   getPickedEditHandle,
   getEditHandlesForGeometry,
-} from '../utils';
+} from './utils';
 import {
   ClickEvent,
   PointerMoveEvent,

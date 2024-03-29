@@ -11,7 +11,7 @@ import {
   DraggingEvent,
   ModeProps,
 } from '../types';
-import { mapCoords } from '../utils';
+import { mapCoords } from './utils';
 import { translateFromCenter } from '../translateFromCenter';
 import { GeoJsonEditMode, GeoJsonEditAction } from './geojson-edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';

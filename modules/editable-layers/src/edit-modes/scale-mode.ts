@@ -19,7 +19,7 @@ import {
   EditHandleFeature,
   GuideFeatureCollection,
 } from '../types';
-import { getPickedEditHandle } from '../utils';
+import { getPickedEditHandle } from './utils';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';
 

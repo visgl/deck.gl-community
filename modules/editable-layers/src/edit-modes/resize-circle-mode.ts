@@ -9,7 +9,7 @@ import {
   getPickedEditHandles,
   getPickedEditHandle,
   NearestPointType,
-} from '../utils';
+} from './utils';
 import { LineString, Point, FeatureCollection, FeatureOf } from '../geojson-types';
 import {
   ModeProps,
