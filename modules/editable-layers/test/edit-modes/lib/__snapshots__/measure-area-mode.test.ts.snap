@@ -1,0 +1,13 @@
+// Vitest Snapshot v1
+
+exports[`three clicks + pointer move > tooltip contains area 1`] = `
+[
+  {
+    "position": [
+      0,
+      0,
+    ],
+    "text": "49565599608.28 sq. m",
+  },
+]
+`;

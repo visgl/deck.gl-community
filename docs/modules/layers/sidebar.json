@@ -1,0 +1,9 @@
+{
+  "type": "category",
+  "label": "deck.gl-layers",
+  "items": [
+    "modules/layers/README",
+    "modules/layers/api-reference/tile-source-layer",
+    "modules/layers/api-reference/data-driven-tile-3d-layer"
+  ]
+}
