@@ -2,7 +2,7 @@ import {loadModule} from '@deck.gl-community/bing-maps';
 import {GeoJsonLayer, ArcLayer} from 'deck.gl';
 
 // set your Bing Maps API key here
-const BING_MAPS_API_KEY = import.meta.env.VITE_BING_MAPS_API_KEY;
+const BING_MAPS_API_KEY = (import.meta as any).env.VITE_BING_MAPS_API_KEY;
 
 // source: Natural Earth http://www.naturalearthdata.com/ via geojson.xyz
 const AIR_PORTS =
