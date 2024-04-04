@@ -2,12 +2,18 @@ import getDeckOverlay from './deck-overlay';
 
 const BING_MAPS_API_URL = 'https://www.bing.com/api/maps/mapcontrol?callback=__loadBingMaps';
 
-export default function loadModule(moduleNames) {
+declare global {
+  interface Window {
+    __loadBingMaps: (() => void) | undefined;
+    Microsoft: {Maps: any};
+  }
+}
+
+export default function loadModule(moduleNames?: string[]) {
   return new Promise((resolve) => {
     // Callback
     window.__loadBingMaps = () => {
-      /* global Microsoft */
-      const namespace = Microsoft.Maps;
+      const namespace: any = window.Microsoft.Maps;
       namespace.DeckOverlay = getDeckOverlay(namespace);
       delete window.__loadBingMaps;
 
@@ -23,12 +29,12 @@ export default function loadModule(moduleNames) {
     const script = document.createElement('script');
     script.type = 'text/javascript';
     script.src = BING_MAPS_API_URL;
-    const head = document.querySelector('head');
+    const head = document.querySelector('head') as HTMLHeadElement;
     head.appendChild(script);
   });
 }
 
-function awaitCallback(func, ...args) {
+function awaitCallback(func: Function, ...args: unknown[]) {
   return new Promise((resolve) => {
     func(...args, resolve);
   });

@@ -24,13 +24,13 @@
     "src"
   ],
   "dependencies": {
-    "@deck.gl/core": "^9.0.1",
-    "@deck.gl/extensions": "9.0.1",
-    "@deck.gl/geo-layers": "^9.0.1",
-    "@deck.gl/layers": "^9.0.1",
-    "@deck.gl/mesh-layers": "^9.0.1",
-    "@deck.gl/react": "^9.0.1",
-    "@loaders.gl/core": "^4.1.0",
-    "@loaders.gl/loader-utils": "^4.1.0"
+    "@deck.gl/core": "^9.0.5",
+    "@deck.gl/extensions": "9.0.5",
+    "@deck.gl/geo-layers": "^9.0.5",
+    "@deck.gl/layers": "^9.0.5",
+    "@deck.gl/mesh-layers": "^9.0.5",
+    "@deck.gl/react": "^9.0.5",
+    "@loaders.gl/core": "^4.1.4",
+    "@loaders.gl/loader-utils": "^4.1.4"
   }
 }

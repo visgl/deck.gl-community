@@ -6,9 +6,10 @@
     "start-local": "vite --config ../vite.config.local.mjs"
   },
   "dependencies": {
-    "deck.gl": "^8.8.26"
+    "deck.gl": "^9.0.5"
   },
   "devDependencies": {
-    "vite": "^5.0.12"
+    "typescript": "^5.4.4",
+    "vite": "^5.2.8"
   }
 }

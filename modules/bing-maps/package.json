@@ -6,7 +6,11 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["webgl", "visualization", "bing maps"],
+  "keywords": [
+    "webgl",
+    "visualization",
+    "bing maps"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/visgl/deck.gl-community.gl.git"
@@ -21,11 +25,15 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
-    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest"
+    "test": "vitest run",
+    "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.0.1"
+    "@deck.gl/core": "^9.0.5"
   }
 }
