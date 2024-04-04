@@ -7,7 +7,7 @@ This is an example integrating deck.gl with Bing Maps using the deck.gl-bing-map
 To run this example, you need a [Bing Maps API key](https://www.microsoft.com/en-us/maps/create-a-bing-maps-key). You can either set an environment variable:
 
 ```bash
-export BingMapsAPIKey=<bing_maps_api_key>
+export VITE_BING_MAPS_API_KEY=<bing_maps_api_key>
 ```
 
 Or set the `BING_MAPS_API_KEY` variable in `app.js`.

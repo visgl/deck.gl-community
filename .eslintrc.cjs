@@ -18,7 +18,9 @@ module.exports = getESLintConfig({
         ],
         rules: {
           "import/no-extraneous-dependencies": 0,
-          "import/no-unresolved": 0
+          "import/no-unresolved": 0,
+          /** Disable 'any' after TypeScript migration. */
+          "@typescript-eslint/no-unsafe-call": 0
         }
       }
     ],

@@ -26,6 +26,7 @@ export function createDeckInstance(map, overlay, props, Events) {
   const deck = new Deck({
     ...props,
     canvas: overlay.container,
+
     views: new MapView({repeat: true}),
     ...getViewState(map),
     controller: false,
@@ -34,8 +35,9 @@ export function createDeckInstance(map, overlay, props, Events) {
       _eventListeners: eventListeners
     },
     onLoad: () => {
+      // TODO: .tooltip is protected, find another  way to set this.
       // Bing Maps' label canvas has z-index of 20000
-      deck.tooltip.el.style.zIndex = 30000;
+      // deck.tooltip.el.style.zIndex = 30000;
       if (props.onLoad) {
         props.onLoad();
       }
@@ -81,8 +83,15 @@ export function destroyDeckInstance(deck, Events) {
   deck.finalize();
 }
 
+interface MockEvent {
+  type: string,
+  offsetCenter: {x: number, y: number},
+  srcEvent: unknown,
+  tapCount?: number
+}
+
 function handleMouseEvent(deck, type, event) {
-  const mockEvent = {
+  const mockEvent: MockEvent = {
     type,
     offsetCenter: {
       x: deck.props.width / 2 + event.getX(),

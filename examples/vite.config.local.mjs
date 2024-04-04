@@ -19,6 +19,7 @@ export default defineConfig(async () => {
       alias: {
         ...aliases,
         // Use root dependencies
+        '@deck.gl': join(rootDir, './node_modules/@deck.gl'),
         '@luma.gl': join(rootDir, './node_modules/@luma.gl'),
         '@math.gl': join(rootDir, './node_modules/@math.gl'),
         '@loaders.gl': join(rootDir, './node_modules/@loaders.gl')
