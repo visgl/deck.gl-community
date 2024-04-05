@@ -1,5 +1,6 @@
-import SAMPLE_EDGE from './__fixtures__/edge.json';
-import Edge from '../edge';
+import {describe, it, expect} from 'vitest';
+import SAMPLE_EDGE from '../__fixtures__/edge.json';
+import Edge from '../../src/core/edge';
 
 describe('core/edge', () => {
   it('should have correctly functioning getters', () => {

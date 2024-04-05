@@ -1,8 +1,13 @@
-import SAMPLE_GRAPH1 from './__fixtures__/graph1.json';
+import {beforeAll, describe, it, expect} from 'vitest';
+import SAMPLE_GRAPH1 from '../__fixtures__/graph1.json';
 
-import Graph from '../graph';
-import Node from '../node';
-import Edge from '../edge';
+import Graph from '../../src/core/graph';
+import Node from '../../src/core/node';
+import Edge from '../../src/core/edge';
+
+beforeAll(() => {
+  global.CustomEvent = Event as any;
+});
 
 describe('core/graph', () => {
   it('should work with empty named graph', () => {

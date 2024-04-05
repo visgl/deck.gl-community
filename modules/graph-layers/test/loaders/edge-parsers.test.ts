@@ -1,5 +1,6 @@
-import SAMPLE_EDGE from '../../core/__tests__/__fixtures__/edge.json';
-import {basicEdgeParser} from '../edge-parsers';
+import {describe, it, expect} from 'vitest';
+import SAMPLE_EDGE from '../__fixtures__/edge.json';
+import {basicEdgeParser} from '../../src/loaders/edge-parsers';
 
 describe('loaders/edge-parsers', () => {
   it('should pass sanity', () => {

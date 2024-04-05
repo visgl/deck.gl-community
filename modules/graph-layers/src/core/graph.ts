@@ -1,5 +1,5 @@
 import {log} from '../utils/log';
-import {Cache} from './cache.js';
+import {Cache} from './cache';
 
 // Basic graph data structure
 export default class Graph extends EventTarget {
