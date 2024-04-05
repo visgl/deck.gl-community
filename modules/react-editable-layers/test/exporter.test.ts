@@ -1,4 +1,5 @@
-import { Feature, FeatureCollection } from '@nebula.gl/edit-modes';
+import {beforeEach, describe, test, expect} from 'vitest';
+import { Feature, FeatureCollection } from '@deck.gl-community/editable-layers';
 import { toGeoJson, toKml, toWkt, toStats } from '../src/lib/exporter';
 import { createRandomFeature } from './utils/test-features';
 
@@ -43,8 +44,8 @@ describe('toGeoJson()', () => {
     expect(actual.filename).toEqual(expectedFilename);
     expect(actual.mimetype).toEqual(expectedMimeType);
 
-    expect(actualParsed.features[0].properties.name).toEqual(
-      featureCollection.features[0].properties.name
+    expect(actualParsed.features[0]!.properties!.name).toEqual(
+      featureCollection.features[0]!.properties!.name
     );
   });
 });

@@ -1,6 +1,6 @@
 import {beforeEach, afterEach, describe, test, it, expect} from 'vitest';
 import turfArea from '@turf/area';
-import { Feature, FeatureCollection } from '@nebula.gl/edit-modes';
+import { Feature, FeatureCollection } from '../../../src/geojson-types';
 import { DrawRectangleMode } from '../../../src/edit-modes/draw-rectangle-mode';
 import {
   createFeatureCollectionProps,

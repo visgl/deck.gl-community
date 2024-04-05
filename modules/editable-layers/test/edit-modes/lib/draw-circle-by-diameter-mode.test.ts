@@ -6,7 +6,7 @@ import {
   createClickEvent,
   createPointerMoveEvent,
 } from '../test-utils';
-import { FeatureCollection } from '@nebula.gl/edit-modes';
+import { FeatureCollection } from '../../../src/geojson-types';
 
 let featureCollection: FeatureCollection;
 

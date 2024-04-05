@@ -1,13 +1,12 @@
 {
   "private": true,
-  "name": "nebula.gl",
+  "name": "@deck.gl-community/editable-layers",
   "description": "A suite of 3D-enabled data editing overlays, suitable for deck.gl",
   "license": "MIT",
-  "version": "1.0.4",
-  "author": "Georgios Karnas <georgios@uber.com>",
+  "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/uber/nebula.gl"
+    "url": "https://github.com/visgl/deck.gl-community"
   },
   "scripts": {
     "test": "vitest run",
@@ -19,6 +18,7 @@
     "overlay",
     "layer"
   ],
+  "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "files": [
@@ -28,8 +28,7 @@
   "types": "dist/index.d.ts",
   "typings": "dist/index.d.ts",
   "dependencies": {
-    "@luma.gl/constants": "^8.5.18",
-    "@nebula.gl/layers": "1.0.4",
+    "@turf/area": "^6.5.0",
     "@turf/bbox": "^6.5.0",
     "@turf/bbox-polygon": "^6.5.0",
     "@turf/bearing": "^6.5.0",
@@ -45,6 +44,7 @@
     "@turf/helpers": "^6.5.0",
     "@turf/intersect": "^6.5.0",
     "@turf/line-intersect": "^6.5.0",
+    "@turf/midpoint": "^6.5.0",
     "@turf/nearest-point-on-line": "^6.5.0",
     "@turf/point-to-line-distance": "^6.5.0",
     "@turf/polygon-to-line": "^6.5.0",
@@ -59,12 +59,12 @@
     "viewport-mercator-project": ">=6.2.3"
   },
   "peerDependencies": {
-    "@deck.gl/core": "^8.8.23",
-    "@deck.gl/extensions": "^8.8.23",
-    "@deck.gl/geo-layers": "^8.8.23",
-    "@deck.gl/layers": "^8.8.23",
-    "@luma.gl/constants": "^8.5.18",
-    "@luma.gl/core": "^8.5.18"
+    "@deck.gl/core": "^9.0.5",
+    "@deck.gl/extensions": "^9.0.5",
+    "@deck.gl/geo-layers": "^9.0.5",
+    "@deck.gl/layers": "^9.0.5",
+    "@luma.gl/constants": "^9.0.9",
+    "@luma.gl/core": "^9.0.9"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
 }

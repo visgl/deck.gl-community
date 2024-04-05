@@ -1,5 +1,5 @@
 import {vi} from 'vitest';
-import { Position, FeatureCollection } from '@nebula.gl/edit-modes';
+import { Position, FeatureCollection } from '../../src/geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -7,7 +7,7 @@ import {
   StartDraggingEvent,
   StopDraggingEvent,
   Pick,
-} from '../src/types';
+} from '../../src/edit-modes/types';
 
 export const FeatureType = {
   POINT: 'Point',

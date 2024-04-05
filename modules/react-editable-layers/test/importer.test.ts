@@ -1,9 +1,10 @@
 /* eslint-disable max-nested-callbacks */
-
+import {beforeAll, beforeEach, afterEach, describe, test, expect} from 'vitest';
 import sinon from 'sinon';
-import { Feature, FeatureCollection } from '@nebula.gl/edit-modes';
+import { Feature, FeatureCollection } from '@deck.gl-community/editable-layers';
 import { parseImport } from '../src/lib/importer';
 import { toKml } from '../src/lib/exporter';
+import { JSDOM } from 'jsdom';
 
 import {
   createRandomFeature,
@@ -15,6 +16,12 @@ import {
 
 let feature: Feature;
 let featureCollection: FeatureCollection;
+
+beforeAll(() => {
+  global.DOMParser = new JSDOM().window.DOMParser;
+  global.File = new JSDOM().window.File;
+  global.FileReader = new JSDOM().window.FileReader;
+});
 
 beforeEach(() => {
   feature = createRandomFeature();

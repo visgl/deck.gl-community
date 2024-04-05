@@ -9,7 +9,7 @@ import {
   MultiLineString,
   Feature,
   FeatureCollection,
-} from '@nebula.gl/edit-modes';
+} from '@deck.gl-community/editable-layers';
 
 function getPacManMultiPolygon(): MultiPolygon {
   return {
