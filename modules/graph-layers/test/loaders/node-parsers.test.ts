@@ -1,5 +1,6 @@
-import SAMPLE_NODE from '../../core/__tests__/__fixtures__/node.json';
-import {basicNodeParser} from '../node-parsers';
+import {describe, it, expect} from 'vitest';
+import SAMPLE_NODE from '../__fixtures__/node.json';
+import {basicNodeParser} from '../../src/loaders/node-parsers';
 
 describe('loaders/node-parsers', () => {
   it('should pass sanity', () => {
