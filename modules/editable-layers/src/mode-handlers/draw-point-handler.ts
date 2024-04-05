@@ -1,4 +1,4 @@
-import { Geometry } from '@nebula.gl/edit-modes';
+import { Geometry } from '@deck.gl-community/editable-layers';
 import { ClickEvent } from '../event-types';
 import { EditAction, ModeHandler } from './mode-handler';
 

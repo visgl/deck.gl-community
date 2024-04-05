@@ -1,4 +1,4 @@
-import { Geometry } from '@luma.gl/core';
+import { Geometry } from '@luma.gl/engine';
 
 export default class Arrow2DGeometry extends Geometry {
   constructor(opts = {}) {

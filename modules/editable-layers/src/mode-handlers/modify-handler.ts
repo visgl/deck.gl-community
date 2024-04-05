@@ -1,6 +1,6 @@
 import nearestPointOnLine from '@turf/nearest-point-on-line';
 import { point, lineString as toLineString } from '@turf/helpers';
-import { Position, FeatureOf, Point, LineString } from '@nebula.gl/edit-modes';
+import { Position, FeatureOf, Point, LineString } from '@deck.gl-community/editable-layers';
 import {
   recursivelyTraverseNestedArrays,
   nearestPointOnProjectedLine,

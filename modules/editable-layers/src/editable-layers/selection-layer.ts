@@ -5,7 +5,7 @@ import { PolygonLayer } from '@deck.gl/layers';
 import { polygon } from '@turf/helpers';
 import turfBuffer from '@turf/buffer';
 import turfDifference from '@turf/difference';
-import { DrawRectangleMode, DrawPolygonMode, ViewMode } from '@nebula.gl/edit-modes';
+import { DrawRectangleMode, DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 
 import EditableGeoJsonLayer from './editable-geojson-layer';
 

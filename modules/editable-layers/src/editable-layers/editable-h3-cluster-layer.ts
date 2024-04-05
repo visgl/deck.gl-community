@@ -2,8 +2,9 @@
 
 import { H3ClusterLayer } from '@deck.gl/geo-layers';
 import { DefaultProps } from '@deck.gl/core';
-import { ViewMode } from '@nebula.gl/edit-modes';
-import { polyfill, geoToH3 } from 'h3-js';
+import { ViewMode } from '@deck.gl-community/editable-layers';
+// TODO: Fix H3 support.
+// import { polyfill, geoToH3 } from 'h3-js';
 import { PROJECTED_PIXEL_SIZE_MULTIPLIER } from '../constants';
 import EditableGeoJsonLayer from './editable-geojson-layer';
 import EditableLayer, { EditableLayerProps } from './editable-layer';
@@ -77,12 +78,14 @@ export default class EditableH3ClusterLayer extends EditableLayer<
 
   // convert array of (lng, lat) coords to cluster of hexes
   getDerivedHexagonIDs(coords) {
-    return polyfill(coords, this.props.resolution, true);
+    throw new Error('not implemented'); // TODO
+    // return polyfill(coords, this.props.resolution, true);
   }
 
   // convert pair of (lng, lat) coords into single hex
   getDerivedHexagonID(coords) {
-    return geoToH3(coords[1], coords[0], this.props.resolution);
+    throw new Error('not implemented'); // TODO
+    // return geoToH3(coords[1], coords[0], this.props.resolution);
   }
 
   renderLayers() {

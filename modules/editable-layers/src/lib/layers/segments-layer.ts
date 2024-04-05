@@ -1,5 +1,5 @@
-import { PathMarkerLayer } from '@nebula.gl/layers';
-import GL from '@luma.gl/constants';
+import { PathMarkerLayer } from '@deck.gl-community/editable-layers';
+import {GL} from '@luma.gl/constants';
 
 import { ArrowStyles, DEFAULT_STYLE, MAX_ARROWS } from '../style';
 import NebulaLayer from '../nebula-layer';

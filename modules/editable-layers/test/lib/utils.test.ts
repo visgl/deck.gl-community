@@ -13,7 +13,7 @@ import {
   LineString as LineStringType,
   Point as PointType,
   Viewport,
-} from '@nebula.gl/edit-modes';
+} from '@deck.gl-community/editable-layers';
 
 const Point = {
   type: 'Feature',

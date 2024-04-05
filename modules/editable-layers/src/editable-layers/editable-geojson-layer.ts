@@ -3,46 +3,47 @@
 import type { UpdateParameters, DefaultProps } from '@deck.gl/core';
 import { GeoJsonLayer, ScatterplotLayer, IconLayer, TextLayer } from '@deck.gl/layers';
 import {
-  ViewMode,
-  ModifyMode,
-  TranslateMode,
-  ScaleMode,
-  RotateMode,
-  DuplicateMode,
-  SplitPolygonMode,
-  ExtrudeMode,
-  ElevationMode,
-  DrawPointMode,
-  DrawLineStringMode,
-  DrawPolygonMode,
-  DrawRectangleMode,
-  DrawSquareMode,
-  DrawRectangleFromCenterMode,
-  DrawSquareFromCenterMode,
-  DrawCircleFromCenterMode,
-  DrawCircleByDiameterMode,
-  DrawEllipseByBoundingBoxMode,
-  DrawRectangleUsingThreePointsMode,
-  DrawEllipseUsingThreePointsMode,
-  Draw90DegreePolygonMode,
-  DrawPolygonByDraggingMode,
-  SnappableMode,
-  TransformMode,
   EditAction,
   ClickEvent,
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
   PointerMoveEvent,
-  GeoJsonEditModeType,
-  FeatureCollection,
-} from '@nebula.gl/edit-modes';
+} from '../edit-modes/types';
+
+import {ViewMode} from '../edit-modes/view-mode';
+import {TranslateMode} from '../edit-modes/translate-mode';
+import {ModifyMode} from '../edit-modes/modify-mode';
+import {ScaleMode} from '../edit-modes/scale-mode';
+import {RotateMode} from '../edit-modes/rotate-mode';
+import {DuplicateMode} from '../edit-modes/duplicate-mode';
+import {SplitPolygonMode} from '../edit-modes/split-polygon-mode';
+import {ExtrudeMode} from '../edit-modes/extrude-mode';
+import {ElevationMode} from '../edit-modes/elevation-mode';
+import {DrawPointMode} from '../edit-modes/draw-point-mode';
+import {DrawLineStringMode} from '../edit-modes/draw-line-string-mode';
+import {DrawPolygonMode} from '../edit-modes/draw-polygon-mode';
+import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
+import {DrawSquareMode} from '../edit-modes/draw-square-mode';
+import {DrawRectangleFromCenterMode} from '../edit-modes/draw-rectangle-from-center-mode';
+import {DrawSquareFromCenterMode} from '../edit-modes/draw-square-from-center-mode';
+import {DrawCircleFromCenterMode} from '../edit-modes/draw-circle-from-center-mode';
+import {DrawCircleByDiameterMode} from '../edit-modes/draw-circle-by-diameter-mode';
+import {DrawEllipseByBoundingBoxMode} from '../edit-modes/draw-ellipse-by-bounding-box-mode';
+import {DrawRectangleUsingThreePointsMode} from '../edit-modes/draw-rectangle-using-three-points-mode';
+import {DrawEllipseUsingThreePointsMode} from '../edit-modes/draw-ellipse-using-three-points-mode';
+import {Draw90DegreePolygonMode} from '../edit-modes/draw-90degree-polygon-mode';
+import {DrawPolygonByDraggingMode} from '../edit-modes/draw-polygon-by-dragging-mode';
+import {SnappableMode} from '../edit-modes/snappable-mode';
+import {TransformMode} from '../edit-modes/transform-mode';
+import {GeoJsonEditModeType} from '../edit-modes/geojson-edit-mode';
 
 import { Color } from '../types';
 import { PROJECTED_PIXEL_SIZE_MULTIPLIER } from '../constants';
 
 import EditableLayer, { EditableLayerProps } from './editable-layer';
 import EditablePathLayer from './editable-path-layer';
+import { FeatureCollection } from '../geojson-types';
 
 const DEFAULT_LINE_COLOR: Color = [0x0, 0x0, 0x0, 0x99];
 const DEFAULT_FILL_COLOR: Color = [0x0, 0x0, 0x0, 0x90];

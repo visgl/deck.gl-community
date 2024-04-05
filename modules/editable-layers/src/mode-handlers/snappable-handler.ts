@@ -1,4 +1,4 @@
-import { Feature, FeatureCollection, Position } from '@nebula.gl/edit-modes';
+import { Feature, FeatureCollection, Position } from '@deck.gl-community/editable-layers';
 import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../event-types';
 import {
   EditHandle,

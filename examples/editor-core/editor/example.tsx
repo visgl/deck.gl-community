@@ -1,11 +1,8 @@
-/* eslint-env browser */
-
-import * as React from 'react';
+import React, {useState} from 'react';
 import DeckGL from '@deck.gl/react';
-import { EditableGeoJsonLayer } from '@nebula.gl/layers';
-import { Toolbox } from '@nebula.gl/editor';
-import { ViewMode } from '@nebula.gl/edit-modes';
-import { StaticMap } from 'react-map-gl';
+import { Toolbox } from '@deck.gl-community/react-editable-layers';
+import { ViewMode, EditableGeoJsonLayer } from '@deck.gl-community/editable-layers';
+import { Map } from 'react-map-gl';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZ2Vvcmdpb3MtdWJlciIsImEiOiJjanZidTZzczAwajMxNGVwOGZrd2E5NG90In0.gdsRu_UeU_uPi9IulBruXA';
@@ -17,7 +14,7 @@ const initialViewState = {
 };
 
 export function Example() {
-  const [geoJson, setGeoJson] = React.useState({
+  const [geoJson, setGeoJson] = useState({
     type: 'FeatureCollection',
     features: [
       {
@@ -54,9 +51,9 @@ export function Example() {
       },
     ],
   });
-  const [selectedFeatureIndexes, setSelectedFeatureIndexes] = React.useState([0]);
-  const [mode, setMode] = React.useState(() => ViewMode);
-  const [modeConfig, setModeConfig] = React.useState({});
+  const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState([0]);
+  const [mode, setMode] = useState(() => ViewMode);
+  const [modeConfig, setModeConfig] = useState({});
 
   const layer = new EditableGeoJsonLayer({
     data: geoJson,
@@ -86,7 +83,7 @@ export function Example() {
             }
         }}
       >
-        <StaticMap mapboxApiAccessToken={MAPBOX_ACCESS_TOKEN} />
+        <Map mapboxAccessToken={MAPBOX_ACCESS_TOKEN} />
       </DeckGL>
 
       <Toolbox

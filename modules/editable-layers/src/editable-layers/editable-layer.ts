@@ -8,7 +8,7 @@ import {
   DraggingEvent,
   PointerMoveEvent,
   Position,
-} from '@nebula.gl/edit-modes';
+} from '@deck.gl-community/editable-layers';
 
 const EVENT_TYPES = ['anyclick', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
 

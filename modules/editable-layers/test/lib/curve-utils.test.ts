@@ -1,6 +1,6 @@
 import { it, expect } from 'vitest';
 import { generateCurveFromControlPoints } from '../../src/curve-utils';
-import { Feature } from '@nebula.gl/edit-modes';
+import { Feature } from '@deck.gl-community/editable-layers';
 
 const POLYLINE: Feature = {
   type: 'Feature',

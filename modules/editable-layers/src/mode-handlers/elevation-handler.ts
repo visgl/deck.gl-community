@@ -1,4 +1,4 @@
-import { Position } from '@nebula.gl/edit-modes';
+import { Position } from '@deck.gl-community/editable-layers';
 import { PointerMoveEvent, StopDraggingEvent } from '../event-types';
 import { EditAction, getPickedEditHandle } from './mode-handler';
 

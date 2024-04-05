@@ -1,4 +1,4 @@
-import { Position, FeatureCollection } from '@nebula.gl/edit-modes';
+import { Position, FeatureCollection } from '@deck.gl-community/editable-layers';
 import { ClickEvent, PointerMoveEvent, StopDraggingEvent } from '../../src/event-types';
 
 export const FeatureType = {

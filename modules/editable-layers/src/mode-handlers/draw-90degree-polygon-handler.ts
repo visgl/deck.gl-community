@@ -3,7 +3,7 @@ import bearing from '@turf/bearing';
 import lineIntersect from '@turf/line-intersect';
 import turfDistance from '@turf/distance';
 import { point, lineString } from '@turf/helpers';
-import { Polygon, Position } from '@nebula.gl/edit-modes';
+import { Polygon, Position } from '@deck.gl-community/editable-layers';
 import { generatePointsParallelToLinePoints } from '../utils';
 import { ClickEvent, PointerMoveEvent } from '../event-types';
 import {

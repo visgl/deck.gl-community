@@ -1,4 +1,4 @@
-import { JunctionScatterplotLayer } from '@nebula.gl/layers';
+import { JunctionScatterplotLayer } from '@deck.gl-community/editable-layers';
 import NebulaLayer from '../nebula-layer';
 import { toDeckColor } from '../utils';
 import DeckCache from '../deck-renderer/deck-cache';

@@ -1,4 +1,4 @@
-import { Position } from '@nebula.gl/edit-modes';
+import { Position } from '@deck.gl-community/editable-layers';
 
 // TODO edit-modes: delete this once all code is refactored to use event types in edit-modes module
 

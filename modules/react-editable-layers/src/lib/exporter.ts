@@ -2,7 +2,7 @@
 
 import tokml from '@maphubs/tokml';
 import { stringify as stringifyWkt } from 'wellknown';
-import { AnyGeoJson, Geometry } from '@nebula.gl/edit-modes';
+import { AnyGeoJson, Geometry } from '@deck.gl-community/editable-layers';
 
 export type ExportParameters = {
   data: string;
