@@ -1,13 +1,16 @@
 {
   "private": true,
-  "name": "@nebula.gl/editor",
+  "name": "@deck.gl-community/react-editable-layers",
   "description": "A suite of 3D-enabled data editing layers, suitable for deck.gl",
   "license": "MIT",
-  "version": "1.0.4",
-  "author": "Georgios Karnas <georgios@uber.com>",
+  "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/uber/nebula.gl"
+    "url": "https://github.com/visgl/deck.gl-community"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
   },
   "keywords": [
     "webgl",
@@ -24,10 +27,9 @@
   "types": "dist/index.d.ts",
   "typings": "dist/index.d.ts",
   "dependencies": {
-    "@loaders.gl/core": "^3.2.13",
-    "@loaders.gl/wkt": "^3.2.13",
+    "@loaders.gl/core": "^4.1.4",
+    "@loaders.gl/wkt": "^4.1.4",
     "@maphubs/tokml": "^0.6.1",
-    "@nebula.gl/edit-modes": "1.0.4",
     "@tmcw/togeojson": "^3.2.0",
     "@types/downloadjs": "1.4.3",
     "@types/styled-react-modal": "1.2.2",
@@ -41,8 +43,8 @@
     "styled-react-modal": "1.2.4",
     "wellknown": "^0.5.0"
   },
+  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35",
   "devDependencies": {
-    "sinon": "^15.0.1"
-  },
-  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
+    "vitest": "^1.4.0"
+  }
 }

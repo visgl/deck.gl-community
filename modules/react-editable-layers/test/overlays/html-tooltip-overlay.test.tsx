@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-
+import {it, expect} from 'vitest';
 
 // @ts-ignore
 // eslint-disable-next-line no-unused-vars
