@@ -31,6 +31,7 @@
     "@loaders.gl/wkt": "^4.1.4",
     "@maphubs/tokml": "^0.6.1",
     "@tmcw/togeojson": "^3.2.0",
+    "@turf/helpers": "^6.5.0",
     "@types/downloadjs": "1.4.3",
     "@types/styled-react-modal": "1.2.2",
     "@types/wellknown": "0.5.4",
@@ -41,6 +42,7 @@
     "react-dropzone": "^10.2.2",
     "styled-components": "^4.4.1",
     "styled-react-modal": "1.2.4",
+    "supercluster": "^8.0.1",
     "wellknown": "^0.5.0"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35",

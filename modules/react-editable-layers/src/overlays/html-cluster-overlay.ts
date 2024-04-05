@@ -3,7 +3,7 @@ import Supercluster from 'supercluster';
 import HtmlOverlay from './html-overlay';
 
 export default class HtmlClusterOverlay<ObjType> extends HtmlOverlay {
-  _superCluster: Record<string, any>;
+  _superCluster: typeof Supercluster;
   _lastObjects: ObjType[] | null | undefined = null;
 
   getItems(): Record<string, any>[] {
