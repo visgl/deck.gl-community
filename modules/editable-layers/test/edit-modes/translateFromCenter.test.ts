@@ -1,3 +1,4 @@
+import {test, expect} from 'vitest';
 import type { Feature as TurfFeature, Geometry } from '@turf/helpers';
 // I used types from geojson because they're generic and helps me with intellisense
 import type {
@@ -8,7 +9,7 @@ import type {
   Polygon,
   MultiPolygon,
 } from 'geojson';
-import { translateFromCenter } from '../src/translateFromCenter';
+import { translateFromCenter } from '../../src/translateFromCenter';
 
 type Feature = TurfFeature<Geometry>;
 

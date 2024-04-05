@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars, prefer-const */
 
-import { Point, LineString, Polygon, MultiPolygon, Feature, FeatureOf } from '../src/geojson-types';
+import { Point, LineString, Polygon, MultiPolygon, Feature, FeatureOf } from '../../src/geojson-types';
 
 let point: Point = {
   type: 'Point',

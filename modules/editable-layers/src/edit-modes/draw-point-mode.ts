@@ -1,4 +1,4 @@
-import { ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature } from '../types';
+import { ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature } from './types';
 import { FeatureCollection, Point } from '../geojson-types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 

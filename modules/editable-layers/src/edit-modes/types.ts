@@ -1,4 +1,4 @@
-import { Position, Point, Geometry, FeatureWithProps } from './geojson-types';
+import { Position, Point, Geometry, FeatureWithProps } from '../geojson-types';
 
 export type ScreenCoordinates = [number, number];
 

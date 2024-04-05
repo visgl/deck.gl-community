@@ -1,12 +1,13 @@
-import { RotateMode } from '../../src/lib/rotate-mode';
+import {beforeEach, afterEach, test, expect, vi} from 'vitest';
+import { RotateMode } from '../../../src/edit-modes/rotate-mode';
 import {
   createFeatureCollectionProps,
   createPointerMoveEvent,
   createStartDraggingEvent,
   createStopDraggingEvent,
 } from '../test-utils';
-import { Pick, ModeProps } from '../../src/types';
-import { FeatureCollection } from '../../src/geojson-types';
+import { Pick, ModeProps } from '../../../src/edit-modes/types';
+import { FeatureCollection } from '../../../src/geojson-types';
 
 let rotateMode: RotateMode;
 

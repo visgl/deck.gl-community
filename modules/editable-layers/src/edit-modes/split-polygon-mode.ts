@@ -16,7 +16,7 @@ import {
   ModeProps,
   GuideFeatureCollection,
   TentativeFeature,
-} from '../types';
+} from './types';
 import { GeoJsonEditMode, GeoJsonEditAction } from './geojson-edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';
 

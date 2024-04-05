@@ -1,4 +1,5 @@
-import { ImmutableFeatureCollection } from '../src/lib/immutable-feature-collection';
+import {beforeEach, describe, it, expect} from 'vitest';
+import { ImmutableFeatureCollection } from '../../src/edit-modes/immutable-feature-collection';
 
 let pointFeature;
 let lineStringFeature;

@@ -8,7 +8,7 @@ import {
   GuideFeatureCollection,
   Tooltip,
   GuideFeature,
-} from '../types';
+} from './types';
 import { getPickedEditHandle } from './utils';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 

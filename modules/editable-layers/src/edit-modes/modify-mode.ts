@@ -22,7 +22,7 @@ import {
   Viewport,
   GuideFeatureCollection,
   EditHandleFeature,
-} from '../types';
+} from './types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';
 

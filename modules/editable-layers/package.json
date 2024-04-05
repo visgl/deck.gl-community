@@ -9,6 +9,10 @@
     "type": "git",
     "url": "https://github.com/uber/nebula.gl"
   },
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
   "keywords": [
     "webgl",
     "visualization",

@@ -1,9 +1,10 @@
-import { TransformMode } from '../../src/lib/transform-mode';
+import {beforeEach, afterEach, test, expect, vi} from 'vitest';
+import { TransformMode } from '../../../src/edit-modes/transform-mode';
 import { createFeatureCollectionProps, createPointerMoveEvent } from '../test-utils';
 
 let transformMode: TransformMode;
 
-let warnBefore;
+let warnBefore: typeof console.warn;
 beforeEach(() => {
   warnBefore = console.warn; // eslint-disable-line
   // $FlowFixMe

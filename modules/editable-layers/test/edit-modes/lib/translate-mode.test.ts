@@ -1,16 +1,17 @@
-import { TransformMode } from '../../src/lib/transform-mode';
+import {beforeEach, afterEach, test, expect, vi} from 'vitest';
+import { TransformMode } from '../../../src/edit-modes/transform-mode';
 import {
   createFeatureCollectionProps,
   createPointerMoveEvent,
   createStartDraggingEvent,
   createStopDraggingEvent,
 } from '../test-utils';
-import { Pick, ModeProps } from '../../src/types';
-import { FeatureCollection } from '../../src/geojson-types';
+import { Pick, ModeProps } from '../../../src/edit-modes/types';
+import { FeatureCollection } from '../../../src/geojson-types';
 
 let transformMode: TransformMode;
 
-let warnBefore;
+let warnBefore: typeof console.warn;
 beforeEach(() => {
   warnBefore = console.warn; // eslint-disable-line
   // $FlowFixMe

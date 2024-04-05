@@ -1,6 +1,7 @@
+import {beforeEach, afterEach, describe, test, it, expect} from 'vitest';
 import turfArea from '@turf/area';
 import { Feature, FeatureCollection } from '@nebula.gl/edit-modes';
-import { DrawRectangleMode } from '../../src/lib/draw-rectangle-mode';
+import { DrawRectangleMode } from '../../../src/edit-modes/draw-rectangle-mode';
 import {
   createFeatureCollectionProps,
   createFeatureCollection,
@@ -9,13 +10,13 @@ import {
   createStartDraggingEvent,
   createStopDraggingEvent,
 } from '../test-utils';
-import { GeoJsonEditAction } from '../../src/lib/geojson-edit-mode';
+import { GeoJsonEditAction } from '../../../src/edit-modes/geojson-edit-mode';
 
 let featureCollection: FeatureCollection;
 let polygonFeature: Feature;
 let polygonFeatureIndex: number;
 
-let warnBefore;
+let warnBefore: typeof console.warn;
 beforeEach(() => {
   warnBefore = console.warn; // eslint-disable-line
   // $FlowFixMe
