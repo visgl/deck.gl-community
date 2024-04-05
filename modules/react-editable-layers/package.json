@@ -18,6 +18,7 @@
     "overlay",
     "layer"
   ],
+  "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "files": [
@@ -45,8 +46,5 @@
     "supercluster": "^8.0.1",
     "wellknown": "^0.5.0"
   },
-  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35",
-  "devDependencies": {
-    "vitest": "^1.4.0"
-  }
+  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
 }

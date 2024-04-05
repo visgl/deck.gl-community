@@ -18,6 +18,7 @@
     "overlay",
     "layer"
   ],
+  "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "files": [
