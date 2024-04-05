@@ -15,7 +15,7 @@ import {
   ModeProps,
   GuideFeatureCollection,
   TentativeFeature,
-} from '../types';
+} from './types';
 import { FeatureCollection, Feature, Polygon, Geometry, Position } from '../geojson-types';
 import { getPickedEditHandles, getNonGuidePicks } from './utils';
 import { EditMode } from './edit-mode';

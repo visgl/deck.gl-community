@@ -1,6 +1,6 @@
 import turfArea from '@turf/area';
 import turfCentroid from '@turf/centroid';
-import { ClickEvent, Tooltip, ModeProps } from '../types';
+import { ClickEvent, Tooltip, ModeProps } from './types';
 import { FeatureCollection } from '../geojson-types';
 import { DrawPolygonMode } from './draw-polygon-mode';
 

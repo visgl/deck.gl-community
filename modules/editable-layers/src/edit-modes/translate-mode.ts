@@ -10,7 +10,7 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   ModeProps,
-} from '../types';
+} from './types';
 import { mapCoords } from './utils';
 import { translateFromCenter } from '../translateFromCenter';
 import { GeoJsonEditMode, GeoJsonEditAction } from './geojson-edit-mode';

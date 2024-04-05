@@ -1,4 +1,5 @@
-import { MeasureDistanceMode } from '../../src/lib/measure-distance-mode';
+import {beforeEach, describe, it, expect} from 'vitest';
+import { MeasureDistanceMode } from '../../../src/edit-modes/measure-distance-mode';
 import {
   createFeatureCollectionProps,
   createClickEvent,
@@ -6,13 +7,13 @@ import {
   createKeyboardEvent,
 } from '../test-utils';
 
-const expectToBeCloseToArray = (actual, expected) => {
+const expectToBeCloseToArray = (actual: number[], expected: number[]) => {
   expect(actual.length).toBe(expected.length);
   actual.forEach((x, index) => expect(x).toBeCloseTo(expected[index], 1));
 };
 
 describe('move without click', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handlePointerMove(createPointerMoveEvent(), createFeatureCollectionProps());
@@ -30,7 +31,7 @@ describe('move without click', () => {
 });
 
 describe('one click', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());
@@ -48,7 +49,7 @@ describe('one click', () => {
 });
 
 describe('one click - centerTooltipsOnLine = true', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   const props = { modeConfig: { centerTooltipsOnLine: true } };
   beforeEach(() => {
     mode = new MeasureDistanceMode();
@@ -62,7 +63,7 @@ describe('one click - centerTooltipsOnLine = true', () => {
 });
 
 describe('one click + pointer move', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());
@@ -81,7 +82,7 @@ describe('one click + pointer move', () => {
 });
 
 describe('one click + pointer move - centerTooltipsOnLine = true', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   const props = { modeConfig: { centerTooltipsOnLine: true } };
   beforeEach(() => {
     mode = new MeasureDistanceMode();
@@ -96,7 +97,7 @@ describe('one click + pointer move - centerTooltipsOnLine = true', () => {
 });
 
 describe('two clicks', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());
@@ -134,7 +135,7 @@ describe('two clicks', () => {
 });
 
 describe('two clicks - centerTooltipsOnLine = true', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   const props = { modeConfig: { centerTooltipsOnLine: true } };
 
   beforeEach(() => {
@@ -151,7 +152,7 @@ describe('two clicks - centerTooltipsOnLine = true', () => {
 });
 
 describe('two clicks + pointer move', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());
@@ -171,7 +172,7 @@ describe('two clicks + pointer move', () => {
 });
 
 describe('two clicks + pointer move - centerTooltipsOnLine = true', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   const props = { modeConfig: { centerTooltipsOnLine: true } };
 
   beforeEach(() => {
@@ -189,7 +190,7 @@ describe('two clicks + pointer move - centerTooltipsOnLine = true', () => {
 });
 
 describe('three clicks + pointer move', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());
@@ -220,7 +221,7 @@ describe('three clicks + pointer move', () => {
 });
 
 describe('three clicks + pointer move - centerTooltipsOnLine = true', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   const props = { modeConfig: { centerTooltipsOnLine: true } };
 
   beforeEach(() => {
@@ -240,7 +241,7 @@ describe('three clicks + pointer move - centerTooltipsOnLine = true', () => {
 });
 
 describe('three clicks + pointer move + press Escape', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());
@@ -265,7 +266,7 @@ describe('three clicks + pointer move + press Escape', () => {
 });
 
 describe('three clicks + pointer move + press Enter', () => {
-  let mode;
+  let mode: MeasureDistanceMode;
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());

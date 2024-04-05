@@ -1,3 +1,4 @@
+import {vi} from 'vitest';
 import { Position, FeatureCollection } from '@nebula.gl/edit-modes';
 import {
   ModeProps,
@@ -315,8 +316,7 @@ export function createClickEvent(mapCoords: Position, picks: Pick[] = []): Click
 }
 
 export function createKeyboardEvent(key: string): KeyboardEvent {
-  // eslint-disable-next-line no-undef
-  return new KeyboardEvent('keyup', { key });
+  return {type: 'keyup', key, stopPropagation: vi.fn()} as unknown as KeyboardEvent;
 }
 
 export function createStartDraggingEvent(

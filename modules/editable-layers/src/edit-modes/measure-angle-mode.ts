@@ -2,7 +2,7 @@ import turfBearing from '@turf/bearing';
 import turfCenter from '@turf/center';
 import memoize from '../memoize';
 
-import { ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection } from '../types';
+import { ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection } from './types';
 import { FeatureCollection } from '../geojson-types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 

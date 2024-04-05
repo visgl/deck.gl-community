@@ -14,7 +14,7 @@ import {
   ModeProps,
   GuideFeatureCollection,
   TentativeFeature,
-} from '../types';
+} from './types';
 import { Polygon, LineString, Position, FeatureCollection } from '../geojson-types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 

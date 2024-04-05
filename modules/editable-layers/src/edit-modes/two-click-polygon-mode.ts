@@ -6,7 +6,7 @@ import {
   ModeProps,
   GuideFeatureCollection,
   TentativeFeature,
-} from '../types';
+} from './types';
 import { Polygon, FeatureCollection, FeatureOf, Position } from '../geojson-types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 

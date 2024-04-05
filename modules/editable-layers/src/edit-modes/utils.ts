@@ -15,7 +15,7 @@ import {
   FeatureOf,
   FeatureWithProps,
   AnyCoordinates,
-} from './geojson-types';
+} from '../geojson-types';
 
 export type NearestPointType = FeatureWithProps<Point, { dist: number; index: number }>;
 

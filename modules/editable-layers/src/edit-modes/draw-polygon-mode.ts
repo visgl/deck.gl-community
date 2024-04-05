@@ -7,7 +7,7 @@ import {
   GuideFeatureCollection,
   TentativeFeature,
   GuideFeature,
-} from '../types';
+} from './types';
 import { Polygon, FeatureCollection } from '../geojson-types';
 import { getPickedEditHandle } from './utils';
 import { GeoJsonEditMode } from './geojson-edit-mode';

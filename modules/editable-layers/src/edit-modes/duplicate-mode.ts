@@ -1,4 +1,4 @@
-import { StartDraggingEvent, ModeProps } from '../types';
+import { StartDraggingEvent, ModeProps } from './types';
 import { FeatureCollection } from '../geojson-types';
 import { TranslateMode } from './translate-mode';
 

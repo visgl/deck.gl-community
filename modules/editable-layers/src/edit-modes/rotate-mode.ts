@@ -17,7 +17,7 @@ import {
   ModeProps,
   EditHandleFeature,
   GuideFeatureCollection,
-} from '../types';
+} from './types';
 import { getPickedEditHandle } from './utils';
 import { FeatureCollection, Position } from '../geojson-types';
 import { GeoJsonEditMode, GeoJsonEditAction, getIntermediatePosition } from './geojson-edit-mode';

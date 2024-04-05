@@ -1,3 +1,4 @@
+import { it, expect } from 'vitest';
 import { generateCurveFromControlPoints } from '../../src/curve-utils';
 import { Feature } from '@nebula.gl/edit-modes';
 

@@ -1,4 +1,5 @@
-import { DrawPolygonMode } from '../../src/lib/draw-polygon-mode';
+import {beforeEach, describe, it, expect} from 'vitest';
+import { DrawPolygonMode } from '../../../src/edit-modes/draw-polygon-mode';
 import { createFeatureCollectionProps, createClickEvent, createKeyboardEvent } from '../test-utils';
 
 let props;

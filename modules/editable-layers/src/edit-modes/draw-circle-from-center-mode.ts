@@ -2,7 +2,7 @@ import circle from '@turf/circle';
 import distance from '@turf/distance';
 import area from '@turf/area';
 import memoize from '../memoize';
-import { ModeProps, Tooltip } from '../types';
+import { ModeProps, Tooltip } from './types';
 import { Position, Polygon, FeatureOf, FeatureCollection } from '../geojson-types';
 import { TwoClickPolygonMode } from './two-click-polygon-mode';
 

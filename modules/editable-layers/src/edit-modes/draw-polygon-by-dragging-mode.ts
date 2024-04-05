@@ -5,7 +5,7 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   ModeProps,
-} from '../types';
+} from './types';
 import { Polygon, FeatureCollection } from '../geojson-types';
 import { getPickedEditHandle } from './utils';
 import { DrawPolygonMode } from './draw-polygon-mode';

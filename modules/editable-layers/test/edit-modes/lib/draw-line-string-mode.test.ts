@@ -1,4 +1,5 @@
-import { DrawLineStringMode } from '../../src/lib/draw-line-string-mode';
+import {beforeEach, describe, it, expect} from 'vitest';
+import { DrawLineStringMode } from '../../../src/edit-modes/draw-line-string-mode';
 import { createFeatureCollectionProps, createClickEvent, createKeyboardEvent } from '../test-utils';
 
 let props;

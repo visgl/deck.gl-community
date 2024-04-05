@@ -1,12 +1,13 @@
-import { ModifyMode } from '../../src/lib/modify-mode';
-import { Pick, ModeProps } from '../../src/types';
+import {beforeEach, describe, test, it, expect, vi} from 'vitest';
+import { ModifyMode } from '../../../src/edit-modes/modify-mode';
+import { Pick, ModeProps } from '../../../src/edit-modes/types';
 import {
   createFeatureCollectionProps,
   createPointerMoveEvent,
   createStartDraggingEvent,
   createStopDraggingEvent,
 } from '../test-utils';
-import { FeatureCollection, Position, Point, LineString, FeatureOf } from '../../src/geojson-types';
+import { FeatureCollection, Position, Point, LineString, FeatureOf } from '../../../src/geojson-types';
 
 let pointFeature: FeatureOf<Point>;
 let lineStringFeature: FeatureOf<LineString>;

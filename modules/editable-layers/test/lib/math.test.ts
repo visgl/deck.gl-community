@@ -1,3 +1,4 @@
+import { it, expect } from 'vitest';
 import { convertE7Array, toDegree, toRadian } from '../../src/math';
 
 it('test toDegree()', () => {

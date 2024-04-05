@@ -1,4 +1,5 @@
-import { MeasureAngleMode } from '../../src/lib/measure-angle-mode';
+import {beforeEach, describe, it, expect} from 'vitest';
+import { MeasureAngleMode } from '../../../src/edit-modes/measure-angle-mode';
 import {
   createFeatureCollectionProps,
   createClickEvent,
@@ -6,7 +7,7 @@ import {
 } from '../test-utils';
 
 describe('move without click', () => {
-  let mode;
+  let mode: MeasureAngleMode;
   beforeEach(() => {
     mode = new MeasureAngleMode();
     mode.handlePointerMove(createPointerMoveEvent(), createFeatureCollectionProps());
@@ -19,7 +20,7 @@ describe('move without click', () => {
 });
 
 describe('one click', () => {
-  let mode;
+  let mode: MeasureAngleMode;
   beforeEach(() => {
     mode = new MeasureAngleMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());
@@ -32,7 +33,7 @@ describe('one click', () => {
 });
 
 describe('three clicks + pointer move', () => {
-  let mode;
+  let mode: MeasureAngleMode;
   let props;
 
   beforeEach(() => {

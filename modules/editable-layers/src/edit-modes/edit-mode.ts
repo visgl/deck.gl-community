@@ -8,7 +8,7 @@ import {
   DraggingEvent,
   Tooltip,
   ModeProps,
-} from '../types';
+} from './types';
 
 export interface EditMode<TData, TGuides> {
   // Called when the pointer went down and up without dragging regardless of whether something was picked

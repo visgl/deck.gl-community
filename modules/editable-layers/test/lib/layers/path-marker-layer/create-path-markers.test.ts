@@ -1,4 +1,5 @@
-import createPathMarkers from '../../../../src/layers/path-marker-layer/create-path-markers';
+import {it, expect} from 'vitest';
+import createPathMarkers from '../../../../src/editable-layers/path-marker-layer/create-path-markers';
 
 const data = [
   {

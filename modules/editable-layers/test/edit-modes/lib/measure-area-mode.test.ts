@@ -1,4 +1,5 @@
-import { MeasureAreaMode } from '../../src/lib/measure-area-mode';
+import {beforeEach, describe, it, expect} from 'vitest';
+import { MeasureAreaMode } from '../../../src/edit-modes/measure-area-mode';
 import {
   createFeatureCollectionProps,
   createClickEvent,
@@ -7,7 +8,7 @@ import {
 } from '../test-utils';
 
 describe('move without click', () => {
-  let mode;
+  let mode: MeasureAreaMode;
   beforeEach(() => {
     mode = new MeasureAreaMode();
     mode.handlePointerMove(createPointerMoveEvent(), createFeatureCollectionProps());
@@ -20,7 +21,7 @@ describe('move without click', () => {
 });
 
 describe('one click', () => {
-  let mode;
+  let mode: MeasureAreaMode;
   beforeEach(() => {
     mode = new MeasureAreaMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps());
@@ -33,7 +34,7 @@ describe('one click', () => {
 });
 
 describe('three clicks + pointer move', () => {
-  let mode;
+  let mode: MeasureAreaMode;
   let props;
 
   beforeEach(() => {

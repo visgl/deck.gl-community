@@ -8,7 +8,7 @@ import {
   Pick,
   GuideFeatureCollection,
   EditHandleFeature,
-} from '../types';
+} from './types';
 import {
   getPickedSnapSourceEditHandle,
   getPickedEditHandles,

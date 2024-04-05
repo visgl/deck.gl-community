@@ -1,3 +1,4 @@
+import {describe, it, expect} from 'vitest';
 import {
   toDeckColor,
   recursivelyTraverseNestedArrays,
@@ -5,9 +6,9 @@ import {
   distance2d,
   mix,
   nearestPointOnProjectedLine,
-  nearestPointOnLine,
-} from '../../src/utils';
-import { Position } from '../../src/geojson-types';
+} from '../../../src/utils';
+import {nearestPointOnLine} from '../../../src/edit-modes/utils';
+import { Position } from '../../../src/geojson-types';
 
 const Point = {
   type: 'Feature',

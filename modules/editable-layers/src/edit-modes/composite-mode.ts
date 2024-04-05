@@ -7,7 +7,7 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   GuideFeatureCollection,
-} from '../types';
+} from './types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 
 export class CompositeMode extends GeoJsonEditMode {

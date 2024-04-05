@@ -1,4 +1,4 @@
-
+import { it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'fs';
 
 const RESOLVED_REGEX = /^resolved/gi;

@@ -1,8 +1,5 @@
 import { EventEmitter } from 'eventemitter3';
-
-import document from 'global/document';
-import window from 'global/window';
-import { WebMercatorViewport } from '@deck.gl/core/typed';
+import { WebMercatorViewport } from '@deck.gl/core';
 
 import DeckDrawer from './deck-renderer/deck-drawer';
 import LayerMouseEvent from './layer-mouse-event';

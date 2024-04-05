@@ -1,4 +1,5 @@
-import { DrawCircleByDiameterMode } from '../../src/lib/draw-circle-by-diameter-mode';
+import {beforeEach, afterEach, describe, it, expect} from 'vitest';
+import { DrawCircleByDiameterMode } from '../../../src/edit-modes/draw-circle-by-diameter-mode';
 import {
   createFeatureCollectionProps,
   createFeatureCollection,
@@ -9,7 +10,7 @@ import { FeatureCollection } from '@nebula.gl/edit-modes';
 
 let featureCollection: FeatureCollection;
 
-let warnBefore;
+let warnBefore: typeof console.warn;
 beforeEach(() => {
   warnBefore = console.warn; // eslint-disable-line
   // $FlowFixMe
