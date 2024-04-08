@@ -8,13 +8,13 @@ import {
   DrawRectangleMode,
   MeasureDistanceMode,
   MeasureAngleMode,
-  MeasureAreaMode,
+  MeasureAreaMode
 } from '@deck.gl-community/editable-layers';
 import styled from 'styled-components';
-import { Icon } from './icon';
+import {Icon} from './icon';
 
-import { ImportModal } from './import-modal';
-import { ExportModal } from './export-modal';
+import {ImportModal} from './import-modal';
+import {ExportModal} from './export-modal';
 
 const Tools = styled.div`
   position: absolute;
@@ -24,9 +24,9 @@ const Tools = styled.div`
   right: 10px;
 `;
 
-const Button = styled.button<{ active?: boolean; kind?: string }>`
+const Button = styled.button<{active?: boolean; kind?: string}>`
   color: #fff;
-  background: ${({ kind, active }) =>
+  background: ${({kind, active}) =>
     kind === 'danger' ? 'rgb(180, 40, 40)' : active ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)'};
   font-size: 1em;
   font-weight: 400;
@@ -66,46 +66,46 @@ export type Props = {
 
 const MODE_GROUPS = [
   {
-    modes: [{ mode: ViewMode, content: <Icon name="pointer" /> }],
+    modes: [{mode: ViewMode, content: <Icon name="pointer" />}]
   },
   {
-    modes: [{ mode: DrawPointMode, content: <Icon name="map-pin" /> }],
+    modes: [{mode: DrawPointMode, content: <Icon name="map-pin" />}]
   },
   {
     modes: [
       {
         mode: DrawLineStringMode,
-        content: <Icon name="stats" />,
-      },
-    ],
+        content: <Icon name="stats" />
+      }
+    ]
   },
   {
     modes: [
-      { mode: DrawPolygonMode, content: <Icon name="shape-polygon" /> },
-      { mode: DrawRectangleMode, content: <Icon name="rectangle" /> },
-      { mode: DrawCircleFromCenterMode, content: <Icon name="circle" /> },
-    ],
+      {mode: DrawPolygonMode, content: <Icon name="shape-polygon" />},
+      {mode: DrawRectangleMode, content: <Icon name="rectangle" />},
+      {mode: DrawCircleFromCenterMode, content: <Icon name="circle" />}
+    ]
   },
   {
     modes: [
-      { mode: MeasureDistanceMode, content: <Icon name="ruler" /> },
-      { mode: MeasureAngleMode, content: <Icon name="shape-triangle" /> },
-      { mode: MeasureAreaMode, content: <Icon name="shape-square" /> },
-    ],
-  },
+      {mode: MeasureDistanceMode, content: <Icon name="ruler" />},
+      {mode: MeasureAngleMode, content: <Icon name="shape-triangle" />},
+      {mode: MeasureAreaMode, content: <Icon name="shape-square" />}
+    ]
+  }
 ];
 
-function ModeButton({ buttonConfig, mode, onClick }: any) {
+function ModeButton({buttonConfig, mode, onClick}: any) {
   return (
     <Button active={buttonConfig.mode === mode} onClick={onClick}>
       {buttonConfig.content}
     </Button>
   );
 }
-function ModeGroupButtons({ modeGroup, mode, onSetMode }: any) {
+function ModeGroupButtons({modeGroup, mode, onSetMode}: any) {
   const [expanded, setExpanded] = React.useState(false);
 
-  const { modes } = modeGroup;
+  const {modes} = modeGroup;
 
   let subTools = null;
 
@@ -152,7 +152,7 @@ export function Toolbox({
   onSetMode,
   onSetModeConfig,
   onSetGeoJson,
-  onImport,
+  onImport
 }: Props) {
   const [showConfig, setShowConfig] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
@@ -181,19 +181,19 @@ export function Toolbox({
                 <Icon name="chevron-right" />
               </Button>
               <Button
-                onClick={() => onSetModeConfig({ booleanOperation: 'difference' })}
+                onClick={() => onSetModeConfig({booleanOperation: 'difference'})}
                 active={modeConfig && modeConfig.booleanOperation === 'difference'}
               >
                 <Icon name="minus-front" />
               </Button>
               <Button
-                onClick={() => onSetModeConfig({ booleanOperation: 'union' })}
+                onClick={() => onSetModeConfig({booleanOperation: 'union'})}
                 active={modeConfig && modeConfig.booleanOperation === 'union'}
               >
                 <Icon name="unite" />
               </Button>
               <Button
-                onClick={() => onSetModeConfig({ booleanOperation: 'intersection' })}
+                onClick={() => onSetModeConfig({booleanOperation: 'intersection'})}
                 active={modeConfig && modeConfig.booleanOperation === 'intersection'}
               >
                 <Icon name="intersect" />
@@ -213,7 +213,7 @@ export function Toolbox({
             <SubTools>
               <Button
                 onClick={() => {
-                  onSetGeoJson({ type: 'FeatureCollection', features: [] });
+                  onSetGeoJson({type: 'FeatureCollection', features: []});
                   setShowClearConfirmation(false);
                 }}
                 kind="danger"
