@@ -1,13 +1,16 @@
-import {EDGE_STATE, NODE_STATE} from './constants';
+import {EDGE_STATE, NODE_STATE, ValueOf} from './constants';
+import Edge from './edge';
+import GraphEngine from './graph-engine';
+import Node from './node';
 
-const NODE_TO_EDGE_STATE_MAP = {
+const NODE_TO_EDGE_STATE_MAP: Record<ValueOf<typeof NODE_STATE>, ValueOf<typeof EDGE_STATE>> = {
   [NODE_STATE.DEFAULT]: EDGE_STATE.DEFAULT,
   [NODE_STATE.HOVER]: EDGE_STATE.HOVER,
   [NODE_STATE.DRAGGING]: EDGE_STATE.DRAGGING,
   [NODE_STATE.SELECTED]: EDGE_STATE.SELECTED
 };
 
-function shouldEdgeBeSelected(edge) {
+function shouldEdgeBeSelected(edge: Edge): boolean {
   return edge
     .getConnectedNodes()
     .some(
@@ -15,7 +18,7 @@ function shouldEdgeBeSelected(edge) {
     );
 }
 
-function setNodeState(node, state) {
+function setNodeState(node: Node, state: ValueOf<typeof NODE_STATE>) {
   node.setState(state);
   if (node.shouldHighlightConnectedEdges()) {
     node.getConnectedEdges().forEach((edge) => {
@@ -28,8 +31,37 @@ function setNodeState(node, state) {
   }
 }
 
+interface EventMap {
+  onClick?: (info: unknown, event: Event) => void;
+  onHover?: (info: unknown) => void;
+  onMouseEnter?: (info: unknown) => void;
+  onMouseLeave?: (node: Node) => void;
+  onDragStart?: (info: unknown) => void;
+  onDrag?: (info: unknown) => void;
+  onDragEnd?: (info: unknown) => void;
+}
+
+export interface InteractionManagerProps {
+  nodeEvents?: EventMap;
+  edgeEvents?: EventMap;
+  engine: GraphEngine;
+  enableDragging: boolean;
+  resumeLayoutAfterDragging: boolean;
+}
+
 export default class InteractionManager {
-  constructor(props, notifyCallback) {
+  public notifyCallback: Function;
+  private _lastInteraction = 0;
+  private _lastHoveredNode: Node | null = null;
+  private _lastSelectedNode: Node | null = null;
+
+  public nodeEvents: EventMap = undefined!;
+  public edgeEvents: EventMap = undefined!;
+  public engine: GraphEngine = undefined!;
+  public enableDragging: boolean = undefined!;
+  public resumeLayoutAfterDragging: boolean = undefined!;
+
+  constructor(props: InteractionManagerProps, notifyCallback: Function) {
     this.updateProps(props);
     this.notifyCallback = notifyCallback;
 
@@ -45,7 +77,7 @@ export default class InteractionManager {
     engine,
     enableDragging,
     resumeLayoutAfterDragging
-  }) {
+  }: InteractionManagerProps): void {
     this.nodeEvents = nodeEvents;
     this.edgeEvents = edgeEvents;
     this.engine = engine;
@@ -53,11 +85,11 @@ export default class InteractionManager {
     this.resumeLayoutAfterDragging = resumeLayoutAfterDragging;
   }
 
-  getLastInteraction() {
+  getLastInteraction(): number {
     return this._lastInteraction;
   }
 
-  onClick(info, event) {
+  onClick(info, event): void {
     const {object} = info;
 
     if (!object) {
@@ -65,12 +97,12 @@ export default class InteractionManager {
     }
 
     if (object.isNode) {
-      if (object.isSelectable()) {
+      if ((object as Node).isSelectable()) {
         if (this._lastSelectedNode) {
           setNodeState(this._lastSelectedNode, NODE_STATE.DEFAULT);
         }
         setNodeState(object, NODE_STATE.SELECTED);
-        this._lastSelectedNode = object;
+        this._lastSelectedNode = object as Node;
         this._lastInteraction = Date.now();
         this.notifyCallback();
       }
@@ -85,8 +117,8 @@ export default class InteractionManager {
     }
   }
 
-  _mouseLeaveNode() {
-    const lastHoveredNode = this._lastHoveredNode;
+  _mouseLeaveNode(): void {
+    const lastHoveredNode = this._lastHoveredNode as Node;
 
     if (!(lastHoveredNode.isSelectable() && lastHoveredNode.getState() === NODE_STATE.SELECTED)) {
       // reset the last hovered node's state
@@ -94,17 +126,17 @@ export default class InteractionManager {
         this._lastSelectedNode !== null && this._lastSelectedNode.id === this._lastHoveredNode?.id
           ? NODE_STATE.SELECTED
           : NODE_STATE.DEFAULT;
-      setNodeState(this._lastHoveredNode, newState);
+      setNodeState(lastHoveredNode, newState);
     }
     // trigger the callback if exists
     if (this.nodeEvents.onMouseLeave) {
-      this.nodeEvents.onMouseLeave(this._lastHoveredNode);
+      this.nodeEvents.onMouseLeave(lastHoveredNode);
     }
   }
 
-  _mouseEnterNode(info) {
+  _mouseEnterNode(info): void {
     // set the node's state to hover
-    setNodeState(info.object, NODE_STATE.HOVER);
+    setNodeState(info.object as Node, NODE_STATE.HOVER);
     // trigger the callback if exists
     if (this.nodeEvents.onMouseEnter) {
       this.nodeEvents.onMouseEnter(info);

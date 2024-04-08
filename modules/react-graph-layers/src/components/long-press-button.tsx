@@ -1,6 +1,14 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 
+// interface LongPressButtonProps {
+//   onClick: (event: Event) => void,
+// }
+
+// export function LongPressButton(props: LongPressButtonProps) {
+//   const repeat
+// }
+
 export default class LongPressButton extends PureComponent {
   static propTypes = {
     onClick: PropTypes.func.isRequired,

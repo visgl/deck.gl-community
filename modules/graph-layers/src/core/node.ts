@@ -1,26 +1,37 @@
-import {NODE_STATE} from './constants';
+import {NODE_STATE, ValueOf} from './constants';
+import Edge from './edge';
+
+interface NodeOptions{
+  id: number | string;
+  selectable?: boolean;
+  highlightConnectedEdges?: boolean;
+  data: Record<string, unknown>;
+}
 
 // Basic data structure of a node
 export default class Node {
+  public id: string | number;
+  /** Keep a reference to origin data. */
+  private _data: Record<string, unknown>;
+  /** List edges. */
+  private _connectedEdges: Record<string, Edge> = {};
+  /** Interaction state of the node. */
+  public state: ValueOf<typeof NODE_STATE> = NODE_STATE.DEFAULT;
+  /** Can the node be selected? */
+  private _selectable: boolean;
+  /** Should the state of this node affect the state of the connected edges? */
+  private _highlightConnectedEdges: boolean;
+  /** Check the type of the object when picking engine gets it. */
+  public readonly isNode = true;
   /**
    * The constructor of a node
    * @param  {String|Number} options.id   - the unique ID of the node
    * @param  {Any} options.data - origin data reference
    */
-  constructor({id, selectable = false, highlightConnectedEdges = false, data = {}}) {
+  constructor({id, selectable = false, highlightConnectedEdges = false, data = {}}: NodeOptions) {
     this.id = id;
-    // keep a reference to origin data
     this._data = data;
-    // derived properties
-    // list objects
-    this._connectedEdges = {};
-    // the interaction state of the node
-    this.state = NODE_STATE.DEFAULT;
-    // check the type of the object when picking engine gets it.
-    this.isNode = true;
-    // Can the node be selected?
     this._selectable = selectable;
-    // Should the state of this node affect the state of the connected edges?
     this._highlightConnectedEdges = highlightConnectedEdges;
   }
 
@@ -28,7 +39,7 @@ export default class Node {
    * Return the ID of the node
    * @return {String|Number} - the ID of the node.
    */
-  getId() {
+  getId(): string | number {
     return this.id;
   }
 
@@ -36,7 +47,7 @@ export default class Node {
    * Return the degree of the node -- includes in-degree and out-degree
    * @return {Number} - the degree of the node.
    */
-  getDegree() {
+  getDegree(): number {
     return Object.keys(this._connectedEdges).length;
   }
 
@@ -44,7 +55,7 @@ export default class Node {
    * Return the in-degree of the node.
    * @return {Number} - the in-degree of the node.
    */
-  getInDegree() {
+  getInDegree(): number {
     const nodeId = this.getId();
     return this.getConnectedEdges().reduce((count, e) => {
       const isDirected = e.isDirected();
@@ -59,7 +70,7 @@ export default class Node {
    * Return the out-degree of the node.
    * @return {Number} - the out-degree of the node.
    */
-  getOutDegree() {
+  getOutDegree(): number {
     const nodeId = this.getId();
     return this.getConnectedEdges().reduce((count, e) => {
       const isDirected = e.isDirected();
@@ -74,7 +85,7 @@ export default class Node {
    * Return all the IDs of the sibling nodes.
    * @return {String[]} [description]
    */
-  getSiblingIds() {
+  getSiblingIds(): (string | number)[] {
     const nodeId = this.getId();
     return this.getConnectedEdges().reduce((siblings, e) => {
       if (e.getTargetNodeId() === nodeId) {
@@ -83,14 +94,14 @@ export default class Node {
         siblings.push(e.getTargetNodeId());
       }
       return siblings;
-    }, []);
+    }, [] as (string | number)[]);
   }
 
   /**
    * Return all the connected edges.
    * @return {Object[]} - an array of the connected edges.
    */
-  getConnectedEdges() {
+  getConnectedEdges(): Edge[] {
     return Object.values(this._connectedEdges);
   }
 
@@ -99,7 +110,7 @@ export default class Node {
    * @param  {String} key - property key.
    * @return {Any} - the value of the property or undefined (not found).
    */
-  getPropertyValue(key) {
+  getPropertyValue(key: string): unknown {
     // try to search the key within this object
     if (this.hasOwnProperty(key)) {
       return this[key];
@@ -114,9 +125,9 @@ export default class Node {
 
   /**
    * Set the new node data.
-   * @param {Any} data - the new data of the node
+   * @param {Record<string, unknown>} data - the new data of the node
    */
-  setData(data) {
+  setData(data: Record<string, unknown>): void {
     this._data = data;
   }
 
@@ -125,7 +136,7 @@ export default class Node {
    * @param {String} key - the key of the property
    * @param {Any} value - the value of the property.
    */
-  setDataProperty(key, value) {
+  setDataProperty(key: string, value: unknown): void {
     this._data[key] = value;
   }
 
@@ -133,7 +144,7 @@ export default class Node {
    * Set node state
    * @param {String} state - one of NODE_STATE
    */
-  setState(state) {
+  setState(state: ValueOf<typeof NODE_STATE>): void {
     this.state = state;
   }
 
@@ -141,7 +152,7 @@ export default class Node {
    * Get node state
    * @returns {string} state - one of NODE_STATE
    */
-  getState() {
+  getState(): ValueOf<typeof NODE_STATE> {
     return this.state;
   }
 
@@ -149,10 +160,10 @@ export default class Node {
    * Add connected edges to the node
    * @param {Edge || Edge[]} edge an edge or an array of edges to be added to this._connectedEdges
    */
-  addConnectedEdges(edge) {
+  addConnectedEdges(edge: Edge | Edge[]): void {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];
     iterableEdges.forEach((e) => {
-      this._connectedEdges[e.id] = edge;
+      this._connectedEdges[e.id] = e;
       e.addNode(this);
     });
   }
@@ -161,7 +172,7 @@ export default class Node {
    * Remove edges from this._connectedEdges
    * @param {Edge | Edge[]} edge an edge or an array of edges to be removed from this._connectedEdges
    */
-  removeConnectedEdges(edge) {
+  removeConnectedEdges(edge: Edge | Edge[]): void {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];
     iterableEdges.forEach((e) => {
       e.removeNode(this);
@@ -172,16 +183,16 @@ export default class Node {
   /**
    * Clear this._connectedEdges
    */
-  clearConnectedEdges() {
+  clearConnectedEdges(): void {
     Object.values(this._connectedEdges).forEach((e) => e.removeNode(this));
     this._connectedEdges = {};
   }
 
-  isSelectable() {
+  isSelectable(): boolean {
     return this._selectable;
   }
 
-  shouldHighlightConnectedEdges() {
+  shouldHighlightConnectedEdges(): boolean {
     return this._highlightConnectedEdges;
   }
 }

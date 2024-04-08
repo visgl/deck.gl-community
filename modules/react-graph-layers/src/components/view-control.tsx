@@ -115,12 +115,11 @@ export default class ViewControl extends PureComponent {
   };
 
   render() {
-    // navigational buttons
     const buttons = [
       {top: -2, left: 14, rotate: 0, onClick: this.panUp, content: '▲', key: 'up'},
-      {top: 12, left: 0, rotate: -90, onClick: this.panLeft, content: '▲', key: 'left'},
-      {top: 12, left: 28, rotate: 90, onClick: this.panRight, content: '▲', key: 'right'},
-      {top: 25, left: 14, rotate: 180, onClick: this.panDown, content: '▲', key: 'down'}
+      {top: 12, left: 0, rotate: -90, onClick: this.panLeft, content: '◀', key: 'left'},
+      {top: 12, left: 28, rotate: 90, onClick: this.panRight, content: '▶', key: 'right'},
+      {top: 25, left: 14, rotate: 180, onClick: this.panDown, content: '▼', key: 'down'}
     ];
 
     return (

@@ -49,8 +49,5 @@
     "probe.gl": "^3.6.0",
     "raf": "^3.4.1",
     "styled-components": "^5.3.6"
-  },
-  "devDependencies": {
-    "vite": "^5.2.8"
   }
 }
