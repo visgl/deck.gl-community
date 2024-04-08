@@ -10,7 +10,6 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('LongPressButton', () => {
   it('should record pressing ▲', async () => {
-    debugger;
     const onClick = vi.fn();
     const {getByText} = render(<LongPressButton onClick={onClick}>{'▲'}</LongPressButton>);
     fireEvent.mouseDown(getByText('▲'));

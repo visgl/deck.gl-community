@@ -47,7 +47,7 @@ describe('ViewControl', () => {
   });
 
   // TODO: Appears to be a real failure.
-  it.skip('should record changes through clicking on the plus and minus button', async () => {
+  it.skip('should record changes through clicking on the plus and minus button', () => {
     const zoomBy = vi.fn();
     const {container, getByText} = render(
       <ViewControl zoomBy={zoomBy} zoomLevel={1} minZoom={0.01} maxZoom={4} />

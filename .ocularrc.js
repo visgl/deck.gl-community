@@ -1,7 +1,7 @@
 export default {
   lint: {
     paths: ['docs', 'modules', 'examples', 'test'],
-    extensions: ['js', 'jsx']
+    extensions: ['js', 'jsx', 'ts', 'tsx']
   },
 
   aliases: {

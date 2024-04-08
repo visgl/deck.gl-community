@@ -1,7 +1,7 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
-import LongPressButton from './long-press-button.jsx';
+import LongPressButton from './long-press-button';
 
 export const ViewControlWrapper = styled.div`
   align-items: center;
