@@ -26,7 +26,7 @@ export default class Node {
   /**
    * The constructor of a node
    * @param  {String|Number} options.id   - the unique ID of the node
-   * @param  {Any} options.data - origin data reference
+   * @param  {Record<string, unknown>} options.data - origin data reference
    */
   constructor({id, selectable = false, highlightConnectedEdges = false, data = {}}: NodeOptions) {
     this.id = id;

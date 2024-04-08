@@ -22,7 +22,7 @@ export default class Edge {
   /** Origin data reference of the edge. */
   private _data: Record<string, unknown>;
   /** Check the type of the object when picking engine gets it. */
-  public readonly isEdge: true;
+  public readonly isEdge = true;
   /** Nodes at either end of this edge. */
   private readonly _connectedNodes: Record<string, Node> = {};
   /** Edge state. */
@@ -34,7 +34,7 @@ export default class Edge {
    * @param  {String|Number} options.sourceId - the ID of the source node
    * @param  {String|Number} options.targetId - the ID of the target node
    * @param  {Boolean} options.directed - whether the edge is directed or not
-   * @param  {Object} options.data - origin data reference
+   * @param  {Record<string, unknown>} options.data - origin data reference
    */
   constructor({id, sourceId, targetId, data, directed = false}: EdgeOptions) {
     this.id = id;
@@ -42,9 +42,6 @@ export default class Edge {
     this._targetId = targetId;
     this._directed = directed;
     this._data = data;
-    this.isEdge = true;
-    this._connectedNodes = {};
-    this.state = EDGE_STATE.DEFAULT;
   }
 
   /**

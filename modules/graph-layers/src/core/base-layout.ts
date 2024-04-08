@@ -11,7 +11,7 @@ export default class BaseLayout extends EventTarget {
   /** Name of the layout. */
   protected readonly _name: string = 'BaseLayout';
   /** Extra configuration options of the layout. */
-  protected _options: BaseLayoutOptions = {};
+  protected _options: BaseLayoutOptions;
 
   public version = 0;
   public state = LAYOUT_STATE.INIT;
@@ -22,6 +22,7 @@ export default class BaseLayout extends EventTarget {
    */
   constructor(options: BaseLayoutOptions = {}) {
     super();
+    this._options = options;
   }
 
   /**
