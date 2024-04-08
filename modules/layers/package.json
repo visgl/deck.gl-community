@@ -11,18 +11,24 @@
   ],
   "type": "module",
   "sideEffects": false,
+  "types": "./dist/index.d.ts",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "exports": {
     ".": {
-      "main": "./dist/index.cjs",
-      "module": "./dist/index.js"
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
     }
   },
   "files": [
     "dist",
     "src"
   ],
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
   "dependencies": {
     "@deck.gl/core": "^9.0.5",
     "@deck.gl/extensions": "9.0.5",
@@ -31,6 +37,8 @@
     "@deck.gl/mesh-layers": "^9.0.5",
     "@deck.gl/react": "^9.0.5",
     "@loaders.gl/core": "^4.1.4",
-    "@loaders.gl/loader-utils": "^4.1.4"
+    "@loaders.gl/i3s": "^4.1.4",
+    "@loaders.gl/loader-utils": "^4.1.4",
+    "@loaders.gl/schema": "^4.1.4"
   }
 }

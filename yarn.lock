@@ -3233,6 +3233,23 @@
     "@loaders.gl/textures" "4.1.4"
     "@math.gl/core" "^4.0.0"
 
+"@loaders.gl/i3s@^4.1.4":
+  version "4.1.4"
+  resolved "https://registry.yarnpkg.com/@loaders.gl/i3s/-/i3s-4.1.4.tgz#3155f99eb2a4a7a5582f485d95f8da2ff9f46146"
+  integrity sha512-AU5aINOip7xNPSLRfEvSAuEx4//lTqUgNAfEbztyA2Wx5Oc47jboNI4G0GpVpUbxwcIk4EewgmZ/azjctbPXbg==
+  dependencies:
+    "@loaders.gl/compression" "4.1.4"
+    "@loaders.gl/crypto" "4.1.4"
+    "@loaders.gl/draco" "4.1.4"
+    "@loaders.gl/images" "4.1.4"
+    "@loaders.gl/loader-utils" "4.1.4"
+    "@loaders.gl/schema" "4.1.4"
+    "@loaders.gl/textures" "4.1.4"
+    "@loaders.gl/tiles" "4.1.4"
+    "@math.gl/core" "^4.0.0"
+    "@math.gl/culling" "^4.0.0"
+    "@math.gl/geospatial" "^4.0.0"
+
 "@loaders.gl/images@4.1.4", "@loaders.gl/images@^4.1.4":
   version "4.1.4"
   resolved "https://registry.yarnpkg.com/@loaders.gl/images/-/images-4.1.4.tgz#42a69c6cdd3e3fb1ec321d63215524a07a0fbe10"
