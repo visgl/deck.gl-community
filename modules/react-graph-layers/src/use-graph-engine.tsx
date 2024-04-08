@@ -1,7 +1,7 @@
 import {useLayoutEffect, useRef, useState} from 'react';
-import {GraphEngine} from 'deck-graph-layers';
+import {BaseLayout, Graph, GraphEngine} from 'deck-graph-layers';
 
-export const useGraphEngine = (graph, layout) => {
+export const useGraphEngine = (graph: Graph, layout: BaseLayout): GraphEngine => {
   const [engine, setEngine] = useState(new GraphEngine(graph, layout));
   const isFirstMount = useRef(true);
 

@@ -8,9 +8,11 @@ export default class LongPressButton extends PureComponent {
     children: PropTypes.any.isRequired
   };
 
+  buttonPressTimer: ReturnType<typeof setTimeout> | null = null;
+
   _repeat = () => {
     if (this.buttonPressTimer) {
-      this.props.onClick();
+      (this.props as any).onClick();
       this.buttonPressTimer = setTimeout(this._repeat, 100);
     }
   };
@@ -20,7 +22,9 @@ export default class LongPressButton extends PureComponent {
   };
 
   _handleButtonRelease = () => {
-    clearTimeout(this.buttonPressTimer);
+    if (this.buttonPressTimer) {
+      clearTimeout(this.buttonPressTimer);
+    }
     this.buttonPressTimer = null;
   };
 
@@ -32,7 +36,7 @@ export default class LongPressButton extends PureComponent {
           document.addEventListener('mouseup', this._handleButtonRelease, {once: true});
         }}
       >
-        {this.props.children}
+        {(this.props as any).children}
       </div>
     );
   }

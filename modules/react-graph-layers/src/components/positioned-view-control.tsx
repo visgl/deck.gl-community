@@ -1,4 +1,4 @@
-import ViewControl from './view-control.jsx';
+import ViewControl from './view-control';
 import React from 'react';
 
 // A wrapper for positioning the ViewControl component

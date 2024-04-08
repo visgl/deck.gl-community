@@ -1,30 +1,35 @@
 import isEqual from 'lodash.isequal';
 import {EDGE_TYPE, LAYOUT_STATE} from './constants';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface BaseLayoutOptions {}
+
 /**
  * All the layout classes are extended from this base layout class.
  */
 export default class BaseLayout extends EventTarget {
+  /** Name of the layout. */
+  protected readonly _name: string = 'BaseLayout';
+  /** Extra configuration options of the layout. */
+  protected _options: BaseLayoutOptions;
+
+  public version = 0;
+  public state = LAYOUT_STATE.INIT;
+
   /**
    * Constructor of BaseLayout
    * @param  {Object} options extra configuration options of the layout
    */
-  constructor(options) {
+  constructor(options: BaseLayoutOptions = {}) {
     super();
-
-    // the name of the layout
-    this._name = 'BaseLayout';
-    // extra configuration options of the layout
-    this._options = {};
-    this.version = 0;
-    this.state = LAYOUT_STATE.INIT;
+    this._options = options;
   }
 
   /**
    * @fires BaseLayout#onLayoutStart
    * @protected
    */
-  _onLayoutStart() {
+  _onLayoutStart(): void {
     this._updateState(LAYOUT_STATE.CALCULATING);
 
     /**
@@ -40,7 +45,7 @@ export default class BaseLayout extends EventTarget {
    * @fires BaseLayout#onLayoutChange
    * @protected
    */
-  _onLayoutChange() {
+  _onLayoutChange(): void {
     this._updateState(LAYOUT_STATE.CALCULATING);
 
     /**
@@ -56,7 +61,7 @@ export default class BaseLayout extends EventTarget {
    * @fires BaseLayout#onLayoutDone
    * @protected
    */
-  _onLayoutDone() {
+  _onLayoutDone(): void {
     this._updateState(LAYOUT_STATE.DONE);
 
     /**
@@ -72,7 +77,7 @@ export default class BaseLayout extends EventTarget {
    * @fires BaseLayout#onLayoutError
    * @protected
    */
-  _onLayoutError() {
+  _onLayoutError(): void {
     this._updateState(LAYOUT_STATE.ERROR);
 
     /**
@@ -89,7 +94,7 @@ export default class BaseLayout extends EventTarget {
    * @param  {Object} layout The layout to be compared.
    * @return {Bool}   True if the layout is the same as itself.
    */
-  equals(layout) {
+  equals(layout: BaseLayout): boolean {
     if (!layout || !(layout instanceof BaseLayout)) {
       return false;
     }
@@ -111,7 +116,7 @@ export default class BaseLayout extends EventTarget {
   // stop the layout calculation
   stop() {}
   // access the position of the node in the layout
-  getNodePosition(node) {
+  getNodePosition(node: Node): [number, number] {
     return [0, 0];
   }
   // access the layout information of the edge

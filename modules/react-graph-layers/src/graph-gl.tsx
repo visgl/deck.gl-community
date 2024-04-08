@@ -4,9 +4,9 @@ import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
 import {extent} from 'd3-array';
 import {BaseLayout, Graph, GraphLayer, log, SimpleLayout} from 'deck-graph-layers';
-import {useGraphEngine} from './use-graph-engine.jsx';
-import {useLoading} from './hooks/use-loading.jsx';
-import {PositionedViewControl} from './components/positioned-view-control.jsx';
+import {useGraphEngine} from './use-graph-engine';
+import {useLoading} from './hooks/use-loading';
+import {PositionedViewControl} from './components/positioned-view-control';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view

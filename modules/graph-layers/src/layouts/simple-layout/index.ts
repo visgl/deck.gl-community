@@ -1,45 +1,50 @@
-import BaseLayout from '../../core/base-layout';
-import {EDGE_TYPE} from '../../index';
+import BaseLayout, { BaseLayoutOptions } from '../../core/base-layout';
+import Node from '../../core/node';
+import {EDGE_TYPE, Graph} from '../../index';
 
-const defaultOptions = {
+type AccessorVec2 = (node: Node) => [number, number];
+
+interface SimpleLayoutOptions extends BaseLayoutOptions {
+  nodePositionAccessor?: AccessorVec2
+}
+
+const defaultOptions: Required<SimpleLayoutOptions> = {
   nodePositionAccessor: (node) => [node.getPropertyValue('x'), node.getPropertyValue('y')]
 };
 
 export default class SimpleLayout extends BaseLayout {
-  constructor(options) {
-    super(options);
-    this._name = 'SimpleLayout';
-    this._options = {
-      ...defaultOptions,
-      ...options
-    };
-    this._graph = null;
-    this._nodePositionMap = {};
+  protected readonly _name = 'SimpleLayout';
+  protected _graph: Graph | null = null;
+  protected _nodeMap: Record<string, Node>  = {};
+  protected _nodePositionMap: Record<string, AccessorVec2> = {};
+
+  constructor(options = {}) {
+    super({...defaultOptions, ...options});
   }
 
-  initializeGraph(graph) {
+  initializeGraph(graph: Graph): void {
     this.updateGraph(graph);
   }
 
-  _notifyLayoutComplete() {
+  _notifyLayoutComplete(): void {
     this._onLayoutStart();
     this._onLayoutChange();
     this._onLayoutDone();
   }
 
-  start() {
+  start(): void {
     this._notifyLayoutComplete();
   }
 
-  update() {
+  update(): void {
     this._notifyLayoutComplete();
   }
 
-  resume() {
+  resume(): void {
     this._notifyLayoutComplete();
   }
 
-  updateGraph(graph) {
+  updateGraph(graph: Graph): void {
     this._graph = graph;
     this._nodeMap = graph.getNodes().reduce((res, node) => {
       res[node.getId()] = node;

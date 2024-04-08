@@ -1,25 +1,30 @@
-import {Cache} from './cache.js';
+import BaseLayout from './base-layout';
+import {Cache} from './cache';
+import Edge from './edge';
+import Graph from './graph';
 
 // Graph engine controls the graph data and layout calculation
 export default class GraphEngine extends EventTarget {
-  constructor(graph, layout) {
-    super();
+  private readonly _graph: Graph;
+  private readonly _layout: BaseLayout;
+  private readonly _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
+  private _layoutDirty = false;
+  private _transactionInProgress = false;
 
+  constructor(graph: Graph, layout: BaseLayout) {
+    super();
     this._graph = graph;
     this._layout = layout;
-    this._cache = new Cache();
-    this._layoutDirty = false;
-    this._transactionInProgress = false;
   }
 
   /** Getters */
 
-  getNodes = () => {
+  getNodes = (): Node[] => {
     this._updateCache('nodes', () =>
       this._graph.getNodes().filter((node) => this.getNodePosition(node))
     );
 
-    return this._cache.get('nodes');
+    return this._cache.get('nodes') as Node[];
   };
 
   getEdges = () => {
@@ -27,7 +32,7 @@ export default class GraphEngine extends EventTarget {
       this._graph.getEdges().filter((edge) => this.getEdgePosition(edge))
     );
 
-    return this._cache.get('edges');
+    return this._cache.get('edges') as Edge[];
   };
 
   getNodePosition = (node) => this._layout.getNodePosition(node);

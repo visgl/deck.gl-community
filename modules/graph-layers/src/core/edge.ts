@@ -1,39 +1,54 @@
 // Basic data structure of an edge
 import {EDGE_STATE} from './constants';
+import Node from './node';
+
+interface EdgeOptions {
+  id: string | number;
+  sourceId: string | number;
+  targetId: string | number;
+  directed?: boolean;
+  data: Record<string, unknown>;
+}
 
 export default class Edge {
+  /** Unique uuid of the edge. */
+  public id: string | number;
+  /** ID of the source node. */
+  private _sourceId: string | number;
+  /** ID of the target node. */
+  private _targetId: string | number;
+  /** Whether the edge is directed or not. */
+  private _directed: boolean;
+  /** Origin data reference of the edge. */
+  private _data: Record<string, unknown>;
+  /** Check the type of the object when picking engine gets it. */
+  public readonly isEdge = true;
+  /** Nodes at either end of this edge. */
+  private readonly _connectedNodes: Record<string, Node> = {};
+  /** Edge state. */
+  public state = EDGE_STATE.DEFAULT;
+
   /**
    * The constructor
    * @param  {String|Number} options.id - the unique ID of the edge
    * @param  {String|Number} options.sourceId - the ID of the source node
    * @param  {String|Number} options.targetId - the ID of the target node
    * @param  {Boolean} options.directed - whether the edge is directed or not
-   * @param  {Any} options.data - origin data reference
+   * @param  {Record<string, unknown>} options.data - origin data reference
    */
-  constructor({id, sourceId, targetId, data, directed = false}) {
-    // the unique uuid of the edge
+  constructor({id, sourceId, targetId, data, directed = false}: EdgeOptions) {
     this.id = id;
-    // the ID of the source node
     this._sourceId = sourceId;
-    // the ID of the target node
     this._targetId = targetId;
-    // whether the edge is directed or not
     this._directed = directed;
-    // origin data reference of the edge
     this._data = data;
-    // check the type of the object when picking engine gets it.
-    this.isEdge = true;
-    // Nodes at either end of this edge.
-    this._connectedNodes = {};
-    // The edge state.
-    this.state = EDGE_STATE.DEFAULT;
   }
 
   /**
    * Return the ID of the edge
    * @return {String|Number} - the ID of the edge.
    */
-  getId() {
+  getId(): string | number {
     return this.id;
   }
 
@@ -41,7 +56,7 @@ export default class Edge {
    * Return whether the edge is directed or not.
    * @return {Boolean} true if the edge is directed.
    */
-  isDirected() {
+  isDirected(): boolean {
     return this._directed;
   }
 
@@ -49,7 +64,7 @@ export default class Edge {
    * Get the ID of the source node.
    * @return {String|Number} the ID of the source node.
    */
-  getSourceNodeId() {
+  getSourceNodeId(): string | number {
     return this._sourceId;
   }
 
@@ -57,7 +72,7 @@ export default class Edge {
    * Get the ID of the target node.
    * @return {String|Number} the ID of the target node.
    */
-  getTargetNodeId() {
+  getTargetNodeId(): string | number {
     return this._targetId;
   }
 
@@ -66,7 +81,7 @@ export default class Edge {
    * @param  {String} key - property key.
    * @return {Any} - the value of the property.
    */
-  getPropertyValue(key) {
+  getPropertyValue(key: string): unknown {
     // try to search the key within this object
     if (this.hasOwnProperty(key)) {
       return this[key];
@@ -81,9 +96,9 @@ export default class Edge {
 
   /**
    * Set the origin data as a reference.
-   * @param {Any} data - the origin data.
+   * @param {Object} data - the origin data.
    */
-  setData(data) {
+  setData(data: Record<string, unknown>): void {
     this._data = data;
   }
 
@@ -92,7 +107,7 @@ export default class Edge {
    * @param {String} key - the key of the property
    * @param {Any} value - the value of the property.
    */
-  setDataProperty(key, value) {
+  setDataProperty(key: string, value: unknown): void {
     this._data[key] = value;
   }
 
@@ -100,7 +115,7 @@ export default class Edge {
    * Set edge state
    * @param {String} state - one of EDGE_STATE
    */
-  setState(state) {
+  setState(state: string): void {
     this.state = state;
   }
 
@@ -108,19 +123,19 @@ export default class Edge {
    * Get edge state
    * @returns {string} state - one of EDGE_STATE
    */
-  getState() {
+  getState(): string {
     return this.state;
   }
 
-  addNode(node) {
+  addNode(node: Node): void {
     this._connectedNodes[node.getId()] = node;
   }
 
-  removeNode(node) {
+  removeNode(node: Node): void {
     delete this._connectedNodes[node.getId()];
   }
 
-  getConnectedNodes() {
+  getConnectedNodes(): Node[] {
     return Object.values(this._connectedNodes);
   }
 }

@@ -1,3 +1,5 @@
+export type ValueOf<T> = T[keyof T];
+
 // the interaction state of a node.
 export const NODE_STATE = {
   DEFAULT: 'default',
