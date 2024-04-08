@@ -5,9 +5,8 @@
     "start-local": "vite --config ../vite.config.local.mjs"
   },
   "dependencies": {
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "@deck.gl-community/template": "^0.0.1"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "vite": "^5.0.12"
