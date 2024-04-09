@@ -34,6 +34,9 @@
     "src"
   ],
   "dependencies": {
+    "@deck.gl/mesh-layers": "^9.0.6",
+    "@luma.gl/engine": "^9.0.9",
+    "@math.gl/core": "^4.0.1",
     "@turf/along": "^6.5.0",
     "@turf/area": "^6.5.0",
     "@turf/bbox": "^6.5.0",
@@ -55,6 +58,7 @@
     "@turf/nearest-point-on-line": "^6.5.0",
     "@turf/point-to-line-distance": "^6.5.0",
     "@turf/polygon-to-line": "^6.5.0",
+    "@turf/rewind": "^6.5.0",
     "@turf/transform-rotate": "^6.5.0",
     "@turf/transform-scale": "^6.5.0",
     "@turf/transform-translate": "^6.5.0",

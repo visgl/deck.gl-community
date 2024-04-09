@@ -5,9 +5,11 @@ import { PolygonLayer } from '@deck.gl/layers';
 import { polygon } from '@turf/helpers';
 import turfBuffer from '@turf/buffer';
 import turfDifference from '@turf/difference';
-import { DrawRectangleMode, DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 
 import EditableGeoJsonLayer from './editable-geojson-layer';
+import { DrawRectangleMode } from '../edit-modes/draw-rectangle-mode';
+import { DrawPolygonMode } from '../edit-modes/draw-polygon-mode';
+import { ViewMode } from '../edit-modes/view-mode';
 
 export const SELECTION_TYPE = {
   NONE: null,
@@ -77,7 +79,7 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     const { layerIds, onSelect } = this.props;
     const [x1, y1] = this.context.viewport.project(coordinates[0][0]);
     const [x2, y2] = this.context.viewport.project(coordinates[0][2]);
-    const pickingInfos = this.context.deck.pickObjects({
+    const pickingInfos = this.context.deck!.pickObjects({
       x: Math.min(x1, x2),
       y: Math.min(y1, y2),
       width: Math.abs(x2 - x1),
@@ -124,7 +126,7 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
     // HACK, find a better way
     setTimeout(() => {
-      const pickingInfos = this.context.deck.pickObjects({
+      const pickingInfos = this.context.deck!.pickObjects({
         x,
         y,
         width: maxX - x,
@@ -133,7 +135,7 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       });
 
       onSelect({
-        pickingInfos: pickingInfos.filter((item) => item.layer.id !== this.props.id),
+        pickingInfos: pickingInfos.filter((item) => item.layer!.id !== this.props.id),
       });
     }, 250);
   }
@@ -141,8 +143,8 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   renderLayers() {
     const { pendingPolygonSelection } = this.state;
 
-    const mode = MODE_MAP[this.props.selectionType] || ViewMode;
-    const modeConfig = MODE_CONFIG_MAP[this.props.selectionType];
+    const mode = MODE_MAP[this.props.selectionType!] || ViewMode;
+    const modeConfig = MODE_CONFIG_MAP[this.props.selectionType!];
 
     const inheritedProps = {};
     PASS_THROUGH_PROPS.forEach((p) => {
@@ -175,7 +177,7 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     ];
 
     if (pendingPolygonSelection) {
-      const { bigPolygon } = pendingPolygonSelection;
+      const { bigPolygon } = pendingPolygonSelection as any;
       layers.push(
         new PolygonLayer(
           this.getSubLayerProps({

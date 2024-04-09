@@ -60,6 +60,13 @@ export default class PathMarkerLayer<
   static layerName = 'PathMarkerLayer';
   static defaultProps = defaultProps;
 
+  state!: {
+    closestPoint: any | null;
+    closestPoints?: any[];
+    markers: any[];
+    mesh: Arrow2DGeometry;
+  };
+
   initializeState() {
     this.state = {
       markers: [],
@@ -116,7 +123,7 @@ export default class PathMarkerLayer<
   _recalculateClosestPoint() {
     const { highlightPoint, highlightIndex } = this.props;
     if (highlightPoint && highlightIndex >= 0) {
-      const object = this.props.data[highlightIndex];
+      const object = this.props.data![highlightIndex];
       const points = this.props.getPath(object, null);
       const { point } = getClosestPointOnPolyline({ points, p: highlightPoint });
       this.state.closestPoints = [

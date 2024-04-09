@@ -1,22 +1,28 @@
 /* eslint-env browser */
 
-import { H3ClusterLayer } from '@deck.gl/geo-layers';
-import { DefaultProps } from '@deck.gl/core';
-import { ViewMode } from '@deck.gl-community/editable-layers';
+import {H3ClusterLayer} from '@deck.gl/geo-layers';
+import {DefaultProps} from '@deck.gl/core';
 // TODO: Fix H3 support.
 // import { polyfill, geoToH3 } from 'h3-js';
-import { PROJECTED_PIXEL_SIZE_MULTIPLIER } from '../constants';
+import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
 import EditableGeoJsonLayer from './editable-geojson-layer';
-import EditableLayer, { EditableLayerProps } from './editable-layer';
+import EditableLayer, {EditableLayerProps} from './editable-layer';
+import {ViewMode} from '../edit-modes/view-mode';
 
 const DEFAULT_EDIT_MODE = ViewMode;
 const DEFAULT_H3_RESOLUTION = 9;
 const EMPTY_FEATURE_COLLECTION = {
   type: 'FeatureCollection',
-  features: [],
+  features: []
+};
+
+type State = {
+  cursor?: 'grabbing' | 'grab' | null;
+  tentativeHexagonIDs: string[];
 };
 
 export type EditableH3ClusterLayerProps<DataT> = EditableLayerProps<DataT> & {
+  data: any[];
   resolution?: number;
   mode?: any;
   modeConfig?: any;
@@ -51,14 +57,14 @@ const defaultProps: DefaultProps<EditableH3ClusterLayerProps<any>> = {
     if (existingCluster) {
       return {
         ...existingCluster,
-        hexIds: updatedHexagons,
+        hexIds: updatedHexagons
       };
     }
     return {
-      hexIds: updatedHexagons,
+      hexIds: updatedHexagons
     };
   },
-  resolution: DEFAULT_H3_RESOLUTION,
+  resolution: DEFAULT_H3_RESOLUTION
 };
 
 export default class EditableH3ClusterLayer extends EditableLayer<
@@ -68,11 +74,13 @@ export default class EditableH3ClusterLayer extends EditableLayer<
   static layerName = 'EditableH3ClusterLayer';
   static defaultProps = defaultProps;
 
+  state: {_editableLayerState: any} & State = undefined!;
+
   initializeState() {
     super.initializeState();
 
     this.setState({
-      tentativeHexagonIDs: [],
+      tentativeHexagonIDs: []
     });
   }
 
@@ -99,7 +107,7 @@ export default class EditableH3ClusterLayer extends EditableLayer<
           selectedFeatureIndexes: [],
 
           onEdit: (editAction) => {
-            const { editType, editContext } = editAction;
+            const {editType, editContext} = editAction;
 
             switch (editType) {
               case 'updateTentativeFeature':
@@ -108,18 +116,17 @@ export default class EditableH3ClusterLayer extends EditableLayer<
                   const coords = editContext.feature.geometry.coordinates;
                   const hexIDs = this.getDerivedHexagonIDs(coords);
 
-                  this.setState({ tentativeHexagonIDs: hexIDs });
+                  this.setState({tentativeHexagonIDs: hexIDs});
                 } else if (editContext.feature.geometry.type === 'Point') {
                   const coords = editContext.feature.geometry.coordinates;
                   const hexID = this.getDerivedHexagonID(coords);
 
-                  this.setState({ tentativeHexagonIDs: [hexID] });
+                  this.setState({tentativeHexagonIDs: [hexID]});
                 }
                 break;
               case 'addFeature':
-                // @ts-expect-error accessing resolved data
                 const updatedData = [...this.props.data];
-                const { modeConfig } = this.props;
+                const {modeConfig} = this.props;
 
                 if (!modeConfig || !modeConfig.booleanOperation) {
                   // add new h3 cluster
@@ -139,7 +146,7 @@ export default class EditableH3ClusterLayer extends EditableLayer<
                     case 'union':
                     default:
                       finalHexagonIDs = [
-                        ...new Set([...committedHexagonIDs, ...tentativeHexagonIDs]),
+                        ...new Set([...committedHexagonIDs, ...tentativeHexagonIDs])
                       ];
                       break;
                     case 'intersection':
@@ -163,16 +170,16 @@ export default class EditableH3ClusterLayer extends EditableLayer<
                 }
 
                 this.setState({
-                  tentativeHexagonIDs: [],
+                  tentativeHexagonIDs: []
                 });
 
-                this.props.onEdit({ updatedData });
+                this.props.onEdit({updatedData});
 
                 break;
               default:
                 break;
             }
-          },
+          }
         })
       ),
 
@@ -180,7 +187,7 @@ export default class EditableH3ClusterLayer extends EditableLayer<
         this.getSubLayerProps({
           id: 'hexagons',
           data: this.props.data,
-          getHexagons: this.props.getHexagons,
+          getHexagons: this.props.getHexagons
         })
       ),
       new H3ClusterLayer(
@@ -188,12 +195,12 @@ export default class EditableH3ClusterLayer extends EditableLayer<
           id: 'tentative-hexagons',
           data: [
             {
-              hexIds: this.state.tentativeHexagonIDs,
-            },
+              hexIds: this.state.tentativeHexagonIDs
+            }
           ],
-          getHexagons: (d) => d.hexIds,
+          getHexagons: (d) => d.hexIds
         })
-      ),
+      )
     ];
     return layers;
   }
@@ -210,8 +217,8 @@ export default class EditableH3ClusterLayer extends EditableLayer<
     return cumulativeHexIDs;
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }) {
-    let { cursor } = this.state || {};
+  getCursor({isDragging}: {isDragging: boolean}): 'grabbing' | 'grab' {
+    let {cursor} = this.state || {};
     if (!cursor) {
       // default cursor
       cursor = isDragging ? 'grabbing' : 'grab';

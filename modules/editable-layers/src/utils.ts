@@ -2,15 +2,9 @@ import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
 import { point } from '@turf/helpers';
-import {
-  Position,
-  Point,
-  LineString,
-  FeatureOf,
-  FeatureWithProps,
-  Viewport,
-} from '@deck.gl-community/editable-layers';
 import WebMercatorViewport from 'viewport-mercator-project';
+import { FeatureOf, FeatureWithProps, LineString, Point, Position } from './geojson-types';
+import { Viewport } from './types';
 
 // TODO edit-modes: delete and use edit-modes/utils instead
 
@@ -94,8 +88,7 @@ export function generatePointsParallelToLinePoints(
   // Add the distance as the current position moves away from the lineString
   const p3 = destination(p2, ddistance, orthogonalBearing);
   const p4 = destination(p1, ddistance, orthogonalBearing);
-  //@ts-ignore
-  return [p3.geometry.coordinates, p4.geometry.coordinates];
+  return [p3.geometry.coordinates, p4.geometry.coordinates] as [Position, Position];
 }
 
 export function distance2d(x1: number, y1: number, x2: number, y2: number): number {
@@ -117,7 +110,6 @@ export function nearestPointOnProjectedLine(
   // Project the line to viewport, then find the nearest point
   const coordinates: Array<Array<number>> = line.geometry.coordinates as any;
   const projectedCoords = coordinates.map(([x, y, z = 0]) => wmViewport.project([x, y, z]));
-  //@ts-ignore
   const [x, y] = wmViewport.project(inPoint.geometry.coordinates);
   // console.log('projectedCoords', JSON.stringify(projectedCoords));
 
@@ -152,8 +144,7 @@ export function nearestPointOnProjectedLine(
       };
     }
   });
-  //@ts-ignore
-  const { index, x0, y0 } = minPointInfo;
+  const { index, x0, y0 } = minPointInfo as any;
   const [x1, y1, z1 = 0] = projectedCoords[index - 1];
   const [x2, y2, z2 = 0] = projectedCoords[index];
 

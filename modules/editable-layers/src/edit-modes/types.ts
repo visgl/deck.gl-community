@@ -16,6 +16,7 @@ export type Pick = {
   isGuide?: boolean;
   featureIndex?: number;
   type?: string;
+  isEditingHandle?: boolean | null;
 };
 
 export type Viewport = {
@@ -40,7 +41,7 @@ export type ClickEvent = BasePointerEvent;
 
 // Represents an event that occurs when the pointer goes down and the cursor starts moving
 export type StartDraggingEvent = BasePointerEvent & {
-  pointerDownPicks?: Pick[] | null | undefined;
+  pointerDownPicks?: Pick[] | null;
   pointerDownScreenCoords: ScreenCoordinates;
   pointerDownMapCoords: Position;
   cancelPan: () => void;
@@ -48,14 +49,14 @@ export type StartDraggingEvent = BasePointerEvent & {
 
 // Represents an event that occurs after the pointer goes down, moves some, then the pointer goes back up
 export type StopDraggingEvent = BasePointerEvent & {
-  pointerDownPicks?: Pick[] | null | undefined;
+  pointerDownPicks?: Pick[] | null;
   pointerDownScreenCoords: ScreenCoordinates;
   pointerDownMapCoords: Position;
 };
 
 // Represents an event that occurs after the pointer goes down and is moving
 export type DraggingEvent = BasePointerEvent & {
-  pointerDownPicks?: Pick[] | null | undefined;
+  pointerDownPicks?: Pick[] | null;
   pointerDownScreenCoords: ScreenCoordinates;
   pointerDownMapCoords: Position;
   cancelPan: () => void;
@@ -63,10 +64,11 @@ export type DraggingEvent = BasePointerEvent & {
 
 // Represents an event that occurs every time the pointer moves
 export type PointerMoveEvent = BasePointerEvent & {
-  pointerDownPicks?: Pick[] | null | undefined;
-  pointerDownScreenCoords?: ScreenCoordinates | null | undefined;
-  pointerDownMapCoords?: Position | null | undefined;
+  pointerDownPicks?: Pick[] | null;
+  pointerDownScreenCoords?: ScreenCoordinates | null;
+  pointerDownMapCoords?: Position | null;
   cancelPan: () => void;
+  isDragging?: boolean;
 };
 
 export type Tooltip = {

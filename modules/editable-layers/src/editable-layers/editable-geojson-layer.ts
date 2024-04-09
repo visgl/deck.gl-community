@@ -43,7 +43,7 @@ import { PROJECTED_PIXEL_SIZE_MULTIPLIER } from '../constants';
 
 import EditableLayer, { EditableLayerProps } from './editable-layer';
 import EditablePathLayer from './editable-path-layer';
-import { FeatureCollection } from '../geojson-types';
+import { Feature, FeatureCollection } from '../geojson-types';
 
 const DEFAULT_LINE_COLOR: Color = [0x0, 0x0, 0x0, 0x99];
 const DEFAULT_FILL_COLOR: Color = [0x0, 0x0, 0x0, 0x90];
@@ -109,6 +109,7 @@ function getEditHandleRadius(handle) {
 }
 
 export type EditableGeojsonLayerProps<DataT = any> = EditableLayerProps<DataT> & {
+  data: any;
   mode?: any;
   modeConfig?: any;
   selectedFeatureIndexes?: number[];
@@ -263,12 +264,14 @@ const modeNameMapping = {
   drawPolygonByDragging: DrawPolygonByDraggingMode,
 };
 
-// type State = {
-//   mode: GeoJsonEditMode,
-//   tentativeFeature: ?Feature,
-//   editHandles: any[],
-//   selectedFeatures: Feature[]
-// };
+type State = {
+  cursor?: 'grabbing' | 'grab' | null;
+  mode: GeoJsonEditModeType;
+  lastPointerMoveEvent: PointerMoveEvent;
+  tentativeFeature?: Feature;
+  editHandles: any[];
+  selectedFeatures: Feature[];
+};
 
 export default class EditableGeoJsonLayer extends EditableLayer<
   FeatureCollection,
@@ -276,6 +279,10 @@ export default class EditableGeoJsonLayer extends EditableLayer<
 > {
   static layerName = 'EditableGeoJsonLayer';
   static defaultProps = defaultProps;
+
+  state: {
+    _editableLayerState: any;
+  } & State = undefined!;
 
   // setState: ($Shape<State>) => void;
   renderLayers() {
@@ -429,11 +436,11 @@ export default class EditableGeoJsonLayer extends EditableLayer<
     if (typeof accessor !== 'function') {
       return accessor;
     }
-    return (feature: Record<string, any>) =>
+    return (feature: Feature) =>
       accessor(feature, this.isFeatureSelected(feature), this.props.mode);
   }
 
-  isFeatureSelected(feature: Record<string, any>) {
+  isFeatureSelected(feature: Feature) {
     if (!this.props.data || !this.props.selectedFeatureIndexes) {
       return false;
     }
@@ -543,13 +550,12 @@ export default class EditableGeoJsonLayer extends EditableLayer<
 
   createTooltipsLayers() {
     const mode = this.getActiveMode();
-    // @ts-expect-error narrow type
     const tooltips = mode.getTooltips(this.getModeProps(this.props));
 
     const layer = new TextLayer({
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,
       ...this.getSubLayerProps({
-        id: `tooltips`,
+        id: 'tooltips',
         data: tooltips,
       }),
     });
@@ -557,38 +563,32 @@ export default class EditableGeoJsonLayer extends EditableLayer<
     return [layer];
   }
 
-  onLayerClick(event: ClickEvent) {
-    // @ts-expect-error narrow type
+  onLayerClick(event: ClickEvent): void {
     this.getActiveMode().handleClick(event, this.getModeProps(this.props));
   }
 
-  onLayerKeyUp(event: KeyboardEvent) {
-    // @ts-expect-error narrow type
+  onLayerKeyUp(event: KeyboardEvent): void {
     this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props));
   }
 
-  onStartDragging(event: StartDraggingEvent) {
-    // @ts-expect-error narrow type
+  onStartDragging(event: StartDraggingEvent): void {
     this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
   }
 
-  onDragging(event: DraggingEvent) {
-    // @ts-expect-error narrow type
+  onDragging(event: DraggingEvent): void {
     this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
   }
 
-  onStopDragging(event: StopDraggingEvent) {
-    // @ts-expect-error narrow type
+  onStopDragging(event: StopDraggingEvent): void {
     this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
   }
 
-  onPointerMove(event: PointerMoveEvent) {
+  onPointerMove(event: PointerMoveEvent): void {
     this.setState({ lastPointerMoveEvent: event });
-    // @ts-expect-error narrow type
     this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props));
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }) {
+  getCursor({ isDragging }: { isDragging: boolean }):  null | 'grabbing' | 'grab' {
     if (this.state === null || this.state === undefined) {
       // Layer in 'Awaiting state'
       return null;

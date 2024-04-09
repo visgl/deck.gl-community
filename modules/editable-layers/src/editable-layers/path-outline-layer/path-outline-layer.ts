@@ -17,7 +17,7 @@ const VS_CODE = `\
 `;
 
 const FS_CODE = `\
-  gl_FragColor = outline_filterColor(gl_FragColor);
+  fragColor = outline_filterColor(fragColor);
 `;
 
 export type PathOutlineLayerProps<DataT> = PathLayerProps<DataT> & {
@@ -62,7 +62,7 @@ export default class PathOutlineLayer<
     // TODO - we should create a single outlineMap for all layers
     this.setState({
       outlineFramebuffer: context.device.createFramebuffer({}),
-      dummyTexture: context.device.createTexture({width: 1, height: 1}),
+      dummyTexture: context.device.createTexture({}),
     });
 
     // Create an attribute manager
@@ -104,7 +104,8 @@ export default class PathOutlineLayer<
     // Render the outline shadowmap (based on segment z orders)
     const { outlineFramebuffer, dummyTexture } = this.state;
     outlineFramebuffer.resize();
-    outlineFramebuffer.clear({ color: true, depth: true, stencil: true });
+    // TODO(v9) clear FBO
+    // outlineFramebuffer.clear({ color: true, depth: true, stencil: true });
 
     this.state.model.updateModuleSettings({
       outlineEnabled: true,
