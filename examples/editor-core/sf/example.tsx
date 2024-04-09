@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Map} from 'react-map-gl';
+import StaticMap from 'react-map-gl';
 import CSS from 'csstype';
 
 import DeckGL from '@deck.gl/react';
@@ -305,8 +305,8 @@ export default class Example extends React.Component<
 
     return (
       <div style={mapContainerStyle}>
-        <link href="https://api.mapbox.com/mapbox-gl-js/v0.44.0/mapbox-gl.css" rel="stylesheet" />
-        <Map {...viewState}>
+        <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
+        <StaticMap {...viewState}  mapStyle={'mapbox://styles/mapbox/light-v10'}>
           <DeckGL
             height={height}
             width={width}
@@ -316,7 +316,7 @@ export default class Example extends React.Component<
             onViewStateChange={this._onViewStateChange}
             controller={{}}
           />
-        </Map>
+        </StaticMap>
         {this._renderToolBox()}
       </div>
     );

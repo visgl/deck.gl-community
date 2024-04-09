@@ -2,7 +2,7 @@ import React, {useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import {Toolbox} from '@deck.gl-community/react-editable-layers';
 import {ViewMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
-import {Map} from 'react-map-gl';
+import StaticMap from 'react-map-gl';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZ2Vvcmdpb3MtdWJlciIsImEiOiJjanZidTZzczAwajMxNGVwOGZrd2E5NG90In0.gdsRu_UeU_uPi9IulBruXA';
@@ -83,7 +83,7 @@ export function Example() {
             }
         }}
       >
-        <Map mapboxAccessToken={MAPBOX_ACCESS_TOKEN} />
+        <StaticMap mapStyle={'mapbox://styles/mapbox/light-v10'} />
       </DeckGL>
 
       <Toolbox

@@ -36,7 +36,7 @@ class MapboxDemo extends Component {
     // Attach mapbox stylesheet
     const style = document.createElement('link');
     style.setAttribute('rel', 'stylesheet');
-    style.setAttribute('href', 'https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.css');
+    style.setAttribute('href', 'https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css');
     document.head.appendChild(style);
 
     this._view = renderToDOM(this._containerRef.current, this.props.data);

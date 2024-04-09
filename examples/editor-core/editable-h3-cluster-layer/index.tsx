@@ -8,7 +8,7 @@ import {
   DrawCircleFromCenterMode,
   DrawRectangleMode
 } from '@deck.gl-community/editable-layers';
-import {Map} from 'react-map-gl';
+import StaticMap from 'react-map-gl';
 import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data.js';
 
 const MAPBOX_ACCESS_TOKEN =
@@ -197,7 +197,7 @@ export function Example() {
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
       >
-        <Map mapboxApiAccessToken={MAPBOX_ACCESS_TOKEN} />
+        <StaticMap mapStyle={'mapbox://styles/mapbox/light-v10'} />
       </DeckGL>
       <Toolbar
         {...{
