@@ -1,15 +1,15 @@
 import * as React from 'react';
-import ReactDOM from 'react-dom';
+import {createRoot} from 'react-dom/client';
 import DeckGL from '@deck.gl/react';
-import { EditableH3ClusterLayer } from '@nebula.gl/layers';
 import {
+  EditableH3ClusterLayer,
   DrawPointMode,
   DrawPolygonMode,
   DrawCircleFromCenterMode,
-  DrawRectangleMode,
-} from '@nebula.gl/edit-modes';
-import { StaticMap } from 'react-map-gl';
-import { hexagonCluster1, hexagonCluster2, hexagonCluster3 } from './data.js';
+  DrawRectangleMode
+} from '@deck.gl-community/editable-layers';
+import {Map} from 'react-map-gl';
+import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data.js';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZ2Vvcmdpb3MtdWJlciIsImEiOiJjanZidTZzczAwajMxNGVwOGZrd2E5NG90In0.gdsRu_UeU_uPi9IulBruXA';
@@ -20,7 +20,7 @@ const UNSELECTED_FILL_COLOR = [50, 100, 200, 100];
 const initialViewState = {
   longitude: -122.43,
   latitude: 37.775,
-  zoom: 12,
+  zoom: 12
 };
 
 function getTentativeFillColor(booleanOperation) {
@@ -35,8 +35,8 @@ function getTentativeFillColor(booleanOperation) {
   }
 }
 
-function Button({ active, ...rest }) {
-  return <button style={{ backgroundColor: active ? '#50a0f0' : '' }} {...rest} />;
+function Button({active, ...rest}) {
+  return <button style={{backgroundColor: active ? '#50a0f0' : ''}} {...rest} />;
 }
 
 function Toolbar({
@@ -46,10 +46,10 @@ function Toolbar({
   setBooleanOperation,
   data,
   selectedIndexes,
-  setSelectedIndexes,
+  setSelectedIndexes
 }) {
   return (
-    <div style={{ position: 'absolute', top: 0, right: 0, display: 'grid' }}>
+    <div style={{position: 'absolute', top: 0, right: 0, display: 'grid'}}>
       <Button onClick={() => setMode(() => DrawPolygonMode)} active={mode === DrawPolygonMode}>
         Polygon
       </Button>
@@ -65,7 +65,7 @@ function Toolbar({
       <Button onClick={() => setMode(() => DrawPointMode)} active={mode === DrawPointMode}>
         Point
       </Button>
-      <div style={{ height: '7px' }} />
+      <div style={{height: '7px'}} />
       <Button
         onClick={() => {
           if (booleanOperation === 'union') {
@@ -102,7 +102,7 @@ function Toolbar({
       >
         Intersection
       </Button>
-      <div style={{ height: '7px' }} />
+      <div style={{height: '7px'}} />
       {renderClusterSelectors(data, selectedIndexes, setSelectedIndexes)}
     </div>
   );
@@ -131,14 +131,14 @@ function renderClusterSelectors(data, selectedIndexes, setSelectedIndexes) {
 export function Example() {
   const [data, setData] = React.useState([
     {
-      hexIds: hexagonCluster1,
+      hexIds: hexagonCluster1
     },
     {
-      hexIds: hexagonCluster2,
+      hexIds: hexagonCluster2
     },
     {
-      hexIds: hexagonCluster3,
-    },
+      hexIds: hexagonCluster3
+    }
   ]);
   const [mode, setMode] = React.useState(() => DrawPolygonMode);
   const [booleanOperation, setBooleanOperation] = React.useState('union');
@@ -151,28 +151,27 @@ export function Example() {
       if (existingCluster) {
         return {
           ...existingCluster,
-          hexIds: updatedHexagonIDs,
+          hexIds: updatedHexagonIDs
         };
-      } 
-        return {
-          hexIds: updatedHexagonIDs,
-        };
-      
+      }
+      return {
+        hexIds: updatedHexagonIDs
+      };
     },
     selectedIndexes,
     resolution: 9,
     modeConfig: {
-      booleanOperation,
+      booleanOperation
     },
     mode,
-    onEdit: ({ updatedData }) => {
+    onEdit: ({updatedData}) => {
       if (updatedData !== data) {
         setData(updatedData);
       }
     },
     _subLayerProps: {
       'tentative-hexagons': {
-        getFillColor: getTentativeFillColor(booleanOperation),
+        getFillColor: getTentativeFillColor(booleanOperation)
       },
       hexagons: {
         getFillColor: (cluster) => {
@@ -182,10 +181,10 @@ export function Example() {
           return UNSELECTED_FILL_COLOR;
         },
         updateTriggers: {
-          getFillColor: selectedIndexes,
-        },
-      },
-    },
+          getFillColor: selectedIndexes
+        }
+      }
+    }
   });
 
   return (
@@ -193,12 +192,12 @@ export function Example() {
       <DeckGL
         initialViewState={initialViewState}
         controller={{
-          doubleClickZoom: false,
+          doubleClickZoom: false
         }}
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
       >
-        <StaticMap mapboxApiAccessToken={MAPBOX_ACCESS_TOKEN} />
+        <Map mapboxApiAccessToken={MAPBOX_ACCESS_TOKEN} />
       </DeckGL>
       <Toolbar
         {...{
@@ -208,18 +207,19 @@ export function Example() {
           setBooleanOperation,
           data,
           selectedIndexes,
-          setSelectedIndexes,
+          setSelectedIndexes
         }}
       />
     </>
   );
 }
 
-const root = document.createElement('div');
+const container = document.createElement('div');
 
 if (document.body) {
   document.body.style.margin = '0';
+  document.body.appendChild(container);
 
-  document.body.appendChild(root);
-  ReactDOM.render(<Example />, root);
+  const root = createRoot(container);
+  root.render(<Example />);
 }
