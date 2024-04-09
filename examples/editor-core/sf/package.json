@@ -1,4 +1,6 @@
 {
+  "private": true,
+  "type": "module",
   "scripts": {
     "start": "vite",
     "start-local": "vite --config ../../vite.config.local.mjs"
