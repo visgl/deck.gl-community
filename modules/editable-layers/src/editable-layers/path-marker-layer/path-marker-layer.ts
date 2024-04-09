@@ -1,11 +1,12 @@
-import { CompositeLayer, COORDINATE_SYSTEM, DefaultProps } from '@deck.gl/core';
-import { ScatterplotLayer } from '@deck.gl/layers';
-import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
-import PathOutlineLayer, { PathOutlineLayerProps } from '../path-outline-layer/path-outline-layer';
+import {CompositeLayer, COORDINATE_SYSTEM, DefaultProps} from '@deck.gl/core';
+import {ScatterplotLayer} from '@deck.gl/layers';
+import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
+import PathOutlineLayer, {PathOutlineLayerProps} from '../path-outline-layer/path-outline-layer';
 import Arrow2DGeometry from './arrow-2d-geometry';
 
 import createPathMarkers from './create-path-markers';
-import { getClosestPointOnPolyline } from './polyline';
+import {getClosestPointOnPolyline} from './polyline';
+import {Vector3} from '@math.gl/core';
 
 const DISTANCE_FOR_MULTI_ARROWS = 0.1;
 const ARROW_HEAD_SIZE = 0.2;
@@ -28,7 +29,7 @@ export type PathMarkerLayerProps<DataT> = PathOutlineLayerProps<DataT> & {
 };
 
 const DEFAULT_MARKER_LAYER_PROPS = {
-  mesh: new Arrow2DGeometry({ headSize: ARROW_HEAD_SIZE, tailWidth: ARROW_TAIL_WIDTH }),
+  mesh: new Arrow2DGeometry({headSize: ARROW_HEAD_SIZE, tailWidth: ARROW_TAIL_WIDTH})
 };
 
 const defaultProps: DefaultProps<PathMarkerLayerProps<any>> = Object.assign(
@@ -48,8 +49,8 @@ const defaultProps: DefaultProps<PathMarkerLayerProps<any>> = Object.assign(
     getColor: (x) => x.color,
     getMarkerColor: (x) => [0, 0, 0, 255],
     getDirection: (x) => x.direction,
-    getMarkerPercentages: (object, { lineLength }) =>
-      lineLength > DISTANCE_FOR_MULTI_ARROWS ? [0.25, 0.5, 0.75] : [0.5],
+    getMarkerPercentages: (object, {lineLength}) =>
+      lineLength > DISTANCE_FOR_MULTI_ARROWS ? [0.25, 0.5, 0.75] : [0.5]
   }
 );
 
@@ -61,8 +62,8 @@ export default class PathMarkerLayer<
   static defaultProps = defaultProps;
 
   state!: {
-    closestPoint: any | null;
-    closestPoints?: any[];
+    closestPoint: Vector3 | null;
+    closestPoints?: {position: Vector3}[];
     markers: any[];
     mesh: Arrow2DGeometry;
   };
@@ -70,8 +71,9 @@ export default class PathMarkerLayer<
   initializeState() {
     this.state = {
       markers: [],
-      mesh: new Arrow2DGeometry({ headSize: ARROW_HEAD_SIZE, tailWidth: ARROW_TAIL_WIDTH }),
+      mesh: new Arrow2DGeometry({headSize: ARROW_HEAD_SIZE, tailWidth: ARROW_TAIL_WIDTH}),
       closestPoint: null,
+      closestPoints: []
     };
   }
 
@@ -89,7 +91,7 @@ export default class PathMarkerLayer<
     return viewport.projectFlat(xyz);
   }
 
-  updateState({ props, oldProps, changeFlags }) {
+  updateState({props, oldProps, changeFlags}) {
     if (changeFlags.dataChanged || changeFlags.updateTriggersChanged) {
       const {
         data,
@@ -98,10 +100,10 @@ export default class PathMarkerLayer<
         getMarkerColor,
         getMarkerPercentages,
         coordinateSystem,
-        coordinateOrigin,
+        coordinateOrigin
       } = this.props;
 
-      const { viewport } = this.context;
+      const {viewport} = this.context;
       const projectFlat = (o) => this.projectFlat(o, viewport, coordinateSystem, coordinateOrigin);
       this.state.markers = createPathMarkers({
         data,
@@ -109,7 +111,7 @@ export default class PathMarkerLayer<
         getDirection,
         getColor: getMarkerColor,
         getMarkerPercentages,
-        projectFlat,
+        projectFlat
       });
       this._recalculateClosestPoint();
     }
@@ -121,25 +123,21 @@ export default class PathMarkerLayer<
   }
 
   _recalculateClosestPoint() {
-    const { highlightPoint, highlightIndex } = this.props;
+    const {highlightPoint, highlightIndex} = this.props;
     if (highlightPoint && highlightIndex >= 0) {
       const object = this.props.data![highlightIndex];
-      const points = this.props.getPath(object, null);
-      const { point } = getClosestPointOnPolyline({ points, p: highlightPoint });
-      this.state.closestPoints = [
-        {
-          position: point,
-        },
-      ];
+      const points = this.props.getPath(object, null as any);
+      const {point} = getClosestPointOnPolyline({points, p: highlightPoint});
+      this.state.closestPoints = [{position: point}];
     } else {
       this.state.closestPoints = [];
     }
   }
 
-  getPickingInfo({ info }) {
+  getPickingInfo({info}) {
     return Object.assign(info, {
       // override object with picked feature
-      object: (info.object && info.object.path) || info.object,
+      object: (info.object && info.object.path) || info.object
     });
   }
 
@@ -150,7 +148,7 @@ export default class PathMarkerLayer<
         this.getSubLayerProps({
           id: 'paths',
           // Note: data has to be passed explicitly like this to avoid being empty
-          data: this.props.data,
+          data: this.props.data
         })
       ),
       new this.props.MarkerLayer(
@@ -165,8 +163,8 @@ export default class PathMarkerLayer<
             pickable: false,
             parameters: {
               blend: false,
-              depthTest: false,
-            },
+              depthTest: false
+            }
           })
         )
       ),
@@ -174,8 +172,8 @@ export default class PathMarkerLayer<
         new ScatterplotLayer({
           id: `${this.props.id}-highlight`,
           data: this.state.closestPoints,
-          fp64: this.props.fp64,
-        }),
+          fp64: this.props.fp64
+        })
     ];
   }
 }

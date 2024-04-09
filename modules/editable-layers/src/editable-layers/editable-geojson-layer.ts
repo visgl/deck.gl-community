@@ -108,8 +108,8 @@ function getEditHandleRadius(handle) {
   }
 }
 
-export type EditableGeojsonLayerProps<DataT = any> = EditableLayerProps<DataT> & {
-  data: any;
+export type EditableGeojsonLayerProps<DataT = any> = EditableLayerProps & {
+  data: DataT;
   mode?: any;
   modeConfig?: any;
   selectedFeatureIndexes?: number[];
@@ -264,15 +264,6 @@ const modeNameMapping = {
   drawPolygonByDragging: DrawPolygonByDraggingMode,
 };
 
-type State = {
-  cursor?: 'grabbing' | 'grab' | null;
-  mode: GeoJsonEditModeType;
-  lastPointerMoveEvent: PointerMoveEvent;
-  tentativeFeature?: Feature;
-  editHandles: any[];
-  selectedFeatures: Feature[];
-};
-
 export default class EditableGeoJsonLayer extends EditableLayer<
   FeatureCollection,
   EditableGeojsonLayerProps<FeatureCollection>
@@ -280,9 +271,14 @@ export default class EditableGeoJsonLayer extends EditableLayer<
   static layerName = 'EditableGeoJsonLayer';
   static defaultProps = defaultProps;
 
-  state: {
-    _editableLayerState: any;
-  } & State = undefined!;
+  state!: EditableLayer['state'] & {
+    cursor?: 'grabbing' | 'grab' | null;
+    mode: GeoJsonEditModeType;
+    lastPointerMoveEvent: PointerMoveEvent;
+    tentativeFeature?: Feature;
+    editHandles: any[];
+    selectedFeatures: Feature[];
+  };
 
   // setState: ($Shape<State>) => void;
   renderLayers() {
@@ -424,7 +420,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
         // This supports double-click where we need to ensure that there's a re-render between the two clicks
         // even though the data wasn't changed, just the internal tentative feature.
         this.setNeedsUpdate();
-        props.onEdit(editAction);
+        props.onEdit!(editAction);
       },
       onUpdateCursor: (cursor: string | null | undefined) => {
         this.setState({ cursor });
@@ -550,7 +546,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
 
   createTooltipsLayers() {
     const mode = this.getActiveMode();
-    const tooltips = mode.getTooltips(this.getModeProps(this.props));
+    const tooltips = mode.getTooltips(this.getModeProps(this.props) as any);
 
     const layer = new TextLayer({
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,

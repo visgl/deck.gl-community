@@ -16,13 +16,8 @@ const EMPTY_FEATURE_COLLECTION = {
   features: []
 };
 
-type State = {
-  cursor?: 'grabbing' | 'grab' | null;
-  tentativeHexagonIDs: string[];
-};
-
-export type EditableH3ClusterLayerProps<DataT> = EditableLayerProps<DataT> & {
-  data: any[];
+export type EditableH3ClusterLayerProps<DataT> = EditableLayerProps & {
+  data: DataT;
   resolution?: number;
   mode?: any;
   modeConfig?: any;
@@ -74,7 +69,10 @@ export default class EditableH3ClusterLayer extends EditableLayer<
   static layerName = 'EditableH3ClusterLayer';
   static defaultProps = defaultProps;
 
-  state: {_editableLayerState: any} & State = undefined!;
+  state!: EditableLayer['state'] & {
+    cursor?: 'grabbing' | 'grab' | null;
+    tentativeHexagonIDs: string[];
+  };
 
   initializeState() {
     super.initializeState();
@@ -131,16 +129,16 @@ export default class EditableH3ClusterLayer extends EditableLayer<
                 if (!modeConfig || !modeConfig.booleanOperation) {
                   // add new h3 cluster
                   updatedData.push(
-                    this.props.getEditedCluster(this.state.tentativeHexagonIDs, null)
+                    this.props.getEditedCluster!(this.state.tentativeHexagonIDs, null)
                   );
-                } else if (this.props.selectedIndexes.length !== 1) {
+                } else if (this.props.selectedIndexes!.length !== 1) {
                   // eslint-disable-next-line no-console,no-undef
                   console.warn('booleanOperation only supported for single cluster selection');
                 } else {
                   // they're affecting a selected cluster
-                  let finalHexagonIDs;
-                  const committedHexagonIDs = new Set(this.getSelectedHexIDs());
-                  const tentativeHexagonIDs = new Set(this.state.tentativeHexagonIDs);
+                  let finalHexagonIDs: (string | number)[];
+                  const committedHexagonIDs = new Set<string | number>(this.getSelectedHexIDs());
+                  const tentativeHexagonIDs = new Set<string | number>(this.state.tentativeHexagonIDs);
 
                   switch (modeConfig.booleanOperation) {
                     case 'union':
@@ -150,20 +148,20 @@ export default class EditableH3ClusterLayer extends EditableLayer<
                       ];
                       break;
                     case 'intersection':
-                      finalHexagonIDs = [...committedHexagonIDs].filter((hexID: string) =>
+                      finalHexagonIDs = [...committedHexagonIDs].filter((hexID: string | number) =>
                         tentativeHexagonIDs.has(hexID)
                       );
                       break;
                     case 'difference':
                       finalHexagonIDs = [...committedHexagonIDs].filter(
-                        (hexID: string) => !tentativeHexagonIDs.has(hexID)
+                        (hexID: string | number) => !tentativeHexagonIDs.has(hexID)
                       );
                       break;
                   }
 
-                  const selectedIndex = this.props.selectedIndexes[0];
+                  const selectedIndex = this.props.selectedIndexes![0];
                   const existingCluster = this.props.data[selectedIndex];
-                  updatedData[selectedIndex] = this.props.getEditedCluster(
+                  updatedData[selectedIndex] = this.props.getEditedCluster!(
                     finalHexagonIDs,
                     existingCluster
                   );
@@ -173,7 +171,7 @@ export default class EditableH3ClusterLayer extends EditableLayer<
                   tentativeHexagonIDs: []
                 });
 
-                this.props.onEdit({updatedData});
+                this.props.onEdit!({updatedData});
 
                 break;
               default:
@@ -208,10 +206,10 @@ export default class EditableH3ClusterLayer extends EditableLayer<
   // because data is an array of hexagon data, we take the cumulative of all selected indexes,
   // using props.getHexagons to support multiple data types
   getSelectedHexIDs() {
-    let cumulativeHexIDs = [];
-    this.props.selectedIndexes.forEach((index) => {
+    let cumulativeHexIDs: number[] = [];
+    this.props.selectedIndexes!.forEach((index) => {
       const selectedCluster = this.props.data[index];
-      const hexIDs = this.props.getHexagons(selectedCluster);
+      const hexIDs = this.props.getHexagons!(selectedCluster);
       cumulativeHexIDs = cumulativeHexIDs.concat(hexIDs);
     });
     return cumulativeHexIDs;
