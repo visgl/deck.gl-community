@@ -1,14 +1,14 @@
-import document from 'global/document';
 import * as React from 'react';
-import * as ReactDOM from 'react-dom';
+import {createRoot} from 'react-dom/client';
 
 import Example from './example';
 
-const root = document.createElement('div');
+const container = document.createElement('div');
 
 if (document.body) {
   document.body.style.margin = '0';
+  document.body.appendChild(container);
 
-  document.body.appendChild(root);
-  ReactDOM.render(<Example />, root);
+  const root = createRoot(container);
+  root.render(<Example />);
 }

@@ -1,5 +1,4 @@
 import { PathMarkerLayer } from '@deck.gl-community/editable-layers';
-import {GL} from '@luma.gl/constants';
 
 import { ArrowStyles, DEFAULT_STYLE, MAX_ARROWS } from '../style';
 import NebulaLayer from '../nebula-layer';
@@ -27,22 +26,14 @@ export default class SegmentsLayer extends NebulaLayer {
     super(config);
     this.deckCache = new DeckCache(config.getData, (data) => config.toNebulaFeature(data));
     this.enableSelection = true;
-    const {
-      enablePicking = true,
-      noBlend = false,
-      jointRounded = true,
-      capRounded = true,
-      dashed = false,
-      markerLayerProps = null,
-    } = config;
-    Object.assign(this, {
-      enablePicking,
-      noBlend,
-      jointRounded,
-      capRounded,
-      dashed,
-      markerLayerProps,
-    });
+    this.enablePicking = config.enablePicking ?? true;
+    this.noBlend = config.noBlend ?? false;
+    this.jointRounded = config.jointRounded ?? true;
+    this.capRounded = config.capRounded ?? true;
+    this.dashed = config.dashed ?? false;
+    this.markerLayerProps = config.markerLayerProps ?? null;
+    this.highlightColor = [1, 1, 1, 1];
+    this.arrowSize = 1;
   }
 
   getMouseOverSegment(): any {
@@ -90,9 +81,8 @@ export default class SegmentsLayer extends NebulaLayer {
       pickable: true,
       sizeScale: this.arrowSize || 6,
       parameters: {
-        depthTest: false,
-        blend: !this.noBlend,
-        blendEquation: GL.MAX,
+        depthCompare: 'always',
+        blendColorOperation: this.noBlend ? undefined : 'max',
       },
       getPath: (nf: any) => nf.geoJson.geometry.coordinates,
       getColor: (nf: any) => toDeckColor(nf.style.lineColor, defaultColor),
@@ -107,7 +97,7 @@ export default class SegmentsLayer extends NebulaLayer {
       highlightColor: toDeckColor(this.highlightColor),
 
       dashJustified: this.dashed,
-      getDashArray: this.dashed ? (nf) => nf.style.dashArray : null,
+      getDashArray: this.dashed ? (nf) => nf.style.dashArray : undefined,
       markerLayerProps:
         this.markerLayerProps ||
         (PathMarkerLayer as Record<string, any>).defaultProps.markerLayerProps,

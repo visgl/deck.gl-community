@@ -103,7 +103,8 @@ export default class PathOutlineLayer<
 
     // Render the outline shadowmap (based on segment z orders)
     const { outlineFramebuffer, dummyTexture } = this.state;
-    outlineFramebuffer.resize();
+    // TODO(v9): resize, see 'sf' example.
+    // outlineFramebuffer.resize();
     // TODO(v9) clear FBO
     // outlineFramebuffer.clear({ color: true, depth: true, stencil: true });
 

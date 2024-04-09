@@ -4,7 +4,8 @@
         "target": "ESNext",
         "module": "ESNext",
         "moduleResolution": "Bundler",
-        "lib": ["ESNext", "DOM"]
+        "lib": ["ESNext", "DOM"],
+        "esModuleInterop": true
     },
     "include": ["./*.tsx"]
 }
