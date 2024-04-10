@@ -1,30 +1,32 @@
 /* eslint-env browser */
 
-import { CompositeLayer, CompositeLayerProps, DefaultProps } from '@deck.gl/core';
-import { PolygonLayer } from '@deck.gl/layers';
-import { polygon } from '@turf/helpers';
+import {CompositeLayer, CompositeLayerProps, DefaultProps} from '@deck.gl/core';
+import {PolygonLayer} from '@deck.gl/layers';
+import {polygon} from '@turf/helpers';
 import turfBuffer from '@turf/buffer';
 import turfDifference from '@turf/difference';
-import { DrawRectangleMode, DrawPolygonMode, ViewMode } from '@nebula.gl/edit-modes';
 
 import EditableGeoJsonLayer from './editable-geojson-layer';
+import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
+import {DrawPolygonMode} from '../edit-modes/draw-polygon-mode';
+import {ViewMode} from '../edit-modes/view-mode';
 
 export const SELECTION_TYPE = {
   NONE: null,
   RECTANGLE: 'rectangle',
-  POLYGON: 'polygon',
+  POLYGON: 'polygon'
 };
 
 const MODE_MAP = {
   [SELECTION_TYPE.RECTANGLE]: DrawRectangleMode,
-  [SELECTION_TYPE.POLYGON]: DrawPolygonMode,
+  [SELECTION_TYPE.POLYGON]: DrawPolygonMode
 };
 
 const MODE_CONFIG_MAP = {
-  [SELECTION_TYPE.RECTANGLE]: { dragToDraw: true },
+  [SELECTION_TYPE.RECTANGLE]: {dragToDraw: true}
 };
 
-interface SelectionLayerProps<DataT> extends CompositeLayerProps<DataT> {
+interface SelectionLayerProps<DataT> extends CompositeLayerProps {
   layerIds: any[];
   onSelect: (info: any) => any;
   selectionType: string | null;
@@ -33,12 +35,12 @@ interface SelectionLayerProps<DataT> extends CompositeLayerProps<DataT> {
 const defaultProps: DefaultProps<SelectionLayerProps<any>> = {
   selectionType: SELECTION_TYPE.RECTANGLE,
   layerIds: [],
-  onSelect: () => {},
+  onSelect: () => {}
 };
 
 const EMPTY_DATA = {
   type: 'FeatureCollection',
-  features: [],
+  features: []
 };
 
 const EXPANSION_KM = 50;
@@ -65,7 +67,7 @@ const PASS_THROUGH_PROPS = [
   'getTentativeLineDashArray',
   'getTentativeLineColor',
   'getTentativeFillColor',
-  'getTentativeLineWidth',
+  'getTentativeLineWidth'
 ];
 export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   ExtraPropsT & Required<SelectionLayerProps<DataT>>
@@ -73,23 +75,29 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   static layerName = 'SelectionLayer';
   static defaultProps = defaultProps;
 
+  state!: {
+    pendingPolygonSelection: {
+      bigPolygon: ReturnType<typeof turfDifference>;
+    };
+  };
+
   _selectRectangleObjects(coordinates: any) {
-    const { layerIds, onSelect } = this.props;
+    const {layerIds, onSelect} = this.props;
     const [x1, y1] = this.context.viewport.project(coordinates[0][0]);
     const [x2, y2] = this.context.viewport.project(coordinates[0][2]);
-    const pickingInfos = this.context.deck.pickObjects({
+    const pickingInfos = this.context.deck!.pickObjects({
       x: Math.min(x1, x2),
       y: Math.min(y1, y2),
       width: Math.abs(x2 - x1),
       height: Math.abs(y2 - y1),
-      layerIds,
+      layerIds
     });
 
-    onSelect({ pickingInfos });
+    onSelect({pickingInfos});
   }
 
   _selectPolygonObjects(coordinates: any) {
-    const { layerIds, onSelect } = this.props;
+    const {layerIds, onSelect} = this.props;
     const mousePoints = coordinates[0].map((c) => this.context.viewport.project(c));
 
     const allX = mousePoints.map((mousePoint) => mousePoint[0]);
@@ -116,33 +124,33 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
     this.setState({
       pendingPolygonSelection: {
-        bigPolygon,
-      },
+        bigPolygon
+      }
     });
 
     const blockerId = `${this.props.id}-${LAYER_ID_BLOCKER}`;
 
     // HACK, find a better way
     setTimeout(() => {
-      const pickingInfos = this.context.deck.pickObjects({
+      const pickingInfos = this.context.deck!.pickObjects({
         x,
         y,
         width: maxX - x,
         height: maxY - y,
-        layerIds: [blockerId, ...layerIds],
+        layerIds: [blockerId, ...layerIds]
       });
 
       onSelect({
-        pickingInfos: pickingInfos.filter((item) => item.layer.id !== this.props.id),
+        pickingInfos: pickingInfos.filter((item) => item.layer!.id !== this.props.id)
       });
     }, 250);
   }
 
   renderLayers() {
-    const { pendingPolygonSelection } = this.state;
+    const {pendingPolygonSelection} = this.state;
 
-    const mode = MODE_MAP[this.props.selectionType] || ViewMode;
-    const modeConfig = MODE_CONFIG_MAP[this.props.selectionType];
+    const mode = MODE_MAP[this.props.selectionType!] || ViewMode;
+    const modeConfig = MODE_CONFIG_MAP[this.props.selectionType!];
 
     const inheritedProps = {};
     PASS_THROUGH_PROPS.forEach((p) => {
@@ -158,9 +166,9 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
           modeConfig,
           selectedFeatureIndexes: [],
           data: EMPTY_DATA,
-          onEdit: ({ updatedData, editType }) => {
+          onEdit: ({updatedData, editType}) => {
             if (editType === 'addFeature') {
-              const { coordinates } = updatedData.features[0].geometry;
+              const {coordinates} = updatedData.features[0].geometry;
 
               if (this.props.selectionType === SELECTION_TYPE.RECTANGLE) {
                 this._selectRectangleObjects(coordinates);
@@ -169,13 +177,13 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
               }
             }
           },
-          ...inheritedProps,
+          ...inheritedProps
         })
-      ),
+      )
     ];
 
     if (pendingPolygonSelection) {
-      const { bigPolygon } = pendingPolygonSelection;
+      const {bigPolygon} = pendingPolygonSelection as any;
       layers.push(
         new PolygonLayer(
           this.getSubLayerProps({
@@ -186,7 +194,7 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
             data: [bigPolygon],
             getLineColor: (obj) => [0, 0, 0, 1],
             getFillColor: (obj) => [0, 0, 0, 1],
-            getPolygon: (o) => o.geometry.coordinates,
+            getPolygon: (o) => o.geometry.coordinates
           })
         )
       );
@@ -195,7 +203,7 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     return layers;
   }
 
-  shouldUpdateState({ changeFlags: { stateChanged, propsOrDataChanged } }: Record<string, any>) {
+  shouldUpdateState({changeFlags: {stateChanged, propsOrDataChanged}}: Record<string, any>) {
     return stateChanged || propsOrDataChanged;
   }
 }

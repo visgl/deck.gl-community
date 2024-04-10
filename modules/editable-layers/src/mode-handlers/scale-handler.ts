@@ -1,7 +1,7 @@
 import turfCentroid from '@turf/centroid';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
-import { FeatureCollection, Position } from '@nebula.gl/edit-modes';
+import { FeatureCollection, Position } from '@deck.gl-community/editable-layers';
 import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../event-types';
 import { EditAction, ModeHandler } from './mode-handler';
 

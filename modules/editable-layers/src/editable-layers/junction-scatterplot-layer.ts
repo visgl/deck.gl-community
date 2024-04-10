@@ -1,13 +1,14 @@
 import { CompositeLayer, CompositeLayerProps, DefaultProps } from '@deck.gl/core';
-import { ScatterplotLayer } from '@deck.gl/layers';
+import { ScatterplotLayer, ScatterplotLayerProps } from '@deck.gl/layers';
 
 import { Color } from '../types';
 
-interface JunctionScatterplotLayerProps extends CompositeLayerProps<any> {
-  getFillColor?: Color | ((d) => Color);
-  getStrokeColor?: Color | ((d) => Color);
-  getInnerRadius?: number | ((d) => number);
-}
+type JunctionScatterplotLayerProps = CompositeLayerProps &
+  Omit<ScatterplotLayerProps, 'getFillColor'> & {
+    getFillColor?: Color | ((d) => Color);
+    getStrokeColor?: Color | ((d) => Color);
+    getInnerRadius?: number | ((d) => number);
+  };
 
 export default class JunctionScatterplotLayer extends CompositeLayer<JunctionScatterplotLayerProps> {
   static layerName = 'JunctionScatterplotLayer';
@@ -26,8 +27,8 @@ export default class JunctionScatterplotLayer extends CompositeLayer<JunctionSca
       // the full circles
       new ScatterplotLayer<any>({
         ...this.props,
-        id: `${id}-full` as string,
-        data: this.props.data,
+        id: `${id}-full`,
+        data: this.props.data as any,
         getLineColor: getStrokeColor,
         updateTriggers: {
           ...updateTriggers,
@@ -36,8 +37,8 @@ export default class JunctionScatterplotLayer extends CompositeLayer<JunctionSca
       }), // the inner part
       new ScatterplotLayer<any>({
         ...this.props,
-        id: `${id}-inner` as string,
-        data: this.props.data,
+        id: `${id}-inner`,
+        data: this.props.data as any,
         getFillColor,
         getRadius: getInnerRadius,
         pickable: false,

@@ -1,10 +1,11 @@
-import { Geometry } from '@luma.gl/core';
+import { Geometry } from '@luma.gl/engine';
 
 export default class Arrow2DGeometry extends Geometry {
   constructor(opts = {}) {
     super(
       Object.assign({}, opts, {
         attributes: getArrowAttributes(opts),
+        topology: 'triangle-list' as const
       })
     );
   }
@@ -53,8 +54,8 @@ function getArrowAttributes({ length = 1, headSize = 0.2, tailWidth = 0.05, tail
     positions[i3 + 2] = 0;
   }
   return {
-    positions: new Float32Array(positions),
-    normals: new Float32Array(normals),
-    texCoords: new Float32Array(texCoords),
+    positions: {size: 3, value: new Float32Array(positions)},
+    normals: {size: 3, value: new Float32Array(normals)},
+    texCoords: {size: 2, value: new Float32Array(texCoords)},
   };
 }

@@ -1,4 +1,4 @@
-import { LineString } from '@nebula.gl/edit-modes';
+import { LineString } from '@deck.gl-community/editable-layers';
 import { generatePointsParallelToLinePoints } from '../utils';
 import { PointerMoveEvent } from '../event-types';
 import { EditAction } from './mode-handler';

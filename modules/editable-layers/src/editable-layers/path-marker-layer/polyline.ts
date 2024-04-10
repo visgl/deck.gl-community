@@ -1,4 +1,4 @@
-import { Vector3, clamp } from 'math.gl';
+import { Vector3, clamp } from '@math.gl/core';
 
 // Return the closest point on a line segment
 export function getClosestPointOnLine({ p, p1, p2, clampToLine = true }) {
@@ -15,7 +15,7 @@ export function getClosestPointOnLine({ p, p1, p2, clampToLine = true }) {
 // Return the closest point on a line segment
 export function getClosestPointOnPolyline({ p, points }) {
   p = new Vector3(p);
-  let pClosest = null;
+  let pClosest: Vector3 | null = null;
   let distanceSquared = Infinity;
   let index = -1;
   for (let i = 0; i < points.length - 1; ++i) {
@@ -30,7 +30,7 @@ export function getClosestPointOnPolyline({ p, points }) {
     }
   }
   return {
-    point: pClosest,
+    point: pClosest as Vector3,
     index,
     p1: points[index],
     p2: points[index + 1],

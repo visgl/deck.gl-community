@@ -1,7 +1,7 @@
 import { PathLayer, PathLayerProps } from '@deck.gl/layers';
 import type { DefaultProps, LayerContext } from '@deck.gl/core';
-import GL from '@luma.gl/constants';
-import { Framebuffer, Texture2D } from '@luma.gl/core';
+import {GL} from '@luma.gl/constants';
+import { Framebuffer, Texture } from '@luma.gl/core';
 import outline from '../../shaderlib/outline/outline';
 import { UNIT } from '../../constants';
 
@@ -17,7 +17,7 @@ const VS_CODE = `\
 `;
 
 const FS_CODE = `\
-  gl_FragColor = outline_filterColor(gl_FragColor);
+  fragColor = outline_filterColor(fragColor);
 `;
 
 export type PathOutlineLayerProps<DataT> = PathLayerProps<DataT> & {
@@ -41,7 +41,7 @@ export default class PathOutlineLayer<
     model?: any;
     pathTesselator: any;
     outlineFramebuffer: Framebuffer;
-    dummyTexture: Texture2D;
+    dummyTexture: Texture;
   };
 
   // Override getShaders to inject the outline module
@@ -61,8 +61,8 @@ export default class PathOutlineLayer<
     // Create an outline "shadow" map
     // TODO - we should create a single outlineMap for all layers
     this.setState({
-      outlineFramebuffer: new Framebuffer(context.gl),
-      dummyTexture: new Texture2D(context.gl),
+      outlineFramebuffer: context.device.createFramebuffer({}),
+      dummyTexture: context.device.createTexture({}),
     });
 
     // Create an attribute manager
@@ -103,8 +103,10 @@ export default class PathOutlineLayer<
 
     // Render the outline shadowmap (based on segment z orders)
     const { outlineFramebuffer, dummyTexture } = this.state;
-    outlineFramebuffer.resize();
-    outlineFramebuffer.clear({ color: true, depth: true, stencil: true });
+    // TODO(v9): resize, see 'sf' example.
+    // outlineFramebuffer.resize();
+    // TODO(v9) clear FBO
+    // outlineFramebuffer.clear({ color: true, depth: true, stencil: true });
 
     this.state.model.updateModuleSettings({
       outlineEnabled: true,

@@ -11,7 +11,7 @@ import {
   Polygon,
   Geometry,
   Position,
-} from '@nebula.gl/edit-modes';
+} from '@deck.gl-community/editable-layers';
 
 import {
   ClickEvent,

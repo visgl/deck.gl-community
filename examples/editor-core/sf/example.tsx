@@ -1,11 +1,10 @@
-import window from 'global/window';
 import * as React from 'react';
-import { StaticMap } from 'react-map-gl';
+import StaticMap from 'react-map-gl';
 import CSS from 'csstype';
 
-import DeckGL from '@deck.gl/react/typed';
-import { WebMercatorViewport } from '@deck.gl/core/typed';
-import { TextLayer } from '@deck.gl/layers/typed';
+import DeckGL from '@deck.gl/react';
+import {WebMercatorViewport} from '@deck.gl/core';
+import {TextLayer} from '@deck.gl/layers';
 
 import {
   NebulaCore,
@@ -13,9 +12,12 @@ import {
   Feature,
   SegmentsLayer,
   PROJECTED_PIXEL_SIZE_MULTIPLIER,
-} from 'nebula.gl';
-import { FeatureCollection, ViewMode, ModifyMode } from '@nebula.gl/edit-modes';
-import { EditableGeoJsonLayer, SelectionLayer } from '@nebula.gl/layers';
+  FeatureCollection,
+  ViewMode,
+  ModifyMode,
+  EditableGeoJsonLayer,
+  SelectionLayer
+} from '@deck.gl-community/editable-layers';
 
 import testPolygons from '../data/sf-polygons';
 
@@ -26,7 +28,7 @@ const initialViewport = {
   longitude: -122.4,
   pitch: 0,
   width: 0,
-  zoom: 10,
+  zoom: 10
 };
 
 const toolboxStyle: CSS.Properties<string | number> = {
@@ -35,13 +37,13 @@ const toolboxStyle: CSS.Properties<string | number> = {
   left: '12px',
   background: 'rgba(0, 0, 0, 0.2)',
   padding: '10px',
-  borderRadius: '10px',
+  borderRadius: '10px'
 };
 
 const mapContainerStyle: CSS.Properties<string | number> = {
   alignItems: 'stretch',
   display: 'flex',
-  height: '100vh',
+  height: '100vh'
 };
 
 type Segment = {
@@ -71,10 +73,10 @@ export default class Example extends React.Component<
       viewState: initialViewport,
       allowEdit: true,
       testFeatures: {
-        features: testPolygons,
-        type: 'FeatureCollection',
+        features: testPolygons as any,
+        type: 'FeatureCollection'
       },
-      selectedFeatureIndexes: [],
+      selectedFeatureIndexes: []
     };
 
     this.testSegments = [];
@@ -82,7 +84,7 @@ export default class Example extends React.Component<
       id: 'segments-layer',
       pickable: true,
       getData: () => this.testSegments,
-      toNebulaFeature: (data) => this._toNebulaFeature(data),
+      toNebulaFeature: (data) => this._toNebulaFeature(data)
     });
     this.segmentsLayer.highlightColor = [1, 1, 1, 1];
     this.segmentsLayer.arrowSize = 200;
@@ -120,8 +122,8 @@ export default class Example extends React.Component<
         this.testSegments.forEach((segment, index) => {
           segment.id = index;
 
-          this.testJunctions.push({ id: `${index}S`, position: segment.START });
-          this.testJunctions.push({ id: `${index}E`, position: segment.END });
+          this.testJunctions.push({id: `${index}S`, position: segment.START});
+          this.testJunctions.push({id: `${index}E`, position: segment.END});
         });
 
         this.nebula.updateAllDeckObjects();
@@ -129,9 +131,9 @@ export default class Example extends React.Component<
     });
   }
 
-  _onViewStateChange = (data: { viewState: Object }) => {
+  _onViewStateChange = (data: {viewState: Object}) => {
     this.setState({
-      viewState: { ...this.state.viewState, ...data.viewState },
+      viewState: {...this.state.viewState, ...data.viewState}
     });
   };
 
@@ -148,17 +150,17 @@ export default class Example extends React.Component<
     if (info && info.index >= 0) {
       console.log(`select editing feature ${info.index}`); // eslint-disable-line
       // a polygon was clicked
-      this.setState({ selectedFeatureIndexes: [info.index] });
+      this.setState({selectedFeatureIndexes: [info.index]});
     } else {
       console.log('deselect editing feature'); // eslint-disable-line
       // open space was clicked, so stop editing
-      this.setState({ selectedFeatureIndexes: [] });
+      this.setState({selectedFeatureIndexes: []});
     }
   };
 
   _enableSelection(type: string | null) {
     this.setState({
-      selectionType: type,
+      selectionType: type
     });
   }
 
@@ -167,9 +169,9 @@ export default class Example extends React.Component<
       type: 'Feature',
       geometry: {
         type: 'LineString',
-        coordinates: [segment.START, segment.END],
+        coordinates: [segment.START, segment.END]
       },
-      properties: {},
+      properties: {}
     };
     const style = {
       lineColor: [0, 0, 1, 1],
@@ -177,25 +179,25 @@ export default class Example extends React.Component<
       tooltip: segment.LINE,
       arrowStyle: 3,
       arrowColor: [1, 0, 0, 1],
-      zLevel: Math.random(),
+      zLevel: Math.random()
     };
     // @ts-ignore
     return new Feature(geojson, style);
   }
 
-  _toNebulaFeatureJunc(junc: { position: number[] }) {
+  _toNebulaFeatureJunc(junc: {position: number[]}) {
     const geojson = {
       type: 'Feature',
       geometry: {
         type: 'Point',
-        coordinates: junc.position,
+        coordinates: junc.position
       },
-      properties: null,
+      properties: null
     };
     const style = {
       pointRadiusMeters: 5,
       outlineRadiusMeters: 0,
-      fillColor: [0, 0, 0, 1],
+      fillColor: [0, 0, 0, 1]
     };
     // @ts-ignore
     return new Feature(geojson, style);
@@ -217,7 +219,7 @@ export default class Example extends React.Component<
           Poly Count: {this.state.testFeatures.features.length}
         </div>
         <div>
-          <button onClick={() => this.setState({ allowEdit: !this.state.allowEdit })}>
+          <button onClick={() => this.setState({allowEdit: !this.state.allowEdit})}>
             Allow Edit: {this.state.allowEdit ? 'Yes' : 'No'}
           </button>
           <button onClick={() => this.nebula.updateAllDeckObjects()}>Refresh</button>
@@ -227,12 +229,12 @@ export default class Example extends React.Component<
   }
 
   render() {
-    const { segmentsLayer, state } = this;
-    let { viewState, selectedFeatureIndexes } = state;
+    const {segmentsLayer, state} = this;
+    let {viewState, selectedFeatureIndexes} = state;
     // const { selectionType } = state;
 
-    const { innerHeight: height, innerWidth: width } = window;
-    viewState = Object.assign(viewState, { height, width });
+    const {innerHeight: height, innerWidth: width} = window;
+    viewState = Object.assign(viewState, {height, width});
 
     const editableGeoJsonLayer = new EditableGeoJsonLayer({
       // @ts-ignore according to docs FeatureCollection should be valid type here
@@ -241,9 +243,9 @@ export default class Example extends React.Component<
       pickable: true,
       mode: selectedFeatureIndexes.length > 0 ? ModifyMode : ViewMode,
 
-      onEdit: ({ updatedData }) => {
+      onEdit: ({updatedData}) => {
         if (this.state.allowEdit) {
-          this.setState({ testFeatures: updatedData });
+          this.setState({testFeatures: updatedData});
         }
       },
 
@@ -252,7 +254,7 @@ export default class Example extends React.Component<
       getLineColor: () => [0x00, 0x20, 0x70, 0xc0],
       getLineWidth: () => 3,
       lineWidthMinPixels: 2,
-      lineWidthMaxPixels: 10,
+      lineWidthMaxPixels: 10
     });
 
     /*
@@ -271,14 +273,14 @@ export default class Example extends React.Component<
     const selectionLayer = new SelectionLayer({
       id: 'selection',
       selectionType: this.state.selectionType,
-      onSelect: ({ pickingInfos }) => {
+      onSelect: ({pickingInfos}) => {
         // Process selection here
       },
       layerIds: ['segments'],
       getTentativeFillColor: () => [255, 0, 255, 100],
       getTentativeLineColor: () => [0, 0, 255, 255],
       getTentativeLineDashArray: () => [0, 0],
-      lineWidthMinPixels: 1,
+      lineWidthMinPixels: 1
     });
 
     const textLayer = new TextLayer({
@@ -286,10 +288,10 @@ export default class Example extends React.Component<
       data: [
         {
           text: 'Text Layer :-)',
-          position: [-122.4, 37.7],
-        },
+          position: [-122.4, 37.7]
+        }
       ],
-      getSize: 20 * PROJECTED_PIXEL_SIZE_MULTIPLIER,
+      getSize: 20 * PROJECTED_PIXEL_SIZE_MULTIPLIER
     });
 
     const nebulaLayers = [segmentsLayer];
@@ -303,8 +305,8 @@ export default class Example extends React.Component<
 
     return (
       <div style={mapContainerStyle}>
-        <link href="https://api.mapbox.com/mapbox-gl-js/v0.44.0/mapbox-gl.css" rel="stylesheet" />
-        <StaticMap {...viewState}>
+        <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
+        <StaticMap {...viewState}  mapStyle={'mapbox://styles/mapbox/light-v10'}>
           <DeckGL
             height={height}
             width={width}

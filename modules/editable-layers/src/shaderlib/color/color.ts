@@ -16,7 +16,7 @@ function getUniforms(opts = INITIAL_STATE) {
 }
 
 const vs = `\
-varying vec4 color_vColor;
+in vec4 color_vColor;
 
 color_setColor(vec4 color) {
   color_vColor = color;
@@ -28,7 +28,9 @@ uniform float color_uOpacity;
 uniform float color_uDesaturate;
 uniform float color_uBrightness;
 
-varying vec4 color_vColor;
+in vec4 color_vColor;
+
+out vec4 fragColor;
 
 vec4 color_getColor() {
   return color_vColor;

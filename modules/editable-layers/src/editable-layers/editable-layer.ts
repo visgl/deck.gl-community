@@ -1,18 +1,13 @@
 /* eslint-env browser */
 
 import { CompositeLayer, CompositeLayerProps } from '@deck.gl/core';
-import {
-  ClickEvent,
-  StartDraggingEvent,
-  StopDraggingEvent,
-  DraggingEvent,
-  PointerMoveEvent,
-  Position,
-} from '@nebula.gl/edit-modes';
+import { DraggingEvent, ClickEvent, StartDraggingEvent, StopDraggingEvent, PointerMoveEvent } from '../edit-modes/types';
+import { Position } from '../geojson-types';
 
 const EVENT_TYPES = ['anyclick', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
 
-export type EditableLayerProps<DataType = any> = CompositeLayerProps<DataType> & {
+// TODO(v9): remove generic layer
+export type EditableLayerProps<DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
 };
@@ -23,24 +18,26 @@ export default abstract class EditableLayer<
 > extends CompositeLayer<ExtraPropsT & Required<EditableLayerProps<DataT>>> {
   static layerName = 'EditableLayer';
 
+  state: {_editableLayerState: any} = undefined!;
+
   // Overridable interaction event handlers
-  onLayerClick(event: ClickEvent) {
+  onLayerClick(event: ClickEvent): void {
     // default implementation - do nothing
   }
 
-  onStartDragging(event: StartDraggingEvent) {
+  onStartDragging(event: StartDraggingEvent): void {
     // default implementation - do nothing
   }
 
-  onStopDragging(event: StopDraggingEvent) {
+  onStopDragging(event: StopDraggingEvent): void {
     // default implementation - do nothing
   }
 
-  onDragging(event: DraggingEvent) {
+  onDragging(event: DraggingEvent): void {
     // default implementation - do nothing
   }
 
-  onPointerMove(event: PointerMoveEvent) {
+  onPointerMove(event: PointerMoveEvent): void {
     // default implementation - do nothing
   }
 
@@ -77,7 +74,6 @@ export default abstract class EditableLayer<
     const { eventHandler } = this.state._editableLayerState;
 
     for (const eventType of EVENT_TYPES) {
-      // @ts-expect-error narrow type
       eventManager.on(eventType, eventHandler, {
         // give nebula a higher priority so that it can stop propagation to deck.gl's map panning handlers
         priority: 100,
@@ -91,7 +87,6 @@ export default abstract class EditableLayer<
     const { eventHandler } = this.state._editableLayerState;
 
     for (const eventType of EVENT_TYPES) {
-      // @ts-expect-error narrow type
       eventManager.off(eventType, eventHandler);
     }
   }
@@ -100,7 +95,7 @@ export default abstract class EditableLayer<
   // This means that the first layer instance will stick around to be the event listener, but will forward the event
   // to the latest layer instance.
   _forwardEventToCurrentLayer(event: any) {
-    const currentLayer = this.getCurrentLayer();
+    const currentLayer = this.getCurrentLayer()!;
 
     // Use a naming convention to find the event handling function for this event type
     const func = currentLayer[`_on${event.type}`].bind(currentLayer);
@@ -233,7 +228,7 @@ export default abstract class EditableLayer<
   }
 
   getPicks(screenCoords: [number, number]) {
-    return this.context.deck.pickMultipleObjects({
+    return this.context.deck!.pickMultipleObjects({
       x: screenCoords[0],
       y: screenCoords[1],
       layerIds: [this.props.id],

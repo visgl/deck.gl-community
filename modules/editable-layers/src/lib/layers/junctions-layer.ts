@@ -1,7 +1,7 @@
-import { JunctionScatterplotLayer } from '@nebula.gl/layers';
 import NebulaLayer from '../nebula-layer';
 import { toDeckColor } from '../utils';
 import DeckCache from '../deck-renderer/deck-cache';
+import JunctionScatterplotLayer from '../../editable-layers/junction-scatterplot-layer';
 
 export default class JunctionsLayer extends NebulaLayer {
   deckCache: DeckCache<any, any>;
@@ -20,22 +20,20 @@ export default class JunctionsLayer extends NebulaLayer {
       id: `junctions-${this.id}`,
       data: objects,
       opacity: 1,
-      // @ts-expect-error check deck types
-      fp64: false,
       pickable: true,
-      getPosition: (nf) => nf.geoJson.geometry.coordinates,
-      getFillColor: (nf) => toDeckColor(nf.style.fillColor) || defaultColor,
-      getStrokeColor: (nf) =>
+      getPosition: (nf: any) => nf.geoJson.geometry.coordinates,
+      getFillColor: (nf: any) => toDeckColor(nf.style.fillColor) || defaultColor,
+      getStrokeColor: (nf: any) =>
         toDeckColor(nf.style.outlineColor) || toDeckColor(nf.style.fillColor) || defaultColor,
-      getRadius: (nf) => nf.style.pointRadiusMeters + nf.style.outlineRadiusMeters || 1,
-      getInnerRadius: (nf) => nf.style.pointRadiusMeters || 0.5,
+      getRadius: (nf: any) => nf.style.pointRadiusMeters + nf.style.outlineRadiusMeters || 1,
+      getInnerRadius: (nf: any) => nf.style.pointRadiusMeters || 0.5,
       parameters: {
-        depthTest: false,
-        blend: false,
+        depthCompare: 'always'
       },
 
       updateTriggers: { all: updateTrigger },
 
+      // @ts-ignore
       nebulaLayer: this,
     });
   }

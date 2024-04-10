@@ -1,4 +1,4 @@
-import { Position } from '@nebula.gl/edit-modes';
+import { Position } from '@deck.gl-community/editable-layers';
 import { EditHandle, ModeHandler } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented

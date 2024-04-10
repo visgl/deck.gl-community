@@ -1,4 +1,4 @@
-import { Polygon, Position } from '@nebula.gl/edit-modes';
+import { Polygon, Position } from '@deck.gl-community/editable-layers';
 import { ClickEvent, PointerMoveEvent } from '../event-types';
 import {
   EditAction,

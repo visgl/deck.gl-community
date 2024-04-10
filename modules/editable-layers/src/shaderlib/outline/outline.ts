@@ -22,9 +22,10 @@ function getUniforms({ outlineEnabled, outlineRenderShadowmap, outlineShadowmap 
 }
 
 const vs = `\
-attribute float instanceZLevel;
-varying float outline_vzLevel;
-varying vec4 outline_vPosition;
+#version 300 es
+in float instanceZLevel;
+out float outline_vzLevel;
+out vec4 outline_vPosition;
 
 // Set the z level for the outline shadowmap rendering
 void outline_setZLevel(float zLevel) {
@@ -48,9 +49,11 @@ uniform bool outline_uEnabled;
 uniform bool outline_uRenderOutlines;
 uniform sampler2D outline_uShadowmap;
 
-varying float outline_vzLevel;
-// varying vec2 outline_vUV;
-varying vec4 outline_vPosition;
+in float outline_vzLevel;
+// in vec2 outline_vUV;
+in vec4 outline_vPosition;
+
+out vec4 fragColor;
 
 const float OUTLINE_Z_LEVEL_ERROR = 0.01;
 

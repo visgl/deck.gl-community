@@ -1,7 +1,7 @@
 import React from 'react';
 import {add} from '@deck.gl-community/template';
 
-export default function App() {
+export default function App(): React.ReactElement {
   const a = 1;
   const b = 2;
   return (

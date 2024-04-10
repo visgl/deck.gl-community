@@ -1,9 +1,9 @@
 /* eslint-env browser */
 import * as React from 'react';
-import DeckGL from '@deck.gl/react/typed';
-import { MapView, MapController } from '@deck.gl/core/typed';
+import DeckGL from '@deck.gl/react';
+import { MapView, MapController } from '@deck.gl/core';
 import StaticMap from 'react-map-gl';
-import GL from '@luma.gl/constants';
+import {GL} from '@luma.gl/constants';
 import circle from '@turf/circle';
 
 import {
@@ -45,7 +45,8 @@ import {
   SELECTION_TYPE,
   GeoJsonEditMode,
   Color,
-} from 'nebula.gl';
+  FeatureCollection,
+} from '@deck.gl-community/editable-layers';
 
 import sampleGeoJson from '../../data/sample-geojson.json';
 
@@ -245,10 +246,10 @@ export default class Example extends React.Component<
       pointsRemovable: true,
       selectedFeatureIndexes: [],
       editHandleType: 'point',
-      selectionTool: null,
+      selectionTool: undefined,
       showGeoJson: false,
       pathMarkerLayer: false,
-      featureMenu: null,
+      featureMenu: undefined,
     };
   }
 
@@ -320,7 +321,7 @@ export default class Example extends React.Component<
         if (eventTarget.files && eventTarget.files[0]) {
           const reader = new FileReader();
           reader.onload = ({ target }) => {
-            this._parseStringJson(target.result as string);
+            this._parseStringJson(target!.result as string);
           };
           reader.readAsText(eventTarget.files[0]);
         }
@@ -363,7 +364,7 @@ export default class Example extends React.Component<
   };
 
   _parseStringJson = (json: string) => {
-    let testFeatures = null;
+    let testFeatures: FeatureCollection | null = null;
     try {
       testFeatures = JSON.parse(json);
       if (Array.isArray(testFeatures)) {
@@ -452,7 +453,7 @@ export default class Example extends React.Component<
     const {
       testFeatures: { features },
     } = this.state;
-    const checkboxes = [];
+    const checkboxes: React.ReactElement[] = [];
     for (let i = 0; i < features.length; ++i) {
       checkboxes.push(this._renderSelectFeatureCheckbox(i, features[i].geometry.type));
     }
@@ -650,7 +651,7 @@ export default class Example extends React.Component<
   }
 
   _renderModeConfigControls() {
-    const controls = [];
+    const controls: React.ReactElement[] = [];
 
     if (POLYGON_DRAWING_MODES.indexOf(this.state.mode) > -1) {
       controls.push(this._renderBooleanOperationControls());
@@ -689,7 +690,7 @@ export default class Example extends React.Component<
                 key={label}
                 selected={this.state.mode === mode}
                 onClick={() => {
-                  this.setState({ mode, modeConfig: {}, selectionTool: null });
+                  this.setState({ mode, modeConfig: {}, selectionTool: undefined });
                 }}
               >
                 {label}
@@ -792,7 +793,7 @@ export default class Example extends React.Component<
               onClick={() =>
                 this.setState({
                   selectedFeatureIndexes: [],
-                  selectionTool: SELECTION_TYPE.NONE,
+                  selectionTool: SELECTION_TYPE.NONE!,
                 })
               }
             >
@@ -836,7 +837,7 @@ export default class Example extends React.Component<
 
     if (action === 'delete') {
       const features = [...testFeatures.features];
-      features.splice(index, 1);
+      features.splice(index as any, 1);
       testFeatures = Object.assign({}, testFeatures, {
         features,
       });
@@ -844,10 +845,10 @@ export default class Example extends React.Component<
       // TODO
     } else if (action === 'info') {
       // eslint-disable-next-line
-      console.log(testFeatures.features[index]);
+      console.log(testFeatures.features[index as any]);
     }
 
-    this.setState({ featureMenu: null, testFeatures });
+    this.setState({ featureMenu: null!, testFeatures });
   }
 
   _renderFeatureMenu({ x, y }: { x: number; y: number }) {
