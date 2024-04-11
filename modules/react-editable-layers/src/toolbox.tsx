@@ -11,7 +11,7 @@ import {
   MeasureAreaMode
 } from '@deck.gl-community/editable-layers';
 import styled from 'styled-components';
-import {Icon} from './icon';
+import {Icon} from '@deck.gl-community/react';
 
 import {ImportModal} from './import-modal';
 import {ExportModal} from './export-modal';

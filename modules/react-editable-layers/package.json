@@ -34,6 +34,7 @@
     "src"
   ],
   "dependencies": {
+    "@deck.gl-community/react": "0.0.1",
     "@loaders.gl/core": "^4.1.4",
     "@loaders.gl/wkt": "^4.1.4",
     "@maphubs/tokml": "^0.6.1",
