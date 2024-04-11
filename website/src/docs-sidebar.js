@@ -10,8 +10,8 @@
  */
 
  const layerDocs = require('../../docs/modules/layers/sidebar.json');
- const editorDocs = require('../../docs/modules/editor-core/sidebar.json');
- const graphGLDocs = require('../../docs/modules/react-graph-layers/sidebar.json');
+ const editorDocs = require('../../docs/modules/editable-layers/sidebar.json');
+ const graphGLDocs = require('../../docs/modules/graph-layers/sidebar.json');
  const bingMapsDocs = require('../../docs/modules/bing-maps/sidebar.json');
 
  

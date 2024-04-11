@@ -1,0 +1,48 @@
+{
+  "type": "category",
+  "label": "deck.gl-community/editable-layers",
+  "items": [
+    "modules/editable-layers/README",
+    "modules/editable-layers/whats-new",
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        "modules/editable-layers/get-started/installing",
+        "modules/editable-layers/get-started/basic-usage",
+        "modules/editable-layers/get-started/html-overlays"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Layers",
+      "items": [
+        "modules/editable-layers/api-reference/layers/editable-geojson-layer",
+        "modules/editable-layers/api-reference/layers/selection-layer",
+        "modules/editable-layers/api-reference/layers/path-marker-layer",
+        "modules/editable-layers/api-reference/layers/mesh-layer"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Shader Modules",
+      "items": [
+        "modules/editable-layers/api-reference/shader-modules/outline"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Modes",
+      "items": ["modules/editable-layers/api-reference/edit-modes"]
+    },
+    {
+      "type": "category",
+      "label": "Overlays",
+      "items": [
+        "modules/react/api-reference/overlays/html-overlay",
+        "modules/react/api-reference/overlays/html-cluster-overlay",
+        "modules/react/api-reference/overlays/html-overlay-item"
+      ]
+    }
+  ]
+}
