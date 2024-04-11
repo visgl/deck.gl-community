@@ -26,7 +26,7 @@ beforeEach(() => {
 
   const makeFlowHappy = featureCollection.features.find((f) => f.geometry.type === 'Polygon');
   if (!makeFlowHappy) {
-    throw new Error(`Need a Polygon in my setup`);
+    throw new Error('Need a Polygon in my setup');
   }
   polygonFeature = makeFlowHappy;
   polygonFeatureIndex = featureCollection.features.indexOf(polygonFeature);

@@ -154,10 +154,10 @@ export default class GPUForceLayout extends BaseLayout {
       const newD3Edge = oldD3Edge
         ? oldD3Edge
         : {
-            id: edge.id,
-            source: newNodeMap[edge.getSourceNodeId()],
-            target: newNodeMap[edge.getTargetNodeId()]
-          };
+          id: edge.id,
+          source: newNodeMap[edge.getSourceNodeId()],
+          target: newNodeMap[edge.getTargetNodeId()]
+        };
       newEdgeMap[edge.id] = newD3Edge;
       return newD3Edge;
     });

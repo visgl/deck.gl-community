@@ -30,7 +30,7 @@ export default class EditablePathLayer extends PathLayer<any, EditablePathLayerP
       inject: {
         ...(shaders.inject || {}),
         'vs:#decl': (shaders.inject?.['vs:#decl'] || '').concat(
-          `uniform float pickingLineWidthExtraPixels;`
+          'uniform float pickingLineWidthExtraPixels;'
         ),
       },
     };

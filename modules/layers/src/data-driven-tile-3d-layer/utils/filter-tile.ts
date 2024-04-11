@@ -26,7 +26,7 @@ export const filterTile = async (
     if (tile.content && filtersByAttribute) {
       if (tile.content.userData?.originalIndices === undefined) {
         tile.content.userData = {};
-        //save original indices for filtring cancellation
+        // save original indices for filtring cancellation
         tile.content.userData.originalIndices = tile.content.indices;
       }
       tile.content.indices = tile.content.userData?.originalIndices;
@@ -101,7 +101,7 @@ async function filterTileIndices(
   const attributeValuesMap = {};
   objectIdAttributeData[objectIdField.name]?.forEach((elem, index) => {
     attributeValuesMap[elem] =
-      //@ts-expect-error possible null
+      // @ts-expect-error possible null
       tileFilterAttributeData[filterAttributeField.name][index];
   });
 
@@ -121,26 +121,26 @@ async function filterTileIndices(
       indices[index * 3 + 2] = vertex + 2;
     });
     return {success: true, indices};
-  } else {
-    const triangles: number[] = [];
-    for (let i = 0; i < tile.content.indices.length; i += 3) {
-      if (
-        attributeValuesMap[tile.content.featureIds[tile.content.indices[i]]] ===
+  } 
+  const triangles: number[] = [];
+  for (let i = 0; i < tile.content.indices.length; i += 3) {
+    if (
+      attributeValuesMap[tile.content.featureIds[tile.content.indices[i]]] ===
         filtersByAttribute.value
-      ) {
-        triangles.push(i);
-      }
+    ) {
+      triangles.push(i);
     }
-
-    const indices = new Uint32Array(3 * triangles.length);
-
-    triangles.forEach((vertex, index) => {
-      indices[index * 3] = tile.content.indices[vertex];
-      indices[index * 3 + 1] = tile.content.indices[vertex + 1];
-      indices[index * 3 + 2] = tile.content.indices[vertex + 2];
-    });
-    return {success: true, indices};
   }
+
+  const indices = new Uint32Array(3 * triangles.length);
+
+  triangles.forEach((vertex, index) => {
+    indices[index * 3] = tile.content.indices[vertex];
+    indices[index * 3 + 1] = tile.content.indices[vertex + 1];
+    indices[index * 3 + 2] = tile.content.indices[vertex + 2];
+  });
+  return {success: true, indices};
+  
 }
 
 async function loadFeatureAttributeData(

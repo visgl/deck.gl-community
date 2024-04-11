@@ -22,7 +22,7 @@ beforeEach(() => {
 
 describe('toGeoJson()', () => {
   test('feature', () => {
-    const expectedFilename = `myfile.geojson`;
+    const expectedFilename = 'myfile.geojson';
     const expectedMimeType = 'application/json';
 
     const actual = toGeoJson(feature, 'myfile');
@@ -35,7 +35,7 @@ describe('toGeoJson()', () => {
   });
 
   test('feature collection', () => {
-    const expectedFilename = `geojsonFeatures.geojson`;
+    const expectedFilename = 'geojsonFeatures.geojson';
     const expectedMimeType = 'application/json';
 
     const actual = toGeoJson(featureCollection, 'geojsonFeatures');
@@ -44,15 +44,15 @@ describe('toGeoJson()', () => {
     expect(actual.filename).toEqual(expectedFilename);
     expect(actual.mimetype).toEqual(expectedMimeType);
 
-    expect(actualParsed.features[0]!.properties!.name).toEqual(
-      featureCollection.features[0]!.properties!.name
+    expect(actualParsed.features[0].properties!.name).toEqual(
+      featureCollection.features[0].properties!.name
     );
   });
 });
 
 describe('toKml()', () => {
   test('feature', () => {
-    const expectedFilename = `myfile.kml`;
+    const expectedFilename = 'myfile.kml';
     const expectedMimeType = 'application/xml';
 
     const actual = toKml(feature, 'myfile');
@@ -66,7 +66,7 @@ describe('toKml()', () => {
 
 describe('toWkt()', () => {
   test('feature', () => {
-    const expectedFilename = `llamallama.wkt`;
+    const expectedFilename = 'llamallama.wkt';
     const expectedMimeType = 'text/plain';
     const expectedData = 'POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))';
 
@@ -95,7 +95,7 @@ describe('toWkt()', () => {
   });
 
   test('feature collection', () => {
-    const expectedFilename = `geojsonFeatures.wkt`;
+    const expectedFilename = 'geojsonFeatures.wkt';
     const expectedMimeType = 'text/plain';
     const expectedData =
       'POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))\nPOLYGON ((3 1, 4 4, 2 4, 1 2, 3 1))';
@@ -146,7 +146,7 @@ describe('toWkt()', () => {
   });
 
   test('empty feature collection', () => {
-    const expectedFilename = `geojsonFeatures.wkt`;
+    const expectedFilename = 'geojsonFeatures.wkt';
     const expectedMimeType = 'text/plain';
     const expectedData = '';
 
@@ -167,7 +167,7 @@ describe('toWkt()', () => {
 
 describe('toStats()', () => {
   test('when feature', () => {
-    const expectedFilename = `mystats.txt`;
+    const expectedFilename = 'mystats.txt';
     const expectedMimeType = 'text/plain';
     const expectedData = 'Features: 1\nPolygons: 1\nRings: 1\nPoints: 5';
 
@@ -196,7 +196,7 @@ describe('toStats()', () => {
   });
 
   test('feature collection', () => {
-    const expectedFilename = `mystats.txt`;
+    const expectedFilename = 'mystats.txt';
     const expectedMimeType = 'text/plain';
     const expectedData = 'Features: 2\nPolygons: 3\nRings: 4\nPoints: 20';
 

@@ -1,6 +1,6 @@
 {
   "type": "category",
-  "label": "deck-graph-layers",
+  "label": "@deck.gl-community/graph-layers",
   "items": [
     "modules/react-graph-layers/README",
     {

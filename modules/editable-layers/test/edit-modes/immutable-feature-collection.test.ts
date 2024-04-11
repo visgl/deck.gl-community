@@ -147,7 +147,7 @@ describe('getObject()', () => {
 });
 
 describe('replacePosition()', () => {
-  it(`doesn't mutate original`, () => {
+  it('doesn\'t mutate original', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [pointFeature],
@@ -276,7 +276,7 @@ describe('replacePosition()', () => {
 });
 
 describe('removePosition()', () => {
-  it(`doesn't mutate original`, () => {
+  it('doesn\'t mutate original', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [lineStringFeature],
@@ -298,7 +298,7 @@ describe('removePosition()', () => {
     });
 
     expect(() => features.removePosition(0, [0])).toThrow(
-      `Can't remove a position from a Point or there'd be nothing left`
+      'Can\'t remove a position from a Point or there\'d be nothing left'
     );
   });
 
@@ -416,7 +416,7 @@ describe('removePosition()', () => {
     });
 
     expect(() => features.removePosition(0, [0])).toThrow(
-      `Can't remove position. LineString must have at least two positions`
+      'Can\'t remove position. LineString must have at least two positions'
     );
   });
 
@@ -430,7 +430,7 @@ describe('removePosition()', () => {
       .removePosition(0, [0, 1]);
 
     expect(() => features.removePosition(0, [0, 1])).toThrow(
-      `Can't remove position. Polygon's outer ring must have at least four positions`
+      'Can\'t remove position. Polygon\'s outer ring must have at least four positions'
     );
   });
 
@@ -493,7 +493,7 @@ describe('removePosition()', () => {
       .removePosition(0, [0, 0]);
 
     expect(() => features.removePosition(0, [0, 0])).toThrow(
-      `Can't remove position. MultiLineString must have at least two positions`
+      'Can\'t remove position. MultiLineString must have at least two positions'
     );
   });
 
@@ -561,13 +561,13 @@ describe('removePosition()', () => {
       .removePosition(0, [0, 0, 1]);
 
     expect(() => features.removePosition(0, [0, 0, 1])).toThrow(
-      `Can't remove position. MultiPolygon's outer ring must have at least four positions`
+      'Can\'t remove position. MultiPolygon\'s outer ring must have at least four positions'
     );
   });
 });
 
 describe('addPosition()', () => {
-  it(`doesn't mutate original`, () => {
+  it('doesn\'t mutate original', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [lineStringFeature],
@@ -681,7 +681,7 @@ describe('addPosition()', () => {
 });
 
 describe('addFeature()', () => {
-  it(`doesn't mutate original`, () => {
+  it('doesn\'t mutate original', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [],
@@ -723,7 +723,7 @@ describe('addFeature()', () => {
 });
 
 describe('addFeatures()', () => {
-  it(`doesn't mutate original`, () => {
+  it('doesn\'t mutate original', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [],
@@ -765,7 +765,7 @@ describe('addFeatures()', () => {
 });
 
 describe('deleteFeature()', () => {
-  it(`Do nothing when empty array`, () => {
+  it('Do nothing when empty array', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [],
@@ -775,7 +775,7 @@ describe('deleteFeature()', () => {
     expect(features.getObject().features.length).toEqual(0);
   });
 
-  it(`doesn't mutate original`, () => {
+  it('doesn\'t mutate original', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [multiPointFeature],
@@ -802,7 +802,7 @@ describe('deleteFeature()', () => {
 });
 
 describe('deleteFeatures()', () => {
-  it(`Do nothing when empty array`, () => {
+  it('Do nothing when empty array', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [],
@@ -812,7 +812,7 @@ describe('deleteFeatures()', () => {
     expect(features.getObject().features.length).toEqual(0);
   });
 
-  it(`doesn't mutate original`, () => {
+  it('doesn\'t mutate original', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       features: [multiPointFeature],

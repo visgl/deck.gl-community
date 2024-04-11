@@ -233,7 +233,7 @@ export function ImportComponent(props: ImportComponentProps) {
               type: 'FeatureCollection',
               properties: {},
               // $FlowFixMe - can't be clicked if it is invalid, so features will be there
-              //@ts-ignore
+              // @ts-ignore
               features: parseResult.features,
             });
             flush();

@@ -67,19 +67,19 @@ export class ImmutableFeatureCollection {
     const geometry = this.featureCollection.features[featureIndex].geometry;
 
     if (geometry.type === 'Point') {
-      throw Error(`Can't remove a position from a Point or there'd be nothing left`);
+      throw Error('Can\'t remove a position from a Point or there\'d be nothing left');
     }
     if (
       geometry.type === 'MultiPoint' && // only 1 point left
       geometry.coordinates.length < 2
     ) {
-      throw Error(`Can't remove the last point of a MultiPoint or there'd be nothing left`);
+      throw Error('Can\'t remove the last point of a MultiPoint or there\'d be nothing left');
     }
     if (
       geometry.type === 'LineString' && // only 2 positions
       geometry.coordinates.length < 3
     ) {
-      throw Error(`Can't remove position. LineString must have at least two positions`);
+      throw Error('Can\'t remove position. LineString must have at least two positions');
     }
     if (
       geometry.type === 'Polygon' && // outer ring is a triangle
@@ -87,14 +87,14 @@ export class ImmutableFeatureCollection {
       Array.isArray(positionIndexes) && // trying to remove from outer ring
       positionIndexes[0] === 0
     ) {
-      throw Error(`Can't remove position. Polygon's outer ring must have at least four positions`);
+      throw Error('Can\'t remove position. Polygon\'s outer ring must have at least four positions');
     }
     if (
       geometry.type === 'MultiLineString' && // only 1 LineString left
       geometry.coordinates.length === 1 && // only 2 positions
       geometry.coordinates[0].length < 3
     ) {
-      throw Error(`Can't remove position. MultiLineString must have at least two positions`);
+      throw Error('Can\'t remove position. MultiLineString must have at least two positions');
     }
     if (
       geometry.type === 'MultiPolygon' && // only 1 polygon left
@@ -105,7 +105,7 @@ export class ImmutableFeatureCollection {
       positionIndexes[1] === 0
     ) {
       throw Error(
-        `Can't remove position. MultiPolygon's outer ring must have at least four positions`
+        'Can\'t remove position. MultiPolygon\'s outer ring must have at least four positions'
       );
     }
 

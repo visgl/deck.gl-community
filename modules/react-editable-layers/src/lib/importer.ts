@@ -44,7 +44,7 @@ function shouldTryWkt(data: string): boolean {
 
 function getCleanedFeatures(geojson: AnyGeoJson): Feature[] {
   if (geojson.type !== 'FeatureCollection' && geojson.type !== 'Feature') {
-    throw Error(`GeoJSON must have type of 'Feature' or 'FeatureCollection'`);
+    throw Error('GeoJSON must have type of \'Feature\' or \'FeatureCollection\'');
   }
 
   const features: Feature[] = geojson.type === 'FeatureCollection' ? geojson.features : [geojson];

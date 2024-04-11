@@ -51,7 +51,7 @@ export type FiltersByAttribute = {
   value: number;
 };
 
-//@ts-expect-error call of private method of the base class
+// @ts-expect-error call of private method of the base class
 export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> extends Tile3DLayer<
   DataT,
   Required<_DataDrivenTile3DLayerProps> & ExtraProps
@@ -101,7 +101,7 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
       const viewportsNumber = Object.keys(activeViewports).length;
       if (viewportsNumber) {
         if (!this.state.loadingCounter) {
-          //@ts-expect-error call of private method of the base class
+          // @ts-expect-error call of private method of the base class
           super._updateTileset(activeViewports);
         }
         this.state.lastUpdatedViewports = activeViewports;
@@ -133,12 +133,12 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
       }
       Object.assign(options, preloadOptions);
     }
-    //@ts-expect-error loader
+    // @ts-expect-error loader
     const tilesetJson = await load(tilesetUrl, loader, options.loadOptions);
 
     const tileset3d = new Tileset3D(tilesetJson, {
       onTileLoad: this._onTileLoad.bind(this),
-      //@ts-expect-error call of private method of the base class
+      // @ts-expect-error call of private method of the base class
       onTileUnload: super._onTileUnload.bind(this),
       onTileError: this.props.onTileError,
       // New code ------------------
@@ -152,7 +152,7 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
       layerMap: {}
     });
 
-    //@ts-expect-error call of private method of the base class
+    // @ts-expect-error call of private method of the base class
     super._updateTileset(this.state.activeViewports);
     this.props.onTilesetLoad(tileset3d);
   }
@@ -167,7 +167,7 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
     // New code ------------------ condition is added
     if (!this.state.colorsByAttribute && !this.state.filtersByAttribute) {
       // ---------------------------
-      //@ts-expect-error call of private method of the base class
+      // @ts-expect-error call of private method of the base class
       super._updateTileset(lastUpdatedViewports);
       this.setNeedsUpdate();
       // New code ------------------
@@ -205,7 +205,7 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
           }
         }
         if (isTileChanged && !this.state.loadingCounter) {
-          //@ts-expect-error call of private method of the base class
+          // @ts-expect-error call of private method of the base class
           super._updateTileset(this.state.activeViewports);
           this.setNeedsUpdate();
         }
@@ -243,7 +243,7 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
           }
         }
         if (isTileChanged && !this.state.loadingCounter) {
-          //@ts-expect-error call of private method of the base class
+          // @ts-expect-error call of private method of the base class
           super._updateTileset(this.state.activeViewports);
           this.setNeedsUpdate();
         }
