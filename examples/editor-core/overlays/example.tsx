@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import StaticMap from 'react-map-gl';
-import {INITIAL_COORDS, INITIAL_VIEW_STATE, MAPBOX_ACCESS_TOKEN} from './constants';
+import {INITIAL_COORDS, INITIAL_VIEW_STATE} from './constants';
 import {HtmlOverlay, HtmlOverlayItem} from '@deck.gl-community/react-editable-layers';
 import type {WikipediaEntry} from './types';
 
@@ -57,12 +57,8 @@ const Example = () => {
 
   return (
     <div style={styles.mapContainer}>
-      <link href="https://api.mapbox.com/mapbox-gl-js/v0.47.0/mapbox-gl.css" rel="stylesheet" />
       <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={true}>
-        <StaticMap
-          mapStyle={'mapbox://styles/mapbox/light-v10'}
-          mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
-        />
+        <StaticMap mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
         {data ? (
           <HtmlOverlay>
             {data.map((feature) => (

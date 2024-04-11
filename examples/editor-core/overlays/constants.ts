@@ -9,5 +9,3 @@ export const INITIAL_VIEW_STATE = {
   pitch: 0,
   bearing: 0
 };
-export const MAPBOX_ACCESS_TOKEN =
-  'pk.eyJ1IjoiZ2Vvcmdpb3MtdWJlciIsImEiOiJjanZidTZzczAwajMxNGVwOGZrd2E5NG90In0.gdsRu_UeU_uPi9IulBruXA';
