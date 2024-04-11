@@ -231,7 +231,7 @@ describe('parseImport()', () => {
         expect(importData.valid).toEqual(false);
         expect(importData.validationErrors).toEqual([
           'Error parsing GeoJSON',
-          `Error: GeoJSON must have type of 'Feature' or 'FeatureCollection'`,
+          'Error: GeoJSON must have type of \'Feature\' or \'FeatureCollection\'',
         ]);
       });
     });
@@ -321,7 +321,7 @@ describe('parseImport()', () => {
 
       test('reports error', () => {
         expect(importData.valid).toEqual(false);
-        expect(importData.validationErrors).toEqual([`Unknown data format`]);
+        expect(importData.validationErrors).toEqual(['Unknown data format']);
       });
     });
 

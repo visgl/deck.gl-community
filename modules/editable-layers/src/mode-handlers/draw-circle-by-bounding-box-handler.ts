@@ -24,7 +24,7 @@ export class DrawCircleByBoundingBoxHandler extends TwoClickPolygonHandler {
     const options = { steps };
 
     if (steps < 4) {
-      console.warn(`Minimum steps to draw a circle is 4 `); // eslint-disable-line no-console,no-undef
+      console.warn('Minimum steps to draw a circle is 4 '); // eslint-disable-line no-console,no-undef
       options.steps = 4;
     }
 

@@ -83,7 +83,7 @@ function renderSubLayers(props: TileSourceLayerProps & {tile: {index, bbox: {wes
     minZoom,
     maxZoom,
     tile: {index: {z: zoom}, 
-    bbox: {west, south, east, north}}
+      bbox: {west, south, east, north}}
   } = props;
 
   const layers: Layer[] = [];
