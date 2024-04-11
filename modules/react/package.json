@@ -1,7 +1,7 @@
 {
   "private": true,
-  "name": "@nebula.gl/overlays",
-  "description": "React overlays for deck.gl",
+  "name": "@deck.gl-community/react",
+  "description": "React components for deck.gl",
   "license": "MIT",
   "version": "1.0.4",
   "author": "Georgios Karnas <georgios@uber.com>",
