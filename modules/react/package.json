@@ -7,7 +7,7 @@
   "author": "Georgios Karnas <georgios@uber.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/uber/nebula.gl"
+    "url": "https://github.com/uber/@deck.gl-community/editable-layers"
   },
   "keywords": [
     "webgl",

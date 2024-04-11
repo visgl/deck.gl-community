@@ -1,8 +1,8 @@
 # What's New
 
-This page contains highlights of each nebula.gl release.
+This page contains highlights of each `editable-layers` release.
 
-## nebula.gl v1.0
+## editable-layers v1.0 (v9.0?)
 
 Release date: TBD
 

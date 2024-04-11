@@ -1,45 +1,17 @@
-<p align="right">
-  <a href="https://npmjs.org/package/nebula.gl">
-    <img src="https://img.shields.io/npm/v/nebula.gl.svg?label=nebula.gl" alt="version" />
-  </a>
-</p>
-<p align="right">
-  <a href="https://npmjs.org/package/@nebula.gl/edit-modes">
-    <img src="https://img.shields.io/npm/v/@nebula.gl/edit-modes.svg?label=@nebula.gl/edit-modes" alt="version" />
-  </a>
-  <a href="https://npmjs.org/package/@nebula.gl/layers">
-    <img src="https://img.shields.io/npm/v/@nebula.gl/layers.svg?label=@nebula.gl/layers" alt="version" />
-  </a>
-  <a href="https://npmjs.org/package/@nebula.gl/overlays">
-    <img src="https://img.shields.io/npm/v/@nebula.gl/overlays.svg?label=@nebula.gl/overlays" alt="version" />
-  </a>
-</p>
-<p align="right">
-  <a href="https://travis-ci.org/uber/nebula.gl">
-    <img src="https://img.shields.io/travis/uber/nebula.gl/master.svg" alt="build" />
-  </a>
-  <a href="https://app.fossa.com/projects/custom%2B4458%2Fgithub.com%2Fuber%2Fnebula.gl?ref=badge_shield" alt="FOSSA Status">
-    <img src="https://app.fossa.com/api/projects/custom%2B4458%2Fgithub.com%2Fuber%2Fnebula.gl.svg?type=shield"/>
-  </a>
-  <a href="https://coveralls.io/github/uber/nebula.gl">
-    <img src="https://img.shields.io/coveralls/github/uber/nebula.gl.svg" alt="coveralls" />
-  </a>
-</p>
-
-<h1 align="center">nebula.gl | <a href="https://nebula.gl">Website</a></h1>
+<h1 align="center">editable-layers | <a href="https://@deck.gl-community/editable-layers">Website</a></h1>
 
 <h5 align="center">An editing framework for deck.gl</h5>
 
-[![docs](https://i.imgur.com/bRDL1oh.gif)](https://nebula.gl)
+[![docs](https://i.imgur.com/bRDL1oh.gif)](https://@deck.gl-community/editable-layers)
 
-[nebula.gl](https://nebula.gl) provides editable and interactive map overlay layers, built using the power of [deck.gl](https://deck.gl/).
+[@deck.gl-community/editable-layers](https://@deck.gl-community/editable-layers) provides editable and interactive map overlay layers, built using the power of [deck.gl](https://deck.gl/).
 
 ## Getting started
 
 ### Running the example
 
-1. `git clone git@github.com:uber/nebula.gl.git`
-2. `cd nebula.gl`
+1. `git clone git@github.com:uber/@deck.gl-community/editable-layers.git`
+2. `cd @deck.gl-community/editable-layers`
 3. `yarn`
 4. `cd examples/advanced`
 5. `yarn`
@@ -52,21 +24,13 @@
 For npm
 
 ```bash
-npm install @nebula.gl/layers
-npm install @nebula.gl/overlays
-npm install @deck.gl/core
-npm install @deck.gl/react
-npm install @deck.gl/layers
+npm install @deck.gl-community/editable-layers
 ```
 
 For yarn
 
 ```bash
-yarn add @nebula.gl/layers
-yarn add @nebula.gl/overlays
-yarn add @deck.gl/core
-yarn add @deck.gl/react
-yarn add @deck.gl/layers
+yarn add @deck.gl-community/editable-layers
 ```
 
 ### `EditableGeoJsonLayer`
@@ -75,7 +39,7 @@ yarn add @deck.gl/layers
 
 ```jsx
 import DeckGL from '@deck.gl/react';
-import { EditableGeoJsonLayer, DrawPolygonMode } from 'nebula.gl';
+import { EditableGeoJsonLayer, DrawPolygonMode } from '@deck.gl-community/editable-layers';
 
 const myFeatureCollection = {
   type: 'FeatureCollection',

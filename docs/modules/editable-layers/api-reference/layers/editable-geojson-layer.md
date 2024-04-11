@@ -4,7 +4,7 @@ The Editable GeoJSON layer accepts a [GeoJSON](http://geojson.org) `FeatureColle
 
 ```js
 import DeckGL from '@deck.gl/react';
-import { EditableGeoJsonLayer, DrawPolygonMode } from 'nebula.gl';
+import { EditableGeoJsonLayer, DrawPolygonMode } from '@deck.gl-community/editable-layers';
 
 const myFeatureCollection = {
   type: 'FeatureCollection',
@@ -67,7 +67,7 @@ _Note: passing a single `Feature` is not supported. However, you can pass a `Fea
 
 The `mode` property defines the mode used to handle user interaction events (e.g. pointer events) in order to accomplish edits. This can either be a constructor for an `EditMode` or an instance of `EditMode`.
 
-There are a extensive number of modes that come out-of-the-box with nebula.gl. 
+There are a extensive number of modes that come out-of-the-box with from '@deck.gl-community/editable-layers';. 
 
 #### `modeConfig` (Object, optional)
 
@@ -92,7 +92,7 @@ The `selectedFeatureIndexes` property distinguishes which features to treat as s
 
 - Selected features in mode `modify` will render edit handles. Only one feature may be selected while in mode `drawLineString` or `drawPolygon` to draw a feature.
 
-_Note: make sure to pass in the same array instance on each render if you are not changing selection. Otherwise, nebula.gl may clear state on every render (e.g. may clear a drawing in progress if the viewport changes)._
+_Note: make sure to pass in the same array instance on each render if you are not changing selection. Otherwise, @deck.gl-community/editable-layers may clear state on every render (e.g. may clear a drawing in progress if the viewport changes)._
 
 #### `onEdit` (Function, optional)
 
