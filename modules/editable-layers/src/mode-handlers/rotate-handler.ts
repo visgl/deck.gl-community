@@ -1,13 +1,13 @@
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
 import turfTransformRotate from '@turf/transform-rotate';
-import { FeatureCollection, Position } from '@deck.gl-community/editable-layers';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../event-types';
+import { FeatureCollection, Position } from '../geojson-types';
+import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
 import { EditAction, ModeHandler } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class RotateHandler extends ModeHandler {
-  _isRotatable: boolean;
+  _isRotatable: boolean = undefined!;
   _geometryBeingRotated: FeatureCollection | null | undefined;
 
   handlePointerMove(event: PointerMoveEvent): {
@@ -18,7 +18,7 @@ export class RotateHandler extends ModeHandler {
 
     this._isRotatable = Boolean(this._geometryBeingRotated) || this.isSelectionPicked(event.picks);
 
-    if (!this._isRotatable || !event.pointerDownGroundCoords) {
+    if (!this._isRotatable || !event.pointerDownMapCoords) {
       // Nothing to do
       return { editAction: null, cancelMapPan: false };
     }
@@ -26,8 +26,8 @@ export class RotateHandler extends ModeHandler {
     if (event.isDragging && this._geometryBeingRotated) {
       // Rotate the geometry
       editAction = this.getRotateAction(
-        event.pointerDownGroundCoords,
-        event.groundCoords,
+        event.pointerDownMapCoords,
+        event.mapCoords,
         'rotating'
       );
     }
@@ -50,8 +50,8 @@ export class RotateHandler extends ModeHandler {
     if (this._geometryBeingRotated) {
       // Rotate the geometry
       editAction = this.getRotateAction(
-        event.pointerDownGroundCoords,
-        event.groundCoords,
+        event.pointerDownMapCoords,
+        event.mapCoords,
         'rotated'
       );
       this._geometryBeingRotated = null;

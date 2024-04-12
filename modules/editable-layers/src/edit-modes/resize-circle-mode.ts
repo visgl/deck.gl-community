@@ -1,5 +1,5 @@
 import nearestPointOnLine from '@turf/nearest-point-on-line';
-import { point, lineString as toLineString } from '@turf/helpers';
+import {point, lineString as toLineString} from '@turf/helpers';
 import circle from '@turf/circle';
 import distance from '@turf/distance';
 import turfCenter from '@turf/center';
@@ -8,31 +8,33 @@ import {
   nearestPointOnProjectedLine,
   getPickedEditHandles,
   getPickedEditHandle,
-  NearestPointType,
+  NearestPointType
 } from './utils';
-import { LineString, Point, FeatureCollection, FeatureOf } from '../geojson-types';
+import {LineString, Point, FeatureCollection, FeatureOf} from '../geojson-types';
+import {Viewport} from '../types';
 import {
   ModeProps,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  Viewport,
   EditHandleFeature,
   GuideFeatureCollection,
-} from '../types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+  GuideFeature
+} from './types';
+import {GeoJsonEditMode} from './geojson-edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ResizeCircleMode extends GeoJsonEditMode {
   _selectedEditHandle: EditHandleFeature | null | undefined;
   _isResizing = false;
 
+  // eslint-disable-next-line complexity
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const handles = [];
+    const handles: GuideFeature[] = [];
     const selectedFeatureIndexes = props.selectedIndexes;
 
-    const { lastPointerMoveEvent } = props;
+    const {lastPointerMoveEvent} = props;
     const picks = lastPointerMoveEvent && lastPointerMoveEvent.picks;
     const mapCoords = lastPointerMoveEvent && lastPointerMoveEvent.mapCoords;
 
@@ -53,8 +55,8 @@ export class ResizeCircleMode extends GeoJsonEditMode {
         featureAsPick.object.properties.shape.includes('Circle') &&
         props.selectedIndexes.includes(featureAsPick.index)
       ) {
-        let intermediatePoint: NearestPointType | null | undefined = null;
-        let positionIndexPrefix = [];
+        let intermediatePoint: NearestPointType | null = null;
+        let positionIndexPrefix: number[] = [];
         const referencePoint = point(mapCoords);
         // process all lines of the (single) feature
         recursivelyTraverseNestedArrays(
@@ -80,21 +82,21 @@ export class ResizeCircleMode extends GeoJsonEditMode {
         // tack on the lone intermediate point to the set of handles
         if (intermediatePoint) {
           const {
-            geometry: { coordinates: position },
-            properties: { index },
-          } = intermediatePoint;
+            geometry: {coordinates: position},
+            properties: {index}
+          } = intermediatePoint as NearestPointType;
           handles.push({
             type: 'Feature',
             properties: {
               guideType: 'editHandle',
               editHandleType: 'intermediate',
               featureIndex: featureAsPick.index,
-              positionIndexes: [...positionIndexPrefix, index + 1],
+              positionIndexes: [...positionIndexPrefix, index + 1]
             },
             geometry: {
               type: 'Point',
-              coordinates: position,
-            },
+              coordinates: position
+            }
           });
         }
       }
@@ -102,7 +104,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
 
     return {
       type: 'FeatureCollection',
-      features: handles,
+      features: handles
     };
   }
 
@@ -112,7 +114,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
     inPoint: FeatureOf<Point>,
     viewport: Viewport | null | undefined
   ): NearestPointType {
-    const { coordinates } = line.geometry;
+    const {coordinates} = line.geometry;
     if (coordinates.some((coord) => coord.length > 2)) {
       if (viewport) {
         // This line has elevation, we need to use alternative algorithm
@@ -136,14 +138,14 @@ export class ResizeCircleMode extends GeoJsonEditMode {
 
       const editHandleProperties = editHandle.properties;
 
-      const feature = this.getSelectedFeature(props);
+      const feature = this.getSelectedFeature(props)!;
       // @ts-expect-error turf types diff
       const center = turfCenter(feature).geometry.coordinates;
       const numberOfSteps = Object.entries(feature.geometry.coordinates[0]).length - 1;
       const radius = Math.max(distance(center, event.mapCoords), 0.001);
 
-      const { steps = numberOfSteps } = {};
-      const options = { steps };
+      const {steps = numberOfSteps} = {};
+      const options = {steps};
       const updatedFeature = circle(center, radius, options);
       const geometry = updatedFeature.geometry;
 
@@ -156,8 +158,8 @@ export class ResizeCircleMode extends GeoJsonEditMode {
         updatedData,
         editType: 'unionGeometry',
         editContext: {
-          featureIndexes: [editHandleProperties.featureIndex],
-        },
+          featureIndexes: [editHandleProperties.featureIndex]
+        }
       });
     }
   }

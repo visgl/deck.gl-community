@@ -1,5 +1,5 @@
-import { Polygon, Position } from '@deck.gl-community/editable-layers';
-import { ClickEvent, PointerMoveEvent } from '../event-types';
+import { Polygon, Position } from '../geojson-types';
+import { ClickEvent, PointerMoveEvent } from '../edit-modes/types';
 import {
   EditAction,
   EditHandle,
@@ -10,8 +10,8 @@ import {
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class DrawPolygonHandler extends ModeHandler {
-  getEditHandles(picks?: Array<Record<string, any>>, groundCoords?: Position): EditHandle[] {
-    let handles = super.getEditHandles(picks, groundCoords);
+  getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
+    let handles = super.getEditHandles(picks, mapCoords);
 
     if (this._tentativeFeature) {
       handles = handles.concat(getEditHandlesForGeometry(this._tentativeFeature.geometry, -1));
@@ -70,12 +70,12 @@ export class DrawPolygonHandler extends ModeHandler {
     // Trigger pointer move right away in order for it to update edit handles (to support double-click)
     const fakePointerMoveEvent = {
       screenCoords: [-1, -1] as Position,
-      groundCoords: event.groundCoords,
+      mapCoords: event.mapCoords,
       picks: [],
       isDragging: false,
       pointerDownPicks: null,
       pointerDownScreenCoords: null,
-      pointerDownGroundCoords: null,
+      pointerDownMapCoords: null,
       sourceEvent: null,
     };
 
@@ -84,7 +84,7 @@ export class DrawPolygonHandler extends ModeHandler {
     return editAction;
   }
 
-  handlePointerMove({ groundCoords }: PointerMoveEvent): {
+  handlePointerMove({ mapCoords }: PointerMoveEvent): {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
@@ -102,7 +102,7 @@ export class DrawPolygonHandler extends ModeHandler {
         type: 'Feature',
         geometry: {
           type: 'LineString',
-          coordinates: [...clickSequence, groundCoords],
+          coordinates: [...clickSequence, mapCoords],
         },
       });
     } else {
@@ -111,7 +111,7 @@ export class DrawPolygonHandler extends ModeHandler {
         type: 'Feature',
         geometry: {
           type: 'Polygon',
-          coordinates: [[...clickSequence, groundCoords, clickSequence[0]]],
+          coordinates: [[...clickSequence, mapCoords, clickSequence[0]]],
         },
       });
     }

@@ -271,14 +271,14 @@ export default class EditableGeoJsonLayer extends EditableLayer<
   static layerName = 'EditableGeoJsonLayer';
   static defaultProps = defaultProps;
 
-  state!: EditableLayer['state'] & {
+  state: EditableLayer['state'] & {
     cursor?: 'grabbing' | 'grab' | null;
     mode: GeoJsonEditModeType;
     lastPointerMoveEvent: PointerMoveEvent;
     tentativeFeature?: Feature;
     editHandles: any[];
     selectedFeatures: Feature[];
-  };
+  } = undefined!;
 
   // setState: ($Shape<State>) => void;
   renderLayers() {
@@ -560,28 +560,28 @@ export default class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onLayerClick(event: ClickEvent): void {
-    this.getActiveMode().handleClick(event, this.getModeProps(this.props));
+    this.getActiveMode().handleClick(event, this.getModeProps(this.props) as any);
   }
 
   onLayerKeyUp(event: KeyboardEvent): void {
-    this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props));
+    this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props) as any);
   }
 
   onStartDragging(event: StartDraggingEvent): void {
-    this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
+    this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props) as any);
   }
 
   onDragging(event: DraggingEvent): void {
-    this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
+    this.getActiveMode().handleDragging(event, this.getModeProps(this.props) as any);
   }
 
   onStopDragging(event: StopDraggingEvent): void {
-    this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
+    this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props) as any);
   }
 
   onPointerMove(event: PointerMoveEvent): void {
     this.setState({ lastPointerMoveEvent: event });
-    this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props));
+    this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props) as any);
   }
 
   getCursor({ isDragging }: { isDragging: boolean }):  null | 'grabbing' | 'grab' {

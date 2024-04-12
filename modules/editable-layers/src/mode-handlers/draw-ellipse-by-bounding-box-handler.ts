@@ -2,7 +2,7 @@ import bboxPolygon from '@turf/bbox-polygon';
 import distance from '@turf/distance';
 import ellipse from '@turf/ellipse';
 import { point } from '@turf/helpers';
-import { PointerMoveEvent } from '../event-types';
+import { PointerMoveEvent } from '../edit-modes/types';
 import { EditAction, getIntermediatePosition } from './mode-handler';
 import { TwoClickPolygonHandler } from './two-click-polygon-handler';
 
@@ -21,7 +21,7 @@ export class DrawEllipseByBoundingBoxHandler extends TwoClickPolygonHandler {
     }
 
     const corner1 = clickSequence[0];
-    const corner2 = event.groundCoords;
+    const corner2 = event.mapCoords;
 
     const minX = Math.min(corner1[0], corner2[0]);
     const minY = Math.min(corner1[1], corner2[1]);

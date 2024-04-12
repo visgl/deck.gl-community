@@ -3,9 +3,9 @@ import bearing from '@turf/bearing';
 import lineIntersect from '@turf/line-intersect';
 import turfDistance from '@turf/distance';
 import { point, lineString } from '@turf/helpers';
-import { Polygon, Position } from '@deck.gl-community/editable-layers';
+import { Polygon, Position } from '../geojson-types';
 import { generatePointsParallelToLinePoints } from '../utils';
-import { ClickEvent, PointerMoveEvent } from '../event-types';
+import { ClickEvent, PointerMoveEvent } from '../edit-modes/types';
 import {
   EditAction,
   EditHandle,
@@ -16,8 +16,8 @@ import {
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class Draw90DegreePolygonHandler extends ModeHandler {
-  getEditHandles(picks?: Array<Record<string, any>>, groundCoords?: Position): EditHandle[] {
-    let handles = super.getEditHandles(picks, groundCoords);
+  getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
+    let handles = super.getEditHandles(picks, mapCoords);
 
     const tentativeFeature = this.getTentativeFeature();
     if (tentativeFeature) {
@@ -35,7 +35,7 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
     return handles;
   }
 
-  handlePointerMove({ groundCoords }: PointerMoveEvent): {
+  handlePointerMove({ mapCoords }: PointerMoveEvent): {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
@@ -58,11 +58,11 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
 
     let p3;
     if (clickSequence.length === 1) {
-      p3 = groundCoords;
+      p3 = mapCoords;
     } else {
       const p1 = clickSequence[clickSequence.length - 2];
       const p2 = clickSequence[clickSequence.length - 1];
-      [p3] = generatePointsParallelToLinePoints(p1, p2, groundCoords);
+      [p3] = generatePointsParallelToLinePoints(p1, p2, mapCoords);
     }
 
     if (clickSequence.length < 3) {
@@ -121,14 +121,14 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
     // Trigger pointer move right away in order for it to update edit handles (to support double-click)
     const fakePointerMoveEvent = {
       screenCoords: [-1, -1] as Position,
-      groundCoords: event.groundCoords,
+      mapCoords: event.mapCoords,
       picks: [],
       isDragging: false,
       pointerDownPicks: null,
       pointerDownScreenCoords: null,
-      pointerDownGroundCoords: null,
+      pointerDownMapCoords: null,
       sourceEvent: null,
-    };
+    } as unknown as PointerMoveEvent;
 
     this.handlePointerMove(fakePointerMoveEvent);
 
@@ -154,8 +154,9 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
     return coordinates;
   }
 
-  getIntermediatePoint(coordinates: Position[]) {
-    let pt;
+  getIntermediatePoint(coordinates: Position[]): Position | null {
+    let pt: Position | null = null;
+
     if (coordinates.length > 4) {
       const [p1, p2] = [...coordinates];
       const angle1 = bearing(p1, p2);
@@ -163,7 +164,7 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
       const p4 = coordinates[coordinates.length - 4];
       const angle2 = bearing(p3, p4);
 
-      const angles = { first: [], second: [] };
+      const angles = { first: [] as number[], second: [] as number[] };
       // calculate 3 right angle points for first and last points in lineString
       [1, 2, 3].forEach((factor) => {
         const newAngle1 = angle1 + factor * 90;
@@ -189,11 +190,12 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
           const fc = lineIntersect(line1, line2);
           if (fc && fc.features.length) {
             // found the intersect point
-            pt = fc.features[0].geometry.coordinates;
+            pt = fc.features[0].geometry.coordinates as Position;
           }
         });
       });
     }
+
     return pt;
   }
 }

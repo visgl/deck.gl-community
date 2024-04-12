@@ -42,7 +42,7 @@ export default class PathOutlineLayer<
     pathTesselator: any;
     outlineFramebuffer: Framebuffer;
     dummyTexture: Texture;
-  };
+  } = undefined!;
 
   // Override getShaders to inject the outline module
   getShaders() {
