@@ -1,4 +1,4 @@
-import BaseLayout from '../../core/base-layout';
+import {BaseLayout} from '../../core/base-layout';
 
 import {EDGE_TYPE} from '../../index';
 
@@ -11,7 +11,7 @@ const defaultOptions = {
   getCollisionRadius: 0
 };
 
-export default class D3ForceLayout extends BaseLayout {
+export class D3ForceLayout extends BaseLayout {
   constructor(options) {
     super(options);
 

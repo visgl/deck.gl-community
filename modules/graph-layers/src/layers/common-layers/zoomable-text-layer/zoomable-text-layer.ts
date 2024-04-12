@@ -1,7 +1,7 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 
-export default class ZoomableTextLayer extends CompositeLayer {
+export class ZoomableTextLayer extends CompositeLayer {
   static layerName = 'ZoomableTextLayer';
 
   initializeState() {

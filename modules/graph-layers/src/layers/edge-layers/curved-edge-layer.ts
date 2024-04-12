@@ -1,11 +1,11 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {ScatterplotLayer, LineLayer} from '@deck.gl/layers';
-import SplineLayer from '../../deckgl-layers/spline-layer';
+import {SplineLayer} from '../common-layers/spline-layer/spline-layer';
 
 const DEBUG = false;
 
-export default class CurvedEdge extends CompositeLayer {
-  static layerName = 'CurvedEdge';
+export class CurvedEdgeLayer extends CompositeLayer {
+  static layerName = 'CurvedEdgeLayer';
 
   renderLayers() {
     const {

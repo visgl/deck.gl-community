@@ -159,7 +159,7 @@ const VALUE_TYPE = {
   PLAIN_VALUE: 'PLAIN_VALUE'
 };
 
-export default class StyleProperty {
+export class StyleProperty {
   // for getting default style
   static getDefault(key) {
     return DEFAULT_STYLES[key];

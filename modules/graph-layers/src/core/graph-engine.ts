@@ -1,10 +1,10 @@
-import BaseLayout from './base-layout';
+import {BaseLayout} from './base-layout';
 import {Cache} from './cache';
-import Edge from './edge';
-import Graph from './graph';
+import {Edge} from './edge';
+import {Graph} from './graph';
 
 // Graph engine controls the graph data and layout calculation
-export default class GraphEngine extends EventTarget {
+export class GraphEngine extends EventTarget {
   private readonly _graph: Graph;
   private readonly _layout: BaseLayout;
   private readonly _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();

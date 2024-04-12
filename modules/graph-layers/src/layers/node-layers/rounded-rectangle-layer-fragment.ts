@@ -1,4 +1,4 @@
-export default `\
+export const fs = /* glsl */`\
 #define SHADER_NAME rounded-rectangle-layer-fragment-shader
 
 precision highp float;

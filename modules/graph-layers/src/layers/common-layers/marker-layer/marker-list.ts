@@ -1,5 +1,5 @@
 /* eslint-disable */
-export default {
+export const MarkerList = {
   'location-marker-filled': 'location-marker-filled',
   'bell-filled': 'bell-filled',
   'bookmark-filled': 'bookmark-filled',

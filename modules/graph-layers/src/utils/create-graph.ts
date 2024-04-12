@@ -1,6 +1,6 @@
 import {Edge, Node, Graph} from '../index';
 
-export default function createGraph({name, nodes, edges, nodeParser, edgeParser}) {
+export function createGraph({name, nodes, edges, nodeParser, edgeParser}) {
   // create a new empty graph
   const graph = new Graph();
 

@@ -1,9 +1,9 @@
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
 import {EDGE_TYPE} from '../index';
-import StraightLineEdge from './edge-layers/straight-line-edge';
-import PathEdge from './edge-layers/path-edge';
-import CurvedEdge from './edge-layers/curved-edge';
+import {StraightLineEdge} from './edge-layers/straight-line-edge-layer';
+import {PathEdge} from './edge-layers/path-edge-layer';
+import {CurvedEdge} from './edge-layers/curved-edge-layer';
 
 const EDGE_LAYER_MAP = {
   [EDGE_TYPE.LINE]: StraightLineEdge,
@@ -11,7 +11,7 @@ const EDGE_LAYER_MAP = {
   [EDGE_TYPE.SPLINE_CURVE]: CurvedEdge
 };
 
-export default class EdgeLayer extends CompositeLayer {
+export class EdgeLayer extends CompositeLayer {
   static layerName = 'EdgeLayer';
 
   static defaultProps = {

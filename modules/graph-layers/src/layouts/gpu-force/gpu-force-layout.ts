@@ -1,4 +1,4 @@
-import BaseLayout from '../../core/base-layout';
+import {BaseLayout} from '../../core/base-layout';
 
 import {EDGE_TYPE} from '../../index';
 
@@ -12,7 +12,7 @@ const defaultOptions = {
 };
 
 // TODO: this layout should be updated with the organizational and logic improvements made in d3-force
-export default class GPUForceLayout extends BaseLayout {
+export class GPUForceLayout extends BaseLayout {
   constructor(options) {
     super(options);
     this._name = 'GPU';

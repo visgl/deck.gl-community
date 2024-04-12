@@ -2,10 +2,10 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {IconLayer} from '@deck.gl/layers';
 
-import MarkerMapping from './marker-mapping';
-import AtlasDataURL from './atlas-data-url';
+import {MarkerMapping} from './marker-mapping';
+import {AtlasDataURL} from './atlas-data-url';
 
-export default class MarkerLayer extends CompositeLayer {
+export class MarkerLayer extends CompositeLayer {
   static layerName = 'MarkerLayer';
 
   static defaultProps = {
