@@ -168,7 +168,7 @@ const config = {
             items: [
               {
                 label: 'deck.gl',
-                href: 'https://nebula.gl'
+                href: 'https://@deck.gl-community/editable-layers'
               },
               {
                 label: 'luma.gl',

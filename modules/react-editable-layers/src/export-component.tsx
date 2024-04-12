@@ -5,7 +5,7 @@ import copy from 'clipboard-copy';
 import downloadjs from 'downloadjs';
 import styled from 'styled-components';
 import { toGeoJson, toKml, toWkt } from './lib/exporter';
-import { Button } from './editor-modal';
+import { Button } from '@deck.gl-community/react';
 
 const FormatSelect = styled.div`
   display: flex;

@@ -23,7 +23,7 @@ interface Props {
   overflowMargin?: number;
 }
 
-export default class HtmlOverlay extends React.Component<Props> {
+export class HtmlOverlay extends React.Component<Props> {
   // Override this to provide your items
   getItems(): Array<any> {
     const { children } = this.props;

@@ -2,7 +2,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import DeckGL from "@deck.gl/react";
-import { HtmlOverlayItem, HtmlClusterOverlay } from "@nebula.gl/overlays";
+import { HtmlOverlayItem, HtmlClusterOverlay } from "@deck.gl-community/react";
 import { StaticMap } from "react-map-gl";
 
 const MAPBOX_ACCESS_TOKEN =

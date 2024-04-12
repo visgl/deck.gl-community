@@ -2,7 +2,7 @@ import React, {useEffect, useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import StaticMap from 'react-map-gl';
 import {INITIAL_COORDS, INITIAL_VIEW_STATE} from './constants';
-import {HtmlOverlay, HtmlOverlayItem} from '@deck.gl-community/react-editable-layers';
+import {HtmlOverlay, HtmlOverlayItem} from '@deck.gl-community/react';
 import type {WikipediaEntry} from './types';
 
 const styles = {

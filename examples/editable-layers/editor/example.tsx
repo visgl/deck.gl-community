@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import DeckGL from '@deck.gl/react';
-import {Toolbox} from '@deck.gl-community/react-editable-layers';
 import {ViewMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
+import {Toolbox} from '@deck.gl-community/react-editable-layers';
 import StaticMap from 'react-map-gl';
 
 const MAPBOX_ACCESS_TOKEN =

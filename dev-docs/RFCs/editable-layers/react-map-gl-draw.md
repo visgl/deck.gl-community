@@ -5,7 +5,7 @@
 [react-map-gl](https://visgl.github.io/react-map-gl/) currently does not support drawing functions. However, we have got a couple of [users](https://github.com/uber/react-map-gl/issues/725) interested in this capability. Also it is one of P0 features on Kepler.gl 2019 [roadmap](https://github.com/uber/kepler.gl/wiki/Kepler.gl-2019-Roadmap#allow-drawing-on-map-to-create-paths-and-polygons--).
 
 Although [Mapbox/mapbox-gl-draw](https://github.com/mapbox/mapbox-gl-draw) provides drawing and editing features, because of its manipulating internal states, it cannot work well with React / Redux framework and therefore cannot be integrated with `react-map-gl`.
-Another `vis.gl` framework [Nebula.gl](http://nebula.gl) also provides geo editing functionality, but it heavily depends on [`deck.gl`](https://deck.gl/), which may not be suitable for non `deck.gl` use cases.
+Another `vis.gl` framework `@deck.gl-community/editable-layers` also provides geo editing functionality, but it heavily depends on [`deck.gl`](https://deck.gl/), which may not be suitable for non `deck.gl` use cases.
 
 ## Proposal
 
@@ -82,7 +82,7 @@ Returns is a map of [style objects](https://reactjs.org/docs/dom-elements.html#s
 
 ### Styling based on `state`:
 
-![img](https://raw.githubusercontent.com/uber-common/deck.gl-data/master/nebula.gl/edit-handle.png)
+![img](https://raw.githubusercontent.com/uber-common/deck.gl-data/master/@nebula.gl/edit-handle.png)
 
 As shown in the above image, for the feature currently being edited,
 

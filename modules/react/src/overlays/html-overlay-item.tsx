@@ -11,7 +11,7 @@ type Props = {
   style?: Record<string, any>;
 };
 
-export default class HtmlOverlayItem extends React.Component<Props> {
+export class HtmlOverlayItem extends React.Component<Props> {
   render() {
     const { x, y, children, style, coordinates, ...props } = this.props;
     const { zIndex = 'auto', ...remainingStyle } = style || {};

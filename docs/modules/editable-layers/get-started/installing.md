@@ -1,8 +1,5 @@
 # Installation
 
 ```bash
-yarn add "@nebula.gl/layers"
-yarn add "@nebula.gl/overlays"
+yarn add "@deckg.gl-community/editable-layers"
 ```
-
-nebula.gl will automatically install a compatible version of deck.gl.

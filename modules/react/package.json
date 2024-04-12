@@ -3,11 +3,11 @@
   "name": "@deck.gl-community/react",
   "description": "React components for deck.gl",
   "license": "MIT",
-  "version": "1.0.4",
+  "version": "0.0.1",
   "author": "Georgios Karnas <georgios@uber.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/uber/nebula.gl"
+    "url": "https://github.com/uber/@deck.gl-community/editable-layers"
   },
   "keywords": [
     "webgl",

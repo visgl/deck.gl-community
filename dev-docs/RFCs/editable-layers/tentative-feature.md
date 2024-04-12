@@ -6,7 +6,7 @@
 
 References:
 
-- [Background conversation](https://github.com/uber/nebula.gl/pull/49#issuecomment-413948690)
+- [Background conversation](https://github.com/uber/@deck.gl-community/editable-layers/pull/49#issuecomment-413948690)
 
 ## Summary
 
@@ -30,9 +30,9 @@ Store and update `tentativeFeature` state internally in `EditableGeoJsonLayer` s
 
 ### Upgrading/Downgrading Geometry Types
 
-nebula.gl will no longer change a feature's geometry type.
+@deck.gl-community/editable-layers will no longer change a feature's geometry type.
 
-For example, adding points in `drawPolygon` mode would update the `tentativeFeature` until a polygon was complete, at which point a `Polygon` feature would be added to `data` (through the `onEdit` callback). Conversely, a user could remove positions from a `Polygon` until it was a triangle, at which point nebula.gl would no longer allow removing positions.
+For example, adding points in `drawPolygon` mode would update the `tentativeFeature` until a polygon was complete, at which point a `Polygon` feature would be added to `data` (through the `onEdit` callback). Conversely, a user could remove positions from a `Polygon` until it was a triangle, at which point @deck.gl-community/editable-layers would no longer allow removing positions.
 
 ## Examples
 

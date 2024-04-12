@@ -6,7 +6,7 @@
 
 Create a generic `EditMode` interface that will serve as the core interface for handling user interaction and manipulating data. It will not be dependent on deck.gl, react-map-gl, or GeoJSON. This generic class will then be integrated into `EditableGeoJsonLayer` as well as the [upcoming DrawControl feature for react-map-gl](https://github.com/uber/react-map-gl/issues/734)
 
-We will also refactor all the existing `ModeHandler` implementations of nebula to implement this interface instead so that they can be used seamlessly between `nebula.gl` and `react-map-gl-draw`.
+We will also refactor all the existing `ModeHandler` implementations of nebula to implement this interface instead so that they can be used seamlessly between `@deck.gl-community/editable-layers` and `react-map-gl-draw`.
 
 ## Motivation
 
@@ -18,7 +18,7 @@ There are two limitations with nebula's `ModeHandler` interface.
 
 ## API
 
-The `EditMode` interface serves as the core abstraction to editing using nebula.gl. It uses a reactive style approach using callbacks to notify of changes to state and reacting to state changes by receiving a `props` parameter in its functions.
+The `EditMode` interface serves as the core abstraction to editing using @deck.gl-community/editable-layers. It uses a reactive style approach using callbacks to notify of changes to state and reacting to state changes by receiving a `props` parameter in its functions.
 
 ```javascript
 export type ModeProps<TData> = {
@@ -115,21 +115,21 @@ class EditableGeoJsonLayer {
 
 ### Module layout
 
-We will need a `@nebula.gl/edit-modes` module separate from the `nebula.gl` module. The reason is because this new `@nebula/edit-modes` should have no deck.gl dependency.
+We will need a `@deck.gl-community/editable-layers` module separate from the `@deck.gl-community/editable-layers` module. The reason is because this new `@nebula/edit-modes` should have no deck.gl dependency.
 
-- `nebula.gl`
-  - depends on `@nebula.gl/edit-modes`, `@nebula.gl/layers`, and all the other `@nebula/...` modules.
+- `@deck.gl-community/editable-layers`
+  - depends on `@deck.gl-community/editable-layers`
   - doesn't have much in it, just basically imports from the others and re-exports them
-- `@nebula.gl/edit-modes`
+- `@deck.gl-community/editable-layers`
   - depends [turf.js](http://turfjs.org/), no (large) dependencies like deck.gl
   - contains all the modes for editing GeoJSON (e.g. `DrawPolygonMode`)
   - contains `EditMode` interface
   - contains other general purpose types and classes (e.g. event types like `ClickEvent`)
   - this module will be reused by `react-map-gl-draw`
-- `@nebula.gl/layers`
-  - depends on `@nebula.gl/edit-modes` and `deck.gl`
+- `@@deck.gl-community/editable-layers/layers`
+  - depends on `@@deck.gl-community/editable-layers/edit-modes` and `deck.gl`
   - contains `EditableGeoJsonLayer`, a deck.gl `CompositeLayer`
-- Other modules are unaffected (e.g. `@nebula.gl/overlays`)
+- Other modules are unaffected (e.g. `@@deck.gl-community/editable-layers/overlays`)
 
 ### Breaking changes
 
@@ -249,9 +249,9 @@ class DrawPointsMode implements EditMode {
     // event.mapCoords is the coordinates on the map (lat/long) that the user clicked
     const updatedData = [...props.data, event.mapCoords];
 
-    // props.onEdit is the edit callback sent to the application using nebula.gl
+    // props.onEdit is the edit callback sent to the application using @deck.gl-community/editable-layers
     // updatedData is the immutably-updated data
-    // nebula.gl will subsequently call updateState with the updated data
+    // @deck.gl-community/editable-layers will subsequently call updateState with the updated data
     props.onEdit({ updatedData, editType: 'ADD_POINT' });
   }
 

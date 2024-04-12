@@ -1,10 +1,10 @@
 # Overview
 
-[nebula.gl](https://nebula.gl) provides editable and interactive map overlay layers, built using the power of [deck.gl](https://deck.gl/).
+Provides editable and interactive map overlay layers, built using the power of [deck.gl](https://deck.gl/).
 
 ## Design Goals
 
-nebula.gl aspires to be an ultra-performant, fully 3D-enabled GeoJSON editing system primarily focused on geospatial editing use cases.
+@deck.gl-community/editable-layers aspires to be an ultra-performant, fully 3D-enabled GeoJSON editing system primarily focused on geospatial editing use cases.
 
 - Maximal rendering and editing performance, without need for complex application logic (such as splitting data into subgroups etc).
 - Target performance: Editing at 60fps (e.g. dragging sub objects) in GeoJSON payloads with 100K features (points, lines or polygons).
@@ -13,9 +13,9 @@ nebula.gl aspires to be an ultra-performant, fully 3D-enabled GeoJSON editing sy
 - Seamless integration with deck.gl and all geospatial deck.gl layers, allowing for GeoJSON editing to be interleaved with rich 3D visualizations.
 - Handle all aspects of event handling, including touch screen support.
 
-## Why nebula.gl?
+## Why use `editable-layers`?
 
-You should strongly consider nebula.gl:
+You should strongly consider `editable-layers` if:
 
 - You want a full-featured, ultra-high-performance editing solution for GeoJson.
 - You are already using e.g. `deck.gl` or `react-map-gl`.
@@ -25,11 +25,11 @@ You may want to look at alternatives if:
 - If you have very simple editing requirements (just a simple polygon etc)
 - If you don't want to use `deck.gl` in your project.
 
-If nebula.gl is more than what you need (e.g. in terms of bundle size), and you may want to look at other solutions, e.g. the simple polygon editor overlay being developed in react-map-gl.
+If `editable-layers` is more than what you need (e.g. in terms of bundle size), and you may want to look at other solutions, e.g. the simple polygon editor overlay being developed in react-map-gl.
 
-That said, if you are already using `deck.gl` the additional overhead of nebula.gl is small, and the seamless integration with deck.gl should be valuable.
+That said, if you are already using `deck.gl` the additional overhead of `editable-layers` is small, and the seamless integration with deck.gl should be valuable.
 
-## Quick Overview of the nebula.gl API
+## Quick Overview of the API
 
 ### EditableGeoJsonLayer
 

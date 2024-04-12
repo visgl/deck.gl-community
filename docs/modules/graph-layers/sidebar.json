@@ -2,60 +2,44 @@
   "type": "category",
   "label": "@deck.gl-community/graph-layers",
   "items": [
-    "modules/react-graph-layers/README",
+    "modules/graph-layers/README",
     {
       "type": "category",
-      "label": "GraphGL",
+      "label": "Graph Data Structures",
       "items": [
-        "modules/react-graph-layers/api-reference/graphgl",
-        "modules/react-graph-layers/api-reference/node-style",
-        "modules/react-graph-layers/api-reference/edge-style",
-        "modules/react-graph-layers/api-reference/interactions",
-        "modules/react-graph-layers/api-reference/viewport",
-        "modules/react-graph-layers/api-reference/layout"
+        "modules/graph-layers/api-reference/graph",
+        "modules/graph-layers/api-reference/node",
+        "modules/graph-layers/api-reference/edge",
+        "modules/graph-layers/api-reference/interactions",
+        "modules/graph-layers/api-reference/layouts/README"
       ]
     },
     {
       "type": "category",
       "label": "Node style",
       "items": [
-        "modules/react-graph-layers/api-reference/node-style-circle",
-        "modules/react-graph-layers/api-reference/node-style-rectangle",
-        "modules/react-graph-layers/api-reference/node-style-marker",
-        "modules/react-graph-layers/api-reference/node-style-label"
+        "modules/graph-layers/api-reference/styling/node/node-style-circle",
+        "modules/graph-layers/api-reference/styling/node/node-style-rectangle",
+        "modules/graph-layers/api-reference/styling/node/node-style-marker",
+        "modules/graph-layers/api-reference/styling/node/node-style-label"
       ]
     },
     {
       "type": "category",
       "label": "Edge decorators",
       "items": [
-        "modules/react-graph-layers/api-reference/edge-style-label",
-        "modules/react-graph-layers/api-reference/edge-style-flow"
+        "modules/graph-layers/api-reference/styling/edge/edge-style-label",
+        "modules/graph-layers/api-reference/styling/edge/edge-style-flow"
       ]
     },
     {
       "type": "category",
       "label": "Layouts",
       "items": [
-        "modules/react-graph-layers/api-reference/simple-layout",
-        "modules/react-graph-layers/api-reference/d3-layout"
-      ]
-    },
-    {
-      "type": "category",
-      "label": "Core Data Structures",
-      "items": [
-        "modules/react-graph-layers/api-reference/graph",
-        "modules/react-graph-layers/api-reference/node",
-        "modules/react-graph-layers/api-reference/edge"
-      ]
-    },
-    {
-      "type": "category",
-      "label": "Advanced",
-      "items": [
-        "modules/react-graph-layers/advanced/custom-layout",
-        "modules/react-graph-layers/advanced/gallery"
+        "modules/graph-layers/api-reference/layouts/simple-layout",
+        "modules/graph-layers/api-reference/layouts/d3-layout",
+        "modules/graph-layers/api-reference/layouts/custom-layout",
+        "modules/graph-layers/api-reference/layouts/layout-gallery"
       ]
     }
   ]

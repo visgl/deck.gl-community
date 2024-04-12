@@ -1,8 +1,8 @@
 import { point } from '@turf/helpers';
 import Supercluster from 'supercluster';
-import HtmlOverlay from './html-overlay';
+import {HtmlOverlay} from './html-overlay';
 
-export default class HtmlClusterOverlay<ObjType> extends HtmlOverlay {
+export class HtmlClusterOverlay<ObjType> extends HtmlOverlay {
   _superCluster: typeof Supercluster;
   _lastObjects: ObjType[] | null | undefined = null;
 

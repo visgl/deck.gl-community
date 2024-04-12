@@ -7,7 +7,7 @@ import * as React from 'react';
 import ReactDOM from 'react-dom';
 import DeckGL from '@deck.gl/react';
 import { ScatterplotLayer } from '@deck.gl/layers';
-import { SelectionLayer } from '@nebula.gl/layers';
+import { SelectionLayer } from '@deck.gl-community/editable-layers';
 import { StaticMap } from 'react-map-gl';
 
 const MAPBOX_ACCESS_TOKEN = ''; // add your mapbox token here
