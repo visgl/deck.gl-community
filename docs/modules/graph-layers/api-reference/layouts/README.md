@@ -1,4 +1,4 @@
-# Layout
+# Layouts
 
 Use one of the layouts provided by react-graph-layers. Right now react-graph-layers provides D3-Force and Simple layout for basic usage.
 
