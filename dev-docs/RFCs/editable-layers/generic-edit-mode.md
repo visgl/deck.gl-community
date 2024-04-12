@@ -118,9 +118,9 @@ class EditableGeoJsonLayer {
 We will need a `@@deck.gl-community/editable-layers/edit-modes` module separate from the `@deck.gl-community/editable-layers` module. The reason is because this new `@nebula/edit-modes` should have no deck.gl dependency.
 
 - `@deck.gl-community/editable-layers`
-  - depends on `@@deck.gl-community/editable-layers/edit-modes`, `@@deck.gl-community/editable-layers/layers`, and all the other `@nebula/...` modules.
+  - depends on `@deck.gl-community/editable-layers`
   - doesn't have much in it, just basically imports from the others and re-exports them
-- `@@deck.gl-community/editable-layers/edit-modes`
+- `@deck.gl-community/editable-layers`
   - depends [turf.js](http://turfjs.org/), no (large) dependencies like deck.gl
   - contains all the modes for editing GeoJSON (e.g. `DrawPolygonMode`)
   - contains `EditMode` interface
