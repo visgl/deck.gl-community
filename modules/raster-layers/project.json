@@ -1,0 +1,7 @@
+{
+  "name": "deck.gl-raster",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/deck.gl-raster/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:frontend"]
+}

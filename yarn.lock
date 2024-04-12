@@ -4557,6 +4557,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fsq/deck.gl-raster@workspace:modules/raster-layers":
+  version: 0.0.0-use.local
+  resolution: "@fsq/deck.gl-raster@workspace:modules/raster-layers"
+  dependencies:
+    lodash.isequal: "npm:^4.5.0"
+  peerDependencies:
+    "@deck.gl/core": ^8.8.0
+    "@deck.gl/layers": ^8.8.0
+    "@deck.gl/mesh-layers": ^8.8.0
+    "@luma.gl/core": ^8.2.0
+    "@luma.gl/engine": ^8.2.0
+  languageName: unknown
+  linkType: soft
+
 "@geoarrow/geoarrow-js@npm:^0.3.0":
   version: 0.3.1
   resolution: "@geoarrow/geoarrow-js@npm:0.3.1"
