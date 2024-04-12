@@ -4,6 +4,12 @@ export default {
     extensions: ['js', 'jsx', 'ts', 'tsx']
   },
 
+  babel: false,
+
+  typescript: {
+    project: 'tsconfig.build.json'
+  },
+
   aliases: {
     test: './test'
   },
