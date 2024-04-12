@@ -18,13 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import {Buffer, Transform} from '@luma.gl/core';
+// import {Buffer, Transform} from '@luma.gl/core';
 import {LineLayer} from '@deck.gl/layers';
 import {window} from 'global';
 
 import {vs} from './flow-path-layer-vertex.glsl';
 import {fs} from './flow-path-layer-fragment.glsl';
-import {tfvs} from './flow-path-layer-vertex-tf.glsl';
+// import {tfvs} from './flow-path-layer-vertex-tf.glsl';
 
 const defaultProps = {
   ...LineLayer.defaultProps,
@@ -35,7 +35,7 @@ const defaultProps = {
 /* eslint-disable camelcase */
 export class FlowPathLayer extends LineLayer {
   getShaders() {
-    const projectModule = this.use64bitProjection() ? 'project64' : 'project32';
+    const projectModule = this.use64bitPositions() ? 'project64' : 'project32';
     return {vs, fs, modules: [projectModule, 'picking']};
   }
 
@@ -63,7 +63,7 @@ export class FlowPathLayer extends LineLayer {
   }
 
   animate() {
-    const {transform} = this.state;
+    const {transform} = this.state as any;
     if (transform) {
       transform.run();
       transform.swap();
@@ -74,8 +74,8 @@ export class FlowPathLayer extends LineLayer {
   }
 
   updateState({props, oldProps, changeFlags}) {
-    super.updateState({props, oldProps, changeFlags});
-    const {speedsBuffer} = this.state;
+    super.updateState({props, oldProps, changeFlags} as any);
+    const {speedsBuffer} = this.state as any;
 
     const speedChanged =
       changeFlags.dataChanged ||
@@ -95,75 +95,77 @@ export class FlowPathLayer extends LineLayer {
     if (props.fp64 !== oldProps.fp64) {
       const {gl} = this.context;
       if (this.state.model) {
-        this.state.model.delete();
+        (this.state.model as any).delete();
       }
-      this.setState({model: this._getModel(gl)});
+      this.setState({model: this._getModel()});
       this.getAttributeManager().invalidateAll();
     }
   }
 
   finalizeState() {
-    super.finalizeState();
-    window.cancelAnimationFrame(this.state.animation);
+    super.finalizeState(this.context);
+    window.cancelAnimationFrame((this.state as any).animation);
   }
 
   setupTransformFeedback() {
-    const {gl} = this.context;
-    const elementCount = this.props.data && this.props.data.length;
-    if (elementCount) {
-      const instanceOffsets = new Float32Array(elementCount);
-      const instanceSpeeds = new Float32Array(elementCount);
-      const offsetBuffer = new Buffer(gl, instanceOffsets);
-      const speedsBuffer = new Buffer(gl, instanceSpeeds);
+    throw new Error('Not implemented');
+    // const {gl} = this.context;
+    // const elementCount = this.props.data && this.props.data.length;
+    // if (elementCount) {
+    //   const instanceOffsets = new Float32Array(elementCount);
+    //   const instanceSpeeds = new Float32Array(elementCount);
+    //   const offsetBuffer = new Buffer(gl, instanceOffsets);
+    //   const speedsBuffer = new Buffer(gl, instanceSpeeds);
 
-      this.setState({
-        speedsBuffer,
-        transform: new Transform(gl, {
-          id: 'transform-offset',
-          vs: tfvs,
-          elementCount,
-          sourceBuffers: {
-            a_offset: offsetBuffer,
-            a_speed: speedsBuffer
-          },
-          feedbackMap: {
-            a_offset: 'v_offset'
-          }
-        })
-      });
-    }
+    //   this.setState({
+    //     speedsBuffer,
+    //     transform: new Transform(gl, {
+    //       id: 'transform-offset',
+    //       vs: tfvs,
+    //       elementCount,
+    //       sourceBuffers: {
+    //         a_offset: offsetBuffer,
+    //         a_speed: speedsBuffer
+    //       },
+    //       feedbackMap: {
+    //         a_offset: 'v_offset'
+    //       }
+    //     })
+    //   });
+    // }
   }
 
   draw({uniforms}) {
-    const {transform} = this.state;
-    if (!transform) {
-      return;
-    }
+    throw new Error('Not implemented');
+    // const {transform} = this.state;
+    // if (!transform) {
+    //   return;
+    // }
 
-    const {viewport} = this.context;
-    const {widthUnits, widthScale, widthMinPixels, widthMaxPixels} = this.props;
+    // const {viewport} = this.context;
+    // const {widthUnits, widthScale, widthMinPixels, widthMaxPixels} = this.props;
 
-    const widthMultiplier = widthUnits === 'pixels' ? viewport.distanceScales.metersPerPixel[2] : 1;
+    // const widthMultiplier = widthUnits === 'pixels' ? viewport.distanceScales.metersPerPixel[2] : 1;
 
-    const offsetBuffer = transform.getBuffer('v_offset');
-    offsetBuffer.setAccessor({divisor: 1});
+    // const offsetBuffer = transform.getBuffer('v_offset');
+    // offsetBuffer.setAccessor({divisor: 1});
 
-    this.state.model
-      .setAttributes({
-        instanceOffsets: offsetBuffer
-      })
-      .setUniforms(
-        Object.assign({}, uniforms, {
-          widthScale: widthScale * widthMultiplier,
-          widthMinPixels,
-          widthMaxPixels
-        })
-      )
-      .draw();
+    // this.state.model
+    //   .setAttributes({
+    //     instanceOffsets: offsetBuffer
+    //   })
+    //   .setUniforms(
+    //     Object.assign({}, uniforms, {
+    //       widthScale: widthScale * widthMultiplier,
+    //       widthMinPixels,
+    //       widthMaxPixels
+    //     })
+    //   )
+    //   .draw();
 
-    offsetBuffer.setAccessor({divisor: 0});
+    // offsetBuffer.setAccessor({divisor: 0});
   }
 }
 
 FlowPathLayer.layerName = 'FlowPathLayer';
-FlowPathLayer.defaultProps = defaultProps;
+(FlowPathLayer as any).defaultProps = defaultProps;

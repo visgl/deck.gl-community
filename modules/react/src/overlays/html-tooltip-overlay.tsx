@@ -27,7 +27,7 @@ export class HtmlTooltipOverlay extends HtmlOverlay {
   }
 
   componentWillMount() {
-    this.context.nebula.queryObjectEvents.on('pick', ({ event, pickingInfo }) => {
+    (this.context as any).nebula.queryObjectEvents.on('pick', ({ event, pickingInfo }) => {
       if (this.timeoutID !== null) {
         window.clearTimeout(this.timeoutID);
       }
@@ -44,7 +44,7 @@ export class HtmlTooltipOverlay extends HtmlOverlay {
   }
 
   timeoutID: number | null | undefined = null;
-  state: State;
+  state: State = undefined!;
 
   _getTooltip(pickingInfo: Record<string, any>): string {
     return pickingInfo.object.style.tooltip;

@@ -15,14 +15,22 @@
     "overlay",
     "layer"
   ],
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
     "dist",
     "src"
   ],
-  "types": "dist/index.d.ts",
-  "typings": "dist/index.d.ts",
   "dependencies": {
     "@turf/helpers": "^6.5.0",
     "@types/supercluster": "5.0.3",

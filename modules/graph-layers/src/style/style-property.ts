@@ -137,7 +137,7 @@ function generateAccessor(key, value) {
   const valueMap = Object.keys(value).reduce((res, key0) => {
     res[key0] = value[key0];
     return res;
-  }, {});
+  }, {}) as any;
 
   return (node) => {
     const statefulValue = valueMap[node.state];
@@ -160,6 +160,11 @@ const VALUE_TYPE = {
 };
 
 export class StyleProperty {
+  key: any;
+  _updateTrigger: boolean;
+  _value: any;
+  _valueType: any;
+
   // for getting default style
   static getDefault(key) {
     return DEFAULT_STYLES[key];

@@ -59,7 +59,7 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
   static layerName = 'DataDrivenTile3DLayer';
   static defaultProps = defaultProps as any;
 
-  state!: {
+  state: {
     activeViewports: any;
     frameNumber?: number;
     lastUpdatedViewports: {[viewportId: string]: Viewport} | null;
@@ -69,7 +69,7 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
     colorsByAttribute: ColorsByAttribute | null;
     filtersByAttribute: FiltersByAttribute | null;
     loadingCounter: number;
-  };
+  } = undefined!;
 
   initializeState() {
     super.initializeState();
@@ -116,7 +116,7 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
     const {loadOptions = {}} = this.props;
 
     // TODO: deprecate `loader` in v9.0
-    let loader = this.props.loader || this.props.loaders;
+    let loader: any = this.props.loader || this.props.loaders;
     if (Array.isArray(loader)) {
       loader = loader[0];
     }
@@ -133,7 +133,6 @@ export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> exte
       }
       Object.assign(options, preloadOptions);
     }
-    // @ts-expect-error loader
     const tilesetJson = await load(tilesetUrl, loader, options.loadOptions);
 
     const tileset3d = new Tileset3D(tilesetJson, {

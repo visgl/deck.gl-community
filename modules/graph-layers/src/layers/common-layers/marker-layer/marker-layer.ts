@@ -17,7 +17,7 @@ export class MarkerLayer extends CompositeLayer {
   };
 
   renderLayers() {
-    const {getMarker, ...otherProps} = this.props;
+    const {getMarker, ...otherProps} = this.props as any;
     return [
       new IconLayer(
         this.getSubLayerProps({

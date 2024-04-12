@@ -471,7 +471,6 @@ export default class EditableGeoJsonLayer extends EditableLayer<
 
   createGuidesLayers() {
     const mode = this.getActiveMode();
-    // @ts-expect-error narrow type
     const guides: FeatureCollection = mode.getGuides(this.getModeProps(this.props));
 
     if (!guides || !guides.features.length) {

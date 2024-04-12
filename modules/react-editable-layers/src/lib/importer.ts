@@ -47,25 +47,25 @@ function getCleanedFeatures(geojson: AnyGeoJson): Feature[] {
     throw Error('GeoJSON must have type of \'Feature\' or \'FeatureCollection\'');
   }
 
+  // @ts-ignore
   const features: Feature[] = geojson.type === 'FeatureCollection' ? geojson.features : [geojson];
 
   return features.map(getCleanedFeature);
 }
 
-function getCleanedFeature(feature: Feature): Feature {
-  const { id } = feature;
+function getCleanedFeature(feature: any): Feature {
+  const { id } = feature as any;
   // reduce null-checking
   const properties = feature.properties || {};
 
   let geometry = feature.geometry;
-  // @ts-expect-error no overlap, optimize
   if (geometry.type === 'GeometryCollection' && geometry.geometries.length === 1) {
     // There's only one geometry
-    // @ts-expect-error no overlap, optimize
+    // TODO no overlap, optimize
     geometry = geometry.geometries[0];
-    // @ts-expect-error no overlap, optimize
+    // TODO no overlap, optimize
   } else if (geometry.type === 'GeometryCollection' && geometry.geometries.length > 1) {
-    // @ts-expect-error no overlap, optimize
+    // TODO no overlap, optimize
     const types = new Set(geometry.geometries.map((g) => g.type));
     if (types.size === 1) {
       // See if it can be combined into a Multi* geometry
@@ -74,14 +74,14 @@ function getCleanedFeature(feature: Feature): Feature {
         // Combine all the Polygons into a single MultiPolygon
         geometry = {
           type: 'MultiPolygon',
-          // @ts-expect-error no overlap, optimize
+          // TODO no overlap, optimize
           coordinates: geometry.geometries.map((g) => g.coordinates),
         };
       } else if (type === 'LineString') {
         // Combine all the LineStrings into a single MultiLineString
         geometry = {
           type: 'MultiLineString',
-          // @ts-expect-error no overlap, optimize
+          // TODO no overlap, optimize
           coordinates: geometry.geometries.map((g) => g.coordinates),
         };
       }
@@ -91,13 +91,12 @@ function getCleanedFeature(feature: Feature): Feature {
     }
   }
 
-  // @ts-expect-error narrow types
   return {
     type: 'Feature',
     id,
     geometry,
     properties,
-  };
+  } as any;
 }
 
 function parseImportString(data: string): Promise<ImportData> {
@@ -168,7 +167,7 @@ function parseImportString(data: string): Promise<ImportData> {
               type: 'Feature',
               properties: {},
               geometry: parsed,
-            },
+            } as any,
           ],
         };
       } else {

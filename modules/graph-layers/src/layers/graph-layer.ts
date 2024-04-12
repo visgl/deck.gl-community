@@ -17,7 +17,7 @@ import {PathBasedRoundedRectangleLayer} from './node-layers/path-rounded-rectang
 import {ZoomableMarkerLayer} from './node-layers/zoomable-marker-layer';
 
 // edge layers
-import {EdgeLxayer} from './edge-layer';
+import {EdgeLayer} from './edge-layer';
 import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
 
@@ -73,7 +73,7 @@ export class GraphLayer extends CompositeLayer {
   forceUpdate = () => {
     if (this.context && this.context.layerManager) {
       this.setNeedsUpdate();
-      this.setChangeFlags({dataChanged: true});
+      this.setChangeFlags({dataChanged: true} as any); // TODO
     }
   };
 
@@ -85,7 +85,7 @@ export class GraphLayer extends CompositeLayer {
   }
 
   initializeState() {
-    const interactionManager = new InteractionManager(this.props, () => this.forceUpdate());
+    const interactionManager = new InteractionManager(this.props as any, () => this.forceUpdate());
     this.state = {interactionManager};
   }
 
@@ -94,15 +94,15 @@ export class GraphLayer extends CompositeLayer {
   }
 
   updateState({props}) {
-    this.state.interactionManager.updateProps(props);
+    (this.state.interactionManager as any).updateProps(props);
   }
 
   finalize() {
-    this.props.engine.removeEventListener('onLayoutChange', this.forceUpdate);
+    (this.props as any).engine.removeEventListener('onLayoutChange', this.forceUpdate);
   }
 
   createNodeLayers() {
-    const {engine, nodeStyle} = this.props;
+    const {engine, nodeStyle} = this.props as any;
     if (!nodeStyle || !Array.isArray(nodeStyle) || nodeStyle.length === 0) {
       return [];
     }
@@ -114,7 +114,7 @@ export class GraphLayer extends CompositeLayer {
         throw new Error(`Invalid node type: ${style.type}`);
       }
       const stylesheet = new Stylesheet(restStyle, {
-        stateUpdateTrigger: this.state.interactionManager.getLastInteraction()
+        stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
       });
       const getOffset = stylesheet.getDeckGLAccessor('getOffset');
       return new LayerType({
@@ -130,12 +130,12 @@ export class GraphLayer extends CompositeLayer {
         ].join(),
         stylesheet,
         visible
-      });
+      } as any);
     });
   }
 
   createEdgeLayers() {
-    const {edgeStyle, engine} = this.props;
+    const {edgeStyle, engine} = this.props as any;
 
     if (!edgeStyle) {
       return [];
@@ -151,7 +151,7 @@ export class GraphLayer extends CompositeLayer {
             ...restEdgeStyle
           },
           {
-            stateUpdateTrigger: this.state.interactionManager.getLastInteraction()
+            stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
           }
         );
 
@@ -164,7 +164,7 @@ export class GraphLayer extends CompositeLayer {
           positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
           stylesheet,
           visible
-        });
+        } as any);
 
         if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
           return edgeLayer;
@@ -176,7 +176,7 @@ export class GraphLayer extends CompositeLayer {
             throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
           }
           const decoratorStylesheet = new Stylesheet(decoratorStyle, {
-            stateUpdateTrigger: this.state.interactionManager.getLastInteraction()
+            stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
           });
           return new DecoratorLayer({
             ...SHARED_LAYER_PROPS,
@@ -186,30 +186,30 @@ export class GraphLayer extends CompositeLayer {
             pickable: true,
             positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
             stylesheet: decoratorStylesheet
-          });
+          } as any);
         });
         return [edgeLayer, decoratorLayers];
       });
   }
 
-  onClick(info, event) {
-    this.state.interactionManager.onClick(info, event);
+  onClick(info, event): boolean {
+    return (this.state.interactionManager as any).onClick(info, event) || false;
   }
 
-  onHover(info, event) {
-    this.state.interactionManager.onHover(info, event);
+  onHover(info, event): boolean {
+    return (this.state.interactionManager as any).onHover(info, event) || false;
   }
 
   onDragStart(info, event) {
-    this.state.interactionManager.onDragStart(info, event);
+    (this.state.interactionManager as any).onDragStart(info, event);
   }
 
   onDrag(info, event) {
-    this.state.interactionManager.onDrag(info, event);
+    (this.state.interactionManager as any).onDrag(info, event);
   }
 
   onDragEnd(info, event) {
-    this.state.interactionManager.onDragEnd(info, event);
+    (this.state.interactionManager as any).onDragEnd(info, event);
   }
 
   renderLayers() {
@@ -218,4 +218,4 @@ export class GraphLayer extends CompositeLayer {
 }
 
 GraphLayer.layerName = 'GraphLayer';
-GraphLayer.defaultProps = defaultProps;
+(GraphLayer as any).defaultProps = defaultProps;

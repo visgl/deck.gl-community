@@ -27,14 +27,14 @@ export class EdgeLayer extends CompositeLayer {
   };
 
   updateState({props, oldProps, changeFlags}) {
-    super.updateState({props, oldProps, changeFlags});
+    super.updateState({props, oldProps, changeFlags} as any);
     if (changeFlags.dataChanged) {
-      this.updateStateData(props);
+      this.updateStateData();
     }
   }
 
   updateStateData() {
-    const {data, getLayoutInfo} = this.props;
+    const {data, getLayoutInfo} = this.props as any;
     // bucket edges by types
     const typedEdgeData = data.reduce(
       (res, d) => {
@@ -52,7 +52,7 @@ export class EdgeLayer extends CompositeLayer {
   }
 
   renderLayers() {
-    const {getLayoutInfo, pickable, positionUpdateTrigger, stylesheet, id} = this.props;
+    const {getLayoutInfo, pickable, positionUpdateTrigger, stylesheet, id} = this.props as any;
 
     const {typedEdgeData} = this.state;
 
@@ -76,9 +76,9 @@ export class EdgeLayer extends CompositeLayer {
         pickable,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         parameters: {
-          depthTest: false
+          depthCompare: 'always'
         }
-      });
+      } as any);
     });
   }
 }

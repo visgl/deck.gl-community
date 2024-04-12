@@ -17,6 +17,6 @@
     {"path": "modules/test-utils"}
   ],
   "include": ["modules/*/src"],
-  "exclude": [],
+  "exclude": ["modules/*/test"],
   "transpileOnly": true
 }

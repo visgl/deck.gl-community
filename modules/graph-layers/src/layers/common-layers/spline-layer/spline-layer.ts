@@ -25,18 +25,18 @@ export class SplineLayer extends CompositeLayer {
   }
 
   updateState({props, oldProps, changeFlags}) {
-    super.updateState({props, oldProps, changeFlags});
+    super.updateState({props, oldProps, changeFlags} as any);
     if (changeFlags.dataChanged || changeFlags.propsChanged) {
-      this.updateSplineData(props);
+      this.updateSplineData();
     }
   }
 
   updateSplineData() {
-    const {data} = this.props;
+    const {data} = this.props as any;
     const paths = data.reduce((res, d) => {
-      const sourcePosition = this.props.getSourcePosition(d);
-      const targetPosition = this.props.getTargetPosition(d);
-      const controlPoints = this.props.getControlPoints(d);
+      const sourcePosition = (this.props as any).getSourcePosition(d);
+      const targetPosition = (this.props as any).getTargetPosition(d);
+      const controlPoints = (this.props as any).getControlPoints(d);
 
       // Catmull-Rom curve
       const serializedControlPoints = controlPoints.toString().split(',');
@@ -61,11 +61,11 @@ export class SplineLayer extends CompositeLayer {
   }
 
   renderLayers() {
-    const {coordinateSystem, getColor, getWidth, id, updateTriggers} = this.props;
+    const {coordinateSystem, getColor, getWidth, id, updateTriggers} = this.props as any;
     const {paths} = this.state;
     return new PathLayer({
       id: `${id}-splines`,
-      data: paths,
+      data: paths as any,
       getPath: (d) => d,
       getColor,
       getWidth,

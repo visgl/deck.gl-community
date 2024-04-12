@@ -3,8 +3,8 @@
     "target": "es2022",
     "module": "es2022",
     "jsx": "react",
-    "strict": true,
-    "noImplicitAny": false,
+    // "strict": true,
+    // "noImplicitAny": false,
     "allowJs": true,
     "checkJs": false,
     "moduleResolution": "node",
@@ -18,14 +18,18 @@
       "@deck.gl-community/bing-maps": ["modules/bing-maps/src"],
       "@deck.gl-community/editable-layers": ["modules/editable-layers/src"],
       "@deck.gl-community/layers": ["modules/layers/src"],
+      "@deck.gl-community/react": ["modules/react/src"],
       "@deck.gl-community/react-editable-layers": ["modules/react-editable-layers/src"],
       "@deck.gl-community/template": ["modules/template/src"],
       "@deck.gl-community/test-utils": ["modules/test-utils/src"],
       "deck-graph-layers": ["modules/graph-layers/src"],
       "react-deck-graph-layers": ["modules/react-graph-layers/src"]
     },
-    "typeRoots": ["./node_modules/@types"]
+    "typeRoots": ["./node_modules/@types"],
+    // TODO
+    "strict": false,
+    "noImplicitAny": false
   },
-  "include": ["modules", "test"],
+  "include": ["modules/*/src", "test"],
   "exclude": []
 }

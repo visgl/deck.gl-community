@@ -7,6 +7,7 @@ const DEBUG = false;
 export class CurvedEdgeLayer extends CompositeLayer {
   static layerName = 'CurvedEdgeLayer';
 
+  // @ts-ignore
   renderLayers() {
     const {
       data,
@@ -15,7 +16,7 @@ export class CurvedEdgeLayer extends CompositeLayer {
       colorUpdateTrigger = 0,
       widthUpdateTrigger = 0,
       ...otherProps
-    } = this.props;
+    } = this.props as any;
     return [
       DEBUG &&
         new ScatterplotLayer(

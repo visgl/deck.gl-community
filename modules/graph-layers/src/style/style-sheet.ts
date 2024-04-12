@@ -129,6 +129,8 @@ const DECKGL_UPDATE_TRIGGERS = {
 };
 
 export class Stylesheet {
+  type: any;
+  properties: any;
   constructor(style, updateTriggers) {
     const {type: layerType, ...restStyle} = style;
     if (!layerType || !(layerType in DECKGL_ACCESSOR_MAP)) {
@@ -169,7 +171,7 @@ export class Stylesheet {
     // attributes: ['fill', 'radius', 'stroke']
     const attributes = Object.values(rules).reduce((res, rule) => {
       const attrs = Object.keys(rule);
-      const set = new Set([...res, ...attrs]);
+      const set = new Set([...res as any, ...attrs]);
       return Array.from(set);
     }, []);
     // step 3: create a attribute map as:
@@ -178,7 +180,7 @@ export class Stylesheet {
     //  radius: {default: 5},
     //  stroke: {hover: 'red'},
     // }
-    const attrMap = attributes.reduce((res, attr) => {
+    const attrMap = (attributes as any).reduce((res, attr) => {
       res[attr] = Object.entries(rules).reduce((acc, entry) => {
         const [state, rule] = entry;
         if (typeof rule[attr] !== 'undefined') {
@@ -196,7 +198,7 @@ export class Stylesheet {
     //  stroke: {hover: 'red'},
     // }
     const simplifiedStyleMap = Object.entries(attrMap).reduce((res, entry) => {
-      const [attr, valueMap] = entry;
+      const [attr, valueMap] = entry as any;
       const onlyDefault = Object.keys(valueMap).length === 1 && valueMap.default !== undefined;
       if (onlyDefault) {
         res[attr] = valueMap.default;

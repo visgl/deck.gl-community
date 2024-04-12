@@ -73,9 +73,9 @@ const GraphGl = ({
     ...initialViewState
   });
 
-  const engine = useGraphEngine(graph, layout);
+  const engine = useGraphEngine(graph, layout as any);
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine);
+  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
   useLayoutEffect(() => {
     engine.run();
@@ -91,7 +91,7 @@ const GraphGl = ({
       return;
     }
 
-    const {width, height} = viewState;
+    const {width, height} = viewState as any;
 
     // get the projected position of all nodes
     const positions = data.map((d) => engine.getNodePosition(d));
@@ -157,13 +157,13 @@ const GraphGl = ({
           width="100%"
           height="100%"
           getCursor={useCallback(() => DEFAULT_CURSOR, [])}
-          viewState={viewState}
+          viewState={viewState as any}
           onResize={useCallback(
             ({width, height}) => setViewState((prev) => ({...prev, width, height})),
             []
           )}
           onViewStateChange={useCallback(
-            ({viewState: nextViewState}) => setViewState(nextViewState),
+            ({viewState: nextViewState}) => setViewState(nextViewState as any),
             []
           )}
           views={useMemo(
@@ -176,7 +176,7 @@ const GraphGl = ({
                   touchZoom: enableZooming,
                   doubleClickZoom: enableZooming && doubleClickZoom,
                   dragPan: enablePanning
-                }
+                } as any
               })
             ],
             [minZoom, maxZoom, enableZooming, doubleClickZoom, enablePanning]
@@ -203,7 +203,7 @@ const GraphGl = ({
               enableDragging,
               resumeLayoutAfterDragging
             ]
-          )}
+          ) as any}
           getTooltip={getTooltip}
           onHover={onHover}
         />

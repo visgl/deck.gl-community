@@ -5,7 +5,7 @@ export class CircleLayer extends CompositeLayer {
   static layerName = 'CircleLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
 
     return [
       new ScatterplotLayer(
