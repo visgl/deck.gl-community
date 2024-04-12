@@ -1,5 +1,5 @@
 import {CompositeLayer} from '@deck.gl/core';
-import {ZoomableTextLayer} from '../common-layers/zoomable-text-layer';
+import {ZoomableTextLayer} from '../common-layers/zoomable-text-layer/zoomable-text-layer';
 
 export class LabelLayer extends CompositeLayer {
   static layerName = 'LabelLayer';

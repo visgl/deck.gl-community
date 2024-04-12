@@ -1,4 +1,4 @@
-import {MarkerList} from './layers/common-layers/marker-layer/marker-list';
+import {MarkerList} from '../layers/common-layers/marker-layer/marker-list';
 
 /** All the markers supported by node type MARKER */
 export const MARKER_TYPE = MarkerList;

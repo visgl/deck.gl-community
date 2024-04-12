@@ -1,8 +1,8 @@
 import {describe, it, expect} from 'vitest';
-import SAMPLE_NODE from '../__fixtures__/edge.json';
+import {SAMPLE_NODE} from '../__fixtures__/edge.json';
 
-import Node from '../../src/core/node';
-import Edge from '../../src/core/edge';
+import {Node} from '../../src/core/node';
+import {Edge} from '../../src/core/edge';
 
 const createEdges = (edges) => edges.map((e) => new Edge(e));
 

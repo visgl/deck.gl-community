@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest';
-import InteractionManager from '../../src/core/interaction-manager';
-import Node from '../../src/core/node';
-import Edge from '../../src/core/edge';
+import {InteractionManager} from '../../src/core/interaction-manager';
+import {Node} from '../../src/core/node';
+import {Edge} from '../../src/core/edge';
 
 function generateIMProps(extraProps = {}) {
   const engine = {
