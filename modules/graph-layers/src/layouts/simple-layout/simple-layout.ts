@@ -1,6 +1,7 @@
-import BaseLayout, { BaseLayoutOptions } from '../../core/base-layout';
-import Node from '../../core/node';
-import {EDGE_TYPE, Graph} from '../../index';
+import {BaseLayout, BaseLayoutOptions } from '../../core/base-layout';
+import {Node} from '../../core/node';
+import {EDGE_TYPE} from '../../core/constants';
+import {Graph} from '../../core/graph';
 
 type AccessorVec2 = (node: Node) => [number, number];
 
@@ -12,7 +13,7 @@ const defaultOptions: Required<SimpleLayoutOptions> = {
   nodePositionAccessor: (node) => [node.getPropertyValue('x'), node.getPropertyValue('y')]
 };
 
-export default class SimpleLayout extends BaseLayout {
+export class SimpleLayout extends BaseLayout {
   protected readonly _name = 'SimpleLayout';
   protected _graph: Graph | null = null;
   protected _nodeMap: Record<string, Node>  = {};

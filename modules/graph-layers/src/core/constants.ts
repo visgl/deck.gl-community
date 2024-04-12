@@ -1,3 +1,8 @@
+import {MarkerList} from '../layers/common-layers/marker-layer/marker-list';
+
+/** All the markers supported by node type MARKER */
+export const MARKER_TYPE = MarkerList;
+
 export type ValueOf<T> = T[keyof T];
 
 // the interaction state of a node.
@@ -47,7 +52,3 @@ export const LAYOUT_STATE = {
   DONE: 'DONE',
   ERROR: 'ERROR'
 };
-
-// All the markers supported by node type MARKER
-import Markers from '../deckgl-layers/marker-layer/marker-list';
-export const MARKER_TYPE = Markers;

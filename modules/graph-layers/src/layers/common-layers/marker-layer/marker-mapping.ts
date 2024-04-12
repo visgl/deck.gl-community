@@ -1,5 +1,5 @@
 /* eslint-disable */
-export default {
+export const MarkerMapping = {
   'location-marker-filled': {
     x: 0,
     y: 0,

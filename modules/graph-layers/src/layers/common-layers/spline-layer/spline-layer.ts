@@ -13,7 +13,7 @@ const defaultProps = {
   fp64: false
 };
 
-export default class SplineLayer extends CompositeLayer {
+export class SplineLayer extends CompositeLayer {
   static layerName = 'SplineLayer';
 
   initializeState() {

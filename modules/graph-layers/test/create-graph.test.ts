@@ -1,6 +1,6 @@
 import {beforeAll, describe, it, expect} from 'vitest';
 import SAMPLE_GRAPH from './__fixtures__/graph.json';
-import createGraph from '../src/utils/create-graph';
+import {createGraph} from '../src/utils/create-graph';
 
 beforeAll(() => {
   global.CustomEvent = Event as any;

@@ -1,8 +1,8 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {PathLayer} from '@deck.gl/layers';
 
-export default class PathEdge extends CompositeLayer {
-  static layerName = 'PathEdge';
+export class PathEdgeLayer extends CompositeLayer {
+  static layerName = 'PathEdgeLayer';
 
   renderLayers() {
     const {

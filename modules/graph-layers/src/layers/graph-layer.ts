@@ -1,11 +1,47 @@
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
-import Stylesheet from './style/style-sheet';
-import {NODE_TYPE, EDGE_DECORATOR_TYPE, mixedGetPosition} from '../index';
-import InteractionManager from '../core/interaction-manager';
+import {Stylesheet} from '../style/style-sheet';
+import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
+import {mixedGetPosition} from '../utils/layer-utils';
+import {InteractionManager} from '../core/interaction-manager';
 
 import {log} from '../utils/log';
 
+// node layers
+import {CircleLayer} from './node-layers/circle-layer';
+import {ImageLayer} from './node-layers/image-layer';
+import {LabelLayer} from './node-layers/label-layer';
+import {RectangleLayer} from './node-layers/rectangle-layer';
+import {RoundedRectangleLayer} from './node-layers/rounded-rectangle-layer.js';
+import {PathBasedRoundedRectangleLayer} from './node-layers/path-rounded-rectange-layer';
+import {ZoomableMarkerLayer} from './node-layers/zoomable-marker-layer';
+
+// edge layers
+import {EdgeLxayer} from './edge-layer';
+import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
+import {FlowLayer} from './edge-layers/flow-layer';
+
+const NODE_LAYER_MAP = {
+  [NODE_TYPE.RECTANGLE]: RectangleLayer,
+  [NODE_TYPE.ROUNDED_RECTANGLE]: RoundedRectangleLayer,
+  [NODE_TYPE.PATH_ROUNDED_RECTANGLE]: PathBasedRoundedRectangleLayer,
+  [NODE_TYPE.ICON]: ImageLayer,
+  [NODE_TYPE.CIRCLE]: CircleLayer,
+  [NODE_TYPE.LABEL]: LabelLayer,
+  [NODE_TYPE.MARKER]: ZoomableMarkerLayer
+};
+
+const EDGE_DECORATOR_LAYER_MAP = {
+  [EDGE_DECORATOR_TYPE.LABEL]: EdgeLabelLayer,
+  [EDGE_DECORATOR_TYPE.FLOW]: FlowLayer
+};
+
+const SHARED_LAYER_PROPS = {
+  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+  parameters: {
+    depthTest: false
+  }
+};
 const defaultProps = {
   // an array of styles for layers
   nodeStyle: [],
@@ -29,43 +65,7 @@ const defaultProps = {
   enableDragging: false
 };
 
-// node layers
-import CircleLayer from './node-layers/circle-layer';
-import ImageLayer from './node-layers/image-layer';
-import NodeLabelLayer from './node-layers/label-layer';
-import RectangleLayer from './node-layers/rectangle-layer';
-import RoundedRectangleLayer from './node-layers/rounded-rectangle-layer.js';
-import PathBasedRoundedRectangleLayer from './node-layers/path-rounded-rectange-layer';
-import ZoomableMarkerLayer from './node-layers/zoomable-marker-layer';
-
-const NODE_LAYER_MAP = {
-  [NODE_TYPE.RECTANGLE]: RectangleLayer,
-  [NODE_TYPE.ROUNDED_RECTANGLE]: RoundedRectangleLayer,
-  [NODE_TYPE.PATH_ROUNDED_RECTANGLE]: PathBasedRoundedRectangleLayer,
-  [NODE_TYPE.ICON]: ImageLayer,
-  [NODE_TYPE.CIRCLE]: CircleLayer,
-  [NODE_TYPE.LABEL]: NodeLabelLayer,
-  [NODE_TYPE.MARKER]: ZoomableMarkerLayer
-};
-
-// edge layers
-import CompositeEdgeLayer from './composite-edge-layer';
-import EdgeLabelLayer from './edge-layers/edge-label-layer';
-import FlowLayer from './edge-layers/flow-layer';
-
-const EDGE_DECORATOR_LAYER_MAP = {
-  [EDGE_DECORATOR_TYPE.LABEL]: EdgeLabelLayer,
-  [EDGE_DECORATOR_TYPE.FLOW]: FlowLayer
-};
-
-const SHARED_LAYER_PROPS = {
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-  parameters: {
-    depthTest: false
-  }
-};
-
-export default class GraphLayer extends CompositeLayer {
+export class GraphLayer extends CompositeLayer {
   static defaultProps = {
     pickable: true
   };
@@ -155,7 +155,7 @@ export default class GraphLayer extends CompositeLayer {
           }
         );
 
-        const edgeLayer = new CompositeEdgeLayer({
+        const edgeLayer = new EdgeLayer({
           ...SHARED_LAYER_PROPS,
           id: `edge-layer-${idx}`,
           data: data(engine.getEdges()),

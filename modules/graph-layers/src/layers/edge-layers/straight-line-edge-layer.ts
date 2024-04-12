@@ -1,8 +1,8 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {LineLayer} from '@deck.gl/layers';
 
-export default class StraightLineEdge extends CompositeLayer {
-  static layerName = 'StraightLineEdge';
+export class StraightLineEdgeLayer extends CompositeLayer {
+  static layerName = 'StraightLineEdgeLayer';
 
   renderLayers() {
     const {

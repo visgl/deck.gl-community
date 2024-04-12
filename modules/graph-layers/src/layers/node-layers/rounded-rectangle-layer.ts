@@ -1,8 +1,8 @@
 // import {ScatterplotLayer} from '@deck.gl/layers';
-import customFragmentShader from './rounded-rectangle-layer-fragment';
-import RectangleLayer from './rectangle-layer.js';
+import {fs} from './rounded-rectangle-layer-fragment';
+import {RectangleLayer} from './rectangle-layer.js';
 
-export default class RoundedRectangleLayer extends RectangleLayer {
+export class RoundedRectangleLayer extends RectangleLayer {
   static layerName = 'RoundedRectangleLayer';
   draw({uniforms}) {
     super.draw({
@@ -16,7 +16,7 @@ export default class RoundedRectangleLayer extends RectangleLayer {
   getShaders() {
     // use object.assign to make sure we don't overwrite existing fields like `vs`, `modules`...
     return Object.assign({}, super.getShaders(), {
-      fs: customFragmentShader
+      fs
     });
   }
 }

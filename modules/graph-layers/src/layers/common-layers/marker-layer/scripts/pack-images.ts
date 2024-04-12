@@ -104,7 +104,7 @@ function writeList(filePath, content) {
 function exportJSFile(filePath, contentStr) {
   fs.writeFileSync(
     filePath,
-    `/* eslint-disable */\nexport default ${contentStr};\n/* eslint-enable */\n`
+    `/* eslint-disable */\nexport ${contentStr};\n/* eslint-enable */\n`
   );
 }
 

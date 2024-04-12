@@ -1,4 +1,4 @@
-export default `\
+export const tfvs = /* glsl */`\
 #define SHADER_NAME flow-path-layer-vertex-tf-shader
 
 attribute float a_offset;

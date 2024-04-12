@@ -1,7 +1,7 @@
 import {CompositeLayer} from '@deck.gl/core';
-import MarkerLayer from '../../deckgl-layers/marker-layer/index';
+import {MarkerLayer} from '../common-layers/marker-layer/marker-layer';
 
-export default class ZoomableMarkerLayer extends CompositeLayer {
+export class ZoomableMarkerLayer extends CompositeLayer {
   static layerName = 'ZoomableMarkerLayer';
 
   shouldUpdateState({props, changeFlags}) {

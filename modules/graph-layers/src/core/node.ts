@@ -1,5 +1,5 @@
 import {NODE_STATE, ValueOf} from './constants';
-import Edge from './edge';
+import {Edge} from './edge';
 
 interface NodeOptions{
   id: number | string;
@@ -9,7 +9,7 @@ interface NodeOptions{
 }
 
 // Basic data structure of a node
-export default class Node {
+export class Node {
   public id: string | number;
   /** Keep a reference to origin data. */
   private _data: Record<string, unknown>;

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-export default `\
+export const vs = /* glsl */`\
 #define SHADER_NAME flow-path-layer-vertex-shader
 
 attribute vec3 positions;

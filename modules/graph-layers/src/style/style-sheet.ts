@@ -1,7 +1,7 @@
-import StyleProperty from './style-property';
+import {StyleProperty} from './style-property';
 
-import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../../index';
-import {log} from '../../utils/log';
+import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
+import {log} from '../utils/log';
 
 const COMMON_DECKGL_PROPS = {
   getOffset: 'offset',
@@ -128,7 +128,7 @@ const DECKGL_UPDATE_TRIGGERS = {
   [EDGE_DECORATOR_TYPE.FLOW]: ['getColor', 'getWidth', 'getSpeed', 'getTailLength']
 };
 
-export default class Stylesheet {
+export class Stylesheet {
   constructor(style, updateTriggers) {
     const {type: layerType, ...restStyle} = style;
     if (!layerType || !(layerType in DECKGL_ACCESSOR_MAP)) {

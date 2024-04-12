@@ -22,9 +22,9 @@ import {Buffer, Transform} from '@luma.gl/core';
 import {LineLayer} from '@deck.gl/layers';
 import {window} from 'global';
 
-import vs from './flow-path-layer-vertex.glsl';
-import fs from './flow-path-layer-fragment.glsl';
-import tfvs from './flow-path-layer-vertex-tf.glsl';
+import {vs} from './flow-path-layer-vertex.glsl';
+import {fs} from './flow-path-layer-fragment.glsl';
+import {tfvs} from './flow-path-layer-vertex-tf.glsl';
 
 const defaultProps = {
   ...LineLayer.defaultProps,
@@ -33,7 +33,7 @@ const defaultProps = {
 };
 
 /* eslint-disable camelcase */
-export default class FlowPathLayer extends LineLayer {
+export class FlowPathLayer extends LineLayer {
   getShaders() {
     const projectModule = this.use64bitProjection() ? 'project64' : 'project32';
     return {vs, fs, modules: [projectModule, 'picking']};

@@ -15,7 +15,7 @@ const generateRectangle = (node, {getWidth, getHeight, getPosition}) => {
   ];
 };
 
-export default class RectangleLayer extends CompositeLayer {
+export class RectangleLayer extends CompositeLayer {
   static layerName = 'RectangleLayer';
 
   renderLayers() {

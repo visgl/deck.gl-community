@@ -12,7 +12,7 @@ const generateRoundedRectangle = (node, {getWidth, getHeight, getPosition, getCo
   return generateRoundedCorners(pos, width, height, cornerRadius, factor);
 };
 
-export default class PathBasedRoundedRectangleLayer extends CompositeLayer {
+export class PathBasedRoundedRectangleLayer extends CompositeLayer {
   static layerName = 'PathBasedRoundedRectangleLayer';
 
   renderLayers() {
