@@ -82,7 +82,7 @@ Returns is a map of [style objects](https://reactjs.org/docs/dom-elements.html#s
 
 ### Styling based on `state`:
 
-![img](https://raw.githubusercontent.com/uber-common/deck.gl-data/master/@deck.gl-community/editable-layers/edit-handle.png)
+![img](https://raw.githubusercontent.com/uber-common/deck.gl-data/master/@nebula.gl/edit-handle.png)
 
 As shown in the above image, for the feature currently being edited,
 

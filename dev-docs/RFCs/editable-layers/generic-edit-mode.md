@@ -115,7 +115,7 @@ class EditableGeoJsonLayer {
 
 ### Module layout
 
-We will need a `@@deck.gl-community/editable-layers/edit-modes` module separate from the `@deck.gl-community/editable-layers` module. The reason is because this new `@nebula/edit-modes` should have no deck.gl dependency.
+We will need a `@deck.gl-community/editable-layers` module separate from the `@deck.gl-community/editable-layers` module. The reason is because this new `@nebula/edit-modes` should have no deck.gl dependency.
 
 - `@deck.gl-community/editable-layers`
   - depends on `@deck.gl-community/editable-layers`
