@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import bbox from '@turf/bbox';
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
@@ -56,11 +55,11 @@ export class RotateMode extends GeoJsonEditMode {
 
     const boundingBox = bboxPolygon(bbox(selectedGeometry));
 
-    let previousCoord = null;
-    let topEdgeMidpointCoords = null;
+    let previousCoord: Position | null = null;
+    let topEdgeMidpointCoords: Position | null = null;
     let longestEdgeLength = 0;
 
-    coordEach(boundingBox, (coord: Position) => {
+    coordEach(boundingBox, (coord: any) => {
       if (previousCoord) {
         const edgeMidpoint = getIntermediatePosition(coord, previousCoord);
         if (!topEdgeMidpointCoords || edgeMidpoint[1] > topEdgeMidpointCoords[1]) {
@@ -81,8 +80,8 @@ export class RotateMode extends GeoJsonEditMode {
       topEdgeMidpointCoords[1] + longestEdgeLength / 1000,
     ];
 
-    const lineFromEnvelopeToRotateHandle = lineString([topEdgeMidpointCoords, rotateHandleCoords]);
-    const rotateHandle = point(rotateHandleCoords, {
+    const lineFromEnvelopeToRotateHandle = lineString([topEdgeMidpointCoords!, rotateHandleCoords!]);
+    const rotateHandle = point(rotateHandleCoords!, {
       guideType: 'editHandle',
       editHandleType: 'rotate',
     });

@@ -1,9 +1,8 @@
-import { PathMarkerLayer } from '@deck.gl-community/editable-layers';
-
 import { ArrowStyles, DEFAULT_STYLE, MAX_ARROWS } from '../style';
 import NebulaLayer from '../nebula-layer';
-import { toDeckColor } from '../utils';
+import { toDeckColor } from '../../utils';
 import DeckCache from '../deck-renderer/deck-cache';
+import PathMarkerLayer from '../../editable-layers/path-marker-layer/path-marker-layer';
 
 const NEBULA_TO_DECK_DIRECTIONS = {
   [ArrowStyles.NONE]: { forward: false, backward: false },
@@ -90,6 +89,7 @@ export default class SegmentsLayer extends NebulaLayer {
       getZLevel: (nf: any) => nf.style.zLevel * 255,
       getDirection: (nf: any) => NEBULA_TO_DECK_DIRECTIONS[nf.style.arrowStyle],
       getMarkerColor: (nf: any) => toDeckColor(nf.style.arrowColor, defaultColor),
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       getMarkerPercentages: this._calcMarkerPercentages,
       updateTriggers: { all: updateTrigger },
 

@@ -1,16 +1,16 @@
-import { Feature as GeoJson, Geometry } from 'geojson';
+import { Feature as GeoJson } from '../geojson-types';
 
 import { Style } from '../types';
 
 export default class Feature {
   // geo json coordinates
-  geoJson: GeoJson<Geometry>;
+  geoJson: GeoJson;
   style: Style;
   original: any | null | undefined;
   metadata: Record<string, any>;
 
   constructor(
-    geoJson: GeoJson<Geometry>,
+    geoJson: GeoJson,
     style: Style,
     original: any | null | undefined = null,
     metadata: Record<string, any> = {}
@@ -21,8 +21,7 @@ export default class Feature {
     this.metadata = metadata;
   }
 
-  getCoords(): any {
-    // @ts-expect-error revisit geometry type
+  getCoords() {
     return this.geoJson.geometry.coordinates;
   }
 }

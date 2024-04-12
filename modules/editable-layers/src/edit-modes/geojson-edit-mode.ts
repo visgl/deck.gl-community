@@ -148,7 +148,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   ): GeoJsonEditAction {
     let updatedData = new ImmutableFeatureCollection(features);
     const initialIndex = updatedData.getObject().features.length;
-    const updatedIndexes = [];
+    const updatedIndexes: number[] = [];
     for (const feature of featuresToAdd) {
       const { properties, geometry } = feature;
       const geometryAsAny: any = geometry;
@@ -239,7 +239,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return this.getAddFeatureAction(featureOrGeometry, props.data);
   }
 
-  createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
+  createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature | null {
     return null;
   }
 

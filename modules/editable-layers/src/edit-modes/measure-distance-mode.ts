@@ -1,6 +1,6 @@
 import turfDistance from '@turf/distance';
 import turfMidpoint from '@turf/midpoint';
-import { FeatureCollection } from '../geojson-types';
+import { FeatureCollection, Position } from '../geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -14,7 +14,7 @@ import { GeoJsonEditMode } from './geojson-edit-mode';
 
 export class MeasureDistanceMode extends GeoJsonEditMode {
   _isMeasuringSessionFinished = false;
-  _currentTooltips = [];
+  _currentTooltips: Tooltip[] = [];
   _currentDistance = 0;
 
   _calculateDistanceForTooltip = ({ positionA, positionB, modeConfig }) => {
@@ -90,7 +90,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
           : event.mapCoords;
 
         this._currentTooltips.push({
-          position: tooltipPosition,
+          position: tooltipPosition as Position,
           text: this._formatTooltip(this._currentDistance, modeConfig),
         });
       }
@@ -198,7 +198,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
 
       const tooltipPosition = centerTooltipsOnLine
         ? turfMidpoint(positions[positions.length - 1], lastPointerMoveEvent.mapCoords).geometry
-          .coordinates
+          .coordinates as Position
         : lastPointerMoveEvent.mapCoords;
 
       return [

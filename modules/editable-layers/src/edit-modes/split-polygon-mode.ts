@@ -7,7 +7,7 @@ import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfDestination from '@turf/destination';
 import turfPolygonToLine from '@turf/polygon-to-line';
-import nearestPointOnLine from '@turf/nearest-point-on-line';
+import nearestPointOnLine, { NearestPointOnLine } from '@turf/nearest-point-on-line';
 import { generatePointsParallelToLinePoints } from './utils';
 import { FeatureCollection } from '../geojson-types';
 import {
@@ -35,7 +35,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
 
       const lines = feature.type === 'FeatureCollection' ? feature.features : [feature];
       let minDistance = Number.MAX_SAFE_INTEGER;
-      let closestPoint = null;
+      let closestPoint: NearestPointOnLine | null = null;
       // If Multipolygon, then we should find nearest polygon line and stick split to it.
       lines.forEach((line) => {
         const snapPoint = nearestPointOnLine(line, firstPoint);
@@ -167,7 +167,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     }
 
     const { type, coordinates } = updatedGeometry.geometry;
-    let updatedCoordinates = [];
+    let updatedCoordinates: any[] = []; // TODO
     if (type === 'Polygon') {
       // Update the coordinates as per Multipolygon
       updatedCoordinates = coordinates.map((c) => [c]);

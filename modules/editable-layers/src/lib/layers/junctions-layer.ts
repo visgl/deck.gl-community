@@ -1,5 +1,5 @@
 import NebulaLayer from '../nebula-layer';
-import { toDeckColor } from '../utils';
+import { toDeckColor } from '../../utils';
 import DeckCache from '../deck-renderer/deck-cache';
 import JunctionScatterplotLayer from '../../editable-layers/junction-scatterplot-layer';
 

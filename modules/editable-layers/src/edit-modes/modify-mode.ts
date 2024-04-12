@@ -22,13 +22,15 @@ import {
   Viewport,
   GuideFeatureCollection,
   EditHandleFeature,
+  GuideFeature,
 } from './types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';
 
 export class ModifyMode extends GeoJsonEditMode {
+  // eslint-disable-next-line complexity
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const handles = [];
+    const handles: GuideFeature[] = [];
 
     const { data, lastPointerMoveEvent } = props;
     const { features } = data;
@@ -60,7 +62,7 @@ export class ModifyMode extends GeoJsonEditMode {
         props.selectedIndexes.includes(featureAsPick.index)
       ) {
         let intermediatePoint: NearestPointType | null | undefined = null;
-        let positionIndexPrefix = [];
+        let positionIndexPrefix: number[] = [];
         const referencePoint = point(mapCoords);
         // process all lines of the (single) feature
         recursivelyTraverseNestedArrays(
@@ -88,7 +90,7 @@ export class ModifyMode extends GeoJsonEditMode {
           const {
             geometry: { coordinates: position },
             properties: { index },
-          } = intermediatePoint;
+          } = intermediatePoint as NearestPointType;
           handles.push({
             type: 'Feature',
             properties: {
@@ -129,7 +131,7 @@ export class ModifyMode extends GeoJsonEditMode {
         'Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.'
       );
     }
-    return nearestPointOnLine(line, inPoint, viewport);
+    return nearestPointOnLine(line, inPoint, viewport!);
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
@@ -164,7 +166,7 @@ export class ModifyMode extends GeoJsonEditMode {
 
       const feature = props.data.features[featureIndex];
       const canAddPosition = !(
-        props.modeConfig?.lockRectangles && feature?.properties.shape === 'Rectangle'
+        props.modeConfig?.lockRectangles && feature?.properties!.shape === 'Rectangle'
       );
 
       if (canAddPosition) {
@@ -208,12 +210,12 @@ export class ModifyMode extends GeoJsonEditMode {
     const editedFeature = props.data.features[editHandleProperties.featureIndex];
 
     let updatedData;
-    if (props.modeConfig?.lockRectangles && editedFeature.properties.shape === 'Rectangle') {
+    if (props.modeConfig?.lockRectangles && editedFeature.properties!.shape === 'Rectangle') {
       const coordinates = updateRectanglePosition(
         editedFeature as FeatureOf<Polygon>,
-        editHandleProperties.positionIndexes[1],
+        editHandleProperties.positionIndexes![1],
         event.mapCoords
-      );
+      ) as any; // TODO
 
       updatedData = new ImmutableFeatureCollection(props.data)
         .replaceGeometry(editHandleProperties.featureIndex, { coordinates, type: 'Polygon' })

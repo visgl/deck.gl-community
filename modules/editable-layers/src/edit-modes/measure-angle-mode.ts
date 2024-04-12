@@ -3,13 +3,18 @@ import turfCenter from '@turf/center';
 import memoize from '../memoize';
 
 import { ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection } from './types';
-import { FeatureCollection } from '../geojson-types';
+import { FeatureCollection, Position } from '../geojson-types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 
-const DEFAULT_TOOLTIPS = [];
+const DEFAULT_TOOLTIPS: Tooltip[] = [];
 
 export class MeasureAngleMode extends GeoJsonEditMode {
-  _getTooltips = memoize(({ modeConfig, vertex, point1, point2 }) => {
+  _getTooltips = memoize(({ modeConfig, vertex, point1, point2 }: {
+    modeConfig: any,
+    vertex: any,
+    point1: Position,
+    point2: Position
+  }): Tooltip[] => {
     let tooltips = DEFAULT_TOOLTIPS;
 
     if (vertex && point1 && point2) {
@@ -23,7 +28,7 @@ export class MeasureAngleMode extends GeoJsonEditMode {
         angle = 360 - angle;
       }
 
-      let text;
+      let text: string;
       if (formatTooltip) {
         text = formatTooltip(angle);
       } else {
@@ -38,22 +43,17 @@ export class MeasureAngleMode extends GeoJsonEditMode {
 
       const position = turfCenter({
         type: 'FeatureCollection',
-        // @ts-expect-error
         features: [point1, point2].map((p) => ({
           type: 'Feature',
           geometry: {
             type: 'Point',
             coordinates: p,
           },
+          properties: {}
         })),
-      }).geometry.coordinates;
+      }).geometry.coordinates as Position;
 
-      tooltips = [
-        {
-          position,
-          text,
-        },
-      ];
+      tooltips = [{position, text}];
     }
 
     return tooltips;
@@ -72,7 +72,7 @@ export class MeasureAngleMode extends GeoJsonEditMode {
     props.onUpdateCursor('cell');
   }
 
-  getPoints(props: ModeProps<FeatureCollection>) {
+  getPoints(props: ModeProps<FeatureCollection>): Position[] {
     const clickSequence = this.getClickSequence();
 
     const points = [...clickSequence];
@@ -122,6 +122,6 @@ export class MeasureAngleMode extends GeoJsonEditMode {
       vertex: points[0],
       point1: points[1],
       point2: points[2],
-    });
+    }) as Tooltip[];
   }
 }

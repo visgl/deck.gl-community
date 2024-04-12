@@ -18,7 +18,7 @@ import { ImmutableFeatureCollection } from './immutable-feature-collection';
 
 export class TranslateMode extends GeoJsonEditMode {
   _geometryBeforeTranslate: FeatureCollection | null | undefined;
-  _isTranslatable: boolean;
+  _isTranslatable: boolean = undefined!;
 
   handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
     if (!this._isTranslatable) {
@@ -84,6 +84,7 @@ export class TranslateMode extends GeoJsonEditMode {
     }
   }
 
+  // eslint-disable-next-line max-statements
   getTranslateAction(
     startDragPoint: Position,
     currentPoint: Position,

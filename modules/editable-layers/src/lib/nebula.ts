@@ -1,5 +1,5 @@
-import { EventEmitter } from 'eventemitter3';
-import { WebMercatorViewport } from '@deck.gl/core';
+import {EventEmitter} from 'eventemitter3';
+import {WebMercatorViewport} from '@deck.gl/core';
 
 import DeckDrawer from './deck-renderer/deck-drawer';
 import LayerMouseEvent from './layer-mouse-event';
@@ -14,37 +14,37 @@ export default class Nebula {
 
     // TODO: Properly use pointer events: ['click', 'pointermove', 'pointerup', 'pointerdown']
     ['click', 'mousemove', 'mouseup', 'mousedown'].forEach((name) =>
-      document.addEventListener(name, this._onMouseEvent, true)
+      document.addEventListener(name, this._onMouseEvent as any, true)
     );
   }
 
   detach() {
     // TODO: Properly use pointer events: ['click', 'pointermove', 'pointerup', 'pointerdown']
     ['click', 'mousemove', 'mouseup', 'mousedown'].forEach((name) =>
-      document.removeEventListener(name, this._onMouseEvent, true)
+      document.removeEventListener(name, this._onMouseEvent as any, true)
     );
   }
 
   updateProps(newProps: Record<string, any>) {
     this.props = newProps;
-    const { viewport } = this.props;
+    const {viewport} = this.props;
 
     this.wmViewport = new WebMercatorViewport(viewport);
   }
 
-  props: Record<string, any>;
-  deckgl: Record<string, any> | null;
-  mainContainer: Record<string, any> | null;
-  deckglMouseOverInfo: Record<string, any> | null | undefined;
-  _deckDrawer: DeckDrawer;
-  _mouseWasDown: boolean;
-  wmViewport: WebMercatorViewport;
+  props: Record<string, any> = null!;
+  deckgl: Record<string, any> | null = null;
+  mainContainer: Record<string, any> | null = null;
+  deckglMouseOverInfo: Record<string, any> | null | undefined = null;
+  _deckDrawer: DeckDrawer = null!;
+  _mouseWasDown: boolean = null!;
+  wmViewport: WebMercatorViewport = null!;
   queryObjectEvents = new EventEmitter();
-  forceUpdate: () => any;
-  inited: boolean;
+  forceUpdate: () => any = null!;
+  inited: boolean = null!;
 
   log(message: string) {
-    const { logger } = this.props;
+    const {logger} = this.props;
     if (logger && logger.info) {
       logger.info(LOGGER_PREFIX + message);
     }
@@ -53,7 +53,7 @@ export default class Nebula {
   updateAllDeckObjects() {
     this.getAllLayers().forEach((layer) => {
       if (layer && layer.deckCache) {
-        (layer.deckCache as any).updateAllDeckObjects();
+        layer.deckCache.updateAllDeckObjects();
       }
     });
     this.forceUpdate();
@@ -62,7 +62,7 @@ export default class Nebula {
   updateDeckObjectsByIds(ids: string[]) {
     this.getAllLayers().forEach((layer) => {
       if (layer && layer.deckCache) {
-        (layer.deckCache as any).updateDeckObjectsByIds(ids);
+        layer.deckCache.updateDeckObjectsByIds(ids);
       }
     });
     this.forceUpdate();
@@ -72,8 +72,8 @@ export default class Nebula {
     this.updateAllDeckObjects();
   }
 
-  _isNebulaEvent({ buttons, target, type }: Record<string, any>) {
-    const { viewport } = this.props;
+  _isNebulaEvent({buttons, target, type}: Record<string, any>) {
+    const {viewport} = this.props;
 
     // allow mouseup event aggressively to cancel drag properly
     // TODO: use pointer capture setPointerCapture() to capture mouseup properly after deckgl
@@ -102,7 +102,7 @@ export default class Nebula {
     );
   }
 
-  _onMouseEvent = (event: window.MouseEvent) => {
+  _onMouseEvent = (event: MouseEvent) => {
     if (!this._isNebulaEvent(event)) {
       return;
     }
@@ -115,7 +115,7 @@ export default class Nebula {
     // of the mouse pointer between that event and the padding edge of the target node.
     // We set our listener to document so we need to adjust offsetX/Y
     // in case the target is not be our WebGL canvas.
-    const { top = 0, left = 0 } = this.mainContainer
+    const {top = 0, left = 0} = this.mainContainer
       ? this.mainContainer.getBoundingClientRect()
       : {};
     const proxyEvent = new Proxy(event, {
@@ -138,7 +138,7 @@ export default class Nebula {
           return result.bind(original);
         }
         return result;
-      },
+      }
     });
 
     this._handleDeckGLEvent(proxyEvent);
@@ -152,10 +152,11 @@ export default class Nebula {
     return this.wmViewport.unproject(mousePosition) as [number, number];
   }
 
+  // eslint-disable-next-line max-statements, complexity
   _handleDeckGLEvent(event: Record<string, any>) {
     const {
       deckgl,
-      props: { onMapMouseEvent, selectionType, eventFilter },
+      props: {onMapMouseEvent, selectionType, eventFilter}
     } = this;
     let sendMapEvent = true;
     let cursor = 'auto';
@@ -182,16 +183,16 @@ export default class Nebula {
         x: event.offsetX,
         y: event.offsetY,
         radius: 5,
-        layerIds,
+        layerIds
       });
-      this.queryObjectEvents.emit('pick', { event, pickingInfo });
+      this.queryObjectEvents.emit('pick', {event, pickingInfo});
       if (pickingInfo) {
         sendMapEvent = false;
 
-        const { index, lngLat } = pickingInfo;
+        const {index, lngLat} = pickingInfo;
         if (eventFilter && !eventFilter(lngLat, event)) return;
 
-        const { layer: deckLayer, object } = pickingInfo;
+        const {layer: deckLayer, object} = pickingInfo;
 
         if (
           deckLayer &&
@@ -209,13 +210,13 @@ export default class Nebula {
             deckLayer.props.nebulaLayer.deckCache.originals[index]);
 
         if (original) {
-          this.deckglMouseOverInfo = { originalLayer: deckLayer.props.nebulaLayer, index };
+          this.deckglMouseOverInfo = {originalLayer: deckLayer.props.nebulaLayer, index};
           // @ts-expect-error narrow event type
           const nebulaMouseEvent = new LayerMouseEvent(event, {
             data: original,
             metadata: object.metadata,
             groundPoint: lngLat,
-            nebula: this,
+            nebula: this
           });
           deckLayer.props.nebulaLayer.emit(event.type, nebulaMouseEvent);
           this.forceUpdate();
@@ -239,7 +240,7 @@ export default class Nebula {
       // @ts-expect-error narrow event type
       const nebulaMouseEvent = new LayerMouseEvent(event, {
         groundPoint: lngLat,
-        nebula: this,
+        nebula: this
       });
       this.getAllLayers()
         .filter((layer) => layer && layer.usesMapEvents)
@@ -259,7 +260,7 @@ export default class Nebula {
   }
 
   getExtraDeckLayers(): Record<string, any>[] {
-    const result = [];
+    const result: Record<string, any>[] = [];
 
     if (this._deckDrawer) result.push(...this._deckDrawer.render());
 
@@ -268,12 +269,12 @@ export default class Nebula {
 
   renderDeckLayers() {
     return this.getAllLayers()
-      .map((layer) => (layer instanceof NebulaLayer ? layer.render({ nebula: this }) : layer))
+      .map((layer) => (layer instanceof NebulaLayer ? layer.render({nebula: this}) : layer))
       .filter(Boolean);
   }
 
   getAllLayers() {
-    const result = [];
+    const result: Record<string, any>[] = [];
 
     this.props.layers.filter(Boolean).forEach((layer) => {
       result.push(layer);
@@ -296,11 +297,11 @@ export default class Nebula {
     container: Record<string, any>
   ) {
     if (this.inited) {
-      this.updateProps({ layers, viewport });
+      this.updateProps({layers, viewport});
       this.forceUpdate = () => container.forceUpdate();
     } else {
       this.inited = true;
-      this.init({ layers, viewport });
+      this.init({layers, viewport});
       this.forceUpdate = () => container.forceUpdate();
       this.updateAllDeckObjects();
     }
