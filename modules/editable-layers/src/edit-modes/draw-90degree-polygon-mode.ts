@@ -175,8 +175,8 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
     return coordinates;
   }
 
-  getIntermediatePoint(coordinates: Position[]) {
-    let pt;
+  getIntermediatePoint(coordinates: Position[]): Position | null {
+    let pt: Position | null = null;
     if (coordinates.length > 4) {
       const [p1, p2] = [...coordinates];
       const angle1 = bearing(p1, p2);
@@ -184,7 +184,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
       const p4 = coordinates[coordinates.length - 4];
       const angle2 = bearing(p3, p4);
 
-      const angles = { first: [], second: [] };
+      const angles = { first: [] as number[], second: [] as number[] };
       // calculate 3 right angle points for first and last points in lineString
       [1, 2, 3].forEach((factor) => {
         const newAngle1 = angle1 + factor * 90;
@@ -210,7 +210,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
           const fc = lineIntersect(line1, line2);
           if (fc && fc.features.length) {
             // found the intersect point
-            pt = fc.features[0].geometry.coordinates;
+            pt = fc.features[0].geometry.coordinates as Position;
           }
         });
       });

@@ -8,7 +8,7 @@ import { TwoClickPolygonMode } from './two-click-polygon-mode';
 
 export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
   radius: number | null | undefined = null;
-  position: Position;
+  position: Position = null!;
   areaCircle: number | null | undefined = null;
   getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
     // Default turf value for circle is 64
@@ -54,7 +54,7 @@ export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
    * @param areaCircle
    */
   _getTooltips = memoize(({ modeConfig, radius, areaCircle }) => {
-    let tooltips = [];
+    let tooltips: Tooltip[] = [];
     const { formatTooltip } = modeConfig || {};
     let text: string;
     if (radius && areaCircle) {

@@ -1,7 +1,7 @@
-import { Position } from 'geojson';
+import { Position } from '../geojson-types';
 
 export default class LayerMouseEvent {
-  canceled: boolean;
+  canceled: boolean = false;
   // original item that this event is related to
   data: Record<string, any>;
   // internal nebula info about the object

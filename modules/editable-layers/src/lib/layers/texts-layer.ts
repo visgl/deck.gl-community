@@ -1,7 +1,6 @@
 import { TextLayer } from '@deck.gl/layers';
-
 import NebulaLayer from '../nebula-layer';
-import { toDeckColor } from '../utils';
+import { toDeckColor } from '../../utils';
 import { PROJECTED_PIXEL_SIZE_MULTIPLIER } from '../constants';
 import DeckCache from '../deck-renderer/deck-cache';
 import { Color } from '../../types';
@@ -14,7 +13,7 @@ export default class TextsLayer extends NebulaLayer {
     this.deckCache = new DeckCache(config.getData, (data) => config.toNebulaFeature(data));
   }
 
-  render({ nebula }: Record<string, any>) {
+  render({ nebula }: Record<string, any>): TextLayer {
     const defaultColor: Color = [0x0, 0x0, 0x0, 0xff];
     const { objects, updateTrigger } = this.deckCache;
 

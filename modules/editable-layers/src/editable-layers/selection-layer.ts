@@ -75,11 +75,11 @@ export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   static layerName = 'SelectionLayer';
   static defaultProps = defaultProps;
 
-  state!: {
+  state: {
     pendingPolygonSelection: {
       bigPolygon: ReturnType<typeof turfDifference>;
     };
-  };
+  } = undefined!;
 
   _selectRectangleObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;

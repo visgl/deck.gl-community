@@ -14,9 +14,9 @@ import { GeoJsonEditMode } from './geojson-edit-mode';
 
 export class DrawLineStringMode extends GeoJsonEditMode {
   // declaration of variables for the calculation of the distance of linestring
-  dist: number | null | undefined = 0;
-  position: Position;
-  elems: Position[];
+  dist = 0;
+  position: Position = null!;
+  elems: Position[] = [];
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
     const { picks } = event;
     const clickedEditHandle = getPickedEditHandle(picks);
@@ -177,7 +177,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
    * @param dist
    */
   _getTooltips = memoize(({ modeConfig, dist }) => {
-    let tooltips = [];
+    let tooltips: Tooltip[] = [];
     const { formatTooltip } = modeConfig || {};
     let text;
     if (dist) {

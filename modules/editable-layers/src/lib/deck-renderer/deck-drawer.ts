@@ -95,6 +95,7 @@ export default class DeckDrawer {
     return [offsetX, offsetY];
   }
 
+  // eslint-disable-next-line max-statements, complexity
   handleEvent(
     event: Record<string, any>,
     lngLat: [number, number],

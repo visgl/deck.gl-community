@@ -14,7 +14,7 @@ export { default as NebulaCore } from './lib/nebula';
 export { PROJECTED_PIXEL_SIZE_MULTIPLIER } from './lib/constants';
 
 // Utils
-export { toDeckColor } from './lib/utils';
+export { toDeckColor } from './utils';
 
 // Types
 export type { Color, Style, Viewport } from './types';

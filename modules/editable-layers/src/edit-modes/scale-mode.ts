@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import bbox from '@turf/bbox';
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
@@ -26,7 +25,7 @@ import { ImmutableFeatureCollection } from './immutable-feature-collection';
 export class ScaleMode extends GeoJsonEditMode {
   _geometryBeingScaled: FeatureCollection | null | undefined;
   _selectedEditHandle: EditHandleFeature | null | undefined;
-  _cornerGuidePoints: Array<EditHandleFeature>;
+  _cornerGuidePoints: Array<EditHandleFeature> = [];
   _cursor: string | null | undefined;
   _isScaling = false;
 
@@ -40,7 +39,7 @@ export class ScaleMode extends GeoJsonEditMode {
     return false;
   };
 
-  _getOppositeScaleHandle = (selectedHandle: EditHandleFeature) => {
+  _getOppositeScaleHandle = (selectedHandle: EditHandleFeature): EditHandleFeature | null => {
     const selectedHandleIndex =
       selectedHandle &&
       selectedHandle.properties &&
@@ -57,7 +56,7 @@ export class ScaleMode extends GeoJsonEditMode {
         return false;
       }
       return p.properties.positionIndexes[0] === oppositeIndex;
-    });
+    }) || null;
   };
 
   _getUpdatedData = (props: ModeProps<FeatureCollection>, editedData: FeatureCollection) => {
@@ -84,7 +83,7 @@ export class ScaleMode extends GeoJsonEditMode {
     }
 
     const oppositeHandle = this._getOppositeScaleHandle(this._selectedEditHandle);
-    const origin = getCoord(oppositeHandle) as Position;
+    const origin = getCoord(oppositeHandle!) as Position;
 
     const scaleFactor = getScaleFactor(origin, startDragPoint, currentPoint);
 
@@ -204,8 +203,8 @@ export class ScaleMode extends GeoJsonEditMode {
     }
 
     const boundingBox = bboxPolygon(bbox(selectedGeometry));
-    boundingBox.properties.mode = 'scale';
-    const cornerGuidePoints = [];
+    boundingBox.properties!.mode = 'scale';
+    const cornerGuidePoints: EditHandleFeature[] = [];
 
     coordEach(boundingBox, (coord, coordIndex) => {
       if (coordIndex < 4) {
@@ -215,7 +214,7 @@ export class ScaleMode extends GeoJsonEditMode {
           editHandleType: 'scale',
           positionIndexes: [coordIndex],
         });
-        cornerGuidePoints.push(cornerPoint);
+        cornerGuidePoints.push(cornerPoint as EditHandleFeature);
       }
     });
 

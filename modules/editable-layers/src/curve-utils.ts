@@ -1,8 +1,7 @@
 import hermite from 'cubic-hermite-spline';
 import turfDistance from '@turf/distance';
 import { lineString } from '@turf/helpers';
-
-import { Feature, MultiLineString, LineString } from 'geojson';
+import type { Feature, MultiLineString, LineString, Position } from '@turf/helpers';
 
 const INTERPOLATION_INTERVAL = 0.005;
 const INTERPOLATION_THRESHOLD = 0.001;
@@ -13,12 +12,13 @@ function calculateSingleTangent(p0: [number, number], p1: [number, number], d: n
   return [x, y];
 }
 
+// eslint-disable-next-line max-statements
 export function generateCurveFromControlPoints(
   line: Feature<MultiLineString>
 ): Feature<LineString> {
   // calculate knots
   const knots = [0];
-  let prev = null;
+  let prev: Position[] | null = null;
   let totalDistance = 0;
 
   const { coordinates: coords } = line.geometry;
@@ -34,7 +34,7 @@ export function generateCurveFromControlPoints(
   }
 
   // calculate tangents
-  const tangents = [];
+  const tangents: number[][] = [];
 
   // first tangent
   // @ts-ignore
@@ -59,7 +59,7 @@ export function generateCurveFromControlPoints(
   );
 
   // generate curve
-  const result = [];
+  const result: any[] = [];
   for (let i = 0; i < coords.length; i++) {
     // add control point
     result.push(coords[i]);

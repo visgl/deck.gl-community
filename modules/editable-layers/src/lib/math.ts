@@ -1,4 +1,4 @@
-import { Position } from 'geojson';
+import { Position } from '../geojson-types';
 
 export function toDegree(radian: number): number {
   return (radian * 180) / Math.PI;
@@ -16,7 +16,7 @@ export function toRadian(angle: number): number {
  *              [ [lng_degrees, lat_degrees], [lng_degrees, lat_degrees], ...]
  */
 export function convertE7Array(array: number[]): Position[] {
-  const points = [];
+  const points: Position[] = [];
   for (let i = 0; i < array.length; i += 2) {
     const lat = array[i] * 1e-7;
     const lng = array[i + 1] * 1e-7;

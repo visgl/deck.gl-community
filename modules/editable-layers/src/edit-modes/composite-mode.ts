@@ -7,6 +7,7 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   GuideFeatureCollection,
+  GuideFeature,
 } from './types';
 import { GeoJsonEditMode } from './geojson-edit-mode';
 
@@ -20,18 +21,19 @@ export class CompositeMode extends GeoJsonEditMode {
 
   _coalesce<T>(
     callback: (arg0: GeoJsonEditMode) => T,
-    resultEval: (arg0: T) => boolean | null | undefined = null
+    resultEval: ((arg0: T) => boolean | null | undefined) | null = null
   ): T {
-    let result: T;
+    let result: T | null = null;
 
     for (let i = 0; i < this._modes.length; i++) {
+      // eslint-disable-next-line callback-return
       result = callback(this._modes[i]);
       if (resultEval ? resultEval(result) : result) {
         break;
       }
     }
 
-    return result as any;
+    return result!;
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {
@@ -59,7 +61,7 @@ export class CompositeMode extends GeoJsonEditMode {
     // changed to return the same object so that "guides !== this.state.guides"
     // in editable-geojson-layer works.
 
-    const allGuides = [];
+    const allGuides: GuideFeature[] = [];
     for (const mode of this._modes) {
       allGuides.push(...mode.getGuides(props).features);
     }

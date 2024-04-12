@@ -77,7 +77,7 @@ export class DrawPolygonHandler extends ModeHandler {
       pointerDownScreenCoords: null,
       pointerDownMapCoords: null,
       sourceEvent: null,
-    };
+    } as unknown as PointerMoveEvent;
 
     this.handlePointerMove(fakePointerMoveEvent);
 

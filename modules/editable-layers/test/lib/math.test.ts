@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { convertE7Array, toDegree, toRadian } from '../../src/math';
+import { convertE7Array, toDegree, toRadian } from '../../src/lib/math';
 
 it('test toDegree()', () => {
   expect(toDegree(Math.PI / 4)).toBe(45);
