@@ -1,6 +1,6 @@
 import nearestPointOnLine from '@turf/nearest-point-on-line';
 import { point, lineString as toLineString } from '@turf/helpers';
-import { Position, FeatureOf, Point, LineString } from '@deck.gl-community/editable-layers';
+import { Position, FeatureOf, Point, LineString } from '../geojson-types';
 import {
   recursivelyTraverseNestedArrays,
   nearestPointOnProjectedLine,
@@ -11,7 +11,7 @@ import {
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
-} from '../event-types';
+} from '../edit-modes/types';
 import {
   EditAction,
   EditHandle,
@@ -24,8 +24,8 @@ import {
 export class ModifyHandler extends ModeHandler {
   _lastPointerMovePicks: any;
 
-  getEditHandles(picks?: Array<Record<string, any>>, groundCoords?: Position): EditHandle[] {
-    let handles = [];
+  getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
+    let handles: EditHandle[] = [];
     const { features } = this.featureCollection.getObject();
 
     for (const index of this.getSelectedFeatureIndexes()) {
@@ -38,7 +38,7 @@ export class ModifyHandler extends ModeHandler {
     }
 
     // intermediate edit handle
-    if (picks && picks.length && groundCoords) {
+    if (picks && picks.length && mapCoords) {
       const existingEditHandle = picks.find(
         (pick) => pick.isEditingHandle && pick.object && pick.object.type === 'existing'
       );
@@ -53,7 +53,7 @@ export class ModifyHandler extends ModeHandler {
       ) {
         let intermediatePoint: NearestPointType | null | undefined = null;
         let positionIndexPrefix = [];
-        const referencePoint = point(groundCoords);
+        const referencePoint = point(mapCoords);
         // process all lines of the (single) feature
         recursivelyTraverseNestedArrays(
           featureAsPick.object.geometry.coordinates,
@@ -179,7 +179,7 @@ export class ModifyHandler extends ModeHandler {
 
     if (event.isDragging && editHandle) {
       const updatedData = this.getImmutableFeatureCollection()
-        .replacePosition(editHandle.featureIndex, editHandle.positionIndexes, event.groundCoords)
+        .replacePosition(editHandle.featureIndex, editHandle.positionIndexes, event.mapCoords)
         .getObject();
 
       editAction = {
@@ -188,7 +188,7 @@ export class ModifyHandler extends ModeHandler {
         featureIndexes: [editHandle.featureIndex],
         editContext: {
           positionIndexes: editHandle.positionIndexes,
-          position: event.groundCoords,
+          position: event.mapCoords,
         },
       };
     }
@@ -207,7 +207,7 @@ export class ModifyHandler extends ModeHandler {
     const editHandle = getPickedEditHandle(event.picks);
     if (selectedFeatureIndexes.length && editHandle && editHandle.type === 'intermediate') {
       const updatedData = this.getImmutableFeatureCollection()
-        .addPosition(editHandle.featureIndex, editHandle.positionIndexes, event.groundCoords)
+        .addPosition(editHandle.featureIndex, editHandle.positionIndexes, event.mapCoords)
         .getObject();
 
       editAction = {
@@ -216,7 +216,7 @@ export class ModifyHandler extends ModeHandler {
         featureIndexes: [editHandle.featureIndex],
         editContext: {
           positionIndexes: editHandle.positionIndexes,
-          position: event.groundCoords,
+          position: event.mapCoords,
         },
       };
     }
@@ -231,7 +231,7 @@ export class ModifyHandler extends ModeHandler {
     const editHandle = getPickedEditHandle(event.picks);
     if (selectedFeatureIndexes.length && editHandle) {
       const updatedData = this.getImmutableFeatureCollection()
-        .replacePosition(editHandle.featureIndex, editHandle.positionIndexes, event.groundCoords)
+        .replacePosition(editHandle.featureIndex, editHandle.positionIndexes, event.mapCoords)
         .getObject();
 
       editAction = {
@@ -240,7 +240,7 @@ export class ModifyHandler extends ModeHandler {
         featureIndexes: [editHandle.featureIndex],
         editContext: {
           positionIndexes: editHandle.positionIndexes,
-          position: event.groundCoords,
+          position: event.mapCoords,
         },
       };
     }

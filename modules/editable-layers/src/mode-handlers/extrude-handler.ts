@@ -1,6 +1,6 @@
 import bearing from '@turf/bearing';
 import { generatePointsParallelToLinePoints } from '../utils';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../event-types';
+import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
 import { EditAction, getPickedEditHandle } from './mode-handler';
 
 import { ModifyHandler } from './modify-handler';
@@ -31,7 +31,7 @@ export class ExtrudeHandler extends ModifyHandler {
       const p2 = this.getPointForPositionIndexes(positionIndexes, editHandle.featureIndex);
       if (p1 && p2) {
         // p3 and p4 are end points for moving (extruding) edge
-        const [p3, p4] = generatePointsParallelToLinePoints(p1, p2, event.groundCoords);
+        const [p3, p4] = generatePointsParallelToLinePoints(p1, p2, event.mapCoords);
 
         const updatedData = this.getImmutableFeatureCollection()
           .replacePosition(
@@ -136,7 +136,7 @@ export class ExtrudeHandler extends ModifyHandler {
 
       if (p1 && p2) {
         // p3 and p4 are end points for new moved (extruded) edge
-        const [p3, p4] = generatePointsParallelToLinePoints(p1, p2, event.groundCoords);
+        const [p3, p4] = generatePointsParallelToLinePoints(p1, p2, event.mapCoords);
 
         const updatedData = this.getImmutableFeatureCollection()
           .replacePosition(

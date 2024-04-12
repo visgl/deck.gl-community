@@ -1,6 +1,6 @@
 import circle from '@turf/circle';
 import distance from '@turf/distance';
-import { PointerMoveEvent } from '../event-types';
+import { PointerMoveEvent } from '../edit-modes/types';
 import { EditAction } from './mode-handler';
 import { TwoClickPolygonHandler } from './two-click-polygon-handler';
 
@@ -29,7 +29,7 @@ export class DrawCircleFromCenterHandler extends TwoClickPolygonHandler {
     }
 
     const centerCoordinates = clickSequence[0];
-    const radius = Math.max(distance(centerCoordinates, event.groundCoords), 0.001);
+    const radius = Math.max(distance(centerCoordinates, event.mapCoords), 0.001);
     // @ts-expect-error turf types diff
     this._setTentativeFeature(circle(centerCoordinates, radius, options));
 

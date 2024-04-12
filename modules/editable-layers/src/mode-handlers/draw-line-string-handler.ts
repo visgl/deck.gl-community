@@ -1,5 +1,5 @@
-import { Position, LineString } from '@deck.gl-community/editable-layers';
-import { ClickEvent, PointerMoveEvent } from '../event-types';
+import { Position, LineString } from '../geojson-types';
+import { ClickEvent, PointerMoveEvent } from '../edit-modes/types';
 import { EditAction, ModeHandler } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
@@ -34,7 +34,7 @@ export class DrawLineStringHandler extends ModeHandler {
       }
       const featureIndex = selectedFeatureIndexes[0];
       const updatedData = this.getImmutableFeatureCollection()
-        .addPosition(featureIndex, positionIndexes, event.groundCoords)
+        .addPosition(featureIndex, positionIndexes, event.mapCoords)
         .getObject();
 
       editAction = {
@@ -43,7 +43,7 @@ export class DrawLineStringHandler extends ModeHandler {
         featureIndexes: [featureIndex],
         editContext: {
           positionIndexes,
-          position: event.groundCoords,
+          position: event.mapCoords,
         },
       };
 
@@ -66,7 +66,7 @@ export class DrawLineStringHandler extends ModeHandler {
     const result = { editAction: null, cancelMapPan: false };
 
     const clickSequence = this.getClickSequence();
-    const groundCoords = event.groundCoords;
+    const mapCoords = event.mapCoords;
 
     let startPosition: Position | null | undefined = null;
     const selectedFeatureIndexes = this.getSelectedFeatureIndexes();
@@ -98,7 +98,7 @@ export class DrawLineStringHandler extends ModeHandler {
         properties: {},
         geometry: {
           type: 'LineString',
-          coordinates: [startPosition, groundCoords],
+          coordinates: [startPosition, mapCoords],
         },
       });
     }

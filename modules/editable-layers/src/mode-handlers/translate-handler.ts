@@ -2,14 +2,14 @@ import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfTransformTranslate from '@turf/transform-translate';
 import { point } from '@turf/helpers';
-import { FeatureCollection, Position } from '@deck.gl-community/editable-layers';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../event-types';
+import { FeatureCollection, Position } from '../geojson-types';
+import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
 import { EditAction, ModeHandler } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class TranslateHandler extends ModeHandler {
   _geometryBeforeTranslate: FeatureCollection | null | undefined;
-  _isTranslatable: boolean;
+  _isTranslatable: boolean = undefined!;
 
   handlePointerMove(event: PointerMoveEvent): {
     editAction: EditAction | null | undefined;
@@ -20,7 +20,7 @@ export class TranslateHandler extends ModeHandler {
     this._isTranslatable =
       Boolean(this._geometryBeforeTranslate) || this.isSelectionPicked(event.picks);
 
-    if (!this._isTranslatable || !event.pointerDownGroundCoords) {
+    if (!this._isTranslatable || !event.pointerDownMapCoords) {
       // Nothing to do
       return { editAction: null, cancelMapPan: false };
     }
@@ -28,8 +28,8 @@ export class TranslateHandler extends ModeHandler {
     if (event.isDragging && this._geometryBeforeTranslate) {
       // Translate the geometry
       editAction = this.getTranslateAction(
-        event.pointerDownGroundCoords,
-        event.groundCoords,
+        event.pointerDownMapCoords,
+        event.mapCoords,
         'translating'
       );
     }
@@ -52,8 +52,8 @@ export class TranslateHandler extends ModeHandler {
     if (this._geometryBeforeTranslate) {
       // Translate the geometry
       editAction = this.getTranslateAction(
-        event.pointerDownGroundCoords,
-        event.groundCoords,
+        event.pointerDownMapCoords,
+        event.mapCoords,
         'translated'
       );
       this._geometryBeforeTranslate = null;

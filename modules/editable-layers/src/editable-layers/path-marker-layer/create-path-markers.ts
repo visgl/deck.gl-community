@@ -1,4 +1,13 @@
 import { Vector2 } from '@math.gl/core';
+import { Position } from '../../geojson-types';
+import { Color } from '../../types';
+
+export interface PathMarker {
+  position: Position,
+  angle: number,
+  color: Color,
+  object: unknown
+}
 
 function getLineLength(vPoints) {
   // calculate total length
@@ -19,8 +28,8 @@ export default function createPathMarkers({
   getColor = (x) => DEFAULT_COLOR,
   getMarkerPercentages = (x, info) => [0.5],
   projectFlat,
-}) {
-  const markers = [];
+}): PathMarker[] {
+  const markers: PathMarker[] = [];
 
   for (const object of data) {
     const path = getPath(object, null);
@@ -67,7 +76,7 @@ export default function createPathMarkers({
   return markers;
 }
 
-function createMarkerAlongPath({ path, percentage, lineLength, color, object, projectFlat }) {
+function createMarkerAlongPath({ path, percentage, lineLength, color, object, projectFlat }): PathMarker {
   const distanceAlong = lineLength * percentage;
   let currentDistance = 0;
   let previousDistance = 0;

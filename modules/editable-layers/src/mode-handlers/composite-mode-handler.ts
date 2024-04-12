@@ -1,10 +1,10 @@
-import { FeatureCollection, Feature, Position } from '@deck.gl-community/editable-layers';
+import { FeatureCollection, Feature, Position } from '../geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
-} from '../event-types';
+} from '../edit-modes/types';
 import { ModeHandler, EditAction, EditHandle } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
@@ -72,12 +72,12 @@ export class CompositeModeHandler extends ModeHandler {
     return this._coalesce((handler) => handler.getTentativeFeature());
   }
 
-  getEditHandles(picks?: Array<Record<string, any>>, groundCoords?: Position): EditHandle[] {
+  getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
     // TODO: Combine the handles *BUT* make sure if none of the results have
     // changed to return the same object so that "editHandles !== this.state.editHandles"
     // in editable-geojson-layer works.
     return this._coalesce(
-      (handler) => handler.getEditHandles(picks, groundCoords),
+      (handler) => handler.getEditHandles(picks, mapCoords),
       (handles) => Array.isArray(handles) && handles.length > 0
     );
   }

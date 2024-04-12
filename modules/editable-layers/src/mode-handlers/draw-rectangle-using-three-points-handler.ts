@@ -1,6 +1,6 @@
-import { LineString } from '@deck.gl-community/editable-layers';
+import { LineString } from '../geojson-types';
 import { generatePointsParallelToLinePoints } from '../utils';
-import { PointerMoveEvent } from '../event-types';
+import { PointerMoveEvent } from '../edit-modes/types';
 import { EditAction } from './mode-handler';
 import { ThreeClickPolygonHandler } from './three-click-polygon-handler';
 
@@ -18,14 +18,14 @@ export class DrawRectangleUsingThreePointsHandler extends ThreeClickPolygonHandl
       return result;
     }
 
-    const groundCoords = event.groundCoords;
+    const mapCoords = event.mapCoords;
 
     if (clickSequence.length === 1) {
       this._setTentativeFeature({
         type: 'Feature',
         geometry: {
           type: 'LineString',
-          coordinates: [clickSequence[0], groundCoords],
+          coordinates: [clickSequence[0], mapCoords],
         },
       });
     } else if (clickSequence.length === 2) {
@@ -34,7 +34,7 @@ export class DrawRectangleUsingThreePointsHandler extends ThreeClickPolygonHandl
         coordinates: clickSequence,
       };
       const [p1, p2] = clickSequence;
-      const [p3, p4] = generatePointsParallelToLinePoints(p1, p2, groundCoords);
+      const [p3, p4] = generatePointsParallelToLinePoints(p1, p2, mapCoords);
 
       this._setTentativeFeature({
         type: 'Feature',

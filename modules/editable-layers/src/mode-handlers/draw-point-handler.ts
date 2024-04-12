@@ -1,13 +1,13 @@
-import { Geometry } from '@deck.gl-community/editable-layers';
-import { ClickEvent } from '../event-types';
+import { Geometry } from '../geojson-types';
+import { ClickEvent } from '../edit-modes/types';
 import { EditAction, ModeHandler } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class DrawPointHandler extends ModeHandler {
-  handleClick({ groundCoords }: ClickEvent): EditAction | null | undefined {
+  handleClick({ mapCoords }: ClickEvent): EditAction | null | undefined {
     const geometry: Geometry = {
       type: 'Point',
-      coordinates: groundCoords,
+      coordinates: mapCoords,
     };
 
     return this.getAddFeatureAction(geometry);

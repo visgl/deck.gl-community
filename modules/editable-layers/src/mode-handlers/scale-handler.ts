@@ -1,13 +1,13 @@
 import turfCentroid from '@turf/centroid';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
-import { FeatureCollection, Position } from '@deck.gl-community/editable-layers';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../event-types';
+import { FeatureCollection, Position } from '../geojson-types';
+import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
 import { EditAction, ModeHandler } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class ScaleHandler extends ModeHandler {
-  _isScalable: boolean;
+  _isScalable: boolean = undefined!;
   _geometryBeingScaled: FeatureCollection | null | undefined;
 
   handlePointerMove(event: PointerMoveEvent): {
@@ -18,7 +18,7 @@ export class ScaleHandler extends ModeHandler {
 
     this._isScalable = Boolean(this._geometryBeingScaled) || this.isSelectionPicked(event.picks);
 
-    if (!this._isScalable || !event.pointerDownGroundCoords) {
+    if (!this._isScalable || !event.pointerDownMapCoords) {
       // Nothing to do
       return { editAction: null, cancelMapPan: false };
     }
@@ -26,8 +26,8 @@ export class ScaleHandler extends ModeHandler {
     if (event.isDragging && this._geometryBeingScaled) {
       // Scale the geometry
       editAction = this.getScaleAction(
-        event.pointerDownGroundCoords,
-        event.groundCoords,
+        event.pointerDownMapCoords,
+        event.mapCoords,
         'scaling'
       );
     }
@@ -49,7 +49,7 @@ export class ScaleHandler extends ModeHandler {
 
     if (this._geometryBeingScaled) {
       // Scale the geometry
-      editAction = this.getScaleAction(event.pointerDownGroundCoords, event.groundCoords, 'scaled');
+      editAction = this.getScaleAction(event.pointerDownMapCoords, event.mapCoords, 'scaled');
       this._geometryBeingScaled = null;
     }
 

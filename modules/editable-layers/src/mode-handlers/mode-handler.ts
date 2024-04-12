@@ -5,21 +5,21 @@ import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
 
 import {
-  ImmutableFeatureCollection,
   FeatureCollection,
   Feature,
   Polygon,
   Geometry,
   Position,
-} from '@deck.gl-community/editable-layers';
+} from '../geojson-types';
 
 import {
   ClickEvent,
+  Pick,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
-  DeckGLPick,
-} from '../event-types';
+} from '../edit-modes/types';
+import { ImmutableFeatureCollection } from '../edit-modes/immutable-feature-collection';
 
 export type EditHandleType = 'existing' | 'intermediate' | 'snap';
 
@@ -39,7 +39,7 @@ export type EditAction = {
 
 export class ModeHandler {
   // TODO: add underscore
-  featureCollection: ImmutableFeatureCollection;
+  featureCollection: ImmutableFeatureCollection = undefined!;
   _tentativeFeature: Feature | null | undefined;
   _modeConfig: any = null;
   _selectedFeatureIndexes: number[] = [];
@@ -141,7 +141,7 @@ export class ModeHandler {
    *
    * @param featureIndex The index of the feature to get edit handles
    */
-  getEditHandles(picks?: Array<Record<string, any>>, groundCoords?: Position): EditHandle[] {
+  getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
     return [];
   }
 
@@ -149,7 +149,7 @@ export class ModeHandler {
     return 'cell';
   }
 
-  isSelectionPicked(picks: DeckGLPick[]): boolean {
+  isSelectionPicked(picks: Pick[]): boolean {
     if (!picks.length) return false;
     const pickedIndexes = picks.map(({ index }) => index);
     const selectedFeatureIndexes = this.getSelectedFeatureIndexes();
@@ -182,7 +182,7 @@ export class ModeHandler {
     const features = featureCollection.features;
     let updatedData = this.getImmutableFeatureCollection();
     const initialIndex = updatedData.getObject().features.length;
-    const updatedIndexes = [];
+    const updatedIndexes: number[] = [];
     for (const feature of features) {
       const { properties, geometry } = feature;
       const geometryAsAny: any = geometry;
@@ -268,7 +268,7 @@ export class ModeHandler {
   }
 
   handleClick(event: ClickEvent): EditAction | null | undefined {
-    this._clickSequence.push(event.groundCoords);
+    this._clickSequence.push(event.mapCoords);
 
     return null;
   }
@@ -312,7 +312,7 @@ export function getEditHandlesForGeometry(
   geometry: Geometry,
   featureIndex: number,
   editHandleType: EditHandleType = 'existing'
-) {
+): EditHandle[] {
   let handles: EditHandle[] = [];
 
   switch (geometry.type) {
@@ -380,9 +380,9 @@ function getEditHandlesForCoordinates(
   featureIndex: number,
   editHandleType: EditHandleType = 'existing'
 ): EditHandle[] {
-  const editHandles = [];
+  const editHandles: EditHandle[] = [];
   for (let i = 0; i < coordinates.length; i++) {
-    const position = coordinates[i];
+    const position = coordinates[i] as Position;
     editHandles.push({
       position,
       positionIndexes: [...positionIndexPrefix, i],

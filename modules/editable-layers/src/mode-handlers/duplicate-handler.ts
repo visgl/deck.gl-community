@@ -1,4 +1,4 @@
-import { StartDraggingEvent } from '../event-types';
+import { StartDraggingEvent } from '../edit-modes/types';
 import { EditAction } from './mode-handler';
 import { TranslateHandler } from './translate-handler';
 
