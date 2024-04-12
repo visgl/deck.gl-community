@@ -1,4 +1,4 @@
-import {createGraph} from '../index';
+import {createGraph} from '../utils/create-graph';
 import {basicNodeParser} from './node-parsers';
 import {basicEdgeParser} from './edge-parsers';
 import {log} from '../utils/log';

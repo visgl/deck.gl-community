@@ -1,6 +1,7 @@
 import {BaseLayout, BaseLayoutOptions } from '../../core/base-layout';
 import {Node} from '../../core/node';
-import {EDGE_TYPE, Graph} from '../../index';
+import {EDGE_TYPE} from '../../core/constants';
+import {Graph} from '../../core/graph';
 
 type AccessorVec2 = (node: Node) => [number, number];
 

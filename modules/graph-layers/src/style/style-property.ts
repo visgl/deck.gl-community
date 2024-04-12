@@ -1,5 +1,5 @@
 import Color from 'color';
-import {log} from '../../utils/log';
+import {log} from '../utils/log';
 
 /* Utils for type check */
 function getColor(value) {

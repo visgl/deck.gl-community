@@ -1,7 +1,8 @@
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
-import {Stylesheet} from './style/style-sheet';
-import {NODE_TYPE, EDGE_DECORATOR_TYPE, mixedGetPosition} from '../index';
+import {Stylesheet} from '../style/style-sheet';
+import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
+import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 
 import {log} from '../utils/log';

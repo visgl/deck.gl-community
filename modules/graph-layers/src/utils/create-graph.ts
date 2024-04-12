@@ -1,4 +1,6 @@
-import {Edge, Node, Graph} from '../index';
+import {Edge} from '../core/edge';
+import {Node} from '../core/node';
+import {Graph} from '../core/graph';
 
 export function createGraph({name, nodes, edges, nodeParser, edgeParser}) {
   // create a new empty graph

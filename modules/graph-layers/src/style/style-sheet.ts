@@ -1,7 +1,7 @@
-import StyleProperty from './style-property';
+import {StyleProperty} from './style-property';
 
-import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../../index';
-import {log} from '../../utils/log';
+import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
+import {log} from '../utils/log';
 
 const COMMON_DECKGL_PROPS = {
   getOffset: 'offset',

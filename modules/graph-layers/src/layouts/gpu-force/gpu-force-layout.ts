@@ -1,6 +1,6 @@
 import {BaseLayout} from '../../core/base-layout';
 
-import {EDGE_TYPE} from '../../index';
+import {EDGE_TYPE} from '../../core/constants';
 
 const defaultOptions = {
   alpha: 0.3,
