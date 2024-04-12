@@ -6,7 +6,7 @@ export class FlowLayer extends CompositeLayer {
   static layerName = 'FlowLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props;
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
     return [
       new FlowPathLayer(
         this.getSubLayerProps({

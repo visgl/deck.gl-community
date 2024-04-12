@@ -5,7 +5,7 @@ export class ZoomableMarkerLayer extends CompositeLayer {
   static layerName = 'ZoomableMarkerLayer';
 
   shouldUpdateState({props, changeFlags}) {
-    const {stylesheet} = this.props;
+    const {stylesheet} = this.props as any;
     const scaleWithZoom = stylesheet.getDeckGLAccessor('scaleWithZoom');
     if (!scaleWithZoom) {
       return changeFlags.somethingChanged;
@@ -14,7 +14,7 @@ export class ZoomableMarkerLayer extends CompositeLayer {
   }
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
 
     const getSize = stylesheet.getDeckGLAccessor('getSize');
     const scaleWithZoom = stylesheet.getDeckGLAccessor('scaleWithZoom');

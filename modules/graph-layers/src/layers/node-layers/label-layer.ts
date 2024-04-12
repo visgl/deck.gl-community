@@ -5,7 +5,7 @@ export class LabelLayer extends CompositeLayer {
   static layerName = 'LabelLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
 
     return [
       new ZoomableTextLayer(

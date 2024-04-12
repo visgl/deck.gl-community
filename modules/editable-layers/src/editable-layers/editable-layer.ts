@@ -74,7 +74,7 @@ export default abstract class EditableLayer<
     const { eventHandler } = this.state._editableLayerState;
 
     for (const eventType of EVENT_TYPES) {
-      eventManager.on(eventType, eventHandler, {
+      eventManager.on(eventType as any, eventHandler, {
         // give nebula a higher priority so that it can stop propagation to deck.gl's map panning handlers
         priority: 100,
       });
@@ -87,7 +87,7 @@ export default abstract class EditableLayer<
     const { eventHandler } = this.state._editableLayerState;
 
     for (const eventType of EVENT_TYPES) {
-      eventManager.off(eventType, eventHandler);
+      eventManager.off(eventType as any, eventHandler);
     }
   }
 

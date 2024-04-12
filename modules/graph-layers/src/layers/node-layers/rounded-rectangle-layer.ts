@@ -8,14 +8,14 @@ export class RoundedRectangleLayer extends RectangleLayer {
     super.draw({
       uniforms: {
         ...uniforms,
-        cornerRadius: this.props.cornerRadius
+        cornerRadius: (this.props as any).cornerRadius
       }
     });
   }
 
   getShaders() {
     // use object.assign to make sure we don't overwrite existing fields like `vs`, `modules`...
-    return Object.assign({}, super.getShaders(), {
+    return Object.assign({}, super.getShaders(undefined!), {
       fs
     });
   }

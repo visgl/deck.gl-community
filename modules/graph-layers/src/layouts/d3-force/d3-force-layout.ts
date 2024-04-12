@@ -12,16 +12,17 @@ const defaultOptions = {
 };
 
 export class D3ForceLayout extends BaseLayout {
+  protected readonly _name = 'D3';
+  private _positionsByNodeId = new Map();
+  private _graph: any;
+  private _worker: any;
   constructor(options) {
     super(options);
 
-    this._name = 'D3';
     this._options = {
       ...defaultOptions,
       ...options
     };
-
-    this._positionsByNodeId = new Map();
   }
 
   initializeGraph(graph) {

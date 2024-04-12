@@ -12,7 +12,7 @@ export class PathEdgeLayer extends CompositeLayer {
       colorUpdateTrigger = 0,
       widthUpdateTrigger = 0,
       ...otherProps
-    } = this.props;
+    } = this.props as any;
     return [
       new PathLayer(
         this.getSubLayerProps({

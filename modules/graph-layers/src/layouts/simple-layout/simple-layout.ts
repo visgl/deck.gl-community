@@ -10,7 +10,7 @@ interface SimpleLayoutOptions extends BaseLayoutOptions {
 }
 
 const defaultOptions: Required<SimpleLayoutOptions> = {
-  nodePositionAccessor: (node) => [node.getPropertyValue('x'), node.getPropertyValue('y')]
+  nodePositionAccessor: (node) => [node.getPropertyValue('x'), node.getPropertyValue('y')] as [number, number]
 };
 
 export class SimpleLayout extends BaseLayout {
@@ -52,16 +52,16 @@ export class SimpleLayout extends BaseLayout {
       return res;
     }, {});
     this._nodePositionMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = this._options.nodePositionAccessor(node);
+      res[node.getId()] = (this._options as any).nodePositionAccessor(node);
       return res;
     }, {});
   }
 
   setNodePositionAccessor = (accessor) => {
-    this._options.nodePositionAccessor = accessor;
+    (this._options as any).nodePositionAccessor = accessor;
   };
 
-  getNodePosition = (node) => this._nodePositionMap[node.getId()];
+  getNodePosition = (node) => this._nodePositionMap[node.getId()] as any;
 
   getEdgePosition = (edge) => {
     const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
@@ -71,11 +71,11 @@ export class SimpleLayout extends BaseLayout {
       sourcePosition: sourcePos,
       targetPosition: targetPos,
       controlPoints: []
-    };
+    } as any;
   };
 
   lockNodePosition = (node, x, y) => {
-    this._nodePositionMap[node.getId()] = [x, y];
+    this._nodePositionMap[node.getId()] = [x, y] as any;
     this._onLayoutChange();
     this._onLayoutDone();
   };

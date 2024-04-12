@@ -9,7 +9,7 @@ export class ZoomableTextLayer extends CompositeLayer {
   }
 
   shouldUpdateState({props, changeFlags}) {
-    const {scaleWithZoom} = this.props;
+    const {scaleWithZoom} = this.props as any;
     if (!scaleWithZoom) {
       return changeFlags.dataChanged || changeFlags.propsChanged;
     }
@@ -17,7 +17,7 @@ export class ZoomableTextLayer extends CompositeLayer {
   }
 
   updateState({props, oldProps, changeFlags}) {
-    super.updateState({props, oldProps, changeFlags});
+    super.updateState({props, oldProps, changeFlags} as any);
     if (changeFlags.propsOrDataChanged) {
       const {getText} = props;
       let textLabels = [];
@@ -49,7 +49,7 @@ export class ZoomableTextLayer extends CompositeLayer {
       textWordBreak,
       textMaxWidth,
       textSizeMinPixels
-    } = this.props;
+    } = this.props as any;
 
     const sizeUpdateTrigger = scaleWithZoom ? [getSize, this.context.viewport.zoom] : false;
     // getText only expects function not plain value (string)

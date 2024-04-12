@@ -44,7 +44,6 @@ export class TransformMode extends CompositeMode {
       }
     });
 
-    // @ts-expect-error
     if (scaleMode instanceof ScaleMode && !scaleMode.isEditHandleSelected()) {
       filteredModes.push(translateMode!);
     }

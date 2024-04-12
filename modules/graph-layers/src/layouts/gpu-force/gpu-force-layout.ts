@@ -13,6 +13,13 @@ const defaultOptions = {
 
 // TODO: this layout should be updated with the organizational and logic improvements made in d3-force
 export class GPUForceLayout extends BaseLayout {
+  protected readonly _name: string = 'GPU';
+  private _d3Graph: any;
+  private _nodeMap: any;
+  private _edgeMap: any;
+  private _graph: any;
+  private _worker: Worker;
+  private _callbacks: any;
   constructor(options) {
     super(options);
     this._name = 'GPU';
@@ -81,7 +88,7 @@ export class GPUForceLayout extends BaseLayout {
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
-      this._options;
+      this._options as any;
     this._worker.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,
@@ -194,7 +201,7 @@ export class GPUForceLayout extends BaseLayout {
     this._d3Graph.edges = newD3Edges;
   }
 
-  getNodePosition = (node) => {
+  getNodePosition = (node): [number, number] => {
     const d3Node = this._nodeMap[node.id];
     if (d3Node) {
       return [d3Node.x, d3Node.y];

@@ -5,7 +5,7 @@ export class EdgeLabelLayer extends CompositeLayer {
   static layerName = 'EdgeLabelLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props;
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
     return [
       new ZoomableTextLayer(
         this.getSubLayerProps({

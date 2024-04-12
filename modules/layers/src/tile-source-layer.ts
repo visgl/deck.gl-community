@@ -11,7 +11,7 @@ import type {TileSource} from '@loaders.gl/loader-utils';
 const devicePixelRatio = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
 
 export type TileSourceLayerProps = TileLayerProps & {
-  tileSource: TileSource;
+  tileSource: TileSource<any>;
   showTileBorders?: boolean;
 };
 
@@ -29,8 +29,8 @@ export class TileSourceLayer extends CompositeLayer<TileSourceLayerProps> {
   };
 
   state: {
-    tileSource: TileSource | null;
-  };
+    tileSource: TileSource<any> | null;
+  } = undefined!;
 
   initializeState() {
     this.setState({
@@ -45,7 +45,7 @@ export class TileSourceLayer extends CompositeLayer<TileSourceLayerProps> {
   }
 
   renderLayers() {
-    const {tileSource, showTileBorders, metadata, onTilesLoad} = this.props;
+    const {tileSource, showTileBorders, metadata, onTilesLoad} = this.props as any;
     const minZoom = metadata?.minZoom || 0;
     const maxZoom = metadata?.maxZoom || 30;
 
@@ -56,7 +56,7 @@ export class TileSourceLayer extends CompositeLayer<TileSourceLayerProps> {
         getTileData: tileSource.getTileData,
         // Assume the pmtiles file support HTTP/2, so we aren't limited by the browser to a certain number per domain.
         maxRequests: 20,
-    
+
         pickable: true,
         onViewportLoad: onTilesLoad,
         autoHighlight: showTileBorders,
@@ -66,25 +66,25 @@ export class TileSourceLayer extends CompositeLayer<TileSourceLayerProps> {
         tileSize: 256,
         // TOOD - why is this needed?
         zoomOffset: devicePixelRatio === 1 ? -1 : 0,
-        renderSubLayers,
-    
+        renderSubLayers: renderSubLayers as any,
+
         // Custom prop
         tileSource,
         showTileBorders
       })
     ];
-  }  
+  }
 }
 
 function renderSubLayers(props: TileSourceLayerProps & {tile: {index, bbox: {west, south, east, north}}}) {
   const {
-    tileSource, 
-    showTileBorders, 
+    tileSource,
+    showTileBorders,
     minZoom,
     maxZoom,
-    tile: {index: {z: zoom}, 
+    tile: {index: {z: zoom},
       bbox: {west, south, east, north}}
-  } = props;
+  } = props as any;
 
   const layers: Layer[] = [];
 
@@ -95,7 +95,7 @@ function renderSubLayers(props: TileSourceLayerProps & {tile: {index, bbox: {wes
       layers.push(
         new GeoJsonLayer({
           id: `${props.id}-geojson`,
-          data: props.data,
+          data: props.data as any,
           pickable: true,
           getFillColor: [0, 190, 80, 255],
           lineWidthScale: 500,
@@ -109,12 +109,12 @@ function renderSubLayers(props: TileSourceLayerProps & {tile: {index, bbox: {wes
     case 'image/webp':
     case 'image/avif':
       layers.push(
-        new BitmapLayer(props, {
+        new BitmapLayer(props as any, {
           data: null,
           image: props.data,
           bounds: [west, south, east, north],
           pickable: true
-        })
+        } as any)
       );
       break;
 
@@ -137,7 +137,7 @@ function renderSubLayers(props: TileSourceLayerProps & {tile: {index, bbox: {wes
           ]
         ],
         getPath: (d) => d,
-        getColor: borderColor,
+        getColor: borderColor as any,
         widthMinPixels: 4
       })
     );

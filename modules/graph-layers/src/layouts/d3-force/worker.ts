@@ -1,4 +1,4 @@
-/* global importScripts, d3*/
+/* global importScripts, d3 */
 
 importScripts('https://d3js.org/d3-collection.v1.min.js');
 importScripts('https://d3js.org/d3-dispatch.v1.min.js');
@@ -11,21 +11,26 @@ onmessage = function (event) {
 
   const {nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
     event.data.options;
+  // @ts-ignore
   const simulation = d3
     .forceSimulation(nodes)
     .force(
       'edge',
+      // @ts-ignore
       d3.forceLink(edges).id((n) => n.id)
     )
     .force(
       'charge',
+      // @ts-ignore
       d3
         .forceManyBody()
         .strength(nBodyStrength)
         .distanceMin(nBodyDistanceMin)
         .distanceMax(nBodyDistanceMax)
     )
+    // @ts-ignore
     .force('center', d3.forceCenter())
+    // @ts-ignore
     .force('collision', d3.forceCollide().radius(getCollisionRadius))
     .stop();
   for (

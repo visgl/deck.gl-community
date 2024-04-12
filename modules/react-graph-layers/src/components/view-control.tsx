@@ -24,10 +24,10 @@ export const NavigationButtonContainer = styled.div`
 export const NavigationButton = styled.div`
   color: #848484;
   cursor: pointer;
-  left: ${(props) => props.left};
+  left: ${(props) => (props as any).left};
   position: absolute;
-  top: ${(props) => props.top};
-  transform: rotate(${(props) => props.rotate || 0}deg);
+  top: ${(props) => (props as any).top};
+  transform: rotate(${(props) => (props as any).rotate || 0}deg);
 
   &:hover,
   &:active {
@@ -101,17 +101,17 @@ export default class ViewControl extends PureComponent {
   };
 
   // pan actions
-  panUp = () => this.props.panBy(0, this.props.deltaPan);
-  panDown = () => this.props.panBy(0, -1 * this.props.deltaPan);
-  panLeft = () => this.props.panBy(this.props.deltaPan, 0);
-  panRight = () => this.props.panBy(-1 * this.props.deltaPan, 0);
+  panUp = () => (this.props as any).panBy(0, (this.props as any).deltaPan);
+  panDown = () => (this.props as any).panBy(0, -1 * (this.props as any).deltaPan);
+  panLeft = () => (this.props as any).panBy((this.props as any).deltaPan, 0);
+  panRight = () => (this.props as any).panBy(-1 * (this.props as any).deltaPan, 0);
 
   // zoom actions
-  zoomIn = () => this.props.zoomBy(this.props.deltaZoom);
-  zoomOut = () => this.props.zoomBy(-1 * this.props.deltaZoom);
+  zoomIn = () => (this.props as any).zoomBy((this.props as any).deltaZoom);
+  zoomOut = () => (this.props as any).zoomBy(-1 * (this.props as any).deltaZoom);
   onChangeZoomLevel = (evt) => {
-    const delta = evt.target.value - this.props.zoomLevel;
-    this.props.zoomBy(delta);
+    const delta = evt.target.value - (this.props as any).zoomLevel;
+    (this.props as any).zoomBy(delta);
   };
 
   render() {
@@ -125,11 +125,13 @@ export default class ViewControl extends PureComponent {
     return (
       <ViewControlWrapper>
         <NavigationButtonContainer>
-          {buttons.map((b) => (
+          {buttons.map((b: any) => (
+            /* @ts-ignore */
             <NavigationButton key={b.key} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}
+          {/* @ts-ignore */}
           <NavigationButton top={'12px'} left={'16px'} onClick={this.props.fitBounds}>
             {'¤'}
           </NavigationButton>
@@ -141,11 +143,12 @@ export default class ViewControl extends PureComponent {
           <VerticalSlider>
             <input
               type="range"
-              value={this.props.zoomLevel}
-              min={this.props.minZoom}
-              max={this.props.maxZoom}
-              step={this.props.deltaZoom}
+              value={(this.props as any).zoomLevel}
+              min={(this.props as any).minZoom}
+              max={(this.props as any).maxZoom}
+              step={(this.props as any).deltaZoom}
               onChange={this.onChangeZoomLevel}
+              /* @ts-ignore */
               orient="vertical"
             />
           </VerticalSlider>

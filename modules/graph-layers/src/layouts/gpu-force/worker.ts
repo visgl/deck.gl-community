@@ -7,6 +7,7 @@ onmessage = function (event) {
   const {nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
     event.data.options;
   // FIXME remove cpu mode
+  // @ts-ignore
   const gpu = new GPU.GPU({
     mode: 'cpu'
   });
