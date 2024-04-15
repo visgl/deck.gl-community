@@ -1,6 +1,6 @@
 // Basic data structure of an edge
 import {EDGE_STATE} from './constants';
-import Node from './node';
+import {Node} from './node';
 
 interface EdgeOptions {
   id: string | number;
@@ -10,7 +10,7 @@ interface EdgeOptions {
   data: Record<string, unknown>;
 }
 
-export default class Edge {
+export class Edge {
   /** Unique uuid of the edge. */
   public id: string | number;
   /** ID of the source node. */

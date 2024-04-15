@@ -60,10 +60,10 @@ export class SnappableMode extends GeoJsonEditMode {
     const snapSourceFeature = data.features[featureIndex];
 
     // $FlowFixMe
-    const snapSourceCoordinates: Position = positionIndexes.reduce(
+    const snapSourceCoordinates = positionIndexes.reduce(
       (a: any[], b: number) => a[b],
       snapSourceFeature.geometry.coordinates
-    );
+    ) as Position;
 
     return {
       ...snapSourceHandle,
@@ -87,7 +87,7 @@ export class SnappableMode extends GeoJsonEditMode {
   }
 
   _getSnapTargetHandles(props: ModeProps<FeatureCollection>): EditHandleFeature[] {
-    const handles = [];
+    const handles: EditHandleFeature[] = [];
     const features = this._getSnapTargets(props);
 
     for (let i = 0; i < features.length; i++) {

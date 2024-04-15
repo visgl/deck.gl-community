@@ -199,6 +199,7 @@ export function nearestPointOnLine<G extends LineString | MultiLineString>(
   }
 
   // @ts-ignore
+  // eslint-disable-next-line max-statements, complexity
   flattenEach(lines, (line: any) => {
     const coords: any = getCoords(line);
     // @ts-ignore
@@ -427,8 +428,7 @@ export function getEditHandlesForGeometry(
 
       break;
     default:
-      // @ts-expect-error
-      throw Error(`Unhandled geometry type: ${geometry.type}`);
+      throw Error(`Unhandled geometry type: ${(geometry as {type: string}).type}`);
   }
 
   return handles;
@@ -440,9 +440,9 @@ function getEditHandlesForCoordinates(
   featureIndex: number,
   editHandleType: EditHandleType = 'existing'
 ): EditHandleFeature[] {
-  const editHandles = [];
+  const editHandles: EditHandleFeature[] = [];
   for (let i = 0; i < coordinates.length; i++) {
-    const position = coordinates[i];
+    const position = coordinates[i] as Position;
     editHandles.push({
       type: 'Feature',
       properties: {
@@ -471,7 +471,7 @@ export function updateRectanglePosition(
   feature: FeatureOf<Polygon>,
   editHandleIndex: number,
   mapCoords: Position
-): Position[][] {
+): Position[][] | null {
   const coordinates = feature.geometry.coordinates;
   if (!coordinates) {
     return null;

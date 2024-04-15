@@ -1,6 +1,6 @@
 import { it, expect } from 'vitest';
 import { generateCurveFromControlPoints } from '../../src/curve-utils';
-import { Feature } from '@deck.gl-community/editable-layers';
+import { Feature } from '../../src/geojson-types';
 
 const POLYLINE: Feature = {
   type: 'Feature',

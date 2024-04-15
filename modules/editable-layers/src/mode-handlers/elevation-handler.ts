@@ -1,5 +1,5 @@
-import { Position } from '@deck.gl-community/editable-layers';
-import { PointerMoveEvent, StopDraggingEvent } from '../event-types';
+import { Position } from '../geojson-types';
+import { PointerMoveEvent, StopDraggingEvent } from '../edit-modes/types';
 import { EditAction, getPickedEditHandle } from './mode-handler';
 
 import { ModifyHandler } from './modify-handler';
@@ -16,10 +16,10 @@ function defaultCalculateElevationChange({
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class ElevationHandler extends ModifyHandler {
-  makeElevatedEvent(
-    event: PointerMoveEvent | StopDraggingEvent,
+  makeElevatedEvent<T extends PointerMoveEvent | StopDraggingEvent>(
+    event: T,
     position: Position
-  ): Record<string, any> {
+  ): T {
     if (!event.pointerDownScreenCoords) {
       return event;
     }
@@ -42,7 +42,7 @@ export class ElevationHandler extends ModifyHandler {
     elevation = Math.max(elevation, minElevation);
 
     return Object.assign({}, event, {
-      groundCoords: [position[0], position[1], elevation],
+      mapCoords: [position[0], position[1], elevation],
     });
   }
 
@@ -51,15 +51,13 @@ export class ElevationHandler extends ModifyHandler {
     cancelMapPan: boolean;
   } {
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
-    const position = editHandle ? editHandle.position : event.groundCoords;
-    // @ts-expect-error narrow event type
+    const position = editHandle ? editHandle.position : event.mapCoords;
     return super.handlePointerMove(this.makeElevatedEvent(event, position));
   }
 
   handleStopDragging(event: StopDraggingEvent): EditAction | null | undefined {
     const editHandle = getPickedEditHandle(event.picks);
-    const position = editHandle ? editHandle.position : event.groundCoords;
-    // @ts-expect-error narrow event type
+    const position = editHandle ? editHandle.position : event.mapCoords;
     return super.handleStopDragging(this.makeElevatedEvent(event, position));
   }
 

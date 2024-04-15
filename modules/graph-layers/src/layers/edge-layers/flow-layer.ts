@@ -1,12 +1,12 @@
 import {CompositeLayer} from '@deck.gl/core';
 
-import FlowPathLayer from '../../deckgl-layers/flow-path-layer/index';
+import {FlowPathLayer} from '../common-layers/flow-path-layer/flow-path-layer';
 
-export default class FlowLayer extends CompositeLayer {
+export class FlowLayer extends CompositeLayer {
   static layerName = 'FlowLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props;
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
     return [
       new FlowPathLayer(
         this.getSubLayerProps({

@@ -15,11 +15,11 @@ const generateRectangle = (node, {getWidth, getHeight, getPosition}) => {
   ];
 };
 
-export default class RectangleLayer extends CompositeLayer {
+export class RectangleLayer extends CompositeLayer {
   static layerName = 'RectangleLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
 
     const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
     const getLineWidth = stylesheet.getDeckGLAccessor('getLineWidth');

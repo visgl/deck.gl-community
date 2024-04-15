@@ -12,11 +12,11 @@ const generateRoundedRectangle = (node, {getWidth, getHeight, getPosition, getCo
   return generateRoundedCorners(pos, width, height, cornerRadius, factor);
 };
 
-export default class PathBasedRoundedRectangleLayer extends CompositeLayer {
+export class PathBasedRoundedRectangleLayer extends CompositeLayer {
   static layerName = 'PathBasedRoundedRectangleLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
 
     const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
     const getLineWidth = stylesheet.getDeckGLAccessor('getLineWidth');

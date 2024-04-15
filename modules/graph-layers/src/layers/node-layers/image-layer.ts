@@ -1,11 +1,11 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {IconLayer} from '@deck.gl/layers';
 
-export default class ImageLayer extends CompositeLayer {
+export class ImageLayer extends CompositeLayer {
   static layerName = 'ImageLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
 
     return [
       new IconLayer(

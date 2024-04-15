@@ -61,12 +61,12 @@ export default class PathMarkerLayer<
   static layerName = 'PathMarkerLayer';
   static defaultProps = defaultProps;
 
-  state!: {
+  state: {
     closestPoint: Vector3 | null;
     closestPoints?: {position: Vector3}[];
     markers: any[];
     mesh: Arrow2DGeometry;
-  };
+  } = undefined!;
 
   initializeState() {
     this.state = {

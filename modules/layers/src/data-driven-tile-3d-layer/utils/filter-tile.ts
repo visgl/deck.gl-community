@@ -101,7 +101,6 @@ async function filterTileIndices(
   const attributeValuesMap = {};
   objectIdAttributeData[objectIdField.name]?.forEach((elem, index) => {
     attributeValuesMap[elem] =
-      // @ts-expect-error possible null
       tileFilterAttributeData[filterAttributeField.name][index];
   });
 
@@ -121,7 +120,7 @@ async function filterTileIndices(
       indices[index * 3 + 2] = vertex + 2;
     });
     return {success: true, indices};
-  } 
+  }
   const triangles: number[] = [];
   for (let i = 0; i < tile.content.indices.length; i += 3) {
     if (
@@ -140,7 +139,7 @@ async function filterTileIndices(
     indices[index * 3 + 2] = tile.content.indices[vertex + 2];
   });
   return {success: true, indices};
-  
+
 }
 
 async function loadFeatureAttributeData(

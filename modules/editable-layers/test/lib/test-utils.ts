@@ -1,5 +1,5 @@
-import { Position, FeatureCollection } from '@deck.gl-community/editable-layers';
-import { ClickEvent, PointerMoveEvent, StopDraggingEvent } from '../../src/event-types';
+import { Position, FeatureCollection } from '../../src/geojson-types';
+import { ClickEvent, PointerMoveEvent, StopDraggingEvent } from '../../src/edit-modes/types';
 
 export const FeatureType = {
   POINT: 'Point',
@@ -294,45 +294,45 @@ export function getMockFeatureDetails(featureType: string) {
   return featureDetails;
 }
 
-export function createClickEvent(groundCoords: Position, picks: any[] = []): ClickEvent {
+export function createClickEvent(mapCoords: Position, picks: any[] = []): ClickEvent {
   return {
     screenCoords: [-1, -1],
-    groundCoords,
+    mapCoords,
     picks,
     sourceEvent: null,
   };
 }
 
 export function createPointerDragEvent(
-  groundCoords: Position,
-  pointerDownGroundCoords: Position,
+  mapCoords: Position,
+  pointerDownMapCoords: Position,
   picks: any[] = []
 ): StopDraggingEvent {
   return {
     screenCoords: [-1, -1],
-    groundCoords,
+    mapCoords,
     picks,
     // @ts-ignore
     isDragging: true,
     pointerDownPicks: null,
     pointerDownScreenCoords: [-1, -1],
-    pointerDownGroundCoords,
+    pointerDownMapCoords,
     sourceEvent: null,
   };
 }
 
 export function createPointerMoveEvent(
-  groundCoords: Position,
+  mapCoords: Position,
   picks: any[] = []
 ): PointerMoveEvent {
   return {
     screenCoords: [-1, -1],
-    groundCoords,
+    mapCoords,
     picks,
     isDragging: false,
     pointerDownPicks: null,
     pointerDownScreenCoords: null,
-    pointerDownGroundCoords: null,
+    pointerDownMapCoords: null,
     sourceEvent: null,
   };
 }

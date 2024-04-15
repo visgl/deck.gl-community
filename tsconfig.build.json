@@ -1,0 +1,22 @@
+// This is the entry point when building all modules for distribution
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Uncomment to debug
+    // "listEmittedFiles": true
+  },
+  "references": [
+    {"path": "modules/bing-maps"},
+    {"path": "modules/editable-layers"},
+    {"path": "modules/graph-layers"},
+    {"path": "modules/layers"},
+    {"path": "modules/react"},
+    {"path": "modules/react-editable-layers"},
+    {"path": "modules/react-graph-layers"},
+    {"path": "modules/template"},
+    {"path": "modules/test-utils"}
+  ],
+  "include": ["modules/*/src"],
+  "exclude": ["modules/*/test"],
+  "transpileOnly": true
+}

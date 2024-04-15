@@ -1,10 +1,10 @@
 import {log} from '../utils/log';
 import {Cache} from './cache';
-import Edge from './edge';
-import Node from './node';
+import {Edge} from './edge';
+import {Node} from './node';
 
 // Basic graph data structure
-export default class Graph extends EventTarget {
+export class Graph extends EventTarget {
   /** List object of nodes. */
   private _nodeMap: Record<string, Node> = {};
   /** List of object edges. */

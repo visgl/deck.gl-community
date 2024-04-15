@@ -45,7 +45,7 @@ const CONFIG = {
         ],
       },
       {
-        // webpackl 4 fix for broken turf module: https://github.com/uber/nebula.gl/issues/64
+        // webpackl 4 fix for broken turf module: https://github.com/uber/@deck.gl-community/editable-layers/issues/64
         test: /\.mjs$/,
         include: /node_modules/,
         type: 'javascript/auto',
@@ -55,7 +55,7 @@ const CONFIG = {
 
   // Optional: Enables reading mapbox token from environment variable
   plugins: [
-    new HtmlWebpackPlugin({ title: 'nebula.gl' }),
+    new HtmlWebpackPlugin({ title: '@deck.gl-community/editable-layers' }),
     new webpack.EnvironmentPlugin(['MapboxAccessToken']),
   ],
 };

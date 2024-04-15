@@ -1,10 +1,10 @@
-import { FeatureCollection, Feature, Position } from '@deck.gl-community/editable-layers';
+import { FeatureCollection, Feature, Position } from '../geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
-} from '../event-types';
+} from '../edit-modes/types';
 import { ModeHandler, EditAction, EditHandle } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
@@ -20,18 +20,19 @@ export class CompositeModeHandler extends ModeHandler {
 
   _coalesce<T>(
     callback: (arg0: ModeHandler) => T,
-    resultEval: (arg0: T) => boolean | null | undefined = null
-  ): T {
-    let result: T;
+    resultEval: ((arg0: T) => boolean | null | undefined) | null = null
+  ): T | undefined {
+    let result: T | undefined;
 
     for (let i = 0; i < this.handlers.length; i++) {
+      // eslint-disable-next-line callback-return
       result = callback(this.handlers[i]);
       if (resultEval ? resultEval(result) : result) {
         break;
       }
     }
 
-    return result as any;
+    return result as T;
   }
 
   setFeatureCollection(featureCollection: FeatureCollection): void {
@@ -57,7 +58,7 @@ export class CompositeModeHandler extends ModeHandler {
     return this._coalesce(
       (handler) => handler.handlePointerMove(event),
       (result) => result && Boolean(result.editAction)
-    );
+    ) as any; // TODO
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
@@ -72,17 +73,17 @@ export class CompositeModeHandler extends ModeHandler {
     return this._coalesce((handler) => handler.getTentativeFeature());
   }
 
-  getEditHandles(picks?: Array<Record<string, any>>, groundCoords?: Position): EditHandle[] {
+  getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
     // TODO: Combine the handles *BUT* make sure if none of the results have
     // changed to return the same object so that "editHandles !== this.state.editHandles"
     // in editable-geojson-layer works.
     return this._coalesce(
-      (handler) => handler.getEditHandles(picks, groundCoords),
+      (handler) => handler.getEditHandles(picks, mapCoords),
       (handles) => Array.isArray(handles) && handles.length > 0
-    );
+    ) as any; // TODO
   }
 
   getCursor({ isDragging }: { isDragging: boolean }): string {
-    return this._coalesce((handler) => handler.getCursor({ isDragging }));
+    return this._coalesce((handler) => handler.getCursor({ isDragging })) as any; // TODO
   }
 }

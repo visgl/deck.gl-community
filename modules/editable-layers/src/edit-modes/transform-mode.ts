@@ -6,6 +6,7 @@ import { ScaleMode } from './scale-mode';
 import { RotateMode } from './rotate-mode';
 
 import { CompositeMode } from './composite-mode';
+import { GeoJsonEditMode } from './geojson-edit-mode';
 
 export class TransformMode extends CompositeMode {
   constructor() {
@@ -13,7 +14,7 @@ export class TransformMode extends CompositeMode {
   }
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
-    let updatedCursor = null;
+    let updatedCursor: string | null = null;
     super.handlePointerMove(event, {
       ...props,
       onUpdateCursor: (cursor) => {
@@ -24,9 +25,9 @@ export class TransformMode extends CompositeMode {
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
-    let scaleMode = null;
-    let translateMode = null;
-    const filteredModes = [];
+    let scaleMode: ScaleMode | null = null;
+    let translateMode: TranslateMode | null = null;
+    const filteredModes: GeoJsonEditMode[] = [];
 
     // If the user selects a scaling edit handle that overlaps with part of the selected feature,
     // it is possible for both scale and translate actions to be triggered. This logic prevents
@@ -44,7 +45,7 @@ export class TransformMode extends CompositeMode {
     });
 
     if (scaleMode instanceof ScaleMode && !scaleMode.isEditHandleSelected()) {
-      filteredModes.push(translateMode);
+      filteredModes.push(translateMode!);
     }
 
     filteredModes.filter(Boolean).forEach((mode) => mode.handleStartDragging(event, props));

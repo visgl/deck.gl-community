@@ -7,7 +7,7 @@ export interface BaseLayoutOptions {}
 /**
  * All the layout classes are extended from this base layout class.
  */
-export default class BaseLayout extends EventTarget {
+export class BaseLayout extends EventTarget {
   /** Name of the layout. */
   protected readonly _name: string = 'BaseLayout';
   /** Extra configuration options of the layout. */

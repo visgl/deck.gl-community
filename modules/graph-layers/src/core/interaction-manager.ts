@@ -1,7 +1,7 @@
 import {EDGE_STATE, NODE_STATE, ValueOf} from './constants';
-import Edge from './edge';
-import GraphEngine from './graph-engine';
-import Node from './node';
+import {Edge} from './edge';
+import {GraphEngine} from './graph-engine';
+import {Node} from './node';
 
 const NODE_TO_EDGE_STATE_MAP: Record<ValueOf<typeof NODE_STATE>, ValueOf<typeof EDGE_STATE>> = {
   [NODE_STATE.DEFAULT]: EDGE_STATE.DEFAULT,
@@ -49,7 +49,7 @@ export interface InteractionManagerProps {
   resumeLayoutAfterDragging: boolean;
 }
 
-export default class InteractionManager {
+export class InteractionManager {
   public notifyCallback: Function;
   private _lastInteraction = 0;
   private _lastHoveredNode: Node | null = null;

@@ -1,8 +1,8 @@
 /* eslint-env browser */
 import * as React from 'react';
-import { AnyGeoJson } from '@deck.gl-community/editable-layers';
-import { EditorModal } from './editor-modal';
-import { ExportComponent } from './export-component';
+import {AnyGeoJson} from '@deck.gl-community/editable-layers';
+import {EditorModal} from '@deck.gl-community/react';
+import {ExportComponent} from './export-component';
 
 export type ExportModalProps = {
   geoJson: AnyGeoJson;

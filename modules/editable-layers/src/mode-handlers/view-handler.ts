@@ -1,4 +1,4 @@
-import { Position } from '@deck.gl-community/editable-layers';
+import { Position } from '../geojson-types';
 import { EditHandle, ModeHandler } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
@@ -7,7 +7,7 @@ export class ViewHandler extends ModeHandler {
     return isDragging ? 'grabbing' : 'grab';
   }
 
-  getEditHandles(picks?: Array<Record<string, any>>, groundCoords?: Position): EditHandle[] {
+  getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
     return [];
   }
 }

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Dropzone from 'react-dropzone';
 import styled from 'styled-components';
-import { Button } from './editor-modal';
+import {Button} from '@deck.gl-community/react';
 import { ImportData, parseImport } from './lib/importer';
 
 const ImportComponentContent = styled.div`

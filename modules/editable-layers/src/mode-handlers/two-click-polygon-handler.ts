@@ -1,4 +1,4 @@
-import { ClickEvent } from '../event-types';
+import { ClickEvent } from '../edit-modes/types';
 import { ModeHandler, EditAction } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented

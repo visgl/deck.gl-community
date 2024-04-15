@@ -7,17 +7,17 @@ import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfDestination from '@turf/destination';
 import turfPolygonToLine from '@turf/polygon-to-line';
-import nearestPointOnLine from '@turf/nearest-point-on-line';
+import nearestPointOnLine, { NearestPointOnLine } from '@turf/nearest-point-on-line';
 import { generatePointsParallelToLinePoints } from '../utils';
-import { ClickEvent, PointerMoveEvent } from '../event-types';
 import { EditAction, ModeHandler } from './mode-handler';
+import { ClickEvent, PointerMoveEvent } from '../edit-modes/types';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class SplitPolygonHandler extends ModeHandler {
-  calculateGroundCoords(clickSequence: any, groundCoords: any) {
+  calculateMapCoords(clickSequence: any, mapCoords: any) {
     const modeConfig = this.getModeConfig();
     if (!modeConfig || !modeConfig.lock90Degree || !clickSequence.length) {
-      return groundCoords;
+      return mapCoords;
     }
     if (clickSequence.length === 1) {
       // if first point is clicked, then find closest polygon point and build ~90deg vector
@@ -28,7 +28,7 @@ export class SplitPolygonHandler extends ModeHandler {
 
       const lines = feature.type === 'FeatureCollection' ? feature.features : [feature];
       let minDistance = Number.MAX_SAFE_INTEGER;
-      let closestPoint = null;
+      let closestPoint: NearestPointOnLine | null = null;
       // If Multipolygon, then we should find nearest polygon line and stick split to it.
       lines.forEach((line) => {
         const snapPoint = nearestPointOnLine(line, firstPoint);
@@ -42,22 +42,22 @@ export class SplitPolygonHandler extends ModeHandler {
       if (closestPoint) {
         // closest point is used as 90degree entry to the polygon
         const lastBearing = turfBearing(firstPoint, closestPoint);
-        const currentDistance = turfDistance(firstPoint, groundCoords, { units: 'meters' });
+        const currentDistance = turfDistance(firstPoint, mapCoords, { units: 'meters' });
         return turfDestination(firstPoint, currentDistance, lastBearing, {
           units: 'meters',
         }).geometry.coordinates;
       }
-      return groundCoords;
+      return mapCoords;
     }
     // Allow only 90 degree turns
     const lastPoint = clickSequence[clickSequence.length - 1];
     const [approximatePoint] = generatePointsParallelToLinePoints(
       clickSequence[clickSequence.length - 2],
       lastPoint,
-      groundCoords
+      mapCoords
     );
     // align point with current ground
-    const nearestPt = nearestPointOnLine(lineString([lastPoint, approximatePoint]), groundCoords)
+    const nearestPt = nearestPointOnLine(lineString([lastPoint, approximatePoint]), mapCoords)
       .geometry.coordinates;
     return nearestPt;
   }
@@ -65,7 +65,7 @@ export class SplitPolygonHandler extends ModeHandler {
   handleClick(event: ClickEvent): EditAction | null | undefined {
     super.handleClick({
       ...event,
-      groundCoords: this.calculateGroundCoords(this.getClickSequence(), event.groundCoords),
+      mapCoords: this.calculateMapCoords(this.getClickSequence(), event.mapCoords),
     });
     const editAction: EditAction | null | undefined = null;
     const tentativeFeature = this.getTentativeFeature();
@@ -98,7 +98,7 @@ export class SplitPolygonHandler extends ModeHandler {
     return editAction;
   }
 
-  handlePointerMove({ groundCoords }: PointerMoveEvent): {
+  handlePointerMove({ mapCoords }: PointerMoveEvent): {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
@@ -114,7 +114,7 @@ export class SplitPolygonHandler extends ModeHandler {
       type: 'Feature',
       geometry: {
         type: 'LineString',
-        coordinates: [...clickSequence, this.calculateGroundCoords(clickSequence, groundCoords)],
+        coordinates: [...clickSequence, this.calculateMapCoords(clickSequence, mapCoords)],
       },
     });
 
@@ -145,7 +145,7 @@ export class SplitPolygonHandler extends ModeHandler {
     }
 
     const { type, coordinates } = updatedGeometry.geometry;
-    let updatedCoordinates = [];
+    let updatedCoordinates: any[] = []; // TODO
     if (type === 'Polygon') {
       // Update the coordinates as per Multipolygon
       updatedCoordinates = coordinates.map((c) => [c]);
@@ -156,7 +156,7 @@ export class SplitPolygonHandler extends ModeHandler {
           agg.push([p]);
         });
         return agg;
-      }, [] as any[]);
+      }, [] as any);
     }
 
     // Update the type to Mulitpolygon
