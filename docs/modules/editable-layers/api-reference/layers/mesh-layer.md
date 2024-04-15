@@ -1,5 +1,7 @@
 # MeshLayer
 
+> TO BE REPLACED with `@deck.gl/mesh-layers`
+
 The Mesh Layer renders a number of arbitrary geometries. For example, a fleet of 3d cars each with a position and an orientation over the map.
 
 ```js
@@ -122,7 +124,3 @@ The color of each object. Only used if `texture` is empty.
 Whether the layer should be rendered in high-precision 64-bit mode
 
 ##### `lightSettings` (Object, optional)
-
-**TO BE REPLACED**
-
-With `@deck.gl/mesh-layers`

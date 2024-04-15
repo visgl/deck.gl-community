@@ -3,13 +3,7 @@
   "label": "deck.gl-community/editable-layers",
   "items": [
     "modules/editable-layers/README",
-    {
-      "type": "category",
-      "label": "Developer Guide",
-      "items": [
-        "modules/editable-layers/developer-guide/get-started"
-      ]
-    },
+    "modules/editable-layers/developer-guide/get-started",
     {
       "type": "category",
       "label": "Layers",
@@ -22,15 +16,20 @@
     },
     {
       "type": "category",
-      "label": "Shader Modules",
+      "label": "Edit Modes",
       "items": [
-        "modules/editable-layers/api-reference/shader-modules/outline"
+        "modules/editable-layers/api-reference/edit-modes/core-modes",
+        "modules/editable-layers/api-reference/edit-modes/draw-modes",
+        "modules/editable-layers/api-reference/edit-modes/transform-modes",
+        "modules/editable-layers/api-reference/edit-modes/measurement-modes"
       ]
     },
     {
       "type": "category",
-      "label": "Modes",
-      "items": ["modules/editable-layers/api-reference/edit-modes"]
+      "label": "Shader Modules",
+      "items": [
+        "modules/editable-layers/api-reference/shader-modules/outline"
+      ]
     }
   ]
 }

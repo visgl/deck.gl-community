@@ -1,5 +1,8 @@
 # Overview
 
+![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
+![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+
 `graph-layers` is a deck.gl layer pack for GPU-powered visualization of large graphs. 
 
 With graph-layers, developers can build various type of graph/network applications with minimum effort. The composable API enables highly customizable graph visualization by leveraging or even extending the provided graph *styles* and *layout algorithms*.

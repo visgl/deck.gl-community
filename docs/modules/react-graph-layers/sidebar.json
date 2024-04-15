@@ -1,14 +1,13 @@
 {
   "type": "category",
-  "label": "@deck.gl-community/react-graph-layers",
+  "label": "deck-react-graph-layers",
   "items": [
     "modules/react-graph-layers/README",
     {
       "type": "category",
       "label": "GraphGL",
       "items": [
-        "modules/react-graph-layers/api-reference/graphgl",
-        "modules/react-graph-layers/api-reference/viewport"
+        "modules/react-graph-layers/api-reference/graphgl"
       ]
     }
   ]

@@ -1,4 +1,4 @@
-# Viewport (React)
+# Viewport
 
 ### initialViewState (Object, optional)
 
