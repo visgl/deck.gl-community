@@ -1,14 +1,16 @@
-# Editing Modes
+# Editor Modes
 
 `EditMode`s provide a way of handling user interactions in order to manipulate GeoJSON features and geometries.
 
 The following built-in `EditMode`s are provided by:
 
-## [ViewMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/view-mode.ts)
+## ViewMode
 
 No edits are possible, but selection is still possible.
 
-## [ModifyMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/modify-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/view-mode.ts)
+
+## ModifyMode
 
 User can move existing points, add intermediate points along lines, and remove points.
 
@@ -17,7 +19,7 @@ The following options can be provided in the `modeConfig` object for ModifyMode:
 - `lockRectangles` (optional): `<boolean>`
   - If `true`, features with `properties.shape === 'Rectangle'` will preserve rectangular shape.
 
-### Edit Context
+Callbacks:
 
 `editContext` argument to the `onEdit` callback contains the following properties:
 
@@ -25,19 +27,29 @@ The following options can be provided in the `modeConfig` object for ModifyMode:
 
 - `position` (Array): An array containing the ground coordinates (i.e. [lng, lat]) of the edited position
 
-## [ExtrudeMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/extrude-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/modify-mode.ts)
+
+
+## ExtrudeMode
 
 User can move edge. Click and drag from anywhere between 2 points in edge.
 
-## [ScaleMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/scale-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/extrude-mode.ts)
+
+
+## ScaleMode
 
 User can scale a feature about its centroid by clicking and dragging (inward or outward) the selected geometry. This mode supports multiple selections.
 
-## [RotateMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/rotate-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/scale-mode.ts)
+
+## RotateMode
 
 User can rotate a feature about its centroid by clicking and dragging the selected geometry. This mode supports multiple selections.
 
-## [TranslateMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/translate-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/rotate-mode.ts)
+
+## TranslateMode
 
 The user can move a feature by selecting one or more features and dragging anywhere within the screen.
 _Additionally, the user can initiate snapping by clicking and dragging the selected feature's vertex handles. If the vertex handle is close enough to another feature's vertex, the two features will snap together._
@@ -46,35 +58,43 @@ The following options can be provided in the `modeConfig` object for TranslateMo
 - `screenSpace` (optional): `<boolean>`
   - If `true`, the features will be translated without distortion in screen space.
 
-## [TransformMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/transform-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/translate-mode.ts)
+
+## TransformMode
 
 A single mode that provides translating, rotating, and scaling capabilities. Translation can be performed by clicking and dragging the selected feature itself. Rotating can be performed by clicking and dragging the top-most edit handle around a centroid pivot. Scaling can be performed by clicking and dragging one of the corner edit handles. Just like the individual modes, this mode supports multiple selections and feature snapping.
 
-## [DuplicateMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/duplicate-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/transform-mode.ts)
+
+## DuplicateMode
 
 User can duplicate and translate a feature by clicking selected feature and dragging anywhere on the screen.
 This mode is extends TranslateMode. This mode supports multiple selections.
 
-## [DrawPointMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-point-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/duplicate-mode.ts)
+
+## DrawPointMode
 
 User can draw a new `Point` feature by clicking where the point is to be.
 
-## [DrawLineStringMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-line-string-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-point-mode.ts)
+
+## DrawLineStringMode
 
 User can draw a new `LineString` feature by clicking positions to add. User finishes drawing by double-clicking.
 
-## [ExtendLineStringMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/extend-line-string-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-line-string-mode.ts)
+
+## ExtendLineStringMode
 
 User can extend an existing `LineString` feature by clicking positions to add. A single `LineString` feature must be selected for this mode.
-
-### ModeConfig
 
 The following options can be provided in the `modeConfig` object:
 
 - `drawAtFront` (optional): `<boolean>`
   - If `true`, will extend from the "beginning" of the line, i.e. relative to the start of the coordinates array.
 
-### Edit Context
+Callback parameters
 
 `editContext` argument to the `onEdit` callback contains the following properties:
 
@@ -82,22 +102,26 @@ The following options can be provided in the `modeConfig` object:
 
 - `position` (Array): An array containing the ground coordinates (i.e. [lng, lat]) of the added position
 
-## [ResizeCircleMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/resize-circle-mode.js)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/extend-line-string-mode.ts)
+
+## ResizeCircleMode
 
 User can resize an existing circular Polygon feature by clicking and dragging along the ring.
 
-## [DrawPolygonMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-polygon-mode.js)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/resize-circle-mode.js)
+
+## DrawPolygonMode
 
 User can draw a new `Polygon` feature by clicking positions to add then closing the polygon (or double-clicking).
 
-### ModeConfig
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-polygon-mode.js)
 
 The following options can be provided in the `modeConfig` object:
 
 - `preventOverlappingLines` (optional): `boolean`
   - If `true`, it will not be possible to add a polygon point if the current line overlaps any other lines on the same polygon.
 
-### Edit Context
+Callback parameters
 
 `editContext` argument to the `onEdit` callback contains the following properties:
 
@@ -105,13 +129,17 @@ The following options can be provided in the `modeConfig` object:
 
 - `position` (Array): An array containing the ground coordinates (i.e. [lng, lat]) of the added position
 
-## [Draw90DegreePolygonMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-90degree-polygon-mode.ts)
+## Draw90DegreePolygonMode
 
 User can draw a new `Polygon` feature with 90 degree corners (right angle) by clicking positions to add then closing the polygon (or double-clicking). After clicking the 2 points, the draw mode guides/allows to have right angle polygon.
 
-## [DrawPolygonByDraggingMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-polygon-by-dragging-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-90degree-polygon-mode.ts)
+
+## DrawPolygonByDraggingMode
 
 User can draw a new `Polygon` feature by dragging (similar to the lasso tool commonly found in photo editing software).
+
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-polygon-by-dragging-mode.ts)
 
 ### ModeConfig
 
@@ -120,10 +148,12 @@ The following options can be provided in the `modeConfig` object:
 - `throttleMs` (optional): `number`
   - If provided, the dragging function will be throttled by the specified number of milliseconds.
 
-## [DrawRectangleMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-rectangle-mode.ts)
+## DrawRectangleMode
 
 User can draw a new rectangular `Polygon` feature by clicking two opposing corners of the rectangle.
 
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-rectangle-mode.ts)
+
 ### ModeConfig
 
 The following options can be provided in the `modeConfig` object:
@@ -131,42 +161,43 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-## [DrawRectangleFromCenterMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-rectangle-from-center-mode.ts)
-
+## DrawRectangleFromCenterMode
 User can draw a new rectangular `Polygon` feature by clicking the center then along a corner of the rectangle.
 
-### ModeConfig
-
 The following options can be provided in the `modeConfig` object:
 
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-## [DrawRectangleUsingThreePointsMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-rectangle-using-three-points-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-rectangle-from-center-mode.ts)
+
+## DrawRectangleUsingThreePointsMode
 
 User can draw a new rectangular `Polygon` feature by clicking three corners of the rectangle.
 
-## [DrawSquareMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-square-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-rectangle-using-three-points-mode.ts)
+
+## DrawSquareMode
 
 User can draw a new square-shaped `Polygon` feature by clicking two opposing corners of the square.
 
-## [DrawSquareFromCenterMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-square-from-center-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-square-mode.ts)
+
+## DrawSquareFromCenterMode
 
 User can draw a new square-shaped `Polygon` feature by clicking the center and then along one of the corners of the square.
 
-### ModeConfig
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modesdraw-square-from-center-mode..ts)
 
 The following options can be provided in the `modeConfig` object:
 
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-## [DrawCircleFromCenterMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-circle-from-center-mode.ts)
+## DrawCircleFromCenterMode
 
 User can draw a new circular `Polygon` feature by clicking the center then along the ring.
 
-### ModeConfig
-
 The following options can be provided in the `modeConfig` object:
 
 - `steps` (optional): `x <number>`
@@ -174,12 +205,12 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-## [DrawCircleByDiameterMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-circle-by-diameter-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modesdraw-circle-from-center-mode..ts)
+
+## DrawCircleByDiameterMode
 
 User can draw a new circular `Polygon` feature by clicking the two ends of its diameter.
 
-### ModeConfig
-
 The following options can be provided in the `modeConfig` object:
 
 - `steps` (optional): `x <number>`
@@ -187,7 +218,9 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-## [DrawEllipseByBoundingBoxMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-ellipse-by-bounding-box-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modesdraw-circle-by-diameter-mode..ts)
+
+## DrawEllipseByBoundingBoxMode
 
 User can draw a new ellipse shape `Polygon` feature by clicking two corners of bounding box.
 
@@ -198,11 +231,15 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-## [DrawEllipseUsingThreePointsMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/draw-ellipse-using-three-points-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-ellipse-by-bounding-box-mode.ts)
+
+## DrawEllipseUsingThreePointsMode
 
 User can draw a new ellipse shape `Polygon` feature by clicking center and two corners of the ellipse.
 
-## [SplitPolygonMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/split-polygon-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-ellipse-using-three-points-mode.ts)
+
+## SplitPolygonMode
 
 User can split a polygon by drawing a new `LineString` feature on top of the polygon.
 
@@ -210,11 +247,11 @@ User can split a polygon by drawing a new `LineString` feature on top of the pol
 
 - If the clicked position is inside the polygon, it will not split the polygon
 
-## [MeasureDistanceMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/measure-distance-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/split-polygon-mode.ts)
+
+## MeasureDistanceMode
 
 User can measure a distance between two points.
-
-### ModeConfig
 
 The following options can be provided in the `modeConfig` object:
 
@@ -238,11 +275,11 @@ The following options can be provided in the `modeConfig` object:
   - If true, the measurement tooltips appear on the middle of their respective line segments rather than at the end
   - Default: `false`
 
-## [MeasureAreaMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/measure-area-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-distance-mode.ts)
+
+## MeasureAreaMode
 
 User can measure an area by drawing an arbitrary polygon.
-
-### ModeConfig
 
 The following options can be provided in the `modeConfig` object:
 
@@ -255,11 +292,11 @@ The following options can be provided in the `modeConfig` object:
   - Function to call as measurements are calculated
   - Default: `undefined`
 
-## [MeasureAngleMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/measure-angle-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-area-mode.ts)
+
+## MeasureAngleMode
 
 User can measure an angle by drawing two lines.
-
-### ModeConfig
 
 The following options can be provided in the `modeConfig` object:
 
@@ -272,11 +309,12 @@ The following options can be provided in the `modeConfig` object:
   - Function to call as measurements are calculated
   - Default: `undefined`
 
-## [ElevationMode](https://github.com/uber/@deck.gl-community/editable-layers/blob/master/modules/edit-modes/src/lib/elevation-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-angle-mode.ts)
+
+
+## ElevationMode
 
 User can move a point up and down.
-
-### ModeConfig
 
 The following options can be provided in the `modeConfig` object:
 
@@ -301,6 +339,21 @@ if (mode === 'elevation') {
     ElevationMode.calculateElevationChangeWithViewport(viewport, opts);
 }
 ```
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/elevation-mode.ts)
+
+## Composite Mode
+
+Use `CompositeMode` to combine multiple modes.
+_Not all combinations are guaranteed to work._
+
+`new CompositeMode(modes, options = {})`
+
+- `modes`: `Array<EditMode>` Modes you want to combine. **Order is very important.**
+- `options` (optional): Options to be added later.
+
+```
+new CompositeMode([new DrawLineStringMode(), new ModifyMode()])
+```
 
 ## Boolean Operations
 
@@ -312,21 +365,3 @@ For all polygon drawing modes, the following options can be provided in the `mod
   - If `union`, the drawn `Polygon` is unioned with the selected geometry
   - If `difference`, the drawn `Polygon` is subtracted from the selected geometry
   - If `intersection`, the drawn `Polygon` is intersected with the selected geometry
-
-## Composite Mode
-
-Use `CompositeMode` to combine multiple modes.
-_Not all combinations are guaranteed to work._
-
-### Constructor
-
-`new CompositeMode(modes, options = {})`
-
-- `modes`: `Array<EditMode>` Modes you want to combine. **Order is very important.**
-- `options` (optional): Options to be added later.
-
-### Example
-
-```
-new CompositeMode([new DrawLineStringMode(), new ModifyMode()])
-```

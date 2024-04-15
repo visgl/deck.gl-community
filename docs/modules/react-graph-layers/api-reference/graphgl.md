@@ -1,4 +1,4 @@
-# GraphGL (React)
+# GraphGL
 
 <p align="center">
   <img src="/gatsby/images/graph.png" height="200" />

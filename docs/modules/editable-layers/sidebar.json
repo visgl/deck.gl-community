@@ -16,15 +16,15 @@
     },
     {
       "type": "category",
+      "label": "EditModes",
+      "items": ["modules/editable-layers/api-reference/edit-modes"]
+    },
+    {
+      "type": "category",
       "label": "Shader Modules",
       "items": [
         "modules/editable-layers/api-reference/shader-modules/outline"
       ]
-    },
-    {
-      "type": "category",
-      "label": "Modes",
-      "items": ["modules/editable-layers/api-reference/edit-modes"]
     }
   ]
 }
