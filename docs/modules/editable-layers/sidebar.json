@@ -3,13 +3,7 @@
   "label": "deck.gl-community/editable-layers",
   "items": [
     "modules/editable-layers/README",
-    {
-      "type": "category",
-      "label": "Developer Guide",
-      "items": [
-        "modules/editable-layers/developer-guide/get-started"
-      ]
-    },
+    "modules/editable-layers/developer-guide/get-started",
     {
       "type": "category",
       "label": "Layers",

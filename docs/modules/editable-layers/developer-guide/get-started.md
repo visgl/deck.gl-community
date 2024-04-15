@@ -1,4 +1,4 @@
-# Developer Guide
+# Get Started
 
 ## Installation
 

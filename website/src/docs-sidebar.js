@@ -27,7 +27,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Layer Packs',
+      label: 'Layers',
       items: [layerDocs, editableLayerDocs, graphLayerDocs]
     },
     {

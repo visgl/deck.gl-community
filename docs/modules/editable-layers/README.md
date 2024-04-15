@@ -1,5 +1,9 @@
 # Overview
 
+![deck.gl](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
+![WebGPU](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+
+
 Provides editable and interactive map overlay layers, built using the power of [deck.gl](https://deck.gl/).
 
 ## History
