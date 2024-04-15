@@ -1,4 +1,3 @@
-// @noflow
 import React from 'react';
 import {select} from '@storybook/addon-knobs';
 import SAMPLE_GRAPH_DATASETS from '../data/sample-datasets';

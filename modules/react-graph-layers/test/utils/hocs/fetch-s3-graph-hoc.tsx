@@ -1,4 +1,3 @@
-// @noflow
 import React, {Component} from 'react';
 import {fetchJSONFromS3} from '@deck.gl-community/test-utils';
 import {JSONLoader} from 'deck-graph-layers';
