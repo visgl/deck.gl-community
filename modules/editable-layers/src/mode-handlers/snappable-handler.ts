@@ -147,7 +147,7 @@ export class SnappableHandler extends ModeHandler {
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
-    this._startDragSnapHandlePosition = (getPickedEditHandle(event.picks) || {}).position as Position;
+    this._startDragSnapHandlePosition = (getPickedEditHandle(event.picks) || {}).position ;
     return this._handler.handleStartDragging(event);
   }
 

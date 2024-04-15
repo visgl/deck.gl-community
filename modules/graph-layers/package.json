@@ -47,7 +47,6 @@
     "lodash.isequal": "^4.5.0",
     "lodash.pick": "^4.4.0",
     "probe.gl": "^3.6.0",
-    "raf": "^3.4.1",
-    "styled-components": "^5.3.6"
+    "raf": "^3.4.1"
   }
 }

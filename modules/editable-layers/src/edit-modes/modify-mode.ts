@@ -90,7 +90,7 @@ export class ModifyMode extends GeoJsonEditMode {
           const {
             geometry: { coordinates: position },
             properties: { index },
-          } = intermediatePoint as NearestPointType;
+          } = intermediatePoint ;
           handles.push({
             type: 'Feature',
             properties: {
@@ -131,7 +131,7 @@ export class ModifyMode extends GeoJsonEditMode {
         'Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.'
       );
     }
-    return nearestPointOnLine(line, inPoint, viewport!);
+    return nearestPointOnLine(line, inPoint, viewport);
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
@@ -166,7 +166,7 @@ export class ModifyMode extends GeoJsonEditMode {
 
       const feature = props.data.features[featureIndex];
       const canAddPosition = !(
-        props.modeConfig?.lockRectangles && feature?.properties!.shape === 'Rectangle'
+        props.modeConfig?.lockRectangles && feature?.properties.shape === 'Rectangle'
       );
 
       if (canAddPosition) {
@@ -210,10 +210,10 @@ export class ModifyMode extends GeoJsonEditMode {
     const editedFeature = props.data.features[editHandleProperties.featureIndex];
 
     let updatedData;
-    if (props.modeConfig?.lockRectangles && editedFeature.properties!.shape === 'Rectangle') {
+    if (props.modeConfig?.lockRectangles && editedFeature.properties.shape === 'Rectangle') {
       const coordinates = updateRectanglePosition(
         editedFeature as FeatureOf<Polygon>,
-        editHandleProperties.positionIndexes![1],
+        editHandleProperties.positionIndexes[1],
         event.mapCoords
       ) as any; // TODO
 

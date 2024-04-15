@@ -54,7 +54,7 @@ function getCleanedFeatures(geojson: AnyGeoJson): Feature[] {
 }
 
 function getCleanedFeature(feature: any): Feature {
-  const { id } = feature as any;
+  const { id } = feature ;
   // reduce null-checking
   const properties = feature.properties || {};
 

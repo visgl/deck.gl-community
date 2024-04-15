@@ -84,7 +84,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
           const {
             geometry: {coordinates: position},
             properties: {index}
-          } = intermediatePoint as NearestPointType;
+          } = intermediatePoint ;
           handles.push({
             type: 'Feature',
             properties: {
@@ -138,7 +138,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
 
       const editHandleProperties = editHandle.properties;
 
-      const feature = this.getSelectedFeature(props)!;
+      const feature = this.getSelectedFeature(props);
       // @ts-expect-error turf types diff
       const center = turfCenter(feature).geometry.coordinates;
       const numberOfSteps = Object.entries(feature.geometry.coordinates[0]).length - 1;

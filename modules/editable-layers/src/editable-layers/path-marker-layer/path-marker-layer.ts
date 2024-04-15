@@ -125,7 +125,7 @@ export default class PathMarkerLayer<
   _recalculateClosestPoint() {
     const {highlightPoint, highlightIndex} = this.props;
     if (highlightPoint && highlightIndex >= 0) {
-      const object = this.props.data![highlightIndex];
+      const object = this.props.data[highlightIndex];
       const points = this.props.getPath(object, null as any);
       const {point} = getClosestPointOnPolyline({points, p: highlightPoint});
       this.state.closestPoints = [{position: point}];

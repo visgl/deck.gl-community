@@ -83,7 +83,7 @@ export class ScaleMode extends GeoJsonEditMode {
     }
 
     const oppositeHandle = this._getOppositeScaleHandle(this._selectedEditHandle);
-    const origin = getCoord(oppositeHandle!) as Position;
+    const origin = getCoord(oppositeHandle) as Position;
 
     const scaleFactor = getScaleFactor(origin, startDragPoint, currentPoint);
 
@@ -203,7 +203,7 @@ export class ScaleMode extends GeoJsonEditMode {
     }
 
     const boundingBox = bboxPolygon(bbox(selectedGeometry));
-    boundingBox.properties!.mode = 'scale';
+    boundingBox.properties.mode = 'scale';
     const cornerGuidePoints: EditHandleFeature[] = [];
 
     coordEach(boundingBox, (coord, coordIndex) => {

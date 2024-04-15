@@ -1,8 +1,8 @@
 # HtmlOverlayItem
 
 This is an HTML item that will be rendered inside
-[HtmlOverlay](/docs/modules/react-overlays/api-reference/html-overlay) or
-[HtmlClusterOverlay](/docs/modules/react-overlays/api-reference/html-cluster-overlay).
+[HtmlOverlay](/docs/modules/react/api-reference/overlays/html-overlay) or
+[HtmlClusterOverlay](/docs/modules/react/api-reference/overlays/html-cluster-overlay).
 
 Note: `HtmlOverlayItem` **must** be direct children of `HtmlOverlay` or `HtmlClusterOverlay`.
 

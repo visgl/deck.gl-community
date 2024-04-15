@@ -218,8 +218,8 @@ export class Graph extends EventTarget {
       log.warn(`Unable to remove edge ${edgeId} - doesn't exist`)();
       return;
     }
-    const sourceNode = this.findNode(edge.getSourceNodeId()) as Node;
-    const targetNode = this.findNode(edge.getTargetNodeId()) as Node;
+    const sourceNode = this.findNode(edge.getSourceNodeId());
+    const targetNode = this.findNode(edge.getTargetNodeId());
 
     delete this._edgeMap[edgeId];
     sourceNode.removeConnectedEdges(edge);
@@ -261,7 +261,7 @@ export class Graph extends EventTarget {
       log.warn(`Unable to find node ${nodeId} - doesn't exist`)();
       return [];
     }
-    return node.getSiblingIds().map((siblingNodeId) => this.findNode(siblingNodeId)) as Node[];
+    return node.getSiblingIds().map((siblingNodeId) => this.findNode(siblingNodeId));
   }
 
   /**

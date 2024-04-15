@@ -3,14 +3,11 @@
   "label": "deck.gl-community/editable-layers",
   "items": [
     "modules/editable-layers/README",
-    "modules/editable-layers/whats-new",
     {
       "type": "category",
-      "label": "Get Started",
+      "label": "Developer Guide",
       "items": [
-        "modules/editable-layers/get-started/installing",
-        "modules/editable-layers/get-started/basic-usage",
-        "modules/editable-layers/get-started/html-overlays"
+        "modules/editable-layers/developer-guide/get-started"
       ]
     },
     {
@@ -34,15 +31,6 @@
       "type": "category",
       "label": "Modes",
       "items": ["modules/editable-layers/api-reference/edit-modes"]
-    },
-    {
-      "type": "category",
-      "label": "Overlays",
-      "items": [
-        "modules/react/api-reference/overlays/html-overlay",
-        "modules/react/api-reference/overlays/html-cluster-overlay",
-        "modules/react/api-reference/overlays/html-overlay-item"
-      ]
     }
   ]
 }

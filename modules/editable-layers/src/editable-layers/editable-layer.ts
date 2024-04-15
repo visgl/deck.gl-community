@@ -95,7 +95,7 @@ export default abstract class EditableLayer<
   // This means that the first layer instance will stick around to be the event listener, but will forward the event
   // to the latest layer instance.
   _forwardEventToCurrentLayer(event: any) {
-    const currentLayer = this.getCurrentLayer()!;
+    const currentLayer = this.getCurrentLayer();
 
     // Use a naming convention to find the event handling function for this event type
     const func = currentLayer[`_on${event.type}`].bind(currentLayer);
@@ -228,7 +228,7 @@ export default abstract class EditableLayer<
   }
 
   getPicks(screenCoords: [number, number]) {
-    return this.context.deck!.pickMultipleObjects({
+    return this.context.deck.pickMultipleObjects({
       x: screenCoords[0],
       y: screenCoords[1],
       layerIds: [this.props.id],

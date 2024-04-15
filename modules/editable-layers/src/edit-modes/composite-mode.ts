@@ -33,7 +33,7 @@ export class CompositeMode extends GeoJsonEditMode {
       }
     }
 
-    return result!;
+    return result;
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {

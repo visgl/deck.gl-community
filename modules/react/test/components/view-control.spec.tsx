@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {afterEach, describe, it, expect, vi} from 'vitest';
 import {cleanup, fireEvent, render} from '@testing-library/react';
-import ViewControl from '../src/components/view-control.jsx';
+import {ViewControl} from '../../src/components/view-control';
 
 // NOTE: this line is important! It will clean up the jsdom properly.
 afterEach(cleanup);

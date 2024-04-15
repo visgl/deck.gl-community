@@ -6,8 +6,8 @@ import Renderer from 'react-test-renderer';
 import DeckGL from '@deck.gl/react';
 import { createHeadlessContext } from '@luma.gl/test-utils';
 */
-import HtmlOverlay from '../../src/overlays/html-overlay';
-import HtmlOverlayItem from '../../src/overlays/html-overlay-item';
+import {HtmlOverlay} from '../../src/overlays/html-overlay';
+import {HtmlOverlayItem} from '../../src/overlays/html-overlay-item';
 
 /*
 const initialViewState = {

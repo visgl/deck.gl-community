@@ -30,7 +30,7 @@ export function getClosestPointOnPolyline({ p, points }) {
     }
   }
   return {
-    point: pClosest as Vector3,
+    point: pClosest ,
     index,
     p1: points[index],
     p2: points[index + 1],
