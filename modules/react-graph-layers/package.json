@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "react-deck-graph-layers",
   "version": "0.0.24",
   "description": "WebGL2-Powered React Components for Graph Visualization",

@@ -24,6 +24,7 @@
   --ifm-color-gray-900: #2B3848;
   --ifm-color-black: #19202C
   --code-font-size: 95%;
+  --doc-sidebar-width: 350px !important;
 }
 main .container {
   position: relative;
