@@ -8,7 +8,7 @@ afterEach(cleanup);
 
 // const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-describe('GrapGL', () => {
+describe('GraphGL', () => {
   it('should exist ▲', async () => {
     // const onClick = vi.fn();
     // const {getByText} = render(<LongPressButton onClick={onClick}>{'▲'}</LongPressButton>);
