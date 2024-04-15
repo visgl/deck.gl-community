@@ -1,6 +1,6 @@
 # What's New
 
-## deck.gl v9 compatible releases
+The following releases are deck.gl v9 compatible
 
 ### `@deck.gl-community/graph-layers` v9.0.0
 
@@ -23,7 +23,7 @@ This new module is a fork of Uber's no longer maintained @nebula.gl framework.is
 
 ---
 
-## deck.gl v8 Compatible Releases
+Releases below are deck.gl v8 compatible
 
 > Support for the v8 ecosystem is not a goal, anything below is available strictly on an as-is basis.
 

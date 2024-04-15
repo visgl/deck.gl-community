@@ -27,15 +27,15 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Basemaps',
-      items: [bingMapsDocs]
+      label: 'Layer Packs',
+      items: [layerDocs, editableLayerDocs, graphLayerDocs]
     },
     {
       type: 'category',
-      label: 'Layer Packs',
-      items: [bingMapsDocs, layerDocs, editableLayerDocs, graphLayerDocs]
+      label: 'Basemaps',
+      items: [bingMapsDocs]
     },
-    {label: 'React Bindings', items: [reactDocs, reactGraphDocs]}
+    {type: 'category', label: 'React Bindings', items: [reactDocs, reactGraphDocs]}
   ]
 };
 

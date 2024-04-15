@@ -2,15 +2,15 @@
 
 Provides editable and interactive map overlay layers, built using the power of [deck.gl](https://deck.gl/).
 
-History
+## History
 
 A fork of @nebula.gl. nebula.gl is an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
 
-# What's New
+## What's New
 
 This page contains highlights of each `editable-layers` release.
 
-## editable-layers v9.0
+### editable-layers v9.0
 
 
 - The code has been updated to work with deck.gl v9. 
@@ -26,21 +26,12 @@ This page contains highlights of each `editable-layers` release.
 | `react-map-gl-draw`                       | Non-deck-wrapper    | => NOT FORKED                                 |
 
 
+### editable-layers v0.0.1
+
 Release date: TBD
 
-### Draw Rectangle From Center Mode
-
 - new `DrawRectangleFromCenterMode`. User can draw a new rectangular `Polygon` feature by clicking the center, then along a corner of the rectangle.
-
-### Translate mode
-
 - `screenSpace` option can be provided in the `modeConfig` of Translate mode so the features will be translated without distortion in screen space.
-
-### Modify mode
-
 - `lockRectangles` option can be provided in the `modeConfig` object for ModifyMode, so the features with `properties.shape === 'Rectangle'` will preserve rectangular shape.
-
-### EditableGeojsonLayer
-
 - `pickingLineWidthExtraPixels` property to specify additional line width in pixels for picking. Can be useful when `EditableGeojsonLayer` is over a deck.gl layer and precise picking is problematic, and when usage of `pickingDepth` introduces performance issues.
 
