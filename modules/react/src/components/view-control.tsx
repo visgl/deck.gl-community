@@ -1,7 +1,7 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
-import LongPressButton from './long-press-button';
+import {LongPressButton} from './long-press-button';
 
 export const ViewControlWrapper = styled.div`
   align-items: center;
@@ -73,7 +73,7 @@ export const ZoomControlButton = styled.div`
   }
 `;
 
-export default class ViewControl extends PureComponent {
+export class ViewControl extends PureComponent {
   static displayName = 'ViewControl';
 
   static propTypes = {

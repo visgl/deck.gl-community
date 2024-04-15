@@ -2,11 +2,12 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-import {extent} from 'd3-array';
 import {BaseLayout, Graph, GraphLayer, log, SimpleLayout} from 'deck-graph-layers';
+import {PositionedViewControl} from '@deck.gl-community/react';
+
+import {extent} from 'd3-array';
 import {useGraphEngine} from './use-graph-engine';
 import {useLoading} from './hooks/use-loading';
-import {PositionedViewControl} from './components/positioned-view-control';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view

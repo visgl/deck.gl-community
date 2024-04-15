@@ -9,6 +9,7 @@
     "noEmit": false
   },
   "references": [
-    {"path": "../graph-layers"}
+    {"path": "../graph-layers"},
+    {"path": "../react"}
   ]
 }

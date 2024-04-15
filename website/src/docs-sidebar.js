@@ -15,6 +15,7 @@
  const editorDocs = require('../../docs/modules/editable-layers/sidebar.json');
  const graphGLDocs = require('../../docs/modules/graph-layers/sidebar.json');
 
+ const reactDocs = require('../../docs/modules/react/sidebar.json');
  const reactGraphDocs = require('../../docs/modules/react-graph-layers/sidebar.json');
  
  const sidebars = {
@@ -37,6 +38,7 @@
         editorDocs,
         graphGLDocs,
         bingMapsDocs,
+        reactDocs,
         reactGraphDocs
       ]
     }

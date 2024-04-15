@@ -1,7 +1,7 @@
 /* eslint-env browser */
 import * as React from 'react';
 import {AnyGeoJson} from '@deck.gl-community/editable-layers';
-import {EditorModal} from '@deck.gl-community/react';
+import {Modal} from '@deck.gl-community/react';
 import {ExportComponent} from './export-component';
 
 export type ExportModalProps = {
@@ -13,7 +13,7 @@ export type ExportModalProps = {
 
 export function ExportModal(props: ExportModalProps) {
   return (
-    <EditorModal
+    <Modal
       onClose={props.onClose}
       title={'Export'}
       content={<ExportComponent {...props} />}

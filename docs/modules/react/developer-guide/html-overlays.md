@@ -14,5 +14,5 @@ Checkout the Unesco World Heritage example.
 
 ## See Also
 
-- [Html Overlay](/docs/modules/react-overlays/api-reference/html-overlay)
-- [Html Overlay Item](/docs/modules/react-overlays/api-reference/html-overlay-item)
+- [Html Overlay](/docs/modules/react/api-reference/overlays/html-overlay)
+- [Html Overlay Item](/docs/modules/react/api-reference/overlays/html-overlay-item)

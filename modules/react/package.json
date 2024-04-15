@@ -7,7 +7,7 @@
   "author": "Georgios Karnas <georgios@uber.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/uber/@deck.gl-community/editable-layers"
+    "url": "https://github.com/uber/@deck.gl-community"
   },
   "keywords": [
     "webgl",
@@ -32,9 +32,6 @@
     "src"
   ],
   "dependencies": {
-    "@turf/helpers": "^6.5.0",
-    "@types/supercluster": "5.0.3",
-    "supercluster": "^6.0.2"
   },
   "peerDependencies": {
     "react": "^16.14 || ^17",

@@ -1,8 +1,8 @@
 # HtmlOverlay
 
 Use this class if you have HTML items that need to be displayed at specific geo coordinates on the map.
-If you need clustering see [HtmlClusterOverlay](/docs/modules/react-overlays/api-reference/html-cluster-overlay).
-You can subclass this class or provide [HtmlOverlayItem](/docs/modules/react-overlays/api-reference/html-overlay-item) as children.
+If you need clustering see [HtmlClusterOverlay](/docs/modules/react/api-reference/overlays/html-cluster-overlay).
+You can subclass this class or provide [HtmlOverlayItem](/docs/modules/react/api-reference/overlays/html-overlay-item) as children.
 Then use it as a `react component` inside `DeckGL`.
 
 ```jsx
@@ -42,5 +42,5 @@ Default is `1`. Set to `0` to move items _under_ deck.gl layer.
 
 ### getItems()
 
-Provide an array of [HtmlOverlayItem](/docs/modules/react-overlays/api-reference/html-overlay-item)
+Provide an array of [HtmlOverlayItem](/docs/modules/react/api-reference/overlays/html-overlay-item)
 if not providing them as JSX children.

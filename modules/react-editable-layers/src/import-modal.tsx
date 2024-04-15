@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { ImportComponent } from './import-component';
-import {EditorModal} from '@deck.gl-community/react';
+import {Modal} from '@deck.gl-community/react';
 
 export type ImportModalProps = {
   onImport: (arg0: any) => unknown;
@@ -12,7 +12,7 @@ export type ImportModalProps = {
 
 export function ImportModal(props: ImportModalProps) {
   return (
-    <EditorModal
+    <Modal
       onClose={props.onClose}
       title={'Import'}
       content={

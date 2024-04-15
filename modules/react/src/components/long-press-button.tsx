@@ -1,7 +1,7 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 
-export default class LongPressButton extends PureComponent {
+export class LongPressButton extends PureComponent {
   static propTypes = {
     onClick: PropTypes.func.isRequired,
     // eslint-disable-next-line react/forbid-prop-types

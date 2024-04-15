@@ -32,6 +32,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@deck.gl-community/react": "0.0.1",
     "@deck.gl/core": "^9.0.5",
     "@deck.gl/react": "^9.0.5",
     "@types/d3-array": "^3.2.1",
