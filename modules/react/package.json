@@ -9,6 +9,10 @@
     "type": "git",
     "url": "https://github.com/uber/@deck.gl-community"
   },
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
   "keywords": [
     "webgl",
     "visualization",
@@ -33,6 +37,7 @@
   ],
   "dependencies": {
     "@types/styled-react-modal": "^1.2.5",
+    "prop-types": "^15.8.1",
     "styled-components": "^6.1.8",
     "styled-react-modal": "^3.1.1"
   },
