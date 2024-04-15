@@ -19,7 +19,7 @@ const INITIAL_VIEW_STATE = {
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 
-const GraphGl = ({
+export const GraphGL = ({
   graph = new Graph(),
   layout = new SimpleLayout(),
   glOptions = {},
@@ -221,7 +221,7 @@ const GraphGl = ({
   );
 };
 
-GraphGl.propTypes = {
+GraphGL.propTypes = {
   /** Input graph data */
   graph: PropTypes.object.isRequired,
   /** Layout algorithm */
@@ -287,5 +287,3 @@ GraphGl.propTypes = {
   /** The tooltip to show when hovering over a node or an edge. */
   getTooltip: PropTypes.func
 };
-
-export default GraphGl;
