@@ -1,7 +1,7 @@
 # Overview
 
-![deck.gl](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
+![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
 `graph-layers` is a deck.gl layer pack for GPU-powered visualization of large graphs. 
 

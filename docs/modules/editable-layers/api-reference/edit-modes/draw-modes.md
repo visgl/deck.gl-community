@@ -1,8 +1,17 @@
-# Edit Modes
+# Editor Modes
 
 `EditMode`s provide a way of handling user interactions in order to manipulate GeoJSON features and geometries.
 
-The following built-in `EditMode`s are provided by:
+## Draw configuration options
+
+Note that for all polygon drawing modes, the following options can also be provided in the `modeConfig` object:
+
+- `booleanOperation` (optional): `null|'union'|'difference'|'intersection'`
+  - If non-null, requires a single `Polygon` or `MultiPolygon` selection
+  - If `null`, the drawn `Polygon` is added as a new feature regardless of selection
+  - If `union`, the drawn `Polygon` is unioned with the selected geometry
+  - If `difference`, the drawn `Polygon` is subtracted from the selected geometry
+  - If `intersection`, the drawn `Polygon` is intersected with the selected geometry
 
 ## DrawPointMode
 
@@ -72,8 +81,6 @@ User can draw a new `Polygon` feature by dragging (similar to the lasso tool com
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-polygon-by-dragging-mode.ts)
 
-### ModeConfig
-
 The following options can be provided in the `modeConfig` object:
 
 - `throttleMs` (optional): `number`
@@ -84,8 +91,6 @@ The following options can be provided in the `modeConfig` object:
 User can draw a new rectangular `Polygon` feature by clicking two opposing corners of the rectangle.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-rectangle-mode.ts)
-
-### ModeConfig
 
 The following options can be provided in the `modeConfig` object:
 
@@ -155,8 +160,6 @@ The following options can be provided in the `modeConfig` object:
 
 User can draw a new ellipse shape `Polygon` feature by clicking two corners of bounding box.
 
-### ModeConfig
-
 The following options can be provided in the `modeConfig` object:
 
 - `dragToDraw` (optional): `boolean`
@@ -180,119 +183,3 @@ User can split a polygon by drawing a new `LineString` feature on top of the pol
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/split-polygon-mode.ts)
 
-## MeasureDistanceMode
-
-User can measure a distance between two points.
-
-The following options can be provided in the `modeConfig` object:
-
-- `turfOptions` (Object, optional)
-
-  - `options` object passed to turf's [distance](https://turfjs.org/docs/#distance) function
-  - Default: `undefined`
-
-- `formatTooltip` (Function, optional)
-
-  - Function to format tooltip text (argument is the numeric distance)
-  - Default: `(distance) => parseFloat(distance).toFixed(2) + units`
-
-- `measurementCallback` (Function, optional)
-
-  - Function to call as measurements are calculated
-  - Default: `undefined`
-
-- `centerTooltipsOnLine` (Boolean, optional)
-
-  - If true, the measurement tooltips appear on the middle of their respective line segments rather than at the end
-  - Default: `false`
-
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-distance-mode.ts)
-
-## MeasureAreaMode
-
-User can measure an area by drawing an arbitrary polygon.
-
-The following options can be provided in the `modeConfig` object:
-
-- `formatTooltip` (Function, optional)
-
-  - Function to format tooltip text (argument is the numeric area)
-  - Default: `(distance) => parseFloat(distance).toFixed(2) + units`
-
-- `measurementCallback` (Function, optional)
-  - Function to call as measurements are calculated
-  - Default: `undefined`
-
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-area-mode.ts)
-
-## MeasureAngleMode
-
-User can measure an angle by drawing two lines.
-
-The following options can be provided in the `modeConfig` object:
-
-- `formatTooltip` (Function, optional)
-
-  - Function to format tooltip text (argument is the numeric area)
-  - Default: `(distance) => parseFloat(angle).toFixed(2) + units`
-
-- `measurementCallback` (Function, optional)
-  - Function to call as measurements are calculated
-  - Default: `undefined`
-
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-angle-mode.ts)
-
-
-## ElevationMode
-
-User can move a point up and down.
-
-The following options can be provided in the `modeConfig` object:
-
-- `minElevation` (Number, optional)
-
-  - The minimum elevation to allow
-  - Default: `0`
-
-- `maxElevation` (Number, optional)
-
-  - The maximum elevation to allow
-  - Default: `20000`
-
-- `calculateElevationChange` (Function, optional)
-  - A function to use to calculate the elevation change in response to mouse movement
-  - Default: `10 * <vertical movement in pixels>`
-  - Configure to use movement based on viewport:
-
-```javascript
-if (mode === 'elevation') {
-  modeConfig.calculateElevationChange = (opts) =>
-    ElevationMode.calculateElevationChangeWithViewport(viewport, opts);
-}
-```
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/elevation-mode.ts)
-
-## Composite Mode
-
-Use `CompositeMode` to combine multiple modes.
-_Not all combinations are guaranteed to work._
-
-`new CompositeMode(modes, options = {})`
-
-- `modes`: `Array<EditMode>` Modes you want to combine. **Order is very important.**
-- `options` (optional): Options to be added later.
-
-```
-new CompositeMode([new DrawLineStringMode(), new ModifyMode()])
-```
-
-## Boolean Operations
-
-For all polygon drawing modes, the following options can be provided in the `modeConfig` object:
-
-- `booleanOperation` (optional): `null|'union'|'difference'|'intersection'`
-  - If non-null, requires a single `Polygon` or `MultiPolygon` selection
-  - If `null`, the drawn `Polygon` is added as a new feature regardless of selection
-  - If `union`, the drawn `Polygon` is unioned with the selected geometry
-  - If `difference`, the drawn `Polygon` is subtracted from the selected geometry
-  - If `intersection`, the drawn `Polygon` is intersected with the selected geometry

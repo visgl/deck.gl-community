@@ -16,8 +16,13 @@
     },
     {
       "type": "category",
-      "label": "EditModes",
-      "items": ["modules/editable-layers/api-reference/edit-modes"]
+      "label": "Edit Modes",
+      "items": [
+        "modules/editable-layers/api-reference/edit-modes/core-modes",
+        "modules/editable-layers/api-reference/edit-modes/draw-modes",
+        "modules/editable-layers/api-reference/edit-modes/transform-modes",
+        "modules/editable-layers/api-reference/edit-modes/measurement-modes"
+      ]
     },
     {
       "type": "category",
