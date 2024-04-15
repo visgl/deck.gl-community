@@ -45,7 +45,7 @@ export class TransformMode extends CompositeMode {
     });
 
     if (scaleMode instanceof ScaleMode && !scaleMode.isEditHandleSelected()) {
-      filteredModes.push(translateMode!);
+      filteredModes.push(translateMode);
     }
 
     filteredModes.filter(Boolean).forEach((mode) => mode.handleStartDragging(event, props));

@@ -32,7 +32,7 @@ export class CompositeModeHandler extends ModeHandler {
       }
     }
 
-    return result as T;
+    return result ;
   }
 
   setFeatureCollection(featureCollection: FeatureCollection): void {

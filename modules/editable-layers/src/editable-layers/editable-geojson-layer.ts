@@ -420,7 +420,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
         // This supports double-click where we need to ensure that there's a re-render between the two clicks
         // even though the data wasn't changed, just the internal tentative feature.
         this.setNeedsUpdate();
-        props.onEdit!(editAction);
+        props.onEdit(editAction);
       },
       onUpdateCursor: (cursor: string | null | undefined) => {
         this.setState({ cursor });

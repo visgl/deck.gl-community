@@ -29,7 +29,7 @@ export default function loadModule(moduleNames?: string[]) {
     const script = document.createElement('script');
     script.type = 'text/javascript';
     script.src = BING_MAPS_API_URL;
-    const head = document.querySelector('head') as HTMLHeadElement;
+    const head = document.querySelector('head');
     head.appendChild(script);
   });
 }

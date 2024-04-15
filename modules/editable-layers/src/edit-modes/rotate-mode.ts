@@ -80,8 +80,8 @@ export class RotateMode extends GeoJsonEditMode {
       topEdgeMidpointCoords[1] + longestEdgeLength / 1000,
     ];
 
-    const lineFromEnvelopeToRotateHandle = lineString([topEdgeMidpointCoords!, rotateHandleCoords!]);
-    const rotateHandle = point(rotateHandleCoords!, {
+    const lineFromEnvelopeToRotateHandle = lineString([topEdgeMidpointCoords, rotateHandleCoords]);
+    const rotateHandle = point(rotateHandleCoords, {
       guideType: 'editHandle',
       editHandleType: 'rotate',
     });
