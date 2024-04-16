@@ -1,5 +1,5 @@
 {
-  "name": "deck.gl-bing-maps",
+  "name": "@deck.gl-community/bing-maps",
   "description": "deck.gl integration with Bing Maps",
   "license": "MIT",
   "version": "0.1.0-beta.0",

@@ -1,6 +1,6 @@
 # Example: Use deck.gl with Bing Maps
 
-This is an example integrating deck.gl with Bing Maps using the deck.gl-bing-maps module.
+This is an example integrating deck.gl with Bing Maps using the @deck.gl-community/bing-maps module.
 
 ## Usage
 

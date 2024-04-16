@@ -15,7 +15,7 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "deck.gl-bing-maps": ["modules/bing-maps/src"],
+      "@deck.gl-community/bing-maps": ["modules/bing-maps/src"],
       "@deck.gl-community/editable-layers": ["modules/editable-layers/src"],
       "@deck.gl-community/layers": ["modules/layers/src"],
       "@deck.gl-community/react": ["modules/react/src"],
