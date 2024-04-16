@@ -1,17 +1,17 @@
-# deck.gl-bing-maps
+# @deck.gl-community/bing-maps
 
 This module allows [deck.gl](https://deck.gl) to be used as a Bing Maps custom layer.
 
 ## Installation
 
 ```bash
-npm install deck.gl deck.gl-bing-maps
+npm install deck.gl @deck.gl-community/bing-maps
 ```
 
 ## Usage
 
 ```ts
-import {loadModules} from 'deck.gl-bing-maps';
+import {loadModules} from '@deck.gl-community/bing-maps';
 import {GeoJsonLayer} from 'deck.gl';
 
 loadModules().then(({Maps, Location, DeckOverlay}) => {
