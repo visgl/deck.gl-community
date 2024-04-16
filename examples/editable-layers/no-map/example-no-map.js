@@ -1,3 +1,5 @@
+// TODO Fix this example and re-enable ESLint below.
+// eslint-disable-next-line import/named
 import {BitmapLayer} from '@deck.gl/layers';
 import Example from '../deck/example';
 
