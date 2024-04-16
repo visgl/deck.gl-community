@@ -1,4 +1,4 @@
-import {loadModule} from 'deck.gl-bing-maps';
+import {loadModule} from '@deck.gl-community/bing-maps';
 import {GeoJsonLayer, ArcLayer} from 'deck.gl';
 
 // set your Bing Maps API key here
