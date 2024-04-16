@@ -21,6 +21,7 @@
     "prepublishOnly": "ocular-build && node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', {encoding: 'utf8'})); delete pkg.engines; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); console.log(pkg)\"",
     "publish": "ocular-publish",
     "test": "lerna run test",
+    "test-ci": "ocular-lint && lerna run test",
     "test-fast": "lerna run test",
     "metrics": "ocular-metrics"
   },
