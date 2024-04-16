@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import DeckGL from "@deck.gl/react";
+// TODO Enable eslint after package is published.
 // eslint-disable-next-line import/named, import/no-extraneous-dependencies
 import { HtmlOverlayItem, HtmlClusterOverlay } from "@deck.gl-community/react";
 import StaticMap from "react-map-gl";
