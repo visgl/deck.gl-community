@@ -1,4 +1,3 @@
-/* global document */
 import React, { Component } from "react";
 import ReactDom from "react-dom";
 import MapGL from "react-map-gl";
@@ -36,15 +35,16 @@ class App extends Component {
     };
   }
 
-  _switchMode = (evt) => {
+  _switchMode(evt) {
     const modeId =
       evt.target.value === this.state.modeId ? null : evt.target.value;
     const mode = MODES.find((m) => m.id === modeId);
+    // eslint-disable-next-line new-cap
     const modeHandler = mode ? new mode.handler() : null;
     this.setState({ modeId, modeHandler });
   };
 
-  _renderToolbar = () => {
+  _renderToolbar() {
     return (
       <div
         style={{ position: "absolute", top: 0, right: 0, maxWidth: "320px" }}
@@ -61,7 +61,7 @@ class App extends Component {
     );
   };
 
-  _updateViewport = (viewport) => {
+  _updateViewport (viewport) {
     this.setState({ viewport });
   };
 

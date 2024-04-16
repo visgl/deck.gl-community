@@ -84,6 +84,7 @@ export type ImportComponentProps = {
   additionalInputs?: React.ReactNode;
 };
 
+// eslint-disable-next-line complexity
 export function ImportComponent(props: ImportComponentProps) {
   const [isImportText, setIsImportText] = React.useState(true);
   const [text, setText] = React.useState('');

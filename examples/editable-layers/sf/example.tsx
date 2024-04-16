@@ -230,7 +230,8 @@ export default class Example extends React.Component<
 
   render() {
     const {segmentsLayer, state} = this;
-    let {viewState, selectedFeatureIndexes} = state;
+    const {selectedFeatureIndexes} = state
+    let {viewState} = state;
     // const { selectionType } = state;
 
     const {innerHeight: height, innerWidth: width} = window;

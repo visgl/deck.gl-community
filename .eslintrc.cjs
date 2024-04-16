@@ -5,11 +5,17 @@ module.exports = getESLintConfig({
   react: '18.0.0',
   /** This will be deep merged with the default config */
   overrides: {
+    parser: '',
+    parserOptions: {
+      project: ['./tsconfig.json'],
+      ecmaVersion: 2020
+    },
+    extends: ['prettier'],
     env: {
       browser: true,
       node: true,
       jest: true,
-      es6: true
+      es2020: true
     },
     overrides: [
       {
@@ -35,11 +41,6 @@ module.exports = getESLintConfig({
         }
       }
     ],
-    parserOptions: {
-      babelOptions: {
-        presets: ['@babel/preset-react']
-      }
-    },
     rules: {
       // custom rules
     }

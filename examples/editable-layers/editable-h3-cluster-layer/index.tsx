@@ -9,7 +9,7 @@ import {
   DrawRectangleMode
 } from '@deck.gl-community/editable-layers';
 import StaticMap from 'react-map-gl';
-import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data.js';
+import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data';
 
 const MAPBOX_ACCESS_TOKEN =
   'pk.eyJ1IjoiZ2Vvcmdpb3MtdWJlciIsImEiOiJjanZidTZzczAwajMxNGVwOGZrd2E5NG90In0.gdsRu_UeU_uPi9IulBruXA';

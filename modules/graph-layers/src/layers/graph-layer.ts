@@ -12,7 +12,7 @@ import {CircleLayer} from './node-layers/circle-layer';
 import {ImageLayer} from './node-layers/image-layer';
 import {LabelLayer} from './node-layers/label-layer';
 import {RectangleLayer} from './node-layers/rectangle-layer';
-import {RoundedRectangleLayer} from './node-layers/rounded-rectangle-layer.js';
+import {RoundedRectangleLayer} from './node-layers/rounded-rectangle-layer';
 import {PathBasedRoundedRectangleLayer} from './node-layers/path-rounded-rectange-layer';
 import {ZoomableMarkerLayer} from './node-layers/zoomable-marker-layer';
 

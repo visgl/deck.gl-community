@@ -9,7 +9,7 @@
     "@deck.gl/react": "^8.8.23",
     "react": "^16.14.0",
     "react-dom": "^16.14.0",
-    "react-map-gl": "^3.3.9"
+    "react-map-gl": "^7.1.7"
   },
   "devDependencies": {
     "@babel/core": "^7.20.12",

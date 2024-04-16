@@ -1,9 +1,10 @@
-/* global document, window */
 import React from "react";
 import ReactDOM from "react-dom";
 import DeckGL from "@deck.gl/react";
+// TODO Enable eslint after package is published.
+// eslint-disable-next-line import/named, import/no-extraneous-dependencies
 import { HtmlOverlayItem, HtmlClusterOverlay } from "@deck.gl-community/react";
-import { StaticMap } from "react-map-gl";
+import StaticMap from "react-map-gl";
 
 const MAPBOX_ACCESS_TOKEN =
   "pk.eyJ1IjoiZ2Vvcmdpb3MtdWJlciIsImEiOiJjanZidTZzczAwajMxNGVwOGZrd2E5NG90In0.gdsRu_UeU_uPi9IulBruXA";

@@ -119,6 +119,7 @@ function renderSubLayers(props: TileSourceLayerProps & {tile: {index, bbox: {wes
       break;
 
     default:
+      // eslint-disable-next-line no-console
       console.error('Unknown tile mimeType', tileSource?.mimeType);
   }
 

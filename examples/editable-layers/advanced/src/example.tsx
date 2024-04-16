@@ -321,7 +321,7 @@ export default class Example extends React.Component<
         if (eventTarget.files && eventTarget.files[0]) {
           const reader = new FileReader();
           reader.onload = ({ target }) => {
-            this._parseStringJson(target!.result as string);
+            this._parseStringJson(target.result as string);
           };
           reader.readAsText(eventTarget.files[0]);
         }
@@ -906,6 +906,7 @@ export default class Example extends React.Component<
       : this._getDeckColorForFeature(index, 0.5, 1.0);
   };
 
+  // eslint-disable-next-line complexity
   render() {
     const { testFeatures, selectedFeatureIndexes, mode } = this.state;
     let { modeConfig } = this.state;
