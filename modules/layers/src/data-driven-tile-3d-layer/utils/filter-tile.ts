@@ -51,6 +51,7 @@ export const filterTile = async (
   return result;
 };
 
+// eslint-disable-next-line max-statements, complexity
 async function filterTileIndices(
   tile: Tile3D,
   filtersByAttribute: FiltersByAttribute,

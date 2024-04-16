@@ -79,6 +79,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     return guides;
   }
 
+  // eslint-disable-next-line complexity
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
     const { picks } = event;
     const clickedEditHandle = getPickedEditHandle(picks);

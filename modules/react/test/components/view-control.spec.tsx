@@ -39,6 +39,7 @@ describe('ViewControl', () => {
     const {container} = render(
       <ViewControl zoomBy={zoomBy} zoomLevel={1} minZoom={1} maxZoom={10} />
     );
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const verticalSlider = container.querySelector('input') as HTMLInputElement;
     expect(verticalSlider).toBeTruthy();
     fireEvent.change(verticalSlider, {target: {value: 8}});

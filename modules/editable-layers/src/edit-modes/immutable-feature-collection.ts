@@ -59,7 +59,9 @@ export class ImmutableFeatureCollection {
    * @param positionIndexes An array containing the indexes of the postion to remove
    *
    * @returns A new `ImmutableFeatureCollection` with the given coordinate removed. Does not modify this `ImmutableFeatureCollection`.
+   *
    */
+  // eslint-disable-next-line complexity
   removePosition(
     featureIndex: number,
     positionIndexes: number[] | null | undefined

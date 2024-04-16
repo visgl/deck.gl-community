@@ -32,15 +32,15 @@ const getWikipediaEntriesNearby = async ({lon, lat}) => {
 
   if (response.ok) {
     return await response.json();
-  } else {
-    console.error(`HTTP Error: ${response.status}`);
-    return {
-      status: 400,
-      query: {
-        pages: []
-      }
-    };
   }
+  // eslint-disable-next-line no-console
+  console.error(`HTTP Error: ${response.status}`);
+  return {
+    status: 400,
+    query: {
+      pages: []
+    }
+  };
 };
 
 const Example = () => {

@@ -44,8 +44,8 @@ describe('toGeoJson()', () => {
     expect(actual.filename).toEqual(expectedFilename);
     expect(actual.mimetype).toEqual(expectedMimeType);
 
-    expect(actualParsed.features[0].properties!.name).toEqual(
-      featureCollection.features[0].properties!.name
+    expect(actualParsed.features[0].properties.name).toEqual(
+      featureCollection.features[0].properties.name
     );
   });
 });

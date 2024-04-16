@@ -47,7 +47,7 @@ function getCleanedFeatures(geojson: AnyGeoJson): Feature[] {
     throw Error('GeoJSON must have type of \'Feature\' or \'FeatureCollection\'');
   }
 
-  // @ts-ignore
+  // @ts-expect-error TODO Improve GeoJSON types.
   const features: Feature[] = geojson.type === 'FeatureCollection' ? geojson.features : [geojson];
 
   return features.map(getCleanedFeature);
@@ -99,6 +99,7 @@ function getCleanedFeature(feature: any): Feature {
   } as any;
 }
 
+// eslint-disable-next-line max-statements, complexity
 function parseImportString(data: string): Promise<ImportData> {
   data = data.trim();
   let validData: ValidImportData | null | undefined;

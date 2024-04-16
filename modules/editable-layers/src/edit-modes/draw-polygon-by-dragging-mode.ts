@@ -22,8 +22,10 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
     event.cancelPan();
     if (props.modeConfig && props.modeConfig.throttleMs) {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       this.handleDraggingThrottled = throttle(this.handleDraggingAux, props.modeConfig.throttleMs);
     } else {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       this.handleDraggingThrottled = this.handleDraggingAux;
     }
   }

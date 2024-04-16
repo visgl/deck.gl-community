@@ -3,6 +3,7 @@ import React, {Component} from 'react';
 import {D3ForceLayout, JSONLoader, NODE_TYPE} from 'deck-graph-layers';
 import {GraphGL} from 'react-deck-graph-layers';
 
+// eslint-disable-next-line import/no-unresolved
 import SAMPLE_GRAPH_DATASETS from 'react-deck-graph-layers/test/utils/data/sample-datasets.js';
 
 const DEFAULT_NODE_SIZE = 5;
