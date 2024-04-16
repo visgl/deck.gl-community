@@ -1,5 +1,5 @@
-import { ClickEvent } from '../edit-modes/types';
-import { ModeHandler, EditAction } from './mode-handler';
+import {ClickEvent} from '../edit-modes/types';
+import {ModeHandler, EditAction} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class TwoClickPolygonHandler extends ModeHandler {

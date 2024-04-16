@@ -1,7 +1,7 @@
 /* eslint-env browser */
 
 import * as React from 'react';
-import Modal, { ModalProvider } from 'styled-react-modal';
+import Modal, {ModalProvider} from 'styled-react-modal';
 import styled from 'styled-components';
 
 export const Button = styled.button`

@@ -1,12 +1,12 @@
-import { PathLayer, PathLayerProps } from '@deck.gl/layers';
-import type { DefaultProps, LayerContext } from '@deck.gl/core';
+import {PathLayer, PathLayerProps} from '@deck.gl/layers';
+import type {DefaultProps, LayerContext} from '@deck.gl/core';
 import {GL} from '@luma.gl/constants';
-import { Framebuffer, Texture } from '@luma.gl/core';
+import {Framebuffer, Texture} from '@luma.gl/core';
 import outline from '../../shaderlib/outline/outline';
-import { UNIT } from '../../constants';
+import {UNIT} from '../../constants';
 
 // TODO - this should be built into assembleShaders
-function injectShaderCode({ source, code = '' }) {
+function injectShaderCode({source, code = ''}) {
   const INJECT_CODE = /}[^{}]*$/;
   return source.replace(INJECT_CODE, code.concat('\n}\n'));
 }
@@ -27,7 +27,7 @@ export type PathOutlineLayerProps<DataT> = PathLayerProps<DataT> & {
 };
 
 const defaultProps: DefaultProps<PathOutlineLayerProps<any>> = {
-  getZLevel: () => 0,
+  getZLevel: () => 0
 };
 
 export default class PathOutlineLayer<
@@ -49,8 +49,8 @@ export default class PathOutlineLayer<
     const shaders = super.getShaders();
     return Object.assign({}, shaders, {
       modules: shaders.modules.concat([outline]),
-      vs: injectShaderCode({ source: shaders.vs, code: VS_CODE }),
-      fs: injectShaderCode({ source: shaders.fs, code: FS_CODE }),
+      vs: injectShaderCode({source: shaders.vs, code: VS_CODE}),
+      fs: injectShaderCode({source: shaders.fs, code: FS_CODE})
     });
   }
 
@@ -62,7 +62,7 @@ export default class PathOutlineLayer<
     // TODO - we should create a single outlineMap for all layers
     this.setState({
       outlineFramebuffer: context.device.createFramebuffer({}),
-      dummyTexture: context.device.createTexture({}),
+      dummyTexture: context.device.createTexture({})
     });
 
     // Create an attribute manager
@@ -71,13 +71,13 @@ export default class PathOutlineLayer<
       instanceZLevel: {
         size: 1,
         type: GL.UNSIGNED_BYTE,
-        accessor: 'getZLevel',
-      },
+        accessor: 'getZLevel'
+      }
     });
   }
 
   // Override draw to add render module
-  draw({ moduleParameters = {}, parameters, uniforms, context }) {
+  draw({moduleParameters = {}, parameters, uniforms, context}) {
     // Need to calculate same uniforms as base layer
     const {
       jointRounded,
@@ -87,7 +87,7 @@ export default class PathOutlineLayer<
       widthUnits,
       widthScale,
       widthMinPixels,
-      widthMaxPixels,
+      widthMaxPixels
     } = this.props;
 
     uniforms = Object.assign({}, uniforms, {
@@ -98,11 +98,11 @@ export default class PathOutlineLayer<
       widthScale,
       miterLimit,
       widthMinPixels,
-      widthMaxPixels,
+      widthMaxPixels
     });
 
     // Render the outline shadowmap (based on segment z orders)
-    const { outlineFramebuffer, dummyTexture } = this.state;
+    const {outlineFramebuffer, dummyTexture} = this.state;
     // TODO(v9): resize, see 'sf' example.
     // outlineFramebuffer.resize();
     // TODO(v9) clear FBO
@@ -111,37 +111,37 @@ export default class PathOutlineLayer<
     this.state.model.updateModuleSettings({
       outlineEnabled: true,
       outlineRenderShadowmap: true,
-      outlineShadowmap: dummyTexture,
+      outlineShadowmap: dummyTexture
     });
 
     this.state.model.draw({
       uniforms: Object.assign({}, uniforms, {
         jointType: 0,
-        widthScale: this.props.widthScale * 1.3,
+        widthScale: this.props.widthScale * 1.3
       }),
       parameters: {
         depthTest: false,
         // Biggest value needs to go into buffer
-        blendEquation: GL.MAX,
+        blendEquation: GL.MAX
       },
-      framebuffer: outlineFramebuffer,
+      framebuffer: outlineFramebuffer
     });
 
     // Now use the outline shadowmap to render the lines (with outlines)
     this.state.model.updateModuleSettings({
       outlineEnabled: true,
       outlineRenderShadowmap: false,
-      outlineShadowmap: outlineFramebuffer,
+      outlineShadowmap: outlineFramebuffer
     });
     this.state.model.draw({
       uniforms: Object.assign({}, uniforms, {
         jointType: Number(jointRounded),
         capType: Number(capRounded),
-        widthScale: this.props.widthScale,
+        widthScale: this.props.widthScale
       }),
       parameters: {
-        depthTest: false,
-      },
+        depthTest: false
+      }
     });
   }
 }

@@ -5,10 +5,10 @@ import {
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature,
+  TentativeFeature
 } from './types';
-import { Polygon, FeatureCollection, FeatureOf, Position } from '../geojson-types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {Polygon, FeatureCollection, FeatureOf, Position} from '../geojson-types';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class TwoClickPolygonMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
@@ -54,12 +54,12 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
       const feature: FeatureOf<Polygon> = {
         type: 'Feature',
         properties: {
-          shape: tentativeFeature.properties.shape,
+          shape: tentativeFeature.properties.shape
         },
         geometry: {
           type: 'Polygon',
-          coordinates: tentativeFeature.geometry.coordinates,
-        },
+          coordinates: tentativeFeature.geometry.coordinates
+        }
       };
       const editAction = this.getAddFeatureOrBooleanPolygonAction(feature, props);
 
@@ -72,12 +72,12 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
   }
 
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const { lastPointerMoveEvent, modeConfig } = props;
+    const {lastPointerMoveEvent, modeConfig} = props;
     const clickSequence = this.getClickSequence();
 
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     if (clickSequence.length === 0 || !lastPointerMoveEvent) {
@@ -94,9 +94,9 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
         type: 'Feature',
         properties: {
           shape: polygon.properties && polygon.properties.shape,
-          guideType: 'tentative',
+          guideType: 'tentative'
         },
-        geometry: polygon.geometry,
+        geometry: polygon.geometry
       });
     }
 
@@ -117,7 +117,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
   }
 
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
-    const { lastPointerMoveEvent } = props;
+    const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 
     const lastCoords = lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [];

@@ -1,12 +1,12 @@
-import { Vector2 } from '@math.gl/core';
-import { Position } from '../../geojson-types';
-import { Color } from '../../types';
+import {Vector2} from '@math.gl/core';
+import {Position} from '../../geojson-types';
+import {Color} from '../../types';
 
 export interface PathMarker {
-  position: Position,
-  angle: number,
-  color: Color,
-  object: unknown
+  position: Position;
+  angle: number;
+  color: Color;
+  object: unknown;
 }
 
 function getLineLength(vPoints) {
@@ -19,7 +19,7 @@ function getLineLength(vPoints) {
 }
 
 const DEFAULT_COLOR = [0, 0, 0, 255];
-const DEFAULT_DIRECTION = { forward: true, backward: false };
+const DEFAULT_DIRECTION = {forward: true, backward: false};
 
 export default function createPathMarkers({
   data,
@@ -27,7 +27,7 @@ export default function createPathMarkers({
   getDirection = (x) => x.direction,
   getColor = (x) => DEFAULT_COLOR,
   getMarkerPercentages = (x, info) => [0.5],
-  projectFlat,
+  projectFlat
 }): PathMarker[] {
   const markers: PathMarker[] = [];
 
@@ -43,7 +43,7 @@ export default function createPathMarkers({
     const lineLength = getLineLength(vPoints);
 
     // Ask for where to put markers
-    const percentages = getMarkerPercentages(object, { lineLength });
+    const percentages = getMarkerPercentages(object, {lineLength});
 
     // Create the markers
     for (const percentage of percentages) {
@@ -54,7 +54,7 @@ export default function createPathMarkers({
           lineLength,
           color,
           object,
-          projectFlat,
+          projectFlat
         });
         markers.push(marker);
       }
@@ -66,7 +66,7 @@ export default function createPathMarkers({
           lineLength,
           color,
           object,
-          projectFlat,
+          projectFlat
         });
         markers.push(marker);
       }
@@ -76,7 +76,14 @@ export default function createPathMarkers({
   return markers;
 }
 
-function createMarkerAlongPath({ path, percentage, lineLength, color, object, projectFlat }): PathMarker {
+function createMarkerAlongPath({
+  path,
+  percentage,
+  lineLength,
+  color,
+  object,
+  projectFlat
+}): PathMarker {
   const distanceAlong = lineLength * percentage;
   let currentDistance = 0;
   let previousDistance = 0;
@@ -103,5 +110,5 @@ function createMarkerAlongPath({ path, percentage, lineLength, color, object, pr
 
   const angle = (vDirection2.verticalAngle() * 180) / Math.PI;
 
-  return { position: [vCenter.x, vCenter.y, 0], angle, color, object };
+  return {position: [vCenter.x, vCenter.y, 0], angle, color, object};
 }

@@ -1,5 +1,5 @@
 import {beforeEach, describe, it, expect} from 'vitest';
-import { ImmutableFeatureCollection } from '../../src/edit-modes/immutable-feature-collection';
+import {ImmutableFeatureCollection} from '../../src/edit-modes/immutable-feature-collection';
 
 let pointFeature;
 let lineStringFeature;
@@ -13,7 +13,7 @@ beforeEach(() => {
   pointFeature = {
     type: 'Feature',
     properties: {},
-    geometry: { type: 'Point', coordinates: [1, 2] },
+    geometry: {type: 'Point', coordinates: [1, 2]}
   };
 
   lineStringFeature = {
@@ -24,9 +24,9 @@ beforeEach(() => {
       coordinates: [
         [1, 2],
         [2, 3],
-        [3, 4],
-      ],
-    },
+        [3, 4]
+      ]
+    }
   };
 
   polygonFeature = {
@@ -41,7 +41,7 @@ beforeEach(() => {
           [1, -1],
           [1, 1],
           [-1, 1],
-          [-1, -1],
+          [-1, -1]
         ],
         // hole
         [
@@ -49,10 +49,10 @@ beforeEach(() => {
           [-0.5, 0.5],
           [0.5, 0.5],
           [0.5, -0.5],
-          [-0.5, -0.5],
-        ],
-      ],
-    },
+          [-0.5, -0.5]
+        ]
+      ]
+    }
   };
 
   multiPointFeature = {
@@ -62,9 +62,9 @@ beforeEach(() => {
       type: 'MultiPoint',
       coordinates: [
         [1, 2],
-        [3, 4],
-      ],
-    },
+        [3, 4]
+      ]
+    }
   };
 
   multiLineStringFeature = {
@@ -76,15 +76,15 @@ beforeEach(() => {
         [
           [1, 2],
           [2, 3],
-          [3, 4],
+          [3, 4]
         ],
         [
           [5, 6],
           [6, 7],
-          [7, 8],
-        ],
-      ],
-    },
+          [7, 8]
+        ]
+      ]
+    }
   };
 
   multiPolygonFeature = {
@@ -100,7 +100,7 @@ beforeEach(() => {
             [1, -1],
             [1, 1],
             [-1, 1],
-            [-1, -1],
+            [-1, -1]
           ],
           // hole  polygon 1
           [
@@ -108,8 +108,8 @@ beforeEach(() => {
             [-0.5, 0.5],
             [0.5, 0.5],
             [0.5, -0.5],
-            [-0.5, -0.5],
-          ],
+            [-0.5, -0.5]
+          ]
         ],
         [
           // exterior ring polygon 2
@@ -118,11 +118,11 @@ beforeEach(() => {
             [4, -1],
             [4, 1],
             [2, 1],
-            [2, -1],
-          ],
-        ],
-      ],
-    },
+            [2, -1]
+          ]
+        ]
+      ]
+    }
   };
 
   featureCollection = {
@@ -133,8 +133,8 @@ beforeEach(() => {
       polygonFeature,
       multiPointFeature,
       multiLineStringFeature,
-      multiPolygonFeature,
-    ],
+      multiPolygonFeature
+    ]
   };
 });
 
@@ -147,10 +147,10 @@ describe('getObject()', () => {
 });
 
 describe('replacePosition()', () => {
-  it('doesn\'t mutate original', () => {
+  it("doesn't mutate original", () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [pointFeature],
+      features: [pointFeature]
     });
     const updatedFeatures = features.replacePosition(0, [], [10, 20]);
 
@@ -161,7 +161,7 @@ describe('replacePosition()', () => {
   it('replaces position in Point', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [pointFeature],
+      features: [pointFeature]
     });
     const updatedFeatures = features.replacePosition(0, [], [10, 20]);
 
@@ -174,7 +174,7 @@ describe('replacePosition()', () => {
   it('replaces first position in LineString', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [lineStringFeature],
+      features: [lineStringFeature]
     });
     const updatedFeatures = features.replacePosition(0, [0], [10, 20]);
 
@@ -182,7 +182,7 @@ describe('replacePosition()', () => {
     const expectedCoordinates = [
       [10, 20],
       [2, 3],
-      [3, 4],
+      [3, 4]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -191,7 +191,7 @@ describe('replacePosition()', () => {
   it('replaces middle position in Polygon', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     const updatedFeatures = features
       .replacePosition(0, [0, 1], [1.1, -1.1])
@@ -204,15 +204,15 @@ describe('replacePosition()', () => {
         [1.1, -1.1],
         [1, 1],
         [-1, 1],
-        [-1, -1],
+        [-1, -1]
       ],
       [
         [-0.5, -0.5],
         [-0.5, 0.5],
         [0.6, 0.6],
         [0.5, -0.5],
-        [-0.5, -0.5],
-      ],
+        [-0.5, -0.5]
+      ]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -221,7 +221,7 @@ describe('replacePosition()', () => {
   it('replaces last position when replacing first position in Polygon', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     const updatedFeatures = features.replacePosition(0, [0, 0], [-1.1, -1.1]);
 
@@ -232,15 +232,15 @@ describe('replacePosition()', () => {
         [1, -1],
         [1, 1],
         [-1, 1],
-        [-1.1, -1.1],
+        [-1.1, -1.1]
       ],
       [
         [-0.5, -0.5],
         [-0.5, 0.5],
         [0.5, 0.5],
         [0.5, -0.5],
-        [-0.5, -0.5],
-      ],
+        [-0.5, -0.5]
+      ]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -249,7 +249,7 @@ describe('replacePosition()', () => {
   it('replaces first position when replacing last position in Polygon', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     const updatedFeatures = features.replacePosition(0, [0, 4], [-1.1, -1.1]);
 
@@ -260,15 +260,15 @@ describe('replacePosition()', () => {
         [1, -1],
         [1, 1],
         [-1, 1],
-        [-1.1, -1.1],
+        [-1.1, -1.1]
       ],
       [
         [-0.5, -0.5],
         [-0.5, 0.5],
         [0.5, 0.5],
         [0.5, -0.5],
-        [-0.5, -0.5],
-      ],
+        [-0.5, -0.5]
+      ]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -276,10 +276,10 @@ describe('replacePosition()', () => {
 });
 
 describe('removePosition()', () => {
-  it('doesn\'t mutate original', () => {
+  it("doesn't mutate original", () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [lineStringFeature],
+      features: [lineStringFeature]
     });
     const updatedFeatures = features.removePosition(0, [0]);
 
@@ -287,32 +287,32 @@ describe('removePosition()', () => {
     expect(lineStringFeature.geometry.coordinates).toEqual([
       [1, 2],
       [2, 3],
-      [3, 4],
+      [3, 4]
     ]);
   });
 
   it('throws exception when attempting to remove Point', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [pointFeature],
+      features: [pointFeature]
     });
 
     expect(() => features.removePosition(0, [0])).toThrow(
-      'Can\'t remove a position from a Point or there\'d be nothing left'
+      "Can't remove a position from a Point or there'd be nothing left"
     );
   });
 
   it('removes first position in LineString', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [lineStringFeature],
+      features: [lineStringFeature]
     });
     const updatedFeatures = features.removePosition(0, [0]);
 
     const actualCoordinates = updatedFeatures.getObject().features[0].geometry.coordinates;
     const expectedCoordinates = [
       [2, 3],
-      [3, 4],
+      [3, 4]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -321,7 +321,7 @@ describe('removePosition()', () => {
   it('removes middle position in Polygon', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     const updatedFeatures = features.removePosition(0, [0, 1]).removePosition(0, [1, 3]);
 
@@ -331,14 +331,14 @@ describe('removePosition()', () => {
         [-1, -1],
         [1, 1],
         [-1, 1],
-        [-1, -1],
+        [-1, -1]
       ],
       [
         [-0.5, -0.5],
         [-0.5, 0.5],
         [0.5, 0.5],
-        [-0.5, -0.5],
-      ],
+        [-0.5, -0.5]
+      ]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -347,7 +347,7 @@ describe('removePosition()', () => {
   it('changes last position when removing first position in Polygon', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     const updatedFeatures = features.removePosition(0, [1, 0]);
 
@@ -358,14 +358,14 @@ describe('removePosition()', () => {
         [1, -1],
         [1, 1],
         [-1, 1],
-        [-1, -1],
+        [-1, -1]
       ],
       [
         [-0.5, 0.5],
         [0.5, 0.5],
         [0.5, -0.5],
-        [-0.5, 0.5],
-      ],
+        [-0.5, 0.5]
+      ]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -374,7 +374,7 @@ describe('removePosition()', () => {
   it('changes first position when removing last position in Polygon', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     const updatedFeatures = features.removePosition(0, [1, 4]);
 
@@ -385,14 +385,14 @@ describe('removePosition()', () => {
         [1, -1],
         [1, 1],
         [-1, 1],
-        [-1, -1],
+        [-1, -1]
       ],
       [
         [0.5, -0.5],
         [-0.5, 0.5],
         [0.5, 0.5],
-        [0.5, -0.5],
-      ],
+        [0.5, -0.5]
+      ]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -408,36 +408,36 @@ describe('removePosition()', () => {
             type: 'LineString',
             coordinates: [
               [0, 1],
-              [2, 3],
-            ],
-          },
-        },
-      ],
+              [2, 3]
+            ]
+          }
+        }
+      ]
     });
 
     expect(() => features.removePosition(0, [0])).toThrow(
-      'Can\'t remove position. LineString must have at least two positions'
+      "Can't remove position. LineString must have at least two positions"
     );
   });
 
   it('throws exception when Polygon outer ring has only 4 positions (triangle)', () => {
     let features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     features = features
       // Convert from quadrilateral to triangle
       .removePosition(0, [0, 1]);
 
     expect(() => features.removePosition(0, [0, 1])).toThrow(
-      'Can\'t remove position. Polygon\'s outer ring must have at least four positions'
+      "Can't remove position. Polygon's outer ring must have at least four positions"
     );
   });
 
   it('removes hole from Polygon when it has less than four positions', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     const updatedFeatures = features.removePosition(0, [1, 1]).removePosition(0, [1, 1]);
 
@@ -450,9 +450,9 @@ describe('removePosition()', () => {
           [1, -1],
           [1, 1],
           [-1, 1],
-          [-1, -1],
-        ],
-      ],
+          [-1, -1]
+        ]
+      ]
     };
 
     expect(actualGeometry).toEqual(expectedGeometry);
@@ -461,7 +461,7 @@ describe('removePosition()', () => {
   it('removes LineString from MultiLineString when it has only one position', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiLineStringFeature],
+      features: [multiLineStringFeature]
     });
     const updatedFeatures = features.removePosition(0, [1, 0]).removePosition(0, [1, 0]);
 
@@ -472,9 +472,9 @@ describe('removePosition()', () => {
         [
           [1, 2],
           [2, 3],
-          [3, 4],
-        ],
-      ],
+          [3, 4]
+        ]
+      ]
     };
 
     expect(actualGeometry).toEqual(expectedGeometry);
@@ -483,7 +483,7 @@ describe('removePosition()', () => {
   it('throws exception when MultiLineString has only 2 positions', () => {
     let features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiLineStringFeature],
+      features: [multiLineStringFeature]
     });
     features = features
       // remove one of the LineStrings
@@ -493,21 +493,21 @@ describe('removePosition()', () => {
       .removePosition(0, [0, 0]);
 
     expect(() => features.removePosition(0, [0, 0])).toThrow(
-      'Can\'t remove position. MultiLineString must have at least two positions'
+      "Can't remove position. MultiLineString must have at least two positions"
     );
   });
 
   it('removes Polygon from MultiPolygon when outer ring has less than four positions', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPolygonFeature],
+      features: [multiPolygonFeature]
     });
     const updatedFeatures = features.removePosition(0, [1, 0, 0]).removePosition(0, [1, 0, 0]);
 
     const actualGeometry = updatedFeatures.getObject().features[0].geometry;
     const expectedGeometry = {
       type: 'MultiPolygon',
-      coordinates: [multiPolygonFeature.geometry.coordinates[0]],
+      coordinates: [multiPolygonFeature.geometry.coordinates[0]]
     };
 
     expect(actualGeometry).toEqual(expectedGeometry);
@@ -516,7 +516,7 @@ describe('removePosition()', () => {
   it('removes hole from MultiPolygon when it has less than four positions', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPolygonFeature],
+      features: [multiPolygonFeature]
     });
     const updatedFeatures = features.removePosition(0, [0, 1, 0]).removePosition(0, [0, 1, 0]);
 
@@ -530,8 +530,8 @@ describe('removePosition()', () => {
             [1, -1],
             [1, 1],
             [-1, 1],
-            [-1, -1],
-          ],
+            [-1, -1]
+          ]
         ],
         [
           [
@@ -539,10 +539,10 @@ describe('removePosition()', () => {
             [4, -1],
             [4, 1],
             [2, 1],
-            [2, -1],
-          ],
-        ],
-      ],
+            [2, -1]
+          ]
+        ]
+      ]
     };
 
     expect(actualGeometry).toEqual(expectedGeometry);
@@ -551,7 +551,7 @@ describe('removePosition()', () => {
   it('throws exception when MultiPolygon outer ring has only 4 positions', () => {
     let features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPolygonFeature],
+      features: [multiPolygonFeature]
     });
     features = features
       // Remove the second polygon
@@ -561,16 +561,16 @@ describe('removePosition()', () => {
       .removePosition(0, [0, 0, 1]);
 
     expect(() => features.removePosition(0, [0, 0, 1])).toThrow(
-      'Can\'t remove position. MultiPolygon\'s outer ring must have at least four positions'
+      "Can't remove position. MultiPolygon's outer ring must have at least four positions"
     );
   });
 });
 
 describe('addPosition()', () => {
-  it('doesn\'t mutate original', () => {
+  it("doesn't mutate original", () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [lineStringFeature],
+      features: [lineStringFeature]
     });
     const updatedFeatures = features.addPosition(0, [1], [2, 3]);
 
@@ -578,14 +578,14 @@ describe('addPosition()', () => {
     expect(lineStringFeature.geometry.coordinates).toEqual([
       [1, 2],
       [2, 3],
-      [3, 4],
+      [3, 4]
     ]);
   });
 
   it('throws exception when attempting to add position to Point', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [pointFeature],
+      features: [pointFeature]
     });
 
     expect(() => features.addPosition(0, [], [3, 4])).toThrow(
@@ -596,7 +596,7 @@ describe('addPosition()', () => {
   it('adds position to beginning of LineString', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [lineStringFeature],
+      features: [lineStringFeature]
     });
     const updatedFeatures = features.addPosition(0, [0], [10, 20]);
 
@@ -605,7 +605,7 @@ describe('addPosition()', () => {
       [10, 20],
       [1, 2],
       [2, 3],
-      [3, 4],
+      [3, 4]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -614,7 +614,7 @@ describe('addPosition()', () => {
   it('adds position to middle of LineString', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [lineStringFeature],
+      features: [lineStringFeature]
     });
     const updatedFeatures = features.addPosition(0, [1], [10, 20]);
 
@@ -623,7 +623,7 @@ describe('addPosition()', () => {
       [1, 2],
       [10, 20],
       [2, 3],
-      [3, 4],
+      [3, 4]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -632,7 +632,7 @@ describe('addPosition()', () => {
   it('adds position to end of LineString', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [lineStringFeature],
+      features: [lineStringFeature]
     });
     const updatedFeatures = features.addPosition(0, [3], [10, 20]);
 
@@ -641,7 +641,7 @@ describe('addPosition()', () => {
       [1, 2],
       [2, 3],
       [3, 4],
-      [10, 20],
+      [10, 20]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -650,7 +650,7 @@ describe('addPosition()', () => {
   it('adds position in Polygon', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [polygonFeature],
+      features: [polygonFeature]
     });
     const updatedFeatures = features
       .addPosition(0, [0, 1], [0, -1])
@@ -664,7 +664,7 @@ describe('addPosition()', () => {
         [1, -1],
         [1, 1],
         [-1, 1],
-        [-1, -1],
+        [-1, -1]
       ],
       [
         [-0.5, -0.5],
@@ -672,8 +672,8 @@ describe('addPosition()', () => {
         [0.5, 0.5],
         [0.5, -0.5],
         [0, -0.5],
-        [-0.5, -0.5],
-      ],
+        [-0.5, -0.5]
+      ]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);
@@ -681,10 +681,10 @@ describe('addPosition()', () => {
 });
 
 describe('addFeature()', () => {
-  it('doesn\'t mutate original', () => {
+  it("doesn't mutate original", () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [],
+      features: []
     });
     features.addFeature(pointFeature);
 
@@ -694,13 +694,13 @@ describe('addFeature()', () => {
   it('adds feature to empty array', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [],
+      features: []
     });
     const actualFeatures = features.addFeature(pointFeature).getObject();
 
     const expectedFeatures = {
       type: 'FeatureCollection',
-      features: [pointFeature],
+      features: [pointFeature]
     };
 
     expect(actualFeatures).toEqual(expectedFeatures);
@@ -709,13 +709,13 @@ describe('addFeature()', () => {
   it('adds feature to end of array', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPointFeature],
+      features: [multiPointFeature]
     });
     const actualFeatures = features.addFeature(multiLineStringFeature).getObject();
 
     const expectedFeatures = {
       type: 'FeatureCollection',
-      features: [multiPointFeature, multiLineStringFeature],
+      features: [multiPointFeature, multiLineStringFeature]
     };
 
     expect(actualFeatures).toEqual(expectedFeatures);
@@ -723,10 +723,10 @@ describe('addFeature()', () => {
 });
 
 describe('addFeatures()', () => {
-  it('doesn\'t mutate original', () => {
+  it("doesn't mutate original", () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [],
+      features: []
     });
     features.addFeatures([multiPointFeature, pointFeature]);
 
@@ -736,13 +736,13 @@ describe('addFeatures()', () => {
   it('adds features to empty array', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [],
+      features: []
     });
     const actualFeatures = features.addFeatures([multiPointFeature, pointFeature]).getObject();
 
     const expectedFeatures = {
       type: 'FeatureCollection',
-      features: [multiPointFeature, pointFeature],
+      features: [multiPointFeature, pointFeature]
     };
 
     expect(actualFeatures).toEqual(expectedFeatures);
@@ -751,13 +751,13 @@ describe('addFeatures()', () => {
   it('adds features to end of array', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPointFeature],
+      features: [multiPointFeature]
     });
     const actualFeatures = features.addFeatures([multiLineStringFeature]).getObject();
 
     const expectedFeatures = {
       type: 'FeatureCollection',
-      features: [multiPointFeature, multiLineStringFeature],
+      features: [multiPointFeature, multiLineStringFeature]
     };
 
     expect(actualFeatures).toEqual(expectedFeatures);
@@ -768,17 +768,17 @@ describe('deleteFeature()', () => {
   it('Do nothing when empty array', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [],
+      features: []
     });
     features.deleteFeature(0);
 
     expect(features.getObject().features.length).toEqual(0);
   });
 
-  it('doesn\'t mutate original', () => {
+  it("doesn't mutate original", () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPointFeature],
+      features: [multiPointFeature]
     });
     features.deleteFeature(0);
 
@@ -788,13 +788,13 @@ describe('deleteFeature()', () => {
   it('delete feature', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPointFeature, multiLineStringFeature],
+      features: [multiPointFeature, multiLineStringFeature]
     });
     const actualFeatures = features.deleteFeature(1).getObject();
 
     const expectedFeatures = {
       type: 'FeatureCollection',
-      features: [multiPointFeature],
+      features: [multiPointFeature]
     };
 
     expect(actualFeatures).toEqual(expectedFeatures);
@@ -805,17 +805,17 @@ describe('deleteFeatures()', () => {
   it('Do nothing when empty array', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [],
+      features: []
     });
     features.deleteFeatures([0, 1]);
 
     expect(features.getObject().features.length).toEqual(0);
   });
 
-  it('doesn\'t mutate original', () => {
+  it("doesn't mutate original", () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPointFeature],
+      features: [multiPointFeature]
     });
     features.deleteFeatures([0]);
 
@@ -825,13 +825,13 @@ describe('deleteFeatures()', () => {
   it('delete single feature', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPointFeature, multiLineStringFeature],
+      features: [multiPointFeature, multiLineStringFeature]
     });
     const actualFeatures = features.deleteFeatures([1]).getObject();
 
     const expectedFeatures = {
       type: 'FeatureCollection',
-      features: [multiPointFeature],
+      features: [multiPointFeature]
     };
 
     expect(actualFeatures).toEqual(expectedFeatures);
@@ -840,13 +840,13 @@ describe('deleteFeatures()', () => {
   it('delete multiple features', () => {
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      features: [multiPointFeature, multiLineStringFeature],
+      features: [multiPointFeature, multiLineStringFeature]
     });
     const actualFeatures = features.deleteFeatures([0, 1]).getObject();
 
     const expectedFeatures = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     expect(actualFeatures).toEqual(expectedFeatures);
@@ -858,12 +858,12 @@ describe('replacePosition() with elevation', () => {
     const elevatedPointFeature = {
       type: 'Feature',
       properties: {},
-      geometry: { type: 'Point', coordinates: [1, 2, 1000] },
+      geometry: {type: 'Point', coordinates: [1, 2, 1000]}
     };
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       // @ts-ignore
-      features: [elevatedPointFeature],
+      features: [elevatedPointFeature]
     });
     const updatedFeatures = features.replacePosition(0, [], [10, 20]);
 
@@ -882,14 +882,14 @@ describe('replacePosition() with elevation', () => {
         coordinates: [
           [1, 2, 1000],
           [2, 3, 2000],
-          [3, 4, 3000],
-        ],
-      },
+          [3, 4, 3000]
+        ]
+      }
     };
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
       // @ts-ignore
-      features: [elevatedLineStringFeature],
+      features: [elevatedLineStringFeature]
     });
     const updatedFeatures = features.replacePosition(0, [0], [10, 20]);
 
@@ -897,7 +897,7 @@ describe('replacePosition() with elevation', () => {
     const expectedCoordinates = [
       [10, 20, 1000],
       [2, 3, 2000],
-      [3, 4, 3000],
+      [3, 4, 3000]
     ];
 
     expect(actualCoordinates).toEqual(expectedCoordinates);

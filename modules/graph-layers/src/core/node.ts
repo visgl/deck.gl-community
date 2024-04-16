@@ -1,7 +1,7 @@
 import {NODE_STATE, ValueOf} from './constants';
 import {Edge} from './edge';
 
-interface NodeOptions{
+interface NodeOptions {
   id: number | string;
   selectable?: boolean;
   highlightConnectedEdges?: boolean;
@@ -87,14 +87,17 @@ export class Node {
    */
   getSiblingIds(): (string | number)[] {
     const nodeId = this.getId();
-    return this.getConnectedEdges().reduce((siblings, e) => {
-      if (e.getTargetNodeId() === nodeId) {
-        siblings.push(e.getSourceNodeId());
-      } else {
-        siblings.push(e.getTargetNodeId());
-      }
-      return siblings;
-    }, [] as (string | number)[]);
+    return this.getConnectedEdges().reduce(
+      (siblings, e) => {
+        if (e.getTargetNodeId() === nodeId) {
+          siblings.push(e.getSourceNodeId());
+        } else {
+          siblings.push(e.getTargetNodeId());
+        }
+        return siblings;
+      },
+      [] as (string | number)[]
+    );
   }
 
   /**

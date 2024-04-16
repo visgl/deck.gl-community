@@ -171,7 +171,7 @@ export class Stylesheet {
     // attributes: ['fill', 'radius', 'stroke']
     const attributes = Object.values(rules).reduce((res, rule) => {
       const attrs = Object.keys(rule);
-      const set = new Set([...res as any, ...attrs]);
+      const set = new Set([...(res as any), ...attrs]);
       return Array.from(set);
     }, []);
     // step 3: create a attribute map as:

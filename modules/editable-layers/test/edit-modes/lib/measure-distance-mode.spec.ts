@@ -1,10 +1,10 @@
 import {beforeEach, describe, it, expect} from 'vitest';
-import { MeasureDistanceMode } from '../../../src/edit-modes/measure-distance-mode';
+import {MeasureDistanceMode} from '../../../src/edit-modes/measure-distance-mode';
 import {
   createFeatureCollectionProps,
   createClickEvent,
   createPointerMoveEvent,
-  createKeyboardEvent,
+  createKeyboardEvent
 } from '../test-utils';
 
 const expectToBeCloseToArray = (actual: number[], expected: number[]) => {
@@ -21,7 +21,7 @@ describe('move without click', () => {
 
   it('guides are empty', () => {
     const guides = mode.getGuides(createFeatureCollectionProps());
-    expect(guides).toEqual({ type: 'FeatureCollection', features: [] });
+    expect(guides).toEqual({type: 'FeatureCollection', features: []});
   });
 
   it('tooltips are empty', () => {
@@ -50,7 +50,7 @@ describe('one click', () => {
 
 describe('one click - centerTooltipsOnLine = true', () => {
   let mode: MeasureDistanceMode;
-  const props = { modeConfig: { centerTooltipsOnLine: true } };
+  const props = {modeConfig: {centerTooltipsOnLine: true}};
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps(props));
@@ -83,7 +83,7 @@ describe('one click + pointer move', () => {
 
 describe('one click + pointer move - centerTooltipsOnLine = true', () => {
   let mode: MeasureDistanceMode;
-  const props = { modeConfig: { centerTooltipsOnLine: true } };
+  const props = {modeConfig: {centerTooltipsOnLine: true}};
   beforeEach(() => {
     mode = new MeasureDistanceMode();
     mode.handleClick(createClickEvent([1, 2]), createFeatureCollectionProps(props));
@@ -121,14 +121,14 @@ describe('two clicks', () => {
 
   it('can measure miles', () => {
     const tooltips = mode.getTooltips(
-      createFeatureCollectionProps({ modeConfig: { turfOptions: { units: 'miles' } } })
+      createFeatureCollectionProps({modeConfig: {turfOptions: {units: 'miles'}}})
     );
     expect(tooltips[tooltips.length - 1].text).toContain('miles');
   });
 
   it('can format distance', () => {
     const tooltips = mode.getTooltips(
-      createFeatureCollectionProps({ modeConfig: { formatTooltip: String } })
+      createFeatureCollectionProps({modeConfig: {formatTooltip: String}})
     );
     expect(tooltips[tooltips.length - 1].text).toEqual('314.28368918020476');
   });
@@ -136,7 +136,7 @@ describe('two clicks', () => {
 
 describe('two clicks - centerTooltipsOnLine = true', () => {
   let mode: MeasureDistanceMode;
-  const props = { modeConfig: { centerTooltipsOnLine: true } };
+  const props = {modeConfig: {centerTooltipsOnLine: true}};
 
   beforeEach(() => {
     mode = new MeasureDistanceMode();
@@ -173,7 +173,7 @@ describe('two clicks + pointer move', () => {
 
 describe('two clicks + pointer move - centerTooltipsOnLine = true', () => {
   let mode: MeasureDistanceMode;
-  const props = { modeConfig: { centerTooltipsOnLine: true } };
+  const props = {modeConfig: {centerTooltipsOnLine: true}};
 
   beforeEach(() => {
     mode = new MeasureDistanceMode();
@@ -222,7 +222,7 @@ describe('three clicks + pointer move', () => {
 
 describe('three clicks + pointer move - centerTooltipsOnLine = true', () => {
   let mode: MeasureDistanceMode;
-  const props = { modeConfig: { centerTooltipsOnLine: true } };
+  const props = {modeConfig: {centerTooltipsOnLine: true}};
 
   beforeEach(() => {
     mode = new MeasureDistanceMode();

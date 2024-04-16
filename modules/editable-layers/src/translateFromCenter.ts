@@ -5,10 +5,10 @@ import turfRhumbDestination from '@turf/rhumb-destination';
 import type {
   Position as TurfPosition,
   Feature as TurfFeature,
-  Geometry as TurfGeometry,
+  Geometry as TurfGeometry
 } from '@turf/helpers';
-import { mapCoords } from './edit-modes/utils';
-import type { AnyCoordinates, Position } from './';
+import {mapCoords} from './edit-modes/utils';
+import type {AnyCoordinates, Position} from './';
 
 // This function takes feature's center, moves it,
 // and builds new feature around it keeping the proportions

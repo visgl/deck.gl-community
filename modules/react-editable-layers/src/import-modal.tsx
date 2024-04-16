@@ -1,7 +1,7 @@
 /* eslint-env browser */
 
 import * as React from 'react';
-import { ImportComponent } from './import-component';
+import {ImportComponent} from './import-component';
 import {Modal} from '@deck.gl-community/react';
 
 export type ImportModalProps = {

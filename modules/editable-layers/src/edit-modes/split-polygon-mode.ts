@@ -2,23 +2,23 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import turfDifference from '@turf/difference';
 import turfBuffer from '@turf/buffer';
 import lineIntersect from '@turf/line-intersect';
-import { lineString, Point } from '@turf/helpers';
+import {lineString, Point} from '@turf/helpers';
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfDestination from '@turf/destination';
 import turfPolygonToLine from '@turf/polygon-to-line';
-import nearestPointOnLine, { NearestPointOnLine } from '@turf/nearest-point-on-line';
-import { generatePointsParallelToLinePoints } from './utils';
-import { FeatureCollection } from '../geojson-types';
+import nearestPointOnLine, {NearestPointOnLine} from '@turf/nearest-point-on-line';
+import {generatePointsParallelToLinePoints} from './utils';
+import {FeatureCollection} from '../geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature,
+  TentativeFeature
 } from './types';
-import { GeoJsonEditMode, GeoJsonEditAction } from './geojson-edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class SplitPolygonMode extends GeoJsonEditMode {
   calculateMapCoords(clickSequence: any, mapCoords: any, props: ModeProps<FeatureCollection>) {
@@ -49,9 +49,9 @@ export class SplitPolygonMode extends GeoJsonEditMode {
       if (closestPoint) {
         // closest point is used as 90degree entry to the polygon
         const lastBearing = turfBearing(firstPoint, closestPoint);
-        const currentDistance = turfDistance(firstPoint, mapCoords, { units: 'meters' });
+        const currentDistance = turfDistance(firstPoint, mapCoords, {units: 'meters'});
         return turfDestination(firstPoint, currentDistance, lastBearing, {
-          units: 'meters',
+          units: 'meters'
         }).geometry.coordinates;
       }
       return mapCoords;
@@ -74,7 +74,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
 
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     if (clickSequence.length === 0 || !props.lastPointerMoveEvent) {
@@ -82,17 +82,17 @@ export class SplitPolygonMode extends GeoJsonEditMode {
       return guides;
     }
 
-    const { mapCoords } = props.lastPointerMoveEvent;
+    const {mapCoords} = props.lastPointerMoveEvent;
 
     guides.features.push({
       type: 'Feature',
       properties: {
-        guideType: 'tentative',
+        guideType: 'tentative'
       },
       geometry: {
         type: 'LineString',
-        coordinates: [...clickSequence, this.calculateMapCoords(clickSequence, mapCoords, props)],
-      },
+        coordinates: [...clickSequence, this.calculateMapCoords(clickSequence, mapCoords, props)]
+      }
     });
 
     return guides;
@@ -120,7 +120,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
 
     const pt: Point = {
       type: 'Point',
-      coordinates: clickSequence[clickSequence.length - 1],
+      coordinates: clickSequence[clickSequence.length - 1]
     };
 
     // @ts-expect-error turf types diff
@@ -151,13 +151,13 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     const modeConfig = props.modeConfig || {};
 
     // Default gap in between the polygon
-    let { gap = 0.1, units = 'centimeters' } = modeConfig;
+    let {gap = 0.1, units = 'centimeters'} = modeConfig;
     if (gap === 0) {
       gap = 0.1;
       units = 'centimeters';
     }
 
-    const buffer = turfBuffer(tentativeFeature, gap, { units });
+    const buffer = turfBuffer(tentativeFeature, gap, {units});
     // @ts-expect-error turf types diff
     const updatedGeometry = turfDifference(selectedGeometry, buffer);
     if (!updatedGeometry) {
@@ -166,7 +166,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
       return null;
     }
 
-    const { type, coordinates } = updatedGeometry.geometry;
+    const {type, coordinates} = updatedGeometry.geometry;
     let updatedCoordinates: any[] = []; // TODO
     if (type === 'Polygon') {
       // Update the coordinates as per Multipolygon
@@ -185,15 +185,15 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     // Update the type to Mulitpolygon
     const updatedData = new ImmutableFeatureCollection(props.data).replaceGeometry(featureIndex, {
       type: 'MultiPolygon',
-      coordinates: updatedCoordinates,
+      coordinates: updatedCoordinates
     });
 
     const editAction: GeoJsonEditAction = {
       updatedData: updatedData.getObject(),
       editType: 'split',
       editContext: {
-        featureIndexes: [featureIndex],
-      },
+        featureIndexes: [featureIndex]
+      }
     };
 
     return editAction;

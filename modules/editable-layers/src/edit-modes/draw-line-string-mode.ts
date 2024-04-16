@@ -1,16 +1,16 @@
 import distance from '@turf/distance';
 import memoize from '../memoize';
-import { LineString, FeatureCollection, Position } from '../geojson-types';
+import {LineString, FeatureCollection, Position} from '../geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
   GuideFeature,
-  Tooltip,
+  Tooltip
 } from './types';
-import { getPickedEditHandle } from './utils';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {getPickedEditHandle} from './utils';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class DrawLineStringMode extends GeoJsonEditMode {
   // declaration of variables for the calculation of the distance of linestring
@@ -18,7 +18,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
   position: Position = null!;
   elems: Position[] = [];
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
-    const { picks } = event;
+    const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
 
     let positionAdded = false;
@@ -45,7 +45,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
       this.dist = 0;
       const lineStringToAdd: LineString = {
         type: 'LineString',
-        coordinates: [...clickSequence],
+        coordinates: [...clickSequence]
       };
 
       this.resetClickSequence();
@@ -61,20 +61,20 @@ export class DrawLineStringMode extends GeoJsonEditMode {
         updatedData: props.data,
         editType: 'addTentativePosition',
         editContext: {
-          position: event.mapCoords,
-        },
+          position: event.mapCoords
+        }
       });
     }
   }
 
   handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>) {
-    const { key } = event;
+    const {key} = event;
     if (key === 'Enter') {
       const clickSequence = this.getClickSequence();
       if (clickSequence.length > 1) {
         const lineStringToAdd: LineString = {
           type: 'LineString',
-          coordinates: [...clickSequence],
+          coordinates: [...clickSequence]
         };
         this.resetClickSequence();
         const editAction = this.getAddFeatureAction(lineStringToAdd, props.data);
@@ -88,20 +88,20 @@ export class DrawLineStringMode extends GeoJsonEditMode {
         // Because the new drawing feature is dropped, so the data will keep as the same.
         updatedData: props.data,
         editType: 'cancelFeature',
-        editContext: {},
+        editContext: {}
       });
     }
   }
 
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const { lastPointerMoveEvent } = props;
+    const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 
     const lastCoords = lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [];
 
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     let tentativeFeature;
@@ -109,12 +109,12 @@ export class DrawLineStringMode extends GeoJsonEditMode {
       tentativeFeature = {
         type: 'Feature',
         properties: {
-          guideType: 'tentative',
+          guideType: 'tentative'
         },
         geometry: {
           type: 'LineString',
-          coordinates: [...clickSequence, ...lastCoords],
-        },
+          coordinates: [...clickSequence, ...lastCoords]
+        }
       };
     }
 
@@ -128,12 +128,12 @@ export class DrawLineStringMode extends GeoJsonEditMode {
         guideType: 'editHandle',
         editHandleType: 'existing',
         featureIndex: -1,
-        positionIndexes: [index],
+        positionIndexes: [index]
       },
       geometry: {
         type: 'Point',
-        coordinates: clickedCoord,
-      },
+        coordinates: clickedCoord
+      }
     }));
 
     guides.features.push(...editHandles);
@@ -152,7 +152,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
   getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
     return this._getTooltips({
       modeConfig: props.modeConfig,
-      dist: this.dist,
+      dist: this.dist
     });
   }
 
@@ -176,9 +176,9 @@ export class DrawLineStringMode extends GeoJsonEditMode {
    * @param modeConfig
    * @param dist
    */
-  _getTooltips = memoize(({ modeConfig, dist }) => {
+  _getTooltips = memoize(({modeConfig, dist}) => {
     let tooltips: Tooltip[] = [];
-    const { formatTooltip } = modeConfig || {};
+    const {formatTooltip} = modeConfig || {};
     let text;
     if (dist) {
       if (formatTooltip) {
@@ -191,8 +191,8 @@ export class DrawLineStringMode extends GeoJsonEditMode {
       tooltips = [
         {
           position: this.position,
-          text,
-        },
+          text
+        }
       ];
     }
     return tooltips;

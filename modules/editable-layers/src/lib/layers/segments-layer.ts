@@ -1,14 +1,14 @@
-import { ArrowStyles, DEFAULT_STYLE, MAX_ARROWS } from '../style';
+import {ArrowStyles, DEFAULT_STYLE, MAX_ARROWS} from '../style';
 import NebulaLayer from '../nebula-layer';
-import { toDeckColor } from '../../utils';
+import {toDeckColor} from '../../utils';
 import DeckCache from '../deck-renderer/deck-cache';
 import PathMarkerLayer from '../../editable-layers/path-marker-layer/path-marker-layer';
 
 const NEBULA_TO_DECK_DIRECTIONS = {
-  [ArrowStyles.NONE]: { forward: false, backward: false },
-  [ArrowStyles.FORWARD]: { forward: true, backward: false },
-  [ArrowStyles.BACKWARD]: { forward: false, backward: true },
-  [ArrowStyles.BOTH]: { forward: true, backward: true },
+  [ArrowStyles.NONE]: {forward: false, backward: false},
+  [ArrowStyles.FORWARD]: {forward: true, backward: false},
+  [ArrowStyles.BACKWARD]: {forward: false, backward: true},
+  [ArrowStyles.BOTH]: {forward: true, backward: true}
 };
 
 export default class SegmentsLayer extends NebulaLayer {
@@ -41,7 +41,7 @@ export default class SegmentsLayer extends NebulaLayer {
   }
 
   _calcMarkerPercentages(nf: Record<string, any>): number[] {
-    const { arrowPercentages } = nf.style;
+    const {arrowPercentages} = nf.style;
     if (arrowPercentages) {
       return arrowPercentages;
     }
@@ -53,10 +53,10 @@ export default class SegmentsLayer extends NebulaLayer {
     return [[0.5], [0.33, 0.66], [0.25, 0.5, 0.75]][arrowCount - 1];
   }
 
-  _getHighlightedObjectIndex({ nebula }: Record<string, any>): number {
-    const { deckglMouseOverInfo } = nebula;
+  _getHighlightedObjectIndex({nebula}: Record<string, any>): number {
+    const {deckglMouseOverInfo} = nebula;
     if (deckglMouseOverInfo) {
-      const { originalLayer, index } = deckglMouseOverInfo;
+      const {originalLayer, index} = deckglMouseOverInfo;
       if (originalLayer === this) {
         return index;
       }
@@ -66,9 +66,9 @@ export default class SegmentsLayer extends NebulaLayer {
     return -1;
   }
 
-  render({ nebula }: Record<string, any>) {
+  render({nebula}: Record<string, any>) {
     const defaultColor: [number, number, number, number] = [0x0, 0x0, 0x0, 0xff];
-    const { objects, updateTrigger } = this.deckCache;
+    const {objects, updateTrigger} = this.deckCache;
 
     return new PathMarkerLayer<any>({
       id: `segments-${this.id}`,
@@ -81,7 +81,7 @@ export default class SegmentsLayer extends NebulaLayer {
       sizeScale: this.arrowSize || 6,
       parameters: {
         depthCompare: 'always',
-        blendColorOperation: this.noBlend ? undefined : 'max',
+        blendColorOperation: this.noBlend ? undefined : 'max'
       },
       getPath: (nf: any) => nf.geoJson.geometry.coordinates,
       getColor: (nf: any) => toDeckColor(nf.style.lineColor, defaultColor),
@@ -91,9 +91,9 @@ export default class SegmentsLayer extends NebulaLayer {
       getMarkerColor: (nf: any) => toDeckColor(nf.style.arrowColor, defaultColor),
       // eslint-disable-next-line @typescript-eslint/unbound-method
       getMarkerPercentages: this._calcMarkerPercentages,
-      updateTriggers: { all: updateTrigger },
+      updateTriggers: {all: updateTrigger},
 
-      highlightedObjectIndex: this._getHighlightedObjectIndex({ nebula }),
+      highlightedObjectIndex: this._getHighlightedObjectIndex({nebula}),
       highlightColor: toDeckColor(this.highlightColor),
 
       dashJustified: this.dashed,
@@ -102,7 +102,7 @@ export default class SegmentsLayer extends NebulaLayer {
         this.markerLayerProps ||
         (PathMarkerLayer as Record<string, any>).defaultProps.markerLayerProps,
 
-      nebulaLayer: this,
+      nebulaLayer: this
     });
   }
 }

@@ -4,7 +4,7 @@
 const INITIAL_STATE: Record<string, number> = {
   color_uOpacity: 1.0,
   color_uDesaturate: 0.0,
-  color_uBrightness: 1.0,
+  color_uBrightness: 1.0
 };
 
 function getUniforms(opts = INITIAL_STATE) {
@@ -52,5 +52,5 @@ export default {
   name: 'color',
   vs,
   fs,
-  getUniforms,
+  getUniforms
 };

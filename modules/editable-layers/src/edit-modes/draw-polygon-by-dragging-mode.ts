@@ -1,14 +1,8 @@
 import throttle from 'lodash.throttle';
-import {
-  ClickEvent,
-  StartDraggingEvent,
-  StopDraggingEvent,
-  DraggingEvent,
-  ModeProps,
-} from './types';
-import { Polygon, FeatureCollection } from '../geojson-types';
-import { getPickedEditHandle } from './utils';
-import { DrawPolygonMode } from './draw-polygon-mode';
+import {ClickEvent, StartDraggingEvent, StopDraggingEvent, DraggingEvent, ModeProps} from './types';
+import {Polygon, FeatureCollection} from '../geojson-types';
+import {getPickedEditHandle} from './utils';
+import {DrawPolygonMode} from './draw-polygon-mode';
 
 type DraggingHandler = (event: DraggingEvent, props: ModeProps<FeatureCollection>) => void;
 
@@ -43,7 +37,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
       // Complete the polygon.
       const polygonToAdd: Polygon = {
         type: 'Polygon',
-        coordinates: [[...clickSequence, clickSequence[0]]],
+        coordinates: [[...clickSequence, clickSequence[0]]]
       };
 
       const editAction = this.getAddFeatureOrBooleanPolygonAction(polygonToAdd, props);
@@ -55,7 +49,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   }
 
   handleDraggingAux(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
-    const { picks } = event;
+    const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
 
     if (!clickedEditHandle) {
@@ -65,8 +59,8 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
         updatedData: props.data,
         editType: 'addTentativePosition',
         editContext: {
-          position: event.mapCoords,
-        },
+          position: event.mapCoords
+        }
       });
     }
   }
@@ -83,7 +77,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
       if (clickSequence.length > 2) {
         const polygonToAdd: Polygon = {
           type: 'Polygon',
-          coordinates: [[...clickSequence, clickSequence[0]]],
+          coordinates: [[...clickSequence, clickSequence[0]]]
         };
         this.resetClickSequence();
 
@@ -101,7 +95,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
         // Because the new drawing feature is dropped, so the data will keep as the same.
         updatedData: props.data,
         editType: 'cancelFeature',
-        editContext: {},
+        editContext: {}
       });
     }
   }

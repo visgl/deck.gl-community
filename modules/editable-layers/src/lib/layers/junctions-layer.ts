@@ -1,5 +1,5 @@
 import NebulaLayer from '../nebula-layer';
-import { toDeckColor } from '../../utils';
+import {toDeckColor} from '../../utils';
 import DeckCache from '../deck-renderer/deck-cache';
 import JunctionScatterplotLayer from '../../editable-layers/junction-scatterplot-layer';
 
@@ -12,9 +12,9 @@ export default class JunctionsLayer extends NebulaLayer {
     this.enablePicking = true;
   }
 
-  render({ nebula }: Record<string, any>) {
+  render({nebula}: Record<string, any>) {
     const defaultColor: [number, number, number, number] = [0x0, 0x0, 0x0, 0xff];
-    const { objects, updateTrigger } = this.deckCache;
+    const {objects, updateTrigger} = this.deckCache;
 
     return new JunctionScatterplotLayer({
       id: `junctions-${this.id}`,
@@ -31,10 +31,10 @@ export default class JunctionsLayer extends NebulaLayer {
         depthCompare: 'always'
       },
 
-      updateTriggers: { all: updateTrigger },
+      updateTriggers: {all: updateTrigger},
 
       // @ts-ignore
-      nebulaLayer: this,
+      nebulaLayer: this
     });
   }
 }

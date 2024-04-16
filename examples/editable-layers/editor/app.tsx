@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { createRoot } from 'react-dom/client';
-import { Example } from './example';
+import {createRoot} from 'react-dom/client';
+import {Example} from './example';
 
 const container = document.createElement('div');
 

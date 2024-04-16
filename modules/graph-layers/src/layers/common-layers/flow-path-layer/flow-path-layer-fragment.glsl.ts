@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-export const fs = /* glsl */`\
+export const fs = /* glsl */ `\
 #define SHADER_NAME flow-path-layer-fragment-shader
 
 precision highp float;

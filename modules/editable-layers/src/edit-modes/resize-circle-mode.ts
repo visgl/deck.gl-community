@@ -84,7 +84,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
           const {
             geometry: {coordinates: position},
             properties: {index}
-          } = intermediatePoint ;
+          } = intermediatePoint;
           handles.push({
             type: 'Feature',
             properties: {

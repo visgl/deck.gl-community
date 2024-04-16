@@ -1,6 +1,6 @@
 import bboxPolygon from '@turf/bbox-polygon';
-import { Position, Polygon, FeatureOf } from '../geojson-types';
-import { TwoClickPolygonMode } from './two-click-polygon-mode';
+import {Position, Polygon, FeatureOf} from '../geojson-types';
+import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawRectangleMode extends TwoClickPolygonMode {
   getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {

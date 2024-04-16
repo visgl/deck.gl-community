@@ -1,16 +1,16 @@
 import {beforeEach, afterEach, describe, test, it, expect} from 'vitest';
 import turfArea from '@turf/area';
-import { Feature, FeatureCollection } from '../../../src/geojson-types';
-import { DrawRectangleMode } from '../../../src/edit-modes/draw-rectangle-mode';
+import {Feature, FeatureCollection} from '../../../src/geojson-types';
+import {DrawRectangleMode} from '../../../src/edit-modes/draw-rectangle-mode';
 import {
   createFeatureCollectionProps,
   createFeatureCollection,
   createClickEvent,
   createPointerMoveEvent,
   createStartDraggingEvent,
-  createStopDraggingEvent,
+  createStopDraggingEvent
 } from '../test-utils';
-import { GeoJsonEditAction } from '../../../src/edit-modes/geojson-edit-mode';
+import {GeoJsonEditAction} from '../../../src/edit-modes/geojson-edit-mode';
 
 let featureCollection: FeatureCollection;
 let polygonFeature: Feature;
@@ -60,9 +60,9 @@ describe('dragToDraw=false', () => {
           [2, 2],
           [2, 3],
           [1, 3],
-          [1, 2],
-        ],
-      ],
+          [1, 2]
+        ]
+      ]
     });
   });
 
@@ -84,7 +84,7 @@ describe('dragToDraw=false', () => {
           {
             type: 'Feature',
             properties: {
-              shape: 'Rectangle',
+              shape: 'Rectangle'
             },
             geometry: {
               type: 'Polygon',
@@ -94,16 +94,16 @@ describe('dragToDraw=false', () => {
                   [2, 2],
                   [2, 3],
                   [1, 3],
-                  [1, 2],
-                ],
-              ],
-            },
-          },
-        ],
+                  [1, 2]
+                ]
+              ]
+            }
+          }
+        ]
       },
       editContext: {
-        featureIndexes: [featureCollection.features.length],
-      },
+        featureIndexes: [featureCollection.features.length]
+      }
     };
 
     expect(props.onEdit).toHaveBeenCalledTimes(1);
@@ -118,8 +118,8 @@ describe('dragToDraw=true', () => {
 
     const props = createFeatureCollectionProps({
       modeConfig: {
-        dragToDraw: true,
-      },
+        dragToDraw: true
+      }
     });
     props.lastPointerMoveEvent = createPointerMoveEvent([1, 2]);
     mode.handleStartDragging(createStartDraggingEvent([1, 2], [1, 2]), props);
@@ -139,9 +139,9 @@ describe('dragToDraw=true', () => {
           [2, 2],
           [2, 3],
           [1, 3],
-          [1, 2],
-        ],
-      ],
+          [1, 2]
+        ]
+      ]
     });
   });
 
@@ -150,8 +150,8 @@ describe('dragToDraw=true', () => {
 
     const props = createFeatureCollectionProps({
       modeConfig: {
-        dragToDraw: true,
-      },
+        dragToDraw: true
+      }
     });
     props.lastPointerMoveEvent = createPointerMoveEvent([1, 2]);
     mode.handleStartDragging(createStartDraggingEvent([1, 2], [1, 2]), props);
@@ -167,7 +167,7 @@ describe('dragToDraw=true', () => {
           {
             type: 'Feature',
             properties: {
-              shape: 'Rectangle',
+              shape: 'Rectangle'
             },
             geometry: {
               type: 'Polygon',
@@ -177,16 +177,16 @@ describe('dragToDraw=true', () => {
                   [2, 2],
                   [2, 3],
                   [1, 3],
-                  [1, 2],
-                ],
-              ],
-            },
-          },
-        ],
+                  [1, 2]
+                ]
+              ]
+            }
+          }
+        ]
       },
       editContext: {
-        featureIndexes: [featureCollection.features.length],
-      },
+        featureIndexes: [featureCollection.features.length]
+      }
     };
 
     expect(props.onEdit).toHaveBeenCalledTimes(1);
@@ -202,7 +202,7 @@ describe('modeConfig.booleanOperation', () => {
 
       const props = createFeatureCollectionProps({
         selectedIndexes: [polygonFeatureIndex],
-        modeConfig: { booleanOperation: 'union' },
+        modeConfig: {booleanOperation: 'union'}
       });
       // @ts-ignore
       const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);
@@ -227,7 +227,7 @@ describe('modeConfig.booleanOperation', () => {
 
       const props = createFeatureCollectionProps({
         selectedIndexes: [polygonFeatureIndex],
-        modeConfig: { booleanOperation: 'difference' },
+        modeConfig: {booleanOperation: 'difference'}
       });
       // @ts-ignore
       const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);
@@ -252,7 +252,7 @@ describe('modeConfig.booleanOperation', () => {
 
       const props = createFeatureCollectionProps({
         selectedIndexes: [polygonFeatureIndex],
-        modeConfig: { booleanOperation: 'intersection' },
+        modeConfig: {booleanOperation: 'intersection'}
       });
       // @ts-ignore
       const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);

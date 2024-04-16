@@ -1,12 +1,12 @@
-import { featureCollection } from '@turf/helpers';
-import { PointerMoveEvent, ModeProps, StartDraggingEvent } from './types';
-import { FeatureCollection } from '../geojson-types';
-import { TranslateMode } from './translate-mode';
-import { ScaleMode } from './scale-mode';
-import { RotateMode } from './rotate-mode';
+import {featureCollection} from '@turf/helpers';
+import {PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
+import {FeatureCollection} from '../geojson-types';
+import {TranslateMode} from './translate-mode';
+import {ScaleMode} from './scale-mode';
+import {RotateMode} from './rotate-mode';
 
-import { CompositeMode } from './composite-mode';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {CompositeMode} from './composite-mode';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class TransformMode extends CompositeMode {
   constructor() {
@@ -19,7 +19,7 @@ export class TransformMode extends CompositeMode {
       ...props,
       onUpdateCursor: (cursor) => {
         updatedCursor = cursor || updatedCursor;
-      },
+      }
     });
     props.onUpdateCursor(updatedCursor);
   }
@@ -57,7 +57,7 @@ export class TransformMode extends CompositeMode {
 
     if (rotateMode instanceof RotateMode) {
       const nonEnvelopeGuides = compositeGuides.features.filter((guide) => {
-        const { editHandleType, mode } = (guide.properties as any) || {};
+        const {editHandleType, mode} = (guide.properties as any) || {};
         // Both scale and rotate modes have the same enveloping box as a guide - only need one
         const guidesToFilterOut = [mode];
         // Do not render scaling edit handles if rotating

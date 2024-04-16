@@ -1,11 +1,11 @@
-import { FeatureCollection, Feature, Position } from '../geojson-types';
+import {FeatureCollection, Feature, Position} from '../geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
-  StopDraggingEvent,
+  StopDraggingEvent
 } from '../edit-modes/types';
-import { ModeHandler, EditAction, EditHandle } from './mode-handler';
+import {ModeHandler, EditAction, EditHandle} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class CompositeModeHandler extends ModeHandler {
@@ -32,7 +32,7 @@ export class CompositeModeHandler extends ModeHandler {
       }
     }
 
-    return result ;
+    return result;
   }
 
   setFeatureCollection(featureCollection: FeatureCollection): void {
@@ -83,7 +83,7 @@ export class CompositeModeHandler extends ModeHandler {
     ) as any; // TODO
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }): string {
-    return this._coalesce((handler) => handler.getCursor({ isDragging })) as any; // TODO
+  getCursor({isDragging}: {isDragging: boolean}): string {
+    return this._coalesce((handler) => handler.getCursor({isDragging})) as any; // TODO
   }
 }

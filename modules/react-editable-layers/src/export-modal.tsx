@@ -13,10 +13,6 @@ export type ExportModalProps = {
 
 export function ExportModal(props: ExportModalProps) {
   return (
-    <Modal
-      onClose={props.onClose}
-      title={'Export'}
-      content={<ExportComponent {...props} />}
-    />
+    <Modal onClose={props.onClose} title={'Export'} content={<ExportComponent {...props} />} />
   );
 }

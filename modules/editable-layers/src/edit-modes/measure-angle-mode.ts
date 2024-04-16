@@ -2,62 +2,69 @@ import turfBearing from '@turf/bearing';
 import turfCenter from '@turf/center';
 import memoize from '../memoize';
 
-import { ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection } from './types';
-import { FeatureCollection, Position } from '../geojson-types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
+import {FeatureCollection, Position} from '../geojson-types';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
 
 export class MeasureAngleMode extends GeoJsonEditMode {
-  _getTooltips = memoize(({ modeConfig, vertex, point1, point2 }: {
-    modeConfig: any,
-    vertex: any,
-    point1: Position,
-    point2: Position
-  }): Tooltip[] => {
-    let tooltips = DEFAULT_TOOLTIPS;
+  _getTooltips = memoize(
+    ({
+      modeConfig,
+      vertex,
+      point1,
+      point2
+    }: {
+      modeConfig: any;
+      vertex: any;
+      point1: Position;
+      point2: Position;
+    }): Tooltip[] => {
+      let tooltips = DEFAULT_TOOLTIPS;
 
-    if (vertex && point1 && point2) {
-      const { formatTooltip, measurementCallback } = modeConfig || {};
-      const units = 'deg';
+      if (vertex && point1 && point2) {
+        const {formatTooltip, measurementCallback} = modeConfig || {};
+        const units = 'deg';
 
-      const angle1 = turfBearing(vertex, point1);
-      const angle2 = turfBearing(vertex, point2);
-      let angle = Math.abs(angle1 - angle2);
-      if (angle > 180) {
-        angle = 360 - angle;
+        const angle1 = turfBearing(vertex, point1);
+        const angle2 = turfBearing(vertex, point2);
+        let angle = Math.abs(angle1 - angle2);
+        if (angle > 180) {
+          angle = 360 - angle;
+        }
+
+        let text: string;
+        if (formatTooltip) {
+          text = formatTooltip(angle);
+        } else {
+          // By default, round to 2 decimal places and append units
+          // @ts-expect-error angle isn't string
+          text = `${parseFloat(angle).toFixed(2)} ${units}`;
+        }
+
+        if (measurementCallback) {
+          measurementCallback(angle);
+        }
+
+        const position = turfCenter({
+          type: 'FeatureCollection',
+          features: [point1, point2].map((p) => ({
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: p
+            },
+            properties: {}
+          }))
+        }).geometry.coordinates as Position;
+
+        tooltips = [{position, text}];
       }
 
-      let text: string;
-      if (formatTooltip) {
-        text = formatTooltip(angle);
-      } else {
-        // By default, round to 2 decimal places and append units
-        // @ts-expect-error angle isn't string
-        text = `${parseFloat(angle).toFixed(2)} ${units}`;
-      }
-
-      if (measurementCallback) {
-        measurementCallback(angle);
-      }
-
-      const position = turfCenter({
-        type: 'FeatureCollection',
-        features: [point1, point2].map((p) => ({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: p,
-          },
-          properties: {}
-        })),
-      }).geometry.coordinates as Position;
-
-      tooltips = [{position, text}];
+      return tooltips;
     }
-
-    return tooltips;
-  });
+  );
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {
     if (this.getClickSequence().length >= 3) {
@@ -86,28 +93,28 @@ export class MeasureAngleMode extends GeoJsonEditMode {
 
   // Return features that can be used as a guide for editing the data
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const guides: GuideFeatureCollection = { type: 'FeatureCollection', features: [] };
-    const { features } = guides;
+    const guides: GuideFeatureCollection = {type: 'FeatureCollection', features: []};
+    const {features} = guides;
 
     const points = this.getPoints(props);
 
     if (points.length > 2) {
       features.push({
         type: 'Feature',
-        properties: { guideType: 'tentative' },
+        properties: {guideType: 'tentative'},
         geometry: {
           type: 'LineString',
-          coordinates: [points[1], points[0], points[2]],
-        },
+          coordinates: [points[1], points[0], points[2]]
+        }
       });
     } else if (points.length > 1) {
       features.push({
         type: 'Feature',
-        properties: { guideType: 'tentative' },
+        properties: {guideType: 'tentative'},
         geometry: {
           type: 'LineString',
-          coordinates: [points[1], points[0]],
-        },
+          coordinates: [points[1], points[0]]
+        }
       });
     }
 
@@ -121,7 +128,7 @@ export class MeasureAngleMode extends GeoJsonEditMode {
       modeConfig: props.modeConfig,
       vertex: points[0],
       point1: points[1],
-      point2: points[2],
+      point2: points[2]
     }) as Tooltip[];
   }
 }

@@ -1,7 +1,7 @@
-import { Position, LineString, FeatureCollection } from '../geojson-types';
-import { ClickEvent, PointerMoveEvent, ModeProps, GuideFeatureCollection } from './types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+import {Position, LineString, FeatureCollection} from '../geojson-types';
+import {ClickEvent, PointerMoveEvent, ModeProps, GuideFeatureCollection} from './types';
+import {GeoJsonEditMode} from './geojson-edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ExtendLineStringMode extends GeoJsonEditMode {
   getSingleSelectedLineString(props: ModeProps<FeatureCollection>): LineString | null | undefined {
@@ -14,7 +14,7 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
-    const { selectedIndexes } = props;
+    const {selectedIndexes} = props;
     const selectedLineString = this.getSingleSelectedLineString(props);
 
     if (!selectedLineString) {
@@ -40,15 +40,15 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
       editContext: {
         featureIndexes: [featureIndex],
         positionIndexes,
-        position: event.mapCoords,
-      },
+        position: event.mapCoords
+      }
     });
   }
 
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     const selectedLineString = this.getSingleSelectedLineString(props);
@@ -60,7 +60,7 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
 
     // Draw an extension line starting from one end of the selected LineString to the cursor
     let startPosition: Position | null | undefined = null;
-    const { modeConfig } = props;
+    const {modeConfig} = props;
     if (modeConfig && modeConfig.drawAtFront) {
       startPosition = selectedLineString.coordinates[0];
     } else {
@@ -70,12 +70,12 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
     guides.features.push({
       type: 'Feature',
       properties: {
-        guideType: 'tentative',
+        guideType: 'tentative'
       },
       geometry: {
         type: 'LineString',
-        coordinates: [startPosition, mapCoords],
-      },
+        coordinates: [startPosition, mapCoords]
+      }
     });
 
     return guides;

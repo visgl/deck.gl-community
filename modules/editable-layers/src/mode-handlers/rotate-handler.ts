@@ -1,9 +1,9 @@
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
 import turfTransformRotate from '@turf/transform-rotate';
-import { FeatureCollection, Position } from '../geojson-types';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
-import { EditAction, ModeHandler } from './mode-handler';
+import {FeatureCollection, Position} from '../geojson-types';
+import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
+import {EditAction, ModeHandler} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class RotateHandler extends ModeHandler {
@@ -20,19 +20,15 @@ export class RotateHandler extends ModeHandler {
 
     if (!this._isRotatable || !event.pointerDownMapCoords) {
       // Nothing to do
-      return { editAction: null, cancelMapPan: false };
+      return {editAction: null, cancelMapPan: false};
     }
 
     if (event.isDragging && this._geometryBeingRotated) {
       // Rotate the geometry
-      editAction = this.getRotateAction(
-        event.pointerDownMapCoords,
-        event.mapCoords,
-        'rotating'
-      );
+      editAction = this.getRotateAction(event.pointerDownMapCoords, event.mapCoords, 'rotating');
     }
 
-    return { editAction, cancelMapPan: true };
+    return {editAction, cancelMapPan: true};
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
@@ -49,18 +45,14 @@ export class RotateHandler extends ModeHandler {
 
     if (this._geometryBeingRotated) {
       // Rotate the geometry
-      editAction = this.getRotateAction(
-        event.pointerDownMapCoords,
-        event.mapCoords,
-        'rotated'
-      );
+      editAction = this.getRotateAction(event.pointerDownMapCoords, event.mapCoords, 'rotated');
       this._geometryBeingRotated = null;
     }
 
     return editAction;
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }): string {
+  getCursor({isDragging}: {isDragging: boolean}): string {
     if (this._isRotatable) {
       // TODO: look at doing SVG cursors to get a better "rotate" cursor
       return 'move';
@@ -95,7 +87,7 @@ export class RotateHandler extends ModeHandler {
       updatedData: updatedData.getObject(),
       editType,
       featureIndexes: selectedIndexes,
-      editContext: null,
+      editContext: null
     };
   }
 }

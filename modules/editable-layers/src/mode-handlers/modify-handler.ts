@@ -1,23 +1,23 @@
 import nearestPointOnLine from '@turf/nearest-point-on-line';
-import { point, lineString as toLineString } from '@turf/helpers';
-import { Position, FeatureOf, Point, LineString } from '../geojson-types';
+import {point, lineString as toLineString} from '@turf/helpers';
+import {Position, FeatureOf, Point, LineString} from '../geojson-types';
 import {
   recursivelyTraverseNestedArrays,
   nearestPointOnProjectedLine,
-  NearestPointType,
+  NearestPointType
 } from '../utils';
 import {
   ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
-  StopDraggingEvent,
+  StopDraggingEvent
 } from '../edit-modes/types';
 import {
   EditAction,
   EditHandle,
   ModeHandler,
   getPickedEditHandle,
-  getEditHandlesForGeometry,
+  getEditHandlesForGeometry
 } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
@@ -26,11 +26,11 @@ export class ModifyHandler extends ModeHandler {
 
   getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
     let handles: EditHandle[] = [];
-    const { features } = this.featureCollection.getObject();
+    const {features} = this.featureCollection.getObject();
 
     for (const index of this.getSelectedFeatureIndexes()) {
       if (index < features.length) {
-        const { geometry } = features[index];
+        const {geometry} = features[index];
         handles.push(...getEditHandlesForGeometry(geometry, index));
       } else {
         console.warn(`selectedFeatureIndexes out of range ${index}`); // eslint-disable-line no-console,no-undef
@@ -78,8 +78,8 @@ export class ModifyHandler extends ModeHandler {
         // tack on the lone intermediate point to the set of handles
         if (intermediatePoint) {
           const {
-            geometry: { coordinates: position },
-            properties: { index },
+            geometry: {coordinates: position},
+            properties: {index}
           } = intermediatePoint;
           handles = [
             ...handles,
@@ -87,8 +87,8 @@ export class ModifyHandler extends ModeHandler {
               position,
               positionIndexes: [...positionIndexPrefix, index + 1],
               featureIndex: featureAsPick.index,
-              type: 'intermediate',
-            },
+              type: 'intermediate'
+            }
           ];
         }
       }
@@ -99,7 +99,7 @@ export class ModifyHandler extends ModeHandler {
 
   // turf.js does not support elevation for nearestPointOnLine
   nearestPointOnLine(line: FeatureOf<LineString>, inPoint: FeatureOf<Point>): NearestPointType {
-    const { coordinates } = line.geometry;
+    const {coordinates} = line.geometry;
     if (coordinates.some((coord) => coord.length > 2)) {
       const modeConfig = this.getModeConfig();
       if (modeConfig && modeConfig.viewport) {
@@ -138,8 +138,8 @@ export class ModifyHandler extends ModeHandler {
             featureIndexes: [clickedEditHandle.featureIndex],
             editContext: {
               positionIndexes: clickedEditHandle.positionIndexes,
-              position: clickedEditHandle.position,
-            },
+              position: clickedEditHandle.position
+            }
           };
         }
       } else if (clickedEditHandle.type === 'intermediate') {
@@ -158,8 +158,8 @@ export class ModifyHandler extends ModeHandler {
             featureIndexes: [clickedEditHandle.featureIndex],
             editContext: {
               positionIndexes: clickedEditHandle.positionIndexes,
-              position: clickedEditHandle.position,
-            },
+              position: clickedEditHandle.position
+            }
           };
         }
       }
@@ -188,15 +188,15 @@ export class ModifyHandler extends ModeHandler {
         featureIndexes: [editHandle.featureIndex],
         editContext: {
           positionIndexes: editHandle.positionIndexes,
-          position: event.mapCoords,
-        },
+          position: event.mapCoords
+        }
       };
     }
 
     // Cancel map panning if pointer went down on an edit handle
     const cancelMapPan = Boolean(editHandle);
 
-    return { editAction, cancelMapPan };
+    return {editAction, cancelMapPan};
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
@@ -216,8 +216,8 @@ export class ModifyHandler extends ModeHandler {
         featureIndexes: [editHandle.featureIndex],
         editContext: {
           positionIndexes: editHandle.positionIndexes,
-          position: event.mapCoords,
-        },
+          position: event.mapCoords
+        }
       };
     }
 
@@ -240,15 +240,15 @@ export class ModifyHandler extends ModeHandler {
         featureIndexes: [editHandle.featureIndex],
         editContext: {
           positionIndexes: editHandle.positionIndexes,
-          position: event.mapCoords,
-        },
+          position: event.mapCoords
+        }
       };
     }
 
     return editAction;
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }): string {
+  getCursor({isDragging}: {isDragging: boolean}): string {
     const picks = this._lastPointerMovePicks;
 
     if (picks && picks.length > 0) {

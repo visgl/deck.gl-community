@@ -1,14 +1,14 @@
-import { Feature, FeatureCollection, Position } from '../geojson-types';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
+import {Feature, FeatureCollection, Position} from '../geojson-types';
+import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {
   EditHandle,
   EditAction,
   ModeHandler,
   getPickedEditHandle,
-  getEditHandlesForGeometry,
+  getEditHandlesForGeometry
 } from './mode-handler';
 
-type HandlePicks = { pickedHandle?: EditHandle; potentialSnapHandle?: EditHandle };
+type HandlePicks = {pickedHandle?: EditHandle; potentialSnapHandle?: EditHandle};
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class SnappableHandler extends ModeHandler {
@@ -38,39 +38,39 @@ export class SnappableHandler extends ModeHandler {
     // @ts-expect-error narrow event type
     return Object.assign({}, event, {
       mapCoords: snapPoint,
-      pointerDownMapCoords: this._startDragSnapHandlePosition,
+      pointerDownMapCoords: this._startDragSnapHandlePosition
     });
   }
 
   _getEditHandlePicks(event: PointerMoveEvent): HandlePicks {
-    const { picks } = event;
+    const {picks} = event;
 
     const potentialSnapHandle = picks.find(
       (pick) => pick.object && pick.object.type === 'intermediate'
     );
-    const handles = { potentialSnapHandle: potentialSnapHandle && potentialSnapHandle.object };
+    const handles = {potentialSnapHandle: potentialSnapHandle && potentialSnapHandle.object};
 
     const pickedHandle = getPickedEditHandle(event.pointerDownPicks);
     if (pickedHandle) {
-      return { ...handles, pickedHandle };
+      return {...handles, pickedHandle};
     }
 
     return handles;
   }
 
   _updatePickedHandlePosition(editAction: EditAction) {
-    const { pickedHandle = {} as EditHandle } = this._editHandlePicks || {};
+    const {pickedHandle = {} as EditHandle} = this._editHandlePicks || {};
 
     if (pickedHandle && editAction) {
-      const { featureIndexes, updatedData } = editAction;
+      const {featureIndexes, updatedData} = editAction;
 
       for (let i = 0; i < featureIndexes.length; i++) {
         const selectedIndex = featureIndexes[i];
         const updatedFeature = updatedData.features[selectedIndex];
 
-        const { positionIndexes, featureIndex } = pickedHandle;
+        const {positionIndexes, featureIndex} = pickedHandle;
         if (selectedIndex >= 0 && featureIndex === selectedIndex) {
-          const { coordinates } = updatedFeature.geometry;
+          const {coordinates} = updatedFeature.geometry;
           pickedHandle.position = positionIndexes.reduce(
             (a: any[], b: number) => a[b],
             coordinates
@@ -85,12 +85,12 @@ export class SnappableHandler extends ModeHandler {
   // that live in the current layer. Otherwise, this method will simply return the
   // features from the current layer
   _getSnapTargets(): Feature[] {
-    let { additionalSnapTargets } = this.getModeConfig() || {};
+    let {additionalSnapTargets} = this.getModeConfig() || {};
     additionalSnapTargets = additionalSnapTargets || [];
 
     const features = [
       ...this._handler.featureCollection.getObject().features,
-      ...additionalSnapTargets,
+      ...additionalSnapTargets
     ];
     return features;
   }
@@ -105,7 +105,7 @@ export class SnappableHandler extends ModeHandler {
         i < features.length && !this._handler.getSelectedFeatureIndexes().includes(i);
 
       if (isCurrentIndexFeatureNotSelected) {
-        const { geometry } = features[i];
+        const {geometry} = features[i];
         handles.push(...getEditHandlesForGeometry(geometry, i, 'intermediate'));
       }
     }
@@ -116,21 +116,21 @@ export class SnappableHandler extends ModeHandler {
   // selected feature. If a snap handle has been picked, display said snap handle
   // along with all snappable points on all non-selected features.
   getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): any[] {
-    const { enableSnapping } = this._modeConfig || {};
+    const {enableSnapping} = this._modeConfig || {};
     const handles = this._handler.getEditHandles(picks, mapCoords);
 
     if (!enableSnapping) return handles;
-    const { pickedHandle } = this._editHandlePicks || {};
+    const {pickedHandle} = this._editHandlePicks || {};
 
     if (pickedHandle) {
       handles.push(...this._getNonPickedIntermediateHandles(), pickedHandle);
       return handles;
     }
 
-    const { features } = this._handler.featureCollection.getObject();
+    const {features} = this._handler.featureCollection.getObject();
     for (const index of this._handler.getSelectedFeatureIndexes()) {
       if (index < features.length) {
-        const { geometry } = features[index];
+        const {geometry} = features[index];
         handles.push(...getEditHandlesForGeometry(geometry, index, 'snap'));
       }
     }
@@ -139,7 +139,7 @@ export class SnappableHandler extends ModeHandler {
   }
 
   _getSnapAwareEvent(event: Record<string, any>): Record<string, any> {
-    const { potentialSnapHandle } = this._editHandlePicks || {};
+    const {potentialSnapHandle} = this._editHandlePicks || {};
 
     return potentialSnapHandle && potentialSnapHandle.position
       ? this._getSnappedMouseEvent(event, potentialSnapHandle.position)
@@ -147,7 +147,7 @@ export class SnappableHandler extends ModeHandler {
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
-    this._startDragSnapHandlePosition = (getPickedEditHandle(event.picks) || {}).position ;
+    this._startDragSnapHandlePosition = (getPickedEditHandle(event.picks) || {}).position;
     return this._handler.handleStartDragging(event);
   }
 
@@ -159,7 +159,7 @@ export class SnappableHandler extends ModeHandler {
     return modeActionSummary;
   }
 
-  getCursor(event: { isDragging: boolean }): string {
+  getCursor(event: {isDragging: boolean}): string {
     return this._handler.getCursor(event);
   }
 
@@ -167,14 +167,14 @@ export class SnappableHandler extends ModeHandler {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
-    const { enableSnapping } = this._handler.getModeConfig() || {};
+    const {enableSnapping} = this._handler.getModeConfig() || {};
 
     if (enableSnapping) {
       this._editHandlePicks = this._getEditHandlePicks(event);
     }
     // @ts-expect-error narrow event type
     const modeActionSummary = this._handler.handlePointerMove(this._getSnapAwareEvent(event));
-    const { editAction } = modeActionSummary;
+    const {editAction} = modeActionSummary;
     if (editAction) {
       this._updatePickedHandlePosition(editAction);
     }

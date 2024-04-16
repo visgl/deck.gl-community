@@ -14,8 +14,8 @@ const styles = {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     padding: '4px 8px',
     borderRadius: 8,
-    color: 'white',
-  },
+    color: 'white'
+  }
 };
 
 const SHOW_TOOLTIP_TIMEOUT = 250;
@@ -23,11 +23,11 @@ const SHOW_TOOLTIP_TIMEOUT = 250;
 export class HtmlTooltipOverlay extends HtmlOverlay {
   constructor(props: any) {
     super(props);
-    this.state = { visible: false, pickingInfo: null };
+    this.state = {visible: false, pickingInfo: null};
   }
 
   componentWillMount() {
-    (this.context as any).nebula.queryObjectEvents.on('pick', ({ event, pickingInfo }) => {
+    (this.context as any).nebula.queryObjectEvents.on('pick', ({event, pickingInfo}) => {
       if (this.timeoutID !== null) {
         window.clearTimeout(this.timeoutID);
       }
@@ -35,10 +35,10 @@ export class HtmlTooltipOverlay extends HtmlOverlay {
 
       if (pickingInfo && this._getTooltip(pickingInfo)) {
         this.timeoutID = window.setTimeout(() => {
-          this.setState({ visible: true, pickingInfo });
+          this.setState({visible: true, pickingInfo});
         }, SHOW_TOOLTIP_TIMEOUT);
       } else {
-        this.setState({ visible: false });
+        this.setState({visible: false});
       }
     });
   }
@@ -51,7 +51,7 @@ export class HtmlTooltipOverlay extends HtmlOverlay {
   }
 
   _makeOverlay() {
-    const { pickingInfo } = this.state;
+    const {pickingInfo} = this.state;
 
     if (pickingInfo) {
       return (

@@ -1,10 +1,10 @@
 import {beforeEach, describe, it, expect} from 'vitest';
-import { MeasureAreaMode } from '../../../src/edit-modes/measure-area-mode';
+import {MeasureAreaMode} from '../../../src/edit-modes/measure-area-mode';
 import {
   createFeatureCollectionProps,
   createClickEvent,
   createPointerMoveEvent,
-  createKeyboardEvent,
+  createKeyboardEvent
 } from '../test-utils';
 
 describe('move without click', () => {
@@ -59,7 +59,7 @@ describe('three clicks + pointer move', () => {
   it('can format area', () => {
     const tooltips = mode.getTooltips({
       ...props,
-      modeConfig: { formatTooltip: (area) => String(Math.round(area)) },
+      modeConfig: {formatTooltip: (area) => String(Math.round(area))}
     });
     expect(tooltips[0].text).toEqual('49565599608');
   });
@@ -85,10 +85,10 @@ describe('finished drawing by clicking', () => {
             object: {
               properties: {
                 guideType: 'editHandle',
-                positionIndexes: [2],
-              },
-            },
-          },
+                positionIndexes: [2]
+              }
+            }
+          }
         ]
       ),
       props

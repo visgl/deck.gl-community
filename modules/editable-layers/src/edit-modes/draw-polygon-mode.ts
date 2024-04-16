@@ -1,20 +1,20 @@
 import lineIntersect from '@turf/line-intersect';
-import { lineString as turfLineString } from '@turf/helpers';
+import {lineString as turfLineString} from '@turf/helpers';
 import {
   ClickEvent,
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
   TentativeFeature,
-  GuideFeature,
+  GuideFeature
 } from './types';
-import { Polygon, FeatureCollection } from '../geojson-types';
-import { getPickedEditHandle } from './utils';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {Polygon, FeatureCollection} from '../geojson-types';
+import {getPickedEditHandle} from './utils';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class DrawPolygonMode extends GeoJsonEditMode {
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
-    const { lastPointerMoveEvent } = props;
+    const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 
     const lastCoords = lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [];
@@ -24,23 +24,23 @@ export class DrawPolygonMode extends GeoJsonEditMode {
       tentativeFeature = {
         type: 'Feature',
         properties: {
-          guideType: 'tentative',
+          guideType: 'tentative'
         },
         geometry: {
           type: 'LineString',
-          coordinates: [...clickSequence, ...lastCoords],
-        },
+          coordinates: [...clickSequence, ...lastCoords]
+        }
       };
     } else if (clickSequence.length > 2) {
       tentativeFeature = {
         type: 'Feature',
         properties: {
-          guideType: 'tentative',
+          guideType: 'tentative'
         },
         geometry: {
           type: 'Polygon',
-          coordinates: [[...clickSequence, ...lastCoords, clickSequence[0]]],
-        },
+          coordinates: [[...clickSequence, ...lastCoords, clickSequence[0]]]
+        }
       };
     }
 
@@ -52,7 +52,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
 
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     const tentativeFeature = this.createTentativeFeature(props);
@@ -66,12 +66,12 @@ export class DrawPolygonMode extends GeoJsonEditMode {
         guideType: 'editHandle',
         editHandleType: 'existing',
         featureIndex: -1,
-        positionIndexes: [index],
+        positionIndexes: [index]
       },
       geometry: {
         type: 'Point',
-        coordinates: clickedCoord,
-      },
+        coordinates: clickedCoord
+      }
     }));
 
     guides.features.push(...editHandles);
@@ -81,7 +81,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
 
   // eslint-disable-next-line complexity
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
-    const { picks } = event;
+    const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
     const clickSequence = this.getClickSequence();
 
@@ -89,7 +89,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     if (clickSequence.length > 2 && props.modeConfig && props.modeConfig.preventOverlappingLines) {
       const currentLine = turfLineString([
         clickSequence[clickSequence.length - 1],
-        event.mapCoords,
+        event.mapCoords
       ]);
       const otherLines = turfLineString([...clickSequence.slice(0, clickSequence.length - 1)]);
       const intersectingPoints = lineIntersect(currentLine, otherLines);
@@ -117,7 +117,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
       // Remove the hovered position
       const polygonToAdd: Polygon = {
         type: 'Polygon',
-        coordinates: [[...clickSequence, clickSequence[0]]],
+        coordinates: [[...clickSequence, clickSequence[0]]]
       };
 
       this.resetClickSequence();
@@ -133,8 +133,8 @@ export class DrawPolygonMode extends GeoJsonEditMode {
         updatedData: props.data,
         editType: 'addTentativePosition',
         editContext: {
-          position: event.mapCoords,
-        },
+          position: event.mapCoords
+        }
       });
     }
   }
@@ -145,7 +145,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
       if (clickSequence.length > 2) {
         const polygonToAdd: Polygon = {
           type: 'Polygon',
-          coordinates: [[...clickSequence, clickSequence[0]]],
+          coordinates: [[...clickSequence, clickSequence[0]]]
         };
         this.resetClickSequence();
 
@@ -160,7 +160,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
         // Because the new drawing feature is dropped, so the data will keep as the same.
         updatedData: props.data,
         editType: 'cancelFeature',
-        editContext: {},
+        editContext: {}
       });
     }
   }

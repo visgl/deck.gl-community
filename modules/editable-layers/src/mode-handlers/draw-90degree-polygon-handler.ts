@@ -2,16 +2,16 @@ import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import lineIntersect from '@turf/line-intersect';
 import turfDistance from '@turf/distance';
-import { point, lineString } from '@turf/helpers';
-import { Polygon, Position } from '../geojson-types';
-import { generatePointsParallelToLinePoints } from '../utils';
-import { ClickEvent, PointerMoveEvent } from '../edit-modes/types';
+import {point, lineString} from '@turf/helpers';
+import {Polygon, Position} from '../geojson-types';
+import {generatePointsParallelToLinePoints} from '../utils';
+import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
 import {
   EditAction,
   EditHandle,
   ModeHandler,
   getPickedEditHandle,
-  getEditHandlesForGeometry,
+  getEditHandlesForGeometry
 } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
@@ -35,12 +35,12 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
     return handles;
   }
 
-  handlePointerMove({ mapCoords }: PointerMoveEvent): {
+  handlePointerMove({mapCoords}: PointerMoveEvent): {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
     const clickSequence = this.getClickSequence();
-    const result = { editAction: null, cancelMapPan: false };
+    const result = {editAction: null, cancelMapPan: false};
 
     if (clickSequence.length === 0) {
       // nothing to do yet
@@ -71,8 +71,8 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
         type: 'Feature',
         geometry: {
           type: 'LineString',
-          coordinates: [...clickSequence, p3],
-        },
+          coordinates: [...clickSequence, p3]
+        }
       });
     } else {
       // Draw a Polygon connecting all the clicked points with the hovered point
@@ -80,8 +80,8 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
         type: 'Feature',
         geometry: {
           type: 'Polygon',
-          coordinates: [[...clickSequence, p3, clickSequence[0]]],
-        },
+          coordinates: [[...clickSequence, p3, clickSequence[0]]]
+        }
       });
     }
 
@@ -91,7 +91,7 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
   handleClick(event: ClickEvent): EditAction | null | undefined {
     super.handleClick(event);
 
-    const { picks } = event;
+    const {picks} = event;
     const tentativeFeature = this.getTentativeFeature();
 
     let editAction: EditAction | null | undefined = null;
@@ -109,7 +109,7 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
         // They clicked the first or last point (or double-clicked), so complete the polygon
         const polygonToAdd: Polygon = {
           type: 'Polygon',
-          coordinates: this.finalizedCoordinates([...polygon.coordinates[0]]),
+          coordinates: this.finalizedCoordinates([...polygon.coordinates[0]])
         };
 
         this.resetClickSequence();
@@ -127,7 +127,7 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
       pointerDownPicks: null,
       pointerDownScreenCoords: null,
       pointerDownMapCoords: null,
-      sourceEvent: null,
+      sourceEvent: null
     } as unknown as PointerMoveEvent;
 
     this.handlePointerMove(fakePointerMoveEvent);
@@ -164,7 +164,7 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
       const p4 = coordinates[coordinates.length - 4];
       const angle2 = bearing(p3, p4);
 
-      const angles = { first: [] as number[], second: [] as number[] };
+      const angles = {first: [] as number[], second: [] as number[]};
       // calculate 3 right angle points for first and last points in lineString
       [1, 2, 3].forEach((factor) => {
         const newAngle1 = angle1 + factor * 90;
@@ -180,12 +180,12 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
       [0, 1, 2].forEach((indexFirst) => {
         const line1 = lineString([
           p1,
-          destination(p1, distance, angles.first[indexFirst]).geometry.coordinates,
+          destination(p1, distance, angles.first[indexFirst]).geometry.coordinates
         ]);
         [0, 1, 2].forEach((indexSecond) => {
           const line2 = lineString([
             p3,
-            destination(p3, distance, angles.second[indexSecond]).geometry.coordinates,
+            destination(p3, distance, angles.second[indexSecond]).geometry.coordinates
           ]);
           const fc = lineIntersect(line1, line2);
           if (fc && fc.features.length) {

@@ -1,10 +1,10 @@
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfTransformTranslate from '@turf/transform-translate';
-import { point } from '@turf/helpers';
-import { FeatureCollection, Position } from '../geojson-types';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
-import { EditAction, ModeHandler } from './mode-handler';
+import {point} from '@turf/helpers';
+import {FeatureCollection, Position} from '../geojson-types';
+import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
+import {EditAction, ModeHandler} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class TranslateHandler extends ModeHandler {
@@ -22,7 +22,7 @@ export class TranslateHandler extends ModeHandler {
 
     if (!this._isTranslatable || !event.pointerDownMapCoords) {
       // Nothing to do
-      return { editAction: null, cancelMapPan: false };
+      return {editAction: null, cancelMapPan: false};
     }
 
     if (event.isDragging && this._geometryBeforeTranslate) {
@@ -34,7 +34,7 @@ export class TranslateHandler extends ModeHandler {
       );
     }
 
-    return { editAction, cancelMapPan: true };
+    return {editAction, cancelMapPan: true};
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
@@ -62,7 +62,7 @@ export class TranslateHandler extends ModeHandler {
     return editAction;
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }): string {
+  getCursor({isDragging}: {isDragging: boolean}): string {
     if (this._isTranslatable) {
       return 'move';
     }
@@ -104,7 +104,7 @@ export class TranslateHandler extends ModeHandler {
       updatedData: updatedData.getObject(),
       editType,
       featureIndexes: selectedIndexes,
-      editContext: null,
+      editContext: null
     };
   }
 }

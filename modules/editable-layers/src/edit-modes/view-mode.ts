@@ -1,3 +1,3 @@
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class ViewMode extends GeoJsonEditMode {}

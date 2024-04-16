@@ -1,48 +1,55 @@
 /* eslint-disable no-unused-vars, prefer-const */
 
-import { Point, LineString, Polygon, MultiPolygon, Feature, FeatureOf } from '../../src/geojson-types';
+import {
+  Point,
+  LineString,
+  Polygon,
+  MultiPolygon,
+  Feature,
+  FeatureOf
+} from '../../src/geojson-types';
 
 let point: Point = {
   type: 'Point',
-  coordinates: [1, 2],
+  coordinates: [1, 2]
 };
 
 let lineString: LineString = {
   type: 'LineString',
   coordinates: [
     [1, 2],
-    [3, 4],
-  ],
+    [3, 4]
+  ]
 };
 
 let polygonSolid: Polygon = {
   type: 'Polygon',
-  coordinates: [lineString.coordinates],
+  coordinates: [lineString.coordinates]
 };
 
 let polygonWithHole: Polygon = {
   type: 'Polygon',
-  coordinates: [lineString.coordinates, lineString.coordinates],
+  coordinates: [lineString.coordinates, lineString.coordinates]
 };
 
 let multiPolygon: MultiPolygon = {
   type: 'MultiPolygon',
-  coordinates: [polygonSolid.coordinates, polygonWithHole.coordinates],
+  coordinates: [polygonSolid.coordinates, polygonWithHole.coordinates]
 };
 
 let pointFeature: FeatureOf<Point> = {
   type: 'Feature',
-  geometry: point,
+  geometry: point
 };
 
 let lineStringFeature: FeatureOf<LineString> = {
   type: 'Feature',
-  geometry: lineString,
+  geometry: lineString
 };
 
 let anyFeature: Feature = {
   type: 'Feature',
-  geometry: multiPolygon,
+  geometry: multiPolygon
 };
 
 if (Math.random() > 0.5) {

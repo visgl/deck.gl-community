@@ -4,7 +4,7 @@ import * as React from 'react';
 import Dropzone from 'react-dropzone';
 import styled from 'styled-components';
 import {Button} from '@deck.gl-community/react';
-import { ImportData, parseImport } from './lib/importer';
+import {ImportData, parseImport} from './lib/importer';
 
 const ImportComponentContent = styled.div`
   position: relative;
@@ -58,8 +58,17 @@ const ImportDropArea = styled.div`
   height: 100%;
   border: 1px solid rgb(206, 212, 218);
   border-radius: 0.3rem;
-  fontfamily: -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans' sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+  fontfamily:
+    -apple-system,
+    system-ui,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    'Noto Sans' sans-serif,
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol',
     'Noto Color Emoji';
   font-size: 1rem;
   font-weight: 400;
@@ -92,7 +101,7 @@ export function ImportComponent(props: ImportComponentProps) {
 
   const [parseResult, setParseResult] = React.useState<ImportData>({
     valid: false,
-    validationErrors: [],
+    validationErrors: []
   });
 
   React.useEffect(() => {
@@ -128,7 +137,7 @@ export function ImportComponent(props: ImportComponentProps) {
         <ImportSelect>
           <Button
             style={{
-              backgroundColor: isImportText ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)',
+              backgroundColor: isImportText ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)'
             }}
             onClick={() => {
               setIsImportText(true);
@@ -138,7 +147,7 @@ export function ImportComponent(props: ImportComponentProps) {
           </Button>
           <Button
             style={{
-              backgroundColor: isImportText ? 'rgb(90, 98, 94)' : 'rgb(0, 105, 217)',
+              backgroundColor: isImportText ? 'rgb(90, 98, 94)' : 'rgb(0, 105, 217)'
             }}
             onClick={() => {
               setIsImportText(false);
@@ -150,18 +159,16 @@ export function ImportComponent(props: ImportComponentProps) {
         <ImportArea>
           {isImportText && (
             <ImportTextArea
-              style={isDataSet() && !parseResult.valid ? { borderColor: 'rgb(220, 53, 69)' } : {}}
+              style={isDataSet() && !parseResult.valid ? {borderColor: 'rgb(220, 53, 69)'} : {}}
               onChange={(event) => setText(event.target.value)}
               value={text}
             />
           )}
           {!isImportText && (
             <Dropzone onDrop={(importFiles) => setImportFile(importFiles[0])}>
-              {({ getRootProps, getInputProps }) => (
+              {({getRootProps, getInputProps}) => (
                 <ImportDropArea
-                  style={
-                    isDataSet() && !parseResult.valid ? { borderColor: 'rgb(220, 53, 69)' } : {}
-                  }
+                  style={isDataSet() && !parseResult.valid ? {borderColor: 'rgb(220, 53, 69)'} : {}}
                   {...getRootProps()}
                 >
                   <input {...getInputProps()} />
@@ -177,7 +184,7 @@ export function ImportComponent(props: ImportComponentProps) {
               )}
             </Dropzone>
           )}
-          <ImportInfo style={{ color: 'rgb(133, 100, 4)', backgroundColor: 'rgb(255, 243, 205)' }}>
+          <ImportInfo style={{color: 'rgb(133, 100, 4)', backgroundColor: 'rgb(255, 243, 205)'}}>
             {isDataSet() &&
               !parseResult.valid &&
               // @ts-ignore
@@ -186,7 +193,7 @@ export function ImportComponent(props: ImportComponentProps) {
         </ImportArea>
         <ImportInfo>
           Supported formats:
-          <ul style={{ marginTop: '0' }}>
+          <ul style={{marginTop: '0'}}>
             <li key="geojson">
               <a
                 href="https://tools.ietf.org/html/rfc7946"
@@ -225,8 +232,8 @@ export function ImportComponent(props: ImportComponentProps) {
         <Button
           style={
             isDataSet()
-              ? { backgroundColor: valid ? 'rgb(0, 105, 217)' : 'rgb(220, 53, 69)' }
-              : { backgroundColor: 'rgb(206, 212, 218)' }
+              ? {backgroundColor: valid ? 'rgb(0, 105, 217)' : 'rgb(220, 53, 69)'}
+              : {backgroundColor: 'rgb(206, 212, 218)'}
           }
           disabled={!valid}
           onClick={() => {
@@ -235,7 +242,7 @@ export function ImportComponent(props: ImportComponentProps) {
               properties: {},
               // $FlowFixMe - can't be clicked if it is invalid, so features will be there
               // @ts-ignore
-              features: parseResult.features,
+              features: parseResult.features
             });
             flush();
           }}

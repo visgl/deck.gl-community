@@ -1,12 +1,12 @@
-import { PolygonLayer } from '@deck.gl/layers';
-import { point, polygon } from '@turf/helpers';
+import {PolygonLayer} from '@deck.gl/layers';
+import {point, polygon} from '@turf/helpers';
 import turfBbox from '@turf/bbox';
 import turfBboxPolygon from '@turf/bbox-polygon';
 import turfBuffer from '@turf/buffer';
 import turfDifference from '@turf/difference';
 import turfDistance from '@turf/distance';
 
-import { Color } from '../../types';
+import {Color} from '../../types';
 
 const POLYGON_LINE_COLOR = [0, 255, 0, 255];
 const POLYGON_FILL_COLOR = [255, 255, 255, 90];
@@ -20,7 +20,7 @@ const LAYER_ID_PICK = 'DeckDrawerPick';
 export const SELECTION_TYPE = {
   NONE: null,
   RECTANGLE: 'rectangle',
-  POLYGON: 'polygon',
+  POLYGON: 'polygon'
 };
 
 export default class DeckDrawer {
@@ -47,14 +47,14 @@ export default class DeckDrawer {
 
   _selectFromPickingInfos(pickingInfos: Record<string, any>[]) {
     const objects = pickingInfos.map(
-      ({ layer, index, object }) =>
+      ({layer, index, object}) =>
         object.original || layer.props.nebulaLayer.deckCache.originals[index]
     );
     this.nebula.props.onSelection(objects);
   }
 
   _getBoundingBox(): Record<string, any> {
-    const { mousePoints } = this;
+    const {mousePoints} = this;
     const allX = mousePoints.map((mousePoint) => mousePoint[0]);
     const allY = mousePoints.map((mousePoint) => mousePoint[1]);
     const x = Math.min(...allX);
@@ -62,7 +62,7 @@ export default class DeckDrawer {
     const maxX = Math.max(...allX);
     const maxY = Math.max(...allY);
 
-    return { x, y, width: maxX - x, height: maxY - y };
+    return {x, y, width: maxX - x, height: maxY - y};
   }
 
   _selectRectangleObjects() {
@@ -75,7 +75,7 @@ export default class DeckDrawer {
       y: Math.min(y1, y2),
       width: Math.abs(x2 - x1),
       height: Math.abs(y2 - y1),
-      layerIds: this._getLayerIds(),
+      layerIds: this._getLayerIds()
     });
 
     this._selectFromPickingInfos(pickingInfos);
@@ -84,14 +84,14 @@ export default class DeckDrawer {
   _selectPolygonObjects() {
     const pickingInfos = this.nebula.deckgl.pickObjects({
       ...this._getBoundingBox(),
-      layerIds: [LAYER_ID_PICK, ...this._getLayerIds()],
+      layerIds: [LAYER_ID_PICK, ...this._getLayerIds()]
     });
 
     this._selectFromPickingInfos(pickingInfos.filter((item) => item.layer.id !== LAYER_ID_PICK));
   }
 
   _getMousePosFromEvent(event: Record<string, any>): [number, number] {
-    const { offsetX, offsetY } = event;
+    const {offsetX, offsetY} = event;
     return [offsetX, offsetY];
   }
 
@@ -100,7 +100,7 @@ export default class DeckDrawer {
     event: Record<string, any>,
     lngLat: [number, number],
     selectionType: number
-  ): { redraw: boolean; deactivate: boolean } {
+  ): {redraw: boolean; deactivate: boolean} {
     // capture all events (mouse-up is needed to prevent us stuck in moving map)
     if (event.type !== 'mouseup') event.stopPropagation();
 
@@ -110,7 +110,7 @@ export default class DeckDrawer {
     let redraw = false;
     let deactivate = false;
 
-    const { usePolygon, landPoints, mousePoints } = this;
+    const {usePolygon, landPoints, mousePoints} = this;
 
     if (event.type === 'mousedown') {
       if (usePolygon && landPoints.length) {
@@ -153,7 +153,7 @@ export default class DeckDrawer {
       }
     }
 
-    return { redraw, deactivate };
+    return {redraw, deactivate};
   }
 
   reset() {
@@ -180,18 +180,18 @@ export default class DeckDrawer {
         [x1, y2],
         [x2, y2],
         [x2, y1],
-        [x1, y1],
+        [x1, y1]
       ].map((mousePos) => this.nebula.unprojectMousePosition(mousePos));
       data.push({
         polygon: selPolygon,
         lineColor: POLYGON_LINE_COLOR,
-        fillColor: POLYGON_FILL_COLOR,
+        fillColor: POLYGON_FILL_COLOR
       });
     } else if (this.usePolygon && this.landPoints.length) {
       data.push({
         polygon: this.landPoints,
         lineColor: POLYGON_LINE_COLOR,
-        fillColor: POLYGON_FILL_COLOR,
+        fillColor: POLYGON_FILL_COLOR
       });
 
       // Hack: use a polygon to hide the outside, because pickObjects()
@@ -206,7 +206,7 @@ export default class DeckDrawer {
           bigPolygon = turfDifference(bigBuffer, landPointsPoly);
           dataPick.push({
             polygon: bigPolygon.geometry.coordinates,
-            fillColor: [0, 0, 0, 1],
+            fillColor: [0, 0, 0, 1]
           });
           this.validPolygon = true;
         } catch (e) {
@@ -221,15 +221,15 @@ export default class DeckDrawer {
       data.push({
         polygon: this._makeStartPointHighlight(this.landPoints[0]),
         lineColor: [0, 0, 0, 0],
-        fillColor: POLYGON_LINE_COLOR,
+        fillColor: POLYGON_LINE_COLOR
       });
     }
 
     // Hack to make the PolygonLayer() stay active,
     // otherwise it takes 3 seconds (!) to init!
     // TODO: fix this
-    data.push({ polygon: [[0, 0]] });
-    dataPick.push({ polygon: [[0, 0]] });
+    data.push({polygon: [[0, 0]]});
+    dataPick.push({polygon: [[0, 0]]});
 
     return [
       new PolygonLayer({
@@ -243,21 +243,21 @@ export default class DeckDrawer {
         lineDashJustified: true,
         // TODO(v9) Add extension
         // getLineDashArray: (x) => POLYGON_DASHES,
-        getLineColor: (obj: { lineColor?: Color }) => obj.lineColor || [0, 0, 0, 255],
-        getFillColor: (obj: { fillColor?: Color }) => obj.fillColor || [0, 0, 0, 255],
-        getPolygon: (o: { polygon?: any }) => o.polygon,
+        getLineColor: (obj: {lineColor?: Color}) => obj.lineColor || [0, 0, 0, 255],
+        getFillColor: (obj: {fillColor?: Color}) => obj.fillColor || [0, 0, 0, 255],
+        getPolygon: (o: {polygon?: any}) => o.polygon
       }),
       new PolygonLayer({
         id: LAYER_ID_PICK,
         data: dataPick,
-        getLineColor: (obj: { lineColor?: Color }) => obj.lineColor || [0, 0, 0, 255],
-        getFillColor: (obj: { fillColor?: Color }) => obj.fillColor || [0, 0, 0, 255],
+        getLineColor: (obj: {lineColor?: Color}) => obj.lineColor || [0, 0, 0, 255],
+        getFillColor: (obj: {fillColor?: Color}) => obj.fillColor || [0, 0, 0, 255],
         fp64: false,
         opacity: 1.0,
         stroked: false,
         pickable: true,
-        getPolygon: (o: { polygon?: any }) => o.polygon,
-      }),
+        getPolygon: (o: {polygon?: any}) => o.polygon
+      })
     ];
   }
 }

@@ -1,14 +1,14 @@
 /* eslint-env browser */
 
-import { kml } from '@tmcw/togeojson';
+import {kml} from '@tmcw/togeojson';
 
-import { parseSync } from '@loaders.gl/core';
-import { WKTLoader } from '@loaders.gl/wkt';
+import {parseSync} from '@loaders.gl/core';
+import {WKTLoader} from '@loaders.gl/wkt';
 
 // If we want to support node -- we need to import xmldom.
 // For now, we're only supporting browser so we can leave it out.
 // import { DOMParser } from 'xmldom';
-import { AnyGeoJson, Feature } from '@deck.gl-community/editable-layers';
+import {AnyGeoJson, Feature} from '@deck.gl-community/editable-layers';
 
 export type ValidImportData = {
   valid: true;
@@ -44,7 +44,7 @@ function shouldTryWkt(data: string): boolean {
 
 function getCleanedFeatures(geojson: AnyGeoJson): Feature[] {
   if (geojson.type !== 'FeatureCollection' && geojson.type !== 'Feature') {
-    throw Error('GeoJSON must have type of \'Feature\' or \'FeatureCollection\'');
+    throw Error("GeoJSON must have type of 'Feature' or 'FeatureCollection'");
   }
 
   // @ts-expect-error TODO Improve GeoJSON types.
@@ -54,7 +54,7 @@ function getCleanedFeatures(geojson: AnyGeoJson): Feature[] {
 }
 
 function getCleanedFeature(feature: any): Feature {
-  const { id } = feature ;
+  const {id} = feature;
   // reduce null-checking
   const properties = feature.properties || {};
 
@@ -75,14 +75,14 @@ function getCleanedFeature(feature: any): Feature {
         geometry = {
           type: 'MultiPolygon',
           // TODO no overlap, optimize
-          coordinates: geometry.geometries.map((g) => g.coordinates),
+          coordinates: geometry.geometries.map((g) => g.coordinates)
         };
       } else if (type === 'LineString') {
         // Combine all the LineStrings into a single MultiLineString
         geometry = {
           type: 'MultiLineString',
           // TODO no overlap, optimize
-          coordinates: geometry.geometries.map((g) => g.coordinates),
+          coordinates: geometry.geometries.map((g) => g.coordinates)
         };
       }
     } else {
@@ -95,7 +95,7 @@ function getCleanedFeature(feature: any): Feature {
     type: 'Feature',
     id,
     geometry,
-    properties,
+    properties
   } as any;
 }
 
@@ -111,7 +111,7 @@ function parseImportString(data: string): Promise<ImportData> {
       validData = {
         valid: true,
         type: 'GeoJSON',
-        features: getCleanedFeatures(parsed),
+        features: getCleanedFeatures(parsed)
       };
     } catch (err) {
       validationErrors.push('Error parsing GeoJSON');
@@ -147,7 +147,7 @@ function parseImportString(data: string): Promise<ImportData> {
         validData = {
           valid: true,
           type: 'KML',
-          features: getCleanedFeatures(parsed),
+          features: getCleanedFeatures(parsed)
         };
       } else {
         validationErrors.push('Invalid KML');
@@ -167,9 +167,9 @@ function parseImportString(data: string): Promise<ImportData> {
             {
               type: 'Feature',
               properties: {},
-              geometry: parsed,
-            } as any,
-          ],
+              geometry: parsed
+            } as any
+          ]
         };
       } else {
         validationErrors.push('Invalid WKT');
@@ -187,7 +187,7 @@ function parseImportString(data: string): Promise<ImportData> {
   }
   return Promise.resolve({
     valid: false,
-    validationErrors,
+    validationErrors
   });
 }
 

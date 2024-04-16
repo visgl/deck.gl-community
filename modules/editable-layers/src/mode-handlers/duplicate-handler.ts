@@ -1,6 +1,6 @@
-import { StartDraggingEvent } from '../edit-modes/types';
-import { EditAction } from './mode-handler';
-import { TranslateHandler } from './translate-handler';
+import {StartDraggingEvent} from '../edit-modes/types';
+import {EditAction} from './mode-handler';
+import {TranslateHandler} from './translate-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class DuplicateHandler extends TranslateHandler {
@@ -16,7 +16,7 @@ export class DuplicateHandler extends TranslateHandler {
       : null;
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }): string {
+  getCursor({isDragging}: {isDragging: boolean}): string {
     if (this._isTranslatable) {
       return 'copy';
     }

@@ -1,4 +1,4 @@
-import { Position, Feature, FeatureCollection } from '../geojson-types';
+import {Position, Feature, FeatureCollection} from '../geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -7,14 +7,14 @@ import {
   ModeProps,
   Pick,
   GuideFeatureCollection,
-  EditHandleFeature,
+  EditHandleFeature
 } from './types';
 import {
   getPickedSnapSourceEditHandle,
   getPickedEditHandles,
-  getEditHandlesForGeometry,
+  getEditHandlesForGeometry
 } from './utils';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 type MovementTypeEvent = PointerMoveEvent | StartDraggingEvent | StopDraggingEvent | DraggingEvent;
 
@@ -33,7 +33,7 @@ export class SnappableMode extends GeoJsonEditMode {
   ): T {
     return Object.assign(event, {
       mapCoords: snapTarget.geometry.coordinates,
-      pointerDownMapCoords: snapSource && snapSource.geometry.coordinates,
+      pointerDownMapCoords: snapSource && snapSource.geometry.coordinates
     });
   }
 
@@ -53,7 +53,7 @@ export class SnappableMode extends GeoJsonEditMode {
     snapSourceHandle: EditHandleFeature,
     data: FeatureCollection
   ): EditHandleFeature {
-    const { featureIndex, positionIndexes } = snapSourceHandle.properties;
+    const {featureIndex, positionIndexes} = snapSourceHandle.properties;
     if (!Array.isArray(positionIndexes)) {
       return snapSourceHandle;
     }
@@ -69,8 +69,8 @@ export class SnappableMode extends GeoJsonEditMode {
       ...snapSourceHandle,
       geometry: {
         type: 'Point',
-        coordinates: snapSourceCoordinates,
-      },
+        coordinates: snapSourceCoordinates
+      }
     };
   }
 
@@ -79,7 +79,7 @@ export class SnappableMode extends GeoJsonEditMode {
   // that live in the current layer. Otherwise, this method will simply return the
   // features from the current layer
   _getSnapTargets(props: ModeProps<FeatureCollection>): Feature[] {
-    let { additionalSnapTargets } = props.modeConfig || {};
+    let {additionalSnapTargets} = props.modeConfig || {};
     additionalSnapTargets = additionalSnapTargets || [];
 
     const features = [...props.data.features, ...additionalSnapTargets];
@@ -95,7 +95,7 @@ export class SnappableMode extends GeoJsonEditMode {
       const isCurrentIndexFeatureNotSelected = !props.selectedIndexes.includes(i);
 
       if (isCurrentIndexFeatureNotSelected) {
-        const { geometry } = features[i];
+        const {geometry} = features[i];
         handles.push(...getEditHandlesForGeometry(geometry, i, 'snap-target'));
       }
     }
@@ -106,12 +106,12 @@ export class SnappableMode extends GeoJsonEditMode {
   // selected feature. If a snap handle has been picked, display said snap handle
   // along with all snappable points on all non-selected features.
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const { modeConfig, lastPointerMoveEvent } = props;
-    const { enableSnapping } = modeConfig || {};
+    const {modeConfig, lastPointerMoveEvent} = props;
+    const {enableSnapping} = modeConfig || {};
 
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
-      features: [...this._handler.getGuides(props).features],
+      features: [...this._handler.getGuides(props).features]
     };
 
     if (!enableSnapping) {
@@ -133,10 +133,10 @@ export class SnappableMode extends GeoJsonEditMode {
     }
 
     // Render the possible snap source handles
-    const { features } = props.data;
+    const {features} = props.data;
     for (const index of props.selectedIndexes) {
       if (index < features.length) {
-        const { geometry } = features[index];
+        const {geometry} = features[index];
         guides.features.push(...getEditHandlesForGeometry(geometry, index, 'snap-source'));
       }
     }

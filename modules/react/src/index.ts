@@ -12,9 +12,8 @@ export {Icon} from './components/icon';
 
 // Overlays (originally from @deck.gl-community/react-editable-layers)
 
-export { HtmlOverlay } from './overlays/html-overlay';
-export { HtmlOverlayItem } from './overlays/html-overlay-item';
-export { HtmlClusterOverlay } from './overlays/html-cluster-overlay';
+export {HtmlOverlay} from './overlays/html-overlay';
+export {HtmlOverlayItem} from './overlays/html-overlay-item';
+export {HtmlClusterOverlay} from './overlays/html-cluster-overlay';
 
-export { HtmlTooltipOverlay } from './overlays/html-tooltip-overlay';
-
+export {HtmlTooltipOverlay} from './overlays/html-tooltip-overlay';

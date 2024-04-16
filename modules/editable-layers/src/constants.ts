@@ -11,5 +11,5 @@ export const PROJECTED_PIXEL_SIZE_MULTIPLIER = 2 / 3;
 export const UNIT = {
   common: 0,
   meters: 1,
-  pixels: 2,
+  pixels: 2
 };

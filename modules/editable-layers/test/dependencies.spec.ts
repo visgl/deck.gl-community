@@ -1,5 +1,5 @@
-import { it, expect } from 'vitest';
-import { readFileSync, readdirSync, existsSync } from 'fs';
+import {it, expect} from 'vitest';
+import {readFileSync, readdirSync, existsSync} from 'fs';
 
 const RESOLVED_REGEX = /^resolved/gi;
 const NOT_ALLOWED_REPO = 'unpm.u';

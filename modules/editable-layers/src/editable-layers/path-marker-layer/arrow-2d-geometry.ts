@@ -1,4 +1,4 @@
-import { Geometry } from '@luma.gl/engine';
+import {Geometry} from '@luma.gl/engine';
 
 export default class Arrow2DGeometry extends Geometry {
   constructor(opts = {}) {
@@ -11,7 +11,7 @@ export default class Arrow2DGeometry extends Geometry {
   }
 }
 
-function getArrowAttributes({ length = 1, headSize = 0.2, tailWidth = 0.05, tailStart = 0.05 }) {
+function getArrowAttributes({length = 1, headSize = 0.2, tailWidth = 0.05, tailStart = 0.05}) {
   const texCoords = [
     // HEAD
     0.5,
@@ -40,7 +40,7 @@ function getArrowAttributes({ length = 1, headSize = 0.2, tailWidth = 0.05, tail
     0,
     0.5 + tailWidth / 2,
     1.0 - headSize,
-    0,
+    0
   ];
 
   const normals = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1];
@@ -56,6 +56,6 @@ function getArrowAttributes({ length = 1, headSize = 0.2, tailWidth = 0.05, tail
   return {
     positions: {size: 3, value: new Float32Array(positions)},
     normals: {size: 3, value: new Float32Array(normals)},
-    texCoords: {size: 2, value: new Float32Array(texCoords)},
+    texCoords: {size: 2, value: new Float32Array(texCoords)}
   };
 }

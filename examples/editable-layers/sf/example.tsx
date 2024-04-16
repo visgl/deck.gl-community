@@ -230,7 +230,7 @@ export default class Example extends React.Component<
 
   render() {
     const {segmentsLayer, state} = this;
-    const {selectedFeatureIndexes} = state
+    const {selectedFeatureIndexes} = state;
     let {viewState} = state;
     // const { selectionType } = state;
 
@@ -307,7 +307,7 @@ export default class Example extends React.Component<
     return (
       <div style={mapContainerStyle}>
         <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
-        <StaticMap {...viewState}  mapStyle={'mapbox://styles/mapbox/light-v10'}>
+        <StaticMap {...viewState} mapStyle={'mapbox://styles/mapbox/light-v10'}>
           <DeckGL
             height={height}
             width={width}

@@ -1,12 +1,12 @@
 import {beforeEach, afterEach, describe, it, expect} from 'vitest';
-import { DrawCircleByDiameterMode } from '../../../src/edit-modes/draw-circle-by-diameter-mode';
+import {DrawCircleByDiameterMode} from '../../../src/edit-modes/draw-circle-by-diameter-mode';
 import {
   createFeatureCollectionProps,
   createFeatureCollection,
   createClickEvent,
-  createPointerMoveEvent,
+  createPointerMoveEvent
 } from '../test-utils';
-import { FeatureCollection } from '../../../src/geojson-types';
+import {FeatureCollection} from '../../../src/geojson-types';
 
 let featureCollection: FeatureCollection;
 

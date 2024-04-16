@@ -1,6 +1,6 @@
-import { StartDraggingEvent, ModeProps } from './types';
-import { FeatureCollection } from '../geojson-types';
-import { TranslateMode } from './translate-mode';
+import {StartDraggingEvent, ModeProps} from './types';
+import {FeatureCollection} from '../geojson-types';
+import {TranslateMode} from './translate-mode';
 
 export class DuplicateMode extends TranslateMode {
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {

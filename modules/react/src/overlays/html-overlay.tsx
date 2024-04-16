@@ -6,8 +6,8 @@ const styles = {
     height: '100%',
     position: 'absolute',
     pointerEvents: 'none',
-    overflow: 'hidden',
-  },
+    overflow: 'hidden'
+  }
 };
 
 interface Props {
@@ -26,7 +26,7 @@ interface Props {
 export class HtmlOverlay extends React.Component<Props> {
   // Override this to provide your items
   getItems(): Array<any> {
-    const { children } = this.props;
+    const {children} = this.props;
     if (children) {
       return Array.isArray(children) ? children : [children];
     }
@@ -40,8 +40,8 @@ export class HtmlOverlay extends React.Component<Props> {
   }
 
   inView([x, y]: number[]): boolean {
-    const { viewport, overflowMargin = 0 } = this.props;
-    const { width, height } = viewport;
+    const {viewport, overflowMargin = 0} = this.props;
+    const {width, height} = viewport;
     return !(
       x < -overflowMargin ||
       y < -overflowMargin ||
@@ -51,12 +51,12 @@ export class HtmlOverlay extends React.Component<Props> {
   }
 
   scaleWithZoom(n: number) {
-    const { zoom } = this.props.viewport;
+    const {zoom} = this.props.viewport;
     return n / Math.pow(2, 20 - zoom);
   }
 
   breakpointWithZoom(threshold: number, a: any, b: any): any {
-    const { zoom } = this.props.viewport;
+    const {zoom} = this.props.viewport;
     return zoom > threshold ? a : b;
   }
 
@@ -69,8 +69,8 @@ export class HtmlOverlay extends React.Component<Props> {
   }
 
   render() {
-    const { zIndex = 1 } = this.props;
-    const style = Object.assign({ zIndex } as any, styles.mainContainer);
+    const {zIndex = 1} = this.props;
+    const style = Object.assign({zIndex} as any, styles.mainContainer);
 
     const renderItems = [];
     this.getItems()
@@ -79,7 +79,7 @@ export class HtmlOverlay extends React.Component<Props> {
         const [x, y] = this.getCoords(item.props.coordinates);
         if (this.inView([x, y])) {
           const key = item.key === null || item.key === undefined ? index : item.key;
-          renderItems.push(React.cloneElement(item, { x, y, key }));
+          renderItems.push(React.cloneElement(item, {x, y, key}));
         }
       });
 

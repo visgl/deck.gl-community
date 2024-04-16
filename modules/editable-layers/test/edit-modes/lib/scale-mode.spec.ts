@@ -1,13 +1,13 @@
 import {beforeEach, afterEach, test, expect, vi} from 'vitest';
-import { TransformMode } from '../../../src/edit-modes/transform-mode';
+import {TransformMode} from '../../../src/edit-modes/transform-mode';
 import {
   createFeatureCollectionProps,
   createPointerMoveEvent,
   createStartDraggingEvent,
-  createStopDraggingEvent,
+  createStopDraggingEvent
 } from '../test-utils';
-import { Pick, ModeProps } from '../../../src/edit-modes/types';
-import { FeatureCollection } from '../../../src/geojson-types';
+import {Pick, ModeProps} from '../../../src/edit-modes/types';
+import {FeatureCollection} from '../../../src/geojson-types';
 
 let transformMode: TransformMode;
 
@@ -41,7 +41,7 @@ test('Selected polygon feature can be scaled', () => {
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
     selectedIndexes: [2],
-    onEdit: mockOnEdit,
+    onEdit: mockOnEdit
   });
   const mockPicks = [
     {
@@ -49,10 +49,10 @@ test('Selected polygon feature can be scaled', () => {
       isGuide: true,
       object: {
         type: 'Feature',
-        geometry: { type: 'Point', coordinates: [-2, -2] },
-        properties: { guideType: 'editHandle', editHandleType: 'scale', positionIndexes: [0] },
-      },
-    },
+        geometry: {type: 'Point', coordinates: [-2, -2]},
+        properties: {guideType: 'editHandle', editHandleType: 'scale', positionIndexes: [0]}
+      }
+    }
   ];
   mockScale(mockPicks, props);
 
@@ -66,7 +66,7 @@ test('Selected polygon feature without edit handle picks cannot be scaled', () =
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
     selectedIndexes: [2],
-    onEdit: mockOnEdit,
+    onEdit: mockOnEdit
   });
 
   mockScale([], props);

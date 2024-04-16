@@ -1,14 +1,14 @@
 /* eslint-env browser */
 
-import type { UpdateParameters, DefaultProps } from '@deck.gl/core';
-import { GeoJsonLayer, ScatterplotLayer, IconLayer, TextLayer } from '@deck.gl/layers';
+import type {UpdateParameters, DefaultProps} from '@deck.gl/core';
+import {GeoJsonLayer, ScatterplotLayer, IconLayer, TextLayer} from '@deck.gl/layers';
 import {
   EditAction,
   ClickEvent,
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  PointerMoveEvent,
+  PointerMoveEvent
 } from '../edit-modes/types';
 
 import {ViewMode} from '../edit-modes/view-mode';
@@ -38,12 +38,12 @@ import {SnappableMode} from '../edit-modes/snappable-mode';
 import {TransformMode} from '../edit-modes/transform-mode';
 import {GeoJsonEditModeType} from '../edit-modes/geojson-edit-mode';
 
-import { Color } from '../types';
-import { PROJECTED_PIXEL_SIZE_MULTIPLIER } from '../constants';
+import {Color} from '../types';
+import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
 
-import EditableLayer, { EditableLayerProps } from './editable-layer';
+import EditableLayer, {EditableLayerProps} from './editable-layer';
 import EditablePathLayer from './editable-path-layer';
-import { Feature, FeatureCollection } from '../geojson-types';
+import {Feature, FeatureCollection} from '../geojson-types';
 
 const DEFAULT_LINE_COLOR: Color = [0x0, 0x0, 0x0, 0x99];
 const DEFAULT_FILL_COLOR: Color = [0x0, 0x0, 0x0, 0x90];
@@ -228,7 +228,7 @@ const defaultProps: DefaultProps<EditableGeojsonLayerProps<any>> = {
   getEditHandleIconAngle: 0,
 
   // misc
-  billboard: true,
+  billboard: true
 };
 
 // Mapping of mode name to mode class (for legacy purposes)
@@ -261,7 +261,7 @@ const modeNameMapping = {
   drawRectangleUsing3Points: DrawRectangleUsingThreePointsMode,
   drawEllipseUsing3Points: DrawEllipseUsingThreePointsMode,
   draw90DegreePolygon: Draw90DegreePolygonMode,
-  drawPolygonByDragging: DrawPolygonByDraggingMode,
+  drawPolygonByDragging: DrawPolygonByDraggingMode
 };
 
 export default class EditableGeoJsonLayer extends EditableLayer<
@@ -310,8 +310,8 @@ export default class EditableGeoJsonLayer extends EditableLayer<
           billboard: this.props.billboard,
           updateTriggers: {
             // required to update dashed array attribute
-            all: [this.props.selectedFeatureIndexes, this.props.mode],
-          },
+            all: [this.props.selectedFeatureIndexes, this.props.mode]
+          }
         },
         'polygons-stroke': {
           billboard: this.props.billboard,
@@ -319,17 +319,17 @@ export default class EditableGeoJsonLayer extends EditableLayer<
           type: EditablePathLayer,
           updateTriggers: {
             // required to update dashed array attribute
-            all: [this.props.selectedFeatureIndexes, this.props.mode],
-          },
-        },
+            all: [this.props.selectedFeatureIndexes, this.props.mode]
+          }
+        }
       },
 
       updateTriggers: {
         getLineColor: [this.props.selectedFeatureIndexes, this.props.mode],
         getFillColor: [this.props.selectedFeatureIndexes, this.props.mode],
         getPointRadius: [this.props.selectedFeatureIndexes, this.props.mode],
-        getLineWidth: [this.props.selectedFeatureIndexes, this.props.mode],
-      },
+        getLineWidth: [this.props.selectedFeatureIndexes, this.props.mode]
+      }
     });
 
     let layers: any = [new GeoJsonLayer(subLayerProps)];
@@ -344,7 +344,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
 
     this.setState({
       selectedFeatures: [],
-      editHandles: [],
+      editHandles: []
     });
   }
 
@@ -358,8 +358,8 @@ export default class EditableGeoJsonLayer extends EditableLayer<
     return super.shouldUpdateState(opts) || opts.changeFlags.stateChanged;
   }
 
-  updateState({ props, oldProps, changeFlags, context }: UpdateParameters<this>) {
-    super.updateState({ oldProps, props, changeFlags, context });
+  updateState({props, oldProps, changeFlags, context}: UpdateParameters<this>) {
+    super.updateState({oldProps, props, changeFlags, context});
 
     if (changeFlags.propsOrDataChanged) {
       const modePropChanged = Object.keys(oldProps).length === 0 || props.mode !== oldProps.mode;
@@ -374,7 +374,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
           mode = modeNameMapping[props.mode];
           // eslint-disable-next-line no-console
           console.warn(
-            'Deprecated use of passing `mode` as a string. Pass the mode\'s class constructor instead.'
+            "Deprecated use of passing `mode` as a string. Pass the mode's class constructor instead."
           );
         } else {
           // Should be an instance of EditMode in this case
@@ -388,7 +388,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
         }
 
         if (mode !== this.state.mode) {
-          this.setState({ mode, cursor: null });
+          this.setState({mode, cursor: null});
         }
       }
     }
@@ -405,7 +405,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
       selectedFeatures = props.selectedFeatureIndexes.map((elem) => propsData.features[elem]);
     }
 
-    this.setState({ selectedFeatures });
+    this.setState({selectedFeatures});
   }
 
   getModeProps(props: EditableGeojsonLayerProps<any>) {
@@ -423,8 +423,8 @@ export default class EditableGeoJsonLayer extends EditableLayer<
         props.onEdit(editAction);
       },
       onUpdateCursor: (cursor: string | null | undefined) => {
-        this.setState({ cursor });
-      },
+        this.setState({cursor});
+      }
     };
   }
 
@@ -447,7 +447,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
     return this.state.selectedFeatures.includes(feature);
   }
 
-  getPickingInfo({ info, sourceLayer }: Record<string, any>) {
+  getPickingInfo({info, sourceLayer}: Record<string, any>) {
     if (sourceLayer.id.endsWith('guides')) {
       // If user is picking an editing handle, add additional data to the info
       info.isGuide = true;
@@ -480,14 +480,14 @@ export default class EditableGeoJsonLayer extends EditableLayer<
     const subLayerProps = {
       linestrings: {
         billboard: this.props.billboard,
-        autoHighlight: false,
+        autoHighlight: false
       },
       'polygons-fill': {
-        autoHighlight: false,
+        autoHighlight: false
       },
       'polygons-stroke': {
-        billboard: this.props.billboard,
-      },
+        billboard: this.props.billboard
+      }
     };
 
     if (this.props.editHandleType === 'icon') {
@@ -501,7 +501,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
         getSize: guideAccessor(this.props.getEditHandleIconSize),
         getColor: guideAccessor(this.props.getEditHandleIconColor),
         getAngle: guideAccessor(this.props.getEditHandleIconAngle),
-        billboard: this.props.billboard,
+        billboard: this.props.billboard
       };
     } else {
       subLayerProps['points-circle'] = {
@@ -515,7 +515,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
         getRadius: guideAccessor(this.props.getEditHandlePointRadius),
         getFillColor: guideAccessor(this.props.getEditHandlePointColor),
         getLineColor: guideAccessor(this.props.getEditHandlePointOutlineColor),
-        billboard: this.props.billboard,
+        billboard: this.props.billboard
       };
     }
 
@@ -536,7 +536,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
         getLineWidth: guideAccessor(this.props.getTentativeLineWidth),
         getFillColor: guideAccessor(this.props.getTentativeFillColor),
         pointType: this.props.editHandleType === 'icon' ? 'icon' : 'circle',
-        iconAtlas: this.props.editHandleIconAtlas,
+        iconAtlas: this.props.editHandleIconAtlas
       })
     );
 
@@ -551,8 +551,8 @@ export default class EditableGeoJsonLayer extends EditableLayer<
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,
       ...this.getSubLayerProps({
         id: 'tooltips',
-        data: tooltips,
-      }),
+        data: tooltips
+      })
     });
 
     return [layer];
@@ -579,17 +579,17 @@ export default class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onPointerMove(event: PointerMoveEvent): void {
-    this.setState({ lastPointerMoveEvent: event });
+    this.setState({lastPointerMoveEvent: event});
     this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props) as any);
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }):  null | 'grabbing' | 'grab' {
+  getCursor({isDragging}: {isDragging: boolean}): null | 'grabbing' | 'grab' {
     if (this.state === null || this.state === undefined) {
       // Layer in 'Awaiting state'
       return null;
     }
 
-    let { cursor } = this.state;
+    let {cursor} = this.state;
     if (!cursor) {
       // default cursor
       cursor = isDragging ? 'grabbing' : 'grab';

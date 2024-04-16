@@ -1,7 +1,7 @@
 import hermite from 'cubic-hermite-spline';
 import turfDistance from '@turf/distance';
-import { lineString } from '@turf/helpers';
-import type { Feature, MultiLineString, LineString, Position } from '@turf/helpers';
+import {lineString} from '@turf/helpers';
+import type {Feature, MultiLineString, LineString, Position} from '@turf/helpers';
 
 const INTERPOLATION_INTERVAL = 0.005;
 const INTERPOLATION_THRESHOLD = 0.001;
@@ -21,7 +21,7 @@ export function generateCurveFromControlPoints(
   let prev: Position[] | null = null;
   let totalDistance = 0;
 
-  const { coordinates: coords } = line.geometry;
+  const {coordinates: coords} = line.geometry;
 
   for (let i = 0; i < coords.length; i++) {
     const cur = coords[i];

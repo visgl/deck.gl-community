@@ -165,9 +165,7 @@ export class Graph extends EventTarget {
   updateEdge(edge: Edge): void {
     this._edgeMap[edge.getId()] = edge;
     this._bumpVersion();
-    this.dispatchEvent(
-      new CustomEvent('onEdgeUpdated', {edge} as any)
-    );
+    this.dispatchEvent(new CustomEvent('onEdgeUpdated', {edge} as any));
   }
 
   /**
