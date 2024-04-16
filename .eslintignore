@@ -7,3 +7,6 @@ dist.*.js
 
 public/
 .cache/
+
+modules/arrow-layers
+examples/arrow-layers

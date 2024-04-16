@@ -6,6 +6,7 @@
     // "listEmittedFiles": true
   },
   "references": [
+    {"path": "modules/arrow-layers"},
     {"path": "modules/bing-maps"},
     {"path": "modules/editable-layers"},
     {"path": "modules/graph-layers"},
