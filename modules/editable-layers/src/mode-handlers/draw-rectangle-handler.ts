@@ -1,7 +1,7 @@
 import bboxPolygon from '@turf/bbox-polygon';
-import { PointerMoveEvent } from '../edit-modes/types';
-import { EditAction } from './mode-handler';
-import { TwoClickPolygonHandler } from './two-click-polygon-handler';
+import {PointerMoveEvent} from '../edit-modes/types';
+import {EditAction} from './mode-handler';
+import {TwoClickPolygonHandler} from './two-click-polygon-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class DrawRectangleHandler extends TwoClickPolygonHandler {
@@ -9,7 +9,7 @@ export class DrawRectangleHandler extends TwoClickPolygonHandler {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
-    const result = { editAction: null, cancelMapPan: false };
+    const result = {editAction: null, cancelMapPan: false};
     const clickSequence = this.getClickSequence();
 
     if (clickSequence.length === 0) {

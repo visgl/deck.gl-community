@@ -2,15 +2,15 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import turfDifference from '@turf/difference';
 import turfBuffer from '@turf/buffer';
 import lineIntersect from '@turf/line-intersect';
-import { lineString } from '@turf/helpers';
+import {lineString} from '@turf/helpers';
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfDestination from '@turf/destination';
 import turfPolygonToLine from '@turf/polygon-to-line';
-import nearestPointOnLine, { NearestPointOnLine } from '@turf/nearest-point-on-line';
-import { generatePointsParallelToLinePoints } from '../utils';
-import { EditAction, ModeHandler } from './mode-handler';
-import { ClickEvent, PointerMoveEvent } from '../edit-modes/types';
+import nearestPointOnLine, {NearestPointOnLine} from '@turf/nearest-point-on-line';
+import {generatePointsParallelToLinePoints} from '../utils';
+import {EditAction, ModeHandler} from './mode-handler';
+import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class SplitPolygonHandler extends ModeHandler {
@@ -42,9 +42,9 @@ export class SplitPolygonHandler extends ModeHandler {
       if (closestPoint) {
         // closest point is used as 90degree entry to the polygon
         const lastBearing = turfBearing(firstPoint, closestPoint);
-        const currentDistance = turfDistance(firstPoint, mapCoords, { units: 'meters' });
+        const currentDistance = turfDistance(firstPoint, mapCoords, {units: 'meters'});
         return turfDestination(firstPoint, currentDistance, lastBearing, {
-          units: 'meters',
+          units: 'meters'
         }).geometry.coordinates;
       }
       return mapCoords;
@@ -65,7 +65,7 @@ export class SplitPolygonHandler extends ModeHandler {
   handleClick(event: ClickEvent): EditAction | null | undefined {
     super.handleClick({
       ...event,
-      mapCoords: this.calculateMapCoords(this.getClickSequence(), event.mapCoords),
+      mapCoords: this.calculateMapCoords(this.getClickSequence(), event.mapCoords)
     });
     const editAction: EditAction | null | undefined = null;
     const tentativeFeature = this.getTentativeFeature();
@@ -80,7 +80,7 @@ export class SplitPolygonHandler extends ModeHandler {
     }
     const pt = {
       type: 'Point',
-      coordinates: clickSequence[clickSequence.length - 1],
+      coordinates: clickSequence[clickSequence.length - 1]
     };
     // @ts-expect-error turf type diff
     const isPointInPolygon = booleanPointInPolygon(pt, selectedGeometry);
@@ -98,12 +98,12 @@ export class SplitPolygonHandler extends ModeHandler {
     return editAction;
   }
 
-  handlePointerMove({ mapCoords }: PointerMoveEvent): {
+  handlePointerMove({mapCoords}: PointerMoveEvent): {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
     const clickSequence = this.getClickSequence();
-    const result = { editAction: null, cancelMapPan: false };
+    const result = {editAction: null, cancelMapPan: false};
 
     if (clickSequence.length === 0) {
       // nothing to do yet
@@ -114,8 +114,8 @@ export class SplitPolygonHandler extends ModeHandler {
       type: 'Feature',
       geometry: {
         type: 'LineString',
-        coordinates: [...clickSequence, this.calculateMapCoords(clickSequence, mapCoords)],
-      },
+        coordinates: [...clickSequence, this.calculateMapCoords(clickSequence, mapCoords)]
+      }
     });
 
     return result;
@@ -128,13 +128,13 @@ export class SplitPolygonHandler extends ModeHandler {
     const modeConfig = this.getModeConfig() || {};
 
     // Default gap in between the polygon
-    let { gap = 0.1, units = 'centimeters' } = modeConfig;
+    let {gap = 0.1, units = 'centimeters'} = modeConfig;
     if (gap === 0) {
       gap = 0.1;
       units = 'centimeters';
     }
     // @ts-expect-error turf type diff
-    const buffer = turfBuffer(tentativeFeature, gap, { units });
+    const buffer = turfBuffer(tentativeFeature, gap, {units});
     // @ts-expect-error turf type diff
     const updatedGeometry = turfDifference(selectedGeometry, buffer);
     this._setTentativeFeature(null);
@@ -144,7 +144,7 @@ export class SplitPolygonHandler extends ModeHandler {
       return null;
     }
 
-    const { type, coordinates } = updatedGeometry.geometry;
+    const {type, coordinates} = updatedGeometry.geometry;
     let updatedCoordinates: any[] = []; // TODO
     if (type === 'Polygon') {
       // Update the coordinates as per Multipolygon
@@ -162,14 +162,14 @@ export class SplitPolygonHandler extends ModeHandler {
     // Update the type to Mulitpolygon
     const updatedData = this.getImmutableFeatureCollection().replaceGeometry(featureIndex, {
       type: 'MultiPolygon',
-      coordinates: updatedCoordinates,
+      coordinates: updatedCoordinates
     });
 
     const editAction: EditAction = {
       updatedData: updatedData.getObject(),
       editType: 'split',
       featureIndexes: [featureIndex],
-      editContext: null,
+      editContext: null
     };
 
     return editAction;

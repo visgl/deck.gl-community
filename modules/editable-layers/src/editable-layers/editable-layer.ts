@@ -1,8 +1,14 @@
 /* eslint-env browser */
 
-import { CompositeLayer, CompositeLayerProps } from '@deck.gl/core';
-import { DraggingEvent, ClickEvent, StartDraggingEvent, StopDraggingEvent, PointerMoveEvent } from '../edit-modes/types';
-import { Position } from '../geojson-types';
+import {CompositeLayer, CompositeLayerProps} from '@deck.gl/core';
+import {
+  DraggingEvent,
+  ClickEvent,
+  StartDraggingEvent,
+  StopDraggingEvent,
+  PointerMoveEvent
+} from '../edit-modes/types';
+import {Position} from '../geojson-types';
 
 const EVENT_TYPES = ['anyclick', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
 
@@ -57,8 +63,8 @@ export default abstract class EditableLayer<
         pointerDownMapCoords: null,
 
         // Keep track of the mjolnir.js event handler so it can be deregistered
-        eventHandler: this._forwardEventToCurrentLayer.bind(this),
-      },
+        eventHandler: this._forwardEventToCurrentLayer.bind(this)
+      }
     });
 
     this._addEventHandlers();
@@ -70,21 +76,21 @@ export default abstract class EditableLayer<
 
   _addEventHandlers() {
     // @ts-expect-error accessing protected props
-    const { eventManager } = this.context.deck;
-    const { eventHandler } = this.state._editableLayerState;
+    const {eventManager} = this.context.deck;
+    const {eventHandler} = this.state._editableLayerState;
 
     for (const eventType of EVENT_TYPES) {
       eventManager.on(eventType as any, eventHandler, {
         // give nebula a higher priority so that it can stop propagation to deck.gl's map panning handlers
-        priority: 100,
+        priority: 100
       });
     }
   }
 
   _removeEventHandlers() {
     // @ts-expect-error accessing protected props
-    const { eventManager } = this.context.deck;
-    const { eventHandler } = this.state._editableLayerState;
+    const {eventManager} = this.context.deck;
+    const {eventHandler} = this.state._editableLayerState;
 
     for (const eventType of EVENT_TYPES) {
       eventManager.off(eventType as any, eventHandler);
@@ -106,7 +112,7 @@ export default abstract class EditableLayer<
     func(event);
   }
 
-  _onanyclick({ srcEvent }: any) {
+  _onanyclick({srcEvent}: any) {
     const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
     const mapCoords = this.getMapCoords(screenCoords);
 
@@ -116,11 +122,11 @@ export default abstract class EditableLayer<
       mapCoords,
       screenCoords,
       picks,
-      sourceEvent: srcEvent,
+      sourceEvent: srcEvent
     });
   }
 
-  _onkeyup({ srcEvent }: { srcEvent: KeyboardEvent }) {
+  _onkeyup({srcEvent}: {srcEvent: KeyboardEvent}) {
     this.onLayerKeyUp(srcEvent);
   }
 
@@ -134,8 +140,8 @@ export default abstract class EditableLayer<
         ...this.state._editableLayerState,
         pointerDownScreenCoords: screenCoords,
         pointerDownMapCoords: mapCoords,
-        pointerDownPicks: picks,
-      },
+        pointerDownPicks: picks
+      }
     });
 
     this.onStartDragging({
@@ -145,16 +151,16 @@ export default abstract class EditableLayer<
       pointerDownScreenCoords: screenCoords,
       pointerDownMapCoords: mapCoords,
       cancelPan: event.stopImmediatePropagation,
-      sourceEvent: event.srcEvent,
+      sourceEvent: event.srcEvent
     });
   }
 
   _onpanmove(event: any) {
-    const { srcEvent } = event;
+    const {srcEvent} = event;
     const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
     const mapCoords = this.getMapCoords(screenCoords);
 
-    const { pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords } =
+    const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
     const picks = this.getPicks(screenCoords);
@@ -167,7 +173,7 @@ export default abstract class EditableLayer<
       pointerDownScreenCoords,
       pointerDownMapCoords,
       sourceEvent: srcEvent,
-      cancelPan: event.stopImmediatePropagation,
+      cancelPan: event.stopImmediatePropagation
       // another (hacky) approach for cancelling map panning
       // const controller = this.context.deck.viewManager.controllers[
       //   Object.keys(this.context.deck.viewManager.controllers)[0]
@@ -176,11 +182,11 @@ export default abstract class EditableLayer<
     });
   }
 
-  _onpanend({ srcEvent }: any) {
+  _onpanend({srcEvent}: any) {
     const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
     const mapCoords = this.getMapCoords(screenCoords);
 
-    const { pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords } =
+    const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
     const picks = this.getPicks(screenCoords);
@@ -192,7 +198,7 @@ export default abstract class EditableLayer<
       pointerDownPicks,
       pointerDownScreenCoords,
       pointerDownMapCoords,
-      sourceEvent: srcEvent,
+      sourceEvent: srcEvent
     });
 
     this.setState({
@@ -200,17 +206,17 @@ export default abstract class EditableLayer<
         ...this.state._editableLayerState,
         pointerDownScreenCoords: null,
         pointerDownMapCoords: null,
-        pointerDownPicks: null,
-      },
+        pointerDownPicks: null
+      }
     });
   }
 
   _onpointermove(event: any) {
-    const { srcEvent } = event;
+    const {srcEvent} = event;
     const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
     const mapCoords = this.getMapCoords(screenCoords);
 
-    const { pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords } =
+    const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
     const picks = this.getPicks(screenCoords);
@@ -223,7 +229,7 @@ export default abstract class EditableLayer<
       pointerDownScreenCoords,
       pointerDownMapCoords,
       sourceEvent: srcEvent,
-      cancelPan: event.stopImmediatePropagation,
+      cancelPan: event.stopImmediatePropagation
     });
   }
 
@@ -233,7 +239,7 @@ export default abstract class EditableLayer<
       y: screenCoords[1],
       layerIds: [this.props.id],
       radius: this.props.pickingRadius,
-      depth: this.props.pickingDepth,
+      depth: this.props.pickingDepth
     });
   }
 
@@ -242,7 +248,7 @@ export default abstract class EditableLayer<
       pointerEvent.clientX -
         (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().left,
       pointerEvent.clientY -
-        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().top,
+        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().top
     ];
   }
 

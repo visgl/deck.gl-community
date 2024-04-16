@@ -14,18 +14,18 @@ import {
   Tooltip,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature,
+  TentativeFeature
 } from './types';
-import { FeatureCollection, Feature, Polygon, Geometry, Position } from '../geojson-types';
-import { getPickedEditHandles, getNonGuidePicks } from './utils';
-import { EditMode } from './edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+import {FeatureCollection, Feature, Polygon, Geometry, Position} from '../geojson-types';
+import {getPickedEditHandles, getNonGuidePicks} from './utils';
+import {EditMode} from './edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export type GeoJsonEditAction = EditAction<FeatureCollection>;
 
 const DEFAULT_GUIDES: GuideFeatureCollection = {
   type: 'FeatureCollection',
-  features: [],
+  features: []
 };
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
 
@@ -63,11 +63,11 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   }
 
   getSelectedFeaturesAsFeatureCollection(props: ModeProps<FeatureCollection>): FeatureCollection {
-    const { features } = props.data;
+    const {features} = props.data;
     const selectedFeatures = props.selectedIndexes.map((selectedIndex) => features[selectedIndex]);
     return {
       type: 'FeatureCollection',
-      features: selectedFeatures,
+      features: selectedFeatures
     };
   }
 
@@ -75,7 +75,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return this._clickSequence;
   }
 
-  addClickSequence({ mapCoords }: ClickEvent): void {
+  addClickSequence({mapCoords}: ClickEvent): void {
     this._clickSequence.push(mapCoords);
   }
 
@@ -92,16 +92,16 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 
   isSelectionPicked(picks: Pick[], props: ModeProps<FeatureCollection>): boolean {
     if (!picks.length) return false;
-    const pickedFeatures = getNonGuidePicks(picks).map(({ index }) => index);
+    const pickedFeatures = getNonGuidePicks(picks).map(({index}) => index);
     const pickedHandles = getPickedEditHandles(picks).map(
-      ({ properties }) => properties.featureIndex
+      ({properties}) => properties.featureIndex
     );
     const pickedIndexes = new Set([...pickedFeatures, ...pickedHandles]);
     return props.selectedIndexes.some((index) => pickedIndexes.has(index));
   }
 
   rewindPolygon(feature: Feature): Feature {
-    const { geometry } = feature;
+    const {geometry} = feature;
 
     const isPolygonal = geometry.type === 'Polygon' || geometry.type === 'MultiPolygon';
     if (isPolygonal) {
@@ -123,10 +123,10 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
       featureOrGeometryAsAny.type === 'Feature'
         ? featureOrGeometryAsAny
         : {
-          type: 'Feature',
-          properties: {},
-          geometry: featureOrGeometryAsAny,
-        };
+            type: 'Feature',
+            properties: {},
+            geometry: featureOrGeometryAsAny
+          };
 
     const rewindFeature = this.rewindPolygon(feature);
     const updatedData = new ImmutableFeatureCollection(features)
@@ -137,25 +137,25 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
       updatedData,
       editType: 'addFeature',
       editContext: {
-        featureIndexes: [updatedData.features.length - 1],
-      },
+        featureIndexes: [updatedData.features.length - 1]
+      }
     };
   }
 
   getAddManyFeaturesAction(
-    { features: featuresToAdd }: FeatureCollection,
+    {features: featuresToAdd}: FeatureCollection,
     features: FeatureCollection
   ): GeoJsonEditAction {
     let updatedData = new ImmutableFeatureCollection(features);
     const initialIndex = updatedData.getObject().features.length;
     const updatedIndexes: number[] = [];
     for (const feature of featuresToAdd) {
-      const { properties, geometry } = feature;
+      const {properties, geometry} = feature;
       const geometryAsAny: any = geometry;
       updatedData = updatedData.addFeature({
         type: 'Feature',
         properties,
-        geometry: geometryAsAny,
+        geometry: geometryAsAny
       });
       updatedIndexes.push(initialIndex + updatedIndexes.length);
     }
@@ -164,8 +164,8 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
       updatedData: updatedData.getObject(),
       editType: 'addFeature',
       editContext: {
-        featureIndexes: updatedIndexes,
-      },
+        featureIndexes: updatedIndexes
+      }
     };
   }
 
@@ -176,7 +176,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     const featureOrGeometryAsAny: any = featureOrGeometry;
 
     const selectedFeature = this.getSelectedFeature(props);
-    const { modeConfig } = props;
+    const {modeConfig} = props;
     if (modeConfig && modeConfig.booleanOperation) {
       if (
         !selectedFeature ||
@@ -194,9 +194,9 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
         featureOrGeometryAsAny.type === 'Feature'
           ? featureOrGeometryAsAny
           : {
-            type: 'Feature',
-            geometry: featureOrGeometryAsAny,
-          };
+              type: 'Feature',
+              geometry: featureOrGeometryAsAny
+            };
 
       let updatedGeometry;
       if (modeConfig.booleanOperation === 'union') {
@@ -230,8 +230,8 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
         updatedData,
         editType: 'unionGeometry',
         editContext: {
-          featureIndexes: [featureIndex],
-        },
+          featureIndexes: [featureIndex]
+        }
       };
 
       return editAction;
@@ -251,8 +251,8 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
         updatedData: props.data,
         editType: 'updateTentativeFeature',
         editContext: {
-          feature: tentativeFeature,
-        },
+          feature: tentativeFeature
+        }
       });
     }
   }
@@ -267,7 +267,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
         // Because the new drawing feature is dropped, so the data will keep as the same.
         updatedData: props.data,
         editType: 'cancelFeature',
-        editContext: {},
+        editContext: {}
       });
     }
   }
@@ -276,7 +276,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 export function getIntermediatePosition(position1: Position, position2: Position): Position {
   const intermediatePosition: Position = [
     (position1[0] + position2[0]) / 2.0,
-    (position1[1] + position2[1]) / 2.0,
+    (position1[1] + position2[1]) / 2.0
   ];
 
   return intermediatePosition;

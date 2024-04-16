@@ -1,7 +1,7 @@
-import { CompositeLayer, CompositeLayerProps, DefaultProps } from '@deck.gl/core';
-import { ScatterplotLayer, ScatterplotLayerProps } from '@deck.gl/layers';
+import {CompositeLayer, CompositeLayerProps, DefaultProps} from '@deck.gl/core';
+import {ScatterplotLayer, ScatterplotLayerProps} from '@deck.gl/layers';
 
-import { Color } from '../types';
+import {Color} from '../types';
 
 type JunctionScatterplotLayerProps = CompositeLayerProps &
   Omit<ScatterplotLayerProps, 'getFillColor'> & {
@@ -16,11 +16,11 @@ export default class JunctionScatterplotLayer extends CompositeLayer<JunctionSca
     ...ScatterplotLayer.defaultProps,
     getFillColor: (d) => [0, 0, 0, 255],
     getStrokeColor: (d) => [255, 255, 255, 255],
-    getInnerRadius: (d) => 1,
+    getInnerRadius: (d) => 1
   };
 
   renderLayers() {
-    const { id, getFillColor, getStrokeColor, getInnerRadius, updateTriggers } = this.props;
+    const {id, getFillColor, getStrokeColor, getInnerRadius, updateTriggers} = this.props;
 
     // data needs to be passed explicitly after deck.gl 5.3
     return [
@@ -32,8 +32,8 @@ export default class JunctionScatterplotLayer extends CompositeLayer<JunctionSca
         getLineColor: getStrokeColor,
         updateTriggers: {
           ...updateTriggers,
-          getStrokeColor: updateTriggers.getStrokeColor,
-        },
+          getStrokeColor: updateTriggers.getStrokeColor
+        }
       }), // the inner part
       new ScatterplotLayer<any>({
         ...this.props,
@@ -45,9 +45,9 @@ export default class JunctionScatterplotLayer extends CompositeLayer<JunctionSca
         updateTriggers: {
           ...updateTriggers,
           getFillColor: updateTriggers.getFillColor,
-          getRadius: updateTriggers.getInnerRadius,
-        },
-      }),
+          getRadius: updateTriggers.getInnerRadius
+        }
+      })
     ];
   }
 }

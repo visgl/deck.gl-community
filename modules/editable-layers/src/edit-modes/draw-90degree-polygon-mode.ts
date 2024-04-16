@@ -2,27 +2,27 @@ import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import lineIntersect from '@turf/line-intersect';
 import turfDistance from '@turf/distance';
-import { point, lineString as turfLineString } from '@turf/helpers';
+import {point, lineString as turfLineString} from '@turf/helpers';
 import {
   generatePointsParallelToLinePoints,
   getPickedEditHandle,
-  getEditHandlesForGeometry,
+  getEditHandlesForGeometry
 } from './utils';
 import {
   ClickEvent,
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature,
+  TentativeFeature
 } from './types';
-import { Polygon, LineString, Position, FeatureCollection } from '../geojson-types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {Polygon, LineString, Position, FeatureCollection} from '../geojson-types';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class Draw90DegreePolygonMode extends GeoJsonEditMode {
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
     const clickSequence = this.getClickSequence();
 
-    const { mapCoords } = props.lastPointerMoveEvent;
+    const {mapCoords} = props.lastPointerMoveEvent;
 
     let p3;
     if (clickSequence.length === 1) {
@@ -40,24 +40,24 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
       tentativeFeature = {
         type: 'Feature',
         properties: {
-          guideType: 'tentative',
+          guideType: 'tentative'
         },
         geometry: {
           type: 'LineString',
-          coordinates: [...clickSequence, p3],
-        },
+          coordinates: [...clickSequence, p3]
+        }
       };
     } else {
       // Draw a Polygon connecting all the clicked points with the hovered point
       tentativeFeature = {
         type: 'Feature',
         properties: {
-          guideType: 'tentative',
+          guideType: 'tentative'
         },
         geometry: {
           type: 'Polygon',
-          coordinates: [[...clickSequence, p3, clickSequence[0]]],
-        },
+          coordinates: [[...clickSequence, p3, clickSequence[0]]]
+        }
       };
     }
 
@@ -67,7 +67,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     const clickSequence = this.getClickSequence();
@@ -95,7 +95,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
-    const { picks } = event;
+    const {picks} = event;
     const tentativeFeature = this.getTentativeGuide(props);
     this.addClickSequence(event);
     const clickSequence = this.getClickSequence();
@@ -129,7 +129,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
         // They clicked the first or last point (or double-clicked), so complete the polygon
         const polygonToAdd: Polygon = {
           type: 'Polygon',
-          coordinates: this.finalizedCoordinates([...polygon.coordinates[0]]),
+          coordinates: this.finalizedCoordinates([...polygon.coordinates[0]])
         };
 
         this.resetClickSequence();
@@ -150,7 +150,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
       pointerDownScreenCoords: null,
       pointerDownMapCoords: null,
       cancelPan: () => {},
-      sourceEvent: null,
+      sourceEvent: null
     };
 
     this.handlePointerMove(fakePointerMoveEvent, props);
@@ -184,7 +184,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
       const p4 = coordinates[coordinates.length - 4];
       const angle2 = bearing(p3, p4);
 
-      const angles = { first: [] as number[], second: [] as number[] };
+      const angles = {first: [] as number[], second: [] as number[]};
       // calculate 3 right angle points for first and last points in lineString
       [1, 2, 3].forEach((factor) => {
         const newAngle1 = angle1 + factor * 90;
@@ -200,12 +200,12 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
       [0, 1, 2].forEach((indexFirst) => {
         const line1 = turfLineString([
           p1,
-          destination(p1, distance, angles.first[indexFirst]).geometry.coordinates,
+          destination(p1, distance, angles.first[indexFirst]).geometry.coordinates
         ]);
         [0, 1, 2].forEach((indexSecond) => {
           const line2 = turfLineString([
             p3,
-            destination(p3, distance, angles.second[indexSecond]).geometry.coordinates,
+            destination(p3, distance, angles.second[indexSecond]).geometry.coordinates
           ]);
           const fc = lineIntersect(line1, line2);
           if (fc && fc.features.length) {

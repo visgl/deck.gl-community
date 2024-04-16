@@ -8,7 +8,7 @@ import {
   LineString,
   MultiLineString,
   Feature,
-  FeatureCollection,
+  FeatureCollection
 } from '@deck.gl-community/editable-layers';
 
 function getPacManMultiPolygon(): MultiPolygon {
@@ -34,7 +34,7 @@ function getPacManMultiPolygon(): MultiPolygon {
           [24.520397743119403, 70.4288568086563],
           [24.51496124267578, 70.43007252396679],
           [24.510159571030567, 70.42876569452596],
-          [24.509897232055664, 70.43510308193534],
+          [24.509897232055664, 70.43510308193534]
         ],
         [
           [24.52646255493164, 70.43708621753503],
@@ -49,8 +49,8 @@ function getPacManMultiPolygon(): MultiPolygon {
           [24.534358978271484, 70.43760352549158],
           [24.53144073486328, 70.43812082030453],
           [24.53075408935547, 70.43806334375216],
-          [24.52646255493164, 70.43708621753503],
-        ],
+          [24.52646255493164, 70.43708621753503]
+        ]
       ],
       [
         [
@@ -63,8 +63,8 @@ function getPacManMultiPolygon(): MultiPolygon {
           [24.482173919677734, 70.4325448391651],
           [24.46349686309326, 70.4308843242287],
           [24.446296691894528, 70.43248734687127],
-          [24.434452056884766, 70.43858062688211],
-        ],
+          [24.434452056884766, 70.43858062688211]
+        ]
       ],
       [
         [
@@ -72,10 +72,10 @@ function getPacManMultiPolygon(): MultiPolygon {
           [24.483890533447266, 70.44007492654139],
           [24.485607147216797, 70.43789091312142],
           [24.478740692138672, 70.43708621753503],
-          [24.475650787353512, 70.4397300978937],
-        ],
-      ],
-    ],
+          [24.475650787353512, 70.4397300978937]
+        ]
+      ]
+    ]
   };
 }
 
@@ -93,9 +93,9 @@ function getPacManPolygon(): Polygon {
         [24.482174, 70.43255],
         [24.463497, 70.430885],
         [24.446297, 70.43249],
-        [24.434452, 70.43858],
-      ],
-    ],
+        [24.434452, 70.43858]
+      ]
+    ]
   };
 }
 
@@ -108,9 +108,9 @@ export function createPolygonAroundNullIsland(): Polygon {
         [-1, 1],
         [-1, -1],
         [1, -1],
-        [1, 1],
-      ],
-    ],
+        [1, 1]
+      ]
+    ]
   };
 }
 
@@ -123,9 +123,9 @@ export function createPolygonRightOfNullIsland(): Polygon {
         [0, 2],
         [0, -2],
         [2, -2],
-        [2, 2],
-      ],
-    ],
+        [2, 2]
+      ]
+    ]
   };
 }
 
@@ -138,9 +138,9 @@ export function createPolygonFarRightOfNullIsland(): Polygon {
         [2, 1],
         [2, -1],
         [4, -1],
-        [4, 1],
-      ],
-    ],
+        [4, 1]
+      ]
+    ]
   };
 }
 
@@ -161,8 +161,8 @@ export function createRandomLineString(): LineString {
     type: 'LineString',
     coordinates: [
       [1, 2],
-      [2, 3],
-    ],
+      [2, 3]
+    ]
   };
 }
 
@@ -173,21 +173,21 @@ export function createRandomMultiLineString(): MultiLineString {
       [
         [1, 2],
         [2, 3],
-        [3, 4],
+        [3, 4]
       ],
       [
         [4, 5],
-        [5, 6],
-      ],
-    ],
+        [5, 6]
+      ]
+    ]
   };
 }
 
 export function wrapInFeature(geometry: Geometry): Feature {
   return {
     type: 'Feature',
-    properties: { name: `name-${Math.round(Math.random() * 100)}` },
-    geometry,
+    properties: {name: `name-${Math.round(Math.random() * 100)}`},
+    geometry
   } as Feature;
 }
 
@@ -195,7 +195,7 @@ export function createRandomFeature(): Feature {
   return {
     type: 'Feature',
     properties: {},
-    geometry: createRandomPolygon(),
+    geometry: createRandomPolygon()
   };
 }
 
@@ -203,13 +203,13 @@ export function createRandomFeatureCollection(): FeatureCollection {
   return {
     type: 'FeatureCollection',
     properties: {
-      name: 'Pac-Man Group',
+      name: 'Pac-Man Group'
     },
     features: [
       {
         type: 'Feature',
         properties: {
-          name: 'Pac-Man 1',
+          name: 'Pac-Man 1'
         },
         geometry: {
           type: 'MultiPolygon',
@@ -221,8 +221,8 @@ export function createRandomFeatureCollection(): FeatureCollection {
                 [24.475994110107422, 70.44949798144461],
                 [24.492816925048828, 70.44283334545445],
                 [24.46208953857422, 70.44119557930743],
-                [24.435197322726804, 70.44421917386198],
-              ],
+                [24.435197322726804, 70.44421917386198]
+              ]
             ],
             [
               [
@@ -230,16 +230,16 @@ export function createRandomFeatureCollection(): FeatureCollection {
                 [24.483890533447266, 70.44007492654139],
                 [24.485607147216797, 70.43789091312142],
                 [24.478740692138672, 70.43708621753503],
-                [24.475650787353512, 70.4397300978937],
-              ],
-            ],
-          ],
-        },
+                [24.475650787353512, 70.4397300978937]
+              ]
+            ]
+          ]
+        }
       },
       {
         type: 'Feature',
         properties: {
-          name: 'Pac-Man Ghost',
+          name: 'Pac-Man Ghost'
         },
         geometry: {
           type: 'Polygon',
@@ -262,7 +262,7 @@ export function createRandomFeatureCollection(): FeatureCollection {
               [24.520397743119403, 70.4288568086563],
               [24.51496124267578, 70.43007252396679],
               [24.510159571030567, 70.42876569452596],
-              [24.509897232055664, 70.43510308193534],
+              [24.509897232055664, 70.43510308193534]
             ],
             [
               [24.52646255493164, 70.43708621753503],
@@ -277,15 +277,15 @@ export function createRandomFeatureCollection(): FeatureCollection {
               [24.534358978271484, 70.43760352549158],
               [24.53144073486328, 70.43812082030453],
               [24.53075408935547, 70.43806334375216],
-              [24.52646255493164, 70.43708621753503],
-            ],
-          ],
-        },
+              [24.52646255493164, 70.43708621753503]
+            ]
+          ]
+        }
       },
       {
         type: 'Feature',
         properties: {
-          name: 'Pac-Man 2',
+          name: 'Pac-Man 2'
         },
         geometry: {
           type: 'Polygon',
@@ -297,11 +297,11 @@ export function createRandomFeatureCollection(): FeatureCollection {
               [24.482173919677734, 70.4325448391651],
               [24.46349686309326, 70.4308843242287],
               [24.446296691894528, 70.43248734687127],
-              [24.434452056884766, 70.43858062688211],
-            ],
-          ],
-        },
-      },
-    ],
+              [24.434452056884766, 70.43858062688211]
+            ]
+          ]
+        }
+      }
+    ]
   };
 }

@@ -3,9 +3,9 @@ import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
 import bboxPolygon from '@turf/bbox-polygon';
 import turfDistance from '@turf/distance';
-import { coordEach } from '@turf/meta';
-import { getGeom } from '@turf/invariant';
-import { point, featureCollection, lineString } from '@turf/helpers';
+import {coordEach} from '@turf/meta';
+import {getGeom} from '@turf/invariant';
+import {point, featureCollection, lineString} from '@turf/helpers';
 import turfTransformRotate from '@turf/transform-rotate';
 import polygonToLine from '@turf/polygon-to-line';
 import {
@@ -15,12 +15,12 @@ import {
   DraggingEvent,
   ModeProps,
   EditHandleFeature,
-  GuideFeatureCollection,
+  GuideFeatureCollection
 } from './types';
-import { getPickedEditHandle } from './utils';
-import { FeatureCollection, Position } from '../geojson-types';
-import { GeoJsonEditMode, GeoJsonEditAction, getIntermediatePosition } from './geojson-edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+import {getPickedEditHandle} from './utils';
+import {FeatureCollection, Position} from '../geojson-types';
+import {GeoJsonEditMode, GeoJsonEditAction, getIntermediatePosition} from './geojson-edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class RotateMode extends GeoJsonEditMode {
   _selectedEditHandle: EditHandleFeature | null | undefined;
@@ -28,10 +28,10 @@ export class RotateMode extends GeoJsonEditMode {
   _isRotating = false;
 
   _isSinglePointGeometrySelected = (geometry: FeatureCollection | null | undefined): boolean => {
-    const { features } = geometry || {};
+    const {features} = geometry || {};
     if (Array.isArray(features) && features.length === 1) {
       // @ts-expect-error turf type diff
-      const { type }: { type: string } = getGeom(features[0]);
+      const {type}: {type: string} = getGeom(features[0]);
       return type === 'Point';
     }
     return false;
@@ -44,7 +44,7 @@ export class RotateMode extends GeoJsonEditMode {
       this._geometryBeingRotated || this.getSelectedFeaturesAsFeatureCollection(props);
 
     if (this._isSinglePointGeometrySelected(selectedGeometry)) {
-      return { type: 'FeatureCollection', features: [] };
+      return {type: 'FeatureCollection', features: []};
     }
 
     if (this._isRotating) {
@@ -77,13 +77,13 @@ export class RotateMode extends GeoJsonEditMode {
     // relative to the length of the longest edge of the enveloping box
     const rotateHandleCoords = topEdgeMidpointCoords && [
       topEdgeMidpointCoords[0],
-      topEdgeMidpointCoords[1] + longestEdgeLength / 1000,
+      topEdgeMidpointCoords[1] + longestEdgeLength / 1000
     ];
 
     const lineFromEnvelopeToRotateHandle = lineString([topEdgeMidpointCoords, rotateHandleCoords]);
     const rotateHandle = point(rotateHandleCoords, {
       guideType: 'editHandle',
-      editHandleType: 'rotate',
+      editHandleType: 'rotate'
     });
 
     const outFeatures = [polygonToLine(boundingBox), rotateHandle, lineFromEnvelopeToRotateHandle];
@@ -178,7 +178,7 @@ export class RotateMode extends GeoJsonEditMode {
       this._geometryBeingRotated,
       angle,
       {
-        pivot: centroid,
+        pivot: centroid
       }
     );
 
@@ -195,8 +195,8 @@ export class RotateMode extends GeoJsonEditMode {
       updatedData: updatedData.getObject(),
       editType,
       editContext: {
-        featureIndexes: selectedIndexes,
-      },
+        featureIndexes: selectedIndexes
+      }
     };
   }
 }

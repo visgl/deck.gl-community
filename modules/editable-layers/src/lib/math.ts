@@ -1,4 +1,4 @@
-import { Position } from '../geojson-types';
+import {Position} from '../geojson-types';
 
 export function toDegree(radian: number): number {
   return (radian * 180) / Math.PI;

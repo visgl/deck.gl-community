@@ -1,6 +1,6 @@
 import {beforeEach, afterEach, test, expect, vi} from 'vitest';
-import { TransformMode } from '../../../src/edit-modes/transform-mode';
-import { createFeatureCollectionProps, createPointerMoveEvent } from '../test-utils';
+import {TransformMode} from '../../../src/edit-modes/transform-mode';
+import {createFeatureCollectionProps, createPointerMoveEvent} from '../test-utils';
 
 let transformMode: TransformMode;
 
@@ -22,7 +22,7 @@ test('onUpdateCursor is only set to null once', () => {
   const moveEvent = createPointerMoveEvent([-1, -1], []);
   const props = createFeatureCollectionProps({
     selectedIndexes: [2],
-    onUpdateCursor: mockOnUpdateCursor,
+    onUpdateCursor: mockOnUpdateCursor
   });
   transformMode.handlePointerMove(moveEvent, props);
   expect(mockOnUpdateCursor).toHaveBeenCalledTimes(1);
@@ -30,7 +30,7 @@ test('onUpdateCursor is only set to null once', () => {
 });
 
 test('Transform mode correctly renders composited guides', () => {
-  const props = createFeatureCollectionProps({ selectedIndexes: [2] });
+  const props = createFeatureCollectionProps({selectedIndexes: [2]});
   const guides: Array<any> = transformMode.getGuides(props).features;
   const scaleGuides = guides.filter((guide) => guide.properties.editHandleType === 'scale');
   expect(scaleGuides.length).toEqual(4);

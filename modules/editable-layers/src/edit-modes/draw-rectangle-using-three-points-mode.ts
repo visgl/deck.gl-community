@@ -1,6 +1,6 @@
-import { generatePointsParallelToLinePoints } from './utils';
-import { Position, Polygon, FeatureOf } from '../geojson-types';
-import { ThreeClickPolygonMode } from './three-click-polygon-mode';
+import {generatePointsParallelToLinePoints} from './utils';
+import {Position, Polygon, FeatureOf} from '../geojson-types';
+import {ThreeClickPolygonMode} from './three-click-polygon-mode';
 
 export class DrawRectangleUsingThreePointsMode extends ThreeClickPolygonMode {
   getThreeClickPolygon(
@@ -14,7 +14,7 @@ export class DrawRectangleUsingThreePointsMode extends ThreeClickPolygonMode {
     return {
       type: 'Feature',
       properties: {
-        shape: 'Rectangle',
+        shape: 'Rectangle'
       },
       geometry: {
         type: 'Polygon',
@@ -27,10 +27,10 @@ export class DrawRectangleUsingThreePointsMode extends ThreeClickPolygonMode {
             coord2,
             p3,
             p4,
-            coord1,
-          ],
-        ],
-      },
+            coord1
+          ]
+        ]
+      }
     };
   }
 }

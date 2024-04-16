@@ -7,7 +7,7 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   Tooltip,
-  ModeProps,
+  ModeProps
 } from './types';
 
 export interface EditMode<TData, TGuides> {

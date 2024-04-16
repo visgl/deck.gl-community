@@ -118,7 +118,7 @@ export class InteractionManager {
   }
 
   _mouseLeaveNode(): void {
-    const lastHoveredNode = this._lastHoveredNode ;
+    const lastHoveredNode = this._lastHoveredNode;
 
     if (!(lastHoveredNode.isSelectable() && lastHoveredNode.getState() === NODE_STATE.SELECTED)) {
       // reset the last hovered node's state

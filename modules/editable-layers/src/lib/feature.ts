@@ -1,6 +1,6 @@
-import { Feature as GeoJson } from '../geojson-types';
+import {Feature as GeoJson} from '../geojson-types';
 
-import { Style } from '../types';
+import {Style} from '../types';
 
 export default class Feature {
   // geo json coordinates

@@ -3,8 +3,8 @@ import styled from 'styled-components';
 
 const styles = {
   toolboxItem: {
-    flexBasis: '50%',
-  },
+    flexBasis: '50%'
+  }
 };
 
 export const Toolbox = styled.div`
@@ -33,7 +33,7 @@ export const ToolboxTitle = styled.div`
   padding: 0px 8px;
 `;
 
-const buttonBackground = (props: { selected?: boolean }) =>
+const buttonBackground = (props: {selected?: boolean}) =>
   props.selected ? 'rgba(30, 84, 183, 0.8)' : 'rgba(23, 28, 41, 0.8)';
 
 export const ToolboxButton = styled.button`
@@ -75,7 +75,7 @@ const ToolboxCheckboxContainer = styled.div`
 export const ToolboxCheckbox = (props) => (
   <label>
     <ToolboxCheckboxContainer>
-      <input {...{ ...props, children: null }} />
+      <input {...{...props, children: null}} />
       {props.children}
     </ToolboxCheckboxContainer>
   </label>

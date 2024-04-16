@@ -1,11 +1,11 @@
 import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
-import { flattenEach } from '@turf/meta';
-import { point, MultiLineString } from '@turf/helpers';
-import { getCoords } from '@turf/invariant';
+import {flattenEach} from '@turf/meta';
+import {point, MultiLineString} from '@turf/helpers';
+import {getCoords} from '@turf/invariant';
 import WebMercatorViewport from 'viewport-mercator-project';
-import { Viewport, Pick, EditHandleFeature, EditHandleType } from './types';
+import {Viewport, Pick, EditHandleFeature, EditHandleType} from './types';
 import {
   Geometry,
   Position,
@@ -14,10 +14,10 @@ import {
   Polygon,
   FeatureOf,
   FeatureWithProps,
-  AnyCoordinates,
+  AnyCoordinates
 } from '../geojson-types';
 
-export type NearestPointType = FeatureWithProps<Point, { dist: number; index: number }>;
+export type NearestPointType = FeatureWithProps<Point, {dist: number; index: number}>;
 
 export function toDeckColor(
   color?: [number, number, number, number] | number,
@@ -78,7 +78,7 @@ export function generatePointsParallelToLinePoints(
 ): Position[] {
   const lineString: LineString = {
     type: 'LineString',
-    coordinates: [p1, p2],
+    coordinates: [p1, p2]
   };
   const pt = point(mapCoords);
   const ddistance = pointToLineDistance(pt, lineString);
@@ -150,12 +150,12 @@ export function nearestPointOnProjectedLine(
       minPointInfo = {
         index,
         x0: (B * (B * x - A * y) - A * C) / div,
-        y0: (A * (-B * x + A * y) - B * C) / div,
+        y0: (A * (-B * x + A * y) - B * C) / div
       };
     }
   });
   // @ts-ignore
-  const { index, x0, y0 } = minPointInfo;
+  const {index, x0, y0} = minPointInfo;
   const [x1, y1, z1 = 0] = projectedCoords[index - 1];
   const [x2, y2, z2 = 0] = projectedCoords[index];
 
@@ -170,13 +170,13 @@ export function nearestPointOnProjectedLine(
     geometry: {
       type: 'Point',
       // @ts-expect-error
-      coordinates: wmViewport.unproject([x0, y0, z0]),
+      coordinates: wmViewport.unproject([x0, y0, z0])
     },
     properties: {
       // TODO: calculate the distance in proper units
       dist: minDistance,
-      index: index - 1,
-    },
+      index: index - 1
+    }
   };
 }
 
@@ -191,7 +191,7 @@ export function nearestPointOnLine<G extends LineString | MultiLineString>(
     mercator = new WebMercatorViewport(viewport);
   }
   let closestPoint: any = point([Infinity, Infinity], {
-    dist: Infinity,
+    dist: Infinity
   });
 
   if (!lines.geometry?.coordinates.length || lines.geometry?.coordinates.length < 2) {
@@ -293,7 +293,7 @@ export function nearestPointOnLine<G extends LineString | MultiLineString>(
     }
 
     // index needs to be -1 because we have to account for the shift from initial backscan
-    let snapPoint = { x, y, idx: segmentIdx - 1, to, from };
+    let snapPoint = {x, y, idx: segmentIdx - 1, to, from};
 
     if (mercator) {
       const pixelToLatLong = mercator.unproject([snapPoint.x, snapPoint.y]);
@@ -302,13 +302,13 @@ export function nearestPointOnLine<G extends LineString | MultiLineString>(
         y: pixelToLatLong[1],
         idx: segmentIdx - 1,
         to,
-        from,
+        from
       };
     }
 
     closestPoint = point([snapPoint.x, snapPoint.y], {
       dist: Math.abs(snapPoint.from - snapPoint.to),
-      index: snapPoint.idx,
+      index: snapPoint.idx
     });
   });
 
@@ -338,7 +338,7 @@ export function getPickedExistingEditHandle(
 ): EditHandleFeature | null | undefined {
   const handles = getPickedEditHandles(picks);
   return handles.find(
-    ({ properties }) => properties.featureIndex >= 0 && properties.editHandleType === 'existing'
+    ({properties}) => properties.featureIndex >= 0 && properties.editHandleType === 'existing'
   );
 }
 
@@ -347,7 +347,7 @@ export function getPickedIntermediateEditHandle(
 ): EditHandleFeature | null | undefined {
   const handles = getPickedEditHandles(picks);
   return handles.find(
-    ({ properties }) => properties.featureIndex >= 0 && properties.editHandleType === 'intermediate'
+    ({properties}) => properties.featureIndex >= 0 && properties.editHandleType === 'intermediate'
   );
 }
 
@@ -379,13 +379,13 @@ export function getEditHandlesForGeometry(
             guideType: 'editHandle',
             editHandleType,
             positionIndexes: [],
-            featureIndex,
+            featureIndex
           },
           geometry: {
             type: 'Point',
-            coordinates: geometry.coordinates,
-          },
-        },
+            coordinates: geometry.coordinates
+          }
+        }
       ];
       break;
     case 'MultiPoint':
@@ -449,12 +449,12 @@ function getEditHandlesForCoordinates(
         guideType: 'editHandle',
         positionIndexes: [...positionIndexPrefix, i],
         featureIndex,
-        editHandleType,
+        editHandleType
       },
       geometry: {
         type: 'Point',
-        coordinates: position,
-      },
+        coordinates: position
+      }
     });
   }
   return editHandles;

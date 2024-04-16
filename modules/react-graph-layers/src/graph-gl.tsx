@@ -182,29 +182,31 @@ export const GraphGL = ({
             ],
             [minZoom, maxZoom, enableZooming, doubleClickZoom, enablePanning]
           )}
-          layers={useMemo(
-            () => [
-              new GraphLayer({
+          layers={
+            useMemo(
+              () => [
+                new GraphLayer({
+                  engine,
+                  nodeStyle,
+                  nodeEvents,
+                  edgeStyle,
+                  edgeEvents,
+                  enableDragging,
+                  resumeLayoutAfterDragging
+                })
+              ],
+              [
                 engine,
+                engine.getGraphVersion(),
                 nodeStyle,
                 nodeEvents,
                 edgeStyle,
                 edgeEvents,
                 enableDragging,
                 resumeLayoutAfterDragging
-              })
-            ],
-            [
-              engine,
-              engine.getGraphVersion(),
-              nodeStyle,
-              nodeEvents,
-              edgeStyle,
-              edgeEvents,
-              enableDragging,
-              resumeLayoutAfterDragging
-            ]
-          ) as any}
+              ]
+            ) as any
+          }
           getTooltip={getTooltip}
           onHover={onHover}
         />

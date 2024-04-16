@@ -3,7 +3,7 @@ export const ArrowStyles = {
   NONE: 0,
   FORWARD: 1,
   BACKWARD: 2,
-  BOTH: 3,
+  BOTH: 3
 };
 
 export const DEFAULT_ARROWS = 1;
@@ -18,5 +18,5 @@ export const DEFAULT_STYLE = {
   lineWidthMeters: 5,
   outlineRadiusMeters: 0,
   opacity: 1,
-  zLevel: 0,
+  zLevel: 0
 };

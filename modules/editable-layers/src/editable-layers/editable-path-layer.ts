@@ -1,6 +1,6 @@
-import { PathLayer, PathLayerProps } from '@deck.gl/layers';
+import {PathLayer, PathLayerProps} from '@deck.gl/layers';
 
-import { insertBefore } from '../utils';
+import {insertBefore} from '../utils';
 
 interface EditablePathLayerProps extends PathLayerProps<any> {
   pickingLineWidthExtraPixels?: number;
@@ -8,7 +8,7 @@ interface EditablePathLayerProps extends PathLayerProps<any> {
 
 const defaultProps = {
   ...PathLayer.defaultProps,
-  pickingLineWidthExtraPixels: { type: 'number', min: 0, value: Number.MAX_SAFE_INTEGER },
+  pickingLineWidthExtraPixels: {type: 'number', min: 0, value: Number.MAX_SAFE_INTEGER}
 };
 
 export default class EditablePathLayer extends PathLayer<any, EditablePathLayerProps> {
@@ -31,8 +31,8 @@ export default class EditablePathLayer extends PathLayer<any, EditablePathLayerP
         ...(shaders.inject || {}),
         'vs:#decl': (shaders.inject?.['vs:#decl'] || '').concat(
           'uniform float pickingLineWidthExtraPixels;'
-        ),
-      },
+        )
+      }
     };
   }
 
@@ -41,8 +41,8 @@ export default class EditablePathLayer extends PathLayer<any, EditablePathLayerP
       ...props,
       uniforms: {
         ...props.uniforms,
-        pickingLineWidthExtraPixels: this.props.pickingLineWidthExtraPixels,
-      },
+        pickingLineWidthExtraPixels: this.props.pickingLineWidthExtraPixels
+      }
     });
   }
 }

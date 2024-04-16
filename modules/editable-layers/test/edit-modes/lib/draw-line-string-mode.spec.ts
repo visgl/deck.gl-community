@@ -1,6 +1,6 @@
 import {beforeEach, describe, it, expect} from 'vitest';
-import { DrawLineStringMode } from '../../../src/edit-modes/draw-line-string-mode';
-import { createFeatureCollectionProps, createClickEvent, createKeyboardEvent } from '../test-utils';
+import {DrawLineStringMode} from '../../../src/edit-modes/draw-line-string-mode';
+import {createFeatureCollectionProps, createClickEvent, createKeyboardEvent} from '../test-utils';
 
 let props;
 let mode;
@@ -10,8 +10,8 @@ beforeEach(() => {
   props = createFeatureCollectionProps({
     data: {
       type: 'FeatureCollection',
-      features: [],
-    },
+      features: []
+    }
   });
 
   mode.handleClick(createClickEvent([1, 2]), props);
@@ -31,10 +31,10 @@ describe('while tentative', () => {
     expect(props.onEdit.mock.calls[2][0].editContext.position).toEqual([5, 6]);
   });
 
-  it('doesn\'t change the data', () => {
+  it("doesn't change the data", () => {
     const expectedData = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     expect(props.onEdit.mock.calls[0][0].updatedData).toEqual(expectedData);
@@ -55,10 +55,10 @@ describe('after double-clicking', () => {
             object: {
               properties: {
                 guideType: 'editHandle',
-                positionIndexes: [2],
-              },
-            },
-          },
+                positionIndexes: [2]
+              }
+            }
+          }
         ]
       ),
       props
@@ -76,10 +76,10 @@ describe('after double-clicking', () => {
           coordinates: [
             [1, 2],
             [3, 4],
-            [5, 6],
-          ],
-        },
-      },
+            [5, 6]
+          ]
+        }
+      }
     ]);
   });
 });
@@ -100,10 +100,10 @@ describe('after hitting enter', () => {
           coordinates: [
             [1, 2],
             [3, 4],
-            [5, 6],
-          ],
-        },
-      },
+            [5, 6]
+          ]
+        }
+      }
     ]);
   });
 });
@@ -118,10 +118,10 @@ describe('after hitting escape', () => {
     expect(props.onEdit.mock.calls[3][0].editType).toEqual('cancelFeature');
   });
 
-  it('doesn\'t change the data', () => {
+  it("doesn't change the data", () => {
     const expectedData = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
     expect(props.onEdit.mock.calls[3][0].updatedData).toEqual(expectedData);
   });

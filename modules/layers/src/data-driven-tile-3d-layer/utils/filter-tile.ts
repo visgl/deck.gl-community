@@ -101,8 +101,7 @@ async function filterTileIndices(
 
   const attributeValuesMap = {};
   objectIdAttributeData[objectIdField.name]?.forEach((elem, index) => {
-    attributeValuesMap[elem] =
-      tileFilterAttributeData[filterAttributeField.name][index];
+    attributeValuesMap[elem] = tileFilterAttributeData[filterAttributeField.name][index];
   });
 
   if (!tile.content.indices) {
@@ -126,7 +125,7 @@ async function filterTileIndices(
   for (let i = 0; i < tile.content.indices.length; i += 3) {
     if (
       attributeValuesMap[tile.content.featureIds[tile.content.indices[i]]] ===
-        filtersByAttribute.value
+      filtersByAttribute.value
     ) {
       triangles.push(i);
     }
@@ -140,7 +139,6 @@ async function filterTileIndices(
     indices[index * 3 + 2] = tile.content.indices[vertex + 2];
   });
   return {success: true, indices};
-
 }
 
 async function loadFeatureAttributeData(

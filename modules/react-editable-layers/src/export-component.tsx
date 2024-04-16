@@ -4,8 +4,8 @@ import * as React from 'react';
 import copy from 'clipboard-copy';
 import downloadjs from 'downloadjs';
 import styled from 'styled-components';
-import { toGeoJson, toKml, toWkt } from './lib/exporter';
-import { Button } from '@deck.gl-community/react';
+import {toGeoJson, toKml, toWkt} from './lib/exporter';
+import {Button} from '@deck.gl-community/react';
 
 const FormatSelect = styled.div`
   display: flex;
@@ -52,7 +52,7 @@ export function ExportComponent({
   geoJson,
   onClose,
   filename,
-  additionalInputs,
+  additionalInputs
 }: ExportComponentProps) {
   const [format, setFormat] = React.useState('geoJson');
 
@@ -94,10 +94,10 @@ export function ExportComponent({
   return (
     <>
       <FormatSelect>
-        <strong style={{ padding: '0.5rem 0.25rem' }}>Format:</strong>
+        <strong style={{padding: '0.5rem 0.25rem'}}>Format:</strong>
         <Button
           style={{
-            backgroundColor: format === 'geoJson' ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)',
+            backgroundColor: format === 'geoJson' ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)'
           }}
           onClick={() => setFormat('geoJson')}
         >
@@ -105,7 +105,7 @@ export function ExportComponent({
         </Button>
         <Button
           style={{
-            backgroundColor: format === 'kml' ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)',
+            backgroundColor: format === 'kml' ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)'
           }}
           onClick={() => setFormat('kml')}
         >
@@ -113,7 +113,7 @@ export function ExportComponent({
         </Button>
         <Button
           style={{
-            backgroundColor: format === 'wkt' ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)',
+            backgroundColor: format === 'wkt' ? 'rgb(0, 105, 217)' : 'rgb(90, 98, 94)'
           }}
           onClick={() => setFormat('wkt')}
         >
@@ -123,7 +123,7 @@ export function ExportComponent({
       <ExportArea>
         <ExportData
           readOnly={true}
-          style={tooMuch ? { fontStyle: 'italic', padding: '0.75rem 0rem' } : {}}
+          style={tooMuch ? {fontStyle: 'italic', padding: '0.75rem 0rem'} : {}}
           value={
             tooMuch
               ? 'Too much data to display. Download or Copy to clipboard instead.'
@@ -133,10 +133,10 @@ export function ExportComponent({
       </ExportArea>
       {additionalInputs || null}
       <FooterRow>
-        <Button style={{ backgroundColor: 'rgb(0, 105, 217)' }} onClick={downloadData}>
+        <Button style={{backgroundColor: 'rgb(0, 105, 217)'}} onClick={downloadData}>
           Download
         </Button>
-        <Button style={{ backgroundColor: 'rgb(0, 105, 217)' }} onClick={copyData}>
+        <Button style={{backgroundColor: 'rgb(0, 105, 217)'}} onClick={copyData}>
           Copy
         </Button>
         <Button onClick={onClose}>Cancel</Button>

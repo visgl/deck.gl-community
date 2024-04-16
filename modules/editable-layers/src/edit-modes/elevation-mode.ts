@@ -1,11 +1,11 @@
-import { ModeProps, PointerMoveEvent, StopDraggingEvent } from './types';
-import { Position, FeatureCollection } from '../geojson-types';
-import { getPickedEditHandle } from './utils';
-import { ModifyMode } from './modify-mode';
+import {ModeProps, PointerMoveEvent, StopDraggingEvent} from './types';
+import {Position, FeatureCollection} from '../geojson-types';
+import {getPickedEditHandle} from './utils';
+import {ModifyMode} from './modify-mode';
 
 function defaultCalculateElevationChange({
   pointerDownScreenCoords,
-  screenCoords,
+  screenCoords
 }: {
   pointerDownScreenCoords: Position;
   screenCoords: Position;
@@ -22,7 +22,7 @@ export class ElevationMode extends ModifyMode {
     const {
       minElevation = 0,
       maxElevation = 20000,
-      calculateElevationChange = defaultCalculateElevationChange,
+      calculateElevationChange = defaultCalculateElevationChange
     } = props.modeConfig || {};
 
     if (!event.pointerDownScreenCoords) {
@@ -35,13 +35,13 @@ export class ElevationMode extends ModifyMode {
     // calculateElevationChange is configurable because (at this time) modes are not aware of the viewport
     elevation += calculateElevationChange({
       pointerDownScreenCoords: event.pointerDownScreenCoords,
-      screenCoords: event.screenCoords,
+      screenCoords: event.screenCoords
     });
     elevation = Math.min(elevation, maxElevation);
     elevation = Math.max(elevation, minElevation);
 
     return Object.assign({}, event, {
-      mapCoords: [position[0], position[1], elevation],
+      mapCoords: [position[0], position[1], elevation]
     });
   }
 
@@ -71,7 +71,7 @@ export class ElevationMode extends ModifyMode {
     viewport: any,
     {
       pointerDownScreenCoords,
-      screenCoords,
+      screenCoords
     }: {
       pointerDownScreenCoords: Position;
       screenCoords: Position;

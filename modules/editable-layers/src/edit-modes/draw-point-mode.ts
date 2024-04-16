@@ -1,28 +1,28 @@
-import { ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature } from './types';
-import { FeatureCollection, Point } from '../geojson-types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature} from './types';
+import {FeatureCollection, Point} from '../geojson-types';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class DrawPointMode extends GeoJsonEditMode {
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
-    const { lastPointerMoveEvent } = props;
+    const {lastPointerMoveEvent} = props;
     const lastCoords = lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [];
 
     return {
       type: 'Feature',
       properties: {
-        guideType: 'tentative',
+        guideType: 'tentative'
       },
       geometry: {
         type: 'Point',
-        coordinates: lastCoords[0],
-      },
+        coordinates: lastCoords[0]
+      }
     };
   }
 
-  handleClick({ mapCoords }: ClickEvent, props: ModeProps<FeatureCollection>): void {
+  handleClick({mapCoords}: ClickEvent, props: ModeProps<FeatureCollection>): void {
     const geometry: Point = {
       type: 'Point',
-      coordinates: mapCoords,
+      coordinates: mapCoords
     };
 
     props.onEdit(this.getAddFeatureAction(geometry, props.data));

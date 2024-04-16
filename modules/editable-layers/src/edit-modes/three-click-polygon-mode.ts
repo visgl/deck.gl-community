@@ -3,10 +3,10 @@ import {
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature,
+  TentativeFeature
 } from './types';
-import { Position, Polygon, FeatureOf, FeatureCollection } from '../geojson-types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {Position, Polygon, FeatureOf, FeatureCollection} from '../geojson-types';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class ThreeClickPolygonMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
@@ -29,12 +29,12 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
   }
 
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const { lastPointerMoveEvent, modeConfig } = props;
+    const {lastPointerMoveEvent, modeConfig} = props;
     const clickSequence = this.getClickSequence();
 
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
-      features: [],
+      features: []
     };
 
     if (clickSequence.length === 0) {
@@ -48,12 +48,12 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
       guides.features.push({
         type: 'Feature',
         properties: {
-          guideType: 'tentative',
+          guideType: 'tentative'
         },
         geometry: {
           type: 'LineString',
-          coordinates: [clickSequence[0], hoveredCoord],
-        },
+          coordinates: [clickSequence[0], hoveredCoord]
+        }
       });
     } else {
       const polygon = this.getThreeClickPolygon(
@@ -66,9 +66,9 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
         guides.features.push({
           type: 'Feature',
           properties: {
-            guideType: 'tentative',
+            guideType: 'tentative'
           },
-          geometry: polygon.geometry,
+          geometry: polygon.geometry
         });
       }
     }
@@ -91,7 +91,7 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
   }
 
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
-    const { lastPointerMoveEvent } = props;
+    const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 
     const lastCoords = lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [];

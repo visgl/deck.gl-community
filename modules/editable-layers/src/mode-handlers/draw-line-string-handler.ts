@@ -1,6 +1,6 @@
-import { Position, LineString } from '../geojson-types';
-import { ClickEvent, PointerMoveEvent } from '../edit-modes/types';
-import { EditAction, ModeHandler } from './mode-handler';
+import {Position, LineString} from '../geojson-types';
+import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
+import {EditAction, ModeHandler} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class DrawLineStringHandler extends ModeHandler {
@@ -43,8 +43,8 @@ export class DrawLineStringHandler extends ModeHandler {
         featureIndexes: [featureIndex],
         editContext: {
           positionIndexes,
-          position: event.mapCoords,
-        },
+          position: event.mapCoords
+        }
       };
 
       this.resetClickSequence();
@@ -63,7 +63,7 @@ export class DrawLineStringHandler extends ModeHandler {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
-    const result = { editAction: null, cancelMapPan: false };
+    const result = {editAction: null, cancelMapPan: false};
 
     const clickSequence = this.getClickSequence();
     const mapCoords = event.mapCoords;
@@ -98,8 +98,8 @@ export class DrawLineStringHandler extends ModeHandler {
         properties: {},
         geometry: {
           type: 'LineString',
-          coordinates: [startPosition, mapCoords],
-        },
+          coordinates: [startPosition, mapCoords]
+        }
       });
     }
 

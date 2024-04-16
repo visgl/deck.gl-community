@@ -1,5 +1,5 @@
-import { EventEmitter } from 'eventemitter3';
-import { v4 } from 'uuid';
+import {EventEmitter} from 'eventemitter3';
+import {v4} from 'uuid';
 
 import Feature from './feature';
 
@@ -15,7 +15,7 @@ export default class NebulaLayer extends EventEmitter {
   enableSelection = false;
   //
 
-  constructor({ getData, on, toNebulaFeature }: Record<string, any>) {
+  constructor({getData, on, toNebulaFeature}: Record<string, any>) {
     super();
     this.id = v4();
     this.getData = getData;

@@ -1,9 +1,9 @@
 import bboxPolygon from '@turf/bbox-polygon';
 import turfDistance from '@turf/distance';
 import turfAlong from '@turf/along';
-import { point, lineString as turfLineString } from '@turf/helpers';
-import { Position, Polygon, FeatureOf } from '../geojson-types';
-import { TwoClickPolygonMode } from './two-click-polygon-mode';
+import {point, lineString as turfLineString} from '@turf/helpers';
+import {Position, Polygon, FeatureOf} from '../geojson-types';
+import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawSquareMode extends TwoClickPolygonMode {
   getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {

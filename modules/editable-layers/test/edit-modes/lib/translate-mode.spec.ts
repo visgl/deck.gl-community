@@ -1,13 +1,13 @@
 import {beforeEach, afterEach, test, expect, vi} from 'vitest';
-import { TransformMode } from '../../../src/edit-modes/transform-mode';
+import {TransformMode} from '../../../src/edit-modes/transform-mode';
 import {
   createFeatureCollectionProps,
   createPointerMoveEvent,
   createStartDraggingEvent,
-  createStopDraggingEvent,
+  createStopDraggingEvent
 } from '../test-utils';
-import { Pick, ModeProps } from '../../../src/edit-modes/types';
-import { FeatureCollection } from '../../../src/geojson-types';
+import {Pick, ModeProps} from '../../../src/edit-modes/types';
+import {FeatureCollection} from '../../../src/geojson-types';
 
 let transformMode: TransformMode;
 
@@ -39,9 +39,9 @@ test('Selected polygon feature can be translated', () => {
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
     selectedIndexes: [2],
-    onEdit: mockOnEdit,
+    onEdit: mockOnEdit
   });
-  mockMove([{ index: 2, isGuide: false, object: null }], props);
+  mockMove([{index: 2, isGuide: false, object: null}], props);
 
   expect(mockOnEdit).toHaveBeenCalledTimes(1);
   const movedFeature = mockOnEdit.mock.calls[0][0].updatedData.features[2];
@@ -53,11 +53,11 @@ test('Selected polygon feature can be translated in screen space', () => {
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
     selectedIndexes: [2],
-    onEdit: mockOnEdit,
+    onEdit: mockOnEdit
   });
-  mockMove([{ index: 2, isGuide: false, object: null }], {
+  mockMove([{index: 2, isGuide: false, object: null}], {
     ...props,
-    modeConfig: { screenSpace: true, viewport: { width: 600, height: 480, zoom: 5 } },
+    modeConfig: {screenSpace: true, viewport: {width: 600, height: 480, zoom: 5}}
   });
 
   expect(mockOnEdit).toHaveBeenCalledTimes(1);
@@ -70,7 +70,7 @@ test('Non-picked selected polygon feature cannnot be translated', () => {
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
     selectedIndexes: [2],
-    onEdit: mockOnEdit,
+    onEdit: mockOnEdit
   });
   mockMove([], props);
   expect(mockOnEdit).toHaveBeenCalledTimes(0);
@@ -80,8 +80,8 @@ test('Picked non-selected polygon feature cannnot be translated', () => {
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
     selectedIndexes: [0],
-    onEdit: mockOnEdit,
+    onEdit: mockOnEdit
   });
-  mockMove([{ index: 2, isGuide: false, object: null }], props);
+  mockMove([{index: 2, isGuide: false, object: null}], props);
   expect(mockOnEdit).toHaveBeenCalledTimes(0);
 });

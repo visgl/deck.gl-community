@@ -1,8 +1,8 @@
 /* eslint-env browser */
 
 import tokml from '@maphubs/tokml';
-import { stringify as stringifyWkt } from 'wellknown';
-import { AnyGeoJson, Geometry } from '@deck.gl-community/editable-layers';
+import {stringify as stringifyWkt} from 'wellknown';
+import {AnyGeoJson, Geometry} from '@deck.gl-community/editable-layers';
 
 export type ExportParameters = {
   data: string;
@@ -14,7 +14,7 @@ export function toGeoJson(geoJson: AnyGeoJson, filename: string): ExportParamete
   return {
     data: JSON.stringify(geoJson, null, 2),
     filename: `${filename}.geojson`,
-    mimetype: 'application/json',
+    mimetype: 'application/json'
   };
 }
 
@@ -34,7 +34,7 @@ export function toKml(geoJson: AnyGeoJson, filename: string): ExportParameters {
   return {
     data: kmlString,
     filename: `${filename}.kml`,
-    mimetype: 'application/xml',
+    mimetype: 'application/xml'
   };
 }
 
@@ -56,7 +56,7 @@ export function toWkt(geoJson: AnyGeoJson, filename: string): ExportParameters {
   return {
     data: wkt,
     filename: `${filename}.wkt`,
-    mimetype: 'text/plain',
+    mimetype: 'text/plain'
   };
 }
 
@@ -68,7 +68,7 @@ export function toStats(geoJson: AnyGeoJson, filename: string): ExportParameters
 
   if (geoJson.type === 'Feature') {
     const polygonStats = getPolygonalStats(geoJson.geometry);
-    ({ pointCount, ringCount, polygonCount } = polygonStats);
+    ({pointCount, ringCount, polygonCount} = polygonStats);
     featureCount = 1;
   } else {
     for (const feature of geoJson.features) {
@@ -88,7 +88,7 @@ Points: ${pointCount}`;
   return {
     data: stats,
     filename: `${filename}.txt`,
-    mimetype: 'text/plain',
+    mimetype: 'text/plain'
   };
 }
 
@@ -97,7 +97,7 @@ function getPolygonalStats(geometry: Geometry) {
     return {
       pointCount: -1,
       ringCount: -1,
-      polygonCount: -1,
+      polygonCount: -1
     };
   }
 
@@ -122,6 +122,6 @@ function getPolygonalStats(geometry: Geometry) {
   return {
     pointCount,
     ringCount,
-    polygonCount,
+    polygonCount
   };
 }

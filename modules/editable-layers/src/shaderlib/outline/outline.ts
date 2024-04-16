@@ -2,10 +2,10 @@
 const INITIAL_STATE: Record<string, any> = {
   outlineEnabled: false,
   outlineRenderShadowmap: false,
-  outlineShadowmap: null,
+  outlineShadowmap: null
 };
 
-function getUniforms({ outlineEnabled, outlineRenderShadowmap, outlineShadowmap } = INITIAL_STATE) {
+function getUniforms({outlineEnabled, outlineRenderShadowmap, outlineShadowmap} = INITIAL_STATE) {
   const uniforms: Record<string, any> = {};
   if (outlineEnabled !== undefined) {
     // ? 1.0 : 0.0;
@@ -97,5 +97,5 @@ export default {
   name: 'outline',
   vs,
   fs,
-  getUniforms,
+  getUniforms
 };

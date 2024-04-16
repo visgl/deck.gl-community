@@ -1,20 +1,20 @@
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import clone from '@turf/clone';
-import { point, Feature as TurfFeature, Geometry as TurfGeometry } from '@turf/helpers';
+import {point, Feature as TurfFeature, Geometry as TurfGeometry} from '@turf/helpers';
 import WebMercatorViewport from 'viewport-mercator-project';
-import { FeatureCollection, Position, Geometry } from '../geojson-types';
+import {FeatureCollection, Position, Geometry} from '../geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  ModeProps,
+  ModeProps
 } from './types';
-import { mapCoords } from './utils';
-import { translateFromCenter } from '../translateFromCenter';
-import { GeoJsonEditMode, GeoJsonEditAction } from './geojson-edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+import {mapCoords} from './utils';
+import {translateFromCenter} from '../translateFromCenter';
+import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class TranslateMode extends GeoJsonEditMode {
   _geometryBeforeTranslate: FeatureCollection | null | undefined;
@@ -98,7 +98,7 @@ export class TranslateMode extends GeoJsonEditMode {
     let updatedData = new ImmutableFeatureCollection(props.data);
     const selectedIndexes = props.selectedIndexes;
 
-    const { viewport: viewportDesc, screenSpace } = props.modeConfig || {};
+    const {viewport: viewportDesc, screenSpace} = props.modeConfig || {};
 
     // move features without adapting to mercator projection
     if (viewportDesc && screenSpace) {
@@ -128,7 +128,7 @@ export class TranslateMode extends GeoJsonEditMode {
           // @ts-expect-error turf types
           updatedData = updatedData.replaceGeometry(selectedIndex, {
             type: feature.geometry.type,
-            coordinates,
+            coordinates
           });
         }
       }
@@ -154,8 +154,8 @@ export class TranslateMode extends GeoJsonEditMode {
       updatedData: updatedData.getObject(),
       editType,
       editContext: {
-        featureIndexes: selectedIndexes,
-      },
+        featureIndexes: selectedIndexes
+      }
     };
   }
 }

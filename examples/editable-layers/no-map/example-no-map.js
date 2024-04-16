@@ -1,4 +1,6 @@
-import { BitmapLayer } from '@deck.gl/layers';
+// TODO Fix this example and re-enable ESLint below.
+// eslint-disable-next-line import/named
+import {BitmapLayer} from '@deck.gl/layers';
 import Example from '../deck/example';
 
 // https://en.wikipedia.org/wiki/Wikipedia:Featured_pictures/Animals/Birds#/media/File:Dendrocygna_eytoni_-_Macquarie_University.jpg
@@ -16,7 +18,7 @@ export default class ExampleNoMap extends Example {
       longitude: 0,
       pitch: 0,
       width: 0,
-      zoom: 5,
+      zoom: 5
     };
   }
 
@@ -29,7 +31,7 @@ export default class ExampleNoMap extends Example {
       new BitmapLayer({
         id: 'bitmap-layer',
         bounds: [-10, -10, +10, +10],
-        image: IMAGE,
+        image: IMAGE
       })
     );
   }

@@ -1,4 +1,4 @@
-import { Position } from '../geojson-types';
+import {Position} from '../geojson-types';
 
 export default class LayerMouseEvent {
   canceled: boolean = false;
@@ -13,10 +13,7 @@ export default class LayerMouseEvent {
   // reference to nebula
   nebula: Record<string, any>;
 
-  constructor(
-    nativeEvent: MouseEvent,
-    { data, groundPoint, nebula, metadata }: Record<string, any>
-  ) {
+  constructor(nativeEvent: MouseEvent, {data, groundPoint, nebula, metadata}: Record<string, any>) {
     this.nativeEvent = nativeEvent;
 
     this.data = data;

@@ -4,22 +4,16 @@ import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
 
-import {
-  FeatureCollection,
-  Feature,
-  Polygon,
-  Geometry,
-  Position,
-} from '../geojson-types';
+import {FeatureCollection, Feature, Polygon, Geometry, Position} from '../geojson-types';
 
 import {
   ClickEvent,
   Pick,
   PointerMoveEvent,
   StartDraggingEvent,
-  StopDraggingEvent,
+  StopDraggingEvent
 } from '../edit-modes/types';
-import { ImmutableFeatureCollection } from '../edit-modes/immutable-feature-collection';
+import {ImmutableFeatureCollection} from '../edit-modes/immutable-feature-collection';
 
 export type EditHandleType = 'existing' | 'intermediate' | 'snap';
 
@@ -75,13 +69,13 @@ export class ModeHandler {
   }
 
   getSelectedFeaturesAsFeatureCollection(): FeatureCollection {
-    const { features } = this.featureCollection.getObject();
+    const {features} = this.featureCollection.getObject();
     const selectedFeatures = this.getSelectedFeatureIndexes().map(
       (selectedIndex) => features[selectedIndex]
     );
     return {
       type: 'FeatureCollection',
-      features: selectedFeatures,
+      features: selectedFeatures
     };
   }
 
@@ -145,13 +139,13 @@ export class ModeHandler {
     return [];
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }): string {
+  getCursor({isDragging}: {isDragging: boolean}): string {
     return 'cell';
   }
 
   isSelectionPicked(picks: Pick[]): boolean {
     if (!picks.length) return false;
-    const pickedIndexes = picks.map(({ index }) => index);
+    const pickedIndexes = picks.map(({index}) => index);
     const selectedFeatureIndexes = this.getSelectedFeatureIndexes();
     return selectedFeatureIndexes.some((index) => pickedIndexes.includes(index));
   }
@@ -164,7 +158,7 @@ export class ModeHandler {
       .addFeature({
         type: 'Feature',
         properties: {},
-        geometry: geometryAsAny,
+        geometry: geometryAsAny
       })
       .getObject();
 
@@ -173,8 +167,8 @@ export class ModeHandler {
       editType: 'addFeature',
       featureIndexes: [updatedData.features.length - 1],
       editContext: {
-        featureIndexes: [updatedData.features.length - 1],
-      },
+        featureIndexes: [updatedData.features.length - 1]
+      }
     };
   }
 
@@ -184,12 +178,12 @@ export class ModeHandler {
     const initialIndex = updatedData.getObject().features.length;
     const updatedIndexes: number[] = [];
     for (const feature of features) {
-      const { properties, geometry } = feature;
+      const {properties, geometry} = feature;
       const geometryAsAny: any = geometry;
       updatedData = updatedData.addFeature({
         type: 'Feature',
         properties,
-        geometry: geometryAsAny,
+        geometry: geometryAsAny
       });
       updatedIndexes.push(initialIndex + updatedIndexes.length);
     }
@@ -199,8 +193,8 @@ export class ModeHandler {
       editType: 'addFeature',
       featureIndexes: updatedIndexes,
       editContext: {
-        featureIndexes: updatedIndexes,
-      },
+        featureIndexes: updatedIndexes
+      }
     };
   }
 
@@ -222,7 +216,7 @@ export class ModeHandler {
 
       const feature = {
         type: 'Feature',
-        geometry,
+        geometry
       };
 
       let updatedGeometry;
@@ -258,8 +252,8 @@ export class ModeHandler {
         editType: 'unionGeometry',
         featureIndexes: [featureIndex],
         editContext: {
-          featureIndexes: [featureIndex],
-        },
+          featureIndexes: [featureIndex]
+        }
       };
 
       return editAction;
@@ -277,7 +271,7 @@ export class ModeHandler {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
-    return { editAction: null, cancelMapPan: false };
+    return {editAction: null, cancelMapPan: false};
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
@@ -302,7 +296,7 @@ export function getPickedEditHandle(
 export function getIntermediatePosition(position1: Position, position2: Position): Position {
   const intermediatePosition: Position = [
     (position1[0] + position2[0]) / 2.0,
-    (position1[1] + position2[1]) / 2.0,
+    (position1[1] + position2[1]) / 2.0
   ];
 
   return intermediatePosition;
@@ -323,8 +317,8 @@ export function getEditHandlesForGeometry(
           position: geometry.coordinates,
           positionIndexes: [],
           featureIndex,
-          type: editHandleType,
-        },
+          type: editHandleType
+        }
       ];
       break;
     case 'MultiPoint':
@@ -387,7 +381,7 @@ function getEditHandlesForCoordinates(
       position,
       positionIndexes: [...positionIndexPrefix, i],
       featureIndex,
-      type: editHandleType,
+      type: editHandleType
     });
   }
   return editHandles;

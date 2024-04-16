@@ -1,5 +1,5 @@
 export class Cache<K, V> {
-  private readonly _keys = new Map<K, {value: V, version: number}>();
+  private readonly _keys = new Map<K, {value: V; version: number}>();
 
   /**
    * @param key The key of the cache

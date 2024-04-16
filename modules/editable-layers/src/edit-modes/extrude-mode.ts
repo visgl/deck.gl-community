@@ -2,12 +2,12 @@ import bearing from '@turf/bearing';
 import {
   generatePointsParallelToLinePoints,
   getPickedEditHandle,
-  getPickedIntermediateEditHandle,
+  getPickedIntermediateEditHandle
 } from './utils';
-import { FeatureCollection } from '../geojson-types';
-import { ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent } from './types';
-import { ModifyMode } from './modify-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+import {FeatureCollection} from '../geojson-types';
+import {ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent} from './types';
+import {ModifyMode} from './modify-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ExtrudeMode extends ModifyMode {
   // this mode is busted =(
@@ -18,8 +18,8 @@ export class ExtrudeMode extends ModifyMode {
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
 
     if (editHandle) {
-      const { featureIndex } = editHandle.properties;
-      let { positionIndexes } = editHandle.properties;
+      const {featureIndex} = editHandle.properties;
+      let {positionIndexes} = editHandle.properties;
 
       const size = this.coordinatesSize(positionIndexes, featureIndex, props.data);
       positionIndexes = this.isPointAdded
@@ -47,8 +47,8 @@ export class ExtrudeMode extends ModifyMode {
           editContext: {
             featureIndexes: [featureIndex],
             positionIndexes: this.nextPositionIndexes(positionIndexes, size),
-            position: p3,
-          },
+            position: p3
+          }
         });
 
         event.cancelPan();
@@ -61,7 +61,7 @@ export class ExtrudeMode extends ModifyMode {
 
     const editHandle = getPickedIntermediateEditHandle(event.picks);
     if (selectedFeatureIndexes.length && editHandle) {
-      const { positionIndexes, featureIndex } = editHandle.properties;
+      const {positionIndexes, featureIndex} = editHandle.properties;
 
       const size = this.coordinatesSize(positionIndexes, featureIndex, props.data);
       // p1 and p1 are end points for edge
@@ -95,8 +95,8 @@ export class ExtrudeMode extends ModifyMode {
           editContext: {
             featureIndexes: [featureIndex],
             positionIndexes,
-            position: p1,
-          },
+            position: p1
+          }
         });
       }
     }
@@ -106,8 +106,8 @@ export class ExtrudeMode extends ModifyMode {
     const selectedFeatureIndexes = props.selectedIndexes;
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
     if (selectedFeatureIndexes.length && editHandle) {
-      const { featureIndex } = editHandle.properties;
-      let { positionIndexes } = editHandle.properties;
+      const {featureIndex} = editHandle.properties;
+      let {positionIndexes} = editHandle.properties;
 
       const size = this.coordinatesSize(positionIndexes, featureIndex, props.data);
       positionIndexes = this.isPointAdded
@@ -136,8 +136,8 @@ export class ExtrudeMode extends ModifyMode {
           editContext: {
             featureIndexes: [featureIndex],
             positionIndexes,
-            position: p3,
-          },
+            position: p3
+          }
         });
       }
     }
@@ -147,7 +147,7 @@ export class ExtrudeMode extends ModifyMode {
   coordinatesSize(
     positionIndexes: number[] | null | undefined,
     featureIndex: number,
-    { features }: FeatureCollection
+    {features}: FeatureCollection
   ) {
     let size = 0;
     if (Array.isArray(positionIndexes)) {
@@ -230,7 +230,7 @@ export class ExtrudeMode extends ModifyMode {
   getPointForPositionIndexes(
     positionIndexes: number[] | null | undefined,
     featureIndex: number,
-    { features }: FeatureCollection
+    {features}: FeatureCollection
   ) {
     let p1;
     if (Array.isArray(positionIndexes)) {

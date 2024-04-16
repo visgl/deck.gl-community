@@ -2,10 +2,10 @@ import circle from '@turf/circle';
 import distance from '@turf/distance';
 import area from '@turf/area';
 import memoize from '../memoize';
-import { ModeProps, Tooltip } from './types';
-import { Position, Polygon, FeatureOf, FeatureCollection } from '../geojson-types';
-import { getIntermediatePosition } from './geojson-edit-mode';
-import { TwoClickPolygonMode } from './two-click-polygon-mode';
+import {ModeProps, Tooltip} from './types';
+import {Position, Polygon, FeatureOf, FeatureCollection} from '../geojson-types';
+import {getIntermediatePosition} from './geojson-edit-mode';
+import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
   radius: number | null | undefined = null;
@@ -14,8 +14,8 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
   diameter: number | null | undefined = null;
   getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
     // Default turf value for circle is 64
-    const { steps = 64 } = modeConfig || {};
-    const options = { steps };
+    const {steps = 64} = modeConfig || {};
+    const options = {steps};
 
     if (steps < 4) {
       console.warn('Minimum steps to draw a circle is 4 '); // eslint-disable-line no-console,no-undef
@@ -50,7 +50,7 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
       modeConfig: props.modeConfig,
       radius: this.radius,
       areaCircle: this.areaCircle,
-      diameter: this.diameter,
+      diameter: this.diameter
     });
   }
 
@@ -61,9 +61,9 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
    * @param areaCircle
    * @param diameter
    */
-  _getTooltips = memoize(({ modeConfig, radius, areaCircle, diameter }) => {
+  _getTooltips = memoize(({modeConfig, radius, areaCircle, diameter}) => {
     let tooltips: Tooltip[] = [];
-    const { formatTooltip } = modeConfig || {};
+    const {formatTooltip} = modeConfig || {};
     let text;
     if (radius && areaCircle) {
       if (formatTooltip) {
@@ -78,8 +78,8 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
       tooltips = [
         {
           position: this.position,
-          text,
-        },
+          text
+        }
       ];
     }
 

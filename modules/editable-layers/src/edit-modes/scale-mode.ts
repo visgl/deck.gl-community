@@ -2,13 +2,13 @@ import bbox from '@turf/bbox';
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
 import bboxPolygon from '@turf/bbox-polygon';
-import { point, featureCollection } from '@turf/helpers';
+import {point, featureCollection} from '@turf/helpers';
 import polygonToLine from '@turf/polygon-to-line';
-import { coordEach } from '@turf/meta';
+import {coordEach} from '@turf/meta';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
-import { getCoord, getGeom } from '@turf/invariant';
-import { FeatureCollection, Position } from '../geojson-types';
+import {getCoord, getGeom} from '@turf/invariant';
+import {FeatureCollection, Position} from '../geojson-types';
 import {
   ModeProps,
   PointerMoveEvent,
@@ -16,11 +16,11 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   EditHandleFeature,
-  GuideFeatureCollection,
+  GuideFeatureCollection
 } from './types';
-import { getPickedEditHandle } from './utils';
-import { GeoJsonEditMode } from './geojson-edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+import {getPickedEditHandle} from './utils';
+import {GeoJsonEditMode} from './geojson-edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ScaleMode extends GeoJsonEditMode {
   _geometryBeingScaled: FeatureCollection | null | undefined;
@@ -30,10 +30,10 @@ export class ScaleMode extends GeoJsonEditMode {
   _isScaling = false;
 
   _isSinglePointGeometrySelected = (geometry: FeatureCollection | null | undefined): boolean => {
-    const { features } = geometry || {};
+    const {features} = geometry || {};
     if (Array.isArray(features) && features.length === 1) {
       // @ts-expect-error turf types diff
-      const { type }: { type: string } = getGeom(features[0]);
+      const {type}: {type: string} = getGeom(features[0]);
       return type === 'Point';
     }
     return false;
@@ -51,12 +51,14 @@ export class ScaleMode extends GeoJsonEditMode {
     }
     const guidePointCount = this._cornerGuidePoints.length;
     const oppositeIndex = (selectedHandleIndex + guidePointCount / 2) % guidePointCount;
-    return this._cornerGuidePoints.find((p) => {
-      if (!Array.isArray(p.properties.positionIndexes)) {
-        return false;
-      }
-      return p.properties.positionIndexes[0] === oppositeIndex;
-    }) || null;
+    return (
+      this._cornerGuidePoints.find((p) => {
+        if (!Array.isArray(p.properties.positionIndexes)) {
+          return false;
+        }
+        return p.properties.positionIndexes[0] === oppositeIndex;
+      }) || null
+    );
   };
 
   _getUpdatedData = (props: ModeProps<FeatureCollection>, editedData: FeatureCollection) => {
@@ -92,15 +94,15 @@ export class ScaleMode extends GeoJsonEditMode {
       // @ts-expect-error turf types diff
       this._geometryBeingScaled,
       scaleFactor,
-      { origin }
+      {origin}
     );
 
     return {
       updatedData: this._getUpdatedData(props, scaledFeatures),
       editType,
       editContext: {
-        featureIndexes: props.selectedIndexes,
-      },
+        featureIndexes: props.selectedIndexes
+      }
     };
   };
 
@@ -199,7 +201,7 @@ export class ScaleMode extends GeoJsonEditMode {
 
     // Add buffer to the enveloping box if a single Point feature is selected
     if (this._isSinglePointGeometrySelected(selectedGeometry)) {
-      return { type: 'FeatureCollection', features: [] };
+      return {type: 'FeatureCollection', features: []};
     }
 
     const boundingBox = bboxPolygon(bbox(selectedGeometry));
@@ -212,7 +214,7 @@ export class ScaleMode extends GeoJsonEditMode {
         const cornerPoint = point(coord, {
           guideType: 'editHandle',
           editHandleType: 'scale',
-          positionIndexes: [coordIndex],
+          positionIndexes: [coordIndex]
         });
         cornerGuidePoints.push(cornerPoint as EditHandleFeature);
       }

@@ -1,9 +1,9 @@
 import bearing from '@turf/bearing';
-import { generatePointsParallelToLinePoints } from '../utils';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
-import { EditAction, getPickedEditHandle } from './mode-handler';
+import {generatePointsParallelToLinePoints} from '../utils';
+import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
+import {EditAction, getPickedEditHandle} from './mode-handler';
 
-import { ModifyHandler } from './modify-handler';
+import {ModifyHandler} from './modify-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class ExtrudeHandler extends ModifyHandler {
@@ -48,8 +48,8 @@ export class ExtrudeHandler extends ModifyHandler {
           featureIndexes: [editHandle.featureIndex],
           editContext: {
             positionIndexes: this.nextPositionIndexes(editHandle.positionIndexes, size),
-            position: p3,
-          },
+            position: p3
+          }
         };
       }
     }
@@ -57,7 +57,7 @@ export class ExtrudeHandler extends ModifyHandler {
     // Cancel map panning if pointer went down on an edit handle
     const cancelMapPan = Boolean(editHandle);
 
-    return { editAction, cancelMapPan };
+    return {editAction, cancelMapPan};
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
@@ -108,8 +108,8 @@ export class ExtrudeHandler extends ModifyHandler {
           featureIndexes: [editHandle.featureIndex],
           editContext: {
             positionIndexes: editHandle.positionIndexes,
-            position: p1,
-          },
+            position: p1
+          }
         };
       }
     }
@@ -153,8 +153,8 @@ export class ExtrudeHandler extends ModifyHandler {
           featureIndexes: [editHandle.featureIndex],
           editContext: {
             positionIndexes: editHandle.positionIndexes,
-            position: p3,
-          },
+            position: p3
+          }
         };
       }
     }

@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest';
+import {describe, test, expect} from 'vitest';
 import ElevatedEditHandleLayer from '../../../src/editable-layers/elevated-edit-handle-layer';
 
 describe('ElevatedEditHandleLayer tests', () => {

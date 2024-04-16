@@ -76,14 +76,18 @@ export class TileSourceLayer extends CompositeLayer<TileSourceLayerProps> {
   }
 }
 
-function renderSubLayers(props: TileSourceLayerProps & {tile: {index, bbox: {west, south, east, north}}}) {
+function renderSubLayers(
+  props: TileSourceLayerProps & {tile: {index; bbox: {west; south; east; north}}}
+) {
   const {
     tileSource,
     showTileBorders,
     minZoom,
     maxZoom,
-    tile: {index: {z: zoom},
-      bbox: {west, south, east, north}}
+    tile: {
+      index: {z: zoom},
+      bbox: {west, south, east, north}
+    }
   } = props as any;
 
   const layers: Layer[] = [];
@@ -109,12 +113,15 @@ function renderSubLayers(props: TileSourceLayerProps & {tile: {index, bbox: {wes
     case 'image/webp':
     case 'image/avif':
       layers.push(
-        new BitmapLayer(props as any, {
-          data: null,
-          image: props.data,
-          bounds: [west, south, east, north],
-          pickable: true
-        } as any)
+        new BitmapLayer(
+          props as any,
+          {
+            data: null,
+            image: props.data,
+            bounds: [west, south, east, north],
+            pickable: true
+          } as any
+        )
       );
       break;
 

@@ -1,7 +1,7 @@
 /* eslint-env browser */
 import * as React from 'react';
 import DeckGL from '@deck.gl/react';
-import { MapView, MapController } from '@deck.gl/core';
+import {MapView, MapController} from '@deck.gl/core';
 import StaticMap from 'react-map-gl';
 import {GL} from '@luma.gl/constants';
 import circle from '@turf/circle';
@@ -45,7 +45,7 @@ import {
   SELECTION_TYPE,
   GeoJsonEditMode,
   Color,
-  FeatureCollection,
+  FeatureCollection
 } from '@deck.gl-community/editable-layers';
 
 import sampleGeoJson from '../../data/sample-geojson.json';
@@ -58,7 +58,7 @@ import {
   ToolboxTitle,
   ToolboxRow,
   ToolboxButton,
-  ToolboxCheckbox,
+  ToolboxCheckbox
 } from './toolbox';
 
 type RGBAColor = Color;
@@ -68,11 +68,11 @@ const styles = {
   mapContainer: {
     alignItems: 'stretch',
     display: 'flex',
-    height: '100vh',
+    height: '100vh'
   },
   checkbox: {
-    margin: 10,
-  },
+    margin: 10
+  }
 };
 
 const initialViewport = {
@@ -82,61 +82,61 @@ const initialViewport = {
   longitude: -122.44,
   pitch: 0,
   width: 0,
-  zoom: 11,
+  zoom: 11
 };
 
 const ALL_MODES: any = [
   {
     category: 'View',
     modes: [
-      { label: 'View', mode: ViewMode },
+      {label: 'View', mode: ViewMode},
       {
         label: 'Measure Distance',
-        mode: MeasureDistanceMode,
+        mode: MeasureDistanceMode
       },
-      { label: 'Measure Area', mode: MeasureAreaMode },
-      { label: 'Measure Angle', mode: MeasureAngleMode },
-    ],
+      {label: 'Measure Area', mode: MeasureAreaMode},
+      {label: 'Measure Angle', mode: MeasureAngleMode}
+    ]
   },
   {
     category: 'Draw',
     modes: [
-      { label: 'Draw Point', mode: DrawPointMode },
-      { label: 'Draw LineString', mode: DrawLineStringMode },
-      { label: 'Draw Polygon', mode: DrawPolygonMode },
-      { label: 'Draw 90° Polygon', mode: Draw90DegreePolygonMode },
-      { label: 'Draw Polygon By Dragging', mode: DrawPolygonByDraggingMode },
-      { label: 'Draw Rectangle', mode: DrawRectangleMode },
-      { label: 'Draw Rectangle From Center', mode: DrawRectangleFromCenterMode },
-      { label: 'Draw Rectangle Using 3 Points', mode: DrawRectangleUsingThreePointsMode },
-      { label: 'Draw Square', mode: DrawSquareMode },
-      { label: 'Draw Square From Center', mode: DrawSquareFromCenterMode },
-      { label: 'Draw Circle From Center', mode: DrawCircleFromCenterMode },
-      { label: 'Draw Circle By Diameter', mode: DrawCircleByDiameterMode },
-      { label: 'Draw Ellipse By Bounding Box', mode: DrawEllipseByBoundingBoxMode },
-      { label: 'Draw Ellipse Using 3 Points', mode: DrawEllipseUsingThreePointsMode },
-    ],
+      {label: 'Draw Point', mode: DrawPointMode},
+      {label: 'Draw LineString', mode: DrawLineStringMode},
+      {label: 'Draw Polygon', mode: DrawPolygonMode},
+      {label: 'Draw 90° Polygon', mode: Draw90DegreePolygonMode},
+      {label: 'Draw Polygon By Dragging', mode: DrawPolygonByDraggingMode},
+      {label: 'Draw Rectangle', mode: DrawRectangleMode},
+      {label: 'Draw Rectangle From Center', mode: DrawRectangleFromCenterMode},
+      {label: 'Draw Rectangle Using 3 Points', mode: DrawRectangleUsingThreePointsMode},
+      {label: 'Draw Square', mode: DrawSquareMode},
+      {label: 'Draw Square From Center', mode: DrawSquareFromCenterMode},
+      {label: 'Draw Circle From Center', mode: DrawCircleFromCenterMode},
+      {label: 'Draw Circle By Diameter', mode: DrawCircleByDiameterMode},
+      {label: 'Draw Ellipse By Bounding Box', mode: DrawEllipseByBoundingBoxMode},
+      {label: 'Draw Ellipse Using 3 Points', mode: DrawEllipseUsingThreePointsMode}
+    ]
   },
   {
     category: 'Alter',
     modes: [
-      { label: 'Modify', mode: ModifyMode },
-      { label: 'Resize Circle', mode: ResizeCircleMode },
-      { label: 'Elevation', mode: ElevationMode },
-      { label: 'Translate', mode: new SnappableMode(new TranslateMode()) },
-      { label: 'Rotate', mode: RotateMode },
-      { label: 'Scale', mode: ScaleMode },
-      { label: 'Duplicate', mode: DuplicateMode },
-      { label: 'Extend LineString', mode: ExtendLineStringMode },
-      { label: 'Extrude', mode: ExtrudeMode },
-      { label: 'Split', mode: SplitPolygonMode },
-      { label: 'Transform', mode: new SnappableMode(new TransformMode()) },
-    ],
+      {label: 'Modify', mode: ModifyMode},
+      {label: 'Resize Circle', mode: ResizeCircleMode},
+      {label: 'Elevation', mode: ElevationMode},
+      {label: 'Translate', mode: new SnappableMode(new TranslateMode())},
+      {label: 'Rotate', mode: RotateMode},
+      {label: 'Scale', mode: ScaleMode},
+      {label: 'Duplicate', mode: DuplicateMode},
+      {label: 'Extend LineString', mode: ExtendLineStringMode},
+      {label: 'Extrude', mode: ExtrudeMode},
+      {label: 'Split', mode: SplitPolygonMode},
+      {label: 'Transform', mode: new SnappableMode(new TransformMode())}
+    ]
   },
   {
     category: 'Composite',
-    modes: [{ label: 'Draw LineString + Modify', mode: COMPOSITE_MODE }],
-  },
+    modes: [{label: 'Draw LineString + Modify', mode: COMPOSITE_MODE}]
+  }
 ];
 
 const POLYGON_DRAWING_MODES = [
@@ -151,7 +151,7 @@ const POLYGON_DRAWING_MODES = [
   DrawCircleFromCenterMode,
   DrawCircleByDiameterMode,
   DrawEllipseByBoundingBoxMode,
-  DrawEllipseUsingThreePointsMode,
+  DrawEllipseUsingThreePointsMode
 ];
 
 const TWO_CLICK_POLYGON_MODES = [
@@ -161,12 +161,12 @@ const TWO_CLICK_POLYGON_MODES = [
   DrawSquareFromCenterMode,
   DrawCircleFromCenterMode,
   DrawCircleByDiameterMode,
-  DrawEllipseByBoundingBoxMode,
+  DrawEllipseByBoundingBoxMode
 ];
 
 const EMPTY_FEATURE_COLLECTION = {
   type: 'FeatureCollection',
-  features: [],
+  features: []
 };
 
 function hex2rgb(hex: string) {
@@ -186,7 +186,7 @@ const FEATURE_COLORS = [
   'B0592D',
   'C1B5E3',
   '9C805B',
-  'CCDFE5',
+  'CCDFE5'
 ].map(hex2rgb);
 
 // TODO edit-modes:  delete once fully on EditMode implementation and just use handle.properties.editHandleType...
@@ -249,7 +249,7 @@ export default class Example extends React.Component<
       selectionTool: undefined,
       showGeoJson: false,
       pathMarkerLayer: false,
-      featureMenu: undefined,
+      featureMenu: undefined
     };
   }
 
@@ -263,7 +263,7 @@ export default class Example extends React.Component<
 
   _onChangeViewport = (viewport: Record<string, any>) => {
     this.setState({
-      viewport: { ...this.state.viewport, ...viewport },
+      viewport: {...this.state.viewport, ...viewport}
     });
   };
 
@@ -277,11 +277,11 @@ export default class Example extends React.Component<
     if (info) {
       console.log(`select editing feature ${info.index}`); // eslint-disable-line
       // a feature was clicked
-      this.setState({ selectedFeatureIndexes: [info.index] });
+      this.setState({selectedFeatureIndexes: [info.index]});
     } else {
       console.log('deselect editing feature'); // eslint-disable-line
       // open space was clicked, so stop editing
-      this.setState({ selectedFeatureIndexes: [] });
+      this.setState({selectedFeatureIndexes: []});
     }
   };
 
@@ -293,25 +293,25 @@ export default class Example extends React.Component<
     if (type === 'mixed') {
       this.setState({
         testFeatures: sampleGeoJson,
-        selectedFeatureIndexes: [],
+        selectedFeatureIndexes: []
       });
     } else if (type === 'complex') {
       this.setState({
         testFeatures: {
           type: 'FeatureCollection',
           features: [
-            circle([-122.45, 37.81], 4, { steps: 5000 }),
-            circle([-122.33, 37.81], 4, { steps: 5000 }),
-            circle([-122.45, 37.73], 4, { steps: 5000 }),
-            circle([-122.33, 37.73], 4, { steps: 5000 }),
-          ],
+            circle([-122.45, 37.81], 4, {steps: 5000}),
+            circle([-122.33, 37.81], 4, {steps: 5000}),
+            circle([-122.45, 37.73], 4, {steps: 5000}),
+            circle([-122.33, 37.73], 4, {steps: 5000})
+          ]
         },
-        selectedFeatureIndexes: [],
+        selectedFeatureIndexes: []
       });
     } else if (type === 'blank') {
       this.setState({
         testFeatures: EMPTY_FEATURE_COLLECTION,
-        selectedFeatureIndexes: [],
+        selectedFeatureIndexes: []
       });
     } else if (type === 'file') {
       const el = document.createElement('input');
@@ -320,7 +320,7 @@ export default class Example extends React.Component<
         const eventTarget = e.target as HTMLInputElement;
         if (eventTarget.files && eventTarget.files[0]) {
           const reader = new FileReader();
-          reader.onload = ({ target }) => {
+          reader.onload = ({target}) => {
             this._parseStringJson(target.result as string);
           };
           reader.readAsText(eventTarget.files[0]);
@@ -355,7 +355,7 @@ export default class Example extends React.Component<
 
   _download = () => {
     const blob = new Blob([JSON.stringify(this.state.testFeatures)], {
-      type: 'octet/stream',
+      type: 'octet/stream'
     });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -370,12 +370,12 @@ export default class Example extends React.Component<
       if (Array.isArray(testFeatures)) {
         testFeatures = {
           type: 'FeatureCollection',
-          features: testFeatures,
+          features: testFeatures
         };
       }
       // eslint-disable-next-line
       console.log('Loaded JSON:', testFeatures);
-      this.setState({ testFeatures });
+      this.setState({testFeatures});
     } catch (err) {
       this._error(err);
     }
@@ -403,7 +403,7 @@ export default class Example extends React.Component<
   }
 
   _renderSelectFeatureCheckbox(index: number, featureType: string) {
-    const { selectedFeatureIndexes } = this.state;
+    const {selectedFeatureIndexes} = this.state;
     return (
       <div key={index}>
         <ToolboxCheckbox
@@ -413,18 +413,18 @@ export default class Example extends React.Component<
           onChange={() => {
             if (selectedFeatureIndexes.includes(index)) {
               this.setState({
-                selectedFeatureIndexes: selectedFeatureIndexes.filter((e) => e !== index),
+                selectedFeatureIndexes: selectedFeatureIndexes.filter((e) => e !== index)
               });
             } else {
               this.setState({
-                selectedFeatureIndexes: [...selectedFeatureIndexes, index],
+                selectedFeatureIndexes: [...selectedFeatureIndexes, index]
               });
             }
           }}
         >
           <span
             style={{
-              color: this._getHtmlColorForFeature(index, selectedFeatureIndexes.includes(index)),
+              color: this._getHtmlColorForFeature(index, selectedFeatureIndexes.includes(index))
             }}
           >
             {index}
@@ -432,13 +432,13 @@ export default class Example extends React.Component<
             {featureType}
           </span>
           <a
-            style={{ position: 'absolute', right: 12 }}
+            style={{position: 'absolute', right: 12}}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               this.setState({
                 selectedFeatureIndexes: [index],
-                featureMenu: { index, x: e.clientX, y: e.clientY },
+                featureMenu: {index, x: e.clientX, y: e.clientY}
               });
             }}
           >
@@ -451,7 +451,7 @@ export default class Example extends React.Component<
 
   _renderSelectFeatureCheckboxes() {
     const {
-      testFeatures: { features },
+      testFeatures: {features}
     } = this.state;
     const checkboxes: React.ReactElement[] = [];
     for (let i = 0; i < features.length; ++i) {
@@ -481,15 +481,15 @@ export default class Example extends React.Component<
                   this.setState({
                     modeConfig: {
                       ...(this.state.modeConfig || {}),
-                      booleanOperation: null,
-                    },
+                      booleanOperation: null
+                    }
                   });
                 } else {
                   this.setState({
                     modeConfig: {
                       ...(this.state.modeConfig || {}),
-                      booleanOperation: operation,
-                    },
+                      booleanOperation: operation
+                    }
                   });
                 }
               }}
@@ -514,8 +514,8 @@ export default class Example extends React.Component<
               this.setState({
                 modeConfig: {
                   ...(this.state.modeConfig || {}),
-                  dragToDraw: Boolean(event.target.checked),
-                },
+                  dragToDraw: Boolean(event.target.checked)
+                }
               })
             }
           />
@@ -532,7 +532,7 @@ export default class Example extends React.Component<
           <input
             type="checkbox"
             checked={this.state.pointsRemovable}
-            onChange={() => this.setState({ pointsRemovable: !this.state.pointsRemovable })}
+            onChange={() => this.setState({pointsRemovable: !this.state.pointsRemovable})}
           />
         </ToolboxControl>
       </ToolboxRow>
@@ -549,7 +549,7 @@ export default class Example extends React.Component<
             checked={Boolean(this.state.modeConfig && this.state.modeConfig.lock90Degree)}
             onChange={(event) =>
               this.setState({
-                modeConfig: { lock90Degree: Boolean(event.target.checked) },
+                modeConfig: {lock90Degree: Boolean(event.target.checked)}
               })
             }
           />
@@ -570,9 +570,9 @@ export default class Example extends React.Component<
               onChange={(event) => {
                 const modeConfig = {
                   ...this.state.modeConfig,
-                  enableSnapping: Boolean(event.target.checked),
+                  enableSnapping: Boolean(event.target.checked)
                 };
-                this.setState({ modeConfig });
+                this.setState({modeConfig});
               }}
             />
           </ToolboxControl>
@@ -596,9 +596,9 @@ export default class Example extends React.Component<
             onChange={(event) => {
               const modeConfig = {
                 ...this.state.modeConfig,
-                turfOptions: { units: event.target.value },
+                turfOptions: {units: event.target.value}
               };
-              this.setState({ modeConfig });
+              this.setState({modeConfig});
             }}
           >
             <option value="kilometers">kilometers</option>
@@ -616,9 +616,9 @@ export default class Example extends React.Component<
             onChange={(event) => {
               const modeConfig = {
                 ...this.state.modeConfig,
-                centerTooltipsOnLine: Boolean(event.target.checked),
+                centerTooltipsOnLine: Boolean(event.target.checked)
               };
-              this.setState({ modeConfig });
+              this.setState({modeConfig});
             }}
           />
         </ToolboxControl>
@@ -640,8 +640,8 @@ export default class Example extends React.Component<
               this.setState({
                 modeConfig: {
                   ...(this.state.modeConfig || {}),
-                  preventOverlappingLines: Boolean(event.target.checked),
-                },
+                  preventOverlappingLines: Boolean(event.target.checked)
+                }
               })
             }
           />
@@ -685,12 +685,12 @@ export default class Example extends React.Component<
         {ALL_MODES.map((category) => (
           <ToolboxRow key={category.category}>
             <ToolboxTitle>{category.category} Modes</ToolboxTitle>
-            {category.modes.map(({ mode, label }) => (
+            {category.modes.map(({mode, label}) => (
               <ToolboxButton
                 key={label}
                 selected={this.state.mode === mode}
                 onClick={() => {
-                  this.setState({ mode, modeConfig: {}, selectionTool: undefined });
+                  this.setState({mode, modeConfig: {}, selectionTool: undefined});
                 }}
               >
                 {label}
@@ -702,18 +702,16 @@ export default class Example extends React.Component<
         {this.state.showGeoJson && (
           <React.Fragment>
             <ToolboxTitle>GeoJSON</ToolboxTitle>
-            <ToolboxButton onClick={() => this.setState({ showGeoJson: !this.state.showGeoJson })}>
+            <ToolboxButton onClick={() => this.setState({showGeoJson: !this.state.showGeoJson})}>
               hide &#9650;
             </ToolboxButton>
             <ToolboxControl>
               <textarea
                 id="geo-json-text"
                 rows={5}
-                style={{ width: '100%' }}
+                style={{width: '100%'}}
                 value={JSON.stringify(this.state.testFeatures)}
-                onChange={(event) =>
-                  this.setState({ testFeatures: JSON.parse(event.target.value) })
-                }
+                onChange={(event) => this.setState({testFeatures: JSON.parse(event.target.value)})}
               />
             </ToolboxControl>
           </React.Fragment>
@@ -721,7 +719,7 @@ export default class Example extends React.Component<
         {!this.state.showGeoJson && (
           <React.Fragment>
             <ToolboxTitle>GeoJSON</ToolboxTitle>
-            <ToolboxButton onClick={() => this.setState({ showGeoJson: !this.state.showGeoJson })}>
+            <ToolboxButton onClick={() => this.setState({showGeoJson: !this.state.showGeoJson})}>
               show &#9660;
             </ToolboxButton>
           </React.Fragment>
@@ -749,7 +747,7 @@ export default class Example extends React.Component<
               checked={this.state.editHandleType === 'icon'}
               onChange={() =>
                 this.setState({
-                  editHandleType: this.state.editHandleType === 'icon' ? 'point' : 'icon',
+                  editHandleType: this.state.editHandleType === 'icon' ? 'point' : 'icon'
                 })
               }
             >
@@ -763,7 +761,7 @@ export default class Example extends React.Component<
               checked={this.state.editHandleType === 'elevated'}
               onChange={() =>
                 this.setState({
-                  editHandleType: this.state.editHandleType === 'elevated' ? 'point' : 'elevated',
+                  editHandleType: this.state.editHandleType === 'elevated' ? 'point' : 'elevated'
                 })
               }
             >
@@ -777,7 +775,7 @@ export default class Example extends React.Component<
               checked={this.state.pathMarkerLayer}
               onChange={() =>
                 this.setState({
-                  pathMarkerLayer: !this.state.pathMarkerLayer,
+                  pathMarkerLayer: !this.state.pathMarkerLayer
                 })
               }
             >
@@ -793,7 +791,7 @@ export default class Example extends React.Component<
               onClick={() =>
                 this.setState({
                   selectedFeatureIndexes: [],
-                  selectionTool: SELECTION_TYPE.NONE!,
+                  selectionTool: SELECTION_TYPE.NONE!
                 })
               }
             >
@@ -803,7 +801,7 @@ export default class Example extends React.Component<
               onClick={() =>
                 this.setState({
                   mode: ViewMode,
-                  selectionTool: SELECTION_TYPE.RECTANGLE,
+                  selectionTool: SELECTION_TYPE.RECTANGLE
                 })
               }
             >
@@ -813,7 +811,7 @@ export default class Example extends React.Component<
               onClick={() =>
                 this.setState({
                   mode: ViewMode,
-                  selectionTool: SELECTION_TYPE.POLYGON,
+                  selectionTool: SELECTION_TYPE.POLYGON
                 })
               }
             >
@@ -832,14 +830,14 @@ export default class Example extends React.Component<
   }
 
   _featureMenuClick(action: string) {
-    const { index } = this.state.featureMenu || {};
+    const {index} = this.state.featureMenu || {};
     let testFeatures = this.state.testFeatures;
 
     if (action === 'delete') {
       const features = [...testFeatures.features];
       features.splice(index as any, 1);
       testFeatures = Object.assign({}, testFeatures, {
-        features,
+        features
       });
     } else if (action === 'split') {
       // TODO
@@ -848,12 +846,12 @@ export default class Example extends React.Component<
       console.log(testFeatures.features[index as any]);
     }
 
-    this.setState({ featureMenu: null!, testFeatures });
+    this.setState({featureMenu: null!, testFeatures});
   }
 
-  _renderFeatureMenu({ x, y }: { x: number; y: number }) {
+  _renderFeatureMenu({x, y}: {x: number; y: number}) {
     return (
-      <div style={{ position: 'fixed', top: y - 40, left: x + 20 }}>
+      <div style={{position: 'fixed', top: y - 40, left: x + 20}}>
         <ToolboxButton onClick={() => this._featureMenuClick('delete')}>Delete</ToolboxButton>
         <ToolboxButton onClick={() => this._featureMenuClick('split')}>Split</ToolboxButton>
         <ToolboxButton onClick={() => this._featureMenuClick('info')}>Info</ToolboxButton>
@@ -864,7 +862,7 @@ export default class Example extends React.Component<
 
   customizeLayers(layers: Record<string, any>[]) {}
 
-  onEdit = ({ updatedData, editType, editContext }) => {
+  onEdit = ({updatedData, editType, editContext}) => {
     let updatedSelectedFeatureIndexes = this.state.selectedFeatureIndexes;
 
     if (!['movePosition', 'extruding', 'rotating', 'translating', 'scaling'].includes(editType)) {
@@ -881,14 +879,14 @@ export default class Example extends React.Component<
     }
 
     if (editType === 'addFeature' && this.state.mode !== DuplicateMode) {
-      const { featureIndexes } = editContext;
+      const {featureIndexes} = editContext;
       // Add the new feature to the selection
       updatedSelectedFeatureIndexes = [...this.state.selectedFeatureIndexes, ...featureIndexes];
     }
 
     this.setState({
       testFeatures: updatedData,
-      selectedFeatureIndexes: updatedSelectedFeatureIndexes,
+      selectedFeatureIndexes: updatedSelectedFeatureIndexes
     });
   };
 
@@ -908,13 +906,13 @@ export default class Example extends React.Component<
 
   // eslint-disable-next-line complexity
   render() {
-    const { testFeatures, selectedFeatureIndexes, mode } = this.state;
-    let { modeConfig } = this.state;
+    const {testFeatures, selectedFeatureIndexes, mode} = this.state;
+    let {modeConfig} = this.state;
 
     const viewport: Record<string, any> = {
       ...this.state.viewport,
       height: window.innerHeight,
-      width: window.innerWidth,
+      width: window.innerWidth
     };
 
     if (mode === ElevationMode) {
@@ -922,20 +920,20 @@ export default class Example extends React.Component<
         ...modeConfig,
         viewport,
         calculateElevationChange: (opts) =>
-          ElevationMode.calculateElevationChangeWithViewport(viewport, opts),
+          ElevationMode.calculateElevationChangeWithViewport(viewport, opts)
       };
     } else if (mode === ModifyMode) {
       modeConfig = {
         ...modeConfig,
         viewport,
-        lockRectangles: true,
+        lockRectangles: true
       };
     } else if (mode instanceof SnappableMode && modeConfig) {
       if (mode._handler instanceof TranslateMode) {
         modeConfig = {
           ...modeConfig,
           viewport,
-          screenSpace: true,
+          screenSpace: true
         };
       }
 
@@ -955,26 +953,26 @@ export default class Example extends React.Component<
                     [-122.52217, 37.712706],
                     [-122.49436, 37.711979],
                     [-122.49725, 37.734306],
-                    [-122.52235, 37.734008],
-                  ],
-                ],
-              },
-            },
-          ],
+                    [-122.52235, 37.734008]
+                  ]
+                ]
+              }
+            }
+          ]
         };
       }
     } else if (mode === DrawPolygonByDraggingMode) {
       modeConfig = {
         ...modeConfig,
-        throttleMs: 100,
+        throttleMs: 100
       };
     }
 
     // Demonstrate how to override sub layer properties
     let _subLayerProps = {
       tooltips: {
-        getColor: [255, 255, 255, 255],
-      },
+        getColor: [255, 255, 255, 255]
+      }
     };
 
     if (this.state.editHandleType === 'elevated') {
@@ -983,10 +981,10 @@ export default class Example extends React.Component<
           _subLayerProps: {
             points: {
               type: ElevatedEditHandleLayer,
-              getFillColor: [0, 255, 0],
-            },
-          },
-        },
+              getFillColor: [0, 255, 0]
+            }
+          }
+        }
       });
     }
 
@@ -997,10 +995,10 @@ export default class Example extends React.Component<
             linestrings: {
               type: PathMarkerLayer,
               getMarkerColor: (x) => [255, 255, 255, 255],
-              sizeScale: 1500,
-            },
-          },
-        },
+              sizeScale: 1500
+            }
+          }
+        }
       });
     }
 
@@ -1026,29 +1024,29 @@ export default class Example extends React.Component<
           y: 0,
           width: 58,
           height: 58,
-          mask: false,
+          mask: false
         },
         existing: {
           x: 58,
           y: 0,
           width: 58,
           height: 58,
-          mask: false,
+          mask: false
         },
         'snap-source': {
           x: 58,
           y: 0,
           width: 58,
           height: 58,
-          mask: false,
+          mask: false
         },
         'snap-target': {
           x: 0,
           y: 0,
           width: 58,
           height: 58,
-          mask: false,
-        },
+          mask: false
+        }
       },
       getEditHandleIcon: (d) => getEditHandleTypeFromEitherLayer(d),
       getEditHandleIconSize: 40,
@@ -1079,8 +1077,8 @@ export default class Example extends React.Component<
 
         blend: true,
         blendEquation: GL.FUNC_ADD,
-        blendFunc: [GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA],
-      },
+        blendFunc: [GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA]
+      }
     });
 
     const layers = [editableGeoJsonLayer];
@@ -1092,16 +1090,16 @@ export default class Example extends React.Component<
           id: 'selection',
           // @ts-ignore
           selectionType: this.state.selectionTool,
-          onSelect: ({ pickingInfos }) => {
+          onSelect: ({pickingInfos}) => {
             this.setState({
-              selectedFeatureIndexes: pickingInfos.map((pi) => pi.index),
+              selectedFeatureIndexes: pickingInfos.map((pi) => pi.index)
             });
           },
           layerIds: ['geojson'],
 
           getTentativeFillColor: () => [255, 0, 255, 100],
           getTentativeLineColor: () => [0, 0, 255, 255],
-          lineWidthMinPixels: 3,
+          lineWidthMinPixels: 3
         })
       );
     }
@@ -1121,12 +1119,12 @@ export default class Example extends React.Component<
               id: 'basemap',
               controller: {
                 type: MapController,
-                doubleClickZoom: false,
-              },
-            }),
+                doubleClickZoom: false
+              }
+            })
           ]}
           onClick={this._onLayerClick}
-          onViewStateChange={({ viewState }) => this.setState({ viewport: viewState })}
+          onViewStateChange={({viewState}) => this.setState({viewport: viewState})}
         >
           {this.renderStaticMap(viewport)}
         </DeckGL>
@@ -1148,7 +1146,7 @@ function featuresToInfoString(featureCollection: any): string {
 function getPositionCount(geometry): number {
   const flatMap = (f, arr) => arr.reduce((x, y) => [...x, ...f(y)], []);
 
-  const { type, coordinates } = geometry;
+  const {type, coordinates} = geometry;
   switch (type) {
     case 'Point':
       return 1;

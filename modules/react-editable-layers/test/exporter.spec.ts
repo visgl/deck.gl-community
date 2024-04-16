@@ -1,7 +1,7 @@
 import {beforeEach, describe, test, expect} from 'vitest';
-import { Feature, FeatureCollection } from '@deck.gl-community/editable-layers';
-import { toGeoJson, toKml, toWkt, toStats } from '../src/lib/exporter';
-import { createRandomFeature } from './utils/test-features';
+import {Feature, FeatureCollection} from '@deck.gl-community/editable-layers';
+import {toGeoJson, toKml, toWkt, toStats} from '../src/lib/exporter';
+import {createRandomFeature} from './utils/test-features';
 
 let feature: Feature;
 let featureCollection: FeatureCollection;
@@ -16,7 +16,7 @@ beforeEach(() => {
   featureCollection = {
     type: 'FeatureCollection',
     properties: {},
-    features: [feature, feature2],
+    features: [feature, feature2]
   };
 });
 
@@ -81,10 +81,10 @@ describe('toWkt()', () => {
               [40, 40],
               [20, 40],
               [10, 20],
-              [30, 10],
-            ],
-          ],
-        },
+              [30, 10]
+            ]
+          ]
+        }
       },
       'llamallama'
     );
@@ -115,10 +115,10 @@ describe('toWkt()', () => {
                   [40, 40],
                   [20, 40],
                   [10, 20],
-                  [30, 10],
-                ],
-              ],
-            },
+                  [30, 10]
+                ]
+              ]
+            }
           },
           {
             type: 'Feature',
@@ -130,12 +130,12 @@ describe('toWkt()', () => {
                   [4, 4],
                   [2, 4],
                   [1, 2],
-                  [3, 1],
-                ],
-              ],
-            },
-          },
-        ],
+                  [3, 1]
+                ]
+              ]
+            }
+          }
+        ]
       },
       'geojsonFeatures'
     );
@@ -154,7 +154,7 @@ describe('toWkt()', () => {
       {
         type: 'FeatureCollection',
         properties: {},
-        features: [],
+        features: []
       },
       'geojsonFeatures'
     );
@@ -182,10 +182,10 @@ describe('toStats()', () => {
               [40, 40],
               [20, 40],
               [10, 20],
-              [30, 10],
-            ],
-          ],
-        },
+              [30, 10]
+            ]
+          ]
+        }
       },
       'mystats'
     );
@@ -214,10 +214,10 @@ describe('toStats()', () => {
                   [40, 40],
                   [20, 40],
                   [10, 20],
-                  [30, 10],
-                ],
-              ],
-            },
+                  [30, 10]
+                ]
+              ]
+            }
           },
           {
             type: 'Feature',
@@ -230,15 +230,15 @@ describe('toStats()', () => {
                     [4, 4],
                     [2, 4],
                     [1, 2],
-                    [3, 1],
+                    [3, 1]
                   ],
                   [
                     [3.5, 3.5],
                     [2, 3.5],
                     [1.5, 2],
                     [2.5, 1.5],
-                    [3.5, 3.5],
-                  ],
+                    [3.5, 3.5]
+                  ]
                 ],
                 [
                   [
@@ -246,13 +246,13 @@ describe('toStats()', () => {
                     [14, 14],
                     [12, 14],
                     [11, 12],
-                    [13, 11],
-                  ],
-                ],
-              ],
-            },
-          },
-        ],
+                    [13, 11]
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
       },
       'mystats'
     );

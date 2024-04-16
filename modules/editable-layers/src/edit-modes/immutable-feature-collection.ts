@@ -6,7 +6,7 @@ import {
   MultiLineString,
   MultiPolygon,
   Position,
-  PolygonCoordinates,
+  PolygonCoordinates
 } from '../geojson-types';
 
 export class ImmutableFeatureCollection {
@@ -45,7 +45,7 @@ export class ImmutableFeatureCollection {
         positionIndexes,
         updatedPosition,
         isPolygonal
-      ),
+      )
     };
 
     return this.replaceGeometry(featureIndex, updatedGeometry);
@@ -69,19 +69,19 @@ export class ImmutableFeatureCollection {
     const geometry = this.featureCollection.features[featureIndex].geometry;
 
     if (geometry.type === 'Point') {
-      throw Error('Can\'t remove a position from a Point or there\'d be nothing left');
+      throw Error("Can't remove a position from a Point or there'd be nothing left");
     }
     if (
       geometry.type === 'MultiPoint' && // only 1 point left
       geometry.coordinates.length < 2
     ) {
-      throw Error('Can\'t remove the last point of a MultiPoint or there\'d be nothing left');
+      throw Error("Can't remove the last point of a MultiPoint or there'd be nothing left");
     }
     if (
       geometry.type === 'LineString' && // only 2 positions
       geometry.coordinates.length < 3
     ) {
-      throw Error('Can\'t remove position. LineString must have at least two positions');
+      throw Error("Can't remove position. LineString must have at least two positions");
     }
     if (
       geometry.type === 'Polygon' && // outer ring is a triangle
@@ -89,14 +89,14 @@ export class ImmutableFeatureCollection {
       Array.isArray(positionIndexes) && // trying to remove from outer ring
       positionIndexes[0] === 0
     ) {
-      throw Error('Can\'t remove position. Polygon\'s outer ring must have at least four positions');
+      throw Error("Can't remove position. Polygon's outer ring must have at least four positions");
     }
     if (
       geometry.type === 'MultiLineString' && // only 1 LineString left
       geometry.coordinates.length === 1 && // only 2 positions
       geometry.coordinates[0].length < 3
     ) {
-      throw Error('Can\'t remove position. MultiLineString must have at least two positions');
+      throw Error("Can't remove position. MultiLineString must have at least two positions");
     }
     if (
       geometry.type === 'MultiPolygon' && // only 1 polygon left
@@ -107,14 +107,14 @@ export class ImmutableFeatureCollection {
       positionIndexes[1] === 0
     ) {
       throw Error(
-        'Can\'t remove position. MultiPolygon\'s outer ring must have at least four positions'
+        "Can't remove position. MultiPolygon's outer ring must have at least four positions"
       );
     }
 
     const isPolygonal = geometry.type === 'Polygon' || geometry.type === 'MultiPolygon';
     const updatedGeometry: any = {
       ...geometry,
-      coordinates: immutablyRemovePosition(geometry.coordinates, positionIndexes, isPolygonal),
+      coordinates: immutablyRemovePosition(geometry.coordinates, positionIndexes, isPolygonal)
     };
 
     // Handle cases where incomplete geometries need pruned (e.g. holes that were triangles)
@@ -152,7 +152,7 @@ export class ImmutableFeatureCollection {
         positionIndexes,
         positionToAdd,
         isPolygonal
-      ),
+      )
     };
 
     return this.replaceGeometry(featureIndex, updatedGeometry);
@@ -161,7 +161,7 @@ export class ImmutableFeatureCollection {
   replaceGeometry(featureIndex: number, geometry: Geometry): ImmutableFeatureCollection {
     const updatedFeature: any = {
       ...this.featureCollection.features[featureIndex],
-      geometry,
+      geometry
     };
 
     const updatedFeatureCollection = {
@@ -169,8 +169,8 @@ export class ImmutableFeatureCollection {
       features: [
         ...this.featureCollection.features.slice(0, featureIndex),
         updatedFeature,
-        ...this.featureCollection.features.slice(featureIndex + 1),
-      ],
+        ...this.featureCollection.features.slice(featureIndex + 1)
+      ]
     };
 
     return new ImmutableFeatureCollection(updatedFeatureCollection);
@@ -183,7 +183,7 @@ export class ImmutableFeatureCollection {
   addFeatures(features: Feature[]): ImmutableFeatureCollection {
     const updatedFeatureCollection = {
       ...this.featureCollection,
-      features: [...this.featureCollection.features, ...features],
+      features: [...this.featureCollection.features, ...features]
     };
 
     return new ImmutableFeatureCollection(updatedFeatureCollection);
@@ -205,7 +205,7 @@ export class ImmutableFeatureCollection {
 
     const updatedFeatureCollection = {
       ...this.featureCollection,
-      features,
+      features
     };
 
     return new ImmutableFeatureCollection(updatedFeatureCollection);
@@ -239,7 +239,7 @@ function immutablyReplacePosition(
     const updated = [
       ...coordinates.slice(0, positionIndexes[0]),
       getUpdatedPosition(updatedPosition, coordinates[positionIndexes[0]]),
-      ...coordinates.slice(positionIndexes[0] + 1),
+      ...coordinates.slice(positionIndexes[0] + 1)
     ];
 
     if (
@@ -263,7 +263,7 @@ function immutablyReplacePosition(
       updatedPosition,
       isPolygonal
     ),
-    ...coordinates.slice(positionIndexes[0] + 1),
+    ...coordinates.slice(positionIndexes[0] + 1)
   ];
 }
 
@@ -281,7 +281,7 @@ function immutablyRemovePosition(
   if (positionIndexes.length === 1) {
     const updated = [
       ...coordinates.slice(0, positionIndexes[0]),
-      ...coordinates.slice(positionIndexes[0] + 1),
+      ...coordinates.slice(positionIndexes[0] + 1)
     ];
 
     if (
@@ -309,7 +309,7 @@ function immutablyRemovePosition(
       positionIndexes.slice(1, positionIndexes.length),
       isPolygonal
     ),
-    ...coordinates.slice(positionIndexes[0] + 1),
+    ...coordinates.slice(positionIndexes[0] + 1)
   ];
 }
 
@@ -329,7 +329,7 @@ function immutablyAddPosition(
     const updated = [
       ...coordinates.slice(0, positionIndexes[0]),
       positionToAdd,
-      ...coordinates.slice(positionIndexes[0]),
+      ...coordinates.slice(positionIndexes[0])
     ];
     return updated;
   }
@@ -343,7 +343,7 @@ function immutablyAddPosition(
       positionToAdd,
       isPolygonal
     ),
-    ...coordinates.slice(positionIndexes[0] + 1),
+    ...coordinates.slice(positionIndexes[0] + 1)
   ];
 }
 

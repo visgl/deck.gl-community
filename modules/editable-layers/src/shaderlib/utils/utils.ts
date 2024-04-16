@@ -29,5 +29,5 @@ export default {
   name: 'outline',
   vs,
   fs,
-  getUniforms,
+  getUniforms
 };

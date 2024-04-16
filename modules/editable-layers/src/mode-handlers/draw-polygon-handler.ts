@@ -1,11 +1,11 @@
-import { Polygon, Position } from '../geojson-types';
-import { ClickEvent, PointerMoveEvent } from '../edit-modes/types';
+import {Polygon, Position} from '../geojson-types';
+import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
 import {
   EditAction,
   EditHandle,
   ModeHandler,
   getPickedEditHandle,
-  getEditHandlesForGeometry,
+  getEditHandlesForGeometry
 } from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
@@ -31,7 +31,7 @@ export class DrawPolygonHandler extends ModeHandler {
   handleClick(event: ClickEvent): EditAction | null | undefined {
     super.handleClick(event);
 
-    const { picks } = event;
+    const {picks} = event;
     const tentativeFeature = this.getTentativeFeature();
 
     let editAction: EditAction | null | undefined = null;
@@ -58,7 +58,7 @@ export class DrawPolygonHandler extends ModeHandler {
         // Remove the hovered position
         const polygonToAdd: Polygon = {
           type: 'Polygon',
-          coordinates: [[...polygon.coordinates[0].slice(0, -2), polygon.coordinates[0][0]]],
+          coordinates: [[...polygon.coordinates[0].slice(0, -2), polygon.coordinates[0][0]]]
         };
 
         this.resetClickSequence();
@@ -76,7 +76,7 @@ export class DrawPolygonHandler extends ModeHandler {
       pointerDownPicks: null,
       pointerDownScreenCoords: null,
       pointerDownMapCoords: null,
-      sourceEvent: null,
+      sourceEvent: null
     } as unknown as PointerMoveEvent;
 
     this.handlePointerMove(fakePointerMoveEvent);
@@ -84,12 +84,12 @@ export class DrawPolygonHandler extends ModeHandler {
     return editAction;
   }
 
-  handlePointerMove({ mapCoords }: PointerMoveEvent): {
+  handlePointerMove({mapCoords}: PointerMoveEvent): {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
     const clickSequence = this.getClickSequence();
-    const result = { editAction: null, cancelMapPan: false };
+    const result = {editAction: null, cancelMapPan: false};
 
     if (clickSequence.length === 0) {
       // nothing to do yet
@@ -102,8 +102,8 @@ export class DrawPolygonHandler extends ModeHandler {
         type: 'Feature',
         geometry: {
           type: 'LineString',
-          coordinates: [...clickSequence, mapCoords],
-        },
+          coordinates: [...clickSequence, mapCoords]
+        }
       });
     } else {
       // Draw a Polygon connecting all the clicked points with the hovered point
@@ -111,8 +111,8 @@ export class DrawPolygonHandler extends ModeHandler {
         type: 'Feature',
         geometry: {
           type: 'Polygon',
-          coordinates: [[...clickSequence, mapCoords, clickSequence[0]]],
-        },
+          coordinates: [[...clickSequence, mapCoords, clickSequence[0]]]
+        }
       });
     }
 

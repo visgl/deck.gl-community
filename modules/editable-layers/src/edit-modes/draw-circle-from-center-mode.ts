@@ -2,9 +2,9 @@ import circle from '@turf/circle';
 import distance from '@turf/distance';
 import area from '@turf/area';
 import memoize from '../memoize';
-import { ModeProps, Tooltip } from './types';
-import { Position, Polygon, FeatureOf, FeatureCollection } from '../geojson-types';
-import { TwoClickPolygonMode } from './two-click-polygon-mode';
+import {ModeProps, Tooltip} from './types';
+import {Position, Polygon, FeatureOf, FeatureCollection} from '../geojson-types';
+import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
   radius: number | null | undefined = null;
@@ -12,8 +12,8 @@ export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
   areaCircle: number | null | undefined = null;
   getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
     // Default turf value for circle is 64
-    const { steps = 64 } = modeConfig || {};
-    const options = { steps };
+    const {steps = 64} = modeConfig || {};
+    const options = {steps};
     // setting with position of center of circle
     this.position = coord2;
 
@@ -43,7 +43,7 @@ export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
     return this._getTooltips({
       modeConfig: props?.modeConfig,
       radius: this.radius,
-      areaCircle: this.areaCircle,
+      areaCircle: this.areaCircle
     });
   }
 
@@ -53,9 +53,9 @@ export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
    * @param radius
    * @param areaCircle
    */
-  _getTooltips = memoize(({ modeConfig, radius, areaCircle }) => {
+  _getTooltips = memoize(({modeConfig, radius, areaCircle}) => {
     let tooltips: Tooltip[] = [];
-    const { formatTooltip } = modeConfig || {};
+    const {formatTooltip} = modeConfig || {};
     let text: string;
     if (radius && areaCircle) {
       if (formatTooltip) {
@@ -69,8 +69,8 @@ export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
       tooltips = [
         {
           position: this.position,
-          text,
-        },
+          text
+        }
       ];
     }
 

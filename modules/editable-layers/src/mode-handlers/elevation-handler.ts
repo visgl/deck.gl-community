@@ -1,12 +1,12 @@
-import { Position } from '../geojson-types';
-import { PointerMoveEvent, StopDraggingEvent } from '../edit-modes/types';
-import { EditAction, getPickedEditHandle } from './mode-handler';
+import {Position} from '../geojson-types';
+import {PointerMoveEvent, StopDraggingEvent} from '../edit-modes/types';
+import {EditAction, getPickedEditHandle} from './mode-handler';
 
-import { ModifyHandler } from './modify-handler';
+import {ModifyHandler} from './modify-handler';
 
 function defaultCalculateElevationChange({
   pointerDownScreenCoords,
-  screenCoords,
+  screenCoords
 }: {
   pointerDownScreenCoords: Position;
   screenCoords: Position;
@@ -27,7 +27,7 @@ export class ElevationHandler extends ModifyHandler {
     const {
       minElevation = 0,
       maxElevation = 20000,
-      calculateElevationChange = defaultCalculateElevationChange,
+      calculateElevationChange = defaultCalculateElevationChange
     } = this._modeConfig || {};
 
     // $FlowFixMe - really, I know it has something at index 2
@@ -36,13 +36,13 @@ export class ElevationHandler extends ModifyHandler {
     // calculateElevationChange is configurable becase (at this time) modes are not aware of the viewport
     elevation += calculateElevationChange({
       pointerDownScreenCoords: event.pointerDownScreenCoords,
-      screenCoords: event.screenCoords,
+      screenCoords: event.screenCoords
     });
     elevation = Math.min(elevation, maxElevation);
     elevation = Math.max(elevation, minElevation);
 
     return Object.assign({}, event, {
-      mapCoords: [position[0], position[1], elevation],
+      mapCoords: [position[0], position[1], elevation]
     });
   }
 
@@ -61,7 +61,7 @@ export class ElevationHandler extends ModifyHandler {
     return super.handleStopDragging(this.makeElevatedEvent(event, position));
   }
 
-  getCursor(params: { isDragging: boolean }): string {
+  getCursor(params: {isDragging: boolean}): string {
     let cursor = super.getCursor(params);
     if (cursor === 'cell') {
       cursor = 'ns-resize';
@@ -73,7 +73,7 @@ export class ElevationHandler extends ModifyHandler {
     viewport: any,
     {
       pointerDownScreenCoords,
-      screenCoords,
+      screenCoords
     }: {
       pointerDownScreenCoords: Position;
       screenCoords: Position;

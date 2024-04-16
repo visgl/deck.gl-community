@@ -1,4 +1,4 @@
-import { point, lineString as toLineString } from '@turf/helpers';
+import {point, lineString as toLineString} from '@turf/helpers';
 import {
   recursivelyTraverseNestedArrays,
   nearestPointOnProjectedLine,
@@ -9,9 +9,9 @@ import {
   getPickedExistingEditHandle,
   getPickedIntermediateEditHandle,
   updateRectanglePosition,
-  NearestPointType,
+  NearestPointType
 } from './utils';
-import { LineString, Point, Polygon, FeatureCollection, FeatureOf } from '../geojson-types';
+import {LineString, Point, Polygon, FeatureCollection, FeatureOf} from '../geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -22,24 +22,24 @@ import {
   Viewport,
   GuideFeatureCollection,
   EditHandleFeature,
-  GuideFeature,
+  GuideFeature
 } from './types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
+import {GeoJsonEditMode} from './geojson-edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ModifyMode extends GeoJsonEditMode {
   // eslint-disable-next-line complexity
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
     const handles: GuideFeature[] = [];
 
-    const { data, lastPointerMoveEvent } = props;
-    const { features } = data;
+    const {data, lastPointerMoveEvent} = props;
+    const {features} = data;
     const picks = lastPointerMoveEvent && lastPointerMoveEvent.picks;
     const mapCoords = lastPointerMoveEvent && lastPointerMoveEvent.mapCoords;
 
     for (const index of props.selectedIndexes) {
       if (index < features.length) {
-        const { geometry } = features[index];
+        const {geometry} = features[index];
         handles.push(...getEditHandlesForGeometry(geometry, index));
       } else {
         console.warn(`selectedFeatureIndexes out of range ${index}`); // eslint-disable-line no-console,no-undef
@@ -88,21 +88,21 @@ export class ModifyMode extends GeoJsonEditMode {
         // tack on the lone intermediate point to the set of handles
         if (intermediatePoint) {
           const {
-            geometry: { coordinates: position },
-            properties: { index },
-          } = intermediatePoint ;
+            geometry: {coordinates: position},
+            properties: {index}
+          } = intermediatePoint;
           handles.push({
             type: 'Feature',
             properties: {
               guideType: 'editHandle',
               editHandleType: 'intermediate',
               featureIndex: featureAsPick.index,
-              positionIndexes: [...positionIndexPrefix, index + 1],
+              positionIndexes: [...positionIndexPrefix, index + 1]
             },
             geometry: {
               type: 'Point',
-              coordinates: position,
-            },
+              coordinates: position
+            }
           });
         }
       }
@@ -110,7 +110,7 @@ export class ModifyMode extends GeoJsonEditMode {
 
     return {
       type: 'FeatureCollection',
-      features: handles,
+      features: handles
     };
   }
 
@@ -120,7 +120,7 @@ export class ModifyMode extends GeoJsonEditMode {
     inPoint: FeatureOf<Point>,
     viewport: Viewport | null | undefined
   ): NearestPointType {
-    const { coordinates } = line.geometry;
+    const {coordinates} = line.geometry;
     if (coordinates.some((coord) => coord.length > 2)) {
       if (viewport) {
         // This line has elevation, we need to use alternative algorithm
@@ -139,7 +139,7 @@ export class ModifyMode extends GeoJsonEditMode {
     const pickedIntermediateHandle = getPickedIntermediateEditHandle(event.picks);
 
     if (pickedExistingHandle) {
-      const { featureIndex, positionIndexes } = pickedExistingHandle.properties;
+      const {featureIndex, positionIndexes} = pickedExistingHandle.properties;
 
       let updatedData;
       try {
@@ -157,12 +157,12 @@ export class ModifyMode extends GeoJsonEditMode {
           editContext: {
             featureIndexes: [featureIndex],
             positionIndexes,
-            position: pickedExistingHandle.geometry.coordinates,
-          },
+            position: pickedExistingHandle.geometry.coordinates
+          }
         });
       }
     } else if (pickedIntermediateHandle) {
-      const { featureIndex, positionIndexes } = pickedIntermediateHandle.properties;
+      const {featureIndex, positionIndexes} = pickedIntermediateHandle.properties;
 
       const feature = props.data.features[featureIndex];
       const canAddPosition = !(
@@ -181,8 +181,8 @@ export class ModifyMode extends GeoJsonEditMode {
             editContext: {
               featureIndexes: [featureIndex],
               positionIndexes,
-              position: pickedIntermediateHandle.geometry.coordinates,
-            },
+              position: pickedIntermediateHandle.geometry.coordinates
+            }
           });
         }
       }
@@ -218,7 +218,7 @@ export class ModifyMode extends GeoJsonEditMode {
       ) as any; // TODO
 
       updatedData = new ImmutableFeatureCollection(props.data)
-        .replaceGeometry(editHandleProperties.featureIndex, { coordinates, type: 'Polygon' })
+        .replaceGeometry(editHandleProperties.featureIndex, {coordinates, type: 'Polygon'})
         .getObject();
     } else {
       updatedData = new ImmutableFeatureCollection(props.data)
@@ -236,8 +236,8 @@ export class ModifyMode extends GeoJsonEditMode {
       editContext: {
         featureIndexes: [editHandleProperties.featureIndex],
         positionIndexes: editHandleProperties.positionIndexes,
-        position: event.mapCoords,
-      },
+        position: event.mapCoords
+      }
     });
   }
 
@@ -267,8 +267,8 @@ export class ModifyMode extends GeoJsonEditMode {
         editContext: {
           featureIndexes: [editHandleProperties.featureIndex],
           positionIndexes: editHandleProperties.positionIndexes,
-          position: event.mapCoords,
-        },
+          position: event.mapCoords
+        }
       });
     }
   }

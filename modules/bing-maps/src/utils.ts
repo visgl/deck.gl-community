@@ -84,10 +84,10 @@ export function destroyDeckInstance(deck, Events) {
 }
 
 interface MockEvent {
-  type: string,
-  offsetCenter: {x: number, y: number},
-  srcEvent: unknown,
-  tapCount?: number
+  type: string;
+  offsetCenter: {x: number; y: number};
+  srcEvent: unknown;
+  tapCount?: number;
 }
 
 function handleMouseEvent(deck, type, event) {

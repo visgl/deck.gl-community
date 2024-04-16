@@ -1,17 +1,17 @@
 /* eslint-disable max-nested-callbacks */
 import {beforeAll, beforeEach, afterEach, describe, test, expect} from 'vitest';
 import sinon from 'sinon';
-import { Feature, FeatureCollection } from '@deck.gl-community/editable-layers';
-import { parseImport } from '../src/lib/importer';
-import { toKml } from '../src/lib/exporter';
-import { JSDOM } from 'jsdom';
+import {Feature, FeatureCollection} from '@deck.gl-community/editable-layers';
+import {parseImport} from '../src/lib/importer';
+import {toKml} from '../src/lib/exporter';
+import {JSDOM} from 'jsdom';
 
 import {
   createRandomFeature,
   createRandomPolygon,
   createRandomMultiPolygon,
   createRandomLineString,
-  createRandomMultiLineString,
+  createRandomMultiLineString
 } from './utils/test-features';
 
 let feature: Feature;
@@ -29,7 +29,7 @@ beforeEach(() => {
   featureCollection = {
     type: 'FeatureCollection',
     properties: {},
-    features: [feature],
+    features: [feature]
   };
 });
 
@@ -102,9 +102,9 @@ describe('parseImport()', () => {
             [40, 40],
             [20, 40],
             [10, 20],
-            [30, 10],
-          ],
-        ],
+            [30, 10]
+          ]
+        ]
       });
     });
   });
@@ -113,7 +113,7 @@ describe('parseImport()', () => {
     let importData: any;
     beforeEach(async () => {
       const file = new File([JSON.stringify(feature)], 'my.geojson', {
-        type: 'text/plain;charset=utf-8;',
+        type: 'text/plain;charset=utf-8;'
       });
       importData = await parseImport(file);
     });
@@ -134,10 +134,10 @@ describe('parseImport()', () => {
         polygon = createRandomPolygon();
         geometryCollection = {
           type: 'GeometryCollection',
-          geometries: [polygon],
+          geometries: [polygon]
         };
 
-        const feature = { type: 'Feature', geometry: geometryCollection };
+        const feature = {type: 'Feature', geometry: geometryCollection};
 
         importData = await parseImport(JSON.stringify(feature));
       });
@@ -160,11 +160,11 @@ describe('parseImport()', () => {
           type: 'GeometryCollection',
           geometries: multiPolygon.coordinates.map((c) => ({
             type: 'Polygon',
-            coordinates: c,
-          })),
+            coordinates: c
+          }))
         };
 
-        const feature = { type: 'Feature', geometry: geometryCollection };
+        const feature = {type: 'Feature', geometry: geometryCollection};
 
         importData = await parseImport(JSON.stringify(feature));
       });
@@ -187,11 +187,11 @@ describe('parseImport()', () => {
           type: 'GeometryCollection',
           geometries: multiLineString.coordinates.map((c) => ({
             type: 'LineString',
-            coordinates: c,
-          })),
+            coordinates: c
+          }))
         };
 
-        const feature = { type: 'Feature', geometry: geometryCollection };
+        const feature = {type: 'Feature', geometry: geometryCollection};
 
         importData = await parseImport(JSON.stringify(feature));
       });
@@ -216,7 +216,7 @@ describe('parseImport()', () => {
         expect(importData.valid).toEqual(false);
         expect(importData.validationErrors).toEqual([
           'Error parsing GeoJSON',
-          'SyntaxError: Unexpected token a in JSON at position 1',
+          'SyntaxError: Unexpected token a in JSON at position 1'
         ]);
       });
     });
@@ -231,7 +231,7 @@ describe('parseImport()', () => {
         expect(importData.valid).toEqual(false);
         expect(importData.validationErrors).toEqual([
           'Error parsing GeoJSON',
-          'Error: GeoJSON must have type of \'Feature\' or \'FeatureCollection\'',
+          "Error: GeoJSON must have type of 'Feature' or 'FeatureCollection'"
         ]);
       });
     });
@@ -284,7 +284,7 @@ describe('parseImport()', () => {
         sinon.replace(
           togeojson,
           'kml',
-          sinon.fake.returns({ type: 'FeatureCollection', features: [] })
+          sinon.fake.returns({type: 'FeatureCollection', features: []})
         );
 
         importData = await parseImport('<abc />');
@@ -331,10 +331,10 @@ describe('parseImport()', () => {
       beforeEach(async () => {
         geometryCollection = {
           type: 'GeometryCollection',
-          geometries: [createRandomLineString(), createRandomPolygon()],
+          geometries: [createRandomLineString(), createRandomPolygon()]
         };
 
-        const feature = { type: 'Feature', geometry: geometryCollection };
+        const feature = {type: 'Feature', geometry: geometryCollection};
 
         importData = await parseImport(JSON.stringify(feature));
       });
@@ -343,7 +343,7 @@ describe('parseImport()', () => {
         expect(importData.valid).toEqual(false);
         expect(importData.validationErrors).toEqual([
           'Error parsing GeoJSON',
-          'Error: GeometryCollection geometry type not yet supported',
+          'Error: GeometryCollection geometry type not yet supported'
         ]);
       });
     });

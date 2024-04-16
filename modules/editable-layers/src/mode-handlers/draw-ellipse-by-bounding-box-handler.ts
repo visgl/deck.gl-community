@@ -1,10 +1,10 @@
 import bboxPolygon from '@turf/bbox-polygon';
 import distance from '@turf/distance';
 import ellipse from '@turf/ellipse';
-import { point } from '@turf/helpers';
-import { PointerMoveEvent } from '../edit-modes/types';
-import { EditAction, getIntermediatePosition } from './mode-handler';
-import { TwoClickPolygonHandler } from './two-click-polygon-handler';
+import {point} from '@turf/helpers';
+import {PointerMoveEvent} from '../edit-modes/types';
+import {EditAction, getIntermediatePosition} from './mode-handler';
+import {TwoClickPolygonHandler} from './two-click-polygon-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class DrawEllipseByBoundingBoxHandler extends TwoClickPolygonHandler {
@@ -12,7 +12,7 @@ export class DrawEllipseByBoundingBoxHandler extends TwoClickPolygonHandler {
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
-    const result = { editAction: null, cancelMapPan: false };
+    const result = {editAction: null, cancelMapPan: false};
     const clickSequence = this.getClickSequence();
 
     if (clickSequence.length === 0) {

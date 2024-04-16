@@ -1,9 +1,9 @@
 import turfCentroid from '@turf/centroid';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
-import { FeatureCollection, Position } from '../geojson-types';
-import { PointerMoveEvent, StartDraggingEvent, StopDraggingEvent } from '../edit-modes/types';
-import { EditAction, ModeHandler } from './mode-handler';
+import {FeatureCollection, Position} from '../geojson-types';
+import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
+import {EditAction, ModeHandler} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class ScaleHandler extends ModeHandler {
@@ -20,19 +20,15 @@ export class ScaleHandler extends ModeHandler {
 
     if (!this._isScalable || !event.pointerDownMapCoords) {
       // Nothing to do
-      return { editAction: null, cancelMapPan: false };
+      return {editAction: null, cancelMapPan: false};
     }
 
     if (event.isDragging && this._geometryBeingScaled) {
       // Scale the geometry
-      editAction = this.getScaleAction(
-        event.pointerDownMapCoords,
-        event.mapCoords,
-        'scaling'
-      );
+      editAction = this.getScaleAction(event.pointerDownMapCoords, event.mapCoords, 'scaling');
     }
 
-    return { editAction, cancelMapPan: true };
+    return {editAction, cancelMapPan: true};
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
@@ -56,7 +52,7 @@ export class ScaleHandler extends ModeHandler {
     return editAction;
   }
 
-  getCursor({ isDragging }: { isDragging: boolean }): string {
+  getCursor({isDragging}: {isDragging: boolean}): string {
     if (this._isScalable) {
       // TODO: look at doing SVG cursors to get a better "scale" cursor
       return 'move';
@@ -76,7 +72,7 @@ export class ScaleHandler extends ModeHandler {
       this._geometryBeingScaled,
       factor,
       {
-        origin: centroid,
+        origin: centroid
       }
     );
 
@@ -93,7 +89,7 @@ export class ScaleHandler extends ModeHandler {
       updatedData: updatedData.getObject(),
       editType,
       featureIndexes: selectedIndexes,
-      editContext: null,
+      editContext: null
     };
   }
 }

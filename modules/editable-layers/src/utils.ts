@@ -1,14 +1,14 @@
 import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
-import { point } from '@turf/helpers';
+import {point} from '@turf/helpers';
 import WebMercatorViewport from 'viewport-mercator-project';
-import { FeatureOf, FeatureWithProps, LineString, Point, Position } from './geojson-types';
-import { Viewport } from './types';
+import {FeatureOf, FeatureWithProps, LineString, Point, Position} from './geojson-types';
+import {Viewport} from './types';
 
 // TODO edit-modes: delete and use edit-modes/utils instead
 
-export type NearestPointType = FeatureWithProps<Point, { dist: number; index: number }>;
+export type NearestPointType = FeatureWithProps<Point, {dist: number; index: number}>;
 
 export function toDeckColor(
   color?: [number, number, number, number] | number,
@@ -69,7 +69,7 @@ export function generatePointsParallelToLinePoints(
 ): Position[] {
   const lineString: LineString = {
     type: 'LineString',
-    coordinates: [p1, p2],
+    coordinates: [p1, p2]
   };
   const pt = point(mapCoords);
   const ddistance = pointToLineDistance(pt, lineString);
@@ -140,11 +140,11 @@ export function nearestPointOnProjectedLine(
       minPointInfo = {
         index,
         x0: (B * (B * x - A * y) - A * C) / div,
-        y0: (A * (-B * x + A * y) - B * C) / div,
+        y0: (A * (-B * x + A * y) - B * C) / div
       };
     }
   });
-  const { index, x0, y0 } = minPointInfo as any;
+  const {index, x0, y0} = minPointInfo as any;
   const [x1, y1, z1 = 0] = projectedCoords[index - 1];
   const [x2, y2, z2 = 0] = projectedCoords[index];
 
@@ -159,13 +159,13 @@ export function nearestPointOnProjectedLine(
     geometry: {
       type: 'Point',
       // @ts-expect-error Position type diff
-      coordinates: wmViewport.unproject([x0, y0, z0]),
+      coordinates: wmViewport.unproject([x0, y0, z0])
     },
     properties: {
       // TODO: calculate the distance in proper units
       dist: minDistance,
-      index: index - 1,
-    },
+      index: index - 1
+    }
   };
 }
 

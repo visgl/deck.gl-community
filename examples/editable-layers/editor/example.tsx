@@ -70,7 +70,7 @@ export function Example() {
       <DeckGL
         initialViewState={initialViewState}
         controller={{
-          doubleClickZoom: false,
+          doubleClickZoom: false
         }}
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
@@ -95,7 +95,7 @@ export function Example() {
         onImport={(imported) =>
           setGeoJson({
             ...geoJson,
-            features: [...geoJson.features, ...imported.features],
+            features: [...geoJson.features, ...imported.features]
           })
         }
         onSetGeoJson={setGeoJson}

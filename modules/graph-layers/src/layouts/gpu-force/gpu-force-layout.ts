@@ -87,8 +87,8 @@ export class GPUForceLayout extends BaseLayout {
     }
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
-    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
-      this._options as any;
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} = this
+      ._options as any;
     this._worker.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,
@@ -161,10 +161,10 @@ export class GPUForceLayout extends BaseLayout {
       const newD3Edge = oldD3Edge
         ? oldD3Edge
         : {
-          id: edge.id,
-          source: newNodeMap[edge.getSourceNodeId()],
-          target: newNodeMap[edge.getTargetNodeId()]
-        };
+            id: edge.id,
+            source: newNodeMap[edge.getSourceNodeId()],
+            target: newNodeMap[edge.getTargetNodeId()]
+          };
       newEdgeMap[edge.id] = newD3Edge;
       return newD3Edge;
     });

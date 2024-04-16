@@ -138,7 +138,9 @@ export default class EditableH3ClusterLayer extends EditableLayer<
                   // they're affecting a selected cluster
                   let finalHexagonIDs: (string | number)[];
                   const committedHexagonIDs = new Set<string | number>(this.getSelectedHexIDs());
-                  const tentativeHexagonIDs = new Set<string | number>(this.state.tentativeHexagonIDs);
+                  const tentativeHexagonIDs = new Set<string | number>(
+                    this.state.tentativeHexagonIDs
+                  );
 
                   switch (modeConfig.booleanOperation) {
                     case 'union':

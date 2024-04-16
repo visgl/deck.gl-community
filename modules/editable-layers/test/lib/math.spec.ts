@@ -1,5 +1,5 @@
-import { it, expect } from 'vitest';
-import { convertE7Array, toDegree, toRadian } from '../../src/lib/math';
+import {it, expect} from 'vitest';
+import {convertE7Array, toDegree, toRadian} from '../../src/lib/math';
 
 it('test toDegree()', () => {
   expect(toDegree(Math.PI / 4)).toBe(45);
@@ -17,6 +17,6 @@ it('test convertE7Array()', () => {
   const points = [378034847, -1224078182, 378039091, -1224079046];
   expect(convertE7Array(points)).toEqual([
     [-122.4078182, 37.8034847],
-    [-122.4079046, 37.8039091],
+    [-122.4079046, 37.8039091]
   ]);
 });

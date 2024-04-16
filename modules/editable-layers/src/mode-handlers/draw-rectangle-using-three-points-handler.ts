@@ -1,8 +1,8 @@
-import { LineString } from '../geojson-types';
-import { generatePointsParallelToLinePoints } from '../utils';
-import { PointerMoveEvent } from '../edit-modes/types';
-import { EditAction } from './mode-handler';
-import { ThreeClickPolygonHandler } from './three-click-polygon-handler';
+import {LineString} from '../geojson-types';
+import {generatePointsParallelToLinePoints} from '../utils';
+import {PointerMoveEvent} from '../edit-modes/types';
+import {EditAction} from './mode-handler';
+import {ThreeClickPolygonHandler} from './three-click-polygon-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class DrawRectangleUsingThreePointsHandler extends ThreeClickPolygonHandler {
@@ -10,7 +10,7 @@ export class DrawRectangleUsingThreePointsHandler extends ThreeClickPolygonHandl
     editAction: EditAction | null | undefined;
     cancelMapPan: boolean;
   } {
-    const result = { editAction: null, cancelMapPan: false };
+    const result = {editAction: null, cancelMapPan: false};
     const clickSequence = this.getClickSequence();
 
     if (clickSequence.length === 0) {
@@ -25,13 +25,13 @@ export class DrawRectangleUsingThreePointsHandler extends ThreeClickPolygonHandl
         type: 'Feature',
         geometry: {
           type: 'LineString',
-          coordinates: [clickSequence[0], mapCoords],
-        },
+          coordinates: [clickSequence[0], mapCoords]
+        }
       });
     } else if (clickSequence.length === 2) {
       const lineString: LineString = {
         type: 'LineString',
-        coordinates: clickSequence,
+        coordinates: clickSequence
       };
       const [p1, p2] = clickSequence;
       const [p3, p4] = generatePointsParallelToLinePoints(p1, p2, mapCoords);
@@ -48,10 +48,10 @@ export class DrawRectangleUsingThreePointsHandler extends ThreeClickPolygonHandl
               ...lineString.coordinates,
               p3,
               p4,
-              p1,
-            ],
-          ],
-        },
+              p1
+            ]
+          ]
+        }
       });
     }
 

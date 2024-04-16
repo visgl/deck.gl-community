@@ -1,4 +1,4 @@
-import { FeatureCollection } from '../geojson-types';
+import {FeatureCollection} from '../geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -7,9 +7,9 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   GuideFeatureCollection,
-  GuideFeature,
+  GuideFeature
 } from './types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class CompositeMode extends GeoJsonEditMode {
   _modes: Array<GeoJsonEditMode>;
@@ -68,7 +68,7 @@ export class CompositeMode extends GeoJsonEditMode {
 
     return {
       type: 'FeatureCollection',
-      features: allGuides,
+      features: allGuides
     };
   }
 }
