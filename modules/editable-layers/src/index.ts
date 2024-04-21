@@ -36,6 +36,8 @@ import * as utils from './utils';
 
 export {utils};
 
+export {getPickedEditHandle, getEditHandlesForGeometry} from './edit-modes/utils';
+
 export type {EditMode} from './edit-modes/edit-mode';
 export type {GeoJsonEditModeType} from './edit-modes/geojson-edit-mode';
 export type {GeoJsonEditModeConstructor} from './edit-modes/geojson-edit-mode';
