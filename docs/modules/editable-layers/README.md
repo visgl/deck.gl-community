@@ -18,7 +18,7 @@ Provides editable and interactive map overlay layers, built using the power of [
 
 ## History
 
-A fork of @nebula.gl. nebula.gl is an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
+A fork of @nebula.gl. [nebula.gl](https://nabula.gl) is an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
 
 ## What's New
 
@@ -38,13 +38,6 @@ This page contains highlights of each `editable-layers` release.
 | `@nebula.gl/editor`                       | React wrappers      | => `@deck.gl-community/react-editable-layers` |
 | `react-map-gl-draw`                       | Non-deck-wrapper    | => NOT FORKED                                 |
 
-
-### editable-layers v0.0.1
-
-Release date: TBD
-
-- new `DrawRectangleFromCenterMode`. User can draw a new rectangular `Polygon` feature by clicking the center, then along a corner of the rectangle.
-- `screenSpace` option can be provided in the `modeConfig` of Translate mode so the features will be translated without distortion in screen space.
-- `lockRectangles` option can be provided in the `modeConfig` object for ModifyMode, so the features with `properties.shape === 'Rectangle'` will preserve rectangular shape.
-- `pickingLineWidthExtraPixels` property to specify additional line width in pixels for picking. Can be useful when `EditableGeojsonLayer` is over a deck.gl layer and precise picking is problematic, and when usage of `pickingDepth` introduces performance issues.
-
+Notes:
+- `react-map-gl-draw`- A notable omission is that `react-map-gl-draw` is not included in this fork. This decision was made to simplify the nebula.gl code base with the hope of making it easier for non-dedicated maintainers to keep the deck.gl layers version of nebula.gl alive. Given that the new version is no longer broken into deck.gl independent modules, it may not be easy to add.
+The main reason for updating react-map-gl-draw is likely to make it work with the latest React versions. If it helps, `react-map-gl-draw` is a small module and you can probably copy the source code into your app and bump the react dependency.
