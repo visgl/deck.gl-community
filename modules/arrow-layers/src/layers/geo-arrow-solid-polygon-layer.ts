@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   CompositeLayer,
   CompositeLayerProps,
@@ -20,11 +24,11 @@ import {
   getMultiPolygonResolvedOffsets,
   getPolygonResolvedOffsets,
   invertOffsets
-} from './utils';
-import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from './picking';
-import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from './types';
-import {EXTENSION_NAME} from './constants';
-import {validateAccessors} from './validate';
+} from '../utils/utils';
+import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from '../utils/picking';
+import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from '../types';
+import {EXTENSION_NAME} from '../constants';
+import {validateAccessors} from '../utils/validate';
 import {spawn, Transfer, BlobWorker, Pool} from 'threads';
 import type {FunctionThread} from 'threads';
 

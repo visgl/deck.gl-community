@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import getDeckOverlay from './deck-overlay';
 
 const BING_MAPS_API_URL = 'https://www.bing.com/api/maps/mapcontrol?callback=__loadBingMaps';

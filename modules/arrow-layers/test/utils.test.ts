@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-import {expandArrayToCoords} from '../src/utils';
+import {expandArrayToCoords} from '../src/utils/utils';
 import {arraysEqual} from './utils';
 
 describe('linestring vertex expansion', (t) => {

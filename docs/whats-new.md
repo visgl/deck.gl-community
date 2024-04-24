@@ -14,5 +14,5 @@ Feb 29, 2024: [**`@deck.gl-community/layers`**](/docs/modules/layers) v9 - deck,
 December 22, 2023: [**`@deck.gl-community/layers`**](/docs/modules/layers) v0 - A new module intended to containing a collection of useful community layers. Initial layers are `TileSourceLayer`, `DataDrivenTile3DLayer`.
 
 
-April 14, 2023: [**`@deck-graph-layers`**](/docs/modules/graph-layers) - A new layer pack for rendering graphs (nodes and edges). Forked from Uber's archived [graph.gl](graph.gl) repo.
+April 14, 2023: [**`@deck-graph-layers`**](/docs/modules/graph-layers) - A new layer pack for rendering graphs (nodes and edges). Forked from Uber's archived [graph.gl](https://graph.gl) repo.
 

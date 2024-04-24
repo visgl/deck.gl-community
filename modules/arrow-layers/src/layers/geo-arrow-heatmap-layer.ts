@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   CompositeLayer,
   CompositeLayerProps,
@@ -10,11 +14,11 @@ import {HeatmapLayer} from '@deck.gl/aggregation-layers';
 import type {HeatmapLayerProps} from '@deck.gl/aggregation-layers';
 import * as arrow from 'apache-arrow';
 import * as ga from '@geoarrow/geoarrow-js';
-import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from './utils';
-import {FloatAccessor} from './types';
-import {EXTENSION_NAME} from './constants';
-import {validateAccessors} from './validate';
-import {computeChunkOffsets} from './picking';
+import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from '../utils/utils';
+import {FloatAccessor} from '../types';
+import {EXTENSION_NAME} from '../constants';
+import {validateAccessors} from '../utils/validate';
+import {computeChunkOffsets} from '../utils/picking';
 
 /** All properties supported by GeoArrowHeatmapLayer */
 export type GeoArrowHeatmapLayerProps = Omit<

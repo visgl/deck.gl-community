@@ -1,0 +1,9 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/arrow-layers",
+  "items": [
+    "modules/arrow-layers/README",
+    "modules/arrow-layers/developer-guide/get-started",
+    "modules/arrow-layers/api-reference/layers"
+  ]
+}

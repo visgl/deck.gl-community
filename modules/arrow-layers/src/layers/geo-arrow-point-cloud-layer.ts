@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   CompositeLayer,
   CompositeLayerProps,
@@ -13,11 +17,11 @@ import {PointCloudLayer} from '@deck.gl/layers';
 import type {PointCloudLayerProps} from '@deck.gl/layers';
 import * as arrow from 'apache-arrow';
 import * as ga from '@geoarrow/geoarrow-js';
-import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from './utils';
-import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from './picking';
-import {ColorAccessor, GeoArrowPickingInfo, NormalAccessor} from './types';
-import {EXTENSION_NAME} from './constants';
-import {validateAccessors} from './validate';
+import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from '../utils/utils';
+import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from '../utils/picking';
+import {ColorAccessor, GeoArrowPickingInfo, NormalAccessor} from '../types';
+import {EXTENSION_NAME} from '../constants';
+import {validateAccessors} from '../utils/validate';
 
 /* All properties supported by GeoArrowPointCloudLayer */
 export type GeoArrowPointCloudLayerProps = Omit<
