@@ -4,6 +4,9 @@
 The arrow layers module is still in the process of being ported into deck.gl-community from [geoarrow/deck.gl-layers](https://github.com/geoarrow/deck.gl-layers).
 :::
 
+![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
+![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+
 This module provides deck.gl layers that accept Apache Arrow and [GeoArrow](https://geoarrow.org) tables. 
 These layers take advantage of the deck.gl [low-level binary interface](https://deck.gl/docs/developer-guide/performance#supply-attributes-directly) to provide binary arrow data from Apache Arrow tables directly to the GPU.
 
@@ -22,7 +25,7 @@ These layers take advantage of the deck.gl [low-level binary interface](https://
 
 ## Examples
 
-Standalone examples exist in the [`examples/`](examples/) directory. Create an issue if you have trouble running them.
+Standalone examples exist in the `examples/arrow-layers` directory. Create an issue if you have trouble running them.
 
 ## History
 
