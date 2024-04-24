@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   CompositeLayer,
   CompositeLayerProps,
@@ -10,12 +14,12 @@ import {
 import {ColumnLayer} from '@deck.gl/layers';
 import type {ColumnLayerProps} from '@deck.gl/layers';
 import * as arrow from 'apache-arrow';
-import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from './utils';
+import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from '../utils/utils';
 import * as ga from '@geoarrow/geoarrow-js';
-import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from './types';
-import {EXTENSION_NAME} from './constants';
-import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from './picking';
-import {validateAccessors} from './validate';
+import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from '../types';
+import {EXTENSION_NAME} from '../constants';
+import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from '../utils/picking';
+import {validateAccessors} from '../utils/validate';
 
 /** All properties supported by GeoArrowColumnLayer */
 export type GeoArrowColumnLayerProps = Omit<

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   CompositeLayer,
   CompositeLayerProps,
@@ -9,13 +13,16 @@ import {
 import {TripsLayer} from '@deck.gl/geo-layers';
 import * as arrow from 'apache-arrow';
 import * as ga from '@geoarrow/geoarrow-js';
-import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from './utils';
-import {TimestampAccessor, ColorAccessor, FloatAccessor} from './types';
-import {GeoArrowPathLayerProps, defaultProps as pathLayerDefaultProps} from './path-layer';
-import {validateAccessors} from './validate';
-import {EXTENSION_NAME} from './constants';
+import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from '../utils/utils';
+import {TimestampAccessor, ColorAccessor, FloatAccessor} from '../types';
+import {
+  GeoArrowPathLayerProps,
+  defaultProps as pathLayerDefaultProps
+} from './geo-arrow-path-layer';
+import {validateAccessors} from '../utils/validate';
+import {EXTENSION_NAME} from '../constants';
 import {TripsLayerProps} from '@deck.gl/geo-layers';
-import {computeChunkOffsets} from './picking';
+import {computeChunkOffsets} from '../utils/picking';
 
 /** All properties supported by GeoArrowTripsLayer */
 export type GeoArrowTripsLayerProps = Omit<

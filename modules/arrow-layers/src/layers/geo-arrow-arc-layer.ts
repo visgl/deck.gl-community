@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   CompositeLayer,
   CompositeLayerProps,
@@ -11,11 +15,11 @@ import {ArcLayer} from '@deck.gl/layers';
 import type {ArcLayerProps} from '@deck.gl/layers';
 import * as arrow from 'apache-arrow';
 import * as ga from '@geoarrow/geoarrow-js';
-import {assignAccessor, extractAccessorsFromProps} from './utils';
+import {assignAccessor, extractAccessorsFromProps} from '../utils/utils';
 import {child} from '@geoarrow/geoarrow-js';
-import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from './picking';
-import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from './types';
-import {validateAccessors} from './validate';
+import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from '../utils/picking';
+import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from '../types';
+import {validateAccessors} from '../utils/validate';
 
 /** All properties supported by GeoArrowArcLayer */
 export type GeoArrowArcLayerProps = Omit<

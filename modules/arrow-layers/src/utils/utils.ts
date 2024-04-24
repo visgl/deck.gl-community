@@ -1,7 +1,11 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {assert} from '@deck.gl/core';
 import * as arrow from 'apache-arrow';
 import * as ga from '@geoarrow/geoarrow-js';
-import {AccessorContext, AccessorFunction, _InternalAccessorContext} from './types';
+import {AccessorContext, AccessorFunction, _InternalAccessorContext} from '../types';
 
 export type TypedArray =
   | Uint8Array

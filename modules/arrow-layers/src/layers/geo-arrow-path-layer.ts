@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   Accessor,
   CompositeLayer,
@@ -18,11 +22,11 @@ import {
   getGeometryVector,
   getMultiLineStringResolvedOffsets,
   invertOffsets
-} from './utils';
-import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from './picking';
-import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from './types';
-import {EXTENSION_NAME} from './constants';
-import {validateAccessors} from './validate';
+} from '../utils/utils';
+import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from '../utils/picking';
+import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from '../types';
+import {EXTENSION_NAME} from '../constants';
+import {validateAccessors} from '../utils/validate';
 
 /** All properties supported by GeoArrowPathLayer */
 export type GeoArrowPathLayerProps = Omit<

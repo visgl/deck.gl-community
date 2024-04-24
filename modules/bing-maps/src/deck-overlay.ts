@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {createContainer, createDeckInstance, destroyDeckInstance, getViewState} from './utils';
 
 const HIDE_ALL_LAYERS = () => false;

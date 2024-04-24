@@ -1,39 +1,18 @@
 # What's New
 
-The following releases are deck.gl v9 compatible
+The detailed release notes of each module can be found in the module-specific docs section.
 
-### `@deck.gl-community/graph-layers` v9.0.0
-
-Target Release date: April 2024
-
-The deck-graph-layers module is being repackaged as a deck.gl "layer pack" and modernized
+High-level updates are 
 
 
-### `@deck.gl-community/editable-layers` v9.0.0
-
-Release date: April 15, 2024
-
-This new module is a fork of Uber's no longer maintained @nebula.gl framework.is an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
+April 15, 2024: [**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers)) v9 - This new layer pack is a fork of Uber's no longer maintained [nebula.gl](https://nebula.gl) framework. nebula.gl has been an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
 
 
-### `@deck.gl-community/layers` v9.0.0
+Feb 29, 2024: [**`@deck.gl-community/layers`**](/docs/modules/layers) v9 - deck,gl community-layers now support deck.gl v9.
 
-- Target Release date: March 26, 2024
-- New version of the `@deck.gl-community/layers` module for deck.gl v9.
 
----
+December 22, 2023: [**`@deck.gl-community/layers`**](/docs/modules/layers) v0 - A new module intended to containing a collection of useful community layers. Initial layers are `TileSourceLayer`, `DataDrivenTile3DLayer`.
 
-Releases below are deck.gl v8 compatible
 
-> Support for the v8 ecosystem is not a goal, anything below is available strictly on an as-is basis.
+April 14, 2023: [**`@deck-graph-layers`**](/docs/modules/graph-layers) - A new layer pack for rendering graphs (nodes and edges). Forked from Uber's archived [graph.gl](https://graph.gl) repo.
 
-### `@deck.gl-community/layers` v0.0.0
-
-Release date: 2023
-
-- `TileSourceLayer`
-- `DataDrivenTile3DLayer`
-
-### `@deck-graph-layers` v0.0.1 (NEW MODULE)
-
-A new layer pack built from a fork of Uber's graph.gl. For more information see [`graph-layers`](/docs/modules/graph-layers).
