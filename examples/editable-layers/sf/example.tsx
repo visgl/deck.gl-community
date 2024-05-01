@@ -5,6 +5,7 @@ import CSS from 'csstype';
 import DeckGL from '@deck.gl/react';
 import {WebMercatorViewport} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
+import MapLibre from 'maplibre-gl';
 
 import {
   NebulaCore,
@@ -306,8 +307,9 @@ export default class Example extends React.Component<
 
     return (
       <div style={mapContainerStyle}>
-        <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
+        <link href="https://unpkg.com/maplibre-gl@^4.1.3/dist/maplibre-gl.css" rel="stylesheet" />
         <StaticMap
+          mapLib={MapLibre}
           {...viewState}
           mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
         >

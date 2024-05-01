@@ -4,6 +4,7 @@ import StaticMap from 'react-map-gl';
 import {INITIAL_COORDS, INITIAL_VIEW_STATE} from './constants';
 import {HtmlOverlay, HtmlOverlayItem} from '@deck.gl-community/react';
 import type {WikipediaEntry} from './types';
+import MapLibre from 'maplibre-gl';
 
 const styles = {
   mapContainer: {
@@ -58,7 +59,10 @@ const Example = () => {
   return (
     <div style={styles.mapContainer}>
       <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={true}>
-        <StaticMap mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
+        <StaticMap
+          mapLib={MapLibre}
+          mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+        />
         {data ? (
           <HtmlOverlay>
             {data.map((feature) => (

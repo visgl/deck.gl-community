@@ -5,6 +5,7 @@ import {MapView, MapController} from '@deck.gl/core';
 import StaticMap from 'react-map-gl';
 import {GL} from '@luma.gl/constants';
 import circle from '@turf/circle';
+import MapLibre from 'maplibre-gl';
 
 import {
   EditableGeoJsonLayer,
@@ -828,8 +829,9 @@ export default class Example extends React.Component<
   renderStaticMap(viewport: Record<string, any>) {
     return (
       <StaticMap
+        mapLib={MapLibre}
         {...viewport}
-        mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.jsondark-v10'}
+        mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
       />
     );
   }

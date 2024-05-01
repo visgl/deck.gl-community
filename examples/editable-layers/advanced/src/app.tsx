@@ -12,6 +12,3 @@ if (document.body) {
   const root = createRoot(container);
   root.render(<Example />);
 }
-
-// eslint-disable-next-line no-console
-console.info('MapboxAccessToken', import.meta.env.VITE_MAPBOX_ACCESS_TOKEN);

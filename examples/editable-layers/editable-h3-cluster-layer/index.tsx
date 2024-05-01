@@ -10,9 +10,7 @@ import {
 } from '@deck.gl-community/editable-layers';
 import StaticMap from 'react-map-gl';
 import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data';
-
-const MAPBOX_ACCESS_TOKEN =
-  'pk.eyJ1IjoiZ2Vvcmdpb3MtdWJlciIsImEiOiJjanZidTZzczAwajMxNGVwOGZrd2E5NG90In0.gdsRu_UeU_uPi9IulBruXA';
+import MapLibre from 'maplibre-gl';
 
 const SELECTED_FILL_COLOR = [50, 100, 200, 230];
 const UNSELECTED_FILL_COLOR = [50, 100, 200, 100];
@@ -197,7 +195,10 @@ export function Example() {
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
       >
-        <StaticMap mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'} />
+        <StaticMap
+          mapLib={MapLibre}
+          mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
+        />
       </DeckGL>
       <Toolbar
         {...{
