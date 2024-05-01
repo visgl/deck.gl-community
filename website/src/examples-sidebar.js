@@ -8,9 +8,6 @@
 
  Create as many sidebars as you want.
  */
-
- const editableLayerDocs = require('../../examples/editable-layers/sidebar.json');
-
  
 const sidebars = {
   examplesSidebar: [
