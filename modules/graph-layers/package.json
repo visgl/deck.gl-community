@@ -31,9 +31,9 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@deck.gl/core": "^9.0.5",
-    "@deck.gl/layers": "^9.0.5",
-    "@luma.gl/core": "^9.0.9",
+    "@deck.gl/core": "^9.0.12",
+    "@deck.gl/layers": "^9.0.12",
+    "@luma.gl/core": "^9.0.12",
     "cardinal-spline-js": "^2.3.10",
     "color": "^4.2.3",
     "core-js": "^3.29.0",
