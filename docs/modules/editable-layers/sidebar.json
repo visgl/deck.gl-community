@@ -1,6 +1,6 @@
 {
   "type": "category",
-  "label": "deck.gl-community/editable-layers",
+  "label": "@deck.gl-community/editable-layers",
   "items": [
     "modules/editable-layers/README",
     "modules/editable-layers/developer-guide/get-started",

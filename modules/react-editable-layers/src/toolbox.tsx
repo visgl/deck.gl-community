@@ -21,7 +21,7 @@ const Tools = styled.div`
   display: flex;
   flex-direction: column;
   top: 10px;
-  right: 10px;
+  left: 10px;
 `;
 
 const Button = styled.button<{active?: boolean; kind?: string}>`
