@@ -105,7 +105,7 @@ const ALL_MODES: any = [
       {label: 'Draw Point', mode: DrawPointMode},
       {label: 'Draw LineString', mode: DrawLineStringMode},
       {label: 'Draw Polygon', mode: DrawPolygonMode},
-      {label: 'Draw 90° Polygon', mode: Draw90DegreePolygonMode},
+      // {label: 'Draw 90° Polygon', mode: Draw90DegreePolygonMode},
       {label: 'Draw Polygon By Dragging', mode: DrawPolygonByDraggingMode},
       {label: 'Draw Rectangle', mode: DrawRectangleMode},
       {label: 'Draw Rectangle From Center', mode: DrawRectangleFromCenterMode},
