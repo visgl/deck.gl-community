@@ -83,9 +83,7 @@ export function Example() {
             }
         }}
       >
-        <StaticMap
-          mapStyle={'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
-        />
+        <StaticMap mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'} />
       </DeckGL>
 
       <Toolbox

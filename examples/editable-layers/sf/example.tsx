@@ -309,7 +309,7 @@ export default class Example extends React.Component<
         <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
         <StaticMap
           {...viewState}
-          mapStyle={'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
+          mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
         >
           <DeckGL
             height={height}

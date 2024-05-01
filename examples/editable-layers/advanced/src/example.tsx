@@ -829,7 +829,7 @@ export default class Example extends React.Component<
     return (
       <StaticMap
         {...viewport}
-        mapStyle={'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/style.jsondark-v10'}
+        mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.jsondark-v10'}
       />
     );
   }
