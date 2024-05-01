@@ -5,9 +5,7 @@ import DeckGL from '@deck.gl/react';
 // eslint-disable-next-line import/named, import/no-extraneous-dependencies
 import {HtmlOverlayItem, HtmlClusterOverlay} from '@deck.gl-community/react';
 import StaticMap from 'react-map-gl';
-
-const MAPBOX_ACCESS_TOKEN =
-  'pk.eyJ1IjoiZ2Vvcmdpb3MtdWJlciIsImEiOiJjanZidTZzczAwajMxNGVwOGZrd2E5NG90In0.gdsRu_UeU_uPi9IulBruXA';
+import MapLibre from 'maplibre-gl';
 
 const DATA_URL = 'https://cors-tube.vercel.app/?url=https://whc.unesco.org/en/list/georss/';
 
@@ -119,7 +117,7 @@ export class WorldHeritageApp extends React.Component {
   render() {
     return (
       <DeckGL initialViewState={initialViewState} controller={true}>
-        <StaticMap mapboxApiAccessToken={MAPBOX_ACCESS_TOKEN} />
+        <StaticMap mapLib={MapLibre} />
         {this.renderWorldHeritage()}
       </DeckGL>
     );
