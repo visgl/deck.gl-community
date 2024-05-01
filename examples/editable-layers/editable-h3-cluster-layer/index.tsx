@@ -197,7 +197,9 @@ export function Example() {
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
       >
-        <StaticMap mapStyle={'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/style.json'} />
+        <StaticMap
+          mapStyle={'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
+        />
       </DeckGL>
       <Toolbar
         {...{
