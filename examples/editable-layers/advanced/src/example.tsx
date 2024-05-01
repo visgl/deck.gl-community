@@ -826,7 +826,12 @@ export default class Example extends React.Component<
   }
 
   renderStaticMap(viewport: Record<string, any>) {
-    return <StaticMap {...viewport} mapStyle={'mapbox://styles/mapbox/dark-v10'} />;
+    return (
+      <StaticMap
+        {...viewport}
+        mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.jsondark-v10'}
+      />
+    );
   }
 
   _featureMenuClick(action: string) {

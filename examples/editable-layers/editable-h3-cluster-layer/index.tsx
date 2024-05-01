@@ -197,7 +197,7 @@ export function Example() {
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
       >
-        <StaticMap mapStyle={'mapbox://styles/mapbox/light-v10'} />
+        <StaticMap mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'} />
       </DeckGL>
       <Toolbar
         {...{

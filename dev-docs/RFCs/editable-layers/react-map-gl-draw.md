@@ -181,7 +181,7 @@ class App extends React.Component {
         {...viewport}
         width="100%"
         height="100%"
-        mapStyle="mapbox://styles/uberdata/cive48w2e001a2imn5mcu2vrs"
+        mapStyle="https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/style.json"
         onViewportChange={this._updateViewport}
       >
         <MapGLDraw
