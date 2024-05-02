@@ -84,6 +84,7 @@ export function Example() {
       </DeckGL>
 
       <Toolbox
+        left={true}
         geoJson={geoJson}
         mode={mode}
         modeConfig={modeConfig}

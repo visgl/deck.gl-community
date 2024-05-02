@@ -8,12 +8,21 @@
 
  Create as many sidebars as you want.
  */
+ 
 const sidebars = {
   examplesSidebar: [
     {
       type: 'doc',
       label: 'Overview',
       id: 'index'
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/editable-layers',
+      items: [
+        "editable-layers-editor",
+        "editable-layers-advanced"
+      ]
     },
     // {
     //   type: 'category',

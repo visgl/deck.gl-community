@@ -18,7 +18,7 @@ export const Toolbox = styled.div`
   font-family: Arial, Helvetica, sans-serif;
   font-size: 16px;
   overflow: auto;
-  z-index: 999;
+  z-index: 30;
 `;
 
 export const ToolboxRow = (props) => <div>{props.children}</div>;
