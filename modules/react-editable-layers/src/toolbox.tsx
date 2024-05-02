@@ -21,7 +21,7 @@ const Tools = styled.div<{left: boolean}>`
   display: flex;
   flex-direction: column;
   top: 10px;
-  ${props => props.left ? "left" : "right"}: 10px;
+  ${(props) => (props.left ? 'left' : 'right')}: 10px;
 `;
 
 const Button = styled.button<{active?: boolean; kind?: string}>`
@@ -51,7 +51,7 @@ const SubTools = styled.div<{left: boolean}>`
   flex-direction: row-reverse;
   position: absolute;
   top: 0;
-  ${props => props.left ? "left" : "right"}: 0;
+  ${(props) => (props.left ? 'left' : 'right')}: 0;
 `;
 
 export type Props = {
@@ -165,7 +165,13 @@ export function Toolbox({
     <>
       <Tools left={left}>
         {MODE_GROUPS.map((modeGroup, i) => (
-          <ModeGroupButtons left={left} key={i} modeGroup={modeGroup} mode={mode} onSetMode={onSetMode} />
+          <ModeGroupButtons
+            left={left}
+            key={i}
+            modeGroup={modeGroup}
+            mode={mode}
+            onSetMode={onSetMode}
+          />
         ))}
 
         {/* <box-icon name='current-location' ></box-icon> */}
