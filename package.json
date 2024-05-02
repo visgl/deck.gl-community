@@ -56,12 +56,13 @@
     "react-dom": "^18.2.0",
     "reify": "^0.20.12",
     "sinon": "^17.0.1",
-    "typescript": "^5.3.3",
+    "typescript": "^5.4.0",
     "vitest": "^1.2.2"
   },
   "resolutions": {
     "gl": "6.0.2",
-    "react": "18.2.0"
+    "react": "18.2.0",
+    "typescript": "^5.4.0"
   },
   "volta": {
     "node": "18.18.2",

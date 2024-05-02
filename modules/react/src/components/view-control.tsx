@@ -24,10 +24,10 @@ export const NavigationButtonContainer = styled.div`
 export const NavigationButton = styled.div`
   color: #848484;
   cursor: pointer;
-  left: ${(props) => (props as any).left};
+  left: ${(props: any) => props.left};
   position: absolute;
-  top: ${(props) => (props as any).top};
-  transform: rotate(${(props) => (props as any).rotate || 0}deg);
+  top: ${(props: any) => props.top};
+  transform: rotate(${(props: any) => props.rotate || 0}deg);
 
   &:hover,
   &:active {
