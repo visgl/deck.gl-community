@@ -4,8 +4,7 @@ import DeckGL from '@deck.gl/react';
 // TODO Enable eslint after package is published.
 // eslint-disable-next-line import/named, import/no-extraneous-dependencies
 import {HtmlOverlayItem, HtmlClusterOverlay} from '@deck.gl-community/react';
-import StaticMap from 'react-map-gl';
-import MapLibre from 'maplibre-gl';
+import StaticMap from 'react-map-gl/maplibre';
 
 const DATA_URL = 'https://cors-tube.vercel.app/?url=https://whc.unesco.org/en/list/georss/';
 
@@ -117,7 +116,7 @@ export class WorldHeritageApp extends React.Component {
   render() {
     return (
       <DeckGL initialViewState={initialViewState} controller={true}>
-        <StaticMap mapLib={MapLibre} />
+        <StaticMap />
         {this.renderWorldHeritage()}
       </DeckGL>
     );

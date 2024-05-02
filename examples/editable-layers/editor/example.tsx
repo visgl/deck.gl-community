@@ -2,8 +2,7 @@ import React, {useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import {ViewMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
 import {Toolbox} from '@deck.gl-community/react-editable-layers';
-import StaticMap from 'react-map-gl';
-import MapLibre from 'maplibre-gl';
+import StaticMap from 'react-map-gl/maplibre';
 
 const initialViewState = {
   longitude: -122.43,
@@ -81,10 +80,7 @@ export function Example() {
             }
         }}
       >
-        <StaticMap
-          mapLib={MapLibre}
-          mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
-        />
+        <StaticMap mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'} />
       </DeckGL>
 
       <Toolbox

@@ -8,9 +8,8 @@ import {
   DrawCircleFromCenterMode,
   DrawRectangleMode
 } from '@deck.gl-community/editable-layers';
-import StaticMap from 'react-map-gl';
+import StaticMap from 'react-map-gl/maplibre';
 import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data';
-import MapLibre from 'maplibre-gl';
 
 const SELECTED_FILL_COLOR = [50, 100, 200, 230];
 const UNSELECTED_FILL_COLOR = [50, 100, 200, 100];
@@ -195,10 +194,7 @@ export function Example() {
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
       >
-        <StaticMap
-          mapLib={MapLibre}
-          mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
-        />
+        <StaticMap mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'} />
       </DeckGL>
       <Toolbar
         {...{
