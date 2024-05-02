@@ -1,13 +1,13 @@
 import React, {Component} from 'react';
 import {GITHUB_TREE} from '../constants/defaults';
-import {Example as App} from 'examples/editable-layers/editor/example';
+import App from '../../../examples/editable-layers/advanced/src/example';
 
 import {makeExample} from '../components';
 
-class EditorDemo extends Component {
-  static title = 'Editor';
+class AdvancedDemo extends Component {
+  static title = 'Advanced';
 
-  static code = `${GITHUB_TREE}/examples/editable-layers/editor`;
+  static code = `${GITHUB_TREE}/examples/editable-layers/advanced`;
 
   static renderInfo(meta) {
     return (
@@ -17,7 +17,7 @@ class EditorDemo extends Component {
   }
 
   render() {
-    const {params, ...otherProps} = this.props;
+    const {...otherProps} = this.props;
 
     return (
       <App
@@ -27,4 +27,4 @@ class EditorDemo extends Component {
   }
 }
 
-export default makeExample(EditorDemo);
+export default makeExample(AdvancedDemo);
