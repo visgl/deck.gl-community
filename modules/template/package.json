@@ -7,7 +7,10 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["webgl", "visualization"],
+  "keywords": [
+    "webgl",
+    "visualization"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/visgl/deck.gl-community.gl.git"
@@ -24,7 +27,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "test": "vitest run",
     "test-watch": "vitest"

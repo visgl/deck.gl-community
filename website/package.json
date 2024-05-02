@@ -55,5 +55,8 @@
   "browserslist": [
     ">0.2% and supports async-functions",
     "not dead"
-  ]
+  ],
+  "volta": {
+    "extends": "../package.json"
+  }
 }
