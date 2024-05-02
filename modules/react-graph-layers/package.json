@@ -42,7 +42,7 @@
     "d3-array": "^3.2.2",
     "deck-graph-layers": "^0.0.22",
     "prop-types": "^15.8.1",
-    "styled-components": "^6.1.9"
+    "styled-components": "^4.4.1"
   },
   "devDependencies": {
     "@storybook/addon-knobs": "^6.4.0",
