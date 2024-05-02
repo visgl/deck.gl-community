@@ -1,8 +1,8 @@
 import React, {Component} from 'react';
-import {GITHUB_TREE} from '../constants/defaults';
-import {Example as App} from '../../../examples/editable-layers/editor/example';
+import {GITHUB_TREE} from '../../constants/defaults';
+import {Example as App} from '../../../../examples/editable-layers/editor/example';
 
-import {makeExample} from '../components';
+import {makeExample} from '../../components';
 
 class EditorDemo extends Component {
   static title = 'Editor';
