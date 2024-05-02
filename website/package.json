@@ -40,8 +40,11 @@
   },
   "devDependencies": {
     "@docusaurus/core": "^3.2.1",
+    "@docusaurus/module-type-aliases": "^3.2.1",
     "@docusaurus/plugin-content-docs": "^3.2.1",
     "@docusaurus/preset-classic": "^3.2.1",
+    "@docusaurus/tsconfig": "^3.2.1",
+    "@docusaurus/types": "^3.2.1",
     "@mdx-js/react": "^3.0.1",
     "babel-plugin-inline-webgl-constants": "^1.0.3",
     "babel-plugin-remove-glsl-comments": "^1.0.0",
