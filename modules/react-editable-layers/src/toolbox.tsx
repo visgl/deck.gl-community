@@ -16,12 +16,12 @@ import {Icon} from '@deck.gl-community/react';
 import {ImportModal} from './import-modal';
 import {ExportModal} from './export-modal';
 
-const Tools = styled.div`
+const Tools = styled.div<{left: boolean}>`
   position: absolute;
   display: flex;
   flex-direction: column;
   top: 10px;
-  left: 10px;
+  ${props => props.left ? "left" : "right"}: 10px;
 `;
 
 const Button = styled.button<{active?: boolean; kind?: string}>`
@@ -46,15 +46,16 @@ const SubToolsContainer = styled.div`
   position: relative;
 `;
 
-const SubTools = styled.div`
+const SubTools = styled.div<{left: boolean}>`
   display: flex;
   flex-direction: row-reverse;
   position: absolute;
   top: 0;
-  right: 0;
+  ${props => props.left ? "left" : "right"}: 0;
 `;
 
 export type Props = {
+  left?: boolean;
   mode: any;
   modeConfig: any;
   geoJson: any;
@@ -102,7 +103,7 @@ function ModeButton({buttonConfig, mode, onClick}: any) {
     </Button>
   );
 }
-function ModeGroupButtons({modeGroup, mode, onSetMode}: any) {
+function ModeGroupButtons({left, modeGroup, mode, onSetMode}: any) {
   const [expanded, setExpanded] = React.useState(false);
 
   const {modes} = modeGroup;
@@ -111,7 +112,7 @@ function ModeGroupButtons({modeGroup, mode, onSetMode}: any) {
 
   if (expanded) {
     subTools = (
-      <SubTools>
+      <SubTools left={left}>
         {modes.map((buttonConfig, i) => (
           <ModeButton
             key={i}
@@ -146,6 +147,7 @@ function ModeGroupButtons({modeGroup, mode, onSetMode}: any) {
 }
 
 export function Toolbox({
+  left = false,
   mode,
   modeConfig,
   geoJson,
@@ -161,9 +163,9 @@ export function Toolbox({
 
   return (
     <>
-      <Tools>
+      <Tools left={left}>
         {MODE_GROUPS.map((modeGroup, i) => (
-          <ModeGroupButtons key={i} modeGroup={modeGroup} mode={mode} onSetMode={onSetMode} />
+          <ModeGroupButtons left={left} key={i} modeGroup={modeGroup} mode={mode} onSetMode={onSetMode} />
         ))}
 
         {/* <box-icon name='current-location' ></box-icon> */}
@@ -176,7 +178,7 @@ export function Toolbox({
 
         <SubToolsContainer>
           {showConfig && (
-            <SubTools>
+            <SubTools left={left}>
               <Button onClick={() => setShowConfig(false)}>
                 <Icon name="chevron-right" />
               </Button>
@@ -210,7 +212,7 @@ export function Toolbox({
 
         <SubToolsContainer>
           {showClearConfirmation && (
-            <SubTools>
+            <SubTools left={left}>
               <Button
                 onClick={() => {
                   onSetGeoJson({type: 'FeatureCollection', features: []});
