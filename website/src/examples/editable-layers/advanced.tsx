@@ -1,8 +1,8 @@
 import React, {Component} from 'react';
-import {GITHUB_TREE} from '../constants/defaults';
-import App from '../../../examples/editable-layers/advanced/src/example';
+import {GITHUB_TREE} from '../../constants/defaults';
+import App from '../../../../examples/editable-layers/advanced/src/example';
 
-import {makeExample} from '../components';
+import {makeExample} from '../../components';
 
 class AdvancedDemo extends Component {
   static title = 'Advanced';
