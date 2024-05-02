@@ -1,4 +1,6 @@
 import React, {Component} from 'react';
+import BrowserOnly from '@docusaurus/BrowserOnly';
+
 import {GITHUB_TREE} from '../../constants/defaults';
 import {Example as App} from '../../../../examples/editable-layers/editor/example';
 
@@ -10,19 +12,16 @@ class EditorDemo extends Component {
   static code = `${GITHUB_TREE}/examples/editable-layers/editor`;
 
   static renderInfo(meta) {
-    return (
-      <>
-      </>
-    );
+    return <></>;
   }
 
   render() {
     const {...otherProps} = this.props;
 
     return (
-      <App
-        {...otherProps}
-      />
+      <BrowserOnly>
+        {() => <App {...otherProps} />}
+      </BrowserOnly>
     );
   }
 }
