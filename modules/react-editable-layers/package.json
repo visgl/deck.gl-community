@@ -47,7 +47,7 @@
     "clipboard-copy": "^3.2.0",
     "downloadjs": "^1.4.7",
     "react-dropzone": "^10.2.2",
-    "styled-components": "^4.4.1",
+    "styled-components": "^6.1.9",
     "supercluster": "^8.0.1",
     "wellknown": "^0.5.0"
   },
