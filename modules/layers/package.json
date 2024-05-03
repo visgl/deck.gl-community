@@ -30,8 +30,6 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@luma.gl/core": "^9.0.11",
-    "@luma.gl/engine": "^9.0.11",
     "@deck.gl/core": "^9.0.12",
     "@deck.gl/extensions": "^9.0.12",
     "@deck.gl/geo-layers": "^9.0.12",
@@ -42,6 +40,8 @@
     "@loaders.gl/i3s": "^4.2.0",
     "@loaders.gl/loader-utils": "^4.2.0",
     "@loaders.gl/schema": "^4.2.0",
-    "@loaders.gl/tiles": "^4.2.0"
+    "@loaders.gl/tiles": "^4.2.0",
+    "@luma.gl/core": "^9.0.11",
+    "@luma.gl/engine": "^9.0.11"
   }
 }
