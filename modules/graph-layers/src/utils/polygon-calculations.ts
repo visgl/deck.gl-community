@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 export function generateRoundedCorners(pos, width, height, radius, factor = 20) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;

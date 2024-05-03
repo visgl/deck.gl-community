@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {createGraph} from '../utils/create-graph';
 import {basicNodeParser} from './node-parsers';
 import {basicEdgeParser} from './edge-parsers';

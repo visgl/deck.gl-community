@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // cdn path prefix for s3 uber-static buckets
 const PREFIX = 'https://d1a3f4spazzrp4.cloudfront.net/mlvis/graphgl';
 

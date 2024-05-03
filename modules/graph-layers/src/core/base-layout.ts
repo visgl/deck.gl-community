@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import isEqual from 'lodash.isequal';
 import {EDGE_TYPE, LAYOUT_STATE} from './constants';
 

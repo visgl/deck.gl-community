@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 export const tfvs = /* glsl */ `\
 #define SHADER_NAME flow-path-layer-vertex-tf-shader
 

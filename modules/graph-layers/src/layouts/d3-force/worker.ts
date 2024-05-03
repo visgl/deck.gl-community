@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* global importScripts, d3 */
 
 importScripts('https://d3js.org/d3-collection.v1.min.js');

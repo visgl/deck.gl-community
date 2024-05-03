@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* global importScripts GPU*/
 
 importScripts('https://cdn.jsdelivr.net/npm/gpu.js@latest/dist/gpu-browser.js');

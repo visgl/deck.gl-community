@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 function genAllPairs<T>(s: T[]): T[][] {
   const length = s.length;
   const pairs = [] as T[][];

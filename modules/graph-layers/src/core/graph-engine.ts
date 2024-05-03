@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {BaseLayout} from './base-layout';
 import {Cache} from './cache';
 import {Edge} from './edge';

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // react-graph-layers core
 export {GraphEngine} from './core/graph-engine';
 export {Graph} from './core/graph';

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {BaseLayout, BaseLayoutOptions} from '../../core/base-layout';
 import {Node} from '../../core/node';
 import {EDGE_TYPE} from '../../core/constants';

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {log} from '../utils/log';
 
 export function basicEdgeParser(edge) {

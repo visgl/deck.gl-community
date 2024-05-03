@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {StyleProperty} from './style-property';
 
 import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // Basic data structure of an edge
 import {EDGE_STATE} from './constants';
 import {Node} from './node';

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 export const fs = /* glsl */ `\
 #define SHADER_NAME rounded-rectangle-layer-fragment-shader
 

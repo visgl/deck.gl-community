@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import React from 'react';
 import {select} from '@storybook/addon-knobs';
 import SAMPLE_GRAPH_DATASETS from '../data/sample-datasets';

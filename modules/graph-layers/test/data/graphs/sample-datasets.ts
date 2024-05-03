@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import NgraphGenerators from 'ngraph.generators';
 
 import {lesGraph} from './les-miserable';
