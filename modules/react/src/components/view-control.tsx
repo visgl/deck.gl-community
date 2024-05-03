@@ -130,7 +130,7 @@ export class ViewControl extends PureComponent {
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}
-          { /* @ts-expect-error TODO */ }
+          {/* @ts-expect-error TODO */}
           <NavigationButton top={'12px'} left={'16px'} onClick={this.props.fitBounds}>
             {'¤'}
           </NavigationButton>
