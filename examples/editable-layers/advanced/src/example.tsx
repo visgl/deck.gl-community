@@ -870,7 +870,16 @@ export default class Example extends React.Component<
   onEdit = ({updatedData, editType, editContext}) => {
     let updatedSelectedFeatureIndexes = this.state.selectedFeatureIndexes;
 
-    if (!['movePosition', 'extruding', 'rotating', 'translating', 'scaling', 'updateTentativeFeature'].includes(editType)) {
+    if (
+      ![
+        'movePosition',
+        'extruding',
+        'rotating',
+        'translating',
+        'scaling',
+        'updateTentativeFeature'
+      ].includes(editType)
+    ) {
       // Don't log edits that happen as the pointer moves since they're really chatty
       const updatedDataInfo = featuresToInfoString(updatedData);
       // eslint-disable-next-line
