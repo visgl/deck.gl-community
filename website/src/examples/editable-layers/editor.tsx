@@ -18,6 +18,8 @@ class EditorDemo extends Component {
     const {...otherProps} = this.props;
 
     return (
+      // Using a client-only library (@deck.gl-community/react-editable-layers):
+      // https://docusaurus.io/docs/docusaurus-core#browseronly-example-library
       <BrowserOnly>
       {()=>{
         const App = require('../../../../examples/editable-layers/editor/example');
