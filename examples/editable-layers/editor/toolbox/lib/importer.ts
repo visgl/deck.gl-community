@@ -1,5 +1,7 @@
 /* eslint-env browser */
 
+// @ts-nocheck
+
 import {kml} from '@tmcw/togeojson';
 
 import {parseSync} from '@loaders.gl/core';

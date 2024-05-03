@@ -374,7 +374,7 @@ export default class EditableGeoJsonLayer extends EditableLayer<
           mode = modeNameMapping[props.mode];
           // eslint-disable-next-line no-console
           console.warn(
-            "Deprecated use of passing `mode` as a string. Pass the mode's class constructor instead."
+            'Deprecated use of passing `mode` as a string. Pass the mode\'s class constructor instead.'
           );
         } else {
           // Should be an instance of EditMode in this case

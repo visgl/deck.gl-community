@@ -18,7 +18,7 @@ class EditorDemo extends Component {
     const {...otherProps} = this.props;
 
     return (
-      // Using a client-only library (@deck.gl-community/react-editable-layers):
+      // HACK: The editor Toolbox component uses client-only dependencies
       // https://docusaurus.io/docs/docusaurus-core#browseronly-example-library
       <BrowserOnly>
       {()=>{

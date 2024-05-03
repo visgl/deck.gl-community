@@ -20,7 +20,6 @@
       "@deck.gl-community/editable-layers": ["modules/editable-layers/src"],
       "@deck.gl-community/layers": ["modules/layers/src"],
       "@deck.gl-community/react": ["modules/react/src"],
-      "@deck.gl-community/react-editable-layers": ["modules/react-editable-layers/src"],
       "@deck.gl-community/template": ["modules/template/src"],
       "@deck.gl-community/test-utils": ["modules/test-utils/src"],
       "deck-graph-layers": ["modules/graph-layers/src"],

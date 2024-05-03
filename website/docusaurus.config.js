@@ -56,7 +56,6 @@ const config = {
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
-            '@deck.gl-community/react-editable-layers': resolve('../modules/react-editable-layers/src'),
             'react-deck-graph-layers': resolve('../modules/react-graph-layers/src'),
             react: resolve('node_modules/react'),
             'react-dom': resolve('node_modules/react-dom'),

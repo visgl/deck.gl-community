@@ -84,9 +84,9 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
 
         const tooltipPosition = centerTooltipsOnLine
           ? turfMidpoint(
-              clickSequence[clickSequence.length - 2],
-              clickSequence[clickSequence.length - 1]
-            ).geometry.coordinates
+            clickSequence[clickSequence.length - 2],
+            clickSequence[clickSequence.length - 1]
+          ).geometry.coordinates
           : event.mapCoords;
 
         this._currentTooltips.push({
@@ -198,7 +198,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
 
       const tooltipPosition = centerTooltipsOnLine
         ? (turfMidpoint(positions[positions.length - 1], lastPointerMoveEvent.mapCoords).geometry
-            .coordinates as Position)
+          .coordinates as Position)
         : lastPointerMoveEvent.mapCoords;
 
       return [

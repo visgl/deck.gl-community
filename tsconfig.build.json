@@ -12,7 +12,6 @@
     {"path": "modules/graph-layers"},
     {"path": "modules/layers"},
     {"path": "modules/react"},
-    {"path": "modules/react-editable-layers"},
     {"path": "modules/react-graph-layers"},
     {"path": "modules/template"},
     {"path": "modules/test-utils"}

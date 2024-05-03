@@ -123,10 +123,10 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
       featureOrGeometryAsAny.type === 'Feature'
         ? featureOrGeometryAsAny
         : {
-            type: 'Feature',
-            properties: {},
-            geometry: featureOrGeometryAsAny
-          };
+          type: 'Feature',
+          properties: {},
+          geometry: featureOrGeometryAsAny
+        };
 
     const rewindFeature = this.rewindPolygon(feature);
     const updatedData = new ImmutableFeatureCollection(features)
@@ -194,9 +194,9 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
         featureOrGeometryAsAny.type === 'Feature'
           ? featureOrGeometryAsAny
           : {
-              type: 'Feature',
-              geometry: featureOrGeometryAsAny
-            };
+            type: 'Feature',
+            geometry: featureOrGeometryAsAny
+          };
 
       let updatedGeometry;
       if (modeConfig.booleanOperation === 'union') {
