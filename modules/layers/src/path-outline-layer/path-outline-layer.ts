@@ -6,8 +6,16 @@ import {PathLayer, PathLayerProps} from '@deck.gl/layers';
 import type {DefaultProps, LayerContext} from '@deck.gl/core';
 import {GL} from '@luma.gl/constants';
 import {Framebuffer, Texture} from '@luma.gl/core';
-import {outline} from '../../shaderlib/outline/outline';
-import {UNIT} from '../../constants';
+import {outline} from './outline';
+
+/**
+ * Unit literal to shader unit number conversion.
+ */
+export const UNIT = {
+  common: 0,
+  meters: 1,
+  pixels: 2
+};
 
 // TODO - this should be built into assembleShaders
 function injectShaderCode({source, code = ''}) {

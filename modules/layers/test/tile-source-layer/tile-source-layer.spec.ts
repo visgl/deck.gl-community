@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-import {TileSourceLayer} from '../src';
+import {TileSourceLayer} from '../../src';
 
 describe('TileSourceLayer', () => {
   it('exports', () => {

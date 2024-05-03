@@ -29,9 +29,7 @@ export {EditableH3ClusterLayer} from './editable-layers/editable-h3-cluster-laye
 export {SelectionLayer} from './editable-layers/selection-layer';
 export {ElevatedEditHandleLayer} from './editable-layers/elevated-edit-handle-layer';
 
-// Layers moved from deck.gl-community/layers
-export {PathOutlineLayer} from './editable-layers/path-outline-layer/path-outline-layer';
-export {PathMarkerLayer} from './editable-layers/path-marker-layer/path-marker-layer';
+// Layers move to deck.gl-community/layers?
 export {JunctionScatterplotLayer} from './editable-layers/junction-scatterplot-layer';
 
 // Types

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {it, expect} from 'vitest';
-import {createPathMarkers} from '../../../../src/editable-layers/path-marker-layer/create-path-markers';
+import {createPathMarkers} from '../../src/path-marker-layer/create-path-markers';
 
 const data = [
   {

@@ -3,8 +3,12 @@
 // Copyright (c) vis.gl contributors
 
 import {Vector2} from '@math.gl/core';
-import {Position} from '../../utils/geojson-types';
-import {Color} from '../../utils/types';
+
+/** GeoJSON style position coordinate vector */
+export type Position = [number, number] | [number, number, number];
+
+/** [red, green, blue, alpha] in premultiplied alpha format */
+export type Color = [number, number, number, number];
 
 export interface PathMarker {
   position: Position;
