@@ -100,7 +100,7 @@ describe('after hitting escape', () => {
     expect(props.onEdit.mock.calls[3][0].editType).toEqual('cancelFeature');
   });
 
-  it('doesn\'t change the data', () => {
+  it("doesn't change the data", () => {
     const expectedData = {
       type: 'FeatureCollection',
       features: []
