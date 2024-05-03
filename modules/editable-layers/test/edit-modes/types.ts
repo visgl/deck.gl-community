@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-s/* eslint-disable no-unused-vars, prefer-const */
+/* eslint-disable no-unused-vars, prefer-const */
 
 import {
   Point,
