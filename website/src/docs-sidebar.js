@@ -19,6 +19,8 @@ const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');
 const reactDocs = require('../../docs/modules/react/sidebar.json');
 const reactGraphDocs = require('../../docs/modules/react-graph-layers/sidebar.json');
 
+const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
+
 const sidebars = {
   tutorialSidebar: [
     {
@@ -29,7 +31,7 @@ const sidebars = {
     {
       type: 'category',
       label: 'Layers',
-      items: [layerDocs, editableLayerDocs, graphLayerDocs, arrowLayerDocs]
+      items: [layerDocs, editableLayerDocs, graphLayerDocs, arrowLayerDocs, experimentalDocs]
     },
     {
       type: 'category',

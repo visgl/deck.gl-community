@@ -10,7 +10,6 @@
       "items": [
         "modules/editable-layers/api-reference/layers/editable-geojson-layer",
         "modules/editable-layers/api-reference/layers/selection-layer",
-        "modules/editable-layers/api-reference/layers/path-marker-layer",
         "modules/editable-layers/api-reference/layers/mesh-layer"
       ]
     },

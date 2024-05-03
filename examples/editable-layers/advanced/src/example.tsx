@@ -41,12 +41,13 @@ import {
   CompositeMode,
   SnappableMode,
   ElevatedEditHandleLayer,
-  PathMarkerLayer,
   SELECTION_TYPE,
   GeoJsonEditMode,
   Color,
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
+
+import {PathMarkerLayer} from '@deck.gl-community/layers';
 
 import sampleGeoJson from '../../data/sample-geojson.json';
 

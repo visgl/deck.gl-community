@@ -18,6 +18,7 @@
       "@deck.gl-community/arrow-layers": ["modules/arrow-layers/src"],
       "@deck.gl-community/bing-maps": ["modules/bing-maps/src"],
       "@deck.gl-community/editable-layers": ["modules/editable-layers/src"],
+      "@deck.gl-community/experimental": ["modules/experimental/src"],
       "@deck.gl-community/layers": ["modules/layers/src"],
       "@deck.gl-community/react": ["modules/react/src"],
       "@deck.gl-community/template": ["modules/template/src"],
