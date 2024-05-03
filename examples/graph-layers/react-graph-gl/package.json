@@ -6,11 +6,14 @@
     "start-local": "vite --config ../vite.config.local.mjs"
   },
   "dependencies": {
-    "deck.gl": "^8.8.26",
-    "deck-graph-layers": "^0.0.22",
-    "react-deck-graph-layers": "^0.0.24"
+    "@deck.gl-community/graph-layers": "9.0.0-alpha.1",
+    "@deck.gl-community/react-graph-layers": "^9.0.0-alpha.1",
+    "deck.gl": "^9.0.0"
   },
   "devDependencies": {
     "vite": "^5.0.12"
+  },
+  "volta": {
+    "extends": "../../../package.json"
   }
 }

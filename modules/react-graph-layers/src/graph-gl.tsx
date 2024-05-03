@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-import {BaseLayout, Graph, GraphLayer, log, SimpleLayout} from 'deck-graph-layers';
+import {BaseLayout, Graph, GraphLayer, log, SimpleLayout} from '@deck.gl-community/graph-layers';
 import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {extent} from 'd3-array';

@@ -1,10 +1,10 @@
 import React, {Component} from 'react';
 
-import {D3ForceLayout, JSONLoader, NODE_TYPE} from 'deck-graph-layers';
-import {GraphGL} from 'react-deck-graph-layers';
+import {D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import {GraphGL} from '@deck.gl-community/react-graph-layers';
 
 // eslint-disable-next-line import/no-unresolved
-import SAMPLE_GRAPH_DATASETS from 'react-deck-graph-layers/test/utils/data/sample-datasets.js';
+import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
 
 const DEFAULT_NODE_SIZE = 5;
 

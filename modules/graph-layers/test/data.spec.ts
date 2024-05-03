@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-import {SAMPLE_GRAPH_DATASETS} from '@deck.gl-community/test-utils';
+import {SAMPLE_GRAPH_DATASETS} from './data/graphs/sample-datasets';
 
 describe('sample data', () => {
   it('includes graphgl data', () => {

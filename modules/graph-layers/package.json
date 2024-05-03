@@ -1,6 +1,6 @@
 {
-  "name": "deck-graph-layers",
-  "version": "0.0.22",
+  "name": "@deck.gl-community/graph-layers",
+  "version": "9.0.0-alpha.1",
   "description": "WebGL2-Powered library for Graph Visualization",
   "keywords": [
     "graph",
@@ -48,5 +48,8 @@
     "lodash.pick": "^4.4.0",
     "probe.gl": "^3.6.0",
     "raf": "^3.4.1"
+  },
+  "devDependencies": {
+    "ngraph.generators": "^20.1.0"
   }
 }
