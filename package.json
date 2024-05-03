@@ -15,7 +15,7 @@
     "modules/*"
   ],
   "scripts": {
-    "bootstrap": "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true yarn && ocular-bootstrap",
+    "bootstrap": "ocular-bootstrap",
     "build": "ocular-clean && ocular-build && lerna run build",
     "lint": "ocular-lint",
     "prepublishOnly": "ocular-build && node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', {encoding: 'utf8'})); delete pkg.engines; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); console.log(pkg)\"",
@@ -66,6 +66,6 @@
   },
   "volta": {
     "node": "18.18.2",
-    "yarn": "1.22.0"
+    "yarn": "4.1.1"
   }
 }
