@@ -36,10 +36,10 @@
     "@deck.gl/layers": "^9.0.12",
     "@deck.gl/mesh-layers": "^9.0.12",
     "@deck.gl/react": "^9.0.12",
-    "@loaders.gl/core": "^4.1.4",
-    "@loaders.gl/i3s": "^4.1.4",
-    "@loaders.gl/loader-utils": "^4.1.4",
-    "@loaders.gl/schema": "^4.1.4",
-    "@loaders.gl/tiles": "^4.1.4"
+    "@loaders.gl/core": "^4.2.0",
+    "@loaders.gl/i3s": "^4.2.0",
+    "@loaders.gl/loader-utils": "^4.2.0",
+    "@loaders.gl/schema": "^4.2.0",
+    "@loaders.gl/tiles": "^4.2.0"
   }
 }
