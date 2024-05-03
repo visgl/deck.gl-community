@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {describe, it, expect} from 'vitest';
 import SAMPLE_NODE from '../__fixtures__/node.json';
 import {basicNodeParser} from '../../src/loaders/node-parsers';

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react';
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';

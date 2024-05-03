@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // import * as React from 'react';
 import {afterEach, describe, it, expect, vi} from 'vitest';
 import {cleanup} from '@testing-library/react';

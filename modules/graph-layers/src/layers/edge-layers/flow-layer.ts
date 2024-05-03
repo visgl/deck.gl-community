@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {CompositeLayer} from '@deck.gl/core';
 
 import {FlowPathLayer} from '../common-layers/flow-path-layer/flow-path-layer';

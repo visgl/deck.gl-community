@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // import {ScatterplotLayer} from '@deck.gl/layers';
 import {fs} from './rounded-rectangle-layer-fragment';
 import {RectangleLayer} from './rectangle-layer';

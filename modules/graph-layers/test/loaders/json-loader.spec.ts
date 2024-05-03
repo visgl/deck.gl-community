@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeAll, describe, it, expect} from 'vitest';
 
 import SAMPLE_GRAPH1 from '../__fixtures__/graph1.json';

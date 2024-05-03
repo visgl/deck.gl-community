@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {describe, it, expect} from 'vitest';
 import {SAMPLE_GRAPH_DATASETS} from './data/graphs/sample-datasets';
 

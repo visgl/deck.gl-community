@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {CompositeLayer} from '@deck.gl/core';
 import {ScatterplotLayer, LineLayer} from '@deck.gl/layers';
 import {SplineLayer} from '../common-layers/spline-layer/spline-layer';

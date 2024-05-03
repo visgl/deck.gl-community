@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import React, {Component} from 'react';
 import {fetchJSONFromS3} from '@deck.gl-community/test-utils';
 import {JSONLoader} from 'deck-graph-layers';

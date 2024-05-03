@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 export class Cache<K, V> {
   private readonly _keys = new Map<K, {value: V; version: number}>();
 

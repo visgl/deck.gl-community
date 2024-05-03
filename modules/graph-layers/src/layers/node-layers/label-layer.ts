@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {CompositeLayer} from '@deck.gl/core';
 import {ZoomableTextLayer} from '../common-layers/zoomable-text-layer/zoomable-text-layer';
 

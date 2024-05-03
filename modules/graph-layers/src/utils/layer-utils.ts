@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 export const mixedGetPosition = (getPosition, getOffset) => {
   if (!getOffset) {
     return getPosition;

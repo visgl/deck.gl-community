@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {NODE_STATE, ValueOf} from './constants';
 import {Edge} from './edge';
 

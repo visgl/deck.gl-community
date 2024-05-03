@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PathLayer} from '@deck.gl/layers';
 import {getCurvePoints} from 'cardinal-spline-js';

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {MarkerList} from '../layers/common-layers/marker-layer/marker-list';
 
 /** All the markers supported by node type MARKER */
