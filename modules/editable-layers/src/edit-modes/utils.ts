@@ -154,7 +154,7 @@ export function nearestPointOnProjectedLine(
       };
     }
   });
-  // @ts-ignore
+  // @ts-expect-error TODO
   const {index, x0, y0} = minPointInfo;
   const [x1, y1, z1 = 0] = projectedCoords[index - 1];
   const [x2, y2, z2 = 0] = projectedCoords[index];
@@ -198,11 +198,11 @@ export function nearestPointOnLine<G extends LineString | MultiLineString>(
     return closestPoint;
   }
 
-  // @ts-ignore
+  // @ts-expect-error TODO
   // eslint-disable-next-line max-statements, complexity
   flattenEach(lines, (line: any) => {
     const coords: any = getCoords(line);
-    // @ts-ignore
+    // @ts-expect-error TODO
     const pointCoords: any = getCoords(inPoint);
 
     let minDist;

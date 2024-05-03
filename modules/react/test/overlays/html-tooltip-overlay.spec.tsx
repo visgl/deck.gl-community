@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 import {it, expect} from 'vitest';
+// import React from 'react';
 
-// @ts-ignore
-// eslint-disable-next-line no-unused-vars
-import React from 'react';
 /*
 import Renderer from 'react-test-renderer';
 
@@ -15,7 +13,7 @@ import HtmlTooltipOverlay from '../src/html-tooltip-overlay';
 it('test HtmlTooltipOverlay no items shown', () => {
   /*
   const Component = (
-    // @ts-ignore
+    // @ts-expect-error TODO
     <DeckGL gl={createHeadlessContext({ width: 100, height: 100, webgl1: true })}>
       <HtmlTooltipOverlay />
     </DeckGL>

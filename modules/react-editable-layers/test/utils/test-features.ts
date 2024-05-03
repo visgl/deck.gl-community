@@ -11,6 +11,7 @@ import {
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
 
+/* eslint-disable @typescript-eslint/no-loss-of-precision */
 function getPacManMultiPolygon(): MultiPolygon {
   return {
     type: 'MultiPolygon',

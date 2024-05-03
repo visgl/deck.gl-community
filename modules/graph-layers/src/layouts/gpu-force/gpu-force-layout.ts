@@ -158,13 +158,11 @@ export class GPUForceLayout extends BaseLayout {
     const newEdgeMap = {};
     const newD3Edges = graph.getEdges().map((edge) => {
       const oldD3Edge = this._edgeMap[edge.id];
-      const newD3Edge = oldD3Edge
-        ? oldD3Edge
-        : {
-            id: edge.id,
-            source: newNodeMap[edge.getSourceNodeId()],
-            target: newNodeMap[edge.getTargetNodeId()]
-          };
+      const newD3Edge = oldD3Edge || {
+        id: edge.id,
+        source: newNodeMap[edge.getSourceNodeId()],
+        target: newNodeMap[edge.getTargetNodeId()]
+      };
       newEdgeMap[edge.id] = newD3Edge;
       return newD3Edge;
     });

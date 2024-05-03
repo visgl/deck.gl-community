@@ -312,7 +312,7 @@ export function createPointerDragEvent(
     screenCoords: [-1, -1],
     mapCoords,
     picks,
-    // @ts-ignore
+    // @ts-expect-error TODO
     isDragging: true,
     pointerDownPicks: null,
     pointerDownScreenCoords: [-1, -1],

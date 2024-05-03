@@ -160,7 +160,7 @@ describe('generatePointsParallelToLinePoints()', () => {
   it('generate Points Parallel to Line Points -- empty points', () => {
     const p1 = [0, 0];
     const p2 = [0, 0];
-    // @ts-ignore
+    // @ts-expect-error TODO
     const [p3, p4] = generatePointsParallelToLinePoints(p1, p2, [0, 0]);
     expect(p3).toEqual([0, 0]);
     expect(p4).toEqual([0, 0]);
@@ -202,7 +202,7 @@ describe('nearestPointOnProjectedLine() and related functions', () => {
       project: (x) => x,
       unproject: (x) => x
     };
-    // @ts-ignore
+    // @ts-expect-error TODO
     const result = nearestPointOnProjectedLine(line, inPoint, viewport);
     expect(result.geometry.type).toEqual('Point');
     expect(result.geometry.coordinates.length).toEqual(3);
@@ -220,7 +220,7 @@ describe('nearestPointOnLine()', () => {
   };
 
   it('Correctly intersects line normal to slope of line', () => {
-    // @ts-ignore
+    // @ts-expect-error TODO
     const result = nearestPointOnLine(LineString, Point, viewport);
     expect(result.geometry.type).toEqual('Point');
     expect(result.geometry.coordinates.length).toEqual(2);
@@ -237,7 +237,7 @@ describe('nearestPointOnLine()', () => {
         coordinates: [100.0, -4.0]
       }
     };
-    // @ts-ignore
+    // @ts-expect-error TODO
     const result = nearestPointOnLine(LineString, point, viewport);
     expect(result.geometry.type).toEqual('Point');
     expect(result.geometry.coordinates.length).toEqual(2);

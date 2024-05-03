@@ -126,12 +126,11 @@ export class ViewControl extends PureComponent {
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b: any) => (
-            /* @ts-ignore */
             <NavigationButton key={b.key} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}
-          {/* @ts-ignore */}
+          {/* @ts-expect-error TODO */}
           <NavigationButton top={'12px'} left={'16px'} onClick={this.props.fitBounds}>
             {'¤'}
           </NavigationButton>
@@ -148,7 +147,7 @@ export class ViewControl extends PureComponent {
               max={(this.props as any).maxZoom}
               step={(this.props as any).deltaZoom}
               onChange={this.onChangeZoomLevel}
-              /* @ts-ignore */
+              /* @ts-expect-error */
               orient="vertical"
             />
           </VerticalSlider>

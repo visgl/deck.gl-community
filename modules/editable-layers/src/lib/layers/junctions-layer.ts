@@ -33,7 +33,7 @@ export default class JunctionsLayer extends NebulaLayer {
 
       updateTriggers: {all: updateTrigger},
 
-      // @ts-ignore
+      // @ts-expect-error TODO
       nebulaLayer: this
     });
   }

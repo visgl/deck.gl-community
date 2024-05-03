@@ -19,5 +19,8 @@
   "scripts": {
     "test": "vitest run",
     "test-watch": "vitest"
+  },
+  "devDependencies": {
+    "ngraph.generators": "^20.1.0"
   }
 }

@@ -19,17 +19,21 @@ module.exports = getESLintConfig({
     },
     overrides: [
       {
-        files: [
-          'modules/*/src/**/*.{ts,tsx}',
-          'modules/*/test/**/*.{ts,tsx}',
-        ],
+        files: ['modules/*/src/**/*.{ts,tsx}', 'modules/*/test/**/*.{ts,tsx}'],
         rules: {
           // TODO: Gradually enable, at least for non-test code.
           '@typescript-eslint/no-unsafe-call': 0,
           '@typescript-eslint/no-unsafe-assignment': 0,
           '@typescript-eslint/no-unsafe-return': 0,
           '@typescript-eslint/no-unsafe-member-access': 0,
-          '@typescript-eslint/explicit-module-boundary-types': 0
+          '@typescript-eslint/explicit-module-boundary-types': 0,
+          '@typescript-eslint/no-unused-vars': [
+            'warn',
+            {
+              args: 'none'
+            }
+          ],
+          '@typescript-eslint/no-empty-function': 0
         }
       },
       {
@@ -38,6 +42,13 @@ module.exports = getESLintConfig({
           // devDependencies are installed workspace root.
           'import/no-extraneous-dependencies': 0,
           'import/no-unresolved': 0,
+          '@typescript-eslint/no-unused-vars': [
+            'warn',
+            {
+              args: 'none'
+            }
+          ],
+          '@typescript-eslint/no-empty-function': 0
         }
       }
     ],

@@ -17,7 +17,7 @@ const POLYLINE: Feature = {
 };
 
 it('test generateCurveFromControlPoints', () => {
-  // @ts-ignore
+  // @ts-expect-error TODO
   const result = generateCurveFromControlPoints(POLYLINE);
   expect(result).toMatchSnapshot();
 });

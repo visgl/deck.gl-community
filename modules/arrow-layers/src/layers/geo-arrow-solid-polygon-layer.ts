@@ -375,7 +375,6 @@ export class GeoArrowSolidPolygonLayer<ExtraProps extends {} = {}> extends Compo
           // Number of geometries
           length: polygonData.length,
           // Offsets into coordinateArray where each polygon starts
-          // @ts-ignore
           startIndices: resolvedRingOffsets,
           attributes: {
             getPolygon: {value: flatCoordinateArray, size: nDim},

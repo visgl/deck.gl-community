@@ -398,7 +398,7 @@ export default class Example extends React.Component<
     const length = FEATURE_COLORS.length;
     const color = FEATURE_COLORS[index % length].map((c) => c * bright * 255);
 
-    // @ts-ignore
+    // @ts-expect-error TODO
     return [...color, alpha * 255];
   }
 
@@ -656,7 +656,7 @@ export default class Example extends React.Component<
     if (POLYGON_DRAWING_MODES.indexOf(this.state.mode) > -1) {
       controls.push(this._renderBooleanOperationControls());
     }
-    // @ts-ignore
+    // @ts-expect-error TODO
     if (TWO_CLICK_POLYGON_MODES.indexOf(this.state.mode) > -1) {
       controls.push(this._renderTwoClickPolygonControls());
     }
@@ -1010,7 +1010,7 @@ export default class Example extends React.Component<
     const editableGeoJsonLayer = new EditableGeoJsonLayer({
       id: 'geojson',
       data: testFeatures,
-      // @ts-ignore
+      // @ts-expect-error TODO
       selectedFeatureIndexes,
       mode,
       modeConfig,
@@ -1090,10 +1090,10 @@ export default class Example extends React.Component<
 
     if (this.state.selectionTool) {
       layers.push(
-        // @ts-ignore
+        // @ts-expect-error TODO
         new SelectionLayer({
           id: 'selection',
-          // @ts-ignore
+          // @ts-expect-error TODO
           selectionType: this.state.selectionTool,
           onSelect: ({pickingInfos}) => {
             this.setState({

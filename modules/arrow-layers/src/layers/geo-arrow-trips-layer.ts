@@ -150,7 +150,6 @@ export class GeoArrowTripsLayer<ExtraProps extends {} = {}> extends CompositeLay
           // @ts-expect-error passed through to enable use by function accessors
           data: table.batches[recordBatchIdx],
           length: lineStringData.length,
-          // @ts-ignore
           startIndices: geomOffsets,
           attributes: {
             getPath: {value: flatCoordinateArray, size: nDim},
