@@ -42,6 +42,7 @@
     "@loaders.gl/schema": "^4.2.0",
     "@loaders.gl/tiles": "^4.2.0",
     "@luma.gl/core": "^9.0.11",
-    "@luma.gl/engine": "^9.0.11"
+    "@luma.gl/engine": "^9.0.11",
+    "@math.gl/core": "^4.0.0"
   }
 }

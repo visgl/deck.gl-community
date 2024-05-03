@@ -2,7 +2,7 @@ import {ArrowStyles, DEFAULT_STYLE, MAX_ARROWS} from '../style';
 import {NebulaLayer} from '../nebula-layer';
 import {toDeckColor} from '../../utils/utils';
 import {DeckCache} from '../deck-renderer/deck-cache';
-import {PathMarkerLayer} from '../../editable-layers/path-marker-layer/path-marker-layer';
+import {PathMarkerLayer} from '@deck.gl-community/layers';
 
 const NEBULA_TO_DECK_DIRECTIONS = {
   [ArrowStyles.NONE]: {forward: false, backward: false},
