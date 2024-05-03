@@ -5,7 +5,6 @@
     "modules/layers/README",
     "modules/layers/api-reference/path-marker-layer",
     "modules/layers/api-reference/path-outline-layer",
-    "modules/layers/api-reference/tile-source-layer",
-    "modules/layers/api-reference/data-driven-tile-3d-layer"
+    "modules/layers/api-reference/tile-source-layer"
   ]
 }

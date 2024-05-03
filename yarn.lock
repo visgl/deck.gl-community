@@ -1839,6 +1839,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/experimental@workspace:modules/experimental":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/experimental@workspace:modules/experimental"
+  dependencies:
+    "@deck.gl/core": "npm:^9.0.12"
+    "@deck.gl/extensions": "npm:^9.0.12"
+    "@deck.gl/geo-layers": "npm:^9.0.12"
+    "@deck.gl/layers": "npm:^9.0.12"
+    "@deck.gl/mesh-layers": "npm:^9.0.12"
+    "@deck.gl/react": "npm:^9.0.12"
+    "@loaders.gl/core": "npm:^4.2.0"
+    "@loaders.gl/i3s": "npm:^4.2.0"
+    "@loaders.gl/loader-utils": "npm:^4.2.0"
+    "@loaders.gl/schema": "npm:^4.2.0"
+    "@loaders.gl/tiles": "npm:^4.2.0"
+    "@luma.gl/core": "npm:^9.0.11"
+    "@luma.gl/engine": "npm:^9.0.11"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/layers@workspace:modules/layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"

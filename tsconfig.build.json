@@ -9,6 +9,7 @@
     {"path": "modules/arrow-layers"},
     {"path": "modules/bing-maps"},
     {"path": "modules/editable-layers"},
+    {"path": "modules/experimental"},
     {"path": "modules/graph-layers"},
     {"path": "modules/layers"},
     {"path": "modules/react"},

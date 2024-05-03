@@ -13,6 +13,7 @@ const bingMapsDocs = require('../../docs/modules/bing-maps/sidebar.json');
 
 const layerDocs = require('../../docs/modules/layers/sidebar.json');
 const editableLayerDocs = require('../../docs/modules/editable-layers/sidebar.json');
+const experimentalLayerDocs = require('../../docs/modules/experimental/sidebar.json');
 const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
 const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');
 
@@ -29,7 +30,7 @@ const sidebars = {
     {
       type: 'category',
       label: 'Layers',
-      items: [layerDocs, editableLayerDocs, graphLayerDocs, arrowLayerDocs]
+      items: [layerDocs, editableLayerDocs, graphLayerDocs, arrowLayerDocs, experimentalLayerDocs]
     },
     {
       type: 'category',

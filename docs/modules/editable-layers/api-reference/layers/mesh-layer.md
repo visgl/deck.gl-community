@@ -6,7 +6,7 @@ The Mesh Layer renders a number of arbitrary geometries. For example, a fleet of
 
 ```js
 import DeckGL from '@deck.gl/react';
-import { MeshLayer } from '@deck.gl/experimental-layers';
+import { MeshLayer } from '@deck.gl/experimental';
 import { CubeGeometry } from 'luma.gl';
 
 const App = ({ data, viewport }) => {

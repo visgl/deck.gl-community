@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {TextLayer} from '@deck.gl/layers';
 import {NebulaLayer} from '../nebula-layer';
 import {toDeckColor} from '../../utils/utils';
