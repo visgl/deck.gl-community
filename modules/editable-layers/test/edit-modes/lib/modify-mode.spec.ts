@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeEach, describe, test, it, expect, vi} from 'vitest';
 import {ModifyMode} from '../../../src/edit-modes/modify-mode';
 import {Pick, ModeProps} from '../../../src/edit-modes/types';
@@ -13,7 +17,7 @@ import {
   Point,
   LineString,
   FeatureOf
-} from '../../../src/geojson-types';
+} from '../../../src/utils/geojson-types';
 
 let pointFeature: FeatureOf<Point>;
 let lineStringFeature: FeatureOf<LineString>;

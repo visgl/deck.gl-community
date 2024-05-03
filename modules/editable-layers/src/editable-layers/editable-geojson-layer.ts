@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* eslint-env browser */
 
 import type {UpdateParameters, DefaultProps} from '@deck.gl/core';
@@ -38,12 +42,12 @@ import {SnappableMode} from '../edit-modes/snappable-mode';
 import {TransformMode} from '../edit-modes/transform-mode';
 import {GeoJsonEditModeType} from '../edit-modes/geojson-edit-mode';
 
-import {Color} from '../types';
+import {Color} from '../utils/types';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
 
-import EditableLayer, {EditableLayerProps} from './editable-layer';
-import EditablePathLayer from './editable-path-layer';
-import {Feature, FeatureCollection} from '../geojson-types';
+import {EditableLayer, EditableLayerProps} from './editable-layer';
+import {EditablePathLayer} from './editable-path-layer';
+import {Feature, FeatureCollection} from '../utils/geojson-types';
 
 const DEFAULT_LINE_COLOR: Color = [0x0, 0x0, 0x0, 0x99];
 const DEFAULT_FILL_COLOR: Color = [0x0, 0x0, 0x0, 0x90];
@@ -264,7 +268,7 @@ const modeNameMapping = {
   drawPolygonByDragging: DrawPolygonByDraggingMode
 };
 
-export default class EditableGeoJsonLayer extends EditableLayer<
+export class EditableGeoJsonLayer extends EditableLayer<
   FeatureCollection,
   EditableGeojsonLayerProps<FeatureCollection>
 > {

@@ -1,13 +1,17 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {EventEmitter} from 'eventemitter3';
 import {WebMercatorViewport} from '@deck.gl/core';
 
-import DeckDrawer from './deck-renderer/deck-drawer';
-import LayerMouseEvent from './layer-mouse-event';
-import NebulaLayer from './nebula-layer';
+import {DeckDrawer} from './deck-renderer/deck-drawer';
+import {LayerMouseEvent} from './layer-mouse-event';
+import {NebulaLayer} from './nebula-layer';
 
 const LOGGER_PREFIX = 'Nebula: ';
 
-export default class Nebula {
+export class NebulaCore {
   init(props: Record<string, any>) {
     this.props = props;
     this.wmViewport = new WebMercatorViewport(this.props.viewport);

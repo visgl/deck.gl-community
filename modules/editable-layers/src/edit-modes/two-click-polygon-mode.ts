@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   ClickEvent,
   StartDraggingEvent,
@@ -7,7 +11,7 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Polygon, FeatureCollection, FeatureOf, Position} from '../geojson-types';
+import {Polygon, FeatureCollection, FeatureOf, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class TwoClickPolygonMode extends GeoJsonEditMode {

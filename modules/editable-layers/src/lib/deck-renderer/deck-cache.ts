@@ -1,4 +1,4 @@
-export default class DeckCache<TORIG, TCONV> {
+export class DeckCache<TORIG, TCONV> {
   objects: TCONV[];
   originals: TORIG[];
   updateTrigger: number;

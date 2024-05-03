@@ -1,6 +1,10 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {Vector2} from '@math.gl/core';
-import {Position} from '../../geojson-types';
-import {Color} from '../../types';
+import {Position} from '../../utils/geojson-types';
+import {Color} from '../../utils/types';
 
 export interface PathMarker {
   position: Position;
@@ -21,7 +25,7 @@ function getLineLength(vPoints) {
 const DEFAULT_COLOR = [0, 0, 0, 255];
 const DEFAULT_DIRECTION = {forward: true, backward: false};
 
-export default function createPathMarkers({
+export function createPathMarkers({
   data,
   getPath = (x, context) => x.path,
   getDirection = (x) => x.direction,

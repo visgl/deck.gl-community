@@ -1,9 +1,13 @@
-import NebulaLayer from '../nebula-layer';
-import {toDeckColor} from '../../utils';
-import DeckCache from '../deck-renderer/deck-cache';
-import JunctionScatterplotLayer from '../../editable-layers/junction-scatterplot-layer';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
 
-export default class JunctionsLayer extends NebulaLayer {
+import {NebulaLayer} from '../nebula-layer';
+import {toDeckColor} from '../../utils/utils';
+import {DeckCache} from '../deck-renderer/deck-cache';
+import {JunctionScatterplotLayer} from '../../editable-layers/junction-scatterplot-layer';
+
+export class JunctionsLayer extends NebulaLayer {
   deckCache: DeckCache<any, any>;
 
   constructor(config: Record<string, any>) {

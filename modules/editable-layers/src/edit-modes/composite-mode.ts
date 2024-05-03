@@ -1,4 +1,8 @@
-import {FeatureCollection} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {FeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,

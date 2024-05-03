@@ -1,6 +1,10 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {it, expect} from 'vitest';
-import {generateCurveFromControlPoints} from '../../src/curve-utils';
-import {Feature} from '../../src/geojson-types';
+import {generateCurveFromControlPoints} from '../../src/utils/curve-utils';
+import {Feature} from '../../src/utils/geojson-types';
 
 const POLYLINE: Feature = {
   type: 'Feature',

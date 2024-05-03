@@ -1,5 +1,9 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {describe, test, expect} from 'vitest';
-import ElevatedEditHandleLayer from '../../../src/editable-layers/elevated-edit-handle-layer';
+import {ElevatedEditHandleLayer} from '../../../src/editable-layers/elevated-edit-handle-layer';
 
 describe('ElevatedEditHandleLayer tests', () => {
   test('renderLayers()', () => {

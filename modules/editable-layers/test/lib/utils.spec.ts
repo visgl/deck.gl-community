@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {describe, it, expect} from 'vitest';
 import {
   toDeckColor,
@@ -6,7 +10,7 @@ import {
   distance2d,
   mix,
   nearestPointOnProjectedLine
-} from '../../src/utils';
+} from '../../src/utils/utils';
 import {
   Position,
   FeatureOf,

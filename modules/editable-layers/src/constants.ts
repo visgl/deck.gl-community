@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /**
  * A multiplier for screen-space width/scale for Arc, Line, Icon and Text layers.
  * Required in order to maintain the same appearance after upgrading to deck.gl v8.5.

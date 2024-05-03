@@ -1,6 +1,10 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {featureCollection} from '@turf/helpers';
 import {PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
-import {FeatureCollection} from '../geojson-types';
+import {FeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 import {ScaleMode} from './scale-mode';
 import {RotateMode} from './rotate-mode';

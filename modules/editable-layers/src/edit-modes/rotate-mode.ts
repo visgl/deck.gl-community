@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import bbox from '@turf/bbox';
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
@@ -18,7 +22,7 @@ import {
   GuideFeatureCollection
 } from './types';
 import {getPickedEditHandle} from './utils';
-import {FeatureCollection, Position} from '../geojson-types';
+import {FeatureCollection, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode, GeoJsonEditAction, getIntermediatePosition} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 

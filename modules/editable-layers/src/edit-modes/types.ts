@@ -1,4 +1,8 @@
-import {Position, Point, Geometry, FeatureWithProps} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {Position, Point, Geometry, FeatureWithProps} from '../utils/geojson-types';
 
 export type ScreenCoordinates = [number, number];
 

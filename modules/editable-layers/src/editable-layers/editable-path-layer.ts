@@ -1,6 +1,10 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {PathLayer, PathLayerProps} from '@deck.gl/layers';
 
-import {insertBefore} from '../utils';
+import {insertBefore} from '../utils/utils';
 
 interface EditablePathLayerProps extends PathLayerProps<any> {
   pickingLineWidthExtraPixels?: number;
@@ -11,7 +15,7 @@ const defaultProps = {
   pickingLineWidthExtraPixels: {type: 'number', min: 0, value: Number.MAX_SAFE_INTEGER}
 };
 
-export default class EditablePathLayer extends PathLayer<any, EditablePathLayerProps> {
+export class EditablePathLayer extends PathLayer<any, EditablePathLayerProps> {
   getShaders() {
     const shaders = super.getShaders();
 

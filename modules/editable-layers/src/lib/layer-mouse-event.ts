@@ -1,6 +1,10 @@
-import {Position} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
 
-export default class LayerMouseEvent {
+import {Position} from '../utils/geojson-types';
+
+export class LayerMouseEvent {
   canceled: boolean = false;
   // original item that this event is related to
   data: Record<string, any>;

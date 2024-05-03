@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
@@ -15,7 +19,7 @@ import {
   FeatureOf,
   FeatureWithProps,
   AnyCoordinates
-} from '../geojson-types';
+} from '../utils/geojson-types';
 
 export type NearestPointType = FeatureWithProps<Point, {dist: number; index: number}>;
 

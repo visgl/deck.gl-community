@@ -1,7 +1,11 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {CompositeLayer, CompositeLayerProps, DefaultProps} from '@deck.gl/core';
 import {ScatterplotLayer, ScatterplotLayerProps} from '@deck.gl/layers';
 
-import {Color} from '../types';
+import {Color} from '../utils/types';
 
 type JunctionScatterplotLayerProps = CompositeLayerProps &
   Omit<ScatterplotLayerProps, 'getFillColor'> & {
@@ -10,7 +14,7 @@ type JunctionScatterplotLayerProps = CompositeLayerProps &
     getInnerRadius?: number | ((d) => number);
   };
 
-export default class JunctionScatterplotLayer extends CompositeLayer<JunctionScatterplotLayerProps> {
+export class JunctionScatterplotLayer extends CompositeLayer<JunctionScatterplotLayerProps> {
   static layerName = 'JunctionScatterplotLayer';
   static defaultProps: DefaultProps<JunctionScatterplotLayerProps> = {
     ...ScatterplotLayer.defaultProps,

@@ -1,9 +1,13 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {EventEmitter} from 'eventemitter3';
 import {v4} from 'uuid';
 
-import Feature from './feature';
+import {Feature} from './feature';
 
-export default class NebulaLayer extends EventEmitter {
+export class NebulaLayer extends EventEmitter {
   getData: () => Record<string, any>[];
   toNebulaFeature: (data: Record<string, any>) => Feature;
   id: string;

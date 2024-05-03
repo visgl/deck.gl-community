@@ -1,6 +1,10 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import distance from '@turf/distance';
-import memoize from '../memoize';
-import {LineString, FeatureCollection, Position} from '../geojson-types';
+import {memoize} from '../utils/memoize';
+import {LineString, FeatureCollection, Position} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,

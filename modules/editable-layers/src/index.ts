@@ -1,38 +1,42 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 export {ArrowStyles, DEFAULT_ARROWS, MAX_ARROWS} from './lib/style';
 export {SELECTION_TYPE} from './lib/deck-renderer/deck-drawer';
 
-export {default as Feature} from './lib/feature';
-export {default as LayerMouseEvent} from './lib/layer-mouse-event';
+export {Feature} from './lib/feature';
+export {LayerMouseEvent} from './lib/layer-mouse-event';
 
-export {default as NebulaLayer} from './lib/nebula-layer';
-export {default as JunctionsLayer} from './lib/layers/junctions-layer';
-export {default as TextsLayer} from './lib/layers/texts-layer';
-export {default as SegmentsLayer} from './lib/layers/segments-layer';
+export {NebulaLayer} from './lib/nebula-layer';
+export {JunctionsLayer} from './lib/layers/junctions-layer';
+export {TextsLayer} from './lib/layers/texts-layer';
+export {SegmentsLayer} from './lib/layers/segments-layer';
 
-export {default as NebulaCore} from './lib/nebula';
+export {NebulaCore} from './lib/nebula-core';
 
 export {PROJECTED_PIXEL_SIZE_MULTIPLIER} from './lib/constants';
 
 // Utils
-export {toDeckColor} from './utils';
+export {toDeckColor} from './utils/utils';
 
 // Types
-export type {Color, Style, Viewport} from './types';
+export type {Color, Style, Viewport} from './utils/types';
 
 // Layers
-export {default as EditableGeoJsonLayer} from './editable-layers/editable-geojson-layer';
-export {default as EditableH3ClusterLayer} from './editable-layers/editable-h3-cluster-layer';
-export {default as SelectionLayer} from './editable-layers/selection-layer';
-export {default as ElevatedEditHandleLayer} from './editable-layers/elevated-edit-handle-layer';
+export {EditableGeoJsonLayer} from './editable-layers/editable-geojson-layer';
+export {EditableH3ClusterLayer} from './editable-layers/editable-h3-cluster-layer';
+export {SelectionLayer} from './editable-layers/selection-layer';
+export {ElevatedEditHandleLayer} from './editable-layers/elevated-edit-handle-layer';
 
-// Layers moved from deck.gl
-export {default as PathOutlineLayer} from './editable-layers/path-outline-layer/path-outline-layer';
-export {default as PathMarkerLayer} from './editable-layers/path-marker-layer/path-marker-layer';
-export {default as JunctionScatterplotLayer} from './editable-layers/junction-scatterplot-layer';
+// Layers moved from deck.gl-community/layers
+export {PathOutlineLayer} from './editable-layers/path-outline-layer/path-outline-layer';
+export {PathMarkerLayer} from './editable-layers/path-marker-layer/path-marker-layer';
+export {JunctionScatterplotLayer} from './editable-layers/junction-scatterplot-layer';
 
 // Types
 
-import * as utils from './utils';
+import * as utils from './utils/utils';
 
 export {utils};
 
@@ -82,9 +86,6 @@ export {MeasureAngleMode} from './edit-modes/measure-angle-mode';
 export {CompositeMode} from './edit-modes/composite-mode';
 export {SnappableMode} from './edit-modes/snappable-mode';
 
-// Experimental
-export {default as _memoize} from './memoize';
-
 export type {
   ScreenCoordinates,
   EditAction,
@@ -123,4 +124,7 @@ export type {
   // Feature,
   FeatureCollection,
   AnyGeoJson
-} from './geojson-types';
+} from './utils/geojson-types';
+
+// Experimental
+export {memoize as _memoize} from './utils/memoize';

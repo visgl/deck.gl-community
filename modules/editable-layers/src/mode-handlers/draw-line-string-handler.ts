@@ -1,4 +1,8 @@
-import {Position, LineString} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {Position, LineString} from '../utils/geojson-types';
 import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
 

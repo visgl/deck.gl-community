@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {point, lineString as toLineString} from '@turf/helpers';
 import {
   recursivelyTraverseNestedArrays,
@@ -11,7 +15,7 @@ import {
   updateRectanglePosition,
   NearestPointType
 } from './utils';
-import {LineString, Point, Polygon, FeatureCollection, FeatureOf} from '../geojson-types';
+import {LineString, Point, Polygon, FeatureCollection, FeatureOf} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,

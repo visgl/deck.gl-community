@@ -1,4 +1,8 @@
-import {Polygon, Position} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {Polygon, Position} from '../utils/geojson-types';
 import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
 import {
   EditAction,

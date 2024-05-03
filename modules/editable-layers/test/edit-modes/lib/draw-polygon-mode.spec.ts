@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeEach, describe, it, expect} from 'vitest';
 import {DrawPolygonMode} from '../../../src/edit-modes/draw-polygon-mode';
 import {createFeatureCollectionProps, createClickEvent, createKeyboardEvent} from '../test-utils';

@@ -1,4 +1,4 @@
-import {FeatureCollection, Feature, Position} from '../geojson-types';
+import {FeatureCollection, Feature, Position} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,

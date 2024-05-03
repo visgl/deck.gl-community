@@ -42,6 +42,8 @@ module.exports = getESLintConfig({
           // devDependencies are installed workspace root.
           'import/no-extraneous-dependencies': 0,
           'import/no-unresolved': 0,
+          '@typescript-eslint/no-unsafe-member-access': 0,
+          '@typescript-eslint/explicit-module-boundary-types': 0,
           '@typescript-eslint/no-unused-vars': [
             'warn',
             {

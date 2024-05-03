@@ -1,10 +1,14 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {CompositeLayer, COORDINATE_SYSTEM, DefaultProps} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import PathOutlineLayer, {PathOutlineLayerProps} from '../path-outline-layer/path-outline-layer';
-import Arrow2DGeometry from './arrow-2d-geometry';
+import {PathOutlineLayer, PathOutlineLayerProps} from '../path-outline-layer/path-outline-layer';
+import {Arrow2DGeometry} from './arrow-2d-geometry';
 
-import createPathMarkers from './create-path-markers';
+import {createPathMarkers} from './create-path-markers';
 import {getClosestPointOnPolyline} from './polyline';
 import {Vector3} from '@math.gl/core';
 
@@ -54,7 +58,7 @@ const defaultProps: DefaultProps<PathMarkerLayerProps<any>> = Object.assign(
   }
 );
 
-export default class PathMarkerLayer<
+export class PathMarkerLayer<
   DataT = any,
   ExtraPropsT = Record<string, unknown>
 > extends CompositeLayer<ExtraPropsT & Required<PathMarkerLayerProps<DataT>>> {

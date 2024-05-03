@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeEach, afterEach, test, expect, vi} from 'vitest';
 import {RotateMode} from '../../../src/edit-modes/rotate-mode';
 import {
@@ -7,7 +11,7 @@ import {
   createStopDraggingEvent
 } from '../test-utils';
 import {Pick, ModeProps} from '../../../src/edit-modes/types';
-import {FeatureCollection} from '../../../src/geojson-types';
+import {FeatureCollection} from '../../../src/utils/geojson-types';
 
 let rotateMode: RotateMode;
 

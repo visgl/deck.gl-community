@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeEach, describe, it, expect} from 'vitest';
 import {DrawLineStringMode} from '../../../src/edit-modes/draw-line-string-mode';
 import {createFeatureCollectionProps, createClickEvent, createKeyboardEvent} from '../test-utils';

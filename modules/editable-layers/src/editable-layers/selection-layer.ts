@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* eslint-env browser */
 
 import {CompositeLayer, CompositeLayerProps, DefaultProps} from '@deck.gl/core';
@@ -6,7 +10,7 @@ import {polygon} from '@turf/helpers';
 import turfBuffer from '@turf/buffer';
 import turfDifference from '@turf/difference';
 
-import EditableGeoJsonLayer from './editable-geojson-layer';
+import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
 import {DrawPolygonMode} from '../edit-modes/draw-polygon-mode';
 import {ViewMode} from '../edit-modes/view-mode';
@@ -69,7 +73,7 @@ const PASS_THROUGH_PROPS = [
   'getTentativeFillColor',
   'getTentativeLineWidth'
 ];
-export default class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
+export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   ExtraPropsT & Required<SelectionLayerProps<DataT>>
 > {
   static layerName = 'SelectionLayer';

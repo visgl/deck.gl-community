@@ -1,11 +1,15 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import nearestPointOnLine from '@turf/nearest-point-on-line';
 import {point, lineString as toLineString} from '@turf/helpers';
-import {Position, FeatureOf, Point, LineString} from '../geojson-types';
+import {Position, FeatureOf, Point, LineString} from '../utils/geojson-types';
 import {
   recursivelyTraverseNestedArrays,
   nearestPointOnProjectedLine,
   NearestPointType
-} from '../utils';
+} from '../utils/utils';
 import {
   ClickEvent,
   PointerMoveEvent,

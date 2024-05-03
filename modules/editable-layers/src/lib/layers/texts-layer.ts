@@ -1,11 +1,11 @@
 import {TextLayer} from '@deck.gl/layers';
-import NebulaLayer from '../nebula-layer';
-import {toDeckColor} from '../../utils';
+import {NebulaLayer} from '../nebula-layer';
+import {toDeckColor} from '../../utils/utils';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
-import DeckCache from '../deck-renderer/deck-cache';
-import {Color} from '../../types';
+import {DeckCache} from '../deck-renderer/deck-cache';
+import {Color} from '../../utils/types';
 
-export default class TextsLayer extends NebulaLayer {
+export class TextsLayer extends NebulaLayer {
   deckCache: DeckCache<any, any>;
 
   constructor(config: Record<string, any>) {

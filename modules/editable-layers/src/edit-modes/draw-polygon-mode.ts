@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import lineIntersect from '@turf/line-intersect';
 import {lineString as turfLineString} from '@turf/helpers';
 import {
@@ -8,7 +12,7 @@ import {
   TentativeFeature,
   GuideFeature
 } from './types';
-import {Polygon, FeatureCollection} from '../geojson-types';
+import {Polygon, FeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 

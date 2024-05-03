@@ -1,6 +1,10 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import turfDistance from '@turf/distance';
 import turfMidpoint from '@turf/midpoint';
-import {FeatureCollection, Position} from '../geojson-types';
+import {FeatureCollection, Position} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import circle from '@turf/circle';
 import distance from '@turf/distance';
 import {PointerMoveEvent} from '../edit-modes/types';

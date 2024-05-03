@@ -1,10 +1,14 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import bearing from '@turf/bearing';
 import {
   generatePointsParallelToLinePoints,
   getPickedEditHandle,
   getPickedIntermediateEditHandle
 } from './utils';
-import {FeatureCollection} from '../geojson-types';
+import {FeatureCollection} from '../utils/geojson-types';
 import {ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent} from './types';
 import {ModifyMode} from './modify-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';

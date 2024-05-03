@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {Vector3, clamp} from '@math.gl/core';
 
 // Return the closest point on a line segment

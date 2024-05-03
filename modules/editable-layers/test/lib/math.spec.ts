@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {it, expect} from 'vitest';
 import {convertE7Array, toDegree, toRadian} from '../../src/lib/math';
 

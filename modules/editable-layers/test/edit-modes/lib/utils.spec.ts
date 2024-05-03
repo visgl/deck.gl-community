@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {describe, it, expect} from 'vitest';
 import {
   toDeckColor,
@@ -6,9 +10,9 @@ import {
   distance2d,
   mix,
   nearestPointOnProjectedLine
-} from '../../../src/utils';
+} from '../../../src/utils/utils';
 import {nearestPointOnLine} from '../../../src/edit-modes/utils';
-import {Position} from '../../../src/geojson-types';
+import {Position} from '../../../src/utils/geojson-types';
 
 const Point = {
   type: 'Feature',

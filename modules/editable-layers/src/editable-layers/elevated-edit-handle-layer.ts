@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* eslint-env browser */
 
 import {CompositeLayer} from '@deck.gl/core';
@@ -5,7 +9,7 @@ import {ScatterplotLayer, LineLayer} from '@deck.gl/layers';
 
 const defaultProps = {};
 
-export default class ElevatedEditHandleLayer extends CompositeLayer<any> {
+export class ElevatedEditHandleLayer extends CompositeLayer<any> {
   static layerName = 'ElevatedEditHandleLayer';
   static defaultProps = defaultProps;
   renderLayers() {

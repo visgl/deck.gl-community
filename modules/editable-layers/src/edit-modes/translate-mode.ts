@@ -1,9 +1,13 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import clone from '@turf/clone';
 import {point, Feature as TurfFeature, Geometry as TurfGeometry} from '@turf/helpers';
 import WebMercatorViewport from 'viewport-mercator-project';
-import {FeatureCollection, Position, Geometry} from '../geojson-types';
+import {FeatureCollection, Position, Geometry} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -12,7 +16,7 @@ import {
   ModeProps
 } from './types';
 import {mapCoords} from './utils';
-import {translateFromCenter} from '../translateFromCenter';
+import {translateFromCenter} from '../utils/translate-from-center';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 

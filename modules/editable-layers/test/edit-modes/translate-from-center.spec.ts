@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {test, expect} from 'vitest';
 import type {Feature as TurfFeature, Geometry} from '@turf/helpers';
 // I used types from geojson because they're generic and helps me with intellisense
@@ -9,7 +13,7 @@ import type {
   Polygon,
   MultiPolygon
 } from 'geojson';
-import {translateFromCenter} from '../../src/translateFromCenter';
+import {translateFromCenter} from '../../src/utils/translate-from-center';
 
 type Feature = TurfFeature<Geometry>;
 
