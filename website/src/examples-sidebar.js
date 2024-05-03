@@ -20,7 +20,7 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/editable-layers',
       items: [
-        // "editable-layers/editor",
+        "editable-layers/editor",
         "editable-layers/advanced"
       ]
     },

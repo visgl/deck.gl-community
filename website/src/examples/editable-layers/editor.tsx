@@ -2,7 +2,6 @@ import React, {Component} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
 import {GITHUB_TREE} from '../../constants/defaults';
-import {Example as App} from '../../../../examples/editable-layers/editor/example';
 
 import {makeExample} from '../../components';
 
@@ -20,7 +19,10 @@ class EditorDemo extends Component {
 
     return (
       <BrowserOnly>
-        {() => <App {...otherProps} />}
+      {()=>{
+        const App = require('../../../../examples/editable-layers/editor/example');
+        return <App.Example {...otherProps} />
+      }}
       </BrowserOnly>
     );
   }
