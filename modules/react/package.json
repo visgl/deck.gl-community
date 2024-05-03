@@ -36,8 +36,8 @@
     "src"
   ],
   "dependencies": {
-    "@types/styled-react-modal": "^1.2.5",
     "@turf/helpers": "^6.5.0",
+    "@types/styled-react-modal": "^1.2.5",
     "prop-types": "^15.8.1",
     "styled-components": "^4.4.1",
     "styled-react-modal": "^3.1.1",
