@@ -3,7 +3,7 @@
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
-This module contains experimental, unstable layers for [deck.gl](https://deck.gl).
+This module contains experimental, unstable layers and components for [deck.gl](https://deck.gl).
 
 :::caution
 **Caveat emptor: use at your own risk!**
@@ -12,7 +12,7 @@ This module contains experimental, unstable layers for [deck.gl](https://deck.gl
 ## Installation
 
 ```bash
-npm install @deck.gl-community/layers
+npm install @deck.gl-community/experimental
 ```
 
 ## History
