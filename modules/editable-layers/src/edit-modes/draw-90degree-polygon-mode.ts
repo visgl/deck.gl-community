@@ -25,7 +25,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
     const {mapCoords} = props.lastPointerMoveEvent;
 
     let p3;
-    if (clickSequence.length === 1) {
+    if (clickSequence.length <= 1) {
       p3 = mapCoords;
     } else {
       const p1 = clickSequence[clickSequence.length - 2];
