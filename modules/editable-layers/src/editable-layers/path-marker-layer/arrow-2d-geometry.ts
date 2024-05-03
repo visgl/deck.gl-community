@@ -1,6 +1,10 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {Geometry} from '@luma.gl/engine';
 
-export default class Arrow2DGeometry extends Geometry {
+export class Arrow2DGeometry extends Geometry {
   constructor(opts = {}) {
     super(
       Object.assign({}, opts, {

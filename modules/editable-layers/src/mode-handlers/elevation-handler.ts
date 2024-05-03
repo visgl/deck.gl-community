@@ -1,4 +1,8 @@
-import {Position} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, getPickedEditHandle} from './mode-handler';
 

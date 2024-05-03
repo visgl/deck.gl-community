@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import distance from '@turf/distance';
 import ellipse from '@turf/ellipse';
 import bearing from '@turf/bearing';

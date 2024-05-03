@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // TODO - this module is a WIP
 
 /* eslint-disable camelcase */
@@ -25,7 +29,7 @@ vec2 project_clipspace_to_projective_uv(vec4 position) {
 
 const fs = vs;
 
-export default {
+export const utils = {
   name: 'outline',
   vs,
   fs,

@@ -1,5 +1,9 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import bearing from '@turf/bearing';
-import {generatePointsParallelToLinePoints} from '../utils';
+import {generatePointsParallelToLinePoints} from '../utils/utils';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, getPickedEditHandle} from './mode-handler';
 

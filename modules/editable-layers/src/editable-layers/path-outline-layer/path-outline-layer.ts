@@ -1,8 +1,12 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {PathLayer, PathLayerProps} from '@deck.gl/layers';
 import type {DefaultProps, LayerContext} from '@deck.gl/core';
 import {GL} from '@luma.gl/constants';
 import {Framebuffer, Texture} from '@luma.gl/core';
-import outline from '../../shaderlib/outline/outline';
+import {outline} from '../../shaderlib/outline/outline';
 import {UNIT} from '../../constants';
 
 // TODO - this should be built into assembleShaders
@@ -30,10 +34,10 @@ const defaultProps: DefaultProps<PathOutlineLayerProps<any>> = {
   getZLevel: () => 0
 };
 
-export default class PathOutlineLayer<
-  DataT = any,
-  ExtraPropsT = Record<string, unknown>
-> extends PathLayer<DataT, ExtraPropsT & Required<PathOutlineLayerProps<DataT>>> {
+export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>> extends PathLayer<
+  DataT,
+  ExtraPropsT & Required<PathOutlineLayerProps<DataT>>
+> {
   static layerName = 'PathOutlineLayer';
   static defaultProps = defaultProps;
 

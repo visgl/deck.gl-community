@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
@@ -16,7 +20,7 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {FeatureCollection, Feature, Polygon, Geometry, Position} from '../geojson-types';
+import {FeatureCollection, Feature, Polygon, Geometry, Position} from '../utils/geojson-types';
 import {getPickedEditHandles, getNonGuidePicks} from './utils';
 import {EditMode} from './edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';

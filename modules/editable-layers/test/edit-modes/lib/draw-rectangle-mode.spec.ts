@@ -1,6 +1,10 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeEach, afterEach, describe, test, it, expect} from 'vitest';
 import turfArea from '@turf/area';
-import {Feature, FeatureCollection} from '../../../src/geojson-types';
+import {Feature, FeatureCollection} from '../../../src/utils/geojson-types';
 import {DrawRectangleMode} from '../../../src/edit-modes/draw-rectangle-mode';
 import {
   createFeatureCollectionProps,

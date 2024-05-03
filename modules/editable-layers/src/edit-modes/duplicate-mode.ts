@@ -1,5 +1,9 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {StartDraggingEvent, ModeProps} from './types';
-import {FeatureCollection} from '../geojson-types';
+import {FeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 
 export class DuplicateMode extends TranslateMode {

@@ -6,7 +6,7 @@ import turfBuffer from '@turf/buffer';
 import turfDifference from '@turf/difference';
 import turfDistance from '@turf/distance';
 
-import {Color} from '../../types';
+import {Color} from '../../utils/types';
 
 const POLYGON_LINE_COLOR = [0, 255, 0, 255];
 const POLYGON_FILL_COLOR = [255, 255, 255, 90];
@@ -23,7 +23,7 @@ export const SELECTION_TYPE = {
   POLYGON: 'polygon'
 };
 
-export default class DeckDrawer {
+export class DeckDrawer {
   nebula: Record<string, any>;
   usePolygon: boolean;
   validPolygon: boolean;

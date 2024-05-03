@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeEach, afterEach, test, expect, vi} from 'vitest';
 import {TransformMode} from '../../../src/edit-modes/transform-mode';
 import {createFeatureCollectionProps, createPointerMoveEvent} from '../test-utils';

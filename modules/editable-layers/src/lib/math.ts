@@ -1,4 +1,8 @@
-import {Position} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {Position} from '../utils/geojson-types';
 
 export function toDegree(radian: number): number {
   return (radian * 180) / Math.PI;

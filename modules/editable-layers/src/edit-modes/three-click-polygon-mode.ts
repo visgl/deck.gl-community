@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -5,7 +9,7 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Position, Polygon, FeatureOf, FeatureCollection} from '../geojson-types';
+import {Position, Polygon, FeatureOf, FeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class ThreeClickPolygonMode extends GeoJsonEditMode {

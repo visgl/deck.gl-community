@@ -1,5 +1,9 @@
-import {LineString} from '../geojson-types';
-import {generatePointsParallelToLinePoints} from '../utils';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {LineString} from '../utils/geojson-types';
+import {generatePointsParallelToLinePoints} from '../utils/utils';
 import {PointerMoveEvent} from '../edit-modes/types';
 import {EditAction} from './mode-handler';
 import {ThreeClickPolygonHandler} from './three-click-polygon-handler';

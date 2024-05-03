@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // port from @deck.gl/core
 function isEqual(a: any, b: any) {
   if (a === b) {
@@ -26,7 +30,7 @@ function isEqual(a: any, b: any) {
  * https://en.wikipedia.org/wiki/Memoization
  * @param {function} compute - the function to be memoized
  */
-export default function memoize(compute: Function) {
+export function memoize(compute: Function) {
   let cachedArgs = {};
   let cachedResult;
 

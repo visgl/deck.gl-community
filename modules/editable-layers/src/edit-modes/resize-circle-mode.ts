@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import nearestPointOnLine from '@turf/nearest-point-on-line';
 import {point, lineString as toLineString} from '@turf/helpers';
 import circle from '@turf/circle';
@@ -10,8 +14,8 @@ import {
   getPickedEditHandle,
   NearestPointType
 } from './utils';
-import {LineString, Point, FeatureCollection, FeatureOf} from '../geojson-types';
-import {Viewport} from '../types';
+import {LineString, Point, FeatureCollection, FeatureOf} from '../utils/geojson-types';
+import {Viewport} from '../utils/types';
 import {
   ModeProps,
   PointerMoveEvent,

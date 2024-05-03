@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* eslint-env browser */
 
 import {H3ClusterLayer} from '@deck.gl/geo-layers';
@@ -5,8 +9,8 @@ import {DefaultProps} from '@deck.gl/core';
 // TODO: Fix H3 support.
 // import { polyfill, geoToH3 } from 'h3-js';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
-import EditableGeoJsonLayer from './editable-geojson-layer';
-import EditableLayer, {EditableLayerProps} from './editable-layer';
+import {EditableGeoJsonLayer} from './editable-geojson-layer';
+import {EditableLayer, EditableLayerProps} from './editable-layer';
 import {ViewMode} from '../edit-modes/view-mode';
 
 const DEFAULT_EDIT_MODE = ViewMode;
@@ -62,10 +66,7 @@ const defaultProps: DefaultProps<EditableH3ClusterLayerProps<any>> = {
   resolution: DEFAULT_H3_RESOLUTION
 };
 
-export default class EditableH3ClusterLayer extends EditableLayer<
-  any,
-  EditableH3ClusterLayerProps<any>
-> {
+export class EditableH3ClusterLayer extends EditableLayer<any, EditableH3ClusterLayerProps<any>> {
   static layerName = 'EditableH3ClusterLayer';
   static defaultProps = defaultProps;
 

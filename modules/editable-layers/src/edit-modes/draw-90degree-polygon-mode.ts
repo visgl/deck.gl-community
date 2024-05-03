@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import lineIntersect from '@turf/line-intersect';
@@ -15,7 +19,7 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Polygon, LineString, Position, FeatureCollection} from '../geojson-types';
+import {Polygon, LineString, Position, FeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class Draw90DegreePolygonMode extends GeoJsonEditMode {

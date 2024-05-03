@@ -1,4 +1,8 @@
-import {Position} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {Position} from '../utils/geojson-types';
 import {EditHandle, ModeHandler} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented

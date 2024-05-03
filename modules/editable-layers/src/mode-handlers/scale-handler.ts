@@ -1,7 +1,11 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import turfCentroid from '@turf/centroid';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
-import {FeatureCollection, Position} from '../geojson-types';
+import {FeatureCollection, Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
 

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {StartDraggingEvent} from '../edit-modes/types';
 import {EditAction} from './mode-handler';
 import {TranslateHandler} from './translate-handler';

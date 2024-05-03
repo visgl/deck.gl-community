@@ -1,9 +1,13 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import circle from '@turf/circle';
 import distance from '@turf/distance';
 import area from '@turf/area';
-import memoize from '../memoize';
+import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
-import {Position, Polygon, FeatureOf, FeatureCollection} from '../geojson-types';
+import {Position, Polygon, FeatureOf, FeatureCollection} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 

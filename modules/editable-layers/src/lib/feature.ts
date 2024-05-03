@@ -1,8 +1,12 @@
-import {Feature as GeoJson} from '../geojson-types';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
 
-import {Style} from '../types';
+import {Feature as GeoJson} from '../utils/geojson-types';
 
-export default class Feature {
+import {Style} from '../utils/types';
+
+export class Feature {
   // geo json coordinates
   geoJson: GeoJson;
   style: Style;

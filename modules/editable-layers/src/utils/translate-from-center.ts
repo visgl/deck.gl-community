@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import turfCenter from '@turf/center';
 import turfRhumbBearing from '@turf/rhumb-bearing';
 import turfRhumbDistance from '@turf/rhumb-distance';
@@ -7,8 +11,8 @@ import type {
   Feature as TurfFeature,
   Geometry as TurfGeometry
 } from '@turf/helpers';
-import {mapCoords} from './edit-modes/utils';
-import type {AnyCoordinates, Position} from './';
+import {mapCoords} from '../edit-modes/utils';
+import type {AnyCoordinates, Position} from './geojson-types';
 
 // This function takes feature's center, moves it,
 // and builds new feature around it keeping the proportions

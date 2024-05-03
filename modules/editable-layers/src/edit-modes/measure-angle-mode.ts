@@ -1,9 +1,9 @@
 import turfBearing from '@turf/bearing';
 import turfCenter from '@turf/center';
-import memoize from '../memoize';
+import {memoize} from '../utils/memoize';
 
 import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
-import {FeatureCollection, Position} from '../geojson-types';
+import {FeatureCollection, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 const DEFAULT_TOOLTIPS: Tooltip[] = [];

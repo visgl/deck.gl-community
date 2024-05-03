@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {
   Feature,
   FeatureCollection,
@@ -7,7 +11,7 @@ import {
   MultiPolygon,
   Position,
   PolygonCoordinates
-} from '../geojson-types';
+} from '../utils/geojson-types';
 
 export class ImmutableFeatureCollection {
   featureCollection: FeatureCollection;

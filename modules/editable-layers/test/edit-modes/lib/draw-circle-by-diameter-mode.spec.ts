@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeEach, afterEach, describe, it, expect} from 'vitest';
 import {DrawCircleByDiameterMode} from '../../../src/edit-modes/draw-circle-by-diameter-mode';
 import {
@@ -6,7 +10,7 @@ import {
   createClickEvent,
   createPointerMoveEvent
 } from '../test-utils';
-import {FeatureCollection} from '../../../src/geojson-types';
+import {FeatureCollection} from '../../../src/utils/geojson-types';
 
 let featureCollection: FeatureCollection;
 

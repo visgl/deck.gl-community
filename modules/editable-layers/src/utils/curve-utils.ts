@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import hermite from 'cubic-hermite-spline';
 import turfDistance from '@turf/distance';
 import {lineString} from '@turf/helpers';

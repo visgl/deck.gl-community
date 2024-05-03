@@ -1,7 +1,11 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import turfArea from '@turf/area';
 import turfCentroid from '@turf/centroid';
 import {ClickEvent, Tooltip, ModeProps} from './types';
-import {FeatureCollection} from '../geojson-types';
+import {FeatureCollection} from '../utils/geojson-types';
 import {DrawPolygonMode} from './draw-polygon-mode';
 
 const DEFAULT_TOOLTIPS = [];

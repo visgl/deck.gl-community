@@ -1,8 +1,8 @@
 import {ArrowStyles, DEFAULT_STYLE, MAX_ARROWS} from '../style';
-import NebulaLayer from '../nebula-layer';
-import {toDeckColor} from '../../utils';
-import DeckCache from '../deck-renderer/deck-cache';
-import PathMarkerLayer from '../../editable-layers/path-marker-layer/path-marker-layer';
+import {NebulaLayer} from '../nebula-layer';
+import {toDeckColor} from '../../utils/utils';
+import {DeckCache} from '../deck-renderer/deck-cache';
+import {PathMarkerLayer} from '../../editable-layers/path-marker-layer/path-marker-layer';
 
 const NEBULA_TO_DECK_DIRECTIONS = {
   [ArrowStyles.NONE]: {forward: false, backward: false},
@@ -11,7 +11,7 @@ const NEBULA_TO_DECK_DIRECTIONS = {
   [ArrowStyles.BOTH]: {forward: true, backward: true}
 };
 
-export default class SegmentsLayer extends NebulaLayer {
+export class SegmentsLayer extends NebulaLayer {
   deckCache: DeckCache<any, any>;
   noBlend: boolean;
   highlightColor: [number, number, number, number];

@@ -1,4 +1,8 @@
-// TODO - this module is a WIP
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {ShaderModule} from '@luma.gl/shadertools';
 
 /* eslint-disable camelcase */
 const INITIAL_STATE: Record<string, number> = {
@@ -48,9 +52,10 @@ vec4 color_filterColor(vec4 color) {
 }
 `;
 
-export default {
+/** Shader module that implements desaturation. @note still WIP */
+export const color = {
   name: 'color',
   vs,
   fs,
   getUniforms
-};
+} as const satisfies ShaderModule;

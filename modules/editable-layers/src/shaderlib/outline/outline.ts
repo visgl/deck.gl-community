@@ -1,3 +1,9 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {ShaderModule} from '@luma.gl/shadertools';
+
 /* eslint-disable camelcase */
 const INITIAL_STATE: Record<string, any> = {
   outlineEnabled: false,
@@ -93,9 +99,9 @@ vec4 outline_filterColor(vec4 color) {
 }
 `;
 
-export default {
+export const outline = {
   name: 'outline',
   vs,
   fs,
   getUniforms
-};
+} as const satisfies ShaderModule;

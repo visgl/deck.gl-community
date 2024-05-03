@@ -1,8 +1,12 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import bboxPolygon from '@turf/bbox-polygon';
 import distance from '@turf/distance';
 import ellipse from '@turf/ellipse';
 import {point} from '@turf/helpers';
-import {Position, Polygon, FeatureOf} from '../geojson-types';
+import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 

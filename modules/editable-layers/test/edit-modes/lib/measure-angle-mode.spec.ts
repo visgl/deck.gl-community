@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {beforeEach, describe, it, expect} from 'vitest';
 import {MeasureAngleMode} from '../../../src/edit-modes/measure-angle-mode';
 import {

@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // Describes the arrow style of polylines
 export const ArrowStyles = {
   NONE: 0,

@@ -1,4 +1,8 @@
-/* eslint-disable no-unused-vars, prefer-const */
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+s/* eslint-disable no-unused-vars, prefer-const */
 
 import {
   Point,
@@ -7,7 +11,7 @@ import {
   MultiPolygon,
   Feature,
   FeatureOf
-} from '../../src/geojson-types';
+} from '../../src/utils/geojson-types';
 
 let point: Point = {
   type: 'Point',

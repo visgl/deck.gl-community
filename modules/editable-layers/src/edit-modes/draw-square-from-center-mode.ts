@@ -1,8 +1,12 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import bboxPolygon from '@turf/bbox-polygon';
 import turfDistance from '@turf/distance';
 import turfAlong from '@turf/along';
 import {point, lineString as turfLineString} from '@turf/helpers';
-import {Position, Polygon, FeatureOf} from '../geojson-types';
+import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawSquareFromCenterMode extends TwoClickPolygonMode {

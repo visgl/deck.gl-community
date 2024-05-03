@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* eslint-env browser */
 
 import {CompositeLayer, CompositeLayerProps} from '@deck.gl/core';
@@ -8,7 +12,7 @@ import {
   StopDraggingEvent,
   PointerMoveEvent
 } from '../edit-modes/types';
-import {Position} from '../geojson-types';
+import {Position} from '../utils/geojson-types';
 
 const EVENT_TYPES = ['anyclick', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
 
@@ -18,7 +22,7 @@ export type EditableLayerProps<DataType = any> = CompositeLayerProps & {
   pickingDepth?: number;
 };
 
-export default abstract class EditableLayer<
+export abstract class EditableLayer<
   DataT = any,
   ExtraPropsT = Record<string, unknown>
 > extends CompositeLayer<ExtraPropsT & Required<EditableLayerProps<DataT>>> {

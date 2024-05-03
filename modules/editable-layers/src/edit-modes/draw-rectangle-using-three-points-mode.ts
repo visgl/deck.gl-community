@@ -1,5 +1,9 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {generatePointsParallelToLinePoints} from './utils';
-import {Position, Polygon, FeatureOf} from '../geojson-types';
+import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
 import {ThreeClickPolygonMode} from './three-click-polygon-mode';
 
 export class DrawRectangleUsingThreePointsMode extends ThreeClickPolygonMode {

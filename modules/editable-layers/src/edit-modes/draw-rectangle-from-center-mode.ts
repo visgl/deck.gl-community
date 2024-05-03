@@ -1,5 +1,9 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import bboxPolygon from '@turf/bbox-polygon';
-import {Position, Polygon, FeatureOf} from '../geojson-types';
+import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawRectangleFromCenterMode extends TwoClickPolygonMode {

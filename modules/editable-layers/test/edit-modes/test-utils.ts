@@ -1,5 +1,9 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {vi} from 'vitest';
-import {Position, FeatureCollection} from '../../src/geojson-types';
+import {Position, FeatureCollection} from '../../src/utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,

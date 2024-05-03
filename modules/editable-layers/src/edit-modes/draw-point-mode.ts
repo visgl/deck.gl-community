@@ -1,5 +1,9 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature} from './types';
-import {FeatureCollection, Point} from '../geojson-types';
+import {FeatureCollection, Point} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class DrawPointMode extends GeoJsonEditMode {
