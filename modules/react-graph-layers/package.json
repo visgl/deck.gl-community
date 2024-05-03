@@ -45,7 +45,12 @@
     "styled-components": "^4.4.1"
   },
   "devDependencies": {
-    "@storybook/addon-knobs": "^6.4.0"
+    "@storybook/addon-knobs": "^6.4.0",
+    "@storybook/addons": "^6.4.0",
+    "@storybook/api": "^6.4.0",
+    "@storybook/components": "^6.4.0",
+    "@storybook/core-events": "^6.4.0",
+    "@storybook/theming": "^6.4.0"
   },
   "peerDependencies": {
     "react": ">=18.2.0",
