@@ -1,6 +1,7 @@
-import * as React from 'react';
+// import * as React from 'react';
 import {afterEach, describe, it, expect, vi} from 'vitest';
-import {cleanup, fireEvent, render} from '@testing-library/react';
+import {cleanup} from '@testing-library/react';
+// import {fireEvent, render} from '@testing-library/react';
 import {GraphGL} from '../src/graph-gl';
 
 // NOTE: this line is important! It will clean up the jsdom properly.

@@ -52,10 +52,10 @@ export type FiltersByAttribute = {
 };
 
 // @ts-expect-error call of private method of the base class
-export class DataDrivenTile3DLayer<DataT = any, ExtraProps extends {} = {}> extends Tile3DLayer<
-  DataT,
-  Required<_DataDrivenTile3DLayerProps> & ExtraProps
-> {
+export class DataDrivenTile3DLayer<
+  DataT = any,
+  ExtraProps extends Record<string, unknown> = Record<string, unknown>
+> extends Tile3DLayer<DataT, Required<_DataDrivenTile3DLayerProps> & ExtraProps> {
   static layerName = 'DataDrivenTile3DLayer';
   static defaultProps = defaultProps as any;
 

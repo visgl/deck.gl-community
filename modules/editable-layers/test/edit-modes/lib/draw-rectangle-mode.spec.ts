@@ -21,7 +21,7 @@ beforeEach(() => {
   warnBefore = console.warn; // eslint-disable-line
   // $FlowFixMe
   console.warn = function () {}; // eslint-disable-line
-  // @ts-ignore
+  // @ts-expect-error TODO
   featureCollection = createFeatureCollection();
 
   const makeFlowHappy = featureCollection.features.find((f) => f.geometry.type === 'Polygon');
@@ -107,7 +107,7 @@ describe('dragToDraw=false', () => {
     };
 
     expect(props.onEdit).toHaveBeenCalledTimes(1);
-    // @ts-ignore
+    // @ts-expect-error TODO
     expect(props.onEdit.mock.calls[0][0]).toEqual(expectedAction2);
   });
 });
@@ -190,7 +190,7 @@ describe('dragToDraw=true', () => {
     };
 
     expect(props.onEdit).toHaveBeenCalledTimes(1);
-    // @ts-ignore
+    // @ts-expect-error TODO
     expect(props.onEdit.mock.calls[0][0]).toEqual(expectedAction2);
   });
 });
@@ -204,7 +204,7 @@ describe('modeConfig.booleanOperation', () => {
         selectedIndexes: [polygonFeatureIndex],
         modeConfig: {booleanOperation: 'union'}
       });
-      // @ts-ignore
+      // @ts-expect-error TODO
       const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);
 
       props.lastPointerMoveEvent = createPointerMoveEvent([0, 0]);
@@ -213,7 +213,7 @@ describe('modeConfig.booleanOperation', () => {
       mode.handleClick(createClickEvent([2, 2]), props);
 
       expect(props.onEdit).toHaveBeenCalledTimes(1);
-      // @ts-ignore
+      // @ts-expect-error TODO
       const action = props.onEdit.mock.calls[0][0];
       const areaAfter = turfArea(action.updatedData.features[polygonFeatureIndex]);
 
@@ -229,7 +229,7 @@ describe('modeConfig.booleanOperation', () => {
         selectedIndexes: [polygonFeatureIndex],
         modeConfig: {booleanOperation: 'difference'}
       });
-      // @ts-ignore
+      // @ts-expect-error TODO
       const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);
 
       props.lastPointerMoveEvent = createPointerMoveEvent([0, 0]);
@@ -238,7 +238,7 @@ describe('modeConfig.booleanOperation', () => {
       mode.handleClick(createClickEvent([2, 2]), props);
 
       expect(props.onEdit).toHaveBeenCalledTimes(1);
-      // @ts-ignore
+      // @ts-expect-error TODO
       const action = props.onEdit.mock.calls[0][0];
       const areaAfter = turfArea(action.updatedData.features[polygonFeatureIndex]);
 
@@ -254,7 +254,7 @@ describe('modeConfig.booleanOperation', () => {
         selectedIndexes: [polygonFeatureIndex],
         modeConfig: {booleanOperation: 'intersection'}
       });
-      // @ts-ignore
+      // @ts-expect-error TODO
       const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);
 
       props.lastPointerMoveEvent = createPointerMoveEvent([0, 0]);
@@ -263,7 +263,7 @@ describe('modeConfig.booleanOperation', () => {
       mode.handleClick(createClickEvent([2, 2]), props);
 
       expect(props.onEdit).toHaveBeenCalledTimes(1);
-      // @ts-ignore
+      // @ts-expect-error TODO
       const action = props.onEdit.mock.calls[0][0];
       const areaAfter = turfArea(action.updatedData.features[polygonFeatureIndex]);
 

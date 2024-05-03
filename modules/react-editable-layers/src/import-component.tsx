@@ -187,7 +187,7 @@ export function ImportComponent(props: ImportComponentProps) {
           <ImportInfo style={{color: 'rgb(133, 100, 4)', backgroundColor: 'rgb(255, 243, 205)'}}>
             {isDataSet() &&
               !parseResult.valid &&
-              // @ts-ignore
+              // @ts-expect-error TODO
               parseResult.validationErrors.map((err, i) => <div key={i}>{err}</div>)}
           </ImportInfo>
         </ImportArea>
@@ -241,7 +241,7 @@ export function ImportComponent(props: ImportComponentProps) {
               type: 'FeatureCollection',
               properties: {},
               // $FlowFixMe - can't be clicked if it is invalid, so features will be there
-              // @ts-ignore
+              // @ts-expect-error TODO
               features: parseResult.features
             });
             flush();

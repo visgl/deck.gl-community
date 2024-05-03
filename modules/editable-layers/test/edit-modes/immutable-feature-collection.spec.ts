@@ -862,7 +862,7 @@ describe('replacePosition() with elevation', () => {
     };
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      // @ts-ignore
+      // @ts-expect-error TODO
       features: [elevatedPointFeature]
     });
     const updatedFeatures = features.replacePosition(0, [], [10, 20]);
@@ -888,7 +888,7 @@ describe('replacePosition() with elevation', () => {
     };
     const features = new ImmutableFeatureCollection({
       type: 'FeatureCollection',
-      // @ts-ignore
+      // @ts-expect-error TODO
       features: [elevatedLineStringFeature]
     });
     const updatedFeatures = features.replacePosition(0, [0], [10, 20]);

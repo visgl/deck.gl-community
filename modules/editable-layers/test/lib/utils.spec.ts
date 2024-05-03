@@ -207,7 +207,7 @@ describe('nearestPointOnProjectedLine() and related functions', () => {
       }
     };
     const viewport: Viewport = {
-      // @ts-ignore
+      // @ts-expect-error TODO
       project: (x) => x,
       unproject: (x) => x
     };

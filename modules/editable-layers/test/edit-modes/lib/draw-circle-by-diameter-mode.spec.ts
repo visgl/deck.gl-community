@@ -15,7 +15,7 @@ beforeEach(() => {
   warnBefore = console.warn; // eslint-disable-line
   // $FlowFixMe
   console.warn = function () {}; // eslint-disable-line
-  // @ts-ignore
+  // @ts-expect-error TODO
   featureCollection = createFeatureCollection();
 
   const makeFlowHappy = featureCollection.features.find((f) => f.geometry.type === 'Polygon');
@@ -45,7 +45,7 @@ describe('dragToDraw=false', () => {
     }
 
     expect(tentativeFeature.geometry.type).toEqual('Polygon');
-    // @ts-ignore
+    // @ts-expect-error TODO
     expect(tentativeFeature.geometry.coordinates[0].length).toEqual(65);
   });
 
@@ -59,7 +59,7 @@ describe('dragToDraw=false', () => {
     mode.handleClick(createClickEvent([2, 3]), props);
 
     expect(props.onEdit).toHaveBeenCalledTimes(1);
-    // @ts-ignore
+    // @ts-expect-error TODO
     const result = props.onEdit.mock.calls[0][0];
     expect(result.editType).toEqual('addFeature');
     expect(result.editContext.featureIndexes).toEqual([featureCollection.features.length]);

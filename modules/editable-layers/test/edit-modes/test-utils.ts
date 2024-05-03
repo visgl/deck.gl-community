@@ -379,10 +379,10 @@ export function createFeatureCollectionProps(
   overrides: Partial<ModeProps<FeatureCollection>> = {}
 ): ModeProps<FeatureCollection> {
   return {
-    // @ts-ignore
+    // @ts-expect-error TODO
     data: createFeatureCollection(),
     selectedIndexes: [],
-    // @ts-ignore
+    // @ts-expect-error TODO
     lastPointerMoveEvent: createPointerMoveEvent(),
     modeConfig: null,
     onEdit: vi.fn(),

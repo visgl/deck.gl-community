@@ -24,6 +24,9 @@ interface Props {
 }
 
 export class HtmlOverlay extends React.Component<Props> {
+  // This is needed for Deck.gl 8.0+
+  static deckGLViewProps = true;
+
   // Override this to provide your items
   getItems(): Array<any> {
     const {children} = this.props;
@@ -86,7 +89,3 @@ export class HtmlOverlay extends React.Component<Props> {
     return <div style={style}>{renderItems}</div>;
   }
 }
-
-// This is needed for Deck.gl 8.0+
-// @ts-ignore
-HtmlOverlay.deckGLViewProps = true;

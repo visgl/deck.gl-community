@@ -11,26 +11,26 @@ onmessage = function (event) {
 
   const {nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
     event.data.options;
-  // @ts-ignore
+  // @ts-expect-error TODO
   const simulation = d3
     .forceSimulation(nodes)
     .force(
       'edge',
-      // @ts-ignore
+      // @ts-expect-error TODO
       d3.forceLink(edges).id((n) => n.id)
     )
     .force(
       'charge',
-      // @ts-ignore
+      // @ts-expect-error TODO
       d3
         .forceManyBody()
         .strength(nBodyStrength)
         .distanceMin(nBodyDistanceMin)
         .distanceMax(nBodyDistanceMax)
     )
-    // @ts-ignore
+    // @ts-expect-error TODO
     .force('center', d3.forceCenter())
-    // @ts-ignore
+    // @ts-expect-error TODO
     .force('collision', d3.forceCollide().radius(getCollisionRadius))
     .stop();
   for (

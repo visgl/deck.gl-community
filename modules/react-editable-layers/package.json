@@ -48,7 +48,6 @@
     "downloadjs": "^1.4.7",
     "react-dropzone": "^10.2.2",
     "styled-components": "^4.4.1",
-    "supercluster": "^8.0.1",
     "wellknown": "^0.5.0"
   },
   "devDependencies": {

@@ -243,7 +243,6 @@ export class GeoArrowPathLayer<ExtraProps extends {} = {}> extends CompositeLaye
           //
           // Note: this is ringOffsets, not geomOffsets because we're rendering
           // the individual paths on the map.
-          // @ts-ignore
           startIndices: ringOffsets,
           attributes: {
             getPath: {value: flatCoordinateArray, size: nDim}

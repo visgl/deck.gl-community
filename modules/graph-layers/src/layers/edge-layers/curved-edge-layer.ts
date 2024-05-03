@@ -7,7 +7,7 @@ const DEBUG = false;
 export class CurvedEdgeLayer extends CompositeLayer {
   static layerName = 'CurvedEdgeLayer';
 
-  // @ts-ignore
+  // @ts-expect-error TODO
   renderLayers() {
     const {
       data,

@@ -181,7 +181,7 @@ export default class Example extends React.Component<
       arrowColor: [1, 0, 0, 1],
       zLevel: Math.random()
     };
-    // @ts-ignore
+    // @ts-expect-error TODO
     return new Feature(geojson, style);
   }
 
@@ -199,7 +199,7 @@ export default class Example extends React.Component<
       outlineRadiusMeters: 0,
       fillColor: [0, 0, 0, 1]
     };
-    // @ts-ignore
+    // @ts-expect-error TODO
     return new Feature(geojson, style);
   }
 
@@ -238,7 +238,7 @@ export default class Example extends React.Component<
     viewState = Object.assign(viewState, {height, width});
 
     const editableGeoJsonLayer = new EditableGeoJsonLayer({
-      // @ts-ignore according to docs FeatureCollection should be valid type here
+      // @ts-expect-error TODO according to docs FeatureCollection should be valid type here
       data: this.state.testFeatures,
       selectedFeatureIndexes,
       pickable: true,
@@ -298,7 +298,7 @@ export default class Example extends React.Component<
     const nebulaLayers = [segmentsLayer];
     const deckLayers = this.nebula.updateAndGetRenderedLayers(
       nebulaLayers,
-      // @ts-ignore
+      // @ts-expect-error TODO
       new WebMercatorViewport(viewState),
       this
     );

@@ -64,6 +64,6 @@ if (anyGeometry.type === 'LineString') {
 }
 
 if (anyGeometry.type === 'Point') {
-  // @ts-ignore
+  // @ts-expect-error TODO
   lineStringFeature.geometry = anyGeometry;
 }

@@ -20,7 +20,7 @@ const initialViewState = {
 
 it('test HtmlOverlay map center', () => {
   const Component = (
-    // @ts-ignore
+    // @ts-expect-error TODO
     <DeckGL
       gl={createHeadlessContext({ width: 100, height: 100, webgl1: true })}
       initialViewState={initialViewState}

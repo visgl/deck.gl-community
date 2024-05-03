@@ -62,7 +62,6 @@ export function validateColorVector(vector: arrow.Vector) {
   assert(arrow.DataType.isInt(vector.type.children[0]));
 
   // Assert the child type is a Uint8
-  // @ts-ignore
   // Property 'type' does not exist on type 'Int_<Ints>'. Did you mean 'TType'?
   assert(vector.type.children[0].type.bitWidth === 8);
 }
