@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import {ViewMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
-import {Toolbox} from '@deck.gl-community/react-editable-layers';
+import {Toolbox} from './toolbox/toolbox';
 import StaticMap from 'react-map-gl/maplibre';
 
 const initialViewState = {

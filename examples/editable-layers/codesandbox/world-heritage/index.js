@@ -4,7 +4,7 @@ import DeckGL from '@deck.gl/react';
 // TODO Enable eslint after package is published.
 // eslint-disable-next-line import/named
 import {HtmlOverlayItem, HtmlClusterOverlay} from '@deck.gl-community/react';
-import {StaticMap} from 'react-map-gl/maplibre';
+import StaticMap from 'react-map-gl/maplibre';
 
 const DATA_URL = 'https://cors-tube.vercel.app/?url=https://whc.unesco.org/en/list/georss/';
 

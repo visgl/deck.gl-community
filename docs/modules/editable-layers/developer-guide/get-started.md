@@ -6,7 +6,6 @@ For yarn
 
 ```bash
 yarn add @deck.gl-community/editable-layers
-yarn add @deck.gl-community/react-editable-layers
 ```
 
 ## Quick Overview of the API

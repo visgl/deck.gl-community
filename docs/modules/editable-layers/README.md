@@ -29,14 +29,14 @@ This page contains highlights of each `editable-layers` release.
 - The code has been updated to work with deck.gl v9. 
 - The module structure has been simplified via the module mapping in the table below.
 
-| @deck.gl-community/editable-layers module | Description         | deck.gl-community module                      |
-| ----------------------------------------- | ------------------- | --------------------------------------------- |
-| nebula.gl                                 | The core module     | => `@deck.gl-community/editable-layers`       |
-| `@nebula.gl/edit-modes`                   | Optional edit modes | => `@deck.gl-community/editable-layers`       |
-| `@nebula.gl/layers`                       | The actual layers   | => `@deck.gl-community/editable-layers`       |
-| `@nebula.gl/overlays`                     | React overlays      | => `@deck.gl-community/react`                 |
-| `@nebula.gl/editor`                       | React wrappers      | => `@deck.gl-community/react-editable-layers` |
-| `react-map-gl-draw`                       | Non-deck-wrapper    | => NOT FORKED                                 |
+| @deck.gl-community/editable-layers module | Description         | deck.gl-community module                |
+| ----------------------------------------- | ------------------- | --------------------------------------- |
+| nebula.gl                                 | The core module     | => `@deck.gl-community/editable-layers` |
+| `@nebula.gl/edit-modes`                   | Optional edit modes | => `@deck.gl-community/editable-layers` |
+| `@nebula.gl/layers`                       | The actual layers   | => `@deck.gl-community/editable-layers` |
+| `@nebula.gl/overlays`                     | React overlays      | => `@deck.gl-community/react`           |
+| `@nebula.gl/editor`                       | React wrappers      | => Code moved into "editor" example     |
+| `react-map-gl-draw`                       | Non-deck-wrapper    | => NOT FORKED                           |
 
 Notes:
 - `react-map-gl-draw`- A notable omission is that `react-map-gl-draw` is not included in this fork. This decision was made to simplify the nebula.gl code base with the hope of making it easier for non-dedicated maintainers to keep the deck.gl layers version of nebula.gl alive. Given that the new version is no longer broken into deck.gl independent modules, it may not be easy to add.
