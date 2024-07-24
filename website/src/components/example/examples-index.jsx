@@ -30,6 +30,7 @@ function renderCategory({label, items}, getThumbnail) {
 export default function ExamplesIndex({getThumbnail}) {
   const sidebar = useDocsSidebar();
 
+  console.log(sidebar)
   return (
     <MainExamples>
       {sidebar.items.map(item => {

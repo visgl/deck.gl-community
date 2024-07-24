@@ -16,17 +16,13 @@ const sidebars = {
       label: 'Overview',
       id: 'index'
     },
-    // {
-    //   type: 'category',
-    //   label: 'Declarative',
-    //   items: [
-    //     {
-    //       type: 'link',
-    //       label: 'Playground',
-    //       href: `playground`
-    //     }
-    //   ]
-    // }
+    {
+      type: 'category',
+      label: 'Playground',
+      items: [
+        "playground/playground"
+      ]
+    },
     {
       type: 'category',
       label: '@deck.gl-community/graph-layers',

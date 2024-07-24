@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import * as React from 'react';
 import StaticMap from 'react-map-gl/maplibre';
 import CSS from 'csstype';
