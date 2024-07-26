@@ -1,4 +1,5 @@
 {
+  "name": "@deck.gl-community/editor",
   "private": true,
   "type": "module",
   "scripts": {

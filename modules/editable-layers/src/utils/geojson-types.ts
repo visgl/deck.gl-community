@@ -4,7 +4,17 @@
 
 // Geometry types
 
-export type Position = [number, number] | [number, number, number];
+import {
+  Point as PointGeo,
+  LineString as LineStringGeo,
+  Polygon as PolygonGeo,
+  MultiPoint as MultiPointGeo,
+  MultiLineString as MultiLineStringGeo,
+  MultiPolygon as MultiPolygonGeo,
+  Position as PositionGeo,
+} from 'geojson';
+
+export type Position = PositionGeo;
 export type PointCoordinates = Position;
 export type LineStringCoordinates = Position[];
 export type PolygonCoordinates = Position[][];
@@ -20,35 +30,17 @@ export type AnyCoordinates =
   | MultiLineStringCoordinates
   | MultiPolygonCoordinates;
 
-export type Point = {
-  type: 'Point';
-  coordinates: PointCoordinates;
-};
+export type Point = PointGeo;
 
-export type LineString = {
-  type: 'LineString';
-  coordinates: LineStringCoordinates;
-};
+export type LineString = LineStringGeo;
 
-export type Polygon = {
-  type: 'Polygon';
-  coordinates: PolygonCoordinates;
-};
+export type Polygon = PolygonGeo;
 
-export type MultiPoint = {
-  type: 'MultiPoint';
-  coordinates: MultiPointCoordinates;
-};
+export type MultiPoint = MultiPointGeo;
 
-export type MultiLineString = {
-  type: 'MultiLineString';
-  coordinates: MultiLineStringCoordinates;
-};
+export type MultiLineString = MultiLineStringGeo;
 
-export type MultiPolygon = {
-  type: 'MultiPolygon';
-  coordinates: MultiPolygonCoordinates;
-};
+export type MultiPolygon = MultiPolygonGeo;
 
 export type Geometry = Point | LineString | Polygon | MultiPoint | MultiLineString | MultiPolygon;
 

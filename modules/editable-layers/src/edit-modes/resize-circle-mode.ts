@@ -154,7 +154,6 @@ export class ResizeCircleMode extends GeoJsonEditMode {
       const geometry = updatedFeature.geometry;
 
       const updatedData = new ImmutableFeatureCollection(props.data)
-        // @ts-expect-error turf types diff
         .replaceGeometry(editHandleProperties.featureIndex, geometry)
         .getObject();
 

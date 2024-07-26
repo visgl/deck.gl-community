@@ -55,7 +55,6 @@ export class MeasureAreaMode extends DrawPolygonMode {
 
       return [
         {
-          // @ts-expect-error turf types diff
           position: centroid.geometry.coordinates,
           text
         }
