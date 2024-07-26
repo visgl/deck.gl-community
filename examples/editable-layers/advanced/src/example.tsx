@@ -651,6 +651,30 @@ export default class Example extends React.Component<
     );
   }
 
+  _renderDraw90DegreePolygonModeControls() {
+    return (
+      <ToolboxRow key="draw-90-deg-polygon">
+        <ToolboxTitle>Override angle lock with shift</ToolboxTitle>
+        <ToolboxControl>
+          <input
+            type="checkbox"
+            checked={Boolean(
+              this.state.modeConfig && this.state.modeConfig.overrideWithShift
+            )}
+            onChange={(event) =>
+              this.setState({
+                modeConfig: {
+                  ...(this.state.modeConfig || {}),
+                  overrideWithShift: Boolean(event.target.checked)
+                }
+              })
+            }
+          />
+        </ToolboxControl>
+      </ToolboxRow>
+    );
+  }
+
   _renderModeConfigControls() {
     const controls: React.ReactElement[] = [];
 
@@ -675,6 +699,9 @@ export default class Example extends React.Component<
     }
     if (this.state.mode === DrawPolygonMode) {
       controls.push(this._renderDrawPolygonModeControls());
+    }
+    if (this.state.mode === Draw90DegreePolygonMode) {
+      controls.push(this._renderDraw90DegreePolygonModeControls());
     }
 
     return controls;

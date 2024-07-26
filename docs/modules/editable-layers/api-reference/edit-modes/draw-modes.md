@@ -75,6 +75,11 @@ User can draw a new `Polygon` feature with 90 degree corners (right angle) by cl
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-90degree-polygon-mode.ts)
 
+The following options can be provided in the `modeConfig` object:
+
+- `overrideWithShift` (optional): `boolean`
+  - If `true`, it is possible to unlock from right angle temporarily by holding the shift key.
+
 ## DrawPolygonByDraggingMode
 
 User can draw a new `Polygon` feature by dragging (similar to the lasso tool commonly found in photo editing software).
@@ -98,6 +103,7 @@ The following options can be provided in the `modeConfig` object:
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
 ## DrawRectangleFromCenterMode
+
 User can draw a new rectangular `Polygon` feature by clicking the center then along a corner of the rectangle.
 
 The following options can be provided in the `modeConfig` object:
@@ -182,4 +188,3 @@ User can split a polygon by drawing a new `LineString` feature on top of the pol
 - If the clicked position is inside the polygon, it will not split the polygon
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/split-polygon-mode.ts)
-
