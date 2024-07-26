@@ -42,7 +42,7 @@ export function translateFromCenter(
         distance,
         direction
       ).geometry.coordinates;
-      return movedPosition as Position;
+      return movedPosition;
     }
   );
 

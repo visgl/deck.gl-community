@@ -57,7 +57,7 @@ export class MeasureAngleMode extends GeoJsonEditMode {
             },
             properties: {}
           }))
-        }).geometry.coordinates as Position;
+        }).geometry.coordinates;
 
         tooltips = [{position, text}];
       }

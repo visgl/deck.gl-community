@@ -173,7 +173,6 @@ export function nearestPointOnProjectedLine(
     type: 'Feature',
     geometry: {
       type: 'Point',
-      // @ts-expect-error
       coordinates: wmViewport.unproject([x0, y0, z0])
     },
     properties: {
