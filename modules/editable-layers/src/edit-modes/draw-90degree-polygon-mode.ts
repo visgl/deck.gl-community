@@ -31,7 +31,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
     let p3;
     if (clickSequence.length <= 1 ||
       // Allow overriding 90 degree enforcement with shift key
-      (props.modeConfig && props.modeConfig.overrideWithShift && props.lastPointerMoveEvent.sourceEvent.shiftKey)
+      (props.modeConfig?.overrideWithShift && props.lastPointerMoveEvent.sourceEvent.shiftKey)
     ) {
       p3 = mapCoords;
     } else {
