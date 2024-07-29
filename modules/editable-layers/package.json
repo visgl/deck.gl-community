@@ -67,7 +67,11 @@
     "geojson": "^0.5.0",
     "lodash.throttle": "^4.1.1",
     "uuid": "9.0.0",
-    "viewport-mercator-project": ">=6.2.3"
+    "viewport-mercator-project": ">=6.2.3",
+    "boxicons": "^2.1.4"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.14"
   },
   "peerDependencies": {
     "@deck.gl/core": "^9.0.12",
