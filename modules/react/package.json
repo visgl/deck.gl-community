@@ -40,7 +40,8 @@
     "prop-types": "^15.8.1",
     "styled-components": "^4.4.1",
     "styled-react-modal": "^3.1.1",
-    "supercluster": "^8.0.1"
+    "supercluster": "^8.0.1",
+    "boxicons": "^2.1.4"
   },
   "peerDependencies": {
     "react": "^16.14 || ^17",

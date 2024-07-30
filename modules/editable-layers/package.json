@@ -64,14 +64,10 @@
     "@turf/union": "^6.5.0",
     "cubic-hermite-spline": "^1.0.1",
     "eventemitter3": "^5.0.0",
-    "geojson": "^0.5.0",
+    "@types/geojson": "^7946.0.14",
     "lodash.throttle": "^4.1.1",
     "uuid": "9.0.0",
-    "viewport-mercator-project": ">=6.2.3",
-    "boxicons": "^2.1.4"
-  },
-  "devDependencies": {
-    "@types/geojson": "^7946.0.14"
+    "viewport-mercator-project": ">=6.2.3"
   },
   "peerDependencies": {
     "@deck.gl/core": "^9.0.12",
