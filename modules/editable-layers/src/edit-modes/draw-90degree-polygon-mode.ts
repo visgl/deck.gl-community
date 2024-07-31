@@ -143,21 +143,21 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
           props.onEdit(editAction);
         }
       }
+    } else {
+      // Trigger pointer move right away in order for it to update edit handles (to support double-click)
+      const fakePointerMoveEvent: PointerMoveEvent = {
+        screenCoords: [-1, -1],
+        mapCoords: event.mapCoords,
+        picks: [],
+        pointerDownPicks: null,
+        pointerDownScreenCoords: null,
+        pointerDownMapCoords: null,
+        cancelPan: () => {},
+        sourceEvent: null
+      };
+
+      this.handlePointerMove(fakePointerMoveEvent, props);
     }
-
-    // Trigger pointer move right away in order for it to update edit handles (to support double-click)
-    const fakePointerMoveEvent: PointerMoveEvent = {
-      screenCoords: [-1, -1],
-      mapCoords: event.mapCoords,
-      picks: [],
-      pointerDownPicks: null,
-      pointerDownScreenCoords: null,
-      pointerDownMapCoords: null,
-      cancelPan: () => {},
-      sourceEvent: null
-    };
-
-    this.handlePointerMove(fakePointerMoveEvent, props);
   }
 
   finalizedCoordinates(coords: Position[]) {
