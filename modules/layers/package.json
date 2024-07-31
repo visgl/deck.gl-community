@@ -45,5 +45,6 @@
     "@luma.gl/core": "^9.0.11",
     "@luma.gl/engine": "^9.0.11",
     "@math.gl/core": "^4.0.0"
-  }
+  },
+  "gitHead": "646f8328d27d67d596f05c9154072051ec5cf4f0"
 }
