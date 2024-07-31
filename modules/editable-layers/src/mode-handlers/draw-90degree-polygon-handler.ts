@@ -194,7 +194,7 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
           const fc = lineIntersect(line1, line2);
           if (fc && fc.features.length) {
             // found the intersect point
-            pt = fc.features[0].geometry.coordinates as Position;
+            pt = fc.features[0].geometry.coordinates;
           }
         });
       });
