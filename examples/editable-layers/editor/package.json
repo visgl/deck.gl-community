@@ -1,4 +1,5 @@
 {
+  "name": "editable-layers-editor",
   "private": true,
   "type": "module",
   "scripts": {

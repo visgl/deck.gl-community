@@ -77,7 +77,6 @@ export class FlowPathLayer extends LineLayer {
     }
 
     if (props.fp64 !== oldProps.fp64) {
-      const {gl} = this.context;
       if (this.state.model) {
         (this.state.model as any).delete();
       }

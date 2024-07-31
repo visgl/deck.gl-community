@@ -1,9 +1,8 @@
 {
-  "private": true,
   "name": "@deck.gl-community/react",
   "description": "React components for deck.gl",
   "license": "MIT",
-  "version": "9.0.0-alpha.1",
+  "version": "9.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/uber/@deck.gl-community"

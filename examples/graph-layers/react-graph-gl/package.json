@@ -1,4 +1,6 @@
 {
+  "name": "graph-layers-example",
+  "private": true,
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -7,7 +9,7 @@
   },
   "dependencies": {
     "@deck.gl-community/graph-layers": "9.0.0-alpha.1",
-    "@deck.gl-community/react-graph-layers": "^9.0.0-alpha.1",
+    "@deck.gl-community/react-graph-layers": "^9.0.0",
     "deck.gl": "^9.0.0"
   },
   "devDependencies": {

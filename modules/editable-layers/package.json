@@ -2,7 +2,7 @@
   "name": "@deck.gl-community/editable-layers",
   "description": "A suite of 3D-enabled data editing overlays, suitable for deck.gl",
   "license": "MIT",
-  "version": "9.0.0-alpha.1",
+  "version": "9.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/visgl/deck.gl-community"
