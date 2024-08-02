@@ -1,28 +1,54 @@
-export default {
-  lint: {
-    paths: ['docs', 'modules', 'examples', 'test'],
-    extensions: ['js', 'jsx', 'ts', 'tsx']
-  },
+/** @typedef {import('ocular-dev-tools').OcularConfig} OcularConfig */
 
+import {dirname, join} from 'path';
+import {fileURLToPath} from 'url';
+
+const packageRoot = dirname(fileURLToPath(import.meta.url));
+const devModules = join(packageRoot, 'dev-modules');
+const testDir = join(packageRoot, 'test');
+
+/** @type {OcularConfig} */
+const config = {
   babel: false,
+
+  lint: {
+    paths: ['modules', 'docs', 'test'], // 'examples'], module resolution errors
+    extensions: ['js', 'ts', 'jsx', 'tsx']
+  },
 
   typescript: {
     project: 'tsconfig.build.json'
   },
 
   aliases: {
-    test: './test'
+    // DEV MODULES
+    'dev-modules': devModules,
+
+    // TEST
+    test: testDir
   },
 
-  browserTest: {
-    server: {wait: 5000}
+  coverage: {
+    test: 'browser'
+  },
+
+  bundle: {
+    globalName: 'luma',
+    externals: [],
+    target: ['chrome110', 'firefox110', 'safari15'],
+    format: 'umd',
+    globals: {
+      '@luma.gl/*': 'globalThis.luma'
+    }
   },
 
   entry: {
-    test: 'test/node.js',
-    'test-browser': 'test/browser.js',
-    bench: 'test/bench/node.js',
-    'bench-browser': 'test/bench/browser.js',
-    size: ['test/size/graph-layers.js']
+    test: 'test/index.ts',
+    'test-browser': 'index.html',
+    bench: 'test/bench/index.js',
+    'bench-browser': 'test/bench/index.html',
+    size: 'test/size/import-nothing.js'
   }
 };
+
+export default config;
