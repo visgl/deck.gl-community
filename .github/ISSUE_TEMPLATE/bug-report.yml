@@ -10,16 +10,17 @@ body:
 - type: markdown
   attributes:
     value: |
-      **Note: In order to prevent drowning in unactionable bugs, maintainers will close any bugs that are not clearly actionable.** 
+      **Note: In order to prevent drowning in unactionable bugs, any bugs that are not clearly actionable will be closed immediately.** 
       In particular, if you are having issues with your particular build environment that are not clearly root caused,
       please start a conversation in [Discussions](https://github.com/visgl/deck.gl/discussions) rather than opening issues.
       Also please start new feature proposals in the Discussions section.
 - type: markdown
   attributes:
     value: |
-      Please understand this repo is called "deck.gl-community" because it is maintained by the community.
+      Please understand that this repo is called "deck.gl-community" because it is maintained by the community.
       There are no dedicated maintainers, which means that we mostly rely on the people who report bugs to make PRs for the fixes.
-      The vis.gl / Open Visualization leads are focused on help review and land your PRs, and publish new versions with your fixes.
+      The vis.gl / Open Visualization leads are focused on helping review and land your PRs, and publish new versions with your fixes.
+      Simple fixes will generally land quickly if you are willing to address comments and fix linter issues.
 - type: markdown
   attributes:
     value: |
