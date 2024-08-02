@@ -62,16 +62,16 @@
     "react-dom": "^18.2.0",
     "reify": "^0.20.12",
     "sinon": "^17.0.1",
+    "tap-spec": "^5.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.2.2"
   },
   "resolutions": {
     "react": "18.2.0",
-    "typescript": "^5.4.0",
-    "gl": "6.0.2"
+    "typescript": "^5.4.0"
   },
   "volta": {
-    "node": "18.18.2",
+    "node": "20.11.1",
     "yarn": "4.3.1"
   }
 }
