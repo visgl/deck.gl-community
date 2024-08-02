@@ -24,16 +24,17 @@ body:
 - type: checkboxes
   id: flavor
   attributes:
-    label: Flavors
-    description: Are you using one of the following platform-specific APIs?
+    label: Module
+    description: First, we need to understand which deck.gl-community module you are using.
     options:
-      - label: Script tag
-      - label: React
-      - label: Python/Jupyter notebook
-      - label: MapboxOverlay
-      - label: GoogleMapsOverlay
-      - label: CartoLayer
-      - label: ArcGIS
+      - label: deck.gl-community/arrow-layers
+      - label: deck.gl-community/bing-maps
+      - label: deck.gl-community/editable-layers
+      - label: deck.gl-community/experimental
+      - label: deck.gl-community/graph-layers
+      - label: deck.gl-community/layers
+      - label: deck.gl-community/react
+      - label: deck.gl-community/react-graph-layer
 - type: textarea
   attributes:
     label: Expected Behavior
