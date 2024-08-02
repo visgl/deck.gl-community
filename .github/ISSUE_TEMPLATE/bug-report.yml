@@ -10,10 +10,17 @@ body:
       First, please understand this repo is called deck.gl-community because it is maintained by the community,
       (there are no dedicated maintainers) meaning that we mostly rely on people who report bugs to make PRs for the fixes.
       We are however happy to help review and land your PRs, and publish new versions with the fixes.
-      In order to prevent drowning in unactionable bugs, maintainers will ruthlessly close any bugs that are not clearly defined. 
+- type: markdown
+  attributes:
+    value: |
+      **Note: In order to prevent drowning in unactionable bugs, maintainers will ruthlessly close any bugs that are not clearly actionable.** 
       In particular, if you are having general issues with your particular build environment, 
       please start a conversation in [Discussions](https://github.com/visgl/deck.gl/discussions) rather than opening issues.
-      Also check [existing issues](https://github.com/visgl/deck.gl-community/issues)to avoid filing duplicate bugs.
+- type: markdown
+  attributes:
+    value: |
+      Tips: Before filing a new bug:
+      Check [existing issues](https://github.com/visgl/deck.gl-community/issues)to avoid filing duplicate bugs.
       You may find answers faster by searching in [the documentation](https://deck.gl-community/search).
 - type: textarea
   attributes:
