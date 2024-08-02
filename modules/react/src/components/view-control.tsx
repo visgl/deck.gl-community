@@ -149,7 +149,7 @@ export class ViewControl extends PureComponent {
               max={(this.props as any).maxZoom}
               step={(this.props as any).deltaZoom}
               onChange={this.onChangeZoomLevel}
-              /* @ts-expect-error */
+              /* @ts-expect-error TODO */
               orient="vertical"
             />
           </VerticalSlider>

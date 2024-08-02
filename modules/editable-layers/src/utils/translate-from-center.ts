@@ -28,19 +28,19 @@ export function translateFromCenter(
   const movedCoordinates = mapCoords(
     feature.geometry.coordinates as AnyCoordinates,
     (coordinate) => {
-      const distance = turfRhumbDistance(
+      const rhumbDistance = turfRhumbDistance(
         initialCenterPoint.geometry.coordinates,
         coordinate as TurfPosition
       );
-      const direction = turfRhumbBearing(
+      const rhumbDirection = turfRhumbBearing(
         initialCenterPoint.geometry.coordinates,
         coordinate as TurfPosition
       );
 
       const movedPosition = turfRhumbDestination(
         movedCenterPoint.geometry.coordinates,
-        distance,
-        direction
+        rhumbDistance,
+        rhumbDirection
       ).geometry.coordinates;
       return movedPosition;
     }

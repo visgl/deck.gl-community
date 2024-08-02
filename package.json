@@ -54,7 +54,7 @@
     "lerna": "^8.1.2",
     "ndarray": "^1.0.19",
     "ndarray-pixels": "^3.1.0",
-    "ocular-dev-tools": "2.0.0-alpha.29",
+    "ocular-dev-tools": "2.0.0-alpha.34",
     "pre-commit": "^1.2.2",
     "pre-push": "^0.1.4",
     "puppeteer": "^22.15.0",
@@ -66,9 +66,9 @@
     "vitest": "^1.2.2"
   },
   "resolutions": {
-    "gl": "6.0.2",
     "react": "18.2.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "gl": "6.0.2"
   },
   "volta": {
     "node": "18.18.2",

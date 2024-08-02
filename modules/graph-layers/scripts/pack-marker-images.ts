@@ -9,6 +9,8 @@
  * ```
  */
 
+/* eslint-disable */
+
 import {readFile, writeFile, readdir} from 'node:fs/promises';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -131,3 +133,5 @@ async function writeImage(
   await writeFile(filePath, await savePixels(pixelArr, 'image/png'));
   createDataURL();
 }
+
+/* eslint-enable */

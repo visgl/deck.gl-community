@@ -4,7 +4,7 @@
   "description": "Project description",
   "license": "MIT",
   "version": "0.0.3",
-  "publishConfig": {
+  "_publishConfig": {
     "access": "public"
   },
   "keywords": [
