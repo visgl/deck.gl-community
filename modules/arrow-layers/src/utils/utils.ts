@@ -323,8 +323,8 @@ export function invertOffsets(offsets: Int32Array): Uint8Array | Uint16Array | U
     offsets.length < Math.pow(2, 8)
       ? Uint8Array
       : offsets.length < Math.pow(2, 16)
-      ? Uint16Array
-      : Uint32Array;
+        ? Uint16Array
+        : Uint32Array;
 
   const invertedOffsets = new arrayConstructor(largestOffset);
   for (let arrayIdx = 0; arrayIdx < offsets.length - 1; arrayIdx++) {
