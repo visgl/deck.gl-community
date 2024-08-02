@@ -1,5 +1,5 @@
 name: Bug Report
-description: 
+description: Something does not work as expected
 title: "[Bug]"
 labels: bug
 body:
@@ -7,12 +7,59 @@ body:
   attributes:
     value: |
       Thank you for taking the time to report a bug!
-      First, please understand this repo is called deck.gl-community because it is maintained by the community,
-      (there are no dedicated maintainers) meaning that we mostly rely on people who report bugs to make PRs for the fixes.
-      We are however happy to help review and land your PRs, and publish new versions with the fixes.
-      In order to prevent drowning in unactionable bugs, maintainers will ruthlessly close any bugs that are not clearly defined. 
-      - In particular, if you are having general issues with your particular build environment, 
-      please start a conversation in [Discussions](https://github.com/visgl/deck.gl/discussions)
-      rather than opening issues.
-      - Also check [existing issues](https://github.com/visgl/deck.gl-community/issues)to avoid filing duplicate bugs.
-      You may find answers faster by searching in [the documentation](https://deck.gl-community/search).
+      You may find answers faster by searching in [the documentation](https://deck.gl/search) and [existing issues](https://github.com/visgl/deck.gl/issues).
+      If you are unsure whether it is a bug in your own implementation or the library itself, consider starting a conversation in [Discussions](https://github.com/visgl/deck.gl/discussions) instead.
+- type: textarea
+  attributes:
+    label: Description
+    description: What you're experiencing.
+  validations:
+    required: true
+- type: checkboxes
+  id: flavor
+  attributes:
+    label: Flavors
+    description: Are you using one of the following platform-specific APIs?
+    options:
+      - label: Script tag
+      - label: React
+      - label: Python/Jupyter notebook
+      - label: MapboxOverlay
+      - label: GoogleMapsOverlay
+      - label: CartoLayer
+      - label: ArcGIS
+- type: textarea
+  attributes:
+    label: Expected Behavior
+    description: What you expect to see.
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Steps to Reproduce
+    description: |
+      Providing the following could help us resolve this issue faster:
+        - A Codepen that reproduces the behavior. A good starting point is the "edit in CodePen" links in the layer documentations.
+        - A sample of your dataset
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Environment
+    description: |
+      Example:
+        - **Framework version**: deck.gl@8.9.0
+        - **Browser**: Chrome 110.0
+        - **OS**: iOS 16.3
+    value: |
+        - Framework version:
+        - Browser:
+        - OS:
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Logs
+    description: Check the browser console for any relevant errors or warnings.
+  validations:
+    required: false
