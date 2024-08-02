@@ -6,6 +6,10 @@ body:
 - type: markdown
   attributes:
     value: |
+      Thank you for taking the time to report a bug!
+- type: markdown
+  attributes:
+    value: |
       **Note: In order to prevent drowning in unactionable bugs, maintainers will close any bugs that are not clearly actionable.** 
       In particular, if you are having issues with your particular build environment that are not clearly root caused,
       please start a conversation in [Discussions](https://github.com/visgl/deck.gl/discussions) rather than opening issues.
@@ -13,10 +17,9 @@ body:
 - type: markdown
   attributes:
     value: |
-      Thank you for taking the time to report a bug!
-      First, please understand this repo is called deck.gl-community because it is maintained by the community,
-      (there are no dedicated maintainers) meaning that we mostly rely on people who report bugs to make PRs for the fixes.
-      We are however happy to help review and land your PRs, and publish new versions with the fixes.
+      Please understand this repo is called "deck.gl-community" because it is maintained by the community.
+      There are no dedicated maintainers, which means that we mostly rely on the people who report bugs to make PRs for the fixes.
+      The vis.gl / Open Visualization leads are focused on help review and land your PRs, and publish new versions with your fixes.
 - type: markdown
   attributes:
     value: |
