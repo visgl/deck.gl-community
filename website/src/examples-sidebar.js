@@ -16,14 +16,14 @@ const sidebars = {
       label: 'Overview',
       id: 'index'
     },
-    {
-      type: 'category',
-      label: '@deck.gl-community/editable-layers',
-      items: [
-        "editable-layers/editor",
-        "editable-layers/advanced"
-      ]
-    },
+    // {
+    //   type: 'category',
+    //   label: '@deck.gl-community/editable-layers',
+    //   items: [
+    //     "editable-layers/editor",
+    //     "editable-layers/advanced"
+    //   ]
+    // },
     // {
     //   type: 'category',
     //   label: 'Layers',
