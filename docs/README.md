@@ -1,10 +1,10 @@
 # Introduction
 
 This repository contains a collection of "community supported" modules for [deck.gl](https://deck.gl).
-It was created to provide a home for a number of excellent deck.gl add-on modules that no longer have active maintainers, with the hope that community contributions will keep them alive
+deck.gl-community was created to provide a home for a number of excellent deck.gl add-on modules that no longer have active maintainers, with the hope that community contributions will keep them alive.
 
 :::danger
-The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If you are expect timely fixes, and you are not able to contribute them yourself, do not use any deck.gl-community module.
+The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
 :::
 
 ## Scope
@@ -44,6 +44,10 @@ For feature extensions to existing modules, it is generally recommended to start
 
 If you have a new module that you think could fit into this repository, please start by opening a GitHub issue to start a discussion, or reach out in the OpenJS slack.
 Note that for a new module you will also be asked to asses what level of maintenance you will be able to provide over the longer term.
+
+## Maintainers
+
+We are always looking for long-term or short-term maintainers. If you'd like to work on one of these modules, even if only temporarily, the Open Visualization team is ready to welcome and support you.
 
 ## Governance
 
