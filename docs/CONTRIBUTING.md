@@ -11,11 +11,11 @@ Note that for a new module you will also be asked to asses what level of mainten
 
 ## Setup
 
-deck.gl-community repo is similar to the deck.gl repository so most of the contributor instructions in [deck.gl](https://deck.gl/docs/contributing) also apply to this repository
+The [deck.gl-community](https://github.com/visgl/deck.gl-community) GitHub repository is similar to the [deck.gl](https://github.com/visgl/deck.gl) repository, which means that most of the [deck.gl contribution instructions](https://deck.gl/docs/contributing) also apply to this repository
 
-One of the biggest hurdles is often to make sure that you are using compatible versions of `node` and `yarn`. deck.gl-community uses `volta` to manage this. Simply [install volta](https://docs.volta.sh/guide/getting-started) and the right versions will be downloaded and used for the builds.
+One of the biggest hurdles is often to make sure that you are using compatible versions of `node` and `yarn`. deck.gl-community uses `volta` to manage this. Simply [install volta](https://docs.volta.sh/guide/getting-started) and the right versions of node and yarn will automatically be downloaded and used when you run any scripts in the deck.gl-community repository, without affecting the global versions of these tools on your machine.
 
-If you for some reason do now want to install volta, and prefer to manually install node and yarn. you can find the correct yarn and node versions listed in the `"volta": {...}` section in the root `package.json`.
+If you for some reason do now want to install volta, and prefer to manually install node and yarn, you can find the correct yarn and node versions listed in the `"volta": {...}` section in the root `package.json`.
 
 ## Branches
 
