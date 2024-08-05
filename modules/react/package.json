@@ -38,13 +38,11 @@
     "@types/styled-react-modal": "^1.2.5",
     "boxicons": "^2.1.4",
     "prop-types": "^15.8.1",
-    "styled-components": "^4.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "styled-components": "^6.1.1",
     "styled-react-modal": "^3.1.1",
     "supercluster": "^8.0.1"
-  },
-  "peerDependencies": {
-    "react": "^16.14 || ^17",
-    "react-dom": "^16.14 || ^17"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
 }

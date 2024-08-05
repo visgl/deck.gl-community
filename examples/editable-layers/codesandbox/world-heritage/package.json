@@ -2,11 +2,11 @@
   "dependencies": {
     "@deck.gl/core": "^8.8.23",
     "@deck.gl/react": "^8.8.23",
-    "@deck.gl-community/react": "0.0.1",
+    "@deck.gl-community/react": "^9.0.1",
     "@turf/helpers": "^6.5.0",
     "global": "4.4.0",
-    "react": "16.14.0",
-    "react-dom": "16.14.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-map-gl": "4.1.16",
     "react-scripts": "2.1.8"
   }
