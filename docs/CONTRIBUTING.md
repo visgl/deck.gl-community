@@ -9,9 +9,17 @@ For feature extensions to existing modules, it is generally recommended to start
 If you have a new module that you think could fit into this repository, please start by opening a GitHub issue to start a discussion, or reach out in the OpenJS slack.
 Note that for a new module you will also be asked to asses what level of maintenance you will be able to provide over the longer term.
 
-## Preparations
+## Setup
 
-Most work is done on master.
+deck.gl-community repo is similar to the deck.gl repository so most of the contributor instructions in [deck.gl](https://deck.gl/docs/contributing) also apply to this repository
+
+One of the biggest hurdles is often to make sure that you are using compatible versions of `node` and `yarn`. deck.gl-community uses `volta` to manage this. Simply [install volta](https://docs.volta.sh/guide/getting-started) and the right versions will be downloaded and used for the builds.
+
+If you for some reason do now want to install volta, and prefer to manually install node and yarn. you can find the correct yarn and node versions listed in the `"volta": {...}` section in the root `package.json`.
+
+## Branches
+
+Most work is done on the `master` branch, so PRs are expected to be branches off `master`.
 
 ## Review
 
@@ -38,6 +46,8 @@ Note that CI can usually be fixed in 1-2 minutes as follows:
 - `yarn` - also make sure you run `yarn` to update `yarn.lock` after making changes depdencies in any `package.json` files. For security reasons, GitHub CI will reject your PR if your `yarn.lock` file is out of date with your `package.json` files.
 
 After running these commands just commit and push your PR again and it will likely run green.
+
+Remark: When you run the above commands, make sure you are using the right versions of yarn and node. See the instructions for using volta in the [setup](#setup) section above. If you e.g. use an older version of yarn, your lock files etc will not match what CI expect.
 
 ## Publishing new versions
 
