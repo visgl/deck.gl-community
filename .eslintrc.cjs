@@ -21,7 +21,16 @@ module.exports = getESLintConfig({
       {
         files: ['modules/*/src/**/*.{ts,tsx}', 'modules/*/test/**/*.{ts,tsx}'],
         rules: {
+          // We definitely don't want to enable these rules
+          ' no-use-before-define': 0,
           // TODO: Gradually enable, at least for non-test code.
+          '@typescript-eslint/no-redundant-type-constituents': 0,
+          'import/no-extraneous-dependencies': 0,
+          'import/no-named-as-default': ['warn'],
+          'import/named': ['warn'],
+          '@typescript-eslint/no-unsafe-argument': 0,
+          '@typescript-eslint/no-explicit-any': 0,
+          '@typescript-eslint/ban-types': 0,
           '@typescript-eslint/no-unsafe-call': 0,
           '@typescript-eslint/no-unsafe-assignment': 0,
           '@typescript-eslint/no-unsafe-return': 0,

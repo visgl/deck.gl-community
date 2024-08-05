@@ -70,6 +70,7 @@
     "viewport-mercator-project": ">=6.2.3"
   },
   "peerDependencies": {
+    "@deck.gl-community/layers": "^9.0.0",
     "@deck.gl/core": "^9.0.12",
     "@deck.gl/extensions": "^9.0.12",
     "@deck.gl/geo-layers": "^9.0.12",

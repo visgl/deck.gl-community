@@ -24,7 +24,8 @@
     "lint": "ocular-lint",
     "lint-fix": "ocular-lint --fix",
     "prepublishOnly": "ocular-build && node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', {encoding: 'utf8'})); delete pkg.engines; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); console.log(pkg)\"",
-    "publish": "ocular-publish",
+    "publish-beta": "ocular-publish beta",
+    "publish-prod": "ocular-publish prod",
     "test": "lerna run test",
     "test-ci": "ocular-lint && lerna run test",
     "test-fast": "lerna run test",
@@ -54,7 +55,7 @@
     "lerna": "^8.1.2",
     "ndarray": "^1.0.19",
     "ndarray-pixels": "^3.1.0",
-    "ocular-dev-tools": "2.0.0-alpha.29",
+    "ocular-dev-tools": "2.0.0-alpha.34",
     "pre-commit": "^1.2.2",
     "pre-push": "^0.1.4",
     "puppeteer": "^22.15.0",
@@ -62,16 +63,16 @@
     "react-dom": "^18.2.0",
     "reify": "^0.20.12",
     "sinon": "^17.0.1",
+    "tap-spec": "^5.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.2.2"
   },
   "resolutions": {
-    "gl": "6.0.2",
     "react": "18.2.0",
     "typescript": "^5.4.0"
   },
   "volta": {
-    "node": "18.18.2",
+    "node": "20.11.1",
     "yarn": "4.3.1"
   },
   "packageManager": "yarn@4.4.0"

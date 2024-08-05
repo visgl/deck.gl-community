@@ -26,7 +26,7 @@ const sidebars = {
     {
       type: 'category',
       label: 'Overview',
-      items: ['README', 'whats-new', 'upgrade-guide']
+      items: ['README', 'whats-new', 'upgrade-guide', 'CONTRIBUTING']
     },
     {
       type: 'category',

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/* eslint-disable no-shadow */
+
 import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
