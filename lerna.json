@@ -1,7 +1,13 @@
 {
   "version": "independent",
+  "packages": [
+    "modules/*"
+  ],
   "npmClient": "yarn",
   "command": {
     "bootstrap": {}
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
