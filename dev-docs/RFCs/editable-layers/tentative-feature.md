@@ -6,7 +6,7 @@
 
 References:
 
-- [Background conversation](hhttps://github.com/uber/nebula.gl/pull/49#issuecomment-413948690)
+- [Background conversation](https://github.com/uber/nebula.gl/pull/49#issuecomment-413948690)
 
 ## Summary
 
