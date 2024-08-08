@@ -7,7 +7,7 @@
 References:
 
 - [Tentative Feature RFC](./tentative-feature.md): Tentative feature functionality must be implemented first
-- [Background conversation](https://github.com/uber/@deck.gl-community/editable-layers/pull/49#issuecomment-413948690)
+- [Background conversation](https://github.com/uber/nebula.gl/pull/49#issuecomment-413948690)
 
 ## Summary
 
