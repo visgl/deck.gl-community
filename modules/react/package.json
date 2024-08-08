@@ -5,7 +5,7 @@
   "version": "9.0.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/uber/@deck.gl-community"
+    "url": "https://github.com/visgl/deck.gl-community"
   },
   "scripts": {
     "test": "vitest run",
