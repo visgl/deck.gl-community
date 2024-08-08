@@ -6,7 +6,7 @@
 
 References:
 
-- [Background conversation](https://github.com/uber/@deck.gl-community/editable-layers/pull/49#issuecomment-413948690)
+- [Background conversation](hhttps://github.com/uber/nebula.gl/pull/49#issuecomment-413948690)
 
 ## Summary
 

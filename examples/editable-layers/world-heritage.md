@@ -7,4 +7,4 @@ There is a more advanced example inside `examples/overlays`.
 
 ### Source
 
-https://github.com/uber/@deck.gl-community/editable-layers/blob/master/examples/codesandbox/world-heritage/index.js
+https://github.com/visgl/deck.gl-community/blob/master/examples/editable-layers/codesandbox/world-heritage/index.js
