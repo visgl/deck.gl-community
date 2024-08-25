@@ -3,7 +3,7 @@
   "private": true,
   "description": "Project description",
   "license": "MIT",
-  "version": "0.0.3",
+  "version": "0.0.4-alpha.0",
   "_publishConfig": {
     "access": "public"
   },

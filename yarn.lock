@@ -1705,7 +1705,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/graph-layers@npm:9.0.1, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
+"@deck.gl-community/graph-layers@npm:9.0.2-alpha.0, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/graph-layers@workspace:modules/graph-layers"
   dependencies:
@@ -1755,8 +1755,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react-graph-layers@workspace:modules/react-graph-layers"
   dependencies:
-    "@deck.gl-community/graph-layers": "npm:9.0.1"
-    "@deck.gl-community/react": "npm:9.0.1"
+    "@deck.gl-community/graph-layers": "npm:9.0.2-alpha.0"
+    "@deck.gl-community/react": "npm:9.0.2-alpha.0"
     "@deck.gl/core": "npm:^9.0.12"
     "@deck.gl/react": "npm:^9.0.12"
     "@types/d3-array": "npm:^3.2.1"
@@ -1771,7 +1771,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/react@npm:9.0.1, @deck.gl-community/react@workspace:modules/react":
+"@deck.gl-community/react@npm:9.0.2-alpha.0, @deck.gl-community/react@workspace:modules/react":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react@workspace:modules/react"
   dependencies:

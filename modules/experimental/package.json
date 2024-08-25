@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/experimental",
-  "version": "9.0.2",
+  "version": "9.0.3-alpha.0",
   "description": "Experimental layers for deck.gl",
   "license": "MIT",
   "keywords": [

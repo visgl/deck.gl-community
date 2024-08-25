@@ -43,11 +43,11 @@ const config = {
   },
 
   entry: {
-    test: 'test/index.ts',
+    test: 'test/node.js',
     'test-browser': 'index.html',
     bench: 'test/bench/index.js',
     'bench-browser': 'test/bench/index.html',
-    size: 'test/size/import-nothing.js'
+    size: ['test/size/graph-layers.js']
   }
 };
 

@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/layers",
-  "version": "9.0.2",
+  "version": "9.0.3-alpha.0",
   "description": "Addon layers for deck.gl",
   "license": "MIT",
   "keywords": [

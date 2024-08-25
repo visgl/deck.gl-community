@@ -8,4 +8,4 @@ test.onFinish(window.browserTestDriver_finish);
 // @ts-expect-error TODO TS2339: Property 'browserTestDriver_fail' does not exist on type 'Window & typeof globalThis'
 test.onFailure(window.browserTestDriver_fail);
 
-// import './modules';
+import './modules';
