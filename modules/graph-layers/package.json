@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/graph-layers",
-  "version": "9.0.2-alpha.0",
+  "version": "9.0.2",
   "description": "WebGL2-Powered library for Graph Visualization",
   "keywords": [
     "graph",
