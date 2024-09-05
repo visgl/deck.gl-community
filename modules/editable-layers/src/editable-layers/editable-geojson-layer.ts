@@ -40,7 +40,7 @@ import {Draw90DegreePolygonMode} from '../edit-modes/draw-90degree-polygon-mode'
 import {DrawPolygonByDraggingMode} from '../edit-modes/draw-polygon-by-dragging-mode';
 import {SnappableMode} from '../edit-modes/snappable-mode';
 import {TransformMode} from '../edit-modes/transform-mode';
-import {DeleteMode} from '../edit-modes/delete-mode';	
+import {DeleteMode} from '../edit-modes/delete-mode';
 import {GeoJsonEditModeType} from '../edit-modes/geojson-edit-mode';
 
 import {Color} from '../utils/types';
