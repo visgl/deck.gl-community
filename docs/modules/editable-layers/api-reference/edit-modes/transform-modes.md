@@ -58,3 +58,8 @@ A single mode that provides translating, rotating, and scaling capabilities. Tra
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/transform-mode.ts)
 
+## DeleteMode
+
+User can delete features by clicking on them. Only the most recently added feature will be deleted if multiple features overlap.
+
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/delete-mode.ts)
