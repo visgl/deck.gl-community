@@ -1,4 +1,15 @@
 {
-  "extends": "../../tsconfig.json",
-  "include": ["src/**/*"]
+  "extends": "../../tsconfig.module.json",
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"],
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": false
+  },
+  "references": [
+    {"path": "../graph-layers"},
+    {"path": "../react"}
+  ]
 }
