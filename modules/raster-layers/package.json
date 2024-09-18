@@ -1,7 +1,7 @@
 {
-  "name": "@fsq/deck.gl-raster",
+  "name": "@deck.gl-community/deck.gl-raster",
   "description": "deck.gl layers for client-side raster processing",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "version": "0.3.1",
   "types": "src/index.ts",
   "main": "src/index.ts",
