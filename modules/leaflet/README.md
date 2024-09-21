@@ -91,10 +91,10 @@ The constructor accepts a props object that is passed to the [Deck](https://deck
 
 The following [Deck methods](https://deck.gl/docs/api-reference/core/deck#methods) can be called directly from a `DeckLayer` instance:
 
-- `deckOverlay.setProps`
-- `deckOverlay.pickObject`
-- `deckOverlay.pickMultipleObjects`
-- `deckOverlay.pickObjects`
+- `deckLayer.setProps`
+- `deckLayer.pickObject`
+- `deckLayer.pickMultipleObjects`
+- `deckLayer.pickObjects`
 
 ## Supported Features and Limitations
 
