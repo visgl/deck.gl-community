@@ -1,0 +1,45 @@
+name: Feature Proposal (GitHub Issue)
+description: Discussion around a new feature or enhancement
+title: "[Feat]"
+labels: feature
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thank you for taking the time to propose a new feature!
+- type: markdown
+  attributes:
+    value: |
+      **Warning: In order to prevent drowning in unactionable issues, feature discussions that are not getting any implementation support or continued engagement by the original reporter may be closed.** 
+- type: markdown
+  attributes:
+    value: |
+      Tips: Before filing a new feature proposal:
+      Consider starting new feature proposal in [GitHub Discussions](https://github.com/visgl/deck.gl-community/discussions) to see if there is interest and support from the community.
+      Check [existing issues](https://github.com/visgl/deck.gl-community/issues) and [Discussions](https://github.com/visgl/deck.gl-community/discussions) to avoid filing duplicate proposals.
+      We also use the [Open Visualization OpenJS Foundation slack channels](https://www.openvisualization.org/#get-involved) to interact with users.
+- type: markdown
+  attributes:
+    value: |
+      Please understand that this repo is called "deck.gl-community" because it is maintained by the community.
+      Many modules have no dedicated maintainers, which means that we mostly rely on the people who make proposals to also contribute PRs implementing those proposal.
+      The vis.gl / Open Visualization leads are focused on helping review and land your PRs, and publish new versions with your fixes.
+      Simple features will generally land quickly if you are willing to address comments and fix linter issues (this latter is where most authors drop off, leading to their PRs being closed).
+- type: textarea
+  attributes:
+    label: Target Use Case
+    description: How would this benefit you and other developers?
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Proposal
+    description: How would this feature work? If it's a new API, use code samples to show how it will be used. If it's visual, link to an image that illustrate the desired effect.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Details
+    description: Free form text for any additional details or context.
+  validations:
+    required: false

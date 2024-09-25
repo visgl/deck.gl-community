@@ -10,10 +10,10 @@ body:
 - type: markdown
   attributes:
     value: |
-      **Note: In order to prevent drowning in unactionable bugs, any bugs that are not clearly actionable will be closed immediately.** 
-      In particular, if you are having issues with your particular build environment that are not clearly root caused,
+      **Note: In order to prevent drowning in unactionable bugs, any bugs that are not clearly actionable will be closed.** 
+      In particular, if you are having issues (e.g. with your particular build environment or API usage) that are not clearly root caused,
       please start a conversation in [Discussions](https://github.com/visgl/deck.gl/discussions) rather than opening issues.
-      Also please start new feature proposals in the Discussions section.
+      Also consider starting new feature proposals in the Discussions section.
 - type: markdown
   attributes:
     value: |
