@@ -13,6 +13,7 @@ import {
 } from './types';
 import {Polygon, FeatureCollection, FeatureOf, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {omit} from 'lodash';
 
 export class TwoClickPolygonMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
@@ -57,9 +58,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     ) {
       const feature: FeatureOf<Polygon> = {
         type: 'Feature',
-        properties: {
-          shape: tentativeFeature.properties.shape
-        },
+        properties: omit(tentativeFeature.properties, 'guideType'),
         geometry: {
           type: 'Polygon',
           coordinates: tentativeFeature.geometry.coordinates
@@ -97,7 +96,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
       guides.features.push({
         type: 'Feature',
         properties: {
-          shape: polygon.properties && polygon.properties.shape,
+          ...polygon.properties,
           guideType: 'tentative'
         },
         geometry: polygon.geometry

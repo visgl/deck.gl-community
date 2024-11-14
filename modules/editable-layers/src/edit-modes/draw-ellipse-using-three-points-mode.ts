@@ -22,6 +22,15 @@ export class DrawEllipseUsingThreePointsMode extends ThreeClickPolygonMode {
     const ySemiAxis = Math.max(distance(coord1, coord2), 0.001) / 2;
     const options = {angle: bearing(coord1, coord2)};
     // @ts-expect-error fix return types
-    return ellipse(centerCoordinates, xSemiAxis, ySemiAxis, options);
+    const geometry = ellipse(centerCoordinates, xSemiAxis, ySemiAxis, options);
+
+    geometry.properties = geometry.properties || {};
+    geometry.properties.shape = 'Ellipse';
+    geometry.properties.xSemiAxis = {"value": xSemiAxis, "unit": "kilometers"};
+    geometry.properties.ySemiAxis = {"value": ySemiAxis, "unit": "kilometers"};
+    geometry.properties.angle = options.angle;
+    geometry.properties.center = centerCoordinates;
+    // @ts-expect-error fix return types
+    return geometry;
   }
 }
