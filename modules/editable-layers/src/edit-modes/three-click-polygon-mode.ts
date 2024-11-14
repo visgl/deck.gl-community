@@ -24,7 +24,11 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
       tentativeFeature &&
       tentativeFeature.geometry.type === 'Polygon'
     ) {
-      const editAction = this.getAddFeatureOrBooleanPolygonAction(tentativeFeature.geometry, props, omit(tentativeFeature.properties, 'guideType'));
+      const editAction = this.getAddFeatureOrBooleanPolygonAction(
+        tentativeFeature.geometry,
+        props,
+        omit(tentativeFeature.properties, 'guideType')
+      );
       this.resetClickSequence();
 
       if (editAction) {

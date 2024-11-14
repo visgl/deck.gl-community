@@ -27,8 +27,8 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
 
     geometry.properties = geometry.properties || {};
     geometry.properties.shape = 'Ellipse';
-    geometry.properties.xSemiAxis = {"value": xSemiAxis, "unit": "kilometers"};
-    geometry.properties.ySemiAxis = {"value": ySemiAxis, "unit": "kilometers"};
+    geometry.properties.xSemiAxis = {value: xSemiAxis, unit: 'kilometers'};
+    geometry.properties.ySemiAxis = {value: ySemiAxis, unit: 'kilometers'};
     geometry.properties.angle = 0;
     geometry.properties.center = centerCoordinates;
     // @ts-expect-error fix return types
