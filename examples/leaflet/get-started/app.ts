@@ -1,29 +1,30 @@
-import {loadModule} from '@deck.gl-community/bing-maps';
+import {DeckLayer} from '@deck.gl-community/leaflet';
+import {MapView} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
-
-// set your Bing Maps API key here
-const BING_MAPS_API_KEY = (import.meta as any).env.VITE_BING_MAPS_API_KEY;
+import * as L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // source: Natural Earth http://www.naturalearthdata.com/ via geojson.xyz
 const AIR_PORTS =
   'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_airports.geojson';
 
-loadModule().then(({Map, MapTypeId, Location, DeckOverlay}: any) => {
+export function exampleApplication() {
   // Create map
-  const map = new Map(document.getElementById('map'), {
-    credentials: BING_MAPS_API_KEY,
-    supportedMapTypes: [MapTypeId.aerial, MapTypeId.canvasLight, MapTypeId.canvasDark],
-    disableBirdsEye: true,
-    disableStreetside: true
+  const map = L.map(document.getElementById('map'), {
+    center: [51.47, 0.45],
+    zoom: 4,
   });
-
-  map.setView({
-    center: new Location(51.47, 0.45),
-    zoom: 4
-  });
+  L.tileLayer('https://tiles.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png', {
+    maxZoom: 22,
+    attribution:
+      '© <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>, © <a href="http://www.openstreetmap.org/about/" target="_blank">OpenStreetMap</a> contributors',
+  }).addTo(map);
 
   // Add deck.gl overlay
-  const deckOverlay = new DeckOverlay({
+  const deckLayer = new DeckLayer({
+    views: [
+      new MapView({ repeat: true }),
+    ],
     layers: [
       new GeoJsonLayer({
         id: 'airports',
@@ -55,5 +56,5 @@ loadModule().then(({Map, MapTypeId, Location, DeckOverlay}: any) => {
     ],
     getTooltip: (info) => info.object && info.object.properties.name
   });
-  map.layers.insert(deckOverlay);
-});
+  map.addLayer(deckLayer);
+}

@@ -12,13 +12,11 @@
   },
   "type": "module",
   "workspaces": [
-    "examples/graph-layers/react-graph-gl",
-    "examples/*",
+    "examples/graph-layers/**",
+    "examples/editable-layers/**",
+    "examples/bing-maps/**",
+    "examples/leaflet/**",
     "modules/*"
-  ],
-  "workspaces_examples": [
-    "examples/graph-layers/*",
-    "examples/editable-layers/editor"
   ],
   "scripts": {
     "bootstrap": "ocular-bootstrap",

@@ -16,21 +16,6 @@ const sidebars = {
       label: 'Overview',
       id: 'index'
     },
-    {
-      type: 'category',
-      label: '@deck.gl-community/graph-layers',
-      items: [
-        "graph-layers/graph-viewer"
-      ]
-    },
-    // {
-    //   type: 'category',
-    //   label: '@deck.gl-community/editable-layers',
-    //   items: [
-    //     "editable-layers/editor",
-    //     "editable-layers/advanced"
-    //   ]
-    // },
     // {
     //   type: 'category',
     //   label: 'Declarative',
@@ -42,6 +27,42 @@ const sidebars = {
     //     }
     //   ]
     // }
+    {
+      type: 'category',
+      label: '@deck.gl-community/graph-layers',
+      items: [
+        "graph-layers/graph-viewer"
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/editable-layers',
+      items: [
+        "editable-layers/editor",
+        "editable-layers/advanced"
+      ]
+    },
+    // {
+    //   type: 'category',
+    //   label: '@deck.gl-community/arrow-layers',
+    //   items: [
+    //     "graph-layers/graph-viewer"
+    //   ]
+    // },
+    {
+      type: 'category',
+      label: '@deck.gl-community/bing-maps',
+      items: [
+        "bing-maps/get-started"
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/leaflet',
+      items: [
+        "leaflet/get-started"
+      ]
+    },
   ]
 };
 
