@@ -6,17 +6,28 @@ import {BaseLayout} from '../../core/base-layout';
 
 import {EDGE_TYPE} from '../../core/constants';
 
-const defaultOptions = {
-  alpha: 0.3,
-  resumeAlpha: 0.1,
-  nBodyStrength: -900,
-  nBodyDistanceMin: 100,
-  nBodyDistanceMax: 400,
-  getCollisionRadius: 0
+export type GPUForceLayoutOptions = {
+  alpha?: number;
+  resumeAlpha?: number;
+  nBodyStrength?: number;
+  nBodyDistanceMin?: number;
+  nBodyDistanceMax?: number;
+  getCollisionRadius?: number;
 };
 
-// TODO: this layout should be updated with the organizational and logic improvements made in d3-force
+/**
+ * @todo this layout should be updated with the organizational and logic improvements made in d3-force
+ */
 export class GPUForceLayout extends BaseLayout {
+  static defaultOptions: Required<GPUForceLayoutOptions> = {
+    alpha: 0.3,
+    resumeAlpha: 0.1,
+    nBodyStrength: -900,
+    nBodyDistanceMin: 100,
+    nBodyDistanceMax: 400,
+    getCollisionRadius: 0
+  };
+
   protected readonly _name: string = 'GPU';
   private _d3Graph: any;
   private _nodeMap: any;
@@ -24,11 +35,12 @@ export class GPUForceLayout extends BaseLayout {
   private _graph: any;
   private _worker: Worker;
   private _callbacks: any;
-  constructor(options) {
+
+  constructor(options: De) {
     super(options);
     this._name = 'GPU';
     this._options = {
-      ...defaultOptions,
+      ...GPUForceLayout.defaultOptions,
       ...options
     };
     // store graph and prepare internal data

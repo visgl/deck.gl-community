@@ -5,8 +5,7 @@
 import isEqual from 'lodash.isequal';
 import {EDGE_TYPE, LAYOUT_STATE} from './constants';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface BaseLayoutOptions {}
+export type BaseLayoutOptions = {};
 
 /**
  * All the layout classes are extended from this base layout class.
@@ -24,7 +23,7 @@ export class BaseLayout extends EventTarget {
    * Constructor of BaseLayout
    * @param  {Object} options extra configuration options of the layout
    */
-  constructor(options: BaseLayoutOptions = {}) {
+  constructor(options: BaseLayoutOptions) {
     super();
     this._options = options;
   }

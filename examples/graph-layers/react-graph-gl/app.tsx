@@ -1,7 +1,13 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import React, {Component} from 'react';
+import {createRoot} from 'react-dom/client';
 
 import {D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
-import {GraphGL} from '@deck.gl-community/react-graph-layers';
+// import {GraphGL} from '@deck.gl-community/react-graph-layers';
+import {GraphGL} from './react-graph-layers/graph-gl';
 
 // eslint-disable-next-line import/no-unresolved
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
@@ -10,7 +16,7 @@ const DEFAULT_NODE_SIZE = 5;
 
 const DEFAULT_DATASET = 'Random (20, 40)';
 
-class Root extends Component {
+class App extends Component {
   state = {
     selectedDataset: DEFAULT_DATASET
   };
@@ -58,4 +64,11 @@ class Root extends Component {
   }
 }
 
-export default Root;
+if (document.body) {
+  document.body.style.margin = '0';
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  root.render(<App />);
+}
+

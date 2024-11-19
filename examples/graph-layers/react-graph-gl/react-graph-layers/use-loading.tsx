@@ -5,6 +5,7 @@
 import {useLayoutEffect, useReducer} from 'react';
 
 const loadingReducer = (state, action) => {
+  console.log('loadingReducer', state, action);
   switch (action.type) {
     case 'startLayout':
       return {loaded: false, rendered: false, isLoading: true};
@@ -29,10 +30,12 @@ export const useLoading = (engine) => {
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
+    console.log('adding listeners')
     engine.addEventListener('onLayoutStart', layoutStarted);
     engine.addEventListener('onLayoutDone', layoutEnded);
 
     return () => {
+      console.log('removing listeners')
       engine.removeEventListener('onLayoutStart', layoutStarted);
       engine.removeEventListener('onLayoutDone', layoutEnded);
     };

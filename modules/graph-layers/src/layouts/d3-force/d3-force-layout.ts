@@ -6,25 +6,35 @@ import {BaseLayout} from '../../core/base-layout';
 
 import {EDGE_TYPE} from '../../core/constants';
 
-const defaultOptions = {
-  alpha: 0.3,
-  resumeAlpha: 0.1,
-  nBodyStrength: -900,
-  nBodyDistanceMin: 100,
-  nBodyDistanceMax: 400,
-  getCollisionRadius: 0
+export type D3ForceLayoutOptions = {
+  alpha?: number;
+  resumeAlpha?: number;
+  nBodyStrength?: number;
+  nBodyDistanceMin?: number;
+  nBodyDistanceMax?: number;
+  getCollisionRadius?: number;
 };
 
 export class D3ForceLayout extends BaseLayout {
+  static defaultOptions: Required<D3ForceLayoutOptions> = {
+    alpha: 0.3,
+    resumeAlpha: 0.1,
+    nBodyStrength: -900,
+    nBodyDistanceMin: 100,
+    nBodyDistanceMax: 400,
+    getCollisionRadius: 0
+  };
+
   protected readonly _name = 'D3';
   private _positionsByNodeId = new Map();
   private _graph: any;
   private _worker: any;
-  constructor(options) {
+
+  constructor(options?: D3ForceLayoutOptions) {
     super(options);
 
     this._options = {
-      ...defaultOptions,
+      ...D3ForceLayout.defaultOptions,
       ...options
     };
   }

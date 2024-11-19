@@ -11,7 +11,7 @@ import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {extent} from 'd3-array';
 import {useGraphEngine} from './use-graph-engine';
-import {useLoading} from './hooks/use-loading';
+import {useLoading} from './use-loading';
 
 const INITIAL_VIEW_STATE = {
   // the target origin of th view
