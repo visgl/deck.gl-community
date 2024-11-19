@@ -3,7 +3,7 @@
 Here's the method you will likely to implement when creating your own custom layout:
 
 ```js
-import {BaseLayout} from 'react-graph-layers';
+import {BaseLayout} from '@deck.gl-community/graph-layers';
 
 export default class MyLayout extends BaseLayout {
   // initialize the layout
@@ -184,7 +184,7 @@ getEdgePosition = (edge) => {
 ### Full source code
 
 ```js
-import {BaseLayout} from 'react-graph-layers';
+import {BaseLayout} from '@deck.gl-community/graph-layers';
 
 export default class RandomLayout extends BaseLayout {
   constructor(options) {

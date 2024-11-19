@@ -1,16 +1,16 @@
-# react-graph-layers
+# graph-layers
 
 <p align="center">
   <img src="https://i.imgur.com/BF9aOEu.png" height="400" />
 </p>
 
 ## Abstract
-react-graph-layers is a React component for visualizing large graphs with several utility functions. It can build a highly customizable graph visualization through its composable API. The rendering is powered by deck.gl which is a WebGL based visualization framework.  With react-graph-layers, users are enabled to build various type of graph/network applications with minimum efforts while having the capability to extend the existing styles and layouts.
+graph-layers is a React component for visualizing large graphs with several utility functions. It can build a highly customizable graph visualization through its composable API. The rendering is powered by deck.gl which is a WebGL based visualization framework.  With graph-layers, users are enabled to build various type of graph/network applications with minimum efforts while having the capability to extend the existing styles and layouts.
 
 ## Motivation
 Uber originally started this project as Graph.gl. After stopping efforts on Graph.gl, the OpenJS Foundation has resumed efforts.
 
-With react-graph-layers, developers are allowed to create graph visualization with minimum efforts while having the capability to override anything they want in the library.
+With graph-layers, developers are allowed to create graph visualization with minimum efforts while having the capability to override anything they want in the library.
 
 ## Roadmap
 
@@ -22,7 +22,7 @@ import GraphGL, {
   JSONLoader,
   NODE_TYPE,
   D3ForceLayout
-} from 'react-deck-graph-layers';
+} from 'deck-graph-layers';
 
 const App = ({data}) => {
   const graph = JSONLoader({
@@ -63,7 +63,7 @@ const App = ({data}) => {
 #### Clone the repo:
 
 ```
-git clone git@github.com:deck.gl-community/react-graph-layers.git
+git clone git@github.com:deck.gl-community/graph-layers.git
 ```
 
 #### Install yarn

@@ -36,13 +36,16 @@ export class GPUForceLayout extends BaseLayout {
   private _worker: Worker;
   private _callbacks: any;
 
-  constructor(options: De) {
-    super(options);
-    this._name = 'GPU';
-    this._options = {
+  constructor(options: GPUForceLayoutOptions) {
+    const _options = {
       ...GPUForceLayout.defaultOptions,
       ...options
     };
+
+    super(_options);
+
+    this._name = 'GPU';
+    this._options = _options;
     // store graph and prepare internal data
     this._d3Graph = {nodes: [], edges: []};
     this._nodeMap = {};

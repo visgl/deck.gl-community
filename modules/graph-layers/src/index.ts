@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-// react-graph-layers core
+// graph-layers core
 export {GraphEngine} from './core/graph-engine';
 export {Graph} from './core/graph';
 export {Node} from './core/node';
@@ -16,18 +16,18 @@ export {
   MARKER_TYPE
 } from './core/constants';
 
-// react-graph-layers layouts
+// graph-layers layouts
 export {BaseLayout} from './core/base-layout';
 export {D3ForceLayout} from './layouts/d3-force/d3-force-layout';
 export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
 export {SimpleLayout} from './layouts/simple-layout/simple-layout';
 
-// react-graph-layers loaders
+// graph-layers loaders
 export {JSONLoader} from './loaders/json-loader';
 export {basicNodeParser} from './loaders/node-parsers';
 export {basicEdgeParser} from './loaders/edge-parsers';
 
-// react-graph-layers utils
+// graph-layers utils
 export {createGraph} from './utils/create-graph';
 export * from './utils/layer-utils';
 export * from './utils/log';

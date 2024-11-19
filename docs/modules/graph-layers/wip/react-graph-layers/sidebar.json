@@ -1,6 +1,6 @@
 {
   "type": "category",
-  "label": "deck-react-graph-layers",
+  "label": "react-graph-layers",
   "items": [
     "modules/react-graph-layers/README",
     {

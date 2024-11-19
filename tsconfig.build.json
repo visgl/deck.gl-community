@@ -13,7 +13,6 @@
     {"path": "modules/graph-layers"},
     {"path": "modules/layers"},
     {"path": "modules/react"},
-    {"path": "modules/react-graph-layers"},
     {"path": "modules/template"}
   ],
   "include": ["modules/*/src"],

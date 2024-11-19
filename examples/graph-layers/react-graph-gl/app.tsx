@@ -6,7 +6,6 @@ import React, {Component} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import {D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
-// import {GraphGL} from '@deck.gl-community/react-graph-layers';
 import {GraphGL} from './react-graph-layers/graph-gl';
 
 // eslint-disable-next-line import/no-unresolved
