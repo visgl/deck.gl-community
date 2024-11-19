@@ -15,7 +15,7 @@ const DEFAULT_NODE_SIZE = 5;
 
 const DEFAULT_DATASET = 'Random (20, 40)';
 
-class App extends Component {
+export class App extends Component {
   state = {
     selectedDataset: DEFAULT_DATASET
   };

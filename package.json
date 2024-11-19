@@ -12,6 +12,7 @@
   },
   "type": "module",
   "workspaces": [
+    "examples/graph-layers/react-graph-gl",
     "examples/*",
     "modules/*"
   ],
