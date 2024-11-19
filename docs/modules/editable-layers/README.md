@@ -23,7 +23,7 @@ Provides editable and interactive map overlay layers, built using the power of [
 
 ## History
 
-A fork of @nebula.gl. [nebula.gl](https://nabula.gl) is an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
+A fork of @nebula.gl. [nebula.gl](https://nebula.gl) is an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
 
 ## What's New
 
