@@ -7,7 +7,7 @@
 ### Usage
 
 ```js
-import GraphGL, {JSONLoader, NODE_TYPE, D3ForceLayout} from 'react-graph-layers';
+import GraphGL, {JSONLoader, NODE_TYPE, D3ForceLayout} from '@deck.gl-community/graph-layers';
 
 const App = ({data}) => {
   const graph = JSONLoader({
@@ -60,13 +60,13 @@ const data = {
 Then, you can convert the data into `Graph` by `JSONLoader`:
 
 ```js
-import {JSONLoader} from 'react-graph-layers';
+import {JSONLoader} from '@deck.gl-community/graph-layers';
 const graph = JSONLoader({json: data});
 ```
 
 ### `layout` (Layout, required)
 
-Use one of the layouts provided by react-graph-layers or create a new custom layout class by following the instruction. For more detail, please see the Layout docs/api-reference/layout section.
+Use one of the layouts provided by @deck.gl-community/graph-layers or create a new custom layout class by following the instruction. For more detail, please see the Layout docs/api-reference/layout section.
 
 ### `initialViewState` (Object, optional)
 

@@ -1,6 +1,6 @@
 # Layouts
 
-Use one of the layouts provided by react-graph-layers. Right now react-graph-layers provides D3-Force and Simple layout for basic usage.
+Use one of the layouts provided by `@deck.gl-community/graph-layers`. Right now `@deck.gl-community/graph-layers` provides D3-Force and Simple layout for basic usage.
 
 ## SimpleLayout
 Please see /docs/api-reference/simple-layout.

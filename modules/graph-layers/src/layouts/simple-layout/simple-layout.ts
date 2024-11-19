@@ -7,25 +7,40 @@ import {Node} from '../../core/node';
 import {EDGE_TYPE} from '../../core/constants';
 import {Graph} from '../../core/graph';
 
-type AccessorVec2 = (node: Node) => [number, number];
-
-interface SimpleLayoutOptions extends BaseLayoutOptions {
-  nodePositionAccessor?: AccessorVec2;
-}
-
-const defaultOptions: Required<SimpleLayoutOptions> = {
-  nodePositionAccessor: (node) =>
-    [node.getPropertyValue('x'), node.getPropertyValue('y')] as [number, number]
+export type SimpleLayoutOptions = BaseLayoutOptions & {
+  /** The accessor lets the application supply the position ([x, y]) of each node.
+   * @example
+    ```js
+    <GraphGL
+      {...otherProps}
+      layout={
+        new SimpleLayout({
+          nodePositionAccessor: node => [
+            node.getPropertyValue('x'),
+            node.getPropertyValue('y'),
+          ]
+        })
+      }
+    />
+    ```
+  */
+  nodePositionAccessor?: (node: Node) => [number, number];
 };
 
+/** A basic layout where the application controls positions of each node */
 export class SimpleLayout extends BaseLayout {
+  static defaultOptions: Required<SimpleLayoutOptions> = {
+    nodePositionAccessor: (node) =>
+      [node.getPropertyValue('x'), node.getPropertyValue('y')] as [number, number]
+  };
+
   protected readonly _name = 'SimpleLayout';
   protected _graph: Graph | null = null;
   protected _nodeMap: Record<string, Node> = {};
-  protected _nodePositionMap: Record<string, AccessorVec2> = {};
+  protected _nodePositionMap: Record<string, (node: Node) => [number, number]> = {};
 
   constructor(options = {}) {
-    super({...defaultOptions, ...options});
+    super({...SimpleLayout.defaultOptions, ...options});
   }
 
   initializeGraph(graph: Graph): void {

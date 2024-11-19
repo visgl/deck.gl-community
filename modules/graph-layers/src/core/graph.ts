@@ -56,7 +56,7 @@ export class Graph extends EventTarget {
 
   /**
    * Perform a batch of operations defined by cb before indicating graph is updated
-   * @param {function} cb - a callback fuction containing the operations to perform
+   * @param {function} cb - a callback function containing the operations to perform
    */
   transaction<T>(cb: (...args: unknown[]) => T): T {
     try {

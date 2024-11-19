@@ -1,4 +1,4 @@
-// Components (originally from @deck.gl-community/react-graph-layers)
+// Components (originally from @deck.gl-community/graph-layers)
 
 export {LongPressButton} from './components/long-press-button';
 export {ViewControl} from './components/view-control';
