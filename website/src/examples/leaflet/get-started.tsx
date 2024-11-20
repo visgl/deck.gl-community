@@ -24,7 +24,7 @@ class AdvancedDemo extends Component {
 
     return (
       <BrowserOnly>
-        {() => <App {...otherProps} />}
+        {() => <div id="map" {...otherProps} />}
       </BrowserOnly>
     );
   }

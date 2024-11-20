@@ -29,8 +29,13 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Layers',
-      items: [layerDocs, editableLayerDocs, graphLayerDocs, arrowLayerDocs, experimentalDocs]
+      label: 'Non-Geospatial Layers',
+      items: [graphLayerDocs]
+    },
+    {
+      type: 'category',
+      label: 'Geospatial Layers',
+      items: [layerDocs, editableLayerDocs, arrowLayerDocs, experimentalDocs]
     },
     {
       type: 'category',

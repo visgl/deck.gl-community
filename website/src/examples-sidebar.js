@@ -49,6 +49,8 @@ const sidebars = {
     //     "graph-layers/graph-viewer"
     //   ]
     // },
+
+    // TODO - need BING map key
     {
       type: 'category',
       label: '@deck.gl-community/bing-maps',
@@ -56,6 +58,8 @@ const sidebars = {
         "bing-maps/get-started"
       ]
     },
+
+    // TODO - unclear why not rendering
     {
       type: 'category',
       label: '@deck.gl-community/leaflet',
