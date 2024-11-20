@@ -4,7 +4,7 @@
   <img src="/gatsby/images/layouts/simple.png" height="400" />
 </p>
 
-This example demonstrates how to render a pre-layout graph using react-graph-layers.
+This example demonstrates how to render a pre-layout graph using `@deck.gl-community/graph-layers`.
 You can pre-compute the layout and have the position information in each node.
 By simply specifying the `nodePositionAccessor` through constructor, you'll be able to render the graph right away.
 

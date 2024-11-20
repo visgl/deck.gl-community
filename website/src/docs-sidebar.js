@@ -17,7 +17,6 @@ const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
 const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');
 
 const reactDocs = require('../../docs/modules/react/sidebar.json');
-const reactGraphDocs = require('../../docs/modules/react-graph-layers/sidebar.json');
 
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
 
@@ -38,7 +37,7 @@ const sidebars = {
       label: 'Basemaps',
       items: [bingMapsDocs]
     },
-    {type: 'category', label: 'React Bindings', items: [reactDocs, reactGraphDocs]}
+    {type: 'category', label: 'React Bindings', items: [reactDocs]}
   ]
 };
 
