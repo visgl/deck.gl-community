@@ -73,6 +73,8 @@ const config = {
             '@deck.gl/react': resolve('../node_modules/@deck.gl/react'),
             '@luma.gl': resolve('../node_modules/@luma.gl'),
             '@math.gl': resolve('../node_modules/@math.gl'),
+            '@loaders.gl/csv': resolve('node_modules/@loaders.gl/csv'),
+            '@loaders.gl/json': resolve('node_modules/@loaders.gl/json'),
             '@loaders.gl/i3s': resolve('node_modules/@loaders.gl/i3s'),
             '@loaders.gl/las': resolve('node_modules/@loaders.gl/las'),
             '@loaders.gl/obj': resolve('node_modules/@loaders.gl/obj'),

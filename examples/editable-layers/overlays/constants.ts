@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 export const INITIAL_COORDS = {
   lon: -8.545295433037069,
   lat: 42.880392051799674
