@@ -5,7 +5,6 @@
 import {useLayoutEffect, useReducer} from 'react';
 
 const loadingReducer = (state, action) => {
-  console.log('loadingReducer', state, action);
   switch (action.type) {
     case 'startLayout':
       return {loaded: false, rendered: false, isLoading: true};
