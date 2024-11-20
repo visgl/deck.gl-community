@@ -10526,6 +10526,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"bing-deck-get-started-example@workspace:examples/bing-maps/get-started":
+  version: 0.0.0-use.local
+  resolution: "bing-deck-get-started-example@workspace:examples/bing-maps/get-started"
+  dependencies:
+    "@deck.gl/layers": "npm:^9.0.12"
+    typescript: "npm:^5.4.4"
+    vite: "npm:^5.2.8"
+  languageName: unknown
+  linkType: soft
+
 "bl@npm:^4.0.3, bl@npm:^4.1.0":
   version: 4.1.0
   resolution: "bl@npm:4.1.0"
@@ -16941,29 +16951,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"get-started-069449@workspace:examples/leaflet/get-started":
-  version: 0.0.0-use.local
-  resolution: "get-started-069449@workspace:examples/leaflet/get-started"
-  dependencies:
-    "@deck.gl/core": "npm:^9.0.12"
-    "@deck.gl/layers": "npm:^9.0.12"
-    "@types/leaflet": "npm:^1.9.12"
-    leaflet: "npm:^1.9.4"
-    typescript: "npm:^5.4.4"
-    vite: "npm:^5.2.8"
-  languageName: unknown
-  linkType: soft
-
-"get-started-6a1429@workspace:examples/bing-maps/get-started":
-  version: 0.0.0-use.local
-  resolution: "get-started-6a1429@workspace:examples/bing-maps/get-started"
-  dependencies:
-    "@deck.gl/layers": "npm:^9.0.12"
-    typescript: "npm:^5.4.4"
-    vite: "npm:^5.2.8"
-  languageName: unknown
-  linkType: soft
-
 "get-stream@npm:6.0.0":
   version: 6.0.0
   resolution: "get-stream@npm:6.0.0"
@@ -21073,6 +21060,19 @@ __metadata:
   checksum: 10c0/0d7c3f55361a0f6eda4788928b014a7b56685ceb62b5f8fc1daf0b1dedba4d02e6aa0069e21fee92c479b7dacfd2e8e951e5cdec908f1615b516ff9f91033030
   languageName: node
   linkType: hard
+
+"leaflet-deck-get-started-example@workspace:examples/leaflet/get-started":
+  version: 0.0.0-use.local
+  resolution: "leaflet-deck-get-started-example@workspace:examples/leaflet/get-started"
+  dependencies:
+    "@deck.gl/core": "npm:^9.0.12"
+    "@deck.gl/layers": "npm:^9.0.12"
+    "@types/leaflet": "npm:^1.9.12"
+    leaflet: "npm:^1.9.4"
+    typescript: "npm:^5.4.4"
+    vite: "npm:^5.2.8"
+  languageName: unknown
+  linkType: soft
 
 "leaflet@npm:^1.9.4":
   version: 1.9.4
