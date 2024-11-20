@@ -21,7 +21,7 @@ class AdvancedDemo extends Component {
     return (
       <BrowserOnly>
         {() => (
-          <>
+          <div>
             <style>
               {`
     body {margin: 0; font-family: sans-serif; overflow: hidden;}
@@ -33,7 +33,7 @@ class AdvancedDemo extends Component {
     `}
             </style>
             <App {...otherProps} />
-          </>
+          </div>
         )}
       </BrowserOnly>
     );
