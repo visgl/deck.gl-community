@@ -12,11 +12,8 @@
   },
   "type": "module",
   "workspaces": [
-    "examples/graph-layers/**",
-    "examples/editable-layers/**",
-    "examples/bing-maps/**",
-    "examples/leaflet/**",
-    "modules/*"
+    "modules/*",
+    "examples/**"
   ],
   "scripts": {
     "bootstrap": "ocular-bootstrap",
@@ -73,7 +70,7 @@
   },
   "volta": {
     "node": "20.11.1",
-    "yarn": "4.3.1"
+    "yarn": "4.5.1"
   },
   "packageManager": "yarn@4.4.0"
 }

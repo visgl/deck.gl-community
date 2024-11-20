@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 const hexagonCluster1 = [
   '89283082a17ffff',
   '8928308769bffff',

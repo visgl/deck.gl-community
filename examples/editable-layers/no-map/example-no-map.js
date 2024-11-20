@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // TODO Fix this example and re-enable ESLint below.
 // eslint-disable-next-line import/named
 import {BitmapLayer} from '@deck.gl/layers';
