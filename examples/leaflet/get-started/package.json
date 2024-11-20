@@ -1,4 +1,6 @@
 {
+  "name": "leaflet-deck-get-started-example",
+  "private": true,
   "license": "MIT",
   "type": "module",
   "scripts": {

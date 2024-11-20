@@ -51,6 +51,7 @@ const config = {
           modules: [resolve('node_modules'), resolve('../node_modules')],
           alias: {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
+            '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),

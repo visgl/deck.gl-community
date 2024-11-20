@@ -1,4 +1,6 @@
 {
+  "name": "bing-deck-get-started-example",
+  "private": true,
   "license": "MIT",
   "type": "module",
   "scripts": {
