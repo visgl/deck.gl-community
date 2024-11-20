@@ -12,11 +12,12 @@
   },
   "type": "module",
   "workspaces": [
+    "examples/graph-layers/react-graph-gl",
     "examples/*",
     "modules/*"
   ],
   "workspaces_examples": [
-    "examples/graph-layers/react-graph-gl",
+    "examples/graph-layers/*",
     "examples/editable-layers/editor"
   ],
   "scripts": {
