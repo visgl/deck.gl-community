@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {PureComponent} from 'react';
-import PropTypes from 'prop-types';
+import {Component} from 'preact';
 
-export class LongPressButton extends PureComponent {
-  static propTypes = {
-    onClick: PropTypes.func.isRequired,
-    // eslint-disable-next-line react/forbid-prop-types
-    children: PropTypes.any.isRequired
-  };
+export type LongPressButtonProps = {
+  onClick: () => void;
+  children: any;
+};
+
+export class LongPressButton extends Component<LongPressButtonProps> {
 
   buttonPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   _repeat = () => {
     if (this.buttonPressTimer) {
-      (this.props as any).onClick();
+      this.props.onClick();
       this.buttonPressTimer = setTimeout(this._repeat, 100);
     }
   };
@@ -33,14 +32,16 @@ export class LongPressButton extends PureComponent {
   };
 
   render() {
+    console.log('long')
     return (
       <div
         onMouseDown={(event) => {
+          console.log('press')
           this._handleButtonPress();
           document.addEventListener('mouseup', this._handleButtonRelease, {once: true});
         }}
       >
-        {(this.props as any).children}
+        {this.props.children}
       </div>
     );
   }

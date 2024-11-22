@@ -8,6 +8,7 @@ import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
 import {BaseLayout, Graph, GraphLayer, log, SimpleLayout} from '@deck.gl-community/graph-layers';
 import {PositionedViewControl} from '@deck.gl-community/react';
+import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 
 import {extent} from 'd3-array';
 import {useGraphEngine} from './use-graph-engine';
@@ -211,10 +212,14 @@ export const GraphGL = ({
               ]
             ) as any
           }
+          widgets={[
+            new ViewControlWidget({})
+          ]}
           getTooltip={getTooltip}
           onHover={onHover}
         />
-        <ViewControlComponent
+        {/* View control component        
+         <ViewControlComponent
           fitBounds={fitBounds}
           panBy={panBy}
           zoomBy={zoomBy}
@@ -222,6 +227,7 @@ export const GraphGL = ({
           maxZoom={maxZoom}
           minZoom={minZoom}
         />
+        */}
       </div>
     </>
   );
