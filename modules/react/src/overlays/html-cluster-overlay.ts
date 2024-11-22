@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {point} from '@turf/helpers';
 import Supercluster from 'supercluster';
 import {HtmlOverlay} from './html-overlay';

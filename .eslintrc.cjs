@@ -61,7 +61,15 @@ module.exports = getESLintConfig({
           ],
           '@typescript-eslint/no-empty-function': 0
         }
+      },
+      {
+        files: ['modules/**/*widget*.tsx', 'modules/**/widgets/**/*'],
+        rules: {
+          // For widgets. Disable React-style JSX linting since they conflict with Preact JSX.
+          'react/react-in-jsx-scope': 0
+        }
       }
+
     ],
     rules: {
       // custom rules

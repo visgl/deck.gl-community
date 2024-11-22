@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@deck.gl-community/graph-layers": "9.0.2",
+    "@deck.gl-community/react": "9.0.2",
     "deck.gl": "^9.0.0"
   },
   "devDependencies": {

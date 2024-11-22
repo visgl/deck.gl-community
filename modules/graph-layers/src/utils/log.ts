@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Log, COLOR} from 'probe.gl';
+import {Log, COLOR} from '@probe.gl/log';
 
 export const log = new Log({id: 'graph-layers'}).enable();
 
