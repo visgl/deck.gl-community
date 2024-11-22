@@ -45,7 +45,7 @@ export type NavigationButtonProps = {
   top: any;
   rotate?: number;
   children?: any;
-  onClick: () => {}
+  onClick: () => {};
 };
 
 export const NavigationButton = (props: NavigationButtonProps) => (
@@ -199,7 +199,7 @@ export class ViewControl extends Component<ViewControlProps> {
             top={'12px'}
             left={'16px'}
             onClick={() => {
-              console.log('on click fit bounds') || this.props.fitBounds;
+              // console.log('on click fit bounds') || this.props.fitBounds;
             }}
           >
             {'¤'}
@@ -267,7 +267,13 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
         this.element.style.setProperty(key, value as string)
       );
     }
-    const ui = <ViewControl {...this.props} zoomBy={this.handleDeltaZoom.bind(this)} />;
+    const ui = (
+      <ViewControl
+        {...this.props}
+        zoomBy={this.handleDeltaZoom.bind(this)}
+        panBy={this.handlePanBy.bind(this)}
+      />
+    );
     render(ui, this.element);
 
     return this.element;
@@ -287,8 +293,16 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
   }
 
   handleDeltaZoom(deltaZoom: number) {
+    // console.log('Handle delta zoom');
     for (const viewport of Object.values(this.viewports)) {
       this.handleZoomViewport(viewport, viewport.zoom + deltaZoom);
+    }
+  }
+
+  handlePanBy(deltaX: number, deltaY: number) {
+    // console.log('Handle panby', deltaX, deltaY);
+    for (const viewport of Object.values(this.viewports)) {
+      this.handlePanViewport(viewport, deltaX, deltaY);
     }
   }
 
@@ -303,5 +317,19 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
 
     // @ts-ignore Using private method temporary until there's a public one
     this.deck._onViewStateChange({viewId, viewState: nextViewState, interactionState: {}});
+  }
+
+  handlePanViewport(viewport: Viewport, deltaX: number, deltaY: number) {
+    // console.log('Handle pan viewport', deltaX, deltaY);
+    const nextViewState = {
+      ...viewport,
+      position: [viewport.position[0] + deltaX, viewport.position[1] + deltaY]
+    };
+
+    this.deck._onViewStateChange({
+      viewId: viewport.id,
+      viewState: nextViewState,
+      interactionState: {}
+    });
   }
 }

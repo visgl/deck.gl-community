@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-export const IconButton = props => {
+export const IconButton = (props) => {
   const {className, label, onClick} = props;
   return (
     <div className="deck-widget-button">
@@ -18,12 +18,12 @@ export const IconButton = props => {
   );
 };
 
-export const ButtonGroup = props => {
+export const ButtonGroup = (props) => {
   const {children, orientation} = props;
   return <div className={`deck-widget-button-group ${orientation}`}>{children}</div>;
 };
 
-export const GroupedIconButton = props => {
+export const GroupedIconButton = (props) => {
   const {className, label, onClick} = props;
   return (
     <button

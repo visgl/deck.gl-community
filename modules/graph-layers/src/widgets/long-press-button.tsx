@@ -10,7 +10,6 @@ export type LongPressButtonProps = {
 };
 
 export class LongPressButton extends Component<LongPressButtonProps> {
-
   buttonPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   _repeat = () => {
@@ -32,16 +31,19 @@ export class LongPressButton extends Component<LongPressButtonProps> {
   };
 
   render() {
-    console.log('long')
     return (
-      <div
-        onMouseDown={(event) => {
-          console.log('press')
-          this._handleButtonPress();
-          document.addEventListener('mouseup', this._handleButtonRelease, {once: true});
-        }}
-      >
-        {this.props.children}
+      <div className="deck-widget-button">
+        <div
+          style={{
+            pointerEvents: 'auto'
+          }}
+          onMouseDown={(event) => {
+            this._handleButtonPress();
+            document.addEventListener('mouseup', this._handleButtonRelease, {once: true});
+          }}
+        >
+          {this.props.children}
+        </div>
       </div>
     );
   }
