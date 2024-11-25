@@ -308,7 +308,7 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
 
   handleZoomView(viewport: Viewport, nextZoom: number) {
     const viewId = this.viewId || viewport?.id || 'default-view';
-    // @ts-expect-error
+    // @ts-expect-error TODO we lack a proper API for getting viewStates
     const viewState = this.deck.viewManager.viewState || viewport;
     const nextViewState = {
       ...viewState,
@@ -323,15 +323,15 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
 
   handlePanViewport(viewport: Viewport, deltaX: number, deltaY: number) {
     const viewId = this.viewId || viewport?.id || 'default-view';
-    // @ts-expect-error
+    // @ts-expect-error TODO we lack a proper API for getting viewStates
     const viewState = this.deck.viewManager.viewState || viewport;
-    console.log('Handle pan viewport', deltaX, deltaY, viewState);
+    // console.log('Handle pan viewport', deltaX, deltaY, viewState);
     const nextViewState = {
       ...viewState,
       position: [viewport.position[0] + deltaX, viewport.position[1] + deltaY]
     };
 
     // @ts-ignore Using private method temporary until there's a public one
-    this.deck._onViewStateChange({ viewId, viewState: nextViewState, interactionState: {}});
+    this.deck._onViewStateChange({viewId, viewState: nextViewState, interactionState: {}});
   }
 }
