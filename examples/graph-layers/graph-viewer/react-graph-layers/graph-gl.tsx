@@ -9,6 +9,7 @@ import {OrthographicView} from '@deck.gl/core';
 import {BaseLayout, Graph, GraphLayer, log, SimpleLayout} from '@deck.gl-community/graph-layers';
 import {PositionedViewControl} from '@deck.gl-community/react';
 import {ViewControlWidget} from '@deck.gl-community/graph-layers';
+import '@deck.gl/widgets/stylesheet.css';
 
 import {extent} from 'd3-array';
 import {useGraphEngine} from './use-graph-engine';

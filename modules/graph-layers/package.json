@@ -33,6 +33,7 @@
   "dependencies": {
     "@deck.gl/core": "^9.0.12",
     "@deck.gl/layers": "^9.0.12",
+    "@deck.gl/widgets": "^9.0.12",
     "@luma.gl/core": "^9.0.12",
     "@probe.gl/log": "^4.0.4",
     "cardinal-spline-js": "^2.3.10",

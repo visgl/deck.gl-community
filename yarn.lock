@@ -3289,6 +3289,7 @@ __metadata:
   dependencies:
     "@deck.gl/core": "npm:^9.0.12"
     "@deck.gl/layers": "npm:^9.0.12"
+    "@deck.gl/widgets": "npm:^9.0.12"
     "@luma.gl/core": "npm:^9.0.12"
     "@probe.gl/log": "npm:^4.0.4"
     cardinal-spline-js: "npm:^2.3.10"
@@ -3303,6 +3304,7 @@ __metadata:
     lodash.isequal: "npm:^4.5.0"
     lodash.pick: "npm:^4.4.0"
     ngraph.generators: "npm:^20.1.0"
+    preact: "npm:^10.17.0"
     raf: "npm:^3.4.1"
   languageName: unknown
   linkType: soft
@@ -3777,7 +3779,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@deck.gl/widgets@npm:9.0.35":
+"@deck.gl/widgets@npm:9.0.35, @deck.gl/widgets@npm:^9.0.12":
   version: 9.0.35
   resolution: "@deck.gl/widgets@npm:9.0.35"
   dependencies:

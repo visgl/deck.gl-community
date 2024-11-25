@@ -294,22 +294,24 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
 
   handleDeltaZoom(deltaZoom: number) {
     // console.log('Handle delta zoom');
-    for (const viewport of Object.values(this.viewports)) {
-      this.handleZoomViewport(viewport, viewport.zoom + deltaZoom);
+    for (const view of this.deck.getViewports()) {
+      this.handleZoomView(view, view.zoom + deltaZoom);
     }
   }
 
   handlePanBy(deltaX: number, deltaY: number) {
     // console.log('Handle panby', deltaX, deltaY);
-    for (const viewport of Object.values(this.viewports)) {
+    for (const viewport of this.deck.getViewports()) {
       this.handlePanViewport(viewport, deltaX, deltaY);
     }
   }
 
-  handleZoomViewport(viewport: Viewport, nextZoom: number) {
+  handleZoomView(viewport: Viewport, nextZoom: number) {
     const viewId = this.viewId || viewport?.id || 'default-view';
+    // @ts-expect-error
+    const viewState = this.deck.viewManager.viewState || viewport;
     const nextViewState = {
-      ...viewport,
+      ...viewState,
       zoom: nextZoom
       // transitionDuration: this.props.transitionDuration,
       // transitionInterpolator: new FlyToInterpolator()
@@ -320,16 +322,16 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
   }
 
   handlePanViewport(viewport: Viewport, deltaX: number, deltaY: number) {
-    // console.log('Handle pan viewport', deltaX, deltaY);
+    const viewId = this.viewId || viewport?.id || 'default-view';
+    // @ts-expect-error
+    const viewState = this.deck.viewManager.viewState || viewport;
+    console.log('Handle pan viewport', deltaX, deltaY, viewState);
     const nextViewState = {
-      ...viewport,
+      ...viewState,
       position: [viewport.position[0] + deltaX, viewport.position[1] + deltaY]
     };
 
-    this.deck._onViewStateChange({
-      viewId: viewport.id,
-      viewState: nextViewState,
-      interactionState: {}
-    });
+    // @ts-ignore Using private method temporary until there's a public one
+    this.deck._onViewStateChange({ viewId, viewState: nextViewState, interactionState: {}});
   }
 }
