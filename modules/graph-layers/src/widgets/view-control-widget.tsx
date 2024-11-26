@@ -45,7 +45,7 @@ export type NavigationButtonProps = {
   top: any;
   rotate?: number;
   children?: any;
-  onClick: () => {};
+  onClick?: () => void;
 };
 
 export const NavigationButton = (props: NavigationButtonProps) => (
