@@ -37,6 +37,7 @@
     "@turf/helpers": "^6.5.0",
     "@types/styled-react-modal": "^1.2.5",
     "boxicons": "^2.1.4",
+    "preact": "^10.17.0",
     "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

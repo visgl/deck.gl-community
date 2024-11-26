@@ -40,3 +40,7 @@ export {EdgeLayer} from './layers/edge-layer';
 
 /** @deprecated Use EdgeLayer */
 export {EdgeLayer as CompositeEdgeLayer} from './layers/edge-layer';
+
+// Widgets
+
+export {ViewControlWidget} from './widgets/view-control-widget';

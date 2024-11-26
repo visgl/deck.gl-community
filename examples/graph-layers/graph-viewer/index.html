@@ -1,10 +1,13 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <title>deck.gl Community Example</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-    </head>
-    <body></body>
-    <script type="module" src="./app.tsx"></script>
+  <head>
+    <meta charset="utf-8" />
+    <title>deck.gl Community Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body></body>
+  <script type="module">
+    import {renderToDOM} from "./app.tsx";
+    renderToDOM(document.body);
+  </script>
 </html>
