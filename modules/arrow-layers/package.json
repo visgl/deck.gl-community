@@ -3,7 +3,7 @@
   "name": "@deck.gl-community/arrow-layers",
   "description": "A suite of Apache Arrow enabled layers for deck.gl",
   "license": "MIT",
-  "version": "9.0.2",
+  "version": "9.1.0-beta.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/visgl/deck.gl-community"
@@ -41,10 +41,10 @@
     "threads": "^1.7.0"
   },
   "peerDependencies": {
-    "@deck.gl/aggregation-layers": "^9.0.12",
-    "@deck.gl/core": "^9.0.12",
-    "@deck.gl/geo-layers": "^9.0.12",
-    "@deck.gl/layers": "^9.0.12"
+    "@deck.gl/aggregation-layers": "^9.1.0-beta",
+    "@deck.gl/core": "^9.1.0-beta",
+    "@deck.gl/geo-layers": "^9.1.0-beta",
+    "@deck.gl/layers": "^9.1.0-beta"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
 }
