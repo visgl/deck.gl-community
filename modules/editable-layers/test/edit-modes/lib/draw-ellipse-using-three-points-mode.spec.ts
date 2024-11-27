@@ -91,7 +91,7 @@ describe('dragToDraw=false', () => {
     const resultFeatures = result.updatedData.features;
     const newFeature = resultFeatures[resultFeatures.length - 1];
     expect(newFeature.properties.shape).toEqual('Ellipse');
-    expect(newFeature.properties.center).toEqual([2,3.5]);
+    expect(newFeature.properties.center).toEqual([2, 3.5]);
     expect(newFeature.properties.xSemiAxis.unit).toEqual('kilometers');
     expect(newFeature.properties.ySemiAxis.unit).toEqual('kilometers');
     expect(newFeature.properties.xSemiAxis.value).closeTo(55.59754011676645, 1e-9);

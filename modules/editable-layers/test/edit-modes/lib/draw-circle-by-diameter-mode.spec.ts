@@ -71,7 +71,7 @@ describe('dragToDraw=false', () => {
     const resultFeatures = result.updatedData.features;
     const newFeature = resultFeatures[resultFeatures.length - 1];
     expect(newFeature.properties.shape).toEqual('Circle');
-    expect(newFeature.properties.center).toEqual([1.5,2.5]);
+    expect(newFeature.properties.center).toEqual([1.5, 2.5]);
     expect(newFeature.properties.radius.unit).toEqual('kilometers');
     expect(newFeature.properties.radius.value).closeTo(78.5963665364247, 1e-9);
     expect(newFeature.geometry.type).toEqual('Polygon');
