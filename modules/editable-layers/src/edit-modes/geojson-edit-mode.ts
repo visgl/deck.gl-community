@@ -118,17 +118,19 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 
   getAddFeatureAction(
     featureOrGeometry: Geometry | Feature,
-    features: FeatureCollection
+    features: FeatureCollection,
+    featureProperties?: {}
   ): GeoJsonEditAction {
     // Unsure why flow can't deal with Geometry type, but there I fixed it
     const featureOrGeometryAsAny: any = featureOrGeometry;
+    featureProperties = featureProperties || {};
 
     const feature: any =
       featureOrGeometryAsAny.type === 'Feature'
         ? featureOrGeometryAsAny
         : {
             type: 'Feature',
-            properties: {},
+            properties: featureProperties,
             geometry: featureOrGeometryAsAny
           };
 
@@ -173,11 +175,14 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     };
   }
 
+  // eslint-disable-next-line complexity
   getAddFeatureOrBooleanPolygonAction(
     featureOrGeometry: Polygon | Feature,
-    props: ModeProps<FeatureCollection>
+    props: ModeProps<FeatureCollection>,
+    featureProperties?: {}
   ): GeoJsonEditAction | null | undefined {
     const featureOrGeometryAsAny: any = featureOrGeometry;
+    featureProperties = featureProperties || {};
 
     const selectedFeature = this.getSelectedFeature(props);
     const {modeConfig} = props;
@@ -240,7 +245,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 
       return editAction;
     }
-    return this.getAddFeatureAction(featureOrGeometry, props.data);
+    return this.getAddFeatureAction(featureOrGeometry, props.data, featureProperties);
   }
 
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature | null {

@@ -11,6 +11,7 @@ import {
 } from './types';
 import {Position, Polygon, FeatureOf, FeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {omit} from 'lodash';
 
 export class ThreeClickPolygonMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
@@ -23,7 +24,11 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
       tentativeFeature &&
       tentativeFeature.geometry.type === 'Polygon'
     ) {
-      const editAction = this.getAddFeatureOrBooleanPolygonAction(tentativeFeature.geometry, props);
+      const editAction = this.getAddFeatureOrBooleanPolygonAction(
+        tentativeFeature.geometry,
+        props,
+        omit(tentativeFeature.properties, 'guideType')
+      );
       this.resetClickSequence();
 
       if (editAction) {
@@ -70,6 +75,7 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
         guides.features.push({
           type: 'Feature',
           properties: {
+            ...polygon.properties,
             guideType: 'tentative'
           },
           geometry: polygon.geometry
