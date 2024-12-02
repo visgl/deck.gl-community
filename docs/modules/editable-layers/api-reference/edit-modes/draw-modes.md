@@ -132,7 +132,7 @@ The following options can be provided in the `modeConfig` object:
 
 ## DrawCircleFromCenterMode
 
-User can draw a new circular `Polygon` feature by clicking the center then along the ring.
+User can draw a new circular `Polygon` feature by clicking the center then along the ring. Properties of the circle will be added to the resulting geometry in the object editProperties.
 
 The following options can be provided in the `modeConfig` object:
 
@@ -145,7 +145,7 @@ The following options can be provided in the `modeConfig` object:
 
 ## DrawCircleByDiameterMode
 
-User can draw a new circular `Polygon` feature by clicking the two ends of its diameter.
+User can draw a new circular `Polygon` feature by clicking the two ends of its diameter. Properties of the circle will be added to the resulting geometry in the object editProperties.
 
 The following options can be provided in the `modeConfig` object:
 
@@ -158,7 +158,7 @@ The following options can be provided in the `modeConfig` object:
 
 ## DrawEllipseByBoundingBoxMode
 
-User can draw a new ellipse shape `Polygon` feature by clicking two corners of bounding box.
+User can draw a new ellipse shape `Polygon` feature by clicking two corners of bounding box. Properties of the ellipse will be added to the resulting geometry in the object editProperties.
 
 The following options can be provided in the `modeConfig` object:
 
@@ -169,7 +169,7 @@ The following options can be provided in the `modeConfig` object:
 
 ## DrawEllipseUsingThreePointsMode
 
-User can draw a new ellipse shape `Polygon` feature by clicking center and two corners of the ellipse.
+User can draw a new ellipse shape `Polygon` feature by clicking three points along the ring. Properties of the ellipse will be added to the resulting geometry in the object editProperties.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-ellipse-using-three-points-mode.ts)
 
