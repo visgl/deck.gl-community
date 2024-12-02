@@ -70,10 +70,10 @@ describe('dragToDraw=false', () => {
 
     const resultFeatures = result.updatedData.features;
     const newFeature = resultFeatures[resultFeatures.length - 1];
-    expect(newFeature.properties.shape).toEqual('Circle');
-    expect(newFeature.properties.center).toEqual([1.5, 2.5]);
-    expect(newFeature.properties.radius.unit).toEqual('kilometers');
-    expect(newFeature.properties.radius.value).closeTo(78.5963665364247, 1e-9);
+    expect(newFeature.properties.editProperties.shape).toEqual('Circle');
+    expect(newFeature.properties.editProperties.center).toEqual([1.5, 2.5]);
+    expect(newFeature.properties.editProperties.radius.unit).toEqual('kilometers');
+    expect(newFeature.properties.editProperties.radius.value).closeTo(78.5963665364247, 1e-9);
     expect(newFeature.geometry.type).toEqual('Polygon');
     expect(newFeature.geometry.coordinates[0].length).toEqual(65);
   });

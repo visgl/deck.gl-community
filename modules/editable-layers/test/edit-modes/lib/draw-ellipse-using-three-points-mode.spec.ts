@@ -90,13 +90,13 @@ describe('dragToDraw=false', () => {
 
     const resultFeatures = result.updatedData.features;
     const newFeature = resultFeatures[resultFeatures.length - 1];
-    expect(newFeature.properties.shape).toEqual('Ellipse');
-    expect(newFeature.properties.center).toEqual([2, 3.5]);
-    expect(newFeature.properties.xSemiAxis.unit).toEqual('kilometers');
-    expect(newFeature.properties.ySemiAxis.unit).toEqual('kilometers');
-    expect(newFeature.properties.xSemiAxis.value).closeTo(55.59754011676645, 1e-9);
-    expect(newFeature.properties.ySemiAxis.value).closeTo(200.33769586103622, 1e-9);
-    expect(newFeature.properties.angle).closeTo(33.58534207212082, 1e-9);
+    expect(newFeature.properties.editProperties.shape).toEqual('Ellipse');
+    expect(newFeature.properties.editProperties.center).toEqual([2, 3.5]);
+    expect(newFeature.properties.editProperties.xSemiAxis.unit).toEqual('kilometers');
+    expect(newFeature.properties.editProperties.ySemiAxis.unit).toEqual('kilometers');
+    expect(newFeature.properties.editProperties.xSemiAxis.value).closeTo(55.59754011676645, 1e-9);
+    expect(newFeature.properties.editProperties.ySemiAxis.value).closeTo(200.33769586103622, 1e-9);
+    expect(newFeature.properties.editProperties.angle).closeTo(33.58534207212082, 1e-9);
     expect(newFeature.geometry.type).toEqual('Polygon');
     expect(newFeature.geometry.coordinates[0].length).toEqual(65);
   });

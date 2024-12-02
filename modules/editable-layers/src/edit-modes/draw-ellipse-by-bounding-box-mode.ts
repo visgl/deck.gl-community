@@ -26,11 +26,12 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
     const geometry = ellipse(centerCoordinates, xSemiAxis, ySemiAxis);
 
     geometry.properties = geometry.properties || {};
-    geometry.properties.shape = 'Ellipse';
-    geometry.properties.xSemiAxis = {value: xSemiAxis, unit: 'kilometers'};
-    geometry.properties.ySemiAxis = {value: ySemiAxis, unit: 'kilometers'};
-    geometry.properties.angle = 0;
-    geometry.properties.center = centerCoordinates;
+    geometry.properties.editProperties = geometry.properties.editProperties || {};
+    geometry.properties.editProperties.shape = 'Ellipse';
+    geometry.properties.editProperties.xSemiAxis = {value: xSemiAxis, unit: 'kilometers'};
+    geometry.properties.editProperties.ySemiAxis = {value: ySemiAxis, unit: 'kilometers'};
+    geometry.properties.editProperties.angle = 0;
+    geometry.properties.editProperties.center = centerCoordinates;
     // @ts-expect-error fix return types
     return geometry;
   }
