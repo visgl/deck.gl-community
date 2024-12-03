@@ -113,7 +113,7 @@ function getEditHandleRadius(handle) {
   }
 }
 
-export type EditableGeojsonLayerProps<DataT = any> = EditableLayerProps & {
+export type EditableGeoJsonLayerProps<DataT = any> = EditableLayerProps & {
   data: DataT;
   mode?: any;
   modeConfig?: any;
@@ -173,7 +173,7 @@ export type EditableGeojsonLayerProps<DataT = any> = EditableLayerProps & {
   billboard?: boolean;
 };
 
-const defaultProps: DefaultProps<EditableGeojsonLayerProps<any>> = {
+const defaultProps: DefaultProps<EditableGeoJsonLayerProps<any>> = {
   mode: DEFAULT_EDIT_MODE,
 
   // Edit and interaction events
@@ -272,7 +272,7 @@ const modeNameMapping = {
 
 export class EditableGeoJsonLayer extends EditableLayer<
   FeatureCollection,
-  EditableGeojsonLayerProps<FeatureCollection>
+  EditableGeoJsonLayerProps<FeatureCollection>
 > {
   static layerName = 'EditableGeoJsonLayer';
   static defaultProps = defaultProps;
@@ -413,7 +413,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
     this.setState({selectedFeatures});
   }
 
-  getModeProps(props: EditableGeojsonLayerProps<any>) {
+  getModeProps(props: EditableGeoJsonLayerProps<any>) {
     return {
       modeConfig: props.modeConfig,
       data: props.data,
