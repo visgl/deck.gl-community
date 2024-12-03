@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {beforeEach, afterEach, describe, it, expect} from 'vitest';
-import {DrawCircleByDiameterMode} from '../../../src/edit-modes/draw-circle-by-diameter-mode';
+import {DrawEllipseUsingThreePointsMode} from '../../../src/edit-modes/draw-ellipse-using-three-points-mode';
 import {
   createFeatureCollectionProps,
   createFeatureCollection,
@@ -34,8 +34,8 @@ afterEach(() => {
 });
 
 describe('dragToDraw=false', () => {
-  it('sets tentative feature to a Polygon after first click', () => {
-    const mode = new DrawCircleByDiameterMode();
+  it('sets tentative feature to a LineString after first click', () => {
+    const mode = new DrawEllipseUsingThreePointsMode();
 
     const props = createFeatureCollectionProps();
     props.lastPointerMoveEvent = createPointerMoveEvent([1, 2]);
@@ -47,20 +47,40 @@ describe('dragToDraw=false', () => {
     if (!tentativeFeature) {
       throw new Error('Should have tentative feature');
     }
+    expect(tentativeFeature.geometry.type).toEqual('LineString');
+    expect(tentativeFeature.geometry.coordinates.length).toEqual(2);
+  });
 
+  it('sets tentative feature to a Polygon after second click', () => {
+    const mode = new DrawEllipseUsingThreePointsMode();
+
+    const props = createFeatureCollectionProps();
+    props.lastPointerMoveEvent = createPointerMoveEvent([1, 2]);
+    mode.handleClick(createClickEvent([1, 2]), props);
+    props.lastPointerMoveEvent = createPointerMoveEvent([3, 5]);
+    mode.handleClick(createClickEvent([3, 5]), props);
+    props.lastPointerMoveEvent = createPointerMoveEvent([2, 4]);
+
+    const tentativeFeature = mode.getTentativeGuide(props);
+
+    if (!tentativeFeature) {
+      throw new Error('Should have tentative feature');
+    }
     expect(tentativeFeature.geometry.type).toEqual('Polygon');
     // @ts-expect-error TODO
     expect(tentativeFeature.geometry.coordinates[0].length).toEqual(65);
   });
 
   it('adds a new feature after two clicks', () => {
-    const mode = new DrawCircleByDiameterMode();
+    const mode = new DrawEllipseUsingThreePointsMode();
 
     const props = createFeatureCollectionProps();
     props.lastPointerMoveEvent = createPointerMoveEvent([1, 2]);
     mode.handleClick(createClickEvent([1, 2]), props);
-    props.lastPointerMoveEvent = createPointerMoveEvent([2, 3]);
-    mode.handleClick(createClickEvent([2, 3]), props);
+    props.lastPointerMoveEvent = createPointerMoveEvent([3, 5]);
+    mode.handleClick(createClickEvent([3, 5]), props);
+    props.lastPointerMoveEvent = createPointerMoveEvent([2, 4]);
+    mode.handleClick(createClickEvent([2, 4]), props);
 
     expect(props.onEdit).toHaveBeenCalledTimes(1);
     // @ts-expect-error TODO
@@ -70,10 +90,13 @@ describe('dragToDraw=false', () => {
 
     const resultFeatures = result.updatedData.features;
     const newFeature = resultFeatures[resultFeatures.length - 1];
-    expect(newFeature.properties.editProperties.shape).toEqual('Circle');
-    expect(newFeature.properties.editProperties.center).toEqual([1.5, 2.5]);
-    expect(newFeature.properties.editProperties.radius.unit).toEqual('kilometers');
-    expect(newFeature.properties.editProperties.radius.value).closeTo(78.5963665364247, 1e-9);
+    expect(newFeature.properties.editProperties.shape).toEqual('Ellipse');
+    expect(newFeature.properties.editProperties.center).toEqual([2, 3.5]);
+    expect(newFeature.properties.editProperties.xSemiAxis.unit).toEqual('kilometers');
+    expect(newFeature.properties.editProperties.ySemiAxis.unit).toEqual('kilometers');
+    expect(newFeature.properties.editProperties.xSemiAxis.value).closeTo(55.59754011676645, 1e-9);
+    expect(newFeature.properties.editProperties.ySemiAxis.value).closeTo(200.33769586103622, 1e-9);
+    expect(newFeature.properties.editProperties.angle).closeTo(33.58534207212082, 1e-9);
     expect(newFeature.geometry.type).toEqual('Polygon');
     expect(newFeature.geometry.coordinates[0].length).toEqual(65);
   });

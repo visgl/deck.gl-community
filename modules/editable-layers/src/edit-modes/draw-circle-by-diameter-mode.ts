@@ -38,6 +38,10 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
 
     geometry.properties = geometry.properties || {};
     geometry.properties.shape = 'Circle';
+    geometry.properties.editProperties = geometry.properties.editProperties || {};
+    geometry.properties.editProperties.shape = 'Circle';
+    geometry.properties.editProperties.radius = {value: this.radius, unit: 'kilometers'};
+    geometry.properties.editProperties.center = centerCoordinates;
     // calculate area of circle with turf function
     this.areaCircle = area(geometry);
     // @ts-expect-error turf types diff

@@ -5,6 +5,9 @@ The detailed release notes of each module can be found in the module-specific do
 High-level updates are 
 
 
+November 20, 2024 [**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers)) - When drawing circles or ellipses properties of the created geometry are now stored in the vector's properties.
+
+
 April 15, 2024: [**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers)) v9 - This new layer pack is a fork of Uber's no longer maintained [nebula.gl](https://nebula.gl) framework. nebula.gl has been an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
 
 
