@@ -182,6 +182,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
     if (this._selectedEditHandle) {
+      event.cancelPan();
       this._isResizing = true;
     }
   }
