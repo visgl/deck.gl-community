@@ -6,7 +6,8 @@ import bearing from '@turf/bearing';
 import {
   generatePointsParallelToLinePoints,
   getPickedEditHandle,
-  getPickedIntermediateEditHandle
+  getPickedIntermediateEditHandle,
+  shouldCancelPan
 } from './utils';
 import {FeatureCollection} from '../utils/geojson-types';
 import {ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent} from './types';
@@ -61,6 +62,10 @@ export class ExtrudeMode extends ModifyMode {
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+    if (shouldCancelPan(event)) {
+      event.cancelPan();
+    }
+
     const selectedFeatureIndexes = props.selectedIndexes;
 
     const editHandle = getPickedIntermediateEditHandle(event.picks);

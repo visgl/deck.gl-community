@@ -13,7 +13,8 @@ import {
   getPickedExistingEditHandle,
   getPickedIntermediateEditHandle,
   updateRectanglePosition,
-  NearestPointType
+  NearestPointType,
+  shouldCancelPan
 } from './utils';
 import {LineString, Point, Polygon, FeatureCollection, FeatureOf} from '../utils/geojson-types';
 import {
@@ -251,6 +252,10 @@ export class ModifyMode extends GeoJsonEditMode {
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+    if (shouldCancelPan(event)) {
+      event.cancelPan();
+    }
+
     const selectedFeatureIndexes = props.selectedIndexes;
 
     const editHandle = getPickedIntermediateEditHandle(event.picks);
