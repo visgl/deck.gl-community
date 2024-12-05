@@ -4,6 +4,8 @@
   "items": [
     "modules/editable-layers/README",
     "modules/editable-layers/developer-guide/get-started",
+    "modules/editable-layers/developer-guide/data-model",
+    "modules/editable-layers/developer-guide/configuration",
     {
       "type": "category",
       "label": "Layers",
