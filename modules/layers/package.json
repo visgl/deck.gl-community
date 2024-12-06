@@ -29,8 +29,8 @@
     "test": "vitest run",
     "test-watch": "vitest"
   },
-  "dependencies": {
-    "@deck.gl/core": "^9.0.12",
+  "peerDependencies": {
+   "@deck.gl/core": "^9.0.12",
     "@deck.gl/extensions": "^9.0.12",
     "@deck.gl/geo-layers": "^9.0.12",
     "@deck.gl/layers": "^9.0.12",
