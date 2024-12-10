@@ -17411,6 +17411,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"graph-layers-legacy-example@workspace:examples/graph-layers/graph-viewer-legacy":
+  version: 0.0.0-use.local
+  resolution: "graph-layers-legacy-example@workspace:examples/graph-layers/graph-viewer-legacy"
+  dependencies:
+    "@deck.gl-community/graph-layers": "npm:9.0.2"
+    "@deck.gl-community/react": "npm:9.0.2"
+    deck.gl: "npm:^9.0.0"
+    vite: "npm:^5.0.12"
+  languageName: unknown
+  linkType: soft
+
 "graphemer@npm:^1.4.0":
   version: 1.4.0
   resolution: "graphemer@npm:1.4.0"
