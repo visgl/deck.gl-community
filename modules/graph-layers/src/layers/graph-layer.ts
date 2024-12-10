@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, CompositeLayer, CompositeLayerProps} from '@deck.gl/core';
 
 import {Stylesheet} from '../style/style-sheet';
 import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
@@ -24,6 +24,7 @@ import {ZoomableMarkerLayer} from './node-layers/zoomable-marker-layer';
 import {EdgeLayer} from './edge-layer';
 import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
+import {GraphEngine} from '../core/graph-engine';
 
 const NODE_LAYER_MAP = {
   [NODE_TYPE.RECTANGLE]: RectangleLayer,
@@ -46,32 +47,56 @@ const SHARED_LAYER_PROPS = {
     depthTest: false
   }
 };
-const defaultProps = {
+
+export type GraphLayerProps = {
+  engine: GraphEngine;
   // an array of styles for layers
-  nodeStyle: [],
-  nodeEvents: {
-    onMouseLeave: () => {},
-    onHover: () => {},
-    onMouseEnter: () => {},
-    onClick: () => {},
-    onDrag: () => {}
-  },
-  edgeStyle: {
-    color: 'black',
-    strokeWidth: 1,
-    // an array of styles for layers
-    decorators: []
-  },
-  edgeEvents: {
-    onClick: () => {},
-    onHover: () => {}
-  },
-  enableDragging: false
+  nodeStyle?: any[];
+  edgeStyle?: {
+    color?: string;
+    strokeWidth?: number;
+    /** an array of styles for layers */
+    decorators?: any[];
+  };
+  nodeEvents?: {
+    onMouseLeave?: () => void;
+    onHover?: () => void;
+    onMouseEnter?: () => void;
+    onClick?: () => void;
+    onDrag?: () => void;
+  };
+  edgeEvents?: {
+    onClick: () => void;
+    onHover: () => void;
+  };
+  enableDragging?: boolean;
 };
 
-export class GraphLayer extends CompositeLayer {
-  static defaultProps = {
-    pickable: true
+export class GraphLayer extends CompositeLayer<GraphLayerProps> {
+  static layerName = 'GraphLayer';
+
+  static defaultProps: Required<GraphLayerProps> = {
+    // @ts-expect-error composite layer props
+    pickable: true,
+    nodeStyle: [],
+    nodeEvents: {
+      onMouseLeave: () => {},
+      onHover: () => {},
+      onMouseEnter: () => {},
+      onClick: () => {},
+      onDrag: () => {}
+    },
+    edgeStyle: {
+      color: 'black',
+      strokeWidth: 1,
+      // an array of styles for layers
+      decorators: []
+    },
+    edgeEvents: {
+      onClick: () => {},
+      onHover: () => {}
+    },
+    enableDragging: false
   };
 
   forceUpdate = () => {
@@ -81,7 +106,7 @@ export class GraphLayer extends CompositeLayer {
     }
   };
 
-  constructor(props) {
+  constructor(props: GraphLayerProps & CompositeLayerProps) {
     super(props);
 
     // added or removed a node, or in general something layout related changed
@@ -106,7 +131,7 @@ export class GraphLayer extends CompositeLayer {
   }
 
   createNodeLayers() {
-    const {engine, nodeStyle} = this.props as any;
+    const {engine, nodeStyle} = this.props;
     if (!nodeStyle || !Array.isArray(nodeStyle) || nodeStyle.length === 0) {
       return [];
     }
@@ -220,6 +245,3 @@ export class GraphLayer extends CompositeLayer {
     return [this.createEdgeLayers(), this.createNodeLayers()];
   }
 }
-
-GraphLayer.layerName = 'GraphLayer';
-(GraphLayer as any).defaultProps = defaultProps;
