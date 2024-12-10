@@ -107,8 +107,6 @@ const DEFAULT_CURSOR = 'default';
 //     target: PropTypes.arrayOf(PropTypes.number),
 //     zoom: PropTypes.number
 //   }),
-//   /** A component to control view state. */
-//   ViewControlComponent: PropTypes.func,
 //   /** A minimum scale factor for zoom level of the graph. */
 //   minZoom: PropTypes.number,
 //   /** A maximum scale factor for zoom level of the graph. */
@@ -120,19 +118,10 @@ const DEFAULT_CURSOR = 'default';
 //    and a value greater than 1 increases the sensitivity (zooms faster) */
 //   wheelSensitivity: PropTypes.number,
 //   /** Whether zooming the graph is enabled */
-//   enableZooming: PropTypes.bool,
-//   /** double-clicking causes zoom */
-//   doubleClickZoom: PropTypes.bool,
-//   /** Whether panning the graph is enabled */
-//   enablePanning: PropTypes.bool,
 //   /** Whether dragging the node is enabled */
 //   enableDragging: PropTypes.bool,
 //   /** Resume layout calculation after dragging a node */
 //   resumeLayoutAfterDragging: PropTypes.bool,
-//   /** The component to show while the graph is loading. */
-//   loader: PropTypes.element,
-//   /** The tooltip to show when hovering over a node or an edge. */
-//   getTooltip: PropTypes.func
 // };
 
 const DEFAULT_NODE_SIZE = 5;
@@ -197,14 +186,10 @@ export function App(props) {
     // eslint-disable-next-line no-console
     onError = (error) => console.error(error),
     initialViewState = INITIAL_VIEW_STATE,
-    ViewControlComponent = PositionedViewControl,
     minZoom = -20,
     maxZoom = 20,
     viewportPadding = 50,
     wheelSensitivity = 0.5,
-    enableZooming = true,
-    doubleClickZoom = true,
-    enablePanning = true,
     enableDragging = false,
     resumeLayoutAfterDragging = false,
     zoomToFitOnLoad = false;
@@ -334,10 +319,10 @@ export function App(props) {
                   controller: {
                     minZoom,
                     maxZoom,
-                    scrollZoom: enableZooming,
-                    touchZoom: enableZooming,
-                    doubleClickZoom: enableZooming && doubleClickZoom,
-                    dragPan: enablePanning
+                    scrollZoom: true,
+                    touchZoom: true,
+                    doubleClickZoom: true,
+                    dragPan: true
                   } as any
                 })
               ]}
@@ -369,7 +354,7 @@ export function App(props) {
               onHover={onHover}
             />
             {/* View control component */
-              <ViewControlComponent
+              <PositionedViewControl
                 fitBounds={fitBounds}
                 panBy={panBy}
                 zoomBy={zoomBy}
