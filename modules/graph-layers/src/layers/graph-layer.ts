@@ -53,7 +53,7 @@ export type GraphLayerProps = {
   // an array of styles for layers
   nodeStyle?: any[];
   edgeStyle?: {
-    color?: string;
+    stroke?: string;
     strokeWidth?: number;
     /** an array of styles for layers */
     decorators?: any[];
@@ -87,7 +87,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onDrag: () => {}
     },
     edgeStyle: {
-      color: 'black',
+      stroke: 'black',
       strokeWidth: 1,
       // an array of styles for layers
       decorators: []
