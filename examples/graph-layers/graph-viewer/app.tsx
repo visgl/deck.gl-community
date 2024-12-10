@@ -175,34 +175,6 @@ export function App(props) {
     };
   }, [engine]);
 
-
-  // const handleChangeGraph = ({target: {value}}) => setState(state => ({...state, selectedDataset: value}));
-  // const handleChangeLayout = ({target: {value}}) => setState(state => ({...state, selectedLayout: value}));
-
-  // return (
-  //    <div style={{width: '100%', zIndex: 999}}>
-  //       <div>
-  //         Dataset:
-  //         <select value={state.selectedDataset} onChange={this.handleChangeGraph}>
-  //           {Object.keys(SAMPLE_GRAPH_DATASETS).map((data) => (
-  //             <option key={data} value={data}>
-  //               {data}
-  //             </option>
-  //           ))}
-  //         </select>
-  //       </div>
-  //       <div>
-  //         Layout:
-  //         <select value={state.selectedLayout} onChange={this.handleChangeLayout}>
-  //           {LAYOUTS.map((data) => (
-  //             <option key={data} value={data}>
-  //               {data}
-  //             </option>
-  //           ))}
-  //         </select>
-  //       </div>
-  //     </div>
-
   const nodeStyle = [],
     nodeEvents = {
       onMouseEnter: null,
@@ -306,11 +278,36 @@ export function App(props) {
     };
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
 
+  // const handleChangeGraph = ({target: {value}}) => setState(state => ({...state, selectedDataset: value}));
+  // const handleChangeLayout = ({target: {value}}) => setState(state => ({...state, selectedLayout: value}));
+
+  // return (
+  //    <div style={{width: '100%', zIndex: 999}}>
+  //       <div>
+  //         Dataset:
+  //         <select value={state.selectedDataset} onChange={this.handleChangeGraph}>
+  //           {Object.keys(SAMPLE_GRAPH_DATASETS).map((data) => (
+  //             <option key={data} value={data}>
+  //               {data}
+  //             </option>
+  //           ))}
+  //         </select>
+  //       </div>
+  //       <div>
+  //         Layout:
+  //         <select value={state.selectedLayout} onChange={this.handleChangeLayout}>
+  //           {LAYOUTS.map((data) => (
+  //             <option key={data} value={data}>
+  //               {data}
+  //             </option>
+  //           ))}
+  //         </select>
+  //       </div>
+  //     </div>
 
   return (
     <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
       <div style={{width: '100%', flex: 1}}>
-        return (
         <>
           {isLoading && loader}
           <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
@@ -365,6 +362,7 @@ export function App(props) {
                 })
               ]}
               widgets={[
+                // TODO - replace 
                 // new ViewControlWidget({})
               ]}
               getTooltip={getTooltip}
