@@ -20,22 +20,6 @@ import '@deck.gl/widgets/stylesheet.css';
 
 import {extent} from 'd3-array';
 
-export const useGraphEngine = (graph: Graph, layout: BaseLayout): GraphEngine => {
-  const [engine, setEngine] = useState(new GraphEngine(graph, layout));
-  const isFirstMount = useRef(true);
-
-  useLayoutEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
-    }
-
-    setEngine(new GraphEngine(graph, layout));
-  }, [graph, layout]);
-
-  return engine;
-};
-
 
 const loadingReducer = (state, action) => {
   switch (action.type) {
@@ -86,64 +70,102 @@ const INITIAL_VIEW_STATE = {
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 
-export const GraphGL = ({
-  graph = new Graph(),
-  layout = new SimpleLayout(),
-  glOptions = {},
-  nodeStyle = [],
-  nodeEvents = {
-    onMouseEnter: null,
-    onHover: null,
-    onMouseLeave: null,
-    onClick: null,
-    onDrag: null
-  },
-  edgeStyle = [
-    {
-      decorators: [],
-      stroke: 'black',
-      strokeWidth: 1
-    }
-  ],
-  edgeEvents = {
-    onClick: null,
-    onHover: null
-  },
-  // eslint-disable-next-line no-console
-  onError = (error) => console.error(error),
-  initialViewState = INITIAL_VIEW_STATE,
-  ViewControlComponent = PositionedViewControl,
-  minZoom = -20,
-  maxZoom = 20,
-  viewportPadding = 50,
-  wheelSensitivity = 0.5,
-  enableZooming = true,
-  doubleClickZoom = true,
-  enablePanning = true,
-  enableDragging = false,
-  resumeLayoutAfterDragging = false,
-  zoomToFitOnLoad = false,
-  loader = null,
-  getTooltip,
-  onHover
-}) => {
-  if (!(graph instanceof Graph)) {
-    log.error('Invalid graph data class')();
-    return null;
-  }
-  if (!(layout instanceof BaseLayout)) {
-    log.error('Invalid layout class')();
-    return null;
-  }
+// GraphGL.propTypes = {
+//   /** Input graph data */
+//   graph: PropTypes.object.isRequired,
+//   /** Layout algorithm */
+//   layout: PropTypes.object.isRequired,
+//   /** Node event callbacks */
+//   nodeEvents: PropTypes.shape({
+//     onClick: PropTypes.func,
+//     onMouseLeave: PropTypes.func,
+//     onHover: PropTypes.func,
+//     onMouseEnter: PropTypes.func
+//   }).isRequired,
+//   /** Declarative node style */
+//   nodeStyle: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool])),
+//   /** Declarative edge style */
+//   edgeStyle: PropTypes.oneOfType([
+//     PropTypes.object,
+//     PropTypes.arrayOf(
+//       PropTypes.shape({
+//         stroke: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
+//         strokeWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
+//         decorators: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool]))
+//       })
+//     )
+//   ]).isRequired,
+//   /** Edge event callbacks */
+//   edgeEvents: PropTypes.shape({
+//     onClick: PropTypes.func,
+//     onHover: PropTypes.func
+//   }),
+//   /** Error callback */
+//   onError: PropTypes.func,
+//   /** The initial view state of the viewport */
+//   initialViewState: PropTypes.shape({
+//     target: PropTypes.arrayOf(PropTypes.number),
+//     zoom: PropTypes.number
+//   }),
+//   /** A component to control view state. */
+//   ViewControlComponent: PropTypes.func,
+//   /** A minimum scale factor for zoom level of the graph. */
+//   minZoom: PropTypes.number,
+//   /** A maximum scale factor for zoom level of the graph. */
+//   maxZoom: PropTypes.number,
+//   /** Padding for fitting entire graph in the screen. (pixel) */
+//   viewportPadding: PropTypes.number,
+//   /** Changes the scroll wheel sensitivity when zooming. This is a multiplicative modifier.
+//    So, a value between 0 and 1 reduces the sensitivity (zooms slower),
+//    and a value greater than 1 increases the sensitivity (zooms faster) */
+//   wheelSensitivity: PropTypes.number,
+//   /** Whether zooming the graph is enabled */
+//   enableZooming: PropTypes.bool,
+//   /** double-clicking causes zoom */
+//   doubleClickZoom: PropTypes.bool,
+//   /** Whether panning the graph is enabled */
+//   enablePanning: PropTypes.bool,
+//   /** Whether dragging the node is enabled */
+//   enableDragging: PropTypes.bool,
+//   /** Resume layout calculation after dragging a node */
+//   resumeLayoutAfterDragging: PropTypes.bool,
+//   /** The component to show while the graph is loading. */
+//   loader: PropTypes.element,
+//   /** The tooltip to show when hovering over a node or an edge. */
+//   getTooltip: PropTypes.func
+// };
 
-  const [viewState, setViewState] = useState({
-    ...INITIAL_VIEW_STATE,
-    ...initialViewState
+const DEFAULT_NODE_SIZE = 5;
+
+const DEFAULT_DATASET = 'Random (20, 40)';
+
+const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'];
+
+const graphData = SAMPLE_GRAPH_DATASETS[DEFAULT_DATASET]();
+const graph = JSONLoader({json: graphData});
+const layout = new D3ForceLayout(); // SimpleLayout();
+
+export function App(props) {
+
+  const [state, setState] = useState({
+    selectedDataset: DEFAULT_DATASET,
+    selectedLayout: DEFAULT_DATASET
   });
 
-  const engine = useGraphEngine(graph, layout as any);
+  const {selectedDataset} = state;
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+  const [engine, setEngine] = useState(new GraphEngine(graph, layout));
+  const isFirstMount = useRef(true);
+
+  useLayoutEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+
+    debugger
+    setEngine(new GraphEngine(graph, layout));
+  }, [graph, layout]);
 
   useLayoutEffect(() => {
     engine.run();
@@ -152,6 +174,79 @@ export const GraphGL = ({
       engine.clear();
     };
   }, [engine]);
+
+
+  // const handleChangeGraph = ({target: {value}}) => setState(state => ({...state, selectedDataset: value}));
+  // const handleChangeLayout = ({target: {value}}) => setState(state => ({...state, selectedLayout: value}));
+
+  // return (
+  //    <div style={{width: '100%', zIndex: 999}}>
+  //       <div>
+  //         Dataset:
+  //         <select value={state.selectedDataset} onChange={this.handleChangeGraph}>
+  //           {Object.keys(SAMPLE_GRAPH_DATASETS).map((data) => (
+  //             <option key={data} value={data}>
+  //               {data}
+  //             </option>
+  //           ))}
+  //         </select>
+  //       </div>
+  //       <div>
+  //         Layout:
+  //         <select value={state.selectedLayout} onChange={this.handleChangeLayout}>
+  //           {LAYOUTS.map((data) => (
+  //             <option key={data} value={data}>
+  //               {data}
+  //             </option>
+  //           ))}
+  //         </select>
+  //       </div>
+  //     </div>
+
+  const nodeStyle = [],
+    nodeEvents = {
+      onMouseEnter: null,
+      onHover: null,
+      onMouseLeave: null,
+      onClick: null,
+      onDrag: null
+    },
+    edgeStyle = [
+      {
+        decorators: [],
+        stroke: 'black',
+        strokeWidth: 1
+      }
+    ],
+    edgeEvents = {
+      onClick: null,
+      onHover: null
+    },
+    // eslint-disable-next-line no-console
+    onError = (error) => console.error(error),
+    initialViewState = INITIAL_VIEW_STATE,
+    ViewControlComponent = PositionedViewControl,
+    minZoom = -20,
+    maxZoom = 20,
+    viewportPadding = 50,
+    wheelSensitivity = 0.5,
+    enableZooming = true,
+    doubleClickZoom = true,
+    enablePanning = true,
+    enableDragging = false,
+    resumeLayoutAfterDragging = false,
+    zoomToFitOnLoad = false;
+
+  let loader = null,
+    getTooltip,
+    onHover;
+
+  const [viewState, setViewState] = useState({
+    ...INITIAL_VIEW_STATE,
+    ...initialViewState
+  });
+
+  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
   const fitBounds = useCallback(() => {
     const data = engine.getNodes();
@@ -211,207 +306,85 @@ export const GraphGL = ({
     };
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
 
+
   return (
-    <>
-      {isLoading && loader}
-      <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
-        <DeckGL
-          glOptions={glOptions}
-          onError={onError}
-          onAfterRender={useCallback(
-            () => loadingDispatch({type: 'afterRender'}),
-            [loadingDispatch]
-          )}
-          width="100%"
-          height="100%"
-          getCursor={useCallback(() => DEFAULT_CURSOR, [])}
-          viewState={viewState as any}
-          onResize={useCallback(
-            ({width, height}) => setViewState((prev) => ({...prev, width, height})),
-            []
-          )}
-          onViewStateChange={useCallback(
-            ({viewState: nextViewState}) => setViewState(nextViewState as any),
-            []
-          )}
-          views={[
-            new OrthographicView({
-              controller: {
-                minZoom,
-                maxZoom,
-                scrollZoom: enableZooming,
-                touchZoom: enableZooming,
-                doubleClickZoom: enableZooming && doubleClickZoom,
-                dragPan: enablePanning
-              } as any
-            })
-          ]}
-          layers={[
-            new GraphLayer({
-              engine,
-              nodeStyle,
-              nodeEvents,
-              edgeStyle,
-              edgeEvents,
-              enableDragging,
-              resumeLayoutAfterDragging
-            })
-          ]}
-          widgets={[
-            new ViewControlWidget({})
-          ]}
-          getTooltip={getTooltip}
-          onHover={onHover}
-        />
-        {/* View control component        
-         <ViewControlComponent
-          fitBounds={fitBounds}
-          panBy={panBy}
-          zoomBy={zoomBy}
-          zoomLevel={viewState.zoom}
-          maxZoom={maxZoom}
-          minZoom={minZoom}
-        />
-        */}
+    <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
+      <div style={{width: '100%', flex: 1}}>
+        return (
+        <>
+          {isLoading && loader}
+          <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
+            <DeckGL
+              onError={onError}
+              onAfterRender={useCallback(
+                () => loadingDispatch({type: 'afterRender'}),
+                [loadingDispatch]
+              )}
+              width="100%"
+              height="100%"
+              getCursor={useCallback(() => DEFAULT_CURSOR, [])}
+              viewState={viewState as any}
+              onResize={useCallback(
+                ({width, height}) => setViewState((prev) => ({...prev, width, height})),
+                []
+              )}
+              onViewStateChange={useCallback(
+                ({viewState: nextViewState}) => setViewState(nextViewState as any),
+                []
+              )}
+              views={[
+                new OrthographicView({
+                  controller: {
+                    minZoom,
+                    maxZoom,
+                    scrollZoom: enableZooming,
+                    touchZoom: enableZooming,
+                    doubleClickZoom: enableZooming && doubleClickZoom,
+                    dragPan: enablePanning
+                  } as any
+                })
+              ]}
+              layers={[
+                new GraphLayer({
+                  engine,
+                  nodeStyle: [
+                    {
+                      type: NODE_TYPE.CIRCLE,
+                      radius: DEFAULT_NODE_SIZE,
+                      fill: 'red'
+                    }
+                  ],
+                  edgeStyle: {
+                    stroke: '#000',
+                    strokeWidth: 1
+                  },
+                  nodeEvents,
+                  edgeEvents,
+                  enableDragging,
+                  resumeLayoutAfterDragging
+                })
+              ]}
+              widgets={[
+                // new ViewControlWidget({})
+              ]}
+              getTooltip={getTooltip}
+              onHover={onHover}
+            />
+            {/* View control component */
+              <ViewControlComponent
+                fitBounds={fitBounds}
+                panBy={panBy}
+                zoomBy={zoomBy}
+                zoomLevel={viewState.zoom}
+                maxZoom={maxZoom}
+                minZoom={minZoom}
+              />
+            }
+          </div>
+        </>
       </div>
-    </>
+    </div>
   );
-};
-
-GraphGL.propTypes = {
-  /** Input graph data */
-  graph: PropTypes.object.isRequired,
-  /** Layout algorithm */
-  layout: PropTypes.object.isRequired,
-  /** Options for the WebGL context */
-  glOptions: PropTypes.object,
-  /** Node event callbacks */
-  nodeEvents: PropTypes.shape({
-    onClick: PropTypes.func,
-    onMouseLeave: PropTypes.func,
-    onHover: PropTypes.func,
-    onMouseEnter: PropTypes.func
-  }).isRequired,
-  /** Declarative node style */
-  nodeStyle: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool])),
-  /** Declarative edge style */
-  edgeStyle: PropTypes.oneOfType([
-    PropTypes.object,
-    PropTypes.arrayOf(
-      PropTypes.shape({
-        stroke: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
-        strokeWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
-        decorators: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool]))
-      })
-    )
-  ]).isRequired,
-  /** Edge event callbacks */
-  edgeEvents: PropTypes.shape({
-    onClick: PropTypes.func,
-    onHover: PropTypes.func
-  }),
-  /** Error callback */
-  onError: PropTypes.func,
-  /** The initial view state of the viewport */
-  initialViewState: PropTypes.shape({
-    target: PropTypes.arrayOf(PropTypes.number),
-    zoom: PropTypes.number
-  }),
-  /** A component to control view state. */
-  ViewControlComponent: PropTypes.func,
-  /** A minimum scale factor for zoom level of the graph. */
-  minZoom: PropTypes.number,
-  /** A maximum scale factor for zoom level of the graph. */
-  maxZoom: PropTypes.number,
-  /** Padding for fitting entire graph in the screen. (pixel) */
-  viewportPadding: PropTypes.number,
-  /** Changes the scroll wheel sensitivity when zooming. This is a multiplicative modifier.
-   So, a value between 0 and 1 reduces the sensitivity (zooms slower),
-   and a value greater than 1 increases the sensitivity (zooms faster) */
-  wheelSensitivity: PropTypes.number,
-  /** Whether zooming the graph is enabled */
-  enableZooming: PropTypes.bool,
-  /** double-clicking causes zoom */
-  doubleClickZoom: PropTypes.bool,
-  /** Whether panning the graph is enabled */
-  enablePanning: PropTypes.bool,
-  /** Whether dragging the node is enabled */
-  enableDragging: PropTypes.bool,
-  /** Resume layout calculation after dragging a node */
-  resumeLayoutAfterDragging: PropTypes.bool,
-  /** The component to show while the graph is loading. */
-  loader: PropTypes.element,
-  /** The tooltip to show when hovering over a node or an edge. */
-  getTooltip: PropTypes.func
-};
-
-const DEFAULT_NODE_SIZE = 5;
-
-const DEFAULT_DATASET = 'Random (20, 40)';
-
-const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'];
-
-export class App extends Component {
-  state = {
-    selectedDataset: DEFAULT_DATASET,
-    selectedLayout: DEFAULT_DATASET
-  };
-
-  handleChangeGraph = ({target: {value}}) => this.setState({selectedDataset: value});
-
-  handleChangeLayout = ({target: {value}}) => this.setState({selectedLayout: value});
-
-  render() {
-    const {selectedDataset} = this.state;
-    const graphData = SAMPLE_GRAPH_DATASETS[selectedDataset]();
-    const graph = JSONLoader({json: graphData});
-
-    // return (
-    //    <div style={{width: '100%', zIndex: 999}}>
-    //       <div>
-    //         Dataset:
-    //         <select value={this.state.selectedDataset} onChange={this.handleChangeGraph}>
-    //           {Object.keys(SAMPLE_GRAPH_DATASETS).map((data) => (
-    //             <option key={data} value={data}>
-    //               {data}
-    //             </option>
-    //           ))}
-    //         </select>
-    //       </div>
-    //       <div>
-    //         Layout:
-    //         <select value={this.state.selectedLayout} onChange={this.handleChangeLayout}>
-    //           {LAYOUTS.map((data) => (
-    //             <option key={data} value={data}>
-    //               {data}
-    //             </option>
-    //           ))}
-    //         </select>
-    //       </div>
-    //     </div>
-
-    return (
-      <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-        <div style={{width: '100%', flex: 1}}>
-          <GraphGL
-            graph={graph}
-            layout={new D3ForceLayout()}
-            nodeStyle={[
-              {
-                type: NODE_TYPE.CIRCLE,
-                radius: DEFAULT_NODE_SIZE,
-                fill: 'red'
-              }
-            ]}
-            edgeStyle={{
-              stroke: '#000',
-              strokeWidth: 1
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
 }
 
 export function renderToDOM() {
