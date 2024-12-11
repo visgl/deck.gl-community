@@ -1,0 +1,34 @@
+{
+  "description": "A deck.gl TextLayer example in JSON format",
+  "initialViewState": {
+    "latitude": 39.1,
+    "longitude": -94.57,
+    "zoom": 3.8,
+    "maxZoom": 16,
+    "pitch": 0,
+    "bearing": 0
+  },
+  "views": [
+    {
+      "@@type": "MapView",
+      "controller": true,
+      "mapStyle": "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json"
+    }
+  ],
+  "layers": [
+    {
+      "@@type": "TextLayer",
+      "id": "twitter-topics-raw",
+      "data": "https://rivulet-zhang.github.io/dataRepo/tagmap/hashtags10k.json",
+      "characterSet": "auto",
+      "getText": "@@=label",
+      "getPosition": "@@=coordinates",
+      "getColor": [
+        29,
+        145,
+        192
+      ],
+      "getSize": 12
+    }
+  ]
+}

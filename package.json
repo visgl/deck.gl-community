@@ -12,11 +12,8 @@
   },
   "type": "module",
   "workspaces": [
-    "examples/graph-layers/**",
-    "examples/editable-layers/**",
-    "examples/bing-maps/**",
-    "examples/leaflet/**",
-    "modules/*"
+    "modules/*",
+    "examples/**"
   ],
   "scripts": {
     "bootstrap": "ocular-bootstrap",
