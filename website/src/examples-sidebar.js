@@ -17,11 +17,9 @@ const sidebars = {
       id: 'index'
     },
     {
-      type: 'category',
+      type: 'doc',
       label: 'Playground',
-      items: [
-        "playground"
-      ]
+      id: "playground"
     },
     {
       type: 'category',

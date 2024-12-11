@@ -1,10 +1,10 @@
 import React, {Component} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
-import {GITHUB_TREE} from '../../constants/defaults';
-import {App} from '../../../../examples/playground/src/app';
+import {GITHUB_TREE} from '../constants/defaults';
+import {App} from '../../../examples/playground/src/app';
 
-import {makeExample} from '../../components';
+import {makeExample} from '../components';
 
 class AdvancedDemo extends Component {
   static title = 'Playground';
@@ -32,7 +32,9 @@ class AdvancedDemo extends Component {
     #right-pane {flex: 0 1 60%; position: relative;}
     `}
             </style>
-            <App {...otherProps} />
+            <div id="app">
+              <App {...otherProps} />
+            </div>
           </div>
         )}
       </BrowserOnly>
