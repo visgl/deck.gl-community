@@ -1,12 +1,16 @@
-iimport React, {Component} from 'react';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import React, {Component} from 'react';
 import Color from 'color';
 
-// data
-import sampleGraph from './sample-graph.json';
-
 // graph.gl
-import GraphGL, {EDGE_DECORATOR_TYPE, JSONLoader, NODE_TYPE} from '../../src';
-import MultiGraphLayout from './multi-graph-layout';
+import GraphGL, {EDGE_DECORATOR_TYPE, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import MultiGraphLayout from './layouts/multi-graph-layout';
+
+// data
+import sampleGraph from './sample-multi-graph.json';
 
 const DEFAULT_NODE_SIZE = 30;
 const DEFAULT_NODE_PLACEHOLDER_SIZE = 40;

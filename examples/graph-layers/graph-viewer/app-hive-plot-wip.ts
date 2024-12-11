@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import React, {Component} from 'react';
 import {scaleOrdinal} from 'd3-scale';
 import {schemeAccent} from 'd3-scale-chromatic';
