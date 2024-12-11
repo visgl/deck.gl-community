@@ -22,7 +22,7 @@ module.exports = getESLintConfig({
         files: ['modules/*/src/**/*.{ts,tsx}', 'modules/*/test/**/*.{ts,tsx}'],
         rules: {
           // We definitely don't want to enable these rules
-          ' no-use-before-define': 0,
+          'no-use-before-define': 0,
           // TODO: Gradually enable, at least for non-test code.
           '@typescript-eslint/no-redundant-type-constituents': 0,
           'import/no-extraneous-dependencies': 0,
