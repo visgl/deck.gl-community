@@ -20,7 +20,7 @@ const sidebars = {
       type: 'category',
       label: 'Playground',
       items: [
-        "playground/playground"
+        "playground"
       ]
     },
     {

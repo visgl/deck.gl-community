@@ -12,7 +12,7 @@ const getAliases = async (frameworkName, frameworkRootDir) => {
   return aliases
 }
 
-const alias = await getAliases('@deck.gl-community', `${__dirname}/../../..`);
+const alias = await getAliases('@deck.gl-community', `${__dirname}/../..`);
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
