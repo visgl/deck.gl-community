@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import React, {Component} from 'react';
 import {scaleOrdinal} from 'd3-scale';
 import {schemeAccent} from 'd3-scale-chromatic';
@@ -5,11 +9,11 @@ import {extent} from 'd3-array';
 import Color from 'color';
 
 // data
-import {fetchJSONFromS3} from '../../utils/data/io';
+import {fetchJSONFromS3} from './io';
 
 // graph.gl
-import GraphGL, {JSONLoader, NODE_TYPE} from '../../src';
-import RadialLayout from './radial-layout';
+import GraphGL, {JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import RadialLayout from './layouts/radial-layout';
 
 const DEFAULT_NODE_SIZE = 5;
 const DEFAULT_NODE_LABEL_COLOR = '#646464';

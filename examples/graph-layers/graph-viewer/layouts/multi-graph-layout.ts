@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {BaseLayout, EDGE_TYPE} from '../../src';
 import * as d3 from 'd3-force';
 
