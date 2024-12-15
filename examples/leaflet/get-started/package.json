@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "vite --open",
-    "start-local": "vite --config ../vite.config.local.mjs"
+    "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.0.12",
