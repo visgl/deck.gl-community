@@ -4,7 +4,9 @@
 
 import * as L from 'leaflet';
 import {Deck} from '@deck.gl/core';
-import type {DeckProps, ViewStateMap, MapView} from '@deck.gl/core';
+import type {DeckProps, View, ViewStateMap, MapView} from '@deck.gl/core';
+
+export type ViewOrViews = View | View[] | null;
 
 function getViewState(map: L.Map): ViewStateMap<MapView> {
   return {
@@ -19,9 +21,9 @@ function getViewState(map: L.Map): ViewStateMap<MapView> {
 export function createDeckInstance(
   map: L.Map,
   container: HTMLDivElement,
-  deck: Deck | undefined,
-  props: DeckProps
-): Deck {
+  deck: Deck<ViewOrViews> | undefined,
+  props: DeckProps<ViewOrViews>
+): Deck<ViewOrViews> {
   if (!deck) {
     const viewState = getViewState(map);
     deck = new Deck({
@@ -35,7 +37,7 @@ export function createDeckInstance(
   return deck;
 }
 
-export function updateDeckView(deck: Deck, map: L.Map): void {
+export function updateDeckView(deck: Deck<ViewOrViews>, map: L.Map): void {
   const viewState = getViewState(map);
   // console.log(viewState);
 
