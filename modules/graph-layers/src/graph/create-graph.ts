@@ -7,7 +7,7 @@ import {Node} from './node';
 import {Graph} from './graph';
 
 /** Create a graph from a list of Nodes and edges */
-export function createGraph(props: {name, nodes, edges, nodeParser, edgeParser}) {
+export function createGraph(props: {name; nodes; edges; nodeParser; edgeParser}) {
   const {name, nodes, edges, nodeParser, edgeParser} = props;
   // create a new empty graph
   const graph = new Graph();

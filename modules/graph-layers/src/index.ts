@@ -17,13 +17,7 @@ export {D3ForceLayout} from './layouts/d3-force/d3-force-layout';
 export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
 export {SimpleLayout} from './layouts/simple-layout/simple-layout';
 
-export {
-  NODE_STATE,
-  NODE_TYPE,
-  EDGE_TYPE,
-  EDGE_DECORATOR_TYPE,
-  MARKER_TYPE
-} from './core/constants';
+export {NODE_STATE, NODE_TYPE, EDGE_TYPE, EDGE_DECORATOR_TYPE, MARKER_TYPE} from './core/constants';
 
 // deck.gl components
 export {GraphLayer} from './layers/graph-layer';
