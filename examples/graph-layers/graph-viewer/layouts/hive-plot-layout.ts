@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {BaseLayout, EDGE_TYPE} from '../../src';
+import {GraphLayout, EDGE_TYPE} from '../../src';
 
 const defaultOptions = {
   innerRadius: 100,
@@ -54,7 +54,7 @@ const computeControlPoint = ({
   ];
 };
 
-export default class HivePlot extends BaseLayout {
+export default class HivePlot extends GraphLayout {
   constructor(options) {
     super(options);
     this._name = 'HivePlot';

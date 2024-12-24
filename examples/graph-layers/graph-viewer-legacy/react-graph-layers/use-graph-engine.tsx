@@ -3,9 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import {useLayoutEffect, useRef, useState} from 'react';
-import {BaseLayout, Graph, GraphEngine} from '@deck.gl-community/graph-layers';
+import {GraphLayout, Graph, GraphEngine} from '@deck.gl-community/graph-layers';
 
-export const useGraphEngine = (graph: Graph, layout: BaseLayout): GraphEngine => {
+export const useGraphEngine = (graph: Graph, layout: GraphLayout): GraphEngine => {
   const [engine, setEngine] = useState(new GraphEngine(graph, layout));
   const isFirstMount = useRef(true);
 

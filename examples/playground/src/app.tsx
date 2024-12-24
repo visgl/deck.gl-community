@@ -105,8 +105,8 @@ export class App extends Component {
           initialViewState: {
             ...initialViewState,
             // Tells deck.gl to animate the camera move to the new tileset
-            transitionDuration: 4000,
-            transitionInterpolator: new FlyToInterpolator()
+            // transitionDuration: 4000,
+            // transitionInterpolator: new FlyToInterpolator()
           }
         });
       }

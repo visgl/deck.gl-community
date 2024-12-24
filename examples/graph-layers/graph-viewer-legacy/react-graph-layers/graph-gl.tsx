@@ -6,7 +6,7 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-import {BaseLayout, Graph, GraphLayer, log, SimpleLayout} from '@deck.gl-community/graph-layers';
+import {GraphLayout, Graph, GraphLayer, log, SimpleLayout} from '@deck.gl-community/graph-layers';
 import {PositionedViewControl} from '@deck.gl-community/react';
 import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 import '@deck.gl/widgets/stylesheet.css';
@@ -70,7 +70,7 @@ export const GraphGL = ({
     log.error('Invalid graph data class')();
     return null;
   }
-  if (!(layout instanceof BaseLayout)) {
+  if (!(layout instanceof GraphLayout)) {
     log.error('Invalid layout class')();
     return null;
   }

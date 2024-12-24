@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {BaseLayout} from './base-layout';
+import {GraphLayout} from './graph-layout';
 import {Cache} from './cache';
-import {Edge} from './edge';
-import {Graph} from './graph';
+import {Edge} from '../graph/edge';
+import {Graph} from '../graph/graph';
 
 // Graph engine controls the graph data and layout calculation
 export class GraphEngine extends EventTarget {
   private readonly _graph: Graph;
-  private readonly _layout: BaseLayout;
+  private readonly _layout: GraphLayout;
   private readonly _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
   private _layoutDirty = false;
   private _transactionInProgress = false;
 
-  constructor(graph: Graph, layout: BaseLayout) {
+  constructor(graph: Graph, layout: GraphLayout) {
     super();
     this._graph = graph;
     this._layout = layout;

@@ -1,5 +1,6 @@
 
 import tileSource from './tile-source.json';
+import graphLayer from './graph-layer.json';
 
 import heatmap from './3d-heatmap.json';
 import heatmapMinimap from './3d-heatmap-minimap.json';
@@ -18,6 +19,7 @@ import dotText from './dot-text.json';
 
 export default {
   // WEBSITE EXAMPLES AS JSON PAYLOADS
+  'Graph (GraphLayer)': graphLayer,
   'website/Vector Tiles (TileSourceLayer)': tileSource,
   'website/3D Heatmap (HexagonLayer)': heatmap,
   'website/3D Heatmap (wth Minimap)': heatmapMinimap,

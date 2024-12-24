@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {BaseLayout, EDGE_TYPE} from '../../src';
+import {GraphLayout, EDGE_TYPE} from '../../src';
 
 const defaultOptions = {
   radius: 500,
@@ -59,7 +59,7 @@ const getPath = (node, targetId, path) => {
   return false;
 };
 
-export default class RadialLayout extends BaseLayout {
+export default class RadialLayout extends GraphLayout {
   constructor(options) {
     super(options);
     this._name = 'RadialLayout';

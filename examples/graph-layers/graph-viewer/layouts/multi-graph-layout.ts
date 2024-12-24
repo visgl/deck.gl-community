@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {BaseLayout, EDGE_TYPE} from '../../src';
+import {GraphLayout, EDGE_TYPE} from '../../src';
 import * as d3 from 'd3-force';
 
 const defaultOptions = {
@@ -33,7 +33,7 @@ function computeControlPoint(source, target, direction, offset) {
   ];
 }
 
-export default class ForceMultiGraphLayout extends BaseLayout {
+export default class ForceMultiGraphLayout extends GraphLayout {
   constructor(options) {
     super(options);
     this._name = 'ForceMultiGraphLayout';
