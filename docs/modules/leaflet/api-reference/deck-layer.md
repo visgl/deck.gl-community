@@ -1,8 +1,6 @@
 # DeckLayer
 
-### DeckLayer
-
-An implementation of [L.Layer](https://leafletjs.com/reference.html#layer).
+A `DeckLayer` is a leaflet layer that renders deck.gl layers on top of a leaflet base map. `DeckLayer` is an implementation of [L.Layer](https://leafletjs.com/reference.html#layer) and can be interleaved with other Leaflet layers.
 
 ```js
 const deckLayer = new DeckLayer({
