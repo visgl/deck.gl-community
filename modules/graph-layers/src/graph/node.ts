@@ -57,7 +57,7 @@ export class Node {
 
   /**
    * Return the in-degree of the node.
-   * @return {Number} - the in-degree of the node.
+   * @return - the in-degree of the node.
    */
   getInDegree(): number {
     const nodeId = this.getId();
@@ -72,7 +72,7 @@ export class Node {
 
   /**
    * Return the out-degree of the node.
-   * @return {Number} - the out-degree of the node.
+   * @return - the out-degree of the node.
    */
   getOutDegree(): number {
     const nodeId = this.getId();

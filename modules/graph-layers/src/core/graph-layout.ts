@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {Graph} from './graph';
-import type {Node} from './node';
-import type {Edge} from './edge';
+import type {Graph} from '../graph/graph';
+import type {Node} from '../graph/node';
+import type {Edge} from '../graph/edge';
 
 import isEqual from 'lodash.isequal';
 import {EDGE_TYPE} from './constants';

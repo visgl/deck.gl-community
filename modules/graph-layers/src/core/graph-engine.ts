@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {Node} from './node';
-import {GraphLayout} from './graph-layout';
-import {Cache} from './cache';
+import type {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
 import {Graph} from '../graph/graph';
+import {GraphLayout} from './graph-layout';
+import {Cache} from './cache';
 
 export type GraphEngineProps = {
   graph: Graph;
