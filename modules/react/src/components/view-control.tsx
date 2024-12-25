@@ -30,9 +30,9 @@ export const NavigationButtonContainer = styled.div`
 export const NavigationButton = styled.div`
   color: #848484;
   cursor: pointer;
-  left: ${(props: any) => props.left};
+  left: ${(props: any) => props.$left};
   position: absolute;
-  top: ${(props: any) => props.top};
+  top: ${(props: any) => props.$top};
   transform: rotate(${(props: any) => props.rotate || 0}deg);
 
   &:hover,
@@ -142,7 +142,7 @@ export class ViewControl extends PureComponent {
             </NavigationButton>
           ))}
           {/* @ts-expect-error TODO */}
-          <NavigationButton top={'12px'} left={'16px'} onClick={this.props.fitBounds}>
+          <NavigationButton $top={'12px'} $left={'16px'} onClick={this.props.fitBounds}>
             {'¤'}
           </NavigationButton>
         </NavigationButtonContainer>
