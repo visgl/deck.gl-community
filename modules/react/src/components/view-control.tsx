@@ -132,16 +132,12 @@ export class ViewControl extends PureComponent {
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b: any) => (
-<<<<<<< HEAD
-            <NavigationButton key={b.key} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
-=======
             <NavigationButton
               key={b.key}
               $top={`${b.top}px`}
               $left={`${b.left}px`}
               rotate={b.rotate}
             >
->>>>>>> e0dde50... lint
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}
