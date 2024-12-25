@@ -2,23 +2,43 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {BaseLayout} from './base-layout';
+import type {Node} from '../graph/node';
+import {Edge} from '../graph/edge';
+import {Graph} from '../graph/graph';
+import {GraphLayout} from './graph-layout';
 import {Cache} from './cache';
-import {Edge} from './edge';
-import {Graph} from './graph';
 
-// Graph engine controls the graph data and layout calculation
+export type GraphEngineProps = {
+  graph: Graph;
+  layout: GraphLayout;
+};
+
+/** Graph engine controls the graph data and layout calculation */
 export class GraphEngine extends EventTarget {
+  props: Readonly<Required<GraphEngineProps>>;
+
   private readonly _graph: Graph;
-  private readonly _layout: BaseLayout;
+  private readonly _layout: GraphLayout;
   private readonly _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
   private _layoutDirty = false;
   private _transactionInProgress = false;
 
-  constructor(graph: Graph, layout: BaseLayout) {
+  constructor(props: GraphEngineProps);
+  /** @deprecated Use props constructor: new GraphEngine(props) */
+  constructor(graph: Graph, layout: GraphLayout);
+
+  constructor(props: GraphEngineProps | Graph, layout?: GraphLayout) {
     super();
-    this._graph = graph;
-    this._layout = layout;
+    if (props instanceof Graph) {
+      props = {
+        graph: props,
+        layout
+      };
+    }
+
+    this.props = props;
+    this._graph = props.graph;
+    this._layout = props.layout;
   }
 
   /** Getters */
@@ -39,9 +59,9 @@ export class GraphEngine extends EventTarget {
     return this._cache.get('edges') as Edge[];
   };
 
-  getNodePosition = (node) => this._layout.getNodePosition(node);
+  getNodePosition = (node: Node) => this._layout.getNodePosition(node);
 
-  getEdgePosition = (edge) => this._layout.getEdgePosition(edge);
+  getEdgePosition = (edge: Edge) => this._layout.getEdgePosition(edge);
 
   getGraphVersion = () => this._graph.version;
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {BaseLayout} from '../../core/base-layout';
+import {GraphLayout} from '../../core/graph-layout';
 
 import {EDGE_TYPE} from '../../core/constants';
 
@@ -18,7 +18,7 @@ export type GPUForceLayoutOptions = {
 /**
  * @todo this layout should be updated with the organizational and logic improvements made in d3-force
  */
-export class GPUForceLayout extends BaseLayout {
+export class GPUForceLayout extends GraphLayout {
   static defaultOptions: Required<GPUForceLayoutOptions> = {
     alpha: 0.3,
     resumeAlpha: 0.1,

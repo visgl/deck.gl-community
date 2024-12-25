@@ -4,7 +4,7 @@
 
 import {describe, it, expect} from 'vitest';
 import SAMPLE_EDGE from '../__fixtures__/edge.json';
-import {Edge} from '../../src/core/edge';
+import {Edge} from '../../src/graph/edge';
 
 describe('core/edge', () => {
   it('should have correctly functioning getters', () => {

@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {NODE_STATE, ValueOf} from './constants';
+import {NODE_STATE, ValueOf} from '../core/constants';
 import {Edge} from './edge';
 
-interface NodeOptions {
+/** Properties for creating a new node */
+export interface NodeOptions {
+  /** the unique ID of the node */
   id: number | string;
   selectable?: boolean;
   highlightConnectedEdges?: boolean;
+  /* origin data reference */
   data: Record<string, unknown>;
 }
 
-// Basic data structure of a node
+/** Basic data structure of a node */
 export class Node {
   public id: string | number;
   /** Keep a reference to origin data. */
@@ -29,8 +32,6 @@ export class Node {
   public readonly isNode = true;
   /**
    * The constructor of a node
-   * @param  {String|Number} options.id   - the unique ID of the node
-   * @param  {Record<string, unknown>} options.data - origin data reference
    */
   constructor({id, selectable = false, highlightConnectedEdges = false, data = {}}: NodeOptions) {
     this.id = id;
@@ -41,7 +42,7 @@ export class Node {
 
   /**
    * Return the ID of the node
-   * @return {String|Number} - the ID of the node.
+   * @return - the ID of the node.
    */
   getId(): string | number {
     return this.id;
@@ -57,7 +58,7 @@ export class Node {
 
   /**
    * Return the in-degree of the node.
-   * @return {Number} - the in-degree of the node.
+   * @return - the in-degree of the node.
    */
   getInDegree(): number {
     const nodeId = this.getId();
@@ -72,7 +73,7 @@ export class Node {
 
   /**
    * Return the out-degree of the node.
-   * @return {Number} - the out-degree of the node.
+   * @return - the out-degree of the node.
    */
   getOutDegree(): number {
     const nodeId = this.getId();
@@ -87,7 +88,7 @@ export class Node {
 
   /**
    * Return all the IDs of the sibling nodes.
-   * @return {String[]} [description]
+   * @return [description]
    */
   getSiblingIds(): (string | number)[] {
     const nodeId = this.getId();
@@ -106,7 +107,7 @@ export class Node {
 
   /**
    * Return all the connected edges.
-   * @return {Object[]} - an array of the connected edges.
+   * @return - an array of the connected edges.
    */
   getConnectedEdges(): Edge[] {
     return Object.values(this._connectedEdges);
@@ -114,8 +115,8 @@ export class Node {
 
   /**
    * Return of the value of the selected property key.
-   * @param  {String} key - property key.
-   * @return {Any} - the value of the property or undefined (not found).
+   * @param key - property key.
+   * @return - the value of the property or undefined (not found).
    */
   getPropertyValue(key: string): unknown {
     // try to search the key within this object
@@ -132,7 +133,7 @@ export class Node {
 
   /**
    * Set the new node data.
-   * @param {Record<string, unknown>} data - the new data of the node
+   * @param data - the new data of the node
    */
   setData(data: Record<string, unknown>): void {
     this._data = data;
@@ -140,8 +141,8 @@ export class Node {
 
   /**
    * Update a data property.
-   * @param {String} key - the key of the property
-   * @param {Any} value - the value of the property.
+   * @param key - the key of the property
+   * @param value - the value of the property.
    */
   setDataProperty(key: string, value: unknown): void {
     this._data[key] = value;
@@ -149,7 +150,7 @@ export class Node {
 
   /**
    * Set node state
-   * @param {String} state - one of NODE_STATE
+   * @param state - one of NODE_STATE
    */
   setState(state: ValueOf<typeof NODE_STATE>): void {
     this.state = state;
@@ -157,7 +158,7 @@ export class Node {
 
   /**
    * Get node state
-   * @returns {string} state - one of NODE_STATE
+   * @returns state - one of NODE_STATE
    */
   getState(): ValueOf<typeof NODE_STATE> {
     return this.state;
@@ -165,7 +166,7 @@ export class Node {
 
   /**
    * Add connected edges to the node
-   * @param {Edge || Edge[]} edge an edge or an array of edges to be added to this._connectedEdges
+   * @param edge an edge or an array of edges to be added to this._connectedEdges
    */
   addConnectedEdges(edge: Edge | Edge[]): void {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];
@@ -177,7 +178,7 @@ export class Node {
 
   /**
    * Remove edges from this._connectedEdges
-   * @param {Edge | Edge[]} edge an edge or an array of edges to be removed from this._connectedEdges
+   * @param edge an edge or an array of edges to be removed from this._connectedEdges
    */
   removeConnectedEdges(edge: Edge | Edge[]): void {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];

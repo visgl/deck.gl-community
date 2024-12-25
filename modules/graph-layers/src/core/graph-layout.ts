@@ -2,91 +2,96 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {Graph} from '../graph/graph';
+import type {Node} from '../graph/node';
+import type {Edge} from '../graph/edge';
+
 import isEqual from 'lodash.isequal';
-import {EDGE_TYPE, LAYOUT_STATE} from './constants';
+import {EDGE_TYPE} from './constants';
 
-export type BaseLayoutOptions = {};
+// the status of the layout
+export type GraphLayoutState = 'INIT' | 'START' | 'CALCULATING' | 'DONE' | 'ERROR';
 
-/**
- * All the layout classes are extended from this base layout class.
- */
-export class BaseLayout extends EventTarget {
+export type GraphLayoutOptions = {};
+
+/** All the layout classes are extended from this base layout class. */
+export class GraphLayout extends EventTarget {
   /** Name of the layout. */
-  protected readonly _name: string = 'BaseLayout';
+  protected readonly _name: string = 'GraphLayout';
   /** Extra configuration options of the layout. */
-  protected _options: BaseLayoutOptions;
+  protected _options: GraphLayoutOptions;
 
   public version = 0;
-  public state = LAYOUT_STATE.INIT;
+  public state: GraphLayoutState = 'INIT';
 
   /**
-   * Constructor of BaseLayout
+   * Constructor of GraphLayout
    * @param  {Object} options extra configuration options of the layout
    */
-  constructor(options: BaseLayoutOptions) {
+  constructor(options: GraphLayoutOptions) {
     super();
     this._options = options;
   }
 
   /**
-   * @fires BaseLayout#onLayoutStart
+   * @fires GraphLayout#onLayoutStart
    * @protected
    */
   _onLayoutStart(): void {
-    this._updateState(LAYOUT_STATE.CALCULATING);
+    this._updateState('CALCULATING');
 
     /**
      * Layout calculation start.
      *
-     * @event BaseLayout#onLayoutChange
+     * @event GraphLayout#onLayoutChange
      * @type {CustomEvent}
      */
     this.dispatchEvent(new CustomEvent('onLayoutStart'));
   }
 
   /**
-   * @fires BaseLayout#onLayoutChange
+   * @fires GraphLayout#onLayoutChange
    * @protected
    */
   _onLayoutChange(): void {
-    this._updateState(LAYOUT_STATE.CALCULATING);
+    this._updateState('CALCULATING');
 
     /**
      * Layout calculation iteration.
      *
-     * @event BaseLayout#onLayoutChange
+     * @event GraphLayout#onLayoutChange
      * @type {CustomEvent}
      */
     this.dispatchEvent(new CustomEvent('onLayoutChange'));
   }
 
   /**
-   * @fires BaseLayout#onLayoutDone
+   * @fires GraphLayout#onLayoutDone
    * @protected
    */
   _onLayoutDone(): void {
-    this._updateState(LAYOUT_STATE.DONE);
+    this._updateState('DONE');
 
     /**
      * Layout calculation is done.
      *
-     * @event BaseLayout#onLayoutDone
+     * @event GraphLayout#onLayoutDone
      * @type {CustomEvent}
      */
     this.dispatchEvent(new CustomEvent('onLayoutDone'));
   }
 
   /**
-   * @fires BaseLayout#onLayoutError
+   * @fires GraphLayout#onLayoutError
    * @protected
    */
   _onLayoutError(): void {
-    this._updateState(LAYOUT_STATE.ERROR);
+    this._updateState('ERROR');
 
     /**
      * Layout calculation went wrong.
      *
-     * @event BaseLayout#onLayoutError
+     * @event GraphLayout#onLayoutError
      * @type {CustomEvent}
      */
     this.dispatchEvent(new CustomEvent('onLayoutError'));
@@ -97,8 +102,8 @@ export class BaseLayout extends EventTarget {
    * @param  {Object} layout The layout to be compared.
    * @return {Bool}   True if the layout is the same as itself.
    */
-  equals(layout: BaseLayout): boolean {
-    if (!layout || !(layout instanceof BaseLayout)) {
+  equals(layout: GraphLayout): boolean {
+    if (!layout || !(layout instanceof GraphLayout)) {
       return false;
     }
     return this._name === layout._name && isEqual(this._options, layout._options);
@@ -107,9 +112,9 @@ export class BaseLayout extends EventTarget {
   /** virtual functions: will be implemented in the child class */
 
   // first time to pass the graph data into this layout
-  initializeGraph(graph) {}
+  initializeGraph(graph: Graph) {}
   // update the existing graph
-  updateGraph(graph) {}
+  updateGraph(graph: Graph) {}
   // start the layout calculation
   start() {}
   // update the layout calculation
@@ -123,7 +128,7 @@ export class BaseLayout extends EventTarget {
     return [0, 0];
   }
   // access the layout information of the edge
-  getEdgePosition(edge) {
+  getEdgePosition(edge: Edge) {
     return {
       type: EDGE_TYPE.LINE,
       sourcePosition: [0, 0],
@@ -134,17 +139,17 @@ export class BaseLayout extends EventTarget {
 
   /**
    * Pin the node to a designated position, and the node won't move anymore
-   * @param  {Object} node Node to be locked
-   * @param  {Number} x    x coordinate
-   * @param  {Number} y    y coordinate
+   * @param  node Node to be locked
+   * @param  x    x coordinate
+   * @param  y    y coordinate
    */
-  lockNodePosition(node, x, y) {}
+  lockNodePosition(node: Node, x: number, y: number) {}
 
   /**
    * Unlock the node, the node will be able to move freely.
    * @param  {Object} node Node to be unlocked
    */
-  unlockNodePosition(node) {}
+  unlockNodePosition(node: Node) {}
 
   _updateState(state) {
     this.state = state;

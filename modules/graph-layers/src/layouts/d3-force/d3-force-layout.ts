@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {BaseLayout} from '../../core/base-layout';
+import {GraphLayout} from '../../core/graph-layout';
 
 import {EDGE_TYPE} from '../../core/constants';
 
@@ -15,7 +15,7 @@ export type D3ForceLayoutOptions = {
   getCollisionRadius?: number;
 };
 
-export class D3ForceLayout extends BaseLayout {
+export class D3ForceLayout extends GraphLayout {
   static defaultOptions: Required<D3ForceLayoutOptions> = {
     alpha: 0.3,
     resumeAlpha: 0.1,

@@ -50,9 +50,9 @@ export const JSON_CONFIGURATION = {
     ...MeshLayers,
 
     // community layer modules
-    CommunityLayers,
-    EditableLayers,
-    GraphLayers,
+    ...CommunityLayers,
+    ...EditableLayers,
+    ...GraphLayers,
     // ArrowLayers,
   },
 

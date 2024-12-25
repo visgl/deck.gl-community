@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, CompositeLayer, CompositeLayerProps} from '@deck.gl/core';
+import type {CompositeLayerProps} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
 import {Stylesheet} from '../style/style-sheet';
 import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';

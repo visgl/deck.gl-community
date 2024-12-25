@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {BaseLayout, BaseLayoutOptions} from '../../core/base-layout';
-import {Node} from '../../core/node';
+import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {Node} from '../../graph/node';
 import {EDGE_TYPE} from '../../core/constants';
-import {Graph} from '../../core/graph';
+import {Graph} from '../../graph/graph';
 
-export type SimpleLayoutOptions = BaseLayoutOptions & {
+export type SimpleLayoutOptions = GraphLayoutOptions & {
   /** The accessor lets the application supply the position ([x, y]) of each node.
    * @example
     ```js
@@ -28,7 +28,7 @@ export type SimpleLayoutOptions = BaseLayoutOptions & {
 };
 
 /** A basic layout where the application controls positions of each node */
-export class SimpleLayout extends BaseLayout {
+export class SimpleLayout extends GraphLayout {
   static defaultOptions: Required<SimpleLayoutOptions> = {
     nodePositionAccessor: (node) =>
       [node.getPropertyValue('x'), node.getPropertyValue('y')] as [number, number]

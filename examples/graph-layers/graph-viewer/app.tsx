@@ -9,7 +9,7 @@ import DeckGL from '@deck.gl/react';
 import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {GraphEngine, GraphLayer, Graph, log, BaseLayout, SimpleLayout, D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import {GraphEngine, GraphLayer, Graph, log, GraphLayout, SimpleLayout, D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 import '@deck.gl/widgets/stylesheet.css';

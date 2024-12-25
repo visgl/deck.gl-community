@@ -3,8 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {beforeAll, describe, it, expect} from 'vitest';
-import SAMPLE_GRAPH from './__fixtures__/graph.json';
-import {createGraph} from '../src/utils/create-graph';
+import SAMPLE_GRAPH from '../__fixtures__/graph.json';
+import {createGraph} from '../../src/graph/create-graph';
 
 beforeAll(() => {
   global.CustomEvent = Event as any;

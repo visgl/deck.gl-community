@@ -3,17 +3,23 @@
 // Copyright (c) vis.gl contributors
 
 // Basic data structure of an edge
-import {EDGE_STATE} from './constants';
+import {EDGE_STATE} from '../core/constants';
 import {Node} from './node';
 
-interface EdgeOptions {
+export interface EdgeOptions {
+  /** the unique ID of the edge */
   id: string | number;
+  /** the ID of the source node */
   sourceId: string | number;
+  /** the ID of the target node */
   targetId: string | number;
+  /** whether the edge is directed or not */
   directed?: boolean;
+  /** origin data reference */
   data: Record<string, unknown>;
 }
 
+/** Basic edge data structure */
 export class Edge {
   /** Unique uuid of the edge. */
   public id: string | number;
@@ -34,11 +40,7 @@ export class Edge {
 
   /**
    * The constructor
-   * @param  {String|Number} options.id - the unique ID of the edge
-   * @param  {String|Number} options.sourceId - the ID of the source node
-   * @param  {String|Number} options.targetId - the ID of the target node
-   * @param  {Boolean} options.directed - whether the edge is directed or not
-   * @param  {Record<string, unknown>} options.data - origin data reference
+   * @param options.id - information about the edge
    */
   constructor({id, sourceId, targetId, data, directed = false}: EdgeOptions) {
     this.id = id;
@@ -66,7 +68,7 @@ export class Edge {
 
   /**
    * Get the ID of the source node.
-   * @return {String|Number} the ID of the source node.
+   * @return the ID of the source node.
    */
   getSourceNodeId(): string | number {
     return this._sourceId;
@@ -74,7 +76,7 @@ export class Edge {
 
   /**
    * Get the ID of the target node.
-   * @return {String|Number} the ID of the target node.
+   * @return the ID of the target node.
    */
   getTargetNodeId(): string | number {
     return this._targetId;
@@ -82,8 +84,8 @@ export class Edge {
 
   /**
    * Return of the value of the selected property key.
-   * @param  {String} key - property key.
-   * @return {Any} - the value of the property.
+   * @param  key - property key.
+   * @return - the value of the property.
    */
   getPropertyValue(key: string): unknown {
     // try to search the key within this object
@@ -100,7 +102,7 @@ export class Edge {
 
   /**
    * Set the origin data as a reference.
-   * @param {Object} data - the origin data.
+   * @param data - the origin data.
    */
   setData(data: Record<string, unknown>): void {
     this._data = data;
@@ -108,8 +110,8 @@ export class Edge {
 
   /**
    * Update a data property.
-   * @param {String} key - the key of the property
-   * @param {Any} value - the value of the property.
+   * @param key - the key of the property
+   * @param value - the value of the property.
    */
   setDataProperty(key: string, value: unknown): void {
     this._data[key] = value;
@@ -117,7 +119,7 @@ export class Edge {
 
   /**
    * Set edge state
-   * @param {String} state - one of EDGE_STATE
+   * @param state - one of EDGE_STATE
    */
   setState(state: string): void {
     this.state = state;
@@ -125,7 +127,7 @@ export class Edge {
 
   /**
    * Get edge state
-   * @returns {string} state - one of EDGE_STATE
+   * @returns state - one of EDGE_STATE
    */
   getState(): string {
     return this.state;

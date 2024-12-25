@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Edge} from '../core/edge';
-import {Node} from '../core/node';
-import {Graph} from '../core/graph';
+import {Edge} from './edge';
+import {Node} from './node';
+import {Graph} from './graph';
 
-export function createGraph({name, nodes, edges, nodeParser, edgeParser}) {
+/** Create a graph from a list of Nodes and edges */
+export function createGraph(props: {name; nodes; edges; nodeParser; edgeParser}) {
+  const {name, nodes, edges, nodeParser, edgeParser} = props;
   // create a new empty graph
   const graph = new Graph();
 
