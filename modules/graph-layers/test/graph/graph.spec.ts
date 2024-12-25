@@ -5,9 +5,9 @@
 import {beforeAll, describe, it, expect} from 'vitest';
 import SAMPLE_GRAPH1 from '../__fixtures__/graph1.json';
 
-import {Graph} from '../../src/core/graph';
-import {Node} from '../../src/core/node';
-import {Edge} from '../../src/core/edge';
+import {Graph} from '../../src/graph/graph';
+import {Node} from '../../src/graph/node';
+import {Edge} from '../../src/graph/edge';
 
 beforeAll(() => {
   global.CustomEvent = Event as any;
