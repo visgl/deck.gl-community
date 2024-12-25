@@ -5,11 +5,11 @@
 
 /* eslint-disable no-continue */
 
-import {Device, Texture, SamplerProps} from '@luma.gl/core';
+import type {SamplerProps, TextureProps} from '@luma.gl/core';
+import {Device, Texture} from '@luma.gl/core';
 import isEqual from 'lodash.isequal';
 
 import type {ImageInput, ImageState} from './types';
-import type {TextureProps} from '@luma.gl/core';
 
 /**
  * Texture parameters that should work for every texture on both WebGL1 and WebGL2

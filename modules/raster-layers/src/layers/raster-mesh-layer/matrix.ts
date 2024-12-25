@@ -3,7 +3,8 @@
 // Copyright (c) vis.gl contributors
 // Copyright 2022 Foursquare Labs, Inc.
 
-import {COORDINATE_SYSTEM, Viewport, CoordinateSystem} from '@deck.gl/core';
+import type {CoordinateSystem} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, Viewport} from '@deck.gl/core';
 
 // only apply composeModelMatrix when in cartesian or meter_offsets coordinate system
 // with `composeModelMatrix` enabled, the rotation part of the layer's modelMatrix will be composed to instance's transformations

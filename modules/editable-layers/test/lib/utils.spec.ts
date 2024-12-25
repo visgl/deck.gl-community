@@ -11,7 +11,7 @@ import {
   mix,
   nearestPointOnProjectedLine
 } from '../../src/utils/utils';
-import {
+import type {
   Position,
   FeatureOf,
   LineString as LineStringType,

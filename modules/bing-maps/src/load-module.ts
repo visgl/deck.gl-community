@@ -13,7 +13,7 @@ declare global {
   }
 }
 
-export default function loadModule(moduleNames?: string[]) {
+export function loadModule(moduleNames?: string[]) {
   return new Promise((resolve) => {
     // Callback
     window.__loadBingMaps = () => {

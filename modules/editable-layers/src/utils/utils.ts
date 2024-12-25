@@ -6,7 +6,7 @@ import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
 import {point} from '@turf/helpers';
-import WebMercatorViewport from 'viewport-mercator-project';
+import {WebMercatorViewport} from 'viewport-mercator-project';
 import {FeatureOf, FeatureWithProps, LineString, Point, Position} from './geojson-types';
 import {Viewport} from './types';
 

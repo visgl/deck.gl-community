@@ -12,7 +12,7 @@ import type {
   Geometry as TurfGeometry
 } from '@turf/helpers';
 import {mapCoords} from '../edit-modes/utils';
-import type {AnyCoordinates, Position} from './geojson-types';
+import type {AnyCoordinates /* , Position */} from './geojson-types';
 
 // This function takes feature's center, moves it,
 // and builds new feature around it keeping the proportions

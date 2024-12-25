@@ -4,8 +4,8 @@
 
 /* eslint-env browser */
 
+import type {DefaultProps} from '@deck.gl/core';
 import {H3ClusterLayer} from '@deck.gl/geo-layers';
-import {DefaultProps} from '@deck.gl/core';
 // TODO: Fix H3 support.
 // import { polyfill, geoToH3 } from 'h3-js';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';

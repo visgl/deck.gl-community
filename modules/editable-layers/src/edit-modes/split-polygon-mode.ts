@@ -6,12 +6,14 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import turfDifference from '@turf/difference';
 import turfBuffer from '@turf/buffer';
 import lineIntersect from '@turf/line-intersect';
-import {lineString, Point} from '@turf/helpers';
+import type {Point} from '@turf/helpers';
+import {lineString} from '@turf/helpers';
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfDestination from '@turf/destination';
 import turfPolygonToLine from '@turf/polygon-to-line';
-import nearestPointOnLine, {NearestPointOnLine} from '@turf/nearest-point-on-line';
+import type {NearestPointOnLine} from '@turf/nearest-point-on-line';
+import nearestPointOnLine from '@turf/nearest-point-on-line';
 import {generatePointsParallelToLinePoints} from './utils';
 import {FeatureCollection} from '../utils/geojson-types';
 import {

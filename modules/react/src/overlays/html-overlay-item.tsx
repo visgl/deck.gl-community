@@ -17,7 +17,7 @@ type Props = {
 
 export class HtmlOverlayItem extends React.Component<Props> {
   render() {
-    const {x, y, children, style, coordinates, ...props} = this.props;
+    const {x, y, children, style, /* coordinates, */ ...props} = this.props;
     const {zIndex = 'auto', ...remainingStyle} = style || {};
 
     return (

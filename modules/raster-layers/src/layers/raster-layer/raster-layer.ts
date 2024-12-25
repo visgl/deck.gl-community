@@ -3,7 +3,8 @@
 // Copyright (c) vis.gl contributors
 // Copyright 2022 Foursquare Labs, Inc.
 
-import {UpdateParameters, project32} from '@deck.gl/core';
+import type {UpdateParameters} from '@deck.gl/core';
+import {project32} from '@deck.gl/core';
 import {BitmapLayer} from '@deck.gl/layers';
 import {ShaderAssembler} from '@luma.gl/shadertools';
 
@@ -89,7 +90,7 @@ export class RasterLayer extends BitmapLayer<RasterLayerAddedProps> {
   // Typed as any upstream
   // https://github.com/visgl/deck.gl/blob/3ffdc5ef90ccf3d5699186f02c8807caadf70e3a/modules/core/src/lib/layer.ts#L440
   getShaders() {
-    const {device} = this.context;
+    // const {device} = this.context;
     const {modules = []} = this.props;
     return {...super.getShaders(), vs, fs, modules: [project32, ...modules]};
   }
