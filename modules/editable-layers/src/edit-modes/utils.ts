@@ -8,9 +8,10 @@ import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
 import {flattenEach} from '@turf/meta';
-import {point, MultiLineString} from '@turf/helpers';
+// import type {MultiLineString} from '@turf/helpers';
+import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
-import WebMercatorViewport from 'viewport-mercator-project';
+import {WebMercatorViewport} from 'viewport-mercator-project';
 import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
   Geometry,
@@ -185,7 +186,7 @@ export function nearestPointOnProjectedLine(
   };
 }
 
-export function nearestPointOnLine<G extends LineString | MultiLineString>(
+export function nearestPointOnLine /* <G extends LineString | MultiLineString>*/(
   lines: FeatureOf<LineString>,
   inPoint: FeatureOf<Point>,
   viewport?: Viewport
@@ -401,7 +402,7 @@ export function getEditHandlesForGeometry(
       );
       break;
     case 'Polygon':
-    case 'MultiLineString':
+      // case 'MultiLineString':
       // positions are nested 2 levels
       for (let a = 0; a < geometry.coordinates.length; a++) {
         handles = handles.concat(
