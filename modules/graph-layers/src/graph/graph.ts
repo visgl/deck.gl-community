@@ -7,7 +7,7 @@ import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
 
-// Basic graph data structure
+/** Basic graph data structure */
 export class Graph extends EventTarget {
   /** List object of nodes. */
   private _nodeMap: Record<string, Node> = {};
@@ -25,7 +25,7 @@ export class Graph extends EventTarget {
 
   /**
    * The constructor of the Graph class.
-   * @param  {Object} graph - copy the graph if this exists.
+   * @param graph - copy the graph if this exists.
    */
   constructor(graph: Graph | null = null) {
     super();
@@ -41,14 +41,14 @@ export class Graph extends EventTarget {
 
   /**
    * Set graph name
-   * @param {string} name
+   * @param name
    */
   setGraphName(name: string): void {
     this._name = name;
   }
 
   /** Get the name of the graph. Default value is the time stamp when creating this graph.
-   * @return {string} graph name.
+   * @return graph name.
    */
   getGraphName(): string {
     return this._name.toString();
@@ -69,7 +69,7 @@ export class Graph extends EventTarget {
 
   /**
    * Add a new node to the graph.
-   * @param {Node} node - expect a Node object to be added to the graph.
+   * @paramnode - expect a Node object to be added to the graph.
    */
   addNode(node: Node): void {
     // add it to the list and map
@@ -81,7 +81,7 @@ export class Graph extends EventTarget {
 
   /**
    * Batch add nodes to the graph.
-   * @param  {Node[]} nodes - a list of nodes to be added.
+   * @param nodes - a list of nodes to be added.
    */
   batchAddNodes(nodes: Node[]): void {
     // convert an array of objects to an object
@@ -108,7 +108,7 @@ export class Graph extends EventTarget {
 
   /**
    * Get the node map of the graph. The key of the map is the ID of the nodes.
-   * @return {Object} - a map of nodes keyed by node IDs.
+   * @return - a map of nodes keyed by node IDs.
    */
   getNodeMap(): Record<string | number, Node> {
     return this._nodeMap;
@@ -116,8 +116,8 @@ export class Graph extends EventTarget {
 
   /**
    * Find a node by id
-   * @param  {String} nodeId The id of the node
-   * @return {Object} Node
+   * @param nodeId The id of the node
+   * @return  Node
    */
   findNode(nodeId: string | number): Node | undefined {
     return this._nodeMap[nodeId];
@@ -125,7 +125,7 @@ export class Graph extends EventTarget {
 
   /**
    * Update the indicated node to the provided value
-   * @param {Node} node
+   * @param node
    */
   updateNode(node: Node): void {
     this._nodeMap[node.getId()] = node;
@@ -135,7 +135,7 @@ export class Graph extends EventTarget {
 
   /**
    * Add a new edge to the graph.
-   * @param {Edge} edge - expect a Edge object to be added to the graph.
+   * @param edge - expect a Edge object to be added to the graph.
    */
   addEdge(edge: Edge): void {
     const sourceNode = this.findNode(edge.getSourceNodeId());
@@ -155,7 +155,7 @@ export class Graph extends EventTarget {
 
   /**
    * Batch add edges to the graph
-   * @param  {Edge[]} edges - a list of edges to be added.
+   * @param edges - a list of edges to be added.
    */
   batchAddEdges(edges: Edge[]): void {
     edges.forEach((edge) => this.addEdge(edge));
@@ -164,7 +164,7 @@ export class Graph extends EventTarget {
 
   /**
    * Update the indicated edge to the provided value
-   * @param {Edge} edge
+   * @param edge
    */
   updateEdge(edge: Edge): void {
     this._edgeMap[edge.getId()] = edge;
@@ -174,7 +174,7 @@ export class Graph extends EventTarget {
 
   /**
    * Remove a node from the graph by node ID
-   * @param  {String|Number} nodeId - the ID of the target node.
+   * @param nodeId - the ID of the target node.
    */
   removeNode(nodeId: string | number): void {
     const node = this.findNode(nodeId);
@@ -194,7 +194,7 @@ export class Graph extends EventTarget {
 
   /**
    * Get all the edges of the graph.
-   * @return {Edge[]} get all the edges in the graph.
+   * @return get all the edges in the graph.
    */
   getEdges(): Edge[] {
     this._updateCache('edges', () => Object.values(this._edgeMap));
@@ -204,7 +204,7 @@ export class Graph extends EventTarget {
 
   /**
    * Get the edge map of the graph. The key of the map is the ID of the edges.
-   * @return {Object} - a map of edges keyed by edge IDs.
+   * @return - a map of edges keyed by edge IDs.
    */
   getEdgeMap(): Record<string, Edge> {
     return this._edgeMap;
@@ -231,8 +231,8 @@ export class Graph extends EventTarget {
 
   /**
    * Find the edge by edge ID.
-   * @param  {String|Number} id - the target edge ID
-   * @return {Edge} - the target edge.
+   * @param id - the target edge ID
+   * @return - the target edge.
    */
   findEdge(edgeId: string | number): Edge {
     return this._edgeMap[edgeId];
@@ -240,8 +240,8 @@ export class Graph extends EventTarget {
 
   /**
    * Return all the connected edges of a node by nodeID.
-   * @param  {String|Number} nodeId - the target node ID
-   * @return {Edge[]} - an array of the connected edges.
+   * @param  nodeId - the target node ID
+   * @return - an array of the connected edges.
    */
   getConnectedEdges(nodeId: string | number): Edge[] {
     const node = this.findNode(nodeId);
@@ -254,8 +254,8 @@ export class Graph extends EventTarget {
 
   /**
    * Return all the sibling nodes of a node by nodeID.
-   * @param  {String|Number} nodeId - the target node ID
-   * @return {Node[]} - an array of the sibling nodes.
+   * @param nodeId - the target node ID
+   * @return - an array of the sibling nodes.
    */
   getNodeSiblings(nodeId: string | number): Node[] {
     const node = this.findNode(nodeId);
@@ -268,8 +268,8 @@ export class Graph extends EventTarget {
 
   /**
    * Get the degree of a node.
-   * @param  {String|Number} nodeId - the target node ID.
-   * @return {Number} - the degree of the node.
+   * @param nodeId - the target node ID.
+   * @return - the degree of the node.
    */
   getDegree(nodeId: string | number): number {
     const node = this.findNode(nodeId);
@@ -322,14 +322,14 @@ export class Graph extends EventTarget {
 
   /**
    * Check the equality of two graphs data by checking last update time stamp
-   * @param  {Object} g Another graph to be compared against itself
-   * @return {Bool}   True if the graph is the same as itself.
+   * @param graph Another graph to be compared against itself
+   * @return true if the graph is the same as itself.
    */
-  equals(g: Graph): boolean {
-    if (!g || !(g instanceof Graph)) {
+  equals(graph: Graph): boolean {
+    if (!graph || !(graph instanceof Graph)) {
       return false;
     }
-    return this.version === g.version;
+    return this.version === graph.version;
   }
 
   _bumpVersion(): void {
