@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {PathLayer, PathLayerProps} from '@deck.gl/layers';
+import type {PathLayerProps} from '@deck.gl/layers';
+import {PathLayer} from '@deck.gl/layers';
 
 import {insertBefore} from '../utils/utils';
 

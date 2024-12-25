@@ -6,7 +6,7 @@
 
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
-import styled from 'styled-components';
+import {styled} from 'styled-components';
 import {LongPressButton} from './long-press-button';
 
 export const ViewControlWrapper = styled.div`
@@ -132,7 +132,16 @@ export class ViewControl extends PureComponent {
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b: any) => (
+<<<<<<< HEAD
             <NavigationButton key={b.key} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
+=======
+            <NavigationButton
+              key={b.key}
+              $top={`${b.top}px`}
+              $left={`${b.left}px`}
+              rotate={b.rotate}
+            >
+>>>>>>> e0dde50... lint
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}

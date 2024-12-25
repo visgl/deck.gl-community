@@ -7,7 +7,7 @@ import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
 import bboxPolygon from '@turf/bbox-polygon';
 import {point, featureCollection} from '@turf/helpers';
-import polygonToLine from '@turf/polygon-to-line';
+import {polygonToLine} from '@turf/polygon-to-line';
 import {coordEach} from '@turf/meta';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';

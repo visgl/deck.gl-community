@@ -3,8 +3,10 @@
 // Copyright (c) vis.gl contributors
 // Copyright 2022 Foursquare Labs, Inc.
 
-import {project32, phongLighting, log, UpdateParameters} from '@deck.gl/core';
-import {SimpleMeshLayer, SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
+import type {UpdateParameters} from '@deck.gl/core';
+import {project32, phongLighting, log} from '@deck.gl/core';
+import type {SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
+import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {Model, Geometry} from '@luma.gl/engine';
 import {ShaderAssembler} from '@luma.gl/shadertools';
 // import {UniformsOptions} from '@luma.gl/webgl/src/classes/uniforms';
@@ -89,7 +91,6 @@ export class RasterMeshLayer extends SimpleMeshLayer<any, RasterLayerAddedProps>
   }
 
   getShaders(): any {
-    const {gl} = this.context;
     const {modules = []} = this.props;
 
     return {

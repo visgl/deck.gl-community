@@ -108,7 +108,7 @@ export function App(props) {
     }
 
     debugger
-    setEngine(new GraphEngine(graph, layout));
+    setEngine(new GraphEngine({graph, layout}));
   }, [graph, layout]);
 
   useLayoutEffect(() => {
