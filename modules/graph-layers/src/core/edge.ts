@@ -14,6 +14,7 @@ interface EdgeOptions {
   data: Record<string, unknown>;
 }
 
+/** Represents one edge in a graph */
 export class Edge {
   /** Unique uuid of the edge. */
   public id: string | number;

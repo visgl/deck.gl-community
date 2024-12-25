@@ -7,7 +7,7 @@ import {Cache} from './cache';
 import {Edge} from './edge';
 import {Node} from './node';
 
-// Basic graph data structure
+/** Basic graph data structure */
 export class Graph extends EventTarget {
   /** List object of nodes. */
   private _nodeMap: Record<string, Node> = {};

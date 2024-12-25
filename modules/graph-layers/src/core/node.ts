@@ -12,7 +12,7 @@ interface NodeOptions {
   data: Record<string, unknown>;
 }
 
-// Basic data structure of a node
+/** Basic data structure of a node */
 export class Node {
   public id: string | number;
   /** Keep a reference to origin data. */
@@ -27,6 +27,7 @@ export class Node {
   private _highlightConnectedEdges: boolean;
   /** Check the type of the object when picking engine gets it. */
   public readonly isNode = true;
+
   /**
    * The constructor of a node
    * @param  {String|Number} options.id   - the unique ID of the node
@@ -132,7 +133,7 @@ export class Node {
 
   /**
    * Set the new node data.
-   * @param {Record<string, unknown>} data - the new data of the node
+   * @param data - the new data of the node
    */
   setData(data: Record<string, unknown>): void {
     this._data = data;
@@ -140,8 +141,8 @@ export class Node {
 
   /**
    * Update a data property.
-   * @param {String} key - the key of the property
-   * @param {Any} value - the value of the property.
+   * @param key - the key of the property
+   * @param value - the value of the property.
    */
   setDataProperty(key: string, value: unknown): void {
     this._data[key] = value;

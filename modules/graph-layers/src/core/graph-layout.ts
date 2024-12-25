@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {Graph} from './graph';
+import type {Node} from './node';
+import type {Edge} from './edge';
+
 import isEqual from 'lodash.isequal';
 import {EDGE_TYPE} from './constants';
 
@@ -10,9 +14,7 @@ export type GraphLayoutState = 'INIT' | 'START' | 'CALCULATING' | 'DONE' | 'ERRO
 
 export type GraphLayoutOptions = {};
 
-/**
- * All the layout classes are extended from this base layout class.
- */
+/** All the layout classes are extended from this base layout class. */
 export class GraphLayout extends EventTarget {
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
@@ -110,9 +112,9 @@ export class GraphLayout extends EventTarget {
   /** virtual functions: will be implemented in the child class */
 
   // first time to pass the graph data into this layout
-  initializeGraph(graph) {}
+  initializeGraph(graph: Graph) {}
   // update the existing graph
-  updateGraph(graph) {}
+  updateGraph(graph: Graph) {}
   // start the layout calculation
   start() {}
   // update the layout calculation
@@ -126,7 +128,7 @@ export class GraphLayout extends EventTarget {
     return [0, 0];
   }
   // access the layout information of the edge
-  getEdgePosition(edge) {
+  getEdgePosition(edge: Edge) {
     return {
       type: EDGE_TYPE.LINE,
       sourcePosition: [0, 0],
@@ -137,17 +139,17 @@ export class GraphLayout extends EventTarget {
 
   /**
    * Pin the node to a designated position, and the node won't move anymore
-   * @param  {Object} node Node to be locked
-   * @param  {Number} x    x coordinate
-   * @param  {Number} y    y coordinate
+   * @param  node Node to be locked
+   * @param  x    x coordinate
+   * @param  y    y coordinate
    */
-  lockNodePosition(node, x, y) {}
+  lockNodePosition(node: Node, x: number, y: number) {}
 
   /**
    * Unlock the node, the node will be able to move freely.
    * @param  {Object} node Node to be unlocked
    */
-  unlockNodePosition(node) {}
+  unlockNodePosition(node: Node) {}
 
   _updateState(state) {
     this.state = state;
