@@ -59,7 +59,7 @@ export const VerticalSlider = styled.div`
   width: 10px;
 
   > input[type='range'][orient='vertical'] {
-    -webkit-appearance: slider-vertical;
+    writing-mode: vertical-lr;
     height: 100px;
     padding: 0;
     margin: 0;
