@@ -5,7 +5,7 @@
 // This configuration object determines which deck.gl classes are accessible in Playground
 
 // deck.gl
-import {MapView, FirstPersonView, OrbitView, OrthographicView} from '@deck.gl/core';
+import {MapView, FirstPersonView, OrbitView, OrthographicView, View, Layer} from '@deck.gl/core';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import * as Layers from '@deck.gl/layers';
 import * as AggregationLayers from '@deck.gl/aggregation-layers';
@@ -22,10 +22,7 @@ import {CSVLoader} from '@loaders.gl/csv';
 import {DracoWorkerLoader} from '@loaders.gl/draco';
 import {Tiles3DLoader, CesiumIonLoader} from '@loaders.gl/3d-tiles';
 
-const LOADERS = [
-  CSVLoader,
-  DracoWorkerLoader
-]
+const LOADERS = [CSVLoader, DracoWorkerLoader];
 
 // Note: deck already registers JSONLoader...
 registerLoaders(LOADERS);
@@ -52,7 +49,7 @@ export const JSON_CONFIGURATION = {
     // community layer modules
     ...CommunityLayers,
     ...EditableLayers,
-    ...GraphLayers,
+    ...GraphLayers
     // ArrowLayers,
   },
 
@@ -62,12 +59,26 @@ export const JSON_CONFIGURATION = {
   // Enumerations that should be available to JSON parser
   // Will be resolved as `<enum-name>.<enum-value>`
   enumerations: {
-    COORDINATE_SYSTEM,
+    COORDINATE_SYSTEM
   },
 
   // Constants that should be resolved with the provided values by JSON converter
   constants: {
     Tiles3DLoader,
     CesiumIonLoader
+  },
+
+  postProcessConvertedJson: (json) => {
+    // Filter out invalid props. Typically, props will be invalid while the user is typing.
+    if (json.layers) {
+      json.layers = json.layers.filter((layer) => layer instanceof Layer);
+    }
+    if (json.widgets) {
+      json.widgets = json.widgets.filter((widget) => typeof widget.onAdd === 'function');
+    }
+    if (json.views && !(json.views instanceof View)) {
+      json.views = json.views.filter((view) => view instanceof View);
+    }
+    return json;
   }
 };
