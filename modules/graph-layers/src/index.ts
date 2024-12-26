@@ -40,4 +40,3 @@ export {log} from './utils/log';
 // DEPRECATED
 export {createGraph} from './loaders/create-graph';
 export {JSONLoader} from './loaders/simple-json-graph-loader';
-

@@ -6,9 +6,9 @@ import {Edge} from '../graph/edge';
 import {Node} from '../graph/node';
 import {Graph} from '../graph/graph';
 
-/** 
+/**
  * @deprecated Use `new Graph(name, nodes, edges)`
- * Create a graph from a list of Nodes and edges 
+ * Create a graph from a list of Nodes and edges
  */
 export function createGraph(props: {name; nodes; edges; nodeParser; edgeParser}) {
   const {name, nodes, edges, nodeParser, edgeParser} = props;

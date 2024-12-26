@@ -65,7 +65,7 @@ export function tableGraphLoader(
       targetId: targetNodeId,
       directed: options.edgeDirected
     };
-  };
+  }
 
   const nodeParser = options.nodeParser || defaultNodeParser;
   const edgeParser = options.edgeParser || defaultEdgeParser;

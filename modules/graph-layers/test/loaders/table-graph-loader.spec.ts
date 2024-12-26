@@ -13,19 +13,18 @@ beforeAll(() => {
   global.CustomEvent = Event as any;
 });
 
-
-
 describe('loaders/node-parsers', () => {
-
   it('should work with default options', () => {
     const graph = tableGraphLoader(SAMPLE_GRAPH1);
 
-    expect(graph.getNodes().map((n) => n.getId()), 'node ids').toEqual(
-      expect.arrayContaining(SAMPLE_GRAPH1.nodes.map((n) => n.id))
-    );
-    expect(graph.getEdges().map((e) => e.getId()), 'edge ids').toEqual(
-      expect.arrayContaining(SAMPLE_GRAPH1.edges.map((e) => e.id))
-    );
+    expect(
+      graph.getNodes().map((n) => n.getId()),
+      'node ids'
+    ).toEqual(expect.arrayContaining(SAMPLE_GRAPH1.nodes.map((n) => n.id)));
+    expect(
+      graph.getEdges().map((e) => e.getId()),
+      'edge ids'
+    ).toEqual(expect.arrayContaining(SAMPLE_GRAPH1.edges.map((e) => e.id)));
   });
 
   it('should work with custom parsers', () => {
@@ -38,11 +37,13 @@ describe('loaders/node-parsers', () => {
         targetId: edge.target
       })
     });
-    expect(graph.getNodes().map((n) => n.getId()), 'node ids').toEqual(
-      expect.arrayContaining(SAMPLE_GRAPH2.nodes.map((n) => n.name))
-    );
-    expect(graph.getEdges().map((n) => n.getId()), 'edge ids').toEqual(
-      expect.arrayContaining(SAMPLE_GRAPH2.edges.map((e) => e.name))
-    );
+    expect(
+      graph.getNodes().map((n) => n.getId()),
+      'node ids'
+    ).toEqual(expect.arrayContaining(SAMPLE_GRAPH2.nodes.map((n) => n.name)));
+    expect(
+      graph.getEdges().map((n) => n.getId()),
+      'edge ids'
+    ).toEqual(expect.arrayContaining(SAMPLE_GRAPH2.edges.map((e) => e.name)));
   });
 });
