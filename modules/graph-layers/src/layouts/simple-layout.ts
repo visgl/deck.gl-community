@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
-import {Node} from '../../graph/node';
-import {EDGE_TYPE} from '../../core/constants';
-import {Graph} from '../../graph/graph';
+import {GraphLayout, GraphLayoutOptions} from '../core/graph-layout';
+import {Node} from '../graph/node';
+import {EDGE_TYPE} from '../core/constants';
+import {Graph} from '../graph/graph';
 
 export type SimpleLayoutOptions = GraphLayoutOptions & {
   /** The accessor lets the application supply the position ([x, y]) of each node.
@@ -28,7 +28,7 @@ export type SimpleLayoutOptions = GraphLayoutOptions & {
 };
 
 /** A basic layout where the application controls positions of each node */
-export class SimpleLayout extends GraphLayout {
+export class SimpleLayout extends GraphLayout<SimpleLayoutOptions> {
   static defaultOptions: Required<SimpleLayoutOptions> = {
     nodePositionAccessor: (node) =>
       [node.getPropertyValue('x'), node.getPropertyValue('y')] as [number, number]
@@ -39,7 +39,7 @@ export class SimpleLayout extends GraphLayout {
   protected _nodeMap: Record<string, Node> = {};
   protected _nodePositionMap: Record<string, (node: Node) => [number, number]> = {};
 
-  constructor(options = {}) {
+  constructor(options: SimpleLayoutOptions = {}) {
     super({...SimpleLayout.defaultOptions, ...options});
   }
 
@@ -72,7 +72,7 @@ export class SimpleLayout extends GraphLayout {
       return res;
     }, {});
     this._nodePositionMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = (this._options as any).nodePositionAccessor(node);
+      res[node.getId()] = this._options.nodePositionAccessor(node);
       return res;
     }, {});
   }

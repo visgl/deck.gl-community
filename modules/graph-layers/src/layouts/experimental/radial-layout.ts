@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, EDGE_TYPE} from '../../src';
+import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {Node} from '../../graph/node';
+import {EDGE_TYPE} from '../../core/constants';
+import {Graph} from '../../graph/graph';
 
-const defaultOptions = {
-  radius: 500,
+export type RadialLayoutOptions = GraphLayoutOptions & {
+  radius?: number;
+  tree?: any;
 };
-
-function rotate(cx, cy, x, y, angle) {
-  const radians = (Math.PI / 180) * angle;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  const nx = cos * (x - cx) + sin * (y - cy) + cx;
-  const ny = cos * (y - cy) - sin * (x - cx) + cy;
-  return [nx, ny];
-}
 
 const traverseTree = (nodeId, nodeMap) => {
   const node = nodeMap[nodeId];
@@ -24,7 +19,7 @@ const traverseTree = (nodeId, nodeMap) => {
   }
   return {
     ...node,
-    children: node.children.map(nid => traverseTree(nid, nodeMap)),
+    children: node.children.map((nid) => traverseTree(nid, nodeMap))
   };
 };
 
@@ -50,8 +45,7 @@ const getPath = (node, targetId, path) => {
     path.push(node.id);
     return true;
   }
-  const inChildren =
-    node.children && node.children.some(c => getPath(c, targetId, path));
+  const inChildren = node.children && node.children.some((c) => getPath(c, targetId, path));
   if (inChildren) {
     path.push(node.id);
     return true;
@@ -59,28 +53,34 @@ const getPath = (node, targetId, path) => {
   return false;
 };
 
-export default class RadialLayout extends GraphLayout {
-  constructor(options) {
+export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
+  static defaultOptions = {
+    radius: 500
+  };
+
+  _name = 'RadialLayout';
+  _graph: Graph = null;
+  // custom layout data structure
+  _hierarchicalPoints = {};
+  nestedTree;
+
+  constructor(options: RadialLayoutOptions = {}) {
     super(options);
-    this._name = 'RadialLayout';
     this._options = {
-      ...defaultOptions,
-      ...options,
+      ...RadialLayout.defaultOptions,
+      ...options
     };
-    // custom layout data structure
-    this._graph = null;
-    this._hierarchicalPoints = {};
   }
 
-  initializeGraph(graph) {
+  initializeGraph(graph: Graph): void {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph) {
+  updateGraph(graph: Graph): void {
     this._graph = graph;
   }
 
-  start() {
+  start(): void {
     const nodeCount = this._graph.getNodes().length;
     if (nodeCount === 0) {
       return;
@@ -101,7 +101,7 @@ export default class RadialLayout extends GraphLayout {
     const nodeMap = tree.reduce((res, node) => {
       res[node.id] = {
         ...node,
-        isLeaf: !node.children || node.children.length === 0,
+        isLeaf: !node.children || node.children.length === 0
       };
       return res;
     }, {});
@@ -128,7 +128,7 @@ export default class RadialLayout extends GraphLayout {
             );
         // calculate children position
         let tempAngle = startAngle;
-        node.children.forEach(n => {
+        node.children.forEach((n) => {
           calculatePosition(n, level + 1, tempAngle, positionMap);
           tempAngle += getLeafNodeCount(n, 0) * unitAngle;
         });
@@ -146,16 +146,16 @@ export default class RadialLayout extends GraphLayout {
     this._hierarchicalPoints = {};
     calculatePosition(this.nestedTree, 0, 0, this._hierarchicalPoints);
     // layout completes: notifiy component to re-render
-    this._callbacks.onLayoutChange();
-    this._callbacks.onLayoutDone();
+    this._onLayoutChange();
+    this._onLayoutDone();
   }
 
-  getNodePosition = node => {
+  getNodePosition = (node) => {
     return this._hierarchicalPoints[node.id];
   };
 
   // spline curve version
-  getEdgePosition = edge => {
+  getEdgePosition = (edge) => {
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
     const sourceNodePos = this._hierarchicalPoints[sourceNodeId];
@@ -189,13 +189,22 @@ export default class RadialLayout extends GraphLayout {
       type: EDGE_TYPE.SPLINE_CURVE,
       sourcePosition: sourceNodePos,
       targetPosition: targetNodePos,
-      controlPoints: wayPoints,
+      controlPoints: wayPoints
     };
   };
 
   lockNodePosition = (node, x, y) => {
     this._hierarchicalPoints[node.id] = [x, y];
-    this._callbacks.onLayoutChange();
-    this._callbacks.onLayoutDone();
+    this._onLayoutChange();
+    this._onLayoutDone();
   };
+}
+
+function rotate(cx, cy, x, y, angle) {
+  const radians = (Math.PI / 180) * angle;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const nx = cos * (x - cx) + sin * (y - cy) + cx;
+  const ny = cos * (y - cy) - sin * (x - cx) + cy;
+  return [nx, ny];
 }
