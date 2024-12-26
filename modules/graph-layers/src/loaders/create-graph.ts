@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Edge} from './edge';
-import {Node} from './node';
-import {Graph} from './graph';
+import {Edge} from '../graph/edge';
+import {Node} from '../graph/node';
+import {Graph} from '../graph/graph';
 
-/** Create a graph from a list of Nodes and edges */
+/**
+ * @deprecated Use `new Graph(name, nodes, edges)`
+ * Create a graph from a list of Nodes and edges
+ */
 export function createGraph(props: {name; nodes; edges; nodeParser; edgeParser}) {
   const {name, nodes, edges, nodeParser, edgeParser} = props;
   // create a new empty graph

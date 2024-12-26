@@ -12,7 +12,7 @@ export interface NodeOptions {
   selectable?: boolean;
   highlightConnectedEdges?: boolean;
   /* origin data reference */
-  data: Record<string, unknown>;
+  data?: Record<string, unknown>;
 }
 
 /** Basic data structure of a node */

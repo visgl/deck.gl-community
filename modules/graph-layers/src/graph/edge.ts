@@ -16,7 +16,7 @@ export interface EdgeOptions {
   /** whether the edge is directed or not */
   directed?: boolean;
   /** origin data reference */
-  data: Record<string, unknown>;
+  data?: Record<string, unknown>;
 }
 
 /** Basic edge data structure */

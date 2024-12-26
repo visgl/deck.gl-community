@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {createGraph} from '../graph/create-graph';
+import {createGraph} from './create-graph';
 import {log} from '../utils/log';
 import {basicNodeParser} from './node-parsers';
 import {basicEdgeParser} from './edge-parsers';
