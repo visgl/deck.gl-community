@@ -22,12 +22,14 @@ import {ImageLayer} from './node-layers/image-layer';
 import {LabelLayer} from './node-layers/label-layer';
 import {RectangleLayer} from './node-layers/rectangle-layer';
 import {RoundedRectangleLayer} from './node-layers/rounded-rectangle-layer';
-import {PathBasedRoundedRectangleLayer} from './node-layers/path-rounded-rectange-layer';
+import {PathBasedRoundedRectangleLayer} from './node-layers/path-rounded-rectangle-layer';
 import {ZoomableMarkerLayer} from './node-layers/zoomable-marker-layer';
 
 // edge layers
 import {EdgeLayer} from './edge-layer';
 import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
+import {FlowLayer} from './edge-layers/flow-layer';
+
 import {JSONLoader} from '../loaders/json-loader';
 
 const NODE_LAYER_MAP = {
