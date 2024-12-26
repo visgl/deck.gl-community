@@ -15,92 +15,30 @@ export type GraphLayoutState = 'INIT' | 'START' | 'CALCULATING' | 'DONE' | 'ERRO
 export type GraphLayoutOptions = {};
 
 /** All the layout classes are extended from this base layout class. */
-export class GraphLayout extends EventTarget {
+export class GraphLayout<
+  OptionsT extends GraphLayoutOptions = GraphLayoutOptions
+> extends EventTarget {
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration options of the layout. */
-  protected _options: GraphLayoutOptions;
+  protected _options: OptionsT;
 
   public version = 0;
   public state: GraphLayoutState = 'INIT';
 
   /**
    * Constructor of GraphLayout
-   * @param  {Object} options extra configuration options of the layout
+   * @param options extra configuration options of the layout
    */
-  constructor(options: GraphLayoutOptions) {
+  constructor(options: OptionsT) {
     super();
     this._options = options;
   }
 
   /**
-   * @fires GraphLayout#onLayoutStart
-   * @protected
-   */
-  _onLayoutStart(): void {
-    this._updateState('CALCULATING');
-
-    /**
-     * Layout calculation start.
-     *
-     * @event GraphLayout#onLayoutChange
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onLayoutStart'));
-  }
-
-  /**
-   * @fires GraphLayout#onLayoutChange
-   * @protected
-   */
-  _onLayoutChange(): void {
-    this._updateState('CALCULATING');
-
-    /**
-     * Layout calculation iteration.
-     *
-     * @event GraphLayout#onLayoutChange
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onLayoutChange'));
-  }
-
-  /**
-   * @fires GraphLayout#onLayoutDone
-   * @protected
-   */
-  _onLayoutDone(): void {
-    this._updateState('DONE');
-
-    /**
-     * Layout calculation is done.
-     *
-     * @event GraphLayout#onLayoutDone
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onLayoutDone'));
-  }
-
-  /**
-   * @fires GraphLayout#onLayoutError
-   * @protected
-   */
-  _onLayoutError(): void {
-    this._updateState('ERROR');
-
-    /**
-     * Layout calculation went wrong.
-     *
-     * @event GraphLayout#onLayoutError
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onLayoutError'));
-  }
-
-  /**
    * Check the equality of two layouts
-   * @param  {Object} layout The layout to be compared.
-   * @return {Bool}   True if the layout is the same as itself.
+   * @param layout - The layout to be compared.
+   * @return - True if the layout is the same as itself.
    */
   equals(layout: GraphLayout): boolean {
     if (!layout || !(layout instanceof GraphLayout)) {
@@ -111,23 +49,23 @@ export class GraphLayout extends EventTarget {
 
   /** virtual functions: will be implemented in the child class */
 
-  // first time to pass the graph data into this layout
+  /** first time to pass the graph data into this layout */
   initializeGraph(graph: Graph) {}
-  // update the existing graph
+  /** update the existing graph */
   updateGraph(graph: Graph) {}
-  // start the layout calculation
+  /** start the layout calculation */
   start() {}
-  // update the layout calculation
+  /** update the layout calculation */
   update() {}
-  // resume the layout calculation
+  /** resume the layout calculation */
   resume() {}
-  // stop the layout calculation
+  /** stop the layout calculation */
   stop() {}
-  // access the position of the node in the layout
+  /** access the position of the node in the layout */
   getNodePosition(node: Node): [number, number] {
     return [0, 0];
   }
-  // access the layout information of the edge
+  /** access the layout information of the edge */
   getEdgePosition(edge: Edge) {
     return {
       type: EDGE_TYPE.LINE,
@@ -151,8 +89,58 @@ export class GraphLayout extends EventTarget {
    */
   unlockNodePosition(node: Node) {}
 
-  _updateState(state) {
+  // INTERNAL METHODS
+
+  protected _updateState(state) {
     this.state = state;
     this.version += 1;
   }
+
+  /** @fires GraphLayout#onLayoutStart */
+  protected _onLayoutStart = (): void => {
+    this._updateState('CALCULATING');
+
+    /**
+     * Layout calculation start.
+     * @event GraphLayout#onLayoutChange
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutStart'));
+  };
+
+  /** @fires GraphLayout#onLayoutChange */
+  protected _onLayoutChange = (): void => {
+    this._updateState('CALCULATING');
+
+    /**
+     * Layout calculation iteration.
+     * @event GraphLayout#onLayoutChange
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutChange'));
+  };
+
+  /** @fires GraphLayout#onLayoutDone */
+  protected _onLayoutDone = (): void => {
+    this._updateState('DONE');
+
+    /**
+     * Layout calculation is done.
+     * @event GraphLayout#onLayoutDone
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutDone'));
+  };
+
+  /** @fires GraphLayout#onLayoutError */
+  protected _onLayoutError = (): void => {
+    this._updateState('ERROR');
+
+    /**
+     * Layout calculation went wrong.
+     * @event GraphLayout#onLayoutError
+     * @type {CustomEvent}
+     */
+    this.dispatchEvent(new CustomEvent('onLayoutError'));
+  };
 }

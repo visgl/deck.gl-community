@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 
 import {EDGE_TYPE} from '../../core/constants';
 
-export type GPUForceLayoutOptions = {
+export type GPUForceLayoutOptions = GraphLayoutOptions & {
   alpha?: number;
   resumeAlpha?: number;
   nBodyStrength?: number;
@@ -18,7 +18,7 @@ export type GPUForceLayoutOptions = {
 /**
  * @todo this layout should be updated with the organizational and logic improvements made in d3-force
  */
-export class GPUForceLayout extends GraphLayout {
+export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   static defaultOptions: Required<GPUForceLayoutOptions> = {
     alpha: 0.3,
     resumeAlpha: 0.1,
@@ -36,7 +36,7 @@ export class GPUForceLayout extends GraphLayout {
   private _worker: Worker;
   private _callbacks: any;
 
-  constructor(options: GPUForceLayoutOptions) {
+  constructor(options: GPUForceLayoutOptions = {}) {
     const _options = {
       ...GPUForceLayout.defaultOptions,
       ...options
@@ -106,8 +106,8 @@ export class GPUForceLayout extends GraphLayout {
     }
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
-    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} = this
-      ._options as any;
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
+      this._options;
     this._worker.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,

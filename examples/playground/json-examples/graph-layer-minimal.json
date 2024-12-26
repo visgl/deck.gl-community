@@ -1,0 +1,34 @@
+{
+  "description": "@deck.gl-community/graph-layers JSON bindings",
+  "websiteUrl": "https://deck.gl-community/#/examples/playground",
+  "initialViewState": {
+    "longitude": -74,
+    "latitude": 40.7,
+    "zoom": 11,
+    "maxZoom": 16,
+    "pitch": 0,
+    "bearing": 0
+  },
+  "views": [
+    {
+      "@@type": "OrthographicView",
+      "controller": true
+    }
+  ],
+  "layers": [
+    {
+      "@@type": "GraphLayer",
+      "data": "https://d1a3f4spazzrp4.cloudfront.net/mlvis/graphgl/wits.json",
+      "layout": "SimpleLayout",
+      "radiusScale": 30,
+      "radiusMinPixels": 0.25,
+      "getPosition": "@@=-",
+      "getFillColor": [
+        0,
+        128,
+        255
+      ],
+      "getRadius": 1
+    }
+  ]
+}

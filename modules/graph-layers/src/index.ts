@@ -13,9 +13,13 @@ export {GraphEngine} from './core/graph-engine';
 // graph-layers layouts
 export type {GraphLayoutState} from './core/graph-layout';
 export {GraphLayout} from './core/graph-layout';
+
+export {SimpleLayout} from './layouts//simple-layout';
 export {D3ForceLayout} from './layouts/d3-force/d3-force-layout';
 export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
-export {SimpleLayout} from './layouts/simple-layout/simple-layout';
+export {RadialLayout as _RadialLayout} from './layouts/experimental/radial-layout';
+export {ForceMultiGraphLayout as _MultigraphLayout} from './layouts/experimental/force-multi-graph-layout';
+export {HivePlotLayout as _HivePlotLayout} from './layouts/experimental/hive-plot-layout';
 
 export {NODE_STATE, NODE_TYPE, EDGE_TYPE, EDGE_DECORATOR_TYPE, MARKER_TYPE} from './core/constants';
 
