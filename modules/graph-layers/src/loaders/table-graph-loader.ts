@@ -21,9 +21,9 @@ export type ParseGraphOptions = {
 };
 
 const defaultParseGraphOptions = {
-  nodeIdField: 'name',
-  edgeSourceField: 'source',
-  edgeTargetField: 'target',
+  nodeIdField: 'id',
+  edgeSourceField: 'sourceId',
+  edgeTargetField: 'targetId',
   edgeDirectedField: undefined,
   edgeDirected: false
   // nodeParser: (nodeRow: any, options: ParseGraphOptions) => ({id: nodeRow.name, data: nodeRow}),
@@ -45,27 +45,30 @@ export function tableGraphLoader(
 ): Graph {
   options = {...defaultParseGraphOptions, ...options};
 
-  const {nodes,  edges} = tables;
+  const {nodes, edges} = tables;
 
-  const nodeIndexMap = nodes.reduce((res, node, idx) => {
-    res[idx] = node[options.nodeIdField];
-    return res;
-  }, {});
+  // const nodeIndexMap = nodes.reduce((res, node, idx) => {
+  //   res[idx] = node[options.nodeIdField];
+  //   return res;
+  // }, {});
 
-  console.warn(options)
+  function defaultNodeParser(nodeRow: any): NodeOptions {
+    return {id: nodeRow[options.nodeIdField]};
+  }
 
-  const nodeParser = (nodeRow: any) => ({id: nodeRow[options.nodeIdField]});
-
-  const edgeParser = (edgeRow: any) => {
+  function defaultEdgeParser(edgeRow: any): EdgeOptions {
     const sourceNodeId = edgeRow[options.edgeSourceField];
     const targetNodeId = edgeRow[options.edgeTargetField];
     return {
-      id: `${sourceNodeId}-${targetNodeId}`,
-      sourceId: nodeIndexMap[sourceNodeId],
-      targetId: nodeIndexMap[targetNodeId],
+      id: edgeRow.id || `${sourceNodeId}-${targetNodeId}`,
+      sourceId: sourceNodeId,
+      targetId: targetNodeId,
       directed: options.edgeDirected
     };
   };
+
+  const nodeParser = options.nodeParser || defaultNodeParser;
+  const edgeParser = options.edgeParser || defaultEdgeParser;
 
   // add nodes
 
