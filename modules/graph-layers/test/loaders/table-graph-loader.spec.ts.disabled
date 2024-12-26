@@ -13,9 +13,12 @@ beforeAll(() => {
   global.CustomEvent = Event as any;
 });
 
+
+
 describe('loaders/node-parsers', () => {
-  it('should work with default parsers', () => {
-    const graph = JSONLoader({json: SAMPLE_GRAPH1});
+
+  it('should work with default options', () => {
+    const graph = tableGraphLoader(SAMPLE_GRAPH1);
     expect(graph.getEdges().map((e) => e.getId())).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH1.edges.map((e) => e.id))
     );
@@ -25,8 +28,7 @@ describe('loaders/node-parsers', () => {
   });
 
   it('should work with custom parsers', () => {
-    const graph = JSONLoader({
-      json: SAMPLE_GRAPH2,
+    const graph = tableGraphLoader(SAMPLE_GRAPH2, {
       nodeParser: (node) => ({id: node.name}),
       edgeParser: (edge) => ({
         id: edge.name,

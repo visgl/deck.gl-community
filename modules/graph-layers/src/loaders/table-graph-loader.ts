@@ -11,9 +11,9 @@ import {Graph} from '../graph/graph';
 import {log} from '../utils/log';
 
 export type ParseGraphOptions = {
-  nodeIdField: string;
-  edgeSourceField: string;
-  edgeTargetField: string;
+  nodeIdField?: string;
+  edgeSourceField?: string;
+  edgeTargetField?: string;
   edgeDirectedField?: string;
   edgeDirected?: boolean;
   nodeParser?: (nodeRow: any) => NodeOptions;
@@ -40,19 +40,21 @@ const defaultParseGraphOptions = {
 } as const satisfies ParseGraphOptions;
 
 export function tableGraphLoader(
-  tables: {nodeTable: any[]; edgeTable: any[]},
+  tables: {nodes: any[]; edges: any[]},
   options?: ParseGraphOptions
 ): Graph {
   options = {...defaultParseGraphOptions, ...options};
 
-  const {nodeTable: nodes, edgeTable: edges} = tables;
+  const {nodes,  edges} = tables;
 
   const nodeIndexMap = nodes.reduce((res, node, idx) => {
     res[idx] = node[options.nodeIdField];
     return res;
   }, {});
 
-  const nodeParser = (nodeRow: any) => ({id: nodeRow.name});
+  console.warn(options)
+
+  const nodeParser = (nodeRow: any) => ({id: nodeRow[options.nodeIdField]});
 
   const edgeParser = (edgeRow: any) => {
     const sourceNodeId = edgeRow[options.edgeSourceField];
@@ -83,8 +85,8 @@ export function tableGraphLoader(
       id,
       sourceId,
       targetId,
-      directed,
-      data: null // edge
+      directed: directed || false,
+      data: edge
     });
   });
 
