@@ -7,6 +7,12 @@ import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
 
+export type GraphProps = {
+  name?: string;
+  nodes?: Node[];
+  edges?: Edge[];
+};
+
 /** Basic graph data structure */
 export class Graph extends EventTarget {
   /** List object of nodes. */
@@ -23,19 +29,28 @@ export class Graph extends EventTarget {
   /** Cached data: create array data from maps. */
   private _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
 
+  constructor(props?: GraphProps);
+  constructor(graph: Graph);
+
   /**
    * The constructor of the Graph class.
    * @param graph - copy the graph if this exists.
    */
-  constructor(graph: Graph | null = null) {
+  constructor(propsOrGraph?: GraphProps | Graph) {
     super();
 
-    // copy the graph if it exists in the parameter
-    if (graph) {
-      // start copying the graph
+    if (propsOrGraph instanceof Graph) {
+      // if a Graph instance was supplied, copy the supplied graph into this graph
+      const graph = propsOrGraph;
+      this._name = graph?._name || this._name;
       this._nodeMap = graph._nodeMap;
       this._edgeMap = graph._edgeMap;
-      this._name = graph && graph._name;
+    } else {
+      // If graphProps were supplied, initialize this graph from the supplied props
+      const props = propsOrGraph;
+      this._name = props?.name || this._name;
+      this.batchAddNodes(props?.nodes || []);
+      this.batchAddEdges(props?.edges || []);
     }
   }
 
