@@ -23,14 +23,15 @@ import dotText from './dot-text.json';
 
 export default {
   // WEBSITE EXAMPLES AS JSON PAYLOADS
+  'website/3D Heatmap (HexagonLayer)': heatmap,
+  'website/3D Heatmap (wth Minimap)': heatmapMinimap,
+
   'graph-layers (GraphLayer)': graphLayerMinimal,
   'graph-layers (GraphLayer/Multigraph)': graphLayerMultigraph,
   'graph-layers (GraphLayer/HivePlot)': graphLayeHivePlot,
   'graph-layers (GraphLayer/RadialLayout)': graphLayerRadialLayout,
 
   'website/Vector Tiles (TileSourceLayer)': tileSource,
-  'website/3D Heatmap (HexagonLayer)': heatmap,
-  'website/3D Heatmap (wth Minimap)': heatmapMinimap,
   'website/GeoJSON (GeoJsonLayer)': geojson,
   'website/Line (LineLayer)': line,
   'website/Scatterplot (ScatterplotLayer)': scatterplot,
