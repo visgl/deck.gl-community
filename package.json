@@ -69,7 +69,8 @@
   },
   "resolutions": {
     "react": "18.2.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "mjolnir.js": "3.0.0"
   },
   "volta": {
     "node": "20.11.1",
