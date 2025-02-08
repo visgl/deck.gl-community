@@ -80,7 +80,7 @@ export class RasterLayer extends BitmapLayer<RasterLayerAddedProps> {
       coordinateConversion,
       bounds
     });
-    model.updateModuleSettings({
+    model.updateModuleSettingsWebGL({
       ...moduleProps,
       ...images
     });

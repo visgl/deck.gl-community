@@ -186,7 +186,7 @@ export class RasterMeshLayer extends SimpleMeshLayer<any, RasterLayerAddedProps>
         flatShading: !this.state.hasNormals
       })
     );
-    model.updateModuleSettings({
+    model.updateModuleSettingsWebGL({
       ...moduleProps,
       ...images
     });
