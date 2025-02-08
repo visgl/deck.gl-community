@@ -8,8 +8,10 @@ import {RectangleLayer} from './rectangle-layer';
 
 export class RoundedRectangleLayer extends RectangleLayer {
   static layerName = 'RoundedRectangleLayer';
-  draw({uniforms}) {
+  draw(opts) {
+    const {uniforms} = opts;
     super.draw({
+      ...opts,
       uniforms: {
         ...uniforms,
         cornerRadius: (this.props as any).cornerRadius
