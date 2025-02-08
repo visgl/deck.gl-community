@@ -15,7 +15,7 @@ import {
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
 
-const EVENT_TYPES = ['anyclick', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
+const EVENT_TYPES = ['click', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
 
 // TODO(v9): remove generic layer
 export type EditableLayerProps<DataType = any> = CompositeLayerProps & {
@@ -118,7 +118,7 @@ export abstract class EditableLayer<
     func(event);
   }
 
-  _onanyclick({srcEvent}: any) {
+  _onclick({srcEvent}: any) {
     const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
     const mapCoords = this.getMapCoords(screenCoords);
 
