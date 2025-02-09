@@ -8,10 +8,11 @@ import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
 import {flattenEach} from '@turf/meta';
-import {point, MultiLineString} from '@turf/helpers';
+import type {MultiLineString} from '@turf/helpers';
+import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
-import WebMercatorViewport from 'viewport-mercator-project';
-import {Viewport, Pick, EditHandleFeature, EditHandleType} from './types';
+import {WebMercatorViewport} from 'viewport-mercator-project';
+import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
   Geometry,
   Position,
@@ -515,4 +516,8 @@ export function mapCoords(
       return mapCoords(coord, callback) as Position;
     })
     .filter(Boolean);
+}
+
+export function shouldCancelPan(event: StartDraggingEvent) {
+  return event.picks.length && event.picks.find((p) => p.featureType === 'points');
 }

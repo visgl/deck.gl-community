@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, CompositeLayerProps, DefaultProps} from '@deck.gl/core';
-import {ScatterplotLayer, ScatterplotLayerProps} from '@deck.gl/layers';
+import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
+import type {ScatterplotLayerProps} from '@deck.gl/layers';
+import {ScatterplotLayer} from '@deck.gl/layers';
 
 import {Color} from '../utils/types';
 

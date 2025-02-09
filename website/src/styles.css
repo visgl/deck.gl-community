@@ -50,3 +50,6 @@ main .container {
 html[data-theme='dark'] .docusaurus-highlight-code-line {
   background-color: rgba(0, 0, 0, 0.3);
 }
+
+.heading_bold {
+}

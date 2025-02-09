@@ -3,9 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import {EDGE_STATE, NODE_STATE, ValueOf} from './constants';
-import {Edge} from './edge';
+import {Edge} from '../graph/edge';
+import {Node} from '../graph/node';
 import {GraphEngine} from './graph-engine';
-import {Node} from './node';
 
 const NODE_TO_EDGE_STATE_MAP: Record<ValueOf<typeof NODE_STATE>, ValueOf<typeof EDGE_STATE>> = {
   [NODE_STATE.DEFAULT]: EDGE_STATE.DEFAULT,

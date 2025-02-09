@@ -1,0 +1,43 @@
+{
+  "name": "@deck.gl-community/deck.gl-raster",
+  "description": "deck.gl layers for client-side raster processing",
+  "license": "MIT",
+  "version": "0.3.1",
+  "types": "src/index.ts",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "sideEffects": false,
+  "keywords": [
+    "webgl",
+    "visualization",
+    "geospatial",
+    "layer",
+    "satellite"
+  ],
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts-disabled": {
+    "lint": "eslint --max-warnings 0 .",
+    "typecheck": "tsc",
+    "test": "jest",
+    "build-examples": "cd examples/raster-layer && yarn build && cd ../raster-mesh-layer && yarn build",
+    "build-docs": "yarn build-examples && yarn clean-docs && cp -r examples/raster-layer/build docs/examples/raster-layer && cp -r examples/raster-mesh-layer/build docs/examples/raster-mesh-layer && mkdocs build",
+    "clean-docs": "rm -rf docs/examples/raster-layer docs/examples/raster-mesh-layer",
+    "deploy-docs": "yarn build-docs && mkdocs gh-deploy"
+  },
+  "dependencies": {
+    "lodash.isequal": "^4.5.0"
+  },
+  "peerDependencies": {
+    "@deck.gl/core": "^8.8.0",
+    "@deck.gl/layers": "^8.8.0",
+    "@deck.gl/mesh-layers": "^8.8.0",
+    "@luma.gl/core": "^8.2.0",
+    "@luma.gl/engine": "^8.2.0"
+  },
+  "volta": {
+    "extends": "../../package.json"
+  }
+}

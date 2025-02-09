@@ -3,7 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {CompositeLayer, Layer} from '@deck.gl/core';
-import {TileLayer, TileLayerProps} from '@deck.gl/geo-layers';
+import type {TileLayerProps} from '@deck.gl/geo-layers';
+import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, PathLayer} from '@deck.gl/layers';
 import type {TileSource} from '@loaders.gl/loader-utils';
 

@@ -11,7 +11,7 @@ import {coordEach} from '@turf/meta';
 import {getGeom} from '@turf/invariant';
 import {point, featureCollection, lineString} from '@turf/helpers';
 import turfTransformRotate from '@turf/transform-rotate';
-import polygonToLine from '@turf/polygon-to-line';
+import {polygonToLine} from '@turf/polygon-to-line';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -128,6 +128,7 @@ export class RotateMode extends GeoJsonEditMode {
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
     if (this._selectedEditHandle) {
+      event.cancelPan();
       this._isRotating = true;
       this._geometryBeingRotated = this.getSelectedFeaturesAsFeatureCollection(props);
     }

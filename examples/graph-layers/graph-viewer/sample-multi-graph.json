@@ -1,0 +1,97 @@
+{
+  "nodes": [
+    {"id": "Alan", "type": "user", "star": true},
+    {"id": "Bob", "type": "user", "star": false},
+    {"id": "Cathy", "type": "user", "star": true},
+    {"id": "Denise", "type": "user", "star": false},
+    {"id": "Edward", "type": "user", "star": true},
+    {"id": "Frank", "type": "user", "star": false},
+    {"id": "George", "type": "user", "star": false}
+  ],
+  "edges": [
+    {
+      "id": "0",
+      "sourceId": "Alan",
+      "targetId": "Bob",
+      "type": "is_friend"
+    },
+    {
+      "id": "1",
+      "sourceId": "Alan",
+      "targetId": "Bob",
+      "type": "is_neighbor"
+    },
+    {
+      "id": "2",
+      "sourceId": "Bob",
+      "targetId": "Cathy",
+      "type": "is_neighbor"
+    },
+    {
+      "id": "3",
+      "sourceId": "Cathy",
+      "targetId": "Frank",
+      "type": "is_neighbor"
+    },
+    {
+      "id": "4",
+      "sourceId": "Edward",
+      "targetId": "Denise",
+      "type": "is_friend"
+    },
+    {
+      "id": "5",
+      "sourceId": "Edward",
+      "targetId": "Frank",
+      "type": "is_friend"
+    },
+    {
+      "id": "6",
+      "sourceId": "Alan",
+      "targetId": "Denise",
+      "type": "is_classmate"
+    },
+    {
+      "id": "7",
+      "sourceId": "Bob",
+      "targetId": "Denise",
+      "type": "is_classmate"
+    },
+    {
+      "id": "8",
+      "sourceId": "Edward",
+      "targetId": "Cathy",
+      "type": "is_classmate"
+    },
+    {
+      "id": "9",
+      "sourceId": "Edward",
+      "targetId": "Cathy",
+      "type": "is_friend"
+    },
+    {
+      "id": "10",
+      "sourceId": "George",
+      "targetId": "Denise",
+      "type": "is_friend"
+    },
+    {
+      "id": "11",
+      "sourceId": "George",
+      "targetId": "Edward",
+      "type": "is_friend"
+    },
+    {
+      "id": "12",
+      "sourceId": "Denise",
+      "targetId": "Edward",
+      "type": "is_neighbor"
+    },
+    {
+      "id": "13",
+      "sourceId": "Bob",
+      "targetId": "Cathy",
+      "type": "is_friend"
+    }
+  ]
+}

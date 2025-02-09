@@ -62,6 +62,10 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
 
     const mapCoords = props.lastPointerMoveEvent && props.lastPointerMoveEvent.mapCoords;
 
+    if (!mapCoords) {
+      return guides;
+    }
+
     // Draw an extension line starting from one end of the selected LineString to the cursor
     let startPosition: Position | null | undefined = null;
     const {modeConfig} = props;

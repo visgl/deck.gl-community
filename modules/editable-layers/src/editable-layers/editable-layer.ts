@@ -4,7 +4,8 @@
 
 /* eslint-env browser */
 
-import {CompositeLayer, CompositeLayerProps} from '@deck.gl/core';
+import type {CompositeLayerProps} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
 import {
   DraggingEvent,
   ClickEvent,
@@ -14,12 +15,13 @@ import {
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
 
-const EVENT_TYPES = ['anyclick', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
+const EVENT_TYPES = ['click', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
 
 // TODO(v9): remove generic layer
 export type EditableLayerProps<DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
+  onCancelPan?: () => void;
 };
 
 export abstract class EditableLayer<
@@ -116,7 +118,7 @@ export abstract class EditableLayer<
     func(event);
   }
 
-  _onanyclick({srcEvent}: any) {
+  _onclick({srcEvent}: any) {
     const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
     const mapCoords = this.getMapCoords(screenCoords);
 
@@ -154,7 +156,13 @@ export abstract class EditableLayer<
       mapCoords,
       pointerDownScreenCoords: screenCoords,
       pointerDownMapCoords: mapCoords,
-      cancelPan: event.stopImmediatePropagation,
+      cancelPan: () => {
+        if (this.props.onCancelPan) {
+          this.props.onCancelPan();
+        }
+
+        event.stopImmediatePropagation();
+      },
       sourceEvent: event.srcEvent
     });
   }

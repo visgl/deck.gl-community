@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, COORDINATE_SYSTEM, DefaultProps} from '@deck.gl/core';
+import type {DefaultProps} from '@deck.gl/core';
+import {CompositeLayer, COORDINATE_SYSTEM} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PathOutlineLayer, PathOutlineLayerProps} from '../path-outline-layer/path-outline-layer';

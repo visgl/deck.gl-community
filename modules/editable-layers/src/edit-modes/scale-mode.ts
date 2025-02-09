@@ -7,7 +7,7 @@ import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
 import bboxPolygon from '@turf/bbox-polygon';
 import {point, featureCollection} from '@turf/helpers';
-import polygonToLine from '@turf/polygon-to-line';
+import {polygonToLine} from '@turf/polygon-to-line';
 import {coordEach} from '@turf/meta';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
@@ -152,6 +152,7 @@ export class ScaleMode extends GeoJsonEditMode {
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
     if (this._selectedEditHandle) {
+      event.cancelPan();
       this._isScaling = true;
       this._geometryBeingScaled = this.getSelectedFeaturesAsFeatureCollection(props);
     }

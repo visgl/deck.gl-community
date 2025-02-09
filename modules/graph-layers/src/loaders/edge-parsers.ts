@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {EdgeOptions} from '../graph/edge';
 import {log} from '../utils/log';
 
-export function basicEdgeParser(edge) {
+export function basicEdgeParser(edge: any): Omit<EdgeOptions, 'data'> {
   const {id, directed, sourceId, targetId} = edge;
 
   if (sourceId === undefined || targetId === undefined) {

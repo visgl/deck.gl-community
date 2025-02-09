@@ -5,14 +5,15 @@
 import * as L from 'leaflet';
 import type {Deck, DeckProps} from '@deck.gl/core';
 import {createDeckInstance, updateDeckView} from './deck-utils';
+import type {ViewOrViews} from './deck-utils';
 
 export class DeckLayer extends L.Layer {
-  props: DeckProps;
+  props: DeckProps<ViewOrViews>;
   _container: HTMLDivElement | undefined = undefined;
-  _deck: Deck | undefined = undefined;
+  _deck: Deck<ViewOrViews> | undefined = undefined;
   _animate: boolean | undefined = undefined;
 
-  constructor(props: DeckProps) {
+  constructor(props: DeckProps<ViewOrViews>) {
     super();
 
     this.props = props;

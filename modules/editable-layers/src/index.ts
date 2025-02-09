@@ -44,6 +44,8 @@ export type {EditMode} from './edit-modes/edit-mode';
 export type {GeoJsonEditModeType} from './edit-modes/geojson-edit-mode';
 export type {GeoJsonEditModeConstructor} from './edit-modes/geojson-edit-mode';
 
+export type {EditableGeoJsonLayerProps} from './editable-layers/editable-geojson-layer';
+
 export {GeoJsonEditMode} from './edit-modes/geojson-edit-mode';
 
 // Alter modes

@@ -3,19 +3,6 @@
   "label": "@deck.gl-community/bing-maps",
   "items": [
     "modules/bing-maps/README",
-    {
-      "type": "category",
-      "label": "Developer Guide",
-      "items": [
-        "modules/bing-maps/developer-guide/get-started"
-      ]
-    },
-    {
-      "type": "category",
-      "label": "Overlays",
-      "items": [
-        "modules/bing-maps/api-reference/deck-overlay"
-      ]
-    }
+    "modules/bing-maps/api-reference/deck-overlay"
   ]
 }

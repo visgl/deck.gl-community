@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import React, {useEffect, useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import StaticMap from 'react-map-gl/maplibre';

@@ -6,7 +6,7 @@
 
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
-import styled from 'styled-components';
+import {styled} from 'styled-components';
 import {LongPressButton} from './long-press-button';
 
 export const ViewControlWrapper = styled.div`
@@ -30,9 +30,9 @@ export const NavigationButtonContainer = styled.div`
 export const NavigationButton = styled.div`
   color: #848484;
   cursor: pointer;
-  left: ${(props: any) => props.left};
+  left: ${(props: any) => props.$left};
   position: absolute;
-  top: ${(props: any) => props.top};
+  top: ${(props: any) => props.$top};
   transform: rotate(${(props: any) => props.rotate || 0}deg);
 
   &:hover,
@@ -59,7 +59,7 @@ export const VerticalSlider = styled.div`
   width: 10px;
 
   > input[type='range'][orient='vertical'] {
-    -webkit-appearance: slider-vertical;
+    writing-mode: vertical-lr;
     height: 100px;
     padding: 0;
     margin: 0;
@@ -132,12 +132,17 @@ export class ViewControl extends PureComponent {
       <ViewControlWrapper>
         <NavigationButtonContainer>
           {buttons.map((b: any) => (
-            <NavigationButton key={b.key} top={`${b.top}px`} left={`${b.left}px`} rotate={b.rotate}>
+            <NavigationButton
+              key={b.key}
+              $top={`${b.top}px`}
+              $left={`${b.left}px`}
+              rotate={b.rotate}
+            >
               <LongPressButton onClick={b.onClick}>{b.content}</LongPressButton>
             </NavigationButton>
           ))}
           {/* @ts-expect-error TODO */}
-          <NavigationButton top={'12px'} left={'16px'} onClick={this.props.fitBounds}>
+          <NavigationButton $top={'12px'} $left={'16px'} onClick={this.props.fitBounds}>
             {'¤'}
           </NavigationButton>
         </NavigationButtonContainer>

@@ -3,19 +3,6 @@
   "label": "@deck.gl-community/leaflet",
   "items": [
     "modules/leaflet/README",
-    {
-      "type": "category",
-      "label": "Developer Guide",
-      "items": [
-        "modules/leaflet/developer-guide/get-started"
-      ]
-    },
-    {
-      "type": "category",
-      "label": "Layers",
-      "items": [
-        "modules/leaflet/api-reference/deck-layer"
-      ]
-    }
+    "modules/leaflet/api-reference/deck-layer"
   ]
 }

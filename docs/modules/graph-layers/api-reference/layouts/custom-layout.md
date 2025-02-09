@@ -3,9 +3,9 @@
 Here's the method you will likely to implement when creating your own custom layout:
 
 ```js
-import {BaseLayout} from '@deck.gl-community/graph-layers';
+import {GraphLayout} from '@deck.gl-community/graph-layers';
 
-export default class MyLayout extends BaseLayout {
+export default class MyLayout extends GraphLayout {
   // initialize the layout
   constructor(options) {}
   // first time to pass the graph data into this layout
@@ -71,14 +71,14 @@ In the constructor, you can initialize some internal object you'll need for the 
 The most important part is to create a 'map' to keep the position of nodes.
 
 ```js
-export default class RandomLayout extends BaseLayout {
+export default class RandomLayout extends GraphLayout {
   static defaultOptions = {
     viewportWidth: 1000,
     viewportHeight: 1000
   };
 
   constructor(options) {
-    // init BaseLayout
+    // init GraphLayout
     super(options);
     // give a name to this layout
     this._name = 'RandomLayout';
@@ -184,9 +184,9 @@ getEdgePosition = (edge) => {
 ### Full source code
 
 ```js
-import {BaseLayout} from '@deck.gl-community/graph-layers';
+import {GraphLayout} from '@deck.gl-community/graph-layers';
 
-export default class RandomLayout extends BaseLayout {
+export default class RandomLayout extends GraphLayout {
   constructor(options) {
     super(options);
     this._name = 'RandomLayout';

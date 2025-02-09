@@ -5,8 +5,9 @@
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import clone from '@turf/clone';
-import {point, Feature as TurfFeature, Geometry as TurfGeometry} from '@turf/helpers';
-import WebMercatorViewport from 'viewport-mercator-project';
+import type {Feature as TurfFeature, Geometry as TurfGeometry} from '@turf/helpers';
+import {point} from '@turf/helpers';
+import {WebMercatorViewport} from 'viewport-mercator-project';
 import {FeatureCollection, Position, Geometry} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
@@ -59,6 +60,7 @@ export class TranslateMode extends GeoJsonEditMode {
       return;
     }
 
+    event.cancelPan();
     this._geometryBeforeTranslate = this.getSelectedFeaturesAsFeatureCollection(props);
   }
 

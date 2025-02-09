@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "vite --open",
-    "start-local": "vite --config ../vite.config.local.mjs"
+    "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl/layers": "^9.1.0-beta"
+    "@deck.gl/layers": "^9.1.0"
   },
   "devDependencies": {
     "typescript": "^5.4.4",

@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
-import {Stylesheet} from '../style/style-sheet';
 import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
+import {Graph} from '../graph/graph';
+import {GraphLayout} from '../core/graph-layout';
+import {GraphEngine} from '../core/graph-engine';
+
+import {Stylesheet} from '../style/style-sheet';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 
@@ -17,13 +22,15 @@ import {ImageLayer} from './node-layers/image-layer';
 import {LabelLayer} from './node-layers/label-layer';
 import {RectangleLayer} from './node-layers/rectangle-layer';
 import {RoundedRectangleLayer} from './node-layers/rounded-rectangle-layer';
-import {PathBasedRoundedRectangleLayer} from './node-layers/path-rounded-rectange-layer';
+import {PathBasedRoundedRectangleLayer} from './node-layers/path-rounded-rectangle-layer';
 import {ZoomableMarkerLayer} from './node-layers/zoomable-marker-layer';
 
 // edge layers
 import {EdgeLayer} from './edge-layer';
 import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
+
+import {JSONLoader} from '../loaders/json-loader';
 
 const NODE_LAYER_MAP = {
   [NODE_TYPE.RECTANGLE]: RectangleLayer,
@@ -46,32 +53,73 @@ const SHARED_LAYER_PROPS = {
     depthTest: false
   }
 };
-const defaultProps = {
+
+export type GraphLayerProps = CompositeLayerProps & _GraphLayerProps;
+
+export type _GraphLayerProps = {
+  graph?: Graph;
+  layout?: GraphLayout;
+  graphLoader?: (opts: {json: any}) => Graph;
+  engine?: GraphEngine;
+
   // an array of styles for layers
-  nodeStyle: [],
-  nodeEvents: {
-    onMouseLeave: () => {},
-    onHover: () => {},
-    onMouseEnter: () => {},
-    onClick: () => {},
-    onDrag: () => {}
-  },
-  edgeStyle: {
-    color: 'black',
-    strokeWidth: 1,
-    // an array of styles for layers
-    decorators: []
-  },
-  edgeEvents: {
-    onClick: () => {},
-    onHover: () => {}
-  },
-  enableDragging: false
+  nodeStyle?: any[];
+  edgeStyle?: {
+    stroke?: string;
+    strokeWidth?: number;
+    /** an array of styles for layers */
+    decorators?: any[];
+  };
+  nodeEvents?: {
+    onMouseLeave?: () => void;
+    onHover?: () => void;
+    onMouseEnter?: () => void;
+    onClick?: () => void;
+    onDrag?: () => void;
+  };
+  edgeEvents?: {
+    onClick: () => void;
+    onHover: () => void;
+  };
+  enableDragging?: boolean;
 };
 
-export class GraphLayer extends CompositeLayer {
-  static defaultProps = {
-    pickable: true
+export class GraphLayer extends CompositeLayer<GraphLayerProps> {
+  static layerName = 'GraphLayer';
+
+  static defaultProps: Required<_GraphLayerProps> = {
+    // Composite layer props
+    // @ts-expect-error composite layer props
+    pickable: true,
+
+    // Graph props
+    graphLoader: JSONLoader,
+
+    nodeStyle: [],
+    nodeEvents: {
+      onMouseLeave: () => {},
+      onHover: () => {},
+      onMouseEnter: () => {},
+      onClick: () => {},
+      onDrag: () => {}
+    },
+    edgeStyle: {
+      stroke: 'black',
+      strokeWidth: 1,
+      // an array of styles for layers
+      decorators: []
+    },
+    edgeEvents: {
+      onClick: () => {},
+      onHover: () => {}
+    },
+    enableDragging: false
+  };
+
+  // @ts-expect-error Some typescript confusion due to override of base class state
+  state!: CompositeLayer<GraphLayerProps>['state'] & {
+    interactionManager: InteractionManager;
+    graphEngine?: GraphEngine;
   };
 
   forceUpdate = () => {
@@ -81,35 +129,76 @@ export class GraphLayer extends CompositeLayer {
     }
   };
 
-  constructor(props) {
+  constructor(props: GraphLayerProps & CompositeLayerProps) {
     super(props);
-
-    // added or removed a node, or in general something layout related changed
-    props.engine.addEventListener('onLayoutChange', this.forceUpdate);
   }
 
   initializeState() {
-    const interactionManager = new InteractionManager(this.props as any, () => this.forceUpdate());
-    this.state = {interactionManager};
+    this.state = {
+      interactionManager: new InteractionManager(this.props as any, () => this.forceUpdate())
+    };
+    const engine = this.props.engine;
+    this._setGraphEngine(engine);
   }
 
   shouldUpdateState({changeFlags}) {
     return changeFlags.dataChanged || changeFlags.propsChanged;
   }
 
-  updateState({props}) {
-    (this.state.interactionManager as any).updateProps(props);
+  updateState({props, oldProps, changeFlags}) {
+    if (
+      changeFlags.dataChanged &&
+      props.data &&
+      !(Array.isArray(props.data) && props.data.length === 0)
+    ) {
+      // console.log(props.data);
+      const graph = this.props.graphLoader({json: props.data});
+      const layout = this.props.layout;
+      const graphEngine = new GraphEngine({graph, layout});
+      this._setGraphEngine(graphEngine);
+      this.state.interactionManager.updateProps(props);
+      this.forceUpdate();
+    } else if (changeFlags.propsChanged && props.graph !== oldProps.graph) {
+      const graphEngine = new GraphEngine({graph: props.graph, layout: props.layout});
+      this._setGraphEngine(graphEngine);
+      this.state.interactionManager.updateProps(props);
+      this.forceUpdate();
+    }
   }
 
   finalize() {
-    (this.props as any).engine.removeEventListener('onLayoutChange', this.forceUpdate);
+    this._removeGraphEngine();
+  }
+
+  _setGraphEngine(graphEngine: GraphEngine) {
+    if (graphEngine === this.state.graphEngine) {
+      return;
+    }
+
+    this._removeGraphEngine();
+    if (graphEngine) {
+      this.state.graphEngine = graphEngine;
+      this.state.graphEngine.run();
+      // added or removed a node, or in general something layout related changed
+      this.state.graphEngine.addEventListener('onLayoutChange', this.forceUpdate);
+    }
+  }
+
+  _removeGraphEngine() {
+    if (this.state.graphEngine) {
+      this.state.graphEngine.removeEventListener('onLayoutChange', this.forceUpdate);
+      this.state.graphEngine.clear();
+      this.state.graphEngine = null;
+    }
   }
 
   createNodeLayers() {
-    const {engine, nodeStyle} = this.props as any;
-    if (!nodeStyle || !Array.isArray(nodeStyle) || nodeStyle.length === 0) {
+    const engine = this.state.graphEngine;
+    const {nodeStyle} = this.props;
+    if (!engine || !nodeStyle || !Array.isArray(nodeStyle) || nodeStyle.length === 0) {
       return [];
     }
+
     return nodeStyle.filter(Boolean).map((style, idx) => {
       const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
       const LayerType = NODE_LAYER_MAP[style.type];
@@ -139,9 +228,10 @@ export class GraphLayer extends CompositeLayer {
   }
 
   createEdgeLayers() {
-    const {edgeStyle, engine} = this.props as any;
+    const engine = this.state.graphEngine;
+    const {edgeStyle} = this.props;
 
-    if (!edgeStyle) {
+    if (!engine || !edgeStyle) {
       return [];
     }
 
@@ -197,29 +287,26 @@ export class GraphLayer extends CompositeLayer {
   }
 
   onClick(info, event): boolean {
-    return (this.state.interactionManager as any).onClick(info, event) || false;
+    return (this.state.interactionManager.onClick(info, event) as unknown as boolean) || false;
   }
 
   onHover(info, event): boolean {
-    return (this.state.interactionManager as any).onHover(info, event) || false;
+    return (this.state.interactionManager.onHover(info, event) as unknown as boolean) || false;
   }
 
   onDragStart(info, event) {
-    (this.state.interactionManager as any).onDragStart(info, event);
+    this.state.interactionManager.onDragStart(info, event);
   }
 
   onDrag(info, event) {
-    (this.state.interactionManager as any).onDrag(info, event);
+    this.state.interactionManager.onDrag(info, event);
   }
 
   onDragEnd(info, event) {
-    (this.state.interactionManager as any).onDragEnd(info, event);
+    this.state.interactionManager.onDragEnd(info, event);
   }
 
   renderLayers() {
     return [this.createEdgeLayers(), this.createNodeLayers()];
   }
 }
-
-GraphLayer.layerName = 'GraphLayer';
-(GraphLayer as any).defaultProps = defaultProps;
