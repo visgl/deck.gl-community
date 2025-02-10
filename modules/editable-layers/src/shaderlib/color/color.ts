@@ -4,19 +4,28 @@
 
 import type {ShaderModule} from '@luma.gl/shadertools';
 
-/* eslint-disable camelcase */
-const INITIAL_STATE: Record<string, number> = {
-  color_uOpacity: 1.0,
-  color_uDesaturate: 0.0,
-  color_uBrightness: 1.0
+const uniformBlock = `\
+uniform colorUniforms {
+  float opacity;
+  float desaturate;
+  float brightness;
+} color;
+`;
+
+export type ColorProps = {
+  opacity: number;
+  desaturate: number;
+  brightness: number;
+};
+
+const INITIAL_STATE: ColorProps = {
+  opacity: 1.0,
+  desaturate: 0.0,
+  brightness: 1.0
 };
 
 function getUniforms(opts = INITIAL_STATE) {
-  const uniforms: Record<string, number> = {};
-  if (opts.opacity) {
-    uniforms.color_uOpacity = opts.opacity;
-  }
-  return uniforms;
+  return opts;
 }
 
 const vs = `\
@@ -28,9 +37,7 @@ color_setColor(vec4 color) {
 `;
 
 const fs = `\
-uniform float color_uOpacity;
-uniform float color_uDesaturate;
-uniform float color_uBrightness;
+${uniformBlock}
 
 in vec4 color_vColor;
 
@@ -40,14 +47,16 @@ vec4 color_getColor() {
   return color_vColor;
 }
 
-vec4 color_filterColor(vec4 color) {
+vec4 color_filterColor(vec4 inputColor) {
+  vec4 color = inputColor;
   // apply desaturation and brightness
-  if (color_uDesaturate > 0.01) {
-    float luminance = (color.r + color.g + color.b) * 0.333333333 + color_uBrightness;
-    color = vec4(mix(color.rgb, vec3(luminance), color_uDesaturate), color.a);
+  if (color.desaturate > 0.01) {
+    float luminance = (color.r + color.g + color.b) * 0.333333333 + color.brightness;
+    color = vec4(mix(color.rgb, vec3(luminance), color.desaturate), color.a);
+  }
 
   // Apply opacity
-  color = vec4(color.rgb, color.a * color_uOpacity);
+  color = vec4(color.rgb, color.a * color.opacity);
   return color;
 }
 `;
@@ -57,5 +66,10 @@ export const color = {
   name: 'color',
   vs,
   fs,
-  getUniforms
-} as const satisfies ShaderModule;
+  getUniforms,
+  uniformTypes: {
+    opacity: 'f32',
+    desaturate: 'f32',
+    brightness: 'f32'
+  }
+} as const satisfies ShaderModule<ColorProps>;
