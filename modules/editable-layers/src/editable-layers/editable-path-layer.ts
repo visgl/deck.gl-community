@@ -59,7 +59,7 @@ export class EditablePathLayer extends PathLayer<any, EditablePathLayerProps> {
   draw(props) {
     const {pickingLineWidthExtraPixels} = this.props;
     const pickingProps: PickingProps = {pickingLineWidthExtraPixels};
-    const model = this.state.model!;
+    const model = this.state.model;
     model.shaderInputs.setProps({picking_extra: pickingProps});
     super.draw(props);
   }
