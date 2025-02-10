@@ -80,7 +80,7 @@ export class RasterLayer extends BitmapLayer<RasterLayerAddedProps> {
       tintColor,
       coordinateConversion,
       bounds
-    })
+    });
     model.updateModuleSettingsWebGL({
       ...moduleProps,
       ...images
