@@ -179,6 +179,7 @@ export class RasterMeshLayer extends SimpleMeshLayer<any, RasterLayerAddedProps>
     const {viewport} = this.context;
     const {sizeScale, coordinateSystem, _instanced} = this.props;
 
+    // TODO: port to UBOs
     model.setUniforms(
       Object.assign({}, uniforms, {
         sizeScale,
@@ -186,7 +187,7 @@ export class RasterMeshLayer extends SimpleMeshLayer<any, RasterLayerAddedProps>
         flatShading: !this.state.hasNormals
       })
     );
-    model.updateModuleSettings({
+    model.updateModuleSettingsWebGL({
       ...moduleProps,
       ...images
     });
