@@ -9,23 +9,23 @@ import type {ShaderModule} from '@luma.gl/shadertools';
 import {insertBefore} from '../utils/utils';
 
 const uniformBlock = `\
-uniform pickingUniforms {
-  float pickingLineWidthExtraPixels;
-} picking_extra;
+uniform pickingLineWidthUniforms {
+  float extraPixels;
+} pickingLineWidth;
 `;
 
-export type PickingProps = {
-  pickingLineWidthExtraPixels: number;
+export type PickingLineWidthProps = {
+  extraPixels: number;
 };
 
 export const pickingUniforms = {
-  name: 'picking_extra',
+  name: 'pickingLineWidth',
   vs: uniformBlock,
   fs: uniformBlock,
   uniformTypes: {
-    pickingLineWidthExtraPixels: 'f32'
+    extraPixels: 'f32'
   }
-} as const satisfies ShaderModule<PickingProps>;
+} as const satisfies ShaderModule<PickingLineWidthProps>;
 
 interface EditablePathLayerProps extends PathLayerProps<any> {
   pickingLineWidthExtraPixels?: number;
@@ -45,7 +45,7 @@ export class EditablePathLayer extends PathLayer<any, EditablePathLayerProps> {
       'vec3 width;',
       `
        if(bool(picking.isActive)){
-        widthPixels.xy += picking_extra.pickingLineWidthExtraPixels;
+        widthPixels.xy += pickingLineWidth.extraPixels;
        }
       `
     );
@@ -58,9 +58,9 @@ export class EditablePathLayer extends PathLayer<any, EditablePathLayerProps> {
 
   draw(props) {
     const {pickingLineWidthExtraPixels} = this.props;
-    const pickingProps: PickingProps = {pickingLineWidthExtraPixels};
+    const pickingProps: PickingLineWidthProps = {extraPixels: pickingLineWidthExtraPixels};
     const model = this.state.model;
-    model.shaderInputs.setProps({picking_extra: pickingProps});
+    model.shaderInputs.setProps({pickingLineWidth: pickingProps});
     super.draw(props);
   }
 }
