@@ -72,6 +72,7 @@ export class RasterLayer extends BitmapLayer<RasterLayerAddedProps> {
     const transparentColor = this.props.transparentColor?.map((x) => (x ? x / 255 : 0)) as number[];
     const tintColor = this.props.tintColor?.slice(0, 3).map((x) => x / 255);
 
+    // TODO: port to UBOs
     model.setUniforms({
       ...uniforms,
       desaturate,
@@ -80,7 +81,7 @@ export class RasterLayer extends BitmapLayer<RasterLayerAddedProps> {
       coordinateConversion,
       bounds
     });
-    model.updateModuleSettings({
+    model.updateModuleSettingsWebGL({
       ...moduleProps,
       ...images
     });
