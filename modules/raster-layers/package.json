@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@deck.gl-community/deck.gl-raster",
   "description": "deck.gl layers for client-side raster processing",
   "license": "MIT",
