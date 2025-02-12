@@ -5,7 +5,10 @@
   ],
   "npmClient": "yarn",
   "command": {
-    "bootstrap": {}
+    "bootstrap": {},
+    "version": {
+      "private": false
+    }
   },
   "publishConfig": {
     "access": "public"
