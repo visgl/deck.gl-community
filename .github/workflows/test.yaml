@@ -25,6 +25,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          yarn
           yarn bootstrap
 
       - name: Build packages

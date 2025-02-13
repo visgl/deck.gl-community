@@ -48,7 +48,9 @@ jobs:
           cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn bootstrap
+        run: |
+          yarn
+          yarn bootstrap
 
       - name: Build packages
         run: yarn build

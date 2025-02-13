@@ -16,7 +16,7 @@
     "examples/**"
   ],
   "scripts": {
-    "bootstrap": "yarn && ocular-bootstrap",
+    "bootstrap": "ocular-bootstrap",
     "build": "ocular-clean && ocular-build && lerna run build",
     "lint": "ocular-lint",
     "lint-fix": "ocular-lint --fix",
