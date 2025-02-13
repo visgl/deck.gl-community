@@ -52,8 +52,7 @@ function getGeometry(data) {
 
 export class RasterMeshLayer extends SimpleMeshLayer<any, RasterLayerAddedProps> {
   static layerName = 'RasterMeshLayer';
-  static defaultProps = {
-    ...SimpleMeshLayer.defaultProps,
+  static defaultProps: any = {
     modules: {type: 'array', value: [], compare: true},
     images: {type: 'object', value: {}, compare: true},
     moduleProps: {type: 'object', value: {}, compare: true}

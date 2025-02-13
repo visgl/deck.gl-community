@@ -12,12 +12,12 @@ const config = {
   babel: false,
 
   lint: {
-    paths: ['modules', 'docs', 'test'], // 'examples'], module resolution errors
+    paths: ['modules', 'test'], // 'docs', 'examples'], module resolution errors
     extensions: ['js', 'ts', 'jsx', 'tsx']
   },
 
   typescript: {
-    project: 'tsconfig.build.json'
+    project: 'tsconfig.json'
   },
 
   aliases: {

@@ -16,8 +16,7 @@ import {modulesEqual} from '../util';
 
 export class RasterLayer extends BitmapLayer<RasterLayerAddedProps> {
   static layerName = 'RasterLayer';
-  static defaultProps = {
-    ...BitmapLayer.defaultProps,
+  static defaultProps: any = {
     modules: {type: 'array', value: [], compare: true},
     images: {type: 'object', value: {}, compare: true},
     moduleProps: {type: 'object', value: {}, compare: true}

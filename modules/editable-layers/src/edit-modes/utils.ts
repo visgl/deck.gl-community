@@ -81,13 +81,13 @@ export function recursivelyTraverseNestedArrays(
 export function generatePointsParallelToLinePoints(
   p1: Position,
   p2: Position,
-  mapCoords: Position
+  coords: Position
 ): Position[] {
   const lineString: LineString = {
     type: 'LineString',
     coordinates: [p1, p2]
   };
-  const pt = point(mapCoords);
+  const pt = point(coords);
   const ddistance = pointToLineDistance(pt, lineString);
   const lineBearing = bearing(p1, p2);
 
@@ -95,7 +95,7 @@ export function generatePointsParallelToLinePoints(
   // Line from A=(x1,y1) to B=(x2,y2) a point P=(x,y)
   // then (x−x1)(y2−y1)−(y−y1)(x2−x1)
   const isPointToLeftOfLine =
-    (mapCoords[0] - p1[0]) * (p2[1] - p1[1]) - (mapCoords[1] - p1[1]) * (p2[0] - p1[0]);
+    (coords[0] - p1[0]) * (p2[1] - p1[1]) - (coords[1] - p1[1]) * (p2[0] - p1[0]);
 
   // Bearing to draw perpendicular to the line string
   const orthogonalBearing = isPointToLeftOfLine < 0 ? lineBearing - 90 : lineBearing - 270;
@@ -470,13 +470,13 @@ function getEditHandlesForCoordinates(
  * Calculates coordinates for a feature preserving rectangular shape.
  * @param feature Feature before modification.
  * @param editHandleIndex Index of the point to modify.
- * @param mapCoords New position for the point.
+ * @param coords New position for the point.
  * @returns Updated coordinates.
  */
 export function updateRectanglePosition(
   feature: FeatureOf<Polygon>,
   editHandleIndex: number,
-  mapCoords: Position
+  coords: Position
 ): Position[][] | null {
   const coordinates = feature.geometry.coordinates;
   if (!coordinates) {
@@ -484,7 +484,7 @@ export function updateRectanglePosition(
   }
 
   const points = coordinates[0].slice(0, 4);
-  points[editHandleIndex % 4] = mapCoords;
+  points[editHandleIndex % 4] = coords;
 
   const p0 = points[(editHandleIndex + 2) % 4];
   const p2 = points[editHandleIndex % 4];

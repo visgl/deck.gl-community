@@ -1,4 +1,4 @@
-const {getESLintConfig} = require('ocular-dev-tools/configuration');
+const {getESLintConfig} = require('@vis.gl/dev-tools/configuration');
 
 module.exports = getESLintConfig({
   /** Set React version, if any */

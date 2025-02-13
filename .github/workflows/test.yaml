@@ -17,18 +17,21 @@ jobs:
       checks: write
       contents: read
 
-    # NOTE: Pin official GitHub actions to a version number, pin third-party actions to a SHA1.
-    # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-third-party-actions
     steps:
-      - uses: actions/checkout@v4.1.1
-
-      - uses: volta-cli/action@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4.2.1
+        with:
+          cache: 'yarn'
 
       - name: Install dependencies
         run: |
-          yarn install  
+          yarn
           yarn bootstrap
+
+      - name: Build packages
+        run: yarn build
 
       - name: Run tests
         run: |
-          yarn test-ci
+          yarn lint
+          yarn test
