@@ -58,7 +58,7 @@ jobs:
       - name: Run tests
         run: |
           yarn lint
-          yarn test ci
+          yarn test
 
       - name: Login to NPM
         run: npm config set "//registry.npmjs.org/:_authToken=${NPM_ACCESS_TOKEN}"

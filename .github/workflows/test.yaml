@@ -34,4 +34,4 @@ jobs:
       - name: Run tests
         run: |
           yarn lint
-          yarn test ci
+          yarn test
