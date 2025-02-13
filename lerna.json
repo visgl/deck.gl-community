@@ -1,5 +1,5 @@
 {
-  "version": "independent",
+  "version": "9.1.0-beta.4",
   "packages": [
     "modules/*"
   ],
