@@ -31,7 +31,7 @@ const MODE_CONFIG_MAP = {
   [SELECTION_TYPE.RECTANGLE]: {dragToDraw: true}
 };
 
-interface SelectionLayerProps<DataT> extends CompositeLayerProps {
+export interface SelectionLayerProps<DataT> extends CompositeLayerProps {
   layerIds: any[];
   onSelect: (info: any) => any;
   selectionType: string | null;
