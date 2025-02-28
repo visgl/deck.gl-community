@@ -6,7 +6,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import turfDifference from '@turf/difference';
 import turfBuffer from '@turf/buffer';
 import lineIntersect from '@turf/line-intersect';
-import {feature, featureCollection, lineString} from '@turf/helpers';
+import {feature as turfFeature, featureCollection, lineString} from '@turf/helpers';
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfDestination from '@turf/destination';
@@ -140,7 +140,7 @@ export class SplitPolygonHandler extends ModeHandler {
       units = 'centimeters';
     }
     const buffer = turfBuffer(tentativeFeature, gap, {units});
-    const updatedGeometry = turfDifference(featureCollection([feature(selectedGeometry as Polygonal), buffer]));
+    const updatedGeometry = turfDifference(featureCollection([turfFeature(selectedGeometry as Polygonal), buffer]));
     this._setTentativeFeature(null);
     if (!updatedGeometry) {
       // eslint-disable-next-line no-console,no-undef

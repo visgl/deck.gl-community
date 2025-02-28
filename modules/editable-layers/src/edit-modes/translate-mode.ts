@@ -150,7 +150,7 @@ export class TranslateMode extends GeoJsonEditMode {
       for (let i = 0; i < selectedIndexes.length; i++) {
         const selectedIndex = selectedIndexes[i];
         const movedFeature = movedFeatures[i];
-        updatedData = updatedData.replaceGeometry(selectedIndex, movedFeature.geometry as SingleGeometry);
+        updatedData = updatedData.replaceGeometry(selectedIndex, movedFeature.geometry);
       }
     }
 
