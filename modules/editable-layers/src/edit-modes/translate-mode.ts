@@ -5,10 +5,9 @@
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import clone from '@turf/clone';
-import type {Feature as TurfFeature, Geometry as TurfGeometry} from '@turf/helpers';
 import {point} from '@turf/helpers';
 import {WebMercatorViewport} from 'viewport-mercator-project';
-import {FeatureCollection, Position, Geometry} from '../utils/geojson-types';
+import {FeatureCollection, Position, SingleGeometry} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -22,10 +21,10 @@ import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class TranslateMode extends GeoJsonEditMode {
-  _geometryBeforeTranslate: FeatureCollection | null | undefined;
+  _geometryBeforeTranslate: FeatureCollection<SingleGeometry> | null | undefined;
   _isTranslatable: boolean = undefined!;
 
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
     if (!this._isTranslatable) {
       // Nothing to do
       return;
@@ -55,7 +54,7 @@ export class TranslateMode extends GeoJsonEditMode {
     this.updateCursor(props);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
     if (!this._isTranslatable) {
       return;
     }
@@ -64,7 +63,7 @@ export class TranslateMode extends GeoJsonEditMode {
     this._geometryBeforeTranslate = this.getSelectedFeaturesAsFeatureCollection(props);
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
     if (this._geometryBeforeTranslate) {
       // Translate the geometry
       const editAction = this.getTranslateAction(
@@ -95,7 +94,7 @@ export class TranslateMode extends GeoJsonEditMode {
     startDragPoint: Position,
     currentPoint: Position,
     editType: string,
-    props: ModeProps<FeatureCollection>
+    props: ModeProps<FeatureCollection<SingleGeometry>>
   ): GeoJsonEditAction | null | undefined {
     if (!this._geometryBeforeTranslate) {
       return null;
@@ -131,11 +130,10 @@ export class TranslateMode extends GeoJsonEditMode {
             return null;
           });
 
-          // @ts-expect-error turf types
           updatedData = updatedData.replaceGeometry(selectedIndex, {
             type: feature.geometry.type,
-            coordinates
-          });
+            coordinates,
+          } as SingleGeometry);
         }
       }
     } else {
@@ -146,13 +144,13 @@ export class TranslateMode extends GeoJsonEditMode {
       const direction = turfBearing(p1, p2);
 
       const movedFeatures = this._geometryBeforeTranslate.features.map((feature) =>
-        translateFromCenter(clone(feature as TurfFeature<TurfGeometry>), distanceMoved, direction)
+        translateFromCenter(clone(feature), distanceMoved, direction)
       );
 
       for (let i = 0; i < selectedIndexes.length; i++) {
         const selectedIndex = selectedIndexes[i];
         const movedFeature = movedFeatures[i];
-        updatedData = updatedData.replaceGeometry(selectedIndex, movedFeature.geometry as Geometry);
+        updatedData = updatedData.replaceGeometry(selectedIndex, movedFeature.geometry as SingleGeometry);
       }
     }
 
