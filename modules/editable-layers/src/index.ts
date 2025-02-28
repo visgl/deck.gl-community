@@ -111,12 +111,6 @@ export type {
 
 export type {
   Position,
-  PointCoordinates,
-  LineStringCoordinates,
-  PolygonCoordinates,
-  MultiPointCoordinates,
-  MultiLineStringCoordinates,
-  MultiPolygonCoordinates,
   AnyCoordinates,
   Point,
   LineString,
@@ -124,7 +118,6 @@ export type {
   MultiPoint,
   MultiLineString,
   MultiPolygon,
-  Geometry,
   Polygonal,
   BoundingBoxArray,
   FeatureOf,

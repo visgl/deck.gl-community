@@ -21,7 +21,6 @@ export class DrawRectangleFromCenterMode extends TwoClickPolygonMode {
     rectangle.properties = rectangle.properties || {};
     rectangle.properties.shape = 'Rectangle';
 
-    // @ts-expect-error turf typing too wide
     return rectangle;
   }
 }
