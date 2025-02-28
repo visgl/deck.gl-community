@@ -9,12 +9,12 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Position, Polygon, FeatureOf, FeatureCollection} from '../utils/geojson-types';
+import {Position, Polygon, FeatureOf, FeatureCollection, SingleGeometry} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {omit} from 'lodash';
 
 export class ThreeClickPolygonMode extends GeoJsonEditMode {
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
     this.addClickSequence(event);
     const clickSequence = this.getClickSequence();
     const tentativeFeature = this.getTentativeGuide(props);

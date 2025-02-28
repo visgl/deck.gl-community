@@ -8,13 +8,13 @@ import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
 import {flattenEach} from '@turf/meta';
-import type {MultiLineString} from '@turf/helpers';
+import type {MultiLineString} from 'geojson';
 import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from 'viewport-mercator-project';
 import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
-  Geometry,
+  SingleGeometry,
   Position,
   Point,
   LineString,
@@ -204,11 +204,9 @@ export function nearestPointOnLine<G extends LineString | MultiLineString>(
     return closestPoint;
   }
 
-  // @ts-expect-error TODO
   // eslint-disable-next-line max-statements, complexity
   flattenEach(lines, (line: any) => {
     const coords: any = getCoords(line);
-    // @ts-expect-error TODO
     const pointCoords: any = getCoords(inPoint);
 
     let minDist;
@@ -369,7 +367,7 @@ export function getPickedEditHandles(picks: Pick[] | null | undefined): EditHand
 }
 
 export function getEditHandlesForGeometry(
-  geometry: Geometry,
+  geometry: SingleGeometry,
   featureIndex: number,
   editHandleType: EditHandleType = 'existing'
 ): EditHandleFeature[] {

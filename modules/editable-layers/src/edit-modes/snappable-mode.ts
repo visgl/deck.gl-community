@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Position, Feature, FeatureCollection} from '../utils/geojson-types';
+import {Position, Feature, FeatureCollection, SingleGeometry} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -55,7 +55,7 @@ export class SnappableMode extends GeoJsonEditMode {
 
   _getUpdatedSnapSourceHandle(
     snapSourceHandle: EditHandleFeature,
-    data: FeatureCollection
+    data: FeatureCollection<SingleGeometry>
   ): EditHandleFeature {
     const {featureIndex, positionIndexes} = snapSourceHandle.properties;
     if (!Array.isArray(positionIndexes)) {
@@ -82,7 +82,7 @@ export class SnappableMode extends GeoJsonEditMode {
   // method will return those features along with the features
   // that live in the current layer. Otherwise, this method will simply return the
   // features from the current layer
-  _getSnapTargets(props: ModeProps<FeatureCollection>): Feature[] {
+  _getSnapTargets(props: ModeProps<FeatureCollection<SingleGeometry>>): Feature<SingleGeometry>[] {
     let {additionalSnapTargets} = props.modeConfig || {};
     additionalSnapTargets = additionalSnapTargets || [];
 
@@ -90,7 +90,7 @@ export class SnappableMode extends GeoJsonEditMode {
     return features;
   }
 
-  _getSnapTargetHandles(props: ModeProps<FeatureCollection>): EditHandleFeature[] {
+  _getSnapTargetHandles(props: ModeProps<FeatureCollection<SingleGeometry>>): EditHandleFeature[] {
     const handles: EditHandleFeature[] = [];
     const features = this._getSnapTargets(props);
 
@@ -109,7 +109,7 @@ export class SnappableMode extends GeoJsonEditMode {
   // If no snap handle has been picked, only display the edit handles of the
   // selected feature. If a snap handle has been picked, display said snap handle
   // along with all snappable points on all non-selected features.
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<FeatureCollection<SingleGeometry>>): GuideFeatureCollection {
     const {modeConfig, lastPointerMoveEvent} = props;
     const {enableSnapping} = modeConfig || {};
 
