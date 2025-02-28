@@ -67,7 +67,6 @@
     "@turf/transform-translate": "^6.5.0",
     "@turf/union": "^6.5.0",
     "@types/geojson": "^7946.0.14",
-    "cubic-hermite-spline": "^1.0.1",
     "eventemitter3": "^5.0.0",
     "lodash.omit": "^4.1.1",
     "lodash.throttle": "^4.1.1",
