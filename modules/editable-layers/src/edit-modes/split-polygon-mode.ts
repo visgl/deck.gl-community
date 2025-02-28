@@ -7,7 +7,7 @@ import turfDifference from '@turf/difference';
 import turfBuffer from '@turf/buffer';
 import lineIntersect from '@turf/line-intersect';
 import type {Point} from 'geojson';
-import {feature, featureCollection, lineString} from '@turf/helpers';
+import {feature as turfFeature, featureCollection, lineString} from '@turf/helpers';
 import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfDestination from '@turf/destination';
@@ -161,7 +161,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     }
 
     const buffer = turfBuffer(tentativeFeature, gap, {units});
-    const updatedGeometry = turfDifference(featureCollection([feature(selectedGeometry as Polygonal), buffer]));
+    const updatedGeometry = turfDifference(featureCollection([turfFeature(selectedGeometry as Polygonal), buffer]));
     if (!updatedGeometry) {
       // eslint-disable-next-line no-console,no-undef
       console.warn('Canceling edit. Split Polygon erased');

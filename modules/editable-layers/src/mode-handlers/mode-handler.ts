@@ -4,7 +4,7 @@
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 
-import {featureCollection} from '@turf/helpers';
+import {featureCollection as turfFeatureCollection} from '@turf/helpers';
 import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
@@ -227,11 +227,11 @@ export class ModeHandler {
 
       let updatedGeometry;
       if (modeConfig.booleanOperation === 'union') {
-        updatedGeometry = turfUnion(featureCollection([selectedFeature as Feature<Polygonal>, feature]));
+        updatedGeometry = turfUnion(turfFeatureCollection([selectedFeature as Feature<Polygonal>, feature]));
       } else if (modeConfig.booleanOperation === 'difference') {
-        updatedGeometry = turfDifference(featureCollection([selectedFeature as Feature<Polygonal>, feature]));
+        updatedGeometry = turfDifference(turfFeatureCollection([selectedFeature as Feature<Polygonal>, feature]));
       } else if (modeConfig.booleanOperation === 'intersection') {
-        updatedGeometry = turfIntersect(featureCollection([selectedFeature as Feature<Polygonal>, feature]));
+        updatedGeometry = turfIntersect(turfFeatureCollection([selectedFeature as Feature<Polygonal>, feature]));
       } else {
         // eslint-disable-next-line no-console,no-undef
         console.warn(`Invalid booleanOperation ${modeConfig.booleanOperation}`);
