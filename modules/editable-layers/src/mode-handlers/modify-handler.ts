@@ -66,7 +66,6 @@ export class ModifyHandler extends ModeHandler {
             const lineStringFeature = toLineString(lineString);
 
             const candidateIntermediatePoint = this.nearestPointOnLine(
-              // @ts-expect-error turf type diff
               lineStringFeature,
               referencePoint
             );
@@ -115,7 +114,6 @@ export class ModifyHandler extends ModeHandler {
         'Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.'
       );
     }
-    // @ts-expect-error geojson types diff
     return nearestPointOnLine(line, inPoint);
   }
 

@@ -76,7 +76,8 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
         geometry: {
           type: 'LineString',
           coordinates: [...clickSequence, p3]
-        }
+        },
+        properties: {}
       });
     } else {
       // Draw a Polygon connecting all the clicked points with the hovered point
@@ -85,7 +86,8 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
         geometry: {
           type: 'Polygon',
           coordinates: [[...clickSequence, p3, clickSequence[0]]]
-        }
+        },
+        properties: {}
       });
     }
 
