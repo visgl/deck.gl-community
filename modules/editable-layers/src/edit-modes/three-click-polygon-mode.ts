@@ -11,7 +11,7 @@ import {
 } from './types';
 import {Position, Polygon, FeatureOf, FeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
-import {omit} from 'lodash';
+import omit from 'lodash.omit';
 
 export class ThreeClickPolygonMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
