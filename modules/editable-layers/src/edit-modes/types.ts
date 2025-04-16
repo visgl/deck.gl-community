@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Position, Point, Geometry, FeatureWithProps} from '../utils/geojson-types';
+import {Position, Point, SingleGeometry, FeatureWithProps} from '../utils/geojson-types';
 
 export type ScreenCoordinates = [number, number];
 
@@ -101,7 +101,7 @@ export type EditHandleFeature = FeatureWithProps<
 >;
 
 export type TentativeFeature = FeatureWithProps<
-  Geometry,
+  SingleGeometry,
   {
     guideType: 'tentative';
     shape?: string;

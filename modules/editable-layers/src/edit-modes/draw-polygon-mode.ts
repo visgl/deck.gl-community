@@ -12,7 +12,7 @@ import {
   TentativeFeature,
   GuideFeature
 } from './types';
-import {Polygon, FeatureCollection} from '../utils/geojson-types';
+import {Polygon, FeatureCollection, SingleGeometry} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
@@ -84,7 +84,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   }
 
   // eslint-disable-next-line complexity
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
     const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
     const clickSequence = this.getClickSequence();
@@ -143,7 +143,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     }
   }
 
-  handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>) {
+  handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
     if (event.key === 'Enter') {
       const clickSequence = this.getClickSequence();
       if (clickSequence.length > 2) {

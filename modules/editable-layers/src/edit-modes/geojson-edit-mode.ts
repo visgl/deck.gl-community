@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {featureCollection} from '@turf/helpers';
 import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
@@ -20,12 +21,12 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {FeatureCollection, Feature, Polygon, Geometry, Position} from '../utils/geojson-types';
+import {FeatureCollection, Feature, Polygon, SingleGeometry, Position} from '../utils/geojson-types';
 import {getPickedEditHandles, getNonGuidePicks} from './utils';
 import {EditMode} from './edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
-export type GeoJsonEditAction = EditAction<FeatureCollection>;
+export type GeoJsonEditAction = EditAction<FeatureCollection<SingleGeometry>>;
 
 const DEFAULT_GUIDES: GuideFeatureCollection = {
   type: 'FeatureCollection',
@@ -51,14 +52,14 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return DEFAULT_TOOLTIPS;
   }
 
-  getSelectedFeature(props: ModeProps<FeatureCollection>): Feature | null | undefined {
+  getSelectedFeature(props: ModeProps<FeatureCollection<SingleGeometry>>): Feature<SingleGeometry> | null | undefined {
     if (props.selectedIndexes.length === 1) {
       return props.data.features[props.selectedIndexes[0]];
     }
     return null;
   }
 
-  getSelectedGeometry(props: ModeProps<FeatureCollection>): Geometry | null | undefined {
+  getSelectedGeometry(props: ModeProps<FeatureCollection<SingleGeometry>>): SingleGeometry | null | undefined {
     const feature = this.getSelectedFeature(props);
     if (feature) {
       return feature.geometry;
@@ -66,7 +67,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return null;
   }
 
-  getSelectedFeaturesAsFeatureCollection(props: ModeProps<FeatureCollection>): FeatureCollection {
+  getSelectedFeaturesAsFeatureCollection(props: ModeProps<FeatureCollection<SingleGeometry>>): FeatureCollection<SingleGeometry> {
     const {features} = props.data;
     const selectedFeatures = props.selectedIndexes.map((selectedIndex) => features[selectedIndex]);
     return {
@@ -104,21 +105,20 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return props.selectedIndexes.some((index) => pickedIndexes.has(index));
   }
 
-  rewindPolygon(feature: Feature): Feature {
+  rewindPolygon(feature: Feature<SingleGeometry>): Feature<SingleGeometry> {
     const {geometry} = feature;
 
     const isPolygonal = geometry.type === 'Polygon' || geometry.type === 'MultiPolygon';
     if (isPolygonal) {
-      // @ts-expect-error turf type too wide
-      return rewind(feature);
+      return rewind(feature) as Feature<SingleGeometry>;
     }
 
     return feature;
   }
 
   getAddFeatureAction(
-    featureOrGeometry: Geometry | Feature,
-    features: FeatureCollection,
+    featureOrGeometry: SingleGeometry | Feature,
+    features: FeatureCollection<SingleGeometry>,
     featureProperties?: {}
   ): GeoJsonEditAction {
     // Unsure why flow can't deal with Geometry type, but there I fixed it
@@ -149,8 +149,8 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   }
 
   getAddManyFeaturesAction(
-    {features: featuresToAdd}: FeatureCollection,
-    features: FeatureCollection
+    {features: featuresToAdd}: FeatureCollection<SingleGeometry>,
+    features: FeatureCollection<SingleGeometry>
   ): GeoJsonEditAction {
     let updatedData = new ImmutableFeatureCollection(features);
     const initialIndex = updatedData.getObject().features.length;
@@ -178,7 +178,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   // eslint-disable-next-line complexity
   getAddFeatureOrBooleanPolygonAction(
     featureOrGeometry: Polygon | Feature,
-    props: ModeProps<FeatureCollection>,
+    props: ModeProps<FeatureCollection<SingleGeometry>>,
     featureProperties?: {}
   ): GeoJsonEditAction | null | undefined {
     const featureOrGeometryAsAny: any = featureOrGeometry;
@@ -209,14 +209,11 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 
       let updatedGeometry;
       if (modeConfig.booleanOperation === 'union') {
-        // @ts-expect-error selectedFeature type too wide
-        updatedGeometry = turfUnion(selectedFeature, feature);
+        updatedGeometry = turfUnion(featureCollection([selectedFeature, feature]));
       } else if (modeConfig.booleanOperation === 'difference') {
-        // @ts-expect-error selectedFeature type too wide
-        updatedGeometry = turfDifference(selectedFeature, feature);
+        updatedGeometry = turfDifference(featureCollection([selectedFeature, feature]));
       } else if (modeConfig.booleanOperation === 'intersection') {
-        // @ts-expect-error selectedFeature type too wide
-        updatedGeometry = turfIntersect(selectedFeature, feature);
+        updatedGeometry = turfIntersect(featureCollection([selectedFeature, feature]));
       } else {
         // eslint-disable-next-line no-console,no-undef
         console.warn(`Invalid booleanOperation ${modeConfig.booleanOperation}`);

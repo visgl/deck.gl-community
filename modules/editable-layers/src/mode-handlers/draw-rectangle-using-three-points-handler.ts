@@ -30,7 +30,8 @@ export class DrawRectangleUsingThreePointsHandler extends ThreeClickPolygonHandl
         geometry: {
           type: 'LineString',
           coordinates: [clickSequence[0], mapCoords]
-        }
+        },
+        properties: {}
       });
     } else if (clickSequence.length === 2) {
       const lineString: LineString = {
@@ -55,7 +56,8 @@ export class DrawRectangleUsingThreePointsHandler extends ThreeClickPolygonHandl
               p1
             ]
           ]
-        }
+        },
+        properties: {}
       });
     }
 
