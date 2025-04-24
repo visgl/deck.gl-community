@@ -1,0 +1,22 @@
+{
+  "name": "deck.gl-community-editable-layers-examples-interleaved",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/editable-layers": "9.1.0-beta.5",
+    "@deck.gl/mapbox": "^9.1.0",
+    "deck.gl": "^9.1.0",
+    "maplibre-gl": "^4.7.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-map-gl": "^7.1.9"
+  },
+  "devDependencies": {
+    "vite": "^6.0.11"
+  }
+}
