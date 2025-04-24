@@ -1,5 +1,5 @@
 {
-  "name": "deck.gl-community-editable-layers-examples-overlaid",
+  "name": "deck.gl-community-editable-layers-examples-interleaved",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -8,11 +8,10 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/editable-layers": "file:../../../../modules/editable-layers",
+    "@deck.gl-community/editable-layers": "9.1.0-beta.5",
     "@deck.gl/mapbox": "^9.1.0",
-    "deck.gl": "^9.1",
-    "mapbox-gl": "^3.9.4",
-    "maplibre-gl": "^5.0.0",
+    "deck.gl": "^9.1.0",
+    "maplibre-gl": "^4.7.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-map-gl": "^7.1.9"
