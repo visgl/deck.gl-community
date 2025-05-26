@@ -31,10 +31,10 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@deck.gl/core": "^9.1.0",
+    "@deck.gl/core": "^9.1.12",
     "@deck.gl/layers": "^9.1.0",
     "@deck.gl/widgets": "^9.1.0",
-    "@luma.gl/core": "^9.1.0",
+    "@luma.gl/core": "^9.1.9",
     "@probe.gl/log": "^4.0.4",
     "cardinal-spline-js": "^2.3.10",
     "color": "^4.2.3",

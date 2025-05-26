@@ -37,7 +37,7 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.1.0"
+    "@deck.gl/core": "^9.1.12"
   },
   "peerDependencies": {
     "leaflet": "^1.9.4"
