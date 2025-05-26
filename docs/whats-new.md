@@ -9,15 +9,46 @@ Please refer the documentation of each module for detailed news, e.g:
 - [`editable-layers`](/docs/modules/editable-layers#uhats-new)
 - [`layers`](/docs/modules/editable-layers#whats-new)
 
-## High-Level updates
 
-November 20, 2024 [**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers)) - When drawing circles or ellipses properties of the created geometry are now stored in the vector's properties.
+## v9.2 - In Development
 
-April 15, 2024: [**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers)) v9 - This new layer pack is a fork of Uber's [nebula.gl](https://nebula.gl) framework which is no longer maintained. nebula.gl has been an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
+Target Release Date: July 2025
 
-Feb 29, 2024: [**`@deck.gl-community/layers`**](/docs/modules/layers) v9 - deck,gl community-layers now support deck.gl v9.
+**General** 
+- All deck.gl-community modules will be updated to deck.gl v9.2.
 
-December 22, 2023: [**`@deck.gl-community/layers`**](/docs/modules/layers) v0 - A new module intended to containing a collection of useful community layers. Initial layers are `TileSourceLayer`, `DataDrivenTile3DLayer`.
+**`@deck.gl-community/layers`
 
-April 14, 2023: [**`@deck-graph-layers`**](/docs/modules/graph-layers) - A new layer pack for rendering graphs (nodes and edges). Forked from Uber's archived [graph.gl](https://graph.gl) repo.
+- `GlobalGridLayer` - A new "generic" global grid layer that works against a pluggable `GlobalGrid` decoder.
+- `GlobalGrid` -  A small abstraction API for global grid decoders, making it easier to write visualizations / applications that can work with multiple global grids.
+- `A5Grid`, `H3Grid`, `S2Grid`, `GeohashGrid`, `QuadkeyGrid` - Pre-defined global grid system "decoders" for some of the most popular global grids that can be used with the `GlobalGridLayer`
 
+## v9.0
+
+November 20, 2024:
+
+[**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers)) 
+
+- When drawing circles or ellipses properties of the created geometry are now stored in the vector's properties.
+
+April 15, 2024: 
+
+[**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers))
+
+This new layer pack is a fork of Uber's [nebula.gl](https://nebula.gl) framework (which unfortunately no longer provides write access to maintainers). 
+
+Feb 29, 2024: 
+
+[**`@deck.gl-community/layers`**](/docs/modules/layers)
+
+`@deck.gl-community/layers` now support deck.gl v9.
+
+## Pre v9.0 Updates
+
+December 22, 2023
+
+[**`@deck.gl-community/layers`**](/docs/modules/layers) v0 - A new module intended to containing a collection of useful community layers. Initial layers are `TileSourceLayer`, `DataDrivenTile3DLayer`.
+
+April 14, 2023: 
+
+[**`@deck-graph-layers`**](/docs/modules/graph-layers) - A new layer pack for rendering graphs (nodes and edges). Forked from Uber's archived [graph.gl](https://graph.gl) repo.

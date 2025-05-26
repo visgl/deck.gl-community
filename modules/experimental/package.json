@@ -30,7 +30,7 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.1.0",
+    "@deck.gl/core": "^9.1.12",
     "@deck.gl/extensions": "^9.1.0",
     "@deck.gl/geo-layers": "^9.1.0",
     "@deck.gl/layers": "^9.1.0",
@@ -41,7 +41,7 @@
     "@loaders.gl/loader-utils": "^4.2.0",
     "@loaders.gl/schema": "^4.2.0",
     "@loaders.gl/tiles": "^4.2.0",
-    "@luma.gl/core": "^9.1.0",
-    "@luma.gl/engine": "^9.1.0"
+    "@luma.gl/core": "^9.1.9",
+    "@luma.gl/engine": "^9.1.9"
   }
 }
