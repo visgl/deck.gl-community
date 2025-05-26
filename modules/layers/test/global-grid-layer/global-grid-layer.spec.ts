@@ -4,7 +4,7 @@
 
 import test from 'tape-promise/tape';
 import {testLayer, generateLayerTests} from '@deck.gl/test-utils';
-import {_GlobalGridLayer, _A5Decoder} from '@deck.gl/geo-layers';
+import {GlobalGridLayer, A5Grid} from '@deck.gl-community/layers';
 
 const data = [
   // Bigint IDs, resolution 10
@@ -18,13 +18,13 @@ const data = [
   0b0110001101011111101100010000100111000110011000000000000000000000n
 ];
 
-test('_GlobalGridLayer', t => {
+test('GlobalGridLayer', t => {
   const testCases = generateLayerTests({
-    Layer: _GlobalGridLayer<string>,
+    Layer: GlobalGridLayer<string>,
     sampleProps: {
       data,
       getCellId: d => d,
-      globalGrid: _A5Decoder
+      globalGrid: A5Grid
     },
     assert: t.ok,
     onBeforeUpdate: ({testCase}) => t.comment(testCase.title),
@@ -41,7 +41,7 @@ test('_GlobalGridLayer', t => {
     }
   });
 
-  testLayer({Layer: _GlobalGridLayer, testCases, onError: t.notOk});
+  testLayer({Layer: GlobalGridLayer, testCases, onError: t.notOk});
 
   t.end();
 });

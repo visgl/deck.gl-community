@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {AccessorFunction, DefaultProps} from '@deck.gl/core';
+import {type AccessorFunction, type DefaultProps} from '@deck.gl/core';
 import {_GeoCellLayer, type _GeoCellLayerProps} from '@deck.gl/geo-layers';
 import {GlobalGrid} from '../global-grid-systems/grids/global-grid';
 import {flattenPolygon} from '../global-grid-systems/utils/geometry-utils';

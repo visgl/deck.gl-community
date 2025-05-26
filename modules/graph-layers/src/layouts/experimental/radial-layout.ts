@@ -3,7 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
-import {Node} from '../../graph/node';
 import {EDGE_TYPE} from '../../core/constants';
 import {Graph} from '../../graph/graph';
 

@@ -22,6 +22,7 @@ export function loadModule(moduleNames?: string[]) {
       delete window.__loadBingMaps;
 
       if (moduleNames) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         Promise.all(moduleNames.map((m) => awaitCallback(namespace.loadModule, m))).then(() =>
           resolve(namespace)
         );
