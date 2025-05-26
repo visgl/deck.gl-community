@@ -1939,7 +1939,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/layers@workspace:modules/layers":
+"@deck.gl-community/layers@npm:^9.1.0-beta.5, @deck.gl-community/layers@workspace:modules/layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
@@ -14455,6 +14455,17 @@ __metadata:
   checksum: 10c0/2f6c2b9ee019ee21dc258ae97a88719614591e4c979cb4580b1b9df6f0f778a3cb38b4bdaf18dfa584637ea10f89a3c5f2533a5e449cf8741514ad18b0951f2e
   languageName: node
   linkType: hard
+
+"global-grid-layer-globe-views@workspace:examples/geo-layers/globe-views":
+  version: 0.0.0-use.local
+  resolution: "global-grid-layer-globe-views@workspace:examples/geo-layers/globe-views"
+  dependencies:
+    "@deck.gl-community/layers": "npm:^9.1.0-beta.5"
+    "@deck.gl/core": "npm:^9.1.12"
+    typescript: "npm:^5.4.4"
+    vite: "npm:^5.2.8"
+  languageName: unknown
+  linkType: soft
 
 "global-modules@npm:^1.0.0":
   version: 1.0.0

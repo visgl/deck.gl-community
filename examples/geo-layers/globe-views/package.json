@@ -1,0 +1,18 @@
+{
+  "name": "global-grid-layer-globe-views",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/layers": "^9.1.0-beta.5",
+    "@deck.gl/core": "^9.1.12"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.4",
+    "vite": "^5.2.8"
+  }
+}
