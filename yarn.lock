@@ -1961,6 +1961,8 @@ __metadata:
     "@luma.gl/core": "npm:^9.1.0"
     "@luma.gl/engine": "npm:^9.1.0"
     "@math.gl/core": "npm:^4.0.0"
+    a5-js: "npm:^0.1.4"
+    h3-js: "npm:^4.2.1"
   languageName: unknown
   linkType: soft
 
@@ -7840,6 +7842,15 @@ __metadata:
   bin:
     JSONStream: ./bin.js
   checksum: 10c0/0f54694da32224d57b715385d4a6b668d2117379d1f3223dc758459246cca58fdc4c628b83e8a8883334e454a0a30aa198ede77c788b55537c1844f686a751f2
+  languageName: node
+  linkType: hard
+
+"a5-js@npm:^0.1.4":
+  version: 0.1.4
+  resolution: "a5-js@npm:0.1.4"
+  dependencies:
+    gl-matrix: "npm:^3.4.3"
+  checksum: 10c0/7b3e33cac46181ccef89f49c7effa4046344e74ec69b576c49becd874cc9df5ae5fd6a6a35bb2d7af0796000a20594ca6ca06934a2bd87d6bcd8a51c2f59fd29
   languageName: node
   linkType: hard
 
@@ -14444,6 +14455,13 @@ __metadata:
   version: 4.1.0
   resolution: "h3-js@npm:4.1.0"
   checksum: 10c0/58adb7c7a19ff6e6959ef97a60b383bb06c560ffd12826ce603470b25bb34bb26b9bedee6e406591b97017fb888a6194b4043d16abd0d100e6cb51d449e9c3d1
+  languageName: node
+  linkType: hard
+
+"h3-js@npm:^4.2.1":
+  version: 4.2.1
+  resolution: "h3-js@npm:4.2.1"
+  checksum: 10c0/3c72c51149e4e6f9920cd47ff1b9a2ac4cdc1a1d8e41072e31b10db60ba9e264009dc833a30d06d421c083605495d14eca848bd25d85c7840a467c4db95bc50a
   languageName: node
   linkType: hard
 
