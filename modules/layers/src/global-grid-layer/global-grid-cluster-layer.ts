@@ -6,11 +6,11 @@ import {
   type AccessorFunction,
   type UpdateParameters,
   type DefaultProps,
-  createIterable,
+  createIterable
 } from '@deck.gl/core';
-import { _GeoCellLayer, type _GeoCellLayerProps } from '@deck.gl/geo-layers';
-import { type GlobalGrid } from '../global-grid-systems/grids/global-grid';
-import { normalizeLongitudes } from '../global-grid-systems/utils/geometry-utils';
+import {_GeoCellLayer, type _GeoCellLayerProps} from '@deck.gl/geo-layers';
+import {type GlobalGrid} from '../global-grid-systems/grids/global-grid';
+import {normalizeLongitudes} from '../global-grid-systems/utils/geometry-utils';
 
 /** All properties supported by GlobalGridClusterLayer. */
 export type GlobalGridClusterLayerProps<DataT = unknown> = _GlobalGridClusterLayerProps<DataT> &
@@ -30,27 +30,27 @@ export class GlobalGridClusterLayer<DataT = any, ExtraProps extends {} = {}> ext
 > {
   static layerName = 'GlobalGridClusterLayer';
   static defaultProps = {
-    getCellIds: { type: 'accessor', value: (d: any) => d.cellIds },
-    globalGrid: { type: 'object', compare: true, value: undefined! }
+    getCellIds: {type: 'accessor', value: (d: any) => d.cellIds},
+    globalGrid: {type: 'object', compare: true, value: undefined!}
   } as const satisfies DefaultProps<GlobalGridClusterLayerProps>;
 
   declare state: {
-    polygons: { polygon: number[][][] }[];
+    polygons: {polygon: number[][][]}[];
   };
 
   initializeState(): void {
     this.props.globalGrid.initialize?.();
   }
 
-  updateState({ props, changeFlags }: UpdateParameters<this>): void {
+  updateState({props, changeFlags}: UpdateParameters<this>): void {
     if (
       changeFlags.dataChanged ||
       (changeFlags.updateTriggersChanged && changeFlags.updateTriggersChanged.getCellIds)
     ) {
-      const { data, getCellIds, globalGrid } = props;
-      const polygons: { polygon: number[][][] }[] = [];
+      const {data, getCellIds, globalGrid} = props;
+      const polygons: {polygon: number[][][]}[] = [];
 
-      const { iterable, objectInfo } = createIterable(data);
+      const {iterable, objectInfo} = createIterable(data);
       for (const object of iterable) {
         objectInfo.index++;
         const cellIds = getCellIds(object, objectInfo);
@@ -58,7 +58,7 @@ export class GlobalGridClusterLayer<DataT = any, ExtraProps extends {} = {}> ext
           throw new Error(`${globalGrid.name} adapter: cellsToBoundaryMultiPolygon not supported`);
         }
         // TODO - should not need to map the tokens
-        const cellIndexes = cellIds.map(cellId =>
+        const cellIndexes = cellIds.map((cellId) =>
           typeof cellId === 'string' ? globalGrid.tokenToCell?.(cellId) : cellId
         );
         const multiPolygon = globalGrid.cellsToBoundaryMultiPolygon(cellIndexes);
@@ -69,20 +69,20 @@ export class GlobalGridClusterLayer<DataT = any, ExtraProps extends {} = {}> ext
           for (const ring of polygon) {
             normalizeLongitudes(ring);
           }
-          polygons.push(this.getSubLayerRow({ polygon }, object, objectInfo.index));
+          polygons.push(this.getSubLayerRow({polygon}, object, objectInfo.index));
         }
       }
 
-      this.setState({ polygons });
+      this.setState({polygons});
     }
   }
 
   indexToBounds(): Partial<_GeoCellLayer['props']> {
-    const { getElevation, getFillColor, getLineColor, getLineWidth } = this.props;
+    const {getElevation, getFillColor, getLineColor, getLineWidth} = this.props;
 
     return {
       data: this.state.polygons,
-      getPolygon: d => d.polygon,
+      getPolygon: (d) => d.polygon,
 
       getElevation: this.getSubLayerAccessor(getElevation),
       getFillColor: this.getSubLayerAccessor(getFillColor),

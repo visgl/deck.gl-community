@@ -8,7 +8,7 @@ import {type GlobalGrid} from './global-grid';
 const TILE_SIZE = 512;
 
 /** Decoder for the quadkey DGGS */
-export const QuadkeyGrid= {
+export const QuadkeyGrid = {
   name: 'quadkey',
   hasNumericRepresentation: true,
 

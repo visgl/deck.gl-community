@@ -53,7 +53,7 @@ export function cellsToMultiPolygon(
   h3Indexes: H3IndexInput[],
   formatAsGeoJson?: boolean
 ): CoordPair[][][] {
-  const splitLongs = h3Indexes.map(h3Index => h3IndexToSplitLong(h3Index));
+  const splitLongs = h3Indexes.map((h3Index) => h3IndexToSplitLong(h3Index));
   const polygons = _cellsToMultiPolygon(splitLongs, formatAsGeoJson);
   return polygons;
 }

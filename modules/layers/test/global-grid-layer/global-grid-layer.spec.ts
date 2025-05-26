@@ -18,12 +18,12 @@ const data = [
   0b0110001101011111101100010000100111000110011000000000000000000000n
 ];
 
-test('GlobalGridLayer', t => {
+test('GlobalGridLayer', (t) => {
   const testCases = generateLayerTests({
     Layer: GlobalGridLayer<string>,
     sampleProps: {
       data,
-      getCellId: d => d,
+      getCellId: (d) => d,
       globalGrid: A5Grid
     },
     assert: t.ok,
