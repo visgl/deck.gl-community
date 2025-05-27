@@ -12,7 +12,11 @@
 
 const layerDocs = require('../../docs/modules/layers/sidebar.json');
 
+<<<<<<< HEAD
 const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
+=======
+// const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
+>>>>>>> feat(geo-layers): New geo-layers module, unbreak website
 const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
 const editableLayerDocs = require('../../docs/modules/editable-layers/sidebar.json');
 const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');

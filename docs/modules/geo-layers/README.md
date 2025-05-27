@@ -7,14 +7,14 @@ The deck.gl-community repo is specifically set up to collect useful code that no
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
-This module provides a suite of non-official layers for [deck.gl](https://deck.gl).
+This module provides a suite of non-official geospatial layers for [deck.gl](https://deck.gl).
 
 ## Installation
 
 ```bash
-npm install @deck.gl-community/infovis-layers
+npm install @deck.gl-community/geo-layers
 ```
 
-## History
+## Background
 
-Various layers developed by deck.gl maintainers that could be of use to others.
+This modules exports various geospatial deck.gl layers developed by the community that could be of use to others.
