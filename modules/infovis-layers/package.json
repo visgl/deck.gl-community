@@ -1,7 +1,8 @@
 {
-  "name": "@deck.gl-community/layers",
+  "private": true,
+  "name": "@deck.gl-community/infovis-layers",
   "version": "9.1.0-beta.5",
-  "description": "Add-on layers for deck.gl",
+  "description": "Infovis layers (non-geospatial) for deck.gl",
   "license": "MIT",
   "keywords": [
     "layers",
@@ -32,7 +33,6 @@
   "dependencies": {
     "@deck.gl/core": "^9.1.12",
     "@deck.gl/extensions": "^9.1.0",
-    "@deck.gl/geo-layers": "^9.1.0",
     "@deck.gl/layers": "^9.1.0",
     "@deck.gl/mesh-layers": "^9.1.0",
     "@deck.gl/react": "^9.1.0",
@@ -40,7 +40,6 @@
     "@loaders.gl/i3s": "^4.2.0",
     "@loaders.gl/loader-utils": "^4.2.0",
     "@loaders.gl/schema": "^4.2.0",
-    "@loaders.gl/tiles": "^4.2.0",
     "@luma.gl/constants": "^9.1.9",
     "@luma.gl/core": "^9.1.9",
     "@luma.gl/engine": "^9.1.9",

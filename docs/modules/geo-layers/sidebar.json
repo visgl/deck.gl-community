@@ -1,0 +1,9 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/geo-layers",
+  "items": [
+    "modules/layers/README",
+    "modules/geo-layers/api-reference/global-grid-layer",
+    "modules/geo-layers/api-reference/tile-source-layer"
+  ]
+}
