@@ -16,7 +16,7 @@ class AdvancedDemo extends Component {
   }
 
   componentDidMount(): void {
-    exampleApplication(); 
+    exampleApplication();
   }
 
   render() {

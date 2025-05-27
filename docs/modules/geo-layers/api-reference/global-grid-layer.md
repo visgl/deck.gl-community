@@ -1,12 +1,13 @@
 # GlobalGridLayer
 
+<!--
 import {GlobalGridLayerDemo} from '@site/src/doc-demos/geo-layers';
-
 <GlobalGridLayerDemo />
+-->
 
 The `GlobalGridLayer` renders filled and/or stroked polygons based on the specified DGGS geospatial indexing system.
 
-`GlobalGridLayer` is a [CompositeLayer](../core/composite-layer.md).
+`GlobalGridLayer` is a [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer).
 
 
 import Tabs from '@theme/Tabs';
@@ -23,7 +24,7 @@ const layer = new SGGSLayer({
   id: 'GlobalGridLayer',
   data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/sf.bike.parking.a5.json',
   globalGrid: A5Decoder,
-  
+
   extruded: true,
   getPentagon: f => f.pentagon,
   getFillColor: f => {
@@ -106,7 +107,7 @@ function App() {
     id: 'GlobalGridLayer',
     data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/sf.bike.parking.a5.json',
     globalGrid: A5Decoder,
-    
+
     extruded: true,
     getPentagon: (f: DataType) => f.pentagon,
     getFillColor: (f: DataType) => {
@@ -169,11 +170,14 @@ new deck.GlobalGridLayer({});
 
 ## Properties
 
-Inherits from all [Base Layer](../core/layer.md), [CompositeLayer](../core/composite-layer.md), and [PolygonLayer](../layers/polygon-layer.md) properties, plus the following:
+
+
+
+Inherits from all [Base Layer](https://deck.gl/docs/api-reference/core/layer), [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer), and [PolygonLayer](https://deck.gl/docs/api-reference/layers/polygon-layer) properties, plus the following:
 
 ### Data Accessors
 
-#### `getPentagon` ([Accessor&lt;bigint | string&gt;](../../developer-guide/using-layers.md#accessors), optional) ![transition-enabled](https://img.shields.io/badge/transition-enabled-green.svg?style=flat-square") {#getpentagon}
+#### `getPentagon` (Accessor&lt;bigint | string&gt;] ![transition-enabled](https://img.shields.io/badge/transition-enabled-green.svg?style=flat-square") {#getpentagon}
 
 Called for each data object to retrieve the identifier of the DGGS cell id.  May return one of the following:
 
@@ -188,10 +192,9 @@ Called for each data object to retrieve the identifier of the DGGS cell id.  May
 
 The `GlobalGridLayer` renders the following sublayers:
 
-* `cell` - a [PolygonLayer](../layers/polygon-layer.md) rendering the DGGS cells.
+* `cell` - a [PolygonLayer](https://deck.gl/docs/api-reference/layers/polygon-layer) rendering the DGGS cells.
 
 
 ## Source
 
 [modules/geo-layers/src/global-grid-layer](https://github.com/visgl/deck.gl/tree/master/modules/geo-layers/src/global-grid-layer)
-
