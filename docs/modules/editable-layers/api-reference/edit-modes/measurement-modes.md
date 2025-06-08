@@ -10,7 +10,7 @@ The following options can be provided in the `modeConfig` object:
 
 - `turfOptions` (Object, optional)
 
-  - `options` object passed to turf's [distance](https://turfjs.org/docs/#distance) function
+  - `options` object passed to turf's [distance](https://turfjs.org/docs/api/distance) function
   - Default: `undefined`
 
 - `formatTooltip` (Function, optional)
