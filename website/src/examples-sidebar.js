@@ -16,11 +16,11 @@ const sidebars = {
       label: 'Overview',
       id: 'index'
     },
-    {
-      type: 'doc',
-      label: 'Playground',
-      id: "playground"
-    },
+    // {
+    //   type: 'doc',
+    //   label: 'Playground',
+    //   id: "playground"
+    // },
     {
       type: 'category',
       label: '@deck.gl-community/graph-layers',
@@ -54,13 +54,13 @@ const sidebars = {
     },
 
     // TODO - unclear why not rendering
-    {
-      type: 'category',
-      label: '@deck.gl-community/leaflet',
-      items: [
-        "leaflet/get-started"
-      ]
-    },
+    // {
+    //   type: 'category',
+    //   label: '@deck.gl-community/leaflet',
+    //   items: [
+    //     "leaflet/get-started"
+    //   ]
+    // },
   ]
 };
 

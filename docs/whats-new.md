@@ -2,12 +2,7 @@
 
 Modules in `@deck.gl-community` are independently maintained, so this page will only list occasional major changes.
 
-Please refer the documentation of each module for detailed news, e.g:
-
-- [`graph-layers`](/docs/modules/graph-layers#whats-new)
-- [`arrow-layers`](/docs/modules/arrow-layers#whats-new)
-- [`editable-layers`](/docs/modules/editable-layers#uhats-new)
-- [`layers`](/docs/modules/editable-layers#whats-new)
+Please refer the documentation of each module for detailed news.
 
 
 ## v9.2 - In Development

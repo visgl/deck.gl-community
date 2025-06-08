@@ -28,9 +28,11 @@
       "@deck.gl-community/editable-layers": ["modules/editable-layers/src"],
       "@deck.gl-community/experimental": ["modules/experimental/src"],
       "@deck.gl-community/layers": ["modules/layers/src"],
+      "@deck.gl-community/geo-layers": ["modules/geo-layers/src"],
+      "@deck.gl-community/infovis-layers": ["modules/layers/src"],
       "@deck.gl-community/react": ["modules/react/src"],
       "@deck.gl-community/template": ["modules/template/src"],
-      "deck-graph-layers": ["modules/graph-layers/src"]
+      "@deck.gl-community/graph-layers": ["modules/graph-layers/src"]
     },
     "typeRoots": ["./node_modules/@types"],
     "plugins": [

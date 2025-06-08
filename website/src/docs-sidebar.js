@@ -9,11 +9,15 @@
  Create as many sidebars as you want.
  */
 
-const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
 
 const layerDocs = require('../../docs/modules/layers/sidebar.json');
+
+// const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
+const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
 const editableLayerDocs = require('../../docs/modules/editable-layers/sidebar.json');
 const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');
+
+const geoLayerDocs = require('../../docs/modules/geo-layers/sidebar.json');
 
 const bingMapsDocs = require('../../docs/modules/bing-maps/sidebar.json');
 const leafletDocs = require('../../docs/modules/leaflet/sidebar.json');
@@ -32,6 +36,12 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Generic Layers',
+      className: 'heading_bold',
+      items: [layerDocs]
+    },
+    {
+      type: 'category',
       label: 'Non-Geospatial Layers',
       className: 'heading_bold',
       items: [graphLayerDocs]
@@ -40,7 +50,7 @@ const sidebars = {
       type: 'category',
       label: 'Geospatial Layers',
       className: 'heading_bold',
-      items: [layerDocs, editableLayerDocs, arrowLayerDocs, experimentalDocs]
+      items: [geoLayerDocs, editableLayerDocs, arrowLayerDocs, experimentalDocs]
     },
     {
       type: 'category',
