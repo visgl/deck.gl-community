@@ -1925,32 +1925,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/geo-layers@workspace:modules/geo-layers":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/geo-layers@workspace:modules/geo-layers"
-  dependencies:
-    "@deck.gl/core": "npm:^9.1.12"
-    "@deck.gl/extensions": "npm:^9.1.0"
-    "@deck.gl/geo-layers": "npm:^9.1.0"
-    "@deck.gl/layers": "npm:^9.1.0"
-    "@deck.gl/mesh-layers": "npm:^9.1.0"
-    "@deck.gl/react": "npm:^9.1.0"
-    "@deck.gl/test-utils": "npm:^9.1.12"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/i3s": "npm:^4.2.0"
-    "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@loaders.gl/tiles": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:^9.1.9"
-    "@luma.gl/core": "npm:^9.1.9"
-    "@luma.gl/engine": "npm:^9.1.9"
-    "@luma.gl/webgpu": "npm:^9.1.9"
-    "@math.gl/core": "npm:^4.0.0"
-    a5-js: "npm:^0.1.4"
-    h3-js: "npm:^4.2.1"
-  languageName: unknown
-  linkType: soft
-
 "@deck.gl-community/graph-layers@npm:9.1.0-beta.5, @deck.gl-community/graph-layers@npm:^9.1.0-beta.5, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/graph-layers@workspace:modules/graph-layers"
