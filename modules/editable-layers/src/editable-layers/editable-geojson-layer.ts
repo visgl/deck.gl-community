@@ -12,7 +12,8 @@ import {
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  PointerMoveEvent
+  PointerMoveEvent,
+  DoubleClickEvent
 } from '../edit-modes/types';
 
 import {ViewMode} from '../edit-modes/view-mode';
@@ -565,6 +566,12 @@ export class EditableGeoJsonLayer extends EditableLayer<
 
   onLayerClick(event: ClickEvent): void {
     this.getActiveMode().handleClick(event, this.getModeProps(this.props) as any);
+  }
+
+  onLayerDoubleClick(event: DoubleClickEvent): void {
+    if (this.getActiveMode().handleDoubleClick) {
+      this.getActiveMode().handleDoubleClick(event, this.getModeProps(this.props) as any);
+    }
   }
 
   onLayerKeyUp(event: KeyboardEvent): void {
