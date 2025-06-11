@@ -146,25 +146,31 @@ export class ModifyMode extends GeoJsonEditMode {
     if (pickedExistingHandle) {
       const {featureIndex, positionIndexes} = pickedExistingHandle.properties;
 
-      let updatedData;
-      try {
-        updatedData = new ImmutableFeatureCollection(props.data)
-          .removePosition(featureIndex, positionIndexes)
-          .getObject();
-      } catch (ignored) {
-        // This happens if user attempts to remove the last point
-      }
+      const feature = props.data.features[featureIndex];
+      const canRemovePosition = !(
+        props.modeConfig?.lockRectangles && feature?.properties.shape === 'Rectangle'
+      );
+      if (canRemovePosition) {
+        let updatedData;
+        try {
+          updatedData = new ImmutableFeatureCollection(props.data)
+            .removePosition(featureIndex, positionIndexes)
+            .getObject();
+        } catch (ignored) {
+          // This happens if user attempts to remove the last point
+        }
 
-      if (updatedData) {
-        props.onEdit({
-          updatedData,
-          editType: 'removePosition',
-          editContext: {
-            featureIndexes: [featureIndex],
-            positionIndexes,
-            position: pickedExistingHandle.geometry.coordinates
-          }
-        });
+        if (updatedData) {
+          props.onEdit({
+            updatedData,
+            editType: 'removePosition',
+            editContext: {
+              featureIndexes: [featureIndex],
+              positionIndexes,
+              position: pickedExistingHandle.geometry.coordinates
+            }
+          });
+        }
       }
     } else if (pickedIntermediateHandle) {
       const {featureIndex, positionIndexes} = pickedIntermediateHandle.properties;
