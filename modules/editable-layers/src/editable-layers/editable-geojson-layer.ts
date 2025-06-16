@@ -118,7 +118,7 @@ export type EditableGeoJsonLayerProps<DataT = any> = EditableLayerProps & {
   mode?: any;
   modeConfig?: any;
   selectedFeatureIndexes?: number[];
-  onEdit?: (updatedData?, editType?: string, featureIndexes?: number[], editContext?) => void;
+  onEdit?: (editAction: EditAction<DataT>) => void;
 
   pickable?: boolean;
   pickingRadius?: number;
@@ -140,8 +140,8 @@ export type EditableGeoJsonLayerProps<DataT = any> = EditableLayerProps & {
 
   getLineColor?: Color | ((feature, isSelected, mode) => Color);
   getFillColor?: Color | ((feature, isSelected, mode) => Color);
-  getRadius?: number | ((f) => number);
-  getLineWidth?: number | ((f) => number);
+  getRadius?: number | ((feature, isSelected, mode) => number);
+  getLineWidth?: number | ((feature, isSelected, mode) => number);
 
   getTentativeLineColor?: Color | ((feature, isSelected, mode) => Color);
   getTentativeFillColor?: Color | ((feature, isSelected, mode) => Color);
