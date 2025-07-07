@@ -1925,7 +1925,33 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/graph-layers@npm:9.1.0-beta.5, @deck.gl-community/graph-layers@npm:^9.1.0-beta.5, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
+"@deck.gl-community/graph-layers@npm:9.1.0-beta.5":
+  version: 9.1.0-beta.5
+  resolution: "@deck.gl-community/graph-layers@npm:9.1.0-beta.5"
+  dependencies:
+    "@deck.gl/core": "npm:^9.1.0"
+    "@deck.gl/layers": "npm:^9.1.0"
+    "@deck.gl/widgets": "npm:^9.1.0"
+    "@luma.gl/core": "npm:^9.1.0"
+    "@probe.gl/log": "npm:^4.0.4"
+    cardinal-spline-js: "npm:^2.3.10"
+    color: "npm:^4.2.3"
+    core-js: "npm:^3.29.0"
+    d3: "npm:^7.8.2"
+    d3-array: "npm:^3.2.2"
+    d3-force: "npm:^3.0.0"
+    d3-format: "npm:^3.1.0"
+    d3-scale: "npm:^4.0.2"
+    global: "npm:^4.4.0"
+    lodash.isequal: "npm:^4.5.0"
+    lodash.pick: "npm:^4.4.0"
+    preact: "npm:^10.17.0"
+    raf: "npm:^3.4.1"
+  checksum: 10c0/8f5db439228aa594d432277f7f74d7cd44fe6c9c35bcd048e937592ea131f8fd4bfdb643a095acdf3ee49cb6f396158a17fe02ae8c5ba44ba9a4df31adcd3a28
+  languageName: node
+  linkType: hard
+
+"@deck.gl-community/graph-layers@npm:^9.1.0-beta.5, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/graph-layers@workspace:modules/graph-layers"
   dependencies:
@@ -2012,9 +2038,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/react@npm:9.1.0-beta.5, @deck.gl-community/react@npm:^9.1.0-beta.5, @deck.gl-community/react@workspace:modules/react":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/react@workspace:modules/react"
+"@deck.gl-community/react@npm:9.1.0-beta.5":
+  version: 9.1.0-beta.5
+  resolution: "@deck.gl-community/react@npm:9.1.0-beta.5"
   dependencies:
     "@turf/helpers": "npm:^6.5.0"
     "@types/styled-react-modal": "npm:^1.2.5"
@@ -2026,8 +2052,9 @@ __metadata:
     styled-components: "npm:^6.1.1"
     styled-react-modal: "npm:^3.1.1"
     supercluster: "npm:^8.0.1"
-  languageName: unknown
-  linkType: soft
+  checksum: 10c0/5ce7c0a55a911d833494deacaaca154461c9f24cd9f4ba24afa718f083e541b749ade4abc1124fe17920e430ae9ddacc38dea09b73cf35bcd3734877a4a05092
+  languageName: node
+  linkType: hard
 
 "@deck.gl-community/react@npm:^9.0.2":
   version: 9.0.2
@@ -2045,6 +2072,23 @@ __metadata:
   checksum: 10c0/fab49acd77dc6cc4c5bd92583819d229daf1b4caff0cdc7ce106c3f72ffb4c8bbdf69d0d2cfea31018868a831fb4ae24b9b764d63e789bc8085984c8d8ee0eb6
   languageName: node
   linkType: hard
+
+"@deck.gl-community/react@npm:^9.1.0-beta.5, @deck.gl-community/react@workspace:modules/react":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/react@workspace:modules/react"
+  dependencies:
+    "@turf/helpers": "npm:^6.5.0"
+    "@types/styled-react-modal": "npm:^1.2.5"
+    boxicons: "npm:^2.1.4"
+    preact: "npm:^10.17.0"
+    prop-types: "npm:^15.8.1"
+    react: "npm:^18.2.0"
+    react-dom: "npm:^18.2.0"
+    styled-components: "npm:^6.1.1"
+    styled-react-modal: "npm:^3.1.1"
+    supercluster: "npm:^8.0.1"
+  languageName: unknown
+  linkType: soft
 
 "@deck.gl-community/template@workspace:modules/template":
   version: 0.0.0-use.local
@@ -2143,7 +2187,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@deck.gl/core@npm:9.1.12, @deck.gl/core@npm:^9.1.12":
+"@deck.gl/core@npm:9.1.12, @deck.gl/core@npm:^9.1.0, @deck.gl/core@npm:^9.1.12":
   version: 9.1.12
   resolution: "@deck.gl/core@npm:9.1.12"
   dependencies:
@@ -4250,7 +4294,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/core@npm:^9.1.5, @luma.gl/core@npm:^9.1.9":
+"@luma.gl/core@npm:^9.1.0, @luma.gl/core@npm:^9.1.5, @luma.gl/core@npm:^9.1.9":
   version: 9.1.9
   resolution: "@luma.gl/core@npm:9.1.9"
   dependencies:
