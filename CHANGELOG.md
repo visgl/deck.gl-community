@@ -1,5 +1,13 @@
 # deck.gl-community CHANGELOG
 
+### v9.1.0-beta.8
+
+- No new commits
+
+### v9.1.0-beta.7
+
+- No new commits
+
 ### v9.1.0-beta.6
 
 - feat(infovis-layers): New TimeAxisLayer, VerticalGridLayer and View utils (#264)
