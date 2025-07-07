@@ -37,7 +37,6 @@
     "@deck.gl/mesh-layers": "^9.1.0",
     "@deck.gl/react": "^9.1.0",
     "@loaders.gl/core": "^4.2.0",
-    "@loaders.gl/i3s": "^4.2.0",
     "@loaders.gl/loader-utils": "^4.2.0",
     "@loaders.gl/schema": "^4.2.0",
     "@luma.gl/constants": "^9.1.9",
