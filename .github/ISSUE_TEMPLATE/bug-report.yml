@@ -26,7 +26,7 @@ body:
     value: |
       Tips: Before filing a new bug:
       Check [existing issues](https://github.com/visgl/deck.gl-community/issues)to avoid filing duplicate bugs.
-      You may find answers faster by searching in [the documentation](https://deck.gl-community/search).
+      You may find answers faster by searching in the documentation.
 - type: checkboxes
   id: flavor
   attributes:
