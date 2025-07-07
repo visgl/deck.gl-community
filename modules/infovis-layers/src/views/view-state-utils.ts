@@ -32,9 +32,9 @@ export function mergeViewStates(
     ...viewState2,
     target: [viewState2.target?.[0] ?? target1[0], viewState2.target?.[1] ?? target1[1]],
     zoom: [
-      // @ts-expect-error view state typing is awfully optional
+      // ts-expect-error view state typing is awfully optional
       viewState2.zoom?.[0] ?? zoom1[0],
-      // @ts-expect-error view state typing is awfully optional
+      // ts-expect-error view state typing is awfully optional
       viewState2.zoom?.[1] ?? zoom1[1],
     ],
   };
