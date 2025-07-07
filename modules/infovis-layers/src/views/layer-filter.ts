@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { FilterContext } from '@deck.gl/core';
+import {type FilterContext} from '@deck.gl/core';
 
 export type DeclarativeLayerFilter = Record<
   string,
@@ -25,24 +25,24 @@ type RegexpLayerFilter = Record<
 >;
 
 export function makeLayerFilter(
-  filters: DeclarativeLayerFilter,
+  filters: DeclarativeLayerFilter
 ): (context: FilterContext) => boolean {
   // Pre-compile the regexps for performance
   const regexpFilters: RegexpLayerFilter = {};
   for (const [key, value] of Object.entries(filters)) {
     if ('include' in value) {
       regexpFilters[key] = {
-        include: value.include.map((v) => new RegExp(v)),
+        include: value.include.map((v) => new RegExp(v))
       };
     } else {
       regexpFilters[key] = {
-        exclude: value.exclude.map((v) => new RegExp(v)),
+        exclude: value.exclude.map((v) => new RegExp(v))
       };
     }
   }
 
   // Return a function that checks if a layer matches the filter
-  return ({ viewport, layer }: FilterContext) => {
+  return ({viewport, layer}: FilterContext) => {
     let visible = true;
     const viewFilters = regexpFilters[viewport.id] || ({} as Record<string, RegExp[]>);
     // Check if the layer matches the filters for this viewport

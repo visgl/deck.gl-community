@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { OrthographicViewState } from '@deck.gl/core';
+import {type OrthographicViewState} from '@deck.gl/core';
 
 export type OptionalizedViewState<T> = {
   [K in keyof T]: T[K] extends [number, number] | undefined
@@ -23,7 +23,7 @@ export type OptionalViewState = OptionalizedViewState<OrthographicViewState>;
 
 export function mergeViewStates(
   viewState1: OrthographicViewState,
-  viewState2: OptionalViewState,
+  viewState2: OptionalViewState
 ): OrthographicViewState {
   const target1 = viewState1.target ?? [0, 0];
   const zoom1 = viewState1.zoom ?? [1, 1];
@@ -35,8 +35,8 @@ export function mergeViewStates(
       // ts-expect-error view state typing is awfully optional
       viewState2.zoom?.[0] ?? zoom1[0],
       // ts-expect-error view state typing is awfully optional
-      viewState2.zoom?.[1] ?? zoom1[1],
-    ],
+      viewState2.zoom?.[1] ?? zoom1[1]
+    ]
   };
   // @ts-expect-error view state typing is awfully optional
   validateViewState(mergedViewState);
@@ -44,8 +44,9 @@ export function mergeViewStates(
   return mergedViewState;
 }
 
+// eslint-disable-next-line complexity
 export function validateViewState(
-  viewState: OrthographicViewState,
+  viewState: OrthographicViewState
 ): viewState is OrthographicViewState {
   const isTargetValid =
     Array.isArray(viewState.target) &&
@@ -61,6 +62,7 @@ export function validateViewState(
     !Number.isNaN(viewState.zoom[1]);
 
   if (!isTargetValid || !isZoomValid) {
+    // eslint-disable-next-line no-console
     console.warn('Invalid viewState:', viewState);
   }
 

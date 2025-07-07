@@ -8,15 +8,15 @@ export function fitBoundsOrthographic(
   width: number,
   height: number,
   bounds: Readonly<Bounds>,
-  zoomMode: 'single',
-): { target: [number, number]; zoom: number };
+  zoomMode: 'single'
+): {target: [number, number]; zoom: number};
 
 export function fitBoundsOrthographic(
   width: number,
   height: number,
   bounds: Readonly<Bounds>,
-  zoomMode: 'per-axis',
-): { target: [number, number]; zoom: [number, number] };
+  zoomMode: 'per-axis'
+): {target: [number, number]; zoom: [number, number]};
 
 /**
  * Compute center & zoom for an OrthographicViewport so that `bounds` fills the viewport.
@@ -32,8 +32,8 @@ export function fitBoundsOrthographic(
   width: number,
   height: number,
   bounds: Readonly<Bounds>,
-  zoomMode: 'single' | 'per-axis' = 'per-axis',
-): { target: [number, number]; zoom: number | [number, number] } {
+  zoomMode: 'single' | 'per-axis' = 'per-axis'
+): {target: [number, number]; zoom: number | [number, number]} {
   const [[minX, minY], [maxX, maxY]] = bounds;
 
   // center of the box
@@ -59,11 +59,12 @@ export function fitBoundsOrthographic(
   const zoomY = Math.log2(scaleY);
 
   if (Number.isNaN(zoom) || Number.isNaN(zoomX) || Number.isNaN(zoom)) {
-    console.warn('Invalid zoom values:', { zoom, zoomX, zoomY });
+    // eslint-disable-next-line no-console
+    console.warn('Invalid zoom values:', {zoom, zoomX, zoomY});
   }
 
   return {
     target: [centerX, centerY],
-    zoom: zoomMode === 'single' ? zoom : [zoomX, zoomY],
+    zoom: zoomMode === 'single' ? zoom : [zoomX, zoomY]
   };
 }

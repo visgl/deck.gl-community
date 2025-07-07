@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { CompositeLayer, CompositeLayerProps, UpdateParameters } from '@deck.gl/core';
-import { LineLayer } from '@deck.gl/layers';
+import {CompositeLayer, type CompositeLayerProps, type UpdateParameters} from '@deck.gl/core';
+import {LineLayer} from '@deck.gl/layers';
 
-import { getPrettyTicks, getZoomedRange } from '../utils/tick-utils';
+import {getPrettyTicks, getZoomedRange} from '../utils/tick-utils';
 
 export type VerticalGridLayerProps = CompositeLayerProps & {
   /** Start time in milliseconds since epoch */
@@ -31,7 +31,7 @@ export class VerticalGridLayer extends CompositeLayer<VerticalGridLayerProps> {
     yMax: 1e6,
     tickCount: 5,
     width: 1,
-    color: [200, 200, 200, 255],
+    color: [200, 200, 200, 255]
   };
 
   override shouldUpdateState(params: UpdateParameters<VerticalGridLayer>): boolean {
@@ -39,7 +39,7 @@ export class VerticalGridLayer extends CompositeLayer<VerticalGridLayerProps> {
   }
 
   override renderLayers() {
-    const { xMin, xMax, tickCount = 5, yMin, yMax, color } = this.props;
+    const {xMin, xMax, tickCount = 5, yMin, yMax, color} = this.props;
 
     // Access the current viewport
     const viewport = this.context.viewport;
@@ -49,12 +49,12 @@ export class VerticalGridLayer extends CompositeLayer<VerticalGridLayerProps> {
     const [startTimeZoomed, endTimeZoomed] = getZoomedRange(xMin, xMax, bounds);
 
     // Generate tick positions
-    const tickPositions = getPrettyTicks(startTimeZoomed!, endTimeZoomed!, tickCount);
+    const tickPositions = getPrettyTicks(startTimeZoomed, endTimeZoomed, tickCount);
 
     // Create vertical grid lines at each tick position
     const gridLines = tickPositions.map((x) => ({
       sourcePosition: [x, yMin],
-      targetPosition: [x, yMax],
+      targetPosition: [x, yMax]
     }));
 
     return new LineLayer({
@@ -63,7 +63,7 @@ export class VerticalGridLayer extends CompositeLayer<VerticalGridLayerProps> {
       getSourcePosition: (d) => d.sourcePosition,
       getTargetPosition: (d) => d.targetPosition,
       getColor: color,
-      getWidth: 1,
+      getWidth: 1
     });
   }
 }

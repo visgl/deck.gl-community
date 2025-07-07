@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { CompositeLayer, CompositeLayerProps, UpdateParameters } from '@deck.gl/core';
-import { LineLayer, TextLayer } from '@deck.gl/layers';
+import {CompositeLayer, type CompositeLayerProps, type UpdateParameters} from '@deck.gl/core';
+import {LineLayer, TextLayer} from '@deck.gl/layers';
 
-import { formatTimeMs } from '../utils/format-utils';
-import { getPrettyTicks, getZoomedRange } from '../utils/tick-utils';
+import {formatTimeMs} from '../utils/format-utils';
+import {getPrettyTicks, getZoomedRange} from '../utils/tick-utils';
 
 export type TimeAxisLayerProps = CompositeLayerProps & {
   unit: 'timestamp' | 'milliseconds';
@@ -33,7 +33,7 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
     y: 0,
     color: [0, 0, 0, 255],
     unit: 'timestamp',
-    bounds: undefined!,
+    bounds: undefined!
   };
 
   // Called whenever props/data/viewports change
@@ -42,39 +42,40 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
   }
 
   override renderLayers() {
-    const { startTimeMs, endTimeMs, tickCount = 10, y = 0, color = [0, 0, 0, 255] } = this.props;
+    const {startTimeMs, endTimeMs, tickCount = 10, y = 0, color = [0, 0, 0, 255]} = this.props;
 
     let bounds: [number, number, number, number];
     try {
       bounds = this.context.viewport.getBounds();
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.log('Error getting bounds from viewport:', error);
       throw error;
     }
-    const [startTimeZoomed, endTimeZoomed] = getZoomedRange(startTimeMs, endTimeMs, bounds!);
+    const [startTimeZoomed, endTimeZoomed] = getZoomedRange(startTimeMs, endTimeMs, bounds);
     // Generate tick positions and labels
-    const ticks = getPrettyTicks(startTimeZoomed!, endTimeZoomed!, tickCount);
+    const ticks = getPrettyTicks(startTimeZoomed, endTimeZoomed, tickCount);
 
     const tickLines = ticks.map((x) => ({
       sourcePosition: [x, y - 5],
-      targetPosition: [x, y + 5],
+      targetPosition: [x, y + 5]
     }));
 
     const tickLabels = ticks.map((x) => ({
       position: [x, y - 10],
       text:
-        this.props.unit === 'timestamp' ? new Date(x).toLocaleTimeString() : formatTimeMs(x, false),
+        this.props.unit === 'timestamp' ? new Date(x).toLocaleTimeString() : formatTimeMs(x, false)
     }));
 
     return [
       // Axis line
       new LineLayer({
         id: 'axis-line',
-        data: [{ sourcePosition: [startTimeZoomed, y], targetPosition: [endTimeZoomed, y] }],
+        data: [{sourcePosition: [startTimeZoomed, y], targetPosition: [endTimeZoomed, y]}],
         getSourcePosition: (d) => d.sourcePosition,
         getTargetPosition: (d) => d.targetPosition,
         getColor: color,
-        getWidth: 2,
+        getWidth: 2
       }),
       // Tick marks
       new LineLayer({
@@ -83,7 +84,7 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
         getSourcePosition: (d) => d.sourcePosition,
         getTargetPosition: (d) => d.targetPosition,
         getColor: color,
-        getWidth: 1,
+        getWidth: 1
       }),
       // Tick labels
       new TextLayer({
@@ -94,8 +95,8 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
         getSize: 12,
         getColor: color,
         getTextAnchor: 'middle',
-        getAlignmentBaseline: 'top',
-      }),
+        getAlignmentBaseline: 'top'
+      })
     ];
   }
 }

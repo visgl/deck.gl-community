@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { CompositeLayer, LayerProps } from '@deck.gl/core';
-import { LineLayer, TextLayer } from '@deck.gl/layers';
+import {CompositeLayer, type LayerProps} from '@deck.gl/core';
+import {LineLayer, TextLayer} from '@deck.gl/layers';
 
 // import {PathStyleExtension} from '@deck.gl/extensions';
 
-import { formatTimeMs } from '../utils/format-utils';
+import {formatTimeMs} from '../utils/format-utils';
 
 export type TimeDeltaLayerProps = LayerProps & {
   unit: 'timestamp' | 'milliseconds';
@@ -41,11 +41,11 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
     color: [0, 0, 0, 255],
     unit: 'timestamp',
     yMin: -1e6, // Should cover full viewport height in most cases
-    yMax: 1e6, // Should cover full viewport height in most cases
+    yMax: 1e6 // Should cover full viewport height in most cases
   };
 
   override renderLayers() {
-    const { startTimeMs, endTimeMs, color = [0, 0, 0, 255], yMin, yMax } = this.props;
+    const {startTimeMs, endTimeMs, color = [0, 0, 0, 255], yMin, yMax} = this.props;
 
     const timeDeltaPosition = [(startTimeMs + endTimeMs) / 2, 10];
     const timeDeltaMs = Math.abs(endTimeMs - startTimeMs);
@@ -55,12 +55,12 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
       const timeLines = [
         {
           sourcePosition: [startTimeMs, yMin],
-          targetPosition: [startTimeMs, yMax],
+          targetPosition: [startTimeMs, yMax]
         },
         {
           sourcePosition: [endTimeMs, yMin],
-          targetPosition: [endTimeMs, yMax],
-        },
+          targetPosition: [endTimeMs, yMax]
+        }
       ];
       return [
         // Interval end lines
@@ -71,8 +71,8 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
           getTargetPosition: (d) => d.targetPosition,
           getColor: color,
           getWidth: 4,
-          widthUnits: 'pixels',
-        }),
+          widthUnits: 'pixels'
+        })
       ];
     }
 
@@ -115,12 +115,12 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
     const timeLines = [
       {
         sourcePosition: [startTimeMs, -100],
-        targetPosition: [startTimeMs, HEADER_Y],
+        targetPosition: [startTimeMs, HEADER_Y]
       },
       {
         sourcePosition: [endTimeMs, -100],
-        targetPosition: [endTimeMs, HEADER_Y],
-      },
+        targetPosition: [endTimeMs, HEADER_Y]
+      }
     ];
 
     return [
@@ -132,7 +132,7 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
         getTargetPosition: (d) => d.targetPosition,
         getColor: color,
         getWidth: 4,
-        widthUnits: 'pixels',
+        widthUnits: 'pixels'
       }),
 
       // Interval center
@@ -141,20 +141,20 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
         data: [
           {
             sourcePosition: [startTimeMs, HEADER_Y - 7],
-            targetPosition: [endTimeMs, HEADER_Y - 7],
-          },
+            targetPosition: [endTimeMs, HEADER_Y - 7]
+          }
         ],
         getSourcePosition: (d) => d.sourcePosition,
         getTargetPosition: (d) => d.targetPosition,
         getColor: color,
         getWidth: 1,
-        widthUnits: 'pixels',
+        widthUnits: 'pixels'
       }),
 
       // Label
       new TextLayer({
         id: 'header-time-delta-label',
-        data: [{ position: timeDeltaPosition, text: timeDeltaLabel }],
+        data: [{position: timeDeltaPosition, text: timeDeltaLabel}],
         getPosition: (d) => d.position,
         getText: (d) => d.text,
         getSize: 12,
@@ -163,8 +163,8 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
         getAlignmentBaseline: 'top',
         background: true,
         getBackgroundColor: [255, 255, 255, 255], // Solid green background
-        backgroundPadding: [4, 2], // Horizontal and vertical padding
-      }),
+        backgroundPadding: [4, 2] // Horizontal and vertical padding
+      })
     ];
   }
 }

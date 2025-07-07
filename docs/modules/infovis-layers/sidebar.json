@@ -4,6 +4,6 @@
   "items": [
     "modules/infovis-layers/README",
     "modules/infovis-layers/api-reference/time-axis-layer",
-    "modules/infovis-layers/api-reference/vertical-grid-layer",
+    "modules/infovis-layers/api-reference/vertical-grid-layer"
   ]
 }

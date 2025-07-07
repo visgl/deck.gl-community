@@ -1,4 +1,4 @@
-## Marker layer
+# MarkerLayer
 
 This layer provides the basic marker functionality. This marker layer provided by Deck.gl only has one marker (circle) while this layer provides numerous markers.
 
