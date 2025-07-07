@@ -1,0 +1,7 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/geo-layers",
+  "items": [
+    "modules/geo-layers/README"
+  ]
+}
