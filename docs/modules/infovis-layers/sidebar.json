@@ -1,6 +1,6 @@
 {
   "type": "category",
-  "label": "@deck.gl-community/layers",
+  "label": "@deck.gl-community/infovis-layers",
   "items": [
     "modules/infovis-layers/README"
   ]
