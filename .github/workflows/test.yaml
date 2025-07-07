@@ -19,33 +19,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-q      - uses: volta-cli/action@2d68418f32546fd191eb666e232b321d5726484d # v4.1.1
+      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4.2.1
         with:
-          node-version: ${{ matrix.node-version }}
           cache: 'yarn'
 
       - name: Install dependencies
         run: |
-          yarn install
-        env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: false
+          yarn
+          yarn bootstrap
 
-      - name: Build code
-        run: |
-          yarn build
+      - name: Build packages
+        run: yarn build
 
-      - name: Run tests in Puppeteer and generage Coverage
-        run: |
-          yarn test cover
-
-      - name: Run tests on Node
-        run: |
-          yarn test node
-
-      - name: Run lint
+      - name: Run tests
         run: |
           yarn lint
-
-      - name: Test website build
-        run: |
-          yarn test-website
+          yarn test
