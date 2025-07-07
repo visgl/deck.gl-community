@@ -1962,7 +1962,6 @@ __metadata:
     "@deck.gl/react": "npm:^9.1.0"
     "@deck.gl/test-utils": "npm:^9.1.12"
     "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/i3s": "npm:^4.2.0"
     "@loaders.gl/loader-utils": "npm:^4.2.0"
     "@loaders.gl/schema": "npm:^4.2.0"
     "@luma.gl/constants": "npm:^9.1.9"

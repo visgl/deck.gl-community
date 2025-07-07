@@ -2,6 +2,8 @@
   "type": "category",
   "label": "@deck.gl-community/infovis-layers",
   "items": [
-    "modules/infovis-layers/README"
+    "modules/infovis-layers/README",
+    "modules/infovis-layers/api-reference/time-axis-layer",
+    "modules/infovis-layers/api-reference/vertical-grid-layer"
   ]
 }

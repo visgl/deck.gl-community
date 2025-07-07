@@ -1,4 +1,4 @@
-# D3 Force Layout
+# D3ForceLayout
 
 <p align="center">
   <img src="/gatsby/images/layouts/d3.png" height="400" />
