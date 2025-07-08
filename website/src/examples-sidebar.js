@@ -30,6 +30,13 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/infovis-layers',
+      items: [
+        "infovis-layers/horizon-graph-layer"
+      ]
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/editable-layers',
       items: [
         "editable-layers/editor",

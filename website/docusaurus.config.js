@@ -53,6 +53,7 @@ const config = {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
+            '@deck.gl-community/infovis-layers': resolve('../modules/infovis-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
