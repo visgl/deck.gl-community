@@ -107,7 +107,6 @@ export function App(props) {
       return;
     }
 
-    debugger
     setEngine(new GraphEngine({graph, layout}));
   }, [graph, layout]);
 
@@ -279,7 +278,7 @@ export function App(props) {
               }
               getTooltip={(info) => getToolTip(info.object)}
             />
-            {/* View control component TODO - replace with widget */
+            {/* View control component TODO - doesn't work in website, replace with widget *
               <PositionedViewControl
                 fitBounds={fitBounds}
                 panBy={panBy}
@@ -288,7 +287,7 @@ export function App(props) {
                 maxZoom={maxZoom}
                 minZoom={minZoom}
               />
-            }
+            */}
           </div>
         </>
       </div>

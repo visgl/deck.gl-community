@@ -52,13 +52,13 @@ const sidebars = {
     // },
 
     // TODO - need BING map key
-    {
-      type: 'category',
-      label: '@deck.gl-community/bing-maps',
-      items: [
-        "bing-maps/get-started"
-      ]
-    },
+    // {
+    //   type: 'category',
+    //   label: '@deck.gl-community/bing-maps',
+    //   items: [
+    //     "bing-maps/get-started"
+    //   ]
+    // },
 
     // TODO - unclear why not rendering
     // {

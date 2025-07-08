@@ -2,20 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import DeckGL from '@deck.gl/react';
-import {ViewMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
-import {Toolbox} from './toolbox/toolbox';
+import { ViewMode, EditableGeoJsonLayer } from '@deck.gl-community/editable-layers';
+import { Toolbox } from './toolbox/toolbox';
 import StaticMap from 'react-map-gl/maplibre';
 
-const initialViewState = {
-  longitude: -122.43,
-  latitude: 37.775,
-  zoom: 12
-};
-
-export function Example() {
-  const [geoJson, setGeoJson] = useState({
+export function getDefaultGeoJSON() {
+  return {
     type: 'FeatureCollection',
     features: [
       {
@@ -51,7 +45,17 @@ export function Example() {
         }
       }
     ]
-  });
+  } as const;
+}
+
+const initialViewState = {
+  longitude: -122.43,
+  latitude: 37.775,
+  zoom: 12
+};
+
+export function Example() {
+  const [geoJson, setGeoJson] = useState(getDefaultGeoJSON());
   const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState([0]);
   const [mode, setMode] = useState(() => ViewMode);
   const [modeConfig, setModeConfig] = useState({});
@@ -61,7 +65,7 @@ export function Example() {
     mode,
     modeConfig,
     selectedFeatureIndexes,
-    onEdit: ({updatedData}) => {
+    onEdit: ({ updatedData }) => {
       setGeoJson(updatedData);
     }
   });
