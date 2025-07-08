@@ -31,6 +31,7 @@ const MODE_CONFIG_MAP = {
   [SELECTION_TYPE.RECTANGLE]: {dragToDraw: true}
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface SelectionLayerProps<DataT> extends CompositeLayerProps {
   layerIds: any[];
   onSelect: (info: any) => any;
