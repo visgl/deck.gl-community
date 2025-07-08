@@ -1844,9 +1844,9 @@ __metadata:
     "@deck.gl/geo-layers": ^9.1.0
     "@deck.gl/layers": ^9.1.0
     "@deck.gl/mesh-layers": ^9.1.0
-    "@luma.gl/constants": ">=9.1.9"
-    "@luma.gl/core": ">=9.1.9"
-    "@luma.gl/engine": ">=9.1.9"
+    "@luma.gl/constants": ^9.1.0
+    "@luma.gl/core": ^9.1.0
+    "@luma.gl/engine": ^9.1.0
     "@math.gl/core": ">=4.0.1"
   languageName: unknown
   linkType: soft
@@ -1866,8 +1866,8 @@ __metadata:
     "@loaders.gl/loader-utils": "npm:^4.2.0"
     "@loaders.gl/schema": "npm:^4.2.0"
     "@loaders.gl/tiles": "npm:^4.2.0"
-    "@luma.gl/core": "npm:^9.1.9"
-    "@luma.gl/engine": "npm:^9.1.9"
+    "@luma.gl/core": "npm:^9.1.0"
+    "@luma.gl/engine": "npm:^9.1.0"
   languageName: unknown
   linkType: soft
 
@@ -1887,10 +1887,10 @@ __metadata:
     "@loaders.gl/loader-utils": "npm:^4.2.0"
     "@loaders.gl/schema": "npm:^4.2.0"
     "@loaders.gl/tiles": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:^9.1.9"
-    "@luma.gl/core": "npm:^9.1.9"
-    "@luma.gl/engine": "npm:^9.1.9"
-    "@luma.gl/webgpu": "npm:^9.1.9"
+    "@luma.gl/constants": "npm:^9.1.0"
+    "@luma.gl/core": "npm:^9.1.0"
+    "@luma.gl/engine": "npm:^9.1.0"
+    "@luma.gl/webgpu": "npm:^9.1.0"
     "@math.gl/core": "npm:^4.0.0"
     a5-js: "npm:^0.1.4"
     h3-js: "npm:^4.2.1"
@@ -1904,7 +1904,7 @@ __metadata:
     "@deck.gl/core": "npm:^9.1.12"
     "@deck.gl/layers": "npm:^9.1.0"
     "@deck.gl/widgets": "npm:^9.1.0"
-    "@luma.gl/core": "npm:^9.1.9"
+    "@luma.gl/core": "npm:^9.1.0"
     "@probe.gl/log": "npm:^4.0.4"
     cardinal-spline-js: "npm:^2.3.10"
     color: "npm:^4.2.3"
@@ -1936,10 +1936,10 @@ __metadata:
     "@loaders.gl/core": "npm:^4.2.0"
     "@loaders.gl/loader-utils": "npm:^4.2.0"
     "@loaders.gl/schema": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:^9.1.9"
-    "@luma.gl/core": "npm:^9.1.9"
-    "@luma.gl/engine": "npm:^9.1.9"
-    "@luma.gl/webgpu": "npm:^9.1.9"
+    "@luma.gl/constants": "npm:^9.1.0"
+    "@luma.gl/core": "npm:^9.1.0"
+    "@luma.gl/engine": "npm:^9.1.0"
+    "@luma.gl/webgpu": "npm:^9.1.0"
     "@math.gl/core": "npm:^4.0.0"
     a5-js: "npm:^0.1.4"
     h3-js: "npm:^4.2.1"
@@ -1962,10 +1962,10 @@ __metadata:
     "@loaders.gl/loader-utils": "npm:^4.2.0"
     "@loaders.gl/schema": "npm:^4.2.0"
     "@loaders.gl/tiles": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:^9.1.9"
-    "@luma.gl/core": "npm:^9.1.9"
-    "@luma.gl/engine": "npm:^9.1.9"
-    "@luma.gl/webgpu": "npm:^9.1.9"
+    "@luma.gl/constants": "npm:^9.1.0"
+    "@luma.gl/core": "npm:^9.1.0"
+    "@luma.gl/engine": "npm:^9.1.0"
+    "@luma.gl/webgpu": "npm:^9.1.0"
     "@math.gl/core": "npm:^4.0.0"
     a5-js: "npm:^0.1.4"
     h3-js: "npm:^4.2.1"
@@ -4194,7 +4194,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/constants@npm:9.1.9, @luma.gl/constants@npm:^9.1.5, @luma.gl/constants@npm:^9.1.9":
+"@luma.gl/constants@npm:9.1.9, @luma.gl/constants@npm:^9.1.5, @luma.gl/constants@npm:^9.1.7":
   version: 9.1.9
   resolution: "@luma.gl/constants@npm:9.1.9"
   checksum: 10c0/77b232a8cf9720cdbb80bdf703cbc9e3acae934536a76df4d90e07a094e514d57d94f8eb81a8ac75e23a9c2c6ab5438f75fab3a001d472e9f440a0a1b148e21e
@@ -4215,7 +4215,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/core@npm:^9.1.5, @luma.gl/core@npm:^9.1.9":
+"@luma.gl/core@npm:^9.1.0, @luma.gl/core@npm:^9.1.5, @luma.gl/core@npm:^9.1.7":
   version: 9.1.9
   resolution: "@luma.gl/core@npm:9.1.9"
   dependencies:
@@ -4228,7 +4228,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/engine@npm:^9.1.5, @luma.gl/engine@npm:^9.1.9":
+"@luma.gl/engine@npm:^9.1.0, @luma.gl/engine@npm:^9.1.5, @luma.gl/engine@npm:^9.1.7":
   version: 9.1.9
   resolution: "@luma.gl/engine@npm:9.1.9"
   dependencies:
@@ -4315,7 +4315,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/webgl@npm:^9.1.5, @luma.gl/webgl@npm:^9.1.9":
+"@luma.gl/webgl@npm:^9.1.0, @luma.gl/webgl@npm:^9.1.5, @luma.gl/webgl@npm:^9.1.7":
   version: 9.1.9
   resolution: "@luma.gl/webgl@npm:9.1.9"
   dependencies:
@@ -4328,7 +4328,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/webgpu@npm:^9.1.9":
+"@luma.gl/webgpu@npm:^9.1.0":
   version: 9.1.9
   resolution: "@luma.gl/webgpu@npm:9.1.9"
   dependencies:
@@ -10808,10 +10808,10 @@ __metadata:
     "@deck.gl/core": "npm:^9.1.12"
     "@deck.gl/layers": "npm:^9.1.0"
     "@deck.gl/mesh-layers": "npm:^9.1.0"
-    "@luma.gl/constants": "npm:^9.1.9"
-    "@luma.gl/core": "npm:^9.1.9"
-    "@luma.gl/engine": "npm:^9.1.9"
-    "@luma.gl/webgl": "npm:^9.1.9"
+    "@luma.gl/constants": "npm:^9.1.7"
+    "@luma.gl/core": "npm:^9.1.7"
+    "@luma.gl/engine": "npm:^9.1.7"
+    "@luma.gl/webgl": "npm:^9.1.7"
     "@probe.gl/test-utils": "npm:^4.0.4"
     "@testing-library/jest-dom": "npm:^6.4.2"
     "@testing-library/react": "npm:^14.3.0"
@@ -21335,10 +21335,10 @@ __metadata:
     "@deck.gl/core": "npm:^9.1.12"
     "@deck.gl/layers": "npm:^9.1.0"
     "@deck.gl/react": "npm:^9.1.0"
-    "@luma.gl/constants": "npm:^9.1.9"
-    "@luma.gl/core": "npm:^9.1.9"
-    "@luma.gl/engine": "npm:^9.1.9"
-    "@luma.gl/webgl": "npm:^9.1.9"
+    "@luma.gl/constants": "npm:^9.1.0"
+    "@luma.gl/core": "npm:^9.1.0"
+    "@luma.gl/engine": "npm:^9.1.0"
+    "@luma.gl/webgl": "npm:^9.1.0"
     "@types/react": "npm:^18.2.75"
     "@types/react-dom": "npm:^18.2.24"
     maplibre-gl: "npm:^4.1.3"

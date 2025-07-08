@@ -77,9 +77,9 @@
     "@deck.gl/geo-layers": "^9.1.0",
     "@deck.gl/layers": "^9.1.0",
     "@deck.gl/mesh-layers": "^9.1.0",
-    "@luma.gl/constants": ">=9.1.9",
-    "@luma.gl/core": ">=9.1.9",
-    "@luma.gl/engine": ">=9.1.9",
+    "@luma.gl/constants": "^9.1.0",
+    "@luma.gl/core": "^9.1.0",
+    "@luma.gl/engine": "^9.1.0",
     "@math.gl/core": ">=4.0.1"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
