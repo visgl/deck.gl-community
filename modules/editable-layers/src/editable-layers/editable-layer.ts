@@ -18,6 +18,7 @@ import {Position} from '../utils/geojson-types';
 const EVENT_TYPES = ['click', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
 
 // TODO(v9): remove generic layer
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type EditableLayerProps<DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
