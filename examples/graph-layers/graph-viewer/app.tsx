@@ -107,7 +107,6 @@ export function App(props) {
       return;
     }
 
-    debugger
     setEngine(new GraphEngine({graph, layout}));
   }, [graph, layout]);
 
