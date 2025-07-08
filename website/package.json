@@ -16,8 +16,8 @@
     "write-heading-ids": "ts-node ../scripts/write-heading-ids.ts"
   },
   "dependencies": {
-    "@deck.gl/google-maps": "^9.0.0",
-    "@deck.gl/json": "^9.0.0",
+    "@deck.gl/google-maps": "^9.1.0",
+    "@deck.gl/json": "^9.1.0",
     "@loaders.gl/csv": "^4.2.0",
     "@loaders.gl/i3s": "^4.2.0",
     "@loaders.gl/json": "^4.2.0",
@@ -63,6 +63,7 @@
     ">0.2% and supports async-functions",
     "not dead"
   ],
+  "packageManager": "yarn@4.9.0",
   "volta": {
     "extends": "../package.json"
   }
