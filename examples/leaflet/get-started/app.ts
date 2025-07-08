@@ -9,8 +9,10 @@ const AIR_PORTS =
   'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_airports.geojson';
 
 export function exampleApplication() {
+  // Create a Leaflet map
+  const canvas = document.getElementById('map');
   // Create map
-  const map = L.map(document.getElementById('map'), {
+  const map = L.map(canvas, {
     center: [51.47, 0.45],
     zoom: 4,
   });

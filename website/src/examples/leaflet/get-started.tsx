@@ -23,9 +23,9 @@ class AdvancedDemo extends Component {
     const {...otherProps} = this.props;
 
     return (
-      <BrowserOnly>
-        {() => <div id="map" {...otherProps} />}
-      </BrowserOnly>
+      <div style={{position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(1,0,0,1)'}} >
+        <div id="map" style={{width: '100%', height: '100%'}} />
+      </div>
     );
   }
 }

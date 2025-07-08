@@ -6645,6 +6645,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/leaflet@npm:^1.9.12":
+  version: 1.9.20
+  resolution: "@types/leaflet@npm:1.9.20"
+  dependencies:
+    "@types/geojson": "npm:*"
+  checksum: 10c0/14a32df400c6a371bc7e65ee4467118dc1b977cae002c45f7315ed032fade30bac3b97feac60a08809dd767bd68b17900ae6f947258cc0745412562ad12f2e82
+  languageName: node
+  linkType: hard
+
 "@types/leaflet@npm:^1.9.18":
   version: 1.9.18
   resolution: "@types/leaflet@npm:1.9.18"
@@ -16445,6 +16454,19 @@ __metadata:
   checksum: 10c0/0d7c3f55361a0f6eda4788928b014a7b56685ceb62b5f8fc1daf0b1dedba4d02e6aa0069e21fee92c479b7dacfd2e8e951e5cdec908f1615b516ff9f91033030
   languageName: node
   linkType: hard
+
+"leaflet-deck-get-started-example@workspace:examples/leaflet/get-started":
+  version: 0.0.0-use.local
+  resolution: "leaflet-deck-get-started-example@workspace:examples/leaflet/get-started"
+  dependencies:
+    "@deck.gl/core": "npm:^9.1.12"
+    "@deck.gl/layers": "npm:^9.1.0"
+    "@types/leaflet": "npm:^1.9.12"
+    leaflet: "npm:^1.9.4"
+    typescript: "npm:^5.4.4"
+    vite: "npm:^5.2.8"
+  languageName: unknown
+  linkType: soft
 
 "leaflet@npm:^1.9.4":
   version: 1.9.4

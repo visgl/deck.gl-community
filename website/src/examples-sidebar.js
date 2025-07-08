@@ -61,13 +61,13 @@ const sidebars = {
     // },
 
     // TODO - unclear why not rendering
-    // {
-    //   type: 'category',
-    //   label: '@deck.gl-community/leaflet',
-    //   items: [
-    //     "leaflet/get-started"
-    //   ]
-    // },
+    {
+      type: 'category',
+      label: '@deck.gl-community/leaflet',
+      items: [
+        "leaflet/get-started"
+      ]
+    },
   ]
 };
 

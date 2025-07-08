@@ -5,14 +5,27 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 Please refer the documentation of each module for detailed news.
 
 
-## v9.2 - In Development
+## v9.2 - In developments
 
 Target Release Date: July 2025
 
-**General** 
-- All deck.gl-community modules will be updated to deck.gl v9.2.
+- deck.gl-community modules will be updated to deck.gl v9.2.
 
-**`@deck.gl-community/layers`
+## v9.1
+
+Release Date: July 2025
+
+High-level changes
+- All deck.gl-community modules have been updated to deck.gl v9.1.
+
+**`@deck.gl-community/infovis-layers`** (New module)
+
+- `HorizonGraphLayer`
+- `TimeAxisLayer`
+- `VerticalGridLayer`
+- Utilities for deck.gl view management
+
+**`@deck.gl-community/geo-layers`** (New module)
 
 - `GlobalGridLayer` - A new "generic" global grid layer that works against a pluggable `GlobalGrid` decoder.
 - `GlobalGrid` -  A small abstraction API for global grid decoders, making it easier to write visualizations / applications that can work with multiple global grids.
