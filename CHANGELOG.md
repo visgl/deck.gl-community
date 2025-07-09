@@ -1,5 +1,20 @@
 # deck.gl-community CHANGELOG
 
+## v9.1.1
+
+## v9.1.0
+
+- [chore] Prepare for v9.1 publish (#272)
+- fix(website, editable-layers): Unbreak editor example in website (#271)
+- Add horizon graph layer website example (#270)
+- docs: update infovis sidebar (#269)
+- refactor: move horizon layers to infovis package (#268)
+- docs: add horizon graph layer documentation (#267)
+- Horizon Layer (#258)
+- fix: Remove stray merge markers (#266)
+- feat(geo-layers): Fix the geo-layers module (#265)
+
+
 ### v9.1.0-beta.8
 
 - No new commits
