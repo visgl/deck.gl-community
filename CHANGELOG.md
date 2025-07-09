@@ -1,8 +1,8 @@
 # deck.gl-community CHANGELOG
 
-## v9.1.1
+## v9.1.2
 
-## v9.1.0
+## v9.1.1
 
 - [chore] Prepare for v9.1 publish (#272)
 - fix(website, editable-layers): Unbreak editor example in website (#271)
@@ -14,6 +14,9 @@
 - fix: Remove stray merge markers (#266)
 - feat(geo-layers): Fix the geo-layers module (#265)
 
+## v9.1.0
+
+- Skipped
 
 ### v9.1.0-beta.8
 
