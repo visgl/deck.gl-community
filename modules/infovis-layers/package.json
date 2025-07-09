@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/infovis-layers",
-  "version": "9.1.0-beta.8",
+  "version": "9.1.0",
   "description": "Infovis layers (non-geospatial) for deck.gl",
   "license": "MIT",
   "keywords": [
@@ -38,15 +38,15 @@
     "@loaders.gl/core": "^4.2.0",
     "@loaders.gl/loader-utils": "^4.2.0",
     "@loaders.gl/schema": "^4.2.0",
-    "@luma.gl/constants": "^9.1.9",
-    "@luma.gl/core": "^9.1.9",
-    "@luma.gl/engine": "^9.1.9",
+    "@luma.gl/constants": "^9.1.0",
+    "@luma.gl/core": "^9.1.0",
+    "@luma.gl/engine": "^9.1.0",
     "@math.gl/core": "^4.0.0",
     "a5-js": "^0.1.4",
     "h3-js": "^4.2.1"
   },
   "devDependencies": {
     "@deck.gl/test-utils": "^9.1.12",
-    "@luma.gl/webgpu": "^9.1.9"
+    "@luma.gl/webgpu": "^9.1.0"
   }
 }

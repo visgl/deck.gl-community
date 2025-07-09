@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/experimental",
-  "version": "9.1.0-beta.8",
+  "version": "9.1.0",
   "description": "Experimental layers for deck.gl",
   "license": "MIT",
   "keywords": [
@@ -41,7 +41,7 @@
     "@loaders.gl/loader-utils": "^4.2.0",
     "@loaders.gl/schema": "^4.2.0",
     "@loaders.gl/tiles": "^4.2.0",
-    "@luma.gl/core": "^9.1.9",
-    "@luma.gl/engine": "^9.1.9"
+    "@luma.gl/core": "^9.1.0",
+    "@luma.gl/engine": "^9.1.0"
   }
 }
