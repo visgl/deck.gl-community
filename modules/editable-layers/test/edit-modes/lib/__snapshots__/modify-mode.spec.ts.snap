@@ -1,5 +1,91 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`Correct coordinate edited when stopping near another guide 1`] = `
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          1,
+          2,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          0,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          2,
+          3,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          1,
+        ],
+      },
+      "type": "Feature",
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          3,
+          4,
+        ],
+        "type": "Point",
+      },
+      "properties": {
+        "editHandleType": "existing",
+        "featureIndex": 0,
+        "guideType": "editHandle",
+        "positionIndexes": [
+          2,
+        ],
+      },
+      "type": "Feature",
+    },
+  ],
+  "type": "FeatureCollection",
+}
+`;
+
+exports[`Correct coordinate edited when stopping near another guide 2`] = `
+{
+  "geometry": {
+    "coordinates": [
+      [
+        3.1,
+        4.1,
+      ],
+      [
+        2,
+        3,
+      ],
+      [
+        3,
+        4,
+      ],
+    ],
+    "type": "LineString",
+  },
+  "properties": {},
+  "type": "Feature",
+}
+`;
+
 exports[`Rectangular polygon feature preserves shape 1`] = `
 {
   "features": [
