@@ -331,10 +331,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
       },
 
       updateTriggers: {
-        getLineColor: [this.props.selectedFeatureIndexes, this.props.mode],
-        getFillColor: [this.props.selectedFeatureIndexes, this.props.mode],
-        getPointRadius: [this.props.selectedFeatureIndexes, this.props.mode],
-        getLineWidth: [this.props.selectedFeatureIndexes, this.props.mode]
+        getLineColor: [this.props.updateTriggers.getLineColor, this.props.selectedFeatureIndexes, this.props.mode],
+        getFillColor: [this.props.updateTriggers.getFillColor, this.props.selectedFeatureIndexes, this.props.mode],
+        getPointRadius: [this.props.updateTriggers.getPointRadius, this.props.selectedFeatureIndexes, this.props.mode],
+        getLineWidth: [this.props.updateTriggers.getLineWidth, this.props.selectedFeatureIndexes, this.props.mode]
       }
     });
 
