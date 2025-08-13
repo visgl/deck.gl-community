@@ -32,11 +32,11 @@
     "lodash.isequal": "^4.5.0"
   },
   "peerDependencies": {
-    "@deck.gl/core": "^9.1.12",
-    "@deck.gl/layers": "^8.8.0",
-    "@deck.gl/mesh-layers": "^8.8.0",
-    "@luma.gl/core": "^8.2.0",
-    "@luma.gl/engine": "^8.2.0"
+    "@deck.gl/core": "~9.1.12",
+    "@deck.gl/layers": "~8.8.0",
+    "@deck.gl/mesh-layers": "~8.8.0",
+    "@luma.gl/core": "~8.2.0",
+    "@luma.gl/engine": "~8.2.0"
   },
   "volta": {
     "extends": "../../package.json"
