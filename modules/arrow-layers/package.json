@@ -41,10 +41,10 @@
     "threads": "^1.7.0"
   },
   "peerDependencies": {
-    "@deck.gl/aggregation-layers": "^9.1.0",
-    "@deck.gl/core": "^9.1.12",
-    "@deck.gl/geo-layers": "^9.1.0",
-    "@deck.gl/layers": "^9.1.0"
+    "@deck.gl/aggregation-layers": "~9.1.0",
+    "@deck.gl/core": "~9.1.12",
+    "@deck.gl/geo-layers": "~9.1.0",
+    "@deck.gl/layers": "~9.1.0"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
 }
