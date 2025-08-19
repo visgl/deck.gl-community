@@ -6,7 +6,7 @@ import {GITHUB_TREE} from '../../constants/defaults';
 import {makeExample} from '../../components';
 
 class HorizonDemo extends Component {
-  static title = 'Horizon Graph Layer Demo';
+  static title = 'HorizonGraphLayer';
 
   static code = `${GITHUB_TREE}/examples/infovis-layers/horizon-graph-layer`;
 

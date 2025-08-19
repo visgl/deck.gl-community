@@ -7,7 +7,7 @@ import App from '../../../../examples/layers/path-marker-orthographic/app';
 import {makeExample} from '../../components';
 
 class PathMarkerOrthographicDemo extends Component {
-  static title = 'Path Layers in Orthographic View';
+  static title = 'PathMarkerLayer in OrthographicView';
 
   static code = `${GITHUB_TREE}/examples/layers/path-marker-orthographic`;
 
