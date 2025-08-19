@@ -43,6 +43,13 @@ const sidebars = {
         "editable-layers/advanced"
       ]
     },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers',
+      items: [
+        "layers/path-marker-orthographic"
+      ]
+    },
     // {
     //   type: 'category',
     //   label: '@deck.gl-community/arrow-layers',

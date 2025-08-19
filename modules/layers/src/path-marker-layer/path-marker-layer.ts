@@ -84,13 +84,13 @@ export class PathMarkerLayer<
 
   projectFlat(xyz, viewport, coordinateSystem, coordinateOrigin) {
     if (coordinateSystem === COORDINATE_SYSTEM.METER_OFFSETS) {
-      const [dx, dy] = viewport.metersToLngLatDelta(xyz);
       const [x, y] = coordinateOrigin;
-      return viewport.projectFlat([x + dx, dy + y]);
+      const [dx, dy] = viewport.metersToLngLatDelta ? viewport.metersToLngLatDelta(xyz) : xyz;
+      return viewport.projectFlat([x + dx, y + dy]);
     } else if (coordinateSystem === COORDINATE_SYSTEM.LNGLAT_OFFSETS) {
       const [dx, dy] = xyz;
       const [x, y] = coordinateOrigin;
-      return viewport.projectFlat([x + dx, dy + y]);
+      return viewport.projectFlat([x + dx, y + dy]);
     }
 
     return viewport.projectFlat(xyz);
