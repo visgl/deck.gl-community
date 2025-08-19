@@ -2,13 +2,14 @@ import React, {Component} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
 import {GITHUB_TREE} from '../../constants/defaults';
+import App from '../../../../examples/layers/path-marker-orthographic/app';
 
 import {makeExample} from '../../components';
 
-class HorizonDemo extends Component {
-  static title = 'HorizonGraphLayer';
+class PathMarkerOrthographicDemo extends Component {
+  static title = 'PathMarkerLayer in OrthographicView';
 
-  static code = `${GITHUB_TREE}/examples/infovis-layers/horizon-graph-layer`;
+  static code = `${GITHUB_TREE}/examples/layers/path-marker-orthographic`;
 
   static renderInfo(meta) {
     return <></>;
@@ -19,13 +20,10 @@ class HorizonDemo extends Component {
 
     return (
       <BrowserOnly>
-        {() => {
-          const App = require('../../../../examples/infovis-layers/horizon-graph-layer/app').default;
-          return <App {...otherProps} />;
-        }}
+        {() => <App {...otherProps} />}
       </BrowserOnly>
     );
   }
 }
 
-export default makeExample(HorizonDemo);
+export default makeExample(PathMarkerOrthographicDemo);
