@@ -286,6 +286,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
     selectedFeatures: Feature[];
   } = undefined!;
 
+  // Instance properties for drag override behavior
+  private _newlyAddedPositionInfo: {featureIndex: number; positionIndexes: number[]} | null = null;
+  private _overrideDragPick: any = null;
+
   // setState: ($Shape<State>) => void;
   renderLayers() {
     const subLayerProps = this.getSubLayerProps({
@@ -421,9 +425,20 @@ export class EditableGeoJsonLayer extends EditableLayer<
       lastPointerMoveEvent: this.state.lastPointerMoveEvent,
       cursor: this.state.cursor,
       onEdit: (editAction: EditAction<FeatureCollection>) => {
-        // Force a re-render
-        // This supports double-click where we need to ensure that there's a re-render between the two clicks
-        // even though the data wasn't changed, just the internal tentative feature.
+        if (
+          editAction.editType === 'addPosition' &&
+          editAction.editContext &&
+          editAction.editContext.positionIndexes &&
+          editAction.editContext.featureIndexes
+        ) {
+          const {featureIndexes, positionIndexes} = editAction.editContext;
+          // Use a synchronous instance property, NOT setState
+          this._newlyAddedPositionInfo = {
+            featureIndex: featureIndexes[0],
+            positionIndexes
+          };
+        }
+
         this.setNeedsUpdate();
         props.onEdit(editAction);
       },
@@ -572,15 +587,49 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onStartDragging(event: StartDraggingEvent): void {
+    // Reset instance properties at the start of each drag gesture
+    this._newlyAddedPositionInfo = null;
+    this._overrideDragPick = null;
+
     this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props) as any);
   }
 
   onDragging(event: DraggingEvent): void {
-    this.getActiveMode().handleDragging(event, this.getModeProps(this.props) as any);
+    // If a point was just added, create and lock-in the override pick.
+    if (this._newlyAddedPositionInfo) {
+      const {featureIndex, positionIndexes} = this._newlyAddedPositionInfo;
+
+      this._overrideDragPick = {
+        object: this.props.data.features[featureIndex],
+        index: featureIndex,
+        isGuide: true,
+        properties: {
+          positionIndexes,
+          featureIndex
+        }
+      };
+      // Clear the temporary flag now that we have the persistent one.
+      this._newlyAddedPositionInfo = null;
+    }
+
+    let eventToForward = event;
+    // If we are in an override state, modify the event.
+    if (this._overrideDragPick) {
+      eventToForward = {
+        ...event,
+        picks: [this._overrideDragPick],
+        pointerDownPicks: [this._overrideDragPick]
+      };
+    }
+
+    this.getActiveMode().handleDragging(eventToForward, this.getModeProps(this.props) as any);
   }
 
   onStopDragging(event: StopDraggingEvent): void {
     this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props) as any);
+
+    // Critical cleanup of the instance property
+    this._overrideDragPick = null;
   }
 
   onPointerMove(event: PointerMoveEvent): void {
