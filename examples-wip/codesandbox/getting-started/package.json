@@ -1,8 +1,8 @@
 {
   "name": "editable-layers-example-getting-started",
   "dependencies": {
-    "@deck.gl/core": "^9.1.12",
-    "@deck.gl/react": "^9.1.0",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/react": "~9.2.1",
     "@turf/helpers": "^6.5.0",
     "global": "4.4.0",
     "maplibre-gl": "^4.1.3",

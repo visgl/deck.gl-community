@@ -3,7 +3,7 @@
   "private": true,
   "description": "deck.gl integration with Leaflet",
   "license": "MIT",
-  "version": "9.1.0",
+  "version": "9.2.0",
   "publishConfig": {
     "access": "public"
   },
@@ -37,7 +37,7 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.1.12"
+    "@deck.gl/core": "~9.2.1"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.18",

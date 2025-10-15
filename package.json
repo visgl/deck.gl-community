@@ -27,14 +27,14 @@
     "metrics": "ocular-metrics"
   },
   "devDependencies": {
-    "@deck.gl/aggregation-layers": "^9.1.0",
-    "@deck.gl/core": "^9.1.12",
-    "@deck.gl/layers": "^9.1.0",
-    "@deck.gl/mesh-layers": "^9.1.0",
-    "@luma.gl/constants": "^9.1.7",
-    "@luma.gl/core": "^9.1.7",
-    "@luma.gl/engine": "^9.1.7",
-    "@luma.gl/webgl": "^9.1.7",
+    "@deck.gl/aggregation-layers": "~9.2.1",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/layers": "~9.2.1",
+    "@deck.gl/mesh-layers": "~9.2.1",
+    "@luma.gl/constants": "~9.2.0",
+    "@luma.gl/core": "~9.2.0",
+    "@luma.gl/engine": "~9.2.0",
+    "@luma.gl/webgl": "~9.2.0",
     "@probe.gl/test-utils": "^4.0.4",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.3.0",
@@ -68,5 +68,5 @@
     "node": "20.11.1",
     "yarn": "4.5.3"
   },
-  "packageManager": "yarn@4.9.0"
+  "packageManager": "yarn@4.10.3"
 }

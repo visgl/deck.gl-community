@@ -1,6 +1,6 @@
 {
   "name": "graph-layers-example",
-  "version": "0.0.0",
+  "version": "9.2.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -9,11 +9,11 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/graph-layers": "^9.1.0",
-    "@deck.gl-community/react": "^9.1.0",
-    "@deck.gl/core": "^9.1.12",
-    "@deck.gl/layers": "^9.1.12",
-    "@deck.gl/react": "^9.1.12",
+    "@deck.gl-community/graph-layers": "~9.2.0",
+    "@deck.gl-community/react": "~9.2.0",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/layers": "~9.2.1",
+    "@deck.gl/react": "~9.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
