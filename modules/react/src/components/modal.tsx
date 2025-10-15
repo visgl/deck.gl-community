@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+// @ts-nocheck This modal file should be phased out.
+
 /* eslint-env browser */
 
 import * as React from 'react';

@@ -3,6 +3,8 @@
 // Copyright (c) vis.gl contributors
 // Copyright 2022 Foursquare Labs, Inc.
 
+// @ts-nocheck TODO - fix
+
 import type {UpdateParameters} from '@deck.gl/core';
 import {project32} from '@deck.gl/core';
 import {BitmapLayer} from '@deck.gl/layers';

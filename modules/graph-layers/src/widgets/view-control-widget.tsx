@@ -5,7 +5,7 @@
 import {Component, render} from 'preact';
 
 // import {FlyToInterpolator} from '@deck.gl/core';
-import type {Deck, Viewport, Widget, WidgetPlacement} from '@deck.gl/core';
+import {Widget, type Deck, type Viewport, type WidgetPlacement} from '@deck.gl/core';
 import {LongPressButton} from './long-press-button';
 
 export const ViewControlWrapper = ({children}) => (
@@ -230,17 +230,17 @@ export class ViewControl extends Component<ViewControlProps> {
   }
 }
 
-export class ViewControlWidget implements Widget<ViewControlProps> {
+export class ViewControlWidget extends Widget<ViewControlProps> {
   id = 'zoom';
-  props: ViewControlProps;
   placement: WidgetPlacement = 'top-left';
   orientation: 'vertical' | 'horizontal' = 'vertical';
   viewId?: string | null = null;
   viewports: {[id: string]: Viewport} = {};
-  deck?: Deck<any>;
   element?: HTMLDivElement;
+  className = 'deck-widget-view-control';
 
   constructor(props: ViewControlProps) {
+    super(props);
     this.props = {...ViewControl.defaultProps, ...props};
     this.id = props.id || 'zoom';
     this.viewId = props.viewId || null;
@@ -250,7 +250,6 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
     // props.zoomInLabel = props.zoomInLabel || 'Zoom In';
     // props.zoomOutLabel = props.zoomOutLabel || 'Zoom Out';
     props.style = props.style || {};
-    this.props = props;
   }
 
   onAdd({deck}: {deck: Deck<any>}): HTMLDivElement {
@@ -267,14 +266,6 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
         this.element.style.setProperty(key, value as string)
       );
     }
-    const ui = (
-      <ViewControl
-        {...this.props}
-        zoomBy={this.handleDeltaZoom.bind(this)}
-        panBy={this.handlePanBy.bind(this)}
-      />
-    );
-    render(ui, this.element);
 
     return this.element;
   }
@@ -282,6 +273,17 @@ export class ViewControlWidget implements Widget<ViewControlProps> {
   onRemove() {
     this.deck = undefined;
     this.element = undefined;
+  }
+
+  onRenderHTML(rootElement: HTMLElement): void {
+    const ui = (
+      <ViewControl
+        {...this.props}
+        zoomBy={this.handleDeltaZoom.bind(this)}
+        panBy={this.handlePanBy.bind(this)}
+      />
+    );
+    render(ui, rootElement);
   }
 
   setProps(props: Partial<ViewControlProps>) {
