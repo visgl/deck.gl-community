@@ -570,7 +570,7 @@ var RasterMeshLayer = class extends import_mesh_layers.SimpleMeshLayer {
       ...super.getShaders(),
       vs: vs2,
       fs: fs2,
-      modules: [import_core4.project32, import_core4.phongLighting, ...modules]
+      modules: [import_core4.project32, import_core4.phongMaterial, ...modules]
     };
   }
   // eslint-disable-next-line complexity
