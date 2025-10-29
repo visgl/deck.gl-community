@@ -12,8 +12,7 @@ import Color from 'color';
 import {fetchJSONFromS3} from './io';
 
 // graph.gl
-import GraphGL, {JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
-import RadialLayout from './layouts/radial-layout';
+import GraphGL, {JSONLoader, NODE_TYPE, _RadialLayout as RadialLayout} from '@deck.gl-community/graph-layers';
 
 const DEFAULT_NODE_SIZE = 5;
 const DEFAULT_NODE_LABEL_COLOR = '#646464';
