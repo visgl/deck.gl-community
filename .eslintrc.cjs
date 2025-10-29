@@ -26,6 +26,7 @@ module.exports = getESLintConfig({
           // TODO: Gradually enable, at least for non-test code.
           '@typescript-eslint/no-redundant-type-constituents': 0,
           'import/no-extraneous-dependencies': 0,
+          'import/no-unresolved': ['error', {ignore: ['^@deck\\.gl-community/']}],
           'import/no-named-as-default': ['warn'],
           'import/named': ['warn'],
           '@typescript-eslint/no-unsafe-argument': 0,
@@ -74,6 +75,26 @@ module.exports = getESLintConfig({
     rules: {
       // custom rules
     }
+  },
+  settings: {
+    'import/resolver': {
+      typescript: {
+        project: ['./tsconfig.json']
+      }
+    },
+    'import/core-modules': [
+      '@deck.gl-community/arrow-layers',
+      '@deck.gl-community/bing-maps',
+      '@deck.gl-community/leaflet',
+      '@deck.gl-community/editable-layers',
+      '@deck.gl-community/experimental',
+      '@deck.gl-community/layers',
+      '@deck.gl-community/geo-layers',
+      '@deck.gl-community/infovis-layers',
+      '@deck.gl-community/react',
+      '@deck.gl-community/template',
+      '@deck.gl-community/graph-layers'
+    ]
   },
   /** Print full config JSON for inspection */
   debug: false
