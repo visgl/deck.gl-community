@@ -1,6 +1,6 @@
 {
   "name": "deckgl-example-geoarrow-multilinestring-layer",
-  "version": "0.0.0",
+  "version": "9.2.0",
   "private": true,
   "license": "MIT",
   "scripts": {

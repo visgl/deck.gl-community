@@ -4,7 +4,7 @@
 // Copyright 2022 Foursquare Labs, Inc.
 
 import type {UpdateParameters} from '@deck.gl/core';
-import {project32, phongLighting, log} from '@deck.gl/core';
+import {project32, phongMaterial, log} from '@deck.gl/core';
 import type {SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {Model, Geometry} from '@luma.gl/engine';
@@ -96,7 +96,7 @@ export class RasterMeshLayer extends SimpleMeshLayer<any, RasterLayerAddedProps>
       ...super.getShaders(),
       vs,
       fs,
-      modules: [project32, phongLighting, ...modules]
+      modules: [project32, phongMaterial, ...modules]
     };
   }
 
@@ -178,7 +178,7 @@ export class RasterMeshLayer extends SimpleMeshLayer<any, RasterLayerAddedProps>
     const {viewport} = this.context;
     const {sizeScale, coordinateSystem, _instanced} = this.props;
 
-    // TODO: port to UBOs
+    // @ts-expect-error TODO: port to UBOs
     model.setUniforms(
       Object.assign({}, uniforms, {
         sizeScale,
@@ -186,6 +186,8 @@ export class RasterMeshLayer extends SimpleMeshLayer<any, RasterLayerAddedProps>
         flatShading: !this.state.hasNormals
       })
     );
+
+    // @ts-expect-error TODO: port to UBOs
     model.updateModuleSettingsWebGL({
       ...moduleProps,
       ...images

@@ -1,6 +1,6 @@
 {
   "name": "deckgl-example-geoarrow-text-layer",
-  "version": "0.0.0",
+  "version": "9.2.0",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@deck.gl-community/arrow-layers": "../../",
+    "@deck.gl-community/arrow-layers": "~9.2.0",
     "apache-arrow": ">=14",
     "deck.gl": "^9.1.0",
     "react": "^18.0.0",

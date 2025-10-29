@@ -75,7 +75,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
     // TODO - we should create a single outlineMap for all layers
     this.setState({
       outlineFramebuffer: context.device.createFramebuffer({}),
-      dummyTexture: context.device.createTexture({})
+      dummyTexture: context.device.createTexture({width: 1, height: 1})
     });
 
     // Create an attribute manager
