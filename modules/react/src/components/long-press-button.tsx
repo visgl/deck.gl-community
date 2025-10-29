@@ -13,6 +13,7 @@ export class LongPressButton extends PureComponent {
   };
 
   buttonPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private _isMouseUpListenerAttached = false;
 
   _repeat = () => {
     if (this.buttonPressTimer) {
@@ -21,8 +22,16 @@ export class LongPressButton extends PureComponent {
     }
   };
 
+  componentWillUnmount(): void {
+    this._handleButtonRelease();
+    this._detachMouseUpListener();
+  }
+
   _handleButtonPress = () => {
-    this.buttonPressTimer = setTimeout(this._repeat, 100);
+    if (!this.buttonPressTimer) {
+      this.buttonPressTimer = setTimeout(this._repeat, 100);
+    }
+    this._attachMouseUpListener();
   };
 
   _handleButtonRelease = () => {
@@ -32,12 +41,30 @@ export class LongPressButton extends PureComponent {
     this.buttonPressTimer = null;
   };
 
+  _handleDocumentMouseUp = () => {
+    this._handleButtonRelease();
+    this._detachMouseUpListener();
+  };
+
+  _attachMouseUpListener() {
+    if (!this._isMouseUpListenerAttached) {
+      document.addEventListener('mouseup', this._handleDocumentMouseUp);
+      this._isMouseUpListenerAttached = true;
+    }
+  }
+
+  _detachMouseUpListener() {
+    if (this._isMouseUpListenerAttached) {
+      document.removeEventListener('mouseup', this._handleDocumentMouseUp);
+      this._isMouseUpListenerAttached = false;
+    }
+  }
+
   render() {
     return (
       <div
-        onMouseDown={(event) => {
+        onMouseDown={() => {
           this._handleButtonPress();
-          document.addEventListener('mouseup', this._handleButtonRelease, {once: true});
         }}
       >
         {(this.props as any).children}

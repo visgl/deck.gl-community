@@ -18,6 +18,7 @@ describe('LongPressButton', () => {
     const {getByText} = render(<LongPressButton onClick={onClick}>{'▲'}</LongPressButton>);
     fireEvent.mouseDown(getByText('▲'));
     await sleep(150); // await long press
+    fireEvent.mouseUp(document);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
