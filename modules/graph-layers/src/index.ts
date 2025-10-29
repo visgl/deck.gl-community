@@ -14,6 +14,7 @@ export type {GraphLayoutState} from './core/graph-layout';
 export {GraphLayout} from './core/graph-layout';
 
 export {SimpleLayout} from './layouts//simple-layout';
+export {D3DagLayout} from './layouts/d3-dag/d3-dag-layout';
 export {D3ForceLayout} from './layouts/d3-force/d3-force-layout';
 export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
 export {RadialLayout as _RadialLayout} from './layouts/experimental/radial-layout';
@@ -36,6 +37,13 @@ export {loadSimpleJSONGraph} from './loaders/simple-json-graph-loader';
 // utils
 export {mixedGetPosition} from './utils/layer-utils';
 export {log} from './utils/log';
+
+export type {
+  D3DagLayoutOptions,
+  LayeringPreset as D3DagLayeringPreset,
+  DecrossPreset as D3DagDecrossPreset,
+  CoordPreset as D3DagCoordPreset
+} from './layouts/d3-dag/d3-dag-layout';
 
 // DEPRECATED
 export {createGraph} from './loaders/create-graph';

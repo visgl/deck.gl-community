@@ -6,6 +6,8 @@ import {ArrowStyles, DEFAULT_STYLE, MAX_ARROWS} from '../style';
 import {NebulaLayer} from '../nebula-layer';
 import {toDeckColor} from '../../utils/utils';
 import {DeckCache} from '../deck-renderer/deck-cache';
+// PathMarkerLayer is resolved from another workspace package at build time.
+// eslint-disable-next-line import/no-unresolved
 import {PathMarkerLayer} from '@deck.gl-community/layers';
 
 const NEBULA_TO_DECK_DIRECTIONS = {

@@ -17,6 +17,10 @@ module.exports = getESLintConfig({
       jest: true,
       es2020: true
     },
+    settings: {
+      // Stubbed modules that are available in the workspace but not installed from npm in CI
+      'import/core-modules': ['d3-dag']
+    },
     overrides: [
       {
         files: ['modules/*/src/**/*.{ts,tsx}', 'modules/*/test/**/*.{ts,tsx}'],
