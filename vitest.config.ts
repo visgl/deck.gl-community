@@ -9,6 +9,12 @@ const CONFIG = defineConfig({
     },
     conditions: ['node'] // prefer node resolution
   },
+  // 👉 avoid the optimizer code path that’s calling into crypto hashing
+  // (Vite 5.1+ deprecates the old flag; this is the recommended way)
+  optimizeDeps: {
+    noDiscovery: true
+    // leave "include" undefined/empty so optimizer fully stays off
+  },
   test: {
     projects: [
       {
