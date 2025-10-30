@@ -29,10 +29,6 @@ jobs:
         run: |
           yarn build
 
-      - name: Run lint
-        run: |
-          yarn lint
-
       - name: Run node tests
         run: |
           yarn test-node
@@ -40,3 +36,8 @@ jobs:
       - name: Run headless tests
         run: |
           yarn test-headless
+
+      - name: Run lint
+        run: |
+          yarn lint
+
