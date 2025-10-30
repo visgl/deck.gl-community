@@ -62,7 +62,7 @@ test('Selected polygon feature can be scaled', () => {
 
   expect(mockOnEdit).toHaveBeenCalledTimes(1);
   const scaledFeature = mockOnEdit.mock.calls[0][0].updatedData.features[2];
-  expect(scaledFeature).toMatchSnapshot();
+  expect(roundNumbers(scaledFeature)).toMatchSnapshot();
   expect(props.data.features[2]).not.toEqual(scaledFeature);
 });
 
@@ -76,3 +76,17 @@ test('Selected polygon feature without edit handle picks cannot be scaled', () =
   mockScale([], props);
   expect(mockOnEdit).toHaveBeenCalledTimes(0);
 });
+
+function roundNumbers(obj: any, precision = 8): any {
+  // deep traverse obj and round numbers
+  if (typeof obj === 'number') return parseFloat(obj.toFixed(precision));
+  if (Array.isArray(obj)) return obj.map(roundNumbers);
+  if (obj && typeof obj === 'object') {
+    const res: any = {};
+    for (const k in obj) {
+      res[k] = roundNumbers(obj[k]);
+    }
+    return res;
+  }
+  return obj;
+}

@@ -20,6 +20,8 @@ const convertNgraphDataset = (ngraph) => {
       targetId: link.toId
     });
   });
+  // eslint-disable-next-line no-console
+  // console.log(`Converted ngraph dataset: ${nodes.length} nodes, ${edges.length} edges`);
   return {nodes, edges};
 };
 

@@ -11,6 +11,7 @@
     "target": "es2022",
     "module": "es2022",
     "jsx": "react",
+    "types": ["vitest/globals"],
     // "strict": true,
     // "noImplicitAny": false,
     "allowJs": true,
