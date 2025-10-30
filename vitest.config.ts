@@ -3,16 +3,14 @@ import {playwright} from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
 
 const CONFIG = defineConfig({
-  resolve: {
-    alias: {
-      crypto: 'node:crypto' // ⬅️ ensure Vite/Vitest get Node's crypto
-    },
-    conditions: ['node'] // prefer node resolution
-  },
   test: {
     projects: [
       {
-        extends: true,
+        resolve: {
+          alias: {
+            crypto: 'node:crypto' // ⬅️ ensure Vite/Vitest get Node's crypto
+          },
+        },
         test: {
           name: 'node',
           environment: 'node',
