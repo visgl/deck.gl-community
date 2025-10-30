@@ -26,7 +26,7 @@ const CONFIG = defineConfig({
         plugins: [react()],
         test: {
           name: 'browser',
-          environment: 'jsdom',
+          environment: 'node',
           include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
           browser: {
             enabled: true,
@@ -39,7 +39,7 @@ const CONFIG = defineConfig({
         plugins: [react()],
         test: {
           name: 'headless',
-          environment: 'jsdom',
+          environment: 'node',
           include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
           browser: {
             enabled: true,
