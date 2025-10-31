@@ -33,8 +33,6 @@ jobs:
           node -v
           yarn -v
           node -p "process.versions"
-          node -p "require('vite/package.json').version"
-          node -p "require('vitest/package.json').version"
 
       - name: Install deps
         run: yarn --frozen-lockfile
