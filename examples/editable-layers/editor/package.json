@@ -23,6 +23,7 @@
     "@luma.gl/constants": "~9.2.0",
     "@luma.gl/core": "~9.2.0",
     "@luma.gl/engine": "~9.2.0",
+    "@luma.gl/shadertools": "~9.2.0",
     "@maphubs/tokml": "^0.6.1",
     "@math.gl/core": "^4.0.0",
     "@tmcw/togeojson": "^3.2.0",

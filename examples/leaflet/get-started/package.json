@@ -13,6 +13,7 @@
     "@loaders.gl/core": "^4.2.0",
     "@luma.gl/core": "~9.2.0",
     "@luma.gl/engine": "~9.2.0",
+    "@luma.gl/shadertools": "~9.2.0",
     "leaflet": "^1.9.4"
   },
   "devDependencies": {
