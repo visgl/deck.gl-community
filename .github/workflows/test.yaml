@@ -28,6 +28,18 @@ jobs:
           corepack prepare yarn@4.10.3 --activate
           yarn -v
 
+      # ✅ Cache Yarn 4's compressed archives
+      - name: Cache Yarn 4 artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .pnp.*              # if you use Plug’n’Play
+            .yarn/install-state.gz
+          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            yarn-cache-${{ runner.os }}-
+
       - name: Print versions
         run: |
           node -v
@@ -48,6 +60,16 @@ jobs:
 
       - name: Run node tests
         run: yarn test-node
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: pw-${{ runner.os }}-
+
+      - name: Install Playwright Chromium (only)
+        run: npx playwright install --with-deps chromium
 
       - name: Run headless browser tests
         run: yarn test-headless --reporter=verbose
