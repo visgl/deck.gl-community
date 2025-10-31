@@ -29,6 +29,7 @@ import {ZoomableMarkerLayer} from './node-layers/zoomable-marker-layer';
 import {EdgeLayer} from './edge-layer';
 import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
+import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 
 import {JSONLoader} from '../loaders/json-loader';
 
@@ -44,7 +45,8 @@ const NODE_LAYER_MAP = {
 
 const EDGE_DECORATOR_LAYER_MAP = {
   [EDGE_DECORATOR_TYPE.LABEL]: EdgeLabelLayer,
-  [EDGE_DECORATOR_TYPE.FLOW]: FlowLayer
+  [EDGE_DECORATOR_TYPE.FLOW]: FlowLayer,
+  [EDGE_DECORATOR_TYPE.ARROW]: EdgeArrowLayer
 };
 
 const SHARED_LAYER_PROPS = {

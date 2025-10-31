@@ -94,6 +94,11 @@ const DECKGL_ACCESSOR_MAP = {
     getWidth: 'width',
     getSpeed: 'speed',
     getTailLength: 'tailLength'
+  },
+  [EDGE_DECORATOR_TYPE.ARROW]: {
+    getColor: 'color',
+    getSize: 'size',
+    getOffset: 'offset'
   }
 };
 
@@ -129,7 +134,8 @@ const DECKGL_UPDATE_TRIGGERS = {
     'getTextAnchor',
     'getAlignmentBaseline'
   ],
-  [EDGE_DECORATOR_TYPE.FLOW]: ['getColor', 'getWidth', 'getSpeed', 'getTailLength']
+  [EDGE_DECORATOR_TYPE.FLOW]: ['getColor', 'getWidth', 'getSpeed', 'getTailLength'],
+  [EDGE_DECORATOR_TYPE.ARROW]: ['getColor', 'getSize', 'getOffset']
 };
 
 export class Stylesheet {
@@ -244,7 +250,8 @@ export class Stylesheet {
     const property = this._getProperty(deckglAccessor);
     // get the value
     if (property) {
-      return property.getValue();
+      const value = property.getValue();
+      return (typeof value === 'function') ? value : () => value;
     }
     // return default value
     const styleProp = DECKGL_ACCESSOR_MAP[this.type][deckglAccessor];
@@ -263,6 +270,9 @@ export class Stylesheet {
   getDeckGLAccessors() {
     const accessorMap = DECKGL_ACCESSOR_MAP[this.type];
     return Object.keys(accessorMap).reduce((res, accessor) => {
+      // if (this.type === 'ARROW') {
+      //   debugger
+      // }
       res[accessor] = this.getDeckGLAccessor(accessor);
       return res;
     }, {});
