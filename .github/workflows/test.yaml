@@ -20,8 +20,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20' # ✅ match what Vite/Vitest expect
-          cache:
-            'yarn'
 
       # ✅ Enable Corepack so the `packageManager` field is honored
       - name: Enable Corepack / Yarn 4
