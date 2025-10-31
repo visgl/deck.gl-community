@@ -7,7 +7,7 @@ import SAMPLE_GRAPH from '../__fixtures__/graph.json';
 import {createGraph} from '../../src/loaders/create-graph';
 
 beforeAll(() => {
-  global.CustomEvent = Event as any;
+  globalThis.CustomEvent = Event as any;
 });
 
 describe('util/create-graph', () => {

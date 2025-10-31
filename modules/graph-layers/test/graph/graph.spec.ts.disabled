@@ -10,7 +10,7 @@ import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
 
 beforeAll(() => {
-  global.CustomEvent = Event as any;
+  globalThis.CustomEvent = Event as any;
 });
 
 describe('core/graph', () => {

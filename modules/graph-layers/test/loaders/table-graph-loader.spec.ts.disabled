@@ -10,7 +10,7 @@ import SAMPLE_GRAPH2 from '../__fixtures__/graph2.json';
 import {tableGraphLoader} from '../../src/loaders/table-graph-loader';
 
 beforeAll(() => {
-  global.CustomEvent = Event as any;
+  globalThis.CustomEvent = Event as any;
 });
 
 describe('loaders/node-parsers', () => {
