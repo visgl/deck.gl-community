@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {describe, it, expect} from 'vitest';
-import {SAMPLE_NODE} from '../__fixtures__/edge.json';
+import SAMPLE_NODE from '../data/__fixtures__/edge.json';
 
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';

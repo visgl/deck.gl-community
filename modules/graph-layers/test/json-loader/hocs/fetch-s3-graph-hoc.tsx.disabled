@@ -28,7 +28,7 @@ const FetchS3GraphHOC = (url, graphLoader = defaultLoader) => {
         fetchJSONFromS3([url]).then(
           ([data]) =>
             this.setState({
-              data: graphLoader({name: url, ...data}),
+              data: graphLoader({name: url, .../data}),
               loading: false,
               success: true,
               error: undefined
