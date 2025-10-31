@@ -26,7 +26,7 @@ describe('EdgeArrowLayer helpers', () => {
     expect(position[0]).toBeCloseTo(6);
     expect(position[1]).toBeCloseTo(1);
     expect(position[2]).toBeCloseTo(0);
-    expect(angle).toBeCloseTo(0);
+    expect(angle).toBeCloseTo(90);
   });
 
   it('uses last control point to orient arrows', () => {

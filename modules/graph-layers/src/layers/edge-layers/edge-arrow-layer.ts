@@ -7,7 +7,7 @@ import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 
 import {Arrow2DGeometry} from './arrow-2d-geometry';
 
-const DEFAULT_ARROW_GEOMETRY = new Arrow2DGeometry({length: 1, headSize: 0.35, tailWidth: 0.12});
+const DEFAULT_ARROW_GEOMETRY = new Arrow2DGeometry({length: 1, headWidth: 0.6});
 
 type LayoutInfo = {
   sourcePosition: number[];
@@ -107,7 +107,7 @@ export function getArrowTransform({
     position[2] += perp[2] * perpendicular;
   }
 
-  const angle = (Math.atan2(unit[1], unit[0]) * 180) / Math.PI;
+  const angle = (Math.atan2(unit[0], unit[1]) * 180) / Math.PI;
 
   return {position, angle};
 }
