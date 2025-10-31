@@ -39,8 +39,8 @@
     "boxicons": "^2.1.4",
     "preact": "^10.17.0",
     "prop-types": "^15.8.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "styled-components": "^6.1.1",
     "styled-react-modal": "^3.1.1",
     "supercluster": "^8.0.1"

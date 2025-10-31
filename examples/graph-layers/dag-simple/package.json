@@ -9,16 +9,17 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/graph-layers": "^9.1.0",
-    "@deck.gl/core": "^9.1.12",
-    "@deck.gl/react": "^9.1.12",
+    "@deck.gl-community/graph-layers": "~9.2.0",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/react": "~9.2.1",
+    "@deck.gl/widgets": "~9.2.1",
     "d3-dag": "^1.1.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "vite": "^5.0.12"
   }
 }

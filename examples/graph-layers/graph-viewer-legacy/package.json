@@ -10,7 +10,9 @@
   "dependencies": {
     "@deck.gl-community/graph-layers": "~9.2.0",
     "@deck.gl-community/react": "~9.2.0",
-    "deck.gl": "^9.1.0"
+    "deck.gl": "^9.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "vite": "^5.0.12"
