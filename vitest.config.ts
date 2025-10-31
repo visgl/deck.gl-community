@@ -3,10 +3,19 @@ import {playwright} from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
 
 import { createHash } from 'crypto';
-globalThis.crypto = {
-  ...globalThis.crypto,
-  hash: (alg) => createHash(alg),
-};
+
+if (typeof globalThis.crypto.hash !== 'function') {
+  const cryptoPolyfill = {
+    ...globalThis.crypto,
+    hash: (alg) => createHash(alg),
+  };
+
+  Object.defineProperty(globalThis, 'crypto', {
+    value: cryptoPolyfill,
+    writable: true, // Allows the property to be overwritten
+    configurable: true // Allows the property to be redefined or deleted
+  });
+}
 
 const CONFIG = defineConfig({
   resolve: {
