@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/kylebarron/deckgl-mapbox-style#readme",
   "dependencies": {
-    "@deck.gl/core": "^9.1.12",
+    "@deck.gl/core": "~9.1.0",
     "@mapbox/mapbox-gl-style-spec": "^13.12.0",
     "@turf/polygon-to-line": "^6.0.3"
   },

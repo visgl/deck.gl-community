@@ -8,7 +8,7 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl/layers": "^9.1.0"
+    "@deck.gl/layers": "~9.1.0"
   },
   "devDependencies": {
     "typescript": "^5.4.4",
