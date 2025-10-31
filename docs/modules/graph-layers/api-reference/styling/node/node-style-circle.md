@@ -1,28 +1,51 @@
-# CIRCLE
+# Circle node style
 
-<p align="center">
-  <img src="/gatsby/images/node-styles/circle.png" height="100" />
-</p>
+The circle primitive renders filled disks using Deck.gl’s `ScatterplotLayer`. It
+is ideal for compact node markers or when you want the radius to encode a
+numerical value.
 
-### `fill` (String | Array | Function, optional)
-- Default: `#fff`
-- The value can be hex code, color name, or color array `[r, g, b, a]` (each component is in the 0 - 255 range).
-If a color value (hex code, color name, or array) is provided, it is used as the global color for all objects.
-If a function is provided, it is called on each rectangle to retrieve its color.
+## Properties
 
-### `radius` (Number | Function, optional)
-- Default: `1`
-- If a number is provided for `radius`, all the circles will have the same radius.
-If an accessor function is provided, the function will be called to retrieve the radius of each circle.
+In addition to the [shared node style options](./node-style.md#shared-properties),
+circle styles understand the following keys:
 
-### `stroke` (String | Array | Function, optional)
-- Default: `[0, 0, 0, 255]`
-- The value can be hex code, color name, or color array `[r, g, b, a]` (each component is in the 0 - 255 range).
-- If a color value (hex code, color name, or array) is provided, it is used as the global color for all objects.
-- If a function is provided, it is called on each rectangle to retrieve its color.
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `fill` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Fill color. Accepts CSS color strings, `[r, g, b]`/`[r, g, b, a]` arrays, or an accessor. |
+| `radius` | `number \| function` | `1` | Radius in pixels. Accessors can read node data to size circles proportionally. |
+| `stroke` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Outline color. |
+| `strokeWidth` | `number \| function` | `0` | Outline width in pixels. |
 
-### `strokeWidth` (Number | Function, optional)
-- Default: `0`
-- The width of the outline of each rectangle.
-- If a number is provided, it is used as the outline width for all rectangles.
-- If a function is provided, it is called on each rectangle to retrieve its outline width.
+All color accessors can return either a color string or an array. Alpha values
+are optional—when omitted the color is treated as fully opaque.
+
+## Examples
+
+```js
+{
+  type: NODE_TYPE.CIRCLE,
+  radius: node => 4 + node.outgoingEdges.length,
+  fill: {
+    default: '#CBD5F5',
+    hover: '#3B82F6'
+  },
+  stroke: '#1E3A8A',
+  strokeWidth: 1.5
+}
+```
+
+To add a subtle highlight when selecting a node you can combine selectors with
+accessors:
+
+```js
+{
+  type: NODE_TYPE.CIRCLE,
+  radius: 10,
+  fill: '#22C55E',
+  strokeWidth: {
+    default: 0,
+    selected: node => (node.state === NODE_STATE.SELECTED ? 4 : 0)
+  },
+  stroke: '#052E16'
+}
+```

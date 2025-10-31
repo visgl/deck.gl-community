@@ -29,10 +29,14 @@
       "type": "category",
       "label": "Node and Edge Styling",
       "items": [
+        "modules/graph-layers/api-reference/styling/node/node-style",
         "modules/graph-layers/api-reference/styling/node/node-style-circle",
         "modules/graph-layers/api-reference/styling/node/node-style-rectangle",
+        "modules/graph-layers/api-reference/styling/node/node-style-rounded-rectangle",
+        "modules/graph-layers/api-reference/styling/node/node-style-path-rounded-rectangle",
         "modules/graph-layers/api-reference/styling/node/node-style-marker",
         "modules/graph-layers/api-reference/styling/node/node-style-label",
+        "modules/graph-layers/api-reference/styling/edge/edge-style",
         "modules/graph-layers/api-reference/styling/edge/edge-style-label",
         "modules/graph-layers/api-reference/styling/edge/edge-style-flow"
       ]
