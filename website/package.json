@@ -16,8 +16,11 @@
     "write-heading-ids": "ts-node ../scripts/write-heading-ids.ts"
   },
   "dependencies": {
+    "@deck.gl/core": "~9.2.1",
     "@deck.gl/google-maps": "~9.2.1",
     "@deck.gl/json": "~9.2.1",
+    "@loaders.gl/core": "^4.2.0",
+    "@luma.gl/core": "~9.2.0",
     "@loaders.gl/csv": "^4.2.0",
     "@loaders.gl/i3s": "^4.2.0",
     "@loaders.gl/json": "^4.2.0",
@@ -53,11 +56,15 @@
     "@docusaurus/types": "^3.4.0",
     "@mdx-js/react": "^3.0.1",
     "algoliasearch-helper": "^3.22.5",
+    "algoliasearch": "^4.24.0",
     "babel-plugin-inline-webgl-constants": "^1.0.3",
     "babel-plugin-remove-glsl-comments": "^1.0.0",
     "babel-plugin-styled-components": "^2.0.0",
     "prism-react-renderer": "^2.3.1",
-    "ts-node": "~10.9.2"
+    "ts-node": "~10.9.2",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.2.48"
   },
   "browserslist": [
     ">0.2% and supports async-functions",
