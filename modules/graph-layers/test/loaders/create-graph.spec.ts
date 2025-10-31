@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {beforeAll, describe, it, expect} from 'vitest';
-import SAMPLE_GRAPH from '../__fixtures__/graph.json';
+import SAMPLE_GRAPH from '../data/__fixtures__/graph.json';
 import {createGraph} from '../../src/loaders/create-graph';
 
 beforeAll(() => {
