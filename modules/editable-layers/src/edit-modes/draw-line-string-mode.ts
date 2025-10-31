@@ -11,7 +11,8 @@ import {
   ModeProps,
   GuideFeatureCollection,
   GuideFeature,
-  Tooltip
+  Tooltip,
+  DoubleClickEvent
 } from './types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
@@ -47,17 +48,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
       // They clicked the last point (or double-clicked), so add the LineString
       // reset distance to new calculate
       this.dist = 0;
-      const lineStringToAdd: LineString = {
-        type: 'LineString',
-        coordinates: [...clickSequence]
-      };
-
-      this.resetClickSequence();
-
-      const editAction = this.getAddFeatureAction(lineStringToAdd, props.data);
-      if (editAction) {
-        props.onEdit(editAction);
-      }
+      this.finishDrawing(props);
     } else if (positionAdded) {
       // new tentative point
       props.onEdit({
@@ -71,21 +62,29 @@ export class DrawLineStringMode extends GeoJsonEditMode {
     }
   }
 
+  handleDoubleClick(event: DoubleClickEvent, props: ModeProps<FeatureCollection>) {
+    this.finishDrawing(props);
+  }
+
+  finishDrawing(props: ModeProps<FeatureCollection>) {
+    const clickSequence = this.getClickSequence();
+    if (clickSequence.length > 1) {
+      const lineStringToAdd: LineString = {
+        type: 'LineString',
+        coordinates: [...clickSequence]
+      };
+      this.resetClickSequence();
+      const editAction = this.getAddFeatureAction(lineStringToAdd, props.data);
+      if (editAction) {
+        props.onEdit(editAction);
+      }
+    }
+  }
+
   handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>) {
     const {key} = event;
     if (key === 'Enter') {
-      const clickSequence = this.getClickSequence();
-      if (clickSequence.length > 1) {
-        const lineStringToAdd: LineString = {
-          type: 'LineString',
-          coordinates: [...clickSequence]
-        };
-        this.resetClickSequence();
-        const editAction = this.getAddFeatureAction(lineStringToAdd, props.data);
-        if (editAction) {
-          props.onEdit(editAction);
-        }
-      }
+      this.finishDrawing(props);
     } else if (key === 'Escape') {
       this.resetClickSequence();
       props.onEdit({
