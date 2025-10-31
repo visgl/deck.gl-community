@@ -10,7 +10,7 @@ import SAMPLE_GRAPH2 from '../__fixtures__/graph2.json';
 import {JSONLoader} from '../../src/loaders/json-loader';
 
 beforeAll(() => {
-  global.CustomEvent = Event as any;
+  globalThis.CustomEvent = Event as any;
 });
 
 // TODO: Fix ESM errors and uncomment test below.
