@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  test-node:
     runs-on: ubuntu-latest
 
     # Keep env simple. You don't need --openssl-legacy-provider for Node 20.
