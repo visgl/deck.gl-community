@@ -68,6 +68,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
         'edge',
         d3
           .forceLink(g.edges)
+          // @ts-ignore TODO id not defined?
           .id((n) => n.id)
           .strength(this._strength)
       )
