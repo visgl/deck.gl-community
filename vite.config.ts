@@ -9,18 +9,18 @@ export default defineConfig({
       configureServer() {
         try {
           delete (globalThis as any).crypto;
-          if (typeof globalThis.crypto.hash !== 'function') {
-            const cryptoPolyfill = {
-              ...globalThis.crypto,
-              hash: (alg) => createHash(alg)
-            };
+        //   if (typeof globalThis.crypto.hash !== 'function') {
+        //     const cryptoPolyfill = {
+        //       ...globalThis.crypto,
+        //       hash: (alg) => createHash(alg)
+        //     };
 
-            Object.defineProperty(globalThis, 'crypto', {
-              value: cryptoPolyfill,
-              writable: true, // Allows the property to be overwritten
-              configurable: true // Allows the property to be redefined or deleted
-            });
-          }
+        //     Object.defineProperty(globalThis, 'crypto', {
+        //       value: cryptoPolyfill,
+        //       writable: true, // Allows the property to be overwritten
+        //       configurable: true // Allows the property to be redefined or deleted
+        //     });
+        //   }
         } catch {}
       }
     }
@@ -31,14 +31,8 @@ export default defineConfig({
       crypto: 'node:crypto'
     }
   },
-  // completely skip the deps optimizer (this is where your stack blows up)
-  // optimizeDeps: {
-  //   // OR: noDiscovery: true  // softer off; if disabled didn't exist in your Vite, try this
-  // },
   optimizeDeps: { 
     disabled: true, // <- hard off (works in Vite 5)
     noDiscovery: true, 
-    include: [], 
-    exclude: [] 
   }
 });
