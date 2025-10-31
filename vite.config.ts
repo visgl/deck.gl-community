@@ -32,8 +32,13 @@ export default defineConfig({
     }
   },
   // completely skip the deps optimizer (this is where your stack blows up)
-  optimizeDeps: {
-    disabled: true // <- hard off (works in Vite 5)
-    // OR: noDiscovery: true  // softer off; if disabled didn't exist in your Vite, try this
+  // optimizeDeps: {
+  //   // OR: noDiscovery: true  // softer off; if disabled didn't exist in your Vite, try this
+  // },
+  optimizeDeps: { 
+    disabled: true, // <- hard off (works in Vite 5)
+    noDiscovery: true, 
+    include: [], 
+    exclude: [] 
   }
 });
