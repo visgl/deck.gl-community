@@ -22,6 +22,7 @@
     "lint-fix": "ocular-lint --fix",
     "publish-beta": "ocular-publish version-only-beta",
     "publish-prod": "ocular-publish version-only-prod",
+    "test": "yarn test-node",
     "test-node": "vitest --project node",
     "test-browser": "vitest --project browser",
     "test-headless": "vitest run --project headless",
