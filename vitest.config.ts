@@ -2,6 +2,12 @@ import {defineConfig} from 'vitest/config';
 import {playwright} from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
 
+import { createHash } from 'crypto';
+globalThis.crypto = {
+  ...globalThis.crypto,
+  hash: (alg) => createHash(alg),
+};
+
 const CONFIG = defineConfig({
   resolve: {
     alias: {
