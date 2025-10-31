@@ -37,10 +37,6 @@ jobs:
       - name: Install deps
         run: yarn --frozen-lockfile
 
-      # Vitest Browser Mode needs Playwright browsers installed
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
       # Sanity-check that Vite sees the root config (this MUST be true)
       - name: Verify vite.config.ts presence
         run: |
