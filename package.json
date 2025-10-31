@@ -33,37 +33,50 @@
     "@deck.gl/core": "~9.2.1",
     "@deck.gl/layers": "~9.2.1",
     "@deck.gl/mesh-layers": "~9.2.1",
+    "@loaders.gl/core": "^4.2.0",
     "@luma.gl/constants": "~9.2.0",
     "@luma.gl/core": "~9.2.0",
     "@luma.gl/engine": "~9.2.0",
+    "@luma.gl/shadertools": "~9.2.0",
     "@luma.gl/webgl": "~9.2.0",
     "@testing-library/react": "^14.3.0",
     "@types/bin-pack": "^1.0.3",
+    "@types/react": "^18.3.3",
     "@vis.gl/dev-tools": "^1.0.0",
     "@vis.gl/ts-plugins": "^1.0.0",
-    "@vitejs/plugin-react": "^5.1.0",
-    "@vitest/browser": "^4.0.5",
-    "@vitest/browser-playwright": "^4.0.5",
+    "@vitejs/plugin-react": "5.1.0",
+    "@vitest/browser": "4.0.5",
+    "@vitest/browser-playwright": "4.0.5",
     "@vitest/eslint-plugin": "^1.4.0",
     "bin-pack": "^1.0.2",
     "datauri": "^4.1.0",
     "esbuild": "^0.25.0",
+    "eslint": "^8.57.0",
     "jsdom": "^24.0.0",
     "lerna": "^8.2.0",
     "ndarray": "^1.0.19",
     "ndarray-pixels": "^3.1.0",
     "playwright": "^1.56.1",
     "pre-commit": "^1.2.2",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "tap-spec": "^5.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.4.0",
-    "vitest": "^4.0.5",
+    "vite": "7.1.1",
+    "vitest": "4.0.5",
     "vitest-browser-react": "^2.0.2"
   },
   "resolutions": {
-    "react": "18.2.0",
+    "react": "18.3.1",
     "typescript": "^5.4.0"
+  },
+  "packageExtensions": {
+    "deck.gl@*": {
+      "peerDependenciesMeta": {
+        "@arcgis/core": {
+          "optional": true
+        }
+      }
+    }
   },
   "volta": {
     "node": "20.11.1",

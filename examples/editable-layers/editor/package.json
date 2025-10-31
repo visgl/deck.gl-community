@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@deck.gl-community/editable-layers": "~9.2.0",
+    "@deck.gl-community/layers": "~9.2.0",
     "@deck.gl-community/react": "~9.2.0",
     "@deck.gl/core": "~9.2.1",
     "@deck.gl/extensions": "~9.2.1",
@@ -16,21 +17,27 @@
     "@deck.gl/layers": "~9.2.1",
     "@deck.gl/mesh-layers": "~9.2.1",
     "@deck.gl/react": "~9.2.1",
+    "@deck.gl/widgets": "~9.2.1",
     "@loaders.gl/core": "^4.2.0",
     "@loaders.gl/wkt": "^4.2.0",
+    "@luma.gl/constants": "~9.2.0",
+    "@luma.gl/core": "~9.2.0",
+    "@luma.gl/engine": "~9.2.0",
+    "@luma.gl/shadertools": "~9.2.0",
     "@maphubs/tokml": "^0.6.1",
+    "@math.gl/core": "^4.0.0",
     "@tmcw/togeojson": "^3.2.0",
     "@turf/helpers": "^6.5.0",
     "@types/downloadjs": "1.4.3",
-    "@types/react": "^18.2.74",
-    "@types/react-dom": "^18.2.24",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "@types/wellknown": "0.5.4",
     "boxicons": "^2.1.4",
     "clipboard-copy": "^3.2.0",
     "downloadjs": "^1.4.7",
     "maplibre-gl": "^4.1.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-dropzone": "^10.2.2",
     "react-map-gl": "^7.1.7",
     "styled-components": "^6.1.9",
@@ -38,6 +45,6 @@
   },
   "devDependencies": {
     "typescript": "^5.4.4",
-    "vite": "^5.2.8"
+    "vite": "7.1.1"
   }
 }
