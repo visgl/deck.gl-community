@@ -44,9 +44,9 @@
     "@types/react": "^18.3.3",
     "@vis.gl/dev-tools": "^1.0.0",
     "@vis.gl/ts-plugins": "^1.0.0",
-    "@vitejs/plugin-react": "^5.1.0",
-    "@vitest/browser": "^4.0.5",
-    "@vitest/browser-playwright": "^4.0.5",
+    "@vitejs/plugin-react": "5.1.0",
+    "@vitest/browser": "4.0.5",
+    "@vitest/browser-playwright": "4.0.5",
     "@vitest/eslint-plugin": "^1.4.0",
     "bin-pack": "^1.0.2",
     "datauri": "^4.1.0",
@@ -61,8 +61,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.4.0",
-    "vite": "^5.2.8",
-    "vitest": "^1.2.2",
+    "vite": "7.1.1",
+    "vitest": "4.0.5",
     "vitest-browser-react": "^2.0.2"
   },
   "resolutions": {
