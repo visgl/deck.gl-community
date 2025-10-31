@@ -1,8 +1,6 @@
 name: test
 
 on:
-  push:
-    branches: [master]
   pull_request:
 
 permissions:
@@ -21,8 +19,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'   # ✅ match what Vite/Vitest expect
-          cache: 'yarn'
+          node-version: '20' # ✅ match what Vite/Vitest expect
+          cache:
+            'yarn'
+
+      # ✅ Enable Corepack so the `packageManager` field is honored
+      - name: Enable Corepack / Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.10.3 --activate
+          yarn -v
 
       - name: Print versions
         run: |
