@@ -6,12 +6,12 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.1.12",
-    "@deck.gl/extensions": "^9.1.0",
-    "@deck.gl/geo-layers": "^9.1.0",
-    "@deck.gl/layers": "^9.1.0",
-    "@deck.gl/mesh-layers": "^9.1.0",
-    "@deck.gl/react": "^9.1.0",
+    "@deck.gl/core": "~9.1.0",
+    "@deck.gl/extensions": "~9.1.0",
+    "@deck.gl/geo-layers": "~9.1.0",
+    "@deck.gl/layers": "~9.1.0",
+    "@deck.gl/mesh-layers": "~9.1.0",
+    "@deck.gl/react": "~9.1.0",
     "@types/react": "^18.2.74",
     "@types/react-dom": "^18.2.24",
     "maplibre-gl": "^4.1.3",

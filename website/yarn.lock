@@ -2146,29 +2146,29 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@deck.gl/google-maps@npm:^9.1.0":
-  version: 9.1.13
-  resolution: "@deck.gl/google-maps@npm:9.1.13"
+"@deck.gl/google-maps@npm:~9.1.0":
+  version: 9.1.15
+  resolution: "@deck.gl/google-maps@npm:9.1.15"
   dependencies:
-    "@luma.gl/constants": "npm:^9.1.5"
+    "@luma.gl/constants": "npm:~9.1.9"
     "@math.gl/core": "npm:^4.1.0"
     "@types/google.maps": "npm:^3.48.6"
   peerDependencies:
     "@deck.gl/core": ^9.1.0
-    "@luma.gl/core": ^9.1.5
-    "@luma.gl/webgl": ^9.1.5
-  checksum: 10c0/576806415d8d0d9667b32ee1fcf4dfa9c68962d1def01c4f65965aa1cf2b6282ad7c59c60a235b3f19219af7940bedf63d0062d3588e467505e03f0afca8058d
+    "@luma.gl/core": ~9.1.9
+    "@luma.gl/webgl": ~9.1.9
+  checksum: 10c0/36f6f384205c8a9737eacfe76fe5667236686f0456a141f76715ad69719944c2df1e3d80941697fa9b9e0a9c6cf40ccb0715c47f19845bfe93ddac8e5bcc8e94
   languageName: node
   linkType: hard
 
-"@deck.gl/json@npm:^9.1.0":
-  version: 9.1.13
-  resolution: "@deck.gl/json@npm:9.1.13"
+"@deck.gl/json@npm:~9.1.0":
+  version: 9.1.15
+  resolution: "@deck.gl/json@npm:9.1.15"
   dependencies:
     jsep: "npm:^0.3.0"
   peerDependencies:
     "@deck.gl/core": ^9.1.0
-  checksum: 10c0/6f5de38a99c01020e0084acc2fc29eeb9a61ff57739a446ba937fd8864359353274d6138f381100b62e095c0655366832c8b3b9ff3f65d4fa815fe8b32a2a229
+  checksum: 10c0/62e6be0afc4d7f7fdf721f629198f03982382f09f54dfcfc8016e409053177aacac433983f8a3f615f57b11353798cf62964fe6ce500dac70afc7975384bb1cc
   languageName: node
   linkType: hard
 
@@ -3191,10 +3191,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/constants@npm:^9.1.5":
-  version: 9.1.9
-  resolution: "@luma.gl/constants@npm:9.1.9"
-  checksum: 10c0/77b232a8cf9720cdbb80bdf703cbc9e3acae934536a76df4d90e07a094e514d57d94f8eb81a8ac75e23a9c2c6ab5438f75fab3a001d472e9f440a0a1b148e21e
+"@luma.gl/constants@npm:~9.1.9":
+  version: 9.1.10
+  resolution: "@luma.gl/constants@npm:9.1.10"
+  checksum: 10c0/52b50ba20bf8a0e4442adb3b4a404c2aebceea764059a8dd2b8707b2939e704dc6ee120801c1ed6d1c0b0d0f30984920128b2549998856104fa405efa0f0d964
   languageName: node
   linkType: hard
 
@@ -13528,8 +13528,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "project-website@workspace:."
   dependencies:
-    "@deck.gl/google-maps": "npm:^9.1.0"
-    "@deck.gl/json": "npm:^9.1.0"
+    "@deck.gl/google-maps": "npm:~9.1.0"
+    "@deck.gl/json": "npm:~9.1.0"
     "@docusaurus/core": "npm:^3.4.0"
     "@docusaurus/module-type-aliases": "npm:^3.4.0"
     "@docusaurus/plugin-content-docs": "npm:^3.4.0"
