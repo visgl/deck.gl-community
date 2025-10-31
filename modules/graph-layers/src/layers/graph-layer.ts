@@ -151,13 +151,15 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       props.data &&
       !(Array.isArray(props.data) && props.data.length === 0)
     ) {
-      // console.log(props.data);
-      const graph = this.props.graphLoader({json: props.data});
-      const layout = this.props.layout;
-      const graphEngine = new GraphEngine({graph, layout});
-      this._setGraphEngine(graphEngine);
-      this.state.interactionManager.updateProps(props);
-      this.forceUpdate();
+      const graph = props.graphLoader({json: props.data});
+      if (graph && props.layout) {
+        const graphEngine = new GraphEngine({graph, layout: props.layout});
+        this._setGraphEngine(graphEngine);
+        this.state.interactionManager.updateProps(props);
+        this.forceUpdate();
+      } else if (!props.layout) {
+        log.error('GraphLayer requires a layout when providing `data`.')();
+      }
     } else if (changeFlags.propsChanged && props.graph !== oldProps.graph) {
       const graphEngine = new GraphEngine({graph: props.graph, layout: props.layout});
       this._setGraphEngine(graphEngine);
