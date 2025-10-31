@@ -15,6 +15,12 @@ edgeStyle={{
       color: '#000',
       fontSize: 18,
     },
+    {
+      type: EDGE_DECORATOR_TYPE.ARROW,
+      color: '#222',
+      size: 8,
+      offset: [4, 0]
+    }
   ],
 }}
 ```
@@ -43,4 +49,15 @@ Determines if the layer is visible
 
 ### `decorators` (Array, optional)
 
-A set of decorators on edges. Please see more detail in the 'Edge decorators' chapter.
+A set of decorators that can be attached to each rendered edge. Supported decorator `type`
+values and their style attributes include:
+
+- `EDGE_DECORATOR_TYPE.LABEL`: draws text that follows the edge. Supports `text`, `color`,
+  `fontSize`, `textAnchor`, `alignmentBaseline`, `scaleWithZoom`, `textMaxWidth`, `textWordBreak`
+  and `textSizeMinPixels`.
+- `EDGE_DECORATOR_TYPE.FLOW`: renders animated flow lines. Supports `color`, `width`, `speed` and
+  `tailLength`.
+- `EDGE_DECORATOR_TYPE.ARROW`: renders arrowheads for directed edges. Supports `color`, `size` and
+  `offset`. The `offset` accessor accepts `[along, perpendicular]` distances in layer units, where
+  `along` shifts the arrow away from the target node and `perpendicular` offsets it orthogonally
+  from the edge.

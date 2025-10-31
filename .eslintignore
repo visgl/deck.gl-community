@@ -10,4 +10,7 @@ public/
 
 modules/experimental
 modules/arrow-layers
+modules/bing-maps/test
+modules/*/test
+test/
 examples/arrow-layers

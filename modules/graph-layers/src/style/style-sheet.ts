@@ -94,6 +94,11 @@ const DECKGL_ACCESSOR_MAP = {
     getWidth: 'width',
     getSpeed: 'speed',
     getTailLength: 'tailLength'
+  },
+  [EDGE_DECORATOR_TYPE.ARROW]: {
+    getColor: 'color',
+    getSize: 'size',
+    getOffset: 'offset'
   }
 };
 
@@ -129,7 +134,8 @@ const DECKGL_UPDATE_TRIGGERS = {
     'getTextAnchor',
     'getAlignmentBaseline'
   ],
-  [EDGE_DECORATOR_TYPE.FLOW]: ['getColor', 'getWidth', 'getSpeed', 'getTailLength']
+  [EDGE_DECORATOR_TYPE.FLOW]: ['getColor', 'getWidth', 'getSpeed', 'getTailLength'],
+  [EDGE_DECORATOR_TYPE.ARROW]: ['getColor', 'getSize', 'getOffset']
 };
 
 export class Stylesheet {

@@ -17,6 +17,9 @@ module.exports = getESLintConfig({
       jest: true,
       es2020: true
     },
+    settings: {
+      'import/core-modules': ['@deck.gl-community/layers']
+    },
     overrides: [
       {
         files: ['modules/*/src/**/*.{ts,tsx}', 'modules/*/test/**/*.{ts,tsx}'],
@@ -73,6 +76,10 @@ module.exports = getESLintConfig({
     ],
     rules: {
       // custom rules
+      'import/namespace': 0,
+      'import/named': 0,
+      'import/no-unresolved': 0,
+      'import/no-duplicates': 0
     }
   },
   /** Print full config JSON for inspection */

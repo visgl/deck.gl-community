@@ -45,7 +45,8 @@ export const EDGE_TYPE = {
 // decorators on edges
 export const EDGE_DECORATOR_TYPE = {
   LABEL: 'EDGE_LABEL',
-  FLOW: 'FLOW'
+  FLOW: 'FLOW',
+  ARROW: 'ARROW'
 };
 
 // the status of the layout
