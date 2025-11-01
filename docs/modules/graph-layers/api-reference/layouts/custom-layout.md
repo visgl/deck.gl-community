@@ -161,10 +161,10 @@ GraphGL will keep retrieving the position of nodes and edges from the layout. Yo
 
 - getNodePosition: return the position of the node [x, y]. If the position is not available (not calculated), returning nullish will hide the node.
 - getEdgePosition: return the rendering information of the edge, including:
-  -- type: the type of the edge, it should be 'LINE', 'SPLINE_CURVE', or 'PATH'.
+  -- type: the type of the edge, it should be 'line', 'spline-curve', or 'path'.
   -- sourcePosition: the position of source node.
   -- targetPosition: the position of target node.
-  -- controlPoints: a set of control points for 'SPLINE_CURVE', or 'PATH' edge.
+  -- controlPoints: a set of control points for 'spline-curve', or 'path' edge.
 
 ```js
 getNodePosition = (node) => this._nodePositionMap[node.getId()];
@@ -173,7 +173,7 @@ getEdgePosition = (edge) => {
   const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
   const targetPos = this._nodePositionMap[edge.getTargetNodeId()];
   return {
-    type: EDGE_TYPE.LINE,
+    type: 'line',
     sourcePosition: sourcePos,
     targetPosition: targetPos,
     controlPoints: []
@@ -237,7 +237,7 @@ export default class RandomLayout extends GraphLayout {
     const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
     const targetPos = this._nodePositionMap[edge.getTargetNodeId()];
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: sourcePos,
       targetPosition: targetPos,
       controlPoints: []

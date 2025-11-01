@@ -5,7 +5,6 @@
 import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
-import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
 import {Graph} from '../graph/graph';
 import {GraphLayout} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
@@ -34,19 +33,19 @@ import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 import {JSONLoader} from '../loaders/json-loader';
 
 const NODE_LAYER_MAP = {
-  [NODE_TYPE.RECTANGLE]: RectangleLayer,
-  [NODE_TYPE.ROUNDED_RECTANGLE]: RoundedRectangleLayer,
-  [NODE_TYPE.PATH_ROUNDED_RECTANGLE]: PathBasedRoundedRectangleLayer,
-  [NODE_TYPE.ICON]: ImageLayer,
-  [NODE_TYPE.CIRCLE]: CircleLayer,
-  [NODE_TYPE.LABEL]: LabelLayer,
-  [NODE_TYPE.MARKER]: ZoomableMarkerLayer
+  'rectangle': RectangleLayer,
+  'rounded-rectangle': RoundedRectangleLayer,
+  'path-rounded-rectangle': PathBasedRoundedRectangleLayer,
+  'icon': ImageLayer,
+  'circle': CircleLayer,
+  'label': LabelLayer,
+  'marker': ZoomableMarkerLayer
 };
 
 const EDGE_DECORATOR_LAYER_MAP = {
-  [EDGE_DECORATOR_TYPE.LABEL]: EdgeLabelLayer,
-  [EDGE_DECORATOR_TYPE.FLOW]: FlowLayer,
-  [EDGE_DECORATOR_TYPE.ARROW]: EdgeArrowLayer
+  'edge-label': EdgeLabelLayer,
+  'flow': FlowLayer,
+  'arrow': EdgeArrowLayer
 };
 
 const SHARED_LAYER_PROPS = {

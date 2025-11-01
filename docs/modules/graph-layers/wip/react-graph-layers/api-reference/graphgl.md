@@ -7,7 +7,7 @@
 ### Usage
 
 ```js
-import GraphGL, {JSONLoader, NODE_TYPE, D3ForceLayout} from '@deck.gl-community/graph-layers';
+import GraphGL, {JSONLoader, D3ForceLayout} from '@deck.gl-community/graph-layers';
 
 const App = ({data}) => {
   const graph = JSONLoader({
@@ -26,7 +26,7 @@ const App = ({data}) => {
       layout={new D3ForceLayout()}
       nodeStyle={[
         {
-          type: NODE_TYPE.CIRCLE,
+          type: 'circle',
           radius: 10,
           fill: 'blue',
           opacity: 1

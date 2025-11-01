@@ -10,7 +10,7 @@ support the following keys:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `text` | `string \| function` | – (required) | Text to display. Functions receive the node instance. |
+| `text` | `string \| function` | - (required) | Text to display. Functions receive the node instance. |
 | `color` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Font color. |
 | `fontSize` | `number \| function` | `12` | Font size in pixels. |
 | `textAnchor` | `string \| function` | `'middle'` | Horizontal alignment: `'start'`, `'middle'`, or `'end'`. |

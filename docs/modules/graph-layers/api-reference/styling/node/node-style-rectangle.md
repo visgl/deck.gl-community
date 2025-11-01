@@ -10,8 +10,8 @@ support:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `width` | `number \| function` | – (required) | Rectangle width in pixels. Accessors receive the node instance. |
-| `height` | `number \| function` | – (required) | Rectangle height in pixels. |
+| `width` | `number \| function` | - (required) | Rectangle width in pixels. Accessors receive the node instance. |
+| `height` | `number \| function` | - (required) | Rectangle height in pixels. |
 | `fill` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Interior color. |
 | `stroke` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Border color. |
 | `strokeWidth` | `number \| function` | `0` | Border width in pixels. |

@@ -2,33 +2,31 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {EDGE_STATE, NODE_STATE, ValueOf} from './constants';
+import type {EdgeState, NodeState} from './constants';
 import {Edge} from '../graph/edge';
 import {Node} from '../graph/node';
 import {GraphEngine} from './graph-engine';
 
-const NODE_TO_EDGE_STATE_MAP: Record<ValueOf<typeof NODE_STATE>, ValueOf<typeof EDGE_STATE>> = {
-  [NODE_STATE.DEFAULT]: EDGE_STATE.DEFAULT,
-  [NODE_STATE.HOVER]: EDGE_STATE.HOVER,
-  [NODE_STATE.DRAGGING]: EDGE_STATE.DRAGGING,
-  [NODE_STATE.SELECTED]: EDGE_STATE.SELECTED
+const NODE_TO_EDGE_STATE_MAP: Record<NodeState, EdgeState> = {
+  default: 'default',
+  hover: 'hover',
+  dragging: 'dragging',
+  selected: 'selected'
 };
 
 function shouldEdgeBeSelected(edge: Edge): boolean {
   return edge
     .getConnectedNodes()
-    .some(
-      (node) => node.getState() === NODE_STATE.SELECTED && node.shouldHighlightConnectedEdges()
-    );
+    .some((node) => node.getState() === 'selected' && node.shouldHighlightConnectedEdges());
 }
 
-function setNodeState(node: Node, state: ValueOf<typeof NODE_STATE>) {
+function setNodeState(node: Node, state: NodeState) {
   node.setState(state);
   if (node.shouldHighlightConnectedEdges()) {
     node.getConnectedEdges().forEach((edge) => {
       let newEdgeState = NODE_TO_EDGE_STATE_MAP[state];
       if (shouldEdgeBeSelected(edge)) {
-        newEdgeState = EDGE_STATE.SELECTED;
+        newEdgeState = 'selected';
       }
       edge.setState(newEdgeState);
     });
@@ -103,9 +101,9 @@ export class InteractionManager {
     if (object.isNode) {
       if ((object as Node).isSelectable()) {
         if (this._lastSelectedNode) {
-          setNodeState(this._lastSelectedNode, NODE_STATE.DEFAULT);
+          setNodeState(this._lastSelectedNode, 'default');
         }
-        setNodeState(object, NODE_STATE.SELECTED);
+        setNodeState(object, 'selected');
         this._lastSelectedNode = object as Node;
         this._lastInteraction = Date.now();
         this.notifyCallback();
@@ -124,12 +122,12 @@ export class InteractionManager {
   _mouseLeaveNode(): void {
     const lastHoveredNode = this._lastHoveredNode;
 
-    if (!(lastHoveredNode.isSelectable() && lastHoveredNode.getState() === NODE_STATE.SELECTED)) {
+    if (!(lastHoveredNode.isSelectable() && lastHoveredNode.getState() === 'selected')) {
       // reset the last hovered node's state
       const newState =
         this._lastSelectedNode !== null && this._lastSelectedNode.id === this._lastHoveredNode?.id
-          ? NODE_STATE.SELECTED
-          : NODE_STATE.DEFAULT;
+          ? 'selected'
+          : 'default';
       setNodeState(lastHoveredNode, newState);
     }
     // trigger the callback if exists
@@ -140,7 +138,7 @@ export class InteractionManager {
 
   _mouseEnterNode(info): void {
     // set the node's state to hover
-    setNodeState(info.object as Node, NODE_STATE.HOVER);
+    setNodeState(info.object as Node, 'hover');
     // trigger the callback if exists
     if (this.nodeEvents.onMouseEnter) {
       this.nodeEvents.onMouseEnter(info);
@@ -204,7 +202,7 @@ export class InteractionManager {
     const y = Math.min(Math.max(coordinates[1], bounds[1]), bounds[3]);
     this.engine.lockNodePosition(info.object, x, y);
 
-    setNodeState(info.object, NODE_STATE.DRAGGING);
+    setNodeState(info.object, 'dragging');
     this._lastInteraction = Date.now();
     this.notifyCallback();
     if (this.nodeEvents.onDrag) {
@@ -219,7 +217,7 @@ export class InteractionManager {
     if (this.resumeLayoutAfterDragging) {
       this.engine.resume();
     }
-    setNodeState(info.object, NODE_STATE.DEFAULT);
+    setNodeState(info.object, 'default');
     this.engine.unlockNodePosition(info.object);
   }
 }

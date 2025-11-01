@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {NODE_STATE, ValueOf} from '../core/constants';
+import type {NodeState} from '../core/constants';
 import {Edge} from './edge';
 
 /** Properties for creating a new node */
@@ -23,7 +23,7 @@ export class Node {
   /** List edges. */
   private _connectedEdges: Record<string, Edge> = {};
   /** Interaction state of the node. */
-  public state: ValueOf<typeof NODE_STATE> = NODE_STATE.DEFAULT;
+  public state: NodeState = 'default';
   /** Can the node be selected? */
   private _selectable: boolean;
   /** Should the state of this node affect the state of the connected edges? */
@@ -150,17 +150,17 @@ export class Node {
 
   /**
    * Set node state
-   * @param state - one of NODE_STATE
+   * @param state - the new interaction state of the node
    */
-  setState(state: ValueOf<typeof NODE_STATE>): void {
+  setState(state: NodeState): void {
     this.state = state;
   }
 
   /**
    * Get node state
-   * @returns state - one of NODE_STATE
+   * @returns state - the current interaction state of the node
    */
-  getState(): ValueOf<typeof NODE_STATE> {
+  getState(): NodeState {
     return this.state;
   }
 
