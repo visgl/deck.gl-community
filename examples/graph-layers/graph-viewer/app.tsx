@@ -6,7 +6,6 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRe
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
-import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
 import {
@@ -82,28 +81,26 @@ const loadingReducer = (state, action) => {
   }
 };
 
-export const useLoading = (engine) => {
+export const useLoading = (engine: GraphEngine) => {
   const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
   useLayoutEffect(() => {
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    console.log('adding listeners')
     engine.addEventListener('onLayoutStart', layoutStarted);
     engine.addEventListener('onLayoutDone', layoutEnded);
 
     return () => {
-      console.log('removing listeners')
       engine.removeEventListener('onLayoutStart', layoutStarted);
       engine.removeEventListener('onLayoutDone', layoutEnded);
     };
   }, [engine]);
 
-  return [{isLoading}, loadingDispatch];
+  return [{isLoading}, loadingDispatch] as const;
 };
 
-export function App(props) {
+export function App() {
   const [selectedDataset, setSelectedDataset] = useState(DEFAULT_DATASET);
   const [selectedLayout, setSelectedLayout] = useState<LayoutOption>(DEFAULT_LAYOUT);
 
@@ -122,15 +119,7 @@ export function App(props) {
 
   const engine = useMemo(() => new GraphEngine({graph, layout}), [graph, layout]);
 
-  const edgeStyle = [
-    {
-      decorators: [],
-      stroke: 'black',
-      strokeWidth: 1
-    }
-  ],
-    // eslint-disable-next-line no-console
-    initialViewState = INITIAL_VIEW_STATE,
+  const initialViewState = INITIAL_VIEW_STATE,
     minZoom = -20,
     maxZoom = 20,
     viewportPadding = 50,
@@ -143,16 +132,7 @@ export function App(props) {
     ...initialViewState
   });
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
-
-  useEffect(() => {
-    loadingDispatch({type: 'startLayout'});
-    engine.run();
-
-    return () => {
-      engine.clear();
-    };
-  }, [engine, loadingDispatch]);
+  const [{isLoading}, loadingDispatch] = useLoading(engine);
 
   const fitBounds = useCallback(() => {
     const data = engine.getNodes();
@@ -181,28 +161,6 @@ export function App(props) {
     });
   }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
 
-  // Relatively pan the graph by a specified position vector.
-  const panBy = useCallback(
-    (dx, dy) =>
-      setViewState({
-        ...viewState,
-        target: [viewState.target[0] + dx, viewState.target[1] + dy]
-      }),
-    [viewState, setViewState]
-  );
-
-  // Relatively zoom the graph by a delta zoom level
-  const zoomBy = useCallback(
-    (deltaZoom) => {
-      const newZoom = viewState.zoom + deltaZoom;
-      setViewState({
-        ...viewState,
-        zoom: Math.min(Math.max(newZoom, minZoom), maxZoom)
-      });
-    },
-    [maxZoom, minZoom, viewState, setViewState]
-  );
-
   useEffect(() => {
     if (zoomToFitOnLoad && isLoading) {
       engine.addEventListener('onLayoutDone', fitBounds, {once: true});
@@ -221,6 +179,58 @@ export function App(props) {
     ({target: {value}}) => setSelectedLayout(value as LayoutOption),
     []
   );
+
+  const views = useMemo(
+    () => [
+      new OrthographicView({
+        controller: {
+          minZoom,
+          maxZoom,
+          scrollZoom: true,
+          touchZoom: true,
+          doubleClickZoom: true,
+          dragPan: true,
+          wheelSensitivity: 0.5
+        } as any
+      })
+    ],
+    [minZoom, maxZoom]
+  );
+
+  const layers = useMemo(
+    () => [
+      new GraphLayer({
+        id: 'graph-layer',
+        engine,
+        nodeStyle: [
+          {
+            type: NODE_TYPE.CIRCLE,
+            radius: DEFAULT_NODE_SIZE,
+            fill: 'red'
+          }
+        ],
+        edgeStyle: {
+          decorators: [],
+          stroke: 'black',
+          strokeWidth: 1
+        },
+        enableDragging,
+        resumeLayoutAfterDragging
+      })
+    ],
+    [engine, enableDragging, resumeLayoutAfterDragging]
+  );
+
+  const handleAfterRender = useCallback(() => loadingDispatch({type: 'afterRender'}), [loadingDispatch]);
+  const handleResize = useCallback(
+    ({width, height}) => setViewState((prev) => ({...prev, width, height})),
+    []
+  );
+  const handleViewStateChange = useCallback(
+    ({viewState: nextViewState}) => setViewState(nextViewState as any),
+    []
+  );
+  const getCursor = useCallback(() => DEFAULT_CURSOR, []);
 
   return (
     <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
@@ -246,69 +256,28 @@ export function App(props) {
           </select>
         </div>
       </div>
-      <div style={{width: '100%', flex: 1}}>
-        <>
-          {isLoading}
-          <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
-            <DeckGL
-              onError={(error) => console.error(error)}
-              onAfterRender={() => loadingDispatch({type: 'afterRender'})}
-              width="100%"
-              height="100%"
-              getCursor={() => DEFAULT_CURSOR}
-              viewState={viewState as any}
-              onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
-              onViewStateChange={({viewState}) => setViewState(viewState as any)}
-              views={[
-                new OrthographicView({
-                  controller: {
-                    minZoom,
-                    maxZoom,
-                    scrollZoom: true,
-                    touchZoom: true,
-                    doubleClickZoom: true,
-                    dragPan: true,
-                    wheelSensitivity: 0.5
-                  } as any
-                })
-              ]}
-              layers={[
-                new GraphLayer({
-                  engine,
-                  nodeStyle: [
-                    {
-                      type: NODE_TYPE.CIRCLE,
-                      radius: DEFAULT_NODE_SIZE,
-                      fill: 'red'
-                    }
-                  ],
-                  edgeStyle: {
-                    decorators: [],
-                    stroke: 'black',
-                    strokeWidth: 1
-                  },
-                  resumeLayoutAfterDragging
-                })
-              ]}
-              widgets={[
-                // // new ViewControlWidget({}) TODO - fix and enable
-              ]
-                // onHover={(info) => console.log('Hover', info)}
-              }
-              getTooltip={(info) => getToolTip(info.object)}
-            />
-            {/* View control component TODO - doesn't work in website, replace with widget *
-              <PositionedViewControl
-                fitBounds={fitBounds}
-                panBy={panBy}
-                zoomBy={zoomBy}
-                zoomLevel={viewState.zoom}
-                maxZoom={maxZoom}
-                minZoom={minZoom}
-              />
-            */}
-          </div>
-        </>
+      <div style={{position: 'relative', width: '100%', flex: 1}}>
+        {isLoading ? <div style={{position: 'absolute', inset: 0}}>Loading...</div> : null}
+        <div style={{visibility: isLoading ? 'hidden' : 'visible', width: '100%', height: '100%'}}>
+          <DeckGL
+            onError={(error) => console.error(error)}
+            onAfterRender={handleAfterRender}
+            width="100%"
+            height="100%"
+            getCursor={getCursor}
+            viewState={viewState as any}
+            onResize={handleResize}
+            onViewStateChange={handleViewStateChange}
+            views={views}
+            layers={layers}
+            widgets={[
+              // // new ViewControlWidget({}) TODO - fix and enable
+            ]
+              // onHover={(info) => console.log('Hover', info)}
+            }
+            getTooltip={(info) => getToolTip(info.object)}
+          />
+        </div>
       </div>
     </div>
   );

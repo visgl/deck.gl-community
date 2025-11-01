@@ -54,8 +54,6 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
 
   start() {
     this._engageWorker();
-
-    this._onLayoutStart();
   }
 
   update() {
@@ -83,21 +81,26 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       options: this._options
     });
 
+    this._onLayoutStart();
+
     this._worker.onmessage = (event) => {
-      if (event.data.type !== 'end') {
+      const {type, nodes} = event.data;
+      if (type !== 'tick' && type !== 'end') {
         return;
       }
 
-      event.data.nodes.forEach(({id, ...d3}) =>
-        this._positionsByNodeId.set(id, {
-          ...d3,
-          // precompute so that when we return the node position we do not need to do the conversion
-          coordinates: [d3.x, d3.y]
-        })
-      );
-
+      this._updateNodePositions(nodes);
       this._onLayoutChange();
-      this._onLayoutDone();
+
+      if (type === 'end') {
+        this._onLayoutDone();
+        this._worker = null;
+      }
+    };
+
+    this._worker.onerror = () => {
+      this._onLayoutError();
+      this._worker = null;
     };
   }
 
@@ -106,7 +109,10 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   }
 
   stop() {
-    this._worker.terminate();
+    if (this._worker) {
+      this._worker.terminate();
+      this._worker = null;
+    }
   }
 
   getEdgePosition = (edge) => {
@@ -152,4 +158,20 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     d3Node.fx = null;
     d3Node.fy = null;
   };
+
+  private _updateNodePositions(nodes) {
+    if (!nodes) {
+      return;
+    }
+
+    nodes.forEach(({id, x, y, ...rest}) =>
+      this._positionsByNodeId.set(id, {
+        ...rest,
+        x,
+        y,
+        // precompute so that when we return the node position we do not need to do the conversion
+        coordinates: [x, y]
+      })
+    );
+  }
 }
