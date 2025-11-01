@@ -25,6 +25,7 @@ export type {Marker, NodeState, NodeType, EdgeType, EdgeDecoratorType, LayoutSta
 // deck.gl components
 export {GraphLayer} from './layers/graph-layer';
 export {EdgeLayer} from './layers/edge-layer';
+export {BaseStylesheet, GraphStylesheet, Stylesheet} from './style/style-sheet';
 
 // Widgets
 

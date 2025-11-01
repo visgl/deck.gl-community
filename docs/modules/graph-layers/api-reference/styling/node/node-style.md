@@ -62,6 +62,48 @@ first (i.e. they appear underneath later entries).
 This pipeline allows you to focus on the *what* of styling while GraphGL takes
 care of the *how*.
 
+### Base stylesheet helper
+
+`GraphStylesheet` builds on a reusable `BaseStylesheet` class that accepts the
+style-to-accessor mappings and Deck.gl update trigger definitions. Advanced
+renderers can re-use this helper to drive their own layer compositions while
+still benefiting from the selector parsing and accessor normalization logic.
+
+```ts
+import {BaseStylesheet} from '@deck.gl-community/graph-layers';
+
+const CUSTOM_ACCESSOR_MAP = {
+  'custom-node': {
+    getFillColor: 'fill',
+    getLineColor: 'stroke'
+  }
+};
+
+const CUSTOM_UPDATE_TRIGGERS = {
+  'custom-node': ['getFillColor', 'getLineColor']
+};
+
+const stylesheet = new BaseStylesheet(
+  {
+    type: 'custom-node',
+    fill: '#2563EB',
+    ':hover': {
+      fill: '#60A5FA'
+    }
+  },
+  {
+    deckglAccessorMap: CUSTOM_ACCESSOR_MAP,
+    deckglUpdateTriggers: CUSTOM_UPDATE_TRIGGERS
+  }
+);
+
+const accessors = stylesheet.getDeckGLAccessors();
+```
+
+Provide your own `StyleProperty` subclass or default-style resolver via the
+`StylePropertyClass` and `getDefaultStyleValue` options when you need different
+value coercion or defaults.
+
 ## Shared properties
 
 The following keys are understood by every node style:
