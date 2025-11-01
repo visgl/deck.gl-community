@@ -23,6 +23,12 @@ export type NodeType =
 // edge shape
 export type EdgeType = 'spline' | 'line' | 'path';
 
+export const EDGE_TYPE = {
+  SPLINE: 'spline',
+  LINE: 'line',
+  PATH: 'path'
+} as const satisfies Record<string, EdgeType>;
+
 // decorators on edges
 export type EdgeDecoratorType = 'label' | 'flow' | 'arrow';
 

@@ -7,7 +7,6 @@ import {describe, it, expect} from 'vitest';
 import {Graph} from '../../src/graph/graph';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
-import {EDGE_TYPE} from '../../src/core/constants';
 import {D3DagLayout} from '../../src/layouts/d3-dag/d3-dag-layout';
 
 type SampleGraph = {
@@ -54,7 +53,7 @@ describe('D3DagLayout', () => {
     expect(layout.getNodePosition(nodes.d)).toEqual([0, -1.5]);
 
     const edgeAB = layout.getEdgePosition(edges.ab);
-    expect(edgeAB?.type).toBe(EDGE_TYPE.LINE);
+    expect(edgeAB?.type).toBe('line');
     expect(edgeAB?.sourcePosition).toEqual(layout.getNodePosition(nodes.a));
     expect(edgeAB?.targetPosition).toEqual(layout.getNodePosition(nodes.b));
     expect(edgeAB?.controlPoints).toEqual([]);
