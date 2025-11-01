@@ -8,12 +8,12 @@ compiled into a Deck.gl sublayer by the `Stylesheet` helper.
 ```js
 const nodeStyle = [
   {
-    type: NODE_TYPE.CIRCLE,
+    type: 'circle',
     radius: 10,
     fill: node => (node.degree > 5 ? '#3C9EE7' : '#F06449')
   },
   {
-    type: NODE_TYPE.LABEL,
+    type: 'label',
     text: node => node.id,
     color: '#172B4D',
     offset: [0, 16]
