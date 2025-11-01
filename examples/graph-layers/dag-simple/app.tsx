@@ -136,7 +136,7 @@ export default function App(): React.ReactElement {
     () => [
       new GraphLayer({
         id: 'dag-layer',
-        graph,
+        data: graph,
         layout,
         nodeStyle: [
           {

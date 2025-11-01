@@ -57,6 +57,7 @@ const SHARED_LAYER_PROPS = {
 export type GraphLayerProps = CompositeLayerProps & _GraphLayerProps;
 
 export type _GraphLayerProps = {
+  /** @deprecated Use `data` instead. */
   graph?: Graph;
   layout?: GraphLayout;
   graphLoader?: (opts: {json: any}) => Graph;
@@ -119,8 +120,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   // @ts-expect-error Some typescript confusion due to override of base class state
   state!: CompositeLayer<GraphLayerProps>['state'] & {
     interactionManager: InteractionManager;
-    graphEngine?: GraphEngine;
+    graphEngine?: GraphEngine | null;
   };
+
+  private _graphPropWarningIssued = false;
 
   forceUpdate = () => {
     if (this.context && this.context.layerManager) {
@@ -137,8 +140,16 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this.state = {
       interactionManager: new InteractionManager(this.props as any, () => this.forceUpdate())
     };
-    const engine = this.props.engine;
-    this._setGraphEngine(engine);
+    const updated = this._updateGraphEngineFromProps(
+      this.props,
+      null,
+      {dataChanged: true, propsChanged: true},
+      true
+    );
+    if (updated) {
+      this.state.interactionManager.updateProps(this.props);
+      this.forceUpdate();
+    }
   }
 
   shouldUpdateState({changeFlags}) {
@@ -146,24 +157,11 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   updateState({props, oldProps, changeFlags}) {
-    if (
-      changeFlags.dataChanged &&
-      props.data &&
-      !(Array.isArray(props.data) && props.data.length === 0)
-    ) {
-      const graph = props.graphLoader({json: props.data});
-      if (graph && props.layout) {
-        const graphEngine = new GraphEngine({graph, layout: props.layout});
-        this._setGraphEngine(graphEngine);
-        this.state.interactionManager.updateProps(props);
-        this.forceUpdate();
-      } else if (!props.layout) {
-        log.error('GraphLayer requires a layout when providing `data`.')();
-      }
-    } else if (changeFlags.propsChanged && props.graph !== oldProps.graph) {
-      const graphEngine = new GraphEngine({graph: props.graph, layout: props.layout});
-      this._setGraphEngine(graphEngine);
+    const updated = this._updateGraphEngineFromProps(props, oldProps, changeFlags);
+    if (updated || changeFlags.propsChanged) {
       this.state.interactionManager.updateProps(props);
+    }
+    if (updated) {
       this.forceUpdate();
     }
   }
@@ -192,6 +190,90 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this.state.graphEngine.clear();
       this.state.graphEngine = null;
     }
+  }
+
+  private _updateGraphEngineFromProps(
+    props: GraphLayerProps,
+    oldProps: GraphLayerProps | null,
+    changeFlags: {dataChanged?: boolean; propsChanged?: boolean},
+    force = false
+  ): boolean {
+    const layoutChanged =
+      force ||
+      (changeFlags.propsChanged && !!oldProps &&
+        props.layout !== oldProps.layout &&
+        !(props.layout && oldProps.layout && props.layout.equals(oldProps.layout)));
+    const enginePropChanged =
+      force ||
+      (changeFlags.propsChanged && !!oldProps && props.engine !== oldProps.engine);
+    const dataPropChanged =
+      force ||
+      changeFlags.dataChanged ||
+      (changeFlags.propsChanged && !!oldProps && props.data !== oldProps.data);
+    const graphPropChanged =
+      force || (changeFlags.propsChanged && !!oldProps && props.graph !== oldProps.graph);
+
+    let nextEngine: GraphEngine | null | undefined;
+
+    if (props.engine) {
+      if (enginePropChanged || this.state.graphEngine !== props.engine) {
+        nextEngine = props.engine;
+      }
+    } else if (props.data instanceof GraphEngine) {
+      if (this.state.graphEngine !== props.data) {
+        nextEngine = props.data;
+      }
+      if (layoutChanged && props.layout) {
+        log.warn('GraphLayer `layout` prop is ignored when `data` is a GraphEngine.')();
+      }
+    } else if (props.data instanceof Graph) {
+      if (!props.layout) {
+        log.error('GraphLayer requires a layout when providing a Graph via `data`.')();
+        nextEngine = null;
+      } else if (dataPropChanged || layoutChanged) {
+        nextEngine = new GraphEngine({graph: props.data, layout: props.layout});
+      }
+    } else if (Array.isArray(props.data) && props.data.length === 0) {
+      if (dataPropChanged) {
+        nextEngine = null;
+      }
+    } else if (props.data) {
+      if (!props.layout) {
+        log.error('GraphLayer requires a layout when providing `data`.')();
+        nextEngine = null;
+      } else if (dataPropChanged || layoutChanged) {
+        const graph = props.graphLoader({json: props.data});
+        if (graph) {
+          nextEngine = new GraphEngine({graph, layout: props.layout});
+        } else {
+          nextEngine = null;
+        }
+      }
+    } else if (props.graph) {
+      if (!props.layout) {
+        log.error('GraphLayer requires a layout when providing `graph`.')();
+        nextEngine = null;
+      } else if (graphPropChanged || layoutChanged) {
+        if (!this._graphPropWarningIssued) {
+          log.warn('GraphLayer `graph` prop is deprecated. Use `data` instead.')();
+          this._graphPropWarningIssued = true;
+        }
+        nextEngine = new GraphEngine({graph: props.graph, layout: props.layout});
+      }
+    } else if (enginePropChanged || dataPropChanged || layoutChanged) {
+      nextEngine = null;
+    }
+
+    if (nextEngine !== undefined) {
+      if (nextEngine) {
+        this._setGraphEngine(nextEngine);
+      } else {
+        this._removeGraphEngine();
+      }
+      return true;
+    }
+
+    return false;
   }
 
   createNodeLayers() {

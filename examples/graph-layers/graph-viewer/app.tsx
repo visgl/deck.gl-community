@@ -2,14 +2,23 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {Component, useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {GraphEngine, GraphLayer, Graph, log, GraphLayout, SimpleLayout, D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import {
+  GraphLayer,
+  Graph,
+  GraphLayout,
+  SimpleLayout,
+  D3ForceLayout,
+  GPUForceLayout,
+  JSONLoader,
+  NODE_TYPE
+} from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 import '@deck.gl/widgets/stylesheet.css';
@@ -26,7 +35,9 @@ const INITIAL_VIEW_STATE = {
   zoom: 1
 };
 
-const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'];
+const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'] as const;
+type LayoutOption = (typeof LAYOUTS)[number];
+const DEFAULT_LAYOUT: LayoutOption = 'D3ForceLayout';
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
@@ -64,59 +75,55 @@ const loadingReducer = (state, action) => {
   }
 };
 
-export const useLoading = (engine) => {
+export const useLoading = (layout: GraphLayout | null) => {
   const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
   useLayoutEffect(() => {
+    if (!layout) {
+      return;
+    }
+
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    console.log('adding listeners')
-    engine.addEventListener('onLayoutStart', layoutStarted);
-    engine.addEventListener('onLayoutDone', layoutEnded);
+    layout.addEventListener('onLayoutStart', layoutStarted);
+    layout.addEventListener('onLayoutDone', layoutEnded);
 
     return () => {
-      console.log('removing listeners')
-      engine.removeEventListener('onLayoutStart', layoutStarted);
-      engine.removeEventListener('onLayoutDone', layoutEnded);
+      layout.removeEventListener('onLayoutStart', layoutStarted);
+      layout.removeEventListener('onLayoutDone', layoutEnded);
     };
-  }, [engine]);
+  }, [layout]);
 
-  return [{isLoading}, loadingDispatch];
+  return [{isLoading}, loadingDispatch] as const;
 };
-
-const graphData = SAMPLE_GRAPH_DATASETS[DEFAULT_DATASET]();
-const graph = JSONLoader({json: graphData});
-const layout = new D3ForceLayout(); // SimpleLayout();
 
 export function App(props) {
 
   const [state, setState] = useState({
     selectedDataset: DEFAULT_DATASET,
-    selectedLayout: DEFAULT_DATASET
+    selectedLayout: DEFAULT_LAYOUT
   });
 
-  const {selectedDataset} = state;
+  const {selectedDataset, selectedLayout} = state;
 
-  const [engine, setEngine] = useState(new GraphEngine(graph, layout));
-  const isFirstMount = useRef(true);
+  const graphData = useMemo(() => {
+    const datasetFactory = SAMPLE_GRAPH_DATASETS[selectedDataset];
+    return datasetFactory ? datasetFactory() : {nodes: [], edges: []};
+  }, [selectedDataset]);
 
-  useLayoutEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
+  const graph = useMemo(() => JSONLoader({json: graphData}) ?? new Graph(), [graphData]);
+
+  const layout = useMemo<GraphLayout>(() => {
+    switch (selectedLayout) {
+      case 'GPUForceLayout':
+        return new GPUForceLayout();
+      case 'SimpleLayout':
+        return new SimpleLayout();
+      default:
+        return new D3ForceLayout();
     }
-
-    setEngine(new GraphEngine({graph, layout}));
-  }, [graph, layout]);
-
-  useLayoutEffect(() => {
-    engine.run();
-
-    return () => {
-      engine.clear();
-    };
-  }, [engine]);
+  }, [selectedLayout]);
 
   const edgeStyle = [
     {
@@ -139,19 +146,31 @@ export function App(props) {
     ...initialViewState
   });
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+  const [{isLoading}, loadingDispatch] = useLoading(layout);
 
   const fitBounds = useCallback(() => {
-    const data = engine.getNodes();
-    if (!data.length) {
+    if (!graph || !layout) {
+      return;
+    }
+
+    const nodes = graph.getNodes();
+    if (!nodes.length) {
       return;
     }
 
     const {width, height} = viewState as any;
+    if (!width || !height) {
+      return;
+    }
 
-    // get the projected position of all nodes
-    const positions = data.map((d) => engine.getNodePosition(d));
-    // get the value range of x and y
+    const positions = nodes
+      .map((node) => layout.getNodePosition(node))
+      .filter((position) => Number.isFinite(position?.[0]) && Number.isFinite(position?.[1]));
+
+    if (!positions.length) {
+      return;
+    }
+
     const xExtent = extent(positions, (d) => d[0]);
     const yExtent = extent(positions, (d) => d[1]);
     const newTarget = [(xExtent[0] + xExtent[1]) / 2, (yExtent[0] + yExtent[1]) / 2];
@@ -159,14 +178,13 @@ export function App(props) {
       width / (xExtent[1] - xExtent[0] + viewportPadding * 2),
       height / (yExtent[1] - yExtent[0] + viewportPadding * 2)
     );
-    // zoom value is at log scale
     const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
     setViewState({
       ...viewState,
       target: newTarget,
       zoom: newZoom
     });
-  }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
+  }, [graph, layout, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
 
   // Relatively pan the graph by a specified position vector.
   const panBy = useCallback(
@@ -191,13 +209,17 @@ export function App(props) {
   );
 
   useEffect(() => {
+    if (!layout) {
+      return () => {};
+    }
+
     if (zoomToFitOnLoad && isLoading) {
-      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+      layout.addEventListener('onLayoutDone', fitBounds, {once: true});
     }
     return () => {
-      engine.removeEventListener('onLayoutDone', fitBounds);
+      layout.removeEventListener('onLayoutDone', fitBounds);
     };
-  }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+  }, [layout, isLoading, fitBounds, zoomToFitOnLoad]);
 
 
   const handleChangeGraph = useCallback(({target: {value}}) => setState(state => ({...state, selectedDataset: value})), [setState]);
@@ -255,7 +277,8 @@ export function App(props) {
               ]}
               layers={[
                 new GraphLayer({
-                  engine,
+                  data: graph,
+                  layout,
                   nodeStyle: [
                     {
                       type: NODE_TYPE.CIRCLE,

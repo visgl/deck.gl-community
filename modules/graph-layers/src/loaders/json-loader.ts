@@ -6,7 +6,6 @@ import {createGraph} from './create-graph';
 import {basicNodeParser} from './node-parsers';
 import {basicEdgeParser} from './edge-parsers';
 import {log} from '../utils/log';
-import {Graph} from '../graph/graph';
 
 type RawNode = Record<string, unknown> & {id?: string | number};
 type RawEdge = Record<string, unknown> & {
@@ -121,13 +120,9 @@ const normalizeNodes = (nodes: RawNode[] | undefined, edges: RawEdge[]): RawNode
   return normalizedNodes;
 };
 
-const normalizeGraph = (json: unknown): RawGraph | Graph | null => {
+const normalizeGraph = (json: unknown): RawGraph | null => {
   if (!json) {
     return null;
-  }
-
-  if (json instanceof Graph) {
-    return json;
   }
 
   if (Array.isArray(json)) {
@@ -158,10 +153,6 @@ export const JSONLoader = ({json, nodeParser = basicNodeParser, edgeParser = bas
   if (!normalized) {
     log.error('Invalid graph: unsupported data format.')();
     return null;
-  }
-
-  if (normalized instanceof Graph) {
-    return normalized;
   }
 
   const {name = DEFAULT_GRAPH_NAME, nodes, edges} = normalized;

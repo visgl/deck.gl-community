@@ -10,6 +10,8 @@ Please refer the documentation of each module for detailed news.
 Target Release Date: July 2025
 
 - deck.gl-community modules will be updated to deck.gl v9.2.
+- `GraphLayer` now accepts `Graph` or `GraphEngine` instances via its `data` prop, updates the internal engine when `data` or
+  `layout` change, and deprecates the standalone `graph` prop.
 
 ## v9.1
 
