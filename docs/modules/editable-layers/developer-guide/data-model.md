@@ -10,7 +10,7 @@ type Feature = {
     [columnName: string]
   }
 }
-
+```
 ## Geometry
 
 ## Properties
