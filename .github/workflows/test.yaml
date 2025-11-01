@@ -30,6 +30,7 @@ jobs:
 
       # ✅ Cache Yarn 4's compressed archives
       - name: Cache Yarn 4 artifacts
+        id: yarn-cache
         uses: actions/cache@v4
         with:
           path: |
@@ -47,6 +48,7 @@ jobs:
           node -p "process.versions"
 
       - name: Install deps
+        # Always run to materialize node_modules; the cache only restores tarballs.
         run: yarn --frozen-lockfile
 
       # Sanity-check that Vite sees the root config (this MUST be true)
@@ -62,6 +64,7 @@ jobs:
         run: yarn test-node
 
       - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -69,7 +72,14 @@ jobs:
           restore-keys: pw-${{ runner.os }}-
 
       - name: Install Playwright Chromium (only)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run headless browser tests
         run: yarn test-headless --reporter=verbose
+
+      - name: Build website
+        run: |
+          cd website
+          yarn
+          yarn build

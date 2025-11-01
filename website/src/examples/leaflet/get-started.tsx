@@ -1,7 +1,7 @@
-import React, { Component } from 'react';
+import React, {Component} from 'react';
 // import BrowserOnly from '@docusaurus/BrowserOnly';
-import { GITHUB_TREE } from '../../constants/defaults';
-import { makeExample } from '../../components';
+import {GITHUB_TREE} from '../../constants/defaults';
+import {makeExample} from '../../components';
 
 let initialized = false;
 
@@ -14,25 +14,11 @@ class AdvancedDemo extends Component {
   }
 
   render() {
-    const { ...otherProps } = this.props;
+    const {...otherProps} = this.props;
     return (
-      // <BrowserOnly fallback={<div>Loading map…</div>}>
-      //   {() => {
-      //     // Everything inside here runs *only* in the browser,
-      //     // so you can safely import Leaflet, deck.gl-leaflet layer, etc.
-      //     // if (!initialized) {
-      //     //   const { exampleApplication } = require('../../../../examples/leaflet/get-started/app');
-      //     //   exampleApplication();
-      //     //   initialized = true;
-      //     // }
-
-          // return (
-            <div style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(1,0,0,1)' }}>
-              <div id="map" style={{ width: '100%', height: '100%' }} />
-            </div>
-          // );
-      //   }}
-      // </BrowserOnly>
+      <div style={{position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(1,0,0,1)'}}>
+        <div id="map" style={{width: '100%', height: '100%'}} />
+      </div>
     );
   }
 }
