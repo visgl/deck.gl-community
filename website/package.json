@@ -70,8 +70,5 @@
     ">0.2% and supports async-functions",
     "not dead"
   ],
-  "packageManager": "yarn@4.10.3",
-  "volta": {
-    "extends": "../package.json"
-  }
+  "packageManager": "yarn@4.10.3"
 }

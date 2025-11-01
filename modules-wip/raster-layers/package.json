@@ -37,8 +37,5 @@
     "@deck.gl/mesh-layers": "~9.2.1",
     "@luma.gl/core": "~9.2.0",
     "@luma.gl/engine": "~9.2.0"
-  },
-  "volta": {
-    "extends": "../../package.json"
   }
 }
