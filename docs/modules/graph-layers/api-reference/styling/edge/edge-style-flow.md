@@ -19,7 +19,7 @@ while still rendering a static highlight.
 
 ```js
 {
-  type: EDGE_DECORATOR_TYPE.FLOW,
+  type: 'flow',
   color: '#22D3EE',
   width: 2,
   speed: edge => edge.capacity > 0 ? edge.load / edge.capacity : 0,
@@ -31,7 +31,7 @@ To create directional emphasis only while hovering:
 
 ```js
 {
-  type: EDGE_DECORATOR_TYPE.FLOW,
+  type: 'flow',
   color: '#FACC15',
   width: 3,
   speed: {

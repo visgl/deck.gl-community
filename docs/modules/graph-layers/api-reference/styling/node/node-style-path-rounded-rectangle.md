@@ -14,13 +14,13 @@ Path rounded rectangles accept the rectangle properties plus:
 | `cornerRadius` | `number \| function` | `0.1` | Corner rounding factor. As with the shader version, `0` is sharp and `1` is fully rounded. |
 
 The width, height, fill, stroke, and strokeWidth options behave identically to
-[`NODE_TYPE.RECTANGLE`](./node-style-rectangle.md).
+the [`'rectangle'` node style](./node-style-rectangle.md).
 
 ## Examples
 
 ```js
 {
-  type: NODE_TYPE.PATH_ROUNDED_RECTANGLE,
+  type: 'path-rounded-rectangle',
   width: node => 120 + node.children.length * 8,
   height: 48,
   cornerRadius: 0.35,
@@ -35,7 +35,7 @@ an interaction:
 
 ```js
 {
-  type: NODE_TYPE.PATH_ROUNDED_RECTANGLE,
+  type: 'path-rounded-rectangle',
   width: 96,
   height: 40,
   cornerRadius: {

@@ -21,7 +21,7 @@ polygon resolution.
 
 ```js
 {
-  type: NODE_TYPE.ROUNDED_RECTANGLE,
+  type: 'rounded-rectangle',
   width: 140,
   height: 56,
   cornerRadius: 0.5,
@@ -38,7 +38,7 @@ You can also adjust the radius dynamically to highlight specific groups:
 
 ```js
 {
-  type: NODE_TYPE.ROUNDED_RECTANGLE,
+  type: 'rounded-rectangle',
   width: 110,
   height: 44,
   cornerRadius: node => (node.cluster === 'core' ? 0.35 : 0.15),

@@ -32,7 +32,7 @@ The following keys are understood by every node style:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `type` | `NODE_TYPE` constant | - | Selects the visual primitive (circle, rectangle, label, etc.). |
+| `type` | `string` literal | - | Selects the visual primitive (`'circle'`, `'rectangle'`, `'label'`, etc.). |
 | `data` | `function(node) -> any` | `node => node` | Replaces the data object passed to Deck.gl. Useful when a sublayer needs derived data. |
 | `visible` | `boolean` | `true` | Toggles the sublayer on and off without removing it from the style list. |
 | `opacity` | `number \| function` | `1` | Multiplies the alpha channel produced by the primitive. Accepts 0-1. |
@@ -44,7 +44,7 @@ any function; if you use accessors, GraphGL automatically configures Deck.gl’s
 
 ```js
 {
-  type: NODE_TYPE.CIRCLE,
+  type: 'circle',
   radius: node => Math.max(4, node.getPropertyValue('weight')),
   fill: {
     default: '#9CA3AF',
@@ -70,7 +70,7 @@ state. For example, to brighten a node while dragging:
 
 ```js
 {
-  type: NODE_TYPE.CIRCLE,
+  type: 'circle',
   radius: 8,
   fill: '#2563EB',
   ':dragging': {
@@ -103,7 +103,7 @@ rectangle background with a label on top.
 ```js
 const nodeStyle = [
   {
-    type: NODE_TYPE.ROUNDED_RECTANGLE,
+    type: 'rounded-rectangle',
     width: 120,
     height: 48,
     cornerRadius: 0.4,
@@ -112,10 +112,10 @@ const nodeStyle = [
       hover: '#1E293B'
     },
     stroke: '#38BDF8',
-    strokeWidth: node => (node.state === NODE_STATE.SELECTED ? 4 : 1)
+    strokeWidth: node => (node.state === 'selected' ? 4 : 1)
   },
   {
-    type: NODE_TYPE.LABEL,
+    type: 'label',
     text: node => node.label,
     color: '#F8FAFC',
     fontSize: 18

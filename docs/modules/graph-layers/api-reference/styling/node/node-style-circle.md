@@ -23,7 +23,7 @@ are optional—when omitted the color is treated as fully opaque.
 
 ```js
 {
-  type: NODE_TYPE.CIRCLE,
+  type: 'circle',
   radius: node => 4 + node.outgoingEdges.length,
   fill: {
     default: '#CBD5F5',
@@ -39,12 +39,12 @@ accessors:
 
 ```js
 {
-  type: NODE_TYPE.CIRCLE,
+  type: 'circle',
   radius: 10,
   fill: '#22C55E',
   strokeWidth: {
     default: 0,
-    selected: node => (node.state === NODE_STATE.SELECTED ? 4 : 0)
+    selected: node => (node.state === 'selected' ? 4 : 0)
   },
   stroke: '#052E16'
 }
