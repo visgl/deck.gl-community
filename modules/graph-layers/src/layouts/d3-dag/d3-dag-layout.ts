@@ -257,7 +257,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
 
     const points = this._edgePoints.get(edge.getId()) || [sourcePosition, targetPosition];
     const controlPoints = this._edgeControlPoints.get(edge.getId()) || [];
-    const edgeType = controlPoints.length ? EDGE_TYPE.SPLINE_CURVE : EDGE_TYPE.LINE;
+    const edgeType = controlPoints.length ? 'spline' : 'line';
 
     return {
       type: edgeType,
@@ -305,7 +305,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     const builder = this._options.dagBuilder ?? D3DagLayout.defaultOptions.dagBuilder;
 
     if (typeof builder === 'function') {
-      const dag = builder(this._graph!);
+      const dag = builder(this._graph);
       this._ensureEdgeData(dag);
       return dag;
     }
@@ -325,12 +325,12 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     const dag = createDagGraph<Node, Edge>();
     const dagNodeLookup = new Map<string | number, MutGraphNode<Node, Edge>>();
 
-    for (const node of this._graph!.getNodes()) {
+    for (const node of this._graph.getNodes()) {
       const dagNode = dag.node(node);
       dagNodeLookup.set(node.getId(), dagNode);
     }
 
-    for (const edge of this._graph!.getEdges()) {
+    for (const edge of this._graph.getEdges()) {
       if (!edge.isDirected()) {
         continue;
       }
@@ -346,20 +346,13 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   }
 
   private _buildDagWithConnect(): MutGraph<Node, Edge> {
-    const connect = graphConnect<
-      Node,
-      {
-        source: string;
-        target: string;
-        edge: Edge;
-      }
-    >()
+    const connect = graphConnect()
       .sourceId((link) => link.source)
       .targetId((link) => link.target)
       .nodeDatum((id) => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
       .single(true);
 
-    const data = this._graph!
+    const data = this._graph
       .getEdges()
       .filter((edge) => edge.isDirected())
       .map((edge) => ({
@@ -374,11 +367,11 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     for (const dagNode of dag.nodes()) {
       const datum = dagNode.data;
       if (datum) {
-        seenIds.add((datum as Node).getId());
+        seenIds.add((datum).getId());
       }
     }
 
-    for (const node of this._graph!.getNodes()) {
+    for (const node of this._graph.getNodes()) {
       if (!seenIds.has(node.getId())) {
         dag.node(node);
       }
@@ -398,7 +391,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   private _buildDagWithStratify(): MutGraph<Node, Edge> {
     const stratify = graphStratify();
 
-    const nodeData = this._graph!.getNodes().map((node) => {
+    const nodeData = this._graph.getNodes().map((node) => {
       const id = this._toDagId(node.getId());
       const parentIds = (this._incomingParentMap.get(node.getId()) ?? [])
         .filter((parentId) => this._nodeLookup.has(parentId))
@@ -427,8 +420,8 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       if (link.data instanceof Edge) {
         continue;
       }
-      const sourceNode = link.source.data as Node;
-      const targetNode = link.target.data as Node;
+      const sourceNode = link.source.data;
+      const targetNode = link.target.data;
       const key = this._edgeKey(sourceNode.getId(), targetNode.getId());
       const edge = this._edgeLookup.get(key);
       if (edge) {
@@ -512,7 +505,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     let maxY = Number.NEGATIVE_INFINITY;
 
     for (const dagNode of this._dag.nodes()) {
-      const node = dagNode.data as Node;
+      const node = dagNode.data;
       const id = node.getId();
       const x = dagNode.x ?? 0;
       const y = dagNode.y ?? 0;
@@ -543,13 +536,13 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     };
 
     for (const link of this._dag.links()) {
-      const source = link.source.data as Node;
-      const target = link.target.data as Node;
+      const source = link.source.data;
+      const target = link.target.data;
       const edge = link.data instanceof Edge ? link.data : this._edgeLookup.get(this._edgeKey(source.getId(), target.getId()));
       if (!edge) {
         continue;
       }
-      const points = (link.points && link.points.length ? link.points : [[link.source.x ?? 0, link.source.y ?? 0], [link.target.x ?? 0, link.target.y ?? 0]]) as [number, number][];
+      const points = (link.points && link.points.length ? link.points : [[link.source.x ?? 0, link.source.y ?? 0], [link.target.x ?? 0, link.target.y ?? 0]]);
       this._rawEdgePoints.set(edge.getId(), points.map((point) => [...point] as [number, number]));
     }
 
