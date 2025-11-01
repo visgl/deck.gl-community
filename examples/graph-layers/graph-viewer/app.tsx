@@ -133,15 +133,15 @@ export function App(props) {
       stroke: 'black',
       strokeWidth: 1
     }
-  ],
-    // eslint-disable-next-line no-console
-    initialViewState = INITIAL_VIEW_STATE,
-    minZoom = -20,
-    maxZoom = 20,
-    viewportPadding = 50,
-    enableDragging = false,
-    resumeLayoutAfterDragging = false,
-    zoomToFitOnLoad = false;
+  ];
+  // eslint-disable-next-line no-console
+  const initialViewState = INITIAL_VIEW_STATE;
+  const minZoom = -20;
+  const maxZoom = 20;
+  const viewportPadding = 50;
+  // const enableDragging = false;
+  const resumeLayoutAfterDragging = false;
+  const zoomToFitOnLoad = false;
 
   const [viewState, setViewState] = useState({
     ...INITIAL_VIEW_STATE,
@@ -178,26 +178,26 @@ export function App(props) {
   }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
 
   // Relatively pan the graph by a specified position vector.
-  const panBy = useCallback(
-    (dx, dy) =>
-      setViewState({
-        ...viewState,
-        target: [viewState.target[0] + dx, viewState.target[1] + dy]
-      }),
-    [viewState, setViewState]
-  );
+  // const panBy = useCallback(
+  //   (dx, dy) =>
+  //     setViewState({
+  //       ...viewState,
+  //       target: [viewState.target[0] + dx, viewState.target[1] + dy]
+  //     }),
+  //   [viewState, setViewState]
+  // );
 
-  // Relatively zoom the graph by a delta zoom level
-  const zoomBy = useCallback(
-    (deltaZoom) => {
-      const newZoom = viewState.zoom + deltaZoom;
-      setViewState({
-        ...viewState,
-        zoom: Math.min(Math.max(newZoom, minZoom), maxZoom)
-      });
-    },
-    [maxZoom, minZoom, viewState, setViewState]
-  );
+  // // Relatively zoom the graph by a delta zoom level
+  // const zoomBy = useCallback(
+  //   (deltaZoom) => {
+  //     const newZoom = viewState.zoom + deltaZoom;
+  //     setViewState({
+  //       ...viewState,
+  //       zoom: Math.min(Math.max(newZoom, minZoom), maxZoom)
+  //     });
+  //   },
+  //   [maxZoom, minZoom, viewState, setViewState]
+  // );
 
   useEffect(() => {
     if (zoomToFitOnLoad && isLoading) {
@@ -251,15 +251,15 @@ export function App(props) {
               onViewStateChange={({viewState}) => setViewState(viewState as any)}
               views={[
                 new OrthographicView({
+                  minZoom,
+                  maxZoom,
                   controller: {
-                    minZoom,
-                    maxZoom,
                     scrollZoom: true,
                     touchZoom: true,
                     doubleClickZoom: true,
                     dragPan: true,
                     wheelSensitivity: 0.5
-                  } as any
+                  }
                 })
               ]}
               layers={[
