@@ -48,12 +48,12 @@
     "styled-react-modal": "^3.1.1"
   },
   "devDependencies": {
-    "@docusaurus/core": "^3.4.0",
-    "@docusaurus/module-type-aliases": "^3.4.0",
-    "@docusaurus/plugin-content-docs": "^3.4.0",
-    "@docusaurus/preset-classic": "^3.4.0",
-    "@docusaurus/tsconfig": "^3.4.0",
-    "@docusaurus/types": "^3.4.0",
+    "@docusaurus/core": "^3.9.2",
+    "@docusaurus/module-type-aliases": "^3.9.2",
+    "@docusaurus/plugin-content-docs": "^3.9.2",
+    "@docusaurus/preset-classic": "^3.9.2",
+    "@docusaurus/tsconfig": "^3.9.2",
+    "@docusaurus/types": "^3.9.2",
     "@mdx-js/react": "^3.0.1",
     "@types/node": "^20.11.24",
     "@types/react": "^18.2.48",

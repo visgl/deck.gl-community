@@ -2402,7 +2402,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/core@npm:3.9.2, @docusaurus/core@npm:^3.4.0":
+"@docusaurus/core@npm:3.9.2, @docusaurus/core@npm:^3.9.2":
   version: 3.9.2
   resolution: "@docusaurus/core@npm:3.9.2"
   dependencies:
@@ -2515,7 +2515,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/module-type-aliases@npm:3.9.2, @docusaurus/module-type-aliases@npm:^3.4.0":
+"@docusaurus/module-type-aliases@npm:3.9.2, @docusaurus/module-type-aliases@npm:^3.9.2":
   version: 3.9.2
   resolution: "@docusaurus/module-type-aliases@npm:3.9.2"
   dependencies:
@@ -2563,7 +2563,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-content-docs@npm:3.9.2, @docusaurus/plugin-content-docs@npm:^3.4.0":
+"@docusaurus/plugin-content-docs@npm:3.9.2, @docusaurus/plugin-content-docs@npm:^3.9.2":
   version: 3.9.2
   resolution: "@docusaurus/plugin-content-docs@npm:3.9.2"
   dependencies:
@@ -2726,7 +2726,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/preset-classic@npm:^3.4.0":
+"@docusaurus/preset-classic@npm:^3.9.2":
   version: 3.9.2
   resolution: "@docusaurus/preset-classic@npm:3.9.2"
   dependencies:
@@ -2849,14 +2849,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/tsconfig@npm:^3.4.0":
+"@docusaurus/tsconfig@npm:^3.9.2":
   version: 3.9.2
   resolution: "@docusaurus/tsconfig@npm:3.9.2"
   checksum: 10c0/d46241cb488d60f785710ee24980aad394423eaf5f76b64b0d47158fcbe19dd68a886898db83b1b65de18dfeb6c27d78adc8f8c4451d1ac29cc9da009ed15cd4
   languageName: node
   linkType: hard
 
-"@docusaurus/types@npm:3.9.2, @docusaurus/types@npm:^3.4.0":
+"@docusaurus/types@npm:3.9.2, @docusaurus/types@npm:^3.9.2":
   version: 3.9.2
   resolution: "@docusaurus/types@npm:3.9.2"
   dependencies:
@@ -13851,12 +13851,12 @@ __metadata:
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/google-maps": "npm:~9.2.1"
     "@deck.gl/json": "npm:~9.2.1"
-    "@docusaurus/core": "npm:^3.4.0"
-    "@docusaurus/module-type-aliases": "npm:^3.4.0"
-    "@docusaurus/plugin-content-docs": "npm:^3.4.0"
-    "@docusaurus/preset-classic": "npm:^3.4.0"
-    "@docusaurus/tsconfig": "npm:^3.4.0"
-    "@docusaurus/types": "npm:^3.4.0"
+    "@docusaurus/core": "npm:^3.9.2"
+    "@docusaurus/module-type-aliases": "npm:^3.9.2"
+    "@docusaurus/plugin-content-docs": "npm:^3.9.2"
+    "@docusaurus/preset-classic": "npm:^3.9.2"
+    "@docusaurus/tsconfig": "npm:^3.9.2"
+    "@docusaurus/types": "npm:^3.9.2"
     "@loaders.gl/core": "npm:^4.2.0"
     "@loaders.gl/csv": "npm:^4.2.0"
     "@loaders.gl/i3s": "npm:^4.2.0"
