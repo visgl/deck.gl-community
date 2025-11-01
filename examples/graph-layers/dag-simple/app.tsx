@@ -4,16 +4,13 @@
 import React, {useMemo} from 'react';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-import {GraphLayer, Graph, SimpleLayout, Node, Edge} from '@deck.gl-community/graph-layers';
 import {
-  graphStratify, sugiyama,
-  // layeringLongestPath, 
-  decrossTwoLayer,
-  // coordCenter,
-  coordGreedy,
-  // layeringSimplex,
-  layeringTopological
-} from 'd3-dag';
+  GraphLayer,
+  Graph,
+  D3DagLayout,
+  Node,
+  Edge,
+} from '@deck.gl-community/graph-layers';
 
 type DagRecord = {
   id: string;
@@ -45,66 +42,29 @@ const NODE_SPACING: [number, number] = [140, 120];
 
 type DagGraphResult = {
   graph: Graph;
-  layout: SimpleLayout;
+  layout: D3DagLayout;
 };
 
 function createDagGraph(): DagGraphResult {
-  const stratify = graphStratify();
-  const dag = stratify(DAG_DATA);
-
-  // const dagLayout = sugiyama()
-  //   .layering(layeringLongestPath())
-  //   .decross(decrossTwoLayer())
-  //   .coord(coordCenter())
-  //   .nodeSize(NODE_SPACING);
-
-  const dagLayout = sugiyama()
-    .layering(layeringTopological()) // packs layers more like a tree
-    .decross(decrossTwoLayer())
-    .coord(coordGreedy())              // spreads within a layer
-    .nodeSize(NODE_SPACING);
-
-  dagLayout(dag);
-
-  const positionedNodes: {id: string; label: string; x: number; y: number}[] = [];
-
-  for (const node of dag.topological()) {
-    // node.data has your datum; node.x / node.y are set after layout
-    positionedNodes.push({
-      id: node.data.id,
-      label: node.data.label,
-      x: node.x,
-      y: node.y
-    });
-  }
-
-  const minX = Math.min(...positionedNodes.map((d) => d.x));
-  const maxX = Math.max(...positionedNodes.map((d) => d.x));
-  const minY = Math.min(...positionedNodes.map((d) => d.y));
-  const maxY = Math.max(...positionedNodes.map((d) => d.y));
-
-  const offsetX = (minX + maxX) / 2;
-  const offsetY = (minY + maxY) / 2;
-
-  const nodes = positionedNodes.map((entry) =>
-    new Node({
-      id: entry.id,
-      data: {
-        label: entry.label,
-        x: entry.x - offsetX,
-        y: -(entry.y - offsetY)
-      }
-    })
+  const nodes = DAG_DATA.map(
+    (entry) =>
+      new Node({
+        id: entry.id,
+        data: {label: entry.label}
+      })
   );
 
   const edges: Edge[] = [];
-  for (const node of dag.topological()) {
-    for (const child of node.children()) {
+  for (const entry of DAG_DATA) {
+    if (!entry.parentIds) {
+      continue;
+    }
+    for (const parentId of entry.parentIds) {
       edges.push(
         new Edge({
-          id: `${node.data.id}->${child.data.id}`,
-          sourceId: node.data.id,
-          targetId: child.data.id,
+          id: `${parentId}->${entry.id}`,
+          sourceId: parentId,
+          targetId: entry.id,
           directed: true
         })
       );
@@ -112,11 +72,11 @@ function createDagGraph(): DagGraphResult {
   }
 
   const graph = new Graph({nodes, edges});
-  const layout = new SimpleLayout({
-    nodePositionAccessor: (node) => [
-      node.getPropertyValue('x') as number,
-      node.getPropertyValue('y') as number
-    ]
+  const layout = new D3DagLayout({
+    nodeSize: NODE_SPACING,
+    layering: 'topological',
+    decross: 'twoLayer',
+    coord: 'greedy'
   });
 
   return {graph, layout};
