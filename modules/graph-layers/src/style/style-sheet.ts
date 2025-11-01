@@ -41,7 +41,7 @@ export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty
       deckglAccessorMap,
       deckglUpdateTriggers = DEFAULT_UPDATE_TRIGGERS,
       stateUpdateTrigger = false,
-      StylePropertyClass = StyleProperty as StylePropertyConstructor<TStyleProperty>,
+      StylePropertyClass = StyleProperty as unknown as StylePropertyConstructor<TStyleProperty>,
       getDefaultStyleValue = StyleProperty.getDefault
     } = options;
 
@@ -69,14 +69,14 @@ export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty
         res.default[key] = restStyle[key];
         return res;
       },
-      {default: {}}
+      {default: {}} as Record<string, Record<string, unknown>>
     );
 
-    const attributes = Object.values(rules).reduce((res, rule) => {
+    const attributes = Object.values(rules).reduce<string[]>((res, rule) => {
       const attrs = Object.keys(rule || {});
-      const set = new Set([...(res as any), ...attrs]);
+      const set = new Set([...(res as string[]), ...attrs]);
       return Array.from(set);
-    }, [] as string[]);
+    }, []);
 
     const attrMap = attributes.reduce((res, attr) => {
       res[attr] = Object.entries(rules).reduce((acc, entry) => {
