@@ -77,3 +77,9 @@ jobs:
 
       - name: Run headless browser tests
         run: yarn test-headless --reporter=verbose
+
+      - name: Build website
+        run: |
+          cd website
+          yarn
+          yarn build
