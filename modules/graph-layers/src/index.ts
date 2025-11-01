@@ -20,7 +20,7 @@ export {RadialLayout as _RadialLayout} from './layouts/experimental/radial-layou
 export {ForceMultiGraphLayout as _MultigraphLayout} from './layouts/experimental/force-multi-graph-layout';
 export {HivePlotLayout as _HivePlotLayout} from './layouts/experimental/hive-plot-layout';
 
-export {NODE_STATE, NODE_TYPE, EDGE_TYPE, EDGE_DECORATOR_TYPE, MARKER_TYPE} from './core/constants';
+export type {Marker, NodeState, NodeType, EdgeType, EdgeDecoratorType, LayoutState} from './core/constants';
 
 // deck.gl components
 export {GraphLayer} from './layers/graph-layer';
@@ -40,3 +40,5 @@ export {log} from './utils/log';
 // DEPRECATED
 export {createGraph} from './loaders/create-graph';
 export {JSONLoader} from './loaders/simple-json-graph-loader';
+
+export {MARKER_TYPE, NODE_STATE,EDGE_STATE,NODE_TYPE,EDGE_TYPE,EDGE_DECORATOR_TYPE,LAYOUT_STATE} from './_deprecated/old-constants';

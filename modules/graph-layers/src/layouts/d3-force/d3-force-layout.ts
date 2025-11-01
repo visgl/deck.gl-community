@@ -4,8 +4,6 @@
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 
-import {EDGE_TYPE} from '../../core/constants';
-
 export type D3ForceLayoutOptions = GraphLayoutOptions & {
   alpha?: number;
   resumeAlpha?: number;
@@ -117,7 +115,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     }
 
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: this.getNodePosition(sourceNode),
       targetPosition: this.getNodePosition(targetNode),
       controlPoints: []

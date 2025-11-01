@@ -9,10 +9,19 @@ import DeckGL from '@deck.gl/react';
 import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {GraphEngine, GraphLayer, Graph, log, GraphLayout, SimpleLayout, D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import {
+  GraphEngine,
+  GraphLayer,
+  Graph,
+  log,
+  GraphLayout,
+  SimpleLayout,
+  D3ForceLayout,
+  JSONLoader
+} from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
-import '@deck.gl/widgets/stylesheet.css';
+// import '@deck.gl/widgets/stylesheet.css';
 
 import {extent} from 'd3-array';
 
@@ -258,7 +267,7 @@ export function App(props) {
                   engine,
                   nodeStyle: [
                     {
-                      type: NODE_TYPE.CIRCLE,
+                      type: 'circle',
                       radius: DEFAULT_NODE_SIZE,
                       fill: 'red'
                     }

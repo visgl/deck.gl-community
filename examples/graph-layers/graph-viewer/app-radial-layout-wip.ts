@@ -12,7 +12,7 @@ import Color from 'color';
 import {fetchJSONFromS3} from './io';
 
 // graph.gl
-import GraphGL, {JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import GraphGL, {JSONLoader} from '@deck.gl-community/graph-layers';
 import RadialLayout from './layouts/radial-layout';
 
 const DEFAULT_NODE_SIZE = 5;
@@ -69,12 +69,12 @@ export default class BasicRadialExample extends Component {
         }
         nodeStyle={[
           {
-            type: NODE_TYPE.CIRCLE,
+            type: 'circle',
             radius: DEFAULT_NODE_SIZE,
             fill: this.getNodeColor,
           },
           {
-            type: NODE_TYPE.LABEL,
+            type: 'label',
             text: node => node.getPropertyValue('name'),
             color: DEFAULT_NODE_LABEL_COLOR,
             textAnchor: 'start',

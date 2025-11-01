@@ -6,6 +6,7 @@ accepts an array of style objects. Each object describes one visual layer and is
 compiled into a Deck.gl sublayer by the `Stylesheet` helper.
 
 ```js
+<<<<<<< HEAD
 const nodeStyle = [
   {
     type: NODE_TYPE.CIRCLE,
@@ -19,12 +20,31 @@ const nodeStyle = [
     offset: [0, 16]
   }
 ];
+=======
+<GraphGL
+  {...shareProps}
+  nodeStyle={[
+    {
+      type: 'circle',
+      radius: 10,
+      color: '#f00'
+      data: data => data,
+      visible: true
+    }
+  ]}
+/>
+>>>>>>> f99b520 (Use kebab-case graph layer string types)
 ```
 
 The order in the array controls the drawing order: earlier entries are rendered
 first (i.e. they appear underneath later entries).
 
+<<<<<<< HEAD
 ## How the stylesheet engine works
+=======
+- `Type` can only be `circle`, `marker`, `rectangle`, `rounded-rectangle`, `path-rounded-rectangle`, `icon`, or `label`.
+- Different type of layer may requires different properties. See more details in the 'Node style' /docs/api-reference/node-style-circle chapter below.
+>>>>>>> f99b520 (Use kebab-case graph layer string types)
 
 1. `GraphLayer` receives your style objects and instantiates a `Stylesheet` for
    each entry.
@@ -48,10 +68,10 @@ The following keys are understood by every node style:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `type` | `NODE_TYPE` constant | – | Selects the visual primitive (circle, rectangle, label, etc.). |
+| `type` | `NODE_TYPE` constant | - | Selects the visual primitive (circle, rectangle, label, etc.). |
 | `data` | `function(node) -> any` | `node => node` | Replaces the data object passed to Deck.gl. Useful when a sublayer needs derived data. |
 | `visible` | `boolean` | `true` | Toggles the sublayer on and off without removing it from the style list. |
-| `opacity` | `number \| function` | `1` | Multiplies the alpha channel produced by the primitive. Accepts 0–1. |
+| `opacity` | `number \| function` | `1` | Multiplies the alpha channel produced by the primitive. Accepts 0-1. |
 | `offset` | `[number, number] \| function` | `null` | Pixel offset from the node’s layout position. Positive Y moves up. |
 
 Every style also accepts accessor functions. You can return a literal value or
@@ -104,14 +124,14 @@ If no selector is present the default variant is used for every state.
 Use the type-specific reference pages to learn about the properties that each
 primitive understands:
 
-* [Circle](./node-style-circle.md) – disk markers.
-* [Rectangle](./node-style-rectangle.md) – axis-aligned boxes.
-* [Rounded rectangle](./node-style-rounded-rectangle.md) – rectangles with
+* [Circle](./node-style-circle.md) - disk markers.
+* [Rectangle](./node-style-rectangle.md) - axis-aligned boxes.
+* [Rounded rectangle](./node-style-rounded-rectangle.md) - rectangles with
   adjustable corner radius rendered via shader.
-* [Path rounded rectangle](./node-style-path-rounded-rectangle.md) – rectangles
+* [Path rounded rectangle](./node-style-path-rounded-rectangle.md) - rectangles
   with rounded corners generated as polygons (useful for hit testing).
-* [Marker](./node-style-marker.md) – vector markers from the bundled marker set.
-* [Label](./node-style-label.md) – text drawn with `TextLayer`.
+* [Marker](./node-style-marker.md) - vector markers from the bundled marker set.
+* [Label](./node-style-label.md) - text drawn with `TextLayer`.
 
 Mixing several entries gives you complex node visuals, such as a rounded
 rectangle background with a label on top.

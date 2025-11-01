@@ -3,8 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {StyleProperty} from './style-property';
-
-import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
 import {log} from '../utils/log';
 
 const COMMON_DECKGL_PROPS = {
@@ -13,7 +11,7 @@ const COMMON_DECKGL_PROPS = {
 };
 
 const DECKGL_ACCESSOR_MAP = {
-  [NODE_TYPE.CIRCLE]: {
+  'circle': {
     ...COMMON_DECKGL_PROPS,
     getFillColor: 'fill',
     getLineColor: 'stroke',
@@ -21,7 +19,7 @@ const DECKGL_ACCESSOR_MAP = {
     getRadius: 'radius'
   },
 
-  [NODE_TYPE.RECTANGLE]: {
+  'rectangle': {
     ...COMMON_DECKGL_PROPS,
     getWidth: 'width',
     getHeight: 'height',
@@ -30,7 +28,7 @@ const DECKGL_ACCESSOR_MAP = {
     getLineWidth: 'strokeWidth'
   },
 
-  [NODE_TYPE.ROUNDED_RECTANGLE]: {
+  'rounded-rectangle': {
     ...COMMON_DECKGL_PROPS,
     getCornerRadius: 'cornerRadius',
     getRadius: 'radius',
@@ -41,7 +39,7 @@ const DECKGL_ACCESSOR_MAP = {
     getLineWidth: 'strokeWidth'
   },
 
-  [NODE_TYPE.PATH_ROUNDED_RECTANGLE]: {
+  'path-rounded-rectangle': {
     ...COMMON_DECKGL_PROPS,
     getWidth: 'width',
     getHeight: 'height',
@@ -51,7 +49,7 @@ const DECKGL_ACCESSOR_MAP = {
     getCornerRadius: 'cornerRadius'
   },
 
-  [NODE_TYPE.LABEL]: {
+  'label': {
     ...COMMON_DECKGL_PROPS,
     getColor: 'color',
     getText: 'text',
@@ -65,7 +63,7 @@ const DECKGL_ACCESSOR_MAP = {
     textSizeMinPixels: 'textSizeMinPixels'
   },
 
-  [NODE_TYPE.MARKER]: {
+  'marker': {
     ...COMMON_DECKGL_PROPS,
     getColor: 'fill',
     getSize: 'size',
@@ -78,7 +76,7 @@ const DECKGL_ACCESSOR_MAP = {
     getColor: 'stroke',
     getWidth: 'strokeWidth'
   },
-  [EDGE_DECORATOR_TYPE.LABEL]: {
+  'edge-label': {
     getColor: 'color',
     getText: 'text',
     getSize: 'fontSize',
@@ -89,13 +87,13 @@ const DECKGL_ACCESSOR_MAP = {
     textWordBreak: 'textWordBreak',
     textSizeMinPixels: 'textSizeMinPixels'
   },
-  [EDGE_DECORATOR_TYPE.FLOW]: {
+  'flow': {
     getColor: 'color',
     getWidth: 'width',
     getSpeed: 'speed',
     getTailLength: 'tailLength'
   },
-  [EDGE_DECORATOR_TYPE.ARROW]: {
+  'arrow': {
     getColor: 'color',
     getSize: 'size',
     getOffset: 'offset'
@@ -103,21 +101,21 @@ const DECKGL_ACCESSOR_MAP = {
 };
 
 const DECKGL_UPDATE_TRIGGERS = {
-  [NODE_TYPE.CIRCLE]: ['getFillColor', 'getRadius', 'getLineColor', 'getLineWidth'],
-  [NODE_TYPE.RECTANGLE]: ['getFillColor', 'getLineColor', 'getLineWidth'],
-  [NODE_TYPE.ROUNDED_RECTANGLE]: [
+  'circle': ['getFillColor', 'getRadius', 'getLineColor', 'getLineWidth'],
+  'rectangle': ['getFillColor', 'getLineColor', 'getLineWidth'],
+  'rounded-rectangle': [
     'getFillColor',
     'getLineColor',
     'getLineWidth',
     'getCornerRadius'
   ],
-  [NODE_TYPE.PATH_ROUNDED_RECTANGLE]: [
+  'path-rounded-rectangle': [
     'getFillColor',
     'getLineColor',
     'getLineWidth',
     'getCornerRadius'
   ],
-  [NODE_TYPE.LABEL]: [
+  'label': [
     'getColor',
     'getText',
     'getSize',
@@ -125,17 +123,17 @@ const DECKGL_UPDATE_TRIGGERS = {
     'getAlignmentBaseline',
     'getAngle'
   ],
-  [NODE_TYPE.MARKER]: ['getColor', 'getSize', 'getMarker'],
+  'marker': ['getColor', 'getSize', 'getMarker'],
   Edge: ['getColor', 'getWidth'],
-  [EDGE_DECORATOR_TYPE.LABEL]: [
+  'edge-label': [
     'getColor',
     'getText',
     'getSize',
     'getTextAnchor',
     'getAlignmentBaseline'
   ],
-  [EDGE_DECORATOR_TYPE.FLOW]: ['getColor', 'getWidth', 'getSpeed', 'getTailLength'],
-  [EDGE_DECORATOR_TYPE.ARROW]: ['getColor', 'getSize', 'getOffset']
+  'flow': ['getColor', 'getWidth', 'getSpeed', 'getTailLength'],
+  'arrow': ['getColor', 'getSize', 'getOffset']
 };
 
 export class Stylesheet {

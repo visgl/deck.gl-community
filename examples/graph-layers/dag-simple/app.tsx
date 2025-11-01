@@ -4,22 +4,14 @@
 import React, {useMemo} from 'react';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-import {
-  GraphLayer,
-  Graph,
-  SimpleLayout,
-  Node,
-  Edge,
-  NODE_TYPE,
-  EDGE_DECORATOR_TYPE
-} from '@deck.gl-community/graph-layers';
+import {GraphLayer, Graph, SimpleLayout, Node, Edge} from '@deck.gl-community/graph-layers';
 import {
   graphStratify, sugiyama,
   // layeringLongestPath, 
   decrossTwoLayer,
   // coordCenter,
   coordGreedy,
-  layeringSimplex,
+  // layeringSimplex,
   layeringTopological
 } from 'd3-dag';
 
@@ -141,14 +133,14 @@ export default function App(): React.ReactElement {
         layout,
         nodeStyle: [
           {
-            type: NODE_TYPE.CIRCLE,
+            type: 'circle',
             radius: 18,
             fill: '#4c6ef520',
             stroke: '#102a8220',
             strokeWidth: 2
           },
           {
-            type: NODE_TYPE.LABEL,
+            type: 'label',
             text: (node) => node.getPropertyValue('label') as string,
             fontSize: 16,
             color: '#102a82',
@@ -162,7 +154,7 @@ export default function App(): React.ReactElement {
           strokeWidth: 2,
           decorators: [
             {
-              type: EDGE_DECORATOR_TYPE.ARROW,
+              type: 'arrow',
               size: 6,
               fill: '#8da2fb'
             }

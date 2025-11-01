@@ -7,7 +7,7 @@ Adds text anchored near the edge’s midpoint. Internally this uses the same
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `text` | `string \| function` | – (required) | Label content. Functions receive the edge instance. |
+| `text` | `string \| function` | - (required) | Label content. Functions receive the edge instance. |
 | `color` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Font color. |
 | `fontSize` | `number \| function` | `12` | Font size in pixels. |
 | `textAnchor` | `string \| function` | `'middle'` | Horizontal alignment relative to the computed position. |

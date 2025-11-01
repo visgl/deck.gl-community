@@ -5,7 +5,7 @@
 import React, {Component} from 'react';
 import {createRoot} from 'react-dom/client';
 
-import {D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import {D3ForceLayout, JSONLoader} from '@deck.gl-community/graph-layers';
 import {GraphGL} from './react-graph-layers/graph-gl';
 
 // eslint-disable-next-line import/no-unresolved
@@ -64,7 +64,7 @@ export class App extends Component {
             layout={new D3ForceLayout()}
             nodeStyle={[
               {
-                type: NODE_TYPE.CIRCLE,
+                type: 'circle',
                 radius: DEFAULT_NODE_SIZE,
                 fill: 'red'
               }

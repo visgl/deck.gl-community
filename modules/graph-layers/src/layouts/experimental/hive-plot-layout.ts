@@ -4,7 +4,6 @@
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
-import {EDGE_TYPE} from '../../core/constants';
 import {Graph} from '../../graph/graph';
 
 export type HivePlotLayoutOptions = GraphLayoutOptions & {
@@ -116,7 +115,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
 
     if (sourceNodeAxis === targetNodeAxis) {
       return {
-        type: EDGE_TYPE.LINE,
+        type: 'line',
         sourcePosition,
         targetPosition,
         controlPoints: []
@@ -132,7 +131,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
     });
 
     return {
-      type: EDGE_TYPE.SPLINE_CURVE,
+      type: 'spline-curve',
       sourcePosition,
       targetPosition,
       controlPoints: [controlPoint]

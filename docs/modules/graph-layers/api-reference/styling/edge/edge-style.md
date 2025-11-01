@@ -14,7 +14,7 @@ const edgeStyle = {
   },
   decorators: [
     {
-      type: EDGE_DECORATOR_TYPE.LABEL,
+      type: 'edge-label',
       text: edge => edge.id,
       color: '#000',
       fontSize: 18,
@@ -67,9 +67,9 @@ Decorators add auxiliary visuals that travel along the edge path. Each decorator
 is an object with a `type` field matching one of `EDGE_DECORATOR_TYPE`. The
 following decorator types are available:
 
-* [`EDGE_DECORATOR_TYPE.LABEL`](./edge-style-label.md) – text anchored to the
+* [`EDGE_DECORATOR_TYPE.LABEL`](./edge-style-label.md) - text anchored to the
   edge midpoint.
-* [`EDGE_DECORATOR_TYPE.FLOW`](./edge-style-flow.md) – animated flow segments to
+* [`EDGE_DECORATOR_TYPE.FLOW`](./edge-style-flow.md) - animated flow segments to
   communicate direction or magnitude.
 
 <<<<<<< HEAD

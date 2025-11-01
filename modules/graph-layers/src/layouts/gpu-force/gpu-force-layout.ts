@@ -4,8 +4,6 @@
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 
-import {EDGE_TYPE} from '../../core/constants';
-
 export type GPUForceLayoutOptions = GraphLayoutOptions & {
   alpha?: number;
   resumeAlpha?: number;
@@ -232,14 +230,14 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     const targetPosition = d3Edge && d3Edge.target;
     if (d3Edge && sourcePosition && targetPosition) {
       return {
-        type: EDGE_TYPE.LINE,
+        type: 'line',
         sourcePosition: [sourcePosition.x, sourcePosition.y],
         targetPosition: [targetPosition.x, targetPosition.y],
         controlPoints: []
       };
     }
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: [0, 0],
       targetPosition: [0, 0],
       controlPoints: []

@@ -7,10 +7,9 @@ import type {Node} from '../graph/node';
 import type {Edge} from '../graph/edge';
 
 import isEqual from 'lodash.isequal';
-import {EDGE_TYPE} from './constants';
 
 // the status of the layout
-export type GraphLayoutState = 'INIT' | 'START' | 'CALCULATING' | 'DONE' | 'ERROR';
+export type GraphLayoutState = 'init' | 'start' | 'calculating' | 'done' | 'error';
 
 export type GraphLayoutOptions = {};
 
@@ -24,7 +23,7 @@ export class GraphLayout<
   protected _options: OptionsT;
 
   public version = 0;
-  public state: GraphLayoutState = 'INIT';
+  public state: GraphLayoutState = 'init';
 
   /**
    * Constructor of GraphLayout
@@ -68,7 +67,7 @@ export class GraphLayout<
   /** access the layout information of the edge */
   getEdgePosition(edge: Edge) {
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: [0, 0],
       targetPosition: [0, 0],
       controlPoints: []
@@ -91,14 +90,14 @@ export class GraphLayout<
 
   // INTERNAL METHODS
 
-  protected _updateState(state) {
+  protected _updateState(state: GraphLayoutState) {
     this.state = state;
     this.version += 1;
   }
 
   /** @fires GraphLayout#onLayoutStart */
   protected _onLayoutStart = (): void => {
-    this._updateState('CALCULATING');
+    this._updateState('calculating');
 
     /**
      * Layout calculation start.
@@ -110,7 +109,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutChange */
   protected _onLayoutChange = (): void => {
-    this._updateState('CALCULATING');
+    this._updateState('calculating');
 
     /**
      * Layout calculation iteration.
@@ -122,7 +121,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutDone */
   protected _onLayoutDone = (): void => {
-    this._updateState('DONE');
+    this._updateState('done');
 
     /**
      * Layout calculation is done.
@@ -134,7 +133,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutError */
   protected _onLayoutError = (): void => {
-    this._updateState('ERROR');
+    this._updateState('error');
 
     /**
      * Layout calculation went wrong.
