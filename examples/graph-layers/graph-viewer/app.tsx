@@ -8,6 +8,7 @@ import {createRoot} from 'react-dom/client';
 import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
+import type {GraphLayoutState} from '@deck.gl-community/graph-layers';
 import {
   GraphEngine,
   GraphLayer,
@@ -63,8 +64,31 @@ const DEFAULT_DATASET = 'Random (20, 40)';
 // },
 
 
-const loadingReducer = (state, action) => {
+type LoadingState = {
+  loaded: boolean;
+  rendered: boolean;
+  isLoading: boolean;
+};
+
+type LoadingAction =
+  | {type: 'reset'; layoutState?: GraphLayoutState}
+  | {type: 'startLayout'}
+  | {type: 'layoutDone'}
+  | {type: 'afterRender'};
+
+const deriveLoadingState = (layoutState?: GraphLayoutState): LoadingState => {
+  const loaded = layoutState === 'DONE';
+  return {
+    loaded,
+    rendered: false,
+    isLoading: !loaded
+  };
+};
+
+const loadingReducer = (state: LoadingState, action: LoadingAction): LoadingState => {
   switch (action.type) {
+    case 'reset':
+      return deriveLoadingState(action.layoutState);
     case 'startLayout':
       return {loaded: false, rendered: false, isLoading: true};
     case 'layoutDone':
@@ -82,14 +106,28 @@ const loadingReducer = (state, action) => {
 };
 
 export const useLoading = (engine: GraphEngine) => {
-  const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
+  const [{isLoading}, loadingDispatch] = useReducer(
+    loadingReducer,
+    engine?.getLayoutState(),
+    deriveLoadingState
+  );
 
   useLayoutEffect(() => {
+    loadingDispatch({type: 'reset', layoutState: engine?.getLayoutState()});
+
+    if (!engine) {
+      return undefined;
+    }
+
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
     engine.addEventListener('onLayoutStart', layoutStarted);
     engine.addEventListener('onLayoutDone', layoutEnded);
+
+    if (engine.getLayoutState() === 'DONE') {
+      loadingDispatch({type: 'layoutDone'});
+    }
 
     return () => {
       engine.removeEventListener('onLayoutStart', layoutStarted);
@@ -257,27 +295,38 @@ export function App() {
         </div>
       </div>
       <div style={{position: 'relative', width: '100%', flex: 1}}>
-        {isLoading ? <div style={{position: 'absolute', inset: 0}}>Loading...</div> : null}
-        <div style={{visibility: isLoading ? 'hidden' : 'visible', width: '100%', height: '100%'}}>
-          <DeckGL
-            onError={(error) => console.error(error)}
-            onAfterRender={handleAfterRender}
-            width="100%"
-            height="100%"
-            getCursor={getCursor}
-            viewState={viewState as any}
-            onResize={handleResize}
-            onViewStateChange={handleViewStateChange}
-            views={views}
-            layers={layers}
-            widgets={[
-              // // new ViewControlWidget({}) TODO - fix and enable
-            ]
-              // onHover={(info) => console.log('Hover', info)}
-            }
-            getTooltip={(info) => getToolTip(info.object)}
-          />
-        </div>
+        {isLoading ? (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none'
+            }}
+          >
+            Loading...
+          </div>
+        ) : null}
+        <DeckGL
+          onError={(error) => console.error(error)}
+          onAfterRender={handleAfterRender}
+          width="100%"
+          height="100%"
+          getCursor={getCursor}
+          viewState={viewState as any}
+          onResize={handleResize}
+          onViewStateChange={handleViewStateChange}
+          views={views}
+          layers={layers}
+          widgets={[
+            // // new ViewControlWidget({}) TODO - fix and enable
+          ]
+            // onHover={(info) => console.log('Hover', info)}
+          }
+          getTooltip={(info) => getToolTip(info.object)}
+        />
       </div>
     </div>
   );
