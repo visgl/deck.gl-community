@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {MarkerList} from '../layers/common-layers/marker-layer/marker-list';
+export {Marker} from '../layers/common-layers/marker-layer/marker-list';
 
-/** All the markers supported by node type marker */
-export const MARKER_TYPE = MarkerList;
-
-// the interaction state of a node.
+/** The interaction state of a node. */
 export type NodeState = 'default' | 'hover' | 'dragging' | 'selected';
 
+/** The interaction state of an edge. */
 export type EdgeState = 'default' | 'hover' | 'dragging' | 'selected';
 
 // node visual marker type
@@ -23,10 +21,10 @@ export type NodeType =
   | 'marker';
 
 // edge shape
-export type EdgeType = 'spline-curve' | 'line' | 'path';
+export type EdgeType = 'spline' | 'line' | 'path';
 
 // decorators on edges
-export type EdgeDecoratorType = 'edge-label' | 'flow' | 'arrow';
+export type EdgeDecoratorType = 'label' | 'flow' | 'arrow';
 
 // the status of the layout
 export type LayoutState = 'init' | 'start' | 'calculating' | 'done' | 'error';
