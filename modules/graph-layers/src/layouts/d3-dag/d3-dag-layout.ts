@@ -6,8 +6,6 @@ import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 import type {Graph} from '../../graph/graph';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
-import {EDGE_TYPE} from '../../core/constants';
-
 import {
   coordCenter,
   coordGreedy,
@@ -31,10 +29,10 @@ import {
   type DefaultGrid,
   type DefaultSugiyama,
   type DefaultZherebko,
-  type Graph as DagGraph,
   type LayoutResult,
   type MutGraph,
   type MutGraphNode,
+  type MutGraphLink,
   type NodeSize
 } from 'd3-dag';
 
@@ -77,9 +75,20 @@ export type D3DagLayoutOptions = GraphLayoutOptions & {
 
 type DagBuilder = (graph: Graph) => MutGraph<Node, Edge>;
 
-type LayeringOperator = ReturnType<typeof layeringSimplex>;
-type DecrossOperator = ReturnType<typeof decrossTwoLayer>;
-type CoordOperator = ReturnType<typeof coordGreedy>;
+type LayeringOperator =
+  | ReturnType<typeof layeringSimplex>
+  | ReturnType<typeof layeringLongestPath>
+  | ReturnType<typeof layeringTopological>;
+type DecrossOperator =
+  | ReturnType<typeof decrossTwoLayer>
+  | ReturnType<typeof decrossOpt>
+  | ReturnType<typeof decrossDfs>;
+type CoordOperator =
+  | ReturnType<typeof coordCenter>
+  | ReturnType<typeof coordGreedy>
+  | ReturnType<typeof coordQuad>
+  | ReturnType<typeof coordSimplex>
+  | ReturnType<typeof coordTopological>;
 
 type LayoutCallable = (dag: MutGraph<Node, Edge>) => LayoutResult;
 
@@ -291,7 +300,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     try {
       this._dag = this._buildDag();
       const layout = this._getLayoutOperator();
-      layout(this._dag as DagGraph<Node, Edge>);
+      layout(this._dag);
       this._cacheGeometry();
       this._onLayoutChange();
       this._onLayoutDone();
@@ -306,8 +315,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
 
     if (typeof builder === 'function') {
       const dag = builder(this._graph);
-      this._ensureEdgeData(dag);
-      return dag;
+      return this._ensureEdgeData(dag);
     }
 
     switch (builder) {
@@ -346,13 +354,15 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   }
 
   private _buildDagWithConnect(): MutGraph<Node, Edge> {
+    type ConnectDatum = {source: string; target: string; edge: Edge};
+
     const connect = graphConnect()
-      .sourceId((link) => link.source)
-      .targetId((link) => link.target)
-      .nodeDatum((id) => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
+      .sourceId(({source}: ConnectDatum): string => source)
+      .targetId(({target}: ConnectDatum): string => target)
+      .nodeDatum((id: string): Node => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
       .single(true);
 
-    const data = this._graph
+    const data: ConnectDatum[] = this._graph
       .getEdges()
       .filter((edge) => edge.isDirected())
       .map((edge) => ({
@@ -366,8 +376,8 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     const seenIds = new Set<string | number>();
     for (const dagNode of dag.nodes()) {
       const datum = dagNode.data;
-      if (datum) {
-        seenIds.add((datum).getId());
+      if (datum instanceof Node) {
+        seenIds.add(datum.getId());
       }
     }
 
@@ -377,57 +387,41 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       }
     }
 
-    for (const link of dag.links()) {
-      const datum = link.data as {edge?: Edge};
-      if (datum?.edge instanceof Edge) {
-        link.data = datum.edge;
-      }
-    }
-
-    this._ensureEdgeData(dag);
-    return dag;
+    return this._ensureEdgeData(dag);
   }
 
   private _buildDagWithStratify(): MutGraph<Node, Edge> {
-    const stratify = graphStratify();
+    const stratify = graphStratify()
+      .id((node: Node): string => this._toDagId(node.getId()))
+      .parentIds((node: Node): Iterable<string> => {
+        const parentIds = this._incomingParentMap.get(node.getId()) ?? [];
+        return parentIds
+          .filter((parentId) => this._nodeLookup.has(parentId))
+          .map((parentId) => this._toDagId(parentId));
+      });
 
-    const nodeData = this._graph.getNodes().map((node) => {
-      const id = this._toDagId(node.getId());
-      const parentIds = (this._incomingParentMap.get(node.getId()) ?? [])
-        .filter((parentId) => this._nodeLookup.has(parentId))
-        .map((parentId) => this._toDagId(parentId));
-
-      return {
-        id,
-        node,
-        parentIds
-      };
-    });
-
-    const dag = stratify(nodeData);
-
-    for (const dagNode of dag.nodes()) {
-      const datum = dagNode.data as {node: Node};
-      dagNode.data = datum.node;
-    }
-
-    this._ensureEdgeData(dag);
-    return dag as MutGraph<Node, Edge>;
+    const dag = stratify(this._graph.getNodes());
+    return this._ensureEdgeData(dag);
   }
 
-  private _ensureEdgeData(dag: MutGraph<Node, Edge>): void {
+  private _ensureEdgeData<T>(dag: MutGraph<Node, T>): MutGraph<Node, Edge> {
     for (const link of dag.links()) {
       if (link.data instanceof Edge) {
         continue;
       }
       const sourceNode = link.source.data;
       const targetNode = link.target.data;
+      if (!(sourceNode instanceof Node) || !(targetNode instanceof Node)) {
+        continue;
+      }
       const key = this._edgeKey(sourceNode.getId(), targetNode.getId());
       const edge = this._edgeLookup.get(key);
       if (edge) {
-        link.data = edge;
+        (link as unknown as MutGraphLink<Node, Edge>).data = edge;
       }
     }
+
+    return dag as unknown as MutGraph<Node, Edge>;
   }
 
   private _getLayoutOperator(): LayoutWithConfiguration {
