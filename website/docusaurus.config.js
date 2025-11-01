@@ -50,7 +50,7 @@ const config = {
         indexDocs: true,
         indexBlog: false,
         indexPages: true,
-        highlightSearchTermsOnTargetPage: true
+        // highlightSearchTermsOnTargetPage: true
       })
     ]
   ],

@@ -48,6 +48,7 @@
     "styled-react-modal": "^3.1.1"
   },
   "devDependencies": {
+    "@cmfcmf/docusaurus-search-local": "^2",
     "@docusaurus/core": "^3.9.2",
     "@docusaurus/module-type-aliases": "^3.9.2",
     "@docusaurus/plugin-content-docs": "^3.9.2",
@@ -57,7 +58,6 @@
     "@mdx-js/react": "^3.0.1",
     "@types/node": "^20.11.24",
     "@types/react": "^18.2.48",
-    "@cmfcmf/docusaurus-search-local": "^1.4.0",
     "algoliasearch": "^4.24.0",
     "algoliasearch-helper": "^3.22.5",
     "babel-plugin-inline-webgl-constants": "^1.0.3",
