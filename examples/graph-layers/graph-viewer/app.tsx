@@ -2,14 +2,24 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {Component, useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {GraphEngine, GraphLayer, Graph, log, GraphLayout, SimpleLayout, D3ForceLayout, JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import {
+  GraphEngine,
+  GraphLayer,
+  Graph,
+  GraphLayout,
+  SimpleLayout,
+  D3ForceLayout,
+  GPUForceLayout,
+  JSONLoader,
+  NODE_TYPE
+} from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 import '@deck.gl/widgets/stylesheet.css';
@@ -26,7 +36,15 @@ const INITIAL_VIEW_STATE = {
   zoom: 1
 };
 
-const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'];
+const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'] as const;
+type LayoutOption = (typeof LAYOUTS)[number];
+const DEFAULT_LAYOUT: LayoutOption = LAYOUTS[0];
+
+const LAYOUT_FACTORIES: Record<LayoutOption, () => GraphLayout> = {
+  D3ForceLayout: () => new D3ForceLayout(),
+  GPUForceLayout: () => new GPUForceLayout(),
+  SimpleLayout: () => new SimpleLayout()
+};
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
@@ -85,38 +103,24 @@ export const useLoading = (engine) => {
   return [{isLoading}, loadingDispatch];
 };
 
-const graphData = SAMPLE_GRAPH_DATASETS[DEFAULT_DATASET]();
-const graph = JSONLoader({json: graphData});
-const layout = new D3ForceLayout(); // SimpleLayout();
-
 export function App(props) {
+  const [selectedDataset, setSelectedDataset] = useState(DEFAULT_DATASET);
+  const [selectedLayout, setSelectedLayout] = useState<LayoutOption>(DEFAULT_LAYOUT);
 
-  const [state, setState] = useState({
-    selectedDataset: DEFAULT_DATASET,
-    selectedLayout: DEFAULT_DATASET
-  });
+  const graphData = useMemo(() => {
+    const datasetLoader =
+      SAMPLE_GRAPH_DATASETS[selectedDataset] ?? SAMPLE_GRAPH_DATASETS[DEFAULT_DATASET];
+    return datasetLoader();
+  }, [selectedDataset]);
 
-  const {selectedDataset} = state;
+  const graph = useMemo(() => JSONLoader({json: graphData}) as Graph, [graphData]);
 
-  const [engine, setEngine] = useState(new GraphEngine(graph, layout));
-  const isFirstMount = useRef(true);
+  const layout = useMemo<GraphLayout>(() => {
+    const createLayout = LAYOUT_FACTORIES[selectedLayout] ?? LAYOUT_FACTORIES[DEFAULT_LAYOUT];
+    return createLayout();
+  }, [selectedLayout]);
 
-  useLayoutEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
-    }
-
-    setEngine(new GraphEngine({graph, layout}));
-  }, [graph, layout]);
-
-  useLayoutEffect(() => {
-    engine.run();
-
-    return () => {
-      engine.clear();
-    };
-  }, [engine]);
+  const engine = useMemo(() => new GraphEngine({graph, layout}), [graph, layout]);
 
   const edgeStyle = [
     {
@@ -140,6 +144,15 @@ export function App(props) {
   });
 
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+
+  useEffect(() => {
+    loadingDispatch({type: 'startLayout'});
+    engine.run();
+
+    return () => {
+      engine.clear();
+    };
+  }, [engine, loadingDispatch]);
 
   const fitBounds = useCallback(() => {
     const data = engine.getNodes();
@@ -200,15 +213,21 @@ export function App(props) {
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
 
 
-  const handleChangeGraph = useCallback(({target: {value}}) => setState(state => ({...state, selectedDataset: value})), [setState]);
-  const handleChangeLayout = useCallback(({target: {value}}) => setState(state => ({...state, selectedLayout: value})), [setState]);
+  const handleChangeGraph = useCallback(
+    ({target: {value}}) => setSelectedDataset(value),
+    []
+  );
+  const handleChangeLayout = useCallback(
+    ({target: {value}}) => setSelectedLayout(value as LayoutOption),
+    []
+  );
 
   return (
     <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
       <div style={{width: '100%', zIndex: 999}}>
         <div>
           Dataset:
-          <select value={state.selectedDataset} onChange={handleChangeGraph}>
+          <select value={selectedDataset} onChange={handleChangeGraph}>
             {Object.keys(SAMPLE_GRAPH_DATASETS).map((data) => (
               <option key={data} value={data}>
                 {data}
@@ -218,7 +237,7 @@ export function App(props) {
         </div>
         <div>
           Layout:
-          <select value={state.selectedLayout} onChange={handleChangeLayout}>
+          <select value={selectedLayout} onChange={handleChangeLayout}>
             {LAYOUTS.map((data) => (
               <option key={data} value={data}>
                 {data}
