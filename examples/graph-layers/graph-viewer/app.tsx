@@ -21,7 +21,7 @@ import {
 } from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
-import '@deck.gl/widgets/stylesheet.css';
+// import '@deck.gl/widgets/stylesheet.css';
 
 import {extent} from 'd3-array';
 
