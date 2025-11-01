@@ -13851,21 +13851,12 @@ __metadata:
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/google-maps": "npm:~9.2.1"
     "@deck.gl/json": "npm:~9.2.1"
-<<<<<<< HEAD
     "@docusaurus/core": "npm:^3.9.2"
     "@docusaurus/module-type-aliases": "npm:^3.9.2"
     "@docusaurus/plugin-content-docs": "npm:^3.9.2"
     "@docusaurus/preset-classic": "npm:^3.9.2"
     "@docusaurus/tsconfig": "npm:^3.9.2"
     "@docusaurus/types": "npm:^3.9.2"
-=======
-    "@docusaurus/core": "npm:^3.4.0"
-    "@docusaurus/module-type-aliases": "npm:^3.4.0"
-    "@docusaurus/plugin-content-docs": "npm:^3.4.0"
-    "@docusaurus/preset-classic": "npm:^3.4.0"
-    "@docusaurus/tsconfig": "npm:^3.4.0"
-    "@docusaurus/types": "npm:^3.4.0"
->>>>>>> master
     "@loaders.gl/core": "npm:^4.2.0"
     "@loaders.gl/csv": "npm:^4.2.0"
     "@loaders.gl/i3s": "npm:^4.2.0"
