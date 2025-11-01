@@ -62,6 +62,7 @@ jobs:
         run: yarn test-node
 
       - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -69,6 +70,7 @@ jobs:
           restore-keys: pw-${{ runner.os }}-
 
       - name: Install Playwright Chromium (only)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run headless browser tests
