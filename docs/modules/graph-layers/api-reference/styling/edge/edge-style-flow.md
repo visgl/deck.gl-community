@@ -1,27 +1,42 @@
-# FLOW
+# Flow decorator
 
-<p align="center">
-  <img src="/gatsby/images/edge-styles/flows.gif" height="200" />
-</p>
+The flow decorator draws animated segments moving along the edge direction. It
+is useful to express throughput or directional emphasis.
 
-### `color` (String | Array | Function, optional)
-- Default: `[255, 255, 255, 255]`
-- The value can be hex code, color name, or color array `[r, g, b, a]` (each component is in the 0 - 255 range).
-- If a color value (hex code, color name, or array) is provided, it is used as the global color for all edges.
-- If a function is provided, it is called on each edge to retrieve its color.
+## Properties
 
-### `speed` (Number | Function, optional)
-- Default: `0`
-- Unit: number of moving segment pass through the line per second.
-- If a number is provided for `speed`, all the flow will have the same speed.
-- If an accessor function is provided, the function will be called to retrieve the speed for each flow.
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `color` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Color of the animated segment. |
+| `speed` | `number \| function` | `0` | Segments per second that travel along the edge. Positive values flow from source to target. |
+| `width` | `number \| function` | `1` | Visual width of the segment in pixels. |
+| `tailLength` | `number \| function` | `1` | Length of the fading trail behind each segment. |
 
-### `width` (Number | Function, optional)
-- Default: `1`
-- If a number is provided for `width`, all the flow will have the same width.
-- If an accessor function is provided, the function will be called to retrieve the width for each flow.
+All fields support accessors and selectors. A speed of `0` disables the motion
+while still rendering a static highlight.
 
-### `tailLength` (Number | Function, optional)
-- Default: `1`
-- If a number is provided for `tailLength`, all the flow will have the same length for the fading tail.
-- If an accessor function is provided, the function will be called to retrieve the length of the fading tail for each flow.
+## Examples
+
+```js
+{
+  type: EDGE_DECORATOR_TYPE.FLOW,
+  color: '#22D3EE',
+  width: 2,
+  speed: edge => edge.capacity > 0 ? edge.load / edge.capacity : 0,
+  tailLength: 4
+}
+```
+
+To create directional emphasis only while hovering:
+
+```js
+{
+  type: EDGE_DECORATOR_TYPE.FLOW,
+  color: '#FACC15',
+  width: 3,
+  speed: {
+    default: 0,
+    hover: 2
+  }
+}
+```

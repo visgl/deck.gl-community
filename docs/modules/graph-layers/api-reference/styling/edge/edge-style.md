@@ -1,19 +1,28 @@
-# Edge Style
+# Edge stylesheets
 
-### Usage
+Edges are styled with a single object passed to the `edgeStyle` prop of
+`GraphLayer`. Similar to nodes, the stylesheet engine normalizes colors,
+accessors, and interaction states before feeding them into Deck.gl’s `LineLayer`.
 
 ```js
-edgeStyle={{
-  stroke: 'black',
-  strokeWidth: 2,
-  data: (data) => data,
-  visible: true,
+const edgeStyle = {
+  stroke: edge => (edge.isCritical ? '#F97316' : '#94A3B8'),
+  strokeWidth: {
+    default: 1,
+    hover: 3,
+    selected: 4
+  },
   decorators: [
     {
       type: EDGE_DECORATOR_TYPE.LABEL,
       text: edge => edge.id,
       color: '#000',
       fontSize: 18,
+
+      // text: edge => edge.weight.toFixed(1),
+      // color: '#1F2937',
+      // offset: [0, 16]
+
     },
     {
       type: EDGE_DECORATOR_TYPE.ARROW,
@@ -23,30 +32,47 @@ edgeStyle={{
     }
   ],
 }}
+};
 ```
 
-### `stroke` (String | Array | Function, optional)
+## Shared properties
 
-- Default: `[255, 255, 255, 255]`
-- The value can be hex code, color name, or color array `[r, g, b, a]` (each component is in the 0 - 255 range).
-- If a color value (hex code, color name, or array) is provided, it is used as the global color for all edges.
-- If a function is provided, it is called on each rectangle to retrieve its color.
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `stroke` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Line color. Accepts CSS strings or `[r, g, b, a]` arrays. |
+| `strokeWidth` | `number \| function` | `0` | Line width in pixels. Accessors receive the edge object. |
+| `data` | `function(edge) -> any` | `edge => edge` | Overrides the data object passed to the Deck.gl layer. |
+| `visible` | `boolean` | `true` | Toggles the entire edge layer on/off. |
+| `decorators` | `Array` | `[]` | Additional visual adornments such as labels or animated flow indicators. |
 
-### `strokeWidth` (Number | Function, optional)
+### Interaction selectors
 
-- Default: `0`
-  The width of the outline of each rectangle.
-  If a number is provided, it is used as the outline width for all edges.
-  If a function is provided, it is called on each rectangle to retrieve its outline width.
+Edge styles honor the same selectors as node styles: `:hover`, `:dragging`, and
+`:selected`. Selector blocks can override any property, including decorators.
 
-### `data` (Function, optional)
+```js
+const edgeStyle = {
+  stroke: '#CBD5F5',
+  strokeWidth: 1,
+  ':hover': {
+    stroke: '#2563EB',
+    strokeWidth: 2
+  }
+};
+```
 
-Allows setting of the layer data via accessor
+### Decorators
 
-### `visible` (Boolean, optional)
+Decorators add auxiliary visuals that travel along the edge path. Each decorator
+is an object with a `type` field matching one of `EDGE_DECORATOR_TYPE`. The
+following decorator types are available:
 
-Determines if the layer is visible
+* [`EDGE_DECORATOR_TYPE.LABEL`](./edge-style-label.md) – text anchored to the
+  edge midpoint.
+* [`EDGE_DECORATOR_TYPE.FLOW`](./edge-style-flow.md) – animated flow segments to
+  communicate direction or magnitude.
 
+<<<<<<< HEAD
 ### `decorators` (Array, optional)
 
 A set of decorators that can be attached to each rendered edge. Supported decorator `type`
@@ -61,3 +87,7 @@ values and their style attributes include:
   `offset`. The `offset` accessor accepts `[along, perpendicular]` distances in layer units, where
   `along` shifts the arrow away from the target node and `perpendicular` offsets it orthogonally
   from the edge.
+=======
+Decorators are also processed by the stylesheet engine, so they can use
+selectors and accessors just like the main edge style.
+>>>>>>> 0464f83 (docs: overhaul graph-layers styling reference)

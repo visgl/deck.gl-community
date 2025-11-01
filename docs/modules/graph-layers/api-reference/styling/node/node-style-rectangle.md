@@ -1,33 +1,50 @@
-# RECTANGLE
+# Rectangle node style
 
-<p align="center">
-  <img src="/gatsby/images/node-styles/rectangle.png" height="100" />
-</p>
+Rectangles are rendered with Deck.gl’s `PolygonLayer` and are useful for card-like
+nodes or to provide a background behind other primitives.
 
-### `width` (Number | Function, required)
-- The width of the rectancle.
-- If a number is provided, it is used as the width for all objects.
-- If a function is provided, it is called on each object to retrieve its width.
+## Properties
 
-### `height` (Number | Function, required)
-- The height of the rectangle.
-- If a number is provided, it is used as the height for all objects.
-- If a function is provided, it is called on each object to retrieve its height.
+Besides the [shared node options](./node-style.md#shared-properties), rectangles
+support:
 
-### `fill` (String | Array | Function, optional)
-- Default: `[0, 0, 0, 255]`
-- The value can be hex code, color name, or color array `[r, g, b, a]` (each component is in the 0 - 255 range).
-If a color value (hex code, color name, or array) is provided, it is used as the global color for all objects.
-- If a function is provided, it is called on each object to retrieve its color.
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `width` | `number \| function` | – (required) | Rectangle width in pixels. Accessors receive the node instance. |
+| `height` | `number \| function` | – (required) | Rectangle height in pixels. |
+| `fill` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Interior color. |
+| `stroke` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Border color. |
+| `strokeWidth` | `number \| function` | `0` | Border width in pixels. |
 
-### `stroke` (String | Array | Function, optional)
-- Default: `[0, 0, 0, 255]`
-- The value can be hex code, color name, or color array `[r, g, b, a]` (each component is in the 0 - 255 range).
-- If a color value (hex code, color name, or array) is provided, it is used as the global color for all objects.
-- If a function is provided, it is called on each rectangle to retrieve its color.
+## Examples
 
-### `strokeWidth` (Number | Function, optional)
-- Default: `0`
-The width of the outline of each rectangle.
-If a number is provided, it is used as the outline width for all rectangles.
-If a function is provided, it is called on each rectangle to retrieve its outline width.
+```js
+{
+  type: NODE_TYPE.RECTANGLE,
+  width: 120,
+  height: 60,
+  fill: '#1F2937',
+  stroke: '#93C5FD',
+  strokeWidth: 1
+}
+```
+
+You can combine selectors to animate the border as the user interacts with the
+node:
+
+```js
+{
+  type: NODE_TYPE.RECTANGLE,
+  width: node => 100 + node.metadata.padding * 2,
+  height: 48,
+  fill: {
+    default: '#0F172A',
+    hover: '#1E293B'
+  },
+  strokeWidth: {
+    default: 1,
+    selected: 4
+  },
+  stroke: '#38BDF8'
+}
+```

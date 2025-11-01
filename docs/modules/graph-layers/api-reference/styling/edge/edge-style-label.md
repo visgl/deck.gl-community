@@ -1,34 +1,52 @@
-# LABEL
+# Edge label decorator
 
-<p align="center">
-  <img src="/gatsby/images/edge-styles/label.png" height="200" />
-</p>
+Adds text anchored near the edge’s midpoint. Internally this uses the same
+`ZoomableTextLayer` as node labels, so the available options are similar.
 
-### `text` (String | Function, required)
-- The text of the label.
-- If a string is provided for `text`, all the edges will have the same text.
-- If an accessor function is provided, the function will be called to retrieve the text of each edge.
+## Properties
 
-### `color` (String | Array | Function, optional)
-- Default: `[255, 255, 255, 255]`
-- The value can be hex code, color name, or color array `[r, g, b, a]` (each component is in the 0 - 255 range).
-- If a color value (hex code, color name, or array) is provided, it is used as the global color for all edges.
-- If a function is provided, it is called on each edge to retrieve its color.
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `text` | `string \| function` | – (required) | Label content. Functions receive the edge instance. |
+| `color` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Font color. |
+| `fontSize` | `number \| function` | `12` | Font size in pixels. |
+| `textAnchor` | `string \| function` | `'middle'` | Horizontal alignment relative to the computed position. |
+| `alignmentBaseline` | `string \| function` | `'center'` | Vertical alignment. |
+| `angle` | `number \| function` | Automatic | Rotation in degrees. Defaults to the edge direction; override to lock the angle. |
+| `textMaxWidth` | `number \| function` | `-1` | Maximum width before wrapping. `-1` disables wrapping. |
+| `textWordBreak` | `string \| function` | `'break-all'` | Word-breaking mode (`'break-word'`, `'break-all'`, etc.). |
+| `textSizeMinPixels` | `number \| function` | `9` | Minimum rendered size for zooming out. |
+| `scaleWithZoom` | `boolean \| function` | `true` | Whether the label scales with the viewport zoom level. |
+| `offset` | `[number, number] \| function` | `null` | Additional pixel offset from the centroid-derived anchor position. |
 
-### `fontSize` (Number | Function, optional)
-- Default: `12`
-- If a number is provided for `fontSize`, all the labels will have the same font size.
-- If an accessor function is provided, the function will be called to retrieve the font size of each label.
+All properties support selectors (`:hover`, `:selected`, …) and accessors, just
+like the base edge style.
 
-### `textAnchor` (String | Function, optional)
-- Default: `middle`
-- The text anchor. Available options include 'start', 'middle' and 'end'.
+## Examples
 
-- If a string is provided, it is used as the text anchor for all edges.
-- If a function is provided, it is called on each edge to retrieve its text anchor.
+```js
+{
+  type: EDGE_DECORATOR_TYPE.LABEL,
+  text: edge => `${edge.weight} ms`,
+  color: {
+    default: '#1F2937',
+    hover: '#111827'
+  },
+  textAnchor: 'start',
+  offset: [8, 0]
+}
+```
 
-### `alignmentBaseline` (String | Function, optional)
-- Default: `center`
-The alignment baseline. Available options include 'top', 'center' and 'bottom'.
-- If a string is provided, it is used as the alignment baseline for all edges.
-- If a function is provided, it is called on each edge to retrieve its alignment baseline.
+To keep labels readable while zooming, disable scaling at small sizes:
+
+```js
+{
+  type: EDGE_DECORATOR_TYPE.LABEL,
+  text: edge => edge.label,
+  scaleWithZoom: {
+    default: true,
+    dragging: false
+  },
+  textSizeMinPixels: 12
+}
+```
