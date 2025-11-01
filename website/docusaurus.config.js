@@ -46,6 +46,19 @@ const config = {
     ]
   ],
 
+  themes: [
+    [
+      '@cmfcmf/docusaurus-search-local',
+      /** @type {import('@cmfcmf/docusaurus-search-local').PluginOptions} */
+      ({
+        indexDocs: true,
+        indexBlog: false,
+        indexPages: true,
+        // highlightSearchTermsOnTargetPage: true
+      })
+    ]
+  ],
+
   plugins: [
     [
       './ocular-docusaurus-plugin',
@@ -219,17 +232,6 @@ const config = {
           }
         ],
         copyright: `Copyright © ${new Date().getFullYear()} OpenJS Foundation`
-      },
-      algolia: {
-        // The application ID provided by Algolia
-        appId: '8EVYAVB4KT',
-        // Public API key: it is safe to commit it
-        apiKey: 'a3fe1388353d733272ffdf148c53eeaa',
-        indexName: 'deck',
-        // Optional: see doc section below
-        contextualSearch: true,
-        // Optional: path for search page that enabled by default (`false` to disable it)
-        searchPagePath: false
       },
       prism: {
         theme: lightCodeTheme,
