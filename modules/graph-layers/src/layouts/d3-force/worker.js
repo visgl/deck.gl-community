@@ -46,6 +46,7 @@ onmessage = function (event) {
     postMessage({
       type: 'tick',
       progress: i / n,
+      nodes,
       options: event.data.options
     });
     simulation.tick();

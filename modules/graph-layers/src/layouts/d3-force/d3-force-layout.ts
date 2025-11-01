@@ -82,20 +82,25 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     });
 
     this._worker.onmessage = (event) => {
-      if (event.data.type !== 'end') {
+      if (event.data.type !== 'tick' && event.data.type !== 'end') {
         return;
       }
 
-      event.data.nodes.forEach(({id, ...d3}) =>
-        this._positionsByNodeId.set(id, {
-          ...d3,
-          // precompute so that when we return the node position we do not need to do the conversion
-          coordinates: [d3.x, d3.y]
-        })
-      );
+      if (event.data.nodes) {
+        event.data.nodes.forEach(({id, ...d3}) =>
+          this._positionsByNodeId.set(id, {
+            ...d3,
+            // precompute so that when we return the node position we do not need to do the conversion
+            coordinates: [d3.x, d3.y]
+          })
+        );
 
-      this._onLayoutChange();
-      this._onLayoutDone();
+        this._onLayoutChange();
+      }
+
+      if (event.data.type === 'end') {
+        this._onLayoutDone();
+      }
     };
   }
 
