@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/* eslint-disable no-continue, complexity, max-statements */
+
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 import type {Graph} from '../../graph/graph';
 import {Node} from '../../graph/node';
@@ -264,7 +266,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       return null;
     }
 
-    const points = this._edgePoints.get(edge.getId()) || [sourcePosition, targetPosition];
+    // const points = this._edgePoints.get(edge.getId()) || [sourcePosition, targetPosition];
     const controlPoints = this._edgeControlPoints.get(edge.getId()) || [];
     const edgeType = controlPoints.length ? 'spline' : 'line';
 

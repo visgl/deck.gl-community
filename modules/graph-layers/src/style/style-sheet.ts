@@ -42,6 +42,7 @@ export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty
       deckglUpdateTriggers = DEFAULT_UPDATE_TRIGGERS,
       stateUpdateTrigger = false,
       StylePropertyClass = StyleProperty as unknown as StylePropertyConstructor<TStyleProperty>,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       getDefaultStyleValue = StyleProperty.getDefault
     } = options;
 
