@@ -74,7 +74,7 @@ export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty
 
     const attributes = Object.values(rules).reduce<string[]>((res, rule) => {
       const attrs = Object.keys(rule || {});
-      const set = new Set([...(res as string[]), ...attrs]);
+      const set = new Set([...(res), ...attrs]);
       return Array.from(set);
     }, []);
 
@@ -139,7 +139,7 @@ export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty
       return typeof value === 'function' ? value : () => value;
     }
     const styleProp = this.getDeckGLAccessorMapForType()?.[deckglAccessor];
-    return this.getDefaultStyleValue(styleProp as string);
+    return this.getDefaultStyleValue(styleProp);
   }
 
   getDeckGLAccessorUpdateTrigger(deckglAccessor: string) {
