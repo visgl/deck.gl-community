@@ -13,8 +13,9 @@ export {GraphEngine} from './core/graph-engine';
 export type {GraphLayoutState} from './core/graph-layout';
 export {GraphLayout} from './core/graph-layout';
 
-export {SimpleLayout} from './layouts//simple-layout';
+export {SimpleLayout} from './layouts/simple-layout';
 export {D3ForceLayout} from './layouts/d3-force/d3-force-layout';
+export {D3DagLayout} from './layouts/d3-dag/d3-dag-layout';
 export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
 export {RadialLayout as _RadialLayout} from './layouts/experimental/radial-layout';
 export {ForceMultiGraphLayout as _MultigraphLayout} from './layouts/experimental/force-multi-graph-layout';
