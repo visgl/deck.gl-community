@@ -124,9 +124,11 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   };
 
   private _graphPropWarningIssued = false;
+  private _ignoreNextDataChange = false;
 
   forceUpdate = () => {
     if (this.context && this.context.layerManager) {
+      this._ignoreNextDataChange = true;
       this.setNeedsUpdate();
       this.setChangeFlags({dataChanged: true} as any); // TODO
     }
@@ -198,6 +200,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     changeFlags: {dataChanged?: boolean; propsChanged?: boolean},
     force = false
   ): boolean {
+    const ignoreDataChange = this._ignoreNextDataChange && !force;
+    this._ignoreNextDataChange = false;
+
     const layoutChanged =
       force ||
       (changeFlags.propsChanged && !!oldProps &&
@@ -208,7 +213,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       (changeFlags.propsChanged && !!oldProps && props.engine !== oldProps.engine);
     const dataPropChanged =
       force ||
-      changeFlags.dataChanged ||
+      (!ignoreDataChange && changeFlags.dataChanged) ||
       (changeFlags.propsChanged && !!oldProps && props.data !== oldProps.data);
     const graphPropChanged =
       force || (changeFlags.propsChanged && !!oldProps && props.graph !== oldProps.graph);
