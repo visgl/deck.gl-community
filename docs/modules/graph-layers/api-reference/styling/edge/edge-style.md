@@ -61,33 +61,25 @@ const edgeStyle = {
 };
 ```
 
-### Decorators
-
-Decorators add auxiliary visuals that travel along the edge path. Each decorator
-is an object with a `type` field matching one of `EDGE_DECORATOR_TYPE`. The
-following decorator types are available:
-
-* [`EDGE_DECORATOR_TYPE.LABEL`](./edge-style-label.md) - text anchored to the
-  edge midpoint.
-* [`EDGE_DECORATOR_TYPE.FLOW`](./edge-style-flow.md) - animated flow segments to
-  communicate direction or magnitude.
-
-<<<<<<< HEAD
 ### `decorators` (Array, optional)
 
+Decorators add auxiliary visuals that travel along the edge path. Each decorator
+is an object with a `type` field.
 A set of decorators that can be attached to each rendered edge. Supported decorator `type`
 values and their style attributes include:
 
-- `EDGE_DECORATOR_TYPE.LABEL`: draws text that follows the edge. Supports `text`, `color`,
+The following decorator types are available:
+
+* [`'label'`](./edge-style-label.md) - draws text that follows the edge. Supports `text`, `color`,
   `fontSize`, `textAnchor`, `alignmentBaseline`, `scaleWithZoom`, `textMaxWidth`, `textWordBreak`
-  and `textSizeMinPixels`.
-- `EDGE_DECORATOR_TYPE.FLOW`: renders animated flow lines. Supports `color`, `width`, `speed` and
+  and `textSizeMinPixels`..
+* [`'flow'`](./edge-style-flow.md) - animated flow segments to
+  communicate direction or magnitude. Supports `color`, `width`, `speed` and
   `tailLength`.
-- `EDGE_DECORATOR_TYPE.ARROW`: renders arrowheads for directed edges. Supports `color`, `size` and
+- `'arrow''`: renders arrowheads for directed edges. Supports `color`, `size` and
   `offset`. The `offset` accessor accepts `[along, perpendicular]` distances in layer units, where
   `along` shifts the arrow away from the target node and `perpendicular` offsets it orthogonally
   from the edge.
-=======
+
 Decorators are also processed by the stylesheet engine, so they can use
 selectors and accessors just like the main edge style.
->>>>>>> 0464f83 (docs: overhaul graph-layers styling reference)

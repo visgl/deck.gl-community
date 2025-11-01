@@ -5,12 +5,173 @@
 import {StyleProperty} from './style-property';
 import {log} from '../utils/log';
 
+export type DeckGLAccessorMap = Record<string, Record<string, string>>;
+export type DeckGLUpdateTriggers = Record<string, string[]>;
+
+type StylePropertyConstructor<T extends StyleProperty = StyleProperty> = new (args: {
+  key: string;
+  value: unknown;
+  updateTrigger: unknown;
+}) => T;
+
+export type DefaultStyleValueFn = (property: string) => unknown;
+
+export type BaseStylesheetOptions<T extends StyleProperty = StyleProperty> = {
+  deckglAccessorMap: DeckGLAccessorMap;
+  deckglUpdateTriggers?: DeckGLUpdateTriggers;
+  stateUpdateTrigger?: unknown;
+  StylePropertyClass?: StylePropertyConstructor<T>;
+  getDefaultStyleValue?: DefaultStyleValueFn;
+};
+
+const DEFAULT_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {};
+
+export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty> {
+  type: string;
+  properties: Record<string, TStyleProperty>;
+
+  protected readonly deckglAccessorMap: DeckGLAccessorMap;
+  protected readonly deckglUpdateTriggers: DeckGLUpdateTriggers;
+  protected readonly stateUpdateTrigger: unknown;
+  protected readonly StylePropertyClass: StylePropertyConstructor<TStyleProperty>;
+  protected readonly getDefaultStyleValue: DefaultStyleValueFn;
+
+  constructor(style: Record<string, any>, options: BaseStylesheetOptions<TStyleProperty>) {
+    const {
+      deckglAccessorMap,
+      deckglUpdateTriggers = DEFAULT_UPDATE_TRIGGERS,
+      stateUpdateTrigger = false,
+      StylePropertyClass = StyleProperty as unknown as StylePropertyConstructor<TStyleProperty>,
+      getDefaultStyleValue = StyleProperty.getDefault
+    } = options;
+
+    const {type: layerType, ...restStyle} = style;
+
+    if (!layerType || !(layerType in deckglAccessorMap)) {
+      throw new Error(`illegal type: ${layerType}`);
+    }
+
+    this.type = layerType;
+    this.deckglAccessorMap = deckglAccessorMap;
+    this.deckglUpdateTriggers = deckglUpdateTriggers;
+    this.stateUpdateTrigger = stateUpdateTrigger;
+    this.StylePropertyClass = StylePropertyClass;
+    this.getDefaultStyleValue = getDefaultStyleValue;
+
+    const rules = Object.keys(restStyle).reduce(
+      (res, key) => {
+        const isSelector = key.startsWith(':');
+        if (isSelector) {
+          const state = key.substring(1);
+          res[state] = restStyle[key];
+          return res;
+        }
+        res.default[key] = restStyle[key];
+        return res;
+      },
+      {default: {}} as Record<string, Record<string, unknown>>
+    );
+
+    const attributes = Object.values(rules).reduce<string[]>((res, rule) => {
+      const attrs = Object.keys(rule || {});
+      const set = new Set([...(res), ...attrs]);
+      return Array.from(set);
+    }, []);
+
+    const attrMap = attributes.reduce((res, attr) => {
+      res[attr] = Object.entries(rules).reduce((acc, entry) => {
+        const [state, rule] = entry;
+        if (rule && typeof (rule as any)[attr] !== 'undefined') {
+          (acc as any)[state] = (rule as any)[attr];
+        }
+        return acc;
+      }, {} as Record<string, unknown>);
+      return res;
+    }, {} as Record<string, any>);
+
+    const simplifiedStyleMap = Object.entries(attrMap).reduce((res, entry) => {
+      const [attr, valueMap] = entry as [string, Record<string, unknown>];
+      const states = Object.keys(valueMap);
+      const onlyDefault = states.length === 1 && valueMap.default !== undefined;
+      if (onlyDefault) {
+        res[attr] = valueMap.default;
+        return res;
+      }
+      res[attr] = valueMap;
+      return res;
+    }, {} as Record<string, unknown>);
+
+    this.properties = {} as Record<string, TStyleProperty>;
+    for (const key in simplifiedStyleMap) {
+      this.properties[key] = new this.StylePropertyClass({
+        key,
+        value: simplifiedStyleMap[key],
+        updateTrigger: this.stateUpdateTrigger
+      });
+    }
+  }
+
+  protected getDeckGLAccessorMapForType() {
+    return this.deckglAccessorMap[this.type];
+  }
+
+  protected getDeckGLUpdateTriggersForType() {
+    return this.deckglUpdateTriggers[this.type] || [];
+  }
+
+  protected _getProperty(deckglAccessor: string) {
+    const map = this.getDeckGLAccessorMapForType();
+    if (!map) {
+      throw new Error(`illegal type: ${this.type}`);
+    }
+    const styleProp = map[deckglAccessor];
+    if (!styleProp) {
+      log.error(`Invalid DeckGL accessor: ${deckglAccessor}`)();
+      throw new Error(`Invalid DeckGL accessor: ${deckglAccessor}`);
+    }
+    return this.properties[styleProp];
+  }
+
+  getDeckGLAccessor(deckglAccessor: string) {
+    const property = this._getProperty(deckglAccessor);
+    if (property) {
+      const value = property.getValue();
+      return typeof value === 'function' ? value : () => value;
+    }
+    const styleProp = this.getDeckGLAccessorMapForType()?.[deckglAccessor];
+    return this.getDefaultStyleValue(styleProp);
+  }
+
+  getDeckGLAccessorUpdateTrigger(deckglAccessor: string) {
+    const property = this._getProperty(deckglAccessor);
+    if (property) {
+      return property.getUpdateTrigger();
+    }
+    return false;
+  }
+
+  getDeckGLAccessors() {
+    const accessorMap = this.getDeckGLAccessorMapForType();
+    return Object.keys(accessorMap).reduce((res, accessor) => {
+      res[accessor] = this.getDeckGLAccessor(accessor);
+      return res;
+    }, {} as Record<string, (...args: any[]) => unknown>);
+  }
+
+  getDeckGLUpdateTriggers() {
+    return this.getDeckGLUpdateTriggersForType().reduce((res, accessor) => {
+      res[accessor] = this.getDeckGLAccessorUpdateTrigger(accessor);
+      return res;
+    }, {} as Record<string, unknown>);
+  }
+}
+
 const COMMON_DECKGL_PROPS = {
   getOffset: 'offset',
   opacity: 'opacity'
 };
 
-const DECKGL_ACCESSOR_MAP = {
+const GRAPH_DECKGL_ACCESSOR_MAP: DeckGLAccessorMap = {
   'circle': {
     ...COMMON_DECKGL_PROPS,
     getFillColor: 'fill',
@@ -71,7 +232,6 @@ const DECKGL_ACCESSOR_MAP = {
     scaleWithZoom: 'scaleWithZoom'
   },
 
-  // --------- Edge related ---------
   Edge: {
     getColor: 'stroke',
     getWidth: 'strokeWidth'
@@ -100,7 +260,7 @@ const DECKGL_ACCESSOR_MAP = {
   }
 };
 
-const DECKGL_UPDATE_TRIGGERS = {
+const GRAPH_DECKGL_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
   'circle': ['getFillColor', 'getRadius', 'getLineColor', 'getLineWidth'],
   'rectangle': ['getFillColor', 'getLineColor', 'getLineWidth'],
   'rounded-rectangle': [
@@ -136,150 +296,14 @@ const DECKGL_UPDATE_TRIGGERS = {
   'arrow': ['getColor', 'getSize', 'getOffset']
 };
 
-export class Stylesheet {
-  type: any;
-  properties: any;
-  constructor(style, updateTriggers) {
-    const {type: layerType, ...restStyle} = style;
-    if (!layerType || !(layerType in DECKGL_ACCESSOR_MAP)) {
-      throw new Error(`illegal type: ${layerType}`);
-    }
-    this.type = layerType;
-
-    // style = {
-    //  type: 'circle',
-    //  fill: 'red'
-    //  radius: 5,
-    //
-    //  ':hover': {
-    //    fill: 'blue',
-    //    stroke: 'red'
-    //  }
-    // };
-    // step 1: extract 'rules': default, hover
-    // default: {fill: 'red', radius: 5};
-    // hover: {fill: 'blue', stroke: 'red'};
-    const rules = Object.keys(restStyle).reduce(
-      (res, key) => {
-        const isSelector = key.startsWith(':');
-        if (isSelector) {
-          const state = key.substring(1);
-          res[state] = restStyle[key];
-          return res;
-        }
-        res.default[key] = restStyle[key];
-        return res;
-      },
-      {
-        default: {}
-      }
-    );
-
-    // step 2: extract all unique attributes from rules
-    // attributes: ['fill', 'radius', 'stroke']
-    const attributes = Object.values(rules).reduce((res, rule) => {
-      const attrs = Object.keys(rule);
-      const set = new Set([...(res as any), ...attrs]);
-      return Array.from(set);
-    }, []);
-    // step 3: create a attribute map as:
-    // attrMap = {
-    //  fill: {default: 'red', hover: 'blue'},
-    //  radius: {default: 5},
-    //  stroke: {hover: 'red'},
-    // }
-    const attrMap = (attributes as any).reduce((res, attr) => {
-      res[attr] = Object.entries(rules).reduce((acc, entry) => {
-        const [state, rule] = entry;
-        if (typeof rule[attr] !== 'undefined') {
-          acc[state] = rule[attr];
-        }
-        return acc;
-      }, {});
-      return res;
-    }, {});
-
-    // step 4: simplify the attribute map if only default exists for the attribute
-    // simplifiedStyleMap = {
-    //  fill: {default: 'red', hover: 'blue'},
-    //  radius: 5,
-    //  stroke: {hover: 'red'},
-    // }
-    const simplifiedStyleMap = Object.entries(attrMap).reduce((res, entry) => {
-      const [attr, valueMap] = entry as any;
-      const onlyDefault = Object.keys(valueMap).length === 1 && valueMap.default !== undefined;
-      if (onlyDefault) {
-        res[attr] = valueMap.default;
-        return res;
-      }
-      res[attr] = valueMap;
-      return res;
-    }, {});
-
-    // step 5: create style property
-    // if the propety only maps to default state => return value only
-    // if the property maps to other states => return accessor function
-
-    // start to parse properties
-    this.properties = {};
-    for (const key in simplifiedStyleMap) {
-      this.properties[key] = new StyleProperty({
-        key,
-        value: simplifiedStyleMap[key],
-        updateTrigger: updateTriggers.stateUpdateTrigger
-      });
-    }
-  }
-
-  _getProperty(deckglAccessor) {
-    const map = DECKGL_ACCESSOR_MAP[this.type];
-    if (!map) {
-      throw new Error(`illegal type: ${this.type}`);
-    }
-    const styleProp = map[deckglAccessor];
-    if (!styleProp) {
-      log.error(`Invalid DeckGL accessor: ${deckglAccessor}`)();
-      throw new Error(`Invalid DeckGL accessor: ${deckglAccessor}`);
-    }
-    return this.properties[styleProp];
-  }
-
-  getDeckGLAccessor(deckglAccessor) {
-    const property = this._getProperty(deckglAccessor);
-    // get the value
-    if (property) {
-      const value = property.getValue();
-      return (typeof value === 'function') ? value : () => value;
-    }
-    // return default value
-    const styleProp = DECKGL_ACCESSOR_MAP[this.type][deckglAccessor];
-    return StyleProperty.getDefault(styleProp);
-  }
-
-  getDeckGLAccessorUpdateTrigger(deckglAccessor) {
-    const property = this._getProperty(deckglAccessor);
-    // get the value
-    if (property) {
-      return property.getUpdateTrigger();
-    }
-    return false;
-  }
-
-  getDeckGLAccessors() {
-    const accessorMap = DECKGL_ACCESSOR_MAP[this.type];
-    return Object.keys(accessorMap).reduce((res, accessor) => {
-      // if (this.type === 'ARROW') {
-      //   debugger
-      // }
-      res[accessor] = this.getDeckGLAccessor(accessor);
-      return res;
-    }, {});
-  }
-
-  getDeckGLUpdateTriggers() {
-    return DECKGL_UPDATE_TRIGGERS[this.type].reduce((res, accessor) => {
-      res[accessor] = this.getDeckGLAccessorUpdateTrigger(accessor);
-      return res;
-    }, {});
+export class GraphStylesheet extends BaseStylesheet {
+  constructor(style: Record<string, any>, {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}) {
+    super(style, {
+      deckglAccessorMap: GRAPH_DECKGL_ACCESSOR_MAP,
+      deckglUpdateTriggers: GRAPH_DECKGL_UPDATE_TRIGGERS,
+      stateUpdateTrigger
+    });
   }
 }
+
+export {GraphStylesheet as Stylesheet};

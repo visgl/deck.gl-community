@@ -6,61 +6,26 @@ accepts an array of style objects. Each object describes one visual layer and is
 compiled into a Deck.gl sublayer by the `Stylesheet` helper.
 
 ```js
-<<<<<<< HEAD
 const nodeStyle = [
   {
-    type: NODE_TYPE.CIRCLE,
+    type: 'circle',
     radius: 10,
     fill: node => (node.degree > 5 ? '#3C9EE7' : '#F06449')
   },
   {
-    type: NODE_TYPE.LABEL,
+    type: 'label',
     text: node => node.id,
     color: '#172B4D',
     offset: [0, 16]
   }
 ];
-=======
-<GraphGL
-  {...shareProps}
-  nodeStyle={[
-    {
-      type: 'circle',
-      radius: 10,
-      color: '#f00'
-      data: data => data,
-      visible: true
-    }
-  ]}
-/>
->>>>>>> f99b520 (Use kebab-case graph layer string types)
 ```
 
 The order in the array controls the drawing order: earlier entries are rendered
 first (i.e. they appear underneath later entries).
 
-<<<<<<< HEAD
-## How the stylesheet engine works
-=======
-- `Type` can only be `circle`, `marker`, `rectangle`, `rounded-rectangle`, `path-rounded-rectangle`, `icon`, or `label`.
-- Different type of layer may requires different properties. See more details in the 'Node style' /docs/api-reference/node-style-circle chapter below.
->>>>>>> f99b520 (Use kebab-case graph layer string types)
-
-1. `GraphLayer` receives your style objects and instantiates a `Stylesheet` for
-   each entry.
-2. Every property is normalized into either a constant value or an accessor
-   function. Functions are wrapped so you can return plain JavaScript values
-   (strings, arrays, numbers) and the stylesheet will coerce them to the format
-   required by the underlying Deck.gl layer.
-3. Optional state selectors such as `:hover` or `:selected` are expanded into
-   state-aware accessors. At render time the accessor receives a node with a
-   `state` field (`default`, `hover`, `dragging`, `selected`) and returns the
-   matching style variant.
-4. Deck.gl update triggers are wired automatically so that your accessors are
-   re-evaluated when their dependencies change.
-
-This pipeline allows you to focus on the *what* of styling while GraphGL takes
-care of the *how*.
+See the [base stylesheet guide](../base-stylesheet.md) for details on how the
+stylesheet engine works and how to extend it for custom layer types.
 
 ## Shared properties
 
