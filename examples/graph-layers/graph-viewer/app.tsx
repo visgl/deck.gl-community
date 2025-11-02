@@ -15,7 +15,10 @@ import {
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
-  JSONLoader
+  JSONLoader,
+  _RadialLayout,
+  _HivePlotLayout,
+  _MultigraphLayout
 } from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
@@ -37,10 +40,15 @@ const INITIAL_VIEW_STATE = {
 const DEFAULT_CURSOR = 'default';
 const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
 
-const LAYOUT_FACTORIES: Record<LayoutType, () => GraphLayout> = {
+type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
+
+const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'd3-force-layout': () => new D3ForceLayout(),
   'gpu-force-layout': () => new GPUForceLayout(),
-  'simple-layout': () => new SimpleLayout()
+  'simple-layout': () => new SimpleLayout(),
+  'radial-layout': (options) => new _RadialLayout(options),
+  'hive-plot-layout': (options) => new _HivePlotLayout(options),
+  'force-multi-graph-layout': (options) => new _MultigraphLayout(options)
 };
 
 
@@ -90,8 +98,22 @@ export function App(props) {
   const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
+  const layoutOptions = useMemo(
+    () =>
+      selectedExample && selectedLayout && graphData
+        ? selectedExample.getLayoutOptions?.(selectedLayout, graphData)
+        : undefined,
+    [selectedExample, selectedLayout, graphData]
+  );
   const graph = useMemo(() => (graphData ? JSONLoader({json: graphData}) : null), [graphData]);
-  const layout = useMemo(() => (selectedLayout ? LAYOUT_FACTORIES[selectedLayout]?.() : null), [selectedLayout]);
+  const layout = useMemo(() => {
+    if (!selectedLayout) {
+      return null;
+    }
+
+    const factory = LAYOUT_FACTORIES[selectedLayout];
+    return factory ? factory(layoutOptions) : null;
+  }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
 

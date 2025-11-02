@@ -4,6 +4,94 @@
 
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
 import type {ExampleDefinition, ExampleStyles, LayoutType} from './control-panelt';
+import sampleMultiGraph from './sample-multi-graph.json';
+
+type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
+
+const MULTI_GRAPH_SAMPLE = sampleMultiGraph as ExampleGraphData & {
+  nodes: Array<{id: string; type?: string; star?: boolean}>;
+  edges: Array<{id: string; sourceId: string; targetId: string; type?: string}>;
+};
+
+const KNOWLEDGE_GRAPH = {
+  nodes: [
+    {id: 'University', name: 'University', group: 'Overview'},
+    {id: 'Sciences', name: 'Sciences', group: 'Science'},
+    {id: 'Humanities', name: 'Humanities', group: 'Humanities'},
+    {id: 'Professional Studies', name: 'Professional Studies', group: 'Professional'},
+    {id: 'Research Labs', name: 'Research Labs', group: 'Science'},
+    {id: 'Data Science', name: 'Data Science', group: 'Science'},
+    {id: 'Applied Physics', name: 'Applied Physics', group: 'Science'},
+    {id: 'Studio Art', name: 'Studio Art', group: 'Humanities'},
+    {id: 'Design Thinking', name: 'Design Thinking', group: 'Humanities'},
+    {id: 'Field Work', name: 'Field Work', group: 'Professional'},
+    {id: 'Medical Center', name: 'Medical Center', group: 'Professional'},
+    {id: 'Entrepreneurship Hub', name: 'Entrepreneurship Hub', group: 'Business'},
+    {id: 'Finance Department', name: 'Finance Department', group: 'Business'},
+    {id: 'Economics Department', name: 'Economics Department', group: 'Business'}
+  ],
+  edges: [
+    {id: 'e-0', sourceId: 'University', targetId: 'Sciences', type: 'supports'},
+    {id: 'e-1', sourceId: 'University', targetId: 'Humanities', type: 'supports'},
+    {id: 'e-2', sourceId: 'University', targetId: 'Professional Studies', type: 'supports'},
+    {id: 'e-3', sourceId: 'Sciences', targetId: 'Research Labs', type: 'manages'},
+    {id: 'e-4', sourceId: 'Sciences', targetId: 'Data Science', type: 'collaborates'},
+    {id: 'e-5', sourceId: 'Sciences', targetId: 'Applied Physics', type: 'collaborates'},
+    {id: 'e-6', sourceId: 'Humanities', targetId: 'Studio Art', type: 'mentors'},
+    {id: 'e-7', sourceId: 'Humanities', targetId: 'Design Thinking', type: 'mentors'},
+    {id: 'e-8', sourceId: 'Professional Studies', targetId: 'Field Work', type: 'coordinates'},
+    {id: 'e-9', sourceId: 'Professional Studies', targetId: 'Medical Center', type: 'coordinates'},
+    {id: 'e-10', sourceId: 'Professional Studies', targetId: 'Entrepreneurship Hub', type: 'coordinates'},
+    {id: 'e-11', sourceId: 'Entrepreneurship Hub', targetId: 'Finance Department', type: 'incubates'},
+    {id: 'e-12', sourceId: 'Entrepreneurship Hub', targetId: 'Economics Department', type: 'incubates'},
+    {id: 'e-13', sourceId: 'Data Science', targetId: 'Entrepreneurship Hub', type: 'partners'},
+    {id: 'e-14', sourceId: 'Applied Physics', targetId: 'Medical Center', type: 'supports'},
+    {id: 'e-15', sourceId: 'Design Thinking', targetId: 'Entrepreneurship Hub', type: 'advises'}
+  ],
+  tree: [
+    {id: 'University', children: ['Sciences', 'Humanities', 'Professional Studies']},
+    {id: 'Sciences', children: ['Research Labs', 'Data Science', 'Applied Physics']},
+    {id: 'Humanities', children: ['Studio Art', 'Design Thinking']},
+    {
+      id: 'Professional Studies',
+      children: ['Field Work', 'Medical Center', 'Entrepreneurship Hub']
+    },
+    {id: 'Entrepreneurship Hub', children: ['Finance Department', 'Economics Department']},
+    {id: 'Research Labs'},
+    {id: 'Data Science'},
+    {id: 'Applied Physics'},
+    {id: 'Studio Art'},
+    {id: 'Design Thinking'},
+    {id: 'Field Work'},
+    {id: 'Medical Center'},
+    {id: 'Finance Department'},
+    {id: 'Economics Department'}
+  ]
+} as const;
+
+const GROUP_COLOR_MAP: Record<string, string> = {
+  Overview: '#64748b',
+  Science: '#0ea5e9',
+  Humanities: '#a855f7',
+  Professional: '#f59e0b',
+  Business: '#10b981'
+};
+
+const DEFAULT_EDGE_COLOR = 'rgba(80, 80, 80, 0.3)';
+
+const cloneGraphData = (data: ExampleGraphData): ExampleGraphData => ({
+  nodes: data.nodes.map((node) => ({...node})),
+  edges: data.edges.map((edge) => ({...edge}))
+});
+
+const cloneTree = <T extends {id: string; children?: readonly string[]}>(
+  tree: readonly T[]
+): T[] => tree.map((node) => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
+
+const getGroupColor = (node: any) => {
+  const group = node?.getPropertyValue?.('group');
+  return GROUP_COLOR_MAP[group as keyof typeof GROUP_COLOR_MAP] ?? '#94a3b8';
+};
 
 const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'd3-force-layout':
@@ -11,7 +99,13 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'gpu-force-layout':
     'Calculates a force-directed layout on the GPU. Ideal for larger graphs that benefit from massively parallel computation.',
   'simple-layout':
-    'Places nodes using a deterministic algorithm that is fast to compute and helpful for debugging graph structure.'
+    'Places nodes using a deterministic algorithm that is fast to compute and helpful for debugging graph structure.',
+  'radial-layout':
+    'Arranges nodes around concentric circles derived from a hierarchy, making parent-child relationships easy to read.',
+  'hive-plot-layout':
+    'Positions nodes along axes grouped by a property and draws curved connections between axes to reduce visual clutter.',
+  'force-multi-graph-layout':
+    'Runs a tailored force simulation that keeps parallel edges legible by introducing virtual edges and spacing overlapping links.'
 };
 
 const LES_MISERABLES_STYLE: ExampleStyles = {
@@ -224,6 +318,76 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
   }
 };
 
+const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
+  nodeStyle: [
+    {
+      type: 'circle',
+      radius: 7,
+      fill: getGroupColor,
+      stroke: '#0f172a',
+      strokeWidth: 1.25,
+      opacity: 0.95
+    },
+    {
+      type: 'label',
+      text: (node) => node?.getPropertyValue?.('name') ?? node?.getId?.() ?? '',
+      color: '#334155',
+      fontSize: 12,
+      textAnchor: 'start',
+      offset: [10, 0],
+      alignmentBaseline: 'middle',
+      scaleWithZoom: false
+    }
+  ],
+  edgeStyle: {
+    stroke: DEFAULT_EDGE_COLOR,
+    strokeWidth: 1,
+    decorators: []
+  }
+};
+
+const MULTI_GRAPH_STYLE: ExampleStyles = {
+  nodeStyle: [
+    {
+      type: 'circle',
+      radius: 40,
+      fill: 'rgb(240, 240, 240)'
+    },
+    {
+      type: 'circle',
+      radius: 30,
+      fill: '#cf4569'
+    },
+    {
+      type: 'circle',
+      radius: (node) => (node?.getPropertyValue?.('star') ? 6 : 0),
+      fill: [255, 255, 0],
+      offset: [18, -18]
+    },
+    {
+      type: 'label',
+      text: (node) => node?.getId?.() ?? '',
+      color: [255, 255, 255],
+      fontSize: 14,
+      textAnchor: 'middle',
+      alignmentBaseline: 'middle',
+      scaleWithZoom: false
+    }
+  ],
+  edgeStyle: {
+    stroke: '#cf4569',
+    strokeWidth: 2,
+    decorators: [
+      {
+        type: 'edge-label',
+        text: (edge) => edge?.getPropertyValue?.('type') ?? '',
+        color: [0, 0, 0],
+        fontSize: 14
+      }
+    ]
+  }
+};
+
 export const EXAMPLES: ExampleDefinition[] = [
   {
     name: 'Les Miserable',
@@ -305,6 +469,56 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WATTS_STROGATZ_STYLE
+  },
+  {
+    name: 'University hierarchy (radial)',
+    description:
+      'Synthetic university organisational network demonstrating how hierarchical relationships expand from a central hub.',
+    data: () => cloneGraphData(KNOWLEDGE_GRAPH),
+    layouts: ['radial-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: KNOWLEDGE_GRAPH_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'radial-layout'
+        ? {
+            radius: 380,
+            tree: cloneTree(KNOWLEDGE_GRAPH.tree)
+          }
+        : undefined
+  },
+  {
+    name: 'University hierarchy (hive plot)',
+    description:
+      'The same organisational network arranged along hive plot axes to highlight connections between disciplines.',
+    data: () => cloneGraphData(KNOWLEDGE_GRAPH),
+    layouts: ['hive-plot-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: KNOWLEDGE_GRAPH_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'hive-plot-layout'
+        ? {
+            innerRadius: 60,
+            outerRadius: 220,
+            getNodeAxis: (node: any) => node?.getPropertyValue?.('group') ?? 'Overview'
+          }
+        : undefined
+  },
+  {
+    name: 'Community multi-graph',
+    description:
+      'A compact social network with multiple edge types between the same people rendered using the force multi-graph layout.',
+    data: () => cloneGraphData(MULTI_GRAPH_SAMPLE),
+    layouts: ['force-multi-graph-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: MULTI_GRAPH_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'force-multi-graph-layout'
+        ? {
+            nBodyStrength: -8000,
+            nBodyDistanceMin: 80,
+            nBodyDistanceMax: 1200
+          }
+        : undefined
   }
 ];
 
