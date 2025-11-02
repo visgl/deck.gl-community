@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {log} from '../../utils/log';
 
 export type D3ForceLayoutOptions = GraphLayoutOptions & {
   alpha?: number;
@@ -82,6 +83,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     });
 
     this._worker.onmessage = (event) => {
+      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data)();
       if (event.data.type !== 'end') {
         return;
       }

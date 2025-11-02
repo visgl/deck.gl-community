@@ -80,7 +80,8 @@ export class GraphEngine extends EventTarget {
    * @fires GraphEngine#onLayoutStart
    */
   _onLayoutStart = () => {
-    log.log(2, 'GraphEngine: layout start')();
+    log.log(0, 'GraphEngine: layout start')();
+    debugger
     /**
      * @event GraphEngine#onLayoutStart
      * @type {CustomEvent}
@@ -92,7 +93,7 @@ export class GraphEngine extends EventTarget {
    * @fires GraphEngine#onLayoutChange
    */
   _onLayoutChange = () => {
-    log.log(2, 'GraphEngine: layout update event')();
+    log.log(0, 'GraphEngine: layout update event')();
     /**
      * @event GraphEngine#onLayoutChange
      * @type {CustomEvent}
@@ -104,7 +105,7 @@ export class GraphEngine extends EventTarget {
    * @fires GraphEngine#onLayoutDone
    */
   _onLayoutDone = () => {
-    log.log(2, 'GraphEngine: layout end')();
+    log.log(0, 'GraphEngine: layout end')();
     /**
      * @event GraphEngine#onLayoutDone
      * @type {CustomEvent}
@@ -185,7 +186,7 @@ export class GraphEngine extends EventTarget {
   };
 
   _updateLayout = () => {
-    log.log(2, 'GraphEngine: layout update')();
+    log.log(0, 'GraphEngine: layout update')();
     this._layout.updateGraph(this._graph);
     this._layout.update();
     this._layoutDirty = false;
