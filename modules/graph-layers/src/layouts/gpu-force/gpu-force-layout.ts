@@ -31,7 +31,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   private _nodeMap: any;
   private _edgeMap: any;
   private _graph: any;
-  private _worker: Worker;
+  private _worker: Worker | null = null;
   private _callbacks: any;
 
   constructor(options: GPUForceLayoutOptions = {}) {
@@ -106,7 +106,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this._options;
-    this._worker.postMessage({
+    this._worker!.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,
       options: {
@@ -117,7 +117,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
         getCollisionRadius
       }
     });
-    this._worker.onmessage = (event) => {
+    this._worker!.onmessage = (event) => {
       switch (event.data.type) {
         case 'tick':
           this.ticked(event.data);
@@ -141,7 +141,10 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     throw new Error('Resume unavailable');
   }
   stop() {
-    this._worker.terminate();
+    if (this._worker) {
+      this._worker.terminate();
+      this._worker = null;
+    }
   }
 
   // for steaming new data on the same graph

@@ -164,6 +164,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this._setGraphEngine(graphEngine);
       this.state.interactionManager.updateProps(props);
       this.forceUpdate();
+    } else if (changeFlags.propsChanged && props.engine !== oldProps.engine) {
+      this._setGraphEngine(props.engine);
+      this.state.interactionManager.updateProps(props);
+      this.forceUpdate();
     }
   }
 

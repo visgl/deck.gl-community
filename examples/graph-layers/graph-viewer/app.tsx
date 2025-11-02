@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {Component, useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
-import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
 import {
   GraphEngine,
   GraphLayer,
-  Graph,
-  log,
   GraphLayout,
   SimpleLayout,
   D3ForceLayout,
+  GPUForceLayout,
   JSONLoader
 } from '@deck.gl-community/graph-layers';
 
@@ -25,8 +23,8 @@ import {
 
 import {extent} from 'd3-array';
 
-// eslint-disable-next-line import/no-unresolved
-import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
+import {ControlPanel, ExampleDefinition, LayoutType} from './control-panelt';
+import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
@@ -35,24 +33,15 @@ const INITIAL_VIEW_STATE = {
   zoom: 1
 };
 
-const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'];
-
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
-const DEFAULT_NODE_SIZE = 5;
-const DEFAULT_DATASET = 'Random (20, 40)';
+const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
 
-// const nodeEvents = {
-//   onMouseEnter: null,
-//   onHover: null,
-//   onMouseLeave: null,
-//   onClick: null,
-//   onDrag: null
-// },
-//   edgeEvents = {
-//   onClick: null,
-//   onHover: null
-// },
+const LAYOUT_FACTORIES: Record<LayoutType, () => GraphLayout> = {
+  'd3-force-layout': () => new D3ForceLayout(),
+  'gpu-force-layout': () => new GPUForceLayout(),
+  'simple-layout': () => new SimpleLayout()
+};
 
 
 const loadingReducer = (state, action) => {
@@ -77,15 +66,17 @@ export const useLoading = (engine) => {
   const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
   useLayoutEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    console.log('adding listeners')
     engine.addEventListener('onLayoutStart', layoutStarted);
     engine.addEventListener('onLayoutDone', layoutEnded);
 
     return () => {
-      console.log('removing listeners')
       engine.removeEventListener('onLayoutStart', layoutStarted);
       engine.removeEventListener('onLayoutDone', layoutEnded);
     };
@@ -94,46 +85,33 @@ export const useLoading = (engine) => {
   return [{isLoading}, loadingDispatch];
 };
 
-const graphData = SAMPLE_GRAPH_DATASETS[DEFAULT_DATASET]();
-const graph = JSONLoader({json: graphData});
-const layout = new D3ForceLayout(); // SimpleLayout();
-
 export function App(props) {
+  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
+  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
 
-  const [state, setState] = useState({
-    selectedDataset: DEFAULT_DATASET,
-    selectedLayout: DEFAULT_DATASET
-  });
-
-  const {selectedDataset} = state;
-
-  const [engine, setEngine] = useState(new GraphEngine(graph, layout));
+  const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
+  const graph = useMemo(() => (graphData ? JSONLoader({json: graphData}) : null), [graphData]);
+  const layout = useMemo(() => (selectedLayout ? LAYOUT_FACTORIES[selectedLayout]?.() : null), [selectedLayout]);
+  const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
 
   useLayoutEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
+    if (!engine) {
+      return () => undefined;
     }
 
-    setEngine(new GraphEngine({graph, layout}));
-  }, [graph, layout]);
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+    }
 
-  useLayoutEffect(() => {
     engine.run();
 
     return () => {
+      engine.stop();
       engine.clear();
     };
   }, [engine]);
 
-  const edgeStyle = [
-    {
-      decorators: [],
-      stroke: 'black',
-      strokeWidth: 1
-    }
-  ];
   // eslint-disable-next-line no-console
   const initialViewState = INITIAL_VIEW_STATE;
   const minZoom = -20;
@@ -150,7 +128,13 @@ export function App(props) {
 
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
+  const selectedStyles = selectedExample?.style;
+
   const fitBounds = useCallback(() => {
+    if (!engine) {
+      return;
+    }
+
     const data = engine.getNodes();
     if (!data.length) {
       return;
@@ -200,6 +184,10 @@ export function App(props) {
   // );
 
   useEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
     if (zoomToFitOnLoad && isLoading) {
       engine.addEventListener('onLayoutDone', fitBounds, {once: true});
     }
@@ -207,99 +195,112 @@ export function App(props) {
       engine.removeEventListener('onLayoutDone', fitBounds);
     };
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
-
-
-  const handleChangeGraph = useCallback(({target: {value}}) => setState(state => ({...state, selectedDataset: value})), [setState]);
-  const handleChangeLayout = useCallback(({target: {value}}) => setState(state => ({...state, selectedLayout: value})), [setState]);
+  const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
+    setSelectedExample(example);
+    setSelectedLayout(layoutType);
+  }, []);
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-      <div style={{width: '100%', zIndex: 999}}>
-        <div>
-          Dataset:
-          <select value={state.selectedDataset} onChange={handleChangeGraph}>
-            {Object.keys(SAMPLE_GRAPH_DATASETS).map((data) => (
-              <option key={data} value={data}>
-                {data}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          Layout:
-          <select value={state.selectedLayout} onChange={handleChangeLayout}>
-            {LAYOUTS.map((data) => (
-              <option key={data} value={data}>
-                {data}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div style={{width: '100%', flex: 1}}>
-        <>
-          {isLoading}
-          <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
-            <DeckGL
-              onError={(error) => console.error(error)}
-              onAfterRender={() => loadingDispatch({type: 'afterRender'})}
-              width="100%"
-              height="100%"
-              getCursor={() => DEFAULT_CURSOR}
-              viewState={viewState as any}
-              onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
-              onViewStateChange={({viewState}) => setViewState(viewState as any)}
-              views={[
-                new OrthographicView({
-                  minZoom,
-                  maxZoom,
-                  controller: {
-                    scrollZoom: true,
-                    touchZoom: true,
-                    doubleClickZoom: true,
-                    dragPan: true,
-                    wheelSensitivity: 0.5
-                  }
-                })
-              ]}
-              layers={[
-                new GraphLayer({
-                  engine,
-                  nodeStyle: [
-                    {
-                      type: 'circle',
-                      radius: DEFAULT_NODE_SIZE,
-                      fill: 'red'
-                    }
-                  ],
-                  edgeStyle: {
-                    decorators: [],
-                    stroke: 'black',
-                    strokeWidth: 1
-                  },
-                  resumeLayoutAfterDragging
-                })
-              ]}
-              widgets={[
-                // // new ViewControlWidget({}) TODO - fix and enable
-              ]
-                // onHover={(info) => console.log('Hover', info)}
-              }
-              getTooltip={(info) => getToolTip(info.object)}
-            />
-            {/* View control component TODO - doesn't work in website, replace with widget *
-              <PositionedViewControl
-                fitBounds={fitBounds}
-                panBy={panBy}
-                zoomBy={zoomBy}
-                zoomLevel={viewState.zoom}
-                maxZoom={maxZoom}
-                minZoom={minZoom}
-              />
-            */}
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        boxSizing: 'border-box',
+        fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
+      }}
+    >
+      <div
+        style={{
+          flex: '1 1 auto',
+          minWidth: 0,
+          position: 'relative'
+        }}
+      >
+        {isLoading ? (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.875rem',
+              color: '#475569',
+              zIndex: 1,
+              pointerEvents: 'none'
+            }}
+          >
+            Computing layout…
           </div>
-        </>
+        ) : null}
+        <DeckGL
+          onError={(error) => console.error(error)}
+          onAfterRender={() => loadingDispatch({type: 'afterRender'})}
+          width="100%"
+          height="100%"
+          getCursor={() => DEFAULT_CURSOR}
+          viewState={viewState as any}
+          onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
+          onViewStateChange={({viewState}) => setViewState(viewState as any)}
+          views={[
+            new OrthographicView({
+              minZoom,
+              maxZoom,
+              controller: {
+                scrollZoom: true,
+                touchZoom: true,
+                doubleClickZoom: true,
+                dragPan: true,
+                wheelSensitivity: 0.5
+              }
+            })
+          ]}
+          layers={
+            engine
+              ? [
+                  new GraphLayer({
+                    engine,
+                    nodeStyle: selectedStyles?.nodeStyle,
+                    edgeStyle: selectedStyles?.edgeStyle,
+                    resumeLayoutAfterDragging
+                  })
+                ]
+              : []
+          }
+          widgets={[
+            // // new ViewControlWidget({}) TODO - fix and enable
+          ]
+            // onHover={(info) => console.log('Hover', info)}
+          }
+          getTooltip={(info) => getToolTip(info.object)}
+        />
+        {/* View control component TODO - doesn't work in website, replace with widget *
+          <PositionedViewControl
+            fitBounds={fitBounds}
+            panBy={panBy}
+            zoomBy={zoomBy}
+            zoomLevel={viewState.zoom}
+            maxZoom={maxZoom}
+            minZoom={minZoom}
+          />
+        */}
       </div>
+      <aside
+        style={{
+          width: '320px',
+          minWidth: '260px',
+          maxWidth: '360px',
+          padding: '1.5rem 1rem',
+          boxSizing: 'border-box',
+          borderLeft: '1px solid #e2e8f0',
+          background: '#f1f5f9',
+          overflowY: 'auto',
+          fontFamily: 'inherit'
+        }}
+      >
+        <ControlPanel examples={EXAMPLES} onExampleChange={handleExampleChange} />
+      </aside>
     </div>
   );
 }
@@ -315,6 +316,7 @@ function getToolTip(object) {
 export function renderToDOM() {
   if (document.body) {
     document.body.style.margin = '0';
+    document.body.style.fontFamily = 'Inter, "Helvetica Neue", Arial, sans-serif';
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
