@@ -108,9 +108,13 @@ export default function App(): ReactElement {
 
   const sampleData = useMemo(() => {
     const _sampleData: Float32Array[] = [];
+    const typeCount = seriesTypes.length;
 
-    for (let series = 0; series < 5; series++) {
-      _sampleData.push(generateSeriesData(seriesTypes[series]));
+    for (let series = 0; series < typeCount; series++) {
+      const type = seriesTypes[series];
+      if (type) {
+        _sampleData.push(generateSeriesData(type));
+      }
     }
 
     return _sampleData;
@@ -119,17 +123,21 @@ export default function App(): ReactElement {
   const data = useMemo(() => {
     const _data: ExampleData[] = [];
 
+    const typeCount = Math.max(seriesTypes.length, 1);
+    const sampleCount = Math.max(sampleData.length, 1);
+
     for (let series = 0; series < seriesCount; series++) {
+      const type = seriesTypes[series % typeCount] ?? 'sine';
       _data.push({
         name: `Series ${series + 1}`,
-        type: seriesTypes[series % 5],
-        values: sampleData[series % 5],
+        type,
+        values: sampleData[series % sampleCount] ?? generateSeriesData('sine'),
         scale: 120
       });
     }
 
     return _data;
-  }, [seriesCount, seriesTypes]);
+  }, [sampleData, seriesCount, seriesTypes]);
 
   // Generate text labels for each series
   const textLabels = useMemo(() => {
@@ -260,8 +268,15 @@ export default function App(): ReactElement {
   ];
 
   return (
-    <div style={{display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden'}}>
-      <div style={{flex: 1, height: '100vh', position: 'relative', overflow: 'hidden'}}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) 260px',
+        width: '100vw',
+        height: '100vh'
+      }}
+    >
+      <div style={{minWidth: 0, position: 'relative', overflow: 'hidden'}}>
         <DeckGL
           views={new OrthographicView()}
           initialViewState={INITIAL_VIEW_STATE}
@@ -276,9 +291,9 @@ export default function App(): ReactElement {
           }}
         />
       </div>
-      <div
+      <aside
         style={{
-          width: '280px',
+          width: '260px',
           height: '100vh',
           overflowY: 'auto',
           background: 'rgba(255, 255, 255, 0.95)',
@@ -503,7 +518,7 @@ export default function App(): ReactElement {
             />
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }
