@@ -11,7 +11,8 @@ export type LayoutType =
   | 'simple-layout'
   | 'radial-layout'
   | 'hive-plot-layout'
-  | 'force-multi-graph-layout';
+  | 'force-multi-graph-layout'
+  | 'd3-dag-layout';
 
 export type ExampleStyles = Pick<GraphLayerProps, 'nodeStyle' | 'edgeStyle'>;
 
@@ -40,7 +41,8 @@ const LAYOUT_LABELS: Record<LayoutType, string> = {
   'simple-layout': 'Simple Layout',
   'radial-layout': 'Radial Layout',
   'hive-plot-layout': 'Hive Plot Layout',
-  'force-multi-graph-layout': 'Force Multi-Graph Layout'
+  'force-multi-graph-layout': 'Force Multi-Graph Layout',
+  'd3-dag-layout': 'D3 DAG Layout',
 };
 
 export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
