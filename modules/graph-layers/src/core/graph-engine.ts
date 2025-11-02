@@ -81,7 +81,6 @@ export class GraphEngine extends EventTarget {
    */
   _onLayoutStart = () => {
     log.log(0, 'GraphEngine: layout start')();
-    debugger
     /**
      * @event GraphEngine#onLayoutStart
      * @type {CustomEvent}
