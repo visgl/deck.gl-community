@@ -129,17 +129,6 @@ export function App(props) {
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
   const selectedStyles = selectedExample?.style;
-  const styleJson = useMemo(() => {
-    if (!selectedStyles) {
-      return '';
-    }
-
-    return JSON.stringify(
-      selectedStyles,
-      (_key, value) => (typeof value === 'function' ? value.toString() : value),
-      2
-    );
-  }, [selectedStyles]);
 
   const fitBounds = useCallback(() => {
     if (!engine) {
@@ -223,52 +212,13 @@ export function App(props) {
       <div
         style={{
           flex: '1 1 auto',
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0
+          minWidth: 0,
+          position: 'relative'
         }}
       >
-        <div
-          style={{
-            padding: '1rem',
-            borderBottom: '1px solid #e2e8f0',
-            background: '#f8fafc'
-          }}
-        >
-          <label
+        {isLoading ? (
+          <div
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              fontSize: '0.75rem',
-              gap: '0.25rem',
-              fontWeight: 600
-            }}
-          >
-            Style JSON
-            <pre
-              style={{
-                margin: 0,
-                padding: '0.75rem',
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '0.5rem',
-                fontSize: '0.75rem',
-                lineHeight: 1.4,
-                maxHeight: '12rem',
-                overflow: 'auto',
-                whiteSpace: 'pre-wrap',
-                fontFamily:
-                  'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-              }}
-            >
-              {styleJson || '// No style defined for this example'}
-            </pre>
-          </label>
-        </div>
-        <div style={{flex: 1, position: 'relative'}}>
-          {isLoading ? (
-            <div
-              style={{
               position: 'absolute',
               inset: 0,
               display: 'flex',
@@ -334,7 +284,6 @@ export function App(props) {
             minZoom={minZoom}
           />
         */}
-      </div>
       </div>
       <aside
         style={{

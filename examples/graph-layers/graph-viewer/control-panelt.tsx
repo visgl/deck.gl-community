@@ -79,12 +79,32 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
     return selectedExample.layoutDescriptions[selectedLayout];
   }, [selectedExample, selectedLayout]);
 
+  const styleJson = useMemo(() => {
+    const styles = selectedExample?.style;
+    if (!styles) {
+      return '';
+    }
+
+    return JSON.stringify(
+      styles,
+      (_key, value) => (typeof value === 'function' ? value.toString() : value),
+      2
+    );
+  }, [selectedExample]);
+
   if (!examples.length) {
     return null;
   }
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0'}}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem',
+        padding: '0.5rem 0 1rem'
+      }}
+    >
       <label style={{display: 'flex', flexDirection: 'column', fontSize: '0.875rem', gap: '0.25rem'}}>
         Dataset
         <select value={selectedExampleIndex} onChange={handleExampleChange}>
@@ -121,6 +141,29 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
           <p style={{margin: 0, color: '#334155'}}>{layoutDescription}</p>
         </section>
       ) : null}
+      <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>
+        <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+          Style JSON
+        </h3>
+        <pre
+          style={{
+            margin: 0,
+            padding: '0.75rem',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '0.5rem',
+            fontSize: '0.75rem',
+            lineHeight: 1.4,
+            maxHeight: '16rem',
+            overflow: 'auto',
+            whiteSpace: 'pre-wrap',
+            fontFamily:
+              'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+          }}
+        >
+          {styleJson || '// No style defined for this example'}
+        </pre>
+      </section>
     </div>
   );
 }
