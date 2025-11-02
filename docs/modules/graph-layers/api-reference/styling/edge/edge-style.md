@@ -1,8 +1,9 @@
 # Edge stylesheets
 
 Edges are styled with a single object passed to the `edgeStyle` prop of
-`GraphLayer`. Similar to nodes, the stylesheet engine normalizes colors,
-accessors, and interaction states before feeding them into Deck.gl’s `LineLayer`.
+`GraphLayer`. Similar to nodes, a `GraphStylesheet` definition is normalized by
+the `GraphStyleEngine`, which resolves colors, accessors, and interaction states
+before feeding them into Deck.gl’s `LineLayer`.
 
 ```js
 const edgeStyle = {

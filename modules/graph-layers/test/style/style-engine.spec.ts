@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, expectTypeOf} from 'vitest';
 
-import {
-  BaseStylesheet,
-  type DeckGLAccessorMap,
-  type DeckGLUpdateTriggers
-} from '../../src/style/style-sheet';
+import {StyleEngine, type DeckGLAccessorMap, type DeckGLUpdateTriggers} from '../../src/style/style-engine';
+import {GraphStyleEngine, type GraphStylesheet} from '../../src/style/graph-style-engine';
 
 const TEST_ACCESSOR_MAP: DeckGLAccessorMap = {
   Foo: {
@@ -21,9 +18,9 @@ const TEST_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
   Foo: ['getColor', 'getWidth']
 };
 
-describe('BaseStylesheet', () => {
+describe('StyleEngine', () => {
   it('normalizes static and stateful values into Deck.gl accessors', () => {
-    const stylesheet = new BaseStylesheet(
+    const stylesheet = new StyleEngine(
       {
         type: 'Foo',
         color: '#ffffff',
@@ -54,12 +51,31 @@ describe('BaseStylesheet', () => {
   it('throws when instantiated with an unknown style type', () => {
     expect(
       () =>
-        new BaseStylesheet(
+        new StyleEngine(
           {type: 'Bar'},
           {
             deckglAccessorMap: TEST_ACCESSOR_MAP
           }
         )
     ).toThrow(/illegal type/i);
+  });
+
+  it('accepts graph stylesheet definitions with state selectors', () => {
+    const circleStylesheet: GraphStylesheet<'circle'> = {
+      type: 'circle',
+      fill: '#ffffff',
+      ':hover': {
+        fill: '#000000',
+        stroke: '#64748B'
+      }
+    };
+
+    expectTypeOf(circleStylesheet).toMatchTypeOf<GraphStylesheet<'circle'>>();
+
+    const graphEngine = new GraphStyleEngine(circleStylesheet);
+    const accessors = graphEngine.getDeckGLAccessors();
+
+    expect(accessors.getFillColor({state: 'default'})).toEqual([255, 255, 255]);
+    expect(accessors.getFillColor({state: 'hover'})).toEqual([0, 0, 0]);
   });
 });

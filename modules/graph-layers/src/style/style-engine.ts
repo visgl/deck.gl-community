@@ -8,7 +8,7 @@ import {log} from '../utils/log';
 export type DeckGLAccessorMap = Record<string, Record<string, string>>;
 export type DeckGLUpdateTriggers = Record<string, string[]>;
 
-type StylePropertyConstructor<T extends StyleProperty = StyleProperty> = new (args: {
+export type StylePropertyConstructor<T extends StyleProperty = StyleProperty> = new (args: {
   key: string;
   value: unknown;
   updateTrigger: unknown;
@@ -16,7 +16,7 @@ type StylePropertyConstructor<T extends StyleProperty = StyleProperty> = new (ar
 
 export type DefaultStyleValueFn = (property: string) => unknown;
 
-export type BaseStylesheetOptions<T extends StyleProperty = StyleProperty> = {
+export type StyleEngineOptions<T extends StyleProperty = StyleProperty> = {
   deckglAccessorMap: DeckGLAccessorMap;
   deckglUpdateTriggers?: DeckGLUpdateTriggers;
   stateUpdateTrigger?: unknown;
@@ -26,7 +26,7 @@ export type BaseStylesheetOptions<T extends StyleProperty = StyleProperty> = {
 
 const DEFAULT_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {};
 
-export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty> {
+export class StyleEngine<TStyleProperty extends StyleProperty = StyleProperty> {
   type: string;
   properties: Record<string, TStyleProperty>;
 
@@ -36,7 +36,7 @@ export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty
   protected readonly StylePropertyClass: StylePropertyConstructor<TStyleProperty>;
   protected readonly getDefaultStyleValue: DefaultStyleValueFn;
 
-  constructor(style: Record<string, any>, options: BaseStylesheetOptions<TStyleProperty>) {
+  constructor(style: Record<string, any>, options: StyleEngineOptions<TStyleProperty>) {
     const {
       deckglAccessorMap,
       deckglUpdateTriggers = DEFAULT_UPDATE_TRIGGERS,
@@ -166,145 +166,3 @@ export class BaseStylesheet<TStyleProperty extends StyleProperty = StyleProperty
     }, {} as Record<string, unknown>);
   }
 }
-
-const COMMON_DECKGL_PROPS = {
-  getOffset: 'offset',
-  opacity: 'opacity'
-};
-
-const GRAPH_DECKGL_ACCESSOR_MAP: DeckGLAccessorMap = {
-  'circle': {
-    ...COMMON_DECKGL_PROPS,
-    getFillColor: 'fill',
-    getLineColor: 'stroke',
-    getLineWidth: 'strokeWidth',
-    getRadius: 'radius'
-  },
-
-  'rectangle': {
-    ...COMMON_DECKGL_PROPS,
-    getWidth: 'width',
-    getHeight: 'height',
-    getFillColor: 'fill',
-    getLineColor: 'stroke',
-    getLineWidth: 'strokeWidth'
-  },
-
-  'rounded-rectangle': {
-    ...COMMON_DECKGL_PROPS,
-    getCornerRadius: 'cornerRadius',
-    getRadius: 'radius',
-    getWidth: 'width',
-    getHeight: 'height',
-    getFillColor: 'fill',
-    getLineColor: 'stroke',
-    getLineWidth: 'strokeWidth'
-  },
-
-  'path-rounded-rectangle': {
-    ...COMMON_DECKGL_PROPS,
-    getWidth: 'width',
-    getHeight: 'height',
-    getFillColor: 'fill',
-    getLineColor: 'stroke',
-    getLineWidth: 'strokeWidth',
-    getCornerRadius: 'cornerRadius'
-  },
-
-  'label': {
-    ...COMMON_DECKGL_PROPS,
-    getColor: 'color',
-    getText: 'text',
-    getSize: 'fontSize',
-    getTextAnchor: 'textAnchor',
-    getAlignmentBaseline: 'alignmentBaseline',
-    getAngle: 'angle',
-    scaleWithZoom: 'scaleWithZoom',
-    textMaxWidth: 'textMaxWidth',
-    textWordBreak: 'textWordBreak',
-    textSizeMinPixels: 'textSizeMinPixels'
-  },
-
-  'marker': {
-    ...COMMON_DECKGL_PROPS,
-    getColor: 'fill',
-    getSize: 'size',
-    getMarker: 'marker',
-    scaleWithZoom: 'scaleWithZoom'
-  },
-
-  Edge: {
-    getColor: 'stroke',
-    getWidth: 'strokeWidth'
-  },
-  'edge-label': {
-    getColor: 'color',
-    getText: 'text',
-    getSize: 'fontSize',
-    getTextAnchor: 'textAnchor',
-    getAlignmentBaseline: 'alignmentBaseline',
-    scaleWithZoom: 'scaleWithZoom',
-    textMaxWidth: 'textMaxWidth',
-    textWordBreak: 'textWordBreak',
-    textSizeMinPixels: 'textSizeMinPixels'
-  },
-  'flow': {
-    getColor: 'color',
-    getWidth: 'width',
-    getSpeed: 'speed',
-    getTailLength: 'tailLength'
-  },
-  'arrow': {
-    getColor: 'color',
-    getSize: 'size',
-    getOffset: 'offset'
-  }
-};
-
-const GRAPH_DECKGL_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
-  'circle': ['getFillColor', 'getRadius', 'getLineColor', 'getLineWidth'],
-  'rectangle': ['getFillColor', 'getLineColor', 'getLineWidth'],
-  'rounded-rectangle': [
-    'getFillColor',
-    'getLineColor',
-    'getLineWidth',
-    'getCornerRadius'
-  ],
-  'path-rounded-rectangle': [
-    'getFillColor',
-    'getLineColor',
-    'getLineWidth',
-    'getCornerRadius'
-  ],
-  'label': [
-    'getColor',
-    'getText',
-    'getSize',
-    'getTextAnchor',
-    'getAlignmentBaseline',
-    'getAngle'
-  ],
-  'marker': ['getColor', 'getSize', 'getMarker'],
-  Edge: ['getColor', 'getWidth'],
-  'edge-label': [
-    'getColor',
-    'getText',
-    'getSize',
-    'getTextAnchor',
-    'getAlignmentBaseline'
-  ],
-  'flow': ['getColor', 'getWidth', 'getSpeed', 'getTailLength'],
-  'arrow': ['getColor', 'getSize', 'getOffset']
-};
-
-export class GraphStylesheet extends BaseStylesheet {
-  constructor(style: Record<string, any>, {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}) {
-    super(style, {
-      deckglAccessorMap: GRAPH_DECKGL_ACCESSOR_MAP,
-      deckglUpdateTriggers: GRAPH_DECKGL_UPDATE_TRIGGERS,
-      stateUpdateTrigger
-    });
-  }
-}
-
-export {GraphStylesheet as Stylesheet};

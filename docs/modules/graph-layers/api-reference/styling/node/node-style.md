@@ -2,7 +2,7 @@
 
 GraphGL renders nodes by stacking one or more *style layers* on top of each
 other. The `nodeStyle` prop accepts an array of style objects. Each object describes one visual layer and is
-compiled into a Deck.gl sublayer by the `Stylesheet` helper.
+compiled into a Deck.gl sublayer by the `GraphStyleEngine` helper from the corresponding `GraphStylesheet` spec.
 
 ```js
 const nodeStyle = [

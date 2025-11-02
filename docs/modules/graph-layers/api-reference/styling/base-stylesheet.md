@@ -1,13 +1,15 @@
 # Base stylesheet helper
 
-`GraphStylesheet` builds on a reusable `BaseStylesheet` class that accepts the
+`GraphStyleEngine` builds on a reusable `StyleEngine` class that accepts the
 style-to-accessor mappings and Deck.gl update trigger definitions. Advanced
 renderers can re-use this helper to drive their own layer compositions while
-still benefiting from the selector parsing and accessor normalization logic.
+still benefiting from the selector parsing and accessor normalization logic. The
+user-authored input is always a `GraphStylesheet`, which encodes the declarative
+style schema understood by the engine.
 
 ## How the stylesheet engine works
 
-1. `GraphLayer` receives your style objects and instantiates a `Stylesheet` for
+1. `GraphLayer` receives your style objects and instantiates a `GraphStyleEngine` for
    each entry.
 2. Every property is normalized into either a constant value or an accessor
    function. Functions are wrapped so you can return plain JavaScript values
@@ -24,7 +26,7 @@ This pipeline allows you to focus on the *what* of styling while GraphGL takes
 care of the *how*.
 
 ```ts
-import {BaseStylesheet} from '@deck.gl-community/graph-layers';
+import {StyleEngine, type GraphStylesheet} from '@deck.gl-community/graph-layers';
 
 const CUSTOM_ACCESSOR_MAP = {
   'custom-node': {
@@ -37,14 +39,16 @@ const CUSTOM_UPDATE_TRIGGERS = {
   'custom-node': ['getFillColor', 'getLineColor']
 };
 
-const stylesheet = new BaseStylesheet(
-  {
-    type: 'custom-node',
-    fill: '#2563EB',
-    ':hover': {
-      fill: '#60A5FA'
-    }
-  },
+const customNodeStyle: GraphStylesheet<'custom-node'> = {
+  type: 'custom-node',
+  fill: '#2563EB',
+  ':hover': {
+    fill: '#60A5FA'
+  }
+};
+
+const stylesheet = new StyleEngine(
+  customNodeStyle,
   {
     deckglAccessorMap: CUSTOM_ACCESSOR_MAP,
     deckglUpdateTriggers: CUSTOM_UPDATE_TRIGGERS
