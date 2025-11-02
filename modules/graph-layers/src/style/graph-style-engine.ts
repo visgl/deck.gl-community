@@ -101,8 +101,10 @@ const GRAPH_DECKGL_ACCESSOR_MAP = {
 type GraphStyleType = keyof typeof GRAPH_DECKGL_ACCESSOR_MAP;
 type GraphStyleSelector = `:${string}`;
 
-type GraphStylePropertyKey<TType extends GraphStyleType> =
-  (typeof GRAPH_DECKGL_ACCESSOR_MAP)[TType][keyof (typeof GRAPH_DECKGL_ACCESSOR_MAP)[TType]];
+type GraphStylePropertyKey<TType extends GraphStyleType> = Extract<
+  (typeof GRAPH_DECKGL_ACCESSOR_MAP)[TType][keyof (typeof GRAPH_DECKGL_ACCESSOR_MAP)[TType]],
+  PropertyKey
+>;
 
 type GraphStyleStatefulValue<T> = T | {[state: string]: T};
 

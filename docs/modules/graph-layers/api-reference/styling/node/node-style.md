@@ -23,8 +23,8 @@ const nodeStyle = [
 The order in the array controls the drawing order: earlier entries are rendered
 first (i.e. they appear underneath later entries).
 
-See the [base stylesheet guide](../base-stylesheet.md) for details on how the
-stylesheet engine works and how to extend it for custom layer types.
+See the [graph stylesheet reference](../graph-stylesheet.md) for details on the
+stylesheet shape and how it is processed by the engine.
 
 ## Shared properties
 
