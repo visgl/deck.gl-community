@@ -25,7 +25,7 @@ const edgeStyle = {
 
     },
     {
-      type: EDGE_DECORATOR_TYPE.ARROW,
+      type: 'arrow',
       color: '#222',
       size: 8,
       offset: [4, 0]
@@ -70,13 +70,13 @@ values and their style attributes include:
 
 The following decorator types are available:
 
-* [`'label'`](./edge-style-label.md) - draws text that follows the edge. Supports `text`, `color`,
+* [`'edge-label'`](./edge-style-label.md) - draws text that follows the edge. Supports `text`, `color`,
   `fontSize`, `textAnchor`, `alignmentBaseline`, `scaleWithZoom`, `textMaxWidth`, `textWordBreak`
   and `textSizeMinPixels`..
 * [`'flow'`](./edge-style-flow.md) - animated flow segments to
   communicate direction or magnitude. Supports `color`, `width`, `speed` and
   `tailLength`.
-- `'arrow''`: renders arrowheads for directed edges. Supports `color`, `size` and
+* `'arrow'`: renders arrowheads for directed edges. Supports `color`, `size` and
   `offset`. The `offset` accessor accepts `[along, perpendicular]` distances in layer units, where
   `along` shifts the arrow away from the target node and `perpendicular` offsets it orthogonally
   from the edge.

@@ -20,7 +20,7 @@ support:
 
 ```js
 {
-  type: NODE_TYPE.RECTANGLE,
+  type: 'rectangle',
   width: 120,
   height: 60,
   fill: '#1F2937',
@@ -34,7 +34,7 @@ node:
 
 ```js
 {
-  type: NODE_TYPE.RECTANGLE,
+  type: 'rectangle',
   width: node => 100 + node.metadata.padding * 2,
   height: 48,
   fill: {

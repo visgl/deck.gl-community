@@ -35,7 +35,7 @@ Supported marker names include:
 
 ```js
 {
-  type: NODE_TYPE.MARKER,
+  type: 'marker',
   marker: node => (node.isOffline ? 'triangle-down-filled' : 'circle-filled'),
   size: 18,
   fill: {
@@ -50,7 +50,7 @@ Use selectors to show different icons for interaction states:
 
 ```js
 {
-  type: NODE_TYPE.MARKER,
+  type: 'marker',
   marker: {
     default: 'circle',
     selected: 'star-filled'

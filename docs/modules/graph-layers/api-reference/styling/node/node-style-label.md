@@ -25,7 +25,7 @@ support the following keys:
 
 ```js
 {
-  type: NODE_TYPE.LABEL,
+  type: 'label',
   text: node => node.label,
   color: '#E2E8F0',
   fontSize: 16,
@@ -38,7 +38,7 @@ Using selectors you can provide contextual hints:
 
 ```js
 {
-  type: NODE_TYPE.LABEL,
+  type: 'label',
   text: node => node.label,
   color: {
     default: '#64748B',

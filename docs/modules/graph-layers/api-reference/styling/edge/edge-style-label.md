@@ -26,7 +26,7 @@ like the base edge style.
 
 ```js
 {
-  type: EDGE_DECORATOR_TYPE.LABEL,
+  type: 'edge-label',
   text: edge => `${edge.weight} ms`,
   color: {
     default: '#1F2937',
@@ -41,7 +41,7 @@ To keep labels readable while zooming, disable scaling at small sizes:
 
 ```js
 {
-  type: EDGE_DECORATOR_TYPE.LABEL,
+  type: 'edge-label',
   text: edge => edge.label,
   scaleWithZoom: {
     default: true,
