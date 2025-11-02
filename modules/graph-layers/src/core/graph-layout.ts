@@ -7,6 +7,7 @@ import type {Node} from '../graph/node';
 import type {Edge} from '../graph/edge';
 
 import isEqual from 'lodash.isequal';
+import {log} from '../utils/log';
 
 // the status of the layout
 export type GraphLayoutState = 'init' | 'start' | 'calculating' | 'done' | 'error';
@@ -97,6 +98,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutStart */
   protected _onLayoutStart = (): void => {
+    log.log(0, `GraphLayout(${this._name}): start`)();
     this._updateState('calculating');
 
     /**
@@ -109,6 +111,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutChange */
   protected _onLayoutChange = (): void => {
+    log.log(0, `GraphLayout(${this._name}): update`)();
     this._updateState('calculating');
 
     /**
@@ -121,6 +124,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutDone */
   protected _onLayoutDone = (): void => {
+    log.log(0, `GraphLayout(${this._name}): end`)();
     this._updateState('done');
 
     /**

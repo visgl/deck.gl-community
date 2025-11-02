@@ -22,9 +22,9 @@ describe('hexToBigInt', () => {
 
   it('should handle large hex values (bigger than Number.MAX_SAFE_INTEGER)', () => {
     const bigHex = '123456789ABCDEF123456789ABCDEF';
-    const expected = BigInt('0x' + bigHex);
+    const expected = BigInt(`0x${  bigHex}`);
     expect(hexToBigInt(bigHex)).toBe(expected);
-    expect(hexToBigInt('0x' + bigHex)).toBe(expected);
+    expect(hexToBigInt(`0x${  bigHex}`)).toBe(expected);
   });
 
   it('should throw on invalid input types or strings', () => {
