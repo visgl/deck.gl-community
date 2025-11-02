@@ -2,23 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {Component, useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {
-  GraphEngine,
-  GraphLayer,
-  Graph,
-  log,
-  GraphLayout,
-  SimpleLayout,
-  D3ForceLayout,
-  JSONLoader
-} from '@deck.gl-community/graph-layers';
+import {GraphEngine, GraphLayer, GraphLayout, SimpleLayout, D3ForceLayout, GPUForceLayout, JSONLoader} from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 // import '@deck.gl/widgets/stylesheet.css';
@@ -27,6 +18,7 @@ import {extent} from 'd3-array';
 
 // eslint-disable-next-line import/no-unresolved
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
+import {ControlPanel, ExampleDefinition, LayoutType} from './control-panelt';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
@@ -35,24 +27,34 @@ const INITIAL_VIEW_STATE = {
   zoom: 1
 };
 
-const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'];
-
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 const DEFAULT_NODE_SIZE = 5;
-const DEFAULT_DATASET = 'Random (20, 40)';
+const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
+  'd3-force-layout':
+    'Uses a physics-inspired simulation (d3-force) to iteratively spread nodes while balancing attractive and repulsive forces.',
+  'gpu-force-layout':
+    'Calculates a force-directed layout on the GPU. Ideal for larger graphs that benefit from massively parallel computation.',
+  'simple-layout':
+    'Places nodes with a lightweight deterministic layout useful for quick previews and debugging.'
+};
 
-// const nodeEvents = {
-//   onMouseEnter: null,
-//   onHover: null,
-//   onMouseLeave: null,
-//   onClick: null,
-//   onDrag: null
-// },
-//   edgeEvents = {
-//   onClick: null,
-//   onHover: null
-// },
+const EXAMPLES: ExampleDefinition[] = Object.entries(SAMPLE_GRAPH_DATASETS).map(([name, loader]) => ({
+  name,
+  description: `Sample dataset "${name}".`,
+  data: loader,
+  layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
+  layoutDescriptions: LAYOUT_DESCRIPTIONS
+}));
+
+const DEFAULT_EXAMPLE = EXAMPLES[0];
+const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
+
+const LAYOUT_FACTORIES: Record<LayoutType, () => GraphLayout> = {
+  'd3-force-layout': () => new D3ForceLayout(),
+  'gpu-force-layout': () => new GPUForceLayout(),
+  'simple-layout': () => new SimpleLayout()
+};
 
 
 const loadingReducer = (state, action) => {
@@ -77,6 +79,10 @@ export const useLoading = (engine) => {
   const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
   useLayoutEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
@@ -94,32 +100,25 @@ export const useLoading = (engine) => {
   return [{isLoading}, loadingDispatch];
 };
 
-const graphData = SAMPLE_GRAPH_DATASETS[DEFAULT_DATASET]();
-const graph = JSONLoader({json: graphData});
-const layout = new D3ForceLayout(); // SimpleLayout();
-
 export function App(props) {
+  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
+  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
 
-  const [state, setState] = useState({
-    selectedDataset: DEFAULT_DATASET,
-    selectedLayout: DEFAULT_DATASET
-  });
-
-  const {selectedDataset} = state;
-
-  const [engine, setEngine] = useState(new GraphEngine(graph, layout));
+  const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
+  const graph = useMemo(() => (graphData ? JSONLoader({json: graphData}) : null), [graphData]);
+  const layout = useMemo(() => (selectedLayout ? LAYOUT_FACTORIES[selectedLayout]?.() : null), [selectedLayout]);
+  const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
 
   useLayoutEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
+    if (!engine) {
+      return () => undefined;
     }
 
-    setEngine(new GraphEngine({graph, layout}));
-  }, [graph, layout]);
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+    }
 
-  useLayoutEffect(() => {
     engine.run();
 
     return () => {
@@ -127,13 +126,6 @@ export function App(props) {
     };
   }, [engine]);
 
-  const edgeStyle = [
-    {
-      decorators: [],
-      stroke: 'black',
-      strokeWidth: 1
-    }
-  ];
   // eslint-disable-next-line no-console
   const initialViewState = INITIAL_VIEW_STATE;
   const minZoom = -20;
@@ -151,6 +143,10 @@ export function App(props) {
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
   const fitBounds = useCallback(() => {
+    if (!engine) {
+      return;
+    }
+
     const data = engine.getNodes();
     if (!data.length) {
       return;
@@ -200,6 +196,10 @@ export function App(props) {
   // );
 
   useEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
     if (zoomToFitOnLoad && isLoading) {
       engine.addEventListener('onLayoutDone', fitBounds, {once: true});
     }
@@ -207,34 +207,15 @@ export function App(props) {
       engine.removeEventListener('onLayoutDone', fitBounds);
     };
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
-
-
-  const handleChangeGraph = useCallback(({target: {value}}) => setState(state => ({...state, selectedDataset: value})), [setState]);
-  const handleChangeLayout = useCallback(({target: {value}}) => setState(state => ({...state, selectedLayout: value})), [setState]);
+  const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
+    setSelectedExample(example);
+    setSelectedLayout(layoutType);
+  }, []);
 
   return (
     <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
       <div style={{width: '100%', zIndex: 999}}>
-        <div>
-          Dataset:
-          <select value={state.selectedDataset} onChange={handleChangeGraph}>
-            {Object.keys(SAMPLE_GRAPH_DATASETS).map((data) => (
-              <option key={data} value={data}>
-                {data}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          Layout:
-          <select value={state.selectedLayout} onChange={handleChangeLayout}>
-            {LAYOUTS.map((data) => (
-              <option key={data} value={data}>
-                {data}
-              </option>
-            ))}
-          </select>
-        </div>
+        <ControlPanel examples={EXAMPLES} onExampleChange={handleExampleChange} />
       </div>
       <div style={{width: '100%', flex: 1}}>
         <>
@@ -262,24 +243,28 @@ export function App(props) {
                   }
                 })
               ]}
-              layers={[
-                new GraphLayer({
-                  engine,
-                  nodeStyle: [
-                    {
-                      type: 'circle',
-                      radius: DEFAULT_NODE_SIZE,
-                      fill: 'red'
-                    }
-                  ],
-                  edgeStyle: {
-                    decorators: [],
-                    stroke: 'black',
-                    strokeWidth: 1
-                  },
-                  resumeLayoutAfterDragging
-                })
-              ]}
+              layers={
+                engine
+                  ? [
+                      new GraphLayer({
+                        engine,
+                        nodeStyle: [
+                          {
+                            type: 'circle',
+                            radius: DEFAULT_NODE_SIZE,
+                            fill: 'red'
+                          }
+                        ],
+                        edgeStyle: {
+                          decorators: [],
+                          stroke: 'black',
+                          strokeWidth: 1
+                        },
+                        resumeLayoutAfterDragging
+                      })
+                    ]
+                  : []
+              }
               widgets={[
                 // // new ViewControlWidget({}) TODO - fix and enable
               ]
