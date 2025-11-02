@@ -15,7 +15,7 @@ export type ExampleDefinition = {
   data: () => {nodes: unknown[]; edges: unknown[]};
   /** First listed layout is the default */
   layouts: LayoutType[];
-  layoutDescriptions?: Partial<Record<LayoutType, string>>;
+  layoutDescriptions: Record<LayoutType, string>;
   style: ExampleStyles;
 };
 
@@ -69,12 +69,14 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
     setSelectedLayout(event.target.value as LayoutType);
   }, []);
 
+  const datasetDescription = selectedExample?.description;
+
   const layoutDescription = useMemo(() => {
     if (!selectedExample || !selectedLayout) {
       return undefined;
     }
 
-    return selectedExample.layoutDescriptions?.[selectedLayout] ?? selectedExample.description;
+    return selectedExample.layoutDescriptions[selectedLayout];
   }, [selectedExample, selectedLayout]);
 
   if (!examples.length) {
@@ -82,31 +84,42 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
   }
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem 0'}}>
-      <div style={{display: 'flex', flexWrap: 'wrap', gap: '1rem'}}>
-        <label style={{display: 'flex', flexDirection: 'column', fontSize: '0.875rem'}}>
-          Data
-          <select value={selectedExampleIndex} onChange={handleExampleChange}>
-            {examples.map((example, index) => (
-              <option key={example.name} value={index}>
-                {example.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label style={{display: 'flex', flexDirection: 'column', fontSize: '0.875rem'}}>
-          Layout
-          <select value={selectedLayout} onChange={handleLayoutChange} disabled={!availableLayouts.length}>
-            {availableLayouts.map((layout) => (
-              <option key={layout} value={layout}>
-                {LAYOUT_LABELS[layout] ?? layout}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+    <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0'}}>
+      <label style={{display: 'flex', flexDirection: 'column', fontSize: '0.875rem', gap: '0.25rem'}}>
+        Dataset
+        <select value={selectedExampleIndex} onChange={handleExampleChange}>
+          {examples.map((example, index) => (
+            <option key={example.name} value={index}>
+              {example.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label style={{display: 'flex', flexDirection: 'column', fontSize: '0.875rem', gap: '0.25rem'}}>
+        Layout
+        <select value={selectedLayout} onChange={handleLayoutChange} disabled={!availableLayouts.length}>
+          {availableLayouts.map((layout) => (
+            <option key={layout} value={layout}>
+              {LAYOUT_LABELS[layout] ?? layout}
+            </option>
+          ))}
+        </select>
+      </label>
+      {datasetDescription ? (
+        <section style={{fontSize: '0.875rem', lineHeight: 1.5}}>
+          <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+            Dataset description
+          </h3>
+          <p style={{margin: 0, color: '#334155'}}>{datasetDescription}</p>
+        </section>
+      ) : null}
       {layoutDescription ? (
-        <div style={{fontSize: '0.875rem', lineHeight: 1.4}}>{layoutDescription}</div>
+        <section style={{fontSize: '0.875rem', lineHeight: 1.5}}>
+          <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+            Layout description
+          </h3>
+          <p style={{margin: 0, color: '#334155'}}>{layoutDescription}</p>
+        </section>
       ) : null}
     </div>
   );

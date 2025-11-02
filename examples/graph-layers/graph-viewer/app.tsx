@@ -212,50 +212,63 @@ export function App(props) {
   }, []);
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-      <div style={{width: '100%', zIndex: 999}}>
-        <ControlPanel examples={EXAMPLES} onExampleChange={handleExampleChange} />
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
       <div
         style={{
-          width: '100%',
-          padding: '0 0.5rem 0.5rem',
-          boxSizing: 'border-box'
+          flex: '1 1 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0
         }}
       >
-        <label
+        <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            fontSize: '0.75rem',
-            gap: '0.25rem',
-            fontWeight: 600
+            padding: '1rem',
+            borderBottom: '1px solid #e2e8f0',
+            background: '#f8fafc'
           }}
         >
-          Style JSON
-          <pre
+          <label
             style={{
-              margin: 0,
-              padding: '0.75rem',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '0.5rem',
+              display: 'flex',
+              flexDirection: 'column',
               fontSize: '0.75rem',
-              lineHeight: 1.4,
-              maxHeight: '12rem',
-              overflow: 'auto',
-              whiteSpace: 'pre-wrap',
-              fontFamily: 'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+              gap: '0.25rem',
+              fontWeight: 600
             }}
           >
-            {styleJson || '// No style defined for this example'}
-          </pre>
-        </label>
-      </div>
-      <div style={{width: '100%', flex: 1, position: 'relative'}}>
-        {isLoading ? (
-          <div
-            style={{
+            Style JSON
+            <pre
+              style={{
+                margin: 0,
+                padding: '0.75rem',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '0.5rem',
+                fontSize: '0.75rem',
+                lineHeight: 1.4,
+                maxHeight: '12rem',
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                fontFamily:
+                  'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+              }}
+            >
+              {styleJson || '// No style defined for this example'}
+            </pre>
+          </label>
+        </div>
+        <div style={{flex: 1, position: 'relative'}}>
+          {isLoading ? (
+            <div
+              style={{
               position: 'absolute',
               inset: 0,
               display: 'flex',
@@ -322,6 +335,21 @@ export function App(props) {
           />
         */}
       </div>
+      </div>
+      <aside
+        style={{
+          width: '320px',
+          minWidth: '260px',
+          maxWidth: '360px',
+          padding: '1.5rem 1rem',
+          boxSizing: 'border-box',
+          borderLeft: '1px solid #e2e8f0',
+          background: '#f1f5f9',
+          overflowY: 'auto'
+        }}
+      >
+        <ControlPanel examples={EXAMPLES} onExampleChange={handleExampleChange} />
+      </aside>
     </div>
   );
 }
