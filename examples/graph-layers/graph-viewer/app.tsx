@@ -6,19 +6,25 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRe
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
-import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {GraphEngine, GraphLayer, GraphLayout, SimpleLayout, D3ForceLayout, GPUForceLayout, JSONLoader} from '@deck.gl-community/graph-layers';
+import {
+  GraphEngine,
+  GraphLayer,
+  GraphLayout,
+  SimpleLayout,
+  D3ForceLayout,
+  GPUForceLayout,
+  JSONLoader
+} from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 // import '@deck.gl/widgets/stylesheet.css';
 
 import {extent} from 'd3-array';
 
-// eslint-disable-next-line import/no-unresolved
-import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panelt';
+import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
@@ -29,25 +35,6 @@ const INITIAL_VIEW_STATE = {
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
-const DEFAULT_NODE_SIZE = 5;
-const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
-  'd3-force-layout':
-    'Uses a physics-inspired simulation (d3-force) to iteratively spread nodes while balancing attractive and repulsive forces.',
-  'gpu-force-layout':
-    'Calculates a force-directed layout on the GPU. Ideal for larger graphs that benefit from massively parallel computation.',
-  'simple-layout':
-    'Places nodes with a lightweight deterministic layout useful for quick previews and debugging.'
-};
-
-const EXAMPLES: ExampleDefinition[] = Object.entries(SAMPLE_GRAPH_DATASETS).map(([name, loader]) => ({
-  name,
-  description: `Sample dataset "${name}".`,
-  data: loader,
-  layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
-  layoutDescriptions: LAYOUT_DESCRIPTIONS
-}));
-
-const DEFAULT_EXAMPLE = EXAMPLES[0];
 const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
 
 const LAYOUT_FACTORIES: Record<LayoutType, () => GraphLayout> = {
@@ -86,12 +73,10 @@ export const useLoading = (engine) => {
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    console.log('adding listeners')
     engine.addEventListener('onLayoutStart', layoutStarted);
     engine.addEventListener('onLayoutDone', layoutEnded);
 
     return () => {
-      console.log('removing listeners')
       engine.removeEventListener('onLayoutStart', layoutStarted);
       engine.removeEventListener('onLayoutDone', layoutEnded);
     };
@@ -122,6 +107,7 @@ export function App(props) {
     engine.run();
 
     return () => {
+      engine.stop();
       engine.clear();
     };
   }, [engine]);
@@ -141,6 +127,19 @@ export function App(props) {
   });
 
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+
+  const selectedStyles = selectedExample?.style;
+  const styleJson = useMemo(() => {
+    if (!selectedStyles) {
+      return '';
+    }
+
+    return JSON.stringify(
+      selectedStyles,
+      (_key, value) => (typeof value === 'function' ? value.toString() : value),
+      2
+    );
+  }, [selectedStyles]);
 
   const fitBounds = useCallback(() => {
     if (!engine) {
@@ -217,73 +216,111 @@ export function App(props) {
       <div style={{width: '100%', zIndex: 999}}>
         <ControlPanel examples={EXAMPLES} onExampleChange={handleExampleChange} />
       </div>
-      <div style={{width: '100%', flex: 1}}>
-        <>
-          {isLoading}
-          <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
-            <DeckGL
-              onError={(error) => console.error(error)}
-              onAfterRender={() => loadingDispatch({type: 'afterRender'})}
-              width="100%"
-              height="100%"
-              getCursor={() => DEFAULT_CURSOR}
-              viewState={viewState as any}
-              onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
-              onViewStateChange={({viewState}) => setViewState(viewState as any)}
-              views={[
-                new OrthographicView({
-                  minZoom,
-                  maxZoom,
-                  controller: {
-                    scrollZoom: true,
-                    touchZoom: true,
-                    doubleClickZoom: true,
-                    dragPan: true,
-                    wheelSensitivity: 0.5
-                  }
-                })
-              ]}
-              layers={
-                engine
-                  ? [
-                      new GraphLayer({
-                        engine,
-                        nodeStyle: [
-                          {
-                            type: 'circle',
-                            radius: DEFAULT_NODE_SIZE,
-                            fill: 'red'
-                          }
-                        ],
-                        edgeStyle: {
-                          decorators: [],
-                          stroke: 'black',
-                          strokeWidth: 1
-                        },
-                        resumeLayoutAfterDragging
-                      })
-                    ]
-                  : []
-              }
-              widgets={[
-                // // new ViewControlWidget({}) TODO - fix and enable
-              ]
-                // onHover={(info) => console.log('Hover', info)}
-              }
-              getTooltip={(info) => getToolTip(info.object)}
-            />
-            {/* View control component TODO - doesn't work in website, replace with widget *
-              <PositionedViewControl
-                fitBounds={fitBounds}
-                panBy={panBy}
-                zoomBy={zoomBy}
-                zoomLevel={viewState.zoom}
-                maxZoom={maxZoom}
-                minZoom={minZoom}
-              />
-            */}
+      <div
+        style={{
+          width: '100%',
+          padding: '0 0.5rem 0.5rem',
+          boxSizing: 'border-box'
+        }}
+      >
+        <label
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            fontSize: '0.75rem',
+            gap: '0.25rem',
+            fontWeight: 600
+          }}
+        >
+          Style JSON
+          <pre
+            style={{
+              margin: 0,
+              padding: '0.75rem',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '0.5rem',
+              fontSize: '0.75rem',
+              lineHeight: 1.4,
+              maxHeight: '12rem',
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+              fontFamily: 'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+            }}
+          >
+            {styleJson || '// No style defined for this example'}
+          </pre>
+        </label>
+      </div>
+      <div style={{width: '100%', flex: 1, position: 'relative'}}>
+        {isLoading ? (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.875rem',
+              color: '#475569',
+              zIndex: 1,
+              pointerEvents: 'none'
+            }}
+          >
+            Computing layout…
           </div>
-        </>
+        ) : null}
+        <DeckGL
+          onError={(error) => console.error(error)}
+          onAfterRender={() => loadingDispatch({type: 'afterRender'})}
+          width="100%"
+          height="100%"
+          getCursor={() => DEFAULT_CURSOR}
+          viewState={viewState as any}
+          onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
+          onViewStateChange={({viewState}) => setViewState(viewState as any)}
+          views={[
+            new OrthographicView({
+              minZoom,
+              maxZoom,
+              controller: {
+                scrollZoom: true,
+                touchZoom: true,
+                doubleClickZoom: true,
+                dragPan: true,
+                wheelSensitivity: 0.5
+              }
+            })
+          ]}
+          layers={
+            engine
+              ? [
+                  new GraphLayer({
+                    engine,
+                    nodeStyle: selectedStyles?.nodeStyle,
+                    edgeStyle: selectedStyles?.edgeStyle,
+                    resumeLayoutAfterDragging
+                  })
+                ]
+              : []
+          }
+          widgets={[
+            // // new ViewControlWidget({}) TODO - fix and enable
+          ]
+            // onHover={(info) => console.log('Hover', info)}
+          }
+          getTooltip={(info) => getToolTip(info.object)}
+        />
+        {/* View control component TODO - doesn't work in website, replace with widget *
+          <PositionedViewControl
+            fitBounds={fitBounds}
+            panBy={panBy}
+            zoomBy={zoomBy}
+            zoomLevel={viewState.zoom}
+            maxZoom={maxZoom}
+            minZoom={minZoom}
+          />
+        */}
       </div>
     </div>
   );

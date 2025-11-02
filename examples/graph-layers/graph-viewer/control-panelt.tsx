@@ -3,8 +3,11 @@
 // Copyright (c) vis.gl contributors
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
 
 export type LayoutType = 'd3-force-layout' | 'gpu-force-layout' | 'simple-layout';
+
+export type ExampleStyles = Pick<GraphLayerProps, 'nodeStyle' | 'edgeStyle'>;
 
 export type ExampleDefinition = {
   name: string;
@@ -13,6 +16,7 @@ export type ExampleDefinition = {
   /** First listed layout is the default */
   layouts: LayoutType[];
   layoutDescriptions?: Partial<Record<LayoutType, string>>;
+  style: ExampleStyles;
 };
 
 type ControlPanelProps = {
