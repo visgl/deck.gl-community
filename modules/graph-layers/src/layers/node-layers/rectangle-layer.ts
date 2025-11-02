@@ -23,7 +23,8 @@ export class RectangleLayer extends CompositeLayer {
   static layerName = 'RectangleLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0, transitions} =
+      this.props as any;
 
     const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
     const getLineWidth = stylesheet.getDeckGLAccessor('getLineWidth');
@@ -43,6 +44,7 @@ export class RectangleLayer extends CompositeLayer {
           jointRounded: true,
           stroked: Boolean(getLineWidth),
           ...stylesheet.getDeckGLAccessors(),
+          transitions,
           updateTriggers: {
             getPolygon: [
               positionUpdateTrigger,

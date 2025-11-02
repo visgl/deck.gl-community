@@ -10,7 +10,8 @@ export class FlowLayer extends CompositeLayer {
   static layerName = 'FlowLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet, transitions} =
+      this.props as any;
     return [
       new FlowPathLayer(
         this.getSubLayerProps({
@@ -22,6 +23,7 @@ export class FlowLayer extends CompositeLayer {
           parameters: {
             depthTest: false
           },
+          transitions,
           updateTriggers: {
             ...stylesheet.getDeckGLUpdateTriggers(),
             getSourcePosition: positionUpdateTrigger,
