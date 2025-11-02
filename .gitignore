@@ -11,7 +11,6 @@ test/**/*-failed.png
 
 TODO
 
-*/**/yarn.lock
 yarn-error.log
 package-lock.json
 tsconfig.tsbuildinfo
@@ -22,9 +21,6 @@ tsconfig.tsbuildinfo
 .DS_Store
 *.log
 .exit_code
-
-*/**/yarn.lock
-!website/yarn.lock
 
 */**/.yarn/*
 */**/yarn-error.log
