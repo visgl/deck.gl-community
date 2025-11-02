@@ -102,12 +102,33 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: '1rem',
-        padding: '0.5rem 0 1rem'
+        padding: '0.5rem 0 1rem',
+        fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
       }}
     >
-      <label style={{display: 'flex', flexDirection: 'column', fontSize: '0.875rem', gap: '0.25rem'}}>
+      <label
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          fontSize: '0.875rem',
+          gap: '0.25rem',
+          color: '#0f172a'
+        }}
+      >
         Dataset
-        <select value={selectedExampleIndex} onChange={handleExampleChange}>
+        <select
+          value={selectedExampleIndex}
+          onChange={handleExampleChange}
+          style={{
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            padding: '0.375rem 0.5rem',
+            borderRadius: '0.375rem',
+            border: '1px solid #cbd5f5',
+            backgroundColor: '#ffffff',
+            color: '#0f172a'
+          }}
+        >
           {examples.map((example, index) => (
             <option key={example.name} value={index}>
               {example.name}
@@ -115,9 +136,30 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
           ))}
         </select>
       </label>
-      <label style={{display: 'flex', flexDirection: 'column', fontSize: '0.875rem', gap: '0.25rem'}}>
+      <label
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          fontSize: '0.875rem',
+          gap: '0.25rem',
+          color: '#0f172a'
+        }}
+      >
         Layout
-        <select value={selectedLayout} onChange={handleLayoutChange} disabled={!availableLayouts.length}>
+        <select
+          value={selectedLayout}
+          onChange={handleLayoutChange}
+          disabled={!availableLayouts.length}
+          style={{
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            padding: '0.375rem 0.5rem',
+            borderRadius: '0.375rem',
+            border: '1px solid #cbd5f5',
+            backgroundColor: '#ffffff',
+            color: '#0f172a'
+          }}
+        >
           {availableLayouts.map((layout) => (
             <option key={layout} value={layout}>
               {LAYOUT_LABELS[layout] ?? layout}
@@ -126,19 +168,19 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
         </select>
       </label>
       {datasetDescription ? (
-        <section style={{fontSize: '0.875rem', lineHeight: 1.5}}>
+        <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
           <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
             Dataset description
           </h3>
-          <p style={{margin: 0, color: '#334155'}}>{datasetDescription}</p>
+          <p style={{margin: 0}}>{datasetDescription}</p>
         </section>
       ) : null}
       {layoutDescription ? (
-        <section style={{fontSize: '0.875rem', lineHeight: 1.5}}>
+        <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
           <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
             Layout description
           </h3>
-          <p style={{margin: 0, color: '#334155'}}>{layoutDescription}</p>
+          <p style={{margin: 0}}>{layoutDescription}</p>
         </section>
       ) : null}
       <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>

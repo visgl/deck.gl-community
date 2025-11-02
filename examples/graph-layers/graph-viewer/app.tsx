@@ -206,7 +206,8 @@ export function App(props) {
         display: 'flex',
         height: '100%',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
       }}
     >
       <div
@@ -294,7 +295,8 @@ export function App(props) {
           boxSizing: 'border-box',
           borderLeft: '1px solid #e2e8f0',
           background: '#f1f5f9',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          fontFamily: 'inherit'
         }}
       >
         <ControlPanel examples={EXAMPLES} onExampleChange={handleExampleChange} />
@@ -314,6 +316,7 @@ function getToolTip(object) {
 export function renderToDOM() {
   if (document.body) {
     document.body.style.margin = '0';
+    document.body.style.fontFamily = 'Inter, "Helvetica Neue", Arial, sans-serif';
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);

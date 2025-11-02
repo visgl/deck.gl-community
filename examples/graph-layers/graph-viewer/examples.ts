@@ -26,7 +26,7 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
     },
     {
       type: 'label',
-      text: (node) => String(node.getId?.() ?? node.id ?? ''),
+      text: (node) => String(node.id ?? node.getId?.() ?? ''),
       color: '#0f172a',
       fontSize: 14,
       offset: [0, 18],
