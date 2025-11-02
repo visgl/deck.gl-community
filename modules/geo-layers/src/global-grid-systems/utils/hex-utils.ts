@@ -25,12 +25,12 @@ export function hexToBigInt(hex: string): bigint {
 
   // Optional: normalize even length by prepending a zero if odd
   if (s.length % 2 === 1) {
-    s = '0' + s;
+    s = `0${  s}`;
   }
 
   // Use BigInt conversion from string with 0x prefix
   try {
-    return BigInt('0x' + s);
+    return BigInt(`0x${  s}`);
   } catch (e) {
     throw new Error(`hexToBigInt: cannot convert hex string “${hex}” to bigint: ${(e as Error).message}`);
   }
