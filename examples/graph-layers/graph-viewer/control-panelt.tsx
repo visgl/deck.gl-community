@@ -106,17 +106,24 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
         fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
       }}
     >
-      <label
+      <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          fontSize: '0.875rem',
-          gap: '0.25rem',
-          color: '#0f172a'
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr',
+          gridAutoRows: 'auto',
+          columnGap: '0.75rem',
+          rowGap: '0.75rem',
+          alignItems: 'center'
         }}
       >
-        Dataset
+        <label
+          htmlFor="graph-viewer-example"
+          style={{fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}
+        >
+          Dataset
+        </label>
         <select
+          id="graph-viewer-example"
           value={selectedExampleIndex}
           onChange={handleExampleChange}
           style={{
@@ -135,18 +142,11 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
             </option>
           ))}
         </select>
-      </label>
-      <label
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          fontSize: '0.875rem',
-          gap: '0.25rem',
-          color: '#0f172a'
-        }}
-      >
-        Layout
+        <label htmlFor="graph-viewer-layout" style={{fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+          Layout
+        </label>
         <select
+          id="graph-viewer-layout"
           value={selectedLayout}
           onChange={handleLayoutChange}
           disabled={!availableLayouts.length}
@@ -166,11 +166,11 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
             </option>
           ))}
         </select>
-      </label>
+      </div>
       {datasetDescription ? (
         <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
           <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-            Dataset description
+            Dataset overview
           </h3>
           <p style={{margin: 0}}>{datasetDescription}</p>
         </section>
@@ -178,7 +178,7 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
       {layoutDescription ? (
         <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
           <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-            Layout description
+            Layout overview
           </h3>
           <p style={{margin: 0}}>{layoutDescription}</p>
         </section>

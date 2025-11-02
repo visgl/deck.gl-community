@@ -26,7 +26,27 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
     },
     {
       type: 'label',
-      text: (node) => String(node.id ?? node.getId?.() ?? ''),
+      text: (node) => {
+        if (typeof node?.getId === 'function') {
+          const id = node.getId();
+          if (typeof id === 'string' && id.length) {
+            return id;
+          }
+        }
+
+        if (typeof node?.getPropertyValue === 'function') {
+          const originalId = node.getPropertyValue('id');
+          if (originalId !== undefined && originalId !== null) {
+            return String(originalId);
+          }
+        }
+
+        if (node && 'id' in node && node.id !== undefined && node.id !== null) {
+          return String(node.id);
+        }
+
+        return '';
+      },
       color: '#0f172a',
       fontSize: 14,
       offset: [0, 18],
@@ -206,20 +226,20 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
 
 export const EXAMPLES: ExampleDefinition[] = [
   {
-    name: 'Random (20, 40)',
-    description: 'Randomly connected graph with 20 nodes and 40 edges.',
-    data: SAMPLE_GRAPH_DATASETS['Random (20, 40)'],
-    layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
-    layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: RANDOM_20_40_STYLE
-  },
-  {
     name: 'Les Miserable',
     description: 'Social network of co-occurring characters in Les Miserables by Victor Hugo.',
     data: SAMPLE_GRAPH_DATASETS['Les Miserable'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: LES_MISERABLES_STYLE
+  },
+  {
+    name: 'Random (20, 40)',
+    description: 'Randomly connected graph with 20 nodes and 40 edges.',
+    data: SAMPLE_GRAPH_DATASETS['Random (20, 40)'],
+    layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: RANDOM_20_40_STYLE
   },
   {
     name: 'Random (100, 200)',
