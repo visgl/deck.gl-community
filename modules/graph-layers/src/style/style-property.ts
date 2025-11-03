@@ -343,6 +343,29 @@ type LeafParseResult = {
   updateTrigger: unknown;
 };
 
+function describeStyleValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'undefined') {
+    return String(value);
+  }
+  if (value === null) {
+    return 'null';
+  }
+  if (typeof value === 'function') {
+    return value.name ? `[Function ${value.name}]` : '[Function]';
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => describeStyleValue(item)).join(', ')}]`;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 /** Parse a non-stateful style value into deck.gl compatible form. */
 function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): LeafParseResult {
   const formatter = PROPERTY_FORMATTERS[key] || IDENTITY;
@@ -350,8 +373,9 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
   if (typeof value === 'undefined') {
     const formatted = formatter(DEFAULT_STYLES[key]);
     if (formatted === null) {
-      log.warn(`Invalid ${key} value: ${value}`);
-      throw new Error(`Invalid ${key} value: ${value}`);
+      const description = describeStyleValue(value);
+      log.warn(`Invalid ${key} value: ${description}`);
+      throw new Error(`Invalid ${key} value: ${description}`);
     }
     return {value: formatted, isAccessor: false, updateTrigger: false};
   }
@@ -372,8 +396,9 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
 
   const formatted = formatter(value);
   if (formatted === null) {
-    log.warn(`Invalid ${key} value: ${value}`);
-    throw new Error(`Invalid ${key} value: ${value}`);
+    const description = describeStyleValue(value);
+    log.warn(`Invalid ${key} value: ${description}`);
+    throw new Error(`Invalid ${key} value: ${description}`);
   }
 
   return {value: formatted, isAccessor: false, updateTrigger: false};

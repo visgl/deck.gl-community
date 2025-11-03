@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {GraphStylesheet, GraphStyleValue, GraphStyleType} from './graph-style-engine';
+import type {GraphStylesheet, GraphStyleType} from './graph-style-engine';
 
 export type GraphNodeStyleType = Exclude<
   GraphStyleType,
@@ -33,11 +33,6 @@ export type GraphLayerEdgeStyle = (
 export type GraphLayerStylesheet = {
   nodes?: GraphLayerNodeStyle[];
   edges?: GraphLayerEdgeStyle | GraphLayerEdgeStyle[];
-};
-
-export type NormalizedGraphLayerStylesheet = {
-  nodes: GraphLayerNodeStyle[];
-  edges: GraphLayerEdgeStyle[];
 };
 
 export type GraphLayerStylesheetInput = GraphLayerStylesheet | null | undefined;
@@ -87,12 +82,12 @@ export function normalizeGraphLayerStylesheet({
     ? [resolvedEdgeStyles]
     : DEFAULT_GRAPH_LAYER_STYLESHEET.edges;
 
-  const edges: GraphLayerEdgeStyle[] = (edgeEntries as GraphLayerEdgeStyle[])
+  const edges: GraphLayerEdgeStyle[] = (edgeEntries)
     .filter(Boolean)
     .map((edgeStyleEntry) => ({
       ...edgeStyleEntry,
-      type: ((edgeStyleEntry as GraphLayerEdgeStyle).type ?? 'edge') as EdgeStyleType,
-      decorators: (edgeStyleEntry as GraphLayerEdgeStyle).decorators ?? []
+      type: ((edgeStyleEntry).type ?? 'edge'),
+      decorators: (edgeStyleEntry).decorators ?? []
     })) as GraphLayerEdgeStyle[];
 
   return {
@@ -101,8 +96,4 @@ export function normalizeGraphLayerStylesheet({
   };
 }
 
-export type {
-  GraphStyleValue,
-  GraphStylesheet,
-  GraphStyleType
-} from './graph-style-engine';
+export type {GraphStyleValue, GraphStylesheet, GraphStyleType} from './graph-style-engine';
