@@ -144,7 +144,7 @@ const GRAPH_DECKGL_ACCESSOR_MAP = {
   }
 } as const satisfies DeckGLAccessorMap;
 
-type GraphStyleType = keyof typeof GRAPH_DECKGL_ACCESSOR_MAP;
+export type GraphStyleType = keyof typeof GRAPH_DECKGL_ACCESSOR_MAP;
 export type GraphStyleSelector = `:${string}`;
 
 type GraphStylePropertyKey<TType extends GraphStyleType> = Extract<

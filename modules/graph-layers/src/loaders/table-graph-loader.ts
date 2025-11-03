@@ -73,7 +73,7 @@ export function tableGraphLoader(
   // add nodes
 
   if (!nodes) {
-    log.error('Invalid graph: nodes is missing.')();
+    log.error('Invalid graph: nodes is missing.');
     return null;
   }
 

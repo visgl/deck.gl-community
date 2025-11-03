@@ -35,6 +35,11 @@ export type GraphLayerStylesheet = {
   edges?: GraphLayerEdgeStyle | GraphLayerEdgeStyle[];
 };
 
+export type NormalizedGraphLayerStylesheet = {
+  nodes: GraphLayerNodeStyle[];
+  edges: GraphLayerEdgeStyle[];
+};
+
 export type GraphLayerStylesheetInput = GraphLayerStylesheet | null | undefined;
 
 const DEFAULT_EDGE_STYLE: GraphLayerEdgeStyle = {
@@ -44,7 +49,7 @@ const DEFAULT_EDGE_STYLE: GraphLayerEdgeStyle = {
   decorators: []
 };
 
-export const DEFAULT_GRAPH_LAYER_STYLESHEET: Required<Pick<GraphLayerStylesheet, 'nodes' | 'edges'>> = {
+export const DEFAULT_GRAPH_LAYER_STYLESHEET: NormalizedGraphLayerStylesheet = {
   nodes: [],
   edges: [DEFAULT_EDGE_STYLE]
 };
@@ -59,7 +64,7 @@ export function normalizeGraphLayerStylesheet({
   stylesheet,
   nodeStyle,
   edgeStyle
-}: GraphLayerStylesheetSources): Required<Pick<GraphLayerStylesheet, 'nodes' | 'edges'>> {
+}: GraphLayerStylesheetSources): NormalizedGraphLayerStylesheet {
   const resolvedStylesheet = stylesheet ?? {};
   const resolvedNodeStyles = Array.isArray(resolvedStylesheet.nodes)
     ? resolvedStylesheet.nodes
@@ -80,10 +85,10 @@ export function normalizeGraphLayerStylesheet({
   const edges = edgesArray
     .filter(Boolean)
     .map((edgeStyleEntry) => ({
-      type: 'edge',
-      decorators: [],
-      ...edgeStyleEntry
-    }));
+      ...edgeStyleEntry,
+      type: ((edgeStyleEntry as GraphLayerEdgeStyle).type ?? 'edge') as EdgeStyleType,
+      decorators: (edgeStyleEntry as GraphLayerEdgeStyle).decorators ?? []
+    })) as GraphLayerEdgeStyle[];
 
   return {
     nodes,

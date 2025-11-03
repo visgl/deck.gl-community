@@ -98,7 +98,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutStart */
   protected _onLayoutStart = (): void => {
-    log.log(0, `GraphLayout(${this._name}): start`)();
+    log.log(0, `GraphLayout(${this._name}): start`);
     this._updateState('calculating');
 
     /**
@@ -111,7 +111,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutChange */
   protected _onLayoutChange = (): void => {
-    log.log(0, `GraphLayout(${this._name}): update`)();
+    log.log(0, `GraphLayout(${this._name}): update`);
     this._updateState('calculating');
 
     /**
@@ -124,7 +124,7 @@ export class GraphLayout<
 
   /** @fires GraphLayout#onLayoutDone */
   protected _onLayoutDone = (): void => {
-    log.log(0, `GraphLayout(${this._name}): end`)();
+    log.log(0, `GraphLayout(${this._name}): end`);
     this._updateState('done');
 
     /**
