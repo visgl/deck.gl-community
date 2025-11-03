@@ -20,7 +20,7 @@ import {
   HivePlotLayout,
   ForceMultiGraphLayout,
   D3DagLayout,
-  type GraphLayoutEventDetail,
+  type GraphLayoutEventDetail
 } from '@deck.gl-community/graph-layers';
 import type {Bounds2D} from '@math.gl/types';
 
