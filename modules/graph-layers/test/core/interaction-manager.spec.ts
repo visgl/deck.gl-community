@@ -205,7 +205,7 @@ describe('resolveChainInteractionSource', () => {
       parent: {id: 'graph-layer-expanded-chain-markers', parent: null}
     };
 
-    expect(resolveChainInteractionSource(layerTree)).toBe('expanded-marker');
+    expect(resolveChainInteractionSource({layer: layerTree})).toBe('expanded-marker');
   });
 
   it('detects outline layers and defaults to node when absent', () => {
@@ -214,8 +214,17 @@ describe('resolveChainInteractionSource', () => {
       parent: {id: 'graph-layer-collapsed-chain-outlines', parent: null}
     };
 
-    expect(resolveChainInteractionSource(outlineLayer)).toBe('collapsed-outline');
+    expect(resolveChainInteractionSource({layer: outlineLayer})).toBe('collapsed-outline');
     expect(resolveChainInteractionSource(null)).toBe('node');
+  });
+
+  it('falls back to the sourceLayer when layer is missing', () => {
+    const sourceLayer = {
+      id: 'graph-layer-expanded-chain-outlines-zoomable-marker-layer',
+      parent: {id: 'graph-layer-expanded-chain-outlines', parent: null}
+    };
+
+    expect(resolveChainInteractionSource({layer: null, sourceLayer})).toBe('expanded-outline');
   });
 });
 

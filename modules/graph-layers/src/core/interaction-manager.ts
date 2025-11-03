@@ -15,10 +15,23 @@ export type ChainInteractionSource =
   | 'collapsed-outline'
   | 'expanded-outline';
 
-export function resolveChainInteractionSource(layer: any): ChainInteractionSource {
+function resolveLayerId(layer: any): string {
+  if (!layer) {
+    return '';
+  }
+  if (typeof layer.id === 'string') {
+    return layer.id;
+  }
+  if (typeof layer.props?.id === 'string') {
+    return layer.props.id;
+  }
+  return '';
+}
+
+function classifyLayer(layer: any): ChainInteractionSource | null {
   let current = layer ?? null;
   while (current) {
-    const layerId = typeof current.id === 'string' ? current.id : '';
+    const layerId = resolveLayerId(current);
     if (layerId.includes('collapsed-chain-markers')) {
       return 'collapsed-marker';
     }
@@ -33,6 +46,33 @@ export function resolveChainInteractionSource(layer: any): ChainInteractionSourc
     }
     current = current.parent ?? null;
   }
+  return null;
+}
+
+export function resolveChainInteractionSource(info: any): ChainInteractionSource {
+  if (!info) {
+    return 'node';
+  }
+
+  const layersToCheck = [] as any[];
+  if (info.layer || info.sourceLayer) {
+    if (info.layer) {
+      layersToCheck.push(info.layer);
+    }
+    if (info.sourceLayer && info.sourceLayer !== info.layer) {
+      layersToCheck.push(info.sourceLayer);
+    }
+  } else {
+    layersToCheck.push(info);
+  }
+
+  for (const layer of layersToCheck) {
+    const classification = classifyLayer(layer);
+    if (classification) {
+      return classification;
+    }
+  }
+
   return 'node';
 }
 
@@ -155,7 +195,7 @@ export class InteractionManager {
       if (hasChainMetadata && isRepresentative) {
         const layout: any = this.engine?.props?.layout;
         if (layout && typeof layout.toggleCollapsedChain === 'function') {
-          const interactionSource = resolveChainInteractionSource(info?.layer ?? null);
+          const interactionSource = resolveChainInteractionSource(info ?? null);
 
           if (shouldToggleCollapsedChain(isCollapsed, interactionSource)) {
             const action = isCollapsed ? 'expand' : 'collapse';
