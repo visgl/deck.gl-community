@@ -13,7 +13,7 @@ import {
   scaleSqrt
 } from 'd3-scale';
 
-import {log} from '../utils/log';
+import {warn} from '../utils/log';
 import type {
   GraphStyleAttributeReference,
   GraphStyleLeafValue,
@@ -183,7 +183,7 @@ function createScaleFromConfig(config: GraphStyleScale): SupportedScale {
   const type = config.type ?? 'linear';
   const factory = SCALE_FACTORIES[type];
   if (!factory) {
-    log.warn(`Invalid scale type: ${type}`);
+    warn(`Invalid scale type: ${type}`);
     throw new Error(`Invalid scale type: ${type}`);
   }
   const scale = (factory as () => SupportedScale)();
@@ -322,7 +322,7 @@ function createAttributeAccessor(
     }
     const formatted = formatter(raw);
     if (formatted === null) {
-      log.warn(`Invalid ${key} value: ${raw}`);
+      warn(`Invalid ${key} value: ${raw}`);
       throw new Error(`Invalid ${key} value: ${raw}`);
     }
     return formatted;
@@ -374,7 +374,7 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
     const formatted = formatter(DEFAULT_STYLES[key]);
     if (formatted === null) {
       const description = describeStyleValue(value);
-      log.warn(`Invalid ${key} value: ${description}`);
+      warn(`Invalid ${key} value: ${description}`);
       throw new Error(`Invalid ${key} value: ${description}`);
     }
     return {value: formatted, isAccessor: false, updateTrigger: false};
@@ -397,7 +397,7 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
   const formatted = formatter(value);
   if (formatted === null) {
     const description = describeStyleValue(value);
-    log.warn(`Invalid ${key} value: ${description}`);
+    warn(`Invalid ${key} value: ${description}`);
     throw new Error(`Invalid ${key} value: ${description}`);
   }
 
@@ -476,7 +476,7 @@ export class StyleProperty {
     }
 
     if (this._value === null) {
-      log.warn(`Invalid ${key} value: ${value}`);
+      warn(`Invalid ${key} value: ${value}`);
       throw new Error(`Invalid ${key} value: ${value}`);
     }
   }

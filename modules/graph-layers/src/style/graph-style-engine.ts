@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {ZodError} from 'zod';
 
 /** Supported scale families for attribute references. *
 export type GraphStyleScaleType 
@@ -161,12 +160,16 @@ export type GraphStylesheet<
   Partial<Record<GraphStyleSelector, GraphStylePropertyMap<TType, TValue>>>;
 */
 
+import type {ZodError} from 'zod';
+
 import {StyleEngine, type DeckGLUpdateTriggers} from './style-engine';
+import {warn} from '../utils/log';
 import {
   GraphStylesheetSchema,
   GRAPH_DECKGL_ACCESSOR_MAP,
   type GraphStylesheet,
-  type GraphStylesheetParsed
+  type GraphStylesheetParsed,
+  type GraphStyleType
 } from './graph-stylesheet.schema';
 
 const GRAPH_DECKGL_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
@@ -196,21 +199,29 @@ function formatStylesheetError(error: ZodError) {
 export class GraphStyleEngine extends StyleEngine {
   constructor(style: GraphStylesheet, {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}) {
     let parsedStyle: GraphStylesheetParsed;
-    try {
-      parsedStyle = GraphStylesheetSchema.parse(style);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        throw new Error(formatStylesheetError(error));
-      }
-      throw error;
+    const parseResult = GraphStylesheetSchema.safeParse(style);
+    if (parseResult.success) {
+      parsedStyle = parseResult.data;
+    } else {
+      const error = parseResult.error;
+      const styleType = style?.type;
+      const fallbackType = isGraphStyleType(styleType) ? styleType : DEFAULT_FALLBACK_STYLE_TYPE;
+      warn(formatStylesheetError(error));
+      parsedStyle = GraphStylesheetSchema.parse({type: fallbackType});
     }
 
-    super(parsedStyle as GraphStylesheet, {
+    super(parsedStyle, {
       deckglAccessorMap: GRAPH_DECKGL_ACCESSOR_MAP,
       deckglUpdateTriggers: GRAPH_DECKGL_UPDATE_TRIGGERS,
       stateUpdateTrigger
     });
   }
+}
+
+const DEFAULT_FALLBACK_STYLE_TYPE: GraphStyleType = 'edge';
+
+function isGraphStyleType(value: unknown): value is GraphStyleType {
+  return typeof value === 'string' && value in GRAPH_DECKGL_ACCESSOR_MAP;
 }
 
 export {

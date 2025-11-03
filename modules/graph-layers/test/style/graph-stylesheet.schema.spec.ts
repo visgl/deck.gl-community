@@ -2,13 +2,22 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {describe, it, expect} from 'vitest';
+import {afterEach, describe, it, expect, vi} from 'vitest';
 
 import {
   GraphStyleEngine,
   GraphStylesheetSchema,
   type GraphStylesheet
 } from '../../src/style/graph-style-engine';
+import {log as graphLog} from '../../src/utils/log';
+
+function mockWarn() {
+  return vi.spyOn(graphLog, 'warn').mockImplementation(() => graphLog);
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('GraphStylesheetSchema', () => {
   it('accepts a valid stylesheet definition', () => {
@@ -40,9 +49,15 @@ describe('GraphStylesheetSchema', () => {
       'Unknown style property "foo".'
     );
 
-    expect(() => new GraphStyleEngine(invalidStylesheet)).toThrowError(
-      /Unknown style property "foo"/i
+    const warnSpy = mockWarn();
+    const stylesheet = new GraphStyleEngine(invalidStylesheet);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Unknown style property "foo"')
     );
+    const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
+    const fillValue =
+      typeof getFillColor === 'function' ? getFillColor({state: 'default'}) : getFillColor;
+    expect(fillValue).toEqual([0, 0, 0]);
   });
 
   it('validates selector overrides', () => {
@@ -58,9 +73,12 @@ describe('GraphStylesheetSchema', () => {
     const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
     expect(messages.some((message) => /Unrecognized key/.test(message) && message.includes('unknown'))).toBe(true);
 
-    expect(() => new GraphStyleEngine(invalidSelectorStylesheet)).toThrowError(
-      /:hover.*unknown/i
-    );
+    const warnSpy = mockWarn();
+    const stylesheet = new GraphStyleEngine(invalidSelectorStylesheet);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/:hover/));
+    const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
+    const fillValue = typeof getFillColor === 'function' ? getFillColor({state: 'hover'}) : getFillColor;
+    expect(fillValue).toEqual([0, 0, 0]);
   });
 
   it('validates attribute references', () => {
@@ -78,8 +96,13 @@ describe('GraphStylesheetSchema', () => {
       'Attribute name is required.'
     );
 
-    expect(() => new GraphStyleEngine(invalidAttributeReference)).toThrowError(
-      /radius\.attribute.*Attribute name is required\./i
+    const warnSpy = mockWarn();
+    const stylesheet = new GraphStyleEngine(invalidAttributeReference);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('radius.attribute')
     );
+    const getRadius = stylesheet.getDeckGLAccessor('getRadius');
+    const radiusValue = typeof getRadius === 'function' ? getRadius({state: 'default'}) : getRadius;
+    expect(radiusValue).toBe(1);
   });
 });
