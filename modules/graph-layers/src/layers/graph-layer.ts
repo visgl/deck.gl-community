@@ -78,6 +78,8 @@ export type _GraphLayerProps = {
   layout?: GraphLayout;
   graphLoader?: (opts: {json: any}) => Graph;
   engine?: GraphEngine;
+  /** Minimum time (in milliseconds) between layout updates emitted by the internal engine. */
+  layoutUpdateInterval?: number;
 
   // an array of styles for layers
   nodeStyle?: GraphNodeStyle[];
@@ -106,6 +108,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     // Graph props
     graphLoader: JSONLoader,
+    layoutUpdateInterval: 0,
 
     nodeStyle: [],
     nodeEvents: {
@@ -131,7 +134,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   // @ts-expect-error Some typescript confusion due to override of base class state
   state!: CompositeLayer<GraphLayerProps>['state'] & {
     interactionManager: InteractionManager;
-    graphEngine?: GraphEngine;
+    graphEngine?: GraphEngine | null;
   };
 
   forceUpdate = () => {
@@ -164,14 +167,14 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       !(Array.isArray(props.data) && props.data.length === 0)
     ) {
       // console.log(props.data);
-      const graph = this.props.graphLoader({json: props.data});
-      const layout = this.props.layout;
-      const graphEngine = new GraphEngine({graph, layout});
+      const graph = props.graphLoader({json: props.data});
+      const layout = props.layout;
+      const graphEngine = this._createGraphEngine(graph, layout, props);
       this._setGraphEngine(graphEngine);
       this.state.interactionManager.updateProps(props);
       this.forceUpdate();
     } else if (changeFlags.propsChanged && props.graph !== oldProps.graph) {
-      const graphEngine = new GraphEngine({graph: props.graph, layout: props.layout});
+      const graphEngine = this._createGraphEngine(props.graph, props.layout, props);
       this._setGraphEngine(graphEngine);
       this.state.interactionManager.updateProps(props);
       this.forceUpdate();
@@ -186,7 +189,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this._removeGraphEngine();
   }
 
-  _setGraphEngine(graphEngine: GraphEngine) {
+  _setGraphEngine(graphEngine: GraphEngine | null) {
     if (graphEngine === this.state.graphEngine) {
       return;
     }
@@ -208,12 +211,62 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
   }
 
+  private _createGraphEngine(
+    graph?: Graph,
+    layout?: GraphLayout,
+    props: GraphLayerProps = this.props
+  ): GraphEngine | null {
+    if (!graph || !layout) {
+      return null;
+    }
+    return new GraphEngine({
+      graph,
+      layout,
+      layoutUpdateThrottleMs: props.layoutUpdateInterval
+    });
+  }
+
+  private _getLayoutTransitionSettings(): any {
+    const {layoutUpdateInterval} = this.props;
+    if (!layoutUpdateInterval || layoutUpdateInterval <= 0) {
+      return undefined;
+    }
+    return {duration: layoutUpdateInterval};
+  }
+
+  private _getNodeTransitions(): any {
+    const transition = this._getLayoutTransitionSettings();
+    if (!transition) {
+      return undefined;
+    }
+    return {
+      getPosition: transition
+    };
+  }
+
+  private _getEdgeTransitions(): any {
+    const transition = this._getLayoutTransitionSettings();
+    if (!transition) {
+      return undefined;
+    }
+    return {
+      getSourcePosition: transition,
+      getTargetPosition: transition,
+      getControlPoints: transition,
+      getPath: transition,
+      getPosition: transition,
+      getOrientation: transition
+    };
+  }
+
   createNodeLayers() {
     const engine = this.state.graphEngine;
     const {nodeStyle} = this.props;
     if (!engine || !nodeStyle || !Array.isArray(nodeStyle) || nodeStyle.length === 0) {
       return [];
     }
+
+    const nodeTransitions = this._getNodeTransitions();
 
     return nodeStyle.filter(Boolean).map((style, idx) => {
       const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
@@ -237,6 +290,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           engine.getLayoutState(),
           stylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
         ].join(),
+        transitions: nodeTransitions,
         stylesheet,
         visible
       } as any);
@@ -250,6 +304,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     if (!engine || !edgeStyle) {
       return [];
     }
+
+    const edgeTransitions = this._getEdgeTransitions();
 
     return (Array.isArray(edgeStyle) ? edgeStyle : [edgeStyle])
       .filter(Boolean)
@@ -272,6 +328,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           getLayoutInfo: engine.getEdgePosition,
           pickable: true,
           positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+          transitions: edgeTransitions,
           stylesheet,
           visible
         } as any);
@@ -279,7 +336,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
           return edgeLayer;
         }
-        const decoratorLayers = decorators.filter(Boolean).flatMap((decoratorStyle, idx2) => {
+          const decoratorLayers = decorators
+            .filter(Boolean)
+            .flatMap((decoratorStyle, idx2) => {
           const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
           if (!DecoratorLayer) {
             log.error(`Invalid edge decorator type: ${decoratorStyle.type}`)();
@@ -295,6 +354,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
             getLayoutInfo: engine.getEdgePosition,
             pickable: true,
             positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+            transitions: edgeTransitions,
             stylesheet: decoratorStylesheet
           } as any);
         });

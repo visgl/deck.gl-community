@@ -116,7 +116,8 @@ export class EdgeArrowLayer extends CompositeLayer {
   static layerName = 'EdgeArrowLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet, transitions} =
+      this.props as any;
     const directedEdges = (data || []).filter(isEdgeDirected);
 
     if (!directedEdges.length) {
@@ -154,6 +155,7 @@ export class EdgeArrowLayer extends CompositeLayer {
           parameters: {
             depthTest: false
           },
+          transitions,
           updateTriggers: {
             getColor: updateTriggers.getColor,
             getScale: updateTriggers.getSize,

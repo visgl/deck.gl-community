@@ -18,7 +18,8 @@ export class ZoomableMarkerLayer extends CompositeLayer {
   }
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0, transitions} =
+      this.props as any;
 
     const getSize = stylesheet.getDeckGLAccessor('getSize');
     const scaleWithZoom = stylesheet.getDeckGLAccessor('scaleWithZoom');
@@ -37,6 +38,7 @@ export class ZoomableMarkerLayer extends CompositeLayer {
           sizeScale: scaleWithZoom ? Math.max(0, this.context.viewport.zoom) : 1,
           ...stylesheet.getDeckGLAccessors(),
           getMarker,
+          transitions,
           updateTriggers: {
             ...stylesheet.getDeckGLUpdateTriggers(),
             getPosition: positionUpdateTrigger,

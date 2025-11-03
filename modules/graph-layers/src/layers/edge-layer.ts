@@ -55,7 +55,8 @@ export class EdgeLayer extends CompositeLayer {
   }
 
   renderLayers() {
-    const {getLayoutInfo, pickable, positionUpdateTrigger, stylesheet, id} = this.props as any;
+    const {getLayoutInfo, pickable, positionUpdateTrigger, stylesheet, id, transitions} =
+      this.props as any;
 
     const {typedEdgeData} = this.state;
 
@@ -67,21 +68,24 @@ export class EdgeLayer extends CompositeLayer {
       if (!Layer) {
         return null;
       }
-      return new Layer({
-        id: `${id}-${idx}`,
-        data: edgeData,
-        getLayoutInfo,
-        getColor: stylesheet.getDeckGLAccessor('getColor'),
-        getWidth: stylesheet.getDeckGLAccessor('getWidth'),
-        colorUpdateTrigger: stylesheet.getDeckGLAccessorUpdateTrigger('getColor'),
-        widthUpdateTrigger: stylesheet.getDeckGLAccessorUpdateTrigger('getWidth'),
-        positionUpdateTrigger,
-        pickable,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        parameters: {
-          depthCompare: 'always'
-        }
-      } as any);
+      return new Layer(
+        this.getSubLayerProps({
+          id: `${id}-${idx}`,
+          data: edgeData,
+          getLayoutInfo,
+          getColor: stylesheet.getDeckGLAccessor('getColor'),
+          getWidth: stylesheet.getDeckGLAccessor('getWidth'),
+          colorUpdateTrigger: stylesheet.getDeckGLAccessorUpdateTrigger('getColor'),
+          widthUpdateTrigger: stylesheet.getDeckGLAccessorUpdateTrigger('getWidth'),
+          positionUpdateTrigger,
+          pickable,
+          transitions,
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          parameters: {
+            depthCompare: 'always'
+          }
+        })
+      );
     });
   }
 }

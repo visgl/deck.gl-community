@@ -12,17 +12,27 @@ import {log} from '../utils/log';
 export type GraphEngineProps = {
   graph: Graph;
   layout: GraphLayout;
+  /**
+   * Throttle layout change notifications (in milliseconds). When greater than zero the
+   * engine will avoid emitting more than one `onLayoutChange` event within the configured
+   * interval. This is useful to slow down very fast layout updates so that the
+   * visualization can animate at a comfortable pace.
+   */
+  layoutUpdateThrottleMs?: number;
 };
 
 /** Graph engine controls the graph data and layout calculation */
 export class GraphEngine extends EventTarget {
-  props: Readonly<Required<GraphEngineProps>>;
+  props: Readonly<GraphEngineProps>;
 
   private readonly _graph: Graph;
   private readonly _layout: GraphLayout;
+  private readonly _layoutUpdateThrottleMs: number;
   private readonly _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
   private _layoutDirty = false;
   private _transactionInProgress = false;
+  private _layoutChangeTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _lastLayoutChangeTs = 0;
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
@@ -40,6 +50,7 @@ export class GraphEngine extends EventTarget {
     this.props = props;
     this._graph = props.graph;
     this._layout = props.layout;
+    this._layoutUpdateThrottleMs = props.layoutUpdateThrottleMs ?? 0;
   }
 
   /** Getters */
@@ -91,7 +102,7 @@ export class GraphEngine extends EventTarget {
   /**
    * @fires GraphEngine#onLayoutChange
    */
-  _onLayoutChange = () => {
+  private _emitLayoutChangeEvent = () => {
     log.log(0, 'GraphEngine: layout update event')();
     /**
      * @event GraphEngine#onLayoutChange
@@ -100,10 +111,53 @@ export class GraphEngine extends EventTarget {
     this.dispatchEvent(new CustomEvent('onLayoutChange'));
   };
 
+  private _clearPendingLayoutChange() {
+    if (this._layoutChangeTimeout) {
+      clearTimeout(this._layoutChangeTimeout);
+      this._layoutChangeTimeout = null;
+    }
+  }
+
+  private _handleLayoutChange = () => {
+    if (!this._layoutUpdateThrottleMs) {
+      this._clearPendingLayoutChange();
+      this._lastLayoutChangeTs = Date.now();
+      this._emitLayoutChangeEvent();
+      return;
+    }
+
+    const now = Date.now();
+    const elapsed = now - this._lastLayoutChangeTs;
+    if (elapsed >= this._layoutUpdateThrottleMs) {
+      this._clearPendingLayoutChange();
+      this._lastLayoutChangeTs = now;
+      this._emitLayoutChangeEvent();
+      return;
+    }
+
+    if (!this._layoutChangeTimeout) {
+      const delay = Math.max(this._layoutUpdateThrottleMs - elapsed, 0);
+      this._layoutChangeTimeout = setTimeout(() => {
+        this._layoutChangeTimeout = null;
+        this._lastLayoutChangeTs = Date.now();
+        this._emitLayoutChangeEvent();
+      }, delay);
+    }
+  };
+
+  _onLayoutChange = () => {
+    this._handleLayoutChange();
+  };
+
   /**
    * @fires GraphEngine#onLayoutDone
    */
   _onLayoutDone = () => {
+    if (this._layoutUpdateThrottleMs && this._layoutChangeTimeout) {
+      this._clearPendingLayoutChange();
+      this._lastLayoutChangeTs = Date.now();
+      this._emitLayoutChangeEvent();
+    }
     log.log(0, 'GraphEngine: layout end')();
     /**
      * @event GraphEngine#onLayoutDone
@@ -142,6 +196,8 @@ export class GraphEngine extends EventTarget {
   run = () => {
     log.log(1, 'GraphEngine: run')();
     // TODO: throw if running on a cleared engine
+    this._clearPendingLayoutChange();
+    this._lastLayoutChangeTs = 0;
 
     this._graph.addEventListener('transactionStart', this._onTransactionStart);
     this._graph.addEventListener('transactionEnd', this._onTransactionEnd);
@@ -172,6 +228,8 @@ export class GraphEngine extends EventTarget {
     this._layout.removeEventListener('onLayoutChange', this._onLayoutChange);
     this._layout.removeEventListener('onLayoutDone', this._onLayoutDone);
     this._layout.removeEventListener('onLayoutError', this._onLayoutError);
+
+    this._clearPendingLayoutChange();
   };
 
   resume = () => this._layout.resume();
@@ -186,6 +244,7 @@ export class GraphEngine extends EventTarget {
 
   _updateLayout = () => {
     log.log(0, 'GraphEngine: layout update')();
+    this._lastLayoutChangeTs = 0;
     this._layout.updateGraph(this._graph);
     this._layout.update();
     this._layoutDirty = false;

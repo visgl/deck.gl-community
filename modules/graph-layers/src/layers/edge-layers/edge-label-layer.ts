@@ -9,7 +9,8 @@ export class EdgeLabelLayer extends CompositeLayer {
   static layerName = 'EdgeLabelLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet, transitions} =
+      this.props as any;
     return [
       new ZoomableTextLayer(
         this.getSubLayerProps({
@@ -37,6 +38,7 @@ export class EdgeLabelLayer extends CompositeLayer {
             return (Math.atan2(deltaY, deltaX) * -180) / Math.PI;
           },
           ...stylesheet.getDeckGLAccessors(),
+          transitions,
           updateTriggers: {
             ...stylesheet.getDeckGLUpdateTriggers(),
             getPosition: positionUpdateTrigger

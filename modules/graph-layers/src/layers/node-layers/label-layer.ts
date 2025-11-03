@@ -9,7 +9,8 @@ export class LabelLayer extends CompositeLayer {
   static layerName = 'LabelLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0, transitions} =
+      this.props as any;
 
     return [
       new ZoomableTextLayer(
@@ -18,6 +19,7 @@ export class LabelLayer extends CompositeLayer {
           data,
           getPosition,
           ...stylesheet.getDeckGLAccessors(),
+          transitions,
           updateTriggers: {
             ...stylesheet.getDeckGLUpdateTriggers(),
             getPosition: positionUpdateTrigger

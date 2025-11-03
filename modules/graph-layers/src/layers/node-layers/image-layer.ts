@@ -9,7 +9,8 @@ export class ImageLayer extends CompositeLayer {
   static layerName = 'ImageLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0, transitions} =
+      this.props as any;
 
     return [
       new IconLayer(
@@ -18,6 +19,7 @@ export class ImageLayer extends CompositeLayer {
           data,
           getPosition,
           ...stylesheet.getDeckGLAccessors(),
+          transitions,
           updateTriggers: {
             getPosition: positionUpdateTrigger,
             ...stylesheet.getDeckGLUpdateTriggers()

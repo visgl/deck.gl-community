@@ -20,7 +20,8 @@ export class PathBasedRoundedRectangleLayer extends CompositeLayer {
   static layerName = 'PathBasedRoundedRectangleLayer';
 
   renderLayers() {
-    const {data, getPosition, stylesheet, positionUpdateTrigger = 0} = this.props as any;
+    const {data, getPosition, stylesheet, positionUpdateTrigger = 0, transitions} =
+      this.props as any;
 
     const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
     const getLineWidth = stylesheet.getDeckGLAccessor('getLineWidth');
@@ -40,6 +41,7 @@ export class PathBasedRoundedRectangleLayer extends CompositeLayer {
           filled: Boolean(getFillColor),
           stroked: Boolean(getLineWidth),
           ...stylesheet.getDeckGLAccessors(),
+          transitions,
           updateTriggers: {
             getPolygon: [
               positionUpdateTrigger,
