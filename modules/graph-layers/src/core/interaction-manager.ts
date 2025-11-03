@@ -6,6 +6,7 @@ import type {EdgeState, NodeState} from './constants';
 import {Edge} from '../graph/edge';
 import {Node} from '../graph/node';
 import {GraphEngine} from './graph-engine';
+import {log} from '../utils/log';
 
 const NODE_TO_EDGE_STATE_MAP: Record<NodeState, EdgeState> = {
   default: 'default',
@@ -117,10 +118,21 @@ export class InteractionManager {
         const layout: any = this.engine?.props?.layout;
         if (layout && typeof layout.toggleCollapsedChain === 'function') {
           const layerId = info?.layer?.id;
-          const fromExpandedMarker =
-            typeof layerId === 'string' && layerId.includes('expanded-chain-markers');
+          const layerIdString = typeof layerId === 'string' ? layerId : '';
+          const fromCollapsedMarker = layerIdString.includes('collapsed-chain-markers');
+          const fromExpandedMarker = layerIdString.includes('expanded-chain-markers');
+          const interactionSource = fromExpandedMarker
+            ? 'expanded-marker'
+            : fromCollapsedMarker
+            ? 'collapsed-marker'
+            : 'node';
 
           if (isCollapsed || fromExpandedMarker) {
+            const action = isCollapsed ? 'expand' : 'collapse';
+            log.log(
+              0,
+              `InteractionManager: ${action} chain ${chainId} via ${interactionSource}`
+            );
             layout.toggleCollapsedChain(String(chainId));
             this._lastInteraction = Date.now();
             this.notifyCallback();

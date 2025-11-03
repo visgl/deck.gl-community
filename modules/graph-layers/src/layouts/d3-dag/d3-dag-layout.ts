@@ -37,6 +37,7 @@ import {
   type MutGraphLink,
   type NodeSize
 } from 'd3-dag';
+import {log} from '../../utils/log';
 
 export type D3DagLayoutBuilderName = 'sugiyama' | 'grid' | 'zherebko';
 export type D3DagLayeringName = 'simplex' | 'longestPath' | 'topological';
@@ -246,27 +247,36 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
 
   toggleCollapsedChain(chainId: string): void {
     if (!this._graph) {
+      log.log(1, `D3DagLayout: toggleCollapsedChain(${chainId}) ignored (no graph)`);
       return;
     }
     if (!this._chainDescriptors.has(chainId)) {
       this._refreshCollapsedChains();
     }
     if (!this._chainDescriptors.has(chainId)) {
+      log.log(1, `D3DagLayout: toggleCollapsedChain(${chainId}) skipped (unknown chain)`);
       return;
     }
     const collapsed = this._isChainCollapsed(chainId);
-    this._collapsedChainState.set(chainId, !collapsed);
+    const nextState = !collapsed;
+    log.log(
+      0,
+      `D3DagLayout: toggleCollapsedChain(${chainId}) -> ${nextState ? 'collapsed' : 'expanded'}`
+    );
+    this._collapsedChainState.set(chainId, nextState);
     this._runLayout();
   }
 
   setCollapsedChains(chainIds: Iterable<string>): void {
     if (!this._graph) {
+      log.log(1, 'D3DagLayout: setCollapsedChains ignored (no graph)');
       return;
     }
     if (!this._chainDescriptors.size) {
       this._refreshCollapsedChains();
     }
     const desired = new Set(chainIds);
+    log.log(0, `D3DagLayout: setCollapsedChains(${desired.size}) requested`);
     let changed = false;
     for (const chainId of this._chainDescriptors.keys()) {
       const next = desired.has(chainId);
@@ -276,7 +286,10 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       }
     }
     if (changed) {
+      log.log(0, 'D3DagLayout: setCollapsedChains -> changes detected, rerunning layout');
       this._runLayout();
+    } else {
+      log.log(1, 'D3DagLayout: setCollapsedChains -> no changes');
     }
   }
 
@@ -378,12 +391,21 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   }
 
   private _refreshCollapsedChains(): void {
+    const previousChainCount = this._chainDescriptors.size;
     if (!this._graph) {
+      if (previousChainCount > 0) {
+        log.log(0, 'D3DagLayout: clearing collapsed chains (graph unavailable)');
+      }
       this._chainDescriptors.clear();
       this._nodeToChainId.clear();
       this._hiddenNodeIds.clear();
       return;
     }
+
+    log.log(
+      0,
+      `D3DagLayout: refreshing collapsed chains (previous=${previousChainCount})`
+    );
 
     const collapseDefault =
       this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
@@ -493,6 +515,17 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
 
     this._updateCollapsedChainNodeMetadata();
+
+    let collapsedCount = 0;
+    for (const chainId of this._chainDescriptors.keys()) {
+      if (this._isChainCollapsed(chainId)) {
+        collapsedCount++;
+      }
+    }
+    log.log(
+      0,
+      `D3DagLayout: refreshed collapsed chains -> total=${this._chainDescriptors.size}, collapsed=${collapsedCount}`
+    );
   }
 
   private _buildDag(): MutGraph<Node, Edge> {
