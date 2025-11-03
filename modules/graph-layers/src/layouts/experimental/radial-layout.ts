@@ -198,7 +198,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
   };
 
   protected override _updateBounds(): void {
-    const positions = Object.values(this._hierarchicalPoints ?? {}) as Array<[number, number] | null>;
+    const positions = Object.values(this._hierarchicalPoints ?? {});
     this._bounds = this._calculateBounds(positions);
   }
 }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/* eslint-disable no-continue */
+
 import type {Bounds2D} from '@math.gl/types';
 
 import type {Graph} from '../graph/graph';

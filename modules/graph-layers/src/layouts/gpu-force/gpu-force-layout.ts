@@ -268,7 +268,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   };
 
   protected override _updateBounds(): void {
-    const nodes = Object.values(this._nodeMap ?? {}) as Array<{x?: number; y?: number}>;
+    const nodes = Object.values(this._nodeMap ?? {});
     const positions = nodes.map((node) => {
       const x = node?.x;
       const y = node?.y;
