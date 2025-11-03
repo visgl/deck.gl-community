@@ -18,6 +18,12 @@ const defaultProps = {
 
 /* eslint-disable camelcase */
 export class FlowPathLayer extends LineLayer {
+  private animationFrame?: number;
+  private offsets = new Float32Array(0);
+  private speeds = new Float32Array(0);
+  private lastUpdateTime = 0;
+  private readonly _handleAnimate = () => this.animate();
+
   getShaders() {
     const projectModule = this.use64bitPositions() ? 'project64' : 'project32';
     return {vs, fs, modules: [projectModule, 'picking']};
@@ -25,7 +31,8 @@ export class FlowPathLayer extends LineLayer {
 
   initializeState() {
     super.initializeState();
-    this.getAttributeManager().addInstanced({
+    const attributeManager = this.getAttributeManager();
+    attributeManager?.addInstanced({
       instanceSpeeds: {
         size: 1,
         transition: true,
@@ -37,43 +44,72 @@ export class FlowPathLayer extends LineLayer {
         transition: true,
         accessor: 'getTailLength',
         defaultValue: 1
+      },
+      instanceOffsets: {
+        size: 1,
+        transition: false,
+        accessor: 'getOffset',
+        defaultValue: 0,
+        update: this.calculateInstanceOffsets
       }
     });
     this.setupTransformFeedback();
-    this.setState({
-      ...this.state,
-      animation: window.requestAnimationFrame(this.animate.bind(this))
-    });
+    this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
   }
 
   animate() {
-    const {transform} = this.state as any;
-    if (transform) {
-      transform.run();
-      transform.swap();
+    const now = this.getCurrentTime();
+    const deltaSeconds = (now - this.lastUpdateTime) / 1000;
+
+    if (deltaSeconds > 0 && this.offsets.length > 0) {
+      let needsRedraw = false;
+      for (let index = 0; index < this.offsets.length; index++) {
+        const speed = this.speeds[index];
+        if (!speed) {
+          continue;
+        }
+
+        const nextOffset = this.offsets[index] + speed * deltaSeconds;
+        const wrappedOffset = nextOffset % 60;
+        this.offsets[index] = Number.isFinite(wrappedOffset)
+          ? wrappedOffset < 0
+            ? wrappedOffset + 60
+            : wrappedOffset
+          : 0;
+        needsRedraw = true;
+      }
+
+      if (needsRedraw) {
+        const attributeManager = this.getAttributeManager();
+        attributeManager?.invalidate('instanceOffsets');
+        this.setNeedsRedraw();
+      }
     }
-    this.setState({
-      animation: window.requestAnimationFrame(this.animate.bind(this))
-    });
+
+    this.lastUpdateTime = now;
+    this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
   }
 
   updateState({props, oldProps, changeFlags}) {
     super.updateState({props, oldProps, changeFlags} as any);
-    const {speedsBuffer} = this.state as any;
+    const data = (props.data as unknown[]) ?? [];
+    const dataLength = data.length;
+
+    if (changeFlags.dataChanged) {
+      this.resizeAnimationBuffers(dataLength, true);
+      this.lastUpdateTime = this.getCurrentTime();
+    } else if (this.offsets.length !== dataLength) {
+      this.resizeAnimationBuffers(dataLength, false);
+    }
 
     const speedChanged =
       changeFlags.dataChanged ||
-      props.fp64 !== oldProps.fp64 ||
       (changeFlags.updateTriggersChanged &&
-        (changeFlags.updateTriggersChanged.all || changeFlags.updateTriggersChanged.getSpeed));
+        (changeFlags.updateTriggersChanged.all || changeFlags.updateTriggersChanged.getSpeed)) ||
+      props.getSpeed !== oldProps.getSpeed;
 
     if (speedChanged) {
-      const speeds = new Float32Array(props.data.length);
-      for (let i = 0; i < props.data.length; i++) {
-        speeds[i] =
-          typeof props.getSpeed === 'function' ? props.getSpeed(props.data[i]) : props.getSpeed;
-      }
-      speedsBuffer.subData({data: speeds});
+      this.updateSpeedsFromProps(props);
     }
 
     if (props.fp64 !== oldProps.fp64) {
@@ -87,66 +123,93 @@ export class FlowPathLayer extends LineLayer {
 
   finalizeState() {
     super.finalizeState(this.context);
-    window.cancelAnimationFrame((this.state as any).animation);
+    if (typeof this.animationFrame === 'number') {
+      window.cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = undefined;
+    }
+    this.offsets = new Float32Array(0);
+    this.speeds = new Float32Array(0);
   }
 
   setupTransformFeedback() {
-    throw new Error('Not implemented');
-    // const {gl} = this.context;
-    // const elementCount = this.props.data && this.props.data.length;
-    // if (elementCount) {
-    //   const instanceOffsets = new Float32Array(elementCount);
-    //   const instanceSpeeds = new Float32Array(elementCount);
-    //   const offsetBuffer = new Buffer(gl, instanceOffsets);
-    //   const speedsBuffer = new Buffer(gl, instanceSpeeds);
-
-    //   this.setState({
-    //     speedsBuffer,
-    //     transform: new Transform(gl, {
-    //       id: 'transform-offset',
-    //       vs: tfvs,
-    //       elementCount,
-    //       sourceBuffers: {
-    //         a_offset: offsetBuffer,
-    //         a_speed: speedsBuffer
-    //       },
-    //       feedbackMap: {
-    //         a_offset: 'v_offset'
-    //       }
-    //     })
-    //   });
-    // }
+    const data = (this.props.data as unknown[]) ?? [];
+    this.resizeAnimationBuffers(data.length, true);
+    this.updateSpeedsFromProps(this.props as any);
+    this.lastUpdateTime = this.getCurrentTime();
   }
 
   draw({uniforms}) {
-    throw new Error('Not implemented');
-    // const {transform} = this.state;
-    // if (!transform) {
-    //   return;
-    // }
+    super.draw({uniforms});
+  }
 
-    // const {viewport} = this.context;
-    // const {widthUnits, widthScale, widthMinPixels, widthMaxPixels} = this.props;
+  private resizeAnimationBuffers(length: number, resetOffsets: boolean) {
+    if (length < 0) {
+      return;
+    }
 
-    // const widthMultiplier = widthUnits === 'pixels' ? viewport.distanceScales.metersPerPixel[2] : 1;
+    const attributeManager = this.getAttributeManager();
+    if (!attributeManager) {
+      this.offsets = new Float32Array(length);
+      this.speeds = new Float32Array(length);
+      return;
+    }
 
-    // const offsetBuffer = transform.getBuffer('v_offset');
-    // offsetBuffer.setAccessor({divisor: 1});
+    if (this.offsets.length !== length) {
+      this.offsets = new Float32Array(length);
+      this.speeds = new Float32Array(length);
+      attributeManager.invalidate('instanceOffsets');
+      this.setNeedsRedraw();
+    } else if (resetOffsets) {
+      this.offsets.fill(0);
+      attributeManager.invalidate('instanceOffsets');
+      this.setNeedsRedraw();
+    }
+  }
 
-    // this.state.model
-    //   .setAttributes({
-    //     instanceOffsets: offsetBuffer
-    //   })
-    //   .setUniforms(
-    //     Object.assign({}, uniforms, {
-    //       widthScale: widthScale * widthMultiplier,
-    //       widthMinPixels,
-    //       widthMaxPixels
-    //     })
-    //   )
-    //   .draw();
+  private updateSpeedsFromProps(props: any) {
+    const data = (props.data as unknown[]) ?? [];
+    const accessor = props.getSpeed;
 
-    // offsetBuffer.setAccessor({divisor: 0});
+    if (this.speeds.length !== data.length) {
+      this.resizeAnimationBuffers(data.length, false);
+    }
+
+    for (let index = 0; index < data.length; index++) {
+      const value =
+        typeof accessor === 'function'
+          ? accessor(data[index], {index, data})
+          : accessor;
+      const numericValue = Number(value);
+      this.speeds[index] = Number.isFinite(numericValue) ? numericValue : 0;
+      if (!Number.isFinite(this.offsets[index])) {
+        this.offsets[index] = 0;
+      }
+    }
+  }
+
+  private calculateInstanceOffsets(attribute: any, {numInstances}: {numInstances: number}) {
+    if (!this.offsets.length || numInstances === 0) {
+      attribute.constant = true;
+      attribute.value = [0];
+      return;
+    }
+
+    attribute.constant = false;
+
+    if (this.offsets.length === numInstances) {
+      attribute.value = this.offsets;
+      return;
+    }
+
+    attribute.value = this.offsets.subarray(0, numInstances);
+  }
+
+  private getCurrentTime(): number {
+    const perf = window?.performance;
+    if (perf && typeof perf.now === 'function') {
+      return perf.now.call(perf);
+    }
+    return Date.now();
   }
 }
 
