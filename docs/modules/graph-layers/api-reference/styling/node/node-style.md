@@ -1,75 +1,41 @@
 # Node stylesheets
 
-GraphGL renders nodes by stacking one or more *style layers* on top of each
-other. These definitions live under the `stylesheet.nodes` prop on `GraphLayer`.
-Each entry describes one visual layer and is compiled into a Deck.gl sublayer by
-the `GraphStyleEngine` helper from the corresponding `GraphStylesheet` spec.
+Nodes render by stacking one or more *style layers* under the `stylesheet.nodes` prop. Each entry is a [`GraphStylesheet`](../graph-stylesheet.md) describing a single primitive such as a circle, rectangle, or label. The [`GraphStyleEngine`](../graph-style-engine.md) turns these declarations into the Deck.gl sublayers that appear on screen.
 
 ```js
 const stylesheet = {
   nodes: [
-    {
-      type: 'circle',
-      radius: 10,
-      fill: node => (node.degree > 5 ? '#3C9EE7' : '#F06449')
-    },
-    {
-      type: 'label',
-      text: node => node.id,
-      color: '#172B4D',
-      offset: [0, 16]
-    }
+    {type: 'circle', radius: {attribute: 'degree', fallback: 6, scale: value => 4 + value}},
+    {type: 'label', text: '@id', color: '#172B4D', offset: [0, 16]}
   ]
 };
 ```
 
-The order in the array controls the drawing order: earlier entries are rendered
-first (i.e. they appear underneath later entries).
-
-See the [graph stylesheet reference](../graph-stylesheet.md) for details on the
-stylesheet shape and how it is processed by the engine.
+Entries are drawn in array order (earlier entries render beneath later entries).
 
 ## Shared properties
 
-The following keys are understood by every node style:
+Every node style understands these keys in addition to its type-specific properties:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `type` | `string` literal | - | Selects the visual primitive (`'circle'`, `'rectangle'`, `'label'`, etc.). |
-| `data` | `function(node) -> any` | `node => node` | Replaces the data object passed to Deck.gl. Useful when a sublayer needs derived data. |
-| `visible` | `boolean` | `true` | Toggles the sublayer on and off without removing it from the style list. |
-| `opacity` | `number \| function` | `1` | Multiplies the alpha channel produced by the primitive. Accepts 0-1. |
-| `offset` | `[number, number] \| function` | `null` | Pixel offset from the node’s layout position. Positive Y moves up. |
+| `type` | string literal | – | Selects the primitive (`'circle'`, `'rectangle'`, `'label'`, etc.). |
+| `data` | `(nodes: any[]) => any` | `nodes => nodes` | Replace the data object passed to Deck.gl when a sublayer needs derived data. |
+| `visible` | `boolean` | `true` | Toggle the sublayer without removing it from the stylesheet. |
+| `opacity` | number \| accessor \| attribute binding | `1` | Multiplies the alpha channel produced by the primitive. |
+| `offset` | `[number, number]` \| accessor \| attribute binding | `null` | Pixel offset from the layout position. Positive Y moves up. |
 
-Every style also accepts accessor functions. You can return a literal value or
-any function; if you use accessors, GraphGL automatically configures Deck.gl’s
-`updateTriggers` so the layer updates when the accessor changes.
+All other properties accept the same [declarative value shapes](../graph-stylesheet.md#declarative-values): constants, attribute bindings such as `fill: '@statusColor'`, functions, or state maps.
 
-```js
-{
-  type: 'circle',
-  radius: node => Math.max(4, node.getPropertyValue('weight')),
-  fill: {
-    default: '#9CA3AF',
-    hover: '#60A5FA',
-    selected: node => node.groupColor
-  }
-}
-```
+## Selectors
 
-## Stateful styling with selectors
-
-Each style object may contain pseudo-selectors whose keys begin with `:`. The
-supported selectors map to node interaction states:
+Interaction selectors override property values when a node is hovered, dragged, or selected. Add pseudo-keys that start with `:`:
 
 | Selector | Applies when… |
 | --- | --- |
-| `:hover` | the pointer is hovering the node. |
-| `:dragging` | the node is currently being dragged. |
-| `:selected` | the node has been selected via click/tap. |
-
-Any property placed inside a selector overrides the default variant for that
-state. For example, to brighten a node while dragging:
+| `:hover` | the pointer is hovering the node |
+| `:dragging` | the node is being dragged |
+| `:selected` | the node is selected via click/tap |
 
 ```js
 {
@@ -86,22 +52,18 @@ state. For example, to brighten a node while dragging:
 
 If no selector is present the default variant is used for every state.
 
-## Available node style types
+## Available node primitives
 
-Use the type-specific reference pages to learn about the properties that each
-primitive understands:
+Use the dedicated reference pages for the properties understood by each primitive:
 
-* [Circle](./node-style-circle.md) - disk markers.
-* [Rectangle](./node-style-rectangle.md) - axis-aligned boxes.
-* [Rounded rectangle](./node-style-rounded-rectangle.md) - rectangles with
-  adjustable corner radius rendered via shader.
-* [Path rounded rectangle](./node-style-path-rounded-rectangle.md) - rectangles
-  with rounded corners generated as polygons (useful for hit testing).
-* [Marker](./node-style-marker.md) - vector markers from the bundled marker set.
-* [Label](./node-style-label.md) - text drawn with `TextLayer`.
+* [Circle](./node-style-circle.md) – disk markers.
+* [Rectangle](./node-style-rectangle.md) – axis-aligned boxes.
+* [Rounded rectangle](./node-style-rounded-rectangle.md) – shader-based rectangles with adjustable corners.
+* [Path rounded rectangle](./node-style-path-rounded-rectangle.md) – polygon-backed rectangles, useful for precise picking.
+* [Marker](./node-style-marker.md) – vector markers from the bundled set (alias: `'icon'`).
+* [Label](./node-style-label.md) – text rendered with `TextLayer`.
 
-Mixing several entries gives you complex node visuals, such as a rounded
-rectangle background with a label on top.
+Mix styles to create layered nodes. For example:
 
 ```js
 const stylesheet = {
@@ -116,17 +78,11 @@ const stylesheet = {
         hover: '#1E293B'
       },
       stroke: '#38BDF8',
-      strokeWidth: node => (node.state === 'selected' ? 4 : 1)
+      strokeWidth: {attribute: 'isSelected', scale: value => (value ? 4 : 1)}
     },
-    {
-      type: 'label',
-      text: node => node.label,
-      color: '#F8FAFC',
-      fontSize: 18
-    }
+    {type: 'label', text: '@label', color: '#F8FAFC', fontSize: 18}
   ]
 };
 ```
 
-With these building blocks you can express most node visuals declaratively and
-let GraphGL handle the rendering details.
+With these building blocks you can describe complex visuals declaratively and let the stylesheet engine handle the rendering details.

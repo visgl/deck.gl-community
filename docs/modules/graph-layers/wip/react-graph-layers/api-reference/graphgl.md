@@ -24,17 +24,25 @@ const App = ({data}) => {
     <GraphGL
       graph={graph}
       layout={new D3ForceLayout()}
-      nodeStyle={[
-        {
-          type: 'circle',
-          radius: 10,
-          fill: 'blue',
-          opacity: 1
+      stylesheet={{
+        nodes: [
+          {
+            type: 'circle',
+            radius: 10,
+            fill: 'blue',
+            opacity: 1
+          },
+          {
+            type: 'label',
+            text: '@id',
+            color: '#ffffff',
+            offset: [0, 18]
+          }
+        ],
+        edges: {
+          stroke: 'black',
+          strokeWidth: 2
         }
-      ]}
-      edgeStyle={{
-        stroke: 'black',
-        strokeWidth: 2
       }}
       enableDragging
     />
@@ -72,18 +80,17 @@ Use one of the layouts provided by @deck.gl-community/graph-layers or create a n
 
 For more detail, please see /docs/api-reference/viewport.
 
-### `nodeStyle` (Array, required)
+### `stylesheet` (Object, required)
 
-A node is made of a set of layers. nodeStyle is a set of style objects to describe the style for each layer.
-For more detail, please see the (explanation of nodeStyle](docs/api-reference/node-style).
+Declarative style description for nodes and edges. Supply `nodes` as an array of
+style layers and `edges` as either a single object or an array when stacking edge
+passes. Use attribute bindings such as `text: '@label'` to read directly from
+graph metadata. See the [styling reference](../../api-reference/styling/graph-stylesheet.md)
+for supported properties.
 
 ### `nodeEvents` (Object, optional)
 
 For more detail, please see the interactions reference /docs/api-reference/interactions.
-
-### `edgeStyle` (Object | Array, required)
-
-For more detail, please see the explanation of edgeStyle docs/api-reference/edge-style
 
 ### `edgeEvents` (Object, optional)
 

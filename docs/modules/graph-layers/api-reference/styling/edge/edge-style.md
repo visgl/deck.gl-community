@@ -1,23 +1,24 @@
 # Edge stylesheets
 
 Edges are styled via the `stylesheet.edges` prop on
-`GraphLayer` (the legacy `edgeStyle` prop continues to work but is deprecated). Similar to nodes, a `GraphStylesheet` definition is normalized by
-the `GraphStyleEngine`, which resolves colors, accessors, and interaction states
-before feeding them into Deck.gl’s `LineLayer`.
+`GraphLayer`. The legacy `edgeStyle` prop forwards to this shape but will be
+removed in a future release. Similar to nodes, a `GraphStylesheet` definition is
+normalized by the `GraphStyleEngine`, which resolves colors, attribute bindings,
+and interaction states before feeding them into Deck.gl’s `LineLayer`.
 
 ```js
 const stylesheet = {
   edges: {
-    stroke: edge => (edge.isCritical ? '#F97316' : '#94A3B8'),
+    stroke: {attribute: 'isCritical', fallback: false, scale: (value) => (value ? '#F97316' : '#94A3B8')},
     strokeWidth: {
       default: 1,
       hover: 3,
-      selected: 4
+      selected: {attribute: 'weight', fallback: 2, scale: (value) => Math.min(6, 2 + value)}
     },
     decorators: [
       {
         type: 'edge-label',
-        text: edge => edge.id,
+        text: '@id',
         color: '#000',
         fontSize: 18
       },
@@ -36,8 +37,8 @@ const stylesheet = {
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stroke` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Line color. Accepts CSS strings or `[r, g, b, a]` arrays. |
-| `strokeWidth` | `number \| function` | `0` | Line width in pixels. Accessors receive the edge object. |
+| `stroke` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Line color. Accepts CSS strings, `[r, g, b, a]` arrays, or bindings such as `stroke: '@color'`. |
+| `strokeWidth` | constant \| accessor \| attribute binding | `0` | Line width in pixels. |
 | `data` | `function(edge) -> any` | `edge => edge` | Overrides the data object passed to the Deck.gl layer. |
 | `visible` | `boolean` | `true` | Toggles the entire edge layer on/off. |
 | `decorators` | `Array` | `[]` | Additional visual adornments such as labels or animated flow indicators. |

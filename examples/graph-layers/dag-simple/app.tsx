@@ -110,19 +110,17 @@ export default function App(): React.ReactElement {
               alignmentBaseline: 'top'
             }
           ],
-          edges: [
-            {
-              stroke: '#8da2fb',
-              strokeWidth: 2,
-              decorators: [
-                {
-                  type: 'arrow',
-                  size: 6,
-                  fill: '#8da2fb'
-                }
-              ]
-            }
-          ]
+          edges: {
+            stroke: '#8da2fb',
+            strokeWidth: 2,
+            decorators: [
+              {
+                type: 'arrow',
+                size: 6,
+                fill: '#8da2fb'
+              }
+            ]
+          }
         }
       })
     ],

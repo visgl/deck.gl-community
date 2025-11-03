@@ -3,7 +3,7 @@
 This variant generates the rounded rectangle geometry on the CPU and feeds it to
 Deck.gl’s `PolygonLayer`. It trades slightly higher CPU cost for compatibility
 with features that rely on actual polygon outlines (e.g. GPU picking or custom
-polygon processing).
+polygon processing) while still honoring attribute bindings for every property.
 
 ## Properties
 
@@ -11,7 +11,7 @@ Path rounded rectangles accept the rectangle properties plus:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `cornerRadius` | `number \| function` | `0.1` | Corner rounding factor. As with the shader version, `0` is sharp and `1` is fully rounded. |
+| `cornerRadius` | constant \| accessor \| attribute binding | `0.1` | Corner rounding factor. As with the shader version, `0` is sharp and `1` is fully rounded. |
 
 The width, height, fill, stroke, and strokeWidth options behave identically to
 the [`'rectangle'` node style](./node-style-rectangle.md).
@@ -21,7 +21,7 @@ the [`'rectangle'` node style](./node-style-rectangle.md).
 ```js
 {
   type: 'path-rounded-rectangle',
-  width: node => 120 + node.children.length * 8,
+  width: {attribute: 'children', fallback: [], scale: (value) => 120 + (value?.length ?? 0) * 8},
   height: 48,
   cornerRadius: 0.35,
   fill: '#0B1120',
