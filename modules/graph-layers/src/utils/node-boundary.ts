@@ -76,6 +76,7 @@ function resolveCornerRadius(
   return Math.min(resolved, halfWidth, halfHeight);
 }
 
+  // eslint-disable-next-line complexity, max-statements
 function intersectRoundedRectangle(
   geometry: NodeGeometry,
   unit: [number, number],
@@ -140,6 +141,7 @@ function intersectRoundedRectangle(
   ];
 }
 
+  // eslint-disable-next-line complexity, max-statements
 export function getNodeBoundaryIntersection(
   geometry: NodeGeometry,
   targetCenter: [number, number]

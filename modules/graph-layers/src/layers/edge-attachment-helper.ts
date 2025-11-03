@@ -7,7 +7,7 @@ import type {GraphEngine} from '../core/graph-engine';
 import type {Node} from '../graph/node';
 
 import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
-import type {GraphLayerNodeStyle, GraphNodeStyleType} from '../style/graph-layer-stylesheet';
+import type {GraphLayerNodeStyle} from '../style/graph-layer-stylesheet';
 import {getNodeBoundaryIntersection, type GeometryNodeType, type NodeGeometry} from '../utils/node-boundary';
 import {warn} from '../utils/log';
 
@@ -85,6 +85,54 @@ function normalizePosition(value: any): [number, number] | null {
   return null;
 }
 
+function resolveAccessorValue(accessor: NumericAccessor | undefined, node: Node) {
+  if (!accessor) {
+    return undefined;
+  }
+  return evaluateNumericAccessor(accessor, node);
+}
+
+function assignDimension(
+  geometry: NodeGeometry,
+  key: 'radius' | 'width' | 'height' | 'cornerRadius',
+  value: number | undefined
+) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    geometry[key] = Math.max(value, 0);
+  }
+}
+
+function assignRectangleDimensions(
+  node: Node,
+  accessors: NodeStyleAccessors,
+  geometry: NodeGeometry
+) {
+  assignDimension(geometry, 'width', resolveAccessorValue(accessors.getWidth, node));
+  assignDimension(geometry, 'height', resolveAccessorValue(accessors.getHeight, node));
+}
+
+const GEOMETRY_APPLIERS: Record<GeometryNodeType, (node: Node, accessors: NodeStyleAccessors, geometry: NodeGeometry) => void> = {
+  circle: (node, accessors, geometry) => {
+    assignDimension(geometry, 'radius', resolveAccessorValue(accessors.getRadius, node));
+  },
+  marker: (node, accessors, geometry) => {
+    const size = resolveAccessorValue(accessors.getSize, node);
+    assignDimension(geometry, 'radius', typeof size === 'number' ? size / 2 : undefined);
+  },
+  rectangle: (node, accessors, geometry) => {
+    assignRectangleDimensions(node, accessors, geometry);
+  },
+  'rounded-rectangle': (node, accessors, geometry) => {
+    assignRectangleDimensions(node, accessors, geometry);
+    assignDimension(geometry, 'cornerRadius', resolveAccessorValue(accessors.getCornerRadius, node));
+    assignDimension(geometry, 'radius', resolveAccessorValue(accessors.getRadius, node));
+  },
+  'path-rounded-rectangle': (node, accessors, geometry) => {
+    assignRectangleDimensions(node, accessors, geometry);
+    assignDimension(geometry, 'cornerRadius', resolveAccessorValue(accessors.getCornerRadius, node));
+  }
+};
+
 export class EdgeAttachmentHelper {
   getLayoutAccessor({
     engine,
@@ -93,7 +141,7 @@ export class EdgeAttachmentHelper {
   }: {
     engine: GraphEngine;
     interactionManager: InteractionManager;
-  nodeStyle?: GraphLayerNodeStyle[] | GraphLayerNodeStyle;
+    nodeStyle?: GraphLayerNodeStyle[] | GraphLayerNodeStyle;
   }) {
     const nodeAccessorMap = this._buildNodeStyleAccessorMap({
       engine,
@@ -112,53 +160,8 @@ export class EdgeAttachmentHelper {
         new Map<string | number, Node>()
       );
 
-    return (edge) => {
-      const layoutInfo = engine.getEdgePosition(edge);
-      if (!layoutInfo) {
-        return layoutInfo;
-      }
-
-      const sourceNode = nodeMap.get(edge.getSourceNodeId());
-      const targetNode = nodeMap.get(edge.getTargetNodeId());
-
-      if (!sourceNode || !targetNode) {
-        return layoutInfo;
-      }
-
-      const sourceGeometry = this._computeNodeGeometry(
-        engine,
-        sourceNode,
-        nodeAccessorMap.get(sourceNode.getId())
-      );
-      const targetGeometry = this._computeNodeGeometry(
-        engine,
-        targetNode,
-        nodeAccessorMap.get(targetNode.getId())
-      );
-
-      if (!sourceGeometry && !targetGeometry) {
-        return layoutInfo;
-      }
-
-      const adjustedLayout = {...layoutInfo};
-
-      const targetReference = targetGeometry?.center ?? normalizePosition(layoutInfo.targetPosition);
-      const sourceReference = sourceGeometry?.center ?? normalizePosition(layoutInfo.sourcePosition);
-
-      if (sourceGeometry) {
-        adjustedLayout.sourcePosition = targetReference
-          ? getNodeBoundaryIntersection(sourceGeometry, targetReference)
-          : [...sourceGeometry.center];
-      }
-
-      if (targetGeometry) {
-        adjustedLayout.targetPosition = sourceReference
-          ? getNodeBoundaryIntersection(targetGeometry, sourceReference)
-          : [...targetGeometry.center];
-      }
-
-      return adjustedLayout;
-    };
+    return (edge) =>
+      this._getAdjustedEdgeLayout(engine, nodeAccessorMap, nodeMap, edge);
   }
 
   private _buildNodeStyleAccessorMap({
@@ -181,8 +184,8 @@ export class EdgeAttachmentHelper {
     styles
       .filter(Boolean)
       .forEach((style) => {
-        const {data = (nodes) => nodes, ...restStyle} = style as GraphLayerNodeStyle;
-        const type = restStyle.type as GraphNodeStyleType | undefined;
+        const {data = (nodes) => nodes, ...restStyle} = style;
+        const type = restStyle.type;
 
         if (!type || !GEOMETRY_NODE_TYPES.has(type as GeometryNodeType)) {
           return;
@@ -209,36 +212,7 @@ export class EdgeAttachmentHelper {
           return;
         }
 
-        const accessors: NodeStyleAccessors = {
-          type: geometryType,
-          getOffset: stylesheet.getDeckGLAccessor('getOffset')
-        };
-
-        switch (geometryType) {
-          case 'circle':
-            accessors.getRadius = stylesheet.getDeckGLAccessor('getRadius');
-            break;
-          case 'marker':
-            accessors.getSize = stylesheet.getDeckGLAccessor('getSize');
-            break;
-          case 'rectangle':
-            accessors.getWidth = stylesheet.getDeckGLAccessor('getWidth');
-            accessors.getHeight = stylesheet.getDeckGLAccessor('getHeight');
-            break;
-          case 'rounded-rectangle':
-            accessors.getWidth = stylesheet.getDeckGLAccessor('getWidth');
-            accessors.getHeight = stylesheet.getDeckGLAccessor('getHeight');
-            accessors.getCornerRadius = stylesheet.getDeckGLAccessor('getCornerRadius');
-            accessors.getRadius = stylesheet.getDeckGLAccessor('getRadius');
-            break;
-          case 'path-rounded-rectangle':
-            accessors.getWidth = stylesheet.getDeckGLAccessor('getWidth');
-            accessors.getHeight = stylesheet.getDeckGLAccessor('getHeight');
-            accessors.getCornerRadius = stylesheet.getDeckGLAccessor('getCornerRadius');
-            break;
-          default:
-            break;
-        }
+        const accessors = this._createAccessorsForType(geometryType, stylesheet);
 
         nodes.forEach((node: Node) => {
           const id = node.getId();
@@ -251,6 +225,106 @@ export class EdgeAttachmentHelper {
     return nodeAccessorMap;
   }
 
+  private _getAdjustedEdgeLayout(
+    engine: GraphEngine,
+    nodeAccessorMap: Map<string | number, NodeStyleAccessors>,
+    nodeMap: Map<string | number, Node>,
+    edge: any
+  ) {
+    const layoutInfo = engine.getEdgePosition(edge);
+    if (!layoutInfo) {
+      return layoutInfo;
+    }
+
+    const sourceNode = nodeMap.get(edge.getSourceNodeId());
+    const targetNode = nodeMap.get(edge.getTargetNodeId());
+
+    if (!sourceNode || !targetNode) {
+      return layoutInfo;
+    }
+
+    const sourceGeometry = this._computeNodeGeometry(
+      engine,
+      sourceNode,
+      nodeAccessorMap.get(sourceNode.getId())
+    );
+    const targetGeometry = this._computeNodeGeometry(
+      engine,
+      targetNode,
+      nodeAccessorMap.get(targetNode.getId())
+    );
+
+    if (!sourceGeometry && !targetGeometry) {
+      return layoutInfo;
+    }
+
+    return this._applyGeometryToLayout(layoutInfo, sourceGeometry, targetGeometry);
+  }
+
+  private _applyGeometryToLayout(
+    layoutInfo: any,
+    sourceGeometry: NodeGeometry | null,
+    targetGeometry: NodeGeometry | null
+  ) {
+    const adjustedLayout = {...layoutInfo};
+
+    const targetReference = targetGeometry?.center ?? normalizePosition(layoutInfo.targetPosition);
+    const sourceReference = sourceGeometry?.center ?? normalizePosition(layoutInfo.sourcePosition);
+
+    if (sourceGeometry) {
+      adjustedLayout.sourcePosition = targetReference
+        ? getNodeBoundaryIntersection(sourceGeometry, targetReference)
+        : [...sourceGeometry.center];
+    }
+
+    if (targetGeometry) {
+      adjustedLayout.targetPosition = sourceReference
+        ? getNodeBoundaryIntersection(targetGeometry, sourceReference)
+        : [...targetGeometry.center];
+    }
+
+    return adjustedLayout;
+  }
+
+  private _createAccessorsForType(
+    geometryType: GeometryNodeType,
+    stylesheet: GraphStyleEngine
+  ): NodeStyleAccessors {
+    const base: NodeStyleAccessors = {
+      type: geometryType,
+      getOffset: stylesheet.getDeckGLAccessor('getOffset')
+    };
+
+    switch (geometryType) {
+      case 'circle':
+        base.getRadius = stylesheet.getDeckGLAccessor('getRadius');
+        break;
+      case 'marker':
+        base.getSize = stylesheet.getDeckGLAccessor('getSize');
+        break;
+      case 'rectangle':
+        base.getWidth = stylesheet.getDeckGLAccessor('getWidth');
+        base.getHeight = stylesheet.getDeckGLAccessor('getHeight');
+        break;
+      case 'rounded-rectangle':
+        base.getWidth = stylesheet.getDeckGLAccessor('getWidth');
+        base.getHeight = stylesheet.getDeckGLAccessor('getHeight');
+        base.getCornerRadius = stylesheet.getDeckGLAccessor('getCornerRadius');
+        base.getRadius = stylesheet.getDeckGLAccessor('getRadius');
+        break;
+      case 'path-rounded-rectangle':
+        base.getWidth = stylesheet.getDeckGLAccessor('getWidth');
+        base.getHeight = stylesheet.getDeckGLAccessor('getHeight');
+        base.getCornerRadius = stylesheet.getDeckGLAccessor('getCornerRadius');
+        break;
+      default:
+        break;
+    }
+
+    return base;
+  }
+
+  // eslint-disable-next-line complexity, max-statements
   private _computeNodeGeometry(
     engine: GraphEngine,
     node: Node,
@@ -273,81 +347,9 @@ export class EdgeAttachmentHelper {
       return geometry;
     }
 
-    switch (accessors.type) {
-      case 'circle': {
-        const radius = evaluateNumericAccessor(accessors.getRadius, node);
-        if (typeof radius === 'number') {
-          geometry.radius = Math.max(radius, 0);
-        }
-        break;
-      }
-      case 'marker': {
-        const size = evaluateNumericAccessor(accessors.getSize, node);
-        if (typeof size === 'number') {
-          geometry.radius = Math.max(size / 2, 0);
-        }
-        break;
-      }
-      case 'rectangle': {
-        const width = evaluateNumericAccessor(accessors.getWidth, node);
-        const height = evaluateNumericAccessor(accessors.getHeight, node);
-        if (typeof width === 'number') {
-          geometry.width = Math.max(width, 0);
-        }
-        if (typeof height === 'number') {
-          geometry.height = Math.max(height, 0);
-        }
-        break;
-      }
-      case 'rounded-rectangle': {
-        const width = evaluateNumericAccessor(accessors.getWidth, node);
-        const height = evaluateNumericAccessor(accessors.getHeight, node);
-        if (typeof width === 'number') {
-          geometry.width = Math.max(width, 0);
-        }
-        if (typeof height === 'number') {
-          geometry.height = Math.max(height, 0);
-        }
-        const cornerRadius = evaluateNumericAccessor(accessors.getCornerRadius, node);
-        if (typeof cornerRadius === 'number') {
-          geometry.cornerRadius = Math.max(cornerRadius, 0);
-        }
-        const radius = evaluateNumericAccessor(accessors.getRadius, node);
-        if (typeof radius === 'number') {
-          geometry.radius = Math.max(radius, 0);
-        }
-        break;
-      }
-      case 'path-rounded-rectangle': {
-        const width = evaluateNumericAccessor(accessors.getWidth, node);
-        const height = evaluateNumericAccessor(accessors.getHeight, node);
-        if (typeof width === 'number') {
-          geometry.width = Math.max(width, 0);
-        }
-        if (typeof height === 'number') {
-          geometry.height = Math.max(height, 0);
-        }
-        const cornerRadius = evaluateNumericAccessor(accessors.getCornerRadius, node);
-        if (typeof cornerRadius === 'number') {
-          geometry.cornerRadius = Math.max(cornerRadius, 0);
-        }
-        break;
-      }
-      default: {
-        const radius = evaluateNumericAccessor(accessors.getRadius, node);
-        if (typeof radius === 'number') {
-          geometry.radius = Math.max(radius, 0);
-        }
-        const width = evaluateNumericAccessor(accessors.getWidth, node);
-        const height = evaluateNumericAccessor(accessors.getHeight, node);
-        if (typeof width === 'number') {
-          geometry.width = Math.max(width, 0);
-        }
-        if (typeof height === 'number') {
-          geometry.height = Math.max(height, 0);
-        }
-        break;
-      }
+    const applier = accessors.type ? GEOMETRY_APPLIERS[accessors.type] : undefined;
+    if (applier) {
+      applier(node, accessors, geometry);
     }
 
     return geometry;
