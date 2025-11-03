@@ -9,7 +9,7 @@ import {Graph} from '../graph/graph';
 import {GraphLayout} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
 
-import {Stylesheet} from '../style/style-sheet';
+import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 
@@ -55,6 +55,22 @@ const SHARED_LAYER_PROPS = {
   }
 };
 
+type NodeStyleType = Exclude<GraphStylesheet['type'], 'Edge' | 'edge-label' | 'flow' | 'arrow'>;
+
+type GraphNodeStyle = GraphStylesheet<NodeStyleType> & {
+  pickable?: boolean;
+  visible?: boolean;
+  data?: (nodes: any) => any;
+};
+
+type GraphEdgeDecoratorStyle = GraphStylesheet<'edge-label' | 'flow' | 'arrow'>;
+
+type GraphEdgeStyle = (Omit<GraphStylesheet<'Edge'>, 'type'> & {type?: 'Edge'}) & {
+  decorators?: GraphEdgeDecoratorStyle[];
+  data?: (edges: any) => any;
+  visible?: boolean;
+};
+
 export type GraphLayerProps = CompositeLayerProps & _GraphLayerProps;
 
 export type _GraphLayerProps = {
@@ -64,13 +80,8 @@ export type _GraphLayerProps = {
   engine?: GraphEngine;
 
   // an array of styles for layers
-  nodeStyle?: any[];
-  edgeStyle?: {
-    stroke?: string;
-    strokeWidth?: number;
-    /** an array of styles for layers */
-    decorators?: any[];
-  };
+  nodeStyle?: GraphNodeStyle[];
+  edgeStyle?: GraphEdgeStyle | GraphEdgeStyle[];
   nodeEvents?: {
     onMouseLeave?: () => void;
     onHover?: () => void;
@@ -211,7 +222,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         log.error(`Invalid node type: ${style.type}`)();
         throw new Error(`Invalid node type: ${style.type}`);
       }
-      const stylesheet = new Stylesheet(restStyle, {
+      const stylesheet = new GraphStyleEngine(restStyle, {
         stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
       });
       const getOffset = stylesheet.getDeckGLAccessor('getOffset');
@@ -244,7 +255,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       .filter(Boolean)
       .flatMap((style, idx) => {
         const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
-        const stylesheet = new Stylesheet(
+        const stylesheet = new GraphStyleEngine(
           {
             type: 'Edge',
             ...restEdgeStyle
@@ -274,7 +285,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
             log.error(`Invalid edge decorator type: ${decoratorStyle.type}`)();
             throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
           }
-          const decoratorStylesheet = new Stylesheet(decoratorStyle, {
+          const decoratorStylesheet = new GraphStyleEngine(decoratorStyle, {
             stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
           });
           return new DecoratorLayer({

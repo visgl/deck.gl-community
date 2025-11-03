@@ -30,6 +30,8 @@
       "type": "category",
       "label": "Node and Edge Styling",
       "items": [
+        "modules/graph-layers/api-reference/styling/graph-stylesheet",
+        "modules/graph-layers/api-reference/styling/graph-style-engine",
         "modules/graph-layers/api-reference/styling/node/node-style",
         "modules/graph-layers/api-reference/styling/node/node-style-circle",
         "modules/graph-layers/api-reference/styling/node/node-style-rectangle",
