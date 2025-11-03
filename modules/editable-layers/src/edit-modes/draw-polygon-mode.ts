@@ -10,7 +10,8 @@ import {
   ModeProps,
   GuideFeatureCollection,
   TentativeFeature,
-  GuideFeature
+  GuideFeature,
+  DoubleClickEvent
 } from './types';
 import {Polygon, FeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
@@ -83,6 +84,22 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     return guides;
   }
 
+  finishDrawing(props: ModeProps<FeatureCollection>) {
+    const clickSequence = this.getClickSequence();
+    if (clickSequence.length > 2) {
+      const polygonToAdd: Polygon = {
+        type: 'Polygon',
+        coordinates: [[...clickSequence, clickSequence[0]]]
+      };
+
+      this.resetClickSequence();
+      const editAction = this.getAddFeatureOrBooleanPolygonAction(polygonToAdd, props);
+      if (editAction) {
+        props.onEdit(editAction);
+      }
+    }
+  }
+
   // eslint-disable-next-line complexity
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
     const {picks} = event;
@@ -117,19 +134,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
         clickedEditHandle.properties.positionIndexes[0] === clickSequence.length - 1)
     ) {
       // They clicked the first or last point (or double-clicked), so complete the polygon
-
-      // Remove the hovered position
-      const polygonToAdd: Polygon = {
-        type: 'Polygon',
-        coordinates: [[...clickSequence, clickSequence[0]]]
-      };
-
-      this.resetClickSequence();
-
-      const editAction = this.getAddFeatureOrBooleanPolygonAction(polygonToAdd, props);
-      if (editAction) {
-        props.onEdit(editAction);
-      }
+      this.finishDrawing(props);
     } else if (positionAdded) {
       // new tentative point
       props.onEdit({
@@ -143,21 +148,13 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     }
   }
 
+  handleDoubleClick(event: DoubleClickEvent, props: ModeProps<FeatureCollection>) {
+    this.finishDrawing(props);
+  }
+
   handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>) {
     if (event.key === 'Enter') {
-      const clickSequence = this.getClickSequence();
-      if (clickSequence.length > 2) {
-        const polygonToAdd: Polygon = {
-          type: 'Polygon',
-          coordinates: [[...clickSequence, clickSequence[0]]]
-        };
-        this.resetClickSequence();
-
-        const editAction = this.getAddFeatureOrBooleanPolygonAction(polygonToAdd, props);
-        if (editAction) {
-          props.onEdit(editAction);
-        }
-      }
+      this.finishDrawing(props);
     } else if (event.key === 'Escape') {
       this.resetClickSequence();
       props.onEdit({
