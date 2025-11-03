@@ -107,12 +107,32 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
     const {minZoom, maxZoom} = this.getZoomBounds();
     const clampedZoom = Math.max(minZoom, Math.min(maxZoom, this.currentZoom));
 
+    const stopEventPropagation = (event: Event) => {
+      event.stopPropagation();
+      if (typeof (event as any).stopImmediatePropagation === 'function') {
+        (event as any).stopImmediatePropagation();
+      }
+    };
+
     const ui = (
       <>
         <div style={ZOOM_BUTTON_STYLE}>
           <LongPressButton onClick={() => this.handleZoomDelta(this.step)}>{'+'}</LongPressButton>
         </div>
-        <div style={SLIDER_CONTAINER_STYLE}>
+        <div
+          style={SLIDER_CONTAINER_STYLE}
+          onPointerDown={stopEventPropagation}
+          onPointerMove={stopEventPropagation}
+          onPointerUp={stopEventPropagation}
+          onMouseDown={stopEventPropagation}
+          onMouseMove={stopEventPropagation}
+          onMouseUp={stopEventPropagation}
+          onClick={stopEventPropagation}
+          onWheel={stopEventPropagation}
+          onTouchStart={stopEventPropagation}
+          onTouchMove={stopEventPropagation}
+          onTouchEnd={stopEventPropagation}
+        >
           <input
             type="range"
             value={clampedZoom}
@@ -120,6 +140,17 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
             max={maxZoom}
             step={this.step}
             onChange={(event) => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
+            onPointerDown={stopEventPropagation}
+            onPointerMove={stopEventPropagation}
+            onPointerUp={stopEventPropagation}
+            onMouseDown={stopEventPropagation}
+            onMouseMove={stopEventPropagation}
+            onMouseUp={stopEventPropagation}
+            onClick={stopEventPropagation}
+            onWheel={stopEventPropagation}
+            onTouchStart={stopEventPropagation}
+            onTouchMove={stopEventPropagation}
+            onTouchEnd={stopEventPropagation}
             /* @ts-expect-error - non-standard attribute for vertical sliders */
             orient="vertical"
             style={

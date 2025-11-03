@@ -97,11 +97,11 @@ export class PanWidget extends Widget<PanWidgetProps> {
     Object.assign(rootElement.style, style);
 
     const buttons = [
-      {top: -2, left: 14, rotate: 0, onClick: () => this.handlePan(0, this.step), label: '▲', key: 'up'},
-      {top: 12, left: 0, rotate: -90, onClick: () => this.handlePan(this.step, 0), label: '◀', key: 'left'},
-      {top: 12, left: 28, rotate: 90, onClick: () => this.handlePan(-this.step, 0), label: '▶', key: 'right'},
-      {top: 25, left: 14, rotate: 180, onClick: () => this.handlePan(0, -this.step), label: '▼', key: 'down'}
-    ];
+      {top: -2, left: 14, onClick: () => this.handlePan(0, this.step), label: '▲', key: 'up'},
+      {top: 12, left: 0, onClick: () => this.handlePan(this.step, 0), label: '◀', key: 'left'},
+      {top: 12, left: 28, onClick: () => this.handlePan(-this.step, 0), label: '▶', key: 'right'},
+      {top: 25, left: 14, onClick: () => this.handlePan(0, -this.step), label: '▼', key: 'down'}
+    ] as const;
 
     const ui = (
       <div style={NAVIGATION_CONTAINER_STYLE}>
@@ -111,8 +111,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
             style={{
               ...NAVIGATION_BUTTON_STYLE,
               top: `${button.top}px`,
-              left: `${button.left}px`,
-              transform: `rotate(${button.rotate}deg)`
+              left: `${button.left}px`
             } as JSX.CSSProperties}
           >
             <LongPressButton onClick={button.onClick}>{button.label}</LongPressButton>
