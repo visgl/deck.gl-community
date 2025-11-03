@@ -110,7 +110,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this._options;
-    this._worker!.postMessage({
+    this._worker.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,
       options: {
@@ -121,7 +121,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
         getCollisionRadius
       }
     });
-    this._worker!.onmessage = (event) => {
+    this._worker.onmessage = (event) => {
       switch (event.data.type) {
         case 'tick':
           this.ticked(event.data);

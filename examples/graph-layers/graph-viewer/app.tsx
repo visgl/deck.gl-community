@@ -19,7 +19,8 @@ import {
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
-  type GraphLayoutEventDetail
+  D3DagLayout,
+  type GraphLayoutEventDetail,
 } from '@deck.gl-community/graph-layers';
 import type {Bounds2D} from '@math.gl/types';
 
@@ -48,7 +49,8 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'simple-layout': () => new SimpleLayout(),
   'radial-layout': (options) => new RadialLayout(options),
   'hive-plot-layout': (options) => new HivePlotLayout(options),
-  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options)
+  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
+  'd3-dag-layout': () => new D3DagLayout(),
 };
 
 
