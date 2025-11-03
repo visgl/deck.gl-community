@@ -7,7 +7,7 @@ directly onto color and size.
 
 ## Properties
 
-In addition to the [shared node style options](./node-style.md#shared-properties),
+In addition to the [shared node style options](../graph-stylesheet.md#shared-node-properties),
 circle styles understand the following keys:
 
 | Property | Type | Default | Description |

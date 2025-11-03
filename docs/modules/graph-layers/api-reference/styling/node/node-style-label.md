@@ -5,7 +5,7 @@ background primitive (circle, rectangle, etc.).
 
 ## Properties
 
-Alongside the [shared node options](./node-style.md#shared-properties), labels
+Alongside the [shared node options](../graph-stylesheet.md#shared-node-properties), labels
 support the following keys:
 
 | Property | Type | Default | Description |

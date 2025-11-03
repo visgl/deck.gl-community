@@ -6,7 +6,7 @@ you size and color cards directly from node metadata.
 
 ## Properties
 
-Besides the [shared node options](./node-style.md#shared-properties), rectangles
+Besides the [shared node options](../graph-stylesheet.md#shared-node-properties), rectangles
 support:
 
 | Property | Type | Default | Description |

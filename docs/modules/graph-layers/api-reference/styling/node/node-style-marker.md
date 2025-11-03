@@ -5,7 +5,7 @@ style uses a Deck.gl `IconLayer` with zoom-aware sizing logic.
 
 ## Properties
 
-Marker styles extend the [shared node options](./node-style.md#shared-properties)
+Marker styles extend the [shared node options](../graph-stylesheet.md#shared-node-properties)
 with the following keys:
 
 | Property | Type | Default | Description |

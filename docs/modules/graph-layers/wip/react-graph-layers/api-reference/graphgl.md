@@ -85,7 +85,7 @@ For more detail, please see /docs/api-reference/viewport.
 Declarative style description for nodes and edges. Supply `nodes` as an array of
 style layers and `edges` as either a single object or an array when stacking edge
 passes. Use attribute bindings such as `text: '@label'` to read directly from
-graph metadata. See the [styling reference](../../api-reference/styling/graph-stylesheet.md)
+graph metadata. See the [styling reference](../../../../api-reference/styling/graph-stylesheet.md)
 for supported properties.
 
 ### `nodeEvents` (Object, optional)
