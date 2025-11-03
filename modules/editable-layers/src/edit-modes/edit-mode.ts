@@ -11,12 +11,15 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   Tooltip,
-  ModeProps
+  ModeProps,
+  DoubleClickEvent
 } from './types';
 
 export interface EditMode<TData, TGuides> {
   // Called when the pointer went down and up without dragging regardless of whether something was picked
   handleClick(event: ClickEvent, props: ModeProps<TData>): void;
+  // Called when the pointer double-clicked
+  handleDoubleClick(event: DoubleClickEvent, props: ModeProps<TData>): void;
   // Called when the pointer moved, regardless of whether the pointer is down, up, and whether something was picked
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<TData>): void;
   // Called when the pointer went down on something rendered by this layer and the pointer started to move
