@@ -100,20 +100,36 @@ export class InteractionManager {
 
     if (object.isNode) {
       const node = object as Node;
-      const collapsedLength = node.getPropertyValue('collapsedChainLength');
       const chainId = node.getPropertyValue('collapsedChainId');
-      const isCollapsed = node.getPropertyValue('isCollapsedChain');
-      if (typeof collapsedLength === 'number' && collapsedLength > 1 && chainId && isCollapsed) {
+      const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+      const hasChainMetadata =
+        chainId !== null &&
+        chainId !== undefined &&
+        Array.isArray(collapsedNodeIds) &&
+        collapsedNodeIds.length > 1 &&
+        representativeId !== null &&
+        representativeId !== undefined;
+      const isRepresentative = hasChainMetadata && representativeId === node.getId();
+
+      if (hasChainMetadata && isRepresentative) {
         const layout: any = this.engine?.props?.layout;
         if (layout && typeof layout.toggleCollapsedChain === 'function') {
-          layout.toggleCollapsedChain(String(chainId));
-          this._lastInteraction = Date.now();
-          this.notifyCallback();
+          const layerId = info?.layer?.id;
+          const fromExpandedMarker =
+            typeof layerId === 'string' && layerId.includes('expanded-chain-markers');
+
+          if (isCollapsed || fromExpandedMarker) {
+            layout.toggleCollapsedChain(String(chainId));
+            this._lastInteraction = Date.now();
+            this.notifyCallback();
+            if (this.nodeEvents.onClick) {
+              this.nodeEvents.onClick(info, event);
+            }
+            return;
+          }
         }
-        if (this.nodeEvents.onClick) {
-          this.nodeEvents.onClick(info, event);
-        }
-        return;
       }
 
       if ((object as Node).isSelectable()) {

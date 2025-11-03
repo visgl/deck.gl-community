@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import React, {useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
 import {
@@ -76,7 +76,8 @@ function createDagGraph(): DagGraphResult {
     nodeSize: NODE_SPACING,
     layering: 'topological',
     decross: 'twoLayer',
-    coord: 'greedy'
+    coord: 'greedy',
+    collapseLinearChains: true
   });
 
   return {graph, layout};
@@ -84,6 +85,42 @@ function createDagGraph(): DagGraphResult {
 
 export default function App(): React.ReactElement {
   const {graph, layout} = useMemo(() => createDagGraph(), []);
+
+  const [collapseEnabled, setCollapseEnabled] = useState(true);
+
+  useEffect(() => {
+    layout.setPipelineOptions({collapseLinearChains: collapseEnabled});
+    if (!collapseEnabled) {
+      layout.setCollapsedChains([]);
+    }
+  }, [collapseEnabled, layout]);
+
+  const collectChainIds = useCallback(() => {
+    const chainIds = new Set<string>();
+    for (const node of graph.getNodes()) {
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const nodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      if (
+        chainId &&
+        Array.isArray(nodeIds) &&
+        nodeIds.length > 1 &&
+        representativeId === node.getId()
+      ) {
+        chainIds.add(String(chainId));
+      }
+    }
+    return chainIds;
+  }, [graph]);
+
+  const collapseAllChains = useCallback(() => {
+    const chainIds = collectChainIds();
+    layout.setCollapsedChains(chainIds);
+  }, [collectChainIds, layout]);
+
+  const expandAllChains = useCallback(() => {
+    layout.setCollapsedChains([]);
+  }, [layout]);
 
   const layers = useMemo(
     () => [
@@ -130,22 +167,96 @@ export default function App(): React.ReactElement {
   );
 
   return (
-    <DeckGL
-      views={[new OrthographicView({id: 'ortho'})]}
-      controller={{dragPan: true, scrollZoom: true, doubleClickZoom: false}}
-      initialViewState={INITIAL_VIEW_STATE}
-      style={{width: '100vw', height: '100vh'}}
-      layers={layers}
-      getTooltip={(info) => {
-        const {object} = info;
-        if (!object) {
-          return null;
-        }
-        if (object.isNode) {
-          return `Node: ${object.getPropertyValue('label')}`;
-        }
-        return `Edge: ${object.getSourceNodeId()} → ${object.getTargetNodeId()}`;
-      }}
-    />
+    <div style={{position: 'relative', width: '100vw', height: '100vh'}}>
+      <DeckGL
+        views={[new OrthographicView({id: 'ortho'})]}
+        controller={{dragPan: true, scrollZoom: true, doubleClickZoom: false}}
+        initialViewState={INITIAL_VIEW_STATE}
+        style={{width: '100%', height: '100%'}}
+        layers={layers}
+        getTooltip={(info) => {
+          const {object} = info;
+          if (!object) {
+            return null;
+          }
+          if (object.isNode) {
+            return `Node: ${object.getPropertyValue('label')}`;
+          }
+          return `Edge: ${object.getSourceNodeId()} → ${object.getTargetNodeId()}`;
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          background: 'rgba(16, 42, 130, 0.85)',
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: 8,
+          maxWidth: 280,
+          fontFamily: 'Inter, sans-serif',
+          boxShadow: '0 8px 16px rgba(16, 42, 130, 0.25)'
+        }}
+      >
+        <h3 style={{margin: '0 0 8px', fontSize: 16}}>Collapsed chains</h3>
+        <p style={{margin: '0 0 12px', fontSize: 13, lineHeight: 1.4}}>
+          Linear chains collapse to a single node marked with a plus icon. Click the plus to expand
+          or the minus icon to collapse the chain again.
+        </p>
+        <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+          <button
+            type="button"
+            onClick={() => setCollapseEnabled((value) => !value)}
+            style={{
+              background: collapseEnabled ? '#4c6ef5' : '#1f2937',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontSize: 13
+            }}
+          >
+            {collapseEnabled ? 'Disable collapse' : 'Enable collapse'}
+          </button>
+          <button
+            type="button"
+            onClick={collapseAllChains}
+            disabled={!collapseEnabled}
+            style={{
+              background: '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 12px',
+              cursor: collapseEnabled ? 'pointer' : 'not-allowed',
+              fontSize: 13,
+              opacity: collapseEnabled ? 1 : 0.5
+            }}
+          >
+            Collapse all
+          </button>
+          <button
+            type="button"
+            onClick={expandAllChains}
+            disabled={!collapseEnabled}
+            style={{
+              background: '#16a34a',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 12px',
+              cursor: collapseEnabled ? 'pointer' : 'not-allowed',
+              fontSize: 13,
+              opacity: collapseEnabled ? 1 : 0.5
+            }}
+          >
+            Expand all
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

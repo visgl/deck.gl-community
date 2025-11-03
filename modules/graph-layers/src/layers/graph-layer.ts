@@ -266,43 +266,86 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       } as any);
     });
 
-    const collapsedNodes = engine
-      .getNodes()
-      .filter((node) =>
-        Boolean(node.getPropertyValue('isCollapsedChain')) &&
-        typeof node.getPropertyValue('collapsedChainLength') === 'number' &&
-        (node.getPropertyValue('collapsedChainLength') as number) > 1
+    const chainRepresentativeNodes = engine.getNodes().filter((node) => {
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const nodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      return (
+        chainId &&
+        Array.isArray(nodeIds) &&
+        nodeIds.length > 1 &&
+        representativeId === node.getId()
       );
+    });
 
-    if (collapsedNodes.length > 0) {
-      const collapsedMarkerStyle: GraphStylesheet<'marker'> = {
-        type: 'marker',
-        fill: [64, 96, 192, 255],
-        size: 28,
-        marker: 'circle-plus-filled',
-        offset: [0, 0],
-        scaleWithZoom: true
-      };
-      const collapsedStylesheet = new GraphStyleEngine(collapsedMarkerStyle, {
-        stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-      });
-      const getOffset = collapsedStylesheet.getDeckGLAccessor('getOffset');
-      layers.push(
-        new ZoomableMarkerLayer({
-          ...SHARED_LAYER_PROPS,
-          id: 'collapsed-chain-markers',
-          data: collapsedNodes,
-          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
-          pickable: true,
-          positionUpdateTrigger: [
-            engine.getLayoutLastUpdate(),
-            engine.getLayoutState(),
-            collapsedStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
-          ].join(),
-          stylesheet: collapsedStylesheet,
-          visible: true
-        } as any)
+    if (chainRepresentativeNodes.length > 0) {
+      const collapsedNodes = chainRepresentativeNodes.filter((node) =>
+        Boolean(node.getPropertyValue('isCollapsedChain'))
       );
+      if (collapsedNodes.length > 0) {
+        const collapsedMarkerStyle: GraphStylesheet<'marker'> = {
+          type: 'marker',
+          fill: [64, 96, 192, 255],
+          size: 28,
+          marker: 'circle-plus-filled',
+          offset: [0, 0],
+          scaleWithZoom: true
+        };
+        const collapsedStylesheet = new GraphStyleEngine(collapsedMarkerStyle, {
+          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+        });
+        const getOffset = collapsedStylesheet.getDeckGLAccessor('getOffset');
+        layers.push(
+          new ZoomableMarkerLayer({
+            ...SHARED_LAYER_PROPS,
+            id: 'collapsed-chain-markers',
+            data: collapsedNodes,
+            getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+            pickable: true,
+            positionUpdateTrigger: [
+              engine.getLayoutLastUpdate(),
+              engine.getLayoutState(),
+              collapsedStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+            ].join(),
+            stylesheet: collapsedStylesheet,
+            visible: true
+          } as any)
+        );
+      }
+
+      const expandedNodes = chainRepresentativeNodes.filter(
+        (node) => !node.getPropertyValue('isCollapsedChain')
+      );
+      if (expandedNodes.length > 0) {
+        const expandedMarkerStyle: GraphStylesheet<'marker'> = {
+          type: 'marker',
+          fill: [64, 96, 192, 255],
+          size: 24,
+          marker: 'circle-minus-filled',
+          offset: [0, 0],
+          scaleWithZoom: true
+        };
+        const expandedStylesheet = new GraphStyleEngine(expandedMarkerStyle, {
+          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+        });
+        const getOffset = expandedStylesheet.getDeckGLAccessor('getOffset');
+        layers.push(
+          new ZoomableMarkerLayer({
+            ...SHARED_LAYER_PROPS,
+            id: 'expanded-chain-markers',
+            data: expandedNodes,
+            getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+            pickable: true,
+            positionUpdateTrigger: [
+              engine.getLayoutLastUpdate(),
+              engine.getLayoutState(),
+              expandedStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+            ].join(),
+            stylesheet: expandedStylesheet,
+            visible: true
+          } as any)
+        );
+      }
     }
 
     return layers;
