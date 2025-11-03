@@ -21,7 +21,7 @@ const circleStyle: GraphStylesheet<'circle'> = {
 The generic parameter narrows the `type` field and surfaces the properties that are valid for that primitive. For example:
 
 - Node primitives: `'circle'`, `'rectangle'`, `'rounded-rectangle'`, `'path-rounded-rectangle'`, `'label'`, `'marker'`, and `'icon'` (an alias for image nodes).
-- Edge primitives: `'Edge'`.
+- Edge primitives: `'edge'`.
 - Edge decorators: `'edge-label'`, `'flow'`, and `'arrow'`.
 
 Refer to the individual [node](./node/node-style.md) and [edge](./edge/edge-style.md) guides for the property lists that each primitive accepts.
@@ -58,22 +58,23 @@ The built-in states are `default`, `hover`, `dragging`, and `selected`. When you
 
 ## Composition
 
-Stylesheets are provided in arrays for nodes and optionally for edges:
+Stylesheets are composed under the `stylesheet` prop on `GraphLayer`. Provide an array of node layers and either a single edge style or an array of edge styles:
 
 ```js
 new GraphLayer({
-  nodeStyle: [
-    {type: 'circle', fill: '#1E293B'},
-    {type: 'label', text: node => node.id}
-  ],
-  edgeStyle: {
-    type: 'Edge',
-    stroke: '#CBD5F5',
-    decorators: [
-      {type: 'edge-label', text: edge => edge.weight.toFixed(2)}
-    ]
+  stylesheet: {
+    nodes: [
+      {type: 'circle', fill: '#1E293B'},
+      {type: 'label', text: '@id'}
+    ],
+    edges: {
+      stroke: '#CBD5F5',
+      decorators: [
+        {type: 'edge-label', text: '@weight'}
+      ]
+    }
   }
 });
 ```
 
-Edge styles can omit the `type` field—`GraphLayer` defaults it to `'Edge'`—but supplying it enables TypeScript to infer the correct decorator and property options.
+Edge styles can omit the `type` field—`GraphLayer` defaults it to `'edge'`—but supplying it enables TypeScript to infer the correct decorator and property options.

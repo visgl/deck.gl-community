@@ -13,7 +13,7 @@ export type LayoutType =
   | 'hive-plot-layout'
   | 'force-multi-graph-layout';
 
-export type ExampleStyles = Pick<GraphLayerProps, 'nodeStyle' | 'edgeStyle'>;
+export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
 
 export type ExampleDefinition = {
   name: string;

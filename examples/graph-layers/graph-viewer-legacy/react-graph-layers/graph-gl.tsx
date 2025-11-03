@@ -6,7 +6,14 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-import {GraphLayout, Graph, GraphLayer, log, SimpleLayout} from '@deck.gl-community/graph-layers';
+import {
+  GraphLayout,
+  Graph,
+  GraphLayer,
+  log,
+  SimpleLayout
+} from '@deck.gl-community/graph-layers';
+import type {GraphLayerStylesheet} from '@deck.gl-community/graph-layers';
 import {PositionedViewControl} from '@deck.gl-community/react';
 import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 import '@deck.gl/widgets/stylesheet.css';
@@ -25,11 +32,20 @@ const INITIAL_VIEW_STATE = {
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 
+const DEFAULT_STYLESHEET = {
+  nodes: [],
+  edges: {
+    decorators: [],
+    stroke: 'black',
+    strokeWidth: 1
+  }
+} as const satisfies GraphLayerStylesheet;
+
 export const GraphGL = ({
   graph = new Graph(),
   layout = new SimpleLayout(),
   glOptions = {},
-  nodeStyle = [],
+  stylesheet = DEFAULT_STYLESHEET,
   nodeEvents = {
     onMouseEnter: null,
     onHover: null,
@@ -37,13 +53,6 @@ export const GraphGL = ({
     onClick: null,
     onDrag: null
   },
-  edgeStyle = [
-    {
-      decorators: [],
-      stroke: 'black',
-      strokeWidth: 1
-    }
-  ],
   edgeEvents = {
     onClick: null,
     onHover: null
@@ -193,9 +202,8 @@ export const GraphGL = ({
               () => [
                 new GraphLayer({
                   engine,
-                  nodeStyle,
+                  stylesheet,
                   nodeEvents,
-                  edgeStyle,
                   edgeEvents,
                   enableDragging,
                   resumeLayoutAfterDragging
@@ -204,9 +212,8 @@ export const GraphGL = ({
               [
                 engine,
                 engine.getGraphVersion(),
-                nodeStyle,
+                stylesheet,
                 nodeEvents,
-                edgeStyle,
                 edgeEvents,
                 enableDragging,
                 resumeLayoutAfterDragging
@@ -248,19 +255,11 @@ GraphGL.propTypes = {
     onHover: PropTypes.func,
     onMouseEnter: PropTypes.func
   }).isRequired,
-  /** Declarative node style */
-  nodeStyle: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool])),
-  /** Declarative edge style */
-  edgeStyle: PropTypes.oneOfType([
-    PropTypes.object,
-    PropTypes.arrayOf(
-      PropTypes.shape({
-        stroke: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
-        strokeWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
-        decorators: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool]))
-      })
-    )
-  ]).isRequired,
+  /** Declarative graph stylesheet */
+  stylesheet: PropTypes.shape({
+    nodes: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool])),
+    edges: PropTypes.oneOfType([PropTypes.object, PropTypes.arrayOf(PropTypes.object)])
+  }).isRequired,
   /** Edge event callbacks */
   edgeEvents: PropTypes.shape({
     onClick: PropTypes.func,

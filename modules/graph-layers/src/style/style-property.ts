@@ -3,7 +3,23 @@
 // Copyright (c) vis.gl contributors
 
 import Color from 'color';
+import {
+  scaleLinear,
+  scaleLog,
+  scaleOrdinal,
+  scalePow,
+  scaleQuantile,
+  scaleQuantize,
+  scaleSqrt
+} from 'd3-scale';
+
 import {log} from '../utils/log';
+import type {
+  GraphStyleAttributeReference,
+  GraphStyleLeafValue,
+  GraphStyleScale,
+  GraphStyleScaleType
+} from './graph-style-engine';
 
 /* Utils for type check */
 function getColor(value) {
@@ -133,29 +149,265 @@ const DEFAULT_STYLES = {
   scaleWithZoom: true
 };
 
-// code generation: generate a function as a layer accessor
-function generateAccessor(key, value) {
-  const formatter = PROPERTY_FORMATTERS[key] || IDENTITY;
-  // ex: key = 'fill', value = {defaut: 'red', hover: 'blue'}
-  // valueMap => {defaut: [255, 0, 0], hover: [0, 0, 255]}
-  const valueMap = Object.keys(value).reduce((res, key0) => {
-    res[key0] = value[key0];
-    return res;
-  }, {}) as any;
+/** Union of supported D3 scale implementations. */
+type SupportedScale =
+  | ReturnType<typeof scaleLinear>
+  | ReturnType<typeof scaleLog>
+  | ReturnType<typeof scalePow>
+  | ReturnType<typeof scaleSqrt>
+  | ReturnType<typeof scaleQuantize>
+  | ReturnType<typeof scaleQuantile>
+  | ReturnType<typeof scaleOrdinal>;
 
-  return (node) => {
-    const statefulValue = valueMap[node.state];
-    if (!node.state || typeof statefulValue === 'undefined') {
-      return valueMap.default || DEFAULT_STYLES[key];
+const SCALE_FACTORIES = {
+  linear: scaleLinear,
+  log: scaleLog,
+  pow: scalePow,
+  sqrt: scaleSqrt,
+  quantize: scaleQuantize,
+  quantile: scaleQuantile,
+  ordinal: scaleOrdinal
+} as const satisfies Record<GraphStyleScaleType, () => SupportedScale>;
+
+/** Resolved attribute reference with guaranteed defaults. */
+type NormalizedAttributeReference = {
+  attribute: string;
+  fallback: unknown;
+  scale?: (value: unknown) => unknown;
+  scaleConfig?: GraphStyleScale | ((value: unknown) => unknown);
+};
+
+/** Create a D3 scale instance based on a declarative configuration. */
+function createScaleFromConfig(config: GraphStyleScale): SupportedScale {
+  const type = config.type ?? 'linear';
+  const factory = SCALE_FACTORIES[type as GraphStyleScaleType];
+  if (!factory) {
+    log.warn(`Invalid scale type: ${type}`)();
+    throw new Error(`Invalid scale type: ${type}`);
+  }
+  const scale = factory();
+  if (config.domain && 'domain' in scale) {
+    scale.domain(config.domain as never);
+  }
+  if (config.range && 'range' in scale) {
+    scale.range(config.range as never);
+  }
+  if (
+    typeof config.clamp === 'boolean' &&
+    'clamp' in scale &&
+    typeof scale.clamp === 'function'
+  ) {
+    scale.clamp(config.clamp);
+  }
+  if (typeof config.nice !== 'undefined' && 'nice' in scale && typeof scale.nice === 'function') {
+    scale.nice(config.nice as never);
+  }
+  if (
+    type === 'pow' &&
+    typeof config.exponent === 'number' &&
+    'exponent' in scale &&
+    typeof scale.exponent === 'function'
+  ) {
+    scale.exponent(config.exponent);
+  }
+  if (
+    type === 'log' &&
+    typeof config.base === 'number' &&
+    'base' in scale &&
+    typeof scale.base === 'function'
+  ) {
+    scale.base(config.base);
+  }
+  if ('unknown' in config && 'unknown' in scale && typeof scale.unknown === 'function') {
+    scale.unknown(config.unknown);
+  }
+  return scale;
+}
+
+/** Normalize attribute reference definitions into a consistent structure. */
+function normalizeAttributeReference(
+  key: string,
+  reference: GraphStyleAttributeReference
+): NormalizedAttributeReference {
+  if (typeof reference === 'string') {
+    const attribute = reference.startsWith('@') ? reference.slice(1) : reference;
+    if (!attribute) {
+      throw new Error(`Invalid attribute reference for ${key}: ${reference}`);
     }
-    // else has stateful value
-    // check if the value is a function
-    if (typeof statefulValue === 'function') {
-      return formatter(statefulValue(node));
+    return {
+      attribute,
+      fallback: DEFAULT_STYLES[key]
+    };
+  }
+
+  const {attribute, fallback = DEFAULT_STYLES[key], scale} = reference;
+  if (!attribute) {
+    throw new Error(`Invalid attribute reference for ${key}: ${JSON.stringify(reference)}`);
+  }
+
+  let scaleFn: ((value: unknown) => unknown) | undefined;
+  let scaleConfig: GraphStyleScale | ((value: unknown) => unknown) | undefined;
+
+  if (scale) {
+    if (typeof scale === 'function') {
+      scaleFn = scale;
+      scaleConfig = scale;
+    } else {
+      scaleFn = createScaleFromConfig(scale);
+      scaleConfig = scale;
     }
-    // or just a plain value
-    return formatter(statefulValue);
+  }
+
+  return {
+    attribute,
+    fallback,
+    scale: scaleFn,
+    scaleConfig
   };
+}
+
+/** Determine whether a value points to a graph attribute reference. */
+function isAttributeReference(value: unknown): value is GraphStyleAttributeReference {
+  if (typeof value === 'string') {
+    return value.startsWith('@');
+  }
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) && 'attribute' in (value as Record<string, unknown>);
+}
+
+/** Determine whether a style value maps interaction states. */
+function isStatefulValue(value: unknown): value is Record<string, GraphStyleLeafValue> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) && !isAttributeReference(value);
+}
+
+/** Resolve an attribute from a datum or `Graph` entity. */
+function getAttributeValue(datum: any, attribute: string) {
+  if (datum && typeof datum.getPropertyValue === 'function') {
+    return datum.getPropertyValue(attribute);
+  }
+  if (datum && typeof datum === 'object' && attribute in datum) {
+    return datum[attribute];
+  }
+  return undefined;
+}
+
+/** Combine Deck.gl update triggers while filtering falsey entries. */
+function mergeUpdateTriggers(...triggers: unknown[]): unknown {
+  const filtered = triggers.filter(
+    (trigger) => !(trigger === false || trigger === undefined || trigger === null)
+  );
+  if (!filtered.length) {
+    return false;
+  }
+  if (filtered.length === 1) {
+    return filtered[0];
+  }
+  return filtered;
+}
+
+/** Build an accessor that reads and optionally scales an attribute. */
+function createAttributeAccessor(
+  key: string,
+  attributeRef: NormalizedAttributeReference,
+  formatter: (value: unknown) => unknown
+) {
+  const accessor = (datum: any) => {
+    let raw = getAttributeValue(datum, attributeRef.attribute);
+    if (raw === undefined || raw === null) {
+      raw = attributeRef.fallback;
+    }
+    if (attributeRef.scale) {
+      raw = attributeRef.scale(raw);
+    }
+    const formatted = formatter(raw);
+    if (formatted === null) {
+      log.warn(`Invalid ${key} value: ${raw}`)();
+      throw new Error(`Invalid ${key} value: ${raw}`);
+    }
+    return formatted;
+  };
+
+  const updateTrigger = {
+    attribute: attributeRef.attribute,
+    scale: attributeRef.scaleConfig ?? null
+  };
+
+  return {accessor, updateTrigger};
+}
+
+/** Result of parsing a leaf style value. */
+type LeafParseResult = {
+  value: any;
+  isAccessor: boolean;
+  updateTrigger: unknown;
+};
+
+/** Parse a non-stateful style value into deck.gl compatible form. */
+function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): LeafParseResult {
+  const formatter = PROPERTY_FORMATTERS[key] || IDENTITY;
+
+  if (typeof value === 'undefined') {
+    const formatted = formatter(DEFAULT_STYLES[key]);
+    if (formatted === null) {
+      log.warn(`Invalid ${key} value: ${value}`)();
+      throw new Error(`Invalid ${key} value: ${value}`);
+    }
+    return {value: formatted, isAccessor: false, updateTrigger: false};
+  }
+
+  if (isAttributeReference(value)) {
+    const normalized = normalizeAttributeReference(key, value);
+    const {accessor, updateTrigger} = createAttributeAccessor(key, normalized, formatter);
+    return {value: accessor, isAccessor: true, updateTrigger};
+  }
+
+  if (typeof value === 'function') {
+    return {
+      value: (datum) => formatter(value(datum)),
+      isAccessor: true,
+      updateTrigger: value
+    };
+  }
+
+  const formatted = formatter(value);
+  if (formatted === null) {
+    log.warn(`Invalid ${key} value: ${value}`)();
+    throw new Error(`Invalid ${key} value: ${value}`);
+  }
+
+  return {value: formatted, isAccessor: false, updateTrigger: false};
+}
+
+/**
+ * Create an accessor capable of handling interaction state overrides for a style property.
+ */
+function createStatefulAccessor(
+  key: string,
+  value: Record<string, GraphStyleLeafValue>,
+  stateUpdateTrigger: unknown
+) {
+  const valueMap: Record<string, any> = {};
+  const attributeTriggers: unknown[] = [];
+
+  for (const state of Object.keys(value)) {
+    const parsed = parseLeafValue(key, value[state]);
+    valueMap[state] = parsed.value;
+    if (parsed.updateTrigger) {
+      attributeTriggers.push(parsed.updateTrigger);
+    }
+  }
+
+  const defaultValue =
+    typeof valueMap.default !== 'undefined' ? valueMap.default : parseLeafValue(key, undefined).value;
+
+  const accessor = (datum: any) => {
+    const stateValue = datum?.state ? valueMap[datum.state] : undefined;
+    const candidate = typeof stateValue !== 'undefined' ? stateValue : defaultValue;
+    return typeof candidate === 'function' ? candidate(datum) : candidate;
+  };
+
+  const updateTrigger = mergeUpdateTriggers(stateUpdateTrigger, ...attributeTriggers);
+
+  return {accessor, updateTrigger};
 }
 
 const VALUE_TYPE = {
@@ -165,7 +417,7 @@ const VALUE_TYPE = {
 
 export class StyleProperty {
   key: any;
-  _updateTrigger: boolean;
+  _updateTrigger: unknown;
   _value: any;
   _valueType: any;
 
@@ -180,38 +432,22 @@ export class StyleProperty {
     this.key = key;
     this._updateTrigger = false;
 
-    // statefule property, ex:
-    // fill: {default: 'red', hover: 'blue'}
-    // note that offset: [0, 1], the type of array is object, too.
-    if (typeof value === 'object' && !Array.isArray(value)) {
-      // generate accessor function
-      this._value = generateAccessor(key, value);
+    if (isStatefulValue(value)) {
+      const {accessor, updateTrigger: triggers} = createStatefulAccessor(
+        key,
+        value as Record<string, GraphStyleLeafValue>,
+        updateTrigger
+      );
+      this._value = accessor;
       this._valueType = VALUE_TYPE.ACCESSOR;
-      this._updateTrigger = updateTrigger;
-    }
-    // default state property, but value = accessor
-    // fill: () => 'red'
-    else if (typeof value === 'function') {
-      const formatter = PROPERTY_FORMATTERS[key] || IDENTITY;
-      // the output of the function should be formated by
-      // the corresponding formatter again.
-      // Ex: colorAccessor might return '#f00', which needs to
-      // be formated as [255, 0, 0];
-      this._value = (d) => formatter(value(d));
-      this._valueType = VALUE_TYPE.ACCESSOR;
-      this._updateTrigger = value;
-    }
-    // default state property with plain value:
-    // fill: 'red'
-    else {
-      // format the value properly
-      const formatter = PROPERTY_FORMATTERS[key] || IDENTITY;
-      this._value = formatter(value);
-      this._valueType = VALUE_TYPE.PLAIN_VALUE;
-      this._updateTrigger = false;
+      this._updateTrigger = triggers;
+    } else {
+      const parsed = parseLeafValue(key, value as GraphStyleLeafValue | undefined);
+      this._value = parsed.value;
+      this._valueType = parsed.isAccessor ? VALUE_TYPE.ACCESSOR : VALUE_TYPE.PLAIN_VALUE;
+      this._updateTrigger = mergeUpdateTriggers(parsed.updateTrigger);
     }
 
-    // sanity check
     if (this._value === null) {
       log.warn(`Invalid ${key} value: ${value}`)();
       throw new Error(`Invalid ${key} value: ${value}`);

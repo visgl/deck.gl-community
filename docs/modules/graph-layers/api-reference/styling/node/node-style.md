@@ -1,23 +1,26 @@
 # Node stylesheets
 
 GraphGL renders nodes by stacking one or more *style layers* on top of each
-other. The `nodeStyle` prop accepts an array of style objects. Each object describes one visual layer and is
-compiled into a Deck.gl sublayer by the `GraphStyleEngine` helper from the corresponding `GraphStylesheet` spec.
+other. These definitions live under the `stylesheet.nodes` prop on `GraphLayer`.
+Each entry describes one visual layer and is compiled into a Deck.gl sublayer by
+the `GraphStyleEngine` helper from the corresponding `GraphStylesheet` spec.
 
 ```js
-const nodeStyle = [
-  {
-    type: 'circle',
-    radius: 10,
-    fill: node => (node.degree > 5 ? '#3C9EE7' : '#F06449')
-  },
-  {
-    type: 'label',
-    text: node => node.id,
-    color: '#172B4D',
-    offset: [0, 16]
-  }
-];
+const stylesheet = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: 10,
+      fill: node => (node.degree > 5 ? '#3C9EE7' : '#F06449')
+    },
+    {
+      type: 'label',
+      text: node => node.id,
+      color: '#172B4D',
+      offset: [0, 16]
+    }
+  ]
+};
 ```
 
 The order in the array controls the drawing order: earlier entries are rendered
@@ -101,26 +104,28 @@ Mixing several entries gives you complex node visuals, such as a rounded
 rectangle background with a label on top.
 
 ```js
-const nodeStyle = [
-  {
-    type: 'rounded-rectangle',
-    width: 120,
-    height: 48,
-    cornerRadius: 0.4,
-    fill: {
-      default: '#0F172A',
-      hover: '#1E293B'
+const stylesheet = {
+  nodes: [
+    {
+      type: 'rounded-rectangle',
+      width: 120,
+      height: 48,
+      cornerRadius: 0.4,
+      fill: {
+        default: '#0F172A',
+        hover: '#1E293B'
+      },
+      stroke: '#38BDF8',
+      strokeWidth: node => (node.state === 'selected' ? 4 : 1)
     },
-    stroke: '#38BDF8',
-    strokeWidth: node => (node.state === 'selected' ? 4 : 1)
-  },
-  {
-    type: 'label',
-    text: node => node.label,
-    color: '#F8FAFC',
-    fontSize: 18
-  }
-];
+    {
+      type: 'label',
+      text: node => node.label,
+      color: '#F8FAFC',
+      fontSize: 18
+    }
+  ]
+};
 ```
 
 With these building blocks you can express most node visuals declaratively and

@@ -4,6 +4,48 @@
 
 import {StyleEngine, type DeckGLAccessorMap, type DeckGLUpdateTriggers} from './style-engine';
 
+/** Supported scale families for attribute references. */
+export type GraphStyleScaleType =
+  | 'linear'
+  | 'log'
+  | 'pow'
+  | 'sqrt'
+  | 'quantize'
+  | 'quantile'
+  | 'ordinal';
+
+/** Configuration for attribute scale mapping. */
+export type GraphStyleScale = {
+  type?: GraphStyleScaleType;
+  domain?: (number | string)[];
+  range?: any[];
+  clamp?: boolean;
+  nice?: boolean | number;
+  base?: number;
+  exponent?: number;
+  unknown?: unknown;
+};
+
+/** Declares that a style property should derive its value from a graph attribute. */
+export type GraphStyleAttributeReference<TValue = unknown> =
+  | `@${string}`
+  | {
+      attribute: string;
+      fallback?: TValue;
+      scale?: GraphStyleScale | ((value: unknown) => unknown);
+    };
+
+/** Acceptable value for a single style state or accessor. */
+export type GraphStyleLeafValue<TValue = unknown> =
+  | TValue
+  | GraphStyleAttributeReference<TValue>
+  | ((datum: unknown) => TValue);
+
+/** Acceptable value for a style property, including optional interaction states. */
+export type GraphStyleValue<TValue = unknown> =
+  | GraphStyleLeafValue<TValue>
+  | {[state: string]: GraphStyleLeafValue<TValue>};
+
 const COMMON_DECKGL_PROPS = {
   getOffset: 'offset',
   opacity: 'opacity'
@@ -74,6 +116,10 @@ const GRAPH_DECKGL_ACCESSOR_MAP = {
     getColor: 'stroke',
     getWidth: 'strokeWidth'
   },
+  edge: {
+    getColor: 'stroke',
+    getWidth: 'strokeWidth'
+  },
   'edge-label': {
     getColor: 'color',
     getText: 'text',
@@ -99,14 +145,14 @@ const GRAPH_DECKGL_ACCESSOR_MAP = {
 } as const satisfies DeckGLAccessorMap;
 
 type GraphStyleType = keyof typeof GRAPH_DECKGL_ACCESSOR_MAP;
-type GraphStyleSelector = `:${string}`;
+export type GraphStyleSelector = `:${string}`;
 
 type GraphStylePropertyKey<TType extends GraphStyleType> = Extract<
   (typeof GRAPH_DECKGL_ACCESSOR_MAP)[TType][keyof (typeof GRAPH_DECKGL_ACCESSOR_MAP)[TType]],
   PropertyKey
 >;
 
-type GraphStyleStatefulValue<T> = T | {[state: string]: T};
+type GraphStyleStatefulValue<TValue> = TValue | {[state: string]: TValue};
 
 type GraphStylePropertyMap<TType extends GraphStyleType, TValue> = Partial<
   Record<GraphStylePropertyKey<TType>, GraphStyleStatefulValue<TValue>>
@@ -114,7 +160,7 @@ type GraphStylePropertyMap<TType extends GraphStyleType, TValue> = Partial<
 
 export type GraphStylesheet<
   TType extends GraphStyleType = GraphStyleType,
-  TValue = unknown
+  TValue = GraphStyleLeafValue
 > = {type: TType} &
   GraphStylePropertyMap<TType, TValue> &
   Partial<Record<GraphStyleSelector, GraphStylePropertyMap<TType, TValue>>>;
@@ -127,6 +173,7 @@ const GRAPH_DECKGL_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
   label: ['getColor', 'getText', 'getSize', 'getTextAnchor', 'getAlignmentBaseline', 'getAngle'],
   marker: ['getColor', 'getSize', 'getMarker'],
   Edge: ['getColor', 'getWidth'],
+  edge: ['getColor', 'getWidth'],
   'edge-label': ['getColor', 'getText', 'getSize', 'getTextAnchor', 'getAlignmentBaseline'],
   flow: ['getColor', 'getWidth', 'getSpeed', 'getTailLength'],
   arrow: ['getColor', 'getSize', 'getOffset']
