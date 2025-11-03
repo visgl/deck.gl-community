@@ -9,7 +9,7 @@ import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
-import '@deck.gl/widgets/stylesheet.css';
+// import '@deck.gl/widgets/stylesheet.css';
 import {
   GraphEngine,
   GraphLayer,

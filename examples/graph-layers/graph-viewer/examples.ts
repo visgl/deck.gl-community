@@ -602,7 +602,7 @@ const DAG_PIPELINE_DATA: DagRecord[] = [
 ];
 
 const DAG_PIPELINE_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 18,
@@ -620,18 +620,18 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
       alignmentBaseline: 'top'
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#8da2fb',
     strokeWidth: 2,
     decorators: [
       {
         type: 'arrow',
         size: 6,
-        fill: '#8da2fb'
+        color: '#8da2fb'
       }
     ]
   }
-};  
+};
 
 export const EXAMPLES: ExampleDefinition[] = [
   {
