@@ -163,7 +163,7 @@ export type GraphStylesheet<
 import type {ZodError} from 'zod';
 
 import {StyleEngine, type DeckGLUpdateTriggers} from './style-engine';
-import {log} from '../utils/log';
+import {warn} from '../utils/log';
 import {
   GraphStylesheetSchema,
   GRAPH_DECKGL_ACCESSOR_MAP,
@@ -206,7 +206,7 @@ export class GraphStyleEngine extends StyleEngine {
       const error = parseResult.error;
       const styleType = style?.type;
       const fallbackType = isGraphStyleType(styleType) ? styleType : DEFAULT_FALLBACK_STYLE_TYPE;
-      log.warn(formatStylesheetError(error));
+      warn(formatStylesheetError(error));
       parsedStyle = GraphStylesheetSchema.parse({type: fallbackType});
     }
 

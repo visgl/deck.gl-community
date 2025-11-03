@@ -13,7 +13,7 @@ import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engin
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 
-import {log} from '../utils/log';
+import {warn} from '../utils/log';
 
 import {
   DEFAULT_GRAPH_LAYER_STYLESHEET,
@@ -191,13 +191,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     const usingNodeStyle = typeof nodeStyle !== 'undefined';
     if (usingNodeStyle && !NODE_STYLE_DEPRECATION_WARNED) {
-      log.warn(NODE_STYLE_DEPRECATION_MESSAGE);
+      warn(NODE_STYLE_DEPRECATION_MESSAGE);
       NODE_STYLE_DEPRECATION_WARNED = true;
     }
 
     const usingEdgeStyle = typeof edgeStyle !== 'undefined';
     if (usingEdgeStyle && !EDGE_STYLE_DEPRECATION_WARNED) {
-      log.warn(EDGE_STYLE_DEPRECATION_MESSAGE);
+      warn(EDGE_STYLE_DEPRECATION_MESSAGE);
       EDGE_STYLE_DEPRECATION_WARNED = true;
     }
 
@@ -215,7 +215,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.warn(`GraphLayer: Failed to apply ${context}: ${message}`);
+      warn(`GraphLayer: Failed to apply ${context}: ${message}`);
       return null;
     }
   }
@@ -256,7 +256,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
         const LayerType = NODE_LAYER_MAP[style.type];
         if (!LayerType) {
-          log.warn(`GraphLayer: Invalid node type "${style.type}".`);
+          warn(`GraphLayer: Invalid node type "${style.type}".`);
           return null;
         }
         const stylesheet = this._createStyleEngine(
@@ -334,7 +334,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           .map((decoratorStyle, idx2) => {
             const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
             if (!DecoratorLayer) {
-              log.warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
+              warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
               return null;
             }
             const decoratorStylesheet = this._createStyleEngine(

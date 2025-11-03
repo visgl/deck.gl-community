@@ -3,13 +3,13 @@
 // Copyright (c) vis.gl contributors
 
 import type {EdgeOptions} from '../graph/edge';
-import {log} from '../utils/log';
+import {error} from '../utils/log';
 
 export function basicEdgeParser(edge: any): Omit<EdgeOptions, 'data'> {
   const {id, directed, sourceId, targetId} = edge;
 
   if (sourceId === undefined || targetId === undefined) {
-    log.error('Invalid edge: sourceId or targetId is missing.');
+    error('Invalid edge: sourceId or targetId is missing.');
     return null;
   }
 
