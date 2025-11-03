@@ -6,3 +6,6 @@ export {DataDrivenTile3DLayer} from './data-driven-tile-3d-layer/data-driven-til
 
 export {colorizeTile} from './data-driven-tile-3d-layer/utils/colorize-tile';
 export {filterTile} from './data-driven-tile-3d-layer/utils/filter-tile';
+
+export {PanWidget} from './widgets/pan-widget';
+export {ZoomRangeWidget} from './widgets/zoom-range-widget';
