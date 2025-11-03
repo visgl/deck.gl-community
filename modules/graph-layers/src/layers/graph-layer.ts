@@ -509,11 +509,17 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     const engine = this.state.graphEngine;
     const {edges: edgeStyles} = this._getResolvedStylesheet();
 
-    if (!engine || !edgeStyles || edgeStyles.length === 0) {
+    if (!engine || !edgeStyles) {
       return [];
     }
 
-    return edgeStyles
+    const edgeStyleArray = Array.isArray(edgeStyles) ? edgeStyles : [edgeStyles];
+
+    if (edgeStyleArray.length === 0) {
+      return [];
+    }
+
+    return edgeStyleArray
       .filter(Boolean)
       .flatMap((style, idx) => {
         const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;

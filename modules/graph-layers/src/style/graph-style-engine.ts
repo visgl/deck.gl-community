@@ -2,55 +2,50 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {StyleEngine, type DeckGLAccessorMap, type DeckGLUpdateTriggers} from './style-engine';
+import {ZodError} from 'zod';
 
-/** Supported scale families for attribute references. */
-export type GraphStyleScaleType =
-  | 'linear'
+/** Supported scale families for attribute references. *
+export type GraphStyleScaleType 
+
   | 'log'
   | 'pow'
   | 'sqrt'
   | 'quantize'
   | 'quantile'
   | 'ordinal';
+/** Configuration for attribute scale mapping. *
+export type GraphStyleScale = 
 
-/** Configuration for attribute scale mapping. */
-export type GraphStyleScale = {
-  type?: GraphStyleScaleType;
   domain?: (number | string)[];
   range?: any[];
   clamp?: boolean;
   nice?: boolean | number;
   base?: number;
   exponent?: number;
-  unknown?: unknown;
 };
 
-/** Declares that a style property should derive its value from a graph attribute. */
-export type GraphStyleAttributeReference<TValue = unknown> =
-  | `@${string}`
+/** Declares that a style property should derive its value from a graph attribute. *
+export type GraphStyleAttributeReference<TValue = unknown> 
+
   | {
       attribute: string;
       fallback?: TValue;
       scale?: GraphStyleScale | ((value: unknown) => unknown);
     };
 
-/** Acceptable value for a single style state or accessor. */
-export type GraphStyleLeafValue<TValue = unknown> =
-  | TValue
+export type GraphStyleLeafValue<TValue = unknown> 
+
   | GraphStyleAttributeReference<TValue>
   | ((datum: unknown) => TValue);
 
-/** Acceptable value for a style property, including optional interaction states. */
-export type GraphStyleValue<TValue = unknown> =
-  | GraphStyleLeafValue<TValue>
-  | {[state: string]: GraphStyleLeafValue<TValue>};
+/** Acceptable value for a style property, including optional interaction states. *
+export type GraphStyleValue<TValue = unknown> 
+
 
 const COMMON_DECKGL_PROPS = {
   getOffset: 'offset',
   opacity: 'opacity'
 } as const;
-
 const GRAPH_DECKGL_ACCESSOR_MAP = {
   circle: {
     ...COMMON_DECKGL_PROPS,
@@ -164,6 +159,15 @@ export type GraphStylesheet<
 > = {type: TType} &
   GraphStylePropertyMap<TType, TValue> &
   Partial<Record<GraphStyleSelector, GraphStylePropertyMap<TType, TValue>>>;
+*/
+
+import {StyleEngine, type DeckGLUpdateTriggers} from './style-engine';
+import {
+  GraphStylesheetSchema,
+  GRAPH_DECKGL_ACCESSOR_MAP,
+  type GraphStylesheet,
+  type GraphStylesheetParsed
+} from './graph-stylesheet.schema';
 
 const GRAPH_DECKGL_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
   circle: ['getFillColor', 'getRadius', 'getLineColor', 'getLineWidth'],
@@ -179,12 +183,55 @@ const GRAPH_DECKGL_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
   arrow: ['getColor', 'getSize', 'getOffset']
 };
 
+function formatStylesheetError(error: ZodError) {
+  const details = error.issues
+    .map((issue) => {
+      const path = issue.path.length ? issue.path.join('.') : 'root';
+      return `  • ${path}: ${issue.message}`;
+    })
+    .join('\n');
+  return `Invalid graph stylesheet:\n${details}`;
+}
+
 export class GraphStyleEngine extends StyleEngine {
   constructor(style: GraphStylesheet, {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}) {
-    super(style, {
+    let parsedStyle: GraphStylesheetParsed;
+    try {
+      parsedStyle = GraphStylesheetSchema.parse(style);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new Error(formatStylesheetError(error));
+      }
+      throw error;
+    }
+
+    super(parsedStyle as GraphStylesheet, {
       deckglAccessorMap: GRAPH_DECKGL_ACCESSOR_MAP,
       deckglUpdateTriggers: GRAPH_DECKGL_UPDATE_TRIGGERS,
       stateUpdateTrigger
     });
   }
 }
+
+export {
+  GraphStyleScaleTypeEnum,
+  GraphStyleScaleSchema,
+  GraphStyleAttributeReferenceSchema,
+  GraphStyleLeafValueSchema,
+  GraphStyleStateMapSchema,
+  GraphStyleValueSchema,
+  GraphStylesheetSchema
+} from './graph-stylesheet.schema';
+
+export type {
+  GraphStyleAttributeReference,
+  GraphStyleLeafValue,
+  GraphStyleScale,
+  GraphStyleScaleType,
+  GraphStyleSelector,
+  GraphStyleType,
+  GraphStyleValue,
+  GraphStylesheet,
+  GraphStylesheetInput,
+  GraphStylesheetParsed
+} from './graph-stylesheet.schema';
