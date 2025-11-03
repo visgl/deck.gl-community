@@ -286,10 +286,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const collapsedMarkerStyle: GraphStylesheet<'marker'> = {
           type: 'marker',
           fill: [64, 96, 192, 255],
-          size: 28,
+          size: 32,
           marker: 'circle-plus-filled',
-          offset: [0, 0],
-          scaleWithZoom: true
+          offset: [24, -24],
+          scaleWithZoom: false
         };
         const collapsedStylesheet = new GraphStyleEngine(collapsedMarkerStyle, {
           stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
@@ -320,10 +320,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const expandedMarkerStyle: GraphStylesheet<'marker'> = {
           type: 'marker',
           fill: [64, 96, 192, 255],
-          size: 24,
+          size: 32,
           marker: 'circle-minus-filled',
-          offset: [0, 0],
-          scaleWithZoom: true
+          offset: [24, -24],
+          scaleWithZoom: false
         };
         const expandedStylesheet = new GraphStyleEngine(expandedMarkerStyle, {
           stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
