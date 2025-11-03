@@ -5,8 +5,6 @@
 // Components (originally from @deck.gl-community/graph-layers)
 
 export {LongPressButton} from './components/long-press-button';
-export {ViewControl} from './components/view-control';
-export {PositionedViewControl} from './components/positioned-view-control';
 
 // Components (originally from @nebula.gl/editor)
 
