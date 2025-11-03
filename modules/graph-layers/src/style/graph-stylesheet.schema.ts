@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {z, type ZodTypeAny} from 'zod';
+import {z, type ZodDiscriminatedUnionOption, type ZodTypeAny} from 'zod';
 
 const GraphStylePrimitiveSchema = z.union([
   z.string(),
@@ -12,7 +12,12 @@ const GraphStylePrimitiveSchema = z.union([
   z.array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
 ]);
 
-const GraphStyleFunctionSchema = z.function().args(z.any()).returns(z.any());
+const GraphStyleFunctionSchema = z.custom<(...args: unknown[]) => unknown>(
+  (value) => typeof value === 'function',
+  {
+    message: 'Style functions must be callable.'
+  }
+);
 
 /**
  * Supported scale identifiers for mapping data values to visual encodings.
@@ -261,7 +266,7 @@ function createPropertiesSchema(keys: readonly string[]) {
 
 const GraphStylesheetVariants = Object.entries(GRAPH_DECKGL_ACCESSOR_MAP).map(([type, accessors]) => {
   const propertyKeys = Object.values(accessors);
-  const propertyKeySet = new Set(propertyKeys);
+  const propertyKeySet = new Set<string>(propertyKeys);
   const propertiesSchema = createPropertiesSchema(propertyKeys);
   const baseShape: Record<string, ZodTypeAny> = {
     type: z.literal(type)
@@ -308,14 +313,17 @@ const GraphStylesheetVariants = Object.entries(GRAPH_DECKGL_ACCESSOR_MAP).map(([
         }
       }
     });
-});
+}) as Array<ZodDiscriminatedUnionOption<'type', GraphStyleType>>;
 
 /**
  * Schema that validates stylesheet definitions for all graph style primitives.
  */
 export const GraphStylesheetSchema = z.discriminatedUnion(
   'type',
-  GraphStylesheetVariants as [ZodTypeAny, ...ZodTypeAny[]]
+  GraphStylesheetVariants as [
+    ZodDiscriminatedUnionOption<'type', GraphStyleType>,
+    ...ZodDiscriminatedUnionOption<'type', GraphStyleType>[]
+  ]
 );
 
 /**

@@ -159,15 +159,15 @@ type SupportedScale =
   | ReturnType<typeof scaleQuantile>
   | ReturnType<typeof scaleOrdinal>;
 
-const SCALE_FACTORIES = {
-  linear: scaleLinear,
-  log: scaleLog,
-  pow: scalePow,
-  sqrt: scaleSqrt,
-  quantize: scaleQuantize,
-  quantile: scaleQuantile,
-  ordinal: scaleOrdinal
-} as const satisfies Record<GraphStyleScaleType, () => SupportedScale>;
+const SCALE_FACTORIES: Record<GraphStyleScaleType, () => SupportedScale> = {
+  linear: () => scaleLinear(),
+  log: () => scaleLog(),
+  pow: () => scalePow(),
+  sqrt: () => scaleSqrt(),
+  quantize: () => scaleQuantize(),
+  quantile: () => scaleQuantile(),
+  ordinal: () => scaleOrdinal()
+};
 
 /** Resolved attribute reference with guaranteed defaults. */
 type NormalizedAttributeReference = {
@@ -215,8 +215,12 @@ function createScaleFromConfig(config: GraphStyleScale): SupportedScale {
   ) {
     anyScale.base(config.base);
   }
-  if ('unknown' in config && 'unknown' in scale && typeof anyScale.unknown === 'function') {
-    anyScale.unknown(config.unknown);
+  if (
+    typeof config.unknown !== 'undefined' &&
+    'unknown' in scale &&
+    typeof (scale as {unknown?: (value: unknown) => unknown}).unknown === 'function'
+  ) {
+    (scale as {unknown: (value: unknown) => unknown}).unknown(config.unknown);
   }
   return scale;
 }
