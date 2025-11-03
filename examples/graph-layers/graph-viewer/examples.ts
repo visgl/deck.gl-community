@@ -611,7 +611,7 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
       {
         type: 'arrow',
         size: 6,
-        fill: '#8da2fb'
+        color: '#8da2fb'
       }
     ]
   }
