@@ -24,11 +24,13 @@ export class FlowPathLayer extends LineLayer {
   private offsets = new Float32Array(0);
   private speeds = new Float32Array(0);
   private lastUpdateTime = 0;
+  private hasAnimatedEdges = false;
   private readonly _handleAnimate = () => this.animate();
 
   getShaders() {
     const shaders = super.getShaders();
-    return {...shaders, vs, fs};
+    const modules = Array.isArray(shaders.modules) ? [...shaders.modules] : shaders.modules;
+    return {...shaders, vs, fs, modules};
   }
 
   initializeState() {
@@ -56,12 +58,12 @@ export class FlowPathLayer extends LineLayer {
       }
     });
     this.initializeAnimationState();
-    if (typeof window?.requestAnimationFrame === 'function') {
-      this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
-    }
+    this.updateAnimationLoop();
   }
 
   animate() {
+    // Mark the outstanding frame handle as consumed before scheduling another one.
+    this.animationFrame = undefined;
     const now = this.getCurrentTime();
     const deltaSeconds = (now - this.lastUpdateTime) / 1000;
 
@@ -91,9 +93,7 @@ export class FlowPathLayer extends LineLayer {
     }
 
     this.lastUpdateTime = now;
-    if (typeof window?.requestAnimationFrame === 'function') {
-      this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
-    }
+    this.updateAnimationLoop();
   }
 
   updateState({props, oldProps, changeFlags}) {
@@ -117,24 +117,14 @@ export class FlowPathLayer extends LineLayer {
     if (speedChanged) {
       this.updateSpeedsFromProps(props, data);
     }
-
-    if (props.fp64 !== oldProps.fp64) {
-      if (this.state.model) {
-        (this.state.model as any).delete();
-      }
-      this.setState({model: this._getModel()});
-      this.getAttributeManager()?.invalidateAll();
-    }
   }
 
   finalizeState() {
     super.finalizeState(this.context);
-    if (typeof this.animationFrame === 'number' && typeof window?.cancelAnimationFrame === 'function') {
-      window.cancelAnimationFrame(this.animationFrame);
-      this.animationFrame = undefined;
-    }
+    this.cancelAnimationLoop();
     this.offsets = new Float32Array(0);
     this.speeds = new Float32Array(0);
+    this.hasAnimatedEdges = false;
   }
 
   private resizeAnimationBuffers(length: number, resetOffsets: boolean) {
@@ -184,6 +174,9 @@ export class FlowPathLayer extends LineLayer {
       this.offsets.fill(0, data.length);
       this.speeds.fill(0, data.length);
     }
+
+    this.hasAnimatedEdges = this.speeds.some((speed) => speed !== 0);
+    this.updateAnimationLoop();
   }
 
   private calculateInstanceOffsets = (attribute: any, {numInstances}: {numInstances: number}) => {
@@ -208,6 +201,7 @@ export class FlowPathLayer extends LineLayer {
     this.resizeAnimationBuffers(data.length, true);
     this.updateSpeedsFromProps(this.props as any, data);
     this.lastUpdateTime = this.getCurrentTime();
+    this.updateAnimationLoop();
   }
 
   private getDataArray(props: any): unknown[] {
@@ -233,6 +227,24 @@ export class FlowPathLayer extends LineLayer {
       return perf.now.call(perf);
     }
     return Date.now();
+  }
+
+  private updateAnimationLoop() {
+    if (!this.hasAnimatedEdges) {
+      this.cancelAnimationLoop();
+      return;
+    }
+
+    if (typeof window?.requestAnimationFrame === 'function' && typeof this.animationFrame !== 'number') {
+      this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
+    }
+  }
+
+  private cancelAnimationLoop() {
+    if (typeof this.animationFrame === 'number' && typeof window?.cancelAnimationFrame === 'function') {
+      window.cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = undefined;
+    }
   }
 }
 

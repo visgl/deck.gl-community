@@ -149,40 +149,9 @@ const WITS_REGION_STYLE: ExampleStyles = {
     }
   ],
   edges: {
-    stroke: 'rgba(15, 23, 42, 0.2)',
-    strokeWidth: 0.4,
-    decorators: [
-      {
-        type: 'flow',
-        color: {
-          default: 'rgba(14, 165, 233, 0.7)',
-          hover: '#0ea5e9'
-        },
-        width: {
-          attribute: 'weight',
-          fallback: 1,
-          scale: (value: unknown) => {
-            const numericValue = Number(value);
-            if (!Number.isFinite(numericValue)) {
-              return 1;
-            }
-            return Math.max(1, Math.sqrt(numericValue));
-          }
-        },
-        speed: {
-          attribute: 'weight',
-          fallback: 0,
-          scale: (value: unknown) => {
-            const numericValue = Number(value);
-            if (!Number.isFinite(numericValue)) {
-              return 0;
-            }
-            return Math.sqrt(numericValue) / 2;
-          }
-        },
-        tailLength: 6
-      }
-    ]
+    stroke: 'rgba(15, 23, 42, 0.25)',
+    strokeWidth: 0.6,
+    decorators: []
   }
 };
 
@@ -251,6 +220,49 @@ const GROUP_COLOR_MAP: Record<string, string> = {
 };
 
 const DEFAULT_EDGE_COLOR = 'rgba(80, 80, 80, 0.3)';
+
+const KNOWLEDGE_FLOW_WIDTHS: Record<string, number> = {
+  supports: 2,
+  manages: 1.9,
+  collaborates: 1.8,
+  mentors: 1.6,
+  coordinates: 1.9,
+  incubates: 2,
+  partners: 1.7,
+  advises: 1.5
+};
+
+const KNOWLEDGE_FLOW_SPEEDS: Record<string, number> = {
+  supports: 18,
+  manages: 16,
+  collaborates: 15,
+  mentors: 12,
+  coordinates: 17,
+  incubates: 19,
+  partners: 14,
+  advises: 11
+};
+
+const getKnowledgeFlowWidth = (type: unknown) => {
+  const width = KNOWLEDGE_FLOW_WIDTHS[String(type)] ?? 1.4;
+  return Number.isFinite(width) ? Math.max(1.2, Number(width)) : 1.4;
+};
+
+const getKnowledgeFlowSpeed = (type: unknown) => {
+  const speed = KNOWLEDGE_FLOW_SPEEDS[String(type)] ?? 12;
+  return Number.isFinite(speed) ? Math.max(4, Number(speed)) : 12;
+};
+
+const getKnowledgeNodeLabel = (node: any) => {
+  if (node && typeof node.getPropertyValue === 'function') {
+    const name = node.getPropertyValue('name');
+    if (name !== undefined && name !== null) {
+      return String(name);
+    }
+  }
+  const fallback = node?.name ?? node?.id;
+  return fallback ? String(fallback) : '';
+};
 
 const cloneGraphData = (data: ExampleGraphData): ExampleGraphData => ({
   nodes: data.nodes.map((node) => ({...node})),
@@ -512,7 +524,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
     },
     {
       type: 'label',
-      text: {attribute: 'name', fallback: ''},
+      text: getKnowledgeNodeLabel,
       color: '#334155',
       fontSize: 12,
       textAnchor: 'start',
@@ -524,7 +536,26 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
   edges: {
     stroke: DEFAULT_EDGE_COLOR,
     strokeWidth: 1,
-    decorators: []
+    decorators: [
+      {
+        type: 'flow',
+        color: {
+          default: 'rgba(99, 102, 241, 0.65)',
+          hover: '#6366f1'
+        },
+        width: {
+          attribute: 'type',
+          fallback: 1.4,
+          scale: getKnowledgeFlowWidth
+        },
+        speed: {
+          attribute: 'type',
+          fallback: 12,
+          scale: getKnowledgeFlowSpeed
+        },
+        tailLength: 7
+      }
+    ]
   }
 };
 
