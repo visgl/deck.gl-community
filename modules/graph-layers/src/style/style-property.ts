@@ -182,44 +182,41 @@ function createScaleFromConfig(config: GraphStyleScale): SupportedScale {
   const type = config.type ?? 'linear';
   const factory = SCALE_FACTORIES[type as GraphStyleScaleType];
   if (!factory) {
-    log.warn(`Invalid scale type: ${type}`)();
+    log.warn(`Invalid scale type: ${type}`);
     throw new Error(`Invalid scale type: ${type}`);
   }
-  const scale = factory();
+  const scale = (factory as () => SupportedScale)();
+  const anyScale = scale as any;
   if (config.domain && 'domain' in scale) {
-    scale.domain(config.domain as never);
+    anyScale.domain(config.domain as never);
   }
   if (config.range && 'range' in scale) {
-    scale.range(config.range as never);
+    anyScale.range(config.range as never);
   }
-  if (
-    typeof config.clamp === 'boolean' &&
-    'clamp' in scale &&
-    typeof scale.clamp === 'function'
-  ) {
-    scale.clamp(config.clamp);
+  if (typeof config.clamp === 'boolean' && 'clamp' in scale && typeof anyScale.clamp === 'function') {
+    anyScale.clamp(config.clamp);
   }
-  if (typeof config.nice !== 'undefined' && 'nice' in scale && typeof scale.nice === 'function') {
-    scale.nice(config.nice as never);
+  if (typeof config.nice !== 'undefined' && 'nice' in scale && typeof anyScale.nice === 'function') {
+    anyScale.nice(config.nice as never);
   }
   if (
     type === 'pow' &&
     typeof config.exponent === 'number' &&
     'exponent' in scale &&
-    typeof scale.exponent === 'function'
+    typeof anyScale.exponent === 'function'
   ) {
-    scale.exponent(config.exponent);
+    anyScale.exponent(config.exponent);
   }
   if (
     type === 'log' &&
     typeof config.base === 'number' &&
     'base' in scale &&
-    typeof scale.base === 'function'
+    typeof anyScale.base === 'function'
   ) {
-    scale.base(config.base);
+    anyScale.base(config.base);
   }
-  if ('unknown' in config && 'unknown' in scale && typeof scale.unknown === 'function') {
-    scale.unknown(config.unknown);
+  if ('unknown' in config && 'unknown' in scale && typeof anyScale.unknown === 'function') {
+    anyScale.unknown(config.unknown);
   }
   return scale;
 }
@@ -320,7 +317,7 @@ function createAttributeAccessor(
     }
     const formatted = formatter(raw);
     if (formatted === null) {
-      log.warn(`Invalid ${key} value: ${raw}`)();
+      log.warn(`Invalid ${key} value: ${raw}`);
       throw new Error(`Invalid ${key} value: ${raw}`);
     }
     return formatted;
@@ -348,7 +345,7 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
   if (typeof value === 'undefined') {
     const formatted = formatter(DEFAULT_STYLES[key]);
     if (formatted === null) {
-      log.warn(`Invalid ${key} value: ${value}`)();
+      log.warn(`Invalid ${key} value: ${value}`);
       throw new Error(`Invalid ${key} value: ${value}`);
     }
     return {value: formatted, isAccessor: false, updateTrigger: false};
@@ -370,7 +367,7 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
 
   const formatted = formatter(value);
   if (formatted === null) {
-    log.warn(`Invalid ${key} value: ${value}`)();
+    log.warn(`Invalid ${key} value: ${value}`);
     throw new Error(`Invalid ${key} value: ${value}`);
   }
 
@@ -449,7 +446,7 @@ export class StyleProperty {
     }
 
     if (this._value === null) {
-      log.warn(`Invalid ${key} value: ${value}`)();
+      log.warn(`Invalid ${key} value: ${value}`);
       throw new Error(`Invalid ${key} value: ${value}`);
     }
   }
