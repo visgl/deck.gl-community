@@ -5,28 +5,28 @@ background primitive (circle, rectangle, etc.).
 
 ## Properties
 
-Alongside the [shared node options](./node-style.md#shared-properties), labels
+Alongside the [shared node options](../graph-stylesheet.md#shared-node-properties), labels
 support the following keys:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `text` | `string \| function` | - (required) | Text to display. Functions receive the node instance. |
-| `color` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Font color. |
-| `fontSize` | `number \| function` | `12` | Font size in pixels. |
-| `textAnchor` | `string \| function` | `'middle'` | Horizontal alignment: `'start'`, `'middle'`, or `'end'`. |
-| `alignmentBaseline` | `string \| function` | `'center'` | Vertical alignment: `'top'`, `'center'`, or `'bottom'`. |
-| `angle` | `number \| function` | `0` | Clockwise rotation in degrees. |
-| `textMaxWidth` | `number \| function` | `-1` | Maximum width in pixels before wrapping. `-1` disables wrapping. |
-| `textWordBreak` | `string \| function` | `'break-all'` | Word-breaking mode passed to `TextLayer` (`'break-all'`, `'break-word'`, etc.). |
-| `textSizeMinPixels` | `number \| function` | `9` | Minimum size the text is allowed to shrink to. |
-| `scaleWithZoom` | `boolean \| function` | `true` | Whether the font scales with zoom. Set to `false` to keep screen-space size. |
+| `text` | constant \| accessor \| attribute binding | – (required) | Text to display. Attribute strings such as `text: '@label'` read from node properties. |
+| `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color. |
+| `fontSize` | constant \| accessor \| attribute binding | `12` | Font size in pixels. |
+| `textAnchor` | constant \| accessor \| attribute binding | `'middle'` | Horizontal alignment: `'start'`, `'middle'`, or `'end'`. |
+| `alignmentBaseline` | constant \| accessor \| attribute binding | `'center'` | Vertical alignment: `'top'`, `'center'`, or `'bottom'`. |
+| `angle` | constant \| accessor \| attribute binding | `0` | Clockwise rotation in degrees. |
+| `textMaxWidth` | constant \| accessor \| attribute binding | `-1` | Maximum width in pixels before wrapping. `-1` disables wrapping. |
+| `textWordBreak` | constant \| accessor \| attribute binding | `'break-all'` | Word-breaking mode passed to `TextLayer` (`'break-all'`, `'break-word'`, etc.). |
+| `textSizeMinPixels` | constant \| accessor \| attribute binding | `9` | Minimum size the text is allowed to shrink to. |
+| `scaleWithZoom` | constant \| accessor \| attribute binding | `true` | Whether the font scales with zoom. Set to `false` to keep screen-space size. |
 
 ## Examples
 
 ```js
 {
   type: 'label',
-  text: node => node.label,
+  text: '@label',
   color: '#E2E8F0',
   fontSize: 16,
   offset: [0, 18],
@@ -39,7 +39,7 @@ Using selectors you can provide contextual hints:
 ```js
 {
   type: 'label',
-  text: node => node.label,
+  text: '@label',
   color: {
     default: '#64748B',
     hover: '#F8FAFC'
