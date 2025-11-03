@@ -33,6 +33,7 @@ export class GraphEngine extends EventTarget {
   private _transactionInProgress = false;
   private _layoutChangeTimeout: ReturnType<typeof setTimeout> | null = null;
   private _lastLayoutChangeTs = 0;
+  private _pendingLayoutChange = false;
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
@@ -116,6 +117,7 @@ export class GraphEngine extends EventTarget {
       clearTimeout(this._layoutChangeTimeout);
       this._layoutChangeTimeout = null;
     }
+    this._pendingLayoutChange = false;
   }
 
   private _handleLayoutChange = () => {
@@ -128,22 +130,34 @@ export class GraphEngine extends EventTarget {
 
     const now = Date.now();
     const elapsed = now - this._lastLayoutChangeTs;
-    if (elapsed >= this._layoutUpdateThrottleMs) {
-      this._clearPendingLayoutChange();
-      this._lastLayoutChangeTs = now;
-      this._emitLayoutChangeEvent();
+    if (!this._layoutChangeTimeout) {
+      if (elapsed >= this._layoutUpdateThrottleMs) {
+        this._lastLayoutChangeTs = now;
+        this._emitLayoutChangeEvent();
+        return;
+      }
+
+      const delay = Math.max(this._layoutUpdateThrottleMs - elapsed, 0);
+      this._scheduleThrottledLayoutChange(delay);
       return;
     }
 
-    if (!this._layoutChangeTimeout) {
-      const delay = Math.max(this._layoutUpdateThrottleMs - elapsed, 0);
-      this._layoutChangeTimeout = setTimeout(() => {
-        this._layoutChangeTimeout = null;
-        this._lastLayoutChangeTs = Date.now();
-        this._emitLayoutChangeEvent();
-      }, delay);
-    }
+    this._pendingLayoutChange = true;
   };
+
+  private _scheduleThrottledLayoutChange(delay: number) {
+    this._layoutChangeTimeout = setTimeout(() => {
+      this._layoutChangeTimeout = null;
+      this._lastLayoutChangeTs = Date.now();
+      this._emitLayoutChangeEvent();
+      if (this._pendingLayoutChange) {
+        this._pendingLayoutChange = false;
+        if (this._layoutUpdateThrottleMs > 0) {
+          this._scheduleThrottledLayoutChange(this._layoutUpdateThrottleMs);
+        }
+      }
+    }, delay);
+  }
 
   _onLayoutChange = () => {
     this._handleLayoutChange();

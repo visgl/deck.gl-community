@@ -64,6 +64,10 @@ export type _GraphLayerProps = {
   engine?: GraphEngine;
   /** Minimum time (in milliseconds) between layout updates emitted by the internal engine. */
   layoutUpdateInterval?: number;
+  /** Whether to enable deck.gl transitions when layout updates are throttled. */
+  layoutTransitions?: boolean;
+  /** Delay before emitting layout updates when the layer is (re)initialized. */
+  layoutUpdateDelay?: number;
 
   // an array of styles for layers
   nodeStyle?: any[];
@@ -97,7 +101,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     // Graph props
     graphLoader: JSONLoader,
-    layoutUpdateInterval: 0,
+    layoutUpdateInterval: 300,
+    layoutTransitions: false,
+    layoutUpdateDelay: 1000,
 
     nodeStyle: [],
     nodeEvents: {
@@ -124,6 +130,18 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   state!: CompositeLayer<GraphLayerProps>['state'] & {
     interactionManager: InteractionManager;
     graphEngine?: GraphEngine | null;
+  };
+
+  private _layoutUpdateDelayTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _layoutUpdatesEnabled = true;
+  private _pendingDelayedUpdate = false;
+
+  private _handleLayoutChange = () => {
+    if (!this._layoutUpdatesEnabled) {
+      this._pendingDelayedUpdate = true;
+      return;
+    }
+    this.forceUpdate();
   };
 
   forceUpdate = () => {
@@ -172,6 +190,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this.state.interactionManager.updateProps(props);
       this.forceUpdate();
     }
+
+    if (changeFlags.propsChanged && props.layoutUpdateDelay !== oldProps.layoutUpdateDelay) {
+      this._resetLayoutUpdateDelay(props.layoutUpdateDelay);
+    }
   }
 
   finalize() {
@@ -186,18 +208,22 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this._removeGraphEngine();
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
+      this._resetLayoutUpdateDelay(this.props.layoutUpdateDelay);
       this.state.graphEngine.run();
       // added or removed a node, or in general something layout related changed
-      this.state.graphEngine.addEventListener('onLayoutChange', this.forceUpdate);
+      this.state.graphEngine.addEventListener('onLayoutChange', this._handleLayoutChange);
     }
   }
 
   _removeGraphEngine() {
     if (this.state.graphEngine) {
-      this.state.graphEngine.removeEventListener('onLayoutChange', this.forceUpdate);
+      this.state.graphEngine.removeEventListener('onLayoutChange', this._handleLayoutChange);
       this.state.graphEngine.clear();
       this.state.graphEngine = null;
     }
+    this._clearLayoutUpdateDelayTimer();
+    this._layoutUpdatesEnabled = true;
+    this._pendingDelayedUpdate = false;
   }
 
   private _createGraphEngine(
@@ -216,11 +242,41 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _getLayoutTransitionSettings(): any {
-    const {layoutUpdateInterval} = this.props;
-    if (!layoutUpdateInterval || layoutUpdateInterval <= 0) {
+    const {layoutUpdateInterval, layoutTransitions} = this.props;
+    if (!layoutTransitions || !layoutUpdateInterval || layoutUpdateInterval <= 0) {
       return undefined;
     }
     return {duration: layoutUpdateInterval};
+  }
+
+  private _clearLayoutUpdateDelayTimer() {
+    if (this._layoutUpdateDelayTimeout) {
+      clearTimeout(this._layoutUpdateDelayTimeout);
+      this._layoutUpdateDelayTimeout = null;
+    }
+  }
+
+  private _resetLayoutUpdateDelay(delay?: number) {
+    this._clearLayoutUpdateDelayTimer();
+    const effectiveDelay = delay ?? this.props.layoutUpdateDelay ?? 0;
+    if (effectiveDelay > 0) {
+      this._layoutUpdatesEnabled = false;
+      this._pendingDelayedUpdate = false;
+      this._layoutUpdateDelayTimeout = setTimeout(() => {
+        this._layoutUpdatesEnabled = true;
+        this._layoutUpdateDelayTimeout = null;
+        if (this._pendingDelayedUpdate) {
+          this._pendingDelayedUpdate = false;
+          this.forceUpdate();
+        }
+      }, effectiveDelay);
+    } else {
+      this._layoutUpdatesEnabled = true;
+      if (this._pendingDelayedUpdate) {
+        this._pendingDelayedUpdate = false;
+        this.forceUpdate();
+      }
+    }
   }
 
   private _getNodeTransitions(): any {
