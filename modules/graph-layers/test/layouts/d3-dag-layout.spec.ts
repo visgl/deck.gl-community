@@ -8,6 +8,7 @@ import {Graph} from '../../src/graph/graph';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
 import {D3DagLayout} from '../../src/layouts/d3-dag/d3-dag-layout';
+import {GraphEngine} from '../../src/core/graph-engine';
 
 type SampleGraph = {
   graph: Graph;
@@ -168,4 +169,50 @@ describe('D3DagLayout', () => {
     expect(layout.getNodePosition(nodes.b)).not.toBeNull();
     expect(nodes.a.getPropertyValue('collapsedChainLength')).toBe(1);
   });
+
+  it('exposes visible nodes through the engine when chains collapse', () => {
+    const {graph} = createLinearChainGraph();
+    const layout = new D3DagLayout({
+      nodeSize: [1, 1],
+      gap: [0, 0],
+      layering: 'topological',
+      decross: 'twoLayer',
+      coord: 'greedy',
+      orientation: 'TB',
+      collapseLinearChains: true
+    });
+
+    const engine = new GraphEngine({graph, layout});
+    engine.run();
+
+    const collapsedIds = engine.getNodes().map((node) => node.getId());
+    expect(collapsedIds).toEqual(['a', 'd', 'e', 'f']);
+
+    const chainId = graph.findNode('a')?.getPropertyValue('collapsedChainId');
+    expect(chainId).toBeTruthy();
+    layout.toggleCollapsedChain(String(chainId));
+
+    const expandedIds = engine.getNodes().map((node) => node.getId());
+    expect(expandedIds).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('exposes all nodes when collapsing is disabled', () => {
+    const {graph} = createLinearChainGraph();
+    const layout = new D3DagLayout({
+      nodeSize: [1, 1],
+      gap: [0, 0],
+      layering: 'topological',
+      decross: 'twoLayer',
+      coord: 'greedy',
+      orientation: 'TB',
+      collapseLinearChains: false
+    });
+
+    const engine = new GraphEngine({graph, layout});
+    engine.run();
+
+    const ids = engine.getNodes().map((node) => node.getId());
+    expect(ids).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
 });

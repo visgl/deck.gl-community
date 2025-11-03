@@ -10,6 +10,7 @@ import {GraphLayout} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
 
 import {GraphStyleEngine} from '../style/graph-style-engine';
+import type {GraphStylesheet} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 
@@ -274,17 +275,17 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       );
 
     if (collapsedNodes.length > 0) {
-      const collapsedStylesheet = new GraphStyleEngine(
-        {
-          type: 'marker',
-          fill: [64, 96, 192, 255],
-          size: 28,
-          marker: 'circle-plus-filled',
-          offset: [0, 0],
-          scaleWithZoom: true
-        },
-        {stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()}
-      );
+      const collapsedMarkerStyle: GraphStylesheet<'marker'> = {
+        type: 'marker',
+        fill: [64, 96, 192, 255],
+        size: 28,
+        marker: 'circle-plus-filled',
+        offset: [0, 0],
+        scaleWithZoom: true
+      };
+      const collapsedStylesheet = new GraphStyleEngine(collapsedMarkerStyle, {
+        stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+      });
       const getOffset = collapsedStylesheet.getDeckGLAccessor('getOffset');
       layers.push(
         new ZoomableMarkerLayer({
