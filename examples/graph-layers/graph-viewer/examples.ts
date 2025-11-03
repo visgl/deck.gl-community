@@ -3,7 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
-import type {ExampleDefinition, ExampleStyles, LayoutType} from './control-panelt';
+import type {ExampleDefinition, ExampleStyles, LayoutType} from './control-panel';
+import witsRaw from '../../../modules/graph-layers/test/data/examples/wits.json';
 import sampleMultiGraph from './sample-multi-graph.json';
 
 type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
@@ -11,6 +12,146 @@ type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
 const MULTI_GRAPH_SAMPLE = sampleMultiGraph as ExampleGraphData & {
   nodes: Array<{id: string; type?: string; star?: boolean}>;
   edges: Array<{id: string; sourceId: string; targetId: string; type?: string}>;
+};
+
+type RawWitsNode = {
+  name: string;
+  group: number;
+  size: number;
+  others?: string;
+};
+
+type RawWitsEdge = {
+  source: number;
+  target: number;
+  value: number;
+};
+
+type RawWitsTreeNode = {
+  id: string;
+  children?: string[];
+};
+
+type RawWitsDataset = {
+  nodes: RawWitsNode[];
+  edges: RawWitsEdge[];
+  tree: RawWitsTreeNode[];
+};
+
+const WITS_DATASET = witsRaw as RawWitsDataset;
+
+const parseWitsMetadata = (value: string | undefined): Record<string, string> => {
+  if (!value) {
+    return {};
+  }
+
+  return value
+    .split('`')
+    .map((entry) => entry.split('~'))
+    .reduce((acc, [key, raw]) => {
+      if (!key || !raw) {
+        return acc;
+      }
+
+      const trimmedKey = key.trim();
+      const trimmedValue = raw.trim();
+      if (trimmedKey.length) {
+        acc[trimmedKey] = trimmedValue;
+      }
+      return acc;
+    }, {} as Record<string, string>);
+};
+
+const WITS_BASE_NODES = (WITS_DATASET.nodes ?? []).map((node) => {
+  const attributes = parseWitsMetadata(node.others);
+  const region = attributes.RegionName ?? 'Other';
+
+  return {
+    id: node.name,
+    name: node.name,
+    group: node.group,
+    size: node.size,
+    region,
+    iso3: attributes.iso3,
+    attributes
+  };
+});
+
+const WITS_BASE_EDGES = (WITS_DATASET.edges ?? [])
+  .map((edge, index) => {
+    const source = WITS_BASE_NODES[edge.source];
+    const target = WITS_BASE_NODES[edge.target];
+
+    if (!source || !target) {
+      return null;
+    }
+
+    return {
+      id: `wits-${index}`,
+      sourceId: source.id,
+      targetId: target.id,
+      weight: edge.value
+    };
+  })
+  .filter((edge): edge is NonNullable<typeof edge> => Boolean(edge));
+
+const WITS_GRAPH_DATA: ExampleGraphData = {
+  nodes: WITS_BASE_NODES,
+  edges: WITS_BASE_EDGES
+};
+
+const WITS_TREE = (WITS_DATASET.tree ?? []) as ReadonlyArray<RawWitsTreeNode>;
+
+const WITS_REGIONS = Array.from(
+  new Set(WITS_BASE_NODES.map((node) => node.region ?? 'Other'))
+);
+
+const WITS_REGION_COLORS = [
+  '#1d4ed8',
+  '#0ea5e9',
+  '#10b981',
+  '#f59e0b',
+  '#f97316',
+  '#f43f5e',
+  '#a855f7',
+  '#6366f1'
+];
+
+const WITS_REGION_COLOR_MAP: Record<string, string> = WITS_REGIONS.reduce((acc, region, index) => {
+  acc[region] = WITS_REGION_COLORS[index % WITS_REGION_COLORS.length];
+  return acc;
+}, {} as Record<string, string>);
+
+const getWitsRegionColor = (node: any) => {
+  const region = node?.getPropertyValue?.('region');
+  return WITS_REGION_COLOR_MAP[region as keyof typeof WITS_REGION_COLOR_MAP] ?? '#475569';
+};
+
+const getWitsNodeRadius = (node: any) => {
+  const size = Number(node?.getPropertyValue?.('size'));
+  if (!Number.isFinite(size)) {
+    return 4;
+  }
+
+  return Math.max(3.5, Math.sqrt(size));
+};
+
+const WITS_REGION_STYLE: ExampleStyles = {
+  nodeStyle: [
+    {
+      type: 'circle',
+      radius: getWitsNodeRadius,
+      fill: getWitsRegionColor,
+      stroke: '#0f172a',
+      strokeWidth: 0.75,
+      opacity: 0.85
+    }
+  ],
+  edgeStyle: {
+    stroke: 'rgba(15, 23, 42, 0.2)',
+    strokeWidth: 0.4,
+    decorators: []
+  }
 };
 
 const KNOWLEDGE_GRAPH = {
@@ -487,6 +628,22 @@ export const EXAMPLES: ExampleDefinition[] = [
         : undefined
   },
   {
+    name: 'World trade (radial, graph.gl)',
+    description:
+      'Recreates the original graph.gl radial layout example using World Integrated Trade Solution partner flows grouped by region.',
+    data: () => cloneGraphData(WITS_GRAPH_DATA),
+    layouts: ['radial-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: WITS_REGION_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'radial-layout'
+        ? {
+            radius: 520,
+            tree: cloneTree(WITS_TREE)
+          }
+        : undefined
+  },
+  {
     name: 'University hierarchy (hive plot)',
     description:
       'The same organisational network arranged along hive plot axes to highlight connections between disciplines.',
@@ -504,6 +661,23 @@ export const EXAMPLES: ExampleDefinition[] = [
         : undefined
   },
   {
+    name: 'World trade (hive plot, graph.gl)',
+    description:
+      'Original graph.gl hive plot demo data visualising international trade communities grouped by their regional bloc.',
+    data: () => cloneGraphData(WITS_GRAPH_DATA),
+    layouts: ['hive-plot-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: WITS_REGION_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'hive-plot-layout'
+        ? {
+            innerRadius: 90,
+            outerRadius: 420,
+            getNodeAxis: (node: any) => node?.getPropertyValue?.('region') ?? 'Other'
+          }
+        : undefined
+  },
+  {
     name: 'Community multi-graph',
     description:
       'A compact social network with multiple edge types between the same people rendered using the force multi-graph layout.',
@@ -516,6 +690,24 @@ export const EXAMPLES: ExampleDefinition[] = [
         ? {
             nBodyStrength: -8000,
             nBodyDistanceMin: 80,
+            nBodyDistanceMax: 1200
+          }
+        : undefined
+  },
+  {
+    name: 'World trade (force multi-graph, graph.gl)',
+    description:
+      'Applies the force multi-graph layout to the graph.gl WITS dataset to emphasise dense trade corridors and minimise overlapping links.',
+    data: () => cloneGraphData(WITS_GRAPH_DATA),
+    layouts: ['force-multi-graph-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: WITS_REGION_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'force-multi-graph-layout'
+        ? {
+            alpha: 2.5,
+            nBodyStrength: -6000,
+            nBodyDistanceMin: 40,
             nBodyDistanceMax: 1200
           }
         : undefined

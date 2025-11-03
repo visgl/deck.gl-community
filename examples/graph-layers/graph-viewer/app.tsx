@@ -16,9 +16,9 @@ import {
   D3ForceLayout,
   GPUForceLayout,
   JSONLoader,
-  _RadialLayout,
-  _HivePlotLayout,
-  _MultigraphLayout
+  RadialLayout,
+  HivePlotLayout,
+  ForceMultiGraphLayout
 } from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
@@ -26,7 +26,7 @@ import {
 
 import {extent} from 'd3-array';
 
-import {ControlPanel, ExampleDefinition, LayoutType} from './control-panelt';
+import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
 
 const INITIAL_VIEW_STATE = {
@@ -46,9 +46,9 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'd3-force-layout': () => new D3ForceLayout(),
   'gpu-force-layout': () => new GPUForceLayout(),
   'simple-layout': () => new SimpleLayout(),
-  'radial-layout': (options) => new _RadialLayout(options),
-  'hive-plot-layout': (options) => new _HivePlotLayout(options),
-  'force-multi-graph-layout': (options) => new _MultigraphLayout(options)
+  'radial-layout': (options) => new RadialLayout(options),
+  'hive-plot-layout': (options) => new HivePlotLayout(options),
+  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options)
 };
 
 
