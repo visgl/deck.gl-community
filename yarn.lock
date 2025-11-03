@@ -1405,12 +1405,9 @@ __metadata:
   resolution: "@deck.gl-community/experimental@workspace:modules/experimental"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
     "@loaders.gl/core": "npm:^4.2.0"
     "@loaders.gl/i3s": "npm:^4.2.0"
     "@loaders.gl/loader-utils": "npm:^4.2.0"
@@ -1419,8 +1416,6 @@ __metadata:
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -1429,19 +1424,10 @@ __metadata:
   resolution: "@deck.gl-community/geo-layers@workspace:modules/geo-layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
-    "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/i3s": "npm:^4.2.0"
     "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@loaders.gl/tiles": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
@@ -1450,8 +1436,6 @@ __metadata:
     "@probe.gl/test-utils": "npm:^4.0.4"
     a5-js: "npm:^0.5.0"
     h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -1490,26 +1474,13 @@ __metadata:
   resolution: "@deck.gl-community/infovis-layers@workspace:modules/infovis-layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
-    "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
     "@luma.gl/webgpu": "npm:~9.2.0"
-    "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.0.4"
-    a5-js: "npm:^0.5.0"
-    h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -1518,18 +1489,9 @@ __metadata:
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
-    "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/i3s": "npm:^4.2.0"
-    "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@loaders.gl/tiles": "npm:^4.2.0"
     "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
@@ -1537,10 +1499,6 @@ __metadata:
     "@luma.gl/webgpu": "npm:~9.2.0"
     "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.0.4"
-    a5-js: "npm:^0.5.0"
-    h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
