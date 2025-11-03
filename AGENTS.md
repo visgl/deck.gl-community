@@ -5,6 +5,7 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 ## Tooling
 - Use the Yarn 4 workspace that ships with the repo. Install dependencies with `yarn` and run scripts via `yarn <script>` from the repo root. See `package.json` for the canonical script list.
 - Prefer TypeScript and ES module syntax when authoring source files. Most packages ship dual ESM/CJS bundles via build tooling defined per workspace package.
+- if any dependencies are changed, the yarn.lock file must be rebuilt by running `yarn` in the root before committing.
 
 ## Quality gates
 - Run `yarn lint` or `yarn lint-fix` before committing JavaScript/TypeScript changes.
