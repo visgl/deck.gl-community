@@ -10,7 +10,7 @@ import Color from 'color';
 import {fetchJSONFromS3} from '../../utils/data/io';
 
 // graph.gl
-import GraphGL, {JSONLoader, NODE_TYPE} from '../../src';
+import GraphGL, {JSONLoader} from '../../src';
 import HivePlot from './hive-plot-layout';
 
 const DEFAULT_NODE_SIZE = 3;
@@ -64,16 +64,18 @@ export default class HivePlotExample extends Component {
             getNodeAxis: node => node.getPropertyValue('group'),
           })
         }
-        nodeStyle={[
-          {
-            type: NODE_TYPE.CIRCLE,
-            radius: DEFAULT_NODE_SIZE,
-            fill: this.getNodeColor,
-          },
-        ]}
-        edgeStyle={{
-          stroke: DEFAULT_EDGE_COLOR,
-          strokeWidth: DEFAULT_EDGE_WIDTH,
+        stylesheet={{
+          nodes: [
+            {
+              type: 'circle',
+              radius: DEFAULT_NODE_SIZE,
+              fill: this.getNodeColor,
+            },
+          ],
+          edges: {
+            stroke: DEFAULT_EDGE_COLOR,
+            strokeWidth: DEFAULT_EDGE_WIDTH,
+          }
         }}
       />
     );

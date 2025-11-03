@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 // Basic data structure of an edge
-import {EDGE_STATE} from '../core/constants';
+import type {EdgeState} from '../core/constants';
 import {Node} from './node';
 
 export interface EdgeOptions {
@@ -36,7 +36,7 @@ export class Edge {
   /** Nodes at either end of this edge. */
   private readonly _connectedNodes: Record<string, Node> = {};
   /** Edge state. */
-  public state = EDGE_STATE.DEFAULT;
+  public state: EdgeState = 'default';
 
   /**
    * The constructor
@@ -119,17 +119,17 @@ export class Edge {
 
   /**
    * Set edge state
-   * @param state - one of EDGE_STATE
+   * @param state - the new interaction state for the edge
    */
-  setState(state: string): void {
+  setState(state: EdgeState): void {
     this.state = state;
   }
 
   /**
    * Get edge state
-   * @returns state - one of EDGE_STATE
+   * @returns state - the current interaction state for the edge
    */
-  getState(): string {
+  getState(): EdgeState {
     return this.state;
   }
 

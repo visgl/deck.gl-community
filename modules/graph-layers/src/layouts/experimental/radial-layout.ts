@@ -3,8 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
-import {Node} from '../../graph/node';
-import {EDGE_TYPE} from '../../core/constants';
 import {Graph} from '../../graph/graph';
 
 export type RadialLayoutOptions = GraphLayoutOptions & {
@@ -186,7 +184,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
     }
 
     return {
-      type: EDGE_TYPE.SPLINE_CURVE,
+      type: 'spline-curve',
       sourcePosition: sourceNodePos,
       targetPosition: targetNodePos,
       controlPoints: wayPoints

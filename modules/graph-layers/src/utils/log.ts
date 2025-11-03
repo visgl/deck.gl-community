@@ -6,4 +6,4 @@ import {Log, COLOR} from '@probe.gl/log';
 
 export const log = new Log({id: 'graph-layers'}).enable();
 
-log.log({color: COLOR.CYAN}, 'Initialize graph-layers logger.')();
+log.log({color: COLOR.CYAN}, 'Initialize graph-layers logger.');

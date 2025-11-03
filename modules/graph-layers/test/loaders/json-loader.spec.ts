@@ -4,13 +4,13 @@
 
 import {beforeAll, describe, it, expect} from 'vitest';
 
-import SAMPLE_GRAPH1 from '../__fixtures__/graph1.json';
-import SAMPLE_GRAPH2 from '../__fixtures__/graph2.json';
+import SAMPLE_GRAPH1 from '../data/__fixtures__/graph1.json';
+import SAMPLE_GRAPH2 from '../data/__fixtures__/graph2.json';
 
 import {JSONLoader} from '../../src/loaders/json-loader';
 
 beforeAll(() => {
-  global.CustomEvent = Event as any;
+  globalThis.CustomEvent = Event as any;
 });
 
 // TODO: Fix ESM errors and uncomment test below.

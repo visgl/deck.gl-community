@@ -1,6 +1,6 @@
 {
   "name": "@kylebarron/deckgl-mapbox-style",
-  "version": "0.1.0",
+  "version": "9.2.0",
   "description": "Implementation of a subset of the Mapbox Style Specification using Deck.gl layers.",
   "main": "src/index.js",
   "scripts": {
@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/kylebarron/deckgl-mapbox-style#readme",
   "dependencies": {
-    "@deck.gl/core": "^8.0.17",
+    "@deck.gl/core": "~9.2.1",
     "@mapbox/mapbox-gl-style-spec": "^13.12.0",
     "@turf/polygon-to-line": "^6.0.3"
   },

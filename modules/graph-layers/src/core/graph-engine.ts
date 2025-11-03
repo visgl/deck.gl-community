@@ -7,6 +7,7 @@ import {Edge} from '../graph/edge';
 import {Graph} from '../graph/graph';
 import {GraphLayout} from './graph-layout';
 import {Cache} from './cache';
+import {log} from '../utils/log';
 
 export type GraphEngineProps = {
   graph: Graph;
@@ -79,6 +80,7 @@ export class GraphEngine extends EventTarget {
    * @fires GraphEngine#onLayoutStart
    */
   _onLayoutStart = () => {
+    log.log(0, 'GraphEngine: layout start');
     /**
      * @event GraphEngine#onLayoutStart
      * @type {CustomEvent}
@@ -90,6 +92,7 @@ export class GraphEngine extends EventTarget {
    * @fires GraphEngine#onLayoutChange
    */
   _onLayoutChange = () => {
+    log.log(0, 'GraphEngine: layout update event');
     /**
      * @event GraphEngine#onLayoutChange
      * @type {CustomEvent}
@@ -101,6 +104,7 @@ export class GraphEngine extends EventTarget {
    * @fires GraphEngine#onLayoutDone
    */
   _onLayoutDone = () => {
+    log.log(0, 'GraphEngine: layout end');
     /**
      * @event GraphEngine#onLayoutDone
      * @type {CustomEvent}
@@ -136,6 +140,7 @@ export class GraphEngine extends EventTarget {
   /** Layout calculations */
 
   run = () => {
+    log.log(1, 'GraphEngine: run');
     // TODO: throw if running on a cleared engine
 
     this._graph.addEventListener('transactionStart', this._onTransactionStart);
@@ -155,6 +160,7 @@ export class GraphEngine extends EventTarget {
   };
 
   clear = () => {
+    log.log(1, 'GraphEngine: end');
     this._graph.removeEventListener('transactionStart', this._onTransactionStart);
     this._graph.removeEventListener('transactionEnd', this._onTransactionEnd);
     this._graph.removeEventListener('onNodeAdded', this._onGraphStructureChanged);
@@ -179,6 +185,7 @@ export class GraphEngine extends EventTarget {
   };
 
   _updateLayout = () => {
+    log.log(0, 'GraphEngine: layout update');
     this._layout.updateGraph(this._graph);
     this._layout.update();
     this._layoutDirty = false;

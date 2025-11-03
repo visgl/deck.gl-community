@@ -1,4 +1,4 @@
-# Simple Layout
+# SimpleLayout
 
 <p align="center">
   <img src="/gatsby/images/layouts/simple.png" height="400" />

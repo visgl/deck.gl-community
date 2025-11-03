@@ -16,16 +16,23 @@ const sidebars = {
       label: 'Overview',
       id: 'index'
     },
-    {
-      type: 'doc',
-      label: 'Playground',
-      id: "playground"
-    },
+    // {
+    //   type: 'doc',
+    //   label: 'Playground',
+    //   id: "playground"
+    // },
     {
       type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
         "graph-layers/graph-viewer"
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/infovis-layers',
+      items: [
+        "infovis-layers/horizon-graph-layer"
       ]
     },
     {
@@ -45,13 +52,13 @@ const sidebars = {
     // },
 
     // TODO - need BING map key
-    {
-      type: 'category',
-      label: '@deck.gl-community/bing-maps',
-      items: [
-        "bing-maps/get-started"
-      ]
-    },
+    // {
+    //   type: 'category',
+    //   label: '@deck.gl-community/bing-maps',
+    //   items: [
+    //     "bing-maps/get-started"
+    //   ]
+    // },
 
     // TODO - unclear why not rendering
     {

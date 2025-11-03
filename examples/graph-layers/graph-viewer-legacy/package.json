@@ -8,14 +8,14 @@
     "start-local": "vite --config ../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/graph-layers": "9.0.2",
-    "@deck.gl-community/react": "9.0.2",
-    "deck.gl": "^9.0.0"
+    "@arcgis/core": "^4.30.0",
+    "@deck.gl-community/graph-layers": "~9.2.0",
+    "@deck.gl-community/react": "~9.2.0",
+    "deck.gl": "^9.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "vite": "^5.0.12"
-  },
-  "volta": {
-    "extends": "../../../package.json"
+    "vite": "7.1.1"
   }
 }

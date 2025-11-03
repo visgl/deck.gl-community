@@ -13,7 +13,7 @@ import {
 } from './types';
 import {Polygon, FeatureCollection, FeatureOf, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
-import {omit} from 'lodash';
+import omit from 'lodash.omit';
 
 export class TwoClickPolygonMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {

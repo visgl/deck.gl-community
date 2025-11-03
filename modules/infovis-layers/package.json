@@ -1,0 +1,44 @@
+{
+  "name": "@deck.gl-community/infovis-layers",
+  "version": "9.2.0",
+  "description": "Infovis layers (non-geospatial) for deck.gl",
+  "license": "MIT",
+  "keywords": [
+    "layers",
+    "visualization",
+    "gpu",
+    "deck.gl"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "dependencies": {
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/layers": "~9.2.1",
+    "@luma.gl/core": "~9.2.0",
+    "@luma.gl/engine": "~9.2.0",
+    "@luma.gl/shadertools": "~9.2.0"
+  },
+  "devDependencies": {
+    "@deck.gl/test-utils": "~9.2.1",
+    "@luma.gl/webgpu": "~9.2.0",
+    "@probe.gl/test-utils": "^4.0.4"
+  }
+}

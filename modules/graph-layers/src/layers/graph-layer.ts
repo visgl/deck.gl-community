@@ -5,16 +5,24 @@
 import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
-import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
 import {Graph} from '../graph/graph';
 import {GraphLayout} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
 
-import {Stylesheet} from '../style/style-sheet';
+import {GraphStyleEngine} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 
 import {log} from '../utils/log';
+
+import {
+  DEFAULT_GRAPH_LAYER_STYLESHEET,
+  normalizeGraphLayerStylesheet,
+  type GraphLayerEdgeStyle,
+  type GraphLayerNodeStyle,
+  type GraphLayerStylesheet,
+  type NormalizedGraphLayerStylesheet
+} from '../style/graph-layer-stylesheet';
 
 // node layers
 import {CircleLayer} from './node-layers/circle-layer';
@@ -29,22 +37,24 @@ import {ZoomableMarkerLayer} from './node-layers/zoomable-marker-layer';
 import {EdgeLayer} from './edge-layer';
 import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
+import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 
 import {JSONLoader} from '../loaders/json-loader';
 
 const NODE_LAYER_MAP = {
-  [NODE_TYPE.RECTANGLE]: RectangleLayer,
-  [NODE_TYPE.ROUNDED_RECTANGLE]: RoundedRectangleLayer,
-  [NODE_TYPE.PATH_ROUNDED_RECTANGLE]: PathBasedRoundedRectangleLayer,
-  [NODE_TYPE.ICON]: ImageLayer,
-  [NODE_TYPE.CIRCLE]: CircleLayer,
-  [NODE_TYPE.LABEL]: LabelLayer,
-  [NODE_TYPE.MARKER]: ZoomableMarkerLayer
+  'rectangle': RectangleLayer,
+  'rounded-rectangle': RoundedRectangleLayer,
+  'path-rounded-rectangle': PathBasedRoundedRectangleLayer,
+  'icon': ImageLayer,
+  'circle': CircleLayer,
+  'label': LabelLayer,
+  'marker': ZoomableMarkerLayer
 };
 
 const EDGE_DECORATOR_LAYER_MAP = {
-  [EDGE_DECORATOR_TYPE.LABEL]: EdgeLabelLayer,
-  [EDGE_DECORATOR_TYPE.FLOW]: FlowLayer
+  'edge-label': EdgeLabelLayer,
+  'flow': FlowLayer,
+  'arrow': EdgeArrowLayer
 };
 
 const SHARED_LAYER_PROPS = {
@@ -54,6 +64,14 @@ const SHARED_LAYER_PROPS = {
   }
 };
 
+const NODE_STYLE_DEPRECATION_MESSAGE =
+  'GraphLayer: `nodeStyle` has been replaced by `stylesheet.nodes` and will be removed in a future release.';
+const EDGE_STYLE_DEPRECATION_MESSAGE =
+  'GraphLayer: `edgeStyle` has been replaced by `stylesheet.edges` and will be removed in a future release.';
+
+let NODE_STYLE_DEPRECATION_WARNED = false;
+let EDGE_STYLE_DEPRECATION_WARNED = false;
+
 export type GraphLayerProps = CompositeLayerProps & _GraphLayerProps;
 
 export type _GraphLayerProps = {
@@ -62,14 +80,11 @@ export type _GraphLayerProps = {
   graphLoader?: (opts: {json: any}) => Graph;
   engine?: GraphEngine;
 
-  // an array of styles for layers
-  nodeStyle?: any[];
-  edgeStyle?: {
-    stroke?: string;
-    strokeWidth?: number;
-    /** an array of styles for layers */
-    decorators?: any[];
-  };
+  stylesheet?: GraphLayerStylesheet;
+  /** @deprecated Use `stylesheet.nodes`. */
+  nodeStyle?: GraphLayerNodeStyle[];
+  /** @deprecated Use `stylesheet.edges`. */
+  edgeStyle?: GraphLayerEdgeStyle | GraphLayerEdgeStyle[];
   nodeEvents?: {
     onMouseLeave?: () => void;
     onHover?: () => void;
@@ -84,6 +99,7 @@ export type _GraphLayerProps = {
   enableDragging?: boolean;
 };
 
+/** Composite layer that renders graph nodes, edges, and decorators. */
 export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   static layerName = 'GraphLayer';
 
@@ -95,7 +111,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     // Graph props
     graphLoader: JSONLoader,
 
-    nodeStyle: [],
+    stylesheet: DEFAULT_GRAPH_LAYER_STYLESHEET,
+    nodeStyle: undefined as unknown as GraphLayerNodeStyle[],
     nodeEvents: {
       onMouseLeave: () => {},
       onHover: () => {},
@@ -103,12 +120,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onClick: () => {},
       onDrag: () => {}
     },
-    edgeStyle: {
-      stroke: 'black',
-      strokeWidth: 1,
-      // an array of styles for layers
-      decorators: []
-    },
+    edgeStyle: undefined as unknown as GraphLayerEdgeStyle | GraphLayerEdgeStyle[],
     edgeEvents: {
       onClick: () => {},
       onHover: () => {}
@@ -163,11 +175,37 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this._setGraphEngine(graphEngine);
       this.state.interactionManager.updateProps(props);
       this.forceUpdate();
+    } else if (changeFlags.propsChanged && props.engine !== oldProps.engine) {
+      this._setGraphEngine(props.engine);
+      this.state.interactionManager.updateProps(props);
+      this.forceUpdate();
     }
   }
 
   finalize() {
     this._removeGraphEngine();
+  }
+
+  private _getResolvedStylesheet(): NormalizedGraphLayerStylesheet {
+    const {stylesheet, nodeStyle, edgeStyle} = this.props;
+
+    const usingNodeStyle = typeof nodeStyle !== 'undefined';
+    if (usingNodeStyle && !NODE_STYLE_DEPRECATION_WARNED) {
+      log.warn(NODE_STYLE_DEPRECATION_MESSAGE);
+      NODE_STYLE_DEPRECATION_WARNED = true;
+    }
+
+    const usingEdgeStyle = typeof edgeStyle !== 'undefined';
+    if (usingEdgeStyle && !EDGE_STYLE_DEPRECATION_WARNED) {
+      log.warn(EDGE_STYLE_DEPRECATION_MESSAGE);
+      EDGE_STYLE_DEPRECATION_WARNED = true;
+    }
+
+    return normalizeGraphLayerStylesheet({
+      stylesheet,
+      nodeStyle: usingNodeStyle ? nodeStyle : undefined,
+      edgeStyle: usingEdgeStyle ? edgeStyle : undefined
+    });
   }
 
   _setGraphEngine(graphEngine: GraphEngine) {
@@ -194,19 +232,20 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   createNodeLayers() {
     const engine = this.state.graphEngine;
-    const {nodeStyle} = this.props;
-    if (!engine || !nodeStyle || !Array.isArray(nodeStyle) || nodeStyle.length === 0) {
+    const {nodes: nodeStyles} = this._getResolvedStylesheet();
+
+    if (!engine || !Array.isArray(nodeStyles) || nodeStyles.length === 0) {
       return [];
     }
 
-    return nodeStyle.filter(Boolean).map((style, idx) => {
+    return nodeStyles.filter(Boolean).map((style, idx) => {
       const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
       const LayerType = NODE_LAYER_MAP[style.type];
       if (!LayerType) {
-        log.error(`Invalid node type: ${style.type}`)();
+        log.error(`Invalid node type: ${style.type}`);
         throw new Error(`Invalid node type: ${style.type}`);
       }
-      const stylesheet = new Stylesheet(restStyle, {
+      const stylesheet = new GraphStyleEngine(restStyle, {
         stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
       });
       const getOffset = stylesheet.getDeckGLAccessor('getOffset');
@@ -229,19 +268,25 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   createEdgeLayers() {
     const engine = this.state.graphEngine;
-    const {edgeStyle} = this.props;
+    const {edges: edgeStyles} = this._getResolvedStylesheet();
 
-    if (!engine || !edgeStyle) {
+    if (!engine || !edgeStyles) {
       return [];
     }
 
-    return (Array.isArray(edgeStyle) ? edgeStyle : [edgeStyle])
+    const edgeStyleArray = Array.isArray(edgeStyles) ? edgeStyles : [edgeStyles];
+
+    if (edgeStyleArray.length === 0) {
+      return [];
+    }
+
+    return edgeStyleArray
       .filter(Boolean)
       .flatMap((style, idx) => {
         const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
-        const stylesheet = new Stylesheet(
+        const stylesheet = new GraphStyleEngine(
           {
-            type: 'Edge',
+            type: 'edge',
             ...restEdgeStyle
           },
           {
@@ -266,10 +311,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const decoratorLayers = decorators.filter(Boolean).flatMap((decoratorStyle, idx2) => {
           const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
           if (!DecoratorLayer) {
-            log.error(`Invalid edge decorator type: ${decoratorStyle.type}`)();
+            log.error(`Invalid edge decorator type: ${decoratorStyle.type}`);
             throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
           }
-          const decoratorStylesheet = new Stylesheet(decoratorStyle, {
+          const decoratorStylesheet = new GraphStyleEngine(decoratorStyle, {
             stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
           });
           return new DecoratorLayer({

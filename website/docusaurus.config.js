@@ -15,11 +15,18 @@ const config = {
   url: 'https://deck.gl-community',
   baseUrl: '/deck.gl-community/', // process.env.STAGING ? '/deck.gl-community/' : '/',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn'
+    }
+  },
   favicon: '/favicon.ico',
   organizationName: 'visgl', // Usually your GitHub org/user name.
   projectName: 'deck.gl-community', // Usually your repo name.
   trailingSlash: false,
+  future: {
+    v4: true
+  },
 
   presets: [
     [
@@ -42,6 +49,19 @@ const config = {
     ]
   ],
 
+  themes: [
+    [
+      '@cmfcmf/docusaurus-search-local',
+      /** @type {import('@cmfcmf/docusaurus-search-local').PluginOptions} */
+      ({
+        indexDocs: true,
+        indexBlog: false,
+        indexPages: true,
+        // highlightSearchTermsOnTargetPage: true
+      })
+    ]
+  ],
+
   plugins: [
     [
       './ocular-docusaurus-plugin',
@@ -53,6 +73,7 @@ const config = {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
+            '@deck.gl-community/infovis-layers': resolve('../modules/infovis-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
@@ -214,17 +235,6 @@ const config = {
           }
         ],
         copyright: `Copyright © ${new Date().getFullYear()} OpenJS Foundation`
-      },
-      algolia: {
-        // The application ID provided by Algolia
-        appId: '8EVYAVB4KT',
-        // Public API key: it is safe to commit it
-        apiKey: 'a3fe1388353d733272ffdf148c53eeaa',
-        indexName: 'deck',
-        // Optional: see doc section below
-        contextualSearch: true,
-        // Optional: path for search page that enabled by default (`false` to disable it)
-        searchPagePath: 'search'
       },
       prism: {
         theme: lightCodeTheme,

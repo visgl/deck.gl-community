@@ -103,11 +103,12 @@ function ModeButton({buttonConfig, mode, onClick}: any) {
     </Button>
   );
 }
+
 function ModeGroupButtons({left, modeGroup, mode, onSetMode}: any) {
   const [expanded, setExpanded] = React.useState(false);
 
   const {modes} = modeGroup;
-
+  
   let subTools = null;
 
   if (expanded) {
@@ -240,6 +241,7 @@ export function Toolbox({
         {/* zoom in and out */}
       </Tools>
 
+      {/*
       {showImport && (
         <ImportModal
           onImport={(imported) => {
@@ -251,6 +253,7 @@ export function Toolbox({
       )}
 
       {showExport && <ExportModal geoJson={geoJson} onClose={() => setShowExport(false)} />}
+      */}
     </>
   );
 }

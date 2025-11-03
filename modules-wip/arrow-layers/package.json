@@ -1,0 +1,50 @@
+{
+  "private": true,
+  "name": "@deck.gl-community/arrow-layers",
+  "description": "A suite of Apache Arrow enabled layers for deck.gl",
+  "license": "MIT",
+  "version": "9.2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "keywords": [
+    "webgl",
+    "visualization",
+    "overlay",
+    "layer"
+  ],
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "dependencies": {
+    "@geoarrow/geoarrow-js": "^0.3.0",
+    "@math.gl/core": "^4.0.0",
+    "@math.gl/polygon": "^4.0.0",
+    "apache-arrow": ">=15",
+    "threads": "^1.7.0"
+  },
+  "peerDependencies": {
+    "@deck.gl/aggregation-layers": "~9.2.1",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/geo-layers": "~9.2.1",
+    "@deck.gl/layers": "~9.2.1"
+  },
+  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
+}

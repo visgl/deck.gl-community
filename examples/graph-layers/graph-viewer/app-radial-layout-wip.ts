@@ -12,7 +12,7 @@ import Color from 'color';
 import {fetchJSONFromS3} from './io';
 
 // graph.gl
-import GraphGL, {JSONLoader, NODE_TYPE} from '@deck.gl-community/graph-layers';
+import GraphGL, {JSONLoader} from '@deck.gl-community/graph-layers';
 import RadialLayout from './layouts/radial-layout';
 
 const DEFAULT_NODE_SIZE = 5;
@@ -67,28 +67,30 @@ export default class BasicRadialExample extends Component {
             radius: RADIUS,
           })
         }
-        nodeStyle={[
-          {
-            type: NODE_TYPE.CIRCLE,
-            radius: DEFAULT_NODE_SIZE,
-            fill: this.getNodeColor,
-          },
-          {
-            type: NODE_TYPE.LABEL,
-            text: node => node.getPropertyValue('name'),
-            color: DEFAULT_NODE_LABEL_COLOR,
-            textAnchor: 'start',
-            fontSize: 8,
-            // TODO: figure out how to get node position without engine
-            // angle: n => {
-            //   const nodePos = this._engine.getNodePosition(n);
-            //   return (Math.atan2(nodePos[1], nodePos[0]) * -180) / Math.PI;
-            // },
-          },
-        ]}
-        edgeStyle={{
-          stroke: DEFAULT_EDGE_COLOR,
-          strokeWidth: 1,
+        stylesheet={{
+          nodes: [
+            {
+              type: 'circle',
+              radius: DEFAULT_NODE_SIZE,
+              fill: this.getNodeColor,
+            },
+            {
+              type: 'label',
+              text: node => node.getPropertyValue('name'),
+              color: DEFAULT_NODE_LABEL_COLOR,
+              textAnchor: 'start',
+              fontSize: 8,
+              // TODO: figure out how to get node position without engine
+              // angle: n => {
+              //   const nodePos = this._engine.getNodePosition(n);
+              //   return (Math.atan2(nodePos[1], nodePos[0]) * -180) / Math.PI;
+              // },
+            },
+          ],
+          edges: {
+            stroke: DEFAULT_EDGE_COLOR,
+            strokeWidth: 1,
+          }
         }}
       />
     );

@@ -2,8 +2,6 @@ import React, {Component} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
 import {GITHUB_TREE} from '../../constants/defaults';
-import {exampleApplication} from '../../../../examples/leaflet/get-started/app';
-
 import {makeExample} from '../../components';
 
 class AdvancedDemo extends Component {
@@ -16,7 +14,11 @@ class AdvancedDemo extends Component {
   }
 
   componentDidMount(): void {
-    exampleApplication(); 
+    import('../../../../examples/leaflet/get-started/app')
+      .then(({exampleApplication}) => exampleApplication())
+      .catch((error) => {
+        console.error('Failed to load Leaflet example', error);
+      });
   }
 
   render() {
@@ -24,7 +26,11 @@ class AdvancedDemo extends Component {
 
     return (
       <BrowserOnly>
-        {() => <div id="map" {...otherProps} />}
+        {() => (
+          <div style={{position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(1,0,0,1)'}}>
+            <div id="map" style={{width: '100%', height: '100%'}} {...otherProps} />
+          </div>
+        )}
       </BrowserOnly>
     );
   }

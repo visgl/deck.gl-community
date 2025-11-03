@@ -1,22 +1,28 @@
 {
   "name": "graph-layers-example",
-  "version": "0.0.0",
+  "version": "9.2.0",
   "private": true,
   "license": "MIT",
   "type": "module",
   "scripts": {
     "start": "vite --open",
-    "start-local": "vite --config ../vite.config.local.mjs"
+    "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/graph-layers": "9.0.2",
-    "@deck.gl-community/react": "9.0.2",
-    "deck.gl": "^9.0.0"
+    "@deck.gl-community/graph-layers": "~9.2.0",
+    "@deck.gl-community/react": "~9.2.0",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/layers": "~9.2.1",
+    "@deck.gl/react": "~9.2.1",
+    "@deck.gl/widgets": "~9.2.1",
+    "@loaders.gl/core": "^4.2.0",
+    "@luma.gl/core": "~9.2.0",
+    "@luma.gl/engine": "~9.2.0",
+    "@luma.gl/shadertools": "~9.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "vite": "^5.0.12"
-  },
-  "volta": {
-    "extends": "../../../package.json"
+    "vite": "7.1.1"
   }
 }

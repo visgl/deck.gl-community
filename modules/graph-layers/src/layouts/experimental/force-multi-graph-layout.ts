@@ -4,7 +4,6 @@
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
-import {EDGE_TYPE} from '../../core/constants';
 import {Graph} from '../../graph/graph';
 import * as d3 from 'd3-force';
 
@@ -68,6 +67,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
         'edge',
         d3
           .forceLink(g.edges)
+          // @ts-ignore TODO id not defined?
           .id((n) => n.id)
           .strength(this._strength)
       )
@@ -138,7 +138,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
       if (betweenEdges.length === 1) {
         // do nothing, this is a real edge
         const newD3Edge = {
-          type: EDGE_TYPE.LINE,
+          type: 'line',
           id: firstEdge.getId(),
           source: newNodeMap[firstEdge.getSourceNodeId()],
           target: newNodeMap[firstEdge.getTargetNodeId()],
@@ -151,7 +151,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
 
       // else reduce to one virtual edge
       const newD3Edge = {
-        type: EDGE_TYPE.LINE,
+        type: 'line',
         id: pairId,
         source: newNodeMap[firstEdge.getSourceNodeId()],
         target: newNodeMap[firstEdge.getTargetNodeId()],
@@ -163,7 +163,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
 
       betweenEdges.forEach((e, idx) => {
         newEdgeMap[e.id] = {
-          type: EDGE_TYPE.SPLINE_CURVE,
+          type: 'spline-curve',
           id: e.id,
           source: newNodeMap[e.getSourceNodeId()],
           target: newNodeMap[e.getTargetNodeId()],
@@ -194,7 +194,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
     if (d3Edge) {
       if (!d3Edge.isVirtual) {
         return {
-          type: EDGE_TYPE.LINE,
+          type: 'line',
           sourcePosition: [d3Edge.source.x, d3Edge.source.y],
           targetPosition: [d3Edge.target.x, d3Edge.target.y],
           controlPoints: []
@@ -222,7 +222,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
         (symmetricShape ? Math.floor(index / 2 + 1) : Math.ceil(index / 2));
       const controlPoint = computeControlPoint(sourcePosition, targetPosition, direction, offset);
       return {
-        type: EDGE_TYPE.SPLINE_CURVE,
+        type: 'spline-curve',
         sourcePosition,
         targetPosition,
         controlPoints: [controlPoint]
@@ -230,7 +230,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
     }
     // default value
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: [0, 0],
       targetPosition: [0, 0],
       controlPoints: []

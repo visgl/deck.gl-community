@@ -4,7 +4,6 @@
 
 import {GraphLayout, GraphLayoutOptions} from '../core/graph-layout';
 import {Node} from '../graph/node';
-import {EDGE_TYPE} from '../core/constants';
 import {Graph} from '../graph/graph';
 
 export type SimpleLayoutOptions = GraphLayoutOptions & {
@@ -87,7 +86,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutOptions> {
     const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
     const targetPos = this._nodePositionMap[edge.getTargetNodeId()];
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: sourcePos,
       targetPosition: targetPos,
       controlPoints: []
