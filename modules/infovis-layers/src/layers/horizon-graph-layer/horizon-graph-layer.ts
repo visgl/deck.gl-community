@@ -177,8 +177,8 @@ export class HorizonGraphLayer<ExtraProps extends {} = {}> extends Layer<
     const {bands, yAxisScale, positiveColor, negativeColor} = this.props;
 
     model.shaderInputs.setProps({
+      dataTexture: this.state.dataTexture,
       horizonLayer: {
-        dataTexture: this.state.dataTexture,
         dataTextureSize: this.state.dataTextureSize,
         dataTextureSizeInv: 1.0 / this.state.dataTextureSize,
         dataTextureCount: this.state.dataTextureCount,
