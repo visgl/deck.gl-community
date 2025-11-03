@@ -20,7 +20,8 @@ import {
   normalizeGraphLayerStylesheet,
   type GraphLayerEdgeStyle,
   type GraphLayerNodeStyle,
-  type GraphLayerStylesheet
+  type GraphLayerStylesheet,
+  type NormalizedGraphLayerStylesheet
 } from '../style/graph-layer-stylesheet';
 
 // node layers
@@ -185,18 +186,18 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this._removeGraphEngine();
   }
 
-  private _getResolvedStylesheet() {
+  private _getResolvedStylesheet(): NormalizedGraphLayerStylesheet {
     const {stylesheet, nodeStyle, edgeStyle} = this.props;
 
     const usingNodeStyle = typeof nodeStyle !== 'undefined';
     if (usingNodeStyle && !NODE_STYLE_DEPRECATION_WARNED) {
-      log.warn(NODE_STYLE_DEPRECATION_MESSAGE)();
+      log.warn(NODE_STYLE_DEPRECATION_MESSAGE);
       NODE_STYLE_DEPRECATION_WARNED = true;
     }
 
     const usingEdgeStyle = typeof edgeStyle !== 'undefined';
     if (usingEdgeStyle && !EDGE_STYLE_DEPRECATION_WARNED) {
-      log.warn(EDGE_STYLE_DEPRECATION_MESSAGE)();
+      log.warn(EDGE_STYLE_DEPRECATION_MESSAGE);
       EDGE_STYLE_DEPRECATION_WARNED = true;
     }
 
@@ -241,7 +242,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
       const LayerType = NODE_LAYER_MAP[style.type];
       if (!LayerType) {
-        log.error(`Invalid node type: ${style.type}`)();
+        log.error(`Invalid node type: ${style.type}`);
         throw new Error(`Invalid node type: ${style.type}`);
       }
       const stylesheet = new GraphStyleEngine(restStyle, {
@@ -304,7 +305,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const decoratorLayers = decorators.filter(Boolean).flatMap((decoratorStyle, idx2) => {
           const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
           if (!DecoratorLayer) {
-            log.error(`Invalid edge decorator type: ${decoratorStyle.type}`)();
+            log.error(`Invalid edge decorator type: ${decoratorStyle.type}`);
             throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
           }
           const decoratorStylesheet = new GraphStyleEngine(decoratorStyle, {

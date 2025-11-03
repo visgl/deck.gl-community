@@ -7,7 +7,7 @@ import {log} from '../utils/log';
 
 export function basicNodeParser(node: any): Pick<NodeOptions, 'id'> {
   if (node.id === undefined) {
-    log.error('Invalid node: id is missing.')();
+    log.error('Invalid node: id is missing.');
     return null;
   }
   return {id: node.id};

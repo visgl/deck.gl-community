@@ -127,7 +127,7 @@ export class StyleEngine<TStyleProperty extends StyleProperty = StyleProperty> {
     }
     const styleProp = map[deckglAccessor];
     if (!styleProp) {
-      log.error(`Invalid DeckGL accessor: ${deckglAccessor}`)();
+      log.error(`Invalid DeckGL accessor: ${deckglAccessor}`);
       throw new Error(`Invalid DeckGL accessor: ${deckglAccessor}`);
     }
     return this.properties[styleProp];
