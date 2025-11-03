@@ -112,6 +112,9 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
       if (typeof (event as any).stopImmediatePropagation === 'function') {
         (event as any).stopImmediatePropagation();
       }
+      if (typeof (event as any).preventDefault === 'function') {
+        (event as any).preventDefault();
+      }
     };
 
     const ui = (
@@ -139,7 +142,12 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
             min={minZoom}
             max={maxZoom}
             step={this.step}
-            onChange={(event) => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
+            onInput={(event) =>
+              this.handleZoomTo(Number((event.target as HTMLInputElement).value))
+            }
+            onChange={(event) =>
+              this.handleZoomTo(Number((event.target as HTMLInputElement).value))
+            }
             onPointerDown={stopEventPropagation}
             onPointerMove={stopEventPropagation}
             onPointerUp={stopEventPropagation}
