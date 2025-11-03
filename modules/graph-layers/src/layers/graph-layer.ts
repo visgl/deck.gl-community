@@ -283,6 +283,35 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         Boolean(node.getPropertyValue('isCollapsedChain'))
       );
       if (collapsedNodes.length > 0) {
+        const collapsedOutlineStyle: GraphStylesheet<'marker'> = {
+          type: 'marker',
+          fill: [64, 96, 192, 160],
+          size: 44,
+          marker: 'rectangle',
+          offset: [24, -24],
+          scaleWithZoom: false
+        };
+        const collapsedOutlineStylesheet = new GraphStyleEngine(collapsedOutlineStyle, {
+          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+        });
+        const collapsedOutlineOffset = collapsedOutlineStylesheet.getDeckGLAccessor('getOffset');
+        layers.push(
+          new ZoomableMarkerLayer({
+            ...SHARED_LAYER_PROPS,
+            id: 'collapsed-chain-outlines',
+            data: collapsedNodes,
+            getPosition: mixedGetPosition(engine.getNodePosition, collapsedOutlineOffset),
+            pickable: true,
+            positionUpdateTrigger: [
+              engine.getLayoutLastUpdate(),
+              engine.getLayoutState(),
+              collapsedOutlineStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+            ].join(),
+            stylesheet: collapsedOutlineStylesheet,
+            visible: true
+          } as any)
+        );
+
         const collapsedMarkerStyle: GraphStylesheet<'marker'> = {
           type: 'marker',
           fill: [64, 96, 192, 255],
@@ -317,6 +346,35 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         (node) => !node.getPropertyValue('isCollapsedChain')
       );
       if (expandedNodes.length > 0) {
+        const expandedOutlineStyle: GraphStylesheet<'marker'> = {
+          type: 'marker',
+          fill: [64, 96, 192, 160],
+          size: 44,
+          marker: 'rectangle',
+          offset: [24, -24],
+          scaleWithZoom: false
+        };
+        const expandedOutlineStylesheet = new GraphStyleEngine(expandedOutlineStyle, {
+          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+        });
+        const expandedOutlineOffset = expandedOutlineStylesheet.getDeckGLAccessor('getOffset');
+        layers.push(
+          new ZoomableMarkerLayer({
+            ...SHARED_LAYER_PROPS,
+            id: 'expanded-chain-outlines',
+            data: expandedNodes,
+            getPosition: mixedGetPosition(engine.getNodePosition, expandedOutlineOffset),
+            pickable: true,
+            positionUpdateTrigger: [
+              engine.getLayoutLastUpdate(),
+              engine.getLayoutState(),
+              expandedOutlineStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+            ].join(),
+            stylesheet: expandedOutlineStylesheet,
+            visible: true
+          } as any)
+        );
+
         const expandedMarkerStyle: GraphStylesheet<'marker'> = {
           type: 'marker',
           fill: [64, 96, 192, 255],

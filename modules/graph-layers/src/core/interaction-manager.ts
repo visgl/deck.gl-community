@@ -8,6 +8,44 @@ import {Node} from '../graph/node';
 import {GraphEngine} from './graph-engine';
 import {log} from '../utils/log';
 
+export type ChainInteractionSource =
+  | 'node'
+  | 'collapsed-marker'
+  | 'expanded-marker'
+  | 'collapsed-outline'
+  | 'expanded-outline';
+
+export function resolveChainInteractionSource(layer: any): ChainInteractionSource {
+  let current = layer ?? null;
+  while (current) {
+    const layerId = typeof current.id === 'string' ? current.id : '';
+    if (layerId.includes('collapsed-chain-markers')) {
+      return 'collapsed-marker';
+    }
+    if (layerId.includes('expanded-chain-markers')) {
+      return 'expanded-marker';
+    }
+    if (layerId.includes('collapsed-chain-outlines')) {
+      return 'collapsed-outline';
+    }
+    if (layerId.includes('expanded-chain-outlines')) {
+      return 'expanded-outline';
+    }
+    current = current.parent ?? null;
+  }
+  return 'node';
+}
+
+export function shouldToggleCollapsedChain(
+  isCollapsed: boolean,
+  source: ChainInteractionSource
+): boolean {
+  if (isCollapsed) {
+    return true;
+  }
+  return source === 'expanded-marker' || source === 'expanded-outline';
+}
+
 const NODE_TO_EDGE_STATE_MAP: Record<NodeState, EdgeState> = {
   default: 'default',
   hover: 'hover',
@@ -117,20 +155,16 @@ export class InteractionManager {
       if (hasChainMetadata && isRepresentative) {
         const layout: any = this.engine?.props?.layout;
         if (layout && typeof layout.toggleCollapsedChain === 'function') {
-          const layerId = info?.layer?.id;
-          const layerIdString = typeof layerId === 'string' ? layerId : '';
-          const fromCollapsedMarker = layerIdString.includes('collapsed-chain-markers');
-          const fromExpandedMarker = layerIdString.includes('expanded-chain-markers');
-          const interactionSource = fromExpandedMarker
-            ? 'expanded-marker'
-            : fromCollapsedMarker
-            ? 'collapsed-marker'
-            : 'node';
+          const interactionSource = resolveChainInteractionSource(info?.layer ?? null);
 
-          if (isCollapsed || fromExpandedMarker) {
+          if (shouldToggleCollapsedChain(isCollapsed, interactionSource)) {
             const action = isCollapsed ? 'expand' : 'collapse';
             log.log(
               0,
+              `InteractionManager: ${action} chain ${chainId} via ${interactionSource}`
+            );
+            // eslint-disable-next-line no-console
+            console.log(
               `InteractionManager: ${action} chain ${chainId} via ${interactionSource}`
             );
             layout.toggleCollapsedChain(String(chainId));
