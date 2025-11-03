@@ -823,7 +823,17 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: dagPipelineDataset,
     layouts: ['d3-dag-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: DAG_PIPELINE_STYLE
+    style: DAG_PIPELINE_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'd3-dag-layout'
+        ? {
+            nodeSize: [140, 120],
+            layering: 'topological',
+            decross: 'twoLayer',
+            coord: 'greedy',
+            collapseLinearChains: true
+          }
+        : undefined
   }
 ];
 

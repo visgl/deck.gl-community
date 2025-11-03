@@ -215,4 +215,41 @@ describe('D3DagLayout', () => {
     expect(ids).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
   });
 
+  it('responds to collapse pipeline toggles without losing metadata', () => {
+    const {graph, nodes} = createLinearChainGraph();
+    const layout = new D3DagLayout({
+      nodeSize: [1, 1],
+      gap: [0, 0],
+      layering: 'topological',
+      decross: 'twoLayer',
+      coord: 'greedy',
+      orientation: 'TB',
+      collapseLinearChains: true
+    });
+
+    layout.initializeGraph(graph);
+    layout.start();
+
+    const chainId = nodes.a.getPropertyValue('collapsedChainId');
+    expect(chainId).toBeTruthy();
+
+    expect(nodes.a.getPropertyValue('isCollapsedChain')).toBe(true);
+    expect(nodes.a.getPropertyValue('collapsedChainLength')).toBe(3);
+    expect(layout.getNodePosition(nodes.b)).toBeNull();
+
+    layout.setPipelineOptions({collapseLinearChains: false});
+    layout.setCollapsedChains([]);
+
+    expect(nodes.a.getPropertyValue('isCollapsedChain')).toBe(false);
+    expect(nodes.a.getPropertyValue('collapsedNodeIds')).toEqual(['a', 'b', 'c']);
+    expect(layout.getNodePosition(nodes.b)).not.toBeNull();
+
+    layout.setPipelineOptions({collapseLinearChains: true});
+    layout.setCollapsedChains([String(chainId)]);
+
+    expect(nodes.a.getPropertyValue('isCollapsedChain')).toBe(true);
+    expect(nodes.a.getPropertyValue('collapsedChainLength')).toBe(3);
+    expect(layout.getNodePosition(nodes.b)).toBeNull();
+  });
+
 });
