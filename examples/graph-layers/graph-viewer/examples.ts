@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type { GraphStylesheet } from '@deck.gl-community/graph-layers';
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
 import type {ExampleDefinition, ExampleStyles, LayoutType} from './control-panel';
 import witsRaw from '../../../modules/graph-layers/test/data/examples/wits.json';
@@ -122,7 +123,7 @@ const WITS_REGION_COLOR_MAP: Record<string, string> = WITS_REGIONS.reduce((acc, 
   return acc;
 }, {} as Record<string, string>);
 
-const WITS_REGION_STYLE: ExampleStyles = {
+const WITS_REGION_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -153,7 +154,7 @@ const WITS_REGION_STYLE: ExampleStyles = {
     strokeWidth: 0.4,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
 const KNOWLEDGE_GRAPH = {
   nodes: [
@@ -247,7 +248,7 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
     'Builds a directed acyclic graph layout using layered sugiyama algorithms with automatic edge routing and arrow decoration.'
 };
 
-const LES_MISERABLES_STYLE: ExampleStyles = {
+const LES_MISERABLES_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -301,9 +302,9 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
     },
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const RANDOM_20_40_STYLE: ExampleStyles = {
+const RANDOM_20_40_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -319,9 +320,9 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const RANDOM_100_200_STYLE: ExampleStyles = {
+const RANDOM_100_200_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -337,9 +338,9 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const RANDOM_1000_2000_STYLE: ExampleStyles = {
+const RANDOM_1000_2000_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -355,9 +356,9 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const RANDOM_5000_3000_STYLE: ExampleStyles = {
+const RANDOM_5000_3000_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -373,9 +374,9 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
     strokeWidth: 0.8,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const LADDER_10_STYLE: ExampleStyles = {
+const LADDER_10_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -391,9 +392,9 @@ const LADDER_10_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
+const BALANCED_BIN_TREE_5_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -409,9 +410,9 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
+const BALANCED_BIN_TREE_8_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -427,9 +428,10 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const GRID_10_10_STYLE: ExampleStyles = {
+
+const GRID_10_10_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -445,9 +447,9 @@ const GRID_10_10_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
-const WATTS_STROGATZ_STYLE: ExampleStyles = {
+const WATTS_STROGATZ_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -463,7 +465,7 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
 
 const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
   nodes: [
@@ -495,7 +497,8 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
     strokeWidth: 1,
     decorators: []
   }
-};
+} as const satisfies GraphStylesheet;
+
 
 const MULTI_GRAPH_STYLE: ExampleStyles = {
   nodes: [
@@ -541,7 +544,7 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
       }
     ]
   }
-};
+} as const satisfies GraphStylesheet;
 
 const dagPipelineDataset = () => {
   const nodes = DAG_PIPELINE_DATA.map((entry) => ({id: entry.id, label: entry.label}));
@@ -585,7 +588,7 @@ const DAG_PIPELINE_DATA: DagRecord[] = [
   {id: 'experiments', label: 'Experimentation', parentIds: ['feature', 'feedback']}
 ];
 
-const DAG_PIPELINE_STYLE: ExampleStyles = {
+const DAG_PIPELINE_STYLE = {
   nodes: [
     {
       type: 'circle',
@@ -615,7 +618,7 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
       }
     ]
   }
-};
+} as const satisfies GraphStylesheet;
 
 export const EXAMPLES: ExampleDefinition[] = [
   {

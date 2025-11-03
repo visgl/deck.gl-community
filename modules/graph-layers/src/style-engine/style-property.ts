@@ -19,7 +19,7 @@ import type {
   GraphStyleLeafValue,
   GraphStyleScale,
   GraphStyleScaleType
-} from './graph-style-engine';
+} from './style-types';
 
 /* Utils for type check */
 function getColor(value) {

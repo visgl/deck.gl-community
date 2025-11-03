@@ -4,7 +4,11 @@
 
 import {describe, it, expect, expectTypeOf} from 'vitest';
 
-import {StyleEngine, type DeckGLAccessorMap, type DeckGLUpdateTriggers} from '../../src/style/style-engine';
+import {
+  StyleEngine,
+  type DeckGLAccessorMap,
+  type DeckGLUpdateTriggers
+} from '../../src/style-engine/style-engine';
 import {
   GraphStyleEngine,
   type GraphStylesheet,

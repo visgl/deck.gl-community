@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {GraphStylesheet, GraphStyleType} from './graph-style-engine';
+import type {
+  GraphStylesheet as GraphPrimitiveStylesheet,
+  GraphStyleType
+} from './graph-style-engine';
+import type {GraphStyleValue} from '../style-engine/style-types';
 
 export type GraphNodeStyleType = Exclude<
   GraphStyleType,
@@ -11,60 +15,60 @@ export type GraphNodeStyleType = Exclude<
 
 export type GraphEdgeDecoratorType = Extract<GraphStyleType, 'edge-label' | 'flow' | 'arrow'>;
 
-export type GraphLayerNodeStyle = GraphStylesheet<GraphNodeStyleType> & {
+export type GraphNodeStyle = GraphPrimitiveStylesheet<GraphNodeStyleType> & {
   pickable?: boolean;
   visible?: boolean;
   data?: (nodes: any[]) => any;
 };
 
-export type GraphLayerEdgeDecoratorStyle = GraphStylesheet<GraphEdgeDecoratorType>;
+export type GraphEdgeDecoratorStyle = GraphPrimitiveStylesheet<GraphEdgeDecoratorType>;
 
 type EdgeStyleType = Extract<GraphStyleType, 'Edge' | 'edge'>;
 
-export type GraphLayerEdgeStyle = (
-  | GraphStylesheet<EdgeStyleType>
-  | (Omit<GraphStylesheet<EdgeStyleType>, 'type'> & {type?: EdgeStyleType})
+export type GraphEdgeStyle = (
+  | GraphPrimitiveStylesheet<EdgeStyleType>
+  | (Omit<GraphPrimitiveStylesheet<EdgeStyleType>, 'type'> & {type?: EdgeStyleType})
 ) & {
-  decorators?: GraphLayerEdgeDecoratorStyle[];
+  decorators?: GraphEdgeDecoratorStyle[];
   data?: (edges: any[]) => any;
   visible?: boolean;
 };
 
-export type GraphLayerStylesheet = {
-  nodes?: GraphLayerNodeStyle[];
-  edges?: GraphLayerEdgeStyle | GraphLayerEdgeStyle[];
+export type GraphStylesheet = {
+  nodes?: GraphNodeStyle[];
+  edges?: GraphEdgeStyle | GraphEdgeStyle[];
 };
 
-export type GraphLayerStylesheetInput = GraphLayerStylesheet | null | undefined;
+export type GraphStylesheetInput = GraphStylesheet | null | undefined;
 
-export type NormalizedGraphLayerStylesheet = {
-  nodes: GraphLayerNodeStyle[];
-  edges: GraphLayerEdgeStyle[];
+export type NormalizedGraphStylesheet = {
+  nodes: GraphNodeStyle[];
+  edges: GraphEdgeStyle[];
 };
 
-const DEFAULT_EDGE_STYLE: GraphLayerEdgeStyle = {
+const DEFAULT_EDGE_STYLE: GraphEdgeStyle = {
   type: 'edge',
   stroke: 'black',
   strokeWidth: 1,
   decorators: []
 };
 
-export const DEFAULT_GRAPH_LAYER_STYLESHEET: NormalizedGraphLayerStylesheet = {
+export const DEFAULT_GRAPH_LAYER_STYLESHEET: NormalizedGraphStylesheet = {
   nodes: [],
   edges: [DEFAULT_EDGE_STYLE]
 };
 
-export type GraphLayerStylesheetSources = {
-  stylesheet?: GraphLayerStylesheetInput;
-  nodeStyle?: GraphLayerNodeStyle[];
-  edgeStyle?: GraphLayerEdgeStyle | GraphLayerEdgeStyle[];
+export type GraphStylesheetSources = {
+  stylesheet?: GraphStylesheetInput;
+  nodeStyle?: GraphNodeStyle[];
+  edgeStyle?: GraphEdgeStyle | GraphEdgeStyle[];
 };
 
-export function normalizeGraphLayerStylesheet({
+export function normalizeGraphStylesheet({
   stylesheet,
   nodeStyle,
   edgeStyle
-}: GraphLayerStylesheetSources): NormalizedGraphLayerStylesheet {
+}: GraphStylesheetSources): NormalizedGraphStylesheet {
   const resolvedStylesheet = stylesheet ?? {};
   const resolvedNodeStyles = Array.isArray(resolvedStylesheet.nodes)
     ? resolvedStylesheet.nodes
@@ -82,13 +86,13 @@ export function normalizeGraphLayerStylesheet({
     ? [resolvedEdgeStyles]
     : DEFAULT_GRAPH_LAYER_STYLESHEET.edges;
 
-  const edges: GraphLayerEdgeStyle[] = (edgeEntries)
+  const edges: GraphEdgeStyle[] = (edgeEntries)
     .filter(Boolean)
     .map((edgeStyleEntry) => ({
       ...edgeStyleEntry,
       type: ((edgeStyleEntry).type ?? 'edge'),
       decorators: (edgeStyleEntry).decorators ?? []
-    })) as GraphLayerEdgeStyle[];
+    })) as GraphEdgeStyle[];
 
   return {
     nodes,
@@ -96,4 +100,5 @@ export function normalizeGraphLayerStylesheet({
   };
 }
 
-export type {GraphStyleValue, GraphStylesheet, GraphStyleType} from './graph-style-engine';
+export type {GraphStyleValue} from '../style-engine/style-types';
+export type {GraphStyleType} from './graph-style-engine';

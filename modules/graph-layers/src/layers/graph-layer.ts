@@ -17,12 +17,12 @@ import {log} from '../utils/log';
 
 import {
   DEFAULT_GRAPH_LAYER_STYLESHEET,
-  normalizeGraphLayerStylesheet,
-  type GraphLayerEdgeStyle,
-  type GraphLayerNodeStyle,
-  type GraphLayerStylesheet,
-  type NormalizedGraphLayerStylesheet
-} from '../style/graph-layer-stylesheet';
+  normalizeGraphStylesheet,
+  type GraphEdgeStyle,
+  type GraphNodeStyle,
+  type GraphStylesheet,
+  type NormalizedGraphStylesheet
+} from '../style/graph-stylesheet';
 
 // node layers
 import {CircleLayer} from './node-layers/circle-layer';
@@ -80,11 +80,11 @@ export type _GraphLayerProps = {
   graphLoader?: (opts: {json: any}) => Graph;
   engine?: GraphEngine;
 
-  stylesheet?: GraphLayerStylesheet;
+  stylesheet?: GraphStylesheet;
   /** @deprecated Use `stylesheet.nodes`. */
-  nodeStyle?: GraphLayerNodeStyle[];
+  nodeStyle?: GraphNodeStyle[];
   /** @deprecated Use `stylesheet.edges`. */
-  edgeStyle?: GraphLayerEdgeStyle | GraphLayerEdgeStyle[];
+  edgeStyle?: GraphEdgeStyle | GraphEdgeStyle[];
   nodeEvents?: {
     onMouseLeave?: () => void;
     onHover?: () => void;
@@ -112,7 +112,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     graphLoader: JSONLoader,
 
     stylesheet: DEFAULT_GRAPH_LAYER_STYLESHEET,
-    nodeStyle: undefined as unknown as GraphLayerNodeStyle[],
+    nodeStyle: undefined as unknown as GraphNodeStyle[],
     nodeEvents: {
       onMouseLeave: () => {},
       onHover: () => {},
@@ -120,7 +120,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onClick: () => {},
       onDrag: () => {}
     },
-    edgeStyle: undefined as unknown as GraphLayerEdgeStyle | GraphLayerEdgeStyle[],
+    edgeStyle: undefined as unknown as GraphEdgeStyle | GraphEdgeStyle[],
     edgeEvents: {
       onClick: () => {},
       onHover: () => {}
@@ -186,7 +186,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this._removeGraphEngine();
   }
 
-  private _getResolvedStylesheet(): NormalizedGraphLayerStylesheet {
+  private _getResolvedStylesheet(): NormalizedGraphStylesheet {
     const {stylesheet, nodeStyle, edgeStyle} = this.props;
 
     const usingNodeStyle = typeof nodeStyle !== 'undefined';
@@ -201,7 +201,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       EDGE_STYLE_DEPRECATION_WARNED = true;
     }
 
-    return normalizeGraphLayerStylesheet({
+    return normalizeGraphStylesheet({
       stylesheet,
       nodeStyle: usingNodeStyle ? nodeStyle : undefined,
       edgeStyle: usingEdgeStyle ? edgeStyle : undefined
