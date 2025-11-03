@@ -256,9 +256,18 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
     {
       type: 'circle',
       radius: 9,
-      fill: '#60a5fa',
-      stroke: '#1d4ed8',
-      strokeWidth: 1.5,
+      fill: {
+        default: '#60a5fa',
+        hover: '#3b82f6'
+      },
+      stroke: {
+        default: '#1d4ed8',
+        hover: '#1e40af'
+      },
+      strokeWidth: {
+        default: 1.5,
+        hover: 2.5
+      },
       opacity: 0.9
     },
     {
@@ -293,8 +302,14 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
     }
   ],
   edges: {
-    stroke: '#bfdbfe',
-    strokeWidth: 1,
+    stroke: {
+      default: '#bfdbfe',
+      hover: '#60a5fa'
+    },
+    strokeWidth: {
+      default: 1,
+      hover: 2
+    },
     decorators: []
   }
 };
