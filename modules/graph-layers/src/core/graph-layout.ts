@@ -14,10 +14,8 @@ import {log} from '../utils/log';
 // the status of the layout
 export type GraphLayoutState = 'init' | 'start' | 'calculating' | 'done' | 'error';
 
-export type GraphLayoutBounds = Bounds2D;
-
 export type GraphLayoutEventDetail = {
-  bounds: GraphLayoutBounds | null;
+  bounds: Bounds2D | null;
 };
 
 export type GraphLayoutOptions = {};
@@ -37,7 +35,7 @@ export class GraphLayout<
    * Subclasses should update this value by overriding {@link _updateBounds}
    * so it reflects the latest geometry before layout lifecycle events fire.
    */
-  protected _bounds: GraphLayoutBounds | null = null;
+  protected _bounds: Bounds2D | null = null;
 
   public version = 0;
   public state: GraphLayoutState = 'init';
@@ -106,7 +104,7 @@ export class GraphLayout<
   unlockNodePosition(node: Node) {}
 
   /** Returns the last computed layout bounds, if available. */
-  getBounds(): GraphLayoutBounds | null {
+  getBounds(): Bounds2D | null {
     return this._bounds;
   }
 
@@ -123,7 +121,7 @@ export class GraphLayout<
    */
   protected _calculateBounds(
     positions: Iterable<Readonly<[number, number]> | null | undefined>
-  ): GraphLayoutBounds | null {
+  ): Bounds2D | null {
     let minX = Number.POSITIVE_INFINITY;
     let maxX = Number.NEGATIVE_INFINITY;
     let minY = Number.POSITIVE_INFINITY;

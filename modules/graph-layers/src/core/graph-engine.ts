@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {Bounds2D} from '@math.gl/types';
+
 import type {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
 import {Graph} from '../graph/graph';
-import {GraphLayout, type GraphLayoutBounds, type GraphLayoutEventDetail} from './graph-layout';
+import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
 
@@ -70,7 +72,7 @@ export class GraphEngine extends EventTarget {
 
   getLayoutState = () => this._layout.state;
 
-  getLayoutBounds = (): GraphLayoutBounds | null => this._layout.getBounds();
+  getLayoutBounds = (): Bounds2D | null => this._layout.getBounds();
 
   /** Operations on the graph */
 

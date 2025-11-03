@@ -13,7 +13,6 @@ export {GraphEngine} from './core/graph-engine';
 export type {
   GraphLayoutOptions,
   GraphLayoutState,
-  GraphLayoutBounds,
   GraphLayoutEventDetail
 } from './core/graph-layout';
 export {GraphLayout} from './core/graph-layout';

@@ -19,9 +19,9 @@ import {
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
-  type GraphLayoutBounds,
   type GraphLayoutEventDetail
 } from '@deck.gl-community/graph-layers';
+import type {Bounds2D} from '@math.gl/types';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 // import '@deck.gl/widgets/stylesheet.css';
@@ -153,7 +153,7 @@ export function App(props) {
   const selectedStyles = selectedExample?.style;
 
   const fitBounds = useCallback(
-    (nextBounds?: GraphLayoutBounds | null) => {
+    (nextBounds?: Bounds2D | null, {expandOnly = false}: {expandOnly?: boolean} = {}) => {
       if (!engine) {
         return;
       }
@@ -187,6 +187,20 @@ export function App(props) {
           height / (spanY + viewportPadding * 2)
         );
         const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
+        const epsilon = 1e-6;
+
+        if (!Number.isFinite(newZoom)) {
+          return prev;
+        }
+
+        const shouldZoomOut = prev.zoom === undefined || newZoom + epsilon < prev.zoom;
+
+        if (expandOnly && !shouldZoomOut) {
+          return {
+            ...prev,
+            target
+          };
+        }
 
         return {
           ...prev,
@@ -219,6 +233,27 @@ export function App(props) {
   //   },
   //   [maxZoom, minZoom, viewState, setViewState]
   // );
+
+  useEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
+    const handleIncrementalLayout = (event: Event) => {
+      const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
+      fitBounds(detail?.bounds, {expandOnly: true});
+    };
+
+    engine.addEventListener('onLayoutStart', handleIncrementalLayout);
+    engine.addEventListener('onLayoutChange', handleIncrementalLayout);
+    engine.addEventListener('onLayoutDone', handleIncrementalLayout);
+
+    return () => {
+      engine.removeEventListener('onLayoutStart', handleIncrementalLayout);
+      engine.removeEventListener('onLayoutChange', handleIncrementalLayout);
+      engine.removeEventListener('onLayoutDone', handleIncrementalLayout);
+    };
+  }, [engine, fitBounds]);
 
   useEffect(() => {
     if (!engine) {
