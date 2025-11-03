@@ -253,17 +253,6 @@ const getKnowledgeFlowSpeed = (type: unknown) => {
   return Number.isFinite(speed) ? Math.max(4, Number(speed)) : 12;
 };
 
-const getKnowledgeNodeLabel = (node: any) => {
-  if (node && typeof node.getPropertyValue === 'function') {
-    const name = node.getPropertyValue('name');
-    if (name !== undefined && name !== null) {
-      return String(name);
-    }
-  }
-  const fallback = node?.name ?? node?.id;
-  return fallback ? String(fallback) : '';
-};
-
 const cloneGraphData = (data: ExampleGraphData): ExampleGraphData => ({
   nodes: data.nodes.map((node) => ({...node})),
   edges: data.edges.map((edge) => ({...edge}))
@@ -524,7 +513,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
     },
     {
       type: 'label',
-      text: getKnowledgeNodeLabel,
+      text: '@name',
       color: '#334155',
       fontSize: 12,
       textAnchor: 'start',
