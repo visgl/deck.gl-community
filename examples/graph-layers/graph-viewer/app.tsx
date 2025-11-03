@@ -18,7 +18,7 @@ import {
   JSONLoader,
   RadialLayout,
   HivePlotLayout,
-  ForceMultiGraphLayout
+  ForceMultiGraphLayout,
   D3DagLayout
 } from '@deck.gl-community/graph-layers';
 

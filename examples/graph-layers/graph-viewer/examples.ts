@@ -241,17 +241,14 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
     'Calculates a force-directed layout on the GPU. Ideal for larger graphs that benefit from massively parallel computation.',
   'simple-layout':
     'Places nodes using a deterministic algorithm that is fast to compute and helpful for debugging graph structure.',
-<<<<<<< HEAD
   'radial-layout':
     'Arranges nodes around concentric circles derived from a hierarchy, making parent-child relationships easy to read.',
   'hive-plot-layout':
     'Positions nodes along axes grouped by a property and draws curved connections between axes to reduce visual clutter.',
   'force-multi-graph-layout':
-    'Runs a tailored force simulation that keeps parallel edges legible by introducing virtual edges and spacing overlapping links.'
-=======
+    'Runs a tailored force simulation that keeps parallel edges legible by introducing virtual edges and spacing overlapping links.',
   'd3-dag-layout':
     'Builds a directed acyclic graph layout using layered sugiyama algorithms with automatic edge routing and arrow decoration.'
->>>>>>> 107848f (Add DAG example to graph viewer)
 };
 
 const LES_MISERABLES_STYLE: ExampleStyles = {
@@ -464,7 +461,6 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
   }
 };
 
-<<<<<<< HEAD
 const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
   nodeStyle: [
     {
