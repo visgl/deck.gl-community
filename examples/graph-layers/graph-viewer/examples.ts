@@ -617,6 +617,76 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
   }
 };
 
+const ML_PIPELINE_EXAMPLE: ExampleDefinition = {
+  name: 'ML Pipeline DAG',
+  description:
+    'Directed acyclic graph of a simplified machine-learning pipeline with dependencies between each processing stage.',
+  data: dagPipelineDataset,
+  layouts: ['d3-dag-layout'],
+  layoutDescriptions: LAYOUT_DESCRIPTIONS,
+  style: DAG_PIPELINE_STYLE
+};
+
+const BROKEN_STYLESHEET_GRAPH: ExampleGraphData = {
+  nodes: [
+    {id: 'alpha', stage: 'ingest'},
+    {id: 'beta', stage: 'feature'},
+    {id: 'gamma', stage: 'monitor'}
+  ],
+  edges: [
+    {id: 'alpha-beta', sourceId: 'alpha', targetId: 'beta', type: 'depends-on'},
+    {id: 'beta-gamma', sourceId: 'beta', targetId: 'gamma', type: 'depends-on'}
+  ]
+};
+
+const BROKEN_STYLESHEET: ExampleStyles = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: {attribute: ''} as any,
+      fill: {attribute: '', fallback: '#ef4444'} as any,
+      stroke: {attribute: ''} as any,
+      strokeWidth: {attribute: '', fallback: -6} as any,
+      opacity: {default: 1.5} as any
+    },
+    {
+      type: 'label',
+      text: {attribute: ''} as any,
+      fontSize: {attribute: '', fallback: -12} as any,
+      color: 1024 as any,
+      offset: {attribute: ''} as any
+    }
+  ],
+  edges: {
+    stroke: {attribute: ''} as any,
+    strokeWidth: {attribute: '', fallback: -3} as any,
+    decorators: [
+      {
+        type: 'edge-label',
+        text: {attribute: ''} as any,
+        color: '#0f172a',
+        fontSize: {attribute: '', fallback: -8} as any
+      },
+      {
+        type: 'arrow',
+        size: {attribute: ''} as any,
+        color: {attribute: ''} as any,
+        offset: {attribute: ''} as any
+      }
+    ]
+  }
+} as ExampleStyles;
+
+const BROKEN_STYLESHEET_EXAMPLE: ExampleDefinition = {
+  name: 'Broken stylesheet warnings',
+  description:
+    'Intentionally malformed stylesheet that demonstrates how parsing failures now surface warnings while the graph keeps rendering.',
+  data: () => cloneGraphData(BROKEN_STYLESHEET_GRAPH),
+  layouts: ['d3-force-layout'],
+  layoutDescriptions: LAYOUT_DESCRIPTIONS,
+  style: BROKEN_STYLESHEET
+};
+
 export const EXAMPLES: ExampleDefinition[] = [
   {
     name: 'Les Miserable',
@@ -800,15 +870,8 @@ export const EXAMPLES: ExampleDefinition[] = [
           }
         : undefined
   }, 
-  {
-    name: 'ML Pipeline DAG',
-    description:
-      'Directed acyclic graph of a simplified machine-learning pipeline with dependencies between each processing stage.',
-    data: dagPipelineDataset,
-    layouts: ['d3-dag-layout'],
-    layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: DAG_PIPELINE_STYLE
-  }
+  ML_PIPELINE_EXAMPLE,
+  BROKEN_STYLESHEET_EXAMPLE
 ];
 
-export const DEFAULT_EXAMPLE = EXAMPLES[0];
+export const DEFAULT_EXAMPLE = ML_PIPELINE_EXAMPLE;

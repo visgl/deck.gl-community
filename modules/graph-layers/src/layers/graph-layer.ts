@@ -9,7 +9,7 @@ import {Graph} from '../graph/graph';
 import {GraphLayout} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
 
-import {GraphStyleEngine} from '../style/graph-style-engine';
+import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 
@@ -208,6 +208,18 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
   }
 
+  private _createStyleEngine(style: GraphStylesheet, context: string): GraphStyleEngine | null {
+    try {
+      return new GraphStyleEngine(style, {
+        stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.warn(`GraphLayer: Failed to apply ${context}: ${message}`);
+      return null;
+    }
+  }
+
   _setGraphEngine(graphEngine: GraphEngine) {
     if (graphEngine === this.state.graphEngine) {
       return;
@@ -238,32 +250,39 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return [];
     }
 
-    return nodeStyles.filter(Boolean).map((style, idx) => {
-      const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
-      const LayerType = NODE_LAYER_MAP[style.type];
-      if (!LayerType) {
-        log.error(`Invalid node type: ${style.type}`);
-        throw new Error(`Invalid node type: ${style.type}`);
-      }
-      const stylesheet = new GraphStyleEngine(restStyle, {
-        stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-      });
-      const getOffset = stylesheet.getDeckGLAccessor('getOffset');
-      return new LayerType({
-        ...SHARED_LAYER_PROPS,
-        id: `node-rule-${idx}`,
-        data: data(engine.getNodes()),
-        getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
-        pickable,
-        positionUpdateTrigger: [
-          engine.getLayoutLastUpdate(),
-          engine.getLayoutState(),
-          stylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
-        ].join(),
-        stylesheet,
-        visible
-      } as any);
-    });
+    return nodeStyles
+      .filter(Boolean)
+      .map((style, idx) => {
+        const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
+        const LayerType = NODE_LAYER_MAP[style.type];
+        if (!LayerType) {
+          log.warn(`GraphLayer: Invalid node type "${style.type}".`);
+          return null;
+        }
+        const stylesheet = this._createStyleEngine(
+          restStyle as unknown as GraphStylesheet,
+          `node stylesheet "${style.type}"`
+        );
+        if (!stylesheet) {
+          return null;
+        }
+        const getOffset = stylesheet.getDeckGLAccessor('getOffset');
+        return new LayerType({
+          ...SHARED_LAYER_PROPS,
+          id: `node-rule-${idx}`,
+          data: data(engine.getNodes()),
+          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+          pickable,
+          positionUpdateTrigger: [
+            engine.getLayoutLastUpdate(),
+            engine.getLayoutState(),
+            stylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+          ].join(),
+          stylesheet,
+          visible
+        } as any);
+      })
+      .filter(Boolean);
   }
 
   createEdgeLayers() {
@@ -284,15 +303,16 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       .filter(Boolean)
       .flatMap((style, idx) => {
         const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
-        const stylesheet = new GraphStyleEngine(
+        const stylesheet = this._createStyleEngine(
           {
             type: 'edge',
             ...restEdgeStyle
-          },
-          {
-            stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-          }
+          } as GraphStylesheet,
+          'edge stylesheet'
         );
+        if (!stylesheet) {
+          return [];
+        }
 
         const edgeLayer = new EdgeLayer({
           ...SHARED_LAYER_PROPS,
@@ -306,28 +326,37 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         } as any);
 
         if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
-          return edgeLayer;
+          return [edgeLayer];
         }
-        const decoratorLayers = decorators.filter(Boolean).flatMap((decoratorStyle, idx2) => {
-          const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
-          if (!DecoratorLayer) {
-            log.error(`Invalid edge decorator type: ${decoratorStyle.type}`);
-            throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
-          }
-          const decoratorStylesheet = new GraphStyleEngine(decoratorStyle, {
-            stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-          });
-          return new DecoratorLayer({
-            ...SHARED_LAYER_PROPS,
-            id: `edge-decorator-${idx2}`,
-            data: data(engine.getEdges()),
-            getLayoutInfo: engine.getEdgePosition,
-            pickable: true,
-            positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
-            stylesheet: decoratorStylesheet
-          } as any);
-        });
-        return [edgeLayer, decoratorLayers];
+
+        const decoratorLayers = decorators
+          .filter(Boolean)
+          .map((decoratorStyle, idx2) => {
+            const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
+            if (!DecoratorLayer) {
+              log.warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
+              return null;
+            }
+            const decoratorStylesheet = this._createStyleEngine(
+              decoratorStyle as unknown as GraphStylesheet,
+              `edge decorator stylesheet "${decoratorStyle.type}"`
+            );
+            if (!decoratorStylesheet) {
+              return null;
+            }
+            return new DecoratorLayer({
+              ...SHARED_LAYER_PROPS,
+              id: `edge-decorator-${idx2}`,
+              data: data(engine.getEdges()),
+              getLayoutInfo: engine.getEdgePosition,
+              pickable: true,
+              positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+              stylesheet: decoratorStylesheet
+            } as any);
+          })
+          .filter(Boolean);
+
+        return [edgeLayer, ...decoratorLayers];
       });
   }
 

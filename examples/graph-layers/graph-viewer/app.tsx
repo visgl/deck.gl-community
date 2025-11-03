@@ -326,7 +326,11 @@ export function App(props) {
           fontFamily: 'inherit'
         }}
       >
-        <ControlPanel examples={EXAMPLES} onExampleChange={handleExampleChange} />
+        <ControlPanel
+          examples={EXAMPLES}
+          defaultExample={DEFAULT_EXAMPLE}
+          onExampleChange={handleExampleChange}
+        />
       </aside>
     </div>
   );

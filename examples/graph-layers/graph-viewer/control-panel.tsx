@@ -32,6 +32,7 @@ export type ExampleDefinition = {
 
 type ControlPanelProps = {
   examples: ExampleDefinition[];
+  defaultExample?: ExampleDefinition;
   onExampleChange: (example: ExampleDefinition, layout: LayoutType) => void;
 };
 
@@ -45,8 +46,22 @@ const LAYOUT_LABELS: Record<LayoutType, string> = {
   'd3-dag-layout': 'D3 DAG Layout',
 };
 
-export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
-  const [selectedExampleIndex, setSelectedExampleIndex] = useState(0);
+export function ControlPanel({examples, defaultExample, onExampleChange}: ControlPanelProps) {
+  const resolveExampleIndex = useCallback(
+    (example?: ExampleDefinition) => {
+      if (!example) {
+        return 0;
+      }
+
+      const index = examples.findIndex((candidate) => candidate === example);
+      return index === -1 ? 0 : index;
+    },
+    [examples]
+  );
+
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState(() =>
+    resolveExampleIndex(defaultExample)
+  );
   const selectedExample = examples[selectedExampleIndex];
   const availableLayouts = selectedExample?.layouts ?? [];
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
@@ -79,6 +94,13 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
     },
     []
   );
+
+  useEffect(() => {
+    setSelectedExampleIndex((currentIndex) => {
+      const nextIndex = resolveExampleIndex(defaultExample);
+      return currentIndex === nextIndex ? currentIndex : nextIndex;
+    });
+  }, [defaultExample, resolveExampleIndex]);
 
   const handleLayoutChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedLayout(event.target.value as LayoutType);
