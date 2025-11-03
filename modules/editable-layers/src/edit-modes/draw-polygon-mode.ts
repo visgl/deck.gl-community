@@ -93,7 +93,6 @@ export class DrawPolygonMode extends GeoJsonEditMode {
       };
 
       this.resetClickSequence();
-
       const editAction = this.getAddFeatureOrBooleanPolygonAction(polygonToAdd, props);
       if (editAction) {
         props.onEdit(editAction);
