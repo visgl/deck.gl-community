@@ -5,7 +5,13 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
 
-export type LayoutType = 'd3-force-layout' | 'gpu-force-layout' | 'simple-layout';
+export type LayoutType =
+  | 'd3-force-layout'
+  | 'gpu-force-layout'
+  | 'simple-layout'
+  | 'radial-layout'
+  | 'hive-plot-layout'
+  | 'force-multi-graph-layout';
 
 export type ExampleStyles = Pick<GraphLayerProps, 'nodeStyle' | 'edgeStyle'>;
 
@@ -17,6 +23,10 @@ export type ExampleDefinition = {
   layouts: LayoutType[];
   layoutDescriptions: Record<LayoutType, string>;
   style: ExampleStyles;
+  getLayoutOptions?: (
+    layout: LayoutType,
+    data: {nodes: unknown[]; edges: unknown[]}
+  ) => Record<string, unknown> | undefined;
 };
 
 type ControlPanelProps = {
@@ -27,7 +37,10 @@ type ControlPanelProps = {
 const LAYOUT_LABELS: Record<LayoutType, string> = {
   'd3-force-layout': 'D3 Force Layout',
   'gpu-force-layout': 'GPU Force Layout',
-  'simple-layout': 'Simple Layout'
+  'simple-layout': 'Simple Layout',
+  'radial-layout': 'Radial Layout',
+  'hive-plot-layout': 'Hive Plot Layout',
+  'force-multi-graph-layout': 'Force Multi-Graph Layout'
 };
 
 export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {

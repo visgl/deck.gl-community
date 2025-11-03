@@ -17,9 +17,9 @@ export {SimpleLayout} from './layouts/simple-layout';
 export {D3ForceLayout} from './layouts/d3-force/d3-force-layout';
 export {D3DagLayout} from './layouts/d3-dag/d3-dag-layout';
 export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
-export {RadialLayout as _RadialLayout} from './layouts/experimental/radial-layout';
-export {ForceMultiGraphLayout as _MultigraphLayout} from './layouts/experimental/force-multi-graph-layout';
-export {HivePlotLayout as _HivePlotLayout} from './layouts/experimental/hive-plot-layout';
+export {RadialLayout} from './layouts/experimental/radial-layout';
+export {ForceMultiGraphLayout} from './layouts/experimental/force-multi-graph-layout';
+export {HivePlotLayout} from './layouts/experimental/hive-plot-layout';
 
 export type {Marker, NodeState, NodeType, EdgeType, EdgeDecoratorType, LayoutState} from './core/constants';
 
