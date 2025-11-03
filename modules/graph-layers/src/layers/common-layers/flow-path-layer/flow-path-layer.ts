@@ -13,7 +13,9 @@ import {fs} from './flow-path-layer-fragment.glsl';
 const defaultProps = {
   ...LineLayer.defaultProps,
   getWidth: {type: 'accessor', value: 1},
-  getSpeed: {type: 'accessor', value: 0}
+  getSpeed: {type: 'accessor', value: 0},
+  getTailLength: {type: 'accessor', value: 1},
+  getOffset: {type: 'accessor', value: 0}
 };
 
 /* eslint-disable camelcase */
@@ -25,8 +27,8 @@ export class FlowPathLayer extends LineLayer {
   private readonly _handleAnimate = () => this.animate();
 
   getShaders() {
-    const projectModule = this.use64bitPositions() ? 'project64' : 'project32';
-    return {vs, fs, modules: [projectModule, 'picking']};
+    const shaders = super.getShaders();
+    return {...shaders, vs, fs};
   }
 
   initializeState() {
@@ -53,8 +55,10 @@ export class FlowPathLayer extends LineLayer {
         update: this.calculateInstanceOffsets
       }
     });
-    this.setupTransformFeedback();
-    this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
+    this.initializeAnimationState();
+    if (typeof window?.requestAnimationFrame === 'function') {
+      this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
+    }
   }
 
   animate() {
@@ -87,12 +91,14 @@ export class FlowPathLayer extends LineLayer {
     }
 
     this.lastUpdateTime = now;
-    this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
+    if (typeof window?.requestAnimationFrame === 'function') {
+      this.animationFrame = window.requestAnimationFrame(this._handleAnimate);
+    }
   }
 
   updateState({props, oldProps, changeFlags}) {
     super.updateState({props, oldProps, changeFlags} as any);
-    const data = (props.data as unknown[]) ?? [];
+    const data = this.getDataArray(props);
     const dataLength = data.length;
 
     if (changeFlags.dataChanged) {
@@ -109,7 +115,7 @@ export class FlowPathLayer extends LineLayer {
       props.getSpeed !== oldProps.getSpeed;
 
     if (speedChanged) {
-      this.updateSpeedsFromProps(props);
+      this.updateSpeedsFromProps(props, data);
     }
 
     if (props.fp64 !== oldProps.fp64) {
@@ -117,29 +123,18 @@ export class FlowPathLayer extends LineLayer {
         (this.state.model as any).delete();
       }
       this.setState({model: this._getModel()});
-      this.getAttributeManager().invalidateAll();
+      this.getAttributeManager()?.invalidateAll();
     }
   }
 
   finalizeState() {
     super.finalizeState(this.context);
-    if (typeof this.animationFrame === 'number') {
+    if (typeof this.animationFrame === 'number' && typeof window?.cancelAnimationFrame === 'function') {
       window.cancelAnimationFrame(this.animationFrame);
       this.animationFrame = undefined;
     }
     this.offsets = new Float32Array(0);
     this.speeds = new Float32Array(0);
-  }
-
-  setupTransformFeedback() {
-    const data = (this.props.data as unknown[]) ?? [];
-    this.resizeAnimationBuffers(data.length, true);
-    this.updateSpeedsFromProps(this.props as any);
-    this.lastUpdateTime = this.getCurrentTime();
-  }
-
-  draw({uniforms}) {
-    super.draw({uniforms});
   }
 
   private resizeAnimationBuffers(length: number, resetOffsets: boolean) {
@@ -166,8 +161,7 @@ export class FlowPathLayer extends LineLayer {
     }
   }
 
-  private updateSpeedsFromProps(props: any) {
-    const data = (props.data as unknown[]) ?? [];
+  private updateSpeedsFromProps(props: any, data: unknown[]) {
     const accessor = props.getSpeed;
 
     if (this.speeds.length !== data.length) {
@@ -185,9 +179,14 @@ export class FlowPathLayer extends LineLayer {
         this.offsets[index] = 0;
       }
     }
+
+    if (data.length < this.offsets.length) {
+      this.offsets.fill(0, data.length);
+      this.speeds.fill(0, data.length);
+    }
   }
 
-  private calculateInstanceOffsets(attribute: any, {numInstances}: {numInstances: number}) {
+  private calculateInstanceOffsets = (attribute: any, {numInstances}: {numInstances: number}) => {
     if (!this.offsets.length || numInstances === 0) {
       attribute.constant = true;
       attribute.value = [0];
@@ -202,6 +201,30 @@ export class FlowPathLayer extends LineLayer {
     }
 
     attribute.value = this.offsets.subarray(0, numInstances);
+  };
+
+  private initializeAnimationState() {
+    const data = this.getDataArray(this.props as any);
+    this.resizeAnimationBuffers(data.length, true);
+    this.updateSpeedsFromProps(this.props as any, data);
+    this.lastUpdateTime = this.getCurrentTime();
+  }
+
+  private getDataArray(props: any): unknown[] {
+    const {data} = props;
+    if (!data) {
+      return [];
+    }
+
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    try {
+      return Array.from(data as Iterable<unknown>);
+    } catch (_error) {
+      return [];
+    }
   }
 
   private getCurrentTime(): number {
