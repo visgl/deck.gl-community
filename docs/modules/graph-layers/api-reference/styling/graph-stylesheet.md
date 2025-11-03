@@ -140,16 +140,6 @@ state maps.
 
 ### Node primitives
 
-Use the dedicated reference pages for the properties understood by each
-primitive:
-
-- [Circle](./node/node-style-circle.md) – disk markers.
-- [Rectangle](./node/node-style-rectangle.md) – axis-aligned boxes.
-- [Rounded rectangle](./node/node-style-rounded-rectangle.md) – shader-based rectangles with adjustable corners.
-- [Path rounded rectangle](./node/node-style-path-rounded-rectangle.md) – polygon-backed rectangles, useful for precise picking.
-- [Marker](./node/node-style-marker.md) – vector markers from the bundled set (alias: `'icon'`).
-- [Label](./node/node-style-label.md) – text rendered with `TextLayer`.
-
 Mix primitives to create layered nodes. For example:
 
 ```js
@@ -171,6 +161,111 @@ const stylesheet = {
   ]
 };
 ```
+
+#### Circle node style
+
+The circle primitive renders filled disks using Deck.gl’s `ScatterplotLayer`. It
+is ideal for compact node markers or when you want the radius to encode a
+numerical value. Pair it with attribute bindings to map graph properties
+directly onto color and size.
+
+In addition to the [shared node style options](#shared-node-properties), circles
+understand the following keys:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `fill` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Fill color. Accepts CSS strings, `[r, g, b]`/`[r, g, b, a]` arrays, or bindings such as `fill: '@groupColor'`. |
+| `radius` | constant \| accessor \| attribute binding | `1` | Radius in pixels. Accessors can read node data to size circles proportionally. |
+| `stroke` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Outline color. |
+| `strokeWidth` | constant \| accessor \| attribute binding | `0` | Outline width in pixels. |
+
+All color accessors can return either a color string or an array. Alpha values
+are optional—when omitted the color is treated as fully opaque.
+
+```js
+{
+  type: 'circle',
+  radius: {attribute: 'degree', fallback: 4, scale: (value) => Math.max(4, value)},
+  fill: {
+    default: '#CBD5F5',
+    hover: '#3B82F6'
+  },
+  stroke: '#1E3A8A',
+  strokeWidth: 1.5
+}
+```
+
+To add a subtle highlight when selecting a node you can combine selectors with
+accessors:
+
+```js
+{
+  type: 'circle',
+  radius: 10,
+  fill: '#22C55E',
+  strokeWidth: {
+    default: 0,
+    selected: {attribute: 'isSelected', fallback: false, scale: (value) => (value ? 4 : 0)}
+  },
+  stroke: '#052E16'
+}
+```
+
+#### Rectangle node style
+
+Rectangles are rendered with Deck.gl’s `PolygonLayer` and are useful for
+card-like nodes or to provide a background behind other primitives. Attribute
+bindings let you size and color cards directly from node metadata.
+
+Besides the [shared node options](#shared-node-properties), rectangles support:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `width` | constant \| accessor \| attribute binding | – (required) | Rectangle width in pixels. |
+| `height` | constant \| accessor \| attribute binding | – (required) | Rectangle height in pixels. |
+| `fill` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Interior color. |
+| `stroke` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Border color. |
+| `strokeWidth` | constant \| accessor \| attribute binding | `0` | Border width in pixels. |
+
+```js
+{
+  type: 'rectangle',
+  width: {attribute: 'width', fallback: 120},
+  height: {attribute: 'height', fallback: 60},
+  fill: '#1F2937',
+  stroke: '#93C5FD',
+  strokeWidth: 1
+}
+```
+
+You can combine selectors to animate the border as the user interacts with the
+node:
+
+```js
+{
+  type: 'rectangle',
+  width: {attribute: 'padding', fallback: 0, scale: (value) => 100 + value * 2},
+  height: 48,
+  fill: {
+    default: '#0F172A',
+    hover: '#1E293B'
+  },
+  strokeWidth: {
+    default: 1,
+    selected: 4
+  },
+  stroke: '#38BDF8'
+}
+```
+
+#### Other node primitives
+
+Additional primitives expose their own option sets:
+
+- [Rounded rectangle](./node/node-style-rounded-rectangle.md) – shader-based rectangles with adjustable corners.
+- [Path rounded rectangle](./node/node-style-path-rounded-rectangle.md) – polygon-backed rectangles, useful for precise picking.
+- [Marker](./node/node-style-marker.md) – vector markers from the bundled set (alias: `'icon'`).
+- [Label](./node/node-style-label.md) – text rendered with `TextLayer`.
 
 ## Edge styles
 

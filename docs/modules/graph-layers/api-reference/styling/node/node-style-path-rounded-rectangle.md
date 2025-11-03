@@ -14,7 +14,7 @@ Path rounded rectangles accept the rectangle properties plus:
 | `cornerRadius` | constant \| accessor \| attribute binding | `0.1` | Corner rounding factor. As with the shader version, `0` is sharp and `1` is fully rounded. |
 
 The width, height, fill, stroke, and strokeWidth options behave identically to
-the [`'rectangle'` node style](./node-style-rectangle.md).
+the [`'rectangle'` node style](../graph-stylesheet.md#rectangle-node-style).
 
 ## Examples
 

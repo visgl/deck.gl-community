@@ -7,7 +7,7 @@ same attribute-binding shortcuts as other node styles.
 
 ## Properties
 
-Rounded rectangles share all options from [basic rectangles](./node-style-rectangle.md)
+Rounded rectangles share all options from [basic rectangles](../graph-stylesheet.md#rectangle-node-style)
 and add the following controls:
 
 | Property | Type | Default | Description |

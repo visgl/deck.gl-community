@@ -2,12 +2,19 @@
   "type": "category",
   "label": "react-graph-layers",
   "items": [
-    "modules/react-graph-layers/README",
+    "modules/graph-layers/wip/react-graph-layers/README",
+    {
+      "type": "category",
+      "label": "Developer guide",
+      "items": [
+        "modules/graph-layers/wip/react-graph-layers/developer-guide/get-started"
+      ]
+    },
     {
       "type": "category",
       "label": "GraphGL",
       "items": [
-        "modules/react-graph-layers/api-reference/graphgl"
+        "modules/graph-layers/wip/react-graph-layers/api-reference/graphgl"
       ]
     }
   ]
