@@ -18,7 +18,8 @@ import {
   JSONLoader,
   RadialLayout,
   HivePlotLayout,
-  ForceMultiGraphLayout
+  ForceMultiGraphLayout,
+  D3DagLayout
 } from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
@@ -48,7 +49,8 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'simple-layout': () => new SimpleLayout(),
   'radial-layout': (options) => new RadialLayout(options),
   'hive-plot-layout': (options) => new HivePlotLayout(options),
-  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options)
+  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
+  'd3-dag-layout': () => new D3DagLayout(),
 };
 
 

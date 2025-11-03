@@ -93,7 +93,9 @@ describe('D3DagLayout', () => {
     layout.initializeGraph(graph);
     layout.start();
 
-    expect(layout.getEdgePosition(edges.ac)?.controlPoints).toEqual([[0.5, 0.5]]);
+    const curvedEdge = layout.getEdgePosition(edges.ac);
+    expect(curvedEdge?.type).toBe('spline-curve');
+    expect(curvedEdge?.controlPoints).toEqual([[0.5, 0.5]]);
     expect(layout.getLinkControlPoints(edges.bd)).toEqual([[-0.5, -0.5]]);
   });
 });
