@@ -99,12 +99,29 @@ export class InteractionManager {
     }
 
     if (object.isNode) {
+      const node = object as Node;
+      const collapsedLength = node.getPropertyValue('collapsedChainLength');
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const isCollapsed = node.getPropertyValue('isCollapsedChain');
+      if (typeof collapsedLength === 'number' && collapsedLength > 1 && chainId && isCollapsed) {
+        const layout: any = this.engine?.props?.layout;
+        if (layout && typeof layout.toggleCollapsedChain === 'function') {
+          layout.toggleCollapsedChain(String(chainId));
+          this._lastInteraction = Date.now();
+          this.notifyCallback();
+        }
+        if (this.nodeEvents.onClick) {
+          this.nodeEvents.onClick(info, event);
+        }
+        return;
+      }
+
       if ((object as Node).isSelectable()) {
         if (this._lastSelectedNode) {
           setNodeState(this._lastSelectedNode, 'default');
         }
-        setNodeState(object, 'selected');
-        this._lastSelectedNode = object as Node;
+        setNodeState(node, 'selected');
+        this._lastSelectedNode = node;
         this._lastInteraction = Date.now();
         this.notifyCallback();
       }

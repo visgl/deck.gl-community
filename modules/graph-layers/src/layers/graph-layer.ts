@@ -238,7 +238,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return [];
     }
 
-    return nodeStyles.filter(Boolean).map((style, idx) => {
+    const layers = nodeStyles.filter(Boolean).map((style, idx) => {
       const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
       const LayerType = NODE_LAYER_MAP[style.type];
       if (!LayerType) {
@@ -264,6 +264,47 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         visible
       } as any);
     });
+
+    const collapsedNodes = engine
+      .getNodes()
+      .filter((node) =>
+        Boolean(node.getPropertyValue('isCollapsedChain')) &&
+        typeof node.getPropertyValue('collapsedChainLength') === 'number' &&
+        (node.getPropertyValue('collapsedChainLength') as number) > 1
+      );
+
+    if (collapsedNodes.length > 0) {
+      const collapsedStylesheet = new GraphStyleEngine(
+        {
+          type: 'marker',
+          fill: [64, 96, 192, 255],
+          size: 28,
+          marker: 'circle-plus-filled',
+          offset: [0, 0],
+          scaleWithZoom: true
+        },
+        {stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()}
+      );
+      const getOffset = collapsedStylesheet.getDeckGLAccessor('getOffset');
+      layers.push(
+        new ZoomableMarkerLayer({
+          ...SHARED_LAYER_PROPS,
+          id: 'collapsed-chain-markers',
+          data: collapsedNodes,
+          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+          pickable: true,
+          positionUpdateTrigger: [
+            engine.getLayoutLastUpdate(),
+            engine.getLayoutState(),
+            collapsedStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+          ].join(),
+          stylesheet: collapsedStylesheet,
+          visible: true
+        } as any)
+      );
+    }
+
+    return layers;
   }
 
   createEdgeLayers() {

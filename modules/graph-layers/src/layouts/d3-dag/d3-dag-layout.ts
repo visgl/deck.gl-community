@@ -73,6 +73,8 @@ export type D3DagLayoutOptions = GraphLayoutOptions & {
   center?: D3DagCenterOption;
   /** How to convert the Graph into a DAG. */
   dagBuilder?: D3DagDagBuilderName | DagBuilder;
+  /** Whether to collapse linear chains of nodes into a single representative. */
+  collapseLinearChains?: boolean;
 };
 
 type DagBuilder = (graph: Graph) => MutGraph<Node, Edge>;
@@ -100,6 +102,13 @@ type LayoutWithConfiguration = LayoutCallable & {
   coord?: (coord?: any) => any;
   nodeSize?: (size?: NodeSize<Node, Edge>) => any;
   gap?: (gap?: readonly [number, number]) => any;
+};
+
+type CollapsedChainDescriptor = {
+  id: string;
+  nodeIds: (string | number)[];
+  edgeIds: (string | number)[];
+  representativeId: string | number;
 };
 
 type DagBounds = {
@@ -156,7 +165,8 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     separation: DEFAULT_GAP,
     orientation: 'TB',
     center: true,
-    dagBuilder: 'graph'
+    dagBuilder: 'graph',
+    collapseLinearChains: false
   };
 
   protected readonly _name = 'D3DagLayout';
@@ -176,6 +186,10 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   private _stringIdLookup = new Map<string, string | number>();
   private _edgeLookup = new Map<string, Edge>();
   private _incomingParentMap = new Map<string | number, (string | number)[]>();
+  private _chainDescriptors = new Map<string, CollapsedChainDescriptor>();
+  private _nodeToChainId = new Map<string | number, string>();
+  private _collapsedChainState = new Map<string, boolean>();
+  private _hiddenNodeIds = new Set<string | number>();
 
   constructor(options: D3DagLayoutOptions = {}) {
     super({...D3DagLayout.defaultOptions, ...options});
@@ -191,6 +205,9 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     this._stringIdLookup = new Map();
     this._edgeLookup = new Map();
     this._incomingParentMap = new Map();
+    this._chainDescriptors = new Map();
+    this._nodeToChainId = new Map();
+    this._hiddenNodeIds = new Set();
 
     for (const node of graph.getNodes()) {
       const id = node.getId();
@@ -227,6 +244,42 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
 
   stop(): void {}
 
+  toggleCollapsedChain(chainId: string): void {
+    if (!this._graph) {
+      return;
+    }
+    if (!this._chainDescriptors.has(chainId)) {
+      this._refreshCollapsedChains();
+    }
+    if (!this._chainDescriptors.has(chainId)) {
+      return;
+    }
+    const collapsed = this._isChainCollapsed(chainId);
+    this._collapsedChainState.set(chainId, !collapsed);
+    this._runLayout();
+  }
+
+  setCollapsedChains(chainIds: Iterable<string>): void {
+    if (!this._graph) {
+      return;
+    }
+    if (!this._chainDescriptors.size) {
+      this._refreshCollapsedChains();
+    }
+    const desired = new Set(chainIds);
+    let changed = false;
+    for (const chainId of this._chainDescriptors.keys()) {
+      const next = desired.has(chainId);
+      if (this._isChainCollapsed(chainId) !== next) {
+        this._collapsedChainState.set(chainId, next);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this._runLayout();
+    }
+  }
+
   setPipelineOptions(options: Partial<D3DagLayoutOptions>): void {
     this._options = {...this._options, ...options};
     if (
@@ -240,10 +293,17 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     ) {
       this._layoutOperator = null;
     }
+    if (options.collapseLinearChains !== undefined && this._graph) {
+      this._runLayout();
+    }
   }
 
   getNodePosition(node: Node): [number, number] | null {
-    return this._nodePositions.get(node.getId()) || null;
+    if (this._shouldSkipNode(node.getId())) {
+      return null;
+    }
+    const mappedId = this._mapNodeId(node.getId());
+    return this._nodePositions.get(mappedId) || null;
   }
 
   getEdgePosition(edge: Edge):
@@ -254,15 +314,19 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
         controlPoints: [number, number][];
       }
     | null {
-    const sourceNode = this._graph?.findNode(edge.getSourceNodeId());
-    const targetNode = this._graph?.findNode(edge.getTargetNodeId());
-    if (!sourceNode || !targetNode) {
+    const mappedSourceId = this._mapNodeId(edge.getSourceNodeId());
+    const mappedTargetId = this._mapNodeId(edge.getTargetNodeId());
+    if (mappedSourceId === mappedTargetId) {
       return null;
     }
 
-    const sourcePosition = this.getNodePosition(sourceNode);
-    const targetPosition = this.getNodePosition(targetNode);
+    const sourcePosition = this._nodePositions.get(mappedSourceId);
+    const targetPosition = this._nodePositions.get(mappedTargetId);
     if (!sourcePosition || !targetPosition) {
+      return null;
+    }
+
+    if (!this._edgePoints.has(edge.getId())) {
       return null;
     }
 
@@ -297,6 +361,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     if (!this._graph) {
       return;
     }
+    this._refreshCollapsedChains();
     this._onLayoutStart();
 
     try {
@@ -310,6 +375,124 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       this._onLayoutError();
       throw error;
     }
+  }
+
+  private _refreshCollapsedChains(): void {
+    if (!this._graph) {
+      this._chainDescriptors.clear();
+      this._nodeToChainId.clear();
+      this._hiddenNodeIds.clear();
+      return;
+    }
+
+    const collapseDefault =
+      this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
+
+    const previousStates = new Map(this._collapsedChainState);
+
+    this._chainDescriptors.clear();
+    this._nodeToChainId.clear();
+    this._hiddenNodeIds.clear();
+
+    const nodes = this._graph.getNodes();
+    const candidateNodes = new Set<string | number>();
+    const incomingCache = new Map<string | number, Edge[]>();
+    const outgoingCache = new Map<string | number, Edge[]>();
+
+    for (const node of nodes) {
+      const incoming = this._getIncomingEdges(node);
+      const outgoing = this._getOutgoingEdges(node);
+      incomingCache.set(node.getId(), incoming);
+      outgoingCache.set(node.getId(), outgoing);
+      if (incoming.length <= 1 && outgoing.length <= 1 && incoming.length + outgoing.length > 0) {
+        candidateNodes.add(node.getId());
+      }
+    }
+
+    const visited = new Set<string | number>();
+    for (const node of nodes) {
+      const nodeId = node.getId();
+      if (!candidateNodes.has(nodeId) || visited.has(nodeId)) {
+        continue;
+      }
+
+      const incoming = incomingCache.get(nodeId) ?? [];
+      const hasCandidateParent =
+        incoming.length === 1 && candidateNodes.has(incoming[0].getSourceNodeId());
+      if (hasCandidateParent) {
+        continue;
+      }
+
+      const chainNodeIds: (string | number)[] = [];
+      const chainEdgeIds: (string | number)[] = [];
+      let currentNode: Node | undefined = node;
+
+      while (currentNode) {
+        const currentId = currentNode.getId();
+        if (!candidateNodes.has(currentId) || visited.has(currentId)) {
+          break;
+        }
+
+        visited.add(currentId);
+        chainNodeIds.push(currentId);
+
+        const outgoing = outgoingCache.get(currentId) ?? [];
+        if (outgoing.length !== 1) {
+          break;
+        }
+
+        const nextEdge = outgoing[0];
+        const nextNodeId = nextEdge.getTargetNodeId();
+        if (!candidateNodes.has(nextNodeId)) {
+          break;
+        }
+
+        const nextIncoming = incomingCache.get(nextNodeId) ?? [];
+        if (nextIncoming.length !== 1) {
+          break;
+        }
+
+        chainEdgeIds.push(nextEdge.getId());
+        currentNode = this._nodeLookup.get(nextNodeId);
+      }
+
+      if (chainNodeIds.length > 1) {
+        const chainId = this._createChainId(chainNodeIds);
+        const collapsed = previousStates.has(chainId)
+          ? previousStates.get(chainId)!
+          : collapseDefault;
+        this._chainDescriptors.set(chainId, {
+          id: chainId,
+          nodeIds: chainNodeIds,
+          edgeIds: chainEdgeIds,
+          representativeId: chainNodeIds[0]
+        });
+        this._collapsedChainState.set(chainId, collapsed);
+        for (const chainNodeId of chainNodeIds) {
+          this._nodeToChainId.set(chainNodeId, chainId);
+        }
+      }
+    }
+
+    for (const key of previousStates.keys()) {
+      if (!this._chainDescriptors.has(key)) {
+        this._collapsedChainState.delete(key);
+      }
+    }
+
+    this._hiddenNodeIds.clear();
+    for (const [chainId, descriptor] of this._chainDescriptors) {
+      const collapsed = this._isChainCollapsed(chainId);
+      if (collapsed) {
+        for (const nodeId of descriptor.nodeIds) {
+          if (nodeId !== descriptor.representativeId) {
+            this._hiddenNodeIds.add(nodeId);
+          }
+        }
+      }
+    }
+
+    this._updateCollapsedChainNodeMetadata();
   }
 
   private _buildDag(): MutGraph<Node, Edge> {
@@ -336,6 +519,9 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     const dagNodeLookup = new Map<string | number, MutGraphNode<Node, Edge>>();
 
     for (const node of this._graph.getNodes()) {
+      if (this._shouldSkipNode(node.getId())) {
+        continue;
+      }
       const dagNode = dag.node(node);
       dagNodeLookup.set(node.getId(), dagNode);
     }
@@ -344,8 +530,13 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       if (!edge.isDirected()) {
         continue;
       }
-      const source = dagNodeLookup.get(edge.getSourceNodeId());
-      const target = dagNodeLookup.get(edge.getTargetNodeId());
+      const sourceId = this._mapNodeId(edge.getSourceNodeId());
+      const targetId = this._mapNodeId(edge.getTargetNodeId());
+      if (sourceId === targetId) {
+        continue;
+      }
+      const source = dagNodeLookup.get(sourceId);
+      const target = dagNodeLookup.get(targetId);
       if (!source || !target) {
         continue;
       }
@@ -367,9 +558,15 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     const data: ConnectDatum[] = this._graph
       .getEdges()
       .filter((edge) => edge.isDirected())
-      .map((edge) => ({
-        source: this._toDagId(edge.getSourceNodeId()),
-        target: this._toDagId(edge.getTargetNodeId()),
+      .map((edge) => {
+        const sourceId = this._mapNodeId(edge.getSourceNodeId());
+        const targetId = this._mapNodeId(edge.getTargetNodeId());
+        return {sourceId, targetId, edge};
+      })
+      .filter(({sourceId, targetId}) => sourceId !== targetId)
+      .map(({sourceId, targetId, edge}) => ({
+        source: this._toDagId(sourceId),
+        target: this._toDagId(targetId),
         edge
       }));
 
@@ -384,6 +581,9 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
 
     for (const node of this._graph.getNodes()) {
+      if (this._shouldSkipNode(node.getId())) {
+        continue;
+      }
       if (!seenIds.has(node.getId())) {
         dag.node(node);
       }
@@ -397,13 +597,98 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       .id((node: Node): string => this._toDagId(node.getId()))
       .parentIds((node: Node): Iterable<string> => {
         const parentIds = this._incomingParentMap.get(node.getId()) ?? [];
-        return parentIds
-          .filter((parentId) => this._nodeLookup.has(parentId))
-          .map((parentId) => this._toDagId(parentId));
+        const mapped = new Set<string>();
+        for (const parentId of parentIds) {
+          if (!this._nodeLookup.has(parentId)) {
+            continue;
+          }
+          const mappedId = this._mapNodeId(parentId);
+          if (mappedId === node.getId()) {
+            continue;
+          }
+          mapped.add(this._toDagId(mappedId));
+        }
+        return mapped;
       });
 
-    const dag = stratify(this._graph.getNodes());
+    const dag = stratify(this._graph.getNodes().filter((node) => !this._shouldSkipNode(node.getId())));
     return this._ensureEdgeData(dag);
+  }
+
+  private _isChainCollapsed(chainId: string): boolean {
+    const collapseDefault =
+      this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
+    return this._collapsedChainState.get(chainId) ?? collapseDefault;
+  }
+
+  private _shouldSkipNode(nodeId: string | number): boolean {
+    return this._hiddenNodeIds.has(nodeId);
+  }
+
+  private _mapNodeId(nodeId: string | number): string | number {
+    const chainId = this._nodeToChainId.get(nodeId);
+    if (!chainId) {
+      return nodeId;
+    }
+    const descriptor = this._chainDescriptors.get(chainId);
+    if (!descriptor) {
+      return nodeId;
+    }
+    return this._isChainCollapsed(chainId) ? descriptor.representativeId : nodeId;
+  }
+
+  private _updateCollapsedChainNodeMetadata(): void {
+    if (!this._graph) {
+      return;
+    }
+    for (const node of this._graph.getNodes()) {
+      const nodeId = node.getId();
+      const chainId = this._nodeToChainId.get(nodeId);
+      if (!chainId) {
+        node.setDataProperty('collapsedChainId', null);
+        node.setDataProperty('collapsedChainLength', 1);
+        node.setDataProperty('collapsedNodeIds', []);
+        node.setDataProperty('collapsedEdgeIds', []);
+        node.setDataProperty('collapsedChainRepresentativeId', null);
+        node.setDataProperty('isCollapsedChain', false);
+        continue;
+      }
+      const descriptor = this._chainDescriptors.get(chainId);
+      if (!descriptor) {
+        node.setDataProperty('collapsedChainId', null);
+        node.setDataProperty('collapsedChainLength', 1);
+        node.setDataProperty('collapsedNodeIds', []);
+        node.setDataProperty('collapsedEdgeIds', []);
+        node.setDataProperty('collapsedChainRepresentativeId', null);
+        node.setDataProperty('isCollapsedChain', false);
+        continue;
+      }
+      const collapsed = this._isChainCollapsed(chainId);
+      node.setDataProperty('collapsedChainId', chainId);
+      node.setDataProperty('collapsedChainLength', collapsed ? descriptor.nodeIds.length : 1);
+      node.setDataProperty('collapsedNodeIds', descriptor.nodeIds);
+      node.setDataProperty('collapsedEdgeIds', descriptor.edgeIds);
+      node.setDataProperty('collapsedChainRepresentativeId', descriptor.representativeId);
+      node.setDataProperty('isCollapsedChain', collapsed);
+    }
+  }
+
+  private _createChainId(nodeIds: (string | number)[]): string {
+    return `chain:${nodeIds.map((id) => this._toDagId(id)).join('>')}`;
+  }
+
+  private _getIncomingEdges(node: Node): Edge[] {
+    const nodeId = node.getId();
+    return node
+      .getConnectedEdges()
+      .filter((edge) => edge.isDirected() && edge.getTargetNodeId() === nodeId);
+  }
+
+  private _getOutgoingEdges(node: Node): Edge[] {
+    const nodeId = node.getId();
+    return node
+      .getConnectedEdges()
+      .filter((edge) => edge.isDirected() && edge.getSourceNodeId() === nodeId);
   }
 
   private _ensureEdgeData<T>(dag: MutGraph<Node, T>): MutGraph<Node, Edge> {
