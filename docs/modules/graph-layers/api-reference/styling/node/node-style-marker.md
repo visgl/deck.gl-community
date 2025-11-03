@@ -5,15 +5,15 @@ style uses a Deck.gl `IconLayer` with zoom-aware sizing logic.
 
 ## Properties
 
-Marker styles extend the [shared node options](./node-style.md#shared-properties)
+Marker styles extend the [shared node options](../graph-stylesheet.md#shared-node-properties)
 with the following keys:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `marker` | `string \| function` | `'circle'` | Name of the marker glyph. See the list below for supported values. |
-| `size` | `number \| function` | `12` | Marker size in pixels before zoom scaling. |
-| `fill` | `string \| number[] \| function` | black (`[0, 0, 0]`) | Fill color for the glyph. |
-| `scaleWithZoom` | `boolean \| function` | `true` | When `true`, markers grow/shrink with the viewport zoom level. Set to `false` to keep a constant pixel size. |
+| `marker` | constant \| accessor \| attribute binding | `'circle'` | Name of the marker glyph. See the list below for supported values. |
+| `size` | constant \| accessor \| attribute binding | `12` | Marker size in pixels before zoom scaling. |
+| `fill` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Fill color for the glyph. |
+| `scaleWithZoom` | constant \| accessor \| attribute binding | `true` | When `true`, markers grow/shrink with the viewport zoom level. Set to `false` to keep a constant pixel size. |
 
 Supported marker names include:
 
@@ -36,7 +36,7 @@ Supported marker names include:
 ```js
 {
   type: 'marker',
-  marker: node => (node.isOffline ? 'triangle-down-filled' : 'circle-filled'),
+  marker: {attribute: 'status', fallback: 'online', scale: value => (value === 'offline' ? 'triangle-down-filled' : 'circle-filled')},
   size: 18,
   fill: {
     default: '#6B7280',
@@ -52,7 +52,7 @@ Use selectors to show different icons for interaction states:
 {
   type: 'marker',
   marker: {
-    default: 'circle',
+    default: '@defaultIcon',
     selected: 'star-filled'
   },
   size: 16,
