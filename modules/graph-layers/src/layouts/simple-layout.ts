@@ -36,7 +36,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutOptions> {
   protected readonly _name = 'SimpleLayout';
   protected _graph: Graph | null = null;
   protected _nodeMap: Record<string, Node> = {};
-  protected _nodePositionMap: Record<string, (node: Node) => [number, number]> = {};
+  protected _nodePositionMap: Record<string, [number, number] | null> = {};
 
   constructor(options: SimpleLayoutOptions = {}) {
     super({...SimpleLayout.defaultOptions, ...options});
@@ -80,7 +80,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutOptions> {
     (this._options as any).nodePositionAccessor = accessor;
   };
 
-  getNodePosition = (node) => this._nodePositionMap[node.getId()] as any;
+  getNodePosition = (node) => this._nodePositionMap[node.getId()];
 
   getEdgePosition = (edge) => {
     const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
@@ -94,13 +94,13 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutOptions> {
   };
 
   lockNodePosition = (node, x, y) => {
-    this._nodePositionMap[node.getId()] = [x, y] as any;
+    this._nodePositionMap[node.getId()] = [x, y];
     this._onLayoutChange();
     this._onLayoutDone();
   };
 
   protected override _updateBounds(): void {
-    const positions = Object.values(this._nodePositionMap) as Array<[number, number] | null>;
+    const positions = Object.values(this._nodePositionMap);
     this._bounds = this._calculateBounds(positions);
   }
 }

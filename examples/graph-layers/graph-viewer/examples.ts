@@ -580,79 +580,79 @@ const dagPipelineDataset = () => {
   return {nodes, edges};
 };
 
-type DagRecord = {
-  id: string;
-  label: string;
-  parentIds?: string[];
-};
+// type DagRecord = {
+//   id: string;
+//   label: string;
+//   parentIds?: string[];
+// };
 
-const DAG_PIPELINE_DATA: DagRecord[] = [
-  {id: 'collect', label: 'Collect events'},
-  {id: 'ingest', label: 'Ingest', parentIds: ['collect']},
-  {id: 'quality', label: 'Quality checks', parentIds: ['ingest']},
-  {id: 'clean', label: 'Clean data', parentIds: ['quality']},
-  {id: 'warehouse', label: 'Warehouse sync', parentIds: ['clean']},
-  {id: 'feature', label: 'Feature store', parentIds: ['warehouse']},
-  {id: 'training', label: 'Train models', parentIds: ['feature']},
-  {id: 'serving', label: 'Serve models', parentIds: ['training']},
-  {id: 'monitor', label: 'Monitor', parentIds: ['serving']},
-  {id: 'alert', label: 'Alerting', parentIds: ['monitor']},
-  {id: 'feedback', label: 'Feedback', parentIds: ['alert', 'monitor']},
-  {id: 'experiments', label: 'Experimentation', parentIds: ['feature', 'feedback']}
-];
+// const DAG_PIPELINE_DATA: DagRecord[] = [
+//   {id: 'collect', label: 'Collect events'},
+//   {id: 'ingest', label: 'Ingest', parentIds: ['collect']},
+//   {id: 'quality', label: 'Quality checks', parentIds: ['ingest']},
+//   {id: 'clean', label: 'Clean data', parentIds: ['quality']},
+//   {id: 'warehouse', label: 'Warehouse sync', parentIds: ['clean']},
+//   {id: 'feature', label: 'Feature store', parentIds: ['warehouse']},
+//   {id: 'training', label: 'Train models', parentIds: ['feature']},
+//   {id: 'serving', label: 'Serve models', parentIds: ['training']},
+//   {id: 'monitor', label: 'Monitor', parentIds: ['serving']},
+//   {id: 'alert', label: 'Alerting', parentIds: ['monitor']},
+//   {id: 'feedback', label: 'Feedback', parentIds: ['alert', 'monitor']},
+//   {id: 'experiments', label: 'Experimentation', parentIds: ['feature', 'feedback']}
+// ];
 
-const DAG_PIPELINE_STYLE: ExampleStyles = {
-  nodeStyle: [
-    {
-      type: 'circle',
-      radius: 18,
-      fill: '#4c6ef520',
-      stroke: '#102a8220',
-      strokeWidth: 2
-    },
-    {
-      type: 'label',
-      text: (node) => node.getPropertyValue('label') as string,
-      fontSize: 16,
-      color: '#102a82',
-      offset: [0, 28],
-      textAnchor: 'middle',
-      alignmentBaseline: 'top'
-    }
-  ],
-  edgeStyle: {
-    stroke: '#8da2fb',
-    strokeWidth: 2,
-    decorators: [
-      {
-        type: 'arrow',
-        size: 6,
-        fill: '#8da2fb'
-      }
-    ]
-  }
-};  
+// const DAG_PIPELINE_STYLE: ExampleStyles = {
+//   nodeStyle: [
+//     {
+//       type: 'circle',
+//       radius: 18,
+//       fill: '#4c6ef520',
+//       stroke: '#102a8220',
+//       strokeWidth: 2
+//     },
+//     {
+//       type: 'label',
+//       text: (node) => node.getPropertyValue('label') as string,
+//       fontSize: 16,
+//       color: '#102a82',
+//       offset: [0, 28],
+//       textAnchor: 'middle',
+//       alignmentBaseline: 'top'
+//     }
+//   ],
+//   edgeStyle: {
+//     stroke: '#8da2fb',
+//     strokeWidth: 2,
+//     decorators: [
+//       {
+//         type: 'arrow',
+//         size: 6,
+//         fill: '#8da2fb'
+//       }
+//     ]
+//   }
+// };  
 
-const dagPipelineDataset = () => {
-  const nodes = DAG_PIPELINE_DATA.map((entry) => ({id: entry.id, label: entry.label}));
-  const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
+// const dagPipelineDataset = () => {
+//   const nodes = DAG_PIPELINE_DATA.map((entry) => ({id: entry.id, label: entry.label}));
+//   const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
 
-  for (const entry of DAG_PIPELINE_DATA) {
-    if (!entry.parentIds) {
-      continue;
-    }
-    for (const parentId of entry.parentIds) {
-      edges.push({
-        id: `${parentId}->${entry.id}`,
-        sourceId: parentId,
-        targetId: entry.id,
-        directed: true
-      });
-    }
-  }
+//   for (const entry of DAG_PIPELINE_DATA) {
+//     if (!entry.parentIds) {
+//       continue;
+//     }
+//     for (const parentId of entry.parentIds) {
+//       edges.push({
+//         id: `${parentId}->${entry.id}`,
+//         sourceId: parentId,
+//         targetId: entry.id,
+//         directed: true
+//       });
+//     }
+//   }
 
-  return {nodes, edges};
-};
+//   return {nodes, edges};
+// };
 
 type DagRecord = {
   id: string;

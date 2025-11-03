@@ -246,11 +246,14 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
   };
 
   protected override _updateBounds(): void {
-    const positions = Object.values(this._nodeMap ?? {}).map((node) =>
-      Number.isFinite(node?.x) && Number.isFinite(node?.y)
-        ? ([node!.x as number, node!.y as number] as [number, number])
-        : null
-    );
+    const nodes = Object.values(this._nodeMap ?? {}) as Array<{x?: number; y?: number}>;
+    const positions = nodes.map((node) => {
+      const x = node?.x;
+      const y = node?.y;
+      return typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)
+        ? ([x, y] as [number, number])
+        : null;
+    });
     this._bounds = this._calculateBounds(positions);
   }
 }
