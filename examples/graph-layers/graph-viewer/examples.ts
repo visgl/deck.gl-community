@@ -137,7 +137,7 @@ const getWitsNodeRadius = (node: any) => {
 };
 
 const WITS_REGION_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: getWitsNodeRadius,
@@ -147,7 +147,7 @@ const WITS_REGION_STYLE: ExampleStyles = {
       opacity: 0.85
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: 'rgba(15, 23, 42, 0.2)',
     strokeWidth: 0.4,
     decorators: []
@@ -252,7 +252,7 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
 };
 
 const LES_MISERABLES_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 9,
@@ -292,7 +292,7 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#bfdbfe',
     strokeWidth: 1,
     decorators: []
@@ -300,7 +300,7 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
 };
 
 const RANDOM_20_40_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 8,
@@ -310,7 +310,7 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#bbf7d0',
     strokeWidth: 1,
     decorators: []
@@ -318,7 +318,7 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
 };
 
 const RANDOM_100_200_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -328,7 +328,7 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fde68a',
     strokeWidth: 1,
     decorators: []
@@ -336,7 +336,7 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
 };
 
 const RANDOM_1000_2000_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -346,7 +346,7 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
       opacity: 0.8
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#c7d2fe',
     strokeWidth: 1,
     decorators: []
@@ -354,7 +354,7 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
 };
 
 const RANDOM_5000_3000_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 5,
@@ -364,7 +364,7 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
       opacity: 0.7
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fed7aa',
     strokeWidth: 0.8,
     decorators: []
@@ -372,7 +372,7 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
 };
 
 const LADDER_10_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -382,7 +382,7 @@ const LADDER_10_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fbcfe8',
     strokeWidth: 1,
     decorators: []
@@ -390,7 +390,7 @@ const LADDER_10_STYLE: ExampleStyles = {
 };
 
 const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -400,7 +400,7 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#bae6fd',
     strokeWidth: 1,
     decorators: []
@@ -408,7 +408,7 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
 };
 
 const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -418,7 +418,7 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#a5f3fc',
     strokeWidth: 1,
     decorators: []
@@ -426,7 +426,7 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
 };
 
 const GRID_10_10_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -436,7 +436,7 @@ const GRID_10_10_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fef3c7',
     strokeWidth: 1,
     decorators: []
@@ -444,7 +444,7 @@ const GRID_10_10_STYLE: ExampleStyles = {
 };
 
 const WATTS_STROGATZ_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -454,7 +454,7 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fecaca',
     strokeWidth: 1,
     decorators: []
@@ -462,7 +462,7 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
 };
 
 const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -482,7 +482,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: DEFAULT_EDGE_COLOR,
     strokeWidth: 1,
     decorators: []
@@ -490,7 +490,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
 };
 
 const MULTI_GRAPH_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 40,
@@ -517,17 +517,17 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#cf4569',
     strokeWidth: 2,
-    decorators: [
-      {
-        type: 'edge-label',
-        text: (edge) => edge?.getPropertyValue?.('type') ?? '',
-        color: [0, 0, 0],
-        fontSize: 14
-      }
-    ]
+      decorators: [
+        {
+          type: 'edge-label',
+          text: {attribute: 'type', fallback: ''},
+          color: [0, 0, 0],
+          fontSize: 14
+        }
+      ]
   }
 };
 

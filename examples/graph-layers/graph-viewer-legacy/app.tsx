@@ -62,16 +62,18 @@ export class App extends Component {
           <GraphGL
             graph={graph}
             layout={new D3ForceLayout()}
-            nodeStyle={[
-              {
-                type: 'circle',
-                radius: DEFAULT_NODE_SIZE,
-                fill: 'red'
+            stylesheet={{
+              nodes: [
+                {
+                  type: 'circle',
+                  radius: DEFAULT_NODE_SIZE,
+                  fill: 'red'
+                }
+              ],
+              edges: {
+                stroke: '#000',
+                strokeWidth: 1
               }
-            ]}
-            edgeStyle={{
-              stroke: '#000',
-              strokeWidth: 1
             }}
           />
         </div>

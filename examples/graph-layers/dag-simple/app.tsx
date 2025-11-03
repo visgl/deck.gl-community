@@ -91,34 +91,38 @@ export default function App(): React.ReactElement {
         id: 'dag-layer',
         graph,
         layout,
-        nodeStyle: [
-          {
-            type: 'circle',
-            radius: 18,
-            fill: '#4c6ef520',
-            stroke: '#102a8220',
-            strokeWidth: 2
-          },
-          {
-            type: 'label',
-            text: (node) => node.getPropertyValue('label') as string,
-            fontSize: 16,
-            color: '#102a82',
-            offset: [0, 28],
-            textAnchor: 'middle',
-            alignmentBaseline: 'top'
-          }
-        ],
-        edgeStyle: {
-          stroke: '#8da2fb',
-          strokeWidth: 2,
-          decorators: [
+        stylesheet: {
+          nodes: [
             {
-              type: 'arrow',
-              size: 6,
-              fill: '#8da2fb'
+              type: 'circle',
+              radius: 18,
+              fill: '#4c6ef520',
+              stroke: '#102a8220',
+              strokeWidth: 2
+            },
+            {
+              type: 'label',
+              text: '@label',
+              fontSize: 16,
+              color: '#102a82',
+              offset: [0, 28],
+              textAnchor: 'middle',
+              alignmentBaseline: 'top'
             }
           ],
+          edges: [
+            {
+              stroke: '#8da2fb',
+              strokeWidth: 2,
+              decorators: [
+                {
+                  type: 'arrow',
+                  size: 6,
+                  fill: '#8da2fb'
+                }
+              ]
+            }
+          ]
         }
       })
     ],

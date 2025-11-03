@@ -1,38 +1,34 @@
 # Edge stylesheets
 
-Edges are styled with a single object passed to the `edgeStyle` prop of
-`GraphLayer`. Similar to nodes, a `GraphStylesheet` definition is normalized by
+Edges are styled via the `stylesheet.edges` prop on
+`GraphLayer` (the legacy `edgeStyle` prop continues to work but is deprecated). Similar to nodes, a `GraphStylesheet` definition is normalized by
 the `GraphStyleEngine`, which resolves colors, accessors, and interaction states
 before feeding them into Deck.gl’s `LineLayer`.
 
 ```js
-const edgeStyle = {
-  stroke: edge => (edge.isCritical ? '#F97316' : '#94A3B8'),
-  strokeWidth: {
-    default: 1,
-    hover: 3,
-    selected: 4
-  },
-  decorators: [
-    {
-      type: 'edge-label',
-      text: edge => edge.id,
-      color: '#000',
-      fontSize: 18,
-
-      // text: edge => edge.weight.toFixed(1),
-      // color: '#1F2937',
-      // offset: [0, 16]
-
+const stylesheet = {
+  edges: {
+    stroke: edge => (edge.isCritical ? '#F97316' : '#94A3B8'),
+    strokeWidth: {
+      default: 1,
+      hover: 3,
+      selected: 4
     },
-    {
-      type: 'arrow',
-      color: '#222',
-      size: 8,
-      offset: [4, 0]
-    }
-  ],
-}}
+    decorators: [
+      {
+        type: 'edge-label',
+        text: edge => edge.id,
+        color: '#000',
+        fontSize: 18
+      },
+      {
+        type: 'arrow',
+        color: '#222',
+        size: 8,
+        offset: [4, 0]
+      }
+    ]
+  }
 };
 ```
 
@@ -52,12 +48,14 @@ Edge styles honor the same selectors as node styles: `:hover`, `:dragging`, and
 `:selected`. Selector blocks can override any property, including decorators.
 
 ```js
-const edgeStyle = {
-  stroke: '#CBD5F5',
-  strokeWidth: 1,
-  ':hover': {
-    stroke: '#2563EB',
-    strokeWidth: 2
+const stylesheet = {
+  edges: {
+    stroke: '#CBD5F5',
+    strokeWidth: 1,
+    ':hover': {
+      stroke: '#2563EB',
+      strokeWidth: 2
+    }
   }
 };
 ```

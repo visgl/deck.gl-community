@@ -285,8 +285,7 @@ export function App(props) {
               ? [
                   new GraphLayer({
                     engine,
-                    nodeStyle: selectedStyles?.nodeStyle,
-                    edgeStyle: selectedStyles?.edgeStyle,
+                    stylesheet: selectedStyles,
                     resumeLayoutAfterDragging
                   })
                 ]
