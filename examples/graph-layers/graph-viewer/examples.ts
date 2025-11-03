@@ -255,20 +255,31 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
   nodes: [
     {
       type: 'circle',
-      radius: 9,
+      radius: {
+        default: 9,
+        hover: 11,
+        selected: 12
+      },
       fill: {
         default: '#60a5fa',
-        hover: '#3b82f6'
+        hover: '#2563eb',
+        selected: '#f97316'
       },
       stroke: {
         default: '#1d4ed8',
-        hover: '#1e40af'
+        hover: '#1e3a8a',
+        selected: '#c2410c'
       },
       strokeWidth: {
         default: 1.5,
-        hover: 2.5
+        hover: 3,
+        selected: 3.5
       },
-      opacity: 0.9
+      opacity: {
+        default: 0.9,
+        hover: 1,
+        selected: 1
+      }
     },
     {
       type: 'label',
@@ -304,11 +315,13 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
   edges: {
     stroke: {
       default: '#bfdbfe',
-      hover: '#60a5fa'
+      hover: '#2563eb',
+      selected: '#f97316'
     },
     strokeWidth: {
       default: 1,
-      hover: 2
+      hover: 3,
+      selected: 3.5
     },
     decorators: []
   }
