@@ -1416,6 +1416,7 @@ __metadata:
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
+    preact: "npm:^10.17.0"
   languageName: unknown
   linkType: soft
 
