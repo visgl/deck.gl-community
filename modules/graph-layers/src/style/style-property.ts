@@ -154,20 +154,20 @@ type SupportedScale =
   | ReturnType<typeof scaleLinear>
   | ReturnType<typeof scaleLog>
   | ReturnType<typeof scalePow>
-  | ReturnType<typeof scaleSqrt>
+   
   | ReturnType<typeof scaleQuantize>
   | ReturnType<typeof scaleQuantile>
   | ReturnType<typeof scaleOrdinal>;
 
-const SCALE_FACTORIES = {
-  linear: scaleLinear,
-  log: scaleLog,
-  pow: scalePow,
-  sqrt: scaleSqrt,
-  quantize: scaleQuantize,
-  quantile: scaleQuantile,
-  ordinal: scaleOrdinal
-} as const satisfies Record<GraphStyleScaleType, () => SupportedScale>;
+const SCALE_FACTORIES: Record<GraphStyleScaleType, () => SupportedScale> = {
+  linear: () => scaleLinear(),
+  log: () => scaleLog(),
+  pow: () => scalePow(),
+  sqrt: () => scaleSqrt(),
+  quantize: () => scaleQuantize(),
+  quantile: () => scaleQuantile(),
+  ordinal: () => scaleOrdinal()
+};
 
 /** Resolved attribute reference with guaranteed defaults. */
 type NormalizedAttributeReference = {
@@ -178,9 +178,10 @@ type NormalizedAttributeReference = {
 };
 
 /** Create a D3 scale instance based on a declarative configuration. */
+/* eslint-disable-next-line complexity */
 function createScaleFromConfig(config: GraphStyleScale): SupportedScale {
   const type = config.type ?? 'linear';
-  const factory = SCALE_FACTORIES[type as GraphStyleScaleType];
+  const factory = SCALE_FACTORIES[type];
   if (!factory) {
     log.warn(`Invalid scale type: ${type}`);
     throw new Error(`Invalid scale type: ${type}`);
@@ -215,8 +216,12 @@ function createScaleFromConfig(config: GraphStyleScale): SupportedScale {
   ) {
     anyScale.base(config.base);
   }
-  if ('unknown' in config && 'unknown' in scale && typeof anyScale.unknown === 'function') {
-    anyScale.unknown(config.unknown);
+  if (
+    typeof config.unknown !== 'undefined' &&
+    'unknown' in scale &&
+    typeof (scale as {unknown?: (value: unknown) => unknown}).unknown === 'function'
+  ) {
+    (scale as {unknown: (value: unknown) => unknown}).unknown(config.unknown);
   }
   return scale;
 }
@@ -338,6 +343,29 @@ type LeafParseResult = {
   updateTrigger: unknown;
 };
 
+function describeStyleValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'undefined') {
+    return String(value);
+  }
+  if (value === null) {
+    return 'null';
+  }
+  if (typeof value === 'function') {
+    return value.name ? `[Function ${value.name}]` : '[Function]';
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => describeStyleValue(item)).join(', ')}]`;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 /** Parse a non-stateful style value into deck.gl compatible form. */
 function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): LeafParseResult {
   const formatter = PROPERTY_FORMATTERS[key] || IDENTITY;
@@ -345,8 +373,9 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
   if (typeof value === 'undefined') {
     const formatted = formatter(DEFAULT_STYLES[key]);
     if (formatted === null) {
-      log.warn(`Invalid ${key} value: ${value}`);
-      throw new Error(`Invalid ${key} value: ${value}`);
+      const description = describeStyleValue(value);
+      log.warn(`Invalid ${key} value: ${description}`);
+      throw new Error(`Invalid ${key} value: ${description}`);
     }
     return {value: formatted, isAccessor: false, updateTrigger: false};
   }
@@ -367,8 +396,9 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
 
   const formatted = formatter(value);
   if (formatted === null) {
-    log.warn(`Invalid ${key} value: ${value}`);
-    throw new Error(`Invalid ${key} value: ${value}`);
+    const description = describeStyleValue(value);
+    log.warn(`Invalid ${key} value: ${description}`);
+    throw new Error(`Invalid ${key} value: ${description}`);
   }
 
   return {value: formatted, isAccessor: false, updateTrigger: false};
@@ -432,7 +462,7 @@ export class StyleProperty {
     if (isStatefulValue(value)) {
       const {accessor, updateTrigger: triggers} = createStatefulAccessor(
         key,
-        value as Record<string, GraphStyleLeafValue>,
+        value,
         updateTrigger
       );
       this._value = accessor;
