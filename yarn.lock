@@ -12495,23 +12495,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"graph-dag-simple-example@workspace:examples/graph-layers/dag-simple":
-  version: 0.0.0-use.local
-  resolution: "graph-dag-simple-example@workspace:examples/graph-layers/dag-simple"
-  dependencies:
-    "@deck.gl-community/graph-layers": "npm:~9.2.0"
-    "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@luma.gl/core": "npm:~9.2.0"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    vite: "npm:7.1.1"
-  languageName: unknown
-  linkType: soft
-
 "graph-layers-example@workspace:examples/graph-layers/graph-viewer":
   version: 0.0.0-use.local
   resolution: "graph-layers-example@workspace:examples/graph-layers/graph-viewer"
