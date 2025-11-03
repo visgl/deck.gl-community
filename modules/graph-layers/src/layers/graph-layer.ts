@@ -284,6 +284,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       const graph = engine.props.graph;
       const chainOutlineCache = new Map<string, [number, number][] | null>();
       const outlinePadding = 24;
+      const outlineCornerRadius = 16;
+      const outlineCornerSegments = 6;
       const outlineUpdateTrigger = [engine.getLayoutLastUpdate(), engine.getLayoutState()].join();
 
       const getChainOutlinePolygon = (node: Node): [number, number][] | null => {
@@ -337,13 +339,51 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const paddedMinY = minY - outlinePadding;
         const paddedMaxY = maxY + outlinePadding;
 
-        const polygon: [number, number][] = [
-          [paddedMinX, paddedMinY],
-          [paddedMinX, paddedMaxY],
-          [paddedMaxX, paddedMaxY],
-          [paddedMaxX, paddedMinY],
-          [paddedMinX, paddedMinY]
-        ];
+        const width = paddedMaxX - paddedMinX;
+        const height = paddedMaxY - paddedMinY;
+
+        if (width <= 0 || height <= 0) {
+          chainOutlineCache.set(cacheKey, null);
+          return null;
+        }
+
+        const radius = Math.min(outlineCornerRadius, width / 2, height / 2);
+
+        if (radius <= 0) {
+          const polygon: [number, number][] = [
+            [paddedMinX, paddedMinY],
+            [paddedMinX, paddedMaxY],
+            [paddedMaxX, paddedMaxY],
+            [paddedMaxX, paddedMinY],
+            [paddedMinX, paddedMinY]
+          ];
+          chainOutlineCache.set(cacheKey, polygon);
+          return polygon;
+        }
+
+        const left = paddedMinX;
+        const right = paddedMaxX;
+        const top = paddedMinY;
+        const bottom = paddedMaxY;
+
+        const polygon: [number, number][] = [];
+        const pushArc = (cx: number, cy: number, startAngle: number, endAngle: number) => {
+          const step = (endAngle - startAngle) / outlineCornerSegments;
+          for (let i = 1; i <= outlineCornerSegments; i++) {
+            const angle = startAngle + step * i;
+            polygon.push([cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]);
+          }
+        };
+
+        polygon.push([right - radius, top]);
+        pushArc(right - radius, top + radius, -Math.PI / 2, 0);
+        polygon.push([right, bottom - radius]);
+        pushArc(right - radius, bottom - radius, 0, Math.PI / 2);
+        polygon.push([left + radius, bottom]);
+        pushArc(left + radius, bottom - radius, Math.PI / 2, Math.PI);
+        polygon.push([left, top + radius]);
+        pushArc(left + radius, top + radius, Math.PI, (3 * Math.PI) / 2);
+        polygon.push(polygon[0]);
 
         chainOutlineCache.set(cacheKey, polygon);
         return polygon;
@@ -362,9 +402,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
               data: collapsedOutlineNodes,
               getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
               stroked: true,
-              filled: true,
-              getLineColor: [64, 96, 192, 200],
-              getFillColor: [64, 96, 192, 32],
+              filled: false,
+              getLineColor: [220, 64, 64, 220],
               getLineWidth: 2,
               lineWidthUnits: 'pixels',
               lineWidthMinPixels: 2,
@@ -419,9 +458,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
               data: expandedOutlineNodes,
               getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
               stroked: true,
-              filled: true,
+              filled: false,
               getLineColor: [64, 96, 192, 200],
-              getFillColor: [64, 96, 192, 24],
               getLineWidth: 2,
               lineWidthUnits: 'pixels',
               lineWidthMinPixels: 2,
