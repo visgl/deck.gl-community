@@ -7,7 +7,7 @@ import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
 import {NODE_TYPE, EDGE_DECORATOR_TYPE} from '../core/constants';
 import {Graph} from '../graph/graph';
-import {GraphLayout} from '../core/graph-layout';
+import {GraphLayout, GraphLayoutState} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
 
 import {Stylesheet} from '../style/style-sheet';
@@ -120,17 +120,27 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   // @ts-expect-error Some typescript confusion due to override of base class state
   state!: CompositeLayer<GraphLayerProps>['state'] & {
     interactionManager: InteractionManager;
-    graphEngine?: GraphEngine | null;
+    graphEngine: GraphEngine | null;
+    layoutVersion: number;
+    layoutState: GraphLayoutState;
   };
 
   private _graphPropWarningIssued = false;
-  private _ignoreNextDataChange = false;
-
   forceUpdate = () => {
-    if (this.context && this.context.layerManager) {
-      this._ignoreNextDataChange = true;
+    if (!this.context || !this.context.layerManager) {
+      return;
+    }
+    const engine = this.state.graphEngine;
+    const layoutVersion = engine ? engine.getLayoutLastUpdate() : -1;
+    const layoutState: GraphLayoutState = engine ? engine.getLayoutState() : 'INIT';
+
+    if (
+      layoutVersion !== this.state.layoutVersion ||
+      layoutState !== this.state.layoutState
+    ) {
+      this.setState({layoutVersion, layoutState});
+    } else {
       this.setNeedsUpdate();
-      this.setChangeFlags({dataChanged: true} as any); // TODO
     }
   };
 
@@ -140,7 +150,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   initializeState() {
     this.state = {
-      interactionManager: new InteractionManager(this.props as any, () => this.forceUpdate())
+      interactionManager: new InteractionManager(this.props as any, () => this.forceUpdate()),
+      layoutVersion: -1,
+      layoutState: 'INIT',
+      graphEngine: null
     };
     const updated = this._updateGraphEngineFromProps(
       this.props,
@@ -149,19 +162,22 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       true
     );
     if (updated) {
-      this.state.interactionManager.updateProps(this.props);
+      this._updateInteractionManagerProps(this.props);
       this.forceUpdate();
     }
   }
 
   shouldUpdateState({changeFlags}) {
-    return changeFlags.dataChanged || changeFlags.propsChanged;
+    return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.stateChanged;
   }
 
   updateState({props, oldProps, changeFlags}) {
-    const updated = this._updateGraphEngineFromProps(props, oldProps, changeFlags);
+    const shouldCheckProps = changeFlags.dataChanged || changeFlags.propsChanged;
+    const updated = shouldCheckProps
+      ? this._updateGraphEngineFromProps(props, oldProps, changeFlags)
+      : false;
     if (updated || changeFlags.propsChanged) {
-      this.state.interactionManager.updateProps(props);
+      this._updateInteractionManagerProps(props);
     }
     if (updated) {
       this.forceUpdate();
@@ -200,9 +216,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     changeFlags: {dataChanged?: boolean; propsChanged?: boolean},
     force = false
   ): boolean {
-    const ignoreDataChange = this._ignoreNextDataChange && !force;
-    this._ignoreNextDataChange = false;
-
     const layoutChanged =
       force ||
       (changeFlags.propsChanged && !!oldProps &&
@@ -213,7 +226,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       (changeFlags.propsChanged && !!oldProps && props.engine !== oldProps.engine);
     const dataPropChanged =
       force ||
-      (!ignoreDataChange && changeFlags.dataChanged) ||
+      changeFlags.dataChanged ||
       (changeFlags.propsChanged && !!oldProps && props.data !== oldProps.data);
     const graphPropChanged =
       force || (changeFlags.propsChanged && !!oldProps && props.graph !== oldProps.graph);
@@ -279,6 +292,14 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     return false;
+  }
+
+  private _updateInteractionManagerProps(props: GraphLayerProps) {
+    const engine = this.state.graphEngine ?? props.engine;
+    this.state.interactionManager.updateProps({
+      ...props,
+      engine
+    } as any);
   }
 
   createNodeLayers() {
