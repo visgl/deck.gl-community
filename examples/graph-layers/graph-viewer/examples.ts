@@ -151,7 +151,38 @@ const WITS_REGION_STYLE: ExampleStyles = {
   edges: {
     stroke: 'rgba(15, 23, 42, 0.2)',
     strokeWidth: 0.4,
-    decorators: []
+    decorators: [
+      {
+        type: 'flow',
+        color: {
+          default: 'rgba(14, 165, 233, 0.7)',
+          hover: '#0ea5e9'
+        },
+        width: {
+          attribute: 'weight',
+          fallback: 1,
+          scale: (value: unknown) => {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) {
+              return 1;
+            }
+            return Math.max(1, Math.sqrt(numericValue));
+          }
+        },
+        speed: {
+          attribute: 'weight',
+          fallback: 0,
+          scale: (value: unknown) => {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) {
+              return 0;
+            }
+            return Math.sqrt(numericValue) / 2;
+          }
+        },
+        tailLength: 6
+      }
+    ]
   }
 };
 
