@@ -24,6 +24,8 @@ import {
   type NormalizedGraphLayerStylesheet
 } from '../style/graph-layer-stylesheet';
 
+import {EdgeAttachmentHelper} from './edge-attachment-helper';
+
 // node layers
 import {CircleLayer} from './node-layers/circle-layer';
 import {ImageLayer} from './node-layers/image-layer';
@@ -133,6 +135,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     interactionManager: InteractionManager;
     graphEngine?: GraphEngine;
   };
+
+  private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
 
   forceUpdate = () => {
     if (this.context && this.context.layerManager) {
@@ -287,7 +291,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   createEdgeLayers() {
     const engine = this.state.graphEngine;
-    const {edges: edgeStyles} = this._getResolvedStylesheet();
+    const {edges: edgeStyles, nodes: nodeStyles} = this._getResolvedStylesheet();
 
     if (!engine || !edgeStyles) {
       return [];
@@ -298,6 +302,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     if (edgeStyleArray.length === 0) {
       return [];
     }
+
+    const getLayoutInfo = this._edgeAttachmentHelper.getLayoutAccessor({
+      engine,
+      interactionManager: this.state.interactionManager,
+      nodeStyle: nodeStyles
+    });
 
     return edgeStyleArray
       .filter(Boolean)
@@ -318,7 +328,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: `edge-layer-${idx}`,
           data: data(engine.getEdges()),
-          getLayoutInfo: engine.getEdgePosition,
+          getLayoutInfo,
           pickable: true,
           positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
           stylesheet,
@@ -328,7 +338,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
           return [edgeLayer];
         }
-
         const decoratorLayers = decorators
           .filter(Boolean)
           .map((decoratorStyle, idx2) => {
@@ -348,7 +357,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
               ...SHARED_LAYER_PROPS,
               id: `edge-decorator-${idx2}`,
               data: data(engine.getEdges()),
-              getLayoutInfo: engine.getEdgePosition,
+              getLayoutInfo,
               pickable: true,
               positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
               stylesheet: decoratorStylesheet
