@@ -55,6 +55,10 @@
     "raf": "^3.4.1"
   },
   "devDependencies": {
-    "ngraph.generators": "^20.1.0"
+    "ngraph.generators": "^20.1.0",
+    "zod": "^4.0.0"
+  },
+  "peerDependencies": {
+    "zod": "^3.23.8 || ^4.0.0"
   }
 }
