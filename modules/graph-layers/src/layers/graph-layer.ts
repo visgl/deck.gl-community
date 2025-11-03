@@ -4,10 +4,12 @@
 
 import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
+import {PolygonLayer} from '@deck.gl/layers';
 
 import {Graph} from '../graph/graph';
 import {GraphLayout} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
+import type {Node} from '../graph/node';
 
 import {GraphStyleEngine} from '../style/graph-style-engine';
 import type {GraphStylesheet} from '../style/graph-style-engine';
@@ -279,38 +281,100 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
 
     if (chainRepresentativeNodes.length > 0) {
+      const graph = engine.props.graph;
+      const chainOutlineCache = new Map<string, [number, number][] | null>();
+      const outlinePadding = 24;
+      const outlineUpdateTrigger = [engine.getLayoutLastUpdate(), engine.getLayoutState()].join();
+
+      const getChainOutlinePolygon = (node: Node): [number, number][] | null => {
+        const chainId = node.getPropertyValue('collapsedChainId');
+        if (!chainId) {
+          return null;
+        }
+        const cacheKey = String(chainId);
+        if (chainOutlineCache.has(cacheKey)) {
+          return chainOutlineCache.get(cacheKey) ?? null;
+        }
+        if (!graph) {
+          chainOutlineCache.set(cacheKey, null);
+          return null;
+        }
+
+        const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
+        if (!Array.isArray(collapsedNodeIds) || collapsedNodeIds.length === 0) {
+          chainOutlineCache.set(cacheKey, null);
+          return null;
+        }
+
+        let minX = Number.POSITIVE_INFINITY;
+        let maxX = Number.NEGATIVE_INFINITY;
+        let minY = Number.POSITIVE_INFINITY;
+        let maxY = Number.NEGATIVE_INFINITY;
+
+        for (const nodeId of collapsedNodeIds) {
+          const chainNode = graph.findNode(nodeId);
+          if (!chainNode) {
+            continue;
+          }
+          const position = engine.getNodePosition(chainNode);
+          if (!position) {
+            continue;
+          }
+          const [x, y] = position;
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+
+        if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+          chainOutlineCache.set(cacheKey, null);
+          return null;
+        }
+
+        const paddedMinX = minX - outlinePadding;
+        const paddedMaxX = maxX + outlinePadding;
+        const paddedMinY = minY - outlinePadding;
+        const paddedMaxY = maxY + outlinePadding;
+
+        const polygon: [number, number][] = [
+          [paddedMinX, paddedMinY],
+          [paddedMinX, paddedMaxY],
+          [paddedMaxX, paddedMaxY],
+          [paddedMaxX, paddedMinY],
+          [paddedMinX, paddedMinY]
+        ];
+
+        chainOutlineCache.set(cacheKey, polygon);
+        return polygon;
+      };
+
       const collapsedNodes = chainRepresentativeNodes.filter((node) =>
         Boolean(node.getPropertyValue('isCollapsedChain'))
       );
       if (collapsedNodes.length > 0) {
-        const collapsedOutlineStyle: GraphStylesheet<'marker'> = {
-          type: 'marker',
-          fill: [64, 96, 192, 160],
-          size: 44,
-          marker: 'rectangle',
-          offset: [24, -24],
-          scaleWithZoom: false
-        };
-        const collapsedOutlineStylesheet = new GraphStyleEngine(collapsedOutlineStyle, {
-          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-        });
-        const collapsedOutlineOffset = collapsedOutlineStylesheet.getDeckGLAccessor('getOffset');
-        layers.push(
-          new ZoomableMarkerLayer({
-            ...SHARED_LAYER_PROPS,
-            id: 'collapsed-chain-outlines',
-            data: collapsedNodes,
-            getPosition: mixedGetPosition(engine.getNodePosition, collapsedOutlineOffset),
-            pickable: true,
-            positionUpdateTrigger: [
-              engine.getLayoutLastUpdate(),
-              engine.getLayoutState(),
-              collapsedOutlineStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
-            ].join(),
-            stylesheet: collapsedOutlineStylesheet,
-            visible: true
-          } as any)
-        );
+        const collapsedOutlineNodes = collapsedNodes.filter((node) => getChainOutlinePolygon(node));
+        if (collapsedOutlineNodes.length > 0) {
+          layers.push(
+            new PolygonLayer({
+              ...SHARED_LAYER_PROPS,
+              id: 'collapsed-chain-outlines',
+              data: collapsedOutlineNodes,
+              getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
+              stroked: true,
+              filled: true,
+              getLineColor: [64, 96, 192, 200],
+              getFillColor: [64, 96, 192, 32],
+              getLineWidth: 2,
+              lineWidthUnits: 'pixels',
+              lineWidthMinPixels: 2,
+              pickable: true,
+              updateTriggers: {
+                getPolygon: [outlineUpdateTrigger]
+              }
+            })
+          );
+        }
 
         const collapsedMarkerStyle: GraphStylesheet<'marker'> = {
           type: 'marker',
@@ -346,34 +410,28 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         (node) => !node.getPropertyValue('isCollapsedChain')
       );
       if (expandedNodes.length > 0) {
-        const expandedOutlineStyle: GraphStylesheet<'marker'> = {
-          type: 'marker',
-          fill: [64, 96, 192, 160],
-          size: 44,
-          marker: 'rectangle',
-          offset: [24, -24],
-          scaleWithZoom: false
-        };
-        const expandedOutlineStylesheet = new GraphStyleEngine(expandedOutlineStyle, {
-          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-        });
-        const expandedOutlineOffset = expandedOutlineStylesheet.getDeckGLAccessor('getOffset');
-        layers.push(
-          new ZoomableMarkerLayer({
-            ...SHARED_LAYER_PROPS,
-            id: 'expanded-chain-outlines',
-            data: expandedNodes,
-            getPosition: mixedGetPosition(engine.getNodePosition, expandedOutlineOffset),
-            pickable: true,
-            positionUpdateTrigger: [
-              engine.getLayoutLastUpdate(),
-              engine.getLayoutState(),
-              expandedOutlineStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
-            ].join(),
-            stylesheet: expandedOutlineStylesheet,
-            visible: true
-          } as any)
-        );
+        const expandedOutlineNodes = expandedNodes.filter((node) => getChainOutlinePolygon(node));
+        if (expandedOutlineNodes.length > 0) {
+          layers.push(
+            new PolygonLayer({
+              ...SHARED_LAYER_PROPS,
+              id: 'expanded-chain-outlines',
+              data: expandedOutlineNodes,
+              getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
+              stroked: true,
+              filled: true,
+              getLineColor: [64, 96, 192, 200],
+              getFillColor: [64, 96, 192, 24],
+              getLineWidth: 2,
+              lineWidthUnits: 'pixels',
+              lineWidthMinPixels: 2,
+              pickable: true,
+              updateTriggers: {
+                getPolygon: [outlineUpdateTrigger]
+              }
+            })
+          );
+        }
 
         const expandedMarkerStyle: GraphStylesheet<'marker'> = {
           type: 'marker',
