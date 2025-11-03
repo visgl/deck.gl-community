@@ -16,11 +16,6 @@ attribute float instanceSpeeds;
 attribute float instanceOffsets;
 attribute float instanceTailLengths;
 
-uniform float opacity;
-uniform float widthScale;
-uniform float widthMinPixels;
-uniform float widthMaxPixels;
-
 varying vec4 vColor;
 varying float segmentIndex;
 varying float speed;
@@ -32,14 +27,11 @@ varying float offset;
 // offset_direction is -1 (left) or 1 (right)
 vec2 getExtrusionOffset(vec2 line_clipspace, float offset_direction, float width) {
   // normalized direction of the line
-  vec2 dir_screenspace = normalize(line_clipspace * project_uViewportSize);
+  vec2 dir_screenspace = normalize(line_clipspace * project.viewportSize);
   // rotate by 90 degrees
   dir_screenspace = vec2(-dir_screenspace.y, dir_screenspace.x);
 
-  vec2 offset_screenspace = dir_screenspace * offset_direction * width / 2.0;
-  vec2 offset_clipspace = project_pixel_size_to_clipspace(offset_screenspace);
-
-  return offset_clipspace;
+  return dir_screenspace * offset_direction * width / 2.0;
 }
 
 void main(void) {
@@ -49,24 +41,24 @@ void main(void) {
 
   // Multiply out width and clamp to limits
   float widthPixels = clamp(
-    project_size_to_pixel(instanceWidths * widthScale),
-    widthMinPixels, widthMaxPixels
+    project_size_to_pixel(instanceWidths * line.widthScale, line.widthUnits),
+    line.widthMinPixels, line.widthMaxPixels
   );
 
   // linear interpolation of source & target to pick right coord
   segmentIndex = positions.x;
   speed = instanceSpeeds;
-  tailLength = project_size_to_pixel(instanceTailLengths * widthScale);
+  tailLength = project_size_to_pixel(instanceTailLengths * line.widthScale, line.widthUnits);
   offset = instanceOffsets;
   pathLength = distance(instanceSourcePositions, instanceTargetPositions);
   vec4 p = mix(source, target, segmentIndex);
 
   // extrude
-  vec2 offset = getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels);
-  gl_Position = p + vec4(offset, 0.0, 0.0);
+  vec2 extrusionOffset = getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels);
+  gl_Position = p + vec4(project_pixel_size_to_clipspace(extrusionOffset), 0.0, 0.0);
 
   // Color
-  vColor = vec4(instanceColors.rgb, instanceColors.a * opacity) / 255.;
+  vColor = vec4(instanceColors.rgb, instanceColors.a * layer.opacity) / 255.;
 
   // Set color to be rendered to picking fbo (also used to check for selection highlight).
   picking_setPickingColor(instancePickingColors);

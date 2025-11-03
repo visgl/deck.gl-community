@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 // import {Buffer, Transform} from '@luma.gl/core';
+import {UNIT} from '@deck.gl/core';
 import {LineLayer} from '@deck.gl/layers';
 import {window} from 'global';
 
@@ -19,8 +20,8 @@ const defaultProps = {
 /* eslint-disable camelcase */
 export class FlowPathLayer extends LineLayer {
   getShaders() {
-    const projectModule = this.use64bitPositions() ? 'project64' : 'project32';
-    return {vs, fs, modules: [projectModule, 'picking']};
+    const superShaders = super.getShaders({vs, fs} as any);
+    return {...superShaders, vs, fs};
   }
 
   initializeState() {
@@ -118,35 +119,24 @@ export class FlowPathLayer extends LineLayer {
     // }
   }
 
-  draw({uniforms}) {
-    throw new Error('Not implemented');
-    // const {transform} = this.state;
-    // if (!transform) {
-    //   return;
-    // }
+  draw({uniforms: _uniforms}) {
+    const {widthUnits, widthScale, widthMinPixels, widthMaxPixels, wrapLongitude} = this.props;
+    const model = this.state.model!;
+    const lineProps = {
+      widthUnits: UNIT[widthUnits],
+      widthScale,
+      widthMinPixels,
+      widthMaxPixels,
+      useShortestPath: wrapLongitude ? 1 : 0
+    } as const;
 
-    // const {viewport} = this.context;
-    // const {widthUnits, widthScale, widthMinPixels, widthMaxPixels} = this.props;
+    model.shaderInputs.setProps({line: lineProps});
+    model.draw(this.context.renderPass);
 
-    // const widthMultiplier = widthUnits === 'pixels' ? viewport.distanceScales.metersPerPixel[2] : 1;
-
-    // const offsetBuffer = transform.getBuffer('v_offset');
-    // offsetBuffer.setAccessor({divisor: 1});
-
-    // this.state.model
-    //   .setAttributes({
-    //     instanceOffsets: offsetBuffer
-    //   })
-    //   .setUniforms(
-    //     Object.assign({}, uniforms, {
-    //       widthScale: widthScale * widthMultiplier,
-    //       widthMinPixels,
-    //       widthMaxPixels
-    //     })
-    //   )
-    //   .draw();
-
-    // offsetBuffer.setAccessor({divisor: 0});
+    if (wrapLongitude) {
+      model.shaderInputs.setProps({line: {...lineProps, useShortestPath: -1}});
+      model.draw(this.context.renderPass);
+    }
   }
 }
 
