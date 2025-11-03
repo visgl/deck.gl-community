@@ -107,31 +107,25 @@ export default function App(): ReactElement {
   // Generate sample time-series data as series arrays
 
   const sampleData = useMemo(() => {
-    const _sampleData: Float32Array[] = [];
-    const typeCount = seriesTypes.length;
+    const types = seriesTypes.length ? seriesTypes : ['sine'];
 
-    for (let series = 0; series < typeCount; series++) {
-      const type = seriesTypes[series];
-      if (type) {
-        _sampleData.push(generateSeriesData(type));
-      }
-    }
-
-    return _sampleData;
+    return types.map((type) => generateSeriesData(type ?? 'sine'));
   }, [seriesTypes]);
 
   const data = useMemo(() => {
     const _data: ExampleData[] = [];
 
-    const typeCount = Math.max(seriesTypes.length, 1);
-    const sampleCount = Math.max(sampleData.length, 1);
+    const types = seriesTypes.length ? seriesTypes : ['sine'];
+    const typeCount = types.length;
+    const sampleCount = sampleData.length;
+    const fallbackValues = sampleData[0] ?? generateSeriesData('sine');
 
     for (let series = 0; series < seriesCount; series++) {
-      const type = seriesTypes[series % typeCount] ?? 'sine';
+      const type = types[series % typeCount] ?? 'sine';
       _data.push({
         name: `Series ${series + 1}`,
         type,
-        values: sampleData[series % sampleCount] ?? generateSeriesData('sine'),
+        values: sampleData[series % sampleCount] ?? fallbackValues,
         scale: 120
       });
     }
