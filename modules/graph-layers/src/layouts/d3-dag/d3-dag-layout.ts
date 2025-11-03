@@ -268,7 +268,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
 
     // const points = this._edgePoints.get(edge.getId()) || [sourcePosition, targetPosition];
     const controlPoints = this._edgeControlPoints.get(edge.getId()) || [];
-    const edgeType = controlPoints.length ? 'spline' : 'line';
+    const edgeType = controlPoints.length ? 'spline-curve' : 'line';
 
     return {
       type: edgeType,
