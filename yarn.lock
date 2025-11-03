@@ -1405,12 +1405,9 @@ __metadata:
   resolution: "@deck.gl-community/experimental@workspace:modules/experimental"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
     "@loaders.gl/core": "npm:^4.2.0"
     "@loaders.gl/i3s": "npm:^4.2.0"
     "@loaders.gl/loader-utils": "npm:^4.2.0"
@@ -1419,8 +1416,6 @@ __metadata:
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -1429,19 +1424,10 @@ __metadata:
   resolution: "@deck.gl-community/geo-layers@workspace:modules/geo-layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
-    "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/i3s": "npm:^4.2.0"
     "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@loaders.gl/tiles": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
@@ -1450,8 +1436,6 @@ __metadata:
     "@probe.gl/test-utils": "npm:^4.0.4"
     a5-js: "npm:^0.5.0"
     h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -1482,6 +1466,9 @@ __metadata:
     ngraph.generators: "npm:^20.1.0"
     preact: "npm:^10.17.0"
     raf: "npm:^3.4.1"
+    zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^3.23.8 || ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -1490,26 +1477,13 @@ __metadata:
   resolution: "@deck.gl-community/infovis-layers@workspace:modules/infovis-layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
-    "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
     "@luma.gl/webgpu": "npm:~9.2.0"
-    "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.0.4"
-    a5-js: "npm:^0.5.0"
-    h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -1518,18 +1492,9 @@ __metadata:
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
-    "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/i3s": "npm:^4.2.0"
-    "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@loaders.gl/tiles": "npm:^4.2.0"
     "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
@@ -1537,10 +1502,6 @@ __metadata:
     "@luma.gl/webgpu": "npm:~9.2.0"
     "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.0.4"
-    a5-js: "npm:^0.5.0"
-    h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -22304,6 +22265,13 @@ __metadata:
   version: 0.1.0
   resolution: "yocto-queue@npm:0.1.0"
   checksum: 10c0/dceb44c28578b31641e13695d200d34ec4ab3966a5729814d5445b194933c096b7ced71494ce53a0e8820685d1d010df8b2422e5bf2cdea7e469d97ffbea306f
+  languageName: node
+  linkType: hard
+
+"zod@npm:^4.0.0":
+  version: 4.1.12
+  resolution: "zod@npm:4.1.12"
+  checksum: 10c0/b64c1feb19e99d77075261eaf613e0b2be4dfcd3551eff65ad8b4f2a079b61e379854d066f7d447491fcf193f45babd8095551a9d47973d30b46b6d8e2c46774
   languageName: node
   linkType: hard
 

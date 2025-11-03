@@ -148,7 +148,7 @@ export class GraphEngine extends EventTarget {
   /** Layout calculations */
 
   run = () => {
-    log.log(1, 'GraphEngine: run')();
+    log.log(1, 'GraphEngine: run');
     // TODO: throw if running on a cleared engine
 
     this._graph.addEventListener('transactionStart', this._onTransactionStart);
@@ -168,7 +168,7 @@ export class GraphEngine extends EventTarget {
   };
 
   clear = () => {
-    log.log(1, 'GraphEngine: end')();
+    log.log(1, 'GraphEngine: end');
     this._graph.removeEventListener('transactionStart', this._onTransactionStart);
     this._graph.removeEventListener('transactionEnd', this._onTransactionEnd);
     this._graph.removeEventListener('onNodeAdded', this._onGraphStructureChanged);
@@ -193,7 +193,7 @@ export class GraphEngine extends EventTarget {
   };
 
   _updateLayout = () => {
-    log.log(0, 'GraphEngine: layout update')();
+    log.log(0, 'GraphEngine: layout update');
     this._layout.updateGraph(this._graph);
     this._layout.update();
     this._layoutDirty = false;

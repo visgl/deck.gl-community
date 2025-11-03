@@ -137,7 +137,7 @@ const getWitsNodeRadius = (node: any) => {
 };
 
 const WITS_REGION_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: getWitsNodeRadius,
@@ -147,7 +147,7 @@ const WITS_REGION_STYLE: ExampleStyles = {
       opacity: 0.85
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: 'rgba(15, 23, 42, 0.2)',
     strokeWidth: 0.4,
     decorators: []
@@ -252,14 +252,34 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
 };
 
 const LES_MISERABLES_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
-      radius: 9,
-      fill: '#60a5fa',
-      stroke: '#1d4ed8',
-      strokeWidth: 1.5,
-      opacity: 0.9
+      radius: {
+        default: 9,
+        hover: 11,
+        selected: 12
+      },
+      fill: {
+        default: '#60a5fa',
+        hover: '#2563eb',
+        selected: '#f97316'
+      },
+      stroke: {
+        default: '#1d4ed8',
+        hover: '#1e3a8a',
+        selected: '#c2410c'
+      },
+      strokeWidth: {
+        default: 1.5,
+        hover: 3,
+        selected: 3.5
+      },
+      opacity: {
+        default: 0.9,
+        hover: 1,
+        selected: 1
+      }
     },
     {
       type: 'label',
@@ -292,15 +312,23 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
-    stroke: '#bfdbfe',
-    strokeWidth: 1,
+  edges: {
+    stroke: {
+      default: '#bfdbfe',
+      hover: '#2563eb',
+      selected: '#f97316'
+    },
+    strokeWidth: {
+      default: 1,
+      hover: 3,
+      selected: 3.5
+    },
     decorators: []
   }
 };
 
 const RANDOM_20_40_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 8,
@@ -310,7 +338,7 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#bbf7d0',
     strokeWidth: 1,
     decorators: []
@@ -318,7 +346,7 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
 };
 
 const RANDOM_100_200_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -328,7 +356,7 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fde68a',
     strokeWidth: 1,
     decorators: []
@@ -336,7 +364,7 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
 };
 
 const RANDOM_1000_2000_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -346,7 +374,7 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
       opacity: 0.8
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#c7d2fe',
     strokeWidth: 1,
     decorators: []
@@ -354,7 +382,7 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
 };
 
 const RANDOM_5000_3000_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 5,
@@ -364,7 +392,7 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
       opacity: 0.7
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fed7aa',
     strokeWidth: 0.8,
     decorators: []
@@ -372,7 +400,7 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
 };
 
 const LADDER_10_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -382,7 +410,7 @@ const LADDER_10_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fbcfe8',
     strokeWidth: 1,
     decorators: []
@@ -390,7 +418,7 @@ const LADDER_10_STYLE: ExampleStyles = {
 };
 
 const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -400,7 +428,7 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#bae6fd',
     strokeWidth: 1,
     decorators: []
@@ -408,7 +436,7 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
 };
 
 const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -418,7 +446,7 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#a5f3fc',
     strokeWidth: 1,
     decorators: []
@@ -426,7 +454,7 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
 };
 
 const GRID_10_10_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -436,7 +464,7 @@ const GRID_10_10_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fef3c7',
     strokeWidth: 1,
     decorators: []
@@ -444,7 +472,7 @@ const GRID_10_10_STYLE: ExampleStyles = {
 };
 
 const WATTS_STROGATZ_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -454,7 +482,7 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fecaca',
     strokeWidth: 1,
     decorators: []
@@ -462,7 +490,7 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
 };
 
 const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -482,7 +510,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: DEFAULT_EDGE_COLOR,
     strokeWidth: 1,
     decorators: []
@@ -490,7 +518,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
 };
 
 const MULTI_GRAPH_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 40,
@@ -517,19 +545,93 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#cf4569',
+    strokeWidth: 2,
+      decorators: [
+        {
+          type: 'edge-label',
+          text: {attribute: 'type', fallback: ''},
+          color: [0, 0, 0],
+          fontSize: 14
+        }
+      ]
+  }
+};
+
+const dagPipelineDataset = () => {
+  const nodes = DAG_PIPELINE_DATA.map((entry) => ({id: entry.id, label: entry.label}));
+  const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
+
+  for (const entry of DAG_PIPELINE_DATA) {
+    if (!entry.parentIds) {
+      continue;
+    }
+    for (const parentId of entry.parentIds) {
+      edges.push({
+        id: `${parentId}->${entry.id}`,
+        sourceId: parentId,
+        targetId: entry.id,
+        directed: true
+      });
+    }
+  }
+
+  return {nodes, edges};
+};
+
+type DagRecord = {
+  id: string;
+  label: string;
+  parentIds?: string[];
+};
+
+const DAG_PIPELINE_DATA: DagRecord[] = [
+  {id: 'collect', label: 'Collect events'},
+  {id: 'ingest', label: 'Ingest', parentIds: ['collect']},
+  {id: 'quality', label: 'Quality checks', parentIds: ['ingest']},
+  {id: 'clean', label: 'Clean data', parentIds: ['quality']},
+  {id: 'warehouse', label: 'Warehouse sync', parentIds: ['clean']},
+  {id: 'feature', label: 'Feature store', parentIds: ['warehouse']},
+  {id: 'training', label: 'Train models', parentIds: ['feature']},
+  {id: 'serving', label: 'Serve models', parentIds: ['training']},
+  {id: 'monitor', label: 'Monitor', parentIds: ['serving']},
+  {id: 'alert', label: 'Alerting', parentIds: ['monitor']},
+  {id: 'feedback', label: 'Feedback', parentIds: ['alert', 'monitor']},
+  {id: 'experiments', label: 'Experimentation', parentIds: ['feature', 'feedback']}
+];
+
+const DAG_PIPELINE_STYLE: ExampleStyles = {
+  nodeStyle: [
+    {
+      type: 'circle',
+      radius: 18,
+      fill: '#4c6ef520',
+      stroke: '#102a8220',
+      strokeWidth: 2
+    },
+    {
+      type: 'label',
+      text: (node) => node.getPropertyValue('label') as string,
+      fontSize: 16,
+      color: '#102a82',
+      offset: [0, 28],
+      textAnchor: 'middle',
+      alignmentBaseline: 'top'
+    }
+  ],
+  edgeStyle: {
+    stroke: '#8da2fb',
     strokeWidth: 2,
     decorators: [
       {
-        type: 'edge-label',
-        text: (edge) => edge?.getPropertyValue?.('type') ?? '',
-        color: [0, 0, 0],
-        fontSize: 14
+        type: 'arrow',
+        size: 6,
+        fill: '#8da2fb'
       }
     ]
   }
-};
+};  
 
 const dagPipelineDataset = () => {
   const nodes = DAG_PIPELINE_DATA.map((entry) => ({id: entry.id, label: entry.label}));

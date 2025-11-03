@@ -8,6 +8,8 @@ import {createRoot} from 'react-dom/client';
 import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
+import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
+// import '@deck.gl/widgets/stylesheet.css';
 import {
   GraphEngine,
   GraphLayer,
@@ -24,8 +26,7 @@ import {
 } from '@deck.gl-community/graph-layers';
 import type {Bounds2D} from '@math.gl/types';
 
-// import {ViewControlWidget} from '@deck.gl-community/graph-layers';
-// import '@deck.gl/widgets/stylesheet.css';
+import {extent} from 'd3-array';
 
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
@@ -95,6 +96,7 @@ export const useLoading = (engine) => {
   return [{isLoading}, loadingDispatch];
 };
 
+// eslint-disable-next-line max-statements
 export function App(props) {
   const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
   const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
@@ -145,6 +147,20 @@ export function App(props) {
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
   const zoomToFitOnLoad = false;
+
+  const widgets = useMemo(
+    () => [
+      new PanWidget({
+        id: 'pan-widget',
+        style: {margin: '20px 0 0 20px'}
+      }),
+      new ZoomRangeWidget({
+        id: 'zoom-range-widget',
+        style: {margin: '90px 0 0 20px'}
+      })
+    ],
+    []
+  );
 
   const [viewState, setViewState] = useState({
     ...INITIAL_VIEW_STATE,
@@ -297,6 +313,11 @@ export function App(props) {
     }
     return () => undefined;
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+
+  useEffect(() => {
+    const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
+    zoomWidget?.setProps({minZoom, maxZoom});
+  }, [widgets, minZoom, maxZoom]);
   const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
     setSelectedExample(example);
     setSelectedLayout(layoutType);
@@ -361,32 +382,17 @@ export function App(props) {
           layers={
             engine
               ? [
-                  new GraphLayer({
-                    engine,
-                    nodeStyle: selectedStyles?.nodeStyle,
-                    edgeStyle: selectedStyles?.edgeStyle,
-                    resumeLayoutAfterDragging
-                  })
-                ]
+                new GraphLayer({
+                  engine,
+                  stylesheet: selectedStyles,
+                  resumeLayoutAfterDragging
+                })
+              ]
               : []
           }
-          widgets={[
-            // // new ViewControlWidget({}) TODO - fix and enable
-          ]
-            // onHover={(info) => console.log('Hover', info)}
-          }
+          widgets={widgets}
           getTooltip={(info) => getToolTip(info.object)}
         />
-        {/* View control component TODO - doesn't work in website, replace with widget *
-          <PositionedViewControl
-            fitBounds={fitBounds}
-            panBy={panBy}
-            zoomBy={zoomBy}
-            zoomLevel={viewState.zoom}
-            maxZoom={maxZoom}
-            minZoom={minZoom}
-          />
-        */}
       </div>
       <aside
         style={{

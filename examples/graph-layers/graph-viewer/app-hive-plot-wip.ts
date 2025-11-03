@@ -64,16 +64,18 @@ export default class HivePlotExample extends Component {
             getNodeAxis: node => node.getPropertyValue('group'),
           })
         }
-        nodeStyle={[
-          {
-            type: 'circle',
-            radius: DEFAULT_NODE_SIZE,
-            fill: this.getNodeColor,
-          },
-        ]}
-        edgeStyle={{
-          stroke: DEFAULT_EDGE_COLOR,
-          strokeWidth: DEFAULT_EDGE_WIDTH,
+        stylesheet={{
+          nodes: [
+            {
+              type: 'circle',
+              radius: DEFAULT_NODE_SIZE,
+              fill: this.getNodeColor,
+            },
+          ],
+          edges: {
+            stroke: DEFAULT_EDGE_COLOR,
+            strokeWidth: DEFAULT_EDGE_WIDTH,
+          }
         }}
       />
     );

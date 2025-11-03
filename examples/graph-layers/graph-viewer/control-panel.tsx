@@ -14,7 +14,7 @@ export type LayoutType =
   | 'force-multi-graph-layout'
   | 'd3-dag-layout';
 
-export type ExampleStyles = Pick<GraphLayerProps, 'nodeStyle' | 'edgeStyle'>;
+export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
 
 export type ExampleDefinition = {
   name: string;

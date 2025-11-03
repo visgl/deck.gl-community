@@ -6,9 +6,16 @@ import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-import {GraphLayout, Graph, GraphLayer, log, SimpleLayout} from '@deck.gl-community/graph-layers';
-import {PositionedViewControl} from '@deck.gl-community/react';
-import {ViewControlWidget} from '@deck.gl-community/graph-layers';
+import {
+  GraphLayout,
+  Graph,
+  GraphLayer,
+  log,
+  SimpleLayout
+} from '@deck.gl-community/graph-layers';
+import type {GraphLayerStylesheet} from '@deck.gl-community/graph-layers';
+import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
+import '@deck.gl/widgets/stylesheet.css';
 import '@deck.gl/widgets/stylesheet.css';
 
 import {extent} from 'd3-array';
@@ -25,11 +32,20 @@ const INITIAL_VIEW_STATE = {
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 
+const DEFAULT_STYLESHEET = {
+  nodes: [],
+  edges: {
+    decorators: [],
+    stroke: 'black',
+    strokeWidth: 1
+  }
+} as const satisfies GraphLayerStylesheet;
+
 export const GraphGL = ({
   graph = new Graph(),
   layout = new SimpleLayout(),
   glOptions = {},
-  nodeStyle = [],
+  stylesheet = DEFAULT_STYLESHEET,
   nodeEvents = {
     onMouseEnter: null,
     onHover: null,
@@ -37,13 +53,6 @@ export const GraphGL = ({
     onClick: null,
     onDrag: null
   },
-  edgeStyle = [
-    {
-      decorators: [],
-      stroke: 'black',
-      strokeWidth: 1
-    }
-  ],
   edgeEvents = {
     onClick: null,
     onHover: null
@@ -51,7 +60,6 @@ export const GraphGL = ({
   // eslint-disable-next-line no-console
   onError = (error) => console.error(error),
   initialViewState = INITIAL_VIEW_STATE,
-  ViewControlComponent = PositionedViewControl,
   minZoom = -20,
   maxZoom = 20,
   viewportPadding = 50,
@@ -83,6 +91,25 @@ export const GraphGL = ({
   const engine = useGraphEngine(graph, layout as any);
 
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+
+  const widgets = useMemo(
+    () => [
+      new PanWidget({
+        id: 'legacy-pan-widget',
+        style: {margin: '20px 0 0 20px'}
+      }),
+      new ZoomRangeWidget({
+        id: 'legacy-zoom-widget',
+        style: {margin: '90px 0 0 20px'}
+      })
+    ],
+    []
+  );
+
+  useEffect(() => {
+    const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
+    zoomWidget?.setProps({minZoom, maxZoom});
+  }, [widgets, minZoom, maxZoom]);
 
   useLayoutEffect(() => {
     engine.run();
@@ -118,28 +145,6 @@ export const GraphGL = ({
       zoom: newZoom
     });
   }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
-
-  // Relatively pan the graph by a specified position vector.
-  const panBy = useCallback(
-    (dx, dy) =>
-      setViewState({
-        ...viewState,
-        target: [viewState.target[0] + dx, viewState.target[1] + dy]
-      }),
-    [viewState, setViewState]
-  );
-
-  // Relatively zoom the graph by a delta zoom level
-  const zoomBy = useCallback(
-    (deltaZoom) => {
-      const newZoom = viewState.zoom + deltaZoom;
-      setViewState({
-        ...viewState,
-        zoom: Math.min(Math.max(newZoom, minZoom), maxZoom)
-      });
-    },
-    [maxZoom, minZoom, viewState, setViewState]
-  );
 
   useEffect(() => {
     if (zoomToFitOnLoad && isLoading) {
@@ -193,9 +198,8 @@ export const GraphGL = ({
               () => [
                 new GraphLayer({
                   engine,
-                  nodeStyle,
+                  stylesheet,
                   nodeEvents,
-                  edgeStyle,
                   edgeEvents,
                   enableDragging,
                   resumeLayoutAfterDragging
@@ -204,31 +208,18 @@ export const GraphGL = ({
               [
                 engine,
                 engine.getGraphVersion(),
-                nodeStyle,
+                stylesheet,
                 nodeEvents,
-                edgeStyle,
                 edgeEvents,
                 enableDragging,
                 resumeLayoutAfterDragging
               ]
             ) as any
           }
-          widgets={[
-            new ViewControlWidget({})
-          ]}
+          widgets={widgets}
           getTooltip={getTooltip}
           onHover={onHover}
         />
-        {/* View control component        
-         <ViewControlComponent
-          fitBounds={fitBounds}
-          panBy={panBy}
-          zoomBy={zoomBy}
-          zoomLevel={viewState.zoom}
-          maxZoom={maxZoom}
-          minZoom={minZoom}
-        />
-        */}
       </div>
     </>
   );
@@ -248,19 +239,11 @@ GraphGL.propTypes = {
     onHover: PropTypes.func,
     onMouseEnter: PropTypes.func
   }).isRequired,
-  /** Declarative node style */
-  nodeStyle: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool])),
-  /** Declarative edge style */
-  edgeStyle: PropTypes.oneOfType([
-    PropTypes.object,
-    PropTypes.arrayOf(
-      PropTypes.shape({
-        stroke: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
-        strokeWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
-        decorators: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool]))
-      })
-    )
-  ]).isRequired,
+  /** Declarative graph stylesheet */
+  stylesheet: PropTypes.shape({
+    nodes: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.bool])),
+    edges: PropTypes.oneOfType([PropTypes.object, PropTypes.arrayOf(PropTypes.object)])
+  }).isRequired,
   /** Edge event callbacks */
   edgeEvents: PropTypes.shape({
     onClick: PropTypes.func,
@@ -274,7 +257,6 @@ GraphGL.propTypes = {
     zoom: PropTypes.number
   }),
   /** A component to control view state. */
-  ViewControlComponent: PropTypes.func,
   /** A minimum scale factor for zoom level of the graph. */
   minZoom: PropTypes.number,
   /** A maximum scale factor for zoom level of the graph. */
