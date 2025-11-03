@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {Bounds2D} from '@math.gl/types';
+
 import type {Graph} from '../graph/graph';
 import type {Node} from '../graph/node';
 import type {Edge} from '../graph/edge';
@@ -11,6 +13,12 @@ import {log} from '../utils/log';
 
 // the status of the layout
 export type GraphLayoutState = 'init' | 'start' | 'calculating' | 'done' | 'error';
+
+export type GraphLayoutBounds = Bounds2D;
+
+export type GraphLayoutEventDetail = {
+  bounds: GraphLayoutBounds | null;
+};
 
 export type GraphLayoutOptions = {};
 
@@ -22,6 +30,14 @@ export class GraphLayout<
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration options of the layout. */
   protected _options: OptionsT;
+
+  /**
+   * Last computed layout bounds in local layout coordinates.
+   *
+   * Subclasses should update this value by overriding {@link _updateBounds}
+   * so it reflects the latest geometry before layout lifecycle events fire.
+   */
+  protected _bounds: GraphLayoutBounds | null = null;
 
   public version = 0;
   public state: GraphLayoutState = 'init';
@@ -89,7 +105,54 @@ export class GraphLayout<
    */
   unlockNodePosition(node: Node) {}
 
+  /** Returns the last computed layout bounds, if available. */
+  getBounds(): GraphLayoutBounds | null {
+    return this._bounds;
+  }
+
   // INTERNAL METHODS
+
+  /** Hook for subclasses to update bounds prior to emitting events. */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  protected _updateBounds(): void {}
+
+  /**
+   * Utility for subclasses to derive layout bounds from an iterable of [x, y] positions.
+   * @param positions Iterable of node positions.
+   * @returns Layout bounds for the supplied positions or `null` if none are finite.
+   */
+  protected _calculateBounds(
+    positions: Iterable<Readonly<[number, number]> | null | undefined>
+  ): GraphLayoutBounds | null {
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const position of positions) {
+      if (!position) {
+        continue;
+      }
+      const [x, y] = position;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        continue;
+      }
+
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+
+    if (minX === Number.POSITIVE_INFINITY) {
+      return null;
+    }
+
+    return [
+      [minX, minY],
+      [maxX, maxY]
+    ];
+  }
 
   protected _updateState(state: GraphLayoutState) {
     this.state = state;
@@ -99,6 +162,7 @@ export class GraphLayout<
   /** @fires GraphLayout#onLayoutStart */
   protected _onLayoutStart = (): void => {
     log.log(0, `GraphLayout(${this._name}): start`)();
+    this._updateBounds();
     this._updateState('calculating');
 
     /**
@@ -106,12 +170,14 @@ export class GraphLayout<
      * @event GraphLayout#onLayoutChange
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutStart'));
+    const detail: GraphLayoutEventDetail = {bounds: this._bounds};
+    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutStart', {detail}));
   };
 
   /** @fires GraphLayout#onLayoutChange */
   protected _onLayoutChange = (): void => {
     log.log(0, `GraphLayout(${this._name}): update`)();
+    this._updateBounds();
     this._updateState('calculating');
 
     /**
@@ -119,12 +185,14 @@ export class GraphLayout<
      * @event GraphLayout#onLayoutChange
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutChange'));
+    const detail: GraphLayoutEventDetail = {bounds: this._bounds};
+    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutChange', {detail}));
   };
 
   /** @fires GraphLayout#onLayoutDone */
   protected _onLayoutDone = (): void => {
     log.log(0, `GraphLayout(${this._name}): end`)();
+    this._updateBounds();
     this._updateState('done');
 
     /**
@@ -132,7 +200,8 @@ export class GraphLayout<
      * @event GraphLayout#onLayoutDone
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutDone'));
+    const detail: GraphLayoutEventDetail = {bounds: this._bounds};
+    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutDone', {detail}));
   };
 
   /** @fires GraphLayout#onLayoutError */

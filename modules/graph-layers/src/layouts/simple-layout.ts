@@ -98,4 +98,9 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutOptions> {
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override _updateBounds(): void {
+    const positions = Object.values(this._nodePositionMap) as Array<[number, number] | null>;
+    this._bounds = this._calculateBounds(positions);
+  }
 }

@@ -196,6 +196,11 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override _updateBounds(): void {
+    const positions = Object.values(this._hierarchicalPoints ?? {}) as Array<[number, number] | null>;
+    this._bounds = this._calculateBounds(positions);
+  }
 }
 
 function rotate(cx, cy, x, y, angle) {

@@ -18,13 +18,13 @@ import {
   JSONLoader,
   RadialLayout,
   HivePlotLayout,
-  ForceMultiGraphLayout
+  ForceMultiGraphLayout,
+  type GraphLayoutBounds,
+  type GraphLayoutEventDetail
 } from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 // import '@deck.gl/widgets/stylesheet.css';
-
-import {extent} from 'd3-array';
 
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
@@ -152,36 +152,51 @@ export function App(props) {
 
   const selectedStyles = selectedExample?.style;
 
-  const fitBounds = useCallback(() => {
-    if (!engine) {
-      return;
-    }
+  const fitBounds = useCallback(
+    (nextBounds?: GraphLayoutBounds | null) => {
+      if (!engine) {
+        return;
+      }
 
-    const data = engine.getNodes();
-    if (!data.length) {
-      return;
-    }
+      const bounds = nextBounds ?? engine.getLayoutBounds();
+      if (!bounds) {
+        return;
+      }
 
-    const {width, height} = viewState as any;
+      const [[minX, minY], [maxX, maxY]] = bounds;
+      if (
+        !Number.isFinite(minX) ||
+        !Number.isFinite(minY) ||
+        !Number.isFinite(maxX) ||
+        !Number.isFinite(maxY)
+      ) {
+        return;
+      }
 
-    // get the projected position of all nodes
-    const positions = data.map((d) => engine.getNodePosition(d));
-    // get the value range of x and y
-    const xExtent = extent(positions, (d) => d[0]);
-    const yExtent = extent(positions, (d) => d[1]);
-    const newTarget = [(xExtent[0] + xExtent[1]) / 2, (yExtent[0] + yExtent[1]) / 2];
-    const zoom = Math.min(
-      width / (xExtent[1] - xExtent[0] + viewportPadding * 2),
-      height / (yExtent[1] - yExtent[0] + viewportPadding * 2)
-    );
-    // zoom value is at log scale
-    const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
-    setViewState({
-      ...viewState,
-      target: newTarget,
-      zoom: newZoom
-    });
-  }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
+      setViewState((prev) => {
+        const {width, height} = prev as any;
+        if (!width || !height) {
+          return prev;
+        }
+
+        const target: [number, number] = [(minX + maxX) / 2, (minY + maxY) / 2];
+        const spanX = Math.max(maxX - minX, 1e-6);
+        const spanY = Math.max(maxY - minY, 1e-6);
+        const zoom = Math.min(
+          width / (spanX + viewportPadding * 2),
+          height / (spanY + viewportPadding * 2)
+        );
+        const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
+
+        return {
+          ...prev,
+          target,
+          zoom: newZoom
+        };
+      });
+    },
+    [engine, viewportPadding, minZoom, maxZoom]
+  );
 
   // Relatively pan the graph by a specified position vector.
   // const panBy = useCallback(
@@ -211,11 +226,16 @@ export function App(props) {
     }
 
     if (zoomToFitOnLoad && isLoading) {
-      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+      const handleLayoutDone = (event: Event) => {
+        const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
+        fitBounds(detail?.bounds);
+      };
+      engine.addEventListener('onLayoutDone', handleLayoutDone, {once: true});
+      return () => {
+        engine.removeEventListener('onLayoutDone', handleLayoutDone);
+      };
     }
-    return () => {
-      engine.removeEventListener('onLayoutDone', fitBounds);
-    };
+    return () => undefined;
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
   const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
     setSelectedExample(example);
