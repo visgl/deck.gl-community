@@ -26,19 +26,13 @@
         "modules/graph-layers/api-reference/layouts/README"
       ]
     },
-    {
-      "type": "category",
-      "label": "Node and Edge Styling",
-      "items": [
-        "modules/graph-layers/api-reference/styling/graph-stylesheet",
-        "modules/graph-layers/api-reference/styling/graph-style-engine",
-        "modules/graph-layers/api-reference/styling/node/node-style-rounded-rectangle",
-        "modules/graph-layers/api-reference/styling/node/node-style-path-rounded-rectangle",
-        "modules/graph-layers/api-reference/styling/node/node-style-marker",
-        "modules/graph-layers/api-reference/styling/node/node-style-label",
-        "modules/graph-layers/api-reference/styling/edge/edge-style-label",
-        "modules/graph-layers/api-reference/styling/edge/edge-style-flow"
-      ]
-    }
+      {
+        "type": "category",
+        "label": "Node and Edge Styling",
+        "items": [
+          "modules/graph-layers/api-reference/styling/graph-stylesheet",
+          "modules/graph-layers/api-reference/styling/graph-style-engine"
+        ]
+      }
   ]
 }

@@ -258,14 +258,203 @@ node:
 }
 ```
 
-#### Other node primitives
+#### Rounded rectangle node style
 
-Additional primitives expose their own option sets:
+This primitive uses a custom shader to draw rectangles with smoothly rounded
+corners while keeping the geometry lightweight. It is great for pill-shaped or
+card-style nodes that remain crisp at any zoom level, and it supports the same
+attribute-binding shortcuts as other node styles.
 
-- [Rounded rectangle](./node/node-style-rounded-rectangle.md) – shader-based rectangles with adjustable corners.
-- [Path rounded rectangle](./node/node-style-path-rounded-rectangle.md) – polygon-backed rectangles, useful for precise picking.
-- [Marker](./node/node-style-marker.md) – vector markers from the bundled set (alias: `'icon'`).
-- [Label](./node/node-style-label.md) – text rendered with `TextLayer`.
+Rounded rectangles share all options from [basic rectangles](#rectangle-node-style)
+and add the following controls:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `cornerRadius` | constant \| accessor \| attribute binding | `0.1` | Amount of corner rounding. `0` keeps sharp corners, `1` approaches a circle. Values between 0 and 1 are typical. |
+| `radius` | constant \| accessor \| attribute binding | `1` | Optional radius multiplier for the underlying geometry. It can expand or shrink the shader’s falloff and exists primarily for compatibility. |
+
+Because the shape is generated in the shader it remains smooth regardless of the
+polygon resolution.
+
+```js
+{
+  type: 'rounded-rectangle',
+  width: 140,
+  height: 56,
+  cornerRadius: {attribute: 'cornerRadius', fallback: 0.5},
+  fill: '#111827',
+  stroke: '#4ADE80',
+  strokeWidth: {
+    default: 1,
+    selected: 3
+  }
+}
+```
+
+You can also adjust the radius dynamically to highlight specific groups:
+
+```js
+{
+  type: 'rounded-rectangle',
+  width: 110,
+  height: 44,
+  cornerRadius: {attribute: 'cluster', fallback: 'default', scale: value => (value === 'core' ? 0.35 : 0.15)},
+  fill: '@clusterColor'
+}
+```
+
+#### Path rounded rectangle node style
+
+This variant generates the rounded rectangle geometry on the CPU and feeds it to
+Deck.gl’s `PolygonLayer`. It trades slightly higher CPU cost for compatibility
+with features that rely on actual polygon outlines (e.g. GPU picking or custom
+polygon processing) while still honoring attribute bindings for every property.
+
+Path rounded rectangles accept the rectangle properties plus:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `cornerRadius` | constant \| accessor \| attribute binding | `0.1` | Corner rounding factor. As with the shader version, `0` is sharp and `1` is fully rounded. |
+
+The width, height, fill, stroke, and strokeWidth options behave identically to
+the [`'rectangle'` node style](#rectangle-node-style).
+
+```js
+{
+  type: 'path-rounded-rectangle',
+  width: {attribute: 'children', fallback: [], scale: value => 120 + (value?.length ?? 0) * 8},
+  height: 48,
+  cornerRadius: 0.35,
+  fill: '#0B1120',
+  stroke: '#38BDF8',
+  strokeWidth: 1.5
+}
+```
+
+Because the geometry is computed per node you can animate the radius as part of
+an interaction:
+
+```js
+{
+  type: 'path-rounded-rectangle',
+  width: 96,
+  height: 40,
+  cornerRadius: {
+    default: 0.2,
+    hover: 0.5
+  },
+  fill: '#1E3A8A'
+}
+```
+
+#### Marker node style
+
+Markers render vector icons from the bundled marker set. Under the hood the
+style uses a Deck.gl `IconLayer` with zoom-aware sizing logic.
+
+Marker styles extend the [shared node options](#shared-node-properties) with the
+following keys:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `marker` | constant \| accessor \| attribute binding | `'circle'` | Name of the marker glyph. See the list below for supported values. |
+| `size` | constant \| accessor \| attribute binding | `12` | Marker size in pixels before zoom scaling. |
+| `fill` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Fill color for the glyph. |
+| `scaleWithZoom` | constant \| accessor \| attribute binding | `true` | When `true`, markers grow/shrink with the viewport zoom level. Set to `false` to keep a constant pixel size. |
+
+Supported marker names include:
+
+```
+"location-marker-filled", "bell-filled", "bookmark-filled", "bookmark", "cd-filled",
+"cd", "checkmark", "circle-check-filled", "circle-check", "circle-filled", "circle-i-filled",
+"circle-i", "circle-minus-filled", "circle-minus", "circle-plus-filled", "circle-plus",
+"circle-questionmark-filled", "circle-questionmark", "circle-slash-filled", "circle-slash",
+"circle-x-filled", "circle-x", "circle", "diamond-filled", "diamond", "flag-filled",
+"flag", "gear", "heart-filled", "heart", "bell", "location-marker", "octagonal-star-filled",
+"octagonal-star", "person-filled", "person", "pin-filled", "pin", "plus-small", "plus",
+"rectangle-filled", "rectangle", "star-filled", "star", "tag-filled", "tag", "thumb-down-filled",
+"thumb-down", "thumb-up", "thumb_up-filled", "triangle-down-filled", "triangle-down",
+"triangle-left-filled", "triangle-left", "triangle-right-filled", "triangle-right",
+"triangle-up-filled", "triangle-up", "x-small", "x"
+```
+
+```js
+{
+  type: 'marker',
+  marker: {attribute: 'status', fallback: 'online', scale: value => (value === 'offline' ? 'triangle-down-filled' : 'circle-filled')},
+  size: 18,
+  fill: {
+    default: '#6B7280',
+    hover: '#F59E0B'
+  },
+  scaleWithZoom: false
+}
+```
+
+Use selectors to show different icons for interaction states:
+
+```js
+{
+  type: 'marker',
+  marker: {
+    default: '@defaultIcon',
+    selected: 'star-filled'
+  },
+  size: 16,
+  fill: '#FBBF24'
+}
+```
+
+#### Label node style
+
+Labels are rendered with Deck.gl’s `TextLayer` and are typically combined with a
+background primitive (circle, rectangle, etc.).
+
+Alongside the [shared node options](#shared-node-properties), labels support the
+following keys:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `text` | constant \| accessor \| attribute binding | – (required) | Text to display. Attribute strings such as `text: '@label'` read from node properties. |
+| `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color. |
+| `fontSize` | constant \| accessor \| attribute binding | `12` | Font size in pixels. |
+| `textAnchor` | constant \| accessor \| attribute binding | `'middle'` | Horizontal alignment: `'start'`, `'middle'`, or `'end'`. |
+| `alignmentBaseline` | constant \| accessor \| attribute binding | `'center'` | Vertical alignment: `'top'`, `'center'`, or `'bottom'`. |
+| `angle` | constant \| accessor \| attribute binding | `0` | Clockwise rotation in degrees. |
+| `textMaxWidth` | constant \| accessor \| attribute binding | `-1` | Maximum width in pixels before wrapping. `-1` disables wrapping. |
+| `textWordBreak` | constant \| accessor \| attribute binding | `'break-all'` | Word-breaking mode passed to `TextLayer` (`'break-all'`, `'break-word'`, etc.). |
+| `textSizeMinPixels` | constant \| accessor \| attribute binding | `9` | Minimum size the text is allowed to shrink to. |
+| `scaleWithZoom` | constant \| accessor \| attribute binding | `true` | Whether the font scales with zoom. Set to `false` to keep screen-space size. |
+
+```js
+{
+  type: 'label',
+  text: '@label',
+  color: '#E2E8F0',
+  fontSize: 16,
+  offset: [0, 18],
+  alignmentBaseline: 'top'
+}
+```
+
+Using selectors you can provide contextual hints:
+
+```js
+{
+  type: 'label',
+  text: '@label',
+  color: {
+    default: '#64748B',
+    hover: '#F8FAFC'
+  },
+  textMaxWidth: 160,
+  textWordBreak: 'break-word',
+  ':selected': {
+    fontSize: 20,
+    scaleWithZoom: false
+  }
+}
+```
 
 ## Edge styles
 
@@ -308,14 +497,106 @@ Edge styles honor the same selectors as node styles (`:hover`, `:dragging`, and
 ### Edge decorators
 
 Decorators add auxiliary visuals that travel along the edge path. Each decorator
-is an object with a `type` field. Supported values include:
+is an object with a `type` field and accepts the same declarative value shapes as
+nodes and edges.
 
-- [`'edge-label'`](./edge/edge-style-label.md) – draws text that follows the edge. Supports `text`, `color`, `fontSize`, `textAnchor`, `alignmentBaseline`, `scaleWithZoom`, `textMaxWidth`, `textWordBreak`, and `textSizeMinPixels`.
-- [`'flow'`](./edge/edge-style-flow.md) – animated flow segments to communicate direction or magnitude. Supports `color`, `width`, `speed`, and `tailLength`.
-- `'arrow'` – renders arrowheads for directed edges. Supports `color`, `size`, and `offset`. The `offset` accessor accepts `[along, perpendicular]` distances in layer units, where `along` shifts the arrow away from the target node and `perpendicular` offsets it orthogonally from the edge.
+#### Edge label decorator
 
-Decorators are also processed by the stylesheet engine, so they can use
-selectors and accessors just like the main edge style.
+Adds text anchored near the edge’s midpoint. Internally this uses the same
+`ZoomableTextLayer` as node labels, so the available options are similar.
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `text` | constant \| accessor \| attribute binding | – (required) | Label content. Attribute strings such as `text: '@weight'` pull from edge properties. |
+| `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color. |
+| `fontSize` | constant \| accessor \| attribute binding | `12` | Font size in pixels. |
+| `textAnchor` | constant \| accessor \| attribute binding | `'middle'` | Horizontal alignment relative to the computed position. |
+| `alignmentBaseline` | constant \| accessor \| attribute binding | `'center'` | Vertical alignment. |
+| `angle` | constant \| accessor \| attribute binding | Automatic | Rotation in degrees. Defaults to the edge direction; override to lock the angle. |
+| `textMaxWidth` | constant \| accessor \| attribute binding | `-1` | Maximum width before wrapping. `-1` disables wrapping. |
+| `textWordBreak` | constant \| accessor \| attribute binding | `'break-all'` | Word-breaking mode (`'break-word'`, `'break-all'`, etc.). |
+| `textSizeMinPixels` | constant \| accessor \| attribute binding | `9` | Minimum rendered size for zooming out. |
+| `scaleWithZoom` | constant \| accessor \| attribute binding | `true` | Whether the label scales with the viewport zoom level. |
+| `offset` | constant \| accessor \| attribute binding | `null` | Additional pixel offset from the centroid-derived anchor position. |
+
+All properties support selectors (`:hover`, `:selected`, …) and accessors, just
+like the base edge style.
+
+```js
+{
+  type: 'edge-label',
+  text: {attribute: 'weight', scale: value => `${value} ms`},
+  color: {
+    default: '#1F2937',
+    hover: '#111827'
+  },
+  textAnchor: 'start',
+  offset: [8, 0]
+}
+```
+
+To keep labels readable while zooming, disable scaling at small sizes:
+
+```js
+{
+  type: 'edge-label',
+  text: '@label',
+  scaleWithZoom: {
+    default: true,
+    dragging: false
+  },
+  textSizeMinPixels: 12
+}
+```
+
+#### Flow decorator
+
+The flow decorator draws animated segments moving along the edge direction. It
+is useful to express throughput or directional emphasis.
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Color of the animated segment. |
+| `speed` | constant \| accessor \| attribute binding | `0` | Segments per second that travel along the edge. Positive values flow from source to target. |
+| `width` | constant \| accessor \| attribute binding | `1` | Visual width of the segment in pixels. |
+| `tailLength` | constant \| accessor \| attribute binding | `1` | Length of the fading trail behind each segment. |
+
+All fields support accessors and selectors. A speed of `0` disables the motion
+while still rendering a static highlight.
+
+```js
+{
+  type: 'flow',
+  color: '#22D3EE',
+  width: 2,
+  speed: {attribute: 'loadFactor', fallback: 0},
+  tailLength: 4
+}
+```
+
+To create directional emphasis only while hovering:
+
+```js
+{
+  type: 'flow',
+  color: '#FACC15',
+  width: 3,
+  speed: {
+    default: 0,
+    hover: 2
+  }
+}
+```
+
+#### Arrow decorator
+
+Renders arrowheads for directed edges. Supports `color`, `size`, and `offset`.
+The `offset` accessor accepts `[along, perpendicular]` distances in layer units,
+where `along` shifts the arrow away from the target node and `perpendicular`
+offsets it orthogonally from the edge.
+
+Decorators are processed by the stylesheet engine, so they can use selectors and
+accessors just like the main edge style.
 
 ## Composing stylesheets
 
