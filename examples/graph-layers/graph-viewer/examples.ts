@@ -122,26 +122,27 @@ const WITS_REGION_COLOR_MAP: Record<string, string> = WITS_REGIONS.reduce((acc, 
   return acc;
 }, {} as Record<string, string>);
 
-const getWitsRegionColor = (node: any) => {
-  const region = node?.getPropertyValue?.('region');
-  return WITS_REGION_COLOR_MAP[region as keyof typeof WITS_REGION_COLOR_MAP] ?? '#475569';
-};
-
-const getWitsNodeRadius = (node: any) => {
-  const size = Number(node?.getPropertyValue?.('size'));
-  if (!Number.isFinite(size)) {
-    return 4;
-  }
-
-  return Math.max(3.5, Math.sqrt(size));
-};
-
 const WITS_REGION_STYLE: ExampleStyles = {
   nodes: [
     {
       type: 'circle',
-      radius: getWitsNodeRadius,
-      fill: getWitsRegionColor,
+      radius: {
+        attribute: 'size',
+        fallback: 4,
+        scale: (value: unknown) => {
+          const size = Number(value);
+          if (!Number.isFinite(size)) {
+            return 4;
+          }
+          return Math.max(3.5, Math.sqrt(size));
+        }
+      },
+      fill: {
+        attribute: 'region',
+        fallback: '#475569',
+        scale: (region: unknown) =>
+          WITS_REGION_COLOR_MAP[String(region)] ?? '#475569'
+      },
       stroke: '#0f172a',
       strokeWidth: 0.75,
       opacity: 0.85
@@ -229,11 +230,6 @@ const cloneTree = <T extends {id: string; children?: readonly string[]}>(
   tree: readonly T[]
 ): T[] => tree.map((node) => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
 
-const getGroupColor = (node: any) => {
-  const group = node?.getPropertyValue?.('group');
-  return GROUP_COLOR_MAP[group as keyof typeof GROUP_COLOR_MAP] ?? '#94a3b8';
-};
-
 const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'd3-force-layout':
     'Uses a physics-inspired simulation (d3-force) to iteratively spread nodes while balancing attractive and repulsive forces.',
@@ -283,27 +279,7 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
     },
     {
       type: 'label',
-      text: (node) => {
-        if (typeof node?.getId === 'function') {
-          const id = node.getId();
-          if (typeof id === 'string' && id.length) {
-            return id;
-          }
-        }
-
-        if (typeof node?.getPropertyValue === 'function') {
-          const originalId = node.getPropertyValue('id');
-          if (originalId !== undefined && originalId !== null) {
-            return String(originalId);
-          }
-        }
-
-        if (node && 'id' in node && node.id !== undefined && node.id !== null) {
-          return String(node.id);
-        }
-
-        return '';
-      },
+      text: '@id',
       color: '#0f172a',
       fontSize: 14,
       offset: [0, 18],
@@ -494,14 +470,18 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
     {
       type: 'circle',
       radius: 7,
-      fill: getGroupColor,
+      fill: {
+        attribute: 'group',
+        fallback: '#94a3b8',
+        scale: (group: unknown) => GROUP_COLOR_MAP[String(group)] ?? '#94a3b8'
+      },
       stroke: '#0f172a',
       strokeWidth: 1.25,
       opacity: 0.95
     },
     {
       type: 'label',
-      text: (node) => node?.getPropertyValue?.('name') ?? node?.getId?.() ?? '',
+      text: {attribute: 'name', fallback: ''},
       color: '#334155',
       fontSize: 12,
       textAnchor: 'start',
@@ -531,13 +511,17 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
     },
     {
       type: 'circle',
-      radius: (node) => (node?.getPropertyValue?.('star') ? 6 : 0),
+      radius: {
+        attribute: 'star',
+        fallback: false,
+        scale: (isStar: unknown) => (isStar ? 6 : 0)
+      },
       fill: [255, 255, 0],
       offset: [18, -18]
     },
     {
       type: 'label',
-      text: (node) => node?.getId?.() ?? '',
+      text: '@id',
       color: [255, 255, 255],
       fontSize: 14,
       textAnchor: 'middle',
@@ -548,14 +532,14 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
   edges: {
     stroke: '#cf4569',
     strokeWidth: 2,
-      decorators: [
-        {
-          type: 'edge-label',
-          text: {attribute: 'type', fallback: ''},
-          color: [0, 0, 0],
-          fontSize: 14
-        }
-      ]
+    decorators: [
+      {
+        type: 'edge-label',
+        text: {attribute: 'type', fallback: ''},
+        color: [0, 0, 0],
+        fontSize: 14
+      }
+    ]
   }
 };
 
@@ -612,7 +596,7 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
     },
     {
       type: 'label',
-      text: (node) => node.getPropertyValue('label') as string,
+      text: '@label',
       fontSize: 16,
       color: '#102a82',
       offset: [0, 28],

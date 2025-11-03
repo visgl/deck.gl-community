@@ -35,23 +35,31 @@ const App = ({data}) => {
     <GraphGL
       graph={graph}
       layout={new D3ForceLayout()}
-      nodeStyle={[
-        {
-          type: 'circle',
-          radius: 10,
-          fill: 'blue',
-          opacity: 1,
+      stylesheet={{
+        nodes: [
+          {
+            type: 'circle',
+            radius: 10,
+            fill: 'blue',
+            opacity: 1,
+          },
+          {
+            type: 'label',
+            text: '@id',
+            color: '#ffffff',
+            offset: [0, 18],
+          },
+        ],
+        edges: {
+          stroke: 'black',
+          strokeWidth: 2,
         },
-      ]}
-      edgeStyle={{
-        stroke: 'black',
-        strokeWidth: 2,
       }}
       enableDragging
     />
   );
 }
-````
+```
 
 
 ## Setup Dev Environment

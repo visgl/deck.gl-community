@@ -200,7 +200,7 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
       ) : null}
       <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>
         <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-          Style JSON
+          Stylesheet JSON
         </h3>
         <pre
           style={{
