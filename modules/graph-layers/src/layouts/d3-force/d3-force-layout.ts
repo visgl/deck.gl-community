@@ -3,8 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
-
-import {EDGE_TYPE} from '../../core/constants';
+import {log} from '../../utils/log';
 
 export type D3ForceLayoutOptions = GraphLayoutOptions & {
   alpha?: number;
@@ -84,6 +83,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     });
 
     this._worker.onmessage = (event) => {
+      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
       if (event.data.type !== 'end') {
         return;
       }
@@ -106,25 +106,39 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   }
 
   stop() {
-    this._worker.terminate();
+    if (this._worker) {
+      this._worker.terminate();
+      this._worker = null;
+    }
   }
 
   getEdgePosition = (edge) => {
     const sourceNode = this._graph.findNode(edge.getSourceNodeId());
     const targetNode = this._graph.findNode(edge.getTargetNodeId());
-    if (!this.getNodePosition(sourceNode) || !this.getNodePosition(targetNode)) {
+    if (!sourceNode || !targetNode) {
+      return null;
+    }
+
+    const sourcePosition = this.getNodePosition(sourceNode);
+    const targetPosition = this.getNodePosition(targetNode);
+
+    if (!sourcePosition || !targetPosition) {
       return null;
     }
 
     return {
-      type: EDGE_TYPE.LINE,
-      sourcePosition: this.getNodePosition(sourceNode),
-      targetPosition: this.getNodePosition(targetNode),
+      type: 'line',
+      sourcePosition,
+      targetPosition,
       controlPoints: []
     };
   };
 
   getNodePosition = (node) => {
+    if (!node) {
+      return null;
+    }
+
     const d3Node = this._positionsByNodeId.get(node.id);
     if (d3Node) {
       return d3Node.coordinates;

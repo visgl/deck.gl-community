@@ -4,8 +4,6 @@
 
 import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 
-import {EDGE_TYPE} from '../../core/constants';
-
 export type GPUForceLayoutOptions = GraphLayoutOptions & {
   alpha?: number;
   resumeAlpha?: number;
@@ -33,7 +31,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   private _nodeMap: any;
   private _edgeMap: any;
   private _graph: any;
-  private _worker: Worker;
+  private _worker: Worker | null = null;
   private _callbacks: any;
 
   constructor(options: GPUForceLayoutOptions = {}) {
@@ -143,7 +141,10 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     throw new Error('Resume unavailable');
   }
   stop() {
-    this._worker.terminate();
+    if (this._worker) {
+      this._worker.terminate();
+      this._worker = null;
+    }
   }
 
   // for steaming new data on the same graph
@@ -232,14 +233,14 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     const targetPosition = d3Edge && d3Edge.target;
     if (d3Edge && sourcePosition && targetPosition) {
       return {
-        type: EDGE_TYPE.LINE,
+        type: 'line',
         sourcePosition: [sourcePosition.x, sourcePosition.y],
         targetPosition: [targetPosition.x, targetPosition.y],
         controlPoints: []
       };
     }
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: [0, 0],
       targetPosition: [0, 0],
       controlPoints: []

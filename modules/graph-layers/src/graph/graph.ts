@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {log} from '../utils/log';
+import {warn} from '../utils/log';
 import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
@@ -157,7 +157,7 @@ export class Graph extends EventTarget {
     const targetNode = this.findNode(edge.getTargetNodeId());
 
     if (!sourceNode || !targetNode) {
-      log.warn(`Unable to add edge ${edge.id},  source or target node is missing.`)();
+      warn(`Unable to add edge ${edge.id},  source or target node is missing.`);
       return;
     }
 
@@ -194,7 +194,7 @@ export class Graph extends EventTarget {
   removeNode(nodeId: string | number): void {
     const node = this.findNode(nodeId);
     if (!node) {
-      log.warn(`Unable to remove node ${nodeId} - doesn't exist`)();
+      warn(`Unable to remove node ${nodeId} - doesn't exist`);
       return;
     }
     // remove all edges connect to this node from map
@@ -232,7 +232,7 @@ export class Graph extends EventTarget {
   removeEdge(edgeId: string | number): void {
     const edge = this.findEdge(edgeId);
     if (!edge) {
-      log.warn(`Unable to remove edge ${edgeId} - doesn't exist`)();
+      warn(`Unable to remove edge ${edgeId} - doesn't exist`);
       return;
     }
     const sourceNode = this.findNode(edge.getSourceNodeId());
@@ -261,7 +261,7 @@ export class Graph extends EventTarget {
   getConnectedEdges(nodeId: string | number): Edge[] {
     const node = this.findNode(nodeId);
     if (!node) {
-      log.warn(`Unable to find node ${nodeId} - doesn't exist`)();
+      warn(`Unable to find node ${nodeId} - doesn't exist`);
       return [];
     }
     return node.getConnectedEdges();
@@ -275,7 +275,7 @@ export class Graph extends EventTarget {
   getNodeSiblings(nodeId: string | number): Node[] {
     const node = this.findNode(nodeId);
     if (!node) {
-      log.warn(`Unable to find node ${nodeId} - doesn't exist`)();
+      warn(`Unable to find node ${nodeId} - doesn't exist`);
       return [];
     }
     return node.getSiblingIds().map((siblingNodeId) => this.findNode(siblingNodeId));
@@ -289,7 +289,7 @@ export class Graph extends EventTarget {
   getDegree(nodeId: string | number): number {
     const node = this.findNode(nodeId);
     if (!node) {
-      log.warn(`Unable to find node ${nodeId} - doesn't exist`)();
+      warn(`Unable to find node ${nodeId} - doesn't exist`);
       return 0;
     }
     return node.getDegree();

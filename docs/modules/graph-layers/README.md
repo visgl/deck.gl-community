@@ -19,9 +19,14 @@ bringing the graph.gl code up-to-date with the latest deck.gl versions.
 
 ## What's New
 
-### `@deck.gl-community/graph-layers` v9.0.0 (In development)
+### `@deck.gl-community/graph-layers` 
 
-Target Release date: April 2024
+- Graph styles: edge decorator `'arrow'` renders arrows on directional edges.
+- Graph styles: style constants are now lowercase strings. Replace `NODE_TYPE.CIRCLE` with `'circle'`, `EDGE_TYPE.LINE` with `'line'` etc.
+
+### `@deck.gl-community/graph-layers` 
+
+Release date: April 2024
 
 The graph-layers module has been repackaged as a deck.gl "layer pack" with additional features, and has been modernized in terms of: 
 - upgraded to work with deck.gl v9 

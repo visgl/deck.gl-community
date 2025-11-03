@@ -9,5 +9,4 @@ public/
 .cache/
 
 modules/experimental
-modules/arrow-layers
 examples/arrow-layers

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {createGraph} from './create-graph';
-import {log} from '../utils/log';
+import {error} from '../utils/log';
 import {basicNodeParser} from './node-parsers';
 import {basicEdgeParser} from './edge-parsers';
 
@@ -19,7 +19,7 @@ export function loadSimpleJSONGraph(
   const {nodeParser = basicNodeParser, edgeParser = basicEdgeParser} = options;
   const {name = 'default', nodes, edges} = json;
   if (!nodes) {
-    log.error('Invalid graph: nodes is missing.')();
+    error('Invalid graph: nodes is missing.');
     return null;
   }
 

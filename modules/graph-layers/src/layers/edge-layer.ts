@@ -4,15 +4,14 @@
 
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 
-import {EDGE_TYPE} from '../core/constants';
 import {StraightLineEdgeLayer} from '../layers/edge-layers/straight-line-edge-layer';
 import {PathEdgeLayer} from './edge-layers/path-edge-layer';
 import {CurvedEdgeLayer} from './edge-layers/curved-edge-layer';
 
 const EDGE_LAYER_MAP = {
-  [EDGE_TYPE.LINE]: StraightLineEdgeLayer,
-  [EDGE_TYPE.PATH]: PathEdgeLayer,
-  [EDGE_TYPE.SPLINE_CURVE]: CurvedEdgeLayer
+  'line': StraightLineEdgeLayer,
+  'path': PathEdgeLayer,
+  'spline-curve': CurvedEdgeLayer
 };
 
 export class EdgeLayer extends CompositeLayer {
@@ -47,9 +46,9 @@ export class EdgeLayer extends CompositeLayer {
         return res;
       },
       {
-        [EDGE_TYPE.LINE]: [],
-        [EDGE_TYPE.PATH]: [],
-        [EDGE_TYPE.SPLINE_CURVE]: []
+        'line': [],
+        'path': [],
+        'spline-curve': []
       }
     );
     this.setState({typedEdgeData});

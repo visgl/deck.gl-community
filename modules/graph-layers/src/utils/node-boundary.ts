@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {NODE_TYPE, type ValueOf} from '../core/constants';
+export type GeometryNodeType =
+  | 'circle'
+  | 'rectangle'
+  | 'rounded-rectangle'
+  | 'path-rounded-rectangle'
+  | 'marker';
 
 export type NodeGeometry = {
-  type?: ValueOf<typeof NODE_TYPE>;
+  type?: GeometryNodeType;
   center: [number, number];
   radius?: number;
   width?: number;
@@ -147,12 +152,12 @@ export function getNodeBoundaryIntersection(
   const {unit} = direction;
 
   switch (geometry.type) {
-    case NODE_TYPE.CIRCLE:
-    case NODE_TYPE.MARKER: {
+    case 'circle':
+    case 'marker': {
       const radius = geometry.radius ?? 0;
       return [geometry.center[0] + unit[0] * radius, geometry.center[1] + unit[1] * radius];
     }
-    case NODE_TYPE.RECTANGLE: {
+    case 'rectangle': {
       const halfWidth = (geometry.width ?? 0) / 2;
       const halfHeight = (geometry.height ?? 0) / 2;
       if (halfWidth <= EPSILON || halfHeight <= EPSILON) {
@@ -160,8 +165,8 @@ export function getNodeBoundaryIntersection(
       }
       return projectToRectangle(geometry.center, unit, halfWidth, halfHeight);
     }
-    case NODE_TYPE.ROUNDED_RECTANGLE:
-    case NODE_TYPE.PATH_ROUNDED_RECTANGLE: {
+    case 'rounded-rectangle':
+    case 'path-rounded-rectangle': {
       const halfWidth = (geometry.width ?? 0) / 2;
       const halfHeight = (geometry.height ?? 0) / 2;
       if (halfWidth <= EPSILON || halfHeight <= EPSILON) {

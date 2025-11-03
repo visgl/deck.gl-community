@@ -3,6 +3,10 @@ dist/
 node_modules/
 dist.*.js
 *.min.js
+modules/arrow-layers/
+modules/editable-layers/
+modules/*
+!modules/graph-layers/**
 
 public/
 .cache/

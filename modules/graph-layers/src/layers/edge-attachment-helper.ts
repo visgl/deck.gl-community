@@ -6,10 +6,10 @@ import type {InteractionManager} from '../core/interaction-manager';
 import type {GraphEngine} from '../core/graph-engine';
 import type {Node} from '../graph/node';
 
-import {Stylesheet} from '../style/style-sheet';
-import {NODE_TYPE} from '../core/constants';
-import type {ValueOf} from '../core/constants';
-import {getNodeBoundaryIntersection, type NodeGeometry} from '../utils/node-boundary';
+import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
+import type {GraphLayerNodeStyle, GraphNodeStyleType} from '../style/graph-layer-stylesheet';
+import {getNodeBoundaryIntersection, type GeometryNodeType, type NodeGeometry} from '../utils/node-boundary';
+import {warn} from '../utils/log';
 
 type NumericAccessor = ((node: Node) => number) | number | null | undefined;
 type OffsetAccessor =
@@ -19,7 +19,7 @@ type OffsetAccessor =
   | undefined;
 
 type NodeStyleAccessors = {
-  type: ValueOf<typeof NODE_TYPE>;
+  type: GeometryNodeType;
   getOffset?: OffsetAccessor;
   getRadius?: NumericAccessor;
   getWidth?: NumericAccessor;
@@ -28,12 +28,12 @@ type NodeStyleAccessors = {
   getSize?: NumericAccessor;
 };
 
-const GEOMETRY_NODE_TYPES = new Set<NodeStyleAccessors['type']>([
-  NODE_TYPE.CIRCLE,
-  NODE_TYPE.RECTANGLE,
-  NODE_TYPE.ROUNDED_RECTANGLE,
-  NODE_TYPE.PATH_ROUNDED_RECTANGLE,
-  NODE_TYPE.MARKER
+const GEOMETRY_NODE_TYPES = new Set<GeometryNodeType>([
+  'circle',
+  'rectangle',
+  'rounded-rectangle',
+  'path-rounded-rectangle',
+  'marker'
 ]);
 
 function evaluateNumericAccessor(accessor: NumericAccessor, node: Node): number | undefined {
@@ -93,7 +93,7 @@ export class EdgeAttachmentHelper {
   }: {
     engine: GraphEngine;
     interactionManager: InteractionManager;
-    nodeStyle?: any[] | any;
+  nodeStyle?: GraphLayerNodeStyle[] | GraphLayerNodeStyle;
   }) {
     const nodeAccessorMap = this._buildNodeStyleAccessorMap({
       engine,
@@ -168,7 +168,7 @@ export class EdgeAttachmentHelper {
   }: {
     engine: GraphEngine;
     interactionManager: InteractionManager;
-    nodeStyle?: any[] | any;
+    nodeStyle?: GraphLayerNodeStyle[] | GraphLayerNodeStyle;
   }) {
     const nodeAccessorMap = new Map<string | number, NodeStyleAccessors>();
 
@@ -181,16 +181,28 @@ export class EdgeAttachmentHelper {
     styles
       .filter(Boolean)
       .forEach((style) => {
-        const {data = (nodes) => nodes, ...restStyle} = style as any;
-        const type = restStyle.type as NodeStyleAccessors['type'] | undefined;
+        const {data = (nodes) => nodes, ...restStyle} = style as GraphLayerNodeStyle;
+        const type = restStyle.type as GraphNodeStyleType | undefined;
 
-        if (!type || !GEOMETRY_NODE_TYPES.has(type)) {
+        if (!type || !GEOMETRY_NODE_TYPES.has(type as GeometryNodeType)) {
           return;
         }
 
-        const stylesheet = new Stylesheet(restStyle, {
-          stateUpdateTrigger: (interactionManager as any).getLastInteraction()
-        });
+        const geometryType = type as GeometryNodeType;
+
+        let stylesheet: GraphStyleEngine | null = null;
+        try {
+          stylesheet = new GraphStyleEngine(restStyle as GraphStylesheet, {
+            stateUpdateTrigger: (interactionManager as any).getLastInteraction()
+          });
+        } catch (error) {
+          warn(
+            `GraphLayer: Failed to evaluate node stylesheet for edge attachment (${String(
+              (error as Error).message ?? error
+            )}).`
+          );
+          return;
+        }
 
         const nodes = data(engine.getNodes());
         if (!Array.isArray(nodes)) {
@@ -198,28 +210,28 @@ export class EdgeAttachmentHelper {
         }
 
         const accessors: NodeStyleAccessors = {
-          type,
+          type: geometryType,
           getOffset: stylesheet.getDeckGLAccessor('getOffset')
         };
 
-        switch (type) {
-          case NODE_TYPE.CIRCLE:
+        switch (geometryType) {
+          case 'circle':
             accessors.getRadius = stylesheet.getDeckGLAccessor('getRadius');
             break;
-          case NODE_TYPE.MARKER:
+          case 'marker':
             accessors.getSize = stylesheet.getDeckGLAccessor('getSize');
             break;
-          case NODE_TYPE.RECTANGLE:
+          case 'rectangle':
             accessors.getWidth = stylesheet.getDeckGLAccessor('getWidth');
             accessors.getHeight = stylesheet.getDeckGLAccessor('getHeight');
             break;
-          case NODE_TYPE.ROUNDED_RECTANGLE:
+          case 'rounded-rectangle':
             accessors.getWidth = stylesheet.getDeckGLAccessor('getWidth');
             accessors.getHeight = stylesheet.getDeckGLAccessor('getHeight');
             accessors.getCornerRadius = stylesheet.getDeckGLAccessor('getCornerRadius');
             accessors.getRadius = stylesheet.getDeckGLAccessor('getRadius');
             break;
-          case NODE_TYPE.PATH_ROUNDED_RECTANGLE:
+          case 'path-rounded-rectangle':
             accessors.getWidth = stylesheet.getDeckGLAccessor('getWidth');
             accessors.getHeight = stylesheet.getDeckGLAccessor('getHeight');
             accessors.getCornerRadius = stylesheet.getDeckGLAccessor('getCornerRadius');
@@ -262,21 +274,21 @@ export class EdgeAttachmentHelper {
     }
 
     switch (accessors.type) {
-      case NODE_TYPE.CIRCLE: {
+      case 'circle': {
         const radius = evaluateNumericAccessor(accessors.getRadius, node);
         if (typeof radius === 'number') {
           geometry.radius = Math.max(radius, 0);
         }
         break;
       }
-      case NODE_TYPE.MARKER: {
+      case 'marker': {
         const size = evaluateNumericAccessor(accessors.getSize, node);
         if (typeof size === 'number') {
           geometry.radius = Math.max(size / 2, 0);
         }
         break;
       }
-      case NODE_TYPE.RECTANGLE: {
+      case 'rectangle': {
         const width = evaluateNumericAccessor(accessors.getWidth, node);
         const height = evaluateNumericAccessor(accessors.getHeight, node);
         if (typeof width === 'number') {
@@ -287,7 +299,7 @@ export class EdgeAttachmentHelper {
         }
         break;
       }
-      case NODE_TYPE.ROUNDED_RECTANGLE: {
+      case 'rounded-rectangle': {
         const width = evaluateNumericAccessor(accessors.getWidth, node);
         const height = evaluateNumericAccessor(accessors.getHeight, node);
         if (typeof width === 'number') {
@@ -306,7 +318,7 @@ export class EdgeAttachmentHelper {
         }
         break;
       }
-      case NODE_TYPE.PATH_ROUNDED_RECTANGLE: {
+      case 'path-rounded-rectangle': {
         const width = evaluateNumericAccessor(accessors.getWidth, node);
         const height = evaluateNumericAccessor(accessors.getHeight, node);
         if (typeof width === 'number') {

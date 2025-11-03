@@ -8,7 +8,7 @@
 
 import * as React from 'react';
 import Modal, {ModalProvider} from 'styled-react-modal';
-import {styled} from 'styled-components';
+import styled from 'styled-components';
 
 export const Button = styled.button`
   display: inline-block;

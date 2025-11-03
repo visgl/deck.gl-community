@@ -7,9 +7,22 @@ Please refer the documentation of each module for detailed news.
 
 ## v9.2 - In developments
 
-Target Release Date: July 2025
+Target Release Date: Nov 2025
 
-- deck.gl-community modules will be updated to deck.gl v9.2.
+High-level changes
+- All deck.gl-community modules have been updated to deck.gl v9.2.
+- Internal: Tests updated to use `vitest` instead of `jest`
+
+### `@deck.gl-community/graph-layers` 
+
+- Graph styling: new edge decorator `'arrow'` that renders arrows on directional edges.
+- Graph styling: unified `stylesheet` prop with shorthand attribute references for node, edge, and decorator styles.
+- Graph style constants are now defined using literals instead of objects
+- New example visualizing DAGs (Directed Acyclic Graphs).
+
+Deprecations:
+- Graph style constants are now replaced by literal string constants 
+  - Replace `NODE_TYPE.CIRCLE` with `'circle'`, `EDGE_TYPE.LINE` with `'line'` etc.
 
 ## v9.1
 
