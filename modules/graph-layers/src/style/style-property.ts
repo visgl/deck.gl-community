@@ -154,7 +154,7 @@ type SupportedScale =
   | ReturnType<typeof scaleLinear>
   | ReturnType<typeof scaleLog>
   | ReturnType<typeof scalePow>
-  | ReturnType<typeof scaleSqrt>
+   
   | ReturnType<typeof scaleQuantize>
   | ReturnType<typeof scaleQuantile>
   | ReturnType<typeof scaleOrdinal>;
@@ -178,9 +178,10 @@ type NormalizedAttributeReference = {
 };
 
 /** Create a D3 scale instance based on a declarative configuration. */
+/* eslint-disable-next-line complexity */
 function createScaleFromConfig(config: GraphStyleScale): SupportedScale {
   const type = config.type ?? 'linear';
-  const factory = SCALE_FACTORIES[type as GraphStyleScaleType];
+  const factory = SCALE_FACTORIES[type];
   if (!factory) {
     log.warn(`Invalid scale type: ${type}`);
     throw new Error(`Invalid scale type: ${type}`);
@@ -436,7 +437,7 @@ export class StyleProperty {
     if (isStatefulValue(value)) {
       const {accessor, updateTrigger: triggers} = createStatefulAccessor(
         key,
-        value as Record<string, GraphStyleLeafValue>,
+        value,
         updateTrigger
       );
       this._value = accessor;

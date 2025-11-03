@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {z, type ZodDiscriminatedUnionOption, type ZodTypeAny} from 'zod';
+/* eslint-disable no-continue */
+
+import {z, type ZodTypeAny} from 'zod';
 
 const GraphStylePrimitiveSchema = z.union([
   z.string(),
@@ -264,7 +266,11 @@ function createPropertiesSchema(keys: readonly string[]) {
   return z.object(shape).partial().strict();
 }
 
-const GraphStylesheetVariants = Object.entries(GRAPH_DECKGL_ACCESSOR_MAP).map(([type, accessors]) => {
+const GraphStylesheetVariants = (
+  Object.entries(GRAPH_DECKGL_ACCESSOR_MAP) as Array<
+    [GraphStyleType, (typeof GRAPH_DECKGL_ACCESSOR_MAP)[GraphStyleType]]
+  >
+).map(([type, accessors]) => {
   const propertyKeys = Object.values(accessors);
   const propertyKeySet = new Set<string>(propertyKeys);
   const propertiesSchema = createPropertiesSchema(propertyKeys);
@@ -313,7 +319,9 @@ const GraphStylesheetVariants = Object.entries(GRAPH_DECKGL_ACCESSOR_MAP).map(([
         }
       }
     });
-}) as Array<ZodDiscriminatedUnionOption<'type', GraphStyleType>>;
+});
+
+type GraphStylesheetVariantSchema = (typeof GraphStylesheetVariants)[number];
 
 /**
  * Schema that validates stylesheet definitions for all graph style primitives.
@@ -321,8 +329,8 @@ const GraphStylesheetVariants = Object.entries(GRAPH_DECKGL_ACCESSOR_MAP).map(([
 export const GraphStylesheetSchema = z.discriminatedUnion(
   'type',
   GraphStylesheetVariants as [
-    ZodDiscriminatedUnionOption<'type', GraphStyleType>,
-    ...ZodDiscriminatedUnionOption<'type', GraphStyleType>[]
+    GraphStylesheetVariantSchema,
+    ...GraphStylesheetVariantSchema[]
   ]
 );
 

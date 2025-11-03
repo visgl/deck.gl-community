@@ -55,9 +55,8 @@ describe('GraphStylesheetSchema', () => {
 
     const result = GraphStylesheetSchema.safeParse(invalidSelectorStylesheet);
     expect(result.success).toBe(false);
-    expect(result.success ? [] : result.error.issues.map((issue) => issue.message)).toContain(
-      "Unrecognized key(s) in object: 'unknown'"
-    );
+    const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
+    expect(messages.some((message) => /Unrecognized key/.test(message) && message.includes('unknown'))).toBe(true);
 
     expect(() => new GraphStyleEngine(invalidSelectorStylesheet)).toThrowError(
       /:hover.*unknown/i
