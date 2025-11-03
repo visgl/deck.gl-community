@@ -116,6 +116,7 @@ export function App(props) {
   }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
+  const latestBoundsRef = useRef<Bounds2D | null>(null);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -162,6 +163,8 @@ export function App(props) {
       if (!bounds) {
         return;
       }
+
+      latestBoundsRef.current = bounds;
 
       const [[minX, minY], [maxX, maxY]] = bounds;
       if (
@@ -235,13 +238,18 @@ export function App(props) {
   // );
 
   useEffect(() => {
+    latestBoundsRef.current = null;
+  }, [engine]);
+
+  useEffect(() => {
     if (!engine) {
       return () => undefined;
     }
 
     const handleIncrementalLayout = (event: Event) => {
       const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-      fitBounds(detail?.bounds, {expandOnly: true});
+      const bounds = detail?.bounds ?? engine.getLayoutBounds();
+      fitBounds(bounds, {expandOnly: true});
     };
 
     engine.addEventListener('onLayoutStart', handleIncrementalLayout);
@@ -254,6 +262,21 @@ export function App(props) {
       engine.removeEventListener('onLayoutDone', handleIncrementalLayout);
     };
   }, [engine, fitBounds]);
+
+  const {width, height} = viewState as any;
+
+  useEffect(() => {
+    if (!engine || !width || !height) {
+      return;
+    }
+
+    const bounds = latestBoundsRef.current ?? engine.getLayoutBounds();
+    if (!bounds) {
+      return;
+    }
+
+    fitBounds(bounds);
+  }, [engine, fitBounds, width, height]);
 
   useEffect(() => {
     if (!engine) {
