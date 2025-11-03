@@ -3,17 +3,21 @@
 // Copyright (c) vis.gl contributors
 
 import {render} from 'preact';
+import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {Widget, type Deck, type Viewport, type WidgetPlacement} from '@deck.gl/core';
+import {
+  Widget,
+  type Deck,
+  type Viewport,
+  type WidgetPlacement,
+  type WidgetProps
+} from '@deck.gl/core';
 
-export type PanWidgetProps = {
-  id?: string;
+export type PanWidgetProps = WidgetProps & {
   viewId?: string | null;
   placement?: WidgetPlacement;
   /** Amount in screen pixels to pan by when a button is pressed. */
   step?: number;
-  style?: Partial<CSSStyleDeclaration>;
-  className?: string;
 };
 
 const WRAPPER_STYLE: Partial<CSSStyleDeclaration> = {
@@ -25,7 +29,7 @@ const WRAPPER_STYLE: Partial<CSSStyleDeclaration> = {
   userSelect: 'none'
 };
 
-const NAVIGATION_CONTAINER_STYLE: Partial<CSSStyleDeclaration> = {
+const NAVIGATION_CONTAINER_STYLE: JSX.CSSProperties = {
   position: 'relative',
   background: '#f7f7f7',
   borderRadius: '23px',
@@ -35,7 +39,7 @@ const NAVIGATION_CONTAINER_STYLE: Partial<CSSStyleDeclaration> = {
   width: '46px'
 };
 
-const NAVIGATION_BUTTON_STYLE: Partial<CSSStyleDeclaration> = {
+const NAVIGATION_BUTTON_STYLE: JSX.CSSProperties = {
   color: '#848484',
   cursor: 'pointer',
   position: 'absolute',
@@ -43,14 +47,14 @@ const NAVIGATION_BUTTON_STYLE: Partial<CSSStyleDeclaration> = {
 };
 
 export class PanWidget extends Widget<PanWidgetProps> {
-  static defaultProps: Required<Pick<PanWidgetProps, 'step'>> & PanWidgetProps = {
+  static override defaultProps = {
     id: 'pan',
     viewId: null,
     placement: 'top-left',
     step: 48,
     style: {},
     className: ''
-  };
+  } satisfies Required<WidgetProps> & Required<Pick<PanWidgetProps, 'step'>> & PanWidgetProps;
 
   placement: WidgetPlacement = 'top-left';
   className = 'deck-widget-pan';
@@ -109,7 +113,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
               top: `${button.top}px`,
               left: `${button.left}px`,
               transform: `rotate(${button.rotate}deg)`
-            }}
+            } as JSX.CSSProperties}
           >
             <LongPressButton onClick={button.onClick}>{button.label}</LongPressButton>
           </div>
@@ -121,18 +125,20 @@ export class PanWidget extends Widget<PanWidgetProps> {
   }
 
   private getTargetViewports(): Viewport[] {
-    if (!this.deck) {
+    const deck = this.deck as (Deck & {viewManager?: any}) | null;
+    if (!deck) {
       return [];
     }
+
     if (this.viewId) {
-      const viewport = this.deck.viewManager?.getViewport(this.viewId);
+      const viewport = deck.viewManager?.getViewport(this.viewId);
       return viewport ? [viewport] : [];
     }
-    return this.deck.getViewports();
+    return deck.getViewports();
   }
 
   private getViewState(viewport: Viewport): any {
-    const viewManager = this.deck?.viewManager;
+    const viewManager = (this.deck as (Deck & {viewManager?: any}) | null)?.viewManager;
     const viewId = this.viewId || viewport.id;
     if (viewManager) {
       try {

@@ -3,18 +3,22 @@
 // Copyright (c) vis.gl contributors
 
 import {render} from 'preact';
+import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {Widget, type Deck, type Viewport, type WidgetPlacement} from '@deck.gl/core';
+import {
+  Widget,
+  type Deck,
+  type Viewport,
+  type WidgetPlacement,
+  type WidgetProps
+} from '@deck.gl/core';
 
-export type ZoomRangeWidgetProps = {
-  id?: string;
+export type ZoomRangeWidgetProps = WidgetProps & {
   viewId?: string | null;
   placement?: WidgetPlacement;
   minZoom?: number;
   maxZoom?: number;
   step?: number;
-  style?: Partial<CSSStyleDeclaration>;
-  className?: string;
 };
 
 const WRAPPER_STYLE: Partial<CSSStyleDeclaration> = {
@@ -31,14 +35,14 @@ const WRAPPER_STYLE: Partial<CSSStyleDeclaration> = {
   pointerEvents: 'auto'
 };
 
-const ZOOM_BUTTON_STYLE: Partial<CSSStyleDeclaration> = {
+const ZOOM_BUTTON_STYLE: JSX.CSSProperties = {
   cursor: 'pointer',
   fontSize: '14px',
   fontWeight: '500',
   margin: '-4px'
 };
 
-const SLIDER_CONTAINER_STYLE: Partial<CSSStyleDeclaration> = {
+const SLIDER_CONTAINER_STYLE: JSX.CSSProperties = {
   display: 'inline-block',
   height: '100px',
   padding: '0',
@@ -46,7 +50,7 @@ const SLIDER_CONTAINER_STYLE: Partial<CSSStyleDeclaration> = {
 };
 
 export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
-  static defaultProps: Required<Pick<ZoomRangeWidgetProps, 'step'>> & ZoomRangeWidgetProps = {
+  static override defaultProps = {
     id: 'zoom-range',
     viewId: null,
     placement: 'top-left',
@@ -55,7 +59,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
     step: 0.1,
     style: {},
     className: ''
-  };
+  } satisfies Required<WidgetProps> & Required<Pick<ZoomRangeWidgetProps, 'step'>> & ZoomRangeWidgetProps;
 
   placement: WidgetPlacement = 'top-left';
   className = 'deck-widget-zoom-range';
@@ -118,13 +122,15 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
             onChange={(event) => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
             /* @ts-expect-error - non-standard attribute for vertical sliders */
             orient="vertical"
-            style={{
-              writingMode: 'vertical-lr',
-              height: '100px',
-              padding: '0',
-              margin: '0',
-              width: '10px'
-            }}
+            style={
+              {
+                writingMode: 'vertical-lr',
+                height: '100px',
+                padding: '0',
+                margin: '0',
+                width: '10px'
+              } as JSX.CSSProperties
+            }
           />
         </div>
         <div style={ZOOM_BUTTON_STYLE}>
@@ -176,18 +182,19 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   }
 
   private getTargetViewports(): Viewport[] {
-    if (!this.deck) {
+    const deck = this.deck as (Deck & {viewManager?: any}) | null;
+    if (!deck) {
       return [];
     }
     if (this.viewId) {
-      const viewport = this.deck.viewManager?.getViewport(this.viewId);
+      const viewport = deck.viewManager?.getViewport(this.viewId);
       return viewport ? [viewport] : [];
     }
-    return this.deck.getViewports();
+    return deck.getViewports();
   }
 
   private getViewState(viewport: Viewport): any {
-    const viewManager = this.deck?.viewManager;
+    const viewManager = (this.deck as (Deck & {viewManager?: any}) | null)?.viewManager;
     const viewId = this.viewId || viewport.id;
     if (viewManager) {
       try {
