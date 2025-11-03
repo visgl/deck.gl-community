@@ -112,9 +112,6 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
       if (typeof (event as any).stopImmediatePropagation === 'function') {
         (event as any).stopImmediatePropagation();
       }
-      if (typeof (event as any).preventDefault === 'function') {
-        (event as any).preventDefault();
-      }
     };
 
     const ui = (
@@ -274,6 +271,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
 
     const viewId = this.viewId || viewport.id || 'default-view';
     this.currentZoom = Number(viewState.zoom) || this.currentZoom;
+    this.updateHTML();
 
     // @ts-ignore Using private method until a public alternative is available
     this.deck._onViewStateChange({viewId, viewState, interactionState: {}});
