@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useReducer,
+  useRef
+} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
@@ -29,6 +37,7 @@ import {extent} from 'd3-array';
 import {ControlPanel} from './control-panel';
 import type {ExampleDefinition, LayoutType} from './layout-options';
 import {CollapseControls} from './collapse-controls';
+import {StylesheetEditor} from './stylesheet-editor';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
 
 const INITIAL_VIEW_STATE = {
@@ -41,6 +50,7 @@ const INITIAL_VIEW_STATE = {
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
+const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
 
@@ -136,6 +146,40 @@ export function App(props) {
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
+  const selectedStyles = selectedExample?.style;
+
+  const serializedStylesheet = useMemo(() => {
+    if (!selectedStyles) {
+      return '';
+    }
+
+    return JSON.stringify(
+      selectedStyles,
+      (_key, value) => (typeof value === 'function' ? value.toString() : value),
+      2
+    );
+  }, [selectedStyles]);
+
+  const [stylesheetValue, setStylesheetValue] = useState(
+    serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE
+  );
+  const stylesheetDraftRef = useRef<string>(stylesheetValue);
+
+  useEffect(() => {
+    const nextValue = serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE;
+    setStylesheetValue(nextValue);
+    stylesheetDraftRef.current = nextValue;
+  }, [serializedStylesheet]);
+
+  const handleStylesheetChange = useCallback((nextValue: string) => {
+    stylesheetDraftRef.current = nextValue;
+    setStylesheetValue(nextValue);
+  }, []);
+
+  const handleStylesheetSubmit = useCallback((nextValue: string) => {
+    stylesheetDraftRef.current = nextValue;
+    setStylesheetValue(nextValue);
+  }, []);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -184,7 +228,6 @@ export function App(props) {
 
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
-  const selectedStyles = selectedExample?.style;
   const isDagLayout = selectedLayout === 'd3-dag-layout';
 
   useEffect(() => {
@@ -444,15 +487,36 @@ export function App(props) {
           layoutOptions={layoutOptions}
           onLayoutOptionsApply={handleApplyLayoutOptions}
         >
-          {isDagLayout ? (
-            <CollapseControls
-              enabled={collapseEnabled}
-              summary={dagChainSummary}
-              onToggle={handleToggleCollapseEnabled}
-              onCollapseAll={handleCollapseAll}
-              onExpandAll={handleExpandAll}
-            />
-          ) : null}
+          <>
+            {isDagLayout ? (
+              <CollapseControls
+                enabled={collapseEnabled}
+                summary={dagChainSummary}
+                onToggle={handleToggleCollapseEnabled}
+                onCollapseAll={handleCollapseAll}
+                onExpandAll={handleExpandAll}
+              />
+            ) : null}
+            <section
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                fontSize: '0.75rem',
+                gap: '0.25rem'
+              }}
+            >
+              <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+                Stylesheet JSON
+              </h3>
+              <div style={{borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #1f2937'}}>
+                <StylesheetEditor
+                  value={stylesheetValue}
+                  onChange={handleStylesheetChange}
+                  onSubmit={handleStylesheetSubmit}
+                />
+              </div>
+            </section>
+          </>
         </ControlPanel>
       </aside>
     </div>

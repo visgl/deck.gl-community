@@ -21,9 +21,9 @@ export function ControlPanel({
   examples,
   defaultExample,
   onExampleChange,
-  children,
   layoutOptions,
-  onLayoutOptionsApply
+  onLayoutOptionsApply,
+  children
 }: ControlPanelProps) {
   const resolveExampleIndex = useCallback(
     (example?: ExampleDefinition) => {
@@ -45,7 +45,7 @@ export function ControlPanel({
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
     availableLayouts[0]
   );
-
+  
   useEffect(() => {
     if (!availableLayouts.length) {
       setSelectedLayout(undefined);
@@ -216,7 +216,7 @@ export function ControlPanel({
             gap: '0.75rem'
           }}
         >
-          <div>{children}</div>
+          {children}
         </section>
       ) : null}
       {layoutDescription ? (
@@ -227,29 +227,6 @@ export function ControlPanel({
           <p style={{margin: 0}}>{layoutDescription}</p>
         </section>
       ) : null}
-      <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>
-        <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-          Stylesheet JSON
-        </h3>
-        <pre
-          style={{
-            margin: 0,
-            padding: '0.75rem',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.5rem',
-            fontSize: '0.75rem',
-            lineHeight: 1.4,
-            maxHeight: '16rem',
-            overflow: 'auto',
-            whiteSpace: 'pre-wrap',
-            fontFamily:
-              'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-          }}
-        >
-          {styleJson || '// No style defined for this example'}
-        </pre>
-      </section>
     </div>
   );
 }

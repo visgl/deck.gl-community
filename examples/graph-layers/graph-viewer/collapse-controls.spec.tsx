@@ -32,8 +32,9 @@ describe('CollapseControls', () => {
     );
 
     expect(markup).toContain('Collapsed chains');
+    expect(markup).toContain('How collapsed chains work');
     expect(markup).toContain('2 / 3 collapsed');
-    expect(markup).toContain('Disable collapse');
+    expect(markup).toContain('Disable');
     expect(markup).toContain('Collapse all');
     expect(markup).toContain('Expand all');
   });
