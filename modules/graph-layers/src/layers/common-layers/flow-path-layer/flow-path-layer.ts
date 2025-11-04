@@ -20,6 +20,8 @@ const defaultProps = {
 
 /* eslint-disable camelcase */
 export class FlowPathLayer extends LineLayer {
+  private static readonly MIN_UPDATE_INTERVAL_MS = 1000 / 24;
+
   private animationFrame?: number;
   private offsets = new Float32Array(0);
   private speeds = new Float32Array(0);
@@ -65,7 +67,14 @@ export class FlowPathLayer extends LineLayer {
     // Mark the outstanding frame handle as consumed before scheduling another one.
     this.animationFrame = undefined;
     const now = this.getCurrentTime();
-    const deltaSeconds = (now - this.lastUpdateTime) / 1000;
+    const deltaMs = now - this.lastUpdateTime;
+
+    if (deltaMs > 0 && deltaMs < FlowPathLayer.MIN_UPDATE_INTERVAL_MS) {
+      this.updateAnimationLoop();
+      return;
+    }
+
+    const deltaSeconds = deltaMs / 1000;
 
     if (deltaSeconds > 0 && this.offsets.length > 0) {
       let needsRedraw = false;
