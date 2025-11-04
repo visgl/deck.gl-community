@@ -26,6 +26,7 @@ export type {Marker, NodeState, NodeType, EdgeType, EdgeDecoratorType, LayoutSta
 // deck.gl components
 export {GraphLayer} from './layers/graph-layer';
 export {EdgeLayer} from './layers/edge-layer';
+export {FlowPathLayer} from './layers/common-layers/flow-path-layer/flow-path-layer';
 export {StyleEngine} from './style/style-engine';
 export {GraphStyleEngine} from './style/graph-style-engine';
 export type {
