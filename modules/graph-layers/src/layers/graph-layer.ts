@@ -146,9 +146,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   private _layoutUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   private _lastLayoutUpdateTime = 0;
+  private _pendingLayoutUpdates = 0;
 
   private readonly _handleLayoutChange = () => {
-    this._scheduleLayoutUpdate();
+    this._enqueueLayoutUpdate();
   };
 
   forceUpdate = () => {
@@ -159,19 +160,19 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
   };
 
-  private _scheduleLayoutUpdate() {
-    const interval = Math.max(0, this.props.layoutUpdateInterval ?? 0);
+  private _enqueueLayoutUpdate() {
+    this._pendingLayoutUpdates += 1;
+    this._processLayoutUpdateQueue();
+  }
 
-    if (interval === 0) {
-      this._flushScheduledLayoutUpdate();
+  private _processLayoutUpdateQueue() {
+    if (this._pendingLayoutUpdates === 0) {
       return;
     }
 
-    const now = Date.now();
-    const timeSinceLastUpdate = now - this._lastLayoutUpdateTime;
-
-    if (timeSinceLastUpdate >= interval) {
-      this._flushScheduledLayoutUpdate(now);
+    const interval = Math.max(0, this.props.layoutUpdateInterval ?? 0);
+    if (interval === 0) {
+      this._flushScheduledLayoutUpdate();
       return;
     }
 
@@ -179,15 +180,33 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return;
     }
 
+    const now = Date.now();
+    const timeSinceLastUpdate = now - this._lastLayoutUpdateTime;
+    const delay = timeSinceLastUpdate >= interval ? 0 : interval - timeSinceLastUpdate;
+
+    if (delay === 0) {
+      this._flushScheduledLayoutUpdate(now);
+      return;
+    }
+
     this._layoutUpdateTimer = setTimeout(() => {
       this._layoutUpdateTimer = null;
       this._flushScheduledLayoutUpdate();
-    }, interval - timeSinceLastUpdate);
+    }, delay);
   }
 
   private _flushScheduledLayoutUpdate(timestamp = Date.now()) {
+    if (this._pendingLayoutUpdates === 0) {
+      return;
+    }
+
+    this._pendingLayoutUpdates -= 1;
     this._lastLayoutUpdateTime = timestamp;
     this.forceUpdate();
+
+    if (this._pendingLayoutUpdates > 0) {
+      this._processLayoutUpdateQueue();
+    }
   }
 
   private _clearScheduledLayoutUpdate() {
@@ -227,12 +246,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     if (changeFlags.propsChanged && props.layoutUpdateInterval !== oldProps.layoutUpdateInterval) {
       this._clearScheduledLayoutUpdate();
       if (this.state.graphEngine) {
-        const interval = Math.max(0, props.layoutUpdateInterval ?? 0);
-        if (interval === 0) {
-          this._flushScheduledLayoutUpdate();
-        } else {
-          this._scheduleLayoutUpdate();
-        }
+        this._processLayoutUpdateQueue();
       }
     }
   }
@@ -315,10 +329,11 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
       this._lastLayoutUpdateTime = 0;
+      this._pendingLayoutUpdates = 0;
       this.state.graphEngine.run();
       // added or removed a node, or in general something layout related changed
       this.state.graphEngine.addEventListener('onLayoutChange', this._handleLayoutChange);
-      this._scheduleLayoutUpdate();
+      this._enqueueLayoutUpdate();
     }
   }
 
@@ -329,6 +344,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this.state.graphEngine = null;
     }
     this._clearScheduledLayoutUpdate();
+    this._pendingLayoutUpdates = 0;
   }
 
   createNodeLayers() {

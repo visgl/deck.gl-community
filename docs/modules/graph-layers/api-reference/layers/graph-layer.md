@@ -109,7 +109,8 @@ hover and click events. Disable if you only need a static rendering.
 Throttle how often the layer re-renders while the layout is iterating. The value
 represents the minimum number of milliseconds between layout-driven updates.
 Set to `0` (default) to render every change or increase the interval to slow the
-animation for inspection.
+animation for inspection. When throttled, layout change events are queued and
+flushed at the requested cadence so intermediate frames are not dropped.
 
 ## Notes
 
