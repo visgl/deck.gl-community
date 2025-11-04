@@ -2,32 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
+import React, {useCallback, useLayoutEffect, useMemo, useState, useReducer} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {
-  GraphEngine,
-  GraphLayer,
-  GraphLayout,
-  SimpleLayout,
-  D3ForceLayout,
-  GPUForceLayout,
-  JSONLoader,
-  RadialLayout,
-  HivePlotLayout,
-  ForceMultiGraphLayout,
-  type GraphLayoutEventDetail
-} from '@deck.gl-community/graph-layers';
-import type {Bounds2D} from '@math.gl/types';
+import {GraphEngine, GraphLayer, GraphLayout, SimpleLayout, D3ForceLayout, GPUForceLayout, JSONLoader, RadialLayout, HivePlotLayout, ForceMultiGraphLayout} from '@deck.gl-community/graph-layers';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 // import '@deck.gl/widgets/stylesheet.css';
 
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
+import {useGraphViewport} from './use-graph-viewport';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
@@ -115,16 +103,10 @@ export function App(props) {
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
-  const isFirstMount = useRef(true);
-  const latestBoundsRef = useRef<Bounds2D | null>(null);
 
   useLayoutEffect(() => {
     if (!engine) {
       return () => undefined;
-    }
-
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
     }
 
     engine.run();
@@ -139,101 +121,19 @@ export function App(props) {
   const initialViewState = INITIAL_VIEW_STATE;
   const minZoom = -20;
   const maxZoom = 20;
-  const viewportPadding = 50;
-  const boundsPaddingRatio = 0.1;
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
-  const zoomToFitOnLoad = false;
 
-  const [viewState, setViewState] = useState({
-    ...INITIAL_VIEW_STATE,
-    ...initialViewState
+  const {viewState, onResize, onViewStateChange} = useGraphViewport(engine, {
+    minZoom,
+    maxZoom,
+    viewportPadding: 16,
+    boundsPaddingRatio: 0.05,
+    initialViewState
   });
-
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
   const selectedStyles = selectedExample?.style;
-
-  const fitBounds = useCallback(
-    (nextBounds?: Bounds2D | null, {expandOnly = false}: {expandOnly?: boolean} = {}) => {
-      if (!engine) {
-        return;
-      }
-
-      const bounds = nextBounds ?? engine.getLayoutBounds();
-      if (!bounds) {
-        return;
-      }
-
-      const [[minX, minY], [maxX, maxY]] = bounds;
-      if (
-        !Number.isFinite(minX) ||
-        !Number.isFinite(minY) ||
-        !Number.isFinite(maxX) ||
-        !Number.isFinite(maxY)
-      ) {
-        return;
-      }
-
-      const nextBoundsCopy: Bounds2D = [
-        [minX, minY],
-        [maxX, maxY]
-      ];
-      latestBoundsRef.current = nextBoundsCopy;
-
-      setViewState((prev) => {
-        const {width, height} = prev as any;
-        if (!width || !height) {
-          return prev;
-        }
-
-        const target: [number, number] = [(minX + maxX) / 2, (minY + maxY) / 2];
-        const spanX = Math.max(maxX - minX, 1e-6);
-        const spanY = Math.max(maxY - minY, 1e-6);
-        const paddedSpanX = spanX * (1 + boundsPaddingRatio);
-        const paddedSpanY = spanY * (1 + boundsPaddingRatio);
-        const innerWidth = Math.max(1, width - viewportPadding * 2);
-        const innerHeight = Math.max(1, height - viewportPadding * 2);
-        const scale = Math.min(innerWidth / paddedSpanX, innerHeight / paddedSpanY);
-        const newZoom = Math.min(Math.max(minZoom, Math.log2(Math.max(scale, 1e-6))), maxZoom);
-        const epsilon = 1e-6;
-
-        if (!Number.isFinite(newZoom)) {
-          return prev;
-        }
-
-        const shouldZoomOut = prev.zoom === undefined || newZoom + epsilon < prev.zoom;
-        const prevTarget = (prev as any).target as [number, number] | undefined;
-        const targetUnchanged =
-          Array.isArray(prevTarget) &&
-          Math.abs(prevTarget[0] - target[0]) < epsilon &&
-          Math.abs(prevTarget[1] - target[1]) < epsilon;
-        const zoomChanged = prev.zoom === undefined || Math.abs(prev.zoom - newZoom) > epsilon;
-
-        if (expandOnly && !shouldZoomOut) {
-          if (targetUnchanged) {
-            return prev;
-          }
-
-          return {
-            ...prev,
-            target
-          };
-        }
-
-        if (!zoomChanged && targetUnchanged) {
-          return prev;
-        }
-
-        return {
-          ...prev,
-          target,
-          zoom: newZoom
-        };
-      });
-    },
-    [engine, viewportPadding, boundsPaddingRatio, minZoom, maxZoom]
-  );
 
   // Relatively pan the graph by a specified position vector.
   // const panBy = useCallback(
@@ -257,69 +157,6 @@ export function App(props) {
   //   [maxZoom, minZoom, viewState, setViewState]
   // );
 
-  const shouldExpandOnlyRef = useRef(true);
-
-  useEffect(() => {
-    latestBoundsRef.current = null;
-    shouldExpandOnlyRef.current = false;
-  }, [engine]);
-
-  useEffect(() => {
-    if (!engine) {
-      return () => undefined;
-    }
-
-    const handleIncrementalLayout = (event: Event) => {
-      const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-      const bounds = detail?.bounds ?? engine.getLayoutBounds();
-      const expandOnly = shouldExpandOnlyRef.current;
-      fitBounds(bounds, {expandOnly});
-      shouldExpandOnlyRef.current = true;
-    };
-
-    engine.addEventListener('onLayoutStart', handleIncrementalLayout);
-    engine.addEventListener('onLayoutChange', handleIncrementalLayout);
-    engine.addEventListener('onLayoutDone', handleIncrementalLayout);
-
-    return () => {
-      engine.removeEventListener('onLayoutStart', handleIncrementalLayout);
-      engine.removeEventListener('onLayoutChange', handleIncrementalLayout);
-      engine.removeEventListener('onLayoutDone', handleIncrementalLayout);
-    };
-  }, [engine, fitBounds]);
-
-  const {width, height} = viewState as any;
-
-  useEffect(() => {
-    if (!engine || !width || !height) {
-      return;
-    }
-
-    const bounds = latestBoundsRef.current ?? engine.getLayoutBounds();
-    if (!bounds) {
-      return;
-    }
-
-    fitBounds(bounds);
-  }, [engine, fitBounds, width, height]);
-
-  useEffect(() => {
-    if (!engine) {
-      return () => undefined;
-    }
-
-    if (zoomToFitOnLoad && isLoading) {
-      const handleLayoutDone = (event: Event) => {
-        const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-        fitBounds(detail?.bounds);
-      };
-      engine.addEventListener('onLayoutDone', handleLayoutDone, {once: true});
-      return () => {
-        engine.removeEventListener('onLayoutDone', handleLayoutDone);
-      };
-    }
-    return () => undefined;
-  }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
   const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
     setSelectedExample(example);
     setSelectedLayout(layoutType);
@@ -366,8 +203,8 @@ export function App(props) {
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
           viewState={viewState as any}
-          onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
-          onViewStateChange={({viewState}) => setViewState(viewState as any)}
+          onResize={onResize}
+          onViewStateChange={onViewStateChange}
           views={[
             new OrthographicView({
               minZoom,
