@@ -7,16 +7,15 @@ import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
 import {Graph} from '../graph/graph';
+import type {Node} from '../graph/node';
 import {GraphLayout} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
-import type {Node} from '../graph/node';
 
-import {GraphStyleEngine} from '../style/graph-style-engine';
-import type {GraphStylesheet} from '../style/graph-style-engine';
+import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 
-import {log} from '../utils/log';
+import {warn} from '../utils/log';
 
 import {
   DEFAULT_GRAPH_LAYER_STYLESHEET,
@@ -41,6 +40,7 @@ import {EdgeLayer} from './edge-layer';
 import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
 import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
+import {EdgeAttachmentHelper} from './edge-attachment-helper';
 
 import {JSONLoader} from '../loaders/json-loader';
 
@@ -137,6 +137,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     graphEngine?: GraphEngine;
   };
 
+  private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
+
   forceUpdate = () => {
     if (this.context && this.context.layerManager) {
       this.setNeedsUpdate();
@@ -194,13 +196,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     const usingNodeStyle = typeof nodeStyle !== 'undefined';
     if (usingNodeStyle && !NODE_STYLE_DEPRECATION_WARNED) {
-      log.warn(NODE_STYLE_DEPRECATION_MESSAGE);
+      warn(NODE_STYLE_DEPRECATION_MESSAGE);
       NODE_STYLE_DEPRECATION_WARNED = true;
     }
 
     const usingEdgeStyle = typeof edgeStyle !== 'undefined';
     if (usingEdgeStyle && !EDGE_STYLE_DEPRECATION_WARNED) {
-      log.warn(EDGE_STYLE_DEPRECATION_MESSAGE);
+      warn(EDGE_STYLE_DEPRECATION_MESSAGE);
       EDGE_STYLE_DEPRECATION_WARNED = true;
     }
 
@@ -209,6 +211,18 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       nodeStyle: usingNodeStyle ? nodeStyle : undefined,
       edgeStyle: usingEdgeStyle ? edgeStyle : undefined
     });
+  }
+
+  private _createStyleEngine(style: GraphStylesheet, context: string): GraphStyleEngine | null {
+    try {
+      return new GraphStyleEngine(style, {
+        stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      warn(`GraphLayer: Failed to apply ${context}: ${message}`);
+      return null;
+    }
   }
 
   _setGraphEngine(graphEngine: GraphEngine) {
@@ -241,273 +255,48 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return [];
     }
 
-    const layers = nodeStyles.filter(Boolean).map((style, idx) => {
-      const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
-      const LayerType = NODE_LAYER_MAP[style.type];
-      if (!LayerType) {
-        log.error(`Invalid node type: ${style.type}`);
-        throw new Error(`Invalid node type: ${style.type}`);
-      }
-      const stylesheet = new GraphStyleEngine(restStyle, {
-        stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-      });
-      const getOffset = stylesheet.getDeckGLAccessor('getOffset');
-      return new LayerType({
-        ...SHARED_LAYER_PROPS,
-        id: `node-rule-${idx}`,
-        data: data(engine.getNodes()),
-        getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
-        pickable,
-        positionUpdateTrigger: [
-          engine.getLayoutLastUpdate(),
-          engine.getLayoutState(),
-          stylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
-        ].join(),
-        stylesheet,
-        visible
-      } as any);
-    });
-
-    const chainRepresentativeNodes = engine.getNodes().filter((node) => {
-      const chainId = node.getPropertyValue('collapsedChainId');
-      const nodeIds = node.getPropertyValue('collapsedNodeIds');
-      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
-      return (
-        chainId &&
-        Array.isArray(nodeIds) &&
-        nodeIds.length > 1 &&
-        representativeId === node.getId()
-      );
-    });
-
-    if (chainRepresentativeNodes.length > 0) {
-      const graph = engine.props.graph;
-      const chainOutlineCache = new Map<string, [number, number][] | null>();
-      const outlinePadding = 24;
-      const outlineCornerRadius = 16;
-      const outlineCornerSegments = 6;
-      const outlineUpdateTrigger = [engine.getLayoutLastUpdate(), engine.getLayoutState()].join();
-
-      const getChainOutlinePolygon = (node: Node): [number, number][] | null => {
-        const chainId = node.getPropertyValue('collapsedChainId');
-        if (!chainId) {
+    const baseLayers = nodeStyles
+      .filter(Boolean)
+      .map((style, idx) => {
+        const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
+        const LayerType = NODE_LAYER_MAP[style.type];
+        if (!LayerType) {
+          warn(`GraphLayer: Invalid node type "${style.type}".`);
           return null;
         }
-        const cacheKey = String(chainId);
-        if (chainOutlineCache.has(cacheKey)) {
-          return chainOutlineCache.get(cacheKey) ?? null;
-        }
-        if (!graph) {
-          chainOutlineCache.set(cacheKey, null);
-          return null;
-        }
-
-        const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
-        if (!Array.isArray(collapsedNodeIds) || collapsedNodeIds.length === 0) {
-          chainOutlineCache.set(cacheKey, null);
-          return null;
-        }
-
-        let minX = Number.POSITIVE_INFINITY;
-        let maxX = Number.NEGATIVE_INFINITY;
-        let minY = Number.POSITIVE_INFINITY;
-        let maxY = Number.NEGATIVE_INFINITY;
-
-        for (const nodeId of collapsedNodeIds) {
-          const chainNode = graph.findNode(nodeId);
-          if (!chainNode) {
-            continue;
-          }
-          const position = engine.getNodePosition(chainNode);
-          if (!position) {
-            continue;
-          }
-          const [x, y] = position;
-          minX = Math.min(minX, x);
-          maxX = Math.max(maxX, x);
-          minY = Math.min(minY, y);
-          maxY = Math.max(maxY, y);
-        }
-
-        if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
-          chainOutlineCache.set(cacheKey, null);
-          return null;
-        }
-
-        const paddedMinX = minX - outlinePadding;
-        const paddedMaxX = maxX + outlinePadding;
-        const paddedMinY = minY - outlinePadding;
-        const paddedMaxY = maxY + outlinePadding;
-
-        const width = paddedMaxX - paddedMinX;
-        const height = paddedMaxY - paddedMinY;
-
-        if (width <= 0 || height <= 0) {
-          chainOutlineCache.set(cacheKey, null);
-          return null;
-        }
-
-        const radius = Math.min(outlineCornerRadius, width / 2, height / 2);
-
-        if (radius <= 0) {
-          const polygon: [number, number][] = [
-            [paddedMinX, paddedMinY],
-            [paddedMinX, paddedMaxY],
-            [paddedMaxX, paddedMaxY],
-            [paddedMaxX, paddedMinY],
-            [paddedMinX, paddedMinY]
-          ];
-          chainOutlineCache.set(cacheKey, polygon);
-          return polygon;
-        }
-
-        const left = paddedMinX;
-        const right = paddedMaxX;
-        const top = paddedMinY;
-        const bottom = paddedMaxY;
-
-        const polygon: [number, number][] = [];
-        const pushArc = (cx: number, cy: number, startAngle: number, endAngle: number) => {
-          const step = (endAngle - startAngle) / outlineCornerSegments;
-          for (let i = 1; i <= outlineCornerSegments; i++) {
-            const angle = startAngle + step * i;
-            polygon.push([cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]);
-          }
-        };
-
-        polygon.push([right - radius, top]);
-        pushArc(right - radius, top + radius, -Math.PI / 2, 0);
-        polygon.push([right, bottom - radius]);
-        pushArc(right - radius, bottom - radius, 0, Math.PI / 2);
-        polygon.push([left + radius, bottom]);
-        pushArc(left + radius, bottom - radius, Math.PI / 2, Math.PI);
-        polygon.push([left, top + radius]);
-        pushArc(left + radius, top + radius, Math.PI, (3 * Math.PI) / 2);
-        polygon.push(polygon[0]);
-
-        chainOutlineCache.set(cacheKey, polygon);
-        return polygon;
-      };
-
-      const collapsedNodes = chainRepresentativeNodes.filter((node) =>
-        Boolean(node.getPropertyValue('isCollapsedChain'))
-      );
-      if (collapsedNodes.length > 0) {
-        const collapsedOutlineNodes = collapsedNodes.filter((node) => getChainOutlinePolygon(node));
-        if (collapsedOutlineNodes.length > 0) {
-          layers.push(
-            new PolygonLayer({
-              ...SHARED_LAYER_PROPS,
-              id: 'collapsed-chain-outlines',
-              data: collapsedOutlineNodes,
-              getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
-              stroked: true,
-              filled: false,
-              getLineColor: [220, 64, 64, 220],
-              getLineWidth: 2,
-              lineWidthUnits: 'pixels',
-              lineWidthMinPixels: 2,
-              pickable: true,
-              updateTriggers: {
-                getPolygon: [outlineUpdateTrigger]
-              }
-            })
-          );
-        }
-
-        const collapsedMarkerStyle: GraphStylesheet<'marker'> = {
-          type: 'marker',
-          fill: [64, 96, 192, 255],
-          size: 32,
-          marker: 'circle-plus-filled',
-          offset: [24, -24],
-          scaleWithZoom: false
-        };
-        const collapsedStylesheet = new GraphStyleEngine(collapsedMarkerStyle, {
-          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-        });
-        const getOffset = collapsedStylesheet.getDeckGLAccessor('getOffset');
-        layers.push(
-          new ZoomableMarkerLayer({
-            ...SHARED_LAYER_PROPS,
-            id: 'collapsed-chain-markers',
-            data: collapsedNodes,
-            getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
-            pickable: true,
-            positionUpdateTrigger: [
-              engine.getLayoutLastUpdate(),
-              engine.getLayoutState(),
-              collapsedStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
-            ].join(),
-            stylesheet: collapsedStylesheet,
-            visible: true
-          } as any)
+        const stylesheet = this._createStyleEngine(
+          restStyle as unknown as GraphStylesheet,
+          `node stylesheet "${style.type}"`
         );
-      }
-
-      const expandedNodes = chainRepresentativeNodes.filter(
-        (node) => !node.getPropertyValue('isCollapsedChain')
-      );
-      if (expandedNodes.length > 0) {
-        const expandedOutlineNodes = expandedNodes.filter((node) => getChainOutlinePolygon(node));
-        if (expandedOutlineNodes.length > 0) {
-          layers.push(
-            new PolygonLayer({
-              ...SHARED_LAYER_PROPS,
-              id: 'expanded-chain-outlines',
-              data: expandedOutlineNodes,
-              getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
-              stroked: true,
-              filled: false,
-              getLineColor: [64, 96, 192, 200],
-              getLineWidth: 2,
-              lineWidthUnits: 'pixels',
-              lineWidthMinPixels: 2,
-              pickable: true,
-              updateTriggers: {
-                getPolygon: [outlineUpdateTrigger]
-              }
-            })
-          );
+        if (!stylesheet) {
+          return null;
         }
+        const getOffset = stylesheet.getDeckGLAccessor('getOffset');
+        return new LayerType({
+          ...SHARED_LAYER_PROPS,
+          id: `node-rule-${idx}`,
+          data: data(engine.getNodes()),
+          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+          pickable,
+          positionUpdateTrigger: [
+            engine.getLayoutLastUpdate(),
+            engine.getLayoutState(),
+            stylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+          ].join(),
+          stylesheet,
+          visible
+        } as any);
+      })
+      .filter(Boolean) as any[];
 
-        const expandedMarkerStyle: GraphStylesheet<'marker'> = {
-          type: 'marker',
-          fill: [64, 96, 192, 255],
-          size: 32,
-          marker: 'circle-minus-filled',
-          offset: [24, -24],
-          scaleWithZoom: false
-        };
-        const expandedStylesheet = new GraphStyleEngine(expandedMarkerStyle, {
-          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-        });
-        const getOffset = expandedStylesheet.getDeckGLAccessor('getOffset');
-        layers.push(
-          new ZoomableMarkerLayer({
-            ...SHARED_LAYER_PROPS,
-            id: 'expanded-chain-markers',
-            data: expandedNodes,
-            getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
-            pickable: true,
-            positionUpdateTrigger: [
-              engine.getLayoutLastUpdate(),
-              engine.getLayoutState(),
-              expandedStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
-            ].join(),
-            stylesheet: expandedStylesheet,
-            visible: true
-          } as any)
-        );
-      }
-    }
+    const chainLayers = this._createChainOverlayLayers(engine);
 
-    return layers;
+    return [...baseLayers, ...chainLayers];
   }
 
   createEdgeLayers() {
     const engine = this.state.graphEngine;
-    const {edges: edgeStyles} = this._getResolvedStylesheet();
+    const {edges: edgeStyles, nodes: nodeStyles} = this._getResolvedStylesheet();
 
     if (!engine || !edgeStyles) {
       return [];
@@ -519,25 +308,32 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return [];
     }
 
+    const getLayoutInfo = this._edgeAttachmentHelper.getLayoutAccessor({
+      engine,
+      interactionManager: this.state.interactionManager,
+      nodeStyle: nodeStyles
+    });
+
     return edgeStyleArray
       .filter(Boolean)
       .flatMap((style, idx) => {
         const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
-        const stylesheet = new GraphStyleEngine(
+        const stylesheet = this._createStyleEngine(
           {
             type: 'edge',
             ...restEdgeStyle
-          },
-          {
-            stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-          }
+          } as GraphStylesheet,
+          'edge stylesheet'
         );
+        if (!stylesheet) {
+          return [];
+        }
 
         const edgeLayer = new EdgeLayer({
           ...SHARED_LAYER_PROPS,
           id: `edge-layer-${idx}`,
           data: data(engine.getEdges()),
-          getLayoutInfo: engine.getEdgePosition,
+          getLayoutInfo,
           pickable: true,
           positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
           stylesheet,
@@ -545,28 +341,37 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         } as any);
 
         if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
-          return edgeLayer;
+          return [edgeLayer];
         }
-        const decoratorLayers = decorators.filter(Boolean).flatMap((decoratorStyle, idx2) => {
-          const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
-          if (!DecoratorLayer) {
-            log.error(`Invalid edge decorator type: ${decoratorStyle.type}`);
-            throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
-          }
-          const decoratorStylesheet = new GraphStyleEngine(decoratorStyle, {
-            stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-          });
-          return new DecoratorLayer({
-            ...SHARED_LAYER_PROPS,
-            id: `edge-decorator-${idx2}`,
-            data: data(engine.getEdges()),
-            getLayoutInfo: engine.getEdgePosition,
-            pickable: true,
-            positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
-            stylesheet: decoratorStylesheet
-          } as any);
-        });
-        return [edgeLayer, decoratorLayers];
+
+        const decoratorLayers = decorators
+          .filter(Boolean)
+          .map((decoratorStyle, idx2) => {
+            const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
+            if (!DecoratorLayer) {
+              warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
+              return null;
+            }
+            const decoratorStylesheet = this._createStyleEngine(
+              decoratorStyle as unknown as GraphStylesheet,
+              `edge decorator stylesheet "${decoratorStyle.type}"`
+            );
+            if (!decoratorStylesheet) {
+              return null;
+            }
+            return new DecoratorLayer({
+              ...SHARED_LAYER_PROPS,
+              id: `edge-decorator-${idx2}`,
+              data: data(engine.getEdges()),
+              getLayoutInfo,
+              pickable: true,
+              positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+              stylesheet: decoratorStylesheet
+            } as any);
+          })
+          .filter(Boolean);
+
+        return [edgeLayer, ...decoratorLayers];
       });
   }
 
@@ -592,5 +397,257 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   renderLayers() {
     return [this.createEdgeLayers(), this.createNodeLayers()];
+  }
+
+  private _createChainOverlayLayers(engine: GraphEngine) {
+    const representativeNodes = engine.getNodes().filter((node) => {
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const nodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      return (
+        chainId &&
+        Array.isArray(nodeIds) &&
+        nodeIds.length > 1 &&
+        representativeId === node.getId()
+      );
+    });
+
+    if (!representativeNodes.length) {
+      return [];
+    }
+
+    const layers: any[] = [];
+    const getChainOutlinePolygon = this._createChainOutlineGetter(engine);
+    const outlineUpdateTrigger = [engine.getLayoutLastUpdate(), engine.getLayoutState()].join();
+
+    const collapsedNodes = representativeNodes.filter((node) =>
+      Boolean(node.getPropertyValue('isCollapsedChain'))
+    );
+    const collapsedOutlineNodes = collapsedNodes.filter((node) => getChainOutlinePolygon(node));
+    if (collapsedOutlineNodes.length > 0) {
+      layers.push(
+        new PolygonLayer({
+          ...SHARED_LAYER_PROPS,
+          id: 'collapsed-chain-outlines',
+          data: collapsedOutlineNodes,
+          getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
+          stroked: true,
+          filled: false,
+          getLineColor: [220, 64, 64, 220],
+          getLineWidth: 2,
+          lineWidthUnits: 'pixels',
+          lineWidthMinPixels: 2,
+          pickable: true,
+          updateTriggers: {
+            getPolygon: [outlineUpdateTrigger]
+          }
+        })
+      );
+    }
+
+    const collapsedMarkerStylesheet = this._createStyleEngine(
+      {
+        type: 'marker',
+        fill: [64, 96, 192, 255],
+        size: 32,
+        marker: 'circle-plus-filled',
+        offset: [24, -24],
+        scaleWithZoom: false
+      } as GraphStylesheet<'marker'>,
+      'collapsed chain marker stylesheet'
+    );
+
+    if (collapsedMarkerStylesheet && collapsedNodes.length > 0) {
+      const getOffset = collapsedMarkerStylesheet.getDeckGLAccessor('getOffset');
+      layers.push(
+        new ZoomableMarkerLayer({
+          ...SHARED_LAYER_PROPS,
+          id: 'collapsed-chain-markers',
+          data: collapsedNodes,
+          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+          pickable: true,
+          positionUpdateTrigger: [
+            engine.getLayoutLastUpdate(),
+            engine.getLayoutState(),
+            collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+          ].join(),
+          stylesheet: collapsedMarkerStylesheet,
+          visible: true
+        } as any)
+      );
+    }
+
+    const expandedNodes = representativeNodes.filter(
+      (node) => !node.getPropertyValue('isCollapsedChain')
+    );
+    const expandedOutlineNodes = expandedNodes.filter((node) => getChainOutlinePolygon(node));
+    if (expandedOutlineNodes.length > 0) {
+      layers.push(
+        new PolygonLayer({
+          ...SHARED_LAYER_PROPS,
+          id: 'expanded-chain-outlines',
+          data: expandedOutlineNodes,
+          getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
+          stroked: true,
+          filled: false,
+          getLineColor: [64, 96, 192, 200],
+          getLineWidth: 2,
+          lineWidthUnits: 'pixels',
+          lineWidthMinPixels: 2,
+          pickable: true,
+          updateTriggers: {
+            getPolygon: [outlineUpdateTrigger]
+          }
+        })
+      );
+    }
+
+    const expandedMarkerStylesheet = this._createStyleEngine(
+      {
+        type: 'marker',
+        fill: [64, 96, 192, 255],
+        size: 32,
+        marker: 'circle-minus-filled',
+        offset: [24, -24],
+        scaleWithZoom: false
+      } as GraphStylesheet<'marker'>,
+      'expanded chain marker stylesheet'
+    );
+
+    if (expandedMarkerStylesheet && expandedNodes.length > 0) {
+      const getOffset = expandedMarkerStylesheet.getDeckGLAccessor('getOffset');
+      layers.push(
+        new ZoomableMarkerLayer({
+          ...SHARED_LAYER_PROPS,
+          id: 'expanded-chain-markers',
+          data: expandedNodes,
+          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+          pickable: true,
+          positionUpdateTrigger: [
+            engine.getLayoutLastUpdate(),
+            engine.getLayoutState(),
+            expandedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+          ].join(),
+          stylesheet: expandedMarkerStylesheet,
+          visible: true
+        } as any)
+      );
+    }
+
+    return layers;
+  }
+
+  private _createChainOutlineGetter(engine: GraphEngine) {
+    const graph = engine.props.graph;
+    const outlinePadding = 24;
+    const outlineCornerRadius = 16;
+    const outlineCornerSegments = 6;
+    const cache = new Map<string, [number, number][] | null>();
+
+    return (node: Node): [number, number][] | null => {
+      const chainId = node.getPropertyValue('collapsedChainId');
+      if (!chainId) {
+        return null;
+      }
+      const cacheKey = String(chainId);
+      if (cache.has(cacheKey)) {
+        return cache.get(cacheKey) ?? null;
+      }
+      if (!graph) {
+        cache.set(cacheKey, null);
+        return null;
+      }
+
+      const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
+      if (!Array.isArray(collapsedNodeIds) || collapsedNodeIds.length === 0) {
+        cache.set(cacheKey, null);
+        return null;
+      }
+
+      let minX = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+
+      for (const nodeId of collapsedNodeIds) {
+        const chainNode = graph.findNode(nodeId);
+        if (!chainNode) {
+          continue;
+        }
+        const position = engine.getNodePosition(chainNode);
+        if (!position) {
+          continue;
+        }
+        const [x, y] = position;
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+
+      if (
+        !Number.isFinite(minX) ||
+        !Number.isFinite(maxX) ||
+        !Number.isFinite(minY) ||
+        !Number.isFinite(maxY)
+      ) {
+        cache.set(cacheKey, null);
+        return null;
+      }
+
+      const paddedMinX = minX - outlinePadding;
+      const paddedMaxX = maxX + outlinePadding;
+      const paddedMinY = minY - outlinePadding;
+      const paddedMaxY = maxY + outlinePadding;
+
+      const width = paddedMaxX - paddedMinX;
+      const height = paddedMaxY - paddedMinY;
+
+      if (width <= 0 || height <= 0) {
+        cache.set(cacheKey, null);
+        return null;
+      }
+
+      const radius = Math.min(outlineCornerRadius, width / 2, height / 2);
+
+      if (radius <= 0) {
+        const polygon: [number, number][] = [
+          [paddedMinX, paddedMinY],
+          [paddedMinX, paddedMaxY],
+          [paddedMaxX, paddedMaxY],
+          [paddedMaxX, paddedMinY],
+          [paddedMinX, paddedMinY]
+        ];
+        cache.set(cacheKey, polygon);
+        return polygon;
+      }
+
+      const left = paddedMinX;
+      const right = paddedMaxX;
+      const top = paddedMinY;
+      const bottom = paddedMaxY;
+
+      const polygon: [number, number][] = [];
+      const pushArc = (cx: number, cy: number, startAngle: number, endAngle: number) => {
+        const step = (endAngle - startAngle) / outlineCornerSegments;
+        for (let i = 1; i <= outlineCornerSegments; i++) {
+          const angle = startAngle + step * i;
+          polygon.push([cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]);
+        }
+      };
+
+      polygon.push([right - radius, top]);
+      pushArc(right - radius, top + radius, -Math.PI / 2, 0);
+      polygon.push([right, bottom - radius]);
+      pushArc(right - radius, bottom - radius, 0, Math.PI / 2);
+      polygon.push([left + radius, bottom]);
+      pushArc(left + radius, bottom - radius, Math.PI / 2, Math.PI);
+      polygon.push([left, top + radius]);
+      pushArc(left + radius, top + radius, Math.PI, (3 * Math.PI) / 2);
+      polygon.push(polygon[0]);
+
+      cache.set(cacheKey, polygon);
+      return polygon;
+    };
   }
 }
