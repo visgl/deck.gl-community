@@ -453,7 +453,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         fill: [64, 96, 192, 255],
         size: 32,
         marker: 'circle-plus-filled',
-        offset: [24, -24],
+        offset: [-24, -24],
         text: (node: Node) => {
           const length = node.getPropertyValue('collapsedChainLength');
           return typeof length === 'number' && Number.isFinite(length) ? String(length) : '';
