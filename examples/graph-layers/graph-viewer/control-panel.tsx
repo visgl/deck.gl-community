@@ -5,9 +5,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import type {ReactNode} from 'react';
 import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
-import {StylesheetEditor, type StylesheetSchema} from './stylesheet-editor';
-
-const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
 
 export type LayoutType =
   | 'd3-force-layout'
@@ -39,9 +36,6 @@ type ControlPanelProps = {
   defaultExample?: ExampleDefinition;
   onExampleChange: (example: ExampleDefinition, layout: LayoutType) => void;
   children?: ReactNode;
-  onStylesheetChange?: (value: string) => void;
-  onStylesheetSubmit?: (value: string) => void;
-  stylesheetSchema?: StylesheetSchema;
 };
 
 const LAYOUT_LABELS: Record<LayoutType, string> = {
@@ -58,10 +52,7 @@ export function ControlPanel({
   examples,
   defaultExample,
   onExampleChange,
-  children,
-  onStylesheetChange,
-  onStylesheetSubmit,
-  stylesheetSchema
+  children
 }: ControlPanelProps) {
   const resolveExampleIndex = useCallback(
     (example?: ExampleDefinition) => {
@@ -83,8 +74,6 @@ export function ControlPanel({
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
     availableLayouts[0]
   );
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
   useEffect(() => {
     if (!availableLayouts.length) {
       setSelectedLayout(undefined);
@@ -132,46 +121,6 @@ export function ControlPanel({
 
     return selectedExample.layoutDescriptions[selectedLayout];
   }, [selectedExample, selectedLayout]);
-
-  const styleJson = useMemo(() => {
-    const styles = selectedExample?.style;
-    if (!styles) {
-      return '';
-    }
-
-    return JSON.stringify(
-      styles,
-      (_key, value) => (typeof value === 'function' ? value.toString() : value),
-      2
-    );
-  }, [selectedExample]);
-
-  const [stylesheetValue, setStylesheetValue] = useState(
-    styleJson || DEFAULT_STYLESHEET_MESSAGE
-  );
-
-  useEffect(() => {
-    setStylesheetValue(styleJson || DEFAULT_STYLESHEET_MESSAGE);
-  }, [styleJson]);
-
-  const handleStylesheetChange = useCallback(
-    (nextValue: string) => {
-      setStylesheetValue(nextValue);
-      onStylesheetChange?.(nextValue);
-    },
-    [onStylesheetChange]
-  );
-
-  const handleStylesheetSubmit = useCallback(
-    (nextValue: string) => {
-      onStylesheetSubmit?.(nextValue);
-    },
-    [onStylesheetSubmit]
-  );
-
-  const toggleCollapsed = useCallback(() => {
-    setIsCollapsed((value) => !value);
-  }, []);
 
   if (!examples.length) {
     return null;
@@ -266,24 +215,7 @@ export function ControlPanel({
             gap: '0.75rem'
           }}
         >
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            style={{
-              alignSelf: 'flex-start',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              border: '1px solid #cbd5f5',
-              background: '#f8fafc',
-              color: '#0f172a',
-              borderRadius: '0.5rem',
-              padding: '0.25rem 0.5rem',
-              cursor: 'pointer'
-            }}
-          >
-            {isCollapsed ? 'Expand details' : 'Collapse details'}
-          </button>
-          {!isCollapsed ? <div>{children}</div> : null}
+          {children}
         </section>
       ) : null}
       {layoutDescription ? (
@@ -294,19 +226,6 @@ export function ControlPanel({
           <p style={{margin: 0}}>{layoutDescription}</p>
         </section>
       ) : null}
-      <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>
-        <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-          Stylesheet JSON
-        </h3>
-        <div style={{borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #1f2937'}}>
-          <StylesheetEditor
-            value={stylesheetValue}
-            onChange={handleStylesheetChange}
-            onSubmit={handleStylesheetSubmit}
-            schema={stylesheetSchema}
-          />
-        </div>
-      </section>
     </div>
   );
 }
