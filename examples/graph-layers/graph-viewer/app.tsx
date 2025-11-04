@@ -40,6 +40,7 @@ const INITIAL_VIEW_STATE = {
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
+const DEFAULT_LAYOUT_UPDATE_INTERVAL = 120;
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
 
@@ -102,6 +103,7 @@ export function App(props) {
   const [dagChainSummary, setDagChainSummary] = useState<
     {chainIds: string[]; collapsedIds: string[]}
   | null>(null);
+  const [layoutUpdateInterval, setLayoutUpdateInterval] = useState(DEFAULT_LAYOUT_UPDATE_INTERVAL);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
   const layoutOptions = useMemo(
@@ -331,6 +333,11 @@ export function App(props) {
     setSelectedLayout(layoutType);
   }, []);
 
+  const handleLayoutUpdateIntervalChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = Number(event.target.value);
+    setLayoutUpdateInterval(Number.isFinite(value) ? Math.max(0, value) : 0);
+  }, []);
+
   return (
     <div
       style={{
@@ -394,6 +401,7 @@ export function App(props) {
                   new GraphLayer({
                     engine,
                     stylesheet: selectedStyles,
+                    layoutUpdateInterval,
                     resumeLayoutAfterDragging
                   })
                 ]
@@ -422,6 +430,32 @@ export function App(props) {
           defaultExample={DEFAULT_EXAMPLE}
           onExampleChange={handleExampleChange}
         >
+          <section style={{marginBottom: '0.5rem', fontSize: '0.875rem', lineHeight: 1.5}}>
+            <h3 style={{margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+              Layout refresh rate
+            </h3>
+            <p style={{margin: '0 0 0.75rem', color: '#334155'}}>
+              Slow down the layout updates to observe position changes between iterations.
+            </p>
+            <label
+              htmlFor="graph-viewer-layout-update-interval"
+              style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}
+            >
+              <input
+                id="graph-viewer-layout-update-interval"
+                type="range"
+                min="0"
+                max="500"
+                step="10"
+                value={layoutUpdateInterval}
+                onChange={handleLayoutUpdateIntervalChange}
+                style={{width: '100%'}}
+              />
+              <span style={{fontSize: '0.8125rem', color: '#475569'}}>
+                Updating every {layoutUpdateInterval}ms
+              </span>
+            </label>
+          </section>
           {isDagLayout ? (
             <CollapseControls
               enabled={collapseEnabled}
