@@ -48,6 +48,14 @@ const CONFIG = defineConfig({
             instances: [{browser: 'chromium'}]
           }
         }
+      },
+      {
+        plugins: [react()],
+        test: {
+          name: 'examples',
+          environment: 'node',
+          include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}']
+        }
       }
     ]
     // You can omit top-level include if everyone is scoped in their projects
