@@ -26,7 +26,8 @@ import {
 
 import {extent} from 'd3-array';
 
-import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
+import {ControlPanel} from './control-panel';
+import type {ExampleDefinition, LayoutType} from './layout-options';
 import {CollapseControls} from './collapse-controls';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
 
