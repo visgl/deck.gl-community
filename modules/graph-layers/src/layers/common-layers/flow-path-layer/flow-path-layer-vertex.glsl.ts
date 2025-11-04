@@ -3,30 +3,31 @@
 // Copyright (c) vis.gl contributors
 
 export const vs = /* glsl */ `\
+#version 300 es
 #define SHADER_NAME flow-path-layer-vertex-shader
 
-attribute vec3 positions;
-attribute vec3 instanceSourcePositions;
-attribute vec3 instanceTargetPositions;
-attribute vec4 instanceSourceTargetPositions64xyLow;
-attribute vec4 instanceColors;
-attribute vec3 instancePickingColors;
-attribute float instanceWidths;
-attribute float instanceSpeeds;
-attribute float instanceOffsets;
-attribute float instanceTailLengths;
+in vec3 positions;
+in vec3 instanceSourcePositions;
+in vec3 instanceTargetPositions;
+in vec4 instanceSourceTargetPositions64xyLow;
+in vec4 instanceColors;
+in vec3 instancePickingColors;
+in float instanceWidths;
+in float instanceSpeeds;
+in float instanceOffsets;
+in float instanceTailLengths;
 
 uniform float opacity;
 uniform float widthScale;
 uniform float widthMinPixels;
 uniform float widthMaxPixels;
 
-varying vec4 vColor;
-varying float segmentIndex;
-varying float speed;
-varying float pathLength;
-varying float tailLength;
-varying float offset;
+out vec4 vColor;
+out float segmentIndex;
+out float speed;
+out float pathLength;
+out float tailLength;
+out float flowOffset;
 
 // offset vector by strokeWidth pixels
 // offset_direction is -1 (left) or 1 (right)
@@ -57,13 +58,13 @@ void main(void) {
   segmentIndex = positions.x;
   speed = instanceSpeeds;
   tailLength = project_size_to_pixel(instanceTailLengths * widthScale);
-  offset = instanceOffsets;
+  flowOffset = instanceOffsets;
   pathLength = distance(instanceSourcePositions, instanceTargetPositions);
   vec4 p = mix(source, target, segmentIndex);
 
   // extrude
-  vec2 offset = getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels);
-  gl_Position = p + vec4(offset, 0.0, 0.0);
+  vec2 extrudedOffset = getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels);
+  gl_Position = p + vec4(extrudedOffset, 0.0, 0.0);
 
   // Color
   vColor = vec4(instanceColors.rgb, instanceColors.a * opacity) / 255.;
