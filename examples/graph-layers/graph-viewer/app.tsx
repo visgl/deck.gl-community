@@ -140,6 +140,7 @@ export function App(props) {
   const minZoom = -20;
   const maxZoom = 20;
   const viewportPadding = 50;
+  const boundsPaddingRatio = 0.1;
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
   const zoomToFitOnLoad = false;
@@ -189,11 +190,12 @@ export function App(props) {
         const target: [number, number] = [(minX + maxX) / 2, (minY + maxY) / 2];
         const spanX = Math.max(maxX - minX, 1e-6);
         const spanY = Math.max(maxY - minY, 1e-6);
-        const zoom = Math.min(
-          width / (spanX + viewportPadding * 2),
-          height / (spanY + viewportPadding * 2)
-        );
-        const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
+        const paddedSpanX = spanX * (1 + boundsPaddingRatio);
+        const paddedSpanY = spanY * (1 + boundsPaddingRatio);
+        const innerWidth = Math.max(1, width - viewportPadding * 2);
+        const innerHeight = Math.max(1, height - viewportPadding * 2);
+        const scale = Math.min(innerWidth / paddedSpanX, innerHeight / paddedSpanY);
+        const newZoom = Math.min(Math.max(minZoom, Math.log2(Math.max(scale, 1e-6))), maxZoom);
         const epsilon = 1e-6;
 
         if (!Number.isFinite(newZoom)) {
@@ -230,7 +232,7 @@ export function App(props) {
         };
       });
     },
-    [engine, viewportPadding, minZoom, maxZoom]
+    [engine, viewportPadding, boundsPaddingRatio, minZoom, maxZoom]
   );
 
   // Relatively pan the graph by a specified position vector.
@@ -255,8 +257,11 @@ export function App(props) {
   //   [maxZoom, minZoom, viewState, setViewState]
   // );
 
+  const shouldExpandOnlyRef = useRef(true);
+
   useEffect(() => {
     latestBoundsRef.current = null;
+    shouldExpandOnlyRef.current = false;
   }, [engine]);
 
   useEffect(() => {
@@ -267,7 +272,9 @@ export function App(props) {
     const handleIncrementalLayout = (event: Event) => {
       const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
       const bounds = detail?.bounds ?? engine.getLayoutBounds();
-      fitBounds(bounds, {expandOnly: true});
+      const expandOnly = shouldExpandOnlyRef.current;
+      fitBounds(bounds, {expandOnly});
+      shouldExpandOnlyRef.current = true;
     };
 
     engine.addEventListener('onLayoutStart', handleIncrementalLayout);
