@@ -17,12 +17,6 @@ export type CollapseControlsProps = {
   onExpandAll: () => void;
 };
 
-const sectionStyle: React.CSSProperties = {
-  marginBottom: '0.5rem',
-  fontSize: '0.875rem',
-  lineHeight: 1.5
-};
-
 const headingStyle: React.CSSProperties = {
   margin: '0 0 0.5rem',
   fontSize: '0.875rem',
@@ -30,9 +24,22 @@ const headingStyle: React.CSSProperties = {
   color: '#0f172a'
 };
 
+const detailsStyle: React.CSSProperties = {
+  fontSize: '0.8125rem',
+  color: '#334155',
+  margin: '0 0 0.5rem'
+};
+
+const summaryStyle: React.CSSProperties = {
+  cursor: 'pointer',
+  fontWeight: 600,
+  outline: 'none',
+  listStyle: 'none'
+};
+
 const descriptionStyle: React.CSSProperties = {
-  margin: '0 0 0.75rem',
-  color: '#334155'
+  margin: '0.5rem 0 0',
+  lineHeight: 1.5
 };
 
 const statusRowStyle: React.CSSProperties = {
@@ -92,12 +99,15 @@ export function CollapseControls({
   const expandAllDisabled = !enabled || collapsedChainCount === 0;
 
   return (
-    <section style={sectionStyle}>
+    <section style={{fontSize: '0.875rem'}}>
       <h3 style={headingStyle}>Collapsed chains</h3>
-      <p style={descriptionStyle}>
-        Linear chains collapse to a single node marked with plus and minus icons. Use these controls to expand or collapse all
-        chains. Individual chains remain interactive on the canvas.
-      </p>
+      <details style={detailsStyle}>
+        <summary style={summaryStyle}>How collapsed chains work</summary>
+        <p style={descriptionStyle}>
+          Linear chains collapse to a single node marked with plus and minus icons. Use these controls to expand or collapse all
+          chains. Individual chains remain interactive on the canvas.
+        </p>
+      </details>
       <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
         <div style={statusRowStyle}>
           <span>Status</span>
@@ -107,7 +117,7 @@ export function CollapseControls({
         </div>
         <div style={controlsContainerStyle}>
           <button type="button" onClick={onToggle} style={getToggleButtonStyle(enabled)}>
-            {enabled ? 'Disable collapse' : 'Enable collapse'}
+            {enabled ? 'Disable' : 'Enable'}
           </button>
           <button
             type="button"

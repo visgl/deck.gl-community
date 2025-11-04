@@ -48,7 +48,12 @@ const LAYOUT_LABELS: Record<LayoutType, string> = {
   'd3-dag-layout': 'D3 DAG Layout',
 };
 
-export function ControlPanel({examples, defaultExample, onExampleChange, children}: ControlPanelProps) {
+export function ControlPanel({
+  examples,
+  defaultExample,
+  onExampleChange,
+  children
+}: ControlPanelProps) {
   const resolveExampleIndex = useCallback(
     (example?: ExampleDefinition) => {
       if (!example) {
@@ -69,8 +74,6 @@ export function ControlPanel({examples, defaultExample, onExampleChange, childre
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
     availableLayouts[0]
   );
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
   useEffect(() => {
     if (!availableLayouts.length) {
       setSelectedLayout(undefined);
@@ -118,23 +121,6 @@ export function ControlPanel({examples, defaultExample, onExampleChange, childre
 
     return selectedExample.layoutDescriptions[selectedLayout];
   }, [selectedExample, selectedLayout]);
-
-  const styleJson = useMemo(() => {
-    const styles = selectedExample?.style;
-    if (!styles) {
-      return '';
-    }
-
-    return JSON.stringify(
-      styles,
-      (_key, value) => (typeof value === 'function' ? value.toString() : value),
-      2
-    );
-  }, [selectedExample]);
-
-  const toggleCollapsed = useCallback(() => {
-    setIsCollapsed((value) => !value);
-  }, []);
 
   if (!examples.length) {
     return null;
@@ -229,24 +215,7 @@ export function ControlPanel({examples, defaultExample, onExampleChange, childre
             gap: '0.75rem'
           }}
         >
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            style={{
-              alignSelf: 'flex-start',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              border: '1px solid #cbd5f5',
-              background: '#f8fafc',
-              color: '#0f172a',
-              borderRadius: '0.5rem',
-              padding: '0.25rem 0.5rem',
-              cursor: 'pointer'
-            }}
-          >
-            {isCollapsed ? 'Expand details' : 'Collapse details'}
-          </button>
-          {!isCollapsed ? <div>{children}</div> : null}
+          {children}
         </section>
       ) : null}
       {layoutDescription ? (
@@ -257,29 +226,6 @@ export function ControlPanel({examples, defaultExample, onExampleChange, childre
           <p style={{margin: 0}}>{layoutDescription}</p>
         </section>
       ) : null}
-      <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>
-        <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-          Stylesheet JSON
-        </h3>
-        <pre
-          style={{
-            margin: 0,
-            padding: '0.75rem',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.5rem',
-            fontSize: '0.75rem',
-            lineHeight: 1.4,
-            maxHeight: '16rem',
-            overflow: 'auto',
-            whiteSpace: 'pre-wrap',
-            fontFamily:
-              'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-          }}
-        >
-          {styleJson || '// No style defined for this example'}
-        </pre>
-      </section>
     </div>
   );
 }
