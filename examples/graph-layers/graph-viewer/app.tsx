@@ -336,6 +336,7 @@ export function App(props) {
       style={{
         display: 'flex',
         height: '100%',
+        minHeight: '100vh',
         width: '100%',
         boxSizing: 'border-box',
         fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
@@ -411,6 +412,7 @@ export function App(props) {
           boxSizing: 'border-box',
           borderLeft: '1px solid #e2e8f0',
           background: '#f1f5f9',
+          maxHeight: '100vh',
           overflowY: 'auto',
           fontFamily: 'inherit'
         }}
