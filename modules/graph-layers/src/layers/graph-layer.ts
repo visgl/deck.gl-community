@@ -4,7 +4,7 @@
 
 /* eslint-disable no-continue */
 
-import type {CompositeLayerProps} from '@deck.gl/core';
+import type {CompositeLayerProps, UpdateParameters} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
@@ -102,6 +102,8 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
+  /** Minimum time between layout updates in milliseconds. */
+  layoutUpdateInterval?: number;
 };
 
 /** Composite layer that renders graph nodes, edges, and decorators. */
@@ -130,7 +132,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onClick: () => {},
       onHover: () => {}
     },
-    enableDragging: false
+    enableDragging: false,
+    layoutUpdateInterval: 0
   };
 
   // @ts-expect-error Some typescript confusion due to override of base class state
@@ -141,12 +144,58 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
 
+  private _layoutUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  private _lastLayoutUpdateTime = 0;
+
+  private readonly _handleLayoutChange = () => {
+    this._scheduleLayoutUpdate();
+  };
+
   forceUpdate = () => {
     if (this.context && this.context.layerManager) {
       this.setNeedsUpdate();
       this.setChangeFlags({dataChanged: true} as any); // TODO
+      this.setNeedsRedraw('graph-layer-layout-update');
     }
   };
+
+  private _scheduleLayoutUpdate() {
+    const interval = Math.max(0, this.props.layoutUpdateInterval ?? 0);
+
+    if (interval === 0) {
+      this._flushScheduledLayoutUpdate();
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceLastUpdate = now - this._lastLayoutUpdateTime;
+
+    if (timeSinceLastUpdate >= interval) {
+      this._flushScheduledLayoutUpdate(now);
+      return;
+    }
+
+    if (this._layoutUpdateTimer !== null) {
+      return;
+    }
+
+    this._layoutUpdateTimer = setTimeout(() => {
+      this._layoutUpdateTimer = null;
+      this._flushScheduledLayoutUpdate();
+    }, interval - timeSinceLastUpdate);
+  }
+
+  private _flushScheduledLayoutUpdate(timestamp = Date.now()) {
+    this._lastLayoutUpdateTime = timestamp;
+    this.forceUpdate();
+  }
+
+  private _clearScheduledLayoutUpdate() {
+    if (this._layoutUpdateTimer !== null) {
+      clearTimeout(this._layoutUpdateTimer);
+      this._layoutUpdateTimer = null;
+    }
+  }
 
   constructor(props: GraphLayerProps & CompositeLayerProps) {
     super(props);
@@ -165,32 +214,62 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   updateState({props, oldProps, changeFlags}) {
-    if (
-      changeFlags.dataChanged &&
-      props.data &&
-      !(Array.isArray(props.data) && props.data.length === 0)
-    ) {
-      // console.log(props.data);
-      const graph = this.props.graphLoader({json: props.data});
-      const layout = this.props.layout;
-      const graphEngine = new GraphEngine({graph, layout});
-      this._setGraphEngine(graphEngine);
+    const nextEngine = this._resolveNextGraphEngine(props, oldProps, changeFlags);
+
+    if (nextEngine !== undefined) {
+      this._setGraphEngine(nextEngine);
       this.state.interactionManager.updateProps(props);
       this.forceUpdate();
-    } else if (changeFlags.propsChanged && props.graph !== oldProps.graph) {
-      const graphEngine = new GraphEngine({graph: props.graph, layout: props.layout});
-      this._setGraphEngine(graphEngine);
+    } else if (changeFlags.propsChanged) {
       this.state.interactionManager.updateProps(props);
-      this.forceUpdate();
-    } else if (changeFlags.propsChanged && props.engine !== oldProps.engine) {
-      this._setGraphEngine(props.engine);
-      this.state.interactionManager.updateProps(props);
-      this.forceUpdate();
+    }
+
+    if (changeFlags.propsChanged && props.layoutUpdateInterval !== oldProps.layoutUpdateInterval) {
+      this._clearScheduledLayoutUpdate();
+      if (this.state.graphEngine) {
+        const interval = Math.max(0, props.layoutUpdateInterval ?? 0);
+        if (interval === 0) {
+          this._flushScheduledLayoutUpdate();
+        } else {
+          this._scheduleLayoutUpdate();
+        }
+      }
     }
   }
 
   finalize() {
     this._removeGraphEngine();
+  }
+
+  private _resolveNextGraphEngine(
+    props: GraphLayerProps,
+    oldProps: GraphLayerProps,
+    changeFlags: UpdateParameters<this>['changeFlags']
+  ): GraphEngine | null | undefined {
+    if (
+      changeFlags.dataChanged &&
+      props.data &&
+      !(Array.isArray(props.data) && props.data.length === 0)
+    ) {
+      const graphLoader = props.graphLoader ?? this.props.graphLoader;
+      const layout = props.layout ?? this.props.layout;
+      const graph = graphLoader({json: props.data});
+      return new GraphEngine({graph, layout});
+    }
+
+    if (!changeFlags.propsChanged) {
+      return undefined;
+    }
+
+    if (props.graph !== oldProps.graph) {
+      return new GraphEngine({graph: props.graph, layout: props.layout});
+    }
+
+    if (props.engine !== oldProps.engine) {
+      return props.engine ?? null;
+    }
+
+    return undefined;
   }
 
   private _getResolvedStylesheet(): NormalizedGraphLayerStylesheet {
@@ -227,7 +306,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
   }
 
-  _setGraphEngine(graphEngine: GraphEngine) {
+  _setGraphEngine(graphEngine?: GraphEngine | null) {
     if (graphEngine === this.state.graphEngine) {
       return;
     }
@@ -235,18 +314,21 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this._removeGraphEngine();
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
+      this._lastLayoutUpdateTime = 0;
       this.state.graphEngine.run();
       // added or removed a node, or in general something layout related changed
-      this.state.graphEngine.addEventListener('onLayoutChange', this.forceUpdate);
+      this.state.graphEngine.addEventListener('onLayoutChange', this._handleLayoutChange);
+      this._scheduleLayoutUpdate();
     }
   }
 
   _removeGraphEngine() {
     if (this.state.graphEngine) {
-      this.state.graphEngine.removeEventListener('onLayoutChange', this.forceUpdate);
+      this.state.graphEngine.removeEventListener('onLayoutChange', this._handleLayoutChange);
       this.state.graphEngine.clear();
       this.state.graphEngine = null;
     }
+    this._clearScheduledLayoutUpdate();
   }
 
   createNodeLayers() {
