@@ -28,6 +28,7 @@ import {extent} from 'd3-array';
 
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
+import {MiniMap} from './mini-map';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
@@ -39,6 +40,9 @@ const INITIAL_VIEW_STATE = {
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
+const MINI_MAP_VIEWPORT_WIDTH = 200;
+const MINI_MAP_VIEWPORT_HEIGHT = 160;
+const MINI_MAP_PADDING = 12;
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
 
@@ -122,6 +126,7 @@ export function App(props) {
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
+  const [engineRevision, bumpEngineRevision] = useReducer((count: number) => count + 1, 0);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -186,6 +191,23 @@ export function App(props) {
   }, [isDagLayout, selectedExample]);
 
   useEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
+    const handleEngineUpdate = () => bumpEngineRevision();
+    engine.addEventListener('onLayoutStart', handleEngineUpdate);
+    engine.addEventListener('onLayoutChange', handleEngineUpdate);
+    engine.addEventListener('onLayoutDone', handleEngineUpdate);
+
+    return () => {
+      engine.removeEventListener('onLayoutStart', handleEngineUpdate);
+      engine.removeEventListener('onLayoutChange', handleEngineUpdate);
+      engine.removeEventListener('onLayoutDone', handleEngineUpdate);
+    };
+  }, [engine, bumpEngineRevision]);
+
+  useEffect(() => {
     if (!dagLayout) {
       return;
     }
@@ -242,6 +264,57 @@ export function App(props) {
       engine.removeEventListener('onLayoutDone', handleLayoutDone);
     };
   }, [engine, dagLayout, isDagLayout]);
+
+  const nodes = engine ? engine.getNodes() : [];
+  const hoveredNode = nodes.find((node) => node.getState() === 'hover') ?? null;
+
+  const hoveredChainInfo = useMemo(() => {
+    if (!engine || !hoveredNode) {
+      return null;
+    }
+
+    const chainId = hoveredNode.getPropertyValue('collapsedChainId');
+    const collapsedNodeIds = hoveredNode.getPropertyValue('collapsedNodeIds');
+    const representativeId = hoveredNode.getPropertyValue('collapsedChainRepresentativeId');
+
+    if (
+      chainId === null ||
+      chainId === undefined ||
+      !Array.isArray(collapsedNodeIds) ||
+      collapsedNodeIds.length <= 1 ||
+      representativeId !== hoveredNode.getId()
+    ) {
+      return null;
+    }
+
+    const collapsedNodeIdSet = new Set<string | number>(collapsedNodeIds as (string | number)[]);
+    const graph = engine.props.graph;
+    const parents = new Set<string | number>();
+
+    for (const edge of graph.getEdges()) {
+      if (!edge.isDirected()) {
+        continue;
+      }
+      const targetId = edge.getTargetNodeId();
+      if (!collapsedNodeIdSet.has(targetId)) {
+        continue;
+      }
+      const sourceId = edge.getSourceNodeId();
+      if (collapsedNodeIdSet.has(sourceId)) {
+        continue;
+      }
+      parents.add(sourceId);
+    }
+
+    const parentList = Array.from(parents).map((id) => String(id));
+    parentList.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
+
+    return {
+      chainId: String(chainId),
+      breadcrumb: parentList.length ? parentList.join(' › ') : 'No parent nodes',
+      collapsedLength: collapsedNodeIdSet.size
+    };
+  }, [engine, hoveredNode, engineRevision]);
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);
@@ -336,6 +409,30 @@ export function App(props) {
     setSelectedLayout(layoutType);
   }, []);
 
+  const handleNodeInteraction = useCallback(() => {
+    bumpEngineRevision();
+  }, [bumpEngineRevision]);
+
+  const graphLayerNodeEvents = useMemo(
+    () => ({
+      onHover: handleNodeInteraction,
+      onMouseLeave: handleNodeInteraction,
+      onClick: handleNodeInteraction,
+      onDrag: handleNodeInteraction
+    }),
+    [handleNodeInteraction]
+  );
+
+  const handleMiniMapRecenter = useCallback(
+    (target: [number, number]) => {
+      setViewState((prev) => ({
+        ...prev,
+        target: [target[0], target[1]]
+      }));
+    },
+    [setViewState]
+  );
+
   return (
     <div
       style={{
@@ -398,7 +495,8 @@ export function App(props) {
                   new GraphLayer({
                     engine,
                     stylesheet: selectedStyles,
-                    resumeLayoutAfterDragging
+                    resumeLayoutAfterDragging,
+                    nodeEvents: graphLayerNodeEvents
                   })
                 ]
               : []
@@ -406,6 +504,61 @@ export function App(props) {
           widgets={widgets}
           getTooltip={(info) => getToolTip(info.object)}
         />
+        {engine ? (
+          <div
+            style={{
+              position: 'absolute',
+              right: '1.5rem',
+              bottom: '1.5rem',
+              width: `${MINI_MAP_VIEWPORT_WIDTH + MINI_MAP_PADDING * 2}px`,
+              padding: `${MINI_MAP_PADDING}px`,
+              borderRadius: '0.75rem',
+              background: 'rgba(15, 23, 42, 0.85)',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.45)',
+              border: '1px solid rgba(148, 163, 184, 0.25)',
+              color: '#e2e8f0',
+              fontSize: '0.75rem',
+              lineHeight: 1.4,
+              pointerEvents: 'auto',
+              backdropFilter: 'blur(6px)'
+            }}
+          >
+            <div
+              style={{
+                width: `${MINI_MAP_VIEWPORT_WIDTH}px`,
+                height: `${MINI_MAP_VIEWPORT_HEIGHT}px`,
+                borderRadius: '0.5rem',
+                overflow: 'hidden',
+                background: 'rgba(15, 23, 42, 0.6)',
+                marginBottom: '0.75rem'
+              }}
+            >
+              <MiniMap
+                engine={engine}
+                revision={engineRevision}
+                mainViewState={viewState}
+                width={MINI_MAP_VIEWPORT_WIDTH}
+                height={MINI_MAP_VIEWPORT_HEIGHT}
+                onRecenter={handleMiniMapRecenter}
+              />
+            </div>
+            {hoveredChainInfo ? (
+              <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
+                <div style={{fontWeight: 600, color: '#f8fafc'}}>
+                  Chain {hoveredChainInfo.chainId}
+                  <span style={{marginLeft: '0.35rem', fontWeight: 400, color: '#cbd5f5'}}>
+                    • {hoveredChainInfo.collapsedLength} nodes
+                  </span>
+                </div>
+                <div style={{color: '#cbd5f5'}}>Parents: {hoveredChainInfo.breadcrumb}</div>
+              </div>
+            ) : (
+              <div style={{color: '#94a3b8'}}>
+                Hover a collapsed chain to see parent breadcrumbs.
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
       <aside
         style={{
