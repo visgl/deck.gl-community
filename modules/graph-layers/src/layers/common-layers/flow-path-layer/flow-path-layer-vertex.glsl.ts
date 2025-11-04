@@ -9,7 +9,8 @@ export const vs = /* glsl */ `\
 in vec3 positions;
 in vec3 instanceSourcePositions;
 in vec3 instanceTargetPositions;
-in vec4 instanceSourceTargetPositions64xyLow;
+in vec3 instanceSourcePositions64Low;
+in vec3 instanceTargetPositions64Low;
 in vec4 instanceColors;
 in vec3 instancePickingColors;
 in float instanceWidths;
@@ -17,59 +18,85 @@ in float instanceSpeeds;
 in float instanceOffsets;
 in float instanceTailLengths;
 
-uniform float opacity;
-uniform float widthScale;
-uniform float widthMinPixels;
-uniform float widthMaxPixels;
-
 out vec4 vColor;
+out vec2 uv;
 out float segmentIndex;
 out float speed;
 out float pathLength;
 out float tailLength;
 out float flowOffset;
 
-// offset vector by strokeWidth pixels
-// offset_direction is -1 (left) or 1 (right)
 vec2 getExtrusionOffset(vec2 line_clipspace, float offset_direction, float width) {
-  // normalized direction of the line
-  vec2 dir_screenspace = normalize(line_clipspace * project_uViewportSize);
-  // rotate by 90 degrees
+  vec2 dir_screenspace = normalize(line_clipspace * project.viewportSize);
   dir_screenspace = vec2(-dir_screenspace.y, dir_screenspace.x);
-
-  vec2 offset_screenspace = dir_screenspace * offset_direction * width / 2.0;
-  vec2 offset_clipspace = project_pixel_size_to_clipspace(offset_screenspace);
-
-  return offset_clipspace;
+  return dir_screenspace * offset_direction * width / 2.0;
 }
 
 void main(void) {
-  // Position
-  vec4 source = project_position_to_clipspace(instanceSourcePositions, instanceSourceTargetPositions64xyLow.xy, vec3(0.));
-  vec4 target = project_position_to_clipspace(instanceTargetPositions, instanceSourceTargetPositions64xyLow.zw, vec3(0.));
+  geometry.worldPosition = instanceSourcePositions;
+  geometry.worldPositionAlt = instanceTargetPositions;
 
-  // Multiply out width and clamp to limits
+  vec3 source_world = instanceSourcePositions;
+  vec3 target_world = instanceTargetPositions;
+  vec3 source_world_64low = instanceSourcePositions64Low;
+  vec3 target_world_64low = instanceTargetPositions64Low;
+
+  if (line.useShortestPath > 0.5 || line.useShortestPath < -0.5) {
+    source_world.x = mod(source_world.x + 180., 360.0) - 180.;
+    target_world.x = mod(target_world.x + 180., 360.0) - 180.;
+    float deltaLng = target_world.x - source_world.x;
+
+    if (deltaLng * line.useShortestPath > 180.) {
+      source_world.x += 360. * line.useShortestPath;
+      float splitX = 180. * line.useShortestPath;
+      float t = (splitX - source_world.x) / (target_world.x - source_world.x);
+      source_world = vec3(splitX, mix(source_world.yz, target_world.yz, t));
+      source_world_64low = vec3(0.0);
+    } else if (deltaLng * line.useShortestPath < -180.) {
+      target_world.x += 360. * line.useShortestPath;
+      float splitX = 180. * line.useShortestPath;
+      float t = (splitX - source_world.x) / (target_world.x - source_world.x);
+      target_world = vec3(splitX, mix(source_world.yz, target_world.yz, t));
+      target_world_64low = vec3(0.0);
+    } else if (line.useShortestPath < 0.) {
+      gl_Position = vec4(0.);
+      return;
+    }
+  }
+
+  vec4 source_commonspace;
+  vec4 target_commonspace;
+  vec4 source = project_position_to_clipspace(source_world, source_world_64low, vec3(0.), source_commonspace);
+  vec4 target = project_position_to_clipspace(target_world, target_world_64low, vec3(0.), target_commonspace);
+
+  segmentIndex = positions.x;
+  vec4 p = mix(source, target, segmentIndex);
+  geometry.position = mix(source_commonspace, target_commonspace, segmentIndex);
+  uv = positions.xy;
+  geometry.uv = uv;
+  geometry.pickingColor = instancePickingColors;
+  speed = instanceSpeeds;
+  flowOffset = instanceOffsets;
+
   float widthPixels = clamp(
-    project_size_to_pixel(instanceWidths * widthScale),
-    widthMinPixels, widthMaxPixels
+    project_size_to_pixel(instanceWidths * line.widthScale, line.widthUnits),
+    line.widthMinPixels,
+    line.widthMaxPixels
   );
 
-  // linear interpolation of source & target to pick right coord
-  segmentIndex = positions.x;
-  speed = instanceSpeeds;
-  tailLength = project_size_to_pixel(instanceTailLengths * widthScale);
-  flowOffset = instanceOffsets;
-  pathLength = distance(instanceSourcePositions, instanceTargetPositions);
-  vec4 p = mix(source, target, segmentIndex);
+  tailLength = project_size_to_pixel(instanceTailLengths * line.widthScale, line.widthUnits);
 
-  // extrude
-  vec2 extrudedOffset = getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels);
-  gl_Position = p + vec4(extrudedOffset, 0.0, 0.0);
+  vec3 offset = vec3(
+    getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels),
+    0.0
+  );
+  DECKGL_FILTER_SIZE(offset, geometry);
+  DECKGL_FILTER_GL_POSITION(p, geometry);
+  gl_Position = p + vec4(project_pixel_size_to_clipspace(offset.xy), 0.0, 0.0);
 
-  // Color
-  vColor = vec4(instanceColors.rgb, instanceColors.a * opacity) / 255.;
+  pathLength = length(target_commonspace.xyz - source_commonspace.xyz);
 
-  // Set color to be rendered to picking fbo (also used to check for selection highlight).
-  picking_setPickingColor(instancePickingColors);
+  vColor = vec4(instanceColors.rgb, instanceColors.a * layer.opacity);
+  DECKGL_FILTER_COLOR(vColor, geometry);
 }
 `;
