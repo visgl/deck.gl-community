@@ -4,6 +4,9 @@
 
 import React from 'react';
 
+import {COLLAPSE_CONTROLS_SHORTCUTS, type ShortcutHint} from './shortcuts';
+import {ShortcutHints} from './shortcut-hints';
+
 type DagChainSummary = {
   chainIds: string[];
   collapsedIds: string[];
@@ -15,6 +18,7 @@ export type CollapseControlsProps = {
   onToggle: () => void;
   onCollapseAll: () => void;
   onExpandAll: () => void;
+  shortcutHints?: ShortcutHint[];
 };
 
 const sectionStyle: React.CSSProperties = {
@@ -79,7 +83,8 @@ export function CollapseControls({
   summary,
   onToggle,
   onCollapseAll,
-  onExpandAll
+  onExpandAll,
+  shortcutHints
 }: CollapseControlsProps) {
   if (!summary) {
     return null;
@@ -87,6 +92,8 @@ export function CollapseControls({
 
   const totalChainCount = summary.chainIds.length;
   const collapsedChainCount = summary.collapsedIds.length;
+
+  const shortcuts = shortcutHints ?? COLLAPSE_CONTROLS_SHORTCUTS;
 
   const collapseAllDisabled = !enabled || totalChainCount === 0;
   const expandAllDisabled = !enabled || collapsedChainCount === 0;
@@ -126,6 +133,7 @@ export function CollapseControls({
             Expand all
           </button>
         </div>
+        <ShortcutHints hints={shortcuts} />
       </div>
     </section>
   );

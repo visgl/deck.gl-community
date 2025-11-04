@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useReducer,
+  useRef
+} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
@@ -28,7 +36,13 @@ import {extent} from 'd3-array';
 
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
 import {CollapseControls} from './collapse-controls';
+import {
+  getRepresentativeChainId,
+  isRepresentativeNode,
+  updateSelectedChain
+} from './node-classification';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
+import {useToggleChainShortcut} from './use-toggle-chain-shortcut';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
@@ -42,6 +56,8 @@ const DEFAULT_CURSOR = 'default';
 const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
+
+type DagChainSummary = {chainIds: string[]; collapsedIds: string[]};
 
 const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'd3-force-layout': () => new D3ForceLayout(),
@@ -99,9 +115,8 @@ export function App(props) {
   const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
   const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
   const [collapseEnabled, setCollapseEnabled] = useState(true);
-  const [dagChainSummary, setDagChainSummary] = useState<
-    {chainIds: string[]; collapsedIds: string[]}
-  | null>(null);
+  const [dagChainSummary, setDagChainSummary] = useState<DagChainSummary | null>(null);
+  const [focusedChainId, setFocusedChainId] = useState<string | null>(null);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
   const layoutOptions = useMemo(
@@ -122,7 +137,13 @@ export function App(props) {
   }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
+  const previousChainSummaryRef = useRef<DagChainSummary | null>(null);
+  const selectedRepresentativeRef = useRef<string | null>(null);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
+
+  const updateFocusedChain = useCallback((nextFocus: string | null) => {
+    setFocusedChainId((current) => (current === nextFocus ? current : nextFocus));
+  }, []);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -201,23 +222,17 @@ export function App(props) {
       const collapsedIds: string[] = [];
 
       for (const node of engine.getNodes()) {
-        const chainId = node.getPropertyValue('collapsedChainId');
-        const nodeIds = node.getPropertyValue('collapsedNodeIds');
-        const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+        if (!isRepresentativeNode(node)) {
+          continue;
+        }
+        const chainKey = getRepresentativeChainId(node);
+        if (!chainKey) {
+          continue;
+        }
         const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
-
-        if (
-          chainId !== null &&
-          chainId !== undefined &&
-          Array.isArray(nodeIds) &&
-          nodeIds.length > 1 &&
-          representativeId === node.getId()
-        ) {
-          const chainKey = String(chainId);
-          chainIds.push(chainKey);
-          if (isCollapsed) {
-            collapsedIds.push(chainKey);
-          }
+        chainIds.push(chainKey);
+        if (isCollapsed) {
+          collapsedIds.push(chainKey);
         }
       }
 
@@ -237,6 +252,70 @@ export function App(props) {
       engine.removeEventListener('onLayoutDone', handleLayoutDone);
     };
   }, [engine, dagLayout, isDagLayout]);
+
+  useEffect(() => {
+    if (!collapseEnabled || !dagChainSummary || dagChainSummary.chainIds.length === 0) {
+      previousChainSummaryRef.current = dagChainSummary;
+      updateFocusedChain(null);
+      return;
+    }
+
+    const previous = previousChainSummaryRef.current;
+    previousChainSummaryRef.current = dagChainSummary;
+
+    if (!previous) {
+      const initialFocus =
+        focusedChainId && dagChainSummary.chainIds.includes(focusedChainId)
+          ? focusedChainId
+          : dagChainSummary.chainIds[0] ?? null;
+      updateFocusedChain(initialFocus);
+      return;
+    }
+
+    const changedChainId = dagChainSummary.chainIds.find((chainId) => {
+      const wasCollapsed = previous.collapsedIds.includes(chainId);
+      const isCollapsed = dagChainSummary.collapsedIds.includes(chainId);
+      return wasCollapsed !== isCollapsed;
+    });
+
+    if (changedChainId) {
+      if (dagChainSummary.chainIds.length <= 1) {
+        updateFocusedChain(dagChainSummary.chainIds[0] ?? null);
+      } else {
+        const changedIndex = dagChainSummary.chainIds.indexOf(changedChainId);
+        const nextIndex = (changedIndex + 1) % dagChainSummary.chainIds.length;
+        updateFocusedChain(dagChainSummary.chainIds[nextIndex]);
+      }
+      return;
+    }
+
+    if (!focusedChainId || !dagChainSummary.chainIds.includes(focusedChainId)) {
+      updateFocusedChain(dagChainSummary.chainIds[0] ?? null);
+    }
+  }, [collapseEnabled, dagChainSummary, focusedChainId, updateFocusedChain]);
+
+  useEffect(() => {
+    if (!collapseEnabled || !dagChainSummary || dagChainSummary.chainIds.length === 0) {
+      updateSelectedChain(engine, null, selectedRepresentativeRef);
+      return;
+    }
+
+    const availableChainIds = dagChainSummary.chainIds;
+    const activeChainId =
+      focusedChainId && availableChainIds.includes(focusedChainId)
+        ? focusedChainId
+        : availableChainIds[0] ?? null;
+
+    updateFocusedChain(activeChainId);
+    updateSelectedChain(engine, activeChainId, selectedRepresentativeRef);
+  }, [collapseEnabled, dagChainSummary, engine, focusedChainId, updateFocusedChain]);
+
+  useToggleChainShortcut({
+    enabled: collapseEnabled,
+    layout: dagLayout,
+    summary: dagChainSummary,
+    focusedChainId
+  });
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);

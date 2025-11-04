@@ -36,5 +36,7 @@ describe('CollapseControls', () => {
     expect(markup).toContain('Disable collapse');
     expect(markup).toContain('Collapse all');
     expect(markup).toContain('Expand all');
+    expect(markup).toContain('Keyboard shortcuts');
+    expect(markup).toContain('Toggle focused chain');
   });
 });
