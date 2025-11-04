@@ -27,6 +27,7 @@ import {
 import {extent} from 'd3-array';
 
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
+import {CollapseControls} from './collapse-controls';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
 
 const INITIAL_VIEW_STATE = {
@@ -172,12 +173,6 @@ export function App(props) {
 
   const selectedStyles = selectedExample?.style;
   const isDagLayout = selectedLayout === 'd3-dag-layout';
-  const totalChainCount = dagChainSummary?.chainIds.length ?? 0;
-  const collapsedChainCount = dagChainSummary?.collapsedIds.length ?? 0;
-  const collapseAllDisabled =
-    !collapseEnabled || !dagChainSummary || dagChainSummary.chainIds.length === 0;
-  const expandAllDisabled =
-    !collapseEnabled || !dagChainSummary || dagChainSummary.collapsedIds.length === 0;
 
   useEffect(() => {
     if (isDagLayout) {
@@ -426,84 +421,13 @@ export function App(props) {
           onExampleChange={handleExampleChange}
         >
           {isDagLayout ? (
-            <section style={{marginBottom: '0.5rem', fontSize: '0.875rem', lineHeight: 1.5}}>
-              <h3 style={{margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-                Collapsed chains
-              </h3>
-              <p style={{margin: '0 0 0.75rem', color: '#334155'}}>
-                Linear chains collapse to a single node marked with plus and minus icons. Use these controls to
-                expand or collapse all chains. Individual chains remain interactive on the canvas.
-              </p>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.8125rem',
-                    color: '#475569'
-                  }}
-                >
-                  <span>Status</span>
-                  <span>
-                    {collapsedChainCount} / {totalChainCount} collapsed
-                  </span>
-                </div>
-                <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
-                  <button
-                    type="button"
-                    onClick={handleToggleCollapseEnabled}
-                    style={{
-                      background: collapseEnabled ? '#4c6ef5' : '#1f2937',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '0.375rem',
-                      padding: '0.375rem 0.75rem',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      fontSize: '0.8125rem'
-                    }}
-                  >
-                    {collapseEnabled ? 'Disable collapse' : 'Enable collapse'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCollapseAll}
-                    disabled={collapseAllDisabled}
-                    style={{
-                      background: '#2563eb',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '0.375rem',
-                      padding: '0.375rem 0.75rem',
-                      cursor: collapseAllDisabled ? 'not-allowed' : 'pointer',
-                      fontFamily: 'inherit',
-                      fontSize: '0.8125rem',
-                      opacity: collapseAllDisabled ? 0.5 : 1
-                    }}
-                  >
-                    Collapse all
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExpandAll}
-                    disabled={expandAllDisabled}
-                    style={{
-                      background: '#16a34a',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '0.375rem',
-                      padding: '0.375rem 0.75rem',
-                      cursor: expandAllDisabled ? 'not-allowed' : 'pointer',
-                      fontFamily: 'inherit',
-                      fontSize: '0.8125rem',
-                      opacity: expandAllDisabled ? 0.5 : 1
-                    }}
-                  >
-                    Expand all
-                  </button>
-                </div>
-              </div>
-            </section>
+            <CollapseControls
+              enabled={collapseEnabled}
+              summary={dagChainSummary}
+              onToggle={handleToggleCollapseEnabled}
+              onCollapseAll={handleCollapseAll}
+              onExpandAll={handleExpandAll}
+            />
           ) : null}
         </ControlPanel>
       </aside>
