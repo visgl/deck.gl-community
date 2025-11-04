@@ -99,18 +99,30 @@ export function App(props) {
   const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
   const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
   const [collapseEnabled, setCollapseEnabled] = useState(true);
+  const [layoutOverrides, setLayoutOverrides] = useState<
+    Partial<Record<LayoutType, Record<string, unknown>>>
+  >({});
   const [dagChainSummary, setDagChainSummary] = useState<
     {chainIds: string[]; collapsedIds: string[]}
   | null>(null);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
-  const layoutOptions = useMemo(
-    () =>
-      selectedExample && selectedLayout && graphData
-        ? selectedExample.getLayoutOptions?.(selectedLayout, graphData)
-        : undefined,
-    [selectedExample, selectedLayout, graphData]
-  );
+  const layoutOptions = useMemo(() => {
+    if (!selectedExample || !selectedLayout) {
+      return undefined;
+    }
+
+    const baseOptions = graphData
+      ? selectedExample.getLayoutOptions?.(selectedLayout, graphData)
+      : undefined;
+    const overrides = layoutOverrides[selectedLayout];
+
+    if (baseOptions && overrides) {
+      return {...baseOptions, ...overrides};
+    }
+
+    return overrides ?? baseOptions;
+  }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
   const graph = useMemo(() => (graphData ? JSONLoader({json: graphData}) : null), [graphData]);
   const layout = useMemo(() => {
     if (!selectedLayout) {
@@ -331,6 +343,13 @@ export function App(props) {
     setSelectedLayout(layoutType);
   }, []);
 
+  const handleApplyLayoutOptions = useCallback(
+    (layoutType: LayoutType, options: Record<string, unknown>) => {
+      setLayoutOverrides((current) => ({...current, [layoutType]: options}));
+    },
+    []
+  );
+
   return (
     <div
       style={{
@@ -421,6 +440,8 @@ export function App(props) {
           examples={EXAMPLES}
           defaultExample={DEFAULT_EXAMPLE}
           onExampleChange={handleExampleChange}
+          layoutOptions={layoutOptions}
+          onLayoutOptionsApply={handleApplyLayoutOptions}
         >
           {isDagLayout ? (
             <CollapseControls
