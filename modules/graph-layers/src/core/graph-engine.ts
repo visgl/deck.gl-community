@@ -5,7 +5,7 @@
 import type {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
 import {Graph} from '../graph/graph';
-import {GraphLayout} from './graph-layout';
+import {GraphLayout, type GraphLayoutState} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
 
@@ -23,6 +23,26 @@ export class GraphEngine extends EventTarget {
   private readonly _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
   private _layoutDirty = false;
   private _transactionInProgress = false;
+
+  private static _cloneLayoutValue<T>(value: T): T {
+    if (value === null || typeof value !== 'object') {
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return value.map((item) => GraphEngine._cloneLayoutValue(item)) as unknown as T;
+    }
+
+    const cloned: Record<string | number | symbol, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>)) {
+      cloned[key] = GraphEngine._cloneLayoutValue(
+        (value as Record<string, unknown>)[key]
+      );
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return cloned as T;
+  }
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
@@ -194,4 +214,36 @@ export class GraphEngine extends EventTarget {
   _updateCache(key, updateValue) {
     this._cache.set(key, updateValue, this._graph.version + this._layout.version);
   }
+
+  captureLayoutFrame(): GraphLayoutFrame {
+    const nodePositions = new Map<Node['id'], [number, number] | null>();
+    const edgePositions = new Map<Edge['id'], ReturnType<GraphLayout['getEdgePosition']> | null>();
+
+    for (const node of this.getNodes()) {
+      const position = this.getNodePosition(node);
+      nodePositions.set(node.getId(), position ? [...position] : null);
+    }
+
+    for (const edge of this.getEdges()) {
+      const layoutInfo = this.getEdgePosition(edge);
+      edgePositions.set(
+        edge.getId(),
+        layoutInfo ? GraphEngine._cloneLayoutValue(layoutInfo) : null
+      );
+    }
+
+    return {
+      version: this._layout.version,
+      state: this._layout.state,
+      nodePositions,
+      edgePositions
+    };
+  }
 }
+
+export type GraphLayoutFrame = {
+  version: number;
+  state: GraphLayoutState;
+  nodePositions: Map<Node['id'], [number, number] | null>;
+  edgePositions: Map<Edge['id'], ReturnType<GraphLayout['getEdgePosition']> | null>;
+};

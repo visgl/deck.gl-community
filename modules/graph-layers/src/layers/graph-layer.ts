@@ -11,7 +11,7 @@ import {PolygonLayer} from '@deck.gl/layers';
 import {Graph} from '../graph/graph';
 import type {Node} from '../graph/node';
 import {GraphLayout} from '../core/graph-layout';
-import {GraphEngine} from '../core/graph-engine';
+import {GraphEngine, type GraphLayoutFrame} from '../core/graph-engine';
 
 import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
@@ -68,6 +68,8 @@ const SHARED_LAYER_PROPS = {
     depthTest: false
   }
 };
+
+type LayoutFrame = GraphLayoutFrame & {sequence: number};
 
 const NODE_STYLE_DEPRECATION_MESSAGE =
   'GraphLayer: `nodeStyle` has been replaced by `stylesheet.nodes` and will be removed in a future release.';
@@ -140,13 +142,15 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   state!: CompositeLayer<GraphLayerProps>['state'] & {
     interactionManager: InteractionManager;
     graphEngine?: GraphEngine;
+    layoutFrame: LayoutFrame | null;
   };
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
 
   private _layoutUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   private _lastLayoutUpdateTime = 0;
-  private _pendingLayoutUpdates = 0;
+  private _layoutFrameQueue: LayoutFrame[] = [];
+  private _frameSequenceCounter = 0;
 
   private readonly _handleLayoutChange = () => {
     this._enqueueLayoutUpdate();
@@ -161,18 +165,27 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   };
 
   private _enqueueLayoutUpdate() {
-    this._pendingLayoutUpdates += 1;
+    const frame = this._captureLayoutFrame();
+
+    if (!frame) {
+      this.forceUpdate();
+      return;
+    }
+
+    this._layoutFrameQueue.push(frame);
     this._processLayoutUpdateQueue();
   }
 
   private _processLayoutUpdateQueue() {
-    if (this._pendingLayoutUpdates === 0) {
+    if (this._layoutFrameQueue.length === 0) {
       return;
     }
 
     const interval = Math.max(0, this.props.layoutUpdateInterval ?? 0);
     if (interval === 0) {
-      this._flushScheduledLayoutUpdate();
+      while (this._layoutFrameQueue.length > 0) {
+        this._flushScheduledLayoutUpdate();
+      }
       return;
     }
 
@@ -196,16 +209,40 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _flushScheduledLayoutUpdate(timestamp = Date.now()) {
-    if (this._pendingLayoutUpdates === 0) {
+    if (this._layoutFrameQueue.length === 0) {
       return;
     }
 
-    this._pendingLayoutUpdates -= 1;
+    const nextFrame = this._layoutFrameQueue.shift();
+    if (!nextFrame) {
+      return;
+    }
+
     this._lastLayoutUpdateTime = timestamp;
+    this.setState({layoutFrame: nextFrame});
     this.forceUpdate();
 
-    if (this._pendingLayoutUpdates > 0) {
+    if (this._layoutFrameQueue.length > 0 && Math.max(0, this.props.layoutUpdateInterval ?? 0) > 0) {
       this._processLayoutUpdateQueue();
+    }
+  }
+
+  private _captureLayoutFrame(): LayoutFrame | null {
+    const engine = this.state.graphEngine;
+    if (!engine || typeof engine.captureLayoutFrame !== 'function') {
+      return null;
+    }
+
+    try {
+      const frame = engine.captureLayoutFrame();
+      return {
+        ...frame,
+        sequence: ++this._frameSequenceCounter
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      warn(`GraphLayer: Failed to capture layout frame: ${message}`);
+      return null;
     }
   }
 
@@ -222,7 +259,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   initializeState() {
     this.state = {
-      interactionManager: new InteractionManager(this.props as any, () => this.forceUpdate())
+      interactionManager: new InteractionManager(this.props as any, () => this.forceUpdate()),
+      layoutFrame: null
     };
     const engine = this.props.engine;
     this._setGraphEngine(engine);
@@ -329,7 +367,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
       this._lastLayoutUpdateTime = 0;
-      this._pendingLayoutUpdates = 0;
+      this._layoutFrameQueue = [];
+      this._frameSequenceCounter = 0;
+      this.setState({layoutFrame: null});
       this.state.graphEngine.run();
       // added or removed a node, or in general something layout related changed
       this.state.graphEngine.addEventListener('onLayoutChange', this._handleLayoutChange);
@@ -344,14 +384,53 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this.state.graphEngine = null;
     }
     this._clearScheduledLayoutUpdate();
-    this._pendingLayoutUpdates = 0;
+    this._layoutFrameQueue = [];
+    this._frameSequenceCounter = 0;
+    this.setState({layoutFrame: null});
+  }
+
+  private _getFrameAwareEngine(engine: GraphEngine): GraphEngine {
+    const frame = this.state.layoutFrame;
+    if (!frame) {
+      return engine;
+    }
+
+    const frameEngine = Object.create(engine) as GraphEngine;
+    frameEngine.getNodePosition = (node: Node) => {
+      const stored = frame.nodePositions.get(node.getId());
+      if (typeof stored === 'undefined') {
+        return engine.getNodePosition(node);
+      }
+      if (stored === null) {
+        return null;
+      }
+      return [stored[0], stored[1]] as [number, number];
+    };
+    frameEngine.getEdgePosition = (edge: any) => {
+      if (frame.edgePositions.has(edge.getId())) {
+        return frame.edgePositions.get(edge.getId()) ?? null;
+      }
+      return engine.getEdgePosition(edge);
+    };
+    frameEngine.getLayoutLastUpdate = () => frame.sequence;
+    frameEngine.getLayoutState = () => frame.state;
+    return frameEngine;
+  }
+
+  private _getLayoutUpdateTrigger(engine: GraphEngine): string {
+    const frame = this.state.layoutFrame;
+    if (frame) {
+      return `${frame.sequence}:${frame.state}`;
+    }
+    return `${engine.getLayoutLastUpdate()}:${engine.getLayoutState()}`;
   }
 
   createNodeLayers() {
     const engine = this.state.graphEngine;
+    const frameAwareEngine = engine ? this._getFrameAwareEngine(engine) : null;
     const {nodes: nodeStyles} = this._getResolvedStylesheet();
 
-    if (!engine || !Array.isArray(nodeStyles) || nodeStyles.length === 0) {
+    if (!frameAwareEngine || !Array.isArray(nodeStyles) || nodeStyles.length === 0) {
       return [];
     }
 
@@ -375,12 +454,11 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         return new LayerType({
           ...SHARED_LAYER_PROPS,
           id: `node-rule-${idx}`,
-          data: data(engine.getNodes()),
-          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+          data: data(frameAwareEngine.getNodes()),
+          getPosition: mixedGetPosition(frameAwareEngine.getNodePosition, getOffset),
           pickable,
           positionUpdateTrigger: [
-            engine.getLayoutLastUpdate(),
-            engine.getLayoutState(),
+            this._getLayoutUpdateTrigger(frameAwareEngine),
             stylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
           ].join(),
           stylesheet,
@@ -389,16 +467,17 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       })
       .filter(Boolean) as any[];
 
-    const chainLayers = this._createChainOverlayLayers(engine);
+    const chainLayers = this._createChainOverlayLayers(frameAwareEngine);
 
     return [...baseLayers, ...chainLayers];
   }
 
   createEdgeLayers() {
     const engine = this.state.graphEngine;
+    const frameAwareEngine = engine ? this._getFrameAwareEngine(engine) : null;
     const {edges: edgeStyles, nodes: nodeStyles} = this._getResolvedStylesheet();
 
-    if (!engine || !edgeStyles) {
+    if (!frameAwareEngine || !edgeStyles) {
       return [];
     }
 
@@ -409,7 +488,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     const getLayoutInfo = this._edgeAttachmentHelper.getLayoutAccessor({
-      engine,
+      engine: frameAwareEngine,
       interactionManager: this.state.interactionManager,
       nodeStyle: nodeStyles
     });
@@ -432,10 +511,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const edgeLayer = new EdgeLayer({
           ...SHARED_LAYER_PROPS,
           id: `edge-layer-${idx}`,
-          data: data(engine.getEdges()),
+          data: data(frameAwareEngine.getEdges()),
           getLayoutInfo,
           pickable: true,
-          positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+          positionUpdateTrigger: this._getLayoutUpdateTrigger(frameAwareEngine),
           stylesheet,
           visible
         } as any);
@@ -462,10 +541,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
             return new DecoratorLayer({
               ...SHARED_LAYER_PROPS,
               id: `edge-decorator-${idx2}`,
-              data: data(engine.getEdges()),
+              data: data(frameAwareEngine.getEdges()),
               getLayoutInfo,
               pickable: true,
-              positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+              positionUpdateTrigger: this._getLayoutUpdateTrigger(frameAwareEngine),
               stylesheet: decoratorStylesheet
             } as any);
           })
@@ -518,7 +597,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     const layers: any[] = [];
     const getChainOutlinePolygon = this._createChainOutlineGetter(engine);
-    const outlineUpdateTrigger = [engine.getLayoutLastUpdate(), engine.getLayoutState()].join();
+    const outlineUpdateTrigger = this._getLayoutUpdateTrigger(engine);
 
     const collapsedNodes = representativeNodes.filter((node) =>
       Boolean(node.getPropertyValue('isCollapsedChain'))
@@ -567,8 +646,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
           pickable: true,
           positionUpdateTrigger: [
-            engine.getLayoutLastUpdate(),
-            engine.getLayoutState(),
+            this._getLayoutUpdateTrigger(engine),
             collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
           ].join(),
           stylesheet: collapsedMarkerStylesheet,
@@ -624,8 +702,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
           pickable: true,
           positionUpdateTrigger: [
-            engine.getLayoutLastUpdate(),
-            engine.getLayoutState(),
+            this._getLayoutUpdateTrigger(engine),
             expandedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
           ].join(),
           stylesheet: expandedMarkerStylesheet,
