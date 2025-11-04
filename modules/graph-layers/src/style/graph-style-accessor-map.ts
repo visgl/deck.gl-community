@@ -65,6 +65,7 @@ export const GRAPH_DECKGL_ACCESSOR_MAP = {
     getColor: 'fill',
     getSize: 'size',
     getMarker: 'marker',
+    getText: 'text',
     scaleWithZoom: 'scaleWithZoom'
   },
 

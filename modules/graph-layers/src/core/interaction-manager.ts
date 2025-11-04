@@ -35,6 +35,9 @@ function classifyLayer(layer: any): ChainInteractionSource | null {
     if (layerId.includes('collapsed-chain-markers')) {
       return 'collapsed-marker';
     }
+    if (layerId.includes('collapsed-chain-marker-text')) {
+      return 'collapsed-marker';
+    }
     if (layerId.includes('expanded-chain-markers')) {
       return 'expanded-marker';
     }

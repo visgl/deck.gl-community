@@ -6,7 +6,7 @@
 
 import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
-import {PolygonLayer} from '@deck.gl/layers';
+import {PolygonLayer, TextLayer} from '@deck.gl/layers';
 
 import {Graph} from '../graph/graph';
 import type {Node} from '../graph/node';
@@ -454,6 +454,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         size: 32,
         marker: 'circle-plus-filled',
         offset: [24, -24],
+        text: (node: Node) => {
+          const length = node.getPropertyValue('collapsedChainLength');
+          return typeof length === 'number' && Number.isFinite(length) ? String(length) : '';
+        },
         scaleWithZoom: false
       } as GraphStylesheet<'marker'>,
       'collapsed chain marker stylesheet'
@@ -461,6 +465,11 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (collapsedMarkerStylesheet && collapsedNodes.length > 0) {
       const getOffset = collapsedMarkerStylesheet.getDeckGLAccessor('getOffset');
+      const positionUpdateTrigger = [
+        engine.getLayoutLastUpdate(),
+        engine.getLayoutState(),
+        collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
+      ].join();
       layers.push(
         new ZoomableMarkerLayer({
           ...SHARED_LAYER_PROPS,
@@ -468,14 +477,29 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           data: collapsedNodes,
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
           pickable: true,
-          positionUpdateTrigger: [
-            engine.getLayoutLastUpdate(),
-            engine.getLayoutState(),
-            collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getOffset')
-          ].join(),
+          positionUpdateTrigger,
           stylesheet: collapsedMarkerStylesheet,
           visible: true
         } as any)
+      );
+      layers.push(
+        new TextLayer({
+          ...SHARED_LAYER_PROPS,
+          id: 'collapsed-chain-marker-text',
+          data: collapsedNodes,
+          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+          getText: collapsedMarkerStylesheet.getDeckGLAccessor('getText'),
+          getColor: [255, 255, 255, 255],
+          getSize: 14,
+          sizeUnits: 'pixels',
+          getTextAnchor: 'middle',
+          getAlignmentBaseline: 'center',
+          pickable: true,
+          updateTriggers: {
+            getPosition: positionUpdateTrigger,
+            getText: collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getText')
+          }
+        })
       );
     }
 

@@ -21,7 +21,7 @@ const GRAPH_DECKGL_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
   'rounded-rectangle': ['getFillColor', 'getLineColor', 'getLineWidth', 'getCornerRadius'],
   'path-rounded-rectangle': ['getFillColor', 'getLineColor', 'getLineWidth', 'getCornerRadius'],
   label: ['getColor', 'getText', 'getSize', 'getTextAnchor', 'getAlignmentBaseline', 'getAngle'],
-  marker: ['getColor', 'getSize', 'getMarker'],
+  marker: ['getColor', 'getSize', 'getMarker', 'getText'],
   Edge: ['getColor', 'getWidth'],
   edge: ['getColor', 'getWidth'],
   'edge-label': ['getColor', 'getText', 'getSize', 'getTextAnchor', 'getAlignmentBaseline'],
