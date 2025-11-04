@@ -18,13 +18,13 @@ import {
   JSONLoader,
   RadialLayout,
   HivePlotLayout,
-  ForceMultiGraphLayout
+  ForceMultiGraphLayout,
+  type GraphLayoutEventDetail
 } from '@deck.gl-community/graph-layers';
+import type {Bounds2D} from '@math.gl/types';
 
 // import {ViewControlWidget} from '@deck.gl-community/graph-layers';
 // import '@deck.gl/widgets/stylesheet.css';
-
-import {extent} from 'd3-array';
 
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
@@ -116,6 +116,7 @@ export function App(props) {
   }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
+  const latestBoundsRef = useRef<Bounds2D | null>(null);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -152,36 +153,85 @@ export function App(props) {
 
   const selectedStyles = selectedExample?.style;
 
-  const fitBounds = useCallback(() => {
-    if (!engine) {
-      return;
-    }
+  const fitBounds = useCallback(
+    (nextBounds?: Bounds2D | null, {expandOnly = false}: {expandOnly?: boolean} = {}) => {
+      if (!engine) {
+        return;
+      }
 
-    const data = engine.getNodes();
-    if (!data.length) {
-      return;
-    }
+      const bounds = nextBounds ?? engine.getLayoutBounds();
+      if (!bounds) {
+        return;
+      }
 
-    const {width, height} = viewState as any;
+      const [[minX, minY], [maxX, maxY]] = bounds;
+      if (
+        !Number.isFinite(minX) ||
+        !Number.isFinite(minY) ||
+        !Number.isFinite(maxX) ||
+        !Number.isFinite(maxY)
+      ) {
+        return;
+      }
 
-    // get the projected position of all nodes
-    const positions = data.map((d) => engine.getNodePosition(d));
-    // get the value range of x and y
-    const xExtent = extent(positions, (d) => d[0]);
-    const yExtent = extent(positions, (d) => d[1]);
-    const newTarget = [(xExtent[0] + xExtent[1]) / 2, (yExtent[0] + yExtent[1]) / 2];
-    const zoom = Math.min(
-      width / (xExtent[1] - xExtent[0] + viewportPadding * 2),
-      height / (yExtent[1] - yExtent[0] + viewportPadding * 2)
-    );
-    // zoom value is at log scale
-    const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
-    setViewState({
-      ...viewState,
-      target: newTarget,
-      zoom: newZoom
-    });
-  }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
+      const nextBoundsCopy: Bounds2D = [
+        [minX, minY],
+        [maxX, maxY]
+      ];
+      latestBoundsRef.current = nextBoundsCopy;
+
+      setViewState((prev) => {
+        const {width, height} = prev as any;
+        if (!width || !height) {
+          return prev;
+        }
+
+        const target: [number, number] = [(minX + maxX) / 2, (minY + maxY) / 2];
+        const spanX = Math.max(maxX - minX, 1e-6);
+        const spanY = Math.max(maxY - minY, 1e-6);
+        const zoom = Math.min(
+          width / (spanX + viewportPadding * 2),
+          height / (spanY + viewportPadding * 2)
+        );
+        const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
+        const epsilon = 1e-6;
+
+        if (!Number.isFinite(newZoom)) {
+          return prev;
+        }
+
+        const shouldZoomOut = prev.zoom === undefined || newZoom + epsilon < prev.zoom;
+        const prevTarget = (prev as any).target as [number, number] | undefined;
+        const targetUnchanged =
+          Array.isArray(prevTarget) &&
+          Math.abs(prevTarget[0] - target[0]) < epsilon &&
+          Math.abs(prevTarget[1] - target[1]) < epsilon;
+        const zoomChanged = prev.zoom === undefined || Math.abs(prev.zoom - newZoom) > epsilon;
+
+        if (expandOnly && !shouldZoomOut) {
+          if (targetUnchanged) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            target
+          };
+        }
+
+        if (!zoomChanged && targetUnchanged) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          target,
+          zoom: newZoom
+        };
+      });
+    },
+    [engine, viewportPadding, minZoom, maxZoom]
+  );
 
   // Relatively pan the graph by a specified position vector.
   // const panBy = useCallback(
@@ -206,16 +256,62 @@ export function App(props) {
   // );
 
   useEffect(() => {
+    latestBoundsRef.current = null;
+  }, [engine]);
+
+  useEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
+    const handleIncrementalLayout = (event: Event) => {
+      const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
+      const bounds = detail?.bounds ?? engine.getLayoutBounds();
+      fitBounds(bounds, {expandOnly: true});
+    };
+
+    engine.addEventListener('onLayoutStart', handleIncrementalLayout);
+    engine.addEventListener('onLayoutChange', handleIncrementalLayout);
+    engine.addEventListener('onLayoutDone', handleIncrementalLayout);
+
+    return () => {
+      engine.removeEventListener('onLayoutStart', handleIncrementalLayout);
+      engine.removeEventListener('onLayoutChange', handleIncrementalLayout);
+      engine.removeEventListener('onLayoutDone', handleIncrementalLayout);
+    };
+  }, [engine, fitBounds]);
+
+  const {width, height} = viewState as any;
+
+  useEffect(() => {
+    if (!engine || !width || !height) {
+      return;
+    }
+
+    const bounds = latestBoundsRef.current ?? engine.getLayoutBounds();
+    if (!bounds) {
+      return;
+    }
+
+    fitBounds(bounds);
+  }, [engine, fitBounds, width, height]);
+
+  useEffect(() => {
     if (!engine) {
       return () => undefined;
     }
 
     if (zoomToFitOnLoad && isLoading) {
-      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+      const handleLayoutDone = (event: Event) => {
+        const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
+        fitBounds(detail?.bounds);
+      };
+      engine.addEventListener('onLayoutDone', handleLayoutDone, {once: true});
+      return () => {
+        engine.removeEventListener('onLayoutDone', handleLayoutDone);
+      };
     }
-    return () => {
-      engine.removeEventListener('onLayoutDone', fitBounds);
-    };
+    return () => undefined;
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
   const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
     setSelectedExample(example);

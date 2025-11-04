@@ -166,4 +166,12 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     d3Node.fx = null;
     d3Node.fy = null;
   };
+
+  protected override _updateBounds(): void {
+    const positions = Array.from(
+      this._positionsByNodeId.values(),
+      (data) => data?.coordinates as [number, number] | null | undefined
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }

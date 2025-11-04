@@ -170,7 +170,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   private _edgePoints = new Map<string | number, [number, number][]>();
   private _edgeControlPoints = new Map<string | number, [number, number][]>();
   private _lockedNodePositions = new Map<string | number, [number, number]>();
-  private _bounds: DagBounds | null = null;
+  private _dagBounds: DagBounds | null = null;
 
   private _nodeLookup = new Map<string | number, Node>();
   private _stringIdLookup = new Map<string, string | number>();
@@ -492,6 +492,8 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     this._rawEdgePoints.clear();
 
     if (!this._dag) {
+      this._dagBounds = null;
+      this._bounds = null;
       return;
     }
 
@@ -515,6 +517,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
 
     if (minX === Number.POSITIVE_INFINITY) {
+      this._dagBounds = null;
       this._bounds = null;
       this._nodePositions.clear();
       this._edgePoints.clear();
@@ -522,7 +525,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       return;
     }
 
-    this._bounds = {
+    this._dagBounds = {
       minX,
       maxX,
       minY,
@@ -550,7 +553,8 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     this._edgePoints.clear();
     this._edgeControlPoints.clear();
 
-    if (!this._bounds) {
+    if (!this._dagBounds) {
+      this._bounds = null;
       return;
     }
 
@@ -589,27 +593,33 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     for (const [id, position] of this._lockedNodePositions) {
       this._nodePositions.set(id, position);
     }
+
+    this._bounds = this._calculateBounds(this._nodePositions.values());
   }
 
   private _getOffsets(): {offsetX: number; offsetY: number} {
-    if (!this._bounds) {
+    if (!this._dagBounds) {
       return {offsetX: 0, offsetY: 0};
     }
     const centerOption = this._options.center ?? true;
     let offsetX = 0;
     let offsetY = 0;
     if (centerOption === true) {
-      offsetX = this._bounds.centerX;
-      offsetY = this._bounds.centerY;
+      offsetX = this._dagBounds.centerX;
+      offsetY = this._dagBounds.centerY;
     } else if (centerOption && typeof centerOption === 'object') {
       if (centerOption.x) {
-        offsetX = this._bounds.centerX;
+        offsetX = this._dagBounds.centerX;
       }
       if (centerOption.y) {
-        offsetY = this._bounds.centerY;
+        offsetY = this._dagBounds.centerY;
       }
     }
     return {offsetX, offsetY};
+  }
+
+  protected override _updateBounds(): void {
+    this._bounds = this._calculateBounds(this._nodePositions.values());
   }
 
   private _edgeKey(sourceId: string | number, targetId: string | number): string {
