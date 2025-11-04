@@ -64,8 +64,9 @@ export function useGraphViewport(
         const target: [number, number] = [(minX + maxX) / 2, (minY + maxY) / 2];
         const spanX = Math.max(maxX - minX, EPSILON);
         const spanY = Math.max(maxY - minY, EPSILON);
-        const paddedSpanX = spanX * (1 + boundsPaddingRatio * 2);
-        const paddedSpanY = spanY * (1 + boundsPaddingRatio * 2);
+        const paddingRatio = Math.max(boundsPaddingRatio, 0);
+        const paddedSpanX = spanX * (1 + paddingRatio);
+        const paddedSpanY = spanY * (1 + paddingRatio);
         const innerWidth = Math.max(1, width - viewportPadding * 2);
         const innerHeight = Math.max(1, height - viewportPadding * 2);
         const scale = Math.min(innerWidth / paddedSpanX, innerHeight / paddedSpanY);

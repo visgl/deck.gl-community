@@ -127,8 +127,8 @@ export function App(props) {
   const {viewState, onResize, onViewStateChange} = useGraphViewport(engine, {
     minZoom,
     maxZoom,
-    viewportPadding: 16,
-    boundsPaddingRatio: 0.05,
+    viewportPadding: 8,
+    boundsPaddingRatio: 0.02,
     initialViewState
   });
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
