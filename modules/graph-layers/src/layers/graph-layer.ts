@@ -69,6 +69,8 @@ const SHARED_LAYER_PROPS = {
   }
 };
 
+const COLLAPSED_BADGE_FALLBACK_OFFSET: [number, number] = [-24, -24];
+
 const NODE_STYLE_DEPRECATION_MESSAGE =
   'GraphLayer: `nodeStyle` has been replaced by `stylesheet.nodes` and will be removed in a future release.';
 const EDGE_STYLE_DEPRECATION_MESSAGE =
@@ -453,7 +455,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         fill: [64, 96, 192, 255],
         size: 32,
         marker: 'circle-plus-filled',
-        offset: [-24, -24],
+        offset: [24, -24],
         text: (node: Node) => {
           const length = node.getPropertyValue('collapsedChainLength');
           return typeof length === 'number' && Number.isFinite(length) ? String(length) : '';
@@ -487,7 +489,17 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: 'collapsed-chain-marker-text',
           data: collapsedNodes,
-          getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
+          getPosition: mixedGetPosition(
+            engine.getNodePosition,
+            (node: Node) => {
+              const offset = getOffset(node);
+              if (!Array.isArray(offset)) {
+                return COLLAPSED_BADGE_FALLBACK_OFFSET;
+              }
+              const [offsetX = 0, offsetY = 0] = offset;
+              return [-Math.abs(offsetX), offsetY];
+            }
+          ),
           getText: collapsedMarkerStylesheet.getDeckGLAccessor('getText'),
           getColor: [255, 255, 255, 255],
           getSize: 14,
