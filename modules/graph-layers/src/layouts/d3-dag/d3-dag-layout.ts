@@ -495,7 +495,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       if (chainNodeIds.length > 1) {
         const chainId = this._createChainId(chainNodeIds);
         const collapsed = previousStates.has(chainId)
-          ? previousStates.get(chainId)!
+          ? previousStates.get(chainId)
           : collapseDefault;
         this._chainDescriptors.set(chainId, {
           id: chainId,
@@ -521,6 +521,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       const collapsed = this._isChainCollapsed(chainId);
       if (collapsed) {
         for (const nodeId of descriptor.nodeIds) {
+          // eslint-disable-next-line max-depth
           if (nodeId !== descriptor.representativeId) {
             this._hiddenNodeIds.add(nodeId);
           }

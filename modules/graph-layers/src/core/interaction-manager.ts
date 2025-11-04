@@ -170,6 +170,7 @@ export class InteractionManager {
     return this._lastInteraction;
   }
 
+  // eslint-disable-next-line max-statements, complexity
   onClick(info, event): void {
     const {object} = info;
 
@@ -197,6 +198,7 @@ export class InteractionManager {
         if (layout && typeof layout.toggleCollapsedChain === 'function') {
           const interactionSource = resolveChainInteractionSource(info ?? null);
 
+          // eslint-disable-next-line max-depth
           if (shouldToggleCollapsedChain(isCollapsed, interactionSource)) {
             const action = isCollapsed ? 'expand' : 'collapse';
             log.log(
@@ -210,6 +212,7 @@ export class InteractionManager {
             layout.toggleCollapsedChain(String(chainId));
             this._lastInteraction = Date.now();
             this.notifyCallback();
+            // eslint-disable-next-line max-depth
             if (this.nodeEvents.onClick) {
               this.nodeEvents.onClick(info, event);
             }

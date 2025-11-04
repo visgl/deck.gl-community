@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/* eslint-disable no-continue */  
+
 import {ZodError, type ZodIssue} from 'zod';
 
 import {StyleEngine, type DeckGLUpdateTriggers} from './style-engine';
@@ -77,6 +79,7 @@ export type {
 
 export {GRAPH_DECKGL_ACCESSOR_MAP} from './graph-style-accessor-map';
 
+// eslint-disable-next-line max-statements, complexity
 function sanitizeStylesheet(style: GraphStylesheet, issues: ZodIssue[]): GraphStylesheetParsed {
   if (issues.length) {
     const details = issues
@@ -120,7 +123,7 @@ function sanitizeStylesheet(style: GraphStylesheet, issues: ZodIssue[]): GraphSt
       if (rootKey === undefined || rootKey === 'type') {
         continue;
       }
-
+    
       if (typeof rootKey === 'string' && rootKey.startsWith(':')) {
         removeNestedProperty(sanitized, path);
         continue;
@@ -130,7 +133,7 @@ function sanitizeStylesheet(style: GraphStylesheet, issues: ZodIssue[]): GraphSt
         continue;
       }
 
-      delete sanitized[rootKey as keyof typeof sanitized];
+      delete sanitized[rootKey];
     }
 
     const result = GraphStylesheetSchema.safeParse(sanitized);
@@ -163,6 +166,7 @@ function cloneValue<T>(value: T): T {
   return value;
 }
 
+// eslint-disable-next-line max-statements, complexity
 function removeNestedProperty(target: Record<string, unknown> | unknown[], path: (string | number)[]) {
   if (path.length === 0) {
     return;
@@ -194,7 +198,7 @@ function removeNestedProperty(target: Record<string, unknown> | unknown[], path:
     return;
   }
 
-  const recordTarget = target as Record<string, unknown>;
+  const recordTarget = target;
 
   if (rest.length === 0) {
     delete recordTarget[head as keyof typeof recordTarget];

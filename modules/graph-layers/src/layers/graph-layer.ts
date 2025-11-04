@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/* eslint-disable no-continue */
+
 import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
@@ -430,7 +432,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: 'collapsed-chain-outlines',
           data: collapsedOutlineNodes,
-          getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
+          getPolygon: (node: Node) => getChainOutlinePolygon(node),
           stroked: true,
           filled: false,
           getLineColor: [220, 64, 64, 220],
@@ -487,7 +489,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: 'expanded-chain-outlines',
           data: expandedOutlineNodes,
-          getPolygon: (node: Node) => getChainOutlinePolygon(node)!,
+          getPolygon: (node: Node) => getChainOutlinePolygon(node),
           stroked: true,
           filled: false,
           getLineColor: [64, 96, 192, 200],
@@ -544,6 +546,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     const outlineCornerSegments = 6;
     const cache = new Map<string, [number, number][] | null>();
 
+  // eslint-disable-next-line max-statements, complexity
     return (node: Node): [number, number][] | null => {
       const chainId = node.getPropertyValue('collapsedChainId');
       if (!chainId) {

@@ -118,6 +118,7 @@ describe('D3DagLayout', () => {
     expect(layout.getLinkControlPoints(edges.bd)).toEqual([[-0.5, -0.5]]);
   });
 
+  // eslint-disable-next-line max-statements
   it('collapses linear chains and supports expansion toggles', () => {
     const {graph, nodes, edges} = createLinearChainGraph();
     const layout = new D3DagLayout({

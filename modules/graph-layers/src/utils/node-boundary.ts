@@ -72,11 +72,11 @@ function resolveCornerRadius(
   halfWidth: number,
   halfHeight: number
 ): number {
-  if (!Number.isFinite(rawCornerRadius) || rawCornerRadius! <= 0) {
+  if (!Number.isFinite(rawCornerRadius) || rawCornerRadius <= 0) {
     return 0;
   }
 
-  let resolved = rawCornerRadius!;
+  let resolved = rawCornerRadius;
   if (resolved <= 1) {
     resolved *= Math.min(halfWidth, halfHeight);
   }
@@ -84,6 +84,7 @@ function resolveCornerRadius(
   return Math.min(resolved, halfWidth, halfHeight);
 }
 
+// eslint-disable-next-line max-params
 function intersectsInnerFaces(
   absX: number,
   absY: number,
@@ -97,6 +98,7 @@ function intersectsInnerFaces(
   return insideVerticalFace || insideHorizontalFace;
 }
 
+// eslint-disable-next-line max-params  
 function projectToCornerArc(
   geometry: NodeGeometry,
   unit: [number, number],
@@ -143,6 +145,7 @@ function computeRectangleIntersection(
   return projectToRectangle(geometry.center, unit, halfWidth, halfHeight);
 }
 
+// eslint-disable-next-line max-statements, complexity
 function computeRoundedRectangleIntersection(
   geometry: NodeGeometry,
   unit: [number, number]
