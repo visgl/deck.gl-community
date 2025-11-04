@@ -71,6 +71,28 @@ const SHARED_LAYER_PROPS = {
 
 const COLLAPSED_BADGE_FALLBACK_OFFSET: [number, number] = [-24, -24];
 
+function normalizeOffset(value: unknown): [number, number] | null {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    const [x = 0, y = 0] = value as (number | null | undefined)[];
+    return [Number(x) || 0, Number(y) || 0];
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    const view = value as ArrayLike<number>;
+    if (view.length >= 2) {
+      const x = Number(view[0]) || 0;
+      const y = Number(view[1]) || 0;
+      return [x, y];
+    }
+  }
+
+  return null;
+}
+
 const NODE_STYLE_DEPRECATION_MESSAGE =
   'GraphLayer: `nodeStyle` has been replaced by `stylesheet.nodes` and will be removed in a future release.';
 const EDGE_STYLE_DEPRECATION_MESSAGE =
@@ -489,27 +511,27 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: 'collapsed-chain-marker-text',
           data: collapsedNodes,
-          getPosition: mixedGetPosition(
-            engine.getNodePosition,
-            (node: Node) => {
-              const offset = getOffset(node);
-              if (!Array.isArray(offset)) {
-                return COLLAPSED_BADGE_FALLBACK_OFFSET;
-              }
-              const [offsetX = 0, offsetY = 0] = offset;
-              return [-Math.abs(offsetX), offsetY];
-            }
-          ),
+          getPosition: engine.getNodePosition,
+          getPixelOffset: (node: Node): [number, number] => {
+            const offset = normalizeOffset(getOffset(node)) ?? COLLAPSED_BADGE_FALLBACK_OFFSET;
+            const [offsetX, offsetY] = offset;
+            return [-Math.abs(offsetX), offsetY];
+          },
           getText: collapsedMarkerStylesheet.getDeckGLAccessor('getText'),
           getColor: [255, 255, 255, 255],
+          getBackgroundColor: collapsedMarkerStylesheet.getDeckGLAccessor('getColor'),
+          getBackgroundPadding: [4, 2],
           getSize: 14,
           sizeUnits: 'pixels',
-          getTextAnchor: 'middle',
+          billboard: true,
+          getTextAnchor: 'end',
           getAlignmentBaseline: 'center',
           pickable: true,
           updateTriggers: {
             getPosition: positionUpdateTrigger,
-            getText: collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getText')
+            getPixelOffset: collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getOffset'),
+            getText: collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getText'),
+            getBackgroundColor: collapsedMarkerStylesheet.getDeckGLAccessorUpdateTrigger('getColor')
           }
         })
       );
