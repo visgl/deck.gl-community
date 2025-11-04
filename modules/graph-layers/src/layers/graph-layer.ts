@@ -132,14 +132,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     graphEngine?: GraphEngine | null;
   };
 
-  private _layoutUpdateDelayTimeout: ReturnType<typeof setTimeout> | null = null;
-  private _layoutUpdatesEnabled = true;
-  private _pendingDelayedUpdate = false;
+  private _layoutDelayActive = false;
+  private _shouldApplyLayoutDelay = false;
 
   private _handleLayoutChange = () => {
-    if (!this._layoutUpdatesEnabled) {
-      this._pendingDelayedUpdate = true;
-      return;
+    if (this._layoutDelayActive) {
+      this._shouldApplyLayoutDelay = true;
+      this._layoutDelayActive = false;
     }
     this.forceUpdate();
   };
@@ -192,7 +191,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     if (changeFlags.propsChanged && props.layoutUpdateDelay !== oldProps.layoutUpdateDelay) {
-      this._resetLayoutUpdateDelay(props.layoutUpdateDelay);
+      this._layoutDelayActive = (props.layoutUpdateDelay ?? 0) > 0;
+      this._shouldApplyLayoutDelay = false;
     }
   }
 
@@ -208,10 +208,11 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this._removeGraphEngine();
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
-      this._resetLayoutUpdateDelay(this.props.layoutUpdateDelay);
+      this._layoutDelayActive = (this.props.layoutUpdateDelay ?? 0) > 0;
+      this._shouldApplyLayoutDelay = false;
+      this.state.graphEngine.addEventListener('onLayoutChange', this._handleLayoutChange);
       this.state.graphEngine.run();
       // added or removed a node, or in general something layout related changed
-      this.state.graphEngine.addEventListener('onLayoutChange', this._handleLayoutChange);
     }
   }
 
@@ -221,9 +222,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this.state.graphEngine.clear();
       this.state.graphEngine = null;
     }
-    this._clearLayoutUpdateDelayTimer();
-    this._layoutUpdatesEnabled = true;
-    this._pendingDelayedUpdate = false;
+    this._layoutDelayActive = false;
+    this._shouldApplyLayoutDelay = false;
   }
 
   private _createGraphEngine(
@@ -242,45 +242,21 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _getLayoutTransitionSettings(): any {
-    const {layoutUpdateInterval, layoutTransitions} = this.props;
+    const {layoutUpdateInterval, layoutTransitions, layoutUpdateDelay} = this.props;
     if (!layoutTransitions || !layoutUpdateInterval || layoutUpdateInterval <= 0) {
+      this._shouldApplyLayoutDelay = false;
       return undefined;
     }
-    return {duration: layoutUpdateInterval};
-  }
-
-  private _clearLayoutUpdateDelayTimer() {
-    if (this._layoutUpdateDelayTimeout) {
-      clearTimeout(this._layoutUpdateDelayTimeout);
-      this._layoutUpdateDelayTimeout = null;
+    const transition: any = {duration: layoutUpdateInterval};
+    if (this._shouldApplyLayoutDelay && layoutUpdateDelay && layoutUpdateDelay > 0) {
+      transition.delay = layoutUpdateDelay;
     }
+    this._shouldApplyLayoutDelay = false;
+    return transition;
   }
 
-  private _resetLayoutUpdateDelay(delay?: number) {
-    this._clearLayoutUpdateDelayTimer();
-    const effectiveDelay = delay ?? this.props.layoutUpdateDelay ?? 0;
-    if (effectiveDelay > 0) {
-      this._layoutUpdatesEnabled = false;
-      this._pendingDelayedUpdate = false;
-      this._layoutUpdateDelayTimeout = setTimeout(() => {
-        this._layoutUpdatesEnabled = true;
-        this._layoutUpdateDelayTimeout = null;
-        if (this._pendingDelayedUpdate) {
-          this._pendingDelayedUpdate = false;
-          this.forceUpdate();
-        }
-      }, effectiveDelay);
-    } else {
-      this._layoutUpdatesEnabled = true;
-      if (this._pendingDelayedUpdate) {
-        this._pendingDelayedUpdate = false;
-        this.forceUpdate();
-      }
-    }
-  }
-
-  private _getNodeTransitions(): any {
-    const transition = this._getLayoutTransitionSettings();
+  private _getNodeTransitions(layoutTransition?: any): any {
+    const transition = layoutTransition;
     if (!transition) {
       return undefined;
     }
@@ -289,8 +265,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     };
   }
 
-  private _getEdgeTransitions(): any {
-    const transition = this._getLayoutTransitionSettings();
+  private _getEdgeTransitions(layoutTransition?: any): any {
+    const transition = layoutTransition;
     if (!transition) {
       return undefined;
     }
@@ -304,14 +280,14 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     };
   }
 
-  createNodeLayers() {
+  createNodeLayers(layoutTransition?: any) {
     const engine = this.state.graphEngine;
     const {nodeStyle} = this.props;
     if (!engine || !nodeStyle || !Array.isArray(nodeStyle) || nodeStyle.length === 0) {
       return [];
     }
 
-    const nodeTransitions = this._getNodeTransitions();
+    const nodeTransitions = this._getNodeTransitions(layoutTransition);
 
     return nodeStyle.filter(Boolean).map((style, idx) => {
       const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
@@ -342,7 +318,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
   }
 
-  createEdgeLayers() {
+  createEdgeLayers(layoutTransition?: any) {
     const engine = this.state.graphEngine;
     const {edgeStyle} = this.props;
 
@@ -350,7 +326,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return [];
     }
 
-    const edgeTransitions = this._getEdgeTransitions();
+    const edgeTransitions = this._getEdgeTransitions(layoutTransition);
 
     return (Array.isArray(edgeStyle) ? edgeStyle : [edgeStyle])
       .filter(Boolean)
@@ -381,28 +357,29 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
           return edgeLayer;
         }
-          const decoratorLayers = decorators
-            .filter(Boolean)
-            .flatMap((decoratorStyle, idx2) => {
-          const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
-          if (!DecoratorLayer) {
-            log.error(`Invalid edge decorator type: ${decoratorStyle.type}`)();
-            throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
-          }
-          const decoratorStylesheet = new Stylesheet(decoratorStyle, {
-            stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+
+        const decoratorLayers = decorators
+          .filter(Boolean)
+          .flatMap((decoratorStyle, idx2) => {
+            const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
+            if (!DecoratorLayer) {
+              log.error(`Invalid edge decorator type: ${decoratorStyle.type}`)();
+              throw new Error(`Invalid edge decorator type: ${decoratorStyle.type}`);
+            }
+            const decoratorStylesheet = new Stylesheet(decoratorStyle, {
+              stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+            });
+            return new DecoratorLayer({
+              ...SHARED_LAYER_PROPS,
+              id: `edge-decorator-${idx2}`,
+              data: data(engine.getEdges()),
+              getLayoutInfo: engine.getEdgePosition,
+              pickable: true,
+              positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+              transitions: edgeTransitions,
+              stylesheet: decoratorStylesheet
+            } as any);
           });
-          return new DecoratorLayer({
-            ...SHARED_LAYER_PROPS,
-            id: `edge-decorator-${idx2}`,
-            data: data(engine.getEdges()),
-            getLayoutInfo: engine.getEdgePosition,
-            pickable: true,
-            positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
-            transitions: edgeTransitions,
-            stylesheet: decoratorStylesheet
-          } as any);
-        });
         return [edgeLayer, decoratorLayers];
       });
   }
@@ -428,6 +405,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   renderLayers() {
-    return [this.createEdgeLayers(), this.createNodeLayers()];
+    const layoutTransition = this._getLayoutTransitionSettings();
+    return [this.createEdgeLayers(layoutTransition), this.createNodeLayers(layoutTransition)];
   }
 }
