@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState, useId} from 'react';
 import type {ReactNode} from 'react';
 import type {
   DagLayoutFormState,
@@ -14,7 +14,6 @@ import type {
 import {
   LAYOUT_LABELS,
   createDagFormState,
-  dagStatesEqual,
   mapDagFormStateToOptions
 } from './layout-options';
 
@@ -34,31 +33,46 @@ function DagLayoutOptionsSection({
   appliedOptions?: Record<string, unknown>;
   onApply?: (options: Record<string, unknown>) => void;
 }) {
-  const appliedState = useMemo(() => createDagFormState(appliedOptions), [appliedOptions]);
-  const [formState, setFormState] = useState<DagLayoutFormState>(appliedState);
+  const [formState, setFormState] = useState<DagLayoutFormState>(() =>
+    createDagFormState(appliedOptions)
+  );
+  const fieldGroupId = useId();
 
   useEffect(() => {
     setFormState(createDagFormState(appliedOptions));
   }, [appliedOptions]);
 
+  const updateFormState = useCallback(
+    (updater: (current: DagLayoutFormState) => DagLayoutFormState) => {
+      setFormState((current) => {
+        const nextState = updater(current);
+        if (onApply) {
+          onApply(mapDagFormStateToOptions(nextState));
+        }
+        return nextState;
+      });
+    },
+    [onApply]
+  );
+
   const handleSelectChange = useCallback(
     <K extends DagSelectKey>(key: K) => {
       return (event: React.ChangeEvent<HTMLSelectElement>) => {
         const value = event.target.value as DagLayoutFormState[K];
-        setFormState((current) => ({
+        updateFormState((current) => ({
           ...current,
           [key]: value
         }));
       };
     },
-    []
+    [updateFormState]
   );
 
   const handleNumberChange = useCallback(
     <K extends DagNumericKey>(key: K) => {
       return (event: React.ChangeEvent<HTMLInputElement>) => {
         const numericValue = Number(event.target.value);
-        setFormState((current) => ({
+        updateFormState((current) => ({
           ...current,
           [key]: Number.isFinite(numericValue)
             ? (numericValue as DagLayoutFormState[K])
@@ -66,33 +80,23 @@ function DagLayoutOptionsSection({
         }));
       };
     },
-    []
+    [updateFormState]
   );
 
   const handleCheckboxChange = useCallback(<K extends 'centerX' | 'centerY'>(key: K) => {
     return (event: React.ChangeEvent<HTMLInputElement>) => {
-      setFormState((current) => ({
+      updateFormState((current) => ({
         ...current,
         [key]: event.target.checked
       }));
     };
-  }, []);
+  }, [updateFormState]);
 
-  const isDirty = useMemo(() => !dagStatesEqual(formState, appliedState), [formState, appliedState]);
-
-  const handleApply = useCallback(() => {
-    if (!onApply) {
-      return;
-    }
-    onApply(mapDagFormStateToOptions(formState));
-  }, [formState, onApply]);
-
-  const fieldLabelStyle: React.CSSProperties = useMemo(
+  const labelStyle: React.CSSProperties = useMemo(
     () => ({
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '0.25rem',
-      fontSize: '0.8125rem'
+      fontSize: '0.8125rem',
+      fontWeight: 600,
+      color: '#0f172a'
     }),
     []
   );
@@ -123,6 +127,37 @@ function DagLayoutOptionsSection({
     []
   );
 
+  const gridStyle: React.CSSProperties = useMemo(
+    () => ({
+      display: 'grid',
+      gridTemplateColumns: 'max-content 1fr',
+      columnGap: '0.75rem',
+      rowGap: '0.5rem',
+      alignItems: 'center'
+    }),
+    []
+  );
+
+  const checkboxGroupStyle: React.CSSProperties = useMemo(
+    () => ({
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+      gap: '0.5rem'
+    }),
+    []
+  );
+
+  const checkboxLabelStyle: React.CSSProperties = useMemo(
+    () => ({
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      fontSize: '0.8125rem',
+      color: '#334155'
+    }),
+    []
+  );
+
   return (
     <section
       style={{
@@ -135,172 +170,170 @@ function DagLayoutOptionsSection({
         color: '#334155'
       }}
     >
-      <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: '0.75rem'
-          }}
+      <div style={gridStyle}>
+        <label htmlFor={`${fieldGroupId}-layout`} style={labelStyle}>
+          Layout operator
+        </label>
+        <select
+          id={`${fieldGroupId}-layout`}
+          value={formState.layout}
+          onChange={handleSelectChange('layout')}
+          style={selectStyle}
         >
-          <label style={fieldLabelStyle}>
-            Layout operator
-            <select value={formState.layout} onChange={handleSelectChange('layout')} style={selectStyle}>
-              <option value="sugiyama">Sugiyama</option>
-              <option value="grid">Grid</option>
-              <option value="zherebko">Zherebko</option>
-            </select>
-          </label>
-          <label style={fieldLabelStyle}>
-            Layering
-            <select value={formState.layering} onChange={handleSelectChange('layering')} style={selectStyle}>
-              <option value="topological">Topological</option>
-              <option value="longestPath">Longest path</option>
-              <option value="simplex">Simplex</option>
-            </select>
-          </label>
-          <label style={fieldLabelStyle}>
-            Decross
-            <select value={formState.decross} onChange={handleSelectChange('decross')} style={selectStyle}>
-              <option value="twoLayer">Two layer</option>
-              <option value="opt">Opt</option>
-              <option value="dfs">DFS</option>
-            </select>
-          </label>
-          <label style={fieldLabelStyle}>
-            Coordinate assignment
-            <select value={formState.coord} onChange={handleSelectChange('coord')} style={selectStyle}>
-              <option value="greedy">Greedy</option>
-              <option value="simplex">Simplex</option>
-              <option value="quad">Quad</option>
-              <option value="center">Center</option>
-              <option value="topological">Topological</option>
-            </select>
-          </label>
-          <label style={fieldLabelStyle}>
-            Orientation
-            <select
-              value={formState.orientation}
-              onChange={handleSelectChange('orientation')}
-              style={selectStyle}
-            >
-              <option value="TB">Top to bottom</option>
-              <option value="BT">Bottom to top</option>
-              <option value="LR">Left to right</option>
-              <option value="RL">Right to left</option>
-            </select>
-          </label>
-          <label style={fieldLabelStyle}>
-            DAG builder
-            <select value={formState.dagBuilder} onChange={handleSelectChange('dagBuilder')} style={selectStyle}>
-              <option value="graph">Graph</option>
-              <option value="connect">Connect</option>
-              <option value="stratify">Stratify</option>
-            </select>
-          </label>
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: '0.75rem'
-          }}
+          <option value="sugiyama">Sugiyama</option>
+          <option value="grid">Grid</option>
+          <option value="zherebko">Zherebko</option>
+        </select>
+        <label htmlFor={`${fieldGroupId}-layering`} style={labelStyle}>
+          Layering
+        </label>
+        <select
+          id={`${fieldGroupId}-layering`}
+          value={formState.layering}
+          onChange={handleSelectChange('layering')}
+          style={selectStyle}
         >
-          <label style={fieldLabelStyle}>
-            Node width
-            <input
-              type="number"
-              value={formState.nodeWidth}
-              onChange={handleNumberChange('nodeWidth')}
-              style={inputStyle}
-            />
-          </label>
-          <label style={fieldLabelStyle}>
-            Node height
-            <input
-              type="number"
-              value={formState.nodeHeight}
-              onChange={handleNumberChange('nodeHeight')}
-              style={inputStyle}
-            />
-          </label>
-          <label style={fieldLabelStyle}>
-            Gap X
-            <input
-              type="number"
-              value={formState.gapX}
-              onChange={handleNumberChange('gapX')}
-              style={inputStyle}
-            />
-          </label>
-          <label style={fieldLabelStyle}>
-            Gap Y
-            <input
-              type="number"
-              value={formState.gapY}
-              onChange={handleNumberChange('gapY')}
-              style={inputStyle}
-            />
-          </label>
-          <label style={fieldLabelStyle}>
-            Separation X
-            <input
-              type="number"
-              value={formState.separationX}
-              onChange={handleNumberChange('separationX')}
-              style={inputStyle}
-            />
-          </label>
-          <label style={fieldLabelStyle}>
-            Separation Y
-            <input
-              type="number"
-              value={formState.separationY}
-              onChange={handleNumberChange('separationY')}
-              style={inputStyle}
-            />
-          </label>
-        </div>
-        <div style={{display: 'flex', gap: '1rem'}}>
-          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem'}}>
-            <input
-              type="checkbox"
-              checked={formState.centerX}
-              onChange={handleCheckboxChange('centerX')}
-              style={{width: '1rem', height: '1rem'}}
-            />
-            Center horizontally
-          </label>
-          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem'}}>
-            <input
-              type="checkbox"
-              checked={formState.centerY}
-              onChange={handleCheckboxChange('centerY')}
-              style={{width: '1rem', height: '1rem'}}
-            />
-            Center vertically
-          </label>
-        </div>
+          <option value="topological">Topological</option>
+          <option value="longestPath">Longest path</option>
+          <option value="simplex">Simplex</option>
+        </select>
+        <label htmlFor={`${fieldGroupId}-decross`} style={labelStyle}>
+          Decross
+        </label>
+        <select
+          id={`${fieldGroupId}-decross`}
+          value={formState.decross}
+          onChange={handleSelectChange('decross')}
+          style={selectStyle}
+        >
+          <option value="twoLayer">Two layer</option>
+          <option value="opt">Opt</option>
+          <option value="dfs">DFS</option>
+        </select>
+        <label htmlFor={`${fieldGroupId}-coord`} style={labelStyle}>
+          Coordinate assignment
+        </label>
+        <select
+          id={`${fieldGroupId}-coord`}
+          value={formState.coord}
+          onChange={handleSelectChange('coord')}
+          style={selectStyle}
+        >
+          <option value="greedy">Greedy</option>
+          <option value="simplex">Simplex</option>
+          <option value="quad">Quad</option>
+          <option value="center">Center</option>
+          <option value="topological">Topological</option>
+        </select>
+        <label htmlFor={`${fieldGroupId}-orientation`} style={labelStyle}>
+          Orientation
+        </label>
+        <select
+          id={`${fieldGroupId}-orientation`}
+          value={formState.orientation}
+          onChange={handleSelectChange('orientation')}
+          style={selectStyle}
+        >
+          <option value="TB">Top to bottom</option>
+          <option value="BT">Bottom to top</option>
+          <option value="LR">Left to right</option>
+          <option value="RL">Right to left</option>
+        </select>
+        <label htmlFor={`${fieldGroupId}-dag-builder`} style={labelStyle}>
+          DAG builder
+        </label>
+        <select
+          id={`${fieldGroupId}-dag-builder`}
+          value={formState.dagBuilder}
+          onChange={handleSelectChange('dagBuilder')}
+          style={selectStyle}
+        >
+          <option value="graph">Graph</option>
+          <option value="connect">Connect</option>
+          <option value="stratify">Stratify</option>
+        </select>
       </div>
-      <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-        <button
-          type="button"
-          onClick={handleApply}
-          disabled={!isDirty}
-          style={{
-            border: '1px solid #2563eb',
-            background: isDirty ? '#2563eb' : '#94a3b8',
-            color: '#ffffff',
-            borderRadius: '0.5rem',
-            padding: '0.375rem 0.75rem',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            cursor: isDirty ? 'pointer' : 'not-allowed',
-            transition: 'background 120ms ease-in-out'
-          }}
-        >
-          Apply layout options
-        </button>
+      <div style={gridStyle}>
+        <label htmlFor={`${fieldGroupId}-node-width`} style={labelStyle}>
+          Node width
+        </label>
+        <input
+          id={`${fieldGroupId}-node-width`}
+          type="number"
+          value={formState.nodeWidth}
+          onChange={handleNumberChange('nodeWidth')}
+          style={inputStyle}
+        />
+        <label htmlFor={`${fieldGroupId}-node-height`} style={labelStyle}>
+          Node height
+        </label>
+        <input
+          id={`${fieldGroupId}-node-height`}
+          type="number"
+          value={formState.nodeHeight}
+          onChange={handleNumberChange('nodeHeight')}
+          style={inputStyle}
+        />
+        <label htmlFor={`${fieldGroupId}-gap-x`} style={labelStyle}>
+          Gap X
+        </label>
+        <input
+          id={`${fieldGroupId}-gap-x`}
+          type="number"
+          value={formState.gapX}
+          onChange={handleNumberChange('gapX')}
+          style={inputStyle}
+        />
+        <label htmlFor={`${fieldGroupId}-gap-y`} style={labelStyle}>
+          Gap Y
+        </label>
+        <input
+          id={`${fieldGroupId}-gap-y`}
+          type="number"
+          value={formState.gapY}
+          onChange={handleNumberChange('gapY')}
+          style={inputStyle}
+        />
+        <label htmlFor={`${fieldGroupId}-separation-x`} style={labelStyle}>
+          Separation X
+        </label>
+        <input
+          id={`${fieldGroupId}-separation-x`}
+          type="number"
+          value={formState.separationX}
+          onChange={handleNumberChange('separationX')}
+          style={inputStyle}
+        />
+        <label htmlFor={`${fieldGroupId}-separation-y`} style={labelStyle}>
+          Separation Y
+        </label>
+        <input
+          id={`${fieldGroupId}-separation-y`}
+          type="number"
+          value={formState.separationY}
+          onChange={handleNumberChange('separationY')}
+          style={inputStyle}
+        />
+      </div>
+      <div style={checkboxGroupStyle}>
+        <label style={checkboxLabelStyle}>
+          <input
+            type="checkbox"
+            checked={formState.centerX}
+            onChange={handleCheckboxChange('centerX')}
+            style={{width: '1rem', height: '1rem'}}
+          />
+          Center horizontally
+        </label>
+        <label style={checkboxLabelStyle}>
+          <input
+            type="checkbox"
+            checked={formState.centerY}
+            onChange={handleCheckboxChange('centerY')}
+            style={{width: '1rem', height: '1rem'}}
+          />
+          Center vertically
+        </label>
       </div>
     </section>
   );
@@ -321,37 +354,46 @@ function LayoutOptionsSection({
 
   if (layout === 'd3-dag-layout') {
     return (
-      <div>
-        <h3 style={{margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+      <details open style={{borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem'}}>
+        <summary
+          style={{
+            margin: 0,
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: '#0f172a',
+            cursor: 'pointer'
+          }}
+        >
           Layout options
-        </h3>
-        <p style={{margin: '0 0 0.5rem', fontSize: '0.8125rem', color: '#475569'}}>
-          Tune the D3 DAG layout operators and spacing before applying the configuration to the canvas.
+        </summary>
+        <p style={{margin: '0.5rem 0', fontSize: '0.8125rem', color: '#475569'}}>
+          Tune the D3 DAG layout operators and spacing. Changes apply immediately when adjusted.
         </p>
         <DagLayoutOptionsSection
           appliedOptions={appliedOptions}
           onApply={onApply ? (options) => onApply(layout, options) : undefined}
         />
-      </div>
+      </details>
     );
   }
 
   return (
-    <section
-      style={{
-        borderTop: '1px solid #e2e8f0',
-        paddingTop: '0.75rem',
-        fontSize: '0.8125rem',
-        color: '#475569'
-      }}
-    >
-      <h3 style={{margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+    <details open style={{borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem', fontSize: '0.8125rem'}}>
+      <summary
+        style={{
+          margin: 0,
+          fontSize: '0.875rem',
+          fontWeight: 600,
+          color: '#0f172a',
+          cursor: 'pointer'
+        }}
+      >
         Layout options
-      </h3>
-      <p style={{margin: 0}}>
+      </summary>
+      <p style={{margin: '0.5rem 0 0', color: '#475569'}}>
         This layout does not expose configurable options in the control panel yet.
       </p>
-    </section>
+    </details>
   );
 }
 
@@ -383,8 +425,6 @@ export function ControlPanel({
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
     availableLayouts[0]
   );
-  const [areChildrenCollapsed, setAreChildrenCollapsed] = useState(false);
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
 
   useEffect(() => {
     if (!availableLayouts.length) {
@@ -447,14 +487,6 @@ export function ControlPanel({
     );
   }, [selectedExample]);
 
-  const toggleChildrenCollapsed = useCallback(() => {
-    setAreChildrenCollapsed((value) => !value);
-  }, []);
-
-  const togglePanelCollapsed = useCallback(() => {
-    setIsPanelCollapsed((value) => !value);
-  }, []);
-
   if (!examples.length) {
     return null;
   }
@@ -498,13 +530,32 @@ export function ControlPanel({
             backgroundColor: '#ffffff',
             color: '#0f172a'
           }}
-        >
+      >
           {examples.map((example, index) => (
             <option key={example.name} value={index}>
               {example.name}
             </option>
           ))}
         </select>
+      </div>
+      {datasetDescription ? (
+        <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
+          <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+            Dataset overview
+          </h3>
+          <p style={{margin: 0}}>{datasetDescription}</p>
+        </section>
+      ) : null}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr',
+          gridAutoRows: 'auto',
+          columnGap: '0.75rem',
+          rowGap: '0.75rem',
+          alignItems: 'center'
+        }}
+      >
         <label htmlFor="graph-viewer-layout" style={{fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
           Layout
         </label>
@@ -530,101 +581,55 @@ export function ControlPanel({
           ))}
         </select>
       </div>
-      <button
-        type="button"
-        onClick={togglePanelCollapsed}
-        style={{
-          alignSelf: 'flex-start',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-          border: '1px solid #cbd5f5',
-          background: '#f8fafc',
-          color: '#0f172a',
-          borderRadius: '0.5rem',
-          padding: '0.25rem 0.5rem',
-          cursor: 'pointer'
-        }}
-      >
-        {isPanelCollapsed ? 'Show control panel sections' : 'Hide control panel sections'}
-      </button>
-      {!isPanelCollapsed ? (
-        <>
-          {datasetDescription ? (
-            <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
-              <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-                Dataset overview
-              </h3>
-              <p style={{margin: 0}}>{datasetDescription}</p>
-            </section>
-          ) : null}
-          <LayoutOptionsSection
-            layout={selectedLayout}
-            appliedOptions={layoutOptions}
-            onApply={onLayoutOptionsApply}
-          />
-          {children ? (
-            <section
-              style={{
-                borderTop: '1px solid #e2e8f0',
-                paddingTop: '0.75rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem'
-              }}
-            >
-              <button
-                type="button"
-                onClick={toggleChildrenCollapsed}
-                style={{
-                  alignSelf: 'flex-start',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  border: '1px solid #cbd5f5',
-                  background: '#f8fafc',
-                  color: '#0f172a',
-                  borderRadius: '0.5rem',
-                  padding: '0.25rem 0.5rem',
-                  cursor: 'pointer'
-                }}
-              >
-                {areChildrenCollapsed ? 'Expand details' : 'Collapse details'}
-              </button>
-              {!areChildrenCollapsed ? <div>{children}</div> : null}
-            </section>
-          ) : null}
-          {layoutDescription ? (
-            <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
-              <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-                Layout overview
-              </h3>
-              <p style={{margin: 0}}>{layoutDescription}</p>
-            </section>
-          ) : null}
-          <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>
-            <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-              Stylesheet JSON
-            </h3>
-            <pre
-              style={{
-                margin: 0,
-                padding: '0.75rem',
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '0.5rem',
-                fontSize: '0.75rem',
-                lineHeight: 1.4,
-                maxHeight: '16rem',
-                overflow: 'auto',
-                whiteSpace: 'pre-wrap',
-                fontFamily:
-                  'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-              }}
-            >
-              {styleJson || '// No style defined for this example'}
-            </pre>
-          </section>
-        </>
+      <LayoutOptionsSection
+        layout={selectedLayout}
+        appliedOptions={layoutOptions}
+        onApply={onLayoutOptionsApply}
+      />
+      {children ? (
+        <section
+          style={{
+            borderTop: '1px solid #e2e8f0',
+            paddingTop: '0.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+          }}
+        >
+          <div>{children}</div>
+        </section>
       ) : null}
+      {layoutDescription ? (
+        <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
+          <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+            Layout overview
+          </h3>
+          <p style={{margin: 0}}>{layoutDescription}</p>
+        </section>
+      ) : null}
+      <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>
+        <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+          Stylesheet JSON
+        </h3>
+        <pre
+          style={{
+            margin: 0,
+            padding: '0.75rem',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '0.5rem',
+            fontSize: '0.75rem',
+            lineHeight: 1.4,
+            maxHeight: '16rem',
+            overflow: 'auto',
+            whiteSpace: 'pre-wrap',
+            fontFamily:
+              'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+          }}
+        >
+          {styleJson || '// No style defined for this example'}
+        </pre>
+      </section>
     </div>
   );
 }
