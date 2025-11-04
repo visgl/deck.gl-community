@@ -16,6 +16,7 @@ import {GraphEngine} from '../core/graph-engine';
 import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
+import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
 
 import {warn} from '../utils/log';
 
@@ -402,30 +403,22 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _createChainOverlayLayers(engine: GraphEngine) {
-    const representativeNodes = engine.getNodes().filter((node) => {
-      const chainId = node.getPropertyValue('collapsedChainId');
-      const nodeIds = node.getPropertyValue('collapsedNodeIds');
-      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
-      return (
-        chainId &&
-        Array.isArray(nodeIds) &&
-        nodeIds.length > 1 &&
-        representativeId === node.getId()
-      );
-    });
-
-    if (!representativeNodes.length) {
+    const chainData = buildCollapsedChainLayers(engine);
+    if (!chainData) {
       return [];
     }
 
-    const layers: any[] = [];
-    const getChainOutlinePolygon = this._createChainOutlineGetter(engine);
-    const outlineUpdateTrigger = [engine.getLayoutLastUpdate(), engine.getLayoutState()].join();
+    const {
+      collapsedNodes,
+      collapsedOutlineNodes,
+      expandedNodes,
+      expandedOutlineNodes,
+      getChainOutlinePolygon,
+      outlineUpdateTrigger
+    } = chainData;
 
-    const collapsedNodes = representativeNodes.filter((node) =>
-      Boolean(node.getPropertyValue('isCollapsedChain'))
-    );
-    const collapsedOutlineNodes = collapsedNodes.filter((node) => getChainOutlinePolygon(node));
+    const layers: any[] = [];
+
     if (collapsedOutlineNodes.length > 0) {
       layers.push(
         new PolygonLayer({
@@ -479,10 +472,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       );
     }
 
-    const expandedNodes = representativeNodes.filter(
-      (node) => !node.getPropertyValue('isCollapsedChain')
-    );
-    const expandedOutlineNodes = expandedNodes.filter((node) => getChainOutlinePolygon(node));
     if (expandedOutlineNodes.length > 0) {
       layers.push(
         new PolygonLayer({
@@ -537,120 +526,5 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     return layers;
-  }
-
-  private _createChainOutlineGetter(engine: GraphEngine) {
-    const graph = engine.props.graph;
-    const outlinePadding = 24;
-    const outlineCornerRadius = 16;
-    const outlineCornerSegments = 6;
-    const cache = new Map<string, [number, number][] | null>();
-
-  // eslint-disable-next-line max-statements, complexity
-    return (node: Node): [number, number][] | null => {
-      const chainId = node.getPropertyValue('collapsedChainId');
-      if (!chainId) {
-        return null;
-      }
-      const cacheKey = String(chainId);
-      if (cache.has(cacheKey)) {
-        return cache.get(cacheKey) ?? null;
-      }
-      if (!graph) {
-        cache.set(cacheKey, null);
-        return null;
-      }
-
-      const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
-      if (!Array.isArray(collapsedNodeIds) || collapsedNodeIds.length === 0) {
-        cache.set(cacheKey, null);
-        return null;
-      }
-
-      let minX = Number.POSITIVE_INFINITY;
-      let maxX = Number.NEGATIVE_INFINITY;
-      let minY = Number.POSITIVE_INFINITY;
-      let maxY = Number.NEGATIVE_INFINITY;
-
-      for (const nodeId of collapsedNodeIds) {
-        const chainNode = graph.findNode(nodeId);
-        if (!chainNode) {
-          continue;
-        }
-        const position = engine.getNodePosition(chainNode);
-        if (!position) {
-          continue;
-        }
-        const [x, y] = position;
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-      }
-
-      if (
-        !Number.isFinite(minX) ||
-        !Number.isFinite(maxX) ||
-        !Number.isFinite(minY) ||
-        !Number.isFinite(maxY)
-      ) {
-        cache.set(cacheKey, null);
-        return null;
-      }
-
-      const paddedMinX = minX - outlinePadding;
-      const paddedMaxX = maxX + outlinePadding;
-      const paddedMinY = minY - outlinePadding;
-      const paddedMaxY = maxY + outlinePadding;
-
-      const width = paddedMaxX - paddedMinX;
-      const height = paddedMaxY - paddedMinY;
-
-      if (width <= 0 || height <= 0) {
-        cache.set(cacheKey, null);
-        return null;
-      }
-
-      const radius = Math.min(outlineCornerRadius, width / 2, height / 2);
-
-      if (radius <= 0) {
-        const polygon: [number, number][] = [
-          [paddedMinX, paddedMinY],
-          [paddedMinX, paddedMaxY],
-          [paddedMaxX, paddedMaxY],
-          [paddedMaxX, paddedMinY],
-          [paddedMinX, paddedMinY]
-        ];
-        cache.set(cacheKey, polygon);
-        return polygon;
-      }
-
-      const left = paddedMinX;
-      const right = paddedMaxX;
-      const top = paddedMinY;
-      const bottom = paddedMaxY;
-
-      const polygon: [number, number][] = [];
-      const pushArc = (cx: number, cy: number, startAngle: number, endAngle: number) => {
-        const step = (endAngle - startAngle) / outlineCornerSegments;
-        for (let i = 1; i <= outlineCornerSegments; i++) {
-          const angle = startAngle + step * i;
-          polygon.push([cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]);
-        }
-      };
-
-      polygon.push([right - radius, top]);
-      pushArc(right - radius, top + radius, -Math.PI / 2, 0);
-      polygon.push([right, bottom - radius]);
-      pushArc(right - radius, bottom - radius, 0, Math.PI / 2);
-      polygon.push([left + radius, bottom]);
-      pushArc(left + radius, bottom - radius, Math.PI / 2, Math.PI);
-      polygon.push([left, top + radius]);
-      pushArc(left + radius, top + radius, Math.PI, (3 * Math.PI) / 2);
-      polygon.push(polygon[0]);
-
-      cache.set(cacheKey, polygon);
-      return polygon;
-    };
   }
 }
