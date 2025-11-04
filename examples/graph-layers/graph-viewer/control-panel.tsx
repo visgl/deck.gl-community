@@ -5,6 +5,9 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import type {ReactNode} from 'react';
 import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
+import {StylesheetEditor, type StylesheetSchema} from './stylesheet-editor';
+
+const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
 
 export type LayoutType =
   | 'd3-force-layout'
@@ -36,6 +39,9 @@ type ControlPanelProps = {
   defaultExample?: ExampleDefinition;
   onExampleChange: (example: ExampleDefinition, layout: LayoutType) => void;
   children?: ReactNode;
+  onStylesheetChange?: (value: string) => void;
+  onStylesheetSubmit?: (value: string) => void;
+  stylesheetSchema?: StylesheetSchema;
 };
 
 const LAYOUT_LABELS: Record<LayoutType, string> = {
@@ -48,7 +54,15 @@ const LAYOUT_LABELS: Record<LayoutType, string> = {
   'd3-dag-layout': 'D3 DAG Layout',
 };
 
-export function ControlPanel({examples, defaultExample, onExampleChange, children}: ControlPanelProps) {
+export function ControlPanel({
+  examples,
+  defaultExample,
+  onExampleChange,
+  children,
+  onStylesheetChange,
+  onStylesheetSubmit,
+  stylesheetSchema
+}: ControlPanelProps) {
   const resolveExampleIndex = useCallback(
     (example?: ExampleDefinition) => {
       if (!example) {
@@ -131,6 +145,29 @@ export function ControlPanel({examples, defaultExample, onExampleChange, childre
       2
     );
   }, [selectedExample]);
+
+  const [stylesheetValue, setStylesheetValue] = useState(
+    styleJson || DEFAULT_STYLESHEET_MESSAGE
+  );
+
+  useEffect(() => {
+    setStylesheetValue(styleJson || DEFAULT_STYLESHEET_MESSAGE);
+  }, [styleJson]);
+
+  const handleStylesheetChange = useCallback(
+    (nextValue: string) => {
+      setStylesheetValue(nextValue);
+      onStylesheetChange?.(nextValue);
+    },
+    [onStylesheetChange]
+  );
+
+  const handleStylesheetSubmit = useCallback(
+    (nextValue: string) => {
+      onStylesheetSubmit?.(nextValue);
+    },
+    [onStylesheetSubmit]
+  );
 
   const toggleCollapsed = useCallback(() => {
     setIsCollapsed((value) => !value);
@@ -261,24 +298,14 @@ export function ControlPanel({examples, defaultExample, onExampleChange, childre
         <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
           Stylesheet JSON
         </h3>
-        <pre
-          style={{
-            margin: 0,
-            padding: '0.75rem',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.5rem',
-            fontSize: '0.75rem',
-            lineHeight: 1.4,
-            maxHeight: '16rem',
-            overflow: 'auto',
-            whiteSpace: 'pre-wrap',
-            fontFamily:
-              'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-          }}
-        >
-          {styleJson || '// No style defined for this example'}
-        </pre>
+        <div style={{borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #1f2937'}}>
+          <StylesheetEditor
+            value={stylesheetValue}
+            onChange={handleStylesheetChange}
+            onSubmit={handleStylesheetSubmit}
+            schema={stylesheetSchema}
+          />
+        </div>
       </section>
     </div>
   );

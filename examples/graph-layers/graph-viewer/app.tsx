@@ -123,6 +123,15 @@ export function App(props) {
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
+  const stylesheetDraftRef = useRef<string>('');
+
+  const handleStylesheetChange = useCallback((nextValue: string) => {
+    stylesheetDraftRef.current = nextValue;
+  }, []);
+
+  const handleStylesheetSubmit = useCallback((nextValue: string) => {
+    stylesheetDraftRef.current = nextValue;
+  }, []);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -421,6 +430,8 @@ export function App(props) {
           examples={EXAMPLES}
           defaultExample={DEFAULT_EXAMPLE}
           onExampleChange={handleExampleChange}
+          onStylesheetChange={handleStylesheetChange}
+          onStylesheetSubmit={handleStylesheetSubmit}
         >
           {isDagLayout ? (
             <CollapseControls
