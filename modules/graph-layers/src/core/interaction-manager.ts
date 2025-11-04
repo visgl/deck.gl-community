@@ -6,6 +6,85 @@ import type {EdgeState, NodeState} from './constants';
 import {Edge} from '../graph/edge';
 import {Node} from '../graph/node';
 import {GraphEngine} from './graph-engine';
+import {log} from '../utils/log';
+
+export type ChainInteractionSource =
+  | 'node'
+  | 'collapsed-marker'
+  | 'expanded-marker'
+  | 'collapsed-outline'
+  | 'expanded-outline';
+
+function resolveLayerId(layer: any): string {
+  if (!layer) {
+    return '';
+  }
+  if (typeof layer.id === 'string') {
+    return layer.id;
+  }
+  if (typeof layer.props?.id === 'string') {
+    return layer.props.id;
+  }
+  return '';
+}
+
+function classifyLayer(layer: any): ChainInteractionSource | null {
+  let current = layer ?? null;
+  while (current) {
+    const layerId = resolveLayerId(current);
+    if (layerId.includes('collapsed-chain-markers')) {
+      return 'collapsed-marker';
+    }
+    if (layerId.includes('expanded-chain-markers')) {
+      return 'expanded-marker';
+    }
+    if (layerId.includes('collapsed-chain-outlines')) {
+      return 'collapsed-outline';
+    }
+    if (layerId.includes('expanded-chain-outlines')) {
+      return 'expanded-outline';
+    }
+    current = current.parent ?? null;
+  }
+  return null;
+}
+
+export function resolveChainInteractionSource(info: any): ChainInteractionSource {
+  if (!info) {
+    return 'node';
+  }
+
+  const layersToCheck = [] as any[];
+  if (info.layer || info.sourceLayer) {
+    if (info.layer) {
+      layersToCheck.push(info.layer);
+    }
+    if (info.sourceLayer && info.sourceLayer !== info.layer) {
+      layersToCheck.push(info.sourceLayer);
+    }
+  } else {
+    layersToCheck.push(info);
+  }
+
+  for (const layer of layersToCheck) {
+    const classification = classifyLayer(layer);
+    if (classification) {
+      return classification;
+    }
+  }
+
+  return 'node';
+}
+
+export function shouldToggleCollapsedChain(
+  isCollapsed: boolean,
+  source: ChainInteractionSource
+): boolean {
+  if (isCollapsed) {
+    return true;
+  }
+  return source === 'expanded-marker' || source === 'expanded-outline';
+}
 
 const NODE_TO_EDGE_STATE_MAP: Record<NodeState, EdgeState> = {
   default: 'default',
@@ -91,6 +170,7 @@ export class InteractionManager {
     return this._lastInteraction;
   }
 
+  // eslint-disable-next-line max-statements, complexity
   onClick(info, event): void {
     const {object} = info;
 
@@ -99,12 +179,54 @@ export class InteractionManager {
     }
 
     if (object.isNode) {
+      const node = object as Node;
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+      const hasChainMetadata =
+        chainId !== null &&
+        chainId !== undefined &&
+        Array.isArray(collapsedNodeIds) &&
+        collapsedNodeIds.length > 1 &&
+        representativeId !== null &&
+        representativeId !== undefined;
+      const isRepresentative = hasChainMetadata && representativeId === node.getId();
+
+      if (hasChainMetadata && isRepresentative) {
+        const layout: any = this.engine?.props?.layout;
+        if (layout && typeof layout.toggleCollapsedChain === 'function') {
+          const interactionSource = resolveChainInteractionSource(info ?? null);
+
+          // eslint-disable-next-line max-depth
+          if (shouldToggleCollapsedChain(isCollapsed, interactionSource)) {
+            const action = isCollapsed ? 'expand' : 'collapse';
+            log.log(
+              0,
+              `InteractionManager: ${action} chain ${chainId} via ${interactionSource}`
+            );
+            // eslint-disable-next-line no-console
+            console.log(
+              `InteractionManager: ${action} chain ${chainId} via ${interactionSource}`
+            );
+            layout.toggleCollapsedChain(String(chainId));
+            this._lastInteraction = Date.now();
+            this.notifyCallback();
+            // eslint-disable-next-line max-depth
+            if (this.nodeEvents.onClick) {
+              this.nodeEvents.onClick(info, event);
+            }
+            return;
+          }
+        }
+      }
+
       if ((object as Node).isSelectable()) {
         if (this._lastSelectedNode) {
           setNodeState(this._lastSelectedNode, 'default');
         }
-        setNodeState(object, 'selected');
-        this._lastSelectedNode = object as Node;
+        setNodeState(node, 'selected');
+        this._lastSelectedNode = node;
         this._lastInteraction = Date.now();
         this.notifyCallback();
       }

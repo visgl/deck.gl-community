@@ -49,7 +49,7 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'radial-layout': (options) => new RadialLayout(options),
   'hive-plot-layout': (options) => new HivePlotLayout(options),
   'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
-  'd3-dag-layout': () => new D3DagLayout(),
+  'd3-dag-layout': (options) => new D3DagLayout(options),
 };
 
 
@@ -97,6 +97,10 @@ export const useLoading = (engine) => {
 export function App(props) {
   const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
   const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
+  const [collapseEnabled, setCollapseEnabled] = useState(true);
+  const [dagChainSummary, setDagChainSummary] = useState<
+    {chainIds: string[]; collapsedIds: string[]}
+  | null>(null);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
   const layoutOptions = useMemo(
@@ -117,6 +121,7 @@ export function App(props) {
   }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
+  const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -166,6 +171,95 @@ export function App(props) {
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
   const selectedStyles = selectedExample?.style;
+  const isDagLayout = selectedLayout === 'd3-dag-layout';
+  const totalChainCount = dagChainSummary?.chainIds.length ?? 0;
+  const collapsedChainCount = dagChainSummary?.collapsedIds.length ?? 0;
+  const collapseAllDisabled =
+    !collapseEnabled || !dagChainSummary || dagChainSummary.chainIds.length === 0;
+  const expandAllDisabled =
+    !collapseEnabled || !dagChainSummary || dagChainSummary.collapsedIds.length === 0;
+
+  useEffect(() => {
+    if (isDagLayout) {
+      setCollapseEnabled(true);
+    }
+  }, [isDagLayout, selectedExample]);
+
+  useEffect(() => {
+    if (!dagLayout) {
+      return;
+    }
+    dagLayout.setPipelineOptions({collapseLinearChains: collapseEnabled});
+    if (!collapseEnabled) {
+      dagLayout.setCollapsedChains([]);
+    }
+  }, [dagLayout, collapseEnabled]);
+
+  useEffect(() => {
+    if (!engine || !dagLayout) {
+      setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
+      return;
+    }
+
+    const updateChainSummary = () => {
+      const chainIds: string[] = [];
+      const collapsedIds: string[] = [];
+
+      for (const node of engine.getNodes()) {
+        const chainId = node.getPropertyValue('collapsedChainId');
+        const nodeIds = node.getPropertyValue('collapsedNodeIds');
+        const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+        const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+
+        if (
+          chainId !== null &&
+          chainId !== undefined &&
+          Array.isArray(nodeIds) &&
+          nodeIds.length > 1 &&
+          representativeId === node.getId()
+        ) {
+          const chainKey = String(chainId);
+          chainIds.push(chainKey);
+          if (isCollapsed) {
+            collapsedIds.push(chainKey);
+          }
+        }
+      }
+
+      setDagChainSummary({chainIds, collapsedIds});
+    };
+
+    updateChainSummary();
+
+    const handleLayoutChange = () => updateChainSummary();
+    const handleLayoutDone = () => updateChainSummary();
+
+    engine.addEventListener('onLayoutChange', handleLayoutChange);
+    engine.addEventListener('onLayoutDone', handleLayoutDone);
+
+    return () => {
+      engine.removeEventListener('onLayoutChange', handleLayoutChange);
+      engine.removeEventListener('onLayoutDone', handleLayoutDone);
+    };
+  }, [engine, dagLayout, isDagLayout]);
+
+  const handleToggleCollapseEnabled = useCallback(() => {
+    setCollapseEnabled((value) => !value);
+  }, []);
+
+  const handleCollapseAll = useCallback(() => {
+    if (!collapseEnabled || !dagLayout || !dagChainSummary) {
+      return;
+    }
+    dagLayout.setCollapsedChains(dagChainSummary.chainIds);
+  }, [collapseEnabled, dagLayout, dagChainSummary]);
+
+  const handleExpandAll = useCallback(() => {
+    if (!collapseEnabled || !dagLayout) {
+      return;
+    }
+    dagLayout.setCollapsedChains([]);
+  }, [collapseEnabled, dagLayout]);
 
   const fitBounds = useCallback(() => {
     if (!engine) {
@@ -330,7 +424,88 @@ export function App(props) {
           examples={EXAMPLES}
           defaultExample={DEFAULT_EXAMPLE}
           onExampleChange={handleExampleChange}
-        />
+        >
+          {isDagLayout ? (
+            <section style={{marginBottom: '0.5rem', fontSize: '0.875rem', lineHeight: 1.5}}>
+              <h3 style={{margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+                Collapsed chains
+              </h3>
+              <p style={{margin: '0 0 0.75rem', color: '#334155'}}>
+                Linear chains collapse to a single node marked with plus and minus icons. Use these controls to
+                expand or collapse all chains. Individual chains remain interactive on the canvas.
+              </p>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '0.8125rem',
+                    color: '#475569'
+                  }}
+                >
+                  <span>Status</span>
+                  <span>
+                    {collapsedChainCount} / {totalChainCount} collapsed
+                  </span>
+                </div>
+                <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
+                  <button
+                    type="button"
+                    onClick={handleToggleCollapseEnabled}
+                    style={{
+                      background: collapseEnabled ? '#4c6ef5' : '#1f2937',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      padding: '0.375rem 0.75rem',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: '0.8125rem'
+                    }}
+                  >
+                    {collapseEnabled ? 'Disable collapse' : 'Enable collapse'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCollapseAll}
+                    disabled={collapseAllDisabled}
+                    style={{
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      padding: '0.375rem 0.75rem',
+                      cursor: collapseAllDisabled ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: '0.8125rem',
+                      opacity: collapseAllDisabled ? 0.5 : 1
+                    }}
+                  >
+                    Collapse all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExpandAll}
+                    disabled={expandAllDisabled}
+                    style={{
+                      background: '#16a34a',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      padding: '0.375rem 0.75rem',
+                      cursor: expandAllDisabled ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: '0.8125rem',
+                      opacity: expandAllDisabled ? 0.5 : 1
+                    }}
+                  >
+                    Expand all
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+        </ControlPanel>
       </aside>
     </div>
   );

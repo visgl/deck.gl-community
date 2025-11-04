@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import type {ReactNode} from 'react';
 import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
 
 export type LayoutType =
@@ -34,6 +35,7 @@ type ControlPanelProps = {
   examples: ExampleDefinition[];
   defaultExample?: ExampleDefinition;
   onExampleChange: (example: ExampleDefinition, layout: LayoutType) => void;
+  children?: ReactNode;
 };
 
 const LAYOUT_LABELS: Record<LayoutType, string> = {
@@ -46,7 +48,7 @@ const LAYOUT_LABELS: Record<LayoutType, string> = {
   'd3-dag-layout': 'D3 DAG Layout',
 };
 
-export function ControlPanel({examples, defaultExample, onExampleChange}: ControlPanelProps) {
+export function ControlPanel({examples, defaultExample, onExampleChange, children}: ControlPanelProps) {
   const resolveExampleIndex = useCallback(
     (example?: ExampleDefinition) => {
       if (!example) {
@@ -67,6 +69,7 @@ export function ControlPanel({examples, defaultExample, onExampleChange}: Contro
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
     availableLayouts[0]
   );
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (!availableLayouts.length) {
@@ -128,6 +131,10 @@ export function ControlPanel({examples, defaultExample, onExampleChange}: Contro
       2
     );
   }, [selectedExample]);
+
+  const toggleCollapsed = useCallback(() => {
+    setIsCollapsed((value) => !value);
+  }, []);
 
   if (!examples.length) {
     return null;
@@ -210,6 +217,36 @@ export function ControlPanel({examples, defaultExample, onExampleChange}: Contro
             Dataset overview
           </h3>
           <p style={{margin: 0}}>{datasetDescription}</p>
+        </section>
+      ) : null}
+      {children ? (
+        <section
+          style={{
+            borderTop: '1px solid #e2e8f0',
+            paddingTop: '0.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+          }}
+        >
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            style={{
+              alignSelf: 'flex-start',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              border: '1px solid #cbd5f5',
+              background: '#f8fafc',
+              color: '#0f172a',
+              borderRadius: '0.5rem',
+              padding: '0.25rem 0.5rem',
+              cursor: 'pointer'
+            }}
+          >
+            {isCollapsed ? 'Expand details' : 'Collapse details'}
+          </button>
+          {!isCollapsed ? <div>{children}</div> : null}
         </section>
       ) : null}
       {layoutDescription ? (
