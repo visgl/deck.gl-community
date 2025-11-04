@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {Bounds2D} from '@math.gl/types';
+
 import type {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
 import {Graph} from '../graph/graph';
-import {GraphLayout} from './graph-layout';
+import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
 
@@ -70,6 +72,8 @@ export class GraphEngine extends EventTarget {
 
   getLayoutState = () => this._layout.state;
 
+  getLayoutBounds = (): Bounds2D | null => this._layout.getBounds();
+
   /** Operations on the graph */
 
   lockNodePosition = (node, x, y) => this._layout.lockNodePosition(node, x, y);
@@ -79,48 +83,52 @@ export class GraphEngine extends EventTarget {
   /**
    * @fires GraphEngine#onLayoutStart
    */
-  _onLayoutStart = () => {
-    log.log(0, 'GraphEngine: layout start');
+  _onLayoutStart = (event: Event) => {
+    log.log(0, 'GraphEngine: layout start')();
+    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
     /**
      * @event GraphEngine#onLayoutStart
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutStart'));
+    this.dispatchEvent(new CustomEvent('onLayoutStart', {detail}));
   };
 
   /**
    * @fires GraphEngine#onLayoutChange
    */
-  _onLayoutChange = () => {
-    log.log(0, 'GraphEngine: layout update event');
+  _onLayoutChange = (event: Event) => {
+    log.log(0, 'GraphEngine: layout update event')();
+    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
     /**
      * @event GraphEngine#onLayoutChange
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutChange'));
+    this.dispatchEvent(new CustomEvent('onLayoutChange', {detail}));
   };
 
   /**
    * @fires GraphEngine#onLayoutDone
    */
-  _onLayoutDone = () => {
-    log.log(0, 'GraphEngine: layout end');
+  _onLayoutDone = (event: Event) => {
+    log.log(0, 'GraphEngine: layout end')();
+    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
     /**
      * @event GraphEngine#onLayoutDone
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutDone'));
+    this.dispatchEvent(new CustomEvent('onLayoutDone', {detail}));
   };
 
   /**
    * @fires GraphEngine#onLayoutError
    */
-  _onLayoutError = () => {
+  _onLayoutError = (event: Event) => {
+    const detail = event instanceof CustomEvent ? event.detail : undefined;
     /**
      * @event GraphEngine#onLayoutError
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutError'));
+    this.dispatchEvent(new CustomEvent('onLayoutError', {detail}));
   };
 
   _onGraphStructureChanged = (entity) => {

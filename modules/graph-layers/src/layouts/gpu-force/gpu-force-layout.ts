@@ -48,6 +48,10 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._d3Graph = {nodes: [], edges: []};
     this._nodeMap = {};
     this._edgeMap = {};
+    this._callbacks = {
+      onLayoutChange: this._onLayoutChange,
+      onLayoutDone: this._onLayoutDone
+    };
   }
 
   initializeGraph(graph) {
@@ -262,4 +266,11 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     d3Node.fx = null;
     d3Node.fy = null;
   };
+
+  protected override _updateBounds(): void {
+    const positions = Object.values(this._nodeMap ?? {}).map((node) =>
+      this._normalizePosition(node)
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }

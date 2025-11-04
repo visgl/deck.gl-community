@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/* eslint-disable max-statements, complexity */
+
 import React, {
   useCallback,
   useEffect,
@@ -32,19 +34,18 @@ import {
   D3DagLayout
 } from '@deck.gl-community/graph-layers';
 
-import {extent} from 'd3-array';
-
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
 import {CollapseControls} from './collapse-controls';
 import {StylesheetEditor} from './stylesheet-editor';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
+import {useGraphViewport} from './use-graph-viewport';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
-  target: [0, 0],
+  target: [0, 0] as [number, number],
   /** zoom level */
   zoom: 1
-};
+} as const;
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
@@ -111,7 +112,7 @@ export function App(props) {
   const [collapseEnabled, setCollapseEnabled] = useState(true);
   const [dagChainSummary, setDagChainSummary] = useState<
     {chainIds: string[]; collapsedIds: string[]}
-  | null>(null);
+    | null>(null);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
   const layoutOptions = useMemo(
@@ -173,10 +174,6 @@ export function App(props) {
       return () => undefined;
     }
 
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-    }
-
     engine.run();
 
     return () => {
@@ -189,10 +186,20 @@ export function App(props) {
   const initialViewState = INITIAL_VIEW_STATE;
   const minZoom = -20;
   const maxZoom = 20;
-  const viewportPadding = 50;
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
-  const zoomToFitOnLoad = false;
+
+  const {viewState, onResize, onViewStateChange} = useGraphViewport(engine, {
+    minZoom,
+    maxZoom,
+    viewportPadding: 8,
+    boundsPaddingRatio: 0.02,
+    initialViewState
+  });
+  // const [viewState, setViewState] = useState({
+  //   ...INITIAL_VIEW_STATE,
+  //   ...initialViewState
+  // });
 
   const widgets = useMemo(
     () => [
@@ -207,11 +214,6 @@ export function App(props) {
     ],
     []
   );
-
-  const [viewState, setViewState] = useState({
-    ...INITIAL_VIEW_STATE,
-    ...initialViewState
-  });
 
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
@@ -299,37 +301,6 @@ export function App(props) {
     dagLayout.setCollapsedChains([]);
   }, [collapseEnabled, dagLayout]);
 
-  const fitBounds = useCallback(() => {
-    if (!engine) {
-      return;
-    }
-
-    const data = engine.getNodes();
-    if (!data.length) {
-      return;
-    }
-
-    const {width, height} = viewState as any;
-
-    // get the projected position of all nodes
-    const positions = data.map((d) => engine.getNodePosition(d));
-    // get the value range of x and y
-    const xExtent = extent(positions, (d) => d[0]);
-    const yExtent = extent(positions, (d) => d[1]);
-    const newTarget = [(xExtent[0] + xExtent[1]) / 2, (yExtent[0] + yExtent[1]) / 2];
-    const zoom = Math.min(
-      width / (xExtent[1] - xExtent[0] + viewportPadding * 2),
-      height / (yExtent[1] - yExtent[0] + viewportPadding * 2)
-    );
-    // zoom value is at log scale
-    const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
-    setViewState({
-      ...viewState,
-      target: newTarget,
-      zoom: newZoom
-    });
-  }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
-
   // Relatively pan the graph by a specified position vector.
   // const panBy = useCallback(
   //   (dx, dy) =>
@@ -352,18 +323,18 @@ export function App(props) {
   //   [maxZoom, minZoom, viewState, setViewState]
   // );
 
-  useEffect(() => {
-    if (!engine) {
-      return () => undefined;
-    }
+  // useEffect(() => {
+  //   if (!engine) {
+  //     return () => undefined;
+  //   }
 
-    if (zoomToFitOnLoad && isLoading) {
-      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
-    }
-    return () => {
-      engine.removeEventListener('onLayoutDone', fitBounds);
-    };
-  }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+  //   if (zoomToFitOnLoad && isLoading) {
+  //     engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+  //   }
+  //   return () => {
+  //     engine.removeEventListener('onLayoutDone', fitBounds);
+  //   };
+  // }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
 
   useEffect(() => {
     const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
@@ -416,8 +387,8 @@ export function App(props) {
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
           viewState={viewState as any}
-          onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
-          onViewStateChange={({viewState}) => setViewState(viewState as any)}
+          onResize={onResize}
+          onViewStateChange={onViewStateChange}
           views={[
             new OrthographicView({
               minZoom,
@@ -434,12 +405,12 @@ export function App(props) {
           layers={
             engine
               ? [
-                  new GraphLayer({
-                    engine,
-                    stylesheet: selectedStyles,
-                    resumeLayoutAfterDragging
-                  })
-                ]
+                new GraphLayer({
+                  engine,
+                  stylesheet: selectedStyles,
+                  resumeLayoutAfterDragging
+                })
+              ]
               : []
           }
           widgets={widgets}

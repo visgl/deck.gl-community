@@ -244,6 +244,13 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override _updateBounds(): void {
+    const positions = Object.values(this._nodeMap ?? {}).map((node) =>
+      this._normalizePosition(node)
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }
 
 /**
