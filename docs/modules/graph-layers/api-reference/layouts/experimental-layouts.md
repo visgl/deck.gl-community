@@ -2,11 +2,40 @@
 
 `@deck.gl-community/graph-layers` ships a set of experimental layouts that extend the base `GraphLayout` API. These layouts are
 ported from the archived [graph.gl](https://graph.gl) project and remain under active development. They are exported from the
-package as `RadialLayout`, `HivePlotLayout`, and `ForceMultiGraphLayout`.
+package as `CosmosLayout`, `RadialLayout`, `HivePlotLayout`, and `ForceMultiGraphLayout`.
 
 > **Note**
 > Experimental layouts may change between releases. They are provided to unblock migration work from graph.gl and to showcase
 > alternative ways of arranging dense graphs.
+
+## CosmosLayout
+
+`CosmosLayout` adapts the [cosmos.gl](https://cosmos.gl/) GPU simulation so it can be consumed through the standard `GraphLayout`
+interface. The adapter keeps the deck.gl graph in sync with the Cosmos controller, firing layout lifecycle events as the GPU
+simulation starts, ticks, and cools.
+
+> Install `cosmos.gl` alongside `@deck.gl-community/graph-layers` to use this adapter:
+>
+> ```bash
+> yarn add cosmos.gl
+> ```
+
+### Options
+
+- `cosmos` (`Record<string, unknown>`, default `{}`) – configuration object forwarded to `createCosmosLayout` from `cosmos.gl`.
+  Refer to the Cosmos documentation for supported knobs such as `cooldownTicks`, `springLength`, `repulsion`, and `gravity`.
+
+```tsx
+import {CosmosLayout} from '@deck.gl-community/graph-layers';
+
+const layout = new CosmosLayout({
+  cosmos: {
+    cooldownTicks: 240,
+    repulsion: 0.35,
+    springLength: 160
+  }
+});
+```
 
 ## RadialLayout
 

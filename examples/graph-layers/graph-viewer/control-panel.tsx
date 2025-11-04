@@ -13,7 +13,8 @@ export type LayoutType =
   | 'radial-layout'
   | 'hive-plot-layout'
   | 'force-multi-graph-layout'
-  | 'd3-dag-layout';
+  | 'd3-dag-layout'
+  | 'cosmos-layout';
 
 export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
 
@@ -46,6 +47,7 @@ const LAYOUT_LABELS: Record<LayoutType, string> = {
   'hive-plot-layout': 'Hive Plot Layout',
   'force-multi-graph-layout': 'Force Multi-Graph Layout',
   'd3-dag-layout': 'D3 DAG Layout',
+  'cosmos-layout': 'Cosmos GPU Layout'
 };
 
 export function ControlPanel({

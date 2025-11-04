@@ -29,7 +29,8 @@ import {
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
-  D3DagLayout
+  D3DagLayout,
+  CosmosLayout
 } from '@deck.gl-community/graph-layers';
 
 import {extent} from 'd3-array';
@@ -61,6 +62,7 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'hive-plot-layout': (options) => new HivePlotLayout(options),
   'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
   'd3-dag-layout': (options) => new D3DagLayout(options),
+  'cosmos-layout': (options) => new CosmosLayout(options),
 };
 
 

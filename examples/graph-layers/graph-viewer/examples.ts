@@ -155,6 +155,26 @@ const WITS_REGION_STYLE: ExampleStyles = {
   }
 };
 
+const WITS_COSMOS_EXAMPLE: ExampleDefinition = {
+  name: 'World trade (Cosmos GPU layout)',
+  description:
+    'Applies the Cosmos GPU layout from cosmos.gl to the WITS trade network so the forces iterate entirely on the GPU.',
+  data: () => cloneGraphData(WITS_GRAPH_DATA),
+  layouts: ['cosmos-layout'],
+  layoutDescriptions: LAYOUT_DESCRIPTIONS,
+  style: WITS_REGION_STYLE,
+  getLayoutOptions: (layout, _data) =>
+    layout === 'cosmos-layout'
+      ? {
+          cosmos: {
+            cooldownTicks: 240,
+            repulsion: 0.35,
+            springLength: 160
+          }
+        }
+      : undefined
+};
+
 const KNOWLEDGE_GRAPH = {
   nodes: [
     {id: 'University', name: 'University', group: 'Overview'},
@@ -244,7 +264,9 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'force-multi-graph-layout':
     'Runs a tailored force simulation that keeps parallel edges legible by introducing virtual edges and spacing overlapping links.',
   'd3-dag-layout':
-    'Builds a directed acyclic graph layout using layered sugiyama algorithms with automatic edge routing and arrow decoration.'
+    'Builds a directed acyclic graph layout using layered sugiyama algorithms with automatic edge routing and arrow decoration.',
+  'cosmos-layout':
+    'Invokes the Cosmos GPU simulation from cosmos.gl to iterate the graph entirely on the GPU with configurable cooling and force strengths.'
 };
 
 const LES_MISERABLES_STYLE: ExampleStyles = {
@@ -692,7 +714,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     name: 'Les Miserable',
     description: 'Social network of co-occurring characters in Les Miserables by Victor Hugo.',
     data: SAMPLE_GRAPH_DATASETS['Les Miserable'],
-    layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
+    layouts: ['d3-force-layout', 'gpu-force-layout', 'cosmos-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: LES_MISERABLES_STYLE
   },
@@ -835,6 +857,7 @@ export const EXAMPLES: ExampleDefinition[] = [
           }
         : undefined
   },
+  WITS_COSMOS_EXAMPLE,
   {
     name: 'Community multi-graph',
     description:

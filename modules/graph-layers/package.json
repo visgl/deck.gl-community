@@ -67,6 +67,12 @@
     "zod-to-json-schema": "^3.22.5"
   },
   "peerDependencies": {
+    "cosmos.gl": ">=0.5.0",
     "zod": "^3.23.8 || ^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "cosmos.gl": {
+      "optional": true
+    }
   }
 }

@@ -20,6 +20,7 @@ export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
 export {RadialLayout} from './layouts/experimental/radial-layout';
 export {ForceMultiGraphLayout} from './layouts/experimental/force-multi-graph-layout';
 export {HivePlotLayout} from './layouts/experimental/hive-plot-layout';
+export {CosmosLayout} from './layouts/experimental/cosmos-layout';
 
 export type {Marker, NodeState, NodeType, EdgeType, EdgeDecoratorType, LayoutState} from './core/constants';
 
