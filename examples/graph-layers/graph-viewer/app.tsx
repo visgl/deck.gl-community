@@ -437,7 +437,8 @@ export function App(props) {
     <div
       style={{
         display: 'flex',
-        height: '100%',
+        height: '100vh',
+        maxHeight: '100vh',
         width: '100%',
         boxSizing: 'border-box',
         fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
@@ -447,7 +448,8 @@ export function App(props) {
         style={{
           flex: '1 1 auto',
           minWidth: 0,
-          position: 'relative'
+          position: 'relative',
+          height: '100%'
         }}
       >
         {isLoading ? (
@@ -570,6 +572,8 @@ export function App(props) {
           borderLeft: '1px solid #e2e8f0',
           background: '#f1f5f9',
           overflowY: 'auto',
+          height: '100%',
+          maxHeight: '100vh',
           fontFamily: 'inherit'
         }}
       >
@@ -677,6 +681,9 @@ export function renderToDOM() {
     document.body.style.margin = '0';
     document.body.style.fontFamily = 'Inter, "Helvetica Neue", Arial, sans-serif';
     const container = document.createElement('div');
+    container.style.width = '100vw';
+    container.style.height = '100vh';
+    container.style.overflow = 'hidden';
     document.body.appendChild(container);
     const root = createRoot(container);
     root.render(<App />);
