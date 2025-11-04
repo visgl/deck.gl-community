@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {InteractionManager} from '../core/interaction-manager';
 import type {GraphEngine} from '../core/graph-engine';
 import type {Node} from '../graph/node';
 
@@ -35,10 +34,9 @@ type GeometryAccessorMap = Map<string | number, NodeGeometryAccessors>;
 
 type LayoutInfo = ReturnType<GraphEngine['getEdgePosition']>;
 
-type NodeStyleDefinition = {
-  type?: ValueOf<typeof NODE_TYPE>;
-  data?: (nodes: Node[]) => Node[];
-  [key: string]: unknown;
+export type NodeStyleLayoutContext = {
+  stylesheet: Stylesheet;
+  dataAccessor: (nodes: Node[]) => Node[];
 };
 
 function normalizePosition(value: unknown): [number, number] | null {
@@ -102,17 +100,12 @@ function toOffsetAccessor(accessor: unknown): OffsetAccessor {
 }
 
 function buildGeometryAccessors(
-  style: NodeStyleDefinition,
-  interactionManager: InteractionManager
+  stylesheet: Stylesheet
 ): NodeGeometryAccessors | null {
-  const {type, ...rest} = style;
+  const {type} = stylesheet;
   if (!type || !GEOMETRY_NODE_TYPES.has(type)) {
     return null;
   }
-
-  const stylesheet = new Stylesheet(rest, {
-    stateUpdateTrigger: (interactionManager as any).getLastInteraction()
-  });
 
   const accessors: NodeGeometryAccessors = {
     type,
@@ -254,14 +247,12 @@ function computeGeometry(
 export class EdgeAttachmentHelper {
   getLayoutAccessor({
     engine,
-    interactionManager,
-    nodeStyle
+    nodeStyles
   }: {
     engine: GraphEngine;
-    interactionManager: InteractionManager;
-    nodeStyle?: NodeStyleDefinition | NodeStyleDefinition[];
+    nodeStyles?: Array<NodeStyleLayoutContext>;
   }): GraphEngine['getEdgePosition'] {
-    const styles = Array.isArray(nodeStyle) ? nodeStyle : nodeStyle ? [nodeStyle] : [];
+    const styles = nodeStyles ?? [];
     if (styles.length === 0) {
       return (edge) => engine.getEdgePosition(edge);
     }
@@ -274,31 +265,17 @@ export class EdgeAttachmentHelper {
       nodesById.set(node.getId(), node);
     }
 
-    for (const style of styles) {
-      if (!style) {
+    for (const context of styles) {
+      if (!context) {
         continue;
       }
 
-      const {
-        data = (nodes: Node[]) => nodes,
-        pickable: _pickable,
-        visible: _visible,
-        id: _id,
-        ...styleProps
-      } = style as NodeStyleDefinition & {
-        pickable?: unknown;
-        visible?: unknown;
-        id?: unknown;
-      };
-      const accessors = buildGeometryAccessors(
-        styleProps as NodeStyleDefinition,
-        interactionManager
-      );
+      const accessors = buildGeometryAccessors(context.stylesheet);
       if (!accessors) {
         continue;
       }
 
-      const nodes = data(allNodes);
+      const nodes = context.dataAccessor(allNodes);
       populateAccessorMap(accessorMap, nodes, accessors);
     }
 
@@ -319,8 +296,16 @@ export class EdgeAttachmentHelper {
         return layoutInfo;
       }
 
-      const sourceGeometry = computeGeometry(engine, sourceNode, accessorMap.get(sourceNode.getId()));
-      const targetGeometry = computeGeometry(engine, targetNode, accessorMap.get(targetNode.getId()));
+      const sourceGeometry = computeGeometry(
+        engine,
+        sourceNode,
+        accessorMap.get(sourceNode.getId())
+      );
+      const targetGeometry = computeGeometry(
+        engine,
+        targetNode,
+        accessorMap.get(targetNode.getId())
+      );
 
       if (!sourceGeometry && !targetGeometry) {
         return layoutInfo;

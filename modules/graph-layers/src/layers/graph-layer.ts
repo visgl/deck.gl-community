@@ -16,7 +16,7 @@ import {InteractionManager} from '../core/interaction-manager';
 
 import {log} from '../utils/log';
 
-import {EdgeAttachmentHelper} from './edge-attachment-helper';
+import {EdgeAttachmentHelper, type NodeStyleLayoutContext} from './edge-attachment-helper';
 
 // node layers
 import {CircleLayer} from './node-layers/circle-layer';
@@ -199,25 +199,22 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   createNodeLayers() {
     const engine = this.state.graphEngine;
     const {nodeStyle} = this.props;
-    if (!engine || !nodeStyle || !Array.isArray(nodeStyle) || nodeStyle.length === 0) {
+    if (!engine || !nodeStyle) {
       return [];
     }
 
-    return nodeStyle.filter(Boolean).map((style, idx) => {
-      const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
-      const LayerType = NODE_LAYER_MAP[style.type];
-      if (!LayerType) {
-        log.error(`Invalid node type: ${style.type}`)();
-        throw new Error(`Invalid node type: ${style.type}`);
-      }
-      const stylesheet = new Stylesheet(restStyle, {
-        stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
-      });
+    const descriptors = this._getNodeLayerDescriptors();
+    if (descriptors.length === 0) {
+      return [];
+    }
+
+    return descriptors.map((descriptor) => {
+      const {index, layerCtor: LayerType, pickable, visible, stylesheet, dataAccessor} = descriptor;
       const getOffset = stylesheet.getDeckGLAccessor('getOffset');
       return new LayerType({
         ...SHARED_LAYER_PROPS,
-        id: `node-rule-${idx}`,
-        data: data(engine.getNodes()),
+        id: `node-rule-${index}`,
+        data: dataAccessor(engine.getNodes()),
         getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
         pickable,
         positionUpdateTrigger: [
@@ -239,10 +236,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return [];
     }
 
+    const descriptors = this._getNodeLayerDescriptors();
     const getLayoutInfo = this._edgeAttachmentHelper.getLayoutAccessor({
       engine,
-      interactionManager: this.state.interactionManager,
-      nodeStyle: this.props.nodeStyle
+      nodeStyles: descriptors
     });
 
     return (Array.isArray(edgeStyle) ? edgeStyle : [edgeStyle])
@@ -318,5 +315,56 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   renderLayers() {
     return [this.createEdgeLayers(), this.createNodeLayers()];
+  }
+
+  private _getNodeLayerDescriptors(): Array<
+    NodeStyleLayoutContext & {
+      index: number;
+      layerCtor: any;
+      pickable: boolean;
+      visible: boolean;
+    }
+  > {
+    const {nodeStyle} = this.props;
+    if (!nodeStyle) {
+      return [];
+    }
+
+    const styles = Array.isArray(nodeStyle) ? nodeStyle : [nodeStyle];
+
+    return styles
+      .map((style, index) => {
+        if (!style) {
+          return null;
+        }
+
+        const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
+        const LayerType = NODE_LAYER_MAP[style.type];
+        if (!LayerType) {
+          log.error(`Invalid node type: ${style.type}`)();
+          throw new Error(`Invalid node type: ${style.type}`);
+        }
+
+        const stylesheet = new Stylesheet(restStyle, {
+          stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
+        });
+
+        return {
+          index,
+          layerCtor: LayerType,
+          pickable,
+          visible,
+          stylesheet,
+          dataAccessor: data as NodeStyleLayoutContext['dataAccessor']
+        };
+      })
+      .filter(Boolean) as Array<
+      NodeStyleLayoutContext & {
+        index: number;
+        layerCtor: any;
+        pickable: boolean;
+        visible: boolean;
+      }
+    >;
   }
 }
