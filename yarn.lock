@@ -1405,12 +1405,9 @@ __metadata:
   resolution: "@deck.gl-community/experimental@workspace:modules/experimental"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
     "@loaders.gl/core": "npm:^4.2.0"
     "@loaders.gl/i3s": "npm:^4.2.0"
     "@loaders.gl/loader-utils": "npm:^4.2.0"
@@ -1419,8 +1416,7 @@ __metadata:
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
+    preact: "npm:^10.17.0"
   languageName: unknown
   linkType: soft
 
@@ -1429,19 +1425,10 @@ __metadata:
   resolution: "@deck.gl-community/geo-layers@workspace:modules/geo-layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
-    "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/i3s": "npm:^4.2.0"
     "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@loaders.gl/tiles": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
@@ -1450,8 +1437,6 @@ __metadata:
     "@probe.gl/test-utils": "npm:^4.0.4"
     a5-js: "npm:^0.5.0"
     h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -1482,6 +1467,10 @@ __metadata:
     ngraph.generators: "npm:^20.1.0"
     preact: "npm:^10.17.0"
     raf: "npm:^3.4.1"
+    zod: "npm:^4.0.0"
+    zod-to-json-schema: "npm:^3.22.5"
+  peerDependencies:
+    zod: ^3.23.8 || ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -1490,26 +1479,13 @@ __metadata:
   resolution: "@deck.gl-community/infovis-layers@workspace:modules/infovis-layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
-    "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
     "@luma.gl/webgpu": "npm:~9.2.0"
-    "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.0.4"
-    a5-js: "npm:^0.5.0"
-    h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -1518,18 +1494,9 @@ __metadata:
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/extensions": "npm:~9.2.1"
-    "@deck.gl/geo-layers": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/mesh-layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
     "@deck.gl/test-utils": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@loaders.gl/core": "npm:^4.2.0"
-    "@loaders.gl/i3s": "npm:^4.2.0"
-    "@loaders.gl/loader-utils": "npm:^4.2.0"
-    "@loaders.gl/schema": "npm:^4.2.0"
-    "@loaders.gl/tiles": "npm:^4.2.0"
     "@luma.gl/constants": "npm:~9.2.0"
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
@@ -1537,10 +1504,6 @@ __metadata:
     "@luma.gl/webgpu": "npm:~9.2.0"
     "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.0.4"
-    a5-js: "npm:^0.5.0"
-    h3-js: "npm:^4.2.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
 
@@ -3446,6 +3409,28 @@ __metadata:
   dependencies:
     "@math.gl/core": "npm:4.1.0"
   checksum: 10c0/7aa4921b9442da75664ef517f41de65b1eae9970d7eee61d14d2eb0b332e1af6203785e8d198376a8ab5924d62b24856d648ff6478cca95b14d3a8d82822ef93
+  languageName: node
+  linkType: hard
+
+"@monaco-editor/loader@npm:^1.5.0":
+  version: 1.6.1
+  resolution: "@monaco-editor/loader@npm:1.6.1"
+  dependencies:
+    state-local: "npm:^1.0.6"
+  checksum: 10c0/88fed11f7e5892c2221b649328490512591b3eca432c9613c5a0b737d624b741fcc774197b119e681360454931a19de26b271ede567ddb226ab63f0d1ec67c89
+  languageName: node
+  linkType: hard
+
+"@monaco-editor/react@npm:^4.6.0":
+  version: 4.7.0
+  resolution: "@monaco-editor/react@npm:4.7.0"
+  dependencies:
+    "@monaco-editor/loader": "npm:^1.5.0"
+  peerDependencies:
+    monaco-editor: ">= 0.25.0 < 1"
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10c0/a4e91c6eda1a71f5fd23871bd801de435490ccbc43934d23cba65cefe2be7e9d02c9a57c4ef80fc9fe99e4d4deea51e5db19cb4e0ecf3f51818dda0eb9cdbf12
   languageName: node
   linkType: hard
 
@@ -5695,6 +5680,13 @@ __metadata:
   version: 3.2.3
   resolution: "@types/svg-arc-to-cubic-bezier@npm:3.2.3"
   checksum: 10c0/4afa5ba95111291016f209a741370e4602a53e3c71c3c43590d58df2d7813ecb7b3afa349e27b35386d0676913db2b2951f2d5f369fe25779ce15557a788cd3e
+  languageName: node
+  linkType: hard
+
+"@types/trusted-types@npm:^1.0.6":
+  version: 1.0.6
+  resolution: "@types/trusted-types@npm:1.0.6"
+  checksum: 10c0/4bc61ac65b8e42d17c77a23f29cdf94e498acd2e23f4c00cf15c8281de94263ac313d46cbcd7cd1d03c066d497f9396845e3210ff0074f5f90f212cb3e8aac28
   languageName: node
   linkType: hard
 
@@ -12532,23 +12524,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"graph-dag-simple-example@workspace:examples/graph-layers/dag-simple":
-  version: 0.0.0-use.local
-  resolution: "graph-dag-simple-example@workspace:examples/graph-layers/dag-simple"
-  dependencies:
-    "@deck.gl-community/graph-layers": "npm:~9.2.0"
-    "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
-    "@luma.gl/core": "npm:~9.2.0"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    vite: "npm:7.1.1"
-  languageName: unknown
-  linkType: soft
-
 "graph-layers-example@workspace:examples/graph-layers/graph-viewer":
   version: 0.0.0-use.local
   resolution: "graph-layers-example@workspace:examples/graph-layers/graph-viewer"
@@ -12563,6 +12538,8 @@ __metadata:
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
+    "@monaco-editor/react": "npm:^4.6.0"
+    monaco-editor: "npm:^0.53.0"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
     vite: "npm:7.1.1"
@@ -15704,6 +15681,15 @@ __metadata:
   version: 2.30.1
   resolution: "moment@npm:2.30.1"
   checksum: 10c0/865e4279418c6de666fca7786607705fd0189d8a7b7624e2e56be99290ac846f90878a6f602e34b4e0455c549b85385b1baf9966845962b313699e7cb847543a
+  languageName: node
+  linkType: hard
+
+"monaco-editor@npm:^0.53.0":
+  version: 0.53.0
+  resolution: "monaco-editor@npm:0.53.0"
+  dependencies:
+    "@types/trusted-types": "npm:^1.0.6"
+  checksum: 10c0/016495f0b869ea3a4151b660e5b8653999e54da9834001b4e7e88edae5c749aee2f1b56020bfece51cd08fc8e7125cd9732f414e373aea554e2f2812ee8245f1
   languageName: node
   linkType: hard
 
@@ -19658,6 +19644,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"state-local@npm:^1.0.6":
+  version: 1.0.7
+  resolution: "state-local@npm:1.0.7"
+  checksum: 10c0/8dc7daeac71844452fafb514a6d6b6f40d7e2b33df398309ea1c7b3948d6110c57f112b7196500a10c54fdde40291488c52c875575670fb5c819602deca48bd9
+  languageName: node
+  linkType: hard
+
 "static-extend@npm:^0.1.1":
   version: 0.1.2
   resolution: "static-extend@npm:0.1.2"
@@ -22304,6 +22297,22 @@ __metadata:
   version: 0.1.0
   resolution: "yocto-queue@npm:0.1.0"
   checksum: 10c0/dceb44c28578b31641e13695d200d34ec4ab3966a5729814d5445b194933c096b7ced71494ce53a0e8820685d1d010df8b2422e5bf2cdea7e469d97ffbea306f
+  languageName: node
+  linkType: hard
+
+"zod-to-json-schema@npm:^3.22.5":
+  version: 3.24.6
+  resolution: "zod-to-json-schema@npm:3.24.6"
+  peerDependencies:
+    zod: ^3.24.1
+  checksum: 10c0/b907ab6d057100bd25a37e5545bf5f0efa5902cd84d3c3ec05c2e51541431a47bd9bf1e5e151a244273409b45f5986d55b26e5d207f98abc5200702f733eb368
+  languageName: node
+  linkType: hard
+
+"zod@npm:^4.0.0":
+  version: 4.1.12
+  resolution: "zod@npm:4.1.12"
+  checksum: 10c0/b64c1feb19e99d77075261eaf613e0b2be4dfcd3551eff65ad8b4f2a079b61e379854d066f7d447491fcf193f45babd8095551a9d47973d30b46b6d8e2c46774
   languageName: node
   linkType: hard
 

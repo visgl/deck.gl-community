@@ -8,7 +8,7 @@ import {Edge} from '../graph/edge';
 import {Node} from '../graph/node';
 import {Graph} from '../graph/graph';
 
-import {log} from '../utils/log';
+import {error} from '../utils/log';
 
 export type ParseGraphOptions = {
   nodeIdField?: string;
@@ -73,7 +73,7 @@ export function tableGraphLoader(
   // add nodes
 
   if (!nodes) {
-    log.error('Invalid graph: nodes is missing.')();
+    error('Invalid graph: nodes is missing.');
     return null;
   }
 

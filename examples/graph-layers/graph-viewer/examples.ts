@@ -122,32 +122,33 @@ const WITS_REGION_COLOR_MAP: Record<string, string> = WITS_REGIONS.reduce((acc, 
   return acc;
 }, {} as Record<string, string>);
 
-const getWitsRegionColor = (node: any) => {
-  const region = node?.getPropertyValue?.('region');
-  return WITS_REGION_COLOR_MAP[region as keyof typeof WITS_REGION_COLOR_MAP] ?? '#475569';
-};
-
-const getWitsNodeRadius = (node: any) => {
-  const size = Number(node?.getPropertyValue?.('size'));
-  if (!Number.isFinite(size)) {
-    return 4;
-  }
-
-  return Math.max(3.5, Math.sqrt(size));
-};
-
 const WITS_REGION_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
-      radius: getWitsNodeRadius,
-      fill: getWitsRegionColor,
+      radius: {
+        attribute: 'size',
+        fallback: 4,
+        scale: (value: unknown) => {
+          const size = Number(value);
+          if (!Number.isFinite(size)) {
+            return 4;
+          }
+          return Math.max(3.5, Math.sqrt(size));
+        }
+      },
+      fill: {
+        attribute: 'region',
+        fallback: '#475569',
+        scale: (region: unknown) =>
+          WITS_REGION_COLOR_MAP[String(region)] ?? '#475569'
+      },
       stroke: '#0f172a',
       strokeWidth: 0.75,
       opacity: 0.85
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: 'rgba(15, 23, 42, 0.2)',
     strokeWidth: 0.4,
     decorators: []
@@ -229,11 +230,6 @@ const cloneTree = <T extends {id: string; children?: readonly string[]}>(
   tree: readonly T[]
 ): T[] => tree.map((node) => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
 
-const getGroupColor = (node: any) => {
-  const group = node?.getPropertyValue?.('group');
-  return GROUP_COLOR_MAP[group as keyof typeof GROUP_COLOR_MAP] ?? '#94a3b8';
-};
-
 const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'd3-force-layout':
     'Uses a physics-inspired simulation (d3-force) to iteratively spread nodes while balancing attractive and repulsive forces.',
@@ -246,42 +242,44 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'hive-plot-layout':
     'Positions nodes along axes grouped by a property and draws curved connections between axes to reduce visual clutter.',
   'force-multi-graph-layout':
-    'Runs a tailored force simulation that keeps parallel edges legible by introducing virtual edges and spacing overlapping links.'
+    'Runs a tailored force simulation that keeps parallel edges legible by introducing virtual edges and spacing overlapping links.',
+  'd3-dag-layout':
+    'Builds a directed acyclic graph layout using layered sugiyama algorithms with automatic edge routing and arrow decoration.'
 };
 
 const LES_MISERABLES_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
-      radius: 9,
-      fill: '#60a5fa',
-      stroke: '#1d4ed8',
-      strokeWidth: 1.5,
-      opacity: 0.9
+      radius: {
+        default: 9,
+        hover: 11,
+        selected: 12
+      },
+      fill: {
+        default: '#60a5fa',
+        hover: '#2563eb',
+        selected: '#f97316'
+      },
+      stroke: {
+        default: '#1d4ed8',
+        hover: '#1e3a8a',
+        selected: '#c2410c'
+      },
+      strokeWidth: {
+        default: 1.5,
+        hover: 3,
+        selected: 3.5
+      },
+      opacity: {
+        default: 0.9,
+        hover: 1,
+        selected: 1
+      }
     },
     {
       type: 'label',
-      text: (node) => {
-        if (typeof node?.getId === 'function') {
-          const id = node.getId();
-          if (typeof id === 'string' && id.length) {
-            return id;
-          }
-        }
-
-        if (typeof node?.getPropertyValue === 'function') {
-          const originalId = node.getPropertyValue('id');
-          if (originalId !== undefined && originalId !== null) {
-            return String(originalId);
-          }
-        }
-
-        if (node && 'id' in node && node.id !== undefined && node.id !== null) {
-          return String(node.id);
-        }
-
-        return '';
-      },
+      text: '@id',
       color: '#0f172a',
       fontSize: 14,
       offset: [0, 18],
@@ -290,15 +288,23 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
-    stroke: '#bfdbfe',
-    strokeWidth: 1,
+  edges: {
+    stroke: {
+      default: '#bfdbfe',
+      hover: '#2563eb',
+      selected: '#f97316'
+    },
+    strokeWidth: {
+      default: 1,
+      hover: 3,
+      selected: 3.5
+    },
     decorators: []
   }
 };
 
 const RANDOM_20_40_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 8,
@@ -308,7 +314,7 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#bbf7d0',
     strokeWidth: 1,
     decorators: []
@@ -316,7 +322,7 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
 };
 
 const RANDOM_100_200_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -326,7 +332,7 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fde68a',
     strokeWidth: 1,
     decorators: []
@@ -334,7 +340,7 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
 };
 
 const RANDOM_1000_2000_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -344,7 +350,7 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
       opacity: 0.8
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#c7d2fe',
     strokeWidth: 1,
     decorators: []
@@ -352,7 +358,7 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
 };
 
 const RANDOM_5000_3000_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 5,
@@ -362,7 +368,7 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
       opacity: 0.7
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fed7aa',
     strokeWidth: 0.8,
     decorators: []
@@ -370,7 +376,7 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
 };
 
 const LADDER_10_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -380,7 +386,7 @@ const LADDER_10_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fbcfe8',
     strokeWidth: 1,
     decorators: []
@@ -388,7 +394,7 @@ const LADDER_10_STYLE: ExampleStyles = {
 };
 
 const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
@@ -398,7 +404,7 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#bae6fd',
     strokeWidth: 1,
     decorators: []
@@ -406,7 +412,7 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
 };
 
 const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -416,7 +422,7 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#a5f3fc',
     strokeWidth: 1,
     decorators: []
@@ -424,7 +430,7 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
 };
 
 const GRID_10_10_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -434,7 +440,7 @@ const GRID_10_10_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fef3c7',
     strokeWidth: 1,
     decorators: []
@@ -442,7 +448,7 @@ const GRID_10_10_STYLE: ExampleStyles = {
 };
 
 const WATTS_STROGATZ_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 6,
@@ -452,7 +458,7 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#fecaca',
     strokeWidth: 1,
     decorators: []
@@ -460,18 +466,22 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
 };
 
 const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 7,
-      fill: getGroupColor,
+      fill: {
+        attribute: 'group',
+        fallback: '#94a3b8',
+        scale: (group: unknown) => GROUP_COLOR_MAP[String(group)] ?? '#94a3b8'
+      },
       stroke: '#0f172a',
       strokeWidth: 1.25,
       opacity: 0.95
     },
     {
       type: 'label',
-      text: (node) => node?.getPropertyValue?.('name') ?? node?.getId?.() ?? '',
+      text: {attribute: 'name', fallback: ''},
       color: '#334155',
       fontSize: 12,
       textAnchor: 'start',
@@ -480,7 +490,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: DEFAULT_EDGE_COLOR,
     strokeWidth: 1,
     decorators: []
@@ -488,7 +498,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
 };
 
 const MULTI_GRAPH_STYLE: ExampleStyles = {
-  nodeStyle: [
+  nodes: [
     {
       type: 'circle',
       radius: 40,
@@ -501,13 +511,17 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
     },
     {
       type: 'circle',
-      radius: (node) => (node?.getPropertyValue?.('star') ? 6 : 0),
+      radius: {
+        attribute: 'star',
+        fallback: false,
+        scale: (isStar: unknown) => (isStar ? 6 : 0)
+      },
       fill: [255, 255, 0],
       offset: [18, -18]
     },
     {
       type: 'label',
-      text: (node) => node?.getId?.() ?? '',
+      text: '@id',
       color: [255, 255, 255],
       fontSize: 14,
       textAnchor: 'middle',
@@ -515,18 +529,162 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edgeStyle: {
+  edges: {
     stroke: '#cf4569',
     strokeWidth: 2,
     decorators: [
       {
         type: 'edge-label',
-        text: (edge) => edge?.getPropertyValue?.('type') ?? '',
+        text: {attribute: 'type', fallback: ''},
         color: [0, 0, 0],
         fontSize: 14
       }
     ]
   }
+};
+
+const dagPipelineDataset = () => {
+  const nodes = DAG_PIPELINE_DATA.map((entry) => ({id: entry.id, label: entry.label}));
+  const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
+
+  for (const entry of DAG_PIPELINE_DATA) {
+    if (!entry.parentIds) {
+      continue;
+    }
+    for (const parentId of entry.parentIds) {
+      edges.push({
+        id: `${parentId}->${entry.id}`,
+        sourceId: parentId,
+        targetId: entry.id,
+        directed: true
+      });
+    }
+  }
+
+  return {nodes, edges};
+};
+
+type DagRecord = {
+  id: string;
+  label: string;
+  parentIds?: string[];
+};
+
+const DAG_PIPELINE_DATA: DagRecord[] = [
+  {id: 'collect', label: 'Collect events'},
+  {id: 'ingest', label: 'Ingest', parentIds: ['collect']},
+  {id: 'quality', label: 'Quality checks', parentIds: ['ingest']},
+  {id: 'clean', label: 'Clean data', parentIds: ['quality']},
+  {id: 'warehouse', label: 'Warehouse sync', parentIds: ['clean']},
+  {id: 'feature', label: 'Feature store', parentIds: ['warehouse']},
+  {id: 'training', label: 'Train models', parentIds: ['feature']},
+  {id: 'serving', label: 'Serve models', parentIds: ['training']},
+  {id: 'monitor', label: 'Monitor', parentIds: ['serving']},
+  {id: 'alert', label: 'Alerting', parentIds: ['monitor']},
+  {id: 'feedback', label: 'Feedback', parentIds: ['alert', 'monitor']},
+  {id: 'experiments', label: 'Experimentation', parentIds: ['feature', 'feedback']}
+];
+
+const DAG_PIPELINE_STYLE: ExampleStyles = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: 18,
+      fill: '#4c6ef520',
+      stroke: '#102a8220',
+      strokeWidth: 2
+    },
+    {
+      type: 'label',
+      text: '@label',
+      fontSize: 16,
+      color: '#102a82',
+      offset: [0, 28],
+      textAnchor: 'middle',
+      alignmentBaseline: 'top'
+    }
+  ],
+  edges: {
+    stroke: '#8da2fb',
+    strokeWidth: 2,
+    decorators: [
+      {
+        type: 'arrow',
+        size: 6,
+        color: '#8da2fb'
+      }
+    ]
+  }
+};
+
+const ML_PIPELINE_EXAMPLE: ExampleDefinition = {
+  name: 'ML Pipeline DAG',
+  description:
+    'Directed acyclic graph of a simplified machine-learning pipeline with dependencies between each processing stage.',
+  data: dagPipelineDataset,
+  layouts: ['d3-dag-layout'],
+  layoutDescriptions: LAYOUT_DESCRIPTIONS,
+  style: DAG_PIPELINE_STYLE
+};
+
+const BROKEN_STYLESHEET_GRAPH: ExampleGraphData = {
+  nodes: [
+    {id: 'alpha', stage: 'ingest'},
+    {id: 'beta', stage: 'feature'},
+    {id: 'gamma', stage: 'monitor'}
+  ],
+  edges: [
+    {id: 'alpha-beta', sourceId: 'alpha', targetId: 'beta', type: 'depends-on'},
+    {id: 'beta-gamma', sourceId: 'beta', targetId: 'gamma', type: 'depends-on'}
+  ]
+};
+
+const BROKEN_STYLESHEET: ExampleStyles = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: {attribute: ''} as any,
+      fill: {attribute: '', fallback: '#ef4444'} as any,
+      stroke: {attribute: ''} as any,
+      strokeWidth: {attribute: '', fallback: -6} as any,
+      opacity: {default: 1.5} as any
+    },
+    {
+      type: 'label',
+      text: {attribute: ''} as any,
+      fontSize: {attribute: '', fallback: -12} as any,
+      color: 1024 as any,
+      offset: {attribute: ''} as any
+    }
+  ],
+  edges: {
+    stroke: {attribute: ''} as any,
+    strokeWidth: {attribute: '', fallback: -3} as any,
+    decorators: [
+      {
+        type: 'edge-label',
+        text: {attribute: ''} as any,
+        color: '#0f172a',
+        fontSize: {attribute: '', fallback: -8} as any
+      },
+      {
+        type: 'arrow',
+        size: {attribute: ''} as any,
+        color: {attribute: ''} as any,
+        offset: {attribute: ''} as any
+      }
+    ]
+  }
+} as ExampleStyles;
+
+const BROKEN_STYLESHEET_EXAMPLE: ExampleDefinition = {
+  name: 'Broken stylesheet warnings',
+  description:
+    'Intentionally malformed stylesheet that demonstrates how parsing failures now surface warnings while the graph keeps rendering.',
+  data: () => cloneGraphData(BROKEN_STYLESHEET_GRAPH),
+  layouts: ['d3-force-layout'],
+  layoutDescriptions: LAYOUT_DESCRIPTIONS,
+  style: BROKEN_STYLESHEET
 };
 
 export const EXAMPLES: ExampleDefinition[] = [
@@ -711,7 +869,9 @@ export const EXAMPLES: ExampleDefinition[] = [
             nBodyDistanceMax: 1200
           }
         : undefined
-  }
+  }, 
+  ML_PIPELINE_EXAMPLE,
+  BROKEN_STYLESHEET_EXAMPLE
 ];
 
-export const DEFAULT_EXAMPLE = EXAMPLES[0];
+export const DEFAULT_EXAMPLE = ML_PIPELINE_EXAMPLE;

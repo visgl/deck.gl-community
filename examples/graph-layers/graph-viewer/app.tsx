@@ -2,31 +2,55 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useLayoutEffect, useMemo, useState, useReducer} from 'react';
+/* eslint-disable max-statements, complexity */
+
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useReducer,
+  useRef
+} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {GraphEngine, GraphLayer, GraphLayout, SimpleLayout, D3ForceLayout, GPUForceLayout, JSONLoader, RadialLayout, HivePlotLayout, ForceMultiGraphLayout} from '@deck.gl-community/graph-layers';
-
-// import {ViewControlWidget} from '@deck.gl-community/graph-layers';
+import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
 // import '@deck.gl/widgets/stylesheet.css';
+import {
+  GraphEngine,
+  GraphLayer,
+  GraphLayout,
+  SimpleLayout,
+  D3ForceLayout,
+  GPUForceLayout,
+  JSONLoader,
+  RadialLayout,
+  HivePlotLayout,
+  ForceMultiGraphLayout,
+  D3DagLayout
+} from '@deck.gl-community/graph-layers';
 
 import {ControlPanel, ExampleDefinition, LayoutType} from './control-panel';
+import {CollapseControls} from './collapse-controls';
+import {StylesheetEditor} from './stylesheet-editor';
 import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
 import {useGraphViewport} from './use-graph-viewport';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
-  target: [0, 0],
+  target: [0, 0] as [number, number],
   /** zoom level */
   zoom: 1
-};
+} as const;
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
+const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
 
@@ -36,7 +60,8 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'simple-layout': () => new SimpleLayout(),
   'radial-layout': (options) => new RadialLayout(options),
   'hive-plot-layout': (options) => new HivePlotLayout(options),
-  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options)
+  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
+  'd3-dag-layout': (options) => new D3DagLayout(options),
 };
 
 
@@ -84,6 +109,10 @@ export const useLoading = (engine) => {
 export function App(props) {
   const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
   const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
+  const [collapseEnabled, setCollapseEnabled] = useState(true);
+  const [dagChainSummary, setDagChainSummary] = useState<
+    {chainIds: string[]; collapsedIds: string[]}
+    | null>(null);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
   const layoutOptions = useMemo(
@@ -103,6 +132,42 @@ export function App(props) {
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
+  const isFirstMount = useRef(true);
+  const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
+  const selectedStyles = selectedExample?.style;
+
+  const serializedStylesheet = useMemo(() => {
+    if (!selectedStyles) {
+      return '';
+    }
+
+    return JSON.stringify(
+      selectedStyles,
+      (_key, value) => (typeof value === 'function' ? value.toString() : value),
+      2
+    );
+  }, [selectedStyles]);
+
+  const [stylesheetValue, setStylesheetValue] = useState(
+    serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE
+  );
+  const stylesheetDraftRef = useRef<string>(stylesheetValue);
+
+  useEffect(() => {
+    const nextValue = serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE;
+    setStylesheetValue(nextValue);
+    stylesheetDraftRef.current = nextValue;
+  }, [serializedStylesheet]);
+
+  const handleStylesheetChange = useCallback((nextValue: string) => {
+    stylesheetDraftRef.current = nextValue;
+    setStylesheetValue(nextValue);
+  }, []);
+
+  const handleStylesheetSubmit = useCallback((nextValue: string) => {
+    stylesheetDraftRef.current = nextValue;
+    setStylesheetValue(nextValue);
+  }, []);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -131,9 +196,110 @@ export function App(props) {
     boundsPaddingRatio: 0.02,
     initialViewState
   });
+  // const [viewState, setViewState] = useState({
+  //   ...INITIAL_VIEW_STATE,
+  //   ...initialViewState
+  // });
+
+  const widgets = useMemo(
+    () => [
+      new PanWidget({
+        id: 'pan-widget',
+        style: {margin: '20px 0 0 20px'}
+      }),
+      new ZoomRangeWidget({
+        id: 'zoom-range-widget',
+        style: {margin: '90px 0 0 20px'}
+      })
+    ],
+    []
+  );
+
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
-  const selectedStyles = selectedExample?.style;
+  const isDagLayout = selectedLayout === 'd3-dag-layout';
+
+  useEffect(() => {
+    if (isDagLayout) {
+      setCollapseEnabled(true);
+    }
+  }, [isDagLayout, selectedExample]);
+
+  useEffect(() => {
+    if (!dagLayout) {
+      return;
+    }
+    dagLayout.setPipelineOptions({collapseLinearChains: collapseEnabled});
+    if (!collapseEnabled) {
+      dagLayout.setCollapsedChains([]);
+    }
+  }, [dagLayout, collapseEnabled]);
+
+  useEffect(() => {
+    if (!engine || !dagLayout) {
+      setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
+      return;
+    }
+
+    const updateChainSummary = () => {
+      const chainIds: string[] = [];
+      const collapsedIds: string[] = [];
+
+      for (const node of engine.getNodes()) {
+        const chainId = node.getPropertyValue('collapsedChainId');
+        const nodeIds = node.getPropertyValue('collapsedNodeIds');
+        const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+        const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+
+        if (
+          chainId !== null &&
+          chainId !== undefined &&
+          Array.isArray(nodeIds) &&
+          nodeIds.length > 1 &&
+          representativeId === node.getId()
+        ) {
+          const chainKey = String(chainId);
+          chainIds.push(chainKey);
+          if (isCollapsed) {
+            collapsedIds.push(chainKey);
+          }
+        }
+      }
+
+      setDagChainSummary({chainIds, collapsedIds});
+    };
+
+    updateChainSummary();
+
+    const handleLayoutChange = () => updateChainSummary();
+    const handleLayoutDone = () => updateChainSummary();
+
+    engine.addEventListener('onLayoutChange', handleLayoutChange);
+    engine.addEventListener('onLayoutDone', handleLayoutDone);
+
+    return () => {
+      engine.removeEventListener('onLayoutChange', handleLayoutChange);
+      engine.removeEventListener('onLayoutDone', handleLayoutDone);
+    };
+  }, [engine, dagLayout, isDagLayout]);
+
+  const handleToggleCollapseEnabled = useCallback(() => {
+    setCollapseEnabled((value) => !value);
+  }, []);
+
+  const handleCollapseAll = useCallback(() => {
+    if (!collapseEnabled || !dagLayout || !dagChainSummary) {
+      return;
+    }
+    dagLayout.setCollapsedChains(dagChainSummary.chainIds);
+  }, [collapseEnabled, dagLayout, dagChainSummary]);
+
+  const handleExpandAll = useCallback(() => {
+    if (!collapseEnabled || !dagLayout) {
+      return;
+    }
+    dagLayout.setCollapsedChains([]);
+  }, [collapseEnabled, dagLayout]);
 
   // Relatively pan the graph by a specified position vector.
   // const panBy = useCallback(
@@ -157,6 +323,23 @@ export function App(props) {
   //   [maxZoom, minZoom, viewState, setViewState]
   // );
 
+  // useEffect(() => {
+  //   if (!engine) {
+  //     return () => undefined;
+  //   }
+
+  //   if (zoomToFitOnLoad && isLoading) {
+  //     engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+  //   }
+  //   return () => {
+  //     engine.removeEventListener('onLayoutDone', fitBounds);
+  //   };
+  // }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+
+  useEffect(() => {
+    const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
+    zoomWidget?.setProps({minZoom, maxZoom});
+  }, [widgets, minZoom, maxZoom]);
   const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
     setSelectedExample(example);
     setSelectedLayout(layoutType);
@@ -167,6 +350,7 @@ export function App(props) {
       style={{
         display: 'flex',
         height: '100%',
+        minHeight: '100vh',
         width: '100%',
         boxSizing: 'border-box',
         fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
@@ -221,32 +405,17 @@ export function App(props) {
           layers={
             engine
               ? [
-                  new GraphLayer({
-                    engine,
-                    nodeStyle: selectedStyles?.nodeStyle,
-                    edgeStyle: selectedStyles?.edgeStyle,
-                    resumeLayoutAfterDragging
-                  })
-                ]
+                new GraphLayer({
+                  engine,
+                  stylesheet: selectedStyles,
+                  resumeLayoutAfterDragging
+                })
+              ]
               : []
           }
-          widgets={[
-            // // new ViewControlWidget({}) TODO - fix and enable
-          ]
-            // onHover={(info) => console.log('Hover', info)}
-          }
+          widgets={widgets}
           getTooltip={(info) => getToolTip(info.object)}
         />
-        {/* View control component TODO - doesn't work in website, replace with widget *
-          <PositionedViewControl
-            fitBounds={fitBounds}
-            panBy={panBy}
-            zoomBy={zoomBy}
-            zoomLevel={viewState.zoom}
-            maxZoom={maxZoom}
-            minZoom={minZoom}
-          />
-        */}
       </div>
       <aside
         style={{
@@ -257,11 +426,47 @@ export function App(props) {
           boxSizing: 'border-box',
           borderLeft: '1px solid #e2e8f0',
           background: '#f1f5f9',
+          maxHeight: '100vh',
           overflowY: 'auto',
           fontFamily: 'inherit'
         }}
       >
-        <ControlPanel examples={EXAMPLES} onExampleChange={handleExampleChange} />
+        <ControlPanel
+          examples={EXAMPLES}
+          defaultExample={DEFAULT_EXAMPLE}
+          onExampleChange={handleExampleChange}
+        >
+          <>
+            {isDagLayout ? (
+              <CollapseControls
+                enabled={collapseEnabled}
+                summary={dagChainSummary}
+                onToggle={handleToggleCollapseEnabled}
+                onCollapseAll={handleCollapseAll}
+                onExpandAll={handleExpandAll}
+              />
+            ) : null}
+            <section
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                fontSize: '0.75rem',
+                gap: '0.25rem'
+              }}
+            >
+              <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+                Stylesheet JSON
+              </h3>
+              <div style={{borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #1f2937'}}>
+                <StylesheetEditor
+                  value={stylesheetValue}
+                  onChange={handleStylesheetChange}
+                  onSubmit={handleStylesheetSubmit}
+                />
+              </div>
+            </section>
+          </>
+        </ControlPanel>
       </aside>
     </div>
   );

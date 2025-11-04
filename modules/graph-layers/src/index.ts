@@ -32,7 +32,22 @@ export {GraphLayer} from './layers/graph-layer';
 export {EdgeLayer} from './layers/edge-layer';
 export {StyleEngine} from './style/style-engine';
 export {GraphStyleEngine} from './style/graph-style-engine';
-export type {GraphStylesheet} from './style/graph-style-engine';
+export type {
+  GraphStylesheet,
+  GraphStylesheetInput,
+  GraphStylesheetParsed,
+  GraphStyleAttributeReference,
+  GraphStyleScale,
+  GraphStyleScaleType,
+  GraphStyleValue
+} from './style/graph-style-engine';
+export {GraphStylesheetSchema} from './style/graph-style-engine';
+export {
+  DEFAULT_GRAPH_LAYER_STYLESHEET,
+  type GraphLayerStylesheet,
+  type GraphLayerEdgeStyle,
+  type GraphLayerNodeStyle
+} from './style/graph-layer-stylesheet';
 
 // Widgets
 

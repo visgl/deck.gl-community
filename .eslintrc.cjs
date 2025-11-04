@@ -42,7 +42,8 @@ module.exports = getESLintConfig({
               args: 'none'
             }
           ],
-          '@typescript-eslint/no-empty-function': 0
+          '@typescript-eslint/no-empty-function': 0,
+          '@typescript-eslint/no-base-to-string': ['warn']
         }
       },
       {

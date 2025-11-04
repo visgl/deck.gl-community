@@ -253,6 +253,8 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {}
+  handleDoubleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {}
+
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
     const tentativeFeature = this.createTentativeFeature(props);
     if (tentativeFeature) {

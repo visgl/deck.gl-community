@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {StyleProperty} from './style-property';
-import {log} from '../utils/log';
+import {error} from '../utils/log';
 
 export type DeckGLAccessorMap = Record<string, Record<string, string>>;
 export type DeckGLUpdateTriggers = Record<string, string[]>;
@@ -127,7 +127,7 @@ export class StyleEngine<TStyleProperty extends StyleProperty = StyleProperty> {
     }
     const styleProp = map[deckglAccessor];
     if (!styleProp) {
-      log.error(`Invalid DeckGL accessor: ${deckglAccessor}`)();
+      error(`Invalid DeckGL accessor: ${deckglAccessor}`);
       throw new Error(`Invalid DeckGL accessor: ${deckglAccessor}`);
     }
     return this.properties[styleProp];

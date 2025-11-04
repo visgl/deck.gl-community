@@ -24,6 +24,9 @@ const config = {
   organizationName: 'visgl', // Usually your GitHub org/user name.
   projectName: 'deck.gl-community', // Usually your repo name.
   trailingSlash: false,
+  future: {
+    v4: true
+  },
 
   presets: [
     [

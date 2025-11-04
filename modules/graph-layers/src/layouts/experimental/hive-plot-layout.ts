@@ -145,7 +145,9 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
   };
 
   protected override _updateBounds(): void {
-    const positions = Object.values(this._nodePositionMap ?? {}) as Array<[number, number] | null>;
+    const positions = Object.values(this._nodePositionMap ?? {}).map((position) =>
+      this._normalizePosition(position)
+    );
     this._bounds = this._calculateBounds(positions);
   }
 }

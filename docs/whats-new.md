@@ -16,6 +16,7 @@ High-level changes
 ### `@deck.gl-community/graph-layers` 
 
 - Graph styling: new edge decorator `'arrow'` that renders arrows on directional edges.
+- Graph styling: unified `stylesheet` prop with shorthand attribute references for node, edge, and decorator styles.
 - Graph style constants are now defined using literals instead of objects
 - New example visualizing DAGs (Directed Acyclic Graphs).
 

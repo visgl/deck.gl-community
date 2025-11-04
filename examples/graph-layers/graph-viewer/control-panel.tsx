@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import type {ReactNode} from 'react';
 import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
 
 export type LayoutType =
@@ -11,9 +12,10 @@ export type LayoutType =
   | 'simple-layout'
   | 'radial-layout'
   | 'hive-plot-layout'
-  | 'force-multi-graph-layout';
+  | 'force-multi-graph-layout'
+  | 'd3-dag-layout';
 
-export type ExampleStyles = Pick<GraphLayerProps, 'nodeStyle' | 'edgeStyle'>;
+export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
 
 export type ExampleDefinition = {
   name: string;
@@ -31,7 +33,9 @@ export type ExampleDefinition = {
 
 type ControlPanelProps = {
   examples: ExampleDefinition[];
+  defaultExample?: ExampleDefinition;
   onExampleChange: (example: ExampleDefinition, layout: LayoutType) => void;
+  children?: ReactNode;
 };
 
 const LAYOUT_LABELS: Record<LayoutType, string> = {
@@ -40,17 +44,36 @@ const LAYOUT_LABELS: Record<LayoutType, string> = {
   'simple-layout': 'Simple Layout',
   'radial-layout': 'Radial Layout',
   'hive-plot-layout': 'Hive Plot Layout',
-  'force-multi-graph-layout': 'Force Multi-Graph Layout'
+  'force-multi-graph-layout': 'Force Multi-Graph Layout',
+  'd3-dag-layout': 'D3 DAG Layout',
 };
 
-export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
-  const [selectedExampleIndex, setSelectedExampleIndex] = useState(0);
+export function ControlPanel({
+  examples,
+  defaultExample,
+  onExampleChange,
+  children
+}: ControlPanelProps) {
+  const resolveExampleIndex = useCallback(
+    (example?: ExampleDefinition) => {
+      if (!example) {
+        return 0;
+      }
+
+      const index = examples.findIndex((candidate) => candidate === example);
+      return index === -1 ? 0 : index;
+    },
+    [examples]
+  );
+
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState(() =>
+    resolveExampleIndex(defaultExample)
+  );
   const selectedExample = examples[selectedExampleIndex];
   const availableLayouts = selectedExample?.layouts ?? [];
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
     availableLayouts[0]
   );
-
   useEffect(() => {
     if (!availableLayouts.length) {
       setSelectedLayout(undefined);
@@ -78,6 +101,13 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
     []
   );
 
+  useEffect(() => {
+    setSelectedExampleIndex((currentIndex) => {
+      const nextIndex = resolveExampleIndex(defaultExample);
+      return currentIndex === nextIndex ? currentIndex : nextIndex;
+    });
+  }, [defaultExample, resolveExampleIndex]);
+
   const handleLayoutChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedLayout(event.target.value as LayoutType);
   }, []);
@@ -91,19 +121,6 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
 
     return selectedExample.layoutDescriptions[selectedLayout];
   }, [selectedExample, selectedLayout]);
-
-  const styleJson = useMemo(() => {
-    const styles = selectedExample?.style;
-    if (!styles) {
-      return '';
-    }
-
-    return JSON.stringify(
-      styles,
-      (_key, value) => (typeof value === 'function' ? value.toString() : value),
-      2
-    );
-  }, [selectedExample]);
 
   if (!examples.length) {
     return null;
@@ -188,6 +205,19 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
           <p style={{margin: 0}}>{datasetDescription}</p>
         </section>
       ) : null}
+      {children ? (
+        <section
+          style={{
+            borderTop: '1px solid #e2e8f0',
+            paddingTop: '0.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+          }}
+        >
+          {children}
+        </section>
+      ) : null}
       {layoutDescription ? (
         <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
           <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
@@ -196,29 +226,6 @@ export function ControlPanel({examples, onExampleChange}: ControlPanelProps) {
           <p style={{margin: 0}}>{layoutDescription}</p>
         </section>
       ) : null}
-      <section style={{display: 'flex', flexDirection: 'column', fontSize: '0.75rem', gap: '0.25rem'}}>
-        <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-          Style JSON
-        </h3>
-        <pre
-          style={{
-            margin: 0,
-            padding: '0.75rem',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.5rem',
-            fontSize: '0.75rem',
-            lineHeight: 1.4,
-            maxHeight: '16rem',
-            overflow: 'auto',
-            whiteSpace: 'pre-wrap',
-            fontFamily:
-              'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-          }}
-        >
-          {styleJson || '// No style defined for this example'}
-        </pre>
-      </section>
     </div>
   );
 }

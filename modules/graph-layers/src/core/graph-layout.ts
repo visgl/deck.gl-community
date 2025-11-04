@@ -129,10 +129,12 @@ export class GraphLayout<
 
     for (const position of positions) {
       if (!position) {
+        // eslint-disable-next-line no-continue
         continue;
       }
       const [x, y] = position;
       if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        // eslint-disable-next-line no-continue
         continue;
       }
 
@@ -150,6 +152,34 @@ export class GraphLayout<
       [minX, minY],
       [maxX, maxY]
     ];
+  }
+
+  /**
+   * Attempt to coerce an arbitrary value into a finite 2D point.
+   * @param value Candidate value that may represent a position.
+   * @returns Finite [x, y] tuple or null if the value cannot be interpreted.
+   */
+  protected _normalizePosition(value: unknown): [number, number] | null {
+    if (Array.isArray(value) && value.length >= 2) {
+      const [x, y] = value as [unknown, unknown];
+      if (this._isFiniteNumber(x) && this._isFiniteNumber(y)) {
+        return [x, y];
+      }
+      return null;
+    }
+
+    if (value && typeof value === 'object') {
+      const {x, y} = value as {x?: unknown; y?: unknown};
+      if (this._isFiniteNumber(x) && this._isFiniteNumber(y)) {
+        return [x, y];
+      }
+    }
+
+    return null;
+  }
+
+  private _isFiniteNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
   }
 
   protected _updateState(state: GraphLayoutState) {
