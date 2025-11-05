@@ -713,6 +713,90 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
   }
 };
 
+const DAG_ALIGNED_BRANCHES = [
+  {id: 'capture', label: 'Capture events', step: 0, bucket: 0},
+  {id: 'parse', label: 'Parse logs', step: 1, bucket: 6},
+  {id: 'aggregate', label: 'Aggregate metrics', step: 2, bucket: 12},
+  {id: 'publish', label: 'Publish feed', step: 3, bucket: 18},
+  {id: 'batch', label: 'Batch transforms', step: 2, bucket: 28},
+  {id: 'train', label: 'Train models', step: 4, bucket: 44},
+  {id: 'deploy', label: 'Deploy service', step: 6, bucket: 70}
+] as const;
+
+const DAG_ALIGNED_EDGES = [
+  {id: 'capture-parse', sourceId: 'capture', targetId: 'parse'},
+  {id: 'parse-aggregate', sourceId: 'parse', targetId: 'aggregate'},
+  {id: 'aggregate-publish', sourceId: 'aggregate', targetId: 'publish'},
+  {id: 'capture-batch', sourceId: 'capture', targetId: 'batch'},
+  {id: 'batch-train', sourceId: 'batch', targetId: 'train'},
+  {id: 'train-deploy', sourceId: 'train', targetId: 'deploy'},
+  {id: 'capture-deploy', sourceId: 'capture', targetId: 'deploy'}
+] as const;
+
+const TIMELINE_BUCKET_SCALE: Record<number, number> = {
+  0: 0,
+  1: 6,
+  2: 18,
+  3: 24,
+  4: 44,
+  5: 56,
+  6: 70
+};
+
+const createAlignedBranchesData = () => ({
+  nodes: DAG_ALIGNED_BRANCHES.map((node) => ({
+    id: node.id,
+    label: node.label,
+    step: node.step,
+    bucket: node.bucket
+  })),
+  edges: DAG_ALIGNED_EDGES.map((edge) => ({
+    id: edge.id,
+    sourceId: edge.sourceId,
+    targetId: edge.targetId,
+    directed: true
+  }))
+});
+
+const dagAlignedBranchesDataset = () => createAlignedBranchesData();
+
+const dagAlignedBranchesTimelineDataset = () => ({
+  ...createAlignedBranchesData(),
+  timelineBuckets: TIMELINE_BUCKET_SCALE
+});
+
+const DAG_ALIGNED_STYLE: ExampleStyles = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: 14,
+      fill: '#bfdbfe',
+      stroke: '#1d4ed8',
+      strokeWidth: 2
+    },
+    {
+      type: 'label',
+      text: '@label',
+      fontSize: 16,
+      color: '#0f172a',
+      offset: [0, 26],
+      textAnchor: 'middle',
+      alignmentBaseline: 'top'
+    }
+  ],
+  edges: {
+    stroke: '#3b82f6',
+    strokeWidth: 2,
+    decorators: [
+      {
+        type: 'arrow',
+        size: 6,
+        color: '#3b82f6'
+      }
+    ]
+  }
+};
+
 const BROKEN_STYLESHEET_GRAPH: ExampleGraphData = {
   nodes: [
     {id: 'alpha', stage: 'ingest'},
@@ -971,6 +1055,49 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['d3-dag-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: DAG_PIPELINE_STYLE
+  },
+  {
+    name: 'Aligned steps (uniform)',
+    type: 'dag',
+    description:
+      'Two branches share discrete step numbers and remain vertically aligned for easy comparison.',
+    data: dagAlignedBranchesDataset,
+    layouts: ['d3-dag-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: DAG_ALIGNED_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'd3-dag-layout'
+        ? {
+            coord: 'simplex',
+            nodeSize: [48, 24],
+            gap: [36, 40],
+            alignRank: (node: any) => Number(node?.getPropertyValue?.('step') ?? node?.step ?? 0)
+          }
+        : undefined
+  },
+  {
+    name: 'Aligned steps (timeline stretch)',
+    type: 'dag',
+    description:
+      'Applies a custom yScale derived from timeline buckets so sparse steps consume more vertical space.',
+    data: dagAlignedBranchesTimelineDataset,
+    layouts: ['d3-dag-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: DAG_ALIGNED_STYLE,
+    getLayoutOptions: (layout, data) => {
+      if (layout !== 'd3-dag-layout') {
+        return undefined;
+      }
+
+      const buckets = (data as {timelineBuckets?: Record<number, number>}).timelineBuckets ?? {};
+      return {
+        coord: 'simplex',
+        nodeSize: [48, 24],
+        gap: [36, 40],
+        alignRank: (node: any) => Number(node?.getPropertyValue?.('step') ?? node?.step ?? 0),
+        alignScale: (rank: number) => buckets[rank] ?? rank * 40
+      };
+    }
   },
   {
     name: 'ML lineage DAG (1,000 runs)',

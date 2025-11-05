@@ -20,6 +20,13 @@ export {GraphLayout} from './core/graph-layout';
 export {SimpleLayout} from './layouts/simple-layout';
 export {D3ForceLayout} from './layouts/d3-force/d3-force-layout';
 export {D3DagLayout} from './layouts/d3-dag/d3-dag-layout';
+export {
+  layoutDagAligned,
+  type DagAlignedOptions,
+  type DagAlignedResult,
+  type RankAccessor,
+  type YScale
+} from './layouts/d3-dag/aligned-layout';
 export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
 export {RadialLayout} from './layouts/experimental/radial-layout';
 export {ForceMultiGraphLayout} from './layouts/experimental/force-multi-graph-layout';

@@ -51,6 +51,35 @@ function createLinearChainGraph(): SampleGraph {
   };
 }
 
+function createAlignedBranchesGraph(): SampleGraph {
+  const nodes = [
+    new Node({id: 'root', data: {step: 0}}),
+    new Node({id: 'a-1', data: {step: 1}}),
+    new Node({id: 'a-2', data: {step: 2}}),
+    new Node({id: 'a-3', data: {step: 3}}),
+    new Node({id: 'b-2', data: {step: 2}}),
+    new Node({id: 'b-4', data: {step: 4}}),
+    new Node({id: 'b-6', data: {step: 6}})
+  ];
+
+  const edges = [
+    new Edge({id: 'root-a1', sourceId: 'root', targetId: 'a-1', directed: true}),
+    new Edge({id: 'a1-a2', sourceId: 'a-1', targetId: 'a-2', directed: true}),
+    new Edge({id: 'a2-a3', sourceId: 'a-2', targetId: 'a-3', directed: true}),
+    new Edge({id: 'root-b2', sourceId: 'root', targetId: 'b-2', directed: true}),
+    new Edge({id: 'b2-b4', sourceId: 'b-2', targetId: 'b-4', directed: true}),
+    new Edge({id: 'b4-b6', sourceId: 'b-4', targetId: 'b-6', directed: true}),
+    new Edge({id: 'root-b6', sourceId: 'root', targetId: 'b-6', directed: true})
+  ];
+
+  const graph = new Graph({nodes, edges});
+  return {
+    graph,
+    nodes: Object.fromEntries(nodes.map((node) => [String(node.getId()), node])),
+    edges: Object.fromEntries(edges.map((edge) => [String(edge.getId()), edge]))
+  };
+}
+
 describe('D3DagLayout', () => {
   it('computes sugiyama positions with greedy coordinates', () => {
     const {graph, nodes, edges} = createSampleDag();
@@ -214,6 +243,75 @@ describe('D3DagLayout', () => {
 
     const ids = engine.getNodes().map((node) => node.getId());
     expect(ids).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('aligns nodes to the same vertical rank when alignRank is provided', () => {
+    const {graph, nodes} = createAlignedBranchesGraph();
+    const layout = new D3DagLayout({
+      nodeSize: [2, 1],
+      gap: [24, 40],
+      coord: 'simplex',
+      alignRank: (node) => Number(node.getPropertyValue('step'))
+    });
+
+    layout.initializeGraph(graph);
+    layout.start();
+
+    const rankToPositions = new Map<number, Set<number>>();
+    for (const node of Object.values(nodes)) {
+      const rank = Number(node.getPropertyValue('step'));
+      const position = layout.getNodePosition(node);
+      expect(position).not.toBeNull();
+      const [, y] = position ?? [0, 0];
+      const group = rankToPositions.get(rank) ?? new Set<number>();
+      group.add(y);
+      rankToPositions.set(rank, group);
+    }
+
+    for (const positions of rankToPositions.values()) {
+      expect(positions.size).toBe(1);
+    }
+
+    const capturedPositions = Object.fromEntries(
+      Object.entries(nodes).map(([id, node]) => [id, layout.getNodePosition(node)])
+    );
+
+    layout.start();
+
+    for (const [id, node] of Object.entries(nodes)) {
+      expect(layout.getNodePosition(node)).toEqual(capturedPositions[id]);
+    }
+  });
+
+  it('supports non-uniform vertical spacing through alignScale', () => {
+    const {graph, nodes, edges} = createAlignedBranchesGraph();
+    const alignScale = (rank: number) => rank * 32 + rank * 7;
+    const layout = new D3DagLayout({
+      nodeSize: [2, 1],
+      gap: [24, 40],
+      coord: 'simplex',
+      alignRank: (node) => Number(node.getPropertyValue('step')),
+      alignScale
+    });
+
+    layout.initializeGraph(graph);
+    layout.start();
+
+    for (const node of Object.values(nodes)) {
+      const rank = Number(node.getPropertyValue('step'));
+      const position = layout.getNodePosition(node);
+      expect(position).not.toBeNull();
+      if (!position) {
+        continue;
+      }
+      expect(position[1]).toBe(alignScale(rank));
+    }
+
+    const longEdge = edges['root-b6'];
+    const controlPoints = layout.getLinkControlPoints(longEdge);
+    expect(controlPoints.length).toBeGreaterThan(0);
+    const expectedRanks = [1, 2, 3, 4, 5];
+    expect(controlPoints.map(([, y]) => y)).toEqual(expectedRanks.map(alignScale));
   });
 
   it('responds to collapse pipeline toggles without losing metadata', () => {

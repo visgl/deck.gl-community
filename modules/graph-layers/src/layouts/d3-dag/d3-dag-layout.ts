@@ -8,6 +8,7 @@ import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
 import type {Graph} from '../../graph/graph';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
+import {ALIGN_DEFAULT_GAP, alignDagYByRank, type DagLike, type RankAccessor, type YScale} from './aligned-layout';
 import {
   coordCenter,
   coordGreedy,
@@ -74,6 +75,12 @@ export type D3DagLayoutOptions = GraphLayoutOptions & {
   center?: D3DagCenterOption;
   /** How to convert the Graph into a DAG. */
   dagBuilder?: D3DagDagBuilderName | DagBuilder;
+  /** Align nodes based on a discrete rank accessor. */
+  alignRank?: RankAccessor<Node>;
+  /** Optional scale applied after alignment to remap layer spacing. */
+  alignScale?: YScale;
+  /** Enable verbose debugging when remapping ranks. */
+  alignDebug?: boolean;
   /** Whether to collapse linear chains of nodes into a single representative. */
   collapseLinearChains?: boolean;
 };
@@ -310,7 +317,9 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       options.coord !== undefined ||
       options.nodeSize !== undefined ||
       options.gap !== undefined ||
-      options.separation !== undefined
+      options.separation !== undefined ||
+      options.alignRank !== undefined ||
+      options.alignScale !== undefined
     ) {
       this._layoutOperator = null;
     }
@@ -389,6 +398,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       this._dag = this._buildDag();
       const layout = this._getLayoutOperator();
       layout(this._dag);
+      this._applyAlignedRanks();
       this._cacheGeometry();
       this._onLayoutChange();
       this._onLayoutDone();
@@ -773,16 +783,23 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       layout = layoutOption as LayoutWithConfiguration;
     }
 
-    if (layout.layering && this._options.layering) {
-      layout = layout.layering(this._resolveLayering(this._options.layering));
+    if (layout.layering) {
+      let layeringOperator = this._getEffectiveLayering();
+      const rankAccessor = this._options.alignRank;
+      if (rankAccessor && typeof (layeringOperator as any).rank === 'function') {
+        layeringOperator = (layeringOperator as any).rank((dagNode: any) =>
+          rankAccessor((dagNode as any).data as Node)
+        );
+      }
+      layout = layout.layering(layeringOperator);
     }
 
-    if (layout.decross && this._options.decross) {
-      layout = layout.decross(this._resolveDecross(this._options.decross));
+    if (layout.decross) {
+      layout = layout.decross(this._getEffectiveDecross());
     }
 
-    if (layout.coord && this._options.coord) {
-      layout = layout.coord(this._resolveCoord(this._options.coord));
+    if (layout.coord) {
+      layout = layout.coord(this._getEffectiveCoord());
     }
 
     const nodeSize = this._options.nodeSize ?? DEFAULT_NODE_SIZE;
@@ -790,13 +807,62 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       layout = layout.nodeSize(nodeSize);
     }
 
-    const gap = this._options.separation ?? this._options.gap ?? DEFAULT_GAP;
+    const gap = this._getEffectiveGap();
     if (layout.gap) {
       layout = layout.gap(gap);
     }
 
     this._layoutOperator = layout;
     return layout;
+  }
+
+  private _isAlignEnabled(): boolean {
+    return typeof this._options.alignRank === 'function';
+  }
+
+  private _getEffectiveLayering(): LayeringOperator {
+    const option =
+      this._options.layering ??
+      (this._isAlignEnabled() ? ('simplex' as D3DagLayeringName) : D3DagLayout.defaultOptions.layering);
+    return this._resolveLayering(option);
+  }
+
+  private _getEffectiveDecross(): Decross<Node, Edge> {
+    const option =
+      this._options.decross ??
+      (this._isAlignEnabled() ? ('twoLayer' as D3DagDecrossName) : D3DagLayout.defaultOptions.decross);
+    return this._resolveDecross(option);
+  }
+
+  private _getEffectiveCoord(): Coord<Node, Edge> {
+    const option =
+      this._options.coord ??
+      (this._isAlignEnabled() ? ('simplex' as D3DagCoordName) : D3DagLayout.defaultOptions.coord);
+    return this._resolveCoord(option);
+  }
+
+  private _getEffectiveGap(): readonly [number, number] {
+    return (
+      this._options.separation ??
+      this._options.gap ??
+      (this._isAlignEnabled() ? ALIGN_DEFAULT_GAP : DEFAULT_GAP)
+    );
+  }
+
+  private _applyAlignedRanks(): void {
+    if (!this._dag) {
+      return;
+    }
+    const rankAccessor = this._options.alignRank;
+    if (typeof rankAccessor !== 'function') {
+      return;
+    }
+    const gap = this._getEffectiveGap();
+    alignDagYByRank<Node>(this._dag as unknown as DagLike<Node>, rankAccessor, {
+      yScale: this._options.alignScale,
+      gapY: gap[1],
+      debug: Boolean(this._options.alignDebug)
+    });
   }
 
   private _resolveLayering(option: D3DagLayeringName | LayeringOperator): LayeringOperator {

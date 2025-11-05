@@ -11,6 +11,7 @@
       "items": [
         "modules/graph-layers/api-reference/layouts/simple-layout",
         "modules/graph-layers/api-reference/layouts/d3-layout",
+        "modules/graph-layers/api-reference/layouts/d3-dag-layout",
         "modules/graph-layers/api-reference/layouts/custom-layout",
         "modules/graph-layers/api-reference/layouts/experimental-layouts"
       ]
