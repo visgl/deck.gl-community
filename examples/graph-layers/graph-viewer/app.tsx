@@ -13,7 +13,7 @@ import React, {
 } from 'react';
 import {createRoot} from 'react-dom/client';
 
-import DeckGL from '@deck.gl/react';
+import DeckGL, {type DeckGLRef} from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
@@ -194,6 +194,12 @@ export function App(props) {
   const resumeLayoutAfterDragging = false;
   const zoomToFitOnLoad = false;
 
+  const deckRef = useRef<DeckGLRef | null>(null);
+  const viewStateRef = useRef<any>({
+    ...INITIAL_VIEW_STATE,
+    ...initialViewState
+  });
+
   const widgets = useMemo(
     () => [
       new PanWidget({
@@ -207,11 +213,6 @@ export function App(props) {
     ],
     []
   );
-
-  const [viewState, setViewState] = useState({
-    ...INITIAL_VIEW_STATE,
-    ...initialViewState
-  });
 
   const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
 
@@ -309,7 +310,7 @@ export function App(props) {
       return;
     }
 
-    const {width, height} = viewState as any;
+    const {width = 1, height = 1} = viewStateRef.current as any;
 
     // get the projected position of all nodes
     const positions = data.map((d) => engine.getNodePosition(d));
@@ -323,12 +324,14 @@ export function App(props) {
     );
     // zoom value is at log scale
     const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
-    setViewState({
-      ...viewState,
+    const nextViewState = {
+      ...viewStateRef.current,
       target: newTarget,
       zoom: newZoom
-    });
-  }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
+    };
+    viewStateRef.current = nextViewState;
+    deckRef.current?.deck?.setProps({initialViewState: nextViewState});
+  }, [deckRef, engine, viewportPadding, minZoom, maxZoom]);
 
   // Relatively pan the graph by a specified position vector.
   // const panBy = useCallback(
@@ -415,9 +418,18 @@ export function App(props) {
           width="100%"
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
-          viewState={viewState as any}
-          onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
-          onViewStateChange={({viewState}) => setViewState(viewState as any)}
+          ref={deckRef}
+          initialViewState={viewStateRef.current}
+          onResize={({width, height}) => {
+            viewStateRef.current = {
+              ...viewStateRef.current,
+              width,
+              height
+            };
+          }}
+          onViewStateChange={({viewState}) => {
+            viewStateRef.current = viewState as any;
+          }}
           views={[
             new OrthographicView({
               minZoom,
