@@ -4,54 +4,25 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import type {ReactNode} from 'react';
-import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
-
-export type LayoutType =
-  | 'd3-force-layout'
-  | 'gpu-force-layout'
-  | 'simple-layout'
-  | 'radial-layout'
-  | 'hive-plot-layout'
-  | 'force-multi-graph-layout'
-  | 'd3-dag-layout';
-
-export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
-
-export type ExampleDefinition = {
-  name: string;
-  description: string;
-  data: () => {nodes: unknown[]; edges: unknown[]};
-  /** First listed layout is the default */
-  layouts: LayoutType[];
-  layoutDescriptions: Record<LayoutType, string>;
-  style: ExampleStyles;
-  getLayoutOptions?: (
-    layout: LayoutType,
-    data: {nodes: unknown[]; edges: unknown[]}
-  ) => Record<string, unknown> | undefined;
-};
+import type {ExampleDefinition, LayoutType} from './layout-options';
+import {LAYOUT_LABELS} from './layout-options';
+import {LayoutOptionsPanel} from './layout-options-panel';
 
 type ControlPanelProps = {
   examples: ExampleDefinition[];
   defaultExample?: ExampleDefinition;
   onExampleChange: (example: ExampleDefinition, layout: LayoutType) => void;
   children?: ReactNode;
-};
-
-const LAYOUT_LABELS: Record<LayoutType, string> = {
-  'd3-force-layout': 'D3 Force Layout',
-  'gpu-force-layout': 'GPU Force Layout',
-  'simple-layout': 'Simple Layout',
-  'radial-layout': 'Radial Layout',
-  'hive-plot-layout': 'Hive Plot Layout',
-  'force-multi-graph-layout': 'Force Multi-Graph Layout',
-  'd3-dag-layout': 'D3 DAG Layout',
+  layoutOptions?: Record<string, unknown>;
+  onLayoutOptionsApply?: (layout: LayoutType, options: Record<string, unknown>) => void;
 };
 
 export function ControlPanel({
   examples,
   defaultExample,
   onExampleChange,
+  layoutOptions,
+  onLayoutOptionsApply,
   children
 }: ControlPanelProps) {
   const resolveExampleIndex = useCallback(
@@ -74,6 +45,7 @@ export function ControlPanel({
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
     availableLayouts[0]
   );
+  
   useEffect(() => {
     if (!availableLayouts.length) {
       setSelectedLayout(undefined);
@@ -121,6 +93,19 @@ export function ControlPanel({
 
     return selectedExample.layoutDescriptions[selectedLayout];
   }, [selectedExample, selectedLayout]);
+
+  const styleJson = useMemo(() => {
+    const styles = selectedExample?.style;
+    if (!styles) {
+      return '';
+    }
+
+    return JSON.stringify(
+      styles,
+      (_key, value) => (typeof value === 'function' ? value.toString() : value),
+      2
+    );
+  }, [selectedExample]);
 
   if (!examples.length) {
     return null;
@@ -172,6 +157,25 @@ export function ControlPanel({
             </option>
           ))}
         </select>
+      </div>
+      {datasetDescription ? (
+        <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
+          <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+            Dataset overview
+          </h3>
+          <p style={{margin: 0}}>{datasetDescription}</p>
+        </section>
+      ) : null}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr',
+          gridAutoRows: 'auto',
+          columnGap: '0.75rem',
+          rowGap: '0.75rem',
+          alignItems: 'center'
+        }}
+      >
         <label htmlFor="graph-viewer-layout" style={{fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
           Layout
         </label>
@@ -197,14 +201,11 @@ export function ControlPanel({
           ))}
         </select>
       </div>
-      {datasetDescription ? (
-        <section style={{fontSize: '0.875rem', lineHeight: 1.5, color: '#334155'}}>
-          <h3 style={{margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-            Dataset overview
-          </h3>
-          <p style={{margin: 0}}>{datasetDescription}</p>
-        </section>
-      ) : null}
+      <LayoutOptionsPanel
+        layout={selectedLayout}
+        appliedOptions={layoutOptions}
+        onApply={onLayoutOptionsApply}
+      />
       {children ? (
         <section
           style={{

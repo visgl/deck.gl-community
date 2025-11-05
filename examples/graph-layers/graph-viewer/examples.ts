@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
-import type {ExampleDefinition, ExampleStyles, LayoutType} from './control-panel';
+import type {ExampleDefinition, ExampleStyles, LayoutType} from './layout-options';
 import witsRaw from '../../../modules/graph-layers/test/data/examples/wits.json';
 import sampleMultiGraph from './sample-multi-graph.json';
 
