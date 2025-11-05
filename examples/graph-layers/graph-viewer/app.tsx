@@ -35,10 +35,10 @@ import {
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
-import type {LayoutType, ExampleDefinition} from './layout-options';
+import type {LayoutType, ExampleDefinition, GraphExampleType} from './layout-options';
 import {CollapseControls} from './collapse-controls';
 import {StylesheetEditor} from './stylesheet-editor';
-import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
+import {EXAMPLES, filterExamplesByType} from './examples';
 import {useGraphViewport} from './use-graph-viewport';
 
 const INITIAL_VIEW_STATE = {
@@ -50,7 +50,6 @@ const INITIAL_VIEW_STATE = {
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
-const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
 const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
@@ -107,9 +106,26 @@ export const useLoading = (engine) => {
   return [{isLoading}, loadingDispatch];
 };
 
-export function App(props) {
-  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
-  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
+type AppProps = {
+  graphType?: GraphExampleType;
+};
+
+export function App({graphType = 'graph'}: AppProps) {
+  const exampleType = graphType;
+  const examplesForType = useMemo(
+    () => filterExamplesByType(EXAMPLES, exampleType),
+    [exampleType]
+  );
+  const defaultExample = useMemo(
+    () => (examplesForType.length ? examplesForType[0] : EXAMPLES[0]),
+    [examplesForType]
+  );
+  const defaultLayout = defaultExample?.layouts[0] ?? 'd3-force-layout';
+
+  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(
+    () => defaultExample
+  );
+  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(() => defaultLayout);
   const [collapseEnabled, setCollapseEnabled] = useState(true);
   const [layoutOverrides, setLayoutOverrides] = useState<
     Partial<Record<LayoutType, Record<string, unknown>>>
@@ -117,6 +133,12 @@ export function App(props) {
   const [dagChainSummary, setDagChainSummary] = useState<
     {chainIds: string[]; collapsedIds: string[]}
     | null>(null);
+
+  useEffect(() => {
+    setSelectedExample(defaultExample);
+    setSelectedLayout(defaultLayout);
+    setLayoutOverrides({});
+  }, [defaultExample, defaultLayout]);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
   const layoutOptions = useMemo(() => {
@@ -453,7 +475,8 @@ export function App(props) {
       >
         <ControlPanel
           examples={EXAMPLES}
-          defaultExample={DEFAULT_EXAMPLE}
+          defaultExample={selectedExample ?? defaultExample}
+          graphType={exampleType}
           onExampleChange={handleExampleChange}
           layoutOptions={layoutOptions}
           onLayoutOptionsApply={handleApplyLayoutOptions}

@@ -5,6 +5,8 @@
 import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
 import {D3DagLayout} from '@deck.gl-community/graph-layers';
 
+export type GraphExampleType = 'graph' | 'radial' | 'multi-graph' | 'hive' | 'dag';
+
 export type LayoutType =
   | 'd3-force-layout'
   | 'gpu-force-layout'
@@ -24,6 +26,7 @@ export type ExampleDefinition = {
   layouts: LayoutType[];
   layoutDescriptions: Record<LayoutType, string>;
   style: ExampleStyles;
+  type: GraphExampleType;
   getLayoutOptions?: (
     layout: LayoutType,
     data: {nodes: unknown[]; edges: unknown[]}
