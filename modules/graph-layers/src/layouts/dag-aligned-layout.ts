@@ -14,7 +14,7 @@ import {
   type DagLink,
   type DagNode,
   type YScale
-} from '@deck.gl-community/dag-layout';
+} from './layout-dag-aligned';
 
 export type DagAlignedLayoutOptions = GraphLayoutOptions & {
   rank: (node: Node) => number;

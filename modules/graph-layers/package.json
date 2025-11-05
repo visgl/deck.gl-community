@@ -38,7 +38,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@deck.gl-community/dag-layout": "~9.2.0",
     "@deck.gl/core": "~9.2.1",
     "@deck.gl/layers": "~9.2.1",
     "@deck.gl/widgets": "~9.2.1",

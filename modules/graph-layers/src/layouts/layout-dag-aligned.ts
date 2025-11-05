@@ -16,12 +16,51 @@ import {
   type Dag
 } from 'd3-dag';
 
-import type {
-  DagAlignedOptions,
-  DagAlignedResult,
-  DagLink,
-  DagNode
-} from './types';
+export type DagNodeId = string | number;
+
+export type DagNode<Data = unknown> = {
+  id: DagNodeId;
+  data?: Data;
+};
+
+export type DagLink = {source: DagNodeId; target: DagNodeId};
+
+export type RankAccessor<N = DagNode> = (node: N) => number;
+export type YScale = (rank: number) => number;
+
+export type DagAlignedOptions<N = DagNode> = {
+  rank: RankAccessor<N>;
+  yScale?: YScale;
+  layering?: 'simplex' | 'longestPath' | 'topological';
+  decross?: 'twoLayer' | 'greedy' | 'opt';
+  coord?: 'simplex' | 'greedy' | 'quad';
+  gap?: [number, number];
+  nodeSize?: (node: N) => [number, number];
+  debug?: boolean;
+};
+
+export type DagAlignedNode<N = DagNode> = N & {
+  x: number;
+  y: number;
+  rank: number;
+};
+
+export type DagAlignedResult<N = DagNode> = {
+  nodes: Array<DagAlignedNode<N>>;
+  links: DagLink[];
+  width: number;
+  height: number;
+};
+
+type DagDatum<N extends DagNode> = {data?: N};
+
+type DagNodeWithPosition<N extends DagNode> = DagDatum<N> & {
+  id: string;
+  x?: number;
+  y?: number;
+};
+
+type DagWithData<N extends DagNode> = Dag<DagDatum<N>> & Iterable<DagNodeWithPosition<N>>;
 
 function pickLayering(name?: DagAlignedOptions['layering']) {
   switch (name) {
@@ -59,16 +98,6 @@ function pickCoord(name?: DagAlignedOptions['coord']) {
   }
 }
 
-type DagDatum<N extends DagNode> = {data?: N};
-
-type DagWithData<N extends DagNode> = Dag<DagDatum<N>> & Iterable<DagNodeWithPosition<N>>;
-
-type DagNodeWithPosition<N extends DagNode> = DagDatum<N> & {
-  id: string;
-  x?: number;
-  y?: number;
-};
-
 export function layoutDagAligned<N extends DagNode = DagNode>(
   nodes: N[],
   links: DagLink[],
@@ -79,9 +108,10 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
   const toId = (node: N) => String(node.id);
   const nodeMap = new Map(nodes.map((node) => [toId(node), node] as const));
 
-  const dag = dagConnect<DagDatum<N>>()(
-    links.map(({source, target}) => ({sourceId: String(source), targetId: String(target)}))
-  ) as DagWithData<N>;
+  const dag = dagConnect<DagDatum<N>>()(links.map(({source, target}) => ({
+    sourceId: String(source),
+    targetId: String(target)
+  }))) as DagWithData<N>;
 
   for (const dagNode of dag) {
     const original = nodeMap.get(dagNode.id);
@@ -117,14 +147,28 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
   const laid = layout(dag as unknown as Dag<DagNodeWithPosition<N>>);
 
   const positioned = new Map<string, {x: number; y: number; rank: number}>();
+  const rankY = new Map<number, number>();
+
   for (const dagNode of laid) {
     const datum = dagNode.data ?? nodeMap.get(dagNode.id);
     if (!datum) {
       continue;
     }
     const r = rank(datum);
-    const x = dagNode.x ?? 0;
-    const y = yScale ? yScale(r) : dagNode.y ?? 0;
+    const x = Number.isFinite(dagNode.x) ? (dagNode.x as number) : 0;
+    let y = Number.isFinite(dagNode.y) ? (dagNode.y as number) : r * gap[1];
+
+    if (yScale) {
+      y = yScale(r);
+    }
+
+    const sharedY = rankY.get(r);
+    if (sharedY === undefined) {
+      rankY.set(r, y);
+    } else {
+      y = sharedY;
+    }
+
     positioned.set(dagNode.id, {x, y, rank: r});
   }
 
@@ -133,13 +177,15 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
     const positionedNode = positioned.get(key);
     const r = rank(node);
     let x = positionedNode?.x ?? 0;
-    let y = positionedNode?.y ?? (yScale ? yScale(r) : r * gap[1]);
+    let y = positionedNode?.y ?? (yScale ? yScale(r) : rankY.get(r) ?? r * gap[1]);
+
     if (!Number.isFinite(x)) {
       x = 0;
     }
     if (!Number.isFinite(y)) {
       y = 0;
     }
+
     return {...node, x, y, rank: r};
   });
 

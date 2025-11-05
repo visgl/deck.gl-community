@@ -3,7 +3,7 @@
 
 import {describe, expect, test} from 'vitest';
 
-import {layoutDagAligned} from '../src/layoutDagAligned';
+import {layoutDagAligned} from '../../src/layouts/layout-dag-aligned';
 
 describe('layoutDagAligned', () => {
   test('rank-aligned layers share y', () => {

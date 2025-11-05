@@ -1,11 +1,11 @@
-# @deck.gl-community/dag-layout
+# Rank-Aligned DAG Layout
 
 Deterministic utilities for building rank-aligned DAG layouts with [`d3-dag`](https://github.com/erikbrinkman/d3-dag).
 
 ## `layoutDagAligned`
 
 ```ts
-import {layoutDagAligned} from '@deck.gl-community/dag-layout';
+import {layoutDagAligned} from '@deck.gl-community/graph-layers';
 ```
 
 Runs `d3-dag`'s Sugiyama pipeline while locking nodes that share the same `rank(node)` onto identical vertical layers.
