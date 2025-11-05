@@ -10,7 +10,11 @@ export {Edge} from './graph/edge';
 export {GraphEngine} from './core/graph-engine';
 
 // graph-layers layouts
-export type {GraphLayoutState} from './core/graph-layout';
+export type {
+  GraphLayoutOptions,
+  GraphLayoutState,
+  GraphLayoutEventDetail
+} from './core/graph-layout';
 export {GraphLayout} from './core/graph-layout';
 
 export {SimpleLayout} from './layouts/simple-layout';

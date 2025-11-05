@@ -143,6 +143,13 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override _updateBounds(): void {
+    const positions = Object.values(this._nodePositionMap ?? {}).map((position) =>
+      this._normalizePosition(position)
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }
 
 function computeControlPoint({

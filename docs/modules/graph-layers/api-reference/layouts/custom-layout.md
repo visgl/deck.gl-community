@@ -53,6 +53,8 @@ There are a few events that should be triggered when the layout changes:
 - `this._onLayoutChange()`
   Every time when the layout changes, `onLayoutChange` should be triggered to notify GraphGL to re-render and update the view. Then GraphGL will use `getNodePosition` and `getEdgePosition` to get the position information to render the graph. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate the layout is computing.
 
+  All layout lifecycle events emit a `CustomEvent` whose `detail` property contains the latest `{bounds}` calculated by the layout. Bounds follow the [`Bounds2D`](https://github.com/uber-web/math.gl/blob/master/modules/types/docs/api-reference/bounds.md) tuple format `[[minX, minY], [maxX, maxY]]`. You can also call `layout.getBounds()` at any time to retrieve the same values.
+
 - `this._onLayoutDone()`
   When the layout is completed, 'onLayoutDone' should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: remove the spinner from the UI.
 
