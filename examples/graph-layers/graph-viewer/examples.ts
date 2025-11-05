@@ -380,6 +380,80 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
   }
 };
 
+const ML_LINEAGE_BRANCH_PALETTE = [
+  '#2563eb',
+  '#0ea5e9',
+  '#10b981',
+  '#f97316',
+  '#a855f7',
+  '#f472b6',
+  '#22d3ee',
+  '#facc15'
+] as const;
+
+const getLineageBranchColor = (lineagePath: unknown): string => {
+  if (typeof lineagePath !== 'string') {
+    return '#1e293b';
+  }
+
+  const segments = lineagePath.split('.');
+  if (segments.length <= 1) {
+    return '#1d4ed8';
+  }
+
+  const branchSegment = segments[1];
+  const parsedIndex = Number.parseInt(branchSegment, 10);
+  if (Number.isFinite(parsedIndex) && parsedIndex > 0) {
+    return ML_LINEAGE_BRANCH_PALETTE[(parsedIndex - 1) % ML_LINEAGE_BRANCH_PALETTE.length];
+  }
+
+  let hash = 0;
+  for (let index = 0; index < branchSegment.length; index += 1) {
+    hash = (hash * 31 + branchSegment.charCodeAt(index)) >>> 0;
+  }
+  return ML_LINEAGE_BRANCH_PALETTE[hash % ML_LINEAGE_BRANCH_PALETTE.length];
+};
+
+const ML_LINEAGE_STYLE: ExampleStyles = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: {
+        attribute: 'type',
+        fallback: 6,
+        scale: (value: unknown) => (value === 'head' ? 9 : 5.5)
+      },
+      fill: {
+        attribute: 'type',
+        fallback: '#38bdf8',
+        scale: (value: unknown) => (value === 'head' ? '#f59e0b' : '#38bdf8')
+      },
+      stroke: {
+        attribute: 'lineagePath',
+        fallback: '#1e293b',
+        scale: getLineageBranchColor
+      },
+      strokeWidth: {
+        attribute: 'type',
+        fallback: 1.2,
+        scale: (value: unknown) => (value === 'head' ? 2 : 1)
+      },
+      opacity: 0.85
+    }
+  ],
+  edges: {
+    stroke: 'rgba(30, 41, 59, 0.3)',
+    strokeWidth: 0.6,
+    decorators: [
+      {
+        type: 'arrow',
+        size: 5,
+        color: 'rgba(30, 41, 59, 0.4)'
+      }
+    ]
+  }
+};
+
 const LADDER_10_STYLE: ExampleStyles = {
   nodes: [
     {
@@ -785,6 +859,27 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WATTS_STROGATZ_STYLE,
     type: 'graph'
+  },
+  {
+    name: 'ML lineage DAG (1,000 runs)',
+    description:
+      'Deterministic machine-learning lineage DAG with long experiment chains and branching heads.',
+    data: SAMPLE_GRAPH_DATASETS['ML Lineage DAG (1000 runs)'],
+    layouts: ['d3-dag-layout', 'gpu-force-layout', 'd3-force-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: ML_LINEAGE_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'd3-dag-layout'
+        ? {
+            layout: 'sugiyama',
+            layering: 'longestPath',
+            coord: 'greedy',
+            orientation: 'LR',
+            nodeSize: [42, 18],
+            gap: [24, 36],
+            separation: [1, 1.1]
+          }
+        : undefined
   },
   {
     name: 'University hierarchy (radial)',
