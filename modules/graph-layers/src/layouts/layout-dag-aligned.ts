@@ -5,7 +5,6 @@ import {
   coordGreedy,
   coordQuad,
   coordSimplex,
-  dagConnect,
   decrossGreedy,
   decrossOpt,
   decrossTwoLayer,
@@ -13,7 +12,8 @@ import {
   layeringSimplex,
   layeringTopological,
   sugiyama,
-  type Dag
+  type Dag,
+  dagStratify
 } from 'd3-dag';
 
 export type DagNodeId = string | number;
@@ -52,15 +52,20 @@ export type DagAlignedResult<N = DagNode> = {
   height: number;
 };
 
-type DagDatum<N extends DagNode> = {data?: N};
-
-type DagNodeWithPosition<N extends DagNode> = DagDatum<N> & {
+type StratifyDatum<N extends DagNode> = {
   id: string;
+  original?: N;
+  parentIds: string[];
+};
+
+type DagNodeWithPosition<N extends DagNode> = {
+  id: string;
+  data?: StratifyDatum<N>;
   x?: number;
   y?: number;
 };
 
-type DagWithData<N extends DagNode> = Dag<DagDatum<N>> & Iterable<DagNodeWithPosition<N>>;
+type DagWithData<N extends DagNode> = Dag<StratifyDatum<N>> & Iterable<DagNodeWithPosition<N>>;
 
 function pickLayering(name?: DagAlignedOptions['layering']) {
   switch (name) {
@@ -106,24 +111,43 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
   const {rank, yScale, layering, decross, coord, gap = [24, 40], nodeSize, debug} = opts;
 
   const toId = (node: N) => String(node.id);
-  const nodeMap = new Map(nodes.map((node) => [toId(node), node] as const));
+  const nodeMap = new Map<string, N | undefined>();
+  for (const node of nodes) {
+    nodeMap.set(toId(node), node);
+  }
 
-  const dag = dagConnect<DagDatum<N>>()(links.map(({source, target}) => ({
-    sourceId: String(source),
-    targetId: String(target)
-  }))) as DagWithData<N>;
-
-  for (const dagNode of dag) {
-    const original = nodeMap.get(dagNode.id);
-    if (original) {
-      dagNode.data = original;
+  const parents = new Map<string, Set<string>>();
+  for (const {source, target} of links) {
+    const sourceId = String(source);
+    const targetId = String(target);
+    if (!parents.has(targetId)) {
+      parents.set(targetId, new Set());
+    }
+    parents.get(targetId)!.add(sourceId);
+    if (!nodeMap.has(sourceId)) {
+      nodeMap.set(sourceId, undefined);
+    }
+    if (!nodeMap.has(targetId)) {
+      nodeMap.set(targetId, undefined);
     }
   }
+
+  const stratify = dagStratify<StratifyDatum<N>>()
+    .id((datum) => datum.id)
+    .parentIds((datum) => datum.parentIds);
+
+  const dag = stratify(
+    Array.from(nodeMap.entries(), ([id, original]) => ({
+      id,
+      original,
+      parentIds: Array.from(parents.get(id)?.values() ?? [])
+    }))
+  ) as DagWithData<N>;
 
   const layeringImpl = pickLayering(layering);
   if (typeof (layeringImpl as any).rank === 'function') {
     (layeringImpl as any).rank((dagNode: DagNodeWithPosition<N>) => {
-      const datum = dagNode.data ?? nodeMap.get(dagNode.id);
+      const datum = dagNode.data?.original ?? nodeMap.get(dagNode.id);
       if (!datum) {
         return 0;
       }
@@ -139,7 +163,7 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
 
   if (nodeSize) {
     layout.nodeSize((dagNode: DagNodeWithPosition<N>) => {
-      const datum = dagNode.data ?? nodeMap.get(dagNode.id);
+      const datum = dagNode.data?.original ?? nodeMap.get(dagNode.id);
       return datum ? nodeSize(datum) : [0, 0];
     });
   }
@@ -150,7 +174,7 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
   const rankY = new Map<number, number>();
 
   for (const dagNode of laid) {
-    const datum = dagNode.data ?? nodeMap.get(dagNode.id);
+    const datum = dagNode.data?.original ?? nodeMap.get(dagNode.id);
     if (!datum) {
       continue;
     }
