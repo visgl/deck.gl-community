@@ -25,7 +25,8 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
-        "graph-layers/graph-viewer"
+        "graph-layers/graph-viewer",
+        "graph-layers/dag-aligned"
       ]
     },
     {
