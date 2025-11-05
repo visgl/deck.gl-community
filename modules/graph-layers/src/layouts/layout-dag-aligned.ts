@@ -1,7 +1,10 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import {
+import type {Dag} from 'd3-dag';
+import * as d3Dag from 'd3-dag';
+
+const {
   coordGreedy,
   coordQuad,
   coordSimplex,
@@ -11,10 +14,8 @@ import {
   layeringLongestPath,
   layeringSimplex,
   layeringTopological,
-  sugiyama,
-  type Dag,
-  dagStratify
-} from 'd3-dag';
+  sugiyama
+} = d3Dag;
 
 export type DagNodeId = string | number;
 
@@ -132,17 +133,83 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
     }
   }
 
-  const stratify = dagStratify<StratifyDatum<N>>()
-    .id((datum) => datum.id)
-    .parentIds((datum) => datum.parentIds);
+  const stratifyFactory = (d3Dag as {dagStratify?: typeof import('d3-dag')['dagStratify']}).dagStratify;
+  const connectFactory = (d3Dag as {dagConnect?: typeof import('d3-dag')['dagConnect']}).dagConnect;
 
-  const dag = stratify(
-    Array.from(nodeMap.entries(), ([id, original]) => ({
-      id,
-      original,
-      parentIds: Array.from(parents.get(id)?.values() ?? [])
-    }))
-  ) as DagWithData<N>;
+  if (links.length === 0 && typeof stratifyFactory !== 'function') {
+    const rankY = new Map<number, number>();
+    const outNodes: DagAlignedResult<N>['nodes'] = nodes.map((node, index) => {
+      const r = rank(node);
+      const assignedY = rankY.has(r) ? rankY.get(r)! : yScale ? yScale(r) : r * gap[1];
+      if (!rankY.has(r)) {
+        rankY.set(r, assignedY);
+      }
+      return {
+        ...node,
+        x: index * gap[0],
+        y: assignedY,
+        rank: r
+      };
+    });
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const node of outNodes) {
+      minX = Math.min(minX, node.x);
+      maxX = Math.max(maxX, node.x);
+      minY = Math.min(minY, node.y);
+      maxY = Math.max(maxY, node.y);
+    }
+
+    const width = minX === Number.POSITIVE_INFINITY ? 0 : maxX - minX;
+    const height = minY === Number.POSITIVE_INFINITY ? 0 : maxY - minY;
+
+    if (debug) {
+      // eslint-disable-next-line no-console
+      console.debug('layoutDagAligned result (fallback)', {nodes: outNodes, links, width, height});
+    }
+
+    return {nodes: outNodes, links, width, height};
+  }
+
+  let dag: DagWithData<N>;
+  if (typeof stratifyFactory === 'function') {
+    const stratify = stratifyFactory<StratifyDatum<N>>()
+      .id((datum) => datum.id)
+      .parentIds((datum) => datum.parentIds);
+
+    dag = stratify(
+      Array.from(nodeMap.entries(), ([id, original]) => ({
+        id,
+        original,
+        parentIds: Array.from(parents.get(id)?.values() ?? [])
+      }))
+    ) as DagWithData<N>;
+  } else if (typeof connectFactory === 'function') {
+    const connect = connectFactory();
+    dag = connect(
+      links.map(({source, target}) => ({
+        sourceId: String(source),
+        targetId: String(target)
+      }))
+    ) as DagWithData<N>;
+  } else {
+    throw new Error('d3-dag does not expose a supported DAG builder');
+  }
+
+  for (const dagNode of dag) {
+    const existingData = (dagNode as DagNodeWithPosition<N>).data;
+    const datum = nodeMap.get(dagNode.id);
+    if (datum) {
+      const enriched: StratifyDatum<N> = existingData
+        ? {...existingData, original: datum}
+        : {id: dagNode.id, original: datum, parentIds: Array.from(parents.get(dagNode.id)?.values() ?? [])};
+      (dagNode as DagNodeWithPosition<N>).data = enriched;
+    }
+  }
 
   const layeringImpl = pickLayering(layering);
   if (typeof (layeringImpl as any).rank === 'function') {
