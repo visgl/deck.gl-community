@@ -70,6 +70,7 @@ export class FlowPathLayer extends LineLayer {
     const deltaMs = now - this.lastUpdateTime;
 
     if (deltaMs > 0 && deltaMs < FlowPathLayer.MIN_UPDATE_INTERVAL_MS) {
+      this.lastUpdateTime = now;
       this.updateAnimationLoop();
       return;
     }
