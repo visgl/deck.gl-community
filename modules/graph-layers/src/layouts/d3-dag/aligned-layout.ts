@@ -8,17 +8,17 @@ import {
   coordQuad,
   coordSimplex,
   coordTopological,
-  dagConnect,
   decrossDfs,
   decrossOpt,
   decrossTwoLayer,
+  graphConnect,
   layeringLongestPath,
   layeringSimplex,
   layeringTopological,
   sugiyama,
   type Coord,
-  type Dag,
-  type Decross
+  type Decross,
+  type MutGraph
 } from 'd3-dag';
 
 export type DagNode = {id: string | number; [key: string]: unknown};
@@ -250,16 +250,27 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
 
   const id = (node: N) => String(node.id);
   const nodeMap = new Map(nodes.map((node) => [id(node), node]));
-  const dag = dagConnect()(
-    links.map((link) => ({
-      sourceId: String(link.source),
-      targetId: String(link.target)
-    }))
-  );
 
-  for (const dagNode of dag) {
-    const datum = nodeMap.get(dagNode.id);
-    (dagNode as any).data = datum ?? null;
+  const connect = graphConnect()
+    .sourceId((link: DagLink) => String(link.source))
+    .targetId((link: DagLink) => String(link.target))
+    .nodeDatum((nodeId: string) => nodeMap.get(nodeId) ?? null)
+    .linkDatum((link: DagLink) => link);
+
+  const dag = connect(links);
+
+  const seenIds = new Set<string>();
+  for (const dagNode of dag.nodes()) {
+    const datum = (dagNode as any).data as N | null;
+    if (datum) {
+      seenIds.add(id(datum));
+    }
+  }
+
+  for (const node of nodes) {
+    if (!seenIds.has(id(node))) {
+      dag.node(node as any);
+    }
   }
 
   const layeringImpl = pickLayering(layering);
@@ -277,8 +288,8 @@ export function layoutDagAligned<N extends DagNode = DagNode>(
     layout.nodeSize((dagNode: any) => nodeSize(dagNode.data));
   }
 
-  const laid = layout(dag as unknown as Dag<any>);
-  const remapped = alignDagYByRank(laid as unknown as DagLike<any>, (dagNode: any) => rank(dagNode), {
+  const laid = layout(dag as MutGraph<any, any>);
+  const remapped = alignDagYByRank(laid as unknown as DagLike<any>, rank, {
     yScale,
     gapY: gap[1],
     debug
