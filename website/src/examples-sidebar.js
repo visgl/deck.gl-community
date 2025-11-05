@@ -25,7 +25,11 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
-        "graph-layers/graph-viewer"
+        "graph-layers/graph-viewer",
+        "graph-layers/graph-viewer-radial",
+        "graph-layers/graph-viewer-multi-graph",
+        "graph-layers/graph-viewer-hive",
+        "graph-layers/graph-viewer-dag"
       ]
     },
     {

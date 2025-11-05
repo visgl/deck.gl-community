@@ -3,7 +3,12 @@
 // Copyright (c) vis.gl contributors
 
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
-import type {ExampleDefinition, ExampleStyles, LayoutType} from './layout-options';
+import type {
+  ExampleDefinition,
+  ExampleStyles,
+  GraphExampleType,
+  LayoutType
+} from './layout-options';
 import witsRaw from '../../../modules/graph-layers/test/data/examples/wits.json';
 import sampleMultiGraph from './sample-multi-graph.json';
 
@@ -624,7 +629,8 @@ const ML_PIPELINE_EXAMPLE: ExampleDefinition = {
   data: dagPipelineDataset,
   layouts: ['d3-dag-layout'],
   layoutDescriptions: LAYOUT_DESCRIPTIONS,
-  style: DAG_PIPELINE_STYLE
+  style: DAG_PIPELINE_STYLE,
+  type: 'dag'
 };
 
 const BROKEN_STYLESHEET_GRAPH: ExampleGraphData = {
@@ -684,7 +690,8 @@ const BROKEN_STYLESHEET_EXAMPLE: ExampleDefinition = {
   data: () => cloneGraphData(BROKEN_STYLESHEET_GRAPH),
   layouts: ['d3-force-layout'],
   layoutDescriptions: LAYOUT_DESCRIPTIONS,
-  style: BROKEN_STYLESHEET
+  style: BROKEN_STYLESHEET,
+  type: 'graph'
 };
 
 export const EXAMPLES: ExampleDefinition[] = [
@@ -694,7 +701,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['Les Miserable'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: LES_MISERABLES_STYLE
+    style: LES_MISERABLES_STYLE,
+    type: 'graph'
   },
   {
     name: 'Random (20, 40)',
@@ -702,7 +710,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['Random (20, 40)'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: RANDOM_20_40_STYLE
+    style: RANDOM_20_40_STYLE,
+    type: 'graph'
   },
   {
     name: 'Random (100, 200)',
@@ -710,7 +719,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['Random (100, 200)'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: RANDOM_100_200_STYLE
+    style: RANDOM_100_200_STYLE,
+    type: 'graph'
   },
   {
     name: 'Random (1000, 2000)',
@@ -718,7 +728,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['Random (1000, 2000)'],
     layouts: ['gpu-force-layout', 'd3-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: RANDOM_1000_2000_STYLE
+    style: RANDOM_1000_2000_STYLE,
+    type: 'graph'
   },
   {
     name: 'Random (5000, 3000)',
@@ -726,7 +737,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['Random (5000, 3000)'],
     layouts: ['gpu-force-layout', 'd3-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: RANDOM_5000_3000_STYLE
+    style: RANDOM_5000_3000_STYLE,
+    type: 'graph'
   },
   {
     name: 'Ladder (10)',
@@ -734,7 +746,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['Ladder (10)'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: LADDER_10_STYLE
+    style: LADDER_10_STYLE,
+    type: 'graph'
   },
   {
     name: 'BalancedBinTree (5)',
@@ -742,7 +755,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['BalancedBinTree (5)'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: BALANCED_BIN_TREE_5_STYLE
+    style: BALANCED_BIN_TREE_5_STYLE,
+    type: 'graph'
   },
   {
     name: 'BalancedBinTree (8)',
@@ -750,7 +764,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['BalancedBinTree (8)'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: BALANCED_BIN_TREE_8_STYLE
+    style: BALANCED_BIN_TREE_8_STYLE,
+    type: 'graph'
   },
   {
     name: 'Grid (10, 10)',
@@ -758,7 +773,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['Grid (10, 10)'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: GRID_10_10_STYLE
+    style: GRID_10_10_STYLE,
+    type: 'graph'
   },
   {
     name: 'WattsStrogatz (100, 10, 0.06)',
@@ -767,7 +783,8 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: SAMPLE_GRAPH_DATASETS['WattsStrogatz (100, 10, 0.06)'],
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: WATTS_STROGATZ_STYLE
+    style: WATTS_STROGATZ_STYLE,
+    type: 'graph'
   },
   {
     name: 'University hierarchy (radial)',
@@ -777,6 +794,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['radial-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: KNOWLEDGE_GRAPH_STYLE,
+    type: 'radial',
     getLayoutOptions: (layout, _data) =>
       layout === 'radial-layout'
         ? {
@@ -793,6 +811,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['radial-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
+    type: 'radial',
     getLayoutOptions: (layout, _data) =>
       layout === 'radial-layout'
         ? {
@@ -809,6 +828,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['hive-plot-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: KNOWLEDGE_GRAPH_STYLE,
+    type: 'hive',
     getLayoutOptions: (layout, _data) =>
       layout === 'hive-plot-layout'
         ? {
@@ -826,6 +846,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['hive-plot-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
+    type: 'hive',
     getLayoutOptions: (layout, _data) =>
       layout === 'hive-plot-layout'
         ? {
@@ -843,6 +864,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['force-multi-graph-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: MULTI_GRAPH_STYLE,
+    type: 'multi-graph',
     getLayoutOptions: (layout, _data) =>
       layout === 'force-multi-graph-layout'
         ? {
@@ -860,6 +882,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['force-multi-graph-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
+    type: 'multi-graph',
     getLayoutOptions: (layout, _data) =>
       layout === 'force-multi-graph-layout'
         ? {
@@ -874,4 +897,21 @@ export const EXAMPLES: ExampleDefinition[] = [
   BROKEN_STYLESHEET_EXAMPLE
 ];
 
-export const DEFAULT_EXAMPLE = ML_PIPELINE_EXAMPLE;
+export function filterExamplesByType(
+  examples: ExampleDefinition[],
+  type?: GraphExampleType
+): ExampleDefinition[] {
+  if (!type) {
+    return examples;
+  }
+
+  return examples.filter((example) => example.type === type);
+}
+
+export function getExamplesByType(type?: GraphExampleType): ExampleDefinition[] {
+  return filterExamplesByType(EXAMPLES, type);
+}
+
+export function getDefaultExample(type?: GraphExampleType): ExampleDefinition | undefined {
+  return getExamplesByType(type)[0];
+}
