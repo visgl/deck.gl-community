@@ -75,15 +75,48 @@ const NODE_STYLE_DEPRECATION_MESSAGE =
 const EDGE_STYLE_DEPRECATION_MESSAGE =
   'GraphLayer: `edgeStyle` has been replaced by `stylesheet.edges` and will be removed in a future release.';
 
+const GRAPH_PROP_DEPRECATION_MESSAGE =
+  'GraphLayer: `graph` prop is deprecated. Pass graphs via the `data` prop instead.';
+const LAYOUT_REQUIRED_MESSAGE =
+  'GraphLayer: `layout` must be provided when supplying raw graph data.';
+
 let NODE_STYLE_DEPRECATION_WARNED = false;
 let EDGE_STYLE_DEPRECATION_WARNED = false;
+let GRAPH_PROP_DEPRECATION_WARNED = false;
+let LAYOUT_REQUIRED_WARNED = false;
 
-export type GraphLayerProps = CompositeLayerProps & _GraphLayerProps;
+export type GraphLayerRawData = {
+  name?: string;
+  nodes?: unknown[] | null;
+  edges?: unknown[] | null;
+};
+
+export type GraphLayerDataInput =
+  | GraphEngine
+  | Graph
+  | GraphLayerRawData
+  | unknown[]
+  | string
+  | null;
+
+export type GraphLayerProps = CompositeLayerProps &
+  _GraphLayerProps & {
+    data?: GraphLayerDataInput | Promise<GraphLayerDataInput>;
+  };
+
+type EngineResolutionFlags = {
+  force: boolean;
+  dataChanged: boolean;
+  layoutChanged: boolean;
+  graphChanged: boolean;
+  engineChanged: boolean;
+  loaderChanged: boolean;
+};
 
 export type _GraphLayerProps = {
   graph?: Graph;
   layout?: GraphLayout;
-  graphLoader?: (opts: {json: any}) => Graph;
+  graphLoader?: (opts: {json: unknown}) => Graph | null;
   engine?: GraphEngine;
 
   stylesheet?: GraphLayerStylesheet;
@@ -103,16 +136,20 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
+  resumeLayoutAfterDragging?: boolean;
 };
 
 /** Composite layer that renders graph nodes, edges, and decorators. */
 export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   static layerName = 'GraphLayer';
 
-  static defaultProps: Required<_GraphLayerProps> = {
+  static defaultProps: Required<_GraphLayerProps> & {
+    data: {type: string; value: null; async: true};
+  } = {
     // Composite layer props
     // @ts-expect-error composite layer props
     pickable: true,
+    data: {type: 'object', value: null, async: true},
 
     // Graph props
     graphLoader: JSONLoader,
@@ -131,22 +168,28 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onClick: () => {},
       onHover: () => {}
     },
-    enableDragging: false
+    enableDragging: false,
+    resumeLayoutAfterDragging: true
   };
 
   // @ts-expect-error Some typescript confusion due to override of base class state
   state!: CompositeLayer<GraphLayerProps>['state'] & {
     interactionManager: InteractionManager;
-    graphEngine?: GraphEngine;
+    graphEngine?: GraphEngine | null;
+    layoutVersion: number;
+    layoutState?: string;
+    interactionVersion: number;
   };
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
 
   forceUpdate = () => {
-    if (this.context && this.context.layerManager) {
-      this.setNeedsUpdate();
-      this.setChangeFlags({dataChanged: true} as any); // TODO
+    if (!this.state) {
+      return;
     }
+
+    this.setNeedsRedraw();
+    this.setState({interactionVersion: this.state.interactionVersion + 1});
   };
 
   constructor(props: GraphLayerProps & CompositeLayerProps) {
@@ -154,44 +197,58 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   initializeState() {
+    const interactionManager = new InteractionManager(
+      {
+        nodeEvents: this.props.nodeEvents,
+        edgeEvents: this.props.edgeEvents,
+        engine: undefined as any,
+        enableDragging: Boolean(this.props.enableDragging),
+        resumeLayoutAfterDragging: Boolean(
+          this.props.resumeLayoutAfterDragging ?? GraphLayer.defaultProps.resumeLayoutAfterDragging
+        )
+      },
+      () => this.forceUpdate()
+    );
+
     this.state = {
-      interactionManager: new InteractionManager(this.props as any, () => this.forceUpdate())
-    };
-    const engine = this.props.engine;
-    this._setGraphEngine(engine);
+      interactionManager,
+      graphEngine: null,
+      layoutVersion: 0,
+      layoutState: undefined,
+      interactionVersion: 0
+    } as typeof this.state;
+
+    this._syncInteractionManager(this.props, null);
+    this._refreshEngineFromProps(this.props, {force: true});
   }
 
   shouldUpdateState({changeFlags}) {
-    return changeFlags.dataChanged || changeFlags.propsChanged;
+    return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.stateChanged;
   }
 
   updateState({props, oldProps, changeFlags}) {
-    if (
-      changeFlags.dataChanged &&
-      props.data &&
-      !(Array.isArray(props.data) && props.data.length === 0)
-    ) {
-      // console.log(props.data);
-      const graph = this.props.graphLoader({json: props.data});
-      const layout = this.props.layout;
-      const graphEngine = new GraphEngine({graph, layout});
-      this._setGraphEngine(graphEngine);
-      this.state.interactionManager.updateProps(props);
-      this.forceUpdate();
-    } else if (changeFlags.propsChanged && props.graph !== oldProps.graph) {
-      const graphEngine = new GraphEngine({graph: props.graph, layout: props.layout});
-      this._setGraphEngine(graphEngine);
-      this.state.interactionManager.updateProps(props);
-      this.forceUpdate();
-    } else if (changeFlags.propsChanged && props.engine !== oldProps.engine) {
-      this._setGraphEngine(props.engine);
-      this.state.interactionManager.updateProps(props);
-      this.forceUpdate();
+    const dataChanged = changeFlags.dataChanged || props.data !== oldProps.data;
+    const layoutChanged = props.layout !== oldProps.layout;
+    const graphChanged = props.graph !== oldProps.graph;
+    const engineChanged = props.engine !== oldProps.engine;
+    const loaderChanged = props.graphLoader !== oldProps.graphLoader;
+
+    const engineRefreshed = this._refreshEngineFromProps(props, {
+      dataChanged,
+      layoutChanged,
+      graphChanged,
+      engineChanged,
+      loaderChanged
+    });
+
+    if (!engineRefreshed && (changeFlags.propsChanged || changeFlags.stateChanged)) {
+      this._syncInteractionManager(props, this.state.graphEngine ?? null);
     }
   }
 
   finalize() {
     this._removeGraphEngine();
+    this._syncInteractionManager(this.props, null);
   }
 
   private _getResolvedStylesheet(): NormalizedGraphLayerStylesheet {
@@ -228,25 +285,267 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
   }
 
-  _setGraphEngine(graphEngine: GraphEngine) {
+  private _refreshEngineFromProps(
+    props: GraphLayerProps,
+    {
+      force = false,
+      dataChanged = false,
+      layoutChanged = false,
+      graphChanged = false,
+      engineChanged = false,
+      loaderChanged = false
+    }: {
+      force?: boolean;
+      dataChanged?: boolean;
+      layoutChanged?: boolean;
+      graphChanged?: boolean;
+      engineChanged?: boolean;
+      loaderChanged?: boolean;
+    }
+  ): boolean {
+    const {engine: nextEngine, shouldReplace} = this._resolveEngineCandidate(props, {
+      force,
+      dataChanged,
+      layoutChanged,
+      graphChanged,
+      engineChanged,
+      loaderChanged
+    });
+
+    if (nextEngine === undefined) {
+      return false;
+    }
+
+    const currentEngine = this.state.graphEngine ?? null;
+    if (!shouldReplace && nextEngine === currentEngine) {
+      return false;
+    }
+
+    this._setGraphEngine(nextEngine);
+    this._syncInteractionManager(props, nextEngine);
+    return true;
+  }
+
+  private _resolveEngineCandidate(
+    props: GraphLayerProps,
+    flags: EngineResolutionFlags
+  ): {engine: GraphEngine | null | undefined; shouldReplace: boolean} {
+    const dataResult = this._getEngineFromData(props, flags);
+    if (dataResult) {
+      return dataResult;
+    }
+
+    const engineResult = this._getEngineFromEngineProp(props, flags);
+    if (engineResult) {
+      return engineResult;
+    }
+
+    const graphResult = this._getEngineFromGraphProp(props, flags);
+    if (graphResult) {
+      return graphResult;
+    }
+
+    if (props.data === null || props.graph === null || props.engine === null || flags.force) {
+      return {engine: null, shouldReplace: true};
+    }
+
+    return {engine: undefined, shouldReplace: flags.force};
+  }
+
+  private _getEngineFromData(
+    props: GraphLayerProps,
+    {force, dataChanged, layoutChanged, loaderChanged}: EngineResolutionFlags
+  ): {engine: GraphEngine | null | undefined; shouldReplace: boolean} | null {
+    const dataValue = props.data as GraphLayerDataInput | null | undefined;
+    if (dataValue === null || typeof dataValue === 'undefined') {
+      return null;
+    }
+
+    return {
+      engine: this._deriveEngineFromData(dataValue, props),
+      shouldReplace: force || dataChanged || layoutChanged || loaderChanged
+    };
+  }
+
+  private _getEngineFromEngineProp(
+    props: GraphLayerProps,
+    {force, engineChanged}: EngineResolutionFlags
+  ): {engine: GraphEngine | null | undefined; shouldReplace: boolean} | null {
+    if (typeof props.engine === 'undefined') {
+      return null;
+    }
+
+    if (props.engine === null) {
+      return {engine: null, shouldReplace: true};
+    }
+
+    return {
+      engine: props.engine,
+      shouldReplace: force || engineChanged
+    };
+  }
+
+  private _getEngineFromGraphProp(
+    props: GraphLayerProps,
+    {force, graphChanged, layoutChanged}: EngineResolutionFlags
+  ): {engine: GraphEngine | null | undefined; shouldReplace: boolean} | null {
+    if (typeof props.graph === 'undefined') {
+      return null;
+    }
+
+    if (props.graph === null) {
+      return {engine: null, shouldReplace: true};
+    }
+
+    this._warnGraphProp();
+    return {
+      engine: this._buildEngineFromGraph(props.graph, props.layout),
+      shouldReplace: force || graphChanged || layoutChanged
+    };
+  }
+
+  private _deriveEngineFromData(
+    data: GraphLayerDataInput,
+    props: GraphLayerProps
+  ): GraphEngine | null | undefined {
+    if (data === null || typeof data === 'undefined') {
+      return null;
+    }
+
+    if (typeof (data as PromiseLike<GraphLayerDataInput>)?.then === 'function') {
+      return undefined;
+    }
+
+    if (data instanceof GraphEngine) {
+      return data;
+    }
+
+    if (data instanceof Graph) {
+      return this._buildEngineFromGraph(data, props.layout);
+    }
+
+    if (typeof data === 'string') {
+      return undefined;
+    }
+
+    if (Array.isArray(data) || this._isPlainObject(data)) {
+      const loader = props.graphLoader ?? JSONLoader;
+      const graph = loader({json: data});
+      if (!graph) {
+        return null;
+      }
+      return this._buildEngineFromGraph(graph, props.layout);
+    }
+
+    return null;
+  }
+
+  private _buildEngineFromGraph(graph: Graph | null, layout?: GraphLayout | null): GraphEngine | null {
+    if (!graph) {
+      return null;
+    }
+
+    if (!layout) {
+      this._warnLayoutRequired();
+      return null;
+    }
+
+    return new GraphEngine({graph, layout});
+  }
+
+  private _syncInteractionManager(props: GraphLayerProps, engine: GraphEngine | null) {
+    const resumeLayoutAfterDragging =
+      props.resumeLayoutAfterDragging ?? GraphLayer.defaultProps.resumeLayoutAfterDragging;
+
+    this.state.interactionManager.updateProps({
+      nodeEvents: props.nodeEvents ?? GraphLayer.defaultProps.nodeEvents,
+      edgeEvents: props.edgeEvents ?? GraphLayer.defaultProps.edgeEvents,
+      engine: (engine ?? props.engine ?? null) as any,
+      enableDragging: Boolean(props.enableDragging),
+      resumeLayoutAfterDragging: Boolean(resumeLayoutAfterDragging)
+    });
+  }
+
+  private _warnGraphProp() {
+    if (!GRAPH_PROP_DEPRECATION_WARNED) {
+      warn(GRAPH_PROP_DEPRECATION_MESSAGE);
+      GRAPH_PROP_DEPRECATION_WARNED = true;
+    }
+  }
+
+  private _warnLayoutRequired() {
+    if (!LAYOUT_REQUIRED_WARNED) {
+      warn(LAYOUT_REQUIRED_MESSAGE);
+      LAYOUT_REQUIRED_WARNED = true;
+    }
+  }
+
+  private _isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+  }
+
+  private _updateLayoutSnapshot(engine?: GraphEngine | null) {
+    const activeEngine = engine ?? this.state.graphEngine ?? null;
+
+    if (!activeEngine) {
+      if (this.state.layoutVersion !== 0 || typeof this.state.layoutState !== 'undefined') {
+        this.setState({layoutVersion: 0, layoutState: undefined});
+      }
+      this.setNeedsRedraw();
+      return;
+    }
+
+    const nextVersion = activeEngine.getLayoutLastUpdate();
+    const nextState = activeEngine.getLayoutState();
+
+    if (this.state.layoutVersion !== nextVersion || this.state.layoutState !== nextState) {
+      this.setState({layoutVersion: nextVersion, layoutState: nextState});
+    }
+
+    this.setNeedsRedraw();
+  }
+
+  private _handleLayoutEvent = () => {
+    this._updateLayoutSnapshot();
+  };
+
+  _setGraphEngine(graphEngine: GraphEngine | null) {
     if (graphEngine === this.state.graphEngine) {
+      this._updateLayoutSnapshot(graphEngine);
       return;
     }
 
     this._removeGraphEngine();
+
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
-      this.state.graphEngine.run();
-      // added or removed a node, or in general something layout related changed
-      this.state.graphEngine.addEventListener('onLayoutChange', this.forceUpdate);
+      graphEngine.addEventListener('onLayoutStart', this._handleLayoutEvent);
+      graphEngine.addEventListener('onLayoutChange', this._handleLayoutEvent);
+      graphEngine.addEventListener('onLayoutDone', this._handleLayoutEvent);
+      graphEngine.addEventListener('onLayoutError', this._handleLayoutEvent);
+      graphEngine.run();
+      this._updateLayoutSnapshot(graphEngine);
+    } else {
+      this.state.graphEngine = null;
+      this._updateLayoutSnapshot(null);
     }
   }
 
   _removeGraphEngine() {
-    if (this.state.graphEngine) {
-      this.state.graphEngine.removeEventListener('onLayoutChange', this.forceUpdate);
-      this.state.graphEngine.clear();
+    const engine = this.state.graphEngine;
+    if (engine) {
+      engine.removeEventListener('onLayoutStart', this._handleLayoutEvent);
+      engine.removeEventListener('onLayoutChange', this._handleLayoutEvent);
+      engine.removeEventListener('onLayoutDone', this._handleLayoutEvent);
+      engine.removeEventListener('onLayoutError', this._handleLayoutEvent);
+      engine.clear();
       this.state.graphEngine = null;
+      this._updateLayoutSnapshot(null);
     }
   }
 
