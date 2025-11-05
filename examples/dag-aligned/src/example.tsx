@@ -12,13 +12,20 @@ import {
   GraphEngine,
   GraphLayer,
   Node,
-  Edge
+  Edge,
+  type GraphLayerStylesheet
 } from '@deck.gl-community/graph-layers';
 
 const ORTHO_VIEW = new OrthographicView({id: 'ortho'});
 const HORIZONTAL_GAP = 180;
 const VERTICAL_GAP = 60;
 const TIME_SCALE = 40;
+const BRANCH_COLORS: Record<string, string> = {
+  Alpha: '#2563eb',
+  Beta: '#0ea5e9'
+};
+const EDGE_COLOR = '#475569';
+const LABEL_COLOR = '#0f172a';
 
 type ExampleNodeData = {
   id: string;
@@ -104,6 +111,40 @@ export function App(): JSX.Element {
     [stretched, stretchedScale]
   );
 
+  const stylesheet = useMemo<GraphLayerStylesheet>(
+    () => ({
+      nodes: [
+        {
+          type: 'circle',
+          radius: 16,
+          fill: {
+            attribute: 'branch',
+            scale: {
+              type: 'ordinal',
+              domain: Object.keys(BRANCH_COLORS),
+              range: Object.keys(BRANCH_COLORS).map((branch) => BRANCH_COLORS[branch])
+            }
+          },
+          stroke: '#0f172a',
+          strokeWidth: 2
+        },
+        {
+          type: 'label',
+          text: '@label',
+          color: LABEL_COLOR,
+          fontSize: 14,
+          offset: [0, -28]
+        }
+      ],
+      edges: {
+        type: 'edge',
+        stroke: EDGE_COLOR,
+        strokeWidth: 2
+      }
+    }),
+    []
+  );
+
   const layout = useMemo(() => {
     const dagLayout = new DagAlignedLayout({
       rank: (node) => (node.getPropertyValue('step') as number),
@@ -142,11 +183,12 @@ export function App(): JSX.Element {
     const graphLayer = new GraphLayer({
       id: 'dag-graph',
       engine,
-      enableDragging: false
+      enableDragging: false,
+      stylesheet
     });
 
     return [gridLayer, graphLayer];
-  }, [engine, gridLines]);
+  }, [engine, gridLines, stylesheet]);
 
   return (
     <div
