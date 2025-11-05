@@ -182,6 +182,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   };
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
+  private _suppressNextDeckDataChange = false;
 
   forceUpdate = () => {
     if (!this.state) {
@@ -227,7 +228,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   updateState({props, oldProps, changeFlags}) {
-    const dataChanged = changeFlags.dataChanged || props.data !== oldProps.data;
+    const propsDataChanged = props.data !== oldProps.data;
+    const deckDataChanged =
+      changeFlags.dataChanged && !(this._suppressNextDeckDataChange && !propsDataChanged);
+    const dataChanged = deckDataChanged || propsDataChanged;
     const layoutChanged = props.layout !== oldProps.layout;
     const graphChanged = props.graph !== oldProps.graph;
     const engineChanged = props.engine !== oldProps.engine;
@@ -244,6 +248,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     if (!engineRefreshed && (changeFlags.propsChanged || changeFlags.stateChanged)) {
       this._syncInteractionManager(props, this.state.graphEngine ?? null);
     }
+
+    this._suppressNextDeckDataChange = false;
   }
 
   finalize() {
@@ -361,9 +367,19 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
+    const shouldRebuild = force || dataChanged || layoutChanged || loaderChanged;
+    if (!shouldRebuild) {
+      return {engine: undefined, shouldReplace: false};
+    }
+
+    const engine = this._deriveEngineFromData(dataValue, props);
+    if (typeof engine === 'undefined') {
+      return {engine: undefined, shouldReplace: false};
+    }
+
     return {
-      engine: this._deriveEngineFromData(dataValue, props),
-      shouldReplace: force || dataChanged || layoutChanged || loaderChanged
+      engine,
+      shouldReplace: true
     };
   }
 
@@ -494,6 +510,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (!activeEngine) {
       if (this.state.layoutVersion !== 0 || typeof this.state.layoutState !== 'undefined') {
+        this._suppressNextDeckDataChange = true;
         this.setState({layoutVersion: 0, layoutState: undefined});
       }
       this.setNeedsRedraw();
@@ -504,6 +521,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     const nextState = activeEngine.getLayoutState();
 
     if (this.state.layoutVersion !== nextVersion || this.state.layoutState !== nextState) {
+      this._suppressNextDeckDataChange = true;
       this.setState({layoutVersion: nextVersion, layoutState: nextState});
     }
 
