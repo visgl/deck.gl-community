@@ -26,4 +26,4 @@ class GraphViewerDemo extends Component {
   }
 }
 
-export default makeExample(GraphViewerDemo);
+export default makeExample(GraphViewerDemo, {addInfoPanel: false});

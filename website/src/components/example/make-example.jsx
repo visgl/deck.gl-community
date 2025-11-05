@@ -34,7 +34,7 @@ const MapTip = styled.div`
   }
 `;
 
-export default function makeExample(DemoComponent, {isInteractive = true, style} = {}) {
+export default function makeExample(DemoComponent, {addInfoPanel = true, style} = {}) {
   const {parameters = {}, mapStyle} = DemoComponent;
   const defaultParams = Object.keys(parameters).reduce((acc, name) => {
     acc[name] = normalizeParam(parameters[name]);
@@ -117,7 +117,7 @@ export default function makeExample(DemoComponent, {isInteractive = true, style}
           useParam={useParam}
           onStateChange={updateMeta}
         />
-        {isInteractive && (
+        {addInfoPanel && (
           <InfoPanel
             title={DemoComponent.title}
             params={params}
@@ -129,7 +129,7 @@ export default function makeExample(DemoComponent, {isInteractive = true, style}
           </InfoPanel>
         )}
 
-        {isInteractive && mapStyle && <MapTip>Hold down shift to rotate</MapTip>}
+        {addInfoPanel && mapStyle && <MapTip>Hold down shift to rotate</MapTip>}
       </DemoContainer>
     );
   };

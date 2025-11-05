@@ -21,12 +21,12 @@ export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
 export type ExampleDefinition = {
   name: string;
   description: string;
+  type: GraphExampleType;
   data: () => {nodes: unknown[]; edges: unknown[]};
   /** First listed layout is the default */
   layouts: LayoutType[];
   layoutDescriptions: Record<LayoutType, string>;
   style: ExampleStyles;
-  type: GraphExampleType;
   getLayoutOptions?: (
     layout: LayoutType,
     data: {nodes: unknown[]; edges: unknown[]}
