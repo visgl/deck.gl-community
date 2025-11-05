@@ -5,6 +5,19 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 
+const DEFAULT_MAX_WIDTH = Number.MAX_SAFE_INTEGER;
+
+const normalizeMaxWidth = (value: unknown) => {
+  if (typeof value === 'function') {
+    return (d: unknown) => {
+      const width = Number((value as (arg0: unknown) => unknown)(d));
+      return Number.isFinite(width) && width > 0 ? width : DEFAULT_MAX_WIDTH;
+    };
+  }
+  const width = Number(value);
+  return Number.isFinite(width) && width > 0 ? width : DEFAULT_MAX_WIDTH;
+};
+
 export class ZoomableTextLayer extends CompositeLayer {
   static layerName = 'ZoomableTextLayer';
 
@@ -59,6 +72,8 @@ export class ZoomableTextLayer extends CompositeLayer {
     // getText only expects function not plain value (string)
     const newGetText = typeof getText === 'function' ? getText : () => getText;
 
+    const resolvedMaxWidth = normalizeMaxWidth(textMaxWidth);
+
     return [
       new TextLayer(
         this.getSubLayerProps({
@@ -73,7 +88,7 @@ export class ZoomableTextLayer extends CompositeLayer {
           getAlignmentBaseline,
           getAngle,
           getText: newGetText,
-          maxWidth: textMaxWidth ?? 12,
+          maxWidth: resolvedMaxWidth,
           wordBreak: textWordBreak ?? 'break-all',
           fontFamily: fontFamily ?? 'Red Hat Text',
           wordUnits: textWordUnits ?? 'pixels',
