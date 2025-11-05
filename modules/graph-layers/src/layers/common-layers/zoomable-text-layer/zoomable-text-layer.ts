@@ -5,17 +5,23 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 
-const DEFAULT_MAX_WIDTH = Number.MAX_SAFE_INTEGER;
+// deck.gl's MultiIconLayer stores character offsets in a 16-bit buffer, so clamp the
+// computed max width to avoid overflowing the attribute when stylesheet values are invalid.
+const TEXT_LAYER_MAX_SAFE_WIDTH = 32767;
+
+const clampMaxWidth = (value: unknown) => {
+  const width = Number(value);
+  if (!Number.isFinite(width) || width <= 0) {
+    return TEXT_LAYER_MAX_SAFE_WIDTH;
+  }
+  return Math.min(width, TEXT_LAYER_MAX_SAFE_WIDTH);
+};
 
 const normalizeMaxWidth = (value: unknown) => {
   if (typeof value === 'function') {
-    return (d: unknown) => {
-      const width = Number((value as (arg0: unknown) => unknown)(d));
-      return Number.isFinite(width) && width > 0 ? width : DEFAULT_MAX_WIDTH;
-    };
+    return (d: unknown) => clampMaxWidth((value as (arg0: unknown) => unknown)(d));
   }
-  const width = Number(value);
-  return Number.isFinite(width) && width > 0 ? width : DEFAULT_MAX_WIDTH;
+  return clampMaxWidth(value);
 };
 
 export class ZoomableTextLayer extends CompositeLayer {

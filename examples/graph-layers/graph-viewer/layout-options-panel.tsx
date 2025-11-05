@@ -312,13 +312,22 @@ export function LayoutOptionsPanel({
   appliedOptions,
   onApply
 }: LayoutOptionsPanelProps) {
+  const [isDagOptionsOpen, setIsDagOptionsOpen] = useState(true);
+  const handleDagToggle = useCallback((event: React.SyntheticEvent<HTMLDetailsElement>) => {
+    setIsDagOptionsOpen(event.currentTarget.open);
+  }, []);
+
   if (!layout) {
     return null;
   }
 
   if (layout === 'd3-dag-layout') {
     return (
-      <details defaultOpen style={{borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem'}}>
+      <details
+        open={isDagOptionsOpen}
+        onToggle={handleDagToggle}
+        style={{borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem'}}
+      >
         <summary
           style={{
             margin: 0,
