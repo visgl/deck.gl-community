@@ -86,9 +86,24 @@ const KNOWLEDGE_GRAPH = {
     {id: 'e-7', sourceId: 'Humanities', targetId: 'Design Thinking', type: 'mentors'},
     {id: 'e-8', sourceId: 'Professional Studies', targetId: 'Field Work', type: 'coordinates'},
     {id: 'e-9', sourceId: 'Professional Studies', targetId: 'Medical Center', type: 'coordinates'},
-    {id: 'e-10', sourceId: 'Professional Studies', targetId: 'Entrepreneurship Hub', type: 'coordinates'},
-    {id: 'e-11', sourceId: 'Entrepreneurship Hub', targetId: 'Finance Department', type: 'incubates'},
-    {id: 'e-12', sourceId: 'Entrepreneurship Hub', targetId: 'Economics Department', type: 'incubates'},
+    {
+      id: 'e-10',
+      sourceId: 'Professional Studies',
+      targetId: 'Entrepreneurship Hub',
+      type: 'coordinates'
+    },
+    {
+      id: 'e-11',
+      sourceId: 'Entrepreneurship Hub',
+      targetId: 'Finance Department',
+      type: 'incubates'
+    },
+    {
+      id: 'e-12',
+      sourceId: 'Entrepreneurship Hub',
+      targetId: 'Economics Department',
+      type: 'incubates'
+    },
     {id: 'e-13', sourceId: 'Data Science', targetId: 'Entrepreneurship Hub', type: 'partners'},
     {id: 'e-14', sourceId: 'Applied Physics', targetId: 'Medical Center', type: 'supports'},
     {id: 'e-15', sourceId: 'Design Thinking', targetId: 'Entrepreneurship Hub', type: 'advises'}
@@ -124,18 +139,21 @@ const parseWitsMetadata = (value: string | undefined): Record<string, string> =>
   return value
     .split('`')
     .map((entry) => entry.split('~'))
-    .reduce((acc, [key, raw]) => {
-      if (!key || !raw) {
-        return acc;
-      }
+    .reduce(
+      (acc, [key, raw]) => {
+        if (!key || !raw) {
+          return acc;
+        }
 
-      const trimmedKey = key.trim();
-      const trimmedValue = raw.trim();
-      if (trimmedKey.length) {
-        acc[trimmedKey] = trimmedValue;
-      }
-      return acc;
-    }, {} as Record<string, string>);
+        const trimmedKey = key.trim();
+        const trimmedValue = raw.trim();
+        if (trimmedKey.length) {
+          acc[trimmedKey] = trimmedValue;
+        }
+        return acc;
+      },
+      {} as Record<string, string>
+    );
 };
 
 const WITS_BASE_NODES = (WITS_DATASET.nodes ?? []).map((node) => {
@@ -178,9 +196,7 @@ const WITS_GRAPH_DATA: ExampleGraphData = {
 
 const WITS_TREE = (WITS_DATASET.tree ?? []) as ReadonlyArray<RawWitsTreeNode>;
 
-const WITS_REGIONS = Array.from(
-  new Set(WITS_BASE_NODES.map((node) => node.region ?? 'Other'))
-);
+const WITS_REGIONS = Array.from(new Set(WITS_BASE_NODES.map((node) => node.region ?? 'Other')));
 
 const WITS_REGION_COLORS = [
   '#1d4ed8',
@@ -193,10 +209,13 @@ const WITS_REGION_COLORS = [
   '#6366f1'
 ];
 
-const WITS_REGION_COLOR_MAP: Record<string, string> = WITS_REGIONS.reduce((acc, region, index) => {
-  acc[region] = WITS_REGION_COLORS[index % WITS_REGION_COLORS.length];
-  return acc;
-}, {} as Record<string, string>);
+const WITS_REGION_COLOR_MAP: Record<string, string> = WITS_REGIONS.reduce(
+  (acc, region, index) => {
+    acc[region] = WITS_REGION_COLORS[index % WITS_REGION_COLORS.length];
+    return acc;
+  },
+  {} as Record<string, string>
+);
 
 const WITS_REGION_STYLE: ExampleStyles = {
   nodes: [
@@ -216,8 +235,7 @@ const WITS_REGION_STYLE: ExampleStyles = {
       fill: {
         attribute: 'region',
         fallback: '#475569',
-        scale: (region: unknown) =>
-          WITS_REGION_COLOR_MAP[String(region)] ?? '#475569'
+        scale: (region: unknown) => WITS_REGION_COLOR_MAP[String(region)] ?? '#475569'
       },
       stroke: '#0f172a',
       strokeWidth: 0.75,
@@ -230,7 +248,6 @@ const WITS_REGION_STYLE: ExampleStyles = {
     decorators: []
   }
 };
-
 
 const GROUP_COLOR_MAP: Record<string, string> = {
   Overview: '#64748b',
@@ -247,9 +264,8 @@ const cloneGraphData = (data: ExampleGraphData): ExampleGraphData => ({
   edges: data.edges.map((edge) => ({...edge}))
 });
 
-const cloneTree = <T extends {id: string; children?: readonly string[]}>(
-  tree: readonly T[]
-): T[] => tree.map((node) => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
+const cloneTree = <T extends {id: string; children?: readonly string[]}>(tree: readonly T[]): T[] =>
+  tree.map((node) => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
 
 const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'd3-force-layout':
@@ -697,17 +713,6 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
   }
 };
 
-const ML_PIPELINE_EXAMPLE: ExampleDefinition = {
-  name: 'ML Pipeline DAG',
-  type: 'dag',
-  description:
-    'Directed acyclic graph of a simplified machine-learning pipeline with dependencies between each processing stage.',
-  data: dagPipelineDataset,
-  layouts: ['d3-dag-layout'],
-  layoutDescriptions: LAYOUT_DESCRIPTIONS,
-  style: DAG_PIPELINE_STYLE
-};
-
 const BROKEN_STYLESHEET_GRAPH: ExampleGraphData = {
   nodes: [
     {id: 'alpha', stage: 'ingest'},
@@ -757,17 +762,6 @@ const BROKEN_STYLESHEET: ExampleStyles = {
     ]
   }
 } as ExampleStyles;
-
-const BROKEN_STYLESHEET_EXAMPLE: ExampleDefinition = {
-  name: 'Broken stylesheet warnings',
-  description:
-    'Intentionally malformed stylesheet that demonstrates how parsing failures now surface warnings while the graph keeps rendering.',
-  data: () => cloneGraphData(BROKEN_STYLESHEET_GRAPH),
-  layouts: ['d3-force-layout'],
-  layoutDescriptions: LAYOUT_DESCRIPTIONS,
-  style: BROKEN_STYLESHEET,
-  type: 'graph'
-};
 
 export const EXAMPLES: ExampleDefinition[] = [
   {
@@ -860,27 +854,6 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WATTS_STROGATZ_STYLE,
     type: 'graph'
-  },
-  {
-    name: 'ML lineage DAG (1,000 runs)',
-    description:
-      'Deterministic machine-learning lineage DAG with long experiment chains and branching heads.',
-    data: SAMPLE_GRAPH_DATASETS['ML Lineage DAG (1000 runs)'],
-    layouts: ['d3-dag-layout', 'gpu-force-layout', 'd3-force-layout'],
-    layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: ML_LINEAGE_STYLE,
-    getLayoutOptions: (layout, _data) =>
-      layout === 'd3-dag-layout'
-        ? {
-            layout: 'sugiyama',
-            layering: 'longestPath',
-            coord: 'greedy',
-            orientation: 'LR',
-            nodeSize: [42, 18],
-            gap: [24, 36],
-            separation: [1, 1.1]
-          }
-        : undefined
   },
   {
     name: 'University hierarchy (radial)',
@@ -988,9 +961,49 @@ export const EXAMPLES: ExampleDefinition[] = [
             nBodyDistanceMax: 1200
           }
         : undefined
-  }, 
-  ML_PIPELINE_EXAMPLE,
-  BROKEN_STYLESHEET_EXAMPLE
+  },
+  {
+    name: 'ML Pipeline DAG',
+    type: 'dag',
+    description:
+      'Directed acyclic graph of a simplified machine-learning pipeline with dependencies between each processing stage.',
+    data: dagPipelineDataset,
+    layouts: ['d3-dag-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: DAG_PIPELINE_STYLE
+  },
+  {
+    name: 'ML lineage DAG (1,000 runs)',
+    type: 'dag',
+    description:
+      'Deterministic machine-learning lineage DAG with long experiment chains and branching heads.',
+    data: SAMPLE_GRAPH_DATASETS['ML Lineage DAG (1000 runs)'],
+    layouts: ['d3-dag-layout', 'gpu-force-layout', 'd3-force-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: ML_LINEAGE_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'd3-dag-layout'
+        ? {
+            layout: 'sugiyama',
+            layering: 'longestPath',
+            coord: 'greedy',
+            orientation: 'LR',
+            nodeSize: [42, 18],
+            gap: [24, 36],
+            separation: [1, 1.1]
+          }
+        : undefined
+  },
+  {
+    name: 'Broken stylesheet warnings',
+    description:
+      'Intentionally malformed stylesheet that demonstrates how parsing failures now surface warnings while the graph keeps rendering.',
+    data: () => cloneGraphData(BROKEN_STYLESHEET_GRAPH),
+    layouts: ['d3-force-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: BROKEN_STYLESHEET,
+    type: 'graph'
+  }
 ];
 
 export function filterExamplesByType(
