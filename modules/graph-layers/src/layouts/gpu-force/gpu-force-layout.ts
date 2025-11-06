@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 
-export type GPUForceLayoutOptions = GraphLayoutOptions & {
+export type GPUForceLayoutOptions = GraphLayoutProps & {
   alpha?: number;
   resumeAlpha?: number;
   nBodyStrength?: number;
@@ -17,7 +17,7 @@ export type GPUForceLayoutOptions = GraphLayoutOptions & {
  * @todo this layout should be updated with the organizational and logic improvements made in d3-force
  */
 export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
-  static defaultOptions: Required<GPUForceLayoutOptions> = {
+  static defaultProps: Required<GPUForceLayoutOptions> = {
     alpha: 0.3,
     resumeAlpha: 0.1,
     nBodyStrength: -900,
@@ -36,7 +36,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
 
   constructor(options: GPUForceLayoutOptions = {}) {
     const _options = {
-      ...GPUForceLayout.defaultOptions,
+      ...GPUForceLayout.defaultProps,
       ...options
     };
 

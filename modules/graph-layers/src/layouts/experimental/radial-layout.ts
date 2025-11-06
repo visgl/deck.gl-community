@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {Graph} from '../../graph/graph';
 
-export type RadialLayoutOptions = GraphLayoutOptions & {
+export type RadialLayoutProps = GraphLayoutProps & {
   radius?: number;
   tree?: any;
 };
@@ -51,8 +51,8 @@ const getPath = (node, targetId, path) => {
   return false;
 };
 
-export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
-  static defaultOptions = {
+export class RadialLayout extends GraphLayout<RadialLayoutProps> {
+  static defaultProps = {
     radius: 500
   };
 
@@ -62,10 +62,10 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
   _hierarchicalPoints = {};
   nestedTree;
 
-  constructor(options: RadialLayoutOptions = {}) {
+  constructor(options: RadialLayoutProps = {}) {
     super(options);
     this._options = {
-      ...RadialLayout.defaultOptions,
+      ...RadialLayout.defaultProps,
       ...options
     };
   }
@@ -147,6 +147,12 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
     this._onLayoutChange();
     this._onLayoutDone();
   }
+
+  stop(): void {}
+
+  resume() {}
+
+  update() {}
 
   getNodePosition = (node) => {
     return this._hierarchicalPoints[node.id];

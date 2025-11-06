@@ -1,6 +1,6 @@
 /**
  * Converts a hexadecimal string (with or without “0x” prefix) to a bigint.
- * @param hex – The hex string representation (e.g., "0x1a2b", "FF", "00ff")
+ * @param hex - The hex string representation (e.g., "0x1a2b", "FF", "00ff")
  * @returns The corresponding bigint value.
  * @throws {Error} If the input is not a valid hex string.
  */

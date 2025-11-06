@@ -1,17 +1,21 @@
-# Write your own custom layout
+# GraphLayout
 
-Here's the method you will likely to implement when creating your own custom layout:
+Create a subclass of the `GraphLayout` class to write your own custom layout for the `GraphLayer`.
+
+## Usage 
+
+The example belows illustrates the methods you will need to implement when creating your own custom layout.
 
 ```js
 import {GraphLayout} from '@deck.gl-community/graph-layers';
 
-export default class MyLayout extends GraphLayout {
+export class MyLayout extends GraphLayout {
   // initialize the layout
   constructor(options) {}
   // first time to pass the graph data into this layout
   initializeGraph(graph) {}
   // update the existing graph
-  updateGraph(grpah) {}
+  updateGraph(graph) {}
   // start the layout calculation
   start() {}
   // update the layout calculation
@@ -20,6 +24,7 @@ export default class MyLayout extends GraphLayout {
   resume() {}
   // stop the layout calculation manually
   stop() {}
+
   // Access the position of the node in the layout
   // If the position is not available (not calculated), returning nullish will hide the node.
   getNodePosition(node) {}
@@ -34,7 +39,7 @@ export default class MyLayout extends GraphLayout {
 
 We will start with a `RandomLayout` as an example, you can follow the steps one by one and find the source code at the bottom.
 
-### Lifecycles
+## The Layout Lifecycle
 
 For a graph layout, everything goes through a set of events. In each event, the layout will need to take the inputs and do the different computations. Lifecycle methods are various methods which are invoked at different phases of the lifecycle of a graph layout. If you are aware of these lifecycle events, it will enable you to control their entire flow and it will definitely help us to produce better results.
 
@@ -66,34 +71,6 @@ If you want to implement the drag & drag interaction on nodes, you will have to 
 
 The sequence of the events is like:
 startDragging => lockNodePosition => release => unlockNodePosition => resume
-
-### constructor
-
-In the constructor, you can initialize some internal object you'll need for the layout state.
-The most important part is to create a 'map' to keep the position of nodes.
-
-```js
-export default class RandomLayout extends GraphLayout {
-  static defaultOptions = {
-    viewportWidth: 1000,
-    viewportHeight: 1000
-  };
-
-  constructor(options) {
-    // init GraphLayout
-    super(options);
-    // give a name to this layout
-    this._name = 'RandomLayout';
-    // combine the default options with user input
-    this._options = {
-      ...this.defaultOptions,
-      ...options
-    };
-    // a map to persis the position of nodes.
-    this._nodePositionMap = {};
-  }
-}
-```
 
 ### Update the graph data
 
@@ -157,6 +134,37 @@ Then call `this._onLayoutDone()` to notify the render that layout is completed.
   }
 ```
 
+## Methpds
+
+### constructor
+
+In the constructor, you can initialize some internal object you'll need for the layout state.
+The most important part is to create a 'map' to keep the position of nodes.
+
+```js
+export default class RandomLayout extends GraphLayout {
+  static defaultProps = {
+    viewportWidth: 1000,
+    viewportHeight: 1000
+  };
+
+  constructor(options) {
+    // init GraphLayout
+    super(options);
+    // give a name to this layout
+    this._name = 'RandomLayout';
+    // combine the default options with user input
+    this._options = {
+      ...this.defaultProps,
+      ...options
+    };
+    // a map to persis the position of nodes.
+    this._nodePositionMap = {};
+  }
+}
+```
+
+
 ### Getters
 
 GraphGL will keep retrieving the position of nodes and edges from the layout. You will need to provide two getters `getNodePosition` and `getEdgePosition`.
@@ -193,7 +201,7 @@ export default class RandomLayout extends GraphLayout {
     super(options);
     this._name = 'RandomLayout';
     this._options = {
-      ...defaultOptions,
+      ...defaultProps,
       ...options
     };
     this._nodePositionMap = {};

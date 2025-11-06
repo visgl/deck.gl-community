@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {Graph} from '../../graph/graph';
 
-export type HivePlotLayoutOptions = GraphLayoutOptions & {
+export type HivePlotLayoutProps = GraphLayoutProps & {
   innerRadius?: number;
   outerRadius?: number;
   getNodeAxis?: (node: Node) => any;
 };
 
-export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
-  static defaultOptions = {
+export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
+  static defaultProps = {
     innerRadius: 100,
     outerRadius: 500,
     getNodeAxis: (node: Node) => node.getPropertyValue('group')
-  } as const satisfies Readonly<Required<HivePlotLayoutOptions>>;
+  } as const satisfies Readonly<Required<HivePlotLayoutProps>>;
 
   _name = 'HivePlot';
   _graph: Graph;
@@ -26,10 +26,10 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
   _nodeMap = {};
   _nodePositionMap = {};
 
-  constructor(options: HivePlotLayoutOptions = {}) {
+  constructor(options: HivePlotLayoutProps = {}) {
     super(options);
     this._options = {
-      ...HivePlotLayout.defaultOptions,
+      ...HivePlotLayout.defaultProps,
       ...options
     };
   }
@@ -96,6 +96,12 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
     this._onLayoutChange();
     this._onLayoutDone();
   }
+
+  stop() {}
+
+  update() {}
+
+  resume() {}
 
   getNodePosition = (node) => this._nodePositionMap[node.getId()];
 

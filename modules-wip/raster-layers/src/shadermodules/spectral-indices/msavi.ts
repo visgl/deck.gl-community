@@ -10,7 +10,7 @@ import {ShaderModule} from '../types';
 // red: Landsat 8 band 5
 // green: Landsat 8 band 4
 //
-// MSAVI = (2 * Band 5 + 1 – sqrt ((2 * Band 5 + 1)^2 – 8 * (Band 5 – Band 4))) / 2
+// MSAVI = (2 * Band 5 + 1 - sqrt ((2 * Band 5 + 1)^2 - 8 * (Band 5 - Band 4))) / 2
 // https://www.usgs.gov/land-resources/nli/landsat/landsat-modified-soil-adjusted-vegetation-index
 const fs = /* glsl */ `\
 float modified_soil_adjusted_vegetation_index_calc(vec4 image) {
