@@ -1,5 +1,6 @@
-# Write your own custom layout
+# GraphLayout
 
+Create a subclass of the `GraphLayout` class to write your own custom layout for the `GraphLayer`.
 
 ## Usage 
 
