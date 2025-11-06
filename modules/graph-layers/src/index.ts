@@ -11,7 +11,7 @@ export {GraphEngine} from './core/graph-engine';
 
 // graph-layers layouts
 export type {
-  GraphLayoutOptions,
+  GraphLayoutProps,
   GraphLayoutState,
   GraphLayoutEventDetail
 } from './core/graph-layout';

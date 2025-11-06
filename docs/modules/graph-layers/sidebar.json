@@ -9,10 +9,14 @@
       "type": "category",
       "label": "Layouts",
       "items": [
+        "modules/graph-layers/api-reference/layouts/README",
+        "modules/graph-layers/api-reference/layouts/graph-layout",
         "modules/graph-layers/api-reference/layouts/simple-layout",
-        "modules/graph-layers/api-reference/layouts/d3-layout",
-        "modules/graph-layers/api-reference/layouts/custom-layout",
-        "modules/graph-layers/api-reference/layouts/experimental-layouts"
+        "modules/graph-layers/api-reference/layouts/d3-force-layout",
+        "modules/graph-layers/api-reference/layouts/d3-dag-layout",
+        "modules/graph-layers/api-reference/layouts/radial-layout",
+        "modules/graph-layers/api-reference/layouts/hiveplot-layout",
+        "modules/graph-layers/api-reference/layouts/multigraph-layout"
       ]
     },
     {

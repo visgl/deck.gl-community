@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {log} from '../../utils/log';
 
-export type D3ForceLayoutOptions = GraphLayoutOptions & {
+export type D3ForceLayoutOptions = GraphLayoutProps & {
   alpha?: number;
   resumeAlpha?: number;
   nBodyStrength?: number;
@@ -15,7 +15,7 @@ export type D3ForceLayoutOptions = GraphLayoutOptions & {
 };
 
 export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
-  static defaultOptions: Required<D3ForceLayoutOptions> = {
+  static defaultProps: Required<D3ForceLayoutOptions> = {
     alpha: 0.3,
     resumeAlpha: 0.1,
     nBodyStrength: -900,
@@ -33,7 +33,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     super(options);
 
     this._options = {
-      ...D3ForceLayout.defaultOptions,
+      ...D3ForceLayout.defaultProps,
       ...options
     };
   }

@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {Graph} from '../../graph/graph';
 import * as d3 from 'd3-force';
 
-export type ForceMultiGraphLayoutOptions = GraphLayoutOptions & {
+export type ForceMultiGraphLayoutProps = GraphLayoutProps & {
   alpha?: number;
   nBodyStrength?: number;
   nBodyDistanceMin?: number;
   nBodyDistanceMax?: number;
 };
 
-export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOptions> {
-  static defaultOptions = {
+export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProps> {
+  static defaultProps = {
     alpha: 3,
     nBodyStrength: -1200,
     nBodyDistanceMin: 100,
@@ -32,10 +32,10 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
   _edgeMap = {};
   _simulator;
 
-  constructor(options: ForceMultiGraphLayoutOptions = {}) {
+  constructor(options: ForceMultiGraphLayoutProps = {}) {
     super(options);
     this._options = {
-      ...ForceMultiGraphLayout.defaultOptions,
+      ...ForceMultiGraphLayout.defaultProps,
       ...options
     };
   }
@@ -97,6 +97,8 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
   stop() {
     this._simulator.stop();
   }
+
+  update(): void {}
 
   updateGraph(graph) {
     this._graph = graph;

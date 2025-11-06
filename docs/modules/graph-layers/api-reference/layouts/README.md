@@ -1,16 +1,8 @@
 # Layouts
 
-Use one of the layouts provided by `@deck.gl-community/graph-layers`. Right now `@deck.gl-community/graph-layers` provides D3-Force and Simple layout for basic usage.
-
-## SimpleLayout
-Please see /docs/api-reference/simple-layout.
-
-## D3ForceLayout
-Please see /docs/api-reference/d3-layout.
+To display a graph, you will need to use one of the layouts provided by `@deck.gl-community/graph-layers`, or create your own. Alternatively, you already have positions you can often just instantiate a `SimpleLayout`. 
 
 ## Create custom layout
-create a new custom layout class by following the instruction /docs/advanced/custom-layout
 
-## Experimental layouts
+Create a new custom layout class by following the instruction /docs/advanced/custom-layout
 
-There are more experimental layouts under `src/experimental-layouts`, please reference to the experimental layout gallery.

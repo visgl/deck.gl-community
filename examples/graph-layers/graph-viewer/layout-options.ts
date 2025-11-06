@@ -76,7 +76,7 @@ export type DagNumericKey =
   | 'separationX'
   | 'separationY';
 
-export const DAG_DEFAULT_OPTIONS = D3DagLayout.defaultOptions;
+export const DAG_DEFAULT_OPTIONS = D3DagLayout.defaultProps;
 
 export function normalizeTuple(
   value: unknown,

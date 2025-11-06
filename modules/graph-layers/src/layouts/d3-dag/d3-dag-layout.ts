@@ -4,7 +4,7 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import type {Graph} from '../../graph/graph';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
@@ -53,7 +53,7 @@ export type D3DagLayoutOperator =
   | DefaultZherebko
   | ((dag: MutGraph<Node, Edge>) => LayoutResult);
 
-export type D3DagLayoutOptions = GraphLayoutOptions & {
+export type D3DagLayoutOptions = GraphLayoutProps & {
   /** Which high-level layout operator to use. */
   layout?: D3DagLayoutBuilderName | D3DagLayoutOperator;
   /** Layering operator used by sugiyama layouts. */
@@ -156,7 +156,7 @@ const DAG_ID_SEPARATOR = '::';
  * Layout that orchestrates d3-dag operators from declarative options.
  */
 export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
-  static defaultOptions: Required<Omit<D3DagLayoutOptions, 'layout'>> & {layout: D3DagLayoutBuilderName} = {
+  static defaultProps: Required<Omit<D3DagLayoutOptions, 'layout'>> & {layout: D3DagLayoutBuilderName} = {
     layout: 'sugiyama',
     layering: 'topological',
     decross: 'twoLayer',
@@ -193,7 +193,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   private _hiddenNodeIds = new Set<string | number>();
 
   constructor(options: D3DagLayoutOptions = {}) {
-    super({...D3DagLayout.defaultOptions, ...options});
+    super({...D3DagLayout.defaultProps, ...options});
   }
 
   initializeGraph(graph: Graph): void {
@@ -422,7 +422,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     );
 
     const collapseDefault =
-      this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
+      this._options.collapseLinearChains ?? D3DagLayout.defaultProps.collapseLinearChains;
 
     const previousStates = new Map(this._collapsedChainState);
 
@@ -544,7 +544,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   }
 
   private _buildDag(): MutGraph<Node, Edge> {
-    const builder = this._options.dagBuilder ?? D3DagLayout.defaultOptions.dagBuilder;
+    const builder = this._options.dagBuilder ?? D3DagLayout.defaultProps.dagBuilder;
 
     if (typeof builder === 'function') {
       const dag = builder(this._graph);
@@ -665,7 +665,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
 
   private _isChainCollapsed(chainId: string): boolean {
     const collapseDefault =
-      this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
+      this._options.collapseLinearChains ?? D3DagLayout.defaultProps.collapseLinearChains;
     return this._collapsedChainState.get(chainId) ?? collapseDefault;
   }
 
@@ -764,7 +764,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       return this._layoutOperator;
     }
 
-    const layoutOption = this._options.layout ?? D3DagLayout.defaultOptions.layout;
+    const layoutOption = this._options.layout ?? D3DagLayout.defaultProps.layout;
     let layout: LayoutWithConfiguration;
 
     if (typeof layoutOption === 'string') {
@@ -892,7 +892,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
 
     const {offsetX, offsetY} = this._getOffsets();
-    const orientation = this._options.orientation ?? D3DagLayout.defaultOptions.orientation;
+    const orientation = this._options.orientation ?? D3DagLayout.defaultProps.orientation;
 
     const transform = (x: number, y: number): [number, number] => {
       const localX = x - offsetX;
