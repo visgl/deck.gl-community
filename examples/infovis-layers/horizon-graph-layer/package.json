@@ -5,7 +5,7 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/infovis-layers": "~9.2.0",
+    "@deck.gl-community/infovis-layers": "workspace:*",
     "@deck.gl/core": "~9.2.1",
     "@deck.gl/layers": "~9.2.1",
     "@deck.gl/react": "~9.2.1",

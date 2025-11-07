@@ -1346,7 +1346,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/editable-layers@npm:~9.2.0, @deck.gl-community/editable-layers@workspace:modules/editable-layers":
+"@deck.gl-community/editable-layers@workspace:*, @deck.gl-community/editable-layers@workspace:modules/editable-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/editable-layers@workspace:modules/editable-layers"
   dependencies:
@@ -1387,7 +1387,7 @@ __metadata:
     uuid: "npm:9.0.0"
     viewport-mercator-project: "npm:>=6.2.3"
   peerDependencies:
-    "@deck.gl-community/layers": ~9.2.0
+    "@deck.gl-community/layers": ^9.2.0-beta
     "@deck.gl/core": ~9.2.1
     "@deck.gl/extensions": ~9.2.1
     "@deck.gl/geo-layers": ~9.2.1
@@ -1440,7 +1440,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/graph-layers@npm:~9.2.0, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
+"@deck.gl-community/graph-layers@workspace:*, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/graph-layers@workspace:modules/graph-layers"
   dependencies:
@@ -1474,7 +1474,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/infovis-layers@npm:~9.2.0, @deck.gl-community/infovis-layers@workspace:modules/infovis-layers":
+"@deck.gl-community/infovis-layers@workspace:*, @deck.gl-community/infovis-layers@workspace:modules/infovis-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/infovis-layers@workspace:modules/infovis-layers"
   dependencies:
@@ -1489,7 +1489,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/layers@npm:~9.2.0, @deck.gl-community/layers@workspace:modules/layers":
+"@deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
@@ -1519,7 +1519,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/react@npm:~9.2.0, @deck.gl-community/react@workspace:modules/react":
+"@deck.gl-community/react@workspace:*, @deck.gl-community/react@workspace:modules/react":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react@workspace:modules/react"
   dependencies:
@@ -10277,8 +10277,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editable-h3-cluster-layer-0285dd@workspace:examples/editable-layers/editable-h3-cluster-layer"
   dependencies:
-    "@deck.gl-community/editable-layers": "npm:~9.2.0"
-    "@deck.gl-community/layers": "npm:~9.2.0"
+    "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
@@ -10307,8 +10307,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editable-layers-advanced-example@workspace:examples/editable-layers/advanced"
   dependencies:
-    "@deck.gl-community/editable-layers": "npm:~9.2.0"
-    "@deck.gl-community/layers": "npm:~9.2.0"
+    "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
@@ -10338,9 +10338,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editable-layers-editor@workspace:examples/editable-layers/editor"
   dependencies:
-    "@deck.gl-community/editable-layers": "npm:~9.2.0"
-    "@deck.gl-community/layers": "npm:~9.2.0"
-    "@deck.gl-community/react": "npm:~9.2.0"
+    "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl-community/react": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
@@ -12528,8 +12528,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "graph-layers-example@workspace:examples/graph-layers/graph-viewer"
   dependencies:
-    "@deck.gl-community/graph-layers": "npm:~9.2.0"
-    "@deck.gl-community/react": "npm:~9.2.0"
+    "@deck.gl-community/graph-layers": "workspace:*"
+    "@deck.gl-community/react": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/react": "npm:~9.2.1"
@@ -12551,8 +12551,8 @@ __metadata:
   resolution: "graph-layers-legacy-example@workspace:examples/graph-layers/graph-viewer-legacy"
   dependencies:
     "@arcgis/core": "npm:^4.30.0"
-    "@deck.gl-community/graph-layers": "npm:~9.2.0"
-    "@deck.gl-community/react": "npm:~9.2.0"
+    "@deck.gl-community/graph-layers": "workspace:*"
+    "@deck.gl-community/react": "workspace:*"
     deck.gl: "npm:^9.1.0"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
@@ -12844,7 +12844,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "horizon-graph-layer-f8ef3a@workspace:examples/infovis-layers/horizon-graph-layer"
   dependencies:
-    "@deck.gl-community/infovis-layers": "npm:~9.2.0"
+    "@deck.gl-community/infovis-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/react": "npm:~9.2.1"
@@ -19037,8 +19037,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "sf-42f06e@workspace:examples/editable-layers/sf"
   dependencies:
-    "@deck.gl-community/editable-layers": "npm:~9.2.0"
-    "@deck.gl-community/layers": "npm:~9.2.0"
+    "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
