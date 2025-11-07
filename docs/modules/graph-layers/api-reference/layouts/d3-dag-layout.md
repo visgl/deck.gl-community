@@ -41,7 +41,6 @@ When any of these options change, the layout pipeline is recomputed on the next 
 ### Graph preparation
 
 - `dagBuilder` (`'graph' | 'connect' | 'stratify' | (graph) => MutGraph`, default `'graph'`) - Controls how the `Graph` is converted into a d3-dag instance. Use `'graph'` for direct node/edge translation, `'connect'` to infer structure from edge lists, or `'stratify'` when the graph already stores parent references. Pass a custom builder to plug in your own conversion step.
-- `collapseLinearChains` (`boolean`, default `false`) - Collapses chains of degree-one nodes into a single representative so long pipelines can be expanded or collapsed interactively. Collapsed chains expose metadata on each node (`collapsedChainId`, `collapsedNodeIds`, etc.) for UI controls.
 
 ### Post-processing
 
@@ -51,7 +50,5 @@ When any of these options change, the layout pipeline is recomputed on the next 
 ## Runtime controls
 
 - `setProps(options)` - Merges partial props and reruns the layout. Useful for live controls that tweak layering/decross operators without recreating the layout instance.
-- `toggleCollapsedChain(chainId)` / `setCollapsedChains(chainIds)` - Toggle or set the collapse state for previously detected linear chains. Chain identifiers can be read from node data (`collapsedChainId`).
-- `getLinkControlPoints(edge)` - Returns any intermediate control points computed by the active d3-dag operator, allowing `GraphLayer` edge renderers to draw smooth splines.
 
 These helpers emit the standard layout lifecycle events (`onLayoutStart`, `onLayoutChange`, `onLayoutDone`) so the layer updates automatically when the DAG pipeline finishes.
