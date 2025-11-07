@@ -8,14 +8,11 @@ deck.gl version upgrades.
 
 Wishlist
 - **`@deck.gl-community/editable-layers`** 
-  - Goal: allow editable layers to be used with non-geospatial coordinates
-  - Goal: make this a generic layer pack (non-geo-speficic).
+  - [Tracker](https://github.com/visgl/deck.gl-community/issues/38)
 - **`@deck.gl-community/graph-layers`**
-  - Loaders for graph formats
-  - Support for tabular graphs (minimize small object creation)
-  - ...
+  - [Tracker](https://github.com/visgl/deck.gl-community/issues/78)
 - **`@deck.gl-community/infovis-layers`**
-  - Goal: Some of the improved support for (non-geospatial) views etc will be upstreamed into deck.gl v9.3.
+  - Goal: Some of the improved support for (non-geospatial) views etc should be upstreamed into deck.gl v9.3.
 
 ## v9.2 - Currently in alpha
 
@@ -28,18 +25,9 @@ Highlights:
 
 ### `@deck.gl-community/graph-layers` 
 
-<<<<<<< HEAD
-GraphLayers 
-=======
-- Graph styling: new edge decorator `'arrow'` that renders arrows on directional edges.
-- Graph styling: unified `stylesheet` prop with shorthand attribute references for node, edge, and decorator styles.
-- Graph style constants are now defined using literals instead of objects
-- New example visualizing DAGs (Directed Acyclic Graphs).
-- GraphLayer now accepts `GraphEngine`, `Graph`, or raw JSON via its `data` prop (including async URLs), automatically builds a `GraphEngine` when given raw payloads, and deprecates the legacy `graph` prop.
-- `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects and no longer accepts `Graph` instances directly.
->>>>>>> master
-
 - `GraphLayerProps` - NEW `data` prop (no longer requires applications to provide `engine: GraphEngine`).
+  - `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via its `data` prop (including async URLs), automatically builds a `GraphEngine` when given raw payloads, and deprecates the legacy `graph` prop.
+  - `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects and no longer accepts `Graph` instances directly.
 - `GraphLayerProps` - NEW `stylesheet` prop that accepts a unified stylesheet containing all for node, edge, and decorator styles.
 - `GraphStylesheet` - NEW edge decorator `'arrow'` that renders arrows on directional edges.
 - `GraphStylesheet` - constants can now be defined using simple string literals (no need to import `NODE_TYPE` etc).
