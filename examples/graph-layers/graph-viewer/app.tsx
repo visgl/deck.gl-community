@@ -31,7 +31,8 @@ import {
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
-  D3DagLayout
+  D3DagLayout,
+  CollapsableD3DagLayout
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -61,7 +62,7 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'radial-layout': (options) => new RadialLayout(options),
   'hive-plot-layout': (options) => new HivePlotLayout(options),
   'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
-  'd3-dag-layout': (options) => new D3DagLayout(options),
+  'd3-dag-layout': (options) => new CollapsableD3DagLayout(options),
 };
 
 
@@ -110,7 +111,7 @@ type AppProps = {
   graphType?: GraphExampleType;
 };
 
-export function App({graphType = 'graph'}: AppProps) {
+export function App({graphType}: AppProps) {
   const exampleType = graphType;
   const examplesForType = useMemo(
     () => filterExamplesByType(EXAMPLES, exampleType),

@@ -8,6 +8,7 @@ import {Graph} from '../../src/graph/graph';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
 import {D3DagLayout} from '../../src/layouts/d3-dag/d3-dag-layout';
+import {CollapsableD3DagLayout} from '../../src/layouts/d3-dag/collapsable-d3-dag-layout';
 import {GraphEngine} from '../../src/core/graph-engine';
 
 type SampleGraph = {
@@ -118,10 +119,14 @@ describe('D3DagLayout', () => {
     expect(layout.getLinkControlPoints(edges.bd)).toEqual([[-0.5, -0.5]]);
   });
 
+});
+
+describe('CollapsableD3DagLayout', () => {
+
   // eslint-disable-next-line max-statements
   it('collapses linear chains and supports expansion toggles', () => {
     const {graph, nodes, edges} = createLinearChainGraph();
-    const layout = new D3DagLayout({
+    const layout = new CollapsableD3DagLayout({
       nodeSize: [1, 1],
       gap: [0, 0],
       layering: 'topological',
@@ -173,7 +178,7 @@ describe('D3DagLayout', () => {
 
   it('exposes visible nodes through the engine when chains collapse', () => {
     const {graph} = createLinearChainGraph();
-    const layout = new D3DagLayout({
+    const layout = new CollapsableD3DagLayout({
       nodeSize: [1, 1],
       gap: [0, 0],
       layering: 'topological',
@@ -199,7 +204,7 @@ describe('D3DagLayout', () => {
 
   it('exposes all nodes when collapsing is disabled', () => {
     const {graph} = createLinearChainGraph();
-    const layout = new D3DagLayout({
+    const layout = new CollapsableD3DagLayout({
       nodeSize: [1, 1],
       gap: [0, 0],
       layering: 'topological',
@@ -218,7 +223,7 @@ describe('D3DagLayout', () => {
 
   it('responds to collapse pipeline toggles without losing metadata', () => {
     const {graph, nodes} = createLinearChainGraph();
-    const layout = new D3DagLayout({
+    const layout = new CollapsableD3DagLayout({
       nodeSize: [1, 1],
       gap: [0, 0],
       layering: 'topological',
