@@ -17,6 +17,12 @@ import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engin
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
+import {
+  mapRanksToYPositions,
+  selectRankLines,
+  type LabelAccessor,
+  type RankAccessor
+} from '../utils/rank-grid';
 
 import {warn} from '../utils/log';
 
@@ -44,6 +50,7 @@ import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
 import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 import {EdgeAttachmentHelper} from './edge-attachment-helper';
+import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
 import {JSONLoader} from '../loaders/json-loader';
 
@@ -61,6 +68,17 @@ const EDGE_DECORATOR_LAYER_MAP = {
   'edge-label': EdgeLabelLayer,
   'flow': FlowLayer,
   'arrow': EdgeArrowLayer
+};
+
+type GridLayerOverrides = Partial<Omit<GridLayerProps, 'id' | 'data' | 'direction'>>;
+
+export type RankGridConfig = {
+  enabled?: boolean;
+  direction?: 'horizontal' | 'vertical';
+  maxLines?: number;
+  rankAccessor?: RankAccessor;
+  labelAccessor?: LabelAccessor;
+  gridProps?: GridLayerOverrides;
 };
 
 const SHARED_LAYER_PROPS = {
@@ -103,6 +121,7 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
+  rankGrid?: boolean | RankGridConfig;
 };
 
 /** Composite layer that renders graph nodes, edges, and decorators. */
@@ -131,7 +150,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onClick: () => {},
       onHover: () => {}
     },
-    enableDragging: false
+    enableDragging: false,
+    rankGrid: false
   };
 
   // @ts-expect-error Some typescript confusion due to override of base class state
@@ -248,6 +268,79 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this.state.graphEngine.clear();
       this.state.graphEngine = null;
     }
+  }
+
+  private _createRankGridLayer(): GridLayer | null {
+    const engine = this.state.graphEngine;
+    if (!engine) {
+      return null;
+    }
+
+    const {rankGrid} = this.props;
+    const config = typeof rankGrid === 'object' && rankGrid !== null ? rankGrid : undefined;
+    const enabled = typeof rankGrid === 'boolean' ? rankGrid : config ? config.enabled ?? true : false;
+    if (!enabled) {
+      return null;
+    }
+
+    const bounds = engine.getLayoutBounds();
+    if (!bounds) {
+      return null;
+    }
+
+    const [[minXRaw, minYRaw], [maxXRaw, maxYRaw]] = bounds;
+    if (
+      !Number.isFinite(minXRaw) ||
+      !Number.isFinite(maxXRaw) ||
+      !Number.isFinite(minYRaw) ||
+      !Number.isFinite(maxYRaw)
+    ) {
+      return null;
+    }
+
+    const minX = Math.min(minXRaw, maxXRaw);
+    const maxX = Math.max(minXRaw, maxXRaw);
+    const minY = Math.min(minYRaw, maxYRaw);
+    const maxY = Math.max(minYRaw, maxYRaw);
+
+    const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
+      rankAccessor: config?.rankAccessor,
+      labelAccessor: config?.labelAccessor
+    });
+
+    if (rankPositions.length === 0) {
+      return null;
+    }
+
+    const selectedRanks = selectRankLines(rankPositions, {
+      yMin: minY,
+      yMax: maxY,
+      maxCount: config?.maxLines ?? 8
+    });
+
+    if (selectedRanks.length === 0) {
+      return null;
+    }
+
+    const data = selectedRanks.map(({label, yPosition}) => ({
+      label,
+      yPosition
+    }));
+
+    const direction = config?.direction ?? 'horizontal';
+    const gridProps = config?.gridProps ?? {};
+
+    return new GridLayer({
+      id: `${this.props.id}-rank-grid`,
+      data,
+      direction,
+      xMin,
+      xMax,
+      yMin,
+      yMax,
+      pickable: false,
+      ...gridProps
+    });
   }
 
   createNodeLayers() {
@@ -399,7 +492,23 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   renderLayers() {
-    return [this.createEdgeLayers(), this.createNodeLayers()];
+    const layers: any[] = [];
+    const gridLayer = this._createRankGridLayer();
+    if (gridLayer) {
+      layers.push(gridLayer);
+    }
+
+    const edgeLayers = this.createEdgeLayers();
+    if (Array.isArray(edgeLayers) && edgeLayers.length > 0) {
+      layers.push(...edgeLayers);
+    }
+
+    const nodeLayers = this.createNodeLayers();
+    if (Array.isArray(nodeLayers) && nodeLayers.length > 0) {
+      layers.push(...nodeLayers);
+    }
+
+    return layers;
   }
 
   private _createChainOverlayLayers(engine: GraphEngine) {
