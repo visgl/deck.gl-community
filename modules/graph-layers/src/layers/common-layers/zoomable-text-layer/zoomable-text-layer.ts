@@ -5,6 +5,25 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 
+// deck.gl's MultiIconLayer stores character offsets in a 16-bit buffer, so clamp the
+// computed max width to avoid overflowing the attribute when stylesheet values are invalid.
+const TEXT_LAYER_MAX_SAFE_WIDTH = 32767;
+
+const clampMaxWidth = (value: unknown) => {
+  const width = Number(value);
+  if (!Number.isFinite(width) || width <= 0) {
+    return TEXT_LAYER_MAX_SAFE_WIDTH;
+  }
+  return Math.min(width, TEXT_LAYER_MAX_SAFE_WIDTH);
+};
+
+const normalizeMaxWidth = (value: unknown) => {
+  if (typeof value === 'function') {
+    return (d: unknown) => clampMaxWidth((value as (arg0: unknown) => unknown)(d));
+  }
+  return clampMaxWidth(value);
+};
+
 export class ZoomableTextLayer extends CompositeLayer {
   static layerName = 'ZoomableTextLayer';
 
@@ -59,6 +78,8 @@ export class ZoomableTextLayer extends CompositeLayer {
     // getText only expects function not plain value (string)
     const newGetText = typeof getText === 'function' ? getText : () => getText;
 
+    const resolvedMaxWidth = normalizeMaxWidth(textMaxWidth);
+
     return [
       new TextLayer(
         this.getSubLayerProps({
@@ -73,7 +94,7 @@ export class ZoomableTextLayer extends CompositeLayer {
           getAlignmentBaseline,
           getAngle,
           getText: newGetText,
-          maxWidth: textMaxWidth ?? 12,
+          maxWidth: resolvedMaxWidth,
           wordBreak: textWordBreak ?? 'break-all',
           fontFamily: fontFamily ?? 'Red Hat Text',
           wordUnits: textWordUnits ?? 'pixels',
