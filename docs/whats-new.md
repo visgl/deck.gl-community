@@ -11,35 +11,37 @@ Wishlist
   - Goal: allow editable layers to be used with non-geospatial coordinates
   - Goal: make this a generic layer pack (non-geo-speficic).
 - **`@deck.gl-community/graph-layers`**
-  - Goal: allow GraphLayers to be instantiated using `data: URLs` props (rather than requiring applications to prepare GraphEngines).
+  - Loaders for graph formats
+  - Support for tabular graphs (minimize small object creation)
+  - ...
 - **`@deck.gl-community/infovis-layers`**
   - Goal: Some of the improved support for (non-geospatial) views etc will be upstreamed into deck.gl v9.3.
 
-
-
-## v9.2 - Currently in finalization
-
-Target Release Date: Q4 2025
-
-Highlights:
-- deck.gl v9.2 updates.
+## v9.2 - Currently in alpha
 
 Target Release Date: Nov 2025
 
-High-level changes
-- All deck.gl-community modules have been updated to deck.gl v9.2.
+Highlights:
+- deck.gl v9.2 compatibility.
 - Internal: Tests updated to use `vitest` instead of `jest`
+- Website: Search restored.
 
 ### `@deck.gl-community/graph-layers` 
 
-- Graph styling: new edge decorator `'arrow'` that renders arrows on directional edges.
-- Graph styling: unified `stylesheet` prop with shorthand attribute references for node, edge, and decorator styles.
-- Graph style constants are now defined using literals instead of objects
-- New example visualizing DAGs (Directed Acyclic Graphs).
+GraphLayers 
 
-Deprecations:
-- Graph style constants are now replaced by literal string constants 
-  - Replace `NODE_TYPE.CIRCLE` with `'circle'`, `EDGE_TYPE.LINE` with `'line'` etc.
+- `GraphLayerProps` - NEW `data` prop (no longer requires applications to provide `engine: GraphEngine`).
+- `GraphLayerProps` - NEW `stylesheet` prop that accepts a unified stylesheet containing all for node, edge, and decorator styles.
+- `GraphStylesheet` - NEW edge decorator `'arrow'` that renders arrows on directional edges.
+- `GraphStylesheet` - constants can now be defined using simple string literals (no need to import `NODE_TYPE` etc).
+- `D3DagLayout` - NEW `GraphLayout` for visualiation of DAGs (Directed Acyclic Graphs) with layering and collapse/expand functionality.
+- `RadialLayout` - NEW `GraphLayout` for visualiation of radial graph layouts.
+- `HivePlotLayout` - NEW `GraphLayout` for visualiation of hive plot graph layouts.
+- `D3MultiGraphLayout` - NEW `GraphLayout` for visualiation of multi-edge graph layouts.
+- `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
+- `PanWidget` - NEW deck.gl `Widget` providing buttons for panning the view.
+- **Examples** - `GraphViewer` eample expanded to cover all new layouts, plus UI for editing layout options.
+- **Documentation** - significant updates / new content.
 
 ## v9.1
 
