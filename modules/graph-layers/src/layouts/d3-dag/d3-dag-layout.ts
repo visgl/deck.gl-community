@@ -710,15 +710,15 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     this._bounds = this._calculateBounds(this._nodePositions.values());
   }
 
-  private _edgeKey(sourceId: string | number, targetId: string | number): string {
+  protected _edgeKey(sourceId: string | number, targetId: string | number): string {
     return `${this._toDagId(sourceId)}${DAG_ID_SEPARATOR}${this._toDagId(targetId)}`;
   }
 
-  private _toDagId(id: string | number): string {
+  protected _toDagId(id: string | number): string {
     return String(id);
   }
 
-  private _fromDagId(id: string): string | number {
+  protected _fromDagId(id: string): string | number {
     return this._stringIdLookup.get(id) ?? id;
   }
 }

@@ -4,15 +4,7 @@
 
 /* eslint-disable max-statements, complexity */
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  useReducer,
-  useRef
-} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
@@ -66,6 +58,8 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
 };
 
 
+const INITIAL_LOADING_STATE = {loaded: false, rendered: false, isLoading: true};
+
 const loadingReducer = (state, action) => {
   switch (action.type) {
     case 'startLayout':
@@ -85,7 +79,10 @@ const loadingReducer = (state, action) => {
 };
 
 export const useLoading = (engine) => {
-  const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
+  const [state, setState] = useState(INITIAL_LOADING_STATE);
+  const loadingDispatch = useCallback((action) => {
+    setState((current) => loadingReducer(current, action));
+  }, []);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -102,9 +99,9 @@ export const useLoading = (engine) => {
       engine.removeEventListener('onLayoutStart', layoutStarted);
       engine.removeEventListener('onLayoutDone', layoutEnded);
     };
-  }, [engine]);
+  }, [engine, loadingDispatch]);
 
-  return [{isLoading}, loadingDispatch];
+  return [state, loadingDispatch];
 };
 
 type AppProps = {
@@ -251,7 +248,8 @@ export function App({graphType}: AppProps) {
     []
   );
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+  const [loadingState, loadingDispatch] = useLoading(engine);
+  const {isLoading} = loadingState;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
 
@@ -425,7 +423,11 @@ export function App({graphType}: AppProps) {
         ) : null}
         <DeckGL
           onError={(error) => console.error(error)}
-          onAfterRender={() => loadingDispatch({type: 'afterRender'})}
+          onAfterRender={() => {
+            if (!loadingState.rendered) {
+              loadingDispatch({type: 'afterRender'});
+            }
+          }}
           width="100%"
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
