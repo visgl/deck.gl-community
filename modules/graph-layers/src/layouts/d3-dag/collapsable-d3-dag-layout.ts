@@ -23,7 +23,7 @@ export type CollapsableD3DagLayoutProps = D3DagLayoutProps & {
   collapseLinearChains?: boolean;
 }
 
-export class CollapsableD3DagLayout extends D3DagLayout {
+export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutProps> {
   static override defaultProps: Required<CollapsableD3DagLayoutProps> = {
     ...D3DagLayout.defaultProps,
     collapseLinearChains: false
@@ -35,7 +35,7 @@ export class CollapsableD3DagLayout extends D3DagLayout {
   private _hiddenNodeIds = new Set<string | number>();
 
   constructor(props: CollapsableD3DagLayoutProps = {}) {
-    super(props);
+    super(props, CollapsableD3DagLayout.defaultProps);
   }
 
   override setProps(props: Partial<CollapsableD3DagLayoutProps>): void {

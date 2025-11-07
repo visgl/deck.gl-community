@@ -26,8 +26,8 @@ import {
   layeringTopological,
   sugiyama,
   zherebko,
-  type Coord,
-  type Decross,
+  // type Coord,
+  // type Decross,
   type DefaultGrid,
   type DefaultSugiyama,
   type DefaultZherebko,
@@ -39,33 +39,15 @@ import {
 } from 'd3-dag';
 import {log} from '../../utils/log';
 
-export type D3DagLayoutBuilderName = 'sugiyama' | 'grid' | 'zherebko';
-export type D3DagLayeringName = 'simplex' | 'longestPath' | 'topological';
-export type D3DagDecrossName = 'twoLayer' | 'opt' | 'dfs';
-export type D3DagCoordName = 'simplex' | 'greedy' | 'quad' | 'center' | 'topological';
-export type D3DagDagBuilderName = 'graph' | 'connect' | 'stratify';
-export type D3DagOrientation = 'TB' | 'BT' | 'LR' | 'RL';
-export type D3DagCenterOption = boolean | {x?: boolean; y?: boolean};
-
-export type D3DagLayoutOperator =
-  | DefaultSugiyama
-  | DefaultGrid
-  | DefaultZherebko
-  | ((dag: MutGraph<Node, Edge>) => LayoutResult);
-
 export type D3DagLayoutProps = GraphLayoutProps & {
   /** Which high-level layout operator to use. */
-  layout?: D3DagLayoutBuilderName;
-  customLayout?: D3DagLayoutOperator;
+  layout?: 'sugiyama' | 'grid' | 'zherebko';
   /** Layering operator used by sugiyama layouts. */
-  layering?: D3DagLayeringName;
-  customLayering?: LayeringOperator;
+  layering?: 'simplex' | 'longestPath' | 'topological';
   /** Decrossing operator used by sugiyama layouts. */
-  decross?: D3DagDecrossName;
-  customDecross?: DecrossOperator;
+  decross?: 'twoLayer' | 'opt' | 'dfs';
   /** Coordinate assignment operator used by sugiyama layouts. */
-  coord?: D3DagCoordName;
-  customCoord?: CoordOperator;
+  coord?: 'simplex' | 'greedy' | 'quad' | 'center' | 'topological';
   /** Node sizing accessor passed to the active layout. */
   nodeSize?: NodeSize<Node, Edge>;
   /** Optional gap between nodes. Alias: separation. */
@@ -73,12 +55,24 @@ export type D3DagLayoutProps = GraphLayoutProps & {
   /** Optional gap between nodes. */
   separation?: readonly [number, number];
   /** Orientation transform applied after the layout finishes. */
-  orientation?: D3DagOrientation;
+  orientation?: 'TB' | 'BT' | 'LR' | 'RL';
   /** Whether to center the layout along each axis. */
-  center?: D3DagCenterOption;
+  center?: boolean | {x?: boolean; y?: boolean};
   /** How to convert the Graph into a DAG. */
-  dagBuilder?: D3DagDagBuilderName | DagBuilder;
+  dagBuilder?: 'graph' | 'connect' | 'stratify';
+
+  customDagBuilder?: DagBuilder;
+  customLayout?: D3DagLayoutOperator;
+  customLayering?: LayeringOperator;
+  customDecross?: DecrossOperator;
+  customCoord?: CoordOperator;
 };
+
+export type D3DagLayoutOperator =
+  | DefaultSugiyama
+  | DefaultGrid
+  | DefaultZherebko
+  | ((dag: MutGraph<Node, Edge>) => LayoutResult);
 
 type DagBuilder = (graph: Graph) => MutGraph<Node, Edge>;
 
@@ -116,57 +110,59 @@ type DagBounds = {
   centerY: number;
 };
 
+const DAG_ID_SEPARATOR = '::';
+
 const DEFAULT_NODE_SIZE: readonly [number, number] = [140, 120];
 const DEFAULT_GAP: readonly [number, number] = [0, 0];
 
-const LAYERING_FACTORIES: Record<D3DagLayeringName, () => LayeringOperator> = {
+const LAYERING_FACTORIES = {
   simplex: layeringSimplex,
   longestPath: layeringLongestPath,
   topological: layeringTopological
-};
+} as const satisfies Record<string, () => LayeringOperator>;
 
-const DECROSS_FACTORIES: Record<D3DagDecrossName, () => DecrossOperator> = {
+const DECROSS_FACTORIES = {
   twoLayer: decrossTwoLayer,
   opt: decrossOpt,
   dfs: decrossDfs
-};
+} as const satisfies Record<string, () => DecrossOperator>;
 
-const COORD_FACTORIES: Record<D3DagCoordName, () => CoordOperator> = {
+const COORD_FACTORIES = {
   simplex: coordSimplex,
   greedy: coordGreedy,
   quad: coordQuad,
   center: coordCenter,
   topological: coordTopological
-};
+} as const satisfies Record<string, () => CoordOperator>;
 
-const LAYOUT_FACTORIES: Record<D3DagLayoutBuilderName, () => LayoutWithConfiguration> = {
+const LAYOUT_FACTORIES = {
   sugiyama: () => sugiyama(),
   grid: () => grid(),
   zherebko: () => zherebko()
-};
-
-const DAG_ID_SEPARATOR = '::';
+} as const satisfies Record<string, () => LayoutWithConfiguration>;
 
 /**
  * Layout that orchestrates d3-dag operators from declarative options.
  */
 export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> extends GraphLayout<PropsT> {
-  static defaultProps = {
+  static defaultProps: Readonly<Required<D3DagLayoutProps>> = {
     layout: 'sugiyama',
-    customLayout: undefined,
     layering: 'topological',
-    customLayering: undefined,
     decross: 'twoLayer',
-    customDecross: undefined,
     coord: 'greedy',
-    customCoord: undefined,
     nodeSize: DEFAULT_NODE_SIZE,
     gap: DEFAULT_GAP,
     separation: DEFAULT_GAP,
     orientation: 'TB',
     center: true,
     dagBuilder: 'graph',
-  } as const satisfies Readonly<Required<D3DagLayoutProps>>;
+
+    customLayout: undefined,
+    customLayering: undefined,
+    customDecross: undefined,
+    customCoord: undefined,
+    customDagBuilder: undefined
+  } as const;
 
   protected readonly _name = 'D3DagLayout';
 
@@ -186,8 +182,9 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
   protected _edgeLookup = new Map<string, Edge>();
   protected _incomingParentMap = new Map<string | number, (string | number)[]>();
 
-  constructor(props: D3DagLayoutProps = {}) {
-    super({...D3DagLayout.defaultProps, ...props});
+  constructor(props: D3DagLayoutProps, defaultProps: Required<PropsT>) {
+    // @ts-expect-error TS2345 - Type 'Required<D3DagLayoutProps>' is not assignable to type 'Required<PropsT>'.
+    super(props, defaultProps || D3DagLayout.defaultProps);
   }
 
   setProps(options: Partial<D3DagLayoutProps>): void {
@@ -345,14 +342,12 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
   }
 
   private _buildDag(): MutGraph<Node, Edge> {
-    const builder = this.props.dagBuilder ?? D3DagLayout.defaultProps.dagBuilder;
-
-    if (typeof builder === 'function') {
-      const dag = builder(this._graph);
+    if (this.props.customDagBuilder) {
+      const dag = this.props.customDagBuilder(this._graph);
       return this._ensureEdgeData(dag);
     }
 
-    switch (builder) {
+    switch (this.props.dagBuilder) {
       case 'connect':
         return this._buildDagWithConnect();
       case 'stratify':
@@ -534,16 +529,20 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
       layout = layoutOption as LayoutWithConfiguration;
     }
 
+    // TODO - is 'none' operator an option in d3-dag?
     if (layout.layering && this.props.layering) {
-      layout = layout.layering(this._resolveLayering(this.props.layering));
+      const layeringOperator = this.props.customLayering || LAYERING_FACTORIES[this.props.layering]();
+      layout = layout.layering(layeringOperator);
     }
 
     if (layout.decross && this.props.decross) {
-      layout = layout.decross(this._resolveDecross(this.props.decross));
+      const decrossOperator = this.props.customDecross || DECROSS_FACTORIES[this.props.decross]();
+      layout = layout.decross(decrossOperator);
     }
 
     if (layout.coord && this.props.coord) {
-      layout = layout.coord(this._resolveCoord(this.props.coord));
+      const coordOperator = this.props.customCoord || COORD_FACTORIES[this.props.coord]();
+      layout = layout.coord(coordOperator);
     }
 
     const nodeSize = this.props.nodeSize ?? DEFAULT_NODE_SIZE;
@@ -558,27 +557,6 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
 
     this._layoutOperator = layout;
     return layout;
-  }
-
-  private _resolveLayering(option: D3DagLayeringName | LayeringOperator): LayeringOperator {
-    if (typeof option === 'string') {
-      return LAYERING_FACTORIES[option]();
-    }
-    return option;
-  }
-
-  private _resolveDecross(option: D3DagDecrossName | DecrossOperator): Decross<Node, Edge> {
-    if (typeof option === 'string') {
-      return DECROSS_FACTORIES[option]();
-    }
-    return option;
-  }
-
-  private _resolveCoord(option: D3DagCoordName | CoordOperator): Coord<Node, Edge> {
-    if (typeof option === 'string') {
-      return COORD_FACTORIES[option]();
-    }
-    return option;
   }
 
   private _cacheGeometry(): void {

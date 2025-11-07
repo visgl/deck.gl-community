@@ -44,9 +44,9 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
-  constructor(props: Required<PropsT>) {
+  constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
     super();
-    this.props = {...props};
+    this.props = {...defaultProps, ...props};
   }
 
   /**
