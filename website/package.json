@@ -27,9 +27,6 @@
     "@loaders.gl/obj": "^4.2.0",
     "@loaders.gl/ply": "^4.2.0",
     "@luma.gl/core": "~9.2.0",
-    "@material-ui/core": "^4.12.4",
-    "@material-ui/icons": "^4.11.3",
-    "@material-ui/lab": "^4.0.0-alpha.61",
     "@turf/turf": "^6.5.0",
     "brace": "^0.11.1",
     "d3-color": "^3.1.0",
@@ -48,6 +45,7 @@
     "styled-react-modal": "^3.1.1"
   },
   "devDependencies": {
+    "@cmfcmf/docusaurus-search-local": "^2",
     "@docusaurus/core": "^3.9.2",
     "@docusaurus/module-type-aliases": "^3.9.2",
     "@docusaurus/plugin-content-docs": "^3.9.2",
@@ -70,8 +68,5 @@
     ">0.2% and supports async-functions",
     "not dead"
   ],
-  "packageManager": "yarn@4.10.3",
-  "volta": {
-    "extends": "../package.json"
-  }
+  "packageManager": "yarn@4.10.3"
 }

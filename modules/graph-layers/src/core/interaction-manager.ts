@@ -6,6 +6,24 @@ import type {EdgeState, NodeState} from './constants';
 import {Edge} from '../graph/edge';
 import {Node} from '../graph/node';
 import {GraphEngine} from './graph-engine';
+import {log} from '../utils/log';
+import {
+  resolveChainInteractionSource,
+  type ChainInteractionSource
+} from '../utils/collapsed-chains';
+
+export {resolveChainInteractionSource};
+export type {ChainInteractionSource};
+
+export function shouldToggleCollapsedChain(
+  isCollapsed: boolean,
+  source: ChainInteractionSource
+): boolean {
+  if (isCollapsed) {
+    return true;
+  }
+  return source === 'expanded-marker' || source === 'expanded-outline';
+}
 
 const NODE_TO_EDGE_STATE_MAP: Record<NodeState, EdgeState> = {
   default: 'default',
@@ -91,6 +109,7 @@ export class InteractionManager {
     return this._lastInteraction;
   }
 
+  // eslint-disable-next-line max-statements, complexity
   onClick(info, event): void {
     const {object} = info;
 
@@ -99,12 +118,55 @@ export class InteractionManager {
     }
 
     if (object.isNode) {
+      const node = object as Node;
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+      const hasChainMetadata =
+        chainId !== null &&
+        chainId !== undefined &&
+        Array.isArray(collapsedNodeIds) &&
+        collapsedNodeIds.length > 1 &&
+        representativeId !== null &&
+        representativeId !== undefined;
+      const isRepresentative = hasChainMetadata && representativeId === node.getId();
+
+      if (hasChainMetadata && isRepresentative) {
+        const layout: any = this.engine?.props?.layout;
+        if (layout && typeof layout.toggleCollapsedChain === 'function') {
+          const interactionSource = resolveChainInteractionSource(info ?? null);
+
+          // eslint-disable-next-line max-depth
+          if (shouldToggleCollapsedChain(isCollapsed, interactionSource)) {
+            const action = isCollapsed ? 'expand' : 'collapse';
+            const chainIdStr = String(chainId);
+            log.log(
+              0,
+              `InteractionManager: ${action} chain ${chainIdStr} via ${interactionSource}`
+            );
+            // eslint-disable-next-line no-console
+            console.log(
+              `InteractionManager: ${action} chain ${chainIdStr} via ${interactionSource}`
+            );
+            layout.toggleCollapsedChain(chainIdStr);
+            this._lastInteraction = Date.now();
+            this.notifyCallback();
+            // eslint-disable-next-line max-depth
+            if (this.nodeEvents.onClick) {
+              this.nodeEvents.onClick(info, event);
+            }
+            return;
+          }
+        }
+      }
+
       if ((object as Node).isSelectable()) {
         if (this._lastSelectedNode) {
           setNodeState(this._lastSelectedNode, 'default');
         }
-        setNodeState(object, 'selected');
-        this._lastSelectedNode = object as Node;
+        setNodeState(node, 'selected');
+        this._lastSelectedNode = node;
         this._lastInteraction = Date.now();
         this.notifyCallback();
       }

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {log} from '../../utils/log';
 
-export type D3ForceLayoutOptions = GraphLayoutOptions & {
+export type D3ForceLayoutOptions = GraphLayoutProps & {
   alpha?: number;
   resumeAlpha?: number;
   nBodyStrength?: number;
@@ -14,27 +15,25 @@ export type D3ForceLayoutOptions = GraphLayoutOptions & {
 };
 
 export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
-  static defaultOptions: Required<D3ForceLayoutOptions> = {
+  static defaultProps = {
     alpha: 0.3,
     resumeAlpha: 0.1,
     nBodyStrength: -900,
     nBodyDistanceMin: 100,
     nBodyDistanceMax: 400,
     getCollisionRadius: 0
-  };
+  } as const satisfies Readonly<Required<D3ForceLayoutOptions>>;
 
   protected readonly _name = 'D3';
   private _positionsByNodeId = new Map();
   private _graph: any;
   private _worker: any;
 
-  constructor(options?: D3ForceLayoutOptions) {
-    super(options);
-
-    this._options = {
-      ...D3ForceLayout.defaultOptions,
-      ...options
-    };
+  constructor(props?: D3ForceLayoutOptions) {
+    super({
+      ...D3ForceLayout.defaultProps,
+      ...props
+    });
   }
 
   initializeGraph(graph) {
@@ -78,10 +77,11 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
         source: edge.getSourceNodeId(),
         target: edge.getTargetNodeId()
       })),
-      options: this._options
+      options: this.props
     });
 
     this._worker.onmessage = (event) => {
+      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
       if (event.data.type !== 'end') {
         return;
       }
@@ -104,25 +104,39 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   }
 
   stop() {
-    this._worker.terminate();
+    if (this._worker) {
+      this._worker.terminate();
+      this._worker = null;
+    }
   }
 
   getEdgePosition = (edge) => {
     const sourceNode = this._graph.findNode(edge.getSourceNodeId());
     const targetNode = this._graph.findNode(edge.getTargetNodeId());
-    if (!this.getNodePosition(sourceNode) || !this.getNodePosition(targetNode)) {
+    if (!sourceNode || !targetNode) {
+      return null;
+    }
+
+    const sourcePosition = this.getNodePosition(sourceNode);
+    const targetPosition = this.getNodePosition(targetNode);
+
+    if (!sourcePosition || !targetPosition) {
       return null;
     }
 
     return {
       type: 'line',
-      sourcePosition: this.getNodePosition(sourceNode),
-      targetPosition: this.getNodePosition(targetNode),
+      sourcePosition,
+      targetPosition,
       controlPoints: []
     };
   };
 
   getNodePosition = (node) => {
+    if (!node) {
+      return null;
+    }
+
     const d3Node = this._positionsByNodeId.get(node.id);
     if (d3Node) {
       return d3Node.coordinates;
@@ -150,4 +164,12 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     d3Node.fx = null;
     d3Node.fy = null;
   };
+
+  protected override _updateBounds(): void {
+    const positions = Array.from(
+      this._positionsByNodeId.values(),
+      (data) => data?.coordinates as [number, number] | null | undefined
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }

@@ -2,58 +2,63 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {Component, useCallback, useEffect, useLayoutEffect, useMemo, useState, useReducer, useRef} from 'react';
+/* eslint-disable max-statements, complexity */
+
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
-import {PositionedViewControl} from '@deck.gl-community/react';
 
 import {OrthographicView} from '@deck.gl/core';
+import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
+// import '@deck.gl/widgets/stylesheet.css';
 import {
   GraphEngine,
   GraphLayer,
-  Graph,
-  log,
   GraphLayout,
   SimpleLayout,
   D3ForceLayout,
-  JSONLoader
+  GPUForceLayout,
+  JSONLoader,
+  RadialLayout,
+  HivePlotLayout,
+  ForceMultiGraphLayout,
+  D3DagLayout,
+  CollapsableD3DagLayout
 } from '@deck.gl-community/graph-layers';
 
-// import {ViewControlWidget} from '@deck.gl-community/graph-layers';
-// import '@deck.gl/widgets/stylesheet.css';
-
-import {extent} from 'd3-array';
-
-// eslint-disable-next-line import/no-unresolved
-import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
+import {ControlPanel} from './control-panel';
+import type {LayoutType, ExampleDefinition, GraphExampleType} from './layout-options';
+import {CollapseControls} from './collapse-controls';
+import {StylesheetEditor} from './stylesheet-editor';
+import {EXAMPLES, filterExamplesByType} from './examples';
+import {useGraphViewport} from './use-graph-viewport';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
-  target: [0, 0],
+  target: [0, 0] as [number, number],
   /** zoom level */
   zoom: 1
-};
-
-const LAYOUTS = ['D3ForceLayout', 'GPUForceLayout', 'SimpleLayout'];
+} as const;
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
-const DEFAULT_NODE_SIZE = 5;
-const DEFAULT_DATASET = 'Random (20, 40)';
+const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
 
-// const nodeEvents = {
-//   onMouseEnter: null,
-//   onHover: null,
-//   onMouseLeave: null,
-//   onClick: null,
-//   onDrag: null
-// },
-//   edgeEvents = {
-//   onClick: null,
-//   onHover: null
-// },
+type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
 
+const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
+  'd3-force-layout': () => new D3ForceLayout(),
+  'gpu-force-layout': () => new GPUForceLayout(),
+  'simple-layout': () => new SimpleLayout(),
+  'radial-layout': (options) => new RadialLayout(options),
+  'hive-plot-layout': (options) => new HivePlotLayout(options),
+  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
+  'd3-dag-layout': (options) => new CollapsableD3DagLayout(options),
+};
+
+
+const INITIAL_LOADING_STATE = {loaded: false, rendered: false, isLoading: true};
 
 const loadingReducer = (state, action) => {
   switch (action.type) {
@@ -74,108 +79,261 @@ const loadingReducer = (state, action) => {
 };
 
 export const useLoading = (engine) => {
-  const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
+  const [state, setState] = useState(INITIAL_LOADING_STATE);
+  const loadingDispatch = useCallback((action) => {
+    setState((current) => loadingReducer(current, action));
+  }, []);
 
   useLayoutEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    console.log('adding listeners')
     engine.addEventListener('onLayoutStart', layoutStarted);
     engine.addEventListener('onLayoutDone', layoutEnded);
 
     return () => {
-      console.log('removing listeners')
       engine.removeEventListener('onLayoutStart', layoutStarted);
       engine.removeEventListener('onLayoutDone', layoutEnded);
     };
-  }, [engine]);
+  }, [engine, loadingDispatch]);
 
-  return [{isLoading}, loadingDispatch];
+  return [state, loadingDispatch];
 };
 
-const graphData = SAMPLE_GRAPH_DATASETS[DEFAULT_DATASET]();
-const graph = JSONLoader({json: graphData});
-const layout = new D3ForceLayout(); // SimpleLayout();
+type AppProps = {
+  graphType?: GraphExampleType;
+};
 
-export function App(props) {
+export function App({graphType}: AppProps) {
+  const exampleType = graphType;
+  const examplesForType = useMemo(
+    () => filterExamplesByType(EXAMPLES, exampleType),
+    [exampleType]
+  );
+  const defaultExample = useMemo(
+    () => (examplesForType.length ? examplesForType[0] : EXAMPLES[0]),
+    [examplesForType]
+  );
+  const defaultLayout = defaultExample?.layouts[0] ?? 'd3-force-layout';
 
-  const [state, setState] = useState({
-    selectedDataset: DEFAULT_DATASET,
-    selectedLayout: DEFAULT_DATASET
-  });
+  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(
+    () => defaultExample
+  );
+  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(() => defaultLayout);
+  const [collapseEnabled, setCollapseEnabled] = useState(true);
+  const [layoutOverrides, setLayoutOverrides] = useState<
+    Partial<Record<LayoutType, Record<string, unknown>>>
+  >({});
+  const [dagChainSummary, setDagChainSummary] = useState<
+    {chainIds: string[]; collapsedIds: string[]}
+    | null>(null);
 
-  const {selectedDataset} = state;
+  useEffect(() => {
+    setSelectedExample(defaultExample);
+    setSelectedLayout(defaultLayout);
+    setLayoutOverrides({});
+  }, [defaultExample, defaultLayout]);
 
-  const [engine, setEngine] = useState(new GraphEngine(graph, layout));
-  const isFirstMount = useRef(true);
-
-  useLayoutEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
+  const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
+  const layoutOptions = useMemo(() => {
+    if (!selectedExample || !selectedLayout) {
+      return undefined;
     }
 
-    setEngine(new GraphEngine({graph, layout}));
-  }, [graph, layout]);
+    const baseOptions = graphData
+      ? selectedExample.getLayoutOptions?.(selectedLayout, graphData)
+      : undefined;
+    const overrides = layoutOverrides[selectedLayout];
+
+    if (baseOptions && overrides) {
+      return {...baseOptions, ...overrides};
+    }
+
+    return overrides ?? baseOptions;
+  }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
+  const graph = useMemo(() => (graphData ? JSONLoader({json: graphData}) : null), [graphData]);
+  const layout = useMemo(() => {
+    if (!selectedLayout) {
+      return null;
+    }
+
+    const factory = LAYOUT_FACTORIES[selectedLayout];
+    return factory ? factory(layoutOptions) : null;
+  }, [selectedLayout, layoutOptions]);
+  const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
+  const isFirstMount = useRef(true);
+  const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
+  const selectedStyles = selectedExample?.style;
+
+  const serializedStylesheet = useMemo(() => {
+    if (!selectedStyles) {
+      return '';
+    }
+
+    return JSON.stringify(
+      selectedStyles,
+      (_key, value) => (typeof value === 'function' ? value.toString() : value),
+      2
+    );
+  }, [selectedStyles]);
+
+  const [stylesheetValue, setStylesheetValue] = useState(
+    serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE
+  );
+  const stylesheetDraftRef = useRef<string>(stylesheetValue);
+
+  useEffect(() => {
+    const nextValue = serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE;
+    setStylesheetValue(nextValue);
+    stylesheetDraftRef.current = nextValue;
+  }, [serializedStylesheet]);
+
+  const handleStylesheetChange = useCallback((nextValue: string) => {
+    stylesheetDraftRef.current = nextValue;
+    setStylesheetValue(nextValue);
+  }, []);
+
+  const handleStylesheetSubmit = useCallback((nextValue: string) => {
+    stylesheetDraftRef.current = nextValue;
+    setStylesheetValue(nextValue);
+  }, []);
 
   useLayoutEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
     engine.run();
 
     return () => {
+      engine.stop();
       engine.clear();
     };
   }, [engine]);
 
-  const edgeStyle = [
-    {
-      decorators: [],
-      stroke: 'black',
-      strokeWidth: 1
-    }
-  ];
   // eslint-disable-next-line no-console
   const initialViewState = INITIAL_VIEW_STATE;
   const minZoom = -20;
   const maxZoom = 20;
-  const viewportPadding = 50;
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
-  const zoomToFitOnLoad = false;
 
-  const [viewState, setViewState] = useState({
-    ...INITIAL_VIEW_STATE,
-    ...initialViewState
+  const {viewState, onResize, onViewStateChange} = useGraphViewport(engine, {
+    minZoom,
+    maxZoom,
+    viewportPadding: 8,
+    boundsPaddingRatio: 0.02,
+    initialViewState
   });
+  // const [viewState, setViewState] = useState({
+  //   ...INITIAL_VIEW_STATE,
+  //   ...initialViewState
+  // });
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+  const widgets = useMemo(
+    () => [
+      new PanWidget({
+        id: 'pan-widget',
+        style: {margin: '20px 0 0 20px'}
+      }),
+      new ZoomRangeWidget({
+        id: 'zoom-range-widget',
+        style: {margin: '90px 0 0 20px'}
+      })
+    ],
+    []
+  );
 
-  const fitBounds = useCallback(() => {
-    const data = engine.getNodes();
-    if (!data.length) {
+  const [loadingState, loadingDispatch] = useLoading(engine);
+  const {isLoading} = loadingState;
+
+  const isDagLayout = selectedLayout === 'd3-dag-layout';
+
+  useEffect(() => {
+    if (isDagLayout) {
+      setCollapseEnabled(true);
+    }
+  }, [isDagLayout, selectedExample]);
+
+  useEffect(() => {
+    if (!dagLayout) {
+      return;
+    }
+    dagLayout.setProps({collapseLinearChains: collapseEnabled});
+    if (!collapseEnabled) {
+      dagLayout.setCollapsedChains([]);
+    }
+  }, [dagLayout, collapseEnabled]);
+
+  useEffect(() => {
+    if (!engine || !dagLayout) {
+      setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
       return;
     }
 
-    const {width, height} = viewState as any;
+    const updateChainSummary = () => {
+      const chainIds: string[] = [];
+      const collapsedIds: string[] = [];
 
-    // get the projected position of all nodes
-    const positions = data.map((d) => engine.getNodePosition(d));
-    // get the value range of x and y
-    const xExtent = extent(positions, (d) => d[0]);
-    const yExtent = extent(positions, (d) => d[1]);
-    const newTarget = [(xExtent[0] + xExtent[1]) / 2, (yExtent[0] + yExtent[1]) / 2];
-    const zoom = Math.min(
-      width / (xExtent[1] - xExtent[0] + viewportPadding * 2),
-      height / (yExtent[1] - yExtent[0] + viewportPadding * 2)
-    );
-    // zoom value is at log scale
-    const newZoom = Math.min(Math.max(minZoom, Math.log(zoom)), maxZoom);
-    setViewState({
-      ...viewState,
-      target: newTarget,
-      zoom: newZoom
-    });
-  }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
+      for (const node of engine.getNodes()) {
+        const chainId = node.getPropertyValue('collapsedChainId');
+        const nodeIds = node.getPropertyValue('collapsedNodeIds');
+        const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+        const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+
+        if (
+          chainId !== null &&
+          chainId !== undefined &&
+          Array.isArray(nodeIds) &&
+          nodeIds.length > 1 &&
+          representativeId === node.getId()
+        ) {
+          const chainKey = String(chainId);
+          chainIds.push(chainKey);
+          if (isCollapsed) {
+            collapsedIds.push(chainKey);
+          }
+        }
+      }
+
+      setDagChainSummary({chainIds, collapsedIds});
+    };
+
+    updateChainSummary();
+
+    const handleLayoutChange = () => updateChainSummary();
+    const handleLayoutDone = () => updateChainSummary();
+
+    engine.addEventListener('onLayoutChange', handleLayoutChange);
+    engine.addEventListener('onLayoutDone', handleLayoutDone);
+
+    return () => {
+      engine.removeEventListener('onLayoutChange', handleLayoutChange);
+      engine.removeEventListener('onLayoutDone', handleLayoutDone);
+    };
+  }, [engine, dagLayout, isDagLayout]);
+
+  const handleToggleCollapseEnabled = useCallback(() => {
+    setCollapseEnabled((value) => !value);
+  }, []);
+
+  const handleCollapseAll = useCallback(() => {
+    if (!collapseEnabled || !dagLayout || !dagChainSummary) {
+      return;
+    }
+    dagLayout.setCollapsedChains(dagChainSummary.chainIds);
+  }, [collapseEnabled, dagLayout, dagChainSummary]);
+
+  const handleExpandAll = useCallback(() => {
+    if (!collapseEnabled || !dagLayout) {
+      return;
+    }
+    dagLayout.setCollapsedChains([]);
+  }, [collapseEnabled, dagLayout]);
 
   // Relatively pan the graph by a specified position vector.
   // const panBy = useCallback(
@@ -199,107 +357,165 @@ export function App(props) {
   //   [maxZoom, minZoom, viewState, setViewState]
   // );
 
+  // useEffect(() => {
+  //   if (!engine) {
+  //     return () => undefined;
+  //   }
+
+  //   if (zoomToFitOnLoad && isLoading) {
+  //     engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+  //   }
+  //   return () => {
+  //     engine.removeEventListener('onLayoutDone', fitBounds);
+  //   };
+  // }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+
   useEffect(() => {
-    if (zoomToFitOnLoad && isLoading) {
-      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
-    }
-    return () => {
-      engine.removeEventListener('onLayoutDone', fitBounds);
-    };
-  }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+    const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
+    zoomWidget?.setProps({minZoom, maxZoom});
+  }, [widgets, minZoom, maxZoom]);
+  const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
+    setSelectedExample(example);
+    setSelectedLayout(layoutType);
+  }, []);
 
-
-  const handleChangeGraph = useCallback(({target: {value}}) => setState(state => ({...state, selectedDataset: value})), [setState]);
-  const handleChangeLayout = useCallback(({target: {value}}) => setState(state => ({...state, selectedLayout: value})), [setState]);
+  const handleApplyLayoutOptions = useCallback(
+    (layoutType: LayoutType, options: Record<string, unknown>) => {
+      setLayoutOverrides((current) => ({...current, [layoutType]: options}));
+    },
+    []
+  );
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-      <div style={{width: '100%', zIndex: 999}}>
-        <div>
-          Dataset:
-          <select value={state.selectedDataset} onChange={handleChangeGraph}>
-            {Object.keys(SAMPLE_GRAPH_DATASETS).map((data) => (
-              <option key={data} value={data}>
-                {data}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          Layout:
-          <select value={state.selectedLayout} onChange={handleChangeLayout}>
-            {LAYOUTS.map((data) => (
-              <option key={data} value={data}>
-                {data}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div style={{width: '100%', flex: 1}}>
-        <>
-          {isLoading}
-          <div style={{visibility: isLoading ? 'hidden' : 'visible'}}>
-            <DeckGL
-              onError={(error) => console.error(error)}
-              onAfterRender={() => loadingDispatch({type: 'afterRender'})}
-              width="100%"
-              height="100%"
-              getCursor={() => DEFAULT_CURSOR}
-              viewState={viewState as any}
-              onResize={({width, height}) => setViewState((prev) => ({...prev, width, height}))}
-              onViewStateChange={({viewState}) => setViewState(viewState as any)}
-              views={[
-                new OrthographicView({
-                  minZoom,
-                  maxZoom,
-                  controller: {
-                    scrollZoom: true,
-                    touchZoom: true,
-                    doubleClickZoom: true,
-                    dragPan: true,
-                    wheelSensitivity: 0.5
-                  }
-                })
-              ]}
-              layers={[
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        minHeight: '100vh',
+        width: '100%',
+        boxSizing: 'border-box',
+        fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
+      }}
+    >
+      <div
+        style={{
+          flex: '1 1 auto',
+          minWidth: 0,
+          position: 'relative'
+        }}
+      >
+        {isLoading ? (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.875rem',
+              color: '#475569',
+              zIndex: 1,
+              pointerEvents: 'none'
+            }}
+          >
+            Computing layout…
+          </div>
+        ) : null}
+        <DeckGL
+          onError={(error) => console.error(error)}
+          onAfterRender={() => {
+            if (!loadingState.rendered) {
+              loadingDispatch({type: 'afterRender'});
+            }
+          }}
+          width="100%"
+          height="100%"
+          getCursor={() => DEFAULT_CURSOR}
+          viewState={viewState as any}
+          onResize={onResize}
+          onViewStateChange={onViewStateChange}
+          views={[
+            new OrthographicView({
+              minZoom,
+              maxZoom,
+              controller: {
+                scrollZoom: true,
+                touchZoom: true,
+                doubleClickZoom: true,
+                dragPan: true,
+                wheelSensitivity: 0.5
+              }
+            })
+          ]}
+          layers={
+            engine
+              ? [
                 new GraphLayer({
                   engine,
-                  nodeStyle: [
-                    {
-                      type: 'circle',
-                      radius: DEFAULT_NODE_SIZE,
-                      fill: 'red'
-                    }
-                  ],
-                  edgeStyle: {
-                    decorators: [],
-                    stroke: 'black',
-                    strokeWidth: 1
-                  },
+                  stylesheet: selectedStyles,
                   resumeLayoutAfterDragging
                 })
-              ]}
-              widgets={[
-                // // new ViewControlWidget({}) TODO - fix and enable
               ]
-                // onHover={(info) => console.log('Hover', info)}
-              }
-              getTooltip={(info) => getToolTip(info.object)}
-            />
-            {/* View control component TODO - doesn't work in website, replace with widget *
-              <PositionedViewControl
-                fitBounds={fitBounds}
-                panBy={panBy}
-                zoomBy={zoomBy}
-                zoomLevel={viewState.zoom}
-                maxZoom={maxZoom}
-                minZoom={minZoom}
-              />
-            */}
-          </div>
-        </>
+              : []
+          }
+          widgets={widgets}
+          getTooltip={(info) => getToolTip(info.object)}
+        />
       </div>
+      <aside
+        style={{
+          width: '320px',
+          minWidth: '260px',
+          maxWidth: '360px',
+          padding: '1.5rem 1rem',
+          boxSizing: 'border-box',
+          borderLeft: '1px solid #e2e8f0',
+          background: '#f1f5f9',
+          maxHeight: '100vh',
+          overflowY: 'auto',
+          fontFamily: 'inherit'
+        }}
+      >
+        <ControlPanel
+          examples={EXAMPLES}
+          defaultExample={selectedExample ?? defaultExample}
+          graphType={exampleType}
+          onExampleChange={handleExampleChange}
+          layoutOptions={layoutOptions}
+          onLayoutOptionsApply={handleApplyLayoutOptions}
+        >
+          <>
+            {isDagLayout ? (
+              <CollapseControls
+                enabled={collapseEnabled}
+                summary={dagChainSummary}
+                onToggle={handleToggleCollapseEnabled}
+                onCollapseAll={handleCollapseAll}
+                onExpandAll={handleExpandAll}
+              />
+            ) : null}
+            <section
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                fontSize: '0.75rem',
+                gap: '0.25rem'
+              }}
+            >
+              <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+                Stylesheet JSON
+              </h3>
+              <div style={{borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #1f2937'}}>
+                <StylesheetEditor
+                  value={stylesheetValue}
+                  onChange={handleStylesheetChange}
+                  onSubmit={handleStylesheetSubmit}
+                />
+              </div>
+            </section>
+          </>
+        </ControlPanel>
+      </aside>
     </div>
   );
 }
@@ -315,6 +531,7 @@ function getToolTip(object) {
 export function renderToDOM() {
   if (document.body) {
     document.body.style.margin = '0';
+    document.body.style.fontFamily = 'Inter, "Helvetica Neue", Arial, sans-serif';
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);

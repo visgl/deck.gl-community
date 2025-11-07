@@ -10,23 +10,45 @@ export {Edge} from './graph/edge';
 export {GraphEngine} from './core/graph-engine';
 
 // graph-layers layouts
-export type {GraphLayoutState} from './core/graph-layout';
+export type {
+  GraphLayoutProps,
+  GraphLayoutState,
+  GraphLayoutEventDetail
+} from './core/graph-layout';
 export {GraphLayout} from './core/graph-layout';
 
 export {SimpleLayout} from './layouts/simple-layout';
 export {D3ForceLayout} from './layouts/d3-force/d3-force-layout';
 export {D3DagLayout} from './layouts/d3-dag/d3-dag-layout';
+export {CollapsableD3DagLayout} from './layouts/d3-dag/collapsable-d3-dag-layout';
 export {GPUForceLayout} from './layouts/gpu-force/gpu-force-layout';
-export {RadialLayout as _RadialLayout} from './layouts/experimental/radial-layout';
-export {ForceMultiGraphLayout as _MultigraphLayout} from './layouts/experimental/force-multi-graph-layout';
-export {HivePlotLayout as _HivePlotLayout} from './layouts/experimental/hive-plot-layout';
+export {RadialLayout} from './layouts/experimental/radial-layout';
+export {ForceMultiGraphLayout} from './layouts/experimental/force-multi-graph-layout';
+export {HivePlotLayout} from './layouts/experimental/hive-plot-layout';
 
 export type {Marker, NodeState, NodeType, EdgeType, EdgeDecoratorType, LayoutState} from './core/constants';
 
 // deck.gl components
 export {GraphLayer} from './layers/graph-layer';
 export {EdgeLayer} from './layers/edge-layer';
-export {BaseStylesheet, GraphStylesheet, Stylesheet} from './style/style-sheet';
+export {StyleEngine} from './style/style-engine';
+export {GraphStyleEngine} from './style/graph-style-engine';
+export type {
+  GraphStylesheet,
+  GraphStylesheetInput,
+  GraphStylesheetParsed,
+  GraphStyleAttributeReference,
+  GraphStyleScale,
+  GraphStyleScaleType,
+  GraphStyleValue
+} from './style/graph-style-engine';
+export {GraphStylesheetSchema} from './style/graph-style-engine';
+export {
+  DEFAULT_GRAPH_LAYER_STYLESHEET,
+  type GraphLayerStylesheet,
+  type GraphLayerEdgeStyle,
+  type GraphLayerNodeStyle
+} from './style/graph-layer-stylesheet';
 
 // Widgets
 

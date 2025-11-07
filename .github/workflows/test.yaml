@@ -1,6 +1,10 @@
 name: test
 
+# On every pull request, but only on push to master
 on:
+  push:
+    branches:
+      - master
   pull_request:
 
 permissions:
@@ -77,6 +81,18 @@ jobs:
 
       - name: Run headless browser tests
         run: yarn test-headless --reporter=verbose
+
+      - name: Cache website Yarn artifacts
+        id: website-yarn-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            website/.yarn/cache
+            website/.pnp.*
+            website/.yarn/install-state.gz
+          key: website-yarn-cache-${{ runner.os }}-${{ hashFiles('website/yarn.lock') }}
+          restore-keys: |
+            website-yarn-cache-${{ runner.os }}-
 
       - name: Build website
         run: |

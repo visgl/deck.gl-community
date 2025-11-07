@@ -7,7 +7,7 @@ import {App} from '../../../../examples/graph-layers/graph-viewer/app';
 import {makeExample} from '../../components';
 
 class GraphViewerDemo extends Component {
-  static title = 'Simple Graph Viewer';
+  static title = 'Graph Viewer';
 
   static code = `${GITHUB_TREE}/examples/graph-layers/graph-viewer`;
 
@@ -26,4 +26,4 @@ class GraphViewerDemo extends Component {
   }
 }
 
-export default makeExample(GraphViewerDemo);
+export default makeExample(GraphViewerDemo, {addInfoPanel: false});

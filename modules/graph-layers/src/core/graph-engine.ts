@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {Bounds2D} from '@math.gl/types';
+
 import type {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
 import {Graph} from '../graph/graph';
-import {GraphLayout} from './graph-layout';
+import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
+import {log} from '../utils/log';
 
 export type GraphEngineProps = {
   graph: Graph;
@@ -69,6 +72,8 @@ export class GraphEngine extends EventTarget {
 
   getLayoutState = () => this._layout.state;
 
+  getLayoutBounds = (): Bounds2D | null => this._layout.getBounds();
+
   /** Operations on the graph */
 
   lockNodePosition = (node, x, y) => this._layout.lockNodePosition(node, x, y);
@@ -78,45 +83,52 @@ export class GraphEngine extends EventTarget {
   /**
    * @fires GraphEngine#onLayoutStart
    */
-  _onLayoutStart = () => {
+  _onLayoutStart = (event: Event) => {
+    log.log(0, 'GraphEngine: layout start')();
+    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
     /**
      * @event GraphEngine#onLayoutStart
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutStart'));
+    this.dispatchEvent(new CustomEvent('onLayoutStart', {detail}));
   };
 
   /**
    * @fires GraphEngine#onLayoutChange
    */
-  _onLayoutChange = () => {
+  _onLayoutChange = (event: Event) => {
+    log.log(0, 'GraphEngine: layout update event')();
+    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
     /**
      * @event GraphEngine#onLayoutChange
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutChange'));
+    this.dispatchEvent(new CustomEvent('onLayoutChange', {detail}));
   };
 
   /**
    * @fires GraphEngine#onLayoutDone
    */
-  _onLayoutDone = () => {
+  _onLayoutDone = (event: Event) => {
+    log.log(0, 'GraphEngine: layout end')();
+    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
     /**
      * @event GraphEngine#onLayoutDone
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutDone'));
+    this.dispatchEvent(new CustomEvent('onLayoutDone', {detail}));
   };
 
   /**
    * @fires GraphEngine#onLayoutError
    */
-  _onLayoutError = () => {
+  _onLayoutError = (event: Event) => {
+    const detail = event instanceof CustomEvent ? event.detail : undefined;
     /**
      * @event GraphEngine#onLayoutError
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutError'));
+    this.dispatchEvent(new CustomEvent('onLayoutError', {detail}));
   };
 
   _onGraphStructureChanged = (entity) => {
@@ -136,6 +148,7 @@ export class GraphEngine extends EventTarget {
   /** Layout calculations */
 
   run = () => {
+    log.log(1, 'GraphEngine: run');
     // TODO: throw if running on a cleared engine
 
     this._graph.addEventListener('transactionStart', this._onTransactionStart);
@@ -155,6 +168,7 @@ export class GraphEngine extends EventTarget {
   };
 
   clear = () => {
+    log.log(1, 'GraphEngine: end');
     this._graph.removeEventListener('transactionStart', this._onTransactionStart);
     this._graph.removeEventListener('transactionEnd', this._onTransactionEnd);
     this._graph.removeEventListener('onNodeAdded', this._onGraphStructureChanged);
@@ -179,6 +193,7 @@ export class GraphEngine extends EventTarget {
   };
 
   _updateLayout = () => {
+    log.log(0, 'GraphEngine: layout update');
     this._layout.updateGraph(this._graph);
     this._layout.update();
     this._layoutDirty = false;

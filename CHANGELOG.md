@@ -1,6 +1,32 @@
 # deck.gl-community CHANGELOG
 
-## v9.1.2
+## v9.2.0-beta.2
+
+- chore: Enable publish of leaflet package (#377)
+- chore: Mark geo-layers for public publishing (#376)
+- Add Charles as the editable-layer maintainer (#371)
+- feat(graph-layers): Layered DAG support (#375)
+- feat(graph-layers): break out collapsable D3 DAG layout subclass (#373)
+
+## v9.2.0-beta.1
+
+- docs(graph-layers): Improve layout docs (#370)
+- feat(graph-viewer): add dag layout configuration controls (#359)
+- feat(graph-layers) add bounds calculation to layouts and graph-viewer (#357)
+- chore(graph-layers): refactor collapsed chain utilities (#353)
+- feat(graph-layers): collapsable linear DAG chains (#337)
+- fix(graph-layers): restore dag arrow decorator color property (#343)
+- [editable-layers] Real double-click used to finish drawing (#225)
+- feat(experimental): add pan and zoom widget (#341)
+- feat(graph-layers): unified graph stylesheet props (#328)
+- feat(graph-layers): split style engine from stylesheet (#321)
+- feat(graph-viewer): extract control panel component (#319)
+- feat(graph-layers) Add probe.gl logging to graph layout lifecycle (#318)
+- refactor(graph): extract reusable base stylesheet (#306)
+- [graph-layers] Use literal string types for constants (#302)
+- Add arrowhead decorator to graph layer (#297)
+- Add d3-dag example for graph module (#289)
+- chore: Bump to deck.gl@9.2 (#284)
 
 ## v9.1.1
 

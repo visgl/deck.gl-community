@@ -4,7 +4,7 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import type {Graph} from '../../graph/graph';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
@@ -26,8 +26,8 @@ import {
   layeringTopological,
   sugiyama,
   zherebko,
-  type Coord,
-  type Decross,
+  // type Coord,
+  // type Decross,
   type DefaultGrid,
   type DefaultSugiyama,
   type DefaultZherebko,
@@ -37,30 +37,19 @@ import {
   type MutGraphLink,
   type NodeSize
 } from 'd3-dag';
+import {log} from '../../utils/log';
 
-export type D3DagLayoutBuilderName = 'sugiyama' | 'grid' | 'zherebko';
-export type D3DagLayeringName = 'simplex' | 'longestPath' | 'topological';
-export type D3DagDecrossName = 'twoLayer' | 'opt' | 'dfs';
-export type D3DagCoordName = 'simplex' | 'greedy' | 'quad' | 'center' | 'topological';
-export type D3DagDagBuilderName = 'graph' | 'connect' | 'stratify';
-export type D3DagOrientation = 'TB' | 'BT' | 'LR' | 'RL';
-export type D3DagCenterOption = boolean | {x?: boolean; y?: boolean};
-
-export type D3DagLayoutOperator =
-  | DefaultSugiyama
-  | DefaultGrid
-  | DefaultZherebko
-  | ((dag: MutGraph<Node, Edge>) => LayoutResult);
-
-export type D3DagLayoutOptions = GraphLayoutOptions & {
+export type D3DagLayoutProps = GraphLayoutProps & {
   /** Which high-level layout operator to use. */
-  layout?: D3DagLayoutBuilderName | D3DagLayoutOperator;
+  layout?: 'sugiyama' | 'grid' | 'zherebko';
   /** Layering operator used by sugiyama layouts. */
-  layering?: D3DagLayeringName | LayeringOperator;
+  layering?: 'simplex' | 'longestPath' | 'topological';
+  /** Accessor for node rank for layering */
+  nodeRank?: string | ((node: Node) => number | undefined);
   /** Decrossing operator used by sugiyama layouts. */
-  decross?: D3DagDecrossName | DecrossOperator;
+  decross?: 'twoLayer' | 'opt' | 'dfs';
   /** Coordinate assignment operator used by sugiyama layouts. */
-  coord?: D3DagCoordName | CoordOperator;
+  coord?: 'simplex' | 'greedy' | 'quad' | 'center' | 'topological';
   /** Node sizing accessor passed to the active layout. */
   nodeSize?: NodeSize<Node, Edge>;
   /** Optional gap between nodes. Alias: separation. */
@@ -68,12 +57,24 @@ export type D3DagLayoutOptions = GraphLayoutOptions & {
   /** Optional gap between nodes. */
   separation?: readonly [number, number];
   /** Orientation transform applied after the layout finishes. */
-  orientation?: D3DagOrientation;
+  orientation?: 'TB' | 'BT' | 'LR' | 'RL';
   /** Whether to center the layout along each axis. */
-  center?: D3DagCenterOption;
+  center?: boolean | {x?: boolean; y?: boolean};
   /** How to convert the Graph into a DAG. */
-  dagBuilder?: D3DagDagBuilderName | DagBuilder;
+  dagBuilder?: 'graph' | 'connect' | 'stratify';
+
+  customDagBuilder?: DagBuilder;
+  customLayout?: D3DagLayoutOperator;
+  customLayering?: LayeringOperator;
+  customDecross?: DecrossOperator;
+  customCoord?: CoordOperator;
 };
+
+export type D3DagLayoutOperator =
+  | DefaultSugiyama
+  | DefaultGrid
+  | DefaultZherebko
+  | ((dag: MutGraph<Node, Edge>) => LayoutResult);
 
 type DagBuilder = (graph: Graph) => MutGraph<Node, Edge>;
 
@@ -111,57 +112,64 @@ type DagBounds = {
   centerY: number;
 };
 
+const DAG_ID_SEPARATOR = '::';
+
 const DEFAULT_NODE_SIZE: readonly [number, number] = [140, 120];
 const DEFAULT_GAP: readonly [number, number] = [0, 0];
 
-const LAYERING_FACTORIES: Record<D3DagLayeringName, () => LayeringOperator> = {
+const LAYERING_FACTORIES = {
   simplex: layeringSimplex,
   longestPath: layeringLongestPath,
   topological: layeringTopological
-};
+} as const satisfies Record<string, () => LayeringOperator>;
 
-const DECROSS_FACTORIES: Record<D3DagDecrossName, () => DecrossOperator> = {
+const DECROSS_FACTORIES = {
   twoLayer: decrossTwoLayer,
   opt: decrossOpt,
   dfs: decrossDfs
-};
+} as const satisfies Record<string, () => DecrossOperator>;
 
-const COORD_FACTORIES: Record<D3DagCoordName, () => CoordOperator> = {
+const COORD_FACTORIES = {
   simplex: coordSimplex,
   greedy: coordGreedy,
   quad: coordQuad,
   center: coordCenter,
   topological: coordTopological
-};
+} as const satisfies Record<string, () => CoordOperator>;
 
-const LAYOUT_FACTORIES: Record<D3DagLayoutBuilderName, () => LayoutWithConfiguration> = {
+const LAYOUT_FACTORIES = {
   sugiyama: () => sugiyama(),
   grid: () => grid(),
   zherebko: () => zherebko()
-};
-
-const DAG_ID_SEPARATOR = '::';
+} as const satisfies Record<string, () => LayoutWithConfiguration>;
 
 /**
  * Layout that orchestrates d3-dag operators from declarative options.
  */
-export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
-  static defaultOptions: Required<Omit<D3DagLayoutOptions, 'layout'>> & {layout: D3DagLayoutBuilderName} = {
+export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> extends GraphLayout<PropsT> {
+  static defaultProps: Readonly<Required<D3DagLayoutProps>> = {
     layout: 'sugiyama',
     layering: 'topological',
     decross: 'twoLayer',
     coord: 'greedy',
+    nodeRank: undefined,
     nodeSize: DEFAULT_NODE_SIZE,
     gap: DEFAULT_GAP,
     separation: DEFAULT_GAP,
     orientation: 'TB',
     center: true,
-    dagBuilder: 'graph'
-  };
+    dagBuilder: 'graph',
+
+    customLayout: undefined,
+    customLayering: undefined,
+    customDecross: undefined,
+    customCoord: undefined,
+    customDagBuilder: undefined
+  } as const;
 
   protected readonly _name = 'D3DagLayout';
 
-  private _graph: Graph | null = null;
+  protected _graph: Graph | null = null;
   private _dag: MutGraph<Node, Edge> | null = null;
   private _layoutOperator: LayoutWithConfiguration | null = null;
   private _rawNodePositions = new Map<string | number, [number, number]>();
@@ -170,16 +178,33 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   private _edgePoints = new Map<string | number, [number, number][]>();
   private _edgeControlPoints = new Map<string | number, [number, number][]>();
   private _lockedNodePositions = new Map<string | number, [number, number]>();
-  private _bounds: DagBounds | null = null;
+  private _dagBounds: DagBounds | null = null;
 
-  private _nodeLookup = new Map<string | number, Node>();
-  private _stringIdLookup = new Map<string, string | number>();
-  private _edgeLookup = new Map<string, Edge>();
-  private _incomingParentMap = new Map<string | number, (string | number)[]>();
+  protected _nodeLookup = new Map<string | number, Node>();
+  protected _stringIdLookup = new Map<string, string | number>();
+  protected _edgeLookup = new Map<string, Edge>();
+  protected _incomingParentMap = new Map<string | number, (string | number)[]>();
 
-  constructor(options: D3DagLayoutOptions = {}) {
-    super({...D3DagLayout.defaultOptions, ...options});
+  constructor(props: D3DagLayoutProps, defaultProps: Required<PropsT>) {
+    // @ts-expect-error TS2345 - Type 'Required<D3DagLayoutProps>' is not assignable to type 'Required<PropsT>'.
+    super(props, defaultProps || D3DagLayout.defaultProps);
   }
+
+  setProps(options: Partial<D3DagLayoutProps>): void {
+    this.props = {...this.props, ...options};
+    if (
+      options.layout !== undefined ||
+      options.layering !== undefined ||
+      options.decross !== undefined ||
+      options.coord !== undefined ||
+      options.nodeSize !== undefined ||
+      options.gap !== undefined ||
+      options.separation !== undefined
+    ) {
+      this._layoutOperator = null;
+    }
+  }
+
 
   initializeGraph(graph: Graph): void {
     this.updateGraph(graph);
@@ -227,23 +252,21 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
 
   stop(): void {}
 
-  setPipelineOptions(options: Partial<D3DagLayoutOptions>): void {
-    this._options = {...this._options, ...options};
-    if (
-      options.layout !== undefined ||
-      options.layering !== undefined ||
-      options.decross !== undefined ||
-      options.coord !== undefined ||
-      options.nodeSize !== undefined ||
-      options.gap !== undefined ||
-      options.separation !== undefined
-    ) {
-      this._layoutOperator = null;
-    }
+  toggleCollapsedChain(chainId: string): void {
+    log.log(1, `D3DagLayout: toggleCollapsedChain(${chainId}) ignored (collapsing disabled)`);
+  }
+
+  setCollapsedChains(chainIds: Iterable<string>): void {
+    const desired = Array.isArray(chainIds) ? chainIds : Array.from(chainIds);
+    log.log(1, `D3DagLayout: setCollapsedChains(${desired.length}) ignored (collapsing disabled)`);
   }
 
   getNodePosition(node: Node): [number, number] | null {
-    return this._nodePositions.get(node.getId()) || null;
+    if (this._shouldSkipNode(node.getId())) {
+      return null;
+    }
+    const mappedId = this._mapNodeId(node.getId());
+    return this._nodePositions.get(mappedId) || null;
   }
 
   getEdgePosition(edge: Edge):
@@ -254,21 +277,25 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
         controlPoints: [number, number][];
       }
     | null {
-    const sourceNode = this._graph?.findNode(edge.getSourceNodeId());
-    const targetNode = this._graph?.findNode(edge.getTargetNodeId());
-    if (!sourceNode || !targetNode) {
+    const mappedSourceId = this._mapNodeId(edge.getSourceNodeId());
+    const mappedTargetId = this._mapNodeId(edge.getTargetNodeId());
+    if (mappedSourceId === mappedTargetId) {
       return null;
     }
 
-    const sourcePosition = this.getNodePosition(sourceNode);
-    const targetPosition = this.getNodePosition(targetNode);
+    const sourcePosition = this._nodePositions.get(mappedSourceId);
+    const targetPosition = this._nodePositions.get(mappedTargetId);
     if (!sourcePosition || !targetPosition) {
+      return null;
+    }
+
+    if (!this._edgePoints.has(edge.getId())) {
       return null;
     }
 
     // const points = this._edgePoints.get(edge.getId()) || [sourcePosition, targetPosition];
     const controlPoints = this._edgeControlPoints.get(edge.getId()) || [];
-    const edgeType = controlPoints.length ? 'spline' : 'line';
+    const edgeType = controlPoints.length ? 'spline-curve' : 'line';
 
     return {
       type: edgeType,
@@ -293,10 +320,11 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     this._lockedNodePositions.delete(node.getId());
   }
 
-  private _runLayout(): void {
+  protected _runLayout(): void {
     if (!this._graph) {
       return;
     }
+    this._refreshCollapsedChains();
     this._onLayoutStart();
 
     try {
@@ -312,15 +340,17 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
   }
 
-  private _buildDag(): MutGraph<Node, Edge> {
-    const builder = this._options.dagBuilder ?? D3DagLayout.defaultOptions.dagBuilder;
+  protected _refreshCollapsedChains(): void {
+    this._updateCollapsedChainNodeMetadata();
+  }
 
-    if (typeof builder === 'function') {
-      const dag = builder(this._graph);
+  private _buildDag(): MutGraph<Node, Edge> {
+    if (this.props.customDagBuilder) {
+      const dag = this.props.customDagBuilder(this._graph);
       return this._ensureEdgeData(dag);
     }
 
-    switch (builder) {
+    switch (this.props.dagBuilder) {
       case 'connect':
         return this._buildDagWithConnect();
       case 'stratify':
@@ -336,6 +366,9 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     const dagNodeLookup = new Map<string | number, MutGraphNode<Node, Edge>>();
 
     for (const node of this._graph.getNodes()) {
+      if (this._shouldSkipNode(node.getId())) {
+        continue;
+      }
       const dagNode = dag.node(node);
       dagNodeLookup.set(node.getId(), dagNode);
     }
@@ -344,8 +377,13 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       if (!edge.isDirected()) {
         continue;
       }
-      const source = dagNodeLookup.get(edge.getSourceNodeId());
-      const target = dagNodeLookup.get(edge.getTargetNodeId());
+      const sourceId = this._mapNodeId(edge.getSourceNodeId());
+      const targetId = this._mapNodeId(edge.getTargetNodeId());
+      if (sourceId === targetId) {
+        continue;
+      }
+      const source = dagNodeLookup.get(sourceId);
+      const target = dagNodeLookup.get(targetId);
       if (!source || !target) {
         continue;
       }
@@ -367,9 +405,15 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     const data: ConnectDatum[] = this._graph
       .getEdges()
       .filter((edge) => edge.isDirected())
-      .map((edge) => ({
-        source: this._toDagId(edge.getSourceNodeId()),
-        target: this._toDagId(edge.getTargetNodeId()),
+      .map((edge) => {
+        const sourceId = this._mapNodeId(edge.getSourceNodeId());
+        const targetId = this._mapNodeId(edge.getTargetNodeId());
+        return {sourceId, targetId, edge};
+      })
+      .filter(({sourceId, targetId}) => sourceId !== targetId)
+      .map(({sourceId, targetId, edge}) => ({
+        source: this._toDagId(sourceId),
+        target: this._toDagId(targetId),
         edge
       }));
 
@@ -384,6 +428,9 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
 
     for (const node of this._graph.getNodes()) {
+      if (this._shouldSkipNode(node.getId())) {
+        continue;
+      }
       if (!seenIds.has(node.getId())) {
         dag.node(node);
       }
@@ -397,13 +444,58 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       .id((node: Node): string => this._toDagId(node.getId()))
       .parentIds((node: Node): Iterable<string> => {
         const parentIds = this._incomingParentMap.get(node.getId()) ?? [];
-        return parentIds
-          .filter((parentId) => this._nodeLookup.has(parentId))
-          .map((parentId) => this._toDagId(parentId));
+        const mapped = new Set<string>();
+        for (const parentId of parentIds) {
+          if (!this._nodeLookup.has(parentId)) {
+            continue;
+          }
+          const mappedId = this._mapNodeId(parentId);
+          if (mappedId === node.getId()) {
+            continue;
+          }
+          mapped.add(this._toDagId(mappedId));
+        }
+        return mapped;
       });
 
-    const dag = stratify(this._graph.getNodes());
+    const dag = stratify(this._graph.getNodes().filter((node) => !this._shouldSkipNode(node.getId())));
     return this._ensureEdgeData(dag);
+  }
+
+  protected _shouldSkipNode(_nodeId: string | number): boolean {
+    return false;
+  }
+
+  protected _mapNodeId(nodeId: string | number): string | number {
+    return nodeId;
+  }
+
+  protected _updateCollapsedChainNodeMetadata(): void {
+    if (!this._graph) {
+      return;
+    }
+    for (const node of this._graph.getNodes()) {
+      node.setDataProperty('collapsedChainId', null);
+      node.setDataProperty('collapsedChainLength', 1);
+      node.setDataProperty('collapsedNodeIds', []);
+      node.setDataProperty('collapsedEdgeIds', []);
+      node.setDataProperty('collapsedChainRepresentativeId', null);
+      node.setDataProperty('isCollapsedChain', false);
+    }
+  }
+
+  protected _getIncomingEdges(node: Node): Edge[] {
+    const nodeId = node.getId();
+    return node
+      .getConnectedEdges()
+      .filter((edge) => edge.isDirected() && edge.getTargetNodeId() === nodeId);
+  }
+
+  protected _getOutgoingEdges(node: Node): Edge[] {
+    const nodeId = node.getId();
+    return node
+      .getConnectedEdges()
+      .filter((edge) => edge.isDirected() && edge.getSourceNodeId() === nodeId);
   }
 
   private _ensureEdgeData<T>(dag: MutGraph<Node, T>): MutGraph<Node, Edge> {
@@ -431,7 +523,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       return this._layoutOperator;
     }
 
-    const layoutOption = this._options.layout ?? D3DagLayout.defaultOptions.layout;
+    const layoutOption = this.props.layout ?? D3DagLayout.defaultProps.layout;
     let layout: LayoutWithConfiguration;
 
     if (typeof layoutOption === 'string') {
@@ -440,24 +532,41 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       layout = layoutOption as LayoutWithConfiguration;
     }
 
-    if (layout.layering && this._options.layering) {
-      layout = layout.layering(this._resolveLayering(this._options.layering));
+    // TODO - is 'none' operator an option in d3-dag?
+    if (layout.layering && this.props.layering) {
+      let layeringOperator = this.props.customLayering || LAYERING_FACTORIES[this.props.layering]();
+      layout = layout.layering(layeringOperator);
+      const {nodeRank} = this.props;
+      if (nodeRank) {
+        // @ts-expect-error TS2345 - Argument of type '(dagNode: MutGraphNode<Node, Edge>) => number | undefined' is not assignable to parameter of type '(dagNode: MutGraphNode<Node, Edge>) => number'.
+        layeringOperator = layeringOperator.rank((dagNode) => {
+          const node = dagNode.data as Node;
+          const rank = typeof nodeRank === 'function' ? nodeRank?.(node) : node?.getPropertyValue(nodeRank) || undefined;
+          // if (rank !== undefined) {
+          //   console.log(`Node ${node.getId()} assigned to rank ${rank}`);
+          // }
+          return rank;
+        });
+      }
+      layout = layout.layering(layeringOperator);
     }
 
-    if (layout.decross && this._options.decross) {
-      layout = layout.decross(this._resolveDecross(this._options.decross));
+    if (layout.decross && this.props.decross) {
+      const decrossOperator = this.props.customDecross || DECROSS_FACTORIES[this.props.decross]();
+      layout = layout.decross(decrossOperator);
     }
 
-    if (layout.coord && this._options.coord) {
-      layout = layout.coord(this._resolveCoord(this._options.coord));
+    if (layout.coord && this.props.coord) {
+      const coordOperator = this.props.customCoord || COORD_FACTORIES[this.props.coord]();
+      layout = layout.coord(coordOperator);
     }
 
-    const nodeSize = this._options.nodeSize ?? DEFAULT_NODE_SIZE;
+    const nodeSize = this.props.nodeSize ?? DEFAULT_NODE_SIZE;
     if (layout.nodeSize) {
       layout = layout.nodeSize(nodeSize);
     }
 
-    const gap = this._options.separation ?? this._options.gap ?? DEFAULT_GAP;
+    const gap = this.props.separation ?? this.props.gap ?? DEFAULT_GAP;
     if (layout.gap) {
       layout = layout.gap(gap);
     }
@@ -466,32 +575,13 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     return layout;
   }
 
-  private _resolveLayering(option: D3DagLayeringName | LayeringOperator): LayeringOperator {
-    if (typeof option === 'string') {
-      return LAYERING_FACTORIES[option]();
-    }
-    return option;
-  }
-
-  private _resolveDecross(option: D3DagDecrossName | DecrossOperator): Decross<Node, Edge> {
-    if (typeof option === 'string') {
-      return DECROSS_FACTORIES[option]();
-    }
-    return option;
-  }
-
-  private _resolveCoord(option: D3DagCoordName | CoordOperator): Coord<Node, Edge> {
-    if (typeof option === 'string') {
-      return COORD_FACTORIES[option]();
-    }
-    return option;
-  }
-
   private _cacheGeometry(): void {
     this._rawNodePositions.clear();
     this._rawEdgePoints.clear();
 
     if (!this._dag) {
+      this._dagBounds = null;
+      this._bounds = null;
       return;
     }
 
@@ -515,6 +605,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
 
     if (minX === Number.POSITIVE_INFINITY) {
+      this._dagBounds = null;
       this._bounds = null;
       this._nodePositions.clear();
       this._edgePoints.clear();
@@ -522,7 +613,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       return;
     }
 
-    this._bounds = {
+    this._dagBounds = {
       minX,
       maxX,
       minY,
@@ -550,12 +641,13 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     this._edgePoints.clear();
     this._edgeControlPoints.clear();
 
-    if (!this._bounds) {
+    if (!this._dagBounds) {
+      this._bounds = null;
       return;
     }
 
     const {offsetX, offsetY} = this._getOffsets();
-    const orientation = this._options.orientation ?? D3DagLayout.defaultOptions.orientation;
+    const orientation = this.props.orientation ?? D3DagLayout.defaultProps.orientation;
 
     const transform = (x: number, y: number): [number, number] => {
       const localX = x - offsetX;
@@ -589,38 +681,44 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     for (const [id, position] of this._lockedNodePositions) {
       this._nodePositions.set(id, position);
     }
+
+    this._bounds = this._calculateBounds(this._nodePositions.values());
   }
 
   private _getOffsets(): {offsetX: number; offsetY: number} {
-    if (!this._bounds) {
+    if (!this._dagBounds) {
       return {offsetX: 0, offsetY: 0};
     }
-    const centerOption = this._options.center ?? true;
+    const centerOption = this.props.center ?? true;
     let offsetX = 0;
     let offsetY = 0;
     if (centerOption === true) {
-      offsetX = this._bounds.centerX;
-      offsetY = this._bounds.centerY;
+      offsetX = this._dagBounds.centerX;
+      offsetY = this._dagBounds.centerY;
     } else if (centerOption && typeof centerOption === 'object') {
       if (centerOption.x) {
-        offsetX = this._bounds.centerX;
+        offsetX = this._dagBounds.centerX;
       }
       if (centerOption.y) {
-        offsetY = this._bounds.centerY;
+        offsetY = this._dagBounds.centerY;
       }
     }
     return {offsetX, offsetY};
   }
 
-  private _edgeKey(sourceId: string | number, targetId: string | number): string {
+  protected override _updateBounds(): void {
+    this._bounds = this._calculateBounds(this._nodePositions.values());
+  }
+
+  protected _edgeKey(sourceId: string | number, targetId: string | number): string {
     return `${this._toDagId(sourceId)}${DAG_ID_SEPARATOR}${this._toDagId(targetId)}`;
   }
 
-  private _toDagId(id: string | number): string {
+  protected _toDagId(id: string | number): string {
     return String(id);
   }
 
-  private _fromDagId(id: string): string | number {
+  protected _fromDagId(id: string): string | number {
     return this._stringIdLookup.get(id) ?? id;
   }
 }

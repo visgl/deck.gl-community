@@ -34,7 +34,7 @@ const MapTip = styled.div`
   }
 `;
 
-export default function makeExample(DemoComponent, {isInteractive = true, style} = {}) {
+export default function makeExample(DemoComponent, {addInfoPanel = true, style} = {}) {
   const {parameters = {}, mapStyle} = DemoComponent;
   const defaultParams = Object.keys(parameters).reduce((acc, name) => {
     acc[name] = normalizeParam(parameters[name]);
@@ -43,11 +43,12 @@ export default function makeExample(DemoComponent, {isInteractive = true, style}
 
   const defaultData = Array.isArray(DemoComponent.data) ? DemoComponent.data.map(_ => null) : null;
 
-  return function () {
+  return function ExampleWrapper(wrapperProps = {}) {
     const [data, setData] = useState(defaultData);
     const [params, setParams] = useState(defaultParams);
     const [meta, setMeta] = useState({});
     const baseUrl = useBaseUrl('/');
+    const {mapStyle: mapStyleOverride, ...forwardedProps} = wrapperProps;
 
     const useParam = useCallback(newParameters => {
       const newParams = Object.keys(newParameters).reduce((acc, name) => {
@@ -109,13 +110,14 @@ export default function makeExample(DemoComponent, {isInteractive = true, style}
     return (
       <DemoContainer style={style}>
         <DemoComponent
+          {...forwardedProps}
           data={data}
-          mapStyle={mapStyle || MAPBOX_STYLES.BLANK}
+          mapStyle={mapStyleOverride || mapStyle || MAPBOX_STYLES.BLANK}
           params={params}
           useParam={useParam}
           onStateChange={updateMeta}
         />
-        {isInteractive && (
+        {addInfoPanel && (
           <InfoPanel
             title={DemoComponent.title}
             params={params}
@@ -127,7 +129,7 @@ export default function makeExample(DemoComponent, {isInteractive = true, style}
           </InfoPanel>
         )}
 
-        {isInteractive && mapStyle && <MapTip>Hold down shift to rotate</MapTip>}
+        {addInfoPanel && mapStyle && <MapTip>Hold down shift to rotate</MapTip>}
       </DemoContainer>
     );
   };

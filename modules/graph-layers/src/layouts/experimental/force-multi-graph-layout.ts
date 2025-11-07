@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {Graph} from '../../graph/graph';
 import * as d3 from 'd3-force';
 
-export type ForceMultiGraphLayoutOptions = GraphLayoutOptions & {
+export type ForceMultiGraphLayoutProps = GraphLayoutProps & {
   alpha?: number;
   nBodyStrength?: number;
   nBodyDistanceMin?: number;
   nBodyDistanceMax?: number;
 };
 
-export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOptions> {
-  static defaultOptions = {
+export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProps> {
+  static defaultProps = {
     alpha: 3,
     nBodyStrength: -1200,
     nBodyDistanceMin: 100,
     nBodyDistanceMax: 1400
-  };
+  } as const satisfies Readonly<Required<ForceMultiGraphLayoutProps>>;
 
   _name = 'ForceMultiGraphLayout';
   _graph: Graph;
@@ -32,12 +32,11 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
   _edgeMap = {};
   _simulator;
 
-  constructor(options: ForceMultiGraphLayoutOptions = {}) {
-    super(options);
-    this._options = {
-      ...ForceMultiGraphLayout.defaultOptions,
-      ...options
-    };
+  constructor(props: ForceMultiGraphLayoutProps = {}) {
+    super({
+      ...ForceMultiGraphLayout.defaultProps,
+      ...props
+    });
   }
 
   initializeGraph(graph: Graph): void {
@@ -58,7 +57,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
       this._simulator.on('tick', null).on('end', null);
       this._simulator = null;
     }
-    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax} = this._options;
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax} = this.props;
 
     const g = this._d3Graph;
     this._simulator = d3
@@ -97,6 +96,8 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
   stop() {
     this._simulator.stop();
   }
+
+  update(): void {}
 
   updateGraph(graph) {
     this._graph = graph;
@@ -244,6 +245,13 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutOpti
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override _updateBounds(): void {
+    const positions = Object.values(this._nodeMap ?? {}).map((node) =>
+      this._normalizePosition(node)
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }
 
 /**
