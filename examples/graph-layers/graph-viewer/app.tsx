@@ -233,12 +233,8 @@ export function App({graphType}: AppProps) {
     []
   );
 
-<<<<<<< HEAD
-  const [{isLoading}, loadingDispatch] = useLoading(layout);
-=======
-  const [loadingState, loadingDispatch] = useLoading(engine);
+  const [loadingState, loadingDispatch] = useLoading(layout);
   const {isLoading} = loadingState;
->>>>>>> master
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
 
