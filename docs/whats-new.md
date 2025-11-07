@@ -19,6 +19,8 @@ High-level changes
 - Graph styling: unified `stylesheet` prop with shorthand attribute references for node, edge, and decorator styles.
 - Graph style constants are now defined using literals instead of objects
 - New example visualizing DAGs (Directed Acyclic Graphs).
+- GraphLayer now accepts `GraphEngine`, `Graph`, or raw JSON via its `data` prop (including async URLs), automatically builds a `GraphEngine` when given raw payloads, and deprecates the legacy `graph` prop.
+- `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects and no longer accepts `Graph` instances directly.
 
 Deprecations:
 - Graph style constants are now replaced by literal string constants 

@@ -4,7 +4,7 @@
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 
-import type {GraphEngine, GraphLayoutEventDetail} from '@deck.gl-community/graph-layers';
+import type {GraphEngine, GraphLayout, GraphLayoutEventDetail} from '@deck.gl-community/graph-layers';
 import type {Bounds2D} from '@math.gl/types';
 
 type UseGraphViewportOptions = {
@@ -20,8 +20,26 @@ type UseGraphViewportOptions = {
 
 const EPSILON = 1e-6;
 
+type LayoutEventSource = GraphEngine | GraphLayout | null;
+
+function getEventSourceBounds(source: LayoutEventSource): Bounds2D | null {
+  if (!source) {
+    return null;
+  }
+
+  if ('getLayoutBounds' in source && typeof source.getLayoutBounds === 'function') {
+    return source.getLayoutBounds();
+  }
+
+  if ('getBounds' in source && typeof source.getBounds === 'function') {
+    return source.getBounds();
+  }
+
+  return null;
+}
+
 export function useGraphViewport(
-  engine: GraphEngine | null,
+  eventSource: LayoutEventSource,
   {minZoom, maxZoom, viewportPadding, boundsPaddingRatio, initialViewState}: UseGraphViewportOptions
 ) {
   const [viewState, setViewState] = useState(() => ({
@@ -31,11 +49,11 @@ export function useGraphViewport(
 
   const fitBounds = useCallback(
     (incomingBounds?: Bounds2D | null) => {
-      if (!engine) {
+      if (!eventSource) {
         return;
       }
 
-      const bounds = incomingBounds ?? engine.getLayoutBounds();
+      const bounds = incomingBounds ?? getEventSourceBounds(eventSource);
       if (!bounds) {
         return;
       }
@@ -94,15 +112,15 @@ export function useGraphViewport(
         };
       });
     },
-    [engine, boundsPaddingRatio, viewportPadding, minZoom, maxZoom]
+    [eventSource, boundsPaddingRatio, viewportPadding, minZoom, maxZoom]
   );
 
   useEffect(() => {
     latestBoundsRef.current = null;
-  }, [engine]);
+  }, [eventSource]);
 
   useEffect(() => {
-    if (!engine) {
+    if (!eventSource) {
       return () => undefined;
     }
 
@@ -111,29 +129,29 @@ export function useGraphViewport(
       fitBounds(detail?.bounds ?? null);
     };
 
-    engine.addEventListener('onLayoutStart', handleLayoutEvent);
-    engine.addEventListener('onLayoutChange', handleLayoutEvent);
-    engine.addEventListener('onLayoutDone', handleLayoutEvent);
+    eventSource.addEventListener('onLayoutStart', handleLayoutEvent);
+    eventSource.addEventListener('onLayoutChange', handleLayoutEvent);
+    eventSource.addEventListener('onLayoutDone', handleLayoutEvent);
 
     return () => {
-      engine.removeEventListener('onLayoutStart', handleLayoutEvent);
-      engine.removeEventListener('onLayoutChange', handleLayoutEvent);
-      engine.removeEventListener('onLayoutDone', handleLayoutEvent);
+      eventSource.removeEventListener('onLayoutStart', handleLayoutEvent);
+      eventSource.removeEventListener('onLayoutChange', handleLayoutEvent);
+      eventSource.removeEventListener('onLayoutDone', handleLayoutEvent);
     };
-  }, [engine, fitBounds]);
+  }, [eventSource, fitBounds]);
 
   const {width, height} = viewState as any;
 
   useEffect(() => {
-    if (!engine || !width || !height) {
+    if (!eventSource || !width || !height) {
       return;
     }
 
-    const bounds = latestBoundsRef.current ?? engine.getLayoutBounds();
+    const bounds = latestBoundsRef.current ?? getEventSourceBounds(eventSource);
     if (bounds) {
       fitBounds(bounds);
     }
-  }, [engine, fitBounds, width, height]);
+  }, [eventSource, fitBounds, width, height]);
 
   const onResize = useCallback(({width, height}: {width: number; height: number}) => {
     setViewState((prev) => ({
