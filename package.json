@@ -26,7 +26,8 @@
     "test-node": "vitest --project node",
     "test-browser": "vitest --project browser",
     "test-headless": "vitest run --project headless",
-    "metrics": "ocular-metrics"
+    "metrics": "ocular-metrics",
+    "update-release-branch": "scripts/update-release-branch.sh"
   },
   "devDependencies": {
     "@deck.gl/aggregation-layers": "~9.2.1",
