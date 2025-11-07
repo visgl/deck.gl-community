@@ -2,16 +2,18 @@
 
 The `Node` class is the base class of the node, which provides a list of basic util functions to be used through out the applications.
 
-
 ## Constructor
+
 ```js
 new Node(props);
 ```
 
 Parameters:
+
 - `props` (Object) - `Node` properties.
 
 ### Basic Properties
+
 ##### `id` (String|Number, required)
 
 The `id` must be unique among all nodes in the graph at a given time.
@@ -22,30 +24,25 @@ The `id` must be unique among all nodes in the graph at a given time.
 
 The origin node data.
 
-
 ## getConnectedEdges()
-Return all the connected edges.
 
+Return all the connected edges.
 
 ## getDegree()
 
 Return the degree of the node -- includes in-degree and out-degree
 
-
 ## getId()
 
 Return the ID of the node.
-
 
 ## getInDegree()
 
 Return the in-degree of the node.
 
-
 ## getOutDegree()
 
 Return the out-degree of the node.
-
 
 ## getPropertyValue(key)
 
@@ -55,11 +52,9 @@ Return of the value of the selected property key.
 
 The property key.
 
-
 ## getSiblingIds()
 
 Return all the IDs of the sibling nodes.
-
 
 ## setData(data)
 
@@ -68,7 +63,6 @@ Set the new node data.
 ##### `data` (Any, required)
 
 The new data of the node.
-
 
 ## setDataProperty(key, value)
 
@@ -82,16 +76,13 @@ The key of the property
 
 The value of the property.
 
-
 ## addConnectedEdges(edges)
 
 Add new connected edges to the node.
 
-
 ## removeConnectedEdges(edges)
 
 Remove edges from `this._connectedEdges`
-
 
 ## clearConnectedEdges()
 

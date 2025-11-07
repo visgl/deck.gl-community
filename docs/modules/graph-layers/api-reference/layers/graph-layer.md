@@ -21,7 +21,11 @@ const layer = new GraphLayer({
       {type: 'label', text: '@id', color: '#172B4D', offset: [0, 16]}
     ],
     edges: {
-      stroke: {attribute: 'isCritical', fallback: false, scale: value => (value ? '#F97316' : '#CBD5F5')},
+      stroke: {
+        attribute: 'isCritical',
+        fallback: false,
+        scale: (value) => (value ? '#F97316' : '#CBD5F5')
+      },
       strokeWidth: {default: 1, hover: 3},
       decorators: [{type: 'arrow', size: 8}]
     }

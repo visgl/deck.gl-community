@@ -9,7 +9,7 @@ export type VerticalGridLayerProps = LayerProps & {
   yMax?: number; // Maximum Y-coordinate for grid lines
   width?: number; // Optional: Width of the grid lines (default: 1)
   color?: [number, number, number, number]; // Optional: RGBA color for grid lines (default: [200, 200, 200, 255])
-}; 
+};
 ```
 
 Render evenly spaced vertical grid lines along the x-axis.
@@ -33,21 +33,27 @@ new VerticalGridLayer({
 Inherits from all [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer) properties.
 
 ### `xMin` (Number, required)
+
 Start time in milliseconds since epoch.
 
 ### `xMax` (Number, required)
+
 End time in milliseconds since epoch.
 
 ### `tickCount` (Number, optional)
+
 Number of grid lines to draw. Default: `5`.
 
 ### `yMin`, `yMax` (Number, optional)
+
 Vertical range of grid lines. Defaults: `-1e6` to `1e6`.
 
 ### `width` (Number, optional)
+
 Line width in pixels. Default: `1`.
 
 ### `color` (Color, optional)
+
 RGBA color for grid lines. Default: `[200, 200, 200, 255]`.
 
 ## Sub Layers

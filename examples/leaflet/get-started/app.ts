@@ -49,7 +49,7 @@ export function exampleApplication() {
         data: AIR_PORTS,
         dataTransform: (d: any) => d.features.filter((f) => f.properties.scalerank < 4),
         // Styles
-        getSourcePosition: (f) => [-0.4531566, 51.4709959], // London
+        getSourcePosition: (_f) => [-0.4531566, 51.4709959], // London
         getTargetPosition: (f) => f.geometry.coordinates,
         getSourceColor: [0, 128, 200],
         getTargetColor: [200, 0, 80],

@@ -16,7 +16,6 @@ import {
 import type {GraphLayerStylesheet} from '@deck.gl-community/graph-layers';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
 import '@deck.gl/widgets/stylesheet.css';
-import '@deck.gl/widgets/stylesheet.css';
 
 import {extent} from 'd3-array';
 import {useGraphEngine} from './use-graph-engine';

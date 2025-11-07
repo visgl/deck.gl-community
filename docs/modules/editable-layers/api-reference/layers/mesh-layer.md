@@ -6,10 +6,10 @@ The Mesh Layer renders a number of arbitrary geometries. For example, a fleet of
 
 ```js
 import DeckGL from '@deck.gl/react';
-import { MeshLayer } from '@deck.gl/experimental';
-import { CubeGeometry } from 'luma.gl';
+import {MeshLayer} from '@deck.gl/experimental';
+import {CubeGeometry} from 'luma.gl';
 
-const App = ({ data, viewport }) => {
+const App = ({data, viewport}) => {
   /**
    * Data format:
    * [
@@ -31,7 +31,7 @@ const App = ({ data, viewport }) => {
     data,
     sizeScale: 100,
     texture: 'texture.png',
-    mesh: new CubeGeometry(),
+    mesh: new CubeGeometry()
   });
 
   return <DeckGL {...viewport} layers={[layer]} />;

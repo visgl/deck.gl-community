@@ -4,7 +4,6 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
-
 ## v9.2
 
 ### `@deck.gl-community/graph-layers`
@@ -13,4 +12,3 @@ Please refer the documentation of each module for detailed upgrade guides.
   - Replace deprecated `NODE_TYPE.CIRCLE` with `'circle'`, `EDGE_TYPE.LINE` with `'line'` etc.
 - Deprecation: `GraphLayer` now groups styling under a `stylesheet` prop
   - Replace `nodeStyle` / `edgeStyle` with `stylesheet.nodes` and `stylesheet.edges`
-

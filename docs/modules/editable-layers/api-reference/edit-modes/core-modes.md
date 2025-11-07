@@ -17,7 +17,6 @@ This mode is extends TranslateMode. This mode supports multiple selections.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/duplicate-mode.ts)
 
-
 ## Composite Mode
 
 Use `CompositeMode` to combine multiple modes.
@@ -31,4 +30,3 @@ _Not all combinations are guaranteed to work._
 ```
 new CompositeMode([new DrawLineStringMode(), new ModifyMode()])
 ```
-

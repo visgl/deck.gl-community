@@ -2,7 +2,7 @@
 
 Create a subclass of the `GraphLayout` class to write your own custom layout for the `GraphLayer`.
 
-## Usage 
+## Usage
 
 The example belows illustrates the methods you will need to implement when creating your own custom layout.
 
@@ -163,7 +163,6 @@ export default class RandomLayout extends GraphLayout {
   }
 }
 ```
-
 
 ### Getters
 

@@ -4,20 +4,20 @@ The Editable GeoJSON layer accepts a [GeoJSON](http://geojson.org) `FeatureColle
 
 ```js
 import DeckGL from '@deck.gl/react';
-import { EditableGeoJsonLayer, DrawPolygonMode } from '@deck.gl-community/editable-layers';
+import {EditableGeoJsonLayer, DrawPolygonMode} from '@deck.gl-community/editable-layers';
 
 const myFeatureCollection = {
   type: 'FeatureCollection',
   features: [
     /* insert features here */
-  ],
+  ]
 };
 
 const selectedFeatureIndexes = [];
 
 class App extends React.Component {
   state = {
-    data: myFeatureCollection,
+    data: myFeatureCollection
   };
 
   render() {
@@ -27,11 +27,11 @@ class App extends React.Component {
       mode: DrawPolygonMode,
       selectedFeatureIndexes,
 
-      onEdit: ({ updatedData }) => {
+      onEdit: ({updatedData}) => {
         this.setState({
-          data: updatedData,
+          data: updatedData
         });
-      },
+      }
     });
 
     return <DeckGL {...this.props.viewport} layers={[layer]} />;
@@ -67,7 +67,7 @@ _Note: passing a single `Feature` is not supported. However, you can pass a `Fea
 
 The `mode` property defines the mode used to handle user interaction events (e.g. pointer events) in order to accomplish edits. This can either be a constructor for an `EditMode` or an instance of `EditMode`.
 
-There are a extensive number of modes that come out-of-the-box with from '@deck.gl-community/editable-layers';. 
+There are a extensive number of modes that come out-of-the-box with from '@deck.gl-community/editable-layers';.
 
 #### `modeConfig` (Object, optional)
 
@@ -99,7 +99,6 @@ _Note: make sure to pass in the same array instance on each render if you are no
 The `onEdit` event is the core event provided by this layer and must be handled in order to accept and render edits. The `event` argument includes the following properties:
 
 - `updatedData` (Object): A new `FeatureCollection` with the edit applied.
-
   - To accept the edit as is, supply this object into the `data` prop on the next render cycle (e.g. by calling React's `setState` function)
 
   - To reject the edit, do nothing
@@ -107,7 +106,6 @@ The `onEdit` event is the core event provided by this layer and must be handled 
   - You may also supply a modified version of this object into the `data` prop on the next render cycle (e.g. if you have your own snapping logic).
 
 - `editType` (String): The type of edit requested. One of:
-
   - `updateTentativeFeature`: Fired whenever a feature is near completion, and user continued dragging the cursor mid-editing. It fires on pointer move for `DrawPointMode`. The tentative feature created is different for each mode.
 
   - `movePosition`: A position was moved.
@@ -402,9 +400,9 @@ new EditableGeoJsonLayer({
   _subLayerProps: {
     geojson: {
       getFillColor: (feature) => getFillColorForFeature(feature),
-      getLineColor: (feature) => getLineColorForFeature(feature),
-    },
-  },
+      getLineColor: (feature) => getLineColorForFeature(feature)
+    }
+  }
 });
 ```
 
@@ -428,9 +426,9 @@ new EditableGeoJsonLayer({
         } else {
           return UNSELECTED_FILL_COLOR;
         }
-      },
-    },
-  },
+      }
+    }
+  }
 });
 ```
 
@@ -472,9 +470,9 @@ new EditableGeoJsonLayer({
         } else {
           return EDIT_HANDLE_FILL_COLOR;
         }
-      },
-    },
-  },
+      }
+    }
+  }
 });
 ```
 
@@ -487,9 +485,9 @@ new EditableGeoJsonLayer({
   // ...
   _subLayerProps: {
     tooltips: {
-      getSize: 32,
-    },
-  },
+      getSize: 32
+    }
+  }
 });
 ```
 

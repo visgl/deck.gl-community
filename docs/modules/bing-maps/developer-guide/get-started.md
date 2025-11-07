@@ -32,8 +32,7 @@ loadModules().then(({Maps, Location, DeckOverlay}) => {
   const deckOverlay = new DeckOverlay({
     layers: [
       new GeoJsonLayer({
-        data:
-          'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_admin_0_scale_rank.geojson',
+        data: 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_admin_0_scale_rank.geojson',
         lineWidthMinPixels: 2,
         getLineColor: [60, 60, 60],
         getFillColor: [200, 200, 200]

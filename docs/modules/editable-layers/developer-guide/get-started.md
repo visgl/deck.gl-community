@@ -14,7 +14,6 @@ yarn add @deck.gl-community/editable-layers
 
 [EditableGeoJsonLayer](/docs/modules/editable-layers/api-reference/layers/editable-geojson-layer) is implemented as a [deck.gl](https://deck.gl) layer. It provides the ability to view and edit multiple types of geometry formatted as [GeoJSON](https://tools.ietf.org/html/rfc7946) (an open standard format for geometry) including polygons, lines, and points.
 
-
 ### Edit Modes
 
 TBA
@@ -33,7 +32,7 @@ import {
   DrawLineStringMode,
   DrawPolygonMode
 } from '@deck.gl-community/editable-layers';
-import { StaticMap } from 'react-map-gl';
+import {StaticMap} from 'react-map-gl';
 
 const INITIAL_VIEW_STATE = {
   longitude: -122.41669,
@@ -55,7 +54,7 @@ export function GeometryEditor() {
     data: features,
     mode,
     selectedFeatureIndexes,
-    onEdit: ({ updatedData }) => {
+    onEdit: ({updatedData}) => {
       setFeatures(updatedData);
     }
   });
@@ -73,7 +72,7 @@ export function GeometryEditor() {
         <StaticMap mapboxApiAccessToken={YOUR_TOKEN_HERE} />
       </DeckGL>
 
-      <div className='controls'>
+      <div className="controls">
         <button
           className={`button ${mode === DrawLineStringMode ? 'active' : ''}`}
           onClick={() => setMode(() => DrawLineStringMode)}
@@ -90,8 +89,8 @@ export function GeometryEditor() {
     </>
   );
 }
-
 ```
+
 Live example on [codesandbox](https://codesandbox.io/s/nebula-react-basic-example-q7t9u?file=/src/App.js)
 
 ## See Also
@@ -106,5 +105,3 @@ Live example on [codesandbox](https://codesandbox.io/s/nebula-react-basic-exampl
 - [With Toolbox](https://codesandbox.io/s/hello-nebulagl-with-toolbox-oelkr)
 - [No React](https://codesandbox.io/s/deckgl-and-nebulagl-editablegeojsonlayer-no-react-p9yrs)
 - [Custom EditMode](https://codesandbox.io/s/connect-the-dots-mode-yow65)
-
-

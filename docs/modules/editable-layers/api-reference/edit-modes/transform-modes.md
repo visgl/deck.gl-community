@@ -21,13 +21,11 @@ Callbacks:
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/modify-mode.ts)
 
-
 ## ExtrudeMode
 
 User can move edge. Click and drag from anywhere between 2 points in edge.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/extrude-mode.ts)
-
 
 ## ScaleMode
 

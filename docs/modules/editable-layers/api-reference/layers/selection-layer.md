@@ -6,16 +6,16 @@ This layer can be used to select deck.gl objects using mouse drawing.
 import * as React from 'react';
 import ReactDOM from 'react-dom';
 import DeckGL from '@deck.gl/react';
-import { ScatterplotLayer } from '@deck.gl/layers';
-import { SelectionLayer } from '@deck.gl-community/editable-layers';
-import { StaticMap } from 'react-map-gl';
+import {ScatterplotLayer} from '@deck.gl/layers';
+import {SelectionLayer} from '@deck.gl-community/editable-layers';
+import {StaticMap} from 'react-map-gl';
 
 const MAPBOX_ACCESS_TOKEN = ''; // add your mapbox token here
 
 const initialViewState = {
   longitude: -73.986022,
   latitude: 40.730743,
-  zoom: 12,
+  zoom: 12
 };
 
 const MALE_COLOR = [0, 128, 255];
@@ -40,19 +40,19 @@ const App = function () {
       getRadius: 1,
       pickable: true,
       updateTriggers: {
-        getFillColor: [maleColor, femaleColor],
-      },
+        getFillColor: [maleColor, femaleColor]
+      }
     }),
     new SelectionLayer({
       id: 'selection',
       selectionType: 'rectangle',
-      onSelect: ({ pickingInfos }) => {},
+      onSelect: ({pickingInfos}) => {},
       layerIds: ['scatter-plot'],
       getTentativeFillColor: () => [255, 0, 255, 100],
       getTentativeLineColor: () => [0, 0, 255, 255],
       getTentativeLineDashArray: () => [0, 0],
-      lineWidthMinPixels: 1,
-    }),
+      lineWidthMinPixels: 1
+    })
   ];
 
   return (

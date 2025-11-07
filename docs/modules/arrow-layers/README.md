@@ -11,10 +11,11 @@ The arrow layers module is still in the process of being ported into deck.gl-com
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
-This module provides deck.gl layers that accept Apache Arrow and [GeoArrow](https://geoarrow.org) tables. 
+This module provides deck.gl layers that accept Apache Arrow and [GeoArrow](https://geoarrow.org) tables.
 These layers take advantage of the deck.gl [low-level binary interface](https://deck.gl/docs/developer-guide/performance#supply-attributes-directly) to provide binary arrow data from Apache Arrow tables directly to the GPU.
 
 ![arrow-layers example](./images/hero.jpg)
+
 <p style={{textAlign:"center"}}>3.2 million points rendered with a <code>GeoArrowScatterplotLayer</code>.</p>
 
 ## Features
@@ -32,6 +33,6 @@ Standalone examples exist in the `examples/arrow-layers` directory. Create an is
 
 ## History
 
-This module is based on the [geoarrow/deck.gl-layers](https://github.com/geoarrow/deck.gl-layers) module, originally developed by Kyle Barron as part of his independent multi-prong effort to implement fully optimized GeoArrow and GeoParquet based browser visualizations. 
+This module is based on the [geoarrow/deck.gl-layers](https://github.com/geoarrow/deck.gl-layers) module, originally developed by Kyle Barron as part of his independent multi-prong effort to implement fully optimized GeoArrow and GeoParquet based browser visualizations.
 
 It was agreed that the deck.gl-community repository is a good long-term home for this particular module. Of note is that there is also interest to bring Apache Arrow support into the deck.gl core repository in a future release and therefore moving development of these layers closer to deck.gl will reduce the risk of duplicated work.

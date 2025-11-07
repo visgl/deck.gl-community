@@ -8,12 +8,16 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 - if any dependencies are changed, the yarn.lock file must be rebuilt by running `yarn` in the root before committing.
 
 ## Quality gates
-- Run `yarn lint` or `yarn lint-fix` before committing JavaScript/TypeScript changes.
-- Run the relevant Vitest project: `yarn test` (Node), `yarn test-browser`, or `yarn test-headless` as appropriate for your change.
+Before committing JavaScript/TypeScript changes:
+- Run `yarn build` and fix any TypeScript build errors.
+- Run `yarn lint-fix` and fix any linter errores.
+- Run tests using `yarn test` (Node) and `yarn test-headless` and fix any errors by modifying code or tests as appropriate.
 
 ## Documentation and release process
 - Follow the contribution flow in `docs/CONTRIBUTING.md` before landing breaking changes.
-- When adding or removing packages or examples, update any related documentation, sidebars, or release notes under `docs/`.
+- When adding features, or removing packages or examples, update any related documentation, sidebars, or release notes under `docs/`.
+- Run `yarn lint-fix` to ensure that markdown gets formatted before committing.
+
 
 ## Naming conventions
 

@@ -13,7 +13,7 @@ When `GraphLayer` receives a stylesheet it instantiates a `GraphStyleEngine`. Th
 3. Expands optional state selectors (e.g. `:hover`, `:selected`) into state-aware accessors.
 4. Registers update triggers so that Deck.gl re-evaluates affected accessors when inputs change.
 
-This pipeline lets you focus on the *what* of styling while the engine handles the *how*.
+This pipeline lets you focus on the _what_ of styling while the engine handles the _how_.
 
 ## Re-using the engine
 

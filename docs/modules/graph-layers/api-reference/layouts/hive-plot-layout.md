@@ -7,7 +7,7 @@
 
 ## Usage
 
-A `getNodeAxis()` property lets the application specify which group each node belowngs to. 
+A `getNodeAxis()` property lets the application specify which group each node belowngs to.
 
 ```tsx
 import {HivePlotLayout} from '@deck.gl-community/graph-layers';
@@ -26,4 +26,3 @@ const layout = new HivePlotLayout({
 - `innerRadius` (`number`, default `100`) - radius of the innermost point where axes begin.
 - `outerRadius` (`number`, default `500`) - radius of the outermost point where the last node on an axis is placed.
 - `getNodeAxis` (`(node: Node) => string`, default `node.getPropertyValue('group')`) - accessor returning the axis key for a node. Nodes with the same key share an axis.
-

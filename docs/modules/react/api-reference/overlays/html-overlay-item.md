@@ -11,7 +11,7 @@ return (
   <HtmlOverlayItem
     style={{
       transform: 'translate(-50%,-50%)',
-      pointerEvents: 'all',
+      pointerEvents: 'all'
     }}
     coordinates={coordinates}
     key={key}

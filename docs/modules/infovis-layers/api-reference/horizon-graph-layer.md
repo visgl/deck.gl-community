@@ -24,21 +24,27 @@ new HorizonGraphLayer({
 Inherits from all [Base Layer](https://deck.gl/docs/api-reference/core/layer) properties.
 
 ### `data` (number[] | Float32Array, required)
+
 Array of numeric samples to render.
 
 ### `yAxisScale` (Number, optional)
+
 Scale applied to series values. Default: `1000`.
 
 ### `bands` (Number, optional)
+
 Number of colored bands. Default: `2`.
 
 ### `positiveColor` (Color, optional)
+
 Fill color for positive values. Default: `[0, 128, 0]`.
 
 ### `negativeColor` (Color, optional)
+
 Fill color for negative values. Default: `[0, 0, 255]`.
 
 ### `x`, `y`, `width`, `height` (Number, optional)
+
 Define the position and size of the chart. Defaults: `x:0`, `y:0`, `width:800`, `height:300`.
 
 ## Source

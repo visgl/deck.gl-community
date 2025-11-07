@@ -3,7 +3,7 @@
 `GraphLayer` accepts a single `stylesheet` prop that describes how every node,
 edge, and decorator should render. A stylesheet is a declarative bundle of
 **style layers** that the [`GraphStyleEngine`](./graph-style-engine.md) normalizes
-into Deck.gl accessors. Each entry focuses on *what* to draw, while the engine
+into Deck.gl accessors. Each entry focuses on _what_ to draw, while the engine
 coerces values, wires update triggers, and fans the configuration out across the
 underlying Deck.gl primitives.
 
@@ -43,12 +43,12 @@ supported properties:
 
 Every property accepts one of the following shapes:
 
-| Shape | Example | Notes |
-| --- | --- | --- |
-| Constant | `strokeWidth: 2` | Applied verbatim to every rendered object. |
-| Attribute binding | `fill: '@statusColor'` | Reads the named graph attribute from nodes/edges. Shortcuts described below. |
-| Accessor | `stroke: edge => edge.isCritical ? '#F97316' : '#94A3B8'` | Receives the node or edge datum. The return value is automatically coerced into Deck.gl-friendly formats (CSS colors → `[r, g, b, a]`). |
-| Stateful | `strokeWidth: {default: 1, hover: 3}` | Maps interaction states to values. Equivalent selector blocks can be provided via `':hover'` style objects. |
+| Shape             | Example                                                   | Notes                                                                                                                                   |
+| ----------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Constant          | `strokeWidth: 2`                                          | Applied verbatim to every rendered object.                                                                                              |
+| Attribute binding | `fill: '@statusColor'`                                    | Reads the named graph attribute from nodes/edges. Shortcuts described below.                                                            |
+| Accessor          | `stroke: edge => edge.isCritical ? '#F97316' : '#94A3B8'` | Receives the node or edge datum. The return value is automatically coerced into Deck.gl-friendly formats (CSS colors → `[r, g, b, a]`). |
+| Stateful          | `strokeWidth: {default: 1, hover: 3}`                     | Maps interaction states to values. Equivalent selector blocks can be provided via `':hover'` style objects.                             |
 
 ### Attribute bindings
 
@@ -113,7 +113,7 @@ Node visuals are composed by stacking one or more style layers under the
 ```js
 const stylesheet = {
   nodes: [
-    {type: 'circle', radius: {attribute: 'degree', fallback: 6, scale: value => 4 + value}},
+    {type: 'circle', radius: {attribute: 'degree', fallback: 6, scale: (value) => 4 + value}},
     {type: 'label', text: '@id', color: '#172B4D', offset: [0, 16]}
   ]
 };
@@ -126,13 +126,13 @@ Entries are drawn in array order (earlier entries render beneath later entries).
 Every node style understands these keys in addition to its type-specific
 properties:
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `type` | string literal | - | Selects the primitive (`'circle'`, `'rectangle'`, `'label'`, etc.). |
-| `data` | `(nodes: any[]) => any` | `nodes => nodes` | Replace the data object passed to Deck.gl when a sublayer needs derived data. |
-| `visible` | `boolean` | `true` | Toggle the sublayer without removing it from the stylesheet. |
-| `opacity` | number \| accessor \| attribute binding | `1` | Multiplies the alpha channel produced by the primitive. |
-| `offset` | `[number, number]` \| accessor \| attribute binding | `null` | Pixel offset from the layout position. Positive Y moves up. |
+| Property  | Type                                                | Default          | Description                                                                   |
+| --------- | --------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------- |
+| `type`    | string literal                                      | -                | Selects the primitive (`'circle'`, `'rectangle'`, `'label'`, etc.).           |
+| `data`    | `(nodes: any[]) => any`                             | `nodes => nodes` | Replace the data object passed to Deck.gl when a sublayer needs derived data. |
+| `visible` | `boolean`                                           | `true`           | Toggle the sublayer without removing it from the stylesheet.                  |
+| `opacity` | number \| accessor \| attribute binding             | `1`              | Multiplies the alpha channel produced by the primitive.                       |
+| `offset`  | `[number, number]` \| accessor \| attribute binding | `null`           | Pixel offset from the layout position. Positive Y moves up.                   |
 
 All other properties accept the same declarative value shapes listed above:
 constants, attribute bindings such as `fill: '@statusColor'`, functions, or
@@ -155,7 +155,7 @@ const stylesheet = {
         hover: '#1E293B'
       },
       stroke: '#38BDF8',
-      strokeWidth: {attribute: 'isSelected', scale: value => (value ? 4 : 1)}
+      strokeWidth: {attribute: 'isSelected', scale: (value) => (value ? 4 : 1)}
     },
     {type: 'label', text: '@label', color: '#F8FAFC', fontSize: 18}
   ]
@@ -172,12 +172,12 @@ directly onto color and size.
 In addition to the [shared node style options](#shared-node-properties), circles
 understand the following keys:
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `fill` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Fill color. Accepts CSS strings, `[r, g, b]`/`[r, g, b, a]` arrays, or bindings such as `fill: '@groupColor'`. |
-| `radius` | constant \| accessor \| attribute binding | `1` | Radius in pixels. Accessors can read node data to size circles proportionally. |
-| `stroke` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Outline color. |
-| `strokeWidth` | constant \| accessor \| attribute binding | `0` | Outline width in pixels. |
+| Property      | Type                                      | Default             | Description                                                                                                    |
+| ------------- | ----------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `fill`        | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Fill color. Accepts CSS strings, `[r, g, b]`/`[r, g, b, a]` arrays, or bindings such as `fill: '@groupColor'`. |
+| `radius`      | constant \| accessor \| attribute binding | `1`                 | Radius in pixels. Accessors can read node data to size circles proportionally.                                 |
+| `stroke`      | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Outline color.                                                                                                 |
+| `strokeWidth` | constant \| accessor \| attribute binding | `0`                 | Outline width in pixels.                                                                                       |
 
 All color accessors can return either a color string or an array. Alpha values
 are optional—when omitted the color is treated as fully opaque.
@@ -219,13 +219,13 @@ bindings let you size and color cards directly from node metadata.
 
 Besides the [shared node options](#shared-node-properties), rectangles support:
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `width` | constant \| accessor \| attribute binding | - (required) | Rectangle width in pixels. |
-| `height` | constant \| accessor \| attribute binding | - (required) | Rectangle height in pixels. |
-| `fill` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Interior color. |
-| `stroke` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Border color. |
-| `strokeWidth` | constant \| accessor \| attribute binding | `0` | Border width in pixels. |
+| Property      | Type                                      | Default             | Description                 |
+| ------------- | ----------------------------------------- | ------------------- | --------------------------- |
+| `width`       | constant \| accessor \| attribute binding | - (required)        | Rectangle width in pixels.  |
+| `height`      | constant \| accessor \| attribute binding | - (required)        | Rectangle height in pixels. |
+| `fill`        | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Interior color.             |
+| `stroke`      | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Border color.               |
+| `strokeWidth` | constant \| accessor \| attribute binding | `0`                 | Border width in pixels.     |
 
 ```js
 {
@@ -268,10 +268,10 @@ attribute-binding shortcuts as other node styles.
 Rounded rectangles share all options from [basic rectangles](#rectangle-node-style)
 and add the following controls:
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `cornerRadius` | constant \| accessor \| attribute binding | `0.1` | Amount of corner rounding. `0` keeps sharp corners, `1` approaches a circle. Values between 0 and 1 are typical. |
-| `radius` | constant \| accessor \| attribute binding | `1` | Optional radius multiplier for the underlying geometry. It can expand or shrink the shader’s falloff and exists primarily for compatibility. |
+| Property       | Type                                      | Default | Description                                                                                                                                  |
+| -------------- | ----------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cornerRadius` | constant \| accessor \| attribute binding | `0.1`   | Amount of corner rounding. `0` keeps sharp corners, `1` approaches a circle. Values between 0 and 1 are typical.                             |
+| `radius`       | constant \| accessor \| attribute binding | `1`     | Optional radius multiplier for the underlying geometry. It can expand or shrink the shader’s falloff and exists primarily for compatibility. |
 
 Because the shape is generated in the shader it remains smooth regardless of the
 polygon resolution.
@@ -312,9 +312,9 @@ polygon processing) while still honoring attribute bindings for every property.
 
 Path rounded rectangles accept the rectangle properties plus:
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `cornerRadius` | constant \| accessor \| attribute binding | `0.1` | Corner rounding factor. As with the shader version, `0` is sharp and `1` is fully rounded. |
+| Property       | Type                                      | Default | Description                                                                                |
+| -------------- | ----------------------------------------- | ------- | ------------------------------------------------------------------------------------------ |
+| `cornerRadius` | constant \| accessor \| attribute binding | `0.1`   | Corner rounding factor. As with the shader version, `0` is sharp and `1` is fully rounded. |
 
 The width, height, fill, stroke, and strokeWidth options behave identically to
 the [`'rectangle'` node style](#rectangle-node-style).
@@ -355,12 +355,12 @@ style uses a Deck.gl `IconLayer` with zoom-aware sizing logic.
 Marker styles extend the [shared node options](#shared-node-properties) with the
 following keys:
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `marker` | constant \| accessor \| attribute binding | `'circle'` | Name of the marker glyph. See the list below for supported values. |
-| `size` | constant \| accessor \| attribute binding | `12` | Marker size in pixels before zoom scaling. |
-| `fill` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Fill color for the glyph. |
-| `scaleWithZoom` | constant \| accessor \| attribute binding | `true` | When `true`, markers grow/shrink with the viewport zoom level. Set to `false` to keep a constant pixel size. |
+| Property        | Type                                      | Default             | Description                                                                                                  |
+| --------------- | ----------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `marker`        | constant \| accessor \| attribute binding | `'circle'`          | Name of the marker glyph. See the list below for supported values.                                           |
+| `size`          | constant \| accessor \| attribute binding | `12`                | Marker size in pixels before zoom scaling.                                                                   |
+| `fill`          | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Fill color for the glyph.                                                                                    |
+| `scaleWithZoom` | constant \| accessor \| attribute binding | `true`              | When `true`, markers grow/shrink with the viewport zoom level. Set to `false` to keep a constant pixel size. |
 
 Supported marker names include:
 
@@ -413,18 +413,18 @@ background primitive (circle, rectangle, etc.).
 Alongside the [shared node options](#shared-node-properties), labels support the
 following keys:
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `text` | constant \| accessor \| attribute binding | - (required) | Text to display. Attribute strings such as `text: '@label'` read from node properties. |
-| `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color. |
-| `fontSize` | constant \| accessor \| attribute binding | `12` | Font size in pixels. |
-| `textAnchor` | constant \| accessor \| attribute binding | `'middle'` | Horizontal alignment: `'start'`, `'middle'`, or `'end'`. |
-| `alignmentBaseline` | constant \| accessor \| attribute binding | `'center'` | Vertical alignment: `'top'`, `'center'`, or `'bottom'`. |
-| `angle` | constant \| accessor \| attribute binding | `0` | Clockwise rotation in degrees. |
-| `textMaxWidth` | constant \| accessor \| attribute binding | `-1` | Maximum width in pixels before wrapping. `-1` disables wrapping. |
-| `textWordBreak` | constant \| accessor \| attribute binding | `'break-all'` | Word-breaking mode passed to `TextLayer` (`'break-all'`, `'break-word'`, etc.). |
-| `textSizeMinPixels` | constant \| accessor \| attribute binding | `9` | Minimum size the text is allowed to shrink to. |
-| `scaleWithZoom` | constant \| accessor \| attribute binding | `true` | Whether the font scales with zoom. Set to `false` to keep screen-space size. |
+| Property            | Type                                      | Default             | Description                                                                            |
+| ------------------- | ----------------------------------------- | ------------------- | -------------------------------------------------------------------------------------- |
+| `text`              | constant \| accessor \| attribute binding | - (required)        | Text to display. Attribute strings such as `text: '@label'` read from node properties. |
+| `color`             | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color.                                                                            |
+| `fontSize`          | constant \| accessor \| attribute binding | `12`                | Font size in pixels.                                                                   |
+| `textAnchor`        | constant \| accessor \| attribute binding | `'middle'`          | Horizontal alignment: `'start'`, `'middle'`, or `'end'`.                               |
+| `alignmentBaseline` | constant \| accessor \| attribute binding | `'center'`          | Vertical alignment: `'top'`, `'center'`, or `'bottom'`.                                |
+| `angle`             | constant \| accessor \| attribute binding | `0`                 | Clockwise rotation in degrees.                                                         |
+| `textMaxWidth`      | constant \| accessor \| attribute binding | `-1`                | Maximum width in pixels before wrapping. `-1` disables wrapping.                       |
+| `textWordBreak`     | constant \| accessor \| attribute binding | `'break-all'`       | Word-breaking mode passed to `TextLayer` (`'break-all'`, `'break-word'`, etc.).        |
+| `textSizeMinPixels` | constant \| accessor \| attribute binding | `9`                 | Minimum size the text is allowed to shrink to.                                         |
+| `scaleWithZoom`     | constant \| accessor \| attribute binding | `true`              | Whether the font scales with zoom. Set to `false` to keep screen-space size.           |
 
 ```js
 {
@@ -467,11 +467,15 @@ states before feeding them into Deck.gl’s `LineLayer`.
 ```js
 const stylesheet = {
   edges: {
-    stroke: {attribute: 'isCritical', fallback: false, scale: value => (value ? '#F97316' : '#94A3B8')},
+    stroke: {
+      attribute: 'isCritical',
+      fallback: false,
+      scale: (value) => (value ? '#F97316' : '#94A3B8')
+    },
     strokeWidth: {
       default: 1,
       hover: 3,
-      selected: {attribute: 'weight', fallback: 2, scale: value => Math.min(6, 2 + value)}
+      selected: {attribute: 'weight', fallback: 2, scale: (value) => Math.min(6, 2 + value)}
     },
     decorators: [
       {type: 'edge-label', text: '@id', color: '#000', fontSize: 18},
@@ -483,13 +487,13 @@ const stylesheet = {
 
 ### Shared edge properties
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stroke` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Line color. Accepts CSS strings, `[r, g, b, a]` arrays, or bindings such as `stroke: '@color'`. |
-| `strokeWidth` | constant \| accessor \| attribute binding | `0` | Line width in pixels. |
-| `data` | `(edges: any[]) => any` | `edges => edges` | Override the data object passed to the Deck.gl layer. |
-| `visible` | `boolean` | `true` | Toggle the entire edge layer on/off. |
-| `decorators` | `Array` | `[]` | Additional visual adornments such as labels or animated flow indicators. |
+| Property      | Type                                      | Default             | Description                                                                                     |
+| ------------- | ----------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------- |
+| `stroke`      | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Line color. Accepts CSS strings, `[r, g, b, a]` arrays, or bindings such as `stroke: '@color'`. |
+| `strokeWidth` | constant \| accessor \| attribute binding | `0`                 | Line width in pixels.                                                                           |
+| `data`        | `(edges: any[]) => any`                   | `edges => edges`    | Override the data object passed to the Deck.gl layer.                                           |
+| `visible`     | `boolean`                                 | `true`              | Toggle the entire edge layer on/off.                                                            |
+| `decorators`  | `Array`                                   | `[]`                | Additional visual adornments such as labels or animated flow indicators.                        |
 
 Edge styles honor the same selectors as node styles (`:hover`, `:dragging`, and
 `:selected`). Selector blocks can override any property, including decorators.
@@ -505,19 +509,19 @@ nodes and edges.
 Adds text anchored near the edge’s midpoint. Internally this uses the same
 `ZoomableTextLayer` as node labels, so the available options are similar.
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `text` | constant \| accessor \| attribute binding | - (required) | Label content. Attribute strings such as `text: '@weight'` pull from edge properties. |
-| `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color. |
-| `fontSize` | constant \| accessor \| attribute binding | `12` | Font size in pixels. |
-| `textAnchor` | constant \| accessor \| attribute binding | `'middle'` | Horizontal alignment relative to the computed position. |
-| `alignmentBaseline` | constant \| accessor \| attribute binding | `'center'` | Vertical alignment. |
-| `angle` | constant \| accessor \| attribute binding | Automatic | Rotation in degrees. Defaults to the edge direction; override to lock the angle. |
-| `textMaxWidth` | constant \| accessor \| attribute binding | `-1` | Maximum width before wrapping. `-1` disables wrapping. |
-| `textWordBreak` | constant \| accessor \| attribute binding | `'break-all'` | Word-breaking mode (`'break-word'`, `'break-all'`, etc.). |
-| `textSizeMinPixels` | constant \| accessor \| attribute binding | `9` | Minimum rendered size for zooming out. |
-| `scaleWithZoom` | constant \| accessor \| attribute binding | `true` | Whether the label scales with the viewport zoom level. |
-| `offset` | constant \| accessor \| attribute binding | `null` | Additional pixel offset from the centroid-derived anchor position. |
+| Property            | Type                                      | Default             | Description                                                                           |
+| ------------------- | ----------------------------------------- | ------------------- | ------------------------------------------------------------------------------------- |
+| `text`              | constant \| accessor \| attribute binding | - (required)        | Label content. Attribute strings such as `text: '@weight'` pull from edge properties. |
+| `color`             | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color.                                                                           |
+| `fontSize`          | constant \| accessor \| attribute binding | `12`                | Font size in pixels.                                                                  |
+| `textAnchor`        | constant \| accessor \| attribute binding | `'middle'`          | Horizontal alignment relative to the computed position.                               |
+| `alignmentBaseline` | constant \| accessor \| attribute binding | `'center'`          | Vertical alignment.                                                                   |
+| `angle`             | constant \| accessor \| attribute binding | Automatic           | Rotation in degrees. Defaults to the edge direction; override to lock the angle.      |
+| `textMaxWidth`      | constant \| accessor \| attribute binding | `-1`                | Maximum width before wrapping. `-1` disables wrapping.                                |
+| `textWordBreak`     | constant \| accessor \| attribute binding | `'break-all'`       | Word-breaking mode (`'break-word'`, `'break-all'`, etc.).                             |
+| `textSizeMinPixels` | constant \| accessor \| attribute binding | `9`                 | Minimum rendered size for zooming out.                                                |
+| `scaleWithZoom`     | constant \| accessor \| attribute binding | `true`              | Whether the label scales with the viewport zoom level.                                |
+| `offset`            | constant \| accessor \| attribute binding | `null`              | Additional pixel offset from the centroid-derived anchor position.                    |
 
 All properties support selectors (`:hover`, `:selected`, …) and accessors, just
 like the base edge style.
@@ -554,12 +558,12 @@ To keep labels readable while zooming, disable scaling at small sizes:
 The flow decorator draws animated segments moving along the edge direction. It
 is useful to express throughput or directional emphasis.
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Color of the animated segment. |
-| `speed` | constant \| accessor \| attribute binding | `0` | Segments per second that travel along the edge. Positive values flow from source to target. |
-| `width` | constant \| accessor \| attribute binding | `1` | Visual width of the segment in pixels. |
-| `tailLength` | constant \| accessor \| attribute binding | `1` | Length of the fading trail behind each segment. |
+| Property     | Type                                      | Default             | Description                                                                                 |
+| ------------ | ----------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------- |
+| `color`      | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Color of the animated segment.                                                              |
+| `speed`      | constant \| accessor \| attribute binding | `0`                 | Segments per second that travel along the edge. Positive values flow from source to target. |
+| `width`      | constant \| accessor \| attribute binding | `1`                 | Visual width of the segment in pixels.                                                      |
+| `tailLength` | constant \| accessor \| attribute binding | `1`                 | Length of the fading trail behind each segment.                                             |
 
 All fields support accessors and selectors. A speed of `0` disables the motion
 while still rendering a static highlight.
@@ -616,7 +620,7 @@ new GraphLayer({
         attribute: 'weight',
         scale: {type: 'linear', domain: [0, 10], range: ['#CBD5F5', '#1E3A8A']}
       },
-      strokeWidth: {attribute: 'weight', fallback: 1, scale: value => 0.5 + value * 0.2},
+      strokeWidth: {attribute: 'weight', fallback: 1, scale: (value) => 0.5 + value * 0.2},
       decorators: [{type: 'edge-label', text: '@weight'}]
     }
   }

@@ -120,16 +120,16 @@ export function createDagFormState(options?: Record<string, unknown>): DagLayout
   const separation = normalizeTuple(merged.separation, DAG_DEFAULT_OPTIONS.separation);
 
   return {
-    layout: (merged.layout ?? DAG_DEFAULT_OPTIONS.layout) as DagLayoutFormState['layout'],
-    layering: (merged.layering ?? DAG_DEFAULT_OPTIONS.layering) as DagLayoutFormState['layering'],
+    layout: (merged.layout ?? DAG_DEFAULT_OPTIONS.layout),
+    layering: (merged.layering ?? DAG_DEFAULT_OPTIONS.layering),
     nodeRank:
       typeof merged.nodeRank === 'string' && merged.nodeRank === 'rank'
         ? 'rank'
         : 'none',
-    decross: (merged.decross ?? DAG_DEFAULT_OPTIONS.decross) as DagLayoutFormState['decross'],
-    coord: (merged.coord ?? DAG_DEFAULT_OPTIONS.coord) as DagLayoutFormState['coord'],
-    orientation: (merged.orientation ?? DAG_DEFAULT_OPTIONS.orientation) as DagLayoutFormState['orientation'],
-    dagBuilder: (merged.dagBuilder ?? DAG_DEFAULT_OPTIONS.dagBuilder) as DagLayoutFormState['dagBuilder'],
+    decross: (merged.decross ?? DAG_DEFAULT_OPTIONS.decross),
+    coord: (merged.coord ?? DAG_DEFAULT_OPTIONS.coord),
+    orientation: (merged.orientation ?? DAG_DEFAULT_OPTIONS.orientation),
+    dagBuilder: (merged.dagBuilder ?? DAG_DEFAULT_OPTIONS.dagBuilder),
     centerX,
     centerY,
     nodeWidth: nodeSize[0],

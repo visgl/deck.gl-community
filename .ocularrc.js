@@ -12,8 +12,8 @@ const config = {
   babel: false,
 
   lint: {
-    paths: ['modules', 'test'], // 'docs', 'examples'], module resolution errors
-    extensions: ['js', 'ts', 'jsx', 'tsx']
+    paths: ['modules', 'test', 'docs'], // , 'examples'],
+    extensions: ['js', 'ts', 'jsx', 'tsx', 'md', 'mdx']
   },
 
   typescript: {

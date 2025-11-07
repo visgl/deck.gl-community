@@ -9,7 +9,6 @@ The `GlobalGridLayer` renders filled and/or stroked polygons based on the specif
 
 `GlobalGridLayer` is a [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer).
 
-
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
@@ -26,12 +25,12 @@ const layer = new SGGSLayer({
   globalGrid: A5Decoder,
 
   extruded: true,
-  getPentagon: f => f.pentagon,
-  getFillColor: f => {
+  getPentagon: (f) => f.pentagon,
+  getFillColor: (f) => {
     const value = f.count / 211;
     return [(1 - value) * 235, 255 - 85 * value, 255 - 170 * value];
   },
-  getElevation: f => f.count,
+  getElevation: (f) => f.count,
   elevationScale: 10,
   pickable: true
 });
@@ -83,7 +82,8 @@ new Deck({
     zoom: 11
   },
   controller: true,
-  getTooltip: ({object}: PickingInfo<DataType>) => object && `${object.pentagon} count: ${object.count}`,
+  getTooltip: ({object}: PickingInfo<DataType>) =>
+    object && `${object.pentagon} count: ${object.count}`,
   layers: [layer]
 });
 ```
@@ -119,22 +119,25 @@ function App() {
     pickable: true
   });
 
-  return <DeckGL
-    initialViewState={{
-      longitude: -122.4,
-      latitude: 37.74,
-      zoom: 11
-    }}
-    controller
-    getTooltip={({object}: PickingInfo<DataType>) => object && `${object.pentagon} count: ${object.count}`}
-    layers={[layer]}
-  />;
+  return (
+    <DeckGL
+      initialViewState={{
+        longitude: -122.4,
+        latitude: 37.74,
+        zoom: 11
+      }}
+      controller
+      getTooltip={({object}: PickingInfo<DataType>) =>
+        object && `${object.pentagon} count: ${object.count}`
+      }
+      layers={[layer]}
+    />
+  );
 }
 ```
 
   </TabItem>
 </Tabs>
-
 
 ## Installation
 
@@ -167,11 +170,7 @@ To use pre-bundled scripts:
 new deck.GlobalGridLayer({});
 ```
 
-
 ## Properties
-
-
-
 
 Inherits from all [Base Layer](https://deck.gl/docs/api-reference/core/layer), [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer), and [PolygonLayer](https://deck.gl/docs/api-reference/layers/polygon-layer) properties, plus the following:
 
@@ -179,21 +178,18 @@ Inherits from all [Base Layer](https://deck.gl/docs/api-reference/core/layer), [
 
 #### `getPentagon` (Accessor&lt;bigint | string&gt;] ![transition-enabled](https://img.shields.io/badge/transition-enabled-green.svg?style=flat-square") {#getpentagon}
 
-Called for each data object to retrieve the identifier of the DGGS cell id.  May return one of the following:
+Called for each data object to retrieve the identifier of the DGGS cell id. May return one of the following:
 
 - A 64-bit [BigInt](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) identifier for the cell.
 - A string token representing the DGGS-specific string encoding of the 64-bit integer
 
-
 * default: `object => object.pentagon`
-
 
 ## Sub Layers
 
 The `GlobalGridLayer` renders the following sublayers:
 
-* `cell` - a [PolygonLayer](https://deck.gl/docs/api-reference/layers/polygon-layer) rendering the DGGS cells.
-
+- `cell` - a [PolygonLayer](https://deck.gl/docs/api-reference/layers/polygon-layer) rendering the DGGS cells.
 
 ## Source
 

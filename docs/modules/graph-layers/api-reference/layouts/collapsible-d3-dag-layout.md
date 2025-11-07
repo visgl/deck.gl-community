@@ -28,7 +28,6 @@ new GraphLayer({
 
 - `collapseLinearChains` (`boolean`, default `false`) - Collapses chains of degree-one nodes into a single representative so long pipelines can be expanded or collapsed interactively. Collapsed chains expose metadata on each node (`collapsedChainId`, `collapsedNodeIds`, etc.) for UI controls.
 
-
 ## Runtime controls
 
 - `setProps(options)` - Merges partial props and reruns the layout. Useful for live controls that tweak layering/decross operators without recreating the layout instance.

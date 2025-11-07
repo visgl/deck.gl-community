@@ -135,6 +135,7 @@ export function useGraphViewport(
     }
   }, [engine, fitBounds, width, height]);
 
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   const onResize = useCallback(({width, height}: {width: number; height: number}) => {
     setViewState((prev) => ({
       ...prev,

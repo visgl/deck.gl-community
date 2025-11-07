@@ -7,29 +7,30 @@ The deck.gl-community repo is specifically set up to collect useful code that no
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
-`graph-layers` is a deck.gl layer pack for GPU-powered visualization of large graphs. 
+`graph-layers` is a deck.gl layer pack for GPU-powered visualization of large graphs.
 
-With graph-layers, developers can build various type of graph/network applications with minimum effort. 
-The composable API enables highly customizable graph visualization by leveraging or even extending the provided graph *styles* and *layout algorithms*.
+With graph-layers, developers can build various type of graph/network applications with minimum effort.
+The composable API enables highly customizable graph visualization by leveraging or even extending the provided graph _styles_ and _layout algorithms_.
 
 ## History
 
-`graph-layers` started out as a friendly fork of Uber's archived [graph.gl](https://graph.gl/gatsby/) framework, 
-bringing the graph.gl code up-to-date with the latest deck.gl versions. 
+`graph-layers` started out as a friendly fork of Uber's archived [graph.gl](https://graph.gl/gatsby/) framework,
+bringing the graph.gl code up-to-date with the latest deck.gl versions.
 
 ## What's New
 
-### `@deck.gl-community/graph-layers` 
+### `@deck.gl-community/graph-layers`
 
 - Graph styles: edge decorator `'arrow'` renders arrows on directional edges.
 - Graph styles: style constants are now lowercase strings. Replace `NODE_TYPE.CIRCLE` with `'circle'`, `EDGE_TYPE.LINE` with `'line'` etc.
 
-### `@deck.gl-community/graph-layers` 
+### `@deck.gl-community/graph-layers`
 
 Release date: April 2024
 
-The graph-layers module has been repackaged as a deck.gl "layer pack" with additional features, and has been modernized in terms of: 
-- upgraded to work with deck.gl v9 
+The graph-layers module has been repackaged as a deck.gl "layer pack" with additional features, and has been modernized in terms of:
+
+- upgraded to work with deck.gl v9
 - npm version number now aligned with deck.gl version.
 - typescript codebase and APIs
 - Now uses latest vis.gl build systems etc (ESM compatible).

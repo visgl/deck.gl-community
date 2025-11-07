@@ -19,24 +19,31 @@ new TimeAxisLayer({
 Inherits from all [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer) properties.
 
 ### `unit` ('timestamp' | 'milliseconds', optional)
+
 Format for tick labels. Default: `'timestamp'`.
 
 ### `startTimeMs` (Number, required)
+
 Start time in milliseconds since epoch.
 
 ### `endTimeMs` (Number, required)
+
 End time in milliseconds since epoch.
 
 ### `tickCount` (Number, optional)
+
 Number of tick marks. Default: `5`.
 
 ### `y` (Number, optional)
+
 Y coordinate of the axis line. Default: `0`.
 
 ### `color` (Color, optional)
+
 RGBA color for axis lines and labels. Default: `[0, 0, 0, 255]`.
 
 ### `bounds` (Bounds, optional)
+
 Override viewport bounds for the axis.
 
 ## Sub Layers

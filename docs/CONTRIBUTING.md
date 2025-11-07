@@ -28,7 +28,7 @@ As always, clean and focused PRs that do one thing only will be approved and lan
 
 ## Landing PRs
 
-Once comments are addressed and the CI tests on GitHub run clean, your PR will be landed by an Open Visualization team member.  
+Once comments are addressed and the CI tests on GitHub run clean, your PR will be landed by an Open Visualization team member.
 
 ## Closing PRs
 
@@ -38,7 +38,7 @@ If this happens to you and you are coming back to address the PR, just reopen it
 
 ## Fixing CI issues
 
-Unfortunately, many good PRs are closed. By far the most common reason is that the authors can't be bothered to make CI run clean. 
+Unfortunately, many good PRs are closed. By far the most common reason is that the authors can't be bothered to make CI run clean.
 
 Note that CI can usually be fixed in 1-2 minutes as follows:
 

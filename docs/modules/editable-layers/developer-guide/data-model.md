@@ -11,12 +11,12 @@ type Feature = {
   }
 }
 ```
+
 ## Geometry
 
 ## Properties
 
 In general, the properties field in a feature is used to store the non-geometry column values for the row.
-
 
 ## Edit Properties
 

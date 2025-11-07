@@ -33,14 +33,14 @@ GeoArrow layers accept a callback that takes an object with `index` and `data`. 
 
 ```ts
 const deckLayer = new GeoArrowPathLayer({
-  id: "geoarrow-path",
+  id: 'geoarrow-path',
   data: table,
-  getColor: ({ index, data, target }) => {
+  getColor: ({index, data, target}) => {
     const recordBatch = data.data;
     const row = recordBatch.get(index)!;
-    return COLORS_LOOKUP[row["scalerank"]];
-  },
-}),
+    return COLORS_LOOKUP[row['scalerank']];
+  }
+});
 ```
 
 The full example is in `examples/multilinestring/app.tsx`.
@@ -58,16 +58,16 @@ To create deck.gl layers using this library, you need to first get GeoArrow-form
 If you already have Arrow IPC files (also called Feather files) with a GeoArrow geometry column, you can use [`apache-arrow`](https://www.npmjs.com/package/apache-arrow) to load those files.
 
 ```ts
-import { tableFromIPC } from "apache-arrow";
-import { GeoArrowScatterplotLayer } from "@deck.gl-community/arrow-layers";
+import {tableFromIPC} from 'apache-arrow';
+import {GeoArrowScatterplotLayer} from '@deck.gl-community/arrow-layers';
 
-const resp = await fetch("url/to/file.arrow");
+const resp = await fetch('url/to/file.arrow');
 const jsTable = await tableFromIPC(resp);
 const deckLayer = new GeoArrowScatterplotLayer({
-  id: "scatterplot",
+  id: 'scatterplot',
   data: jsTable,
   /// Replace with the correct geometry column name
-  getPosition: jsTable.getChild("geometry")!,
+  getPosition: jsTable.getChild('geometry')!
 });
 ```
 
@@ -78,19 +78,19 @@ Note those IPC files must be saved **uncompressed** (at least not internally com
 If you have a Parquet file where the geometry column is stored as _GeoArrow_ encoding (i.e. not as a binary column with WKB-encoded geometries), you can use the stable `parquet-wasm` library to load those files.
 
 ```ts
-import { readParquet } from "parquet-wasm"
-import { tableFromIPC } from "apache-arrow";
-import { GeoArrowScatterplotLayer } from "@deck.gl-community/arrow-layers";
+import {readParquet} from 'parquet-wasm';
+import {tableFromIPC} from 'apache-arrow';
+import {GeoArrowScatterplotLayer} from '@deck.gl-community/arrow-layers';
 
-const resp = await fetch("url/to/file.parquet");
+const resp = await fetch('url/to/file.parquet');
 const arrayBuffer = await resp.arrayBuffer();
 const wasmTable = readParquet(new Uint8Array(arrayBuffer));
 const jsTable = tableFromIPC(wasmTable.intoIPCStream());
 const deckLayer = new GeoArrowScatterplotLayer({
-  id: "scatterplot",
+  id: 'scatterplot',
   data: jsTable,
   /// Replace with the correct geometry column name
-  getPosition: jsTable.getChild("geometry")!,
+  getPosition: jsTable.getChild('geometry')!
 });
 ```
 
@@ -101,19 +101,19 @@ See below for instructions to load GeoParquet 1.0 files, which have WKB-encoded 
 An initial version of the [`@geoarrow/geoparquet-wasm`](https://www.npmjs.com/package/@geoarrow/geoparquet-wasm) library is published, which reads a GeoParquet file to GeoArrow memory.
 
 ```ts
-import { readGeoParquet } from "@geoarrow/geoparquet-wasm";
-import { tableFromIPC } from "apache-arrow";
-import { GeoArrowScatterplotLayer } from "@deck.gl-community/arrow-layers";
+import {readGeoParquet} from '@geoarrow/geoparquet-wasm';
+import {tableFromIPC} from 'apache-arrow';
+import {GeoArrowScatterplotLayer} from '@deck.gl-community/arrow-layers';
 
-const resp = await fetch("url/to/file.parquet");
+const resp = await fetch('url/to/file.parquet');
 const arrayBuffer = await resp.arrayBuffer();
 const wasmTable = readGeoParquet(new Uint8Array(arrayBuffer));
 const jsTable = tableFromIPC(wasmTable.intoTable().intoIPCStream());
 const deckLayer = new GeoArrowScatterplotLayer({
-  id: "scatterplot",
+  id: 'scatterplot',
   data: jsTable,
   /// Replace with the correct geometry column name
-  getPosition: jsTable.getChild("geometry")!,
+  getPosition: jsTable.getChild('geometry')!
 });
 ```
 
@@ -124,19 +124,19 @@ If you hit a bug with `@geoarrow/geoparquet-wasm`, please create a reproducible 
 An initial version of the [`@geoarrow/flatgeobuf-wasm`](https://www.npmjs.com/package/@geoarrow/flatgeobuf-wasm) library is published, which reads a FlatGeobuf file to GeoArrow memory. As of version 0.2.0-beta.1, this library does not yet support remote files, and expects the full FlatGeobuf file to exist in memory.
 
 ```ts
-import { readFlatGeobuf } from "@geoarrow/flatgeobuf-wasm";
-import { tableFromIPC } from "apache-arrow";
-import { GeoArrowScatterplotLayer } from "@deck.gl-community/arrow-layers";
+import {readFlatGeobuf} from '@geoarrow/flatgeobuf-wasm';
+import {tableFromIPC} from 'apache-arrow';
+import {GeoArrowScatterplotLayer} from '@deck.gl-community/arrow-layers';
 
-const resp = await fetch("url/to/file.fgb");
+const resp = await fetch('url/to/file.fgb');
 const arrayBuffer = await resp.arrayBuffer();
 const wasmTable = readFlatGeobuf(new Uint8Array(arrayBuffer));
 const jsTable = tableFromIPC(wasmTable.intoTable().intoIPCStream());
 const deckLayer = new GeoArrowScatterplotLayer({
-  id: "scatterplot",
+  id: 'scatterplot',
   data: jsTable,
   /// Replace with the correct geometry column name
-  getPosition: jsTable.getChild("geometry")!,
+  getPosition: jsTable.getChild('geometry')!
 });
 ```
 
