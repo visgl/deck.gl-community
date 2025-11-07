@@ -20,7 +20,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     nBodyStrength: -1200,
     nBodyDistanceMin: 100,
     nBodyDistanceMax: 1400
-  };
+  } as const satisfies Readonly<Required<ForceMultiGraphLayoutProps>>;
 
   _name = 'ForceMultiGraphLayout';
   _graph: Graph;
@@ -32,12 +32,11 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   _edgeMap = {};
   _simulator;
 
-  constructor(options: ForceMultiGraphLayoutProps = {}) {
-    super(options);
-    this._options = {
+  constructor(props: ForceMultiGraphLayoutProps = {}) {
+    super({
       ...ForceMultiGraphLayout.defaultProps,
-      ...options
-    };
+      ...props
+    });
   }
 
   initializeGraph(graph: Graph): void {
@@ -58,7 +57,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
       this._simulator.on('tick', null).on('end', null);
       this._simulator = null;
     }
-    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax} = this._options;
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax} = this.props;
 
     const g = this._d3Graph;
     this._simulator = d3

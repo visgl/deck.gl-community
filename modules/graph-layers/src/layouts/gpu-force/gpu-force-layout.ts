@@ -35,15 +35,15 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   private _callbacks: any;
 
   constructor(options: GPUForceLayoutOptions = {}) {
-    const _options = {
+    const props = {
       ...GPUForceLayout.defaultProps,
       ...options
     };
 
-    super(_options);
+    super(props);
 
     this._name = 'GPU';
-    this._options = _options;
+    this.props = props;
     // store graph and prepare internal data
     this._d3Graph = {nodes: [], edges: []};
     this._nodeMap = {};
@@ -109,7 +109,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
-      this._options;
+      this.props;
     this._worker.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,

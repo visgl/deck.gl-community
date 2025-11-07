@@ -22,12 +22,12 @@ export type GraphLayoutProps = {};
 
 /** All the layout classes are extended from this base layout class. */
 export abstract class GraphLayout<
-  OptionsT extends GraphLayoutProps = GraphLayoutProps
+  PropsT extends GraphLayoutProps = GraphLayoutProps
 > extends EventTarget {
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
-  /** Extra configuration options of the layout. */
-  protected _options: OptionsT;
+  /** Extra configuration props of the layout. */
+  protected props: Required<PropsT>;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -42,11 +42,11 @@ export abstract class GraphLayout<
 
   /**
    * Constructor of GraphLayout
-   * @param options extra configuration options of the layout
+   * @param props extra configuration props of the layout
    */
-  constructor(options: OptionsT) {
+  constructor(props: Required<PropsT>) {
     super();
-    this._options = options;
+    this.props = {...props};
   }
 
   /**
@@ -58,7 +58,7 @@ export abstract class GraphLayout<
     if (!layout || !(layout instanceof GraphLayout)) {
       return false;
     }
-    return this._name === layout._name && isEqual(this._options, layout._options);
+    return this._name === layout._name && isEqual(this.props, layout.props);
   }
 
   // Accessors

@@ -50,7 +50,7 @@ When any of these options change, the layout pipeline is recomputed on the next 
 
 ## Runtime controls
 
-- `setPipelineOptions(options)` - Merges partial props and reruns the layout. Useful for live controls that tweak layering/decross operators without recreating the layout instance.
+- `setProps(options)` - Merges partial props and reruns the layout. Useful for live controls that tweak layering/decross operators without recreating the layout instance.
 - `toggleCollapsedChain(chainId)` / `setCollapsedChains(chainIds)` - Toggle or set the collapse state for previously detected linear chains. Chain identifiers can be read from node data (`collapsedChainId`).
 - `getLinkControlPoints(edge)` - Returns any intermediate control points computed by the active d3-dag operator, allowing `GraphLayer` edge renderers to draw smooth splines.
 

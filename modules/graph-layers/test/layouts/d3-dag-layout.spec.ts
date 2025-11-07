@@ -243,14 +243,14 @@ describe('CollapsableD3DagLayout', () => {
     expect(nodes.a.getPropertyValue('collapsedChainLength')).toBe(3);
     expect(layout.getNodePosition(nodes.b)).toBeNull();
 
-    layout.setPipelineOptions({collapseLinearChains: false});
+    layout.setProps({collapseLinearChains: false});
     layout.setCollapsedChains([]);
 
     expect(nodes.a.getPropertyValue('isCollapsedChain')).toBe(false);
     expect(nodes.a.getPropertyValue('collapsedNodeIds')).toEqual(['a', 'b', 'c']);
     expect(layout.getNodePosition(nodes.b)).not.toBeNull();
 
-    layout.setPipelineOptions({collapseLinearChains: true});
+    layout.setProps({collapseLinearChains: true});
     layout.setCollapsedChains([String(chainId)]);
 
     expect(nodes.a.getPropertyValue('isCollapsedChain')).toBe(true);

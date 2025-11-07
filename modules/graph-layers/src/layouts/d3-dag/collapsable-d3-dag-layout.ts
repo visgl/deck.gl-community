@@ -9,7 +9,7 @@ import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
 import {log} from '../../utils/log';
 
-import {D3DagLayout, type D3DagLayoutOptions} from './d3-dag-layout';
+import {D3DagLayout, type D3DagLayoutProps} from './d3-dag-layout';
 
 type CollapsedChainDescriptor = {
   id: string;
@@ -18,14 +18,31 @@ type CollapsedChainDescriptor = {
   representativeId: string | number;
 };
 
+export type CollapsableD3DagLayoutProps = D3DagLayoutProps & {
+  /** Whether to collapse linear chains of nodes into a single representative. */
+  collapseLinearChains?: boolean;
+}
+
 export class CollapsableD3DagLayout extends D3DagLayout {
+  static override defaultProps: Required<CollapsableD3DagLayoutProps> = {
+    ...D3DagLayout.defaultProps,
+    collapseLinearChains: false
+  }
+
   private _chainDescriptors = new Map<string, CollapsedChainDescriptor>();
   private _nodeToChainId = new Map<string | number, string>();
   private _collapsedChainState = new Map<string, boolean>();
   private _hiddenNodeIds = new Set<string | number>();
 
-  constructor(options: D3DagLayoutOptions = {}) {
-    super(options);
+  constructor(props: CollapsableD3DagLayoutProps = {}) {
+    super(props);
+  }
+
+  override setProps(props: Partial<CollapsableD3DagLayoutProps>): void {
+    super.setProps(props);
+    if (props.collapseLinearChains !== undefined && this._graph) {
+      this._runLayout();
+    }
   }
 
   override updateGraph(graph: Graph): void {
@@ -98,13 +115,6 @@ export class CollapsableD3DagLayout extends D3DagLayout {
     }
   }
 
-  override setPipelineOptions(options: Partial<D3DagLayoutOptions>): void {
-    super.setPipelineOptions(options);
-    if (options.collapseLinearChains !== undefined && this._graph) {
-      this._runLayout();
-    }
-  }
-
   protected override _refreshCollapsedChains(): void {
     const previousChainCount = this._chainDescriptors.size;
 
@@ -131,7 +141,7 @@ export class CollapsableD3DagLayout extends D3DagLayout {
     );
 
     const collapseDefault =
-      this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
+      this.props.collapseLinearChains;
 
     const previousStates = new Map(this._collapsedChainState);
 
@@ -316,8 +326,7 @@ export class CollapsableD3DagLayout extends D3DagLayout {
   }
 
   private _isChainCollapsed(chainId: string): boolean {
-    const collapseDefault =
-      this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
+    const collapseDefault = this.props.collapseLinearChains;
     return this._collapsedChainState.get(chainId) ?? collapseDefault;
   }
 }

@@ -263,7 +263,7 @@ export function App({graphType}: AppProps) {
     if (!dagLayout) {
       return;
     }
-    dagLayout.setPipelineOptions({collapseLinearChains: collapseEnabled});
+    dagLayout.setProps({collapseLinearChains: collapseEnabled});
     if (!collapseEnabled) {
       dagLayout.setCollapsedChains([]);
     }

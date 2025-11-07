@@ -53,7 +53,7 @@ export type D3DagLayoutOperator =
   | DefaultZherebko
   | ((dag: MutGraph<Node, Edge>) => LayoutResult);
 
-export type D3DagLayoutOptions = GraphLayoutProps & {
+export type D3DagLayoutProps = GraphLayoutProps & {
   /** Which high-level layout operator to use. */
   layout?: D3DagLayoutBuilderName | D3DagLayoutOperator;
   /** Layering operator used by sugiyama layouts. */
@@ -74,8 +74,6 @@ export type D3DagLayoutOptions = GraphLayoutProps & {
   center?: D3DagCenterOption;
   /** How to convert the Graph into a DAG. */
   dagBuilder?: D3DagDagBuilderName | DagBuilder;
-  /** Whether to collapse linear chains of nodes into a single representative. */
-  collapseLinearChains?: boolean;
 };
 
 type DagBuilder = (graph: Graph) => MutGraph<Node, Edge>;
@@ -148,8 +146,8 @@ const DAG_ID_SEPARATOR = '::';
 /**
  * Layout that orchestrates d3-dag operators from declarative options.
  */
-export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
-  static defaultProps: Required<Omit<D3DagLayoutOptions, 'layout'>> & {layout: D3DagLayoutBuilderName} = {
+export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> extends GraphLayout<PropsT> {
+  static defaultProps = {
     layout: 'sugiyama',
     layering: 'topological',
     decross: 'twoLayer',
@@ -160,8 +158,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     orientation: 'TB',
     center: true,
     dagBuilder: 'graph',
-    collapseLinearChains: false
-  };
+  } as const satisfies Readonly<Required<D3DagLayoutProps>>;
 
   protected readonly _name = 'D3DagLayout';
 
@@ -181,9 +178,25 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   protected _edgeLookup = new Map<string, Edge>();
   protected _incomingParentMap = new Map<string | number, (string | number)[]>();
 
-  constructor(options: D3DagLayoutOptions = {}) {
-    super({...D3DagLayout.defaultProps, ...options});
+  constructor(props: D3DagLayoutProps = {}) {
+    super({...D3DagLayout.defaultProps, ...props});
   }
+
+  setProps(options: Partial<D3DagLayoutProps>): void {
+    this.props = {...this.props, ...options};
+    if (
+      options.layout !== undefined ||
+      options.layering !== undefined ||
+      options.decross !== undefined ||
+      options.coord !== undefined ||
+      options.nodeSize !== undefined ||
+      options.gap !== undefined ||
+      options.separation !== undefined
+    ) {
+      this._layoutOperator = null;
+    }
+  }
+
 
   initializeGraph(graph: Graph): void {
     this.updateGraph(graph);
@@ -238,21 +251,6 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   setCollapsedChains(chainIds: Iterable<string>): void {
     const desired = Array.isArray(chainIds) ? chainIds : Array.from(chainIds);
     log.log(1, `D3DagLayout: setCollapsedChains(${desired.length}) ignored (collapsing disabled)`);
-  }
-
-  setPipelineOptions(options: Partial<D3DagLayoutOptions>): void {
-    this._options = {...this._options, ...options};
-    if (
-      options.layout !== undefined ||
-      options.layering !== undefined ||
-      options.decross !== undefined ||
-      options.coord !== undefined ||
-      options.nodeSize !== undefined ||
-      options.gap !== undefined ||
-      options.separation !== undefined
-    ) {
-      this._layoutOperator = null;
-    }
   }
 
   getNodePosition(node: Node): [number, number] | null {
@@ -339,7 +337,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   }
 
   private _buildDag(): MutGraph<Node, Edge> {
-    const builder = this._options.dagBuilder ?? D3DagLayout.defaultProps.dagBuilder;
+    const builder = this.props.dagBuilder ?? D3DagLayout.defaultProps.dagBuilder;
 
     if (typeof builder === 'function') {
       const dag = builder(this._graph);
@@ -519,7 +517,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       return this._layoutOperator;
     }
 
-    const layoutOption = this._options.layout ?? D3DagLayout.defaultProps.layout;
+    const layoutOption = this.props.layout ?? D3DagLayout.defaultProps.layout;
     let layout: LayoutWithConfiguration;
 
     if (typeof layoutOption === 'string') {
@@ -528,24 +526,24 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       layout = layoutOption as LayoutWithConfiguration;
     }
 
-    if (layout.layering && this._options.layering) {
-      layout = layout.layering(this._resolveLayering(this._options.layering));
+    if (layout.layering && this.props.layering) {
+      layout = layout.layering(this._resolveLayering(this.props.layering));
     }
 
-    if (layout.decross && this._options.decross) {
-      layout = layout.decross(this._resolveDecross(this._options.decross));
+    if (layout.decross && this.props.decross) {
+      layout = layout.decross(this._resolveDecross(this.props.decross));
     }
 
-    if (layout.coord && this._options.coord) {
-      layout = layout.coord(this._resolveCoord(this._options.coord));
+    if (layout.coord && this.props.coord) {
+      layout = layout.coord(this._resolveCoord(this.props.coord));
     }
 
-    const nodeSize = this._options.nodeSize ?? DEFAULT_NODE_SIZE;
+    const nodeSize = this.props.nodeSize ?? DEFAULT_NODE_SIZE;
     if (layout.nodeSize) {
       layout = layout.nodeSize(nodeSize);
     }
 
-    const gap = this._options.separation ?? this._options.gap ?? DEFAULT_GAP;
+    const gap = this.props.separation ?? this.props.gap ?? DEFAULT_GAP;
     if (layout.gap) {
       layout = layout.gap(gap);
     }
@@ -647,7 +645,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
 
     const {offsetX, offsetY} = this._getOffsets();
-    const orientation = this._options.orientation ?? D3DagLayout.defaultProps.orientation;
+    const orientation = this.props.orientation ?? D3DagLayout.defaultProps.orientation;
 
     const transform = (x: number, y: number): [number, number] => {
       const localX = x - offsetX;
@@ -689,7 +687,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     if (!this._dagBounds) {
       return {offsetX: 0, offsetY: 0};
     }
-    const centerOption = this._options.center ?? true;
+    const centerOption = this.props.center ?? true;
     let offsetX = 0;
     let offsetY = 0;
     if (centerOption === true) {

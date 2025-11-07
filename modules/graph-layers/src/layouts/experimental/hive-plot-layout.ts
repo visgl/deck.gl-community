@@ -26,12 +26,8 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   _nodeMap = {};
   _nodePositionMap = {};
 
-  constructor(options: HivePlotLayoutProps = {}) {
-    super(options);
-    this._options = {
-      ...HivePlotLayout.defaultProps,
-      ...options
-    };
+  constructor(props: HivePlotLayoutProps = {}) {
+    super({...HivePlotLayout.defaultProps, ...props});
   }
 
   initializeGraph(graph: Graph) {
@@ -39,7 +35,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   }
 
   updateGraph(graph) {
-    const {getNodeAxis, innerRadius, outerRadius} = this._options;
+    const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
     this._nodeMap = graph.getNodes().reduce((res, node) => {
       res[node.getId()] = node;
@@ -106,7 +102,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   getNodePosition = (node) => this._nodePositionMap[node.getId()];
 
   getEdgePosition = (edge) => {
-    const {getNodeAxis} = this._options;
+    const {getNodeAxis} = this.props;
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
 
