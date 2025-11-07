@@ -55,13 +55,17 @@ export type D3DagLayoutOperator =
 
 export type D3DagLayoutProps = GraphLayoutProps & {
   /** Which high-level layout operator to use. */
-  layout?: D3DagLayoutBuilderName | D3DagLayoutOperator;
+  layout?: D3DagLayoutBuilderName;
+  customLayout?: D3DagLayoutOperator;
   /** Layering operator used by sugiyama layouts. */
-  layering?: D3DagLayeringName | LayeringOperator;
+  layering?: D3DagLayeringName;
+  customLayering?: LayeringOperator;
   /** Decrossing operator used by sugiyama layouts. */
-  decross?: D3DagDecrossName | DecrossOperator;
+  decross?: D3DagDecrossName;
+  customDecross?: DecrossOperator;
   /** Coordinate assignment operator used by sugiyama layouts. */
-  coord?: D3DagCoordName | CoordOperator;
+  coord?: D3DagCoordName;
+  customCoord?: CoordOperator;
   /** Node sizing accessor passed to the active layout. */
   nodeSize?: NodeSize<Node, Edge>;
   /** Optional gap between nodes. Alias: separation. */
@@ -149,9 +153,13 @@ const DAG_ID_SEPARATOR = '::';
 export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> extends GraphLayout<PropsT> {
   static defaultProps = {
     layout: 'sugiyama',
+    customLayout: undefined,
     layering: 'topological',
+    customLayering: undefined,
     decross: 'twoLayer',
+    customDecross: undefined,
     coord: 'greedy',
+    customCoord: undefined,
     nodeSize: DEFAULT_NODE_SIZE,
     gap: DEFAULT_GAP,
     separation: DEFAULT_GAP,
