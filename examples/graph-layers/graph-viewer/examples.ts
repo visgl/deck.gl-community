@@ -43,20 +43,22 @@ type RawWitsDataset = {
   tree: RawWitsTreeNode[];
 };
 
-const DAG_PIPELINE_DATA: DagRecord[] = [
-  {id: 'collect', label: 'Collect events'},
-  {id: 'ingest', label: 'Ingest', parentIds: ['collect']},
-  {id: 'quality', label: 'Quality checks', parentIds: ['ingest']},
-  {id: 'clean', label: 'Clean data', parentIds: ['quality']},
-  {id: 'warehouse', label: 'Warehouse sync', parentIds: ['clean']},
-  {id: 'feature', label: 'Feature store', parentIds: ['warehouse']},
-  {id: 'training', label: 'Train models', parentIds: ['feature']},
-  {id: 'serving', label: 'Serve models', parentIds: ['training']},
-  {id: 'monitor', label: 'Monitor', parentIds: ['serving']},
-  {id: 'alert', label: 'Alerting', parentIds: ['monitor']},
-  {id: 'feedback', label: 'Feedback', parentIds: ['alert', 'monitor']},
-  {id: 'experiments', label: 'Experimentation', parentIds: ['feature', 'feedback']}
-] as const;
+const DAG_PIPELINE_DATA = [
+  {id: 'collect', label: 'Collect events', rank: 0},
+  {id: 'ingest', label: 'Ingest', parentIds: ['collect'], rank: 1},
+  {id: 'quality', label: 'Quality checks', parentIds: ['ingest'], rank: 2},
+  {id: 'clean', label: 'Clean data', parentIds: ['quality'], rank: 3},
+  {id: 'warehouse', label: 'Warehouse sync', parentIds: ['clean'], rank: 4},
+  {id: 'feature', label: 'Feature store', parentIds: ['warehouse'], rank: 5},
+  {id: 'feature-vis', label: 'Feature visualization', parentIds: ['feature'], rank: 10},
+  {id: 'vis-analysis', label: 'Feature visualization', parentIds: ['feature-vis'], rank: 11},
+  {id: 'training', label: 'Train models', parentIds: ['feature'], rank: 6},
+  {id: 'serving', label: 'Serve models', parentIds: ['training'], rank: 7},
+  {id: 'monitor', label: 'Monitor', parentIds: ['serving'], rank: 10},
+  {id: 'alert', label: 'Alerting', parentIds: ['monitor'], rank: 11},
+  {id: 'feedback', label: 'Feedback', parentIds: ['alert', 'monitor'], rank: 12},
+  {id: 'experiments', label: 'Experimentation', parentIds: ['vis-analysis', 'feedback'], rank: 13}
+] as const satisfies DagRecord[];
 
 const KNOWLEDGE_GRAPH = {
   nodes: [
@@ -655,7 +657,7 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
 };
 
 const dagPipelineDataset = () => {
-  const nodes = DAG_PIPELINE_DATA.map((entry) => ({id: entry.id, label: entry.label}));
+  const nodes = DAG_PIPELINE_DATA.map((entry) => entry); // ({id: entry.id, label: entry.label}));
   const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
 
   for (const entry of DAG_PIPELINE_DATA) {

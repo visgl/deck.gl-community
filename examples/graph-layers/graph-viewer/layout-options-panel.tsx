@@ -165,6 +165,18 @@ function DagLayoutOptionsSection({
           <option value="longestPath">Longest path</option>
           <option value="simplex">Simplex</option>
         </select>
+        <label htmlFor={`${fieldGroupId}-node-rank`} style={LABEL_STYLE}>
+          Node rank
+        </label>
+        <select
+          id={`${fieldGroupId}-node-rank`}
+          value={formState.nodeRank}
+          onChange={handleSelectChange('nodeRank')}
+          style={SELECT_STYLE}
+        >
+          <option value="none">Automatic</option>
+          <option value="rank">Use node.rank</option>
+        </select>
         <label htmlFor={`${fieldGroupId}-decross`} style={LABEL_STYLE}>
           Decross
         </label>
