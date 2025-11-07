@@ -1,6 +1,6 @@
 ## Layout Animation
 
-ow incremental layouts flow through the engine
+How incremental layouts flow through the engine
 
 Every layout implementation inherits from GraphLayout, which exposes lifecycle hooks (initializeGraph, start, update, resume, stop) that a concrete layout uses to perform iterative calculations. When a layout has progressed (e.g. one tick of a force simulation), it calls the protected _onLayoutChange() helper. That helper both bumps the layout’s version counter/state and emits an onLayoutChange event so observers can react to the new positions; similar helpers exist for onLayoutStart, onLayoutDone, and errors.
 

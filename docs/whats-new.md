@@ -28,7 +28,16 @@ Highlights:
 
 ### `@deck.gl-community/graph-layers` 
 
+<<<<<<< HEAD
 GraphLayers 
+=======
+- Graph styling: new edge decorator `'arrow'` that renders arrows on directional edges.
+- Graph styling: unified `stylesheet` prop with shorthand attribute references for node, edge, and decorator styles.
+- Graph style constants are now defined using literals instead of objects
+- New example visualizing DAGs (Directed Acyclic Graphs).
+- GraphLayer now accepts `GraphEngine`, `Graph`, or raw JSON via its `data` prop (including async URLs), automatically builds a `GraphEngine` when given raw payloads, and deprecates the legacy `graph` prop.
+- `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects and no longer accepts `Graph` instances directly.
+>>>>>>> master
 
 - `GraphLayerProps` - NEW `data` prop (no longer requires applications to provide `engine: GraphEngine`).
 - `GraphLayerProps` - NEW `stylesheet` prop that accepts a unified stylesheet containing all for node, edge, and decorator styles.
