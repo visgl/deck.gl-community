@@ -1,5 +1,7 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.2
+
 ## v9.2.0-beta.1
 
 - docs(graph-layers): Improve layout docs (#370)
