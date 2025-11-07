@@ -4,13 +4,15 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import type {ReactNode} from 'react';
-import type {ExampleDefinition, LayoutType} from './layout-options';
+import type {ExampleDefinition, GraphExampleType, LayoutType} from './layout-options';
 import {LAYOUT_LABELS} from './layout-options';
+import {filterExamplesByType} from './examples';
 import {LayoutOptionsPanel} from './layout-options-panel';
 
 type ControlPanelProps = {
   examples: ExampleDefinition[];
   defaultExample?: ExampleDefinition;
+  graphType?: GraphExampleType;
   onExampleChange: (example: ExampleDefinition, layout: LayoutType) => void;
   children?: ReactNode;
   layoutOptions?: Record<string, unknown>;
@@ -20,27 +22,33 @@ type ControlPanelProps = {
 export function ControlPanel({
   examples,
   defaultExample,
+  graphType,
   onExampleChange,
   layoutOptions,
   onLayoutOptionsApply,
   children
 }: ControlPanelProps) {
+  const filteredExamples = useMemo(
+    () => filterExamplesByType(examples, graphType),
+    [examples, graphType]
+  );
+
   const resolveExampleIndex = useCallback(
     (example?: ExampleDefinition) => {
       if (!example) {
         return 0;
       }
 
-      const index = examples.findIndex((candidate) => candidate === example);
+      const index = filteredExamples.findIndex((candidate) => candidate === example);
       return index === -1 ? 0 : index;
     },
-    [examples]
+    [filteredExamples]
   );
 
   const [selectedExampleIndex, setSelectedExampleIndex] = useState(() =>
     resolveExampleIndex(defaultExample)
   );
-  const selectedExample = examples[selectedExampleIndex];
+  const selectedExample = filteredExamples[selectedExampleIndex];
   const availableLayouts = selectedExample?.layouts ?? [];
   const [selectedLayout, setSelectedLayout] = useState<LayoutType | undefined>(
     availableLayouts[0]
@@ -107,7 +115,7 @@ export function ControlPanel({
     );
   }, [selectedExample]);
 
-  if (!examples.length) {
+  if (!filteredExamples.length) {
     return null;
   }
 
@@ -151,7 +159,7 @@ export function ControlPanel({
             color: '#0f172a'
           }}
         >
-          {examples.map((example, index) => (
+          {filteredExamples.map((example, index) => (
             <option key={example.name} value={index}>
               {example.name}
             </option>

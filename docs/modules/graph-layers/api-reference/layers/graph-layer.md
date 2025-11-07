@@ -77,7 +77,7 @@ layer constructs a new engine from `graph` or `data`.
 #### `layout` ([`GraphLayout`](../layouts/README.md), optional)
 
 Layout algorithm used by the engine. Pass one of the bundled layouts such as
-[`D3ForceLayout`](../layouts/d3-layout.md) or implement a custom layout that
+[`D3ForceLayout`](../layouts/d3-force-layout.md) or implement a custom layout that
 conforms to the interface.
 
 ### Styling

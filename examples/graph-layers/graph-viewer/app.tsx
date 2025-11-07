@@ -4,15 +4,7 @@
 
 /* eslint-disable max-statements, complexity */
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  useReducer,
-  useRef
-} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
@@ -30,14 +22,15 @@ import {
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
-  D3DagLayout
+  D3DagLayout,
+  CollapsableD3DagLayout
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
-import type {LayoutType, ExampleDefinition} from './layout-options';
+import type {LayoutType, ExampleDefinition, GraphExampleType} from './layout-options';
 import {CollapseControls} from './collapse-controls';
 import {StylesheetEditor} from './stylesheet-editor';
-import {DEFAULT_EXAMPLE, EXAMPLES} from './examples';
+import {EXAMPLES, filterExamplesByType} from './examples';
 import {useGraphViewport} from './use-graph-viewport';
 
 const INITIAL_VIEW_STATE = {
@@ -49,7 +42,6 @@ const INITIAL_VIEW_STATE = {
 
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
-const DEFAULT_LAYOUT = DEFAULT_EXAMPLE?.layouts[0] ?? 'd3-force-layout';
 const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
@@ -61,9 +53,11 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'radial-layout': (options) => new RadialLayout(options),
   'hive-plot-layout': (options) => new HivePlotLayout(options),
   'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
-  'd3-dag-layout': (options) => new D3DagLayout(options),
+  'd3-dag-layout': (options) => new CollapsableD3DagLayout(options),
 };
 
+
+const INITIAL_LOADING_STATE = {loaded: false, rendered: false, isLoading: true};
 
 const loadingReducer = (state, action) => {
   switch (action.type) {
@@ -84,7 +78,10 @@ const loadingReducer = (state, action) => {
 };
 
 export const useLoading = (eventSource: EventTarget | null) => {
-  const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
+  const [state, setState] = useState(INITIAL_LOADING_STATE);
+  const loadingDispatch = useCallback((action) => {
+    setState((current) => loadingReducer(current, action));
+  }, []);
 
   useLayoutEffect(() => {
     if (!eventSource) {
@@ -101,14 +98,31 @@ export const useLoading = (eventSource: EventTarget | null) => {
       eventSource.removeEventListener('onLayoutStart', layoutStarted);
       eventSource.removeEventListener('onLayoutDone', layoutEnded);
     };
-  }, [eventSource]);
+  }, [eventSource, loadingDispatch]);
 
-  return [{isLoading}, loadingDispatch];
+  return [state, loadingDispatch];
 };
 
-export function App(props) {
-  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(DEFAULT_EXAMPLE);
-  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(DEFAULT_LAYOUT);
+type AppProps = {
+  graphType?: GraphExampleType;
+};
+
+export function App({graphType}: AppProps) {
+  const exampleType = graphType;
+  const examplesForType = useMemo(
+    () => filterExamplesByType(EXAMPLES, exampleType),
+    [exampleType]
+  );
+  const defaultExample = useMemo(
+    () => (examplesForType.length ? examplesForType[0] : EXAMPLES[0]),
+    [examplesForType]
+  );
+  const defaultLayout = defaultExample?.layouts[0] ?? 'd3-force-layout';
+
+  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(
+    () => defaultExample
+  );
+  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(() => defaultLayout);
   const [collapseEnabled, setCollapseEnabled] = useState(true);
   const [layoutOverrides, setLayoutOverrides] = useState<
     Partial<Record<LayoutType, Record<string, unknown>>>
@@ -116,6 +130,12 @@ export function App(props) {
   const [dagChainSummary, setDagChainSummary] = useState<
     {chainIds: string[]; collapsedIds: string[]}
     | null>(null);
+
+  useEffect(() => {
+    setSelectedExample(defaultExample);
+    setSelectedLayout(defaultLayout);
+    setLayoutOverrides({});
+  }, [defaultExample, defaultLayout]);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
   const layoutOptions = useMemo(() => {
@@ -213,7 +233,12 @@ export function App(props) {
     []
   );
 
+<<<<<<< HEAD
   const [{isLoading}, loadingDispatch] = useLoading(layout);
+=======
+  const [loadingState, loadingDispatch] = useLoading(engine);
+  const {isLoading} = loadingState;
+>>>>>>> master
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
 
@@ -227,7 +252,7 @@ export function App(props) {
     if (!dagLayout) {
       return;
     }
-    dagLayout.setPipelineOptions({collapseLinearChains: collapseEnabled});
+    dagLayout.setProps({collapseLinearChains: collapseEnabled});
     if (!collapseEnabled) {
       dagLayout.setCollapsedChains([]);
     }
@@ -386,7 +411,11 @@ export function App(props) {
         ) : null}
         <DeckGL
           onError={(error) => console.error(error)}
-          onAfterRender={() => loadingDispatch({type: 'afterRender'})}
+          onAfterRender={() => {
+            if (!loadingState.rendered) {
+              loadingDispatch({type: 'afterRender'});
+            }
+          }}
           width="100%"
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
@@ -438,7 +467,8 @@ export function App(props) {
       >
         <ControlPanel
           examples={EXAMPLES}
-          defaultExample={DEFAULT_EXAMPLE}
+          defaultExample={selectedExample ?? defaultExample}
+          graphType={exampleType}
           onExampleChange={handleExampleChange}
           layoutOptions={layoutOptions}
           onLayoutOptionsApply={handleApplyLayoutOptions}

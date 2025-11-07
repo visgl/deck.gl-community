@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {log} from '../../utils/log';
 
-export type D3ForceLayoutOptions = GraphLayoutOptions & {
+export type D3ForceLayoutOptions = GraphLayoutProps & {
   alpha?: number;
   resumeAlpha?: number;
   nBodyStrength?: number;
@@ -15,27 +15,25 @@ export type D3ForceLayoutOptions = GraphLayoutOptions & {
 };
 
 export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
-  static defaultOptions: Required<D3ForceLayoutOptions> = {
+  static defaultProps = {
     alpha: 0.3,
     resumeAlpha: 0.1,
     nBodyStrength: -900,
     nBodyDistanceMin: 100,
     nBodyDistanceMax: 400,
     getCollisionRadius: 0
-  };
+  } as const satisfies Readonly<Required<D3ForceLayoutOptions>>;
 
   protected readonly _name = 'D3';
   private _positionsByNodeId = new Map();
   private _graph: any;
   private _worker: any;
 
-  constructor(options?: D3ForceLayoutOptions) {
-    super(options);
-
-    this._options = {
-      ...D3ForceLayout.defaultOptions,
-      ...options
-    };
+  constructor(props?: D3ForceLayoutOptions) {
+    super({
+      ...D3ForceLayout.defaultProps,
+      ...props
+    });
   }
 
   initializeGraph(graph) {
@@ -79,7 +77,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
         source: edge.getSourceNodeId(),
         target: edge.getTargetNodeId()
       })),
-      options: this._options
+      options: this.props
     });
 
     this._worker.onmessage = (event) => {

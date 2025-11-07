@@ -5,6 +5,8 @@
 import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
 import {D3DagLayout} from '@deck.gl-community/graph-layers';
 
+export type GraphExampleType = 'graph' | 'radial' | 'multi-graph' | 'hive' | 'dag';
+
 export type LayoutType =
   | 'd3-force-layout'
   | 'gpu-force-layout'
@@ -19,6 +21,7 @@ export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
 export type ExampleDefinition = {
   name: string;
   description: string;
+  type: GraphExampleType;
   data: () => {nodes: unknown[]; edges: unknown[]};
   /** First listed layout is the default */
   layouts: LayoutType[];
@@ -40,9 +43,12 @@ export const LAYOUT_LABELS: Record<LayoutType, string> = {
   'd3-dag-layout': 'D3 DAG Layout'
 };
 
+export type DagNodeRankOption = 'none' | 'rank';
+
 export type DagLayoutFormState = {
   layout: 'sugiyama' | 'grid' | 'zherebko';
   layering: 'simplex' | 'longestPath' | 'topological';
+  nodeRank: DagNodeRankOption;
   decross: 'twoLayer' | 'opt' | 'dfs';
   coord: 'simplex' | 'greedy' | 'quad' | 'center' | 'topological';
   orientation: 'TB' | 'BT' | 'LR' | 'RL';
@@ -60,6 +66,7 @@ export type DagLayoutFormState = {
 export type DagSelectKey =
   | 'layout'
   | 'layering'
+  | 'nodeRank'
   | 'decross'
   | 'coord'
   | 'orientation'
@@ -73,7 +80,7 @@ export type DagNumericKey =
   | 'separationX'
   | 'separationY';
 
-export const DAG_DEFAULT_OPTIONS = D3DagLayout.defaultOptions;
+export const DAG_DEFAULT_OPTIONS = D3DagLayout.defaultProps;
 
 export function normalizeTuple(
   value: unknown,
@@ -115,6 +122,10 @@ export function createDagFormState(options?: Record<string, unknown>): DagLayout
   return {
     layout: (merged.layout ?? DAG_DEFAULT_OPTIONS.layout) as DagLayoutFormState['layout'],
     layering: (merged.layering ?? DAG_DEFAULT_OPTIONS.layering) as DagLayoutFormState['layering'],
+    nodeRank:
+      typeof merged.nodeRank === 'string' && merged.nodeRank === 'rank'
+        ? 'rank'
+        : 'none',
     decross: (merged.decross ?? DAG_DEFAULT_OPTIONS.decross) as DagLayoutFormState['decross'],
     coord: (merged.coord ?? DAG_DEFAULT_OPTIONS.coord) as DagLayoutFormState['coord'],
     orientation: (merged.orientation ?? DAG_DEFAULT_OPTIONS.orientation) as DagLayoutFormState['orientation'],
@@ -134,6 +145,7 @@ export function dagStatesEqual(a: DagLayoutFormState, b: DagLayoutFormState): bo
   return (
     a.layout === b.layout &&
     a.layering === b.layering &&
+    a.nodeRank === b.nodeRank &&
     a.decross === b.decross &&
     a.coord === b.coord &&
     a.orientation === b.orientation &&
@@ -161,6 +173,7 @@ export function mapDagFormStateToOptions(state: DagLayoutFormState): Record<stri
   return {
     layout: state.layout,
     layering: state.layering,
+    ...(state.nodeRank === 'none' ? {} : {nodeRank: state.nodeRank}),
     decross: state.decross,
     coord: state.coord,
     orientation: state.orientation,

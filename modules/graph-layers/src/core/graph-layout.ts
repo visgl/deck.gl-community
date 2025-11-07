@@ -18,16 +18,16 @@ export type GraphLayoutEventDetail = {
   bounds: Bounds2D | null;
 };
 
-export type GraphLayoutOptions = {};
+export type GraphLayoutProps = {};
 
 /** All the layout classes are extended from this base layout class. */
-export class GraphLayout<
-  OptionsT extends GraphLayoutOptions = GraphLayoutOptions
+export abstract class GraphLayout<
+  PropsT extends GraphLayoutProps = GraphLayoutProps
 > extends EventTarget {
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
-  /** Extra configuration options of the layout. */
-  protected _options: OptionsT;
+  /** Extra configuration props of the layout. */
+  protected props: Required<PropsT>;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -42,11 +42,11 @@ export class GraphLayout<
 
   /**
    * Constructor of GraphLayout
-   * @param options extra configuration options of the layout
+   * @param props extra configuration props of the layout
    */
-  constructor(options: OptionsT) {
+  constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
     super();
-    this._options = options;
+    this.props = {...defaultProps, ...props};
   }
 
   /**
@@ -58,27 +58,16 @@ export class GraphLayout<
     if (!layout || !(layout instanceof GraphLayout)) {
       return false;
     }
-    return this._name === layout._name && isEqual(this._options, layout._options);
+    return this._name === layout._name && isEqual(this.props, layout.props);
   }
 
-  /** virtual functions: will be implemented in the child class */
+  // Accessors
 
-  /** first time to pass the graph data into this layout */
-  initializeGraph(graph: Graph) {}
-  /** update the existing graph */
-  updateGraph(graph: Graph) {}
-  /** start the layout calculation */
-  start() {}
-  /** update the layout calculation */
-  update() {}
-  /** resume the layout calculation */
-  resume() {}
-  /** stop the layout calculation */
-  stop() {}
   /** access the position of the node in the layout */
   getNodePosition(node: Node): [number, number] {
     return [0, 0];
   }
+
   /** access the layout information of the edge */
   getEdgePosition(edge: Edge) {
     return {
@@ -107,6 +96,22 @@ export class GraphLayout<
   getBounds(): Bounds2D | null {
     return this._bounds;
   }
+
+    /** virtual functions: will be implemented in the child class */
+
+  /** first time to pass the graph data into this layout */
+  abstract initializeGraph(graph: Graph);
+  /** update the existing graph */
+  abstract updateGraph(graph: Graph);
+  /** start the layout calculation */
+  abstract start();
+  /** update the layout calculation */
+  abstract update();
+  /** resume the layout calculation */
+  abstract resume();
+  /** stop the layout calculation */
+  abstract stop();
+
 
   // INTERNAL METHODS
 

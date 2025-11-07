@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {Graph} from '../../graph/graph';
 
-export type HivePlotLayoutOptions = GraphLayoutOptions & {
+export type HivePlotLayoutProps = GraphLayoutProps & {
   innerRadius?: number;
   outerRadius?: number;
   getNodeAxis?: (node: Node) => any;
 };
 
-export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
-  static defaultOptions = {
+export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
+  static defaultProps = {
     innerRadius: 100,
     outerRadius: 500,
     getNodeAxis: (node: Node) => node.getPropertyValue('group')
-  } as const satisfies Readonly<Required<HivePlotLayoutOptions>>;
+  } as const satisfies Readonly<Required<HivePlotLayoutProps>>;
 
   _name = 'HivePlot';
   _graph: Graph;
@@ -26,12 +26,8 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
   _nodeMap = {};
   _nodePositionMap = {};
 
-  constructor(options: HivePlotLayoutOptions = {}) {
-    super(options);
-    this._options = {
-      ...HivePlotLayout.defaultOptions,
-      ...options
-    };
+  constructor(props: HivePlotLayoutProps = {}) {
+    super({...HivePlotLayout.defaultProps, ...props});
   }
 
   initializeGraph(graph: Graph) {
@@ -39,7 +35,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
   }
 
   updateGraph(graph) {
-    const {getNodeAxis, innerRadius, outerRadius} = this._options;
+    const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
     this._nodeMap = graph.getNodes().reduce((res, node) => {
       res[node.getId()] = node;
@@ -97,10 +93,16 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
     this._onLayoutDone();
   }
 
+  stop() {}
+
+  update() {}
+
+  resume() {}
+
   getNodePosition = (node) => this._nodePositionMap[node.getId()];
 
   getEdgePosition = (edge) => {
-    const {getNodeAxis} = this._options;
+    const {getNodeAxis} = this.props;
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
 
