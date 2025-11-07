@@ -538,12 +538,13 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
       layout = layout.layering(layeringOperator);
       const {nodeRank} = this.props;
       if (nodeRank) {
+        // @ts-expect-error TS2345 - Argument of type '(dagNode: MutGraphNode<Node, Edge>) => number | undefined' is not assignable to parameter of type '(dagNode: MutGraphNode<Node, Edge>) => number'.
         layeringOperator = layeringOperator.rank((dagNode) => {
-          const node = dagNode.data  as unknown as Node;
+          const node = dagNode.data as Node;
           const rank = typeof nodeRank === 'function' ? nodeRank?.(node) : node?.getPropertyValue(nodeRank) || undefined;
-          if (rank !== undefined) {
-            console.log(`Node ${node.getId()} assigned to rank ${rank}`);
-          }
+          // if (rank !== undefined) {
+          //   console.log(`Node ${node.getId()} assigned to rank ${rank}`);
+          // }
           return rank;
         });
       }
