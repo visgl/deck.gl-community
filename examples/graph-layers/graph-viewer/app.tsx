@@ -4,15 +4,7 @@
 
 /* eslint-disable max-statements, complexity */
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  useReducer,
-  useRef
-} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
@@ -31,7 +23,8 @@ import {
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
-  D3DagLayout
+  D3DagLayout,
+  CollapsableD3DagLayout
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -61,9 +54,11 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'radial-layout': (options) => new RadialLayout(options),
   'hive-plot-layout': (options) => new HivePlotLayout(options),
   'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
-  'd3-dag-layout': (options) => new D3DagLayout(options),
+  'd3-dag-layout': (options) => new CollapsableD3DagLayout(options),
 };
 
+
+const INITIAL_LOADING_STATE = {loaded: false, rendered: false, isLoading: true};
 
 const loadingReducer = (state, action) => {
   switch (action.type) {
@@ -84,7 +79,10 @@ const loadingReducer = (state, action) => {
 };
 
 export const useLoading = (engine) => {
-  const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
+  const [state, setState] = useState(INITIAL_LOADING_STATE);
+  const loadingDispatch = useCallback((action) => {
+    setState((current) => loadingReducer(current, action));
+  }, []);
 
   useLayoutEffect(() => {
     if (!engine) {
@@ -101,16 +99,16 @@ export const useLoading = (engine) => {
       engine.removeEventListener('onLayoutStart', layoutStarted);
       engine.removeEventListener('onLayoutDone', layoutEnded);
     };
-  }, [engine]);
+  }, [engine, loadingDispatch]);
 
-  return [{isLoading}, loadingDispatch];
+  return [state, loadingDispatch];
 };
 
 type AppProps = {
   graphType?: GraphExampleType;
 };
 
-export function App({graphType = 'graph'}: AppProps) {
+export function App({graphType}: AppProps) {
   const exampleType = graphType;
   const examplesForType = useMemo(
     () => filterExamplesByType(EXAMPLES, exampleType),
@@ -250,7 +248,8 @@ export function App({graphType = 'graph'}: AppProps) {
     []
   );
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+  const [loadingState, loadingDispatch] = useLoading(engine);
+  const {isLoading} = loadingState;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
 
@@ -264,7 +263,7 @@ export function App({graphType = 'graph'}: AppProps) {
     if (!dagLayout) {
       return;
     }
-    dagLayout.setPipelineOptions({collapseLinearChains: collapseEnabled});
+    dagLayout.setProps({collapseLinearChains: collapseEnabled});
     if (!collapseEnabled) {
       dagLayout.setCollapsedChains([]);
     }
@@ -424,7 +423,11 @@ export function App({graphType = 'graph'}: AppProps) {
         ) : null}
         <DeckGL
           onError={(error) => console.error(error)}
-          onAfterRender={() => loadingDispatch({type: 'afterRender'})}
+          onAfterRender={() => {
+            if (!loadingState.rendered) {
+              loadingDispatch({type: 'afterRender'});
+            }
+          }}
           width="100%"
           height="100%"
           getCursor={() => DEFAULT_CURSOR}

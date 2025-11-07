@@ -103,7 +103,7 @@ Then call `this._onLayoutDone()` to notify the render that layout is completed.
 
 ```js
   start() {
-    const {viewportWidth, viewportHeight} = this._options;
+    const {viewportWidth, viewportHeight} = this.props;
     this._onLayoutStart();
     this._nodePositionMap = Object.keys(this._nodePositionMap).reduce((res, nodeId) => {
       res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
@@ -124,7 +124,7 @@ Then call `this._onLayoutDone()` to notify the render that layout is completed.
 
 ```js
   update() {
-    const {viewportWidth, viewportHeight} = this._options;
+    const {viewportWidth, viewportHeight} = this.props;
     this._nodePositionMap = Object.keys(this._nodePositionMap).reduce((res, nodeId) => {
       res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
       return res;
@@ -154,7 +154,7 @@ export default class RandomLayout extends GraphLayout {
     // give a name to this layout
     this._name = 'RandomLayout';
     // combine the default options with user input
-    this._options = {
+    this.props = {
       ...this.defaultProps,
       ...options
     };
@@ -200,7 +200,7 @@ export default class RandomLayout extends GraphLayout {
   constructor(options) {
     super(options);
     this._name = 'RandomLayout';
-    this._options = {
+    this.props = {
       ...defaultProps,
       ...options
     };
@@ -221,7 +221,7 @@ export default class RandomLayout extends GraphLayout {
   }
 
   start() {
-    const {viewportWidth, viewportHeight} = this._options;
+    const {viewportWidth, viewportHeight} = this.props;
     this._onLayoutStart();
     this._nodePositionMap = Object.keys(this._nodePositionMap).reduce((res, nodeId) => {
       res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
@@ -232,7 +232,7 @@ export default class RandomLayout extends GraphLayout {
   }
 
   update() {
-    const {viewportWidth, viewportHeight} = this._options;
+    const {viewportWidth, viewportHeight} = this.props;
     this._nodePositionMap = Object.keys(this._nodePositionMap).reduce((res, nodeId) => {
       res[nodeId] = [Math.random() * viewportWidth, Math.random() * viewportHeight];
       return res;

@@ -53,8 +53,9 @@ const getPath = (node, targetId, path) => {
 
 export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   static defaultProps = {
-    radius: 500
-  };
+    radius: 500,
+    tree: []
+  } as const satisfies Readonly<Required<RadialLayoutProps>>;
 
   _name = 'RadialLayout';
   _graph: Graph = null;
@@ -62,12 +63,8 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   _hierarchicalPoints = {};
   nestedTree;
 
-  constructor(options: RadialLayoutProps = {}) {
-    super(options);
-    this._options = {
-      ...RadialLayout.defaultProps,
-      ...options
-    };
+  constructor(props: RadialLayoutProps = {}) {
+    super({...RadialLayout.defaultProps, ...props});
   }
 
   initializeGraph(graph: Graph): void {
@@ -84,13 +81,13 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
       return;
     }
 
-    const {tree} = this._options;
+    const {tree} = this.props;
 
     if (!tree || tree.length === 0) {
       return;
     }
 
-    const {radius} = this._options;
+    const {radius} = this.props;
     const unitAngle = 360 / nodeCount;
 
     // hierarchical positions

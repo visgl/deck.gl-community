@@ -70,7 +70,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     this._nodePositionMap = graph.getNodes().reduce<Record<string, [number, number] | null>>(
       (res, node) => {
         res[node.getId()] = this._normalizePosition(
-          this._options.nodePositionAccessor(node)
+          this.props.nodePositionAccessor(node)
         );
         return res;
       },
@@ -79,7 +79,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
   }
 
   setNodePositionAccessor = (accessor) => {
-    (this._options as any).nodePositionAccessor = accessor;
+    (this.props as any).nodePositionAccessor = accessor;
   };
 
   getNodePosition = (node: Node | null): [number, number] => {
