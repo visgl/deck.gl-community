@@ -45,8 +45,8 @@ export {GraphLayer} from './layers/graph-layer';
 export type {RankGridConfig} from './layers/graph-layer';
 export {EdgeLayer} from './layers/edge-layer';
 export {GridLayer, type GridLayerProps, type GridLineDatum} from './layers/common-layers/grid-layer/grid-layer';
-export {StyleEngine} from './style/style-engine';
-export {GraphStyleEngine} from './style/graph-style-engine';
+export {StylesheetEngine} from './style/stylesheet-engine';
+export {GraphStylesheetEngine, GraphStyleEngine} from './style/graph-style-engine';
 export type {
   GraphStylesheet,
   GraphStylesheetInput,

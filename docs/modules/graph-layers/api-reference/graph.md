@@ -29,10 +29,11 @@ Returns an iterable sequence of [`EdgeInterface`](./edge.md) instances.
 
 Returns a node handle with the provided identifier when supported by the implementation.
 
-### `createStylesheetEngine(style, options?)`
-
-Creates a `GraphStyleEngine` for evaluating stylesheets against the current graph state. Most
-applications interact with this through the [`GraphLayer`](./layers/graph-layer.md).
+:::info Styling
+Graphs no longer vend stylesheet helpers directly. Use
+[`GraphStylesheetEngine`](./styling/graph-style-engine.md#graphstylesheetengine) to evaluate
+`GraphStylesheet` definitions regardless of the underlying graph implementation.
+:::
 
 ### `destroy()` _(optional)_
 
