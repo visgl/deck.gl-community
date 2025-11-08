@@ -1,0 +1,26 @@
+{
+  "name": "graph-marker-layer-example",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/graph-layers": "~9.2.0",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/layers": "~9.2.1",
+    "@deck.gl/react": "~9.2.1",
+    "maplibre-gl": "^4.1.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-map-gl": "^7.1.7"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "vite": "7.1.1"
+  }
+}
