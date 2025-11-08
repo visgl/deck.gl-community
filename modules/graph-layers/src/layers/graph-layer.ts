@@ -14,7 +14,10 @@ import {GraphLayout} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 
-import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
+import {
+  GraphStylesheetEngine,
+  type GraphStylesheet
+} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
@@ -300,9 +303,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
   }
 
-  private _createStyleEngine(style: GraphStylesheet, context: string): GraphStyleEngine | null {
+  private _createStyleEngine(style: GraphStylesheet, context: string): GraphStylesheetEngine | null {
     try {
-      return new GraphStyleEngine(style, {
+      return new GraphStylesheetEngine(style, {
         stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
       });
     } catch (error) {

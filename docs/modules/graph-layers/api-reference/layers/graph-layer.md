@@ -158,7 +158,8 @@ configuration supports:
 
 ## Notes
 
-- The layer resolves the stylesheet through the `GraphStyleEngine`, which
+- The layer resolves the stylesheet through the `GraphStylesheetEngine` (also exported as
+  `GraphStyleEngine` for backward compatibility), which
   coalesces attribute bindings, selectors, and triggers before delegating to the
   underlying Deck.gl sublayers.
 - Reusing the same `GraphEngine` instance across renders preserves layout state

@@ -39,7 +39,7 @@ function formatStylesheetError(error: ZodError) {
   return `Invalid graph stylesheet:\n${details}`;
 }
 
-export class GraphStyleEngine extends StyleEngine {
+export class GraphStylesheetEngine extends StyleEngine {
   constructor(style: GraphStylesheet, {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}) {
     const result = GraphStylesheetSchema.safeParse(style);
     const parsedStyle = result.success
@@ -53,6 +53,9 @@ export class GraphStyleEngine extends StyleEngine {
     });
   }
 }
+
+export const GraphStyleEngine = GraphStylesheetEngine;
+export type GraphStyleEngine = GraphStylesheetEngine;
 
 export {
   GraphStyleScaleTypeEnum,

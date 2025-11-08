@@ -6,7 +6,7 @@ import {describe, it, expect, expectTypeOf} from 'vitest';
 
 import {StyleEngine, type DeckGLAccessorMap, type DeckGLUpdateTriggers} from '../../src/style/style-engine';
 import {
-  GraphStyleEngine,
+  GraphStylesheetEngine,
   type GraphStylesheet,
   type GraphStyleAttributeReference
 } from '../../src/style/graph-style-engine';
@@ -76,7 +76,7 @@ describe('StyleEngine', () => {
 
     expectTypeOf(circleStylesheet).toMatchTypeOf<GraphStylesheet<'circle'>>();
 
-    const graphEngine = new GraphStyleEngine(circleStylesheet);
+    const graphEngine = new GraphStylesheetEngine(circleStylesheet);
     const accessors = graphEngine.getDeckGLAccessors();
 
     expect(accessors.getFillColor({state: 'default'})).toEqual([255, 255, 255]);
@@ -90,7 +90,7 @@ describe('StyleEngine', () => {
       fallback: 4
     };
 
-    const stylesheet = new GraphStyleEngine(
+    const stylesheet = new GraphStylesheetEngine(
       {
         type: 'circle',
         radius: radiusAttribute,

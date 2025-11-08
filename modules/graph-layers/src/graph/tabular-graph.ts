@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {GraphStylesheet} from '../style/graph-style-engine';
-import {GraphStyleEngine} from '../style/graph-style-engine';
-import {TabularGraphStylesheetEngine} from '../style/tabular-graph-style-engine';
 
 import type {EdgeState, NodeState} from '../core/constants';
 import type {EdgeInterface, Graph, NodeInterface} from './graph';
@@ -297,13 +294,6 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
   findNodeById(id: string | number): NodeInterface | undefined {
     this._synchronize();
     return this._nodeMap?.get(id);
-  }
-
-  createStylesheetEngine(
-    style: GraphStylesheet,
-    options: {stateUpdateTrigger?: unknown} = {}
-  ): GraphStyleEngine {
-    return new TabularGraphStylesheetEngine(style, options);
   }
 
   destroy(): void {
