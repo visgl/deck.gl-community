@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../core/graph-layout';
+import {GraphLayout, GraphLayoutDefaultProps, GraphLayoutProps} from '../core/graph-layout';
 import {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
 import {LegacyGraph} from '../graph/legacy-graph';
@@ -29,10 +29,10 @@ export type SimpleLayoutProps = GraphLayoutProps & {
 
 /** A basic layout where the application controls positions of each node */
 export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
-  static defaultProps: Required<SimpleLayoutProps> = {
+  static defaultProps = {
     nodePositionAccessor: (node) =>
       [node.getPropertyValue('x'), node.getPropertyValue('y')] as [number, number]
-  };
+  } as const satisfies GraphLayoutDefaultProps<SimpleLayoutProps>;
 
   protected readonly _name = 'SimpleLayout';
   protected _graph: LegacyGraph | null = null;
@@ -40,7 +40,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
   protected _nodePositionMap: Record<string, [number, number] | null> = {};
 
   constructor(options: SimpleLayoutProps = {}) {
-    super({...SimpleLayout.defaultProps, ...options});
+    super(options, SimpleLayout.defaultProps);
   }
 
   override setProps(props: Partial<SimpleLayoutProps>): boolean {

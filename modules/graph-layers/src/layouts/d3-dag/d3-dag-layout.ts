@@ -4,7 +4,11 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutDefaultProps,
+  GraphLayoutProps
+} from '../../core/graph-layout';
 import type {LegacyGraph} from '../../graph/legacy-graph';
 import type {NodeInterface, EdgeInterface} from '../../graph/graph';
 import {Node} from '../../graph/node';
@@ -155,7 +159,7 @@ function isEdgeInterface(value: unknown): value is EdgeInterface {
  * Layout that orchestrates d3-dag operators from declarative options.
  */
 export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> extends GraphLayout<PropsT> {
-  static defaultProps: Readonly<Required<D3DagLayoutProps>> = {
+  static defaultProps = {
     layout: 'sugiyama',
     layering: 'topological',
     decross: 'twoLayer',
@@ -173,7 +177,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     customDecross: undefined,
     customCoord: undefined,
     customDagBuilder: undefined
-  } as const;
+  } as const satisfies GraphLayoutDefaultProps<D3DagLayoutProps>;
 
   protected readonly _name = 'D3DagLayout';
 
@@ -193,9 +197,8 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
   protected _edgeLookup = new Map<string, EdgeInterface>();
   protected _incomingParentMap = new Map<string | number, (string | number)[]>();
 
-  constructor(props: D3DagLayoutProps, defaultProps?: Required<PropsT>) {
-    // @ts-expect-error TS2345 - Type 'Required<D3DagLayoutProps>' is not assignable to type 'Required<PropsT>'.
-    super(props, defaultProps || D3DagLayout.defaultProps);
+  constructor(props: PropsT, defaultProps?: GraphLayoutDefaultProps<PropsT>) {
+    super(props, defaultProps ?? (D3DagLayout.defaultProps as GraphLayoutDefaultProps<PropsT>));
   }
 
   override setProps(options: Partial<D3DagLayoutProps>): boolean {

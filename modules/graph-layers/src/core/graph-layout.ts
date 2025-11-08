@@ -27,6 +27,9 @@ export type GraphLayoutProps = {
   graph?: LegacyGraph;
 };
 
+export type GraphLayoutDefaultProps<PropsT extends GraphLayoutProps> =
+  Omit<Required<PropsT>, 'graph'> & Pick<GraphLayoutProps, 'graph'>;
+
 /** All the layout classes are extended from this base layout class. */
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
@@ -34,9 +37,9 @@ export abstract class GraphLayout<
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration props of the layout. */
-  protected props: Required<PropsT>;
+  protected props: GraphLayoutDefaultProps<PropsT>;
   /** Baseline configuration that new props are merged against. */
-  private readonly _defaultProps: Required<PropsT>;
+  private readonly _defaultProps: GraphLayoutDefaultProps<PropsT>;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -53,10 +56,12 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
-  constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
+  constructor(props: GraphLayoutProps, defaultProps?: GraphLayoutDefaultProps<PropsT>) {
     super();
-    this._defaultProps = (defaultProps ?? ({} as Required<PropsT>));
-    this.props = {...this._defaultProps, ...props};
+    this._defaultProps = defaultProps
+      ? {...defaultProps}
+      : ({} as GraphLayoutDefaultProps<PropsT>);
+    this.props = {...this._defaultProps, ...props} as GraphLayoutDefaultProps<PropsT>;
   }
 
   setProps(partial: Partial<PropsT>): boolean {
@@ -64,8 +69,12 @@ export abstract class GraphLayout<
       return false;
     }
 
-    const nextProps = {...this._defaultProps, ...this.props, ...partial};
-    const validatedProps = this._validateProps(nextProps as Required<PropsT>);
+    const nextProps = {
+      ...this._defaultProps,
+      ...this.props,
+      ...partial
+    } as GraphLayoutDefaultProps<PropsT>;
+    const validatedProps = this._validateProps(nextProps);
     const previousProps = this.props;
     const changedProps = this._getChangedProps(previousProps, validatedProps, partial);
 
@@ -157,7 +166,9 @@ export abstract class GraphLayout<
 
   /** Allow subclasses to coerce or validate the next props object. */
   // eslint-disable-next-line class-methods-use-this
-  protected _validateProps(nextProps: Required<PropsT>): Required<PropsT> {
+  protected _validateProps(
+    nextProps: GraphLayoutDefaultProps<PropsT>
+  ): GraphLayoutDefaultProps<PropsT> {
     return nextProps;
   }
 
@@ -167,8 +178,8 @@ export abstract class GraphLayout<
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, class-methods-use-this
   protected _onPropsUpdated(
-    previousProps: Readonly<Required<PropsT>>,
-    nextProps: Readonly<Required<PropsT>>,
+    previousProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    nextProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
     changedProps: Partial<PropsT>
   ): void {}
 
@@ -179,16 +190,16 @@ export abstract class GraphLayout<
    * the resulting layout.
    */
   protected _shouldRecomputeLayout(
-    previousProps: Readonly<Required<PropsT>>,
-    nextProps: Readonly<Required<PropsT>>,
+    previousProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    nextProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
     changedProps: Partial<PropsT>
   ): boolean {
     return Object.keys(changedProps).length > 0;
   }
 
   private _getChangedProps(
-    previousProps: Readonly<Required<PropsT>>,
-    nextProps: Readonly<Required<PropsT>>,
+    previousProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    nextProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
     partial: Partial<PropsT>
   ): Partial<PropsT> | null {
     const changedProps: Partial<PropsT> = {};

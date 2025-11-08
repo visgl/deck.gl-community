@@ -6,6 +6,7 @@
 
 import type {LegacyGraph} from '../../graph/legacy-graph';
 import type {NodeInterface, EdgeInterface} from '../../graph/graph';
+import {GraphLayoutDefaultProps} from '../../core/graph-layout';
 import {log} from '../../utils/log';
 
 import {D3DagLayout, type D3DagLayoutProps} from './d3-dag-layout';
@@ -23,10 +24,10 @@ export type CollapsableD3DagLayoutProps = D3DagLayoutProps & {
 }
 
 export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutProps> {
-  static override defaultProps: Required<CollapsableD3DagLayoutProps> = {
+  static override defaultProps = {
     ...D3DagLayout.defaultProps,
     collapseLinearChains: false
-  }
+  } as const satisfies GraphLayoutDefaultProps<CollapsableD3DagLayoutProps>;
 
   private _chainDescriptors = new Map<string, CollapsedChainDescriptor>();
   private _nodeToChainId = new Map<string | number, string>();

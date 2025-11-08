@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutDefaultProps, GraphLayoutProps} from '../../core/graph-layout';
 import type {LegacyGraph} from '../../graph/legacy-graph';
 
 export type GPUForceLayoutOptions = GraphLayoutProps & {
@@ -18,7 +18,7 @@ export type GPUForceLayoutOptions = GraphLayoutProps & {
  * @todo this layout should be updated with the organizational and logic improvements made in d3-force
  */
 export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
-  static defaultProps: Required<GPUForceLayoutOptions> = {
+  static defaultProps: GraphLayoutDefaultProps<GPUForceLayoutOptions> = {
     alpha: 0.3,
     resumeAlpha: 0.1,
     nBodyStrength: -900,
@@ -36,12 +36,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   private _callbacks: any;
 
   constructor(options: GPUForceLayoutOptions = {}) {
-    const props = {
-      ...GPUForceLayout.defaultProps,
-      ...options
-    };
-
-    super(props);
+    super(options, GPUForceLayout.defaultProps);
 
     // store graph and prepare internal data
     this._d3Graph = {nodes: [], edges: []};
@@ -127,7 +122,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     // nodes
     const newNodeMap = {};
     const newD3Nodes = graph.getNodes().map((node) => {
-      const id = node.id;
+      const id = node.getId();
       const locked = node.getPropertyValue('locked') || false;
       const x = node.getPropertyValue('x') || 0;
       const y = node.getPropertyValue('y') || 0;
@@ -135,9 +130,9 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
       const fy = locked ? y : null;
       const collisionRadius = node.getPropertyValue('collisionRadius') || 0;
 
-      const oldD3Node = this._nodeMap[node.id];
+      const oldD3Node = this._nodeMap[id];
       const newD3Node = oldD3Node ? oldD3Node : {id, x, y, fx, fy, collisionRadius};
-      newNodeMap[node.id] = newD3Node;
+      newNodeMap[id] = newD3Node;
       return newD3Node;
     });
     this._nodeMap = newNodeMap;
@@ -145,13 +140,14 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     // edges
     const newEdgeMap = {};
     const newD3Edges = graph.getEdges().map((edge) => {
-      const oldD3Edge = this._edgeMap[edge.id];
+      const edgeId = edge.getId();
+      const oldD3Edge = this._edgeMap[edgeId];
       const newD3Edge = oldD3Edge || {
-        id: edge.id,
+        id: edgeId,
         source: newNodeMap[edge.getSourceNodeId()],
         target: newNodeMap[edge.getTargetNodeId()]
       };
-      newEdgeMap[edge.id] = newD3Edge;
+      newEdgeMap[edgeId] = newD3Edge;
       return newD3Edge;
     });
     this._edgeMap = newEdgeMap;
@@ -191,7 +187,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   }
 
   getNodePosition = (node): [number, number] => {
-    const d3Node = this._nodeMap[node.id];
+    const d3Node = this._nodeMap[node.getId()];
     if (d3Node) {
       return [d3Node.x, d3Node.y];
     }
