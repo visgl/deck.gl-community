@@ -202,7 +202,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
   }
 
   override setProps(options: Partial<D3DagLayoutProps>): boolean {
-    const shouldUpdate = super.setProps(options);
+    const shouldUpdate = super.setProps(options as Partial<PropsT>);
     if (this._shouldResetLayoutOperator(options)) {
       this._layoutOperator = null;
     }

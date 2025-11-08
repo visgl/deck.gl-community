@@ -205,17 +205,19 @@ export abstract class GraphLayout<
     const changedProps: Partial<PropsT> = {};
     let changed = false;
 
-    for (const key of Object.keys(partial) as (keyof PropsT)[]) {
+    type PropKey = Extract<keyof GraphLayoutDefaultProps<PropsT>, keyof PropsT>;
+
+    for (const key of Object.keys(partial) as PropKey[]) {
       if (key === 'graph') {
         // Always treat graph updates as significant so layout caches refresh.
-        changedProps[key] = nextProps[key];
+        changedProps[key] = nextProps[key] as PropsT[typeof key];
         changed = true;
         // eslint-disable-next-line no-continue
         continue;
       }
 
       if (previousProps[key] !== nextProps[key]) {
-        changedProps[key] = nextProps[key];
+        changedProps[key] = nextProps[key] as PropsT[typeof key];
         changed = true;
       }
     }
