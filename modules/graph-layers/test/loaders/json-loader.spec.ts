@@ -7,7 +7,7 @@ import {beforeAll, describe, it, expect} from 'vitest';
 import SAMPLE_GRAPH1 from '../data/__fixtures__/graph1.json';
 import SAMPLE_GRAPH2 from '../data/__fixtures__/graph2.json';
 
-import {JSONLoader} from '../../src/loaders/json-loader';
+import {JSONTabularGraphLoader, JSONLegacyGraphLoader} from '../../src/loaders/json-loader';
 
 beforeAll(() => {
   globalThis.CustomEvent = Event as any;
@@ -20,19 +20,24 @@ describe('loaders/node-parsers', () => {
   });
 });
 
-describe('loaders/node-parsers', () => {
+describe('JSONTabularGraphLoader', () => {
   it('should work with default parsers', () => {
-    const graph = JSONLoader({json: SAMPLE_GRAPH1});
-    expect(graph.getEdges().map((e) => e.getId())).toEqual(
+    const graph = JSONTabularGraphLoader({json: SAMPLE_GRAPH1});
+    expect(graph).not.toBeNull();
+    if (!graph) {
+      throw new Error('Expected graph to be defined');
+    }
+
+    expect(Array.from(graph.getEdges(), (e) => e.getId())).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH1.edges.map((e) => e.id))
     );
-    expect(graph.getNodes().map((n) => n.getId())).toEqual(
+    expect(Array.from(graph.getNodes(), (n) => n.getId())).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH1.nodes.map((n) => n.id))
     );
   });
 
   it('should work with custom parsers', () => {
-    const graph = JSONLoader({
+    const graph = JSONTabularGraphLoader({
       json: SAMPLE_GRAPH2,
       nodeParser: (node) => ({id: node.name}),
       edgeParser: (edge) => ({
@@ -42,11 +47,28 @@ describe('loaders/node-parsers', () => {
         targetId: edge.target
       })
     });
-    expect(graph.getEdges().map((n) => n.getId())).toEqual(
+    expect(graph).not.toBeNull();
+    if (!graph) {
+      throw new Error('Expected graph to be defined');
+    }
+
+    expect(Array.from(graph.getEdges(), (n) => n.getId())).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH2.edges.map((e) => e.name))
     );
-    expect(graph.getNodes().map((n) => n.getId())).toEqual(
+    expect(Array.from(graph.getNodes(), (n) => n.getId())).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH2.nodes.map((n) => n.name))
+    );
+  });
+});
+
+describe('JSONLegacyGraphLoader', () => {
+  it('should work with default parsers', () => {
+    const graph = JSONLegacyGraphLoader({json: SAMPLE_GRAPH1});
+    expect(graph.getEdges().map((e) => e.getId())).toEqual(
+      expect.arrayContaining(SAMPLE_GRAPH1.edges.map((e) => e.id))
+    );
+    expect(graph.getNodes().map((n) => n.getId())).toEqual(
+      expect.arrayContaining(SAMPLE_GRAPH1.nodes.map((n) => n.id))
     );
   });
 });

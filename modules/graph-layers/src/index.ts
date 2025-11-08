@@ -67,6 +67,7 @@ export {
 export {ViewControlWidget} from './widgets/view-control-widget';
 
 // graph format loaders
+export {JSONTabularGraphLoader, JSONLegacyGraphLoader} from './loaders/json-loader';
 export {loadSimpleJSONGraph} from './loaders/simple-json-graph-loader';
 
 // utils
@@ -84,6 +85,6 @@ export {
 
 // DEPRECATED
 export {createGraph} from './loaders/create-graph';
-export {JSONLoader} from './loaders/simple-json-graph-loader';
+export {JSONLoader} from './loaders/json-loader';
 
 export {MARKER_TYPE, NODE_STATE,EDGE_STATE,NODE_TYPE,EDGE_TYPE,EDGE_DECORATOR_TYPE,LAYOUT_STATE} from './_deprecated/old-constants';
