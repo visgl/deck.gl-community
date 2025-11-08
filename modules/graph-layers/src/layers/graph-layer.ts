@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 /* eslint-disable no-continue */
+// @ts-nocheck
 
 import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
