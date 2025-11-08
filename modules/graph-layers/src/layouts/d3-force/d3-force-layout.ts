@@ -4,11 +4,30 @@
 
 import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import type {
-  GraphLayoutEdgeUpdate,
-  GraphLayoutNodeUpdate,
-  GraphLayoutUpdates
+  GraphLayoutEdgeColumns,
+  GraphLayoutNodeColumns,
+  GraphLayoutNodeUpdateTable,
+  GraphLayoutUpdates,
+  GraphLayoutColumn
 } from '../../core/graph-layout';
 import {log} from '../../utils/log';
+import type {Graph} from '../../graph/graph';
+import type {Node as GraphNode} from '../../graph/node';
+import type {Edge as GraphEdge} from '../../graph/edge';
+
+type CachedNode = {
+  id: string | number;
+  x: number;
+  y: number;
+  coordinates: [number, number];
+} & Record<string, unknown>;
+
+type CachedEdge = {
+  type: 'line';
+  sourcePosition: [number, number];
+  targetPosition: [number, number];
+  controlPoints: [number, number][];
+};
 
 export type D3ForceLayoutOptions = GraphLayoutProps & {
   alpha?: number;
@@ -30,10 +49,10 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   } as const satisfies Readonly<Required<D3ForceLayoutOptions>>;
 
   protected readonly _name = 'D3';
-  private _positionsByNodeId = new Map();
-  private _edgePositionsById = new Map();
-  private _graph: any;
-  private _worker: any;
+  private _positionsByNodeId = new Map<string | number, CachedNode>();
+  private _edgePositionsById = new Map<string | number, CachedEdge>();
+  private _graph: Graph | null = null;
+  private _worker: Worker | null = null;
 
   constructor(props?: D3ForceLayoutOptions) {
     super({
@@ -42,21 +61,31 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     });
   }
 
-  initializeGraph(graph) {
+  initializeGraph(graph: Graph) {
     this._graph = graph;
   }
 
   // for streaming new data on the same graph
-  updateGraph(graph) {
+  updateGraph(graph: Graph) {
     this._graph = graph;
 
-    this._positionsByNodeId = new Map(
-      this._graph.getNodes().map((node) => [node.id, this._positionsByNodeId.get(node.id)])
-    );
+    const nextNodePositions = new Map<string | number, CachedNode>();
+    for (const node of this._graph.getNodes()) {
+      const cached = this._positionsByNodeId.get(node.id);
+      if (cached) {
+        nextNodePositions.set(node.id, cached);
+      }
+    }
+    this._positionsByNodeId = nextNodePositions;
 
-    this._edgePositionsById = new Map(
-      this._graph.getEdges().map((edge) => [edge.id, this._edgePositionsById.get(edge.id)])
-    );
+    const nextEdgePositions = new Map<string | number, CachedEdge>();
+    for (const edge of this._graph.getEdges()) {
+      const cached = this._edgePositionsById.get(edge.id);
+      if (cached) {
+        nextEdgePositions.set(edge.id, cached);
+      }
+    }
+    this._edgePositionsById = nextEdgePositions;
   }
 
   start() {
@@ -75,16 +104,21 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       this._worker.terminate();
     }
 
-    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    const graph = this._graph;
+    if (!graph) {
+      return;
+    }
+
+    this._worker = new Worker(new URL('./worker.ts', import.meta.url), {type: 'module'});
 
     this._edgePositionsById.clear();
 
     this._worker.postMessage({
-      nodes: this._graph.getNodes().map((node) => ({
+      nodes: graph.getNodes().map((node) => ({
         id: node.id,
         ...this._positionsByNodeId.get(node.id)
       })),
-      edges: this._graph.getEdges().map((edge) => ({
+      edges: graph.getEdges().map((edge) => ({
         id: edge.id,
         source: edge.getSourceNodeId(),
         target: edge.getTargetNodeId()
@@ -124,14 +158,14 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     }
   }
 
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge: GraphEdge) => {
     const cachedEdge = this._edgePositionsById.get(edge.id);
     if (cachedEdge?.sourcePosition && cachedEdge?.targetPosition) {
       return cachedEdge;
     }
 
-    const sourceNode = this._graph.findNode(edge.getSourceNodeId());
-    const targetNode = this._graph.findNode(edge.getTargetNodeId());
+    const sourceNode = this._graph?.findNode(edge.getSourceNodeId());
+    const targetNode = this._graph?.findNode(edge.getTargetNodeId());
     if (!sourceNode || !targetNode) {
       return null;
     }
@@ -151,7 +185,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     };
   };
 
-  getNodePosition = (node) => {
+  getNodePosition = (node: GraphNode) => {
     if (!node) {
       return null;
     }
@@ -164,7 +198,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     return null;
   };
 
-  lockNodePosition = (node, x, y) => {
+  lockNodePosition = (node: GraphNode, x: number, y: number) => {
     const d3Node = this._positionsByNodeId.get(node.id);
     this._positionsByNodeId.set(node.id, {
       ...d3Node,
@@ -178,111 +212,243 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     this._onLayoutDone();
   };
 
-  unlockNodePosition = (node) => {
+  unlockNodePosition = (node: GraphNode) => {
     const d3Node = this._positionsByNodeId.get(node.id);
-    d3Node.fx = null;
-    d3Node.fy = null;
+    if (d3Node) {
+      d3Node.fx = null;
+      d3Node.fy = null;
+    }
   };
 
   protected override _updateBounds(): void {
     const positions = Array.from(
       this._positionsByNodeId.values(),
-      (data) => data?.coordinates as [number, number] | null | undefined
+      (data) => data?.coordinates ?? null
     );
     this._bounds = this._calculateBounds(positions);
   }
 
   protected override _applyNodeUpdates(nodes: GraphLayoutUpdates['nodes']): boolean {
-    if (!Array.isArray(nodes)) {
+    const normalized = this._normalizeNodeUpdates(nodes);
+    if (!normalized) {
       return false;
     }
 
+    const {length, idColumn, xColumn, yColumn, extraColumns} = normalized;
+
     let updated = false;
 
-    for (const rawNode of nodes) {
-      if (this._isValidNodeUpdate(rawNode)) {
-        const {id, x, y, ...rest} = rawNode;
+    for (let index = 0; index < length; ++index) {
+      const id = this._getIdFromColumn(idColumn, index);
+      const x = xColumn[index];
+      const y = yColumn[index];
 
-        this._positionsByNodeId.set(id, {
-          ...rest,
-          id,
-          x,
-          y,
-          coordinates: [x, y]
-        });
-        updated = true;
+      if (id === null || !this._isFinite(x) || !this._isFinite(y)) {
+        // eslint-disable-next-line no-continue
+        continue;
       }
+
+      const nodeData = this._createNodeCache(id, x, y);
+      this._assignNodeExtraColumns(nodeData, extraColumns, index);
+      this._positionsByNodeId.set(id, nodeData);
+      updated = true;
     }
 
     return updated;
   }
 
   protected override _applyEdgeUpdates(edges: GraphLayoutUpdates['edges']): boolean {
-    if (!Array.isArray(edges)) {
+    const normalized = this._normalizeEdgeUpdates(edges);
+    if (!normalized) {
       return false;
     }
 
+    const {
+      length,
+      idColumn,
+      sourceXColumn,
+      sourceYColumn,
+      targetXColumn,
+      targetYColumn,
+      controlPointsColumn
+    } = normalized;
+
     let updated = false;
 
-    for (const rawEdge of edges) {
-      if (this._isValidEdgeUpdate(rawEdge)) {
-        const {id, sourcePosition, targetPosition, controlPoints = []} = rawEdge;
+    for (let index = 0; index < length; ++index) {
+      const id = this._getIdFromColumn(idColumn, index);
+      const sourceX = sourceXColumn[index];
+      const sourceY = sourceYColumn[index];
+      const targetX = targetXColumn[index];
+      const targetY = targetYColumn[index];
 
-        this._edgePositionsById.set(id, {
-          type: 'line',
-          sourcePosition,
-          targetPosition,
-          controlPoints
-        });
-        updated = true;
+      if (
+        id === null ||
+        !this._isFinite(sourceX) ||
+        !this._isFinite(sourceY) ||
+        !this._isFinite(targetX) ||
+        !this._isFinite(targetY)
+      ) {
+        // eslint-disable-next-line no-continue
+        continue;
       }
+
+      this._edgePositionsById.set(id, {
+        type: 'line',
+        sourcePosition: [sourceX, sourceY],
+        targetPosition: [targetX, targetY],
+        controlPoints: this._extractControlPoints(controlPointsColumn, index)
+      });
+      updated = true;
     }
 
     return updated;
   }
 
-  private _isValidNodeUpdate(value: unknown): value is GraphLayoutNodeUpdate {
-    if (!value || typeof value !== 'object') {
-      return false;
+  private _getIdFromColumn(column: GraphLayoutNodeUpdateTable['columns']['id'], index: number):
+    | string
+    | number
+    | null {
+    const value = column[index] as unknown;
+    if (typeof value === 'string') {
+      return value;
     }
-
-    const candidate = value as {id?: unknown; x?: unknown; y?: unknown};
-    return (
-      (typeof candidate.id === 'string' || typeof candidate.id === 'number') &&
-      this._isFinite(candidate.x) &&
-      this._isFinite(candidate.y)
-    );
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    return null;
   }
 
-  private _isValidEdgeUpdate(value: unknown): value is GraphLayoutEdgeUpdate {
-    if (!value || typeof value !== 'object') {
-      return false;
+  private _getColumnValue(column: GraphLayoutColumn, index: number): unknown {
+    if (column instanceof Float64Array) {
+      return column[index];
     }
-
-    const candidate = value as {
-      id?: unknown;
-      sourcePosition?: unknown;
-      targetPosition?: unknown;
-    };
-
-    const hasValidId = typeof candidate.id === 'string' || typeof candidate.id === 'number';
-    return (
-      hasValidId &&
-      this._isValidWorkerPosition(candidate.sourcePosition) &&
-      this._isValidWorkerPosition(candidate.targetPosition)
-    );
-  }
-
-  private _isValidWorkerPosition(position: unknown): position is [number, number] {
-    if (!Array.isArray(position) || position.length < 2) {
-      return false;
+    if (Array.isArray(column)) {
+      return column[index];
     }
-
-    const [x, y] = position as [unknown, unknown];
-    return this._isFinite(x) && this._isFinite(y);
+    return undefined;
   }
 
   private _isFinite(value: unknown): value is number {
     return typeof value === 'number' && Number.isFinite(value);
+  }
+
+  private _normalizeNodeUpdates(
+    nodes: GraphLayoutUpdates['nodes']
+  ): {
+    length: number;
+    idColumn: GraphLayoutNodeColumns['id'];
+    xColumn: Float64Array;
+    yColumn: Float64Array;
+    extraColumns: [string, GraphLayoutColumn | undefined][];
+  } | null {
+    if (!nodes || typeof nodes !== 'object') {
+      return null;
+    }
+
+    const {length, columns} = nodes;
+    if (!this._hasPositiveLength(length) || !columns || !this._hasRequiredNodeColumns(columns)) {
+      return null;
+    }
+
+    const {id, x, y, ...rest} = columns;
+
+    return {
+      length,
+      idColumn: id,
+      xColumn: x,
+      yColumn: y,
+      extraColumns: Object.entries(rest)
+    };
+  }
+
+  private _normalizeEdgeUpdates(
+    edges: GraphLayoutUpdates['edges']
+  ): {
+    length: number;
+    idColumn: GraphLayoutEdgeColumns['id'];
+    sourceXColumn: Float64Array;
+    sourceYColumn: Float64Array;
+    targetXColumn: Float64Array;
+    targetYColumn: Float64Array;
+    controlPointsColumn?: GraphLayoutEdgeColumns['controlPoints'];
+  } | null {
+    if (!edges || typeof edges !== 'object') {
+      return null;
+    }
+
+    const {length, columns} = edges;
+    if (!this._hasPositiveLength(length) || !columns || !this._hasRequiredEdgeColumns(columns)) {
+      return null;
+    }
+
+    const {id, sourceX, sourceY, targetX, targetY, controlPoints} = columns;
+
+    return {
+      length,
+      idColumn: id,
+      sourceXColumn: sourceX,
+      sourceYColumn: sourceY,
+      targetXColumn: targetX,
+      targetYColumn: targetY,
+      controlPointsColumn: Array.isArray(controlPoints)
+        ? (controlPoints as GraphLayoutEdgeColumns['controlPoints'])
+        : undefined
+    };
+  }
+
+  private _createNodeCache(id: string | number, x: number, y: number): CachedNode {
+    return {
+      id,
+      x,
+      y,
+      coordinates: [x, y]
+    };
+  }
+
+  private _assignNodeExtraColumns(
+    target: CachedNode,
+    columns: [string, GraphLayoutColumn | undefined][],
+    index: number
+  ): void {
+    for (const [columnName, columnValues] of columns) {
+      if (!columnValues) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const value = this._getColumnValue(columnValues, index);
+      target[columnName] =
+        columnValues instanceof Float64Array && Number.isNaN(value as number) ? null : value;
+    }
+  }
+
+  private _extractControlPoints(
+    column: GraphLayoutEdgeColumns['controlPoints'],
+    index: number
+  ): [number, number][] {
+    if (!Array.isArray(column)) {
+      return [];
+    }
+
+    const value = column[index];
+    return Array.isArray(value) ? (value as [number, number][]) : [];
+  }
+
+  private _hasPositiveLength(length: number): boolean {
+    return Number.isFinite(length) && length > 0;
+  }
+
+  private _hasRequiredNodeColumns(
+    columns: GraphLayoutNodeColumns
+  ): columns is GraphLayoutNodeColumns & Required<Pick<GraphLayoutNodeColumns, 'id' | 'x' | 'y'>> {
+    return Boolean(columns.id && columns.x && columns.y);
+  }
+
+  private _hasRequiredEdgeColumns(
+    columns: GraphLayoutEdgeColumns
+  ): columns is GraphLayoutEdgeColumns &
+    Required<Pick<GraphLayoutEdgeColumns, 'id' | 'sourceX' | 'sourceY' | 'targetX' | 'targetY'>> {
+    return Boolean(columns.id && columns.sourceX && columns.sourceY && columns.targetX && columns.targetY);
   }
 }

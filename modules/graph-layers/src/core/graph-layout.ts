@@ -20,22 +20,39 @@ export type GraphLayoutEventDetail = {
 
 export type GraphLayoutProps = {};
 
-export type GraphLayoutNodeUpdate = {
-  id: string | number;
-  x: number;
-  y: number;
-} & Record<string, unknown>;
+export type GraphLayoutColumn = Float64Array | readonly unknown[];
 
-export type GraphLayoutEdgeUpdate = {
-  id: string | number;
-  sourcePosition: [number, number];
-  targetPosition: [number, number];
-  controlPoints?: [number, number][];
-} & Record<string, unknown>;
+export type GraphLayoutIdColumn = Float64Array | readonly (string | number)[];
+
+export type GraphLayoutColumnarTable<
+  Columns extends Record<string, GraphLayoutColumn | undefined>
+> = {
+  length: number;
+  columns: Columns;
+};
+
+export type GraphLayoutNodeColumns = {
+  id: GraphLayoutIdColumn;
+  x: Float64Array;
+  y: Float64Array;
+} & Record<string, GraphLayoutColumn | undefined>;
+
+export type GraphLayoutEdgeColumns = {
+  id: GraphLayoutIdColumn;
+  sourceX: Float64Array;
+  sourceY: Float64Array;
+  targetX: Float64Array;
+  targetY: Float64Array;
+  controlPoints?: readonly (readonly [number, number][] | null | undefined)[];
+} & Record<string, GraphLayoutColumn | undefined>;
+
+export type GraphLayoutNodeUpdateTable = GraphLayoutColumnarTable<GraphLayoutNodeColumns>;
+
+export type GraphLayoutEdgeUpdateTable = GraphLayoutColumnarTable<GraphLayoutEdgeColumns>;
 
 export type GraphLayoutUpdates = {
-  nodes?: readonly GraphLayoutNodeUpdate[] | GraphLayoutNodeUpdate[] | null;
-  edges?: readonly GraphLayoutEdgeUpdate[] | GraphLayoutEdgeUpdate[] | null;
+  nodes?: GraphLayoutNodeUpdateTable | null;
+  edges?: GraphLayoutEdgeUpdateTable | null;
 } | null;
 
 /** All the layout classes are extended from this base layout class. */
