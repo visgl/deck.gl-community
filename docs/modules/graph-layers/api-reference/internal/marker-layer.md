@@ -2,6 +2,55 @@
 
 This layer provides the basic marker functionality. This marker layer provided by Deck.gl only has one marker (circle) while this layer provides numerous markers.
 
+## Example
+
+```ts
+import {Deck} from '@deck.gl/core';
+import {MarkerLayer} from '@deck.gl-community/graph-layers';
+
+const markers = [
+  {
+    position: [-122.4, 37.78],
+    marker: 'pin-filled',
+    color: [220, 38, 38, 255],
+    size: 32
+  },
+  {
+    position: [-73.98, 40.75],
+    marker: 'star-filled',
+    color: [37, 99, 235, 255],
+    size: 36
+  },
+  {
+    position: [-87.62, 41.88],
+    marker: 'location-marker-filled',
+    color: [16, 185, 129, 255],
+    size: 28
+  }
+];
+
+const markerLayer = new MarkerLayer({
+  id: 'marker-layer',
+  data: markers,
+  getPosition: d => d.position,
+  getMarker: d => d.marker,
+  getColor: d => d.color,
+  getSize: d => d.size
+});
+
+new Deck({
+  initialViewState: {
+    longitude: -98,
+    latitude: 39,
+    zoom: 3
+  },
+  controller: true,
+  layers: [markerLayer]
+});
+```
+
+A runnable version of this example is available in the repository under [`examples/graph-layers/marker-layer`](https://github.com/visgl/deck.gl-community/tree/main/examples/graph-layers/marker-layer).
+
 ## Properties
 
 Inherits from all [Icon Layer](http://deck.gl/#/documentation/deckgl-api-reference/layers/icon-layer) properties.
@@ -25,8 +74,8 @@ location-marker-filled, bell-filled, bookmark-filled, bookmark, cd-filled, cd, c
 
 Or you can import the marker list file:
 
-```
-  import {Markers} from '@uber/mlvis-layers';
+```ts
+import {MarkerList} from '@deck.gl-community/graph-layers/src/layers/common-layers/marker-layer/marker-list';
 ```
 
 ##### `getSize` (Function|Number, optional) ![transition-enabled](https://img.shields.io/badge/transition-enabled-green.svg?style=flat-square")
@@ -55,6 +104,6 @@ The rgba color of each object, in `r, g, b, [a]`. Each component is in the 0-255
 
 - Go to folder 'scripts' and run `sh scripts/packing.sh` to generate four files: `marker-atlas.png`, `atlas-data-url.js`, `marker-list.js`, and `marker-mapping.js`.
 
-- Go back to the root level of this repo (mlvis-toolkit), and run `yarn prettier` to fix the linter errors.
+- Go back to the root level of this repo and run `yarn prettier` to fix the linter errors.
 
-- Commit changes and create a diff for review (reviewer: `#mlvis`)
+- Commit changes and create a diff for review.
