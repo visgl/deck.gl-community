@@ -102,32 +102,8 @@ export function JSONTabularGraphLoader({
     return null;
   }
 
-  const normalizedNodes: JSONTabularNodeHandle[] = [];
-  const nodeMap = new Map<string | number, JSONTabularNodeHandle>();
-
-  for (const node of nodes) {
-    const parsed = nodeParser(node);
-    if (!parsed || typeof parsed.id === 'undefined') {
-      continue;
-    }
-
-    const handle = createNodeHandle(parsed.id, node, parsed);
-    normalizedNodes.push(handle);
-    nodeMap.set(handle.id, handle);
-  }
-
-  const normalizedEdges: JSONTabularEdgeHandle[] = [];
-  if (Array.isArray(edges)) {
-    for (const edge of edges) {
-      const parsed = edgeParser(edge);
-      if (!parsed || typeof parsed.sourceId === 'undefined' || typeof parsed.targetId === 'undefined') {
-        continue;
-      }
-
-      const handle = createEdgeHandle(parsed, edge);
-      normalizedEdges.push(handle);
-    }
-  }
+  const {handles: normalizedNodes, nodeMap} = parseNodes(nodes, nodeParser);
+  const normalizedEdges = parseEdges(Array.isArray(edges) ? edges : [], edgeParser);
 
   const source: TabularGraphSource<JSONTabularNodeHandle, JSONTabularEdgeHandle> = {
     version: normalizeVersion(json?.version),
@@ -192,6 +168,48 @@ function normalizeNodeState(state: NodeState | undefined): NodeState {
     return state;
   }
   return 'default';
+}
+
+function parseNodes(
+  nodes: unknown[],
+  nodeParser: JSONTabularGraphLoaderOptions['nodeParser']
+): {
+  handles: JSONTabularNodeHandle[];
+  nodeMap: Map<string | number, JSONTabularNodeHandle>;
+} {
+  const handles: JSONTabularNodeHandle[] = [];
+  const nodeMap = new Map<string | number, JSONTabularNodeHandle>();
+
+  for (const node of nodes) {
+    const parsed = nodeParser?.(node);
+    if (parsed && typeof parsed.id !== 'undefined') {
+      const handle = createNodeHandle(parsed.id, node, parsed);
+      handles.push(handle);
+      nodeMap.set(handle.id, handle);
+    }
+  }
+
+  return {handles, nodeMap};
+}
+
+function parseEdges(
+  edges: unknown[],
+  edgeParser: JSONTabularGraphLoaderOptions['edgeParser']
+): JSONTabularEdgeHandle[] {
+  const handles: JSONTabularEdgeHandle[] = [];
+
+  for (const edge of edges) {
+    const parsed = edgeParser?.(edge);
+    if (
+      parsed &&
+      typeof parsed.sourceId !== 'undefined' &&
+      typeof parsed.targetId !== 'undefined'
+    ) {
+      handles.push(createEdgeHandle(parsed, edge));
+    }
+  }
+
+  return handles;
 }
 
 function normalizeEdgeState(state: EdgeState | undefined): EdgeState {

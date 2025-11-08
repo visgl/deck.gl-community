@@ -457,12 +457,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return data;
     }
 
-    if (data instanceof LegacyGraph) {
-      return this._buildEngineFromGraph(data, props.layout);
-    }
-
-    if (this._isGraph(data)) {
-      return this._buildEngineFromGraph(data, props.layout);
+    const graphCandidate = this._coerceGraph(data);
+    if (graphCandidate) {
+      return this._buildEngineFromGraph(graphCandidate, props.layout);
     }
 
     if (typeof data === 'string') {
@@ -499,6 +496,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     if (layout instanceof GraphLayout && !(graph instanceof LegacyGraph)) {
+      const legacyGraph = this._convertToLegacyGraph(graph);
+      if (legacyGraph) {
+        return new GraphEngine({graph: legacyGraph, layout});
+      }
       this._warnLayoutRequired();
       return null;
     }
@@ -547,6 +548,35 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       typeof (value as Graph).getNodes === 'function' &&
       typeof (value as Graph).getEdges === 'function'
     );
+  }
+
+  private _coerceGraph(value: unknown): Graph | null {
+    if (value instanceof LegacyGraph) {
+      return value;
+    }
+
+    if (this._isGraph(value)) {
+      return value;
+    }
+
+    return null;
+  }
+
+  private _convertToLegacyGraph(graph: Graph): LegacyGraph | null {
+    if (graph instanceof LegacyGraph) {
+      return graph;
+    }
+
+    const candidate = graph as Graph & {toLegacyGraph?: () => LegacyGraph | null};
+    if (typeof candidate.toLegacyGraph === 'function') {
+      try {
+        return candidate.toLegacyGraph() ?? null;
+      } catch (error) {
+        warn('GraphLayer: failed to convert graph to LegacyGraph for layout compatibility.', error);
+      }
+    }
+
+    return null;
   }
 
   private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {

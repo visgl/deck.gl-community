@@ -8,6 +8,9 @@ import {TabularGraphStylesheetEngine} from '../style/tabular-graph-style-engine'
 
 import type {EdgeState, NodeState} from '../core/constants';
 import type {EdgeInterface, Graph, NodeInterface} from './graph';
+import {LegacyGraph} from './legacy-graph';
+import {Node} from './node';
+import {Edge} from './edge';
 
 export interface TabularNodeAccessors<Handle> {
   getId(node: Handle): string | number;
@@ -352,6 +355,52 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
     this._nodeMap = null;
   }
 
+  toLegacyGraph(): LegacyGraph {
+    const accessors = this.source.getAccessors();
+
+    const legacyNodes: Node[] = [];
+    for (const handle of this.source.getNodes()) {
+      const id = accessors.node.getId(handle);
+      const data = cloneRecord(accessors.node.getData?.(handle));
+      const node = new Node({
+        id,
+        selectable: Boolean(accessors.node.isSelectable?.(handle)),
+        highlightConnectedEdges: Boolean(accessors.node.shouldHighlightConnectedEdges?.(handle)),
+        data
+      });
+      const state = accessors.node.getState?.(handle);
+      if (state) {
+        node.setState(state);
+      }
+      legacyNodes.push(node);
+    }
+
+    const legacyEdges: Edge[] = [];
+    for (const handle of this.source.getEdges()) {
+      const edge = new Edge({
+        id: accessors.edge.getId(handle),
+        sourceId: accessors.edge.getSourceId(handle),
+        targetId: accessors.edge.getTargetId(handle),
+        directed: Boolean(accessors.edge.isDirected?.(handle)),
+        data: cloneRecord(accessors.edge.getData?.(handle))
+      });
+      const state = accessors.edge.getState?.(handle);
+      if (state) {
+        edge.setState(state);
+      }
+      legacyEdges.push(edge);
+    }
+
+    const graph = new LegacyGraph();
+    if (legacyNodes.length > 0) {
+      graph.batchAddNodes(legacyNodes);
+    }
+    if (legacyEdges.length > 0) {
+      graph.batchAddEdges(legacyEdges);
+    }
+    return graph;
+  }
+
   private _synchronize(): void {
     if (this._lastVersion === this.source.version && this._nodes && this._edges && this._nodeMap) {
       return;
@@ -396,4 +445,13 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
 
     return {nodes, edges, nodeMap};
   }
+}
+
+function cloneRecord(
+  value: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  return {...value};
 }
