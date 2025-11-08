@@ -20,9 +20,20 @@ const layout = new D3DagLayout({
 new GraphLayer({
   id: 'graph',
   data: graphData,
-  layout
+  layout,
+  rankGrid: {
+    enabled: true,
+    direction: 'horizontal',
+    rankAccessor: 'rank'
+  }
 });
 ```
+
+When the DAG assigns explicit ranks to nodes (e.g. via the `nodeRank` layout
+option) the layer can render matching grid lines by enabling
+[`rankGrid`](../layers/graph-layer.md#rankgrid-boolean--object-optional). `GraphLayer`
+pulls the rank metadata from each node, averages their positions, and keeps the
+lines aligned with the layout bounds as you pan and zoom.
 
 ## D3DagLayoutProps
 

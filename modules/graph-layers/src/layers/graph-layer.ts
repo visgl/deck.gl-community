@@ -17,6 +17,12 @@ import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engin
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
+import {
+  mapRanksToYPositions,
+  selectRankLines,
+  type LabelAccessor,
+  type RankAccessor
+} from '../utils/rank-grid';
 
 import {warn} from '../utils/log';
 
@@ -44,6 +50,7 @@ import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
 import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 import {EdgeAttachmentHelper} from './edge-attachment-helper';
+import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
 import {JSONLoader} from '../loaders/json-loader';
 
@@ -61,6 +68,17 @@ const EDGE_DECORATOR_LAYER_MAP = {
   'edge-label': EdgeLabelLayer,
   'flow': FlowLayer,
   'arrow': EdgeArrowLayer
+};
+
+type GridLayerOverrides = Partial<Omit<GridLayerProps, 'id' | 'data' | 'direction'>>;
+
+export type RankGridConfig = {
+  enabled?: boolean;
+  direction?: 'horizontal' | 'vertical';
+  maxLines?: number;
+  rankAccessor?: RankAccessor;
+  labelAccessor?: LabelAccessor;
+  gridProps?: GridLayerOverrides;
 };
 
 const SHARED_LAYER_PROPS = {
@@ -136,6 +154,7 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
+  rankGrid?: boolean | RankGridConfig;
   resumeLayoutAfterDragging?: boolean;
 };
 
@@ -169,6 +188,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onHover: () => {}
     },
     enableDragging: false,
+    rankGrid: false,
     resumeLayoutAfterDragging: true
   };
 
@@ -567,6 +587,126 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
   }
 
+  private _createRankGridLayer(): GridLayer | null {
+    const engine = this.state.graphEngine;
+    if (!engine) {
+      return null;
+    }
+
+    const {enabled, config} = this._normalizeRankGridConfig(this.props.rankGrid);
+    if (!enabled) {
+      return null;
+    }
+
+    const bounds = this._resolveRankGridBounds(engine);
+    if (!bounds) {
+      return null;
+    }
+
+    const data = this._buildRankGridData(engine, config, bounds);
+    if (!data) {
+      return null;
+    }
+
+    const direction = config?.direction ?? 'horizontal';
+    const gridProps = config?.gridProps ?? {};
+
+    return new GridLayer({
+      id: `${this.props.id}-rank-grid`,
+      data,
+      direction,
+      xMin: bounds.xMin,
+      xMax: bounds.xMax,
+      yMin: bounds.yMin,
+      yMax: bounds.yMax,
+      pickable: false,
+      ...gridProps
+    });
+  }
+
+  private _normalizeRankGridConfig(
+    value: GraphLayerProps['rankGrid']
+  ): {enabled: boolean; config?: RankGridConfig} {
+    if (typeof value === 'boolean') {
+      return {enabled: value};
+    }
+
+    if (value && typeof value === 'object') {
+      return {enabled: value.enabled ?? true, config: value};
+    }
+
+    return {enabled: false};
+  }
+
+  private _resolveRankGridBounds(engine: GraphEngine):
+    | {xMin: number; xMax: number; yMin: number; yMax: number}
+    | null {
+    const bounds = engine.getLayoutBounds();
+    if (!bounds) {
+      return null;
+    }
+
+    const [[minXRaw, minYRaw], [maxXRaw, maxYRaw]] = bounds;
+    const values = [minXRaw, minYRaw, maxXRaw, maxYRaw];
+    if (!values.every((value) => typeof value === 'number' && Number.isFinite(value))) {
+      return null;
+    }
+
+    return {
+      xMin: Math.min(minXRaw, maxXRaw),
+      xMax: Math.max(minXRaw, maxXRaw),
+      yMin: Math.min(minYRaw, maxYRaw),
+      yMax: Math.max(minYRaw, maxYRaw)
+    };
+  }
+
+  private _buildRankGridData(
+    engine: GraphEngine,
+    config: RankGridConfig | undefined,
+    bounds: {yMin: number; yMax: number}
+  ): Array<{label: string; rank: number; originalLabel?: string | number; yPosition: number}> | null {
+    const rankLabelPrefix = this._resolveRankFieldLabel(config?.rankAccessor);
+    const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
+      rankAccessor: config?.rankAccessor,
+      labelAccessor: config?.labelAccessor,
+      yRange: {min: bounds.yMin, max: bounds.yMax}
+    });
+
+    if (rankPositions.length === 0) {
+      return null;
+    }
+
+    const selectedRanks = selectRankLines(rankPositions, {
+      yMin: bounds.yMin,
+      yMax: bounds.yMax,
+      maxCount: config?.maxLines ?? 8
+    });
+
+    if (selectedRanks.length === 0) {
+      return null;
+    }
+
+    return selectedRanks.map(({rank, label, yPosition}) => ({
+      label: `${rankLabelPrefix} ${rank}`,
+      rank,
+      originalLabel: label === undefined ? undefined : label,
+      yPosition
+    }));
+  }
+
+  private _resolveRankFieldLabel(rankAccessor: RankAccessor | undefined): string {
+    if (!rankAccessor) {
+      return 'srank';
+    }
+    if (typeof rankAccessor === 'string' && rankAccessor.length > 0) {
+      return rankAccessor;
+    }
+    if (typeof rankAccessor === 'function' && rankAccessor.name) {
+      return rankAccessor.name;
+    }
+    return 'rank';
+  }
+
   createNodeLayers() {
     const engine = this.state.graphEngine;
     const {nodes: nodeStyles} = this._getResolvedStylesheet();
@@ -716,7 +856,23 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   renderLayers() {
-    return [this.createEdgeLayers(), this.createNodeLayers()];
+    const layers: any[] = [];
+    const gridLayer = this._createRankGridLayer();
+    if (gridLayer) {
+      layers.push(gridLayer);
+    }
+
+    const edgeLayers = this.createEdgeLayers();
+    if (Array.isArray(edgeLayers) && edgeLayers.length > 0) {
+      layers.push(...edgeLayers);
+    }
+
+    const nodeLayers = this.createNodeLayers();
+    if (Array.isArray(nodeLayers) && nodeLayers.length > 0) {
+      layers.push(...nodeLayers);
+    }
+
+    return layers;
   }
 
   private _createChainOverlayLayers(engine: GraphEngine) {
