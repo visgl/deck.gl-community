@@ -426,7 +426,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
     const record = this._getNodeRecord(index);
     return record.connectedEdgeIndices
       .map((edgeIndex) => edges[edgeIndex])
-      .filter((edge): edge is EdgeInterface => Boolean(edge));
+      .filter((edge): edge is TabularEdge<NodeHandle, EdgeHandle> => Boolean(edge));
   }
 
   setNodeDataByIndex(index: NodeIndex, data: Record<string, unknown>): void {
