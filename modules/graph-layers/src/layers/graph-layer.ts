@@ -188,11 +188,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onHover: () => {}
     },
     enableDragging: false,
-<<<<<<< HEAD
-    rankGrid: false
-=======
+    rankGrid: false,
     resumeLayoutAfterDragging: true
->>>>>>> master
   };
 
   // @ts-expect-error Some typescript confusion due to override of base class state
