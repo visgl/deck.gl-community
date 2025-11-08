@@ -137,7 +137,7 @@ export default class Example extends React.Component<
 
   _onViewStateChange = (data: {viewState: Object}) => {
     this.setState({
-      viewState: {...this.state.viewState, .../data.viewState}
+      viewState: {...this.state.viewState, ...data.viewState}
     });
   };
 

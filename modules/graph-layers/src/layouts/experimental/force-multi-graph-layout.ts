@@ -4,7 +4,8 @@
 
 import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
-import {Graph} from '../../graph/graph';
+import {Edge} from '../../graph/edge';
+import {LegacyGraph} from '../../graph/legacy-graph';
 import * as d3 from 'd3-force';
 
 export type ForceMultiGraphLayoutProps = GraphLayoutProps & {
@@ -23,7 +24,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   } as const satisfies Readonly<Required<ForceMultiGraphLayoutProps>>;
 
   _name = 'ForceMultiGraphLayout';
-  _graph: Graph;
+  _graph: LegacyGraph;
 
   // d3 part
   // custom graph data
@@ -39,7 +40,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     });
   }
 
-  initializeGraph(graph: Graph): void {
+  initializeGraph(graph: LegacyGraph): void {
     this.updateGraph(graph);
   }
 
@@ -99,12 +100,15 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
 
   update(): void {}
 
-  updateGraph(graph) {
+  updateGraph(graph: LegacyGraph) {
     this._graph = graph;
 
     // nodes
     const newNodeMap = {};
-    const newD3Nodes = graph.getNodes().map((node) => {
+    const nodes = Array.isArray(graph.getNodes())
+      ? (graph.getNodes() as Node[])
+      : (Array.from(graph.getNodes()) as Node[]);
+    const newD3Nodes = nodes.map((node) => {
       const oldD3Node = this._nodeMap[node.id];
       const newD3Node = oldD3Node ? oldD3Node : {id: node.id};
       newNodeMap[node.id] = newD3Node;
@@ -113,11 +117,14 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
 
     // edges
     // bucket edges between the same source/target node pairs.
-    const nodePairs = graph.getEdges().reduce((res, edge) => {
-      const nodes = [edge.getSourceNodeId(), edge.getTargetNodeId()];
+    const edges = Array.isArray(graph.getEdges())
+      ? (graph.getEdges() as Edge[])
+      : (Array.from(graph.getEdges()) as Edge[]);
+    const nodePairs = edges.reduce((res, edge) => {
+      const endpoints = [edge.getSourceNodeId(), edge.getTargetNodeId()];
       // sort the node ids to count the edges with the same pair
       // but different direction (a -> b or b -> a)
-      const pairId = nodes.sort().toString();
+      const pairId = endpoints.sort().toString();
       // push this edge into the bucket
       if (!res[pairId]) {
         res[pairId] = [edge];

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {NodeState} from '../core/constants';
-import {Edge} from './edge';
+import type {EdgeInterface, NodeInterface} from './graph';
 
 /** Properties for creating a new node */
 export interface NodeOptions {
@@ -16,12 +16,12 @@ export interface NodeOptions {
 }
 
 /** Basic data structure of a node */
-export class Node {
+export class Node implements NodeInterface {
   public id: string | number;
   /** Keep a reference to origin data. */
   private _data: Record<string, unknown>;
   /** List edges. */
-  private _connectedEdges: Record<string, Edge> = {};
+  private _connectedEdges: Record<string, EdgeInterface> = {};
   /** Interaction state of the node. */
   public state: NodeState = 'default';
   /** Can the node be selected? */
@@ -109,7 +109,7 @@ export class Node {
    * Return all the connected edges.
    * @return - an array of the connected edges.
    */
-  getConnectedEdges(): Edge[] {
+  getConnectedEdges(): EdgeInterface[] {
     return Object.values(this._connectedEdges);
   }
 
@@ -168,10 +168,10 @@ export class Node {
    * Add connected edges to the node
    * @param edge an edge or an array of edges to be added to this._connectedEdges
    */
-  addConnectedEdges(edge: Edge | Edge[]): void {
+  addConnectedEdges(edge: EdgeInterface | EdgeInterface[]): void {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];
     iterableEdges.forEach((e) => {
-      this._connectedEdges[e.id] = e;
+      this._connectedEdges[e.getId()] = e;
       e.addNode(this);
     });
   }
@@ -180,11 +180,11 @@ export class Node {
    * Remove edges from this._connectedEdges
    * @param edge an edge or an array of edges to be removed from this._connectedEdges
    */
-  removeConnectedEdges(edge: Edge | Edge[]): void {
+  removeConnectedEdges(edge: EdgeInterface | EdgeInterface[]): void {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];
     iterableEdges.forEach((e) => {
       e.removeNode(this);
-      delete this._connectedEdges[e.id];
+      delete this._connectedEdges[e.getId()];
     });
   }
 

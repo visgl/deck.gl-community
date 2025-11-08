@@ -5,7 +5,7 @@
 import {GraphLayout, GraphLayoutProps} from '../core/graph-layout';
 import {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
-import {Graph} from '../graph/graph';
+import {LegacyGraph} from '../graph/legacy-graph';
 
 export type SimpleLayoutProps = GraphLayoutProps & {
   /** The accessor lets the application supply the position ([x, y]) of each node.
@@ -35,7 +35,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
   };
 
   protected readonly _name = 'SimpleLayout';
-  protected _graph: Graph | null = null;
+  protected _graph: LegacyGraph | null = null;
   protected _nodeMap: Record<string, Node> = {};
   protected _nodePositionMap: Record<string, [number, number] | null> = {};
 
@@ -43,7 +43,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     super({...SimpleLayout.defaultProps, ...options});
   }
 
-  initializeGraph(graph: Graph): void {
+  initializeGraph(graph: LegacyGraph): void {
     this.updateGraph(graph);
   }
 
@@ -61,21 +61,19 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     this._notifyLayoutComplete();
   }
 
-  updateGraph(graph: Graph): void {
+  updateGraph(graph: LegacyGraph): void {
     this._graph = graph;
-    this._nodeMap = graph.getNodes().reduce((res, node) => {
+    const nodes = Array.isArray(graph.getNodes())
+      ? (graph.getNodes() as Node[])
+      : (Array.from(graph.getNodes()) as Node[]);
+    this._nodeMap = nodes.reduce((res, node) => {
       res[node.getId()] = node;
       return res;
     }, {});
-    this._nodePositionMap = graph.getNodes().reduce<Record<string, [number, number] | null>>(
-      (res, node) => {
-        res[node.getId()] = this._normalizePosition(
-          this.props.nodePositionAccessor(node)
-        );
-        return res;
-      },
-      {}
-    );
+    this._nodePositionMap = nodes.reduce<Record<string, [number, number] | null>>((res, node) => {
+      res[node.getId()] = this._normalizePosition(this.props.nodePositionAccessor(node));
+      return res;
+    }, {});
   }
 
   setNodePositionAccessor = (accessor) => {

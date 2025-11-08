@@ -4,7 +4,7 @@
 
 import type {EdgeState, NodeState} from './constants';
 import {GraphEngine} from './graph-engine';
-import type {EdgeInterface, NodeInterface} from './runtime-types';
+import type {EdgeInterface, NodeInterface} from '../graph/graph';
 import {log} from '../utils/log';
 import {
   resolveChainInteractionSource,

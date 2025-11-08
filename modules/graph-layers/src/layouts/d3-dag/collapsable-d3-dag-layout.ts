@@ -4,9 +4,8 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import type {Graph} from '../../graph/graph';
-import {Node} from '../../graph/node';
-import {Edge} from '../../graph/edge';
+import type {LegacyGraph} from '../../graph/legacy-graph';
+import type {NodeInterface, EdgeInterface} from '../../graph/graph';
 import {log} from '../../utils/log';
 
 import {D3DagLayout, type D3DagLayoutProps} from './d3-dag-layout';
@@ -45,7 +44,7 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
     }
   }
 
-  override updateGraph(graph: Graph): void {
+  override updateGraph(graph: LegacyGraph): void {
     super.updateGraph(graph);
     this._chainDescriptors.clear();
     this._nodeToChainId.clear();
@@ -151,8 +150,8 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
 
     const nodes = this._graph.getNodes();
     const candidateNodes = new Set<string | number>();
-    const incomingCache = new Map<string | number, Edge[]>();
-    const outgoingCache = new Map<string | number, Edge[]>();
+    const incomingCache = new Map<string | number, EdgeInterface[]>();
+    const outgoingCache = new Map<string | number, EdgeInterface[]>();
 
     for (const node of nodes) {
       const incoming = this._getIncomingEdges(node);
@@ -180,7 +179,7 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
 
       const chainNodeIds: (string | number)[] = [];
       const chainEdgeIds: (string | number)[] = [];
-      let currentNode: Node | undefined = node;
+      let currentNode: NodeInterface | undefined = node;
 
       while (currentNode) {
         const currentId = currentNode.getId();

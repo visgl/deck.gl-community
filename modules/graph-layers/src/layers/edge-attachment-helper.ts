@@ -4,7 +4,7 @@
 
 import type {InteractionManager} from '../core/interaction-manager';
 import type {GraphEngine} from '../core/graph-engine';
-import type {NodeInterface} from '../core/runtime-types';
+import type {NodeInterface} from '../graph/graph';
 
 import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
 import type {GraphLayerNodeStyle} from '../style/graph-layer-stylesheet';

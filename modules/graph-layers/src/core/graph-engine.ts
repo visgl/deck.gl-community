@@ -4,41 +4,35 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import {Graph} from '../graph/graph';
+import type {Graph, EdgeInterface, NodeInterface} from '../graph/graph';
+import {LegacyGraph, LegacyGraphLayoutAdapter} from '../graph/legacy-graph';
+import type {GraphRuntimeLayout} from './graph-runtime-layout';
 import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
-import {
-  type EdgeInterface,
-  type GraphInterface,
-  type GraphRuntimeLayout,
-  type NodeInterface,
-  LegacyGraph,
-  LegacyGraphLayoutAdapter
-} from './runtime-types';
 import type {GraphStyleEngine, GraphStylesheet} from '../style/graph-style-engine';
 
 type LegacyGraphEngineProps = {
-  graph: Graph;
+  graph: LegacyGraph;
   layout: GraphLayout;
 };
 
 type InterfaceGraphEngineProps = {
-  graph: GraphInterface;
+  graph: Graph;
   layout: GraphRuntimeLayout;
 };
 
 export type GraphEngineProps = LegacyGraphEngineProps | InterfaceGraphEngineProps;
 
 function isLegacyProps(props: GraphEngineProps): props is LegacyGraphEngineProps {
-  return props.graph instanceof Graph;
+  return props.graph instanceof LegacyGraph;
 }
 
 /** Graph engine controls the graph data and layout calculation */
 export class GraphEngine extends EventTarget {
   props: Readonly<GraphEngineProps>;
 
-  private readonly _graph: GraphInterface;
+  private readonly _graph: Graph;
   private readonly _layout: GraphRuntimeLayout;
   private readonly _cache = new Cache<'nodes' | 'edges', NodeInterface[] | EdgeInterface[]>();
   private _layoutDirty = false;
@@ -46,12 +40,12 @@ export class GraphEngine extends EventTarget {
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
-  constructor(graph: Graph, layout: GraphLayout);
+  constructor(graph: LegacyGraph, layout: GraphLayout);
 
-  constructor(props: GraphEngineProps | Graph, layout?: GraphLayout) {
+  constructor(props: GraphEngineProps | LegacyGraph, layout?: GraphLayout) {
     super();
     let normalizedProps: GraphEngineProps;
-    if (props instanceof Graph) {
+    if (props instanceof LegacyGraph) {
       if (!(layout instanceof GraphLayout)) {
         throw new Error('GraphEngine: legacy graphs require a GraphLayout instance.');
       }
@@ -63,9 +57,8 @@ export class GraphEngine extends EventTarget {
     this.props = normalizedProps;
 
     if (isLegacyProps(normalizedProps)) {
-      const graphAdapter = new LegacyGraph(normalizedProps.graph);
       const layoutAdapter = new LegacyGraphLayoutAdapter(normalizedProps.layout);
-      this._graph = graphAdapter;
+      this._graph = normalizedProps.graph;
       this._layout = layoutAdapter;
     } else {
       this._graph = normalizedProps.graph;

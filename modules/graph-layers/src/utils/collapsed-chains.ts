@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {GraphEngine} from '../core/graph-engine';
-import type {NodeInterface} from '../core/runtime-types';
+import type {NodeInterface} from '../graph/graph';
 
 const OUTLINE_PADDING = 24;
 const OUTLINE_CORNER_RADIUS = 16;
