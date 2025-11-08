@@ -20,6 +20,24 @@ export type GraphLayoutEventDetail = {
 
 export type GraphLayoutProps = {};
 
+export type GraphLayoutNodeUpdate = {
+  id: string | number;
+  x: number;
+  y: number;
+} & Record<string, unknown>;
+
+export type GraphLayoutEdgeUpdate = {
+  id: string | number;
+  sourcePosition: [number, number];
+  targetPosition: [number, number];
+  controlPoints?: [number, number][];
+} & Record<string, unknown>;
+
+export type GraphLayoutUpdates = {
+  nodes?: readonly GraphLayoutNodeUpdate[] | GraphLayoutNodeUpdate[] | null;
+  edges?: readonly GraphLayoutEdgeUpdate[] | GraphLayoutEdgeUpdate[] | null;
+} | null;
+
 /** All the layout classes are extended from this base layout class. */
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
@@ -118,6 +136,32 @@ export abstract class GraphLayout<
   /** Hook for subclasses to update bounds prior to emitting events. */
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected _updateBounds(): void {}
+
+  /**
+   * Applies incremental layout updates, returning whether any geometry changed.
+   * Subclasses can override {@link _applyNodeUpdates} or {@link _applyEdgeUpdates}
+   * to respond to the streamed updates.
+   */
+  protected applyGraphLayoutUpdates(updates: GraphLayoutUpdates | undefined): boolean {
+    if (!updates) {
+      return false;
+    }
+
+    const nodesUpdated = this._applyNodeUpdates(updates.nodes);
+    const edgesUpdated = this._applyEdgeUpdates(updates.edges);
+
+    return nodesUpdated || edgesUpdated;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected _applyNodeUpdates(_nodes: GraphLayoutUpdates['nodes']): boolean {
+    return false;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected _applyEdgeUpdates(_edges: GraphLayoutUpdates['edges']): boolean {
+    return false;
+  }
 
   /**
    * Utility for subclasses to derive layout bounds from an iterable of [x, y] positions.

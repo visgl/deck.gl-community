@@ -3,6 +3,11 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import type {
+  GraphLayoutEdgeUpdate,
+  GraphLayoutNodeUpdate,
+  GraphLayoutUpdates
+} from '../../core/graph-layout';
 import {log} from '../../utils/log';
 
 export type D3ForceLayoutOptions = GraphLayoutProps & {
@@ -92,7 +97,10 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
 
       const {type} = event.data ?? {};
       if (type === 'tick' || type === 'end') {
-        const didUpdate = this._applyWorkerUpdate(event.data);
+        const didUpdate = this.applyGraphLayoutUpdates({
+          nodes: event.data?.nodes,
+          edges: event.data?.edges
+        });
 
         if (didUpdate) {
           this._onLayoutChange();
@@ -184,14 +192,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     this._bounds = this._calculateBounds(positions);
   }
 
-  private _applyWorkerUpdate(data: any): boolean {
-    const nodesUpdated = this._updateNodesFromWorker(data?.nodes);
-    const edgesUpdated = this._updateEdgesFromWorker(data?.edges);
-
-    return nodesUpdated || edgesUpdated;
-  }
-
-  private _updateNodesFromWorker(nodes: unknown): boolean {
+  protected override _applyNodeUpdates(nodes: GraphLayoutUpdates['nodes']): boolean {
     if (!Array.isArray(nodes)) {
       return false;
     }
@@ -216,7 +217,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     return updated;
   }
 
-  private _updateEdgesFromWorker(edges: unknown): boolean {
+  protected override _applyEdgeUpdates(edges: GraphLayoutUpdates['edges']): boolean {
     if (!Array.isArray(edges)) {
       return false;
     }
@@ -240,12 +241,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     return updated;
   }
 
-  private _isValidNodeUpdate(value: unknown): value is {
-    id: string | number;
-    x: number;
-    y: number;
-    [key: string]: unknown;
-  } {
+  private _isValidNodeUpdate(value: unknown): value is GraphLayoutNodeUpdate {
     if (!value || typeof value !== 'object') {
       return false;
     }
@@ -258,12 +254,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     );
   }
 
-  private _isValidEdgeUpdate(value: unknown): value is {
-    id: string | number;
-    sourcePosition: [number, number];
-    targetPosition: [number, number];
-    controlPoints?: [number, number][];
-  } {
+  private _isValidEdgeUpdate(value: unknown): value is GraphLayoutEdgeUpdate {
     if (!value || typeof value !== 'object') {
       return false;
     }
