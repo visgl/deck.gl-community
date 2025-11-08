@@ -32,6 +32,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   private _edgeMap: any;
   private _graph: any;
   private _worker: Worker | null = null;
+  private _isWorkerRunning = false;
   private _callbacks: any;
 
   constructor(options: GPUForceLayoutOptions = {}) {
@@ -94,22 +95,30 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   }
 
   start() {
-    this._engageWorker();
+    this._engageWorker(() => this._onLayoutStart());
   }
 
   update() {
-    this._engageWorker();
+    this._engageWorker(() => this._onLayoutStart());
   }
 
-  _engageWorker() {
-    // prevent multiple start
+  _engageWorker(beforePost?: () => void) {
+    if (this._isWorkerRunning) {
+      return;
+    }
+
     if (this._worker) {
       this._worker.terminate();
+      this._worker = null;
     }
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    this._isWorkerRunning = true;
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this.props;
+
+    beforePost?.();
+
     this._worker.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,
@@ -140,15 +149,13 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this.updateD3Graph({nodes, edges});
     this._onLayoutChange();
     this._onLayoutDone();
+    this._disengageWorker();
   }
   resume() {
     throw new Error('Resume unavailable');
   }
   stop() {
-    if (this._worker) {
-      this._worker.terminate();
-      this._worker = null;
-    }
+    this._disengageWorker();
   }
 
   // for steaming new data on the same graph
@@ -221,6 +228,14 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._graph.triggerUpdate();
     this._edgeMap = newEdgeMap;
     this._d3Graph.edges = newD3Edges;
+  }
+
+  private _disengageWorker() {
+    if (this._worker) {
+      this._worker.terminate();
+      this._worker = null;
+    }
+    this._isWorkerRunning = false;
   }
 
   getNodePosition = (node): [number, number] => {
