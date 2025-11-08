@@ -199,6 +199,7 @@ export abstract class GraphLayout<
         // Always treat graph updates as significant so layout caches refresh.
         changedProps[key] = nextProps[key];
         changed = true;
+        // eslint-disable-next-line no-continue
         continue;
       }
 

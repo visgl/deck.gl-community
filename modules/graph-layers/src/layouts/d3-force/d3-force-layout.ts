@@ -72,6 +72,8 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
 
+    const options = (({graph: _graph, ...rest}) => rest)(this.props);
+
     this._worker.postMessage({
       nodes: this._graph.getNodes().map((node) => ({
         id: node.id,
@@ -82,7 +84,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
         source: edge.getSourceNodeId(),
         target: edge.getTargetNodeId()
       })),
-      options: this.props
+      options
     });
 
     this._worker.onmessage = (event) => {
