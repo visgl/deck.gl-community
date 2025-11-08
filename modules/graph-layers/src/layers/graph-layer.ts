@@ -669,6 +669,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
         const decoratorLayers = decorators
           .filter(Boolean)
+          // @ts-ignore eslint-disable-next-line @typescript-eslint/no-unused-vars
           .map((decoratorStyle, idx2) => {
             const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
             if (!DecoratorLayer) {
