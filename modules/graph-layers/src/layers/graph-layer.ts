@@ -3,7 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 /* eslint-disable no-continue */
-// @ts-nocheck
 
 import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
@@ -670,6 +669,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     bounds: {yMin: number; yMax: number}
   ): Array<{label: string; rank: number; originalLabel?: string | number; yPosition: number}> | null {
     const rankLabelPrefix = this._resolveRankFieldLabel(config?.rankAccessor);
+    // @ts-ignore iterator type
     const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
       rankAccessor: config?.rankAccessor,
       labelAccessor: config?.labelAccessor,
