@@ -221,11 +221,17 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   };
 
   protected override _updateBounds(): void {
-    const positions = Array.from(
+    if (this._graph) {
+      const positions = this._graph.getNodes().map((node) => this.getNodePosition(node));
+      this._bounds = this._calculateBounds(positions);
+      return;
+    }
+
+    const cachedPositions = Array.from(
       this._positionsByNodeId.values(),
       (data) => data?.coordinates ?? null
     );
-    this._bounds = this._calculateBounds(positions);
+    this._bounds = this._calculateBounds(cachedPositions);
   }
 
   protected override _applyNodeUpdates(nodes: GraphLayoutUpdates['nodes']): boolean {

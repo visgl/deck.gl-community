@@ -68,5 +68,11 @@ describe('D3ForceLayout applyGraphLayoutUpdates', () => {
       targetPosition: [2, 4],
       controlPoints: []
     });
+
+    (layout as any)._updateBounds();
+    expect(layout.getBounds()).toEqual([
+      [1, 3],
+      [2, 4]
+    ]);
   });
 });
