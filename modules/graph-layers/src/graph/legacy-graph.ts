@@ -7,7 +7,7 @@ import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
 import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
-import {GraphLayout, type GraphLayoutState} from '../core/graph-layout';
+import {GraphLayout, type GraphLayoutProps, type GraphLayoutState} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import type {EdgeInterface, Graph, NodeInterface} from './graph';
 
@@ -404,10 +404,6 @@ export class LegacyGraphLayoutAdapter extends EventTarget implements GraphRuntim
     this.layout.initializeGraph(this._assertLegacyGraph(graph));
   }
 
-  updateGraph(graph: Graph): void {
-    this.layout.updateGraph(this._assertLegacyGraph(graph));
-  }
-
   start(): void {
     this.layout.start();
   }
@@ -449,6 +445,16 @@ export class LegacyGraphLayoutAdapter extends EventTarget implements GraphRuntim
       this.layout.removeEventListener(type, handler);
     }
     this.eventForwarders.clear();
+  }
+
+  setProps(props: Record<string, unknown>): boolean {
+    if ('graph' in props && props.graph) {
+      return this.layout.setProps({
+        ...(props as Partial<GraphLayoutProps>),
+        graph: this._assertLegacyGraph(props.graph as Graph)
+      });
+    }
+    return this.layout.setProps(props as Partial<GraphLayoutProps>);
   }
 
   private _assertLegacyGraph(graph: Graph): LegacyGraph {

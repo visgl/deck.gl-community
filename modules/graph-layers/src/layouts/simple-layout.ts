@@ -43,8 +43,16 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     super({...SimpleLayout.defaultProps, ...options});
   }
 
+  override setProps(props: Partial<SimpleLayoutProps>): boolean {
+    const shouldUpdate = super.setProps(props);
+    if ('nodePositionAccessor' in props) {
+      this._refreshNodePositions();
+    }
+    return shouldUpdate;
+  }
+
   initializeGraph(graph: LegacyGraph): void {
-    this.updateGraph(graph);
+    this.setProps({graph});
   }
 
   start(): void {
@@ -61,7 +69,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     this._notifyLayoutComplete();
   }
 
-  updateGraph(graph: LegacyGraph): void {
+  protected override updateGraph(graph: LegacyGraph): void {
     this._graph = graph;
     const nodes = Array.isArray(graph.getNodes())
       ? (graph.getNodes() as Node[])
@@ -75,10 +83,6 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
       return res;
     }, {});
   }
-
-  setNodePositionAccessor = (accessor) => {
-    (this.props as any).nodePositionAccessor = accessor;
-  };
 
   getNodePosition = (node: Node | null): [number, number] => {
     if (!node) {
@@ -119,5 +123,18 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
       this._normalizePosition(position)
     );
     this._bounds = this._calculateBounds(positions);
+  }
+
+  private _refreshNodePositions(): void {
+    if (!this._graph) {
+      return;
+    }
+    const nodes = Array.isArray(this._graph.getNodes())
+      ? (this._graph.getNodes() as Node[])
+      : (Array.from(this._graph.getNodes()) as Node[]);
+    this._nodePositionMap = nodes.reduce<Record<string, [number, number] | null>>((res, node) => {
+      res[node.getId()] = this._normalizePosition(this.props.nodePositionAccessor(node));
+      return res;
+    }, {});
   }
 }

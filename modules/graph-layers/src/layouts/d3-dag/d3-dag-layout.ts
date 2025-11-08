@@ -198,27 +198,20 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     super(props, defaultProps || D3DagLayout.defaultProps);
   }
 
-  setProps(options: Partial<D3DagLayoutProps>): void {
-    this.props = {...this.props, ...options};
-    if (
-      options.layout !== undefined ||
-      options.layering !== undefined ||
-      options.decross !== undefined ||
-      options.coord !== undefined ||
-      options.nodeSize !== undefined ||
-      options.gap !== undefined ||
-      options.separation !== undefined
-    ) {
+  override setProps(options: Partial<D3DagLayoutProps>): boolean {
+    const shouldUpdate = super.setProps(options);
+    if (this._shouldResetLayoutOperator(options)) {
       this._layoutOperator = null;
     }
+    return shouldUpdate;
   }
 
 
   initializeGraph(graph: LegacyGraph): void {
-    this.updateGraph(graph);
+    this.setProps({graph});
   }
 
-  updateGraph(graph: LegacyGraph): void {
+  protected override updateGraph(graph: LegacyGraph): void {
     this._graph = graph;
     this._nodeLookup = new Map();
     this._stringIdLookup = new Map();
@@ -524,6 +517,18 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     }
 
     return dag as unknown as MutGraph<NodeInterface, EdgeInterface>;
+  }
+
+  private _shouldResetLayoutOperator(options: Partial<D3DagLayoutProps>): boolean {
+    return (
+      options.layout !== undefined ||
+      options.layering !== undefined ||
+      options.decross !== undefined ||
+      options.coord !== undefined ||
+      options.nodeSize !== undefined ||
+      options.gap !== undefined ||
+      options.separation !== undefined
+    );
   }
 
   private _getLayoutOperator(): LayoutWithConfiguration {

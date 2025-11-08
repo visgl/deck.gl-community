@@ -31,10 +31,10 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   }
 
   initializeGraph(graph: LegacyGraph) {
-    this.updateGraph(graph);
+    this.setProps({graph});
   }
 
-  updateGraph(graph: LegacyGraph) {
+  protected override updateGraph(graph: LegacyGraph) {
     const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
     const nodes = Array.isArray(graph.getNodes())

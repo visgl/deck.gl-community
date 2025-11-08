@@ -39,6 +39,16 @@ export class MyLayout extends GraphLayout {
 
 We will start with a `RandomLayout` as an example, you can follow the steps one by one and find the source code at the bottom.
 
+### Updating layout props
+
+All layouts expose a `setProps(partialProps)` method that merges new configuration into the current layout instance. The helper validates incoming values and returns `true` when the layout should recompute. Most importantly, the graph data consumed by the layout must now be supplied through this method:
+
+```js
+layout.setProps({graph, gap: [10, 10]});
+```
+
+Whenever the `graph` prop changes, `GraphLayout` automatically calls the protected `updateGraph(graph)` hook so subclasses can rebuild their internal caches.
+
 ## The Layout Lifecycle
 
 For a graph layout, everything goes through a set of events. In each event, the layout will need to take the inputs and do the different computations. Lifecycle methods are various methods which are invoked at different phases of the lifecycle of a graph layout. If you are aware of these lifecycle events, it will enable you to control their entire flow and it will definitely help us to produce better results.
@@ -74,17 +84,14 @@ startDragging => lockNodePosition => release => unlockNodePosition => resume
 
 ### Update the graph data
 
-GraphGL will call `initializeGraph` to pass the graph data into the layout.
-If the graph is the same one but part ofthe data is changed, GraphGL will call `updateGraph` method to notify the layout.
-
-In this case, we can just simply update the `this._nodePositionMap` by going through all nodes in the graph.
+GraphGL supplies the current graph data through `setProps({graph})` before invoking `initializeGraph`. If you instantiate a layout yourself, follow the same pattern and call `layout.setProps({graph})` to notify the base class about the new data. Override the protected `updateGraph(graph)` hook to rebuild caches when the data changes.
 
 ```js
   initializeGraph(graph) {
-    this.updateGraph(graph);
+    this.setProps({graph});
   }
 
-  updateGraph(grpah) {
+  protected updateGraph(graph) {
     this._graph = graph;
     this._nodePositionMap = graph.getNodes().reduce((res, node) => {
       res[node.getId()] = this._nodePositionMap[node.getId()] || [0, 0];
@@ -153,11 +160,6 @@ export default class RandomLayout extends GraphLayout {
     super(options);
     // give a name to this layout
     this._name = 'RandomLayout';
-    // combine the default options with user input
-    this.props = {
-      ...this.defaultProps,
-      ...options
-    };
     // a map to persis the position of nodes.
     this._nodePositionMap = {};
   }

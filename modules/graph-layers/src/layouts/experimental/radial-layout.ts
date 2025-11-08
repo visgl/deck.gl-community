@@ -69,10 +69,10 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   }
 
   initializeGraph(graph: LegacyGraph): void {
-    this.updateGraph(graph);
+    this.setProps({graph});
   }
 
-  updateGraph(graph: LegacyGraph): void {
+  protected override updateGraph(graph: LegacyGraph): void {
     this._graph = graph;
   }
 

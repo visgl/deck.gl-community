@@ -41,7 +41,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   }
 
   initializeGraph(graph: LegacyGraph): void {
-    this.updateGraph(graph);
+    this.setProps({graph});
   }
 
   _strength = (d3Edge) => {
@@ -100,7 +100,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
 
   update(): void {}
 
-  updateGraph(graph: LegacyGraph) {
+  protected override updateGraph(graph: LegacyGraph) {
     this._graph = graph;
 
     // nodes

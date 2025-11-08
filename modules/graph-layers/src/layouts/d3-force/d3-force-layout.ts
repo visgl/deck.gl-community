@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import type {LegacyGraph} from '../../graph/legacy-graph';
 import {log} from '../../utils/log';
 
 export type D3ForceLayoutOptions = GraphLayoutProps & {
@@ -26,7 +27,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
 
   protected readonly _name = 'D3';
   private _positionsByNodeId = new Map();
-  private _graph: any;
+  private _graph: LegacyGraph | null = null;
   private _worker: any;
 
   constructor(props?: D3ForceLayoutOptions) {
@@ -36,12 +37,12 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     });
   }
 
-  initializeGraph(graph) {
-    this._graph = graph;
+  initializeGraph(graph: LegacyGraph) {
+    this.setProps({graph});
   }
 
   // for streaming new data on the same graph
-  updateGraph(graph) {
+  protected override updateGraph(graph: LegacyGraph) {
     this._graph = graph;
 
     this._positionsByNodeId = new Map(
@@ -63,6 +64,10 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     // prevent multiple start
     if (this._worker) {
       this._worker.terminate();
+    }
+
+    if (!this._graph) {
+      return;
     }
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
@@ -111,6 +116,10 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   }
 
   getEdgePosition = (edge) => {
+    if (!this._graph) {
+      return null;
+    }
+
     const sourceNode = this._graph.findNode(edge.getSourceNodeId());
     const targetNode = this._graph.findNode(edge.getTargetNodeId());
     if (!sourceNode || !targetNode) {

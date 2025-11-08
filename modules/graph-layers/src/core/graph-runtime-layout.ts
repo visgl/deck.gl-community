@@ -11,7 +11,7 @@ export interface GraphRuntimeLayout extends EventTarget {
   readonly version: number;
   readonly state: GraphLayoutState;
   initializeGraph(graph: Graph): void;
-  updateGraph(graph: Graph): void;
+  setProps(props: Record<string, unknown>): boolean;
   start(): void;
   update(): void;
   resume(): void;
