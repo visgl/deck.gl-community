@@ -185,10 +185,9 @@ export class InteractionManager {
 
     if (!(lastHoveredNode.isSelectable() && lastHoveredNode.getState() === 'selected')) {
       // reset the last hovered node's state
-      const newState =
-        this._lastSelectedNode !== null && this._lastSelectedNode.id === this._lastHoveredNode?.id
-          ? 'selected'
-          : 'default';
+      const lastSelectedId = this._lastSelectedNode?.getId();
+      const lastHoveredId = this._lastHoveredNode?.getId();
+      const newState = lastSelectedId !== undefined && lastSelectedId === lastHoveredId ? 'selected' : 'default';
       setNodeState(lastHoveredNode, newState);
     }
     // trigger the callback if exists
@@ -222,7 +221,9 @@ export class InteractionManager {
 
     // hover over on a node
     if (info.object.isNode) {
-      const isSameNode = this._lastHoveredNode && this._lastHoveredNode.id === info.object.id;
+      const lastHoveredId = this._lastHoveredNode?.getId();
+      const currentId = (info.object as NodeInterface).getId();
+      const isSameNode = lastHoveredId !== undefined && lastHoveredId === currentId;
       // stay in the same node
       if (isSameNode) {
         return;
