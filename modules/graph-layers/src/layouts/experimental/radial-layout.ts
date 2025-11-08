@@ -94,6 +94,8 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
       return;
     }
 
+    this._onLayoutStart();
+
     const {radius} = this.props;
     const unitAngle = 360 / nodeCount;
 

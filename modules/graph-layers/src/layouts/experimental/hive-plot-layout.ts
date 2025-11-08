@@ -92,6 +92,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   }
 
   start() {
+    this._onLayoutStart();
     this._onLayoutChange();
     this._onLayoutDone();
   }
