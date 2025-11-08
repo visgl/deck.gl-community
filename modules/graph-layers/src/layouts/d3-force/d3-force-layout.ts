@@ -37,16 +37,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   }
 
   initializeGraph(graph) {
-    this._graph = graph;
-  }
-
-  // for streaming new data on the same graph
-  updateGraph(graph) {
-    this._graph = graph;
-
-    this._positionsByNodeId = new Map(
-      this._graph.getNodes().map((node) => [node.id, this._positionsByNodeId.get(node.id)])
-    );
+    this._syncGraph(graph);
   }
 
   start() {
@@ -57,46 +48,6 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
 
   update() {
     this._engageWorker();
-  }
-
-  _engageWorker() {
-    // prevent multiple start
-    if (this._worker) {
-      this._worker.terminate();
-    }
-
-    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
-
-    this._worker.postMessage({
-      nodes: this._graph.getNodes().map((node) => ({
-        id: node.id,
-        ...this._positionsByNodeId.get(node.id)
-      })),
-      edges: this._graph.getEdges().map((edge) => ({
-        id: edge.id,
-        source: edge.getSourceNodeId(),
-        target: edge.getTargetNodeId()
-      })),
-      options: this.props
-    });
-
-    this._worker.onmessage = (event) => {
-      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
-      if (event.data.type !== 'end') {
-        return;
-      }
-
-      event.data.nodes.forEach(({id, ...d3}) =>
-        this._positionsByNodeId.set(id, {
-          ...d3,
-          // precompute so that when we return the node position we do not need to do the conversion
-          coordinates: [d3.x, d3.y]
-        })
-      );
-
-      this._onLayoutChange();
-      this._onLayoutDone();
-    };
   }
 
   resume() {
@@ -164,6 +115,55 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     d3Node.fx = null;
     d3Node.fy = null;
   };
+
+  // for streaming new data on the same graph
+  protected override updateGraph(graph) {
+    this._graph = graph;
+
+    this._positionsByNodeId = new Map(
+      this._graph.getNodes().map((node) => [node.id, this._positionsByNodeId.get(node.id)])
+    );
+  }
+
+  protected _engageWorker() {
+    // prevent multiple start
+    if (this._worker) {
+      this._worker.terminate();
+    }
+
+    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+
+    this._worker.postMessage({
+      nodes: this._graph.getNodes().map((node) => ({
+        id: node.id,
+        ...this._positionsByNodeId.get(node.id)
+      })),
+      edges: this._graph.getEdges().map((edge) => ({
+        id: edge.id,
+        source: edge.getSourceNodeId(),
+        target: edge.getTargetNodeId()
+      })),
+      options: this.props
+    });
+
+    this._worker.onmessage = (event) => {
+      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
+      if (event.data.type !== 'end') {
+        return;
+      }
+
+      event.data.nodes.forEach(({id, ...d3}) =>
+        this._positionsByNodeId.set(id, {
+          ...d3,
+          // precompute so that when we return the node position we do not need to do the conversion
+          coordinates: [d3.x, d3.y]
+        })
+      );
+
+      this._onLayoutChange();
+      this._onLayoutDone();
+    };
+  }
 
   protected override _updateBounds(): void {
     const positions = Array.from(

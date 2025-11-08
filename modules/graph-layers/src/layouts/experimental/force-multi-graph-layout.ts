@@ -40,48 +40,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   }
 
   initializeGraph(graph: Graph): void {
-    this.updateGraph(graph);
-  }
-
-  _strength = (d3Edge) => {
-    if (d3Edge.isVirtual) {
-      return 1 / d3Edge.edgeCount;
-    }
-    const sourceDegree = this._graph.getDegree(d3Edge.source.id);
-    const targetDegree = this._graph.getDegree(d3Edge.target.id);
-    return 1 / Math.min(sourceDegree, targetDegree);
-  };
-
-  _generateSimulator() {
-    if (this._simulator) {
-      this._simulator.on('tick', null).on('end', null);
-      this._simulator = null;
-    }
-    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax} = this.props;
-
-    const g = this._d3Graph;
-    this._simulator = d3
-      .forceSimulation(g.nodes)
-      .force(
-        'edge',
-        d3
-          .forceLink(g.edges)
-          // @ts-ignore TODO id not defined?
-          .id((n) => n.id)
-          .strength(this._strength)
-      )
-      .force(
-        'charge',
-        d3
-          .forceManyBody()
-          .strength(nBodyStrength)
-          .distanceMin(nBodyDistanceMin)
-          .distanceMax(nBodyDistanceMax)
-      )
-      .force('center', d3.forceCenter())
-      .alpha(alpha);
-    // register event callbacks
-    this._simulator.on('tick', this._onLayoutChange).on('end', this._onLayoutDone);
+    this._syncGraph(graph);
   }
 
   start() {
@@ -99,7 +58,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
 
   update(): void {}
 
-  updateGraph(graph) {
+  protected override updateGraph(graph) {
     this._graph = graph;
 
     // nodes
@@ -245,6 +204,47 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected _strength = (d3Edge) => {
+    if (d3Edge.isVirtual) {
+      return 1 / d3Edge.edgeCount;
+    }
+    const sourceDegree = this._graph.getDegree(d3Edge.source.id);
+    const targetDegree = this._graph.getDegree(d3Edge.target.id);
+    return 1 / Math.min(sourceDegree, targetDegree);
+  };
+
+  protected _generateSimulator() {
+    if (this._simulator) {
+      this._simulator.on('tick', null).on('end', null);
+      this._simulator = null;
+    }
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax} = this.props;
+
+    const g = this._d3Graph;
+    this._simulator = d3
+      .forceSimulation(g.nodes)
+      .force(
+        'edge',
+        d3
+          .forceLink(g.edges)
+          // @ts-ignore TODO id not defined?
+          .id((n) => n.id)
+          .strength(this._strength)
+      )
+      .force(
+        'charge',
+        d3
+          .forceManyBody()
+          .strength(nBodyStrength)
+          .distanceMin(nBodyDistanceMin)
+          .distanceMax(nBodyDistanceMax)
+      )
+      .force('center', d3.forceCenter())
+      .alpha(alpha);
+    // register event callbacks
+    this._simulator.on('tick', this._onLayoutChange).on('end', this._onLayoutDone);
+  }
 
   protected override _updateBounds(): void {
     const positions = Object.values(this._nodeMap ?? {}).map((node) =>

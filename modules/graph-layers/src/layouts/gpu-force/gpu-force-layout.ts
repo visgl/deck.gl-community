@@ -35,15 +35,8 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   private _callbacks: any;
 
   constructor(options: GPUForceLayoutOptions = {}) {
-    const props = {
-      ...GPUForceLayout.defaultProps,
-      ...options
-    };
+    super(options, GPUForceLayout.defaultProps);
 
-    super(props);
-
-    this._name = 'GPU';
-    this.props = props;
     // store graph and prepare internal data
     this._d3Graph = {nodes: [], edges: []};
     this._nodeMap = {};
@@ -55,42 +48,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   }
 
   initializeGraph(graph) {
-    this._graph = graph;
-    this._nodeMap = {};
-    this._edgeMap = {};
-    // nodes
-    const d3Nodes = graph.getNodes().map((node) => {
-      const id = node.id;
-      const locked = node.getPropertyValue('locked') || false;
-      const x = node.getPropertyValue('x') || 0;
-      const y = node.getPropertyValue('y') || 0;
-      const collisionRadius = node.getPropertyValue('collisionRadius') || 0;
-      const d3Node = {
-        id,
-        x,
-        y,
-        fx: locked ? x : null,
-        fy: locked ? y : null,
-        collisionRadius,
-        locked
-      };
-      this._nodeMap[node.id] = d3Node;
-      return d3Node;
-    });
-    // edges
-    const d3Edges = graph.getEdges().map((edge) => {
-      const d3Edge = {
-        id: edge.id,
-        source: this._nodeMap[edge.getSourceNodeId()],
-        target: this._nodeMap[edge.getTargetNodeId()]
-      };
-      this._edgeMap[edge.id] = d3Edge;
-      return d3Edge;
-    });
-    this._d3Graph = {
-      nodes: d3Nodes,
-      edges: d3Edges
-    };
+    this._syncGraph(graph);
   }
 
   start() {
@@ -99,47 +57,6 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
 
   update() {
     this._engageWorker();
-  }
-
-  _engageWorker() {
-    // prevent multiple start
-    if (this._worker) {
-      this._worker.terminate();
-    }
-
-    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
-    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
-      this.props;
-    this._worker.postMessage({
-      nodes: this._d3Graph.nodes,
-      edges: this._d3Graph.edges,
-      options: {
-        alpha,
-        nBodyStrength,
-        nBodyDistanceMin,
-        nBodyDistanceMax,
-        getCollisionRadius
-      }
-    });
-    this._worker.onmessage = (event) => {
-      switch (event.data.type) {
-        case 'tick':
-          this.ticked(event.data);
-          break;
-        case 'end':
-          this.ended(event.data);
-          break;
-        default:
-          break;
-      }
-    };
-  }
-  ticked(data) {}
-  ended(data) {
-    const {nodes, edges} = data;
-    this.updateD3Graph({nodes, edges});
-    this._onLayoutChange();
-    this._onLayoutDone();
   }
   resume() {
     throw new Error('Resume unavailable');
@@ -152,8 +69,9 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   }
 
   // for steaming new data on the same graph
-  updateGraph(graph) {
-    if (this._graph.getGraphName() !== graph.getGraphName()) {
+  protected override updateGraph(graph) {
+    const isInitialLoad = !this._graph;
+    if (isInitialLoad || this._graph.getGraphName() !== graph.getGraphName()) {
       // reset the maps
       this._nodeMap = {};
       this._edgeMap = {};
@@ -194,7 +112,50 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._d3Graph.edges = newD3Edges;
   }
 
-  updateD3Graph(graph) {
+  protected _engageWorker() {
+    // prevent multiple start
+    if (this._worker) {
+      this._worker.terminate();
+    }
+
+    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
+      this.props;
+    this._worker.postMessage({
+      nodes: this._d3Graph.nodes,
+      edges: this._d3Graph.edges,
+      options: {
+        alpha,
+        nBodyStrength,
+        nBodyDistanceMin,
+        nBodyDistanceMax,
+        getCollisionRadius
+      }
+    });
+    this._worker.onmessage = (event) => {
+      switch (event.data.type) {
+        case 'tick':
+          this.ticked(event.data);
+          break;
+        case 'end':
+          this.ended(event.data);
+          break;
+        default:
+          break;
+      }
+    };
+  }
+
+  protected ticked(data) {}
+
+  protected ended(data) {
+    const {nodes, edges} = data;
+    this.updateD3Graph({nodes, edges});
+    this._onLayoutChange();
+    this._onLayoutDone();
+  }
+
+  protected updateD3Graph(graph) {
     const existingNodes = this._graph.getNodes();
     // update internal layout data
     // nodes

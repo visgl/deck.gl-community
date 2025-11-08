@@ -13,9 +13,11 @@ export class MyLayout extends GraphLayout {
   // initialize the layout
   constructor(options) {}
   // first time to pass the graph data into this layout
-  initializeGraph(graph) {}
+  initializeGraph(graph) {
+    this._syncGraph(graph);
+  }
   // update the existing graph
-  updateGraph(graph) {}
+  protected updateGraph(graph) {}
   // start the layout calculation
   start() {}
   // update the layout calculation
@@ -48,9 +50,16 @@ A layout goes through the following phases:
 - Mounting:
   `constructor` => `initializeGraph` => `start`
 - Updating:
-  `updateGraph` => `update`
+  `_syncGraph` (internal) => `update`
 
 There are a few events that should be triggered when the layout changes:
+
+- `this.setProps(partialProps)`
+  Calling `setProps` merges the partial update into the layout configuration. If any
+  of the supplied properties require the layout to be recomputed, the base class
+  emits an `onLayoutInvalidated` event. `GraphEngine` listens to this signal and
+  automatically reruns `_syncGraph` + `update` so the layout can refresh itself
+  without additional wiring.
 
 - `this._onLayoutStart()`
   When the layout starts, `onLayoutStart` should be triggered to notify GraphGL/User. Some users might also want to leverage this event hook to perform different interactions, ex: show a spinner on the UI to indicate a new layout is computing.
@@ -75,16 +84,16 @@ startDragging => lockNodePosition => release => unlockNodePosition => resume
 ### Update the graph data
 
 GraphGL will call `initializeGraph` to pass the graph data into the layout.
-If the graph is the same one but part ofthe data is changed, GraphGL will call `updateGraph` method to notify the layout.
+If the graph is the same one but part of the data is changed, GraphGL will notify the layout by invoking the internal `_syncGraph` helper, which in turn calls your layout's protected `updateGraph` implementation.
 
 In this case, we can just simply update the `this._nodePositionMap` by going through all nodes in the graph.
 
 ```js
   initializeGraph(graph) {
-    this.updateGraph(graph);
+    this._syncGraph(graph);
   }
 
-  updateGraph(grpah) {
+  protected updateGraph(graph) {
     this._graph = graph;
     this._nodePositionMap = graph.getNodes().reduce((res, node) => {
       res[node.getId()] = this._nodePositionMap[node.getId()] || [0, 0];
@@ -92,6 +101,8 @@ In this case, we can just simply update the `this._nodePositionMap` by going thr
     }, {});
   }
 ```
+
+Because `updateGraph` is now protected, application code should rely on `setProps` (or the `GraphEngine` orchestration) instead of calling it directly when graph data changes.
 
 ### Compute layout
 
@@ -146,23 +157,30 @@ export default class RandomLayout extends GraphLayout {
   static defaultProps = {
     viewportWidth: 1000,
     viewportHeight: 1000
-  };
+  } as const;
 
   constructor(options) {
     // init GraphLayout
-    super(options);
+    super(options, RandomLayout.defaultProps);
     // give a name to this layout
     this._name = 'RandomLayout';
-    // combine the default options with user input
-    this.props = {
-      ...this.defaultProps,
-      ...options
-    };
     // a map to persis the position of nodes.
     this._nodePositionMap = {};
   }
 }
 ```
+
+
+### `setProps(partialProps)`
+
+Use `setProps` to update a layout's configuration after construction. The base
+class merges the supplied partial object with the existing props (and defaults
+if provided) and returns `{changed, changedKeys, needsRecompute}`. When
+`needsRecompute` is `true`, an `onLayoutInvalidated` event is dispatched. The
+`GraphEngine` listens for this event to run `_syncGraph` and `update`
+automatically. If you are using a layout outside of `GraphEngine`, call
+`setProps`, then manually trigger any additional work by invoking your
+protected `updateGraph` implementation (e.g. through a custom helper) and `update` as needed.
 
 
 ### Getters
@@ -197,13 +215,14 @@ getEdgePosition = (edge) => {
 import {GraphLayout} from '@deck.gl-community/graph-layers';
 
 export default class RandomLayout extends GraphLayout {
+  static defaultProps = {
+    viewportWidth: 1000,
+    viewportHeight: 1000
+  };
+
   constructor(options) {
-    super(options);
+    super(options, RandomLayout.defaultProps);
     this._name = 'RandomLayout';
-    this.props = {
-      ...defaultProps,
-      ...options
-    };
     this._nodePositionMap = {};
   }
 

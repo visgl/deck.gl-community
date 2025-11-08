@@ -4,7 +4,11 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  type GraphLayoutPropsUpdateResult
+} from '../../core/graph-layout';
 import type {Graph} from '../../graph/graph';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
@@ -143,6 +147,16 @@ const LAYOUT_FACTORIES = {
   zherebko: () => zherebko()
 } as const satisfies Record<string, () => LayoutWithConfiguration>;
 
+const LAYOUT_OPERATOR_PROP_KEYS: (keyof D3DagLayoutProps)[] = [
+  'layout',
+  'layering',
+  'decross',
+  'coord',
+  'nodeSize',
+  'gap',
+  'separation'
+];
+
 /**
  * Layout that orchestrates d3-dag operators from declarative options.
  */
@@ -185,57 +199,35 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
   protected _edgeLookup = new Map<string, Edge>();
   protected _incomingParentMap = new Map<string | number, (string | number)[]>();
 
-  constructor(props: D3DagLayoutProps, defaultProps: Required<PropsT>) {
-    // @ts-expect-error TS2345 - Type 'Required<D3DagLayoutProps>' is not assignable to type 'Required<PropsT>'.
-    super(props, defaultProps || D3DagLayout.defaultProps);
+  constructor(
+    props: D3DagLayoutProps = {},
+    defaultProps?: Readonly<Required<D3DagLayoutProps>>
+  ) {
+    super(props, defaultProps ?? D3DagLayout.defaultProps);
   }
 
-  setProps(options: Partial<D3DagLayoutProps>): void {
-    this.props = {...this.props, ...options};
+  override setProps(
+    options: Partial<PropsT>
+  ): GraphLayoutPropsUpdateResult<PropsT> {
+    const result = super.setProps(options);
+    if (!result.changed) {
+      return result;
+    }
+
     if (
-      options.layout !== undefined ||
-      options.layering !== undefined ||
-      options.decross !== undefined ||
-      options.coord !== undefined ||
-      options.nodeSize !== undefined ||
-      options.gap !== undefined ||
-      options.separation !== undefined
+      result.changedKeys.some((key) =>
+        LAYOUT_OPERATOR_PROP_KEYS.includes(key as keyof D3DagLayoutProps)
+      )
     ) {
       this._layoutOperator = null;
     }
+
+    return result;
   }
 
 
   initializeGraph(graph: Graph): void {
-    this.updateGraph(graph);
-  }
-
-  updateGraph(graph: Graph): void {
-    this._graph = graph;
-    this._nodeLookup = new Map();
-    this._stringIdLookup = new Map();
-    this._edgeLookup = new Map();
-    this._incomingParentMap = new Map();
-
-    for (const node of graph.getNodes()) {
-      const id = node.getId();
-      const key = this._toDagId(id);
-      this._nodeLookup.set(id, node);
-      this._stringIdLookup.set(key, id);
-    }
-
-    for (const edge of graph.getEdges()) {
-      if (!edge.isDirected()) {
-        continue;
-      }
-      const key = this._edgeKey(edge.getSourceNodeId(), edge.getTargetNodeId());
-      this._edgeLookup.set(key, edge);
-
-      const targetId = edge.getTargetNodeId();
-      const parents = this._incomingParentMap.get(targetId) ?? [];
-      parents.push(edge.getSourceNodeId());
-      this._incomingParentMap.set(targetId, parents);
-    }
+    this._syncGraph(graph);
   }
 
   start(): void {
@@ -318,6 +310,34 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
 
   unlockNodePosition(node: Node): void {
     this._lockedNodePositions.delete(node.getId());
+  }
+
+  protected override updateGraph(graph: Graph): void {
+    this._graph = graph;
+    this._nodeLookup = new Map();
+    this._stringIdLookup = new Map();
+    this._edgeLookup = new Map();
+    this._incomingParentMap = new Map();
+
+    for (const node of graph.getNodes()) {
+      const id = node.getId();
+      const key = this._toDagId(id);
+      this._nodeLookup.set(id, node);
+      this._stringIdLookup.set(key, id);
+    }
+
+    for (const edge of graph.getEdges()) {
+      if (!edge.isDirected()) {
+        continue;
+      }
+      const key = this._edgeKey(edge.getSourceNodeId(), edge.getTargetNodeId());
+      this._edgeLookup.set(key, edge);
+
+      const targetId = edge.getTargetNodeId();
+      const parents = this._incomingParentMap.get(targetId) ?? [];
+      parents.push(edge.getSourceNodeId());
+      this._incomingParentMap.set(targetId, parents);
+    }
   }
 
   protected _runLayout(): void {

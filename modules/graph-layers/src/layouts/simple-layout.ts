@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  type GraphLayoutPropsUpdateResult
+} from '../core/graph-layout';
 import {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
 import {Graph} from '../graph/graph';
@@ -40,18 +44,30 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
   protected _nodePositionMap: Record<string, [number, number] | null> = {};
 
   constructor(options: SimpleLayoutProps = {}) {
-    super({...SimpleLayout.defaultProps, ...options});
+    super(options, SimpleLayout.defaultProps);
+  }
+
+  override setProps(
+    partial: Partial<SimpleLayoutProps>
+  ): GraphLayoutPropsUpdateResult<SimpleLayoutProps> {
+    const result = super.setProps(partial);
+
+    if (result.changed && this._graph) {
+      this._updateNodePositionMap(this._graph);
+    }
+
+    return result;
   }
 
   initializeGraph(graph: Graph): void {
-    this.updateGraph(graph);
+    this._syncGraph(graph);
   }
 
   start(): void {
     this._notifyLayoutComplete();
   }
 
-  stop() : void {}
+  stop(): void {}
 
   update(): void {
     this._notifyLayoutComplete();
@@ -61,33 +77,12 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     this._notifyLayoutComplete();
   }
 
-  updateGraph(graph: Graph): void {
-    this._graph = graph;
-    this._nodeMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = node;
-      return res;
-    }, {});
-    this._nodePositionMap = graph.getNodes().reduce<Record<string, [number, number] | null>>(
-      (res, node) => {
-        res[node.getId()] = this._normalizePosition(
-          this.props.nodePositionAccessor(node)
-        );
-        return res;
-      },
-      {}
-    );
-  }
-
-  setNodePositionAccessor = (accessor) => {
-    (this.props as any).nodePositionAccessor = accessor;
-  };
-
   getNodePosition = (node: Node | null): [number, number] => {
     if (!node) {
-      return [0, 0] as [number, number];
+      return [0, 0];
     }
     const position = this._nodePositionMap[node.getId()];
-    return position ?? [0, 0] as [number, number];
+    return position ?? [0, 0];
   };
 
   getEdgePosition = (edge: Edge) => {
@@ -109,7 +104,20 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     this._onLayoutDone();
   };
 
-  _notifyLayoutComplete(): void {
+  unlockNodePosition = (node) => {
+    delete this._nodePositionMap[node.getId()];
+  };
+
+  protected override updateGraph(graph: Graph): void {
+    this._graph = graph;
+    this._nodeMap = graph.getNodes().reduce((res, node) => {
+      res[node.getId()] = node;
+      return res;
+    }, {});
+    this._updateNodePositionMap(graph);
+  }
+
+  protected _notifyLayoutComplete(): void {
     this._onLayoutStart();
     this._onLayoutChange();
     this._onLayoutDone();
@@ -121,5 +129,16 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
       this._normalizePosition(position)
     );
     this._bounds = this._calculateBounds(positions);
+  }
+
+  private _updateNodePositionMap(graph: Graph): void {
+    this._nodePositionMap = graph
+      .getNodes()
+      .reduce<Record<string, [number, number] | null>>((res, node) => {
+        res[node.getId()] = this._normalizePosition(
+          this.props.nodePositionAccessor(node)
+        );
+        return res;
+      }, {});
   }
 }

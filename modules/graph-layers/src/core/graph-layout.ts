@@ -20,6 +20,20 @@ export type GraphLayoutEventDetail = {
 
 export type GraphLayoutProps = {};
 
+export type GraphLayoutInvalidationDetail<
+  PropsT extends GraphLayoutProps = GraphLayoutProps
+> = {
+  changedKeys: (keyof PropsT)[];
+};
+
+export type GraphLayoutPropsUpdateResult<
+  PropsT extends GraphLayoutProps = GraphLayoutProps
+> = {
+  changed: boolean;
+  changedKeys: (keyof PropsT)[];
+  needsRecompute: boolean;
+};
+
 /** All the layout classes are extended from this base layout class. */
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
@@ -28,6 +42,7 @@ export abstract class GraphLayout<
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration props of the layout. */
   protected props: Required<PropsT>;
+  protected readonly _defaultProps: Readonly<Partial<PropsT>>;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -44,9 +59,48 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
-  constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
+  constructor(props: PropsT, defaultProps?: Readonly<Partial<PropsT>>) {
     super();
-    this.props = {...defaultProps, ...props};
+    this._defaultProps = (defaultProps ?? {}) as Readonly<Partial<PropsT>>;
+    const mergedProps = this._mergeProps(props);
+    this._validateProps(mergedProps);
+    this.props = mergedProps;
+  }
+
+  /**
+   * Merge new props into the layout configuration.
+   * @param partial Partial props to merge into the layout.
+   * @returns Update result containing change metadata.
+   */
+  setProps(partial: Partial<PropsT>): GraphLayoutPropsUpdateResult<PropsT> {
+    if (!partial || !Object.keys(partial).length) {
+      return {changed: false, changedKeys: [], needsRecompute: false};
+    }
+
+    const previousProps = this.props;
+    const nextProps = this._mergeProps(partial, previousProps);
+
+    this._validateProps(nextProps, partial);
+
+    const changedKeys: (keyof PropsT)[] = [];
+    for (const key of Object.keys(partial) as (keyof PropsT)[]) {
+      if (!Object.is(previousProps[key], nextProps[key])) {
+        changedKeys.push(key);
+      }
+    }
+
+    if (!changedKeys.length) {
+      return {changed: false, changedKeys, needsRecompute: false};
+    }
+
+    const needsRecompute = this._shouldRecompute(previousProps, nextProps, changedKeys);
+    this.props = nextProps;
+
+    if (needsRecompute) {
+      this._invalidateLayout(changedKeys);
+    }
+
+    return {changed: true, changedKeys, needsRecompute};
   }
 
   /**
@@ -97,12 +151,12 @@ export abstract class GraphLayout<
     return this._bounds;
   }
 
-    /** virtual functions: will be implemented in the child class */
+  /** virtual functions: will be implemented in the child class */
 
   /** first time to pass the graph data into this layout */
-  abstract initializeGraph(graph: Graph);
+  abstract initializeGraph(graph: Graph): void;
   /** update the existing graph */
-  abstract updateGraph(graph: Graph);
+  protected abstract updateGraph(graph: Graph): void;
   /** start the layout calculation */
   abstract start();
   /** update the layout calculation */
@@ -112,8 +166,45 @@ export abstract class GraphLayout<
   /** stop the layout calculation */
   abstract stop();
 
+  /** @internal */
+  _syncGraph(graph: Graph): void {
+    this.updateGraph(graph);
+  }
+
 
   // INTERNAL METHODS
+
+  protected _mergeProps(
+    partial: Partial<PropsT>,
+    base: Readonly<Required<PropsT>> | null = null
+  ): Required<PropsT> {
+    return {
+      ...(this._defaultProps as Required<PropsT>),
+      ...(base ?? this.props ?? ({} as Required<PropsT>)),
+      ...partial
+    } as Required<PropsT>;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected _validateProps(
+    props: Readonly<Required<PropsT>>,
+    _partial?: Partial<PropsT>
+  ): void {}
+
+  protected _shouldRecompute(
+    _previous: Readonly<Required<PropsT>>,
+    _next: Readonly<Required<PropsT>>,
+    changedKeys: (keyof PropsT)[]
+  ): boolean {
+    return changedKeys.length > 0;
+  }
+
+  protected _invalidateLayout(changedKeys: (keyof PropsT)[]): void {
+    const detail: GraphLayoutInvalidationDetail<PropsT> = {changedKeys: [...changedKeys]};
+    this.dispatchEvent(
+      new CustomEvent<GraphLayoutInvalidationDetail<PropsT>>('onLayoutInvalidated', {detail})
+    );
+  }
 
   /** Hook for subclasses to update bounds prior to emitting events. */
   // eslint-disable-next-line @typescript-eslint/no-empty-function

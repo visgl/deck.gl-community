@@ -31,61 +31,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   }
 
   initializeGraph(graph: Graph) {
-    this.updateGraph(graph);
-  }
-
-  updateGraph(graph) {
-    const {getNodeAxis, innerRadius, outerRadius} = this.props;
-    this._graph = graph;
-    this._nodeMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = node;
-      return res;
-    }, {});
-
-    // bucket nodes into few axis
-
-    this._axis = graph.getNodes().reduce((res, node) => {
-      const axis = getNodeAxis(node);
-      if (!res[axis]) {
-        res[axis] = [];
-      }
-      res[axis].push(node);
-      return res;
-    }, {});
-
-    // sort nodes along the same axis by degree
-    this._axis = Object.keys(this._axis).reduce((res, axis) => {
-      const bucketedNodes = this._axis[axis];
-      const sortedNodes = bucketedNodes.sort((a, b) => {
-        if (a.getDegree() > b.getDegree()) {
-          return 1;
-        }
-        if (a.getDegree() === b.getDegree()) {
-          return 0;
-        }
-        return -1;
-      });
-      res[axis] = sortedNodes;
-      return res;
-    }, {});
-    this._totalAxis = Object.keys(this._axis).length;
-    const center = [0, 0];
-    const angleInterval = 360 / Object.keys(this._axis).length;
-
-    // calculate positions
-    this._nodePositionMap = Object.keys(this._axis).reduce((res, axis, axisIdx) => {
-      const axisAngle = angleInterval * axisIdx;
-      const bucketedNodes = this._axis[axis];
-      const interval = (outerRadius - innerRadius) / bucketedNodes.length;
-
-      bucketedNodes.forEach((node, idx) => {
-        const radius = innerRadius + idx * interval;
-        const x = Math.cos((axisAngle / 180) * Math.PI) * radius + center[0];
-        const y = Math.sin((axisAngle / 180) * Math.PI) * radius + center[1];
-        res[node.getId()] = [x, y];
-      });
-      return res;
-    }, {});
+    this._syncGraph(graph);
   }
 
   start() {
@@ -145,6 +91,60 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override updateGraph(graph) {
+    const {getNodeAxis, innerRadius, outerRadius} = this.props;
+    this._graph = graph;
+    this._nodeMap = graph.getNodes().reduce((res, node) => {
+      res[node.getId()] = node;
+      return res;
+    }, {});
+
+    // bucket nodes into few axis
+
+    this._axis = graph.getNodes().reduce((res, node) => {
+      const axis = getNodeAxis(node);
+      if (!res[axis]) {
+        res[axis] = [];
+      }
+      res[axis].push(node);
+      return res;
+    }, {});
+
+    // sort nodes along the same axis by degree
+    this._axis = Object.keys(this._axis).reduce((res, axis) => {
+      const bucketedNodes = this._axis[axis];
+      const sortedNodes = bucketedNodes.sort((a, b) => {
+        if (a.getDegree() > b.getDegree()) {
+          return 1;
+        }
+        if (a.getDegree() === b.getDegree()) {
+          return 0;
+        }
+        return -1;
+      });
+      res[axis] = sortedNodes;
+      return res;
+    }, {});
+    this._totalAxis = Object.keys(this._axis).length;
+    const center = [0, 0];
+    const angleInterval = 360 / Object.keys(this._axis).length;
+
+    // calculate positions
+    this._nodePositionMap = Object.keys(this._axis).reduce((res, axis, axisIdx) => {
+      const axisAngle = angleInterval * axisIdx;
+      const bucketedNodes = this._axis[axis];
+      const interval = (outerRadius - innerRadius) / bucketedNodes.length;
+
+      bucketedNodes.forEach((node, idx) => {
+        const radius = innerRadius + idx * interval;
+        const x = Math.cos((axisAngle / 180) * Math.PI) * radius + center[0];
+        const y = Math.sin((axisAngle / 180) * Math.PI) * radius + center[1];
+        res[node.getId()] = [x, y];
+      });
+      return res;
+    }, {});
+  }
 
   protected override _updateBounds(): void {
     const positions = Object.values(this._nodePositionMap ?? {}).map((position) =>

@@ -158,6 +158,7 @@ export class GraphEngine extends EventTarget {
     this._graph.addEventListener('onEdgeAdded', this._onGraphStructureChanged);
     this._graph.addEventListener('onEdgeRemoved', this._onGraphStructureChanged);
 
+    this._layout.addEventListener('onLayoutInvalidated', this._onLayoutInvalidated);
     this._layout.addEventListener('onLayoutStart', this._onLayoutStart);
     this._layout.addEventListener('onLayoutChange', this._onLayoutChange);
     this._layout.addEventListener('onLayoutDone', this._onLayoutDone);
@@ -176,6 +177,7 @@ export class GraphEngine extends EventTarget {
     this._graph.removeEventListener('onEdgeAdded', this._onGraphStructureChanged);
     this._graph.removeEventListener('onEdgeRemoved', this._onGraphStructureChanged);
 
+    this._layout.removeEventListener('onLayoutInvalidated', this._onLayoutInvalidated);
     this._layout.removeEventListener('onLayoutStart', this._onLayoutStart);
     this._layout.removeEventListener('onLayoutChange', this._onLayoutChange);
     this._layout.removeEventListener('onLayoutDone', this._onLayoutDone);
@@ -192,9 +194,15 @@ export class GraphEngine extends EventTarget {
     }
   };
 
+  _onLayoutInvalidated = () => {
+    log.log(0, 'GraphEngine: layout invalidated')();
+    this._layoutDirty = true;
+    this._graphChanged();
+  };
+
   _updateLayout = () => {
     log.log(0, 'GraphEngine: layout update');
-    this._layout.updateGraph(this._graph);
+    this._layout._syncGraph(this._graph);
     this._layout.update();
     this._layoutDirty = false;
   };

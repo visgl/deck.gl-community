@@ -68,11 +68,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   }
 
   initializeGraph(graph: Graph): void {
-    this.updateGraph(graph);
-  }
-
-  updateGraph(graph: Graph): void {
-    this._graph = graph;
+    this._syncGraph(graph);
   }
 
   start(): void {
@@ -199,6 +195,10 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override updateGraph(graph: Graph): void {
+    this._graph = graph;
+  }
 
   protected override _updateBounds(): void {
     const positions = Object.values(this._hierarchicalPoints ?? {}).map((position) =>

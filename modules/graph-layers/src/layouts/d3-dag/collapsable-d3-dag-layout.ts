@@ -38,20 +38,6 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
     super(props, CollapsableD3DagLayout.defaultProps);
   }
 
-  override setProps(props: Partial<CollapsableD3DagLayoutProps>): void {
-    super.setProps(props);
-    if (props.collapseLinearChains !== undefined && this._graph) {
-      this._runLayout();
-    }
-  }
-
-  override updateGraph(graph: Graph): void {
-    super.updateGraph(graph);
-    this._chainDescriptors.clear();
-    this._nodeToChainId.clear();
-    this._hiddenNodeIds.clear();
-  }
-
   override toggleCollapsedChain(chainId: string): void {
     if (!this._graph) {
       log.log(1, `CollapsableD3DagLayout: toggleCollapsedChain(${chainId}) ignored (no graph)`);
@@ -113,6 +99,13 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
       // eslint-disable-next-line no-console
       console.log('CollapsableD3DagLayout: setCollapsedChains -> no changes');
     }
+  }
+
+  protected override updateGraph(graph: Graph): void {
+    super.updateGraph(graph);
+    this._chainDescriptors.clear();
+    this._nodeToChainId.clear();
+    this._hiddenNodeIds.clear();
   }
 
   protected override _refreshCollapsedChains(): void {
