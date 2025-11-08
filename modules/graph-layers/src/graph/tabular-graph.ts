@@ -50,8 +50,32 @@ export interface TabularGraphSource<NodeHandle = unknown, EdgeHandle = unknown> 
   findNodeById?(id: string | number): NodeHandle | null | undefined;
 }
 
-export class TabularNode<Handle> implements NodeInterface {
+export type NodeIndex = number;
+export type EdgeIndex = number;
+
+type TabularNodeRecord<Handle> = {
+  handle: Handle;
+  id: string | number;
+  state: NodeState;
+  selectable: boolean;
+  highlightConnectedEdges: boolean;
+  data: Record<string, unknown>;
+  connectedEdgeIndices: EdgeIndex[];
+};
+
+type TabularEdgeRecord<Handle> = {
+  handle: Handle;
+  id: string | number;
+  state: EdgeState;
+  directed: boolean;
+  sourceId: string | number;
+  targetId: string | number;
+  data: Record<string, unknown>;
+};
+
+export class TabularNode<NodeHandle = unknown, EdgeHandle = unknown> implements NodeInterface {
   public readonly isNode = true;
+  public readonly index: NodeIndex;
   public get id(): string | number {
     return this.getId();
   }
@@ -64,145 +88,95 @@ export class TabularNode<Handle> implements NodeInterface {
     this.setState(state);
   }
 
-  private readonly handle: Handle;
-  private readonly accessors: TabularNodeAccessors<Handle>;
-  private _state: NodeState = 'default';
-  private _selectable: boolean = false;
-  private _highlightConnectedEdges: boolean = false;
-  private _data: Record<string, unknown> = {};
-  private _connectedEdges: Record<string, EdgeInterface> = {};
+  private readonly graph: TabularGraph<NodeHandle, EdgeHandle>;
 
-  constructor(handle: Handle, accessors: TabularNodeAccessors<Handle>) {
-    this.handle = handle;
-    this.accessors = accessors;
-
-    if (typeof accessors.getState === 'function') {
-      this._state = accessors.getState(handle);
-    }
-    if (typeof accessors.isSelectable === 'function') {
-      this._selectable = Boolean(accessors.isSelectable(handle));
-    }
-    if (typeof accessors.shouldHighlightConnectedEdges === 'function') {
-      this._highlightConnectedEdges = Boolean(accessors.shouldHighlightConnectedEdges(handle));
-    }
-    if (typeof accessors.getData === 'function') {
-      const data = accessors.getData(handle);
-      if (data && typeof data === 'object') {
-        this._data = {...data};
-      }
-    }
+  constructor(graph: TabularGraph<NodeHandle, EdgeHandle>, index: NodeIndex) {
+    this.graph = graph;
+    this.index = index;
   }
 
   getId(): string | number {
-    return this.accessors.getId(this.handle);
+    return this.graph.getNodeIdByIndex(this.index);
   }
 
   getDegree(): number {
-    return Object.keys(this._connectedEdges).length;
+    return this.graph.getNodeDegreeByIndex(this.index);
   }
 
   getInDegree(): number {
-    const nodeId = this.getId();
-    return this.getConnectedEdges().reduce((count, edge) => {
-      if (edge.isDirected() && edge.getTargetNodeId() === nodeId) {
-        return count + 1;
-      }
-      return count;
-    }, 0);
+    return this.graph.getNodeInDegreeByIndex(this.index);
   }
 
   getOutDegree(): number {
-    const nodeId = this.getId();
-    return this.getConnectedEdges().reduce((count, edge) => {
-      if (edge.isDirected() && edge.getSourceNodeId() === nodeId) {
-        return count + 1;
-      }
-      return count;
-    }, 0);
+    return this.graph.getNodeOutDegreeByIndex(this.index);
   }
 
   getSiblingIds(): (string | number)[] {
-    const nodeId = this.getId();
-    return this.getConnectedEdges().reduce<(string | number)[]>((siblings, edge) => {
-      if (edge.getTargetNodeId() === nodeId) {
-        siblings.push(edge.getSourceNodeId());
-      } else {
-        siblings.push(edge.getTargetNodeId());
-      }
-      return siblings;
-    }, []);
+    return this.graph.getNodeSiblingIdsByIndex(this.index);
   }
 
   getConnectedEdges(): EdgeInterface[] {
-    return Object.values(this._connectedEdges);
+    return this.graph.getNodeConnectedEdgesByIndex(this.index);
   }
 
   addConnectedEdges(edge: EdgeInterface | EdgeInterface[]): void {
-    if (Array.isArray(edge)) {
-      edge.forEach((e) => this.addConnectedEdges(e));
-      return;
+    const edges = Array.isArray(edge) ? edge : [edge];
+    for (const candidate of edges) {
+      candidate.addNode(this);
     }
-    this._connectedEdges[edge.getId()] = edge;
   }
 
   removeConnectedEdges(edge: EdgeInterface | EdgeInterface[]): void {
-    if (Array.isArray(edge)) {
-      edge.forEach((e) => this.removeConnectedEdges(e));
-      return;
+    const edges = Array.isArray(edge) ? edge : [edge];
+    for (const candidate of edges) {
+      candidate.removeNode(this);
     }
-    delete this._connectedEdges[edge.getId()];
   }
 
   clearConnectedEdges(): void {
-    this._connectedEdges = {};
+    const edges = this.getConnectedEdges();
+    for (const edge of edges) {
+      edge.removeNode(this);
+    }
   }
 
   getPropertyValue(key: string): unknown {
-    if (typeof this.accessors.getPropertyValue === 'function') {
-      return this.accessors.getPropertyValue(this.handle, key);
-    }
-    return this._data[key];
+    return this.graph.getNodePropertyValueByIndex(this.index, key);
   }
 
   setData(data: Record<string, unknown>): void {
-    if (typeof this.accessors.setData === 'function') {
-      this.accessors.setData(this.handle, data);
-    }
-    this._data = {...data};
+    this.graph.setNodeDataByIndex(this.index, data);
   }
 
   setDataProperty(key: string, value: unknown): void {
-    if (typeof this.accessors.setDataProperty === 'function') {
-      this.accessors.setDataProperty(this.handle, key, value);
-    }
-    this._data[key] = value;
+    this.graph.setNodeDataPropertyByIndex(this.index, key, value);
   }
 
   setState(state: NodeState): void {
-    this._state = state;
-    if (typeof this.accessors.setState === 'function') {
-      this.accessors.setState(this.handle, state);
-    }
+    this.graph.setNodeStateByIndex(this.index, state);
   }
 
   getState(): NodeState {
-    if (typeof this.accessors.getState === 'function') {
-      return this.accessors.getState(this.handle);
-    }
-    return this._state;
+    return this.graph.getNodeStateByIndex(this.index);
   }
 
   isSelectable(): boolean {
-    return this._selectable;
+    return this.graph.isNodeSelectableByIndex(this.index);
   }
 
   shouldHighlightConnectedEdges(): boolean {
-    return this._highlightConnectedEdges;
+    return this.graph.shouldHighlightConnectedEdgesByIndex(this.index);
   }
 }
 
-export class TabularEdge<Handle> implements EdgeInterface {
+type EdgeNodeReference = {
+  id: string | number;
+  node: NodeInterface;
+};
+
+export class TabularEdge<NodeHandle = unknown, EdgeHandle = unknown> implements EdgeInterface {
   public readonly isEdge = true;
+  public readonly index: EdgeIndex;
   public get id(): string | number {
     return this.getId();
   }
@@ -219,44 +193,35 @@ export class TabularEdge<Handle> implements EdgeInterface {
     this.setState(state);
   }
 
-  private readonly handle: Handle;
-  private readonly accessors: TabularEdgeAccessors<Handle>;
-  private _state: EdgeState = 'default';
-  private _data: Record<string, unknown> = {};
+  private readonly graph: TabularGraph<NodeHandle, EdgeHandle>;
   private _connectedNodes: Record<string, NodeInterface> = {};
 
-  constructor(handle: Handle, accessors: TabularEdgeAccessors<Handle>) {
-    this.handle = handle;
-    this.accessors = accessors;
-
-    if (typeof accessors.getState === 'function') {
-      this._state = accessors.getState(handle);
-    }
-    if (typeof accessors.getData === 'function') {
-      const data = accessors.getData(handle);
-      if (data && typeof data === 'object') {
-        this._data = {...data};
-      }
+  constructor(
+    graph: TabularGraph<NodeHandle, EdgeHandle>,
+    index: EdgeIndex,
+    connectedNodes: EdgeNodeReference[] = []
+  ) {
+    this.graph = graph;
+    this.index = index;
+    for (const reference of connectedNodes) {
+      this._connectedNodes[reference.id] = reference.node;
     }
   }
 
   getId(): string | number {
-    return this.accessors.getId(this.handle);
+    return this.graph.getEdgeIdByIndex(this.index);
   }
 
   isDirected(): boolean {
-    if (typeof this.accessors.isDirected === 'function') {
-      return Boolean(this.accessors.isDirected(this.handle));
-    }
-    return false;
+    return this.graph.isEdgeDirectedByIndex(this.index);
   }
 
   getSourceNodeId(): string | number {
-    return this.accessors.getSourceId(this.handle);
+    return this.graph.getEdgeSourceIdByIndex(this.index);
   }
 
   getTargetNodeId(): string | number {
-    return this.accessors.getTargetId(this.handle);
+    return this.graph.getEdgeTargetIdByIndex(this.index);
   }
 
   getConnectedNodes(): NodeInterface[] {
@@ -265,45 +230,32 @@ export class TabularEdge<Handle> implements EdgeInterface {
 
   addNode(node: NodeInterface): void {
     this._connectedNodes[node.getId()] = node;
+    this.graph.registerEdgeForNode(node, this);
   }
 
   removeNode(node: NodeInterface): void {
     delete this._connectedNodes[node.getId()];
+    this.graph.unregisterEdgeForNode(node, this);
   }
 
   getPropertyValue(key: string): unknown {
-    if (typeof this.accessors.getPropertyValue === 'function') {
-      return this.accessors.getPropertyValue(this.handle, key);
-    }
-    return this._data[key];
+    return this.graph.getEdgePropertyValueByIndex(this.index, key);
   }
 
   setData(data: Record<string, unknown>): void {
-    if (typeof this.accessors.setData === 'function') {
-      this.accessors.setData(this.handle, data);
-    }
-    this._data = {...data};
+    this.graph.setEdgeDataByIndex(this.index, data);
   }
 
   setDataProperty(key: string, value: unknown): void {
-    if (typeof this.accessors.setDataProperty === 'function') {
-      this.accessors.setDataProperty(this.handle, key, value);
-    }
-    this._data[key] = value;
+    this.graph.setEdgeDataPropertyByIndex(this.index, key, value);
   }
 
   setState(state: EdgeState): void {
-    this._state = state;
-    if (typeof this.accessors.setState === 'function') {
-      this.accessors.setState(this.handle, state);
-    }
+    this.graph.setEdgeStateByIndex(this.index, state);
   }
 
   getState(): EdgeState {
-    if (typeof this.accessors.getState === 'function') {
-      return this.accessors.getState(this.handle);
-    }
-    return this._state;
+    return this.graph.getEdgeStateByIndex(this.index);
   }
 }
 
@@ -313,9 +265,14 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
 {
   private readonly source: TabularGraphSource<NodeHandle, EdgeHandle>;
 
-  private _nodes: TabularNode<NodeHandle>[] | null = null;
-  private _edges: TabularEdge<EdgeHandle>[] | null = null;
-  private _nodeMap: Map<string | number, TabularNode<NodeHandle>> | null = null;
+  private _nodes: TabularNode<NodeHandle, EdgeHandle>[] | null = null;
+  private _edges: TabularEdge<NodeHandle, EdgeHandle>[] | null = null;
+  private _nodeMap: Map<string | number, TabularNode<NodeHandle, EdgeHandle>> | null = null;
+  private _nodeTable: TabularNodeRecord<NodeHandle>[] | null = null;
+  private _edgeTable: TabularEdgeRecord<EdgeHandle>[] | null = null;
+  private _nodeIndices: WeakMap<NodeInterface, NodeIndex> = new WeakMap();
+  private _edgeIndices: WeakMap<EdgeInterface, EdgeIndex> = new WeakMap();
+  private _accessors: TabularGraphAccessors<NodeHandle, EdgeHandle> | null = null;
   private _lastVersion = -1;
 
   constructor(source: TabularGraphSource<NodeHandle, EdgeHandle>) {
@@ -353,43 +310,41 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
     this._nodes = null;
     this._edges = null;
     this._nodeMap = null;
+    this._nodeTable = null;
+    this._edgeTable = null;
+    this._nodeIndices = new WeakMap();
+    this._edgeIndices = new WeakMap();
+    this._accessors = null;
   }
 
   toLegacyGraph(): LegacyGraph {
-    const accessors = this.source.getAccessors();
+    this._synchronize();
 
-    const legacyNodes: Node[] = [];
-    for (const handle of this.source.getNodes()) {
-      const id = accessors.node.getId(handle);
-      const data = cloneRecord(accessors.node.getData?.(handle));
+    const nodeTable = this._nodeTable ?? [];
+    const edgeTable = this._edgeTable ?? [];
+
+    const legacyNodes: Node[] = nodeTable.map((record) => {
       const node = new Node({
-        id,
-        selectable: Boolean(accessors.node.isSelectable?.(handle)),
-        highlightConnectedEdges: Boolean(accessors.node.shouldHighlightConnectedEdges?.(handle)),
-        data
+        id: record.id,
+        selectable: record.selectable,
+        highlightConnectedEdges: record.highlightConnectedEdges,
+        data: cloneRecord(record.data)
       });
-      const state = accessors.node.getState?.(handle);
-      if (state) {
-        node.setState(state);
-      }
-      legacyNodes.push(node);
-    }
+      node.setState(record.state);
+      return node;
+    });
 
-    const legacyEdges: Edge[] = [];
-    for (const handle of this.source.getEdges()) {
+    const legacyEdges: Edge[] = edgeTable.map((record) => {
       const edge = new Edge({
-        id: accessors.edge.getId(handle),
-        sourceId: accessors.edge.getSourceId(handle),
-        targetId: accessors.edge.getTargetId(handle),
-        directed: Boolean(accessors.edge.isDirected?.(handle)),
-        data: cloneRecord(accessors.edge.getData?.(handle))
+        id: record.id,
+        sourceId: record.sourceId,
+        targetId: record.targetId,
+        directed: record.directed,
+        data: cloneRecord(record.data)
       });
-      const state = accessors.edge.getState?.(handle);
-      if (state) {
-        edge.setState(state);
-      }
-      legacyEdges.push(edge);
-    }
+      edge.setState(record.state);
+      return edge;
+    });
 
     const graph = new LegacyGraph();
     if (legacyNodes.length > 0) {
@@ -401,49 +356,355 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
     return graph;
   }
 
+  getNodeIdByIndex(index: NodeIndex): string | number {
+    return this._getNodeRecord(index).id;
+  }
+
+  getNodeStateByIndex(index: NodeIndex): NodeState {
+    return this._getNodeRecord(index).state;
+  }
+
+  setNodeStateByIndex(index: NodeIndex, state: NodeState): void {
+    const record = this._getNodeRecord(index);
+    record.state = state;
+    const accessors = this._getAccessors();
+    accessors.node.setState?.(record.handle, state);
+  }
+
+  isNodeSelectableByIndex(index: NodeIndex): boolean {
+    return this._getNodeRecord(index).selectable;
+  }
+
+  shouldHighlightConnectedEdgesByIndex(index: NodeIndex): boolean {
+    return this._getNodeRecord(index).highlightConnectedEdges;
+  }
+
+  getNodeDegreeByIndex(index: NodeIndex): number {
+    return this._getNodeRecord(index).connectedEdgeIndices.length;
+  }
+
+  getNodeInDegreeByIndex(index: NodeIndex): number {
+    const nodeId = this.getNodeIdByIndex(index);
+    return this._getNodeRecord(index).connectedEdgeIndices.reduce((count, edgeIndex) => {
+      const edgeRecord = this._getEdgeRecord(edgeIndex);
+      if (edgeRecord.directed && edgeRecord.targetId === nodeId) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+  }
+
+  getNodeOutDegreeByIndex(index: NodeIndex): number {
+    const nodeId = this.getNodeIdByIndex(index);
+    return this._getNodeRecord(index).connectedEdgeIndices.reduce((count, edgeIndex) => {
+      const edgeRecord = this._getEdgeRecord(edgeIndex);
+      if (edgeRecord.directed && edgeRecord.sourceId === nodeId) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+  }
+
+  getNodeSiblingIdsByIndex(index: NodeIndex): (string | number)[] {
+    const nodeId = this.getNodeIdByIndex(index);
+    return this._getNodeRecord(index).connectedEdgeIndices.reduce<(string | number)[]>(
+      (siblings, edgeIndex) => {
+        const edgeRecord = this._getEdgeRecord(edgeIndex);
+        if (edgeRecord.targetId === nodeId) {
+          siblings.push(edgeRecord.sourceId);
+        } else {
+          siblings.push(edgeRecord.targetId);
+        }
+        return siblings;
+      },
+      []
+    );
+  }
+
+  getNodeConnectedEdgesByIndex(index: NodeIndex): EdgeInterface[] {
+    const edges = this._edges ?? [];
+    const record = this._getNodeRecord(index);
+    return record.connectedEdgeIndices
+      .map((edgeIndex) => edges[edgeIndex])
+      .filter((edge): edge is EdgeInterface => Boolean(edge));
+  }
+
+  setNodeDataByIndex(index: NodeIndex, data: Record<string, unknown>): void {
+    const record = this._getNodeRecord(index);
+    record.data = {...data};
+    const accessors = this._getAccessors();
+    accessors.node.setData?.(record.handle, record.data);
+  }
+
+  setNodeDataPropertyByIndex(index: NodeIndex, key: string, value: unknown): void {
+    const record = this._getNodeRecord(index);
+    record.data = {...record.data, [key]: value};
+    const accessors = this._getAccessors();
+    if (accessors.node.setDataProperty) {
+      accessors.node.setDataProperty(record.handle, key, value);
+    } else if (accessors.node.setData) {
+      accessors.node.setData(record.handle, record.data);
+    }
+  }
+
+  getNodeDataByIndex(index: NodeIndex): Record<string, unknown> {
+    return {...this._getNodeRecord(index).data};
+  }
+
+  getNodePropertyValueByIndex(index: NodeIndex, key: string): unknown {
+    const record = this._getNodeRecord(index);
+    const accessor = this._getAccessors().node.getPropertyValue;
+    if (accessor) {
+      const value = accessor(record.handle, key);
+      if (value !== undefined) {
+        return value;
+      }
+    }
+    return record.data[key];
+  }
+
+  registerEdgeForNode(node: NodeInterface, edge: EdgeInterface): void {
+    const nodeIndex = this._findNodeIndex(node);
+    const edgeIndex = this._findEdgeIndex(edge);
+    if (nodeIndex === undefined || edgeIndex === undefined) {
+      return;
+    }
+    const record = this._getNodeRecord(nodeIndex);
+    if (!record.connectedEdgeIndices.includes(edgeIndex)) {
+      record.connectedEdgeIndices = [...record.connectedEdgeIndices, edgeIndex];
+    }
+  }
+
+  unregisterEdgeForNode(node: NodeInterface, edge: EdgeInterface): void {
+    const nodeIndex = this._findNodeIndex(node);
+    const edgeIndex = this._findEdgeIndex(edge);
+    if (nodeIndex === undefined || edgeIndex === undefined) {
+      return;
+    }
+    const record = this._getNodeRecord(nodeIndex);
+    record.connectedEdgeIndices = record.connectedEdgeIndices.filter((idx) => idx !== edgeIndex);
+  }
+
+  getEdgeIdByIndex(index: EdgeIndex): string | number {
+    return this._getEdgeRecord(index).id;
+  }
+
+  getEdgeStateByIndex(index: EdgeIndex): EdgeState {
+    return this._getEdgeRecord(index).state;
+  }
+
+  setEdgeStateByIndex(index: EdgeIndex, state: EdgeState): void {
+    const record = this._getEdgeRecord(index);
+    record.state = state;
+    const accessors = this._getAccessors();
+    accessors.edge.setState?.(record.handle, state);
+  }
+
+  isEdgeDirectedByIndex(index: EdgeIndex): boolean {
+    return this._getEdgeRecord(index).directed;
+  }
+
+  getEdgeSourceIdByIndex(index: EdgeIndex): string | number {
+    return this._getEdgeRecord(index).sourceId;
+  }
+
+  getEdgeTargetIdByIndex(index: EdgeIndex): string | number {
+    return this._getEdgeRecord(index).targetId;
+  }
+
+  getEdgePropertyValueByIndex(index: EdgeIndex, key: string): unknown {
+    const record = this._getEdgeRecord(index);
+    const accessor = this._getAccessors().edge.getPropertyValue;
+    if (accessor) {
+      const value = accessor(record.handle, key);
+      if (value !== undefined) {
+        return value;
+      }
+    }
+    return record.data[key];
+  }
+
+  setEdgeDataByIndex(index: EdgeIndex, data: Record<string, unknown>): void {
+    const record = this._getEdgeRecord(index);
+    record.data = {...data};
+    const accessors = this._getAccessors();
+    accessors.edge.setData?.(record.handle, record.data);
+  }
+
+  setEdgeDataPropertyByIndex(index: EdgeIndex, key: string, value: unknown): void {
+    const record = this._getEdgeRecord(index);
+    record.data = {...record.data, [key]: value};
+    const accessors = this._getAccessors();
+    if (accessors.edge.setDataProperty) {
+      accessors.edge.setDataProperty(record.handle, key, value);
+    } else if (accessors.edge.setData) {
+      accessors.edge.setData(record.handle, record.data);
+    }
+  }
+
+  getEdgeDataByIndex(index: EdgeIndex): Record<string, unknown> {
+    return {...this._getEdgeRecord(index).data};
+  }
+
   private _synchronize(): void {
-    if (this._lastVersion === this.source.version && this._nodes && this._edges && this._nodeMap) {
+    if (
+      this._lastVersion === this.source.version &&
+      this._nodes &&
+      this._edges &&
+      this._nodeMap &&
+      this._nodeTable &&
+      this._edgeTable
+    ) {
       return;
     }
 
-    const {nodes, edges, nodeMap} = this._createEntities();
+    const {nodes, edges, nodeMap, nodeTable, edgeTable, nodeIndices, edgeIndices, accessors} =
+      this._createEntities();
     this._nodes = nodes;
     this._edges = edges;
     this._nodeMap = nodeMap;
+    this._nodeTable = nodeTable;
+    this._edgeTable = edgeTable;
+    this._nodeIndices = nodeIndices;
+    this._edgeIndices = edgeIndices;
+    this._accessors = accessors;
     this._lastVersion = this.source.version;
   }
 
   private _createEntities(): {
-    nodes: TabularNode<NodeHandle>[];
-    edges: TabularEdge<EdgeHandle>[];
-    nodeMap: Map<string | number, TabularNode<NodeHandle>>;
+    nodes: TabularNode<NodeHandle, EdgeHandle>[];
+    edges: TabularEdge<NodeHandle, EdgeHandle>[];
+    nodeMap: Map<string | number, TabularNode<NodeHandle, EdgeHandle>>;
+    nodeTable: TabularNodeRecord<NodeHandle>[];
+    edgeTable: TabularEdgeRecord<EdgeHandle>[];
+    nodeIndices: WeakMap<NodeInterface, NodeIndex>;
+    edgeIndices: WeakMap<EdgeInterface, EdgeIndex>;
+    accessors: TabularGraphAccessors<NodeHandle, EdgeHandle>;
   } {
     const accessors = this.source.getAccessors();
-    const nodeMap = new Map<string | number, TabularNode<NodeHandle>>();
-    const nodes: TabularNode<NodeHandle>[] = [];
+
+    const nodeTable: TabularNodeRecord<NodeHandle>[] = [];
+    const nodes: TabularNode<NodeHandle, EdgeHandle>[] = [];
+    const nodeMap = new Map<string | number, TabularNode<NodeHandle, EdgeHandle>>();
+    const nodeIndexById = new Map<string | number, NodeIndex>();
+    const nodeIndices = new WeakMap<NodeInterface, NodeIndex>();
+
+    let nodeIndex: NodeIndex = 0;
     for (const handle of this.source.getNodes()) {
-      const node = new TabularNode(handle, accessors.node);
+      const id = accessors.node.getId(handle);
+      const selectable = Boolean(accessors.node.isSelectable?.(handle));
+      const highlightConnectedEdges = Boolean(
+        accessors.node.shouldHighlightConnectedEdges?.(handle)
+      );
+      const state = accessors.node.getState?.(handle) ?? 'default';
+      const data = cloneRecord(accessors.node.getData?.(handle));
+
+      nodeTable.push({
+        handle,
+        id,
+        selectable,
+        highlightConnectedEdges,
+        state,
+        data,
+        connectedEdgeIndices: []
+      });
+
+      const node = new TabularNode<NodeHandle, EdgeHandle>(this, nodeIndex);
       nodes.push(node);
-      nodeMap.set(node.getId(), node);
+      nodeMap.set(id, node);
+      nodeIndexById.set(id, nodeIndex);
+      nodeIndices.set(node, nodeIndex);
+      nodeIndex += 1;
     }
 
-    const edges: TabularEdge<EdgeHandle>[] = [];
+    const edgeTable: TabularEdgeRecord<EdgeHandle>[] = [];
+    const edges: TabularEdge<NodeHandle, EdgeHandle>[] = [];
+    const edgeIndices = new WeakMap<EdgeInterface, EdgeIndex>();
+
+    let edgeIndex: EdgeIndex = 0;
     for (const handle of this.source.getEdges()) {
-      edges.push(new TabularEdge(handle, accessors.edge));
+      const id = accessors.edge.getId(handle);
+      const sourceId = accessors.edge.getSourceId(handle);
+      const targetId = accessors.edge.getTargetId(handle);
+      const directed = Boolean(accessors.edge.isDirected?.(handle));
+      const state = accessors.edge.getState?.(handle) ?? 'default';
+      const data = cloneRecord(accessors.edge.getData?.(handle));
+
+      const connectedNodes: EdgeNodeReference[] = [];
+      const sourceIndex = nodeIndexById.get(sourceId);
+      if (sourceIndex !== undefined) {
+        nodeTable[sourceIndex].connectedEdgeIndices.push(edgeIndex);
+        connectedNodes.push({
+          id: nodeTable[sourceIndex].id,
+          node: nodes[sourceIndex]
+        });
+      }
+      const targetIndex = nodeIndexById.get(targetId);
+      if (targetIndex !== undefined) {
+        nodeTable[targetIndex].connectedEdgeIndices.push(edgeIndex);
+        if (targetIndex !== sourceIndex) {
+          connectedNodes.push({
+            id: nodeTable[targetIndex].id,
+            node: nodes[targetIndex]
+          });
+        }
+      }
+
+      edgeTable.push({
+        handle,
+        id,
+        sourceId,
+        targetId,
+        directed,
+        state,
+        data
+      });
+
+      const edge = new TabularEdge<NodeHandle, EdgeHandle>(this, edgeIndex, connectedNodes);
+      edges.push(edge);
+      edgeIndices.set(edge, edgeIndex);
+      edgeIndex += 1;
     }
 
-    for (const edge of edges) {
-      const sourceNode = nodeMap.get(edge.getSourceNodeId());
-      const targetNode = nodeMap.get(edge.getTargetNodeId());
-      if (sourceNode) {
-        sourceNode.addConnectedEdges(edge);
-      }
-      if (targetNode) {
-        targetNode.addConnectedEdges(edge);
-      }
-    }
+    return {
+      nodes,
+      edges,
+      nodeMap,
+      nodeTable,
+      edgeTable,
+      nodeIndices,
+      edgeIndices,
+      accessors
+    };
+  }
 
-    return {nodes, edges, nodeMap};
+  private _getNodeRecord(index: NodeIndex): TabularNodeRecord<NodeHandle> {
+    if (!this._nodeTable || !this._nodeTable[index]) {
+      throw new Error(`Node record not found for index ${index}`);
+    }
+    return this._nodeTable[index];
+  }
+
+  private _getEdgeRecord(index: EdgeIndex): TabularEdgeRecord<EdgeHandle> {
+    if (!this._edgeTable || !this._edgeTable[index]) {
+      throw new Error(`Edge record not found for index ${index}`);
+    }
+    return this._edgeTable[index];
+  }
+
+  private _getAccessors(): TabularGraphAccessors<NodeHandle, EdgeHandle> {
+    if (!this._accessors) {
+      this._accessors = this.source.getAccessors();
+    }
+    return this._accessors;
+  }
+
+  private _findEdgeIndex(edge: EdgeInterface): EdgeIndex | undefined {
+    return this._edgeIndices.get(edge);
+  }
+
+  private _findNodeIndex(node: NodeInterface): NodeIndex | undefined {
+    return this._nodeIndices.get(node);
   }
 }
 

@@ -24,6 +24,8 @@
       "label": "Graph Data Structures",
       "items": [
         "modules/graph-layers/api-reference/graph",
+        "modules/graph-layers/api-reference/legacy-graph",
+        "modules/graph-layers/api-reference/tabular-graph",
         "modules/graph-layers/api-reference/node",
         "modules/graph-layers/api-reference/edge",
         "modules/graph-layers/api-reference/interactions",
