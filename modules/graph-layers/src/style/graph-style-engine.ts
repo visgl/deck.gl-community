@@ -6,7 +6,7 @@
 
 import {ZodError, type ZodIssue} from 'zod';
 
-import {StyleEngine, type DeckGLUpdateTriggers} from './style-engine';
+import {StylesheetEngine, type DeckGLUpdateTriggers} from './stylesheet-engine';
 import {
   GraphStylesheetSchema,
   type GraphStylesheet,
@@ -39,7 +39,7 @@ function formatStylesheetError(error: ZodError) {
   return `Invalid graph stylesheet:\n${details}`;
 }
 
-export class GraphStylesheetEngine extends StyleEngine {
+export class GraphStylesheetEngine extends StylesheetEngine {
   constructor(style: GraphStylesheet, {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}) {
     const result = GraphStylesheetSchema.safeParse(style);
     const parsedStyle = result.success

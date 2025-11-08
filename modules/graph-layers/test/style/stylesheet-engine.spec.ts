@@ -4,7 +4,11 @@
 
 import {describe, it, expect, expectTypeOf} from 'vitest';
 
-import {StyleEngine, type DeckGLAccessorMap, type DeckGLUpdateTriggers} from '../../src/style/style-engine';
+import {
+  StylesheetEngine,
+  type DeckGLAccessorMap,
+  type DeckGLUpdateTriggers
+} from '../../src/style/stylesheet-engine';
 import {
   GraphStylesheetEngine,
   type GraphStylesheet,
@@ -22,9 +26,9 @@ const TEST_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
   Foo: ['getColor', 'getWidth']
 };
 
-describe('StyleEngine', () => {
+describe('StylesheetEngine', () => {
   it('normalizes static and stateful values into Deck.gl accessors', () => {
-    const stylesheet = new StyleEngine(
+    const stylesheet = new StylesheetEngine(
       {
         type: 'Foo',
         color: '#ffffff',
@@ -55,7 +59,7 @@ describe('StyleEngine', () => {
   it('throws when instantiated with an unknown style type', () => {
     expect(
       () =>
-        new StyleEngine(
+        new StylesheetEngine(
           {type: 'Bar'},
           {
             deckglAccessorMap: TEST_ACCESSOR_MAP
