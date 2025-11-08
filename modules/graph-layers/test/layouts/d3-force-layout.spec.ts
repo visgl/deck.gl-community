@@ -75,4 +75,35 @@ describe('D3ForceLayout applyGraphLayoutUpdates', () => {
       [2, 4]
     ]);
   });
+
+  it('computes bounds for numeric node ids when a graph is attached', () => {
+    const layout = new D3ForceLayout();
+    const graph = new Graph({
+      nodes: [new Node({id: 1}), new Node({id: 2})]
+    });
+
+    layout.initializeGraph(graph);
+
+    const nodeUpdates: GraphLayoutNodeUpdateTable = {
+      length: 2,
+      columns: {
+        id: new Float64Array([1, 2]),
+        x: new Float64Array([-5, 10]),
+        y: new Float64Array([7, -3])
+      }
+    };
+
+    const didUpdate = (layout as any).applyGraphLayoutUpdates({
+      nodes: nodeUpdates,
+      edges: null
+    });
+
+    expect(didUpdate).toBe(true);
+
+    (layout as any)._updateBounds();
+    expect(layout.getBounds()).toEqual([
+      [-5, -3],
+      [10, 7]
+    ]);
+  });
 });
