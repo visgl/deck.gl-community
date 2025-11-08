@@ -4,9 +4,8 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {Graph} from '../graph/graph';
-import type {Node} from '../graph/node';
-import type {Edge} from '../graph/edge';
+import type {LegacyGraph} from '../graph/legacy-graph';
+import type {NodeInterface, EdgeInterface} from '../graph/graph';
 
 import isEqual from 'lodash.isequal';
 import {log} from '../utils/log';
@@ -64,12 +63,12 @@ export abstract class GraphLayout<
   // Accessors
 
   /** access the position of the node in the layout */
-  getNodePosition(node: Node): [number, number] {
+  getNodePosition(node: NodeInterface): [number, number] {
     return [0, 0];
   }
 
   /** access the layout information of the edge */
-  getEdgePosition(edge: Edge) {
+  getEdgePosition(edge: EdgeInterface) {
     return {
       type: 'line',
       sourcePosition: [0, 0],
@@ -84,13 +83,13 @@ export abstract class GraphLayout<
    * @param  x    x coordinate
    * @param  y    y coordinate
    */
-  lockNodePosition(node: Node, x: number, y: number) {}
+  lockNodePosition(node: NodeInterface, x: number, y: number) {}
 
   /**
    * Unlock the node, the node will be able to move freely.
    * @param  {Object} node Node to be unlocked
    */
-  unlockNodePosition(node: Node) {}
+  unlockNodePosition(node: NodeInterface) {}
 
   /** Returns the last computed layout bounds, if available. */
   getBounds(): Bounds2D | null {
@@ -100,9 +99,9 @@ export abstract class GraphLayout<
     /** virtual functions: will be implemented in the child class */
 
   /** first time to pass the graph data into this layout */
-  abstract initializeGraph(graph: Graph);
+  abstract initializeGraph(graph: LegacyGraph);
   /** update the existing graph */
-  abstract updateGraph(graph: Graph);
+  abstract updateGraph(graph: LegacyGraph);
   /** start the layout calculation */
   abstract start();
   /** update the layout calculation */

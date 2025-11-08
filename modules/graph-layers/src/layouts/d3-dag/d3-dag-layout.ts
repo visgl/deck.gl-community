@@ -5,9 +5,9 @@
 /* eslint-disable no-continue, complexity, max-statements */
 
 import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
-import type {Graph} from '../../graph/graph';
+import type {LegacyGraph} from '../../graph/legacy-graph';
+import type {NodeInterface, EdgeInterface} from '../../graph/graph';
 import {Node} from '../../graph/node';
-import {Edge} from '../../graph/edge';
 import {
   coordCenter,
   coordGreedy,
@@ -45,13 +45,13 @@ export type D3DagLayoutProps = GraphLayoutProps & {
   /** Layering operator used by sugiyama layouts. */
   layering?: 'simplex' | 'longestPath' | 'topological';
   /** Accessor for node rank for layering */
-  nodeRank?: string | ((node: Node) => number | undefined);
+  nodeRank?: string | ((node: NodeInterface) => number | undefined);
   /** Decrossing operator used by sugiyama layouts. */
   decross?: 'twoLayer' | 'opt' | 'dfs';
   /** Coordinate assignment operator used by sugiyama layouts. */
   coord?: 'simplex' | 'greedy' | 'quad' | 'center' | 'topological';
   /** Node sizing accessor passed to the active layout. */
-  nodeSize?: NodeSize<Node, Edge>;
+  nodeSize?: NodeSize<NodeInterface, EdgeInterface>;
   /** Optional gap between nodes. Alias: separation. */
   gap?: readonly [number, number];
   /** Optional gap between nodes. */
@@ -74,9 +74,9 @@ export type D3DagLayoutOperator =
   | DefaultSugiyama
   | DefaultGrid
   | DefaultZherebko
-  | ((dag: MutGraph<Node, Edge>) => LayoutResult);
+  | ((dag: MutGraph<NodeInterface, EdgeInterface>) => LayoutResult);
 
-type DagBuilder = (graph: Graph) => MutGraph<Node, Edge>;
+type DagBuilder = (graph: LegacyGraph) => MutGraph<NodeInterface, EdgeInterface>;
 
 type LayeringOperator =
   | ReturnType<typeof layeringSimplex>
@@ -93,13 +93,13 @@ type CoordOperator =
   | ReturnType<typeof coordSimplex>
   | ReturnType<typeof coordTopological>;
 
-type LayoutCallable = (dag: MutGraph<Node, Edge>) => LayoutResult;
+type LayoutCallable = (dag: MutGraph<NodeInterface, EdgeInterface>) => LayoutResult;
 
 type LayoutWithConfiguration = LayoutCallable & {
   layering?: (layer?: any) => any;
   decross?: (decross?: any) => any;
   coord?: (coord?: any) => any;
-  nodeSize?: (size?: NodeSize<Node, Edge>) => any;
+  nodeSize?: (size?: NodeSize<NodeInterface, EdgeInterface>) => any;
   gap?: (gap?: readonly [number, number]) => any;
 };
 
@@ -143,6 +143,14 @@ const LAYOUT_FACTORIES = {
   zherebko: () => zherebko()
 } as const satisfies Record<string, () => LayoutWithConfiguration>;
 
+function isNodeInterface(value: unknown): value is NodeInterface {
+  return Boolean(value) && typeof value === 'object' && (value as NodeInterface).isNode === true;
+}
+
+function isEdgeInterface(value: unknown): value is EdgeInterface {
+  return Boolean(value) && typeof value === 'object' && (value as EdgeInterface).isEdge === true;
+}
+
 /**
  * Layout that orchestrates d3-dag operators from declarative options.
  */
@@ -169,8 +177,8 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
 
   protected readonly _name = 'D3DagLayout';
 
-  protected _graph: Graph | null = null;
-  private _dag: MutGraph<Node, Edge> | null = null;
+  protected _graph: LegacyGraph | null = null;
+  private _dag: MutGraph<NodeInterface, EdgeInterface> | null = null;
   private _layoutOperator: LayoutWithConfiguration | null = null;
   private _rawNodePositions = new Map<string | number, [number, number]>();
   private _rawEdgePoints = new Map<string | number, [number, number][]>();
@@ -180,12 +188,12 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
   private _lockedNodePositions = new Map<string | number, [number, number]>();
   private _dagBounds: DagBounds | null = null;
 
-  protected _nodeLookup = new Map<string | number, Node>();
+  protected _nodeLookup = new Map<string | number, NodeInterface>();
   protected _stringIdLookup = new Map<string, string | number>();
-  protected _edgeLookup = new Map<string, Edge>();
+  protected _edgeLookup = new Map<string, EdgeInterface>();
   protected _incomingParentMap = new Map<string | number, (string | number)[]>();
 
-  constructor(props: D3DagLayoutProps, defaultProps: Required<PropsT>) {
+  constructor(props: D3DagLayoutProps, defaultProps?: Required<PropsT>) {
     // @ts-expect-error TS2345 - Type 'Required<D3DagLayoutProps>' is not assignable to type 'Required<PropsT>'.
     super(props, defaultProps || D3DagLayout.defaultProps);
   }
@@ -206,11 +214,11 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
   }
 
 
-  initializeGraph(graph: Graph): void {
+  initializeGraph(graph: LegacyGraph): void {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: Graph): void {
+  updateGraph(graph: LegacyGraph): void {
     this._graph = graph;
     this._nodeLookup = new Map();
     this._stringIdLookup = new Map();
@@ -261,7 +269,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     log.log(1, `D3DagLayout: setCollapsedChains(${desired.length}) ignored (collapsing disabled)`);
   }
 
-  getNodePosition(node: Node): [number, number] | null {
+  getNodePosition(node: NodeInterface): [number, number] | null {
     if (this._shouldSkipNode(node.getId())) {
       return null;
     }
@@ -269,7 +277,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     return this._nodePositions.get(mappedId) || null;
   }
 
-  getEdgePosition(edge: Edge):
+  getEdgePosition(edge: EdgeInterface):
     | {
         type: string;
         sourcePosition: [number, number];
@@ -305,18 +313,18 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     };
   }
 
-  getLinkControlPoints(edge: Edge): [number, number][] {
+  getLinkControlPoints(edge: EdgeInterface): [number, number][] {
     return this._edgeControlPoints.get(edge.getId()) || [];
   }
 
-  lockNodePosition(node: Node, x: number, y: number): void {
+  lockNodePosition(node: NodeInterface, x: number, y: number): void {
     this._lockedNodePositions.set(node.getId(), [x, y]);
     this._nodePositions.set(node.getId(), [x, y]);
     this._onLayoutChange();
     this._onLayoutDone();
   }
 
-  unlockNodePosition(node: Node): void {
+  unlockNodePosition(node: NodeInterface): void {
     this._lockedNodePositions.delete(node.getId());
   }
 
@@ -344,7 +352,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     this._updateCollapsedChainNodeMetadata();
   }
 
-  private _buildDag(): MutGraph<Node, Edge> {
+  private _buildDag(): MutGraph<NodeInterface, EdgeInterface> {
     if (this.props.customDagBuilder) {
       const dag = this.props.customDagBuilder(this._graph);
       return this._ensureEdgeData(dag);
@@ -361,9 +369,9 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     }
   }
 
-  private _buildDagWithGraph(): MutGraph<Node, Edge> {
-    const dag = createDagGraph<Node, Edge>();
-    const dagNodeLookup = new Map<string | number, MutGraphNode<Node, Edge>>();
+  private _buildDagWithGraph(): MutGraph<NodeInterface, EdgeInterface> {
+    const dag = createDagGraph<NodeInterface, EdgeInterface>();
+    const dagNodeLookup = new Map<string | number, MutGraphNode<NodeInterface, EdgeInterface>>();
 
     for (const node of this._graph.getNodes()) {
       if (this._shouldSkipNode(node.getId())) {
@@ -393,13 +401,13 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     return dag;
   }
 
-  private _buildDagWithConnect(): MutGraph<Node, Edge> {
-    type ConnectDatum = {source: string; target: string; edge: Edge};
+  private _buildDagWithConnect(): MutGraph<NodeInterface, EdgeInterface> {
+    type ConnectDatum = {source: string; target: string; edge: EdgeInterface};
 
     const connect = graphConnect()
       .sourceId(({source}: ConnectDatum): string => source)
       .targetId(({target}: ConnectDatum): string => target)
-      .nodeDatum((id: string): Node => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
+      .nodeDatum((id: string): NodeInterface => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
       .single(true);
 
     const data: ConnectDatum[] = this._graph
@@ -422,7 +430,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     const seenIds = new Set<string | number>();
     for (const dagNode of dag.nodes()) {
       const datum = dagNode.data;
-      if (datum instanceof Node) {
+      if (isNodeInterface(datum)) {
         seenIds.add(datum.getId());
       }
     }
@@ -439,10 +447,10 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     return this._ensureEdgeData(dag);
   }
 
-  private _buildDagWithStratify(): MutGraph<Node, Edge> {
+  private _buildDagWithStratify(): MutGraph<NodeInterface, EdgeInterface> {
     const stratify = graphStratify()
-      .id((node: Node): string => this._toDagId(node.getId()))
-      .parentIds((node: Node): Iterable<string> => {
+      .id((node: NodeInterface): string => this._toDagId(node.getId()))
+      .parentIds((node: NodeInterface): Iterable<string> => {
         const parentIds = this._incomingParentMap.get(node.getId()) ?? [];
         const mapped = new Set<string>();
         for (const parentId of parentIds) {
@@ -484,38 +492,38 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     }
   }
 
-  protected _getIncomingEdges(node: Node): Edge[] {
+  protected _getIncomingEdges(node: NodeInterface): EdgeInterface[] {
     const nodeId = node.getId();
     return node
       .getConnectedEdges()
       .filter((edge) => edge.isDirected() && edge.getTargetNodeId() === nodeId);
   }
 
-  protected _getOutgoingEdges(node: Node): Edge[] {
+  protected _getOutgoingEdges(node: NodeInterface): EdgeInterface[] {
     const nodeId = node.getId();
     return node
       .getConnectedEdges()
       .filter((edge) => edge.isDirected() && edge.getSourceNodeId() === nodeId);
   }
 
-  private _ensureEdgeData<T>(dag: MutGraph<Node, T>): MutGraph<Node, Edge> {
+  private _ensureEdgeData<T>(dag: MutGraph<NodeInterface, T>): MutGraph<NodeInterface, EdgeInterface> {
     for (const link of dag.links()) {
-      if (link.data instanceof Edge) {
+      if (isEdgeInterface(link.data)) {
         continue;
       }
       const sourceNode = link.source.data;
       const targetNode = link.target.data;
-      if (!(sourceNode instanceof Node) || !(targetNode instanceof Node)) {
+      if (!isNodeInterface(sourceNode) || !isNodeInterface(targetNode)) {
         continue;
       }
       const key = this._edgeKey(sourceNode.getId(), targetNode.getId());
       const edge = this._edgeLookup.get(key);
       if (edge) {
-        (link as unknown as MutGraphLink<Node, Edge>).data = edge;
+        (link as unknown as MutGraphLink<NodeInterface, EdgeInterface>).data = edge;
       }
     }
 
-    return dag as unknown as MutGraph<Node, Edge>;
+    return dag as unknown as MutGraph<NodeInterface, EdgeInterface>;
   }
 
   private _getLayoutOperator(): LayoutWithConfiguration {
@@ -538,9 +546,9 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
       layout = layout.layering(layeringOperator);
       const {nodeRank} = this.props;
       if (nodeRank) {
-        // @ts-expect-error TS2345 - Argument of type '(dagNode: MutGraphNode<Node, Edge>) => number | undefined' is not assignable to parameter of type '(dagNode: MutGraphNode<Node, Edge>) => number'.
+        // @ts-expect-error TS2345 - Argument of type '(dagNode: MutGraphNode<NodeInterface, EdgeInterface>) => number | undefined' is not assignable to parameter of type '(dagNode: MutGraphNode<NodeInterface, EdgeInterface>) => number'.
         layeringOperator = layeringOperator.rank((dagNode) => {
-          const node = dagNode.data as Node;
+          const node = dagNode.data as NodeInterface;
           const rank = typeof nodeRank === 'function' ? nodeRank?.(node) : node?.getPropertyValue(nodeRank) || undefined;
           // if (rank !== undefined) {
           //   console.log(`Node ${node.getId()} assigned to rank ${rank}`);
@@ -625,7 +633,12 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     for (const link of this._dag.links()) {
       const source = link.source.data;
       const target = link.target.data;
-      const edge = link.data instanceof Edge ? link.data : this._edgeLookup.get(this._edgeKey(source.getId(), target.getId()));
+      if (!isNodeInterface(source) || !isNodeInterface(target)) {
+        continue;
+      }
+      const edge = isEdgeInterface(link.data)
+        ? link.data
+        : this._edgeLookup.get(this._edgeKey(source.getId(), target.getId()));
       if (!edge) {
         continue;
       }

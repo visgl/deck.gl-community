@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {GraphEngine} from '../core/graph-engine';
-import type {Node} from '../graph/node';
+import type {NodeInterface} from '../graph/graph';
 
 const OUTLINE_PADDING = 24;
 const OUTLINE_CORNER_RADIUS = 16;
@@ -77,7 +77,7 @@ export function resolveChainInteractionSource(info: any): ChainInteractionSource
   return 'node';
 }
 
-function isChainRepresentative(node: Node): boolean {
+function isChainRepresentative(node: NodeInterface): boolean {
   const chainId = node.getPropertyValue('collapsedChainId');
   const nodeIds = node.getPropertyValue('collapsedNodeIds');
   const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
@@ -90,7 +90,7 @@ function isChainRepresentative(node: Node): boolean {
   );
 }
 
-export function getRepresentativeNodes(engine: GraphEngine | null | undefined): Node[] {
+export function getRepresentativeNodes(engine: GraphEngine | null | undefined): NodeInterface[] {
   if (!engine) {
     return [];
   }
@@ -98,18 +98,17 @@ export function getRepresentativeNodes(engine: GraphEngine | null | undefined): 
   return engine.getNodes().filter((node) => isChainRepresentative(node));
 }
 
-export type ChainOutlineGetter = (node: Node) => [number, number][] | null;
+export type ChainOutlineGetter = (node: NodeInterface) => [number, number][] | null;
 
 export function createChainOutlineGetter(engine: GraphEngine | null | undefined): ChainOutlineGetter {
   if (!engine) {
     return () => null;
   }
 
-  const graph = engine.props.graph;
   const cache = new Map<string, [number, number][] | null>();
 
   // eslint-disable-next-line max-statements, complexity
-  return (node: Node): [number, number][] | null => {
+  return (node: NodeInterface): [number, number][] | null => {
     const chainId = node.getPropertyValue('collapsedChainId');
     if (!chainId) {
       return null;
@@ -118,11 +117,6 @@ export function createChainOutlineGetter(engine: GraphEngine | null | undefined)
     const cacheKey = String(chainId);
     if (cache.has(cacheKey)) {
       return cache.get(cacheKey) ?? null;
-    }
-
-    if (!graph) {
-      cache.set(cacheKey, null);
-      return null;
     }
 
     const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
@@ -137,7 +131,7 @@ export function createChainOutlineGetter(engine: GraphEngine | null | undefined)
     let maxY = Number.NEGATIVE_INFINITY;
 
     for (const nodeId of collapsedNodeIds) {
-      const chainNode = graph.findNode(nodeId);
+      const chainNode = engine.findNode(nodeId);
       if (chainNode) {
         const position = engine.getNodePosition(chainNode);
         if (position) {
@@ -217,11 +211,11 @@ export function createChainOutlineGetter(engine: GraphEngine | null | undefined)
 }
 
 export interface CollapsedChainLayerData {
-  representativeNodes: Node[];
-  collapsedNodes: Node[];
-  collapsedOutlineNodes: Node[];
-  expandedNodes: Node[];
-  expandedOutlineNodes: Node[];
+  representativeNodes: NodeInterface[];
+  collapsedNodes: NodeInterface[];
+  collapsedOutlineNodes: NodeInterface[];
+  expandedNodes: NodeInterface[];
+  expandedOutlineNodes: NodeInterface[];
   getChainOutlinePolygon: ChainOutlineGetter;
   outlineUpdateTrigger: string;
 }

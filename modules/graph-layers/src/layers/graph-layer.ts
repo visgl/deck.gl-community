@@ -8,8 +8,8 @@ import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
-import {Graph} from '../graph/graph';
-import type {Node} from '../graph/node';
+import {LegacyGraph} from '../graph/legacy-graph';
+import type {NodeInterface} from '../graph/graph';
 import {GraphLayout} from '../core/graph-layout';
 import {GraphEngine} from '../core/graph-engine';
 
@@ -111,7 +111,7 @@ export type GraphLayerRawData = {
 
 export type GraphLayerDataInput =
   | GraphEngine
-  | Graph
+  | LegacyGraph
   | GraphLayerRawData
   | unknown[]
   | string
@@ -132,9 +132,9 @@ type EngineResolutionFlags = {
 };
 
 export type _GraphLayerProps = {
-  graph?: Graph;
+  graph?: LegacyGraph;
   layout?: GraphLayout;
-  graphLoader?: (opts: {json: unknown}) => Graph | null;
+  graphLoader?: (opts: {json: unknown}) => LegacyGraph | null;
   engine?: GraphEngine;
 
   stylesheet?: GraphLayerStylesheet;
@@ -456,7 +456,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return data;
     }
 
-    if (data instanceof Graph) {
+    if (data instanceof LegacyGraph) {
       return this._buildEngineFromGraph(data, props.layout);
     }
 
@@ -476,7 +476,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return null;
   }
 
-  private _buildEngineFromGraph(graph: Graph | null, layout?: GraphLayout | null): GraphEngine | null {
+  private _buildEngineFromGraph(
+    graph: LegacyGraph | null,
+    layout?: GraphLayout | null
+  ): GraphEngine | null {
     if (!graph) {
       return null;
     }
@@ -666,6 +669,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     bounds: {yMin: number; yMax: number}
   ): Array<{label: string; rank: number; originalLabel?: string | number; yPosition: number}> | null {
     const rankLabelPrefix = this._resolveRankFieldLabel(config?.rankAccessor);
+    // @ts-ignore iterator type
     const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
       rankAccessor: config?.rankAccessor,
       labelAccessor: config?.labelAccessor,
@@ -806,6 +810,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
         const decoratorLayers = decorators
           .filter(Boolean)
+          // @ts-ignore eslint-disable-next-line @typescript-eslint/no-unused-vars
           .map((decoratorStyle, idx2) => {
             const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
             if (!DecoratorLayer) {
@@ -898,7 +903,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: 'collapsed-chain-outlines',
           data: collapsedOutlineNodes,
-          getPolygon: (node: Node) => getChainOutlinePolygon(node),
+          getPolygon: (node: NodeInterface) => getChainOutlinePolygon(node),
           stroked: true,
           filled: false,
           getLineColor: [220, 64, 64, 220],
@@ -951,7 +956,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: 'expanded-chain-outlines',
           data: expandedOutlineNodes,
-          getPolygon: (node: Node) => getChainOutlinePolygon(node),
+          getPolygon: (node: NodeInterface) => getChainOutlinePolygon(node),
           stroked: true,
           filled: false,
           getLineColor: [64, 96, 192, 200],

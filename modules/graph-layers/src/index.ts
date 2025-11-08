@@ -3,9 +3,19 @@
 // Copyright (c) vis.gl contributors
 
 // core - Graph representation and layout
-export {Graph} from './graph/graph';
+export {LegacyGraph, LegacyGraphLayoutAdapter} from './graph/legacy-graph';
+export type {Graph, NodeInterface, EdgeInterface} from './graph/graph';
 export {Node} from './graph/node';
 export {Edge} from './graph/edge';
+export {
+  TabularGraph,
+  TabularNode,
+  TabularEdge,
+  type TabularGraphSource,
+  type TabularGraphAccessors,
+  type TabularNodeAccessors,
+  type TabularEdgeAccessors
+} from './graph/tabular-graph';
 
 export {GraphEngine} from './core/graph-engine';
 

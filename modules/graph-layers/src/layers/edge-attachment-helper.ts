@@ -4,16 +4,16 @@
 
 import type {InteractionManager} from '../core/interaction-manager';
 import type {GraphEngine} from '../core/graph-engine';
-import type {Node} from '../graph/node';
+import type {NodeInterface} from '../graph/graph';
 
 import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
 import type {GraphLayerNodeStyle} from '../style/graph-layer-stylesheet';
 import {getNodeBoundaryIntersection, type GeometryNodeType, type NodeGeometry} from '../utils/node-boundary';
 import {warn} from '../utils/log';
 
-type NumericAccessor = ((node: Node) => number) | number | null | undefined;
+type NumericAccessor = ((node: NodeInterface) => number) | number | null | undefined;
 type OffsetAccessor =
-  | ((node: Node) => [number, number])
+  | ((node: NodeInterface) => [number, number])
   | [number, number]
   | null
   | undefined;
@@ -36,7 +36,7 @@ const GEOMETRY_NODE_TYPES: GeometryNodeType[] = [
   'marker'
 ];
 
-function evaluateNumericAccessor(accessor: NumericAccessor, node: Node): number | undefined {
+function evaluateNumericAccessor(accessor: NumericAccessor, node: NodeInterface): number | undefined {
   if (typeof accessor === 'function') {
     const value = accessor(node);
     return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -47,7 +47,7 @@ function evaluateNumericAccessor(accessor: NumericAccessor, node: Node): number 
   return undefined;
 }
 
-function evaluateOffsetAccessor(accessor: OffsetAccessor, node: Node): [number, number] {
+function evaluateOffsetAccessor(accessor: OffsetAccessor, node: NodeInterface): [number, number] {
   if (!accessor) {
     return [0, 0];
   }
@@ -85,7 +85,7 @@ function normalizePosition(value: any): [number, number] | null {
   return null;
 }
 
-function resolveAccessorValue(accessor: NumericAccessor | undefined, node: Node) {
+function resolveAccessorValue(accessor: NumericAccessor | undefined, node: NodeInterface) {
   if (!accessor) {
     return undefined;
   }
@@ -103,7 +103,7 @@ function assignDimension(
 }
 
 function assignRectangleDimensions(
-  node: Node,
+  node: NodeInterface,
   accessors: NodeStyleAccessors,
   geometry: NodeGeometry
 ) {
@@ -113,7 +113,7 @@ function assignRectangleDimensions(
 
 const GEOMETRY_APPLIERS: Record<
   GeometryNodeType,
-  (node: Node, accessors: NodeStyleAccessors, geometry: NodeGeometry) => void
+  (node: NodeInterface, accessors: NodeStyleAccessors, geometry: NodeGeometry) => void
 > = {
   circle: (node, accessors, geometry) => {
     assignDimension(geometry, 'radius', resolveAccessorValue(accessors.getRadius, node));
@@ -158,7 +158,10 @@ export class EdgeAttachmentHelper {
 
     const nodeMap = engine
       .getNodes()
-      .reduce((acc, node) => acc.set(node.getId(), node), new Map<string | number, Node>());
+      .reduce(
+        (acc, node) => acc.set(node.getId(), node),
+        new Map<string | number, NodeInterface>()
+      );
 
     return (edge: any) =>
       this._getAdjustedEdgeLayout(engine, nodeAccessorMap, nodeMap, edge);
@@ -193,7 +196,7 @@ export class EdgeAttachmentHelper {
 
         let stylesheet: GraphStyleEngine | null = null;
         try {
-          stylesheet = new GraphStyleEngine(restStyle as GraphStylesheet, {
+          stylesheet = engine.createStylesheetEngine(restStyle as GraphStylesheet, {
             stateUpdateTrigger: (interactionManager as any).getLastInteraction()
           });
         } catch (error) {
@@ -213,7 +216,7 @@ export class EdgeAttachmentHelper {
         const geometryType = type as GeometryNodeType;
         const accessors = this._createAccessorsForType(geometryType, stylesheet);
 
-        nodes.forEach((node: Node) => {
+        nodes.forEach((node: NodeInterface) => {
           const id = node.getId();
           if (!nodeAccessorMap.has(id)) {
             nodeAccessorMap.set(id, accessors);
@@ -227,7 +230,7 @@ export class EdgeAttachmentHelper {
   private _getAdjustedEdgeLayout(
     engine: GraphEngine,
     nodeAccessorMap: Map<string | number, NodeStyleAccessors>,
-    nodeMap: Map<string | number, Node>,
+    nodeMap: Map<string | number, NodeInterface>,
     edge: any
   ) {
     const layoutInfo = engine.getEdgePosition(edge);
@@ -325,7 +328,7 @@ export class EdgeAttachmentHelper {
 
   private _computeNodeGeometry(
     engine: GraphEngine,
-    node: Node,
+    node: NodeInterface,
     accessors?: NodeStyleAccessors
   ): NodeGeometry | null {
     const basePosition = engine.getNodePosition(node);
