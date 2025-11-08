@@ -3,7 +3,19 @@
 // Copyright (c) vis.gl contributors
 
 import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
-import {D3DagLayout} from '@deck.gl-community/graph-layers';
+import {
+  D3DagLayout,
+  D3ForceLayout,
+  GPUForceLayout,
+  ForceMultiGraphLayout,
+  RadialLayout,
+  HivePlotLayout
+} from '@deck.gl-community/graph-layers';
+import type {
+  BooleanPropDescription,
+  NumberPropDescription,
+  PropDescription
+} from './props-form';
 
 export type GraphExampleType = 'graph' | 'radial' | 'multi-graph' | 'hive' | 'dag';
 
@@ -43,6 +55,75 @@ export const LAYOUT_LABELS: Record<LayoutType, string> = {
   'd3-dag-layout': 'D3 DAG Layout'
 };
 
+const NUMBER_FALLBACK = (value: unknown, fallback: number): number => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
+export const D3_FORCE_DEFAULT_OPTIONS = D3ForceLayout.defaultProps;
+export const GPU_FORCE_DEFAULT_OPTIONS = GPUForceLayout.defaultProps;
+export const FORCE_MULTI_GRAPH_DEFAULT_OPTIONS = ForceMultiGraphLayout.defaultProps;
+export const RADIAL_DEFAULT_OPTIONS = {
+  radius: RadialLayout.defaultProps.radius
+} as const;
+export const HIVE_PLOT_DEFAULT_OPTIONS = {
+  innerRadius: HivePlotLayout.defaultProps.innerRadius,
+  outerRadius: HivePlotLayout.defaultProps.outerRadius
+} as const;
+
+export type ForceLayoutNumericKey = keyof typeof D3_FORCE_DEFAULT_OPTIONS;
+export type ForceLayoutFormState = Record<ForceLayoutNumericKey, number>;
+
+export type ForceMultiGraphLayoutNumericKey = keyof typeof FORCE_MULTI_GRAPH_DEFAULT_OPTIONS;
+export type ForceMultiGraphLayoutFormState = Record<ForceMultiGraphLayoutNumericKey, number>;
+
+export type RadialLayoutFormState = typeof RADIAL_DEFAULT_OPTIONS;
+
+export type HivePlotLayoutFormState = typeof HIVE_PLOT_DEFAULT_OPTIONS;
+
+export const FORCE_LAYOUT_PROP_DESCRIPTIONS = {
+  alpha: {type: 'number', title: 'Alpha', step: 0.1},
+  resumeAlpha: {type: 'number', title: 'Resume alpha', step: 0.1},
+  nBodyStrength: {type: 'number', title: 'N-body strength'},
+  nBodyDistanceMin: {type: 'number', title: 'N-body distance min'},
+  nBodyDistanceMax: {type: 'number', title: 'N-body distance max'},
+  getCollisionRadius: {type: 'number', title: 'Collision radius'}
+} as const satisfies Record<ForceLayoutNumericKey, NumberPropDescription<ForceLayoutFormState>>;
+
+const FORCE_LAYOUT_KEYS = Object.keys(FORCE_LAYOUT_PROP_DESCRIPTIONS) as ForceLayoutNumericKey[];
+
+export const FORCE_MULTI_GRAPH_PROP_DESCRIPTIONS = {
+  alpha: {type: 'number', title: 'Alpha', step: 0.1},
+  nBodyStrength: {type: 'number', title: 'N-body strength'},
+  nBodyDistanceMin: {type: 'number', title: 'N-body distance min'},
+  nBodyDistanceMax: {type: 'number', title: 'N-body distance max'}
+} as const satisfies Record<
+  ForceMultiGraphLayoutNumericKey,
+  NumberPropDescription<ForceMultiGraphLayoutFormState>
+>;
+
+const FORCE_MULTI_GRAPH_KEYS = Object.keys(
+  FORCE_MULTI_GRAPH_PROP_DESCRIPTIONS
+) as ForceMultiGraphLayoutNumericKey[];
+
+export const RADIAL_LAYOUT_PROP_DESCRIPTIONS = {
+  radius: {type: 'number', title: 'Radius', min: 0}
+} as const satisfies Record<keyof RadialLayoutFormState, NumberPropDescription<RadialLayoutFormState>>;
+
+export const HIVE_PLOT_PROP_DESCRIPTIONS = {
+  innerRadius: {
+    type: 'number',
+    title: 'Inner radius',
+    min: 0,
+    max: (values: HivePlotLayoutFormState) => values.outerRadius
+  },
+  outerRadius: {
+    type: 'number',
+    title: 'Outer radius',
+    min: (values: HivePlotLayoutFormState) => values.innerRadius
+  }
+} as const satisfies Record<keyof HivePlotLayoutFormState, NumberPropDescription<HivePlotLayoutFormState>>;
+
 export type DagNodeRankOption = 'none' | 'rank';
 
 export type DagLayoutFormState = {
@@ -63,24 +144,156 @@ export type DagLayoutFormState = {
   separationY: number;
 };
 
-export type DagSelectKey =
-  | 'layout'
-  | 'layering'
-  | 'nodeRank'
-  | 'decross'
-  | 'coord'
-  | 'orientation'
-  | 'dagBuilder';
+export const DAG_LAYOUT_PROP_DESCRIPTIONS = {
+  layout: {
+    type: 'select',
+    title: 'Layout operator',
+    options: [
+      {value: 'sugiyama', label: 'Sugiyama'},
+      {value: 'grid', label: 'Grid'},
+      {value: 'zherebko', label: 'Zherebko'}
+    ] as const
+  },
+  layering: {
+    type: 'select',
+    title: 'Layering',
+    options: [
+      {value: 'topological', label: 'Topological'},
+      {value: 'longestPath', label: 'Longest path'},
+      {value: 'simplex', label: 'Simplex'}
+    ] as const
+  },
+  nodeRank: {
+    type: 'select',
+    title: 'Node rank',
+    options: [
+      {value: 'none', label: 'Automatic'},
+      {value: 'rank', label: 'Use node.rank'}
+    ] as const
+  },
+  decross: {
+    type: 'select',
+    title: 'Decross',
+    options: [
+      {value: 'twoLayer', label: 'Two layer'},
+      {value: 'opt', label: 'Opt'},
+      {value: 'dfs', label: 'DFS'}
+    ] as const
+  },
+  coord: {
+    type: 'select',
+    title: 'Coordinate assignment',
+    options: [
+      {value: 'greedy', label: 'Greedy'},
+      {value: 'simplex', label: 'Simplex'},
+      {value: 'quad', label: 'Quad'},
+      {value: 'center', label: 'Center'},
+      {value: 'topological', label: 'Topological'}
+    ] as const
+  },
+  orientation: {
+    type: 'select',
+    title: 'Orientation',
+    options: [
+      {value: 'TB', label: 'Top to bottom'},
+      {value: 'BT', label: 'Bottom to top'},
+      {value: 'LR', label: 'Left to right'},
+      {value: 'RL', label: 'Right to left'}
+    ] as const
+  },
+  dagBuilder: {
+    type: 'select',
+    title: 'DAG builder',
+    options: [
+      {value: 'graph', label: 'Graph'},
+      {value: 'connect', label: 'Connect'},
+      {value: 'stratify', label: 'Stratify'}
+    ] as const
+  },
+  nodeWidth: {type: 'number', title: 'Node width'},
+  nodeHeight: {type: 'number', title: 'Node height'},
+  gapX: {type: 'number', title: 'Gap X'},
+  gapY: {type: 'number', title: 'Gap Y'},
+  separationX: {type: 'number', title: 'Separation X'},
+  separationY: {type: 'number', title: 'Separation Y'},
+  centerX: {type: 'boolean', title: 'Center horizontally', fullWidth: true},
+  centerY: {type: 'boolean', title: 'Center vertically', fullWidth: true}
+} as const satisfies Record<keyof DagLayoutFormState, PropDescription<DagLayoutFormState>>;
 
-export type DagNumericKey =
-  | 'nodeWidth'
-  | 'nodeHeight'
-  | 'gapX'
-  | 'gapY'
-  | 'separationX'
-  | 'separationY';
+export function createForceLayoutFormState(
+  options?: Record<string, unknown>,
+  defaults: Record<ForceLayoutNumericKey, number> = D3_FORCE_DEFAULT_OPTIONS
+): ForceLayoutFormState {
+  return FORCE_LAYOUT_KEYS.reduce<ForceLayoutFormState>((state, key) => {
+    state[key] = NUMBER_FALLBACK(options?.[key], defaults[key]);
+    return state;
+  }, {} as ForceLayoutFormState);
+}
 
-export const DAG_DEFAULT_OPTIONS = D3DagLayout.defaultProps;
+export function mapForceLayoutFormStateToOptions(
+  state: ForceLayoutFormState
+): Record<string, number> {
+  return FORCE_LAYOUT_KEYS.reduce<Record<string, number>>((options, key) => {
+    options[key] = state[key];
+    return options;
+  }, {});
+}
+
+export function createForceMultiGraphFormState(
+  options?: Record<string, unknown>,
+  defaults: Record<ForceMultiGraphLayoutNumericKey, number> =
+    FORCE_MULTI_GRAPH_DEFAULT_OPTIONS
+): ForceMultiGraphLayoutFormState {
+  return FORCE_MULTI_GRAPH_KEYS.reduce<ForceMultiGraphLayoutFormState>((state, key) => {
+    state[key] = NUMBER_FALLBACK(options?.[key], defaults[key]);
+    return state;
+  }, {} as ForceMultiGraphLayoutFormState);
+}
+
+export function mapForceMultiGraphFormStateToOptions(
+  state: ForceMultiGraphLayoutFormState
+): Record<string, number> {
+  return FORCE_MULTI_GRAPH_KEYS.reduce<Record<string, number>>((options, key) => {
+    options[key] = state[key];
+    return options;
+  }, {});
+}
+
+export function createRadialLayoutFormState(
+  options?: Record<string, unknown>,
+  defaults: RadialLayoutFormState = RADIAL_DEFAULT_OPTIONS
+): RadialLayoutFormState {
+  return {
+    radius: NUMBER_FALLBACK(options?.radius, defaults.radius)
+  };
+}
+
+export function mapRadialLayoutFormStateToOptions(
+  state: RadialLayoutFormState
+): Record<string, number> {
+  return {
+    radius: state.radius
+  };
+}
+
+export function createHivePlotLayoutFormState(
+  options?: Record<string, unknown>,
+  defaults: HivePlotLayoutFormState = HIVE_PLOT_DEFAULT_OPTIONS
+): HivePlotLayoutFormState {
+  return {
+    innerRadius: NUMBER_FALLBACK(options?.innerRadius, defaults.innerRadius),
+    outerRadius: NUMBER_FALLBACK(options?.outerRadius, defaults.outerRadius)
+  };
+}
+
+export function mapHivePlotLayoutFormStateToOptions(
+  state: HivePlotLayoutFormState
+): Record<string, number> {
+  return {
+    innerRadius: state.innerRadius,
+    outerRadius: state.outerRadius
+  };
+}
 
 export function normalizeTuple(
   value: unknown,
