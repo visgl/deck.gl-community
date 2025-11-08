@@ -972,7 +972,15 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: dagPipelineDataset,
     layouts: ['d3-dag-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: DAG_PIPELINE_STYLE
+    style: DAG_PIPELINE_STYLE,
+    getLayoutOptions: (layout) =>
+      layout === 'd3-dag-layout'
+        ? {
+            layout: 'sugiyama',
+            layering: 'simplex',
+            nodeRank: 'rank'
+          }
+        : undefined
   },
   {
     name: 'ML lineage DAG (1,000 runs)',

@@ -276,33 +276,78 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    const {rankGrid} = this.props;
-    const config = typeof rankGrid === 'object' && rankGrid !== null ? rankGrid : undefined;
-    const enabled = typeof rankGrid === 'boolean' ? rankGrid : config ? config.enabled ?? true : false;
+    const {enabled, config} = this._normalizeRankGridConfig(this.props.rankGrid);
     if (!enabled) {
       return null;
     }
 
+    const bounds = this._resolveRankGridBounds(engine);
+    if (!bounds) {
+      return null;
+    }
+
+    const data = this._buildRankGridData(engine, config, bounds);
+    if (!data) {
+      return null;
+    }
+
+    const direction = config?.direction ?? 'horizontal';
+    const gridProps = config?.gridProps ?? {};
+
+    return new GridLayer({
+      id: `${this.props.id}-rank-grid`,
+      data,
+      direction,
+      xMin: bounds.xMin,
+      xMax: bounds.xMax,
+      yMin: bounds.yMin,
+      yMax: bounds.yMax,
+      pickable: false,
+      ...gridProps
+    });
+  }
+
+  private _normalizeRankGridConfig(
+    value: GraphLayerProps['rankGrid']
+  ): {enabled: boolean; config?: RankGridConfig} {
+    if (typeof value === 'boolean') {
+      return {enabled: value};
+    }
+
+    if (value && typeof value === 'object') {
+      return {enabled: value.enabled ?? true, config: value};
+    }
+
+    return {enabled: false};
+  }
+
+  private _resolveRankGridBounds(engine: GraphEngine):
+    | {xMin: number; xMax: number; yMin: number; yMax: number}
+    | null {
     const bounds = engine.getLayoutBounds();
     if (!bounds) {
       return null;
     }
 
     const [[minXRaw, minYRaw], [maxXRaw, maxYRaw]] = bounds;
-    if (
-      !Number.isFinite(minXRaw) ||
-      !Number.isFinite(maxXRaw) ||
-      !Number.isFinite(minYRaw) ||
-      !Number.isFinite(maxYRaw)
-    ) {
+    const values = [minXRaw, minYRaw, maxXRaw, maxYRaw];
+    if (!values.every((value) => typeof value === 'number' && Number.isFinite(value))) {
       return null;
     }
 
-    const minX = Math.min(minXRaw, maxXRaw);
-    const maxX = Math.max(minXRaw, maxXRaw);
-    const minY = Math.min(minYRaw, maxYRaw);
-    const maxY = Math.max(minYRaw, maxYRaw);
+    return {
+      xMin: Math.min(minXRaw, maxXRaw),
+      xMax: Math.max(minXRaw, maxXRaw),
+      yMin: Math.min(minYRaw, maxYRaw),
+      yMax: Math.max(minYRaw, maxYRaw)
+    };
+  }
 
+  private _buildRankGridData(
+    engine: GraphEngine,
+    config: RankGridConfig | undefined,
+    bounds: {yMin: number; yMax: number}
+  ): Array<{label: string | number; yPosition: number}> | null {
     const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
       rankAccessor: config?.rankAccessor,
       labelAccessor: config?.labelAccessor
@@ -313,8 +358,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     const selectedRanks = selectRankLines(rankPositions, {
-      yMin: minY,
-      yMax: maxY,
+      yMin: bounds.yMin,
+      yMax: bounds.yMax,
       maxCount: config?.maxLines ?? 8
     });
 
@@ -322,25 +367,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    const data = selectedRanks.map(({label, yPosition}) => ({
-      label,
-      yPosition
-    }));
-
-    const direction = config?.direction ?? 'horizontal';
-    const gridProps = config?.gridProps ?? {};
-
-    return new GridLayer({
-      id: `${this.props.id}-rank-grid`,
-      data,
-      direction,
-      xMin,
-      xMax,
-      yMin,
-      yMax,
-      pickable: false,
-      ...gridProps
-    });
+    return selectedRanks.map(({label, yPosition}) => ({label, yPosition}));
   }
 
   createNodeLayers() {

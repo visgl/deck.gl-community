@@ -24,7 +24,8 @@ import {
   HivePlotLayout,
   ForceMultiGraphLayout,
   D3DagLayout,
-  CollapsableD3DagLayout
+  CollapsableD3DagLayout,
+  type RankGridConfig
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -253,6 +254,29 @@ export function App({graphType}: AppProps) {
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
 
+  const rankGrid = useMemo<RankGridConfig | false>(() => {
+    if (!dagLayout) {
+      return false;
+    }
+
+    const orientation =
+      (layoutOptions?.orientation as string | undefined) ?? D3DagLayout.defaultProps.orientation;
+    const direction: RankGridConfig['direction'] =
+      orientation === 'LR' || orientation === 'RL' ? 'vertical' : 'horizontal';
+    const usesExplicitRank = (layoutOptions?.nodeRank as string | undefined) === 'rank';
+
+    return {
+      enabled: true,
+      direction,
+      maxLines: 10,
+      ...(usesExplicitRank ? {rankAccessor: 'rank'} : {}),
+      gridProps: {
+        color: [148, 163, 184, 220],
+        labelOffset: direction === 'vertical' ? [0, 8] : [8, 0]
+      }
+    };
+  }, [dagLayout, layoutOptions]);
+
   useEffect(() => {
     if (isDagLayout) {
       setCollapseEnabled(true);
@@ -453,7 +477,8 @@ export function App({graphType}: AppProps) {
                 new GraphLayer({
                   engine,
                   stylesheet: selectedStyles,
-                  resumeLayoutAfterDragging
+                  resumeLayoutAfterDragging,
+                  rankGrid
                 })
               ]
               : []

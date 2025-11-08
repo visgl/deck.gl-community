@@ -65,7 +65,8 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
   } as const;
 
   override shouldUpdateState(params: UpdateParameters<this>): boolean {
-    return params.changeFlags.dataChanged || params.changeFlags.propsChanged || params.changeFlags.viewportChanged;
+    const {changeFlags} = params;
+    return Boolean(changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged);
   }
 
   override renderLayers() {
@@ -85,48 +86,8 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
       labelOffset = DEFAULT_OFFSET
     } = this.props;
 
-    const viewport = this.context?.viewport;
-    const bounds = viewport?.getBounds?.();
-
-    let [minX, minY, maxX, maxY] = [xMin, yMin, xMax, yMax];
-    if (Array.isArray(bounds) && bounds.length === 4) {
-      const [bxMin, byMin, bxMax, byMax] = bounds;
-      if (Number.isFinite(bxMin) && Number.isFinite(bxMax)) {
-        minX = Math.min(minX, bxMin);
-        maxX = Math.max(maxX, bxMax);
-      }
-      if (Number.isFinite(byMin) && Number.isFinite(byMax)) {
-        minY = Math.min(minY, byMin);
-        maxY = Math.max(maxY, byMax);
-      }
-    }
-
-    const isHorizontal = direction === 'horizontal';
-
-    const lines = data
-      .map((datum) => {
-        const position = isHorizontal ? datum.yPosition : datum.xPosition;
-        if (!Number.isFinite(position as number)) {
-          return null;
-        }
-        if (isHorizontal) {
-          return {
-            sourcePosition: [minX, position as number],
-            targetPosition: [maxX, position as number],
-            datum
-          };
-        }
-        return {
-          sourcePosition: [position as number, minY],
-          targetPosition: [position as number, maxY],
-          datum
-        };
-      })
-      .filter(Boolean) as Array<{
-        sourcePosition: [number, number];
-        targetPosition: [number, number];
-        datum: DatumT;
-      }>;
+    const bounds = this._resolveViewportBounds({xMin, xMax, yMin, yMax});
+    const lines = this._createLineSegments(data, direction, bounds);
 
     if (!lines.length) {
       return [];
@@ -149,21 +110,7 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
       return [lineLayer];
     }
 
-    const textData = lines
-      .map(({datum, sourcePosition, targetPosition}) => {
-        const label = getLabel ? getLabel(datum) : datum.label ?? null;
-        if (label === null || label === undefined || label === '') {
-          return null;
-        }
-        const [sx, sy] = sourcePosition;
-        const [tx, ty] = targetPosition;
-        const position: [number, number] = isHorizontal ? [tx, ty] : [sx, sy];
-        return {
-          position,
-          text: String(label)
-        };
-      })
-      .filter(Boolean) as Array<{position: [number, number]; text: string}>;
+    const textData = this._createLabelData(lines, direction, getLabel);
 
     if (!textData.length) {
       return [lineLayer];
@@ -187,5 +134,100 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
     });
 
     return [lineLayer, textLayer];
+  }
+
+  private _resolveViewportBounds(bounds: {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+  }): {minX: number; maxX: number; minY: number; maxY: number} {
+    const viewportBounds = this.context?.viewport?.getBounds?.();
+    if (!Array.isArray(viewportBounds) || viewportBounds.length !== 4) {
+      return {minX: bounds.xMin, maxX: bounds.xMax, minY: bounds.yMin, maxY: bounds.yMax};
+    }
+
+    const [bxMin, byMin, bxMax, byMax] = viewportBounds;
+    const minX =
+      Number.isFinite(bxMin) && Number.isFinite(bxMax)
+        ? Math.min(bounds.xMin, bxMin)
+        : bounds.xMin;
+    const maxX =
+      Number.isFinite(bxMin) && Number.isFinite(bxMax)
+        ? Math.max(bounds.xMax, bxMax)
+        : bounds.xMax;
+    const minY =
+      Number.isFinite(byMin) && Number.isFinite(byMax)
+        ? Math.min(bounds.yMin, byMin)
+        : bounds.yMin;
+    const maxY =
+      Number.isFinite(byMin) && Number.isFinite(byMax)
+        ? Math.max(bounds.yMax, byMax)
+        : bounds.yMax;
+
+    return {minX, maxX, minY, maxY};
+  }
+
+  private _createLineSegments(
+    data: readonly DatumT[],
+    direction: 'horizontal' | 'vertical',
+    bounds: {minX: number; maxX: number; minY: number; maxY: number}
+  ): Array<{
+    sourcePosition: [number, number];
+    targetPosition: [number, number];
+    datum: DatumT;
+  }> {
+    const segments: Array<{
+      sourcePosition: [number, number];
+      targetPosition: [number, number];
+      datum: DatumT;
+    }> = [];
+
+    const isHorizontal = direction === 'horizontal';
+    for (const datum of data) {
+      const position = isHorizontal ? datum.yPosition : datum.xPosition;
+      if (typeof position === 'number' && Number.isFinite(position)) {
+        if (isHorizontal) {
+          segments.push({
+            sourcePosition: [bounds.minX, position],
+            targetPosition: [bounds.maxX, position],
+            datum
+          });
+        } else {
+          segments.push({
+            sourcePosition: [position, bounds.minY],
+            targetPosition: [position, bounds.maxY],
+            datum
+          });
+        }
+      }
+    }
+
+    return segments;
+  }
+
+  private _createLabelData(
+    lines: Array<{
+      sourcePosition: [number, number];
+      targetPosition: [number, number];
+      datum: DatumT;
+    }>,
+    direction: 'horizontal' | 'vertical',
+    getLabel?: (datum: DatumT) => string | number | null | undefined
+  ): Array<{position: [number, number]; text: string}> {
+    const labels: Array<{position: [number, number]; text: string}> = [];
+    const isHorizontal = direction === 'horizontal';
+
+    for (const {datum, sourcePosition, targetPosition} of lines) {
+      const rawLabel = getLabel ? getLabel(datum) : datum.label ?? null;
+      if (rawLabel !== null && rawLabel !== undefined && rawLabel !== '') {
+        const [sx, sy] = sourcePosition;
+        const [tx, ty] = targetPosition;
+        const position: [number, number] = isHorizontal ? [tx, ty] : [sx, sy];
+        labels.push({position, text: String(rawLabel)});
+      }
+    }
+
+    return labels;
   }
 }

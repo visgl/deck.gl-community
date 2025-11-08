@@ -18,6 +18,52 @@ export type MapRanksToYPositionsOptions = {
   labelAccessor?: LabelAccessor;
 };
 
+type RankAggregate = {sum: number; count: number; label: string | number | null};
+
+type RankAggregateState = {
+  aggregates: Map<number, RankAggregate>;
+  range: {min: number; max: number};
+};
+
+function accumulateRank(
+  node: Node,
+  getRank: (node: Node) => number | null,
+  getLabel: (node: Node) => string | number | null,
+  getPosition: (node: Node) => [number, number] | null | undefined,
+  state: RankAggregateState
+) {
+  const {aggregates, range} = state;
+  const rank = getRank(node);
+  if (typeof rank !== 'number' || !Number.isFinite(rank)) {
+    return;
+  }
+
+  const position = getPosition(node);
+  if (!position) {
+    return;
+  }
+
+  const [, y] = position;
+  if (typeof y !== 'number' || !Number.isFinite(y)) {
+    return;
+  }
+
+  const entry = aggregates.get(rank) ?? {sum: 0, count: 0, label: null};
+  entry.sum += y;
+  entry.count += 1;
+
+  if (entry.label === null) {
+    const label = getLabel(node);
+    if (label !== null) {
+      entry.label = label;
+    }
+  }
+
+  aggregates.set(rank, entry);
+  range.min = Math.min(range.min, y);
+  range.max = Math.max(range.max, y);
+}
+
 function normalizeRankAccessor(accessor: RankAccessor | undefined): (node: Node) => number | null {
   if (!accessor) {
     return (node: Node) => {
@@ -110,36 +156,16 @@ export function mapRanksToYPositions(
   const getRank = normalizeRankAccessor(options?.rankAccessor);
   const getLabel = normalizeLabelAccessor(options?.labelAccessor);
 
-  const aggregates = new Map<number, {sum: number; count: number; label: string | number | null}>();
+  const state: RankAggregateState = {
+    aggregates: new Map<number, RankAggregate>(),
+    range: {min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY}
+  };
 
   for (const node of nodes) {
-    const rank = getRank(node);
-    if (!Number.isFinite(rank)) {
-      continue;
-    }
-
-    const position = getPosition(node);
-    if (!position) {
-      continue;
-    }
-
-    const [, y] = position;
-    if (!Number.isFinite(y)) {
-      continue;
-    }
-
-    const entry = aggregates.get(rank) ?? {sum: 0, count: 0, label: null};
-    entry.sum += y;
-    entry.count += 1;
-    if (entry.label === null) {
-      const label = getLabel(node);
-      if (label !== null) {
-        entry.label = label;
-      }
-    }
-    aggregates.set(rank, entry);
+    accumulateRank(node, getRank, getLabel, getPosition, state);
   }
 
+  const {aggregates, range} = state;
   const positions: RankPosition[] = Array.from(aggregates.entries()).map(([rank, {sum, count, label}]) => ({
     rank,
     yPosition: count ? sum / count : 0,
@@ -148,17 +174,24 @@ export function mapRanksToYPositions(
 
   positions.sort((a, b) => a.rank - b.rank);
 
-  const sortedY = positions.map((entry) => entry.yPosition).sort((a, b) => a - b);
-  let needsRemap = false;
-  for (let i = 0; i < positions.length; i++) {
-    if (positions[i].yPosition !== sortedY[i]) {
-      needsRemap = true;
-      break;
-    }
-  }
+  const needsRemap = positions.some((entry, index) => index > 0 && entry.yPosition <= positions[index - 1].yPosition);
   if (needsRemap) {
-    for (let i = 0; i < positions.length; i++) {
-      positions[i].yPosition = sortedY[i];
+    if (positions.length > 0 && Number.isFinite(range.min)) {
+      positions[0].yPosition = Math.min(positions[0].yPosition, range.min);
+    }
+    let previous = positions.length > 0 ? positions[0].yPosition : 0;
+    for (let i = 1; i < positions.length - 1; i++) {
+      const current = positions[i].yPosition;
+      if (current <= previous) {
+        positions[i].yPosition = previous;
+      } else {
+        previous = current;
+      }
+    }
+    if (positions.length > 1) {
+      const last = positions[positions.length - 1];
+      const maxTarget = Number.isFinite(range.max) ? range.max : last.yPosition;
+      last.yPosition = Math.max(last.yPosition, previous, maxTarget);
     }
   }
 
@@ -198,7 +231,7 @@ export function selectRankLines(
   }
 
   if (maxCount === 1) {
-    return [filtered[Math.round((filtered.length - 1) / 2)]];
+    return [filtered[Math.floor((filtered.length - 1) / 2)]];
   }
 
   const lastIndex = filtered.length - 1;
@@ -207,42 +240,16 @@ export function selectRankLines(
   const selectedIndices = new Set<number>();
   for (let i = 0; i < maxCount; i++) {
     const target = Math.round(step * i);
-    const index = Math.max(0, Math.min(lastIndex, target));
-    if (!selectedIndices.has(index)) {
-      selectedIndices.add(index);
-      continue;
-    }
-
-    // Resolve collisions by probing nearby indices.
-    let offset = 1;
-    let resolved = false;
-    while (!resolved && offset <= lastIndex) {
-      const left = index - offset;
-      if (left >= 0 && !selectedIndices.has(left)) {
-        selectedIndices.add(left);
-        resolved = true;
-        break;
-      }
-      const right = index + offset;
-      if (right <= lastIndex && !selectedIndices.has(right)) {
-        selectedIndices.add(right);
-        resolved = true;
-        break;
-      }
-      offset += 1;
-    }
-
-    if (!resolved) {
-      // Fallback: add index modulo length.
-      for (let probe = 0; probe <= lastIndex; probe++) {
-        if (!selectedIndices.has(probe)) {
-          selectedIndices.add(probe);
-          break;
-        }
-      }
-    }
+    const clamped = Math.max(0, Math.min(lastIndex, target));
+    selectedIndices.add(clamped);
   }
 
-  const ordered = Array.from(selectedIndices).sort((a, b) => a - b);
+  for (let i = 0; selectedIndices.size < maxCount && i <= lastIndex; i++) {
+    selectedIndices.add(i);
+  }
+
+  const ordered = Array.from(selectedIndices)
+    .sort((a, b) => a - b)
+    .slice(0, maxCount);
   return ordered.map((index) => filtered[index]);
 }
