@@ -24,10 +24,23 @@ function recordEngineEvents(engine: GraphEngine): CapturedEvent[] {
     events.push({type, bounds: detail?.bounds ?? null});
   };
 
-  engine.addCallbacks({
-    onLayoutStart: handler('start'),
-    onLayoutChange: handler('change'),
-    onLayoutDone: handler('done')
+  const previousCallbacks = engine.props.callbacks ?? {};
+  engine.setProps({
+    callbacks: {
+      ...previousCallbacks,
+      onLayoutStart: (detail) => {
+        handler('start')(detail);
+        previousCallbacks.onLayoutStart?.(detail);
+      },
+      onLayoutChange: (detail) => {
+        handler('change')(detail);
+        previousCallbacks.onLayoutChange?.(detail);
+      },
+      onLayoutDone: (detail) => {
+        handler('done')(detail);
+        previousCallbacks.onLayoutDone?.(detail);
+      }
+    }
   });
 
   return events;

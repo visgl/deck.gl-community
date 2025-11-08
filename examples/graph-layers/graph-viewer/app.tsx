@@ -14,7 +14,10 @@ import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
 // import '@deck.gl/widgets/stylesheet.css';
 import {
   GraphLayer,
+  GraphEngine,
   GraphLayout,
+  type Graph,
+  LegacyGraph,
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
@@ -24,7 +27,6 @@ import {
   ForceMultiGraphLayout,
   D3DagLayout,
   CollapsableD3DagLayout,
-  type GraphLayoutEventDetail,
   type RankGridConfig
 } from '@deck.gl-community/graph-layers';
 
@@ -79,34 +81,39 @@ const loadingReducer = (state, action) => {
   }
 };
 
-type LayoutEventEmitter = {
-  addCallbacks?: (callbacks: {
-    onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
-    onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
-  }) => () => void;
-} | null;
-
-export const useLoading = (eventSource: LayoutEventEmitter) => {
+export const useLoading = (engine: GraphEngine | null) => {
   const [state, setState] = useState(INITIAL_LOADING_STATE);
   const loadingDispatch = useCallback((action) => {
     setState((current) => loadingReducer(current, action));
   }, []);
 
   useLayoutEffect(() => {
-    if (!eventSource || typeof eventSource.addCallbacks !== 'function') {
+    if (!engine) {
       return () => undefined;
     }
 
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    const unsubscribe = eventSource.addCallbacks({
-      onLayoutStart: layoutStarted,
-      onLayoutDone: layoutEnded
+    const previousCallbacks = engine.props.callbacks ?? {};
+    engine.setProps({
+      callbacks: {
+        ...previousCallbacks,
+        onLayoutStart: (detail) => {
+          layoutStarted();
+          previousCallbacks.onLayoutStart?.(detail);
+        },
+        onLayoutDone: (detail) => {
+          layoutEnded();
+          previousCallbacks.onLayoutDone?.(detail);
+        }
+      }
     });
 
-    return unsubscribe;
-  }, [eventSource, loadingDispatch]);
+    return () => {
+      engine.setProps({callbacks: previousCallbacks});
+    };
+  }, [engine, loadingDispatch]);
 
   return [state, loadingDispatch];
 };
@@ -174,6 +181,29 @@ export function App({graphType}: AppProps) {
     const factory = LAYOUT_FACTORIES[selectedLayout];
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
+  const engine = useMemo(() => {
+    if (!graph || !layout) {
+      return null;
+    }
+
+    if (layout instanceof GraphLayout) {
+      if (graph instanceof LegacyGraph) {
+        return new GraphEngine({graph, layout});
+      }
+
+      const toLegacy = graph as Graph & {toLegacyGraph?: () => LegacyGraph | null};
+      if (typeof toLegacy.toLegacyGraph === 'function') {
+        const legacyGraph = toLegacy.toLegacyGraph();
+        if (legacyGraph) {
+          return new GraphEngine({graph: legacyGraph, layout});
+        }
+      }
+
+      return null;
+    }
+
+    return new GraphEngine({graph, layout});
+  }, [graph, layout]);
   const isFirstMount = useRef(true);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
   const selectedStyles = selectedExample?.style;
@@ -218,7 +248,7 @@ export function App({graphType}: AppProps) {
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
 
-  const {viewState, onResize, onViewStateChange} = useGraphViewport(layout, {
+  const {viewState, onResize, onViewStateChange} = useGraphViewport(engine, {
     minZoom,
     maxZoom,
     viewportPadding: 8,
@@ -244,7 +274,7 @@ export function App({graphType}: AppProps) {
     []
   );
 
-  const [loadingState, loadingDispatch] = useLoading(layout);
+  const [loadingState, loadingDispatch] = useLoading(engine);
   const {isLoading} = loadingState;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
@@ -289,7 +319,7 @@ export function App({graphType}: AppProps) {
   }, [dagLayout, collapseEnabled]);
 
   useEffect(() => {
-    if (!graph || !dagLayout) {
+    if (!graph || !dagLayout || !engine) {
       setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
       return;
     }
@@ -298,7 +328,7 @@ export function App({graphType}: AppProps) {
       const chainIds: string[] = [];
       const collapsedIds: string[] = [];
 
-      for (const node of graph.getNodes()) {
+      for (const node of engine.getNodes()) {
         const chainId = node.getPropertyValue('collapsedChainId');
         const nodeIds = node.getPropertyValue('collapsedNodeIds');
         const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
@@ -324,15 +354,25 @@ export function App({graphType}: AppProps) {
 
     updateChainSummary();
 
-    const handleLayoutChange = () => updateChainSummary();
-
-    const unsubscribe = dagLayout.addCallbacks({
-      onLayoutChange: () => handleLayoutChange(),
-      onLayoutDone: () => handleLayoutChange()
+    const previousCallbacks = engine.props.callbacks ?? {};
+    engine.setProps({
+      callbacks: {
+        ...previousCallbacks,
+        onLayoutChange: (detail) => {
+          updateChainSummary();
+          previousCallbacks.onLayoutChange?.(detail);
+        },
+        onLayoutDone: (detail) => {
+          updateChainSummary();
+          previousCallbacks.onLayoutDone?.(detail);
+        }
+      }
     });
 
-    return unsubscribe;
-  }, [graph, dagLayout, isDagLayout]);
+    return () => {
+      engine.setProps({callbacks: previousCallbacks});
+    };
+  }, [graph, dagLayout, engine, isDagLayout]);
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);
@@ -465,10 +505,11 @@ export function App({graphType}: AppProps) {
             })
           ]}
           layers={
-            graph && layout
+            graph && layout && engine
               ? [
                 new GraphLayer({
-                  data: graph,
+                  data: engine,
+                  engine,
                   layout,
                   stylesheet: selectedStyles,
                   resumeLayoutAfterDragging,

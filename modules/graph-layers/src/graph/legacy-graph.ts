@@ -416,10 +416,6 @@ export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
     return previous;
   }
 
-  addCallbacks(callbacks: GraphLayoutCallbacks): () => void {
-    return this.layout.addCallbacks(callbacks);
-  }
-
   initializeGraph(graph: Graph): void {
     this.layout.initializeGraph(this._assertLegacyGraph(graph));
   }

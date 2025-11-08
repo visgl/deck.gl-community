@@ -147,18 +147,30 @@ export const GraphGL = ({
   }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
 
   useEffect(() => {
-    if (!zoomToFitOnLoad || !isLoading || typeof engine.addCallbacks !== 'function') {
+    if (!zoomToFitOnLoad || !isLoading || typeof engine.setProps !== 'function') {
       return () => undefined;
     }
 
-    const unsubscribe = engine.addCallbacks({
-      onLayoutDone: () => {
-        unsubscribe();
-        fitBounds();
+    const previousCallbacks = engine.props?.callbacks ?? {};
+    let handled = false;
+
+    engine.setProps({
+      callbacks: {
+        ...previousCallbacks,
+        onLayoutDone: (detail) => {
+          if (!handled) {
+            handled = true;
+            fitBounds();
+            engine.setProps({callbacks: previousCallbacks});
+          }
+          previousCallbacks.onLayoutDone?.(detail);
+        }
       }
     });
 
-    return unsubscribe;
+    return () => {
+      engine.setProps({callbacks: previousCallbacks});
+    };
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
 
   return (

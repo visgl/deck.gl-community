@@ -49,7 +49,6 @@ export abstract class GraphLayout<
    * @param props extra configuration props of the layout
    */
   protected _callbacks: GraphLayoutCallbacks = {};
-  private readonly _callbackSubscribers = new Set<GraphLayoutCallbacks>();
 
   constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
     this.props = {...defaultProps, ...props};
@@ -63,13 +62,6 @@ export abstract class GraphLayout<
     const previous = this.getCallbacks();
     this._callbacks = {...callbacks};
     return previous;
-  }
-
-  addCallbacks(callbacks: GraphLayoutCallbacks): () => void {
-    this._callbackSubscribers.add(callbacks);
-    return () => {
-      this._callbackSubscribers.delete(callbacks);
-    };
   }
 
   /**
@@ -228,9 +220,6 @@ export abstract class GraphLayout<
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
     this._callbacks.onLayoutStart?.(detail);
-    for (const subscriber of this._callbackSubscribers) {
-      subscriber.onLayoutStart?.(detail);
-    }
   };
 
   /** @fires GraphLayout#onLayoutChange */
@@ -246,9 +235,6 @@ export abstract class GraphLayout<
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
     this._callbacks.onLayoutChange?.(detail);
-    for (const subscriber of this._callbackSubscribers) {
-      subscriber.onLayoutChange?.(detail);
-    }
   };
 
   /** @fires GraphLayout#onLayoutDone */
@@ -264,9 +250,6 @@ export abstract class GraphLayout<
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
     this._callbacks.onLayoutDone?.(detail);
-    for (const subscriber of this._callbackSubscribers) {
-      subscriber.onLayoutDone?.(detail);
-    }
   };
 
   /** @fires GraphLayout#onLayoutError */
@@ -279,8 +262,5 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     this._callbacks.onLayoutError?.();
-    for (const subscriber of this._callbackSubscribers) {
-      subscriber.onLayoutError?.();
-    }
   };
 }

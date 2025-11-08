@@ -12,7 +12,6 @@ export interface GraphRuntimeLayout {
   readonly state: GraphLayoutState;
   getCallbacks(): GraphLayoutCallbacks;
   setCallbacks(callbacks: GraphLayoutCallbacks): GraphLayoutCallbacks;
-  addCallbacks(callbacks: GraphLayoutCallbacks): () => void;
   initializeGraph(graph: Graph): void;
   updateGraph(graph: Graph): void;
   start(): void;

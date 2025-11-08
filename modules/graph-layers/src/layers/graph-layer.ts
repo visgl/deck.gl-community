@@ -8,7 +8,7 @@ import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
-import type {Graph, NodeInterface} from '../graph/graph';
+import type {Graph, GraphProps, NodeInterface} from '../graph/graph';
 import {LegacyGraph} from '../graph/legacy-graph';
 import {GraphLayout} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
@@ -204,7 +204,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
   private _suppressNextDeckDataChange = false;
-  private _graphEngineSubscription: (() => void) | null = null;
+  private _graphEnginePreviousCallbacks: GraphProps | null = null;
 
   forceUpdate = () => {
     if (!this.state) {
@@ -590,7 +590,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       typeof layout.initializeGraph === 'function' &&
       typeof layout.getNodePosition === 'function' &&
       typeof layout.getEdgePosition === 'function' &&
-      typeof layout.addCallbacks === 'function'
+      typeof layout.setCallbacks === 'function'
     );
   }
 
@@ -640,11 +640,28 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
-      this._graphEngineSubscription = graphEngine.addCallbacks({
-        onLayoutStart: this._handleLayoutEvent,
-        onLayoutChange: this._handleLayoutEvent,
-        onLayoutDone: this._handleLayoutEvent,
-        onLayoutError: this._handleLayoutEvent
+      const previousCallbacks = graphEngine.props.callbacks ?? {};
+      this._graphEnginePreviousCallbacks = previousCallbacks;
+      graphEngine.setProps({
+        callbacks: {
+          ...previousCallbacks,
+          onLayoutStart: (detail) => {
+            this._handleLayoutEvent();
+            previousCallbacks.onLayoutStart?.(detail);
+          },
+          onLayoutChange: (detail) => {
+            this._handleLayoutEvent();
+            previousCallbacks.onLayoutChange?.(detail);
+          },
+          onLayoutDone: (detail) => {
+            this._handleLayoutEvent();
+            previousCallbacks.onLayoutDone?.(detail);
+          },
+          onLayoutError: (error) => {
+            this._handleLayoutEvent();
+            previousCallbacks.onLayoutError?.(error);
+          }
+        }
       });
       graphEngine.run();
       this._updateLayoutSnapshot(graphEngine);
@@ -657,8 +674,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   _removeGraphEngine() {
     const engine = this.state.graphEngine;
     if (engine) {
-      this._graphEngineSubscription?.();
-      this._graphEngineSubscription = null;
+      if (this._graphEnginePreviousCallbacks) {
+        engine.setProps({callbacks: this._graphEnginePreviousCallbacks});
+      } else {
+        engine.setProps({callbacks: {}});
+      }
+      this._graphEnginePreviousCallbacks = null;
       engine.clear();
       this.state.graphEngine = null;
       this._updateLayoutSnapshot(null);

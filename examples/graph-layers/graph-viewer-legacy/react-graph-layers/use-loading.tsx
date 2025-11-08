@@ -26,19 +26,31 @@ export const useLoading = (engine) => {
   const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
   useLayoutEffect(() => {
-    if (!engine || typeof engine.addCallbacks !== 'function') {
+    if (!engine || typeof engine.setProps !== 'function') {
       return () => undefined;
     }
 
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    const unsubscribe = engine.addCallbacks({
-      onLayoutStart: layoutStarted,
-      onLayoutDone: layoutEnded
+    const previousCallbacks = engine.props?.callbacks ?? {};
+    engine.setProps({
+      callbacks: {
+        ...previousCallbacks,
+        onLayoutStart: (detail) => {
+          layoutStarted();
+          previousCallbacks.onLayoutStart?.(detail);
+        },
+        onLayoutDone: (detail) => {
+          layoutEnded();
+          previousCallbacks.onLayoutDone?.(detail);
+        }
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      engine.setProps({callbacks: previousCallbacks});
+    };
   }, [engine]);
 
   return [{isLoading}, loadingDispatch];

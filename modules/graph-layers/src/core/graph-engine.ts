@@ -39,8 +39,7 @@ function isLegacyProps(props: GraphEngineProps): props is LegacyGraphEngineProps
 
 /** Graph engine controls the graph data and layout calculation */
 export class GraphEngine {
-  props: Readonly<GraphEngineProps>;
-
+  private _props: GraphEngineProps;
   private readonly _graph: Graph;
   private readonly _layout: GraphRuntimeLayout;
   private readonly _cache = new Cache<'nodes' | 'edges', NodeInterface[] | EdgeInterface[]>();
@@ -49,7 +48,6 @@ export class GraphEngine {
   private _graphPreviousProps: GraphProps | null = null;
   private _layoutPreviousCallbacks: GraphLayoutCallbacks | null = null;
   private _callbacks: GraphProps;
-  private readonly _callbackSubscribers = new Set<GraphProps>();
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
@@ -66,8 +64,8 @@ export class GraphEngine {
       normalizedProps = props;
     }
 
-    this.props = normalizedProps;
     this._callbacks = {...(normalizedProps.callbacks ?? {})};
+    this._props = {...normalizedProps, callbacks: {...this._callbacks}};
 
     if (isLegacyProps(normalizedProps)) {
       const layoutAdapter = new LegacyGraphLayoutAdapter(normalizedProps.layout);
@@ -79,15 +77,20 @@ export class GraphEngine {
     }
   }
 
-  updateCallbacks(callbacks: GraphProps): void {
-    this._callbacks = {...this._callbacks, ...callbacks};
+  get props(): GraphEngineProps {
+    return {...this._props, callbacks: {...this._callbacks}} as GraphEngineProps;
   }
 
-  addCallbacks(callbacks: GraphProps): () => void {
-    this._callbackSubscribers.add(callbacks);
-    return () => {
-      this._callbackSubscribers.delete(callbacks);
-    };
+  setProps(props: Partial<Pick<GraphEngineProps, 'callbacks'>>): void {
+    if ('callbacks' in props) {
+      this._callbacks = {...(props.callbacks ?? {})};
+    }
+
+    this._props = {
+      ...this._props,
+      ...props,
+      callbacks: {...this._callbacks}
+    } as GraphEngineProps;
   }
 
   /** Getters */
@@ -346,12 +349,6 @@ export class GraphEngine {
     const base = this._callbacks[type];
     if (base) {
       (base as (...baseArgs: unknown[]) => void)(...args);
-    }
-    for (const subscriber of this._callbackSubscribers) {
-      const fn = subscriber[type];
-      if (fn) {
-        (fn as (...subscriberArgs: unknown[]) => void)(...args);
-      }
     }
 
     if (LAYOUT_EVENT_KEYS.includes(type)) {

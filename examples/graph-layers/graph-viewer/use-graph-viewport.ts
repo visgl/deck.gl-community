@@ -124,18 +124,66 @@ export function useGraphViewport(
       return () => undefined;
     }
 
-    if ('addCallbacks' in eventSource && typeof eventSource.addCallbacks === 'function') {
+    if ('setProps' in eventSource && typeof eventSource.setProps === 'function') {
       const handleLayoutEvent = (detail?: GraphLayoutEventDetail) => {
         fitBounds(detail?.bounds ?? null);
       };
 
-      const unsubscribe = eventSource.addCallbacks({
-        onLayoutStart: handleLayoutEvent,
-        onLayoutChange: handleLayoutEvent,
-        onLayoutDone: handleLayoutEvent
+      const engine = eventSource as GraphEngine;
+      const previousCallbacks = engine.props.callbacks ?? {};
+
+      engine.setProps({
+        callbacks: {
+          ...previousCallbacks,
+          onLayoutStart: (detail) => {
+            handleLayoutEvent(detail);
+            previousCallbacks.onLayoutStart?.(detail);
+          },
+          onLayoutChange: (detail) => {
+            handleLayoutEvent(detail);
+            previousCallbacks.onLayoutChange?.(detail);
+          },
+          onLayoutDone: (detail) => {
+            handleLayoutEvent(detail);
+            previousCallbacks.onLayoutDone?.(detail);
+          }
+        }
       });
 
-      return unsubscribe;
+      return () => {
+        engine.setProps({callbacks: previousCallbacks});
+      };
+    }
+
+    if ('setCallbacks' in eventSource && typeof eventSource.setCallbacks === 'function') {
+      const handleLayoutEvent = (detail?: GraphLayoutEventDetail) => {
+        fitBounds(detail?.bounds ?? null);
+      };
+
+      const layout = eventSource as GraphLayout;
+      const previousCallbacks = layout.getCallbacks();
+
+      layout.setCallbacks({
+        onLayoutStart: (detail) => {
+          handleLayoutEvent(detail);
+          previousCallbacks.onLayoutStart?.(detail);
+        },
+        onLayoutChange: (detail) => {
+          handleLayoutEvent(detail);
+          previousCallbacks.onLayoutChange?.(detail);
+        },
+        onLayoutDone: (detail) => {
+          handleLayoutEvent(detail);
+          previousCallbacks.onLayoutDone?.(detail);
+        },
+        onLayoutError: (error) => {
+          previousCallbacks.onLayoutError?.(error);
+        }
+      });
+
+      return () => {
+        layout.setCallbacks(previousCallbacks);
+      };
     }
 
     return () => undefined;
