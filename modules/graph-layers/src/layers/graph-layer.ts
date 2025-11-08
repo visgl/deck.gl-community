@@ -351,7 +351,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     const rankLabelPrefix = this._resolveRankFieldLabel(config?.rankAccessor);
     const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
       rankAccessor: config?.rankAccessor,
-      labelAccessor: config?.labelAccessor
+      labelAccessor: config?.labelAccessor,
+      yRange: {min: bounds.yMin, max: bounds.yMax}
     });
 
     if (rankPositions.length === 0) {

@@ -16,6 +16,8 @@ export type RankPosition = {
 export type MapRanksToYPositionsOptions = {
   rankAccessor?: RankAccessor;
   labelAccessor?: LabelAccessor;
+  /** Optional target range for the computed y positions. */
+  yRange?: {min?: number; max?: number};
 };
 
 type RankAggregate = {sum: number; count: number; label: string | number | null};
@@ -59,7 +61,10 @@ function fallbackMonotonicSpacing(positions: RankPosition[]) {
   }
 }
 
-function enforceMonotonicPositions(positions: RankPosition[], range: {min: number; max: number}) {
+function enforceMonotonicPositions(
+  positions: RankPosition[],
+  range: {min: number; max: number}
+) {
   if (positions.length === 0) {
     return;
   }
@@ -84,6 +89,22 @@ function enforceMonotonicPositions(positions: RankPosition[], range: {min: numbe
   }
 
   fallbackMonotonicSpacing(positions);
+}
+
+function resolveTargetRange(
+  range: {min: number; max: number},
+  override?: {min?: number; max?: number}
+): {min: number; max: number} {
+  const overrideMin = typeof override?.min === 'number' && Number.isFinite(override.min) ? override.min : undefined;
+  const overrideMax = typeof override?.max === 'number' && Number.isFinite(override.max) ? override.max : undefined;
+
+  const candidateMin = overrideMin ?? range.min;
+  const candidateMax = overrideMax ?? range.max;
+
+  const min = Number.isFinite(candidateMin) ? candidateMin : range.min;
+  const max = Number.isFinite(candidateMax) ? candidateMax : range.max;
+
+  return {min, max};
 }
 
 function accumulateRank(
@@ -235,9 +256,12 @@ export function mapRanksToYPositions(
 
   positions.sort((a, b) => a.rank - b.rank);
 
-  const needsRemap = positions.some((entry, index) => index > 0 && entry.yPosition <= positions[index - 1].yPosition);
+  const needsRemap = positions.some(
+    (entry, index) => index > 0 && entry.yPosition <= positions[index - 1].yPosition
+  );
   if (needsRemap) {
-    enforceMonotonicPositions(positions, range);
+    const targetRange = resolveTargetRange(range, options?.yRange);
+    enforceMonotonicPositions(positions, targetRange);
   }
 
   return positions;

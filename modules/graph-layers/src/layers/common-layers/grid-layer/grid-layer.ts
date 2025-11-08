@@ -125,6 +125,8 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
       getSize: 12,
       sizeUnits: 'pixels',
       getPixelOffset: labelOffset,
+      getTextAnchor: () => 'start',
+      getAlignmentBaseline: () => 'center',
       background: true,
       backgroundPadding: [4, 2],
       backgroundColor: [255, 255, 255, 200],
