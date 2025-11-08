@@ -38,6 +38,17 @@ applications interact with this through the [`GraphLayer`](./layers/graph-layer.
 
 Releases any resources owned by the graph implementation.
 
+### `GraphProps`
+
+Graph constructors accept an optional `GraphProps` object to register callbacks for graph and layout lifecycle changes. The callbacks mirror the legacy DOM events and include:
+
+- `onTransactionStart` / `onTransactionEnd`
+- `onNodeAdded` / `onNodeRemoved` / `onNodeUpdated`
+- `onEdgeAdded` / `onEdgeRemoved` / `onEdgeUpdated`
+- `onLayoutStart` / `onLayoutChange` / `onLayoutDone` / `onLayoutError`
+
+Implementations expose `setProps` and `updateProps` helpers for updating these callbacks at runtime. The [`GraphEngine`](./layers/graph-layer.md#engine-graphengine-optional) and layout helpers use the same callback names when forwarding events to consumers.
+
 ## NodeInterface
 
 Nodes returned by `getNodes()` implement the following methods:

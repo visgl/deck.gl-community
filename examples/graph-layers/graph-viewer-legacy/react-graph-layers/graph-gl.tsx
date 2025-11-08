@@ -147,12 +147,18 @@ export const GraphGL = ({
   }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
 
   useEffect(() => {
-    if (zoomToFitOnLoad && isLoading) {
-      engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+    if (!zoomToFitOnLoad || !isLoading || typeof engine.addCallbacks !== 'function') {
+      return () => undefined;
     }
-    return () => {
-      engine.removeEventListener('onLayoutDone', fitBounds);
-    };
+
+    const unsubscribe = engine.addCallbacks({
+      onLayoutDone: () => {
+        unsubscribe();
+        fitBounds();
+      }
+    });
+
+    return unsubscribe;
   }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
 
   return (

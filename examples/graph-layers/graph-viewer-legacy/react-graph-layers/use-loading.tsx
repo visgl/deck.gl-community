@@ -26,18 +26,19 @@ export const useLoading = (engine) => {
   const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
   useLayoutEffect(() => {
+    if (!engine || typeof engine.addCallbacks !== 'function') {
+      return () => undefined;
+    }
+
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    console.log('adding listeners')
-    engine.addEventListener('onLayoutStart', layoutStarted);
-    engine.addEventListener('onLayoutDone', layoutEnded);
+    const unsubscribe = engine.addCallbacks({
+      onLayoutStart: layoutStarted,
+      onLayoutDone: layoutEnded
+    });
 
-    return () => {
-      console.log('removing listeners')
-      engine.removeEventListener('onLayoutStart', layoutStarted);
-      engine.removeEventListener('onLayoutDone', layoutEnded);
-    };
+    return unsubscribe;
   }, [engine]);
 
   return [{isLoading}, loadingDispatch];

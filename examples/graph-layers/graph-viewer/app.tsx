@@ -24,6 +24,7 @@ import {
   ForceMultiGraphLayout,
   D3DagLayout,
   CollapsableD3DagLayout,
+  type GraphLayoutEventDetail,
   type RankGridConfig
 } from '@deck.gl-community/graph-layers';
 
@@ -78,27 +79,33 @@ const loadingReducer = (state, action) => {
   }
 };
 
-export const useLoading = (eventSource: EventTarget | null) => {
+type LayoutEventEmitter = {
+  addCallbacks?: (callbacks: {
+    onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+    onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  }) => () => void;
+} | null;
+
+export const useLoading = (eventSource: LayoutEventEmitter) => {
   const [state, setState] = useState(INITIAL_LOADING_STATE);
   const loadingDispatch = useCallback((action) => {
     setState((current) => loadingReducer(current, action));
   }, []);
 
   useLayoutEffect(() => {
-    if (!eventSource) {
+    if (!eventSource || typeof eventSource.addCallbacks !== 'function') {
       return () => undefined;
     }
 
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    eventSource.addEventListener('onLayoutStart', layoutStarted);
-    eventSource.addEventListener('onLayoutDone', layoutEnded);
+    const unsubscribe = eventSource.addCallbacks({
+      onLayoutStart: layoutStarted,
+      onLayoutDone: layoutEnded
+    });
 
-    return () => {
-      eventSource.removeEventListener('onLayoutStart', layoutStarted);
-      eventSource.removeEventListener('onLayoutDone', layoutEnded);
-    };
+    return unsubscribe;
   }, [eventSource, loadingDispatch]);
 
   return [state, loadingDispatch];
@@ -319,13 +326,12 @@ export function App({graphType}: AppProps) {
 
     const handleLayoutChange = () => updateChainSummary();
 
-    dagLayout.addEventListener('onLayoutChange', handleLayoutChange);
-    dagLayout.addEventListener('onLayoutDone', handleLayoutChange);
+    const unsubscribe = dagLayout.addCallbacks({
+      onLayoutChange: () => handleLayoutChange(),
+      onLayoutDone: () => handleLayoutChange()
+    });
 
-    return () => {
-      dagLayout.removeEventListener('onLayoutChange', handleLayoutChange);
-      dagLayout.removeEventListener('onLayoutDone', handleLayoutChange);
-    };
+    return unsubscribe;
   }, [graph, dagLayout, isDagLayout]);
 
   const handleToggleCollapseEnabled = useCallback(() => {

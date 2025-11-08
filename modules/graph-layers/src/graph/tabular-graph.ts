@@ -7,34 +7,35 @@ import {GraphStyleEngine} from '../style/graph-style-engine';
 import {TabularGraphStylesheetEngine} from '../style/tabular-graph-style-engine';
 
 import type {EdgeState, NodeState} from '../core/constants';
-import type {EdgeInterface, Graph, NodeInterface} from './graph';
+import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
+import {Graph} from './graph';
 import {LegacyGraph} from './legacy-graph';
 import {Node} from './node';
 import {Edge} from './edge';
 
 export interface TabularNodeAccessors<Handle> {
-  getId(node: Handle): string | number;
-  getState?(node: Handle): NodeState;
-  setState?(node: Handle, state: NodeState): void;
-  isSelectable?(node: Handle): boolean;
-  shouldHighlightConnectedEdges?(node: Handle): boolean;
-  getPropertyValue?(node: Handle, key: string): unknown;
-  setData?(node: Handle, data: Record<string, unknown>): void;
-  setDataProperty?(node: Handle, key: string, value: unknown): void;
-  getData?(node: Handle): Record<string, unknown> | null | undefined;
+  getId(this: void, node: Handle): string | number;
+  getState?(this: void, node: Handle): NodeState;
+  setState?(this: void, node: Handle, state: NodeState): void;
+  isSelectable?(this: void, node: Handle): boolean;
+  shouldHighlightConnectedEdges?(this: void, node: Handle): boolean;
+  getPropertyValue?(this: void, node: Handle, key: string): unknown;
+  setData?(this: void, node: Handle, data: Record<string, unknown>): void;
+  setDataProperty?(this: void, node: Handle, key: string, value: unknown): void;
+  getData?(this: void, node: Handle): Record<string, unknown> | null | undefined;
 }
 
 export interface TabularEdgeAccessors<Handle> {
-  getId(edge: Handle): string | number;
-  getSourceId(edge: Handle): string | number;
-  getTargetId(edge: Handle): string | number;
-  isDirected?(edge: Handle): boolean;
-  getState?(edge: Handle): EdgeState;
-  setState?(edge: Handle, state: EdgeState): void;
-  getPropertyValue?(edge: Handle, key: string): unknown;
-  setData?(edge: Handle, data: Record<string, unknown>): void;
-  setDataProperty?(edge: Handle, key: string, value: unknown): void;
-  getData?(edge: Handle): Record<string, unknown> | null | undefined;
+  getId(this: void, edge: Handle): string | number;
+  getSourceId(this: void, edge: Handle): string | number;
+  getTargetId(this: void, edge: Handle): string | number;
+  isDirected?(this: void, edge: Handle): boolean;
+  getState?(this: void, edge: Handle): EdgeState;
+  setState?(this: void, edge: Handle, state: EdgeState): void;
+  getPropertyValue?(this: void, edge: Handle, key: string): unknown;
+  setData?(this: void, edge: Handle, data: Record<string, unknown>): void;
+  setDataProperty?(this: void, edge: Handle, key: string, value: unknown): void;
+  getData?(this: void, edge: Handle): Record<string, unknown> | null | undefined;
 }
 
 export type TabularGraphAccessors<NodeHandle, EdgeHandle> = {
@@ -259,10 +260,7 @@ export class TabularEdge<NodeHandle = unknown, EdgeHandle = unknown> implements 
   }
 }
 
-export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
-  extends EventTarget
-  implements Graph
-{
+export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Graph {
   private readonly source: TabularGraphSource<NodeHandle, EdgeHandle>;
 
   private _nodes: TabularNode<NodeHandle, EdgeHandle>[] | null = null;
@@ -275,8 +273,8 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
   private _accessors: TabularGraphAccessors<NodeHandle, EdgeHandle> | null = null;
   private _lastVersion = -1;
 
-  constructor(source: TabularGraphSource<NodeHandle, EdgeHandle>) {
-    super();
+  constructor(source: TabularGraphSource<NodeHandle, EdgeHandle>, props: GraphProps = {}) {
+    super(props);
     this.source = source;
   }
 
@@ -346,7 +344,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
       return edge;
     });
 
-    const graph = new LegacyGraph();
+    const graph = new LegacyGraph(undefined, this.props);
     if (legacyNodes.length > 0) {
       graph.batchAddNodes(legacyNodes);
     }
@@ -582,7 +580,24 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
     accessors: TabularGraphAccessors<NodeHandle, EdgeHandle>;
   } {
     const accessors = this.source.getAccessors();
+    const {nodeTable, nodes, nodeMap, nodeIndexById, nodeIndices} = this._buildNodeEntities(accessors);
+    const {edgeTable, edges, edgeIndices} = this._buildEdgeEntities(
+      accessors,
+      nodeTable,
+      nodes,
+      nodeIndexById
+    );
 
+    return {nodes, edges, nodeMap, nodeTable, edgeTable, nodeIndices, edgeIndices, accessors};
+  }
+
+  private _buildNodeEntities(accessors: TabularGraphAccessors<NodeHandle, EdgeHandle>): {
+    nodeTable: TabularNodeRecord<NodeHandle>[];
+    nodes: TabularNode<NodeHandle, EdgeHandle>[];
+    nodeMap: Map<string | number, TabularNode<NodeHandle, EdgeHandle>>;
+    nodeIndexById: Map<string | number, NodeIndex>;
+    nodeIndices: WeakMap<NodeInterface, NodeIndex>;
+  } {
     const nodeTable: TabularNodeRecord<NodeHandle>[] = [];
     const nodes: TabularNode<NodeHandle, EdgeHandle>[] = [];
     const nodeMap = new Map<string | number, TabularNode<NodeHandle, EdgeHandle>>();
@@ -617,6 +632,19 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
       nodeIndex += 1;
     }
 
+    return {nodeTable, nodes, nodeMap, nodeIndexById, nodeIndices};
+  }
+
+  private _buildEdgeEntities(
+    accessors: TabularGraphAccessors<NodeHandle, EdgeHandle>,
+    nodeTable: TabularNodeRecord<NodeHandle>[],
+    nodes: TabularNode<NodeHandle, EdgeHandle>[],
+    nodeIndexById: Map<string | number, NodeIndex>
+  ): {
+    edgeTable: TabularEdgeRecord<EdgeHandle>[];
+    edges: TabularEdge<NodeHandle, EdgeHandle>[];
+    edgeIndices: WeakMap<EdgeInterface, EdgeIndex>;
+  } {
     const edgeTable: TabularEdgeRecord<EdgeHandle>[] = [];
     const edges: TabularEdge<NodeHandle, EdgeHandle>[] = [];
     const edgeIndices = new WeakMap<EdgeInterface, EdgeIndex>();
@@ -630,25 +658,14 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
       const state = accessors.edge.getState?.(handle) ?? 'default';
       const data = cloneRecord(accessors.edge.getData?.(handle));
 
-      const connectedNodes: EdgeNodeReference[] = [];
-      const sourceIndex = nodeIndexById.get(sourceId);
-      if (sourceIndex !== undefined) {
-        nodeTable[sourceIndex].connectedEdgeIndices.push(edgeIndex);
-        connectedNodes.push({
-          id: nodeTable[sourceIndex].id,
-          node: nodes[sourceIndex]
-        });
-      }
-      const targetIndex = nodeIndexById.get(targetId);
-      if (targetIndex !== undefined) {
-        nodeTable[targetIndex].connectedEdgeIndices.push(edgeIndex);
-        if (targetIndex !== sourceIndex) {
-          connectedNodes.push({
-            id: nodeTable[targetIndex].id,
-            node: nodes[targetIndex]
-          });
-        }
-      }
+      const connectedNodes = this._resolveConnectedNodes({
+        nodeTable,
+        nodes,
+        nodeIndexById,
+        sourceId,
+        targetId,
+        edgeIndex
+      });
 
       edgeTable.push({
         handle,
@@ -666,16 +683,45 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
       edgeIndex += 1;
     }
 
-    return {
-      nodes,
-      edges,
-      nodeMap,
-      nodeTable,
-      edgeTable,
-      nodeIndices,
-      edgeIndices,
-      accessors
-    };
+    return {edgeTable, edges, edgeIndices};
+  }
+
+  private _resolveConnectedNodes({
+    nodeTable,
+    nodes,
+    nodeIndexById,
+    sourceId,
+    targetId,
+    edgeIndex
+  }: {
+    nodeTable: TabularNodeRecord<NodeHandle>[];
+    nodes: TabularNode<NodeHandle, EdgeHandle>[];
+    nodeIndexById: Map<string | number, NodeIndex>;
+    sourceId: string | number;
+    targetId: string | number;
+    edgeIndex: EdgeIndex;
+  }): EdgeNodeReference[] {
+    const connectedNodes: EdgeNodeReference[] = [];
+    const sourceIndex = nodeIndexById.get(sourceId);
+    if (sourceIndex !== undefined) {
+      nodeTable[sourceIndex].connectedEdgeIndices.push(edgeIndex);
+      connectedNodes.push({
+        id: nodeTable[sourceIndex].id,
+        node: nodes[sourceIndex]
+      });
+    }
+    const targetIndex = nodeIndexById.get(targetId);
+    if (targetIndex !== undefined) {
+      nodeTable[targetIndex].connectedEdgeIndices.push(edgeIndex);
+      if (targetIndex !== sourceIndex) {
+        connectedNodes.push({
+          id: nodeTable[targetIndex].id,
+          node: nodes[targetIndex]
+        });
+      }
+    }
+
+    return connectedNodes;
   }
 
   private _getNodeRecord(index: NodeIndex): TabularNodeRecord<NodeHandle> {

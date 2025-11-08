@@ -5,7 +5,7 @@
 import type {Bounds2D} from '@math.gl/types';
 
 import type {LegacyGraph} from '../graph/legacy-graph';
-import type {NodeInterface, EdgeInterface} from '../graph/graph';
+import type {NodeInterface, EdgeInterface, GraphProps} from '../graph/graph';
 
 import isEqual from 'lodash.isequal';
 import {log} from '../utils/log';
@@ -20,9 +20,14 @@ export type GraphLayoutEventDetail = {
 export type GraphLayoutProps = {};
 
 /** All the layout classes are extended from this base layout class. */
+export type GraphLayoutCallbacks = Pick<
+  GraphProps,
+  'onLayoutStart' | 'onLayoutChange' | 'onLayoutDone' | 'onLayoutError'
+>;
+
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
-> extends EventTarget {
+> {
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration props of the layout. */
@@ -43,9 +48,28 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
+  protected _callbacks: GraphLayoutCallbacks = {};
+  private readonly _callbackSubscribers = new Set<GraphLayoutCallbacks>();
+
   constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
-    super();
     this.props = {...defaultProps, ...props};
+  }
+
+  getCallbacks(): GraphLayoutCallbacks {
+    return {...this._callbacks};
+  }
+
+  setCallbacks(callbacks: GraphLayoutCallbacks): GraphLayoutCallbacks {
+    const previous = this.getCallbacks();
+    this._callbacks = {...callbacks};
+    return previous;
+  }
+
+  addCallbacks(callbacks: GraphLayoutCallbacks): () => void {
+    this._callbackSubscribers.add(callbacks);
+    return () => {
+      this._callbackSubscribers.delete(callbacks);
+    };
   }
 
   /**
@@ -203,7 +227,10 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutStart', {detail}));
+    this._callbacks.onLayoutStart?.(detail);
+    for (const subscriber of this._callbackSubscribers) {
+      subscriber.onLayoutStart?.(detail);
+    }
   };
 
   /** @fires GraphLayout#onLayoutChange */
@@ -218,7 +245,10 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutChange', {detail}));
+    this._callbacks.onLayoutChange?.(detail);
+    for (const subscriber of this._callbackSubscribers) {
+      subscriber.onLayoutChange?.(detail);
+    }
   };
 
   /** @fires GraphLayout#onLayoutDone */
@@ -233,7 +263,10 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutDone', {detail}));
+    this._callbacks.onLayoutDone?.(detail);
+    for (const subscriber of this._callbackSubscribers) {
+      subscriber.onLayoutDone?.(detail);
+    }
   };
 
   /** @fires GraphLayout#onLayoutError */
@@ -245,6 +278,9 @@ export abstract class GraphLayout<
      * @event GraphLayout#onLayoutError
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutError'));
+    this._callbacks.onLayoutError?.();
+    for (const subscriber of this._callbackSubscribers) {
+      subscriber.onLayoutError?.();
+    }
   };
 }

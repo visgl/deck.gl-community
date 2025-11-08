@@ -124,20 +124,21 @@ export function useGraphViewport(
       return () => undefined;
     }
 
-    const handleLayoutEvent = (event: Event) => {
-      const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-      fitBounds(detail?.bounds ?? null);
-    };
+    if ('addCallbacks' in eventSource && typeof eventSource.addCallbacks === 'function') {
+      const handleLayoutEvent = (detail?: GraphLayoutEventDetail) => {
+        fitBounds(detail?.bounds ?? null);
+      };
 
-    eventSource.addEventListener('onLayoutStart', handleLayoutEvent);
-    eventSource.addEventListener('onLayoutChange', handleLayoutEvent);
-    eventSource.addEventListener('onLayoutDone', handleLayoutEvent);
+      const unsubscribe = eventSource.addCallbacks({
+        onLayoutStart: handleLayoutEvent,
+        onLayoutChange: handleLayoutEvent,
+        onLayoutDone: handleLayoutEvent
+      });
 
-    return () => {
-      eventSource.removeEventListener('onLayoutStart', handleLayoutEvent);
-      eventSource.removeEventListener('onLayoutChange', handleLayoutEvent);
-      eventSource.removeEventListener('onLayoutDone', handleLayoutEvent);
-    };
+      return unsubscribe;
+    }
+
+    return () => undefined;
   }, [eventSource, fitBounds]);
 
   const {width, height} = viewState as any;

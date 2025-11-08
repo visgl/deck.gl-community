@@ -6,6 +6,7 @@ import type {GraphStylesheet} from '../style/graph-style-engine';
 import {GraphStyleEngine} from '../style/graph-style-engine';
 
 import type {NodeState, EdgeState} from '../core/constants';
+import type {GraphLayoutEventDetail} from '../core/graph-layout';
 
 /** Shared interface for graph nodes used by the rendering runtime. */
 export interface NodeInterface {
@@ -45,17 +46,50 @@ export interface EdgeInterface {
   getState(): EdgeState;
 }
 
+export type GraphProps = {
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+  onTransactionStart?: () => void;
+  onTransactionEnd?: () => void;
+  onNodeAdded?: (node: NodeInterface) => void;
+  onNodeRemoved?: (node: NodeInterface) => void;
+  onNodeUpdated?: (node: NodeInterface) => void;
+  onEdgeAdded?: (edge: EdgeInterface) => void;
+  onEdgeRemoved?: (edge: EdgeInterface) => void;
+  onEdgeUpdated?: (edge: EdgeInterface) => void;
+};
+
 /** Runtime abstraction consumed by the rendering engine. */
-export interface Graph extends EventTarget {
-  readonly version: number;
-  getNodes(): Iterable<NodeInterface>;
-  getEdges(): Iterable<EdgeInterface>;
-  findNodeById?(id: string | number): NodeInterface | undefined;
-  createStylesheetEngine(
+export abstract class Graph {
+  private _props: GraphProps;
+
+  protected constructor(props: GraphProps = {}) {
+    this._props = {...props};
+  }
+
+  get props(): GraphProps {
+    return {...this._props};
+  }
+
+  setProps(props: GraphProps): void {
+    this._props = {...props};
+  }
+
+  updateProps(props: GraphProps): void {
+    this._props = {...this._props, ...props};
+  }
+
+  abstract get version(): number;
+  abstract getNodes(): Iterable<NodeInterface>;
+  abstract getEdges(): Iterable<EdgeInterface>;
+  abstract findNodeById?(id: string | number): NodeInterface | undefined;
+  abstract createStylesheetEngine(
     style: GraphStylesheet,
     options?: {stateUpdateTrigger?: unknown}
   ): GraphStyleEngine;
-  destroy?(): void;
+  abstract destroy?(): void;
 }
 
 export type {GraphStyleEngine, GraphStylesheet};

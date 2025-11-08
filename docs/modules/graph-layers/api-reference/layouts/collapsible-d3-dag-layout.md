@@ -35,4 +35,4 @@ new GraphLayer({
 - `toggleCollapsedChain(chainId)` / `setCollapsedChains(chainIds)` - Toggle or set the collapse state for previously detected linear chains. Chain identifiers can be read from node data (`collapsedChainId`).
 - `getLinkControlPoints(edge)` - Returns any intermediate control points computed by the active d3-dag operator, allowing `GraphLayer` edge renderers to draw smooth splines.
 
-These helpers emit the standard layout lifecycle events (`onLayoutStart`, `onLayoutChange`, `onLayoutDone`) so the layer updates automatically when the DAG pipeline finishes.
+These helpers invoke the standard layout lifecycle callbacks (`onLayoutStart`, `onLayoutChange`, `onLayoutDone`) so the layer updates automatically when the DAG pipeline finishes.

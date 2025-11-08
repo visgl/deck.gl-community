@@ -204,6 +204,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
   private _suppressNextDeckDataChange = false;
+  private _graphEngineSubscription: (() => void) | null = null;
 
   forceUpdate = () => {
     if (!this.state) {
@@ -580,7 +581,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
-    if (!(value instanceof EventTarget)) {
+    if (!value || typeof value !== 'object') {
       return false;
     }
 
@@ -588,7 +589,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return (
       typeof layout.initializeGraph === 'function' &&
       typeof layout.getNodePosition === 'function' &&
-      typeof layout.getEdgePosition === 'function'
+      typeof layout.getEdgePosition === 'function' &&
+      typeof layout.addCallbacks === 'function'
     );
   }
 
@@ -638,10 +640,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
-      graphEngine.addEventListener('onLayoutStart', this._handleLayoutEvent);
-      graphEngine.addEventListener('onLayoutChange', this._handleLayoutEvent);
-      graphEngine.addEventListener('onLayoutDone', this._handleLayoutEvent);
-      graphEngine.addEventListener('onLayoutError', this._handleLayoutEvent);
+      this._graphEngineSubscription = graphEngine.addCallbacks({
+        onLayoutStart: this._handleLayoutEvent,
+        onLayoutChange: this._handleLayoutEvent,
+        onLayoutDone: this._handleLayoutEvent,
+        onLayoutError: this._handleLayoutEvent
+      });
       graphEngine.run();
       this._updateLayoutSnapshot(graphEngine);
     } else {
@@ -653,10 +657,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   _removeGraphEngine() {
     const engine = this.state.graphEngine;
     if (engine) {
-      engine.removeEventListener('onLayoutStart', this._handleLayoutEvent);
-      engine.removeEventListener('onLayoutChange', this._handleLayoutEvent);
-      engine.removeEventListener('onLayoutDone', this._handleLayoutEvent);
-      engine.removeEventListener('onLayoutError', this._handleLayoutEvent);
+      this._graphEngineSubscription?.();
+      this._graphEngineSubscription = null;
       engine.clear();
       this.state.graphEngine = null;
       this._updateLayoutSnapshot(null);

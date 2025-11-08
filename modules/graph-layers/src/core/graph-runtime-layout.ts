@@ -4,12 +4,15 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {GraphLayoutState} from './graph-layout';
+import type {GraphLayoutCallbacks, GraphLayoutState} from './graph-layout';
 import type {EdgeInterface, Graph, NodeInterface} from '../graph/graph';
 
-export interface GraphRuntimeLayout extends EventTarget {
+export interface GraphRuntimeLayout {
   readonly version: number;
   readonly state: GraphLayoutState;
+  getCallbacks(): GraphLayoutCallbacks;
+  setCallbacks(callbacks: GraphLayoutCallbacks): GraphLayoutCallbacks;
+  addCallbacks(callbacks: GraphLayoutCallbacks): () => void;
   initializeGraph(graph: Graph): void;
   updateGraph(graph: Graph): void;
   start(): void;
