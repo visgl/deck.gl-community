@@ -11,6 +11,8 @@ export {
   TabularGraph,
   TabularNode,
   TabularEdge,
+  type NodeIndex,
+  type EdgeIndex,
   type TabularGraphSource,
   type TabularGraphAccessors,
   type TabularNodeAccessors,

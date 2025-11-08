@@ -9,7 +9,7 @@ import {LegacyGraph} from '../../src/graph/legacy-graph';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
 import type {EdgeInterface, Graph, NodeInterface} from '../../src/graph/graph';
-import {TabularGraph} from '../../src/graph/tabular-graph';
+import {TabularGraph, TabularNode, TabularEdge} from '../../src/graph/tabular-graph';
 import type {TabularGraphAccessors, TabularGraphSource} from '../../src/graph/tabular-graph';
 import type {EdgeState, NodeState} from '../../src/core/constants';
 
@@ -96,6 +96,10 @@ class SampleTabularGraphSource
 
   findNodeById(id: string | number): SampleNodeHandle | undefined {
     return this.nodes.find((node) => node.id === id);
+  }
+
+  findEdgeById(id: string | number): SampleEdgeHandle | undefined {
+    return this.edges.find((edge) => edge.id === id);
   }
 }
 
@@ -244,6 +248,50 @@ describe('core/graph', () => {
       expect(graph.getNodes()).toHaveLength(glNodes.length);
       const graph2 = new LegacyGraph(graph);
       expect(graph2.getNodes()).toHaveLength(glNodes.length);
+    });
+  });
+
+  describe('TabularGraph specifics', () => {
+    it('stores node and edge state in the internal tables', () => {
+      const nodes: SampleNodeHandle[] = SAMPLE_GRAPH1.nodes.map((n) => ({
+        id: n.id,
+        data: {initial: n.id}
+      }));
+      const edges: SampleEdgeHandle[] = SAMPLE_GRAPH1.edges.map((e) => ({
+        id: e.id,
+        sourceId: e.sourceId,
+        targetId: e.targetId,
+        data: {weight: Number(e.id)}
+      }));
+      const source = new SampleTabularGraphSource(nodes, edges);
+      const graph = new TabularGraph(source);
+
+      const tabularNode = Array.from(graph.getNodes())[0] as TabularNode<SampleNodeHandle, SampleEdgeHandle>;
+      const tabularEdge = Array.from(graph.getEdges())[0] as TabularEdge<SampleNodeHandle, SampleEdgeHandle>;
+
+      tabularNode.setState('hover');
+      tabularNode.setDataProperty('nickname', 'Co');
+      tabularEdge.setState('selected');
+      tabularEdge.setDataProperty('capacity', 42);
+
+      expect(graph.getNodeStateByIndex(tabularNode.index)).toBe('hover');
+      expect(graph.getNodeDataByIndex(tabularNode.index)).toMatchObject({
+        initial: tabularNode.getId(),
+        nickname: 'Co'
+      });
+      expect(graph.getEdgeStateByIndex(tabularEdge.index)).toBe('selected');
+      expect(graph.getEdgeDataByIndex(tabularEdge.index)).toMatchObject({
+        weight: Number(tabularEdge.getId()),
+        capacity: 42
+      });
+
+      const nodeHandle = source.findNodeById(tabularNode.getId());
+      expect(nodeHandle?.state).toBe('hover');
+      expect(nodeHandle?.data.nickname).toBe('Co');
+
+      const edgeHandle = source.findEdgeById(tabularEdge.getId());
+      expect(edgeHandle?.state).toBe('selected');
+      expect(edgeHandle?.data.capacity).toBe(42);
     });
   });
 });
