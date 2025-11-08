@@ -38,7 +38,24 @@ describe('rank-grid utilities', () => {
 
     expect(ranks.map((entry) => entry.rank)).toEqual([1, 2, 3]);
     expect(ranks.map((entry) => entry.label)).toEqual(['one', 'two', 'three']);
-    expect(ranks.map((entry) => entry.yPosition)).toEqual([10, 35, 40]);
+    expect(ranks.map((entry) => entry.yPosition)).toEqual([10, 25, 40]);
+  });
+
+  it('distributes overlapping ranks evenly across the layout bounds', () => {
+    const entries = [
+      createNode('a', 0, 0),
+      createNode('b', 1, 10),
+      createNode('c', 2, 10),
+      createNode('d', 3, 30)
+    ];
+
+    const nodes = entries.map((entry) => entry.node);
+    const positions = new Map<Node, [number, number]>(entries.map((entry) => [entry.node, entry.position]));
+
+    const ranks = mapRanksToYPositions(nodes, (node) => positions.get(node) ?? null);
+
+    expect(ranks.map((entry) => entry.rank)).toEqual([0, 1, 2, 3]);
+    expect(ranks.map((entry) => entry.yPosition)).toEqual([0, 10, 20, 30]);
   });
 
   it('selects rank lines within a range and limits the output count', () => {

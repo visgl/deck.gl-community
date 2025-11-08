@@ -25,6 +25,67 @@ type RankAggregateState = {
   range: {min: number; max: number};
 };
 
+function distributeEvenSpacing(positions: RankPosition[], start: number, end: number) {
+  const count = positions.length;
+  if (count === 0) {
+    return;
+  }
+
+  if (count === 1) {
+    positions[0].yPosition = start;
+    return;
+  }
+
+  const step = (end - start) / (count - 1);
+  for (let i = 0; i < count; i++) {
+    positions[i].yPosition = start + step * i;
+  }
+}
+
+function fallbackMonotonicSpacing(positions: RankPosition[]) {
+  if (positions.length === 0) {
+    return;
+  }
+
+  let previous = positions[0].yPosition;
+  for (let i = 1; i < positions.length; i++) {
+    const current = positions[i].yPosition;
+    if (!(current > previous)) {
+      previous += 1;
+      positions[i].yPosition = previous;
+    } else {
+      previous = current;
+    }
+  }
+}
+
+function enforceMonotonicPositions(positions: RankPosition[], range: {min: number; max: number}) {
+  if (positions.length === 0) {
+    return;
+  }
+
+  const hasFiniteMin = Number.isFinite(range.min);
+  const hasFiniteMax = Number.isFinite(range.max);
+
+  if (positions.length === 1) {
+    if (hasFiniteMin) {
+      positions[0].yPosition = range.min;
+    }
+    return;
+  }
+
+  if (hasFiniteMin && hasFiniteMax && range.max > range.min) {
+    distributeEvenSpacing(positions, range.min, range.max);
+    return;
+  }
+
+  if (hasFiniteMin) {
+    positions[0].yPosition = range.min;
+  }
+
+  fallbackMonotonicSpacing(positions);
+}
+
 function accumulateRank(
   node: Node,
   getRank: (node: Node) => number | null,
@@ -176,23 +237,7 @@ export function mapRanksToYPositions(
 
   const needsRemap = positions.some((entry, index) => index > 0 && entry.yPosition <= positions[index - 1].yPosition);
   if (needsRemap) {
-    if (positions.length > 0 && Number.isFinite(range.min)) {
-      positions[0].yPosition = Math.min(positions[0].yPosition, range.min);
-    }
-    let previous = positions.length > 0 ? positions[0].yPosition : 0;
-    for (let i = 1; i < positions.length - 1; i++) {
-      const current = positions[i].yPosition;
-      if (current <= previous) {
-        positions[i].yPosition = previous;
-      } else {
-        previous = current;
-      }
-    }
-    if (positions.length > 1) {
-      const last = positions[positions.length - 1];
-      const maxTarget = Number.isFinite(range.max) ? range.max : last.yPosition;
-      last.yPosition = Math.max(last.yPosition, previous, maxTarget);
-    }
+    enforceMonotonicPositions(positions, range);
   }
 
   return positions;
