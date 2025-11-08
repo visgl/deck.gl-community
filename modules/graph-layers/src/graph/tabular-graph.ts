@@ -49,6 +49,17 @@ export interface TabularGraphSource<NodeHandle = unknown, EdgeHandle = unknown> 
 
 export class TabularNode<Handle> implements NodeInterface {
   public readonly isNode = true;
+  public get id(): string | number {
+    return this.getId();
+  }
+
+  public get state(): NodeState {
+    return this.getState();
+  }
+
+  public set state(state: NodeState) {
+    this.setState(state);
+  }
 
   private readonly handle: Handle;
   private readonly accessors: TabularNodeAccessors<Handle>;
@@ -189,6 +200,21 @@ export class TabularNode<Handle> implements NodeInterface {
 
 export class TabularEdge<Handle> implements EdgeInterface {
   public readonly isEdge = true;
+  public get id(): string | number {
+    return this.getId();
+  }
+
+  public get directed(): boolean {
+    return this.isDirected();
+  }
+
+  public get state(): EdgeState {
+    return this.getState();
+  }
+
+  public set state(state: EdgeState) {
+    this.setState(state);
+  }
 
   private readonly handle: Handle;
   private readonly accessors: TabularEdgeAccessors<Handle>;

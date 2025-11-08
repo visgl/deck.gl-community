@@ -8,9 +8,10 @@ import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
+import type {Graph, NodeInterface} from '../graph/graph';
 import {LegacyGraph} from '../graph/legacy-graph';
-import type {NodeInterface} from '../graph/graph';
 import {GraphLayout} from '../core/graph-layout';
+import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 
 import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
@@ -52,7 +53,7 @@ import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 import {EdgeAttachmentHelper} from './edge-attachment-helper';
 import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
-import {JSONLoader} from '../loaders/json-loader';
+import {JSONTabularGraphLoader} from '../loaders/json-loader';
 
 const NODE_LAYER_MAP = {
   'rectangle': RectangleLayer,
@@ -111,7 +112,7 @@ export type GraphLayerRawData = {
 
 export type GraphLayerDataInput =
   | GraphEngine
-  | LegacyGraph
+  | Graph
   | GraphLayerRawData
   | unknown[]
   | string
@@ -132,9 +133,9 @@ type EngineResolutionFlags = {
 };
 
 export type _GraphLayerProps = {
-  graph?: LegacyGraph;
-  layout?: GraphLayout;
-  graphLoader?: (opts: {json: unknown}) => LegacyGraph | null;
+  graph?: Graph;
+  layout?: GraphLayout | GraphRuntimeLayout;
+  graphLoader?: (opts: {json: unknown}) => Graph | null;
   engine?: GraphEngine;
 
   stylesheet?: GraphLayerStylesheet;
@@ -171,7 +172,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     data: {type: 'object', value: null, async: true},
 
     // Graph props
-    graphLoader: JSONLoader,
+    graphLoader: JSONTabularGraphLoader,
 
     stylesheet: DEFAULT_GRAPH_LAYER_STYLESHEET,
     nodeStyle: undefined as unknown as GraphLayerNodeStyle[],
@@ -460,12 +461,16 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return this._buildEngineFromGraph(data, props.layout);
     }
 
+    if (this._isGraph(data)) {
+      return this._buildEngineFromGraph(data, props.layout);
+    }
+
     if (typeof data === 'string') {
       return undefined;
     }
 
     if (Array.isArray(data) || this._isPlainObject(data)) {
-      const loader = props.graphLoader ?? JSONLoader;
+      const loader = props.graphLoader ?? JSONTabularGraphLoader;
       const graph = loader({json: data});
       if (!graph) {
         return null;
@@ -477,8 +482,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _buildEngineFromGraph(
-    graph: LegacyGraph | null,
-    layout?: GraphLayout | null
+    graph: Graph | null,
+    layout?: (GraphLayout | GraphRuntimeLayout) | null
   ): GraphEngine | null {
     if (!graph) {
       return null;
@@ -489,7 +494,21 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    return new GraphEngine({graph, layout});
+    if (graph instanceof LegacyGraph && layout instanceof GraphLayout) {
+      return new GraphEngine({graph, layout});
+    }
+
+    if (layout instanceof GraphLayout && !(graph instanceof LegacyGraph)) {
+      this._warnLayoutRequired();
+      return null;
+    }
+
+    if (this._isGraphRuntimeLayout(layout)) {
+      return new GraphEngine({graph, layout});
+    }
+
+    this._warnLayoutRequired();
+    return null;
   }
 
   private _syncInteractionManager(props: GraphLayerProps, engine: GraphEngine | null) {
@@ -517,6 +536,30 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       warn(LAYOUT_REQUIRED_MESSAGE);
       LAYOUT_REQUIRED_WARNED = true;
     }
+  }
+
+  private _isGraph(value: unknown): value is Graph {
+    if (!(value instanceof EventTarget)) {
+      return false;
+    }
+
+    return (
+      typeof (value as Graph).getNodes === 'function' &&
+      typeof (value as Graph).getEdges === 'function'
+    );
+  }
+
+  private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
+    if (!(value instanceof EventTarget)) {
+      return false;
+    }
+
+    const layout = value as GraphRuntimeLayout;
+    return (
+      typeof layout.initializeGraph === 'function' &&
+      typeof layout.getNodePosition === 'function' &&
+      typeof layout.getEdgePosition === 'function'
+    );
   }
 
   private _isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {

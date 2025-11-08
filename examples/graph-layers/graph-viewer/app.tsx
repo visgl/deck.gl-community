@@ -18,7 +18,7 @@ import {
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
-  JSONLoader,
+  JSONTabularGraphLoader,
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
@@ -155,7 +155,10 @@ export function App({graphType}: AppProps) {
 
     return overrides ?? baseOptions;
   }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
-  const graph = useMemo(() => (graphData ? JSONLoader({json: graphData}) : null), [graphData]);
+  const graph = useMemo(
+    () => (graphData ? JSONTabularGraphLoader({json: graphData}) : null),
+    [graphData]
+  );
   const layout = useMemo(() => {
     if (!selectedLayout) {
       return null;
