@@ -49,7 +49,7 @@ describe('rank-grid utilities', () => {
     }));
 
     const selected = selectRankLines(ranks, {yMin: 0, yMax: 90, maxCount: 5});
-    expect(selected.map((entry) => entry.yPosition)).toEqual([0, 20, 50, 70, 90]);
+    expect(selected.map((entry) => entry.yPosition)).toEqual([0, 20, 40, 70, 90]);
 
     const narrowed = selectRankLines(ranks, {yMin: 15, yMax: 65, maxCount: 3});
     expect(narrowed.map((entry) => entry.yPosition)).toEqual([20, 40, 60]);
@@ -58,4 +58,18 @@ describe('rank-grid utilities', () => {
     expect(single).toHaveLength(1);
     expect(single[0].yPosition).toBe(40);
   });
+  it('retains interior ranks when spacing is uneven', () => {
+    const ranks: RankPosition[] = [
+      {rank: 0, yPosition: 0, label: 0},
+      {rank: 1, yPosition: 5, label: 1},
+      {rank: 2, yPosition: 10, label: 2},
+      {rank: 3, yPosition: 20, label: 3},
+      {rank: 4, yPosition: 30, label: 4},
+      {rank: 5, yPosition: 40, label: 5},
+      {rank: 6, yPosition: 50, label: 6}
+    ];
+    const selected = selectRankLines(ranks, {yMin: 0, yMax: 50, maxCount: 4});
+    expect(selected.map((entry) => entry.yPosition)).toEqual([0, 20, 30, 50]);
+  });
+
 });

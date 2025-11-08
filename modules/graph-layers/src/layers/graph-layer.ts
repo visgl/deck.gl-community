@@ -347,7 +347,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     engine: GraphEngine,
     config: RankGridConfig | undefined,
     bounds: {yMin: number; yMax: number}
-  ): Array<{label: string | number; yPosition: number}> | null {
+  ): Array<{label: string; rank: number; originalLabel?: string | number; yPosition: number}> | null {
     const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
       rankAccessor: config?.rankAccessor,
       labelAccessor: config?.labelAccessor
@@ -367,7 +367,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    return selectedRanks.map(({label, yPosition}) => ({label, yPosition}));
+    return selectedRanks.map(({rank, label, yPosition}) => ({
+      label: String(rank),
+      rank,
+      originalLabel: label === undefined ? undefined : label,
+      yPosition
+    }));
   }
 
   createNodeLayers() {

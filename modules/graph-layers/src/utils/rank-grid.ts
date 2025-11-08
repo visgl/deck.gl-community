@@ -204,6 +204,121 @@ export type SelectRankLinesOptions = {
   maxCount?: number;
 };
 
+function locateInsertionIndex(ranks: RankPosition[], target: number): number {
+  let low = 0;
+  let high = ranks.length - 1;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (ranks[mid].yPosition < target) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
+
+function pickNearestAvailableIndex(
+  ranks: RankPosition[],
+  target: number,
+  startIndex: number,
+  used: Set<number>
+): number {
+  let bestIndex = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  const consider = (index: number) => {
+    if (index < 0 || index >= ranks.length || used.has(index)) {
+      return;
+    }
+    const distance = Math.abs(ranks[index].yPosition - target);
+    const isCloser = distance < bestDistance;
+    const isTie = distance === bestDistance && bestIndex !== -1;
+    if (isCloser || (isTie && (ranks[index].yPosition < ranks[bestIndex].yPosition || index < bestIndex))) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  };
+
+  consider(startIndex);
+  consider(startIndex - 1);
+
+  for (let offset = 1; bestIndex === -1 && (startIndex - offset >= 0 || startIndex + offset < ranks.length); offset++) {
+    consider(startIndex - offset);
+    consider(startIndex + offset);
+  }
+
+  return bestIndex;
+}
+
+function findFallbackIndex(ranks: RankPosition[], used: Set<number>): number {
+  for (let i = 0; i < ranks.length; i++) {
+    if (!used.has(i)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function findClosestAvailableIndex(
+  ranks: RankPosition[],
+  target: number,
+  used: Set<number>
+): number {
+  if (ranks.length === 0) {
+    return -1;
+  }
+
+  const insertionIndex = locateInsertionIndex(ranks, target);
+  const nearest = pickNearestAvailableIndex(ranks, target, insertionIndex, used);
+  if (nearest !== -1) {
+    return nearest;
+  }
+
+  const fallback = findFallbackIndex(ranks, used);
+  if (fallback !== -1) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(insertionIndex, 0), ranks.length - 1);
+}
+
+function computeTargetRatios(count: number): number[] {
+  if (count <= 1) {
+    return [0.5];
+  }
+  const step = 1 / (count - 1);
+  return Array.from({length: count}, (_, index) => index * step);
+}
+
+function fillRemainingSelections(used: Set<number>, lastIndex: number, maxCount: number) {
+  for (let i = 0; used.size < maxCount && i <= lastIndex; i++) {
+    used.add(i);
+  }
+}
+
+function chooseEvenlySpacedIndices(ranks: RankPosition[], maxCount: number): number[] {
+  const lastIndex = ranks.length - 1;
+  const start = ranks[0].yPosition;
+  const end = ranks[lastIndex].yPosition;
+  const span = end - start;
+  const used = new Set<number>();
+
+  for (const ratio of computeTargetRatios(maxCount)) {
+    const target = span !== 0 ? start + ratio * span : start;
+    const index = findClosestAvailableIndex(ranks, target, used);
+    if (index !== -1) {
+      used.add(index);
+    }
+  }
+
+  fillRemainingSelections(used, lastIndex, maxCount);
+
+  return Array.from(used).sort((a, b) => a - b).slice(0, maxCount);
+}
+
 /**
  * Selects a subset of rank positions that are evenly distributed within a range.
  */
@@ -231,25 +346,12 @@ export function selectRankLines(
   }
 
   if (maxCount === 1) {
-    return [filtered[Math.floor((filtered.length - 1) / 2)]];
+    const midpoint = (filtered[0].yPosition + filtered[filtered.length - 1].yPosition) / 2;
+    const index = findClosestAvailableIndex(filtered, midpoint, new Set<number>());
+    return index === -1 ? [filtered[0]] : [filtered[index]];
   }
 
-  const lastIndex = filtered.length - 1;
-  const step = lastIndex / (maxCount - 1);
-
-  const selectedIndices = new Set<number>();
-  for (let i = 0; i < maxCount; i++) {
-    const target = Math.round(step * i);
-    const clamped = Math.max(0, Math.min(lastIndex, target));
-    selectedIndices.add(clamped);
-  }
-
-  for (let i = 0; selectedIndices.size < maxCount && i <= lastIndex; i++) {
-    selectedIndices.add(i);
-  }
-
-  const ordered = Array.from(selectedIndices)
-    .sort((a, b) => a - b)
-    .slice(0, maxCount);
-  return ordered.map((index) => filtered[index]);
+  const selected = chooseEvenlySpacedIndices(filtered, maxCount);
+  return selected.map((index) => filtered[index]);
 }
+

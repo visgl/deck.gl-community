@@ -110,7 +110,7 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
       return [lineLayer];
     }
 
-    const textData = this._createLabelData(lines, direction, getLabel);
+    const textData = this._createLabelData(lines, direction, bounds, getLabel);
 
     if (!textData.length) {
       return [lineLayer];
@@ -121,7 +121,7 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
       data: textData,
       getPosition: (d) => d.position,
       getText: (d) => d.text,
-      getColor: color,
+      getColor: getColor ? (d) => getColor(d.datum) ?? color : () => color,
       getSize: 12,
       sizeUnits: 'pixels',
       getPixelOffset: labelOffset,
@@ -213,18 +213,20 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
       datum: DatumT;
     }>,
     direction: 'horizontal' | 'vertical',
+    bounds: {minX: number; maxX: number; minY: number; maxY: number},
     getLabel?: (datum: DatumT) => string | number | null | undefined
-  ): Array<{position: [number, number]; text: string}> {
-    const labels: Array<{position: [number, number]; text: string}> = [];
+  ): Array<{position: [number, number]; text: string; datum: DatumT}> {
+    const labels: Array<{position: [number, number]; text: string; datum: DatumT}> = [];
     const isHorizontal = direction === 'horizontal';
 
-    for (const {datum, sourcePosition, targetPosition} of lines) {
+    for (const {datum, sourcePosition} of lines) {
       const rawLabel = getLabel ? getLabel(datum) : datum.label ?? null;
       if (rawLabel !== null && rawLabel !== undefined && rawLabel !== '') {
         const [sx, sy] = sourcePosition;
-        const [tx, ty] = targetPosition;
-        const position: [number, number] = isHorizontal ? [tx, ty] : [sx, sy];
-        labels.push({position, text: String(rawLabel)});
+        const position: [number, number] = isHorizontal
+          ? [bounds.minX, sy]
+          : [sx, bounds.minY];
+        labels.push({position, text: String(rawLabel), datum});
       }
     }
 
