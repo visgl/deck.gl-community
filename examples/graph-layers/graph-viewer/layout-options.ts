@@ -70,6 +70,7 @@ export const HIVE_PLOT_DEFAULT_OPTIONS = {
   innerRadius: HivePlotLayout.defaultProps.innerRadius,
   outerRadius: HivePlotLayout.defaultProps.outerRadius
 } as const;
+export const DAG_DEFAULT_OPTIONS = D3DagLayout.defaultProps;
 
 export type ForceLayoutNumericKey = keyof typeof D3_FORCE_DEFAULT_OPTIONS;
 export type ForceLayoutFormState = Record<ForceLayoutNumericKey, number>;
