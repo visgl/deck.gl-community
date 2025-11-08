@@ -30,9 +30,12 @@ const layer = new GraphLayer({
 });
 ```
 
-Provide either a pre-built `graph` or raw `data` plus a `graphLoader`. When the
-layer receives new data it rebuilds the internal `GraphEngine`, re-runs the
-layout, and updates interactions automatically.
+`GraphLayer` treats the `data` prop as its single entry point. Provide a
+`GraphEngine`, a [`Graph`](../graph.md), or raw graph payloads (arrays of edges
+or `{nodes, edges}` objects). When the layer receives new data it rebuilds the
+internal `GraphEngine`, re-runs the layout, and updates interactions
+automatically. Supplying raw data requires a `layout` so the layer can derive
+positions for you.
 
 ## Properties
 
@@ -41,23 +44,30 @@ and adds the graph-specific options below.
 
 ### Data sources
 
-#### `data` (object | array, optional)
+#### `data` (async, optional)
 
-Raw JSON data used to construct a graph. The structure is passed to
-[`graphLoader`](#graphloader-function-optional) whenever `data` changes. Provide
-one of `data`, `graph`, or `engine`.
+Unified graph input. Accepts:
 
-#### `graph` ([`Graph`](../graph.md), optional)
+- A `GraphEngine` instance to reuse an existing engine.
+- A [`Graph`](../graph.md) instance to have the layer build its own engine.
+- Raw graph payloads—either arrays of edges or `{nodes, edges}` objects. Strings
+  and promises are resolved via Deck.gl's async prop system.
 
-Pre-initialized graph instance to render. Supply this when you manage the graph
-lifecycle yourself (e.g. streaming updates). Mutating the graph outside the layer
-requires calling [`layer.setNeedsRedraw`](https://deck.gl/docs/api-reference/core/layer#layerupdateneeded)
-or updating props so Deck.gl knows to re-render.
+Provide `layout` whenever you hand off raw data or a `Graph`, otherwise the
+layer cannot position nodes. Set `data` to `null` to skip rendering.
+
+#### `graph` ([`Graph`](../graph.md), optional, deprecated)
+
+Legacy entry point for supplying a graph. Prefer the `data` prop instead. When
+used, the layer still requires a `layout` to build the internal engine. Future
+releases will remove this prop.
 
 #### `graphLoader` (function, optional)
 
 Custom loader that converts raw `data` into a `Graph`. Defaults to the bundled
-`JSONLoader`, which expects `{nodes, edges}` collections.
+`JSONLoader`, which accepts arrays of edges or `{nodes, edges}` collections and
+automatically synthesizes missing nodes. Graph instances are no longer
+normalized by the loader—pass them directly to `data`.
 
 #### `engine` (`GraphEngine`, optional)
 

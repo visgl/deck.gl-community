@@ -13,7 +13,6 @@ import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
 // import '@deck.gl/widgets/stylesheet.css';
 import {
-  GraphEngine,
   GraphLayer,
   GraphLayout,
   SimpleLayout,
@@ -79,28 +78,28 @@ const loadingReducer = (state, action) => {
   }
 };
 
-export const useLoading = (engine) => {
+export const useLoading = (eventSource: EventTarget | null) => {
   const [state, setState] = useState(INITIAL_LOADING_STATE);
   const loadingDispatch = useCallback((action) => {
     setState((current) => loadingReducer(current, action));
   }, []);
 
   useLayoutEffect(() => {
-    if (!engine) {
+    if (!eventSource) {
       return () => undefined;
     }
 
     const layoutStarted = () => loadingDispatch({type: 'startLayout'});
     const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
 
-    engine.addEventListener('onLayoutStart', layoutStarted);
-    engine.addEventListener('onLayoutDone', layoutEnded);
+    eventSource.addEventListener('onLayoutStart', layoutStarted);
+    eventSource.addEventListener('onLayoutDone', layoutEnded);
 
     return () => {
-      engine.removeEventListener('onLayoutStart', layoutStarted);
-      engine.removeEventListener('onLayoutDone', layoutEnded);
+      eventSource.removeEventListener('onLayoutStart', layoutStarted);
+      eventSource.removeEventListener('onLayoutDone', layoutEnded);
     };
-  }, [engine, loadingDispatch]);
+  }, [eventSource, loadingDispatch]);
 
   return [state, loadingDispatch];
 };
@@ -165,7 +164,6 @@ export function App({graphType}: AppProps) {
     const factory = LAYOUT_FACTORIES[selectedLayout];
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
-  const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
   const isFirstMount = useRef(true);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
   const selectedStyles = selectedExample?.style;
@@ -203,19 +201,6 @@ export function App({graphType}: AppProps) {
     setStylesheetValue(nextValue);
   }, []);
 
-  useLayoutEffect(() => {
-    if (!engine) {
-      return () => undefined;
-    }
-
-    engine.run();
-
-    return () => {
-      engine.stop();
-      engine.clear();
-    };
-  }, [engine]);
-
   // eslint-disable-next-line no-console
   const initialViewState = INITIAL_VIEW_STATE;
   const minZoom = -20;
@@ -223,7 +208,7 @@ export function App({graphType}: AppProps) {
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
 
-  const {viewState, onResize, onViewStateChange} = useGraphViewport(engine, {
+  const {viewState, onResize, onViewStateChange} = useGraphViewport(layout, {
     minZoom,
     maxZoom,
     viewportPadding: 8,
@@ -249,7 +234,7 @@ export function App({graphType}: AppProps) {
     []
   );
 
-  const [loadingState, loadingDispatch] = useLoading(engine);
+  const [loadingState, loadingDispatch] = useLoading(layout);
   const {isLoading} = loadingState;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
@@ -294,7 +279,7 @@ export function App({graphType}: AppProps) {
   }, [dagLayout, collapseEnabled]);
 
   useEffect(() => {
-    if (!engine || !dagLayout) {
+    if (!graph || !dagLayout) {
       setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
       return;
     }
@@ -303,7 +288,7 @@ export function App({graphType}: AppProps) {
       const chainIds: string[] = [];
       const collapsedIds: string[] = [];
 
-      for (const node of engine.getNodes()) {
+      for (const node of graph.getNodes()) {
         const chainId = node.getPropertyValue('collapsedChainId');
         const nodeIds = node.getPropertyValue('collapsedNodeIds');
         const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
@@ -330,16 +315,15 @@ export function App({graphType}: AppProps) {
     updateChainSummary();
 
     const handleLayoutChange = () => updateChainSummary();
-    const handleLayoutDone = () => updateChainSummary();
 
-    engine.addEventListener('onLayoutChange', handleLayoutChange);
-    engine.addEventListener('onLayoutDone', handleLayoutDone);
+    dagLayout.addEventListener('onLayoutChange', handleLayoutChange);
+    dagLayout.addEventListener('onLayoutDone', handleLayoutChange);
 
     return () => {
-      engine.removeEventListener('onLayoutChange', handleLayoutChange);
-      engine.removeEventListener('onLayoutDone', handleLayoutDone);
+      dagLayout.removeEventListener('onLayoutChange', handleLayoutChange);
+      dagLayout.removeEventListener('onLayoutDone', handleLayoutChange);
     };
-  }, [engine, dagLayout, isDagLayout]);
+  }, [graph, dagLayout, isDagLayout]);
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);
@@ -382,17 +366,17 @@ export function App({graphType}: AppProps) {
   // );
 
   // useEffect(() => {
-  //   if (!engine) {
+  //   if (!layout) {
   //     return () => undefined;
   //   }
 
   //   if (zoomToFitOnLoad && isLoading) {
-  //     engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+  //     layout.addEventListener('onLayoutDone', fitBounds, {once: true});
   //   }
   //   return () => {
-  //     engine.removeEventListener('onLayoutDone', fitBounds);
+  //     layout.removeEventListener('onLayoutDone', fitBounds);
   //   };
-  // }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+  // }, [layout, isLoading, fitBounds, zoomToFitOnLoad]);
 
   useEffect(() => {
     const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
@@ -472,10 +456,11 @@ export function App({graphType}: AppProps) {
             })
           ]}
           layers={
-            engine
+            graph && layout
               ? [
                 new GraphLayer({
-                  engine,
+                  data: graph,
+                  layout,
                   stylesheet: selectedStyles,
                   resumeLayoutAfterDragging,
                   rankGrid
