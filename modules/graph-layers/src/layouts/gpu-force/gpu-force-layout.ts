@@ -103,9 +103,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   }
 
   _engageWorker(beforePost?: () => void) {
-    if (this._isWorkerRunning) {
-      return;
-    }
+    const shouldDispatchStart = !this._isWorkerRunning;
 
     if (this._worker) {
       this._worker.terminate();
@@ -117,7 +115,9 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this.props;
 
-    beforePost?.();
+    if (shouldDispatchStart) {
+      beforePost?.();
+    }
 
     this._worker.postMessage({
       nodes: this._d3Graph.nodes,
@@ -143,7 +143,18 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
       }
     };
   }
-  ticked(data) {}
+  ticked(data) {
+    const nodesUpdated = this._applyTickNodes(data?.nodes);
+    if (!nodesUpdated) {
+      return;
+    }
+
+    if (Array.isArray(data?.edges) && data.edges.length > 0) {
+      this._applyTickEdges(data.edges);
+    }
+
+    this._onLayoutChange();
+  }
   ended(data) {
     const {nodes, edges} = data;
     this.updateD3Graph({nodes, edges});
@@ -236,6 +247,70 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
       this._worker = null;
     }
     this._isWorkerRunning = false;
+  }
+
+  private _applyTickNodes(nodes: any[] | undefined): boolean {
+    if (!Array.isArray(nodes) || nodes.length === 0) {
+      return false;
+    }
+
+    for (const node of nodes) {
+      const existingNode = this._nodeMap[node.id];
+      if (existingNode) {
+        existingNode.x = node.x;
+        existingNode.y = node.y;
+        if ('fx' in node) {
+          existingNode.fx = node.fx;
+        }
+        if ('fy' in node) {
+          existingNode.fy = node.fy;
+        }
+        if ('locked' in node) {
+          existingNode.locked = node.locked;
+        }
+        if ('collisionRadius' in node) {
+          existingNode.collisionRadius = node.collisionRadius;
+        }
+      } else {
+        const newNode = {...node};
+        this._nodeMap[node.id] = newNode;
+        this._d3Graph.nodes.push(newNode);
+      }
+    }
+
+    return true;
+  }
+
+  private _applyTickEdges(edges: any[]): void {
+    for (const edge of edges) {
+      const sourceId = this._resolveNodeId(edge.source);
+      const targetId = this._resolveNodeId(edge.target);
+      const source = sourceId ? this._nodeMap[sourceId] : undefined;
+      const target = targetId ? this._nodeMap[targetId] : undefined;
+      if (source && target) {
+        const existingEdge = this._edgeMap[edge.id];
+        if (existingEdge) {
+          existingEdge.source = source;
+          existingEdge.target = target;
+        } else {
+          const newEdge = {
+            ...edge,
+            source,
+            target
+          };
+          this._edgeMap[edge.id] = newEdge;
+          this._d3Graph.edges.push(newEdge);
+        }
+      }
+    }
+  }
+
+  private _resolveNodeId(node: any): string | number | undefined {
+    if (node && typeof node === 'object') {
+      return node.id;
+    }
+
+    return node;
   }
 
   getNodePosition = (node): [number, number] => {
