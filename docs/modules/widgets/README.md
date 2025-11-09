@@ -43,5 +43,5 @@ The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) show
 
 ## Widgets
 
-- [PanWidget](./api-reference/pan-widget)
-- [ZoomRangeWidget](./api-reference/zoom-range-widget)
+- [PanWidget](./api-reference/pan-widget.md)
+- [ZoomRangeWidget](./api-reference/zoom-range-widget.md)
