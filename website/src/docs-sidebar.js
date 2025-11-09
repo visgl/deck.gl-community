@@ -24,6 +24,7 @@ const leafletDocs = require('../../docs/modules/leaflet/sidebar.json');
 const reactDocs = require('../../docs/modules/react/sidebar.json');
 
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
+const widgetsDocs = require('../../docs/modules/widgets/sidebar.json');
 
 const sidebars = {
   tutorialSidebar: [
@@ -32,6 +33,29 @@ const sidebars = {
       label: 'Overview',
       className: 'heading_bold',
       items: ['README', 'whats-new', 'upgrade-guide', 'CONTRIBUTING']
+    },
+    {
+      type: 'category',
+      label: 'Generic Layers',
+      className: 'heading_bold',
+      items: [layerDocs]
+    },
+    {
+      type: 'category',
+      label: 'Non-Geospatial Layers',
+      className: 'heading_bold',
+      items: [infovisLayerDocs, graphLayerDocs]
+    },
+    {
+      type: 'category',
+      label: 'Widgets',
+      className: 'heading_bold',
+    },
+    {
+      type: 'category',
+      label: 'Geospatial Layers',
+      className: 'heading_bold',
+      items: [geoLayerDocs, editableLayerDocs, arrowLayerDocs, experimentalDocs]
     },
     {
       type: 'category',
@@ -57,10 +81,10 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'React Bindings',
+      label: 'Other Modules',
       className: 'heading_bold',
       collapsed: false,
-      items: [reactDocs]
+      items: [widgetsDocs, reactDocs]
     }
   ]
 };

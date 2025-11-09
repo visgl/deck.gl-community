@@ -2,6 +2,12 @@
 
 ## v9.2.0-beta.2
 
+- chore: Enable publish of leaflet package (#377)
+- chore: Mark geo-layers for public publishing (#376)
+- Add Charles as the editable-layer maintainer (#371)
+- feat(graph-layers): Layered DAG support (#375)
+- feat(graph-layers): break out collapsable D3 DAG layout subclass (#373)
+
 ## v9.2.0-beta.1
 
 - docs(graph-layers): Improve layout docs (#370)
@@ -24,8 +30,6 @@
 
 ## v9.1.1
 
-## v9.1.0
-
 - [chore] Prepare for v9.1 publish (#272)
 - fix(website, editable-layers): Unbreak editor example in website (#271)
 - Add horizon graph layer website example (#270)
@@ -36,6 +40,9 @@
 - fix: Remove stray merge markers (#266)
 - feat(geo-layers): Fix the geo-layers module (#265)
 
+## v9.1.0
+
+- Skipped
 
 ### v9.1.0-beta.8
 
