@@ -63,6 +63,20 @@ const config = {
   ],
 
   plugins: [
+    // Improve build performance by disabling expensive optimizations
+    // https://github.com/facebook/docusaurus/discussions/11199
+    function disableExpensiveBundlerOptimizationPlugin() {
+      return {
+        name: "disable-expensive-bundler-optimizations",
+        configureWebpack(_config, isServer) {
+          return {
+            optimization: {
+              concatenateModules: false,
+            },
+          };
+        },
+      };
+    },
     [
       './ocular-docusaurus-plugin',
       {
@@ -78,6 +92,7 @@ const config = {
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
+            '@deck.gl-community/widgets': resolve('../modules/widgets/src'),
             react: resolve('node_modules/react'),
             'react-dom': resolve('node_modules/react-dom'),
             '@deck.gl/aggregation-layers': resolve('../node_modules/@deck.gl/aggregation-layers'),
