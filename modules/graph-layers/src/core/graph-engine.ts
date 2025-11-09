@@ -12,13 +12,6 @@ import {Cache} from './cache';
 import {log} from '../utils/log';
 import type {GraphStyleEngine, GraphStylesheet} from '../style/graph-style-engine';
 
-const LAYOUT_EVENT_KEYS: (keyof GraphProps)[] = [
-  'onLayoutStart',
-  'onLayoutChange',
-  'onLayoutDone',
-  'onLayoutError'
-];
-
 type LegacyGraphEngineProps = {
   graph: LegacyGraph;
   layout: GraphLayout;
@@ -159,7 +152,11 @@ export class GraphEngine {
    */
   _onLayoutStart = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout start')();
-    this._emit('onLayoutStart', detail);
+    const {onLayoutStart} = this._callbacks;
+    onLayoutStart?.(detail);
+
+    const graphCallback = this._graph.props.onLayoutStart;
+    graphCallback?.(detail);
   };
 
   /**
@@ -167,7 +164,11 @@ export class GraphEngine {
    */
   _onLayoutChange = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout update event')();
-    this._emit('onLayoutChange', detail);
+    const {onLayoutChange} = this._callbacks;
+    onLayoutChange?.(detail);
+
+    const graphCallback = this._graph.props.onLayoutChange;
+    graphCallback?.(detail);
   };
 
   /**
@@ -175,14 +176,22 @@ export class GraphEngine {
    */
   _onLayoutDone = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout end')();
-    this._emit('onLayoutDone', detail);
+    const {onLayoutDone} = this._callbacks;
+    onLayoutDone?.(detail);
+
+    const graphCallback = this._graph.props.onLayoutDone;
+    graphCallback?.(detail);
   };
 
   /**
    * @fires GraphEngine#onLayoutError
    */
   _onLayoutError = (error?: unknown) => {
-    this._emit('onLayoutError', error);
+    const {onLayoutError} = this._callbacks;
+    onLayoutError?.(error);
+
+    const graphCallback = this._graph.props.onLayoutError;
+    graphCallback?.(error);
   };
 
   _onGraphStructureChanged = () => {
@@ -192,13 +201,15 @@ export class GraphEngine {
 
   _onTransactionStart = () => {
     this._transactionInProgress = true;
-    this._emit('onTransactionStart');
+    const {onTransactionStart} = this._callbacks;
+    onTransactionStart?.();
   };
 
   _onTransactionEnd = () => {
     this._transactionInProgress = false;
     this._graphChanged();
-    this._emit('onTransactionEnd');
+    const {onTransactionEnd} = this._callbacks;
+    onTransactionEnd?.();
   };
 
   /** Layout calculations */
@@ -273,25 +284,31 @@ export class GraphEngine {
       onTransactionEnd: wrap('onTransactionEnd', () => this._onTransactionEnd()),
       onNodeAdded: wrap('onNodeAdded', (node) => {
         this._onGraphStructureChanged();
-        this._emit('onNodeAdded', node);
+        const {onNodeAdded} = this._callbacks;
+        onNodeAdded?.(node);
       }),
       onNodeRemoved: wrap('onNodeRemoved', (node) => {
         this._onGraphStructureChanged();
-        this._emit('onNodeRemoved', node);
+        const {onNodeRemoved} = this._callbacks;
+        onNodeRemoved?.(node);
       }),
       onNodeUpdated: wrap('onNodeUpdated', (node) => {
-        this._emit('onNodeUpdated', node);
+        const {onNodeUpdated} = this._callbacks;
+        onNodeUpdated?.(node);
       }),
       onEdgeAdded: wrap('onEdgeAdded', (edge) => {
         this._onGraphStructureChanged();
-        this._emit('onEdgeAdded', edge);
+        const {onEdgeAdded} = this._callbacks;
+        onEdgeAdded?.(edge);
       }),
       onEdgeRemoved: wrap('onEdgeRemoved', (edge) => {
         this._onGraphStructureChanged();
-        this._emit('onEdgeRemoved', edge);
+        const {onEdgeRemoved} = this._callbacks;
+        onEdgeRemoved?.(edge);
       }),
       onEdgeUpdated: wrap('onEdgeUpdated', (edge) => {
-        this._emit('onEdgeUpdated', edge);
+        const {onEdgeUpdated} = this._callbacks;
+        onEdgeUpdated?.(edge);
       })
     };
 
@@ -340,22 +357,5 @@ export class GraphEngine {
     }
     this._layout.setCallbacks(this._layoutPreviousCallbacks);
     this._layoutPreviousCallbacks = null;
-  }
-
-  private _emit<K extends keyof GraphProps>(
-    type: K,
-    ...args: Parameters<NonNullable<GraphProps[K]>>
-  ): void {
-    const base = this._callbacks[type];
-    if (base) {
-      (base as (...baseArgs: unknown[]) => void)(...args);
-    }
-
-    if (LAYOUT_EVENT_KEYS.includes(type)) {
-      const graphCallback = this._graph.props[type];
-      if (graphCallback) {
-        (graphCallback as (...graphArgs: unknown[]) => void)(...args);
-      }
-    }
   }
 }

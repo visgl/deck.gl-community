@@ -541,13 +541,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _isGraph(value: unknown): value is Graph {
-    if (!(value instanceof EventTarget)) {
+    if (!value || typeof value !== 'object') {
       return false;
     }
 
+    const candidate = value as Graph;
     return (
-      typeof (value as Graph).getNodes === 'function' &&
-      typeof (value as Graph).getEdges === 'function'
+      typeof candidate.getNodes === 'function' && typeof candidate.getEdges === 'function'
     );
   }
 

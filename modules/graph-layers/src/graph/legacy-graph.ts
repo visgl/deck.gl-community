@@ -386,7 +386,6 @@ export class LegacyGraph extends Graph {
 
 export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
   private readonly layout: GraphLayout;
-  private _callbacks: GraphLayoutCallbacks = {};
 
   constructor(layout: GraphLayout) {
     this.layout = layout;
@@ -401,19 +400,11 @@ export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
   }
 
   getCallbacks(): GraphLayoutCallbacks {
-    return {...this._callbacks};
+    return this.layout.getCallbacks();
   }
 
   setCallbacks(callbacks: GraphLayoutCallbacks): GraphLayoutCallbacks {
-    const previous = this.getCallbacks();
-    this._callbacks = {...callbacks};
-    this.layout.setCallbacks({
-      onLayoutStart: (detail) => this._callbacks.onLayoutStart?.(detail),
-      onLayoutChange: (detail) => this._callbacks.onLayoutChange?.(detail),
-      onLayoutDone: (detail) => this._callbacks.onLayoutDone?.(detail),
-      onLayoutError: (error) => this._callbacks.onLayoutError?.(error)
-    });
-    return previous;
+    return this.layout.setCallbacks(callbacks);
   }
 
   initializeGraph(graph: Graph): void {
@@ -462,7 +453,6 @@ export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
 
   destroy(): void {
     this.layout.setCallbacks({});
-    this._callbacks = {};
   }
 
   private _assertLegacyGraph(graph: Graph): LegacyGraph {
