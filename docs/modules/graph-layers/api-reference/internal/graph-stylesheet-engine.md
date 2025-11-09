@@ -1,12 +1,12 @@
-# Graph style engine
+## GraphStylesheetEngine
 
-> Looking for authoring guidance? Start with the [graph stylesheet reference](./graph-stylesheet.md), which documents the structure of the style objects you pass into `GraphLayer`.
+> Looking for stylesheet authoring guidance? Start with the [graph stylesheet reference](../styling/graph-stylesheet.md), which documents the structure of the style objects you pass into `GraphLayer`.
 
 `GraphStylesheetEngine` is the runtime helper that turns user-authored `GraphStylesheet` objects into the Deck.gl accessors consumed by the graph layers. It extends the reusable `StylesheetEngine` utility, so advanced renderers can re-use the parsing, state-selector handling, and update-trigger wiring outside of `GraphLayer`. The class is still exported as `GraphStyleEngine` for backwards compatibility, but new code should prefer `GraphStylesheetEngine`.
 
-## GraphStylesheetEngine
+> From a deck.gl design point-of-view, the `StylesheetEngine` enables a deck.gl `CompositeLayer` to create a variable number of sub-layers. `CompositeLayer` supports prop forwarding for sub-layers which works well when the number of sub-layers is pre-determined. A StyleSheet lets the application specify multiple styling primitives for each node, which are the n implemented using dynamically created sub layers.
 
-### Responsibilities
+## Responsibilities
 
 When `GraphLayer` receives a stylesheet it instantiates a `GraphStylesheetEngine`. The engine:
 
@@ -17,7 +17,7 @@ When `GraphLayer` receives a stylesheet it instantiates a `GraphStylesheetEngine
 
 This pipeline lets you focus on the *what* of styling while the engine handles the *how*.
 
-### Re-using the engine
+## Re-using the engine
 
 ```ts
 import {GraphStylesheetEngine, type GraphStylesheet} from '@deck.gl-community/graph-layers';

@@ -2,10 +2,7 @@
 
 `GraphLayer` accepts a single `stylesheet` prop that describes how every node,
 edge, and decorator should render. A stylesheet is a declarative bundle of
-**style layers** that the [`GraphStylesheetEngine`](./graph-style-engine.md) normalizes
-into Deck.gl accessors. Each entry focuses on *what* to draw, while the engine
-coerces values, wires update triggers, and fans the configuration out across the
-underlying Deck.gl primitives.
+**style layers** that the `GraphLayer` uses to render the graphics for nodes and edges.
 
 ## Top-level structure
 

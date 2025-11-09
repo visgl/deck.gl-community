@@ -443,6 +443,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
 
   getNodePropertyValueByIndex(index: NodeIndex, key: string): unknown {
     const record = this._getNodeRecord(index);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const accessor = this._getAccessors().node.getPropertyValue;
     if (accessor) {
       const value = accessor(record.handle, key);
@@ -504,6 +505,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
 
   getEdgePropertyValueByIndex(index: EdgeIndex, key: string): unknown {
     const record = this._getEdgeRecord(index);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const accessor = this._getAccessors().edge.getPropertyValue;
     if (accessor) {
       const value = accessor(record.handle, key);
@@ -561,6 +563,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown>
     this._lastVersion = this.source.version;
   }
 
+  // eslint-disable-next-line max-statements
   private _createEntities(): {
     nodes: TabularNode<NodeHandle, EdgeHandle>[];
     edges: TabularEdge<NodeHandle, EdgeHandle>[];

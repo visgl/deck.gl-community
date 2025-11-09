@@ -1,12 +1,13 @@
 # What's New
 
-Modules in `@deck.gl-community` are independently maintained and released. 
-The main driver for bigger synchronized releases is to synchronize with 
-deck.gl version upgrades.
+Modules in `@deck.gl-community` are independently maintained, so this page is just a high-level overview. 
+- Detailed release information is typically found in the documentation of each module. - However, major releases are typically synchronized to ensure compatiblity with new
+deck.gl versions.
 
-## v9.3 - Currently in planning
+## v9.3 - In planning
 
-Wishlist
+Some inofficial wishlist and roadmap type information is available in github trackers:
+
 - **`@deck.gl-community/editable-layers`** 
   - [Tracker](https://github.com/visgl/deck.gl-community/issues/38)
 - **`@deck.gl-community/graph-layers`**
