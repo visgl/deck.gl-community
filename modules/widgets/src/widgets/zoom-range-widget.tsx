@@ -5,6 +5,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
+import {cloneViewState, hasViewManager} from './view-manager-utils';
 import {
   Widget,
   type Deck,
@@ -46,6 +47,14 @@ const SLIDER_CONTAINER_STYLE: JSX.CSSProperties = {
   display: 'inline-block',
   height: '100px',
   padding: '0',
+  width: '10px'
+};
+
+const VERTICAL_SLIDER_STYLE: JSX.CSSProperties = {
+  writingMode: 'vertical-lr',
+  height: '100px',
+  padding: '0',
+  margin: '0',
   width: '10px'
 };
 
@@ -158,15 +167,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
             onTouchEnd={stopEventPropagation}
             /* @ts-expect-error - non-standard attribute for vertical sliders */
             orient="vertical"
-            style={
-              {
-                writingMode: 'vertical-lr',
-                height: '100px',
-                padding: '0',
-                margin: '0',
-                width: '10px'
-              } as JSX.CSSProperties
-            }
+            style={VERTICAL_SLIDER_STYLE}
           />
         </div>
         <div style={ZOOM_BUTTON_STYLE}>
@@ -218,28 +219,32 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   }
 
   private getTargetViewports(): Viewport[] {
-    const deck = this.deck as (Deck & {viewManager?: any}) | null;
+    const deck = this.deck;
     if (!deck) {
       return [];
     }
     if (this.viewId) {
-      const viewport = deck.viewManager?.getViewport(this.viewId);
-      return viewport ? [viewport] : [];
+      if (hasViewManager(deck)) {
+        const viewport = deck.viewManager?.getViewport(this.viewId);
+        return viewport ? [viewport] : [];
+      }
+      return [];
     }
     return deck.getViewports();
   }
 
   private getViewState(viewport: Viewport): any {
-    const viewManager = (this.deck as (Deck & {viewManager?: any}) | null)?.viewManager;
+    const deck = this.deck;
+    const viewManager = hasViewManager(deck) ? deck.viewManager : null;
     const viewId = this.viewId || viewport.id;
     if (viewManager) {
       try {
         return {...viewManager.getViewState(viewId)};
       } catch (err) {
-        return {...(viewManager.viewState as any)};
+        return cloneViewState(viewManager.viewState);
       }
     }
-    return {...(viewport as any)};
+    return cloneViewState(viewport);
   }
 
   private handleZoomDelta(delta: number) {
