@@ -2390,18 +2390,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@deck.gl/widgets@npm:~9.2.1":
-  version: 9.2.2
-  resolution: "@deck.gl/widgets@npm:9.2.2"
-  dependencies:
-    preact: "npm:^10.17.0"
-  peerDependencies:
-    "@deck.gl/core": ~9.2.0
-    "@luma.gl/core": ~9.2.2
-  checksum: 10c0/4c83f7f22ffd98120552908f0a6beb699d27b447bbc9485fb6bfc73b8144ac0972fbd7ef260fc6f822f7ab7066433202f9f0781bb0f59ade197e36f96c98a379
-  languageName: node
-  linkType: hard
-
 "@discoveryjs/json-ext@npm:0.5.7":
   version: 0.5.7
   resolution: "@discoveryjs/json-ext@npm:0.5.7"
@@ -13670,7 +13658,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"preact@npm:^10.13.2, preact@npm:^10.17.0":
+"preact@npm:^10.13.2":
   version: 10.27.2
   resolution: "preact@npm:10.27.2"
   checksum: 10c0/951b708f7afa34391e054b0f1026430e8f5f6d5de24020beef70288e17067e473b9ee5503a994e0a80ced014826f56708fea5902f80346432c22dfcf3dff4be7
@@ -13735,7 +13723,6 @@ __metadata:
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/google-maps": "npm:~9.2.1"
     "@deck.gl/json": "npm:~9.2.1"
-    "@deck.gl/widgets": "npm:~9.2.1"
     "@docusaurus/core": "npm:^3.9.2"
     "@docusaurus/module-type-aliases": "npm:^3.9.2"
     "@docusaurus/plugin-content-docs": "npm:^3.9.2"
