@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/* eslint-disable  max-nested-callbacks */
+
 import {beforeAll, beforeEach, describe, it, expect} from 'vitest';
 import SAMPLE_GRAPH1 from '../data/__fixtures__/graph1.json';
 

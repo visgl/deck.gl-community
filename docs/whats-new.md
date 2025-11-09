@@ -1,11 +1,8 @@
 # What's New
 
-Modules in `@deck.gl-community` are independently maintained, so this page will only list occasional major changes.
+Modules in `@deck.gl-community` are independently maintained, so this page is just a high-level overview. Detailed release information is typically found in the documentation of each module.
 
-Please refer the documentation of each module for detailed news.
-
-
-## v9.2 - In developments
+## v9.2 - alpha releases available
 
 Target Release Date: Nov 2025
 

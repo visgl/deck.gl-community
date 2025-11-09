@@ -35,8 +35,16 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Basemaps',
+      className: 'heading_bold',
+      collapsed: false,
+      items: [leafletDocs, bingMapsDocs]
+    },
+    {
+      type: 'category',
       label: 'Layer Packs',
       className: 'heading_bold',
+      collapsed: false,
       items: [
         layerDocs,
         infovisLayerDocs,
@@ -49,11 +57,11 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Basemaps',
+      label: 'React Bindings',
       className: 'heading_bold',
-      items: [leafletDocs, bingMapsDocs]
-    },
-    {type: 'category', label: 'React Bindings', className: 'heading_bold', items: [reactDocs]}
+      collapsed: false,
+      items: [reactDocs]
+    }
   ]
 };
 
