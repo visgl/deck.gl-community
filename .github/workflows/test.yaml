@@ -69,17 +69,17 @@ jobs:
       - name: Run node tests
         run: yarn test-node
 
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: pw-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: pw-${{ runner.os }}-
+      # - name: Cache Playwright browsers
+      #   id: playwright-cache
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.cache/ms-playwright
+      #     key: pw-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+      #     restore-keys: pw-${{ runner.os }}-
 
-      - name: Install Playwright Chromium (only)
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium --with-deps
+      # - name: Install Playwright Chromium (only)
+      #   if: steps.playwright-cache.outputs.cache-hit != 'true'
+      #   run: npx playwright install chromium --with-deps
 
       - name: Run headless browser tests
         run: yarn test-headless --reporter=verbose
