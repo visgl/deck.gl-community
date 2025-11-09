@@ -36,29 +36,6 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Generic Layers',
-      className: 'heading_bold',
-      items: [layerDocs]
-    },
-    {
-      type: 'category',
-      label: 'Non-Geospatial Layers',
-      className: 'heading_bold',
-      items: [infovisLayerDocs, graphLayerDocs]
-    },
-    {
-      type: 'category',
-      label: 'Widgets',
-      className: 'heading_bold',
-    },
-    {
-      type: 'category',
-      label: 'Geospatial Layers',
-      className: 'heading_bold',
-      items: [geoLayerDocs, editableLayerDocs, arrowLayerDocs, experimentalDocs]
-    },
-    {
-      type: 'category',
       label: 'Basemaps',
       className: 'heading_bold',
       collapsed: false,
@@ -76,15 +53,14 @@ const sidebars = {
         geoLayerDocs,
         editableLayerDocs,
         // arrowLayerDocs,
-        experimentalDocs
       ]
     },
     {
       type: 'category',
-      label: 'Other Modules',
+      label: 'Components',
       className: 'heading_bold',
       collapsed: false,
-      items: [widgetsDocs, reactDocs]
+      items: [widgetsDocs, reactDocs, experimentalDocs]
     }
   ]
 };
