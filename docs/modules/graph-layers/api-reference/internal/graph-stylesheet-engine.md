@@ -1,6 +1,6 @@
 ## GraphStylesheetEngine
 
-> Looking for stylesheet authoring guidance? Start with the [graph stylesheet reference](./graph-stylesheet.md), which documents the structure of the style objects you pass into `GraphLayer`.
+> Looking for stylesheet authoring guidance? Start with the [graph stylesheet reference](../styling/graph-stylesheet.md), which documents the structure of the style objects you pass into `GraphLayer`.
 
 `GraphStylesheetEngine` is the runtime helper that turns user-authored `GraphStylesheet` objects into the Deck.gl accessors consumed by the graph layers. It extends the reusable `StylesheetEngine` utility, so advanced renderers can re-use the parsing, state-selector handling, and update-trigger wiring outside of `GraphLayer`. The class is still exported as `GraphStyleEngine` for backwards compatibility, but new code should prefer `GraphStylesheetEngine`.
 

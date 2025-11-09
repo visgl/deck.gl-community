@@ -29,12 +29,6 @@ Returns an iterable sequence of [`EdgeInterface`](./edge.md) instances.
 
 Returns a node handle with the provided identifier when supported by the implementation.
 
-:::info Styling
-Graphs no longer vend stylesheet helpers directly. Use
-[`GraphStylesheetEngine`](./styling/graph-style-engine.md#graphstylesheetengine) to evaluate
-`GraphStylesheet` definitions regardless of the underlying graph implementation.
-:::
-
 ### `destroy()` _(optional)_
 
 Releases any resources owned by the graph implementation.

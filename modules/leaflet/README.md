@@ -1,6 +1,8 @@
 # @deck.gl-community/leaflet
 
-This module allows [deck.gl](https://deck.gl) to be used as a Leaflet custom layer.
+This module allows [Leaflet](https://leafletjs.com/) to be used as a [deck.gl](https://deck.gl) basemap. 
+
+More precisely, it provides a Leaflet custom layer that wraps a deck.gl renderer, enabling deck.gl to render layers synchronized with the Leaflet basemap. 
 
 ## Installation
 
