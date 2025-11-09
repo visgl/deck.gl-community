@@ -4,9 +4,13 @@
 
 import {describe, it, expect, expectTypeOf} from 'vitest';
 
-import {StyleEngine, type DeckGLAccessorMap, type DeckGLUpdateTriggers} from '../../src/style/style-engine';
 import {
-  GraphStyleEngine,
+  StylesheetEngine,
+  type DeckGLAccessorMap,
+  type DeckGLUpdateTriggers
+} from '../../src/style/stylesheet-engine';
+import {
+  GraphStylesheetEngine,
   type GraphStylesheet,
   type GraphStyleAttributeReference
 } from '../../src/style/graph-style-engine';
@@ -22,9 +26,9 @@ const TEST_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
   Foo: ['getColor', 'getWidth']
 };
 
-describe('StyleEngine', () => {
+describe('StylesheetEngine', () => {
   it('normalizes static and stateful values into Deck.gl accessors', () => {
-    const stylesheet = new StyleEngine(
+    const stylesheet = new StylesheetEngine(
       {
         type: 'Foo',
         color: '#ffffff',
@@ -55,7 +59,7 @@ describe('StyleEngine', () => {
   it('throws when instantiated with an unknown style type', () => {
     expect(
       () =>
-        new StyleEngine(
+        new StylesheetEngine(
           {type: 'Bar'},
           {
             deckglAccessorMap: TEST_ACCESSOR_MAP
@@ -76,7 +80,7 @@ describe('StyleEngine', () => {
 
     expectTypeOf(circleStylesheet).toMatchTypeOf<GraphStylesheet<'circle'>>();
 
-    const graphEngine = new GraphStyleEngine(circleStylesheet);
+    const graphEngine = new GraphStylesheetEngine(circleStylesheet);
     const accessors = graphEngine.getDeckGLAccessors();
 
     expect(accessors.getFillColor({state: 'default'})).toEqual([255, 255, 255]);
@@ -90,7 +94,7 @@ describe('StyleEngine', () => {
       fallback: 4
     };
 
-    const stylesheet = new GraphStyleEngine(
+    const stylesheet = new GraphStylesheetEngine(
       {
         type: 'circle',
         radius: radiusAttribute,

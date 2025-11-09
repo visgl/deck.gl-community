@@ -3,9 +3,21 @@
 // Copyright (c) vis.gl contributors
 
 // core - Graph representation and layout
-export {Graph} from './graph/graph';
+export {LegacyGraph, LegacyGraphLayoutAdapter} from './graph/legacy-graph';
+export type {Graph, NodeInterface, EdgeInterface} from './graph/graph';
 export {Node} from './graph/node';
 export {Edge} from './graph/edge';
+export {
+  TabularGraph,
+  TabularNode,
+  TabularEdge,
+  type NodeIndex,
+  type EdgeIndex,
+  type TabularGraphSource,
+  type TabularGraphAccessors,
+  type TabularNodeAccessors,
+  type TabularEdgeAccessors
+} from './graph/tabular-graph';
 
 export {GraphEngine} from './core/graph-engine';
 
@@ -30,9 +42,11 @@ export type {Marker, NodeState, NodeType, EdgeType, EdgeDecoratorType, LayoutSta
 
 // deck.gl components
 export {GraphLayer} from './layers/graph-layer';
+export type {RankGridConfig} from './layers/graph-layer';
 export {EdgeLayer} from './layers/edge-layer';
-export {StyleEngine} from './style/style-engine';
-export {GraphStyleEngine} from './style/graph-style-engine';
+export {GridLayer, type GridLayerProps, type GridLineDatum} from './layers/common-layers/grid-layer/grid-layer';
+export {StylesheetEngine} from './style/stylesheet-engine';
+export {GraphStylesheetEngine, GraphStyleEngine} from './style/graph-style-engine';
 export type {
   GraphStylesheet,
   GraphStylesheetInput,
@@ -55,14 +69,24 @@ export {
 export {ViewControlWidget} from './widgets/view-control-widget';
 
 // graph format loaders
+export {JSONTabularGraphLoader, JSONLegacyGraphLoader} from './loaders/json-loader';
 export {loadSimpleJSONGraph} from './loaders/simple-json-graph-loader';
 
 // utils
 export {mixedGetPosition} from './utils/layer-utils';
 export {log} from './utils/log';
+export {
+  mapRanksToYPositions,
+  selectRankLines,
+  type RankAccessor,
+  type LabelAccessor,
+  type RankPosition,
+  type MapRanksToYPositionsOptions,
+  type SelectRankLinesOptions
+} from './utils/rank-grid';
 
 // DEPRECATED
 export {createGraph} from './loaders/create-graph';
-export {JSONLoader} from './loaders/simple-json-graph-loader';
+export {JSONLoader} from './loaders/json-loader';
 
 export {MARKER_TYPE, NODE_STATE,EDGE_STATE,NODE_TYPE,EDGE_TYPE,EDGE_DECORATOR_TYPE,LAYOUT_STATE} from './_deprecated/old-constants';

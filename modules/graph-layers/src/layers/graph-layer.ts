@@ -8,15 +8,25 @@ import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
-import {Graph} from '../graph/graph';
-import type {Node} from '../graph/node';
+import type {Graph, NodeInterface} from '../graph/graph';
+import {LegacyGraph} from '../graph/legacy-graph';
 import {GraphLayout} from '../core/graph-layout';
+import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 
-import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
+import {
+  GraphStylesheetEngine,
+  type GraphStylesheet
+} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
+import {
+  mapRanksToYPositions,
+  selectRankLines,
+  type LabelAccessor,
+  type RankAccessor
+} from '../utils/rank-grid';
 
 import {warn} from '../utils/log';
 
@@ -44,8 +54,9 @@ import {EdgeLabelLayer} from './edge-layers/edge-label-layer';
 import {FlowLayer} from './edge-layers/flow-layer';
 import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 import {EdgeAttachmentHelper} from './edge-attachment-helper';
+import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
-import {JSONLoader} from '../loaders/json-loader';
+import {JSONTabularGraphLoader} from '../loaders/json-loader';
 
 const NODE_LAYER_MAP = {
   'rectangle': RectangleLayer,
@@ -61,6 +72,17 @@ const EDGE_DECORATOR_LAYER_MAP = {
   'edge-label': EdgeLabelLayer,
   'flow': FlowLayer,
   'arrow': EdgeArrowLayer
+};
+
+type GridLayerOverrides = Partial<Omit<GridLayerProps, 'id' | 'data' | 'direction'>>;
+
+export type RankGridConfig = {
+  enabled?: boolean;
+  direction?: 'horizontal' | 'vertical';
+  maxLines?: number;
+  rankAccessor?: RankAccessor;
+  labelAccessor?: LabelAccessor;
+  gridProps?: GridLayerOverrides;
 };
 
 const SHARED_LAYER_PROPS = {
@@ -115,7 +137,7 @@ type EngineResolutionFlags = {
 
 export type _GraphLayerProps = {
   graph?: Graph;
-  layout?: GraphLayout;
+  layout?: GraphLayout | GraphRuntimeLayout;
   graphLoader?: (opts: {json: unknown}) => Graph | null;
   engine?: GraphEngine;
 
@@ -136,6 +158,7 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
+  rankGrid?: boolean | RankGridConfig;
   resumeLayoutAfterDragging?: boolean;
 };
 
@@ -152,7 +175,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     data: {type: 'object', value: null, async: true},
 
     // Graph props
-    graphLoader: JSONLoader,
+    graphLoader: JSONTabularGraphLoader,
 
     stylesheet: DEFAULT_GRAPH_LAYER_STYLESHEET,
     nodeStyle: undefined as unknown as GraphLayerNodeStyle[],
@@ -169,6 +192,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onHover: () => {}
     },
     enableDragging: false,
+    rankGrid: false,
     resumeLayoutAfterDragging: true
   };
 
@@ -279,9 +303,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
   }
 
-  private _createStyleEngine(style: GraphStylesheet, context: string): GraphStyleEngine | null {
+  private _createStylesheetEngine(
+    style: GraphStylesheet,
+    context: string
+  ): GraphStylesheetEngine | null {
     try {
-      return new GraphStyleEngine(style, {
+      return new GraphStylesheetEngine(style, {
         stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
       });
     } catch (error) {
@@ -436,8 +463,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return data;
     }
 
-    if (data instanceof Graph) {
-      return this._buildEngineFromGraph(data, props.layout);
+    const graphCandidate = this._coerceGraph(data);
+    if (graphCandidate) {
+      return this._buildEngineFromGraph(graphCandidate, props.layout);
     }
 
     if (typeof data === 'string') {
@@ -445,7 +473,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     if (Array.isArray(data) || this._isPlainObject(data)) {
-      const loader = props.graphLoader ?? JSONLoader;
+      const loader = props.graphLoader ?? JSONTabularGraphLoader;
       const graph = loader({json: data});
       if (!graph) {
         return null;
@@ -456,7 +484,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return null;
   }
 
-  private _buildEngineFromGraph(graph: Graph | null, layout?: GraphLayout | null): GraphEngine | null {
+  private _buildEngineFromGraph(
+    graph: Graph | null,
+    layout?: (GraphLayout | GraphRuntimeLayout) | null
+  ): GraphEngine | null {
     if (!graph) {
       return null;
     }
@@ -466,7 +497,25 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    return new GraphEngine({graph, layout});
+    if (graph instanceof LegacyGraph && layout instanceof GraphLayout) {
+      return new GraphEngine({graph, layout});
+    }
+
+    if (layout instanceof GraphLayout && !(graph instanceof LegacyGraph)) {
+      const legacyGraph = this._convertToLegacyGraph(graph);
+      if (legacyGraph) {
+        return new GraphEngine({graph: legacyGraph, layout});
+      }
+      this._warnLayoutRequired();
+      return null;
+    }
+
+    if (this._isGraphRuntimeLayout(layout)) {
+      return new GraphEngine({graph, layout});
+    }
+
+    this._warnLayoutRequired();
+    return null;
   }
 
   private _syncInteractionManager(props: GraphLayerProps, engine: GraphEngine | null) {
@@ -494,6 +543,59 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       warn(LAYOUT_REQUIRED_MESSAGE);
       LAYOUT_REQUIRED_WARNED = true;
     }
+  }
+
+  private _isGraph(value: unknown): value is Graph {
+    if (!(value instanceof EventTarget)) {
+      return false;
+    }
+
+    return (
+      typeof (value as Graph).getNodes === 'function' &&
+      typeof (value as Graph).getEdges === 'function'
+    );
+  }
+
+  private _coerceGraph(value: unknown): Graph | null {
+    if (value instanceof LegacyGraph) {
+      return value;
+    }
+
+    if (this._isGraph(value)) {
+      return value;
+    }
+
+    return null;
+  }
+
+  private _convertToLegacyGraph(graph: Graph): LegacyGraph | null {
+    if (graph instanceof LegacyGraph) {
+      return graph;
+    }
+
+    const candidate = graph as Graph & {toLegacyGraph?: () => LegacyGraph | null};
+    if (typeof candidate.toLegacyGraph === 'function') {
+      try {
+        return candidate.toLegacyGraph() ?? null;
+      } catch (error) {
+        warn('GraphLayer: failed to convert graph to LegacyGraph for layout compatibility.', error);
+      }
+    }
+
+    return null;
+  }
+
+  private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
+    if (!(value instanceof EventTarget)) {
+      return false;
+    }
+
+    const layout = value as GraphRuntimeLayout;
+    return (
+      typeof layout.initializeGraph === 'function' &&
+      typeof layout.getNodePosition === 'function' &&
+      typeof layout.getEdgePosition === 'function'
+    );
   }
 
   private _isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {
@@ -567,6 +669,127 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
   }
 
+  private _createRankGridLayer(): GridLayer | null {
+    const engine = this.state.graphEngine;
+    if (!engine) {
+      return null;
+    }
+
+    const {enabled, config} = this._normalizeRankGridConfig(this.props.rankGrid);
+    if (!enabled) {
+      return null;
+    }
+
+    const bounds = this._resolveRankGridBounds(engine);
+    if (!bounds) {
+      return null;
+    }
+
+    const data = this._buildRankGridData(engine, config, bounds);
+    if (!data) {
+      return null;
+    }
+
+    const direction = config?.direction ?? 'horizontal';
+    const gridProps = config?.gridProps ?? {};
+
+    return new GridLayer({
+      id: `${this.props.id}-rank-grid`,
+      data,
+      direction,
+      xMin: bounds.xMin,
+      xMax: bounds.xMax,
+      yMin: bounds.yMin,
+      yMax: bounds.yMax,
+      pickable: false,
+      ...gridProps
+    });
+  }
+
+  private _normalizeRankGridConfig(
+    value: GraphLayerProps['rankGrid']
+  ): {enabled: boolean; config?: RankGridConfig} {
+    if (typeof value === 'boolean') {
+      return {enabled: value};
+    }
+
+    if (value && typeof value === 'object') {
+      return {enabled: value.enabled ?? true, config: value};
+    }
+
+    return {enabled: false};
+  }
+
+  private _resolveRankGridBounds(engine: GraphEngine):
+    | {xMin: number; xMax: number; yMin: number; yMax: number}
+    | null {
+    const bounds = engine.getLayoutBounds();
+    if (!bounds) {
+      return null;
+    }
+
+    const [[minXRaw, minYRaw], [maxXRaw, maxYRaw]] = bounds;
+    const values = [minXRaw, minYRaw, maxXRaw, maxYRaw];
+    if (!values.every((value) => typeof value === 'number' && Number.isFinite(value))) {
+      return null;
+    }
+
+    return {
+      xMin: Math.min(minXRaw, maxXRaw),
+      xMax: Math.max(minXRaw, maxXRaw),
+      yMin: Math.min(minYRaw, maxYRaw),
+      yMax: Math.max(minYRaw, maxYRaw)
+    };
+  }
+
+  private _buildRankGridData(
+    engine: GraphEngine,
+    config: RankGridConfig | undefined,
+    bounds: {yMin: number; yMax: number}
+  ): Array<{label: string; rank: number; originalLabel?: string | number; yPosition: number}> | null {
+    const rankLabelPrefix = this._resolveRankFieldLabel(config?.rankAccessor);
+    // @ts-ignore iterator type
+    const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
+      rankAccessor: config?.rankAccessor,
+      labelAccessor: config?.labelAccessor,
+      yRange: {min: bounds.yMin, max: bounds.yMax}
+    });
+
+    if (rankPositions.length === 0) {
+      return null;
+    }
+
+    const selectedRanks = selectRankLines(rankPositions, {
+      yMin: bounds.yMin,
+      yMax: bounds.yMax,
+      maxCount: config?.maxLines ?? 8
+    });
+
+    if (selectedRanks.length === 0) {
+      return null;
+    }
+
+    return selectedRanks.map(({rank, label, yPosition}) => ({
+      label: `${rankLabelPrefix} ${rank}`,
+      rank,
+      originalLabel: label === undefined ? undefined : label,
+      yPosition
+    }));
+  }
+
+  private _resolveRankFieldLabel(rankAccessor: RankAccessor | undefined): string {
+    if (!rankAccessor) {
+      return 'srank';
+    }
+    if (typeof rankAccessor === 'string' && rankAccessor.length > 0) {
+      return rankAccessor;
+    }
+    if (typeof rankAccessor === 'function' && rankAccessor.name) {
+      return rankAccessor.name;
+    }
+    return 'rank';
+  }
+
   createNodeLayers() {
     const engine = this.state.graphEngine;
     const {nodes: nodeStyles} = this._getResolvedStylesheet();
@@ -584,7 +807,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           warn(`GraphLayer: Invalid node type "${style.type}".`);
           return null;
         }
-        const stylesheet = this._createStyleEngine(
+        const stylesheet = this._createStylesheetEngine(
           restStyle as unknown as GraphStylesheet,
           `node stylesheet "${style.type}"`
         );
@@ -638,7 +861,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       .filter(Boolean)
       .flatMap((style, idx) => {
         const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
-        const stylesheet = this._createStyleEngine(
+        const stylesheet = this._createStylesheetEngine(
           {
             type: 'edge',
             ...restEdgeStyle
@@ -666,13 +889,14 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
         const decoratorLayers = decorators
           .filter(Boolean)
+          // @ts-ignore eslint-disable-next-line @typescript-eslint/no-unused-vars
           .map((decoratorStyle, idx2) => {
             const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
             if (!DecoratorLayer) {
               warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
               return null;
             }
-            const decoratorStylesheet = this._createStyleEngine(
+            const decoratorStylesheet = this._createStylesheetEngine(
               decoratorStyle as unknown as GraphStylesheet,
               `edge decorator stylesheet "${decoratorStyle.type}"`
             );
@@ -716,7 +940,23 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   renderLayers() {
-    return [this.createEdgeLayers(), this.createNodeLayers()];
+    const layers: any[] = [];
+    const gridLayer = this._createRankGridLayer();
+    if (gridLayer) {
+      layers.push(gridLayer);
+    }
+
+    const edgeLayers = this.createEdgeLayers();
+    if (Array.isArray(edgeLayers) && edgeLayers.length > 0) {
+      layers.push(...edgeLayers);
+    }
+
+    const nodeLayers = this.createNodeLayers();
+    if (Array.isArray(nodeLayers) && nodeLayers.length > 0) {
+      layers.push(...nodeLayers);
+    }
+
+    return layers;
   }
 
   private _createChainOverlayLayers(engine: GraphEngine) {
@@ -742,7 +982,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: 'collapsed-chain-outlines',
           data: collapsedOutlineNodes,
-          getPolygon: (node: Node) => getChainOutlinePolygon(node),
+          getPolygon: (node: NodeInterface) => getChainOutlinePolygon(node),
           stroked: true,
           filled: false,
           getLineColor: [220, 64, 64, 220],
@@ -757,7 +997,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       );
     }
 
-    const collapsedMarkerStylesheet = this._createStyleEngine(
+    const collapsedMarkerStylesheet = this._createStylesheetEngine(
       {
         type: 'marker',
         fill: [64, 96, 192, 255],
@@ -795,7 +1035,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           ...SHARED_LAYER_PROPS,
           id: 'expanded-chain-outlines',
           data: expandedOutlineNodes,
-          getPolygon: (node: Node) => getChainOutlinePolygon(node),
+          getPolygon: (node: NodeInterface) => getChainOutlinePolygon(node),
           stroked: true,
           filled: false,
           getLineColor: [64, 96, 192, 200],
@@ -810,7 +1050,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       );
     }
 
-    const expandedMarkerStylesheet = this._createStyleEngine(
+    const expandedMarkerStylesheet = this._createStylesheetEngine(
       {
         type: 'marker',
         fill: [64, 96, 192, 255],

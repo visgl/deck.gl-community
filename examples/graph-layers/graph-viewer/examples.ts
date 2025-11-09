@@ -11,8 +11,16 @@ import type {
 } from './layout-options';
 import witsRaw from '../../../modules/graph-layers/test/data/examples/wits.json';
 import sampleMultiGraph from './sample-multi-graph.json';
+import dagPipelineRaw from './dag-pipeline.json';
+import knowledgeGraphRaw from './knowledge-graph.json';
 
 type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
+
+type DagRecord = {
+  id: string;
+  label: string;
+  parentIds?: string[];
+};
 
 const MULTI_GRAPH_SAMPLE = sampleMultiGraph as ExampleGraphData & {
   nodes: Array<{id: string; type?: string; star?: boolean}>;
@@ -43,93 +51,15 @@ type RawWitsDataset = {
   tree: RawWitsTreeNode[];
 };
 
-const DAG_PIPELINE_DATA = [
-  {id: 'collect', label: 'Collect events', rank: 0},
-  {id: 'ingest', label: 'Ingest', parentIds: ['collect'], rank: 1},
-  {id: 'quality', label: 'Quality checks', parentIds: ['ingest'], rank: 2},
-  {id: 'clean', label: 'Clean data', parentIds: ['quality'], rank: 3},
-  {id: 'warehouse', label: 'Warehouse sync', parentIds: ['clean'], rank: 4},
-  {id: 'feature', label: 'Feature store', parentIds: ['warehouse'], rank: 5},
-  {id: 'feature-vis', label: 'Feature visualization', parentIds: ['feature'], rank: 10},
-  {id: 'vis-analysis', label: 'Feature visualization', parentIds: ['feature-vis'], rank: 11},
-  {id: 'training', label: 'Train models', parentIds: ['feature'], rank: 6},
-  {id: 'serving', label: 'Serve models', parentIds: ['training'], rank: 7},
-  {id: 'monitor', label: 'Monitor', parentIds: ['serving'], rank: 10},
-  {id: 'alert', label: 'Alerting', parentIds: ['monitor'], rank: 11},
-  {id: 'feedback', label: 'Feedback', parentIds: ['alert', 'monitor'], rank: 12},
-  {id: 'experiments', label: 'Experimentation', parentIds: ['vis-analysis', 'feedback'], rank: 13}
-] as const satisfies DagRecord[];
+type DagPipelineRecord = DagRecord & {rank: number};
 
-const KNOWLEDGE_GRAPH = {
-  nodes: [
-    {id: 'University', name: 'University', group: 'Overview'},
-    {id: 'Sciences', name: 'Sciences', group: 'Science'},
-    {id: 'Humanities', name: 'Humanities', group: 'Humanities'},
-    {id: 'Professional Studies', name: 'Professional Studies', group: 'Professional'},
-    {id: 'Research Labs', name: 'Research Labs', group: 'Science'},
-    {id: 'Data Science', name: 'Data Science', group: 'Science'},
-    {id: 'Applied Physics', name: 'Applied Physics', group: 'Science'},
-    {id: 'Studio Art', name: 'Studio Art', group: 'Humanities'},
-    {id: 'Design Thinking', name: 'Design Thinking', group: 'Humanities'},
-    {id: 'Field Work', name: 'Field Work', group: 'Professional'},
-    {id: 'Medical Center', name: 'Medical Center', group: 'Professional'},
-    {id: 'Entrepreneurship Hub', name: 'Entrepreneurship Hub', group: 'Business'},
-    {id: 'Finance Department', name: 'Finance Department', group: 'Business'},
-    {id: 'Economics Department', name: 'Economics Department', group: 'Business'}
-  ],
-  edges: [
-    {id: 'e-0', sourceId: 'University', targetId: 'Sciences', type: 'supports'},
-    {id: 'e-1', sourceId: 'University', targetId: 'Humanities', type: 'supports'},
-    {id: 'e-2', sourceId: 'University', targetId: 'Professional Studies', type: 'supports'},
-    {id: 'e-3', sourceId: 'Sciences', targetId: 'Research Labs', type: 'manages'},
-    {id: 'e-4', sourceId: 'Sciences', targetId: 'Data Science', type: 'collaborates'},
-    {id: 'e-5', sourceId: 'Sciences', targetId: 'Applied Physics', type: 'collaborates'},
-    {id: 'e-6', sourceId: 'Humanities', targetId: 'Studio Art', type: 'mentors'},
-    {id: 'e-7', sourceId: 'Humanities', targetId: 'Design Thinking', type: 'mentors'},
-    {id: 'e-8', sourceId: 'Professional Studies', targetId: 'Field Work', type: 'coordinates'},
-    {id: 'e-9', sourceId: 'Professional Studies', targetId: 'Medical Center', type: 'coordinates'},
-    {
-      id: 'e-10',
-      sourceId: 'Professional Studies',
-      targetId: 'Entrepreneurship Hub',
-      type: 'coordinates'
-    },
-    {
-      id: 'e-11',
-      sourceId: 'Entrepreneurship Hub',
-      targetId: 'Finance Department',
-      type: 'incubates'
-    },
-    {
-      id: 'e-12',
-      sourceId: 'Entrepreneurship Hub',
-      targetId: 'Economics Department',
-      type: 'incubates'
-    },
-    {id: 'e-13', sourceId: 'Data Science', targetId: 'Entrepreneurship Hub', type: 'partners'},
-    {id: 'e-14', sourceId: 'Applied Physics', targetId: 'Medical Center', type: 'supports'},
-    {id: 'e-15', sourceId: 'Design Thinking', targetId: 'Entrepreneurship Hub', type: 'advises'}
-  ],
-  tree: [
-    {id: 'University', children: ['Sciences', 'Humanities', 'Professional Studies']},
-    {id: 'Sciences', children: ['Research Labs', 'Data Science', 'Applied Physics']},
-    {id: 'Humanities', children: ['Studio Art', 'Design Thinking']},
-    {
-      id: 'Professional Studies',
-      children: ['Field Work', 'Medical Center', 'Entrepreneurship Hub']
-    },
-    {id: 'Entrepreneurship Hub', children: ['Finance Department', 'Economics Department']},
-    {id: 'Research Labs'},
-    {id: 'Data Science'},
-    {id: 'Applied Physics'},
-    {id: 'Studio Art'},
-    {id: 'Design Thinking'},
-    {id: 'Field Work'},
-    {id: 'Medical Center'},
-    {id: 'Finance Department'},
-    {id: 'Economics Department'}
-  ]
-} as const;
+const DAG_PIPELINE_DATA = dagPipelineRaw as DagPipelineRecord[];
+
+const KNOWLEDGE_GRAPH = knowledgeGraphRaw as {
+  nodes: Array<{id: string; name: string; group: string}>;
+  edges: Array<{id: string; sourceId: string; targetId: string; type: string}>;
+  tree: Array<{id: string; children?: string[]}>;
+};
 
 const WITS_DATASET = witsRaw as RawWitsDataset;
 
@@ -657,7 +587,7 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
 };
 
 const dagPipelineDataset = () => {
-  const nodes = DAG_PIPELINE_DATA.map((entry) => entry); // ({id: entry.id, label: entry.label}));
+  const nodes = DAG_PIPELINE_DATA.map((entry) => ({...entry}));
   const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
 
   for (const entry of DAG_PIPELINE_DATA) {
@@ -675,12 +605,6 @@ const dagPipelineDataset = () => {
   }
 
   return {nodes, edges};
-};
-
-type DagRecord = {
-  id: string;
-  label: string;
-  parentIds?: string[];
 };
 
 const DAG_PIPELINE_STYLE: ExampleStyles = {
@@ -972,7 +896,15 @@ export const EXAMPLES: ExampleDefinition[] = [
     data: dagPipelineDataset,
     layouts: ['d3-dag-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: DAG_PIPELINE_STYLE
+    style: DAG_PIPELINE_STYLE,
+    getLayoutOptions: (layout) =>
+      layout === 'd3-dag-layout'
+        ? {
+            layout: 'sugiyama',
+            layering: 'simplex',
+            nodeRank: 'rank'
+          }
+        : undefined
   },
   {
     name: 'ML lineage DAG (1,000 runs)',

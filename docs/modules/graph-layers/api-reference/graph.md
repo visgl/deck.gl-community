@@ -1,163 +1,70 @@
-# Graph Class
+---
+title: Graph Interface
+---
 
-The `Graph` class is the base class of the graph.
+# Graph Interface
 
-## Constructor
+The `Graph` interface is the runtime abstraction consumed by the graph-layers module. It presents a
+stable API for enumerating nodes and edges plus inspecting or mutating their state through
+[`NodeInterface`](./node.md) and [`EdgeInterface`](./edge.md). Concrete implementations such as
+[`LegacyGraph`](./legacy-graph.md) and [`TabularGraph`](./tabular-graph.md) provide different storage
+strategies while conforming to the same contract.
 
-```js
-new Graph(graph);
-```
+## Shape
 
-Parameters:
+### `version`
 
-##### `graph` (Graph, optional)
+`number` &mdash; Monotonically increasing revision counter supplied by the graph implementation. The
+value updates whenever nodes, edges, or their state change.
 
-## setGraphName()
+### `getNodes()`
 
-Set the name of the graph.
+Returns an iterable sequence of [`NodeInterface`](./node.md) instances.
 
-## getGraphName()
+### `getEdges()`
 
-Get the name of the graph. Normally it can be used for dirty check.
+Returns an iterable sequence of [`EdgeInterface`](./edge.md) instances.
 
-## addEdge(edge)
+### `findNodeById(id)` _(optional)_
 
-Add a new edge to the graph.
+Returns a node handle with the provided identifier when supported by the implementation.
 
-##### `edge` (Edge, required)
+:::info Styling
+Graphs no longer vend stylesheet helpers directly. Use
+[`GraphStylesheetEngine`](./styling/graph-style-engine.md#graphstylesheetengine) to evaluate
+`GraphStylesheet` definitions regardless of the underlying graph implementation.
+:::
 
-Expect a Edge object to be added to the graph.
+### `destroy()` _(optional)_
 
-## addNode(node)
+Releases any resources owned by the graph implementation.
 
-Add a new node to the graph.
+## NodeInterface
 
-##### `node` (Node, required)
+Nodes returned by `getNodes()` implement the following methods:
 
-Expect a Node object to be added to the graph.
+- `getId()` &mdash; Returns the node identifier supplied by the data source.
+- `getConnectedEdges()` &mdash; Returns the edges that reference the node.
+- `getDegree()`, `getInDegree()`, `getOutDegree()` &mdash; Connectivity helpers.
+- `getSiblingIds()` &mdash; Returns the identifiers of nodes connected via an edge.
+- `getPropertyValue(key)` &mdash; Reads a property exposed by the underlying data source.
+- `setData(data)` / `setDataProperty(key, value)` &mdash; Update the node-specific data payload.
+- `setState(state)` / `getState()` &mdash; Update or read the logical state (e.g. `hover`, `selected`).
+- `isSelectable()` &mdash; Whether the runtime may select the node.
+- `shouldHighlightConnectedEdges()` &mdash; Whether connected edges should be highlighted.
 
-## batchAddEdges(edges)
+## EdgeInterface
 
-Batch add edges to the graph.
+Edges returned by `getEdges()` implement the following methods:
 
-##### `edges` (Edge[], required)
+- `getId()` &mdash; Returns the edge identifier supplied by the data source.
+- `isDirected()` &mdash; Indicates whether the edge direction should be considered.
+- `getSourceNodeId()` / `getTargetNodeId()` &mdash; Node identifiers referenced by the edge.
+- `getConnectedNodes()` &mdash; Returns the nodes that the edge currently references.
+- `addNode(node)` / `removeNode(node)` &mdash; Mutate the set of connected nodes.
+- `getPropertyValue(key)` &mdash; Reads a property exposed by the underlying data source.
+- `setData(data)` / `setDataProperty(key, value)` &mdash; Update the edge-specific data payload.
+- `setState(state)` / `getState()` &mdash; Update or read the logical state (e.g. `hover`, `selected`).
 
-Expect a list of Edge objects to be added to the graph.
-
-## batchAddNodes(nodes)
-
-Batch add nodes to the graph.
-
-##### `nodes` (Node[], required)
-
-Expect a list of Node objects to be added to the graph.
-
-## findEdge(edgeId)
-
-##### `edgeId` (String|Number, required)
-
-The target edge ID.
-
-Find the edge by edge ID.
-
-##### `edgeId` (String|Number, required)
-
-The target edge ID.
-
-## findNode(nodeId)
-
-Find the node by node ID.
-
-##### `nodeId` (String|Number, required)
-
-The target node ID.
-
-## getDegree(nodeId)
-
-Get the degree of the node by node ID.
-
-##### `nodeId` (String|Number, required)
-
-The target node ID.
-
-## getEdgeMap()
-
-Get the edge map of the graph. The key of the map is the ID of the edges.
-
-## getEdges()
-
-Get all the edges of the graph.
-
-## getConnectedEdges(nodeId)
-
-Return all the connected edges of a node by nodeID.
-
-##### `nodeId` (String|Number, required)
-
-The target node ID.
-
-## getNodeMap()
-
-Get the node map of the graph. The key of the map is the ID of the nodes.
-
-## getNodes()
-
-Get all the nodes of the graph.
-
-## getNodeSiblings(nodeId)
-
-Return all the sibling nodes of a node by nodeID.
-
-##### `nodeId` (String|Number, required)
-
-The target node ID.
-
-## isEmpty()
-
-Return true if the graph is empty.
-
-## removeEdge(edgeId)
-
-Remove an edge from the graph by the edge ID
-
-##### `edgeId` (String|Number, required)
-
-The target edge ID.
-
-## removeNode(nodeId)
-
-Remove a node from the graph by node ID
-
-##### `nodeId` (String|Number, required)
-
-The target node ID.
-
-## reset()
-
-Clean up everything in the graph.
-
-## resetEdges()
-
-Clean up all the edges in the graph.
-
-## resetNodes()
-
-Clean up all the nodes in the graph.
-
-# transaction(cb)
-
-Perform a batch of operations defined by cb before indicating graph is updated
-
-##### `cb` (Function, required)
-
-## updateEdge(edge)
-
-Update the indicated edge to the provided value
-
-##### `edge` (Edge, required)
-
-## updateNode(node)
-
-Update the indicated node to the provided value
-
-##### `node` (Node, required)
+Refer to the [`TabularGraph`](./tabular-graph.md) and [`LegacyGraph`](./legacy-graph.md) reference
+pages for implementation specific guidance.

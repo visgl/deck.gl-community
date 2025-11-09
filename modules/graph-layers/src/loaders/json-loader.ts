@@ -2,18 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {createGraph} from './create-graph';
-import {basicNodeParser} from './node-parsers';
-import {basicEdgeParser} from './edge-parsers';
-import {error} from '../utils/log';
+export {JSONTabularGraphLoader} from './json-tabular-graph-loader';
+export {JSONLegacyGraphLoader} from './json-legacy-graph-loader';
 
-export const JSONLoader = ({json, nodeParser = basicNodeParser, edgeParser = basicEdgeParser}) => {
-  const {name = 'default', nodes, edges} = json;
-  if (!nodes) {
-    error('Invalid graph: nodes is missing.');
-    return null;
-  }
-
-  const graph = createGraph({name, nodes, edges, nodeParser, edgeParser});
-  return graph;
-};
+/** @deprecated Use {@link JSONTabularGraphLoader}. */
+export {JSONTabularGraphLoader as JSONLoader} from './json-tabular-graph-loader';

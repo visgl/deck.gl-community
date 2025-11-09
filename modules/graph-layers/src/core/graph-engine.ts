@@ -4,67 +4,99 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {Node} from '../graph/node';
-import {Edge} from '../graph/edge';
-import {Graph} from '../graph/graph';
+import type {Graph, EdgeInterface, NodeInterface} from '../graph/graph';
+import {LegacyGraph, LegacyGraphLayoutAdapter} from '../graph/legacy-graph';
+import type {GraphRuntimeLayout} from './graph-runtime-layout';
 import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
+import {GraphStylesheetEngine, type GraphStylesheet} from '../style/graph-style-engine';
 
-export type GraphEngineProps = {
-  graph: Graph;
+type LegacyGraphEngineProps = {
+  graph: LegacyGraph;
   layout: GraphLayout;
 };
 
+type InterfaceGraphEngineProps = {
+  graph: Graph;
+  layout: GraphRuntimeLayout;
+};
+
+export type GraphEngineProps = LegacyGraphEngineProps | InterfaceGraphEngineProps;
+
+function isLegacyProps(props: GraphEngineProps): props is LegacyGraphEngineProps {
+  return props.graph instanceof LegacyGraph;
+}
+
 /** Graph engine controls the graph data and layout calculation */
 export class GraphEngine extends EventTarget {
-  props: Readonly<Required<GraphEngineProps>>;
+  props: Readonly<GraphEngineProps>;
 
   private readonly _graph: Graph;
-  private readonly _layout: GraphLayout;
-  private readonly _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
+  private readonly _layout: GraphRuntimeLayout;
+  private readonly _cache = new Cache<'nodes' | 'edges', NodeInterface[] | EdgeInterface[]>();
   private _layoutDirty = false;
   private _transactionInProgress = false;
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
-  constructor(graph: Graph, layout: GraphLayout);
+  constructor(graph: LegacyGraph, layout: GraphLayout);
 
-  constructor(props: GraphEngineProps | Graph, layout?: GraphLayout) {
+  constructor(props: GraphEngineProps | LegacyGraph, layout?: GraphLayout) {
     super();
-    if (props instanceof Graph) {
-      props = {
-        graph: props,
-        layout
-      };
+    let normalizedProps: GraphEngineProps;
+    if (props instanceof LegacyGraph) {
+      if (!(layout instanceof GraphLayout)) {
+        throw new Error('GraphEngine: legacy graphs require a GraphLayout instance.');
+      }
+      normalizedProps = {graph: props, layout};
+    } else {
+      normalizedProps = props;
     }
 
-    this.props = props;
-    this._graph = props.graph;
-    this._layout = props.layout;
+    this.props = normalizedProps;
+
+    if (isLegacyProps(normalizedProps)) {
+      const layoutAdapter = new LegacyGraphLayoutAdapter(normalizedProps.layout);
+      this._graph = normalizedProps.graph;
+      this._layout = layoutAdapter;
+    } else {
+      this._graph = normalizedProps.graph;
+      this._layout = normalizedProps.layout;
+    }
   }
 
   /** Getters */
 
-  getNodes = (): Node[] => {
+  getNodes = (): NodeInterface[] => {
     this._updateCache('nodes', () =>
-      this._graph.getNodes().filter((node) => this.getNodePosition(node))
+      Array.from(this._graph.getNodes()).filter((node) => {
+        const position = this.getNodePosition(node);
+        return position !== null && position !== undefined;
+      })
     );
 
-    return this._cache.get('nodes') as Node[];
+    return (this._cache.get('nodes') as NodeInterface[]) ?? [];
   };
 
   getEdges = () => {
     this._updateCache('edges', () =>
-      this._graph.getEdges().filter((edge) => this.getEdgePosition(edge))
+      Array.from(this._graph.getEdges()).filter((edge) => {
+        const layout = this.getEdgePosition(edge);
+        return layout !== null && layout !== undefined;
+      })
     );
 
-    return this._cache.get('edges') as Edge[];
+    return (this._cache.get('edges') as EdgeInterface[]) ?? [];
   };
 
-  getNodePosition = (node: Node) => this._layout.getNodePosition(node);
+  getNodePosition = (node: NodeInterface) => {
+    return this._layout.getNodePosition(node) ?? null;
+  };
 
-  getEdgePosition = (edge: Edge) => this._layout.getEdgePosition(edge);
+  getEdgePosition = (edge: EdgeInterface) => {
+    return this._layout.getEdgePosition(edge) ?? null;
+  };
 
   getGraphVersion = () => this._graph.version;
 
@@ -72,13 +104,28 @@ export class GraphEngine extends EventTarget {
 
   getLayoutState = () => this._layout.state;
 
-  getLayoutBounds = (): Bounds2D | null => this._layout.getBounds();
+  getLayoutBounds = (): Bounds2D | null => this._layout.getBounds() ?? null;
 
   /** Operations on the graph */
 
-  lockNodePosition = (node, x, y) => this._layout.lockNodePosition(node, x, y);
+  lockNodePosition = (node: NodeInterface, x: number, y: number) => {
+    this._layout.lockNodePosition(node, x, y);
+  };
 
-  unlockNodePosition = (node) => this._layout.unlockNodePosition(node);
+  unlockNodePosition = (node: NodeInterface) => {
+    this._layout.unlockNodePosition(node);
+  };
+
+  findNode(nodeId: string | number): NodeInterface | undefined {
+    return this._graph.findNodeById?.(nodeId);
+  }
+
+  createStylesheetEngine(
+    style: GraphStylesheet,
+    options: {stateUpdateTrigger?: unknown} = {}
+  ): GraphStylesheetEngine {
+    return new GraphStylesheetEngine(style, options);
+  }
 
   /**
    * @fires GraphEngine#onLayoutStart
@@ -131,7 +178,7 @@ export class GraphEngine extends EventTarget {
     this.dispatchEvent(new CustomEvent('onLayoutError', {detail}));
   };
 
-  _onGraphStructureChanged = (entity) => {
+  _onGraphStructureChanged = () => {
     this._layoutDirty = true;
     this._graphChanged();
   };
@@ -182,9 +229,13 @@ export class GraphEngine extends EventTarget {
     this._layout.removeEventListener('onLayoutError', this._onLayoutError);
   };
 
-  resume = () => this._layout.resume();
+  resume = () => {
+    this._layout.resume();
+  };
 
-  stop = () => this._layout.stop();
+  stop = () => {
+    this._layout.stop();
+  };
 
   _graphChanged = () => {
     if (this._layoutDirty && !this._transactionInProgress) {
@@ -200,6 +251,6 @@ export class GraphEngine extends EventTarget {
   };
 
   _updateCache(key, updateValue) {
-    this._cache.set(key, updateValue, this._graph.version + this._layout.version);
+    this._cache.set(key, updateValue, this.getGraphVersion() + this.getLayoutLastUpdate());
   }
 }

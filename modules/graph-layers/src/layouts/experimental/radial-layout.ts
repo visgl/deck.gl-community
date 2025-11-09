@@ -3,7 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
-import {Graph} from '../../graph/graph';
+import {LegacyGraph} from '../../graph/legacy-graph';
+import type {Node} from '../../graph/node';
 
 export type RadialLayoutProps = GraphLayoutProps & {
   radius?: number;
@@ -58,7 +59,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   } as const satisfies Readonly<Required<RadialLayoutProps>>;
 
   _name = 'RadialLayout';
-  _graph: Graph = null;
+  _graph: LegacyGraph | null = null;
   // custom layout data structure
   _hierarchicalPoints = {};
   nestedTree;
@@ -67,16 +68,22 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     super({...RadialLayout.defaultProps, ...props});
   }
 
-  initializeGraph(graph: Graph): void {
+  initializeGraph(graph: LegacyGraph): void {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: Graph): void {
+  updateGraph(graph: LegacyGraph): void {
     this._graph = graph;
   }
 
   start(): void {
-    const nodeCount = this._graph.getNodes().length;
+    if (!this._graph) {
+      return;
+    }
+    const nodes = Array.isArray(this._graph.getNodes())
+      ? (this._graph.getNodes() as Node[])
+      : (Array.from(this._graph.getNodes()) as Node[]);
+    const nodeCount = nodes.length;
     if (nodeCount === 0) {
       return;
     }
@@ -86,6 +93,8 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     if (!tree || tree.length === 0) {
       return;
     }
+
+    this._onLayoutStart();
 
     const {radius} = this.props;
     const unitAngle = 360 / nodeCount;
@@ -151,8 +160,8 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
 
   update() {}
 
-  getNodePosition = (node) => {
-    return this._hierarchicalPoints[node.id];
+  getNodePosition = (node: Node) => {
+    return this._hierarchicalPoints[node.getId()];
   };
 
   // spline curve version

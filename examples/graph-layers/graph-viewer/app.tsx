@@ -18,12 +18,13 @@ import {
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
-  JSONLoader,
+  JSONTabularGraphLoader,
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
   D3DagLayout,
-  CollapsableD3DagLayout
+  CollapsableD3DagLayout,
+  type RankGridConfig
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -154,7 +155,10 @@ export function App({graphType}: AppProps) {
 
     return overrides ?? baseOptions;
   }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
-  const graph = useMemo(() => (graphData ? JSONLoader({json: graphData}) : null), [graphData]);
+  const graph = useMemo(
+    () => (graphData ? JSONTabularGraphLoader({json: graphData}) : null),
+    [graphData]
+  );
   const layout = useMemo(() => {
     if (!selectedLayout) {
       return null;
@@ -237,6 +241,29 @@ export function App({graphType}: AppProps) {
   const {isLoading} = loadingState;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
+
+  const rankGrid = useMemo<RankGridConfig | false>(() => {
+    if (!dagLayout) {
+      return false;
+    }
+
+    const orientation =
+      (layoutOptions?.orientation as string | undefined) ?? D3DagLayout.defaultProps.orientation;
+    const direction: RankGridConfig['direction'] =
+      orientation === 'LR' || orientation === 'RL' ? 'vertical' : 'horizontal';
+    const usesExplicitRank = (layoutOptions?.nodeRank as string | undefined) === 'rank';
+
+    return {
+      enabled: true,
+      direction,
+      maxLines: 10,
+      ...(usesExplicitRank ? {rankAccessor: 'rank'} : {}),
+      gridProps: {
+        color: [148, 163, 184, 220],
+        labelOffset: direction === 'vertical' ? [0, 8] : [8, 0]
+      }
+    };
+  }, [dagLayout, layoutOptions]);
 
   useEffect(() => {
     if (isDagLayout) {
@@ -438,7 +465,8 @@ export function App({graphType}: AppProps) {
                   data: graph,
                   layout,
                   stylesheet: selectedStyles,
-                  resumeLayoutAfterDragging
+                  resumeLayoutAfterDragging,
+                  rankGrid
                 })
               ]
               : []
@@ -505,12 +533,96 @@ export function App({graphType}: AppProps) {
   );
 }
 
-function getToolTip(object) {
-  if (!object) {
+type GraphTooltipObject = {
+  isNode?: boolean;
+  _data?: Record<string, unknown> | null;
+};
+
+function isGraphTooltipObject(value: unknown): value is GraphTooltipObject {
+  return typeof value === 'object' && value !== null;
+}
+
+const TOOLTIP_THEME = {
+  background: '#0f172a',
+  border: '#1e293b',
+  header: '#38bdf8',
+  key: '#facc15',
+  value: '#f8fafc'
+} as const;
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case '\'':
+        return '&#39;';
+      default:
+        return character;
+    }
+  });
+}
+
+function formatTooltipValue(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => formatTooltipValue(item)).join(', ');
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function getToolTip(object: unknown): {html: string} | null {
+  if (!isGraphTooltipObject(object)) {
     return null;
   }
-  const type = object.isNode ? 'Node' : 'Edge';
-  return `${type}: ${JSON.stringify(object?._data)}`;
+
+  const data = object._data ?? {};
+  const entries = Object.entries(data).filter(([, value]) => value !== undefined);
+
+  if (!entries.length) {
+    return null;
+  }
+
+  const typeLabel = object.isNode ? 'Node' : 'Edge';
+  const rowsHtml = entries
+    .map(([key, value]) => {
+      const formattedValue = formatTooltipValue(value);
+      return `
+        <tr>
+          <th style="padding: 0.25rem 0.5rem; text-align: left; color: ${TOOLTIP_THEME.key}; font-weight: 600; white-space: nowrap;">${escapeHtml(
+            key
+          )}</th>
+          <td style="padding: 0.25rem 0.5rem; color: ${TOOLTIP_THEME.value}; font-weight: 500;">${escapeHtml(
+            formattedValue
+          )}</td>
+        </tr>`;
+    })
+    .join('');
+
+  return {
+    html: `
+      <div style="background: ${TOOLTIP_THEME.background}; border: 1px solid ${TOOLTIP_THEME.border}; border-radius: 0.75rem; padding: 0.75rem; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.45); font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; font-size: 0.75rem; min-width: 14rem; max-width: 22rem;">
+        <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.65rem; font-weight: 700; color: ${TOOLTIP_THEME.header}; margin-bottom: 0.5rem;">${typeLabel}</div>
+        <table style="border-collapse: collapse; width: 100%;">
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    `
+      .trim()
+  };
 }
 
 export function renderToDOM() {

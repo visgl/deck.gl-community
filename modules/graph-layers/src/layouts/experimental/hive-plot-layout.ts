@@ -4,7 +4,7 @@
 
 import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
-import {Graph} from '../../graph/graph';
+import {LegacyGraph} from '../../graph/legacy-graph';
 
 export type HivePlotLayoutProps = GraphLayoutProps & {
   innerRadius?: number;
@@ -20,7 +20,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   } as const satisfies Readonly<Required<HivePlotLayoutProps>>;
 
   _name = 'HivePlot';
-  _graph: Graph;
+  _graph: LegacyGraph;
   _totalAxis: number;
   _axis: Record<string, any>;
   _nodeMap = {};
@@ -30,21 +30,24 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     super({...HivePlotLayout.defaultProps, ...props});
   }
 
-  initializeGraph(graph: Graph) {
+  initializeGraph(graph: LegacyGraph) {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph) {
+  updateGraph(graph: LegacyGraph) {
     const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
-    this._nodeMap = graph.getNodes().reduce((res, node) => {
+    const nodes = Array.isArray(graph.getNodes())
+      ? (graph.getNodes() as Node[])
+      : (Array.from(graph.getNodes()) as Node[]);
+    this._nodeMap = nodes.reduce((res, node) => {
       res[node.getId()] = node;
       return res;
     }, {});
 
     // bucket nodes into few axis
 
-    this._axis = graph.getNodes().reduce((res, node) => {
+    this._axis = nodes.reduce((res, node) => {
       const axis = getNodeAxis(node);
       if (!res[axis]) {
         res[axis] = [];
@@ -89,6 +92,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   }
 
   start() {
+    this._onLayoutStart();
     this._onLayoutChange();
     this._onLayoutDone();
   }

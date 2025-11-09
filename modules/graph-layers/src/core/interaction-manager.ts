@@ -3,9 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import type {EdgeState, NodeState} from './constants';
-import {Edge} from '../graph/edge';
-import {Node} from '../graph/node';
 import {GraphEngine} from './graph-engine';
+import type {EdgeInterface, NodeInterface} from '../graph/graph';
 import {log} from '../utils/log';
 import {
   resolveChainInteractionSource,
@@ -32,13 +31,13 @@ const NODE_TO_EDGE_STATE_MAP: Record<NodeState, EdgeState> = {
   selected: 'selected'
 };
 
-function shouldEdgeBeSelected(edge: Edge): boolean {
+function shouldEdgeBeSelected(edge: EdgeInterface): boolean {
   return edge
     .getConnectedNodes()
     .some((node) => node.getState() === 'selected' && node.shouldHighlightConnectedEdges());
 }
 
-function setNodeState(node: Node, state: NodeState) {
+function setNodeState(node: NodeInterface, state: NodeState) {
   node.setState(state);
   if (node.shouldHighlightConnectedEdges()) {
     node.getConnectedEdges().forEach((edge) => {
@@ -55,7 +54,7 @@ interface EventMap {
   onClick?: (info: unknown, event: Event) => void;
   onHover?: (info: unknown) => void;
   onMouseEnter?: (info: unknown) => void;
-  onMouseLeave?: (node: Node) => void;
+  onMouseLeave?: (node: NodeInterface) => void;
   onDragStart?: (info: unknown) => void;
   onDrag?: (info: unknown) => void;
   onDragEnd?: (info: unknown) => void;
@@ -72,8 +71,8 @@ export interface InteractionManagerProps {
 export class InteractionManager {
   public notifyCallback: Function;
   private _lastInteraction = 0;
-  private _lastHoveredNode: Node | null = null;
-  private _lastSelectedNode: Node | null = null;
+  private _lastHoveredNode: NodeInterface | null = null;
+  private _lastSelectedNode: NodeInterface | null = null;
 
   public nodeEvents: EventMap = undefined!;
   public edgeEvents: EventMap = undefined!;
@@ -118,7 +117,7 @@ export class InteractionManager {
     }
 
     if (object.isNode) {
-      const node = object as Node;
+      const node = object as NodeInterface;
       const chainId = node.getPropertyValue('collapsedChainId');
       const collapsedNodeIds = node.getPropertyValue('collapsedNodeIds');
       const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
@@ -161,7 +160,7 @@ export class InteractionManager {
         }
       }
 
-      if ((object as Node).isSelectable()) {
+      if (node.isSelectable()) {
         if (this._lastSelectedNode) {
           setNodeState(this._lastSelectedNode, 'default');
         }
@@ -176,7 +175,7 @@ export class InteractionManager {
       }
     }
 
-    if (object.isEdge && this.edgeEvents.onClick) {
+    if ((object as EdgeInterface).isEdge && this.edgeEvents.onClick) {
       this.edgeEvents.onClick(info, event);
     }
   }
@@ -186,10 +185,9 @@ export class InteractionManager {
 
     if (!(lastHoveredNode.isSelectable() && lastHoveredNode.getState() === 'selected')) {
       // reset the last hovered node's state
-      const newState =
-        this._lastSelectedNode !== null && this._lastSelectedNode.id === this._lastHoveredNode?.id
-          ? 'selected'
-          : 'default';
+      const lastSelectedId = this._lastSelectedNode?.getId();
+      const lastHoveredId = this._lastHoveredNode?.getId();
+      const newState = lastSelectedId !== undefined && lastSelectedId === lastHoveredId ? 'selected' : 'default';
       setNodeState(lastHoveredNode, newState);
     }
     // trigger the callback if exists
@@ -200,7 +198,7 @@ export class InteractionManager {
 
   _mouseEnterNode(info): void {
     // set the node's state to hover
-    setNodeState(info.object as Node, 'hover');
+    setNodeState(info.object as NodeInterface, 'hover');
     // trigger the callback if exists
     if (this.nodeEvents.onMouseEnter) {
       this.nodeEvents.onMouseEnter(info);
@@ -223,7 +221,9 @@ export class InteractionManager {
 
     // hover over on a node
     if (info.object.isNode) {
-      const isSameNode = this._lastHoveredNode && this._lastHoveredNode.id === info.object.id;
+      const lastHoveredId = this._lastHoveredNode?.getId();
+      const currentId = (info.object as NodeInterface).getId();
+      const isSameNode = lastHoveredId !== undefined && lastHoveredId === currentId;
       // stay in the same node
       if (isSameNode) {
         return;
@@ -262,9 +262,9 @@ export class InteractionManager {
     const bounds = info.layer.context.viewport.getBounds(); // [minX, minY, maxX, maxY]
     const x = Math.min(Math.max(coordinates[0], bounds[0]), bounds[2]);
     const y = Math.min(Math.max(coordinates[1], bounds[1]), bounds[3]);
-    this.engine.lockNodePosition(info.object, x, y);
+    this.engine.lockNodePosition(info.object as NodeInterface, x, y);
 
-    setNodeState(info.object, 'dragging');
+    setNodeState(info.object as NodeInterface, 'dragging');
     this._lastInteraction = Date.now();
     this.notifyCallback();
     if (this.nodeEvents.onDrag) {
@@ -279,7 +279,7 @@ export class InteractionManager {
     if (this.resumeLayoutAfterDragging) {
       this.engine.resume();
     }
-    setNodeState(info.object, 'default');
-    this.engine.unlockNodePosition(info.object);
+    setNodeState(info.object as NodeInterface, 'default');
+    this.engine.unlockNodePosition(info.object as NodeInterface);
   }
 }
