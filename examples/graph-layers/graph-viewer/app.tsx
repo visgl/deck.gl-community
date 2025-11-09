@@ -10,7 +10,7 @@ import {createRoot} from 'react-dom/client';
 import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
+import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 // import '@deck.gl/widgets/stylesheet.css';
 import {
   GraphLayer,

@@ -1,12 +1,11 @@
 {
-  "name": "@deck.gl-community/experimental",
+  "name": "@deck.gl-community/widgets",
   "version": "9.2.0-beta.2",
-  "description": "Experimental layers for deck.gl",
+  "description": "UI widgets for deck.gl",
   "license": "MIT",
   "keywords": [
-    "layers",
+    "widgets",
     "visualization",
-    "gpu",
     "deck.gl"
   ],
   "type": "module",
@@ -31,16 +30,6 @@
   },
   "dependencies": {
     "@deck.gl/core": "~9.2.1",
-    "@deck.gl/geo-layers": "~9.2.1",
-    "@deck.gl/layers": "~9.2.1",
-    "@deck.gl/mesh-layers": "~9.2.1",
-    "@loaders.gl/core": "^4.2.0",
-    "@loaders.gl/i3s": "^4.2.0",
-    "@loaders.gl/loader-utils": "^4.2.0",
-    "@loaders.gl/schema": "^4.2.0",
-    "@loaders.gl/tiles": "^4.2.0",
-    "@luma.gl/core": "~9.2.0",
-    "@luma.gl/engine": "~9.2.0",
-    "@luma.gl/shadertools": "~9.2.0"
+    "preact": "^10.17.0"
   }
 }

@@ -25,6 +25,7 @@ const leafletDocs = require('../../docs/modules/leaflet/sidebar.json');
 const reactDocs = require('../../docs/modules/react/sidebar.json');
 
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
+const widgetsDocs = require('../../docs/modules/widgets/sidebar.json');
 
 const sidebars = {
   tutorialSidebar: [
@@ -45,6 +46,12 @@ const sidebars = {
       label: 'Non-Geospatial Layers',
       className: 'heading_bold',
       items: [infovisLayerDocs, graphLayerDocs]
+    },
+    {
+      type: 'category',
+      label: 'Widgets',
+      className: 'heading_bold',
+      items: [widgetsDocs]
     },
     {
       type: 'category',
