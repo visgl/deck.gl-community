@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import PropTypes from 'prop-types';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
@@ -87,10 +87,11 @@ export const GraphGL = ({
     ...INITIAL_VIEW_STATE,
     ...initialViewState
   });
+  const hasFitBoundsRef = useRef(false);
 
   const engine = useGraphEngine(graph, layout as any);
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+  const [{isLoading}, loadingDispatch, loadingCallbacks] = useLoading();
 
   const widgets = useMemo(
     () => [
@@ -105,6 +106,10 @@ export const GraphGL = ({
     ],
     []
   );
+
+  useEffect(() => {
+    hasFitBoundsRef.current = false;
+  }, [engine, zoomToFitOnLoad]);
 
   useEffect(() => {
     const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
@@ -146,32 +151,17 @@ export const GraphGL = ({
     });
   }, [engine, viewState, setViewState, viewportPadding, minZoom, maxZoom]);
 
-  useEffect(() => {
-    if (!zoomToFitOnLoad || !isLoading || typeof engine.setProps !== 'function') {
-      return () => undefined;
+  const handleLayoutStart = useCallback(() => {
+    loadingCallbacks.onLayoutStart();
+  }, [loadingCallbacks]);
+
+  const handleLayoutDone = useCallback(() => {
+    loadingCallbacks.onLayoutDone();
+    if (zoomToFitOnLoad && !hasFitBoundsRef.current) {
+      hasFitBoundsRef.current = true;
+      fitBounds();
     }
-
-    const previousCallbacks = engine.props?.callbacks ?? {};
-    let handled = false;
-
-    engine.setProps({
-      callbacks: {
-        ...previousCallbacks,
-        onLayoutDone: (detail) => {
-          if (!handled) {
-            handled = true;
-            fitBounds();
-            engine.setProps({callbacks: previousCallbacks});
-          }
-          previousCallbacks.onLayoutDone?.(detail);
-        }
-      }
-    });
-
-    return () => {
-      engine.setProps({callbacks: previousCallbacks});
-    };
-  }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+  }, [loadingCallbacks, zoomToFitOnLoad, fitBounds]);
 
   return (
     <>
@@ -218,6 +208,8 @@ export const GraphGL = ({
                   engine,
                   stylesheet,
                   nodeEvents,
+                  onLayoutStart: handleLayoutStart,
+                  onLayoutDone: handleLayoutDone,
                   edgeEvents,
                   enableDragging,
                   resumeLayoutAfterDragging

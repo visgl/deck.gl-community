@@ -5,7 +5,7 @@
 import type {Bounds2D} from '@math.gl/types';
 
 import type {LegacyGraph} from '../graph/legacy-graph';
-import type {NodeInterface, EdgeInterface, GraphProps} from '../graph/graph';
+import type {NodeInterface, EdgeInterface} from '../graph/graph';
 
 import isEqual from 'lodash.isequal';
 import {log} from '../utils/log';
@@ -17,13 +17,12 @@ export type GraphLayoutEventDetail = {
   bounds: Bounds2D | null;
 };
 
-export type GraphLayoutProps = {};
-
-/** All the layout classes are extended from this base layout class. */
-export type GraphLayoutCallbacks = Pick<
-  GraphProps,
-  'onLayoutStart' | 'onLayoutChange' | 'onLayoutDone' | 'onLayoutError'
->;
+export type GraphLayoutProps = {
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+};
 
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
@@ -31,7 +30,7 @@ export abstract class GraphLayout<
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration props of the layout. */
-  protected props: Required<PropsT>;
+  protected props: PropsT;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -48,20 +47,16 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
-  protected _callbacks: GraphLayoutCallbacks = {};
-
-  constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
-    this.props = {...defaultProps, ...props};
+  constructor(props: PropsT = {} as PropsT, defaultProps?: PropsT) {
+    this.props = {...(defaultProps ?? ({} as PropsT)), ...props};
   }
 
-  getCallbacks(): GraphLayoutCallbacks {
-    return {...this._callbacks};
+  getProps(): PropsT {
+    return {...this.props};
   }
 
-  setCallbacks(callbacks: GraphLayoutCallbacks): GraphLayoutCallbacks {
-    const previous = this.getCallbacks();
-    this._callbacks = {...callbacks};
-    return previous;
+  setProps(props: Partial<PropsT>): void {
+    this.props = {...this.props, ...props};
   }
 
   /**
@@ -219,7 +214,7 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this._callbacks.onLayoutStart?.(detail);
+    this.props.onLayoutStart?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutChange */
@@ -234,7 +229,7 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this._callbacks.onLayoutChange?.(detail);
+    this.props.onLayoutChange?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutDone */
@@ -249,7 +244,7 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this._callbacks.onLayoutDone?.(detail);
+    this.props.onLayoutDone?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutError */
@@ -261,6 +256,6 @@ export abstract class GraphLayout<
      * @event GraphLayout#onLayoutError
      * @type {CustomEvent}
      */
-    this._callbacks.onLayoutError?.();
+    this.props.onLayoutError?.();
   };
 }

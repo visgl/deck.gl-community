@@ -119,75 +119,45 @@ export function useGraphViewport(
     latestBoundsRef.current = null;
   }, [eventSource]);
 
+  const handleLayoutEvent = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      fitBounds(detail?.bounds ?? null);
+    },
+    [fitBounds]
+  );
+
   useEffect(() => {
-    if (!eventSource) {
+    if (!eventSource || 'getLayoutBounds' in (eventSource as GraphEngine)) {
       return () => undefined;
     }
 
-    if ('setProps' in eventSource && typeof eventSource.setProps === 'function') {
-      const handleLayoutEvent = (detail?: GraphLayoutEventDetail) => {
-        fitBounds(detail?.bounds ?? null);
-      };
+    const layout = eventSource as GraphLayout;
+    const previous = layout.getProps();
 
-      const engine = eventSource as GraphEngine;
-      const previousCallbacks = engine.props.callbacks ?? {};
+    layout.setProps({
+      onLayoutStart: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutStart?.(detail);
+      },
+      onLayoutChange: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutChange?.(detail);
+      },
+      onLayoutDone: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutDone?.(detail);
+      }
+    });
 
-      engine.setProps({
-        callbacks: {
-          ...previousCallbacks,
-          onLayoutStart: (detail) => {
-            handleLayoutEvent(detail);
-            previousCallbacks.onLayoutStart?.(detail);
-          },
-          onLayoutChange: (detail) => {
-            handleLayoutEvent(detail);
-            previousCallbacks.onLayoutChange?.(detail);
-          },
-          onLayoutDone: (detail) => {
-            handleLayoutEvent(detail);
-            previousCallbacks.onLayoutDone?.(detail);
-          }
-        }
+    return () => {
+      layout.setProps({
+        onLayoutStart: previous.onLayoutStart,
+        onLayoutChange: previous.onLayoutChange,
+        onLayoutDone: previous.onLayoutDone,
+        onLayoutError: previous.onLayoutError
       });
-
-      return () => {
-        engine.setProps({callbacks: previousCallbacks});
-      };
-    }
-
-    if ('setCallbacks' in eventSource && typeof eventSource.setCallbacks === 'function') {
-      const handleLayoutEvent = (detail?: GraphLayoutEventDetail) => {
-        fitBounds(detail?.bounds ?? null);
-      };
-
-      const layout = eventSource as GraphLayout;
-      const previousCallbacks = layout.getCallbacks();
-
-      layout.setCallbacks({
-        onLayoutStart: (detail) => {
-          handleLayoutEvent(detail);
-          previousCallbacks.onLayoutStart?.(detail);
-        },
-        onLayoutChange: (detail) => {
-          handleLayoutEvent(detail);
-          previousCallbacks.onLayoutChange?.(detail);
-        },
-        onLayoutDone: (detail) => {
-          handleLayoutEvent(detail);
-          previousCallbacks.onLayoutDone?.(detail);
-        },
-        onLayoutError: (error) => {
-          previousCallbacks.onLayoutError?.(error);
-        }
-      });
-
-      return () => {
-        layout.setCallbacks(previousCallbacks);
-      };
-    }
-
-    return () => undefined;
-  }, [eventSource, fitBounds]);
+    };
+  }, [eventSource, handleLayoutEvent]);
 
   const {width, height} = viewState as any;
 
@@ -218,9 +188,17 @@ export function useGraphViewport(
     }));
   }, []);
 
+  const layoutCallbacks = {
+    onLayoutStart: handleLayoutEvent,
+    onLayoutChange: handleLayoutEvent,
+    onLayoutDone: handleLayoutEvent
+  } as const;
+
   return {
     viewState,
     onResize,
-    onViewStateChange
+    onViewStateChange,
+    fitBounds,
+    layoutCallbacks
   };
 }

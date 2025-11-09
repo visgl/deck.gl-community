@@ -6,7 +6,6 @@ import type {GraphStylesheet} from '../style/graph-style-engine';
 import {GraphStyleEngine} from '../style/graph-style-engine';
 
 import type {NodeState, EdgeState} from '../core/constants';
-import type {GraphLayoutEventDetail} from '../core/graph-layout';
 
 /** Shared interface for graph nodes used by the rendering runtime. */
 export interface NodeInterface {
@@ -47,10 +46,6 @@ export interface EdgeInterface {
 }
 
 export type GraphProps = {
-  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
-  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
-  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
-  onLayoutError?: (error?: unknown) => void;
   onTransactionStart?: () => void;
   onTransactionEnd?: () => void;
   onNodeAdded?: (node: NodeInterface) => void;

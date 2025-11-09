@@ -4,10 +4,10 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {Graph, EdgeInterface, NodeInterface, GraphProps} from '../graph/graph';
+import type {Graph, EdgeInterface, NodeInterface} from '../graph/graph';
 import {LegacyGraph, LegacyGraphLayoutAdapter} from '../graph/legacy-graph';
 import type {GraphRuntimeLayout} from './graph-runtime-layout';
-import {GraphLayout, type GraphLayoutCallbacks, type GraphLayoutEventDetail} from './graph-layout';
+import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
 import type {GraphStyleEngine, GraphStylesheet} from '../style/graph-style-engine';
@@ -15,13 +15,35 @@ import type {GraphStyleEngine, GraphStylesheet} from '../style/graph-style-engin
 type LegacyGraphEngineProps = {
   graph: LegacyGraph;
   layout: GraphLayout;
-  callbacks?: GraphProps;
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+  onTransactionStart?: () => void;
+  onTransactionEnd?: () => void;
+  onNodeAdded?: (node: NodeInterface) => void;
+  onNodeRemoved?: (node: NodeInterface) => void;
+  onNodeUpdated?: (node: NodeInterface) => void;
+  onEdgeAdded?: (edge: EdgeInterface) => void;
+  onEdgeRemoved?: (edge: EdgeInterface) => void;
+  onEdgeUpdated?: (edge: EdgeInterface) => void;
 };
 
 type InterfaceGraphEngineProps = {
   graph: Graph;
   layout: GraphRuntimeLayout;
-  callbacks?: GraphProps;
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+  onTransactionStart?: () => void;
+  onTransactionEnd?: () => void;
+  onNodeAdded?: (node: NodeInterface) => void;
+  onNodeRemoved?: (node: NodeInterface) => void;
+  onNodeUpdated?: (node: NodeInterface) => void;
+  onEdgeAdded?: (edge: EdgeInterface) => void;
+  onEdgeRemoved?: (edge: EdgeInterface) => void;
+  onEdgeUpdated?: (edge: EdgeInterface) => void;
 };
 
 export type GraphEngineProps = LegacyGraphEngineProps | InterfaceGraphEngineProps;
@@ -38,9 +60,8 @@ export class GraphEngine {
   private readonly _cache = new Cache<'nodes' | 'edges', NodeInterface[] | EdgeInterface[]>();
   private _layoutDirty = false;
   private _transactionInProgress = false;
-  private _graphPreviousProps: GraphProps | null = null;
-  private _layoutPreviousCallbacks: GraphLayoutCallbacks | null = null;
-  private _callbacks: GraphProps;
+  private _graphCallbacksAttached = false;
+  private _layoutCallbacksAttached = false;
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
@@ -57,8 +78,7 @@ export class GraphEngine {
       normalizedProps = props;
     }
 
-    this._callbacks = {...(normalizedProps.callbacks ?? {})};
-    this._props = {...normalizedProps, callbacks: {...this._callbacks}};
+    this._props = {...normalizedProps};
 
     if (isLegacyProps(normalizedProps)) {
       const layoutAdapter = new LegacyGraphLayoutAdapter(normalizedProps.layout);
@@ -71,18 +91,15 @@ export class GraphEngine {
   }
 
   get props(): GraphEngineProps {
-    return {...this._props, callbacks: {...this._callbacks}} as GraphEngineProps;
+    return {...this._props};
   }
 
-  setProps(props: Partial<Pick<GraphEngineProps, 'callbacks'>>): void {
-    if ('callbacks' in props) {
-      this._callbacks = {...(props.callbacks ?? {})};
-    }
-
+  setProps(props: Partial<Omit<GraphEngineProps, 'graph' | 'layout'>>): void {
     this._props = {
       ...this._props,
       ...props,
-      callbacks: {...this._callbacks}
+      graph: this._props.graph,
+      layout: this._props.layout
     } as GraphEngineProps;
   }
 
@@ -152,11 +169,7 @@ export class GraphEngine {
    */
   _onLayoutStart = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout start')();
-    const {onLayoutStart} = this._callbacks;
-    onLayoutStart?.(detail);
-
-    const graphCallback = this._graph.props.onLayoutStart;
-    graphCallback?.(detail);
+    this._props.onLayoutStart?.(detail);
   };
 
   /**
@@ -164,11 +177,7 @@ export class GraphEngine {
    */
   _onLayoutChange = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout update event')();
-    const {onLayoutChange} = this._callbacks;
-    onLayoutChange?.(detail);
-
-    const graphCallback = this._graph.props.onLayoutChange;
-    graphCallback?.(detail);
+    this._props.onLayoutChange?.(detail);
   };
 
   /**
@@ -176,22 +185,14 @@ export class GraphEngine {
    */
   _onLayoutDone = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout end')();
-    const {onLayoutDone} = this._callbacks;
-    onLayoutDone?.(detail);
-
-    const graphCallback = this._graph.props.onLayoutDone;
-    graphCallback?.(detail);
+    this._props.onLayoutDone?.(detail);
   };
 
   /**
    * @fires GraphEngine#onLayoutError
    */
   _onLayoutError = (error?: unknown) => {
-    const {onLayoutError} = this._callbacks;
-    onLayoutError?.(error);
-
-    const graphCallback = this._graph.props.onLayoutError;
-    graphCallback?.(error);
+    this._props.onLayoutError?.(error);
   };
 
   _onGraphStructureChanged = () => {
@@ -201,15 +202,13 @@ export class GraphEngine {
 
   _onTransactionStart = () => {
     this._transactionInProgress = true;
-    const {onTransactionStart} = this._callbacks;
-    onTransactionStart?.();
+    this._props.onTransactionStart?.();
   };
 
   _onTransactionEnd = () => {
     this._transactionInProgress = false;
     this._graphChanged();
-    const {onTransactionEnd} = this._callbacks;
-    onTransactionEnd?.();
+    this._props.onTransactionEnd?.();
   };
 
   /** Layout calculations */
@@ -257,105 +256,78 @@ export class GraphEngine {
   }
 
   private _attachGraphCallbacks() {
-    if (this._graphPreviousProps) {
+    if (this._graphCallbacksAttached) {
       return;
     }
-    const previous = this._graph.props;
-    const wrap = <K extends keyof GraphProps>(
-      key: K,
-      handler?: GraphProps[K]
-    ): GraphProps[K] | undefined => {
-      const prior = previous[key];
-      if (!handler) {
-        return prior;
+    this._graph.updateProps({
+      onTransactionStart: this._onTransactionStart,
+      onTransactionEnd: this._onTransactionEnd,
+      onNodeAdded: (node) => {
+        this._onGraphStructureChanged();
+        this._props.onNodeAdded?.(node);
+      },
+      onNodeRemoved: (node) => {
+        this._onGraphStructureChanged();
+        this._props.onNodeRemoved?.(node);
+      },
+      onNodeUpdated: (node) => {
+        this._props.onNodeUpdated?.(node);
+      },
+      onEdgeAdded: (edge) => {
+        this._onGraphStructureChanged();
+        this._props.onEdgeAdded?.(edge);
+      },
+      onEdgeRemoved: (edge) => {
+        this._onGraphStructureChanged();
+        this._props.onEdgeRemoved?.(edge);
+      },
+      onEdgeUpdated: (edge) => {
+        this._props.onEdgeUpdated?.(edge);
       }
-      if (!prior) {
-        return handler;
-      }
-      return ((...args: Parameters<NonNullable<GraphProps[K]>>) => {
-        (handler as (...handlerArgs: unknown[]) => void)(...args);
-        (prior as (...priorArgs: unknown[]) => void)(...args);
-      }) as GraphProps[K];
-    };
-
-    const nextProps: GraphProps = {
-      ...previous,
-      onTransactionStart: wrap('onTransactionStart', () => this._onTransactionStart()),
-      onTransactionEnd: wrap('onTransactionEnd', () => this._onTransactionEnd()),
-      onNodeAdded: wrap('onNodeAdded', (node) => {
-        this._onGraphStructureChanged();
-        const {onNodeAdded} = this._callbacks;
-        onNodeAdded?.(node);
-      }),
-      onNodeRemoved: wrap('onNodeRemoved', (node) => {
-        this._onGraphStructureChanged();
-        const {onNodeRemoved} = this._callbacks;
-        onNodeRemoved?.(node);
-      }),
-      onNodeUpdated: wrap('onNodeUpdated', (node) => {
-        const {onNodeUpdated} = this._callbacks;
-        onNodeUpdated?.(node);
-      }),
-      onEdgeAdded: wrap('onEdgeAdded', (edge) => {
-        this._onGraphStructureChanged();
-        const {onEdgeAdded} = this._callbacks;
-        onEdgeAdded?.(edge);
-      }),
-      onEdgeRemoved: wrap('onEdgeRemoved', (edge) => {
-        this._onGraphStructureChanged();
-        const {onEdgeRemoved} = this._callbacks;
-        onEdgeRemoved?.(edge);
-      }),
-      onEdgeUpdated: wrap('onEdgeUpdated', (edge) => {
-        const {onEdgeUpdated} = this._callbacks;
-        onEdgeUpdated?.(edge);
-      })
-    };
-
-    this._graph.setProps(nextProps);
-    this._graphPreviousProps = previous;
+    });
+    this._graphCallbacksAttached = true;
   }
 
   private _detachGraphCallbacks() {
-    if (!this._graphPreviousProps) {
+    if (!this._graphCallbacksAttached) {
       return;
     }
-    this._graph.setProps(this._graphPreviousProps);
-    this._graphPreviousProps = null;
+    this._graph.updateProps({
+      onTransactionStart: undefined,
+      onTransactionEnd: undefined,
+      onNodeAdded: undefined,
+      onNodeRemoved: undefined,
+      onNodeUpdated: undefined,
+      onEdgeAdded: undefined,
+      onEdgeRemoved: undefined,
+      onEdgeUpdated: undefined
+    });
+    this._graphCallbacksAttached = false;
   }
 
   private _attachLayoutCallbacks() {
-    if (this._layoutPreviousCallbacks) {
+    if (this._layoutCallbacksAttached) {
       return;
     }
-    const previous = this._layout.getCallbacks();
-    this._layout.setCallbacks({
-      onLayoutStart: (detail) => {
-        this._onLayoutStart(detail);
-        previous.onLayoutStart?.(detail);
-      },
-      onLayoutChange: (detail) => {
-        this._onLayoutChange(detail);
-        previous.onLayoutChange?.(detail);
-      },
-      onLayoutDone: (detail) => {
-        this._onLayoutDone(detail);
-        previous.onLayoutDone?.(detail);
-      },
-      onLayoutError: (error) => {
-        this._onLayoutError(error);
-        previous.onLayoutError?.(error);
-      }
+    this._layout.setProps({
+      onLayoutStart: this._onLayoutStart,
+      onLayoutChange: this._onLayoutChange,
+      onLayoutDone: this._onLayoutDone,
+      onLayoutError: this._onLayoutError
     });
-    this._layoutPreviousCallbacks = previous;
+    this._layoutCallbacksAttached = true;
   }
 
   private _detachLayoutCallbacks() {
-    if (!this._layoutPreviousCallbacks) {
-      this._layout.setCallbacks({});
+    if (!this._layoutCallbacksAttached) {
       return;
     }
-    this._layout.setCallbacks(this._layoutPreviousCallbacks);
-    this._layoutPreviousCallbacks = null;
+    this._layout.setProps({
+      onLayoutStart: undefined,
+      onLayoutChange: undefined,
+      onLayoutDone: undefined,
+      onLayoutError: undefined
+    });
+    this._layoutCallbacksAttached = false;
   }
 }

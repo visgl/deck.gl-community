@@ -32,7 +32,6 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   private _edgeMap: any;
   private _graph: any;
   private _worker: Worker | null = null;
-  private _callbacks: any;
 
   constructor(options: GPUForceLayoutOptions = {}) {
     const props = {
@@ -48,10 +47,6 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._d3Graph = {nodes: [], edges: []};
     this._nodeMap = {};
     this._edgeMap = {};
-    this._callbacks = {
-      onLayoutChange: this._onLayoutChange,
-      onLayoutDone: this._onLayoutDone
-    };
   }
 
   initializeGraph(graph) {
@@ -257,8 +252,8 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     d3Node.y = y;
     d3Node.fx = x;
     d3Node.fy = y;
-    this._callbacks.onLayoutChange();
-    this._callbacks.onLayoutDone();
+    this._onLayoutChange();
+    this._onLayoutDone();
   };
 
   unlockNodePosition = (node) => {

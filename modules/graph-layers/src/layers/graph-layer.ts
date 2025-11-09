@@ -8,9 +8,9 @@ import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
-import type {Graph, GraphProps, NodeInterface} from '../graph/graph';
+import type {Graph, NodeInterface} from '../graph/graph';
 import {LegacyGraph} from '../graph/legacy-graph';
-import {GraphLayout} from '../core/graph-layout';
+import {GraphLayout, type GraphLayoutEventDetail} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 
@@ -138,6 +138,11 @@ export type _GraphLayerProps = {
   graphLoader?: (opts: {json: unknown}) => Graph | null;
   engine?: GraphEngine;
 
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+
   stylesheet?: GraphLayerStylesheet;
   /** @deprecated Use `stylesheet.nodes`. */
   nodeStyle?: GraphLayerNodeStyle[];
@@ -204,7 +209,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
   private _suppressNextDeckDataChange = false;
-  private _graphEnginePreviousCallbacks: GraphProps | null = null;
 
   forceUpdate = () => {
     if (!this.state) {
@@ -266,6 +270,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       engineChanged,
       loaderChanged
     });
+
+    if (!engineRefreshed && changeFlags.propsChanged) {
+      const engine = this.state.graphEngine;
+      if (engine) {
+        this._applyGraphEngineCallbacks(engine);
+      }
+    }
 
     if (!engineRefreshed && (changeFlags.propsChanged || changeFlags.stateChanged)) {
       this._syncInteractionManager(props, this.state.graphEngine ?? null);
@@ -590,7 +601,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       typeof layout.initializeGraph === 'function' &&
       typeof layout.getNodePosition === 'function' &&
       typeof layout.getEdgePosition === 'function' &&
-      typeof layout.setCallbacks === 'function'
+      typeof layout.setProps === 'function'
     );
   }
 
@@ -632,6 +643,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   _setGraphEngine(graphEngine: GraphEngine | null) {
     if (graphEngine === this.state.graphEngine) {
+      if (graphEngine) {
+        this._applyGraphEngineCallbacks(graphEngine);
+      }
       this._updateLayoutSnapshot(graphEngine);
       return;
     }
@@ -640,29 +654,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
-      const previousCallbacks = graphEngine.props.callbacks ?? {};
-      this._graphEnginePreviousCallbacks = previousCallbacks;
-      graphEngine.setProps({
-        callbacks: {
-          ...previousCallbacks,
-          onLayoutStart: (detail) => {
-            this._handleLayoutEvent();
-            previousCallbacks.onLayoutStart?.(detail);
-          },
-          onLayoutChange: (detail) => {
-            this._handleLayoutEvent();
-            previousCallbacks.onLayoutChange?.(detail);
-          },
-          onLayoutDone: (detail) => {
-            this._handleLayoutEvent();
-            previousCallbacks.onLayoutDone?.(detail);
-          },
-          onLayoutError: (error) => {
-            this._handleLayoutEvent();
-            previousCallbacks.onLayoutError?.(error);
-          }
-        }
-      });
+      this._applyGraphEngineCallbacks(graphEngine);
       graphEngine.run();
       this._updateLayoutSnapshot(graphEngine);
     } else {
@@ -674,16 +666,37 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   _removeGraphEngine() {
     const engine = this.state.graphEngine;
     if (engine) {
-      if (this._graphEnginePreviousCallbacks) {
-        engine.setProps({callbacks: this._graphEnginePreviousCallbacks});
-      } else {
-        engine.setProps({callbacks: {}});
-      }
-      this._graphEnginePreviousCallbacks = null;
+      engine.setProps({
+        onLayoutStart: undefined,
+        onLayoutChange: undefined,
+        onLayoutDone: undefined,
+        onLayoutError: undefined
+      });
       engine.clear();
       this.state.graphEngine = null;
       this._updateLayoutSnapshot(null);
     }
+  }
+
+  private _applyGraphEngineCallbacks(engine: GraphEngine) {
+    engine.setProps({
+      onLayoutStart: (detail) => {
+        this._handleLayoutEvent();
+        this.props.onLayoutStart?.(detail);
+      },
+      onLayoutChange: (detail) => {
+        this._handleLayoutEvent();
+        this.props.onLayoutChange?.(detail);
+      },
+      onLayoutDone: (detail) => {
+        this._handleLayoutEvent();
+        this.props.onLayoutDone?.(detail);
+      },
+      onLayoutError: (error) => {
+        this._handleLayoutEvent();
+        this.props.onLayoutError?.(error);
+      }
+    });
   }
 
   private _createRankGridLayer(): GridLayer | null {

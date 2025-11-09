@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {useLayoutEffect, useReducer} from 'react';
+import {useMemo, useReducer} from 'react';
 
 const loadingReducer = (state, action) => {
   switch (action.type) {
@@ -22,36 +22,16 @@ const loadingReducer = (state, action) => {
   }
 };
 
-export const useLoading = (engine) => {
+export const useLoading = () => {
   const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
-  useLayoutEffect(() => {
-    if (!engine || typeof engine.setProps !== 'function') {
-      return () => undefined;
-    }
+  const callbacks = useMemo(
+    () => ({
+      onLayoutStart: () => loadingDispatch({type: 'startLayout'}),
+      onLayoutDone: () => loadingDispatch({type: 'layoutDone'})
+    }),
+    [loadingDispatch]
+  );
 
-    const layoutStarted = () => loadingDispatch({type: 'startLayout'});
-    const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
-
-    const previousCallbacks = engine.props?.callbacks ?? {};
-    engine.setProps({
-      callbacks: {
-        ...previousCallbacks,
-        onLayoutStart: (detail) => {
-          layoutStarted();
-          previousCallbacks.onLayoutStart?.(detail);
-        },
-        onLayoutDone: (detail) => {
-          layoutEnded();
-          previousCallbacks.onLayoutDone?.(detail);
-        }
-      }
-    });
-
-    return () => {
-      engine.setProps({callbacks: previousCallbacks});
-    };
-  }, [engine]);
-
-  return [{isLoading}, loadingDispatch];
+  return [{isLoading}, loadingDispatch, callbacks] as const;
 };

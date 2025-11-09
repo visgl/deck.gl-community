@@ -17,6 +17,7 @@ import {
   GraphEngine,
   GraphLayout,
   type Graph,
+  type GraphLayoutEventDetail,
   LegacyGraph,
   SimpleLayout,
   D3ForceLayout,
@@ -81,41 +82,18 @@ const loadingReducer = (state, action) => {
   }
 };
 
-export const useLoading = (engine: GraphEngine | null) => {
+export const useLoading = () => {
   const [state, setState] = useState(INITIAL_LOADING_STATE);
   const loadingDispatch = useCallback((action) => {
     setState((current) => loadingReducer(current, action));
   }, []);
 
-  useLayoutEffect(() => {
-    if (!engine) {
-      return () => undefined;
-    }
+  const layoutCallbacks = {
+    onLayoutStart: () => loadingDispatch({type: 'startLayout'}),
+    onLayoutDone: () => loadingDispatch({type: 'layoutDone'})
+  } as const;
 
-    const layoutStarted = () => loadingDispatch({type: 'startLayout'});
-    const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
-
-    const previousCallbacks = engine.props.callbacks ?? {};
-    engine.setProps({
-      callbacks: {
-        ...previousCallbacks,
-        onLayoutStart: (detail) => {
-          layoutStarted();
-          previousCallbacks.onLayoutStart?.(detail);
-        },
-        onLayoutDone: (detail) => {
-          layoutEnded();
-          previousCallbacks.onLayoutDone?.(detail);
-        }
-      }
-    });
-
-    return () => {
-      engine.setProps({callbacks: previousCallbacks});
-    };
-  }, [engine, loadingDispatch]);
-
-  return [state, loadingDispatch];
+  return [state, loadingDispatch, layoutCallbacks] as const;
 };
 
 type AppProps = {
@@ -248,7 +226,7 @@ export function App({graphType}: AppProps) {
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
 
-  const {viewState, onResize, onViewStateChange} = useGraphViewport(engine, {
+  const {viewState, onResize, onViewStateChange, layoutCallbacks} = useGraphViewport(engine, {
     minZoom,
     maxZoom,
     viewportPadding: 8,
@@ -274,7 +252,7 @@ export function App({graphType}: AppProps) {
     []
   );
 
-  const [loadingState, loadingDispatch] = useLoading(engine);
+  const [loadingState, loadingDispatch, loadingCallbacks] = useLoading();
   const {isLoading} = loadingState;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
@@ -318,61 +296,67 @@ export function App({graphType}: AppProps) {
     }
   }, [dagLayout, collapseEnabled]);
 
-  useEffect(() => {
-    if (!graph || !dagLayout || !engine) {
+  const updateChainSummary = useCallback(() => {
+    if (!graph || !dagLayout || !engine || !isDagLayout) {
       setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
       return;
     }
 
-    const updateChainSummary = () => {
-      const chainIds: string[] = [];
-      const collapsedIds: string[] = [];
+    const chainIds: string[] = [];
+    const collapsedIds: string[] = [];
 
-      for (const node of engine.getNodes()) {
-        const chainId = node.getPropertyValue('collapsedChainId');
-        const nodeIds = node.getPropertyValue('collapsedNodeIds');
-        const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
-        const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+    for (const node of engine.getNodes()) {
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const nodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
 
-        if (
-          chainId !== null &&
-          chainId !== undefined &&
-          Array.isArray(nodeIds) &&
-          nodeIds.length > 1 &&
-          representativeId === node.getId()
-        ) {
-          const chainKey = String(chainId);
-          chainIds.push(chainKey);
-          if (isCollapsed) {
-            collapsedIds.push(chainKey);
-          }
+      if (
+        chainId !== null &&
+        chainId !== undefined &&
+        Array.isArray(nodeIds) &&
+        nodeIds.length > 1 &&
+        representativeId === node.getId()
+      ) {
+        const chainKey = String(chainId);
+        chainIds.push(chainKey);
+        if (isCollapsed) {
+          collapsedIds.push(chainKey);
         }
       }
+    }
 
-      setDagChainSummary({chainIds, collapsedIds});
-    };
-
-    updateChainSummary();
-
-    const previousCallbacks = engine.props.callbacks ?? {};
-    engine.setProps({
-      callbacks: {
-        ...previousCallbacks,
-        onLayoutChange: (detail) => {
-          updateChainSummary();
-          previousCallbacks.onLayoutChange?.(detail);
-        },
-        onLayoutDone: (detail) => {
-          updateChainSummary();
-          previousCallbacks.onLayoutDone?.(detail);
-        }
-      }
-    });
-
-    return () => {
-      engine.setProps({callbacks: previousCallbacks});
-    };
+    setDagChainSummary({chainIds, collapsedIds});
   }, [graph, dagLayout, engine, isDagLayout]);
+
+  useEffect(() => {
+    updateChainSummary();
+  }, [updateChainSummary]);
+
+  const handleLayoutStart = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      loadingCallbacks.onLayoutStart();
+      layoutCallbacks.onLayoutStart(detail);
+    },
+    [loadingCallbacks, layoutCallbacks]
+  );
+
+  const handleLayoutChange = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      layoutCallbacks.onLayoutChange(detail);
+      updateChainSummary();
+    },
+    [layoutCallbacks, updateChainSummary]
+  );
+
+  const handleLayoutDone = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      loadingCallbacks.onLayoutDone();
+      layoutCallbacks.onLayoutDone(detail);
+      updateChainSummary();
+    },
+    [loadingCallbacks, layoutCallbacks, updateChainSummary]
+  );
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);
@@ -512,6 +496,9 @@ export function App({graphType}: AppProps) {
                   engine,
                   layout,
                   stylesheet: selectedStyles,
+                  onLayoutStart: handleLayoutStart,
+                  onLayoutChange: handleLayoutChange,
+                  onLayoutDone: handleLayoutDone,
                   resumeLayoutAfterDragging,
                   rankGrid
                 })

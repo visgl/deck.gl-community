@@ -7,7 +7,7 @@ import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
 import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
-import {GraphLayout, type GraphLayoutCallbacks, type GraphLayoutState} from '../core/graph-layout';
+import {GraphLayout, type GraphLayoutProps, type GraphLayoutState} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
@@ -399,12 +399,12 @@ export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
     return this.layout.state;
   }
 
-  getCallbacks(): GraphLayoutCallbacks {
-    return this.layout.getCallbacks();
+  getProps(): GraphLayoutProps {
+    return this.layout.getProps();
   }
 
-  setCallbacks(callbacks: GraphLayoutCallbacks): GraphLayoutCallbacks {
-    return this.layout.setCallbacks(callbacks);
+  setProps(props: Partial<GraphLayoutProps>): void {
+    this.layout.setProps(props);
   }
 
   initializeGraph(graph: Graph): void {
@@ -452,7 +452,12 @@ export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
   }
 
   destroy(): void {
-    this.layout.setCallbacks({});
+    this.layout.setProps({
+      onLayoutStart: undefined,
+      onLayoutChange: undefined,
+      onLayoutDone: undefined,
+      onLayoutError: undefined
+    });
   }
 
   private _assertLegacyGraph(graph: Graph): LegacyGraph {
