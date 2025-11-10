@@ -34,6 +34,13 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/layers',
+      items: [
+        "layers/path-outline-and-markers"
+      ]
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/infovis-layers',
       items: [
         "infovis-layers/horizon-graph-layer"
