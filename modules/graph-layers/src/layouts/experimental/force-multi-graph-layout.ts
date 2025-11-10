@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
 import {LegacyGraph} from '../../graph/legacy-graph';
@@ -17,6 +17,7 @@ export type ForceMultiGraphLayoutProps = GraphLayoutProps & {
 
 export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProps> {
   static defaultProps = {
+    ...GRAPH_LAYOUT_DEFAULT_PROPS,
     alpha: 3,
     nBodyStrength: -1200,
     nBodyDistanceMin: 100,
@@ -34,10 +35,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   _simulator;
 
   constructor(props: ForceMultiGraphLayoutProps = {}) {
-    super({
-      ...ForceMultiGraphLayout.defaultProps,
-      ...props
-    });
+    super(props, ForceMultiGraphLayout.defaultProps);
   }
 
   initializeGraph(graph: LegacyGraph): void {

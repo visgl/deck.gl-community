@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
 import {LegacyGraph} from '../../graph/legacy-graph';
 import type {Node} from '../../graph/node';
 
@@ -54,6 +54,7 @@ const getPath = (node, targetId, path) => {
 
 export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   static defaultProps = {
+    ...GRAPH_LAYOUT_DEFAULT_PROPS,
     radius: 500,
     tree: []
   } as const satisfies Readonly<Required<RadialLayoutProps>>;
@@ -65,7 +66,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   nestedTree;
 
   constructor(props: RadialLayoutProps = {}) {
-    super({...RadialLayout.defaultProps, ...props});
+    super(props, RadialLayout.defaultProps);
   }
 
   initializeGraph(graph: LegacyGraph): void {

@@ -62,4 +62,4 @@ When any of these options change, the layout pipeline is recomputed on the next 
 
 - `setProps(options)` - Merges partial props and reruns the layout. Useful for live controls that tweak layering/decross operators without recreating the layout instance.
 
-These helpers emit the standard layout lifecycle events (`onLayoutStart`, `onLayoutChange`, `onLayoutDone`) so the layer updates automatically when the DAG pipeline finishes.
+These helpers invoke the standard layout lifecycle callbacks (`onLayoutStart`, `onLayoutChange`, `onLayoutDone`) so the layer updates automatically when the DAG pipeline finishes.

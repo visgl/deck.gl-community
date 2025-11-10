@@ -4,7 +4,7 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
 import type {LegacyGraph} from '../../graph/legacy-graph';
 import type {NodeInterface, EdgeInterface} from '../../graph/graph';
 import {Node} from '../../graph/node';
@@ -156,6 +156,7 @@ function isEdgeInterface(value: unknown): value is EdgeInterface {
  */
 export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> extends GraphLayout<PropsT> {
   static defaultProps: Readonly<Required<D3DagLayoutProps>> = {
+    ...GRAPH_LAYOUT_DEFAULT_PROPS,
     layout: 'sugiyama',
     layering: 'topological',
     decross: 'twoLayer',

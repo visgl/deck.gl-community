@@ -33,6 +33,16 @@ Returns a node handle with the provided identifier when supported by the impleme
 
 Releases any resources owned by the graph implementation.
 
+### `GraphProps`
+
+Graph constructors accept an optional `GraphProps` object to register callbacks for graph data lifecycle changes. The callbacks mirror the legacy DOM events and include:
+
+- `onTransactionStart` / `onTransactionEnd`
+- `onNodeAdded` / `onNodeRemoved` / `onNodeUpdated`
+- `onEdgeAdded` / `onEdgeRemoved` / `onEdgeUpdated`
+-
+Implementations expose `setProps` and `updateProps` helpers for updating these callbacks at runtime. Layout lifecycle hooks (`onLayoutStart`, `onLayoutChange`, `onLayoutDone`, `onLayoutError`) are configured on the [`GraphEngine`](./layers/graph-layer.md#engine-graphengine-optional), [`GraphLayout`](./layouts/graph-layout.md), and [`GraphLayer`](./layers/graph-layer.md) props instead of the graph itself.
+
 ## NodeInterface
 
 Nodes returned by `getNodes()` implement the following methods:

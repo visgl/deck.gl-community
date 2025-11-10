@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {LegacyGraph} from '../../graph/legacy-graph';
 
@@ -14,6 +14,7 @@ export type HivePlotLayoutProps = GraphLayoutProps & {
 
 export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   static defaultProps = {
+    ...GRAPH_LAYOUT_DEFAULT_PROPS,
     innerRadius: 100,
     outerRadius: 500,
     getNodeAxis: (node: Node) => node.getPropertyValue('group')
@@ -27,7 +28,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   _nodePositionMap = {};
 
   constructor(props: HivePlotLayoutProps = {}) {
-    super({...HivePlotLayout.defaultProps, ...props});
+    super(props, HivePlotLayout.defaultProps);
   }
 
   initializeGraph(graph: LegacyGraph) {
