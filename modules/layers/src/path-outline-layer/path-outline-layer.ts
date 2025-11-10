@@ -6,7 +6,7 @@ import type {PathLayerProps} from '@deck.gl/layers';
 import {PathLayer} from '@deck.gl/layers';
 import type {DefaultProps, LayerContext} from '@deck.gl/core';
 import {GL} from '@luma.gl/constants';
-import {Framebuffer, Texture} from '@luma.gl/core';
+import {Framebuffer} from '@luma.gl/core';
 import {outline} from './outline';
 
 /**
@@ -54,7 +54,6 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
     model?: any;
     pathTesselator: any;
     outlineFramebuffer: Framebuffer;
-    dummyTexture: Texture;
   } = undefined!;
 
   // Override getShaders to inject the outline module
@@ -73,14 +72,12 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
 
     // Create an outline "shadow" map
     // TODO - we should create a single outlineMap for all layers
-    const dummyTexture = context.device.createTexture({width: 1, height: 1});
     const outlineFramebuffer = context.device.createFramebuffer({
-      colorAttachments: [dummyTexture]
+      colorAttachments: ['rgba8unorm']
     });
 
     this.setState({
-      outlineFramebuffer,
-      dummyTexture
+      outlineFramebuffer
     });
 
     // Create an attribute manager
@@ -120,16 +117,21 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
     });
 
     // Render the outline shadowmap (based on segment z orders)
-    const {outlineFramebuffer, dummyTexture} = this.state;
+    const {outlineFramebuffer} = this.state;
 
     if (context?.viewport) {
       const viewportWidth = Math.max(1, Math.ceil(context.viewport.width));
       const viewportHeight = Math.max(1, Math.ceil(context.viewport.height));
 
       outlineFramebuffer.resize({width: viewportWidth, height: viewportHeight});
-      dummyTexture.resize({width: viewportWidth, height: viewportHeight});
     } else {
       outlineFramebuffer.resize();
+    }
+
+    const shadowmapTexture = outlineFramebuffer.colorAttachments[0]?.texture;
+
+    if (!shadowmapTexture) {
+      return;
     }
     // TODO(v9): resize, see 'sf' example.
     // outlineFramebuffer.resize();
@@ -139,7 +141,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
     this.state.model.updateModuleSettings({
       outlineEnabled: true,
       outlineRenderShadowmap: true,
-      outlineShadowmap: dummyTexture
+      outlineShadowmap: shadowmapTexture
     });
 
     this.state.model.draw({
@@ -159,7 +161,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
     this.state.model.updateModuleSettings({
       outlineEnabled: true,
       outlineRenderShadowmap: false,
-      outlineShadowmap: outlineFramebuffer
+      outlineShadowmap: shadowmapTexture
     });
     this.state.model.draw({
       uniforms: Object.assign({}, uniforms, {
