@@ -9,6 +9,14 @@ The `GlobalGridLayer` renders filled and/or stroked polygons based on the specif
 
 `GlobalGridLayer` is a [CompositeLayer](https://deck.gl/docs/api-reference/core/composite-layer).
 
+This layer consumes implementations of the [GlobalGrid](./global-grid) interface. The package includes prebuilt helpers for common DGGS formats:
+
+- [A5Grid](./a5-grid)
+- [H3Grid](./h3-grid)
+- [S2Grid](./s2-grid)
+- [GeohashGrid](./geohash-grid)
+- [QuadkeyGrid](./quadkey-grid)
+
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
