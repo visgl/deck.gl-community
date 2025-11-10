@@ -7,6 +7,7 @@ import {PathLayer} from '@deck.gl/layers';
 import type {DefaultProps, LayerContext} from '@deck.gl/core';
 import {GL} from '@luma.gl/constants';
 import {Framebuffer} from '@luma.gl/core';
+import type {RenderPipelineParameters} from '@luma.gl/core';
 import {outline} from './outline';
 
 /**
@@ -32,6 +33,24 @@ const VS_CODE = `\
 const FS_CODE = `\
   fragColor = outline_filterColor(fragColor);
 `;
+
+const OUTLINE_SHADOWMAP_PARAMETERS: RenderPipelineParameters = {
+  blend: true,
+  blendColorSrcFactor: 'one',
+  blendColorDstFactor: 'one',
+  blendColorOperation: 'max',
+  blendAlphaSrcFactor: 'one',
+  blendAlphaDstFactor: 'one',
+  blendAlphaOperation: 'max',
+  depthWriteEnabled: false,
+  depthCompare: 'always'
+};
+
+const OUTLINE_RENDER_PARAMETERS: RenderPipelineParameters = {
+  blend: false,
+  depthWriteEnabled: false,
+  depthCompare: 'always'
+};
 
 export type PathOutlineLayerProps<DataT> = PathLayerProps<DataT> & {
   dashJustified?: boolean;
@@ -149,11 +168,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
         jointType: 0,
         widthScale: this.props.widthScale * 1.3
       }),
-      parameters: {
-        depthTest: false,
-        // Biggest value needs to go into buffer
-        blendEquation: GL.MAX
-      },
+      parameters: OUTLINE_SHADOWMAP_PARAMETERS,
       framebuffer: outlineFramebuffer
     });
 
@@ -169,9 +184,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
         capType: Number(capRounded),
         widthScale: this.props.widthScale
       }),
-      parameters: {
-        depthTest: false
-      }
+      parameters: OUTLINE_RENDER_PARAMETERS
     });
   }
 }
