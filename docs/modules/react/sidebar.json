@@ -1,6 +1,6 @@
 {
   "type": "category",
-  "label": "deck.gl-community/react",
+  "label": "@deck.gl-community/react",
   "items": [
     "modules/react/README",
     "modules/react/developer-guide/get-started",

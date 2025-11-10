@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {GraphStylesheet} from '../style/graph-style-engine';
-import {GraphStyleEngine} from '../style/graph-style-engine';
-
 import type {NodeState, EdgeState} from '../core/constants';
 
 /** Shared interface for graph nodes used by the rendering runtime. */
@@ -51,11 +48,5 @@ export interface Graph extends EventTarget {
   getNodes(): Iterable<NodeInterface>;
   getEdges(): Iterable<EdgeInterface>;
   findNodeById?(id: string | number): NodeInterface | undefined;
-  createStylesheetEngine(
-    style: GraphStylesheet,
-    options?: {stateUpdateTrigger?: unknown}
-  ): GraphStyleEngine;
   destroy?(): void;
 }
-
-export type {GraphStyleEngine, GraphStylesheet};

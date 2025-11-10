@@ -1,77 +1,90 @@
 # What's New
 
-Modules in `@deck.gl-community` are independently maintained, so this page will only list occasional major changes.
+Modules in `@deck.gl-community` are independently maintained, so this page is just a high-level overview. 
+- Detailed release information is typically found in the documentation of each module. - However, major releases are typically synchronized to ensure compatiblity with new
+deck.gl versions.
 
-Please refer the documentation of each module for detailed news.
+## v9.3 - In planning
 
+Some inofficial wishlist and roadmap type information is available in github trackers:
 
-## v9.2 - In developments
+- **`@deck.gl-community/editable-layers`** 
+  - [Tracker](https://github.com/visgl/deck.gl-community/issues/38)
+- **`@deck.gl-community/graph-layers`**
+  - [Tracker](https://github.com/visgl/deck.gl-community/issues/78)
+- **`@deck.gl-community/infovis-layers`**
+  - Goal: Some of the improved support for (non-geospatial) views etc should be upstreamed into deck.gl v9.3.
+
+## v9.2 - Currently in alpha
 
 Target Release Date: Nov 2025
 
-High-level changes
-- All deck.gl-community modules have been updated to deck.gl v9.2.
+Highlights:
+- deck.gl v9.2 compatibility.
 - Internal: Tests updated to use `vitest` instead of `jest`
+- Website: Search restored.
 
 ### `@deck.gl-community/graph-layers` 
 
-- Graph styling: new edge decorator `'arrow'` that renders arrows on directional edges.
-- Graph styling: unified `stylesheet` prop with shorthand attribute references for node, edge, and decorator styles.
-- Graph style constants are now defined using literals instead of objects
-- New example visualizing DAGs (Directed Acyclic Graphs).
-- GraphLayer now accepts `GraphEngine`, `Graph`, or raw JSON via its `data` prop (including async URLs), automatically builds a `GraphEngine` when given raw payloads, and deprecates the legacy `graph` prop.
-- `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects and no longer accepts `Graph` instances directly.
-
-Deprecations:
-- Graph style constants are now replaced by literal string constants 
-  - Replace `NODE_TYPE.CIRCLE` with `'circle'`, `EDGE_TYPE.LINE` with `'line'` etc.
+- `GraphLayerProps` - NEW `data` prop (no longer requires applications to provide `engine: GraphEngine`).
+  - `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via its `data` prop (including async URLs), automatically builds a `GraphEngine` when given raw payloads, and deprecates the legacy `graph` prop.
+  - `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects and no longer accepts `Graph` instances directly.
+- `GraphLayerProps` - NEW `stylesheet` prop that accepts a unified stylesheet containing all for node, edge, and decorator styles.
+- `GraphStylesheet` - NEW edge decorator `'arrow'` that renders arrows on directional edges.
+- `GraphStylesheet` - constants can now be defined using simple string literals (no need to import `NODE_TYPE` etc).
+- `D3DagLayout` - NEW `GraphLayout` for visualiation of DAGs (Directed Acyclic Graphs) with layering and collapse/expand functionality.
+- `RadialLayout` - NEW `GraphLayout` for visualiation of radial graph layouts.
+- `HivePlotLayout` - NEW `GraphLayout` for visualiation of hive plot graph layouts.
+- `D3MultiGraphLayout` - NEW `GraphLayout` for visualiation of multi-edge graph layouts.
+- `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
+- `PanWidget` - NEW deck.gl `Widget` providing buttons for panning the view.
+- **Examples** - `GraphViewer` eample expanded to cover all new layouts, plus UI for editing layout options.
+- **Documentation** - significant updates / new content.
 
 ## v9.1
 
-Release Date: July 2025
+Released: July 8, 2025
 
-High-level changes
-- All deck.gl-community modules have been updated to deck.gl v9.1.
+**Highlights**
+- deck.gl 9.1 updates.
+- Website fixes and example improvements.
 
-**`@deck.gl-community/infovis-layers`** (New module)
-
-- `HorizonGraphLayer`
-- `TimeAxisLayer`
-- `VerticalGridLayer`
-- Utilities for deck.gl view management
+**`@deck.gl-community/leaflet`** 
+- This module is published to npm.
+- A working example is now up on the website.
 
 **`@deck.gl-community/geo-layers`** (New module)
-
 - `GlobalGridLayer` - A new "generic" global grid layer that works against a pluggable `GlobalGrid` decoder.
 - `GlobalGrid` -  A small abstraction API for global grid decoders, making it easier to write visualizations / applications that can work with multiple global grids.
 - `A5Grid`, `H3Grid`, `S2Grid`, `GeohashGrid`, `QuadkeyGrid` - Pre-defined global grid system "decoders" for some of the most popular global grids that can be used with the `GlobalGridLayer`
 
+**`@deck.gl-community/infovis-layers`** (New module)
+- [`HorizonGraphLayer`](https://visgl.github.io/deck.gl-community/docs/modules/infovis-layers/api-reference/horizon-graph-layer) - New layer for compact time series.
+- [`TimeAxisLayer`](https://visgl.github.io/deck.gl-community/docs/modules/infovis-layers/api-reference/time-axis-layer) - New layer for a dynamic tick mark time axis.
+- [`VerticalGridLayer`](https://visgl.github.io/deck.gl-community/docs/modules/infovis-layers/api-reference/vertical-grid-layer)
+- Utilities for advanced deck.gl view management - New layer for adding dynamic vertical grid lines that can sync with a time layer.
+
+**`@deck.gl-community/graph-layers`**
+- Code base has been partially modernized in an effort to simplify maintenance and contributions.
+
 ## v9.0
 
-November 20, 2024:
+Released: November 20, 2024.
+
+**Highlights**
+- Add deck.gl v9.0 support to selected modules
 
 [**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers)) 
 
+- This new layer pack is a fork of Uber's [nebula.gl](https://nebula.gl) framework (which unfortunately no longer provides write access to maintainers). 
 - When drawing circles or ellipses properties of the created geometry are now stored in the vector's properties.
-
-April 15, 2024: 
-
-[**`@deck.gl-community/editable-layers`**](/docs/modules/editable-layers))
-
-This new layer pack is a fork of Uber's [nebula.gl](https://nebula.gl) framework (which unfortunately no longer provides write access to maintainers). 
-
-Feb 29, 2024: 
-
-[**`@deck.gl-community/layers`**](/docs/modules/layers)
-
-`@deck.gl-community/layers` now support deck.gl v9.
 
 ## Pre v9.0 Updates
 
-December 22, 2023
+Released:  December 22, 2023
 
 [**`@deck.gl-community/layers`**](/docs/modules/layers) v0 - A new module intended to containing a collection of useful community layers. Initial layers are `TileSourceLayer`, `DataDrivenTile3DLayer`.
 
-April 14, 2023: 
+Released: April 14, 2023: 
 
 [**`@deck-graph-layers`**](/docs/modules/graph-layers) - A new layer pack for rendering graphs (nodes and edges). Forked from Uber's archived [graph.gl](https://graph.gl) repo.

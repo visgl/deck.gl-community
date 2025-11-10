@@ -1416,7 +1416,6 @@ __metadata:
     "@luma.gl/core": "npm:~9.2.0"
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
-    preact: "npm:^10.17.0"
   languageName: unknown
   linkType: soft
 
@@ -1539,6 +1538,15 @@ __metadata:
 "@deck.gl-community/template@workspace:modules/template":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/template@workspace:modules/template"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/widgets@workspace:*, @deck.gl-community/widgets@workspace:modules/widgets":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/widgets@workspace:modules/widgets"
+  dependencies:
+    "@deck.gl/core": "npm:~9.2.1"
+    preact: "npm:^10.17.0"
   languageName: unknown
   linkType: soft
 
@@ -12530,6 +12538,7 @@ __metadata:
   dependencies:
     "@deck.gl-community/graph-layers": "workspace:*"
     "@deck.gl-community/react": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/react": "npm:~9.2.1"
@@ -12553,6 +12562,7 @@ __metadata:
     "@arcgis/core": "npm:^4.30.0"
     "@deck.gl-community/graph-layers": "workspace:*"
     "@deck.gl-community/react": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     deck.gl: "npm:^9.1.0"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
@@ -21999,6 +22009,21 @@ __metadata:
   checksum: 10c0/1d9c2a3e36dfb09832f38e2e699c367ef190f96b82c71f809bc0822c306f5379df87bab47bed27ea99106d86447e50eb972d3c516c2f95782807a9d082fbea95
   languageName: node
   linkType: hard
+
+"widgets-pan-and-zoom-controls-example@workspace:examples/widgets/pan-and-zoom-controls":
+  version: 0.0.0-use.local
+  resolution: "widgets-pan-and-zoom-controls-example@workspace:examples/widgets/pan-and-zoom-controls"
+  dependencies:
+    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl/core": "npm:~9.2.1"
+    "@deck.gl/layers": "npm:~9.2.1"
+    "@deck.gl/react": "npm:~9.2.1"
+    "@deck.gl/widgets": "npm:~9.2.1"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    vite: "npm:7.1.1"
+  languageName: unknown
+  linkType: soft
 
 "word-wrap@npm:^1.2.5":
   version: 1.2.5

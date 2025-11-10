@@ -47,6 +47,13 @@ const sidebars = {
         "editable-layers/advanced"
       ]
     },
+    {
+      type: 'category',
+      label: '@deck.gl-community/widgets',
+      items: [
+        "widgets/pan-and-zoom-controls"
+      ]
+    },
     // {
     //   type: 'category',
     //   label: '@deck.gl-community/arrow-layers',

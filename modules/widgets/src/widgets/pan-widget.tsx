@@ -5,6 +5,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
+import {cloneViewState, hasViewManager} from './view-manager-utils';
 import {
   Widget,
   type Deck,
@@ -105,18 +106,19 @@ export class PanWidget extends Widget<PanWidgetProps> {
 
     const ui = (
       <div style={NAVIGATION_CONTAINER_STYLE}>
-        {buttons.map((button) => (
-          <div
-            key={button.key}
-            style={{
-              ...NAVIGATION_BUTTON_STYLE,
-              top: `${button.top}px`,
-              left: `${button.left}px`
-            } as JSX.CSSProperties}
-          >
-            <LongPressButton onClick={button.onClick}>{button.label}</LongPressButton>
-          </div>
-        ))}
+        {buttons.map((button) => {
+          const buttonStyle: JSX.CSSProperties = {
+            ...NAVIGATION_BUTTON_STYLE,
+            top: `${button.top}px`,
+            left: `${button.left}px`
+          };
+
+          return (
+            <div key={button.key} style={buttonStyle}>
+              <LongPressButton onClick={button.onClick}>{button.label}</LongPressButton>
+            </div>
+          );
+        })}
       </div>
     );
 
@@ -124,29 +126,33 @@ export class PanWidget extends Widget<PanWidgetProps> {
   }
 
   private getTargetViewports(): Viewport[] {
-    const deck = this.deck as (Deck & {viewManager?: any}) | null;
+    const deck = this.deck;
     if (!deck) {
       return [];
     }
 
     if (this.viewId) {
-      const viewport = deck.viewManager?.getViewport(this.viewId);
-      return viewport ? [viewport] : [];
+      if (hasViewManager(deck)) {
+        const viewport = deck.viewManager?.getViewport(this.viewId);
+        return viewport ? [viewport] : [];
+      }
+      return [];
     }
     return deck.getViewports();
   }
 
   private getViewState(viewport: Viewport): any {
-    const viewManager = (this.deck as (Deck & {viewManager?: any}) | null)?.viewManager;
+    const deck = this.deck;
+    const viewManager = hasViewManager(deck) ? deck.viewManager : null;
     const viewId = this.viewId || viewport.id;
     if (viewManager) {
       try {
         return {...viewManager.getViewState(viewId)};
       } catch (err) {
-        return {...(viewManager.viewState as any)};
+        return cloneViewState(viewManager.viewState);
       }
     }
-    return {...(viewport as any)};
+    return cloneViewState(viewport);
   }
 
   private handlePan(deltaX: number, deltaY: number) {
@@ -157,22 +163,20 @@ export class PanWidget extends Widget<PanWidgetProps> {
     const viewports = this.getTargetViewports();
     for (const viewport of viewports) {
       const center = viewport.unproject([viewport.width / 2, viewport.height / 2]);
-      if (!center) {
-        continue;
+      if (center) {
+        const nextPixel: [number, number] = [
+          viewport.width / 2 + deltaX,
+          viewport.height / 2 + deltaY
+        ];
+
+        const viewState = this.getViewState(viewport);
+        const panUpdate = viewport.panByPosition(center, nextPixel);
+        const nextViewState = {...viewState, ...panUpdate};
+        const viewId = this.viewId || viewport.id || 'default-view';
+
+        // @ts-ignore Using private method until a public alternative is available
+        this.deck._onViewStateChange({viewId, viewState: nextViewState, interactionState: {}});
       }
-
-      const nextPixel: [number, number] = [
-        viewport.width / 2 + deltaX,
-        viewport.height / 2 + deltaY
-      ];
-
-      const viewState = this.getViewState(viewport);
-      const panUpdate = viewport.panByPosition(center, nextPixel);
-      const nextViewState = {...viewState, ...panUpdate};
-      const viewId = this.viewId || viewport.id || 'default-view';
-
-      // @ts-ignore Using private method until a public alternative is available
-      this.deck._onViewStateChange({viewId, viewState: nextViewState, interactionState: {}});
     }
   }
 }

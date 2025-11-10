@@ -8,12 +8,16 @@ import type {CompositeLayerProps} from '@deck.gl/core';
 import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
+import type {Graph, NodeInterface} from '../graph/graph';
 import {LegacyGraph} from '../graph/legacy-graph';
-import type {NodeInterface} from '../graph/graph';
 import {GraphLayout} from '../core/graph-layout';
+import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 
-import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
+import {
+  GraphStylesheetEngine,
+  type GraphStylesheet
+} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
@@ -52,7 +56,7 @@ import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 import {EdgeAttachmentHelper} from './edge-attachment-helper';
 import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
-import {JSONLoader} from '../loaders/json-loader';
+import {JSONTabularGraphLoader} from '../loaders/json-loader';
 
 const NODE_LAYER_MAP = {
   'rectangle': RectangleLayer,
@@ -111,7 +115,7 @@ export type GraphLayerRawData = {
 
 export type GraphLayerDataInput =
   | GraphEngine
-  | LegacyGraph
+  | Graph
   | GraphLayerRawData
   | unknown[]
   | string
@@ -132,9 +136,9 @@ type EngineResolutionFlags = {
 };
 
 export type _GraphLayerProps = {
-  graph?: LegacyGraph;
-  layout?: GraphLayout;
-  graphLoader?: (opts: {json: unknown}) => LegacyGraph | null;
+  graph?: Graph;
+  layout?: GraphLayout | GraphRuntimeLayout;
+  graphLoader?: (opts: {json: unknown}) => Graph | null;
   engine?: GraphEngine;
 
   stylesheet?: GraphLayerStylesheet;
@@ -171,7 +175,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     data: {type: 'object', value: null, async: true},
 
     // Graph props
-    graphLoader: JSONLoader,
+    graphLoader: JSONTabularGraphLoader,
 
     stylesheet: DEFAULT_GRAPH_LAYER_STYLESHEET,
     nodeStyle: undefined as unknown as GraphLayerNodeStyle[],
@@ -299,9 +303,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
   }
 
-  private _createStyleEngine(style: GraphStylesheet, context: string): GraphStyleEngine | null {
+  private _createStylesheetEngine(
+    style: GraphStylesheet,
+    context: string
+  ): GraphStylesheetEngine | null {
     try {
-      return new GraphStyleEngine(style, {
+      return new GraphStylesheetEngine(style, {
         stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
       });
     } catch (error) {
@@ -456,8 +463,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return data;
     }
 
-    if (data instanceof LegacyGraph) {
-      return this._buildEngineFromGraph(data, props.layout);
+    const graphCandidate = this._coerceGraph(data);
+    if (graphCandidate) {
+      return this._buildEngineFromGraph(graphCandidate, props.layout);
     }
 
     if (typeof data === 'string') {
@@ -465,7 +473,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     if (Array.isArray(data) || this._isPlainObject(data)) {
-      const loader = props.graphLoader ?? JSONLoader;
+      const loader = props.graphLoader ?? JSONTabularGraphLoader;
       const graph = loader({json: data});
       if (!graph) {
         return null;
@@ -477,8 +485,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _buildEngineFromGraph(
-    graph: LegacyGraph | null,
-    layout?: GraphLayout | null
+    graph: Graph | null,
+    layout?: (GraphLayout | GraphRuntimeLayout) | null
   ): GraphEngine | null {
     if (!graph) {
       return null;
@@ -489,7 +497,25 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    return new GraphEngine({graph, layout});
+    if (graph instanceof LegacyGraph && layout instanceof GraphLayout) {
+      return new GraphEngine({graph, layout});
+    }
+
+    if (layout instanceof GraphLayout && !(graph instanceof LegacyGraph)) {
+      const legacyGraph = this._convertToLegacyGraph(graph);
+      if (legacyGraph) {
+        return new GraphEngine({graph: legacyGraph, layout});
+      }
+      this._warnLayoutRequired();
+      return null;
+    }
+
+    if (this._isGraphRuntimeLayout(layout)) {
+      return new GraphEngine({graph, layout});
+    }
+
+    this._warnLayoutRequired();
+    return null;
   }
 
   private _syncInteractionManager(props: GraphLayerProps, engine: GraphEngine | null) {
@@ -517,6 +543,59 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       warn(LAYOUT_REQUIRED_MESSAGE);
       LAYOUT_REQUIRED_WARNED = true;
     }
+  }
+
+  private _isGraph(value: unknown): value is Graph {
+    if (!(value instanceof EventTarget)) {
+      return false;
+    }
+
+    return (
+      typeof (value as Graph).getNodes === 'function' &&
+      typeof (value as Graph).getEdges === 'function'
+    );
+  }
+
+  private _coerceGraph(value: unknown): Graph | null {
+    if (value instanceof LegacyGraph) {
+      return value;
+    }
+
+    if (this._isGraph(value)) {
+      return value;
+    }
+
+    return null;
+  }
+
+  private _convertToLegacyGraph(graph: Graph): LegacyGraph | null {
+    if (graph instanceof LegacyGraph) {
+      return graph;
+    }
+
+    const candidate = graph as Graph & {toLegacyGraph?: () => LegacyGraph | null};
+    if (typeof candidate.toLegacyGraph === 'function') {
+      try {
+        return candidate.toLegacyGraph() ?? null;
+      } catch (error) {
+        warn('GraphLayer: failed to convert graph to LegacyGraph for layout compatibility.', error);
+      }
+    }
+
+    return null;
+  }
+
+  private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
+    if (!(value instanceof EventTarget)) {
+      return false;
+    }
+
+    const layout = value as GraphRuntimeLayout;
+    return (
+      typeof layout.initializeGraph === 'function' &&
+      typeof layout.getNodePosition === 'function' &&
+      typeof layout.getEdgePosition === 'function'
+    );
   }
 
   private _isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {
@@ -728,7 +807,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           warn(`GraphLayer: Invalid node type "${style.type}".`);
           return null;
         }
-        const stylesheet = this._createStyleEngine(
+        const stylesheet = this._createStylesheetEngine(
           restStyle as unknown as GraphStylesheet,
           `node stylesheet "${style.type}"`
         );
@@ -782,7 +861,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       .filter(Boolean)
       .flatMap((style, idx) => {
         const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
-        const stylesheet = this._createStyleEngine(
+        const stylesheet = this._createStylesheetEngine(
           {
             type: 'edge',
             ...restEdgeStyle
@@ -817,7 +896,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
               warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
               return null;
             }
-            const decoratorStylesheet = this._createStyleEngine(
+            const decoratorStylesheet = this._createStylesheetEngine(
               decoratorStyle as unknown as GraphStylesheet,
               `edge decorator stylesheet "${decoratorStyle.type}"`
             );
@@ -918,7 +997,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       );
     }
 
-    const collapsedMarkerStylesheet = this._createStyleEngine(
+    const collapsedMarkerStylesheet = this._createStylesheetEngine(
       {
         type: 'marker',
         fill: [64, 96, 192, 255],
@@ -971,7 +1050,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       );
     }
 
-    const expandedMarkerStylesheet = this._createStyleEngine(
+    const expandedMarkerStylesheet = this._createStylesheetEngine(
       {
         type: 'marker',
         fill: [64, 96, 192, 255],

@@ -6,7 +6,10 @@ import type {InteractionManager} from '../core/interaction-manager';
 import type {GraphEngine} from '../core/graph-engine';
 import type {NodeInterface} from '../graph/graph';
 
-import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
+import {
+  GraphStylesheetEngine,
+  type GraphStylesheet
+} from '../style/graph-style-engine';
 import type {GraphLayerNodeStyle} from '../style/graph-layer-stylesheet';
 import {getNodeBoundaryIntersection, type GeometryNodeType, type NodeGeometry} from '../utils/node-boundary';
 import {warn} from '../utils/log';
@@ -194,7 +197,7 @@ export class EdgeAttachmentHelper {
           return;
         }
 
-        let stylesheet: GraphStyleEngine | null = null;
+        let stylesheet: GraphStylesheetEngine | null = null;
         try {
           stylesheet = engine.createStylesheetEngine(restStyle as GraphStylesheet, {
             stateUpdateTrigger: (interactionManager as any).getLastInteraction()
@@ -290,7 +293,7 @@ export class EdgeAttachmentHelper {
 
   private _createAccessorsForType(
     geometryType: GeometryNodeType,
-    stylesheet: GraphStyleEngine
+    stylesheet: GraphStylesheetEngine
   ): NodeStyleAccessors {
     const base: NodeStyleAccessors = {
       type: geometryType,

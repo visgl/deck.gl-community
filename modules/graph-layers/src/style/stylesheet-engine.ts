@@ -16,7 +16,7 @@ export type StylePropertyConstructor<T extends StyleProperty = StyleProperty> = 
 
 export type DefaultStyleValueFn = (property: string) => unknown;
 
-export type StyleEngineOptions<T extends StyleProperty = StyleProperty> = {
+export type StylesheetEngineOptions<T extends StyleProperty = StyleProperty> = {
   deckglAccessorMap: DeckGLAccessorMap;
   deckglUpdateTriggers?: DeckGLUpdateTriggers;
   stateUpdateTrigger?: unknown;
@@ -26,7 +26,7 @@ export type StyleEngineOptions<T extends StyleProperty = StyleProperty> = {
 
 const DEFAULT_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {};
 
-export class StyleEngine<TStyleProperty extends StyleProperty = StyleProperty> {
+export class StylesheetEngine<TStyleProperty extends StyleProperty = StyleProperty> {
   type: string;
   properties: Record<string, TStyleProperty>;
 
@@ -36,7 +36,7 @@ export class StyleEngine<TStyleProperty extends StyleProperty = StyleProperty> {
   protected readonly StylePropertyClass: StylePropertyConstructor<TStyleProperty>;
   protected readonly getDefaultStyleValue: DefaultStyleValueFn;
 
-  constructor(style: Record<string, any>, options: StyleEngineOptions<TStyleProperty>) {
+  constructor(style: Record<string, any>, options: StylesheetEngineOptions<TStyleProperty>) {
     const {
       deckglAccessorMap,
       deckglUpdateTriggers = DEFAULT_UPDATE_TRIGGERS,
