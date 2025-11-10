@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
 import {log} from '../../utils/log';
 
 export type D3ForceLayoutOptions = GraphLayoutProps & {
@@ -16,6 +16,7 @@ export type D3ForceLayoutOptions = GraphLayoutProps & {
 
 export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   static defaultProps = {
+    ...GRAPH_LAYOUT_DEFAULT_PROPS,
     alpha: 0.3,
     resumeAlpha: 0.1,
     nBodyStrength: -900,
@@ -30,10 +31,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   private _worker: any;
 
   constructor(props?: D3ForceLayoutOptions) {
-    super({
-      ...D3ForceLayout.defaultProps,
-      ...props
-    });
+    super(props, D3ForceLayout.defaultProps);
   }
 
   initializeGraph(graph) {
@@ -67,6 +65,12 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
 
+    const options = {...this.props};
+    delete options.onLayoutStart;
+    delete options.onLayoutChange;
+    delete options.onLayoutDone;
+    delete options.onLayoutError;
+
     this._worker.postMessage({
       nodes: this._graph.getNodes().map((node) => ({
         id: node.id,
@@ -77,7 +81,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
         source: edge.getSourceNodeId(),
         target: edge.getTargetNodeId()
       })),
-      options: this.props
+      options
     });
 
     this._worker.onmessage = (event) => {

@@ -14,7 +14,10 @@ import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 // import '@deck.gl/widgets/stylesheet.css';
 import {
   GraphLayer,
+  GraphEngine,
   GraphLayout,
+  type Graph,
+  type GraphLayoutEventDetail,
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
@@ -174,7 +177,7 @@ export function App({graphType}: AppProps) {
 
     return overrides ?? baseOptions;
   }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
-  const graph = useMemo(
+  const graph = useMemo<Graph | null>(
     () => (graphData ? JSONTabularGraphLoader({json: graphData}) : null),
     [graphData]
   );
@@ -186,8 +189,25 @@ export function App({graphType}: AppProps) {
     const factory = LAYOUT_FACTORIES[selectedLayout];
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
+  const engine = useMemo<GraphEngine | null>(
+    () => (graph && layout ? new GraphEngine({graph, layout}) : null),
+    [graph, layout]
+  );
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
   const selectedStyles = selectedExample?.style;
+
+  useLayoutEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
+    engine.run();
+
+    return () => {
+      engine.stop();
+      engine.clear();
+    };
+  }, [engine]);
 
   const serializedStylesheet = useMemo(() => {
     if (!selectedStyles) {
@@ -232,7 +252,7 @@ export function App({graphType}: AppProps) {
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
 
-  const {viewState, onResize, onViewStateChange} = useGraphViewport(layout, {
+  const {viewState, onResize, onViewStateChange, layoutCallbacks} = useGraphViewport(engine, {
     minZoom,
     maxZoom,
     viewportPadding: 8,
@@ -261,6 +281,49 @@ export function App({graphType}: AppProps) {
   const {isLoading} = loading;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
+
+  const updateChainSummary = useCallback(() => {
+    if (!engine || !dagLayout) {
+      const nextSummary = isDagLayout ? {chainIds: [], collapsedIds: []} : null;
+      setAppState((current) =>
+        areDagSummariesEqual(current.dagChainSummary, nextSummary)
+          ? current
+          : {...current, dagChainSummary: nextSummary}
+      );
+      return;
+    }
+
+    const chainIds: string[] = [];
+    const collapsedIds: string[] = [];
+
+    for (const node of engine.getNodes()) {
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const nodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+
+      if (
+        chainId !== null &&
+        chainId !== undefined &&
+        Array.isArray(nodeIds) &&
+        nodeIds.length > 1 &&
+        representativeId === node.getId()
+      ) {
+        const chainKey = String(chainId);
+        chainIds.push(chainKey);
+        if (isCollapsed) {
+          collapsedIds.push(chainKey);
+        }
+      }
+    }
+
+    setAppState((current) => {
+      const nextSummary = {chainIds, collapsedIds};
+      return areDagSummariesEqual(current.dagChainSummary, nextSummary)
+        ? current
+        : {...current, dagChainSummary: nextSummary};
+    });
+  }, [engine, dagLayout, isDagLayout]);
 
   const rankGrid = useMemo<RankGridConfig | false>(() => {
     if (!dagLayout) {
@@ -304,61 +367,32 @@ export function App({graphType}: AppProps) {
   }, [dagLayout, collapseEnabled]);
 
   useEffect(() => {
-    if (!graph || !dagLayout) {
-      setAppState((current) => {
-        const nextSummary = isDagLayout ? {chainIds: [], collapsedIds: []} : null;
-        return areDagSummariesEqual(current.dagChainSummary, nextSummary)
-          ? current
-          : {...current, dagChainSummary: nextSummary};
-      });
-      return;
-    }
-
-    const updateChainSummary = () => {
-      const chainIds: string[] = [];
-      const collapsedIds: string[] = [];
-
-      for (const node of graph.getNodes()) {
-        const chainId = node.getPropertyValue('collapsedChainId');
-        const nodeIds = node.getPropertyValue('collapsedNodeIds');
-        const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
-        const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
-
-        if (
-          chainId !== null &&
-          chainId !== undefined &&
-          Array.isArray(nodeIds) &&
-          nodeIds.length > 1 &&
-          representativeId === node.getId()
-        ) {
-          const chainKey = String(chainId);
-          chainIds.push(chainKey);
-          if (isCollapsed) {
-            collapsedIds.push(chainKey);
-          }
-        }
-      }
-
-      setAppState((current) => {
-        const nextSummary = {chainIds, collapsedIds};
-        return areDagSummariesEqual(current.dagChainSummary, nextSummary)
-          ? current
-          : {...current, dagChainSummary: nextSummary};
-      });
-    };
-
     updateChainSummary();
+  }, [updateChainSummary]);
 
-    const handleLayoutChange = () => updateChainSummary();
+  const handleLayoutStart = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      layoutCallbacks.onLayoutStart(detail);
+      updateChainSummary();
+    },
+    [layoutCallbacks, updateChainSummary]
+  );
 
-    dagLayout.addEventListener('onLayoutChange', handleLayoutChange);
-    dagLayout.addEventListener('onLayoutDone', handleLayoutChange);
+  const handleLayoutChange = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      layoutCallbacks.onLayoutChange(detail);
+      updateChainSummary();
+    },
+    [layoutCallbacks, updateChainSummary]
+  );
 
-    return () => {
-      dagLayout.removeEventListener('onLayoutChange', handleLayoutChange);
-      dagLayout.removeEventListener('onLayoutDone', handleLayoutChange);
-    };
-  }, [graph, dagLayout, isDagLayout]);
+  const handleLayoutDone = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      layoutCallbacks.onLayoutDone(detail);
+      updateChainSummary();
+    },
+    [layoutCallbacks, updateChainSummary]
+  );
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setAppState((current) => ({...current, collapseEnabled: !current.collapseEnabled}));
@@ -530,12 +564,16 @@ export function App({graphType}: AppProps) {
             })
           ]}
           layers={
-            graph && layout
+            graph && layout && engine
               ? [
                 new GraphLayer({
-                  data: graph,
+                  data: engine,
+                  engine,
                   layout,
                   stylesheet: selectedStyles,
+                  onLayoutStart: handleLayoutStart,
+                  onLayoutChange: handleLayoutChange,
+                  onLayoutDone: handleLayoutDone,
                   resumeLayoutAfterDragging,
                   rankGrid
                 })
@@ -672,11 +710,11 @@ function getToolTip(object: unknown): {html: string} | null {
       return `
         <tr>
           <th style="padding: 0.25rem 0.5rem; text-align: left; color: ${TOOLTIP_THEME.key}; font-weight: 600; white-space: nowrap;">${escapeHtml(
-            key
-          )}</th>
+        key
+      )}</th>
           <td style="padding: 0.25rem 0.5rem; color: ${TOOLTIP_THEME.value}; font-weight: 500;">${escapeHtml(
-            formattedValue
-          )}</td>
+        formattedValue
+      )}</td>
         </tr>`;
     })
     .join('');

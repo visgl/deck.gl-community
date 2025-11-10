@@ -17,16 +17,27 @@ export type GraphLayoutEventDetail = {
   bounds: Bounds2D | null;
 };
 
-export type GraphLayoutProps = {};
+export type GraphLayoutProps = {
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+};
 
-/** All the layout classes are extended from this base layout class. */
+export const GRAPH_LAYOUT_DEFAULT_PROPS: Readonly<Required<GraphLayoutProps>> = {
+  onLayoutStart: undefined,
+  onLayoutChange: undefined,
+  onLayoutDone: undefined,
+  onLayoutError: undefined
+};
+
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
-> extends EventTarget {
+> {
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration props of the layout. */
-  protected props: Required<PropsT>;
+  protected props: PropsT;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -43,9 +54,20 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
-  constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
-    super();
-    this.props = {...defaultProps, ...props};
+  constructor(props: PropsT = {} as PropsT, defaultProps?: Partial<PropsT>) {
+    this.props = {
+      ...(GRAPH_LAYOUT_DEFAULT_PROPS as PropsT),
+      ...(defaultProps ?? ({} as PropsT)),
+      ...props
+    };
+  }
+
+  getProps(): PropsT {
+    return {...this.props};
+  }
+
+  setProps(props: Partial<PropsT>): void {
+    this.props = {...this.props, ...props};
   }
 
   /**
@@ -203,7 +225,7 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutStart', {detail}));
+    this.props.onLayoutStart?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutChange */
@@ -218,7 +240,7 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutChange', {detail}));
+    this.props.onLayoutChange?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutDone */
@@ -233,7 +255,7 @@ export abstract class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutDone', {detail}));
+    this.props.onLayoutDone?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutError */
@@ -245,6 +267,6 @@ export abstract class GraphLayout<
      * @event GraphLayout#onLayoutError
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutError'));
+    this.props.onLayoutError?.();
   };
 }

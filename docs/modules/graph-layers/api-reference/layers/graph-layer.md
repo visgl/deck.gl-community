@@ -102,6 +102,17 @@ Register interaction callbacks for nodes. Supported keys are `onMouseLeave`,
 
 Interaction callbacks for edges. Supports `onClick` and `onHover`.
 
+### Layout lifecycle
+
+#### `onLayoutStart` / `onLayoutChange` / `onLayoutDone` / `onLayoutError` (functions, optional)
+
+Register callbacks that mirror the underlying layout lifecycle. Each handler
+receives the [`GraphLayoutEventDetail`](../layouts/graph-layout.md#graphlayouteventdetail)
+object emitted by the active engine. `GraphLayer` wires these callbacks through
+to the active `GraphEngine` so they run alongside the layer's internal state
+updates (e.g. viewport fitting, loading indicators). Supply only the handlers
+you need—they are all optional.
+
 #### `enableDragging` (boolean, optional)
 
 When `true`, nodes can be repositioned by dragging. The interaction manager

@@ -10,7 +10,7 @@ import {PolygonLayer} from '@deck.gl/layers';
 
 import type {Graph, NodeInterface} from '../graph/graph';
 import {LegacyGraph} from '../graph/legacy-graph';
-import {GraphLayout} from '../core/graph-layout';
+import {GraphLayout, type GraphLayoutEventDetail} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 
@@ -141,6 +141,11 @@ export type _GraphLayerProps = {
   graphLoader?: (opts: {json: unknown}) => Graph | null;
   engine?: GraphEngine;
 
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+
   stylesheet?: GraphLayerStylesheet;
   /** @deprecated Use `stylesheet.nodes`. */
   nodeStyle?: GraphLayerNodeStyle[];
@@ -268,6 +273,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       engineChanged,
       loaderChanged
     });
+
+    if (!engineRefreshed && changeFlags.propsChanged) {
+      const engine = this.state.graphEngine;
+      if (engine) {
+        this._applyGraphEngineCallbacks(engine);
+      }
+    }
 
     if (!engineRefreshed && (changeFlags.propsChanged || changeFlags.stateChanged)) {
       this._syncInteractionManager(props, this.state.graphEngine ?? null);
@@ -546,13 +558,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _isGraph(value: unknown): value is Graph {
-    if (!(value instanceof EventTarget)) {
+    if (!value || typeof value !== 'object') {
       return false;
     }
 
+    const candidate = value as Graph;
     return (
-      typeof (value as Graph).getNodes === 'function' &&
-      typeof (value as Graph).getEdges === 'function'
+      typeof candidate.getNodes === 'function' && typeof candidate.getEdges === 'function'
     );
   }
 
@@ -586,7 +598,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
-    if (!(value instanceof EventTarget)) {
+    if (!value || typeof value !== 'object') {
       return false;
     }
 
@@ -594,7 +606,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return (
       typeof layout.initializeGraph === 'function' &&
       typeof layout.getNodePosition === 'function' &&
-      typeof layout.getEdgePosition === 'function'
+      typeof layout.getEdgePosition === 'function' &&
+      typeof layout.setProps === 'function'
     );
   }
 
@@ -636,6 +649,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   _setGraphEngine(graphEngine: GraphEngine | null) {
     if (graphEngine === this.state.graphEngine) {
+      if (graphEngine) {
+        this._applyGraphEngineCallbacks(graphEngine);
+      }
       this._updateLayoutSnapshot(graphEngine);
       return;
     }
@@ -644,10 +660,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (graphEngine) {
       this.state.graphEngine = graphEngine;
-      graphEngine.addEventListener('onLayoutStart', this._handleLayoutEvent);
-      graphEngine.addEventListener('onLayoutChange', this._handleLayoutEvent);
-      graphEngine.addEventListener('onLayoutDone', this._handleLayoutEvent);
-      graphEngine.addEventListener('onLayoutError', this._handleLayoutEvent);
+      this._applyGraphEngineCallbacks(graphEngine);
       graphEngine.run();
       this._updateLayoutSnapshot(graphEngine);
     } else {
@@ -659,14 +672,37 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   _removeGraphEngine() {
     const engine = this.state.graphEngine;
     if (engine) {
-      engine.removeEventListener('onLayoutStart', this._handleLayoutEvent);
-      engine.removeEventListener('onLayoutChange', this._handleLayoutEvent);
-      engine.removeEventListener('onLayoutDone', this._handleLayoutEvent);
-      engine.removeEventListener('onLayoutError', this._handleLayoutEvent);
+      engine.setProps({
+        onLayoutStart: undefined,
+        onLayoutChange: undefined,
+        onLayoutDone: undefined,
+        onLayoutError: undefined
+      });
       engine.clear();
       this.state.graphEngine = null;
       this._updateLayoutSnapshot(null);
     }
+  }
+
+  private _applyGraphEngineCallbacks(engine: GraphEngine) {
+    engine.setProps({
+      onLayoutStart: (detail) => {
+        this._handleLayoutEvent();
+        this.props.onLayoutStart?.(detail);
+      },
+      onLayoutChange: (detail) => {
+        this._handleLayoutEvent();
+        this.props.onLayoutChange?.(detail);
+      },
+      onLayoutDone: (detail) => {
+        this._handleLayoutEvent();
+        this.props.onLayoutDone?.(detail);
+      },
+      onLayoutError: (error) => {
+        this._handleLayoutEvent();
+        this.props.onLayoutError?.(error);
+      }
+    });
   }
 
   private _createRankGridLayer(): GridLayer | null {

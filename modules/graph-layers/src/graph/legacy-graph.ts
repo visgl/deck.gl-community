@@ -6,9 +6,10 @@ import {warn} from '../utils/log';
 import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
-import {GraphLayout, type GraphLayoutState} from '../core/graph-layout';
+import {GraphLayout, type GraphLayoutProps, type GraphLayoutState} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
-import type {EdgeInterface, Graph, NodeInterface} from './graph';
+import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
+import {Graph} from './graph';
 
 export type LegacyGraphProps = {
   name?: string;
@@ -17,7 +18,7 @@ export type LegacyGraphProps = {
 };
 
 /** Basic graph data structure */
-export class LegacyGraph extends EventTarget implements Graph {
+export class LegacyGraph extends Graph {
   /** List object of nodes. */
   private _nodeMap: Record<string, Node> = {};
   /** List of object edges. */
@@ -32,15 +33,15 @@ export class LegacyGraph extends EventTarget implements Graph {
   /** Cached data: create array data from maps. */
   private _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
 
-  constructor(props?: LegacyGraphProps);
-  constructor(graph: LegacyGraph);
+  constructor(props?: LegacyGraphProps, graphProps?: GraphProps);
+  constructor(graph: LegacyGraph, graphProps?: GraphProps);
 
   /**
    * The constructor of the graph class.
    * @param graph - copy the graph if this exists.
    */
-  constructor(propsOrGraph?: LegacyGraphProps | LegacyGraph) {
-    super();
+  constructor(propsOrGraph?: LegacyGraphProps | LegacyGraph, graphProps: GraphProps = {}) {
+    super(graphProps);
 
     if (propsOrGraph instanceof LegacyGraph) {
       // if a Graph instance was supplied, copy the supplied graph into this graph
@@ -78,10 +79,10 @@ export class LegacyGraph extends EventTarget implements Graph {
    */
   transaction<T>(cb: (...args: unknown[]) => T): T {
     try {
-      this.dispatchEvent(new CustomEvent('transactionStart'));
+      this.props.onTransactionStart?.();
       return cb();
     } finally {
-      this.dispatchEvent(new CustomEvent('transactionEnd'));
+      this.props.onTransactionEnd?.();
     }
   }
 
@@ -94,7 +95,7 @@ export class LegacyGraph extends EventTarget implements Graph {
     this._nodeMap[node.getId()] = node;
     // update last update time stamp
     this._bumpVersion();
-    this.dispatchEvent(new CustomEvent('onNodeAdded', {node} as any));
+    this.props.onNodeAdded?.(node);
   }
 
   /**
@@ -106,7 +107,7 @@ export class LegacyGraph extends EventTarget implements Graph {
     this._nodeMap = nodes.reduce(
       (res, node) => {
         res[node.getId()] = node;
-        this.dispatchEvent(new CustomEvent('onNodeAdded', {node} as any));
+        this.props.onNodeAdded?.(node);
         return res;
       },
       {...this._nodeMap}
@@ -152,7 +153,7 @@ export class LegacyGraph extends EventTarget implements Graph {
   updateNode(node: Node): void {
     this._nodeMap[node.getId()] = node;
     this._bumpVersion();
-    this.dispatchEvent(new CustomEvent('onNodeUpdated', {node} as any));
+    this.props.onNodeUpdated?.(node);
   }
 
   /**
@@ -172,7 +173,7 @@ export class LegacyGraph extends EventTarget implements Graph {
     sourceNode.addConnectedEdges(edge);
     targetNode.addConnectedEdges(edge);
     this._bumpVersion();
-    this.dispatchEvent(new CustomEvent('onEdgeAdded', {edge} as any));
+    this.props.onEdgeAdded?.(edge);
   }
 
   /**
@@ -191,7 +192,7 @@ export class LegacyGraph extends EventTarget implements Graph {
   updateEdge(edge: Edge): void {
     this._edgeMap[edge.getId()] = edge;
     this._bumpVersion();
-    this.dispatchEvent(new CustomEvent('onEdgeUpdated', {edge} as any));
+    this.props.onEdgeUpdated?.(edge);
   }
 
   /**
@@ -211,7 +212,7 @@ export class LegacyGraph extends EventTarget implements Graph {
     // remove the node from map
     delete this._nodeMap[nodeId];
     this._bumpVersion();
-    this.dispatchEvent(new CustomEvent('onNodeRemoved', {node} as any));
+    this.props.onNodeRemoved?.(node);
   }
 
   /**
@@ -253,6 +254,7 @@ export class LegacyGraph extends EventTarget implements Graph {
     sourceNode.removeConnectedEdges(edge);
     targetNode.removeConnectedEdges(edge);
     this._bumpVersion();
+    this.props.onEdgeRemoved?.(edge);
   }
 
   /**
@@ -374,14 +376,11 @@ export class LegacyGraph extends EventTarget implements Graph {
   }
 }
 
-export class LegacyGraphLayoutAdapter extends EventTarget implements GraphRuntimeLayout {
+export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
   private readonly layout: GraphLayout;
-  private readonly eventForwarders = new Map<string, EventListener>();
 
   constructor(layout: GraphLayout) {
-    super();
     this.layout = layout;
-    this._bindEvents();
   }
 
   get version(): number {
@@ -390,6 +389,14 @@ export class LegacyGraphLayoutAdapter extends EventTarget implements GraphRuntim
 
   get state(): GraphLayoutState {
     return this.layout.state;
+  }
+
+  getProps(): GraphLayoutProps {
+    return this.layout.getProps();
+  }
+
+  setProps(props: Partial<GraphLayoutProps>): void {
+    this.layout.setProps(props);
   }
 
   initializeGraph(graph: Graph): void {
@@ -437,10 +444,12 @@ export class LegacyGraphLayoutAdapter extends EventTarget implements GraphRuntim
   }
 
   destroy(): void {
-    for (const [type, handler] of this.eventForwarders) {
-      this.layout.removeEventListener(type, handler);
-    }
-    this.eventForwarders.clear();
+    this.layout.setProps({
+      onLayoutStart: undefined,
+      onLayoutChange: undefined,
+      onLayoutDone: undefined,
+      onLayoutError: undefined
+    });
   }
 
   private _assertLegacyGraph(graph: Graph): LegacyGraph {
@@ -450,24 +459,4 @@ export class LegacyGraphLayoutAdapter extends EventTarget implements GraphRuntim
     throw new Error('LegacyGraphLayoutAdapter expects a LegacyGraph instance.');
   }
 
-  private _bindEvents(): void {
-    const eventTypes: string[] = [
-      'onLayoutStart',
-      'onLayoutChange',
-      'onLayoutDone',
-      'onLayoutError'
-    ];
-
-    for (const type of eventTypes) {
-      const forwarder: EventListener = (event: Event) => {
-        if (event instanceof CustomEvent) {
-          this.dispatchEvent(new CustomEvent(type, {detail: event.detail}));
-        } else {
-          this.dispatchEvent(new Event(type));
-        }
-      };
-      this.layout.addEventListener(type, forwarder);
-      this.eventForwarders.set(type, forwarder);
-    }
-  }
 }

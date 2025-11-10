@@ -119,26 +119,45 @@ export function useGraphViewport(
     latestBoundsRef.current = null;
   }, [eventSource]);
 
+  const handleLayoutEvent = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      fitBounds(detail?.bounds ?? null);
+    },
+    [fitBounds]
+  );
+
   useEffect(() => {
-    if (!eventSource) {
+    if (!eventSource || 'getLayoutBounds' in (eventSource as GraphEngine)) {
       return () => undefined;
     }
 
-    const handleLayoutEvent = (event: Event) => {
-      const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-      fitBounds(detail?.bounds ?? null);
-    };
+    const layout = eventSource as GraphLayout;
+    const previous = layout.getProps();
 
-    eventSource.addEventListener('onLayoutStart', handleLayoutEvent);
-    eventSource.addEventListener('onLayoutChange', handleLayoutEvent);
-    eventSource.addEventListener('onLayoutDone', handleLayoutEvent);
+    layout.setProps({
+      onLayoutStart: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutStart?.(detail);
+      },
+      onLayoutChange: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutChange?.(detail);
+      },
+      onLayoutDone: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutDone?.(detail);
+      }
+    });
 
     return () => {
-      eventSource.removeEventListener('onLayoutStart', handleLayoutEvent);
-      eventSource.removeEventListener('onLayoutChange', handleLayoutEvent);
-      eventSource.removeEventListener('onLayoutDone', handleLayoutEvent);
+      layout.setProps({
+        onLayoutStart: previous.onLayoutStart,
+        onLayoutChange: previous.onLayoutChange,
+        onLayoutDone: previous.onLayoutDone,
+        onLayoutError: previous.onLayoutError
+      });
     };
-  }, [eventSource, fitBounds]);
+  }, [eventSource, handleLayoutEvent]);
 
   const {width, height} = viewState as any;
 
@@ -169,9 +188,17 @@ export function useGraphViewport(
     }));
   }, []);
 
+  const layoutCallbacks = {
+    onLayoutStart: handleLayoutEvent,
+    onLayoutChange: handleLayoutEvent,
+    onLayoutDone: handleLayoutEvent
+  } as const;
+
   return {
     viewState,
     onResize,
-    onViewStateChange
+    onViewStateChange,
+    fitBounds,
+    layoutCallbacks
   };
 }
