@@ -29,6 +29,14 @@ export {EditableH3ClusterLayer} from './editable-layers/editable-h3-cluster-laye
 export {SelectionLayer} from './editable-layers/selection-layer';
 export {ElevatedEditHandleLayer} from './editable-layers/elevated-edit-handle-layer';
 
+// Widgets
+export {EditModeTrayWidget} from './widgets/edit-mode-tray-widget';
+export type {
+  EditModeTrayWidgetProps,
+  EditModeTrayWidgetModeOption,
+  EditModeTrayWidgetSelectEvent
+} from './widgets/edit-mode-tray-widget';
+
 // Layers move to deck.gl-community/layers?
 export {JunctionScatterplotLayer} from './editable-layers/junction-scatterplot-layer';
 
