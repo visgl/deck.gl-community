@@ -14,7 +14,7 @@ import {
   SimpleLayout
 } from '@deck.gl-community/graph-layers';
 import type {GraphLayerStylesheet} from '@deck.gl-community/graph-layers';
-import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
+import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 import '@deck.gl/widgets/stylesheet.css';
 import '@deck.gl/widgets/stylesheet.css';
 

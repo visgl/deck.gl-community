@@ -41,7 +41,6 @@
     "@loaders.gl/tiles": "^4.2.0",
     "@luma.gl/core": "~9.2.0",
     "@luma.gl/engine": "~9.2.0",
-    "@luma.gl/shadertools": "~9.2.0",
-    "preact": "^10.17.0"
+    "@luma.gl/shadertools": "~9.2.0"
   }
 }

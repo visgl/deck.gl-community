@@ -74,7 +74,7 @@ normalized by the loader—pass them directly to `data`.
 Inject an existing engine to reuse layout state across renders. When omitted the
 layer constructs a new engine from `graph` or `data`.
 
-#### `layout` ([`GraphLayout`](../layouts/README.md), optional)
+#### `layout` ([`GraphLayout`](../layouts/graph-layout.md), optional)
 
 Layout algorithm used by the engine. Pass one of the bundled layouts such as
 [`D3ForceLayout`](../layouts/d3-force-layout.md) or implement a custom layout that
@@ -91,16 +91,16 @@ and forward to the stylesheet internally.
 
 ### Interaction
 
+See the
+[interaction reference](../../developer-guide/interactions.md) for signatures and usage notes.
+
 #### `nodeEvents` (object, optional)
 
 Register interaction callbacks for nodes. Supported keys are `onMouseLeave`,
-`onHover`, `onMouseEnter`, `onClick`, and `onDrag`. See the
-[interaction reference](../interactions.md) for signatures and usage notes.
-
+`onHover`, `onMouseEnter`, `onClick`, and `onDrag`. 
 #### `edgeEvents` (object, optional)
 
-Interaction callbacks for edges. Supports `onClick` and `onHover`. See the
-[interaction reference](../interactions.md).
+Interaction callbacks for edges. Supports `onClick` and `onHover`.
 
 ### Layout lifecycle
 
@@ -169,7 +169,8 @@ configuration supports:
 
 ## Notes
 
-- The layer resolves the stylesheet through the `GraphStyleEngine`, which
+- The layer resolves the stylesheet through the `GraphStylesheetEngine` (also exported as
+  `GraphStyleEngine` for backward compatibility), which
   coalesces attribute bindings, selectors, and triggers before delegating to the
   underlying Deck.gl sublayers.
 - Reusing the same `GraphEngine` instance across renders preserves layout state

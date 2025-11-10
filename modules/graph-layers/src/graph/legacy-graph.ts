@@ -6,7 +6,6 @@ import {warn} from '../utils/log';
 import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
-import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
 import {GraphLayout, type GraphLayoutProps, type GraphLayoutState} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
@@ -224,13 +223,6 @@ export class LegacyGraph extends Graph {
     this._updateCache('edges', () => Object.values(this._edgeMap));
 
     return (this._cache.get('edges') as Edge[]) ?? [];
-  }
-
-  createStylesheetEngine(
-    style: GraphStylesheet,
-    options: {stateUpdateTrigger?: unknown} = {}
-  ): GraphStyleEngine {
-    return new GraphStyleEngine(style, options);
   }
 
   destroy(): void {

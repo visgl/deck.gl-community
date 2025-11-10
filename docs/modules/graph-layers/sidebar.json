@@ -4,14 +4,13 @@
   "items": [
     "modules/graph-layers/README",
     "modules/graph-layers/api-reference/layers/graph-layer",
-    "modules/graph-layers/api-reference/layers/marker-layer",
+    "modules/graph-layers/api-reference/styling/graph-stylesheet",
     {
       "type": "category",
       "label": "Layouts",
       "items": [
-        "modules/graph-layers/api-reference/layouts/README",
-        "modules/graph-layers/api-reference/layouts/graph-layout",
         "modules/graph-layers/api-reference/layouts/simple-layout",
+        "modules/graph-layers/api-reference/layouts/graph-layout",
         "modules/graph-layers/api-reference/layouts/d3-force-layout",
         "modules/graph-layers/api-reference/layouts/d3-dag-layout",
         "modules/graph-layers/api-reference/layouts/radial-layout",
@@ -27,18 +26,16 @@
         "modules/graph-layers/api-reference/legacy-graph",
         "modules/graph-layers/api-reference/tabular-graph",
         "modules/graph-layers/api-reference/node",
-        "modules/graph-layers/api-reference/edge",
-        "modules/graph-layers/api-reference/interactions",
-        "modules/graph-layers/api-reference/layouts/README"
+        "modules/graph-layers/api-reference/edge"
       ]
     },
-      {
-        "type": "category",
-        "label": "Node and Edge Styling",
-        "items": [
-          "modules/graph-layers/api-reference/styling/graph-stylesheet",
-          "modules/graph-layers/api-reference/styling/graph-style-engine"
-        ]
-      }
+    {
+      "type": "category",
+      "label": "Internal classes",
+      "items": [
+        "modules/graph-layers/api-reference/internal/marker-layer",
+        "modules/graph-layers/api-reference/internal/graph-stylesheet-engine"
+      ]
+    }
   ]
 }

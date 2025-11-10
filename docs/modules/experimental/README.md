@@ -30,3 +30,4 @@ A place for experimental layers developed by deck.gl developers that benefit fro
 Release date: 2024
 
 - `DataDrivenTile3DLayer`
+- `PanWidget` and `ZoomRangeWidget` moved to `@deck.gl-community/widgets`

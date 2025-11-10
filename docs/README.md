@@ -1,7 +1,7 @@
 # Introduction
 
 This repository contains a collection of "community supported" modules for [deck.gl](https://deck.gl).
-deck.gl-community was created to provide a home for a number of excellent deck.gl add-on modules that no longer have active maintainers, with the hope that community contributions will keep them alive.
+deck.gl-community was originally created to provide a home for a number of excellent deck.gl add-on modules that no longer have active maintainers, with the hope that it would allow the community to keep using these add-ons, and that community contributions would help keep them alive.
 
 :::danger
 The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
@@ -19,21 +19,20 @@ common modules type are:
 
 ## Goals
 
-Overall goals for this repo is
-- All modules should support deck.gl v9 on WebGL2.
-- Modules will be expected to gradually start supporting deck.gl v9 on WebGPU 
-- Support for deck.gl v8 is a non-goal, though one or two modules may have older versions that still work.
+Some practical goals for this repo:
+- The community modules in this repo are expected to be used with deck.gl v9.0 or later releases. 
+- The version of the published npm modules will follow deck.gl's major and minor version numbering, making it easy to see at a glance which deck.gl version is supported by a specific `@deck.gl-community/...` module.
+- Community modules are expected to support WebGL2 rendering in deck.gl, and will hopefully gradually start supporting WebGPU rendering over time, see detailed documentation for each module / layer.
 
 # Official Support
 
 Community modules are not officially supported by the core deck.gl maintainers,
-but the overall repository setup is expected to have at least intermittent, part-time support from one or more community members, to maintain build tooling etc. Note that response and fix times can be slow.
+but the overall repository setup is expected to have at least intermittent, part-time support from one or more community members, to maintain build tooling and updates to new major deck.gl versions. Note that response times and fix times can be slow.
 
 ## Community Support
 
-Note that the continued inclusion of each module into this repository depends to a large extent on whether there is sufficient community support for the module. 
-
-Modules can be removed from this repository if the core deck.gl team feels that the community is no longer able to provide sufficient support.
+The continued inclusion of a specific module into this repository can depend ton whether there is sufficient community support for the module. 
+This means that modules could be removed from this repository if the core deck.gl team feels that the community is no longer able to provide sufficient support.
 If a module was to be removed, applications can of course copy the module's source code, but will need to maintain the code on their own.
 
 ## Contributing

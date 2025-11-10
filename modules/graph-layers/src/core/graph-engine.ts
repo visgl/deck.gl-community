@@ -10,7 +10,7 @@ import type {GraphRuntimeLayout} from './graph-runtime-layout';
 import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
-import type {GraphStyleEngine, GraphStylesheet} from '../style/graph-style-engine';
+import {GraphStylesheetEngine, type GraphStylesheet} from '../style/graph-style-engine';
 
 type LegacyGraphEngineProps = {
   graph: LegacyGraph;
@@ -160,8 +160,8 @@ export class GraphEngine {
   createStylesheetEngine(
     style: GraphStylesheet,
     options: {stateUpdateTrigger?: unknown} = {}
-  ): GraphStyleEngine {
-    return this._graph.createStylesheetEngine(style, options);
+  ): GraphStylesheetEngine {
+    return new GraphStylesheetEngine(style, options);
   }
 
   /**

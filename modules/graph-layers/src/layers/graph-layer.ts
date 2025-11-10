@@ -14,7 +14,10 @@ import {GraphLayout, type GraphLayoutEventDetail} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 
-import {GraphStyleEngine, type GraphStylesheet} from '../style/graph-style-engine';
+import {
+  GraphStylesheetEngine,
+  type GraphStylesheet
+} from '../style/graph-style-engine';
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
@@ -312,9 +315,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
   }
 
-  private _createStyleEngine(style: GraphStylesheet, context: string): GraphStyleEngine | null {
+  private _createStylesheetEngine(
+    style: GraphStylesheet,
+    context: string
+  ): GraphStylesheetEngine | null {
     try {
-      return new GraphStyleEngine(style, {
+      return new GraphStylesheetEngine(style, {
         stateUpdateTrigger: (this.state.interactionManager as any).getLastInteraction()
       });
     } catch (error) {
@@ -837,7 +843,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           warn(`GraphLayer: Invalid node type "${style.type}".`);
           return null;
         }
-        const stylesheet = this._createStyleEngine(
+        const stylesheet = this._createStylesheetEngine(
           restStyle as unknown as GraphStylesheet,
           `node stylesheet "${style.type}"`
         );
@@ -891,7 +897,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       .filter(Boolean)
       .flatMap((style, idx) => {
         const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
-        const stylesheet = this._createStyleEngine(
+        const stylesheet = this._createStylesheetEngine(
           {
             type: 'edge',
             ...restEdgeStyle
@@ -926,7 +932,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
               warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
               return null;
             }
-            const decoratorStylesheet = this._createStyleEngine(
+            const decoratorStylesheet = this._createStylesheetEngine(
               decoratorStyle as unknown as GraphStylesheet,
               `edge decorator stylesheet "${decoratorStyle.type}"`
             );
@@ -1027,7 +1033,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       );
     }
 
-    const collapsedMarkerStylesheet = this._createStyleEngine(
+    const collapsedMarkerStylesheet = this._createStylesheetEngine(
       {
         type: 'marker',
         fill: [64, 96, 192, 255],
@@ -1080,7 +1086,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       );
     }
 
-    const expandedMarkerStylesheet = this._createStyleEngine(
+    const expandedMarkerStylesheet = this._createStylesheetEngine(
       {
         type: 'marker',
         fill: [64, 96, 192, 255],

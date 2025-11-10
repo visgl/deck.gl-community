@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {GraphStylesheet} from '../style/graph-style-engine';
-import {GraphStyleEngine} from '../style/graph-style-engine';
-import {TabularGraphStylesheetEngine} from '../style/tabular-graph-style-engine';
 
 import type {EdgeState, NodeState} from '../core/constants';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
@@ -297,13 +294,6 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Gr
     return this._nodeMap?.get(id);
   }
 
-  createStylesheetEngine(
-    style: GraphStylesheet,
-    options: {stateUpdateTrigger?: unknown} = {}
-  ): GraphStyleEngine {
-    return new TabularGraphStylesheetEngine(style, options);
-  }
-
   destroy(): void {
     this._nodes = null;
     this._edges = null;
@@ -451,6 +441,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Gr
 
   getNodePropertyValueByIndex(index: NodeIndex, key: string): unknown {
     const record = this._getNodeRecord(index);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const accessor = this._getAccessors().node.getPropertyValue;
     if (accessor) {
       const value = accessor(record.handle, key);
@@ -512,6 +503,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Gr
 
   getEdgePropertyValueByIndex(index: EdgeIndex, key: string): unknown {
     const record = this._getEdgeRecord(index);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const accessor = this._getAccessors().edge.getPropertyValue;
     if (accessor) {
       const value = accessor(record.handle, key);
@@ -569,6 +561,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Gr
     this._lastVersion = this.source.version;
   }
 
+  // eslint-disable-next-line max-statements
   private _createEntities(): {
     nodes: TabularNode<NodeHandle, EdgeHandle>[];
     edges: TabularEdge<NodeHandle, EdgeHandle>[];

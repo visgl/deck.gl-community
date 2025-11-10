@@ -27,6 +27,7 @@
       "@deck.gl-community/leaflet": ["./modules/leaflet/src"],
       "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],
       "@deck.gl-community/experimental": ["./modules/experimental/src"],
+      "@deck.gl-community/widgets": ["./modules/widgets/src"],
       "@deck.gl-community/layers": ["./modules/layers/src"],
       "@deck.gl-community/geo-layers": ["./modules/geo-layers/src"],
       "@deck.gl-community/infovis-layers": ["./modules/infovis-layers/src"],
