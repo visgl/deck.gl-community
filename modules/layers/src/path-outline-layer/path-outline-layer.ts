@@ -116,6 +116,16 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
 
     // Render the outline shadowmap (based on segment z orders)
     const {outlineFramebuffer, dummyTexture} = this.state;
+
+    if (context?.viewport) {
+      const viewportWidth = Math.max(1, Math.ceil(context.viewport.width));
+      const viewportHeight = Math.max(1, Math.ceil(context.viewport.height));
+
+      outlineFramebuffer.resize({width: viewportWidth, height: viewportHeight});
+      dummyTexture.resize({width: viewportWidth, height: viewportHeight});
+    } else {
+      outlineFramebuffer.resize();
+    }
     // TODO(v9): resize, see 'sf' example.
     // outlineFramebuffer.resize();
     // TODO(v9) clear FBO
