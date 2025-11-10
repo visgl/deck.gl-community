@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutDefaultProps, GraphLayoutProps} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {LegacyGraph} from '../../graph/legacy-graph';
 
@@ -17,7 +17,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     innerRadius: 100,
     outerRadius: 500,
     getNodeAxis: (node: Node) => node.getPropertyValue('group')
-  } as const satisfies Readonly<Required<HivePlotLayoutProps>>;
+  } as const satisfies GraphLayoutDefaultProps<HivePlotLayoutProps>;
 
   _name = 'HivePlot';
   _graph: LegacyGraph;
@@ -27,14 +27,14 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   _nodePositionMap = {};
 
   constructor(props: HivePlotLayoutProps = {}) {
-    super({...HivePlotLayout.defaultProps, ...props});
+    super(props, HivePlotLayout.defaultProps);
   }
 
   initializeGraph(graph: LegacyGraph) {
-    this.updateGraph(graph);
+    this.setProps({graph});
   }
 
-  updateGraph(graph: LegacyGraph) {
+  protected override updateGraph(graph: LegacyGraph) {
     const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
     const nodes = Array.isArray(graph.getNodes())
@@ -145,7 +145,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   };
 
   lockNodePosition = (node, x, y) => {
-    this._nodePositionMap[node.id] = [x, y];
+    this._nodePositionMap[node.getId()] = [x, y];
     this._onLayoutChange();
     this._onLayoutDone();
   };

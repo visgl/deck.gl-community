@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutDefaultProps, GraphLayoutProps} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
 import {LegacyGraph} from '../../graph/legacy-graph';
@@ -21,7 +21,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     nBodyStrength: -1200,
     nBodyDistanceMin: 100,
     nBodyDistanceMax: 1400
-  } as const satisfies Readonly<Required<ForceMultiGraphLayoutProps>>;
+  } as const satisfies GraphLayoutDefaultProps<ForceMultiGraphLayoutProps>;
 
   _name = 'ForceMultiGraphLayout';
   _graph: LegacyGraph;
@@ -34,14 +34,11 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   _simulator;
 
   constructor(props: ForceMultiGraphLayoutProps = {}) {
-    super({
-      ...ForceMultiGraphLayout.defaultProps,
-      ...props
-    });
+    super(props, ForceMultiGraphLayout.defaultProps);
   }
 
   initializeGraph(graph: LegacyGraph): void {
-    this.updateGraph(graph);
+    this.setProps({graph});
   }
 
   _strength = (d3Edge) => {
@@ -100,7 +97,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
 
   update(): void {}
 
-  updateGraph(graph: LegacyGraph) {
+  protected override updateGraph(graph: LegacyGraph) {
     this._graph = graph;
 
     // nodes
@@ -109,9 +106,10 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
       ? (graph.getNodes() as Node[])
       : (Array.from(graph.getNodes()) as Node[]);
     const newD3Nodes = nodes.map((node) => {
-      const oldD3Node = this._nodeMap[node.id];
-      const newD3Node = oldD3Node ? oldD3Node : {id: node.id};
-      newNodeMap[node.id] = newD3Node;
+      const nodeId = node.getId();
+      const oldD3Node = this._nodeMap[nodeId];
+      const newD3Node = oldD3Node ? oldD3Node : {id: nodeId};
+      newNodeMap[nodeId] = newD3Node;
       return newD3Node;
     });
 
@@ -170,9 +168,10 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
       newD3Edges.push(newD3Edge);
 
       betweenEdges.forEach((e, idx) => {
-        newEdgeMap[e.id] = {
+        const edgeId = e.getId();
+        newEdgeMap[edgeId] = {
           type: 'spline-curve',
-          id: e.id,
+          id: edgeId,
           source: newNodeMap[e.getSourceNodeId()],
           target: newNodeMap[e.getTargetNodeId()],
           virtualEdgeId: pairId,
@@ -189,7 +188,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   }
 
   getNodePosition = (node: Node): [number, number] => {
-    const d3Node = this._nodeMap[node.id];
+    const d3Node = this._nodeMap[node.getId()];
     if (d3Node) {
       return [d3Node.x, d3Node.y];
     }
@@ -198,7 +197,8 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   };
 
   getEdgePosition = (edge) => {
-    const d3Edge = this._edgeMap[edge.id];
+    const edgeId = edge.getId();
+    const d3Edge = this._edgeMap[edgeId];
     if (d3Edge) {
       if (!d3Edge.isVirtual) {
         return {
@@ -246,7 +246,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   };
 
   lockNodePosition = (node, x, y) => {
-    const d3Node = this._nodeMap[node.id];
+    const d3Node = this._nodeMap[node.getId()];
     d3Node.x = x;
     d3Node.y = y;
     this._onLayoutChange();

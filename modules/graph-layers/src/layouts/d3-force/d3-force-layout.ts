@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutDefaultProps, GraphLayoutProps} from '../../core/graph-layout';
+import type {LegacyGraph} from '../../graph/legacy-graph';
 import {log} from '../../utils/log';
 
 export type D3ForceLayoutOptions = GraphLayoutProps & {
@@ -22,30 +23,32 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     nBodyDistanceMin: 100,
     nBodyDistanceMax: 400,
     getCollisionRadius: 0
-  } as const satisfies Readonly<Required<D3ForceLayoutOptions>>;
+  } as const satisfies GraphLayoutDefaultProps<D3ForceLayoutOptions>;
 
   protected readonly _name = 'D3';
   private _positionsByNodeId = new Map();
-  private _graph: any;
+  private _graph: LegacyGraph | null = null;
   private _worker: any;
 
-  constructor(props?: D3ForceLayoutOptions) {
-    super({
-      ...D3ForceLayout.defaultProps,
-      ...props
-    });
+  constructor(props: D3ForceLayoutOptions = {}) {
+    super(props, D3ForceLayout.defaultProps);
   }
 
-  initializeGraph(graph) {
-    this._graph = graph;
+  initializeGraph(graph: LegacyGraph) {
+    this.setProps({graph});
   }
 
   // for streaming new data on the same graph
-  updateGraph(graph) {
+  protected override updateGraph(graph: LegacyGraph) {
     this._graph = graph;
 
     this._positionsByNodeId = new Map(
-      this._graph.getNodes().map((node) => [node.id, this._positionsByNodeId.get(node.id)])
+      this._graph
+        .getNodes()
+        .map((node) => {
+          const nodeId = node.getId();
+          return [nodeId, this._positionsByNodeId.get(nodeId)];
+        })
     );
   }
 
@@ -65,19 +68,28 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       this._worker.terminate();
     }
 
+    if (!this._graph) {
+      return;
+    }
+
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
 
+    const options = (({graph: _graph, ...rest}) => rest)(this.props);
+
     this._worker.postMessage({
-      nodes: this._graph.getNodes().map((node) => ({
-        id: node.id,
-        ...this._positionsByNodeId.get(node.id)
-      })),
+      nodes: this._graph.getNodes().map((node) => {
+        const nodeId = node.getId();
+        return {
+          id: nodeId,
+          ...this._positionsByNodeId.get(nodeId)
+        };
+      }),
       edges: this._graph.getEdges().map((edge) => ({
-        id: edge.id,
+        id: edge.getId(),
         source: edge.getSourceNodeId(),
         target: edge.getTargetNodeId()
       })),
-      options: this.props
+      options
     });
 
     this._worker.onmessage = (event) => {
@@ -111,6 +123,10 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   }
 
   getEdgePosition = (edge) => {
+    if (!this._graph) {
+      return null;
+    }
+
     const sourceNode = this._graph.findNode(edge.getSourceNodeId());
     const targetNode = this._graph.findNode(edge.getTargetNodeId());
     if (!sourceNode || !targetNode) {
@@ -137,7 +153,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       return null;
     }
 
-    const d3Node = this._positionsByNodeId.get(node.id);
+    const d3Node = this._positionsByNodeId.get(node.getId());
     if (d3Node) {
       return d3Node.coordinates;
     }
@@ -146,8 +162,9 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   };
 
   lockNodePosition = (node, x, y) => {
-    const d3Node = this._positionsByNodeId.get(node.id);
-    this._positionsByNodeId.set(node.id, {
+    const nodeId = node.getId();
+    const d3Node = this._positionsByNodeId.get(nodeId);
+    this._positionsByNodeId.set(nodeId, {
       ...d3Node,
       x,
       y,
@@ -160,7 +177,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   };
 
   unlockNodePosition = (node) => {
-    const d3Node = this._positionsByNodeId.get(node.id);
+    const d3Node = this._positionsByNodeId.get(node.getId());
     d3Node.fx = null;
     d3Node.fy = null;
   };

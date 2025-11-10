@@ -245,8 +245,10 @@ export class GraphEngine extends EventTarget {
 
   _updateLayout = () => {
     log.log(0, 'GraphEngine: layout update');
-    this._layout.updateGraph(this._graph);
-    this._layout.update();
+    const shouldUpdate = this._layout.setProps({graph: this._graph});
+    if (shouldUpdate) {
+      this._layout.update();
+    }
     this._layoutDirty = false;
   };
 

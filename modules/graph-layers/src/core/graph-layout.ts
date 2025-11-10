@@ -17,7 +17,18 @@ export type GraphLayoutEventDetail = {
   bounds: Bounds2D | null;
 };
 
-export type GraphLayoutProps = {};
+export type GraphLayoutProps = {
+  /**
+   * Graph data consumed by this layout instance.
+   *
+   * External callers should update the layout's graph by calling {@link setProps}
+   * with a new `graph` value instead of invoking {@link updateGraph} directly.
+   */
+  graph?: LegacyGraph;
+};
+
+export type GraphLayoutDefaultProps<PropsT extends GraphLayoutProps> =
+  Omit<Required<PropsT>, 'graph'> & Pick<GraphLayoutProps, 'graph'>;
 
 /** All the layout classes are extended from this base layout class. */
 export abstract class GraphLayout<
@@ -26,7 +37,9 @@ export abstract class GraphLayout<
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration props of the layout. */
-  protected props: Required<PropsT>;
+  protected props: GraphLayoutDefaultProps<PropsT>;
+  /** Baseline configuration that new props are merged against. */
+  private readonly _defaultProps: GraphLayoutDefaultProps<PropsT>;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -43,9 +56,46 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
-  constructor(props: GraphLayoutProps, defaultProps?: Required<PropsT>) {
+  constructor(props: GraphLayoutProps, defaultProps?: GraphLayoutDefaultProps<PropsT>) {
     super();
-    this.props = {...defaultProps, ...props};
+    this._defaultProps = defaultProps
+      ? {...defaultProps}
+      : ({} as GraphLayoutDefaultProps<PropsT>);
+    this.props = {...this._defaultProps, ...props} as GraphLayoutDefaultProps<PropsT>;
+  }
+
+  setProps(partial: Partial<PropsT>): boolean {
+    if (!partial || Object.keys(partial).length === 0) {
+      return false;
+    }
+
+    const nextProps = {
+      ...this._defaultProps,
+      ...this.props,
+      ...partial
+    } as GraphLayoutDefaultProps<PropsT>;
+    const validatedProps = this._validateProps(nextProps);
+    const previousProps = this.props;
+    const changedProps = this._getChangedProps(previousProps, validatedProps, partial);
+
+    if (!changedProps) {
+      return false;
+    }
+
+    this.props = validatedProps;
+
+    if ('graph' in changedProps) {
+      const graph = (changedProps as Partial<GraphLayoutProps>).graph;
+      if (graph) {
+        this.updateGraph(graph);
+      }
+    }
+
+    this._onPropsUpdated(previousProps, validatedProps, changedProps);
+
+    return 'graph' in changedProps
+      ? true
+      : this._shouldRecomputeLayout(previousProps, validatedProps, changedProps);
   }
 
   /**
@@ -101,7 +151,7 @@ export abstract class GraphLayout<
   /** first time to pass the graph data into this layout */
   abstract initializeGraph(graph: LegacyGraph);
   /** update the existing graph */
-  abstract updateGraph(graph: LegacyGraph);
+  protected abstract updateGraph(graph: LegacyGraph): void;
   /** start the layout calculation */
   abstract start();
   /** update the layout calculation */
@@ -113,6 +163,71 @@ export abstract class GraphLayout<
 
 
   // INTERNAL METHODS
+
+  /** Allow subclasses to coerce or validate the next props object. */
+  // eslint-disable-next-line class-methods-use-this
+  protected _validateProps(
+    nextProps: GraphLayoutDefaultProps<PropsT>
+  ): GraphLayoutDefaultProps<PropsT> {
+    return nextProps;
+  }
+
+  /**
+   * Hook invoked after props are committed. Subclasses can perform additional
+   * bookkeeping or cache invalidation in response to the change.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, class-methods-use-this
+  protected _onPropsUpdated(
+    previousProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    nextProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    changedProps: Partial<PropsT>
+  ): void {}
+
+  /**
+   * Determine whether the layout should recompute after the supplied change.
+   *
+   * Subclasses can override to defer work if a prop change does not influence
+   * the resulting layout.
+   */
+  protected _shouldRecomputeLayout(
+    previousProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    nextProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    changedProps: Partial<PropsT>
+  ): boolean {
+    return Object.keys(changedProps).length > 0;
+  }
+
+  private _getChangedProps(
+    previousProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    nextProps: Readonly<GraphLayoutDefaultProps<PropsT>>,
+    partial: Partial<PropsT>
+  ): Partial<PropsT> | null {
+    const changedProps: Partial<PropsT> = {};
+    let changed = false;
+
+    type DefaultKey = keyof GraphLayoutDefaultProps<PropsT>;
+    type PropsKey = Extract<DefaultKey, keyof PropsT>;
+
+    for (const key of Object.keys(partial) as PropsKey[]) {
+      const defaultKey = key as DefaultKey;
+      const nextValue = nextProps[defaultKey];
+      if (key === 'graph') {
+        // Always treat graph updates as significant so layout caches refresh.
+        changedProps[key] = nextValue as PropsT[typeof key];
+        changed = true;
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const previousValue = previousProps[defaultKey];
+      if (previousValue !== nextValue) {
+        changedProps[key] = nextValue as PropsT[typeof key];
+        changed = true;
+      }
+    }
+
+    return changed ? changedProps : null;
+  }
 
   /** Hook for subclasses to update bounds prior to emitting events. */
   // eslint-disable-next-line @typescript-eslint/no-empty-function

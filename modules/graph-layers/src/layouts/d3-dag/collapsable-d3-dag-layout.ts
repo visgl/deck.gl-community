@@ -6,6 +6,7 @@
 
 import type {LegacyGraph} from '../../graph/legacy-graph';
 import type {NodeInterface, EdgeInterface} from '../../graph/graph';
+import {GraphLayoutDefaultProps} from '../../core/graph-layout';
 import {log} from '../../utils/log';
 
 import {D3DagLayout, type D3DagLayoutProps} from './d3-dag-layout';
@@ -23,10 +24,10 @@ export type CollapsableD3DagLayoutProps = D3DagLayoutProps & {
 }
 
 export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutProps> {
-  static override defaultProps: Required<CollapsableD3DagLayoutProps> = {
+  static override defaultProps = {
     ...D3DagLayout.defaultProps,
     collapseLinearChains: false
-  }
+  } as const satisfies GraphLayoutDefaultProps<CollapsableD3DagLayoutProps>;
 
   private _chainDescriptors = new Map<string, CollapsedChainDescriptor>();
   private _nodeToChainId = new Map<string | number, string>();
@@ -37,14 +38,15 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
     super(props, CollapsableD3DagLayout.defaultProps);
   }
 
-  override setProps(props: Partial<CollapsableD3DagLayoutProps>): void {
-    super.setProps(props);
+  override setProps(props: Partial<CollapsableD3DagLayoutProps>): boolean {
+    const shouldUpdate = super.setProps(props);
     if (props.collapseLinearChains !== undefined && this._graph) {
       this._runLayout();
     }
+    return shouldUpdate;
   }
 
-  override updateGraph(graph: LegacyGraph): void {
+  protected override updateGraph(graph: LegacyGraph): void {
     super.updateGraph(graph);
     this._chainDescriptors.clear();
     this._nodeToChainId.clear();
