@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
 
 export type GPUForceLayoutOptions = GraphLayoutProps & {
   alpha?: number;
@@ -18,6 +18,7 @@ export type GPUForceLayoutOptions = GraphLayoutProps & {
  */
 export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   static defaultProps: Required<GPUForceLayoutOptions> = {
+    ...GRAPH_LAYOUT_DEFAULT_PROPS,
     alpha: 0.3,
     resumeAlpha: 0.1,
     nBodyStrength: -900,
@@ -34,15 +35,9 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   private _worker: Worker | null = null;
 
   constructor(options: GPUForceLayoutOptions = {}) {
-    const props = {
-      ...GPUForceLayout.defaultProps,
-      ...options
-    };
-
-    super(props);
+    super(options, GPUForceLayout.defaultProps);
 
     this._name = 'GPU';
-    this.props = props;
     // store graph and prepare internal data
     this._d3Graph = {nodes: [], edges: []};
     this._nodeMap = {};

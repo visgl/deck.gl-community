@@ -24,6 +24,13 @@ export type GraphLayoutProps = {
   onLayoutError?: (error?: unknown) => void;
 };
 
+export const GRAPH_LAYOUT_DEFAULT_PROPS: Readonly<Required<GraphLayoutProps>> = {
+  onLayoutStart: undefined,
+  onLayoutChange: undefined,
+  onLayoutDone: undefined,
+  onLayoutError: undefined
+};
+
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
 > {
@@ -47,8 +54,12 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
-  constructor(props: PropsT = {} as PropsT, defaultProps?: PropsT) {
-    this.props = {...(defaultProps ?? ({} as PropsT)), ...props};
+  constructor(props: PropsT = {} as PropsT, defaultProps?: Partial<PropsT>) {
+    this.props = {
+      ...(GRAPH_LAYOUT_DEFAULT_PROPS as PropsT),
+      ...(defaultProps ?? ({} as PropsT)),
+      ...props
+    };
   }
 
   getProps(): PropsT {
