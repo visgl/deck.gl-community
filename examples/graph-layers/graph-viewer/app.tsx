@@ -58,50 +58,60 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
 };
 
 
-const INITIAL_LOADING_STATE = {loaded: false, rendered: false, isLoading: true};
+type LoadingState = {loaded: boolean; rendered: boolean; isLoading: boolean};
 
-const loadingReducer = (state, action) => {
-  switch (action.type) {
-    case 'startLayout':
-      return {loaded: false, rendered: false, isLoading: true};
-    case 'layoutDone':
-      return state.loaded ? state : {...state, loaded: true};
-    case 'afterRender':
-      if (!state.loaded) {
-        return state;
-      }
+const INITIAL_LOADING_STATE: LoadingState = {loaded: false, rendered: false, isLoading: true};
 
-      // not interested after the first render, the state won't change
-      return state.rendered ? state : {...state, rendered: true, isLoading: false};
-    default:
-      throw new Error(`Unhandled action type: ${action.type}`);
-  }
+type DagChainSummary = {chainIds: string[]; collapsedIds: string[]};
+
+type AppState = {
+  selectedExample: ExampleDefinition | undefined;
+  selectedLayout: LayoutType;
+  layoutOverrides: Partial<Record<LayoutType, Record<string, unknown>>>;
+  collapseEnabled: boolean;
+  dagChainSummary: DagChainSummary | null;
+  stylesheetValue: string;
+  loading: LoadingState;
 };
 
-export const useLoading = (eventSource: EventTarget | null) => {
-  const [state, setState] = useState(INITIAL_LOADING_STATE);
-  const loadingDispatch = useCallback((action) => {
-    setState((current) => loadingReducer(current, action));
-  }, []);
+const createStylesheetValue = (style: ExampleDefinition['style'] | undefined): string => {
+  if (!style) {
+    return DEFAULT_STYLESHEET_MESSAGE;
+  }
 
-  useLayoutEffect(() => {
-    if (!eventSource) {
-      return () => undefined;
-    }
+  return JSON.stringify(
+    style,
+    (_key, value) => (typeof value === 'function' ? value.toString() : value),
+    2
+  );
+};
 
-    const layoutStarted = () => loadingDispatch({type: 'startLayout'});
-    const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
+const createInitialState = (
+  example: ExampleDefinition | undefined,
+  layoutType: LayoutType
+): AppState => ({
+  selectedExample: example,
+  selectedLayout: layoutType,
+  layoutOverrides: {},
+  collapseEnabled: true,
+  dagChainSummary: null,
+  stylesheetValue: createStylesheetValue(example?.style),
+  loading: INITIAL_LOADING_STATE
+});
 
-    eventSource.addEventListener('onLayoutStart', layoutStarted);
-    eventSource.addEventListener('onLayoutDone', layoutEnded);
+const areArraysEqual = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index]);
 
-    return () => {
-      eventSource.removeEventListener('onLayoutStart', layoutStarted);
-      eventSource.removeEventListener('onLayoutDone', layoutEnded);
-    };
-  }, [eventSource, loadingDispatch]);
+const areDagSummariesEqual = (a: DagChainSummary | null, b: DagChainSummary | null) => {
+  if (a === b) {
+    return true;
+  }
 
-  return [state, loadingDispatch];
+  if (!a || !b) {
+    return !a && !b;
+  }
+
+  return areArraysEqual(a.chainIds, b.chainIds) && areArraysEqual(a.collapsedIds, b.collapsedIds);
 };
 
 type AppProps = {
@@ -120,22 +130,31 @@ export function App({graphType}: AppProps) {
   );
   const defaultLayout = defaultExample?.layouts[0] ?? 'd3-force-layout';
 
-  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(
-    () => defaultExample
+  const [appState, setAppState] = useState<AppState>(() =>
+    createInitialState(defaultExample, defaultLayout)
   );
-  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(() => defaultLayout);
-  const [collapseEnabled, setCollapseEnabled] = useState(true);
-  const [layoutOverrides, setLayoutOverrides] = useState<
-    Partial<Record<LayoutType, Record<string, unknown>>>
-  >({});
-  const [dagChainSummary, setDagChainSummary] = useState<
-    {chainIds: string[]; collapsedIds: string[]}
-    | null>(null);
+
+  const {
+    selectedExample,
+    selectedLayout,
+    layoutOverrides,
+    collapseEnabled,
+    dagChainSummary,
+    stylesheetValue,
+    loading
+  } = appState;
 
   useEffect(() => {
-    setSelectedExample(defaultExample);
-    setSelectedLayout(defaultLayout);
-    setLayoutOverrides({});
+    setAppState((current) => {
+      const nextState = createInitialState(defaultExample, defaultLayout);
+      if (
+        current.selectedExample === nextState.selectedExample &&
+        current.selectedLayout === nextState.selectedLayout
+      ) {
+        return current;
+      }
+      return nextState;
+    });
   }, [defaultExample, defaultLayout]);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
@@ -167,7 +186,6 @@ export function App({graphType}: AppProps) {
     const factory = LAYOUT_FACTORIES[selectedLayout];
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
-  const isFirstMount = useRef(true);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
   const selectedStyles = selectedExample?.style;
 
@@ -183,25 +201,28 @@ export function App({graphType}: AppProps) {
     );
   }, [selectedStyles]);
 
-  const [stylesheetValue, setStylesheetValue] = useState(
-    serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE
-  );
   const stylesheetDraftRef = useRef<string>(stylesheetValue);
 
   useEffect(() => {
+    stylesheetDraftRef.current = stylesheetValue;
+  }, [stylesheetValue]);
+
+  useEffect(() => {
     const nextValue = serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE;
-    setStylesheetValue(nextValue);
     stylesheetDraftRef.current = nextValue;
+    setAppState((current) =>
+      current.stylesheetValue === nextValue ? current : {...current, stylesheetValue: nextValue}
+    );
   }, [serializedStylesheet]);
 
   const handleStylesheetChange = useCallback((nextValue: string) => {
     stylesheetDraftRef.current = nextValue;
-    setStylesheetValue(nextValue);
+    setAppState((current) => ({...current, stylesheetValue: nextValue}));
   }, []);
 
   const handleStylesheetSubmit = useCallback((nextValue: string) => {
     stylesheetDraftRef.current = nextValue;
-    setStylesheetValue(nextValue);
+    setAppState((current) => ({...current, stylesheetValue: nextValue}));
   }, []);
 
   // eslint-disable-next-line no-console
@@ -237,8 +258,7 @@ export function App({graphType}: AppProps) {
     []
   );
 
-  const [loadingState, loadingDispatch] = useLoading(layout);
-  const {isLoading} = loadingState;
+  const {isLoading} = loading;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
 
@@ -267,9 +287,11 @@ export function App({graphType}: AppProps) {
 
   useEffect(() => {
     if (isDagLayout) {
-      setCollapseEnabled(true);
+      setAppState((current) =>
+        current.collapseEnabled ? current : {...current, collapseEnabled: true}
+      );
     }
-  }, [isDagLayout, selectedExample]);
+  }, [isDagLayout]);
 
   useEffect(() => {
     if (!dagLayout) {
@@ -283,7 +305,12 @@ export function App({graphType}: AppProps) {
 
   useEffect(() => {
     if (!graph || !dagLayout) {
-      setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
+      setAppState((current) => {
+        const nextSummary = isDagLayout ? {chainIds: [], collapsedIds: []} : null;
+        return areDagSummariesEqual(current.dagChainSummary, nextSummary)
+          ? current
+          : {...current, dagChainSummary: nextSummary};
+      });
       return;
     }
 
@@ -312,7 +339,12 @@ export function App({graphType}: AppProps) {
         }
       }
 
-      setDagChainSummary({chainIds, collapsedIds});
+      setAppState((current) => {
+        const nextSummary = {chainIds, collapsedIds};
+        return areDagSummariesEqual(current.dagChainSummary, nextSummary)
+          ? current
+          : {...current, dagChainSummary: nextSummary};
+      });
     };
 
     updateChainSummary();
@@ -329,7 +361,7 @@ export function App({graphType}: AppProps) {
   }, [graph, dagLayout, isDagLayout]);
 
   const handleToggleCollapseEnabled = useCallback(() => {
-    setCollapseEnabled((value) => !value);
+    setAppState((current) => ({...current, collapseEnabled: !current.collapseEnabled}));
   }, []);
 
   const handleCollapseAll = useCallback(() => {
@@ -386,16 +418,59 @@ export function App({graphType}: AppProps) {
     zoomWidget?.setProps({minZoom, maxZoom});
   }, [widgets, minZoom, maxZoom]);
   const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
-    setSelectedExample(example);
-    setSelectedLayout(layoutType);
+    setAppState((current) => ({
+      ...current,
+      selectedExample: example,
+      selectedLayout: layoutType
+    }));
   }, []);
 
   const handleApplyLayoutOptions = useCallback(
     (layoutType: LayoutType, options: Record<string, unknown>) => {
-      setLayoutOverrides((current) => ({...current, [layoutType]: options}));
+      setAppState((current) => ({
+        ...current,
+        layoutOverrides: {...current.layoutOverrides, [layoutType]: options}
+      }));
     },
     []
   );
+
+  useLayoutEffect(() => {
+    if (!layout) {
+      return () => undefined;
+    }
+
+    const handleLayoutStart = () => {
+      setAppState((current) => ({...current, loading: INITIAL_LOADING_STATE}));
+    };
+    const handleLayoutDone = () => {
+      setAppState((current) => {
+        if (current.loading.loaded) {
+          return current;
+        }
+        return {...current, loading: {...current.loading, loaded: true}};
+      });
+    };
+
+    layout.addEventListener('onLayoutStart', handleLayoutStart);
+    layout.addEventListener('onLayoutDone', handleLayoutDone);
+
+    return () => {
+      layout.removeEventListener('onLayoutStart', handleLayoutStart);
+      layout.removeEventListener('onLayoutDone', handleLayoutDone);
+    };
+  }, [layout]);
+
+  const handleAfterRender = useCallback(() => {
+    setAppState((current) => {
+      const {loaded, rendered} = current.loading;
+      if (!loaded || rendered) {
+        return current;
+      }
+
+      return {...current, loading: {...current.loading, rendered: true, isLoading: false}};
+    });
+  }, []);
 
   return (
     <div
@@ -434,11 +509,7 @@ export function App({graphType}: AppProps) {
         ) : null}
         <DeckGL
           onError={(error) => console.error(error)}
-          onAfterRender={() => {
-            if (!loadingState.rendered) {
-              loadingDispatch({type: 'afterRender'});
-            }
-          }}
+          onAfterRender={handleAfterRender}
           width="100%"
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
