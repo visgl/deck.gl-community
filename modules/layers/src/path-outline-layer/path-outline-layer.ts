@@ -73,9 +73,14 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
 
     // Create an outline "shadow" map
     // TODO - we should create a single outlineMap for all layers
+    const dummyTexture = context.device.createTexture({width: 1, height: 1});
+    const outlineFramebuffer = context.device.createFramebuffer({
+      colorAttachments: [dummyTexture]
+    });
+
     this.setState({
-      outlineFramebuffer: context.device.createFramebuffer({}),
-      dummyTexture: context.device.createTexture({width: 1, height: 1})
+      outlineFramebuffer,
+      dummyTexture
     });
 
     // Create an attribute manager
