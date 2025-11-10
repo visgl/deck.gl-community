@@ -18,12 +18,12 @@ import TabItem from '@theme/TabItem';
 
 ```js
 import {Deck} from '@deck.gl/core';
-import {GlobalGridLayer, A5Decoder} from '@deck.gl/geo-layers';
+import {GlobalGridLayer, A5Grid} from '@deck.gl/geo-layers';
 
-const layer = new SGGSLayer({
+const layer = new GlobalGridLayer({
   id: 'GlobalGridLayer',
   data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/sf.bike.parking.a5.json',
-  globalGrid: A5Decoder,
+  globalGrid: A5Grid,
 
   extruded: true,
   getPentagon: f => f.pentagon,
@@ -53,7 +53,7 @@ new Deck({
 
 ```ts
 import {Deck, PickingInfo} from '@deck.gl/core';
-import {GlobalGridLayer} from '@deck.gl/geo-layers';
+import {GlobalGridLayer, A5Grid} from '@deck.gl/geo-layers';
 
 type DataType = {
   pentagon: string;
@@ -63,7 +63,7 @@ type DataType = {
 const layer = new GlobalGridLayer<DataType>({
   id: 'GlobalGridLayer',
   data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/sf.bike.parking.a5.json',
-  globalGrid: A5Decoder,
+  globalGrid: A5Grid,
 
   extruded: true,
   getPentagon: (f: DataType) => f.pentagon,
@@ -94,7 +94,7 @@ new Deck({
 ```tsx
 import React from 'react';
 import {DeckGL} from '@deck.gl/react';
-import {GlobalGridLayer} from '@deck.gl/geo-layers';
+import {GlobalGridLayer, A5Grid} from '@deck.gl/geo-layers';
 import type {PickingInfo} from '@deck.gl/core';
 
 type DataType = {
@@ -106,7 +106,7 @@ function App() {
   const layer = new GlobalGridLayer<DataType>({
     id: 'GlobalGridLayer',
     data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/sf.bike.parking.a5.json',
-    globalGrid: A5Decoder,
+    globalGrid: A5Grid,
 
     extruded: true,
     getPentagon: (f: DataType) => f.pentagon,
