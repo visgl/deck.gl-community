@@ -17069,6 +17069,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"path-marker-outline-f6deca@workspace:examples/layers/path-marker-outline":
+  version: 0.0.0-use.local
+  resolution: "path-marker-outline-f6deca@workspace:examples/layers/path-marker-outline"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.2.1"
+    "@deck.gl/layers": "npm:~9.2.1"
+    "@deck.gl/react": "npm:~9.2.1"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    vite: "npm:7.1.1"
+  languageName: unknown
+  linkType: soft
+
 "path-parse@npm:^1.0.7":
   version: 1.0.7
   resolution: "path-parse@npm:1.0.7"
