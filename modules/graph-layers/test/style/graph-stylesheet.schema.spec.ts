@@ -5,7 +5,7 @@
 import {afterEach, describe, it, expect, vi} from 'vitest';
 
 import {
-  GraphStyleEngine,
+  GraphStylesheetEngine,
   GraphStylesheetSchema,
   type GraphStylesheet
 } from '../../src/style/graph-style-engine';
@@ -34,7 +34,7 @@ describe('GraphStylesheetSchema', () => {
     };
 
     expect(() => GraphStylesheetSchema.parse(stylesheet)).not.toThrow();
-    expect(() => new GraphStyleEngine(stylesheet)).not.toThrow();
+    expect(() => new GraphStylesheetEngine(stylesheet)).not.toThrow();
   });
 
   it('reports unknown properties', () => {
@@ -50,7 +50,7 @@ describe('GraphStylesheetSchema', () => {
     );
 
     const warnSpy = mockWarn();
-    const stylesheet = new GraphStyleEngine(invalidStylesheet);
+    const stylesheet = new GraphStylesheetEngine(invalidStylesheet);
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('Unknown style property "foo"')
     );
@@ -74,7 +74,7 @@ describe('GraphStylesheetSchema', () => {
     expect(messages.some((message) => /Unrecognized key/.test(message) && message.includes('unknown'))).toBe(true);
 
     const warnSpy = mockWarn();
-    const stylesheet = new GraphStyleEngine(invalidSelectorStylesheet);
+    const stylesheet = new GraphStylesheetEngine(invalidSelectorStylesheet);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/:hover/));
     const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
     const fillValue = typeof getFillColor === 'function' ? getFillColor({state: 'hover'}) : getFillColor;
@@ -97,7 +97,7 @@ describe('GraphStylesheetSchema', () => {
     );
 
     const warnSpy = mockWarn();
-    const stylesheet = new GraphStyleEngine(invalidAttributeReference);
+    const stylesheet = new GraphStylesheetEngine(invalidAttributeReference);
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('radius.attribute')
     );

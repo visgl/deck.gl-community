@@ -1,7 +1,7 @@
 {
   "name": "editable-layers-example-code-sandbox-world-heritage",
   "dependencies": {
-    "@deck.gl-community/react": "~9.2.0",
+    "@deck.gl-community/react": "workspace:*",
     "@deck.gl/core": "~9.2.1",
     "@deck.gl/react": "~9.2.1",
     "@turf/helpers": "^6.5.0",

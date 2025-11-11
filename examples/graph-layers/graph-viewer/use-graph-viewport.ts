@@ -4,7 +4,7 @@
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 
-import type {GraphEngine, GraphLayoutEventDetail} from '@deck.gl-community/graph-layers';
+import type {GraphEngine, GraphLayout, GraphLayoutEventDetail} from '@deck.gl-community/graph-layers';
 import type {Bounds2D} from '@math.gl/types';
 
 type UseGraphViewportOptions = {
@@ -20,8 +20,26 @@ type UseGraphViewportOptions = {
 
 const EPSILON = 1e-6;
 
+type LayoutEventSource = GraphEngine | GraphLayout | null;
+
+function getEventSourceBounds(source: LayoutEventSource): Bounds2D | null {
+  if (!source) {
+    return null;
+  }
+
+  if ('getLayoutBounds' in source && typeof source.getLayoutBounds === 'function') {
+    return source.getLayoutBounds();
+  }
+
+  if ('getBounds' in source && typeof source.getBounds === 'function') {
+    return source.getBounds();
+  }
+
+  return null;
+}
+
 export function useGraphViewport(
-  engine: GraphEngine | null,
+  eventSource: LayoutEventSource,
   {minZoom, maxZoom, viewportPadding, boundsPaddingRatio, initialViewState}: UseGraphViewportOptions
 ) {
   const [viewState, setViewState] = useState(() => ({
@@ -31,11 +49,11 @@ export function useGraphViewport(
 
   const fitBounds = useCallback(
     (incomingBounds?: Bounds2D | null) => {
-      if (!engine) {
+      if (!eventSource) {
         return;
       }
 
-      const bounds = incomingBounds ?? engine.getLayoutBounds();
+      const bounds = incomingBounds ?? getEventSourceBounds(eventSource);
       if (!bounds) {
         return;
       }
@@ -94,46 +112,65 @@ export function useGraphViewport(
         };
       });
     },
-    [engine, boundsPaddingRatio, viewportPadding, minZoom, maxZoom]
+    [eventSource, boundsPaddingRatio, viewportPadding, minZoom, maxZoom]
   );
 
   useEffect(() => {
     latestBoundsRef.current = null;
-  }, [engine]);
+  }, [eventSource]);
+
+  const handleLayoutEvent = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      fitBounds(detail?.bounds ?? null);
+    },
+    [fitBounds]
+  );
 
   useEffect(() => {
-    if (!engine) {
+    if (!eventSource || 'getLayoutBounds' in (eventSource as GraphEngine)) {
       return () => undefined;
     }
 
-    const handleLayoutEvent = (event: Event) => {
-      const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-      fitBounds(detail?.bounds ?? null);
-    };
+    const layout = eventSource as GraphLayout;
+    const previous = layout.getProps();
 
-    engine.addEventListener('onLayoutStart', handleLayoutEvent);
-    engine.addEventListener('onLayoutChange', handleLayoutEvent);
-    engine.addEventListener('onLayoutDone', handleLayoutEvent);
+    layout.setProps({
+      onLayoutStart: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutStart?.(detail);
+      },
+      onLayoutChange: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutChange?.(detail);
+      },
+      onLayoutDone: (detail) => {
+        handleLayoutEvent(detail);
+        previous.onLayoutDone?.(detail);
+      }
+    });
 
     return () => {
-      engine.removeEventListener('onLayoutStart', handleLayoutEvent);
-      engine.removeEventListener('onLayoutChange', handleLayoutEvent);
-      engine.removeEventListener('onLayoutDone', handleLayoutEvent);
+      layout.setProps({
+        onLayoutStart: previous.onLayoutStart,
+        onLayoutChange: previous.onLayoutChange,
+        onLayoutDone: previous.onLayoutDone,
+        onLayoutError: previous.onLayoutError
+      });
     };
-  }, [engine, fitBounds]);
+  }, [eventSource, handleLayoutEvent]);
 
   const {width, height} = viewState as any;
 
   useEffect(() => {
-    if (!engine || !width || !height) {
+    if (!eventSource || !width || !height) {
       return;
     }
 
-    const bounds = latestBoundsRef.current ?? engine.getLayoutBounds();
+    const bounds = latestBoundsRef.current ?? getEventSourceBounds(eventSource);
     if (bounds) {
       fitBounds(bounds);
     }
-  }, [engine, fitBounds, width, height]);
+  }, [eventSource, fitBounds, width, height]);
 
   const onResize = useCallback(({width, height}: {width: number; height: number}) => {
     setViewState((prev) => ({
@@ -151,9 +188,17 @@ export function useGraphViewport(
     }));
   }, []);
 
+  const layoutCallbacks = {
+    onLayoutStart: handleLayoutEvent,
+    onLayoutChange: handleLayoutEvent,
+    onLayoutDone: handleLayoutEvent
+  } as const;
+
   return {
     viewState,
     onResize,
-    onViewStateChange
+    onViewStateChange,
+    fitBounds,
+    layoutCallbacks
   };
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {useLayoutEffect, useReducer} from 'react';
+import {useMemo, useReducer} from 'react';
 
 const loadingReducer = (state, action) => {
   switch (action.type) {
@@ -22,23 +22,16 @@ const loadingReducer = (state, action) => {
   }
 };
 
-export const useLoading = (engine) => {
+export const useLoading = () => {
   const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
 
-  useLayoutEffect(() => {
-    const layoutStarted = () => loadingDispatch({type: 'startLayout'});
-    const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
+  const callbacks = useMemo(
+    () => ({
+      onLayoutStart: () => loadingDispatch({type: 'startLayout'}),
+      onLayoutDone: () => loadingDispatch({type: 'layoutDone'})
+    }),
+    [loadingDispatch]
+  );
 
-    console.log('adding listeners')
-    engine.addEventListener('onLayoutStart', layoutStarted);
-    engine.addEventListener('onLayoutDone', layoutEnded);
-
-    return () => {
-      console.log('removing listeners')
-      engine.removeEventListener('onLayoutStart', layoutStarted);
-      engine.removeEventListener('onLayoutDone', layoutEnded);
-    };
-  }, [engine]);
-
-  return [{isLoading}, loadingDispatch];
+  return [{isLoading}, loadingDispatch, callbacks] as const;
 };

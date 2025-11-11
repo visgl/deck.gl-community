@@ -2,10 +2,7 @@
 
 `GraphLayer` accepts a single `stylesheet` prop that describes how every node,
 edge, and decorator should render. A stylesheet is a declarative bundle of
-**style layers** that the [`GraphStyleEngine`](./graph-style-engine.md) normalizes
-into Deck.gl accessors. Each entry focuses on *what* to draw, while the engine
-coerces values, wires update triggers, and fans the configuration out across the
-underlying Deck.gl primitives.
+**style layers** that the `GraphLayer` uses to render the graphics for nodes and edges.
 
 ## Top-level structure
 
@@ -33,11 +30,11 @@ structure and will be removed in a future release.
 Every style entry is a `GraphStylesheet<TType>` whose `type` narrows the set of
 supported properties:
 
-- **Node primitives** – `'circle'`, `'rectangle'`, `'rounded-rectangle'`,
+- **Node primitives** - `'circle'`, `'rectangle'`, `'rounded-rectangle'`,
   `'path-rounded-rectangle'`, `'label'`, `'marker'`, `'icon'` (alias of
   `'marker'`).
-- **Edge primitives** – `'edge'`.
-- **Edge decorators** – `'edge-label'`, `'flow'`, and `'arrow'`.
+- **Edge primitives** - `'edge'`.
+- **Edge decorators** - `'edge-label'`, `'flow'`, and `'arrow'`.
 
 ## Declarative values
 
@@ -128,7 +125,7 @@ properties:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `type` | string literal | – | Selects the primitive (`'circle'`, `'rectangle'`, `'label'`, etc.). |
+| `type` | string literal | - | Selects the primitive (`'circle'`, `'rectangle'`, `'label'`, etc.). |
 | `data` | `(nodes: any[]) => any` | `nodes => nodes` | Replace the data object passed to Deck.gl when a sublayer needs derived data. |
 | `visible` | `boolean` | `true` | Toggle the sublayer without removing it from the stylesheet. |
 | `opacity` | number \| accessor \| attribute binding | `1` | Multiplies the alpha channel produced by the primitive. |
@@ -221,8 +218,8 @@ Besides the [shared node options](#shared-node-properties), rectangles support:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `width` | constant \| accessor \| attribute binding | – (required) | Rectangle width in pixels. |
-| `height` | constant \| accessor \| attribute binding | – (required) | Rectangle height in pixels. |
+| `width` | constant \| accessor \| attribute binding | - (required) | Rectangle width in pixels. |
+| `height` | constant \| accessor \| attribute binding | - (required) | Rectangle height in pixels. |
 | `fill` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Interior color. |
 | `stroke` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Border color. |
 | `strokeWidth` | constant \| accessor \| attribute binding | `0` | Border width in pixels. |
@@ -415,7 +412,7 @@ following keys:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `text` | constant \| accessor \| attribute binding | – (required) | Text to display. Attribute strings such as `text: '@label'` read from node properties. |
+| `text` | constant \| accessor \| attribute binding | - (required) | Text to display. Attribute strings such as `text: '@label'` read from node properties. |
 | `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color. |
 | `fontSize` | constant \| accessor \| attribute binding | `12` | Font size in pixels. |
 | `textAnchor` | constant \| accessor \| attribute binding | `'middle'` | Horizontal alignment: `'start'`, `'middle'`, or `'end'`. |
@@ -461,7 +458,7 @@ Using selectors you can provide contextual hints:
 Edges are styled via the `stylesheet.edges` prop on `GraphLayer`. The legacy
 `edgeStyle` prop forwards to this shape but will be removed in a future release.
 Similar to nodes, a `GraphStylesheet` definition is normalized by the
-`GraphStyleEngine`, which resolves colors, attribute bindings, and interaction
+`GraphStylesheetEngine` (exported as `GraphStyleEngine`), which resolves colors, attribute bindings, and interaction
 states before feeding them into Deck.gl’s `LineLayer`.
 
 ```js
@@ -507,7 +504,7 @@ Adds text anchored near the edge’s midpoint. Internally this uses the same
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `text` | constant \| accessor \| attribute binding | – (required) | Label content. Attribute strings such as `text: '@weight'` pull from edge properties. |
+| `text` | constant \| accessor \| attribute binding | - (required) | Label content. Attribute strings such as `text: '@weight'` pull from edge properties. |
 | `color` | constant \| accessor \| attribute binding | black (`[0, 0, 0]`) | Font color. |
 | `fontSize` | constant \| accessor \| attribute binding | `12` | Font size in pixels. |
 | `textAnchor` | constant \| accessor \| attribute binding | `'middle'` | Horizontal alignment relative to the computed position. |

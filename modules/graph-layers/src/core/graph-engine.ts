@@ -4,67 +4,136 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {Node} from '../graph/node';
-import {Edge} from '../graph/edge';
-import {Graph} from '../graph/graph';
+import type {Graph, EdgeInterface, NodeInterface} from '../graph/graph';
+import {LegacyGraph, LegacyGraphLayoutAdapter} from '../graph/legacy-graph';
+import type {GraphRuntimeLayout} from './graph-runtime-layout';
 import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
+import {GraphStylesheetEngine, type GraphStylesheet} from '../style/graph-style-engine';
 
-export type GraphEngineProps = {
-  graph: Graph;
+type LegacyGraphEngineProps = {
+  graph: LegacyGraph;
   layout: GraphLayout;
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+  onTransactionStart?: () => void;
+  onTransactionEnd?: () => void;
+  onNodeAdded?: (node: NodeInterface) => void;
+  onNodeRemoved?: (node: NodeInterface) => void;
+  onNodeUpdated?: (node: NodeInterface) => void;
+  onEdgeAdded?: (edge: EdgeInterface) => void;
+  onEdgeRemoved?: (edge: EdgeInterface) => void;
+  onEdgeUpdated?: (edge: EdgeInterface) => void;
 };
 
-/** Graph engine controls the graph data and layout calculation */
-export class GraphEngine extends EventTarget {
-  props: Readonly<Required<GraphEngineProps>>;
+type InterfaceGraphEngineProps = {
+  graph: Graph;
+  layout: GraphRuntimeLayout;
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+  onTransactionStart?: () => void;
+  onTransactionEnd?: () => void;
+  onNodeAdded?: (node: NodeInterface) => void;
+  onNodeRemoved?: (node: NodeInterface) => void;
+  onNodeUpdated?: (node: NodeInterface) => void;
+  onEdgeAdded?: (edge: EdgeInterface) => void;
+  onEdgeRemoved?: (edge: EdgeInterface) => void;
+  onEdgeUpdated?: (edge: EdgeInterface) => void;
+};
 
+export type GraphEngineProps = LegacyGraphEngineProps | InterfaceGraphEngineProps;
+
+function isLegacyProps(props: GraphEngineProps): props is LegacyGraphEngineProps {
+  return props.graph instanceof LegacyGraph;
+}
+
+/** Graph engine controls the graph data and layout calculation */
+export class GraphEngine {
+  private _props: GraphEngineProps;
   private readonly _graph: Graph;
-  private readonly _layout: GraphLayout;
-  private readonly _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
+  private readonly _layout: GraphRuntimeLayout;
+  private readonly _cache = new Cache<'nodes' | 'edges', NodeInterface[] | EdgeInterface[]>();
   private _layoutDirty = false;
   private _transactionInProgress = false;
+  private _graphCallbacksAttached = false;
+  private _layoutCallbacksAttached = false;
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
-  constructor(graph: Graph, layout: GraphLayout);
+  constructor(graph: LegacyGraph, layout: GraphLayout);
 
-  constructor(props: GraphEngineProps | Graph, layout?: GraphLayout) {
-    super();
-    if (props instanceof Graph) {
-      props = {
-        graph: props,
-        layout
-      };
+  constructor(props: GraphEngineProps | LegacyGraph, layout?: GraphLayout) {
+    let normalizedProps: GraphEngineProps;
+    if (props instanceof LegacyGraph) {
+      if (!(layout instanceof GraphLayout)) {
+        throw new Error('GraphEngine: legacy graphs require a GraphLayout instance.');
+      }
+      normalizedProps = {graph: props, layout};
+    } else {
+      normalizedProps = props;
     }
 
-    this.props = props;
-    this._graph = props.graph;
-    this._layout = props.layout;
+    this._props = {...normalizedProps};
+
+    if (isLegacyProps(normalizedProps)) {
+      const layoutAdapter = new LegacyGraphLayoutAdapter(normalizedProps.layout);
+      this._graph = normalizedProps.graph;
+      this._layout = layoutAdapter;
+    } else {
+      this._graph = normalizedProps.graph;
+      this._layout = normalizedProps.layout;
+    }
+  }
+
+  get props(): GraphEngineProps {
+    return {...this._props};
+  }
+
+  setProps(props: Partial<Omit<GraphEngineProps, 'graph' | 'layout'>>): void {
+    this._props = {
+      ...this._props,
+      ...props,
+      graph: this._props.graph,
+      layout: this._props.layout
+    } as GraphEngineProps;
   }
 
   /** Getters */
 
-  getNodes = (): Node[] => {
+  getNodes = (): NodeInterface[] => {
     this._updateCache('nodes', () =>
-      this._graph.getNodes().filter((node) => this.getNodePosition(node))
+      Array.from(this._graph.getNodes()).filter((node) => {
+        const position = this.getNodePosition(node);
+        return position !== null && position !== undefined;
+      })
     );
 
-    return this._cache.get('nodes') as Node[];
+    return (this._cache.get('nodes') as NodeInterface[]) ?? [];
   };
 
   getEdges = () => {
     this._updateCache('edges', () =>
-      this._graph.getEdges().filter((edge) => this.getEdgePosition(edge))
+      Array.from(this._graph.getEdges()).filter((edge) => {
+        const layout = this.getEdgePosition(edge);
+        return layout !== null && layout !== undefined;
+      })
     );
 
-    return this._cache.get('edges') as Edge[];
+    return (this._cache.get('edges') as EdgeInterface[]) ?? [];
   };
 
-  getNodePosition = (node: Node) => this._layout.getNodePosition(node);
+  getNodePosition = (node: NodeInterface) => {
+    return this._layout.getNodePosition(node) ?? null;
+  };
 
-  getEdgePosition = (edge: Edge) => this._layout.getEdgePosition(edge);
+  getEdgePosition = (edge: EdgeInterface) => {
+    return this._layout.getEdgePosition(edge) ?? null;
+  };
 
   getGraphVersion = () => this._graph.version;
 
@@ -72,77 +141,74 @@ export class GraphEngine extends EventTarget {
 
   getLayoutState = () => this._layout.state;
 
-  getLayoutBounds = (): Bounds2D | null => this._layout.getBounds();
+  getLayoutBounds = (): Bounds2D | null => this._layout.getBounds() ?? null;
 
   /** Operations on the graph */
 
-  lockNodePosition = (node, x, y) => this._layout.lockNodePosition(node, x, y);
+  lockNodePosition = (node: NodeInterface, x: number, y: number) => {
+    this._layout.lockNodePosition(node, x, y);
+  };
 
-  unlockNodePosition = (node) => this._layout.unlockNodePosition(node);
+  unlockNodePosition = (node: NodeInterface) => {
+    this._layout.unlockNodePosition(node);
+  };
+
+  findNode(nodeId: string | number): NodeInterface | undefined {
+    return this._graph.findNodeById?.(nodeId);
+  }
+
+  createStylesheetEngine(
+    style: GraphStylesheet,
+    options: {stateUpdateTrigger?: unknown} = {}
+  ): GraphStylesheetEngine {
+    return new GraphStylesheetEngine(style, options);
+  }
 
   /**
    * @fires GraphEngine#onLayoutStart
    */
-  _onLayoutStart = (event: Event) => {
+  _onLayoutStart = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout start')();
-    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-    /**
-     * @event GraphEngine#onLayoutStart
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onLayoutStart', {detail}));
+    this._props.onLayoutStart?.(detail);
   };
 
   /**
    * @fires GraphEngine#onLayoutChange
    */
-  _onLayoutChange = (event: Event) => {
+  _onLayoutChange = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout update event')();
-    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-    /**
-     * @event GraphEngine#onLayoutChange
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onLayoutChange', {detail}));
+    this._props.onLayoutChange?.(detail);
   };
 
   /**
    * @fires GraphEngine#onLayoutDone
    */
-  _onLayoutDone = (event: Event) => {
+  _onLayoutDone = (detail?: GraphLayoutEventDetail) => {
     log.log(0, 'GraphEngine: layout end')();
-    const detail = event instanceof CustomEvent ? (event.detail as GraphLayoutEventDetail) : undefined;
-    /**
-     * @event GraphEngine#onLayoutDone
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onLayoutDone', {detail}));
+    this._props.onLayoutDone?.(detail);
   };
 
   /**
    * @fires GraphEngine#onLayoutError
    */
-  _onLayoutError = (event: Event) => {
-    const detail = event instanceof CustomEvent ? event.detail : undefined;
-    /**
-     * @event GraphEngine#onLayoutError
-     * @type {CustomEvent}
-     */
-    this.dispatchEvent(new CustomEvent('onLayoutError', {detail}));
+  _onLayoutError = (error?: unknown) => {
+    this._props.onLayoutError?.(error);
   };
 
-  _onGraphStructureChanged = (entity) => {
+  _onGraphStructureChanged = () => {
     this._layoutDirty = true;
     this._graphChanged();
   };
 
   _onTransactionStart = () => {
     this._transactionInProgress = true;
+    this._props.onTransactionStart?.();
   };
 
   _onTransactionEnd = () => {
     this._transactionInProgress = false;
     this._graphChanged();
+    this._props.onTransactionEnd?.();
   };
 
   /** Layout calculations */
@@ -151,17 +217,8 @@ export class GraphEngine extends EventTarget {
     log.log(1, 'GraphEngine: run');
     // TODO: throw if running on a cleared engine
 
-    this._graph.addEventListener('transactionStart', this._onTransactionStart);
-    this._graph.addEventListener('transactionEnd', this._onTransactionEnd);
-    this._graph.addEventListener('onNodeAdded', this._onGraphStructureChanged);
-    this._graph.addEventListener('onNodeRemoved', this._onGraphStructureChanged);
-    this._graph.addEventListener('onEdgeAdded', this._onGraphStructureChanged);
-    this._graph.addEventListener('onEdgeRemoved', this._onGraphStructureChanged);
-
-    this._layout.addEventListener('onLayoutStart', this._onLayoutStart);
-    this._layout.addEventListener('onLayoutChange', this._onLayoutChange);
-    this._layout.addEventListener('onLayoutDone', this._onLayoutDone);
-    this._layout.addEventListener('onLayoutError', this._onLayoutError);
+    this._attachGraphCallbacks();
+    this._attachLayoutCallbacks();
 
     this._layout.initializeGraph(this._graph);
     this._layout.start();
@@ -169,22 +226,17 @@ export class GraphEngine extends EventTarget {
 
   clear = () => {
     log.log(1, 'GraphEngine: end');
-    this._graph.removeEventListener('transactionStart', this._onTransactionStart);
-    this._graph.removeEventListener('transactionEnd', this._onTransactionEnd);
-    this._graph.removeEventListener('onNodeAdded', this._onGraphStructureChanged);
-    this._graph.removeEventListener('onNodeRemoved', this._onGraphStructureChanged);
-    this._graph.removeEventListener('onEdgeAdded', this._onGraphStructureChanged);
-    this._graph.removeEventListener('onEdgeRemoved', this._onGraphStructureChanged);
-
-    this._layout.removeEventListener('onLayoutStart', this._onLayoutStart);
-    this._layout.removeEventListener('onLayoutChange', this._onLayoutChange);
-    this._layout.removeEventListener('onLayoutDone', this._onLayoutDone);
-    this._layout.removeEventListener('onLayoutError', this._onLayoutError);
+    this._detachGraphCallbacks();
+    this._detachLayoutCallbacks();
   };
 
-  resume = () => this._layout.resume();
+  resume = () => {
+    this._layout.resume();
+  };
 
-  stop = () => this._layout.stop();
+  stop = () => {
+    this._layout.stop();
+  };
 
   _graphChanged = () => {
     if (this._layoutDirty && !this._transactionInProgress) {
@@ -200,6 +252,82 @@ export class GraphEngine extends EventTarget {
   };
 
   _updateCache(key, updateValue) {
-    this._cache.set(key, updateValue, this._graph.version + this._layout.version);
+    this._cache.set(key, updateValue, this.getGraphVersion() + this.getLayoutLastUpdate());
+  }
+
+  private _attachGraphCallbacks() {
+    if (this._graphCallbacksAttached) {
+      return;
+    }
+    this._graph.updateProps({
+      onTransactionStart: this._onTransactionStart,
+      onTransactionEnd: this._onTransactionEnd,
+      onNodeAdded: (node) => {
+        this._onGraphStructureChanged();
+        this._props.onNodeAdded?.(node);
+      },
+      onNodeRemoved: (node) => {
+        this._onGraphStructureChanged();
+        this._props.onNodeRemoved?.(node);
+      },
+      onNodeUpdated: (node) => {
+        this._props.onNodeUpdated?.(node);
+      },
+      onEdgeAdded: (edge) => {
+        this._onGraphStructureChanged();
+        this._props.onEdgeAdded?.(edge);
+      },
+      onEdgeRemoved: (edge) => {
+        this._onGraphStructureChanged();
+        this._props.onEdgeRemoved?.(edge);
+      },
+      onEdgeUpdated: (edge) => {
+        this._props.onEdgeUpdated?.(edge);
+      }
+    });
+    this._graphCallbacksAttached = true;
+  }
+
+  private _detachGraphCallbacks() {
+    if (!this._graphCallbacksAttached) {
+      return;
+    }
+    this._graph.updateProps({
+      onTransactionStart: undefined,
+      onTransactionEnd: undefined,
+      onNodeAdded: undefined,
+      onNodeRemoved: undefined,
+      onNodeUpdated: undefined,
+      onEdgeAdded: undefined,
+      onEdgeRemoved: undefined,
+      onEdgeUpdated: undefined
+    });
+    this._graphCallbacksAttached = false;
+  }
+
+  private _attachLayoutCallbacks() {
+    if (this._layoutCallbacksAttached) {
+      return;
+    }
+    this._layout.setProps({
+      onLayoutStart: this._onLayoutStart,
+      onLayoutChange: this._onLayoutChange,
+      onLayoutDone: this._onLayoutDone,
+      onLayoutError: this._onLayoutError
+    });
+    this._layoutCallbacksAttached = true;
+  }
+
+  private _detachLayoutCallbacks() {
+    if (!this._layoutCallbacksAttached) {
+      return;
+    }
+    this._layout.setProps({
+      onLayoutStart: undefined,
+      onLayoutChange: undefined,
+      onLayoutDone: undefined,
+      onLayoutError: undefined
+    });
+    this._layoutCallbacksAttached = false;
   }
 }

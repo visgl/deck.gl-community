@@ -4,9 +4,8 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {Graph} from '../graph/graph';
-import type {Node} from '../graph/node';
-import type {Edge} from '../graph/edge';
+import type {LegacyGraph} from '../graph/legacy-graph';
+import type {NodeInterface, EdgeInterface} from '../graph/graph';
 
 import isEqual from 'lodash.isequal';
 import {log} from '../utils/log';
@@ -18,16 +17,27 @@ export type GraphLayoutEventDetail = {
   bounds: Bounds2D | null;
 };
 
-export type GraphLayoutOptions = {};
+export type GraphLayoutProps = {
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+};
 
-/** All the layout classes are extended from this base layout class. */
-export class GraphLayout<
-  OptionsT extends GraphLayoutOptions = GraphLayoutOptions
-> extends EventTarget {
+export const GRAPH_LAYOUT_DEFAULT_PROPS: Readonly<Required<GraphLayoutProps>> = {
+  onLayoutStart: undefined,
+  onLayoutChange: undefined,
+  onLayoutDone: undefined,
+  onLayoutError: undefined
+};
+
+export abstract class GraphLayout<
+  PropsT extends GraphLayoutProps = GraphLayoutProps
+> {
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
-  /** Extra configuration options of the layout. */
-  protected _options: OptionsT;
+  /** Extra configuration props of the layout. */
+  protected props: PropsT;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -42,11 +52,22 @@ export class GraphLayout<
 
   /**
    * Constructor of GraphLayout
-   * @param options extra configuration options of the layout
+   * @param props extra configuration props of the layout
    */
-  constructor(options: OptionsT) {
-    super();
-    this._options = options;
+  constructor(props: PropsT = {} as PropsT, defaultProps?: Partial<PropsT>) {
+    this.props = {
+      ...(GRAPH_LAYOUT_DEFAULT_PROPS as PropsT),
+      ...(defaultProps ?? ({} as PropsT)),
+      ...props
+    };
+  }
+
+  getProps(): PropsT {
+    return {...this.props};
+  }
+
+  setProps(props: Partial<PropsT>): void {
+    this.props = {...this.props, ...props};
   }
 
   /**
@@ -58,29 +79,18 @@ export class GraphLayout<
     if (!layout || !(layout instanceof GraphLayout)) {
       return false;
     }
-    return this._name === layout._name && isEqual(this._options, layout._options);
+    return this._name === layout._name && isEqual(this.props, layout.props);
   }
 
-  /** virtual functions: will be implemented in the child class */
+  // Accessors
 
-  /** first time to pass the graph data into this layout */
-  initializeGraph(graph: Graph) {}
-  /** update the existing graph */
-  updateGraph(graph: Graph) {}
-  /** start the layout calculation */
-  start() {}
-  /** update the layout calculation */
-  update() {}
-  /** resume the layout calculation */
-  resume() {}
-  /** stop the layout calculation */
-  stop() {}
   /** access the position of the node in the layout */
-  getNodePosition(node: Node): [number, number] {
+  getNodePosition(node: NodeInterface): [number, number] {
     return [0, 0];
   }
+
   /** access the layout information of the edge */
-  getEdgePosition(edge: Edge) {
+  getEdgePosition(edge: EdgeInterface) {
     return {
       type: 'line',
       sourcePosition: [0, 0],
@@ -95,18 +105,34 @@ export class GraphLayout<
    * @param  x    x coordinate
    * @param  y    y coordinate
    */
-  lockNodePosition(node: Node, x: number, y: number) {}
+  lockNodePosition(node: NodeInterface, x: number, y: number) {}
 
   /**
    * Unlock the node, the node will be able to move freely.
    * @param  {Object} node Node to be unlocked
    */
-  unlockNodePosition(node: Node) {}
+  unlockNodePosition(node: NodeInterface) {}
 
   /** Returns the last computed layout bounds, if available. */
   getBounds(): Bounds2D | null {
     return this._bounds;
   }
+
+    /** virtual functions: will be implemented in the child class */
+
+  /** first time to pass the graph data into this layout */
+  abstract initializeGraph(graph: LegacyGraph);
+  /** update the existing graph */
+  abstract updateGraph(graph: LegacyGraph);
+  /** start the layout calculation */
+  abstract start();
+  /** update the layout calculation */
+  abstract update();
+  /** resume the layout calculation */
+  abstract resume();
+  /** stop the layout calculation */
+  abstract stop();
+
 
   // INTERNAL METHODS
 
@@ -199,7 +225,7 @@ export class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutStart', {detail}));
+    this.props.onLayoutStart?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutChange */
@@ -214,7 +240,7 @@ export class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutChange', {detail}));
+    this.props.onLayoutChange?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutDone */
@@ -229,7 +255,7 @@ export class GraphLayout<
      * @type {CustomEvent}
      */
     const detail: GraphLayoutEventDetail = {bounds: this._bounds};
-    this.dispatchEvent(new CustomEvent<GraphLayoutEventDetail>('onLayoutDone', {detail}));
+    this.props.onLayoutDone?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutError */
@@ -241,6 +267,6 @@ export class GraphLayout<
      * @event GraphLayout#onLayoutError
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutError'));
+    this.props.onLayoutError?.();
   };
 }

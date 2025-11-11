@@ -1,5 +1,14 @@
 import {ExamplesIndex} from '../components';
 
+export const thumbnailOverrides = {
+  'layers/path-outline-and-markers': '/images/examples/layers/path-outline-and-markers.svg'
+};
+
 ## EXAMPLES
 
-<ExamplesIndex getThumbnail={item => `/images/examples/${item.docId || item.label.toLowerCase()}.jpg`} />
+<ExamplesIndex
+  getThumbnail={item =>
+    thumbnailOverrides[item.docId || item.label.toLowerCase()] ??
+    `/images/examples/${item.docId || item.label.toLowerCase()}.jpg`
+  }
+/>

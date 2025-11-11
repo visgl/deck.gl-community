@@ -11,8 +11,16 @@ import type {
 } from './layout-options';
 import witsRaw from '../../../modules/graph-layers/test/data/examples/wits.json';
 import sampleMultiGraph from './sample-multi-graph.json';
+import dagPipelineRaw from './dag-pipeline.json';
+import knowledgeGraphRaw from './knowledge-graph.json';
 
 type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
+
+type DagRecord = {
+  id: string;
+  label: string;
+  parentIds?: string[];
+};
 
 const MULTI_GRAPH_SAMPLE = sampleMultiGraph as ExampleGraphData & {
   nodes: Array<{id: string; type?: string; star?: boolean}>;
@@ -43,6 +51,16 @@ type RawWitsDataset = {
   tree: RawWitsTreeNode[];
 };
 
+type DagPipelineRecord = DagRecord & {rank: number};
+
+const DAG_PIPELINE_DATA = dagPipelineRaw as DagPipelineRecord[];
+
+const KNOWLEDGE_GRAPH = knowledgeGraphRaw as {
+  nodes: Array<{id: string; name: string; group: string}>;
+  edges: Array<{id: string; sourceId: string; targetId: string; type: string}>;
+  tree: Array<{id: string; children?: string[]}>;
+};
+
 const WITS_DATASET = witsRaw as RawWitsDataset;
 
 const parseWitsMetadata = (value: string | undefined): Record<string, string> => {
@@ -53,18 +71,21 @@ const parseWitsMetadata = (value: string | undefined): Record<string, string> =>
   return value
     .split('`')
     .map((entry) => entry.split('~'))
-    .reduce((acc, [key, raw]) => {
-      if (!key || !raw) {
-        return acc;
-      }
+    .reduce(
+      (acc, [key, raw]) => {
+        if (!key || !raw) {
+          return acc;
+        }
 
-      const trimmedKey = key.trim();
-      const trimmedValue = raw.trim();
-      if (trimmedKey.length) {
-        acc[trimmedKey] = trimmedValue;
-      }
-      return acc;
-    }, {} as Record<string, string>);
+        const trimmedKey = key.trim();
+        const trimmedValue = raw.trim();
+        if (trimmedKey.length) {
+          acc[trimmedKey] = trimmedValue;
+        }
+        return acc;
+      },
+      {} as Record<string, string>
+    );
 };
 
 const WITS_BASE_NODES = (WITS_DATASET.nodes ?? []).map((node) => {
@@ -107,9 +128,7 @@ const WITS_GRAPH_DATA: ExampleGraphData = {
 
 const WITS_TREE = (WITS_DATASET.tree ?? []) as ReadonlyArray<RawWitsTreeNode>;
 
-const WITS_REGIONS = Array.from(
-  new Set(WITS_BASE_NODES.map((node) => node.region ?? 'Other'))
-);
+const WITS_REGIONS = Array.from(new Set(WITS_BASE_NODES.map((node) => node.region ?? 'Other')));
 
 const WITS_REGION_COLORS = [
   '#1d4ed8',
@@ -122,10 +141,13 @@ const WITS_REGION_COLORS = [
   '#6366f1'
 ];
 
-const WITS_REGION_COLOR_MAP: Record<string, string> = WITS_REGIONS.reduce((acc, region, index) => {
-  acc[region] = WITS_REGION_COLORS[index % WITS_REGION_COLORS.length];
-  return acc;
-}, {} as Record<string, string>);
+const WITS_REGION_COLOR_MAP: Record<string, string> = WITS_REGIONS.reduce(
+  (acc, region, index) => {
+    acc[region] = WITS_REGION_COLORS[index % WITS_REGION_COLORS.length];
+    return acc;
+  },
+  {} as Record<string, string>
+);
 
 const WITS_REGION_STYLE: ExampleStyles = {
   nodes: [
@@ -145,8 +167,7 @@ const WITS_REGION_STYLE: ExampleStyles = {
       fill: {
         attribute: 'region',
         fallback: '#475569',
-        scale: (region: unknown) =>
-          WITS_REGION_COLOR_MAP[String(region)] ?? '#475569'
+        scale: (region: unknown) => WITS_REGION_COLOR_MAP[String(region)] ?? '#475569'
       },
       stroke: '#0f172a',
       strokeWidth: 0.75,
@@ -159,62 +180,6 @@ const WITS_REGION_STYLE: ExampleStyles = {
     decorators: []
   }
 };
-
-const KNOWLEDGE_GRAPH = {
-  nodes: [
-    {id: 'University', name: 'University', group: 'Overview'},
-    {id: 'Sciences', name: 'Sciences', group: 'Science'},
-    {id: 'Humanities', name: 'Humanities', group: 'Humanities'},
-    {id: 'Professional Studies', name: 'Professional Studies', group: 'Professional'},
-    {id: 'Research Labs', name: 'Research Labs', group: 'Science'},
-    {id: 'Data Science', name: 'Data Science', group: 'Science'},
-    {id: 'Applied Physics', name: 'Applied Physics', group: 'Science'},
-    {id: 'Studio Art', name: 'Studio Art', group: 'Humanities'},
-    {id: 'Design Thinking', name: 'Design Thinking', group: 'Humanities'},
-    {id: 'Field Work', name: 'Field Work', group: 'Professional'},
-    {id: 'Medical Center', name: 'Medical Center', group: 'Professional'},
-    {id: 'Entrepreneurship Hub', name: 'Entrepreneurship Hub', group: 'Business'},
-    {id: 'Finance Department', name: 'Finance Department', group: 'Business'},
-    {id: 'Economics Department', name: 'Economics Department', group: 'Business'}
-  ],
-  edges: [
-    {id: 'e-0', sourceId: 'University', targetId: 'Sciences', type: 'supports'},
-    {id: 'e-1', sourceId: 'University', targetId: 'Humanities', type: 'supports'},
-    {id: 'e-2', sourceId: 'University', targetId: 'Professional Studies', type: 'supports'},
-    {id: 'e-3', sourceId: 'Sciences', targetId: 'Research Labs', type: 'manages'},
-    {id: 'e-4', sourceId: 'Sciences', targetId: 'Data Science', type: 'collaborates'},
-    {id: 'e-5', sourceId: 'Sciences', targetId: 'Applied Physics', type: 'collaborates'},
-    {id: 'e-6', sourceId: 'Humanities', targetId: 'Studio Art', type: 'mentors'},
-    {id: 'e-7', sourceId: 'Humanities', targetId: 'Design Thinking', type: 'mentors'},
-    {id: 'e-8', sourceId: 'Professional Studies', targetId: 'Field Work', type: 'coordinates'},
-    {id: 'e-9', sourceId: 'Professional Studies', targetId: 'Medical Center', type: 'coordinates'},
-    {id: 'e-10', sourceId: 'Professional Studies', targetId: 'Entrepreneurship Hub', type: 'coordinates'},
-    {id: 'e-11', sourceId: 'Entrepreneurship Hub', targetId: 'Finance Department', type: 'incubates'},
-    {id: 'e-12', sourceId: 'Entrepreneurship Hub', targetId: 'Economics Department', type: 'incubates'},
-    {id: 'e-13', sourceId: 'Data Science', targetId: 'Entrepreneurship Hub', type: 'partners'},
-    {id: 'e-14', sourceId: 'Applied Physics', targetId: 'Medical Center', type: 'supports'},
-    {id: 'e-15', sourceId: 'Design Thinking', targetId: 'Entrepreneurship Hub', type: 'advises'}
-  ],
-  tree: [
-    {id: 'University', children: ['Sciences', 'Humanities', 'Professional Studies']},
-    {id: 'Sciences', children: ['Research Labs', 'Data Science', 'Applied Physics']},
-    {id: 'Humanities', children: ['Studio Art', 'Design Thinking']},
-    {
-      id: 'Professional Studies',
-      children: ['Field Work', 'Medical Center', 'Entrepreneurship Hub']
-    },
-    {id: 'Entrepreneurship Hub', children: ['Finance Department', 'Economics Department']},
-    {id: 'Research Labs'},
-    {id: 'Data Science'},
-    {id: 'Applied Physics'},
-    {id: 'Studio Art'},
-    {id: 'Design Thinking'},
-    {id: 'Field Work'},
-    {id: 'Medical Center'},
-    {id: 'Finance Department'},
-    {id: 'Economics Department'}
-  ]
-} as const;
 
 const GROUP_COLOR_MAP: Record<string, string> = {
   Overview: '#64748b',
@@ -231,9 +196,8 @@ const cloneGraphData = (data: ExampleGraphData): ExampleGraphData => ({
   edges: data.edges.map((edge) => ({...edge}))
 });
 
-const cloneTree = <T extends {id: string; children?: readonly string[]}>(
-  tree: readonly T[]
-): T[] => tree.map((node) => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
+const cloneTree = <T extends {id: string; children?: readonly string[]}>(tree: readonly T[]): T[] =>
+  tree.map((node) => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
 
 const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'd3-force-layout':
@@ -377,6 +341,80 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
     stroke: '#fed7aa',
     strokeWidth: 0.8,
     decorators: []
+  }
+};
+
+const ML_LINEAGE_BRANCH_PALETTE = [
+  '#2563eb',
+  '#0ea5e9',
+  '#10b981',
+  '#f97316',
+  '#a855f7',
+  '#f472b6',
+  '#22d3ee',
+  '#facc15'
+] as const;
+
+const getLineageBranchColor = (lineagePath: unknown): string => {
+  if (typeof lineagePath !== 'string') {
+    return '#1e293b';
+  }
+
+  const segments = lineagePath.split('.');
+  if (segments.length <= 1) {
+    return '#1d4ed8';
+  }
+
+  const branchSegment = segments[1];
+  const parsedIndex = Number.parseInt(branchSegment, 10);
+  if (Number.isFinite(parsedIndex) && parsedIndex > 0) {
+    return ML_LINEAGE_BRANCH_PALETTE[(parsedIndex - 1) % ML_LINEAGE_BRANCH_PALETTE.length];
+  }
+
+  let hash = 0;
+  for (let index = 0; index < branchSegment.length; index += 1) {
+    hash = (hash * 31 + branchSegment.charCodeAt(index)) >>> 0;
+  }
+  return ML_LINEAGE_BRANCH_PALETTE[hash % ML_LINEAGE_BRANCH_PALETTE.length];
+};
+
+const ML_LINEAGE_STYLE: ExampleStyles = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: {
+        attribute: 'type',
+        fallback: 6,
+        scale: (value: unknown) => (value === 'head' ? 9 : 5.5)
+      },
+      fill: {
+        attribute: 'type',
+        fallback: '#38bdf8',
+        scale: (value: unknown) => (value === 'head' ? '#f59e0b' : '#38bdf8')
+      },
+      stroke: {
+        attribute: 'lineagePath',
+        fallback: '#1e293b',
+        scale: getLineageBranchColor
+      },
+      strokeWidth: {
+        attribute: 'type',
+        fallback: 1.2,
+        scale: (value: unknown) => (value === 'head' ? 2 : 1)
+      },
+      opacity: 0.85
+    }
+  ],
+  edges: {
+    stroke: 'rgba(30, 41, 59, 0.3)',
+    strokeWidth: 0.6,
+    decorators: [
+      {
+        type: 'arrow',
+        size: 5,
+        color: 'rgba(30, 41, 59, 0.4)'
+      }
+    ]
   }
 };
 
@@ -549,7 +587,7 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
 };
 
 const dagPipelineDataset = () => {
-  const nodes = DAG_PIPELINE_DATA.map((entry) => ({id: entry.id, label: entry.label}));
+  const nodes = DAG_PIPELINE_DATA.map((entry) => ({...entry}));
   const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
 
   for (const entry of DAG_PIPELINE_DATA) {
@@ -568,27 +606,6 @@ const dagPipelineDataset = () => {
 
   return {nodes, edges};
 };
-
-type DagRecord = {
-  id: string;
-  label: string;
-  parentIds?: string[];
-};
-
-const DAG_PIPELINE_DATA: DagRecord[] = [
-  {id: 'collect', label: 'Collect events'},
-  {id: 'ingest', label: 'Ingest', parentIds: ['collect']},
-  {id: 'quality', label: 'Quality checks', parentIds: ['ingest']},
-  {id: 'clean', label: 'Clean data', parentIds: ['quality']},
-  {id: 'warehouse', label: 'Warehouse sync', parentIds: ['clean']},
-  {id: 'feature', label: 'Feature store', parentIds: ['warehouse']},
-  {id: 'training', label: 'Train models', parentIds: ['feature']},
-  {id: 'serving', label: 'Serve models', parentIds: ['training']},
-  {id: 'monitor', label: 'Monitor', parentIds: ['serving']},
-  {id: 'alert', label: 'Alerting', parentIds: ['monitor']},
-  {id: 'feedback', label: 'Feedback', parentIds: ['alert', 'monitor']},
-  {id: 'experiments', label: 'Experimentation', parentIds: ['feature', 'feedback']}
-];
 
 const DAG_PIPELINE_STYLE: ExampleStyles = {
   nodes: [
@@ -620,17 +637,6 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
       }
     ]
   }
-};
-
-const ML_PIPELINE_EXAMPLE: ExampleDefinition = {
-  name: 'ML Pipeline DAG',
-  description:
-    'Directed acyclic graph of a simplified machine-learning pipeline with dependencies between each processing stage.',
-  data: dagPipelineDataset,
-  layouts: ['d3-dag-layout'],
-  layoutDescriptions: LAYOUT_DESCRIPTIONS,
-  style: DAG_PIPELINE_STYLE,
-  type: 'dag'
 };
 
 const BROKEN_STYLESHEET_GRAPH: ExampleGraphData = {
@@ -682,17 +688,6 @@ const BROKEN_STYLESHEET: ExampleStyles = {
     ]
   }
 } as ExampleStyles;
-
-const BROKEN_STYLESHEET_EXAMPLE: ExampleDefinition = {
-  name: 'Broken stylesheet warnings',
-  description:
-    'Intentionally malformed stylesheet that demonstrates how parsing failures now surface warnings while the graph keeps rendering.',
-  data: () => cloneGraphData(BROKEN_STYLESHEET_GRAPH),
-  layouts: ['d3-force-layout'],
-  layoutDescriptions: LAYOUT_DESCRIPTIONS,
-  style: BROKEN_STYLESHEET,
-  type: 'graph'
-};
 
 export const EXAMPLES: ExampleDefinition[] = [
   {
@@ -892,9 +887,57 @@ export const EXAMPLES: ExampleDefinition[] = [
             nBodyDistanceMax: 1200
           }
         : undefined
-  }, 
-  ML_PIPELINE_EXAMPLE,
-  BROKEN_STYLESHEET_EXAMPLE
+  },
+  {
+    name: 'ML Pipeline DAG',
+    type: 'dag',
+    description:
+      'Directed acyclic graph of a simplified machine-learning pipeline with dependencies between each processing stage.',
+    data: dagPipelineDataset,
+    layouts: ['d3-dag-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: DAG_PIPELINE_STYLE,
+    getLayoutOptions: (layout) =>
+      layout === 'd3-dag-layout'
+        ? {
+            layout: 'sugiyama',
+            layering: 'simplex',
+            nodeRank: 'rank'
+          }
+        : undefined
+  },
+  {
+    name: 'ML lineage DAG (1,000 runs)',
+    type: 'dag',
+    description:
+      'Deterministic machine-learning lineage DAG with long experiment chains and branching heads.',
+    data: SAMPLE_GRAPH_DATASETS['ML Lineage DAG (1000 runs)'],
+    layouts: ['d3-dag-layout', 'gpu-force-layout', 'd3-force-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: ML_LINEAGE_STYLE,
+    getLayoutOptions: (layout, _data) =>
+      layout === 'd3-dag-layout'
+        ? {
+            layout: 'sugiyama',
+            layering: 'longestPath',
+            coord: 'greedy',
+            orientation: 'LR',
+            nodeSize: [42, 18],
+            gap: [24, 36],
+            separation: [1, 1.1]
+          }
+        : undefined
+  },
+  {
+    name: 'Broken stylesheet warnings',
+    description:
+      'Intentionally malformed stylesheet that demonstrates how parsing failures now surface warnings while the graph keeps rendering.',
+    data: () => cloneGraphData(BROKEN_STYLESHEET_GRAPH),
+    layouts: ['d3-force-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: BROKEN_STYLESHEET,
+    type: 'graph'
+  }
 ];
 
 export function filterExamplesByType(

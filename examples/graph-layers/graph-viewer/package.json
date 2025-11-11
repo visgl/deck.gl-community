@@ -9,8 +9,9 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/graph-layers": "~9.2.0",
-    "@deck.gl-community/react": "~9.2.0",
+    "@deck.gl-community/graph-layers": "workspace:*",
+    "@deck.gl-community/react": "workspace:*",
+    "@deck.gl-community/widgets": "workspace:*",
     "@deck.gl/core": "~9.2.1",
     "@deck.gl/layers": "~9.2.1",
     "@deck.gl/react": "~9.2.1",

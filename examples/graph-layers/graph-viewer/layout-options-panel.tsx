@@ -2,9 +2,36 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useEffect, useId, useState} from 'react';
-import type {LayoutType, DagLayoutFormState, DagNumericKey, DagSelectKey} from './layout-options';
-import {createDagFormState, mapDagFormStateToOptions} from './layout-options';
+import React, {useCallback, useEffect, useState} from 'react';
+import type {
+  LayoutType,
+  DagLayoutFormState,
+  ForceLayoutFormState,
+  ForceLayoutNumericKey,
+  ForceMultiGraphLayoutFormState,
+  RadialLayoutFormState,
+  HivePlotLayoutFormState
+} from './layout-options';
+import {
+  createDagFormState,
+  mapDagFormStateToOptions,
+  createForceLayoutFormState,
+  mapForceLayoutFormStateToOptions,
+  createForceMultiGraphFormState,
+  mapForceMultiGraphFormStateToOptions,
+  createRadialLayoutFormState,
+  mapRadialLayoutFormStateToOptions,
+  createHivePlotLayoutFormState,
+  mapHivePlotLayoutFormStateToOptions,
+  D3_FORCE_DEFAULT_OPTIONS,
+  GPU_FORCE_DEFAULT_OPTIONS,
+  FORCE_LAYOUT_PROP_DESCRIPTIONS,
+  FORCE_MULTI_GRAPH_PROP_DESCRIPTIONS,
+  RADIAL_LAYOUT_PROP_DESCRIPTIONS,
+  HIVE_PLOT_PROP_DESCRIPTIONS,
+  DAG_LAYOUT_PROP_DESCRIPTIONS
+} from './layout-options';
+import {PropsForm} from './props-form';
 
 type LayoutOptionsPanelProps = {
   layout?: LayoutType;
@@ -12,53 +39,49 @@ type LayoutOptionsPanelProps = {
   onApply?: (layout: LayoutType, options: Record<string, unknown>) => void;
 };
 
-const LABEL_STYLE: React.CSSProperties = {
-  fontSize: '0.8125rem',
+const DETAILS_STYLE: React.CSSProperties = {
+  borderTop: '1px solid #e2e8f0',
+  paddingTop: '0.75rem',
+  fontSize: '0.8125rem'
+};
+
+const SUMMARY_STYLE: React.CSSProperties = {
+  margin: 0,
+  fontSize: '0.875rem',
   fontWeight: 600,
-  color: '#0f172a'
-};
-
-const SELECT_STYLE: React.CSSProperties = {
-  fontFamily: 'inherit',
-  fontSize: '0.8125rem',
-  padding: '0.375rem 0.5rem',
-  borderRadius: '0.375rem',
-  border: '1px solid #cbd5f5',
-  backgroundColor: '#ffffff',
-  color: '#0f172a'
-};
-
-const INPUT_STYLE: React.CSSProperties = {
-  fontFamily: 'inherit',
-  fontSize: '0.8125rem',
-  padding: '0.375rem 0.5rem',
-  borderRadius: '0.375rem',
-  border: '1px solid #cbd5f5',
   color: '#0f172a',
-  backgroundColor: '#ffffff'
+  cursor: 'pointer'
 };
 
-const FIELD_GRID_STYLE: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'auto 1fr',
-  columnGap: '0.75rem',
-  rowGap: '0.5rem',
-  alignItems: 'center'
-};
-
-const CHECKBOX_GROUP_STYLE: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '0.5rem'
-};
-
-const CHECKBOX_LABEL_STYLE: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '0.5rem',
+const DESCRIPTION_STYLE: React.CSSProperties = {
+  margin: '0.5rem 0',
   fontSize: '0.8125rem',
-  color: '#334155'
+  color: '#475569'
 };
+
+type LayoutOptionsDetailsProps = {
+  children: React.ReactNode;
+  description?: React.ReactNode;
+  defaultOpen?: boolean;
+};
+
+function LayoutOptionsDetails({children, description, defaultOpen}: LayoutOptionsDetailsProps) {
+  return (
+    <details defaultOpen={defaultOpen} style={DETAILS_STYLE}>
+      <summary style={SUMMARY_STYLE}>Layout options</summary>
+      {description
+        ? typeof description === 'string'
+          ? (
+              <p style={DESCRIPTION_STYLE}>{description}</p>
+            )
+          : (
+              description
+            )
+        : null}
+      {children}
+    </details>
+  );
+}
 
 function DagLayoutOptionsSection({
   appliedOptions,
@@ -70,61 +93,28 @@ function DagLayoutOptionsSection({
   const [formState, setFormState] = useState<DagLayoutFormState>(() =>
     createDagFormState(appliedOptions)
   );
-  const fieldGroupId = useId();
 
   useEffect(() => {
     setFormState(createDagFormState(appliedOptions));
   }, [appliedOptions]);
 
-  const updateFormState = useCallback(
-    (updater: (current: DagLayoutFormState) => DagLayoutFormState) => {
+  const handleChange = useCallback(
+    <K extends keyof typeof DAG_LAYOUT_PROP_DESCRIPTIONS>(key: K, value: DagLayoutFormState[K]) => {
       setFormState((current) => {
-        const nextState = updater(current);
+        const nextState = {
+          ...current,
+          [key]: value
+        } as DagLayoutFormState;
+
         if (onApply) {
           onApply(mapDagFormStateToOptions(nextState));
         }
+
         return nextState;
       });
     },
     [onApply]
   );
-
-  const handleSelectChange = useCallback(
-    <K extends DagSelectKey>(key: K) => {
-      return (event: React.ChangeEvent<HTMLSelectElement>) => {
-        const value = event.target.value as DagLayoutFormState[K];
-        updateFormState((current) => ({
-          ...current,
-          [key]: value
-        }));
-      };
-    },
-    [updateFormState]
-  );
-
-  const handleNumberChange = useCallback(
-    <K extends DagNumericKey>(key: K) => {
-      return (event: React.ChangeEvent<HTMLInputElement>) => {
-        const numericValue = Number(event.target.value);
-        updateFormState((current) => ({
-          ...current,
-          [key]: Number.isFinite(numericValue)
-            ? (numericValue as DagLayoutFormState[K])
-            : current[key]
-        }));
-      };
-    },
-    [updateFormState]
-  );
-
-  const handleCheckboxChange = useCallback(<K extends 'centerX' | 'centerY'>(key: K) => {
-    return (event: React.ChangeEvent<HTMLInputElement>) => {
-      updateFormState((current) => ({
-        ...current,
-        [key]: event.target.checked
-      }));
-    };
-  }, [updateFormState]);
 
   return (
     <section
@@ -138,172 +128,185 @@ function DagLayoutOptionsSection({
         color: '#334155'
       }}
     >
-      <div style={FIELD_GRID_STYLE}>
-        <label htmlFor={`${fieldGroupId}-layout`} style={LABEL_STYLE}>
-          Layout operator
-        </label>
-        <select
-          id={`${fieldGroupId}-layout`}
-          value={formState.layout}
-          onChange={handleSelectChange('layout')}
-          style={SELECT_STYLE}
-        >
-          <option value="sugiyama">Sugiyama</option>
-          <option value="grid">Grid</option>
-          <option value="zherebko">Zherebko</option>
-        </select>
-        <label htmlFor={`${fieldGroupId}-layering`} style={LABEL_STYLE}>
-          Layering
-        </label>
-        <select
-          id={`${fieldGroupId}-layering`}
-          value={formState.layering}
-          onChange={handleSelectChange('layering')}
-          style={SELECT_STYLE}
-        >
-          <option value="topological">Topological</option>
-          <option value="longestPath">Longest path</option>
-          <option value="simplex">Simplex</option>
-        </select>
-        <label htmlFor={`${fieldGroupId}-decross`} style={LABEL_STYLE}>
-          Decross
-        </label>
-        <select
-          id={`${fieldGroupId}-decross`}
-          value={formState.decross}
-          onChange={handleSelectChange('decross')}
-          style={SELECT_STYLE}
-        >
-          <option value="twoLayer">Two layer</option>
-          <option value="opt">Opt</option>
-          <option value="dfs">DFS</option>
-        </select>
-        <label htmlFor={`${fieldGroupId}-coord`} style={LABEL_STYLE}>
-          Coordinate assignment
-        </label>
-        <select
-          id={`${fieldGroupId}-coord`}
-          value={formState.coord}
-          onChange={handleSelectChange('coord')}
-          style={SELECT_STYLE}
-        >
-          <option value="greedy">Greedy</option>
-          <option value="simplex">Simplex</option>
-          <option value="quad">Quad</option>
-          <option value="center">Center</option>
-          <option value="topological">Topological</option>
-        </select>
-        <label htmlFor={`${fieldGroupId}-orientation`} style={LABEL_STYLE}>
-          Orientation
-        </label>
-        <select
-          id={`${fieldGroupId}-orientation`}
-          value={formState.orientation}
-          onChange={handleSelectChange('orientation')}
-          style={SELECT_STYLE}
-        >
-          <option value="TB">Top to bottom</option>
-          <option value="BT">Bottom to top</option>
-          <option value="LR">Left to right</option>
-          <option value="RL">Right to left</option>
-        </select>
-        <label htmlFor={`${fieldGroupId}-dag-builder`} style={LABEL_STYLE}>
-          DAG builder
-        </label>
-        <select
-          id={`${fieldGroupId}-dag-builder`}
-          value={formState.dagBuilder}
-          onChange={handleSelectChange('dagBuilder')}
-          style={SELECT_STYLE}
-        >
-          <option value="graph">Graph</option>
-          <option value="connect">Connect</option>
-          <option value="stratify">Stratify</option>
-        </select>
-      </div>
-      <div style={FIELD_GRID_STYLE}>
-        <label htmlFor={`${fieldGroupId}-node-width`} style={LABEL_STYLE}>
-          Node width
-        </label>
-        <input
-          id={`${fieldGroupId}-node-width`}
-          type="number"
-          value={formState.nodeWidth}
-          onChange={handleNumberChange('nodeWidth')}
-          style={INPUT_STYLE}
-        />
-        <label htmlFor={`${fieldGroupId}-node-height`} style={LABEL_STYLE}>
-          Node height
-        </label>
-        <input
-          id={`${fieldGroupId}-node-height`}
-          type="number"
-          value={formState.nodeHeight}
-          onChange={handleNumberChange('nodeHeight')}
-          style={INPUT_STYLE}
-        />
-        <label htmlFor={`${fieldGroupId}-gap-x`} style={LABEL_STYLE}>
-          Gap X
-        </label>
-        <input
-          id={`${fieldGroupId}-gap-x`}
-          type="number"
-          value={formState.gapX}
-          onChange={handleNumberChange('gapX')}
-          style={INPUT_STYLE}
-        />
-        <label htmlFor={`${fieldGroupId}-gap-y`} style={LABEL_STYLE}>
-          Gap Y
-        </label>
-        <input
-          id={`${fieldGroupId}-gap-y`}
-          type="number"
-          value={formState.gapY}
-          onChange={handleNumberChange('gapY')}
-          style={INPUT_STYLE}
-        />
-        <label htmlFor={`${fieldGroupId}-separation-x`} style={LABEL_STYLE}>
-          Separation X
-        </label>
-        <input
-          id={`${fieldGroupId}-separation-x`}
-          type="number"
-          value={formState.separationX}
-          onChange={handleNumberChange('separationX')}
-          style={INPUT_STYLE}
-        />
-        <label htmlFor={`${fieldGroupId}-separation-y`} style={LABEL_STYLE}>
-          Separation Y
-        </label>
-        <input
-          id={`${fieldGroupId}-separation-y`}
-          type="number"
-          value={formState.separationY}
-          onChange={handleNumberChange('separationY')}
-          style={INPUT_STYLE}
-        />
-      </div>
-      <div style={CHECKBOX_GROUP_STYLE}>
-        <label style={CHECKBOX_LABEL_STYLE}>
-          <input
-            type="checkbox"
-            checked={formState.centerX}
-            onChange={handleCheckboxChange('centerX')}
-            style={{width: '1rem', height: '1rem'}}
-          />
-          Center horizontally
-        </label>
-        <label style={CHECKBOX_LABEL_STYLE}>
-          <input
-            type="checkbox"
-            checked={formState.centerY}
-            onChange={handleCheckboxChange('centerY')}
-            style={{width: '1rem', height: '1rem'}}
-          />
-          Center vertically
-        </label>
-      </div>
+      <PropsForm
+        descriptions={DAG_LAYOUT_PROP_DESCRIPTIONS}
+        values={formState}
+        onChange={handleChange}
+      />
     </section>
+  );
+}
+
+function ForceLayoutOptionsSection({
+  appliedOptions,
+  onApply,
+  defaults
+}: {
+  appliedOptions?: Record<string, unknown>;
+  onApply?: (options: Record<string, unknown>) => void;
+  defaults: Record<ForceLayoutNumericKey, number>;
+}) {
+  const [formState, setFormState] = useState<ForceLayoutFormState>(() =>
+    createForceLayoutFormState(appliedOptions, defaults)
+  );
+
+  useEffect(() => {
+    setFormState(createForceLayoutFormState(appliedOptions, defaults));
+  }, [appliedOptions, defaults]);
+
+  const handleChange = useCallback(
+    <K extends keyof typeof FORCE_LAYOUT_PROP_DESCRIPTIONS>(key: K, value: ForceLayoutFormState[K]) => {
+      setFormState((current) => {
+        const nextState = {
+          ...current,
+          [key]: value
+        } as ForceLayoutFormState;
+
+        if (onApply) {
+          onApply(mapForceLayoutFormStateToOptions(nextState));
+        }
+
+        return nextState;
+      });
+    },
+    [onApply]
+  );
+
+  return (
+    <PropsForm
+      descriptions={FORCE_LAYOUT_PROP_DESCRIPTIONS}
+      values={formState}
+      onChange={handleChange}
+    />
+  );
+}
+
+function ForceMultiGraphLayoutOptionsSection({
+  appliedOptions,
+  onApply
+}: {
+  appliedOptions?: Record<string, unknown>;
+  onApply?: (options: Record<string, unknown>) => void;
+}) {
+  const [formState, setFormState] = useState<ForceMultiGraphLayoutFormState>(() =>
+    createForceMultiGraphFormState(appliedOptions)
+  );
+
+  useEffect(() => {
+    setFormState(createForceMultiGraphFormState(appliedOptions));
+  }, [appliedOptions]);
+
+  const handleChange = useCallback(
+    <K extends keyof typeof FORCE_MULTI_GRAPH_PROP_DESCRIPTIONS>(
+      key: K,
+      value: ForceMultiGraphLayoutFormState[K]
+    ) => {
+      setFormState((current) => {
+        const nextState = {
+          ...current,
+          [key]: value
+        } as ForceMultiGraphLayoutFormState;
+
+        if (onApply) {
+          onApply(mapForceMultiGraphFormStateToOptions(nextState));
+        }
+
+        return nextState;
+      });
+    },
+    [onApply]
+  );
+
+  return (
+    <PropsForm
+      descriptions={FORCE_MULTI_GRAPH_PROP_DESCRIPTIONS}
+      values={formState}
+      onChange={handleChange}
+    />
+  );
+}
+
+function RadialLayoutOptionsSection({
+  appliedOptions,
+  onApply
+}: {
+  appliedOptions?: Record<string, unknown>;
+  onApply?: (options: Record<string, unknown>) => void;
+}) {
+  const [formState, setFormState] = useState<RadialLayoutFormState>(() =>
+    createRadialLayoutFormState(appliedOptions)
+  );
+
+  useEffect(() => {
+    setFormState(createRadialLayoutFormState(appliedOptions));
+  }, [appliedOptions]);
+
+  const handleChange = useCallback(
+    <K extends keyof typeof RADIAL_LAYOUT_PROP_DESCRIPTIONS>(key: K, value: RadialLayoutFormState[K]) => {
+      setFormState((current) => {
+        const nextState = {
+          ...current,
+          [key]: value
+        } as RadialLayoutFormState;
+
+        if (onApply) {
+          onApply(mapRadialLayoutFormStateToOptions(nextState));
+        }
+
+        return nextState;
+      });
+    },
+    [onApply]
+  );
+
+  return (
+    <PropsForm
+      descriptions={RADIAL_LAYOUT_PROP_DESCRIPTIONS}
+      values={formState}
+      onChange={handleChange}
+    />
+  );
+}
+
+function HivePlotLayoutOptionsSection({
+  appliedOptions,
+  onApply
+}: {
+  appliedOptions?: Record<string, unknown>;
+  onApply?: (options: Record<string, unknown>) => void;
+}) {
+  const [formState, setFormState] = useState<HivePlotLayoutFormState>(() =>
+    createHivePlotLayoutFormState(appliedOptions)
+  );
+
+  useEffect(() => {
+    setFormState(createHivePlotLayoutFormState(appliedOptions));
+  }, [appliedOptions]);
+
+  const handleChange = useCallback(
+    <K extends keyof typeof HIVE_PLOT_PROP_DESCRIPTIONS>(key: K, value: HivePlotLayoutFormState[K]) => {
+      setFormState((current) => {
+        const nextState = {
+          ...current,
+          [key]: value
+        } as HivePlotLayoutFormState;
+
+        if (onApply) {
+          onApply(mapHivePlotLayoutFormStateToOptions(nextState));
+        }
+
+        return nextState;
+      });
+    },
+    [onApply]
+  );
+
+  return (
+    <PropsForm
+      descriptions={HIVE_PLOT_PROP_DESCRIPTIONS}
+      values={formState}
+      onChange={handleChange}
+    />
   );
 }
 
@@ -316,47 +319,73 @@ export function LayoutOptionsPanel({
     return null;
   }
 
-  if (layout === 'd3-dag-layout') {
-    return (
-      <details defaultOpen style={{borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem'}}>
-        <summary
-          style={{
-            margin: 0,
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            color: '#0f172a',
-            cursor: 'pointer'
-          }}
-        >
-          Layout options
-        </summary>
-        <p style={{margin: '0.5rem 0', fontSize: '0.8125rem', color: '#475569'}}>
-          Tune the D3 DAG layout operators and spacing. Changes apply immediately when adjusted.
-        </p>
-        <DagLayoutOptionsSection
-          appliedOptions={appliedOptions}
-          onApply={onApply ? (options) => onApply(layout, options) : undefined}
-        />
-      </details>
-    );
-  }
+  const handleApply = onApply
+    ? (options: Record<string, unknown>) => onApply(layout, options)
+    : undefined;
 
-  return (
-    <details style={{borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem', fontSize: '0.8125rem'}}>
-      <summary
-        style={{
-          margin: 0,
-          fontSize: '0.875rem',
-          fontWeight: 600,
-          color: '#0f172a',
-          cursor: 'pointer'
-        }}
-      >
-        Layout options
-      </summary>
-      <p style={{margin: '0.5rem 0 0', color: '#475569'}}>
-        This layout does not expose configurable options in the control panel yet.
-      </p>
-    </details>
-  );
+  switch (layout) {
+    case 'd3-dag-layout':
+      return (
+        <LayoutOptionsDetails
+          defaultOpen
+          description="Tune the D3 DAG layout operators and spacing. Changes apply immediately when adjusted."
+        >
+          <DagLayoutOptionsSection appliedOptions={appliedOptions} onApply={handleApply} />
+        </LayoutOptionsDetails>
+      );
+    case 'd3-force-layout':
+      return (
+        <LayoutOptionsDetails description="Adjust the D3 force simulation parameters to influence node separation and stability.">
+          <ForceLayoutOptionsSection
+            appliedOptions={appliedOptions}
+            defaults={D3_FORCE_DEFAULT_OPTIONS}
+            onApply={handleApply}
+          />
+        </LayoutOptionsDetails>
+      );
+    case 'gpu-force-layout':
+      return (
+        <LayoutOptionsDetails description="Update the GPU-accelerated force simulation parameters. Changes restart the worker immediately.">
+          <ForceLayoutOptionsSection
+            appliedOptions={appliedOptions}
+            defaults={GPU_FORCE_DEFAULT_OPTIONS}
+            onApply={handleApply}
+          />
+        </LayoutOptionsDetails>
+      );
+    case 'force-multi-graph-layout':
+      return (
+        <LayoutOptionsDetails description="Configure the multi-graph force simulation used to space out parallel edges.">
+          <ForceMultiGraphLayoutOptionsSection
+            appliedOptions={appliedOptions}
+            onApply={handleApply}
+          />
+        </LayoutOptionsDetails>
+      );
+    case 'radial-layout':
+      return (
+        <LayoutOptionsDetails description="Control the radius applied to each hierarchical level in the radial layout.">
+          <RadialLayoutOptionsSection appliedOptions={appliedOptions} onApply={handleApply} />
+        </LayoutOptionsDetails>
+      );
+    case 'hive-plot-layout':
+      return (
+        <LayoutOptionsDetails description="Adjust the inner and outer radii to fine-tune hive plot spacing.">
+          <HivePlotLayoutOptionsSection appliedOptions={appliedOptions} onApply={handleApply} />
+        </LayoutOptionsDetails>
+      );
+    case 'simple-layout':
+      return (
+        <LayoutOptionsDetails description="Simple layout reads node positions directly from the dataset.">
+          <p style={DESCRIPTION_STYLE}>
+            Update node coordinates or supply a custom nodePositionAccessor on the layout to change
+            positions.
+          </p>
+        </LayoutOptionsDetails>
+      );
+    default:
+      return (
+        <LayoutOptionsDetails description="This layout does not expose configurable options in the control panel yet." />
+      );
+  }
 }

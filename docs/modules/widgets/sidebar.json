@@ -1,0 +1,15 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/widgets",
+  "items": [
+    "modules/widgets/README",
+    {
+      "type": "category",
+      "label": "API Reference",
+      "items": [
+        "modules/widgets/api-reference/pan-widget",
+        "modules/widgets/api-reference/zoom-range-widget"
+      ]
+    }
+  ]
+}

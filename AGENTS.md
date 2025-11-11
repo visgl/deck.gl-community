@@ -14,3 +14,19 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 ## Documentation and release process
 - Follow the contribution flow in `docs/CONTRIBUTING.md` before landing breaking changes.
 - When adding or removing packages or examples, update any related documentation, sidebars, or release notes under `docs/`.
+
+## Naming conventions
+
+- Typescript functions use verb-noun, in camelCase.
+- Typescript variables use camelCase
+- Typescript types use PascalCase
+- Typescript constants use UPPER_CASE
+- File names use kebab case. Typically corresponding to the name of the main export in that file. Example: `export class StyleEngine` => `style-engine.ts`
+
+## Dependencies
+
+- Generally we want to be restrictive with external dependencies, unless they provide a major capability and not just some minor utilitiy.
+- vis.gl ecosystem dependencies are acceptable, as long as they respect the layering of those frameworks (a math library should not include luma.gl or deck.gl for instance).
+- For math use math.gl modules. Do not introduce d3-extents or similar to save just a few lines
+- Try to avoid lodash dependencies.
+

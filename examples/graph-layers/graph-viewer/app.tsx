@@ -4,34 +4,31 @@
 
 /* eslint-disable max-statements, complexity */
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  useReducer,
-  useRef
-} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
-import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/experimental';
+import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 // import '@deck.gl/widgets/stylesheet.css';
 import {
-  GraphEngine,
   GraphLayer,
+  GraphEngine,
   GraphLayout,
+  type Graph,
+  type GraphLayoutEventDetail,
+  LegacyGraph,
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
-  JSONLoader,
+  JSONTabularGraphLoader,
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
-  D3DagLayout
+  D3DagLayout,
+  CollapsableD3DagLayout,
+  type RankGridConfig
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -61,9 +58,11 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'radial-layout': (options) => new RadialLayout(options),
   'hive-plot-layout': (options) => new HivePlotLayout(options),
   'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
-  'd3-dag-layout': (options) => new D3DagLayout(options),
+  'd3-dag-layout': (options) => new CollapsableD3DagLayout(options),
 };
 
+
+const INITIAL_LOADING_STATE = {loaded: false, rendered: false, isLoading: true};
 
 const loadingReducer = (state, action) => {
   switch (action.type) {
@@ -83,34 +82,25 @@ const loadingReducer = (state, action) => {
   }
 };
 
-export const useLoading = (engine) => {
-  const [{isLoading}, loadingDispatch] = useReducer(loadingReducer, {isLoading: true});
+export const useLoading = () => {
+  const [state, setState] = useState(INITIAL_LOADING_STATE);
+  const loadingDispatch = useCallback((action) => {
+    setState((current) => loadingReducer(current, action));
+  }, []);
 
-  useLayoutEffect(() => {
-    if (!engine) {
-      return () => undefined;
-    }
+  const layoutCallbacks = {
+    onLayoutStart: () => loadingDispatch({type: 'startLayout'}),
+    onLayoutDone: () => loadingDispatch({type: 'layoutDone'})
+  } as const;
 
-    const layoutStarted = () => loadingDispatch({type: 'startLayout'});
-    const layoutEnded = () => loadingDispatch({type: 'layoutDone'});
-
-    engine.addEventListener('onLayoutStart', layoutStarted);
-    engine.addEventListener('onLayoutDone', layoutEnded);
-
-    return () => {
-      engine.removeEventListener('onLayoutStart', layoutStarted);
-      engine.removeEventListener('onLayoutDone', layoutEnded);
-    };
-  }, [engine]);
-
-  return [{isLoading}, loadingDispatch];
+  return [state, loadingDispatch, layoutCallbacks] as const;
 };
 
 type AppProps = {
   graphType?: GraphExampleType;
 };
 
-export function App({graphType = 'graph'}: AppProps) {
+export function App({graphType}: AppProps) {
   const exampleType = graphType;
   const examplesForType = useMemo(
     () => filterExamplesByType(EXAMPLES, exampleType),
@@ -157,7 +147,10 @@ export function App({graphType = 'graph'}: AppProps) {
 
     return overrides ?? baseOptions;
   }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
-  const graph = useMemo(() => (graphData ? JSONLoader({json: graphData}) : null), [graphData]);
+  const graph = useMemo(
+    () => (graphData ? JSONTabularGraphLoader({json: graphData}) : null),
+    [graphData]
+  );
   const layout = useMemo(() => {
     if (!selectedLayout) {
       return null;
@@ -166,7 +159,29 @@ export function App({graphType = 'graph'}: AppProps) {
     const factory = LAYOUT_FACTORIES[selectedLayout];
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
-  const engine = useMemo(() => (graph && layout ? new GraphEngine({graph, layout}) : null), [graph, layout]);
+  const engine = useMemo(() => {
+    if (!graph || !layout) {
+      return null;
+    }
+
+    if (layout instanceof GraphLayout) {
+      if (graph instanceof LegacyGraph) {
+        return new GraphEngine({graph, layout});
+      }
+
+      const toLegacy = graph as Graph & {toLegacyGraph?: () => LegacyGraph | null};
+      if (typeof toLegacy.toLegacyGraph === 'function') {
+        const legacyGraph = toLegacy.toLegacyGraph();
+        if (legacyGraph) {
+          return new GraphEngine({graph: legacyGraph, layout});
+        }
+      }
+
+      return null;
+    }
+
+    return new GraphEngine({graph, layout});
+  }, [graph, layout]);
   const isFirstMount = useRef(true);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
   const selectedStyles = selectedExample?.style;
@@ -204,19 +219,6 @@ export function App({graphType = 'graph'}: AppProps) {
     setStylesheetValue(nextValue);
   }, []);
 
-  useLayoutEffect(() => {
-    if (!engine) {
-      return () => undefined;
-    }
-
-    engine.run();
-
-    return () => {
-      engine.stop();
-      engine.clear();
-    };
-  }, [engine]);
-
   // eslint-disable-next-line no-console
   const initialViewState = INITIAL_VIEW_STATE;
   const minZoom = -20;
@@ -224,7 +226,7 @@ export function App({graphType = 'graph'}: AppProps) {
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
 
-  const {viewState, onResize, onViewStateChange} = useGraphViewport(engine, {
+  const {viewState, onResize, onViewStateChange, layoutCallbacks} = useGraphViewport(engine, {
     minZoom,
     maxZoom,
     viewportPadding: 8,
@@ -250,9 +252,33 @@ export function App({graphType = 'graph'}: AppProps) {
     []
   );
 
-  const [{isLoading}, loadingDispatch] = useLoading(engine) as any;
+  const [loadingState, loadingDispatch, loadingCallbacks] = useLoading();
+  const {isLoading} = loadingState;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
+
+  const rankGrid = useMemo<RankGridConfig | false>(() => {
+    if (!dagLayout) {
+      return false;
+    }
+
+    const orientation =
+      (layoutOptions?.orientation as string | undefined) ?? D3DagLayout.defaultProps.orientation;
+    const direction: RankGridConfig['direction'] =
+      orientation === 'LR' || orientation === 'RL' ? 'vertical' : 'horizontal';
+    const usesExplicitRank = (layoutOptions?.nodeRank as string | undefined) === 'rank';
+
+    return {
+      enabled: true,
+      direction,
+      maxLines: 10,
+      ...(usesExplicitRank ? {rankAccessor: 'rank'} : {}),
+      gridProps: {
+        color: [148, 163, 184, 220],
+        labelOffset: direction === 'vertical' ? [0, 8] : [8, 0]
+      }
+    };
+  }, [dagLayout, layoutOptions]);
 
   useEffect(() => {
     if (isDagLayout) {
@@ -264,59 +290,73 @@ export function App({graphType = 'graph'}: AppProps) {
     if (!dagLayout) {
       return;
     }
-    dagLayout.setPipelineOptions({collapseLinearChains: collapseEnabled});
+    dagLayout.setProps({collapseLinearChains: collapseEnabled});
     if (!collapseEnabled) {
       dagLayout.setCollapsedChains([]);
     }
   }, [dagLayout, collapseEnabled]);
 
-  useEffect(() => {
-    if (!engine || !dagLayout) {
+  const updateChainSummary = useCallback(() => {
+    if (!graph || !dagLayout || !engine || !isDagLayout) {
       setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
       return;
     }
 
-    const updateChainSummary = () => {
-      const chainIds: string[] = [];
-      const collapsedIds: string[] = [];
+    const chainIds: string[] = [];
+    const collapsedIds: string[] = [];
 
-      for (const node of engine.getNodes()) {
-        const chainId = node.getPropertyValue('collapsedChainId');
-        const nodeIds = node.getPropertyValue('collapsedNodeIds');
-        const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
-        const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+    for (const node of engine.getNodes()) {
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const nodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
 
-        if (
-          chainId !== null &&
-          chainId !== undefined &&
-          Array.isArray(nodeIds) &&
-          nodeIds.length > 1 &&
-          representativeId === node.getId()
-        ) {
-          const chainKey = String(chainId);
-          chainIds.push(chainKey);
-          if (isCollapsed) {
-            collapsedIds.push(chainKey);
-          }
+      if (
+        chainId !== null &&
+        chainId !== undefined &&
+        Array.isArray(nodeIds) &&
+        nodeIds.length > 1 &&
+        representativeId === node.getId()
+      ) {
+        const chainKey = String(chainId);
+        chainIds.push(chainKey);
+        if (isCollapsed) {
+          collapsedIds.push(chainKey);
         }
       }
+    }
 
-      setDagChainSummary({chainIds, collapsedIds});
-    };
+    setDagChainSummary({chainIds, collapsedIds});
+  }, [graph, dagLayout, engine, isDagLayout]);
 
+  useEffect(() => {
     updateChainSummary();
+  }, [updateChainSummary]);
 
-    const handleLayoutChange = () => updateChainSummary();
-    const handleLayoutDone = () => updateChainSummary();
+  const handleLayoutStart = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      loadingCallbacks.onLayoutStart();
+      layoutCallbacks.onLayoutStart(detail);
+    },
+    [loadingCallbacks, layoutCallbacks]
+  );
 
-    engine.addEventListener('onLayoutChange', handleLayoutChange);
-    engine.addEventListener('onLayoutDone', handleLayoutDone);
+  const handleLayoutChange = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      layoutCallbacks.onLayoutChange(detail);
+      updateChainSummary();
+    },
+    [layoutCallbacks, updateChainSummary]
+  );
 
-    return () => {
-      engine.removeEventListener('onLayoutChange', handleLayoutChange);
-      engine.removeEventListener('onLayoutDone', handleLayoutDone);
-    };
-  }, [engine, dagLayout, isDagLayout]);
+  const handleLayoutDone = useCallback(
+    (detail?: GraphLayoutEventDetail) => {
+      loadingCallbacks.onLayoutDone();
+      layoutCallbacks.onLayoutDone(detail);
+      updateChainSummary();
+    },
+    [loadingCallbacks, layoutCallbacks, updateChainSummary]
+  );
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);
@@ -359,17 +399,17 @@ export function App({graphType = 'graph'}: AppProps) {
   // );
 
   // useEffect(() => {
-  //   if (!engine) {
+  //   if (!layout) {
   //     return () => undefined;
   //   }
 
   //   if (zoomToFitOnLoad && isLoading) {
-  //     engine.addEventListener('onLayoutDone', fitBounds, {once: true});
+  //     layout.addEventListener('onLayoutDone', fitBounds, {once: true});
   //   }
   //   return () => {
-  //     engine.removeEventListener('onLayoutDone', fitBounds);
+  //     layout.removeEventListener('onLayoutDone', fitBounds);
   //   };
-  // }, [engine, isLoading, fitBounds, zoomToFitOnLoad]);
+  // }, [layout, isLoading, fitBounds, zoomToFitOnLoad]);
 
   useEffect(() => {
     const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
@@ -424,7 +464,11 @@ export function App({graphType = 'graph'}: AppProps) {
         ) : null}
         <DeckGL
           onError={(error) => console.error(error)}
-          onAfterRender={() => loadingDispatch({type: 'afterRender'})}
+          onAfterRender={() => {
+            if (!loadingState.rendered) {
+              loadingDispatch({type: 'afterRender'});
+            }
+          }}
           width="100%"
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
@@ -445,12 +489,18 @@ export function App({graphType = 'graph'}: AppProps) {
             })
           ]}
           layers={
-            engine
+            graph && layout && engine
               ? [
                 new GraphLayer({
+                  data: engine,
                   engine,
+                  layout,
                   stylesheet: selectedStyles,
-                  resumeLayoutAfterDragging
+                  onLayoutStart: handleLayoutStart,
+                  onLayoutChange: handleLayoutChange,
+                  onLayoutDone: handleLayoutDone,
+                  resumeLayoutAfterDragging,
+                  rankGrid
                 })
               ]
               : []
@@ -517,12 +567,96 @@ export function App({graphType = 'graph'}: AppProps) {
   );
 }
 
-function getToolTip(object) {
-  if (!object) {
+type GraphTooltipObject = {
+  isNode?: boolean;
+  _data?: Record<string, unknown> | null;
+};
+
+function isGraphTooltipObject(value: unknown): value is GraphTooltipObject {
+  return typeof value === 'object' && value !== null;
+}
+
+const TOOLTIP_THEME = {
+  background: '#0f172a',
+  border: '#1e293b',
+  header: '#38bdf8',
+  key: '#facc15',
+  value: '#f8fafc'
+} as const;
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case '\'':
+        return '&#39;';
+      default:
+        return character;
+    }
+  });
+}
+
+function formatTooltipValue(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => formatTooltipValue(item)).join(', ');
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function getToolTip(object: unknown): {html: string} | null {
+  if (!isGraphTooltipObject(object)) {
     return null;
   }
-  const type = object.isNode ? 'Node' : 'Edge';
-  return `${type}: ${JSON.stringify(object?._data)}`;
+
+  const data = object._data ?? {};
+  const entries = Object.entries(data).filter(([, value]) => value !== undefined);
+
+  if (!entries.length) {
+    return null;
+  }
+
+  const typeLabel = object.isNode ? 'Node' : 'Edge';
+  const rowsHtml = entries
+    .map(([key, value]) => {
+      const formattedValue = formatTooltipValue(value);
+      return `
+        <tr>
+          <th style="padding: 0.25rem 0.5rem; text-align: left; color: ${TOOLTIP_THEME.key}; font-weight: 600; white-space: nowrap;">${escapeHtml(
+            key
+          )}</th>
+          <td style="padding: 0.25rem 0.5rem; color: ${TOOLTIP_THEME.value}; font-weight: 500;">${escapeHtml(
+            formattedValue
+          )}</td>
+        </tr>`;
+    })
+    .join('');
+
+  return {
+    html: `
+      <div style="background: ${TOOLTIP_THEME.background}; border: 1px solid ${TOOLTIP_THEME.border}; border-radius: 0.75rem; padding: 0.75rem; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.45); font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; font-size: 0.75rem; min-width: 14rem; max-width: 22rem;">
+        <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.65rem; font-weight: 700; color: ${TOOLTIP_THEME.header}; margin-bottom: 0.5rem;">${typeLabel}</div>
+        <table style="border-collapse: collapse; width: 100%;">
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    `
+      .trim()
+  };
 }
 
 export function renderToDOM() {

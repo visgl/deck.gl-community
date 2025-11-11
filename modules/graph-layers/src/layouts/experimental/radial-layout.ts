@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
-import {Graph} from '../../graph/graph';
+import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import {LegacyGraph} from '../../graph/legacy-graph';
+import type {Node} from '../../graph/node';
 
-export type RadialLayoutOptions = GraphLayoutOptions & {
+export type RadialLayoutProps = GraphLayoutProps & {
   radius?: number;
   tree?: any;
 };
@@ -51,46 +52,52 @@ const getPath = (node, targetId, path) => {
   return false;
 };
 
-export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
-  static defaultOptions = {
-    radius: 500
-  };
+export class RadialLayout extends GraphLayout<RadialLayoutProps> {
+  static defaultProps = {
+    ...GRAPH_LAYOUT_DEFAULT_PROPS,
+    radius: 500,
+    tree: []
+  } as const satisfies Readonly<Required<RadialLayoutProps>>;
 
   _name = 'RadialLayout';
-  _graph: Graph = null;
+  _graph: LegacyGraph | null = null;
   // custom layout data structure
   _hierarchicalPoints = {};
   nestedTree;
 
-  constructor(options: RadialLayoutOptions = {}) {
-    super(options);
-    this._options = {
-      ...RadialLayout.defaultOptions,
-      ...options
-    };
+  constructor(props: RadialLayoutProps = {}) {
+    super(props, RadialLayout.defaultProps);
   }
 
-  initializeGraph(graph: Graph): void {
+  initializeGraph(graph: LegacyGraph): void {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: Graph): void {
+  updateGraph(graph: LegacyGraph): void {
     this._graph = graph;
   }
 
   start(): void {
-    const nodeCount = this._graph.getNodes().length;
+    if (!this._graph) {
+      return;
+    }
+    const nodes = Array.isArray(this._graph.getNodes())
+      ? (this._graph.getNodes() as Node[])
+      : (Array.from(this._graph.getNodes()) as Node[]);
+    const nodeCount = nodes.length;
     if (nodeCount === 0) {
       return;
     }
 
-    const {tree} = this._options;
+    const {tree} = this.props;
 
     if (!tree || tree.length === 0) {
       return;
     }
 
-    const {radius} = this._options;
+    this._onLayoutStart();
+
+    const {radius} = this.props;
     const unitAngle = 360 / nodeCount;
 
     // hierarchical positions
@@ -148,8 +155,14 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
     this._onLayoutDone();
   }
 
-  getNodePosition = (node) => {
-    return this._hierarchicalPoints[node.id];
+  stop(): void {}
+
+  resume() {}
+
+  update() {}
+
+  getNodePosition = (node: Node) => {
+    return this._hierarchicalPoints[node.getId()];
   };
 
   // spline curve version

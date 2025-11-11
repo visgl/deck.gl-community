@@ -4,10 +4,10 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
-import type {Graph} from '../../graph/graph';
+import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import type {LegacyGraph} from '../../graph/legacy-graph';
+import type {NodeInterface, EdgeInterface} from '../../graph/graph';
 import {Node} from '../../graph/node';
-import {Edge} from '../../graph/edge';
 import {
   coordCenter,
   coordGreedy,
@@ -26,8 +26,8 @@ import {
   layeringTopological,
   sugiyama,
   zherebko,
-  type Coord,
-  type Decross,
+  // type Coord,
+  // type Decross,
   type DefaultGrid,
   type DefaultSugiyama,
   type DefaultZherebko,
@@ -39,46 +39,44 @@ import {
 } from 'd3-dag';
 import {log} from '../../utils/log';
 
-export type D3DagLayoutBuilderName = 'sugiyama' | 'grid' | 'zherebko';
-export type D3DagLayeringName = 'simplex' | 'longestPath' | 'topological';
-export type D3DagDecrossName = 'twoLayer' | 'opt' | 'dfs';
-export type D3DagCoordName = 'simplex' | 'greedy' | 'quad' | 'center' | 'topological';
-export type D3DagDagBuilderName = 'graph' | 'connect' | 'stratify';
-export type D3DagOrientation = 'TB' | 'BT' | 'LR' | 'RL';
-export type D3DagCenterOption = boolean | {x?: boolean; y?: boolean};
-
-export type D3DagLayoutOperator =
-  | DefaultSugiyama
-  | DefaultGrid
-  | DefaultZherebko
-  | ((dag: MutGraph<Node, Edge>) => LayoutResult);
-
-export type D3DagLayoutOptions = GraphLayoutOptions & {
+export type D3DagLayoutProps = GraphLayoutProps & {
   /** Which high-level layout operator to use. */
-  layout?: D3DagLayoutBuilderName | D3DagLayoutOperator;
+  layout?: 'sugiyama' | 'grid' | 'zherebko';
   /** Layering operator used by sugiyama layouts. */
-  layering?: D3DagLayeringName | LayeringOperator;
+  layering?: 'simplex' | 'longestPath' | 'topological';
+  /** Accessor for node rank for layering */
+  nodeRank?: string | ((node: NodeInterface) => number | undefined);
   /** Decrossing operator used by sugiyama layouts. */
-  decross?: D3DagDecrossName | DecrossOperator;
+  decross?: 'twoLayer' | 'opt' | 'dfs';
   /** Coordinate assignment operator used by sugiyama layouts. */
-  coord?: D3DagCoordName | CoordOperator;
+  coord?: 'simplex' | 'greedy' | 'quad' | 'center' | 'topological';
   /** Node sizing accessor passed to the active layout. */
-  nodeSize?: NodeSize<Node, Edge>;
+  nodeSize?: NodeSize<NodeInterface, EdgeInterface>;
   /** Optional gap between nodes. Alias: separation. */
   gap?: readonly [number, number];
   /** Optional gap between nodes. */
   separation?: readonly [number, number];
   /** Orientation transform applied after the layout finishes. */
-  orientation?: D3DagOrientation;
+  orientation?: 'TB' | 'BT' | 'LR' | 'RL';
   /** Whether to center the layout along each axis. */
-  center?: D3DagCenterOption;
+  center?: boolean | {x?: boolean; y?: boolean};
   /** How to convert the Graph into a DAG. */
-  dagBuilder?: D3DagDagBuilderName | DagBuilder;
-  /** Whether to collapse linear chains of nodes into a single representative. */
-  collapseLinearChains?: boolean;
+  dagBuilder?: 'graph' | 'connect' | 'stratify';
+
+  customDagBuilder?: DagBuilder;
+  customLayout?: D3DagLayoutOperator;
+  customLayering?: LayeringOperator;
+  customDecross?: DecrossOperator;
+  customCoord?: CoordOperator;
 };
 
-type DagBuilder = (graph: Graph) => MutGraph<Node, Edge>;
+export type D3DagLayoutOperator =
+  | DefaultSugiyama
+  | DefaultGrid
+  | DefaultZherebko
+  | ((dag: MutGraph<NodeInterface, EdgeInterface>) => LayoutResult);
+
+type DagBuilder = (graph: LegacyGraph) => MutGraph<NodeInterface, EdgeInterface>;
 
 type LayeringOperator =
   | ReturnType<typeof layeringSimplex>
@@ -95,21 +93,14 @@ type CoordOperator =
   | ReturnType<typeof coordSimplex>
   | ReturnType<typeof coordTopological>;
 
-type LayoutCallable = (dag: MutGraph<Node, Edge>) => LayoutResult;
+type LayoutCallable = (dag: MutGraph<NodeInterface, EdgeInterface>) => LayoutResult;
 
 type LayoutWithConfiguration = LayoutCallable & {
   layering?: (layer?: any) => any;
   decross?: (decross?: any) => any;
   coord?: (coord?: any) => any;
-  nodeSize?: (size?: NodeSize<Node, Edge>) => any;
+  nodeSize?: (size?: NodeSize<NodeInterface, EdgeInterface>) => any;
   gap?: (gap?: readonly [number, number]) => any;
-};
-
-type CollapsedChainDescriptor = {
-  id: string;
-  nodeIds: (string | number)[];
-  edgeIds: (string | number)[];
-  representativeId: string | number;
 };
 
 type DagBounds = {
@@ -121,59 +112,74 @@ type DagBounds = {
   centerY: number;
 };
 
+const DAG_ID_SEPARATOR = '::';
+
 const DEFAULT_NODE_SIZE: readonly [number, number] = [140, 120];
 const DEFAULT_GAP: readonly [number, number] = [0, 0];
 
-const LAYERING_FACTORIES: Record<D3DagLayeringName, () => LayeringOperator> = {
+const LAYERING_FACTORIES = {
   simplex: layeringSimplex,
   longestPath: layeringLongestPath,
   topological: layeringTopological
-};
+} as const satisfies Record<string, () => LayeringOperator>;
 
-const DECROSS_FACTORIES: Record<D3DagDecrossName, () => DecrossOperator> = {
+const DECROSS_FACTORIES = {
   twoLayer: decrossTwoLayer,
   opt: decrossOpt,
   dfs: decrossDfs
-};
+} as const satisfies Record<string, () => DecrossOperator>;
 
-const COORD_FACTORIES: Record<D3DagCoordName, () => CoordOperator> = {
+const COORD_FACTORIES = {
   simplex: coordSimplex,
   greedy: coordGreedy,
   quad: coordQuad,
   center: coordCenter,
   topological: coordTopological
-};
+} as const satisfies Record<string, () => CoordOperator>;
 
-const LAYOUT_FACTORIES: Record<D3DagLayoutBuilderName, () => LayoutWithConfiguration> = {
+const LAYOUT_FACTORIES = {
   sugiyama: () => sugiyama(),
   grid: () => grid(),
   zherebko: () => zherebko()
-};
+} as const satisfies Record<string, () => LayoutWithConfiguration>;
 
-const DAG_ID_SEPARATOR = '::';
+function isNodeInterface(value: unknown): value is NodeInterface {
+  return Boolean(value) && typeof value === 'object' && (value as NodeInterface).isNode === true;
+}
+
+function isEdgeInterface(value: unknown): value is EdgeInterface {
+  return Boolean(value) && typeof value === 'object' && (value as EdgeInterface).isEdge === true;
+}
 
 /**
  * Layout that orchestrates d3-dag operators from declarative options.
  */
-export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
-  static defaultOptions: Required<Omit<D3DagLayoutOptions, 'layout'>> & {layout: D3DagLayoutBuilderName} = {
+export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> extends GraphLayout<PropsT> {
+  static defaultProps: Readonly<Required<D3DagLayoutProps>> = {
+    ...GRAPH_LAYOUT_DEFAULT_PROPS,
     layout: 'sugiyama',
     layering: 'topological',
     decross: 'twoLayer',
     coord: 'greedy',
+    nodeRank: undefined,
     nodeSize: DEFAULT_NODE_SIZE,
     gap: DEFAULT_GAP,
     separation: DEFAULT_GAP,
     orientation: 'TB',
     center: true,
     dagBuilder: 'graph',
-    collapseLinearChains: false
-  };
+
+    customLayout: undefined,
+    customLayering: undefined,
+    customDecross: undefined,
+    customCoord: undefined,
+    customDagBuilder: undefined
+  } as const;
 
   protected readonly _name = 'D3DagLayout';
 
-  private _graph: Graph | null = null;
-  private _dag: MutGraph<Node, Edge> | null = null;
+  protected _graph: LegacyGraph | null = null;
+  private _dag: MutGraph<NodeInterface, EdgeInterface> | null = null;
   private _layoutOperator: LayoutWithConfiguration | null = null;
   private _rawNodePositions = new Map<string | number, [number, number]>();
   private _rawEdgePoints = new Map<string | number, [number, number][]>();
@@ -183,32 +189,42 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   private _lockedNodePositions = new Map<string | number, [number, number]>();
   private _dagBounds: DagBounds | null = null;
 
-  private _nodeLookup = new Map<string | number, Node>();
-  private _stringIdLookup = new Map<string, string | number>();
-  private _edgeLookup = new Map<string, Edge>();
-  private _incomingParentMap = new Map<string | number, (string | number)[]>();
-  private _chainDescriptors = new Map<string, CollapsedChainDescriptor>();
-  private _nodeToChainId = new Map<string | number, string>();
-  private _collapsedChainState = new Map<string, boolean>();
-  private _hiddenNodeIds = new Set<string | number>();
+  protected _nodeLookup = new Map<string | number, NodeInterface>();
+  protected _stringIdLookup = new Map<string, string | number>();
+  protected _edgeLookup = new Map<string, EdgeInterface>();
+  protected _incomingParentMap = new Map<string | number, (string | number)[]>();
 
-  constructor(options: D3DagLayoutOptions = {}) {
-    super({...D3DagLayout.defaultOptions, ...options});
+  constructor(props: D3DagLayoutProps, defaultProps?: Required<PropsT>) {
+    // @ts-expect-error TS2345 - Type 'Required<D3DagLayoutProps>' is not assignable to type 'Required<PropsT>'.
+    super(props, defaultProps || D3DagLayout.defaultProps);
   }
 
-  initializeGraph(graph: Graph): void {
+  setProps(options: Partial<D3DagLayoutProps>): void {
+    this.props = {...this.props, ...options};
+    if (
+      options.layout !== undefined ||
+      options.layering !== undefined ||
+      options.decross !== undefined ||
+      options.coord !== undefined ||
+      options.nodeSize !== undefined ||
+      options.gap !== undefined ||
+      options.separation !== undefined
+    ) {
+      this._layoutOperator = null;
+    }
+  }
+
+
+  initializeGraph(graph: LegacyGraph): void {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: Graph): void {
+  updateGraph(graph: LegacyGraph): void {
     this._graph = graph;
     this._nodeLookup = new Map();
     this._stringIdLookup = new Map();
     this._edgeLookup = new Map();
     this._incomingParentMap = new Map();
-    this._chainDescriptors = new Map();
-    this._nodeToChainId = new Map();
-    this._hiddenNodeIds = new Set();
 
     for (const node of graph.getNodes()) {
       const id = node.getId();
@@ -246,80 +262,15 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
   stop(): void {}
 
   toggleCollapsedChain(chainId: string): void {
-    if (!this._graph) {
-      log.log(1, `D3DagLayout: toggleCollapsedChain(${chainId}) ignored (no graph)`);
-      return;
-    }
-    if (!this._chainDescriptors.has(chainId)) {
-      this._refreshCollapsedChains();
-    }
-    if (!this._chainDescriptors.has(chainId)) {
-      log.log(1, `D3DagLayout: toggleCollapsedChain(${chainId}) skipped (unknown chain)`);
-      return;
-    }
-    const collapsed = this._isChainCollapsed(chainId);
-    const nextState = !collapsed;
-    log.log(
-      0,
-      `D3DagLayout: toggleCollapsedChain(${chainId}) -> ${nextState ? 'collapsed' : 'expanded'}`
-    );
-    // eslint-disable-next-line no-console
-    console.log(
-      `D3DagLayout: toggleCollapsedChain(${chainId}) -> ${nextState ? 'collapsed' : 'expanded'}`
-    );
-    this._collapsedChainState.set(chainId, nextState);
-    this._runLayout();
+    log.log(1, `D3DagLayout: toggleCollapsedChain(${chainId}) ignored (collapsing disabled)`);
   }
 
   setCollapsedChains(chainIds: Iterable<string>): void {
-    if (!this._graph) {
-      log.log(1, 'D3DagLayout: setCollapsedChains ignored (no graph)');
-      return;
-    }
-    if (!this._chainDescriptors.size) {
-      this._refreshCollapsedChains();
-    }
-    const desired = new Set(chainIds);
-    log.log(0, `D3DagLayout: setCollapsedChains(${desired.size}) requested`);
-    let changed = false;
-    for (const chainId of this._chainDescriptors.keys()) {
-      const next = desired.has(chainId);
-      if (this._isChainCollapsed(chainId) !== next) {
-        this._collapsedChainState.set(chainId, next);
-        changed = true;
-      }
-    }
-    if (changed) {
-      log.log(0, 'D3DagLayout: setCollapsedChains -> changes detected, rerunning layout');
-      // eslint-disable-next-line no-console
-      console.log('D3DagLayout: setCollapsedChains -> changes detected, rerunning layout');
-      this._runLayout();
-    } else {
-      log.log(1, 'D3DagLayout: setCollapsedChains -> no changes');
-      // eslint-disable-next-line no-console
-      console.log('D3DagLayout: setCollapsedChains -> no changes');
-    }
+    const desired = Array.isArray(chainIds) ? chainIds : Array.from(chainIds);
+    log.log(1, `D3DagLayout: setCollapsedChains(${desired.length}) ignored (collapsing disabled)`);
   }
 
-  setPipelineOptions(options: Partial<D3DagLayoutOptions>): void {
-    this._options = {...this._options, ...options};
-    if (
-      options.layout !== undefined ||
-      options.layering !== undefined ||
-      options.decross !== undefined ||
-      options.coord !== undefined ||
-      options.nodeSize !== undefined ||
-      options.gap !== undefined ||
-      options.separation !== undefined
-    ) {
-      this._layoutOperator = null;
-    }
-    if (options.collapseLinearChains !== undefined && this._graph) {
-      this._runLayout();
-    }
-  }
-
-  getNodePosition(node: Node): [number, number] | null {
+  getNodePosition(node: NodeInterface): [number, number] | null {
     if (this._shouldSkipNode(node.getId())) {
       return null;
     }
@@ -327,7 +278,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     return this._nodePositions.get(mappedId) || null;
   }
 
-  getEdgePosition(edge: Edge):
+  getEdgePosition(edge: EdgeInterface):
     | {
         type: string;
         sourcePosition: [number, number];
@@ -363,22 +314,22 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     };
   }
 
-  getLinkControlPoints(edge: Edge): [number, number][] {
+  getLinkControlPoints(edge: EdgeInterface): [number, number][] {
     return this._edgeControlPoints.get(edge.getId()) || [];
   }
 
-  lockNodePosition(node: Node, x: number, y: number): void {
+  lockNodePosition(node: NodeInterface, x: number, y: number): void {
     this._lockedNodePositions.set(node.getId(), [x, y]);
     this._nodePositions.set(node.getId(), [x, y]);
     this._onLayoutChange();
     this._onLayoutDone();
   }
 
-  unlockNodePosition(node: Node): void {
+  unlockNodePosition(node: NodeInterface): void {
     this._lockedNodePositions.delete(node.getId());
   }
 
-  private _runLayout(): void {
+  protected _runLayout(): void {
     if (!this._graph) {
       return;
     }
@@ -398,160 +349,17 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
   }
 
-  private _refreshCollapsedChains(): void {
-    const previousChainCount = this._chainDescriptors.size;
-    if (!this._graph) {
-      if (previousChainCount > 0) {
-        log.log(0, 'D3DagLayout: clearing collapsed chains (graph unavailable)');
-        // eslint-disable-next-line no-console
-        console.log('D3DagLayout: clearing collapsed chains (graph unavailable)');
-      }
-      this._chainDescriptors.clear();
-      this._nodeToChainId.clear();
-      this._hiddenNodeIds.clear();
-      return;
-    }
-
-    log.log(
-      0,
-      `D3DagLayout: refreshing collapsed chains (previous=${previousChainCount})`
-    );
-    // eslint-disable-next-line no-console
-    console.log(
-      `D3DagLayout: refreshing collapsed chains (previous=${previousChainCount})`
-    );
-
-    const collapseDefault =
-      this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
-
-    const previousStates = new Map(this._collapsedChainState);
-
-    this._chainDescriptors.clear();
-    this._nodeToChainId.clear();
-    this._hiddenNodeIds.clear();
-
-    const nodes = this._graph.getNodes();
-    const candidateNodes = new Set<string | number>();
-    const incomingCache = new Map<string | number, Edge[]>();
-    const outgoingCache = new Map<string | number, Edge[]>();
-
-    for (const node of nodes) {
-      const incoming = this._getIncomingEdges(node);
-      const outgoing = this._getOutgoingEdges(node);
-      incomingCache.set(node.getId(), incoming);
-      outgoingCache.set(node.getId(), outgoing);
-      if (incoming.length <= 1 && outgoing.length <= 1 && incoming.length + outgoing.length > 0) {
-        candidateNodes.add(node.getId());
-      }
-    }
-
-    const visited = new Set<string | number>();
-    for (const node of nodes) {
-      const nodeId = node.getId();
-      if (!candidateNodes.has(nodeId) || visited.has(nodeId)) {
-        continue;
-      }
-
-      const incoming = incomingCache.get(nodeId) ?? [];
-      const hasCandidateParent =
-        incoming.length === 1 && candidateNodes.has(incoming[0].getSourceNodeId());
-      if (hasCandidateParent) {
-        continue;
-      }
-
-      const chainNodeIds: (string | number)[] = [];
-      const chainEdgeIds: (string | number)[] = [];
-      let currentNode: Node | undefined = node;
-
-      while (currentNode) {
-        const currentId = currentNode.getId();
-        if (!candidateNodes.has(currentId) || visited.has(currentId)) {
-          break;
-        }
-
-        visited.add(currentId);
-        chainNodeIds.push(currentId);
-
-        const outgoing = outgoingCache.get(currentId) ?? [];
-        if (outgoing.length !== 1) {
-          break;
-        }
-
-        const nextEdge = outgoing[0];
-        const nextNodeId = nextEdge.getTargetNodeId();
-        if (!candidateNodes.has(nextNodeId)) {
-          break;
-        }
-
-        const nextIncoming = incomingCache.get(nextNodeId) ?? [];
-        if (nextIncoming.length !== 1) {
-          break;
-        }
-
-        chainEdgeIds.push(nextEdge.getId());
-        currentNode = this._nodeLookup.get(nextNodeId);
-      }
-
-      if (chainNodeIds.length > 1) {
-        const chainId = this._createChainId(chainNodeIds);
-        const collapsed = previousStates.has(chainId)
-          ? previousStates.get(chainId)
-          : collapseDefault;
-        this._chainDescriptors.set(chainId, {
-          id: chainId,
-          nodeIds: chainNodeIds,
-          edgeIds: chainEdgeIds,
-          representativeId: chainNodeIds[0]
-        });
-        this._collapsedChainState.set(chainId, collapsed);
-        for (const chainNodeId of chainNodeIds) {
-          this._nodeToChainId.set(chainNodeId, chainId);
-        }
-      }
-    }
-
-    for (const key of previousStates.keys()) {
-      if (!this._chainDescriptors.has(key)) {
-        this._collapsedChainState.delete(key);
-      }
-    }
-
-    this._hiddenNodeIds.clear();
-    for (const [chainId, descriptor] of this._chainDescriptors) {
-      const collapsed = this._isChainCollapsed(chainId);
-      if (collapsed) {
-        for (const nodeId of descriptor.nodeIds) {
-          // eslint-disable-next-line max-depth
-          if (nodeId !== descriptor.representativeId) {
-            this._hiddenNodeIds.add(nodeId);
-          }
-        }
-      }
-    }
-
+  protected _refreshCollapsedChains(): void {
     this._updateCollapsedChainNodeMetadata();
-
-    let collapsedCount = 0;
-    for (const chainId of this._chainDescriptors.keys()) {
-      if (this._isChainCollapsed(chainId)) {
-        collapsedCount++;
-      }
-    }
-    log.log(
-      0,
-      `D3DagLayout: refreshed collapsed chains -> total=${this._chainDescriptors.size}, collapsed=${collapsedCount}`
-    );
   }
 
-  private _buildDag(): MutGraph<Node, Edge> {
-    const builder = this._options.dagBuilder ?? D3DagLayout.defaultOptions.dagBuilder;
-
-    if (typeof builder === 'function') {
-      const dag = builder(this._graph);
+  private _buildDag(): MutGraph<NodeInterface, EdgeInterface> {
+    if (this.props.customDagBuilder) {
+      const dag = this.props.customDagBuilder(this._graph);
       return this._ensureEdgeData(dag);
     }
 
-    switch (builder) {
+    switch (this.props.dagBuilder) {
       case 'connect':
         return this._buildDagWithConnect();
       case 'stratify':
@@ -562,9 +370,9 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
   }
 
-  private _buildDagWithGraph(): MutGraph<Node, Edge> {
-    const dag = createDagGraph<Node, Edge>();
-    const dagNodeLookup = new Map<string | number, MutGraphNode<Node, Edge>>();
+  private _buildDagWithGraph(): MutGraph<NodeInterface, EdgeInterface> {
+    const dag = createDagGraph<NodeInterface, EdgeInterface>();
+    const dagNodeLookup = new Map<string | number, MutGraphNode<NodeInterface, EdgeInterface>>();
 
     for (const node of this._graph.getNodes()) {
       if (this._shouldSkipNode(node.getId())) {
@@ -594,13 +402,13 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     return dag;
   }
 
-  private _buildDagWithConnect(): MutGraph<Node, Edge> {
-    type ConnectDatum = {source: string; target: string; edge: Edge};
+  private _buildDagWithConnect(): MutGraph<NodeInterface, EdgeInterface> {
+    type ConnectDatum = {source: string; target: string; edge: EdgeInterface};
 
     const connect = graphConnect()
       .sourceId(({source}: ConnectDatum): string => source)
       .targetId(({target}: ConnectDatum): string => target)
-      .nodeDatum((id: string): Node => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
+      .nodeDatum((id: string): NodeInterface => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
       .single(true);
 
     const data: ConnectDatum[] = this._graph
@@ -623,7 +431,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     const seenIds = new Set<string | number>();
     for (const dagNode of dag.nodes()) {
       const datum = dagNode.data;
-      if (datum instanceof Node) {
+      if (isNodeInterface(datum)) {
         seenIds.add(datum.getId());
       }
     }
@@ -640,10 +448,10 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     return this._ensureEdgeData(dag);
   }
 
-  private _buildDagWithStratify(): MutGraph<Node, Edge> {
+  private _buildDagWithStratify(): MutGraph<NodeInterface, EdgeInterface> {
     const stratify = graphStratify()
-      .id((node: Node): string => this._toDagId(node.getId()))
-      .parentIds((node: Node): Iterable<string> => {
+      .id((node: NodeInterface): string => this._toDagId(node.getId()))
+      .parentIds((node: NodeInterface): Iterable<string> => {
         const parentIds = this._incomingParentMap.get(node.getId()) ?? [];
         const mapped = new Set<string>();
         for (const parentId of parentIds) {
@@ -663,100 +471,60 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     return this._ensureEdgeData(dag);
   }
 
-  private _isChainCollapsed(chainId: string): boolean {
-    const collapseDefault =
-      this._options.collapseLinearChains ?? D3DagLayout.defaultOptions.collapseLinearChains;
-    return this._collapsedChainState.get(chainId) ?? collapseDefault;
+  protected _shouldSkipNode(_nodeId: string | number): boolean {
+    return false;
   }
 
-  private _shouldSkipNode(nodeId: string | number): boolean {
-    return this._hiddenNodeIds.has(nodeId);
+  protected _mapNodeId(nodeId: string | number): string | number {
+    return nodeId;
   }
 
-  private _mapNodeId(nodeId: string | number): string | number {
-    const chainId = this._nodeToChainId.get(nodeId);
-    if (!chainId) {
-      return nodeId;
-    }
-    const descriptor = this._chainDescriptors.get(chainId);
-    if (!descriptor) {
-      return nodeId;
-    }
-    return this._isChainCollapsed(chainId) ? descriptor.representativeId : nodeId;
-  }
-
-  private _updateCollapsedChainNodeMetadata(): void {
+  protected _updateCollapsedChainNodeMetadata(): void {
     if (!this._graph) {
       return;
     }
     for (const node of this._graph.getNodes()) {
-      const nodeId = node.getId();
-      const chainId = this._nodeToChainId.get(nodeId);
-      if (!chainId) {
-        node.setDataProperty('collapsedChainId', null);
-        node.setDataProperty('collapsedChainLength', 1);
-        node.setDataProperty('collapsedNodeIds', []);
-        node.setDataProperty('collapsedEdgeIds', []);
-        node.setDataProperty('collapsedChainRepresentativeId', null);
-        node.setDataProperty('isCollapsedChain', false);
-        continue;
-      }
-      const descriptor = this._chainDescriptors.get(chainId);
-      if (!descriptor) {
-        node.setDataProperty('collapsedChainId', null);
-        node.setDataProperty('collapsedChainLength', 1);
-        node.setDataProperty('collapsedNodeIds', []);
-        node.setDataProperty('collapsedEdgeIds', []);
-        node.setDataProperty('collapsedChainRepresentativeId', null);
-        node.setDataProperty('isCollapsedChain', false);
-        continue;
-      }
-      const collapsed = this._isChainCollapsed(chainId);
-      node.setDataProperty('collapsedChainId', chainId);
-      node.setDataProperty('collapsedChainLength', collapsed ? descriptor.nodeIds.length : 1);
-      node.setDataProperty('collapsedNodeIds', descriptor.nodeIds);
-      node.setDataProperty('collapsedEdgeIds', descriptor.edgeIds);
-      node.setDataProperty('collapsedChainRepresentativeId', descriptor.representativeId);
-      node.setDataProperty('isCollapsedChain', collapsed);
+      node.setDataProperty('collapsedChainId', null);
+      node.setDataProperty('collapsedChainLength', 1);
+      node.setDataProperty('collapsedNodeIds', []);
+      node.setDataProperty('collapsedEdgeIds', []);
+      node.setDataProperty('collapsedChainRepresentativeId', null);
+      node.setDataProperty('isCollapsedChain', false);
     }
   }
 
-  private _createChainId(nodeIds: (string | number)[]): string {
-    return `chain:${nodeIds.map((id) => this._toDagId(id)).join('>')}`;
-  }
-
-  private _getIncomingEdges(node: Node): Edge[] {
+  protected _getIncomingEdges(node: NodeInterface): EdgeInterface[] {
     const nodeId = node.getId();
     return node
       .getConnectedEdges()
       .filter((edge) => edge.isDirected() && edge.getTargetNodeId() === nodeId);
   }
 
-  private _getOutgoingEdges(node: Node): Edge[] {
+  protected _getOutgoingEdges(node: NodeInterface): EdgeInterface[] {
     const nodeId = node.getId();
     return node
       .getConnectedEdges()
       .filter((edge) => edge.isDirected() && edge.getSourceNodeId() === nodeId);
   }
 
-  private _ensureEdgeData<T>(dag: MutGraph<Node, T>): MutGraph<Node, Edge> {
+  private _ensureEdgeData<T>(dag: MutGraph<NodeInterface, T>): MutGraph<NodeInterface, EdgeInterface> {
     for (const link of dag.links()) {
-      if (link.data instanceof Edge) {
+      if (isEdgeInterface(link.data)) {
         continue;
       }
       const sourceNode = link.source.data;
       const targetNode = link.target.data;
-      if (!(sourceNode instanceof Node) || !(targetNode instanceof Node)) {
+      if (!isNodeInterface(sourceNode) || !isNodeInterface(targetNode)) {
         continue;
       }
       const key = this._edgeKey(sourceNode.getId(), targetNode.getId());
       const edge = this._edgeLookup.get(key);
       if (edge) {
-        (link as unknown as MutGraphLink<Node, Edge>).data = edge;
+        (link as unknown as MutGraphLink<NodeInterface, EdgeInterface>).data = edge;
       }
     }
 
-    return dag as unknown as MutGraph<Node, Edge>;
+    return dag as unknown as MutGraph<NodeInterface, EdgeInterface>;
   }
 
   private _getLayoutOperator(): LayoutWithConfiguration {
@@ -764,7 +532,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       return this._layoutOperator;
     }
 
-    const layoutOption = this._options.layout ?? D3DagLayout.defaultOptions.layout;
+    const layoutOption = this.props.layout ?? D3DagLayout.defaultProps.layout;
     let layout: LayoutWithConfiguration;
 
     if (typeof layoutOption === 'string') {
@@ -773,51 +541,47 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
       layout = layoutOption as LayoutWithConfiguration;
     }
 
-    if (layout.layering && this._options.layering) {
-      layout = layout.layering(this._resolveLayering(this._options.layering));
+    // TODO - is 'none' operator an option in d3-dag?
+    if (layout.layering && this.props.layering) {
+      let layeringOperator = this.props.customLayering || LAYERING_FACTORIES[this.props.layering]();
+      layout = layout.layering(layeringOperator);
+      const {nodeRank} = this.props;
+      if (nodeRank) {
+        // @ts-expect-error TS2345 - Argument of type '(dagNode: MutGraphNode<NodeInterface, EdgeInterface>) => number | undefined' is not assignable to parameter of type '(dagNode: MutGraphNode<NodeInterface, EdgeInterface>) => number'.
+        layeringOperator = layeringOperator.rank((dagNode) => {
+          const node = dagNode.data as NodeInterface;
+          const rank = typeof nodeRank === 'function' ? nodeRank?.(node) : node?.getPropertyValue(nodeRank) || undefined;
+          // if (rank !== undefined) {
+          //   console.log(`Node ${node.getId()} assigned to rank ${rank}`);
+          // }
+          return rank;
+        });
+      }
+      layout = layout.layering(layeringOperator);
     }
 
-    if (layout.decross && this._options.decross) {
-      layout = layout.decross(this._resolveDecross(this._options.decross));
+    if (layout.decross && this.props.decross) {
+      const decrossOperator = this.props.customDecross || DECROSS_FACTORIES[this.props.decross]();
+      layout = layout.decross(decrossOperator);
     }
 
-    if (layout.coord && this._options.coord) {
-      layout = layout.coord(this._resolveCoord(this._options.coord));
+    if (layout.coord && this.props.coord) {
+      const coordOperator = this.props.customCoord || COORD_FACTORIES[this.props.coord]();
+      layout = layout.coord(coordOperator);
     }
 
-    const nodeSize = this._options.nodeSize ?? DEFAULT_NODE_SIZE;
+    const nodeSize = this.props.nodeSize ?? DEFAULT_NODE_SIZE;
     if (layout.nodeSize) {
       layout = layout.nodeSize(nodeSize);
     }
 
-    const gap = this._options.separation ?? this._options.gap ?? DEFAULT_GAP;
+    const gap = this.props.separation ?? this.props.gap ?? DEFAULT_GAP;
     if (layout.gap) {
       layout = layout.gap(gap);
     }
 
     this._layoutOperator = layout;
     return layout;
-  }
-
-  private _resolveLayering(option: D3DagLayeringName | LayeringOperator): LayeringOperator {
-    if (typeof option === 'string') {
-      return LAYERING_FACTORIES[option]();
-    }
-    return option;
-  }
-
-  private _resolveDecross(option: D3DagDecrossName | DecrossOperator): Decross<Node, Edge> {
-    if (typeof option === 'string') {
-      return DECROSS_FACTORIES[option]();
-    }
-    return option;
-  }
-
-  private _resolveCoord(option: D3DagCoordName | CoordOperator): Coord<Node, Edge> {
-    if (typeof option === 'string') {
-      return COORD_FACTORIES[option]();
-    }
-    return option;
   }
 
   private _cacheGeometry(): void {
@@ -870,7 +634,12 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     for (const link of this._dag.links()) {
       const source = link.source.data;
       const target = link.target.data;
-      const edge = link.data instanceof Edge ? link.data : this._edgeLookup.get(this._edgeKey(source.getId(), target.getId()));
+      if (!isNodeInterface(source) || !isNodeInterface(target)) {
+        continue;
+      }
+      const edge = isEdgeInterface(link.data)
+        ? link.data
+        : this._edgeLookup.get(this._edgeKey(source.getId(), target.getId()));
       if (!edge) {
         continue;
       }
@@ -892,7 +661,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     }
 
     const {offsetX, offsetY} = this._getOffsets();
-    const orientation = this._options.orientation ?? D3DagLayout.defaultOptions.orientation;
+    const orientation = this.props.orientation ?? D3DagLayout.defaultProps.orientation;
 
     const transform = (x: number, y: number): [number, number] => {
       const localX = x - offsetX;
@@ -934,7 +703,7 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     if (!this._dagBounds) {
       return {offsetX: 0, offsetY: 0};
     }
-    const centerOption = this._options.center ?? true;
+    const centerOption = this.props.center ?? true;
     let offsetX = 0;
     let offsetY = 0;
     if (centerOption === true) {
@@ -955,15 +724,15 @@ export class D3DagLayout extends GraphLayout<D3DagLayoutOptions> {
     this._bounds = this._calculateBounds(this._nodePositions.values());
   }
 
-  private _edgeKey(sourceId: string | number, targetId: string | number): string {
+  protected _edgeKey(sourceId: string | number, targetId: string | number): string {
     return `${this._toDagId(sourceId)}${DAG_ID_SEPARATOR}${this._toDagId(targetId)}`;
   }
 
-  private _toDagId(id: string | number): string {
+  protected _toDagId(id: string | number): string {
     return String(id);
   }
 
-  private _fromDagId(id: string): string | number {
+  protected _fromDagId(id: string): string | number {
     return this._stringIdLookup.get(id) ?? id;
   }
 }

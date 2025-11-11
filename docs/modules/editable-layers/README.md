@@ -1,13 +1,13 @@
 # Overview
 
-:::danger
-The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
-:::
-
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
-Provides editable and interactive map overlay layers, built using the power of [deck.gl](https://deck.gl/).
+Provides a suite of editable deck.gl layers, primarly focused on GeoJSON visualization and editing.
+
+:::danger
+The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
+:::
 
 ## Design Goals
 
@@ -22,7 +22,7 @@ Provides editable and interactive map overlay layers, built using the power of [
 
 ## History
 
-A fork of @nebula.gl. [nebula.gl](https://nebula.gl) is an important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
+This module is a fork of / successor to [nebula.gl](https://nebula.gl). nebula.gl was a popular and important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
 
 ## What's New
 

@@ -25,11 +25,18 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
-        "graph-layers/graph-viewer",
-        "graph-layers/graph-viewer-radial",
-        "graph-layers/graph-viewer-multi-graph",
-        "graph-layers/graph-viewer-hive",
-        "graph-layers/graph-viewer-dag"
+        "graph-layers/simple-graph",
+        "graph-layers/multi-graph",
+        "graph-layers/radial",
+        "graph-layers/hive-plot",
+        "graph-layers/dag"
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers',
+      items: [
+        "layers/path-outline-and-markers"
       ]
     },
     {
@@ -45,6 +52,13 @@ const sidebars = {
       items: [
         "editable-layers/editor",
         "editable-layers/advanced"
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/widgets',
+      items: [
+        "widgets/pan-and-zoom-controls"
       ]
     },
     // {

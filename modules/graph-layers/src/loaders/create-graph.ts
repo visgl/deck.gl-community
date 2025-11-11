@@ -4,16 +4,16 @@
 
 import {Edge} from '../graph/edge';
 import {Node} from '../graph/node';
-import {Graph} from '../graph/graph';
+import {LegacyGraph} from '../graph/legacy-graph';
 
 /**
- * @deprecated Use `new Graph(name, nodes, edges)`
+ * @deprecated Use `new LegacyGraph(name, nodes, edges)`
  * Create a graph from a list of Nodes and edges
  */
-export function createGraph(props: {name; nodes; edges; nodeParser; edgeParser}) {
+export function createGraph(props: {name; nodes; edges; nodeParser; edgeParser}): LegacyGraph {
   const {name, nodes, edges, nodeParser, edgeParser} = props;
   // create a new empty graph
-  const graph = new Graph();
+  const graph = new LegacyGraph();
 
   const graphName = name || Date.now();
   graph.setGraphName(graphName);
