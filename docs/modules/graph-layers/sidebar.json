@@ -57,6 +57,17 @@
     },
     {
       "type": "category",
+      "label": "Developer Guide",
+      "items": [
+        "modules/graph-layers/developer-guide/get-started",
+        "modules/graph-layers/developer-guide/visualizing-graphs",
+        "modules/graph-layers/developer-guide/interactions",
+        "modules/graph-layers/developer-guide/layout-animation",
+        "modules/graph-layers/developer-guide/layouts"
+      ]
+    },
+    {
+      "type": "category",
       "label": "Graph Data Structures",
       "items": [
         "modules/graph-layers/api-reference/graph",
