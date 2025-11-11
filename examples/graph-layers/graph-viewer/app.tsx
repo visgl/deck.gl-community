@@ -446,55 +446,6 @@ export function App({graphType}: AppProps) {
     updateResolvedEngineFromLayer();
   }, [loadingDispatch, loadingState.rendered, updateResolvedEngineFromLayer]);
 
-  const graphLayerInstance = useMemo(() => {
-    if (!selectedExample || !layout) {
-      return null;
-    }
-
-    const baseProps = {
-      id: GRAPH_LAYER_ID,
-      layout,
-      stylesheet: selectedStyles,
-      onLayoutStart: handleLayoutStart,
-      onLayoutChange: handleLayoutChange,
-      onLayoutDone: handleLayoutDone,
-      resumeLayoutAfterDragging,
-      rankGrid,
-      ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {})
-    } as const;
-
-    if (manualEngine) {
-      return new GraphLayer({
-        ...baseProps,
-        data: manualEngine,
-        engine: manualEngine
-      });
-    }
-
-    if (isRemoteExample(selectedExample) && selectedExample.dataUrl) {
-      return new GraphLayer({
-        ...baseProps,
-        data: selectedExample.dataUrl,
-        ...(selectedExample.loaders ? {loaders: selectedExample.loaders} : {}),
-        ...(selectedExample.loadOptions ? {loadOptions: selectedExample.loadOptions} : {}),
-        onDataLoad: handleDataLoad
-      });
-    }
-
-    return null;
-  }, [
-    selectedExample,
-    layout,
-    selectedStyles,
-    handleLayoutStart,
-    handleLayoutChange,
-    handleLayoutDone,
-    resumeLayoutAfterDragging,
-    rankGrid,
-    manualEngine,
-    handleDataLoad
-  ]);
-
   const serializedStylesheet = useMemo(() => {
     if (!selectedStyles) {
       return '';
@@ -666,6 +617,55 @@ export function App({graphType}: AppProps) {
     },
     [loadingCallbacks, layoutCallbacks, updateChainSummary]
   );
+
+  const graphLayerInstance = useMemo(() => {
+    if (!selectedExample || !layout) {
+      return null;
+    }
+
+    const baseProps = {
+      id: GRAPH_LAYER_ID,
+      layout,
+      stylesheet: selectedStyles,
+      onLayoutStart: handleLayoutStart,
+      onLayoutChange: handleLayoutChange,
+      onLayoutDone: handleLayoutDone,
+      resumeLayoutAfterDragging,
+      rankGrid,
+      ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {})
+    } as const;
+
+    if (manualEngine) {
+      return new GraphLayer({
+        ...baseProps,
+        data: manualEngine,
+        engine: manualEngine
+      });
+    }
+
+    if (isRemoteExample(selectedExample) && selectedExample.dataUrl) {
+      return new GraphLayer({
+        ...baseProps,
+        data: selectedExample.dataUrl,
+        ...(selectedExample.loaders ? {loaders: selectedExample.loaders} : {}),
+        ...(selectedExample.loadOptions ? {loadOptions: selectedExample.loadOptions} : {}),
+        onDataLoad: handleDataLoad
+      });
+    }
+
+    return null;
+  }, [
+    selectedExample,
+    layout,
+    selectedStyles,
+    handleLayoutStart,
+    handleLayoutChange,
+    handleLayoutDone,
+    resumeLayoutAfterDragging,
+    rankGrid,
+    manualEngine,
+    handleDataLoad
+  ]);
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);
