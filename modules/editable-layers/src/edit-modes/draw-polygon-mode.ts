@@ -4,8 +4,7 @@
 
 import lineIntersect from '@turf/line-intersect';
 import { polygon as turfPolygon} from '@turf/helpers';
-import centroid from '@turf/centroid';
-import {booleanWithin} from "@turf/boolean-within";
+import booleanWithin from "@turf/boolean-within";
 
 
 import {
@@ -18,6 +17,7 @@ import {
   DoubleClickEvent
 } from './types';
 import {Position, FeatureCollection, Geometry} from '../utils/geojson-types';
+import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';
 
@@ -97,49 +97,83 @@ export class DrawPolygonMode extends GeoJsonEditMode {
         return guides;
   }
 
-  // eslint-disable-next-line complexity
+  // eslint-disable-next-line complexity, max-statements
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+    const {picks} = event;
+    const clickedEditHandle = getPickedEditHandle(picks);
     const clickSequence = this.getClickSequence();
-        const coords = event.mapCoords;
+    const coords = event.mapCoords;
     
-        if (!this.isDrawingHole && clickSequence.length > 2) {
-          if (isNearFirstPoint(coords, clickSequence[0])) {
-            this.finishDrawing(props);
-            this.resetClickSequence();
-            return;
-          }
+    // Check if they clicked on an edit handle to complete the polygon
+    if (
+      !this.isDrawingHole &&
+      clickSequence.length > 2 &&
+      clickedEditHandle &&
+      Array.isArray(clickedEditHandle.properties.positionIndexes) &&
+      (clickedEditHandle.properties.positionIndexes[0] === 0 ||
+        clickedEditHandle.properties.positionIndexes[0] === clickSequence.length - 1)
+    ) {
+      // They clicked the first or last point, so complete the polygon
+      this.finishDrawing(props);
+      return;
+    }
+    
+    // Check if they clicked near the first point to complete the polygon
+    if (!this.isDrawingHole && clickSequence.length > 2) {
+      if (isNearFirstPoint(coords, clickSequence[0])) {
+        this.finishDrawing(props);
+        this.resetClickSequence();
+        return;
+      }
+    }
+    
+    if (this.isDrawingHole) {
+      const current = this.holeSequence;
+      current.push(coords);
+
+      if (current.length > 2) {
+        const poly: Geometry = {
+          type: "Polygon",
+          coordinates: [
+            [...clickSequence, clickSequence[0]],
+            [...current, current[0]],
+          ],
+        };
+
+        this.resetClickSequence();
+        this.holeSequence = [];
+        this.isDrawingHole = false;
+
+        const editAction = this.getAddFeatureOrBooleanPolygonAction(
+          poly,
+          props,
+        );
+        if (editAction) props.onEdit(editAction);
+      }
+      return;
+    }
+
+    // Add the click if we didn't click on a handle
+    let positionAdded = false;
+    if (!clickedEditHandle) {
+      this.addClickSequence(event);
+      positionAdded = true;
+    }
+
+    if (positionAdded) {
+      // new tentative point
+      props.onEdit({
+        // data is the same
+        updatedData: props.data,
+        editType: 'addTentativePosition',
+        editContext: {
+          position: event.mapCoords
         }
-    
-        if (this.isDrawingHole) {
-          const current = this.holeSequence;
-          current.push(coords);
-    
-          if (current.length > 2) {
-            const poly: Geometry = {
-              type: "Polygon",
-              coordinates: [
-                [...clickSequence, clickSequence[0]],
-                [...current, current[0]],
-              ],
-            };
-    
-            this.resetClickSequence();
-            this.holeSequence = [];
-            this.isDrawingHole = false;
-    
-            const editAction = this.getAddFeatureOrBooleanPolygonAction(
-              poly,
-              props,
-            );
-            if (editAction) props.onEdit(editAction);
-          }
-          return;
-        }
-    
-        this.addClickSequence(event);
+      });
+    }
   }
 
-  handleDoubleClick(event: DoubleClickEvent, props: ModeProps<FeatureCollection>) {
+  handleDoubleClick(_event: DoubleClickEvent, props: ModeProps<FeatureCollection>) {
     this.finishDrawing(props);
     this.resetClickSequence();
   }
@@ -172,14 +206,14 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     const polygon = [...clickSequence, clickSequence[0]];
 
     const newPolygon = turfPolygon([polygon]);
-    const center = centroid(newPolygon);
 
     const canAddHole = canAddHoleToPolygon(props);
-    const canSelfIntersect = canPolygonSelfIntersect(props);
+    const canOverlap = canPolygonOverlap(props);
+
 
     // Check if the polygon intersects itself (excluding shared start/end point)
-    if (!canSelfIntersect) {
-      const selfIntersection = lineIntersect(
+    if (!canOverlap) {
+      const overlapping = lineIntersect(
         newPolygon,
         newPolygon,
       ).features.filter(
@@ -191,105 +225,26 @@ export class DrawPolygonMode extends GeoJsonEditMode {
           ),
       );
   
-      if (selfIntersection.length > 0) {
-        // ❌ Invalid polygon: self-intersects
+      if (overlapping.length > 0) {
+        // ❌ Invalid polygon: overlaps
         props.onEdit({
           updatedData: props.data,
           editType: "invalidPolygon",
-          editContext: { reason: "self-intersects" },
+          editContext: { reason: "overlaps" },
         });
+        this.resetClickSequence();
         return;
       }
     }
 
     if (canAddHole) {
-    for (const [featureIndex, feature] of props.data.features.entries()) {
-      if (feature.geometry.type === "Polygon") {
-        const outer = turfPolygon(feature.geometry.coordinates);
-
-        // Check if the new hole intersects or contains another hole first
-        // eslint-disable-next-line max-depth
-        for (let i = 1; i < feature.geometry.coordinates.length; i++) {
-          const hole = turfPolygon([feature.geometry.coordinates[i]]);
-          const intersection = lineIntersect(hole, newPolygon);
-          // eslint-disable-next-line max-depth
-          if (intersection.features.length > 0) {
-            // ❌ Invalid hole: intersects existing hole
-            props.onEdit({
-              updatedData: props.data,
-              editType: "invalidHole",
-              editContext: { reason: "intersects-existing-hole" },
-            });
-            return;
-          }
-
-          // eslint-disable-next-line max-depth
-          if (
-            booleanWithin(hole, newPolygon) ||
-            booleanWithin(newPolygon, hole)
-          ) {
-            // ❌ Invalid hole: contains or is contained by existing hole
-            props.onEdit({
-              updatedData: props.data,
-              editType: "invalidHole",
-              editContext: {
-                reason: "contains-or-contained-by-existing-hole",
-              },
-            });
-            return;
-          }
-        }
-
-        // Check if the new polygon intersects or contains the outer polygon
-        const intersectionWithOuter = lineIntersect(outer, newPolygon);
-        // eslint-disable-next-line max-depth
-        if (intersectionWithOuter.features.length > 0) {
-          // ❌ Invalid polygon: intersects existing polygon
-          props.onEdit({
-            updatedData: props.data,
-            editType: "invalidPolygon",
-            editContext: { reason: "intersects-existing-polygon" },
-          });
-          return;
-        }
-
-        // eslint-disable-next-line max-depth
-        if (booleanWithin(outer, newPolygon)) {
-          // ❌ Invalid polygon: contains existing polygon
-          props.onEdit({
-            updatedData: props.data,
-            editType: "invalidPolygon",
-            editContext: {
-              reason: "contains-existing-polygon",
-            },
-          });
-          return;
-        }
-
-        // Now check if the center of the new hole is within the outer polygon
-        // eslint-disable-next-line max-depth
-        if (booleanWithin(center, outer)) {
-          // ✅ Valid hole
-          const updatedCoords = [...feature.geometry.coordinates, polygon];
-          const updatedGeometry = {
-            ...feature.geometry,
-            coordinates: updatedCoords,
-          };
-
-          const updatedData = new ImmutableFeatureCollection(props.data)
-            .replaceGeometry(featureIndex, updatedGeometry)
-            .getObject();
-
-          props.onEdit({
-            updatedData,
-            editType: "addHole",
-            editContext: { hole: newPolygon.geometry },
-          });
-          return;
-        }
+      const holeResult = this.tryAddHoleToExistingPolygon(newPolygon, polygon, props);
+      if (holeResult.handled) {
+        this.resetClickSequence();
+        return;
       }
     }
-  }
+    
     // If no valid hole was found, add the polygon as a new feature
     const editAction = this.getAddFeatureOrBooleanPolygonAction(
       {
@@ -301,6 +256,95 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     if (editAction) props.onEdit(editAction);
     this.resetClickSequence();
     return;
+  }
+
+  private tryAddHoleToExistingPolygon(
+    newPolygon: any,
+    polygon: Position[],
+    props: ModeProps<FeatureCollection>
+  ): { handled: boolean } {
+    for (const [featureIndex, feature] of props.data.features.entries()) {
+      if (feature.geometry.type === "Polygon") {
+        const result = this.validateAndCreateHole(feature, featureIndex, newPolygon, polygon, props);
+        if (result.handled) {
+          return result;
+        }
+      }
+    }
+    
+    return { handled: false };
+  }
+
+  private validateAndCreateHole(
+    feature: any,
+    featureIndex: number,
+    newPolygon: any,
+    polygon: Position[],
+    props: ModeProps<FeatureCollection>
+  ): { handled: boolean } {
+    const outer = turfPolygon(feature.geometry.coordinates);
+
+    // Check existing holes for conflicts
+    for (let i = 1; i < feature.geometry.coordinates.length; i++) {
+      const hole = turfPolygon([feature.geometry.coordinates[i]]);
+      const intersection = lineIntersect(hole, newPolygon);
+      
+      if (intersection.features.length > 0) {
+        props.onEdit({
+          updatedData: props.data,
+          editType: "invalidHole",
+          editContext: { reason: "intersects-existing-hole" },
+        });
+        return { handled: true };
+      }
+
+      if (booleanWithin(hole, newPolygon) || booleanWithin(newPolygon, hole)) {
+        props.onEdit({
+          updatedData: props.data,
+          editType: "invalidHole",
+          editContext: { reason: "contains-or-contained-by-existing-hole" },
+        });
+        return { handled: true };
+      }
+    }
+
+    // Check outer polygon conflicts
+    const intersectionWithOuter = lineIntersect(outer, newPolygon);
+    if (intersectionWithOuter.features.length > 0) {
+      props.onEdit({
+        updatedData: props.data,
+        editType: "invalidPolygon",
+        editContext: { reason: "intersects-existing-polygon" },
+      });
+      return { handled: true };
+    }
+
+    if (booleanWithin(outer, newPolygon)) {
+      props.onEdit({
+        updatedData: props.data,
+        editType: "invalidPolygon",
+        editContext: { reason: "contains-existing-polygon" },
+      });
+      return { handled: true };
+    }
+
+    // Check if new polygon is within outer polygon (valid hole)
+    if (booleanWithin(newPolygon, outer)) {
+      const updatedData = new ImmutableFeatureCollection(props.data)
+        .replaceGeometry(featureIndex, {
+          ...feature.geometry,
+          coordinates: [...feature.geometry.coordinates, polygon],
+        })
+        .getObject();
+
+      props.onEdit({
+        updatedData,
+        editType: "addHole",
+        editContext: { hole: newPolygon.geometry },
+      });
+      return { handled: true };
+    }
+    return { handled: false };
   }
 }
 
@@ -325,10 +369,9 @@ function canAddHoleToPolygon(
 }
 
 // Helper function to determine if a polygon can intersect itself
-function canPolygonSelfIntersect(
+function canPolygonOverlap(
   props: ModeProps<FeatureCollection>
 ): boolean {
-  // For simplicity, always return false in this example.
-  // Implement your own logic based on application requirements.
+  // Return the value of allowSelfIntersection (defaults to false for safety)
   return props.modeConfig?.allowSelfIntersection ?? false;
 }
