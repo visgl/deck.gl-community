@@ -11,3 +11,8 @@ export type ArrowGraphData = {
   edges: Table;
 };
 
+export function isArrowGraphData(value: unknown): value is ArrowGraphData {
+  const candidate = value as ArrowGraphData;
+  return typeof value === 'object' && candidate?.type === 'arrow-graph-data';
+}
+
