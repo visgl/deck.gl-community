@@ -186,23 +186,29 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     this._d3Graph.edges = newD3Edges;
   }
 
-  getNodePosition = (node: Node): [number, number] => {
-    const d3Node = this._nodeMap[node.id];
-    if (d3Node) {
-      return [d3Node.x, d3Node.y];
+  private _getNodeCoordinates(d3Node: {x?: number; y?: number} | undefined): [number, number] {
+    if (!d3Node) {
+      return [0, 0];
     }
-    // default value
-    return [0, 0];
+    const x = Number.isFinite(d3Node.x) ? d3Node.x : 0;
+    const y = Number.isFinite(d3Node.y) ? d3Node.y : 0;
+    return [x, y];
+  }
+
+  getNodePosition = (node: Node): [number, number] => {
+    return this._getNodeCoordinates(this._nodeMap[node.id]);
   };
 
   getEdgePosition = (edge) => {
     const d3Edge = this._edgeMap[edge.id];
     if (d3Edge) {
+      const sourcePosition = this._getNodeCoordinates(d3Edge.source);
+      const targetPosition = this._getNodeCoordinates(d3Edge.target);
       if (!d3Edge.isVirtual) {
         return {
           type: 'line',
-          sourcePosition: [d3Edge.source.x, d3Edge.source.y],
-          targetPosition: [d3Edge.target.x, d3Edge.target.y],
+          sourcePosition,
+          targetPosition,
           controlPoints: []
         };
       }
@@ -210,8 +216,8 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
       const virtualEdge = this._edgeMap[d3Edge.virtualEdgeId];
       const edgeCount = virtualEdge.edgeCount;
       // get the position of source and target nodes
-      const sourcePosition = [virtualEdge.source.x, virtualEdge.source.y];
-      const targetPosition = [virtualEdge.target.x, virtualEdge.target.y];
+      const sourcePosition = this._getNodeCoordinates(virtualEdge.source);
+      const targetPosition = this._getNodeCoordinates(virtualEdge.target);
       // calculate a symmetric curve
       const distance = Math.hypot(
         sourcePosition[0] - targetPosition[0],
@@ -273,7 +279,8 @@ function computeControlPoint(source, target, direction, offset) {
   const dy = target[1] - source[1];
   const normal = [dy, -dx];
   const length = Math.sqrt(Math.pow(normal[0], 2.0) + Math.pow(normal[1], 2.0));
-  const normalized = [normal[0] / length, normal[1] / length];
+  const normalized =
+    length > 0 ? [normal[0] / length, normal[1] / length] : [0, 0];
   return [
     midPoint[0] + normalized[0] * offset * direction,
     midPoint[1] + normalized[1] * offset * direction
