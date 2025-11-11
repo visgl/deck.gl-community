@@ -289,6 +289,7 @@ export function App({graphType}: AppProps) {
     return new GraphEngine({graph, layout});
   }, [graph, layout]);
   const [resolvedEngine, setResolvedEngine] = useState<GraphEngine | null>(manualEngine ?? null);
+  const [loadingState, loadingDispatch, loadingCallbacks] = useLoading();
   useEffect(() => {
     setResolvedEngine(manualEngine ?? null);
   }, [manualEngine, selectedExample]);
@@ -561,7 +562,6 @@ export function App({graphType}: AppProps) {
     []
   );
 
-  const [loadingState, loadingDispatch, loadingCallbacks] = useLoading();
   const {isLoading} = loadingState;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
