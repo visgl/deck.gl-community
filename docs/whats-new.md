@@ -13,6 +13,18 @@ High-level changes
 - All deck.gl-community modules have been updated to deck.gl v9.2.
 - Internal: Tests updated to use `vitest` instead of `jest`
 
+### `@deck.gl-community/editable-layers`
+
+- DrawPolygonMode: Added `allowHoles` configuration to enable drawing polygon holes within existing polygons
+- DrawPolygonMode: Enhanced hole creation with validation to prevent overlapping or nested holes
+- DrawPolygonMode: Added comprehensive edit types for hole operations (`addHole`, `invalidHole`)
+
+Breaking Changes:
+- DrawPolygonMode: `preventOverlappingLines` configuration renamed to `allowSelfIntersection` for consistency
+  - **Migration**: Update your modeConfig from `{preventOverlappingLines: false}` to `{allowSelfIntersection: true}`
+  - **Migration**: Update your modeConfig from `{preventOverlappingLines: true}` to `{allowSelfIntersection: false}` (or omit as this is now the default)
+  - The behavior logic has been inverted: the new parameter enables self-intersection when `true`, while the old parameter prevented it when `true`
+
 ### `@deck.gl-community/graph-layers` 
 
 - Graph styling: new edge decorator `'arrow'` that renders arrows on directional edges.

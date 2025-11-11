@@ -653,7 +653,7 @@ export default class Example extends React.Component<
                   modeConfig: {
                     ...modeConfig,
                     allowHoles: Boolean(event.target.checked),
-                    preventOverlappingLines: Boolean(modeConfig.preventOverlappingLines),
+                    allowSelfIntersection: Boolean(modeConfig.allowSelfIntersection),
                     maxHolesPerPolygon: 4,
                     emitInvalidEvents: true
                   }
@@ -665,7 +665,7 @@ export default class Example extends React.Component<
           </ToolboxControl>
         </ToolboxRow>
         <ToolboxRow key="draw-polygon-allow-intersect">
-          <ToolboxTitle>Allow intersecting lines</ToolboxTitle>
+          <ToolboxTitle>Allow self-intersecting lines</ToolboxTitle>
           <ToolboxControl>
             <input
               type="checkbox"
@@ -682,7 +682,7 @@ export default class Example extends React.Component<
           </ToolboxControl>
         </ToolboxRow>
         <ToolboxRow key="draw-polygon-help">
-          <ToolboxTitle>Hole drawing tip</ToolboxTitle>
+          <ToolboxTitle>Drawing tips</ToolboxTitle>
           <ToolboxControl>
             <div
               style={{
@@ -693,8 +693,16 @@ export default class Example extends React.Component<
                 color: '#000'
               }}
             >
-              Enable hole drawing, then close a polygon ring inside an existing polygon. Valid holes
-              are automatically added and invalid ones trigger helpful warnings.
+              <div style={{marginBottom: '8px'}}>
+                <strong>Hole drawing:</strong> Enable hole drawing, then close a polygon ring inside
+                an existing polygon. Valid holes are automatically added and invalid ones trigger
+                helpful warnings.
+              </div>
+              <div>
+                <strong>Self-intersection:</strong> When "Prevent intersecting lines" is checked,
+                figure-8 or bowtie-shaped polygons will be rejected. Uncheck to allow complex
+                overlapping polygon shapes.
+              </div>
             </div>
           </ToolboxControl>
         </ToolboxRow>
@@ -940,6 +948,12 @@ export default class Example extends React.Component<
       const updatedDataInfo = featuresToInfoString(updatedData);
       // eslint-disable-next-line
       console.log('onEdit', editType, editContext, updatedDataInfo);
+
+      // Special logging for hole-related events
+      if (editType === 'addHole' || editType === 'invalidHole') {
+        // eslint-disable-next-line
+        console.log('🕳️ Hole event:', editType, editContext);
+      }
     }
 
     if (editType === 'removePosition' && !this.state.pointsRemovable) {
