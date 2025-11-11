@@ -32,10 +32,7 @@ import {
   CollapsableD3DagLayout,
   type RankGridConfig,
   ArrowGraph,
-  ArrowGraphDataBuilder,
-  TabularGraph,
-  TabularNode,
-  TabularEdge
+  convertTabularGraphToArrowGraph
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -64,37 +61,6 @@ type JsonGraph = {
   edges?: unknown[] | null;
 };
 
-type SanitizedNodeData = {
-  label?: string;
-  weight?: number;
-  attributes: Record<string, unknown>;
-};
-
-type SanitizedEdgeData = {
-  label?: string;
-  weight?: number;
-  attributes: Record<string, unknown>;
-};
-
-const NODE_ATTRIBUTE_KEYS_TO_REMOVE = [
-  'id',
-  'state',
-  'selectable',
-  'highlightConnectedEdges',
-  'label',
-  'weight'
-] as const;
-
-const EDGE_ATTRIBUTE_KEYS_TO_REMOVE = [
-  'id',
-  'sourceId',
-  'targetId',
-  'directed',
-  'state',
-  'label',
-  'weight'
-] as const;
-
 function createArrowGraphFromJson(json: JsonGraph | null | undefined): ArrowGraph | null {
   if (!json) {
     return null;
@@ -108,74 +74,6 @@ function createArrowGraphFromJson(json: JsonGraph | null | undefined): ArrowGrap
   const arrowGraph = convertTabularGraphToArrowGraph(tabularGraph);
   tabularGraph.destroy?.();
   return arrowGraph;
-}
-
-function convertTabularGraphToArrowGraph(tabularGraph: TabularGraph): ArrowGraph {
-  const builder = new ArrowGraphDataBuilder({version: tabularGraph.version});
-
-  for (const node of tabularGraph.getNodes() as Iterable<TabularNode>) {
-    const {label, weight, attributes} = sanitizeNodeData(
-      tabularGraph.getNodeDataByIndex(node.index)
-    );
-
-    builder.addNode({
-      id: node.getId(),
-      state: node.getState(),
-      selectable: node.isSelectable(),
-      highlightConnectedEdges: node.shouldHighlightConnectedEdges(),
-      label,
-      weight,
-      attributes
-    });
-  }
-
-  for (const edge of tabularGraph.getEdges() as Iterable<TabularEdge>) {
-    const {label, weight, attributes} = sanitizeEdgeData(
-      tabularGraph.getEdgeDataByIndex(edge.index)
-    );
-
-    builder.addEdge({
-      id: edge.getId(),
-      sourceId: edge.getSourceNodeId(),
-      targetId: edge.getTargetNodeId(),
-      directed: edge.isDirected(),
-      state: edge.getState(),
-      label,
-      weight,
-      attributes
-    });
-  }
-
-  return new ArrowGraph(builder.finish(), tabularGraph.props);
-}
-
-function sanitizeNodeData(data: Record<string, unknown>): SanitizedNodeData {
-  const label = typeof data.label === 'string' ? (data.label as string) : undefined;
-  const weight = typeof data.weight === 'number' ? (data.weight as number) : undefined;
-  const attributes = pruneAttributes(data, NODE_ATTRIBUTE_KEYS_TO_REMOVE);
-
-  return {label, weight, attributes};
-}
-
-function sanitizeEdgeData(data: Record<string, unknown>): SanitizedEdgeData {
-  const label = typeof data.label === 'string' ? (data.label as string) : undefined;
-  const weight = typeof data.weight === 'number' ? (data.weight as number) : undefined;
-  const attributes = pruneAttributes(data, EDGE_ATTRIBUTE_KEYS_TO_REMOVE);
-
-  return {label, weight, attributes};
-}
-
-function pruneAttributes(
-  source: Record<string, unknown>,
-  keysToRemove: readonly string[]
-): Record<string, unknown> {
-  const attributes = {...source};
-  for (const key of keysToRemove) {
-    if (key in attributes) {
-      delete attributes[key];
-    }
-  }
-  return attributes;
 }
 
 const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {

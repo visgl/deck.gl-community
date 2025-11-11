@@ -19,6 +19,10 @@ export {
   type TabularEdgeAccessors
 } from './graph/tabular-graph';
 export {ArrowGraph} from './graph/arrow-graph';
+export {
+  convertTabularGraphToArrowGraph,
+  type ConvertTabularGraphToArrowGraphOptions
+} from './graph/convert-tabular-graph-to-arrow-graph';
 export {createTabularGraphFromData} from './graph/create-tabular-graph-from-data';
 export {createGraphFromData} from './graph/create-graph-from-data';
 export {GraphDataBuilder, type GraphDataBuilderOptions} from './graph-data/graph-data-builder';

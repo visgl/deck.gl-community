@@ -159,10 +159,6 @@ function tableFromBuilders(builders: ColumnBuilderMap): arrow.Table {
     columns[columnName] = builder.toVector();
   }
 
-  const arrowTableCtor = arrow.Table as unknown as {
-    new: (columns: Record<string, ArrowVector>) => arrow.Table;
-  };
-
-  return arrowTableCtor.new(columns);
+  return new arrow.Table(columns);
 }
 

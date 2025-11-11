@@ -1452,7 +1452,7 @@ __metadata:
     "@luma.gl/engine": "npm:~9.2.0"
     "@luma.gl/shadertools": "npm:~9.2.0"
     "@probe.gl/log": "npm:^4.0.4"
-    apache-arrow: "npm:^15.0.0"
+    apache-arrow: "npm:^17.0.0"
     cardinal-spline-js: "npm:^2.3.10"
     color: "npm:^4.2.3"
     core-js: "npm:^3.29.0"
@@ -6894,9 +6894,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"apache-arrow@npm:^15.0.0":
-  version: 15.0.2
-  resolution: "apache-arrow@npm:15.0.2"
+"apache-arrow@npm:^17.0.0":
+  version: 17.0.0
+  resolution: "apache-arrow@npm:17.0.0"
   dependencies:
     "@swc/helpers": "npm:^0.5.2"
     "@types/command-line-args": "npm:^5.2.1"
@@ -6909,7 +6909,7 @@ __metadata:
     tslib: "npm:^2.6.2"
   bin:
     arrow2csv: bin/arrow2csv.cjs
-  checksum: 10c0/6e15a41d87cc9cd07431e5a5a06871530bc58bfaaf70671bf2f37d5a5ff04851c96beb19b1118fc41e8d6099761240e05662f000e5803406ded26472d7d2cf39
+  checksum: 10c0/00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   languageName: node
   linkType: hard
 
