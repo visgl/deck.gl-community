@@ -3,17 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import {beforeAll, describe, expect, it} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
-import {join} from 'node:path';
-
 import {loadGraphML, parseGraphML} from '../../src/loaders/graphml-loader';
-
-const FIXTURES_DIR = fileURLToPath(new URL('../data/__fixtures__/graphml/', import.meta.url));
-
-function readFixture(name: string): string {
-  return readFileSync(join(FIXTURES_DIR, name), {encoding: 'utf8'});
-}
+import basicGraphml from '../data/__fixtures__/graphml/basic.graphml?raw';
+import defaultsGraphml from '../data/__fixtures__/graphml/defaults.graphml?raw';
 
 beforeAll(() => {
   globalThis.CustomEvent = Event as any;
@@ -23,7 +15,7 @@ describe('loadGraphML', () => {
   let graph: ReturnType<typeof loadGraphML>;
 
   beforeAll(() => {
-    graph = loadGraphML(readFixture('basic.graphml'));
+    graph = loadGraphML(basicGraphml);
   });
 
   it('parses node attributes from GraphML text', () => {
@@ -67,7 +59,8 @@ describe('loadGraphML', () => {
   });
 
   it('accepts ArrayBuffer inputs and applies default values', () => {
-    const buffer = readFileSync(join(FIXTURES_DIR, 'defaults.graphml'));
+    const encoder = new TextEncoder();
+    const buffer = encoder.encode(defaultsGraphml);
     const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 
     const bufferedGraph = loadGraphML(arrayBuffer);
@@ -83,8 +76,7 @@ describe('loadGraphML', () => {
 
 describe('parseGraphML', () => {
   it('returns GraphData compatible objects', () => {
-    const xml = readFixture('basic.graphml');
-    const data = parseGraphML(xml);
+    const data = parseGraphML(basicGraphml);
 
     expect(data.type).toBe('graph-data');
     expect(data.nodes).toHaveLength(2);
