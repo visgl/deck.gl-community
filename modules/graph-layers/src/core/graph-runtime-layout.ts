@@ -4,7 +4,7 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {GraphLayoutProps, GraphLayoutState} from './graph-layout';
+import type {GraphLayoutProps, GraphLayoutState, GraphEdgeLayout} from './graph-layout';
 import type {EdgeInterface, Graph, NodeInterface} from '../graph/graph';
 
 export interface GraphRuntimeLayout {
@@ -20,7 +20,7 @@ export interface GraphRuntimeLayout {
   stop(): void;
   getBounds(): Bounds2D | null;
   getNodePosition(node: NodeInterface): [number, number] | null | undefined;
-  getEdgePosition(edge: EdgeInterface): unknown;
+  getEdgePosition(edge: EdgeInterface): GraphEdgeLayout | null;
   lockNodePosition(node: NodeInterface, x: number, y: number): void;
   unlockNodePosition(node: NodeInterface): void;
   destroy?(): void;

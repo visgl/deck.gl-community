@@ -42,7 +42,8 @@ export {GraphEngine} from './core/graph-engine';
 export type {
   GraphLayoutProps,
   GraphLayoutState,
-  GraphLayoutEventDetail
+  GraphLayoutEventDetail,
+  GraphEdgeLayout
 } from './core/graph-layout';
 export {GraphLayout} from './core/graph-layout';
 

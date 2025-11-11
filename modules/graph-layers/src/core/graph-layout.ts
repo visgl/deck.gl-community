@@ -31,6 +31,13 @@ export const GRAPH_LAYOUT_DEFAULT_PROPS: Readonly<Required<GraphLayoutProps>> = 
   onLayoutError: undefined
 };
 
+export type GraphEdgeLayout = {
+  type: string;
+  sourcePosition: [number, number];
+  targetPosition: [number, number];
+  controlPoints: [number, number][];
+};
+
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
 > {
@@ -85,18 +92,13 @@ export abstract class GraphLayout<
   // Accessors
 
   /** access the position of the node in the layout */
-  getNodePosition(node: NodeInterface): [number, number] {
-    return [0, 0];
+  getNodePosition(node: NodeInterface): [number, number] | null | undefined {
+    return null;
   }
 
   /** access the layout information of the edge */
-  getEdgePosition(edge: EdgeInterface) {
-    return {
-      type: 'line',
-      sourcePosition: [0, 0],
-      targetPosition: [0, 0],
-      controlPoints: []
-    };
+  getEdgePosition(edge: EdgeInterface): GraphEdgeLayout | null {
+    return null;
   }
 
   /**

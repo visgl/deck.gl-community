@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  GRAPH_LAYOUT_DEFAULT_PROPS,
+  type GraphEdgeLayout
+} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
 import {ClassicGraph} from '../../graph/classic-graph';
@@ -186,60 +191,58 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     this._d3Graph.edges = newD3Edges;
   }
 
-  getNodePosition = (node: Node): [number, number] => {
+  getNodePosition = (node: Node): [number, number] | null => {
     const d3Node = this._nodeMap[node.id];
     if (d3Node) {
       return [d3Node.x, d3Node.y];
     }
-    // default value
-    return [0, 0];
+    return null;
   };
 
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge): GraphEdgeLayout | null => {
     const d3Edge = this._edgeMap[edge.id];
-    if (d3Edge) {
-      if (!d3Edge.isVirtual) {
-        return {
-          type: 'line',
-          sourcePosition: [d3Edge.source.x, d3Edge.source.y],
-          targetPosition: [d3Edge.target.x, d3Edge.target.y],
-          controlPoints: []
-        };
-      }
-      // else, check the referenced virtual edge
-      const virtualEdge = this._edgeMap[d3Edge.virtualEdgeId];
-      const edgeCount = virtualEdge.edgeCount;
-      // get the position of source and target nodes
-      const sourcePosition = [virtualEdge.source.x, virtualEdge.source.y];
-      const targetPosition = [virtualEdge.target.x, virtualEdge.target.y];
-      // calculate a symmetric curve
-      const distance = Math.hypot(
-        sourcePosition[0] - targetPosition[0],
-        sourcePosition[1] - targetPosition[1]
-      );
-      const index = d3Edge.index;
-      // curve direction: inward vs. outward
-      const direction = index % 2 ? 1 : -1;
-      // if the number of the parallel edges is an even number => symmetric shape
-      // otherwise, the 0th node will be a staight line, and rest of them are symmetrical.
-      const symmetricShape = edgeCount % 2 === 0;
-      const offset =
-        Math.max(distance / 10, 5) *
-        (symmetricShape ? Math.floor(index / 2 + 1) : Math.ceil(index / 2));
-      const controlPoint = computeControlPoint(sourcePosition, targetPosition, direction, offset);
+    if (!d3Edge || !d3Edge.source || !d3Edge.target) {
+      return null;
+    }
+
+    if (!d3Edge.isVirtual) {
       return {
-        type: 'spline-curve',
-        sourcePosition,
-        targetPosition,
-        controlPoints: [controlPoint]
+        type: 'line',
+        sourcePosition: [d3Edge.source.x, d3Edge.source.y],
+        targetPosition: [d3Edge.target.x, d3Edge.target.y],
+        controlPoints: []
       };
     }
-    // default value
+
+    // else, check the referenced virtual edge
+    const virtualEdge = this._edgeMap[d3Edge.virtualEdgeId];
+    if (!virtualEdge || !virtualEdge.source || !virtualEdge.target) {
+      return null;
+    }
+    const edgeCount = virtualEdge.edgeCount;
+    // get the position of source and target nodes
+    const sourcePosition: [number, number] = [virtualEdge.source.x, virtualEdge.source.y];
+    const targetPosition: [number, number] = [virtualEdge.target.x, virtualEdge.target.y];
+    // calculate a symmetric curve
+    const distance = Math.hypot(
+      sourcePosition[0] - targetPosition[0],
+      sourcePosition[1] - targetPosition[1]
+    );
+    const index = d3Edge.index;
+    // curve direction: inward vs. outward
+    const direction = index % 2 ? 1 : -1;
+    // if the number of the parallel edges is an even number => symmetric shape
+    // otherwise, the 0th node will be a staight line, and rest of them are symmetrical.
+    const symmetricShape = edgeCount % 2 === 0;
+    const offset =
+      Math.max(distance / 10, 5) *
+      (symmetricShape ? Math.floor(index / 2 + 1) : Math.ceil(index / 2));
+    const controlPoint = computeControlPoint(sourcePosition, targetPosition, direction, offset);
     return {
-      type: 'line',
-      sourcePosition: [0, 0],
-      targetPosition: [0, 0],
-      controlPoints: []
+      type: 'spline-curve',
+      sourcePosition,
+      targetPosition,
+      controlPoints: [controlPoint]
     };
   };
 

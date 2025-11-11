@@ -6,7 +6,12 @@ import {warn} from '../utils/log';
 import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
-import {GraphLayout, type GraphLayoutProps, type GraphLayoutState} from '../core/graph-layout';
+import {
+  GraphLayout,
+  type GraphLayoutProps,
+  type GraphLayoutState,
+  type GraphEdgeLayout
+} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
@@ -427,11 +432,11 @@ export class ClassicGraphLayoutAdapter implements GraphRuntimeLayout {
     return this.layout.getBounds();
   }
 
-  getNodePosition(node: NodeInterface) {
+  getNodePosition(node: NodeInterface): [number, number] | null {
     return this.layout.getNodePosition(node as Node);
   }
 
-  getEdgePosition(edge: EdgeInterface) {
+  getEdgePosition(edge: EdgeInterface): GraphEdgeLayout | null {
     return this.layout.getEdgePosition(edge as Edge);
   }
 

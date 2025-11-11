@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  GRAPH_LAYOUT_DEFAULT_PROPS,
+  type GraphEdgeLayout
+} from '../core/graph-layout';
 import {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
 import {ClassicGraph} from '../graph/classic-graph';
@@ -81,19 +86,27 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     (this.props as any).nodePositionAccessor = accessor;
   };
 
-  getNodePosition = (node: Node | null): [number, number] => {
+  getNodePosition = (node: Node | null): [number, number] | null => {
     if (!node) {
-      return [0, 0] as [number, number];
+      return null;
     }
     const position = this._nodePositionMap[node.getId()];
-    return position ?? [0, 0] as [number, number];
+    return position ?? null;
   };
 
-  getEdgePosition = (edge: Edge) => {
+  getEdgePosition = (edge: Edge): GraphEdgeLayout | null => {
     const sourceNode = this._nodeMap[edge.getSourceNodeId()];
     const targetNode = this._nodeMap[edge.getTargetNodeId()];
-    const sourcePos = sourceNode ? this.getNodePosition(sourceNode) : [0, 0];
-    const targetPos = targetNode ? this.getNodePosition(targetNode) : [0, 0];
+    if (!sourceNode || !targetNode) {
+      return null;
+    }
+
+    const sourcePos = this.getNodePosition(sourceNode);
+    const targetPos = this.getNodePosition(targetNode);
+    if (!sourcePos || !targetPos) {
+      return null;
+    }
+
     return {
       type: 'line',
       sourcePosition: sourcePos,

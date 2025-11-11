@@ -26,9 +26,10 @@ export class MyLayout extends GraphLayout {
   stop() {}
 
   // Access the position of the node in the layout
-  // If the position is not available (not calculated), returning nullish will hide the node.
+  // If the position is not available (not calculated), returning null will hide the node.
   getNodePosition(node) {}
-  // access the layout information of the edge
+  // Access the layout information of the edge
+  // Return a GraphEdgeLayout object or null if the edge should be hidden.
   getEdgePosition(edge) {}
   // Pin the node to a designated position, and the node won't move anymore
   lockNodePosition(node, x, y) {}
@@ -87,7 +88,7 @@ In this case, we can just simply update the `this._nodePositionMap` by going thr
   updateGraph(grpah) {
     this._graph = graph;
     this._nodePositionMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = this._nodePositionMap[node.getId()] || [0, 0];
+      res[node.getId()] = this._nodePositionMap[node.getId()] ?? null;
       return res;
     }, {});
   }
@@ -215,7 +216,7 @@ export default class RandomLayout extends GraphLayout {
   updateGraph(grpah) {
     this._graph = graph;
     this._nodePositionMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = this._nodePositionMap[node.getId()] || [0, 0];
+      res[node.getId()] = this._nodePositionMap[node.getId()] ?? null;
       return res;
     }, {});
   }

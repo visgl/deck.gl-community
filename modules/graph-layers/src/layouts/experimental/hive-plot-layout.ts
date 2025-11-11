@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  GRAPH_LAYOUT_DEFAULT_PROPS,
+  type GraphEdgeLayout
+} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {ClassicGraph} from '../../graph/classic-graph';
 
@@ -104,9 +109,10 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
 
   resume() {}
 
-  getNodePosition = (node) => this._nodePositionMap[node.getId()];
+  getNodePosition = (node: Node): [number, number] | null =>
+    this._nodePositionMap[node.getId()] ?? null;
 
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge): GraphEdgeLayout | null => {
     const {getNodeAxis} = this.props;
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
@@ -114,8 +120,16 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     const sourcePosition = this._nodePositionMap[sourceNodeId];
     const targetPosition = this._nodePositionMap[targetNodeId];
 
+    if (!sourcePosition || !targetPosition) {
+      return null;
+    }
+
     const sourceNode = this._nodeMap[sourceNodeId];
     const targetNode = this._nodeMap[targetNodeId];
+
+    if (!sourceNode || !targetNode) {
+      return null;
+    }
 
     const sourceNodeAxis = getNodeAxis(sourceNode);
     const targetNodeAxis = getNodeAxis(targetNode);

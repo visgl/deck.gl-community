@@ -4,7 +4,12 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  GRAPH_LAYOUT_DEFAULT_PROPS,
+  type GraphEdgeLayout
+} from '../../core/graph-layout';
 import type {ClassicGraph} from '../../graph/classic-graph';
 import type {NodeInterface, EdgeInterface} from '../../graph/graph';
 import {Node} from '../../graph/node';
@@ -278,14 +283,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     return this._nodePositions.get(mappedId) || null;
   }
 
-  getEdgePosition(edge: EdgeInterface):
-    | {
-        type: string;
-        sourcePosition: [number, number];
-        targetPosition: [number, number];
-        controlPoints: [number, number][];
-      }
-    | null {
+  getEdgePosition(edge: EdgeInterface): GraphEdgeLayout | null {
     const mappedSourceId = this._mapNodeId(edge.getSourceNodeId());
     const mappedTargetId = this._mapNodeId(edge.getTargetNodeId());
     if (mappedSourceId === mappedTargetId) {

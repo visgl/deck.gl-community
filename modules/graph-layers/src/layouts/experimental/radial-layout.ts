@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  GRAPH_LAYOUT_DEFAULT_PROPS,
+  type GraphEdgeLayout
+} from '../../core/graph-layout';
 import {ClassicGraph} from '../../graph/classic-graph';
 import type {Node} from '../../graph/node';
 
@@ -161,16 +166,20 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
 
   update() {}
 
-  getNodePosition = (node: Node) => {
-    return this._hierarchicalPoints[node.getId()];
+  getNodePosition = (node: Node): [number, number] | null => {
+    return this._hierarchicalPoints[node.getId()] ?? null;
   };
 
   // spline curve version
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge): GraphEdgeLayout | null => {
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
     const sourceNodePos = this._hierarchicalPoints[sourceNodeId];
     const targetNodePos = this._hierarchicalPoints[targetNodeId];
+
+    if (!sourceNodePos || !targetNodePos) {
+      return null;
+    }
 
     const sourcePath = [];
     getPath(this.nestedTree, sourceNodeId, sourcePath);

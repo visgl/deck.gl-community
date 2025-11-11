@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  GRAPH_LAYOUT_DEFAULT_PROPS,
+  type GraphEdgeLayout
+} from '../../core/graph-layout';
 
 export type GPUForceLayoutOptions = GraphLayoutProps & {
   alpha?: number;
@@ -213,15 +218,15 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._d3Graph.edges = newD3Edges;
   }
 
-  getNodePosition = (node): [number, number] => {
+  getNodePosition = (node): [number, number] | null => {
     const d3Node = this._nodeMap[node.id];
     if (d3Node) {
       return [d3Node.x, d3Node.y];
     }
-    return [0, 0];
+    return null;
   };
 
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge): GraphEdgeLayout | null => {
     const d3Edge = this._edgeMap[edge.id];
     const sourcePosition = d3Edge && d3Edge.source;
     const targetPosition = d3Edge && d3Edge.target;
@@ -233,12 +238,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
         controlPoints: []
       };
     }
-    return {
-      type: 'line',
-      sourcePosition: [0, 0],
-      targetPosition: [0, 0],
-      controlPoints: []
-    };
+    return null;
   };
 
   lockNodePosition = (node, x, y) => {

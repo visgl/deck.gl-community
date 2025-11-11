@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import {
+  GraphLayout,
+  GraphLayoutProps,
+  GRAPH_LAYOUT_DEFAULT_PROPS,
+  type GraphEdgeLayout
+} from '../../core/graph-layout';
 import {log} from '../../utils/log';
 
 export type D3ForceLayoutOptions = GraphLayoutProps & {
@@ -114,7 +119,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     }
   }
 
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge): GraphEdgeLayout | null => {
     const sourceNode = this._graph.findNode(edge.getSourceNodeId());
     const targetNode = this._graph.findNode(edge.getTargetNodeId());
     if (!sourceNode || !targetNode) {
@@ -136,7 +141,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     };
   };
 
-  getNodePosition = (node) => {
+  getNodePosition = (node): [number, number] | null => {
     if (!node) {
       return null;
     }

@@ -7,7 +7,7 @@ import type {Bounds2D} from '@math.gl/types';
 import type {Graph, EdgeInterface, NodeInterface} from '../graph/graph';
 import {ClassicGraph, ClassicGraphLayoutAdapter} from '../graph/classic-graph';
 import type {GraphRuntimeLayout} from './graph-runtime-layout';
-import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
+import {GraphLayout, type GraphLayoutEventDetail, type GraphEdgeLayout} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
 import {GraphStylesheetEngine, type GraphStylesheet} from '../style/graph-style-engine';
@@ -127,11 +127,11 @@ export class GraphEngine {
     return (this._cache.get('edges') as EdgeInterface[]) ?? [];
   };
 
-  getNodePosition = (node: NodeInterface) => {
+  getNodePosition = (node: NodeInterface): [number, number] | null => {
     return this._layout.getNodePosition(node) ?? null;
   };
 
-  getEdgePosition = (edge: EdgeInterface) => {
+  getEdgePosition = (edge: EdgeInterface): GraphEdgeLayout | null => {
     return this._layout.getEdgePosition(edge) ?? null;
   };
 
