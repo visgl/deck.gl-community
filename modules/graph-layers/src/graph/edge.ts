@@ -22,7 +22,7 @@ export interface EdgeOptions {
 /** Basic edge data structure */
 export class Edge implements EdgeInterface {
   /** Unique uuid of the edge. */
-  public id: string | number;
+  public readonly id: string | number;
   /** ID of the source node. */
   private _sourceId: string | number;
   /** ID of the target node. */

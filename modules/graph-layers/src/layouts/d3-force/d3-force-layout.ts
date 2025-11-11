@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import type {Graph, NodeInterface, EdgeInterface} from '../../graph/graph';
 import {log} from '../../utils/log';
 
 export type D3ForceLayoutOptions = GraphLayoutProps & {
@@ -26,24 +27,27 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   } as const satisfies Readonly<Required<D3ForceLayoutOptions>>;
 
   protected readonly _name = 'D3';
-  private _positionsByNodeId = new Map();
-  private _graph: any;
-  private _worker: any;
+  private _positionsByNodeId = new Map<string | number, any>();
+  private _graph: Graph | null = null;
+  private _worker: Worker | null = null;
 
   constructor(props?: D3ForceLayoutOptions) {
     super(props, D3ForceLayout.defaultProps);
   }
 
-  initializeGraph(graph) {
+  initializeGraph(graph: Graph) {
     this._graph = graph;
   }
 
   // for streaming new data on the same graph
-  updateGraph(graph) {
+  updateGraph(graph: Graph) {
     this._graph = graph;
 
     this._positionsByNodeId = new Map(
-      this._graph.getNodes().map((node) => [node.id, this._positionsByNodeId.get(node.id)])
+      Array.from(this._graph.getNodes(), (node) => {
+        const id = node.getId();
+        return [id, this._positionsByNodeId.get(id)];
+      })
     );
   }
 
@@ -65,6 +69,10 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
 
+    if (!this._graph) {
+      return;
+    }
+
     const options = {...this.props};
     delete options.onLayoutStart;
     delete options.onLayoutChange;
@@ -72,12 +80,15 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     delete options.onLayoutError;
 
     this._worker.postMessage({
-      nodes: this._graph.getNodes().map((node) => ({
-        id: node.id,
-        ...this._positionsByNodeId.get(node.id)
-      })),
-      edges: this._graph.getEdges().map((edge) => ({
-        id: edge.id,
+      nodes: Array.from(this._graph.getNodes(), (node) => {
+        const id = node.getId();
+        return {
+          id,
+          ...this._positionsByNodeId.get(id)
+        };
+      }),
+      edges: Array.from(this._graph.getEdges(), (edge) => ({
+        id: edge.getId(),
         source: edge.getSourceNodeId(),
         target: edge.getTargetNodeId()
       })),
@@ -114,7 +125,11 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     }
   }
 
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge: EdgeInterface) => {
+    if (!this._graph) {
+      return null;
+    }
+
     const sourceNode = this._graph.findNode(edge.getSourceNodeId());
     const targetNode = this._graph.findNode(edge.getTargetNodeId());
     if (!sourceNode || !targetNode) {
@@ -136,12 +151,12 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     };
   };
 
-  getNodePosition = (node) => {
+  getNodePosition = (node: NodeInterface | null) => {
     if (!node) {
       return null;
     }
 
-    const d3Node = this._positionsByNodeId.get(node.id);
+    const d3Node = this._positionsByNodeId.get(node.getId());
     if (d3Node) {
       return d3Node.coordinates;
     }
@@ -149,9 +164,10 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     return null;
   };
 
-  lockNodePosition = (node, x, y) => {
-    const d3Node = this._positionsByNodeId.get(node.id);
-    this._positionsByNodeId.set(node.id, {
+  lockNodePosition = (node: NodeInterface, x: number, y: number) => {
+    const id = node.getId();
+    const d3Node = this._positionsByNodeId.get(id);
+    this._positionsByNodeId.set(id, {
       ...d3Node,
       x,
       y,
@@ -163,8 +179,12 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     this._onLayoutDone();
   };
 
-  unlockNodePosition = (node) => {
-    const d3Node = this._positionsByNodeId.get(node.id);
+  unlockNodePosition = (node: NodeInterface) => {
+    const id = node.getId();
+    const d3Node = this._positionsByNodeId.get(id);
+    if (!d3Node) {
+      return;
+    }
     d3Node.fx = null;
     d3Node.fy = null;
   };

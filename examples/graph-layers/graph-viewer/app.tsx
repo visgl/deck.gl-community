@@ -20,7 +20,6 @@ import {
   GraphLayout,
   type Graph,
   type GraphLayoutEventDetail,
-  ClassicGraph,
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
@@ -30,7 +29,9 @@ import {
   ForceMultiGraphLayout,
   D3DagLayout,
   CollapsableD3DagLayout,
-  type RankGridConfig
+  type RankGridConfig,
+  ArrowGraph,
+  convertTabularGraphToArrowGraph
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -52,6 +53,27 @@ const DEFAULT_CURSOR = 'default';
 const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
+
+type JsonGraph = {
+  version?: number;
+  nodes?: unknown[] | null;
+  edges?: unknown[] | null;
+};
+
+function createArrowGraphFromJson(json: JsonGraph | null | undefined): ArrowGraph | null {
+  if (!json) {
+    return null;
+  }
+
+  const tabularGraph = JSONTabularGraphLoader({json});
+  if (!tabularGraph) {
+    return null;
+  }
+
+  const arrowGraph = convertTabularGraphToArrowGraph(tabularGraph);
+  tabularGraph.destroy?.();
+  return arrowGraph;
+}
 
 const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'd3-force-layout': () => new D3ForceLayout(),
@@ -149,10 +171,7 @@ export function App({graphType}: AppProps) {
 
     return overrides ?? baseOptions;
   }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
-  const graph = useMemo(
-    () => (graphData ? JSONTabularGraphLoader({json: graphData}) : null),
-    [graphData]
-  );
+  const graph = useMemo(() => createArrowGraphFromJson(graphData as JsonGraph), [graphData]);
   const layout = useMemo(() => {
     if (!selectedLayout) {
       return null;
@@ -163,22 +182,6 @@ export function App({graphType}: AppProps) {
   }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => {
     if (!graph || !layout) {
-      return null;
-    }
-
-    if (layout instanceof GraphLayout) {
-      if (graph instanceof ClassicGraph) {
-        return new GraphEngine({graph, layout});
-      }
-
-      const toLegacy = graph as Graph & {toClassicGraph?: () => ClassicGraph | null};
-      if (typeof toLegacy.toClassicGraph === 'function') {
-        const legacyGraph = toLegacy.toClassicGraph();
-        if (legacyGraph) {
-          return new GraphEngine({graph: legacyGraph, layout});
-        }
-      }
-
       return null;
     }
 

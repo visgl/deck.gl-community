@@ -7,6 +7,7 @@ import type {NodeState, EdgeState} from '../core/constants';
 /** Shared interface for graph nodes used by the rendering runtime. */
 export interface NodeInterface {
   readonly isNode: boolean;
+  readonly id: string | number;
   getId(): string | number;
   getDegree(): number;
   getInDegree(): number;
@@ -28,6 +29,7 @@ export interface NodeInterface {
 /** Shared interface for graph edges used by the rendering runtime. */
 export interface EdgeInterface {
   readonly isEdge: boolean;
+  readonly id: string | number;
   getId(): string | number;
   isDirected(): boolean;
   getSourceNodeId(): string | number;
@@ -76,6 +78,9 @@ export abstract class Graph {
   abstract get version(): number;
   abstract getNodes(): Iterable<NodeInterface>;
   abstract getEdges(): Iterable<EdgeInterface>;
-  abstract findNodeById?(id: string | number): NodeInterface | undefined;
+  abstract findNode(id: string | number): NodeInterface | undefined;
+  findNodeById?(id: string | number): NodeInterface | undefined;
+  getGraphName?(): string;
+  triggerUpdate?(): void;
   abstract destroy?(): void;
 }

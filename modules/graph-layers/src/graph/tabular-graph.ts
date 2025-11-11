@@ -289,9 +289,13 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Gr
     return this._edges ?? [];
   }
 
-  findNodeById(id: string | number): NodeInterface | undefined {
+  findNode(id: string | number): NodeInterface | undefined {
     this._synchronize();
     return this._nodeMap?.get(id);
+  }
+
+  findNodeById(id: string | number): NodeInterface | undefined {
+    return this.findNode(id);
   }
 
   destroy(): void {
