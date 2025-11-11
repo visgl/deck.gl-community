@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="node-category" for="node" attr.name="category" attr.type="string">
+    <default>general</default>
+  </key>
+  <key id="edge-weight" for="edge" attr.name="weight" attr.type="double">
+    <default>3.5</default>
+  </key>
+  <graph id="undirected" edgedefault="undirected">
+    <node id="a" />
+    <node id="b" />
+    <edge source="a" target="b" />
+  </graph>
+</graphml>

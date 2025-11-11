@@ -1462,6 +1462,7 @@ __metadata:
     d3-force: "npm:^3.0.0"
     d3-format: "npm:^3.1.0"
     d3-scale: "npm:^4.0.2"
+    fast-xml-parser: "npm:^4.2.5"
     global: "npm:^4.4.0"
     lodash.isequal: "npm:^4.5.0"
     lodash.pick: "npm:^4.4.0"

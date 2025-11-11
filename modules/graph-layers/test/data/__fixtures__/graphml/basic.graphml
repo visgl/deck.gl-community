@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="node-label" for="node" attr.name="label" attr.type="string" />
+  <key id="node-count" for="node" attr.name="count" attr.type="int">
+    <default>5</default>
+  </key>
+  <key id="edge-weight" for="edge" attr.name="weight" attr.type="double">
+    <default>1.5</default>
+  </key>
+  <key id="shared-flag" for="all" attr.name="flag" attr.type="boolean">
+    <default>true</default>
+  </key>
+  <graph id="G" edgedefault="directed">
+    <node id="n0">
+      <data key="node-label">Node Zero</data>
+      <data key="shared-flag">false</data>
+    </node>
+    <node id="n1">
+      <data key="node-label">Node One</data>
+      <data key="node-count">7</data>
+      <data key="custom-text">note</data>
+    </node>
+    <edge id="e0" source="n0" target="n1">
+      <data key="edge-weight">2.5</data>
+    </edge>
+    <edge source="n1" target="n0" directed="false">
+      <data key="shared-flag">true</data>
+    </edge>
+  </graph>
+</graphml>
