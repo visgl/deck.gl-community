@@ -11,11 +11,7 @@ import {
   RadialLayout,
   HivePlotLayout
 } from '@deck.gl-community/graph-layers';
-import type {
-  BooleanPropDescription,
-  NumberPropDescription,
-  PropDescription
-} from './props-form';
+import type {NumberPropDescription, PropDescription} from './props-form';
 
 export type GraphExampleType = 'graph' | 'radial' | 'multi-graph' | 'hive' | 'dag';
 
@@ -30,20 +26,53 @@ export type LayoutType =
 
 export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
 
-export type ExampleDefinition = {
+export type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
+
+export type ExampleMetadata = {
+  nodeCount?: number;
+  edgeCount?: number;
+  graphId?: string;
+  directed?: boolean;
+  strict?: boolean;
+  attributes?: Record<string, unknown>;
+  sourceType?: 'inline' | 'remote';
+};
+
+export type ExampleLayoutContext = {
+  data?: ExampleGraphData;
+  metadata?: ExampleMetadata;
+};
+
+type ExampleDefinitionBase = {
   name: string;
   description: string;
   type: GraphExampleType;
-  data: () => {nodes: unknown[]; edges: unknown[]};
   /** First listed layout is the default */
   layouts: LayoutType[];
   layoutDescriptions: Record<LayoutType, string>;
   style: ExampleStyles;
+  graphLoader?: GraphLayerProps['graphLoader'];
   getLayoutOptions?: (
     layout: LayoutType,
-    data: {nodes: unknown[]; edges: unknown[]}
+    context: ExampleLayoutContext
   ) => Record<string, unknown> | undefined;
 };
+
+type InlineExampleDefinition = ExampleDefinitionBase & {
+  data: () => ExampleGraphData;
+  dataUrl?: undefined;
+  loaders?: undefined;
+  loadOptions?: undefined;
+};
+
+type RemoteExampleDefinition = ExampleDefinitionBase & {
+  data?: undefined;
+  dataUrl: string;
+  loaders?: GraphLayerProps['loaders'];
+  loadOptions?: GraphLayerProps['loadOptions'];
+};
+
+export type ExampleDefinition = InlineExampleDefinition | RemoteExampleDefinition;
 
 export const LAYOUT_LABELS: Record<LayoutType, string> = {
   'd3-force-layout': 'D3 Force Layout',
@@ -313,6 +342,7 @@ export function normalizeTuple(
   return fallback;
 }
 
+// eslint-disable-next-line complexity
 export function createDagFormState(options?: Record<string, unknown>): DagLayoutFormState {
   const merged = {...DAG_DEFAULT_OPTIONS, ...(options ?? {})};
   const center = merged.center;
@@ -334,15 +364,21 @@ export function createDagFormState(options?: Record<string, unknown>): DagLayout
   const separation = normalizeTuple(merged.separation, DAG_DEFAULT_OPTIONS.separation);
 
   return {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     layout: (merged.layout ?? DAG_DEFAULT_OPTIONS.layout) as DagLayoutFormState['layout'],
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     layering: (merged.layering ?? DAG_DEFAULT_OPTIONS.layering) as DagLayoutFormState['layering'],
     nodeRank:
       typeof merged.nodeRank === 'string' && merged.nodeRank === 'rank'
         ? 'rank'
         : 'none',
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     decross: (merged.decross ?? DAG_DEFAULT_OPTIONS.decross) as DagLayoutFormState['decross'],
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     coord: (merged.coord ?? DAG_DEFAULT_OPTIONS.coord) as DagLayoutFormState['coord'],
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     orientation: (merged.orientation ?? DAG_DEFAULT_OPTIONS.orientation) as DagLayoutFormState['orientation'],
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     dagBuilder: (merged.dagBuilder ?? DAG_DEFAULT_OPTIONS.dagBuilder) as DagLayoutFormState['dagBuilder'],
     centerX,
     centerY,
@@ -355,6 +391,7 @@ export function createDagFormState(options?: Record<string, unknown>): DagLayout
   };
 }
 
+// eslint-disable-next-line complexity
 export function dagStatesEqual(a: DagLayoutFormState, b: DagLayoutFormState): boolean {
   return (
     a.layout === b.layout &&

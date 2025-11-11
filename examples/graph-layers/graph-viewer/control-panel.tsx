@@ -4,10 +4,167 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import type {ReactNode} from 'react';
-import type {ExampleDefinition, GraphExampleType, LayoutType} from './layout-options';
+import type {
+  ExampleDefinition,
+  ExampleMetadata,
+  GraphExampleType,
+  LayoutType
+} from './layout-options';
 import {LAYOUT_LABELS} from './layout-options';
 import {filterExamplesByType} from './examples';
 import {LayoutOptionsPanel} from './layout-options-panel';
+
+const METADATA_SECTION_STYLE: React.CSSProperties = {
+  fontSize: '0.875rem',
+  color: '#334155',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.5rem'
+};
+
+const METADATA_GRID_STYLE: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto 1fr',
+  columnGap: '0.75rem',
+  rowGap: '0.35rem',
+  margin: 0
+};
+
+const METADATA_LABEL_STYLE: React.CSSProperties = {
+  fontWeight: 600,
+  color: '#0f172a',
+  margin: 0
+};
+
+const METADATA_VALUE_STYLE: React.CSSProperties = {
+  margin: 0,
+  color: '#1f2937'
+};
+
+const METADATA_ATTRIBUTE_LIST_STYLE: React.CSSProperties = {
+  margin: '0.35rem 0 0',
+  paddingLeft: '1.25rem',
+  display: 'grid',
+  rowGap: '0.25rem'
+};
+
+const LOADING_TEXT_STYLE: React.CSSProperties = {
+  fontSize: '0.8125rem',
+  color: '#475569',
+  margin: 0
+};
+
+function formatMetadataValue(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => formatMetadataValue(entry)).join(', ');
+  }
+
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch (_error) {
+      return String(value);
+    }
+  }
+
+  return String(value);
+}
+
+type MetadataSectionProps = {
+  metadata?: ExampleMetadata | null;
+  dataLoading?: boolean;
+  attributeEntries: Array<[string, unknown]>;
+};
+
+// eslint-disable-next-line complexity
+function MetadataSection({metadata, dataLoading, attributeEntries}: MetadataSectionProps) {
+  if (dataLoading) {
+    return (
+      <section style={METADATA_SECTION_STYLE}>
+        <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+          Dataset stats
+        </h3>
+        <p style={LOADING_TEXT_STYLE}>Loading dataset details…</p>
+      </section>
+    );
+  }
+
+  if (!metadata) {
+    return null;
+  }
+
+  return (
+    <section style={METADATA_SECTION_STYLE}>
+      <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
+        Dataset stats
+      </h3>
+      <dl style={METADATA_GRID_STYLE}>
+        {metadata.sourceType ? (
+          <>
+            <dt style={METADATA_LABEL_STYLE}>Source</dt>
+            <dd style={METADATA_VALUE_STYLE}>
+              {metadata.sourceType === 'remote' ? 'Remote (URL)' : 'Inline sample'}
+            </dd>
+          </>
+        ) : null}
+        {typeof metadata.nodeCount === 'number' ? (
+          <>
+            <dt style={METADATA_LABEL_STYLE}>Nodes</dt>
+            <dd style={METADATA_VALUE_STYLE}>{metadata.nodeCount.toLocaleString()}</dd>
+          </>
+        ) : null}
+        {typeof metadata.edgeCount === 'number' ? (
+          <>
+            <dt style={METADATA_LABEL_STYLE}>Edges</dt>
+            <dd style={METADATA_VALUE_STYLE}>{metadata.edgeCount.toLocaleString()}</dd>
+          </>
+        ) : null}
+        {metadata.graphId ? (
+          <>
+            <dt style={METADATA_LABEL_STYLE}>Graph ID</dt>
+            <dd style={METADATA_VALUE_STYLE}>{metadata.graphId}</dd>
+          </>
+        ) : null}
+        {metadata.directed !== undefined ? (
+          <>
+            <dt style={METADATA_LABEL_STYLE}>Directed</dt>
+            <dd style={METADATA_VALUE_STYLE}>{metadata.directed ? 'Yes' : 'No'}</dd>
+          </>
+        ) : null}
+        {metadata.strict !== undefined ? (
+          <>
+            <dt style={METADATA_LABEL_STYLE}>Strict</dt>
+            <dd style={METADATA_VALUE_STYLE}>{metadata.strict ? 'Yes' : 'No'}</dd>
+          </>
+        ) : null}
+      </dl>
+      {attributeEntries.length ? (
+        <details>
+          <summary
+            style={{
+              cursor: 'pointer',
+              fontWeight: 600,
+              color: '#0f172a'
+            }}
+          >
+            Additional attributes
+          </summary>
+          <ul style={METADATA_ATTRIBUTE_LIST_STYLE}>
+            {attributeEntries.map(([key, value]) => (
+              <li key={key} style={{color: '#475569'}}>
+                <strong style={{color: '#0f172a'}}>{key}:</strong> {formatMetadataValue(value)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </section>
+  );
+}
 
 type ControlPanelProps = {
   examples: ExampleDefinition[];
@@ -17,6 +174,8 @@ type ControlPanelProps = {
   children?: ReactNode;
   layoutOptions?: Record<string, unknown>;
   onLayoutOptionsApply?: (layout: LayoutType, options: Record<string, unknown>) => void;
+  metadata?: ExampleMetadata | null;
+  dataLoading?: boolean;
 };
 
 export function ControlPanel({
@@ -26,6 +185,8 @@ export function ControlPanel({
   onExampleChange,
   layoutOptions,
   onLayoutOptionsApply,
+  metadata,
+  dataLoading,
   children
 }: ControlPanelProps) {
   const filteredExamples = useMemo(
@@ -102,18 +263,13 @@ export function ControlPanel({
     return selectedExample.layoutDescriptions[selectedLayout];
   }, [selectedExample, selectedLayout]);
 
-  const styleJson = useMemo(() => {
-    const styles = selectedExample?.style;
-    if (!styles) {
-      return '';
+  const attributeEntries = useMemo(() => {
+    if (!metadata?.attributes) {
+      return [] as Array<[string, unknown]>;
     }
 
-    return JSON.stringify(
-      styles,
-      (_key, value) => (typeof value === 'function' ? value.toString() : value),
-      2
-    );
-  }, [selectedExample]);
+    return Object.entries(metadata.attributes).filter(([key]) => key.length);
+  }, [metadata]);
 
   if (!filteredExamples.length) {
     return null;
@@ -174,6 +330,11 @@ export function ControlPanel({
           <p style={{margin: 0}}>{datasetDescription}</p>
         </section>
       ) : null}
+      <MetadataSection
+        metadata={metadata}
+        dataLoading={dataLoading}
+        attributeEntries={attributeEntries}
+      />
       <div
         style={{
           display: 'grid',
