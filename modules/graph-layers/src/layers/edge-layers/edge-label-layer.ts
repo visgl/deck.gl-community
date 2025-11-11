@@ -2,14 +2,30 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer} from '@deck.gl/core';
+import {CompositeLayer, type CompositeLayerProps} from '@deck.gl/core';
 import {ZoomableTextLayer} from '../common-layers/zoomable-text-layer/zoomable-text-layer';
 
-export class EdgeLabelLayer extends CompositeLayer {
+import type {EdgeInterface} from '../../graph/graph';
+import type {GraphStylesheetEngine} from '../../style/graph-style-engine';
+import type {EdgeLayoutAccessor} from '../edge-layer';
+
+/** Props for the {@link EdgeLabelLayer} composite layer. */
+export type EdgeLabelLayerProps = CompositeLayerProps & {
+  /** Graph edges to annotate with text labels. */
+  data: readonly EdgeInterface[];
+  /** Accessor returning layout metadata for each edge. */
+  getLayoutInfo: EdgeLayoutAccessor;
+  /** Stylesheet engine that exposes Deck.gl accessors for label rendering. */
+  stylesheet: GraphStylesheetEngine;
+  /** Value used to invalidate cached positions when edge layout changes. */
+  positionUpdateTrigger?: unknown;
+};
+
+export class EdgeLabelLayer extends CompositeLayer<EdgeLabelLayerProps> {
   static layerName = 'EdgeLabelLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props;
     return [
       new ZoomableTextLayer(
         this.getSubLayerProps({

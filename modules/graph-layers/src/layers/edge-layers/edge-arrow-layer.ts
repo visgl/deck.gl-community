@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer} from '@deck.gl/core';
+import {CompositeLayer, type CompositeLayerProps} from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 
+import type {EdgeInterface} from '../../graph/graph';
+import type {GraphStylesheetEngine} from '../../style/graph-style-engine';
+import type {EdgeLayoutAccessor, EdgeLayoutInfo} from '../edge-layer';
 import {Arrow2DGeometry} from './arrow-2d-geometry';
 
 const DEFAULT_ARROW_GEOMETRY = new Arrow2DGeometry({length: 1, headWidth: 0.6});
-
-type LayoutInfo = {
-  sourcePosition: number[];
-  targetPosition: number[];
-  controlPoints?: number[][];
-};
 
 const DEFAULT_Z = 0;
 
@@ -55,7 +52,7 @@ function normalizeVector(vector: number[]): number[] {
   return [(vector[0] ?? 0) / length, (vector[1] ?? 0) / length, (vector[2] ?? 0) / length];
 }
 
-function getTerminalDirection({sourcePosition, targetPosition, controlPoints = []}: LayoutInfo): {
+function getTerminalDirection({sourcePosition, targetPosition, controlPoints = []}: EdgeLayoutInfo): {
   target: number[];
   direction: number[];
 } {
@@ -73,7 +70,7 @@ export function getArrowTransform({
   size,
   offset = null
 }: {
-  layout: LayoutInfo;
+  layout: EdgeLayoutInfo;
   size: number;
   offset?: number[] | null;
 }): {position: [number, number, number]; angle: number} {
@@ -112,12 +109,24 @@ export function getArrowTransform({
   return {position, angle};
 }
 
-export class EdgeArrowLayer extends CompositeLayer {
+/** Props for the {@link EdgeArrowLayer} composite layer. */
+export type EdgeArrowLayerProps = CompositeLayerProps & {
+  /** Graph edges to decorate with directional arrow meshes. */
+  data: readonly EdgeInterface[];
+  /** Accessor returning layout metadata for each edge. */
+  getLayoutInfo: EdgeLayoutAccessor;
+  /** Stylesheet engine that exposes Deck.gl accessors for arrow rendering. */
+  stylesheet: GraphStylesheetEngine;
+  /** Value used to invalidate cached positions when edge layout changes. */
+  positionUpdateTrigger?: unknown;
+};
+
+export class EdgeArrowLayer extends CompositeLayer<EdgeArrowLayerProps> {
   static layerName = 'EdgeArrowLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
-    const directedEdges = (data || []).filter(isEdgeDirected);
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props;
+    const directedEdges = data.filter(isEdgeDirected);
 
     if (!directedEdges.length) {
       return [];

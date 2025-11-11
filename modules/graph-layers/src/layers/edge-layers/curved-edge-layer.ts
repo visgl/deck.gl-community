@@ -2,13 +2,36 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer} from '@deck.gl/core';
+import {CompositeLayer, type CompositeLayerProps, type Accessor} from '@deck.gl/core';
 import {ScatterplotLayer, LineLayer} from '@deck.gl/layers';
 import {SplineLayer} from '../common-layers/spline-layer/spline-layer';
 
+import type {EdgeInterface} from '../../graph/graph';
+import type {EdgeLayoutAccessor} from '../edge-layer';
+
+type ColorAccessor = Accessor<EdgeInterface, readonly number[]>;
+
+/** Props for the {@link CurvedEdgeLayer} composite layer. */
+export type CurvedEdgeLayerProps = CompositeLayerProps & {
+  /** Graph edges to render as spline curves. */
+  data: readonly EdgeInterface[];
+  /** Accessor returning layout metadata for each edge. */
+  getLayoutInfo: EdgeLayoutAccessor;
+  /** Accessor resolving stroke color for each edge. */
+  getColor: ColorAccessor;
+  /** Accessor resolving curve width for each edge. */
+  getWidth: Accessor<EdgeInterface, number>;
+  /** Value used to invalidate cached positions when edge layout changes. */
+  positionUpdateTrigger?: unknown;
+  /** Value used to invalidate cached stroke colors. */
+  colorUpdateTrigger?: unknown;
+  /** Value used to invalidate cached stroke widths. */
+  widthUpdateTrigger?: unknown;
+};
+
 const DEBUG = false;
 
-export class CurvedEdgeLayer extends CompositeLayer {
+export class CurvedEdgeLayer extends CompositeLayer<CurvedEdgeLayerProps> {
   static layerName = 'CurvedEdgeLayer';
 
   // @ts-expect-error TODO
@@ -20,7 +43,7 @@ export class CurvedEdgeLayer extends CompositeLayer {
       colorUpdateTrigger = 0,
       widthUpdateTrigger = 0,
       ...otherProps
-    } = this.props as any;
+    } = this.props;
     return [
       DEBUG &&
         new ScatterplotLayer(

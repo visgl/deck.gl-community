@@ -6,7 +6,7 @@
 import type {ShaderModule} from '@luma.gl/shadertools';
 import type {Model} from '@luma.gl/engine';
 import {fs} from './rounded-rectangle-layer-fragment';
-import {RectangleLayer} from './rectangle-layer';
+import {RectangleLayer, type RectangleLayerProps} from './rectangle-layer';
 
 const uniformBlock = `\
 uniform roundedRectangleUniforms {
@@ -27,11 +27,19 @@ export const roundedRectangleUniforms = {
   }
 } as const satisfies ShaderModule<RoundedRectangleProps>;
 
+/** Props for the {@link RoundedRectangleLayer} composite layer. */
+export type RoundedRectangleLayerProps = RectangleLayerProps & {
+  /** Radius applied to each rectangle corner in world units. */
+  cornerRadius: number;
+};
+
 export class RoundedRectangleLayer extends RectangleLayer {
   static layerName = 'RoundedRectangleLayer';
 
-  draw(props) {
-    const {cornerRadius} = this.props as any;
+  declare props: RoundedRectangleLayerProps;
+
+  draw(props: Parameters<RectangleLayer['draw']>[0]) {
+    const {cornerRadius} = this.props;
     const roundedRectangleProps: RoundedRectangleProps = {cornerRadius};
     const model = this.state.model as Model;
     model.shaderInputs.setProps({roundedRectangle: roundedRectangleProps});
