@@ -27,23 +27,21 @@ vi.mock(
       };
     };
 
-    const Table = class {
-      constructor(private readonly columns: Record<string, ReturnType<typeof makeVector>>) {}
-
-      static new(columns: Record<string, ReturnType<typeof makeVector>>) {
-        return new Table(columns);
-      }
-
-      getColumn(name: string) {
-        return this.columns[name];
-      }
-    };
-
     return {
       makeBuilder,
       Utf8: class {},
       Bool: class {},
-      Table
+      tableFromArrays(columns: Record<string, unknown[]>) {
+        const vectors = Object.fromEntries(
+          Object.entries(columns).map(([name, values]) => [name, makeVector(values)])
+        );
+
+        return {
+          getColumn(name: string) {
+            return vectors[name];
+          }
+        };
+      }
     };
   },
   {virtual: true}

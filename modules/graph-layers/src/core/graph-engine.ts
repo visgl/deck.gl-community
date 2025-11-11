@@ -154,7 +154,7 @@ export class GraphEngine {
   };
 
   findNode(nodeId: string | number): NodeInterface | undefined {
-    return this._graph.findNodeById?.(nodeId);
+    return this._graph.findNode?.(nodeId) ?? this._graph.findNodeById?.(nodeId);
   }
 
   createStylesheetEngine(
