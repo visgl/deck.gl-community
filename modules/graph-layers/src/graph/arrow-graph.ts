@@ -8,6 +8,9 @@ import type {NodeState, EdgeState} from '../core/constants';
 import type {ArrowGraphData} from '../graph-data/arrow-graph-data';
 import type {GraphProps, NodeInterface, EdgeInterface} from './graph';
 import {Graph} from './graph';
+import {ClassicGraph} from './classic-graph';
+import {Node} from './node';
+import {Edge} from './edge';
 import {cloneRecord, normalizeEdgeState, normalizeNodeState} from './graph-normalization';
 
 type NodeOverride = {
@@ -112,6 +115,45 @@ export class ArrowGraph extends Graph {
     this.nodeEdgeIndices.length = 0;
     this.nodes.length = 0;
     this.edges.length = 0;
+  }
+
+  toClassicGraph(): ClassicGraph {
+    const nodeCount = getVectorLength(this.nodeVectors.id);
+    const edgeCount = getVectorLength(this.edgeVectors.id);
+
+    const legacyNodes: Node[] = [];
+    for (let index = 0; index < nodeCount; index++) {
+      const node = new Node({
+        id: this.getNodeIdByIndex(index),
+        selectable: this.isNodeSelectableByIndex(index),
+        highlightConnectedEdges: this.shouldHighlightConnectedEdgesByIndex(index),
+        data: this.getNodeDataByIndex(index)
+      });
+      node.setState(this.getNodeStateByIndex(index));
+      legacyNodes.push(node);
+    }
+
+    const legacyEdges: Edge[] = [];
+    for (let index = 0; index < edgeCount; index++) {
+      const edge = new Edge({
+        id: this.getEdgeIdByIndex(index),
+        sourceId: this.getEdgeSourceIdByIndex(index),
+        targetId: this.getEdgeTargetIdByIndex(index),
+        directed: this.isEdgeDirectedByIndex(index),
+        data: this.getEdgeDataByIndex(index)
+      });
+      edge.setState(this.getEdgeStateByIndex(index));
+      legacyEdges.push(edge);
+    }
+
+    const classicGraph = new ClassicGraph(undefined, this.props);
+    if (legacyNodes.length > 0) {
+      classicGraph.batchAddNodes(legacyNodes);
+    }
+    if (legacyEdges.length > 0) {
+      classicGraph.batchAddEdges(legacyEdges);
+    }
+    return classicGraph;
   }
 
   getNodeIdByIndex(index: number): string | number {

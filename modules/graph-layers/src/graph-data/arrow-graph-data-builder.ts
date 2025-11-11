@@ -17,6 +17,7 @@ import {
 
 type Builder = ReturnType<typeof arrow.makeBuilder>;
 type ArrowVector = ReturnType<Builder['toVector']>;
+type ColumnArray = ReturnType<ArrowVector['toArray']>;
 type ColumnBuilderMap = Map<string, Builder>;
 
 export type ArrowGraphDataBuilderOptions = {
@@ -152,13 +153,14 @@ export class ArrowGraphDataBuilder {
 }
 
 function tableFromBuilders(builders: ColumnBuilderMap): arrow.Table {
-  const columns: Record<string, ArrowVector> = {};
+  const columns: Record<string, ColumnArray> = {};
 
   for (const [columnName, builder] of builders.entries()) {
     builder.finish();
-    columns[columnName] = builder.toVector();
+    const vector = builder.toVector();
+    columns[columnName] = vector.toArray();
   }
 
-  return new arrow.Table(columns);
+  return arrow.tableFromArrays(columns);
 }
 
