@@ -194,7 +194,9 @@ function parseEdge(
     return null;
   }
 
-  const id = edge[`${XML_ATTRIBUTE_PREFIX}id`] ?? `edge-${index}`;
+  const rawId = edge[`${XML_ATTRIBUTE_PREFIX}id`];
+  const id =
+    typeof rawId === 'string' || typeof rawId === 'number' ? rawId : `edge-${index}`;
   const directed = parseDirected(edge[`${XML_ATTRIBUTE_PREFIX}directed`], defaultDirected);
   const attributes = buildAttributeBag('edge', edge.data, keyDefinitions);
 
