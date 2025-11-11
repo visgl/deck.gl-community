@@ -20,7 +20,6 @@ import {
   GraphLayout,
   type Graph,
   type GraphLayoutEventDetail,
-  ClassicGraph,
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
@@ -183,22 +182,6 @@ export function App({graphType}: AppProps) {
   }, [selectedLayout, layoutOptions]);
   const engine = useMemo(() => {
     if (!graph || !layout) {
-      return null;
-    }
-
-    if (layout instanceof GraphLayout) {
-      if (graph instanceof ClassicGraph) {
-        return new GraphEngine({graph, layout});
-      }
-
-      const toLegacy = graph as Graph & {toClassicGraph?: () => ClassicGraph | null};
-      if (typeof toLegacy.toClassicGraph === 'function') {
-        const legacyGraph = toLegacy.toClassicGraph();
-        if (legacyGraph) {
-          return new GraphEngine({graph: legacyGraph, layout});
-        }
-      }
-
       return null;
     }
 

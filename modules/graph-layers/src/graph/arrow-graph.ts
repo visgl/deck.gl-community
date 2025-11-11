@@ -104,8 +104,12 @@ export class ArrowGraph extends Graph {
     return this.edges;
   }
 
-  findNodeById(id: string | number): NodeInterface | undefined {
+  findNode(id: string | number): NodeInterface | undefined {
     return this.nodeMap.get(id) ?? this.nodeMap.get(String(id));
+  }
+
+  findNodeById(id: string | number): NodeInterface | undefined {
+    return this.findNode(id);
   }
 
   destroy(): void {
@@ -466,6 +470,10 @@ export class ArrowGraph extends Graph {
 class ArrowGraphNode implements NodeInterface {
   public readonly isNode = true;
 
+  get id(): string | number {
+    return this.getId();
+  }
+
   constructor(private readonly graph: ArrowGraph, private readonly index: number) {}
 
   getId(): string | number {
@@ -545,6 +553,10 @@ class ArrowGraphNode implements NodeInterface {
 class ArrowGraphEdge implements EdgeInterface {
   public readonly isEdge = true;
   private readonly connectedNodes: Map<string | number, NodeInterface> = new Map();
+
+  get id(): string | number {
+    return this.getId();
+  }
 
   constructor(private readonly graph: ArrowGraph, private readonly index: number) {}
 

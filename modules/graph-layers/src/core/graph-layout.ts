@@ -4,8 +4,8 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {ClassicGraph} from '../graph/classic-graph';
-import type {NodeInterface, EdgeInterface} from '../graph/graph';
+import type {Graph, NodeInterface, EdgeInterface} from '../graph/graph';
+import type {GraphRuntimeLayout} from './graph-runtime-layout';
 
 import isEqual from 'lodash.isequal';
 import {log} from '../utils/log';
@@ -33,7 +33,7 @@ export const GRAPH_LAYOUT_DEFAULT_PROPS: Readonly<Required<GraphLayoutProps>> = 
 
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
-> {
+> implements GraphRuntimeLayout {
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration props of the layout. */
@@ -121,9 +121,9 @@ export abstract class GraphLayout<
     /** virtual functions: will be implemented in the child class */
 
   /** first time to pass the graph data into this layout */
-  abstract initializeGraph(graph: ClassicGraph);
+  abstract initializeGraph(graph: Graph): void;
   /** update the existing graph */
-  abstract updateGraph(graph: ClassicGraph);
+  abstract updateGraph(graph: Graph): void;
   /** start the layout calculation */
   abstract start();
   /** update the layout calculation */

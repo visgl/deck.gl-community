@@ -3,13 +3,12 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
-import {Node} from '../../graph/node';
-import {ClassicGraph} from '../../graph/classic-graph';
+import type {Graph, NodeInterface, EdgeInterface} from '../../graph/graph';
 
 export type HivePlotLayoutProps = GraphLayoutProps & {
   innerRadius?: number;
   outerRadius?: number;
-  getNodeAxis?: (node: Node) => any;
+  getNodeAxis?: (node: NodeInterface) => any;
 };
 
 export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
@@ -21,30 +20,25 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   } as const satisfies Readonly<Required<HivePlotLayoutProps>>;
 
   _name = 'HivePlot';
-  _graph: ClassicGraph;
-  _totalAxis: number;
-  _axis: Record<string, any>;
-  _nodeMap = {};
-  _nodePositionMap = {};
+  _graph: Graph | null = null;
+  _totalAxis: number = 0;
+  _axis: Record<string, NodeInterface[]> = {};
+  _nodeMap = new Map<string | number, NodeInterface>();
+  _nodePositionMap = new Map<string | number, [number, number]>();
 
   constructor(props: HivePlotLayoutProps = {}) {
     super(props, HivePlotLayout.defaultProps);
   }
 
-  initializeGraph(graph: ClassicGraph) {
+  initializeGraph(graph: Graph) {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: ClassicGraph) {
+  updateGraph(graph: Graph) {
     const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
-    const nodes = Array.isArray(graph.getNodes())
-      ? (graph.getNodes() as Node[])
-      : (Array.from(graph.getNodes()) as Node[]);
-    this._nodeMap = nodes.reduce((res, node) => {
-      res[node.getId()] = node;
-      return res;
-    }, {});
+    const nodes = Array.from(graph.getNodes());
+    this._nodeMap = new Map(nodes.map((node) => [node.getId(), node]));
 
     // bucket nodes into few axis
 
@@ -77,7 +71,8 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     const angleInterval = 360 / Object.keys(this._axis).length;
 
     // calculate positions
-    this._nodePositionMap = Object.keys(this._axis).reduce((res, axis, axisIdx) => {
+    this._nodePositionMap = new Map();
+    Object.keys(this._axis).forEach((axis, axisIdx) => {
       const axisAngle = angleInterval * axisIdx;
       const bucketedNodes = this._axis[axis];
       const interval = (outerRadius - innerRadius) / bucketedNodes.length;
@@ -86,10 +81,9 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
         const radius = innerRadius + idx * interval;
         const x = Math.cos((axisAngle / 180) * Math.PI) * radius + center[0];
         const y = Math.sin((axisAngle / 180) * Math.PI) * radius + center[1];
-        res[node.getId()] = [x, y];
+        this._nodePositionMap.set(node.getId(), [x, y]);
       });
-      return res;
-    }, {});
+    });
   }
 
   start() {
@@ -104,23 +98,27 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
 
   resume() {}
 
-  getNodePosition = (node) => this._nodePositionMap[node.getId()];
+  getNodePosition = (node: NodeInterface) => this._nodePositionMap.get(node.getId());
 
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge: EdgeInterface) => {
     const {getNodeAxis} = this.props;
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
 
-    const sourcePosition = this._nodePositionMap[sourceNodeId];
-    const targetPosition = this._nodePositionMap[targetNodeId];
+    const sourcePosition = this._nodePositionMap.get(sourceNodeId);
+    const targetPosition = this._nodePositionMap.get(targetNodeId);
 
-    const sourceNode = this._nodeMap[sourceNodeId];
-    const targetNode = this._nodeMap[targetNodeId];
+    if (!sourcePosition || !targetPosition) {
+      return null;
+    }
 
-    const sourceNodeAxis = getNodeAxis(sourceNode);
-    const targetNodeAxis = getNodeAxis(targetNode);
+    const sourceNode = this._nodeMap.get(sourceNodeId);
+    const targetNode = this._nodeMap.get(targetNodeId);
 
-    if (sourceNodeAxis === targetNodeAxis) {
+    const sourceNodeAxis = sourceNode ? getNodeAxis(sourceNode) : null;
+    const targetNodeAxis = targetNode ? getNodeAxis(targetNode) : null;
+
+    if (sourceNodeAxis !== null && sourceNodeAxis === targetNodeAxis) {
       return {
         type: 'line',
         sourcePosition,
@@ -131,9 +129,9 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
 
     const controlPoint = computeControlPoint({
       sourcePosition,
-      sourceNodeAxis,
+      sourceNodeAxis: sourceNodeAxis ?? 0,
       targetPosition,
-      targetNodeAxis,
+      targetNodeAxis: targetNodeAxis ?? 0,
       totalAxis: this._totalAxis
     });
 
@@ -145,14 +143,14 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     };
   };
 
-  lockNodePosition = (node, x, y) => {
-    this._nodePositionMap[node.id] = [x, y];
+  lockNodePosition = (node: NodeInterface, x: number, y: number) => {
+    this._nodePositionMap.set(node.getId(), [x, y]);
     this._onLayoutChange();
     this._onLayoutDone();
   };
 
   protected override _updateBounds(): void {
-    const positions = Object.values(this._nodePositionMap ?? {}).map((position) =>
+    const positions = Array.from(this._nodePositionMap.values(), (position) =>
       this._normalizePosition(position)
     );
     this._bounds = this._calculateBounds(positions);

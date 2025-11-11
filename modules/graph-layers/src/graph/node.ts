@@ -17,7 +17,7 @@ export interface NodeOptions {
 
 /** Basic data structure of a node */
 export class Node implements NodeInterface {
-  public id: string | number;
+  public readonly id: string | number;
   /** Keep a reference to origin data. */
   private _data: Record<string, unknown>;
   /** List edges. */
