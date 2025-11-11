@@ -2,28 +2,19 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {readFileSync} from 'node:fs';
-import {dirname, join} from 'node:path';
-import {fileURLToPath} from 'node:url';
-
 import {describe, expect, it} from 'vitest';
 
 import {
+  DOTGraphLoader,
   loadDotGraph,
   parseDotToArrowGraphData
 } from '../../src/loaders/dot-graph-loader';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturesDir = join(__dirname, '../data/__fixtures__/dot');
-
-function readFixture(name: string): string {
-  return readFileSync(join(fixturesDir, name), 'utf8');
-}
+import clusterDot from '../data/__fixtures__/dot/cluster.dot?raw';
+import karateDot from '../data/__fixtures__/dot/karate.dot?raw';
 
 describe('loadDotGraph', () => {
   it('parses an undirected DOT graph', () => {
-    const dot = readFixture('karate.dot');
-    const {graph, metadata} = loadDotGraph(dot);
+    const {graph, metadata} = loadDotGraph(karateDot);
 
     expect(metadata.id).toBe('karate');
     expect(metadata.directed).toBe(false);
@@ -52,8 +43,7 @@ describe('loadDotGraph', () => {
   });
 
   it('parses directed graphs with clusters and overrides direction when requested', () => {
-    const dot = readFixture('cluster.dot');
-    const {graph, metadata} = loadDotGraph(dot);
+    const {graph, metadata} = loadDotGraph(clusterDot);
 
     expect(metadata.directed).toBe(true);
     expect(metadata.attributes).toMatchObject({label: 'Cluster Example'});
@@ -110,5 +100,24 @@ describe('parseDotToArrowGraphData', () => {
     expect(edge.isDirected()).toBe(true);
     expect(edge.getPropertyValue('dir')).toBe('back');
     expect(edge.getPropertyValue('weight')).toBe(2.25);
+  });
+});
+
+describe('DOTGraphLoader', () => {
+  it('parses DOT text synchronously', () => {
+    const result = DOTGraphLoader.parseTextSync(karateDot);
+    expect(result.metadata.id).toBe('karate');
+    expect(Array.from(result.graph.getNodes())).toHaveLength(8);
+  });
+
+  it('parses DOT text from an ArrayBuffer', async () => {
+    const buffer = new TextEncoder().encode(clusterDot).buffer;
+    const result = await DOTGraphLoader.parse(buffer, {dot: {version: 1}});
+
+    expect(result.metadata.subgraphs.map((entry) => entry.id).sort()).toEqual([
+      'cluster_0',
+      'cluster_1'
+    ]);
+    expect(result.data.version).toBe(1);
   });
 });

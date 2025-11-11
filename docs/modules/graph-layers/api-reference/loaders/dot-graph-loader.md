@@ -10,10 +10,28 @@ The DOT graph loader converts Graphviz [DOT](https://graphviz.org/doc/info/lang.
 
 ```ts
 import {
+  DOTGraphLoader,
   loadDotGraph,
   parseDotToArrowGraphData
 } from '@deck.gl-community/graph-layers';
 ```
+
+## `DOTGraphLoader`
+
+`DOTGraphLoader` is a [loaders.gl](https://loaders.gl) compatible loader that parses DOT text into a fully materialized graph. It can be passed to `@loaders.gl/core` helpers such as `load` or invoked directly via its `parse` and `parseTextSync` methods.
+
+```ts
+import {load} from '@loaders.gl/core';
+
+const dataUrl = 'data:text/vnd.graphviz,' + encodeURIComponent('graph Example { a -- b }');
+const result = await load(dataUrl, DOTGraphLoader);
+```
+
+### Loader options
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `dot.version` | `number` | `0` | Optional Arrow graph version recorded in the emitted `ArrowGraphData`. |
 
 ## `loadDotGraph(dot: string, options?)`
 

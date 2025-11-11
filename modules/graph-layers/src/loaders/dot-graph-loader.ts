@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
+
 import {createGraphFromData} from '../graph/create-graph-from-data';
 import type {Graph} from '../graph/graph';
 import type {ArrowGraphData} from '../graph-data/arrow-graph-data';
 import {ArrowGraphDataBuilder} from '../graph-data/arrow-graph-data-builder';
+
+// __VERSION__ is injected by babel-plugin-version-inline
+// @ts-ignore TS2304: Cannot find name '__VERSION__'.
+const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'latest';
 
 type DotAttributeMap = Record<string, unknown>;
 
@@ -44,6 +50,10 @@ export type DotGraphLoaderOptions = {
   version?: number;
 };
 
+export type DotGraphLoaderContextOptions = LoaderOptions & {
+  dot?: DotGraphLoaderOptions;
+};
+
 export type DotGraphLoaderMetadata = {
   id?: string;
   directed: boolean;
@@ -57,6 +67,33 @@ export type DotGraphLoaderResult = {
   data: ArrowGraphData;
   metadata: DotGraphLoaderMetadata;
 };
+
+export const DOTGraphLoader = {
+  dataType: null as unknown as DotGraphLoaderResult,
+  batchType: null as never,
+
+  name: 'DOT Graph',
+  id: 'dot-graph',
+  module: 'graph-layers',
+  version: VERSION,
+  worker: false,
+  extensions: ['dot'],
+  mimeTypes: ['text/vnd.graphviz', 'text/x-graphviz', 'application/vnd.graphviz'],
+  text: true,
+  options: {
+    dot: {
+      version: 0
+    }
+  },
+  parse: (arrayBuffer: ArrayBuffer, options?: DotGraphLoaderContextOptions) => {
+    const text = new TextDecoder().decode(arrayBuffer);
+    return Promise.resolve(DOTGraphLoader.parseTextSync(text, options));
+  },
+  parseTextSync: (text: string, options?: DotGraphLoaderContextOptions) => {
+    const parseOptions = {...DOTGraphLoader.options.dot, ...options?.dot};
+    return loadDotGraph(text, parseOptions);
+  }
+} as const satisfies LoaderWithParser<DotGraphLoaderResult, never, DotGraphLoaderContextOptions>;
 
 export function loadDotGraph(dot: string, options: DotGraphLoaderOptions = {}): DotGraphLoaderResult {
   const parsed = parseDot(dot);
