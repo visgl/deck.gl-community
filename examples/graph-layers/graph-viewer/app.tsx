@@ -4,21 +4,23 @@
 
 /* eslint-disable max-statements, complexity */
 
-import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react';
+import React, {useCallback, useEffect, useMemo, useState, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
-// import '@deck.gl/widgets/stylesheet.css';
+// ts-expect-error CSS import
+// import '@deck.gl/widgets/dist/stylesheet.css';
+
 import {
   GraphLayer,
   GraphEngine,
   GraphLayout,
   type Graph,
   type GraphLayoutEventDetail,
-  LegacyGraph,
+  ClassicGraph,
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
@@ -165,13 +167,13 @@ export function App({graphType}: AppProps) {
     }
 
     if (layout instanceof GraphLayout) {
-      if (graph instanceof LegacyGraph) {
+      if (graph instanceof ClassicGraph) {
         return new GraphEngine({graph, layout});
       }
 
-      const toLegacy = graph as Graph & {toLegacyGraph?: () => LegacyGraph | null};
-      if (typeof toLegacy.toLegacyGraph === 'function') {
-        const legacyGraph = toLegacy.toLegacyGraph();
+      const toLegacy = graph as Graph & {toClassicGraph?: () => ClassicGraph | null};
+      if (typeof toLegacy.toClassicGraph === 'function') {
+        const legacyGraph = toLegacy.toClassicGraph();
         if (legacyGraph) {
           return new GraphEngine({graph: legacyGraph, layout});
         }

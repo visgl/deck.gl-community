@@ -5,7 +5,7 @@
 import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../core/graph-layout';
 import {Node} from '../graph/node';
 import {Edge} from '../graph/edge';
-import {LegacyGraph} from '../graph/legacy-graph';
+import {ClassicGraph} from '../graph/classic-graph';
 
 export type SimpleLayoutProps = GraphLayoutProps & {
   /** The accessor lets the application supply the position ([x, y]) of each node.
@@ -36,7 +36,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
   };
 
   protected readonly _name = 'SimpleLayout';
-  protected _graph: LegacyGraph | null = null;
+  protected _graph: ClassicGraph | null = null;
   protected _nodeMap: Record<string, Node> = {};
   protected _nodePositionMap: Record<string, [number, number] | null> = {};
 
@@ -44,7 +44,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     super(options, SimpleLayout.defaultProps);
   }
 
-  initializeGraph(graph: LegacyGraph): void {
+  initializeGraph(graph: ClassicGraph): void {
     this.updateGraph(graph);
   }
 
@@ -62,7 +62,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     this._notifyLayoutComplete();
   }
 
-  updateGraph(graph: LegacyGraph): void {
+  updateGraph(graph: ClassicGraph): void {
     this._graph = graph;
     const nodes = Array.isArray(graph.getNodes())
       ? (graph.getNodes() as Node[])

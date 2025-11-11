@@ -6,7 +6,7 @@ import type {NodeOptions} from '../graph/node';
 import type {EdgeOptions} from '../graph/edge';
 import {Edge} from '../graph/edge';
 import {Node} from '../graph/node';
-import {LegacyGraph} from '../graph/legacy-graph';
+import {ClassicGraph} from '../graph/classic-graph';
 
 import {error} from '../utils/log';
 
@@ -42,7 +42,7 @@ const defaultParseGraphOptions = {
 export function tableGraphLoader(
   tables: {nodes: any[]; edges: any[]},
   options?: ParseGraphOptions
-): LegacyGraph {
+): ClassicGraph {
   options = {...defaultParseGraphOptions, ...options};
 
   const {nodes, edges} = tables;
@@ -95,7 +95,7 @@ export function tableGraphLoader(
 
   // create a new empty graph
   const name = 'loaded';
-  const graph = new LegacyGraph({name, nodes: glNodes, edges: glEdges});
+  const graph = new ClassicGraph({name, nodes: glNodes, edges: glEdges});
   return graph;
 }
 

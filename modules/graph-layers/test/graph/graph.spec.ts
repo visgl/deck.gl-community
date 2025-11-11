@@ -7,7 +7,7 @@
 import {beforeAll, beforeEach, describe, it, expect} from 'vitest';
 import SAMPLE_GRAPH1 from '../data/__fixtures__/graph1.json';
 
-import {LegacyGraph} from '../../src/graph/legacy-graph';
+import {ClassicGraph} from '../../src/graph/classic-graph';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
 import type {EdgeInterface, Graph, NodeInterface} from '../../src/graph/graph';
@@ -105,8 +105,8 @@ class SampleTabularGraphSource
   }
 }
 
-const createLegacyGraph: GraphFactory = () => {
-  const graph = new LegacyGraph();
+const createClassicGraph: GraphFactory = () => {
+  const graph = new ClassicGraph();
   const nodes = SAMPLE_GRAPH1.nodes.map(
     (n) =>
       new Node({
@@ -150,7 +150,7 @@ const createTabularGraph: GraphFactory = () => {
 };
 
 const GRAPH_IMPLEMENTATIONS: [string, GraphFactory][] = [
-  ['LegacyGraph', createLegacyGraph],
+  ['ClassicGraph', createClassicGraph],
   ['TabularGraph', createTabularGraph]
 ];
 
@@ -218,15 +218,15 @@ describe('core/graph', () => {
     });
   });
 
-  describe('LegacyGraph specifics', () => {
+  describe('ClassicGraph specifics', () => {
     it('should work with empty named graph', () => {
-      const graph = new LegacyGraph();
+      const graph = new ClassicGraph();
       graph.setGraphName('test');
       expect(graph.getGraphName()).toBe('test');
     });
 
     it('should add edges in a batch', () => {
-      const graph = new LegacyGraph();
+      const graph = new ClassicGraph();
       const glEdges = SAMPLE_GRAPH1.edges.map(
         (e) =>
           new Edge({
@@ -244,11 +244,11 @@ describe('core/graph', () => {
     });
 
     it('should add nodes in a batch', () => {
-      const graph = new LegacyGraph();
+      const graph = new ClassicGraph();
       const glNodes = SAMPLE_GRAPH1.nodes.map((n) => new Node({id: n.id, data: {}}));
       graph.batchAddNodes(glNodes);
       expect(graph.getNodes()).toHaveLength(glNodes.length);
-      const graph2 = new LegacyGraph(graph);
+      const graph2 = new ClassicGraph(graph);
       expect(graph2.getNodes()).toHaveLength(glNodes.length);
     });
   });

@@ -5,7 +5,7 @@
 /* eslint-disable no-continue, complexity, max-statements */
 
 import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
-import type {LegacyGraph} from '../../graph/legacy-graph';
+import type {ClassicGraph} from '../../graph/classic-graph';
 import type {NodeInterface, EdgeInterface} from '../../graph/graph';
 import {Node} from '../../graph/node';
 import {
@@ -76,7 +76,7 @@ export type D3DagLayoutOperator =
   | DefaultZherebko
   | ((dag: MutGraph<NodeInterface, EdgeInterface>) => LayoutResult);
 
-type DagBuilder = (graph: LegacyGraph) => MutGraph<NodeInterface, EdgeInterface>;
+type DagBuilder = (graph: ClassicGraph) => MutGraph<NodeInterface, EdgeInterface>;
 
 type LayeringOperator =
   | ReturnType<typeof layeringSimplex>
@@ -178,7 +178,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
 
   protected readonly _name = 'D3DagLayout';
 
-  protected _graph: LegacyGraph | null = null;
+  protected _graph: ClassicGraph | null = null;
   private _dag: MutGraph<NodeInterface, EdgeInterface> | null = null;
   private _layoutOperator: LayoutWithConfiguration | null = null;
   private _rawNodePositions = new Map<string | number, [number, number]>();
@@ -215,11 +215,11 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
   }
 
 
-  initializeGraph(graph: LegacyGraph): void {
+  initializeGraph(graph: ClassicGraph): void {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: LegacyGraph): void {
+  updateGraph(graph: ClassicGraph): void {
     this._graph = graph;
     this._nodeLookup = new Map();
     this._stringIdLookup = new Map();

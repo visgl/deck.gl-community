@@ -7,7 +7,7 @@ title: Graph Interface
 The `Graph` interface is the runtime abstraction consumed by the graph-layers module. It presents a
 stable API for enumerating nodes and edges plus inspecting or mutating their state through
 [`NodeInterface`](./node.md) and [`EdgeInterface`](./edge.md). Concrete implementations such as
-[`LegacyGraph`](./legacy-graph.md) and [`TabularGraph`](./tabular-graph.md) provide different storage
+[`ClassicGraph`](./classic-graph.md) and [`TabularGraph`](./tabular-graph.md) provide different storage
 strategies while conforming to the same contract.
 
 ## Shape
@@ -70,5 +70,5 @@ Edges returned by `getEdges()` implement the following methods:
 - `setData(data)` / `setDataProperty(key, value)` &mdash; Update the edge-specific data payload.
 - `setState(state)` / `getState()` &mdash; Update or read the logical state (e.g. `hover`, `selected`).
 
-Refer to the [`TabularGraph`](./tabular-graph.md) and [`LegacyGraph`](./legacy-graph.md) reference
+Refer to the [`TabularGraph`](./tabular-graph.md) and [`ClassicGraph`](./classic-graph.md) reference
 pages for implementation specific guidance.

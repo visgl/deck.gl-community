@@ -9,7 +9,7 @@ import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
 import type {Graph, NodeInterface} from '../graph/graph';
-import {LegacyGraph} from '../graph/legacy-graph';
+import {ClassicGraph} from '../graph/classic-graph';
 import {GraphLayout, type GraphLayoutEventDetail} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
@@ -509,12 +509,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    if (graph instanceof LegacyGraph && layout instanceof GraphLayout) {
+    if (graph instanceof ClassicGraph && layout instanceof GraphLayout) {
       return new GraphEngine({graph, layout});
     }
 
-    if (layout instanceof GraphLayout && !(graph instanceof LegacyGraph)) {
-      const legacyGraph = this._convertToLegacyGraph(graph);
+    if (layout instanceof GraphLayout && !(graph instanceof ClassicGraph)) {
+      const legacyGraph = this._convertToClassicGraph(graph);
       if (legacyGraph) {
         return new GraphEngine({graph: legacyGraph, layout});
       }
@@ -569,7 +569,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _coerceGraph(value: unknown): Graph | null {
-    if (value instanceof LegacyGraph) {
+    if (value instanceof ClassicGraph) {
       return value;
     }
 
@@ -580,17 +580,17 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return null;
   }
 
-  private _convertToLegacyGraph(graph: Graph): LegacyGraph | null {
-    if (graph instanceof LegacyGraph) {
+  private _convertToClassicGraph(graph: Graph): ClassicGraph | null {
+    if (graph instanceof ClassicGraph) {
       return graph;
     }
 
-    const candidate = graph as Graph & {toLegacyGraph?: () => LegacyGraph | null};
-    if (typeof candidate.toLegacyGraph === 'function') {
+    const candidate = graph as Graph & {toClassicGraph?: () => ClassicGraph | null};
+    if (typeof candidate.toClassicGraph === 'function') {
       try {
-        return candidate.toLegacyGraph() ?? null;
+        return candidate.toClassicGraph() ?? null;
       } catch (error) {
-        warn('GraphLayer: failed to convert graph to LegacyGraph for layout compatibility.', error);
+        warn('GraphLayer: failed to convert graph to ClassicGraph for layout compatibility.', error);
       }
     }
 

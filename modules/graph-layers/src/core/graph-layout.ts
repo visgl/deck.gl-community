@@ -4,7 +4,7 @@
 
 import type {Bounds2D} from '@math.gl/types';
 
-import type {LegacyGraph} from '../graph/legacy-graph';
+import type {ClassicGraph} from '../graph/classic-graph';
 import type {NodeInterface, EdgeInterface} from '../graph/graph';
 
 import isEqual from 'lodash.isequal';
@@ -121,9 +121,9 @@ export abstract class GraphLayout<
     /** virtual functions: will be implemented in the child class */
 
   /** first time to pass the graph data into this layout */
-  abstract initializeGraph(graph: LegacyGraph);
+  abstract initializeGraph(graph: ClassicGraph);
   /** update the existing graph */
-  abstract updateGraph(graph: LegacyGraph);
+  abstract updateGraph(graph: ClassicGraph);
   /** start the layout calculation */
   abstract start();
   /** update the layout calculation */

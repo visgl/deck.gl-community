@@ -7,7 +7,7 @@ import {beforeAll, describe, it, expect} from 'vitest';
 import SAMPLE_GRAPH1 from '../data/__fixtures__/graph1.json';
 import SAMPLE_GRAPH2 from '../data/__fixtures__/graph2.json';
 
-import {JSONTabularGraphLoader, JSONLegacyGraphLoader} from '../../src/loaders/json-loader';
+import {JSONTabularGraphLoader, JSONClassicGraphLoader} from '../../src/loaders/json-loader';
 
 beforeAll(() => {
   globalThis.CustomEvent = Event as any;
@@ -61,9 +61,9 @@ describe('JSONTabularGraphLoader', () => {
   });
 });
 
-describe('JSONLegacyGraphLoader', () => {
+describe('JSONClassicGraphLoader', () => {
   it('should work with default parsers', () => {
-    const graph = JSONLegacyGraphLoader({json: SAMPLE_GRAPH1});
+    const graph = JSONClassicGraphLoader({json: SAMPLE_GRAPH1});
     expect(graph.getEdges().map((e) => e.getId())).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH1.edges.map((e) => e.id))
     );

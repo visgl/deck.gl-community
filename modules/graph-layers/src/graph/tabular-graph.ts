@@ -6,7 +6,7 @@
 import type {EdgeState, NodeState} from '../core/constants';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
-import {LegacyGraph} from './legacy-graph';
+import {ClassicGraph} from './classic-graph';
 import {Node} from './node';
 import {Edge} from './edge';
 
@@ -305,7 +305,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Gr
     this._accessors = null;
   }
 
-  toLegacyGraph(): LegacyGraph {
+  toClassicGraph(): ClassicGraph {
     this._synchronize();
 
     const nodeTable = this._nodeTable ?? [];
@@ -334,7 +334,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Gr
       return edge;
     });
 
-    const graph = new LegacyGraph(undefined, this.props);
+    const graph = new ClassicGraph(undefined, this.props);
     if (legacyNodes.length > 0) {
       graph.batchAddNodes(legacyNodes);
     }

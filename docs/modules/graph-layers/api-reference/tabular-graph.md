@@ -10,7 +10,7 @@ writing state back to the underlying records.
 
 ## Storage strategy
 
-Unlike [`LegacyGraph`](./legacy-graph.md), `TabularGraph` stores node and edge state in internal tables
+Unlike [`ClassicGraph`](./classic-graph.md), `TabularGraph` stores node and edge state in internal tables
 that are rebuilt whenever the source version changes. The tables capture:
 
 - identifiers, directional metadata, and connectivity;

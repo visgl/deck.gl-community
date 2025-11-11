@@ -5,15 +5,15 @@
 import type {Bounds2D} from '@math.gl/types';
 
 import type {Graph, EdgeInterface, NodeInterface} from '../graph/graph';
-import {LegacyGraph, LegacyGraphLayoutAdapter} from '../graph/legacy-graph';
+import {ClassicGraph, ClassicGraphLayoutAdapter} from '../graph/classic-graph';
 import type {GraphRuntimeLayout} from './graph-runtime-layout';
 import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
 import {GraphStylesheetEngine, type GraphStylesheet} from '../style/graph-style-engine';
 
-type LegacyGraphEngineProps = {
-  graph: LegacyGraph;
+type ClassicGraphEngineProps = {
+  graph: ClassicGraph;
   layout: GraphLayout;
   onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
   onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
@@ -46,10 +46,10 @@ type InterfaceGraphEngineProps = {
   onEdgeUpdated?: (edge: EdgeInterface) => void;
 };
 
-export type GraphEngineProps = LegacyGraphEngineProps | InterfaceGraphEngineProps;
+export type GraphEngineProps = ClassicGraphEngineProps | InterfaceGraphEngineProps;
 
-function isLegacyProps(props: GraphEngineProps): props is LegacyGraphEngineProps {
-  return props.graph instanceof LegacyGraph;
+function isClassicProps(props: GraphEngineProps): props is ClassicGraphEngineProps {
+  return props.graph instanceof ClassicGraph;
 }
 
 /** Graph engine controls the graph data and layout calculation */
@@ -65,11 +65,11 @@ export class GraphEngine {
 
   constructor(props: GraphEngineProps);
   /** @deprecated Use props constructor: new GraphEngine(props) */
-  constructor(graph: LegacyGraph, layout: GraphLayout);
+  constructor(graph: ClassicGraph, layout: GraphLayout);
 
-  constructor(props: GraphEngineProps | LegacyGraph, layout?: GraphLayout) {
+  constructor(props: GraphEngineProps | ClassicGraph, layout?: GraphLayout) {
     let normalizedProps: GraphEngineProps;
-    if (props instanceof LegacyGraph) {
+    if (props instanceof ClassicGraph) {
       if (!(layout instanceof GraphLayout)) {
         throw new Error('GraphEngine: legacy graphs require a GraphLayout instance.');
       }
@@ -80,8 +80,8 @@ export class GraphEngine {
 
     this._props = {...normalizedProps};
 
-    if (isLegacyProps(normalizedProps)) {
-      const layoutAdapter = new LegacyGraphLayoutAdapter(normalizedProps.layout);
+    if (isClassicProps(normalizedProps)) {
+      const layoutAdapter = new ClassicGraphLayoutAdapter(normalizedProps.layout);
       this._graph = normalizedProps.graph;
       this._layout = layoutAdapter;
     } else {

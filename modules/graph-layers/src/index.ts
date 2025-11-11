@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 // core - Graph representation and layout
-export {LegacyGraph, LegacyGraphLayoutAdapter} from './graph/legacy-graph';
+export {ClassicGraph, ClassicGraphLayoutAdapter} from './graph/classic-graph';
 export type {Graph, NodeInterface, EdgeInterface} from './graph/graph';
 export {Node} from './graph/node';
 export {Edge} from './graph/edge';
@@ -18,6 +18,23 @@ export {
   type TabularNodeAccessors,
   type TabularEdgeAccessors
 } from './graph/tabular-graph';
+export {ArrowGraph} from './graph/arrow-graph';
+export {createTabularGraphFromData} from './graph/create-tabular-graph-from-data';
+export {createGraphFromData} from './graph/create-graph-from-data';
+export {GraphDataBuilder, type GraphDataBuilderOptions} from './graph-data/graph-data-builder';
+export {
+  ColumnarGraphDataBuilder,
+  type ColumnarGraphColumns,
+  type ColumnarGraphNodeColumns,
+  type ColumnarGraphEdgeColumns,
+  type ColumnarGraphDataBuilderOptions
+} from './graph-data/columnar-graph-data-builder';
+export {
+  ArrowGraphDataBuilder,
+  type ArrowGraphDataBuilderOptions
+} from './graph-data/arrow-graph-data-builder';
+export type {GraphData, GraphNodeData, GraphEdgeData} from './graph-data/graph-data';
+export type {ArrowGraphData} from './graph-data/arrow-graph-data';
 
 export {GraphEngine} from './core/graph-engine';
 
@@ -69,7 +86,7 @@ export {
 export {ViewControlWidget} from './widgets/view-control-widget';
 
 // graph format loaders
-export {JSONTabularGraphLoader, JSONLegacyGraphLoader} from './loaders/json-loader';
+export {JSONTabularGraphLoader, JSONClassicGraphLoader} from './loaders/json-loader';
 export {loadSimpleJSONGraph} from './loaders/simple-json-graph-loader';
 
 // utils

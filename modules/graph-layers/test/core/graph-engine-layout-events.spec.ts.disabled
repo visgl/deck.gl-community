@@ -8,7 +8,7 @@ import type {Bounds2D} from '@math.gl/types';
 
 import {GraphEngine} from '../../src/core/graph-engine';
 import type {GraphLayoutEventDetail} from '../../src/core/graph-layout';
-import {LegacyGraph} from '../../src/graph/legacy-graph';
+import {ClassicGraph} from '../../src/graph/classic-graph';
 import {Node} from '../../src/graph/node';
 import {HivePlotLayout} from '../../src/layouts/experimental/hive-plot-layout';
 import {RadialLayout} from '../../src/layouts/experimental/radial-layout';
@@ -40,7 +40,7 @@ describe('GraphEngine layout lifecycle events', () => {
       new Node({id: 'b', data: {group: 1}}),
       new Node({id: 'c', data: {group: 0}})
     ];
-    const graph = new LegacyGraph({nodes});
+    const graph = new ClassicGraph({nodes});
     const layout = new HivePlotLayout();
     const engine = new GraphEngine({graph, layout});
 
@@ -56,7 +56,7 @@ describe('GraphEngine layout lifecycle events', () => {
 
   it('emits start/change/done in order for RadialLayout', () => {
     const nodes = ['root', 'child-1', 'child-2', 'leaf-1', 'leaf-2'].map((id) => new Node({id}));
-    const graph = new LegacyGraph({nodes});
+    const graph = new ClassicGraph({nodes});
     const layout = new RadialLayout({
       tree: [
         {id: 'root', children: ['child-1', 'child-2']},
