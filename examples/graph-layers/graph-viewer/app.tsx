@@ -18,7 +18,6 @@ import {
   GraphLayout,
   type Graph,
   type GraphLayoutEventDetail,
-  LegacyGraph,
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
@@ -62,38 +61,60 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
 };
 
 
-const INITIAL_LOADING_STATE = {loaded: false, rendered: false, isLoading: true};
+type LoadingState = {loaded: boolean; rendered: boolean; isLoading: boolean};
 
-const loadingReducer = (state, action) => {
-  switch (action.type) {
-    case 'startLayout':
-      return {loaded: false, rendered: false, isLoading: true};
-    case 'layoutDone':
-      return state.loaded ? state : {...state, loaded: true};
-    case 'afterRender':
-      if (!state.loaded) {
-        return state;
-      }
+const INITIAL_LOADING_STATE: LoadingState = {loaded: false, rendered: false, isLoading: true};
 
-      // not interested after the first render, the state won't change
-      return state.rendered ? state : {...state, rendered: true, isLoading: false};
-    default:
-      throw new Error(`Unhandled action type: ${action.type}`);
-  }
+type DagChainSummary = {chainIds: string[]; collapsedIds: string[]};
+
+type AppState = {
+  selectedExample: ExampleDefinition | undefined;
+  selectedLayout: LayoutType;
+  layoutOverrides: Partial<Record<LayoutType, Record<string, unknown>>>;
+  collapseEnabled: boolean;
+  dagChainSummary: DagChainSummary | null;
+  stylesheetValue: string;
+  loading: LoadingState;
 };
 
-export const useLoading = () => {
-  const [state, setState] = useState(INITIAL_LOADING_STATE);
-  const loadingDispatch = useCallback((action) => {
-    setState((current) => loadingReducer(current, action));
-  }, []);
+const createStylesheetValue = (style: ExampleDefinition['style'] | undefined): string => {
+  if (!style) {
+    return DEFAULT_STYLESHEET_MESSAGE;
+  }
 
-  const layoutCallbacks = {
-    onLayoutStart: () => loadingDispatch({type: 'startLayout'}),
-    onLayoutDone: () => loadingDispatch({type: 'layoutDone'})
-  } as const;
+  return JSON.stringify(
+    style,
+    (_key, value) => (typeof value === 'function' ? value.toString() : value),
+    2
+  );
+};
 
-  return [state, loadingDispatch, layoutCallbacks] as const;
+const createInitialState = (
+  example: ExampleDefinition | undefined,
+  layoutType: LayoutType
+): AppState => ({
+  selectedExample: example,
+  selectedLayout: layoutType,
+  layoutOverrides: {},
+  collapseEnabled: true,
+  dagChainSummary: null,
+  stylesheetValue: createStylesheetValue(example?.style),
+  loading: INITIAL_LOADING_STATE
+});
+
+const areArraysEqual = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index]);
+
+const areDagSummariesEqual = (a: DagChainSummary | null, b: DagChainSummary | null) => {
+  if (a === b) {
+    return true;
+  }
+
+  if (!a || !b) {
+    return !a && !b;
+  }
+
+  return areArraysEqual(a.chainIds, b.chainIds) && areArraysEqual(a.collapsedIds, b.collapsedIds);
 };
 
 type AppProps = {
@@ -112,22 +133,31 @@ export function App({graphType}: AppProps) {
   );
   const defaultLayout = defaultExample?.layouts[0] ?? 'd3-force-layout';
 
-  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(
-    () => defaultExample
+  const [appState, setAppState] = useState<AppState>(() =>
+    createInitialState(defaultExample, defaultLayout)
   );
-  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(() => defaultLayout);
-  const [collapseEnabled, setCollapseEnabled] = useState(true);
-  const [layoutOverrides, setLayoutOverrides] = useState<
-    Partial<Record<LayoutType, Record<string, unknown>>>
-  >({});
-  const [dagChainSummary, setDagChainSummary] = useState<
-    {chainIds: string[]; collapsedIds: string[]}
-    | null>(null);
+
+  const {
+    selectedExample,
+    selectedLayout,
+    layoutOverrides,
+    collapseEnabled,
+    dagChainSummary,
+    stylesheetValue,
+    loading
+  } = appState;
 
   useEffect(() => {
-    setSelectedExample(defaultExample);
-    setSelectedLayout(defaultLayout);
-    setLayoutOverrides({});
+    setAppState((current) => {
+      const nextState = createInitialState(defaultExample, defaultLayout);
+      if (
+        current.selectedExample === nextState.selectedExample &&
+        current.selectedLayout === nextState.selectedLayout
+      ) {
+        return current;
+      }
+      return nextState;
+    });
   }, [defaultExample, defaultLayout]);
 
   const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
@@ -147,7 +177,7 @@ export function App({graphType}: AppProps) {
 
     return overrides ?? baseOptions;
   }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
-  const graph = useMemo(
+  const graph = useMemo<Graph | null>(
     () => (graphData ? JSONTabularGraphLoader({json: graphData}) : null),
     [graphData]
   );
@@ -159,32 +189,25 @@ export function App({graphType}: AppProps) {
     const factory = LAYOUT_FACTORIES[selectedLayout];
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
-  const engine = useMemo(() => {
-    if (!graph || !layout) {
-      return null;
-    }
-
-    if (layout instanceof GraphLayout) {
-      if (graph instanceof LegacyGraph) {
-        return new GraphEngine({graph, layout});
-      }
-
-      const toLegacy = graph as Graph & {toLegacyGraph?: () => LegacyGraph | null};
-      if (typeof toLegacy.toLegacyGraph === 'function') {
-        const legacyGraph = toLegacy.toLegacyGraph();
-        if (legacyGraph) {
-          return new GraphEngine({graph: legacyGraph, layout});
-        }
-      }
-
-      return null;
-    }
-
-    return new GraphEngine({graph, layout});
-  }, [graph, layout]);
-  const isFirstMount = useRef(true);
+  const engine = useMemo<GraphEngine | null>(
+    () => (graph && layout ? new GraphEngine({graph, layout}) : null),
+    [graph, layout]
+  );
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
   const selectedStyles = selectedExample?.style;
+
+  useLayoutEffect(() => {
+    if (!engine) {
+      return () => undefined;
+    }
+
+    engine.run();
+
+    return () => {
+      engine.stop();
+      engine.clear();
+    };
+  }, [engine]);
 
   const serializedStylesheet = useMemo(() => {
     if (!selectedStyles) {
@@ -198,25 +221,28 @@ export function App({graphType}: AppProps) {
     );
   }, [selectedStyles]);
 
-  const [stylesheetValue, setStylesheetValue] = useState(
-    serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE
-  );
   const stylesheetDraftRef = useRef<string>(stylesheetValue);
 
   useEffect(() => {
+    stylesheetDraftRef.current = stylesheetValue;
+  }, [stylesheetValue]);
+
+  useEffect(() => {
     const nextValue = serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE;
-    setStylesheetValue(nextValue);
     stylesheetDraftRef.current = nextValue;
+    setAppState((current) =>
+      current.stylesheetValue === nextValue ? current : {...current, stylesheetValue: nextValue}
+    );
   }, [serializedStylesheet]);
 
   const handleStylesheetChange = useCallback((nextValue: string) => {
     stylesheetDraftRef.current = nextValue;
-    setStylesheetValue(nextValue);
+    setAppState((current) => ({...current, stylesheetValue: nextValue}));
   }, []);
 
   const handleStylesheetSubmit = useCallback((nextValue: string) => {
     stylesheetDraftRef.current = nextValue;
-    setStylesheetValue(nextValue);
+    setAppState((current) => ({...current, stylesheetValue: nextValue}));
   }, []);
 
   // eslint-disable-next-line no-console
@@ -252,53 +278,18 @@ export function App({graphType}: AppProps) {
     []
   );
 
-  const [loadingState, loadingDispatch, loadingCallbacks] = useLoading();
-  const {isLoading} = loadingState;
+  const {isLoading} = loading;
 
   const isDagLayout = selectedLayout === 'd3-dag-layout';
 
-  const rankGrid = useMemo<RankGridConfig | false>(() => {
-    if (!dagLayout) {
-      return false;
-    }
-
-    const orientation =
-      (layoutOptions?.orientation as string | undefined) ?? D3DagLayout.defaultProps.orientation;
-    const direction: RankGridConfig['direction'] =
-      orientation === 'LR' || orientation === 'RL' ? 'vertical' : 'horizontal';
-    const usesExplicitRank = (layoutOptions?.nodeRank as string | undefined) === 'rank';
-
-    return {
-      enabled: true,
-      direction,
-      maxLines: 10,
-      ...(usesExplicitRank ? {rankAccessor: 'rank'} : {}),
-      gridProps: {
-        color: [148, 163, 184, 220],
-        labelOffset: direction === 'vertical' ? [0, 8] : [8, 0]
-      }
-    };
-  }, [dagLayout, layoutOptions]);
-
-  useEffect(() => {
-    if (isDagLayout) {
-      setCollapseEnabled(true);
-    }
-  }, [isDagLayout, selectedExample]);
-
-  useEffect(() => {
-    if (!dagLayout) {
-      return;
-    }
-    dagLayout.setProps({collapseLinearChains: collapseEnabled});
-    if (!collapseEnabled) {
-      dagLayout.setCollapsedChains([]);
-    }
-  }, [dagLayout, collapseEnabled]);
-
   const updateChainSummary = useCallback(() => {
-    if (!graph || !dagLayout || !engine || !isDagLayout) {
-      setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
+    if (!engine || !dagLayout) {
+      const nextSummary = isDagLayout ? {chainIds: [], collapsedIds: []} : null;
+      setAppState((current) =>
+        areDagSummariesEqual(current.dagChainSummary, nextSummary)
+          ? current
+          : {...current, dagChainSummary: nextSummary}
+      );
       return;
     }
 
@@ -326,8 +317,54 @@ export function App({graphType}: AppProps) {
       }
     }
 
-    setDagChainSummary({chainIds, collapsedIds});
-  }, [graph, dagLayout, engine, isDagLayout]);
+    setAppState((current) => {
+      const nextSummary = {chainIds, collapsedIds};
+      return areDagSummariesEqual(current.dagChainSummary, nextSummary)
+        ? current
+        : {...current, dagChainSummary: nextSummary};
+    });
+  }, [engine, dagLayout, isDagLayout]);
+
+  const rankGrid = useMemo<RankGridConfig | false>(() => {
+    if (!dagLayout) {
+      return false;
+    }
+
+    const orientation =
+      (layoutOptions?.orientation as string | undefined) ?? D3DagLayout.defaultProps.orientation;
+    const direction: RankGridConfig['direction'] =
+      orientation === 'LR' || orientation === 'RL' ? 'vertical' : 'horizontal';
+    const usesExplicitRank = (layoutOptions?.nodeRank as string | undefined) === 'rank';
+
+    return {
+      enabled: true,
+      direction,
+      maxLines: 10,
+      ...(usesExplicitRank ? {rankAccessor: 'rank'} : {}),
+      gridProps: {
+        color: [148, 163, 184, 220],
+        labelOffset: direction === 'vertical' ? [0, 8] : [8, 0]
+      }
+    };
+  }, [dagLayout, layoutOptions]);
+
+  useEffect(() => {
+    if (isDagLayout) {
+      setAppState((current) =>
+        current.collapseEnabled ? current : {...current, collapseEnabled: true}
+      );
+    }
+  }, [isDagLayout]);
+
+  useEffect(() => {
+    if (!dagLayout) {
+      return;
+    }
+    dagLayout.setProps({collapseLinearChains: collapseEnabled});
+    if (!collapseEnabled) {
+      dagLayout.setCollapsedChains([]);
+    }
+  }, [dagLayout, collapseEnabled]);
 
   useEffect(() => {
     updateChainSummary();
@@ -335,10 +372,10 @@ export function App({graphType}: AppProps) {
 
   const handleLayoutStart = useCallback(
     (detail?: GraphLayoutEventDetail) => {
-      loadingCallbacks.onLayoutStart();
       layoutCallbacks.onLayoutStart(detail);
+      updateChainSummary();
     },
-    [loadingCallbacks, layoutCallbacks]
+    [layoutCallbacks, updateChainSummary]
   );
 
   const handleLayoutChange = useCallback(
@@ -351,15 +388,14 @@ export function App({graphType}: AppProps) {
 
   const handleLayoutDone = useCallback(
     (detail?: GraphLayoutEventDetail) => {
-      loadingCallbacks.onLayoutDone();
       layoutCallbacks.onLayoutDone(detail);
       updateChainSummary();
     },
-    [loadingCallbacks, layoutCallbacks, updateChainSummary]
+    [layoutCallbacks, updateChainSummary]
   );
 
   const handleToggleCollapseEnabled = useCallback(() => {
-    setCollapseEnabled((value) => !value);
+    setAppState((current) => ({...current, collapseEnabled: !current.collapseEnabled}));
   }, []);
 
   const handleCollapseAll = useCallback(() => {
@@ -416,16 +452,59 @@ export function App({graphType}: AppProps) {
     zoomWidget?.setProps({minZoom, maxZoom});
   }, [widgets, minZoom, maxZoom]);
   const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
-    setSelectedExample(example);
-    setSelectedLayout(layoutType);
+    setAppState((current) => ({
+      ...current,
+      selectedExample: example,
+      selectedLayout: layoutType
+    }));
   }, []);
 
   const handleApplyLayoutOptions = useCallback(
     (layoutType: LayoutType, options: Record<string, unknown>) => {
-      setLayoutOverrides((current) => ({...current, [layoutType]: options}));
+      setAppState((current) => ({
+        ...current,
+        layoutOverrides: {...current.layoutOverrides, [layoutType]: options}
+      }));
     },
     []
   );
+
+  useLayoutEffect(() => {
+    if (!layout) {
+      return () => undefined;
+    }
+
+    const handleLayoutStart = () => {
+      setAppState((current) => ({...current, loading: INITIAL_LOADING_STATE}));
+    };
+    const handleLayoutDone = () => {
+      setAppState((current) => {
+        if (current.loading.loaded) {
+          return current;
+        }
+        return {...current, loading: {...current.loading, loaded: true}};
+      });
+    };
+
+    layout.addEventListener('onLayoutStart', handleLayoutStart);
+    layout.addEventListener('onLayoutDone', handleLayoutDone);
+
+    return () => {
+      layout.removeEventListener('onLayoutStart', handleLayoutStart);
+      layout.removeEventListener('onLayoutDone', handleLayoutDone);
+    };
+  }, [layout]);
+
+  const handleAfterRender = useCallback(() => {
+    setAppState((current) => {
+      const {loaded, rendered} = current.loading;
+      if (!loaded || rendered) {
+        return current;
+      }
+
+      return {...current, loading: {...current.loading, rendered: true, isLoading: false}};
+    });
+  }, []);
 
   return (
     <div
@@ -464,11 +543,7 @@ export function App({graphType}: AppProps) {
         ) : null}
         <DeckGL
           onError={(error) => console.error(error)}
-          onAfterRender={() => {
-            if (!loadingState.rendered) {
-              loadingDispatch({type: 'afterRender'});
-            }
-          }}
+          onAfterRender={handleAfterRender}
           width="100%"
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
@@ -635,11 +710,11 @@ function getToolTip(object: unknown): {html: string} | null {
       return `
         <tr>
           <th style="padding: 0.25rem 0.5rem; text-align: left; color: ${TOOLTIP_THEME.key}; font-weight: 600; white-space: nowrap;">${escapeHtml(
-            key
-          )}</th>
+        key
+      )}</th>
           <td style="padding: 0.25rem 0.5rem; color: ${TOOLTIP_THEME.value}; font-weight: 500;">${escapeHtml(
-            formattedValue
-          )}</td>
+        formattedValue
+      )}</td>
         </tr>`;
     })
     .join('');
