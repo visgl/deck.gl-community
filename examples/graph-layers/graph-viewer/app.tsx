@@ -11,7 +11,9 @@ import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
-// import '@deck.gl/widgets/stylesheet.css';
+// @ts-expect-error CSS import
+import '@deck.gl/widgets/dist/stylesheet.css';
+
 import {
   GraphLayer,
   GraphEngine,
