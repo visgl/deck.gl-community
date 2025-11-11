@@ -88,6 +88,13 @@ export {ViewControlWidget} from './widgets/view-control-widget';
 // graph format loaders
 export {JSONTabularGraphLoader, JSONClassicGraphLoader} from './loaders/json-loader';
 export {loadSimpleJSONGraph} from './loaders/simple-json-graph-loader';
+export {
+  loadDotGraph,
+  parseDotToArrowGraphData,
+  type DotGraphLoaderOptions,
+  type DotGraphLoaderMetadata,
+  type DotGraphLoaderResult
+} from './loaders/dot-graph-loader';
 
 // utils
 export {mixedGetPosition} from './utils/layer-utils';

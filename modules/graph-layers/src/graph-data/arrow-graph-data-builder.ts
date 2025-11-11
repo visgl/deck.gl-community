@@ -152,17 +152,48 @@ export class ArrowGraphDataBuilder {
 }
 
 function tableFromBuilders(builders: ColumnBuilderMap): arrow.Table {
-  const columns: Record<string, ArrowVector> = {};
+  const columnMap: Record<string, ArrowVector> = {};
 
   for (const [columnName, builder] of builders.entries()) {
     builder.finish();
-    columns[columnName] = builder.toVector();
+    columnMap[columnName] = builder.toVector();
   }
 
-  const arrowTableCtor = arrow.Table as unknown as {
-    new: (columns: Record<string, ArrowVector>) => arrow.Table;
+  const TableCtor = arrow.Table as unknown as {
+    new?: (vectorMap: Record<string, ArrowVector>) => arrow.Table;
   };
 
-  return arrowTableCtor.new(columns);
+  if (typeof TableCtor?.new === 'function') {
+    return TableCtor.new(columnMap);
+  }
+
+  let fallbackError: unknown = null;
+
+  const NativeTableCtor = arrow.Table as unknown as new (vectorMap: Record<string, ArrowVector>) => arrow.Table;
+  if (typeof NativeTableCtor === 'function') {
+    try {
+      return new NativeTableCtor(columnMap);
+    } catch (error) {
+      fallbackError = error;
+    }
+  }
+
+  const tableFromArrays = (arrow as unknown as {
+    tableFromArrays?: (columns: Record<string, unknown[]>) => arrow.Table;
+  }).tableFromArrays;
+
+  if (typeof tableFromArrays === 'function') {
+    const arrays: Record<string, unknown[]> = {};
+    for (const [columnName, vector] of Object.entries(columnMap)) {
+      arrays[columnName] = vector.toArray();
+    }
+    return tableFromArrays(arrays);
+  }
+
+  if (fallbackError instanceof Error && fallbackError.message) {
+    throw new Error(`Apache Arrow Table constructor is not available: ${fallbackError.message}`);
+  }
+
+  throw new Error('Apache Arrow Table constructor is not available.');
 }
 

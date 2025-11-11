@@ -31,6 +31,20 @@
     },
     {
       "type": "category",
+      "label": "Loaders",
+      "items": [
+        "modules/graph-layers/api-reference/loaders/dot-graph-loader"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Formats",
+      "items": [
+        "modules/graph-layers/developer-guide/dot-format"
+      ]
+    },
+    {
+      "type": "category",
       "label": "Internal classes",
       "items": [
         "modules/graph-layers/api-reference/internal/marker-layer",
