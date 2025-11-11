@@ -4,7 +4,7 @@
 
 import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
-import {LegacyGraph} from '../../graph/legacy-graph';
+import {ClassicGraph} from '../../graph/classic-graph';
 
 export type HivePlotLayoutProps = GraphLayoutProps & {
   innerRadius?: number;
@@ -21,7 +21,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   } as const satisfies Readonly<Required<HivePlotLayoutProps>>;
 
   _name = 'HivePlot';
-  _graph: LegacyGraph;
+  _graph: ClassicGraph;
   _totalAxis: number;
   _axis: Record<string, any>;
   _nodeMap = {};
@@ -31,11 +31,11 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     super(props, HivePlotLayout.defaultProps);
   }
 
-  initializeGraph(graph: LegacyGraph) {
+  initializeGraph(graph: ClassicGraph) {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: LegacyGraph) {
+  updateGraph(graph: ClassicGraph) {
     const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
     const nodes = Array.isArray(graph.getNodes())

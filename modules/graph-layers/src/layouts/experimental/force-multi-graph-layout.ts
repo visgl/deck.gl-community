@@ -5,7 +5,7 @@
 import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
 import {Node} from '../../graph/node';
 import {Edge} from '../../graph/edge';
-import {LegacyGraph} from '../../graph/legacy-graph';
+import {ClassicGraph} from '../../graph/classic-graph';
 import * as d3 from 'd3-force';
 
 export type ForceMultiGraphLayoutProps = GraphLayoutProps & {
@@ -25,7 +25,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   } as const satisfies Readonly<Required<ForceMultiGraphLayoutProps>>;
 
   _name = 'ForceMultiGraphLayout';
-  _graph: LegacyGraph;
+  _graph: ClassicGraph;
 
   // d3 part
   // custom graph data
@@ -38,7 +38,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     super(props, ForceMultiGraphLayout.defaultProps);
   }
 
-  initializeGraph(graph: LegacyGraph): void {
+  initializeGraph(graph: ClassicGraph): void {
     this.updateGraph(graph);
   }
 
@@ -98,7 +98,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
 
   update(): void {}
 
-  updateGraph(graph: LegacyGraph) {
+  updateGraph(graph: ClassicGraph) {
     this._graph = graph;
 
     // nodes

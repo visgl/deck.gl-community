@@ -11,14 +11,14 @@ import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
 
-export type LegacyGraphProps = {
+export type ClassicGraphProps = {
   name?: string;
   nodes?: Node[];
   edges?: Edge[];
 };
 
 /** Basic graph data structure */
-export class LegacyGraph extends Graph {
+export class ClassicGraph extends Graph {
   /** List object of nodes. */
   private _nodeMap: Record<string, Node> = {};
   /** List of object edges. */
@@ -33,17 +33,17 @@ export class LegacyGraph extends Graph {
   /** Cached data: create array data from maps. */
   private _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
 
-  constructor(props?: LegacyGraphProps, graphProps?: GraphProps);
-  constructor(graph: LegacyGraph, graphProps?: GraphProps);
+  constructor(props?: ClassicGraphProps, graphProps?: GraphProps);
+  constructor(graph: ClassicGraph, graphProps?: GraphProps);
 
   /**
    * The constructor of the graph class.
    * @param graph - copy the graph if this exists.
    */
-  constructor(propsOrGraph?: LegacyGraphProps | LegacyGraph, graphProps: GraphProps = {}) {
+  constructor(propsOrGraph?: ClassicGraphProps | ClassicGraph, graphProps: GraphProps = {}) {
     super(graphProps);
 
-    if (propsOrGraph instanceof LegacyGraph) {
+    if (propsOrGraph instanceof ClassicGraph) {
       // if a Graph instance was supplied, copy the supplied graph into this graph
       const graph = propsOrGraph;
       this._name = graph?._name || this._name;
@@ -336,7 +336,7 @@ export class LegacyGraph extends Graph {
   /**
    * @deprecated Prefer interacting with this instance directly.
    */
-  getLegacyGraph(): LegacyGraph {
+  getClassicGraph(): ClassicGraph {
     return this;
   }
 
@@ -360,8 +360,8 @@ export class LegacyGraph extends Graph {
    * @param graph Another graph to be compared against itself
    * @return true if the graph is the same as itself.
    */
-  equals(graph: LegacyGraph): boolean {
-    if (!graph || !(graph instanceof LegacyGraph)) {
+  equals(graph: ClassicGraph): boolean {
+    if (!graph || !(graph instanceof ClassicGraph)) {
       return false;
     }
     return this.version === graph.version;
@@ -376,7 +376,7 @@ export class LegacyGraph extends Graph {
   }
 }
 
-export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
+export class ClassicGraphLayoutAdapter implements GraphRuntimeLayout {
   private readonly layout: GraphLayout;
 
   constructor(layout: GraphLayout) {
@@ -400,11 +400,11 @@ export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
   }
 
   initializeGraph(graph: Graph): void {
-    this.layout.initializeGraph(this._assertLegacyGraph(graph));
+    this.layout.initializeGraph(this._assertClassicGraph(graph));
   }
 
   updateGraph(graph: Graph): void {
-    this.layout.updateGraph(this._assertLegacyGraph(graph));
+    this.layout.updateGraph(this._assertClassicGraph(graph));
   }
 
   start(): void {
@@ -452,11 +452,11 @@ export class LegacyGraphLayoutAdapter implements GraphRuntimeLayout {
     });
   }
 
-  private _assertLegacyGraph(graph: Graph): LegacyGraph {
-    if (graph instanceof LegacyGraph) {
+  private _assertClassicGraph(graph: Graph): ClassicGraph {
+    if (graph instanceof ClassicGraph) {
       return graph;
     }
-    throw new Error('LegacyGraphLayoutAdapter expects a LegacyGraph instance.');
+    throw new Error('ClassicGraphLayoutAdapter expects a ClassicGraph instance.');
   }
 
 }

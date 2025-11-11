@@ -4,7 +4,7 @@
 
 import {describe, it, expect} from 'vitest';
 
-import {LegacyGraph} from '../../src/graph/legacy-graph';
+import {ClassicGraph} from '../../src/graph/classic-graph';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
 import {D3DagLayout} from '../../src/layouts/d3-dag/d3-dag-layout';
@@ -12,7 +12,7 @@ import {CollapsableD3DagLayout} from '../../src/layouts/d3-dag/collapsable-d3-da
 import {GraphEngine} from '../../src/core/graph-engine';
 
 type SampleGraph = {
-  graph: LegacyGraph;
+  graph: ClassicGraph;
   nodes: Record<string, Node>;
   edges: Record<string, Edge>;
 };
@@ -26,7 +26,7 @@ function createSampleDag(): SampleGraph {
     new Edge({id: 'cd', sourceId: 'c', targetId: 'd', directed: true})
   ];
 
-  const graph = new LegacyGraph({nodes, edges});
+  const graph = new ClassicGraph({nodes, edges});
   return {
     graph,
     nodes: Object.fromEntries(nodes.map((node) => [String(node.getId()), node])),
@@ -44,7 +44,7 @@ function createLinearChainGraph(): SampleGraph {
     new Edge({id: 'df', sourceId: 'd', targetId: 'f', directed: true})
   ];
 
-  const graph = new LegacyGraph({nodes, edges});
+  const graph = new ClassicGraph({nodes, edges});
   return {
     graph,
     nodes: Object.fromEntries(nodes.map((node) => [String(node.getId()), node])),

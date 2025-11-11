@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
-import {LegacyGraph} from '../../graph/legacy-graph';
+import {ClassicGraph} from '../../graph/classic-graph';
 import type {Node} from '../../graph/node';
 
 export type RadialLayoutProps = GraphLayoutProps & {
@@ -60,7 +60,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   } as const satisfies Readonly<Required<RadialLayoutProps>>;
 
   _name = 'RadialLayout';
-  _graph: LegacyGraph | null = null;
+  _graph: ClassicGraph | null = null;
   // custom layout data structure
   _hierarchicalPoints = {};
   nestedTree;
@@ -69,11 +69,11 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     super(props, RadialLayout.defaultProps);
   }
 
-  initializeGraph(graph: LegacyGraph): void {
+  initializeGraph(graph: ClassicGraph): void {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: LegacyGraph): void {
+  updateGraph(graph: ClassicGraph): void {
     this._graph = graph;
   }
 

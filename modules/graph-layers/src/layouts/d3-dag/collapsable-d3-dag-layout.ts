@@ -4,7 +4,7 @@
 
 /* eslint-disable no-continue, complexity, max-statements */
 
-import type {LegacyGraph} from '../../graph/legacy-graph';
+import type {ClassicGraph} from '../../graph/classic-graph';
 import type {NodeInterface, EdgeInterface} from '../../graph/graph';
 import {log} from '../../utils/log';
 
@@ -44,7 +44,7 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
     }
   }
 
-  override updateGraph(graph: LegacyGraph): void {
+  override updateGraph(graph: ClassicGraph): void {
     super.updateGraph(graph);
     this._chainDescriptors.clear();
     this._nodeToChainId.clear();

@@ -6,9 +6,9 @@ import {createGraph} from './create-graph';
 import {basicNodeParser} from './node-parsers';
 import {basicEdgeParser} from './edge-parsers';
 import {error} from '../utils/log';
-import type {LegacyGraph} from '../graph/legacy-graph';
+import type {ClassicGraph} from '../graph/classic-graph';
 
-export type JSONLegacyGraphLoaderOptions = {
+export type JSONClassicGraphLoaderOptions = {
   json: {
     name?: string;
     nodes?: unknown[] | null;
@@ -18,11 +18,11 @@ export type JSONLegacyGraphLoaderOptions = {
   edgeParser?: typeof basicEdgeParser;
 };
 
-export function JSONLegacyGraphLoader({
+export function JSONClassicGraphLoader({
   json,
   nodeParser = basicNodeParser,
   edgeParser = basicEdgeParser
-}: JSONLegacyGraphLoaderOptions): LegacyGraph | null {
+}: JSONClassicGraphLoaderOptions): ClassicGraph | null {
   const {name = 'default', nodes, edges = []} = json ?? {};
   if (!Array.isArray(nodes)) {
     error('Invalid graph: nodes is missing.');
