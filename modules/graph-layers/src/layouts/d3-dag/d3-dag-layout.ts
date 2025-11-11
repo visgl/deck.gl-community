@@ -410,8 +410,9 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
       .nodeDatum((id: string): NodeInterface => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
       .single(true);
 
-    const data: ConnectDatum[] = this._graph
-      .getEdges()
+    const edges = Array.from(this._graph.getEdges());
+
+    const data: ConnectDatum[] = edges
       .filter((edge) => edge.isDirected())
       .map((edge) => {
         const sourceId = this._mapNodeId(edge.getSourceNodeId());
@@ -466,7 +467,8 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
         return mapped;
       });
 
-    const dag = stratify(this._graph.getNodes().filter((node) => !this._shouldSkipNode(node.getId())));
+    const nodes = Array.from(this._graph.getNodes());
+    const dag = stratify(nodes.filter((node) => !this._shouldSkipNode(node.getId())));
     return this._ensureEdgeData(dag);
   }
 

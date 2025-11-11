@@ -16,7 +16,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     ...GRAPH_LAYOUT_DEFAULT_PROPS,
     innerRadius: 100,
     outerRadius: 500,
-    getNodeAxis: (node: Node) => node.getPropertyValue('group')
+    getNodeAxis: (node: NodeInterface) => node.getPropertyValue('group')
   } as const satisfies Readonly<Required<HivePlotLayoutProps>>;
 
   _name = 'HivePlot';
