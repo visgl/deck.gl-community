@@ -509,7 +509,7 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
 };
 
 const DOT_FIXTURE_BASE_URL =
-  'https://raw.githubusercontent.com/visgl/deck.gl-community/main/modules/graph-layers/test/data/__fixtures__/dot/';
+  'https://raw.githubusercontent.com/visgl/deck.gl-community/refs/heads/master/modules/graph-layers/test/data/__fixtures__/dot/';
 
 function isDotGraphLoaderResult(value: unknown): value is DotGraphLoaderResult {
   if (!value || typeof value !== 'object') {

@@ -3,8 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
-import {ClassicGraph} from '../../graph/classic-graph';
-import type {Node} from '../../graph/node';
+import type {Graph, NodeInterface, EdgeInterface} from '../../graph/graph';
 
 export type RadialLayoutProps = GraphLayoutProps & {
   radius?: number;
@@ -60,7 +59,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   } as const satisfies Readonly<Required<RadialLayoutProps>>;
 
   _name = 'RadialLayout';
-  _graph: ClassicGraph | null = null;
+  _graph: Graph | null = null;
   // custom layout data structure
   _hierarchicalPoints = {};
   nestedTree;
@@ -69,11 +68,11 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     super(props, RadialLayout.defaultProps);
   }
 
-  initializeGraph(graph: ClassicGraph): void {
+  initializeGraph(graph: Graph): void {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph: ClassicGraph): void {
+  updateGraph(graph: Graph): void {
     this._graph = graph;
   }
 
@@ -81,9 +80,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     if (!this._graph) {
       return;
     }
-    const nodes = Array.isArray(this._graph.getNodes())
-      ? (this._graph.getNodes() as Node[])
-      : (Array.from(this._graph.getNodes()) as Node[]);
+    const nodes = Array.from(this._graph.getNodes());
     const nodeCount = nodes.length;
     if (nodeCount === 0) {
       return;
@@ -161,12 +158,12 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
 
   update() {}
 
-  getNodePosition = (node: Node) => {
+  getNodePosition = (node: NodeInterface) => {
     return this._hierarchicalPoints[node.getId()];
   };
 
   // spline curve version
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge: EdgeInterface) => {
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
     const sourceNodePos = this._hierarchicalPoints[sourceNodeId];
@@ -204,8 +201,8 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     };
   };
 
-  lockNodePosition = (node, x, y) => {
-    this._hierarchicalPoints[node.id] = [x, y];
+  lockNodePosition = (node: NodeInterface, x: number, y: number) => {
+    this._hierarchicalPoints[node.getId()] = [x, y];
     this._onLayoutChange();
     this._onLayoutDone();
   };

@@ -5,6 +5,7 @@
 import {describe, expect, it, vi} from 'vitest';
 
 import {ArrowGraph} from '../../src/graph/arrow-graph';
+import {ClassicGraph} from '../../src/graph/classic-graph';
 import type {ArrowGraphData} from '../../src/graph-data/arrow-graph-data';
 
 describe('ArrowGraph', () => {
@@ -68,6 +69,32 @@ describe('ArrowGraph', () => {
     const onNodeAdded = vi.fn();
     const graph = new ArrowGraph(createArrowGraphData({}), {onNodeAdded});
     expect(graph.props.onNodeAdded).toBe(onNodeAdded);
+  });
+
+  it('converts to a ClassicGraph for layouts that require legacy graphs', () => {
+    const graph = new ArrowGraph(createArrowGraphData({}));
+
+    const classicGraph = graph.toClassicGraph();
+    expect(classicGraph).toBeInstanceOf(ClassicGraph);
+
+    const classicNodes = Array.from(classicGraph.getNodes());
+    const nodeA = classicNodes.find((node) => node.getId() === 'a');
+    expect(nodeA?.getState()).toBe('hover');
+    expect(nodeA?.isSelectable()).toBe(true);
+    expect(nodeA?.shouldHighlightConnectedEdges()).toBe(true);
+    expect(nodeA?.getPropertyValue('label')).toBe('Node A');
+
+    const nodeB = classicNodes.find((node) => node.getId() === 2);
+    expect(nodeB?.getState()).toBe('default');
+    expect(nodeB?.isSelectable()).toBe(false);
+
+    const classicEdges = Array.from(classicGraph.getEdges());
+    const edge = classicEdges.find((candidate) => candidate.getId() === 'e-1');
+    expect(edge?.isDirected()).toBe(true);
+    expect(edge?.getState()).toBe('selected');
+    expect(edge?.getPropertyValue('label')).toBe('Edge');
+    expect(edge?.getSourceNodeId()).toBe('a');
+    expect(edge?.getTargetNodeId()).toBe(2);
   });
 });
 
