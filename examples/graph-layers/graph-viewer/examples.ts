@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {DOTGraphLoader, type DotGraphLoaderResult} from '@deck.gl-community/graph-layers';
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
 import type {
   ExampleDefinition,
+  ExampleGraphData,
   ExampleStyles,
   GraphExampleType,
   LayoutType
@@ -13,8 +15,6 @@ import witsRaw from '../../../modules/graph-layers/test/data/examples/wits.json'
 import sampleMultiGraph from './sample-multi-graph.json';
 import dagPipelineRaw from './dag-pipeline.json';
 import knowledgeGraphRaw from './knowledge-graph.json';
-
-type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
 
 type DagRecord = {
   id: string;
@@ -508,6 +508,87 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
   }
 };
 
+const DOT_FIXTURE_BASE_URL =
+  'https://raw.githubusercontent.com/visgl/deck.gl-community/main/modules/graph-layers/test/data/__fixtures__/dot/';
+
+function isDotGraphLoaderResult(value: unknown): value is DotGraphLoaderResult {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  return 'graph' in (value as DotGraphLoaderResult) && Boolean((value as DotGraphLoaderResult).graph);
+}
+
+const DOT_RESULT_GRAPH_LOADER = ({json}: {json: unknown}) => {
+  if (isDotGraphLoaderResult(json)) {
+    return json.graph;
+  }
+
+  return null;
+};
+
+const DOT_UNDIRECTED_STYLE: ExampleStyles = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: 7,
+      fill: '#60a5fa',
+      stroke: '#1d4ed8',
+      strokeWidth: 1.5,
+      opacity: 0.9
+    },
+    {
+      type: 'label',
+      text: '@id',
+      color: '#0f172a',
+      fontSize: 13,
+      offset: [0, 18],
+      textAnchor: 'middle',
+      alignmentBaseline: 'top',
+      scaleWithZoom: false
+    }
+  ],
+  edges: {
+    stroke: '#93c5fd',
+    strokeWidth: 1.2,
+    decorators: []
+  }
+};
+
+const DOT_DIRECTED_STYLE: ExampleStyles = {
+  nodes: [
+    {
+      type: 'circle',
+      radius: 7,
+      fill: '#34d399',
+      stroke: '#047857',
+      strokeWidth: 1.5,
+      opacity: 0.9
+    },
+    {
+      type: 'label',
+      text: '@id',
+      color: '#0f172a',
+      fontSize: 13,
+      offset: [0, 18],
+      textAnchor: 'middle',
+      alignmentBaseline: 'top',
+      scaleWithZoom: false
+    }
+  ],
+  edges: {
+    stroke: '#6ee7b7',
+    strokeWidth: 1.2,
+    decorators: [
+      {
+        type: 'arrow',
+        size: 6,
+        color: '#059669'
+      }
+    ]
+  }
+};
+
 const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
   nodes: [
     {
@@ -591,16 +672,15 @@ const dagPipelineDataset = () => {
   const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
 
   for (const entry of DAG_PIPELINE_DATA) {
-    if (!entry.parentIds) {
-      continue;
-    }
-    for (const parentId of entry.parentIds) {
-      edges.push({
-        id: `${parentId}->${entry.id}`,
-        sourceId: parentId,
-        targetId: entry.id,
-        directed: true
-      });
+    if (entry.parentIds) {
+      for (const parentId of entry.parentIds) {
+        edges.push({
+          id: `${parentId}->${entry.id}`,
+          sourceId: parentId,
+          targetId: entry.id,
+          directed: true
+        });
+      }
     }
   }
 
@@ -782,6 +862,30 @@ export const EXAMPLES: ExampleDefinition[] = [
     type: 'graph'
   },
   {
+    name: 'Karate club (DOT)',
+    description:
+      "Fetches the Zachary karate club social network from the repository's DOT fixtures using the DOTGraphLoader.",
+    dataUrl: `${DOT_FIXTURE_BASE_URL}karate.dot`,
+    loaders: [DOTGraphLoader],
+    graphLoader: DOT_RESULT_GRAPH_LOADER,
+    layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: DOT_UNDIRECTED_STYLE,
+    type: 'graph'
+  },
+  {
+    name: 'Cluster workflow (DOT)',
+    description:
+      'Loads a directed workflow with clustered subgraphs defined in DOT format directly from GitHub.',
+    dataUrl: `${DOT_FIXTURE_BASE_URL}cluster.dot`,
+    loaders: [DOTGraphLoader],
+    graphLoader: DOT_RESULT_GRAPH_LOADER,
+    layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: DOT_DIRECTED_STYLE,
+    type: 'graph'
+  },
+  {
     name: 'University hierarchy (radial)',
     description:
       'Synthetic university organisational network demonstrating how hierarchical relationships expand from a central hub.',
@@ -790,7 +894,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: KNOWLEDGE_GRAPH_STYLE,
     type: 'radial',
-    getLayoutOptions: (layout, _data) =>
+    getLayoutOptions: (layout) =>
       layout === 'radial-layout'
         ? {
             radius: 380,
@@ -807,7 +911,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
     type: 'radial',
-    getLayoutOptions: (layout, _data) =>
+    getLayoutOptions: (layout) =>
       layout === 'radial-layout'
         ? {
             radius: 520,
@@ -824,7 +928,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: KNOWLEDGE_GRAPH_STYLE,
     type: 'hive',
-    getLayoutOptions: (layout, _data) =>
+    getLayoutOptions: (layout) =>
       layout === 'hive-plot-layout'
         ? {
             innerRadius: 60,
@@ -842,7 +946,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
     type: 'hive',
-    getLayoutOptions: (layout, _data) =>
+    getLayoutOptions: (layout) =>
       layout === 'hive-plot-layout'
         ? {
             innerRadius: 90,
@@ -860,7 +964,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: MULTI_GRAPH_STYLE,
     type: 'multi-graph',
-    getLayoutOptions: (layout, _data) =>
+    getLayoutOptions: (layout) =>
       layout === 'force-multi-graph-layout'
         ? {
             nBodyStrength: -8000,
@@ -878,7 +982,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
     type: 'multi-graph',
-    getLayoutOptions: (layout, _data) =>
+    getLayoutOptions: (layout) =>
       layout === 'force-multi-graph-layout'
         ? {
             alpha: 2.5,
@@ -915,7 +1019,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['d3-dag-layout', 'gpu-force-layout', 'd3-force-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: ML_LINEAGE_STYLE,
-    getLayoutOptions: (layout, _data) =>
+    getLayoutOptions: (layout) =>
       layout === 'd3-dag-layout'
         ? {
             layout: 'sugiyama',

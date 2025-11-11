@@ -7,7 +7,7 @@
 import React, {useCallback, useEffect, useMemo, useState, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
-import DeckGL from '@deck.gl/react';
+import DeckGL, {type DeckGLRef} from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
@@ -34,7 +34,12 @@ import {
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
-import type {LayoutType, ExampleDefinition, GraphExampleType} from './layout-options';
+import type {
+  LayoutType,
+  ExampleDefinition,
+  GraphExampleType,
+  ExampleMetadata
+} from './layout-options';
 import {CollapseControls} from './collapse-controls';
 import {StylesheetEditor} from './stylesheet-editor';
 import {EXAMPLES, filterExamplesByType} from './examples';
@@ -50,6 +55,87 @@ const INITIAL_VIEW_STATE = {
 // the default cursor in the view
 const DEFAULT_CURSOR = 'default';
 const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
+
+const GRAPH_LAYER_ID = 'graph-viewer-layer';
+
+function isInlineExample(
+  example: ExampleDefinition | undefined
+): example is ExampleDefinition & {data: () => {nodes: unknown[]; edges: unknown[]}} {
+  return Boolean(example && typeof example.data === 'function');
+}
+
+function isRemoteExample(
+  example: ExampleDefinition | undefined
+): example is ExampleDefinition & {dataUrl: string} {
+  return Boolean(example && typeof (example as {dataUrl?: unknown}).dataUrl === 'string');
+}
+
+function shallowEqualRecords(
+  a?: Record<string, unknown>,
+  b?: Record<string, unknown>
+): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  if (!a || !b) {
+    return !a && !b;
+  }
+
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(b, key)) {
+      return false;
+    }
+
+    if (!Object.is(a[key], b[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function metadataEquals(a?: ExampleMetadata, b?: ExampleMetadata): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  if (!a || !b) {
+    return !a && !b;
+  }
+
+  return (
+    a.nodeCount === b.nodeCount &&
+    a.edgeCount === b.edgeCount &&
+    a.graphId === b.graphId &&
+    a.directed === b.directed &&
+    a.strict === b.strict &&
+    a.sourceType === b.sourceType &&
+    shallowEqualRecords(a.attributes, b.attributes)
+  );
+}
+
+function mergeMetadata(
+  previous: ExampleMetadata | undefined,
+  incoming: ExampleMetadata
+): ExampleMetadata {
+  const merged: ExampleMetadata = {
+    ...(previous ?? {}),
+    ...incoming,
+    ...(incoming.attributes === undefined && previous?.attributes !== undefined
+      ? {attributes: previous.attributes}
+      : {})
+  };
+
+  return metadataEquals(previous, merged) ? previous ?? merged : merged;
+}
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
 
@@ -125,6 +211,8 @@ export function App({graphType}: AppProps) {
   const [dagChainSummary, setDagChainSummary] = useState<
     {chainIds: string[]; collapsedIds: string[]}
     | null>(null);
+  const [metadataByExample, setMetadataByExample] = useState<Record<string, ExampleMetadata>>({});
+  const deckRef = useRef<DeckGLRef | null>(null);
 
   useEffect(() => {
     setSelectedExample(defaultExample);
@@ -132,15 +220,31 @@ export function App({graphType}: AppProps) {
     setLayoutOverrides({});
   }, [defaultExample, defaultLayout]);
 
-  const graphData = useMemo(() => selectedExample?.data(), [selectedExample]);
+  const graphData = useMemo(() => {
+    if (!isInlineExample(selectedExample)) {
+      return null;
+    }
+
+    return selectedExample.data();
+  }, [selectedExample]);
+
+  const activeMetadata = useMemo(() => {
+    if (!selectedExample) {
+      return undefined;
+    }
+
+    return metadataByExample[selectedExample.name];
+  }, [metadataByExample, selectedExample]);
+
   const layoutOptions = useMemo(() => {
     if (!selectedExample || !selectedLayout) {
       return undefined;
     }
 
-    const baseOptions = graphData
-      ? selectedExample.getLayoutOptions?.(selectedLayout, graphData)
-      : undefined;
+    const baseOptions = selectedExample.getLayoutOptions?.(selectedLayout, {
+      data: graphData ?? undefined,
+      metadata: activeMetadata
+    });
     const overrides = layoutOverrides[selectedLayout];
 
     if (baseOptions && overrides) {
@@ -148,7 +252,7 @@ export function App({graphType}: AppProps) {
     }
 
     return overrides ?? baseOptions;
-  }, [selectedExample, selectedLayout, graphData, layoutOverrides]);
+  }, [selectedExample, selectedLayout, graphData, activeMetadata, layoutOverrides]);
   const graph = useMemo(
     () => (graphData ? JSONTabularGraphLoader({json: graphData}) : null),
     [graphData]
@@ -161,7 +265,7 @@ export function App({graphType}: AppProps) {
     const factory = LAYOUT_FACTORIES[selectedLayout];
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
-  const engine = useMemo(() => {
+  const manualEngine = useMemo(() => {
     if (!graph || !layout) {
       return null;
     }
@@ -184,9 +288,211 @@ export function App({graphType}: AppProps) {
 
     return new GraphEngine({graph, layout});
   }, [graph, layout]);
-  const isFirstMount = useRef(true);
+  const [resolvedEngine, setResolvedEngine] = useState<GraphEngine | null>(manualEngine ?? null);
+  useEffect(() => {
+    setResolvedEngine(manualEngine ?? null);
+  }, [manualEngine, selectedExample]);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
   const selectedStyles = selectedExample?.style;
+  const metadataLoading = Boolean(isRemoteExample(selectedExample) && !activeMetadata);
+
+  const updateExampleMetadata = useCallback(
+    (example: ExampleDefinition | undefined, incoming: ExampleMetadata | null | undefined) => {
+      if (!example || !incoming) {
+        return;
+      }
+
+      setMetadataByExample((current) => {
+        const previous = current[example.name];
+        const merged = mergeMetadata(previous, incoming);
+        if (merged === previous) {
+          return current;
+        }
+
+        return {...current, [example.name]: merged};
+      });
+    },
+    []
+  );
+
+  const deriveMetadataFromData = useCallback((data: unknown): ExampleMetadata | null => {
+    if (!data || typeof data !== 'object') {
+      return null;
+    }
+
+    const record = data as Record<string, unknown>;
+
+    if (Array.isArray(record.nodes) && Array.isArray(record.edges)) {
+      return {
+        nodeCount: record.nodes.length,
+        edgeCount: record.edges.length
+      };
+    }
+
+    const graphCandidate = record.graph;
+    if (graphCandidate && typeof (graphCandidate as Graph).getNodes === 'function') {
+      const parsedGraph = graphCandidate as Graph;
+      const nodes = Array.from(parsedGraph.getNodes?.() ?? []);
+      const edges = Array.from(parsedGraph.getEdges?.() ?? []);
+      const metadata: ExampleMetadata = {
+        nodeCount: nodes.length,
+        edgeCount: edges.length
+      };
+
+      const dotMetadata = record.metadata as
+        | {
+            id?: string;
+            directed?: boolean;
+            strict?: boolean;
+            attributes?: Record<string, unknown>;
+          }
+        | undefined;
+
+      if (dotMetadata) {
+        if (typeof dotMetadata.id === 'string') {
+          metadata.graphId = dotMetadata.id;
+        }
+        if (typeof dotMetadata.directed === 'boolean') {
+          metadata.directed = dotMetadata.directed;
+        }
+        if (typeof dotMetadata.strict === 'boolean') {
+          metadata.strict = dotMetadata.strict;
+        }
+        if (dotMetadata.attributes && typeof dotMetadata.attributes === 'object') {
+          metadata.attributes = {...dotMetadata.attributes};
+        }
+      }
+
+      return metadata;
+    }
+
+    return null;
+  }, []);
+
+  const handleDataLoad = useCallback(
+    (data: unknown) => {
+      if (!selectedExample) {
+        return;
+      }
+
+      const metadata = deriveMetadataFromData(data);
+      if (!metadata) {
+        return;
+      }
+
+      const sourceType = isRemoteExample(selectedExample) ? 'remote' : metadata.sourceType;
+      updateExampleMetadata(selectedExample, {
+        ...metadata,
+        ...(sourceType ? {sourceType} : {})
+      });
+    },
+    [deriveMetadataFromData, selectedExample, updateExampleMetadata]
+  );
+
+  useEffect(() => {
+    if (!selectedExample || !graphData) {
+      return;
+    }
+
+    const metadata: ExampleMetadata = {sourceType: 'inline'};
+    if (Array.isArray(graphData.nodes)) {
+      metadata.nodeCount = graphData.nodes.length;
+    }
+    if (Array.isArray(graphData.edges)) {
+      metadata.edgeCount = graphData.edges.length;
+    }
+
+    updateExampleMetadata(selectedExample, metadata);
+  }, [graphData, selectedExample, updateExampleMetadata]);
+
+  useEffect(() => {
+    if (!selectedExample || !resolvedEngine) {
+      return;
+    }
+
+    const metadata: ExampleMetadata = {
+      nodeCount: resolvedEngine.getNodes().length,
+      edgeCount: resolvedEngine.getEdges().length,
+      ...(isRemoteExample(selectedExample) ? {sourceType: 'remote'} : {})
+    };
+
+    updateExampleMetadata(selectedExample, metadata);
+  }, [resolvedEngine, selectedExample, updateExampleMetadata]);
+
+  const updateResolvedEngineFromLayer = useCallback(() => {
+    if (manualEngine) {
+      return;
+    }
+
+    const deck = deckRef.current?.deck as {layerManager?: {getLayers?: () => any[]; layers?: any[]}} | undefined;
+    const layerManager = deck?.layerManager;
+    const layers = layerManager?.getLayers?.() ?? layerManager?.layers;
+    if (!layers) {
+      return;
+    }
+
+    const graphLayerInstance = layers.find((layer) => layer?.id === GRAPH_LAYER_ID);
+    const layerEngine = graphLayerInstance?.state?.graphEngine ?? null;
+    if (layerEngine && layerEngine !== resolvedEngine) {
+      setResolvedEngine(layerEngine);
+    }
+  }, [manualEngine, resolvedEngine]);
+
+  const handleAfterRender = useCallback(() => {
+    if (!loadingState.rendered) {
+      loadingDispatch({type: 'afterRender'});
+    }
+    updateResolvedEngineFromLayer();
+  }, [loadingDispatch, loadingState.rendered, updateResolvedEngineFromLayer]);
+
+  const graphLayerInstance = useMemo(() => {
+    if (!selectedExample || !layout) {
+      return null;
+    }
+
+    const baseProps = {
+      id: GRAPH_LAYER_ID,
+      layout,
+      stylesheet: selectedStyles,
+      onLayoutStart: handleLayoutStart,
+      onLayoutChange: handleLayoutChange,
+      onLayoutDone: handleLayoutDone,
+      resumeLayoutAfterDragging,
+      rankGrid,
+      ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {})
+    } as const;
+
+    if (manualEngine) {
+      return new GraphLayer({
+        ...baseProps,
+        data: manualEngine,
+        engine: manualEngine
+      });
+    }
+
+    if (isRemoteExample(selectedExample) && selectedExample.dataUrl) {
+      return new GraphLayer({
+        ...baseProps,
+        data: selectedExample.dataUrl,
+        ...(selectedExample.loaders ? {loaders: selectedExample.loaders} : {}),
+        ...(selectedExample.loadOptions ? {loadOptions: selectedExample.loadOptions} : {}),
+        onDataLoad: handleDataLoad
+      });
+    }
+
+    return null;
+  }, [
+    selectedExample,
+    layout,
+    selectedStyles,
+    handleLayoutStart,
+    handleLayoutChange,
+    handleLayoutDone,
+    resumeLayoutAfterDragging,
+    rankGrid,
+    manualEngine,
+    handleDataLoad
+  ]);
 
   const serializedStylesheet = useMemo(() => {
     if (!selectedStyles) {
@@ -228,7 +534,8 @@ export function App({graphType}: AppProps) {
   // const enableDragging = false;
   const resumeLayoutAfterDragging = false;
 
-  const {viewState, onResize, onViewStateChange, layoutCallbacks} = useGraphViewport(engine, {
+  const viewportSource = resolvedEngine ?? (layout instanceof GraphLayout ? layout : null);
+  const {viewState, onResize, onViewStateChange, layoutCallbacks} = useGraphViewport(viewportSource, {
     minZoom,
     maxZoom,
     viewportPadding: 8,
@@ -299,7 +606,7 @@ export function App({graphType}: AppProps) {
   }, [dagLayout, collapseEnabled]);
 
   const updateChainSummary = useCallback(() => {
-    if (!graph || !dagLayout || !engine || !isDagLayout) {
+    if (!dagLayout || !resolvedEngine || !isDagLayout) {
       setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
       return;
     }
@@ -307,7 +614,7 @@ export function App({graphType}: AppProps) {
     const chainIds: string[] = [];
     const collapsedIds: string[] = [];
 
-    for (const node of engine.getNodes()) {
+    for (const node of resolvedEngine.getNodes()) {
       const chainId = node.getPropertyValue('collapsedChainId');
       const nodeIds = node.getPropertyValue('collapsedNodeIds');
       const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
@@ -329,7 +636,7 @@ export function App({graphType}: AppProps) {
     }
 
     setDagChainSummary({chainIds, collapsedIds});
-  }, [graph, dagLayout, engine, isDagLayout]);
+  }, [dagLayout, resolvedEngine, isDagLayout]);
 
   useEffect(() => {
     updateChainSummary();
@@ -465,12 +772,8 @@ export function App({graphType}: AppProps) {
           </div>
         ) : null}
         <DeckGL
-          onError={(error) => console.error(error)}
-          onAfterRender={() => {
-            if (!loadingState.rendered) {
-              loadingDispatch({type: 'afterRender'});
-            }
-          }}
+          ref={deckRef}
+          onAfterRender={handleAfterRender}
           width="100%"
           height="100%"
           getCursor={() => DEFAULT_CURSOR}
@@ -490,23 +793,7 @@ export function App({graphType}: AppProps) {
               }
             })
           ]}
-          layers={
-            graph && layout && engine
-              ? [
-                new GraphLayer({
-                  data: engine,
-                  engine,
-                  layout,
-                  stylesheet: selectedStyles,
-                  onLayoutStart: handleLayoutStart,
-                  onLayoutChange: handleLayoutChange,
-                  onLayoutDone: handleLayoutDone,
-                  resumeLayoutAfterDragging,
-                  rankGrid
-                })
-              ]
-              : []
-          }
+          layers={graphLayerInstance ? [graphLayerInstance] : []}
           widgets={widgets}
           getTooltip={(info) => getToolTip(info.object)}
         />
@@ -532,6 +819,8 @@ export function App({graphType}: AppProps) {
           onExampleChange={handleExampleChange}
           layoutOptions={layoutOptions}
           onLayoutOptionsApply={handleApplyLayoutOptions}
+          metadata={activeMetadata}
+          dataLoading={metadataLoading}
         >
           <>
             {isDagLayout ? (
