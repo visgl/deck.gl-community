@@ -60,7 +60,7 @@ export class ZoomableTextLayer<DatumT = unknown> extends CompositeLayer<Zoomable
     this.state = {characterSet: []};
   }
 
-  shouldUpdateState({props, changeFlags}: UpdateParameters<ZoomableTextLayerProps<DatumT>>) {
+  shouldUpdateState({changeFlags}: UpdateParameters<this>) {
     const {scaleWithZoom} = this.props;
     if (!scaleWithZoom) {
       return changeFlags.dataChanged || changeFlags.propsChanged;
@@ -68,14 +68,16 @@ export class ZoomableTextLayer<DatumT = unknown> extends CompositeLayer<Zoomable
     return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged;
   }
 
-  updateState({props, oldProps, changeFlags}: UpdateParameters<ZoomableTextLayerProps<DatumT>>) {
-    super.updateState({props, oldProps, changeFlags});
+  updateState(params: UpdateParameters<this>) {
+    super.updateState(params);
+    const {props, changeFlags} = params;
     if (changeFlags.propsOrDataChanged) {
       const {getText} = props;
       let textLabels: string[] = [];
       if (typeof getText === 'function') {
-        const textAccessor = getText as (datum: DatumT) => string;
-        textLabels = props.data.map((item) => textAccessor(item));
+        textLabels = props.data.map((item, index) =>
+          getText(item, {index, data: props.data, target: [] as number[]})
+        );
       } else if (typeof getText === 'string') {
         textLabels = [getText];
       } else {

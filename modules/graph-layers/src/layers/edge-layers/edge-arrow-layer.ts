@@ -52,8 +52,12 @@ function normalizeVector(vector: number[]): number[] {
   return [(vector[0] ?? 0) / length, (vector[1] ?? 0) / length, (vector[2] ?? 0) / length];
 }
 
-function getTerminalDirection({sourcePosition, targetPosition, controlPoints = []}: EdgeLayoutInfo): {
-  target: number[];
+function getTerminalDirection({
+  sourcePosition,
+  targetPosition,
+  controlPoints = []
+}: EdgeLayoutInfo): {
+  target: readonly number[];
   direction: number[];
 } {
   const anchor = controlPoints.length ? controlPoints[controlPoints.length - 1] : sourcePosition;
@@ -72,7 +76,7 @@ export function getArrowTransform({
 }: {
   layout: EdgeLayoutInfo;
   size: number;
-  offset?: number[] | null;
+  offset?: readonly number[] | null;
 }): {position: [number, number, number]; angle: number} {
   const {target, direction} = getTerminalDirection(layout);
   const unit = normalizeVector(direction);
@@ -149,14 +153,14 @@ export class EdgeArrowLayer extends CompositeLayer<EdgeArrowLayerProps> {
           getOrientation: (edge) => {
             const layout = getLayoutInfo(edge);
             const size = resolveSize(getSize(edge));
-            const offset = getOffset ? getOffset(edge) : null;
+            const offset = getOffset ? (getOffset(edge) as readonly number[] | null) : null;
             const {angle} = getArrowTransform({layout, size, offset});
             return [0, -angle, 0];
           },
           getPosition: (edge) => {
             const layout = getLayoutInfo(edge);
             const size = resolveSize(getSize(edge));
-            const offset = getOffset ? getOffset(edge) : null;
+            const offset = getOffset ? (getOffset(edge) as readonly number[] | null) : null;
             const {position} = getArrowTransform({layout, size, offset});
             return position;
           },

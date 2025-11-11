@@ -5,6 +5,7 @@
 import {
   CompositeLayer,
   type CompositeLayerProps,
+  type AccessorContext,
   type AccessorFunction,
   type UpdateParameters
 } from '@deck.gl/core';
@@ -28,16 +29,24 @@ export type ZoomableMarkerLayerProps = CompositeLayerProps & {
 export class ZoomableMarkerLayer extends CompositeLayer<ZoomableMarkerLayerProps> {
   static layerName = 'ZoomableMarkerLayer';
 
-  shouldUpdateState({props, changeFlags}: UpdateParameters<ZoomableMarkerLayerProps>) {
+  shouldUpdateState(params: UpdateParameters<this>) {
+    const {props, changeFlags} = params;
     const {stylesheet} = this.props;
     const scaleWithZoomAccessor = stylesheet.getDeckGLAccessor('scaleWithZoom');
-    const exampleNode = props.data?.[0] ?? null;
-    const scaleWithZoom =
-      typeof scaleWithZoomAccessor === 'function'
-        ? scaleWithZoomAccessor(exampleNode)
-        : scaleWithZoomAccessor;
+    let scaleWithZoomValue: unknown = scaleWithZoomAccessor;
+    if (typeof scaleWithZoomAccessor === 'function') {
+      const firstNode = props.data?.[0];
+      if (firstNode) {
+        const context: AccessorContext<NodeInterface> = {
+          index: 0,
+          data: props.data,
+          target: [] as number[]
+        };
+        scaleWithZoomValue = scaleWithZoomAccessor(firstNode, context);
+      }
+    }
 
-    if (!scaleWithZoom) {
+    if (!scaleWithZoomValue) {
       return changeFlags.somethingChanged;
     }
 
@@ -49,10 +58,18 @@ export class ZoomableMarkerLayer extends CompositeLayer<ZoomableMarkerLayerProps
 
     const getSize = stylesheet.getDeckGLAccessor('getSize');
     const scaleWithZoomAccessor = stylesheet.getDeckGLAccessor('scaleWithZoom');
-    const scaleWithZoomValue =
-      typeof scaleWithZoomAccessor === 'function'
-        ? scaleWithZoomAccessor(data[0] ?? null)
-        : scaleWithZoomAccessor;
+    let scaleWithZoomValue: unknown = scaleWithZoomAccessor;
+    if (typeof scaleWithZoomAccessor === 'function') {
+      const firstNode = data[0];
+      if (firstNode) {
+        const context: AccessorContext<NodeInterface> = {
+          index: 0,
+          data,
+          target: [] as number[]
+        };
+        scaleWithZoomValue = scaleWithZoomAccessor(firstNode, context);
+      }
+    }
     const sizeUpdateTrigger = scaleWithZoomValue ? [getSize, this.context.viewport.zoom] : false;
     const oiginalGetMarker = stylesheet.getDeckGLAccessor('getMarker');
     // getMarker only expects function not plain value (string)

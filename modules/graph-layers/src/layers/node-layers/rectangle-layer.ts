@@ -6,6 +6,7 @@ import {
   CompositeLayer,
   type CompositeLayerProps,
   type Accessor,
+  type AccessorContext,
   type AccessorFunction
 } from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
@@ -21,17 +22,12 @@ type RectangleDimensions = {
 
 const generateRectangle = (
   node: NodeInterface,
+  objectInfo: AccessorContext<NodeInterface>,
   {getWidth, getHeight, getPosition}: RectangleDimensions
 ) => {
-  const pos = getPosition(node);
-  const width =
-    typeof getWidth === 'function'
-      ? (getWidth as (value: unknown) => number)(
-          ((node as unknown as { _data?: { label?: { length: number } } })._data?.label?.length ??
-            0) * 12
-        )
-      : getWidth;
-  const height = typeof getWidth === 'function' ? getHeight(node) : getHeight;
+  const pos = getPosition(node, objectInfo);
+  const width = typeof getWidth === 'function' ? getWidth(node, objectInfo) : getWidth;
+  const height = typeof getHeight === 'function' ? getHeight(node, objectInfo) : getHeight;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   return [
@@ -68,8 +64,8 @@ export class RectangleLayer extends CompositeLayer<RectangleLayerProps> {
         this.getSubLayerProps({
           id: '__polygon-layer',
           data,
-          getPolygon: (node) =>
-            generateRectangle(node, {
+          getPolygon: (node, objectInfo) =>
+            generateRectangle(node, objectInfo, {
               getPosition,
               getWidth: stylesheet.getDeckGLAccessor('getWidth'),
               getHeight: stylesheet.getDeckGLAccessor('getHeight')

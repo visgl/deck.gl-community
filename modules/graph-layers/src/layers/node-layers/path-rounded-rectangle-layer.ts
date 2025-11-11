@@ -6,6 +6,7 @@ import {
   CompositeLayer,
   type CompositeLayerProps,
   type Accessor,
+  type AccessorContext,
   type AccessorFunction
 } from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
@@ -23,13 +24,14 @@ type RoundedRectangleDimensions = {
 
 const generateRoundedRectangle = (
   node: NodeInterface,
+  objectInfo: AccessorContext<NodeInterface>,
   {getWidth, getHeight, getPosition, getCornerRadius}: RoundedRectangleDimensions
 ) => {
-  const pos = getPosition(node);
-  const width = typeof getWidth === 'function' ? getWidth(node) : getWidth;
-  const height = typeof getHeight === 'function' ? getHeight(node) : getHeight;
+  const pos = getPosition(node, objectInfo);
+  const width = typeof getWidth === 'function' ? getWidth(node, objectInfo) : getWidth;
+  const height = typeof getHeight === 'function' ? getHeight(node, objectInfo) : getHeight;
   const cornerRadius =
-    typeof getCornerRadius === 'function' ? getCornerRadius(node) : getCornerRadius;
+    typeof getCornerRadius === 'function' ? getCornerRadius(node, objectInfo) : getCornerRadius;
   const factor = 20;
   return generateRoundedCorners(pos, width, height, cornerRadius, factor);
 };
@@ -60,8 +62,8 @@ export class PathBasedRoundedRectangleLayer extends CompositeLayer<PathBasedRoun
         this.getSubLayerProps({
           id: '__polygon-layer',
           data,
-          getPolygon: (node) =>
-            generateRoundedRectangle(node, {
+          getPolygon: (node, objectInfo) =>
+            generateRoundedRectangle(node, objectInfo, {
               getPosition,
               getWidth: stylesheet.getDeckGLAccessor('getWidth'),
               getHeight: stylesheet.getDeckGLAccessor('getHeight'),

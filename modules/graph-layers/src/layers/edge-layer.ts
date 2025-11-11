@@ -82,8 +82,9 @@ export class EdgeLayer extends CompositeLayer<EdgeLayerProps> {
 
   declare state: EdgeLayerState;
 
-  updateState({props, oldProps, changeFlags}: UpdateParameters<EdgeLayerProps>) {
-    super.updateState({props, oldProps, changeFlags});
+  updateState(params: UpdateParameters<this>) {
+    super.updateState(params);
+    const {changeFlags} = params;
     if (changeFlags.dataChanged) {
       this.updateStateData();
     }
