@@ -4,15 +4,15 @@
 
 /* eslint-disable max-statements, complexity */
 
-import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react';
+import React, {useCallback, useEffect, useMemo, useState, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 
 import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
-// @ts-expect-error CSS import
-import '@deck.gl/widgets/dist/stylesheet.css';
+// ts-expect-error CSS import
+// import '@deck.gl/widgets/dist/stylesheet.css';
 
 import {
   GraphLayer,
