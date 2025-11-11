@@ -118,7 +118,7 @@ export class SplineLayer<DatumT = unknown> extends CompositeLayer<SplineLayerPro
           const accessorContext: AccessorContext<DatumT> = {
             index: item.index,
             data,
-            target: (objectInfo.target as number[]) ?? []
+            target: (objectInfo.target) ?? []
           };
           return getColor(item.datum, accessorContext);
         }
@@ -129,7 +129,7 @@ export class SplineLayer<DatumT = unknown> extends CompositeLayer<SplineLayerPro
           const accessorContext: AccessorContext<DatumT> = {
             index: item.index,
             data,
-            target: (objectInfo.target as number[]) ?? []
+            target: (objectInfo.target) ?? []
           };
           return getWidth(item.datum, accessorContext);
         }
