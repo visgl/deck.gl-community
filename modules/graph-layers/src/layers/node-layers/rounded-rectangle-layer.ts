@@ -37,7 +37,7 @@ export class RoundedRectangleLayer extends RectangleLayer {
   static layerName = 'RoundedRectangleLayer';
 
   draw(props: Parameters<RectangleLayer['draw']>[0]) {
-    const {cornerRadius} = this.props as RoundedRectangleLayerProps;
+    const {cornerRadius} = this.props as unknown as RoundedRectangleLayerProps;
     const roundedRectangleProps: RoundedRectangleProps = {cornerRadius};
     const model = this.state.model as Model;
     model.shaderInputs.setProps({roundedRectangle: roundedRectangleProps});

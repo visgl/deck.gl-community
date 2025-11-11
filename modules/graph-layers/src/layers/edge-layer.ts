@@ -54,6 +54,8 @@ type EdgeLayerState = {
   typedEdgeData: Record<EdgeLayerType, EdgeInterface[]>;
 };
 
+type CompositeUpdateParameters<PropsT> = UpdateParameters<CompositeLayer<PropsT>>;
+
 export class EdgeLayer extends CompositeLayer<EdgeLayerProps> {
   static layerName = 'EdgeLayer';
 
@@ -82,8 +84,8 @@ export class EdgeLayer extends CompositeLayer<EdgeLayerProps> {
 
   declare state: EdgeLayerState;
 
-  updateState(params: UpdateParameters<this>) {
-    super.updateState(params);
+  updateState(params: CompositeUpdateParameters<EdgeLayerProps>) {
+    super.updateState(params as UpdateParameters<CompositeLayer<any>>);
     const {changeFlags} = params;
     if (changeFlags.dataChanged) {
       this.updateStateData();

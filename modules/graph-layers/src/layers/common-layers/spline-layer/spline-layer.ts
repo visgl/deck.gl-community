@@ -16,6 +16,8 @@ import {PathLayer} from '@deck.gl/layers';
 import {getCurvePoints} from 'cardinal-spline-js';
 // const getCurvePoints = () => {};
 
+type CompositeUpdateParameters<PropsT> = UpdateParameters<CompositeLayer<PropsT>>;
+
 /* Constants */
 const defaultProps = {
   id: 'spline-layer',
@@ -46,25 +48,33 @@ export type SplineLayerProps<DatumT = unknown> = CompositeLayerProps & {
   coordinateSystem?: number;
 };
 
-type SplineLayerState = {
-  paths: number[][][];
+type SplinePath<DatumT> = {
+  datum: DatumT;
+  index: number;
+  path: Float64Array;
+};
+
+type SplineLayerState<DatumT> = {
+  paths: SplinePath<DatumT>[];
 };
 
 export class SplineLayer<DatumT = unknown> extends CompositeLayer<SplineLayerProps<DatumT>> {
   static layerName = 'SplineLayer';
 
-  declare state: SplineLayerState;
+  declare state: SplineLayerState<DatumT>;
 
   initializeState() {
     this.state = {paths: []};
   }
 
-  shouldUpdateState({changeFlags}: UpdateParameters<this>) {
-    return changeFlags.dataChanged || changeFlags.propsChanged;
+  shouldUpdateState({changeFlags}: CompositeUpdateParameters<SplineLayerProps<DatumT>>) {
+    return Boolean(changeFlags.dataChanged || changeFlags.propsChanged);
   }
 
-  updateState(params: UpdateParameters<this>) {
-    super.updateState(params);
+  updateState(
+    params: CompositeUpdateParameters<SplineLayerProps<DatumT>>
+  ) {
+    super.updateState(params as UpdateParameters<CompositeLayer<any>>);
     const {changeFlags} = params;
     if (changeFlags.dataChanged || changeFlags.propsChanged) {
       this.updateSplineData();
@@ -73,41 +83,58 @@ export class SplineLayer<DatumT = unknown> extends CompositeLayer<SplineLayerPro
 
   updateSplineData() {
     const {data, getControlPoints, getSourcePosition, getTargetPosition} = this.props;
-    const paths = data.map((datum, index) => {
+    const paths = data.map<SplinePath<DatumT>>((datum, index) => {
       const accessorContext: AccessorContext<DatumT> = {index, data, target: [] as number[]};
       const sourcePosition = getSourcePosition(datum, accessorContext);
       const targetPosition = getTargetPosition(datum, accessorContext);
       const controlPoints = getControlPoints(datum, accessorContext);
 
-      const serializedControlPoints: number[] = [];
-      for (const point of controlPoints) {
-        serializedControlPoints.push(...point);
-      }
+      const serializedControlPoints = controlPoints.flat();
 
-      const points = getCurvePoints(
+      const curvePoints = getCurvePoints(
         [...sourcePosition, ...serializedControlPoints, ...targetPosition],
         0.5,
         10
       );
 
-      const path: number[][] = [];
-      for (let idx = 0; idx < points.length; idx += 2) {
-        path.push([points[idx], points[idx + 1]]);
-      }
-      return path;
+      return {
+        datum,
+        index,
+        path: Float64Array.from(curvePoints)
+      };
     });
     this.setState({paths});
   }
 
   renderLayers() {
-    const {coordinateSystem, getColor, getWidth, id, updateTriggers} = this.props;
+    const {coordinateSystem, data, getColor, getWidth, id, updateTriggers} = this.props;
     const {paths} = this.state;
-    return new PathLayer<number[][]>({
+    return new PathLayer<SplinePath<DatumT>>({
       id: `${id}-splines`,
       data: paths,
-      getPath: (path) => path,
-      getColor,
-      getWidth,
+      getPath: ({path}) => path,
+      getColor: (item, objectInfo) => {
+        if (typeof getColor === 'function') {
+          const accessorContext: AccessorContext<DatumT> = {
+            index: item.index,
+            data,
+            target: (objectInfo.target as number[]) ?? []
+          };
+          return getColor(item.datum, accessorContext);
+        }
+        return getColor;
+      },
+      getWidth: (item, objectInfo) => {
+        if (typeof getWidth === 'function') {
+          const accessorContext: AccessorContext<DatumT> = {
+            index: item.index,
+            data,
+            target: (objectInfo.target as number[]) ?? []
+          };
+          return getWidth(item.datum, accessorContext);
+        }
+        return getWidth;
+      },
       coordinateSystem,
       updateTriggers
     });

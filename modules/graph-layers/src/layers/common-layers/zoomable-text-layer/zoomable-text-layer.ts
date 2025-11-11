@@ -13,6 +13,8 @@ import {TextLayer} from '@deck.gl/layers';
 
 type NumericTuple = readonly [number, number] | readonly [number, number, number];
 
+type CompositeUpdateParameters<PropsT> = UpdateParameters<CompositeLayer<PropsT>>;
+
 /** Props for the {@link ZoomableTextLayer} composite layer. */
 export type ZoomableTextLayerProps<DatumT = unknown> = CompositeLayerProps & {
   /** Items to render as zoom-aware text labels. */
@@ -60,16 +62,18 @@ export class ZoomableTextLayer<DatumT = unknown> extends CompositeLayer<Zoomable
     this.state = {characterSet: []};
   }
 
-  shouldUpdateState({changeFlags}: UpdateParameters<this>) {
+  shouldUpdateState({changeFlags}: CompositeUpdateParameters<ZoomableTextLayerProps<DatumT>>) {
     const {scaleWithZoom} = this.props;
     if (!scaleWithZoom) {
-      return changeFlags.dataChanged || changeFlags.propsChanged;
+      return Boolean(changeFlags.dataChanged || changeFlags.propsChanged);
     }
-    return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged;
+    return Boolean(changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged);
   }
 
-  updateState(params: UpdateParameters<this>) {
-    super.updateState(params);
+  updateState(
+    params: CompositeUpdateParameters<ZoomableTextLayerProps<DatumT>>
+  ) {
+    super.updateState(params as UpdateParameters<CompositeLayer<any>>);
     const {props, changeFlags} = params;
     if (changeFlags.propsOrDataChanged) {
       const {getText} = props;

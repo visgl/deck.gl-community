@@ -29,7 +29,9 @@ export type ZoomableMarkerLayerProps = CompositeLayerProps & {
 export class ZoomableMarkerLayer extends CompositeLayer<ZoomableMarkerLayerProps> {
   static layerName = 'ZoomableMarkerLayer';
 
-  shouldUpdateState(params: UpdateParameters<this>) {
+  shouldUpdateState(
+    params: UpdateParameters<CompositeLayer<ZoomableMarkerLayerProps>>
+  ) {
     const {props, changeFlags} = params;
     const {stylesheet} = this.props;
     const scaleWithZoomAccessor = stylesheet.getDeckGLAccessor('scaleWithZoom');
@@ -50,7 +52,7 @@ export class ZoomableMarkerLayer extends CompositeLayer<ZoomableMarkerLayerProps
       return changeFlags.somethingChanged;
     }
 
-    return changeFlags.somethingChanged || changeFlags.viewportChanged;
+    return Boolean(changeFlags.somethingChanged || changeFlags.viewportChanged);
   }
 
   renderLayers() {
