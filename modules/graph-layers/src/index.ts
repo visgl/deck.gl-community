@@ -97,6 +97,7 @@ export {
   type DotGraphLoaderMetadata,
   type DotGraphLoaderResult
 } from './loaders/dot-graph-loader';
+export {loadGraphML, parseGraphML} from './loaders/graphml-loader';
 
 // utils
 export {mixedGetPosition} from './utils/layer-utils';
