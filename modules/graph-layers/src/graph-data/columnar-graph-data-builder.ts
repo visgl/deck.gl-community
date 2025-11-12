@@ -44,6 +44,30 @@ export interface ColumnarGraphColumns {
   edges: ColumnarGraphEdgeColumns;
 }
 
+export function isColumnarGraphColumns(value: unknown): value is ColumnarGraphColumns {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as ColumnarGraphColumns & {type?: string};
+  const {nodes, edges} = candidate;
+
+  if (candidate.type === 'columnar-graph-data') {
+    return Boolean(nodes && edges);
+  }
+
+  if (!nodes || !edges) {
+    return false;
+  }
+
+  return (
+    Array.isArray(nodes.id) &&
+    Array.isArray(edges.id) &&
+    Array.isArray(edges.sourceId) &&
+    Array.isArray(edges.targetId)
+  );
+}
+
 type MutableNodeColumns = {
   id: (string | number)[];
   state: NodeState[];

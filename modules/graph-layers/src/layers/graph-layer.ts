@@ -10,9 +10,13 @@ import {PolygonLayer} from '@deck.gl/layers';
 
 import type {Graph, NodeInterface} from '../graph/graph';
 import {ClassicGraph} from '../graph/classic-graph';
+import {createGraphFromData} from '../graph/create-graph-from-data';
 import {GraphLayout, type GraphLayoutEventDetail} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
+import {isGraphData, type GraphData} from '../graph-data/graph-data';
+import {isColumnarGraphColumns, type ColumnarGraphColumns} from '../graph-data/columnar-graph-data-builder';
+import {isArrowGraphData, type ArrowGraphData} from '../graph-data/arrow-graph-data';
 
 import {
   GraphStylesheetEngine,
@@ -28,7 +32,7 @@ import {
   type RankAccessor
 } from '../utils/rank-grid';
 
-import {warn} from '../utils/log';
+import {log, warn} from '../utils/log';
 
 import {
   DEFAULT_GRAPH_LAYER_STYLESHEET,
@@ -104,8 +108,6 @@ const LAYOUT_REQUIRED_MESSAGE =
 
 let NODE_STYLE_DEPRECATION_WARNED = false;
 let EDGE_STYLE_DEPRECATION_WARNED = false;
-let GRAPH_PROP_DEPRECATION_WARNED = false;
-let LAYOUT_REQUIRED_WARNED = false;
 
 export type GraphLayerRawData = {
   name?: string;
@@ -116,10 +118,15 @@ export type GraphLayerRawData = {
 export type GraphLayerDataInput =
   | GraphEngine
   | Graph
+  | GraphData
+  | ColumnarGraphColumns
+  | ArrowGraphData
   | GraphLayerRawData
   | unknown[]
   | string
   | null;
+
+type GraphLayerLoaderResult = Graph | GraphData | ColumnarGraphColumns | ArrowGraphData | null;
 
 export type GraphLayerProps = CompositeLayerProps &
   _GraphLayerProps & {
@@ -138,7 +145,7 @@ type EngineResolutionFlags = {
 export type _GraphLayerProps = {
   graph?: Graph;
   layout?: GraphLayout | GraphRuntimeLayout;
-  graphLoader?: (opts: {json: unknown}) => Graph | null;
+  graphLoader?: (opts: {json: unknown}) => GraphLayerLoaderResult;
   engine?: GraphEngine;
 
   onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
@@ -452,7 +459,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return {engine: null, shouldReplace: true};
     }
 
-    this._warnGraphProp();
+    log.warn(GRAPH_PROP_DEPRECATION_MESSAGE)();
     return {
       engine: this._buildEngineFromGraph(props.graph, props.layout),
       shouldReplace: force || graphChanged || layoutChanged
@@ -460,6 +467,26 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _deriveEngineFromData(
+    data: GraphLayerDataInput,
+    props: GraphLayerProps
+  ): GraphEngine | null | undefined {
+    const immediate = this._getImmediateEngineResult(data, props);
+    if (typeof immediate !== 'undefined') {
+      return immediate;
+    }
+
+    if (typeof data === 'string') {
+      return undefined;
+    }
+
+    if (!Array.isArray(data) && !this._isPlainObject(data)) {
+      return null;
+    }
+
+    return this._loadEngineFromJsonLike(data, props);
+  }
+
+  private _getImmediateEngineResult(
     data: GraphLayerDataInput,
     props: GraphLayerProps
   ): GraphEngine | null | undefined {
@@ -475,25 +502,30 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return data;
     }
 
-    const graphCandidate = this._coerceGraph(data);
-    if (graphCandidate) {
-      return this._buildEngineFromGraph(graphCandidate, props.layout);
-    }
-
-    if (typeof data === 'string') {
-      return undefined;
-    }
-
-    if (Array.isArray(data) || this._isPlainObject(data)) {
-      const loader = props.graphLoader ?? JSONTabularGraphLoader;
-      const graph = loader({json: data});
-      if (!graph) {
-        return null;
-      }
+    const graph = this._coerceGraph(data) ?? this._createGraphFromDataValue(data);
+    if (graph) {
       return this._buildEngineFromGraph(graph, props.layout);
     }
 
-    return null;
+    return undefined;
+  }
+
+  private _loadEngineFromJsonLike(
+    data: GraphLayerRawData | unknown[],
+    props: GraphLayerProps
+  ): GraphEngine | null {
+    const loader = props.graphLoader ?? GraphLayer.defaultProps.graphLoader;
+    const loaded = loader({json: data});
+    if (!loaded) {
+      return null;
+    }
+
+    const graph = this._coerceGraph(loaded) ?? this._createGraphFromDataValue(loaded);
+    if (!graph) {
+      return null;
+    }
+
+    return this._buildEngineFromGraph(graph, props.layout);
   }
 
   private _buildEngineFromGraph(
@@ -505,7 +537,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     if (!layout) {
-      this._warnLayoutRequired();
+      log.warn(LAYOUT_REQUIRED_MESSAGE)();
       return null;
     }
 
@@ -518,7 +550,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       if (legacyGraph) {
         return new GraphEngine({graph: legacyGraph, layout});
       }
-      this._warnLayoutRequired();
+      log.warn(LAYOUT_REQUIRED_MESSAGE)();
       return null;
     }
 
@@ -526,7 +558,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return new GraphEngine({graph, layout});
     }
 
-    this._warnLayoutRequired();
+    log.warn(LAYOUT_REQUIRED_MESSAGE)();
     return null;
   }
 
@@ -541,20 +573,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       enableDragging: Boolean(props.enableDragging),
       resumeLayoutAfterDragging: Boolean(resumeLayoutAfterDragging)
     });
-  }
-
-  private _warnGraphProp() {
-    if (!GRAPH_PROP_DEPRECATION_WARNED) {
-      warn(GRAPH_PROP_DEPRECATION_MESSAGE);
-      GRAPH_PROP_DEPRECATION_WARNED = true;
-    }
-  }
-
-  private _warnLayoutRequired() {
-    if (!LAYOUT_REQUIRED_WARNED) {
-      warn(LAYOUT_REQUIRED_MESSAGE);
-      LAYOUT_REQUIRED_WARNED = true;
-    }
   }
 
   private _isGraph(value: unknown): value is Graph {
@@ -575,6 +593,14 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (this._isGraph(value)) {
       return value;
+    }
+
+    return null;
+  }
+
+  private _createGraphFromDataValue(value: unknown): Graph | null {
+    if (isGraphData(value) || isColumnarGraphColumns(value) || isArrowGraphData(value)) {
+      return createGraphFromData(value);
     }
 
     return null;

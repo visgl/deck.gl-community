@@ -31,11 +31,12 @@ const layer = new GraphLayer({
 ```
 
 `GraphLayer` treats the `data` prop as its single entry point. Provide a
-`GraphEngine`, a [`Graph`](../graph.md), or raw graph payloads (arrays of edges
-or `{nodes, edges}` objects). When the layer receives new data it rebuilds the
-internal `GraphEngine`, re-runs the layout, and updates interactions
-automatically. Supplying raw data requires a `layout` so the layer can derive
-positions for you.
+`GraphEngine`, a [`Graph`](../graph.md), pre-normalized `GraphData`,
+`ColumnarGraphColumns`, `ArrowGraphData`, or raw graph
+payloads (arrays of edges or `{nodes, edges}` objects). When the layer receives
+new data it rebuilds the internal `GraphEngine`, re-runs the layout, and updates
+interactions automatically. Supplying raw data requires a `layout` so the layer
+can derive positions for you.
 
 ## Properties
 
@@ -64,10 +65,11 @@ releases will remove this prop.
 
 #### `graphLoader` (function, optional)
 
-Custom loader that converts raw `data` into a `Graph`. Defaults to the bundled
+Custom loader that converts raw `data` into `GraphData` or
+`ArrowGraphData`. Defaults to the bundled
 `JSONLoader`, which accepts arrays of edges or `{nodes, edges}` collections and
-automatically synthesizes missing nodes. Graph instances are no longer
-normalized by the loader—pass them directly to `data`.
+returns `GraphData`. Graph instances are no longer normalized by the
+loader—pass them directly to `data`.
 
 #### `engine` (`GraphEngine`, optional)
 

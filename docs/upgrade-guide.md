@@ -15,6 +15,6 @@ Please refer the documentation of each module for detailed upgrade guides.
   - Replace `nodeStyle` / `edgeStyle` with `stylesheet.nodes` and `stylesheet.edges`
 - Deprecation: `graph` prop on `GraphLayer` is being phased out. Provide graphs via the `data` prop instead (supports `GraphEngine`,
   `Graph`, or raw `{nodes, edges}`/edge arrays) and supply a `layout` when the layer must build the engine for you.
-- Breaking change: `JSONLoader` only normalizes raw JSON payloads. Pass `Graph` instances directly to `GraphLayer.data` rather than
-  routing them through the loader.
+- Breaking change: `JSONLoader` only normalizes raw JSON payloads into `GraphData`. Pass `Graph` instances directly to
+  `GraphLayer.data` rather than routing them through the loader.
 

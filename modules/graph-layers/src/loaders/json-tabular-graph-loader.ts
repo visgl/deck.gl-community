@@ -3,10 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {NodeState, EdgeState} from '../core/constants';
-import type {TabularGraph} from '../graph/tabular-graph';
-import type {GraphNodeData, GraphEdgeData} from '../graph-data/graph-data';
-import {ColumnarGraphDataBuilder} from '../graph-data/columnar-graph-data-builder';
-import {createTabularGraphFromData} from '../graph/create-tabular-graph-from-data';
+import type {GraphData, GraphNodeData, GraphEdgeData} from '../graph-data/graph-data';
 import {basicNodeParser} from './node-parsers';
 import {basicEdgeParser} from './edge-parsers';
 import {error} from '../utils/log';
@@ -42,7 +39,7 @@ export function JSONTabularGraphLoader({
   json,
   nodeParser = basicNodeParser,
   edgeParser = basicEdgeParser
-}: JSONTabularGraphLoaderOptions): TabularGraph | null {
+}: JSONTabularGraphLoaderOptions): GraphData | null {
   const nodes = json?.nodes ?? null;
   const edges = json?.edges ?? null;
   if (!Array.isArray(nodes)) {
@@ -52,22 +49,12 @@ export function JSONTabularGraphLoader({
 
   const normalizedNodes = parseNodes(nodes, nodeParser);
   const normalizedEdges = parseEdges(Array.isArray(edges) ? edges : [], edgeParser);
-
-  const builder = new ColumnarGraphDataBuilder({
-    nodeCapacity: normalizedNodes.length,
-    edgeCapacity: normalizedEdges.length,
-    version: json?.version
-  });
-
-  for (const node of normalizedNodes) {
-    builder.addNode(node);
-  }
-
-  for (const edge of normalizedEdges) {
-    builder.addEdge(edge);
-  }
-
-  return createTabularGraphFromData(builder.build());
+  return {
+    type: 'graph-data',
+    version: json?.version,
+    nodes: normalizedNodes,
+    edges: normalizedEdges
+  };
 }
 
 function parseNodes(
