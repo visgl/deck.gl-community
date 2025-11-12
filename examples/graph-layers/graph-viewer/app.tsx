@@ -406,11 +406,19 @@ export function App({graphType}: AppProps) {
   }, []);
 
   const handleAfterRender = useCallback(() => {
-    if (!loadingState.rendered) {
+    if (loadingState.loaded && !loadingState.rendered) {
       loadingDispatch({type: 'afterRender'});
     }
-    updateResolvedEngineFromLayer();
-  }, [loadingDispatch, loadingState.rendered, updateResolvedEngineFromLayer]);
+    if (!resolvedEngineRef.current) {
+      updateResolvedEngineFromLayer();
+    }
+  }, [
+    loadingDispatch,
+    loadingState.loaded,
+    loadingState.rendered,
+    updateResolvedEngineFromLayer
+  ]);
+
 
   const serializedStylesheet = useMemo(() => {
     if (!selectedStyles) {
@@ -632,6 +640,18 @@ export function App({graphType}: AppProps) {
     graphData,
     handleDataLoad
   ]);
+
+  useEffect(() => {
+    if (!graphLayerInstance) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      updateResolvedEngineFromLayer();
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [graphLayerInstance, updateResolvedEngineFromLayer]);
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);
