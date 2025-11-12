@@ -54,12 +54,19 @@ User can resize an existing circular Polygon feature by clicking and dragging al
 
 User can draw a new `Polygon` feature by clicking positions to add then closing the polygon (or double-clicking).
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-polygon-mode.js)
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-polygon-mode.ts)
 
 The following options can be provided in the `modeConfig` object:
 
-- `preventOverlappingLines` (optional): `boolean`
-  - If `true`, it will not be possible to add a polygon point if the current line overlaps any other lines on the same polygon.
+- `allowSelfIntersection` (optional): `boolean` (default: `false`)
+  - If `true`, allows creating self-intersecting polygons (e.g., figure-8 or bowtie shapes)
+  - If `false`, attempts to create overlapping polygon lines will be rejected with an `invalidPolygon` edit type
+  - When disabled (default), self-intersecting polygons are prevented for data consistency
+
+- `allowHoles` (optional): `boolean` (default: `false`)
+  - If `true`, allows creating holes within existing polygons by drawing new polygons inside them
+  - When enabled, drawing a polygon inside an existing polygon will create a hole instead of a separate feature
+  - Includes validation to prevent overlapping or nested holes
 
 Callback parameters
 
@@ -68,6 +75,14 @@ Callback parameters
 - `positionIndexes` (Array): An array of numbers representing the indexes of the added position within the feature's `coordinates` array
 
 - `position` (Array): An array containing the ground coordinates (i.e. [lng, lat]) of the added position
+
+### Edit Types
+
+When using the new configuration options, the following additional edit types may be triggered:
+
+- `addHole`: When `allowHoles` is enabled and a valid hole is created within an existing polygon
+- `invalidHole`: When `allowHoles` is enabled but the hole creation fails validation (intersects existing holes, contains other holes, etc.)
+- `invalidPolygon`: When `allowSelfIntersection` is disabled and a self-intersecting polygon is attempted, or when polygon validation fails
 
 ## Draw90DegreePolygonMode
 
@@ -98,6 +113,7 @@ The following options can be provided in the `modeConfig` object:
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
 ## DrawRectangleFromCenterMode
+
 User can draw a new rectangular `Polygon` feature by clicking the center then along a corner of the rectangle.
 
 The following options can be provided in the `modeConfig` object:
@@ -182,4 +198,3 @@ User can split a polygon by drawing a new `LineString` feature on top of the pol
 - If the clicked position is inside the polygon, it will not split the polygon
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/split-polygon-mode.ts)
-
