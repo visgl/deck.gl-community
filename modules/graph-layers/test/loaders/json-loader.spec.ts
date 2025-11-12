@@ -22,22 +22,23 @@ describe('loaders/node-parsers', () => {
 
 describe('JSONTabularGraphLoader', () => {
   it('should work with default parsers', () => {
-    const graph = JSONTabularGraphLoader({json: SAMPLE_GRAPH1});
-    expect(graph).not.toBeNull();
-    if (!graph) {
-      throw new Error('Expected graph to be defined');
+    const data = JSONTabularGraphLoader({json: SAMPLE_GRAPH1});
+    expect(data).not.toBeNull();
+    if (!data) {
+      throw new Error('Expected graph data to be defined');
     }
 
-    expect(Array.from(graph.getEdges(), (e) => e.getId())).toEqual(
-      expect.arrayContaining(SAMPLE_GRAPH1.edges.map((e) => e.id))
-    );
-    expect(Array.from(graph.getNodes(), (n) => n.getId())).toEqual(
+    expect(data.type).toBe('graph-data');
+    expect(data.nodes?.map((node) => node.id)).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH1.nodes.map((n) => n.id))
+    );
+    expect(data.edges?.map((edge) => edge.id)).toEqual(
+      expect.arrayContaining(SAMPLE_GRAPH1.edges.map((e) => e.id))
     );
   });
 
   it('should work with custom parsers', () => {
-    const graph = JSONTabularGraphLoader({
+    const data = JSONTabularGraphLoader({
       json: SAMPLE_GRAPH2,
       nodeParser: (node) => ({id: node.name}),
       edgeParser: (edge) => ({
@@ -47,16 +48,16 @@ describe('JSONTabularGraphLoader', () => {
         targetId: edge.target
       })
     });
-    expect(graph).not.toBeNull();
-    if (!graph) {
-      throw new Error('Expected graph to be defined');
+    expect(data).not.toBeNull();
+    if (!data) {
+      throw new Error('Expected graph data to be defined');
     }
 
-    expect(Array.from(graph.getEdges(), (n) => n.getId())).toEqual(
-      expect.arrayContaining(SAMPLE_GRAPH2.edges.map((e) => e.name))
-    );
-    expect(Array.from(graph.getNodes(), (n) => n.getId())).toEqual(
+    expect(data.nodes?.map((node) => node.id)).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH2.nodes.map((n) => n.name))
+    );
+    expect(data.edges?.map((edge) => edge.id)).toEqual(
+      expect.arrayContaining(SAMPLE_GRAPH2.edges.map((e) => e.name))
     );
   });
 });

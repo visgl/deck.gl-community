@@ -8,6 +8,7 @@ import type {GraphLayoutProps, GraphLayoutState} from './graph-layout';
 import type {EdgeInterface, Graph, NodeInterface} from '../graph/graph';
 
 export interface GraphRuntimeLayout {
+  readonly type: 'graph-runtime-layout';
   readonly version: number;
   readonly state: GraphLayoutState;
   getProps(): GraphLayoutProps;
@@ -27,3 +28,11 @@ export interface GraphRuntimeLayout {
 }
 
 export type TabularGraphLayout = GraphRuntimeLayout;
+
+export function isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      (value as {type?: unknown}).type === 'graph-runtime-layout'
+  );
+}

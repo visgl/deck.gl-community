@@ -27,13 +27,6 @@ export {createTabularGraphFromData} from './graph/create-tabular-graph-from-data
 export {createGraphFromData} from './graph/create-graph-from-data';
 export {GraphDataBuilder, type GraphDataBuilderOptions} from './graph-data/graph-data-builder';
 export {
-  ColumnarGraphDataBuilder,
-  type ColumnarGraphColumns,
-  type ColumnarGraphNodeColumns,
-  type ColumnarGraphEdgeColumns,
-  type ColumnarGraphDataBuilderOptions
-} from './graph-data/columnar-graph-data-builder';
-export {
   ArrowGraphDataBuilder,
   type ArrowGraphDataBuilderOptions
 } from './graph-data/arrow-graph-data-builder';

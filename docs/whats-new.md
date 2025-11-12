@@ -28,7 +28,7 @@ Highlights:
 
 - `GraphLayerProps` - NEW `data` prop (no longer requires applications to provide `engine: GraphEngine`).
   - `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via its `data` prop (including async URLs), automatically builds a `GraphEngine` when given raw payloads, and deprecates the legacy `graph` prop.
-  - `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects and no longer accepts `Graph` instances directly.
+  - `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects into `GraphData` and no longer accepts `Graph` instances directly.
 - `GraphLayerProps` - NEW `stylesheet` prop that accepts a unified stylesheet containing all for node, edge, and decorator styles.
 - `GraphStylesheet` - NEW edge decorator `'arrow'` that renders arrows on directional edges.
 - `GraphStylesheet` - constants can now be defined using simple string literals (no need to import `NODE_TYPE` etc).

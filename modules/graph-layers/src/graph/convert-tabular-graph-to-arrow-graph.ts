@@ -5,6 +5,9 @@
 import {ArrowGraph} from './arrow-graph';
 import type {ArrowGraphDataBuilderOptions} from '../graph-data/arrow-graph-data-builder';
 import {ArrowGraphDataBuilder} from '../graph-data/arrow-graph-data-builder';
+import type {GraphData} from '../graph-data/graph-data';
+import {isGraphData} from '../graph-data/graph-data';
+import {createTabularGraphFromData} from './create-tabular-graph-from-data';
 import type {TabularGraph, TabularNode, TabularEdge} from './tabular-graph';
 
 const NODE_ATTRIBUTE_KEYS_TO_REMOVE = [
@@ -41,9 +44,11 @@ type SanitizedEdgeData = {
 export type ConvertTabularGraphToArrowGraphOptions = ArrowGraphDataBuilderOptions;
 
 export function convertTabularGraphToArrowGraph(
-  tabularGraph: TabularGraph,
+  source: TabularGraph | GraphData,
   options?: ConvertTabularGraphToArrowGraphOptions
 ): ArrowGraph {
+  const {tabularGraph, shouldDestroy} = resolveTabularGraph(source);
+
   const builder = new ArrowGraphDataBuilder({
     ...options,
     version: options?.version ?? tabularGraph.version
@@ -82,7 +87,23 @@ export function convertTabularGraphToArrowGraph(
     });
   }
 
-  return new ArrowGraph(builder.finish(), tabularGraph.props);
+  try {
+    return new ArrowGraph(builder.finish(), tabularGraph.props);
+  } finally {
+    if (shouldDestroy) {
+      tabularGraph.destroy?.();
+    }
+  }
+}
+
+function resolveTabularGraph(
+  source: TabularGraph | GraphData
+): {tabularGraph: TabularGraph; shouldDestroy: boolean} {
+  if (isGraphData(source)) {
+    return {tabularGraph: createTabularGraphFromData(source), shouldDestroy: true};
+  }
+
+  return {tabularGraph: source, shouldDestroy: false};
 }
 
 function sanitizeNodeData(data: Record<string, unknown>): SanitizedNodeData {

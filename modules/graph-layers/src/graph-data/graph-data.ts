@@ -42,3 +42,16 @@ type GraphDataShape = {
 export type GraphData = GraphDataShape & {
   type?: 'graph-data';
 };
+
+export function isGraphData(value: unknown): value is GraphData {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as GraphData;
+  if ((candidate as {type?: string}).type === 'graph-data') {
+    return true;
+  }
+
+  return Array.isArray(candidate.nodes) || Array.isArray(candidate.edges);
+}

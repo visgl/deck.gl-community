@@ -8,7 +8,6 @@ import {createGraphFromData} from '../../src/graph/create-graph-from-data';
 import {TabularGraph} from '../../src/graph/tabular-graph';
 import {ArrowGraph} from '../../src/graph/arrow-graph';
 import type {GraphData} from '../../src/graph-data/graph-data';
-import type {ColumnarGraphColumns} from '../../src/graph-data/columnar-graph-data-builder';
 import type {ArrowGraphData} from '../../src/graph-data/arrow-graph-data';
 
 describe('createGraphFromData', () => {
@@ -17,11 +16,6 @@ describe('createGraphFromData', () => {
     const graph = createGraphFromData(ROW_GRAPH_DATA, {onNodeAdded});
     expect(graph).toBeInstanceOf(TabularGraph);
     expect(graph.props.onNodeAdded).toBe(onNodeAdded);
-  });
-
-  it('creates a TabularGraph from columnar graph columns', () => {
-    const graph = createGraphFromData(COLUMNAR_GRAPH_DATA);
-    expect(graph).toBeInstanceOf(TabularGraph);
   });
 
   it('creates an ArrowGraph from ArrowGraphData', () => {
@@ -42,26 +36,6 @@ const ROW_GRAPH_DATA: GraphData = {
   edges: [
     {type: 'graph-edge-data', id: 'edge', sourceId: 'a', targetId: 'b'}
   ]
-};
-
-const COLUMNAR_GRAPH_DATA: ColumnarGraphColumns = {
-  type: 'columnar-graph-data',
-  version: 2,
-  nodes: {
-    id: ['a', 'b'],
-    state: ['default', 'hover'],
-    selectable: [true, false],
-    highlightConnectedEdges: [false, false],
-    data: [{}, {}]
-  },
-  edges: {
-    id: ['edge'],
-    sourceId: ['a'],
-    targetId: ['b'],
-    directed: [true],
-    state: ['default'],
-    data: [{}]
-  }
 };
 
 function createArrowGraphData(): ArrowGraphData {

@@ -8,6 +8,7 @@ import {convertTabularGraphToArrowGraph} from '../../src/graph/convert-tabular-g
 import {TabularGraph} from '../../src/graph/tabular-graph';
 import type {TabularGraphSource, TabularGraphAccessors} from '../../src/graph/tabular-graph';
 import type {NodeState, EdgeState} from '../../src/core/constants';
+import type {GraphData} from '../../src/graph-data/graph-data';
 
 import SAMPLE_GRAPH1 from '../data/__fixtures__/graph1.json';
 
@@ -177,5 +178,61 @@ describe('convertTabularGraphToArrowGraph', () => {
     expect(Array.from(classicGraph.getEdges()).map((edge) => String(edge.getId()))).toEqual(
       expect.arrayContaining(SAMPLE_GRAPH1.edges.map((edge) => edge.id))
     );
+  });
+
+  it('builds ArrowGraph instances from GraphData sources', () => {
+    const graphData: GraphData = {
+      type: 'graph-data',
+      version: 3,
+      nodes: [
+        {
+          type: 'graph-node-data',
+          id: '0',
+          label: 'Zero',
+          selectable: true,
+          highlightConnectedEdges: true,
+          state: 'hover',
+          attributes: {label: 'Zero', weight: 5, custom: 'value'}
+        },
+        {
+          type: 'graph-node-data',
+          id: '1',
+          attributes: {label: 'One'}
+        }
+      ],
+      edges: [
+        {
+          type: 'graph-edge-data',
+          id: 'edge-0-1',
+          sourceId: '0',
+          targetId: '1',
+          directed: true,
+          label: '0-1',
+          state: 'selected',
+          attributes: {label: '0-1', capacity: 3}
+        }
+      ]
+    };
+
+    const arrowGraph = convertTabularGraphToArrowGraph(graphData);
+    expect(arrowGraph.version).toBe(3);
+
+    const [node0, node1] = Array.from(arrowGraph.getNodes());
+    expect(String(node0.getId())).toBe('0');
+    expect(node0.getState()).toBe('hover');
+    expect(node0.isSelectable()).toBe(true);
+    expect(node0.shouldHighlightConnectedEdges()).toBe(true);
+    expect(node0.getPropertyValue('custom')).toBe('value');
+    expect(node0.getPropertyValue('label')).toBe('Zero');
+
+    expect(String(node1.getId())).toBe('1');
+    expect(node1.getPropertyValue('label')).toBe('One');
+
+    const [edge] = Array.from(arrowGraph.getEdges());
+    expect(String(edge.getId())).toBe('edge-0-1');
+    expect(edge.isDirected()).toBe(true);
+    expect(edge.getState()).toBe('selected');
+    expect(edge.getPropertyValue('capacity')).toBe(3);
+    expect(edge.getPropertyValue('label')).toBe('0-1');
   });
 });
