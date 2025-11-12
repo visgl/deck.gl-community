@@ -2,33 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  CompositeLayer,
-  type CompositeLayerProps,
-  type Accessor,
-  type AccessorFunction
-} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
 import {IconLayer} from '@deck.gl/layers';
 
-import type {NodeInterface} from '../../../graph/graph';
 import {MarkerMapping} from './marker-mapping';
 import {AtlasDataURL} from './atlas-data-url';
 
-/** Props for the {@link MarkerLayer} composite layer. */
-export type MarkerLayerProps = CompositeLayerProps & {
-  /** Graph nodes to render as icon markers. */
-  data: readonly NodeInterface[];
-  /** Accessor returning the world position for each marker. */
-  getPosition: AccessorFunction<NodeInterface, readonly [number, number]>;
-  /** Accessor resolving the icon identifier for each marker. */
-  getMarker: Accessor<NodeInterface, string>;
-  /** Accessor resolving the RGBA color for each marker. */
-  getColor: Accessor<NodeInterface, readonly number[]>;
-  /** Accessor resolving the icon size for each marker. */
-  getSize: Accessor<NodeInterface, number>;
-};
-
-export class MarkerLayer extends CompositeLayer<MarkerLayerProps> {
+export class MarkerLayer extends CompositeLayer {
   static layerName = 'MarkerLayer';
 
   static defaultProps = {
@@ -40,7 +20,7 @@ export class MarkerLayer extends CompositeLayer<MarkerLayerProps> {
   };
 
   renderLayers() {
-    const {getMarker, ...otherProps} = this.props;
+    const {getMarker, ...otherProps} = this.props as any;
     return [
       new IconLayer(
         this.getSubLayerProps({

@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, type CompositeLayerProps} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 
-import type {EdgeInterface} from '../../graph/graph';
-import type {GraphStylesheetEngine} from '../../style/graph-style-engine';
-import type {EdgeLayoutAccessor, EdgeLayoutInfo} from '../edge-layer';
 import {Arrow2DGeometry} from './arrow-2d-geometry';
 
 const DEFAULT_ARROW_GEOMETRY = new Arrow2DGeometry({length: 1, headWidth: 0.6});
+
+type LayoutInfo = {
+  sourcePosition: number[];
+  targetPosition: number[];
+  controlPoints?: number[][];
+};
 
 const DEFAULT_Z = 0;
 
@@ -52,12 +55,8 @@ function normalizeVector(vector: number[]): number[] {
   return [(vector[0] ?? 0) / length, (vector[1] ?? 0) / length, (vector[2] ?? 0) / length];
 }
 
-function getTerminalDirection({
-  sourcePosition,
-  targetPosition,
-  controlPoints = []
-}: EdgeLayoutInfo): {
-  target: readonly number[];
+function getTerminalDirection({sourcePosition, targetPosition, controlPoints = []}: LayoutInfo): {
+  target: number[];
   direction: number[];
 } {
   const anchor = controlPoints.length ? controlPoints[controlPoints.length - 1] : sourcePosition;
@@ -74,9 +73,9 @@ export function getArrowTransform({
   size,
   offset = null
 }: {
-  layout: EdgeLayoutInfo;
+  layout: LayoutInfo;
   size: number;
-  offset?: readonly number[] | null;
+  offset?: number[] | null;
 }): {position: [number, number, number]; angle: number} {
   const {target, direction} = getTerminalDirection(layout);
   const unit = normalizeVector(direction);
@@ -113,24 +112,12 @@ export function getArrowTransform({
   return {position, angle};
 }
 
-/** Props for the {@link EdgeArrowLayer} composite layer. */
-export type EdgeArrowLayerProps = CompositeLayerProps & {
-  /** Graph edges to decorate with directional arrow meshes. */
-  data: readonly EdgeInterface[];
-  /** Accessor returning layout metadata for each edge. */
-  getLayoutInfo: EdgeLayoutAccessor;
-  /** Stylesheet engine that exposes Deck.gl accessors for arrow rendering. */
-  stylesheet: GraphStylesheetEngine;
-  /** Value used to invalidate cached positions when edge layout changes. */
-  positionUpdateTrigger?: unknown;
-};
-
-export class EdgeArrowLayer extends CompositeLayer<EdgeArrowLayerProps> {
+export class EdgeArrowLayer extends CompositeLayer {
   static layerName = 'EdgeArrowLayer';
 
   renderLayers() {
-    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props;
-    const directedEdges = data.filter(isEdgeDirected);
+    const {data, getLayoutInfo, positionUpdateTrigger = 0, stylesheet} = this.props as any;
+    const directedEdges = (data || []).filter(isEdgeDirected);
 
     if (!directedEdges.length) {
       return [];
@@ -153,14 +140,14 @@ export class EdgeArrowLayer extends CompositeLayer<EdgeArrowLayerProps> {
           getOrientation: (edge) => {
             const layout = getLayoutInfo(edge);
             const size = resolveSize(getSize(edge));
-            const offset = getOffset ? (getOffset(edge) as readonly number[] | null) : null;
+            const offset = getOffset ? getOffset(edge) : null;
             const {angle} = getArrowTransform({layout, size, offset});
             return [0, -angle, 0];
           },
           getPosition: (edge) => {
             const layout = getLayoutInfo(edge);
             const size = resolveSize(getSize(edge));
-            const offset = getOffset ? (getOffset(edge) as readonly number[] | null) : null;
+            const offset = getOffset ? getOffset(edge) : null;
             const {position} = getArrowTransform({layout, size, offset});
             return position;
           },

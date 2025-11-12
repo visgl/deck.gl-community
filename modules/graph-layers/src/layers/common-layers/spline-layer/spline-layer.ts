@@ -2,21 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  COORDINATE_SYSTEM,
-  CompositeLayer,
-  type CompositeLayerProps,
-  type Accessor,
-  type AccessorContext,
-  type AccessorFunction,
-  type Color,
-  type UpdateParameters
-} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
 import {PathLayer} from '@deck.gl/layers';
 import {getCurvePoints} from 'cardinal-spline-js';
 // const getCurvePoints = () => {};
-
-type CompositeUpdateParameters<PropsT> = UpdateParameters<CompositeLayer<PropsT>>;
 
 /* Constants */
 const defaultProps = {
@@ -28,113 +17,62 @@ const defaultProps = {
   fp64: false
 };
 
-/** Props for the {@link SplineLayer} composite layer. */
-export type SplineLayerProps<DatumT = unknown> = CompositeLayerProps & {
-  /** Items that contain curve control data. */
-  data: readonly DatumT[];
-  /** Accessor resolving the curve source position. */
-  getSourcePosition: AccessorFunction<DatumT, readonly number[]>;
-  /** Accessor resolving the curve target position. */
-  getTargetPosition: AccessorFunction<DatumT, readonly number[]>;
-  /** Accessor resolving intermediate spline control points. */
-  getControlPoints: AccessorFunction<DatumT, readonly number[][]>;
-  /** Accessor resolving the RGBA stroke color. */
-  getColor: Accessor<DatumT, Color | Color[]>;
-  /** Accessor resolving the curve width. */
-  getWidth: Accessor<DatumT, number>;
-  /** Parameters used to control Deck.gl update triggers. */
-  updateTriggers: Record<string, unknown>;
-  /** Coordinate system used for rendering. */
-  coordinateSystem?: number;
-};
-
-type SplinePath<DatumT> = {
-  datum: DatumT;
-  index: number;
-  path: Float64Array;
-};
-
-type SplineLayerState<DatumT> = {
-  paths: SplinePath<DatumT>[];
-};
-
-export class SplineLayer<DatumT = unknown> extends CompositeLayer<SplineLayerProps<DatumT>> {
+export class SplineLayer extends CompositeLayer {
   static layerName = 'SplineLayer';
 
-  declare state: SplineLayerState<DatumT>;
-
   initializeState() {
-    this.state = {paths: []};
+    this.state = {typedEdgeData: []};
   }
 
-  shouldUpdateState({changeFlags}: CompositeUpdateParameters<SplineLayerProps<DatumT>>) {
-    return Boolean(changeFlags.dataChanged || changeFlags.propsChanged);
+  shouldUpdateState({changeFlags}) {
+    return changeFlags.dataChanged || changeFlags.propsChanged;
   }
 
-  updateState(
-    params: CompositeUpdateParameters<SplineLayerProps<DatumT>>
-  ) {
-    super.updateState(params as UpdateParameters<CompositeLayer<any>>);
-    const {changeFlags} = params;
+  updateState({props, oldProps, changeFlags}) {
+    super.updateState({props, oldProps, changeFlags} as any);
     if (changeFlags.dataChanged || changeFlags.propsChanged) {
       this.updateSplineData();
     }
   }
 
   updateSplineData() {
-    const {data, getControlPoints, getSourcePosition, getTargetPosition} = this.props;
-    const paths = data.map<SplinePath<DatumT>>((datum, index) => {
-      const accessorContext: AccessorContext<DatumT> = {index, data, target: [] as number[]};
-      const sourcePosition = getSourcePosition(datum, accessorContext);
-      const targetPosition = getTargetPosition(datum, accessorContext);
-      const controlPoints = getControlPoints(datum, accessorContext);
+    const {data} = this.props as any;
+    const paths = data.reduce((res, d) => {
+      const sourcePosition = (this.props as any).getSourcePosition(d);
+      const targetPosition = (this.props as any).getTargetPosition(d);
+      const controlPoints = (this.props as any).getControlPoints(d);
 
-      const serializedControlPoints = controlPoints.flat();
+      // Catmull-Rom curve
+      const serializedControlPoints = controlPoints.toString().split(',');
 
-      const curvePoints = getCurvePoints(
+      // NOTE: we might change the number of points according to the length.
+      // so we can render less segements.
+      // points = [x1, y1, x2, y2, ...];
+      const points = getCurvePoints(
         [...sourcePosition, ...serializedControlPoints, ...targetPosition],
         0.5,
         10
       );
-
-      return {
-        datum,
-        index,
-        path: Float64Array.from(curvePoints)
-      };
-    });
+      // convert points to [[x1, y1], [x2, y2], ...]
+      const path = [];
+      for (let idx = 0; idx < points.length; idx += 2) {
+        path.push([points[idx], points[idx + 1]]);
+      }
+      res.push(path);
+      return res;
+    }, []);
     this.setState({paths});
   }
 
   renderLayers() {
-    const {coordinateSystem, data, getColor, getWidth, id, updateTriggers} = this.props;
+    const {coordinateSystem, getColor, getWidth, id, updateTriggers} = this.props as any;
     const {paths} = this.state;
-    return new PathLayer<SplinePath<DatumT>>({
+    return new PathLayer({
       id: `${id}-splines`,
-      data: paths,
-      getPath: ({path}) => path,
-      getColor: (item, objectInfo) => {
-        if (typeof getColor === 'function') {
-          const accessorContext: AccessorContext<DatumT> = {
-            index: item.index,
-            data,
-            target: (objectInfo.target) ?? []
-          };
-          return getColor(item.datum, accessorContext);
-        }
-        return getColor;
-      },
-      getWidth: (item, objectInfo) => {
-        if (typeof getWidth === 'function') {
-          const accessorContext: AccessorContext<DatumT> = {
-            index: item.index,
-            data,
-            target: (objectInfo.target) ?? []
-          };
-          return getWidth(item.datum, accessorContext);
-        }
-        return getWidth;
-      },
+      data: paths as any,
+      getPath: (d) => d,
+      getColor,
+      getWidth,
       coordinateSystem,
       updateTriggers
     });

@@ -2,90 +2,33 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  CompositeLayer,
-  type CompositeLayerProps,
-  type Accessor,
-  type AccessorFunction,
-  type UpdateParameters
-} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 
-type NumericTuple = readonly [number, number] | readonly [number, number, number];
-
-type CompositeUpdateParameters<PropsT> = UpdateParameters<CompositeLayer<PropsT>>;
-
-/** Props for the {@link ZoomableTextLayer} composite layer. */
-export type ZoomableTextLayerProps<DatumT = unknown> = CompositeLayerProps & {
-  /** Items to render as zoom-aware text labels. */
-  data: readonly DatumT[];
-  /** Accessor returning the world position for each label. */
-  getPosition: AccessorFunction<DatumT, NumericTuple>;
-  /** Accessor resolving the RGBA color for each label. */
-  getColor?: Accessor<DatumT, readonly number[]>;
-  /** Accessor resolving the text content for each label. */
-  getText?: Accessor<DatumT, string>;
-  /** Accessor resolving the font size for each label. */
-  getSize?: Accessor<DatumT, number>;
-  /** Accessor resolving the horizontal text anchor. */
-  getTextAnchor?: Accessor<DatumT, string>;
-  /** Accessor resolving the vertical alignment baseline. */
-  getAlignmentBaseline?: Accessor<DatumT, string>;
-  /** Accessor resolving the rotation angle in degrees. */
-  getAngle?: Accessor<DatumT, number>;
-  /** Whether label sizes should respond to zoom level. */
-  scaleWithZoom?: boolean;
-  /** Update triggers forwarded to the Deck.gl {@link TextLayer}. */
-  updateTriggers: Record<string, unknown>;
-  /** Font family used when rendering text. */
-  fontFamily?: string;
-  /** Unit system used to interpret {@link TextLayerProps.wordBreak}. */
-  textWordUnits?: string;
-  /** Strategy used to break long words. */
-  textWordBreak?: string;
-  /** Maximum text width in layout units. */
-  textMaxWidth?: number;
-  /** Minimum on-screen font size in pixels. */
-  textSizeMinPixels?: number;
-};
-
-type ZoomableTextLayerState = {
-  characterSet: string[];
-};
-
-export class ZoomableTextLayer<DatumT = unknown> extends CompositeLayer<ZoomableTextLayerProps<DatumT>> {
+export class ZoomableTextLayer extends CompositeLayer {
   static layerName = 'ZoomableTextLayer';
-
-  declare state: ZoomableTextLayerState;
 
   initializeState() {
     this.state = {characterSet: []};
   }
 
-  shouldUpdateState({changeFlags}: CompositeUpdateParameters<ZoomableTextLayerProps<DatumT>>) {
-    const {scaleWithZoom} = this.props;
+  shouldUpdateState({props, changeFlags}) {
+    const {scaleWithZoom} = this.props as any;
     if (!scaleWithZoom) {
-      return Boolean(changeFlags.dataChanged || changeFlags.propsChanged);
+      return changeFlags.dataChanged || changeFlags.propsChanged;
     }
-    return Boolean(changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged);
+    return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged;
   }
 
-  updateState(
-    params: CompositeUpdateParameters<ZoomableTextLayerProps<DatumT>>
-  ) {
-    super.updateState(params as UpdateParameters<CompositeLayer<any>>);
-    const {props, changeFlags} = params;
+  updateState({props, oldProps, changeFlags}) {
+    super.updateState({props, oldProps, changeFlags} as any);
     if (changeFlags.propsOrDataChanged) {
       const {getText} = props;
-      let textLabels: string[] = [];
+      let textLabels = [];
       if (typeof getText === 'function') {
-        textLabels = props.data.map((item, index) =>
-          getText(item, {index, data: props.data, target: [] as number[]})
-        );
-      } else if (typeof getText === 'string') {
-        textLabels = [getText];
+        textLabels = props.data.map(getText);
       } else {
-        textLabels = [];
+        textLabels = [getText];
       }
       const characterSet = new Set(textLabels.join(''));
       const uniqueCharacters = Array.from(characterSet);
@@ -110,7 +53,7 @@ export class ZoomableTextLayer<DatumT = unknown> extends CompositeLayer<Zoomable
       textWordBreak,
       textMaxWidth,
       textSizeMinPixels
-    } = this.props;
+    } = this.props as any;
 
     const sizeUpdateTrigger = scaleWithZoom ? [getSize, this.context.viewport.zoom] : false;
     // getText only expects function not plain value (string)
