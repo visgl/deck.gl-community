@@ -66,8 +66,18 @@ type LayoutOptionsDetailsProps = {
 };
 
 function LayoutOptionsDetails({children, description, defaultOpen}: LayoutOptionsDetailsProps) {
+  const [isOpen, setIsOpen] = useState(Boolean(defaultOpen));
+
+  useEffect(() => {
+    setIsOpen(Boolean(defaultOpen));
+  }, [defaultOpen]);
+
+  const handleToggle = useCallback((event: React.SyntheticEvent<HTMLDetailsElement>) => {
+    setIsOpen(event.currentTarget.open);
+  }, []);
+
   return (
-    <details defaultOpen={defaultOpen} style={DETAILS_STYLE}>
+    <details open={isOpen} onToggle={handleToggle} style={DETAILS_STYLE}>
       <summary style={SUMMARY_STYLE}>Layout options</summary>
       {description
         ? typeof description === 'string'

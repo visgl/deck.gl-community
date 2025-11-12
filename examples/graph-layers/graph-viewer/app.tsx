@@ -155,14 +155,17 @@ const loadingReducer = (state, action) => {
     case 'startLayout':
       return {loaded: false, rendered: false, isLoading: true};
     case 'layoutDone':
-      return state.loaded ? state : {...state, loaded: true};
+      if (state.loaded) {
+        return state.isLoading ? {...state, isLoading: false} : state;
+      }
+
+      return {...state, loaded: true, isLoading: false};
     case 'afterRender':
-      if (!state.loaded) {
+      if (!state.loaded || state.rendered) {
         return state;
       }
 
-      // not interested after the first render, the state won't change
-      return state.rendered ? state : {...state, rendered: true, isLoading: false};
+      return {...state, rendered: true};
     default:
       throw new Error(`Unhandled action type: ${action.type}`);
   }
