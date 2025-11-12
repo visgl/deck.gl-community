@@ -3,77 +3,15 @@
 // Copyright (c) vis.gl contributors
 
 import type {NodeState, EdgeState} from '../core/constants';
-import type {GraphData} from '../graph-data/graph-data';
-import type {
-  ColumnarGraphColumns,
-  ColumnarGraphNodeColumns,
-  ColumnarGraphEdgeColumns
-} from '../graph-data/columnar-graph-data-builder';
-import {ColumnarGraphDataBuilder} from '../graph-data/columnar-graph-data-builder';
-import {
-  normalizeBooleanColumn,
-  normalizeDataColumn,
-  normalizeEdgeStateColumn,
-  normalizeNodeStateColumn,
-  normalizeVersion
-} from './graph-normalization';
-import type {
-  TabularGraphSource,
-  TabularNodeAccessors,
-  TabularEdgeAccessors
-} from './tabular-graph';
+import type {GraphData, GraphEdgeData, GraphNodeData} from '../graph-data/graph-data';
+import {cloneRecord, normalizeEdgeState, normalizeNodeState, normalizeVersion} from './graph-normalization';
+import type {TabularGraphSource, TabularNodeAccessors, TabularEdgeAccessors} from './tabular-graph';
 import {TabularGraph} from './tabular-graph';
 
-export function createTabularGraphFromData(data: GraphData | ColumnarGraphColumns): TabularGraph {
-  if (isColumnarGraphColumns(data)) {
-    return createTabularGraphFromColumnarData(data);
-  }
-
-  const builder = new ColumnarGraphDataBuilder({
-    nodeCapacity: Array.isArray(data.nodes) ? data.nodes.length : 0,
-    edgeCapacity: Array.isArray(data.edges) ? data.edges.length : 0,
-    version: data.version
-  });
-
-  if (Array.isArray(data.nodes)) {
-    for (const node of data.nodes) {
-      builder.addNode(node);
-    }
-  }
-
-  if (Array.isArray(data.edges)) {
-    for (const edge of data.edges) {
-      builder.addEdge(edge);
-    }
-  }
-
-  return createTabularGraphFromColumnarData(builder.build());
-}
-
-type NodeHandle = number;
-type EdgeHandle = number;
-
-type NormalizedNodeColumns = {
-  id: (string | number)[];
-  state: NodeState[];
-  selectable: boolean[];
-  highlightConnectedEdges: boolean[];
-  data: Record<string, unknown>[];
-};
-
-type NormalizedEdgeColumns = {
-  id: (string | number)[];
-  sourceId: (string | number)[];
-  targetId: (string | number)[];
-  directed: boolean[];
-  state: EdgeState[];
-  data: Record<string, unknown>[];
-};
-
-function createTabularGraphFromColumnarData(data: ColumnarGraphColumns): TabularGraph {
+export function createTabularGraphFromData(data: GraphData): TabularGraph {
   const version = normalizeVersion(data.version);
-  const nodes = normalizeNodeColumns(data.nodes);
-  const edges = normalizeEdgeColumns(data.edges);
+  const nodes = normalizeNodes(Array.isArray(data.nodes) ? data.nodes : []);
+  const edges = normalizeEdges(Array.isArray(data.edges) ? data.edges : []);
 
   const nodeCount = nodes.id.length;
   const edgeCount = edges.id.length;
@@ -140,61 +78,102 @@ function createTabularGraphFromColumnarData(data: ColumnarGraphColumns): Tabular
   return new TabularGraph(source);
 }
 
-function isColumnarGraphColumns(value: GraphData | ColumnarGraphColumns): value is ColumnarGraphColumns {
-  if (!value || typeof value !== 'object') {
-    return false;
+type NodeHandle = number;
+type EdgeHandle = number;
+
+type NormalizedNodeColumns = {
+  id: (string | number)[];
+  state: NodeState[];
+  selectable: boolean[];
+  highlightConnectedEdges: boolean[];
+  data: Record<string, unknown>[];
+};
+
+type NormalizedEdgeColumns = {
+  id: (string | number)[];
+  sourceId: (string | number)[];
+  targetId: (string | number)[];
+  directed: boolean[];
+  state: EdgeState[];
+  data: Record<string, unknown>[];
+};
+
+function normalizeNodes(nodes: GraphNodeData[]): NormalizedNodeColumns {
+  const normalized: NormalizedNodeColumns = {
+    id: [],
+    state: [],
+    selectable: [],
+    highlightConnectedEdges: [],
+    data: []
+  };
+
+  for (const node of nodes) {
+    if (typeof node?.id === 'undefined') {
+      throw new Error('Graph node requires an "id" field.');
+    }
+
+    const attributes = cloneRecord(node.attributes);
+    if (typeof node.label !== 'undefined') {
+      attributes.label = node.label;
+    }
+    if (typeof node.weight !== 'undefined') {
+      attributes.weight = node.weight;
+    }
+
+    const stateCandidate = node.state ?? (attributes.state as NodeState | undefined);
+    const selectableCandidate = node.selectable ?? (attributes.selectable as boolean | undefined);
+    const highlightCandidate =
+      node.highlightConnectedEdges ?? (attributes.highlightConnectedEdges as boolean | undefined);
+
+    normalized.id.push(node.id);
+    normalized.state.push(normalizeNodeState(stateCandidate));
+    normalized.selectable.push(Boolean(selectableCandidate));
+    normalized.highlightConnectedEdges.push(Boolean(highlightCandidate));
+    normalized.data.push(attributes);
   }
 
-  const typed = value as {type?: string | undefined};
-  if (typed.type === 'graph-data') {
-    return false;
-  }
-  if (typed.type === 'columnar-graph-data') {
-    return true;
-  }
-
-  const maybeGraphData = value as GraphData;
-  if (Array.isArray(maybeGraphData.nodes) || Array.isArray(maybeGraphData.edges)) {
-    return false;
-  }
-
-  const maybeColumnar = value as ColumnarGraphColumns;
-  return Array.isArray(maybeColumnar.nodes?.id) && Array.isArray(maybeColumnar.edges?.id);
+  return normalized;
 }
 
-function normalizeNodeColumns(columns: ColumnarGraphNodeColumns): NormalizedNodeColumns {
-  const id = Array.isArray(columns.id) ? columns.id.slice() : [];
-  const length = id.length;
-
-  return {
-    id,
-    state: normalizeNodeStateColumn(columns.state, length),
-    selectable: normalizeBooleanColumn(columns.selectable, length, false),
-    highlightConnectedEdges: normalizeBooleanColumn(columns.highlightConnectedEdges, length, false),
-    data: normalizeDataColumn(columns.data, length)
+function normalizeEdges(edges: GraphEdgeData[]): NormalizedEdgeColumns {
+  const normalized: NormalizedEdgeColumns = {
+    id: [],
+    sourceId: [],
+    targetId: [],
+    directed: [],
+    state: [],
+    data: []
   };
-}
 
-function normalizeEdgeColumns(columns: ColumnarGraphEdgeColumns): NormalizedEdgeColumns {
-  const id = Array.isArray(columns.id) ? columns.id.slice() : [];
-  const length = id.length;
+  for (const edge of edges) {
+    if (
+      typeof edge?.id === 'undefined' ||
+      typeof edge?.sourceId === 'undefined' ||
+      typeof edge?.targetId === 'undefined'
+    ) {
+      throw new Error('Graph edge requires "id", "sourceId", and "targetId" fields.');
+    }
 
-  if (!Array.isArray(columns.sourceId) || columns.sourceId.length !== length) {
-    throw new Error('Columnar graph edge data requires a sourceId column matching the id column length.');
+    const attributes = cloneRecord(edge.attributes);
+    if (typeof edge.label !== 'undefined') {
+      attributes.label = edge.label;
+    }
+    if (typeof edge.weight !== 'undefined') {
+      attributes.weight = edge.weight;
+    }
+
+    const stateCandidate = edge.state ?? (attributes.state as EdgeState | undefined);
+    const directedCandidate = edge.directed ?? (attributes.directed as boolean | undefined);
+
+    normalized.id.push(edge.id);
+    normalized.sourceId.push(edge.sourceId);
+    normalized.targetId.push(edge.targetId);
+    normalized.directed.push(Boolean(directedCandidate));
+    normalized.state.push(normalizeEdgeState(stateCandidate));
+    normalized.data.push(attributes);
   }
 
-  if (!Array.isArray(columns.targetId) || columns.targetId.length !== length) {
-    throw new Error('Columnar graph edge data requires a targetId column matching the id column length.');
-  }
-
-  return {
-    id,
-    sourceId: columns.sourceId.slice(0, length),
-    targetId: columns.targetId.slice(0, length),
-    directed: normalizeBooleanColumn(columns.directed, length, false),
-    state: normalizeEdgeStateColumn(columns.state, length),
-    data: normalizeDataColumn(columns.data, length)
-  };
+  return normalized;
 }
 
 function createIndexArray(length: number): number[] {

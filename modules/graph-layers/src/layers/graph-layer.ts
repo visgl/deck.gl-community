@@ -15,7 +15,6 @@ import {GraphLayout, type GraphLayoutEventDetail} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 import {isGraphData, type GraphData} from '../graph-data/graph-data';
-import {isColumnarGraphColumns, type ColumnarGraphColumns} from '../graph-data/columnar-graph-data-builder';
 import {isArrowGraphData, type ArrowGraphData} from '../graph-data/arrow-graph-data';
 
 import {
@@ -61,6 +60,7 @@ import {EdgeAttachmentHelper} from './edge-attachment-helper';
 import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
 import {JSONTabularGraphLoader} from '../loaders/json-loader';
+import {isGraphRuntimeLayout} from '../core/graph-runtime-layout';
 
 const NODE_LAYER_MAP = {
   'rectangle': RectangleLayer,
@@ -119,14 +119,13 @@ export type GraphLayerDataInput =
   | GraphEngine
   | Graph
   | GraphData
-  | ColumnarGraphColumns
   | ArrowGraphData
   | GraphLayerRawData
   | unknown[]
   | string
   | null;
 
-type GraphLayerLoaderResult = Graph | GraphData | ColumnarGraphColumns | ArrowGraphData | null;
+type GraphLayerLoaderResult = Graph | GraphData | ArrowGraphData | null;
 
 export type GraphLayerProps = CompositeLayerProps &
   _GraphLayerProps & {
@@ -479,11 +478,11 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return undefined;
     }
 
-    if (!Array.isArray(data) && !this._isPlainObject(data)) {
-      return null;
+    if (Array.isArray(data) || this._isPlainObject(data)) {
+      return this._loadEngineFromJsonLike(data as unknown[] | GraphLayerRawData, props);
     }
 
-    return this._loadEngineFromJsonLike(data, props);
+    return null;
   }
 
   private _getImmediateEngineResult(
@@ -494,17 +493,17 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    if (typeof (data as PromiseLike<GraphLayerDataInput>)?.then === 'function') {
-      return undefined;
-    }
-
     if (data instanceof GraphEngine) {
       return data;
     }
 
-    const graph = this._coerceGraph(data) ?? this._createGraphFromDataValue(data);
+    const graph = this._coerceGraph(data);
     if (graph) {
       return this._buildEngineFromGraph(graph, props.layout);
+    }
+
+    if (isGraphData(data) || isArrowGraphData(data)) {
+      return this._buildEngineFromGraph(createGraphFromData(data), props.layout);
     }
 
     return undefined;
@@ -520,7 +519,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    const graph = this._coerceGraph(loaded) ?? this._createGraphFromDataValue(loaded);
+    const graph =
+      this._coerceGraph(loaded) ||
+      (isGraphData(loaded) || isArrowGraphData(loaded) ? createGraphFromData(loaded) : null);
     if (!graph) {
       return null;
     }
@@ -554,7 +555,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    if (this._isGraphRuntimeLayout(layout)) {
+    if (isGraphRuntimeLayout(layout)) {
       return new GraphEngine({graph, layout});
     }
 
@@ -598,14 +599,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return null;
   }
 
-  private _createGraphFromDataValue(value: unknown): Graph | null {
-    if (isGraphData(value) || isColumnarGraphColumns(value) || isArrowGraphData(value)) {
-      return createGraphFromData(value);
-    }
-
-    return null;
-  }
-
   private _convertToClassicGraph(graph: Graph): ClassicGraph | null {
     if (graph instanceof ClassicGraph) {
       return graph;
@@ -621,20 +614,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     return null;
-  }
-
-  private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
-
-    const layout = value as GraphRuntimeLayout;
-    return (
-      typeof layout.initializeGraph === 'function' &&
-      typeof layout.getNodePosition === 'function' &&
-      typeof layout.getEdgePosition === 'function' &&
-      typeof layout.setProps === 'function'
-    );
   }
 
   private _isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {

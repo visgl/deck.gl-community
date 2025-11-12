@@ -4,6 +4,7 @@
 
 import type {NodeState, EdgeState} from '../core/constants';
 import type {GraphData, GraphNodeData, GraphEdgeData} from '../graph-data/graph-data';
+import {GraphDataBuilder} from '../graph-data/graph-data-builder';
 import {basicNodeParser} from './node-parsers';
 import {basicEdgeParser} from './edge-parsers';
 import {error} from '../utils/log';
@@ -16,6 +17,7 @@ type GraphJSON = {
 
 export type JSONTabularGraphLoaderOptions = {
   json: GraphJSON;
+  builder?: GraphDataBuilder;
   nodeParser?: (node: any) => {
     id: string | number;
     state?: NodeState;
@@ -37,6 +39,7 @@ export type JSONTabularGraphLoaderOptions = {
 
 export function JSONTabularGraphLoader({
   json,
+  builder,
   nodeParser = basicNodeParser,
   edgeParser = basicEdgeParser
 }: JSONTabularGraphLoaderOptions): GraphData | null {
@@ -47,22 +50,21 @@ export function JSONTabularGraphLoader({
     return null;
   }
 
-  const normalizedNodes = parseNodes(nodes, nodeParser);
-  const normalizedEdges = parseEdges(Array.isArray(edges) ? edges : [], edgeParser);
-  return {
-    type: 'graph-data',
-    version: json?.version,
-    nodes: normalizedNodes,
-    edges: normalizedEdges
-  };
+  const graphBuilder = builder ?? new GraphDataBuilder();
+  graphBuilder.setVersion(json?.version);
+
+  parseNodes(nodes, nodeParser, graphBuilder);
+  parseEdges(Array.isArray(edges) ? edges : [], edgeParser, graphBuilder);
+
+  return graphBuilder.build();
 }
 
 function parseNodes(
   nodes: unknown[],
-  nodeParser: JSONTabularGraphLoaderOptions['nodeParser']
-): GraphNodeData[] {
-  const parsedNodes: GraphNodeData[] = [];
-
+  nodeParser: JSONTabularGraphLoaderOptions['nodeParser'],
+  builder: GraphDataBuilder
+): void {
+  
   for (const node of nodes) {
     const parsed = nodeParser?.(node);
     if (parsed && typeof parsed.id !== 'undefined') {
@@ -78,18 +80,16 @@ function parseNodes(
         weight: parsed.weight ?? (attributes.weight as number | undefined),
         attributes
       };
-      parsedNodes.push(nodeRecord);
+      builder.addNode(nodeRecord);
     }
   }
-
-  return parsedNodes;
 }
 
 function parseEdges(
   edges: unknown[],
-  edgeParser: JSONTabularGraphLoaderOptions['edgeParser']
-): GraphEdgeData[] {
-  const handles: GraphEdgeData[] = [];
+  edgeParser: JSONTabularGraphLoaderOptions['edgeParser'],
+  builder: GraphDataBuilder
+): void {
 
   for (const edge of edges) {
     const parsed = edgeParser?.(edge);
@@ -99,7 +99,7 @@ function parseEdges(
       typeof parsed.targetId !== 'undefined'
     ) {
       const attributes = cloneRecord(edge);
-      handles.push({
+      const edgeRecord: GraphEdgeData = {
         type: 'graph-edge-data',
         id: parsed.id,
         directed: parsed.directed ?? (attributes.directed as boolean | undefined),
@@ -109,11 +109,10 @@ function parseEdges(
         label: parsed.label ?? (attributes.label as string | undefined),
         weight: parsed.weight ?? (attributes.weight as number | undefined),
         attributes
-      });
+      };
+      builder.addEdge(edgeRecord);
     }
   }
-
-  return handles;
 }
 
 function cloneRecord(value: unknown): Record<string, unknown> {

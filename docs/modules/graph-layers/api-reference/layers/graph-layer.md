@@ -32,7 +32,7 @@ const layer = new GraphLayer({
 
 `GraphLayer` treats the `data` prop as its single entry point. Provide a
 `GraphEngine`, a [`Graph`](../graph.md), pre-normalized `GraphData`,
-`ColumnarGraphColumns`, `ArrowGraphData`, or raw graph
+`ArrowGraphData`, or raw graph
 payloads (arrays of edges or `{nodes, edges}` objects). When the layer receives
 new data it rebuilds the internal `GraphEngine`, re-runs the layout, and updates
 interactions automatically. Supplying raw data requires a `layout` so the layer
