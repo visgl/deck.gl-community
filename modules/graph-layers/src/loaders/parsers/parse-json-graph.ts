@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {NodeState, EdgeState} from '../core/constants';
-import type {TabularGraph} from '../graph/tabular-graph';
-import type {GraphNodeData, GraphEdgeData} from '../graph-data/graph-data';
-import {ColumnarGraphDataBuilder} from '../graph-data/columnar-graph-data-builder';
-import {createTabularGraphFromData} from '../graph/create-tabular-graph-from-data';
-import {basicNodeParser} from './node-parsers';
-import {basicEdgeParser} from './edge-parsers';
-import {error} from '../utils/log';
+import type {NodeState, EdgeState} from '../../core/constants';
+import type {TabularGraph} from '../../graph/tabular-graph';
+import type {GraphNodeData, GraphEdgeData} from '../../graph-data/graph-data';
+import {PlainGraphDataBuilder} from '../../graph-data/plain-graph-data-builder';
+import {basicNodeParser} from '../parsers/node-parsers';
+import {basicEdgeParser} from '../parsers/edge-parsers';
+import {error} from '../../utils/log';
 
 type GraphJSON = {
   version?: number;
@@ -38,7 +37,7 @@ export type JSONTabularGraphLoaderOptions = {
   } | null;
 };
 
-export function JSONTabularGraphLoader({
+export function parseJSONGraph({
   json,
   nodeParser = basicNodeParser,
   edgeParser = basicEdgeParser
@@ -53,7 +52,8 @@ export function JSONTabularGraphLoader({
   const normalizedNodes = parseNodes(nodes, nodeParser);
   const normalizedEdges = parseEdges(Array.isArray(edges) ? edges : [], edgeParser);
 
-  const builder = new ColumnarGraphDataBuilder({
+  const builder = new PlainGraphDataBuilder({
+    // @ts-expect-error TODO: fixme
     nodeCapacity: normalizedNodes.length,
     edgeCapacity: normalizedEdges.length,
     version: json?.version
@@ -67,7 +67,7 @@ export function JSONTabularGraphLoader({
     builder.addEdge(edge);
   }
 
-  return createTabularGraphFromData(builder.build());
+  return builder.build();
 }
 
 function parseNodes(
@@ -81,7 +81,6 @@ function parseNodes(
     if (parsed && typeof parsed.id !== 'undefined') {
       const attributes = cloneRecord(node);
       const nodeRecord: GraphNodeData = {
-        type: 'graph-node-data',
         id: parsed.id,
         state: parsed.state ?? (attributes.state as NodeState | undefined),
         selectable: parsed.selectable ?? (attributes.selectable as boolean | undefined),
@@ -113,7 +112,6 @@ function parseEdges(
     ) {
       const attributes = cloneRecord(edge);
       handles.push({
-        type: 'graph-edge-data',
         id: parsed.id,
         directed: parsed.directed ?? (attributes.directed as boolean | undefined),
         sourceId: parsed.sourceId,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutProps, GRAPH_LAYOUT_DEFAULT_PROPS} from '../../core/graph-layout';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import type {Graph, NodeInterface, EdgeInterface} from '../../graph/graph';
 
 export type GPUForceLayoutOptions = GraphLayoutProps & {
@@ -19,7 +19,7 @@ export type GPUForceLayoutOptions = GraphLayoutProps & {
  */
 export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   static defaultProps: Required<GPUForceLayoutOptions> = {
-    ...GRAPH_LAYOUT_DEFAULT_PROPS,
+    ...GraphLayout.defaultProps,
     alpha: 0.3,
     resumeAlpha: 0.1,
     nBodyStrength: -900,

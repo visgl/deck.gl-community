@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {NodeOptions} from '../graph/node';
-import {error} from '../utils/log';
+import type {NodeOptions} from '../../graph/node';
+import {error} from '../../utils/log';
 
 export function basicNodeParser(node: any): Pick<NodeOptions, 'id'> {
   if (node.id === undefined) {

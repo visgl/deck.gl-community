@@ -21,22 +21,26 @@ The snippets below sketch a `SpiralLayout` that spreads nodes along a spiral arm
 Create a class that extends `GraphLayout` (optionally passing a props interface) and seed internal state you will reuse across lifecycle calls.
 
 ```js
-import {GraphLayout} from '@deck.gl-community/graph-layers';
+import {GraphLayout, GraphLayoutProps} from '@deck.gl-community/graph-layers';
 
-export type SpiralLayoutProps = {
+export type SpiralLayoutProps = GraphLayoutProps & {
   radiusStep?: number;
   angleStep?: number;
 };
 
 export class SpiralLayout extends GraphLayout<SpiralLayoutProps> {
+  get [Symbol.toStringTag]() {
+    return 'SpiralLayout';
+  }
+
   static defaultProps: Required<SpiralLayoutProps> = {
+    ...GraphLayout.defaultProps,
     radiusStep: 20,
     angleStep: Math.PI / 6
   };
 
   constructor(props: SpiralLayoutProps = {}) {
     super(props, SpiralLayout.defaultProps);
-    this._name = 'SpiralLayout';
     this._nodePositions = new Map();
   }
 }

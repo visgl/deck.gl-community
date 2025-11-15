@@ -6,7 +6,7 @@ import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
 
 import {createGraphFromData} from '../graph/create-graph-from-data';
 import type {Graph} from '../graph/graph';
-import type {ArrowGraphData} from '../graph-data/arrow-graph-data';
+import type {ArrowGraphData} from '../graph-data/graph-data';
 import {ArrowGraphDataBuilder} from '../graph-data/arrow-graph-data-builder';
 
 // __VERSION__ is injected by babel-plugin-version-inline
@@ -46,14 +46,6 @@ type DotParseResult = {
   subgraphs: Map<string, ParsedSubgraph>;
 };
 
-export type DotGraphLoaderOptions = {
-  version?: number;
-};
-
-export type DotGraphLoaderContextOptions = LoaderOptions & {
-  dot?: DotGraphLoaderOptions;
-};
-
 export type DotGraphLoaderMetadata = {
   id?: string;
   directed: boolean;
@@ -67,6 +59,17 @@ export type DotGraphLoaderResult = {
   data: ArrowGraphData;
   metadata: DotGraphLoaderMetadata;
 };
+
+// Loader definition
+
+export type DotGraphLoaderOptions = LoaderOptions & {
+  dot?: {
+   version?: number;
+  };
+};
+
+export type DotGraphParserOptions = NonNullable<DotGraphLoaderOptions['dot']>;
+
 
 export const DOTGraphLoader = {
   dataType: null as unknown as DotGraphLoaderResult,
@@ -85,17 +88,18 @@ export const DOTGraphLoader = {
       version: 0
     }
   },
-  parse: (arrayBuffer: ArrayBuffer, options?: DotGraphLoaderContextOptions) => {
+  parse: (arrayBuffer: ArrayBuffer, options?: DotGraphLoaderOptions) => {
     const text = new TextDecoder().decode(arrayBuffer);
     return Promise.resolve(DOTGraphLoader.parseTextSync(text, options));
   },
-  parseTextSync: (text: string, options?: DotGraphLoaderContextOptions) => {
+  parseTextSync: (text: string, options?: DotGraphLoaderOptions) => {
     const parseOptions = {...DOTGraphLoader.options.dot, ...options?.dot};
     return loadDotGraph(text, parseOptions);
   }
-} as const satisfies LoaderWithParser<DotGraphLoaderResult, never, DotGraphLoaderContextOptions>;
+} as const satisfies LoaderWithParser<DotGraphLoaderResult, never, DotGraphLoaderOptions>;
 
-export function loadDotGraph(dot: string, options: DotGraphLoaderOptions = {}): DotGraphLoaderResult {
+
+export function loadDotGraph(dot: string, options: DotGraphParserOptions = {}): DotGraphLoaderResult {
   const parsed = parseDot(dot);
   const {data, metadata} = buildArrowGraphData(parsed, options);
   const graph = createGraphFromData(data);
@@ -104,7 +108,7 @@ export function loadDotGraph(dot: string, options: DotGraphLoaderOptions = {}): 
 
 export function parseDotToArrowGraphData(
   dot: string,
-  options: DotGraphLoaderOptions = {}
+  options: DotGraphParserOptions = {}
 ): {data: ArrowGraphData; metadata: DotGraphLoaderMetadata} {
   const parsed = parseDot(dot);
   return buildArrowGraphData(parsed, options);
@@ -112,7 +116,7 @@ export function parseDotToArrowGraphData(
 
 function buildArrowGraphData(
   parsed: DotParseResult,
-  options: DotGraphLoaderOptions
+  options: DotGraphParserOptions
 ): {data: ArrowGraphData; metadata: DotGraphLoaderMetadata} {
   const builder = new ArrowGraphDataBuilder({version: options.version});
 

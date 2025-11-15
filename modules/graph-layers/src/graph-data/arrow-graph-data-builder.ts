@@ -7,7 +7,7 @@ import * as arrow from 'apache-arrow';
 
 import type {EdgeState, NodeState} from '../core/constants';
 import type {GraphEdgeData, GraphNodeData} from './graph-data';
-import type {ArrowGraphData} from './arrow-graph-data';
+import type {ArrowGraphData} from './graph-data';
 import {
   cloneRecord,
   normalizeEdgeState,
@@ -110,7 +110,7 @@ export class ArrowGraphDataBuilder {
 
   finish(): ArrowGraphData {
     return {
-      type: 'arrow-graph-data',
+      shape: 'arrow-graph-data',
       version: this._version,
       nodes: tableFromBuilders(this.nodeBuilders),
       edges: tableFromBuilders(this.edgeBuilders)

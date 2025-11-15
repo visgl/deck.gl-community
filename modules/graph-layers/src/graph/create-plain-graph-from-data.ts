@@ -3,13 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import type {NodeState, EdgeState} from '../core/constants';
-import type {GraphData} from '../graph-data/graph-data';
-import type {
-  ColumnarGraphColumns,
-  ColumnarGraphNodeColumns,
-  ColumnarGraphEdgeColumns
-} from '../graph-data/columnar-graph-data-builder';
-import {ColumnarGraphDataBuilder} from '../graph-data/columnar-graph-data-builder';
+import type {PlainGraphData} from '../graph-data/graph-data';
+import {PlainGraphDataBuilder} from '../graph-data/plain-graph-data-builder';
 import {
   normalizeBooleanColumn,
   normalizeDataColumn,
@@ -24,12 +19,9 @@ import type {
 } from './tabular-graph';
 import {TabularGraph} from './tabular-graph';
 
-export function createTabularGraphFromData(data: GraphData | ColumnarGraphColumns): TabularGraph {
-  if (isColumnarGraphColumns(data)) {
-    return createTabularGraphFromColumnarData(data);
-  }
-
-  const builder = new ColumnarGraphDataBuilder({
+export function createTabularGraphFromData(data: PlainGraphData): TabularGraph {
+  const builder = new PlainGraphDataBuilder({
+    // @ts-expect-error TODO: fixme
     nodeCapacity: Array.isArray(data.nodes) ? data.nodes.length : 0,
     edgeCapacity: Array.isArray(data.edges) ? data.edges.length : 0,
     version: data.version
@@ -138,28 +130,6 @@ function createTabularGraphFromColumnarData(data: ColumnarGraphColumns): Tabular
   };
 
   return new TabularGraph(source);
-}
-
-function isColumnarGraphColumns(value: GraphData | ColumnarGraphColumns): value is ColumnarGraphColumns {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const typed = value as {type?: string | undefined};
-  if (typed.type === 'graph-data') {
-    return false;
-  }
-  if (typed.type === 'columnar-graph-data') {
-    return true;
-  }
-
-  const maybeGraphData = value as GraphData;
-  if (Array.isArray(maybeGraphData.nodes) || Array.isArray(maybeGraphData.edges)) {
-    return false;
-  }
-
-  const maybeColumnar = value as ColumnarGraphColumns;
-  return Array.isArray(maybeColumnar.nodes?.id) && Array.isArray(maybeColumnar.edges?.id);
 }
 
 function normalizeNodeColumns(columns: ColumnarGraphNodeColumns): NormalizedNodeColumns {

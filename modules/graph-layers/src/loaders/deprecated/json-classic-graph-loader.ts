@@ -3,10 +3,10 @@
 // Copyright (c) vis.gl contributors
 
 import {createGraph} from './create-graph';
-import {basicNodeParser} from './node-parsers';
-import {basicEdgeParser} from './edge-parsers';
-import {error} from '../utils/log';
-import type {ClassicGraph} from '../graph/classic-graph';
+import {basicNodeParser} from '../parsers/node-parsers';
+import {basicEdgeParser} from '../parsers/edge-parsers';
+import {error} from '../../utils/log';
+import type {ClassicGraph} from '../../graph/classic-graph';
 
 export type JSONClassicGraphLoaderOptions = {
   json: {

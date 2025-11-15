@@ -5,10 +5,10 @@
 import type {Bounds2D} from '@math.gl/types';
 
 import type {Graph, NodeInterface, EdgeInterface} from '../graph/graph';
-import type {GraphRuntimeLayout} from './graph-runtime-layout';
 
 import isEqual from 'lodash.isequal';
 import {log} from '../utils/log';
+import {instance} from 'apache-arrow/visitor/typecomparator';
 
 // the status of the layout
 export type GraphLayoutState = 'init' | 'start' | 'calculating' | 'done' | 'error';
@@ -24,20 +24,23 @@ export type GraphLayoutProps = {
   onLayoutError?: (error?: unknown) => void;
 };
 
-export const GRAPH_LAYOUT_DEFAULT_PROPS: Readonly<Required<GraphLayoutProps>> = {
-  onLayoutStart: undefined,
-  onLayoutChange: undefined,
-  onLayoutDone: undefined,
-  onLayoutError: undefined
-};
 
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
-> implements GraphRuntimeLayout {
-  /** Name of the layout. */
-  protected readonly _name: string = 'GraphLayout';
+> {
+  static defaultProps: Readonly<Required<GraphLayoutProps>> = {
+    onLayoutStart: undefined,
+    onLayoutChange: undefined,
+    onLayoutDone: undefined,
+    onLayoutError: undefined
+  };
+
+  get [Symbol.toStringTag](): string {
+    return 'GraphLayout';
+  }
+
   /** Extra configuration props of the layout. */
-  protected props: PropsT;
+  protected props: Required<PropsT>;
 
   /**
    * Last computed layout bounds in local layout coordinates.
@@ -54,16 +57,12 @@ export abstract class GraphLayout<
    * Constructor of GraphLayout
    * @param props extra configuration props of the layout
    */
-  constructor(props: PropsT = {} as PropsT, defaultProps?: Partial<PropsT>) {
+  constructor(props: PropsT, defaultProps?: Required<PropsT>) {
     this.props = {
-      ...(GRAPH_LAYOUT_DEFAULT_PROPS as PropsT),
-      ...(defaultProps ?? ({} as PropsT)),
+      ...GraphLayout.defaultProps,
+      ...defaultProps,
       ...props
     };
-  }
-
-  getProps(): PropsT {
-    return {...this.props};
   }
 
   setProps(props: Partial<PropsT>): void {
@@ -79,7 +78,7 @@ export abstract class GraphLayout<
     if (!layout || !(layout instanceof GraphLayout)) {
       return false;
     }
-    return this._name === layout._name && isEqual(this.props, layout.props);
+    return this instanceof layout.constructor && isEqual(this.props, layout.props);
   }
 
   // Accessors
@@ -215,7 +214,7 @@ export abstract class GraphLayout<
 
   /** @fires GraphLayout#onLayoutStart */
   protected _onLayoutStart = (): void => {
-    log.log(0, `GraphLayout(${this._name}): start`)();
+    log.log(0, `GraphLayout(${this}): start`)();
     this._updateBounds();
     this._updateState('calculating');
 
@@ -230,7 +229,7 @@ export abstract class GraphLayout<
 
   /** @fires GraphLayout#onLayoutChange */
   protected _onLayoutChange = (): void => {
-    log.log(0, `GraphLayout(${this._name}): update`)();
+    log.log(0, `GraphLayout(${this}): update`)();
     this._updateBounds();
     this._updateState('calculating');
 
@@ -245,7 +244,7 @@ export abstract class GraphLayout<
 
   /** @fires GraphLayout#onLayoutDone */
   protected _onLayoutDone = (): void => {
-    log.log(0, `GraphLayout(${this._name}): end`)();
+    log.log(0, `GraphLayout(${this}): end`)();
     this._updateBounds();
     this._updateState('done');
 

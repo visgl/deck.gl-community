@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {NodeOptions} from '../graph/node';
-import type {EdgeOptions} from '../graph/edge';
-import {Edge} from '../graph/edge';
-import {Node} from '../graph/node';
-import {ClassicGraph} from '../graph/classic-graph';
+import type {NodeOptions} from '../../graph/node';
+import type {EdgeOptions} from '../../graph/edge';
+import {Edge} from '../../graph/edge';
+import {Node} from '../../graph/node';
+import {ClassicGraph} from '../../graph/classic-graph';
 
-import {error} from '../utils/log';
+import {error} from '../../utils/log';
 
 export type ParseGraphOptions = {
   nodeIdField?: string;

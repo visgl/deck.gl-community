@@ -6,8 +6,6 @@ import {warn} from '../utils/log';
 import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
-import {GraphLayout, type GraphLayoutProps, type GraphLayoutState} from '../core/graph-layout';
-import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
 
@@ -374,89 +372,4 @@ export class ClassicGraph extends Graph {
   _updateCache(key: 'nodes' | 'edges', updateValue: unknown): void {
     this._cache.set(key, updateValue as any, this.version);
   }
-}
-
-export class ClassicGraphLayoutAdapter implements GraphRuntimeLayout {
-  private readonly layout: GraphLayout;
-
-  constructor(layout: GraphLayout) {
-    this.layout = layout;
-  }
-
-  get version(): number {
-    return this.layout.version;
-  }
-
-  get state(): GraphLayoutState {
-    return this.layout.state;
-  }
-
-  getProps(): GraphLayoutProps {
-    return this.layout.getProps();
-  }
-
-  setProps(props: Partial<GraphLayoutProps>): void {
-    this.layout.setProps(props);
-  }
-
-  initializeGraph(graph: Graph): void {
-    this.layout.initializeGraph(this._assertClassicGraph(graph));
-  }
-
-  updateGraph(graph: Graph): void {
-    this.layout.updateGraph(this._assertClassicGraph(graph));
-  }
-
-  start(): void {
-    this.layout.start();
-  }
-
-  update(): void {
-    this.layout.update();
-  }
-
-  resume(): void {
-    this.layout.resume();
-  }
-
-  stop(): void {
-    this.layout.stop();
-  }
-
-  getBounds() {
-    return this.layout.getBounds();
-  }
-
-  getNodePosition(node: NodeInterface) {
-    return this.layout.getNodePosition(node as Node);
-  }
-
-  getEdgePosition(edge: EdgeInterface) {
-    return this.layout.getEdgePosition(edge as Edge);
-  }
-
-  lockNodePosition(node: NodeInterface, x: number, y: number): void {
-    this.layout.lockNodePosition(node as Node, x, y);
-  }
-
-  unlockNodePosition(node: NodeInterface): void {
-    this.layout.unlockNodePosition(node as Node);
-  }
-
-  destroy(): void {
-    this.layout.setProps({
-      onLayoutStart: undefined,
-      onLayoutChange: undefined,
-      onLayoutDone: undefined,
-      onLayoutError: undefined
-    });
-  }
-
-  private _assertClassicGraph(graph: Graph): ClassicGraph {
-    if (graph instanceof ClassicGraph) {
-      return graph;
-    }
-    throw new Error('ClassicGraphLayoutAdapter expects a ClassicGraph instance.');
-  }
-
 }

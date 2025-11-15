@@ -5,8 +5,7 @@
 import type {Bounds2D} from '@math.gl/types';
 
 import type {Graph, EdgeInterface, NodeInterface} from '../graph/graph';
-import {ClassicGraph, ClassicGraphLayoutAdapter} from '../graph/classic-graph';
-import type {GraphRuntimeLayout} from './graph-runtime-layout';
+import {ClassicGraph} from '../graph/classic-graph';
 import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
@@ -31,7 +30,7 @@ type ClassicGraphEngineProps = {
 
 type InterfaceGraphEngineProps = {
   graph: Graph;
-  layout: GraphRuntimeLayout;
+  layout: GraphLayout;
   onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
   onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
   onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
@@ -56,7 +55,7 @@ function isClassicProps(props: GraphEngineProps): props is ClassicGraphEnginePro
 export class GraphEngine {
   private _props: GraphEngineProps;
   private readonly _graph: Graph;
-  private readonly _layout: GraphRuntimeLayout;
+  private readonly _layout: GraphLayout;
   private readonly _cache = new Cache<'nodes' | 'edges', NodeInterface[] | EdgeInterface[]>();
   private _layoutDirty = false;
   private _transactionInProgress = false;
@@ -80,14 +79,8 @@ export class GraphEngine {
 
     this._props = {...normalizedProps};
 
-    if (isClassicProps(normalizedProps)) {
-      const layoutAdapter = new ClassicGraphLayoutAdapter(normalizedProps.layout);
-      this._graph = normalizedProps.graph;
-      this._layout = layoutAdapter;
-    } else {
-      this._graph = normalizedProps.graph;
-      this._layout = normalizedProps.layout;
-    }
+    this._graph = normalizedProps.graph;
+    this._layout = normalizedProps.layout;
   }
 
   get props(): GraphEngineProps {

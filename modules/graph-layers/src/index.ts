@@ -2,8 +2,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+// Graph Data - output from loaders, input to writers
+
+export type {GraphData, PlainGraphData, ArrowGraphData /*, GraphNodeData, GraphEdgeData */} from './graph-data/graph-data';
+export {GraphDataBuilder /*, type GraphDataBuilderOptions */} from './graph-data/graph-data-builder';
+export {
+  ArrowGraphDataBuilder,
+  type ArrowGraphDataBuilderOptions
+} from './graph-data/arrow-graph-data-builder';
+
+
 // core - Graph representation and layout
-export {ClassicGraph, ClassicGraphLayoutAdapter} from './graph/classic-graph';
+export {ClassicGraph} from './graph/classic-graph';
 export type {Graph, NodeInterface, EdgeInterface} from './graph/graph';
 export {Node} from './graph/node';
 export {Edge} from './graph/edge';
@@ -19,26 +29,11 @@ export {
   type TabularEdgeAccessors
 } from './graph/tabular-graph';
 export {ArrowGraph} from './graph/arrow-graph';
-export {
-  convertTabularGraphToArrowGraph,
-  type ConvertTabularGraphToArrowGraphOptions
-} from './graph/convert-tabular-graph-to-arrow-graph';
-export {createTabularGraphFromData} from './graph/create-tabular-graph-from-data';
+
 export {createGraphFromData} from './graph/create-graph-from-data';
-export {GraphDataBuilder, type GraphDataBuilderOptions} from './graph-data/graph-data-builder';
-export {
-  ColumnarGraphDataBuilder,
-  type ColumnarGraphColumns,
-  type ColumnarGraphNodeColumns,
-  type ColumnarGraphEdgeColumns,
-  type ColumnarGraphDataBuilderOptions
-} from './graph-data/columnar-graph-data-builder';
-export {
-  ArrowGraphDataBuilder,
-  type ArrowGraphDataBuilderOptions
-} from './graph-data/arrow-graph-data-builder';
-export type {GraphData, GraphNodeData, GraphEdgeData} from './graph-data/graph-data';
-export type {ArrowGraphData} from './graph-data/arrow-graph-data';
+
+
+// Graph Engine
 
 export {GraphEngine} from './core/graph-engine';
 
@@ -85,23 +80,6 @@ export {
   type GraphLayerNodeStyle
 } from './style/graph-layer-stylesheet';
 
-// Widgets
-
-export {ViewControlWidget} from './widgets/view-control-widget';
-
-// graph format loaders
-export {JSONTabularGraphLoader, JSONClassicGraphLoader} from './loaders/json-loader';
-export {loadSimpleJSONGraph} from './loaders/simple-json-graph-loader';
-export {
-  DOTGraphLoader,
-  loadDotGraph,
-  parseDotToArrowGraphData,
-  type DotGraphLoaderOptions,
-  type DotGraphLoaderContextOptions,
-  type DotGraphLoaderMetadata,
-  type DotGraphLoaderResult
-} from './loaders/dot-graph-loader';
-
 // utils
 export {mixedGetPosition} from './utils/layer-utils';
 export {log} from './utils/log';
@@ -115,8 +93,18 @@ export {
   type SelectRankLinesOptions
 } from './utils/rank-grid';
 
-// DEPRECATED
-export {createGraph} from './loaders/create-graph';
-export {JSONLoader} from './loaders/json-loader';
+// graph format loaders
+export {
+  JSONGraphLoader,
+  type JSONGraphLoaderOptions,
+} from './loaders/json-graph-loader';
 
+export {
+  DOTGraphLoader,
+  type DotGraphLoaderOptions,
+  type DotGraphLoaderMetadata,
+  type DotGraphLoaderResult
+} from './loaders/dot-graph-loader';
+
+// Deprecated exports
 export {MARKER_TYPE, NODE_STATE,EDGE_STATE,NODE_TYPE,EDGE_TYPE,EDGE_DECORATOR_TYPE,LAYOUT_STATE} from './_deprecated/old-constants';

@@ -5,7 +5,7 @@
 import type {Table, Vector} from 'apache-arrow';
 
 import type {NodeState, EdgeState} from '../core/constants';
-import type {ArrowGraphData} from '../graph-data/arrow-graph-data';
+import type {ArrowGraphData} from '../graph-data/graph-data';
 import type {GraphProps, NodeInterface, EdgeInterface} from './graph';
 import {Graph} from './graph';
 import {ClassicGraph} from './classic-graph';
