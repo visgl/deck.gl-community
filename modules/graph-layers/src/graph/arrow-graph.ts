@@ -2,16 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {Table, Vector} from 'apache-arrow';
+import * as arrow from 'apache-arrow';
 
 import type {NodeState, EdgeState} from '../core/constants';
 import type {ArrowGraphData} from '../graph-data/graph-data';
 import type {GraphProps, NodeInterface, EdgeInterface} from './graph';
 import {Graph} from './graph';
-import {ClassicGraph} from './classic-graph';
-import {Node} from './node';
-import {Edge} from './edge';
 import {cloneRecord, normalizeEdgeState, normalizeNodeState} from './graph-normalization';
+
+import {getVectorLength,
+getVectorValue,
+getColumnVector,
+parseDataRecord,
+coerceIdentifier
+} from './functions/arrow-utils'
 
 type NodeOverride = {
   state?: NodeState;
@@ -27,25 +31,29 @@ type EdgeOverride = {
 };
 
 type NodeVectors = {
-  id: Vector | null;
-  state: Vector | null;
-  selectable: Vector | null;
-  highlightConnectedEdges: Vector | null;
-  data: Vector | null;
+  id: arrow.Vector | null;
+  state: arrow.Vector | null;
+  selectable: arrow.Vector | null;
+  highlightConnectedEdges: arrow.Vector | null;
+  data: arrow.Vector | null;
 };
 
 type EdgeVectors = {
-  id: Vector | null;
-  sourceId: Vector | null;
-  targetId: Vector | null;
-  directed: Vector | null;
-  state: Vector | null;
-  data: Vector | null;
+  id: arrow.Vector | null;
+  sourceId: arrow.Vector | null;
+  targetId: arrow.Vector | null;
+  directed: arrow.Vector | null;
+  state: arrow.Vector | null;
+  data: arrow.Vector | null;
 };
 
-export class ArrowGraph extends Graph {
-  private readonly nodeTable: Table;
-  private readonly edgeTable: Table;
+export type ArrowGraphProps = GraphProps & {
+  data: ArrowGraphData;
+}
+
+export class ArrowGraph extends Graph<ArrowGraphProps> {
+  private readonly nodeTable: arrow.Table;
+  private readonly edgeTable: arrow.Table;
 
   private readonly nodeVectors: NodeVectors;
   private readonly edgeVectors: EdgeVectors;
@@ -66,11 +74,12 @@ export class ArrowGraph extends Graph {
 
   private readonly _version: number;
 
-  constructor(data: ArrowGraphData, props: GraphProps = {}) {
+  constructor(props: ArrowGraphProps) {
     super(props);
-    this._version = data.version;
-    this.nodeTable = data.nodes;
-    this.edgeTable = data.edges;
+    
+    this._version = props.data.version;
+    this.nodeTable = props.data.nodes;
+    this.edgeTable = props.data.edges;
 
     this.nodeVectors = this.extractNodeVectors();
     this.edgeVectors = this.extractEdgeVectors();
@@ -119,45 +128,6 @@ export class ArrowGraph extends Graph {
     this.nodeEdgeIndices.length = 0;
     this.nodes.length = 0;
     this.edges.length = 0;
-  }
-
-  toClassicGraph(): ClassicGraph {
-    const nodeCount = getVectorLength(this.nodeVectors.id);
-    const edgeCount = getVectorLength(this.edgeVectors.id);
-
-    const legacyNodes: Node[] = [];
-    for (let index = 0; index < nodeCount; index++) {
-      const node = new Node({
-        id: this.getNodeIdByIndex(index),
-        selectable: this.isNodeSelectableByIndex(index),
-        highlightConnectedEdges: this.shouldHighlightConnectedEdgesByIndex(index),
-        data: this.getNodeDataByIndex(index)
-      });
-      node.setState(this.getNodeStateByIndex(index));
-      legacyNodes.push(node);
-    }
-
-    const legacyEdges: Edge[] = [];
-    for (let index = 0; index < edgeCount; index++) {
-      const edge = new Edge({
-        id: this.getEdgeIdByIndex(index),
-        sourceId: this.getEdgeSourceIdByIndex(index),
-        targetId: this.getEdgeTargetIdByIndex(index),
-        directed: this.isEdgeDirectedByIndex(index),
-        data: this.getEdgeDataByIndex(index)
-      });
-      edge.setState(this.getEdgeStateByIndex(index));
-      legacyEdges.push(edge);
-    }
-
-    const classicGraph = new ClassicGraph(undefined, this.props);
-    if (legacyNodes.length > 0) {
-      classicGraph.batchAddNodes(legacyNodes);
-    }
-    if (legacyEdges.length > 0) {
-      classicGraph.batchAddEdges(legacyEdges);
-    }
-    return classicGraph;
   }
 
   getNodeIdByIndex(index: number): string | number {
@@ -609,73 +579,6 @@ class ArrowGraphEdge implements EdgeInterface {
   getState(): EdgeState {
     return this.graph.getEdgeStateByIndex(this.index);
   }
-}
-
-function getVectorLength(vector: Vector | null): number {
-  return vector?.length ?? 0;
-}
-
-function getVectorValue(vector: Vector | null, index: number): unknown {
-  return vector ? vector.get?.(index) ?? vector.toArray?.()[index] : undefined;
-}
-
-function getColumnVector(table: Table, columnName: string): Vector | null {
-  const candidate = (table as Table & {getColumn?: (name: string) => Vector | null}).getColumn?.(columnName);
-  if (candidate) {
-    return candidate;
-  }
-  const childAccessor = (table as Table & {getChild?: (name: string) => Vector | null}).getChild;
-  if (typeof childAccessor === 'function') {
-    const vector = childAccessor.call(table, columnName);
-    if (vector) {
-      return vector;
-    }
-  }
-  const getChildAt = (table as Table & {getChildAt?: (index: number) => Vector | null}).getChildAt;
-  const schema = (table as Table & {schema?: {fields?: Array<{name: string}>}}).schema;
-  if (schema && Array.isArray(schema.fields) && typeof getChildAt === 'function') {
-    const index = schema.fields.findIndex((field) => field?.name === columnName);
-    if (index >= 0) {
-      return getChildAt.call(table, index) ?? null;
-    }
-  }
-  return null;
-}
-
-function parseDataRecord(value: unknown): Record<string, unknown> {
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      if (parsed && typeof parsed === 'object') {
-        return {...(parsed as Record<string, unknown>)};
-      }
-    } catch {
-      return {};
-    }
-  } else if (value && typeof value === 'object') {
-    return {...(value as Record<string, unknown>)};
-  }
-  return {};
-}
-
-function coerceIdentifier(value: unknown): string | number {
-  if (typeof value === 'number') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed !== '') {
-      const numeric = Number(trimmed);
-      if (!Number.isNaN(numeric) && String(numeric) === trimmed) {
-        return numeric;
-      }
-    }
-    return value;
-  }
-  if (value === null || typeof value === 'undefined') {
-    throw new Error('Arrow graph encountered an undefined identifier.');
-  }
-  return String(value);
 }
 
 function registerNodeVariants(

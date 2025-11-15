@@ -30,9 +30,6 @@ export {
 } from './graph/tabular-graph';
 export {ArrowGraph} from './graph/arrow-graph';
 
-export {createGraphFromData} from './graph/create-graph-from-data';
-
-
 // Graph Engine
 
 export {GraphEngine} from './core/graph-engine';
@@ -101,9 +98,8 @@ export {
 
 export {
   DOTGraphLoader,
-  type DotGraphLoaderOptions,
-  type DotGraphLoaderMetadata,
-  type DotGraphLoaderResult
+  type DOTGraphLoaderOptions,
+  type DOTGraphLoaderMetadata,
 } from './loaders/dot-graph-loader';
 
 // Deprecated exports

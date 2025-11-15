@@ -3,8 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {NodeState, EdgeState} from '../../core/constants';
-import type {TabularGraph} from '../../graph/tabular-graph';
-import type {GraphNodeData, GraphEdgeData} from '../../graph-data/graph-data';
+import type {PlainGraphData, GraphNodeData, GraphEdgeData} from '../../graph-data/graph-data';
 import {PlainGraphDataBuilder} from '../../graph-data/plain-graph-data-builder';
 import {basicNodeParser} from '../parsers/node-parsers';
 import {basicEdgeParser} from '../parsers/edge-parsers';
@@ -16,7 +15,7 @@ type GraphJSON = {
   edges?: unknown[] | null;
 };
 
-export type JSONTabularGraphLoaderOptions = {
+export type ParseJSONGraphOptions = {
   json: GraphJSON;
   nodeParser?: (node: any) => {
     id: string | number;
@@ -41,7 +40,7 @@ export function parseJSONGraph({
   json,
   nodeParser = basicNodeParser,
   edgeParser = basicEdgeParser
-}: JSONTabularGraphLoaderOptions): TabularGraph | null {
+}: ParseJSONGraphOptions): PlainGraphData | null {
   const nodes = json?.nodes ?? null;
   const edges = json?.edges ?? null;
   if (!Array.isArray(nodes)) {
@@ -72,7 +71,7 @@ export function parseJSONGraph({
 
 function parseNodes(
   nodes: unknown[],
-  nodeParser: JSONTabularGraphLoaderOptions['nodeParser']
+  nodeParser: ParseJSONGraphOptions['nodeParser']
 ): GraphNodeData[] {
   const parsedNodes: GraphNodeData[] = [];
 
@@ -99,7 +98,7 @@ function parseNodes(
 
 function parseEdges(
   edges: unknown[],
-  edgeParser: JSONTabularGraphLoaderOptions['edgeParser']
+  edgeParser: ParseJSONGraphOptions['edgeParser']
 ): GraphEdgeData[] {
   const handles: GraphEdgeData[] = [];
 

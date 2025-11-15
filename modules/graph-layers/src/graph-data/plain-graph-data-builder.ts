@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {GraphData, GraphEdgeData, GraphNodeData} from './graph-data';
+import type {PlainGraphData, GraphEdgeData, GraphNodeData} from './graph-data';
 import { GraphDataBuilder } from './graph-data-builder';
 import {cloneRecord, normalizeVersion} from '../graph/graph-normalization';
 
@@ -70,7 +70,7 @@ export class PlainGraphDataBuilder implements GraphDataBuilder {
     return this.edges.length - 1;
   }
 
-  build(): GraphData {
+  build(): PlainGraphData {
     return {
       shape: 'plain-graph-data',
       version: this._version,

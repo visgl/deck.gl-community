@@ -12,6 +12,7 @@ export type GraphData = PlainGraphData | ArrowGraphData;
 export type ArrowGraphData = {
   shape: 'arrow-graph-data';
   version: number;
+  metadata?: Record<string, unknown>;
   nodes: arrow.Table;
   edges: arrow.Table;
 };
@@ -19,6 +20,7 @@ export type ArrowGraphData = {
 export type PlainGraphData = {
   shape: 'plain-graph-data';
   version?: number;
+  metadata?: Record<string, unknown>;
   nodes?: GraphNodeData[] | null;
   edges?: GraphEdgeData[] | null;
 };

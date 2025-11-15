@@ -8,11 +8,10 @@ import {Edge} from './edge';
 import {Node} from './node';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
+import {PlainGraphData} from '../graph-data/graph-data';
 
-export type ClassicGraphProps = {
-  name?: string;
-  nodes?: Node[];
-  edges?: Edge[];
+export type ClassicGraphProps = GraphProps & {
+  data: PlainGraphData;
 };
 
 /** Basic graph data structure */
@@ -31,29 +30,17 @@ export class ClassicGraph extends Graph {
   /** Cached data: create array data from maps. */
   private _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
 
-  constructor(props?: ClassicGraphProps, graphProps?: GraphProps);
-  constructor(graph: ClassicGraph, graphProps?: GraphProps);
-
   /**
    * The constructor of the graph class.
-   * @param graph - copy the graph if this exists.
+   * @param props - 
    */
-  constructor(propsOrGraph?: ClassicGraphProps | ClassicGraph, graphProps: GraphProps = {}) {
-    super(graphProps);
+  constructor(props: ClassicGraphProps) {
+    super(props);
 
-    if (propsOrGraph instanceof ClassicGraph) {
-      // if a Graph instance was supplied, copy the supplied graph into this graph
-      const graph = propsOrGraph;
-      this._name = graph?._name || this._name;
-      this._nodeMap = graph._nodeMap;
-      this._edgeMap = graph._edgeMap;
-    } else {
-      // If graphProps were supplied, initialize this graph from the supplied props
-      const props = propsOrGraph;
-      this._name = props?.name || this._name;
-      this.batchAddNodes(props?.nodes || []);
-      this.batchAddEdges(props?.edges || []);
-    }
+    // If graphProps were supplied, initialize this graph from the supplied props
+    this._name = props?.name || this._name;
+    this.batchAddNodes(props?.nodes || []);
+    this.batchAddEdges(props?.edges || []);
   }
 
   /**
