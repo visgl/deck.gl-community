@@ -20,6 +20,7 @@ export class ClassicGraph extends Graph {
   private _nodeMap: Record<string, Node> = {};
   /** List of object edges. */
   private _edgeMap: Record<string, Edge> = {};
+
   /**
    * Identifies whether performing dirty check when streaming new data. If
    * the name of the graph is not specified, will fall back to current time stamp.
@@ -37,10 +38,28 @@ export class ClassicGraph extends Graph {
   constructor(props: ClassicGraphProps) {
     super(props);
 
-    // If graphProps were supplied, initialize this graph from the supplied props
-    this._name = props?.name || this._name;
-    this.batchAddNodes(props?.nodes || []);
-    this.batchAddEdges(props?.edges || []);
+  const nodes = props.data.nodes?.map((node) => {
+    const {id} = node;
+    return new Node({
+      id,
+      data: node
+    });
+  });
+
+  const edges = props.data.edges?.map((edge) => {
+    const {id, sourceId, targetId, directed} = edge;
+    return new Edge({
+      id,
+      sourceId,
+      targetId,
+      directed,
+      data: edge
+    });
+  });
+
+    this._name = 'unnamed-graph-' + Date.now().toString();
+    this.batchAddNodes(nodes || []);
+    this.batchAddEdges(edges || []);
   }
 
   /**

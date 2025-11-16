@@ -13,22 +13,23 @@ export {
 
 
 // core - Graph representation and layout
-export {ClassicGraph} from './graph/classic-graph';
 export type {Graph, NodeInterface, EdgeInterface} from './graph/graph';
 export {Node} from './graph/node';
 export {Edge} from './graph/edge';
-export {
-  TabularGraph,
-  TabularNode,
-  TabularEdge,
-  type NodeIndex,
-  type EdgeIndex,
-  type TabularGraphSource,
-  type TabularGraphAccessors,
-  type TabularNodeAccessors,
-  type TabularEdgeAccessors
-} from './graph/tabular-graph';
+
+export {ClassicGraph} from './graph/classic-graph';
 export {ArrowGraph} from './graph/arrow-graph';
+// export {
+//   TabularGraph,
+//   TabularNode,
+//   TabularEdge,
+//   type NodeIndex,
+//   type EdgeIndex,
+//   type TabularGraphSource,
+//   type TabularGraphAccessors,
+//   type TabularNodeAccessors,
+//   type TabularEdgeAccessors
+// } from './graph/tabular-graph';
 
 // Graph Engine
 
