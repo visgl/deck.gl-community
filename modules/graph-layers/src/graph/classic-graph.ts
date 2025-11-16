@@ -6,15 +6,13 @@ import {warn} from '../utils/log';
 import {Cache} from '../core/cache';
 import {Edge} from './edge';
 import {Node} from './node';
-import {GraphLayout, type GraphLayoutProps, type GraphLayoutState} from '../core/graph-layout';
-import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
+import type {PlainGraphData, GraphNodeData, GraphEdgeData} from '../graph-data/graph-data';
+import {cloneRecord, normalizeEdgeState, normalizeNodeState, normalizeVersion} from './graph-normalization';
 
-export type ClassicGraphProps = {
-  name?: string;
-  nodes?: Node[];
-  edges?: Edge[];
+export type ClassicGraphProps = GraphProps & {
+  data: PlainGraphData;
 };
 
 /** Basic graph data structure */
@@ -23,6 +21,7 @@ export class ClassicGraph extends Graph {
   private _nodeMap: Record<string, Node> = {};
   /** List of object edges. */
   private _edgeMap: Record<string, Edge> = {};
+
   /**
    * Identifies whether performing dirty check when streaming new data. If
    * the name of the graph is not specified, will fall back to current time stamp.
@@ -32,29 +31,27 @@ export class ClassicGraph extends Graph {
   public version = 0;
   /** Cached data: create array data from maps. */
   private _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
-
-  constructor(props?: ClassicGraphProps, graphProps?: GraphProps);
-  constructor(graph: ClassicGraph, graphProps?: GraphProps);
+  private _suspendVersionUpdates = false;
 
   /**
    * The constructor of the graph class.
-   * @param graph - copy the graph if this exists.
+   * @param props - 
    */
-  constructor(propsOrGraph?: ClassicGraphProps | ClassicGraph, graphProps: GraphProps = {}) {
-    super(graphProps);
+  constructor(props: ClassicGraphProps) {
+    super(props);
 
-    if (propsOrGraph instanceof ClassicGraph) {
-      // if a Graph instance was supplied, copy the supplied graph into this graph
-      const graph = propsOrGraph;
-      this._name = graph?._name || this._name;
-      this._nodeMap = graph._nodeMap;
-      this._edgeMap = graph._edgeMap;
-    } else {
-      // If graphProps were supplied, initialize this graph from the supplied props
-      const props = propsOrGraph;
-      this._name = props?.name || this._name;
-      this.batchAddNodes(props?.nodes || []);
-      this.batchAddEdges(props?.edges || []);
+    const data = props.data;
+    const nodes = createNodesFromPlainGraphData(data?.nodes);
+    const edges = createEdgesFromPlainGraphData(data?.edges);
+
+    this._name = `unnamed-graph-${Date.now().toString()}`;
+    this._suspendVersionUpdates = true;
+    this.version = normalizeVersion(data?.version);
+    try {
+      this.batchAddNodes(nodes);
+      this.batchAddEdges(edges);
+    } finally {
+      this._suspendVersionUpdates = false;
     }
   }
 
@@ -368,6 +365,9 @@ export class ClassicGraph extends Graph {
   }
 
   _bumpVersion(): void {
+    if (this._suspendVersionUpdates) {
+      return;
+    }
     this.version += 1;
   }
 
@@ -376,87 +376,72 @@ export class ClassicGraph extends Graph {
   }
 }
 
-export class ClassicGraphLayoutAdapter implements GraphRuntimeLayout {
-  private readonly layout: GraphLayout;
-
-  constructor(layout: GraphLayout) {
-    this.layout = layout;
+function createNodesFromPlainGraphData(nodes?: GraphNodeData[] | null): Node[] {
+  if (!nodes) {
+    return [];
   }
+  return nodes.map((nodeData) => {
+    const nodeAttributes = createNodeAttributesFromPlainData(nodeData);
+    const selectable =
+      typeof nodeData.selectable === 'boolean'
+        ? nodeData.selectable
+        : Boolean(nodeAttributes.selectable);
+    const highlightConnectedEdges =
+      typeof nodeData.highlightConnectedEdges === 'boolean'
+        ? nodeData.highlightConnectedEdges
+        : Boolean(nodeAttributes.highlightConnectedEdges);
 
-  get version(): number {
-    return this.layout.version;
-  }
-
-  get state(): GraphLayoutState {
-    return this.layout.state;
-  }
-
-  getProps(): GraphLayoutProps {
-    return this.layout.getProps();
-  }
-
-  setProps(props: Partial<GraphLayoutProps>): void {
-    this.layout.setProps(props);
-  }
-
-  initializeGraph(graph: Graph): void {
-    this.layout.initializeGraph(this._assertClassicGraph(graph));
-  }
-
-  updateGraph(graph: Graph): void {
-    this.layout.updateGraph(this._assertClassicGraph(graph));
-  }
-
-  start(): void {
-    this.layout.start();
-  }
-
-  update(): void {
-    this.layout.update();
-  }
-
-  resume(): void {
-    this.layout.resume();
-  }
-
-  stop(): void {
-    this.layout.stop();
-  }
-
-  getBounds() {
-    return this.layout.getBounds();
-  }
-
-  getNodePosition(node: NodeInterface) {
-    return this.layout.getNodePosition(node as Node);
-  }
-
-  getEdgePosition(edge: EdgeInterface) {
-    return this.layout.getEdgePosition(edge as Edge);
-  }
-
-  lockNodePosition(node: NodeInterface, x: number, y: number): void {
-    this.layout.lockNodePosition(node as Node, x, y);
-  }
-
-  unlockNodePosition(node: NodeInterface): void {
-    this.layout.unlockNodePosition(node as Node);
-  }
-
-  destroy(): void {
-    this.layout.setProps({
-      onLayoutStart: undefined,
-      onLayoutChange: undefined,
-      onLayoutDone: undefined,
-      onLayoutError: undefined
+    const node = new Node({
+      id: nodeData.id,
+      selectable,
+      highlightConnectedEdges,
+      data: nodeAttributes
     });
-  }
+    node.setState(normalizeNodeState(nodeData.state));
+    return node;
+  });
+}
 
-  private _assertClassicGraph(graph: Graph): ClassicGraph {
-    if (graph instanceof ClassicGraph) {
-      return graph;
-    }
-    throw new Error('ClassicGraphLayoutAdapter expects a ClassicGraph instance.');
+function createEdgesFromPlainGraphData(edges?: GraphEdgeData[] | null): Edge[] {
+  if (!edges) {
+    return [];
   }
+  return edges.map((edgeData) => {
+    const edgeAttributes = createEdgeAttributesFromPlainData(edgeData);
+    const directed =
+      typeof edgeData.directed === 'boolean'
+        ? edgeData.directed
+        : Boolean(edgeAttributes.directed);
+    const edge = new Edge({
+      id: edgeData.id,
+      sourceId: edgeData.sourceId,
+      targetId: edgeData.targetId,
+      directed,
+      data: edgeAttributes
+    });
+    edge.setState(normalizeEdgeState(edgeData.state));
+    return edge;
+  });
+}
 
+function createNodeAttributesFromPlainData(node: GraphNodeData): Record<string, unknown> {
+  const attributes = cloneRecord(node.attributes);
+  if (typeof node.label !== 'undefined') {
+    attributes.label = node.label;
+  }
+  if (typeof node.weight !== 'undefined') {
+    attributes.weight = node.weight;
+  }
+  return attributes;
+}
+
+function createEdgeAttributesFromPlainData(edge: GraphEdgeData): Record<string, unknown> {
+  const attributes = cloneRecord(edge.attributes);
+  if (typeof edge.label !== 'undefined') {
+    attributes.label = edge.label;
+  }
+  if (typeof edge.weight !== 'undefined') {
+    attributes.weight = edge.weight;
+  }
+  return attributes;
 }

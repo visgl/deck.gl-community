@@ -338,7 +338,7 @@ export class TabularGraph<NodeHandle = unknown, EdgeHandle = unknown> extends Gr
       return edge;
     });
 
-    const graph = new ClassicGraph(undefined, this.props);
+    const graph = new ClassicGraph(this.props);
     if (legacyNodes.length > 0) {
       graph.batchAddNodes(legacyNodes);
     }

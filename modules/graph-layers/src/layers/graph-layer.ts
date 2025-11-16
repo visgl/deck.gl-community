@@ -11,24 +11,12 @@ import {PolygonLayer} from '@deck.gl/layers';
 import type {Graph, NodeInterface} from '../graph/graph';
 import {ClassicGraph} from '../graph/classic-graph';
 import {GraphLayout, type GraphLayoutEventDetail} from '../core/graph-layout';
-import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
 
 import {
   GraphStylesheetEngine,
   type GraphStylesheet
 } from '../style/graph-style-engine';
-import {mixedGetPosition} from '../utils/layer-utils';
-import {InteractionManager} from '../core/interaction-manager';
-import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
-import {
-  mapRanksToYPositions,
-  selectRankLines,
-  type LabelAccessor,
-  type RankAccessor
-} from '../utils/rank-grid';
-
-import {warn} from '../utils/log';
 
 import {
   DEFAULT_GRAPH_LAYER_STYLESHEET,
@@ -56,7 +44,19 @@ import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 import {EdgeAttachmentHelper} from './edge-attachment-helper';
 import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
-import {JSONTabularGraphLoader} from '../loaders/json-loader';
+import {JSONGraphLoader} from '../loaders/json-graph-loader';
+
+import {mixedGetPosition} from '../utils/layer-utils';
+import {InteractionManager} from '../core/interaction-manager';
+import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
+import {
+  mapRanksToYPositions,
+  selectRankLines,
+  type LabelAccessor,
+  type RankAccessor
+} from '../utils/rank-grid';
+
+import {warn} from '../utils/log';
 
 const NODE_LAYER_MAP = {
   'rectangle': RectangleLayer,
@@ -137,7 +137,7 @@ type EngineResolutionFlags = {
 
 export type _GraphLayerProps = {
   graph?: Graph;
-  layout?: GraphLayout | GraphRuntimeLayout;
+  layout?: GraphLayout;
   graphLoader?: (opts: {json: unknown}) => Graph | null;
   engine?: GraphEngine;
 
@@ -180,7 +180,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     data: {type: 'object', value: null, async: true},
 
     // Graph props
-    graphLoader: JSONTabularGraphLoader,
+    graphLoader: JSONGraphLoader,
 
     stylesheet: DEFAULT_GRAPH_LAYER_STYLESHEET,
     nodeStyle: undefined as unknown as GraphLayerNodeStyle[],
@@ -484,8 +484,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return undefined;
     }
 
-    if (Array.isArray(data) || this._isPlainObject(data)) {
-      const loader = props.graphLoader ?? JSONTabularGraphLoader;
+    if (Array.isArray(data) || isPlainObject(data)) {
+      const loader = props.graphLoader ?? JSONGraphLoader;
       const graph = loader({json: data});
       if (!graph) {
         return null;
@@ -498,7 +498,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   private _buildEngineFromGraph(
     graph: Graph | null,
-    layout?: (GraphLayout | GraphRuntimeLayout) | null
+    layout?: GraphLayout | null
   ): GraphEngine | null {
     if (!graph) {
       return null;
@@ -522,7 +522,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return null;
     }
 
-    if (this._isGraphRuntimeLayout(layout)) {
+    if (layout) {
       return new GraphEngine({graph, layout});
     }
 
@@ -595,29 +595,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     return null;
-  }
-
-  private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
-
-    const layout = value as GraphRuntimeLayout;
-    return (
-      typeof layout.initializeGraph === 'function' &&
-      typeof layout.getNodePosition === 'function' &&
-      typeof layout.getEdgePosition === 'function' &&
-      typeof layout.setProps === 'function'
-    );
-  }
-
-  private _isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
-
-    const prototype = Object.getPrototypeOf(value);
-    return prototype === Object.prototype || prototype === null;
   }
 
   private _updateLayoutSnapshot(engine?: GraphEngine | null) {
@@ -1121,3 +1098,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return layers;
   }
 }
+
+  function isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+  }
+

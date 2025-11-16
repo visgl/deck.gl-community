@@ -56,22 +56,22 @@ export type GraphProps = {
 };
 
 /** Runtime abstraction consumed by the rendering engine. */
-export abstract class Graph {
-  private _props: GraphProps;
+export abstract class Graph<PropsT extends GraphProps = GraphProps> {
+  private _props: PropsT;
 
-  protected constructor(props: GraphProps = {}) {
+  protected constructor(props: PropsT) {
     this._props = {...props};
   }
 
-  get props(): GraphProps {
+  get props(): PropsT {
     return {...this._props};
   }
 
-  setProps(props: GraphProps): void {
+  setProps(props: PropsT): void {
     this._props = {...props};
   }
 
-  updateProps(props: GraphProps): void {
+  updateProps(props: PropsT): void {
     this._props = {...this._props, ...props};
   }
 

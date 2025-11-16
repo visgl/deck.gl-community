@@ -3,9 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import {createGraph} from './create-graph';
-import {error} from '../utils/log';
-import {basicNodeParser} from './node-parsers';
-import {basicEdgeParser} from './edge-parsers';
+import {error} from '../../utils/log';
+import {basicNodeParser} from '../parsers/node-parsers';
+import {basicEdgeParser} from '../parsers/edge-parsers';
 
 /** @deprecated Use loadSimpleJSONGraph */
 export const JSONLoader = ({json, nodeParser, edgeParser}) =>

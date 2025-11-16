@@ -2,21 +2,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Edge} from '../graph/edge';
-import {Node} from '../graph/node';
-import {ClassicGraph} from '../graph/classic-graph';
+import {PlainGraphDataBuilder} from '../graph-data/plain-graph-data-builder';
 
 /**
  * @deprecated Use `new ClassicGraph(name, nodes, edges)`
  * Create a graph from a list of Nodes and edges
  */
-export function createGraph(props: {name; nodes; edges; nodeParser; edgeParser}): ClassicGraph {
+export function createGraphData(props: {name; nodes; edges; nodeParser; edgeParser}): ClassicGraph {
   const {name, nodes, edges, nodeParser, edgeParser} = props;
   // create a new empty graph
-  const graph = new ClassicGraph();
 
   const graphName = name || Date.now();
-  graph.setGraphName(graphName);
 
   // add nodes
   const glNodes = nodes.map((node) => {
@@ -38,6 +34,12 @@ export function createGraph(props: {name; nodes; edges; nodeParser; edgeParser})
       data: edge
     });
   });
-  graph.batchAddEdges(glEdges);
-  return graph;
+
+  return {
+    shape: 'plain-graph-data',
+    nodes: glNodes,
+    edges: glEdges,
+
+    graphName
+  };
 }

@@ -11,148 +11,51 @@ import {ClassicGraph} from '../../src/graph/classic-graph';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
 import type {EdgeInterface, Graph, NodeInterface} from '../../src/graph/graph';
-import {TabularGraph, TabularNode, TabularEdge} from '../../src/graph/tabular-graph';
-import type {TabularGraphAccessors, TabularGraphSource} from '../../src/graph/tabular-graph';
-import type {EdgeState, NodeState} from '../../src/core/constants';
+import type {PlainGraphData} from '../../src/graph-data/graph-data';
 
 type GraphFactory = () => Graph;
 
-type SampleNodeHandle = {
-  id: string;
-  data: Record<string, unknown>;
-  selectable?: boolean;
-  highlightConnectedEdges?: boolean;
-  state?: NodeState;
-};
-
-type SampleEdgeHandle = {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  directed?: boolean;
-  data: Record<string, unknown>;
-  state?: EdgeState;
-};
-
-class SampleTabularGraphSource
-  implements TabularGraphSource<SampleNodeHandle, SampleEdgeHandle>
-{
-  public version = 0;
-
-  private readonly nodes: SampleNodeHandle[];
-  private readonly edges: SampleEdgeHandle[];
-
-  constructor(nodes: SampleNodeHandle[], edges: SampleEdgeHandle[]) {
-    this.nodes = nodes;
-    this.edges = edges;
-  }
-
-  getNodes(): Iterable<SampleNodeHandle> {
-    return this.nodes;
-  }
-
-  getEdges(): Iterable<SampleEdgeHandle> {
-    return this.edges;
-  }
-
-  getAccessors(): TabularGraphAccessors<SampleNodeHandle, SampleEdgeHandle> {
-    return {
-      node: {
-        getId: (node: SampleNodeHandle) => node.id,
-        getState: (node: SampleNodeHandle) => node.state ?? 'default',
-        setState: (node: SampleNodeHandle, state: NodeState) => {
-          node.state = state;
-        },
-        isSelectable: (node: SampleNodeHandle) => Boolean(node.selectable),
-        shouldHighlightConnectedEdges: (node: SampleNodeHandle) =>
-          Boolean(node.highlightConnectedEdges),
-        getPropertyValue: (node: SampleNodeHandle, key: string) => node.data?.[key],
-        setData: (node: SampleNodeHandle, data: Record<string, unknown>) => {
-          node.data = {...data};
-        },
-        setDataProperty: (node: SampleNodeHandle, key: string, value: unknown) => {
-          node.data = {...node.data, [key]: value};
-        },
-        getData: (node: SampleNodeHandle) => node.data
-      },
-      edge: {
-        getId: (edge: SampleEdgeHandle) => edge.id,
-        getSourceId: (edge: SampleEdgeHandle) => edge.sourceId,
-        getTargetId: (edge: SampleEdgeHandle) => edge.targetId,
-        isDirected: (edge: SampleEdgeHandle) => Boolean(edge.directed),
-        getState: (edge: SampleEdgeHandle) => edge.state ?? 'default',
-        setState: (edge: SampleEdgeHandle, state: EdgeState) => {
-          edge.state = state;
-        },
-        getPropertyValue: (edge: SampleEdgeHandle, key: string) => edge.data?.[key],
-        setData: (edge: SampleEdgeHandle, data: Record<string, unknown>) => {
-          edge.data = {...data};
-        },
-        setDataProperty: (edge: SampleEdgeHandle, key: string, value: unknown) => {
-          edge.data = {...edge.data, [key]: value};
-        },
-        getData: (edge: SampleEdgeHandle) => edge.data
-      }
-    };
-  }
-
-  findNodeById(id: string | number): SampleNodeHandle | undefined {
-    return this.nodes.find((node) => node.id === id);
-  }
-
-  findEdgeById(id: string | number): SampleEdgeHandle | undefined {
-    return this.edges.find((edge) => edge.id === id);
-  }
-}
-
 const createClassicGraph: GraphFactory = () => {
-  const graph = new ClassicGraph();
-  const nodes = SAMPLE_GRAPH1.nodes.map(
-    (n) =>
-      new Node({
-        id: n.id,
-        data: {initial: n.id},
-        selectable: n.id === 'Cosette',
-        highlightConnectedEdges: n.id === 'Cosette'
-      })
-  );
-  const edges = SAMPLE_GRAPH1.edges.map(
-    (e) =>
-      new Edge({
-        id: e.id,
-        sourceId: e.sourceId,
-        targetId: e.targetId,
-        directed: e.id === '2',
-        data: {weight: Number(e.id)}
-      })
-  );
-  graph.batchAddNodes(nodes);
-  graph.batchAddEdges(edges);
-  return graph;
-};
-
-const createTabularGraph: GraphFactory = () => {
-  const nodes: SampleNodeHandle[] = SAMPLE_GRAPH1.nodes.map((n) => ({
-    id: n.id,
-    data: {initial: n.id},
-    selectable: n.id === 'Cosette',
-    highlightConnectedEdges: n.id === 'Cosette'
-  }));
-  const edges: SampleEdgeHandle[] = SAMPLE_GRAPH1.edges.map((e) => ({
-    id: e.id,
-    sourceId: e.sourceId,
-    targetId: e.targetId,
-    directed: e.id === '2',
-    data: {weight: Number(e.id)}
-  }));
-  const source = new SampleTabularGraphSource(nodes, edges);
-  return new TabularGraph(source);
+  const data = createPlainGraphDataFromSample();
+  return new ClassicGraph({data});
 };
 
 const GRAPH_IMPLEMENTATIONS: [string, GraphFactory][] = [
-  ['ClassicGraph', createClassicGraph],
-  ['TabularGraph', createTabularGraph]
+  ['ClassicGraph', createClassicGraph]
 ];
+
+function createPlainGraphDataFromSample(): PlainGraphData {
+  return {
+    shape: 'plain-graph-data',
+    version: 1,
+    nodes: SAMPLE_GRAPH1.nodes.map((node) => ({
+      id: node.id,
+      selectable: node.id === 'Cosette',
+      highlightConnectedEdges: node.id === 'Cosette',
+      attributes: {initial: node.id}
+    })),
+    edges: SAMPLE_GRAPH1.edges.map((edge) => ({
+      id: edge.id,
+      sourceId: edge.sourceId,
+      targetId: edge.targetId,
+      directed: edge.id === '2',
+      attributes: {weight: Number(edge.id)}
+    }))
+  };
+}
+
+function createEmptyPlainGraphData(): PlainGraphData {
+  return {
+    shape: 'plain-graph-data',
+    version: 0,
+    nodes: [],
+    edges: []
+  };
+}
+
+function createEmptyClassicGraph(): ClassicGraph {
+  return new ClassicGraph({data: createEmptyPlainGraphData()});
+}
 
 beforeAll(() => {
   globalThis.CustomEvent = Event as any;
@@ -220,13 +123,13 @@ describe('core/graph', () => {
 
   describe('ClassicGraph specifics', () => {
     it('should work with empty named graph', () => {
-      const graph = new ClassicGraph();
+      const graph = createEmptyClassicGraph();
       graph.setGraphName('test');
       expect(graph.getGraphName()).toBe('test');
     });
 
     it('should add edges in a batch', () => {
-      const graph = new ClassicGraph();
+      const graph = createEmptyClassicGraph();
       const glEdges = SAMPLE_GRAPH1.edges.map(
         (e) =>
           new Edge({
@@ -244,58 +147,13 @@ describe('core/graph', () => {
     });
 
     it('should add nodes in a batch', () => {
-      const graph = new ClassicGraph();
+      const graph = createEmptyClassicGraph();
       const glNodes = SAMPLE_GRAPH1.nodes.map((n) => new Node({id: n.id, data: {}}));
       graph.batchAddNodes(glNodes);
       expect(graph.getNodes()).toHaveLength(glNodes.length);
-      const graph2 = new ClassicGraph(graph);
-      expect(graph2.getNodes()).toHaveLength(glNodes.length);
     });
   });
 
-  describe('TabularGraph specifics', () => {
-    it('stores node and edge state in the internal tables', () => {
-      const nodes: SampleNodeHandle[] = SAMPLE_GRAPH1.nodes.map((n) => ({
-        id: n.id,
-        data: {initial: n.id}
-      }));
-      const edges: SampleEdgeHandle[] = SAMPLE_GRAPH1.edges.map((e) => ({
-        id: e.id,
-        sourceId: e.sourceId,
-        targetId: e.targetId,
-        data: {weight: Number(e.id)}
-      }));
-      const source = new SampleTabularGraphSource(nodes, edges);
-      const graph = new TabularGraph(source);
-
-      const tabularNode = Array.from(graph.getNodes())[0] as TabularNode<SampleNodeHandle, SampleEdgeHandle>;
-      const tabularEdge = Array.from(graph.getEdges())[0] as TabularEdge<SampleNodeHandle, SampleEdgeHandle>;
-
-      tabularNode.setState('hover');
-      tabularNode.setDataProperty('nickname', 'Co');
-      tabularEdge.setState('selected');
-      tabularEdge.setDataProperty('capacity', 42);
-
-      expect(graph.getNodeStateByIndex(tabularNode.index)).toBe('hover');
-      expect(graph.getNodeDataByIndex(tabularNode.index)).toMatchObject({
-        initial: tabularNode.getId(),
-        nickname: 'Co'
-      });
-      expect(graph.getEdgeStateByIndex(tabularEdge.index)).toBe('selected');
-      expect(graph.getEdgeDataByIndex(tabularEdge.index)).toMatchObject({
-        weight: Number(tabularEdge.getId()),
-        capacity: 42
-      });
-
-      const nodeHandle = source.findNodeById(tabularNode.getId());
-      expect(nodeHandle?.state).toBe('hover');
-      expect(nodeHandle?.data.nickname).toBe('Co');
-
-      const edgeHandle = source.findEdgeById(tabularEdge.getId());
-      expect(edgeHandle?.state).toBe('selected');
-      expect(edgeHandle?.data.capacity).toBe(42);
-    });
-  });
 });
 
 function findNode(graph: Graph, id: string | number): NodeInterface {

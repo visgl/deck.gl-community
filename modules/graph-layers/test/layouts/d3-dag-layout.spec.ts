@@ -10,12 +10,37 @@ import {Edge} from '../../src/graph/edge';
 import {D3DagLayout} from '../../src/layouts/d3-dag/d3-dag-layout';
 import {CollapsableD3DagLayout} from '../../src/layouts/d3-dag/collapsable-d3-dag-layout';
 import {GraphEngine} from '../../src/core/graph-engine';
+import type {PlainGraphData} from '../../src/graph-data/graph-data';
 
 type SampleGraph = {
   graph: ClassicGraph;
   nodes: Record<string, Node>;
   edges: Record<string, Edge>;
 };
+
+const EMPTY_GRAPH_DATA: PlainGraphData = {
+  shape: 'plain-graph-data',
+  version: 0,
+  nodes: [],
+  edges: []
+};
+
+function createEmptyClassicGraph(): ClassicGraph {
+  return new ClassicGraph({
+    data: {
+      ...EMPTY_GRAPH_DATA,
+      nodes: [],
+      edges: []
+    }
+  });
+}
+
+function createClassicGraphFromComponents(nodes: Node[], edges: Edge[]): ClassicGraph {
+  const graph = createEmptyClassicGraph();
+  graph.batchAddNodes(nodes);
+  graph.batchAddEdges(edges);
+  return graph;
+}
 
 function createSampleDag(): SampleGraph {
   const nodes = ['a', 'b', 'c', 'd'].map((id) => new Node({id}));
@@ -26,7 +51,7 @@ function createSampleDag(): SampleGraph {
     new Edge({id: 'cd', sourceId: 'c', targetId: 'd', directed: true})
   ];
 
-  const graph = new ClassicGraph({nodes, edges});
+  const graph = createClassicGraphFromComponents(nodes, edges);
   return {
     graph,
     nodes: Object.fromEntries(nodes.map((node) => [String(node.getId()), node])),
@@ -44,7 +69,7 @@ function createLinearChainGraph(): SampleGraph {
     new Edge({id: 'df', sourceId: 'd', targetId: 'f', directed: true})
   ];
 
-  const graph = new ClassicGraph({nodes, edges});
+  const graph = createClassicGraphFromComponents(nodes, edges);
   return {
     graph,
     nodes: Object.fromEntries(nodes.map((node) => [String(node.getId()), node])),

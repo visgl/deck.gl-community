@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {ArrowGraph} from './arrow-graph';
-import type {ArrowGraphDataBuilderOptions} from '../graph-data/arrow-graph-data-builder';
-import {ArrowGraphDataBuilder} from '../graph-data/arrow-graph-data-builder';
-import type {TabularGraph, TabularNode, TabularEdge} from './tabular-graph';
+import {ArrowGraph} from '../arrow-graph';
+import type {ArrowGraphDataBuilderOptions} from '../../graph-data/arrow-graph-data-builder';
+import {ArrowGraphDataBuilder} from '../../graph-data/arrow-graph-data-builder';
+import type {TabularGraph, TabularNode, TabularEdge} from '../tabular-graph';
 
 const NODE_ATTRIBUTE_KEYS_TO_REMOVE = [
   'id',
@@ -82,7 +82,7 @@ export function convertTabularGraphToArrowGraph(
     });
   }
 
-  return new ArrowGraph(builder.finish(), tabularGraph.props);
+  return new ArrowGraph({...tabularGraph.props, data: builder.finish()});
 }
 
 function sanitizeNodeData(data: Record<string, unknown>): SanitizedNodeData {

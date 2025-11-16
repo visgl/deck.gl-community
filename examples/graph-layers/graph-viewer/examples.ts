@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {DOTGraphLoader, type DotGraphLoaderResult} from '@deck.gl-community/graph-layers';
+import {DOTGraphLoader, ArrowGraph} from '@deck.gl-community/graph-layers';
+import type {ArrowGraphData} from '@deck.gl-community/graph-layers';
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
 import type {
   ExampleDefinition,
@@ -13,7 +14,7 @@ import type {
 } from './layout-options';
 import witsRaw from '../../../modules/graph-layers/test/data/examples/wits.json';
 import sampleMultiGraph from './sample-multi-graph.json';
-import dagPipelineRaw from './dag-pipeline.json';
+import dagPipelineRaw from '../../../modules/graph-layers/test/data/examples/dag-pipeline.json';
 import knowledgeGraphRaw from './knowledge-graph.json';
 
 type DagRecord = {
@@ -511,6 +512,8 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
 const DOT_FIXTURE_BASE_URL =
   'https://raw.githubusercontent.com/visgl/deck.gl-community/refs/heads/master/modules/graph-layers/test/data/__fixtures__/dot/';
 
+type DotGraphLoaderResult = {graph?: ArrowGraph | null};
+
 function isDotGraphLoaderResult(value: unknown): value is DotGraphLoaderResult {
   if (!value || typeof value !== 'object') {
     return false;
@@ -519,9 +522,18 @@ function isDotGraphLoaderResult(value: unknown): value is DotGraphLoaderResult {
   return 'graph' in (value as DotGraphLoaderResult) && Boolean((value as DotGraphLoaderResult).graph);
 }
 
+function isArrowGraphData(value: unknown): value is ArrowGraphData {
+  const candidate = value as ArrowGraphData;
+  return Boolean(candidate && typeof candidate === 'object' && candidate.shape === 'arrow-graph-data');
+}
+
 const DOT_RESULT_GRAPH_LOADER = ({json}: {json: unknown}) => {
+  if (isArrowGraphData(json)) {
+    return new ArrowGraph({data: json});
+  }
+
   if (isDotGraphLoaderResult(json)) {
-    return json.graph;
+    return json.graph ?? null;
   }
 
   return null;
@@ -886,23 +898,6 @@ export const EXAMPLES: ExampleDefinition[] = [
     type: 'graph'
   },
   {
-    name: 'University hierarchy (radial)',
-    description:
-      'Synthetic university organisational network demonstrating how hierarchical relationships expand from a central hub.',
-    data: () => cloneGraphData(KNOWLEDGE_GRAPH),
-    layouts: ['radial-layout'],
-    layoutDescriptions: LAYOUT_DESCRIPTIONS,
-    style: KNOWLEDGE_GRAPH_STYLE,
-    type: 'radial',
-    getLayoutOptions: (layout) =>
-      layout === 'radial-layout'
-        ? {
-            radius: 380,
-            tree: cloneTree(KNOWLEDGE_GRAPH.tree)
-          }
-        : undefined
-  },
-  {
     name: 'World trade (radial, graph.gl)',
     description:
       'Recreates the original graph.gl radial layout example using World Integrated Trade Solution partner flows grouped by region.',
@@ -916,6 +911,23 @@ export const EXAMPLES: ExampleDefinition[] = [
         ? {
             radius: 520,
             tree: cloneTree(WITS_TREE)
+          }
+        : undefined
+  },
+  {
+    name: 'University hierarchy (radial)',
+    description:
+      'Synthetic university organisational network demonstrating how hierarchical relationships expand from a central hub.',
+    data: () => cloneGraphData(KNOWLEDGE_GRAPH),
+    layouts: ['radial-layout'],
+    layoutDescriptions: LAYOUT_DESCRIPTIONS,
+    style: KNOWLEDGE_GRAPH_STYLE,
+    type: 'radial',
+    getLayoutOptions: (layout) =>
+      layout === 'radial-layout'
+        ? {
+            radius: 380,
+            tree: cloneTree(KNOWLEDGE_GRAPH.tree)
           }
         : undefined
   },

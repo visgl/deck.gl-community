@@ -67,7 +67,7 @@ type LayoutOptionsDetailsProps = {
 
 function LayoutOptionsDetails({children, description, defaultOpen}: LayoutOptionsDetailsProps) {
   return (
-    <details defaultOpen={defaultOpen} style={DETAILS_STYLE}>
+    <details open={defaultOpen} style={DETAILS_STYLE}>
       <summary style={SUMMARY_STYLE}>Layout options</summary>
       {description
         ? typeof description === 'string'

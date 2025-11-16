@@ -6,8 +6,6 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist",
-    "noEmit": false,
-    "jsx": "react-jsx",
-    "jsxImportSource": "preact"
+    "noEmit": false
   }
 }

@@ -3,8 +3,29 @@
 // Copyright (c) vis.gl contributors
 
 import type {NodeState, EdgeState} from '../core/constants';
+import * as arrow from 'apache-arrow';
 
-type GraphNodeDataShape = {
+/** Graph data types supported by this library */
+export type GraphData = PlainGraphData | ArrowGraphData;
+
+/** Graph data stored in Apache Arrow binary columnar tables */
+export type ArrowGraphData = {
+  shape: 'arrow-graph-data';
+  version: number;
+  metadata?: Record<string, unknown>;
+  nodes: arrow.Table;
+  edges: arrow.Table;
+};
+
+export type PlainGraphData = {
+  shape: 'plain-graph-data';
+  version?: number;
+  metadata?: Record<string, unknown>;
+  nodes?: GraphNodeData[] | null;
+  edges?: GraphEdgeData[] | null;
+};
+
+export type GraphNodeData = {
   id: string | number;
   label?: string;
   state?: NodeState;
@@ -14,11 +35,7 @@ type GraphNodeDataShape = {
   attributes?: Record<string, unknown> | null | undefined;
 };
 
-export type GraphNodeData = GraphNodeDataShape & {
-  type?: 'graph-node-data';
-};
-
-type GraphEdgeDataShape = {
+export type GraphEdgeData = {
   id: string | number;
   sourceId: string | number;
   targetId: string | number;
@@ -29,16 +46,12 @@ type GraphEdgeDataShape = {
   attributes?: Record<string, unknown> | null | undefined;
 };
 
-export type GraphEdgeData = GraphEdgeDataShape & {
-  type?: 'graph-edge-data';
-};
+export function isArrowGraphData(value: unknown): value is ArrowGraphData {
+  const candidate = value as ArrowGraphData;
+  return typeof value === 'object' && candidate?.shape === 'arrow-graph-data';
+}
 
-type GraphDataShape = {
-  version?: number;
-  nodes?: GraphNodeData[] | null;
-  edges?: GraphEdgeData[] | null;
-};
-
-export type GraphData = GraphDataShape & {
-  type?: 'graph-data';
-};
+export function isPlainGraphData(value: unknown): value is PlainGraphData {
+  const candidate = value as PlainGraphData;
+  return typeof value === 'object' && candidate?.shape === 'plain-graph-data';
+}

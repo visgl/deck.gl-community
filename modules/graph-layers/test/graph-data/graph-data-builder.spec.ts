@@ -4,15 +4,14 @@
 
 import {describe, expect, it} from 'vitest';
 
-import {GraphDataBuilder} from '../../src/graph-data/graph-data-builder';
+import {PlainGraphDataBuilder} from '../../src/graph-data/plain-graph-data-builder';
 import type {GraphData} from '../../src/graph-data/graph-data';
 
 const SAMPLE_GRAPH_DATA: GraphData = {
-  type: 'graph-data',
+  shape: 'plain-graph-data',
   version: 5,
   nodes: [
     {
-      type: 'graph-node-data',
       id: 'node-1',
       label: 'Node 1',
       state: 'hover',
@@ -22,14 +21,12 @@ const SAMPLE_GRAPH_DATA: GraphData = {
       attributes: {category: 'alpha'}
     },
     {
-      type: 'graph-node-data',
       id: 'node-2',
       attributes: {label: 'Node 2', selectable: false}
     }
   ],
   edges: [
     {
-      type: 'graph-edge-data',
       id: 'edge-1',
       sourceId: 'node-1',
       targetId: 'node-2',
@@ -39,7 +36,6 @@ const SAMPLE_GRAPH_DATA: GraphData = {
       attributes: {label: 'Edge 1'}
     },
     {
-      type: 'graph-edge-data',
       id: 'edge-2',
       sourceId: 'node-2',
       targetId: 'node-1',
@@ -48,9 +44,9 @@ const SAMPLE_GRAPH_DATA: GraphData = {
   ]
 };
 
-describe('GraphDataBuilder', () => {
+describe('PlainGraphDataBuilder', () => {
   it('returns GraphData with cloned records', () => {
-    const builder = new GraphDataBuilder({version: 1});
+    const builder = new PlainGraphDataBuilder({version: 1});
 
     for (const node of SAMPLE_GRAPH_DATA.nodes ?? []) {
       builder.addNode(node);
@@ -63,11 +59,11 @@ describe('GraphDataBuilder', () => {
     const result = builder.build();
 
     expect(result.version).toBe(1);
-    expect(result.type).toBe('graph-data');
+    expect(result.shape).toBe('plain-graph-data');
     expect(result.nodes).toHaveLength(2);
     expect(result.edges).toHaveLength(2);
-    expect(result.nodes?.every((node) => node?.type === 'graph-node-data')).toBe(true);
-    expect(result.edges?.every((edge) => edge?.type === 'graph-edge-data')).toBe(true);
+    expect(result.nodes?.map((node) => node?.id)).toEqual(['node-1', 'node-2']);
+    expect(result.edges?.map((edge) => edge?.id)).toEqual(['edge-1', 'edge-2']);
 
     expect(result.nodes?.[0]).not.toBe(SAMPLE_GRAPH_DATA.nodes?.[0]);
     expect(result.edges?.[0]).not.toBe(SAMPLE_GRAPH_DATA.edges?.[0]);

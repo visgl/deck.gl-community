@@ -3,21 +3,18 @@
 // Copyright (c) vis.gl contributors
 
 import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
-
-import {createGraphFromData} from '../graph/create-graph-from-data';
-import type {Graph} from '../graph/graph';
-import type {ArrowGraphData} from '../graph-data/arrow-graph-data';
+import type {ArrowGraphData} from '../graph-data/graph-data';
 import {ArrowGraphDataBuilder} from '../graph-data/arrow-graph-data-builder';
 
 // __VERSION__ is injected by babel-plugin-version-inline
 // @ts-ignore TS2304: Cannot find name '__VERSION__'.
 const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'latest';
 
-type DotAttributeMap = Record<string, unknown>;
+type DOTAttributeMap = Record<string, unknown>;
 
 type ParsedNode = {
   id: string;
-  attributes: DotAttributeMap;
+  attributes: DOTAttributeMap;
   subgraphs: Set<string>;
 };
 
@@ -26,50 +23,47 @@ type ParsedEdge = {
   sourceId: string;
   targetId: string;
   directed: boolean;
-  attributes: DotAttributeMap;
+  attributes: DOTAttributeMap;
   subgraphs: string[];
 };
 
 type ParsedSubgraph = {
   id: string;
-  attributes: DotAttributeMap;
+  attributes: DOTAttributeMap;
   parentId?: string | null;
 };
 
-type DotParseResult = {
+type DOTParseResult = {
   id?: string;
   directed: boolean;
   strict: boolean;
-  graphAttributes: DotAttributeMap;
+  graphAttributes: DOTAttributeMap;
   nodes: Map<string, ParsedNode>;
   edges: ParsedEdge[];
   subgraphs: Map<string, ParsedSubgraph>;
 };
 
-export type DotGraphLoaderOptions = {
-  version?: number;
-};
-
-export type DotGraphLoaderContextOptions = LoaderOptions & {
-  dot?: DotGraphLoaderOptions;
-};
-
-export type DotGraphLoaderMetadata = {
+export type DOTGraphLoaderMetadata = {
   id?: string;
   directed: boolean;
   strict: boolean;
-  attributes: DotAttributeMap;
+  attributes: DOTAttributeMap;
   subgraphs: ParsedSubgraph[];
 };
 
-export type DotGraphLoaderResult = {
-  graph: Graph;
-  data: ArrowGraphData;
-  metadata: DotGraphLoaderMetadata;
+// Loader definition
+
+export type DOTGraphLoaderOptions = LoaderOptions & {
+  dot?: {
+   version?: number;
+  };
 };
 
+export type DOTGraphParserOptions = NonNullable<DOTGraphLoaderOptions['dot']>;
+
+
 export const DOTGraphLoader = {
-  dataType: null as unknown as DotGraphLoaderResult,
+  dataType: null as unknown as ArrowGraphData,
   batchType: null as never,
 
   name: 'DOT Graph',
@@ -85,35 +79,34 @@ export const DOTGraphLoader = {
       version: 0
     }
   },
-  parse: (arrayBuffer: ArrayBuffer, options?: DotGraphLoaderContextOptions) => {
+  parse: (arrayBuffer: ArrayBuffer, options?: DOTGraphLoaderOptions) => {
     const text = new TextDecoder().decode(arrayBuffer);
     return Promise.resolve(DOTGraphLoader.parseTextSync(text, options));
   },
-  parseTextSync: (text: string, options?: DotGraphLoaderContextOptions) => {
+  parseTextSync: (text: string, options?: DOTGraphLoaderOptions) => {
     const parseOptions = {...DOTGraphLoader.options.dot, ...options?.dot};
-    return loadDotGraph(text, parseOptions);
+    return loadDOTGraph(text, parseOptions);
   }
-} as const satisfies LoaderWithParser<DotGraphLoaderResult, never, DotGraphLoaderContextOptions>;
+} as const satisfies LoaderWithParser<ArrowGraphData, never, DOTGraphLoaderOptions>;
 
-export function loadDotGraph(dot: string, options: DotGraphLoaderOptions = {}): DotGraphLoaderResult {
-  const parsed = parseDot(dot);
-  const {data, metadata} = buildArrowGraphData(parsed, options);
-  const graph = createGraphFromData(data);
-  return {graph, data, metadata};
+
+export function loadDOTGraph(dot: string, options: DOTGraphParserOptions = {}): ArrowGraphData {
+  const parsed = parseDOT(dot);
+  return buildArrowGraphData(parsed, options);
 }
 
-export function parseDotToArrowGraphData(
+export function parseDOTToArrowGraphData(
   dot: string,
-  options: DotGraphLoaderOptions = {}
-): {data: ArrowGraphData; metadata: DotGraphLoaderMetadata} {
-  const parsed = parseDot(dot);
+  options: DOTGraphParserOptions = {}
+): ArrowGraphData {
+  const parsed = parseDOT(dot);
   return buildArrowGraphData(parsed, options);
 }
 
 function buildArrowGraphData(
-  parsed: DotParseResult,
-  options: DotGraphLoaderOptions
-): {data: ArrowGraphData; metadata: DotGraphLoaderMetadata} {
+  parsed: DOTParseResult,
+  options: DOTGraphParserOptions
+): ArrowGraphData {
   const builder = new ArrowGraphDataBuilder({version: options.version});
 
   const subgraphDescriptors = new Map<string, ParsedSubgraph>();
@@ -126,7 +119,7 @@ function buildArrowGraphData(
   }
 
   for (const node of parsed.nodes.values()) {
-    const attributes: DotAttributeMap = {...node.attributes};
+    const attributes: DOTAttributeMap = {...node.attributes};
     if (node.subgraphs.size > 0) {
       attributes.subgraphs = Array.from(node.subgraphs, (id) => describeSubgraph(id, subgraphDescriptors));
     }
@@ -137,7 +130,7 @@ function buildArrowGraphData(
   }
 
   parsed.edges.forEach((edge) => {
-    const attributes: DotAttributeMap = {...edge.attributes};
+    const attributes: DOTAttributeMap = {...edge.attributes};
     if (edge.subgraphs.length > 0) {
       attributes.subgraphs = edge.subgraphs.map((id) => describeSubgraph(id, subgraphDescriptors));
     }
@@ -150,7 +143,7 @@ function buildArrowGraphData(
     });
   });
 
-  const metadata: DotGraphLoaderMetadata = {
+  const metadata: DOTGraphLoaderMetadata = {
     id: parsed.id,
     directed: parsed.directed,
     strict: parsed.strict,
@@ -162,13 +155,15 @@ function buildArrowGraphData(
     }))
   };
 
-  return {data: builder.finish(), metadata};
+  const data = builder.finish();
+  data.metadata = metadata;
+  return data;
 }
 
 function describeSubgraph(
   id: string,
   descriptors: Map<string, ParsedSubgraph>
-): {id: string; attributes: DotAttributeMap; parentId?: string | null} {
+): {id: string; attributes: DOTAttributeMap; parentId?: string | null} {
   const subgraph = descriptors.get(id);
   if (!subgraph) {
     return {id, attributes: {}};
@@ -200,15 +195,15 @@ type Token = {
 
 type ScopeContext = {
   id?: string;
-  nodeDefaults: DotAttributeMap;
-  edgeDefaults: DotAttributeMap;
-  graphAttributes: DotAttributeMap;
+  nodeDefaults: DOTAttributeMap;
+  edgeDefaults: DOTAttributeMap;
+  graphAttributes: DOTAttributeMap;
 };
 
-class DotParser {
+class DOTParser {
   private readonly tokens: Token[];
   private position = 0;
-  private readonly result: DotParseResult = {
+  private readonly result: DOTParseResult = {
     directed: false,
     strict: false,
     graphAttributes: {},
@@ -228,7 +223,7 @@ class DotParser {
     this.tokens = tokens;
   }
 
-  parse(): DotParseResult {
+  parse(): DOTParseResult {
     this.parseGraph();
     return this.result;
   }
@@ -375,13 +370,13 @@ class DotParser {
     this.addEdgeChain(references, operators, attrs);
   }
 
-  private addNode(id: string, attrs: DotAttributeMap): void {
+  private addNode(id: string, attrs: DOTAttributeMap): void {
     const membership = this.getCurrentSubgraphChain();
     const node = this.ensureNode(id, membership);
     node.attributes = {...node.attributes, ...attrs};
   }
 
-  private addEdgeChain(nodes: string[], operators: string[], attrs: DotAttributeMap): void {
+  private addEdgeChain(nodes: string[], operators: string[], attrs: DOTAttributeMap): void {
     const membership = this.getCurrentSubgraphChain();
     const defaults = this.currentScope().edgeDefaults;
     const attributes = {...defaults, ...attrs};
@@ -446,8 +441,8 @@ class DotParser {
     this.scopes.pop();
   }
 
-  private parseAttributeList(): DotAttributeMap {
-    const attributes: DotAttributeMap = {};
+  private parseAttributeList(): DOTAttributeMap {
+    const attributes: DOTAttributeMap = {};
     while (this.match('lbrack')) {
       while (!this.match('rbrack')) {
         const keyToken = this.consume();
@@ -544,8 +539,8 @@ class DotParser {
   }
 }
 
-function parseDot(input: string): DotParseResult {
-  const parser = new DotParser(tokenize(input));
+function parseDOT(input: string): DOTParseResult {
+  const parser = new DOTParser(tokenize(input));
   return parser.parse();
 }
 
@@ -834,7 +829,7 @@ function parseAttributeValue(token: Token): unknown {
 }
 
 function deriveEdgeId(
-  attributes: DotAttributeMap,
+  attributes: DOTAttributeMap,
   sourceId: string,
   targetId: string,
   counter: number
@@ -846,7 +841,7 @@ function deriveEdgeId(
   return `${String(sourceId)}-${String(targetId)}-${counter}`;
 }
 
-function deriveDirectedFlag(attributes: DotAttributeMap, defaultDirected: boolean): boolean {
+function deriveDirectedFlag(attributes: DOTAttributeMap, defaultDirected: boolean): boolean {
   const candidate = attributes.directed;
   if (typeof candidate === 'boolean') {
     return candidate;
