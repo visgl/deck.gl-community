@@ -64,6 +64,10 @@ export abstract class GraphLayout<
     };
   }
 
+  getProps(): PropsT {
+    return {...this.props};
+  }
+
   setProps(props: Partial<PropsT>): void {
     this.props = {...this.props, ...props};
   }

@@ -103,6 +103,7 @@ function sanitizeNode(data: unknown): SanitizedNode | null {
     return null;
   }
   const attributes = pruneAttributes(node, NODE_ATTRIBUTE_KEYS_TO_REMOVE);
+  attributes.id = id;
   const state = typeof node.state === 'string' ? (node.state as NodeState) : undefined;
   const selectable =
     typeof node.selectable === 'boolean' ? node.selectable : undefined;
@@ -112,6 +113,10 @@ function sanitizeNode(data: unknown): SanitizedNode | null {
       : undefined;
   const label = typeof node.label === 'string' ? node.label : undefined;
   const weight = typeof node.weight === 'number' ? node.weight : undefined;
+
+  if (label && attributes.label === undefined) {
+    attributes.label = label;
+  }
 
   return {
     id,
@@ -140,11 +145,21 @@ function sanitizeEdge(data: unknown): SanitizedEdge | null {
     return null;
   }
   const attributes = pruneAttributes(edge, EDGE_ATTRIBUTE_KEYS_TO_REMOVE);
+  attributes.id = id;
+  attributes.sourceId = sourceId;
+  attributes.targetId = targetId;
   const state = typeof edge.state === 'string' ? (edge.state as EdgeState) : undefined;
   const directed =
     typeof edge.directed === 'boolean' ? edge.directed : undefined;
   const label = typeof edge.label === 'string' ? edge.label : undefined;
   const weight = typeof edge.weight === 'number' ? edge.weight : undefined;
+
+  if (label && attributes.label === undefined) {
+    attributes.label = label;
+  }
+  if (typeof directed === 'boolean' && attributes.directed === undefined) {
+    attributes.directed = directed;
+  }
 
   return {
     id,
