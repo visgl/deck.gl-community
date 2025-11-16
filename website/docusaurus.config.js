@@ -93,8 +93,6 @@ const config = {
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
             '@deck.gl-community/widgets': resolve('../modules/widgets/src'),
-            react: resolve('node_modules/react'),
-            'react-dom': resolve('node_modules/react-dom'),
             '@deck.gl/aggregation-layers': resolve('../node_modules/@deck.gl/aggregation-layers'),
             '@deck.gl/arcgis': resolve('../node_modules/@deck.gl/arcgis'),
             '@deck.gl/carto': resolve('../node_modules/@deck.gl/carto'),
@@ -116,6 +114,12 @@ const config = {
             '@loaders.gl/obj': resolve('node_modules/@loaders.gl/obj'),
             '@loaders.gl/ply': resolve('node_modules/@loaders.gl/ply'),
             '@loaders.gl': resolve('../node_modules/@loaders.gl'),
+            preact: resolve('node_modules/preact'),
+            'preact/hooks': resolve('node_modules/preact/hooks'),
+            'preact/jsx-runtime': resolve('node_modules/preact/jsx-runtime'),
+            'preact/jsx-dev-runtime': resolve('node_modules/preact/jsx-dev-runtime'),
+            react: resolve('node_modules/react'),
+            'react-dom': resolve('node_modules/react-dom'),
             'styled-react-modal': resolve('node_modules/styled-react-modal')
           }
         },
@@ -138,6 +142,32 @@ const config = {
               resolve: {
                 fullySpecified: false
               }
+            },
+            // widgets module JSX must be traspiled as preact
+            {
+              test: /\.[jt]sx?$/,
+              include: [resolve('../modules/widgets/src')],
+              use: [
+                {
+                  loader: require.resolve('babel-loader'),
+                  options: {
+                    babelrc: false,
+                    configFile: false,
+                    presets: [
+                      [
+                        require.resolve('@babel/preset-typescript'),
+                        {isTSX: true, allExtensions: true, allowDeclareFields: true}
+                      ]
+                    ],
+                    plugins: [
+                      [
+                        require.resolve('@babel/plugin-transform-react-jsx'),
+                        {runtime: 'automatic', importSource: 'preact'}
+                      ]
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }
