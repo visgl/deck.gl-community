@@ -5,7 +5,7 @@
 // Graph Data - output from loaders, input to writers
 
 export type {GraphData, PlainGraphData, ArrowGraphData /* , GraphNodeData, GraphEdgeData */} from './graph-data/graph-data';
-export {GraphDataBuilder /* , type GraphDataBuilderOptions */} from './graph-data/graph-data-builder';
+export type {GraphDataBuilder /* , GraphDataBuilderOptions */} from './graph-data/graph-data-builder';
 export {
   ArrowGraphDataBuilder,
   type ArrowGraphDataBuilderOptions

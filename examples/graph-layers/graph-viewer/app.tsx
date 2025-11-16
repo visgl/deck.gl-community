@@ -23,15 +23,13 @@ import {
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
-  JSONTabularGraphLoader,
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
   D3DagLayout,
   CollapsableD3DagLayout,
   type RankGridConfig,
-  ArrowGraph,
-  convertTabularGraphToArrowGraph
+  ArrowGraph
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -45,6 +43,7 @@ import {CollapseControls} from './collapse-controls';
 import {StylesheetEditor} from './stylesheet-editor';
 import {EXAMPLES, filterExamplesByType} from './examples';
 import {useGraphViewport} from './use-graph-viewport';
+import {createArrowGraphFromJson, type JsonGraph} from './sanitize-graph';
 
 const INITIAL_VIEW_STATE = {
   /** the target origin of the view */
@@ -139,27 +138,6 @@ function mergeMetadata(
 }
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
-
-type JsonGraph = {
-  version?: number;
-  nodes?: unknown[] | null;
-  edges?: unknown[] | null;
-};
-
-function createArrowGraphFromJson(json: JsonGraph | null | undefined): ArrowGraph | null {
-  if (!json) {
-    return null;
-  }
-
-  const tabularGraph = JSONTabularGraphLoader({json});
-  if (!tabularGraph) {
-    return null;
-  }
-
-  const arrowGraph = convertTabularGraphToArrowGraph(tabularGraph);
-  tabularGraph.destroy?.();
-  return arrowGraph;
-}
 
 const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'd3-force-layout': () => new D3ForceLayout(),
