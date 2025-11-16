@@ -42,6 +42,7 @@ export class PlainGraphDataBuilder implements GraphDataBuilder {
     }
 
     const attributes = cloneRecord(node.attributes);
+    this._assignNodeAttributes(attributes, node);
     const record: GraphNodeData = {
       ...node,
       attributes
@@ -61,6 +62,7 @@ export class PlainGraphDataBuilder implements GraphDataBuilder {
     }
 
     const attributes = cloneRecord(edge.attributes);
+    this._assignEdgeAttributes(attributes, edge);
     const record: GraphEdgeData = {
       ...edge,
       attributes
@@ -68,6 +70,39 @@ export class PlainGraphDataBuilder implements GraphDataBuilder {
 
     this.edges.push(record);
     return this.edges.length - 1;
+  }
+
+  private _assignNodeAttributes(target: Record<string, unknown>, node: GraphNodeData): void {
+    if (typeof node.label !== 'undefined') {
+      target.label = node.label;
+    }
+    if (typeof node.weight !== 'undefined') {
+      target.weight = node.weight;
+    }
+    if (typeof node.state !== 'undefined') {
+      target.state = node.state;
+    }
+    if (typeof node.selectable !== 'undefined') {
+      target.selectable = node.selectable;
+    }
+    if (typeof node.highlightConnectedEdges !== 'undefined') {
+      target.highlightConnectedEdges = node.highlightConnectedEdges;
+    }
+  }
+
+  private _assignEdgeAttributes(target: Record<string, unknown>, edge: GraphEdgeData): void {
+    if (typeof edge.label !== 'undefined') {
+      target.label = edge.label;
+    }
+    if (typeof edge.weight !== 'undefined') {
+      target.weight = edge.weight;
+    }
+    if (typeof edge.state !== 'undefined') {
+      target.state = edge.state;
+    }
+    if (typeof edge.directed !== 'undefined') {
+      target.directed = edge.directed;
+    }
   }
 
   build(): PlainGraphData {

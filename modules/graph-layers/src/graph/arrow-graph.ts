@@ -6,8 +6,10 @@ import * as arrow from 'apache-arrow';
 
 import type {NodeState, EdgeState} from '../core/constants';
 import type {ArrowGraphData} from '../graph-data/graph-data';
+import {PlainGraphDataBuilder} from '../graph-data/plain-graph-data-builder';
 import type {GraphProps, NodeInterface, EdgeInterface} from './graph';
 import {Graph} from './graph';
+import {ClassicGraph} from './classic-graph';
 import {cloneRecord, normalizeEdgeState, normalizeNodeState} from './graph-normalization';
 
 import {getVectorLength,
@@ -343,6 +345,35 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
     return this.edges[index]?.getConnectedNodes() ?? [];
   }
 
+  toClassicGraph(): ClassicGraph {
+    const builder = new PlainGraphDataBuilder({version: this._version});
+
+    const nodeCount = getVectorLength(this.nodeVectors.id);
+    for (let index = 0; index < nodeCount; index++) {
+      builder.addNode({
+        id: this.getNodeIdByIndex(index),
+        state: this.getNodeStateByIndex(index),
+        selectable: this.isNodeSelectableByIndex(index),
+        highlightConnectedEdges: this.shouldHighlightConnectedEdgesByIndex(index),
+        attributes: this.getNodeDataByIndex(index)
+      });
+    }
+
+    const edgeCount = getVectorLength(this.edgeVectors.id);
+    for (let index = 0; index < edgeCount; index++) {
+      builder.addEdge({
+        id: this.getEdgeIdByIndex(index),
+        sourceId: this.getEdgeSourceIdByIndex(index),
+        targetId: this.getEdgeTargetIdByIndex(index),
+        directed: this.isEdgeDirectedByIndex(index),
+        state: this.getEdgeStateByIndex(index),
+        attributes: this.getEdgeDataByIndex(index)
+      });
+    }
+
+    return new ClassicGraph({data: builder.build()});
+  }
+
   private getNodeDataInternal(index: number): Record<string, unknown> {
     const override = this.nodeOverrides[index]?.data;
     if (override) {
@@ -615,4 +646,3 @@ function coerceBoolean(value: unknown, fallback: boolean): boolean {
   }
   return fallback;
 }
-

@@ -8,7 +8,8 @@ import {Edge} from './edge';
 import {Node} from './node';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
-import {PlainGraphData} from '../graph-data/graph-data';
+import type {PlainGraphData, GraphNodeData, GraphEdgeData} from '../graph-data/graph-data';
+import {cloneRecord, normalizeEdgeState, normalizeNodeState, normalizeVersion} from './graph-normalization';
 
 export type ClassicGraphProps = GraphProps & {
   data: PlainGraphData;
@@ -30,6 +31,7 @@ export class ClassicGraph extends Graph {
   public version = 0;
   /** Cached data: create array data from maps. */
   private _cache = new Cache<'nodes' | 'edges', Node[] | Edge[]>();
+  private _suspendVersionUpdates = false;
 
   /**
    * The constructor of the graph class.
@@ -38,28 +40,19 @@ export class ClassicGraph extends Graph {
   constructor(props: ClassicGraphProps) {
     super(props);
 
-  const nodes = props.data.nodes?.map((node) => {
-    const {id} = node;
-    return new Node({
-      id,
-      data: node
-    });
-  });
+    const data = props.data;
+    const nodes = createNodesFromPlainGraphData(data?.nodes);
+    const edges = createEdgesFromPlainGraphData(data?.edges);
 
-  const edges = props.data.edges?.map((edge) => {
-    const {id, sourceId, targetId, directed} = edge;
-    return new Edge({
-      id,
-      sourceId,
-      targetId,
-      directed,
-      data: edge
-    });
-  });
-
-    this._name = 'unnamed-graph-' + Date.now().toString();
-    this.batchAddNodes(nodes || []);
-    this.batchAddEdges(edges || []);
+    this._name = `unnamed-graph-${Date.now().toString()}`;
+    this._suspendVersionUpdates = true;
+    this.version = normalizeVersion(data?.version);
+    try {
+      this.batchAddNodes(nodes);
+      this.batchAddEdges(edges);
+    } finally {
+      this._suspendVersionUpdates = false;
+    }
   }
 
   /**
@@ -372,10 +365,83 @@ export class ClassicGraph extends Graph {
   }
 
   _bumpVersion(): void {
+    if (this._suspendVersionUpdates) {
+      return;
+    }
     this.version += 1;
   }
 
   _updateCache(key: 'nodes' | 'edges', updateValue: unknown): void {
     this._cache.set(key, updateValue as any, this.version);
   }
+}
+
+function createNodesFromPlainGraphData(nodes?: GraphNodeData[] | null): Node[] {
+  if (!nodes) {
+    return [];
+  }
+  return nodes.map((nodeData) => {
+    const nodeAttributes = createNodeAttributesFromPlainData(nodeData);
+    const selectable =
+      typeof nodeData.selectable === 'boolean'
+        ? nodeData.selectable
+        : Boolean(nodeAttributes.selectable);
+    const highlightConnectedEdges =
+      typeof nodeData.highlightConnectedEdges === 'boolean'
+        ? nodeData.highlightConnectedEdges
+        : Boolean(nodeAttributes.highlightConnectedEdges);
+
+    const node = new Node({
+      id: nodeData.id,
+      selectable,
+      highlightConnectedEdges,
+      data: nodeAttributes
+    });
+    node.setState(normalizeNodeState(nodeData.state));
+    return node;
+  });
+}
+
+function createEdgesFromPlainGraphData(edges?: GraphEdgeData[] | null): Edge[] {
+  if (!edges) {
+    return [];
+  }
+  return edges.map((edgeData) => {
+    const edgeAttributes = createEdgeAttributesFromPlainData(edgeData);
+    const directed =
+      typeof edgeData.directed === 'boolean'
+        ? edgeData.directed
+        : Boolean(edgeAttributes.directed);
+    const edge = new Edge({
+      id: edgeData.id,
+      sourceId: edgeData.sourceId,
+      targetId: edgeData.targetId,
+      directed,
+      data: edgeAttributes
+    });
+    edge.setState(normalizeEdgeState(edgeData.state));
+    return edge;
+  });
+}
+
+function createNodeAttributesFromPlainData(node: GraphNodeData): Record<string, unknown> {
+  const attributes = cloneRecord(node.attributes);
+  if (typeof node.label !== 'undefined') {
+    attributes.label = node.label;
+  }
+  if (typeof node.weight !== 'undefined') {
+    attributes.weight = node.weight;
+  }
+  return attributes;
+}
+
+function createEdgeAttributesFromPlainData(edge: GraphEdgeData): Record<string, unknown> {
+  const attributes = cloneRecord(edge.attributes);
+  if (typeof edge.label !== 'undefined') {
+    attributes.label = edge.label;
+  }
+  if (typeof edge.weight !== 'undefined') {
+    attributes.weight = edge.weight;
+  }
+  return attributes;
 }

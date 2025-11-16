@@ -10,7 +10,7 @@ import type {ArrowGraphData} from '../../src/graph-data/graph-data';
 
 describe('ArrowGraph', () => {
   it('exposes nodes and edges from Arrow tables', () => {
-    const graph = new ArrowGraph(createArrowGraphData({version: 2}));
+    const graph = new ArrowGraph({data: createArrowGraphData({version: 2})});
 
     expect(graph.version).toBe(2);
 
@@ -44,7 +44,7 @@ describe('ArrowGraph', () => {
   });
 
   it('updates nodes and edges via the Graph interface', () => {
-    const graph = new ArrowGraph(createArrowGraphData({}));
+    const graph = new ArrowGraph({data: createArrowGraphData({})});
     const [nodeA, nodeB] = Array.from(graph.getNodes());
     const [edge] = Array.from(graph.getEdges());
 
@@ -67,12 +67,12 @@ describe('ArrowGraph', () => {
 
   it('respects graph props passed to the constructor', () => {
     const onNodeAdded = vi.fn();
-    const graph = new ArrowGraph(createArrowGraphData({}), {onNodeAdded});
+    const graph = new ArrowGraph({data: createArrowGraphData({}), onNodeAdded});
     expect(graph.props.onNodeAdded).toBe(onNodeAdded);
   });
 
   it('converts to a ClassicGraph for layouts that require legacy graphs', () => {
-    const graph = new ArrowGraph(createArrowGraphData({}));
+    const graph = new ArrowGraph({data: createArrowGraphData({})});
 
     const classicGraph = graph.toClassicGraph();
     expect(classicGraph).toBeInstanceOf(ClassicGraph);
