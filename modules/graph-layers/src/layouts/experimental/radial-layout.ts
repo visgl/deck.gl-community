@@ -10,14 +10,26 @@ export type RadialLayoutProps = GraphLayoutProps & {
   tree?: any;
 };
 
-const traverseTree = (nodeId, nodeMap) => {
+const getTreeNode = (nodeId: string, nodeMap: Record<string, {children?: string[]; isLeaf?: boolean}>) => {
   const node = nodeMap[nodeId];
+  if (node) {
+    return node;
+  }
+  return {
+    id: nodeId,
+    children: [],
+    isLeaf: true
+  };
+};
+
+const traverseTree = (nodeId, nodeMap) => {
+  const node = getTreeNode(nodeId, nodeMap);
   if (node.isLeaf) {
     return node;
   }
   return {
     ...node,
-    children: node.children.map((nid) => traverseTree(nid, nodeMap))
+    children: (node.children ?? []).map((nid) => traverseTree(nid, nodeMap))
   };
 };
 
@@ -39,6 +51,9 @@ const getTreeDepth = (node, depth = 0) => {
 };
 
 const getPath = (node, targetId, path) => {
+  if (!node) {
+    return false;
+  }
   if (node.id === targetId) {
     path.push(node.id);
     return true;

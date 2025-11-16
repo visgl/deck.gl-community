@@ -6,22 +6,7 @@ import {GraphLayout, GraphLayoutProps} from '../core/graph-layout';
 import type {Graph, NodeInterface, EdgeInterface} from '../graph/graph';
 
 export type SimpleLayoutProps = GraphLayoutProps & {
-  /** The accessor lets the application supply the position ([x, y]) of each node.
-   * @example
-    ```js
-    <GraphGL
-      {...otherProps}
-      layout={
-        new SimpleLayout({
-          nodePositionAccessor: node => [
-            node.getPropertyValue('x'),
-            node.getPropertyValue('y'),
-          ]
-        })
-      }
-    />
-    ```
-  */
+  /** The accessor lets the application supply the position ([x, y]) of each node. */
   nodePositionAccessor?: (node: NodeInterface) => [number, number];
 };
 

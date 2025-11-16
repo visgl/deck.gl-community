@@ -176,7 +176,7 @@ A typical sequence looks like `startDragging → lockNodePosition → release �
 
 ## Accessors
 
-GraphGL repeatedly calls `getNodePosition` and `getEdgePosition` to fetch the latest geometry:
+`GraphLayout` repeatedly calls `getNodePosition` and `getEdgePosition` to fetch the latest geometry:
 
 - `getNodePosition(node)` returns the node position `[x, y]`. Return `null` when a position is unavailable to hide the node until the layout resolves it.
 - `getEdgePosition(edge)` returns rendering information for an edge, including:
