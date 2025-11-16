@@ -3,8 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
-
-import type {Graph} from '../graph/graph';
 import type {ArrowGraphData} from '../graph-data/graph-data';
 import {ArrowGraphDataBuilder} from '../graph-data/arrow-graph-data-builder';
 

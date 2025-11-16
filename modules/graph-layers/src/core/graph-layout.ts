@@ -8,7 +8,6 @@ import type {Graph, NodeInterface, EdgeInterface} from '../graph/graph';
 
 import isEqual from 'lodash.isequal';
 import {log} from '../utils/log';
-import {instance} from 'apache-arrow/visitor/typecomparator';
 
 // the status of the layout
 export type GraphLayoutState = 'init' | 'start' | 'calculating' | 'done' | 'error';

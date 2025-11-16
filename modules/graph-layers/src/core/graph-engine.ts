@@ -47,10 +47,6 @@ type InterfaceGraphEngineProps = {
 
 export type GraphEngineProps = ClassicGraphEngineProps | InterfaceGraphEngineProps;
 
-function isClassicProps(props: GraphEngineProps): props is ClassicGraphEngineProps {
-  return props.graph instanceof ClassicGraph;
-}
-
 /** Graph engine controls the graph data and layout calculation */
 export class GraphEngine {
   private _props: GraphEngineProps;

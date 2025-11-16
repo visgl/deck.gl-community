@@ -6,8 +6,7 @@
 import * as arrow from 'apache-arrow';
 
 import type {EdgeState, NodeState} from '../core/constants';
-import type {GraphEdgeData, GraphNodeData} from './graph-data';
-import type {ArrowGraphData} from './graph-data';
+import type {GraphEdgeData, GraphNodeData,ArrowGraphData} from './graph-data';
 import {
   cloneRecord,
   normalizeEdgeState,

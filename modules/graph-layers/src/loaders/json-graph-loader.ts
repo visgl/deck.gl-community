@@ -5,7 +5,7 @@
 import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
 
 import type {PlainGraphData} from '../graph-data/graph-data';
-import {PlainGraphDataBuilder} from '../graph-data/plain-graph-data-builder';
+// import {PlainGraphDataBuilder} from '../graph-data/plain-graph-data-builder';
 
 // __VERSION__ is injected by babel-plugin-version-inline
 // @ts-ignore TS2304: Cannot find name '__VERSION__'.
@@ -41,7 +41,7 @@ export const JSONGraphLoader = {
   },
   
   parseTextSync: (text: string, options?: JSONGraphLoaderOptions) => {
-    const parseOptions = {...JSONGraphLoader.options.jsongraph, ...options?.jsongraph};
+    // const parseOptions = {...JSONGraphLoader.options.jsongraph, ...options?.jsongraph};
     throw new Error('JSONGraphLoader.parseTextSync not implemented');
     // return loadSimpleJSONGraph(text, parseOptions);
   }
