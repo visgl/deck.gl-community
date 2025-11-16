@@ -6,15 +6,18 @@ import {describe, expect, it} from 'vitest';
 
 import {
   DOTGraphLoader,
-  loadDotGraph,
-  parseDotToArrowGraphData
+  loadDOTGraph,
+  parseDOTToArrowGraphData
 } from '../../src/loaders/dot-graph-loader';
+import {ArrowGraph} from '../../src/graph/arrow-graph';
 import clusterDot from '../data/__fixtures__/dot/cluster.dot?raw';
 import karateDot from '../data/__fixtures__/dot/karate.dot?raw';
 
-describe('loadDotGraph', () => {
+describe('loadDOTGraph', () => {
   it('parses an undirected DOT graph', () => {
-    const {graph, metadata} = loadDotGraph(karateDot);
+    const data = loadDOTGraph(karateDot);
+    const metadata = data.metadata ?? {};
+    const graph = new ArrowGraph({data});
 
     expect(metadata.id).toBe('karate');
     expect(metadata.directed).toBe(false);
@@ -43,7 +46,9 @@ describe('loadDotGraph', () => {
   });
 
   it('parses directed graphs with clusters and overrides direction when requested', () => {
-    const {graph, metadata} = loadDotGraph(clusterDot);
+    const data = loadDOTGraph(clusterDot);
+    const metadata = data.metadata ?? {};
+    const graph = new ArrowGraph({data});
 
     expect(metadata.directed).toBe(true);
     expect(metadata.attributes).toMatchObject({label: 'Cluster Example'});
@@ -63,7 +68,9 @@ describe('loadDotGraph', () => {
     expect(a0?.getPropertyValue('style')).toBe('filled');
     expect(a0?.getPropertyValue('color')).toBe('white');
 
-    const membership = a0?.getPropertyValue('subgraphs');
+    const membership = a0?.getPropertyValue('subgraphs') as
+      | {id: string}[]
+      | undefined;
     expect(Array.isArray(membership)).toBe(true);
     expect(membership?.[0]?.id).toBe('cluster_0');
 
@@ -76,7 +83,7 @@ describe('loadDotGraph', () => {
   });
 });
 
-describe('parseDotToArrowGraphData', () => {
+describe('parseDOTToArrowGraphData', () => {
   it('returns ArrowGraphData with attributes preserved', () => {
     const dot = `digraph Sample {
       graph [label="Test Graph", rankdir=LR];
@@ -86,7 +93,8 @@ describe('parseDotToArrowGraphData', () => {
       A -> B [weight=2.25, dir=back];
     }`;
 
-    const {data, metadata} = parseDotToArrowGraphData(dot);
+    const data = parseDOTToArrowGraphData(dot);
+    const metadata = data.metadata ?? {};
 
     expect(metadata.directed).toBe(true);
     expect(metadata.attributes).toMatchObject({label: 'Test Graph', rankdir: 'LR'});
@@ -95,7 +103,7 @@ describe('parseDotToArrowGraphData', () => {
     expect((data.nodes as {numRows?: number}).numRows ?? 0).toBe(2);
     expect((data.edges as {numRows?: number}).numRows ?? 0).toBe(1);
 
-    const graph = loadDotGraph(dot).graph;
+    const graph = new ArrowGraph({data});
     const edge = Array.from(graph.getEdges())[0];
     expect(edge.isDirected()).toBe(true);
     expect(edge.getPropertyValue('dir')).toBe('back');
@@ -105,19 +113,20 @@ describe('parseDotToArrowGraphData', () => {
 
 describe('DOTGraphLoader', () => {
   it('parses DOT text synchronously', () => {
-    const result = DOTGraphLoader.parseTextSync(karateDot);
-    expect(result.metadata.id).toBe('karate');
-    expect(Array.from(result.graph.getNodes())).toHaveLength(8);
+    const data = DOTGraphLoader.parseTextSync(karateDot);
+    expect(data.metadata?.id).toBe('karate');
+    const graph = new ArrowGraph({data});
+    expect(Array.from(graph.getNodes())).toHaveLength(8);
   });
 
   it('parses DOT text from an ArrayBuffer', async () => {
     const buffer = new TextEncoder().encode(clusterDot).buffer;
-    const result = await DOTGraphLoader.parse(buffer, {dot: {version: 1}});
+    const data = await DOTGraphLoader.parse(buffer, {dot: {version: 1}});
 
-    expect(result.metadata.subgraphs.map((entry) => entry.id).sort()).toEqual([
+    expect((data.metadata?.subgraphs ?? []).map((entry) => entry.id).sort()).toEqual([
       'cluster_0',
       'cluster_1'
     ]);
-    expect(result.data.version).toBe(1);
+    expect(data.version).toBe(1);
   });
 });

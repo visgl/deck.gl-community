@@ -4,24 +4,17 @@
 
 import {describe, expect, it, vi} from 'vitest';
 
-import {createGraphFromData} from '../../src/graph/create-graph-from-data';
-import {TabularGraph} from '../../src/graph/tabular-graph';
+import {createGraphFromData} from '../../src/graph/functions/create-graph-from-data';
+import {ClassicGraph} from '../../src/graph/classic-graph';
 import {ArrowGraph} from '../../src/graph/arrow-graph';
-import type {GraphData} from '../../src/graph-data/graph-data';
-import type {ColumnarGraphColumns} from '../../src/graph-data/columnar-graph-data-builder';
-import type {ArrowGraphData} from '../../src/graph-data/arrow-graph-data';
+import type {PlainGraphData, ArrowGraphData} from '../../src/graph-data/graph-data';
 
 describe('createGraphFromData', () => {
-  it('creates a TabularGraph from GraphData', () => {
+  it('creates a ClassicGraph from PlainGraphData', () => {
     const onNodeAdded = vi.fn();
-    const graph = createGraphFromData(ROW_GRAPH_DATA, {onNodeAdded});
-    expect(graph).toBeInstanceOf(TabularGraph);
+    const graph = createGraphFromData(PLAIN_GRAPH_DATA, {onNodeAdded});
+    expect(graph).toBeInstanceOf(ClassicGraph);
     expect(graph.props.onNodeAdded).toBe(onNodeAdded);
-  });
-
-  it('creates a TabularGraph from columnar graph columns', () => {
-    const graph = createGraphFromData(COLUMNAR_GRAPH_DATA);
-    expect(graph).toBeInstanceOf(TabularGraph);
   });
 
   it('creates an ArrowGraph from ArrowGraphData', () => {
@@ -32,41 +25,21 @@ describe('createGraphFromData', () => {
   });
 });
 
-const ROW_GRAPH_DATA: GraphData = {
-  type: 'graph-data',
+const PLAIN_GRAPH_DATA: PlainGraphData = {
+  shape: 'plain-graph-data',
   version: 1,
   nodes: [
-    {type: 'graph-node-data', id: 'a'},
-    {type: 'graph-node-data', id: 'b'}
+    {id: 'a'},
+    {id: 'b'}
   ],
   edges: [
-    {type: 'graph-edge-data', id: 'edge', sourceId: 'a', targetId: 'b'}
+    {id: 'edge', sourceId: 'a', targetId: 'b'}
   ]
-};
-
-const COLUMNAR_GRAPH_DATA: ColumnarGraphColumns = {
-  type: 'columnar-graph-data',
-  version: 2,
-  nodes: {
-    id: ['a', 'b'],
-    state: ['default', 'hover'],
-    selectable: [true, false],
-    highlightConnectedEdges: [false, false],
-    data: [{}, {}]
-  },
-  edges: {
-    id: ['edge'],
-    sourceId: ['a'],
-    targetId: ['b'],
-    directed: [true],
-    state: ['default'],
-    data: [{}]
-  }
 };
 
 function createArrowGraphData(): ArrowGraphData {
   return {
-    type: 'arrow-graph-data',
+    shape: 'arrow-graph-data',
     version: 3,
     nodes: createArrowTable({
       id: ['a'],
@@ -109,4 +82,3 @@ function createArrowTable(columns: Record<string, unknown[]>): any {
     }
   };
 }
-

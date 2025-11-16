@@ -4,7 +4,7 @@
 
 import {describe, it, expect} from 'vitest';
 import SAMPLE_NODE from '../data/__fixtures__/node.json';
-import {basicNodeParser} from '../../src/loaders/node-parsers';
+import {basicNodeParser} from '../../src/loaders/parsers/node-parsers';
 
 describe('loaders/node-parsers', () => {
   it('should pass sanity', () => {

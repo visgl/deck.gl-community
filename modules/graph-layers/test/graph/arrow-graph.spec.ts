@@ -6,7 +6,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {ArrowGraph} from '../../src/graph/arrow-graph';
 import {ClassicGraph} from '../../src/graph/classic-graph';
-import type {ArrowGraphData} from '../../src/graph-data/arrow-graph-data';
+import type {ArrowGraphData} from '../../src/graph-data/graph-data';
 
 describe('ArrowGraph', () => {
   it('exposes nodes and edges from Arrow tables', () => {
@@ -100,7 +100,7 @@ describe('ArrowGraph', () => {
 
 function createArrowGraphData({version = 1}: {version?: number}): ArrowGraphData {
   return {
-    type: 'arrow-graph-data',
+    shape: 'arrow-graph-data',
     version,
     nodes: createArrowTable({
       id: ['a', '2'],
@@ -150,4 +150,3 @@ function createArrowVector(values: unknown[]): any {
     }
   };
 }
-

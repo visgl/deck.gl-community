@@ -88,7 +88,7 @@ describe('ArrowGraphDataBuilder', () => {
 
     const result = builder.finish();
 
-    expect(result.type).toBe('arrow-graph-data');
+    expect(result.shape).toBe('arrow-graph-data');
     expect(result.version).toBe(7);
     expect(result.nodes.getColumn('id')?.toArray()).toEqual(['n-1', '2']);
     expect(result.nodes.getColumn('state')?.toArray()).toEqual(['hover', 'dragging']);
@@ -108,4 +108,3 @@ describe('ArrowGraphDataBuilder', () => {
     ]);
   });
 });
-
