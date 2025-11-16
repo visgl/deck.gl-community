@@ -10,9 +10,12 @@ import {PolygonLayer} from '@deck.gl/layers';
 
 import type {Graph, NodeInterface} from '../graph/graph';
 import {ClassicGraph} from '../graph/classic-graph';
+import {createGraphFromData} from '../graph/create-graph-from-data';
 import {GraphLayout, type GraphLayoutEventDetail} from '../core/graph-layout';
 import type {GraphRuntimeLayout} from '../core/graph-runtime-layout';
 import {GraphEngine} from '../core/graph-engine';
+import {isGraphData, type GraphData} from '../graph-data/graph-data';
+import {isArrowGraphData, type ArrowGraphData} from '../graph-data/arrow-graph-data';
 
 import {
   GraphStylesheetEngine,
@@ -28,7 +31,7 @@ import {
   type RankAccessor
 } from '../utils/rank-grid';
 
-import {warn} from '../utils/log';
+import {log, warn} from '../utils/log';
 
 import {
   DEFAULT_GRAPH_LAYER_STYLESHEET,
@@ -57,6 +60,7 @@ import {EdgeAttachmentHelper} from './edge-attachment-helper';
 import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
 import {JSONTabularGraphLoader} from '../loaders/json-loader';
+import {isGraphRuntimeLayout} from '../core/graph-runtime-layout';
 
 const NODE_LAYER_MAP = {
   'rectangle': RectangleLayer,
@@ -104,8 +108,6 @@ const LAYOUT_REQUIRED_MESSAGE =
 
 let NODE_STYLE_DEPRECATION_WARNED = false;
 let EDGE_STYLE_DEPRECATION_WARNED = false;
-let GRAPH_PROP_DEPRECATION_WARNED = false;
-let LAYOUT_REQUIRED_WARNED = false;
 
 export type GraphLayerRawData = {
   name?: string;
@@ -116,10 +118,14 @@ export type GraphLayerRawData = {
 export type GraphLayerDataInput =
   | GraphEngine
   | Graph
+  | GraphData
+  | ArrowGraphData
   | GraphLayerRawData
   | unknown[]
   | string
   | null;
+
+type GraphLayerLoaderResult = Graph | GraphData | ArrowGraphData | null;
 
 export type GraphLayerProps = CompositeLayerProps &
   _GraphLayerProps & {
@@ -138,7 +144,7 @@ type EngineResolutionFlags = {
 export type _GraphLayerProps = {
   graph?: Graph;
   layout?: GraphLayout | GraphRuntimeLayout;
-  graphLoader?: (opts: {json: unknown}) => Graph | null;
+  graphLoader?: (opts: {json: unknown}) => GraphLayerLoaderResult;
   engine?: GraphEngine;
 
   onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
@@ -452,7 +458,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return {engine: null, shouldReplace: true};
     }
 
-    this._warnGraphProp();
+    log.warn(GRAPH_PROP_DEPRECATION_MESSAGE)();
     return {
       engine: this._buildEngineFromGraph(props.graph, props.layout),
       shouldReplace: force || graphChanged || layoutChanged
@@ -463,21 +469,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     data: GraphLayerDataInput,
     props: GraphLayerProps
   ): GraphEngine | null | undefined {
-    if (data === null || typeof data === 'undefined') {
-      return null;
-    }
-
-    if (typeof (data as PromiseLike<GraphLayerDataInput>)?.then === 'function') {
-      return undefined;
-    }
-
-    if (data instanceof GraphEngine) {
-      return data;
-    }
-
-    const graphCandidate = this._coerceGraph(data);
-    if (graphCandidate) {
-      return this._buildEngineFromGraph(graphCandidate, props.layout);
+    const immediate = this._getImmediateEngineResult(data, props);
+    if (typeof immediate !== 'undefined') {
+      return immediate;
     }
 
     if (typeof data === 'string') {
@@ -485,15 +479,54 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     if (Array.isArray(data) || this._isPlainObject(data)) {
-      const loader = props.graphLoader ?? JSONTabularGraphLoader;
-      const graph = loader({json: data});
-      if (!graph) {
-        return null;
-      }
-      return this._buildEngineFromGraph(graph, props.layout);
+      return this._loadEngineFromJsonLike(data as unknown[] | GraphLayerRawData, props);
     }
 
     return null;
+  }
+
+  private _getImmediateEngineResult(
+    data: GraphLayerDataInput,
+    props: GraphLayerProps
+  ): GraphEngine | null | undefined {
+    if (data === null || typeof data === 'undefined') {
+      return null;
+    }
+
+    if (data instanceof GraphEngine) {
+      return data;
+    }
+
+    const graph = this._coerceGraph(data);
+    if (graph) {
+      return this._buildEngineFromGraph(graph, props.layout);
+    }
+
+    if (isGraphData(data) || isArrowGraphData(data)) {
+      return this._buildEngineFromGraph(createGraphFromData(data), props.layout);
+    }
+
+    return undefined;
+  }
+
+  private _loadEngineFromJsonLike(
+    data: GraphLayerRawData | unknown[],
+    props: GraphLayerProps
+  ): GraphEngine | null {
+    const loader = props.graphLoader ?? GraphLayer.defaultProps.graphLoader;
+    const loaded = loader({json: data});
+    if (!loaded) {
+      return null;
+    }
+
+    const graph =
+      this._coerceGraph(loaded) ||
+      (isGraphData(loaded) || isArrowGraphData(loaded) ? createGraphFromData(loaded) : null);
+    if (!graph) {
+      return null;
+    }
+
+    return this._buildEngineFromGraph(graph, props.layout);
   }
 
   private _buildEngineFromGraph(
@@ -505,7 +538,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     if (!layout) {
-      this._warnLayoutRequired();
+      log.warn(LAYOUT_REQUIRED_MESSAGE)();
       return null;
     }
 
@@ -518,15 +551,15 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       if (legacyGraph) {
         return new GraphEngine({graph: legacyGraph, layout});
       }
-      this._warnLayoutRequired();
+      log.warn(LAYOUT_REQUIRED_MESSAGE)();
       return null;
     }
 
-    if (this._isGraphRuntimeLayout(layout)) {
+    if (isGraphRuntimeLayout(layout)) {
       return new GraphEngine({graph, layout});
     }
 
-    this._warnLayoutRequired();
+    log.warn(LAYOUT_REQUIRED_MESSAGE)();
     return null;
   }
 
@@ -541,20 +574,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       enableDragging: Boolean(props.enableDragging),
       resumeLayoutAfterDragging: Boolean(resumeLayoutAfterDragging)
     });
-  }
-
-  private _warnGraphProp() {
-    if (!GRAPH_PROP_DEPRECATION_WARNED) {
-      warn(GRAPH_PROP_DEPRECATION_MESSAGE);
-      GRAPH_PROP_DEPRECATION_WARNED = true;
-    }
-  }
-
-  private _warnLayoutRequired() {
-    if (!LAYOUT_REQUIRED_WARNED) {
-      warn(LAYOUT_REQUIRED_MESSAGE);
-      LAYOUT_REQUIRED_WARNED = true;
-    }
   }
 
   private _isGraph(value: unknown): value is Graph {
@@ -595,20 +614,6 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     return null;
-  }
-
-  private _isGraphRuntimeLayout(value: unknown): value is GraphRuntimeLayout {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
-
-    const layout = value as GraphRuntimeLayout;
-    return (
-      typeof layout.initializeGraph === 'function' &&
-      typeof layout.getNodePosition === 'function' &&
-      typeof layout.getEdgePosition === 'function' &&
-      typeof layout.setProps === 'function'
-    );
   }
 
   private _isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {

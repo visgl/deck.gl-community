@@ -4,10 +4,6 @@
 
 import {describe, it, expect} from 'vitest';
 
-import {
-  ColumnarGraphDataBuilder,
-  type ColumnarGraphColumns
-} from '../../src/graph-data/columnar-graph-data-builder';
 import type {GraphData} from '../../src/graph-data/graph-data';
 import {createTabularGraphFromData} from '../../src/graph/create-tabular-graph-from-data';
 
@@ -63,11 +59,8 @@ const SAMPLE_GRAPH_DATA: GraphData = {
 };
 
 describe('createTabularGraphFromData', () => {
-  it('loads columnar graph data into a TabularGraph', () => {
-    const columnar = buildColumnarGraph(SAMPLE_GRAPH_DATA);
-    expect(columnar.type).toBe('columnar-graph-data');
-
-    const graph = createTabularGraphFromData(columnar);
+  it('normalizes GraphData into a TabularGraph', () => {
+    const graph = createTabularGraphFromData(SAMPLE_GRAPH_DATA);
     const nodes = Array.from(graph.getNodes());
     const edges = Array.from(graph.getEdges());
 
@@ -139,28 +132,4 @@ describe('createTabularGraphFromData', () => {
     expect(graph.findNodeById?.('a')?.getId()).toBe('a');
   });
 
-  it('converts row-oriented GraphData inputs', () => {
-    const graph = createTabularGraphFromData(SAMPLE_GRAPH_DATA);
-
-    expect(Array.from(graph.getNodes(), (node) => node.getId())).toEqual(['a', 'b']);
-    expect(Array.from(graph.getEdges(), (edge) => edge.getId())).toEqual(['a-b', 'b-a']);
-  });
 });
-
-function buildColumnarGraph(data: GraphData): ColumnarGraphColumns {
-  const builder = new ColumnarGraphDataBuilder({
-    nodeCapacity: data.nodes?.length ?? 0,
-    edgeCapacity: data.edges?.length ?? 0,
-    version: data.version
-  });
-
-  for (const node of data.nodes ?? []) {
-    builder.addNode(node);
-  }
-
-  for (const edge of data.edges ?? []) {
-    builder.addEdge(edge);
-  }
-
-  return builder.build();
-}

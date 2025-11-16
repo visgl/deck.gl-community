@@ -34,6 +34,7 @@ export const GRAPH_LAYOUT_DEFAULT_PROPS: Readonly<Required<GraphLayoutProps>> = 
 export abstract class GraphLayout<
   PropsT extends GraphLayoutProps = GraphLayoutProps
 > implements GraphRuntimeLayout {
+  readonly type = 'graph-runtime-layout';
   /** Name of the layout. */
   protected readonly _name: string = 'GraphLayout';
   /** Extra configuration props of the layout. */

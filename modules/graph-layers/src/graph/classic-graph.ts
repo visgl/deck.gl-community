@@ -377,6 +377,7 @@ export class ClassicGraph extends Graph {
 }
 
 export class ClassicGraphLayoutAdapter implements GraphRuntimeLayout {
+  readonly type = 'graph-runtime-layout';
   private readonly layout: GraphLayout;
 
   constructor(layout: GraphLayout) {
