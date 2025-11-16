@@ -16,22 +16,19 @@ import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 
 import {
   GraphLayer,
-  GraphEngine,
   GraphLayout,
+  type GraphEngine,
   type Graph,
   type GraphLayoutEventDetail,
   SimpleLayout,
   D3ForceLayout,
   GPUForceLayout,
-  JSONTabularGraphLoader,
   RadialLayout,
   HivePlotLayout,
   ForceMultiGraphLayout,
   D3DagLayout,
   CollapsableD3DagLayout,
-  type RankGridConfig,
-  ArrowGraph,
-  convertTabularGraphToArrowGraph
+  type RankGridConfig
 } from '@deck.gl-community/graph-layers';
 
 import {ControlPanel} from './control-panel';
@@ -140,27 +137,6 @@ function mergeMetadata(
 
 type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
 
-type JsonGraph = {
-  version?: number;
-  nodes?: unknown[] | null;
-  edges?: unknown[] | null;
-};
-
-function createArrowGraphFromJson(json: JsonGraph | null | undefined): ArrowGraph | null {
-  if (!json) {
-    return null;
-  }
-
-  const tabularGraph = JSONTabularGraphLoader({json});
-  if (!tabularGraph) {
-    return null;
-  }
-
-  const arrowGraph = convertTabularGraphToArrowGraph(tabularGraph);
-  tabularGraph.destroy?.();
-  return arrowGraph;
-}
-
 const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'd3-force-layout': () => new D3ForceLayout(),
   'gpu-force-layout': () => new GPUForceLayout(),
@@ -179,14 +155,17 @@ const loadingReducer = (state, action) => {
     case 'startLayout':
       return {loaded: false, rendered: false, isLoading: true};
     case 'layoutDone':
-      return state.loaded ? state : {...state, loaded: true};
+      if (state.loaded) {
+        return state.isLoading ? {...state, isLoading: false} : state;
+      }
+
+      return {...state, loaded: true, isLoading: false};
     case 'afterRender':
-      if (!state.loaded) {
+      if (!state.loaded || state.rendered) {
         return state;
       }
 
-      // not interested after the first render, the state won't change
-      return state.rendered ? state : {...state, rendered: true, isLoading: false};
+      return {...state, rendered: true};
     default:
       throw new Error(`Unhandled action type: ${action.type}`);
   }
@@ -276,7 +255,6 @@ export function App({graphType}: AppProps) {
     return overrides ?? baseOptions;
   }, [selectedExample, selectedLayout, graphData, activeMetadata, layoutOverrides]);
 
-  const graph = useMemo(() => createArrowGraphFromJson(graphData as JsonGraph), [graphData]);
   const layout = useMemo(() => {
     if (!selectedLayout) {
       return null;
@@ -285,18 +263,16 @@ export function App({graphType}: AppProps) {
     const factory = LAYOUT_FACTORIES[selectedLayout];
     return factory ? factory(layoutOptions) : null;
   }, [selectedLayout, layoutOptions]);
-  const manualEngine = useMemo(() => {
-    if (!graph || !layout) {
-      return null;
-    }
-
-    return new GraphEngine({graph, layout});
-  }, [graph, layout]);
-  const [resolvedEngine, setResolvedEngine] = useState<GraphEngine | null>(manualEngine ?? null);
+  const [resolvedEngine, setResolvedEngine] = useState<GraphEngine | null>(null);
+  const resolvedEngineRef = useRef<GraphEngine | null>(resolvedEngine);
+  useEffect(() => {
+    resolvedEngineRef.current = resolvedEngine;
+  }, [resolvedEngine]);
   const [loadingState, loadingDispatch, loadingCallbacks] = useLoading();
   useEffect(() => {
-    setResolvedEngine(manualEngine ?? null);
-  }, [manualEngine, selectedExample]);
+    resolvedEngineRef.current = null;
+    setResolvedEngine(null);
+  }, [selectedExample]);
   const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
   const selectedStyles = selectedExample?.style;
   const metadataLoading = Boolean(isRemoteExample(selectedExample) && !activeMetadata);
@@ -395,20 +371,12 @@ export function App({graphType}: AppProps) {
   );
 
   useEffect(() => {
-    if (!selectedExample || !graphData) {
+    if (!graphData || !isInlineExample(selectedExample)) {
       return;
     }
 
-    const metadata: ExampleMetadata = {sourceType: 'inline'};
-    if (Array.isArray(graphData.nodes)) {
-      metadata.nodeCount = graphData.nodes.length;
-    }
-    if (Array.isArray(graphData.edges)) {
-      metadata.edgeCount = graphData.edges.length;
-    }
-
-    updateExampleMetadata(selectedExample, metadata);
-  }, [graphData, selectedExample, updateExampleMetadata]);
+    handleDataLoad(graphData);
+  }, [graphData, handleDataLoad, selectedExample]);
 
   useEffect(() => {
     if (!selectedExample || !resolvedEngine) {
@@ -425,10 +393,6 @@ export function App({graphType}: AppProps) {
   }, [resolvedEngine, selectedExample, updateExampleMetadata]);
 
   const updateResolvedEngineFromLayer = useCallback(() => {
-    if (manualEngine) {
-      return;
-    }
-
     const deck = deckRef.current?.deck as {layerManager?: {getLayers?: () => any[]; layers?: any[]}} | undefined;
     const layerManager = deck?.layerManager;
     const layers = layerManager?.getLayers?.() ?? layerManager?.layers;
@@ -438,17 +402,26 @@ export function App({graphType}: AppProps) {
 
     const graphLayerInstance = layers.find((layer) => layer?.id === GRAPH_LAYER_ID);
     const layerEngine = graphLayerInstance?.state?.graphEngine ?? null;
-    if (layerEngine && layerEngine !== resolvedEngine) {
+    if (layerEngine && layerEngine !== resolvedEngineRef.current) {
+      resolvedEngineRef.current = layerEngine;
       setResolvedEngine(layerEngine);
     }
-  }, [manualEngine, resolvedEngine]);
+  }, []);
 
   const handleAfterRender = useCallback(() => {
-    if (!loadingState.rendered) {
+    if (loadingState.loaded && !loadingState.rendered) {
       loadingDispatch({type: 'afterRender'});
     }
-    updateResolvedEngineFromLayer();
-  }, [loadingDispatch, loadingState.rendered, updateResolvedEngineFromLayer]);
+    if (!resolvedEngineRef.current) {
+      updateResolvedEngineFromLayer();
+    }
+  }, [
+    loadingDispatch,
+    loadingState.loaded,
+    loadingState.rendered,
+    updateResolvedEngineFromLayer
+  ]);
+
 
   const serializedStylesheet = useMemo(() => {
     if (!selectedStyles) {
@@ -636,14 +609,15 @@ export function App({graphType}: AppProps) {
       onLayoutDone: handleLayoutDone,
       resumeLayoutAfterDragging,
       rankGrid,
-      ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {})
+      ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {}),
+      ...(selectedExample.loadOptions ? {loadOptions: selectedExample.loadOptions} : {})
     } as const;
 
-    if (manualEngine) {
+    if (isInlineExample(selectedExample) && graphData) {
       return new GraphLayer({
         ...baseProps,
-        data: manualEngine,
-        engine: manualEngine
+        data: graphData,
+        onDataLoad: handleDataLoad
       });
     }
 
@@ -652,7 +626,6 @@ export function App({graphType}: AppProps) {
         ...baseProps,
         data: selectedExample.dataUrl,
         ...(selectedExample.loaders ? {loaders: selectedExample.loaders} : {}),
-        ...(selectedExample.loadOptions ? {loadOptions: selectedExample.loadOptions} : {}),
         onDataLoad: handleDataLoad
       });
     }
@@ -667,9 +640,21 @@ export function App({graphType}: AppProps) {
     handleLayoutDone,
     resumeLayoutAfterDragging,
     rankGrid,
-    manualEngine,
+    graphData,
     handleDataLoad
   ]);
+
+  useEffect(() => {
+    if (!graphLayerInstance) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      updateResolvedEngineFromLayer();
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [graphLayerInstance, updateResolvedEngineFromLayer]);
 
   const handleToggleCollapseEnabled = useCallback(() => {
     setCollapseEnabled((value) => !value);
