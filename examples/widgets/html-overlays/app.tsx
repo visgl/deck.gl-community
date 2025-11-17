@@ -12,6 +12,7 @@ import {
   HtmlOverlayWidget,
   HtmlTooltipWidget
 } from '@deck.gl-community/widgets';
+import {h} from 'preact';
 
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
@@ -120,22 +121,26 @@ const PIN_STYLE = {
 };
 
 export function App() {
-  const overlayItems = DESTINATIONS.map(({id, name, subtitle, coordinates}) => (
-    <HtmlOverlayItem
-      key={id}
-      coordinates={coordinates}
-      style={{
-        ...OVERLAY_STYLE,
-        color: '#1f2937',
-        fontFamily: 'var(--ifm-font-family-base, "Inter", system-ui, sans-serif)',
-        fontSize: '14px',
-        lineHeight: 1.5
-      }}
-    >
-      <div style={{fontWeight: 700, fontSize: '16px'}}>{name}</div>
-      <div style={{color: '#4b5563', marginTop: '4px'}}>{subtitle}</div>
-    </HtmlOverlayItem>
-  ));
+  const overlayItems = DESTINATIONS.map(({id, name, subtitle, coordinates}) =>
+    h(
+      HtmlOverlayItem,
+      {
+        key: id,
+        coordinates,
+        style: {
+          ...OVERLAY_STYLE,
+          color: '#1f2937',
+          fontFamily: 'var(--ifm-font-family-base, "Inter", system-ui, sans-serif)',
+          fontSize: '14px',
+          lineHeight: 1.5
+        }
+      },
+      [
+        h('div', {style: {fontWeight: 700, fontSize: '16px'}}, name),
+        h('div', {style: {color: '#4b5563', marginTop: '4px'}}, subtitle)
+      ]
+    )
+  );
 
   const overlayWidget = new HtmlOverlayWidget({
     id: 'html-destination-overlays',
@@ -149,18 +154,22 @@ export function App() {
 
     override getObjectCoordinates = (stop) => stop.coordinates;
 
-    override renderObject = (coordinates, stop) => (
-      <HtmlOverlayItem key={stop.id} coordinates={coordinates} style={PIN_STYLE}>
-        <div style={{fontWeight: 700}}>{stop.title}</div>
-        <div style={{fontSize: 12, opacity: 0.8}}>{stop.city}</div>
-      </HtmlOverlayItem>
-    );
+    override renderObject = (coordinates, stop) =>
+      h(
+        HtmlOverlayItem,
+        {key: stop.id, coordinates, style: PIN_STYLE},
+        [
+          h('div', {style: {fontWeight: 700}}, stop.title),
+          h('div', {style: {fontSize: 12, opacity: 0.8}}, stop.city)
+        ]
+      );
 
-    override renderCluster = (coordinates, clusterId, pointCount) => (
-      <HtmlOverlayItem key={`cluster-${clusterId}`} coordinates={coordinates} style={CLUSTER_STYLE}>
-        <div>{pointCount}</div>
-      </HtmlOverlayItem>
-    );
+    override renderCluster = (coordinates, clusterId, pointCount) =>
+      h(
+        HtmlOverlayItem,
+        {key: `cluster-${clusterId}`, coordinates, style: CLUSTER_STYLE},
+        h('div', null, pointCount)
+      );
   })({
     id: 'html-cluster-overlays',
     overflowMargin: 96,
@@ -177,19 +186,21 @@ export function App() {
         return null;
       }
 
-      return (
-        <div
-          style={{
+      return h(
+        'div',
+        {
+          style: {
             fontFamily: 'var(--ifm-font-family-base, "Inter", system-ui, sans-serif)',
             minWidth: 140,
             display: 'flex',
             flexDirection: 'column',
             gap: 4
-          }}
-        >
-          <div style={{fontWeight: 700}}>{stop.name ?? stop.title}</div>
-          <div style={{opacity: 0.8}}>{stop.subtitle ?? stop.city}</div>
-        </div>
+          }
+        },
+        [
+          h('div', {style: {fontWeight: 700}}, stop.name ?? stop.title),
+          h('div', {style: {opacity: 0.8}}, stop.subtitle ?? stop.city)
+        ]
       );
     }
   });
