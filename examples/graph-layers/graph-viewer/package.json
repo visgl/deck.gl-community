@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@deck.gl-community/graph-layers": "workspace:*",
-    "@deck.gl-community/react": "workspace:*",
+    "@deck.gl-community/react": "^9.2.0-beta.3",
     "@deck.gl-community/widgets": "workspace:*",
     "@deck.gl/core": "~9.2.1",
     "@deck.gl/layers": "~9.2.1",

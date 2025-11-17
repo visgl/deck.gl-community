@@ -31,7 +31,6 @@
       "@deck.gl-community/layers": ["./modules/layers/src"],
       "@deck.gl-community/geo-layers": ["./modules/geo-layers/src"],
       "@deck.gl-community/infovis-layers": ["./modules/infovis-layers/src"],
-      "@deck.gl-community/react": ["./modules/react/src"],
       "@deck.gl-community/template": ["./modules/template/src"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"]
     },

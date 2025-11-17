@@ -10,7 +10,7 @@
   "dependencies": {
     "@deck.gl-community/editable-layers": "workspace:*",
     "@deck.gl-community/layers": "workspace:*",
-    "@deck.gl-community/react": "workspace:*",
+    "@deck.gl-community/react": "^9.2.0-beta.3",
     "@deck.gl/core": "~9.2.1",
     "@deck.gl/extensions": "~9.2.1",
     "@deck.gl/geo-layers": "~9.2.1",
