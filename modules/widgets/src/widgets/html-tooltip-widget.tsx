@@ -25,7 +25,6 @@ const TOOLTIP_STYLE = {
 const SHOW_TOOLTIP_TIMEOUT = 250;
 
 function defaultGetTooltip(pickingInfo: PickingInfo): ComponentChildren {
-  // @ts-expect-error style is user data
   return pickingInfo.object?.style?.tooltip;
 }
 
@@ -38,7 +37,7 @@ export class HtmlTooltipWidget extends HtmlOverlayWidget<HtmlTooltipWidgetProps>
   } satisfies Required<WidgetProps> & Required<Pick<HtmlTooltipWidgetProps, 'showDelay' | 'getTooltip'>> &
     HtmlTooltipWidgetProps;
 
-  private timeoutID: number | null = null;
+  private timeoutID: ReturnType<typeof globalThis.setTimeout> | null = null;
   private pickingInfo: PickingInfo | null = null;
   private visible = false;
 
@@ -79,7 +78,8 @@ export class HtmlTooltipWidget extends HtmlOverlayWidget<HtmlTooltipWidgetProps>
     }
 
     const tooltipContent = this.props.getTooltip?.(this.pickingInfo);
-    const coordinates = (this.pickingInfo.coordinate ?? this.pickingInfo.lngLat) as number[] | null;
+    const coordinates =
+      this.pickingInfo.coordinate ?? (this.pickingInfo as Partial<{lngLat: number[]}>).lngLat ?? null;
     if (!tooltipContent || !coordinates) {
       return [];
     }
