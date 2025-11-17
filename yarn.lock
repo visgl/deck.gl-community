@@ -1428,16 +1428,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react@workspace:modules/react"
   dependencies:
-    "@turf/helpers": "npm:^6.5.0"
     "@types/styled-react-modal": "npm:^1.2.5"
     boxicons: "npm:^2.1.4"
-    preact: "npm:^10.17.0"
     prop-types: "npm:^15.8.1"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
     styled-components: "npm:^6.1.1"
     styled-react-modal: "npm:^3.1.1"
-    supercluster: "npm:^8.0.1"
   languageName: unknown
   linkType: soft
 
@@ -1452,7 +1449,9 @@ __metadata:
   resolution: "@deck.gl-community/widgets@workspace:modules/widgets"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
+    "@turf/helpers": "npm:^6.5.0"
     preact: "npm:^10.17.0"
+    supercluster: "npm:^8.0.1"
   languageName: unknown
   linkType: soft
 
@@ -20624,6 +20623,24 @@ __metadata:
   checksum: 10c0/1d9c2a3e36dfb09832f38e2e699c367ef190f96b82c71f809bc0822c306f5379df87bab47bed27ea99106d86447e50eb972d3c516c2f95782807a9d082fbea95
   languageName: node
   linkType: hard
+
+"widgets-html-overlays-example@workspace:examples/widgets/html-overlays":
+  version: 0.0.0-use.local
+  resolution: "widgets-html-overlays-example@workspace:examples/widgets/html-overlays"
+  dependencies:
+    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl/core": "npm:~9.2.1"
+    "@deck.gl/layers": "npm:~9.2.1"
+    "@deck.gl/react": "npm:~9.2.1"
+    "@deck.gl/widgets": "npm:~9.2.1"
+    maplibre-gl: "npm:^4.1.3"
+    preact: "npm:^10.17.0"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    react-map-gl: "npm:^7.1.7"
+    vite: "npm:7.1.1"
+  languageName: unknown
+  linkType: soft
 
 "widgets-pan-and-zoom-controls-example@workspace:examples/widgets/pan-and-zoom-controls":
   version: 0.0.0-use.local

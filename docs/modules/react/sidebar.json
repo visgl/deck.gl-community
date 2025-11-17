@@ -6,15 +6,6 @@
     "modules/react/developer-guide/get-started",
     {
       "type": "category",
-      "label": "Overlays",
-      "items": [
-        "modules/react/api-reference/overlays/html-overlay",
-        "modules/react/api-reference/overlays/html-cluster-overlay",
-        "modules/react/api-reference/overlays/html-overlay-item"
-      ]
-    },
-    {
-      "type": "category",
       "label": "Components",
       "items": [
         "modules/react/api-reference/viewport"

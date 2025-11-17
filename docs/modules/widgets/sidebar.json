@@ -8,7 +8,11 @@
       "label": "API Reference",
       "items": [
         "modules/widgets/api-reference/pan-widget",
-        "modules/widgets/api-reference/zoom-range-widget"
+        "modules/widgets/api-reference/zoom-range-widget",
+        "modules/widgets/api-reference/html-overlay-widget",
+        "modules/widgets/api-reference/html-cluster-widget",
+        "modules/widgets/api-reference/html-overlay-item",
+        "modules/widgets/api-reference/html-tooltip-widget"
       ]
     }
   ]
