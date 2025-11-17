@@ -5,7 +5,6 @@
 import React, {useMemo} from 'react';
 import DeckGL from '@deck.gl/react';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {h} from 'preact';
 import StaticMap from 'react-map-gl/maplibre';
 import {
   HtmlClusterWidget,
@@ -94,15 +93,20 @@ const STOPOVERS = [
 ] as const;
 
 const CLUSTER_STYLE = {
-  padding: '10px 12px',
-  borderRadius: '14px',
-  background: 'linear-gradient(135deg, #111827, #1f2937)',
+  width: 34,
+  height: 34,
+  borderRadius: '50%',
+  background: '#111827',
   color: 'white',
-  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.25)',
-  border: '1px solid rgba(255, 255, 255, 0.08)',
-  transform: 'translate(-50%, -110%)',
-  minWidth: 180
-};
+  boxShadow: '0 10px 28px rgba(0, 0, 0, 0.26)',
+  border: '2px solid rgba(255, 255, 255, 0.7)',
+  transform: 'translate(50%, -140%)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontWeight: 800,
+  fontSize: 14
+} as const;
 
 const PIN_STYLE = {
   padding: '8px 10px',
@@ -116,107 +120,79 @@ const PIN_STYLE = {
 };
 
 export function App() {
-  const overlayWidget = useMemo(() => {
-    const overlayItems = DESTINATIONS.map(({id, name, subtitle, coordinates}) =>
-      h(
-        HtmlOverlayItem,
-        {
-          key: id,
-          coordinates,
-          style: {
-            ...OVERLAY_STYLE,
-            color: '#1f2937',
-            fontFamily: 'var(--ifm-font-family-base, "Inter", system-ui, sans-serif)',
-            fontSize: '14px',
-            lineHeight: 1.5
-          }
-        },
-        h('div', {style: {fontWeight: 700, fontSize: '16px'}}, name),
-        h('div', {style: {color: '#4b5563', marginTop: '4px'}}, subtitle)
-      )
+  const overlayItems = DESTINATIONS.map(({id, name, subtitle, coordinates}) => (
+    <HtmlOverlayItem
+      key={id}
+      coordinates={coordinates}
+      style={{
+        ...OVERLAY_STYLE,
+        color: '#1f2937',
+        fontFamily: 'var(--ifm-font-family-base, "Inter", system-ui, sans-serif)',
+        fontSize: '14px',
+        lineHeight: 1.5
+      }}
+    >
+      <div style={{fontWeight: 700, fontSize: '16px'}}>{name}</div>
+      <div style={{color: '#4b5563', marginTop: '4px'}}>{subtitle}</div>
+    </HtmlOverlayItem>
+  ));
+
+  const overlayWidget = new HtmlOverlayWidget({
+    id: 'html-destination-overlays',
+    overflowMargin: 128,
+    zIndex: 3,
+    items: overlayItems
+  });
+
+  const clusterWidget = new (class extends HtmlClusterWidget<(typeof STOPOVERS)[number]> {
+    override getAllObjects = () => STOPOVERS;
+
+    override getObjectCoordinates = (stop) => stop.coordinates;
+
+    override renderObject = (coordinates, stop) => (
+      <HtmlOverlayItem key={stop.id} coordinates={coordinates} style={PIN_STYLE}>
+        <div style={{fontWeight: 700}}>{stop.title}</div>
+        <div style={{fontSize: 12, opacity: 0.8}}>{stop.city}</div>
+      </HtmlOverlayItem>
     );
 
-    return new HtmlOverlayWidget({
-      id: 'html-destination-overlays',
-      overflowMargin: 128,
-      zIndex: 3,
-      items: overlayItems
-    });
-  }, []);
+    override renderCluster = (coordinates, clusterId, pointCount) => (
+      <HtmlOverlayItem key={`cluster-${clusterId}`} coordinates={coordinates} style={CLUSTER_STYLE}>
+        <div>{pointCount}</div>
+      </HtmlOverlayItem>
+    );
+  })({
+    id: 'html-cluster-overlays',
+    overflowMargin: 96,
+    zIndex: 4
+  });
 
-  const clusterWidget = useMemo(() => {
-    return new (class extends HtmlClusterWidget<(typeof STOPOVERS)[number]> {
-      override getAllObjects = () => STOPOVERS;
+  const tooltipWidget = new HtmlTooltipWidget({
+    id: 'html-overlay-tooltips',
+    showDelay: 120,
+    zIndex: 6,
+    getTooltip: (info) => {
+      const stop = info.object as (typeof STOPOVERS)[number] | (typeof DESTINATIONS)[number] | null;
+      if (!stop) {
+        return null;
+      }
 
-      override getObjectCoordinates = (stop) => stop.coordinates;
-
-      override renderObject = (coordinates, stop) =>
-        h(
-          HtmlOverlayItem,
-          {
-            key: stop.id,
-            coordinates,
-            style: PIN_STYLE
-          },
-          h('div', {style: {fontWeight: 700}}, stop.title),
-          h('div', {style: {fontSize: 12, opacity: 0.8}}, stop.city)
-        );
-
-      override renderCluster = (coordinates, clusterId, pointCount) => {
-        const cities = this.getClusterObjects(clusterId).map((stop) => stop.city);
-        const cityLabel = new Intl.ListFormat('en', {style: 'long', type: 'conjunction'}).format(
-          [...new Set(cities)].slice(0, 3)
-        );
-
-        return h(
-          HtmlOverlayItem,
-          {
-            key: `cluster-${clusterId}`,
-            coordinates,
-            style: CLUSTER_STYLE
-          },
-          h('div', {style: {fontWeight: 800, fontSize: 16}}, `${pointCount} stops`),
-          h('div', {style: {fontSize: 12, opacity: 0.86}}, cityLabel)
-        );
-      };
-    })({
-      id: 'html-cluster-overlays',
-      overflowMargin: 96,
-      zIndex: 4
-    });
-  }, []);
-
-  const tooltipWidget = useMemo(
-    () =>
-      new HtmlTooltipWidget({
-        id: 'html-overlay-tooltips',
-        showDelay: 120,
-        getTooltip: (info) => {
-          const stop = info.object as (typeof STOPOVERS)[number] | (typeof DESTINATIONS)[number] | null;
-          if (!stop) {
-            return null;
-          }
-
-          return h(
-            'div',
-            {
-              style: {
-                fontFamily: 'var(--ifm-font-family-base, "Inter", system-ui, sans-serif)',
-                minWidth: 140,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4
-              }
-            },
-            h('div', {style: {fontWeight: 700}}, stop.name ?? stop.title),
-            stop.subtitle
-              ? h('div', {style: {opacity: 0.8}}, stop.subtitle)
-              : h('div', {style: {opacity: 0.8}}, stop.city)
-          );
-        }
-      }),
-    []
-  );
+      return (
+        <div
+          style={{
+            fontFamily: 'var(--ifm-font-family-base, "Inter", system-ui, sans-serif)',
+            minWidth: 140,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4
+          }}
+        >
+          <div style={{fontWeight: 700}}>{stop.name ?? stop.title}</div>
+          <div style={{opacity: 0.8}}>{stop.subtitle ?? stop.city}</div>
+        </div>
+      );
+    }
+  });
 
   const layers = useMemo(
     () => [
@@ -278,8 +254,8 @@ export function App() {
           <code>HtmlTooltipWidget</code>.
         </p>
         <p style={{margin: 0}}>
-          All overlays are rendered with Preact nodes managed by deck.gl&apos;s widget lifecycle—pan or zoom
-          to see them stay anchored to their coordinates.
+          All overlays render React-authored HTML managed by deck.gl&apos;s widget lifecycle—pan or zoom to see
+          them stay anchored to their coordinates.
         </p>
       </div>
     </DeckGL>
