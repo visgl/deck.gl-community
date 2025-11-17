@@ -2,7 +2,7 @@
 
 In this chapter, you'll learn about how to interact with the graph.
 
-There are the porperties you can specify when using the GraphGL component:
+These are the properties you can specify when configuring the `GraphLayer`:
 
 ### `nodeEvents` (Object, optional)
 All events callbacks will be triggered with the following parameters:

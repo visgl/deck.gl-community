@@ -6,7 +6,7 @@ import React, {Component} from 'react';
 import {createRoot} from 'react-dom/client';
 
 import {D3ForceLayout, JSONLoader} from '@deck.gl-community/graph-layers';
-import {GraphGL} from './react-graph-layers/graph-gl';
+import {GraphViewer} from './react-graph-layers/graph-viewer';
 
 // eslint-disable-next-line import/no-unresolved
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
@@ -59,7 +59,7 @@ export class App extends Component {
     return (
       <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
         <div style={{width: '100%', flex: 1}}>
-          <GraphGL
+          <GraphViewer
             graph={graph}
             layout={new D3ForceLayout()}
             stylesheet={{

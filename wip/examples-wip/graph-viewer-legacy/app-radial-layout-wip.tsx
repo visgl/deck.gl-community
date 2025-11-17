@@ -11,8 +11,8 @@ import Color from 'color';
 // data
 import {fetchJSONFromS3} from './io';
 
-// graph.gl
-import GraphGL, {JSONLoader} from '@deck.gl-community/graph-layers';
+import {JSONLoader} from '@deck.gl-community/graph-layers';
+import {GraphViewer} from './react-graph-layers/graph-viewer';
 import RadialLayout from './layouts/radial-layout';
 
 const DEFAULT_NODE_SIZE = 5;
@@ -59,7 +59,7 @@ export default class BasicRadialExample extends Component {
     }
 
     return (
-      <GraphGL
+      <GraphViewer
         graph={this.state.graph}
         layout={
           new RadialLayout({

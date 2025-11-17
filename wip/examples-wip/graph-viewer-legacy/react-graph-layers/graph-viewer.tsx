@@ -41,7 +41,7 @@ const DEFAULT_STYLESHEET = {
   }
 } as const satisfies GraphLayerStylesheet;
 
-export const GraphGL = ({
+export const GraphViewer = ({
   graph = new Graph(),
   layout = new SimpleLayout(),
   glOptions = {},
@@ -235,7 +235,7 @@ export const GraphGL = ({
   );
 };
 
-GraphGL.propTypes = {
+GraphViewer.propTypes = {
   /** Input graph data */
   graph: PropTypes.object.isRequired,
   /** Layout algorithm */

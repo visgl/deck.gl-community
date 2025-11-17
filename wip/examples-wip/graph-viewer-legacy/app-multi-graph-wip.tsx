@@ -5,8 +5,8 @@
 import React, {Component} from 'react';
 import Color from 'color';
 
-// graph.gl
-import GraphGL, {JSONLoader} from '@deck.gl-community/graph-layers';
+import {JSONLoader} from '@deck.gl-community/graph-layers';
+import {GraphViewer} from './react-graph-layers/graph-viewer';
 import MultiGraphLayout from './layouts/multi-graph-layout';
 
 // data
@@ -33,7 +33,7 @@ export default class MultiGraphExample extends Component {
 
   render() {
     return (
-      <GraphGL
+      <GraphViewer
         graph={JSONLoader({json: sampleGraph})}
         layout={
           new MultiGraphLayout({

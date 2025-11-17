@@ -9,8 +9,8 @@ import {extent} from 'd3-array';
 import Color from 'color';
 import {fetchJSONFromS3} from '../../utils/data/io';
 
-// graph.gl
-import GraphGL, {JSONLoader} from '../../src';
+import {JSONLoader} from '../../src';
+import {GraphViewer} from './react-graph-layers/graph-viewer';
 import HivePlot from './hive-plot-layout';
 
 const DEFAULT_NODE_SIZE = 3;
@@ -55,7 +55,7 @@ export default class HivePlotExample extends Component {
       return null;
     }
     return (
-      <GraphGL
+      <GraphViewer
         graph={this.state.graph}
         layout={
           new HivePlot({
