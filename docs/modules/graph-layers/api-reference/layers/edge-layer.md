@@ -33,7 +33,7 @@ const layer = new EdgeLayer({
 
 Pass the layer an iterable of edges and a `getLayoutInfo` accessor that exposes
 the geometry for each datum. `GraphLayer`'s
-[`EdgeAttachmentHelper`](../../developer-guide/interactions.md#edge-attachment-helper)
+`EdgeAttachmentHelper`
 returns a compatible accessor if you want to reuse its collision handling.
 
 ## Properties
