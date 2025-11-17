@@ -33,7 +33,7 @@ A new module containing unofficial / experimental widgets for deck.gl, initially
 
 ### `@deck.gl-community/graph-layers` 
 
-- [`GraphLayer`](/docs/graph-layers/layers/graph-layer)
+- [`GraphLayer`](/docs/modules/graph-layers/api-reference/layers/graph-layer)
   - `GraphLayerProps.data` - `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via the new `data` prop (including async URLs).
 
 Graph Loaders
