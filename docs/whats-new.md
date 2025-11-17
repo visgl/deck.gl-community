@@ -21,25 +21,45 @@ Target Release Date: Nov 2025
 
 Highlights:
 - deck.gl v9.2 compatibility.
-- Internal: Tests updated to use `vitest` instead of `jest`
-- Website: Search restored.
+- Website: Documentation improvements and search.
+- Tests updated to use `vitest` instead of `jest`
+
+### `@deck.gl-community/widgets` (NEW module)
+
+A new module containing unofficial / experimental widgets for deck.gl, initially:
+
+- `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
+- `PanWidget` - NEW deck.gl `Widget` providing buttons for panning the view.
 
 ### `@deck.gl-community/graph-layers` 
 
-- `GraphLayerProps` - NEW `data` prop (no longer requires applications to provide `engine: GraphEngine`).
-  - `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via its `data` prop (including async URLs), automatically builds a `GraphEngine` when given raw payloads, and deprecates the legacy `graph` prop.
-  - `JSONLoader` normalizes edge arrays or `{nodes, edges}` objects and no longer accepts `Graph` instances directly.
-- `GraphLayerProps` - NEW `stylesheet` prop that accepts a unified stylesheet containing all for node, edge, and decorator styles.
-- `GraphStylesheet` - NEW edge decorator `'arrow'` that renders arrows on directional edges.
-- `GraphStylesheet` - constants can now be defined using simple string literals (no need to import `NODE_TYPE` etc).
+- [`GraphLayer`](/docs/modules/graph-layers/api-reference/layers/graph-layer)
+  - `GraphLayerProps.data` - `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via the new `data` prop (including async URLs).
+
+Graph Loaders
+  - A common `GraphData` schema is defined and returned by graph loaders.
+  - `JSONGraphLoader` normalizes edge arrays or `{nodes, edges}` objects.
+  - `DOTGraphLoader` 
+
+Graph Styling:
+- `GraphLayerProps.stylesheet` - accepts a unified stylesheet containing all for node, edge, and decorator styles.
+- `GraphStylesheet` - NEW `'arrow'` edge decorator  that renders arrows on directional edges.
+- `GraphStylesheet` - constants can now be defined using simple string literals.
+
+Graph Layouts:
 - `D3DagLayout` - NEW `GraphLayout` for visualiation of DAGs (Directed Acyclic Graphs) with layering and collapse/expand functionality.
 - `RadialLayout` - NEW `GraphLayout` for visualiation of radial graph layouts.
 - `HivePlotLayout` - NEW `GraphLayout` for visualiation of hive plot graph layouts.
 - `D3MultiGraphLayout` - NEW `GraphLayout` for visualiation of multi-edge graph layouts.
-- `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
-- `PanWidget` - NEW deck.gl `Widget` providing buttons for panning the view.
-- **Examples** - `GraphViewer` eample expanded to cover all new layouts, plus UI for editing layout options.
-- **Documentation** - significant updates / new content.
+
+Graph Event Handling:
+- Graph event handling is supported via callback props instead of EventTarget.
+
+Graph Examples:
+- The `GraphViewer` example expanded to cover all new layouts, including a UI for dynamically changing layout options.
+
+Graph Documentation
+- significant updates / new content.
 
 ## v9.1
 

@@ -1,5 +1,40 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.3
+
+- chore: Move WIP code into wip folder (#425)
+- fix(website); Ensure widget module JSX is transpiled with preact (#423)
+- docs: expand graph layer coverage (#415)
+- feat(graph-viewer): support remote DOT datasets (#417)
+- docs(graph-layers): expand graph layout tutorial (#418)
+- Use ArrowGraph in graph viewer example (#413)
+- docs(graph-layers): update GraphLayout usage guidance (#416)
+- feat(graph-layers) Add DOTGraphLoader with tests and docs (#414)
+- feat(graph-layers) Add ArrowGraph (#411)
+- feat(editable-layers): Experimental edit mode widget + example (#406)
+- docs(layers) Add PathMarker and PathOutline example and docs (#403)
+- docs(geo-layers): fix global grid layer examples (#404)
+- docs(geo-layers): document global grid helpers (#405)
+- feat(graph-layers) Replace graph events with callback props (#398)
+- docs(graph-layers) Reorganize docs (#392)
+- docs: polish (#310)
+- feat(widgets): new widgets module and example (#399)
+- chore(graph-layers): unify graph stylesheet engine usage (#397)
+- feat(graph-layers) TabularGraph uses tabular node/edge state storage (#394)
+- feat(graph-layers): default JSON loader emits tabular graph (#390)
+- test(graph-layers): cover shared graph behavior (#391)
+- chore(graph-layers) Extract a common graph interface (#387)
+- feat(graph-viewer): improve tooltip readability (#386)
+- fix(graph-layers): layout lifecycle events for hive and radial layouts (#384)
+- feat(graph-layers): add rank grid utilities and layer (#378)
+- Move layout prop description types into props form (#382)
+- feat(graph-layers) Add GraphLayer data prop (#363)
+- chore: Enable publish of leaflet package (#377)
+- chore: Mark geo-layers for public publishing (#376)
+- Add Charles as the editable-layer maintainer (#371)
+- feat(graph-layers): Layered DAG support (#375)
+- feat(graph-layers): break out collapsable D3 DAG layout subclass (#373)
+
 ## v9.2.0-beta.2
 
 - chore: Enable publish of leaflet package (#377)

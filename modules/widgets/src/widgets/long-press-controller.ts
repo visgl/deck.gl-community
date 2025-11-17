@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 const REPEAT_DELAY_MS = 300;
 const REPEAT_INTERVAL_MS = 100;
 
