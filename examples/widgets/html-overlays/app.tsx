@@ -12,7 +12,7 @@ import {
   HtmlOverlayWidget,
   HtmlTooltipWidget
 } from '@deck.gl-community/widgets';
-import {h} from 'preact';
+import {h, render, type JSX} from 'preact';
 
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
@@ -120,6 +120,21 @@ const PIN_STYLE = {
   minWidth: 150
 };
 
+const createOverlayRoot = (container: HTMLElement) => {
+  const overlayRoot = document.createElement('div');
+  overlayRoot.className = 'html-overlay-root';
+  container.appendChild(overlayRoot);
+  return overlayRoot;
+};
+
+const renderOverlayContent = (
+  overlayRoot: unknown,
+  element: JSX.Element | null,
+  container: HTMLElement
+) => {
+  render(element, (overlayRoot as Element | Document | ShadowRoot | null) ?? container);
+};
+
 export function App() {
   const overlayItems = DESTINATIONS.map(({id, name, subtitle, coordinates}) =>
     h(
@@ -142,11 +157,20 @@ export function App() {
     )
   );
 
+  const overlayCallbacks = useMemo(
+    () => ({
+      onCreateOverlay: createOverlayRoot,
+      onRenderOverlay: renderOverlayContent
+    }),
+    []
+  );
+
   const overlayWidget = new HtmlOverlayWidget({
     id: 'html-destination-overlays',
     overflowMargin: 128,
     zIndex: 3,
-    items: overlayItems
+    items: overlayItems,
+    ...overlayCallbacks
   });
 
   const clusterWidget = new (class extends HtmlClusterWidget<(typeof STOPOVERS)[number]> {
@@ -173,13 +197,15 @@ export function App() {
   })({
     id: 'html-cluster-overlays',
     overflowMargin: 96,
-    zIndex: 4
+    zIndex: 4,
+    ...overlayCallbacks
   });
 
   const tooltipWidget = new HtmlTooltipWidget({
     id: 'html-overlay-tooltips',
     showDelay: 120,
     zIndex: 6,
+    ...overlayCallbacks,
     getTooltip: (info) => {
       const stop = info.object as (typeof STOPOVERS)[number] | (typeof DESTINATIONS)[number] | null;
       if (!stop) {
