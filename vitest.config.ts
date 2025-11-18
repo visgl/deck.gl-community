@@ -28,6 +28,7 @@ const CONFIG = defineConfig({
           name: 'browser',
           environment: 'node',
           include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+          exclude: ['modules/**/*.node.{test,spec}.{js,ts,jsx,tsx}'],
           browser: {
             enabled: true,
             provider: playwright(),
@@ -41,6 +42,7 @@ const CONFIG = defineConfig({
           name: 'headless',
           environment: 'node',
           include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+          exclude: ['modules/**/*.node.{test,spec}.{js,ts,jsx,tsx}'],
           browser: {
             enabled: true,
             headless: true,

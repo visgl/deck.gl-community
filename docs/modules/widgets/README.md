@@ -40,7 +40,30 @@ export function App() {
 
 The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) shows the controls managing an orthographic view over abstract data.
 
+### HTML overlays
+
+Use `HtmlOverlayWidget` when you need HTML anchored to geographic coordinates. The widget renders
+with **Preact**, so items can be created with `preact.h` and supplied as `items`:
+
+```tsx
+import {h} from 'preact';
+import {HtmlOverlayItem, HtmlOverlayWidget} from '@deck.gl-community/widgets';
+
+const overlayWidget = new HtmlOverlayWidget({
+  items: data.map((item) =>
+    h(HtmlOverlayItem, {coordinates: item.coordinates, key: item.id}, item.label)
+  )
+});
+```
+
+The [HTML overlays example](/examples/widgets/html-overlays) shows styled city callouts bound to
+map positions via the widget lifecycle.
+
 ## Widgets
 
 - [PanWidget](./api-reference/pan-widget.md)
 - [ZoomRangeWidget](./api-reference/zoom-range-widget.md)
+- [HtmlOverlayWidget](./api-reference/html-overlay-widget.md)
+- [HtmlClusterWidget](./api-reference/html-cluster-widget.md)
+- [HtmlOverlayItem](./api-reference/html-overlay-item.md)
+- [HtmlTooltipWidget](./api-reference/html-tooltip-widget.md)
