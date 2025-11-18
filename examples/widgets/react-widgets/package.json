@@ -1,0 +1,23 @@
+{
+  "name": "widgets-react-wrappers-example",
+  "version": "9.2.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/react": "workspace:*",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/layers": "~9.2.1",
+    "@deck.gl/react": "~9.2.1",
+    "@deck.gl/widgets": "~9.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "vite": "7.1.1"
+  }
+}

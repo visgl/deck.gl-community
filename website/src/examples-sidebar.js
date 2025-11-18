@@ -59,7 +59,8 @@ const sidebars = {
       label: '@deck.gl-community/widgets',
       items: [
         "widgets/html-overlays",
-        "widgets/pan-and-zoom-controls"
+        "widgets/pan-and-zoom-controls",
+        "widgets/react-widgets"
       ]
     },
     // {
