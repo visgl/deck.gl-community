@@ -14,12 +14,12 @@ The deck.gl-community repo is specifically set up to collect useful code that no
 There is an ambition to phase out React specific code for deck.gl-community modules. This model is expected to be deprecated in the near future.
 :::
 
-graph-layers provides React components for visualizing large graphs with several utility functions. 
+graph-layers provides Deck.gl layers and utilities for visualizing large graphs with several utility functions.
 
-graph-layers can build a highly customizable graph visualization through its composable API. The rendering is powered by deck.gl which is a WebGL based visualization framework.  With graph-layers, users are enabled to build various type of graph/network applications with minimum efforts while having the capability to extend the existing styles and layouts.
+graph-layers can build a highly customizable graph visualization through its composable API. The rendering is powered by deck.gl which is a WebGL based visualization framework. With graph-layers, users are enabled to build various type of graph/network applications with minimum efforts while having the capability to extend the existing styles and layouts.
 
 ## Abstract
-graph-layers is a React component for visualizing large graphs with several utility functions. It can build a highly customizable graph visualization through its composable API. The rendering is powered by deck.gl which is a WebGL based visualization framework.  With graph-layers, users are enabled to build various type of graph/network applications with minimum efforts while having the capability to extend the existing styles and layouts.
+graph-layers is a Deck.gl layer pack for visualizing large graphs with several utility functions. It can build a highly customizable graph visualization through its composable API. The rendering is powered by deck.gl which is a WebGL based visualization framework. With graph-layers, users are enabled to build various type of graph/network applications with minimum efforts while having the capability to extend the existing styles and layouts.
 
 ## Motivation
 Uber originally started this project as Graph.gl. After stopping efforts on Graph.gl, the OpenJS Foundation has resumed efforts.
@@ -32,47 +32,58 @@ TBD, we've just started a reboot to update dependencies and modernize the codeba
 
 ## Get Started
 ```js
-import GraphGL, {JSONLoader, D3ForceLayout} from 'deck-graph-layers';
+import DeckGL from '@deck.gl/react';
+import {GraphLayer, D3ForceLayout} from '@deck.gl-community/graph-layers';
 
-const App = ({data}) => {
-  const graph = JSONLoader({
-    json: data,
-    nodeParser: node => ({id: node.id}),
-    edgeParser: edge => ({
-      id: edge.id,
-      sourceId: edge.sourceId,
-      targetId: edge.targetId,
-      directed: true,
-    }),
-  });
-  return (
-    <GraphGL
-      graph={graph}
-      layout={new D3ForceLayout()}
-      stylesheet={{
-        nodes: [
-          {
-            type: 'circle',
-            radius: 10,
-            fill: 'blue',
-            opacity: 1,
-          },
-          {
-            type: 'label',
-            text: '@id',
-            color: '#ffffff',
-            offset: [0, 18],
-          },
-        ],
-        edges: {
-          stroke: 'black',
-          strokeWidth: 2,
+const SAMPLE_GRAPH = {
+  nodes: [
+    {id: 'A'},
+    {id: 'B'},
+    {id: 'C'}
+  ],
+  edges: [
+    {source: 'A', target: 'B'},
+    {source: 'B', target: 'C'},
+    {source: 'C', target: 'A'}
+  ]
+};
+
+const App = () => {
+  const layer = new GraphLayer({
+    id: 'graph-layer',
+    data: SAMPLE_GRAPH,
+    layout: new D3ForceLayout(),
+    stylesheet: {
+      nodes: [
+        {
+          type: 'circle',
+          radius: 10,
+          fill: 'blue',
+          opacity: 1
         },
-      }}
-      enableDragging
+        {
+          type: 'label',
+          text: '@id',
+          color: '#ffffff',
+          offset: [0, 18]
+        }
+      ],
+      edges: {
+        stroke: 'black',
+        strokeWidth: 2
+      }
+    },
+    enableDragging: true
+  });
+
+  return (
+    <DeckGL
+      initialViewState={{target: [0, 0], zoom: 1}}
+      controller={{doubleClickZoom: false}}
+      layers={[layer]}
     />
   );
-}
+};
 ```
 
 

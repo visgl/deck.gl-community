@@ -898,9 +898,9 @@ export const EXAMPLES: ExampleDefinition[] = [
     type: 'graph'
   },
   {
-    name: 'World trade (radial, graph.gl)',
+    name: 'World trade (radial)',
     description:
-      'Recreates the original graph.gl radial layout example using World Integrated Trade Solution partner flows grouped by region.',
+      'Radial layout of World Integrated Trade Solution partner flows grouped by region, inspired by the original demo.',
     data: () => cloneGraphData(WITS_GRAPH_DATA),
     layouts: ['radial-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
@@ -950,9 +950,9 @@ export const EXAMPLES: ExampleDefinition[] = [
         : undefined
   },
   {
-    name: 'World trade (hive plot, graph.gl)',
+    name: 'World trade (hive plot)',
     description:
-      'Original graph.gl hive plot demo data visualising international trade communities grouped by their regional bloc.',
+      'Hive plot demo data visualising international trade communities grouped by their regional bloc.',
     data: () => cloneGraphData(WITS_GRAPH_DATA),
     layouts: ['hive-plot-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
@@ -986,9 +986,9 @@ export const EXAMPLES: ExampleDefinition[] = [
         : undefined
   },
   {
-    name: 'World trade (force multi-graph, graph.gl)',
+    name: 'World trade (force multi-graph)',
     description:
-      'Applies the force multi-graph layout to the graph.gl WITS dataset to emphasise dense trade corridors and minimise overlapping links.',
+      'Applies the force multi-graph layout to the WITS dataset to emphasise dense trade corridors and minimise overlapping links.',
     data: () => cloneGraphData(WITS_GRAPH_DATA),
     layouts: ['force-multi-graph-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
