@@ -32,6 +32,8 @@
     "src"
   ],
   "scripts": {
+    "build-bundle": "npx ocular-bundle ./src/bundle.ts ; mv dist.min.js dist",
+    "prepublishOnly": "npm run build-bundle",
     "test": "vitest run",
     "test-watch": "vitest"
   },
