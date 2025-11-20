@@ -60,9 +60,9 @@
   "devDependencies": {
     "ngraph.generators": "^20.1.0",
     "zod": "^4.0.0",
-    "zod-to-json-schema": "^3.22.5"
+    "zod-to-json-schema": "patch:zod-to-json-schema@npm%3A3.24.6#~/.yarn/patches/zod-to-json-schema-npm-3.24.6-1ea8d4e085.patch"
   },
   "peerDependencies": {
-    "zod": "^3.23.8 || ^4.0.0"
+    "zod": "^4.0.0"
   }
 }

@@ -1,0 +1,21 @@
+diff --git a/package.json b/package.json
+index 5ce776658411dee8cea4c0f5a538cc103a97b26a..185b1d87a9304468e382bb7b89a9d8e9ceaac6ed 100644
+--- a/package.json
++++ b/package.json
+@@ -61,7 +61,7 @@
+   },
+   "license": "ISC",
+   "peerDependencies": {
+-    "zod": "^3.24.1"
++    "zod": "^4.0.0"
+   },
+   "devDependencies": {
+     "@types/json-schema": "^7.0.9",
+@@ -74,6 +74,6 @@
+     "rimraf": "^3.0.2",
+     "tsx": "^4.19.0",
+     "typescript": "^5.1.3",
+-    "zod": "^3.24.1"
++    "zod": "^4.0.0"
+   }
+ }
