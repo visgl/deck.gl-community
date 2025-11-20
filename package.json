@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "bootstrap": "ocular-bootstrap",
-    "build": "ocular-clean && ocular-build && lerna run build && yarn build-bundles",
+    "build": "ocular-clean && ocular-build && lerna run build",
     "build-bundles": "node ./scripts/build-bundles.mjs",
     "lint": "ocular-lint",
     "lint-fix": "ocular-lint --fix",
