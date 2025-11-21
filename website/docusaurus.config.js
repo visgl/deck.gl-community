@@ -203,6 +203,11 @@ const config = {
             label: 'Docs'
           },
           {
+            to: '/gallery',
+            position: 'left',
+            label: 'Gallery'
+          },
+          {
             to: '/examples',
             position: 'left',
             label: 'Examples'
