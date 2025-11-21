@@ -32,7 +32,7 @@
     "src"
   ],
   "scripts": {
-    "build-bundle": "npx ocular-bundle ./src/bundle.ts",
+    "build-bundle": "npx ocular-bundle ./src/bundle.ts --output=dist/dist.min.js",
     "build": "npm run build-bundle",
     "prepublishOnly": "npm run build-bundle",
     "test": "vitest run",
