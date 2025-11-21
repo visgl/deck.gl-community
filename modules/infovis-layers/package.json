@@ -3,6 +3,9 @@
   "version": "9.2.0-beta.4",
   "description": "Infovis layers (non-geospatial) for deck.gl",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "layers",
     "visualization",
