@@ -1,5 +1,9 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.5
+
+- chore: Update package.json publishConfigs (#441)
+
 ## v9.2.0-beta.4
 
 - examples(leaflet): Update gallery script link
