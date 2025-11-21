@@ -247,7 +247,7 @@ export default class Example extends React.Component<
       viewport: initialViewport,
       testFeatures: sampleGeoJson,
       mode: DrawPolygonMode,
-      modeConfig: null,
+      modeConfig: {allowHoles: true, allowSelfIntersection: false},
       pointsRemovable: true,
       selectedFeatureIndexes: [],
       editHandleType: 'point',
@@ -264,6 +264,13 @@ export default class Example extends React.Component<
 
   componentWillUnmount() {
     window.removeEventListener('resize', this._resize);
+  }
+
+  _getDefaultModeConfig(mode: any) {
+    if (mode === DrawPolygonMode) {
+      return {allowHoles: true, allowSelfIntersection: false};
+    }
+    return {};
   }
 
   _onChangeViewport = (viewport: Record<string, any>) => {
@@ -632,26 +639,66 @@ export default class Example extends React.Component<
   }
 
   _renderDrawPolygonModeControls() {
+    const modeConfig = this.state.modeConfig || {};
     return (
-      <ToolboxRow key="draw-polygon">
-        <ToolboxTitle>Prevent overlapping lines</ToolboxTitle>
-        <ToolboxControl>
-          <input
-            type="checkbox"
-            checked={Boolean(
-              this.state.modeConfig && this.state.modeConfig.preventOverlappingLines
-            )}
-            onChange={(event) =>
-              this.setState({
-                modeConfig: {
-                  ...(this.state.modeConfig || {}),
-                  preventOverlappingLines: Boolean(event.target.checked)
-                }
-              })
-            }
-          />
-        </ToolboxControl>
-      </ToolboxRow>
+      <React.Fragment key="draw-polygon">
+        <ToolboxRow key="draw-polygon-holes">
+          <ToolboxTitle>Allow Polygon Holes</ToolboxTitle>
+          <ToolboxControl>
+            <ToolboxCheckbox
+              type="checkbox"
+              checked={Boolean(modeConfig.allowHoles)}
+              onChange={(event) =>
+                this.setState({
+                  modeConfig: {
+                    ...modeConfig,
+                    allowHoles: Boolean(event.target.checked),
+                    preventOverlappingLines: Boolean(modeConfig.preventOverlappingLines),
+                    maxHolesPerPolygon: 4,
+                    emitInvalidEvents: true
+                  }
+                })
+              }
+            >
+              Enable hole drawing
+            </ToolboxCheckbox>
+          </ToolboxControl>
+        </ToolboxRow>
+        <ToolboxRow key="draw-polygon-allow-intersect">
+          <ToolboxTitle>Allow intersecting lines</ToolboxTitle>
+          <ToolboxControl>
+            <input
+              type="checkbox"
+              checked={Boolean(modeConfig.allowSelfIntersection)}
+              onChange={(event) =>
+                this.setState({
+                  modeConfig: {
+                    ...modeConfig,
+                    allowSelfIntersection: Boolean(event.target.checked)
+                  }
+                })
+              }
+            />
+          </ToolboxControl>
+        </ToolboxRow>
+        <ToolboxRow key="draw-polygon-help">
+          <ToolboxTitle>Hole drawing tip</ToolboxTitle>
+          <ToolboxControl>
+            <div
+              style={{
+                padding: '12px 8px',
+                fontSize: 12,
+                lineHeight: 1.4,
+                background: '#f0f0f0',
+                color: '#000'
+              }}
+            >
+              Enable hole drawing, then close a polygon ring inside an existing polygon. Valid holes
+              are automatically added and invalid ones trigger helpful warnings.
+            </div>
+          </ToolboxControl>
+        </ToolboxRow>
+      </React.Fragment>
     );
   }
 
@@ -695,7 +742,11 @@ export default class Example extends React.Component<
                 key={label}
                 selected={this.state.mode === mode}
                 onClick={() => {
-                  this.setState({mode, modeConfig: {}, selectionTool: undefined});
+                  this.setState({
+                    mode,
+                    modeConfig: this._getDefaultModeConfig(mode),
+                    selectionTool: undefined
+                  });
                 }}
               >
                 {label}
