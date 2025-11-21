@@ -1329,6 +1329,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/gallery@workspace:examples/gallery":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/gallery@workspace:examples/gallery"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/geo-layers@workspace:modules/geo-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/geo-layers@workspace:modules/geo-layers"

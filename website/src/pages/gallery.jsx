@@ -1,7 +1,7 @@
 import React from 'react';
 import Layout from '@theme/Layout';
 import {GalleryTiles} from '../components';
-import manifest from '../data/scripting-gallery.json';
+import manifest from '../../../examples/gallery/manifest.json';
 
 export default function GalleryPage() {
   return (
