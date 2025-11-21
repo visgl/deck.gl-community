@@ -8488,7 +8488,6 @@ __metadata:
     "@luma.gl/webgl": "npm:~9.2.0"
     "@testing-library/react": "npm:^14.3.0"
     "@types/bin-pack": "npm:^1.0.3"
-    "@types/react": "npm:^18.3.3"
     "@vis.gl/dev-tools": "npm:^1.0.0"
     "@vis.gl/ts-plugins": "npm:^1.0.0"
     "@vitejs/plugin-react": "npm:5.1.0"
@@ -8497,7 +8496,6 @@ __metadata:
     "@vitest/eslint-plugin": "npm:^1.4.0"
     bin-pack: "npm:^1.0.2"
     datauri: "npm:^4.1.0"
-    lerna: "npm:^8.2.0"
     ndarray: "npm:^1.0.19"
     ndarray-pixels: "npm:^3.1.0"
     playwright: "npm:^1.56.1"
@@ -13243,7 +13241,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lerna@npm:^8.1.0, lerna@npm:^8.2.0":
+"lerna@npm:^8.1.0":
   version: 8.2.4
   resolution: "lerna@npm:8.2.4"
   dependencies:

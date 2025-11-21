@@ -32,6 +32,9 @@
     "src"
   ],
   "scripts": {
+    "build-bundle": "npx ocular-bundle ./src/bundle.ts",
+    "build": "npm run build-bundle",
+    "prepublishOnly": "npm run build-bundle",
     "test": "vitest run",
     "test-watch": "vitest"
   },
