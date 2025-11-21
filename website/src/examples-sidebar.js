@@ -16,6 +16,11 @@ const sidebars = {
       label: 'Overview',
       id: 'index'
     },
+    {
+      type: 'doc',
+      label: 'Scripting gallery',
+      id: 'gallery'
+    },
     // {
     //   type: 'doc',
     //   label: 'Playground',

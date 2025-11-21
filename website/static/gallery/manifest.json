@@ -1,0 +1,14 @@
+[
+  {
+    "id": "arc-layer",
+    "title": "Arc Layer",
+    "thumbnail": "/images/maps.jpg",
+    "href": "/gallery/arc-layer.html"
+  },
+  {
+    "id": "geojson-layer",
+    "title": "GeoJSON Layer",
+    "thumbnail": "/images/maps.jpg",
+    "href": "/gallery/geojson-layer.html"
+  }
+]
