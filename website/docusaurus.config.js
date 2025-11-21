@@ -174,6 +174,13 @@ const config = {
       }
     ],
     [
+      resolve('./plugins/gallery-static-plugin'),
+      {
+        sourceDir: resolve('../examples/gallery'),
+        routeBase: '/gallery'
+      }
+    ],
+    [
       '@docusaurus/plugin-content-docs',
       {
         id: 'examples',
@@ -203,14 +210,14 @@ const config = {
             label: 'Docs'
           },
           {
-            to: '/gallery',
-            position: 'left',
-            label: 'Gallery'
-          },
-          {
             to: '/examples',
             position: 'left',
             label: 'Examples'
+          },
+          {
+            to: '/gallery',
+            position: 'left',
+            label: 'Gallery'
           },
           // {
           //   to: '/showcase',
