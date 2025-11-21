@@ -1,7 +1,20 @@
 # deck.gl-community CHANGELOG
 
-## v9.2.0-beta.3
+## v9.2.0-beta.4
 
+- examples(leaflet): Update gallery script link
+- website: Include gallery assets in Docusaurus build (#439)
+- Add scripted gallery navigation and tiles (#438)
+- chore: Add bundle builds for deck.gl-community modules (#433)
+- chore(graph-layers): Update zod dependencies to v4 (#435)
+- fix(editable-layers): Fix import of PathMarkerLayer (#432)
+- docs(graph-layers) Remove GraphGL references (#428)
+- feat(widgets) Add HTML overlay widget example (#427)
+
+## v9.2.0-beta.3
+-  docs: Updates for 9.2.0-beta.3 (#426)
+- link
+- chore(graph-layers): Clean up excessive LLM changes (#424)
 - chore: Move WIP code into wip folder (#425)
 - fix(website); Ensure widget module JSX is transpiled with preact (#423)
 - docs: expand graph layer coverage (#415)
