@@ -68,6 +68,12 @@ The following options can be provided in the `modeConfig` object:
   - When enabled, drawing a polygon inside an existing polygon will create a hole instead of a separate feature
   - Includes validation to prevent overlapping or nested holes
 
+> **Note on `allowHoles` vs `booleanOperation: 'difference'`**: These features are complementary, not conflicting:
+> - **`allowHoles`** provides automatic hole detection when drawing inside polygons - no selection required, quick and intuitive workflow for fast hole creation
+> - **`booleanOperation: 'difference'`** requires manual polygon selection for precise, controlled modifications with preview before operation
+> - The features work together with a clear priority: self-intersection validation first, then automatic hole creation (if enabled), finally falling through to manual operations or new feature creation
+> - This ensures automatic features don't interfere with manual controls while providing both convenience and precision
+
 Callback parameters
 
 `editContext` argument to the `onEdit` callback contains the following properties:
