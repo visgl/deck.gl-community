@@ -33,12 +33,16 @@ const config = {
   },
 
   bundle: {
-    globalName: 'luma',
-    externals: [],
+    globalName: 'deckCommunity',
+    externals: ['h3-js'],
     target: ['chrome110', 'firefox110', 'safari15'],
     format: 'umd',
     globals: {
-      '@luma.gl/*': 'globalThis.luma'
+      '@deck.gl-community/*': 'globalThis.deckCommunity',
+      '@deck.gl/*': 'globalThis.deck',
+      '@loaders.gl/*': 'globalThis.loaders',
+      '@luma.gl/*': 'globalThis.luma',
+       'h3-js': 'globalThis.h3 || {}'
     }
   },
 
