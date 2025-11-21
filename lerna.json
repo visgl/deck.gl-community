@@ -1,15 +1,9 @@
 {
   "version": "9.2.0-beta.3",
+  "npmClient": "yarn",
   "packages": [
     "modules/*"
   ],
-  "npmClient": "yarn",
-  "command": {
-    "bootstrap": {},
-    "version": {
-      "private": false
-    }
-  },
   "publishConfig": {
     "access": "public"
   }

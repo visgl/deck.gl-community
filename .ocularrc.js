@@ -34,15 +34,15 @@ const config = {
 
   bundle: {
     globalName: 'deckCommunity',
-    externals: ['@deck.gl/*', '@loaders.gl/*', '@luma.gl/*', 'react', 'react-dom'],
+    externals: ['h3-js'],
     target: ['chrome110', 'firefox110', 'safari15'],
     format: 'umd',
     globals: {
+      '@deck.gl-community/*': 'globalThis.deckCommunity',
       '@deck.gl/*': 'globalThis.deck',
       '@loaders.gl/*': 'globalThis.loaders',
       '@luma.gl/*': 'globalThis.luma',
-      react: 'globalThis.React',
-      'react-dom': 'globalThis.ReactDOM'
+       'h3-js': 'globalThis.h3 || {}'
     }
   },
 

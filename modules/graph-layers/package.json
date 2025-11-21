@@ -31,7 +31,7 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc -b tsconfig.json && node ./scripts/generate-graphstyle-schema.mjs",
+    "build": "node ./scripts/generate-graphstyle-schema.mjs",
     "build:schema": "node ./scripts/generate-graphstyle-schema.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
