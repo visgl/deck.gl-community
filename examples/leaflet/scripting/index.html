@@ -1,95 +1,86 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>deck.gl w/ Leaflet example</title>
-    <style>
-      #map {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-      }
-      .deck-tooltip {
-        white-space: nowrap;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="map"></div>
-    <script type="module">
-      import {exampleApplication} from './app.ts';
-      exampleApplication();
-    </script>
-    <script type="module"> 
-import 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-import '../../../modules/leaflet/dist/dist.js';
-debugger
-const deckLayer = deckCommunity.Leaflet.DeckLayer;
-import {DeckLayer} from '@deck.gl-community/leaflet';
-import {MapView} from '@deck.gl/core';
-import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
-import * as L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
-// source: Natural Earth http://www.naturalearthdata.com/ via geojson.xyz
-const AIR_PORTS =
-  'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_airports.geojson';
+<head>
+  <meta charset="utf-8">
+  <title>deck-gl.leaflet</title>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/deck.gl@9.0.29/dist.min.js"></script>
+  <script src="https://unpkg.com/deck.gl-leaflet@1.3.1/dist/deck.gl-leaflet.umd.min.js"></script>
+  <!-- <script src="../dist/deck.gl-leaflet.umd.min.js"></script> -->
 
-export function exampleApplication() {
-  // Create a Leaflet map
-  const canvas = document.getElementById('map');
-  // Create map
-  const map = L.map(canvas, {
-    center: [51.47, 0.45],
-    zoom: 4,
-  });
-  L.tileLayer('https://tiles.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png', {
-    maxZoom: 22,
-    attribution:
-      '© <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>, © <a href="http://www.openstreetmap.org/about/" target="_blank">OpenStreetMap</a> contributors',
-  }).addTo(map);
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+    }
 
-  // Add deck.gl overlay
-  const deckLayer = new DeckLayer({
-    views: [
-      new MapView({ repeat: true }),
-    ],
-    layers: [
-      new GeoJsonLayer({
-        id: 'airports',
-        data: AIR_PORTS,
-        // Styles
-        filled: true,
-        pointRadiusMinPixels: 2,
-        pointRadiusScale: 2000,
-        getPointRadius: (f) => 11 - f.properties.scalerank,
-        getFillColor: [200, 0, 80, 180],
-        // Interactive props
-        pickable: true,
-        autoHighlight: true,
-        onClick: (info) =>
-          // eslint-disable-next-line
-          info.object && alert(`${info.object.properties.name} (${info.object.properties.abbrev})`)
-      }),
-      new ArcLayer({
-        id: 'arcs',
-        data: AIR_PORTS,
-        dataTransform: (d: any) => d.features.filter((f) => f.properties.scalerank < 4),
-        // Styles
-        getSourcePosition: (f) => [-0.4531566, 51.4709959], // London
-        getTargetPosition: (f) => f.geometry.coordinates,
-        getSourceColor: [0, 128, 200],
-        getTargetColor: [200, 0, 80],
-        getWidth: 1
-      })
-    ],
-    getTooltip: (info) => info.object && info.object.properties.name
-  });
-  map.addLayer(deckLayer);
-}
+    #map {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
 
-    </script>
-  </body>
+<body>
+  <div id="map"></div>
+
+  <script type="module">
+    const mapElement = document.querySelector('#map');
+
+    const map = L.map(mapElement, {
+      center: [51.5, -0.11],
+      zoom: 13,
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    const startLatLng = [51.5, -0.11];
+    const latDelta = 0.01;
+    const lngDelta = latDelta * 1.75;
+    const latLngs = new Array(9).fill(undefined).map((_, i) => [startLatLng[0] + Math.floor(i / 3) * latDelta, startLatLng[1] + (i % 3) * lngDelta]);
+    map.setView([startLatLng[0] + latDelta, startLatLng[1] + lngDelta]);
+
+    const deckLayer = new DeckGlLeaflet.LeafletLayer({
+      views: [
+        new deck.MapView({
+          repeat: true
+        })
+      ],
+      layers: [
+        new deck.PolygonLayer({
+          data: [
+            [[-180, 85.06], [0, 85.06], [180, 85.06], [180, -85.06], [0, -85.06], [-180, -85.06]]
+          ],
+          getPolygon: d => d,
+          stroked: true,
+          filled: false,
+          getLineColor: [255, 0, 0],
+          getLineWidth: 2,
+          lineWidthUnits: 'pixels',
+        }),
+        new deck.ScatterplotLayer({
+          data: latLngs.map((latLng, i) => ({ id: i, position: [latLng[1], latLng[0]] })),
+          getPosition: d => d.position,
+          getRadius: 100,
+          getFillColor: [255, 0, 0],
+          pickable: true,
+        }),
+      ],
+      onHover: ({ object }) => object && console.log(object),
+      getTooltip: ({ object }) => object && { html: object.id },
+    });
+    map.addLayer(deckLayer);
+
+    const featureGroup = L.featureGroup();
+    latLngs.forEach(latLng => {
+      featureGroup.addLayer(L.marker(latLng));
+    });
+    map.addLayer(featureGroup);
+  </script>
+</body>
+
 </html>
+
