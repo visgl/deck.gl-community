@@ -174,6 +174,13 @@ const config = {
       }
     ],
     [
+      resolve('./plugins/gallery-static-plugin'),
+      {
+        sourceDir: resolve('../examples/gallery'),
+        routeBase: '/gallery'
+      }
+    ],
+    [
       '@docusaurus/plugin-content-docs',
       {
         id: 'examples',
