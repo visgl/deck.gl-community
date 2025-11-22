@@ -34,15 +34,17 @@ const config = {
 
   bundle: {
     globalName: 'deckCommunity',
-    externals: ['h3-js'],
+    externals: ['h3-js', 'leaflet', '@deck.gl/core', '@luma.gl/core', '@luma.gl/engine'],
     target: ['chrome110', 'firefox110', 'safari15'],
     format: 'umd',
     globals: {
       '@deck.gl-community/*': 'globalThis.deckCommunity',
+      'deck.gl': 'globalThis.deck',
       '@deck.gl/*': 'globalThis.deck',
       '@loaders.gl/*': 'globalThis.loaders',
       '@luma.gl/*': 'globalThis.luma',
-       'h3-js': 'globalThis.h3 || {}'
+       'h3-js': 'globalThis.h3 || {}',
+       'leaflet': 'globalThis.L'
     }
   },
 
