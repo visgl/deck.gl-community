@@ -552,7 +552,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
 
   createTooltipsLayers() {
     const mode = this.getActiveMode();
-    const tooltips = mode.getTooltips(this.getModeProps(this.props) as any);
+    const tooltips = mode.getTooltips(this.getModeProps(this.props));
 
     const layer = new TextLayer({
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,
@@ -566,34 +566,34 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onLayerClick(event: ClickEvent): void {
-    this.getActiveMode().handleClick(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleClick(event, this.getModeProps(this.props));
   }
 
   onLayerDoubleClick(event: DoubleClickEvent): void {
     if (this.getActiveMode().handleDoubleClick) {
-      this.getActiveMode().handleDoubleClick(event, this.getModeProps(this.props) as any);
+      this.getActiveMode().handleDoubleClick(event, this.getModeProps(this.props));
     }
   }
 
   onLayerKeyUp(event: KeyboardEvent): void {
-    this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props));
   }
 
   onStartDragging(event: StartDraggingEvent): void {
-    this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
   }
 
   onDragging(event: DraggingEvent): void {
-    this.getActiveMode().handleDragging(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
   }
 
   onStopDragging(event: StopDraggingEvent): void {
-    this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
   }
 
   onPointerMove(event: PointerMoveEvent): void {
     this.setState({lastPointerMoveEvent: event});
-    this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props));
   }
 
   getCursor({isDragging}: {isDragging: boolean}): null | 'grabbing' | 'grab' {
