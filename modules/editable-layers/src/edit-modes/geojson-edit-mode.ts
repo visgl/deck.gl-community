@@ -21,12 +21,12 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {FeatureCollection, Feature, Polygon, SingleGeometry, Position} from '../utils/geojson-types';
+import {FeatureCollection, Feature, Polygon, SingleGeometry, Position, GeometryFeatureCollection, GeometryFeature} from '../utils/geojson-types';
 import {getPickedEditHandles, getNonGuidePicks} from './utils';
 import {EditMode} from './edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
-export type GeoJsonEditAction = EditAction<FeatureCollection<SingleGeometry>>;
+export type GeoJsonEditAction = EditAction<GeometryFeatureCollection>;
 
 const DEFAULT_GUIDES: GuideFeatureCollection = {
   type: 'FeatureCollection',
@@ -52,14 +52,14 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return DEFAULT_TOOLTIPS;
   }
 
-  getSelectedFeature(props: ModeProps<FeatureCollection<SingleGeometry>>): Feature<SingleGeometry> | null | undefined {
+  getSelectedFeature(props: ModeProps<GeometryFeatureCollection>): GeometryFeature | null | undefined {
     if (props.selectedIndexes.length === 1) {
       return props.data.features[props.selectedIndexes[0]];
     }
     return null;
   }
 
-  getSelectedGeometry(props: ModeProps<FeatureCollection<SingleGeometry>>): SingleGeometry | null | undefined {
+  getSelectedGeometry(props: ModeProps<GeometryFeatureCollection>): SingleGeometry | null | undefined {
     const feature = this.getSelectedFeature(props);
     if (feature) {
       return feature.geometry;
@@ -67,7 +67,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return null;
   }
 
-  getSelectedFeaturesAsFeatureCollection(props: ModeProps<FeatureCollection<SingleGeometry>>): FeatureCollection<SingleGeometry> {
+  getSelectedFeaturesAsFeatureCollection(props: ModeProps<GeometryFeatureCollection>): GeometryFeatureCollection {
     const {features} = props.data;
     const selectedFeatures = props.selectedIndexes.map((selectedIndex) => features[selectedIndex]);
     return {
@@ -105,12 +105,12 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return props.selectedIndexes.some((index) => pickedIndexes.has(index));
   }
 
-  rewindPolygon(feature: Feature<SingleGeometry>): Feature<SingleGeometry> {
+  rewindPolygon(feature: GeometryFeature): GeometryFeature {
     const {geometry} = feature;
 
     const isPolygonal = geometry.type === 'Polygon' || geometry.type === 'MultiPolygon';
     if (isPolygonal) {
-      return rewind(feature) as Feature<SingleGeometry>;
+      return rewind(feature) as GeometryFeature;
     }
 
     return feature;
@@ -118,7 +118,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 
   getAddFeatureAction(
     featureOrGeometry: SingleGeometry | Feature,
-    features: FeatureCollection<SingleGeometry>,
+    features: GeometryFeatureCollection,
     featureProperties?: {}
   ): GeoJsonEditAction {
     // Unsure why flow can't deal with Geometry type, but there I fixed it
@@ -149,8 +149,8 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   }
 
   getAddManyFeaturesAction(
-    {features: featuresToAdd}: FeatureCollection<SingleGeometry>,
-    features: FeatureCollection<SingleGeometry>
+    {features: featuresToAdd}: GeometryFeatureCollection,
+    features: GeometryFeatureCollection
   ): GeoJsonEditAction {
     let updatedData = new ImmutableFeatureCollection(features);
     const initialIndex = updatedData.getObject().features.length;
@@ -178,7 +178,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   // eslint-disable-next-line complexity
   getAddFeatureOrBooleanPolygonAction(
     featureOrGeometry: Polygon | Feature,
-    props: ModeProps<FeatureCollection<SingleGeometry>>,
+    props: ModeProps<GeometryFeatureCollection>,
     featureProperties?: {}
   ): GeoJsonEditAction | null | undefined {
     const featureOrGeometryAsAny: any = featureOrGeometry;

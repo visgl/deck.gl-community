@@ -6,14 +6,13 @@ import turfCenter from '@turf/center';
 import turfRhumbBearing from '@turf/rhumb-bearing';
 import turfRhumbDistance from '@turf/rhumb-distance';
 import turfRhumbDestination from '@turf/rhumb-destination';
-import type {Feature} from 'geojson';
 import {mapCoords} from '../edit-modes/utils';
-import type {SingleGeometry} from './geojson-types';
+import type {GeometryFeature} from './geojson-types';
 
 // This function takes feature's center, moves it,
 // and builds new feature around it keeping the proportions
 export function translateFromCenter(
-  feature: Feature<SingleGeometry>,
+  feature: GeometryFeature,
   distance: number,
   direction: number
 ) {

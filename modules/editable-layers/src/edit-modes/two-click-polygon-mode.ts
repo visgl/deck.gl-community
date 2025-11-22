@@ -11,12 +11,12 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Polygon, FeatureCollection, FeatureOf, Position, SingleGeometry} from '../utils/geojson-types';
+import {Polygon, FeatureCollection, FeatureOf, Position, GeometryFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import omit from 'lodash.omit';
 
 export class TwoClickPolygonMode extends GeoJsonEditMode {
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleClick(event: ClickEvent, props: ModeProps<GeometryFeatureCollection>) {
     if (props.modeConfig && props.modeConfig.dragToDraw) {
       // handled in drag handlers
       return;
@@ -27,7 +27,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     this.checkAndFinishPolygon(props);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>): void {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<GeometryFeatureCollection>): void {
     if (!props.modeConfig || !props.modeConfig.dragToDraw) {
       // handled in click handlers
       return;
@@ -37,7 +37,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     event.cancelPan();
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>): void {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<GeometryFeatureCollection>): void {
     if (!props.modeConfig || !props.modeConfig.dragToDraw) {
       // handled in click handlers
       return;
@@ -47,7 +47,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     this.checkAndFinishPolygon(props);
   }
 
-  checkAndFinishPolygon(props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  checkAndFinishPolygon(props: ModeProps<GeometryFeatureCollection>) {
     const clickSequence = this.getClickSequence();
     const tentativeFeature = this.getTentativeGuide(props);
 

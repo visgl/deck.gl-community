@@ -5,14 +5,14 @@
 import turfCentroid from '@turf/centroid';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
-import {FeatureCollection, Position, SingleGeometry} from '../utils/geojson-types';
+import {GeometryFeatureCollection, Position, SingleGeometry} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class ScaleHandler extends ModeHandler {
   _isScalable: boolean = undefined!;
-  _geometryBeingScaled: FeatureCollection<SingleGeometry> | null | undefined;
+  _geometryBeingScaled: GeometryFeatureCollection | null | undefined;
 
   handlePointerMove(event: PointerMoveEvent): {
     editAction: EditAction | null | undefined;

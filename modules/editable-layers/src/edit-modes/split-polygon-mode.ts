@@ -14,7 +14,7 @@ import turfDestination from '@turf/destination';
 import turfPolygonToLine from '@turf/polygon-to-line';
 import nearestPointOnLine from '@turf/nearest-point-on-line';
 import {generatePointsParallelToLinePoints} from './utils';
-import {FeatureCollection, Polygonal, SingleGeometry} from '../utils/geojson-types';
+import {FeatureCollection, Polygonal, GeometryFeatureCollection} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -26,7 +26,7 @@ import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class SplitPolygonMode extends GeoJsonEditMode {
-  calculateMapCoords(clickSequence: any, mapCoords: any, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  calculateMapCoords(clickSequence: any, mapCoords: any, props: ModeProps<GeometryFeatureCollection>) {
     const modeConfig = props.modeConfig;
     if (!modeConfig || !modeConfig.lock90Degree || !clickSequence.length) {
       return mapCoords;
@@ -73,7 +73,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     return nearestPt;
   }
 
-  getGuides(props: ModeProps<FeatureCollection<SingleGeometry>>): GuideFeatureCollection {
+  getGuides(props: ModeProps<GeometryFeatureCollection>): GuideFeatureCollection {
     const clickSequence = this.getClickSequence();
 
     const guides: GuideFeatureCollection = {
@@ -102,7 +102,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     return guides;
   }
 
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleClick(event: ClickEvent, props: ModeProps<GeometryFeatureCollection>) {
     const tentativeFeature = this.getTentativeGuide(props);
 
     const selectedGeometry = this.getSelectedGeometry(props);
@@ -148,7 +148,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     props.onUpdateCursor('cell');
   }
 
-  splitPolygon(tentativeFeature: TentativeFeature, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  splitPolygon(tentativeFeature: TentativeFeature, props: ModeProps<GeometryFeatureCollection>) {
     const selectedGeometry = this.getSelectedGeometry(props);
     const featureIndex = props.selectedIndexes[0];
     const modeConfig = props.modeConfig || {};

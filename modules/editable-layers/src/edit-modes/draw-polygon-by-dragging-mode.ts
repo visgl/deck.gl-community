@@ -4,20 +4,20 @@
 
 import throttle from 'lodash.throttle';
 import {ClickEvent, StartDraggingEvent, StopDraggingEvent, DraggingEvent, ModeProps} from './types';
-import {Polygon, FeatureCollection, SingleGeometry} from '../utils/geojson-types';
+import {Polygon, GeometryFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {DrawPolygonMode} from './draw-polygon-mode';
 
-type DraggingHandler = (event: DraggingEvent, props: ModeProps<FeatureCollection>) => void;
+type DraggingHandler = (event: DraggingEvent, props: ModeProps<GeometryFeatureCollection>) => void;
 
 export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   handleDraggingThrottled: DraggingHandler | null | undefined = null;
 
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<GeometryFeatureCollection>) {
     // No-op
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
     event.cancelPan();
     if (props.modeConfig && props.modeConfig.throttleMs) {
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -28,7 +28,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
     }
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
     this.addClickSequence(event);
     const clickSequence = this.getClickSequence();
     // @ts-expect-error cancel() not typed
@@ -52,7 +52,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
     this.resetClickSequence();
   }
 
-  handleDraggingAux(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleDraggingAux(event: DraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
     const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
 
@@ -69,13 +69,13 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
     }
   }
 
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleDragging(event: DraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
     if (this.handleDraggingThrottled) {
       this.handleDraggingThrottled(event, props);
     }
   }
 
-  handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleKeyUp(event: KeyboardEvent, props: ModeProps<GeometryFeatureCollection>) {
     if (event.key === 'Enter') {
       const clickSequence = this.getClickSequence();
       if (clickSequence.length > 2) {

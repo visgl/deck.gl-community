@@ -3,19 +3,19 @@
 // Copyright (c) vis.gl contributors
 
 import {
-  Feature,
-  FeatureCollection,
+  GeometryFeatureCollection,
   SingleGeometry,
   Polygon,
   MultiLineString,
   MultiPolygon,
   Position,
+  GeometryFeature,
 } from '../utils/geojson-types';
 
 export class ImmutableFeatureCollection {
-  featureCollection: FeatureCollection<SingleGeometry>;
+  featureCollection: GeometryFeatureCollection;
 
-  constructor(featureCollection: FeatureCollection<SingleGeometry>) {
+  constructor(featureCollection: GeometryFeatureCollection) {
     this.featureCollection = featureCollection;
   }
 
@@ -179,11 +179,11 @@ export class ImmutableFeatureCollection {
     return new ImmutableFeatureCollection(updatedFeatureCollection);
   }
 
-  addFeature(feature: Feature<SingleGeometry>): ImmutableFeatureCollection {
+  addFeature(feature: GeometryFeature): ImmutableFeatureCollection {
     return this.addFeatures([feature]);
   }
 
-  addFeatures(features: Feature<SingleGeometry>[]): ImmutableFeatureCollection {
+  addFeatures(features: GeometryFeature[]): ImmutableFeatureCollection {
     const updatedFeatureCollection = {
       ...this.featureCollection,
       features: [...this.featureCollection.features, ...features]

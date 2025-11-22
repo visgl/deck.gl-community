@@ -12,7 +12,7 @@ import {coordEach} from '@turf/meta';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
 import {getCoord, getGeom} from '@turf/invariant';
-import {FeatureCollection, Position, SingleGeometry} from '../utils/geojson-types';
+import {FeatureCollection, Position, GeometryFeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   PointerMoveEvent,
@@ -27,7 +27,7 @@ import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ScaleMode extends GeoJsonEditMode {
-  _geometryBeingScaled: FeatureCollection<SingleGeometry> | null | undefined;
+  _geometryBeingScaled: GeometryFeatureCollection | null | undefined;
   _selectedEditHandle: EditHandleFeature | null | undefined;
   _cornerGuidePoints: Array<EditHandleFeature> = [];
   _cursor: string | null | undefined;
@@ -64,7 +64,7 @@ export class ScaleMode extends GeoJsonEditMode {
     );
   };
 
-  _getUpdatedData = (props: ModeProps<FeatureCollection<SingleGeometry>>, editedData: FeatureCollection<SingleGeometry>) => {
+  _getUpdatedData = (props: ModeProps<GeometryFeatureCollection>, editedData: GeometryFeatureCollection) => {
     let updatedData = new ImmutableFeatureCollection(props.data);
     const selectedIndexes = props.selectedIndexes;
     for (let i = 0; i < selectedIndexes.length; i++) {
@@ -81,7 +81,7 @@ export class ScaleMode extends GeoJsonEditMode {
     startDragPoint: Position,
     currentPoint: Position,
     editType: string,
-    props: ModeProps<FeatureCollection<SingleGeometry>>
+    props: ModeProps<GeometryFeatureCollection>
   ) => {
     if (!this._selectedEditHandle) {
       return null;
@@ -107,7 +107,7 @@ export class ScaleMode extends GeoJsonEditMode {
     };
   };
 
-  updateCursor = (props: ModeProps<FeatureCollection<SingleGeometry>>) => {
+  updateCursor = (props: ModeProps<GeometryFeatureCollection>) => {
     if (this._selectedEditHandle) {
       if (this._cursor) {
         props.onUpdateCursor(this._cursor);
@@ -134,7 +134,7 @@ export class ScaleMode extends GeoJsonEditMode {
     }
   };
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<GeometryFeatureCollection>) {
     if (!this._isScaling) {
       const selectedEditHandle = getPickedEditHandle(event.picks);
       this._selectedEditHandle =
@@ -146,7 +146,7 @@ export class ScaleMode extends GeoJsonEditMode {
     }
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
     if (this._selectedEditHandle) {
       event.cancelPan();
       this._isScaling = true;
@@ -154,7 +154,7 @@ export class ScaleMode extends GeoJsonEditMode {
     }
   }
 
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleDragging(event: DraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
     if (!this._isScaling) {
       return;
     }
@@ -174,7 +174,7 @@ export class ScaleMode extends GeoJsonEditMode {
     event.cancelPan();
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
     if (this._isScaling) {
       // Scale the geometry
       const scaleAction = this.getScaleAction(
@@ -196,7 +196,7 @@ export class ScaleMode extends GeoJsonEditMode {
     }
   }
 
-  getGuides(props: ModeProps<FeatureCollection<SingleGeometry>>): GuideFeatureCollection {
+  getGuides(props: ModeProps<GeometryFeatureCollection>): GuideFeatureCollection {
     this._cornerGuidePoints = [];
     const selectedGeometry = this.getSelectedFeaturesAsFeatureCollection(props);
 

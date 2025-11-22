@@ -9,7 +9,7 @@ import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
 
-import {FeatureCollection, Feature, Polygon, SingleGeometry, Position, Polygonal} from '../utils/geojson-types';
+import {FeatureCollection, Feature, Polygon, SingleGeometry, Position, Polygonal, GeometryFeatureCollection, GeometryFeature} from '../utils/geojson-types';
 
 import {
   ClickEvent,
@@ -30,7 +30,7 @@ export type EditHandle = {
 };
 
 export type EditAction = {
-  updatedData: FeatureCollection<SingleGeometry>;
+  updatedData: GeometryFeatureCollection;
   editType: string;
   featureIndexes: number[];
   editContext: any;
@@ -39,12 +39,12 @@ export type EditAction = {
 export class ModeHandler {
   // TODO: add underscore
   featureCollection: ImmutableFeatureCollection = undefined!;
-  _tentativeFeature: Feature<SingleGeometry> | null | undefined;
+  _tentativeFeature: GeometryFeature | null | undefined;
   _modeConfig: any = null;
   _selectedFeatureIndexes: number[] = [];
   _clickSequence: Position[] = [];
 
-  constructor(featureCollection?: FeatureCollection<SingleGeometry>) {
+  constructor(featureCollection?: GeometryFeatureCollection) {
     if (featureCollection) {
       this.setFeatureCollection(featureCollection);
     }
@@ -58,7 +58,7 @@ export class ModeHandler {
     return this.featureCollection;
   }
 
-  getSelectedFeature(): Feature<SingleGeometry> | null | undefined {
+  getSelectedFeature(): GeometryFeature | null | undefined {
     if (this._selectedFeatureIndexes.length === 1) {
       return this.featureCollection.getObject().features[this._selectedFeatureIndexes[0]];
     }
@@ -73,7 +73,7 @@ export class ModeHandler {
     return null;
   }
 
-  getSelectedFeaturesAsFeatureCollection(): FeatureCollection<SingleGeometry> {
+  getSelectedFeaturesAsFeatureCollection(): GeometryFeatureCollection {
     const { features } = this.featureCollection.getObject();
     const selectedFeatures = this.getSelectedFeatureIndexes().map(
       (selectedIndex) => features[selectedIndex]
@@ -84,7 +84,7 @@ export class ModeHandler {
     };
   }
 
-  setFeatureCollection(featureCollection: FeatureCollection<SingleGeometry>): void {
+  setFeatureCollection(featureCollection: GeometryFeatureCollection): void {
     this.featureCollection = new ImmutableFeatureCollection(featureCollection);
   }
 
@@ -122,12 +122,12 @@ export class ModeHandler {
     this._clickSequence = [];
   }
 
-  getTentativeFeature(): Feature<SingleGeometry> | null | undefined {
+  getTentativeFeature(): GeometryFeature | null | undefined {
     return this._tentativeFeature;
   }
 
   // TODO: remove the underscore
-  _setTentativeFeature(tentativeFeature: Feature<SingleGeometry> | null | undefined): void {
+  _setTentativeFeature(tentativeFeature: GeometryFeature | null | undefined): void {
     this._tentativeFeature = tentativeFeature;
     if (!tentativeFeature) {
       // Reset the click sequence

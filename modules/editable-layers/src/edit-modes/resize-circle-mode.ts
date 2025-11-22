@@ -14,7 +14,7 @@ import {
   getPickedEditHandle,
   NearestPointType
 } from './utils';
-import {LineString, Point, FeatureCollection, Feature, SingleGeometry} from '../utils/geojson-types';
+import {LineString, Point, FeatureCollection, Feature, GeometryFeatureCollection} from '../utils/geojson-types';
 import {Viewport} from '../utils/types';
 import {
   ModeProps,
@@ -132,7 +132,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
     return nearestPointOnLine(line, inPoint);
   }
 
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection<SingleGeometry>>): void {
+  handleDragging(event: DraggingEvent, props: ModeProps<GeometryFeatureCollection>): void {
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
 
     if (editHandle) {

@@ -4,7 +4,7 @@
 
 import distance from '@turf/distance';
 import {memoize} from '../utils/memoize';
-import {LineString, FeatureCollection, Position, SingleGeometry} from '../utils/geojson-types';
+import {LineString, FeatureCollection, Position, GeometryFeatureCollection} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -22,7 +22,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
   dist = 0;
   position: Position = null!;
   elems: Position[] = [];
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleClick(event: ClickEvent, props: ModeProps<GeometryFeatureCollection>) {
     const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
 
@@ -62,11 +62,11 @@ export class DrawLineStringMode extends GeoJsonEditMode {
     }
   }
 
-  handleDoubleClick(event: DoubleClickEvent, props: ModeProps<FeatureCollection>) {
+  handleDoubleClick(event: DoubleClickEvent, props: ModeProps<GeometryFeatureCollection>) {
     this.finishDrawing(props);
   }
 
-  finishDrawing(props: ModeProps<FeatureCollection>) {
+  finishDrawing(props: ModeProps<GeometryFeatureCollection>) {
     const clickSequence = this.getClickSequence();
     if (clickSequence.length > 1) {
       const lineStringToAdd: LineString = {
@@ -81,7 +81,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
     }
   }
 
-  handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection<SingleGeometry>>) {
+  handleKeyUp(event: KeyboardEvent, props: ModeProps<GeometryFeatureCollection>) {
     const {key} = event;
     if (key === 'Enter') {
       this.finishDrawing(props);
