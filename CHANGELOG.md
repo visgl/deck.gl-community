@@ -1,5 +1,12 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.6
+
+- chore(leaflet): Attempt to fix script build (#443)
+- fix(website): gallery leaflet link .html extension (#442)
+- feat(DrawPolygonMode): add allowHoles & update allowOverlappingLines configs (#367)
+- Bump leaflet script tag version
+
 ## v9.2.0-beta.5
 
 - chore: Update package.json publishConfigs (#441)
