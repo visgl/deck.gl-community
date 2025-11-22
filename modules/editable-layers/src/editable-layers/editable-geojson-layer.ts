@@ -13,7 +13,8 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   PointerMoveEvent,
-  DoubleClickEvent
+  DoubleClickEvent,
+  ModeProps
 } from '../edit-modes/types';
 
 import {ViewMode} from '../edit-modes/view-mode';
@@ -119,7 +120,7 @@ export type EditableGeoJsonLayerProps<DataT = any> = EditableLayerProps & {
   mode?: any;
   modeConfig?: any;
   selectedFeatureIndexes?: number[];
-  onEdit?: (updatedData?, editType?: string, featureIndexes?: number[], editContext?) => void;
+  onEdit?: (editAction: EditAction<DataT>) => void;
 
   pickable?: boolean;
   pickingRadius?: number;
@@ -141,8 +142,8 @@ export type EditableGeoJsonLayerProps<DataT = any> = EditableLayerProps & {
 
   getLineColor?: Color | ((feature, isSelected, mode) => Color);
   getFillColor?: Color | ((feature, isSelected, mode) => Color);
-  getRadius?: number | ((f) => number);
-  getLineWidth?: number | ((f) => number);
+  getRadius?: number | ((feature, isSelected, mode) => number);
+  getLineWidth?: number | ((feature, isSelected, mode) => number);
 
   getTentativeLineColor?: Color | ((feature, isSelected, mode) => Color);
   getTentativeFillColor?: Color | ((feature, isSelected, mode) => Color);
@@ -414,14 +415,14 @@ export class EditableGeoJsonLayer extends EditableLayer<
     this.setState({selectedFeatures});
   }
 
-  getModeProps(props: EditableGeoJsonLayerProps<any>) {
+  getModeProps<DataT>(props: EditableGeoJsonLayerProps<DataT>): ModeProps<DataT> {
     return {
       modeConfig: props.modeConfig,
       data: props.data,
       selectedIndexes: props.selectedFeatureIndexes,
       lastPointerMoveEvent: this.state.lastPointerMoveEvent,
       cursor: this.state.cursor,
-      onEdit: (editAction: EditAction<FeatureCollection>) => {
+      onEdit: (editAction) => {
         // Force a re-render
         // This supports double-click where we need to ensure that there's a re-render between the two clicks
         // even though the data wasn't changed, just the internal tentative feature.
@@ -551,7 +552,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
 
   createTooltipsLayers() {
     const mode = this.getActiveMode();
-    const tooltips = mode.getTooltips(this.getModeProps(this.props) as any);
+    const tooltips = mode.getTooltips(this.getModeProps(this.props));
 
     const layer = new TextLayer({
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,
@@ -565,34 +566,34 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onLayerClick(event: ClickEvent): void {
-    this.getActiveMode().handleClick(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleClick(event, this.getModeProps(this.props));
   }
 
   onLayerDoubleClick(event: DoubleClickEvent): void {
     if (this.getActiveMode().handleDoubleClick) {
-      this.getActiveMode().handleDoubleClick(event, this.getModeProps(this.props) as any);
+      this.getActiveMode().handleDoubleClick(event, this.getModeProps(this.props));
     }
   }
 
   onLayerKeyUp(event: KeyboardEvent): void {
-    this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props));
   }
 
   onStartDragging(event: StartDraggingEvent): void {
-    this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
   }
 
   onDragging(event: DraggingEvent): void {
-    this.getActiveMode().handleDragging(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
   }
 
   onStopDragging(event: StopDraggingEvent): void {
-    this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
   }
 
   onPointerMove(event: PointerMoveEvent): void {
     this.setState({lastPointerMoveEvent: event});
-    this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props) as any);
+    this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props));
   }
 
   getCursor({isDragging}: {isDragging: boolean}): null | 'grabbing' | 'grab' {

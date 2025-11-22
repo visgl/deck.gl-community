@@ -32,7 +32,7 @@ const MODE_CONFIG_MAP = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface SelectionLayerProps<DataT> extends CompositeLayerProps {
+export interface SelectionLayerProps<DataT> extends CompositeLayerProps {
   layerIds: any[];
   onSelect: (info: any) => any;
   selectionType: string | null;
