@@ -44,7 +44,7 @@
     const latLngs = new Array(9).fill(undefined).map((_, i) => [startLatLng[0] + Math.floor(i / 3) * latDelta, startLatLng[1] + (i % 3) * lngDelta]);
     map.setView([startLatLng[0] + latDelta, startLatLng[1] + lngDelta]);
 
-    const deckLayer = new deckCommunity.LeafletLayer({
+    const deckLayer = new deckCommunity.DeckLayer({
       views: [
         new deck.MapView({
           repeat: true
