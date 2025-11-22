@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": "./",
     "paths": {
-      "*": ["./node_modules/*", "./src/*"]
+      "*": ["./node_modules/*", "./*"]
     }
   },
   "include": ["./**/*.ts", "./**/*.tsx"],
