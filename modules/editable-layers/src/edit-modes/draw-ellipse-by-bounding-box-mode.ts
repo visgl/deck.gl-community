@@ -23,7 +23,7 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
     const xSemiAxis = Math.max(distance(point(polygonPoints[0]), point(polygonPoints[1])), 0.001);
     const ySemiAxis = Math.max(distance(point(polygonPoints[0]), point(polygonPoints[3])), 0.001);
 
-    const geometry = ellipse(centerCoordinates, xSemiAxis, ySemiAxis);
+    const geometry = ellipse(centerCoordinates, xSemiAxis, ySemiAxis, {});
 
     geometry.properties = geometry.properties || {};
     geometry.properties.editProperties = geometry.properties.editProperties || {};
@@ -32,7 +32,7 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
     geometry.properties.editProperties.ySemiAxis = {value: ySemiAxis, unit: 'kilometers'};
     geometry.properties.editProperties.angle = 0;
     geometry.properties.editProperties.center = centerCoordinates;
-    // @ts-expect-error fix return types
+
     return geometry;
   }
 }

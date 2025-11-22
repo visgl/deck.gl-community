@@ -32,7 +32,8 @@ export class DrawEllipseUsingThreePointsHandler extends ThreeClickPolygonHandler
         geometry: {
           type: 'LineString',
           coordinates: [clickSequence[0], mapCoords]
-        }
+        },
+        properties: {}
       });
     } else if (clickSequence.length === 2) {
       const [p1, p2] = clickSequence;
@@ -41,7 +42,7 @@ export class DrawEllipseUsingThreePointsHandler extends ThreeClickPolygonHandler
       const xSemiAxis = Math.max(distance(centerCoordinates, point(mapCoords)), 0.001);
       const ySemiAxis = Math.max(distance(p1, p2), 0.001) / 2;
       const options = {angle: bearing(p1, p2)};
-      // @ts-expect-error turf types diff
+
       this._setTentativeFeature(ellipse(centerCoordinates, xSemiAxis, ySemiAxis, options));
     }
 

@@ -34,7 +34,6 @@ export class DrawCircleFromCenterHandler extends TwoClickPolygonHandler {
 
     const centerCoordinates = clickSequence[0];
     const radius = Math.max(distance(centerCoordinates, event.mapCoords), 0.001);
-    // @ts-expect-error turf types diff
     this._setTentativeFeature(circle(centerCoordinates, radius, options));
 
     return result;
