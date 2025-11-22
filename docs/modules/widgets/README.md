@@ -39,6 +39,7 @@ export function App() {
 ```
 
 The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) shows the controls managing an orthographic view over abstract data.
+The [React widgets example](/examples/widgets/react-widgets) demonstrates adding the same controls as JSX children via the React wrappers in `@deck.gl-community/react`.
 
 ### HTML overlays
 

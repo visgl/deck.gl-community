@@ -1,11 +1,22 @@
 {
   "extends": "../../tsconfig.json",
   "include": ["src/**/*"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "../../node_modules/@deck.gl/core/src/**/*"],
   "compilerOptions": {
     "composite": true,
     "rootDir": "src",
     "outDir": "dist",
-    "noEmit": false
-  }
+    "noEmit": false,
+    "baseUrl": ".",
+    "allowJs": false,
+    "checkJs": false,
+    "moduleResolution": "bundler",
+    "paths": {
+      "@deck.gl-community/widgets": ["../widgets/dist/index.d.ts"],
+      "@deck.gl-community/widgets/*": ["../widgets/dist/*"],
+      "@deck.gl/core": ["../../node_modules/@deck.gl/core/dist/index.d.ts"],
+      "@deck.gl/core/*": ["../../node_modules/@deck.gl/core/dist/*"]
+    }
+  },
+  "references": [{"path": "../widgets"}]
 }
