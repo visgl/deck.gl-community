@@ -5,7 +5,7 @@
 import lineIntersect from '@turf/line-intersect';
 import { polygon as turfPolygon} from '@turf/helpers';
 import booleanWithin from "@turf/boolean-within";
-import {Geometry} from 'geojson'
+import type {Geometry} from 'geojson'
 
 import {
   ClickEvent,
