@@ -570,7 +570,7 @@ const GraphNodeStylesheetVariants = [
   PathRoundedRectangleStylesheetSchema,
   LabelStylesheetSchema,
   MarkerStylesheetSchema
-] as const;
+];
 
 const GraphEdgeStylesheetVariants = [
   EdgeUpperStylesheetSchema,
@@ -578,12 +578,12 @@ const GraphEdgeStylesheetVariants = [
   EdgeLabelStylesheetSchema,
   FlowStylesheetSchema,
   ArrowStylesheetSchema
-] as const;
+];
 
 const GraphStylesheetVariants = [
   ...GraphNodeStylesheetVariants,
   ...GraphEdgeStylesheetVariants
-] as const;
+];
 
 type GraphStylesheetVariantSchema = (typeof GraphStylesheetVariants)[number];
 
