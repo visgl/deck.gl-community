@@ -42,6 +42,7 @@
     "@turf/bbox-polygon": "^6.5.0",
     "@turf/bearing": "^6.5.0",
     "@turf/boolean-point-in-polygon": "^6.5.0",
+    "@turf/boolean-within": "^6.5.0",
     "@turf/buffer": "^6.5.0",
     "@turf/center": "^6.5.0",
     "@turf/centroid": "^6.5.0",

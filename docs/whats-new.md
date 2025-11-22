@@ -31,6 +31,18 @@ A new module containing unofficial / experimental widgets for deck.gl, initially
 - `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
 - `PanWidget` - NEW deck.gl `Widget` providing buttons for panning the view.
 
+### `@deck.gl-community/editable-layers`
+
+- DrawPolygonMode: Added `allowHoles` configuration to enable drawing polygon holes within existing polygons
+- DrawPolygonMode: Enhanced hole creation with validation to prevent overlapping or nested holes
+- DrawPolygonMode: Added comprehensive edit types for hole operations (`addHole`, `invalidHole`)
+
+Breaking Changes:
+- DrawPolygonMode: `preventOverlappingLines` configuration renamed to `allowSelfIntersection` for consistency
+  - **Migration**: Update your modeConfig from `{preventOverlappingLines: false}` to `{allowSelfIntersection: true}`
+  - **Migration**: Update your modeConfig from `{preventOverlappingLines: true}` to `{allowSelfIntersection: false}` (or omit as this is now the default)
+  - The behavior logic has been inverted: the new parameter enables self-intersection when `true`, while the old parameter prevented it when `true`
+
 ### `@deck.gl-community/graph-layers` 
 
 - [`GraphLayer`](/docs/modules/graph-layers/api-reference/layers/graph-layer)

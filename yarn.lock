@@ -1265,6 +1265,7 @@ __metadata:
     "@turf/bbox-polygon": "npm:^6.5.0"
     "@turf/bearing": "npm:^6.5.0"
     "@turf/boolean-point-in-polygon": "npm:^6.5.0"
+    "@turf/boolean-within": "npm:^6.5.0"
     "@turf/buffer": "npm:^6.5.0"
     "@turf/center": "npm:^6.5.0"
     "@turf/centroid": "npm:^6.5.0"
@@ -4088,6 +4089,29 @@ __metadata:
     "@turf/helpers": "npm:^6.5.0"
     "@turf/invariant": "npm:^6.5.0"
   checksum: 10c0/438d53d4056afba0e43c5159554d541fd90d5fcfb0d9a19d6dd4ca5121f75a8f72b1e2c3da8974c752d0729247f37f8b5147c1ffe89ba6b77249154fa108d00e
+  languageName: node
+  linkType: hard
+
+"@turf/boolean-point-on-line@npm:^6.5.0":
+  version: 6.5.0
+  resolution: "@turf/boolean-point-on-line@npm:6.5.0"
+  dependencies:
+    "@turf/helpers": "npm:^6.5.0"
+    "@turf/invariant": "npm:^6.5.0"
+  checksum: 10c0/80a9dfd47983e44fb57704e9bcb49cf66d698e93721550c09703345b14d7f1258f34ac2b07b3c3721e3388880ec6367f2a950df4de5b9e006b951d78ad145d79
+  languageName: node
+  linkType: hard
+
+"@turf/boolean-within@npm:^6.5.0":
+  version: 6.5.0
+  resolution: "@turf/boolean-within@npm:6.5.0"
+  dependencies:
+    "@turf/bbox": "npm:^6.5.0"
+    "@turf/boolean-point-in-polygon": "npm:^6.5.0"
+    "@turf/boolean-point-on-line": "npm:^6.5.0"
+    "@turf/helpers": "npm:^6.5.0"
+    "@turf/invariant": "npm:^6.5.0"
+  checksum: 10c0/0d9f9bfe6f492735215bbc00050b5d328b0ead797c7d7a300e503194a6a7f05feaf729fa35c0bef921e47efa6a63fdccefdd10665eb04e2edc863a03b7bb270b
   languageName: node
   linkType: hard
 
