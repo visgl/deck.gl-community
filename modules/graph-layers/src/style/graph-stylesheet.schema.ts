@@ -258,68 +258,332 @@ export type GraphStylesheet<
 
 const GraphStyleSelectorKeySchema = z.string().regex(/^:[^\s]+/, 'Selectors must start with ":".');
 
-function createPropertiesSchema(keys: readonly string[]) {
-  const shape = keys.reduce<Record<string, ZodTypeAny>>((acc, key) => {
-    acc[key] = GraphStyleValueSchema.optional();
-    return acc;
-  }, {});
-  return z.object(shape).partial().strict();
-}
+function createSelectorRefinement(
+  allowedKeys: readonly string[],
+  propertiesSchema: ZodTypeAny
+) {
+  const allowedKeySet = new Set<string>(allowedKeys);
 
-const GraphStylesheetVariants = (
-  Object.entries(GRAPH_DECKGL_ACCESSOR_MAP) as Array<
-    [GraphStyleType, (typeof GRAPH_DECKGL_ACCESSOR_MAP)[GraphStyleType]]
-  >
-).map(([type, accessors]) => {
-  const propertyKeys = Object.values(accessors);
-  const propertyKeySet = new Set<string>(propertyKeys);
-  const propertiesSchema = createPropertiesSchema(propertyKeys);
-  const baseShape: Record<string, ZodTypeAny> = {
-    type: z.literal(type)
-  };
-  for (const key of propertyKeys) {
-    baseShape[key] = GraphStyleValueSchema.optional();
-  }
+  return (value: unknown, ctx: z.RefinementCtx) => {
+    if (typeof value !== 'object' || value === null) {
+      return;
+    }
 
-  return z
-    .object(baseShape)
-    .catchall(z.unknown())
-    .superRefine((value, ctx) => {
-      for (const key of Object.keys(value)) {
-        if (key === 'type') {
-          continue;
-        }
-        if (propertyKeySet.has(key)) {
-          continue;
-        }
-        if (!key.startsWith(':')) {
+    const record = value as Record<string, unknown>;
+
+    for (const key of Object.keys(record)) {
+      if (key === 'type') continue;
+      if (allowedKeySet.has(key)) continue;
+
+      if (!key.startsWith(':')) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `Unknown style property "${key}".`
+        });
+        continue;
+      }
+
+      if (!GraphStyleSelectorKeySchema.safeParse(key).success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'Selectors must start with ":".'
+        });
+        continue;
+      }
+
+      const selectorResult = propertiesSchema.safeParse(record[key]);
+      if (!selectorResult.success) {
+        for (const issue of selectorResult.error.issues) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: [key],
-            message: `Unknown style property "${key}".`
+            ...issue,
+            path: [key, ...(issue.path ?? [])]
           });
-          continue;
-        }
-        if (!GraphStyleSelectorKeySchema.safeParse(key).success) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: [key],
-            message: 'Selectors must start with ":".'
-          });
-          continue;
-        }
-        const selectorResult = propertiesSchema.safeParse(value[key]);
-        if (!selectorResult.success) {
-          for (const issue of selectorResult.error.issues) {
-            ctx.addIssue({
-              ...issue,
-              path: [key, ...(issue.path ?? [])]
-            });
-          }
         }
       }
-    });
-});
+    }
+  };
+}
+
+const CircleShape = {
+  offset: GraphStyleValueSchema.optional(),
+  opacity: GraphStyleValueSchema.optional(),
+  fill: GraphStyleValueSchema.optional(),
+  stroke: GraphStyleValueSchema.optional(),
+  strokeWidth: GraphStyleValueSchema.optional(),
+  radius: GraphStyleValueSchema.optional()
+} as const;
+
+const CirclePropertiesSchema = z.object(CircleShape).partial().strict();
+
+const CircleStylesheetSchema = z
+  .object({
+    type: z.literal('circle'),
+    ...CircleShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(Object.keys(CircleShape), CirclePropertiesSchema)
+  );
+
+const RectangleShape = {
+  offset: GraphStyleValueSchema.optional(),
+  opacity: GraphStyleValueSchema.optional(),
+  width: GraphStyleValueSchema.optional(),
+  height: GraphStyleValueSchema.optional(),
+  fill: GraphStyleValueSchema.optional(),
+  stroke: GraphStyleValueSchema.optional(),
+  strokeWidth: GraphStyleValueSchema.optional()
+} as const;
+
+const RectanglePropertiesSchema = z.object(RectangleShape).partial().strict();
+
+const RectangleStylesheetSchema = z
+  .object({
+    type: z.literal('rectangle'),
+    ...RectangleShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(
+      Object.keys(RectangleShape),
+      RectanglePropertiesSchema
+    )
+  );
+
+const RoundedRectangleShape = {
+  offset: GraphStyleValueSchema.optional(),
+  opacity: GraphStyleValueSchema.optional(),
+  cornerRadius: GraphStyleValueSchema.optional(),
+  radius: GraphStyleValueSchema.optional(),
+  width: GraphStyleValueSchema.optional(),
+  height: GraphStyleValueSchema.optional(),
+  fill: GraphStyleValueSchema.optional(),
+  stroke: GraphStyleValueSchema.optional(),
+  strokeWidth: GraphStyleValueSchema.optional()
+} as const;
+
+const RoundedRectanglePropertiesSchema = z
+  .object(RoundedRectangleShape)
+  .partial()
+  .strict();
+
+const RoundedRectangleStylesheetSchema = z
+  .object({
+    type: z.literal('rounded-rectangle'),
+    ...RoundedRectangleShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(
+      Object.keys(RoundedRectangleShape),
+      RoundedRectanglePropertiesSchema
+    )
+  );
+
+const PathRoundedRectangleShape = {
+  offset: GraphStyleValueSchema.optional(),
+  opacity: GraphStyleValueSchema.optional(),
+  width: GraphStyleValueSchema.optional(),
+  height: GraphStyleValueSchema.optional(),
+  fill: GraphStyleValueSchema.optional(),
+  stroke: GraphStyleValueSchema.optional(),
+  strokeWidth: GraphStyleValueSchema.optional(),
+  cornerRadius: GraphStyleValueSchema.optional()
+} as const;
+
+const PathRoundedRectanglePropertiesSchema = z
+  .object(PathRoundedRectangleShape)
+  .partial()
+  .strict();
+
+const PathRoundedRectangleStylesheetSchema = z
+  .object({
+    type: z.literal('path-rounded-rectangle'),
+    ...PathRoundedRectangleShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(
+      Object.keys(PathRoundedRectangleShape),
+      PathRoundedRectanglePropertiesSchema
+    )
+  );
+
+const LabelShape = {
+  offset: GraphStyleValueSchema.optional(),
+  opacity: GraphStyleValueSchema.optional(),
+  color: GraphStyleValueSchema.optional(),
+  text: GraphStyleValueSchema.optional(),
+  fontSize: GraphStyleValueSchema.optional(),
+  textAnchor: GraphStyleValueSchema.optional(),
+  alignmentBaseline: GraphStyleValueSchema.optional(),
+  angle: GraphStyleValueSchema.optional(),
+  scaleWithZoom: GraphStyleValueSchema.optional(),
+  textMaxWidth: GraphStyleValueSchema.optional(),
+  textWordBreak: GraphStyleValueSchema.optional(),
+  textSizeMinPixels: GraphStyleValueSchema.optional()
+} as const;
+
+const LabelPropertiesSchema = z.object(LabelShape).partial().strict();
+
+const LabelStylesheetSchema = z
+  .object({
+    type: z.literal('label'),
+    ...LabelShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(Object.keys(LabelShape), LabelPropertiesSchema)
+  );
+
+const MarkerShape = {
+  offset: GraphStyleValueSchema.optional(),
+  opacity: GraphStyleValueSchema.optional(),
+  fill: GraphStyleValueSchema.optional(),
+  size: GraphStyleValueSchema.optional(),
+  marker: GraphStyleValueSchema.optional(),
+  scaleWithZoom: GraphStyleValueSchema.optional()
+} as const;
+
+const MarkerPropertiesSchema = z.object(MarkerShape).partial().strict();
+
+const MarkerStylesheetSchema = z
+  .object({
+    type: z.literal('marker'),
+    ...MarkerShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(Object.keys(MarkerShape), MarkerPropertiesSchema)
+  );
+
+const EdgeUpperShape = {
+  stroke: GraphStyleValueSchema.optional(),
+  strokeWidth: GraphStyleValueSchema.optional()
+} as const;
+
+const EdgeUpperPropertiesSchema = z.object(EdgeUpperShape).partial().strict();
+
+const EdgeUpperStylesheetSchema = z
+  .object({
+    type: z.literal('Edge'),
+    ...EdgeUpperShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(
+      Object.keys(EdgeUpperShape),
+      EdgeUpperPropertiesSchema
+    )
+  );
+
+const EdgeLowerShape = {
+  stroke: GraphStyleValueSchema.optional(),
+  strokeWidth: GraphStyleValueSchema.optional()
+} as const;
+
+const EdgeLowerPropertiesSchema = z.object(EdgeLowerShape).partial().strict();
+
+const EdgeLowerStylesheetSchema = z
+  .object({
+    type: z.literal('edge'),
+    ...EdgeLowerShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(
+      Object.keys(EdgeLowerShape),
+      EdgeLowerPropertiesSchema
+    )
+  );
+
+const EdgeLabelShape = {
+  color: GraphStyleValueSchema.optional(),
+  text: GraphStyleValueSchema.optional(),
+  fontSize: GraphStyleValueSchema.optional(),
+  textAnchor: GraphStyleValueSchema.optional(),
+  alignmentBaseline: GraphStyleValueSchema.optional(),
+  scaleWithZoom: GraphStyleValueSchema.optional(),
+  textMaxWidth: GraphStyleValueSchema.optional(),
+  textWordBreak: GraphStyleValueSchema.optional(),
+  textSizeMinPixels: GraphStyleValueSchema.optional()
+} as const;
+
+const EdgeLabelPropertiesSchema = z.object(EdgeLabelShape).partial().strict();
+
+const EdgeLabelStylesheetSchema = z
+  .object({
+    type: z.literal('edge-label'),
+    ...EdgeLabelShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(
+      Object.keys(EdgeLabelShape),
+      EdgeLabelPropertiesSchema
+    )
+  );
+
+const FlowShape = {
+  color: GraphStyleValueSchema.optional(),
+  width: GraphStyleValueSchema.optional(),
+  speed: GraphStyleValueSchema.optional(),
+  tailLength: GraphStyleValueSchema.optional()
+} as const;
+
+const FlowPropertiesSchema = z.object(FlowShape).partial().strict();
+
+const FlowStylesheetSchema = z
+  .object({
+    type: z.literal('flow'),
+    ...FlowShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(Object.keys(FlowShape), FlowPropertiesSchema)
+  );
+
+const ArrowShape = {
+  color: GraphStyleValueSchema.optional(),
+  size: GraphStyleValueSchema.optional(),
+  offset: GraphStyleValueSchema.optional()
+} as const;
+
+const ArrowPropertiesSchema = z.object(ArrowShape).partial().strict();
+
+const ArrowStylesheetSchema = z
+  .object({
+    type: z.literal('arrow'),
+    ...ArrowShape
+  })
+  .catchall(z.unknown())
+  .superRefine(
+    createSelectorRefinement(Object.keys(ArrowShape), ArrowPropertiesSchema)
+  );
+
+const GraphNodeStylesheetVariants = [
+  CircleStylesheetSchema,
+  RectangleStylesheetSchema,
+  RoundedRectangleStylesheetSchema,
+  PathRoundedRectangleStylesheetSchema,
+  LabelStylesheetSchema,
+  MarkerStylesheetSchema
+] as const;
+
+const GraphEdgeStylesheetVariants = [
+  EdgeUpperStylesheetSchema,
+  EdgeLowerStylesheetSchema,
+  EdgeLabelStylesheetSchema,
+  FlowStylesheetSchema,
+  ArrowStylesheetSchema
+] as const;
+
+const GraphStylesheetVariants = [
+  ...GraphNodeStylesheetVariants,
+  ...GraphEdgeStylesheetVariants
+] as const;
 
 type GraphStylesheetVariantSchema = (typeof GraphStylesheetVariants)[number];
 
