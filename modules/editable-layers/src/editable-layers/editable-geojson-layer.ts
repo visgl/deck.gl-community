@@ -13,7 +13,8 @@ import {
   StopDraggingEvent,
   DraggingEvent,
   PointerMoveEvent,
-  DoubleClickEvent
+  DoubleClickEvent,
+  ModeProps
 } from '../edit-modes/types';
 
 import {ViewMode} from '../edit-modes/view-mode';
@@ -414,14 +415,14 @@ export class EditableGeoJsonLayer extends EditableLayer<
     this.setState({selectedFeatures});
   }
 
-  getModeProps(props: EditableGeoJsonLayerProps<any>) {
+  getModeProps<DataT>(props: EditableGeoJsonLayerProps<DataT>): ModeProps<DataT> {
     return {
       modeConfig: props.modeConfig,
       data: props.data,
       selectedIndexes: props.selectedFeatureIndexes,
       lastPointerMoveEvent: this.state.lastPointerMoveEvent,
       cursor: this.state.cursor,
-      onEdit: (editAction: EditAction<FeatureCollection>) => {
+      onEdit: (editAction) => {
         // Force a re-render
         // This supports double-click where we need to ensure that there's a re-render between the two clicks
         // even though the data wasn't changed, just the internal tentative feature.
