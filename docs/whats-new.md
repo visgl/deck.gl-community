@@ -23,6 +23,7 @@ Highlights:
 - deck.gl v9.2 compatibility.
 - Website: Documentation improvements and search.
 - Tests updated to use `vitest` instead of `jest`
+- editable-layers now uses turf.js 7 (and geojson types)
 
 ### `@deck.gl-community/widgets` (NEW module)
 

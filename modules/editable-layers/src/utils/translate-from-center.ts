@@ -6,35 +6,30 @@ import turfCenter from '@turf/center';
 import turfRhumbBearing from '@turf/rhumb-bearing';
 import turfRhumbDistance from '@turf/rhumb-distance';
 import turfRhumbDestination from '@turf/rhumb-destination';
-import type {
-  Position as TurfPosition,
-  Feature as TurfFeature,
-  Geometry as TurfGeometry
-} from '@turf/helpers';
 import {mapCoords} from '../edit-modes/utils';
-import type {AnyCoordinates /* , Position */} from './geojson-types';
+import type {SimpleFeature} from './geojson-types';
 
 // This function takes feature's center, moves it,
 // and builds new feature around it keeping the proportions
 export function translateFromCenter(
-  feature: TurfFeature<TurfGeometry>,
+  feature: SimpleFeature,
   distance: number,
   direction: number
 ) {
-  const initialCenterPoint = turfCenter(feature as TurfFeature);
+  const initialCenterPoint = turfCenter(feature);
 
   const movedCenterPoint = turfRhumbDestination(initialCenterPoint, distance, direction);
 
   const movedCoordinates = mapCoords(
-    feature.geometry.coordinates as AnyCoordinates,
+    feature.geometry.coordinates,
     (coordinate) => {
       const rhumbDistance = turfRhumbDistance(
         initialCenterPoint.geometry.coordinates,
-        coordinate as TurfPosition
+        coordinate
       );
       const rhumbDirection = turfRhumbBearing(
         initialCenterPoint.geometry.coordinates,
-        coordinate as TurfPosition
+        coordinate
       );
 
       const movedPosition = turfRhumbDestination(

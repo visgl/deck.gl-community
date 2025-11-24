@@ -3,11 +3,11 @@
 // Copyright (c) vis.gl contributors
 
 import {StartDraggingEvent, ModeProps} from './types';
-import {FeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 
 export class DuplicateMode extends TranslateMode {
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     super.handleStartDragging(event, props);
 
     if (this._geometryBeforeTranslate) {

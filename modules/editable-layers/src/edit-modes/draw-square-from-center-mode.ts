@@ -6,11 +6,11 @@ import bboxPolygon from '@turf/bbox-polygon';
 import turfDistance from '@turf/distance';
 import turfAlong from '@turf/along';
 import {point, lineString as turfLineString} from '@turf/helpers';
-import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawSquareFromCenterMode extends TwoClickPolygonMode {
-  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
+  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): Feature<Polygon> {
     // get the coordinates of the other two rectangle vertices
     const coord3 = [coord2[0], coord1[1]];
     const coord4 = [coord1[0], coord2[1]];
@@ -44,7 +44,6 @@ export class DrawSquareFromCenterMode extends TwoClickPolygonMode {
     square.properties = square.properties || {};
     square.properties.shape = 'Square';
 
-    // @ts-expect-error turf typing too wide
     return square;
   }
 }

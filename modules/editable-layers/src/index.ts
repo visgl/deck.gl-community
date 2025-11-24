@@ -2,21 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-export {ArrowStyles, DEFAULT_ARROWS, MAX_ARROWS} from './lib/style';
-export {SELECTION_TYPE} from './lib/deck-renderer/deck-drawer';
-
-export {Feature} from './lib/feature';
-export {LayerMouseEvent} from './lib/layer-mouse-event';
-
-export {NebulaLayer} from './lib/nebula-layer';
-export {JunctionsLayer} from './lib/layers/junctions-layer';
-export {TextsLayer} from './lib/layers/texts-layer';
-export {SegmentsLayer} from './lib/layers/segments-layer';
-
-export {NebulaCore} from './lib/nebula-core';
-
-export {PROJECTED_PIXEL_SIZE_MULTIPLIER} from './lib/constants';
-
 // Utils
 export {toDeckColor} from './utils/utils';
 
@@ -112,25 +97,18 @@ export type {
 
 export type {
   Position,
-  PointCoordinates,
-  LineStringCoordinates,
-  PolygonCoordinates,
-  MultiPointCoordinates,
-  MultiLineStringCoordinates,
-  MultiPolygonCoordinates,
-  AnyCoordinates,
+  SimpleFeature,
+  SimpleFeatureCollection,
+  SimpleGeometry,
+  SimpleGeometryCoordinates,
   Point,
   LineString,
   Polygon,
   MultiPoint,
   MultiLineString,
   MultiPolygon,
-  Geometry,
-  Polygonal,
-  BoundingBoxArray,
-  FeatureOf,
-  FeatureWithProps,
-  // Feature,
+  PolygonGeometry,
+  Feature,
   FeatureCollection,
   AnyGeoJson
 } from './utils/geojson-types';
