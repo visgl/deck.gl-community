@@ -6,12 +6,12 @@ import bboxPolygon from '@turf/bbox-polygon';
 import distance from '@turf/distance';
 import ellipse from '@turf/ellipse';
 import {point} from '@turf/helpers';
-import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
-  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
+  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): Feature<Polygon> {
     const minX = Math.min(coord1[0], coord2[0]);
     const minY = Math.min(coord1[1], coord2[1]);
     const maxX = Math.max(coord1[0], coord2[0]);

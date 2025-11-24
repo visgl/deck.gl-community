@@ -7,7 +7,7 @@ import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
 import {point} from '@turf/helpers';
 import {WebMercatorViewport} from 'viewport-mercator-project';
-import {FeatureOf, FeatureWithProps, LineString, Point, Position} from './geojson-types';
+import {Feature, FeatureWithProps, LineString, Point, Position} from './geojson-types';
 import {Viewport} from './types';
 
 // TODO edit-modes: delete and use edit-modes/utils instead
@@ -106,8 +106,8 @@ export function mix(a: number, b: number, ratio: number): number {
 }
 
 export function nearestPointOnProjectedLine(
-  line: FeatureOf<LineString>,
-  inPoint: FeatureOf<Point>,
+  line: Feature<LineString>,
+  inPoint: Feature<Point>,
   viewport: Viewport
 ): NearestPointType {
   const wmViewport = new WebMercatorViewport(viewport);

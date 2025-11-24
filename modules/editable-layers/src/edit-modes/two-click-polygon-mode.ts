@@ -11,7 +11,7 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Polygon, FeatureCollection, FeatureOf, Position, SimpleFeatureCollection} from '../utils/geojson-types';
+import {Polygon, FeatureCollection, Feature, Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import omit from 'lodash.omit';
 
@@ -56,7 +56,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
       tentativeFeature &&
       tentativeFeature.geometry.type === 'Polygon'
     ) {
-      const feature: FeatureOf<Polygon> = {
+      const feature: Feature<Polygon> = {
         type: 'Feature',
         properties: omit(tentativeFeature.properties, 'guideType'),
         geometry: {
@@ -110,7 +110,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     coord1: Position,
     coord2: Position,
     modeConfig: any
-  ): FeatureOf<Polygon> | null | undefined {
+  ): Feature<Polygon> | null | undefined {
     return null;
   }
 

@@ -10,7 +10,7 @@ import {
   Polygon,
   MultiPolygon,
   Feature,
-  FeatureOf
+  Feature
 } from '../../src/utils/geojson-types';
 
 let point: Point = {
@@ -41,12 +41,12 @@ let multiPolygon: MultiPolygon = {
   coordinates: [polygonSolid.coordinates, polygonWithHole.coordinates]
 };
 
-let pointFeature: FeatureOf<Point> = {
+let pointFeature: Feature<Point> = {
   type: 'Feature',
   geometry: point
 };
 
-let lineStringFeature: FeatureOf<LineString> = {
+let lineStringFeature: Feature<LineString> = {
   type: 'Feature',
   geometry: lineString
 };

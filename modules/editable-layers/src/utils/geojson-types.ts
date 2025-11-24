@@ -36,7 +36,6 @@ export type PolygonGeometry = Polygon | MultiPolygon;
 export { Feature, FeatureCollection } from 'geojson';
 
 export type BoundingBoxArray = [number, number, number, number];
-export type FeatureOf<T extends SimpleGeometry> = Feature<T>;
 
 export type FeatureWithProps<T extends SimpleGeometry, P> = Feature<T, P>
 

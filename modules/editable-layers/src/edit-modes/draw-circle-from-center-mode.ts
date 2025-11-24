@@ -7,14 +7,14 @@ import distance from '@turf/distance';
 import area from '@turf/area';
 import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
-import {Position, Polygon, FeatureOf, FeatureCollection} from '../utils/geojson-types';
+import {Position, Polygon, Feature, FeatureCollection} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
   radius: number | null | undefined = null;
   position: Position = null!;
   areaCircle: number | null | undefined = null;
-  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
+  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): Feature<Polygon> {
     // Default turf value for circle is 64
     const {steps = 64} = modeConfig || {};
     const options = {steps};

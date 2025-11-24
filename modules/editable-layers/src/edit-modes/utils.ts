@@ -18,7 +18,7 @@ import {
   Point,
   LineString,
   Polygon,
-  FeatureOf,
+  Feature,
   FeatureWithProps,
   SimpleGeometryCoordinates
 } from '../utils/geojson-types';
@@ -118,8 +118,8 @@ export function mix(a: number, b: number, ratio: number): number {
 }
 
 export function nearestPointOnProjectedLine(
-  line: FeatureOf<LineString>,
-  inPoint: FeatureOf<Point>,
+  line: Feature<LineString>,
+  inPoint: Feature<Point>,
   viewport: Viewport
 ): NearestPointType {
   const wmViewport = new WebMercatorViewport(viewport);
@@ -186,8 +186,8 @@ export function nearestPointOnProjectedLine(
 }
 
 export function nearestPointOnLine( // <G extends LineString | MultiLineString>(
-  lines: FeatureOf<LineString>,
-  inPoint: FeatureOf<Point>,
+  lines: Feature<LineString>,
+  inPoint: Feature<Point>,
   viewport?: Viewport
 ): NearestPointType {
   let mercator;
@@ -471,7 +471,7 @@ function getEditHandlesForCoordinates(
  * @returns Updated coordinates.
  */
 export function updateRectanglePosition(
-  feature: FeatureOf<Polygon>,
+  feature: Feature<Polygon>,
   editHandleIndex: number,
   coords: Position
 ): Position[][] | null {

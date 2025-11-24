@@ -105,7 +105,7 @@ export type {
   MultiPolygon,
   PolygonGeometry as Polygonal,
   BoundingBoxArray,
-  FeatureOf,
+  Feature as FeatureOf,
   FeatureWithProps,
   // Feature,
   FeatureCollection,

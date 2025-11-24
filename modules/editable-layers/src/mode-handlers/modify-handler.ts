@@ -4,7 +4,7 @@
 
 import nearestPointOnLine from '@turf/nearest-point-on-line';
 import {point, lineString as toLineString} from '@turf/helpers';
-import {Position, FeatureOf, Point, LineString} from '../utils/geojson-types';
+import {Position, Feature, Point, LineString} from '../utils/geojson-types';
 import {
   recursivelyTraverseNestedArrays,
   nearestPointOnProjectedLine,
@@ -101,7 +101,7 @@ export class ModifyHandler extends ModeHandler {
   }
 
   // turf.js does not support elevation for nearestPointOnLine
-  nearestPointOnLine(line: FeatureOf<LineString>, inPoint: FeatureOf<Point>): NearestPointType {
+  nearestPointOnLine(line: Feature<LineString>, inPoint: Feature<Point>): NearestPointType {
     const {coordinates} = line.geometry;
     if (coordinates.some((coord) => coord.length > 2)) {
       const modeConfig = this.getModeConfig();

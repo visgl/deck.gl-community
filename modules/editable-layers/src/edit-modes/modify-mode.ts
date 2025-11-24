@@ -16,7 +16,7 @@ import {
   NearestPointType,
   shouldCancelPan
 } from './utils';
-import {LineString, Point, Polygon, FeatureCollection, FeatureOf, SimpleFeatureCollection} from '../utils/geojson-types';
+import {LineString, Point, Polygon, FeatureCollection, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -121,8 +121,8 @@ export class ModifyMode extends GeoJsonEditMode {
 
   // turf.js does not support elevation for nearestPointOnLine
   getNearestPoint(
-    line: FeatureOf<LineString>,
-    inPoint: FeatureOf<Point>,
+    line: Feature<LineString>,
+    inPoint: Feature<Point>,
     viewport: Viewport | null | undefined
   ): NearestPointType {
     const {coordinates} = line.geometry;
@@ -217,7 +217,7 @@ export class ModifyMode extends GeoJsonEditMode {
     let updatedData;
     if (props.modeConfig?.lockRectangles && editedFeature.properties.shape === 'Rectangle') {
       const coordinates = updateRectanglePosition(
-        editedFeature as FeatureOf<Polygon>,
+        editedFeature as Feature<Polygon>,
         editHandleProperties.positionIndexes[1],
         event.mapCoords
       ) as any; // TODO

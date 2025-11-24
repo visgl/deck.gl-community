@@ -3,11 +3,11 @@
 // Copyright (c) vis.gl contributors
 
 import bboxPolygon from '@turf/bbox-polygon';
-import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawRectangleMode extends TwoClickPolygonMode {
-  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
+  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): Feature<Polygon> {
     const rectangle = bboxPolygon([coord1[0], coord1[1], coord2[0], coord2[1]]);
     rectangle.properties = rectangle.properties || {};
     rectangle.properties.shape = 'Rectangle';
