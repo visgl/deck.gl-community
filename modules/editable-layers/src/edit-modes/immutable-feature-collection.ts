@@ -13,7 +13,7 @@ import {
 } from '../utils/geojson-types';
 
 export class ImmutableFeatureCollection {
-  featureCollection: SimpleFeatureCollection;
+  featureCollection: Readonly<SimpleFeatureCollection>;
 
   constructor(featureCollection: SimpleFeatureCollection) {
     this.featureCollection = featureCollection;
