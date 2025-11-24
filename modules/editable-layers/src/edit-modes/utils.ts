@@ -13,14 +13,14 @@ import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from 'viewport-mercator-project';
 import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
-  SingleGeometry,
+  SimpleGeometry,
   Position,
   Point,
   LineString,
   Polygon,
   FeatureOf,
   FeatureWithProps,
-  AnyCoordinates
+  SimpleGeometryCoordinates
 } from '../utils/geojson-types';
 
 export type NearestPointType = FeatureWithProps<Point, {dist: number; index: number}>;
@@ -366,7 +366,7 @@ export function getPickedEditHandles(picks: Pick[] | null | undefined): EditHand
 }
 
 export function getEditHandlesForGeometry(
-  geometry: SingleGeometry,
+  geometry: SimpleGeometry,
   featureIndex: number,
   editHandleType: EditHandleType = 'existing'
 ): EditHandleFeature[] {
@@ -498,9 +498,9 @@ export function updateRectanglePosition(
  * @retuns Transformed coordinates.
  */
 export function mapCoords(
-  coords: AnyCoordinates,
+  coords: SimpleGeometryCoordinates,
   callback: (coords: Position) => Position
-): AnyCoordinates {
+): SimpleGeometryCoordinates {
   if (typeof coords[0] === 'number') {
     if (!isNaN(coords[0]) && isFinite(coords[0])) {
       return callback(coords as Position);

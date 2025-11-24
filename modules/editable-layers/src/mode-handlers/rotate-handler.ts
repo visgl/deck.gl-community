@@ -5,14 +5,14 @@
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
 import turfTransformRotate from '@turf/transform-rotate';
-import {GeometryFeatureCollection, Position} from '../utils/geojson-types';
+import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class RotateHandler extends ModeHandler {
   _isRotatable: boolean = undefined!;
-  _geometryBeingRotated: GeometryFeatureCollection | null | undefined;
+  _geometryBeingRotated: SimpleFeatureCollection | null | undefined;
 
   handlePointerMove(event: PointerMoveEvent): {
     editAction: EditAction | null | undefined;

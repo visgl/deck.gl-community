@@ -16,7 +16,7 @@ import {
   NearestPointType,
   shouldCancelPan
 } from './utils';
-import {LineString, Point, Polygon, FeatureCollection, FeatureOf, GeometryFeatureCollection} from '../utils/geojson-types';
+import {LineString, Point, Polygon, FeatureCollection, FeatureOf, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -34,7 +34,7 @@ import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ModifyMode extends GeoJsonEditMode {
   // eslint-disable-next-line complexity
-  getGuides(props: ModeProps<GeometryFeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const handles: GuideFeature[] = [];
 
     const {data, lastPointerMoveEvent} = props;
@@ -139,7 +139,7 @@ export class ModifyMode extends GeoJsonEditMode {
     return nearestPointOnLine(line, inPoint, viewport);
   }
 
-  handleClick(event: ClickEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     const pickedExistingHandle = getPickedExistingEditHandle(event.picks);
     const pickedIntermediateHandle = getPickedIntermediateEditHandle(event.picks);
 
@@ -194,7 +194,7 @@ export class ModifyMode extends GeoJsonEditMode {
     }
   }
 
-  handleDragging(event: DraggingEvent, props: ModeProps<GeometryFeatureCollection>): void {
+  handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
 
     if (editHandle) {
@@ -207,7 +207,7 @@ export class ModifyMode extends GeoJsonEditMode {
 
   _dragEditHandle(
     editType: string,
-    props: ModeProps<GeometryFeatureCollection>,
+    props: ModeProps<SimpleFeatureCollection>,
     editHandle: EditHandleFeature,
     event: StopDraggingEvent | DraggingEvent
   ) {
@@ -251,7 +251,7 @@ export class ModifyMode extends GeoJsonEditMode {
     props.onUpdateCursor(cursor);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (shouldCancelPan(event)) {
       event.cancelPan();
     }
@@ -282,7 +282,7 @@ export class ModifyMode extends GeoJsonEditMode {
     }
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     const selectedFeatureIndexes = props.selectedIndexes;
     const editHandle = getPickedEditHandle(event.picks);
     if (selectedFeatureIndexes.length && editHandle) {

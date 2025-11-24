@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Position, LineString, FeatureCollection, GeometryFeatureCollection} from '../utils/geojson-types';
+import {Position, LineString, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 import {ClickEvent, PointerMoveEvent, ModeProps, GuideFeatureCollection} from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ExtendLineStringMode extends GeoJsonEditMode {
-  getSingleSelectedLineString(props: ModeProps<GeometryFeatureCollection>): LineString | null | undefined {
+  getSingleSelectedLineString(props: ModeProps<SimpleFeatureCollection>): LineString | null | undefined {
     const selectedGeometry = this.getSelectedGeometry(props);
 
     if (selectedGeometry && selectedGeometry.type === 'LineString') {
@@ -17,7 +17,7 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
     return null;
   }
 
-  handleClick(event: ClickEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     const {selectedIndexes} = props;
     const selectedLineString = this.getSingleSelectedLineString(props);
 
@@ -49,7 +49,7 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
     });
   }
 
-  getGuides(props: ModeProps<GeometryFeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
       features: []

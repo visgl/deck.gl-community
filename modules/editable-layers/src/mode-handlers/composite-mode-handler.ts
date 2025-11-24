@@ -1,4 +1,4 @@
-import {GeometryFeature, GeometryFeatureCollection, Position} from '../utils/geojson-types';
+import {SimpleFeature, SimpleFeatureCollection, Position} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -35,7 +35,7 @@ export class CompositeModeHandler extends ModeHandler {
     return result;
   }
 
-  setFeatureCollection(featureCollection: GeometryFeatureCollection): void {
+  setFeatureCollection(featureCollection: SimpleFeatureCollection): void {
     this.handlers.forEach((handler) => handler.setFeatureCollection(featureCollection));
   }
 
@@ -69,7 +69,7 @@ export class CompositeModeHandler extends ModeHandler {
     return this._coalesce((handler) => handler.handleStopDragging(event));
   }
 
-  getTentativeFeature(): GeometryFeature | null | undefined {
+  getTentativeFeature(): SimpleFeature | null | undefined {
     return this._coalesce((handler) => handler.getTentativeFeature());
   }
 

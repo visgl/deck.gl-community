@@ -3,19 +3,19 @@
 // Copyright (c) vis.gl contributors
 
 import {
-  GeometryFeatureCollection,
-  SingleGeometry,
+  SimpleFeatureCollection,
+  SimpleGeometry,
   Polygon,
   MultiLineString,
   MultiPolygon,
   Position,
-  GeometryFeature,
+  SimpleFeature,
 } from '../utils/geojson-types';
 
 export class ImmutableFeatureCollection {
-  featureCollection: GeometryFeatureCollection;
+  featureCollection: SimpleFeatureCollection;
 
-  constructor(featureCollection: GeometryFeatureCollection) {
+  constructor(featureCollection: SimpleFeatureCollection) {
     this.featureCollection = featureCollection;
   }
 
@@ -161,7 +161,7 @@ export class ImmutableFeatureCollection {
     return this.replaceGeometry(featureIndex, updatedGeometry);
   }
 
-  replaceGeometry(featureIndex: number, geometry: SingleGeometry): ImmutableFeatureCollection {
+  replaceGeometry(featureIndex: number, geometry: SimpleGeometry): ImmutableFeatureCollection {
     const updatedFeature: any = {
       ...this.featureCollection.features[featureIndex],
       geometry
@@ -179,11 +179,11 @@ export class ImmutableFeatureCollection {
     return new ImmutableFeatureCollection(updatedFeatureCollection);
   }
 
-  addFeature(feature: GeometryFeature): ImmutableFeatureCollection {
+  addFeature(feature: SimpleFeature): ImmutableFeatureCollection {
     return this.addFeatures([feature]);
   }
 
-  addFeatures(features: GeometryFeature[]): ImmutableFeatureCollection {
+  addFeatures(features: SimpleFeature[]): ImmutableFeatureCollection {
     const updatedFeatureCollection = {
       ...this.featureCollection,
       features: [...this.featureCollection.features, ...features]
@@ -350,7 +350,7 @@ function immutablyAddPosition(
   ];
 }
 
-function pruneGeometryIfNecessary(geometry: SingleGeometry) {
+function pruneGeometryIfNecessary(geometry: SimpleGeometry) {
   switch (geometry.type) {
     case 'Polygon':
       prunePolygonIfNecessary(geometry);

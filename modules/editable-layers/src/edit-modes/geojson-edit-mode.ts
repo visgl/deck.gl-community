@@ -21,12 +21,12 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {FeatureCollection, Feature, Polygon, SingleGeometry, Position, GeometryFeatureCollection, GeometryFeature} from '../utils/geojson-types';
+import {FeatureCollection, Feature, Polygon, SimpleGeometry, Position, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
 import {getPickedEditHandles, getNonGuidePicks} from './utils';
 import {EditMode} from './edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
-export type GeoJsonEditAction = EditAction<GeometryFeatureCollection>;
+export type GeoJsonEditAction = EditAction<SimpleFeatureCollection>;
 
 const DEFAULT_GUIDES: GuideFeatureCollection = {
   type: 'FeatureCollection',
@@ -52,14 +52,14 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return DEFAULT_TOOLTIPS;
   }
 
-  getSelectedFeature(props: ModeProps<GeometryFeatureCollection>): GeometryFeature | null | undefined {
+  getSelectedFeature(props: ModeProps<SimpleFeatureCollection>): SimpleFeature | null | undefined {
     if (props.selectedIndexes.length === 1) {
       return props.data.features[props.selectedIndexes[0]];
     }
     return null;
   }
 
-  getSelectedGeometry(props: ModeProps<GeometryFeatureCollection>): SingleGeometry | null | undefined {
+  getSelectedGeometry(props: ModeProps<SimpleFeatureCollection>): SimpleGeometry | null | undefined {
     const feature = this.getSelectedFeature(props);
     if (feature) {
       return feature.geometry;
@@ -67,7 +67,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return null;
   }
 
-  getSelectedFeaturesAsFeatureCollection(props: ModeProps<GeometryFeatureCollection>): GeometryFeatureCollection {
+  getSelectedFeaturesAsFeatureCollection(props: ModeProps<SimpleFeatureCollection>): SimpleFeatureCollection {
     const {features} = props.data;
     const selectedFeatures = props.selectedIndexes.map((selectedIndex) => features[selectedIndex]);
     return {
@@ -105,20 +105,20 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return props.selectedIndexes.some((index) => pickedIndexes.has(index));
   }
 
-  rewindPolygon(feature: GeometryFeature): GeometryFeature {
+  rewindPolygon(feature: SimpleFeature): SimpleFeature {
     const {geometry} = feature;
 
     const isPolygonal = geometry.type === 'Polygon' || geometry.type === 'MultiPolygon';
     if (isPolygonal) {
-      return rewind(feature) as GeometryFeature;
+      return rewind(feature) as SimpleFeature;
     }
 
     return feature;
   }
 
   getAddFeatureAction(
-    featureOrGeometry: SingleGeometry | Feature,
-    features: GeometryFeatureCollection,
+    featureOrGeometry: SimpleGeometry | Feature,
+    features: SimpleFeatureCollection,
     featureProperties?: {}
   ): GeoJsonEditAction {
     // Unsure why flow can't deal with Geometry type, but there I fixed it
@@ -149,8 +149,8 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   }
 
   getAddManyFeaturesAction(
-    {features: featuresToAdd}: GeometryFeatureCollection,
-    features: GeometryFeatureCollection
+    {features: featuresToAdd}: SimpleFeatureCollection,
+    features: SimpleFeatureCollection
   ): GeoJsonEditAction {
     let updatedData = new ImmutableFeatureCollection(features);
     const initialIndex = updatedData.getObject().features.length;
@@ -178,7 +178,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   // eslint-disable-next-line complexity
   getAddFeatureOrBooleanPolygonAction(
     featureOrGeometry: Polygon | Feature,
-    props: ModeProps<GeometryFeatureCollection>,
+    props: ModeProps<SimpleFeatureCollection>,
     featureProperties?: {}
   ): GeoJsonEditAction | null | undefined {
     const featureOrGeometryAsAny: any = featureOrGeometry;

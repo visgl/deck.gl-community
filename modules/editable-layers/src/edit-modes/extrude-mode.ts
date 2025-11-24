@@ -9,7 +9,7 @@ import {
   getPickedIntermediateEditHandle,
   shouldCancelPan
 } from './utils';
-import {GeometryFeatureCollection} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent} from './types';
 import {ModifyMode} from './modify-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -19,7 +19,7 @@ export class ExtrudeMode extends ModifyMode {
 
   isPointAdded = false;
 
-  handleDragging(event: DraggingEvent, props: ModeProps<GeometryFeatureCollection>): void {
+  handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
 
     if (editHandle) {
@@ -61,7 +61,7 @@ export class ExtrudeMode extends ModifyMode {
     }
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (shouldCancelPan(event)) {
       event.cancelPan();
     }
@@ -111,7 +111,7 @@ export class ExtrudeMode extends ModifyMode {
     }
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     const selectedFeatureIndexes = props.selectedIndexes;
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
     if (selectedFeatureIndexes.length && editHandle) {
@@ -156,7 +156,7 @@ export class ExtrudeMode extends ModifyMode {
   coordinatesSize(
     positionIndexes: number[] | null | undefined,
     featureIndex: number,
-    {features}: GeometryFeatureCollection
+    {features}: SimpleFeatureCollection
   ) {
     let size = 0;
     if (Array.isArray(positionIndexes)) {
@@ -190,7 +190,7 @@ export class ExtrudeMode extends ModifyMode {
     positionIndexes: number[] | null | undefined,
     featureIndex: number,
     size: number,
-    features: GeometryFeatureCollection
+    features: SimpleFeatureCollection
   ) {
     if (!Array.isArray(positionIndexes)) {
       return false;
@@ -239,7 +239,7 @@ export class ExtrudeMode extends ModifyMode {
   getPointForPositionIndexes(
     positionIndexes: number[] | null | undefined,
     featureIndex: number,
-    {features}: GeometryFeatureCollection
+    {features}: SimpleFeatureCollection
   ) {
     let p1;
     if (Array.isArray(positionIndexes)) {

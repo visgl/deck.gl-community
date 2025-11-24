@@ -15,7 +15,7 @@ import nearestPointOnLine from '@turf/nearest-point-on-line';
 import {generatePointsParallelToLinePoints} from '../utils/utils';
 import {EditAction, ModeHandler} from './mode-handler';
 import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
-import {Polygonal} from '../utils/geojson-types';
+import {PolygonGeometry} from '../utils/geojson-types';
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 export class SplitPolygonHandler extends ModeHandler {
@@ -140,7 +140,7 @@ export class SplitPolygonHandler extends ModeHandler {
       units = 'centimeters';
     }
     const buffer = turfBuffer(tentativeFeature, gap, {units});
-    const updatedGeometry = turfDifference(featureCollection([turfFeature(selectedGeometry as Polygonal), buffer]));
+    const updatedGeometry = turfDifference(featureCollection([turfFeature(selectedGeometry as PolygonGeometry), buffer]));
     this._setTentativeFeature(null);
     if (!updatedGeometry) {
       // eslint-disable-next-line no-console,no-undef

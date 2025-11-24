@@ -18,19 +18,26 @@ import type {
 
 export { Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon, Position };
 
-export type SingleGeometry = Point | LineString | Polygon | MultiPoint | MultiLineString | MultiPolygon;
-export type GeometryFeature = Feature<SingleGeometry>
-export type GeometryFeatureCollection = FeatureCollection<SingleGeometry>
+/** Simple geometries (excludes GeometryCollection) */
+export type SimpleGeometry = Point | LineString | Polygon | MultiPoint | MultiLineString | MultiPolygon;
 
-export type AnyCoordinates = SingleGeometry['coordinates']
+/** Feature with any geometry except GeometryCollection */
+export type SimpleFeature = Feature<SimpleGeometry>
 
-export type Polygonal = Polygon | MultiPolygon;
+/** FeatureCollection with any geometries except GeometryCollection */
+export type SimpleFeatureCollection = FeatureCollection<SimpleGeometry>
+
+/** Coordinates of any geometry except GeometryCollection */
+export type SimpleGeometryCoordinates = SimpleGeometry['coordinates']
+
+/** Polygon and MultiPolygon geometries */
+export type PolygonGeometry = Polygon | MultiPolygon;
 
 export { Feature, FeatureCollection } from 'geojson';
 
 export type BoundingBoxArray = [number, number, number, number];
-export type FeatureOf<T extends SingleGeometry> = Feature<T>;
+export type FeatureOf<T extends SimpleGeometry> = Feature<T>;
 
-export type FeatureWithProps<T extends SingleGeometry, P> = Feature<T, P>
+export type FeatureWithProps<T extends SimpleGeometry, P> = Feature<T, P>
 
 export type AnyGeoJson = Feature | FeatureCollection;

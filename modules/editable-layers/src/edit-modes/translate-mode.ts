@@ -7,7 +7,7 @@ import turfDistance from '@turf/distance';
 import clone from '@turf/clone';
 import {point} from '@turf/helpers';
 import {WebMercatorViewport} from 'viewport-mercator-project';
-import {FeatureCollection, Position, SingleGeometry, GeometryFeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection, Position, SimpleGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -21,10 +21,10 @@ import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class TranslateMode extends GeoJsonEditMode {
-  _geometryBeforeTranslate: GeometryFeatureCollection | null | undefined;
+  _geometryBeforeTranslate: SimpleFeatureCollection | null | undefined;
   _isTranslatable: boolean = undefined!;
 
-  handleDragging(event: DraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (!this._isTranslatable) {
       // Nothing to do
       return;
@@ -54,7 +54,7 @@ export class TranslateMode extends GeoJsonEditMode {
     this.updateCursor(props);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (!this._isTranslatable) {
       return;
     }
@@ -63,7 +63,7 @@ export class TranslateMode extends GeoJsonEditMode {
     this._geometryBeforeTranslate = this.getSelectedFeaturesAsFeatureCollection(props);
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<GeometryFeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (this._geometryBeforeTranslate) {
       // Translate the geometry
       const editAction = this.getTranslateAction(
@@ -94,7 +94,7 @@ export class TranslateMode extends GeoJsonEditMode {
     startDragPoint: Position,
     currentPoint: Position,
     editType: string,
-    props: ModeProps<GeometryFeatureCollection>
+    props: ModeProps<SimpleFeatureCollection>
   ): GeoJsonEditAction | null | undefined {
     if (!this._geometryBeforeTranslate) {
       return null;
@@ -133,7 +133,7 @@ export class TranslateMode extends GeoJsonEditMode {
           updatedData = updatedData.replaceGeometry(selectedIndex, {
             type: feature.geometry.type,
             coordinates,
-          } as SingleGeometry);
+          } as SimpleGeometry);
         }
       }
     } else {

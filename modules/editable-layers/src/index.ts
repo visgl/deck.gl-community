@@ -96,14 +96,14 @@ export type {
 
 export type {
   Position,
-  AnyCoordinates,
+  SimpleGeometryCoordinates as AnyCoordinates,
   Point,
   LineString,
   Polygon,
   MultiPoint,
   MultiLineString,
   MultiPolygon,
-  Polygonal,
+  PolygonGeometry as Polygonal,
   BoundingBoxArray,
   FeatureOf,
   FeatureWithProps,
