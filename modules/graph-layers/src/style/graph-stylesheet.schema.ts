@@ -602,11 +602,6 @@ const GraphEdgeStyleRuleSchema = z.discriminatedUnion(
   ]
 );
 
-const GraphEdgeBaseRuleSchema = z.discriminatedUnion('type', [
-  EdgeUpperStylesheetSchema,
-  EdgeLowerStylesheetSchema
-] as [typeof EdgeUpperStylesheetSchema, typeof EdgeLowerStylesheetSchema]);
-
 const GraphEdgeDecoratorRuleSchema = z.discriminatedUnion(
   'type',
   [EdgeLabelStylesheetSchema, FlowStylesheetSchema, ArrowStylesheetSchema] as [
@@ -619,9 +614,18 @@ const GraphEdgeDecoratorRuleSchema = z.discriminatedUnion(
   ]
 );
 
-const GraphEdgeRuleWithDecoratorsSchema = GraphEdgeBaseRuleSchema.and(
-  z.object({decorators: z.array(GraphEdgeDecoratorRuleSchema).optional()}).strict()
-);
+const EdgeUpperWithDecoratorsSchema = EdgeUpperStylesheetSchema.safeExtend({
+  decorators: z.array(GraphEdgeDecoratorRuleSchema).optional()
+});
+
+const EdgeLowerWithDecoratorsSchema = EdgeLowerStylesheetSchema.safeExtend({
+  decorators: z.array(GraphEdgeDecoratorRuleSchema).optional()
+});
+
+const GraphEdgeRuleWithDecoratorsSchema = z.discriminatedUnion('type', [
+  EdgeUpperWithDecoratorsSchema,
+  EdgeLowerWithDecoratorsSchema
+] as [typeof EdgeUpperWithDecoratorsSchema, typeof EdgeLowerWithDecoratorsSchema]);
 
 /**
  * Schema that validates a full graph stylesheet including nodes, edges, and decorators.

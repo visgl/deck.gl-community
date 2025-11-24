@@ -180,7 +180,6 @@ const WITS_REGION_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: 'rgba(15, 23, 42, 0.2)',
       strokeWidth: 0.4,
-      decorators: []
     }
   ]
 };
@@ -274,7 +273,6 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
         hover: 3,
         selected: 3.5
       },
-      decorators: []
     }
   ]
 };
@@ -295,7 +293,6 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#bbf7d0',
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
@@ -316,7 +313,6 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#fde68a',
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
@@ -337,7 +333,6 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#c7d2fe',
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
@@ -358,7 +353,6 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#fed7aa',
       strokeWidth: 0.8,
-      decorators: []
     }
   ]
 };
@@ -456,7 +450,6 @@ const LADDER_10_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#fbcfe8',
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
@@ -477,7 +470,6 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#bae6fd',
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
@@ -498,7 +490,6 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#a5f3fc',
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
@@ -519,7 +510,6 @@ const GRID_10_10_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#fef3c7',
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
@@ -540,7 +530,6 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#fecaca',
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
@@ -601,7 +590,6 @@ const DOT_UNDIRECTED_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: '#93c5fd',
       strokeWidth: 1.2,
-      decorators: []
     }
   ]
 };
@@ -673,7 +661,6 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
       type: 'edge',
       stroke: DEFAULT_EDGE_COLOR,
       strokeWidth: 1,
-      decorators: []
     }
   ]
 };
