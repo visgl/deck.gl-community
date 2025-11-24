@@ -15,15 +15,15 @@ import {GraphEngine} from '../core/graph-engine';
 
 import {
   GraphStylesheetEngine,
-  type GraphStylesheet
+  type GraphStylesheet,
+  type GraphStyleRule
 } from '../style/graph-style-engine';
 
 import {
-  DEFAULT_GRAPH_LAYER_STYLESHEET,
+  DEFAULT_GRAPH_LAYER_STYLESHEET_INPUT,
   normalizeGraphLayerStylesheet,
   type GraphLayerEdgeStyle,
   type GraphLayerNodeStyle,
-  type GraphLayerStylesheet,
   type NormalizedGraphLayerStylesheet
 } from '../style/graph-layer-stylesheet';
 
@@ -44,8 +44,6 @@ import {EdgeArrowLayer} from './edge-layers/edge-arrow-layer';
 import {EdgeAttachmentHelper} from './edge-attachment-helper';
 import {GridLayer, type GridLayerProps} from './common-layers/grid-layer/grid-layer';
 
-import {JSONGraphLoader} from '../loaders/json-graph-loader';
-
 import {mixedGetPosition} from '../utils/layer-utils';
 import {InteractionManager} from '../core/interaction-manager';
 import {buildCollapsedChainLayers} from '../utils/collapsed-chains';
@@ -55,6 +53,7 @@ import {
   type LabelAccessor,
   type RankAccessor
 } from '../utils/rank-grid';
+import {createGraphFromData} from '../graph/functions/create-graph-from-data';
 
 import {warn} from '../utils/log';
 
@@ -106,6 +105,13 @@ let NODE_STYLE_DEPRECATION_WARNED = false;
 let EDGE_STYLE_DEPRECATION_WARNED = false;
 let GRAPH_PROP_DEPRECATION_WARNED = false;
 let LAYOUT_REQUIRED_WARNED = false;
+const DEFAULT_GRAPH_LOADER = ({json}: {json: unknown}) => {
+  if (!json || typeof json !== 'object') {
+    return null;
+  }
+
+  return createGraphFromData(json as any);
+};
 
 export type GraphLayerRawData = {
   name?: string;
@@ -146,7 +152,7 @@ export type _GraphLayerProps = {
   onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
   onLayoutError?: (error?: unknown) => void;
 
-  stylesheet?: GraphLayerStylesheet;
+  stylesheet?: GraphStylesheet;
   /** @deprecated Use `stylesheet.nodes`. */
   nodeStyle?: GraphLayerNodeStyle[];
   /** @deprecated Use `stylesheet.edges`. */
@@ -171,18 +177,18 @@ export type _GraphLayerProps = {
 export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   static layerName = 'GraphLayer';
 
-  static defaultProps: Required<_GraphLayerProps> & {
-    data: {type: string; value: null; async: true};
-  } = {
+  static defaultProps: _GraphLayerProps &
+    Pick<CompositeLayerProps, 'pickable'> & {
+      data: {type: string; value: null; async: true};
+    } = {
     // Composite layer props
-    // @ts-expect-error composite layer props
     pickable: true,
     data: {type: 'object', value: null, async: true},
 
     // Graph props
-    graphLoader: JSONGraphLoader,
+    graphLoader: DEFAULT_GRAPH_LOADER,
 
-    stylesheet: DEFAULT_GRAPH_LAYER_STYLESHEET,
+    stylesheet: DEFAULT_GRAPH_LAYER_STYLESHEET_INPUT,
     nodeStyle: undefined as unknown as GraphLayerNodeStyle[],
     nodeEvents: {
       onMouseLeave: () => {},
@@ -316,7 +322,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _createStylesheetEngine(
-    style: GraphStylesheet,
+    style: GraphStyleRule,
     context: string
   ): GraphStylesheetEngine | null {
     try {
@@ -485,7 +491,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     if (Array.isArray(data) || isPlainObject(data)) {
-      const loader = props.graphLoader ?? JSONGraphLoader;
+      const loader = props.graphLoader ?? DEFAULT_GRAPH_LOADER;
       const graph = loader({json: data});
       if (!graph) {
         return null;
@@ -821,7 +827,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           return null;
         }
         const stylesheet = this._createStylesheetEngine(
-          restStyle as unknown as GraphStylesheet,
+          restStyle as unknown as GraphStyleRule,
           `node stylesheet "${style.type}"`
         );
         if (!stylesheet) {
@@ -878,7 +884,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           {
             type: 'edge',
             ...restEdgeStyle
-          } as GraphStylesheet,
+          } as GraphStyleRule,
           'edge stylesheet'
         );
         if (!stylesheet) {
@@ -910,7 +916,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
               return null;
             }
             const decoratorStylesheet = this._createStylesheetEngine(
-              decoratorStyle as unknown as GraphStylesheet,
+              decoratorStyle as unknown as GraphStyleRule,
               `edge decorator stylesheet "${decoratorStyle.type}"`
             );
             if (!decoratorStylesheet) {
@@ -1018,7 +1024,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         marker: 'circle-plus-filled',
         offset: [24, -24],
         scaleWithZoom: false
-      } as GraphStylesheet<'marker'>,
+      } as GraphStyleRule,
       'collapsed chain marker stylesheet'
     );
 
@@ -1071,7 +1077,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         marker: 'circle-minus-filled',
         offset: [24, -24],
         scaleWithZoom: false
-      } as GraphStylesheet<'marker'>,
+      } as GraphStyleRule,
       'expanded chain marker stylesheet'
     );
 
