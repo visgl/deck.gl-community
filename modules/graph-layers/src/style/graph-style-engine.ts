@@ -70,10 +70,9 @@ export {
 
 export type {
   GraphStylesheet,
-  GraphStylesheetInput,
   GraphStyleRule,
-  GraphStyleRuleInput,
   GraphStyleRuleParsed,
+  GraphStylesheetParsed,
   GraphStyleSelector,
   GraphStyleType,
   GraphStyleAttributeReference,

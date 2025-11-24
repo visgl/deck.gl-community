@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {GraphLayerProps} from '@deck.gl-community/graph-layers';
+import type {GraphLayerProps, GraphStylesheet} from '@deck.gl-community/graph-layers';
 import {
   D3DagLayout,
   D3ForceLayout,
@@ -24,7 +24,7 @@ export type LayoutType =
   | 'force-multi-graph-layout'
   | 'd3-dag-layout';
 
-export type ExampleStyles = NonNullable<GraphLayerProps['stylesheet']>;
+export type ExampleStyles = GraphStylesheet;
 
 export type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
 

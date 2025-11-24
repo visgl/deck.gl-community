@@ -63,10 +63,9 @@ export {StylesheetEngine} from './style/stylesheet-engine';
 export {GraphStylesheetEngine, GraphStyleEngine} from './style/graph-style-engine';
 export type {
   GraphStylesheet,
-  GraphStylesheetInput,
   GraphStyleRule,
-  GraphStyleRuleInput,
   GraphStyleRuleParsed,
+  GraphStylesheetParsed,
   GraphStyleAttributeReference,
   GraphStyleScale,
   GraphStyleScaleType,

@@ -235,27 +235,6 @@ export type GraphStyleType = keyof typeof GRAPH_DECKGL_ACCESSOR_MAP;
  */
 export type GraphStyleSelector = `:${string}`;
 
-type GraphStylePropertyKey<TType extends GraphStyleType> = Extract<
-  (typeof GRAPH_DECKGL_ACCESSOR_MAP)[TType][keyof (typeof GRAPH_DECKGL_ACCESSOR_MAP)[TType]],
-  PropertyKey
->;
-
-type GraphStyleStatefulValue<TValue> = TValue | {[state: string]: TValue};
-
-type GraphStylePropertyMap<TType extends GraphStyleType, TValue> = Partial<
-  Record<GraphStylePropertyKey<TType>, GraphStyleStatefulValue<TValue>>
->;
-
-/**
- * Typed representation of a stylesheet definition for a specific graph primitive.
- */
-export type GraphStyleRule<
-  TType extends GraphStyleType = GraphStyleType,
-  TValue = GraphStyleLeafValue
-> = {type: TType} &
-  GraphStylePropertyMap<TType, TValue> &
-  Partial<Record<GraphStyleSelector, GraphStylePropertyMap<TType, TValue>>>;
-
 const GraphStyleSelectorKeySchema = z.string().regex(/^:[^\s]+/, 'Selectors must start with ":".');
 
 function createSelectorRefinement(
@@ -599,11 +578,11 @@ export const GraphStyleRuleSchema = z.discriminatedUnion(
 );
 
 /**
- * Runtime type accepted by {@link GraphStylesheetSchema} before validation.
+ * Runtime type accepted by {@link GraphStyleRuleSchema} before validation.
  */
-export type GraphStyleRuleInput = z.input<typeof GraphStyleRuleSchema>;
+export type GraphStyleRule = z.input<typeof GraphStyleRuleSchema>;
 /**
- * Type returned by {@link GraphStylesheetSchema} after successful parsing.
+ * Type returned by {@link GraphStyleRuleSchema} after successful parsing.
  */
 export type GraphStyleRuleParsed = z.infer<typeof GraphStyleRuleSchema>;
 
@@ -650,25 +629,15 @@ const GraphEdgeRuleWithDecoratorsSchema = GraphEdgeBaseRuleSchema.and(
 export const GraphStylesheetSchema = z
   .object({
     nodes: z.array(GraphNodeStyleRuleSchema).optional(),
-    edges: z.union([GraphEdgeRuleWithDecoratorsSchema, z.array(GraphEdgeRuleWithDecoratorsSchema)])
-      .optional()
+    edges: z.array(GraphEdgeRuleWithDecoratorsSchema).optional()
   })
   .strict();
 
 /**
  * Runtime type accepted by {@link GraphStylesheetSchema} before validation.
  */
-export type GraphStylesheetInput = z.input<typeof GraphStylesheetSchema>;
+export type GraphStylesheet = z.input<typeof GraphStylesheetSchema>;
 /**
  * Type returned by {@link GraphStylesheetSchema} after successful parsing.
  */
-export type GraphStylesheet = z.infer<typeof GraphStylesheetSchema>;
-
-/**
- * Runtime type accepted by {@link GraphStyleRuleSchema} before validation.
- */
-export type GraphStylesheetRuleInput = GraphStyleRuleInput;
-/**
- * Type returned by {@link GraphStyleRuleSchema} after successful parsing.
- */
-export type GraphStylesheetRule = GraphStyleRuleParsed;
+export type GraphStylesheetParsed = z.infer<typeof GraphStylesheetSchema>;

@@ -175,11 +175,14 @@ const WITS_REGION_STYLE: ExampleStyles = {
       opacity: 0.85
     }
   ],
-  edges: {
-    stroke: 'rgba(15, 23, 42, 0.2)',
-    strokeWidth: 0.4,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: 'rgba(15, 23, 42, 0.2)',
+      strokeWidth: 0.4,
+      decorators: []
+    }
+  ]
 };
 
 const GROUP_COLOR_MAP: Record<string, string> = {
@@ -258,19 +261,22 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edges: {
-    stroke: {
-      default: '#bfdbfe',
-      hover: '#2563eb',
-      selected: '#f97316'
-    },
-    strokeWidth: {
-      default: 1,
-      hover: 3,
-      selected: 3.5
-    },
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: {
+        default: '#bfdbfe',
+        hover: '#2563eb',
+        selected: '#f97316'
+      },
+      strokeWidth: {
+        default: 1,
+        hover: 3,
+        selected: 3.5
+      },
+      decorators: []
+    }
+  ]
 };
 
 const RANDOM_20_40_STYLE: ExampleStyles = {
@@ -284,11 +290,14 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edges: {
-    stroke: '#bbf7d0',
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#bbf7d0',
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const RANDOM_100_200_STYLE: ExampleStyles = {
@@ -302,11 +311,14 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edges: {
-    stroke: '#fde68a',
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#fde68a',
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const RANDOM_1000_2000_STYLE: ExampleStyles = {
@@ -320,11 +332,14 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
       opacity: 0.8
     }
   ],
-  edges: {
-    stroke: '#c7d2fe',
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#c7d2fe',
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const RANDOM_5000_3000_STYLE: ExampleStyles = {
@@ -338,11 +353,14 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
       opacity: 0.7
     }
   ],
-  edges: {
-    stroke: '#fed7aa',
-    strokeWidth: 0.8,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#fed7aa',
+      strokeWidth: 0.8,
+      decorators: []
+    }
+  ]
 };
 
 const ML_LINEAGE_BRANCH_PALETTE = [
@@ -406,17 +424,20 @@ const ML_LINEAGE_STYLE: ExampleStyles = {
       opacity: 0.85
     }
   ],
-  edges: {
-    stroke: 'rgba(30, 41, 59, 0.3)',
-    strokeWidth: 0.6,
-    decorators: [
-      {
-        type: 'arrow',
-        size: 5,
-        color: 'rgba(30, 41, 59, 0.4)'
-      }
-    ]
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: 'rgba(30, 41, 59, 0.3)',
+      strokeWidth: 0.6,
+      decorators: [
+        {
+          type: 'arrow',
+          size: 5,
+          color: 'rgba(30, 41, 59, 0.4)'
+        }
+      ]
+    }
+  ]
 };
 
 const LADDER_10_STYLE: ExampleStyles = {
@@ -430,11 +451,14 @@ const LADDER_10_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edges: {
-    stroke: '#fbcfe8',
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#fbcfe8',
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
@@ -448,11 +472,14 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edges: {
-    stroke: '#bae6fd',
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#bae6fd',
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
@@ -466,11 +493,14 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edges: {
-    stroke: '#a5f3fc',
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#a5f3fc',
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const GRID_10_10_STYLE: ExampleStyles = {
@@ -484,11 +514,14 @@ const GRID_10_10_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edges: {
-    stroke: '#fef3c7',
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#fef3c7',
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const WATTS_STROGATZ_STYLE: ExampleStyles = {
@@ -502,11 +535,14 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
       opacity: 0.9
     }
   ],
-  edges: {
-    stroke: '#fecaca',
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#fecaca',
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const DOT_FIXTURE_BASE_URL =
@@ -560,11 +596,14 @@ const DOT_UNDIRECTED_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edges: {
-    stroke: '#93c5fd',
-    strokeWidth: 1.2,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#93c5fd',
+      strokeWidth: 1.2,
+      decorators: []
+    }
+  ]
 };
 
 const DOT_DIRECTED_STYLE: ExampleStyles = {
@@ -588,17 +627,20 @@ const DOT_DIRECTED_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edges: {
-    stroke: '#6ee7b7',
-    strokeWidth: 1.2,
-    decorators: [
-      {
-        type: 'arrow',
-        size: 6,
-        color: '#059669'
-      }
-    ]
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#6ee7b7',
+      strokeWidth: 1.2,
+      decorators: [
+        {
+          type: 'arrow',
+          size: 6,
+          color: '#059669'
+        }
+      ]
+    }
+  ]
 };
 
 const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
@@ -626,11 +668,14 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edges: {
-    stroke: DEFAULT_EDGE_COLOR,
-    strokeWidth: 1,
-    decorators: []
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: DEFAULT_EDGE_COLOR,
+      strokeWidth: 1,
+      decorators: []
+    }
+  ]
 };
 
 const MULTI_GRAPH_STYLE: ExampleStyles = {
@@ -665,18 +710,21 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
       scaleWithZoom: false
     }
   ],
-  edges: {
-    stroke: '#cf4569',
-    strokeWidth: 2,
-    decorators: [
-      {
-        type: 'edge-label',
-        text: {attribute: 'type', fallback: ''},
-        color: [0, 0, 0],
-        fontSize: 14
-      }
-    ]
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#cf4569',
+      strokeWidth: 2,
+      decorators: [
+        {
+          type: 'edge-label',
+          text: {attribute: 'type', fallback: ''},
+          color: [0, 0, 0],
+          fontSize: 14
+        }
+      ]
+    }
+  ]
 };
 
 const dagPipelineDataset = () => {
@@ -718,17 +766,20 @@ const DAG_PIPELINE_STYLE: ExampleStyles = {
       alignmentBaseline: 'top'
     }
   ],
-  edges: {
-    stroke: '#8da2fb',
-    strokeWidth: 2,
-    decorators: [
-      {
-        type: 'arrow',
-        size: 6,
-        color: '#8da2fb'
-      }
-    ]
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: '#8da2fb',
+      strokeWidth: 2,
+      decorators: [
+        {
+          type: 'arrow',
+          size: 6,
+          color: '#8da2fb'
+        }
+      ]
+    }
+  ]
 };
 
 const BROKEN_STYLESHEET_GRAPH: ExampleGraphData = {
@@ -761,24 +812,27 @@ const BROKEN_STYLESHEET: ExampleStyles = {
       offset: {attribute: ''} as any
     }
   ],
-  edges: {
-    stroke: {attribute: ''} as any,
-    strokeWidth: {attribute: '', fallback: -3} as any,
-    decorators: [
-      {
-        type: 'edge-label',
-        text: {attribute: ''} as any,
-        color: '#0f172a',
-        fontSize: {attribute: '', fallback: -8} as any
-      },
-      {
-        type: 'arrow',
-        size: {attribute: ''} as any,
-        color: {attribute: ''} as any,
-        offset: {attribute: ''} as any
-      }
-    ]
-  }
+  edges: [
+    {
+      type: 'edge',
+      stroke: {attribute: ''} as any,
+      strokeWidth: {attribute: '', fallback: -3} as any,
+      decorators: [
+        {
+          type: 'edge-label',
+          text: {attribute: ''} as any,
+          color: '#0f172a',
+          fontSize: {attribute: '', fallback: -8} as any
+        },
+        {
+          type: 'arrow',
+          size: {attribute: ''} as any,
+          color: {attribute: ''} as any,
+          offset: {attribute: ''} as any
+        }
+      ]
+    }
+  ]
 } as ExampleStyles;
 
 export const EXAMPLES: ExampleDefinition[] = [
