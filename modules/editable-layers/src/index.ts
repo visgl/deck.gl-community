@@ -104,7 +104,6 @@ export type {
   MultiLineString,
   MultiPolygon,
   PolygonGeometry,
-  BoundingBoxArray,
   Feature,
   FeatureCollection,
   AnyGeoJson

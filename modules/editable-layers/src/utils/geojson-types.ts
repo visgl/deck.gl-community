@@ -35,6 +35,4 @@ export type PolygonGeometry = Polygon | MultiPolygon;
 
 export { Feature, FeatureCollection } from 'geojson';
 
-export type BoundingBoxArray = [number, number, number, number];
-
 export type AnyGeoJson = Feature | FeatureCollection;
