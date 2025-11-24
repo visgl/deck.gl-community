@@ -96,6 +96,9 @@ export type {
 
 export type {
   Position,
+  SimpleFeature,
+  SimpleFeatureCollection,
+  SimpleGeometry,
   SimpleGeometryCoordinates,
   Point,
   LineString,
