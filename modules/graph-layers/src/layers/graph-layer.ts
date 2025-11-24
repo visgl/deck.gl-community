@@ -15,7 +15,8 @@ import {GraphEngine} from '../core/graph-engine';
 
 import {
   GraphStylesheetEngine,
-  type GraphStylesheet
+  type GraphStylesheet,
+  type GraphStyleRule
 } from '../style/graph-style-engine';
 
 import {
@@ -146,7 +147,7 @@ export type _GraphLayerProps = {
   onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
   onLayoutError?: (error?: unknown) => void;
 
-  stylesheet?: GraphLayerStylesheet;
+  stylesheet?: GraphStylesheet;
   /** @deprecated Use `stylesheet.nodes`. */
   nodeStyle?: GraphLayerNodeStyle[];
   /** @deprecated Use `stylesheet.edges`. */
@@ -316,7 +317,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _createStylesheetEngine(
-    style: GraphStylesheet,
+    style: GraphStyleRule,
     context: string
   ): GraphStylesheetEngine | null {
     try {
@@ -821,7 +822,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           return null;
         }
         const stylesheet = this._createStylesheetEngine(
-          restStyle as unknown as GraphStylesheet,
+          restStyle as unknown as GraphStyleRule,
           `node stylesheet "${style.type}"`
         );
         if (!stylesheet) {
@@ -878,7 +879,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           {
             type: 'edge',
             ...restEdgeStyle
-          } as GraphStylesheet,
+          } as GraphStyleRule,
           'edge stylesheet'
         );
         if (!stylesheet) {
@@ -910,7 +911,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
               return null;
             }
             const decoratorStylesheet = this._createStylesheetEngine(
-              decoratorStyle as unknown as GraphStylesheet,
+              decoratorStyle as unknown as GraphStyleRule,
               `edge decorator stylesheet "${decoratorStyle.type}"`
             );
             if (!decoratorStylesheet) {
@@ -1018,7 +1019,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         marker: 'circle-plus-filled',
         offset: [24, -24],
         scaleWithZoom: false
-      } as GraphStylesheet<'marker'>,
+      } as GraphStyleRule,
       'collapsed chain marker stylesheet'
     );
 
@@ -1071,7 +1072,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         marker: 'circle-minus-filled',
         offset: [24, -24],
         scaleWithZoom: false
-      } as GraphStylesheet<'marker'>,
+      } as GraphStyleRule,
       'expanded chain marker stylesheet'
     );
 

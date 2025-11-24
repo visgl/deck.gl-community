@@ -9,7 +9,7 @@ import {ClassicGraph} from '../graph/classic-graph';
 import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
-import {GraphStylesheetEngine, type GraphStylesheet} from '../style/graph-style-engine';
+import {GraphStylesheetEngine, type GraphStyleRule} from '../style/graph-style-engine';
 
 type ClassicGraphEngineProps = {
   graph: ClassicGraph;
@@ -147,7 +147,7 @@ export class GraphEngine {
   }
 
   createStylesheetEngine(
-    style: GraphStylesheet,
+    style: GraphStyleRule,
     options: {stateUpdateTrigger?: unknown} = {}
   ): GraphStylesheetEngine {
     return new GraphStylesheetEngine(style, options);

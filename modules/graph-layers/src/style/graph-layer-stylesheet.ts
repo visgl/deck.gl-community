@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {GraphStylesheet, GraphStyleType} from './graph-style-engine';
+import type {GraphStylesheet, GraphStyleRule, GraphStyleType} from './graph-style-engine';
 
 export type GraphNodeStyleType = Exclude<
   GraphStyleType,
@@ -11,26 +11,26 @@ export type GraphNodeStyleType = Exclude<
 
 export type GraphEdgeDecoratorType = Extract<GraphStyleType, 'edge-label' | 'flow' | 'arrow'>;
 
-export type GraphLayerNodeStyle = GraphStylesheet<GraphNodeStyleType> & {
+export type GraphLayerNodeStyle = Extract<GraphStyleRule, {type: GraphNodeStyleType}> & {
   pickable?: boolean;
   visible?: boolean;
   data?: (nodes: any[]) => any;
 };
 
-export type GraphLayerEdgeDecoratorStyle = GraphStylesheet<GraphEdgeDecoratorType>;
+export type GraphLayerEdgeDecoratorStyle = Extract<GraphStyleRule, {type: GraphEdgeDecoratorType}>;
 
 type EdgeStyleType = Extract<GraphStyleType, 'Edge' | 'edge'>;
 
 export type GraphLayerEdgeStyle = (
-  | GraphStylesheet<EdgeStyleType>
-  | (Omit<GraphStylesheet<EdgeStyleType>, 'type'> & {type?: EdgeStyleType})
+  | Extract<GraphStyleRule, {type: EdgeStyleType}>
+  | (Omit<Extract<GraphStyleRule, {type: EdgeStyleType}>, 'type'> & {type?: EdgeStyleType})
 ) & {
   decorators?: GraphLayerEdgeDecoratorStyle[];
   data?: (edges: any[]) => any;
   visible?: boolean;
 };
 
-export type GraphLayerStylesheet = {
+export type GraphLayerStylesheet = GraphStylesheet & {
   nodes?: GraphLayerNodeStyle[];
   edges?: GraphLayerEdgeStyle | GraphLayerEdgeStyle[];
 };

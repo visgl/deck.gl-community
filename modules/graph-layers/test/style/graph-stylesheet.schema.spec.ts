@@ -7,6 +7,8 @@ import {afterEach, describe, it, expect, vi} from 'vitest';
 import {
   GraphStylesheetEngine,
   GraphStylesheetSchema,
+  GraphStyleRuleSchema,
+  type GraphStyleRule,
   type GraphStylesheet
 } from '../../src/style/graph-style-engine';
 import {log as graphLog} from '../../src/utils/log';
@@ -21,7 +23,7 @@ afterEach(() => {
 
 describe('GraphStylesheetSchema', () => {
   it('accepts a valid stylesheet definition', () => {
-    const stylesheet: GraphStylesheet<'circle'> = {
+    const circleRule: GraphStyleRule = {
       type: 'circle',
       fill: '#ffffff',
       radius: {
@@ -33,17 +35,20 @@ describe('GraphStylesheetSchema', () => {
       }
     };
 
+    const stylesheet: GraphStylesheet = {nodes: [circleRule]};
+
+    expect(() => GraphStyleRuleSchema.parse(circleRule)).not.toThrow();
     expect(() => GraphStylesheetSchema.parse(stylesheet)).not.toThrow();
-    expect(() => new GraphStylesheetEngine(stylesheet)).not.toThrow();
+    expect(() => new GraphStylesheetEngine(circleRule)).not.toThrow();
   });
 
   it('reports unknown properties', () => {
     const invalidStylesheet = {
       type: 'circle',
       foo: 'bar'
-    } as unknown as GraphStylesheet;
+    } as unknown as GraphStyleRule;
 
-    const result = GraphStylesheetSchema.safeParse(invalidStylesheet);
+    const result = GraphStyleRuleSchema.safeParse(invalidStylesheet);
     expect(result.success).toBe(false);
     expect(result.success ? [] : result.error.issues.map((issue) => issue.message)).toContain(
       'Unknown style property "foo".'
@@ -66,9 +71,9 @@ describe('GraphStylesheetSchema', () => {
       ':hover': {
         unknown: '#ffffff'
       }
-    } as unknown as GraphStylesheet;
+    } as unknown as GraphStyleRule;
 
-    const result = GraphStylesheetSchema.safeParse(invalidSelectorStylesheet);
+    const result = GraphStyleRuleSchema.safeParse(invalidSelectorStylesheet);
     expect(result.success).toBe(false);
     const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
     expect(messages.some((message) => /Unrecognized key/.test(message) && message.includes('unknown'))).toBe(true);
@@ -88,9 +93,9 @@ describe('GraphStylesheetSchema', () => {
         attribute: '',
         fallback: 4
       }
-    } as unknown as GraphStylesheet;
+    } as unknown as GraphStyleRule;
 
-    const result = GraphStylesheetSchema.safeParse(invalidAttributeReference);
+    const result = GraphStyleRuleSchema.safeParse(invalidAttributeReference);
     expect(result.success).toBe(false);
     expect(result.success ? [] : result.error.issues.map((issue) => issue.message)).toContain(
       'Attribute name is required.'

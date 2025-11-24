@@ -249,7 +249,7 @@ type GraphStylePropertyMap<TType extends GraphStyleType, TValue> = Partial<
 /**
  * Typed representation of a stylesheet definition for a specific graph primitive.
  */
-export type GraphStylesheet<
+export type GraphStyleRule<
   TType extends GraphStyleType = GraphStyleType,
   TValue = GraphStyleLeafValue
 > = {type: TType} &
@@ -580,23 +580,80 @@ const GraphEdgeStylesheetVariants = [
   ArrowStylesheetSchema
 ];
 
-const GraphStylesheetVariants = [
+const GraphStyleRuleVariants = [
   ...GraphNodeStylesheetVariants,
   ...GraphEdgeStylesheetVariants
 ];
 
-type GraphStylesheetVariantSchema = (typeof GraphStylesheetVariants)[number];
+type GraphStyleRuleVariantSchema = (typeof GraphStyleRuleVariants)[number];
 
 /**
  * Schema that validates stylesheet definitions for all graph style primitives.
  */
-export const GraphStylesheetSchema = z.discriminatedUnion(
+export const GraphStyleRuleSchema = z.discriminatedUnion(
   'type',
-  GraphStylesheetVariants as [
-    GraphStylesheetVariantSchema,
-    ...GraphStylesheetVariantSchema[]
+  GraphStyleRuleVariants as [
+    GraphStyleRuleVariantSchema,
+    ...GraphStyleRuleVariantSchema[]
   ]
 );
+
+/**
+ * Runtime type accepted by {@link GraphStylesheetSchema} before validation.
+ */
+export type GraphStyleRuleInput = z.input<typeof GraphStyleRuleSchema>;
+/**
+ * Type returned by {@link GraphStylesheetSchema} after successful parsing.
+ */
+export type GraphStyleRuleParsed = z.infer<typeof GraphStyleRuleSchema>;
+
+const GraphNodeStyleRuleSchema = z.discriminatedUnion(
+  'type',
+  GraphNodeStylesheetVariants as [
+    (typeof GraphNodeStylesheetVariants)[number],
+    ...(typeof GraphNodeStylesheetVariants)[number][]
+  ]
+);
+
+const GraphEdgeStyleRuleSchema = z.discriminatedUnion(
+  'type',
+  GraphEdgeStylesheetVariants as [
+    (typeof GraphEdgeStylesheetVariants)[number],
+    ...(typeof GraphEdgeStylesheetVariants)[number][]
+  ]
+);
+
+const GraphEdgeBaseRuleSchema = z.discriminatedUnion('type', [
+  EdgeUpperStylesheetSchema,
+  EdgeLowerStylesheetSchema
+] as [typeof EdgeUpperStylesheetSchema, typeof EdgeLowerStylesheetSchema]);
+
+const GraphEdgeDecoratorRuleSchema = z.discriminatedUnion(
+  'type',
+  [EdgeLabelStylesheetSchema, FlowStylesheetSchema, ArrowStylesheetSchema] as [
+    typeof EdgeLabelStylesheetSchema,
+    typeof FlowStylesheetSchema,
+    typeof ArrowStylesheetSchema,
+    ...Array<
+      typeof EdgeLabelStylesheetSchema | typeof FlowStylesheetSchema | typeof ArrowStylesheetSchema
+    >
+  ]
+);
+
+const GraphEdgeRuleWithDecoratorsSchema = GraphEdgeBaseRuleSchema.and(
+  z.object({decorators: z.array(GraphEdgeDecoratorRuleSchema).optional()}).strict()
+);
+
+/**
+ * Schema that validates a full graph stylesheet including nodes, edges, and decorators.
+ */
+export const GraphStylesheetSchema = z
+  .object({
+    nodes: z.array(GraphNodeStyleRuleSchema).optional(),
+    edges: z.union([GraphEdgeRuleWithDecoratorsSchema, z.array(GraphEdgeRuleWithDecoratorsSchema)])
+      .optional()
+  })
+  .strict();
 
 /**
  * Runtime type accepted by {@link GraphStylesheetSchema} before validation.
@@ -605,4 +662,13 @@ export type GraphStylesheetInput = z.input<typeof GraphStylesheetSchema>;
 /**
  * Type returned by {@link GraphStylesheetSchema} after successful parsing.
  */
-export type GraphStylesheetParsed = z.infer<typeof GraphStylesheetSchema>;
+export type GraphStylesheet = z.infer<typeof GraphStylesheetSchema>;
+
+/**
+ * Runtime type accepted by {@link GraphStyleRuleSchema} before validation.
+ */
+export type GraphStylesheetRuleInput = GraphStyleRuleInput;
+/**
+ * Type returned by {@link GraphStyleRuleSchema} after successful parsing.
+ */
+export type GraphStylesheetRule = GraphStyleRuleParsed;
