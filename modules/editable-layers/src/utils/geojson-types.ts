@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-// Geometry types
-
 import type {
   Point,
   LineString,
@@ -16,7 +14,7 @@ import type {
   FeatureCollection,
 } from 'geojson';
 
-export { Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon, Position };
+export { Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon, Position, Feature, FeatureCollection };
 
 /** Simple geometries (excludes GeometryCollection) */
 export type SimpleGeometry = Point | LineString | Polygon | MultiPoint | MultiLineString | MultiPolygon;
@@ -33,6 +31,5 @@ export type SimpleGeometryCoordinates = SimpleGeometry['coordinates']
 /** Polygon and MultiPolygon geometries */
 export type PolygonGeometry = Polygon | MultiPolygon;
 
-export { Feature, FeatureCollection } from 'geojson';
-
+/** A Feature or FeatureCollection */
 export type AnyGeoJson = Feature | FeatureCollection;
