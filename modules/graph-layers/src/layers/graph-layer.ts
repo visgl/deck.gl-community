@@ -24,7 +24,6 @@ import {
   normalizeGraphLayerStylesheet,
   type GraphLayerEdgeStyle,
   type GraphLayerNodeStyle,
-  type GraphLayerStylesheet,
   type NormalizedGraphLayerStylesheet
 } from '../style/graph-layer-stylesheet';
 

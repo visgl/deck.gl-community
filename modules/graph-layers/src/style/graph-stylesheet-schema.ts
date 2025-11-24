@@ -6,6 +6,9 @@
 
 import {z, type ZodTypeAny} from 'zod';
 
+import {GRAPH_DECKGL_ACCESSOR_MAP} from './graph-style-accessor-map';
+export {GRAPH_DECKGL_ACCESSOR_MAP};
+
 const GraphStylePrimitiveSchema = z.union([
   z.string(),
   z.number(),
@@ -123,111 +126,7 @@ export const GraphStyleValueSchema = z.union([
  */
 export type GraphStyleValue = z.infer<typeof GraphStyleValueSchema>;
 
-const COMMON_DECKGL_PROPS = {
-  getOffset: 'offset',
-  opacity: 'opacity'
-} as const;
 
-/**
- * Translation table between graph style properties and the underlying deck.gl accessors for
- * each supported style primitive type.
- */
-export const GRAPH_DECKGL_ACCESSOR_MAP = {
-  circle: {
-    ...COMMON_DECKGL_PROPS,
-    getFillColor: 'fill',
-    getLineColor: 'stroke',
-    getLineWidth: 'strokeWidth',
-    getRadius: 'radius'
-  },
-
-  rectangle: {
-    ...COMMON_DECKGL_PROPS,
-    getWidth: 'width',
-    getHeight: 'height',
-    getFillColor: 'fill',
-    getLineColor: 'stroke',
-    getLineWidth: 'strokeWidth'
-  },
-
-  'rounded-rectangle': {
-    ...COMMON_DECKGL_PROPS,
-    getCornerRadius: 'cornerRadius',
-    getRadius: 'radius',
-    getWidth: 'width',
-    getHeight: 'height',
-    getFillColor: 'fill',
-    getLineColor: 'stroke',
-    getLineWidth: 'strokeWidth'
-  },
-
-  'path-rounded-rectangle': {
-    ...COMMON_DECKGL_PROPS,
-    getWidth: 'width',
-    getHeight: 'height',
-    getFillColor: 'fill',
-    getLineColor: 'stroke',
-    getLineWidth: 'strokeWidth',
-    getCornerRadius: 'cornerRadius'
-  },
-
-  label: {
-    ...COMMON_DECKGL_PROPS,
-    getColor: 'color',
-    getText: 'text',
-    getSize: 'fontSize',
-    getTextAnchor: 'textAnchor',
-    getAlignmentBaseline: 'alignmentBaseline',
-    getAngle: 'angle',
-    scaleWithZoom: 'scaleWithZoom',
-    textMaxWidth: 'textMaxWidth',
-    textWordBreak: 'textWordBreak',
-    textSizeMinPixels: 'textSizeMinPixels'
-  },
-
-  marker: {
-    ...COMMON_DECKGL_PROPS,
-    getColor: 'fill',
-    getSize: 'size',
-    getMarker: 'marker',
-    scaleWithZoom: 'scaleWithZoom'
-  },
-
-  Edge: {
-    getColor: 'stroke',
-    getWidth: 'strokeWidth'
-  },
-  edge: {
-    getColor: 'stroke',
-    getWidth: 'strokeWidth'
-  },
-  'edge-label': {
-    getColor: 'color',
-    getText: 'text',
-    getSize: 'fontSize',
-    getTextAnchor: 'textAnchor',
-    getAlignmentBaseline: 'alignmentBaseline',
-    scaleWithZoom: 'scaleWithZoom',
-    textMaxWidth: 'textMaxWidth',
-    textWordBreak: 'textWordBreak',
-    textSizeMinPixels: 'textSizeMinPixels'
-  },
-  flow: {
-    getColor: 'color',
-    getWidth: 'width',
-    getSpeed: 'speed',
-    getTailLength: 'tailLength'
-  },
-  arrow: {
-    getColor: 'color',
-    getSize: 'size',
-    getOffset: 'offset'
-  }
-} as const;
-
-/**
- * Supported graph style primitive identifiers (e.g. `circle`, `edge`).
- */
 export type GraphStyleType = keyof typeof GRAPH_DECKGL_ACCESSOR_MAP;
 
 /**
@@ -591,14 +490,6 @@ const GraphNodeStyleRuleSchema = z.discriminatedUnion(
   GraphNodeStylesheetVariants as [
     (typeof GraphNodeStylesheetVariants)[number],
     ...(typeof GraphNodeStylesheetVariants)[number][]
-  ]
-);
-
-const GraphEdgeStyleRuleSchema = z.discriminatedUnion(
-  'type',
-  GraphEdgeStylesheetVariants as [
-    (typeof GraphEdgeStylesheetVariants)[number],
-    ...(typeof GraphEdgeStylesheetVariants)[number][]
   ]
 );
 

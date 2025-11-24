@@ -11,7 +11,7 @@ import {
   GraphStyleRuleSchema,
   type GraphStyleRule,
   type GraphStyleRuleParsed
-} from './graph-stylesheet.schema';
+} from './graph-stylesheet-schema';
 import {GRAPH_DECKGL_ACCESSOR_MAP} from './graph-style-accessor-map';
 import {warn} from '../utils/log';
 
@@ -40,7 +40,10 @@ function formatStylesheetError(error: ZodError) {
 }
 
 export class GraphStylesheetEngine extends StylesheetEngine {
-  constructor(style: GraphStyleRule, {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}) {
+  constructor(
+    style: GraphStyleRule | GraphStyleRuleParsed,
+    {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}
+  ) {
     const result = GraphStyleRuleSchema.safeParse(style);
     const parsedStyle = result.success
       ? result.data
@@ -66,7 +69,7 @@ export {
   GraphStyleValueSchema,
   GraphStylesheetSchema,
   GraphStyleRuleSchema
-} from './graph-stylesheet.schema';
+} from './graph-stylesheet-schema';
 
 export type {
   GraphStylesheet,
@@ -80,12 +83,15 @@ export type {
   GraphStyleScale,
   GraphStyleScaleType,
   GraphStyleValue
-} from './graph-stylesheet.schema';
+} from './graph-stylesheet-schema';
 
 export {GRAPH_DECKGL_ACCESSOR_MAP} from './graph-style-accessor-map';
 
 // eslint-disable-next-line max-statements, complexity
-function sanitizeStylesheet(style: GraphStyleRule, issues: ZodIssue[]): GraphStyleRuleParsed {
+function sanitizeStylesheet(
+  style: GraphStyleRule | GraphStyleRuleParsed,
+  issues: ZodIssue[]
+): GraphStyleRuleParsed {
   if (issues.length) {
     const details = issues
       .map((issue) => {

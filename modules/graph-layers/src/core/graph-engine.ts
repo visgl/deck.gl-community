@@ -9,7 +9,11 @@ import {ClassicGraph} from '../graph/classic-graph';
 import {GraphLayout, type GraphLayoutEventDetail} from './graph-layout';
 import {Cache} from './cache';
 import {log} from '../utils/log';
-import {GraphStylesheetEngine, type GraphStyleRule} from '../style/graph-style-engine';
+import {
+  GraphStylesheetEngine,
+  type GraphStyleRule,
+  type GraphStyleRuleParsed
+} from '../style/graph-style-engine';
 
 type ClassicGraphEngineProps = {
   graph: ClassicGraph;
@@ -146,8 +150,9 @@ export class GraphEngine {
     return this._graph.findNode?.(nodeId) ?? this._graph.findNodeById?.(nodeId);
   }
 
+  /** Creates a stylesheet engine for a single validated or raw style rule. */
   createStylesheetEngine(
-    style: GraphStyleRule,
+    style: GraphStyleRule | GraphStyleRuleParsed,
     options: {stateUpdateTrigger?: unknown} = {}
   ): GraphStylesheetEngine {
     return new GraphStylesheetEngine(style, options);
