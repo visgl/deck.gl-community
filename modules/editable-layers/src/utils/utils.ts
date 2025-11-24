@@ -7,12 +7,12 @@ import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
 import {point} from '@turf/helpers';
 import {WebMercatorViewport} from 'viewport-mercator-project';
-import {Feature, FeatureWithProps, LineString, Point, Position} from './geojson-types';
+import {Feature, Feature, LineString, Point, Position} from './geojson-types';
 import {Viewport} from './types';
 
 // TODO edit-modes: delete and use edit-modes/utils instead
 
-export type NearestPointType = FeatureWithProps<Point, {dist: number; index: number}>;
+export type NearestPointType = Feature<Point, {dist: number; index: number}>;
 
 export function toDeckColor(
   color?: [number, number, number, number] | number,

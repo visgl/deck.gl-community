@@ -37,6 +37,4 @@ export { Feature, FeatureCollection } from 'geojson';
 
 export type BoundingBoxArray = [number, number, number, number];
 
-export type FeatureWithProps<T extends SimpleGeometry, P> = Feature<T, P>
-
 export type AnyGeoJson = Feature | FeatureCollection;

@@ -19,11 +19,10 @@ import {
   LineString,
   Polygon,
   Feature,
-  FeatureWithProps,
   SimpleGeometryCoordinates
 } from '../utils/geojson-types';
 
-export type NearestPointType = FeatureWithProps<Point, {dist: number; index: number}>;
+export type NearestPointType = Feature<Point, {dist: number; index: number}>;
 
 export function toDeckColor(
   color?: [number, number, number, number] | number,
