@@ -9,7 +9,6 @@ import {
   LineString,
   Polygon,
   MultiPolygon,
-  Feature,
   Feature
 } from '../../src/utils/geojson-types';
 
@@ -43,17 +42,20 @@ let multiPolygon: MultiPolygon = {
 
 let pointFeature: Feature<Point> = {
   type: 'Feature',
-  geometry: point
+  geometry: point,
+  properties: {}
 };
 
 let lineStringFeature: Feature<LineString> = {
   type: 'Feature',
-  geometry: lineString
+  geometry: lineString,
+  properties: {}
 };
 
 let anyFeature: Feature = {
   type: 'Feature',
-  geometry: multiPolygon
+  geometry: multiPolygon,
+  properties: {}
 };
 
 if (Math.random() > 0.5) {
