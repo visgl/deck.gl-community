@@ -42,10 +42,17 @@ export type NormalizedGraphLayerStylesheet = {
   edges: GraphLayerEdgeStyle[];
 };
 
+export const DEFAULT_GRAPH_LAYER_STYLESHEET_INPUT: GraphLayerStylesheet = {
+  nodes: [],
+  edges: [{
+    type: 'edge',
+    stroke: 'black',
+    strokeWidth: 1
+  }]
+};
+
 const DEFAULT_EDGE_STYLE: GraphLayerEdgeStyle = {
-  type: 'edge',
-  stroke: 'black',
-  strokeWidth: 1,
+  ...DEFAULT_GRAPH_LAYER_STYLESHEET_INPUT.edges[0],
   decorators: []
 };
 
