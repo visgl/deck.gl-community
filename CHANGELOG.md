@@ -1,5 +1,13 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.7
+
+- feat(editable-layers): Update to turf 7 and use geojson types (#447)
+- chore(graph-layers): Define explicit graph stylesheet schema (#445)
+- fix(editable-layers): EditableGeoJsonLayerProps typing, expose SelectionLayerProps (#219)
+- fix(editable-layers): propagate EditableGeoJsonLayer accessor updateTriggers to GeoJsonLayer (#446)
+- feat(website) Add screenshot for leaflet gallery example (#444)
+
 ## v9.2.0-beta.6
 
 - chore(leaflet): Attempt to fix script build (#443)
@@ -23,7 +31,8 @@
 - feat(widgets) Add HTML overlay widget example (#427)
 
 ## v9.2.0-beta.3
--  docs: Updates for 9.2.0-beta.3 (#426)
+
+- docs: Updates for 9.2.0-beta.3 (#426)
 - link
 - chore(graph-layers): Clean up excessive LLM changes (#424)
 - chore: Move WIP code into wip folder (#425)
