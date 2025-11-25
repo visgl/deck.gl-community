@@ -107,29 +107,31 @@ export default function App(): ReactElement {
   // Generate sample time-series data as series arrays
 
   const sampleData = useMemo(() => {
-    const _sampleData: Float32Array[] = [];
+    const types = seriesTypes.length ? seriesTypes : ['sine'];
 
-    for (let series = 0; series < 5; series++) {
-      _sampleData.push(generateSeriesData(seriesTypes[series]));
-    }
-
-    return _sampleData;
+    return types.map((type) => generateSeriesData(type ?? 'sine'));
   }, [seriesTypes]);
 
   const data = useMemo(() => {
     const _data: ExampleData[] = [];
 
+    const types = seriesTypes.length ? seriesTypes : ['sine'];
+    const typeCount = types.length;
+    const sampleCount = sampleData.length;
+    const fallbackValues = sampleData[0] ?? generateSeriesData('sine');
+
     for (let series = 0; series < seriesCount; series++) {
+      const type = types[series % typeCount] ?? 'sine';
       _data.push({
         name: `Series ${series + 1}`,
-        type: seriesTypes[series % 5],
-        values: sampleData[series % 5],
+        type,
+        values: sampleData[series % sampleCount] ?? fallbackValues,
         scale: 120
       });
     }
 
     return _data;
-  }, [seriesCount, seriesTypes]);
+  }, [sampleData, seriesCount, seriesTypes]);
 
   // Generate text labels for each series
   const textLabels = useMemo(() => {
@@ -260,17 +262,39 @@ export default function App(): ReactElement {
   ];
 
   return (
-    <div style={{display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden'}}>
-      <div
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) 260px',
+        width: '100vw',
+        height: '100vh'
+      }}
+    >
+      <div style={{minWidth: 0, position: 'relative', overflow: 'hidden'}}>
+        <DeckGL
+          views={new OrthographicView()}
+          initialViewState={INITIAL_VIEW_STATE}
+          controller={true}
+          layers={layers}
+          onHover={(info) => {
+            if (info.coordinate) {
+              setMousePosition([info.coordinate[0], info.coordinate[1]]);
+            } else {
+              setMousePosition(null);
+            }
+          }}
+        />
+      </div>
+      <aside
         style={{
-          width: '350px',
+          width: '260px',
           height: '100vh',
           overflowY: 'auto',
           background: 'rgba(255, 255, 255, 0.95)',
           padding: '15px',
           fontFamily: 'Arial, sans-serif',
-          boxShadow: '2px 0 10px rgba(0,0,0,0.1)',
-          borderRight: '1px solid #ddd'
+          boxShadow: '-2px 0 10px rgba(0,0,0,0.1)',
+          borderLeft: '1px solid #ddd'
         }}
       >
         <div style={{marginBottom: '15px'}}>
@@ -488,22 +512,7 @@ export default function App(): ReactElement {
             />
           </div>
         </div>
-      </div>
-      <div style={{flex: 1, height: '100vh', position: 'relative', overflow: 'hidden'}}>
-        <DeckGL
-          views={new OrthographicView()}
-          initialViewState={INITIAL_VIEW_STATE}
-          controller={true}
-          layers={layers}
-          onHover={(info) => {
-            if (info.coordinate) {
-              setMousePosition([info.coordinate[0], info.coordinate[1]]);
-            } else {
-              setMousePosition(null);
-            }
-          }}
-        />
-      </div>
+      </aside>
     </div>
   );
 }
