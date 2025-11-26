@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import bboxPolygon from '@turf/bbox-polygon';
-import {Position, Polygon, Feature} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from 'geojson';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawRectangleMode extends TwoClickPolygonMode {

@@ -6,7 +6,8 @@ import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import turfTransformTranslate from '@turf/transform-translate';
 import {point} from '@turf/helpers';
-import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
+import {Position} from 'geojson';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
 

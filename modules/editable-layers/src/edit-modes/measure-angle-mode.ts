@@ -3,7 +3,7 @@ import turfCenter from '@turf/center';
 import {memoize} from '../utils/memoize';
 
 import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
-import {FeatureCollection, Position} from '../utils/geojson-types';
+import {FeatureCollection, Position} from 'geojson';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
