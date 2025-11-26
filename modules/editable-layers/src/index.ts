@@ -96,20 +96,11 @@ export type {
 } from './edit-modes/types';
 
 export type {
-  Position,
   SimpleFeature,
   SimpleFeatureCollection,
   SimpleGeometry,
   SimpleGeometryCoordinates,
-  Point,
-  LineString,
-  Polygon,
-  MultiPoint,
-  MultiLineString,
-  MultiPolygon,
   PolygonGeometry,
-  Feature,
-  FeatureCollection,
   AnyGeoJson
 } from './utils/geojson-types';
 

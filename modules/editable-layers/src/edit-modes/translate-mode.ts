@@ -7,7 +7,8 @@ import turfDistance from '@turf/distance';
 import clone from '@turf/clone';
 import {point} from '@turf/helpers';
 import {WebMercatorViewport} from 'viewport-mercator-project';
-import {FeatureCollection, Position, SimpleGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection, Position} from 'geojson';
+import {SimpleGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,

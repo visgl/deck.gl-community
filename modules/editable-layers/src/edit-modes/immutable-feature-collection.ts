@@ -2,16 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  SimpleFeatureCollection,
-  SimpleGeometry,
-  Polygon,
-  MultiLineString,
-  MultiPolygon,
-  Position,
-  SimpleFeature,
-} from '../utils/geojson-types';
-
+import {SimpleFeatureCollection, SimpleGeometry, SimpleFeature} from '../utils/geojson-types';
+import {Polygon, MultiLineString, MultiPolygon, Position} from 'geojson';
 export class ImmutableFeatureCollection {
   featureCollection: Readonly<SimpleFeatureCollection>;
 

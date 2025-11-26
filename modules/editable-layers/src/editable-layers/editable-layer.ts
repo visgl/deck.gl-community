@@ -14,7 +14,7 @@ import {
   PointerMoveEvent,
   DoubleClickEvent
 } from '../edit-modes/types';
-import {Position} from '../utils/geojson-types';
+import {Position} from 'geojson';
 
 const EVENT_TYPES = ['click', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup', 'dblclick'];
 

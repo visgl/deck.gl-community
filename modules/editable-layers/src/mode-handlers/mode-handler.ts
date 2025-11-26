@@ -9,7 +9,8 @@ import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
 
-import {FeatureCollection, Feature, Polygon, SimpleGeometry, Position, PolygonGeometry, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
+import {SimpleGeometry, SimpleFeatureCollection, SimpleFeature, PolygonGeometry} from '../utils/geojson-types';
+import {FeatureCollection, Feature, Polygon, Position} from 'geojson';
 
 import {
   ClickEvent,

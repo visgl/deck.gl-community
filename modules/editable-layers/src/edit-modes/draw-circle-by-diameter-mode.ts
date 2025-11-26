@@ -7,7 +7,7 @@ import distance from '@turf/distance';
 import area from '@turf/area';
 import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
-import {Position, Polygon, Feature, FeatureCollection} from '../utils/geojson-types';
+import {Position, Polygon, Feature, FeatureCollection} from 'geojson';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 

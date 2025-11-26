@@ -21,7 +21,8 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {FeatureCollection, Feature, Polygon, SimpleGeometry, Position, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
+import {SimpleGeometry, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
+import {FeatureCollection, Feature, Polygon, Position} from 'geojson';
 import {getPickedEditHandles, getNonGuidePicks} from './utils';
 import {EditMode} from './edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';

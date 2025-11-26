@@ -6,7 +6,7 @@ import bboxPolygon from '@turf/bbox-polygon';
 import distance from '@turf/distance';
 import ellipse from '@turf/ellipse';
 import {point} from '@turf/helpers';
-import {Position, Polygon, Feature} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from 'geojson';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 

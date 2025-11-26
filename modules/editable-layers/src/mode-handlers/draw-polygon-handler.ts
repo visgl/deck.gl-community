@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Polygon, Position} from '../utils/geojson-types';
+import {Polygon, Position} from 'geojson';
 import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
 import {
   EditAction,

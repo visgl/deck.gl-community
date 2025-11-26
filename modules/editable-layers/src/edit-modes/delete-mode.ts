@@ -1,4 +1,4 @@
-import {FeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection} from 'geojson';
 
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ClickEvent, ModeProps} from './types';

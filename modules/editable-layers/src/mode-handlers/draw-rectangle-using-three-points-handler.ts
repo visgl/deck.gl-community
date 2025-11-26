@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {LineString} from '../utils/geojson-types';
+import {LineString} from 'geojson';
 import {generatePointsParallelToLinePoints} from '../utils/utils';
 import {PointerMoveEvent} from '../edit-modes/types';
 import {EditAction} from './mode-handler';

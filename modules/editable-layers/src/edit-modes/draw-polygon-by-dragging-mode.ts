@@ -4,7 +4,8 @@
 
 import throttle from 'lodash.throttle';
 import {ClickEvent, StartDraggingEvent, StopDraggingEvent, DraggingEvent, ModeProps} from './types';
-import {Polygon, SimpleFeatureCollection} from '../utils/geojson-types';
+import {Polygon} from 'geojson'
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {DrawPolygonMode} from './draw-polygon-mode';
 

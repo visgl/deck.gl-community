@@ -4,7 +4,7 @@
 
 import turfDistance from '@turf/distance';
 import turfMidpoint from '@turf/midpoint';
-import {FeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection} from 'geojson';
 import {
   ClickEvent,
   PointerMoveEvent,

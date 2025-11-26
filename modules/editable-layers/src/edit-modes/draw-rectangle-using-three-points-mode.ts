@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {generatePointsParallelToLinePoints} from './utils';
-import {Position, Polygon, Feature} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from 'geojson';
 import {ThreeClickPolygonMode} from './three-click-polygon-mode';
 
 export class DrawRectangleUsingThreePointsMode extends ThreeClickPolygonMode {

@@ -9,12 +9,9 @@ import type {
   MultiPoint,
   MultiLineString,
   MultiPolygon,
-  Position,
   Feature,
   FeatureCollection,
 } from 'geojson';
-
-export { Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon, Position, Feature, FeatureCollection };
 
 /** Simple geometries (excludes GeometryCollection) */
 export type SimpleGeometry = Point | LineString | Polygon | MultiPoint | MultiLineString | MultiPolygon;

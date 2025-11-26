@@ -12,7 +12,8 @@ import {coordEach} from '@turf/meta';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
 import {getCoord, getGeom} from '@turf/invariant';
-import {FeatureCollection, Position, SimpleFeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection, Position} from 'geojson';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   PointerMoveEvent,

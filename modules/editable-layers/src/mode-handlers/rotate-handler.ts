@@ -5,7 +5,8 @@
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
 import turfTransformRotate from '@turf/transform-rotate';
-import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
+import {Position} from 'geojson';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
 

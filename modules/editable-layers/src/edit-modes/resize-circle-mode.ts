@@ -14,7 +14,8 @@ import {
   getPickedEditHandle,
   NearestPointType
 } from './utils';
-import {LineString, Point, FeatureCollection, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
+import {LineString, Point, FeatureCollection, Feature} from 'geojson';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {Viewport} from '../utils/types';
 import {
   ModeProps,
