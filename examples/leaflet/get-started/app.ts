@@ -1,4 +1,4 @@
-import {DeckLayer} from '@deck.gl-community/leaflet';
+import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
 import * as L from 'leaflet';
@@ -23,7 +23,7 @@ export function exampleApplication() {
   }).addTo(map);
 
   // Add deck.gl overlay
-  const deckLayer = new DeckLayer({
+  const deckOverlay = new DeckOverlay({
     views: [
       new MapView({ repeat: true }),
     ],
@@ -58,5 +58,5 @@ export function exampleApplication() {
     ],
     getTooltip: (info) => info.object && info.object.properties.name
   });
-  map.addLayer(deckLayer);
+  map.addLayer(deckOverlay);
 }

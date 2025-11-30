@@ -3,6 +3,6 @@
   "label": "@deck.gl-community/leaflet",
   "items": [
     "modules/leaflet/README",
-    "modules/leaflet/api-reference/deck-layer"
+    "modules/leaflet/api-reference/deck-overlay"
   ]
 }
