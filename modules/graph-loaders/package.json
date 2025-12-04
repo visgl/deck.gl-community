@@ -1,0 +1,36 @@
+{
+  "name": "@deck.gl-community/graph-loaders",
+  "version": "9.2.0-beta.3",
+  "description": "Graph data loaders and normalization utilities for deck.gl.",
+  "license": "MIT",
+  "keywords": [
+    "graph",
+    "loaders",
+    "visualization",
+    "deck.gl"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

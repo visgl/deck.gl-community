@@ -1,0 +1,7 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/graph-loaders",
+  "items": [
+    "modules/graph-loaders/README"
+  ]
+}

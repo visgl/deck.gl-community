@@ -31,7 +31,11 @@ A new module containing unofficial / experimental widgets for deck.gl, initially
 - `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
 - `PanWidget` - NEW deck.gl `Widget` providing buttons for panning the view.
 
-### `@deck.gl-community/graph-layers` 
+### `@deck.gl-community/graph-loaders` (NEW module)
+
+A scaffold for shared graph loader utilities and typings that will underpin upcoming DOT and JSON graph loaders. The helpers exposed in this release normalize nodes and edges into a consistent `GraphLoaderResult` structure that can be reused by `@deck.gl-community/graph-layers` and other visualization packages.
+
+### `@deck.gl-community/graph-layers`
 
 - [`GraphLayer`](/docs/modules/graph-layers/api-reference/layers/graph-layer)
   - `GraphLayerProps.data` - `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via the new `data` prop (including async URLs).

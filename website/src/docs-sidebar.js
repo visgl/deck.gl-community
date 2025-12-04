@@ -13,6 +13,7 @@ const layerDocs = require('../../docs/modules/layers/sidebar.json');
 
 const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
 const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
+const graphLoaderDocs = require('../../docs/modules/graph-loaders/sidebar.json');
 const editableLayerDocs = require('../../docs/modules/editable-layers/sidebar.json');
 // const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');
 
@@ -50,6 +51,7 @@ const sidebars = {
         layerDocs,
         infovisLayerDocs,
         graphLayerDocs,
+        graphLoaderDocs,
         geoLayerDocs,
         editableLayerDocs,
         // arrowLayerDocs,
