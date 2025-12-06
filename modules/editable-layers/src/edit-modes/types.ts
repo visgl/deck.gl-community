@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Position, Point, SimpleGeometry, Feature} from '../utils/geojson-types';
+import {Position, Point, Feature} from 'geojson';
+import {SimpleGeometry} from '../utils/geojson-types';
 
 export type ScreenCoordinates = [number, number];
 

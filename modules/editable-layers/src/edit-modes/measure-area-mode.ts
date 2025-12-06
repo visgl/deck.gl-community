@@ -5,7 +5,8 @@
 import turfArea from '@turf/area';
 import turfCentroid from '@turf/centroid';
 import {ClickEvent, Tooltip, ModeProps} from './types';
-import {FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection} from 'geojson';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {DrawPolygonMode} from './draw-polygon-mode';
 
 const DEFAULT_TOOLTIPS = [];

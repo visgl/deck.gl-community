@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Position, LineString, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
+import {Position, LineString, FeatureCollection} from 'geojson';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {ClickEvent, PointerMoveEvent, ModeProps, GuideFeatureCollection} from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';

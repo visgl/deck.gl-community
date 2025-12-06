@@ -4,7 +4,7 @@
 
 import {featureCollection} from '@turf/helpers';
 import {PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
-import {FeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection} from 'geojson';
 import {TranslateMode} from './translate-mode';
 import {ScaleMode} from './scale-mode';
 import {RotateMode} from './rotate-mode';

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {FeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection} from 'geojson';
 import {
   ModeProps,
   ClickEvent,
