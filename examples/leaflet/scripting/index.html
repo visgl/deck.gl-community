@@ -3,12 +3,11 @@
 
 <head>
   <meta charset="utf-8">
-  <title>deck-gl.leaflet</title>
+  <title>deck.gl w/ Leaflet example</title>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/deck.gl@9.0.29/dist.min.js"></script>
-  <script src="https://unpkg.com/deck.gl-leaflet@1.3.1/dist/deck.gl-leaflet.umd.min.js"></script>
-  <!-- <script src="../dist/deck.gl-leaflet.umd.min.js"></script> -->
+  <script src="https://unpkg.com/@deck.gl-community/leaflet@9.2.0-beta.8/dist/dist.min.js"></script>
 
   <style>
     body {
@@ -43,7 +42,7 @@
     const latLngs = new Array(9).fill(undefined).map((_, i) => [startLatLng[0] + Math.floor(i / 3) * latDelta, startLatLng[1] + (i % 3) * lngDelta]);
     map.setView([startLatLng[0] + latDelta, startLatLng[1] + lngDelta]);
 
-    const deckLayer = new DeckGlLeaflet.LeafletLayer({
+    const deckOverlay = new deckCommunity.DeckOverlay({
       views: [
         new deck.MapView({
           repeat: true
@@ -72,7 +71,7 @@
       onHover: ({ object }) => object && console.log(object),
       getTooltip: ({ object }) => object && { html: object.id },
     });
-    map.addLayer(deckLayer);
+    map.addLayer(deckOverlay);
 
     const featureGroup = L.featureGroup();
     latLngs.forEach(latLng => {

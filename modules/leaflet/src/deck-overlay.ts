@@ -7,7 +7,7 @@ import type {Deck, DeckProps} from '@deck.gl/core';
 import {createDeckInstance, updateDeckView} from './deck-utils';
 import type {ViewOrViews} from './deck-utils';
 
-export class DeckLayer extends L.Layer {
+export class DeckOverlay extends L.Layer {
   props: DeckProps<ViewOrViews>;
   _container: HTMLDivElement | undefined = undefined;
   _deck: Deck<ViewOrViews> | undefined = undefined;

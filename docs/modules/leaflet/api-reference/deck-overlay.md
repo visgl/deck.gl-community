@@ -1,25 +1,25 @@
-# DeckLayer
+# DeckOverlay
 
-A `DeckLayer` is a leaflet layer that renders deck.gl layers on top of a leaflet base map. `DeckLayer` is an implementation of [L.Layer](https://leafletjs.com/reference.html#layer) and can be interleaved with other Leaflet layers.
+A `DeckOverlay` is a leaflet layer that renders deck.gl layers on top of a leaflet base map. `DeckOverlay` is an implementation of [L.Layer](https://leafletjs.com/reference.html#layer) and can be interleaved with other Leaflet layers.
 
 ```js
-const deckLayer = new DeckLayer({
+const deckOverlay = new DeckOverlay({
   views: [
     new MapView({ repeat: true }),
   ],
   layers: [...],
 });
-map.addLayer(deckLayer);
+map.addLayer(deckOverlay);
 ```
 
 The constructor accepts a props object that is passed to the [Deck](https://deck.gl/docs/api-reference/core/deck) constructor. See the [limitations](#supported-features-and-limitations) section below for more details.
 
-The following [Deck methods](https://deck.gl/docs/api-reference/core/deck#methods) can be called directly from a `DeckLayer` instance:
+The following [Deck methods](https://deck.gl/docs/api-reference/core/deck#methods) can be called directly from a `DeckOverlay` instance:
 
-- `deckLayer.setProps`
-- `deckLayer.pickObject`
-- `deckLayer.pickMultipleObjects`
-- `deckLayer.pickObjects`
+- `deckOverlay.setProps`
+- `deckOverlay.pickObject`
+- `deckOverlay.pickMultipleObjects`
+- `deckOverlay.pickObjects`
 
 ## Supported Features and Limitations
 
