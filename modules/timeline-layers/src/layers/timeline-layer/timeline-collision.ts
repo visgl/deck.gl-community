@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {TimelineClip} from './timeline-utils';
+import {TimelineClip} from './timeline-types';
 
-export interface ClipWithSubtrack extends TimelineClip {
+export type ClipWithSubtrack = TimelineClip & {
   subtrackIndex: number;
 }
 

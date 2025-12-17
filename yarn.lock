@@ -1379,7 +1379,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/infovis-layers@workspace:*, @deck.gl-community/infovis-layers@workspace:modules/infovis-layers":
+"@deck.gl-community/infovis-layers@workspace:modules/infovis-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/infovis-layers@workspace:modules/infovis-layers"
   dependencies:
@@ -19108,11 +19108,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"timeline-layer-c30a2a@workspace:examples/infovis-layers/timeline-layer":
+"timeline-layer-0054e4@workspace:examples/timeline-layers/timeline-layer":
   version: 0.0.0-use.local
-  resolution: "timeline-layer-c30a2a@workspace:examples/infovis-layers/timeline-layer"
+  resolution: "timeline-layer-0054e4@workspace:examples/timeline-layers/timeline-layer"
   dependencies:
-    "@deck.gl-community/infovis-layers": "workspace:*"
+    "@deck.gl-community/timeline-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/layers": "npm:~9.2.1"
     "@deck.gl/react": "npm:~9.2.1"

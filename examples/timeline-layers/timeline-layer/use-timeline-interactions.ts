@@ -3,10 +3,10 @@
 // Copyright (c) vis.gl contributors
 
 import {useCallback} from 'react';
-import {positionToTime} from './timeline-utils';
+import {positionToTime} from '@deck.gl-community/timeline-layers';
 import type {TimelineControlsState} from './demo-controls';
 
-export interface TimelineInteractions {
+export type TimelineInteractions = {
   getTimeFromPosition: (x: number) => number;
   zoomToPoint: (zoomFactor: number, mouseX?: number) => void;
   startPan: (mouseX: number) => void;

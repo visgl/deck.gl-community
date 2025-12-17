@@ -3,13 +3,12 @@
 // Copyright (c) vis.gl contributors
 
 import React, {ReactElement, useMemo, useState} from 'react';
-import {timeAxisFormatters, TimelineTrack, TimelineClip} from './timeline-layer/timeline-utils';
+import {timeAxisFormatters, type TimelineTrack, type TimelineClip, type SelectionStyle} from '@deck.gl-community/timeline-layers';
 import {generateRandomTracks} from './demo-utils';
-import type {SelectionStyle} from './timeline-layer';
 
 const canvasWidth = (typeof window !== 'undefined' ? window.innerWidth : 1280) - 320;
 
-export interface TimelineControlsState {
+export type TimelineControlsState = {
   // Data
   tracks: TimelineTrack[];
 

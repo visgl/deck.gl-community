@@ -4,10 +4,13 @@
 
 import {CompositeLayer, COORDINATE_SYSTEM, PickingInfo, Layer} from '@deck.gl/core';
 import {SolidPolygonLayer, LineLayer, TextLayer} from '@deck.gl/layers';
+import type {CompositeLayerProps} from '@deck.gl/core';
+import type {LineLayerProps, SolidPolygonLayerProps, TextLayerProps} from '@deck.gl/layers';
+
 import {
-  type TimelineLayerProps,
   type TimelineClipInfo,
   type TimelineTrackInfo,
+  type TimelineTrack,
   type TrackWithSubtracks,
   type TrackPosition,
   type TrackBackgroundData,
@@ -20,9 +23,13 @@ import {
   type ScrubberLineData,
   type ScrubberHandleData,
   type ScrubberLabelData,
-  type SelectionStyle,
   type TimeAxisLabelFormatter
 } from './timeline-types';
+
+import { 
+  type SelectionStyle,
+} from './timeline-layout';
+
 import {
   timeAxisFormatters,
   generateTimelineTicks,
@@ -68,6 +75,65 @@ const defaultProps = {
     hoveredLineWidth: 2
   }
 };
+
+// ===== LAYER PROPS =====
+
+export type TimelineLayerProps = CompositeLayerProps & {
+  // Required
+  data: TimelineTrack[];
+  timelineStart: number;
+  timelineEnd: number;
+
+  // Layout
+  x?: number;
+  y?: number;
+  width?: number;
+  trackHeight?: number;
+  trackSpacing?: number;
+
+  // Time
+  currentTimeMs?: number;
+  viewport?: {startMs?: number; endMs?: number};
+  timeFormatter?: TimeAxisLabelFormatter;
+
+  // Selection
+  selectedClipId?: string | number | null;
+  hoveredClipId?: string | number | null;
+  selectedTrackId?: string | number | null;
+  hoveredTrackId?: string | number | null;
+  selectionStyle?: SelectionStyle;
+
+  // Visibility
+  showScrubber?: boolean;
+  showClipLabels?: boolean;
+  showTrackLabels?: boolean;
+  showAxis?: boolean;
+  showSubtrackSeparators?: boolean;
+
+  // Sublayer customization
+  clipProps?: Partial<SolidPolygonLayerProps<ClipPolygonData>>;
+  trackProps?: Partial<SolidPolygonLayerProps<TrackBackgroundData>>;
+  trackLabelProps?: Partial<TextLayerProps<TrackLabelData>>;
+  clipLabelProps?: Partial<TextLayerProps<ClipLabelData>>;
+  axisLineProps?: Partial<LineLayerProps<AxisLineData>>;
+  axisLabelProps?: Partial<TextLayerProps<AxisLabelData>>;
+  scrubberLineProps?: Partial<LineLayerProps<ScrubberLineData>>;
+
+  // Callbacks
+  onClipClick?: (info: TimelineClipInfo, event: PickingInfo) => void;
+  onClipHover?: (info: TimelineClipInfo | null, event: PickingInfo) => void;
+  onTrackClick?: (info: TimelineTrackInfo, event: PickingInfo) => void;
+  onTrackHover?: (info: TimelineTrackInfo | null, event: PickingInfo) => void;
+  onScrubberHover?: (isHovering: boolean, event: PickingInfo) => void;
+  onScrubberDragStart?: (event: PickingInfo) => void;
+  onScrubberDrag?: (timeMs: number, event: PickingInfo) => void;
+  onTimelineClick?: (timeMs: number, event: PickingInfo) => void;
+
+  // Interaction callbacks
+  onCurrentTimeChange?: (timeMs: number) => void;
+  onViewportChange?: (startMs: number, endMs: number) => void;
+  onZoomChange?: (zoomLevel: number) => void;
+}
 
 export class TimelineLayer extends CompositeLayer<TimelineLayerProps> {
   static layerName = 'TimelineLayer';

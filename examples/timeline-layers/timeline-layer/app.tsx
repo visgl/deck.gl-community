@@ -9,8 +9,7 @@ import {createRoot} from 'react-dom/client';
 
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-
-import {TimelineLayer} from './timeline-layer/timeline-layer';
+import {TimelineLayer} from '@deck.gl-community/timeline-layers';
 import {useTimelineControls, TimelineControls} from './demo-controls';
 
 import {

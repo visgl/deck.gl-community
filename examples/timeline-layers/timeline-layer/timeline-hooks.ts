@@ -4,7 +4,7 @@
 
 import {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import type {TimelineLayer, TimelineClipInfo, TimelineTrackInfo} from './timeline-layeri/timeline-layer';
-import {positionToTime} from './timeline-layer/timeline-utils';
+import {positionToTime} from '@deck.gl-community/timeline-layers';
 import type {TimelineControlsState} from './demo-controls';
 
 const DRAG_THRESHOLD = 5;
