@@ -91,8 +91,11 @@ Released: July 8, 2025
 - `GlobalGrid` -  A small abstraction API for global grid decoders, making it easier to write visualizations / applications that can work with multiple global grids.
 - `A5Grid`, `H3Grid`, `S2Grid`, `GeohashGrid`, `QuadkeyGrid` - Pre-defined global grid system "decoders" for some of the most popular global grids that can be used with the `GlobalGridLayer`
 
+**`@deck.gl-community/timeline-layers`** (New module)
+- [`HorizonGraphLayer`](https://visgl.github.io/deck.gl-community/docs/modules/timeline-layers/api-reference/horizon-graph-layer) - New layer for compact time series.
+- [`MultiHorizonGraphLayer`](https://visgl.github.io/deck.gl-community/docs/modules/timeline-layers/api-reference/multi-horizon-graph-layer) - Stack multiple horizon graphs with dividers.
+
 **`@deck.gl-community/infovis-layers`** (New module)
-- [`HorizonGraphLayer`](https://visgl.github.io/deck.gl-community/docs/modules/infovis-layers/api-reference/horizon-graph-layer) - New layer for compact time series.
 - [`TimeAxisLayer`](https://visgl.github.io/deck.gl-community/docs/modules/infovis-layers/api-reference/time-axis-layer) - New layer for a dynamic tick mark time axis.
 - [`VerticalGridLayer`](https://visgl.github.io/deck.gl-community/docs/modules/infovis-layers/api-reference/vertical-grid-layer)
 - Utilities for advanced deck.gl view management - New layer for adding dynamic vertical grid lines that can sync with a time layer.
