@@ -168,7 +168,7 @@ const mockMove = (mode, picks: Pick[], props: ModeProps<FeatureCollection>) => {
   const startDragEvent = createStartDraggingEvent([100, 100], [100, 100], picks);
   mode.handleStartDragging(startDragEvent, props);
 
-  const stopDragEvent = createStopDraggingEvent([110, 115], [100, 100], picks);
+  const stopDragEvent = createStopDraggingEvent([110, 115], [100, 100], picks, picks);
   mode.handleStopDragging(stopDragEvent, props);
 };
 
@@ -197,6 +197,47 @@ test('Rectangular polygon feature preserves shape', () => {
   const movedFeature = mockOnEdit.mock.calls[0][0].updatedData.features[0];
   expect(movedFeature).toMatchSnapshot();
   expect(props.data.features[0]).not.toEqual(movedFeature);
+});
+
+test('Correct coordinate edited when stopping near another guide', () => {
+  const mockOnEdit = vi.fn();
+  const props = createFeatureCollectionProps({
+    data: {
+      type: 'FeatureCollection',
+      features: [lineStringFeature]
+    } as FeatureCollection,
+    selectedIndexes: [0],
+    onEdit: mockOnEdit
+  });
+
+  const mode = new ModifyMode();
+  const guides = mode.getGuides(props);
+  expect(guides).toMatchSnapshot();
+
+  const dragStart = [1, 2];
+  const dragEnd = [3.1, 4.1];
+
+  const pointerDownPicks = [
+    { index: 0, isGuide: true, object: guides.features[0] },
+    { index: 0, object: lineStringFeature }
+  ];
+
+  const stopDragPicks = [
+    { index: 2, isGuide: true, object: guides.features[2] },  // simulate another guide being picked
+    { index: 0, isGuide: true, object: guides.features[0] },
+    { index: 0, object: lineStringFeature }
+  ];
+
+  const startDragEvent = createStartDraggingEvent(dragStart, dragStart, pointerDownPicks);
+  mode.handleStartDragging(startDragEvent, props);
+
+  const stopDragEvent = createStopDraggingEvent(dragEnd, dragStart, stopDragPicks, pointerDownPicks);
+  mode.handleStopDragging(stopDragEvent, props);
+
+  expect(mockOnEdit).toHaveBeenCalledTimes(1);
+
+  const editedFeature = mockOnEdit.mock.calls[0][0].updatedData.features[0];
+  expect(editedFeature).toMatchSnapshot();
 });
 
 describe('getGuides()', () => {
