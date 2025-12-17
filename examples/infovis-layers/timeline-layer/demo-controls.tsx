@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import React, {ReactElement, useMemo, useState} from 'react';
-import {timeAxisFormatters, TimelineTrack, TimelineClip} from './timeline-utils';
+import {timeAxisFormatters, TimelineTrack, TimelineClip} from './timeline-layer/timeline-utils';
 import {generateRandomTracks} from './demo-utils';
 import type {SelectionStyle} from './timeline-layer';
 

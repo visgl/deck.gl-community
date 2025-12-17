@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {OrthographicViewState} from '@deck.gl/core';
 
 import React, {ReactElement, useMemo} from 'react';
+import {createRoot} from 'react-dom/client';
+
+
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
-import {TimelineLayer} from './timeline-layer';
+
+import {TimelineLayer} from './timeline-layer/timeline-layer';
 import {useTimelineControls, TimelineControls} from './demo-controls';
+
 import {
   useTimelineInteractionState,
   useTimelineRefs,
@@ -203,3 +207,8 @@ export default function App(): ReactElement {
     </div>
   );
 }
+
+
+const root = createRoot(document.getElementById('app')!);
+root.render(<App />);
+
