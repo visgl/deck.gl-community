@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-export {TimeAxisLayer, type TimeAxisLayerProps} from './layers/time-axis-layer';
-export {VerticalGridLayer, type VerticalGridLayerProps} from './layers/vertical-grid-layer';
 export {TimeDeltaLayer, type TimeDeltaLayerProps} from './layers/time-delta-layer';
 
 export {fitBoundsOrthographic} from './views/orthographic-utils';

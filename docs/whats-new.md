@@ -94,11 +94,11 @@ Released: July 8, 2025
 **`@deck.gl-community/timeline-layers`** (New module)
 - [`HorizonGraphLayer`](https://visgl.github.io/deck.gl-community/docs/modules/timeline-layers/api-reference/horizon-graph-layer) - New layer for compact time series.
 - [`MultiHorizonGraphLayer`](https://visgl.github.io/deck.gl-community/docs/modules/timeline-layers/api-reference/multi-horizon-graph-layer) - Stack multiple horizon graphs with dividers.
+- [`TimeAxisLayer`](https://visgl.github.io/deck.gl-community/docs/modules/timeline-layers/api-reference/time-axis-layer) - Dynamic tick mark time axis for timeline views.
+- [`VerticalGridLayer`](https://visgl.github.io/deck.gl-community/docs/modules/timeline-layers/api-reference/vertical-grid-layer) - Dynamic vertical grid lines that can sync with a time layer.
 
 **`@deck.gl-community/infovis-layers`** (New module)
-- [`TimeAxisLayer`](https://visgl.github.io/deck.gl-community/docs/modules/infovis-layers/api-reference/time-axis-layer) - New layer for a dynamic tick mark time axis.
-- [`VerticalGridLayer`](https://visgl.github.io/deck.gl-community/docs/modules/infovis-layers/api-reference/vertical-grid-layer)
-- Utilities for advanced deck.gl view management - New layer for adding dynamic vertical grid lines that can sync with a time layer.
+- Utilities for advanced deck.gl view management.
 
 **`@deck.gl-community/graph-layers`**
 - Code base has been partially modernized in an effort to simplify maintenance and contributions.

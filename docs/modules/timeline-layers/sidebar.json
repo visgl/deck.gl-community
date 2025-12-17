@@ -4,6 +4,8 @@
   "items": [
     "modules/timeline-layers/README",
     "modules/timeline-layers/api-reference/horizon-graph-layer",
-    "modules/timeline-layers/api-reference/multi-horizon-graph-layer"
+    "modules/timeline-layers/api-reference/multi-horizon-graph-layer",
+    "modules/timeline-layers/api-reference/time-axis-layer",
+    "modules/timeline-layers/api-reference/vertical-grid-layer"
   ]
 }
