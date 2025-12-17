@@ -3,20 +3,19 @@
 // Copyright (c) vis.gl contributors
 
 import {
-  Feature,
-  FeatureCollection,
-  Geometry,
+  SimpleFeatureCollection,
+  SimpleGeometry,
   Polygon,
   MultiLineString,
   MultiPolygon,
   Position,
-  PolygonCoordinates
+  SimpleFeature,
 } from '../utils/geojson-types';
 
 export class ImmutableFeatureCollection {
-  featureCollection: FeatureCollection;
+  featureCollection: Readonly<SimpleFeatureCollection>;
 
-  constructor(featureCollection: FeatureCollection) {
+  constructor(featureCollection: SimpleFeatureCollection) {
     this.featureCollection = featureCollection;
   }
 
@@ -162,7 +161,7 @@ export class ImmutableFeatureCollection {
     return this.replaceGeometry(featureIndex, updatedGeometry);
   }
 
-  replaceGeometry(featureIndex: number, geometry: Geometry): ImmutableFeatureCollection {
+  replaceGeometry(featureIndex: number, geometry: SimpleGeometry): ImmutableFeatureCollection {
     const updatedFeature: any = {
       ...this.featureCollection.features[featureIndex],
       geometry
@@ -180,11 +179,11 @@ export class ImmutableFeatureCollection {
     return new ImmutableFeatureCollection(updatedFeatureCollection);
   }
 
-  addFeature(feature: Feature): ImmutableFeatureCollection {
+  addFeature(feature: SimpleFeature): ImmutableFeatureCollection {
     return this.addFeatures([feature]);
   }
 
-  addFeatures(features: Feature[]): ImmutableFeatureCollection {
+  addFeatures(features: SimpleFeature[]): ImmutableFeatureCollection {
     const updatedFeatureCollection = {
       ...this.featureCollection,
       features: [...this.featureCollection.features, ...features]
@@ -351,7 +350,7 @@ function immutablyAddPosition(
   ];
 }
 
-function pruneGeometryIfNecessary(geometry: Geometry) {
+function pruneGeometryIfNecessary(geometry: SimpleGeometry) {
   switch (geometry.type) {
     case 'Polygon':
       prunePolygonIfNecessary(geometry);
@@ -413,7 +412,7 @@ function pruneMultiPolygonIfNecessary(geometry: MultiPolygon) {
   }
 }
 
-function removeHoleIfNecessary(polygon: PolygonCoordinates, holeIndex: number) {
+function removeHoleIfNecessary(polygon: Polygon['coordinates'], holeIndex: number) {
   const hole = polygon[holeIndex];
   if (hole.length <= 3) {
     polygon.splice(holeIndex, 1);

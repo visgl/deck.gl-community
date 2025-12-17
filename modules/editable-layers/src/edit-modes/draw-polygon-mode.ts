@@ -5,7 +5,7 @@
 import lineIntersect from '@turf/line-intersect';
 import { polygon as turfPolygon} from '@turf/helpers';
 import booleanWithin from "@turf/boolean-within";
-
+import type {Geometry} from 'geojson'
 
 import {
   ClickEvent,
@@ -16,7 +16,7 @@ import {
   GuideFeature,
   DoubleClickEvent
 } from './types';
-import {Position, FeatureCollection, Geometry} from '../utils/geojson-types';
+import {Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';
@@ -98,7 +98,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   }
 
   // eslint-disable-next-line complexity, max-statements
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
     const clickSequence = this.getClickSequence();
@@ -173,12 +173,12 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     }
   }
 
-  handleDoubleClick(_event: DoubleClickEvent, props: ModeProps<FeatureCollection>) {
+  handleDoubleClick(_event: DoubleClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     this.finishDrawing(props);
     this.resetClickSequence();
   }
 
-  handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>) {
+  handleKeyUp(event: KeyboardEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (event.key === "Enter") {
       this.finishDrawing(props);
       this.resetClickSequence();
@@ -201,7 +201,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   }
 
   // eslint-disable-next-line max-statements, complexity
-  finishDrawing(props: ModeProps<FeatureCollection>) {
+  finishDrawing(props: ModeProps<SimpleFeatureCollection>) {
     const clickSequence = this.getClickSequence();
     const polygon = [...clickSequence, clickSequence[0]];
 
@@ -261,7 +261,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   private tryAddHoleToExistingPolygon(
     newPolygon: any,
     polygon: Position[],
-    props: ModeProps<FeatureCollection>
+    props: ModeProps<SimpleFeatureCollection>
   ): { handled: boolean } {
     for (const [featureIndex, feature] of props.data.features.entries()) {
       if (feature.geometry.type === "Polygon") {
@@ -280,7 +280,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     featureIndex: number,
     newPolygon: any,
     polygon: Position[],
-    props: ModeProps<FeatureCollection>
+    props: ModeProps<SimpleFeatureCollection>
   ): { handled: boolean } {
     const outer = turfPolygon(feature.geometry.coordinates);
 

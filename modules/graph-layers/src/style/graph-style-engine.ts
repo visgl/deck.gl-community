@@ -8,10 +8,10 @@ import {ZodError, type ZodIssue} from 'zod';
 
 import {StylesheetEngine, type DeckGLUpdateTriggers} from './stylesheet-engine';
 import {
-  GraphStylesheetSchema,
-  type GraphStylesheet,
-  type GraphStylesheetParsed
-} from './graph-stylesheet.schema';
+  GraphStyleRuleSchema,
+  type GraphStyleRule,
+  type GraphStyleRuleParsed
+} from './graph-stylesheet-schema';
 import {GRAPH_DECKGL_ACCESSOR_MAP} from './graph-style-accessor-map';
 import {warn} from '../utils/log';
 
@@ -40,13 +40,16 @@ function formatStylesheetError(error: ZodError) {
 }
 
 export class GraphStylesheetEngine extends StylesheetEngine {
-  constructor(style: GraphStylesheet, {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}) {
-    const result = GraphStylesheetSchema.safeParse(style);
+  constructor(
+    style: GraphStyleRule | GraphStyleRuleParsed,
+    {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}
+  ) {
+    const result = GraphStyleRuleSchema.safeParse(style);
     const parsedStyle = result.success
       ? result.data
       : sanitizeStylesheet(style, result.error.issues);
 
-    super(parsedStyle as GraphStylesheet, {
+    super(parsedStyle as GraphStyleRule, {
       deckglAccessorMap: GRAPH_DECKGL_ACCESSOR_MAP,
       deckglUpdateTriggers: GRAPH_DECKGL_UPDATE_TRIGGERS,
       stateUpdateTrigger
@@ -64,12 +67,14 @@ export {
   GraphStyleLeafValueSchema,
   GraphStyleStateMapSchema,
   GraphStyleValueSchema,
-  GraphStylesheetSchema
-} from './graph-stylesheet.schema';
+  GraphStylesheetSchema,
+  GraphStyleRuleSchema
+} from './graph-stylesheet-schema';
 
 export type {
   GraphStylesheet,
-  GraphStylesheetInput,
+  GraphStyleRule,
+  GraphStyleRuleParsed,
   GraphStylesheetParsed,
   GraphStyleSelector,
   GraphStyleType,
@@ -78,12 +83,15 @@ export type {
   GraphStyleScale,
   GraphStyleScaleType,
   GraphStyleValue
-} from './graph-stylesheet.schema';
+} from './graph-stylesheet-schema';
 
 export {GRAPH_DECKGL_ACCESSOR_MAP} from './graph-style-accessor-map';
 
 // eslint-disable-next-line max-statements, complexity
-function sanitizeStylesheet(style: GraphStylesheet, issues: ZodIssue[]): GraphStylesheetParsed {
+function sanitizeStylesheet(
+  style: GraphStyleRule | GraphStyleRuleParsed,
+  issues: ZodIssue[]
+): GraphStyleRuleParsed {
   if (issues.length) {
     const details = issues
       .map((issue) => {
@@ -139,7 +147,7 @@ function sanitizeStylesheet(style: GraphStylesheet, issues: ZodIssue[]): GraphSt
       delete sanitized[rootKey];
     }
 
-    const result = GraphStylesheetSchema.safeParse(sanitized);
+    const result = GraphStyleRuleSchema.safeParse(sanitized);
     if (result.success) {
       return result.data;
     }

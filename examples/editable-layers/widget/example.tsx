@@ -23,7 +23,7 @@ import {
 import StaticMap from 'react-map-gl/maplibre';
 import type {FeatureCollection} from 'geojson';
 
-import '@deck.gl/widgets/dist/stylesheet.css';
+import '@deck.gl/widgets/stylesheet.css';
 
 export function getDefaultGeoJSON(): FeatureCollection {
   return {
@@ -83,7 +83,13 @@ const MODE_OPTIONS: EditModeTrayWidgetModeOption[] = [
     title: 'Draw rectangle',
     label: 'Rectangle'
   },
-  {id: 'draw-circle', mode: DrawCircleFromCenterMode, icon: '◯', title: 'Draw circle', label: 'Circle'},
+  {
+    id: 'draw-circle',
+    mode: DrawCircleFromCenterMode,
+    icon: '◯',
+    title: 'Draw circle',
+    label: 'Circle'
+  },
   {
     id: 'measure-distance',
     mode: MeasureDistanceMode,
@@ -155,7 +161,12 @@ function ControlPanel({modeConfig, onSetModeConfig, onClear, onReset}: ControlPa
       : null;
 
   const buttons: {id: string; label: string; description: string; value: string | null}[] = [
-    {id: 'none', label: 'Edit geometries', description: 'Use edit handles to modify shapes.', value: null},
+    {
+      id: 'none',
+      label: 'Edit geometries',
+      description: 'Use edit handles to modify shapes.',
+      value: null
+    },
     {
       id: 'difference',
       label: 'Subtract',
@@ -179,16 +190,20 @@ function ControlPanel({modeConfig, onSetModeConfig, onClear, onReset}: ControlPa
   return (
     <aside style={CONTROL_PANEL_STYLE}>
       <div>
-        <h2 style={{margin: '0 0 4px', fontSize: '18px', fontWeight: 600}}>Editable layers editor</h2>
+        <h2 style={{margin: '0 0 4px', fontSize: '18px', fontWeight: 600}}>
+          Editable layers editor
+        </h2>
         <p style={{margin: 0, fontSize: '14px', lineHeight: 1.5}}>
-          Select a tool from the mode tray to draw new geometries, measure features, or adjust existing
-          shapes in the scene.
+          Select a tool from the mode tray to draw new geometries, measure features, or adjust
+          existing shapes in the scene.
         </p>
       </div>
 
       <section style={CONTROL_SECTION_STYLE}>
         <h3 style={{margin: 0, fontSize: '15px', fontWeight: 600}}>Boolean operations</h3>
-        <p style={{margin: 0, fontSize: '13px', color: '#cbd5f5'}}>Apply when drawing overlapping polygons.</p>
+        <p style={{margin: 0, fontSize: '13px', color: '#cbd5f5'}}>
+          Apply when drawing overlapping polygons.
+        </p>
         <div style={CONTROL_BUTTON_GROUP_STYLE}>
           {buttons.map((button) => {
             const active = button.value === booleanOperation;
@@ -220,16 +235,16 @@ function ControlPanel({modeConfig, onSetModeConfig, onClear, onReset}: ControlPa
       <section style={{...CONTROL_SECTION_STYLE, marginTop: '4px'}}>
         <h3 style={{margin: 0, fontSize: '15px', fontWeight: 600}}>Dataset</h3>
         <div style={CONTROL_BUTTON_GROUP_STYLE}>
-          <button
-            type="button"
-            style={CONTROL_BUTTON_STYLE}
-            onClick={onReset}
-          >
+          <button type="button" style={CONTROL_BUTTON_STYLE} onClick={onReset}>
             Reset example
           </button>
           <button
             type="button"
-            style={{...CONTROL_BUTTON_STYLE, color: '#fecaca', borderColor: 'rgba(239, 68, 68, 0.7)'}}
+            style={{
+              ...CONTROL_BUTTON_STYLE,
+              color: '#fecaca',
+              borderColor: 'rgba(239, 68, 68, 0.7)'
+            }}
             onClick={onClear}
           >
             Clear features
@@ -301,7 +316,7 @@ export function Example() {
     mode,
     modeConfig,
     selectedFeatureIndexes,
-    onEdit: ({ updatedData }) => {
+    onEdit: ({updatedData}) => {
       setGeoJson(updatedData);
     }
   });

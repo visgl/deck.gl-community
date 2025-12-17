@@ -18,6 +18,7 @@ import type {
   Point as PointType,
   Viewport
 } from '@deck.gl-community/editable-layers';
+import { Feature } from 'geojson';
 
 const Point = {
   type: 'Feature',
@@ -193,7 +194,7 @@ describe('nearestPointOnProjectedLine() and related functions', () => {
     expect(mix(1, 2, 1)).toEqual(2);
   });
   it('nearestPointOnProjectedLine()', () => {
-    const line: FeatureOf<LineStringType> = {
+    const line: Feature<LineStringType> = {
       type: 'Feature',
       geometry: {
         type: 'LineString',
@@ -201,14 +202,16 @@ describe('nearestPointOnProjectedLine() and related functions', () => {
           [0, 0, 0],
           [1, 1, 1]
         ]
-      }
+      }, 
+      properties: {}
     };
-    const inPoint: FeatureOf<PointType> = {
+    const inPoint: Feature<PointType> = {
       type: 'Feature',
       geometry: {
         type: 'Point',
         coordinates: [0.5, 0.5]
-      }
+      }, 
+      properties: {}
     };
     const viewport: Viewport = {
       // @ts-expect-error TODO

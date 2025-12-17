@@ -12,7 +12,7 @@ const packageRoot = join(__dirname, '..');
 const distDir = join(packageRoot, 'dist');
 
 async function loadGraphStylesheetModule() {
-  const schemaPath = join(distDir, 'style', 'graph-stylesheet.schema.js');
+  const schemaPath = join(distDir, 'style', 'graph-stylesheet-schema.js');
   try {
     const moduleUrl = pathToFileURL(schemaPath).href;
     return await import(moduleUrl);

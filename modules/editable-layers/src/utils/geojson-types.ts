@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-// Geometry types
-
 import type {
   Point,
   LineString,
@@ -11,64 +9,27 @@ import type {
   MultiPoint,
   MultiLineString,
   MultiPolygon,
-  Position
+  Position,
+  Feature,
+  FeatureCollection,
 } from 'geojson';
 
-export {Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon, Position};
+export { Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon, Position, Feature, FeatureCollection };
 
-export type PointCoordinates = Position;
-export type LineStringCoordinates = Position[];
-export type PolygonCoordinates = Position[][];
-export type MultiPointCoordinates = Position[];
-export type MultiLineStringCoordinates = Position[][];
-export type MultiPolygonCoordinates = Position[][][];
+/** Simple geometries (excludes GeometryCollection) */
+export type SimpleGeometry = Point | LineString | Polygon | MultiPoint | MultiLineString | MultiPolygon;
 
-export type AnyCoordinates =
-  | PointCoordinates
-  | LineStringCoordinates
-  | PolygonCoordinates
-  | MultiPointCoordinates
-  | MultiLineStringCoordinates
-  | MultiPolygonCoordinates;
+/** Feature with any geometry except GeometryCollection */
+export type SimpleFeature = Feature<SimpleGeometry>
 
-export type Geometry = Point | LineString | Polygon | MultiPoint | MultiLineString | MultiPolygon;
+/** FeatureCollection with any geometries except GeometryCollection */
+export type SimpleFeatureCollection = FeatureCollection<SimpleGeometry>
 
-export type Polygonal = Polygon | MultiPolygon;
+/** Coordinates of any geometry except GeometryCollection */
+export type SimpleGeometryCoordinates = SimpleGeometry['coordinates']
 
-// Feature types
+/** Polygon and MultiPolygon geometries */
+export type PolygonGeometry = Polygon | MultiPolygon;
 
-export type BoundingBoxArray = [number, number, number, number];
-
-export type FeatureOf<T extends Geometry> = {
-  type: 'Feature';
-  geometry: T;
-  properties?: {
-    [key: string]: any;
-  };
-  id?: string | number;
-  bbox?: BoundingBoxArray;
-};
-
-export type FeatureWithProps<T extends Geometry, P> = {
-  type: 'Feature';
-  geometry: T;
-  properties: P;
-};
-
-export type Feature =
-  | FeatureOf<Point>
-  | FeatureOf<LineString>
-  | FeatureOf<Polygon>
-  | FeatureOf<MultiPoint>
-  | FeatureOf<MultiLineString>
-  | FeatureOf<MultiPolygon>;
-
-export type FeatureCollection = {
-  type: 'FeatureCollection';
-  features: Feature[];
-  properties?: {};
-  id?: string | number;
-  bbox?: BoundingBoxArray;
-};
-
+/** A Feature or FeatureCollection */
 export type AnyGeoJson = Feature | FeatureCollection;

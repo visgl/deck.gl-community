@@ -3,11 +3,11 @@
 // Copyright (c) vis.gl contributors
 
 import bboxPolygon from '@turf/bbox-polygon';
-import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawRectangleFromCenterMode extends TwoClickPolygonMode {
-  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
+  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): Feature<Polygon> {
     const longitude =
       coord1[0] > coord2[0]
         ? coord1[0] + Math.abs(coord1[0] - coord2[0])
@@ -21,7 +21,6 @@ export class DrawRectangleFromCenterMode extends TwoClickPolygonMode {
     rectangle.properties = rectangle.properties || {};
     rectangle.properties.shape = 'Rectangle';
 
-    // @ts-expect-error turf typing too wide
     return rectangle;
   }
 }
