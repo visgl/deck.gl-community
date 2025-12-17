@@ -46,9 +46,9 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/infovis-layers',
+      label: '@deck.gl-community/timeline-layers',
       items: [
-        "infovis-layers/horizon-graph-layer"
+        "timeline-layers/horizon-graph-layer"
       ]
     },
     {

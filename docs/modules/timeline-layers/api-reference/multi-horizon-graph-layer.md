@@ -3,7 +3,7 @@
 Render multiple horizon graphs stacked vertically. Each series is drawn using an underlying `HorizonGraphLayer` and optional divider lines.
 
 ```js
-import {MultiHorizonGraphLayer} from '@deck.gl-community/infovis-layers';
+import {MultiHorizonGraphLayer} from '@deck.gl-community/timeline-layers';
 
 new MultiHorizonGraphLayer({
   id: 'multi-horizon',
@@ -56,4 +56,4 @@ Position and size of the entire chart. Defaults: `x:0`, `y:0`, `width:800`, `hei
 
 ## Source
 
-[modules/infovis-layers/src/layers/horizon-graph-layer](https://github.com/visgl/deck.gl/tree/master/modules/infovis-layers/src/layers/horizon-graph-layer)
+[modules/timeline-layers/src/layers/horizon-graph-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/timeline-layers/src/layers/horizon-graph-layer)

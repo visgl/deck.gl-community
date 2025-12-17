@@ -8,7 +8,7 @@ import React, {useState, useMemo, ReactElement} from 'react';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
 import {TextLayer, LineLayer} from '@deck.gl/layers';
-import {MultiHorizonGraphLayer} from '@deck.gl-community/infovis-layers';
+import {MultiHorizonGraphLayer} from '@deck.gl-community/timeline-layers';
 
 const INITIAL_VIEW_STATE: OrthographicViewState = {
   target: [400, 300, 0],

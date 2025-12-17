@@ -3,7 +3,7 @@
 Draws a horizontal time axis with tick marks and labels.
 
 ```js
-import {TimeAxisLayer} from '@deck.gl-community/infovis-layers';
+import {TimeAxisLayer} from '@deck.gl-community/timeline-layers';
 
 new TimeAxisLayer({
   id: 'axis',
@@ -46,4 +46,4 @@ Override viewport bounds for the axis.
 
 ## Source
 
-[modules/infovis-layers/src/layers/time-axis-layer.ts](https://github.com/visgl/deck.gl/tree/master/modules/infovis-layers/src/layers/time-axis-layer.ts)
+[modules/timeline-layers/src/layers/time-axis-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/timeline-layers/src/layers/time-axis-layer.ts)
