@@ -43,6 +43,7 @@ export type {SelectionLayerProps} from './editable-layers/selection-layer';
 export {GeoJsonEditMode} from './edit-modes/geojson-edit-mode';
 
 // Alter modes
+export {DeleteMode} from './edit-modes/delete-mode';
 export {ModifyMode} from './edit-modes/modify-mode';
 export {ResizeCircleMode} from './edit-modes/resize-circle-mode';
 export {TranslateMode} from './edit-modes/translate-mode';
