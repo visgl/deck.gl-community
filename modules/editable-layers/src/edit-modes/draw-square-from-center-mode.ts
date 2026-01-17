@@ -6,7 +6,7 @@ import bboxPolygon from '@turf/bbox-polygon';
 import turfDistance from '@turf/distance';
 import turfAlong from '@turf/along';
 import {point, lineString as turfLineString} from '@turf/helpers';
-import {Position, Polygon, Feature} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from 'geojson';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawSquareFromCenterMode extends TwoClickPolygonMode {

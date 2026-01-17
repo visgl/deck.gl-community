@@ -14,7 +14,8 @@ import turfDestination from '@turf/destination';
 import turfPolygonToLine from '@turf/polygon-to-line';
 import nearestPointOnLine from '@turf/nearest-point-on-line';
 import {generatePointsParallelToLinePoints} from './utils';
-import {FeatureCollection, PolygonGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection} from 'geojson';
+import {PolygonGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,

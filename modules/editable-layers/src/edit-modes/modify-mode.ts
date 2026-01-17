@@ -16,7 +16,8 @@ import {
   NearestPointType,
   shouldCancelPan
 } from './utils';
-import {LineString, Point, Polygon, FeatureCollection, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
+import {LineString, Point, Polygon, FeatureCollection, Feature} from 'geojson';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,
