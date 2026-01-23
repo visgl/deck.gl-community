@@ -251,7 +251,7 @@ type _ExperimentalColumnLayerProps<DataT> = {
   getColor?: Accessor<DataT, Color>;
 
   /**
-   * Fill collor value or accessor.
+   * Fill color value or accessor.
    * @default [0, 0, 0, 255]
    */
   getFillColor?: Accessor<DataT, Color>;
