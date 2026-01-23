@@ -25,6 +25,10 @@ A place for experimental layers developed by deck.gl developers that benefit fro
 
 ## What's New
 
+### `@deck.gl-community/experimental` v9.2.0
+
+- `ExperimentalColumnLayer` - ported from [deck.gl PR #9933](https://github.com/visgl/deck.gl/pull/9933) with custom bevel and radius properties for tree-like visualizations
+
 ### `@deck.gl-community/experimental` v9.0.0
 
 Release date: 2024

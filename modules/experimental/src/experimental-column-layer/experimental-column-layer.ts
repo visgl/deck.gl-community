@@ -297,13 +297,13 @@ type _ExperimentalColumnLayerProps<DataT> = {
 };
 
 /** Render extruded cylinders (tessellated regular polygons) at given coordinates with custom bevel and radius properties. */
-export default class ExperimentalColumnLayer<DataT = any, ExtraPropsT extends {} = {}> extends Layer<
+export class ExperimentalColumnLayer<DataT = any, ExtraPropsT extends {} = {}> extends Layer<
   ExtraPropsT & Required<_ExperimentalColumnLayerProps<DataT>>
 > {
   static layerName = 'ExperimentalColumnLayer';
   static defaultProps = defaultProps;
 
-  state!: {
+  declare state: {
     fillModel?: Model;
     wireframeModel?: Model;
     models?: Model[];
