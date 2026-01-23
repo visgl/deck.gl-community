@@ -42,11 +42,13 @@
     "@luma.gl/shadertools": "~9.2.0",
     "@math.gl/core": "^4.0.0",
     "a5-js": "^0.5.0",
-    "h3-js": "^4.2.1"
+    "h3-js": "^4.2.1",
+    "supercluster": "^8.0.1"
   },
   "devDependencies": {
     "@deck.gl/test-utils": "~9.2.1",
     "@luma.gl/webgpu": "~9.2.0",
-    "@probe.gl/test-utils": "^4.0.4"
+    "@probe.gl/test-utils": "^4.0.4",
+    "@types/supercluster": "^7.1.3"
   }
 }
