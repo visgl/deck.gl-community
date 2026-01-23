@@ -7,3 +7,6 @@ export {DataDrivenTile3DLayer} from './data-driven-tile-3d-layer/data-driven-til
 export {colorizeTile} from './data-driven-tile-3d-layer/utils/colorize-tile';
 export {filterTile} from './data-driven-tile-3d-layer/utils/filter-tile';
 
+export {ExperimentalColumnLayer} from './experimental-column-layer/experimental-column-layer';
+export type {BevelProp, ExperimentalColumnLayerProps} from './experimental-column-layer/experimental-column-layer';
+
