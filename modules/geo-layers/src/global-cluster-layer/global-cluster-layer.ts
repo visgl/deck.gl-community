@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, Layer, UpdateParameters, DefaultProps} from '@deck.gl/core';
+import {CompositeLayer, Layer} from '@deck.gl/core';
+import type {UpdateParameters, DefaultProps} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-// @ts-ignore
+// @ts-expect-error - Supercluster does not have TypeScript types in ESM format
 import Supercluster from 'supercluster';
 
 import type {
@@ -301,17 +302,18 @@ export default class GlobalClusterLayer extends CompositeLayer<GlobalClusterLaye
     for (const cluster of clusters) {
       const opacity = this._calculateOpacity(cluster.geometry.coordinates);
 
-      if (opacity <= 0) continue; // Skip invisible
+      // Skip invisible points
+      if (opacity > 0) {
+        const stableId = this._getStableId(cluster, z);
 
-      const stableId = this._getStableId(cluster, z);
+        const dataPoint: ClusteredPoint = {
+          ...cluster,
+          id: stableId,
+          opacity
+        };
 
-      const dataPoint: ClusteredPoint = {
-        ...cluster,
-        id: stableId,
-        opacity
-      };
-
-      outputData.push(dataPoint);
+        outputData.push(dataPoint);
+      }
     }
 
     this.setState({
