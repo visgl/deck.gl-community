@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {beforeEach, describe, it, expect} from 'vitest';
-import {DrawPolygonMode} from '../../../src/edit-modes/draw-polygon-mode';
-import {createFeatureCollectionProps, createClickEvent, createKeyboardEvent, createPolygonFeature} from '../test-utils';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { DrawPolygonMode } from '../../../src/edit-modes/draw-polygon-mode';
+import { createFeatureCollectionProps, createClickEvent, createKeyboardEvent, createPolygonFeature } from '../test-utils';
 
 let props;
 let mode;
@@ -238,6 +238,40 @@ describe('allowSelfIntersection configuration', () => {
       expect(lastCall.editType).toEqual('addFeature');
       expect(lastCall.updatedData.features).toHaveLength(1);
     });
+
+    const problematicCases = [
+      {
+        id: "bug #468 sample 1",
+        points: [
+          [-463.1766819787967, 41.94307727449003],
+          [-244.6011535531405, -31.16087614383743],
+          [-197.14329094381102, 51.47779223050312]
+        ]
+      },
+      {
+        id: "bug #468 sample 2",
+        points: [
+          [-106.22991363769192, 70.8818305017697],
+          [101.74292155276433, -42.1969313005887],
+          [114.26826020077992, 65.72708538083907]
+        ]
+      }
+    ];
+    problematicCases.forEach((testCase) => {
+      // eslint-disable-next-line max-nested-callbacks
+      it(`allows creating valid non-intersecting polygons -  ${testCase.id}`, () => {
+        mode.handleClick(createClickEvent(testCase.points[0]), props);
+        mode.handleClick(createClickEvent(testCase.points[1]), props);
+        mode.handleClick(createClickEvent(testCase.points[2]), props);
+        mode.finishDrawing(props);
+
+        const lastCall = props.onEdit.mock.calls[props.onEdit.mock.calls.length - 1][0];
+        // This should be 'addFeature' for a valid non-intersecting polygon,
+        expect(lastCall.editType).toEqual('addFeature');
+        expect(lastCall.updatedData.features).toHaveLength(1);
+
+      });
+    })
   });
 
   describe('when allowSelfIntersection is true', () => {
