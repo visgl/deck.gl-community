@@ -43,7 +43,7 @@
     "@math.gl/core": "^4.0.0",
     "a5-js": "^0.5.0",
     "h3-js": "^4.2.1",
-    "supercluster": "^8.0.1"
+    "supercluster": "^7.1.5"
   },
   "devDependencies": {
     "@deck.gl/test-utils": "~9.2.1",

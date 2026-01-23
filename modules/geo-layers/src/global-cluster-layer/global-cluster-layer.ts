@@ -3,12 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import {CompositeLayer, Layer} from '@deck.gl/core';
-import type {UpdateParameters, DefaultProps} from '@deck.gl/core';
-import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-// @ts-expect-error - Supercluster does not have TypeScript types in ESM format
-import Supercluster from 'supercluster';
-
 import type {
+  UpdateParameters,
+  DefaultProps,
   PickingInfo,
   Accessor,
   Position,
@@ -16,6 +13,8 @@ import type {
   LayerProps,
   AccessorContext
 } from '@deck.gl/core';
+import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
+import Supercluster from 'supercluster';
 import type {PointFeature, ClusterFeature, ClusterProperties} from 'supercluster';
 
 type ClusterData = Record<string, unknown>;
@@ -396,20 +395,6 @@ export default class GlobalClusterLayer extends CompositeLayer<GlobalClusterLaye
     if (dot <= fadeEndCos) return 0;
     const fadeRange = fadeStartCos - fadeEndCos;
     return (dot - fadeEndCos) / fadeRange;
-  }
-
-  /**
-   * Calculate radius based on count (if sizeByCount enabled)
-   */
-  _calculateRadius(count: number): number {
-    if (!this.props.sizeByCount) {
-      return this.props.clusterRadiusMinPixels || 20;
-    }
-
-    const baseRadius = this.props.clusterRadiusMinPixels || 20;
-    const maxRadius = this.props.clusterRadiusMaxPixels || 100;
-    const scale = Math.log10(count + 1) / 3; // 0-1 range for 1-1000 points
-    return baseRadius + (maxRadius - baseRadius) * scale;
   }
 
   getPickingInfo({
