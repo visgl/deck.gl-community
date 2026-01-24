@@ -1582,6 +1582,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@deck.gl/mapbox@npm:~9.2.1":
+  version: 9.2.6
+  resolution: "@deck.gl/mapbox@npm:9.2.6"
+  dependencies:
+    "@luma.gl/constants": "npm:^9.2.6"
+    "@math.gl/web-mercator": "npm:^4.1.0"
+  peerDependencies:
+    "@deck.gl/core": ~9.2.0
+    "@luma.gl/constants": ~9.2.6
+    "@luma.gl/core": ~9.2.6
+    "@math.gl/web-mercator": ^4.1.0
+  checksum: 10c0/25fc77a01bc267a196cfeb497a9e6de852ca38d86987a0d4398681a94b3d12c12c5fc604e6525edacf061270802fef2e0764ee64d30e241e019e104ec38d7929
+  languageName: node
+  linkType: hard
+
 "@deck.gl/mesh-layers@npm:~9.2.1":
   version: 9.2.2
   resolution: "@deck.gl/mesh-layers@npm:9.2.2"
@@ -2837,6 +2852,13 @@ __metadata:
   version: 9.2.4
   resolution: "@luma.gl/constants@npm:9.2.4"
   checksum: 10c0/673cf26cfd8b0456e6e992814038685aed7358728c7eec2373cbca3b1e626bf4a945c111dc8f031c7368f9ef8a959e3c3f988223ba03691928cb599e093d0cac
+  languageName: node
+  linkType: hard
+
+"@luma.gl/constants@npm:^9.2.6":
+  version: 9.2.6
+  resolution: "@luma.gl/constants@npm:9.2.6"
+  checksum: 10c0/4eaf895de51faba4a90ca98e6a117bc07768da6c3c7f6b5ace463814ceed64c8cdbfce262806d95857f26ce1cefc885b9940779d4461a78bf30317ceeaacc982
   languageName: node
   linkType: hard
 
@@ -12156,6 +12178,25 @@ __metadata:
   checksum: 10c0/75aa594231769d292102615da3199320359bfb566e96dae0f89a5773a18e21c676709d9f5a9fb1372f7d2cf25c551a4efe53691ff436d941f95336931777c15d
   languageName: node
   linkType: hard
+
+"interleaved-dd87b0@workspace:examples/editable-layers/interleaved":
+  version: 0.0.0-use.local
+  resolution: "interleaved-dd87b0@workspace:examples/editable-layers/interleaved"
+  dependencies:
+    "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.2.1"
+    "@deck.gl/layers": "npm:~9.2.1"
+    "@deck.gl/mapbox": "npm:~9.2.1"
+    "@types/react": "npm:^18.3.3"
+    "@types/react-dom": "npm:^18.3.0"
+    maplibre-gl: "npm:^4.1.3"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    react-map-gl: "npm:^7.1.7"
+    typescript: "npm:^5.4.4"
+    vite: "npm:7.1.1"
+  languageName: unknown
+  linkType: soft
 
 "internal-slot@npm:^1.1.0":
   version: 1.1.0

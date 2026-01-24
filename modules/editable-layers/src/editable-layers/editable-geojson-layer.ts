@@ -598,12 +598,22 @@ export class EditableGeoJsonLayer extends EditableLayer<
     const mode = this.getActiveMode();
     mode.handleStartDragging(event, this.getModeProps(this.props));
 
-    // Check if the mode is handling this drag (e.g., TranslateMode when a feature is selected)
-    // Fire callback to allow coordination with external map controllers
-    if (!this.state.isDragging) {
+    // Only fire callback if we're dragging a selected feature
+    // This allows coordination with external map controllers (e.g., MapboxOverlay)
+    const isDraggingSelection = this.isPickingSelectedFeature(event.picks);
+    if (isDraggingSelection && !this.state.isDragging) {
       this.setState({isDragging: true});
       this.props.onDragStateChange?.(true);
     }
+  }
+
+  // Check if any of the picks are on a selected feature
+  private isPickingSelectedFeature(picks: any[]): boolean {
+    if (!picks?.length || !this.props.selectedFeatureIndexes?.length) {
+      return false;
+    }
+    const selectedSet = new Set(this.props.selectedFeatureIndexes);
+    return picks.some((pick) => pick.index !== undefined && selectedSet.has(pick.index));
   }
 
   onDragging(event: DraggingEvent): void {
