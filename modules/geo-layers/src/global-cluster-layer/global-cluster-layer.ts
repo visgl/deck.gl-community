@@ -134,7 +134,7 @@ export default class GlobalClusterLayer extends CompositeLayer<GlobalClusterLaye
   static layerName = 'GlobalClusterLayer';
   static defaultProps = defaultProps;
 
-  state!: {
+  declare state: {
     data: ClusteredPoint[];
     index: Supercluster;
     z: number;
