@@ -7,6 +7,11 @@ export {TileSourceLayer} from './tile-source-layer/tile-source-layer';
 
 export {GlobalGridLayer, type GlobalGridLayerProps} from './global-grid-layer/global-grid-layer';
 
+export {
+  default as GlobalClusterLayer,
+  type GlobalClusterLayerProps
+} from './global-cluster-layer/global-cluster-layer';
+
 export {type GlobalGrid} from './global-grid-systems/grids/global-grid';
 export {A5Grid} from './global-grid-systems/grids/a5-grid';
 export {H3Grid} from './global-grid-systems/grids/h3-grid';

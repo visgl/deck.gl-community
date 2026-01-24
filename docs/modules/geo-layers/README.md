@@ -16,6 +16,22 @@ The deck.gl-community repo is specifically set up to collect useful code that no
 npm install @deck.gl-community/geo-layers
 ```
 
+## Layers
+
+### [GlobalClusterLayer](./api-reference/global-cluster-layer.md)
+
+A composite layer that clusters points and displays them with text-based count labels. Provides full support for both 2D maps and 3D globe projections with dynamic clustering adjustments.
+
+- Automatic clustering using Supercluster algorithm
+- Dynamic text labels showing actual cluster counts
+- Globe support with FOV-based visibility filtering
+- Optional dynamic clustering for accurate counts as viewport changes
+- Visual scaling with `sizeByCount` option
+
+### [GlobalGridLayer](./api-reference/global-grid-layer.md)
+
+A layer for rendering global grid systems (H3, S2, Geohash, A5, Quadkey).
+
 ## Background
 
 This modules exports various geospatial deck.gl layers developed by the community that could be of use to others.

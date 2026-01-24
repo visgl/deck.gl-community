@@ -1329,7 +1329,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/geo-layers@workspace:modules/geo-layers":
+"@deck.gl-community/geo-layers@workspace:*, @deck.gl-community/geo-layers@workspace:modules/geo-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/geo-layers@workspace:modules/geo-layers"
   dependencies:
@@ -1344,8 +1344,10 @@ __metadata:
     "@luma.gl/webgpu": "npm:~9.2.0"
     "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.0.4"
+    "@types/supercluster": "npm:^7.1.3"
     a5-js: "npm:^0.5.0"
     h3-js: "npm:^4.2.1"
+    supercluster: "npm:^7.1.5"
   languageName: unknown
   linkType: soft
 
@@ -11301,6 +11303,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"global-cluster-globe-448f52@workspace:examples/geo-layers/global-cluster-globe":
+  version: 0.0.0-use.local
+  resolution: "global-cluster-globe-448f52@workspace:examples/geo-layers/global-cluster-globe"
+  dependencies:
+    "@deck.gl-community/geo-layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.2.1"
+    "@deck.gl/layers": "npm:~9.2.1"
+    "@deck.gl/react": "npm:~9.2.1"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    vite: "npm:7.1.1"
+  languageName: unknown
+  linkType: soft
+
 "global-modules@npm:^1.0.0":
   version: 1.0.0
   resolution: "global-modules@npm:1.0.0"
@@ -13211,6 +13227,13 @@ __metadata:
   version: 6.0.2
   resolution: "just-diff@npm:6.0.2"
   checksum: 10c0/1931ca1f0cea4cc480172165c189a84889033ad7a60bee302268ba8ca9f222b43773fd5f272a23ee618d43d85d3048411f06b635571a198159e9a85bb2495f5c
+  languageName: node
+  linkType: hard
+
+"kdbush@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "kdbush@npm:3.0.0"
+  checksum: 10c0/3fc8795870bd04f60627e7345b26fd0644beb91bc4164912c9d9378b39c674ba01c31db68ecaf6266d51c9ad81bf5b770b7effa51eeee37553d38293a094a686
   languageName: node
   linkType: hard
 
@@ -18771,6 +18794,15 @@ __metadata:
   version: 4.3.2
   resolution: "stylis@npm:4.3.2"
   checksum: 10c0/0410e1404cbeee3388a9e17587875211ce2f014c8379af0d1e24ca55878867c9f1ccc7b0ce9a156ca53f5d6e301391a82b0645522a604674a378b3189a4a1994
+  languageName: node
+  linkType: hard
+
+"supercluster@npm:^7.1.5":
+  version: 7.1.5
+  resolution: "supercluster@npm:7.1.5"
+  dependencies:
+    kdbush: "npm:^3.0.0"
+  checksum: 10c0/bbebf45927d0019831731c94b78d1c9a1f3e2da0be9875d7ea75c6f261487e0f15d3f1822a9a49256e3c1672bdfb9138f9a5e44e2de99edb06cd1e758083e12d
   languageName: node
   linkType: hard
 
