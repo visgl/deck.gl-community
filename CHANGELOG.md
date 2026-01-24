@@ -1,5 +1,12 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.8
+
+- feat(geo-layers): Add GlobalClusterLayer - Supercluster-based point clustering with globe visibility support (#469)
+- feat(timeline-layers): Add timeline-layers module (#458)
+- fix(leaflet): Rename DeckLayer to DeckOverlay (#454)
+- fix(graph-layers): Update import path for stylesheet (#448)
+
 ## v9.2.0-beta.7
 
 - feat(editable-layers): Update to turf 7 and use geojson types (#447)
