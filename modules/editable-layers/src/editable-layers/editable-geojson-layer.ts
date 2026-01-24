@@ -121,6 +121,18 @@ export type EditableGeoJsonLayerProps<DataT = any> = EditableLayerProps & {
   modeConfig?: any;
   selectedFeatureIndexes?: number[];
   onEdit?: (editAction: EditAction<DataT>) => void;
+  /**
+   * Callback fired when the layer starts or stops dragging a feature.
+   * Useful for coordinating with external map controllers (e.g., MapboxOverlay in interleaved mode)
+   * where deck.gl's event.stopImmediatePropagation() doesn't prevent map panning.
+   *
+   * @example
+   * // With react-map-gl and MapboxOverlay
+   * onDragStateChange={(isDragging) => {
+   *   map.dragPan[isDragging ? 'disable' : 'enable']();
+   * }}
+   */
+  onDragStateChange?: (isDragging: boolean) => void;
 
   pickable?: boolean;
   pickingRadius?: number;
@@ -180,6 +192,7 @@ const defaultProps: DefaultProps<EditableGeoJsonLayerProps<any>> = {
 
   // Edit and interaction events
   onEdit: () => {},
+  onDragStateChange: () => {},
 
   pickable: true,
   pickingRadius: 10,
@@ -286,6 +299,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
     tentativeFeature?: Feature;
     editHandles: any[];
     selectedFeatures: Feature[];
+    isDragging: boolean;
   } = undefined!;
 
   // setState: ($Shape<State>) => void;
@@ -352,7 +366,8 @@ export class EditableGeoJsonLayer extends EditableLayer<
 
     this.setState({
       selectedFeatures: [],
-      editHandles: []
+      editHandles: [],
+      isDragging: false
     });
   }
 
@@ -580,7 +595,15 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onStartDragging(event: StartDraggingEvent): void {
-    this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
+    const mode = this.getActiveMode();
+    mode.handleStartDragging(event, this.getModeProps(this.props));
+
+    // Check if the mode is handling this drag (e.g., TranslateMode when a feature is selected)
+    // Fire callback to allow coordination with external map controllers
+    if (!this.state.isDragging) {
+      this.setState({isDragging: true});
+      this.props.onDragStateChange?.(true);
+    }
   }
 
   onDragging(event: DraggingEvent): void {
@@ -589,6 +612,12 @@ export class EditableGeoJsonLayer extends EditableLayer<
 
   onStopDragging(event: StopDraggingEvent): void {
     this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
+
+    // Fire callback to allow coordination with external map controllers
+    if (this.state.isDragging) {
+      this.setState({isDragging: false});
+      this.props.onDragStateChange?.(false);
+    }
   }
 
   onPointerMove(event: PointerMoveEvent): void {
