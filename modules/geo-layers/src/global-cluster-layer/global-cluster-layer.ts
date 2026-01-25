@@ -535,9 +535,10 @@ export default class GlobalClusterLayer extends CompositeLayer<GlobalClusterLaye
           fontWeight: fontWeight || 'bold',
           billboard: true,
           sizeUnits: 'pixels' as const,
-          // GlobeView fix: disable face culling so text renders from all angles
+          // GlobeView fix: disable face culling and depth test so text renders properly
           parameters: {
-            cullMode: 'none'
+            cullMode: 'none',
+            depthTest: false
           }
         })
       ),
