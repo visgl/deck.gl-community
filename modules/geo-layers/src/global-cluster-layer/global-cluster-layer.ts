@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, Layer} from '@deck.gl/core';
+import {CompositeLayer, Layer, _GlobeViewport} from '@deck.gl/core';
 import type {
   UpdateParameters,
   DefaultProps,
@@ -327,7 +327,9 @@ export default class GlobalClusterLayer extends CompositeLayer<GlobalClusterLaye
    */
   _calculateOpacity(coordinates: number[]): number {
     const viewport = this.context.viewport;
-    if (!viewport || viewport.constructor.name !== 'GlobeViewport') {
+    // Use instanceof instead of constructor.name to work in production builds
+    // where class names are minified
+    if (!viewport || !(viewport instanceof _GlobeViewport)) {
       return 1;
     }
 
