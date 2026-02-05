@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>GlobalClusterLayer on Globe - deck.gl</title>
+  <style>
+    body {margin: 0; width: 100vw; height: 100vh; overflow: hidden;}
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: Monaco, monospace;
+      font-size: 12px;
+      pointer-events: none;
+      max-width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <strong>GlobalClusterLayer on Globe</strong><br/>
+    Zoom in/out to see clustering in action<br/>
+    Hover over clusters to see point counts
+  </div>
+</body>
+<script type="module" src="index.tsx"></script>
+</html>
