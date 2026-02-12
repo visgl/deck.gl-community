@@ -345,7 +345,8 @@ export function createStartDraggingEvent(
 export function createStopDraggingEvent(
   mapCoords: Position,
   pointerDownMapCoords: Position,
-  picks: Pick[] = []
+  picks: Pick[] = [],
+  pointerDownPicks: Pick[] | null = null
 ): StopDraggingEvent {
   lastCoords = mapCoords;
 
@@ -353,7 +354,7 @@ export function createStopDraggingEvent(
     screenCoords: [-1, -1],
     mapCoords,
     picks,
-    pointerDownPicks: null,
+    pointerDownPicks,
     pointerDownScreenCoords: [-1, -1],
     pointerDownMapCoords,
     sourceEvent: null
