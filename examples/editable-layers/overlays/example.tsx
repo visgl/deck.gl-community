@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import StaticMap from 'react-map-gl/maplibre';
+import {h} from 'preact';
 import {INITIAL_COORDS, INITIAL_VIEW_STATE} from './constants';
-import {HtmlOverlay, HtmlOverlayItem} from '@deck.gl-community/react';
+import {HtmlOverlayItem, HtmlOverlayWidget} from '@deck.gl-community/widgets';
 import type {WikipediaEntry} from './types';
 
 const styles = {
@@ -49,6 +50,7 @@ const getWikipediaEntriesNearby = async ({lon, lat}) => {
 
 const Example = () => {
   const [data, setData] = useState<WikipediaEntry[] | null>(null);
+  const overlayWidget = useMemo(() => new HtmlOverlayWidget({id: 'wikipedia-overlay'}), []);
 
   useEffect(() => {
     getWikipediaEntriesNearby({lon: INITIAL_COORDS.lon, lat: INITIAL_COORDS.lat}).then((d) => {
@@ -59,25 +61,33 @@ const Example = () => {
     });
   }, [setData]);
 
+  useEffect(() => {
+    if (!data) {
+      overlayWidget.setProps({items: undefined});
+      return;
+    }
+
+    const items = data.map((feature) =>
+      h(
+        HtmlOverlayItem,
+        {
+          key: feature.pageid,
+          coordinates: [feature.coordinates[0].lon, feature.coordinates[0].lat]
+        },
+        h('img', {
+          src: feature.thumbnail.source,
+          style: {background: 'cover', width: '50px', height: '50px'}
+        })
+      )
+    );
+
+    overlayWidget.setProps({items});
+  }, [data, overlayWidget]);
+
   return (
     <div style={styles.mapContainer}>
-      <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={true}>
+      <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={true} widgets={[overlayWidget]}>
         <StaticMap mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
-        {data ? (
-          <HtmlOverlay>
-            {data.map((feature) => (
-              <HtmlOverlayItem
-                key={feature.pageid}
-                coordinates={[feature.coordinates[0].lon, feature.coordinates[0].lat]}
-              >
-                <img
-                  src={feature.thumbnail.source}
-                  style={{background: 'cover', width: '50px', height: '50px'}}
-                />
-              </HtmlOverlayItem>
-            ))}
-          </HtmlOverlay>
-        ) : null}
       </DeckGL>
     </div>
   );

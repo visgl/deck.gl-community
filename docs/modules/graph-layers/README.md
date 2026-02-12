@@ -1,15 +1,17 @@
 # Overview
 
-:::danger
-The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
-:::
-
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
 `graph-layers` is a deck.gl layer pack for GPU-powered visualization of large graphs. 
 
-With graph-layers, developers can build various type of graph/network applications with minimum effort. 
+:::danger
+The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
+:::
+
+## Overview
+
+With graph-layers, developers can build various type of graph/network applications with minimal effort. 
 The composable API enables highly customizable graph visualization by leveraging or even extending the provided graph *styles* and *layout algorithms*.
 
 ## History
@@ -19,9 +21,14 @@ bringing the graph.gl code up-to-date with the latest deck.gl versions.
 
 ## What's New
 
-### `@deck.gl-community/graph-layers` v9.0.0 (In development)
+### `@deck.gl-community/graph-layers` 
 
-Target Release date: April 2024
+- Graph styles: edge decorator `'arrow'` renders arrows on directional edges.
+- Graph styles: style constants are now lowercase strings. Replace `NODE_TYPE.CIRCLE` with `'circle'`, `EDGE_TYPE.LINE` with `'line'` etc.
+
+### `@deck.gl-community/graph-layers` 
+
+Release date: April 2024
 
 The graph-layers module has been repackaged as a deck.gl "layer pack" with additional features, and has been modernized in terms of: 
 - upgraded to work with deck.gl v9 

@@ -7,7 +7,7 @@
 import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
-import {polygon} from '@turf/helpers';
+import {featureCollection, polygon} from '@turf/helpers';
 import turfBuffer from '@turf/buffer';
 import turfDifference from '@turf/difference';
 
@@ -31,7 +31,8 @@ const MODE_CONFIG_MAP = {
   [SELECTION_TYPE.RECTANGLE]: {dragToDraw: true}
 };
 
-interface SelectionLayerProps<DataT> extends CompositeLayerProps {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export interface SelectionLayerProps<DataT> extends CompositeLayerProps {
   layerIds: any[];
   onSelect: (info: any) => any;
   selectionType: string | null;
@@ -120,7 +121,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     try {
       // turfDifference throws an exception if the polygon
       // intersects with itself (TODO: check if true in all versions)
-      bigPolygon = turfDifference(bigBuffer, landPointsPoly);
+      bigPolygon = turfDifference(featureCollection([bigBuffer, landPointsPoly]));
     } catch (e) {
       // invalid selection polygon
       console.log('turfDifference() error', e); // eslint-disable-line

@@ -2,7 +2,7 @@
   "name": "@deck.gl-community/bing-maps",
   "description": "deck.gl integration with Bing Maps",
   "license": "MIT",
-  "version": "9.0.2",
+  "version": "9.2.0-beta.7",
   "publishConfig": {
     "access": "public"
   },
@@ -36,6 +36,6 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.0.12"
+    "@deck.gl/core": "~9.2.1"
   }
 }

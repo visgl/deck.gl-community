@@ -11,7 +11,7 @@ npm install deck.gl @deck.gl-community/leaflet leaflet
 ## Usage
 
 ```js
-import {DeckLayer} from '@deck.gl-community/leaflet';
+import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
 import * as L from 'leaflet';
@@ -33,7 +33,7 @@ L.tileLayer('https://tiles.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png', {
 }).addTo(map);
 
 // Add deck.gl overlay
-const deckLayer = new DeckLayer({
+const deckOverlay = new DeckOverlay({
   views: [
     new MapView({ repeat: true }),
   ],
@@ -68,5 +68,5 @@ const deckLayer = new DeckLayer({
   ],
   getTooltip: (info) => info.object && info.object.properties.name
 });
-map.addLayer(deckLayer);
+map.addLayer(deckOverlay);
 ```

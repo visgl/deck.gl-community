@@ -2,60 +2,40 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../core/graph-layout';
-import {Node} from '../graph/node';
-import {EDGE_TYPE} from '../core/constants';
-import {Graph} from '../graph/graph';
+import {GraphLayout, GraphLayoutProps} from '../core/graph-layout';
+import type {Graph, NodeInterface, EdgeInterface} from '../graph/graph';
 
-export type SimpleLayoutOptions = GraphLayoutOptions & {
-  /** The accessor lets the application supply the position ([x, y]) of each node.
-   * @example
-    ```js
-    <GraphGL
-      {...otherProps}
-      layout={
-        new SimpleLayout({
-          nodePositionAccessor: node => [
-            node.getPropertyValue('x'),
-            node.getPropertyValue('y'),
-          ]
-        })
-      }
-    />
-    ```
-  */
-  nodePositionAccessor?: (node: Node) => [number, number];
+export type SimpleLayoutProps = GraphLayoutProps & {
+  /** The accessor lets the application supply the position ([x, y]) of each node. */
+  nodePositionAccessor?: (node: NodeInterface) => [number, number];
 };
 
 /** A basic layout where the application controls positions of each node */
-export class SimpleLayout extends GraphLayout<SimpleLayoutOptions> {
-  static defaultOptions: Required<SimpleLayoutOptions> = {
+export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
+  static defaultProps: Required<SimpleLayoutProps> = {
+    ...GraphLayout.defaultProps,
     nodePositionAccessor: (node) =>
       [node.getPropertyValue('x'), node.getPropertyValue('y')] as [number, number]
   };
 
   protected readonly _name = 'SimpleLayout';
   protected _graph: Graph | null = null;
-  protected _nodeMap: Record<string, Node> = {};
-  protected _nodePositionMap: Record<string, (node: Node) => [number, number]> = {};
+  protected _nodeMap: Map<string | number, NodeInterface> = new Map();
+  protected _nodePositionMap: Map<string | number, [number, number] | null> = new Map();
 
-  constructor(options: SimpleLayoutOptions = {}) {
-    super({...SimpleLayout.defaultOptions, ...options});
+  constructor(options: SimpleLayoutProps = {}) {
+    super(options, SimpleLayout.defaultProps);
   }
 
   initializeGraph(graph: Graph): void {
     this.updateGraph(graph);
   }
 
-  _notifyLayoutComplete(): void {
-    this._onLayoutStart();
-    this._onLayoutChange();
-    this._onLayoutDone();
-  }
-
   start(): void {
     this._notifyLayoutComplete();
   }
+
+  stop() : void {}
 
   update(): void {
     this._notifyLayoutComplete();
@@ -67,36 +47,55 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutOptions> {
 
   updateGraph(graph: Graph): void {
     this._graph = graph;
-    this._nodeMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = node;
-      return res;
-    }, {});
-    this._nodePositionMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = this._options.nodePositionAccessor(node);
-      return res;
-    }, {});
+    const nodes = Array.from(graph.getNodes());
+    this._nodeMap = new Map(nodes.map((node) => [node.getId(), node]));
+    this._nodePositionMap = new Map(
+      nodes.map((node) => [node.getId(), this._normalizePosition(this.props.nodePositionAccessor(node))])
+    );
   }
 
   setNodePositionAccessor = (accessor) => {
-    (this._options as any).nodePositionAccessor = accessor;
+    (this.props as any).nodePositionAccessor = accessor;
   };
 
-  getNodePosition = (node) => this._nodePositionMap[node.getId()] as any;
+  getNodePosition = (node: NodeInterface | null): [number, number] => {
+    if (!node) {
+      return [0, 0] as [number, number];
+    }
+    const position = this._nodePositionMap.get(node.getId());
+    return position ?? [0, 0] as [number, number];
+  };
 
-  getEdgePosition = (edge) => {
-    const sourcePos = this._nodePositionMap[edge.getSourceNodeId()];
-    const targetPos = this._nodePositionMap[edge.getTargetNodeId()];
+  getEdgePosition = (edge: EdgeInterface) => {
+    const sourceNode = this._nodeMap.get(edge.getSourceNodeId());
+    const targetNode = this._nodeMap.get(edge.getTargetNodeId());
+    const sourcePos = sourceNode ? this.getNodePosition(sourceNode) : [0, 0];
+    const targetPos = targetNode ? this.getNodePosition(targetNode) : [0, 0];
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: sourcePos,
       targetPosition: targetPos,
       controlPoints: []
-    } as any;
+    };
   };
 
-  lockNodePosition = (node, x, y) => {
-    this._nodePositionMap[node.getId()] = [x, y] as any;
+  lockNodePosition = (node: NodeInterface, x: number, y: number) => {
+    this._nodePositionMap.set(node.getId(), [x, y]);
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  _notifyLayoutComplete(): void {
+    this._onLayoutStart();
+    this._onLayoutChange();
+    this._onLayoutDone();
+  }
+
+
+  protected override _updateBounds(): void {
+    const positions = Array.from(this._nodePositionMap.values(), (position) =>
+      this._normalizePosition(position)
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }

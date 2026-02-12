@@ -5,6 +5,7 @@
 import NgraphGenerators from 'ngraph.generators';
 
 import {lesGraph} from './les-miserable';
+import {generateMlLineageGraph} from './ml-lineage';
 import {randomGraphGenerator} from './random-graph-generator';
 
 const convertNgraphDataset = (ngraph) => {
@@ -20,6 +21,8 @@ const convertNgraphDataset = (ngraph) => {
       targetId: link.toId
     });
   });
+  // eslint-disable-next-line no-console
+  // console.log(`Converted ngraph dataset: ${nodes.length} nodes, ${edges.length} edges`);
   return {nodes, edges};
 };
 
@@ -34,5 +37,6 @@ export const SAMPLE_GRAPH_DATASETS = {
   'BalancedBinTree (8)': () => convertNgraphDataset(NgraphGenerators.balancedBinTree(8)),
   'Grid (10, 10)': () => convertNgraphDataset(NgraphGenerators.grid(10, 10)),
   'WattsStrogatz (100, 10, 0.06)': () =>
-    convertNgraphDataset(NgraphGenerators.wattsStrogatz(100, 10, 0.06))
+    convertNgraphDataset(NgraphGenerators.wattsStrogatz(100, 10, 0.06)),
+  'ML Lineage DAG (1000 runs)': () => generateMlLineageGraph()
 };

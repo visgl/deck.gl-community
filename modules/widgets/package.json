@@ -1,0 +1,40 @@
+{
+  "name": "@deck.gl-community/widgets",
+  "version": "9.2.0-beta.7",
+  "description": "UI widgets for deck.gl",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "widgets",
+    "visualization",
+    "deck.gl"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "dependencies": {
+    "@deck.gl/core": "~9.2.1",
+    "@turf/helpers": "^6.5.0",
+    "preact": "^10.17.0",
+    "supercluster": "^8.0.1"
+  }
+}

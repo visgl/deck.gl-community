@@ -1,0 +1,45 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {PlainGraphDataBuilder} from '../graph-data/plain-graph-data-builder';
+
+/**
+ * @deprecated Use `new ClassicGraph(name, nodes, edges)`
+ * Create a graph from a list of Nodes and edges
+ */
+export function createGraphData(props: {name; nodes; edges; nodeParser; edgeParser}): ClassicGraph {
+  const {name, nodes, edges, nodeParser, edgeParser} = props;
+  // create a new empty graph
+
+  const graphName = name || Date.now();
+
+  // add nodes
+  const glNodes = nodes.map((node) => {
+    const {id} = nodeParser(node);
+    return new Node({
+      id,
+      data: node
+    });
+  });
+  graph.batchAddNodes(glNodes);
+
+  const glEdges = edges.map((edge) => {
+    const {id, sourceId, targetId, directed} = edgeParser(edge);
+    return new Edge({
+      id,
+      sourceId,
+      targetId,
+      directed,
+      data: edge
+    });
+  });
+
+  return {
+    shape: 'plain-graph-data',
+    nodes: glNodes,
+    edges: glEdges,
+
+    graphName
+  };
+}

@@ -1,8 +1,17 @@
 {
+  "ts-node": {
+    "include": [
+      "modules",
+      "test/modules"
+    ],
+    // It is faster to skip typechecking. Remove if you want ts-node to do typechecking.
+    "transpileOnly": true
+  },
   "compilerOptions": {
     "target": "es2022",
     "module": "es2022",
     "jsx": "react",
+    // "types": ["vitest/globals"],
     // "strict": true,
     // "noImplicitAny": false,
     "allowJs": true,
@@ -10,22 +19,44 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
-      "@deck.gl-community/arrow-layers": ["modules/arrow-layers/src"],
-      "@deck.gl-community/bing-maps": ["modules/bing-maps/src"],
-      "@deck.gl-community/leaflet": ["modules/leaflet/src"],
-      "@deck.gl-community/editable-layers": ["modules/editable-layers/src"],
-      "@deck.gl-community/experimental": ["modules/experimental/src"],
-      "@deck.gl-community/layers": ["modules/layers/src"],
-      "@deck.gl-community/react": ["modules/react/src"],
-      "@deck.gl-community/template": ["modules/template/src"],
-      "deck-graph-layers": ["modules/graph-layers/src"]
+      "@deck.gl-community/arrow-layers": ["./modules/arrow-layers/src"],
+      "@deck.gl-community/bing-maps": ["./modules/bing-maps/src"],
+      "@deck.gl-community/leaflet": ["./modules/leaflet/src"],
+      "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],
+      "@deck.gl-community/experimental": ["./modules/experimental/src"],
+      "@deck.gl-community/widgets": ["./modules/widgets/src"],
+      "@deck.gl-community/layers": ["./modules/layers/src"],
+      "@deck.gl-community/geo-layers": ["./modules/geo-layers/src"],
+      "@deck.gl-community/infovis-layers": ["./modules/infovis-layers/src"],
+      "@deck.gl-community/react": ["./modules/react/src"],
+      "@deck.gl-community/template": ["./modules/template/src"],
+      "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"]
     },
     "typeRoots": ["./node_modules/@types"],
+    "plugins": [
+      {
+        "transform": "@vis.gl/ts-plugins/ts-transform-version-inline"
+      },
+      {
+        "transform": "@vis.gl/ts-plugins/ts-transform-inline-webgl-constants"
+      },
+      {
+        "transform": "@vis.gl/ts-plugins/ts-transform-remove-glsl-comments"
+      },
+      {
+        "transform": "@vis.gl/ts-plugins/ts-transform-append-extension",
+        "extensions": [".js"],
+        "after": true
+      },
+      {
+        "transform": "@vis.gl/ts-plugins/ts-transform-append-extension",
+        "extensions": [".js"],
+        "afterDeclarations": true
+      }
+    ],
     // TODO
     "strict": false,
     "noImplicitAny": false

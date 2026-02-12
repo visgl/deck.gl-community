@@ -2,37 +2,74 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {Graph} from '../graph/graph';
-import type {Node} from '../graph/node';
-import type {Edge} from '../graph/edge';
+import type {Bounds2D} from '@math.gl/types';
+
+import type {Graph, NodeInterface, EdgeInterface} from '../graph/graph';
 
 import isEqual from 'lodash.isequal';
-import {EDGE_TYPE} from './constants';
+import {log} from '../utils/log';
 
 // the status of the layout
-export type GraphLayoutState = 'INIT' | 'START' | 'CALCULATING' | 'DONE' | 'ERROR';
+export type GraphLayoutState = 'init' | 'start' | 'calculating' | 'done' | 'error';
 
-export type GraphLayoutOptions = {};
+export type GraphLayoutEventDetail = {
+  bounds: Bounds2D | null;
+};
 
-/** All the layout classes are extended from this base layout class. */
-export class GraphLayout<
-  OptionsT extends GraphLayoutOptions = GraphLayoutOptions
-> extends EventTarget {
-  /** Name of the layout. */
-  protected readonly _name: string = 'GraphLayout';
-  /** Extra configuration options of the layout. */
-  protected _options: OptionsT;
+export type GraphLayoutProps = {
+  onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone?: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutError?: (error?: unknown) => void;
+};
+
+
+export abstract class GraphLayout<
+  PropsT extends GraphLayoutProps = GraphLayoutProps
+> {
+  static defaultProps: Readonly<Required<GraphLayoutProps>> = {
+    onLayoutStart: undefined,
+    onLayoutChange: undefined,
+    onLayoutDone: undefined,
+    onLayoutError: undefined
+  };
+
+  get [Symbol.toStringTag](): string {
+    return 'GraphLayout';
+  }
+
+  /** Extra configuration props of the layout. */
+  protected props: Required<PropsT>;
+
+  /**
+   * Last computed layout bounds in local layout coordinates.
+   *
+   * Subclasses should update this value by overriding {@link _updateBounds}
+   * so it reflects the latest geometry before layout lifecycle events fire.
+   */
+  protected _bounds: Bounds2D | null = null;
 
   public version = 0;
-  public state: GraphLayoutState = 'INIT';
+  public state: GraphLayoutState = 'init';
 
   /**
    * Constructor of GraphLayout
-   * @param options extra configuration options of the layout
+   * @param props extra configuration props of the layout
    */
-  constructor(options: OptionsT) {
-    super();
-    this._options = options;
+  constructor(props: PropsT, defaultProps?: Required<PropsT>) {
+    this.props = {
+      ...GraphLayout.defaultProps,
+      ...defaultProps,
+      ...props
+    };
+  }
+
+  getProps(): PropsT {
+    return {...this.props};
+  }
+
+  setProps(props: Partial<PropsT>): void {
+    this.props = {...this.props, ...props};
   }
 
   /**
@@ -44,31 +81,20 @@ export class GraphLayout<
     if (!layout || !(layout instanceof GraphLayout)) {
       return false;
     }
-    return this._name === layout._name && isEqual(this._options, layout._options);
+    return this instanceof layout.constructor && isEqual(this.props, layout.props);
   }
 
-  /** virtual functions: will be implemented in the child class */
+  // Accessors
 
-  /** first time to pass the graph data into this layout */
-  initializeGraph(graph: Graph) {}
-  /** update the existing graph */
-  updateGraph(graph: Graph) {}
-  /** start the layout calculation */
-  start() {}
-  /** update the layout calculation */
-  update() {}
-  /** resume the layout calculation */
-  resume() {}
-  /** stop the layout calculation */
-  stop() {}
   /** access the position of the node in the layout */
-  getNodePosition(node: Node): [number, number] {
+  getNodePosition(node: NodeInterface): [number, number] {
     return [0, 0];
   }
+
   /** access the layout information of the edge */
-  getEdgePosition(edge: Edge) {
+  getEdgePosition(edge: EdgeInterface) {
     return {
-      type: EDGE_TYPE.LINE,
+      type: 'line',
       sourcePosition: [0, 0],
       targetPosition: [0, 0],
       controlPoints: []
@@ -81,66 +107,168 @@ export class GraphLayout<
    * @param  x    x coordinate
    * @param  y    y coordinate
    */
-  lockNodePosition(node: Node, x: number, y: number) {}
+  lockNodePosition(node: NodeInterface, x: number, y: number) {}
 
   /**
    * Unlock the node, the node will be able to move freely.
    * @param  {Object} node Node to be unlocked
    */
-  unlockNodePosition(node: Node) {}
+  unlockNodePosition(node: NodeInterface) {}
+
+  /** Returns the last computed layout bounds, if available. */
+  getBounds(): Bounds2D | null {
+    return this._bounds;
+  }
+
+    /** virtual functions: will be implemented in the child class */
+
+  /** first time to pass the graph data into this layout */
+  abstract initializeGraph(graph: Graph): void;
+  /** update the existing graph */
+  abstract updateGraph(graph: Graph): void;
+  /** start the layout calculation */
+  abstract start();
+  /** update the layout calculation */
+  abstract update();
+  /** resume the layout calculation */
+  abstract resume();
+  /** stop the layout calculation */
+  abstract stop();
+
 
   // INTERNAL METHODS
 
-  protected _updateState(state) {
+  /** Hook for subclasses to update bounds prior to emitting events. */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  protected _updateBounds(): void {}
+
+  /**
+   * Utility for subclasses to derive layout bounds from an iterable of [x, y] positions.
+   * @param positions Iterable of node positions.
+   * @returns Layout bounds for the supplied positions or `null` if none are finite.
+   */
+  protected _calculateBounds(
+    positions: Iterable<Readonly<[number, number]> | null | undefined>
+  ): Bounds2D | null {
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const position of positions) {
+      if (!position) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      const [x, y] = position;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+
+    if (minX === Number.POSITIVE_INFINITY) {
+      return null;
+    }
+
+    return [
+      [minX, minY],
+      [maxX, maxY]
+    ];
+  }
+
+  /**
+   * Attempt to coerce an arbitrary value into a finite 2D point.
+   * @param value Candidate value that may represent a position.
+   * @returns Finite [x, y] tuple or null if the value cannot be interpreted.
+   */
+  protected _normalizePosition(value: unknown): [number, number] | null {
+    if (Array.isArray(value) && value.length >= 2) {
+      const [x, y] = value as [unknown, unknown];
+      if (this._isFiniteNumber(x) && this._isFiniteNumber(y)) {
+        return [x, y];
+      }
+      return null;
+    }
+
+    if (value && typeof value === 'object') {
+      const {x, y} = value as {x?: unknown; y?: unknown};
+      if (this._isFiniteNumber(x) && this._isFiniteNumber(y)) {
+        return [x, y];
+      }
+    }
+
+    return null;
+  }
+
+  private _isFiniteNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+
+  protected _updateState(state: GraphLayoutState) {
     this.state = state;
     this.version += 1;
   }
 
   /** @fires GraphLayout#onLayoutStart */
   protected _onLayoutStart = (): void => {
-    this._updateState('CALCULATING');
+    log.log(0, `GraphLayout(${this}): start`)();
+    this._updateBounds();
+    this._updateState('calculating');
 
     /**
      * Layout calculation start.
      * @event GraphLayout#onLayoutChange
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutStart'));
+    const detail: GraphLayoutEventDetail = {bounds: this._bounds};
+    this.props.onLayoutStart?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutChange */
   protected _onLayoutChange = (): void => {
-    this._updateState('CALCULATING');
+    log.log(0, `GraphLayout(${this}): update`)();
+    this._updateBounds();
+    this._updateState('calculating');
 
     /**
      * Layout calculation iteration.
      * @event GraphLayout#onLayoutChange
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutChange'));
+    const detail: GraphLayoutEventDetail = {bounds: this._bounds};
+    this.props.onLayoutChange?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutDone */
   protected _onLayoutDone = (): void => {
-    this._updateState('DONE');
+    log.log(0, `GraphLayout(${this}): end`)();
+    this._updateBounds();
+    this._updateState('done');
 
     /**
      * Layout calculation is done.
      * @event GraphLayout#onLayoutDone
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutDone'));
+    const detail: GraphLayoutEventDetail = {bounds: this._bounds};
+    this.props.onLayoutDone?.(detail);
   };
 
   /** @fires GraphLayout#onLayoutError */
   protected _onLayoutError = (): void => {
-    this._updateState('ERROR');
+    this._updateState('error');
 
     /**
      * Layout calculation went wrong.
      * @event GraphLayout#onLayoutError
      * @type {CustomEvent}
      */
-    this.dispatchEvent(new CustomEvent('onLayoutError'));
+    this.props.onLayoutError?.();
   };
 }

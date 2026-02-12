@@ -3,7 +3,7 @@
 // of building against their installed version of the modules.
 
 import {defineConfig} from 'vite';
-import {getOcularConfig} from 'ocular-dev-tools';
+import {getOcularConfig} from '@vis.gl/dev-tools';
 import {join} from 'path';
 
 const rootDir = join(__dirname, '..');

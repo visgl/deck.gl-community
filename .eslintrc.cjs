@@ -1,4 +1,4 @@
-const {getESLintConfig} = require('ocular-dev-tools/configuration');
+const {getESLintConfig} = require('@vis.gl/dev-tools/configuration');
 
 module.exports = getESLintConfig({
   /** Set React version, if any */
@@ -42,7 +42,8 @@ module.exports = getESLintConfig({
               args: 'none'
             }
           ],
-          '@typescript-eslint/no-empty-function': 0
+          '@typescript-eslint/no-empty-function': 0,
+          '@typescript-eslint/no-base-to-string': ['warn']
         }
       },
       {

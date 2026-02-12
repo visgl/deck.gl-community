@@ -3,43 +3,99 @@
   "label": "@deck.gl-community/graph-layers",
   "items": [
     "modules/graph-layers/README",
+    "modules/graph-layers/api-reference/layers/graph-layer",
+    "modules/graph-layers/api-reference/layers/edge-layer",
+    "modules/graph-layers/api-reference/layers/grid-layer",
     {
       "type": "category",
-      "label": "Graph Data Structures",
+      "label": "Node layers",
       "items": [
-        "modules/graph-layers/api-reference/graph",
-        "modules/graph-layers/api-reference/node",
-        "modules/graph-layers/api-reference/edge",
-        "modules/graph-layers/api-reference/interactions",
-        "modules/graph-layers/api-reference/layouts/README"
+        "modules/graph-layers/api-reference/layers/circle-layer",
+        "modules/graph-layers/api-reference/layers/rectangle-layer",
+        "modules/graph-layers/api-reference/layers/rounded-rectangle-layer",
+        "modules/graph-layers/api-reference/layers/path-rounded-rectangle-layer",
+        "modules/graph-layers/api-reference/layers/image-layer",
+        "modules/graph-layers/api-reference/layers/label-layer",
+        "modules/graph-layers/api-reference/layers/zoomable-marker-layer"
       ]
     },
     {
       "type": "category",
-      "label": "Node style",
+      "label": "Edge layers",
       "items": [
-        "modules/graph-layers/api-reference/styling/node/node-style-circle",
-        "modules/graph-layers/api-reference/styling/node/node-style-rectangle",
-        "modules/graph-layers/api-reference/styling/node/node-style-marker",
-        "modules/graph-layers/api-reference/styling/node/node-style-label"
+        "modules/graph-layers/api-reference/layers/straight-line-edge-layer",
+        "modules/graph-layers/api-reference/layers/path-edge-layer",
+        "modules/graph-layers/api-reference/layers/curved-edge-layer",
+        "modules/graph-layers/api-reference/layers/flow-layer",
+        "modules/graph-layers/api-reference/layers/edge-arrow-layer",
+        "modules/graph-layers/api-reference/layers/edge-label-layer"
       ]
     },
     {
       "type": "category",
-      "label": "Edge decorators",
+      "label": "Common layers",
       "items": [
-        "modules/graph-layers/api-reference/styling/edge/edge-style-label",
-        "modules/graph-layers/api-reference/styling/edge/edge-style-flow"
+        "modules/graph-layers/api-reference/layers/flow-path-layer",
+        "modules/graph-layers/api-reference/layers/marker-layer",
+        "modules/graph-layers/api-reference/layers/spline-layer",
+        "modules/graph-layers/api-reference/layers/zoomable-text-layer"
       ]
     },
+    "modules/graph-layers/api-reference/styling/graph-stylesheet",
     {
       "type": "category",
       "label": "Layouts",
       "items": [
         "modules/graph-layers/api-reference/layouts/simple-layout",
-        "modules/graph-layers/api-reference/layouts/d3-layout",
-        "modules/graph-layers/api-reference/layouts/custom-layout",
-        "modules/graph-layers/api-reference/layouts/layout-gallery"
+        "modules/graph-layers/api-reference/layouts/graph-layout",
+        "modules/graph-layers/api-reference/layouts/d3-force-layout",
+        "modules/graph-layers/api-reference/layouts/d3-dag-layout",
+        "modules/graph-layers/api-reference/layouts/radial-layout",
+        "modules/graph-layers/api-reference/layouts/hive-plot-layout",
+        "modules/graph-layers/api-reference/layouts/multi-graph-layout"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Developer Guide",
+      "items": [
+        "modules/graph-layers/developer-guide/get-started",
+        "modules/graph-layers/developer-guide/visualizing-graphs",
+        "modules/graph-layers/developer-guide/interactions",
+        "modules/graph-layers/developer-guide/layout-animation",
+        "modules/graph-layers/developer-guide/layouts"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Graph Data Structures",
+      "items": [
+        "modules/graph-layers/api-reference/graph",
+        "modules/graph-layers/api-reference/classic-graph",
+        "modules/graph-layers/api-reference/tabular-graph",
+        "modules/graph-layers/api-reference/node",
+        "modules/graph-layers/api-reference/edge"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Loaders",
+      "items": [
+        "modules/graph-layers/api-reference/loaders/dot-graph-loader"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Formats",
+      "items": [
+        "modules/graph-layers/developer-guide/dot-format"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Internal classes",
+      "items": [
+        "modules/graph-layers/api-reference/internal/graph-stylesheet-engine"
       ]
     }
   ]

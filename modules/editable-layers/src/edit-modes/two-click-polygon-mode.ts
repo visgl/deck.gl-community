@@ -11,12 +11,12 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Polygon, FeatureCollection, FeatureOf, Position} from '../utils/geojson-types';
+import {Polygon, FeatureCollection, Feature, Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
-import {omit} from 'lodash';
+import omit from 'lodash.omit';
 
 export class TwoClickPolygonMode extends GeoJsonEditMode {
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (props.modeConfig && props.modeConfig.dragToDraw) {
       // handled in drag handlers
       return;
@@ -27,7 +27,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     this.checkAndFinishPolygon(props);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>): void {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     if (!props.modeConfig || !props.modeConfig.dragToDraw) {
       // handled in click handlers
       return;
@@ -37,7 +37,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     event.cancelPan();
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>): void {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     if (!props.modeConfig || !props.modeConfig.dragToDraw) {
       // handled in click handlers
       return;
@@ -47,7 +47,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     this.checkAndFinishPolygon(props);
   }
 
-  checkAndFinishPolygon(props: ModeProps<FeatureCollection>) {
+  checkAndFinishPolygon(props: ModeProps<SimpleFeatureCollection>) {
     const clickSequence = this.getClickSequence();
     const tentativeFeature = this.getTentativeGuide(props);
 
@@ -56,7 +56,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
       tentativeFeature &&
       tentativeFeature.geometry.type === 'Polygon'
     ) {
-      const feature: FeatureOf<Polygon> = {
+      const feature: Feature<Polygon> = {
         type: 'Feature',
         properties: omit(tentativeFeature.properties, 'guideType'),
         geometry: {
@@ -110,7 +110,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     coord1: Position,
     coord2: Position,
     modeConfig: any
-  ): FeatureOf<Polygon> | null | undefined {
+  ): Feature<Polygon> | null | undefined {
     return null;
   }
 

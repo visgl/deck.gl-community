@@ -25,8 +25,9 @@ A place for experimental layers developed by deck.gl developers that benefit fro
 
 ## What's New
 
-### `@deck.gl-community/experimental` v9.0.0-alpha.1
+### `@deck.gl-community/experimental` v9.0.0
 
 Release date: 2024
 
 - `DataDrivenTile3DLayer`
+- `PanWidget` and `ZoomRangeWidget` moved to `@deck.gl-community/widgets`

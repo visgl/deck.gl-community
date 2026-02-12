@@ -2,24 +2,34 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
-import {Node} from '../../graph/node';
-import {EDGE_TYPE} from '../../core/constants';
-import {Graph} from '../../graph/graph';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import type {Graph, NodeInterface, EdgeInterface} from '../../graph/graph';
 
-export type RadialLayoutOptions = GraphLayoutOptions & {
+export type RadialLayoutProps = GraphLayoutProps & {
   radius?: number;
   tree?: any;
 };
 
-const traverseTree = (nodeId, nodeMap) => {
+const getTreeNode = (nodeId: string, nodeMap: Record<string, {children?: string[]; isLeaf?: boolean}>) => {
   const node = nodeMap[nodeId];
+  if (node) {
+    return node;
+  }
+  return {
+    id: nodeId,
+    children: [],
+    isLeaf: true
+  };
+};
+
+const traverseTree = (nodeId, nodeMap) => {
+  const node = getTreeNode(nodeId, nodeMap);
   if (node.isLeaf) {
     return node;
   }
   return {
     ...node,
-    children: node.children.map((nid) => traverseTree(nid, nodeMap))
+    children: (node.children ?? []).map((nid) => traverseTree(nid, nodeMap))
   };
 };
 
@@ -41,6 +51,9 @@ const getTreeDepth = (node, depth = 0) => {
 };
 
 const getPath = (node, targetId, path) => {
+  if (!node) {
+    return false;
+  }
   if (node.id === targetId) {
     path.push(node.id);
     return true;
@@ -53,23 +66,21 @@ const getPath = (node, targetId, path) => {
   return false;
 };
 
-export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
-  static defaultOptions = {
-    radius: 500
-  };
+export class RadialLayout extends GraphLayout<RadialLayoutProps> {
+  static defaultProps = {
+    ...GraphLayout.defaultProps,
+    radius: 500,
+    tree: []
+  } as const satisfies Readonly<Required<RadialLayoutProps>>;
 
   _name = 'RadialLayout';
-  _graph: Graph = null;
+  _graph: Graph | null = null;
   // custom layout data structure
   _hierarchicalPoints = {};
   nestedTree;
 
-  constructor(options: RadialLayoutOptions = {}) {
-    super(options);
-    this._options = {
-      ...RadialLayout.defaultOptions,
-      ...options
-    };
+  constructor(props: RadialLayoutProps = {}) {
+    super(props, RadialLayout.defaultProps);
   }
 
   initializeGraph(graph: Graph): void {
@@ -81,18 +92,24 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
   }
 
   start(): void {
-    const nodeCount = this._graph.getNodes().length;
+    if (!this._graph) {
+      return;
+    }
+    const nodes = Array.from(this._graph.getNodes());
+    const nodeCount = nodes.length;
     if (nodeCount === 0) {
       return;
     }
 
-    const {tree} = this._options;
+    const {tree} = this.props;
 
     if (!tree || tree.length === 0) {
       return;
     }
 
-    const {radius} = this._options;
+    this._onLayoutStart();
+
+    const {radius} = this.props;
     const unitAngle = 360 / nodeCount;
 
     // hierarchical positions
@@ -150,12 +167,18 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
     this._onLayoutDone();
   }
 
-  getNodePosition = (node) => {
-    return this._hierarchicalPoints[node.id];
+  stop(): void {}
+
+  resume() {}
+
+  update() {}
+
+  getNodePosition = (node: NodeInterface) => {
+    return this._hierarchicalPoints[node.getId()];
   };
 
   // spline curve version
-  getEdgePosition = (edge) => {
+  getEdgePosition = (edge: EdgeInterface) => {
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
     const sourceNodePos = this._hierarchicalPoints[sourceNodeId];
@@ -186,18 +209,25 @@ export class RadialLayout extends GraphLayout<RadialLayoutOptions> {
     }
 
     return {
-      type: EDGE_TYPE.SPLINE_CURVE,
+      type: 'spline-curve',
       sourcePosition: sourceNodePos,
       targetPosition: targetNodePos,
       controlPoints: wayPoints
     };
   };
 
-  lockNodePosition = (node, x, y) => {
-    this._hierarchicalPoints[node.id] = [x, y];
+  lockNodePosition = (node: NodeInterface, x: number, y: number) => {
+    this._hierarchicalPoints[node.getId()] = [x, y];
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override _updateBounds(): void {
+    const positions = Object.values(this._hierarchicalPoints ?? {}).map((position) =>
+      this._normalizePosition(position)
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }
 
 function rotate(cx, cy, x, y, angle) {

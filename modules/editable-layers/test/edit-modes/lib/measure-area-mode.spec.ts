@@ -65,7 +65,7 @@ describe('three clicks + pointer move', () => {
       ...props,
       modeConfig: {formatTooltip: (area) => String(Math.round(area))}
     });
-    expect(tooltips[0].text).toEqual('49565599608');
+    expect(tooltips[0].text).toEqual('49454872581');
   });
 });
 

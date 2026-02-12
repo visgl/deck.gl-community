@@ -16,11 +16,11 @@ import {
   Position,
   Point,
   LineString,
-  FeatureOf
+  Feature
 } from '../../../src/utils/geojson-types';
 
-let pointFeature: FeatureOf<Point>;
-let lineStringFeature: FeatureOf<LineString>;
+let pointFeature: Feature<Point>;
+let lineStringFeature: Feature<LineString>;
 let polygonFeature;
 let polygonRectangleFeature;
 let multiPointFeature;
@@ -346,7 +346,7 @@ describe('getGuides()', () => {
     expect(guides).toMatchSnapshot();
   });
 
-  const lineString: FeatureOf<LineString> = {
+  const lineString: Feature<LineString> = {
     type: 'Feature',
     geometry: {
       type: 'LineString',

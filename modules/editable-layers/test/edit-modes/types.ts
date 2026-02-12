@@ -9,8 +9,7 @@ import {
   LineString,
   Polygon,
   MultiPolygon,
-  Feature,
-  FeatureOf
+  Feature
 } from '../../src/utils/geojson-types';
 
 let point: Point = {
@@ -41,19 +40,22 @@ let multiPolygon: MultiPolygon = {
   coordinates: [polygonSolid.coordinates, polygonWithHole.coordinates]
 };
 
-let pointFeature: FeatureOf<Point> = {
+let pointFeature: Feature<Point> = {
   type: 'Feature',
-  geometry: point
+  geometry: point,
+  properties: {}
 };
 
-let lineStringFeature: FeatureOf<LineString> = {
+let lineStringFeature: Feature<LineString> = {
   type: 'Feature',
-  geometry: lineString
+  geometry: lineString,
+  properties: {}
 };
 
 let anyFeature: Feature = {
   type: 'Feature',
-  geometry: multiPolygon
+  geometry: multiPolygon,
+  properties: {}
 };
 
 if (Math.random() > 0.5) {

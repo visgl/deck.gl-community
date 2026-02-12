@@ -11,13 +11,15 @@ import {
   ClickEvent,
   StartDraggingEvent,
   StopDraggingEvent,
-  PointerMoveEvent
+  PointerMoveEvent,
+  DoubleClickEvent
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
 
-const EVENT_TYPES = ['anyclick', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup'];
+const EVENT_TYPES = ['click', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup', 'dblclick'];
 
 // TODO(v9): remove generic layer
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type EditableLayerProps<DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
@@ -34,6 +36,9 @@ export abstract class EditableLayer<
 
   // Overridable interaction event handlers
   onLayerClick(event: ClickEvent): void {
+    // default implementation - do nothing
+  }
+  onLayerDoubleClick(event: DoubleClickEvent): void {
     // default implementation - do nothing
   }
 
@@ -118,7 +123,7 @@ export abstract class EditableLayer<
     func(event);
   }
 
-  _onanyclick({srcEvent}: any) {
+  _onclick({srcEvent}: any) {
     const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
     const mapCoords = this.getMapCoords(screenCoords);
 
@@ -130,6 +135,10 @@ export abstract class EditableLayer<
       picks,
       sourceEvent: srcEvent
     });
+  }
+
+  _ondblclick({srcEvent}: any) {
+    this.onLayerDoubleClick(srcEvent);
   }
 
   _onkeyup({srcEvent}: {srcEvent: KeyboardEvent}) {

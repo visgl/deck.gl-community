@@ -2,54 +2,47 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {GraphLayout, GraphLayoutOptions} from '../../core/graph-layout';
-import {Node} from '../../graph/node';
-import {EDGE_TYPE} from '../../core/constants';
-import {Graph} from '../../graph/graph';
+import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
+import type {Graph, NodeInterface, EdgeInterface} from '../../graph/graph';
 
-export type HivePlotLayoutOptions = GraphLayoutOptions & {
+export type HivePlotLayoutProps = GraphLayoutProps & {
   innerRadius?: number;
   outerRadius?: number;
-  getNodeAxis?: (node: Node) => any;
+  getNodeAxis?: (node: NodeInterface) => any;
 };
 
-export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
-  static defaultOptions = {
+export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
+  static defaultProps = {
+    ...GraphLayout.defaultProps,
     innerRadius: 100,
     outerRadius: 500,
-    getNodeAxis: (node: Node) => node.getPropertyValue('group')
-  } as const satisfies Readonly<Required<HivePlotLayoutOptions>>;
+    getNodeAxis: (node: NodeInterface) => node.getPropertyValue('group')
+  } as const satisfies Readonly<Required<HivePlotLayoutProps>>;
 
   _name = 'HivePlot';
-  _graph: Graph;
-  _totalAxis: number;
-  _axis: Record<string, any>;
-  _nodeMap = {};
-  _nodePositionMap = {};
+  _graph: Graph | null = null;
+  _totalAxis: number = 0;
+  _axis: Record<string, NodeInterface[]> = {};
+  _nodeMap = new Map<string | number, NodeInterface>();
+  _nodePositionMap = new Map<string | number, [number, number]>();
 
-  constructor(options: HivePlotLayoutOptions = {}) {
-    super(options);
-    this._options = {
-      ...HivePlotLayout.defaultOptions,
-      ...options
-    };
+  constructor(props: HivePlotLayoutProps = {}) {
+    super(props, HivePlotLayout.defaultProps);
   }
 
   initializeGraph(graph: Graph) {
     this.updateGraph(graph);
   }
 
-  updateGraph(graph) {
-    const {getNodeAxis, innerRadius, outerRadius} = this._options;
+  updateGraph(graph: Graph) {
+    const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
-    this._nodeMap = graph.getNodes().reduce((res, node) => {
-      res[node.getId()] = node;
-      return res;
-    }, {});
+    const nodes = Array.from(graph.getNodes());
+    this._nodeMap = new Map(nodes.map((node) => [node.getId(), node]));
 
     // bucket nodes into few axis
 
-    this._axis = graph.getNodes().reduce((res, node) => {
+    this._axis = nodes.reduce((res, node) => {
       const axis = getNodeAxis(node);
       if (!res[axis]) {
         res[axis] = [];
@@ -78,7 +71,8 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
     const angleInterval = 360 / Object.keys(this._axis).length;
 
     // calculate positions
-    this._nodePositionMap = Object.keys(this._axis).reduce((res, axis, axisIdx) => {
+    this._nodePositionMap = new Map();
+    Object.keys(this._axis).forEach((axis, axisIdx) => {
       const axisAngle = angleInterval * axisIdx;
       const bucketedNodes = this._axis[axis];
       const interval = (outerRadius - innerRadius) / bucketedNodes.length;
@@ -87,36 +81,46 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
         const radius = innerRadius + idx * interval;
         const x = Math.cos((axisAngle / 180) * Math.PI) * radius + center[0];
         const y = Math.sin((axisAngle / 180) * Math.PI) * radius + center[1];
-        res[node.getId()] = [x, y];
+        this._nodePositionMap.set(node.getId(), [x, y]);
       });
-      return res;
-    }, {});
+    });
   }
 
   start() {
+    this._onLayoutStart();
     this._onLayoutChange();
     this._onLayoutDone();
   }
 
-  getNodePosition = (node) => this._nodePositionMap[node.getId()];
+  stop() {}
 
-  getEdgePosition = (edge) => {
-    const {getNodeAxis} = this._options;
+  update() {}
+
+  resume() {}
+
+  getNodePosition = (node: NodeInterface) => this._nodePositionMap.get(node.getId());
+
+  getEdgePosition = (edge: EdgeInterface) => {
+    const {getNodeAxis} = this.props;
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
 
-    const sourcePosition = this._nodePositionMap[sourceNodeId];
-    const targetPosition = this._nodePositionMap[targetNodeId];
+    const sourcePosition = this._nodePositionMap.get(sourceNodeId);
+    const targetPosition = this._nodePositionMap.get(targetNodeId);
 
-    const sourceNode = this._nodeMap[sourceNodeId];
-    const targetNode = this._nodeMap[targetNodeId];
+    if (!sourcePosition || !targetPosition) {
+      return null;
+    }
 
-    const sourceNodeAxis = getNodeAxis(sourceNode);
-    const targetNodeAxis = getNodeAxis(targetNode);
+    const sourceNode = this._nodeMap.get(sourceNodeId);
+    const targetNode = this._nodeMap.get(targetNodeId);
 
-    if (sourceNodeAxis === targetNodeAxis) {
+    const sourceNodeAxis = sourceNode ? getNodeAxis(sourceNode) : null;
+    const targetNodeAxis = targetNode ? getNodeAxis(targetNode) : null;
+
+    if (sourceNodeAxis !== null && sourceNodeAxis === targetNodeAxis) {
       return {
-        type: EDGE_TYPE.LINE,
+        type: 'line',
         sourcePosition,
         targetPosition,
         controlPoints: []
@@ -125,25 +129,32 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutOptions> {
 
     const controlPoint = computeControlPoint({
       sourcePosition,
-      sourceNodeAxis,
+      sourceNodeAxis: sourceNodeAxis ?? 0,
       targetPosition,
-      targetNodeAxis,
+      targetNodeAxis: targetNodeAxis ?? 0,
       totalAxis: this._totalAxis
     });
 
     return {
-      type: EDGE_TYPE.SPLINE_CURVE,
+      type: 'spline-curve',
       sourcePosition,
       targetPosition,
       controlPoints: [controlPoint]
     };
   };
 
-  lockNodePosition = (node, x, y) => {
-    this._nodePositionMap[node.id] = [x, y];
+  lockNodePosition = (node: NodeInterface, x: number, y: number) => {
+    this._nodePositionMap.set(node.getId(), [x, y]);
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  protected override _updateBounds(): void {
+    const positions = Array.from(this._nodePositionMap.values(), (position) =>
+      this._normalizePosition(position)
+    );
+    this._bounds = this._calculateBounds(positions);
+  }
 }
 
 function computeControlPoint({

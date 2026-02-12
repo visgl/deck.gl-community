@@ -4,11 +4,12 @@
 
 // TODO edit-modes: delete handlers once EditMode fully implemented
 
+import {featureCollection as turfFeatureCollection} from '@turf/helpers';
 import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
 
-import {FeatureCollection, Feature, Polygon, Geometry, Position} from '../utils/geojson-types';
+import {FeatureCollection, Feature, Polygon, SimpleGeometry, Position, PolygonGeometry, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
 
 import {
   ClickEvent,
@@ -29,7 +30,7 @@ export type EditHandle = {
 };
 
 export type EditAction = {
-  updatedData: FeatureCollection;
+  updatedData: SimpleFeatureCollection;
   editType: string;
   featureIndexes: number[];
   editContext: any;
@@ -38,12 +39,12 @@ export type EditAction = {
 export class ModeHandler {
   // TODO: add underscore
   featureCollection: ImmutableFeatureCollection = undefined!;
-  _tentativeFeature: Feature | null | undefined;
+  _tentativeFeature: SimpleFeature | null | undefined;
   _modeConfig: any = null;
   _selectedFeatureIndexes: number[] = [];
   _clickSequence: Position[] = [];
 
-  constructor(featureCollection?: FeatureCollection) {
+  constructor(featureCollection?: SimpleFeatureCollection) {
     if (featureCollection) {
       this.setFeatureCollection(featureCollection);
     }
@@ -57,14 +58,14 @@ export class ModeHandler {
     return this.featureCollection;
   }
 
-  getSelectedFeature(): Feature | null | undefined {
+  getSelectedFeature(): SimpleFeature | null | undefined {
     if (this._selectedFeatureIndexes.length === 1) {
       return this.featureCollection.getObject().features[this._selectedFeatureIndexes[0]];
     }
     return null;
   }
 
-  getSelectedGeometry(): Geometry | null | undefined {
+  getSelectedGeometry(): SimpleGeometry | null | undefined {
     const feature = this.getSelectedFeature();
     if (feature) {
       return feature.geometry;
@@ -72,8 +73,8 @@ export class ModeHandler {
     return null;
   }
 
-  getSelectedFeaturesAsFeatureCollection(): FeatureCollection {
-    const {features} = this.featureCollection.getObject();
+  getSelectedFeaturesAsFeatureCollection(): SimpleFeatureCollection {
+    const { features } = this.featureCollection.getObject();
     const selectedFeatures = this.getSelectedFeatureIndexes().map(
       (selectedIndex) => features[selectedIndex]
     );
@@ -83,7 +84,7 @@ export class ModeHandler {
     };
   }
 
-  setFeatureCollection(featureCollection: FeatureCollection): void {
+  setFeatureCollection(featureCollection: SimpleFeatureCollection): void {
     this.featureCollection = new ImmutableFeatureCollection(featureCollection);
   }
 
@@ -121,12 +122,12 @@ export class ModeHandler {
     this._clickSequence = [];
   }
 
-  getTentativeFeature(): Feature | null | undefined {
+  getTentativeFeature(): SimpleFeature | null | undefined {
     return this._tentativeFeature;
   }
 
   // TODO: remove the underscore
-  _setTentativeFeature(tentativeFeature: Feature | null | undefined): void {
+  _setTentativeFeature(tentativeFeature: SimpleFeature | null | undefined): void {
     this._tentativeFeature = tentativeFeature;
     if (!tentativeFeature) {
       // Reset the click sequence
@@ -154,7 +155,7 @@ export class ModeHandler {
     return selectedFeatureIndexes.some((index) => pickedIndexes.includes(index));
   }
 
-  getAddFeatureAction(geometry: Geometry): EditAction {
+  getAddFeatureAction(geometry: SimpleGeometry): EditAction {
     // Unsure why flow can't deal with Geometry type, but there I fixed it
     const geometryAsAny: any = geometry;
 
@@ -218,21 +219,19 @@ export class ModeHandler {
         return null;
       }
 
-      const feature = {
+      const feature: Feature<Polygon> = {
         type: 'Feature',
-        geometry
+        geometry,
+        properties: {},
       };
 
       let updatedGeometry;
       if (modeConfig.booleanOperation === 'union') {
-        // @ts-expect-error turf types diff
-        updatedGeometry = turfUnion(selectedFeature, feature);
+        updatedGeometry = turfUnion(turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature]));
       } else if (modeConfig.booleanOperation === 'difference') {
-        // @ts-expect-error turf type diff
-        updatedGeometry = turfDifference(selectedFeature, feature);
+        updatedGeometry = turfDifference(turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature]));
       } else if (modeConfig.booleanOperation === 'intersection') {
-        // @ts-expect-error turf type diff
-        updatedGeometry = turfIntersect(selectedFeature, feature);
+        updatedGeometry = turfIntersect(turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature]));
       } else {
         // eslint-disable-next-line no-console,no-undef
         console.warn(`Invalid booleanOperation ${modeConfig.booleanOperation}`);
@@ -307,7 +306,7 @@ export function getIntermediatePosition(position1: Position, position2: Position
 }
 
 export function getEditHandlesForGeometry(
-  geometry: Geometry,
+  geometry: SimpleGeometry,
   featureIndex: number,
   editHandleType: EditHandleType = 'existing'
 ): EditHandle[] {

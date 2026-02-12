@@ -8,23 +8,21 @@ import destination from '@turf/destination';
 import bearing from '@turf/bearing';
 import pointToLineDistance from '@turf/point-to-line-distance';
 import {flattenEach} from '@turf/meta';
-import type {MultiLineString} from '@turf/helpers';
 import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from 'viewport-mercator-project';
 import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
-  Geometry,
+  SimpleGeometry,
   Position,
   Point,
   LineString,
   Polygon,
-  FeatureOf,
-  FeatureWithProps,
-  AnyCoordinates
+  Feature,
+  SimpleGeometryCoordinates
 } from '../utils/geojson-types';
 
-export type NearestPointType = FeatureWithProps<Point, {dist: number; index: number}>;
+export type NearestPointType = Feature<Point, {dist: number; index: number}>;
 
 export function toDeckColor(
   color?: [number, number, number, number] | number,
@@ -81,13 +79,13 @@ export function recursivelyTraverseNestedArrays(
 export function generatePointsParallelToLinePoints(
   p1: Position,
   p2: Position,
-  mapCoords: Position
+  coords: Position
 ): Position[] {
   const lineString: LineString = {
     type: 'LineString',
     coordinates: [p1, p2]
   };
-  const pt = point(mapCoords);
+  const pt = point(coords);
   const ddistance = pointToLineDistance(pt, lineString);
   const lineBearing = bearing(p1, p2);
 
@@ -95,7 +93,7 @@ export function generatePointsParallelToLinePoints(
   // Line from A=(x1,y1) to B=(x2,y2) a point P=(x,y)
   // then (x−x1)(y2−y1)−(y−y1)(x2−x1)
   const isPointToLeftOfLine =
-    (mapCoords[0] - p1[0]) * (p2[1] - p1[1]) - (mapCoords[1] - p1[1]) * (p2[0] - p1[0]);
+    (coords[0] - p1[0]) * (p2[1] - p1[1]) - (coords[1] - p1[1]) * (p2[0] - p1[0]);
 
   // Bearing to draw perpendicular to the line string
   const orthogonalBearing = isPointToLeftOfLine < 0 ? lineBearing - 90 : lineBearing - 270;
@@ -119,8 +117,8 @@ export function mix(a: number, b: number, ratio: number): number {
 }
 
 export function nearestPointOnProjectedLine(
-  line: FeatureOf<LineString>,
-  inPoint: FeatureOf<Point>,
+  line: Feature<LineString>,
+  inPoint: Feature<Point>,
   viewport: Viewport
 ): NearestPointType {
   const wmViewport = new WebMercatorViewport(viewport);
@@ -186,9 +184,9 @@ export function nearestPointOnProjectedLine(
   };
 }
 
-export function nearestPointOnLine<G extends LineString | MultiLineString>(
-  lines: FeatureOf<LineString>,
-  inPoint: FeatureOf<Point>,
+export function nearestPointOnLine( // <G extends LineString | MultiLineString>(
+  lines: Feature<LineString>,
+  inPoint: Feature<Point>,
   viewport?: Viewport
 ): NearestPointType {
   let mercator;
@@ -204,11 +202,9 @@ export function nearestPointOnLine<G extends LineString | MultiLineString>(
     return closestPoint;
   }
 
-  // @ts-expect-error TODO
   // eslint-disable-next-line max-statements, complexity
   flattenEach(lines, (line: any) => {
     const coords: any = getCoords(line);
-    // @ts-expect-error TODO
     const pointCoords: any = getCoords(inPoint);
 
     let minDist;
@@ -369,7 +365,7 @@ export function getPickedEditHandles(picks: Pick[] | null | undefined): EditHand
 }
 
 export function getEditHandlesForGeometry(
-  geometry: Geometry,
+  geometry: SimpleGeometry,
   featureIndex: number,
   editHandleType: EditHandleType = 'existing'
 ): EditHandleFeature[] {
@@ -470,13 +466,13 @@ function getEditHandlesForCoordinates(
  * Calculates coordinates for a feature preserving rectangular shape.
  * @param feature Feature before modification.
  * @param editHandleIndex Index of the point to modify.
- * @param mapCoords New position for the point.
+ * @param coords New position for the point.
  * @returns Updated coordinates.
  */
 export function updateRectanglePosition(
-  feature: FeatureOf<Polygon>,
+  feature: Feature<Polygon>,
   editHandleIndex: number,
-  mapCoords: Position
+  coords: Position
 ): Position[][] | null {
   const coordinates = feature.geometry.coordinates;
   if (!coordinates) {
@@ -484,7 +480,7 @@ export function updateRectanglePosition(
   }
 
   const points = coordinates[0].slice(0, 4);
-  points[editHandleIndex % 4] = mapCoords;
+  points[editHandleIndex % 4] = coords;
 
   const p0 = points[(editHandleIndex + 2) % 4];
   const p2 = points[editHandleIndex % 4];
@@ -501,9 +497,9 @@ export function updateRectanglePosition(
  * @retuns Transformed coordinates.
  */
 export function mapCoords(
-  coords: AnyCoordinates,
+  coords: SimpleGeometryCoordinates,
   callback: (coords: Position) => Position
-): AnyCoordinates {
+): SimpleGeometryCoordinates {
   if (typeof coords[0] === 'number') {
     if (!isNaN(coords[0]) && isFinite(coords[0])) {
       return callback(coords as Position);

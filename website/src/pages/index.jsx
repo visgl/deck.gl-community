@@ -80,12 +80,12 @@ export default function IndexPage() {
               <img src={`${baseUrl}images/icon-layers.svg`} />New layers
             </h3>
             <p>
-              deck.gl allows complex visualizations to be constructed by composing layers,
-              and deck.gl-community modules add new advanced layer types.
+              deck.gl-community modules offer new advanced deck.gl layer types, basemap integrations and other 
+              useful components.
             </p>
 
             <h3>
-              <img src={`${baseUrl}images/icon-high-precision.svg`} />New use cases
+              <img src={`${baseUrl}images/icon-layers.svg`} />New use cases
             </h3>
             <p>
               Beyond geospatial, into graphs, biology etc.
@@ -98,13 +98,6 @@ export default function IndexPage() {
 
             </p>
 
-            <h3>
-              <img src={`${baseUrl}images/icon-basemap.webp`} />
-              Integration with Base Map Providers
-            </h3>
-            <p>
-              Additional basemap integrations beyond the official ones supported by deck.gl.
-            </p>
           </TextContainer>
         </div>
       </Home>

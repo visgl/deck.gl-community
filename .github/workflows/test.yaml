@@ -13,22 +13,89 @@ permissions:
 jobs:
   test-node:
     runs-on: ubuntu-latest
-    permissions:
-      checks: write
-      contents: read
 
-    # NOTE: Pin official GitHub actions to a version number, pin third-party actions to a SHA1.
-    # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-third-party-actions
+    # Keep env simple. You don't need --openssl-legacy-provider for Node 20.
+    env:
+      NODE_ENV: test
+
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v4
 
-      - uses: volta-cli/action@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20' # ✅ match what Vite/Vitest expect
 
-      - name: Install dependencies
+      # ✅ Enable Corepack so the `packageManager` field is honored
+      - name: Enable Corepack / Yarn 4
         run: |
-          yarn install  
-          yarn bootstrap
+          corepack enable
+          corepack prepare yarn@4.10.3 --activate
+          yarn -v
 
-      - name: Run tests
+      # ✅ Cache Yarn 4's compressed archives
+      - name: Cache Yarn 4 artifacts
+        id: yarn-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .pnp.*              # if you use Plug’n’Play
+            .yarn/install-state.gz
+          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            yarn-cache-${{ runner.os }}-
+
+      - name: Print versions
         run: |
-          yarn test-ci
+          node -v
+          yarn -v
+          node -p "process.versions"
+
+      - name: Install deps
+        # Always run to materialize node_modules; the cache only restores tarballs.
+        run: yarn --frozen-lockfile
+
+      # Sanity-check that Vite sees the root config (this MUST be true)
+      - name: Verify vite.config.ts presence
+        run: |
+          test -f vite.config.ts || (echo "vite.config.ts missing at repo root" && exit 1)
+          node -e "console.log('vite.config.ts exists, good')"
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Run node tests
+        run: yarn test-node
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: pw-${{ runner.os }}-
+
+      - name: Install Playwright Chromium (only)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Run headless browser tests
+        run: yarn test-headless --reporter=verbose
+
+      - name: Cache website Yarn artifacts
+        id: website-yarn-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            website/.yarn/cache
+            website/.pnp.*
+            website/.yarn/install-state.gz
+          key: website-yarn-cache-${{ runner.os }}-${{ hashFiles('website/yarn.lock') }}
+          restore-keys: |
+            website-yarn-cache-${{ runner.os }}-
+
+      - name: Build website
+        run: |
+          cd website
+          yarn
+          yarn build

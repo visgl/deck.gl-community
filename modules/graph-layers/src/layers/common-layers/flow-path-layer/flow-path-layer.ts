@@ -4,7 +4,6 @@
 
 // import {Buffer, Transform} from '@luma.gl/core';
 import {LineLayer} from '@deck.gl/layers';
-import {window} from 'global';
 
 import {vs} from './flow-path-layer-vertex.glsl';
 import {fs} from './flow-path-layer-fragment.glsl';
@@ -42,7 +41,7 @@ export class FlowPathLayer extends LineLayer {
     this.setupTransformFeedback();
     this.setState({
       ...this.state,
-      animation: window.requestAnimationFrame(this.animate.bind(this))
+      animation: globalThis.window.requestAnimationFrame(this.animate.bind(this))
     });
   }
 

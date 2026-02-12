@@ -1,4 +1,4 @@
-import {DeckLayer} from '@deck.gl-community/leaflet';
+import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
 import * as L from 'leaflet';
@@ -9,8 +9,10 @@ const AIR_PORTS =
   'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_airports.geojson';
 
 export function exampleApplication() {
+  // Create a Leaflet map
+  const canvas = document.getElementById('map');
   // Create map
-  const map = L.map(document.getElementById('map'), {
+  const map = L.map(canvas, {
     center: [51.47, 0.45],
     zoom: 4,
   });
@@ -21,7 +23,7 @@ export function exampleApplication() {
   }).addTo(map);
 
   // Add deck.gl overlay
-  const deckLayer = new DeckLayer({
+  const deckOverlay = new DeckOverlay({
     views: [
       new MapView({ repeat: true }),
     ],
@@ -56,5 +58,5 @@ export function exampleApplication() {
     ],
     getTooltip: (info) => info.object && info.object.properties.name
   });
-  map.addLayer(deckLayer);
+  map.addLayer(deckOverlay);
 }

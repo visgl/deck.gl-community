@@ -2,7 +2,10 @@
   "name": "@deck.gl-community/react",
   "description": "React components for deck.gl",
   "license": "MIT",
-  "version": "9.0.2",
+  "version": "9.2.0-beta.7",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/visgl/deck.gl-community"
@@ -34,16 +37,13 @@
     "src"
   ],
   "dependencies": {
-    "@turf/helpers": "^6.5.0",
     "@types/styled-react-modal": "^1.2.5",
     "boxicons": "^2.1.4",
-    "preact": "^10.17.0",
     "prop-types": "^15.8.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "styled-components": "^6.1.1",
-    "styled-react-modal": "^3.1.1",
-    "supercluster": "^8.0.1"
+    "styled-react-modal": "^3.1.1"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
 }

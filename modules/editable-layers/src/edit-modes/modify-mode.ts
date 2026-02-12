@@ -16,7 +16,7 @@ import {
   NearestPointType,
   shouldCancelPan
 } from './utils';
-import {LineString, Point, Polygon, FeatureCollection, FeatureOf} from '../utils/geojson-types';
+import {LineString, Point, Polygon, FeatureCollection, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -34,7 +34,7 @@ import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class ModifyMode extends GeoJsonEditMode {
   // eslint-disable-next-line complexity
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const handles: GuideFeature[] = [];
 
     const {data, lastPointerMoveEvent} = props;
@@ -76,7 +76,7 @@ export class ModifyMode extends GeoJsonEditMode {
           (lineString, prefix) => {
             const lineStringFeature = toLineString(lineString);
             const candidateIntermediatePoint = this.getNearestPoint(
-              // @ts-expect-error turf types too wide
+
               lineStringFeature,
               referencePoint,
               props.modeConfig && props.modeConfig.viewport
@@ -121,8 +121,8 @@ export class ModifyMode extends GeoJsonEditMode {
 
   // turf.js does not support elevation for nearestPointOnLine
   getNearestPoint(
-    line: FeatureOf<LineString>,
-    inPoint: FeatureOf<Point>,
+    line: Feature<LineString>,
+    inPoint: Feature<Point>,
     viewport: Viewport | null | undefined
   ): NearestPointType {
     const {coordinates} = line.geometry;
@@ -139,12 +139,12 @@ export class ModifyMode extends GeoJsonEditMode {
     return nearestPointOnLine(line, inPoint, viewport);
   }
 
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     const pickedExistingHandle = getPickedExistingEditHandle(event.picks);
     const pickedIntermediateHandle = getPickedIntermediateEditHandle(event.picks);
 
     if (pickedExistingHandle) {
-      const {featureIndex, positionIndexes} = pickedExistingHandle.properties;
+      const { featureIndex, positionIndexes } = pickedExistingHandle.properties;
 
       let updatedData;
       try {
@@ -194,7 +194,7 @@ export class ModifyMode extends GeoJsonEditMode {
     }
   }
 
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>): void {
+  handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
 
     if (editHandle) {
@@ -207,7 +207,7 @@ export class ModifyMode extends GeoJsonEditMode {
 
   _dragEditHandle(
     editType: string,
-    props: ModeProps<FeatureCollection>,
+    props: ModeProps<SimpleFeatureCollection>,
     editHandle: EditHandleFeature,
     event: StopDraggingEvent | DraggingEvent
   ) {
@@ -217,7 +217,7 @@ export class ModifyMode extends GeoJsonEditMode {
     let updatedData;
     if (props.modeConfig?.lockRectangles && editedFeature.properties.shape === 'Rectangle') {
       const coordinates = updateRectanglePosition(
-        editedFeature as FeatureOf<Polygon>,
+        editedFeature as Feature<Polygon>,
         editHandleProperties.positionIndexes[1],
         event.mapCoords
       ) as any; // TODO
@@ -251,7 +251,7 @@ export class ModifyMode extends GeoJsonEditMode {
     props.onUpdateCursor(cursor);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (shouldCancelPan(event)) {
       event.cancelPan();
     }
@@ -282,7 +282,7 @@ export class ModifyMode extends GeoJsonEditMode {
     }
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     const selectedFeatureIndexes = props.selectedIndexes;
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
     if (selectedFeatureIndexes.length && editHandle) {

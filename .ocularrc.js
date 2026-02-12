@@ -1,4 +1,4 @@
-/** @typedef {import('ocular-dev-tools').OcularConfig} OcularConfig */
+/** @typedef {import('@vis.gl/dev-tools').OcularConfig} OcularConfig */
 
 import {dirname, join} from 'path';
 import {fileURLToPath} from 'url';
@@ -12,12 +12,12 @@ const config = {
   babel: false,
 
   lint: {
-    paths: ['modules', 'docs', 'test'], // 'examples'], module resolution errors
+    paths: ['modules', 'test'], // 'docs', 'examples'], module resolution errors
     extensions: ['js', 'ts', 'jsx', 'tsx']
   },
 
   typescript: {
-    project: 'tsconfig.build.json'
+    project: 'tsconfig.json'
   },
 
   aliases: {
@@ -33,12 +33,18 @@ const config = {
   },
 
   bundle: {
-    globalName: 'luma',
-    externals: [],
+    globalName: 'deckCommunity',
+    externals: ['h3-js', 'leaflet', '@deck.gl/core', '@luma.gl/core', '@luma.gl/engine'],
     target: ['chrome110', 'firefox110', 'safari15'],
     format: 'umd',
     globals: {
-      '@luma.gl/*': 'globalThis.luma'
+      '@deck.gl-community/*': 'globalThis.deckCommunity',
+      'deck.gl': 'globalThis.deck',
+      '@deck.gl/*': 'globalThis.deck',
+      '@loaders.gl/*': 'globalThis.loaders',
+      '@luma.gl/*': 'globalThis.luma',
+       'h3-js': 'globalThis.h3 || {}',
+       'leaflet': 'globalThis.L'
     }
   },
 

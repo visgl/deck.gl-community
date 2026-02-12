@@ -3,8 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 // Basic data structure of an edge
-import {EDGE_STATE} from '../core/constants';
-import {Node} from './node';
+import type {EdgeState} from '../core/constants';
+import type {EdgeInterface, NodeInterface} from './graph';
 
 export interface EdgeOptions {
   /** the unique ID of the edge */
@@ -20,9 +20,9 @@ export interface EdgeOptions {
 }
 
 /** Basic edge data structure */
-export class Edge {
+export class Edge implements EdgeInterface {
   /** Unique uuid of the edge. */
-  public id: string | number;
+  public readonly id: string | number;
   /** ID of the source node. */
   private _sourceId: string | number;
   /** ID of the target node. */
@@ -34,9 +34,9 @@ export class Edge {
   /** Check the type of the object when picking engine gets it. */
   public readonly isEdge = true;
   /** Nodes at either end of this edge. */
-  private readonly _connectedNodes: Record<string, Node> = {};
+  private readonly _connectedNodes: Record<string, NodeInterface> = {};
   /** Edge state. */
-  public state = EDGE_STATE.DEFAULT;
+  public state: EdgeState = 'default';
 
   /**
    * The constructor
@@ -119,29 +119,29 @@ export class Edge {
 
   /**
    * Set edge state
-   * @param state - one of EDGE_STATE
+   * @param state - the new interaction state for the edge
    */
-  setState(state: string): void {
+  setState(state: EdgeState): void {
     this.state = state;
   }
 
   /**
    * Get edge state
-   * @returns state - one of EDGE_STATE
+   * @returns state - the current interaction state for the edge
    */
-  getState(): string {
+  getState(): EdgeState {
     return this.state;
   }
 
-  addNode(node: Node): void {
+  addNode(node: NodeInterface): void {
     this._connectedNodes[node.getId()] = node;
   }
 
-  removeNode(node: Node): void {
+  removeNode(node: NodeInterface): void {
     delete this._connectedNodes[node.getId()];
   }
 
-  getConnectedNodes(): Node[] {
+  getConnectedNodes(): NodeInterface[] {
     return Object.values(this._connectedNodes);
   }
 }

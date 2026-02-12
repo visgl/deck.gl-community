@@ -1,6 +1,8 @@
 # @deck.gl-community/leaflet
 
-This module allows [deck.gl](https://deck.gl) to be used as a Leaflet custom layer.
+This module allows [Leaflet](https://leafletjs.com/) to be used as a [deck.gl](https://deck.gl) basemap. 
+
+More precisely, it provides a Leaflet custom layer that wraps a deck.gl renderer, enabling deck.gl to render layers synchronized with the Leaflet basemap. 
 
 ## Installation
 
@@ -11,7 +13,7 @@ npm install deck.gl @deck.gl-community/leaflet leaflet
 ## Usage
 
 ```js
-import {DeckLayer} from '@deck.gl-community/leaflet';
+import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
 import * as L from 'leaflet';
@@ -33,7 +35,7 @@ L.tileLayer('https://tiles.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png', {
 }).addTo(map);
 
 // Add deck.gl overlay
-const deckLayer = new DeckLayer({
+const deckOverlay = new DeckOverlay({
   views: [
     new MapView({ repeat: true }),
   ],
@@ -68,33 +70,33 @@ const deckLayer = new DeckLayer({
   ],
   getTooltip: (info) => info.object && info.object.properties.name
 });
-map.addLayer(deckLayer);
+map.addLayer(deckOverlay);
 ```
 
 ## API Reference
 
-### DeckLayer
+### DeckOverlay
 
 An implementation of [L.Layer](https://leafletjs.com/reference.html#layer).
 
 ```js
-const deckLayer = new DeckLayer({
+const deckOverlay = new DeckOverlay({
   views: [
     new MapView({ repeat: true }),
   ],
   layers: [...],
 });
-map.addLayer(deckLayer);
+map.addLayer(deckOverlay);
 ```
 
 The constructor accepts a props object that is passed to the [Deck](https://deck.gl/docs/api-reference/core/deck) constructor. See the [limitations](#supported-features-and-limitations) section below for more details.
 
-The following [Deck methods](https://deck.gl/docs/api-reference/core/deck#methods) can be called directly from a `DeckLayer` instance:
+The following [Deck methods](https://deck.gl/docs/api-reference/core/deck#methods) can be called directly from a `DeckOverlay` instance:
 
-- `deckLayer.setProps`
-- `deckLayer.pickObject`
-- `deckLayer.pickMultipleObjects`
-- `deckLayer.pickObjects`
+- `deckOverlay.setProps`
+- `deckOverlay.pickObject`
+- `deckOverlay.pickMultipleObjects`
+- `deckOverlay.pickObjects`
 
 ## Supported Features and Limitations
 

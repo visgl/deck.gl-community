@@ -15,11 +15,18 @@ const config = {
   url: 'https://deck.gl-community',
   baseUrl: '/deck.gl-community/', // process.env.STAGING ? '/deck.gl-community/' : '/',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn'
+    }
+  },
   favicon: '/favicon.ico',
   organizationName: 'visgl', // Usually your GitHub org/user name.
   projectName: 'deck.gl-community', // Usually your repo name.
   trailingSlash: false,
+  future: {
+    v4: true
+  },
 
   presets: [
     [
@@ -42,7 +49,34 @@ const config = {
     ]
   ],
 
+  themes: [
+    [
+      '@cmfcmf/docusaurus-search-local',
+      /** @type {import('@cmfcmf/docusaurus-search-local').PluginOptions} */
+      ({
+        indexDocs: true,
+        indexBlog: false,
+        indexPages: true,
+        // highlightSearchTermsOnTargetPage: true
+      })
+    ]
+  ],
+
   plugins: [
+    // Improve build performance by disabling expensive optimizations
+    // https://github.com/facebook/docusaurus/discussions/11199
+    function disableExpensiveBundlerOptimizationPlugin() {
+      return {
+        name: "disable-expensive-bundler-optimizations",
+        configureWebpack(_config, isServer) {
+          return {
+            optimization: {
+              concatenateModules: false,
+            },
+          };
+        },
+      };
+    },
     [
       './ocular-docusaurus-plugin',
       {
@@ -53,12 +87,13 @@ const config = {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
+            '@deck.gl-community/infovis-layers': resolve('../modules/infovis-layers/src'),
+            '@deck.gl-community/timeline-layers': resolve('../modules/timeline-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
-            react: resolve('node_modules/react'),
-            'react-dom': resolve('node_modules/react-dom'),
+            '@deck.gl-community/widgets': resolve('../modules/widgets/src'),
             '@deck.gl/aggregation-layers': resolve('../node_modules/@deck.gl/aggregation-layers'),
             '@deck.gl/arcgis': resolve('../node_modules/@deck.gl/arcgis'),
             '@deck.gl/carto': resolve('../node_modules/@deck.gl/carto'),
@@ -80,6 +115,12 @@ const config = {
             '@loaders.gl/obj': resolve('node_modules/@loaders.gl/obj'),
             '@loaders.gl/ply': resolve('node_modules/@loaders.gl/ply'),
             '@loaders.gl': resolve('../node_modules/@loaders.gl'),
+            preact: resolve('node_modules/preact'),
+            'preact/hooks': resolve('node_modules/preact/hooks'),
+            'preact/jsx-runtime': resolve('node_modules/preact/jsx-runtime'),
+            'preact/jsx-dev-runtime': resolve('node_modules/preact/jsx-dev-runtime'),
+            react: resolve('node_modules/react'),
+            'react-dom': resolve('node_modules/react-dom'),
             'styled-react-modal': resolve('node_modules/styled-react-modal')
           }
         },
@@ -102,9 +143,42 @@ const config = {
               resolve: {
                 fullySpecified: false
               }
+            },
+            // widgets module JSX must be traspiled as preact
+            {
+              test: /\.[jt]sx?$/,
+              include: [resolve('../modules/widgets/src')],
+              use: [
+                {
+                  loader: require.resolve('babel-loader'),
+                  options: {
+                    babelrc: false,
+                    configFile: false,
+                    presets: [
+                      [
+                        require.resolve('@babel/preset-typescript'),
+                        {isTSX: true, allExtensions: true, allowDeclareFields: true}
+                      ]
+                    ],
+                    plugins: [
+                      [
+                        require.resolve('@babel/plugin-transform-react-jsx'),
+                        {runtime: 'automatic', importSource: 'preact'}
+                      ]
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }
+      }
+    ],
+    [
+      resolve('./plugins/gallery-static-plugin'),
+      {
+        sourceDir: resolve('../examples/gallery'),
+        routeBase: '/gallery'
       }
     ],
     [
@@ -140,6 +214,11 @@ const config = {
             to: '/examples',
             position: 'left',
             label: 'Examples'
+          },
+          {
+            to: '/gallery',
+            position: 'left',
+            label: 'Gallery'
           },
           // {
           //   to: '/showcase',
@@ -214,17 +293,6 @@ const config = {
           }
         ],
         copyright: `Copyright © ${new Date().getFullYear()} OpenJS Foundation`
-      },
-      algolia: {
-        // The application ID provided by Algolia
-        appId: '8EVYAVB4KT',
-        // Public API key: it is safe to commit it
-        apiKey: 'a3fe1388353d733272ffdf148c53eeaa',
-        indexName: 'deck',
-        // Optional: see doc section below
-        contextualSearch: true,
-        // Optional: path for search page that enabled by default (`false` to disable it)
-        searchPagePath: 'search'
       },
       prism: {
         theme: lightCodeTheme,

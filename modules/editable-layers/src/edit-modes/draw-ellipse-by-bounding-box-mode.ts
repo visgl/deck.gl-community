@@ -6,12 +6,12 @@ import bboxPolygon from '@turf/bbox-polygon';
 import distance from '@turf/distance';
 import ellipse from '@turf/ellipse';
 import {point} from '@turf/helpers';
-import {Position, Polygon, FeatureOf} from '../utils/geojson-types';
+import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
-  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): FeatureOf<Polygon> {
+  getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): Feature<Polygon> {
     const minX = Math.min(coord1[0], coord2[0]);
     const minY = Math.min(coord1[1], coord2[1]);
     const maxX = Math.max(coord1[0], coord2[0]);
@@ -23,7 +23,7 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
     const xSemiAxis = Math.max(distance(point(polygonPoints[0]), point(polygonPoints[1])), 0.001);
     const ySemiAxis = Math.max(distance(point(polygonPoints[0]), point(polygonPoints[3])), 0.001);
 
-    const geometry = ellipse(centerCoordinates, xSemiAxis, ySemiAxis);
+    const geometry = ellipse(centerCoordinates, xSemiAxis, ySemiAxis, {});
 
     geometry.properties = geometry.properties || {};
     geometry.properties.editProperties = geometry.properties.editProperties || {};
@@ -32,7 +32,7 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
     geometry.properties.editProperties.ySemiAxis = {value: ySemiAxis, unit: 'kilometers'};
     geometry.properties.editProperties.angle = 0;
     geometry.properties.editProperties.center = centerCoordinates;
-    // @ts-expect-error fix return types
+
     return geometry;
   }
 }

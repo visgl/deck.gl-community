@@ -1,6 +1,7 @@
 build/
 dist/
 public/
+website/static/gallery/
 **/*.min.js
 node_modules/
 coverage/

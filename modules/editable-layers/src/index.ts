@@ -2,21 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-export {ArrowStyles, DEFAULT_ARROWS, MAX_ARROWS} from './lib/style';
-export {SELECTION_TYPE} from './lib/deck-renderer/deck-drawer';
-
-export {Feature} from './lib/feature';
-export {LayerMouseEvent} from './lib/layer-mouse-event';
-
-export {NebulaLayer} from './lib/nebula-layer';
-export {JunctionsLayer} from './lib/layers/junctions-layer';
-export {TextsLayer} from './lib/layers/texts-layer';
-export {SegmentsLayer} from './lib/layers/segments-layer';
-
-export {NebulaCore} from './lib/nebula-core';
-
-export {PROJECTED_PIXEL_SIZE_MULTIPLIER} from './lib/constants';
-
 // Utils
 export {toDeckColor} from './utils/utils';
 
@@ -28,6 +13,14 @@ export {EditableGeoJsonLayer} from './editable-layers/editable-geojson-layer';
 export {EditableH3ClusterLayer} from './editable-layers/editable-h3-cluster-layer';
 export {SelectionLayer} from './editable-layers/selection-layer';
 export {ElevatedEditHandleLayer} from './editable-layers/elevated-edit-handle-layer';
+
+// Widgets
+export {EditModeTrayWidget} from './widgets/edit-mode-tray-widget';
+export type {
+  EditModeTrayWidgetProps,
+  EditModeTrayWidgetModeOption,
+  EditModeTrayWidgetSelectEvent
+} from './widgets/edit-mode-tray-widget';
 
 // Layers move to deck.gl-community/layers?
 export {JunctionScatterplotLayer} from './editable-layers/junction-scatterplot-layer';
@@ -45,10 +38,12 @@ export type {GeoJsonEditModeType} from './edit-modes/geojson-edit-mode';
 export type {GeoJsonEditModeConstructor} from './edit-modes/geojson-edit-mode';
 
 export type {EditableGeoJsonLayerProps} from './editable-layers/editable-geojson-layer';
+export type {SelectionLayerProps} from './editable-layers/selection-layer';
 
 export {GeoJsonEditMode} from './edit-modes/geojson-edit-mode';
 
 // Alter modes
+export {DeleteMode} from './edit-modes/delete-mode';
 export {ModifyMode} from './edit-modes/modify-mode';
 export {ResizeCircleMode} from './edit-modes/resize-circle-mode';
 export {TranslateMode} from './edit-modes/translate-mode';
@@ -103,25 +98,18 @@ export type {
 
 export type {
   Position,
-  PointCoordinates,
-  LineStringCoordinates,
-  PolygonCoordinates,
-  MultiPointCoordinates,
-  MultiLineStringCoordinates,
-  MultiPolygonCoordinates,
-  AnyCoordinates,
+  SimpleFeature,
+  SimpleFeatureCollection,
+  SimpleGeometry,
+  SimpleGeometryCoordinates,
   Point,
   LineString,
   Polygon,
   MultiPoint,
   MultiLineString,
   MultiPolygon,
-  Geometry,
-  Polygonal,
-  BoundingBoxArray,
-  FeatureOf,
-  FeatureWithProps,
-  // Feature,
+  PolygonGeometry,
+  Feature,
   FeatureCollection,
   AnyGeoJson
 } from './utils/geojson-types';

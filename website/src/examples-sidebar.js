@@ -18,14 +18,37 @@ const sidebars = {
     },
     {
       type: 'doc',
-      label: 'Playground',
-      id: "playground"
+      label: 'Scripting gallery',
+      id: 'gallery'
     },
+    // {
+    //   type: 'doc',
+    //   label: 'Playground',
+    //   id: "playground"
+    // },
     {
       type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
-        "graph-layers/graph-viewer"
+        "graph-layers/simple-graph",
+        "graph-layers/multi-graph",
+        "graph-layers/radial",
+        "graph-layers/hive-plot",
+        "graph-layers/dag"
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers',
+      items: [
+        "layers/path-outline-and-markers"
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/timeline-layers',
+      items: [
+        "timeline-layers/horizon-graph-layer"
       ]
     },
     {
@@ -34,6 +57,14 @@ const sidebars = {
       items: [
         "editable-layers/editor",
         "editable-layers/advanced"
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/widgets',
+      items: [
+        "widgets/html-overlays",
+        "widgets/pan-and-zoom-controls"
       ]
     },
     // {
@@ -45,13 +76,13 @@ const sidebars = {
     // },
 
     // TODO - need BING map key
-    {
-      type: 'category',
-      label: '@deck.gl-community/bing-maps',
-      items: [
-        "bing-maps/get-started"
-      ]
-    },
+    // {
+    //   type: 'category',
+    //   label: '@deck.gl-community/bing-maps',
+    //   items: [
+    //     "bing-maps/get-started"
+    //   ]
+    // },
 
     // TODO - unclear why not rendering
     {

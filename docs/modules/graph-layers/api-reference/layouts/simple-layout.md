@@ -1,20 +1,20 @@
-# Simple Layout
+# SimpleLayout
 
-<p align="center">
-  <img src="/gatsby/images/layouts/simple.png" height="400" />
-</p>
+The `SimpleLayout` allows an application to render a pre-layouted graph. This is useful when the application already has or is able to calculated positions for nodes.
 
-This example demonstrates how to render a pre-layout graph using `@deck.gl-community/graph-layers`.
-You can pre-compute the layout and have the position information in each node.
+## Usage 
+
+If you are able to pre-compute the layout and position information is available in in each node.
 By simply specifying the `nodePositionAccessor` through constructor, you'll be able to render the graph right away.
 
-## Configurations
+## SimpleLayoutProps
 
 #### nodePositionAccessor
-The accessor to get the position ([x, y]) of the node.
-Example:
+
+Simply supply the `nodePositionAccessor` to extract the position ([x, y]) of the node.
+
 ```js
-<GraphGL
+new GraphLayer({
   {...otherProps}
   layout={
     new SimpleLayout({
@@ -24,5 +24,5 @@ Example:
       ]
     })
   }
-/>
+});
 ````

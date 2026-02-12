@@ -1,0 +1,36 @@
+[
+  {"id": "collect", "label": "Collect events", "rank": 0, "parentIds": []},
+  {"id": "ingest", "label": "Ingest", "rank": 1, "parentIds": ["collect"]},
+  {"id": "quality", "label": "Quality checks", "rank": 2, "parentIds": ["ingest"]},
+  {"id": "clean", "label": "Clean data", "rank": 3, "parentIds": ["quality"]},
+  {"id": "warehouse", "label": "Warehouse sync", "rank": 4, "parentIds": ["clean"]},
+  {"id": "feature", "label": "Feature store", "rank": 5, "parentIds": ["warehouse"]},
+  {
+    "id": "feature-vis",
+    "label": "Feature visualization",
+    "rank": 10,
+    "parentIds": ["feature"]
+  },
+  {
+    "id": "vis-analysis",
+    "label": "Feature visualization",
+    "rank": 11,
+    "parentIds": ["feature-vis"]
+  },
+  {"id": "training", "label": "Train models", "rank": 6, "parentIds": ["feature"]},
+  {"id": "serving", "label": "Serve models", "rank": 7, "parentIds": ["training"]},
+  {"id": "monitor", "label": "Monitor", "rank": 10, "parentIds": ["serving"]},
+  {"id": "alert", "label": "Alerting", "rank": 11, "parentIds": ["monitor"]},
+  {
+    "id": "feedback",
+    "label": "Feedback",
+    "rank": 12,
+    "parentIds": ["alert", "monitor"]
+  },
+  {
+    "id": "experiments",
+    "label": "Experimentation",
+    "rank": 13,
+    "parentIds": ["vis-analysis", "feedback"]
+  }
+]
