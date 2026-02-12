@@ -46,7 +46,7 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
       features: []
     };
 
-    if (clickSequence.length === 0) {
+    if (clickSequence.length === 0 || !lastPointerMoveEvent) {
       // nothing to do yet
       return guides;
     }
