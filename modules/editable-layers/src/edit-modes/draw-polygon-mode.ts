@@ -16,7 +16,8 @@ import {
   GuideFeature,
   DoubleClickEvent
 } from './types';
-import {Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
+import {Position, FeatureCollection} from 'geojson';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import { ImmutableFeatureCollection } from './immutable-feature-collection';

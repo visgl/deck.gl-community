@@ -22,7 +22,8 @@ import {
   GuideFeatureCollection
 } from './types';
 import {getPickedEditHandle} from './utils';
-import {FeatureCollection, Position, SimpleFeatureCollection} from '../utils/geojson-types';
+import {FeatureCollection, Position} from 'geojson';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode, GeoJsonEditAction, getIntermediatePosition} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 

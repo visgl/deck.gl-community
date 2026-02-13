@@ -12,15 +12,8 @@ import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from 'viewport-mercator-project';
 import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
-import {
-  SimpleGeometry,
-  Position,
-  Point,
-  LineString,
-  Polygon,
-  Feature,
-  SimpleGeometryCoordinates
-} from '../utils/geojson-types';
+import {SimpleGeometry, SimpleGeometryCoordinates} from '../utils/geojson-types';
+import {Position, Point, LineString, Polygon, Feature} from 'geojson';
 
 export type NearestPointType = Feature<Point, {dist: number; index: number}>;
 

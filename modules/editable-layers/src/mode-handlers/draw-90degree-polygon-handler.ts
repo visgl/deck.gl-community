@@ -7,7 +7,7 @@ import bearing from '@turf/bearing';
 import lineIntersect from '@turf/line-intersect';
 import turfDistance from '@turf/distance';
 import {point, lineString} from '@turf/helpers';
-import {Polygon, Position} from '../utils/geojson-types';
+import {Polygon, Position} from 'geojson';
 import {generatePointsParallelToLinePoints} from '../utils/utils';
 import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
 import {

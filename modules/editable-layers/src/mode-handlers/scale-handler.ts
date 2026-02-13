@@ -5,7 +5,8 @@
 import turfCentroid from '@turf/centroid';
 import turfDistance from '@turf/distance';
 import turfTransformScale from '@turf/transform-scale';
-import {SimpleFeatureCollection, Position, SimpleGeometry} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
+import {Position} from 'geojson';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
 
