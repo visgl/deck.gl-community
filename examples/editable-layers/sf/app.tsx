@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import * as React from 'react';
+import React from 'react';
 import {createRoot} from 'react-dom/client';
-
-import Example from './example';
+import {Example} from './example';
 
 const container = document.createElement('div');
 

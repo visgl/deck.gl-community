@@ -59,6 +59,7 @@ const sidebars = {
         "editable-layers/editor",
         "editable-layers/widget",
         "editable-layers/advanced",
+        "editable-layers/sf",
         "editable-layers/no-map",
         "editable-layers/overlays",
         "editable-layers/editable-h3-cluster-layer"
