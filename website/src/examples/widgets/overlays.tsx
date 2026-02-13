@@ -8,7 +8,7 @@ import {makeExample} from '../../components';
 class OverlaysDemo extends Component {
   static title = 'Overlays';
 
-  static code = `${GITHUB_TREE}/examples/editable-layers/overlays`;
+  static code = `${GITHUB_TREE}/examples/widgets/overlays`;
 
   static renderInfo(meta) {
     return <></>;
@@ -20,8 +20,8 @@ class OverlaysDemo extends Component {
     return (
       <BrowserOnly>
         {() => {
-          const App = require('../../../../examples/editable-layers/overlays/example');
-          return <App.Example {...otherProps} />;
+          const App = require('../../../../examples/widgets/overlays/example');
+          return <App.default {...otherProps} />;
         }}
       </BrowserOnly>
     );

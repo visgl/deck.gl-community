@@ -61,7 +61,6 @@ const sidebars = {
         "editable-layers/advanced",
         "editable-layers/sf",
         "editable-layers/no-map",
-        "editable-layers/overlays",
         "editable-layers/editable-h3-cluster-layer"
       ]
     },
@@ -70,6 +69,7 @@ const sidebars = {
       label: '@deck.gl-community/widgets',
       items: [
         "widgets/html-overlays",
+        "widgets/overlays",
         "widgets/pan-and-zoom-controls"
       ]
     },
