@@ -28,6 +28,15 @@ This module is a fork of / successor to [nebula.gl](https://nebula.gl). nebula.g
 
 This page contains highlights of each `editable-layers` release.
 
+### editable-layers v9.3
+
+- **EditModeTrayWidget** — New deck.gl widget providing a mode selection tray UI, eliminating the need for custom React toolbars.
+- **All examples modernized** — Every example now uses Vite, TypeScript, React 18 with functional components and hooks.
+- **New examples** — `getting-started` (minimal setup), `no-map` (editing without a basemap using BitmapLayer background).
+- **Deprecated MeshLayer docs removed** — MeshLayer was never part of editable-layers; use `@deck.gl/mesh-layers` directly.
+- **Overlays example moved** to `@deck.gl-community/widgets` where it belongs.
+- **DrawPolygonMode** — Improved hole drawing with validation, max hole limits, and `emitInvalidEvents` for error feedback.
+
 ### editable-layers v9.1
 
 - Now stores properties of created circles and ellipses in `properties.editProperties`.
