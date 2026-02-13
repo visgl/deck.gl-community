@@ -55,8 +55,13 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/editable-layers',
       items: [
+        "editable-layers/getting-started",
         "editable-layers/editor",
-        "editable-layers/advanced"
+        "editable-layers/widget",
+        "editable-layers/advanced",
+        "editable-layers/no-map",
+        "editable-layers/overlays",
+        "editable-layers/editable-h3-cluster-layer"
       ]
     },
     {
