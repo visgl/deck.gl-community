@@ -1278,6 +1278,7 @@ __metadata:
     "@turf/helpers": "npm:^7.2.0"
     "@turf/intersect": "npm:^7.2.0"
     "@turf/invariant": "npm:^7.2.0"
+    "@turf/kinks": "npm:^7.2.0"
     "@turf/line-intersect": "npm:^7.2.0"
     "@turf/meta": "npm:^7.2.0"
     "@turf/midpoint": "npm:^7.2.0"
@@ -4270,6 +4271,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@turf/helpers@npm:7.3.2":
+  version: 7.3.2
+  resolution: "@turf/helpers@npm:7.3.2"
+  dependencies:
+    "@types/geojson": "npm:^7946.0.10"
+    tslib: "npm:^2.8.1"
+  checksum: 10c0/8576c32793268b2e7ba9d82691a57f6d544d2362ca2176a351ac11c2fac8e04ff069ab327c26b21cf1929b7b8562e77fd56d6db61718cb7bb01621fce06dabfb
+  languageName: node
+  linkType: hard
+
 "@turf/helpers@npm:^5.1.5":
   version: 5.1.5
   resolution: "@turf/helpers@npm:5.1.5"
@@ -4333,6 +4344,17 @@ __metadata:
   dependencies:
     jsts: "npm:2.7.1"
   checksum: 10c0/19eab63e7e26a613e7186de170d9f96c32759769a0268acac3da4c5cefc8f9f5a1274f9fc73b0cb85c5d52c9d9516167c98a42d1635e03c3a712e2a784e192c7
+  languageName: node
+  linkType: hard
+
+"@turf/kinks@npm:^7.2.0":
+  version: 7.3.2
+  resolution: "@turf/kinks@npm:7.3.2"
+  dependencies:
+    "@turf/helpers": "npm:7.3.2"
+    "@types/geojson": "npm:^7946.0.10"
+    tslib: "npm:^2.8.1"
+  checksum: 10c0/634abc359130d2e6aeea3cbde1970853d3e23edcbc5020076a098a42b5a3be2e30cb32240db528e16e205068e88aa9b82f600ea23b0fa7c3015012743e6cf169
   languageName: node
   linkType: hard
 
