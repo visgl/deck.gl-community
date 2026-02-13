@@ -6631,7 +6631,6 @@ __metadata:
   resolution: "editable-layers-advanced-example@workspace:examples/editable-layers/advanced"
   dependencies:
     "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/extensions": "npm:~9.2.1"
     "@deck.gl/geo-layers": "npm:~9.2.1"
@@ -11457,9 +11456,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"overlays-a5886b@workspace:examples/editable-layers/overlays":
+"overlays-022e03@workspace:examples/widgets/overlays":
   version: 0.0.0-use.local
-  resolution: "overlays-a5886b@workspace:examples/editable-layers/overlays"
+  resolution: "overlays-022e03@workspace:examples/widgets/overlays"
   dependencies:
     "@deck.gl/core": "npm:~9.2.1"
     "@deck.gl/extensions": "npm:~9.2.1"

@@ -51,7 +51,6 @@ import {
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
 
-import {PathMarkerLayer} from '@deck.gl-community/layers';
 
 import sampleGeoJson from '../../data/sample-geojson.json';
 
@@ -223,14 +222,13 @@ function getEditHandleColor(handle: {}): RGBAColor {
 export function Example() {
   const [viewport, setViewport] = useState<Record<string, any>>(initialViewport);
   const [testFeatures, setTestFeatures] = useState<any>(sampleGeoJson);
-  const [mode, setMode] = useState<typeof GeoJsonEditMode>(DrawPolygonMode);
+  const [mode, setMode] = useState<typeof GeoJsonEditMode>(() => DrawPolygonMode);
   const [modeConfig, setModeConfig] = useState<any>({allowHoles: true, allowSelfIntersection: false});
   const [pointsRemovable, setPointsRemovable] = useState<boolean>(true);
   const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState<number[]>([]);
   const [editHandleType, setEditHandleType] = useState<string>('point');
   const [selectionTool, setSelectionTool] = useState<string | undefined>(undefined);
   const [showGeoJson, setShowGeoJson] = useState<boolean>(false);
-  const [pathMarkerLayer, setPathMarkerLayer] = useState<boolean>(false);
   const [featureMenu, setFeatureMenu] = useState<{index: number; x: number; y: number} | undefined>(undefined);
 
   const getDefaultModeConfig = useCallback((mode: any) => {
@@ -680,7 +678,7 @@ export function Example() {
                 key={label}
                 selected={mode === modeOption}
                 onClick={() => {
-                  setMode(modeOption);
+                  setMode(() => modeOption);
                   setModeConfig(getDefaultModeConfig(modeOption));
                   setSelectionTool(undefined);
                 }}
@@ -757,17 +755,6 @@ export function Example() {
             </ToolboxCheckbox>
           </ToolboxControl>
 
-          <ToolboxControl>
-            <ToolboxCheckbox
-              type="checkbox"
-              checked={pathMarkerLayer}
-              onChange={() =>
-                setPathMarkerLayer(!pathMarkerLayer)
-              }
-            >
-              Use PathMarkerLayer
-            </ToolboxCheckbox>
-          </ToolboxControl>
         </ToolboxRow>
 
         <ToolboxRow>
@@ -783,7 +770,7 @@ export function Example() {
             </ToolboxButton>
             <ToolboxButton
               onClick={() => {
-                setMode(ViewMode);
+                setMode(() => ViewMode);
                 setSelectionTool('rectangle');
               }}
             >
@@ -791,7 +778,7 @@ export function Example() {
             </ToolboxButton>
             <ToolboxButton
               onClick={() => {
-                setMode(ViewMode);
+                setMode(() => ViewMode);
                 setSelectionTool('polygon');
               }}
             >
@@ -804,7 +791,7 @@ export function Example() {
       </Toolbox>
     );
   }, [mode, showGeoJson, testFeatures, copy, paste, download, loadSample, editHandleType,
-      pathMarkerLayer, renderModeConfigControls, renderSelectFeatureCheckboxes, getDefaultModeConfig]);
+      renderModeConfigControls, renderSelectFeatureCheckboxes, getDefaultModeConfig]);
 
   const renderStaticMap = useCallback((currentViewport: Record<string, any>) => {
     return (
@@ -978,20 +965,6 @@ export function Example() {
           points: {
             type: ElevatedEditHandleLayer,
             getFillColor: [0, 255, 0]
-          }
-        }
-      }
-    });
-  }
-
-  if (pathMarkerLayer) {
-    _subLayerProps = Object.assign(_subLayerProps, {
-      geojson: {
-        _subLayerProps: {
-          linestrings: {
-            type: PathMarkerLayer,
-            getMarkerColor: (x) => [255, 255, 255, 255],
-            sizeScale: 1500
           }
         }
       }
