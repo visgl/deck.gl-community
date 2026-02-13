@@ -22,6 +22,12 @@ export type {
   EditModeTrayWidgetSelectEvent
 } from './widgets/edit-mode-tray-widget';
 
+export {EditorToolbarWidget} from './widgets/editor-toolbar-widget';
+export type {
+  EditorToolbarWidgetProps,
+  BooleanOperation
+} from './widgets/editor-toolbar-widget';
+
 // Layers move to deck.gl-community/layers?
 export {JunctionScatterplotLayer} from './editable-layers/junction-scatterplot-layer';
 

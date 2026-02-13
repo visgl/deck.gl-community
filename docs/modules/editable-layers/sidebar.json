@@ -12,8 +12,15 @@
       "label": "Layers",
       "items": [
         "modules/editable-layers/api-reference/layers/editable-geojson-layer",
-        "modules/editable-layers/api-reference/layers/selection-layer",
-        "modules/editable-layers/api-reference/layers/mesh-layer"
+        "modules/editable-layers/api-reference/layers/selection-layer"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Widgets",
+      "items": [
+        "modules/editable-layers/api-reference/widgets/edit-mode-tray-widget",
+        "modules/editable-layers/api-reference/widgets/editor-toolbar-widget"
       ]
     },
     {
