@@ -17,6 +17,14 @@
     },
     {
       "type": "category",
+      "label": "Widgets",
+      "items": [
+        "modules/editable-layers/api-reference/widgets/edit-mode-tray-widget",
+        "modules/editable-layers/api-reference/widgets/editor-toolbar-widget"
+      ]
+    },
+    {
+      "type": "category",
       "label": "Edit Modes",
       "items": [
         "modules/editable-layers/api-reference/edit-modes/core-modes",
