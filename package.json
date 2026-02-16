@@ -45,7 +45,7 @@
     "@types/bin-pack": "^1.0.3",
     "@vis.gl/dev-tools": "1.0.0-alpha.21",
     "@vis.gl/ts-plugins": "^1.0.0",
-    "@vitejs/plugin-react": "5.1.0",
+    "@vitejs/plugin-react": "^5.1.4",
     "@vitest/browser": "4.0.5",
     "@vitest/browser-playwright": "4.0.5",
     "@vitest/eslint-plugin": "^1.4.0",
@@ -58,7 +58,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "~5.9.3",
-    "vite": "7.1.1",
+    "vite": "^7.3.1",
     "vitest": "4.0.5",
     "vitest-browser-react": "^2.0.2"
   },
