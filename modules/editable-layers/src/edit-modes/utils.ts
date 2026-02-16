@@ -10,7 +10,7 @@ import pointToLineDistance from '@turf/point-to-line-distance';
 import {flattenEach} from '@turf/meta';
 import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
-import {WebMercatorViewport} from 'viewport-mercator-project';
+import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
   SimpleGeometry,

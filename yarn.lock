@@ -195,7 +195,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.1.2, @babel/runtime@npm:^7.12.0, @babel/runtime@npm:^7.12.5":
+"@babel/runtime@npm:^7.1.2, @babel/runtime@npm:^7.12.5":
   version: 7.28.4
   resolution: "@babel/runtime@npm:7.28.4"
   checksum: 10c0/792ce7af9750fb9b93879cc9d1db175701c4689da890e6ced242ea0207c9da411ccf16dc04e689cc01158b28d7898c40d75598f4559109f761c12ce01e959bf7
@@ -276,6 +276,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/editable-layers@workspace:modules/editable-layers"
   dependencies:
+    "@math.gl/web-mercator": "npm:>=4.0.1"
     "@turf/along": "npm:^7.2.0"
     "@turf/area": "npm:^7.2.0"
     "@turf/bbox": "npm:^7.2.0"
@@ -313,7 +314,6 @@ __metadata:
     lodash.throttle: "npm:^4.1.1"
     preact: "npm:^10.17.0"
     uuid: "npm:9.0.0"
-    viewport-mercator-project: "npm:>=6.2.3"
   peerDependencies:
     "@deck.gl-community/layers": ^9.2.0-beta
     "@deck.gl/core": ~9.2.1
@@ -2307,17 +2307,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@math.gl/web-mercator@npm:^3.5.5":
-  version: 3.6.3
-  resolution: "@math.gl/web-mercator@npm:3.6.3"
-  dependencies:
-    "@babel/runtime": "npm:^7.12.0"
-    gl-matrix: "npm:^3.4.0"
-  checksum: 10c0/95a1267261e03fa0194ec5ac5f3f8c3a13e1182cf3865d4d3bbd669706d42bd067335d1812df2e844c63c1f0f21c50e08af2b90168f2db1d3fa3ba2087f59703
-  languageName: node
-  linkType: hard
-
-"@math.gl/web-mercator@npm:^4.1.0":
+"@math.gl/web-mercator@npm:>=4.0.1, @math.gl/web-mercator@npm:^4.1.0":
   version: 4.1.0
   resolution: "@math.gl/web-mercator@npm:4.1.0"
   dependencies:
@@ -8578,7 +8568,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"gl-matrix@npm:^3.0.0, gl-matrix@npm:^3.4.0, gl-matrix@npm:^3.4.3":
+"gl-matrix@npm:^3.0.0, gl-matrix@npm:^3.4.3":
   version: 3.4.4
   resolution: "gl-matrix@npm:3.4.4"
   checksum: 10c0/9aa022ffac0d158212ad0cd29939864ad919ac31cd5dc5a5d35e9d66bb62679ddf152ff7b2173ded20131045e40572b87f31b26a920be2a7583a1516b13b5b4b
@@ -15233,15 +15223,6 @@ __metadata:
     core-util-is: "npm:1.0.2"
     extsprintf: "npm:^1.2.0"
   checksum: 10c0/37ccdf8542b5863c525128908ac80f2b476eed36a32cb944de930ca1e2e78584cc435c4b9b4c68d0fc13a47b45ff364b4be43aa74f8804f9050140f660fb660d
-  languageName: node
-  linkType: hard
-
-"viewport-mercator-project@npm:>=6.2.3":
-  version: 7.0.4
-  resolution: "viewport-mercator-project@npm:7.0.4"
-  dependencies:
-    "@math.gl/web-mercator": "npm:^3.5.5"
-  checksum: 10c0/9a8a12f4bd68355a8162a23d4b161133b45aee71b2453fd8d57f54c55466007428cf502d0c02f58620d4c92ba934c29608613bc3176dd8c1d348f8a9deb34e32
   languageName: node
   linkType: hard
 
