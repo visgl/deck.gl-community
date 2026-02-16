@@ -76,5 +76,9 @@
       }
     }
   },
+  "pre-commit": [
+    "lint",
+    "test"
+  ],
   "packageManager": "yarn@4.10.3"
 }
