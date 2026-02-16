@@ -26,7 +26,11 @@ import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class SplitPolygonMode extends GeoJsonEditMode {
-  calculateMapCoords(clickSequence: any, mapCoords: any, props: ModeProps<SimpleFeatureCollection>) {
+  calculateMapCoords(
+    clickSequence: any,
+    mapCoords: any,
+    props: ModeProps<SimpleFeatureCollection>
+  ) {
     const modeConfig = props.modeConfig;
     if (!modeConfig || !modeConfig.lock90Degree || !clickSequence.length) {
       return mapCoords;
@@ -53,7 +57,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
       if (closestPoint) {
         // closest point is used as 90degree entry to the polygon
         const lastBearing = turfBearing(firstPoint, closestPoint);
-        const currentDistance = turfDistance(firstPoint, mapCoords, { units: 'meters' });
+        const currentDistance = turfDistance(firstPoint, mapCoords, {units: 'meters'});
         return turfDestination(firstPoint, currentDistance, lastBearing, {
           units: 'meters'
         }).geometry.coordinates;
@@ -161,7 +165,9 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     }
 
     const buffer = turfBuffer(tentativeFeature, gap, {units});
-    const updatedGeometry = turfDifference(featureCollection([turfFeature(selectedGeometry as PolygonGeometry), buffer]));
+    const updatedGeometry = turfDifference(
+      featureCollection([turfFeature(selectedGeometry as PolygonGeometry), buffer])
+    );
     if (!updatedGeometry) {
       // eslint-disable-next-line no-console,no-undef
       console.warn('Canceling edit. Split Polygon erased');

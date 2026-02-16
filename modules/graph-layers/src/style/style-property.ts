@@ -154,7 +154,6 @@ type SupportedScale =
   | ReturnType<typeof scaleLinear>
   | ReturnType<typeof scaleLog>
   | ReturnType<typeof scalePow>
-   
   | ReturnType<typeof scaleQuantize>
   | ReturnType<typeof scaleQuantile>
   | ReturnType<typeof scaleOrdinal>;
@@ -194,10 +193,18 @@ function createScaleFromConfig(config: GraphStyleScale): SupportedScale {
   if (config.range && 'range' in scale) {
     anyScale.range(config.range as never);
   }
-  if (typeof config.clamp === 'boolean' && 'clamp' in scale && typeof anyScale.clamp === 'function') {
+  if (
+    typeof config.clamp === 'boolean' &&
+    'clamp' in scale &&
+    typeof anyScale.clamp === 'function'
+  ) {
     anyScale.clamp(config.clamp);
   }
-  if (typeof config.nice !== 'undefined' && 'nice' in scale && typeof anyScale.nice === 'function') {
+  if (
+    typeof config.nice !== 'undefined' &&
+    'nice' in scale &&
+    typeof anyScale.nice === 'function'
+  ) {
     anyScale.nice(config.nice as never);
   }
   if (
@@ -273,12 +280,22 @@ function isAttributeReference(value: unknown): value is GraphStyleAttributeRefer
   if (typeof value === 'string') {
     return value.startsWith('@');
   }
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) && 'attribute' in (value as Record<string, unknown>);
+  return (
+    Boolean(value) &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    'attribute' in (value as Record<string, unknown>)
+  );
 }
 
 /** Determine whether a style value maps interaction states. */
 function isStatefulValue(value: unknown): value is Record<string, GraphStyleLeafValue> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) && !isAttributeReference(value);
+  return (
+    Boolean(value) &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    !isAttributeReference(value)
+  );
 }
 
 /** Resolve an attribute from a datum or `Graph` entity. */
@@ -424,7 +441,9 @@ function createStatefulAccessor(
   }
 
   const defaultValue =
-    typeof valueMap.default !== 'undefined' ? valueMap.default : parseLeafValue(key, undefined).value;
+    typeof valueMap.default !== 'undefined'
+      ? valueMap.default
+      : parseLeafValue(key, undefined).value;
 
   const accessor = (datum: any) => {
     const stateValue = datum?.state ? valueMap[datum.state] : undefined;
@@ -460,11 +479,7 @@ export class StyleProperty {
     this._updateTrigger = false;
 
     if (isStatefulValue(value)) {
-      const {accessor, updateTrigger: triggers} = createStatefulAccessor(
-        key,
-        value,
-        updateTrigger
-      );
+      const {accessor, updateTrigger: triggers} = createStatefulAccessor(key, value, updateTrigger);
       this._value = accessor;
       this._valueType = VALUE_TYPE.ACCESSOR;
       this._updateTrigger = triggers;

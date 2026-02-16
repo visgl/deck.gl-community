@@ -153,7 +153,9 @@ function isEdgeInterface(value: unknown): value is EdgeInterface {
 /**
  * Layout that orchestrates d3-dag operators from declarative options.
  */
-export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> extends GraphLayout<PropsT> {
+export class D3DagLayout<
+  PropsT extends D3DagLayoutProps = D3DagLayoutProps
+> extends GraphLayout<PropsT> {
   static defaultProps: Readonly<Required<D3DagLayoutProps>> = {
     ...GraphLayout.defaultProps,
     layout: 'sugiyama',
@@ -212,7 +214,6 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
       this._layoutOperator = null;
     }
   }
-
 
   initializeGraph(graph: Graph): void {
     this.updateGraph(graph);
@@ -277,14 +278,12 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     return this._nodePositions.get(mappedId) || null;
   }
 
-  getEdgePosition(edge: EdgeInterface):
-    | {
-        type: string;
-        sourcePosition: [number, number];
-        targetPosition: [number, number];
-        controlPoints: [number, number][];
-      }
-    | null {
+  getEdgePosition(edge: EdgeInterface): {
+    type: string;
+    sourcePosition: [number, number];
+    targetPosition: [number, number];
+    controlPoints: [number, number][];
+  } | null {
     const mappedSourceId = this._mapNodeId(edge.getSourceNodeId());
     const mappedTargetId = this._mapNodeId(edge.getTargetNodeId());
     if (mappedSourceId === mappedTargetId) {
@@ -407,7 +406,9 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     const connect = graphConnect()
       .sourceId(({source}: ConnectDatum): string => source)
       .targetId(({target}: ConnectDatum): string => target)
-      .nodeDatum((id: string): NodeInterface => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id}))
+      .nodeDatum(
+        (id: string): NodeInterface => this._nodeLookup.get(this._fromDagId(id)) ?? new Node({id})
+      )
       .single(true);
 
     const edges = Array.from(this._graph.getEdges());
@@ -508,7 +509,9 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
       .filter((edge) => edge.isDirected() && edge.getSourceNodeId() === nodeId);
   }
 
-  private _ensureEdgeData<T>(dag: MutGraph<NodeInterface, T>): MutGraph<NodeInterface, EdgeInterface> {
+  private _ensureEdgeData<T>(
+    dag: MutGraph<NodeInterface, T>
+  ): MutGraph<NodeInterface, EdgeInterface> {
     for (const link of dag.links()) {
       if (isEdgeInterface(link.data)) {
         continue;
@@ -551,7 +554,10 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
         // @ts-expect-error TS2345 - Argument of type '(dagNode: MutGraphNode<NodeInterface, EdgeInterface>) => number | undefined' is not assignable to parameter of type '(dagNode: MutGraphNode<NodeInterface, EdgeInterface>) => number'.
         layeringOperator = layeringOperator.rank((dagNode) => {
           const node = dagNode.data as NodeInterface;
-          const rank = typeof nodeRank === 'function' ? nodeRank?.(node) : node?.getPropertyValue(nodeRank) || undefined;
+          const rank =
+            typeof nodeRank === 'function'
+              ? nodeRank?.(node)
+              : node?.getPropertyValue(nodeRank) || undefined;
           // if (rank !== undefined) {
           //   console.log(`Node ${node.getId()} assigned to rank ${rank}`);
           // }
@@ -644,8 +650,17 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
       if (!edge) {
         continue;
       }
-      const points = (link.points && link.points.length ? link.points : [[link.source.x ?? 0, link.source.y ?? 0], [link.target.x ?? 0, link.target.y ?? 0]]);
-      this._rawEdgePoints.set(edge.getId(), points.map((point) => [...point] as [number, number]));
+      const points =
+        link.points && link.points.length
+          ? link.points
+          : [
+              [link.source.x ?? 0, link.source.y ?? 0],
+              [link.target.x ?? 0, link.target.y ?? 0]
+            ];
+      this._rawEdgePoints.set(
+        edge.getId(),
+        points.map((point) => [...point] as [number, number])
+      );
     }
 
     this._updateTransformedGeometry();
@@ -687,10 +702,7 @@ export class D3DagLayout<PropsT extends D3DagLayoutProps = D3DagLayoutProps> ext
     for (const [edgeId, points] of this._rawEdgePoints) {
       const transformed = points.map(([x, y]) => transform(x, y));
       this._edgePoints.set(edgeId, transformed);
-      this._edgeControlPoints.set(
-        edgeId,
-        transformed.length > 2 ? transformed.slice(1, -1) : []
-      );
+      this._edgeControlPoints.set(edgeId, transformed.length > 2 ? transformed.slice(1, -1) : []);
     }
 
     for (const [id, position] of this._lockedNodePositions) {

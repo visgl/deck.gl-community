@@ -9,7 +9,12 @@ import {Node} from './node';
 import type {EdgeInterface, NodeInterface, GraphProps} from './graph';
 import {Graph} from './graph';
 import type {PlainGraphData, GraphNodeData, GraphEdgeData} from '../graph-data/graph-data';
-import {cloneRecord, normalizeEdgeState, normalizeNodeState, normalizeVersion} from './graph-normalization';
+import {
+  cloneRecord,
+  normalizeEdgeState,
+  normalizeNodeState,
+  normalizeVersion
+} from './graph-normalization';
 
 export type ClassicGraphProps = GraphProps & {
   data: PlainGraphData;
@@ -35,7 +40,7 @@ export class ClassicGraph extends Graph {
 
   /**
    * The constructor of the graph class.
-   * @param props - 
+   * @param props -
    */
   constructor(props: ClassicGraphProps) {
     super(props);
@@ -409,9 +414,7 @@ function createEdgesFromPlainGraphData(edges?: GraphEdgeData[] | null): Edge[] {
   return edges.map((edgeData) => {
     const edgeAttributes = createEdgeAttributesFromPlainData(edgeData);
     const directed =
-      typeof edgeData.directed === 'boolean'
-        ? edgeData.directed
-        : Boolean(edgeAttributes.directed);
+      typeof edgeData.directed === 'boolean' ? edgeData.directed : Boolean(edgeAttributes.directed);
     const edge = new Edge({
       id: edgeData.id,
       sourceId: edgeData.sourceId,

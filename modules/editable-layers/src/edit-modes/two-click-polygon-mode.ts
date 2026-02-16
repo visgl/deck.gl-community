@@ -11,7 +11,13 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Polygon, FeatureCollection, Feature, Position, SimpleFeatureCollection} from '../utils/geojson-types';
+import {
+  Polygon,
+  FeatureCollection,
+  Feature,
+  Position,
+  SimpleFeatureCollection
+} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import omit from 'lodash.omit';
 

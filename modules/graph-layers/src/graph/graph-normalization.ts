@@ -21,7 +21,10 @@ export function normalizeEdgeState(state: EdgeState | undefined): EdgeState {
   return 'default';
 }
 
-export function normalizeNodeStateColumn(source: NodeState[] | undefined, length: number): NodeState[] {
+export function normalizeNodeStateColumn(
+  source: NodeState[] | undefined,
+  length: number
+): NodeState[] {
   const result: NodeState[] = new Array(length);
   for (let i = 0; i < length; i++) {
     result[i] = normalizeNodeState(source?.[i]);
@@ -29,7 +32,10 @@ export function normalizeNodeStateColumn(source: NodeState[] | undefined, length
   return result;
 }
 
-export function normalizeEdgeStateColumn(source: EdgeState[] | undefined, length: number): EdgeState[] {
+export function normalizeEdgeStateColumn(
+  source: EdgeState[] | undefined,
+  length: number
+): EdgeState[] {
   const result: EdgeState[] = new Array(length);
   for (let i = 0; i < length; i++) {
     result[i] = normalizeEdgeState(source?.[i]);

@@ -4,7 +4,12 @@
 
 import distance from '@turf/distance';
 import {memoize} from '../utils/memoize';
-import {LineString, FeatureCollection, Position, SimpleFeatureCollection} from '../utils/geojson-types';
+import {
+  LineString,
+  FeatureCollection,
+  Position,
+  SimpleFeatureCollection
+} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,

@@ -107,10 +107,7 @@ function createArrowGraphData({version = 1}: {version?: number}): ArrowGraphData
       state: ['hover', 'default'],
       selectable: [true, false],
       highlightConnectedEdges: [true, false],
-      data: [
-        JSON.stringify({label: 'Node A', weight: 1}),
-        JSON.stringify({label: 'Node B'})
-      ]
+      data: [JSON.stringify({label: 'Node A', weight: 1}), JSON.stringify({label: 'Node B'})]
     }),
     edges: createArrowTable({
       id: ['e-1'],

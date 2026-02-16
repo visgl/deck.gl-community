@@ -20,9 +20,7 @@ const createClassicGraph: GraphFactory = () => {
   return new ClassicGraph({data});
 };
 
-const GRAPH_IMPLEMENTATIONS: [string, GraphFactory][] = [
-  ['ClassicGraph', createClassicGraph]
-];
+const GRAPH_IMPLEMENTATIONS: [string, GraphFactory][] = [['ClassicGraph', createClassicGraph]];
 
 function createPlainGraphDataFromSample(): PlainGraphData {
   return {
@@ -93,13 +91,9 @@ describe('core/graph', () => {
       expect(node.shouldHighlightConnectedEdges()).toBe(true);
 
       const connectedEdges = node.getConnectedEdges();
-      expect(connectedEdges.map((e) => e.getId())).toEqual(
-        expect.arrayContaining(['2', '5'])
-      );
+      expect(connectedEdges.map((e) => e.getId())).toEqual(expect.arrayContaining(['2', '5']));
 
-      expect(node.getSiblingIds()).toEqual(
-        expect.arrayContaining(['Thenardier', 'Javert'])
-      );
+      expect(node.getSiblingIds()).toEqual(expect.arrayContaining(['Thenardier', 'Javert']));
       expect(node.getDegree()).toBe(2);
       expect(node.getOutDegree()).toBe(1);
       expect(node.getInDegree()).toBe(0);
@@ -153,7 +147,6 @@ describe('core/graph', () => {
       expect(graph.getNodes()).toHaveLength(glNodes.length);
     });
   });
-
 });
 
 function findNode(graph: Graph, id: string | number): NodeInterface {

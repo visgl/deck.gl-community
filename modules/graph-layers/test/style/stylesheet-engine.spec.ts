@@ -111,7 +111,7 @@ describe('StylesheetEngine', () => {
 
     const node = {
       state: 'default',
-      getPropertyValue: (key: string) => ({size: 5, color: '#ef4444'}[key as 'size' | 'color'])
+      getPropertyValue: (key: string) => ({size: 5, color: '#ef4444'})[key as 'size' | 'color']
     };
 
     expect(getRadius(node)).toBe(50);
@@ -119,7 +119,7 @@ describe('StylesheetEngine', () => {
 
     const hoverNode = {
       state: 'hover',
-      getPropertyValue: (key: string) => ({size: null, color: '#0f172a'}[key as 'size' | 'color'])
+      getPropertyValue: (key: string) => ({size: null, color: '#0f172a'})[key as 'size' | 'color']
     };
 
     expect(getRadius(hoverNode)).toBe(40);

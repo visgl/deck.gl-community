@@ -10,7 +10,10 @@ export type RadialLayoutProps = GraphLayoutProps & {
   tree?: any;
 };
 
-const getTreeNode = (nodeId: string, nodeMap: Record<string, {children?: string[]; isLeaf?: boolean}>) => {
+const getTreeNode = (
+  nodeId: string,
+  nodeMap: Record<string, {children?: string[]; isLeaf?: boolean}>
+) => {
   const node = nodeMap[nodeId];
   if (node) {
     return node;

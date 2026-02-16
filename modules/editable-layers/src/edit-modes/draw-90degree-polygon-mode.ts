@@ -19,7 +19,13 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {Polygon, LineString, Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
+import {
+  Polygon,
+  LineString,
+  Position,
+  FeatureCollection,
+  SimpleFeatureCollection
+} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class Draw90DegreePolygonMode extends GeoJsonEditMode {

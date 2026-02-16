@@ -172,14 +172,9 @@ export class RotateMode extends GeoJsonEditMode {
     }
     const centroid = turfCentroid(this._geometryBeingRotated);
     const angle = getRotationAngle(centroid.geometry.coordinates, startDragPoint, currentPoint);
-    const rotatedFeatures = turfTransformRotate(
-
-      this._geometryBeingRotated,
-      angle,
-      {
-        pivot: centroid
-      }
-    );
+    const rotatedFeatures = turfTransformRotate(this._geometryBeingRotated, angle, {
+      pivot: centroid
+    });
 
     let updatedData = new ImmutableFeatureCollection(props.data);
 

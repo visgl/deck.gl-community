@@ -218,20 +218,25 @@ test('Correct coordinate edited when stopping near another guide', () => {
   const dragEnd = [3.1, 4.1];
 
   const pointerDownPicks = [
-    { index: 0, isGuide: true, object: guides.features[0] },
-    { index: 0, object: lineStringFeature }
+    {index: 0, isGuide: true, object: guides.features[0]},
+    {index: 0, object: lineStringFeature}
   ];
 
   const stopDragPicks = [
-    { index: 2, isGuide: true, object: guides.features[2] },  // simulate another guide being picked
-    { index: 0, isGuide: true, object: guides.features[0] },
-    { index: 0, object: lineStringFeature }
+    {index: 2, isGuide: true, object: guides.features[2]}, // simulate another guide being picked
+    {index: 0, isGuide: true, object: guides.features[0]},
+    {index: 0, object: lineStringFeature}
   ];
 
   const startDragEvent = createStartDraggingEvent(dragStart, dragStart, pointerDownPicks);
   mode.handleStartDragging(startDragEvent, props);
 
-  const stopDragEvent = createStopDraggingEvent(dragEnd, dragStart, stopDragPicks, pointerDownPicks);
+  const stopDragEvent = createStopDraggingEvent(
+    dragEnd,
+    dragStart,
+    stopDragPicks,
+    pointerDownPicks
+  );
   mode.handleStopDragging(stopDragEvent, props);
 
   expect(mockOnEdit).toHaveBeenCalledTimes(1);

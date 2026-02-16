@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {cloneElement, render, toChildArray, Fragment, type ComponentChildren, type VNode} from 'preact';
+import {
+  cloneElement,
+  render,
+  toChildArray,
+  Fragment,
+  type ComponentChildren,
+  type VNode
+} from 'preact';
 import type {Deck, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import {Widget} from '@deck.gl/core';
 
@@ -25,7 +32,9 @@ const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
   overflow: 'hidden'
 };
 
-export class HtmlOverlayWidget<PropsT extends HtmlOverlayWidgetProps = HtmlOverlayWidgetProps> extends Widget<PropsT> {
+export class HtmlOverlayWidget<
+  PropsT extends HtmlOverlayWidgetProps = HtmlOverlayWidgetProps
+> extends Widget<PropsT> {
   static override defaultProps = {
     id: 'html-overlay',
     viewId: null,
@@ -113,19 +122,17 @@ export class HtmlOverlayWidget<PropsT extends HtmlOverlayWidgetProps = HtmlOverl
 
   protected projectItems(items: VNode[], viewport: Viewport): VNode[] {
     const renderItems: VNode[] = [];
-    items
-      .filter(Boolean)
-      .forEach((item, index) => {
-        const coordinates = (item.props as any)?.coordinates;
-        if (!coordinates) {
-          return;
-        }
-        const [x, y] = this.getCoords(viewport, coordinates);
-        if (this.inView(viewport, [x, y])) {
-          const key = item.key === null || item.key === undefined ? index : item.key;
-          renderItems.push(cloneElement(item, {x, y, key}));
-        }
-      });
+    items.filter(Boolean).forEach((item, index) => {
+      const coordinates = (item.props as any)?.coordinates;
+      if (!coordinates) {
+        return;
+      }
+      const [x, y] = this.getCoords(viewport, coordinates);
+      if (this.inView(viewport, [x, y])) {
+        const key = item.key === null || item.key === undefined ? index : item.key;
+        renderItems.push(cloneElement(item, {x, y, key}));
+      }
+    });
 
     return renderItems;
   }

@@ -14,7 +14,13 @@ import {
   getPickedEditHandle,
   NearestPointType
 } from './utils';
-import {LineString, Point, FeatureCollection, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
+import {
+  LineString,
+  Point,
+  FeatureCollection,
+  Feature,
+  SimpleFeatureCollection
+} from '../utils/geojson-types';
 import {Viewport} from '../utils/types';
 import {
   ModeProps,
@@ -24,7 +30,7 @@ import {
   DraggingEvent,
   EditHandleFeature,
   GuideFeatureCollection,
-  GuideFeature,
+  GuideFeature
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -69,7 +75,6 @@ export class ResizeCircleMode extends GeoJsonEditMode {
           (lineString, prefix) => {
             const lineStringFeature = toLineString(lineString);
             const candidateIntermediatePoint = this.getNearestPoint(
-
               lineStringFeature,
               referencePoint,
               props.modeConfig && props.modeConfig.viewport

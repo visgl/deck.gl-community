@@ -1,12 +1,7 @@
-deprecated/
 dist/
 node_modules/
 dist.*.js
 *.min.js
-**/*.md
-
+*.md
 public/
 .cache/
-
-modules/experimental
-examples/arrow-layers

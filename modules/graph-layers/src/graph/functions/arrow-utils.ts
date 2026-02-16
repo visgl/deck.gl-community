@@ -9,22 +9,26 @@ export function getVectorLength(vector: arrow.Vector | null): number {
 }
 
 export function getVectorValue(vector: arrow.Vector | null, index: number): unknown {
-  return vector ? vector.get?.(index) ?? vector.toArray?.()[index] : undefined;
+  return vector ? (vector.get?.(index) ?? vector.toArray?.()[index]) : undefined;
 }
 
 export function getColumnVector(table: arrow.Table, columnName: string): arrow.Vector | null {
-  const candidate = (table as arrow.Table & {getColumn?: (name: string) => arrow.Vector | null}).getColumn?.(columnName);
+  const candidate = (
+    table as arrow.Table & {getColumn?: (name: string) => arrow.Vector | null}
+  ).getColumn?.(columnName);
   if (candidate) {
     return candidate;
   }
-  const childAccessor = (table as arrow.Table & {getChild?: (name: string) => arrow.Vector | null}).getChild;
+  const childAccessor = (table as arrow.Table & {getChild?: (name: string) => arrow.Vector | null})
+    .getChild;
   if (typeof childAccessor === 'function') {
     const vector = childAccessor.call(table, columnName);
     if (vector) {
       return vector;
     }
   }
-  const getChildAt = (table as arrow.Table & {getChildAt?: (index: number) => arrow.Vector | null}).getChildAt;
+  const getChildAt = (table as arrow.Table & {getChildAt?: (index: number) => arrow.Vector | null})
+    .getChildAt;
   const schema = (table as arrow.Table & {schema?: {fields?: Array<{name: string}>}}).schema;
   if (schema && Array.isArray(schema.fields) && typeof getChildAt === 'function') {
     const index = schema.fields.findIndex((field) => field?.name === columnName);

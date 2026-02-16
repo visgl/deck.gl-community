@@ -28,13 +28,8 @@ describe('createGraphFromData', () => {
 const PLAIN_GRAPH_DATA: PlainGraphData = {
   shape: 'plain-graph-data',
   version: 1,
-  nodes: [
-    {id: 'a'},
-    {id: 'b'}
-  ],
-  edges: [
-    {id: 'edge', sourceId: 'a', targetId: 'b'}
-  ]
+  nodes: [{id: 'a'}, {id: 'b'}],
+  edges: [{id: 'edge', sourceId: 'a', targetId: 'b'}]
 };
 
 function createArrowGraphData(): ArrowGraphData {

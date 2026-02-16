@@ -61,10 +61,7 @@ function fallbackMonotonicSpacing(positions: RankPosition[]) {
   }
 }
 
-function enforceMonotonicPositions(
-  positions: RankPosition[],
-  range: {min: number; max: number}
-) {
+function enforceMonotonicPositions(positions: RankPosition[], range: {min: number; max: number}) {
   if (positions.length === 0) {
     return;
   }
@@ -95,8 +92,10 @@ function resolveTargetRange(
   range: {min: number; max: number},
   override?: {min?: number; max?: number}
 ): {min: number; max: number} {
-  const overrideMin = typeof override?.min === 'number' && Number.isFinite(override.min) ? override.min : undefined;
-  const overrideMax = typeof override?.max === 'number' && Number.isFinite(override.max) ? override.max : undefined;
+  const overrideMin =
+    typeof override?.min === 'number' && Number.isFinite(override.min) ? override.min : undefined;
+  const overrideMax =
+    typeof override?.max === 'number' && Number.isFinite(override.max) ? override.max : undefined;
 
   const candidateMin = overrideMin ?? range.min;
   const candidateMax = overrideMax ?? range.max;
@@ -188,7 +187,9 @@ function normalizeRankAccessor(accessor: RankAccessor | undefined): (node: Node)
   };
 }
 
-function normalizeLabelAccessor(accessor: LabelAccessor | undefined): (node: Node) => string | number | null {
+function normalizeLabelAccessor(
+  accessor: LabelAccessor | undefined
+): (node: Node) => string | number | null {
   if (!accessor) {
     return (node: Node) => {
       const value = node.getPropertyValue('rankLabel');
@@ -248,11 +249,13 @@ export function mapRanksToYPositions(
   }
 
   const {aggregates, range} = state;
-  const positions: RankPosition[] = Array.from(aggregates.entries()).map(([rank, {sum, count, label}]) => ({
-    rank,
-    yPosition: count ? sum / count : 0,
-    label: label ?? rank
-  }));
+  const positions: RankPosition[] = Array.from(aggregates.entries()).map(
+    ([rank, {sum, count, label}]) => ({
+      rank,
+      yPosition: count ? sum / count : 0,
+      label: label ?? rank
+    })
+  );
 
   positions.sort((a, b) => a.rank - b.rank);
 
@@ -305,7 +308,10 @@ function pickNearestAvailableIndex(
     const distance = Math.abs(ranks[index].yPosition - target);
     const isCloser = distance < bestDistance;
     const isTie = distance === bestDistance && bestIndex !== -1;
-    if (isCloser || (isTie && (ranks[index].yPosition < ranks[bestIndex].yPosition || index < bestIndex))) {
+    if (
+      isCloser ||
+      (isTie && (ranks[index].yPosition < ranks[bestIndex].yPosition || index < bestIndex))
+    ) {
       bestDistance = distance;
       bestIndex = index;
     }
@@ -314,7 +320,11 @@ function pickNearestAvailableIndex(
   consider(startIndex);
   consider(startIndex - 1);
 
-  for (let offset = 1; bestIndex === -1 && (startIndex - offset >= 0 || startIndex + offset < ranks.length); offset++) {
+  for (
+    let offset = 1;
+    bestIndex === -1 && (startIndex - offset >= 0 || startIndex + offset < ranks.length);
+    offset++
+  ) {
     consider(startIndex - offset);
     consider(startIndex + offset);
   }
@@ -385,7 +395,9 @@ function chooseEvenlySpacedIndices(ranks: RankPosition[], maxCount: number): num
 
   fillRemainingSelections(used, lastIndex, maxCount);
 
-  return Array.from(used).sort((a, b) => a - b).slice(0, maxCount);
+  return Array.from(used)
+    .sort((a, b) => a - b)
+    .slice(0, maxCount);
 }
 
 /**
@@ -403,7 +415,10 @@ export function selectRankLines(
   const max = Math.max(yMin, yMax);
 
   const filtered = ranks
-    .filter((entry) => Number.isFinite(entry.yPosition) && entry.yPosition >= min && entry.yPosition <= max)
+    .filter(
+      (entry) =>
+        Number.isFinite(entry.yPosition) && entry.yPosition >= min && entry.yPosition <= max
+    )
     .sort((a, b) => a.yPosition - b.yPosition);
 
   if (filtered.length === 0) {
@@ -423,4 +438,3 @@ export function selectRankLines(
   const selected = chooseEvenlySpacedIndices(filtered, maxCount);
   return selected.map((index) => filtered[index]);
 }
-

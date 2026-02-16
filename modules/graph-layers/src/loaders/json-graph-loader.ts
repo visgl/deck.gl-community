@@ -12,8 +12,7 @@ import type {PlainGraphData} from '../graph-data/graph-data';
 const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'latest';
 
 export type JSONGraphLoaderOptions = LoaderOptions & {
-  jsongraph?: {
-  };
+  jsongraph?: {};
 };
 
 export type JSONGraphParserOptions = NonNullable<JSONGraphLoaderOptions['jsongraph']>;
@@ -31,15 +30,14 @@ export const JSONGraphLoader = {
   mimeTypes: ['application/json'],
   text: true,
   options: {
-    'jsongraph': {
-    }
+    jsongraph: {}
   },
 
   parse: async (arrayBuffer: ArrayBuffer, options?: JSONGraphLoaderOptions) => {
     const text = new TextDecoder().decode(arrayBuffer);
     return Promise.resolve(JSONGraphLoader.parseTextSync(text, options));
   },
-  
+
   parseTextSync: (text: string, options?: JSONGraphLoaderOptions) => {
     // const parseOptions = {...JSONGraphLoader.options.jsongraph, ...options?.jsongraph};
     throw new Error('JSONGraphLoader.parseTextSync not implemented');

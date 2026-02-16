@@ -21,7 +21,15 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {FeatureCollection, Feature, Polygon, SimpleGeometry, Position, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
+import {
+  FeatureCollection,
+  Feature,
+  Polygon,
+  SimpleGeometry,
+  Position,
+  SimpleFeatureCollection,
+  SimpleFeature
+} from '../utils/geojson-types';
 import {getPickedEditHandles, getNonGuidePicks} from './utils';
 import {EditMode} from './edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -59,7 +67,9 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return null;
   }
 
-  getSelectedGeometry(props: ModeProps<SimpleFeatureCollection>): SimpleGeometry | null | undefined {
+  getSelectedGeometry(
+    props: ModeProps<SimpleFeatureCollection>
+  ): SimpleGeometry | null | undefined {
     const feature = this.getSelectedFeature(props);
     if (feature) {
       return feature.geometry;
@@ -67,7 +77,9 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return null;
   }
 
-  getSelectedFeaturesAsFeatureCollection(props: ModeProps<SimpleFeatureCollection>): SimpleFeatureCollection {
+  getSelectedFeaturesAsFeatureCollection(
+    props: ModeProps<SimpleFeatureCollection>
+  ): SimpleFeatureCollection {
     const {features} = props.data;
     const selectedFeatures = props.selectedIndexes.map((selectedIndex) => features[selectedIndex]);
     return {

@@ -30,7 +30,8 @@ export abstract class HtmlClusterWidget<ObjType> extends HtmlOverlayWidget<HtmlC
       this.lastObjects = newObjects;
     }
 
-    const clusters = this.superCluster?.getClusters([-180, -90, 180, 90], Math.round(this.getZoom())) ?? [];
+    const clusters =
+      this.superCluster?.getClusters([-180, -90, 180, 90], Math.round(this.getZoom())) ?? [];
 
     const overlayItems = clusters.map(
       ({

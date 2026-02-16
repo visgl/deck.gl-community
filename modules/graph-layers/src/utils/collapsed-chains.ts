@@ -100,7 +100,9 @@ export function getRepresentativeNodes(engine: GraphEngine | null | undefined): 
 
 export type ChainOutlineGetter = (node: NodeInterface) => [number, number][] | null;
 
-export function createChainOutlineGetter(engine: GraphEngine | null | undefined): ChainOutlineGetter {
+export function createChainOutlineGetter(
+  engine: GraphEngine | null | undefined
+): ChainOutlineGetter {
   if (!engine) {
     return () => null;
   }
@@ -240,7 +242,9 @@ export function buildCollapsedChainLayers(
   );
   const collapsedOutlineNodes = collapsedNodes.filter((node) => getChainOutlinePolygon(node));
 
-  const expandedNodes = representativeNodes.filter((node) => !node.getPropertyValue('isCollapsedChain'));
+  const expandedNodes = representativeNodes.filter(
+    (node) => !node.getPropertyValue('isCollapsedChain')
+  );
   const expandedOutlineNodes = expandedNodes.filter((node) => getChainOutlinePolygon(node));
 
   return {

@@ -1,8 +1,8 @@
 import {test, expect} from 'vitest';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
-import {DrawPointMode} from '../../src/edit-modes/draw-point-mode'
+import {DrawPointMode} from '../../src/edit-modes/draw-point-mode';
 
-test('Propagates update triggers to geojson layer', () =>{
+test('Propagates update triggers to geojson layer', () => {
   const editableLayer = new EditableGeoJsonLayer({
     id: 'test',
     data: null,
@@ -12,7 +12,7 @@ test('Propagates update triggers to geojson layer', () =>{
       getLineColor: ['lineColor'],
       getFillColor: ['fillColor'],
       getPointRadius: ['radius'],
-      getLineWidth: ['width'],
+      getLineWidth: ['width']
     }
   });
   // Avoid the need for deck.gl-initialized state
@@ -21,8 +21,8 @@ test('Propagates update triggers to geojson layer', () =>{
 
   const [geoJsonLayer, ..._rest] = editableLayer.renderLayers();
   const {updateTriggers} = geoJsonLayer.props;
-  expect(updateTriggers.getLineColor.flat()).toContain('lineColor')
-  expect(updateTriggers.getFillColor.flat()).toContain('fillColor')
-  expect(updateTriggers.getPointRadius.flat()).toContain('radius')
-  expect(updateTriggers.getLineWidth.flat()).toContain('width')
-})
+  expect(updateTriggers.getLineColor.flat()).toContain('lineColor');
+  expect(updateTriggers.getFillColor.flat()).toContain('fillColor');
+  expect(updateTriggers.getPointRadius.flat()).toContain('radius');
+  expect(updateTriggers.getLineWidth.flat()).toContain('width');
+});

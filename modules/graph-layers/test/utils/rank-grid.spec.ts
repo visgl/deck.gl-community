@@ -5,11 +5,7 @@
 import {describe, it, expect} from 'vitest';
 
 import {Node} from '../../src/graph/node';
-import {
-  mapRanksToYPositions,
-  selectRankLines,
-  type RankPosition
-} from '../../src/utils/rank-grid';
+import {mapRanksToYPositions, selectRankLines, type RankPosition} from '../../src/utils/rank-grid';
 import {generateMlLineageGraph} from '../data/graphs/ml-lineage';
 
 describe('rank-grid utilities', () => {
@@ -33,7 +29,9 @@ describe('rank-grid utilities', () => {
     ];
 
     const nodes = entries.map((entry) => entry.node);
-    const positions = new Map<Node, [number, number]>(entries.map((entry) => [entry.node, entry.position]));
+    const positions = new Map<Node, [number, number]>(
+      entries.map((entry) => [entry.node, entry.position])
+    );
 
     const ranks = mapRanksToYPositions(nodes, (node) => positions.get(node) ?? null);
 
@@ -51,7 +49,9 @@ describe('rank-grid utilities', () => {
     ];
 
     const nodes = entries.map((entry) => entry.node);
-    const positions = new Map<Node, [number, number]>(entries.map((entry) => [entry.node, entry.position]));
+    const positions = new Map<Node, [number, number]>(
+      entries.map((entry) => [entry.node, entry.position])
+    );
 
     const ranks = mapRanksToYPositions(nodes, (node) => positions.get(node) ?? null);
 
@@ -68,7 +68,9 @@ describe('rank-grid utilities', () => {
     ];
 
     const nodes = entries.map((entry) => entry.node);
-    const positions = new Map<Node, [number, number]>(entries.map((entry) => [entry.node, entry.position]));
+    const positions = new Map<Node, [number, number]>(
+      entries.map((entry) => [entry.node, entry.position])
+    );
 
     const ranks = mapRanksToYPositions(nodes, (node) => positions.get(node) ?? null);
 
@@ -149,5 +151,4 @@ describe('rank-grid utilities', () => {
     expect(offsets[0]).toBeCloseTo(0, 6);
     expect(offsets[offsets.length - 1]).toBeCloseTo(600, 6);
   });
-
 });

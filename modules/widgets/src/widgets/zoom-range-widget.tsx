@@ -68,7 +68,9 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
     step: 0.1,
     style: {},
     className: ''
-  } satisfies Required<WidgetProps> & Required<Pick<ZoomRangeWidgetProps, 'step'>> & ZoomRangeWidgetProps;
+  } satisfies Required<WidgetProps> &
+    Required<Pick<ZoomRangeWidgetProps, 'step'>> &
+    ZoomRangeWidgetProps;
 
   placement: WidgetPlacement = 'top-left';
   className = 'deck-widget-zoom-range';
@@ -148,9 +150,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
             min={minZoom}
             max={maxZoom}
             step={this.step}
-            onInput={(event) =>
-              this.handleZoomTo(Number((event.target as HTMLInputElement).value))
-            }
+            onInput={(event) => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
             onChange={(event) =>
               this.handleZoomTo(Number((event.target as HTMLInputElement).value))
             }
@@ -204,10 +204,8 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   }
 
   private getZoomBounds(): {minZoom: number; maxZoom: number} {
-    const minZoom =
-      this.props.minZoom ?? this.inferredMinZoom ?? Number.NEGATIVE_INFINITY;
-    const maxZoom =
-      this.props.maxZoom ?? this.inferredMaxZoom ?? Number.POSITIVE_INFINITY;
+    const minZoom = this.props.minZoom ?? this.inferredMinZoom ?? Number.NEGATIVE_INFINITY;
+    const maxZoom = this.props.maxZoom ?? this.inferredMaxZoom ?? Number.POSITIVE_INFINITY;
 
     if (minZoom > maxZoom) {
       return {minZoom: maxZoom, maxZoom: minZoom};

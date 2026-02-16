@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { lineIntersect } from '@turf/line-intersect';
-import { polygon as turfPolygon } from '@turf/helpers';
-import {booleanWithin} from "@turf/boolean-within";
-import type { Geometry } from 'geojson'
-import { kinks } from '@turf/kinks';
+import {lineIntersect} from '@turf/line-intersect';
+import {polygon as turfPolygon} from '@turf/helpers';
+import {booleanWithin} from '@turf/boolean-within';
+import type {Geometry} from 'geojson';
+import {kinks} from '@turf/kinks';
 
 import {
   ClickEvent,
@@ -17,81 +17,75 @@ import {
   GuideFeature,
   DoubleClickEvent
 } from './types';
-import { Position, FeatureCollection, SimpleFeatureCollection } from '../utils/geojson-types';
-import { getPickedEditHandle } from './utils';
-import { GeoJsonEditMode } from './geojson-edit-mode';
-import { ImmutableFeatureCollection } from './immutable-feature-collection';
-
+import {Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
+import {getPickedEditHandle} from './utils';
+import {GeoJsonEditMode} from './geojson-edit-mode';
+import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
 export class DrawPolygonMode extends GeoJsonEditMode {
-
   holeSequence: Position[] = [];
   isDrawingHole = false;
 
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
-    const { lastPointerMoveEvent } = props;
+    const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
     const holeSequence = this.holeSequence;
-    const lastCoords = lastPointerMoveEvent
-      ? [lastPointerMoveEvent.mapCoords]
-      : [];
+    const lastCoords = lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [];
 
     let geometry: Geometry;
 
     if (this.isDrawingHole && holeSequence.length > 1) {
       geometry = {
-        type: "Polygon",
+        type: 'Polygon',
         coordinates: [
           [...clickSequence, clickSequence[0]],
-          [...holeSequence, ...lastCoords, holeSequence[0]],
-        ],
+          [...holeSequence, ...lastCoords, holeSequence[0]]
+        ]
       };
     } else if (clickSequence.length > 2) {
       geometry = {
-        type: "Polygon",
-        coordinates: [[...clickSequence, ...lastCoords, clickSequence[0]]],
+        type: 'Polygon',
+        coordinates: [[...clickSequence, ...lastCoords, clickSequence[0]]]
       };
     } else {
       geometry = {
-        type: "LineString",
-        coordinates: [...clickSequence, ...lastCoords],
+        type: 'LineString',
+        coordinates: [...clickSequence, ...lastCoords]
       };
     }
 
     return {
-      type: "Feature",
+      type: 'Feature',
       properties: {
-        guideType: "tentative",
+        guideType: 'tentative'
       },
-      geometry,
+      geometry
     };
   }
 
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
     const guides: GuideFeatureCollection = {
-      type: "FeatureCollection",
-      features: [],
+      type: 'FeatureCollection',
+      features: []
     };
 
     const tentative = this.createTentativeFeature(props);
     if (tentative) guides.features.push(tentative);
 
-    const sequence = this.isDrawingHole
-      ? this.holeSequence
-      : this.getClickSequence();
+    const sequence = this.isDrawingHole ? this.holeSequence : this.getClickSequence();
 
     const handles: GuideFeature[] = sequence.map((coord, index) => ({
-      type: "Feature",
+      type: 'Feature',
       properties: {
-        guideType: "editHandle",
-        editHandleType: "existing",
+        guideType: 'editHandle',
+        editHandleType: 'existing',
         featureIndex: -1,
-        positionIndexes: [index],
+        positionIndexes: [index]
       },
       geometry: {
-        type: "Point",
-        coordinates: coord,
-      },
+        type: 'Point',
+        coordinates: coord
+      }
     }));
 
     guides.features.push(...handles);
@@ -100,7 +94,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
 
   // eslint-disable-next-line complexity, max-statements
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
-    const { picks } = event;
+    const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
     const clickSequence = this.getClickSequence();
     const coords = event.mapCoords;
@@ -134,21 +128,18 @@ export class DrawPolygonMode extends GeoJsonEditMode {
 
       if (current.length > 2) {
         const poly: Geometry = {
-          type: "Polygon",
+          type: 'Polygon',
           coordinates: [
             [...clickSequence, clickSequence[0]],
-            [...current, current[0]],
-          ],
+            [...current, current[0]]
+          ]
         };
 
         this.resetClickSequence();
         this.holeSequence = [];
         this.isDrawingHole = false;
 
-        const editAction = this.getAddFeatureOrBooleanPolygonAction(
-          poly,
-          props,
-        );
+        const editAction = this.getAddFeatureOrBooleanPolygonAction(poly, props);
         if (editAction) props.onEdit(editAction);
       }
       return;
@@ -180,18 +171,18 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   }
 
   handleKeyUp(event: KeyboardEvent, props: ModeProps<SimpleFeatureCollection>) {
-    if (event.key === "Enter") {
+    if (event.key === 'Enter') {
       this.finishDrawing(props);
       this.resetClickSequence();
-    } else if (event.key === "Escape") {
+    } else if (event.key === 'Escape') {
       this.resetClickSequence();
       this.holeSequence = [];
       this.isDrawingHole = false;
 
       props.onEdit({
         updatedData: props.data,
-        editType: "cancelFeature",
-        editContext: {},
+        editType: 'cancelFeature',
+        editContext: {}
       });
     }
   }
@@ -211,7 +202,6 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     const canAddHole = canAddHoleToPolygon(props);
     const canOverlap = canPolygonOverlap(props);
 
-
     // Check if the polygon intersects itself (excluding shared start/end point)
     if (!canOverlap) {
       const overlapping = kinks(newPolygon).features;
@@ -220,8 +210,8 @@ export class DrawPolygonMode extends GeoJsonEditMode {
         // ❌ Invalid polygon: overlaps
         props.onEdit({
           updatedData: props.data,
-          editType: "invalidPolygon",
-          editContext: { reason: "overlaps" },
+          editType: 'invalidPolygon',
+          editContext: {reason: 'overlaps'}
         });
         this.resetClickSequence();
         return;
@@ -239,10 +229,10 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     // If no valid hole was found, add the polygon as a new feature
     const editAction = this.getAddFeatureOrBooleanPolygonAction(
       {
-        type: "Polygon",
-        coordinates: [[...this.getClickSequence(), this.getClickSequence()[0]]],
+        type: 'Polygon',
+        coordinates: [[...this.getClickSequence(), this.getClickSequence()[0]]]
       },
-      props,
+      props
     );
     if (editAction) props.onEdit(editAction);
     this.resetClickSequence();
@@ -253,17 +243,23 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     newPolygon: any,
     polygon: Position[],
     props: ModeProps<SimpleFeatureCollection>
-  ): { handled: boolean } {
+  ): {handled: boolean} {
     for (const [featureIndex, feature] of props.data.features.entries()) {
-      if (feature.geometry.type === "Polygon") {
-        const result = this.validateAndCreateHole(feature, featureIndex, newPolygon, polygon, props);
+      if (feature.geometry.type === 'Polygon') {
+        const result = this.validateAndCreateHole(
+          feature,
+          featureIndex,
+          newPolygon,
+          polygon,
+          props
+        );
         if (result.handled) {
           return result;
         }
       }
     }
 
-    return { handled: false };
+    return {handled: false};
   }
 
   private validateAndCreateHole(
@@ -272,7 +268,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     newPolygon: any,
     polygon: Position[],
     props: ModeProps<SimpleFeatureCollection>
-  ): { handled: boolean } {
+  ): {handled: boolean} {
     const outer = turfPolygon(feature.geometry.coordinates);
 
     // Check existing holes for conflicts
@@ -283,19 +279,19 @@ export class DrawPolygonMode extends GeoJsonEditMode {
       if (intersection.features.length > 0) {
         props.onEdit({
           updatedData: props.data,
-          editType: "invalidHole",
-          editContext: { reason: "intersects-existing-hole" },
+          editType: 'invalidHole',
+          editContext: {reason: 'intersects-existing-hole'}
         });
-        return { handled: true };
+        return {handled: true};
       }
 
       if (booleanWithin(hole, newPolygon) || booleanWithin(newPolygon, hole)) {
         props.onEdit({
           updatedData: props.data,
-          editType: "invalidHole",
-          editContext: { reason: "contains-or-contained-by-existing-hole" },
+          editType: 'invalidHole',
+          editContext: {reason: 'contains-or-contained-by-existing-hole'}
         });
-        return { handled: true };
+        return {handled: true};
       }
     }
 
@@ -304,19 +300,19 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     if (intersectionWithOuter.features.length > 0) {
       props.onEdit({
         updatedData: props.data,
-        editType: "invalidPolygon",
-        editContext: { reason: "intersects-existing-polygon" },
+        editType: 'invalidPolygon',
+        editContext: {reason: 'intersects-existing-polygon'}
       });
-      return { handled: true };
+      return {handled: true};
     }
 
     if (booleanWithin(outer, newPolygon)) {
       props.onEdit({
         updatedData: props.data,
-        editType: "invalidPolygon",
-        editContext: { reason: "contains-existing-polygon" },
+        editType: 'invalidPolygon',
+        editContext: {reason: 'contains-existing-polygon'}
       });
-      return { handled: true };
+      return {handled: true};
     }
 
     // Check if new polygon is within outer polygon (valid hole)
@@ -324,45 +320,37 @@ export class DrawPolygonMode extends GeoJsonEditMode {
       const updatedData = new ImmutableFeatureCollection(props.data)
         .replaceGeometry(featureIndex, {
           ...feature.geometry,
-          coordinates: [...feature.geometry.coordinates, polygon],
+          coordinates: [...feature.geometry.coordinates, polygon]
         })
         .getObject();
 
       props.onEdit({
         updatedData,
-        editType: "addHole",
-        editContext: { hole: newPolygon.geometry },
+        editType: 'addHole',
+        editContext: {hole: newPolygon.geometry}
       });
-      return { handled: true };
+      return {handled: true};
     }
-    return { handled: false };
+    return {handled: false};
   }
 }
 
 // Helper function to check if a point is near the first point in the sequence
-function isNearFirstPoint(
-  click: Position,
-  first: Position,
-  threshold = 1e-4,
-): boolean {
+function isNearFirstPoint(click: Position, first: Position, threshold = 1e-4): boolean {
   const dx = click[0] - first[0];
   const dy = click[1] - first[1];
   return dx * dx + dy * dy < threshold * threshold;
 }
 
 // Helper function to determine if a hole can be added to a polygon
-function canAddHoleToPolygon(
-  props: ModeProps<FeatureCollection>
-): boolean {
+function canAddHoleToPolygon(props: ModeProps<FeatureCollection>): boolean {
   // For simplicity, always return true in this example.
   // Implement your own logic based on application requirements.
   return props.modeConfig?.allowHoles ?? false;
 }
 
 // Helper function to determine if a polygon can intersect itself
-function canPolygonOverlap(
-  props: ModeProps<FeatureCollection>
-): boolean {
+function canPolygonOverlap(props: ModeProps<FeatureCollection>): boolean {
   // Return the value of allowSelfIntersection (defaults to false for safety)
   return props.modeConfig?.allowSelfIntersection ?? false;
 }

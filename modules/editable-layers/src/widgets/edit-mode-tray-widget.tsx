@@ -4,12 +4,7 @@
 
 import {render} from 'preact';
 import type {ComponentChild, JSX} from 'preact';
-import {
-  Widget,
-  type WidgetProps,
-  type WidgetPlacement,
-  type Deck
-} from '@deck.gl/core';
+import {Widget, type WidgetProps, type WidgetPlacement, type Deck} from '@deck.gl/core';
 import type {
   GeoJsonEditModeConstructor,
   GeoJsonEditModeType

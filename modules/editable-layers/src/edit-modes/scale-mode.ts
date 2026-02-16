@@ -64,7 +64,10 @@ export class ScaleMode extends GeoJsonEditMode {
     );
   };
 
-  _getUpdatedData = (props: ModeProps<SimpleFeatureCollection>, editedData: SimpleFeatureCollection) => {
+  _getUpdatedData = (
+    props: ModeProps<SimpleFeatureCollection>,
+    editedData: SimpleFeatureCollection
+  ) => {
     let updatedData = new ImmutableFeatureCollection(props.data);
     const selectedIndexes = props.selectedIndexes;
     for (let i = 0; i < selectedIndexes.length; i++) {
@@ -92,11 +95,7 @@ export class ScaleMode extends GeoJsonEditMode {
 
     const scaleFactor = getScaleFactor(origin, startDragPoint, currentPoint);
 
-    const scaledFeatures = turfTransformScale(
-      this._geometryBeingScaled,
-      scaleFactor,
-      {origin}
-    );
+    const scaledFeatures = turfTransformScale(this._geometryBeingScaled, scaleFactor, {origin});
 
     return {
       updatedData: this._getUpdatedData(props, scaledFeatures),

@@ -9,7 +9,16 @@ import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
 
-import {FeatureCollection, Feature, Polygon, SimpleGeometry, Position, PolygonGeometry, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
+import {
+  FeatureCollection,
+  Feature,
+  Polygon,
+  SimpleGeometry,
+  Position,
+  PolygonGeometry,
+  SimpleFeatureCollection,
+  SimpleFeature
+} from '../utils/geojson-types';
 
 import {
   ClickEvent,
@@ -74,7 +83,7 @@ export class ModeHandler {
   }
 
   getSelectedFeaturesAsFeatureCollection(): SimpleFeatureCollection {
-    const { features } = this.featureCollection.getObject();
+    const {features} = this.featureCollection.getObject();
     const selectedFeatures = this.getSelectedFeatureIndexes().map(
       (selectedIndex) => features[selectedIndex]
     );
@@ -222,16 +231,22 @@ export class ModeHandler {
       const feature: Feature<Polygon> = {
         type: 'Feature',
         geometry,
-        properties: {},
+        properties: {}
       };
 
       let updatedGeometry;
       if (modeConfig.booleanOperation === 'union') {
-        updatedGeometry = turfUnion(turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature]));
+        updatedGeometry = turfUnion(
+          turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature])
+        );
       } else if (modeConfig.booleanOperation === 'difference') {
-        updatedGeometry = turfDifference(turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature]));
+        updatedGeometry = turfDifference(
+          turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature])
+        );
       } else if (modeConfig.booleanOperation === 'intersection') {
-        updatedGeometry = turfIntersect(turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature]));
+        updatedGeometry = turfIntersect(
+          turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature])
+        );
       } else {
         // eslint-disable-next-line no-console,no-undef
         console.warn(`Invalid booleanOperation ${modeConfig.booleanOperation}`);

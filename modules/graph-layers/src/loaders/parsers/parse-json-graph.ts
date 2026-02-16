@@ -84,7 +84,8 @@ function parseNodes(
         state: parsed.state ?? (attributes.state as NodeState | undefined),
         selectable: parsed.selectable ?? (attributes.selectable as boolean | undefined),
         highlightConnectedEdges:
-          parsed.highlightConnectedEdges ?? (attributes.highlightConnectedEdges as boolean | undefined),
+          parsed.highlightConnectedEdges ??
+          (attributes.highlightConnectedEdges as boolean | undefined),
         label: parsed.label ?? (attributes.label as string | undefined),
         weight: parsed.weight ?? (attributes.weight as number | undefined),
         attributes

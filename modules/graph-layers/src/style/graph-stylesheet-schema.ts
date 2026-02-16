@@ -71,7 +71,10 @@ export type GraphStyleScale = z.infer<typeof GraphStyleScaleSchema>;
 export const GraphStyleAttributeReferenceSchema = z.union([
   z
     .string()
-    .regex(/^@.+/, 'Attribute reference strings must start with "@" and include an attribute name.'),
+    .regex(
+      /^@.+/,
+      'Attribute reference strings must start with "@" and include an attribute name.'
+    ),
   z
     .object({
       attribute: z.string().min(1, 'Attribute name is required.'),
@@ -116,16 +119,12 @@ export const GraphStyleStateMapSchema = z.record(
 /**
  * Style value that may be either a simple leaf value or a keyed map of overrides.
  */
-export const GraphStyleValueSchema = z.union([
-  GraphStyleLeafValueSchema,
-  GraphStyleStateMapSchema
-]);
+export const GraphStyleValueSchema = z.union([GraphStyleLeafValueSchema, GraphStyleStateMapSchema]);
 
 /**
  * Parsed style property value that may include state overrides.
  */
 export type GraphStyleValue = z.infer<typeof GraphStyleValueSchema>;
-
 
 export type GraphStyleType = keyof typeof GRAPH_DECKGL_ACCESSOR_MAP;
 
@@ -136,10 +135,7 @@ export type GraphStyleSelector = `:${string}`;
 
 const GraphStyleSelectorKeySchema = z.string().regex(/^:[^\s]+/, 'Selectors must start with ":".');
 
-function createSelectorRefinement(
-  allowedKeys: readonly string[],
-  propertiesSchema: ZodTypeAny
-) {
+function createSelectorRefinement(allowedKeys: readonly string[], propertiesSchema: ZodTypeAny) {
   const allowedKeySet = new Set<string>(allowedKeys);
 
   return (value: unknown, ctx: z.RefinementCtx) => {
@@ -201,9 +197,7 @@ const CircleStylesheetSchema = z
     ...CircleShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(Object.keys(CircleShape), CirclePropertiesSchema)
-  );
+  .superRefine(createSelectorRefinement(Object.keys(CircleShape), CirclePropertiesSchema));
 
 const RectangleShape = {
   offset: GraphStyleValueSchema.optional(),
@@ -223,12 +217,7 @@ const RectangleStylesheetSchema = z
     ...RectangleShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(
-      Object.keys(RectangleShape),
-      RectanglePropertiesSchema
-    )
-  );
+  .superRefine(createSelectorRefinement(Object.keys(RectangleShape), RectanglePropertiesSchema));
 
 const RoundedRectangleShape = {
   offset: GraphStyleValueSchema.optional(),
@@ -242,10 +231,7 @@ const RoundedRectangleShape = {
   strokeWidth: GraphStyleValueSchema.optional()
 } as const;
 
-const RoundedRectanglePropertiesSchema = z
-  .object(RoundedRectangleShape)
-  .partial()
-  .strict();
+const RoundedRectanglePropertiesSchema = z.object(RoundedRectangleShape).partial().strict();
 
 const RoundedRectangleStylesheetSchema = z
   .object({
@@ -254,10 +240,7 @@ const RoundedRectangleStylesheetSchema = z
   })
   .catchall(z.unknown())
   .superRefine(
-    createSelectorRefinement(
-      Object.keys(RoundedRectangleShape),
-      RoundedRectanglePropertiesSchema
-    )
+    createSelectorRefinement(Object.keys(RoundedRectangleShape), RoundedRectanglePropertiesSchema)
   );
 
 const PathRoundedRectangleShape = {
@@ -271,10 +254,7 @@ const PathRoundedRectangleShape = {
   cornerRadius: GraphStyleValueSchema.optional()
 } as const;
 
-const PathRoundedRectanglePropertiesSchema = z
-  .object(PathRoundedRectangleShape)
-  .partial()
-  .strict();
+const PathRoundedRectanglePropertiesSchema = z.object(PathRoundedRectangleShape).partial().strict();
 
 const PathRoundedRectangleStylesheetSchema = z
   .object({
@@ -312,9 +292,7 @@ const LabelStylesheetSchema = z
     ...LabelShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(Object.keys(LabelShape), LabelPropertiesSchema)
-  );
+  .superRefine(createSelectorRefinement(Object.keys(LabelShape), LabelPropertiesSchema));
 
 const MarkerShape = {
   offset: GraphStyleValueSchema.optional(),
@@ -333,9 +311,7 @@ const MarkerStylesheetSchema = z
     ...MarkerShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(Object.keys(MarkerShape), MarkerPropertiesSchema)
-  );
+  .superRefine(createSelectorRefinement(Object.keys(MarkerShape), MarkerPropertiesSchema));
 
 const EdgeUpperShape = {
   stroke: GraphStyleValueSchema.optional(),
@@ -350,12 +326,7 @@ const EdgeUpperStylesheetSchema = z
     ...EdgeUpperShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(
-      Object.keys(EdgeUpperShape),
-      EdgeUpperPropertiesSchema
-    )
-  );
+  .superRefine(createSelectorRefinement(Object.keys(EdgeUpperShape), EdgeUpperPropertiesSchema));
 
 const EdgeLowerShape = {
   stroke: GraphStyleValueSchema.optional(),
@@ -370,12 +341,7 @@ const EdgeLowerStylesheetSchema = z
     ...EdgeLowerShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(
-      Object.keys(EdgeLowerShape),
-      EdgeLowerPropertiesSchema
-    )
-  );
+  .superRefine(createSelectorRefinement(Object.keys(EdgeLowerShape), EdgeLowerPropertiesSchema));
 
 const EdgeLabelShape = {
   color: GraphStyleValueSchema.optional(),
@@ -397,12 +363,7 @@ const EdgeLabelStylesheetSchema = z
     ...EdgeLabelShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(
-      Object.keys(EdgeLabelShape),
-      EdgeLabelPropertiesSchema
-    )
-  );
+  .superRefine(createSelectorRefinement(Object.keys(EdgeLabelShape), EdgeLabelPropertiesSchema));
 
 const FlowShape = {
   color: GraphStyleValueSchema.optional(),
@@ -419,9 +380,7 @@ const FlowStylesheetSchema = z
     ...FlowShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(Object.keys(FlowShape), FlowPropertiesSchema)
-  );
+  .superRefine(createSelectorRefinement(Object.keys(FlowShape), FlowPropertiesSchema));
 
 const ArrowShape = {
   color: GraphStyleValueSchema.optional(),
@@ -437,9 +396,7 @@ const ArrowStylesheetSchema = z
     ...ArrowShape
   })
   .catchall(z.unknown())
-  .superRefine(
-    createSelectorRefinement(Object.keys(ArrowShape), ArrowPropertiesSchema)
-  );
+  .superRefine(createSelectorRefinement(Object.keys(ArrowShape), ArrowPropertiesSchema));
 
 const GraphNodeStylesheetVariants = [
   CircleStylesheetSchema,
@@ -458,10 +415,7 @@ const GraphEdgeStylesheetVariants = [
   ArrowStylesheetSchema
 ];
 
-const GraphStyleRuleVariants = [
-  ...GraphNodeStylesheetVariants,
-  ...GraphEdgeStylesheetVariants
-];
+const GraphStyleRuleVariants = [...GraphNodeStylesheetVariants, ...GraphEdgeStylesheetVariants];
 
 type GraphStyleRuleVariantSchema = (typeof GraphStyleRuleVariants)[number];
 
@@ -470,10 +424,7 @@ type GraphStyleRuleVariantSchema = (typeof GraphStyleRuleVariants)[number];
  */
 export const GraphStyleRuleSchema = z.discriminatedUnion(
   'type',
-  GraphStyleRuleVariants as [
-    GraphStyleRuleVariantSchema,
-    ...GraphStyleRuleVariantSchema[]
-  ]
+  GraphStyleRuleVariants as [GraphStyleRuleVariantSchema, ...GraphStyleRuleVariantSchema[]]
 );
 
 /**
@@ -493,17 +444,18 @@ const GraphNodeStyleRuleSchema = z.discriminatedUnion(
   ]
 );
 
-const GraphEdgeDecoratorRuleSchema = z.discriminatedUnion(
-  'type',
-  [EdgeLabelStylesheetSchema, FlowStylesheetSchema, ArrowStylesheetSchema] as [
-    typeof EdgeLabelStylesheetSchema,
-    typeof FlowStylesheetSchema,
-    typeof ArrowStylesheetSchema,
-    ...Array<
-      typeof EdgeLabelStylesheetSchema | typeof FlowStylesheetSchema | typeof ArrowStylesheetSchema
-    >
-  ]
-);
+const GraphEdgeDecoratorRuleSchema = z.discriminatedUnion('type', [
+  EdgeLabelStylesheetSchema,
+  FlowStylesheetSchema,
+  ArrowStylesheetSchema
+] as [
+  typeof EdgeLabelStylesheetSchema,
+  typeof FlowStylesheetSchema,
+  typeof ArrowStylesheetSchema,
+  ...Array<
+    typeof EdgeLabelStylesheetSchema | typeof FlowStylesheetSchema | typeof ArrowStylesheetSchema
+  >
+]);
 
 const EdgeUpperWithDecoratorsSchema = EdgeUpperStylesheetSchema.safeExtend({
   decorators: z.array(GraphEdgeDecoratorRuleSchema).optional()

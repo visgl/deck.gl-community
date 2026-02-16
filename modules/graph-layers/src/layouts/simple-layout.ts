@@ -35,7 +35,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     this._notifyLayoutComplete();
   }
 
-  stop() : void {}
+  stop(): void {}
 
   update(): void {
     this._notifyLayoutComplete();
@@ -50,7 +50,10 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     const nodes = Array.from(graph.getNodes());
     this._nodeMap = new Map(nodes.map((node) => [node.getId(), node]));
     this._nodePositionMap = new Map(
-      nodes.map((node) => [node.getId(), this._normalizePosition(this.props.nodePositionAccessor(node))])
+      nodes.map((node) => [
+        node.getId(),
+        this._normalizePosition(this.props.nodePositionAccessor(node))
+      ])
     );
   }
 
@@ -63,7 +66,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
       return [0, 0] as [number, number];
     }
     const position = this._nodePositionMap.get(node.getId());
-    return position ?? [0, 0] as [number, number];
+    return position ?? ([0, 0] as [number, number]);
   };
 
   getEdgePosition = (edge: EdgeInterface) => {
@@ -90,7 +93,6 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     this._onLayoutChange();
     this._onLayoutDone();
   }
-
 
   protected override _updateBounds(): void {
     const positions = Array.from(this._nodePositionMap.values(), (position) =>

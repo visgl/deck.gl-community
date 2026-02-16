@@ -9,8 +9,8 @@ import {PathEdgeLayer} from './edge-layers/path-edge-layer';
 import {CurvedEdgeLayer} from './edge-layers/curved-edge-layer';
 
 const EDGE_LAYER_MAP = {
-  'line': StraightLineEdgeLayer,
-  'path': PathEdgeLayer,
+  line: StraightLineEdgeLayer,
+  path: PathEdgeLayer,
   'spline-curve': CurvedEdgeLayer
 };
 
@@ -46,8 +46,8 @@ export class EdgeLayer extends CompositeLayer {
         return res;
       },
       {
-        'line': [],
-        'path': [],
+        line: [],
+        path: [],
         'spline-curve': []
       }
     );

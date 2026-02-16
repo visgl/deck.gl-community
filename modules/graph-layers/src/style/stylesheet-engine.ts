@@ -75,32 +75,41 @@ export class StylesheetEngine<TStyleProperty extends StyleProperty = StyleProper
 
     const attributes = Object.values(rules).reduce<string[]>((res, rule) => {
       const attrs = Object.keys(rule || {});
-      const set = new Set([...(res), ...attrs]);
+      const set = new Set([...res, ...attrs]);
       return Array.from(set);
     }, []);
 
-    const attrMap = attributes.reduce((res, attr) => {
-      res[attr] = Object.entries(rules).reduce((acc, entry) => {
-        const [state, rule] = entry;
-        if (rule && typeof (rule as any)[attr] !== 'undefined') {
-          (acc as any)[state] = (rule as any)[attr];
-        }
-        return acc;
-      }, {} as Record<string, unknown>);
-      return res;
-    }, {} as Record<string, any>);
-
-    const simplifiedStyleMap = Object.entries(attrMap).reduce((res, entry) => {
-      const [attr, valueMap] = entry as [string, Record<string, unknown>];
-      const states = Object.keys(valueMap);
-      const onlyDefault = states.length === 1 && valueMap.default !== undefined;
-      if (onlyDefault) {
-        res[attr] = valueMap.default;
+    const attrMap = attributes.reduce(
+      (res, attr) => {
+        res[attr] = Object.entries(rules).reduce(
+          (acc, entry) => {
+            const [state, rule] = entry;
+            if (rule && typeof (rule as any)[attr] !== 'undefined') {
+              (acc as any)[state] = (rule as any)[attr];
+            }
+            return acc;
+          },
+          {} as Record<string, unknown>
+        );
         return res;
-      }
-      res[attr] = valueMap;
-      return res;
-    }, {} as Record<string, unknown>);
+      },
+      {} as Record<string, any>
+    );
+
+    const simplifiedStyleMap = Object.entries(attrMap).reduce(
+      (res, entry) => {
+        const [attr, valueMap] = entry as [string, Record<string, unknown>];
+        const states = Object.keys(valueMap);
+        const onlyDefault = states.length === 1 && valueMap.default !== undefined;
+        if (onlyDefault) {
+          res[attr] = valueMap.default;
+          return res;
+        }
+        res[attr] = valueMap;
+        return res;
+      },
+      {} as Record<string, unknown>
+    );
 
     this.properties = {} as Record<string, TStyleProperty>;
     for (const key in simplifiedStyleMap) {
@@ -153,16 +162,22 @@ export class StylesheetEngine<TStyleProperty extends StyleProperty = StyleProper
 
   getDeckGLAccessors() {
     const accessorMap = this.getDeckGLAccessorMapForType();
-    return Object.keys(accessorMap).reduce((res, accessor) => {
-      res[accessor] = this.getDeckGLAccessor(accessor);
-      return res;
-    }, {} as Record<string, (...args: any[]) => unknown>);
+    return Object.keys(accessorMap).reduce(
+      (res, accessor) => {
+        res[accessor] = this.getDeckGLAccessor(accessor);
+        return res;
+      },
+      {} as Record<string, (...args: any[]) => unknown>
+    );
   }
 
   getDeckGLUpdateTriggers() {
-    return this.getDeckGLUpdateTriggersForType().reduce((res, accessor) => {
-      res[accessor] = this.getDeckGLAccessorUpdateTrigger(accessor);
-      return res;
-    }, {} as Record<string, unknown>);
+    return this.getDeckGLUpdateTriggersForType().reduce(
+      (res, accessor) => {
+        res[accessor] = this.getDeckGLAccessorUpdateTrigger(accessor);
+        return res;
+      },
+      {} as Record<string, unknown>
+    );
   }
 }

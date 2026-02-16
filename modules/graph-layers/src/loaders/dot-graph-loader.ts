@@ -55,12 +55,11 @@ export type DOTGraphLoaderMetadata = {
 
 export type DOTGraphLoaderOptions = LoaderOptions & {
   dot?: {
-   version?: number;
+    version?: number;
   };
 };
 
 export type DOTGraphParserOptions = NonNullable<DOTGraphLoaderOptions['dot']>;
-
 
 export const DOTGraphLoader = {
   dataType: null as unknown as ArrowGraphData,
@@ -88,7 +87,6 @@ export const DOTGraphLoader = {
     return loadDOTGraph(text, parseOptions);
   }
 } as const satisfies LoaderWithParser<ArrowGraphData, never, DOTGraphLoaderOptions>;
-
 
 export function loadDOTGraph(dot: string, options: DOTGraphParserOptions = {}): ArrowGraphData {
   const parsed = parseDOT(dot);
@@ -121,7 +119,9 @@ function buildArrowGraphData(
   for (const node of parsed.nodes.values()) {
     const attributes: DOTAttributeMap = {...node.attributes};
     if (node.subgraphs.size > 0) {
-      attributes.subgraphs = Array.from(node.subgraphs, (id) => describeSubgraph(id, subgraphDescriptors));
+      attributes.subgraphs = Array.from(node.subgraphs, (id) =>
+        describeSubgraph(id, subgraphDescriptors)
+      );
     }
     builder.addNode({
       id: node.id,
@@ -428,7 +428,11 @@ class DOTParser {
       graphAttributes: {}
     };
     this.scopes.push(context);
-    this.result.subgraphs.set(subgraphId, {id: subgraphId, attributes: context.graphAttributes, parentId});
+    this.result.subgraphs.set(subgraphId, {
+      id: subgraphId,
+      attributes: context.graphAttributes,
+      parentId
+    });
 
     let shouldContinue = true;
     while (shouldContinue) {
@@ -702,7 +706,10 @@ function readQuotedString(input: string, startIndex: number): {value: string; ne
   throw new Error('Unterminated string literal in DOT source.');
 }
 
-function readEscapedCharacter(input: string, startIndex: number): {value: string; nextIndex: number} {
+function readEscapedCharacter(
+  input: string,
+  startIndex: number
+): {value: string; nextIndex: number} {
   const next = input[startIndex];
   switch (next) {
     case 'n':
@@ -807,7 +814,12 @@ function isIdentifierLike(token: Token): boolean {
 }
 
 function isStructuralToken(token: Token): boolean {
-  return token.type === 'lbrace' || token.type === 'rbrace' || token.type === 'lbrack' || token.type === 'rbrack';
+  return (
+    token.type === 'lbrace' ||
+    token.type === 'rbrace' ||
+    token.type === 'lbrack' ||
+    token.type === 'rbrack'
+  );
 }
 
 function parseIdentifierValue(token: Token): string {

@@ -8,7 +8,11 @@ import type {NodeInterface} from '../graph/graph';
 
 import {GraphStylesheetEngine, type GraphStyleRule} from '../style/graph-style-engine';
 import type {GraphLayerNodeStyle} from '../style/graph-layer-stylesheet';
-import {getNodeBoundaryIntersection, type GeometryNodeType, type NodeGeometry} from '../utils/node-boundary';
+import {
+  getNodeBoundaryIntersection,
+  type GeometryNodeType,
+  type NodeGeometry
+} from '../utils/node-boundary';
 import {warn} from '../utils/log';
 
 type NumericAccessor = ((node: NodeInterface) => number) | number | null | undefined;
@@ -36,7 +40,10 @@ const GEOMETRY_NODE_TYPES: GeometryNodeType[] = [
   'marker'
 ];
 
-function evaluateNumericAccessor(accessor: NumericAccessor, node: NodeInterface): number | undefined {
+function evaluateNumericAccessor(
+  accessor: NumericAccessor,
+  node: NodeInterface
+): number | undefined {
   if (typeof accessor === 'function') {
     const value = accessor(node);
     return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -127,12 +134,20 @@ const GEOMETRY_APPLIERS: Record<
   },
   'rounded-rectangle': (node, accessors, geometry) => {
     assignRectangleDimensions(node, accessors, geometry);
-    assignDimension(geometry, 'cornerRadius', resolveAccessorValue(accessors.getCornerRadius, node));
+    assignDimension(
+      geometry,
+      'cornerRadius',
+      resolveAccessorValue(accessors.getCornerRadius, node)
+    );
     assignDimension(geometry, 'radius', resolveAccessorValue(accessors.getRadius, node));
   },
   'path-rounded-rectangle': (node, accessors, geometry) => {
     assignRectangleDimensions(node, accessors, geometry);
-    assignDimension(geometry, 'cornerRadius', resolveAccessorValue(accessors.getCornerRadius, node));
+    assignDimension(
+      geometry,
+      'cornerRadius',
+      resolveAccessorValue(accessors.getCornerRadius, node)
+    );
   }
 };
 
@@ -163,8 +178,7 @@ export class EdgeAttachmentHelper {
         new Map<string | number, NodeInterface>()
       );
 
-    return (edge: any) =>
-      this._getAdjustedEdgeLayout(engine, nodeAccessorMap, nodeMap, edge);
+    return (edge: any) => this._getAdjustedEdgeLayout(engine, nodeAccessorMap, nodeMap, edge);
   }
 
   private _buildNodeStyleAccessorMap({
@@ -184,45 +198,43 @@ export class EdgeAttachmentHelper {
 
     const styles = Array.isArray(nodeStyle) ? nodeStyle : [nodeStyle];
 
-    styles
-      .filter(Boolean)
-      .forEach((style) => {
-        const {data = (nodes) => nodes, ...restStyle} = style;
-        const type = restStyle.type;
+    styles.filter(Boolean).forEach((style) => {
+      const {data = (nodes) => nodes, ...restStyle} = style;
+      const type = restStyle.type;
 
-        if (!type || !GEOMETRY_NODE_TYPES.includes(type as GeometryNodeType)) {
-          return;
-        }
+      if (!type || !GEOMETRY_NODE_TYPES.includes(type as GeometryNodeType)) {
+        return;
+      }
 
-        let stylesheet: GraphStylesheetEngine | null = null;
-        try {
-          stylesheet = engine.createStylesheetEngine(restStyle as GraphStyleRule, {
-            stateUpdateTrigger: (interactionManager as any).getLastInteraction()
-          });
-        } catch (error) {
-          warn(
-            `GraphLayer: Failed to evaluate node stylesheet for edge attachment (${String(
-              (error as Error).message ?? error
-            )}).`
-          );
-          return;
-        }
-
-        const nodes = data(engine.getNodes());
-        if (!Array.isArray(nodes)) {
-          return;
-        }
-
-        const geometryType = type as GeometryNodeType;
-        const accessors = this._createAccessorsForType(geometryType, stylesheet);
-
-        nodes.forEach((node: NodeInterface) => {
-          const id = node.getId();
-          if (!nodeAccessorMap.has(id)) {
-            nodeAccessorMap.set(id, accessors);
-          }
+      let stylesheet: GraphStylesheetEngine | null = null;
+      try {
+        stylesheet = engine.createStylesheetEngine(restStyle as GraphStyleRule, {
+          stateUpdateTrigger: (interactionManager as any).getLastInteraction()
         });
+      } catch (error) {
+        warn(
+          `GraphLayer: Failed to evaluate node stylesheet for edge attachment (${String(
+            (error as Error).message ?? error
+          )}).`
+        );
+        return;
+      }
+
+      const nodes = data(engine.getNodes());
+      if (!Array.isArray(nodes)) {
+        return;
+      }
+
+      const geometryType = type as GeometryNodeType;
+      const accessors = this._createAccessorsForType(geometryType, stylesheet);
+
+      nodes.forEach((node: NodeInterface) => {
+        const id = node.getId();
+        if (!nodeAccessorMap.has(id)) {
+          nodeAccessorMap.set(id, accessors);
+        }
       });
+    });
 
     return nodeAccessorMap;
   }

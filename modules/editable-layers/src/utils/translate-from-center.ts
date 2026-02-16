@@ -11,35 +11,22 @@ import type {SimpleFeature} from './geojson-types';
 
 // This function takes feature's center, moves it,
 // and builds new feature around it keeping the proportions
-export function translateFromCenter(
-  feature: SimpleFeature,
-  distance: number,
-  direction: number
-) {
+export function translateFromCenter(feature: SimpleFeature, distance: number, direction: number) {
   const initialCenterPoint = turfCenter(feature);
 
   const movedCenterPoint = turfRhumbDestination(initialCenterPoint, distance, direction);
 
-  const movedCoordinates = mapCoords(
-    feature.geometry.coordinates,
-    (coordinate) => {
-      const rhumbDistance = turfRhumbDistance(
-        initialCenterPoint.geometry.coordinates,
-        coordinate
-      );
-      const rhumbDirection = turfRhumbBearing(
-        initialCenterPoint.geometry.coordinates,
-        coordinate
-      );
+  const movedCoordinates = mapCoords(feature.geometry.coordinates, (coordinate) => {
+    const rhumbDistance = turfRhumbDistance(initialCenterPoint.geometry.coordinates, coordinate);
+    const rhumbDirection = turfRhumbBearing(initialCenterPoint.geometry.coordinates, coordinate);
 
-      const movedPosition = turfRhumbDestination(
-        movedCenterPoint.geometry.coordinates,
-        rhumbDistance,
-        rhumbDirection
-      ).geometry.coordinates;
-      return movedPosition;
-    }
-  );
+    const movedPosition = turfRhumbDestination(
+      movedCenterPoint.geometry.coordinates,
+      rhumbDistance,
+      rhumbDirection
+    ).geometry.coordinates;
+    return movedPosition;
+  });
 
   feature.geometry.coordinates = movedCoordinates;
 

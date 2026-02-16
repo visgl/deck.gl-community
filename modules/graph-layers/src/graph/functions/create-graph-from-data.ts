@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {Graph, GraphProps} from '../graph';
-import  {type GraphData, isArrowGraphData} from '../../graph-data/graph-data';
+import {type GraphData, isArrowGraphData} from '../../graph-data/graph-data';
 import {ArrowGraph} from '../arrow-graph';
 import {ClassicGraph} from '../classic-graph';
 
@@ -12,5 +12,5 @@ export function createGraphFromData(data: GraphData, props: GraphProps = {}): Gr
     return new ArrowGraph({...props, data});
   }
 
- return new ClassicGraph({...props, data});
+  return new ClassicGraph({...props, data});
 }

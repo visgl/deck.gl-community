@@ -140,7 +140,9 @@ export class SplitPolygonHandler extends ModeHandler {
       units = 'centimeters';
     }
     const buffer = turfBuffer(tentativeFeature, gap, {units});
-    const updatedGeometry = turfDifference(featureCollection([turfFeature(selectedGeometry as PolygonGeometry), buffer]));
+    const updatedGeometry = turfDifference(
+      featureCollection([turfFeature(selectedGeometry as PolygonGeometry), buffer])
+    );
     this._setTentativeFeature(null);
     if (!updatedGeometry) {
       // eslint-disable-next-line no-console,no-undef

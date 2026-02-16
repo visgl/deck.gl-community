@@ -56,9 +56,7 @@ describe('GraphStylesheetSchema', () => {
 
     const warnSpy = mockWarn();
     const stylesheet = new GraphStylesheetEngine(invalidStylesheet);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Unknown style property "foo"')
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Unknown style property "foo"'));
     const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
     const fillValue =
       typeof getFillColor === 'function' ? getFillColor({state: 'default'}) : getFillColor;
@@ -76,13 +74,16 @@ describe('GraphStylesheetSchema', () => {
     const result = GraphStyleRuleSchema.safeParse(invalidSelectorStylesheet);
     expect(result.success).toBe(false);
     const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
-    expect(messages.some((message) => /Unrecognized key/.test(message) && message.includes('unknown'))).toBe(true);
+    expect(
+      messages.some((message) => /Unrecognized key/.test(message) && message.includes('unknown'))
+    ).toBe(true);
 
     const warnSpy = mockWarn();
     const stylesheet = new GraphStylesheetEngine(invalidSelectorStylesheet);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/:hover/));
     const getFillColor = stylesheet.getDeckGLAccessor('getFillColor');
-    const fillValue = typeof getFillColor === 'function' ? getFillColor({state: 'hover'}) : getFillColor;
+    const fillValue =
+      typeof getFillColor === 'function' ? getFillColor({state: 'hover'}) : getFillColor;
     expect(fillValue).toEqual([0, 0, 0]);
   });
 
@@ -103,9 +104,7 @@ describe('GraphStylesheetSchema', () => {
 
     const warnSpy = mockWarn();
     const stylesheet = new GraphStylesheetEngine(invalidAttributeReference);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('radius.attribute')
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('radius.attribute'));
     const getRadius = stylesheet.getDeckGLAccessor('getRadius');
     const radiusValue = typeof getRadius === 'function' ? getRadius({state: 'default'}) : getRadius;
     expect(radiusValue).toBe(1);
