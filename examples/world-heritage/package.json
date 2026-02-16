@@ -1,0 +1,23 @@
+{
+  "name": "world-heritage-example",
+  "version": "9.2.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/react": "workspace:*",
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/react": "~9.2.1",
+    "maplibre-gl": "^4.1.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-map-gl": "^7.1.7"
+  },
+  "devDependencies": {
+    "vite": "7.1.1"
+  }
+}

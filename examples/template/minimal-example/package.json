@@ -2,7 +2,7 @@
   "license": "MIT",
   "scripts": {
     "start": "vite --open",
-    "start-local": "vite --config ../vite.config.local.mjs"
+    "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
