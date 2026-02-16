@@ -15419,6 +15419,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"outlined-path-layer-bdb37b@workspace:examples/layers/outlined-path-layer":
+  version: 0.0.0-use.local
+  resolution: "outlined-path-layer-bdb37b@workspace:examples/layers/outlined-path-layer"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.2.1"
+    "@deck.gl/layers": "npm:~9.2.1"
+    "@deck.gl/react": "npm:~9.2.1"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    vite: "npm:7.1.1"
+  languageName: unknown
+  linkType: soft
+
 "overlays-a5886b@workspace:examples/editable-layers/overlays":
   version: 0.0.0-use.local
   resolution: "overlays-a5886b@workspace:examples/editable-layers/overlays"
