@@ -55,8 +55,13 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/editable-layers',
       items: [
+        "editable-layers/getting-started",
         "editable-layers/editor",
-        "editable-layers/advanced"
+        "editable-layers/widget",
+        "editable-layers/advanced",
+        "editable-layers/sf",
+        "editable-layers/no-map",
+        "editable-layers/editable-h3-cluster-layer"
       ]
     },
     {
@@ -64,6 +69,7 @@ const sidebars = {
       label: '@deck.gl-community/widgets',
       items: [
         "widgets/html-overlays",
+        "widgets/overlays",
         "widgets/pan-and-zoom-controls"
       ]
     },
