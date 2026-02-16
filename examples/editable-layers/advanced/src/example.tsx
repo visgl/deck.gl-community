@@ -430,7 +430,7 @@ export function Example() {
               onClick={() => {
                 if (modeConfig && modeConfig.booleanOperation === operation) {
                   setModeConfig({
-                    ...(modeConfig || {}),
+                    ...modeConfig,
                     booleanOperation: null
                   });
                 } else {
