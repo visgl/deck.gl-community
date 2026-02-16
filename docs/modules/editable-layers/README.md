@@ -24,28 +24,6 @@ The deck.gl-community repo is specifically set up to collect useful code that no
 
 This module is a fork of / successor to [nebula.gl](https://nebula.gl). nebula.gl was a popular and important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
 
-## What's New
-
-This page contains highlights of each `editable-layers` release.
-
-### editable-layers v9.1
-
-- Now stores properties of created circles and ellipses in `properties.editProperties`.
-
-### editable-layers v9.0
-
-- The code has been updated to work with deck.gl v9.
-- The module structure has been simplified via the module mapping in the table below.
-
-| @deck.gl-community/editable-layers module | Description         | deck.gl-community module                |
-| ----------------------------------------- | ------------------- | --------------------------------------- |
-| nebula.gl                                 | The core module     | => `@deck.gl-community/editable-layers` |
-| `@nebula.gl/edit-modes`                   | Optional edit modes | => `@deck.gl-community/editable-layers` |
-| `@nebula.gl/layers`                       | The actual layers   | => `@deck.gl-community/editable-layers` |
-| `@nebula.gl/overlays`                     | React overlays      | => `@deck.gl-community/react`           |
-| `@nebula.gl/editor`                       | React wrappers      | => Code moved into "editor" example     |
-| `react-map-gl-draw`                       | Non-deck-wrapper    | => NOT FORKED                           |
-
 ## Upgrade Guide
 
 ### Upgrade to editable-layers v9.1
@@ -72,3 +50,32 @@ The main effort should be to replace your dependencies in package.json and repla
   - nebula.gl's `react-map-gl-draw` module was not ported to `deck.gl-community`.
   - The main reason why a user would want to update `react-map-gl-draw` is likely to make it work with a newer React version.
   - `react-map-gl-draw` is a small module in nebula.gl and you could probably just copy the source code into your app and bump the react dependency.
+
+## What's New
+
+### editable-layers v9.3
+
+- **EditModeTrayWidget** — New deck.gl widget providing a mode selection tray UI, eliminating the need for custom React toolbars.
+- **All examples modernized** — Every example now uses Vite, TypeScript, React 18 with functional components and hooks.
+- **New examples** — `getting-started` (minimal setup), `no-map` (editing without a basemap using BitmapLayer background).
+- **Deprecated MeshLayer docs removed** — MeshLayer was never part of editable-layers; use `@deck.gl/mesh-layers` directly.
+- **Overlays example moved** to `@deck.gl-community/widgets` where it belongs.
+- **DrawPolygonMode** — Improved hole drawing with validation, max hole limits, and `emitInvalidEvents` for error feedback.
+
+### editable-layers v9.1
+
+- Now stores properties of created circles and ellipses in `properties.editProperties`.
+
+### editable-layers v9.0
+
+- The code has been updated to work with deck.gl v9.
+- The module structure has been simplified via the module mapping in the table below.
+
+| @deck.gl-community/editable-layers module | Description         | deck.gl-community module                |
+| ----------------------------------------- | ------------------- | --------------------------------------- |
+| nebula.gl                                 | The core module     | => `@deck.gl-community/editable-layers` |
+| `@nebula.gl/edit-modes`                   | Optional edit modes | => `@deck.gl-community/editable-layers` |
+| `@nebula.gl/layers`                       | The actual layers   | => `@deck.gl-community/editable-layers` |
+| `@nebula.gl/overlays`                     | React overlays      | => `@deck.gl-community/react`           |
+| `@nebula.gl/editor`                       | React wrappers      | => Code moved into "editor" example     |
+| `react-map-gl-draw`                       | Non-deck-wrapper    | => NOT FORKED                           |

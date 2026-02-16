@@ -4,6 +4,7 @@
 
 /* eslint-env browser */
 import * as React from 'react';
+import {useState, useCallback} from 'react';
 import DeckGL from '@deck.gl/react';
 import {MapView, MapController} from '@deck.gl/core';
 import StaticMap from 'react-map-gl/maplibre';
@@ -45,13 +46,11 @@ import {
   CompositeMode,
   SnappableMode,
   ElevatedEditHandleLayer,
-  SELECTION_TYPE,
   GeoJsonEditMode,
   Color,
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
 
-import {PathMarkerLayer} from '@deck.gl-community/layers';
 
 import sampleGeoJson from '../../data/sample-geojson.json';
 
@@ -220,68 +219,28 @@ function getEditHandleColor(handle: {}): RGBAColor {
   }
 }
 
-export default class Example extends React.Component<
-  {},
-  {
-    viewport: Record<string, any>;
-    testFeatures: any;
-    mode: typeof GeoJsonEditMode;
-    modeConfig: any;
-    pointsRemovable: boolean;
-    selectedFeatureIndexes: number[];
-    editHandleType: string;
-    selectionTool?: string;
-    showGeoJson: boolean;
-    pathMarkerLayer: boolean;
-    featureMenu?: {
-      index: number;
-      x: number;
-      y: number;
-    };
-  }
-> {
-  constructor(props: {}) {
-    super(props);
+export function Example() {
+  const [viewport, setViewport] = useState<Record<string, any>>(initialViewport);
+  const [testFeatures, setTestFeatures] = useState<any>(sampleGeoJson);
+  const [mode, setMode] = useState<typeof GeoJsonEditMode>(() => DrawPolygonMode);
+  const [modeConfig, setModeConfig] = useState<any>({allowHoles: true, allowSelfIntersection: false});
+  const [pointsRemovable, setPointsRemovable] = useState<boolean>(true);
+  const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState<number[]>([]);
+  const [editHandleType, setEditHandleType] = useState<string>('point');
+  const [selectionTool, setSelectionTool] = useState<string | undefined>(undefined);
+  const [showGeoJson, setShowGeoJson] = useState<boolean>(false);
+  const [featureMenu, setFeatureMenu] = useState<{index: number; x: number; y: number} | undefined>(undefined);
 
-    this.state = {
-      viewport: initialViewport,
-      testFeatures: sampleGeoJson,
-      mode: DrawPolygonMode,
-      modeConfig: {allowHoles: true, allowSelfIntersection: false},
-      pointsRemovable: true,
-      selectedFeatureIndexes: [],
-      editHandleType: 'point',
-      selectionTool: undefined,
-      showGeoJson: false,
-      pathMarkerLayer: false,
-      featureMenu: undefined
-    };
-  }
-
-  componentDidMount() {
-    window.addEventListener('resize', this._resize);
-  }
-
-  componentWillUnmount() {
-    window.removeEventListener('resize', this._resize);
-  }
-
-  _getDefaultModeConfig(mode: any) {
+  const getDefaultModeConfig = useCallback((mode: any) => {
     if (mode === DrawPolygonMode) {
       return {allowHoles: true, allowSelfIntersection: false};
     }
     return {};
-  }
+  }, []);
 
-  _onChangeViewport = (viewport: Record<string, any>) => {
-    this.setState({
-      viewport: {...this.state.viewport, ...viewport}
-    });
-  };
-
-  _onLayerClick = (info: any) => {
+  const onLayerClick = useCallback((info: any) => {
     console.log('onLayerClick', info); // eslint-disable-line
-    if (this.state.mode !== ViewMode || this.state.selectionTool) {
+    if (mode !== ViewMode || selectionTool) {
       // don't change selection while editing
       return;
     }
@@ -289,42 +248,50 @@ export default class Example extends React.Component<
     if (info) {
       console.log(`select editing feature ${info.index}`); // eslint-disable-line
       // a feature was clicked
-      this.setState({selectedFeatureIndexes: [info.index]});
+      setSelectedFeatureIndexes([info.index]);
     } else {
       console.log('deselect editing feature'); // eslint-disable-line
       // open space was clicked, so stop editing
-      this.setState({selectedFeatureIndexes: []});
+      setSelectedFeatureIndexes([]);
     }
-  };
+  }, [mode, selectionTool]);
 
-  _resize = () => {
-    this.forceUpdate();
-  };
-
-  _loadSample = (type: string) => {
-    if (type === 'mixed') {
-      this.setState({
-        testFeatures: sampleGeoJson,
-        selectedFeatureIndexes: []
-      });
-    } else if (type === 'complex') {
-      this.setState({
-        testFeatures: {
+  const parseStringJson = useCallback((json: string) => {
+    let parsedFeatures: FeatureCollection | null = null;
+    try {
+      parsedFeatures = JSON.parse(json);
+      if (Array.isArray(parsedFeatures)) {
+        parsedFeatures = {
           type: 'FeatureCollection',
-          features: [
-            circle([-122.45, 37.81], 4, {steps: 5000}),
-            circle([-122.33, 37.81], 4, {steps: 5000}),
-            circle([-122.45, 37.73], 4, {steps: 5000}),
-            circle([-122.33, 37.73], 4, {steps: 5000})
-          ]
-        },
-        selectedFeatureIndexes: []
+          features: parsedFeatures
+        };
+      }
+      // eslint-disable-next-line
+      console.log('Loaded JSON:', parsedFeatures);
+      setTestFeatures(parsedFeatures);
+    } catch (err) {
+      error(err);
+    }
+  }, []);
+
+  const loadSample = useCallback((type: string) => {
+    if (type === 'mixed') {
+      setTestFeatures(sampleGeoJson);
+      setSelectedFeatureIndexes([]);
+    } else if (type === 'complex') {
+      setTestFeatures({
+        type: 'FeatureCollection',
+        features: [
+          circle([-122.45, 37.81], 4, {steps: 5000}),
+          circle([-122.33, 37.81], 4, {steps: 5000}),
+          circle([-122.45, 37.73], 4, {steps: 5000}),
+          circle([-122.33, 37.73], 4, {steps: 5000})
+        ]
       });
+      setSelectedFeatureIndexes([]);
     } else if (type === 'blank') {
-      this.setState({
-        testFeatures: EMPTY_FEATURE_COLLECTION,
-        selectedFeatureIndexes: []
-      });
+      setTestFeatures(EMPTY_FEATURE_COLLECTION);
+      setSelectedFeatureIndexes([]);
     } else if (type === 'file') {
       const el = document.createElement('input');
       el.type = 'file';
@@ -333,89 +300,70 @@ export default class Example extends React.Component<
         if (eventTarget.files && eventTarget.files[0]) {
           const reader = new FileReader();
           reader.onload = ({target}) => {
-            this._parseStringJson(target.result as string);
+            parseStringJson(target.result as string);
           };
           reader.readAsText(eventTarget.files[0]);
         }
       };
       el.click();
     }
-  };
+  }, [parseStringJson]);
 
-  _copy = () => {
+  const error = useCallback((err: any) => {
+    // eslint-disable-next-line
+    alert(err);
+  }, []);
+
+  const copy = useCallback(() => {
     if (navigator && navigator.clipboard) {
-      navigator.clipboard.writeText(JSON.stringify(this.state.testFeatures));
+      navigator.clipboard.writeText(JSON.stringify(testFeatures));
     } else {
-      this._error('No navigator.clipboard');
+      error('No navigator.clipboard');
     }
-  };
+  }, [testFeatures, error]);
 
-  _paste = () => {
+  const paste = useCallback(() => {
     if (navigator && navigator.clipboard) {
       navigator.clipboard.readText().then(
         (value) => {
-          this._parseStringJson(value);
+          parseStringJson(value);
         },
         (reason) => {
-          this._error(reason);
+          error(reason);
         }
       );
     } else {
-      this._error('No navigator.clipboard');
+      error('No navigator.clipboard');
     }
-  };
+  }, [parseStringJson, error]);
 
-  _download = () => {
-    const blob = new Blob([JSON.stringify(this.state.testFeatures)], {
+  const download = useCallback(() => {
+    const blob = new Blob([JSON.stringify(testFeatures)], {
       type: 'octet/stream'
     });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'nebula.geojson';
     a.click();
-  };
+  }, [testFeatures]);
 
-  _parseStringJson = (json: string) => {
-    let testFeatures: FeatureCollection | null = null;
-    try {
-      testFeatures = JSON.parse(json);
-      if (Array.isArray(testFeatures)) {
-        testFeatures = {
-          type: 'FeatureCollection',
-          features: testFeatures
-        };
-      }
-      // eslint-disable-next-line
-      console.log('Loaded JSON:', testFeatures);
-      this.setState({testFeatures});
-    } catch (err) {
-      this._error(err);
-    }
-  };
-
-  _error = (err: any) => {
-    // eslint-disable-next-line
-    alert(err);
-  };
-
-  _getHtmlColorForFeature(index: number, selected: boolean) {
+  const getHtmlColorForFeature = useCallback((index: number, selected: boolean) => {
     const length = FEATURE_COLORS.length;
     const color = FEATURE_COLORS[index % length].map((c) => c * 255).join(',');
     const alpha = selected ? 1.0 : 0.7;
 
     return `rgba(${color}, ${alpha})`;
-  }
+  }, []);
 
-  _getDeckColorForFeature(index: number, bright: number, alpha: number): RGBAColor {
+  const getDeckColorForFeature = useCallback((index: number, bright: number, alpha: number): RGBAColor => {
     const length = FEATURE_COLORS.length;
     const color = FEATURE_COLORS[index % length].map((c) => c * bright * 255);
 
     // @ts-expect-error TODO
     return [...color, alpha * 255];
-  }
+  }, []);
 
-  _renderSelectFeatureCheckbox(index: number, featureType: string) {
-    const {selectedFeatureIndexes} = this.state;
+  const renderSelectFeatureCheckbox = useCallback((index: number, featureType: string) => {
     return (
       <div key={index}>
         <ToolboxCheckbox
@@ -424,19 +372,15 @@ export default class Example extends React.Component<
           checked={selectedFeatureIndexes.includes(index)}
           onChange={() => {
             if (selectedFeatureIndexes.includes(index)) {
-              this.setState({
-                selectedFeatureIndexes: selectedFeatureIndexes.filter((e) => e !== index)
-              });
+              setSelectedFeatureIndexes(selectedFeatureIndexes.filter((e) => e !== index));
             } else {
-              this.setState({
-                selectedFeatureIndexes: [...selectedFeatureIndexes, index]
-              });
+              setSelectedFeatureIndexes([...selectedFeatureIndexes, index]);
             }
           }}
         >
           <span
             style={{
-              color: this._getHtmlColorForFeature(index, selectedFeatureIndexes.includes(index))
+              color: getHtmlColorForFeature(index, selectedFeatureIndexes.includes(index))
             }}
           >
             {index}
@@ -448,10 +392,8 @@ export default class Example extends React.Component<
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              this.setState({
-                selectedFeatureIndexes: [index],
-                featureMenu: {index, x: e.clientX, y: e.clientY}
-              });
+              setSelectedFeatureIndexes([index]);
+              setFeatureMenu({index, x: e.clientX, y: e.clientY});
             }}
           >
             &gt;&gt;
@@ -459,20 +401,17 @@ export default class Example extends React.Component<
         </ToolboxCheckbox>
       </div>
     );
-  }
+  }, [selectedFeatureIndexes, getHtmlColorForFeature]);
 
-  _renderSelectFeatureCheckboxes() {
-    const {
-      testFeatures: {features}
-    } = this.state;
+  const renderSelectFeatureCheckboxes = useCallback(() => {
     const checkboxes: React.ReactElement[] = [];
-    for (let i = 0; i < features.length; ++i) {
-      checkboxes.push(this._renderSelectFeatureCheckbox(i, features[i].geometry.type));
+    for (let i = 0; i < testFeatures.features.length; ++i) {
+      checkboxes.push(renderSelectFeatureCheckbox(i, testFeatures.features[i].geometry.type));
     }
     return checkboxes;
-  }
+  }, [testFeatures.features, renderSelectFeatureCheckbox]);
 
-  _renderBooleanOperationControls() {
+  const renderBooleanOperationControls = useCallback(() => {
     const operations = ['union', 'difference', 'intersection'];
     return (
       <ToolboxRow key="booleanOperations">
@@ -486,22 +425,18 @@ export default class Example extends React.Component<
             <ToolboxButton
               key={operation}
               selected={
-                this.state.modeConfig && this.state.modeConfig.booleanOperation === operation
+                modeConfig && modeConfig.booleanOperation === operation
               }
               onClick={() => {
-                if (this.state.modeConfig && this.state.modeConfig.booleanOperation === operation) {
-                  this.setState({
-                    modeConfig: {
-                      ...(this.state.modeConfig || {}),
-                      booleanOperation: null
-                    }
+                if (modeConfig && modeConfig.booleanOperation === operation) {
+                  setModeConfig({
+                    ...(modeConfig || {}),
+                    booleanOperation: null
                   });
                 } else {
-                  this.setState({
-                    modeConfig: {
-                      ...(this.state.modeConfig || {}),
-                      booleanOperation: operation
-                    }
+                  setModeConfig({
+                    ...(modeConfig || {}),
+                    booleanOperation: operation
                   });
                 }
               }}
@@ -512,65 +447,61 @@ export default class Example extends React.Component<
         </ToolboxControl>
       </ToolboxRow>
     );
-  }
+  }, [modeConfig]);
 
-  _renderTwoClickPolygonControls() {
+  const renderTwoClickPolygonControls = useCallback(() => {
     return (
       <ToolboxRow key="twoClick">
         <ToolboxTitle>Drag to draw</ToolboxTitle>
         <ToolboxControl>
           <input
             type="checkbox"
-            checked={Boolean(this.state.modeConfig && this.state.modeConfig.dragToDraw)}
+            checked={Boolean(modeConfig && modeConfig.dragToDraw)}
             onChange={(event) =>
-              this.setState({
-                modeConfig: {
-                  ...(this.state.modeConfig || {}),
-                  dragToDraw: Boolean(event.target.checked)
-                }
+              setModeConfig({
+                ...(modeConfig || {}),
+                dragToDraw: Boolean(event.target.checked)
               })
             }
           />
         </ToolboxControl>
       </ToolboxRow>
     );
-  }
+  }, [modeConfig]);
 
-  _renderModifyModeControls() {
+  const renderModifyModeControls = useCallback(() => {
     return (
       <ToolboxRow key="modify">
         <ToolboxTitle>Allow removing points</ToolboxTitle>
         <ToolboxControl>
           <input
             type="checkbox"
-            checked={this.state.pointsRemovable}
-            onChange={() => this.setState({pointsRemovable: !this.state.pointsRemovable})}
+            checked={pointsRemovable}
+            onChange={() => setPointsRemovable(!pointsRemovable)}
           />
         </ToolboxControl>
       </ToolboxRow>
     );
-  }
+  }, [pointsRemovable]);
 
-  _renderSplitModeControls() {
+  const renderSplitModeControls = useCallback(() => {
     return (
       <ToolboxRow key="split">
         <ToolboxTitle>Constrain to 90&deg;</ToolboxTitle>
         <ToolboxControl>
           <input
             type="checkbox"
-            checked={Boolean(this.state.modeConfig && this.state.modeConfig.lock90Degree)}
+            checked={Boolean(modeConfig && modeConfig.lock90Degree)}
             onChange={(event) =>
-              this.setState({
-                modeConfig: {lock90Degree: Boolean(event.target.checked)}
-              })
+              setModeConfig({lock90Degree: Boolean(event.target.checked)})
             }
           />
         </ToolboxControl>
       </ToolboxRow>
     );
-  }
+  }, [modeConfig]);
 
-  _renderSnappingControls() {
+  const renderSnappingControls = useCallback(() => {
     return (
       <div key="snap">
         <ToolboxRow>
@@ -578,39 +509,39 @@ export default class Example extends React.Component<
           <ToolboxControl>
             <input
               type="checkbox"
-              checked={Boolean(this.state.modeConfig && this.state.modeConfig.enableSnapping)}
+              checked={Boolean(modeConfig && modeConfig.enableSnapping)}
               onChange={(event) => {
-                const modeConfig = {
-                  ...this.state.modeConfig,
+                const newModeConfig = {
+                  ...modeConfig,
                   enableSnapping: Boolean(event.target.checked)
                 };
-                this.setState({modeConfig});
+                setModeConfig(newModeConfig);
               }}
             />
           </ToolboxControl>
         </ToolboxRow>
       </div>
     );
-  }
+  }, [modeConfig]);
 
-  _renderMeasureDistanceControls() {
+  const renderMeasureDistanceControls = useCallback(() => {
     return (
       <ToolboxRow key="measure-distance">
         <ToolboxTitle>Units</ToolboxTitle>
         <ToolboxControl>
           <select
             value={
-              (this.state.modeConfig &&
-                this.state.modeConfig.turfOptions &&
-                this.state.modeConfig.turfOptions.units) ||
+              (modeConfig &&
+                modeConfig.turfOptions &&
+                modeConfig.turfOptions.units) ||
               'kilometers'
             }
             onChange={(event) => {
-              const modeConfig = {
-                ...this.state.modeConfig,
+              const newModeConfig = {
+                ...modeConfig,
                 turfOptions: {units: event.target.value}
               };
-              this.setState({modeConfig});
+              setModeConfig(newModeConfig);
             }}
           >
             <option value="kilometers">kilometers</option>
@@ -624,22 +555,22 @@ export default class Example extends React.Component<
         <ToolboxControl>
           <input
             type="checkbox"
-            checked={Boolean(this.state.modeConfig && this.state.modeConfig.centerTooltipsOnLine)}
+            checked={Boolean(modeConfig && modeConfig.centerTooltipsOnLine)}
             onChange={(event) => {
-              const modeConfig = {
-                ...this.state.modeConfig,
+              const newModeConfig = {
+                ...modeConfig,
                 centerTooltipsOnLine: Boolean(event.target.checked)
               };
-              this.setState({modeConfig});
+              setModeConfig(newModeConfig);
             }}
           />
         </ToolboxControl>
       </ToolboxRow>
     );
-  }
+  }, [modeConfig]);
 
-  _renderDrawPolygonModeControls() {
-    const modeConfig = this.state.modeConfig || {};
+  const renderDrawPolygonModeControls = useCallback(() => {
+    const currentModeConfig = modeConfig || {};
     return (
       <React.Fragment key="draw-polygon">
         <ToolboxRow key="draw-polygon-holes">
@@ -647,16 +578,14 @@ export default class Example extends React.Component<
           <ToolboxControl>
             <ToolboxCheckbox
               type="checkbox"
-              checked={Boolean(modeConfig.allowHoles)}
+              checked={Boolean(currentModeConfig.allowHoles)}
               onChange={(event) =>
-                this.setState({
-                  modeConfig: {
-                    ...modeConfig,
-                    allowHoles: Boolean(event.target.checked),
-                    allowSelfIntersection: Boolean(modeConfig.allowSelfIntersection),
-                    maxHolesPerPolygon: 4,
-                    emitInvalidEvents: true
-                  }
+                setModeConfig({
+                  ...currentModeConfig,
+                  allowHoles: Boolean(event.target.checked),
+                  allowSelfIntersection: Boolean(currentModeConfig.allowSelfIntersection),
+                  maxHolesPerPolygon: 4,
+                  emitInvalidEvents: true
                 })
               }
             >
@@ -669,13 +598,11 @@ export default class Example extends React.Component<
           <ToolboxControl>
             <input
               type="checkbox"
-              checked={Boolean(modeConfig.allowSelfIntersection)}
+              checked={Boolean(currentModeConfig.allowSelfIntersection)}
               onChange={(event) =>
-                this.setState({
-                  modeConfig: {
-                    ...modeConfig,
-                    allowSelfIntersection: Boolean(event.target.checked)
-                  }
+                setModeConfig({
+                  ...currentModeConfig,
+                  allowSelfIntersection: Boolean(event.target.checked)
                 })
               }
             />
@@ -708,53 +635,52 @@ export default class Example extends React.Component<
         </ToolboxRow>
       </React.Fragment>
     );
-  }
+  }, [modeConfig]);
 
-  _renderModeConfigControls() {
+  const renderModeConfigControls = useCallback(() => {
     const controls: React.ReactElement[] = [];
 
-    if (POLYGON_DRAWING_MODES.indexOf(this.state.mode) > -1) {
-      controls.push(this._renderBooleanOperationControls());
+    if (POLYGON_DRAWING_MODES.indexOf(mode) > -1) {
+      controls.push(renderBooleanOperationControls());
     }
     // @ts-expect-error TODO
-    if (TWO_CLICK_POLYGON_MODES.indexOf(this.state.mode) > -1) {
-      controls.push(this._renderTwoClickPolygonControls());
+    if (TWO_CLICK_POLYGON_MODES.indexOf(mode) > -1) {
+      controls.push(renderTwoClickPolygonControls());
     }
-    if (this.state.mode === ModifyMode) {
-      controls.push(this._renderModifyModeControls());
+    if (mode === ModifyMode) {
+      controls.push(renderModifyModeControls());
     }
-    if (this.state.mode === SplitPolygonMode) {
-      controls.push(this._renderSplitModeControls());
+    if (mode === SplitPolygonMode) {
+      controls.push(renderSplitModeControls());
     }
-    if (this.state.mode instanceof SnappableMode) {
-      controls.push(this._renderSnappingControls());
+    if (mode instanceof SnappableMode) {
+      controls.push(renderSnappingControls());
     }
-    if (this.state.mode === MeasureDistanceMode) {
-      controls.push(this._renderMeasureDistanceControls());
+    if (mode === MeasureDistanceMode) {
+      controls.push(renderMeasureDistanceControls());
     }
-    if (this.state.mode === DrawPolygonMode) {
-      controls.push(this._renderDrawPolygonModeControls());
+    if (mode === DrawPolygonMode) {
+      controls.push(renderDrawPolygonModeControls());
     }
 
     return controls;
-  }
+  }, [mode, renderBooleanOperationControls, renderTwoClickPolygonControls, renderModifyModeControls,
+      renderSplitModeControls, renderSnappingControls, renderMeasureDistanceControls, renderDrawPolygonModeControls]);
 
-  _renderToolBox() {
+  const renderToolBox = useCallback(() => {
     return (
       <Toolbox>
         {ALL_MODES.map((category) => (
           <ToolboxRow key={category.category}>
             <ToolboxTitle>{category.category} Modes</ToolboxTitle>
-            {category.modes.map(({mode, label}) => (
+            {category.modes.map(({mode: modeOption, label}) => (
               <ToolboxButton
                 key={label}
-                selected={this.state.mode === mode}
+                selected={mode === modeOption}
                 onClick={() => {
-                  this.setState({
-                    mode,
-                    modeConfig: this._getDefaultModeConfig(mode),
-                    selectionTool: undefined
-                  });
+                  setMode(() => modeOption);
+                  setModeConfig(getDefaultModeConfig(modeOption));
+                  setSelectionTool(undefined);
                 }}
               >
                 {label}
@@ -762,11 +688,11 @@ export default class Example extends React.Component<
             ))}
           </ToolboxRow>
         ))}
-        {this._renderModeConfigControls()}
-        {this.state.showGeoJson && (
+        {renderModeConfigControls()}
+        {showGeoJson && (
           <React.Fragment>
             <ToolboxTitle>GeoJSON</ToolboxTitle>
-            <ToolboxButton onClick={() => this.setState({showGeoJson: !this.state.showGeoJson})}>
+            <ToolboxButton onClick={() => setShowGeoJson(!showGeoJson)}>
               hide &#9650;
             </ToolboxButton>
             <ToolboxControl>
@@ -774,32 +700,32 @@ export default class Example extends React.Component<
                 id="geo-json-text"
                 rows={5}
                 style={{width: '100%'}}
-                value={JSON.stringify(this.state.testFeatures)}
-                onChange={(event) => this.setState({testFeatures: JSON.parse(event.target.value)})}
+                value={JSON.stringify(testFeatures)}
+                onChange={(event) => setTestFeatures(JSON.parse(event.target.value))}
               />
             </ToolboxControl>
           </React.Fragment>
         )}
-        {!this.state.showGeoJson && (
+        {!showGeoJson && (
           <React.Fragment>
             <ToolboxTitle>GeoJSON</ToolboxTitle>
-            <ToolboxButton onClick={() => this.setState({showGeoJson: !this.state.showGeoJson})}>
+            <ToolboxButton onClick={() => setShowGeoJson(!showGeoJson)}>
               show &#9660;
             </ToolboxButton>
           </React.Fragment>
         )}
-        <ToolboxButton onClick={() => this._copy()}>Copy</ToolboxButton>
-        <ToolboxButton onClick={() => this._paste()}>Paste</ToolboxButton>
-        <ToolboxButton onClick={() => this._download()}>Download</ToolboxButton>
+        <ToolboxButton onClick={() => copy()}>Copy</ToolboxButton>
+        <ToolboxButton onClick={() => paste()}>Paste</ToolboxButton>
+        <ToolboxButton onClick={() => download()}>Download</ToolboxButton>
         <ToolboxRow>
           <ToolboxTitle>Load data</ToolboxTitle>
           <ToolboxControl>
-            <ToolboxButton onClick={() => this._loadSample('mixed')}>Mixed Sample</ToolboxButton>
-            <ToolboxButton onClick={() => this._loadSample('complex')}>
+            <ToolboxButton onClick={() => loadSample('mixed')}>Mixed Sample</ToolboxButton>
+            <ToolboxButton onClick={() => loadSample('complex')}>
               Complex Sample
             </ToolboxButton>
-            <ToolboxButton onClick={() => this._loadSample('blank')}>Blank</ToolboxButton>
-            <ToolboxButton onClick={() => this._loadSample('file')}>Open file...</ToolboxButton>
+            <ToolboxButton onClick={() => loadSample('blank')}>Blank</ToolboxButton>
+            <ToolboxButton onClick={() => loadSample('file')}>Open file...</ToolboxButton>
           </ToolboxControl>
         </ToolboxRow>
 
@@ -808,11 +734,9 @@ export default class Example extends React.Component<
           <ToolboxControl>
             <ToolboxCheckbox
               type="checkbox"
-              checked={this.state.editHandleType === 'icon'}
+              checked={editHandleType === 'icon'}
               onChange={() =>
-                this.setState({
-                  editHandleType: this.state.editHandleType === 'icon' ? 'point' : 'icon'
-                })
+                setEditHandleType(editHandleType === 'icon' ? 'point' : 'icon')
               }
             >
               Use Icons
@@ -822,117 +746,96 @@ export default class Example extends React.Component<
           <ToolboxControl>
             <ToolboxCheckbox
               type="checkbox"
-              checked={this.state.editHandleType === 'elevated'}
+              checked={editHandleType === 'elevated'}
               onChange={() =>
-                this.setState({
-                  editHandleType: this.state.editHandleType === 'elevated' ? 'point' : 'elevated'
-                })
+                setEditHandleType(editHandleType === 'elevated' ? 'point' : 'elevated')
               }
             >
               Use ElevatedEditHandleLayer
             </ToolboxCheckbox>
           </ToolboxControl>
 
-          <ToolboxControl>
-            <ToolboxCheckbox
-              type="checkbox"
-              checked={this.state.pathMarkerLayer}
-              onChange={() =>
-                this.setState({
-                  pathMarkerLayer: !this.state.pathMarkerLayer
-                })
-              }
-            >
-              Use PathMarkerLayer
-            </ToolboxCheckbox>
-          </ToolboxControl>
         </ToolboxRow>
 
         <ToolboxRow>
           <ToolboxTitle>Select Features</ToolboxTitle>
           <ToolboxControl>
             <ToolboxButton
-              onClick={() =>
-                this.setState({
-                  selectedFeatureIndexes: [],
-                  selectionTool: SELECTION_TYPE.NONE!
-                })
-              }
+              onClick={() => {
+                setSelectedFeatureIndexes([]);
+                setSelectionTool('none');
+              }}
             >
               Clear Selection
             </ToolboxButton>
             <ToolboxButton
-              onClick={() =>
-                this.setState({
-                  mode: ViewMode,
-                  selectionTool: SELECTION_TYPE.RECTANGLE
-                })
-              }
+              onClick={() => {
+                setMode(() => ViewMode);
+                setSelectionTool('rectangle');
+              }}
             >
               Rect Select
             </ToolboxButton>
             <ToolboxButton
-              onClick={() =>
-                this.setState({
-                  mode: ViewMode,
-                  selectionTool: SELECTION_TYPE.POLYGON
-                })
-              }
+              onClick={() => {
+                setMode(() => ViewMode);
+                setSelectionTool('polygon');
+              }}
             >
               Lasso Select
             </ToolboxButton>
           </ToolboxControl>
         </ToolboxRow>
         <ToolboxTitle>Features</ToolboxTitle>
-        <ToolboxRow>{this._renderSelectFeatureCheckboxes()}</ToolboxRow>
+        <ToolboxRow>{renderSelectFeatureCheckboxes()}</ToolboxRow>
       </Toolbox>
     );
-  }
+  }, [mode, showGeoJson, testFeatures, copy, paste, download, loadSample, editHandleType,
+      renderModeConfigControls, renderSelectFeatureCheckboxes, getDefaultModeConfig]);
 
-  renderStaticMap(viewport: Record<string, any>) {
+  const renderStaticMap = useCallback((currentViewport: Record<string, any>) => {
     return (
       <StaticMap
-        {...viewport}
+        {...currentViewport}
         mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
       />
     );
-  }
+  }, []);
 
-  _featureMenuClick(action: string) {
-    const {index} = this.state.featureMenu || {};
-    let testFeatures = this.state.testFeatures;
+  const featureMenuClick = useCallback((action: string) => {
+    const {index} = featureMenu || {};
+    let updatedFeatures = testFeatures;
 
     if (action === 'delete') {
-      const features = [...testFeatures.features];
+      const features = [...updatedFeatures.features];
       features.splice(index as any, 1);
-      testFeatures = Object.assign({}, testFeatures, {
+      updatedFeatures = Object.assign({}, updatedFeatures, {
         features
       });
     } else if (action === 'split') {
       // TODO
     } else if (action === 'info') {
       // eslint-disable-next-line
-      console.log(testFeatures.features[index as any]);
+      console.log(updatedFeatures.features[index as any]);
     }
 
-    this.setState({featureMenu: null!, testFeatures});
-  }
+    setFeatureMenu(undefined);
+    setTestFeatures(updatedFeatures);
+  }, [featureMenu, testFeatures]);
 
-  _renderFeatureMenu({x, y}: {x: number; y: number}) {
+  const renderFeatureMenu = useCallback(({x, y}: {x: number; y: number}) => {
     return (
       <div style={{position: 'fixed', top: y - 40, left: x + 20}}>
-        <ToolboxButton onClick={() => this._featureMenuClick('delete')}>Delete</ToolboxButton>
-        <ToolboxButton onClick={() => this._featureMenuClick('split')}>Split</ToolboxButton>
-        <ToolboxButton onClick={() => this._featureMenuClick('info')}>Info</ToolboxButton>
-        <ToolboxButton onClick={() => this._featureMenuClick('')}>Close</ToolboxButton>
+        <ToolboxButton onClick={() => featureMenuClick('delete')}>Delete</ToolboxButton>
+        <ToolboxButton onClick={() => featureMenuClick('split')}>Split</ToolboxButton>
+        <ToolboxButton onClick={() => featureMenuClick('info')}>Info</ToolboxButton>
+        <ToolboxButton onClick={() => featureMenuClick('')}>Close</ToolboxButton>
       </div>
     );
-  }
+  }, [featureMenuClick]);
 
-  customizeLayers(layers: Record<string, any>[]) {}
-
-  onEdit = ({updatedData, editType, editContext}) => {
-    let updatedSelectedFeatureIndexes = this.state.selectedFeatureIndexes;
+  const onEdit = useCallback(({updatedData, editType, editContext}) => {
+    let updatedSelectedFeatureIndexes = selectedFeatureIndexes;
 
     if (
       ![
@@ -956,268 +859,247 @@ export default class Example extends React.Component<
       }
     }
 
-    if (editType === 'removePosition' && !this.state.pointsRemovable) {
+    if (editType === 'removePosition' && !pointsRemovable) {
       // This is a simple example of custom handling of edits
       // reject the edit
       return;
     }
 
-    if (editType === 'addFeature' && this.state.mode !== DuplicateMode) {
+    if (editType === 'addFeature' && mode !== DuplicateMode) {
       const {featureIndexes} = editContext;
       // Add the new feature to the selection
-      updatedSelectedFeatureIndexes = [...this.state.selectedFeatureIndexes, ...featureIndexes];
+      updatedSelectedFeatureIndexes = [...selectedFeatureIndexes, ...featureIndexes];
     }
 
-    this.setState({
-      testFeatures: updatedData,
-      selectedFeatureIndexes: updatedSelectedFeatureIndexes
-    });
-  };
+    setTestFeatures(updatedData);
+    setSelectedFeatureIndexes(updatedSelectedFeatureIndexes);
+  }, [selectedFeatureIndexes, pointsRemovable, mode]);
 
-  getFillColor = (feature, isSelected) => {
-    const index = this.state.testFeatures.features.indexOf(feature);
+  const getFillColor = useCallback((feature, isSelected) => {
+    const index = testFeatures.features.indexOf(feature);
     return isSelected
-      ? this._getDeckColorForFeature(index, 1.0, 0.5)
-      : this._getDeckColorForFeature(index, 0.5, 0.5);
-  };
+      ? getDeckColorForFeature(index, 1.0, 0.5)
+      : getDeckColorForFeature(index, 0.5, 0.5);
+  }, [testFeatures.features, getDeckColorForFeature]);
 
-  getLineColor = (feature, isSelected) => {
-    const index = this.state.testFeatures.features.indexOf(feature);
+  const getLineColor = useCallback((feature, isSelected) => {
+    const index = testFeatures.features.indexOf(feature);
     return isSelected
-      ? this._getDeckColorForFeature(index, 1.0, 1.0)
-      : this._getDeckColorForFeature(index, 0.5, 1.0);
-  };
+      ? getDeckColorForFeature(index, 1.0, 1.0)
+      : getDeckColorForFeature(index, 0.5, 1.0);
+  }, [testFeatures.features, getDeckColorForFeature]);
 
   // eslint-disable-next-line complexity
-  render() {
-    const {testFeatures, selectedFeatureIndexes, mode} = this.state;
-    let {modeConfig} = this.state;
+  const currentViewport: Record<string, any> = {
+    ...viewport,
+    height: window.innerHeight,
+    width: window.innerWidth
+  };
 
-    const viewport: Record<string, any> = {
-      ...this.state.viewport,
-      height: window.innerHeight,
-      width: window.innerWidth
+  let currentModeConfig = modeConfig;
+
+  if (mode === ElevationMode) {
+    currentModeConfig = {
+      ...currentModeConfig,
+      viewport: currentViewport,
+      calculateElevationChange: (opts) =>
+        ElevationMode.calculateElevationChangeWithViewport(currentViewport, opts)
     };
-
-    if (mode === ElevationMode) {
-      modeConfig = {
-        ...modeConfig,
-        viewport,
-        calculateElevationChange: (opts) =>
-          ElevationMode.calculateElevationChangeWithViewport(viewport, opts)
+  } else if (mode === ModifyMode) {
+    currentModeConfig = {
+      ...currentModeConfig,
+      viewport: currentViewport,
+      lockRectangles: true
+    };
+  } else if (mode instanceof SnappableMode && currentModeConfig) {
+    if (mode._handler instanceof TranslateMode) {
+      currentModeConfig = {
+        ...currentModeConfig,
+        viewport: currentViewport,
+        screenSpace: true
       };
-    } else if (mode === ModifyMode) {
-      modeConfig = {
-        ...modeConfig,
-        viewport,
-        lockRectangles: true
-      };
-    } else if (mode instanceof SnappableMode && modeConfig) {
-      if (mode._handler instanceof TranslateMode) {
-        modeConfig = {
-          ...modeConfig,
-          viewport,
-          screenSpace: true
-        };
-      }
+    }
 
-      if (modeConfig && modeConfig.enableSnapping) {
-        // Snapping can be accomplished to features that aren't rendered in the same layer
-        modeConfig = {
-          ...modeConfig,
-          additionalSnapTargets: [
-            {
-              type: 'Feature',
-              properties: {},
-              geometry: {
-                type: 'Polygon',
-                coordinates: [
-                  [
-                    [-122.52235, 37.734008],
-                    [-122.52217, 37.712706],
-                    [-122.49436, 37.711979],
-                    [-122.49725, 37.734306],
-                    [-122.52235, 37.734008]
-                  ]
+    if (currentModeConfig && currentModeConfig.enableSnapping) {
+      // Snapping can be accomplished to features that aren't rendered in the same layer
+      currentModeConfig = {
+        ...currentModeConfig,
+        additionalSnapTargets: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [
+                [
+                  [-122.52235, 37.734008],
+                  [-122.52217, 37.712706],
+                  [-122.49436, 37.711979],
+                  [-122.49725, 37.734306],
+                  [-122.52235, 37.734008]
                 ]
-              }
+              ]
             }
-          ]
-        };
-      }
-    } else if (mode === DrawPolygonByDraggingMode) {
-      modeConfig = {
-        ...modeConfig,
-        throttleMs: 100
+          }
+        ]
       };
     }
-
-    // Demonstrate how to override sub layer properties
-    let _subLayerProps = {
-      tooltips: {
-        getColor: [255, 255, 255, 255]
-      }
+  } else if (mode === DrawPolygonByDraggingMode) {
+    currentModeConfig = {
+      ...currentModeConfig,
+      throttleMs: 100
     };
+  }
 
-    if (this.state.editHandleType === 'elevated') {
-      _subLayerProps = Object.assign(_subLayerProps, {
-        guides: {
-          _subLayerProps: {
-            points: {
-              type: ElevatedEditHandleLayer,
-              getFillColor: [0, 255, 0]
-            }
+  // Demonstrate how to override sub layer properties
+  let _subLayerProps = {
+    tooltips: {
+      getColor: [255, 255, 255, 255]
+    }
+  };
+
+  if (editHandleType === 'elevated') {
+    _subLayerProps = Object.assign(_subLayerProps, {
+      guides: {
+        _subLayerProps: {
+          points: {
+            type: ElevatedEditHandleLayer,
+            getFillColor: [0, 255, 0]
           }
         }
-      });
-    }
-
-    if (this.state.pathMarkerLayer) {
-      _subLayerProps = Object.assign(_subLayerProps, {
-        geojson: {
-          _subLayerProps: {
-            linestrings: {
-              type: PathMarkerLayer,
-              getMarkerColor: (x) => [255, 255, 255, 255],
-              sizeScale: 1500
-            }
-          }
-        }
-      });
-    }
-
-    const editableGeoJsonLayer = new EditableGeoJsonLayer({
-      id: 'geojson',
-      data: testFeatures,
-      // @ts-expect-error TODO
-      selectedFeatureIndexes,
-      mode,
-      modeConfig,
-      autoHighlight: false,
-
-      // Editing callbacks
-      onEdit: this.onEdit,
-
-      editHandleType: this.state.editHandleType,
-
-      // test using icons for edit handles
-      editHandleIconAtlas: iconSheet,
-      editHandleIconMapping: {
-        intermediate: {
-          x: 0,
-          y: 0,
-          width: 58,
-          height: 58,
-          mask: false
-        },
-        existing: {
-          x: 58,
-          y: 0,
-          width: 58,
-          height: 58,
-          mask: false
-        },
-        'snap-source': {
-          x: 58,
-          y: 0,
-          width: 58,
-          height: 58,
-          mask: false
-        },
-        'snap-target': {
-          x: 0,
-          y: 0,
-          width: 58,
-          height: 58,
-          mask: false
-        }
-      },
-      getEditHandleIcon: (d) => getEditHandleTypeFromEitherLayer(d),
-      getEditHandleIconSize: 40,
-      getEditHandleIconColor: getEditHandleColor,
-
-      // Specify the same GeoJsonLayer props
-      // lineWidthMinPixels: 2,
-      pointRadiusMinPixels: 5,
-      // getLineDashArray: () => [0, 0],
-
-      // Accessors receive an isSelected argument
-      getFillColor: this.getFillColor,
-      getLineColor: this.getLineColor,
-
-      // Can customize editing points props
-      getEditHandlePointColor: getEditHandleColor,
-      editHandlePointRadiusScale: 2,
-
-      // customize tentative feature style
-      // getTentativeLineDashArray: () => [7, 4],
-      // getTentativeLineColor: () => [0x8f, 0x8f, 0x8f, 0xff],
-
-      _subLayerProps,
-
-      parameters: {
-        depthTest: true,
-        depthMask: false,
-
-        blend: true,
-        blendEquation: GL.FUNC_ADD,
-        blendFunc: [GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA]
       }
     });
+  }
 
-    const layers = [editableGeoJsonLayer];
+  const editableGeoJsonLayer = new EditableGeoJsonLayer({
+    id: 'geojson',
+    data: testFeatures,
+    // @ts-expect-error TODO
+    selectedFeatureIndexes,
+    mode,
+    modeConfig: currentModeConfig,
+    autoHighlight: false,
 
-    if (this.state.selectionTool) {
-      layers.push(
-        // @ts-expect-error TODO
-        new SelectionLayer({
-          id: 'selection',
-          // @ts-expect-error TODO
-          selectionType: this.state.selectionTool,
-          onSelect: ({pickingInfos}) => {
-            this.setState({
-              selectedFeatureIndexes: pickingInfos.map((pi) => pi.index)
-            });
-          },
-          layerIds: ['geojson'],
+    // Editing callbacks
+    onEdit,
 
-          getTentativeFillColor: () => [255, 0, 255, 100],
-          getTentativeLineColor: () => [0, 0, 255, 255],
-          lineWidthMinPixels: 3
-        })
-      );
+    editHandleType,
+
+    // test using icons for edit handles
+    editHandleIconAtlas: iconSheet,
+    editHandleIconMapping: {
+      intermediate: {
+        x: 0,
+        y: 0,
+        width: 58,
+        height: 58,
+        mask: false
+      },
+      existing: {
+        x: 58,
+        y: 0,
+        width: 58,
+        height: 58,
+        mask: false
+      },
+      'snap-source': {
+        x: 58,
+        y: 0,
+        width: 58,
+        height: 58,
+        mask: false
+      },
+      'snap-target': {
+        x: 0,
+        y: 0,
+        width: 58,
+        height: 58,
+        mask: false
+      }
+    },
+    getEditHandleIcon: (d) => getEditHandleTypeFromEitherLayer(d),
+    getEditHandleIconSize: 40,
+    getEditHandleIconColor: getEditHandleColor,
+
+    // Specify the same GeoJsonLayer props
+    // lineWidthMinPixels: 2,
+    pointRadiusMinPixels: 5,
+    // getLineDashArray: () => [0, 0],
+
+    // Accessors receive an isSelected argument
+    getFillColor,
+    getLineColor,
+
+    // Can customize editing points props
+    getEditHandlePointColor: getEditHandleColor,
+    editHandlePointRadiusScale: 2,
+
+    // customize tentative feature style
+    // getTentativeLineDashArray: () => [7, 4],
+    // getTentativeLineColor: () => [0x8f, 0x8f, 0x8f, 0xff],
+
+    _subLayerProps,
+
+    parameters: {
+      depthTest: true,
+      depthMask: false,
+
+      blend: true,
+      blendEquation: GL.FUNC_ADD,
+      blendFunc: [GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA]
     }
+  });
 
-    this.customizeLayers(layers);
+  const layers = [editableGeoJsonLayer];
 
-    return (
-      <div style={styles.mapContainer}>
-        <DeckGL
-          viewState={viewport}
-          getCursor={editableGeoJsonLayer.getCursor.bind(editableGeoJsonLayer)}
-          layers={layers}
-          height="100%"
-          width="100%"
-          views={[
-            new MapView({
-              id: 'basemap',
-              controller: {
-                type: MapController,
-                doubleClickZoom: false
-              }
-            })
-          ]}
-          onClick={this._onLayerClick}
-          onViewStateChange={({viewState}) => this.setState({viewport: viewState})}
-        >
-          {this.renderStaticMap(viewport)}
-        </DeckGL>
-        {this._renderToolBox()}
-        {this.state.featureMenu && this._renderFeatureMenu(this.state.featureMenu)}
-      </div>
+  if (selectionTool) {
+    layers.push(
+      // @ts-expect-error TODO
+      new SelectionLayer({
+        id: 'selection',
+        // @ts-expect-error TODO
+        selectionType: selectionTool,
+        onSelect: ({pickingInfos}) => {
+          setSelectedFeatureIndexes(pickingInfos.map((pi) => pi.index));
+        },
+        layerIds: ['geojson'],
+
+        getTentativeFillColor: () => [255, 0, 255, 100],
+        getTentativeLineColor: () => [0, 0, 255, 255],
+        lineWidthMinPixels: 3
+      })
     );
   }
+
+  return (
+    <div style={styles.mapContainer}>
+      <DeckGL
+        viewState={currentViewport}
+        getCursor={editableGeoJsonLayer.getCursor.bind(editableGeoJsonLayer)}
+        layers={layers}
+        height="100%"
+        width="100%"
+        views={[
+          new MapView({
+            id: 'basemap',
+            controller: {
+              type: MapController,
+              doubleClickZoom: false
+            }
+          })
+        ]}
+        onClick={onLayerClick}
+        onViewStateChange={({viewState}) => setViewport(viewState)}
+      >
+        {renderStaticMap(currentViewport)}
+      </DeckGL>
+      {renderToolBox()}
+      {featureMenu && renderFeatureMenu(featureMenu)}
+    </div>
+  );
 }
+
+export default Example;
 
 function featuresToInfoString(featureCollection: any): string {
   const info = featureCollection.features.map(
