@@ -21,6 +21,6 @@
     "react-map-gl": "^7.1.7"
   },
   "devDependencies": {
-    "vite": "7.1.1"
+    "vite": "^7.3.1"
   }
 }
