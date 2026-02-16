@@ -15,7 +15,10 @@ export class LongPressController {
   private buttonPressTimer: ReturnType<typeof setTimeout> | null = null;
   private usingPointerEvents = false;
 
-  constructor(private element: HTMLElement, private onActivate: () => void) {
+  constructor(
+    private element: HTMLElement,
+    private onActivate: () => void
+  ) {
     this.handlePointerDown = this.handlePointerDown.bind(this);
     this.handlePointerUp = this.handlePointerUp.bind(this);
     this.handlePointerCancel = this.handlePointerCancel.bind(this);

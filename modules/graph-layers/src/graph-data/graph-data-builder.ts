@@ -1,4 +1,4 @@
-import type { GraphData } from "./graph-data";
+import type {GraphData} from './graph-data';
 
 export interface GraphDataBuilder {
   addNode(node: Record<string, unknown>): number;

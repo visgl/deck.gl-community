@@ -6,7 +6,7 @@
 import * as arrow from 'apache-arrow';
 
 import type {EdgeState, NodeState} from '../core/constants';
-import type {GraphEdgeData, GraphNodeData,ArrowGraphData} from './graph-data';
+import type {GraphEdgeData, GraphNodeData, ArrowGraphData} from './graph-data';
 import {
   cloneRecord,
   normalizeEdgeState,
@@ -130,7 +130,11 @@ export class ArrowGraphDataBuilder {
     builder.append(value);
   }
 
-  private appendJson(builders: ColumnBuilderMap, columnName: string, value: Record<string, unknown>): void {
+  private appendJson(
+    builders: ColumnBuilderMap,
+    columnName: string,
+    value: Record<string, unknown>
+  ): void {
     const builder = this.getOrCreateBuilder(builders, columnName, () =>
       arrow.makeBuilder({type: new arrow.Utf8(), nullValues: [null, undefined]})
     );
@@ -162,4 +166,3 @@ function tableFromBuilders(builders: ColumnBuilderMap): arrow.Table {
 
   return arrow.tableFromArrays(columns);
 }
-

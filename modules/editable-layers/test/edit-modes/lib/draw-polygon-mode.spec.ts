@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { beforeEach, describe, it, expect } from 'vitest';
-import { DrawPolygonMode } from '../../../src/edit-modes/draw-polygon-mode';
-import { createFeatureCollectionProps, createClickEvent, createKeyboardEvent, createPolygonFeature } from '../test-utils';
+import {beforeEach, describe, it, expect} from 'vitest';
+import {DrawPolygonMode} from '../../../src/edit-modes/draw-polygon-mode';
+import {
+  createFeatureCollectionProps,
+  createClickEvent,
+  createKeyboardEvent,
+  createPolygonFeature
+} from '../test-utils';
 
 let props;
 let mode;
@@ -114,7 +119,7 @@ describe('allowHoles configuration', () => {
           type: 'FeatureCollection',
           features: [createPolygonFeature()]
         },
-        modeConfig: { allowHoles: false }
+        modeConfig: {allowHoles: false}
       });
     });
 
@@ -141,7 +146,7 @@ describe('allowHoles configuration', () => {
           type: 'FeatureCollection',
           features: [createPolygonFeature()]
         },
-        modeConfig: { allowHoles: true }
+        modeConfig: {allowHoles: true}
       });
     });
 
@@ -210,7 +215,7 @@ describe('allowSelfIntersection configuration', () => {
           type: 'FeatureCollection',
           features: []
         },
-        modeConfig: { allowSelfIntersection: false }
+        modeConfig: {allowSelfIntersection: false}
       });
     });
 
@@ -241,7 +246,7 @@ describe('allowSelfIntersection configuration', () => {
 
     const problematicCases = [
       {
-        id: "bug #468 sample 1",
+        id: 'bug #468 sample 1',
         points: [
           [-463.1766819787967, 41.94307727449003],
           [-244.6011535531405, -31.16087614383743],
@@ -249,7 +254,7 @@ describe('allowSelfIntersection configuration', () => {
         ]
       },
       {
-        id: "bug #468 sample 2",
+        id: 'bug #468 sample 2',
         points: [
           [-106.22991363769192, 70.8818305017697],
           [101.74292155276433, -42.1969313005887],
@@ -269,9 +274,8 @@ describe('allowSelfIntersection configuration', () => {
         // This should be 'addFeature' for a valid non-intersecting polygon,
         expect(lastCall.editType).toEqual('addFeature');
         expect(lastCall.updatedData.features).toHaveLength(1);
-
       });
-    })
+    });
   });
 
   describe('when allowSelfIntersection is true', () => {
@@ -282,7 +286,7 @@ describe('allowSelfIntersection configuration', () => {
           type: 'FeatureCollection',
           features: []
         },
-        modeConfig: { allowSelfIntersection: true }
+        modeConfig: {allowSelfIntersection: true}
       });
     });
 

@@ -19,13 +19,13 @@ type CollapsedChainDescriptor = {
 export type CollapsableD3DagLayoutProps = D3DagLayoutProps & {
   /** Whether to collapse linear chains of nodes into a single representative. */
   collapseLinearChains?: boolean;
-}
+};
 
 export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutProps> {
   static override defaultProps: Required<CollapsableD3DagLayoutProps> = {
     ...D3DagLayout.defaultProps,
     collapseLinearChains: false
-  }
+  };
 
   private _chainDescriptors = new Map<string, CollapsedChainDescriptor>();
   private _nodeToChainId = new Map<string | number, string>();
@@ -61,7 +61,10 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
     }
 
     if (!this._chainDescriptors.has(chainId)) {
-      log.log(1, `CollapsableD3DagLayout: toggleCollapsedChain(${chainId}) skipped (unknown chain)`);
+      log.log(
+        1,
+        `CollapsableD3DagLayout: toggleCollapsedChain(${chainId}) skipped (unknown chain)`
+      );
       return;
     }
 
@@ -102,9 +105,14 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
     }
 
     if (changed) {
-      log.log(0, 'CollapsableD3DagLayout: setCollapsedChains -> changes detected, rerunning layout');
+      log.log(
+        0,
+        'CollapsableD3DagLayout: setCollapsedChains -> changes detected, rerunning layout'
+      );
       // eslint-disable-next-line no-console
-      console.log('CollapsableD3DagLayout: setCollapsedChains -> changes detected, rerunning layout');
+      console.log(
+        'CollapsableD3DagLayout: setCollapsedChains -> changes detected, rerunning layout'
+      );
       this._runLayout();
     } else {
       log.log(1, 'CollapsableD3DagLayout: setCollapsedChains -> no changes');
@@ -138,8 +146,7 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
       `CollapsableD3DagLayout: refreshing collapsed chains (previous=${previousChainCount})`
     );
 
-    const collapseDefault =
-      this.props.collapseLinearChains;
+    const collapseDefault = this.props.collapseLinearChains;
 
     const previousStates = new Map(this._collapsedChainState);
 

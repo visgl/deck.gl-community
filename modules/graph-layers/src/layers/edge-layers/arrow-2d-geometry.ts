@@ -34,14 +34,7 @@ function getArrowAttributes({length = 1, headWidth = 1}) {
 
   const normals = new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]);
 
-  const texCoords = new Float32Array([
-    0.5,
-    1,
-    0,
-    0,
-    1,
-    0
-  ]);
+  const texCoords = new Float32Array([0.5, 1, 0, 0, 1, 0]);
 
   return {
     positions: {size: 3, value: positions},

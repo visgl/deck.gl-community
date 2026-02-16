@@ -28,11 +28,7 @@ type HeadEntry = {
 type LineageBuilder = {
   nodes: LineageNode[];
   edges: LineageEdge[];
-  addNode: (
-    type: LineageNode['type'],
-    lineagePath: string,
-    sequenceIndex: number
-  ) => LineageNode;
+  addNode: (type: LineageNode['type'], lineagePath: string, sequenceIndex: number) => LineageNode;
   link: (sourceId: string, targetId: string) => void;
 };
 
@@ -150,8 +146,7 @@ function allocateBranchNodes(
 ): BranchAllocation {
   const maxNodesForBranch = Math.min(maxNodesPerBranch, remaining);
   const randomSpan = maxNodesForBranch - minNodesPerBranch + 1;
-  const branchNodes =
-    minNodesPerBranch + Math.floor(rng() * (randomSpan > 0 ? randomSpan : 1));
+  const branchNodes = minNodesPerBranch + Math.floor(rng() * (randomSpan > 0 ? randomSpan : 1));
   const leftover = remaining - branchNodes;
 
   if (leftover <= 0 || leftover >= minNodesPerBranch) {
@@ -183,12 +178,7 @@ function planBranchRuns(
   let remaining = totalNodes - baseNodes;
 
   while (remaining > 0) {
-    const allocation = allocateBranchNodes(
-      rng,
-      remaining,
-      minNodesPerBranch,
-      maxNodesPerBranch
-    );
+    const allocation = allocateBranchNodes(rng, remaining, minNodesPerBranch, maxNodesPerBranch);
     plan.push(allocation.branchNodes - 1);
     remaining = allocation.leftover;
   }
@@ -263,9 +253,7 @@ function distributeBranches(
   }
 }
 
-export function generateMlLineageGraph(
-  options: GenerateMlLineageGraphOptions = {}
-): {
+export function generateMlLineageGraph(options: GenerateMlLineageGraphOptions = {}): {
   name: string;
   nodes: LineageNode[];
   edges: LineageEdge[];

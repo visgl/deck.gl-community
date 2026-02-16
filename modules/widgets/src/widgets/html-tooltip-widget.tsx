@@ -34,7 +34,8 @@ export class HtmlTooltipWidget extends HtmlOverlayWidget<HtmlTooltipWidgetProps>
     id: 'html-tooltip-overlay',
     showDelay: SHOW_TOOLTIP_TIMEOUT,
     getTooltip: defaultGetTooltip
-  } satisfies Required<WidgetProps> & Required<Pick<HtmlTooltipWidgetProps, 'showDelay' | 'getTooltip'>> &
+  } satisfies Required<WidgetProps> &
+    Required<Pick<HtmlTooltipWidgetProps, 'showDelay' | 'getTooltip'>> &
     HtmlTooltipWidgetProps;
 
   private timeoutID: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -79,7 +80,9 @@ export class HtmlTooltipWidget extends HtmlOverlayWidget<HtmlTooltipWidgetProps>
 
     const tooltipContent = this.props.getTooltip?.(this.pickingInfo);
     const coordinates =
-      this.pickingInfo.coordinate ?? (this.pickingInfo as Partial<{lngLat: number[]}>).lngLat ?? null;
+      this.pickingInfo.coordinate ??
+      (this.pickingInfo as Partial<{lngLat: number[]}>).lngLat ??
+      null;
     if (!tooltipContent || !coordinates) {
       return [];
     }

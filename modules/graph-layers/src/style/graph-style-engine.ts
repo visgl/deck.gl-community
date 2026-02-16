@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-/* eslint-disable no-continue */  
+/* eslint-disable no-continue */
 
 import {ZodError, type ZodIssue} from 'zod';
 
@@ -103,7 +103,9 @@ function sanitizeStylesheet(
   }
 
   const fallbackTypeCandidate =
-    typeof (style as {type?: unknown}).type === 'string' ? (style as {type: string}).type : undefined;
+    typeof (style as {type?: unknown}).type === 'string'
+      ? (style as {type: string}).type
+      : undefined;
   const fallbackCandidates = Array.from(
     new Set(
       [fallbackTypeCandidate, 'edge'].filter(
@@ -134,7 +136,7 @@ function sanitizeStylesheet(
       if (rootKey === undefined || rootKey === 'type') {
         continue;
       }
-    
+
       if (typeof rootKey === 'string' && rootKey.startsWith(':')) {
         removeNestedProperty(sanitized, path);
         continue;
@@ -178,7 +180,10 @@ function cloneValue<T>(value: T): T {
 }
 
 // eslint-disable-next-line max-statements, complexity
-function removeNestedProperty(target: Record<string, unknown> | unknown[], path: (string | number)[]) {
+function removeNestedProperty(
+  target: Record<string, unknown> | unknown[],
+  path: (string | number)[]
+) {
   if (path.length === 0) {
     return;
   }

@@ -143,11 +143,9 @@ describe('D3DagLayout', () => {
     expect(curvedEdge?.controlPoints).toEqual([[0.5, 0.5]]);
     expect(layout.getLinkControlPoints(edges.bd)).toEqual([[-0.5, -0.5]]);
   });
-
 });
 
 describe('CollapsableD3DagLayout', () => {
-
   // eslint-disable-next-line max-statements
   it('collapses linear chains and supports expansion toggles', () => {
     const {graph, nodes, edges} = createLinearChainGraph();
@@ -282,5 +280,4 @@ describe('CollapsableD3DagLayout', () => {
     expect(nodes.a.getPropertyValue('collapsedChainLength')).toBe(3);
     expect(layout.getNodePosition(nodes.b)).toBeNull();
   });
-
 });

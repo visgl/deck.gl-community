@@ -187,7 +187,8 @@ export class InteractionManager {
       // reset the last hovered node's state
       const lastSelectedId = this._lastSelectedNode?.getId();
       const lastHoveredId = this._lastHoveredNode?.getId();
-      const newState = lastSelectedId !== undefined && lastSelectedId === lastHoveredId ? 'selected' : 'default';
+      const newState =
+        lastSelectedId !== undefined && lastSelectedId === lastHoveredId ? 'selected' : 'default';
       setNodeState(lastHoveredNode, newState);
     }
     // trigger the callback if exists

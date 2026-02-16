@@ -23,10 +23,7 @@ export type GraphLayoutProps = {
   onLayoutError?: (error?: unknown) => void;
 };
 
-
-export abstract class GraphLayout<
-  PropsT extends GraphLayoutProps = GraphLayoutProps
-> {
+export abstract class GraphLayout<PropsT extends GraphLayoutProps = GraphLayoutProps> {
   static defaultProps: Readonly<Required<GraphLayoutProps>> = {
     onLayoutStart: undefined,
     onLayoutChange: undefined,
@@ -120,7 +117,7 @@ export abstract class GraphLayout<
     return this._bounds;
   }
 
-    /** virtual functions: will be implemented in the child class */
+  /** virtual functions: will be implemented in the child class */
 
   /** first time to pass the graph data into this layout */
   abstract initializeGraph(graph: Graph): void;
@@ -134,7 +131,6 @@ export abstract class GraphLayout<
   abstract resume();
   /** stop the layout calculation */
   abstract stop();
-
 
   // INTERNAL METHODS
 

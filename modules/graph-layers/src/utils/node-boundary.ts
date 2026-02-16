@@ -98,7 +98,7 @@ function intersectsInnerFaces(
   return insideVerticalFace || insideHorizontalFace;
 }
 
-// eslint-disable-next-line max-params  
+// eslint-disable-next-line max-params
 function projectToCornerArc(
   geometry: NodeGeometry,
   unit: [number, number],
@@ -176,8 +176,7 @@ function computeRoundedRectangleIntersection(
   const absX = Math.abs(rectanglePoint[0] - geometry.center[0]);
   const absY = Math.abs(rectanglePoint[1] - geometry.center[1]);
 
-  const touchesInnerFace =
-    absX <= innerHalfWidth + EPSILON || absY <= innerHalfHeight + EPSILON;
+  const touchesInnerFace = absX <= innerHalfWidth + EPSILON || absY <= innerHalfHeight + EPSILON;
 
   if (
     touchesInnerFace &&

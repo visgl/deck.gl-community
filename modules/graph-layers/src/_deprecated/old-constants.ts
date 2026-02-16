@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {EdgeDecoratorType, EdgeState, EdgeType, LayoutState, NodeState, NodeType} from '../core/constants';
+import {
+  EdgeDecoratorType,
+  EdgeState,
+  EdgeType,
+  LayoutState,
+  NodeState,
+  NodeType
+} from '../core/constants';
 import {Marker} from '../layers/common-layers/marker-layer/marker-list';
 
 /** Markers supported by graph-layers @deprecated v9.2: Use string literals */
@@ -70,7 +77,6 @@ export const MARKER_TYPE = {
 } as const satisfies Record<Marker, Marker>;
 /* eslint-enable */
 
-
 /** The interaction state of a node. @deprecated v9.2: Use string literals */
 export const NODE_STATE = {
   DEFAULT: 'default',
@@ -96,21 +102,21 @@ export const NODE_TYPE = {
   ICON: 'icon',
   LABEL: 'label',
   MARKER: 'marker'
-} as const satisfies Record<string, NodeType> ;
+} as const satisfies Record<string, NodeType>;
 
 /** The visual type of an edge. @deprecated v9.2: Use string literals */
 export const EDGE_TYPE = {
   SPLINE_CURVE: 'spline',
   LINE: 'line',
   PATH: 'path'
-} as const satisfies Record<string, EdgeType> ;
+} as const satisfies Record<string, EdgeType>;
 
 /** Decorators on an edge. @deprecated v9.2: Use string literals */
 export const EDGE_DECORATOR_TYPE = {
   LABEL: 'label',
   FLOW: 'flow',
   ARROW: 'arrow'
-} as const satisfies Record<string, EdgeDecoratorType> ;
+} as const satisfies Record<string, EdgeDecoratorType>;
 
 /** the status of the layout. @deprecated v9.2: Use string literals */
 export const LAYOUT_STATE = {
@@ -119,4 +125,4 @@ export const LAYOUT_STATE = {
   CALCULATING: 'calculating',
   DONE: 'done',
   ERROR: 'error'
-} as const satisfies Record<string, LayoutState> ;
+} as const satisfies Record<string, LayoutState>;

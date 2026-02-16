@@ -4,13 +4,18 @@
 
 // Graph Data - output from loaders, input to writers
 
-export type {GraphData, PlainGraphData, ArrowGraphData /* , GraphNodeData, GraphEdgeData */} from './graph-data/graph-data';
-export type {GraphDataBuilder /* , GraphDataBuilderOptions */} from './graph-data/graph-data-builder';
+export type {
+  GraphData,
+  PlainGraphData,
+  ArrowGraphData /* , GraphNodeData, GraphEdgeData */
+} from './graph-data/graph-data';
+export type {
+  GraphDataBuilder /* , GraphDataBuilderOptions */
+} from './graph-data/graph-data-builder';
 export {
   ArrowGraphDataBuilder,
   type ArrowGraphDataBuilderOptions
 } from './graph-data/arrow-graph-data-builder';
-
 
 // core - Graph representation and layout
 export type {Graph, NodeInterface, EdgeInterface} from './graph/graph';
@@ -36,11 +41,7 @@ export {ArrowGraph} from './graph/arrow-graph';
 export {GraphEngine} from './core/graph-engine';
 
 // graph-layers layouts
-export type {
-  GraphLayoutProps,
-  GraphLayoutState,
-  GraphLayoutEventDetail
-} from './core/graph-layout';
+export type {GraphLayoutProps, GraphLayoutState, GraphLayoutEventDetail} from './core/graph-layout';
 export {GraphLayout} from './core/graph-layout';
 
 export {SimpleLayout} from './layouts/simple-layout';
@@ -52,13 +53,24 @@ export {RadialLayout} from './layouts/experimental/radial-layout';
 export {ForceMultiGraphLayout} from './layouts/experimental/force-multi-graph-layout';
 export {HivePlotLayout} from './layouts/experimental/hive-plot-layout';
 
-export type {Marker, NodeState, NodeType, EdgeType, EdgeDecoratorType, LayoutState} from './core/constants';
+export type {
+  Marker,
+  NodeState,
+  NodeType,
+  EdgeType,
+  EdgeDecoratorType,
+  LayoutState
+} from './core/constants';
 
 // deck.gl components
 export {GraphLayer} from './layers/graph-layer';
 export type {RankGridConfig} from './layers/graph-layer';
 export {EdgeLayer} from './layers/edge-layer';
-export {GridLayer, type GridLayerProps, type GridLineDatum} from './layers/common-layers/grid-layer/grid-layer';
+export {
+  GridLayer,
+  type GridLayerProps,
+  type GridLineDatum
+} from './layers/common-layers/grid-layer/grid-layer';
 export {StylesheetEngine} from './style/stylesheet-engine';
 export {GraphStylesheetEngine, GraphStyleEngine} from './style/graph-style-engine';
 export type {
@@ -93,16 +105,21 @@ export {
 } from './utils/rank-grid';
 
 // graph format loaders
-export {
-  JSONGraphLoader,
-  type JSONGraphLoaderOptions,
-} from './loaders/json-graph-loader';
+export {JSONGraphLoader, type JSONGraphLoaderOptions} from './loaders/json-graph-loader';
 
 export {
   DOTGraphLoader,
   type DOTGraphLoaderOptions,
-  type DOTGraphLoaderMetadata,
+  type DOTGraphLoaderMetadata
 } from './loaders/dot-graph-loader';
 
 // Deprecated exports
-export {MARKER_TYPE, NODE_STATE,EDGE_STATE,NODE_TYPE,EDGE_TYPE,EDGE_DECORATOR_TYPE,LAYOUT_STATE} from './_deprecated/old-constants';
+export {
+  MARKER_TYPE,
+  NODE_STATE,
+  EDGE_STATE,
+  NODE_TYPE,
+  EDGE_TYPE,
+  EDGE_DECORATOR_TYPE,
+  LAYOUT_STATE
+} from './_deprecated/old-constants';

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {PlainGraphData, GraphEdgeData, GraphNodeData} from './graph-data';
-import { GraphDataBuilder } from './graph-data-builder';
+import {GraphDataBuilder} from './graph-data-builder';
 import {cloneRecord, normalizeVersion} from '../graph/graph-normalization';
 
 export type PlainGraphDataBuilderOptions = {

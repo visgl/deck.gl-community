@@ -12,12 +12,13 @@ import {Graph} from './graph';
 import {ClassicGraph} from './classic-graph';
 import {cloneRecord, normalizeEdgeState, normalizeNodeState} from './graph-normalization';
 
-import {getVectorLength,
-getVectorValue,
-getColumnVector,
-parseDataRecord,
-coerceIdentifier
-} from './functions/arrow-utils'
+import {
+  getVectorLength,
+  getVectorValue,
+  getColumnVector,
+  parseDataRecord,
+  coerceIdentifier
+} from './functions/arrow-utils';
 
 type NodeOverride = {
   state?: NodeState;
@@ -51,7 +52,7 @@ type EdgeVectors = {
 
 export type ArrowGraphProps = GraphProps & {
   data: ArrowGraphData;
-}
+};
 
 export class ArrowGraph extends Graph<ArrowGraphProps> {
   private readonly nodeTable: arrow.Table;
@@ -78,7 +79,7 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
 
   constructor(props: ArrowGraphProps) {
     super(props);
-    
+
     this._version = props.data.version;
     this.nodeTable = props.data.nodes;
     this.edgeTable = props.data.edges;
@@ -475,7 +476,10 @@ class ArrowGraphNode implements NodeInterface {
     return this.getId();
   }
 
-  constructor(private readonly graph: ArrowGraph, private readonly index: number) {}
+  constructor(
+    private readonly graph: ArrowGraph,
+    private readonly index: number
+  ) {}
 
   getId(): string | number {
     return this.graph.getNodeIdByIndex(this.index);
@@ -559,7 +563,10 @@ class ArrowGraphEdge implements EdgeInterface {
     return this.getId();
   }
 
-  constructor(private readonly graph: ArrowGraph, private readonly index: number) {}
+  constructor(
+    private readonly graph: ArrowGraph,
+    private readonly index: number
+  ) {}
 
   getId(): string | number {
     return this.graph.getEdgeIdByIndex(this.index);

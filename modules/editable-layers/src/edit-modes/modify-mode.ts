@@ -16,7 +16,14 @@ import {
   NearestPointType,
   shouldCancelPan
 } from './utils';
-import {LineString, Point, Polygon, FeatureCollection, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
+import {
+  LineString,
+  Point,
+  Polygon,
+  FeatureCollection,
+  Feature,
+  SimpleFeatureCollection
+} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -76,7 +83,6 @@ export class ModifyMode extends GeoJsonEditMode {
           (lineString, prefix) => {
             const lineStringFeature = toLineString(lineString);
             const candidateIntermediatePoint = this.getNearestPoint(
-
               lineStringFeature,
               referencePoint,
               props.modeConfig && props.modeConfig.viewport
@@ -144,7 +150,7 @@ export class ModifyMode extends GeoJsonEditMode {
     const pickedIntermediateHandle = getPickedIntermediateEditHandle(event.picks);
 
     if (pickedExistingHandle) {
-      const { featureIndex, positionIndexes } = pickedExistingHandle.properties;
+      const {featureIndex, positionIndexes} = pickedExistingHandle.properties;
 
       let updatedData;
       try {

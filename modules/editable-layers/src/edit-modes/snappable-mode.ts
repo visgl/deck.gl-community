@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Position, FeatureCollection, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
+import {
+  Position,
+  FeatureCollection,
+  SimpleFeatureCollection,
+  SimpleFeature
+} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,

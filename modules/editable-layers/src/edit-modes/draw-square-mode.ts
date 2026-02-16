@@ -34,7 +34,6 @@ export class DrawSquareMode extends TwoClickPolygonMode {
     square.properties = square.properties || {};
     square.properties.shape = 'Square';
 
-
     return square;
   }
 }

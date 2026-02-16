@@ -9,7 +9,7 @@ import {
   MultiLineString,
   MultiPolygon,
   Position,
-  SimpleFeature,
+  SimpleFeature
 } from '../utils/geojson-types';
 
 export class ImmutableFeatureCollection {

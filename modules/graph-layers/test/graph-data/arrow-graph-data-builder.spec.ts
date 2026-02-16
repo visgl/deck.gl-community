@@ -7,11 +7,11 @@ import {describe, expect, it, vi} from 'vitest';
 vi.mock(
   'apache-arrow',
   () => {
-    const makeVector = <T,>(values: T[]) => ({
+    const makeVector = <T>(values: T[]) => ({
       toArray: () => [...values]
     });
 
-    const makeBuilder = <T,>() => {
+    const makeBuilder = <T>() => {
       const values: T[] = [];
       return {
         append(value: T) {

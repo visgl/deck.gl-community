@@ -58,19 +58,19 @@ import {createGraphFromData} from '../graph/functions/create-graph-from-data';
 import {warn} from '../utils/log';
 
 const NODE_LAYER_MAP = {
-  'rectangle': RectangleLayer,
+  rectangle: RectangleLayer,
   'rounded-rectangle': RoundedRectangleLayer,
   'path-rounded-rectangle': PathBasedRoundedRectangleLayer,
-  'icon': ImageLayer,
-  'circle': CircleLayer,
-  'label': LabelLayer,
-  'marker': ZoomableMarkerLayer
+  icon: ImageLayer,
+  circle: CircleLayer,
+  label: LabelLayer,
+  marker: ZoomableMarkerLayer
 };
 
 const EDGE_DECORATOR_LAYER_MAP = {
   'edge-label': EdgeLabelLayer,
-  'flow': FlowLayer,
-  'arrow': EdgeArrowLayer
+  flow: FlowLayer,
+  arrow: EdgeArrowLayer
 };
 
 type GridLayerOverrides = Partial<Omit<GridLayerProps, 'id' | 'data' | 'direction'>>;
@@ -569,9 +569,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     }
 
     const candidate = value as Graph;
-    return (
-      typeof candidate.getNodes === 'function' && typeof candidate.getEdges === 'function'
-    );
+    return typeof candidate.getNodes === 'function' && typeof candidate.getEdges === 'function';
   }
 
   private _coerceGraph(value: unknown): Graph | null {
@@ -596,7 +594,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       try {
         return candidate.toClassicGraph() ?? null;
       } catch (error) {
-        warn('GraphLayer: failed to convert graph to ClassicGraph for layout compatibility.', error);
+        warn(
+          'GraphLayer: failed to convert graph to ClassicGraph for layout compatibility.',
+          error
+        );
       }
     }
 
@@ -725,9 +726,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
   }
 
-  private _normalizeRankGridConfig(
-    value: GraphLayerProps['rankGrid']
-  ): {enabled: boolean; config?: RankGridConfig} {
+  private _normalizeRankGridConfig(value: GraphLayerProps['rankGrid']): {
+    enabled: boolean;
+    config?: RankGridConfig;
+  } {
     if (typeof value === 'boolean') {
       return {enabled: value};
     }
@@ -739,9 +741,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return {enabled: false};
   }
 
-  private _resolveRankGridBounds(engine: GraphEngine):
-    | {xMin: number; xMax: number; yMin: number; yMax: number}
-    | null {
+  private _resolveRankGridBounds(
+    engine: GraphEngine
+  ): {xMin: number; xMax: number; yMin: number; yMax: number} | null {
     const bounds = engine.getLayoutBounds();
     if (!bounds) {
       return null;
@@ -765,7 +767,12 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     engine: GraphEngine,
     config: RankGridConfig | undefined,
     bounds: {yMin: number; yMax: number}
-  ): Array<{label: string; rank: number; originalLabel?: string | number; yPosition: number}> | null {
+  ): Array<{
+    label: string;
+    rank: number;
+    originalLabel?: string | number;
+    yPosition: number;
+  }> | null {
     const rankLabelPrefix = this._resolveRankFieldLabel(config?.rankAccessor);
     // @ts-ignore iterator type
     const rankPositions = mapRanksToYPositions(engine.getNodes(), engine.getNodePosition, {
@@ -876,66 +883,64 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       nodeStyle: nodeStyles
     });
 
-    return edgeStyleArray
-      .filter(Boolean)
-      .flatMap((style, idx) => {
-        const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
-        const stylesheet = this._createStylesheetEngine(
-          {
-            type: 'edge',
-            ...restEdgeStyle
-          } as GraphStyleRule,
-          'edge stylesheet'
-        );
-        if (!stylesheet) {
-          return [];
-        }
+    return edgeStyleArray.filter(Boolean).flatMap((style, idx) => {
+      const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
+      const stylesheet = this._createStylesheetEngine(
+        {
+          type: 'edge',
+          ...restEdgeStyle
+        } as GraphStyleRule,
+        'edge stylesheet'
+      );
+      if (!stylesheet) {
+        return [];
+      }
 
-        const edgeLayer = new EdgeLayer({
-          ...SHARED_LAYER_PROPS,
-          id: `edge-layer-${idx}`,
-          data: data(engine.getEdges()),
-          getLayoutInfo,
-          pickable: true,
-          positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
-          stylesheet,
-          visible
-        } as any);
+      const edgeLayer = new EdgeLayer({
+        ...SHARED_LAYER_PROPS,
+        id: `edge-layer-${idx}`,
+        data: data(engine.getEdges()),
+        getLayoutInfo,
+        pickable: true,
+        positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+        stylesheet,
+        visible
+      } as any);
 
-        if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
-          return [edgeLayer];
-        }
+      if (!decorators || !Array.isArray(decorators) || decorators.length === 0) {
+        return [edgeLayer];
+      }
 
-        const decoratorLayers = decorators
-          .filter(Boolean)
-          // @ts-ignore eslint-disable-next-line @typescript-eslint/no-unused-vars
-          .map((decoratorStyle, idx2) => {
-            const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
-            if (!DecoratorLayer) {
-              warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
-              return null;
-            }
-            const decoratorStylesheet = this._createStylesheetEngine(
-              decoratorStyle as unknown as GraphStyleRule,
-              `edge decorator stylesheet "${decoratorStyle.type}"`
-            );
-            if (!decoratorStylesheet) {
-              return null;
-            }
-            return new DecoratorLayer({
-              ...SHARED_LAYER_PROPS,
-              id: `edge-decorator-${idx2}`,
-              data: data(engine.getEdges()),
-              getLayoutInfo,
-              pickable: true,
-              positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
-              stylesheet: decoratorStylesheet
-            } as any);
-          })
-          .filter(Boolean);
+      const decoratorLayers = decorators
+        .filter(Boolean)
+        // @ts-ignore eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .map((decoratorStyle, idx2) => {
+          const DecoratorLayer = EDGE_DECORATOR_LAYER_MAP[decoratorStyle.type];
+          if (!DecoratorLayer) {
+            warn(`GraphLayer: Invalid edge decorator type "${decoratorStyle.type}".`);
+            return null;
+          }
+          const decoratorStylesheet = this._createStylesheetEngine(
+            decoratorStyle as unknown as GraphStyleRule,
+            `edge decorator stylesheet "${decoratorStyle.type}"`
+          );
+          if (!decoratorStylesheet) {
+            return null;
+          }
+          return new DecoratorLayer({
+            ...SHARED_LAYER_PROPS,
+            id: `edge-decorator-${idx2}`,
+            data: data(engine.getEdges()),
+            getLayoutInfo,
+            pickable: true,
+            positionUpdateTrigger: [engine.getLayoutLastUpdate(), engine.getLayoutState()].join(),
+            stylesheet: decoratorStylesheet
+          } as any);
+        })
+        .filter(Boolean);
 
-        return [edgeLayer, ...decoratorLayers];
-      });
+      return [edgeLayer, ...decoratorLayers];
+    });
   }
 
   onClick(info, event): boolean {
@@ -1105,12 +1110,11 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 }
 
-  function isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
-
-    const prototype = Object.getPrototypeOf(value);
-    return prototype === Object.prototype || prototype === null;
+function isPlainObject(value: unknown): value is Record<string | number | symbol, unknown> {
+  if (!value || typeof value !== 'object') {
+    return false;
   }
 
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}

@@ -49,10 +49,25 @@ const DEFAULT_OFFSET: [number, number] = [8, 0];
 const DEFAULT_MIN = -1e6;
 const DEFAULT_MAX = 1e6;
 
-export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends CompositeLayer<GridLayerProps<DatumT>> {
+export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends CompositeLayer<
+  GridLayerProps<DatumT>
+> {
   static override layerName = 'GridLayer';
 
-  static override defaultProps: Required<Pick<GridLayerProps<GridLineDatum>, 'direction' | 'width' | 'color' | 'xMin' | 'xMax' | 'yMin' | 'yMax' | 'showLabels' | 'labelOffset'>> = {
+  static override defaultProps: Required<
+    Pick<
+      GridLayerProps<GridLineDatum>,
+      | 'direction'
+      | 'width'
+      | 'color'
+      | 'xMin'
+      | 'xMax'
+      | 'yMin'
+      | 'yMax'
+      | 'showLabels'
+      | 'labelOffset'
+    >
+  > = {
     direction: 'horizontal',
     width: DEFAULT_WIDTH,
     color: DEFAULT_COLOR,
@@ -66,7 +81,9 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
 
   override shouldUpdateState(params: UpdateParameters<this>): boolean {
     const {changeFlags} = params;
-    return Boolean(changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged);
+    return Boolean(
+      changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged
+    );
   }
 
   override renderLayers() {
@@ -151,21 +168,13 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
 
     const [bxMin, byMin, bxMax, byMax] = viewportBounds;
     const minX =
-      Number.isFinite(bxMin) && Number.isFinite(bxMax)
-        ? Math.min(bounds.xMin, bxMin)
-        : bounds.xMin;
+      Number.isFinite(bxMin) && Number.isFinite(bxMax) ? Math.min(bounds.xMin, bxMin) : bounds.xMin;
     const maxX =
-      Number.isFinite(bxMin) && Number.isFinite(bxMax)
-        ? Math.max(bounds.xMax, bxMax)
-        : bounds.xMax;
+      Number.isFinite(bxMin) && Number.isFinite(bxMax) ? Math.max(bounds.xMax, bxMax) : bounds.xMax;
     const minY =
-      Number.isFinite(byMin) && Number.isFinite(byMax)
-        ? Math.min(bounds.yMin, byMin)
-        : bounds.yMin;
+      Number.isFinite(byMin) && Number.isFinite(byMax) ? Math.min(bounds.yMin, byMin) : bounds.yMin;
     const maxY =
-      Number.isFinite(byMin) && Number.isFinite(byMax)
-        ? Math.max(bounds.yMax, byMax)
-        : bounds.yMax;
+      Number.isFinite(byMin) && Number.isFinite(byMax) ? Math.max(bounds.yMax, byMax) : bounds.yMax;
 
     return {minX, maxX, minY, maxY};
   }
@@ -222,12 +231,10 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
     const isHorizontal = direction === 'horizontal';
 
     for (const {datum, sourcePosition} of lines) {
-      const rawLabel = getLabel ? getLabel(datum) : datum.label ?? null;
+      const rawLabel = getLabel ? getLabel(datum) : (datum.label ?? null);
       if (rawLabel !== null && rawLabel !== undefined && rawLabel !== '') {
         const [sx, sy] = sourcePosition;
-        const position: [number, number] = isHorizontal
-          ? [bounds.minX, sy]
-          : [sx, bounds.minY];
+        const position: [number, number] = isHorizontal ? [bounds.minX, sy] : [sx, bounds.minY];
         labels.push({position, text: String(rawLabel), datum});
       }
     }
