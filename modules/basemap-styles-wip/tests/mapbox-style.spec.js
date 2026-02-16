@@ -1,3 +1,4 @@
+import {describe, test, expect} from 'vitest';
 import {filterFeatures} from '../src/mapbox-style';
 
 describe('filterFeatures', () => {
