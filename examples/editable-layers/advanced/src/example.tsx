@@ -920,7 +920,7 @@ export function Example() {
       };
     }
 
-    if (currentModeConfig && currentModeConfig.enableSnapping) {
+    if (currentModeConfig.enableSnapping) {
       // Snapping can be accomplished to features that aren't rendered in the same layer
       currentModeConfig = {
         ...currentModeConfig,
