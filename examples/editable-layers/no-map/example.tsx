@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import {BitmapLayer} from '@deck.gl/layers';
 import {
@@ -130,15 +130,15 @@ export function Example() {
   const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState<number[]>([0]);
   const [mode, setMode] = useState<ModeType>(() => ViewMode);
 
-  const trayWidgetRef = useRef<EditModeTrayWidget | null>(null);
-  if (!trayWidgetRef.current) {
-    trayWidgetRef.current = new EditModeTrayWidget({
-      placement: 'top-left',
-      layout: 'vertical',
-      style: {margin: '16px 0 0 16px'}
-    });
-  }
-  const trayWidget = trayWidgetRef.current!;
+  const trayWidget = useMemo(
+    () =>
+      new EditModeTrayWidget({
+        placement: 'top-left',
+        layout: 'vertical',
+        style: {margin: '16px 0 0 16px'}
+      }),
+    []
+  );
 
   const widgets = useMemo(() => [trayWidget], [trayWidget]);
 

@@ -105,3 +105,42 @@ onEdit: ({updatedData, editType}) => {
 ```
 
 This means you can use reference equality checks (e.g., `React.memo`, `useMemo`) to avoid unnecessary re-renders on unmodified features.
+
+## ImmutableFeatureCollection
+
+`ImmutableFeatureCollection` is the utility class that edit modes use internally to produce structurally-shared updates. You can also use it directly if you need to build custom edit logic:
+
+```ts
+import {ImmutableFeatureCollection} from '@deck.gl-community/editable-layers';
+
+const ifc = new ImmutableFeatureCollection(featureCollection);
+
+// Replace a position within a feature's geometry
+const updated = ifc
+  .replacePosition(featureIndex, positionIndexes, newPosition)
+  .getObject();
+
+// Add a new feature
+const withNew = ifc
+  .addFeature(newFeature)
+  .getObject();
+
+// Remove a feature
+const without = ifc
+  .deleteFeature(featureIndex)
+  .getObject();
+```
+
+Key methods:
+
+| Method | Description |
+| --- | --- |
+| `replacePosition(featureIndex, positionIndexes, position)` | Replace a coordinate within a feature's geometry |
+| `removePosition(featureIndex, positionIndexes)` | Remove a coordinate from a feature's geometry |
+| `addPosition(featureIndex, positionIndexes, position)` | Insert a coordinate into a feature's geometry |
+| `replaceGeometry(featureIndex, geometry)` | Replace a feature's entire geometry |
+| `addFeature(feature)` | Append a feature to the collection |
+| `deleteFeature(featureIndex)` | Remove a feature from the collection |
+| `getObject()` | Return the plain GeoJSON `FeatureCollection` |
+
+Each mutation method returns a **new** `ImmutableFeatureCollection` — the original is never modified.

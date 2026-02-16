@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import DeckGL from '@deck.gl/react';
 import {
   ViewMode,
@@ -109,25 +109,24 @@ export function Example() {
   const [mode, setMode] = useState(() => ViewMode);
   const [modeConfig, setModeConfig] = useState<Record<string, any>>({});
 
-  // Create widgets once (persisted via ref)
-  const trayWidgetRef = useRef<EditModeTrayWidget | null>(null);
-  if (!trayWidgetRef.current) {
-    trayWidgetRef.current = new EditModeTrayWidget({
-      placement: 'top-left',
-      layout: 'vertical',
-      style: {margin: '12px 0 0 12px'}
-    });
-  }
-  const trayWidget = trayWidgetRef.current;
+  const trayWidget = useMemo(
+    () =>
+      new EditModeTrayWidget({
+        placement: 'top-left',
+        layout: 'vertical',
+        style: {margin: '12px 0 0 12px'}
+      }),
+    []
+  );
 
-  const toolbarWidgetRef = useRef<EditorToolbarWidget | null>(null);
-  if (!toolbarWidgetRef.current) {
-    toolbarWidgetRef.current = new EditorToolbarWidget({
-      placement: 'bottom-left',
-      style: {margin: '0 0 20px 12px'}
-    });
-  }
-  const toolbarWidget = toolbarWidgetRef.current;
+  const toolbarWidget = useMemo(
+    () =>
+      new EditorToolbarWidget({
+        placement: 'bottom-left',
+        style: {margin: '0 0 20px 12px'}
+      }),
+    []
+  );
 
   const handleSetMode = useCallback((newMode: any) => {
     setMode(() => newMode);

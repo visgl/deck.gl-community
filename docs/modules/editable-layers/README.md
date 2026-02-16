@@ -24,9 +24,34 @@ The deck.gl-community repo is specifically set up to collect useful code that no
 
 This module is a fork of / successor to [nebula.gl](https://nebula.gl). nebula.gl was a popular and important part of the deck.gl ecosystem but the repository has lacked maintainers for several years and the repository no longer accepts external contributions.
 
-## What's New
+## Upgrade Guide
 
-This page contains highlights of each `editable-layers` release.
+### Upgrade to editable-layers v9.1
+
+- Changes
+  - Make sure your deck.gl and luma.gl dependencies are updated to v9.1
+- Deprecations:
+  - `properties.shape` is deprecated, use `properties.editProperties.shape`.
+
+### Upgrading from nebula.gl to editable-layers v9.0
+
+The main effort should be to replace your dependencies in package.json and replace import statements in your code:
+
+| nebula.gl import                 | deck.gl-community import                | Comment                                                  |
+| -------------------------------- | --------------------------------------- | -------------------------------------------------------- |
+| nebula.gl                        | => `@deck.gl-community/editable-layers` |                                                          |
+| `import '@nebula.gl/edit-modes'` | => `@deck.gl-community/editable-layers` |                                                          |
+| `import '@nebula.gl/layers`      | => `@deck.gl-community/editable-layers` |                                                          |
+| `import '@nebula.gl/overlays`    | => `@deck.gl-community/react`           |                                                          |
+| `import '@nebula.gl/editor'`     | => N/A                                  | Copy code from `examples/editor` directory into your app |
+| `import 'react-map-gl-draw'`     | => N/A                                  | Copy code from nebula.gl repo into your app.             |
+
+- **`react-map-gl-draw`**
+  - nebula.gl's `react-map-gl-draw` module was not ported to `deck.gl-community`.
+  - The main reason why a user would want to update `react-map-gl-draw` is likely to make it work with a newer React version.
+  - `react-map-gl-draw` is a small module in nebula.gl and you could probably just copy the source code into your app and bump the react dependency.
+
+## What's New
 
 ### editable-layers v9.3
 
@@ -54,30 +79,3 @@ This page contains highlights of each `editable-layers` release.
 | `@nebula.gl/overlays`                     | React overlays      | => `@deck.gl-community/react`           |
 | `@nebula.gl/editor`                       | React wrappers      | => Code moved into "editor" example     |
 | `react-map-gl-draw`                       | Non-deck-wrapper    | => NOT FORKED                           |
-
-## Upgrade Guide
-
-### Upgrade to editable-layers v9.1
-
-- Changes
-  - Make sure your deck.gl and luma.gl dependencies are updated to v9.1
-- Deprecations:
-  - `properties.shape` is deprecated, use `properties.editProperties.shape`.
-
-### Upgrading from nebula.gl to editable-layers v9.0
-
-The main effort should be to replace your dependencies in package.json and replace import statements in your code:
-
-| nebula.gl import                 | deck.gl-community import                | Comment                                                  |
-| -------------------------------- | --------------------------------------- | -------------------------------------------------------- |
-| nebula.gl                        | => `@deck.gl-community/editable-layers` |                                                          |
-| `import '@nebula.gl/edit-modes'` | => `@deck.gl-community/editable-layers` |                                                          |
-| `import '@nebula.gl/layers`      | => `@deck.gl-community/editable-layers` |                                                          |
-| `import '@nebula.gl/overlays`    | => `@deck.gl-community/react`           |                                                          |
-| `import '@nebula.gl/editor'`     | => N/A                                  | Copy code from `examples/editor` directory into your app |
-| `import 'react-map-gl-draw'`     | => N/A                                  | Copy code from nebula.gl repo into your app.             |
-
-- **`react-map-gl-draw`**
-  - nebula.gl's `react-map-gl-draw` module was not ported to `deck.gl-community`.
-  - The main reason why a user would want to update `react-map-gl-draw` is likely to make it work with a newer React version.
-  - `react-map-gl-draw` is a small module in nebula.gl and you could probably just copy the source code into your app and bump the react dependency.

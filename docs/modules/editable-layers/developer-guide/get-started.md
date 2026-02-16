@@ -30,24 +30,6 @@ Edit modes control how the user interacts with features. Each mode defines a spe
 
 Set the mode via the `mode` prop on `EditableGeoJsonLayer`. See the [Edit Modes API reference](/docs/modules/editable-layers/api-reference/edit-modes/core-modes) for the full list.
 
-### EditModeTrayWidget
-
-`EditModeTrayWidget` is a deck.gl widget that renders a tray of mode selection buttons. It provides a UI for switching between edit modes without requiring you to build your own toolbar.
-
-```tsx
-import {EditModeTrayWidget} from '@deck.gl-community/editable-layers';
-
-const widget = new EditModeTrayWidget({
-  placement: 'top-left',
-  layout: 'vertical',
-  modes: [
-    {id: 'view', mode: ViewMode, label: 'View'},
-    {id: 'draw-polygon', mode: DrawPolygonMode, label: 'Polygon'}
-  ],
-  onSelectMode: ({mode}) => setMode(mode)
-});
-```
-
 ### Callbacks
 
 When editing is enabled, the `onEdit` callback fires with details about each edit:
@@ -110,6 +92,47 @@ export function GeometryEditor() {
 ```
 
 See the [getting-started example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/getting-started) for a complete runnable version.
+
+## Widgets
+
+`editable-layers` ships deck.gl widgets that provide editing UI without requiring you to build custom React components.
+
+### EditModeTrayWidget
+
+Renders a tray of mode selection buttons. Pass it to the `widgets` prop on your `DeckGL` component:
+
+```tsx
+import {EditModeTrayWidget, ViewMode, DrawPolygonMode} from '@deck.gl-community/editable-layers';
+
+const trayWidget = new EditModeTrayWidget({
+  placement: 'top-left',
+  layout: 'vertical',
+  modes: [
+    {id: 'view', mode: ViewMode, label: 'View'},
+    {id: 'draw-polygon', mode: DrawPolygonMode, label: 'Polygon'}
+  ],
+  onSelectMode: ({mode}) => setMode(mode)
+});
+
+<DeckGL widgets={[trayWidget]} ... />
+```
+
+### EditorToolbarWidget
+
+Renders a toolbar with boolean operations (union, difference, intersection), clear, and export buttons:
+
+```tsx
+import {EditorToolbarWidget} from '@deck.gl-community/editable-layers';
+
+const toolbarWidget = new EditorToolbarWidget({
+  placement: 'bottom-left',
+  onSetBooleanOperation: (op) => setModeConfig(op ? {booleanOperation: op} : {}),
+  onClear: () => setFeatures({type: 'FeatureCollection', features: []}),
+  onExport: () => downloadGeoJson(features)
+});
+```
+
+See the [editor example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/editor) for a full widgets-only editing setup, and the [Widget API docs](/docs/modules/editable-layers/api-reference/widgets/edit-mode-tray-widget) for the complete props reference.
 
 ## See Also
 
