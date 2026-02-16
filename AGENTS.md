@@ -15,6 +15,22 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 - Follow the contribution flow in `docs/CONTRIBUTING.md` before landing breaking changes.
 - When adding or removing packages or examples, update any related documentation, sidebars, or release notes under `docs/`.
 
+## Code style
+
+Formatting is enforced by Prettier and ESLint via `ocular-lint`.
+
+**Prettier rules** (`.prettierrc`):
+- Print width: 100
+- Semicolons: yes
+- Single quotes: yes
+- Trailing commas: none
+- Bracket spacing: no (`{a}` not `{ a }`)
+
+**Guidelines:**
+- Run `yarn lint-fix` before committing
+- Do NOT reformat files you are not otherwise changing
+- Keep formatting changes in separate commits from logic changes
+
 ## Naming conventions
 
 - Typescript functions use verb-noun, in camelCase.
