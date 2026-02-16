@@ -1,5 +1,13 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.8
+
+- fix(editable-layers): Fix issue where modify mode can update the wrong vertex (#198)
+- feat(editable-layers): Export DeleteMode from edit-modes (#464)
+- feat(timeline-layers): Add timeline-layers module (#458)
+- chore(leaflet): Rename Leaflet DeckLayer to DeckOverlay (#454)
+- fix(graph-layers): Update import path for stylesheet and improve code formatting (#448)
+
 ## v9.2.0-beta.7
 
 - feat(editable-layers): Update to turf 7 and use geojson types (#447)
