@@ -16,7 +16,10 @@ const CONFIG = defineConfig({
           name: 'node',
           environment: 'node',
           include: ['modules/**/*.{test,spec}.{js,ts}'],
-          exclude: ['modules/**/*.browser.{test,spec}.{js,ts}'],
+          exclude: [
+            'modules/**/*.browser.{test,spec}.{js,ts}',
+            'modules/*-wip/**'
+          ],
           browser: {
             enabled: false
           }

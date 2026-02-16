@@ -61,7 +61,7 @@ type _GeoArrowTripsLayerProps = {
   getTimestamps: TimestampAccessor;
 };
 
-// Remove data and getPosition from the upstream default props
+// Remove data and getPosition from the upstream default props
 const {data: _data, getPath: _getPath, ..._defaultProps} = pathLayerDefaultProps;
 
 // Default props added by us

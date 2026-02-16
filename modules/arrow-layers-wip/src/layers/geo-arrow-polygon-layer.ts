@@ -132,7 +132,7 @@ type _GeoArrowPolygonLayerProps = {
   _validate?: boolean;
 };
 
-// Remove data and getPolygon from the upstream default props
+// Remove data and getPolygon from the upstream default props
 const {data: _data, getPolygon: _getPolygon, ..._defaultProps} = PolygonLayer.defaultProps;
 
 // Default props added by us
@@ -210,6 +210,7 @@ export class GeoArrowPolygonLayer<ExtraProps extends {} = {}> extends CompositeL
   // NOTE: Here we shouldn't need a split for handling both multi- and single-
   // geometries, because the underlying SolidPolygonLayer and PathLayer both
   // support multi-* and single- geometries.
+  // eslint-disable-next-line complexity
   _renderLayers(
     geometryColumn: ga.vector.PolygonVector | ga.vector.MultiPolygonVector
   ): Layer<{}> | LayersList | null {

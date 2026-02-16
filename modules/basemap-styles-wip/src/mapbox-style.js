@@ -27,7 +27,7 @@ export function filterFeatures({features, filter, globalProperties = {}}) {
   const filterFn = featureFilter(filter);
 
   // Filter array of features based on filter function
-  return features.filter(feature => {
+  return features.filter((feature) => {
     // Coerce string geometry type to integer type
     if (![1, 2, 3].includes(feature.type)) {
       feature.type = GEOM_TYPES[feature.geometry.type];
@@ -62,7 +62,7 @@ function visitProperties(layer, options, callback) {
   function inner(layer, propertyType) {
     const properties = layer[propertyType];
     if (!properties) return;
-    Object.keys(properties).forEach(key => {
+    Object.keys(properties).forEach((key) => {
       callback({
         layer,
         path: [layer.id, propertyType, key],
@@ -103,7 +103,7 @@ function getPropertyReference(propertyName) {
 export function parseProperties(layer, globalProperties) {
   // An array of Property objects for this specific layer
   const layerProperties = [];
-  visitProperties(layer, {paint: true}, property =>
+  visitProperties(layer, {paint: true}, (property) =>
     layerProperties.push(parseProperty(property, globalProperties))
   );
 

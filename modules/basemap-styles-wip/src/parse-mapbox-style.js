@@ -51,7 +51,7 @@ function generateLayer(sources, layer, globalProperties) {
   // Make dataTransform function to filter data on each deck.gl layer
   let dataTransform;
   if (FILTERABLE_LAYERS.includes(type)) {
-    dataTransform = data =>
+    dataTransform = (data) =>
       findFeaturesStyledByLayer({
         features: data,
         layer,

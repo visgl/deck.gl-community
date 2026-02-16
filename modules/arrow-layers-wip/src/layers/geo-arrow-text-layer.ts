@@ -111,7 +111,7 @@ type _GeoArrowTextLayerProps = {
   _validate?: boolean;
 };
 
-// Remove data and getPosition from the upstream default props
+// Remove data and getPosition from the upstream default props
 const {
   data: _data,
   getPosition: _getPosition,

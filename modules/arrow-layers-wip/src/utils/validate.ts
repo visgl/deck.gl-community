@@ -9,17 +9,13 @@ export function validateAccessors(props: Record<string, any>, table: arrow.Table
   const vectorAccessors: arrow.Vector[] = [];
   const colorVectorAccessors: arrow.Vector[] = [];
   for (const [accessorName, accessorValue] of Object.entries(props)) {
-    // Is it an accessor
-    if (accessorName.startsWith('get')) {
-      // Is it a vector accessor
-      if (accessorValue instanceof arrow.Vector) {
-        vectorAccessors.push(accessorValue);
-
-        // Is it a color vector accessor
-        if (accessorName.endsWith('Color')) {
-          colorVectorAccessors.push(accessorValue);
-        }
-      }
+    if (!accessorName.startsWith('get') || !(accessorValue instanceof arrow.Vector)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    vectorAccessors.push(accessorValue);
+    if (accessorName.endsWith('Color')) {
+      colorVectorAccessors.push(accessorValue);
     }
   }
 
