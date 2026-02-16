@@ -6,7 +6,7 @@ import turfBearing from '@turf/bearing';
 import turfDistance from '@turf/distance';
 import clone from '@turf/clone';
 import {point} from '@turf/helpers';
-import {WebMercatorViewport} from 'viewport-mercator-project';
+import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {
   FeatureCollection,
   Position,
