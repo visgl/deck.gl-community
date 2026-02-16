@@ -46,9 +46,9 @@
     "@vis.gl/dev-tools": "1.0.0-alpha.21",
     "@vis.gl/ts-plugins": "^1.0.0",
     "@vitejs/plugin-react": "^5.1.4",
-    "@vitest/browser": "4.0.5",
-    "@vitest/browser-playwright": "4.0.5",
-    "@vitest/eslint-plugin": "^1.4.0",
+    "@vitest/browser": "^4.0.18",
+    "@vitest/browser-playwright": "^4.0.18",
+    "@vitest/eslint-plugin": "^1.6.9",
     "bin-pack": "^1.0.2",
     "datauri": "^4.1.0",
     "ndarray": "^1.0.19",
@@ -59,8 +59,8 @@
     "react-dom": "^18.3.1",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
-    "vitest": "4.0.5",
-    "vitest-browser-react": "^2.0.2"
+    "vitest": "^4.0.18",
+    "vitest-browser-react": "^2.0.5"
   },
   "packageExtensions": {
     "deck.gl@*": {
