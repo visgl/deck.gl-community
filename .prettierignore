@@ -4,3 +4,4 @@ dist.*.js
 *.min.js
 public/
 .cache/
+modules/*-wip/
