@@ -1,5 +1,19 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.9
+
+- feat(editable-layers): tracker tasks (#491)
+- fix(editable-layers): use turf/kinks for self-intersection test in DrawPolygonMode (#471)
+- chore(deps): replace viewport-mercator-project with @math.gl/web-mercator (#502)
+- chore: promote WIP modules to modules/*-wip (#509)
+- chore: remove dead code and outdated WIP content (#505)
+- chore: remove playground example (#508)
+- chore: enable pre-commit lint and test hooks (#492)
+- chore: enable repo-wide prettier formatting (#486)
+- chore(deps): bump @vis.gl/dev-tools from alpha.21 to stable 1.0.1 (#500)
+- chore(deps): bump vitest ecosystem to latest (#499)
+- chore(deps): bump vite to ^7.3.1 and @vitejs/plugin-react to ^5.1.4 (#498)
+
 ## v9.2.0-beta.8
 
 - fix(editable-layers): Fix issue where modify mode can update the wrong vertex (#198)

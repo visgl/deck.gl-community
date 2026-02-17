@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/raster-layers",
-  "version": "9.2.0-beta.8",
+  "version": "9.2.0-beta.9",
   "description": "deck.gl layers for client-side GPU raster processing",
   "license": "MIT",
   "private": true,
