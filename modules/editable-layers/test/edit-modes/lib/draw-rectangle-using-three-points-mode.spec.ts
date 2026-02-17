@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { beforeEach, describe, it, expect } from 'vitest';
-import { Position } from 'geojson';
+import {beforeEach, describe, it, expect} from 'vitest';
+import {Position} from 'geojson';
 
-import { DrawRectangleUsingThreePointsMode } from '../../../src/edit-modes/draw-rectangle-using-three-points-mode';
-import { createFeatureCollectionProps, createClickEvent, createPointerMoveEvent, createKeyboardEvent } from '../test-utils';
+import {DrawRectangleUsingThreePointsMode} from '../../../src/edit-modes/draw-rectangle-using-three-points-mode';
+import {
+  createFeatureCollectionProps,
+  createClickEvent,
+  createPointerMoveEvent,
+  createKeyboardEvent
+} from '../test-utils';
 
 let mode;
 let props;
@@ -29,19 +34,21 @@ describe('after clicking once and moving pointer', () => {
     simulate.move([1, 2]);
   });
   it('getGuides returns line', () => {
-    expect(mode.getGuides(props).features).toEqual([{
-      type: 'Feature',
-      properties: {
-        guideType: 'tentative'
-      },
-      geometry: {
-        type: 'LineString',
-        coordinates: [
-          [1, 1],
-          [1, 2]
-        ]
+    expect(mode.getGuides(props).features).toEqual([
+      {
+        type: 'Feature',
+        properties: {
+          guideType: 'tentative'
+        },
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [1, 1],
+            [1, 2]
+          ]
+        }
       }
-    }]);
+    ]);
   });
   it('does not call onEdit', () => {
     expect(props.onEdit).toHaveBeenCalledTimes(0);
@@ -66,14 +73,18 @@ describe('after clicking twice and moving pointer', () => {
         geometry: expect.objectContaining({
           type: 'Polygon',
           coordinates: [
-            coordinatesCloseTo(
-              [[1, 1], [1, 2], [2, 2], [2, 1], [1, 1]]
-            )
+            coordinatesCloseTo([
+              [1, 1],
+              [1, 2],
+              [2, 2],
+              [2, 1],
+              [1, 1]
+            ])
           ]
         })
       })
     ]);
-  })
+  });
 
   it('calls onEdit with tentative feature', () => {
     expect(props.onEdit).toHaveBeenCalledTimes(1);
@@ -83,14 +94,18 @@ describe('after clicking twice and moving pointer', () => {
       expect.objectContaining({
         type: 'Feature',
         properties: expect.objectContaining({
-          shape: 'Rectangle',
+          shape: 'Rectangle'
         }),
         geometry: expect.objectContaining({
           type: 'Polygon',
           coordinates: [
-            coordinatesCloseTo(
-              [[1, 1], [1, 2], [2, 2], [2, 1], [1, 1]]
-            )
+            coordinatesCloseTo([
+              [1, 1],
+              [1, 2],
+              [2, 2],
+              [2, 1],
+              [1, 1]
+            ])
           ]
         })
       })
@@ -120,9 +135,13 @@ describe('after clicking three times', () => {
         geometry: expect.objectContaining({
           type: 'Polygon',
           coordinates: [
-            coordinatesCloseTo(
-              [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]]
-            )
+            coordinatesCloseTo([
+              [1, 1],
+              [2, 1],
+              [2, 2],
+              [1, 2],
+              [1, 1]
+            ])
           ]
         })
       })
@@ -155,33 +174,34 @@ describe('after hitting escape', () => {
   });
 });
 
-
 /*
-* Regression test for getGuides receiving no pointer move event the first time it's called 
-* after a click, which caused an error when it tried to access the mapCoords of the pointer 
-* move event.
-*
-* See https://github.com/visgl/deck.gl-community/issues/462
-* 
-* Most commonly happens as a result of mjolnir.js firing events in click -> pointermove
-* order when using a touchscreen, but can occur in the uncommon situation where the mouse 
-* pointer is never moved across the map before the first click occurs.
-*/
+ * Regression test for getGuides receiving no pointer move event the first time it's called
+ * after a click, which caused an error when it tried to access the mapCoords of the pointer
+ * move event.
+ *
+ * See https://github.com/visgl/deck.gl-community/issues/462
+ *
+ * Most commonly happens as a result of mjolnir.js firing events in click -> pointermove
+ * order when using a touchscreen, but can occur in the uncommon situation where the mouse
+ * pointer is never moved across the map before the first click occurs.
+ */
 describe('after clicking once before pointer move', () => {
   beforeEach(() => {
     simulate.click([1, 1]);
   });
   it('getGuides returns empty array', () => {
-    expect(mode.getGuides({
-      ...props,
-      lastPointerMoveEvent: undefined
-    }).features).toEqual([]);
+    expect(
+      mode.getGuides({
+        ...props,
+        lastPointerMoveEvent: undefined
+      }).features
+    ).toEqual([]);
   });
 });
 
 /*
  * Regression test ensures rectangle drawing works when events fire in click -> pointermove order.
- * 
+ *
  * See https://github.com/visgl/deck.gl-community/issues/462
  */
 describe('after clicking three times, but click event occurs before pointer move event', () => {
@@ -210,9 +230,13 @@ describe('after clicking three times, but click event occurs before pointer move
         geometry: expect.objectContaining({
           type: 'Polygon',
           coordinates: [
-            coordinatesCloseTo(
-              [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]]
-            )
+            coordinatesCloseTo([
+              [1, 1],
+              [2, 1],
+              [2, 2],
+              [1, 2],
+              [1, 1]
+            ])
           ]
         })
       })
@@ -256,7 +280,7 @@ const expectCoordinatesCloseTo = (
   actual: Position[][] | Position[] | Position | number,
   expected: Position[][] | Position[] | Position | number,
   numDigits: number = 2,
-  path: string = "root"
+  path: string = 'root'
 ): void => {
   if (Array.isArray(actual) && Array.isArray(expected)) {
     expect(actual.length, `${path} length`).toBe(expected.length);

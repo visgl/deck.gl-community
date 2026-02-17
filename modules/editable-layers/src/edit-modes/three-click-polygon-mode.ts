@@ -9,23 +9,29 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import { Position, Polygon, Feature, FeatureCollection, SimpleFeatureCollection } from '../utils/geojson-types';
-import { GeoJsonEditMode } from './geojson-edit-mode';
+import {
+  Position,
+  Polygon,
+  Feature,
+  FeatureCollection,
+  SimpleFeatureCollection
+} from '../utils/geojson-types';
+import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class ThreeClickPolygonMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     this.addClickSequence(event);
 
-    const { modeConfig } = props;
+    const {modeConfig} = props;
     const clickSequence = this.getClickSequence();
 
     if (clickSequence.length > 2) {
-      const { geometry, properties } = this.getThreeClickPolygon(
+      const {geometry, properties} = this.getThreeClickPolygon(
         clickSequence[0],
         clickSequence[1],
         clickSequence[2],
         modeConfig
-      )
+      );
 
       const editAction = this.getAddFeatureOrBooleanPolygonAction(geometry, props, properties);
       this.resetClickSequence();
@@ -37,7 +43,7 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
   }
 
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const { lastPointerMoveEvent, modeConfig } = props;
+    const {lastPointerMoveEvent, modeConfig} = props;
     const clickSequence = this.getClickSequence();
 
     const guides: GuideFeatureCollection = {
@@ -45,7 +51,10 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
       features: []
     };
 
-    const coords = [...clickSequence, ...(lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [])];
+    const coords = [
+      ...clickSequence,
+      ...(lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [])
+    ];
 
     if (coords.length === 2) {
       guides.features.push({
@@ -59,12 +68,7 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
         }
       });
     } else if (coords.length > 2) {
-      const polygon = this.getThreeClickPolygon(
-        coords[0],
-        coords[1],
-        coords[2],
-        modeConfig
-      );
+      const polygon = this.getThreeClickPolygon(coords[0], coords[1], coords[2], modeConfig);
       if (polygon) {
         guides.features.push({
           ...polygon,
@@ -94,7 +98,7 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
   }
 
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
-    const { lastPointerMoveEvent } = props;
+    const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 
     const lastCoords = lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [];
