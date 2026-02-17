@@ -4,12 +4,7 @@
 
 import {render} from 'preact';
 import type {JSX} from 'preact';
-import {
-  Widget,
-  type WidgetProps,
-  type WidgetPlacement,
-  type Deck
-} from '@deck.gl/core';
+import {Widget, type WidgetProps, type WidgetPlacement, type Deck} from '@deck.gl/core';
 
 export type BooleanOperation = 'union' | 'difference' | 'intersection' | null;
 
@@ -97,7 +92,16 @@ const BADGE_STYLE: JSX.CSSProperties = {
 
 function PencilIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M10 1.5l2.5 2.5L4.5 12H2v-2.5z" />
     </svg>
   );
@@ -105,7 +109,14 @@ function PencilIcon() {
 
 function SubtractIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.1">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.1"
+    >
       <rect x="1" y="1" width="8" height="8" rx="1.5" />
       <rect x="5" y="5" width="8" height="8" rx="1.5" fill="rgba(36,40,41,0.88)" />
     </svg>
@@ -114,7 +125,14 @@ function SubtractIcon() {
 
 function UnionIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.1">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.1"
+    >
       <rect x="1" y="1" width="8" height="8" rx="1.5" />
       <rect x="5" y="5" width="8" height="8" rx="1.5" />
     </svg>
@@ -133,7 +151,16 @@ function IntersectIcon() {
 
 function TrashIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M2.5 4h9M5.5 4V2.5h3V4M3.5 4l.5 8h6l.5-8" />
     </svg>
   );
@@ -141,7 +168,16 @@ function TrashIcon() {
 
 function DownloadIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
     </svg>
   );
@@ -149,7 +185,12 @@ function DownloadIcon() {
 
 // --- Widget ---
 
-const BOOLEAN_OPS: Array<{op: BooleanOperation; icon: () => JSX.Element; label: string; title: string}> = [
+const BOOLEAN_OPS: Array<{
+  op: BooleanOperation;
+  icon: () => JSX.Element;
+  label: string;
+  title: string;
+}> = [
   {op: null, icon: PencilIcon, label: 'Edit', title: 'Draw new features'},
   {op: 'difference', icon: SubtractIcon, label: 'Sub', title: 'Subtract from selection'},
   {op: 'union', icon: UnionIcon, label: 'Union', title: 'Union with selection'},
