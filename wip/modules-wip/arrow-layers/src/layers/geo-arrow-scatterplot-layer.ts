@@ -71,7 +71,7 @@ type _GeoArrowScatterplotLayerProps = {
   getLineWidth?: FloatAccessor;
 };
 
-// Remove data and getPosition from the upstream default props
+// Remove data and getPosition from the upstream default props
 const {
   data: _data,
   getPosition: _getPosition,

@@ -80,7 +80,7 @@ type _GeoArrowSolidPolygonLayerProps = {
   earcutWorkerPoolSize?: number;
 };
 
-// Remove data from the upstream default props
+// Remove data from the upstream default props
 const {data: _data, getPolygon: _getPolygon, ..._defaultProps} = SolidPolygonLayer.defaultProps;
 
 // Default props added by us
@@ -170,7 +170,7 @@ export class GeoArrowSolidPolygonLayer<ExtraProps extends {} = {}> extends Compo
 
   async finalizeState(context: LayerContext): Promise<void> {
     await this.state?.earcutWorkerPool?.terminate();
-    // pool terminated
+    console.log('terminated');
   }
 
   async updateData() {
@@ -215,6 +215,8 @@ export class GeoArrowSolidPolygonLayer<ExtraProps extends {} = {}> extends Compo
     }
 
     const result: Uint32Array[] = new Array(geometryColumn.data.length);
+    console.time('earcut');
+
     for (let recordBatchIdx = 0; recordBatchIdx < geometryColumn.data.length; recordBatchIdx++) {
       const polygonData = geometryColumn.data[recordBatchIdx];
       const [preparedPolygonData, arrayBuffers] = ga.worker.preparePostMessage(polygonData, true);
@@ -225,6 +227,7 @@ export class GeoArrowSolidPolygonLayer<ExtraProps extends {} = {}> extends Compo
     }
 
     await pool.completed();
+    console.timeEnd('earcut');
 
     return result;
   }
@@ -250,6 +253,7 @@ export class GeoArrowSolidPolygonLayer<ExtraProps extends {} = {}> extends Compo
     }
 
     const result: Uint32Array[] = new Array(geometryColumn.data.length);
+    console.time('earcut');
 
     for (let recordBatchIdx = 0; recordBatchIdx < geometryColumn.data.length; recordBatchIdx++) {
       const multiPolygonData = geometryColumn.data[recordBatchIdx];
@@ -262,6 +266,7 @@ export class GeoArrowSolidPolygonLayer<ExtraProps extends {} = {}> extends Compo
     }
 
     await pool.completed();
+    console.timeEnd('earcut');
 
     return result;
   }
@@ -395,7 +400,6 @@ export class GeoArrowSolidPolygonLayer<ExtraProps extends {} = {}> extends Compo
     return layers;
   }
 
-  // eslint-disable-next-line max-statements
   _renderLayersMultiPolygon(
     geometryColumn: ga.vector.MultiPolygonVector
   ): Layer<{}> | LayersList | null {

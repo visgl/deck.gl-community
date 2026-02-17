@@ -87,7 +87,7 @@ type _GeoArrowArcLayerProps = {
   _validate?: boolean;
 };
 
-// Remove data from the upstream default props
+// Remove data from the upstream default props
 const {
   data: _data,
   getSourcePosition: _getSourcePosition,

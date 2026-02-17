@@ -61,7 +61,7 @@ type _GeoArrowPathLayerProps = {
   getWidth?: FloatAccessor;
 };
 
-// Remove data and getPosition from the upstream default props
+// Remove data and getPosition from the upstream default props
 const {data: _data, getPath: _getPath, ..._defaultProps} = PathLayer.defaultProps;
 
 // Default props added by us

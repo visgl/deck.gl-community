@@ -6,63 +6,45 @@ import {
   CompositeLayer,
   CompositeLayerProps,
   DefaultProps,
-  GetPickingInfoParams,
   Layer,
   LayersList,
   assert
 } from '@deck.gl/core';
-import {ColumnLayer} from '@deck.gl/layers';
-import type {ColumnLayerProps} from '@deck.gl/layers';
+import {HeatmapLayer} from '@deck.gl/aggregation-layers';
+import type {HeatmapLayerProps} from '@deck.gl/aggregation-layers';
 import * as arrow from 'apache-arrow';
-import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from '../utils/utils';
 import * as ga from '@geoarrow/geoarrow-js';
-import {ColorAccessor, FloatAccessor, GeoArrowPickingInfo} from '../types';
+import {assignAccessor, extractAccessorsFromProps, getGeometryVector} from '../utils/utils';
+import {FloatAccessor} from '../types';
 import {EXTENSION_NAME} from '../constants';
-import {GeoArrowExtraPickingProps, computeChunkOffsets, getPickingInfo} from '../utils/picking';
 import {validateAccessors} from '../utils/validate';
+import {computeChunkOffsets} from '../utils/picking';
 
-/** All properties supported by GeoArrowColumnLayer */
-export type GeoArrowColumnLayerProps = Omit<
-  ColumnLayerProps<arrow.Table>,
-  'data' | 'getPosition' | 'getFillColor' | 'getLineColor' | 'getElevation' | 'getLineWidth'
+/** All properties supported by GeoArrowHeatmapLayer */
+export type GeoArrowHeatmapLayerProps = Omit<
+  HeatmapLayerProps,
+  'data' | 'getPosition' | 'getWeight'
 > &
-  _GeoArrowColumnLayerProps &
+  _GeoArrowHeatmapLayerProps &
   CompositeLayerProps;
 
-/** Properties added by GeoArrowColumnLayer */
-type _GeoArrowColumnLayerProps = {
+/** Properties added by GeoArrowHeatmapLayer */
+type _GeoArrowHeatmapLayerProps = {
   data: arrow.Table;
 
   /**
-   * Method called to retrieve the position of each column.
+   * Method called to retrieve the position of each object.
+   *
+   * @default d => d.position
    */
   getPosition?: ga.vector.PointVector;
 
   /**
-   * Fill color value or accessor.
-   * @default [0, 0, 0, 255]
-   */
-  getFillColor?: ColorAccessor;
-
-  /**
-   * Line color value or accessor.
-   *
-   * @default [0, 0, 0, 255]
-   */
-  getLineColor?: ColorAccessor;
-
-  /**
-   * The elevation of each cell in meters.
-   * @default 1000
-   */
-  getElevation?: FloatAccessor;
-
-  /**
-   * The width of the outline of the column, in units specified by `lineWidthUnits`.
+   * The weight of each object.
    *
    * @default 1
    */
-  getLineWidth?: FloatAccessor;
+  getWeight?: FloatAccessor;
 
   /**
    * If `true`, validate the arrays provided (e.g. chunk lengths)
@@ -71,8 +53,8 @@ type _GeoArrowColumnLayerProps = {
   _validate?: boolean;
 };
 
-// Remove data and getPosition from the upstream default props
-const {data: _data, getPosition: _getPosition, ..._defaultProps} = ColumnLayer.defaultProps;
+// Remove data from the upstream default props
+const {data: _data, getPosition: _getPosition, ..._defaultProps} = HeatmapLayer.defaultProps;
 
 // Default props added by us
 const ourDefaultProps = {
@@ -80,40 +62,32 @@ const ourDefaultProps = {
 };
 
 // @ts-expect-error Type error in merging default props with ours
-const defaultProps: DefaultProps<GeoArrowColumnLayerProps> = {
+const defaultProps: DefaultProps<GeoArrowHeatmapLayerProps> = {
   ..._defaultProps,
   ...ourDefaultProps
 };
 
-/**
- * Render extruded cylinders (tessellated regular polygons) at given
- * coordinates.
- */
-export class GeoArrowColumnLayer<ExtraProps extends {} = {}> extends CompositeLayer<
-  GeoArrowColumnLayerProps & ExtraProps
+export class GeoArrowHeatmapLayer<ExtraProps extends {} = {}> extends CompositeLayer<
+  GeoArrowHeatmapLayerProps & ExtraProps
 > {
   static defaultProps = defaultProps;
-  static layerName = 'GeoArrowColumnLayer';
-
-  getPickingInfo(
-    params: GetPickingInfoParams & {
-      sourceLayer: {props: GeoArrowExtraPickingProps};
-    }
-  ): GeoArrowPickingInfo {
-    return getPickingInfo(params, this.props.data);
-  }
+  static layerName = 'GeoArrowHeatmapLayer';
 
   renderLayers(): Layer<{}> | LayersList | null {
     const {data: table} = this.props;
 
-    const pointVector = getGeometryVector(table, EXTENSION_NAME.POINT);
-    if (pointVector !== null) {
-      return this._renderLayersPoint(pointVector);
-    }
+    if (this.props.getPosition !== undefined) {
+      const geometryColumn = this.props.getPosition;
+      if (geometryColumn !== undefined && ga.vector.isPointVector(geometryColumn)) {
+        return this._renderLayersPoint(geometryColumn);
+      }
 
-    const geometryColumn = this.props.getPosition;
-    if (geometryColumn !== undefined && ga.vector.isPointVector(geometryColumn)) {
-      return this._renderLayersPoint(geometryColumn);
+      throw new Error('getPosition should pass in an arrow Vector of Point type');
+    } else {
+      const pointVector = getGeometryVector(table, EXTENSION_NAME.POINT);
+      if (pointVector !== null) {
+        return this._renderLayersPoint(pointVector);
+      }
     }
 
     throw new Error('getPosition not GeoArrow point');
@@ -131,13 +105,13 @@ export class GeoArrowColumnLayer<ExtraProps extends {} = {}> extends CompositeLa
     const [accessors, otherProps] = extractAccessorsFromProps(this.props, ['getPosition']);
     const tableOffsets = computeChunkOffsets(table.data);
 
-    const layers: ColumnLayer[] = [];
+    const layers: HeatmapLayer[] = [];
     for (let recordBatchIdx = 0; recordBatchIdx < table.batches.length; recordBatchIdx++) {
       const geometryData = geometryColumn.data[recordBatchIdx];
       const flatCoordsData = ga.child.getPointChild(geometryData);
       const flatCoordinateArray = flatCoordsData.values;
 
-      const props: ColumnLayerProps = {
+      const props: HeatmapLayerProps = {
         // Note: because this is a composite layer and not doing the rendering
         // itself, we still have to pass in our defaultProps
         ...ourDefaultProps,
@@ -147,7 +121,7 @@ export class GeoArrowColumnLayer<ExtraProps extends {} = {}> extends CompositeLa
         recordBatchIdx,
         tableOffsets,
 
-        id: `${this.props.id}-geoarrow-column-${recordBatchIdx}`,
+        id: `${this.props.id}-geoarrow-heatmap-${recordBatchIdx}`,
         data: {
           // @ts-expect-error passed through to enable use by function accessors
           data: table.batches[recordBatchIdx],
@@ -170,7 +144,7 @@ export class GeoArrowColumnLayer<ExtraProps extends {} = {}> extends CompositeLa
         });
       }
 
-      const layer = new ColumnLayer(this.getSubLayerProps(props));
+      const layer = new HeatmapLayer(this.getSubLayerProps(props));
       layers.push(layer);
     }
 

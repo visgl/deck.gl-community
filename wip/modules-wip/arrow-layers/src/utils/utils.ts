@@ -93,7 +93,7 @@ function convertStructToFixedSizeList(
     return data;
   }
 
-  throw new Error('Unsupported coordinate type');
+  assert(false);
 }
 
 type AssignAccessorProps = {
@@ -216,7 +216,7 @@ export function expandArrayToCoords<T extends TypedArray>(
   geomOffsets: Int32Array
 ): T {
   const numCoords = geomOffsets[geomOffsets.length - 1];
-  // @ts-expect-error - constructor is dynamically resolved from input type
+  // @ts-expect-error
   const outputArray: T = new input.constructor(numCoords * size);
 
   // geomIdx is an index into the geomOffsets array
@@ -326,8 +326,7 @@ export function invertOffsets(offsets: Int32Array): Uint8Array | Uint16Array | U
         ? Uint16Array
         : Uint32Array;
 
-  const ArrayConstructor = arrayConstructor;
-  const invertedOffsets = new ArrayConstructor(largestOffset);
+  const invertedOffsets = new arrayConstructor(largestOffset);
   for (let arrayIdx = 0; arrayIdx < offsets.length - 1; arrayIdx++) {
     const thisOffset = offsets[arrayIdx];
     const nextOffset = offsets[arrayIdx + 1];
@@ -347,12 +346,14 @@ export function extractAccessorsFromProps(
   const accessors: Record<string, any> = {};
   const otherProps: Record<string, any> = {};
   for (const [key, value] of Object.entries(props)) {
-    if (!excludeKeys.includes(key)) {
-      if (key.startsWith('get')) {
-        accessors[key] = value;
-      } else {
-        otherProps[key] = value;
-      }
+    if (excludeKeys.includes(key)) {
+      continue;
+    }
+
+    if (key.startsWith('get')) {
+      accessors[key] = value;
+    } else {
+      otherProps[key] = value;
     }
   }
 
