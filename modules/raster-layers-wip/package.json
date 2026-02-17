@@ -1,0 +1,47 @@
+{
+  "name": "@deck.gl-community/raster-layers",
+  "version": "9.2.0-beta.8",
+  "description": "deck.gl layers for client-side GPU raster processing",
+  "license": "MIT",
+  "private": true,
+  "keywords": [
+    "deck.gl",
+    "webgl",
+    "visualization",
+    "geospatial",
+    "raster",
+    "satellite"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "dependencies": {
+    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/layers": "~9.2.1",
+    "@deck.gl/mesh-layers": "~9.2.1",
+    "@luma.gl/core": "~9.2.0",
+    "@luma.gl/engine": "~9.2.0",
+    "lodash.isequal": "^4.5.0"
+  }
+}
