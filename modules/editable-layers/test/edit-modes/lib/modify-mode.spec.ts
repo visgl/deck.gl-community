@@ -7,6 +7,7 @@ import {ModifyMode} from '../../../src/edit-modes/modify-mode';
 import {Pick, ModeProps} from '../../../src/edit-modes/types';
 import {
   createFeatureCollectionProps,
+  createClickEvent,
   createPointerMoveEvent,
   createStartDraggingEvent,
   createStopDraggingEvent
@@ -197,6 +198,66 @@ test('Rectangular polygon feature preserves shape', () => {
   const movedFeature = mockOnEdit.mock.calls[0][0].updatedData.features[0];
   expect(movedFeature).toMatchSnapshot();
   expect(props.data.features[0]).not.toEqual(movedFeature);
+});
+
+test('lockRectangles prevents removing rectangle corner on click', () => {
+  const mockOnEdit = vi.fn();
+  const props = createFeatureCollectionProps({
+    data: {
+      type: 'FeatureCollection',
+      features: [polygonRectangleFeature]
+    } as FeatureCollection,
+    selectedIndexes: [0],
+    modeConfig: {lockRectangles: true},
+    onEdit: mockOnEdit
+  });
+
+  const mode = new ModifyMode();
+  const guides = mode.getGuides(props);
+
+  // Find an existing edit handle (corner of the rectangle)
+  const existingHandle = guides.features.find(
+    ({properties}) =>
+      properties.guideType === 'editHandle' && properties.editHandleType === 'existing'
+  );
+  expect(existingHandle).toBeDefined();
+
+  // Click on the existing handle — should NOT trigger removePosition
+  const clickEvent = createClickEvent(existingHandle?.geometry.coordinates as Position, [
+    {index: 0, isGuide: true, object: existingHandle}
+  ]);
+  mode.handleClick(clickEvent, props);
+
+  expect(mockOnEdit).not.toHaveBeenCalled();
+});
+
+test('clicking rectangle corner removes it when lockRectangles is not set', () => {
+  const mockOnEdit = vi.fn();
+  const props = createFeatureCollectionProps({
+    data: {
+      type: 'FeatureCollection',
+      features: [polygonRectangleFeature]
+    } as FeatureCollection,
+    selectedIndexes: [0],
+    onEdit: mockOnEdit
+  });
+
+  const mode = new ModifyMode();
+  const guides = mode.getGuides(props);
+
+  const existingHandle = guides.features.find(
+    ({properties}) =>
+      properties.guideType === 'editHandle' && properties.editHandleType === 'existing'
+  );
+  expect(existingHandle).toBeDefined();
+
+  const clickEvent = createClickEvent(existingHandle?.geometry.coordinates as Position, [
+    {index: 0, isGuide: true, object: existingHandle}
+  ]);
+  mode.handleClick(clickEvent, props);
+
+  expect(mockOnEdit).toHaveBeenCalledTimes(1);
+  expect(mockOnEdit.mock.calls[0][0].editType).toBe('removePosition');
 });
 
 test('Correct coordinate edited when stopping near another guide', () => {
