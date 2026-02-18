@@ -17,7 +17,7 @@ export function generateRasterLayer(sources, layer) {
     minzoom,
     maxzoom,
     tileSize,
-    renderSubLayers: props => {
+    renderSubLayers: (props) => {
       const {
         bbox: {west, south, east, north}
       } = props.tile;

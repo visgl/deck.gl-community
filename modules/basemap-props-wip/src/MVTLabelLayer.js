@@ -67,7 +67,7 @@ export class MVTLabelLayer extends CompositeLayer {
     if (changeFlags.dataChanged && data) {
       const labelData = (data.features || data).flatMap((feature, index) => {
         const labelAnchors = this.getLabelAnchors(feature);
-        return labelAnchors.map(p => this.getSubLayerRow({position: p}, feature, index));
+        return labelAnchors.map((p) => this.getSubLayerRow({position: p}, feature, index));
       });
 
       this.setState({labelData});
@@ -94,7 +94,7 @@ export class MVTLabelLayer extends CompositeLayer {
           billboard,
           sizeUnits: labelSizeUnits,
           backgroundColor: labelBackground,
-          getPosition: d => d.position,
+          getPosition: (d) => d.position,
           getText: this.getSubLayerAccessor(this.getLabel),
           getSize: this.getSubLayerAccessor(this.getLabelSize),
           getColor: this.getSubLayerAccessor(this.getLabelColor)
@@ -127,7 +127,7 @@ const BASEMAP_LOAD_OPTIONS = {
   }
 };
 
-const renderSubLayers = props => new MVTLabelLayer({...props});
+const renderSubLayers = (props) => new MVTLabelLayer({...props});
 
 export const getGlobeBasemapLayer = ({mapboxApiUrl, mapboxApiAccessToken, config, colors}) => {
   return new MVTLayer({
@@ -143,7 +143,7 @@ export const getGlobeBasemapLayer = ({mapboxApiUrl, mapboxApiAccessToken, config
     parameters: BASEMAP_PARAMETERS,
     loadOptions: BASEMAP_LOAD_OPTIONS,
 
-    getFillColor: f => {
+    getFillColor: (f) => {
       switch (f.properties.layerName) {
         case 'water':
           return colors.basemapWaterFillColor;
@@ -152,7 +152,7 @@ export const getGlobeBasemapLayer = ({mapboxApiUrl, mapboxApiAccessToken, config
       }
     },
 
-    getLineColor: f => {
+    getLineColor: (f) => {
       switch (f.properties.layerName) {
         case 'admin':
           return colors.basemapAdminLineColor;
@@ -161,7 +161,7 @@ export const getGlobeBasemapLayer = ({mapboxApiUrl, mapboxApiAccessToken, config
       }
     },
 
-    getLineWidth: f => {
+    getLineWidth: (f) => {
       switch (f.properties.layerName) {
         case 'admin':
           switch (f.properties.admin_level) {
