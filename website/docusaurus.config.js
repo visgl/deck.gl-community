@@ -220,6 +220,11 @@ const config = {
             position: 'left',
             label: 'Gallery'
           },
+          {
+            to: '/docs/ecosystem',
+            position: 'left',
+            label: 'Ecosystem'
+          },
           // {
           //   to: '/showcase',
           //   position: 'left',

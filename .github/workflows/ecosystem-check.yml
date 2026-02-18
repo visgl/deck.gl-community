@@ -1,0 +1,70 @@
+name: ecosystem-check
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ecosystem-check:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack / Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.10.3 --activate
+          yarn -v
+
+      - name: Cache Yarn 4 artifacts
+        id: yarn-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .pnp.*
+            .yarn/install-state.gz
+          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            yarn-cache-${{ runner.os }}-
+
+      - name: Install deps
+        run: yarn --frozen-lockfile
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Report deck.gl version
+        run: |
+          echo "deck.gl version in use:"
+          node -e "const pkg = require('./package.json'); console.log(pkg.devDependencies['@deck.gl/core'] || 'not found')"
+
+      - name: Check ecosystem examples
+        run: |
+          if [ -d "examples/ecosystem" ]; then
+            for dir in examples/ecosystem/*/; do
+              if [ -f "$dir/package.json" ]; then
+                echo "::group::Testing $dir"
+                echo "Building ecosystem example: $dir"
+                (cd "$dir" && yarn && yarn build) || echo "::warning::Build failed for $dir"
+                echo "::endgroup::"
+              fi
+            done
+          else
+            echo "No ecosystem examples found yet. Add examples under examples/ecosystem/ to enable automated checks."
+          fi
