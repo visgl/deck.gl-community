@@ -33,20 +33,20 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.2.1",
-    "@deck.gl/geo-layers": "~9.2.1",
-    "@deck.gl/layers": "~9.2.1",
+    "@deck.gl/core": "~9.2.8",
+    "@deck.gl/geo-layers": "~9.2.8",
+    "@deck.gl/layers": "~9.2.8",
     "@loaders.gl/loader-utils": "^4.2.0",
-    "@luma.gl/core": "~9.2.0",
-    "@luma.gl/engine": "~9.2.0",
-    "@luma.gl/shadertools": "~9.2.0",
+    "@luma.gl/core": "~9.2.6",
+    "@luma.gl/engine": "~9.2.6",
+    "@luma.gl/shadertools": "~9.2.6",
     "@math.gl/core": "^4.0.0",
     "a5-js": "^0.5.0",
     "h3-js": "^4.2.1"
   },
   "devDependencies": {
-    "@deck.gl/test-utils": "~9.2.1",
-    "@luma.gl/webgpu": "~9.2.0",
+    "@deck.gl/test-utils": "~9.2.8",
+    "@luma.gl/webgpu": "~9.2.6",
     "@probe.gl/test-utils": "^4.0.4"
   }
 }

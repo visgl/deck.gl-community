@@ -8,12 +8,12 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.2.1",
-    "@deck.gl/layers": "~9.2.1",
+    "@deck.gl/core": "~9.2.8",
+    "@deck.gl/layers": "~9.2.8",
     "@loaders.gl/core": "^4.2.0",
-    "@luma.gl/core": "~9.2.0",
-    "@luma.gl/engine": "~9.2.0",
-    "@luma.gl/shadertools": "~9.2.0",
+    "@luma.gl/core": "~9.2.6",
+    "@luma.gl/engine": "~9.2.6",
+    "@luma.gl/shadertools": "~9.2.6",
     "leaflet": "^1.9.4"
   },
   "devDependencies": {

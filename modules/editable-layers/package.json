@@ -77,14 +77,14 @@
   },
   "peerDependencies": {
     "@deck.gl-community/layers": "^9.2.0-beta",
-    "@deck.gl/core": "~9.2.1",
-    "@deck.gl/extensions": "~9.2.1",
-    "@deck.gl/geo-layers": "~9.2.1",
-    "@deck.gl/layers": "~9.2.1",
-    "@deck.gl/mesh-layers": "~9.2.1",
-    "@luma.gl/constants": "~9.2.0",
-    "@luma.gl/core": "~9.2.0",
-    "@luma.gl/engine": "~9.2.0",
+    "@deck.gl/core": "~9.2.8",
+    "@deck.gl/extensions": "~9.2.8",
+    "@deck.gl/geo-layers": "~9.2.8",
+    "@deck.gl/layers": "~9.2.8",
+    "@deck.gl/mesh-layers": "~9.2.8",
+    "@luma.gl/constants": "~9.2.6",
+    "@luma.gl/core": "~9.2.6",
+    "@luma.gl/engine": "~9.2.6",
     "@math.gl/core": ">=4.0.1"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
