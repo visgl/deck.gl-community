@@ -38,6 +38,7 @@ export class HtmlOverlayWidget<
   static override defaultProps = {
     id: 'html-overlay',
     viewId: null,
+    _container: null,
     overflowMargin: 0,
     zIndex: 1,
     style: {},

@@ -62,6 +62,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   static override defaultProps = {
     id: 'zoom-range',
     viewId: null,
+    _container: null,
     placement: 'top-left',
     minZoom: undefined,
     maxZoom: undefined,

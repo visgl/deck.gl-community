@@ -51,6 +51,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
   static override defaultProps = {
     id: 'pan',
     viewId: null,
+    _container: null,
     placement: 'top-left',
     step: 48,
     style: {},
