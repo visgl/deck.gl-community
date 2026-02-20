@@ -16,6 +16,7 @@ import {
   DoubleClickEvent,
   ModeProps
 } from '../edit-modes/types';
+import {fromDeckCoordinateSystem} from '../edit-modes/coordinate-system';
 
 import {ViewMode} from '../edit-modes/view-mode';
 import {TranslateMode} from '../edit-modes/translate-mode';
@@ -438,6 +439,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
       selectedIndexes: props.selectedFeatureIndexes,
       lastPointerMoveEvent: this.state.lastPointerMoveEvent,
       cursor: this.state.cursor,
+      // Derive edit-mode math from deck.gl's coordinateSystem layer prop.
+      // This ensures that when the layer is configured for Cartesian or other
+      // non-geographic rendering, edit modes automatically use the correct geometry math.
+      coordinateSystem: fromDeckCoordinateSystem(this.props.coordinateSystem),
       onEdit: (editAction) => {
         // Force a re-render
         // This supports double-click where we need to ensure that there's a re-render between the two clicks

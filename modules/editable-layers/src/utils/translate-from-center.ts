@@ -5,7 +5,7 @@
 import turfCenter from '@turf/center';
 import {mapCoords} from '../edit-modes/utils';
 import {geoCoordinateSystem} from '../edit-modes/coordinate-system';
-import type {CoordinateSystem} from '../edit-modes/coordinate-system';
+import type {EditModeCoordinateSystem} from '../edit-modes/coordinate-system';
 import type {SimpleFeature} from './geojson-types';
 
 // This function takes feature's center, moves it,
@@ -14,7 +14,7 @@ export function translateFromCenter(
   feature: SimpleFeature,
   distance: number,
   direction: number,
-  coordinateSystem: CoordinateSystem = geoCoordinateSystem
+  coordinateSystem: EditModeCoordinateSystem = geoCoordinateSystem
 ) {
   const initialCenter = turfCenter(feature).geometry.coordinates;
 
