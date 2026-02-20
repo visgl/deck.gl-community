@@ -527,6 +527,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/three@workspace:*, @deck.gl-community/three@workspace:modules/three":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/three@workspace:modules/three"
+  dependencies:
+    "@deck.gl/core": "npm:~9.2.1"
+    "@deck.gl/mesh-layers": "npm:~9.2.1"
+    "@types/three": "npm:^0.170.0"
+    three: "npm:^0.170.0"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/timeline-layers@workspace:*, @deck.gl-community/timeline-layers@workspace:modules/timeline-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/timeline-layers@workspace:modules/timeline-layers"
@@ -4057,6 +4068,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tweenjs/tween.js@npm:~23.1.3":
+  version: 23.1.3
+  resolution: "@tweenjs/tween.js@npm:23.1.3"
+  checksum: 10c0/811b30f5f0e7409fb41833401c501c2d6f600eb5f43039dd9067a7f70aff6dad5f5ce1233848e13f0b33a269a160d9c133f344d986cbff4f1f6b72ddecd06c89
+  languageName: node
+  linkType: hard
+
 "@tybys/wasm-util@npm:^0.9.0":
   version: 0.9.0
   resolution: "@tybys/wasm-util@npm:0.9.0"
@@ -4451,6 +4469,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/stats.js@npm:*":
+  version: 0.17.4
+  resolution: "@types/stats.js@npm:0.17.4"
+  checksum: 10c0/4fe0429998519f0476f03a25b4900b4d4a1474606478657271e40a884f7936ba902ea564b1c95cfd33a8e84af46cef6e1e98bb23e86fd3b6676cd5b974987151
+  languageName: node
+  linkType: hard
+
 "@types/styled-components@npm:*":
   version: 5.1.35
   resolution: "@types/styled-components@npm:5.1.35"
@@ -4488,6 +4513,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/three@npm:^0.170.0":
+  version: 0.170.0
+  resolution: "@types/three@npm:0.170.0"
+  dependencies:
+    "@tweenjs/tween.js": "npm:~23.1.3"
+    "@types/stats.js": "npm:*"
+    "@types/webxr": "npm:*"
+    "@webgpu/types": "npm:*"
+    fflate: "npm:~0.8.2"
+    meshoptimizer: "npm:~0.18.1"
+  checksum: 10c0/6f96f57f70884fac6e1f62a4bd032462e052bb8a62cccad3a3101f86f47b698062d8070551dc45560c1a7b16f7d0ee911bd75d0abefc17610b29f39e7c83a2a4
+  languageName: node
+  linkType: hard
+
 "@types/trusted-types@npm:^1.0.6":
   version: 1.0.6
   resolution: "@types/trusted-types@npm:1.0.6"
@@ -4499,6 +4538,13 @@ __metadata:
   version: 2.0.11
   resolution: "@types/unist@npm:2.0.11"
   checksum: 10c0/24dcdf25a168f453bb70298145eb043cfdbb82472db0bc0b56d6d51cd2e484b9ed8271d4ac93000a80da568f2402e9339723db262d0869e2bf13bc58e081768d
+  languageName: node
+  linkType: hard
+
+"@types/webxr@npm:*":
+  version: 0.5.24
+  resolution: "@types/webxr@npm:0.5.24"
+  checksum: 10c0/ff59ffd390d06ca3f89ab2531d583ac10bc5e2ab82e5a01ecc40fbc365224a3375e7caa5b14649cf6141db21fb024940da7ad2bd8faa3cd497a6665257cb53b5
   languageName: node
   linkType: hard
 
@@ -4930,6 +4976,13 @@ __metadata:
   version: 2.8.0
   resolution: "@webcomponents/webcomponentsjs@npm:2.8.0"
   checksum: 10c0/f3634dea123572ce86d22e86a863771f805edc535b9656256d855412d4800dd2d219eeee3e40f003885e008f8fc80a4a8dcc15e0bade3246ac25639e48c34294
+  languageName: node
+  linkType: hard
+
+"@webgpu/types@npm:*":
+  version: 0.1.69
+  resolution: "@webgpu/types@npm:0.1.69"
+  checksum: 10c0/52b95a176de5ee918fd1d7132103c35029006a0b4eb321767479a9e430560d272926c0994c3795a5bbaa22cebcc7dce71e66ba8b6496e01c90c0d179a02bd968
   languageName: node
   linkType: hard
 
@@ -8611,6 +8664,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fflate@npm:~0.8.2":
+  version: 0.8.2
+  resolution: "fflate@npm:0.8.2"
+  checksum: 10c0/03448d630c0a583abea594835a9fdb2aaf7d67787055a761515bf4ed862913cfd693b4c4ffd5c3f3b355a70cf1e19033e9ae5aedcca103188aaff91b8bd6e293
+  languageName: node
+  linkType: hard
+
 "figures@npm:3.2.0, figures@npm:^3.0.0":
   version: 3.2.0
   resolution: "figures@npm:3.2.0"
@@ -11390,6 +11450,13 @@ __metadata:
   version: 1.4.1
   resolution: "merge2@npm:1.4.1"
   checksum: 10c0/254a8a4605b58f450308fc474c82ac9a094848081bf4c06778200207820e5193726dc563a0d2c16468810516a5c97d9d3ea0ca6585d23c58ccfff2403e8dbbeb
+  languageName: node
+  linkType: hard
+
+"meshoptimizer@npm:~0.18.1":
+  version: 0.18.1
+  resolution: "meshoptimizer@npm:0.18.1"
+  checksum: 10c0/8a825c58b20b65585e8d00788843929b60c66ba4297e89afaa49f7c51ab9a0f7b9130f90cc9ad1b9b48b3d1bee3beb1bc93608acba0d73e78995c3e6e5ca436b
   languageName: node
   linkType: hard
 
@@ -15348,6 +15415,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"three@npm:^0.170.0":
+  version: 0.170.0
+  resolution: "three@npm:0.170.0"
+  checksum: 10c0/eeaa1eccb31467654a044fb90634b3b6bb8d0768a4f029c082fb6aa22aec0d6362d0e3af74938caa1db512b7823a031b54a76e88fba6cfd535054165ea9667c9
+  languageName: node
+  linkType: hard
+
 "through2@npm:^2.0.0":
   version: 2.0.5
   resolution: "through2@npm:2.0.5"
@@ -16527,6 +16601,19 @@ __metadata:
     "@deck.gl/layers": "npm:~9.2.8"
     "@deck.gl/react": "npm:~9.2.8"
     "@deck.gl/widgets": "npm:~9.2.8"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"wild-forest-ea7bdb@workspace:examples/three/wild-forest":
+  version: 0.0.0-use.local
+  resolution: "wild-forest-ea7bdb@workspace:examples/three/wild-forest"
+  dependencies:
+    "@deck.gl-community/three": "workspace:*"
+    "@deck.gl/core": "npm:~9.2.1"
+    "@deck.gl/react": "npm:~9.2.1"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"
