@@ -8024,13 +8024,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"d3-color@npm:^3.1.0":
-  version: 3.1.0
-  resolution: "d3-color@npm:3.1.0"
-  checksum: 10c0/a4e20e1115fa696fce041fbe13fbc80dc4c19150fa72027a7c128ade980bc0eeeba4bcf28c9e21f0bce0e0dbfe7ca5869ef67746541dcfda053e4802ad19783c
-  languageName: node
-  linkType: hard
-
 "d3-dispatch@npm:1":
   version: 1.0.6
   resolution: "d3-dispatch@npm:1.0.6"
@@ -13785,7 +13778,6 @@ __metadata:
     babel-plugin-remove-glsl-comments: "npm:^1.0.0"
     babel-plugin-styled-components: "npm:^2.0.0"
     brace: "npm:^0.11.1"
-    d3-color: "npm:^3.1.0"
     d3-hierarchy: "npm:^2.0.0"
     d3-request: "npm:^1.0.6"
     d3-scale: "npm:^3.2.1"
