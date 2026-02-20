@@ -200,6 +200,7 @@ const BOOLEAN_OPS: Array<{
 export class EditorToolbarWidget extends Widget<EditorToolbarWidgetProps> {
   static override defaultProps = {
     id: 'editor-toolbar',
+    _container: null,
     placement: 'bottom-left',
     booleanOperation: null,
     featureCount: 0,
