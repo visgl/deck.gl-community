@@ -36,7 +36,9 @@
     {
       "type": "category",
       "label": "Shader Modules",
-      "items": ["modules/editable-layers/api-reference/shader-modules/outline"]
+      "items": [
+        "modules/editable-layers/api-reference/shader-modules/outline"
+      ]
     }
   ]
 }
