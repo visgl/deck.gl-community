@@ -24,10 +24,15 @@ export type TimelineTrack = {
 
 // ===== INTERNAL DATA TYPES =====
 
+/** A clip that has been assigned to a specific subtrack by the collision-detection algorithm */
+export type ClipWithSubtrack = TimelineClip & {
+  subtrackIndex: number;
+};
+
 export type TrackWithSubtracks = {
   track: TimelineTrack;
   trackIndex: number;
-  clips: TimelineClip[];
+  clips: ClipWithSubtrack[];
   subtrackCount: number;
 };
 

@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {TimelineClip} from './timeline-types';
+import type {TimelineClip, ClipWithSubtrack} from './timeline-types';
 
-export type ClipWithSubtrack = TimelineClip & {
-  subtrackIndex: number;
-};
-
+export type {ClipWithSubtrack};
 /**
  * Detects overlapping clips and assigns them to subtracks.
  * Uses a greedy algorithm to minimize the number of subtracks needed.
