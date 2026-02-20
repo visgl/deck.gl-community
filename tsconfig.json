@@ -33,7 +33,8 @@
       "@deck.gl-community/infovis-layers": ["./modules/infovis-layers/src"],
       "@deck.gl-community/react": ["./modules/react/src"],
       "@deck.gl-community/template": ["./modules/template/src"],
-      "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"]
+      "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
+      "@deck.gl-community/three": ["./modules/three/src"]
     },
     "typeRoots": ["./node_modules/@types"],
     "plugins": [
