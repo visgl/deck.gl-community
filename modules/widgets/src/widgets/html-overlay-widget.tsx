@@ -8,7 +8,8 @@ import {
   toChildArray,
   Fragment,
   type ComponentChildren,
-  type VNode
+  type VNode,
+  type JSX
 } from 'preact';
 import type {Deck, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import {Widget} from '@deck.gl/core';
@@ -22,6 +23,10 @@ export type HtmlOverlayWidgetProps = WidgetProps & {
   zIndex?: number;
   /** Items to render; defaults to the supplied children. */
   items?: ComponentChildren;
+  /** Create an overlay root for custom rendering. */
+  onCreateOverlay?: (container: HTMLElement) => unknown;
+  /** Render into a previously created overlay root. */
+  onRenderOverlay?: (overlayRoot: unknown, element: JSX.Element | null, container: HTMLElement) => void;
 };
 
 const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
@@ -51,6 +56,8 @@ export class HtmlOverlayWidget<
   className = 'deck-widget-html-overlay';
   deck?: Deck | null = null;
   protected viewport: Viewport | null = null;
+  protected overlayRoot: unknown = null;
+  protected overlayRootInitialized = false;
 
   constructor(props: PropsT = {} as PropsT) {
     super({...HtmlOverlayWidget.defaultProps, ...props});
@@ -74,6 +81,8 @@ export class HtmlOverlayWidget<
   override onRemove(): void {
     this.deck = null;
     this.viewport = null;
+    this.overlayRoot = null;
+    this.overlayRootInitialized = false;
   }
 
   override onViewportChange(viewport: Viewport): void {
@@ -142,14 +151,24 @@ export class HtmlOverlayWidget<
     Object.assign(rootElement.style, ROOT_STYLE, {zIndex: `${this.props.zIndex ?? 1}`});
 
     const viewport = this.getViewport();
-    if (!viewport) {
-      render(null, rootElement);
+    const element = viewport
+      ? (() => {
+          const overlayItems = this.getOverlayItems(viewport);
+          const renderedItems = this.projectItems(overlayItems, viewport);
+          return <Fragment>{renderedItems}</Fragment>;
+        })()
+      : null;
+
+    const {onRenderOverlay, onCreateOverlay} = this.props;
+    if (onRenderOverlay) {
+      if (!this.overlayRootInitialized) {
+        this.overlayRoot = onCreateOverlay?.(rootElement) ?? null;
+        this.overlayRootInitialized = true;
+      }
+      onRenderOverlay(this.overlayRoot, element, rootElement);
       return;
     }
 
-    const overlayItems = this.getOverlayItems(viewport);
-    const renderedItems = this.projectItems(overlayItems, viewport);
-
-    render(<Fragment>{renderedItems}</Fragment>, rootElement);
+    render(element, rootElement);
   }
 }
