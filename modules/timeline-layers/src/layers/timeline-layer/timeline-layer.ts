@@ -17,6 +17,7 @@ import type {
   TrackLabelData,
   ClipPolygonData,
   ClipLabelData,
+  ClipWithSubtrack,
   SeparatorLineData,
   AxisLineData,
   AxisLabelData,
@@ -290,7 +291,7 @@ export class TimelineLayer extends CompositeLayer<TimelineLayerProps> {
   }
 
   private _buildClipPolygon(
-    clip: ReturnType<typeof assignClipsToSubtracks>[number],
+    clip: ClipWithSubtrack,
     opts: {
       track: TimelineTrack;
       trackIndex: number;

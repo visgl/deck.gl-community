@@ -21,6 +21,7 @@ export {TimelineLayer} from './layers/timeline-layer/timeline-layer';
 
 export type {
   TimelineClip,
+  ClipWithSubtrack,
   TimelineTrack,
   TrackWithSubtracks,
   TrackPosition,
