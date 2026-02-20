@@ -16841,7 +16841,6 @@ __metadata:
     "@deck.gl/react": "npm:~9.2.1"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
-    three: "npm:^0.170.0"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft

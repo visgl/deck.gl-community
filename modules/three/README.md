@@ -1,10 +1,22 @@
 # @deck.gl-community/three
 
-Three.js-powered procedural **TreeLayer** for deck.gl.
+A collection of deck.gl layers powered by [Three.js](https://threejs.org/), giving access to Three.js geometry primitives, materials, and scene graph tooling directly inside deck.gl visualisations.
 
-Renders richly configurable 3D trees at geographic positions using procedural geometry generated with Three.js `BufferGeometry` primitives, rendered via deck.gl's `SimpleMeshLayer`.
+`TreeLayer` is the first layer in this module — a fully parametric 3D tree renderer backed by Three.js `BufferGeometry` and rendered via deck.gl's `SimpleMeshLayer`.
 
-## Features
+## Layers
+
+| Layer | Description |
+|-------|-------------|
+| [`TreeLayer`](#treelayer) | Procedural 3D trees with 5 species silhouettes and season-driven colours |
+
+---
+
+## TreeLayer
+
+Renders richly configurable 3D trees at geographic positions using procedural geometry generated with Three.js `BufferGeometry` primitives.
+
+### Features
 
 - **5 tree species / silhouettes**: pine (tiered cones), oak (sphere), palm (flat crown), birch (narrow oval), cherry (round sphere)
 - **Parametric geometry**: per-instance height, trunk-to-canopy ratio, trunk radius, canopy radius
@@ -16,12 +28,14 @@ Renders richly configurable 3D trees at geographic positions using procedural ge
 ## Install
 
 ```bash
-npm install @deck.gl-community/three three
+npm install @deck.gl-community/three
 # or
-yarn add @deck.gl-community/three three
+yarn add @deck.gl-community/three
 ```
 
-## Usage
+> Three.js is a peer dependency pulled in automatically.
+
+### Usage
 
 ```tsx
 import {TreeLayer} from '@deck.gl-community/three';
