@@ -101,6 +101,7 @@ const BUTTON_LABEL_STYLE: JSX.CSSProperties = {
 export class EditModeTrayWidget extends Widget<EditModeTrayWidgetProps> {
   static override defaultProps = {
     id: 'edit-mode-tray',
+    _container: null,
     placement: 'top-left',
     layout: 'vertical',
     modes: [],

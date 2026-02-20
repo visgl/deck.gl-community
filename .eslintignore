@@ -6,3 +6,4 @@ dist.*.js
 public/
 .cache/
 modules/*-wip/
+*.json
