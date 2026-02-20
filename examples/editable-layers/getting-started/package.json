@@ -7,9 +7,9 @@
   },
   "dependencies": {
     "@deck.gl-community/editable-layers": "workspace:*",
-    "@deck.gl/core": "~9.2.1",
-    "@deck.gl/layers": "~9.2.1",
-    "@deck.gl/react": "~9.2.1",
+    "@deck.gl/core": "~9.2.8",
+    "@deck.gl/layers": "~9.2.8",
+    "@deck.gl/react": "~9.2.8",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "maplibre-gl": "^4.1.3",

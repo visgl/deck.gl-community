@@ -32,7 +32,7 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.2.1",
+    "@deck.gl/core": "~9.2.8",
     "@turf/helpers": "^6.5.0",
     "preact": "^10.17.0",
     "supercluster": "^8.0.1"
