@@ -174,16 +174,16 @@ export type TreeLayerProps<DataT = unknown> = _TreeLayerProps<DataT> & LayerProp
 
 const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getPosition: {type: 'accessor', value: (d: any) => d.position},
-  getElevation: {type: 'accessor', value: 0},
-  getTreeType: {type: 'accessor', value: 'pine'},
-  getHeight: {type: 'accessor', value: 10},
-  getTrunkHeightFraction: {type: 'accessor', value: 0.35},
-  getTrunkRadius: {type: 'accessor', value: 0.5},
-  getCanopyRadius: {type: 'accessor', value: 3},
-  getTrunkColor: {type: 'accessor', value: null},
-  getCanopyColor: {type: 'accessor', value: null},
-  getSeason: {type: 'accessor', value: 'summer'},
-  getBranchLevels: {type: 'accessor', value: 3},
+  getElevation: {type: 'accessor', value: (_d: any) => 0},
+  getTreeType: {type: 'accessor', value: (_d: any) => 'pine' as TreeType},
+  getHeight: {type: 'accessor', value: (_d: any) => 10},
+  getTrunkHeightFraction: {type: 'accessor', value: (_d: any) => 0.35},
+  getTrunkRadius: {type: 'accessor', value: (_d: any) => 0.5},
+  getCanopyRadius: {type: 'accessor', value: (_d: any) => 3},
+  getTrunkColor: {type: 'accessor', value: (_d: any) => null},
+  getCanopyColor: {type: 'accessor', value: (_d: any) => null},
+  getSeason: {type: 'accessor', value: (_d: any) => 'summer' as Season},
+  getBranchLevels: {type: 'accessor', value: (_d: any) => 3},
   sizeScale: {type: 'number', value: 1, min: 0}
 };
 
@@ -224,7 +224,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   static layerName = 'TreeLayer';
   static defaultProps = defaultProps;
 
-  state!: TreeLayerState;
+  declare state: TreeLayerState;
 
   initializeState() {
     this.state = {

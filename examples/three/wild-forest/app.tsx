@@ -168,9 +168,9 @@ function generateForest(): TreeDatum[] {
 const INITIAL_VIEW_STATE: MapViewState = {
   longitude: -0.022,
   latitude: 51.503,
-  zoom: 12.8,
-  pitch: 58,
-  bearing: 15
+  zoom: 13,
+  pitch: 62,
+  bearing: 20
 };
 
 // ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ const ZONES: ZoneInfo[] = [
   {label: 'Cherry Orchard (Spring)', color: '#ffb4c8'},
   {label: 'Palm Grove (Summer)', color: '#14911e'},
   {label: 'Birch Glade (Autumn)', color: '#e6b928'},
-  {label: 'Oak Silhouettes (Winter)', color: '#6450503c'},
+  {label: 'Oak Silhouettes (Winter)', color: 'rgba(100,80,80,0.24)'},
   {label: 'Birch Grove (Spring)', color: '#96d26e'}
 ];
 
@@ -199,7 +199,7 @@ const ZONES: ZoneInfo[] = [
 const FOREST_DATA = generateForest();
 
 export default function App(): React.ReactElement {
-  const [sizeScale, setSizeScale] = useState(1);
+  const [sizeScale, setSizeScale] = useState(30);
   const [tooltip, setTooltip] = useState<string | null>(null);
 
   const treeLayer = useMemo(
@@ -281,9 +281,9 @@ export default function App(): React.ReactElement {
         </label>
         <input
           type="range"
-          min={0.3}
-          max={3}
-          step={0.1}
+          min={5}
+          max={80}
+          step={1}
           value={sizeScale}
           onChange={(e) => setSizeScale(Number(e.target.value))}
           style={{width: '100%', marginBottom: 14}}
