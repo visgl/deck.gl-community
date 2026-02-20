@@ -45,10 +45,26 @@ const BASEMAP_RASTER_PARAMETERS = {
   blendEquation: [GL.FUNC_ADD, GL.FUNC_ADD]
 };
 
-const BACKGROUND_DATA = [[[-180, 90], [0, 90], [180, 90], [180, -90], [0, -90], [-180, -90]]];
+const BACKGROUND_DATA = [
+  [
+    [-180, 90],
+    [0, 90],
+    [180, 90],
+    [180, -90],
+    [0, -90],
+    [-180, -90]
+  ]
+];
 
 const BACKGROUND_NORTH_POLE_DATA = [
-  [[-180, 90], [0, 90], [180, 90], [180, 85], [0, 85], [-180, 85]]
+  [
+    [-180, 90],
+    [0, 90],
+    [180, 90],
+    [180, 85],
+    [0, 85],
+    [-180, 85]
+  ]
 ];
 
 // TODO: This could be expanded to search for matching layer names from any Mapbox style
@@ -56,7 +72,7 @@ const BACKGROUND_NORTH_POLE_DATA = [
 // background for backgroundFillColor
 // water for basemapWaterFillColor
 // admin-3-4-boundaries for basemapAdminLineColor
-const getBasemapColors = styleType => {
+const getBasemapColors = (styleType) => {
   const colors = {
     backgroundFillColor: [100, 100, 100],
     basemapDefaultFillColor: [255, 255, 255],
@@ -121,7 +137,7 @@ export const getGlobeBaseLayers = ({mapboxApiUrl, mapboxApiAccessToken, globe, m
       new SolidPolygonLayer({
         id: 'background',
         data: BACKGROUND_DATA,
-        getPolygon: d => d,
+        getPolygon: (d) => d,
         stroked: false,
         filled: true,
         getFillColor: colors.backgroundFillColor,
@@ -133,7 +149,7 @@ export const getGlobeBaseLayers = ({mapboxApiUrl, mapboxApiAccessToken, globe, m
       new SolidPolygonLayer({
         id: 'background-north-pole',
         data: BACKGROUND_NORTH_POLE_DATA,
-        getPolygon: d => d,
+        getPolygon: (d) => d,
         stroked: false,
         filled: true,
         getFillColor: colors.basemapWaterFillColor,
@@ -156,7 +172,7 @@ export const getGlobeBaseLayers = ({mapboxApiUrl, mapboxApiAccessToken, globe, m
         maxZoom: 19,
         tileSize: 512 / devicePixelRatio,
 
-        renderSubLayers: props => {
+        renderSubLayers: (props) => {
           const {
             bbox: {west, south, east, north}
           } = props.tile;
