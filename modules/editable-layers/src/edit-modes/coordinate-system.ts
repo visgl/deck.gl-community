@@ -7,6 +7,7 @@ import turfDistance from '@turf/distance';
 import turfDestination from '@turf/destination';
 import turfMidpoint from '@turf/midpoint';
 import {point} from '@turf/helpers';
+import {COORDINATE_SYSTEM} from '@deck.gl/core';
 
 import {Position} from '../utils/geojson-types';
 
@@ -16,10 +17,15 @@ import {Position} from '../utils/geojson-types';
  * Allows edit modes to be used with geographic (WGS84) or Cartesian (screen/local)
  * coordinate systems without changing the mode logic.
  *
+ * Naming note: this interface is intentionally distinct from deck.gl's own
+ * `CoordinateSystem` type (a numeric enum from `@deck.gl/core`), which describes how
+ * positions are projected for *rendering*. `EditModeCoordinateSystem` describes how edit
+ * modes should perform *geometric math* on those positions.
+ *
  * - GeoCoordinateSystem: wraps turf.js — uses geodesic math, assumes WGS84 lon/lat.
  * - CartesianCoordinateSystem: uses Euclidean math — suitable for OrthographicView or pixel space.
  */
-export interface CoordinateSystem {
+export interface EditModeCoordinateSystem {
   /**
    * Returns the distance between two positions.
    * For GeoCoordinateSystem the unit is kilometers; for CartesianCoordinateSystem it is the
@@ -49,7 +55,7 @@ export interface CoordinateSystem {
  * Geographic coordinate system using turf.js (WGS84 lon/lat, geodesic math).
  * This is the default and preserves the existing behavior of all edit modes.
  */
-export class GeoCoordinateSystem implements CoordinateSystem {
+export class GeoCoordinateSystem implements EditModeCoordinateSystem {
   distance(a: Position, b: Position): number {
     return turfDistance(point(a), point(b));
   }
@@ -75,7 +81,7 @@ export class GeoCoordinateSystem implements CoordinateSystem {
  * destination() and bearing() are consistent with each other:
  * 0° = +Y axis, 90° = +X axis (clockwise from north/up).
  */
-export class CartesianCoordinateSystem implements CoordinateSystem {
+export class CartesianCoordinateSystem implements EditModeCoordinateSystem {
   distance(a: Position, b: Position): number {
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];
@@ -120,6 +126,38 @@ export const cartesianCoordinateSystem = new CartesianCoordinateSystem();
  * Returns the provided coordinate system, or `geoCoordinateSystem` as the default.
  * Use this helper inside edit modes to avoid null checks scattered throughout the code.
  */
-export function getCoordinateSystem(coordinateSystem?: CoordinateSystem): CoordinateSystem {
+export function getEditModeCoordinateSystem(
+  coordinateSystem?: EditModeCoordinateSystem
+): EditModeCoordinateSystem {
   return coordinateSystem ?? geoCoordinateSystem;
+}
+
+/**
+ * Maps a deck.gl `COORDINATE_SYSTEM` constant to the appropriate `EditModeCoordinateSystem`
+ * implementation for edit-mode geometric math.
+ *
+ * This allows the `EditableGeoJsonLayer` to automatically derive the correct math from
+ * its own `coordinateSystem` prop without requiring consumers to configure it separately.
+ *
+ * | deck.gl constant                   | Math used             |
+ * |------------------------------------|-----------------------|
+ * | `COORDINATE_SYSTEM.LNGLAT`         | GeoCoordinateSystem   |
+ * | `COORDINATE_SYSTEM.DEFAULT`        | GeoCoordinateSystem   |
+ * | `COORDINATE_SYSTEM.CARTESIAN`      | CartesianCoordinateSystem |
+ * | `COORDINATE_SYSTEM.METER_OFFSETS`  | CartesianCoordinateSystem |
+ * | `COORDINATE_SYSTEM.LNGLAT_OFFSETS` | GeoCoordinateSystem   |
+ */
+export function fromDeckCoordinateSystem(
+  deckCoordSystem: number | undefined
+): EditModeCoordinateSystem {
+  switch (deckCoordSystem) {
+    case COORDINATE_SYSTEM.CARTESIAN:
+    case COORDINATE_SYSTEM.METER_OFFSETS:
+      return cartesianCoordinateSystem;
+    case COORDINATE_SYSTEM.LNGLAT:
+    case COORDINATE_SYSTEM.LNGLAT_OFFSETS:
+    case COORDINATE_SYSTEM.DEFAULT:
+    default:
+      return geoCoordinateSystem;
+  }
 }

@@ -13,7 +13,7 @@ import {
 } from './types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
-import {getCoordinateSystem} from './coordinate-system';
+import {getEditModeCoordinateSystem} from './coordinate-system';
 
 export class MeasureDistanceMode extends GeoJsonEditMode {
   _isMeasuringSessionFinished = false;
@@ -22,7 +22,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
 
   _calculateDistanceForTooltip = ({positionA, positionB, modeConfig, coordinateSystem}) => {
     const {measurementCallback} = modeConfig || {};
-    const distance = getCoordinateSystem(coordinateSystem).distance(positionA, positionB);
+    const distance = getEditModeCoordinateSystem(coordinateSystem).distance(positionA, positionB);
 
     if (measurementCallback) {
       measurementCallback(distance);
@@ -49,7 +49,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
     const {modeConfig, data, onEdit} = props;
     const {centerTooltipsOnLine = false} = modeConfig || {};
-    const coordSys = getCoordinateSystem(props.coordinateSystem);
+    const coordSys = getEditModeCoordinateSystem(props.coordinateSystem);
 
     // restart measuring session
     if (this._isMeasuringSessionFinished) {
@@ -193,7 +193,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
     const {lastPointerMoveEvent, modeConfig} = props;
     const {centerTooltipsOnLine = false} = modeConfig || {};
     const positions = this.getClickSequence();
-    const coordSys = getCoordinateSystem(props.coordinateSystem);
+    const coordSys = getEditModeCoordinateSystem(props.coordinateSystem);
 
     if (positions.length > 0 && lastPointerMoveEvent && !this._isMeasuringSessionFinished) {
       const distance = this._calculateDistanceForTooltip({

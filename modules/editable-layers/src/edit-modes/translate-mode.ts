@@ -21,7 +21,7 @@ import {mapCoords} from './utils';
 import {translateFromCenter} from '../utils/translate-from-center';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
-import {getCoordinateSystem} from './coordinate-system';
+import {getEditModeCoordinateSystem} from './coordinate-system';
 
 export class TranslateMode extends GeoJsonEditMode {
   _geometryBeforeTranslate: SimpleFeatureCollection | null | undefined;
@@ -140,7 +140,7 @@ export class TranslateMode extends GeoJsonEditMode {
         }
       }
     } else {
-      const coordinateSystem = getCoordinateSystem(props.coordinateSystem);
+      const coordinateSystem = getEditModeCoordinateSystem(props.coordinateSystem);
 
       const distanceMoved = coordinateSystem.distance(startDragPoint, currentPoint);
       const direction = coordinateSystem.bearing(startDragPoint, currentPoint);

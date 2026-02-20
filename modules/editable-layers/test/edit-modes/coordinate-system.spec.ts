@@ -3,11 +3,13 @@
 // Copyright (c) vis.gl contributors
 
 import {describe, test, expect} from 'vitest';
+import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {
   GeoCoordinateSystem,
   CartesianCoordinateSystem,
   geoCoordinateSystem,
-  cartesianCoordinateSystem
+  cartesianCoordinateSystem,
+  fromDeckCoordinateSystem
 } from '../../src/edit-modes/coordinate-system';
 
 // Tolerance for floating-point comparisons
@@ -143,5 +145,37 @@ describe('CartesianCoordinateSystem bearing/destination consistency', () => {
     // newCoord should be center moved by [100, 0], i.e. [150, 50]
     expect(newCoord[0]).toBeCloseTo(150, 4);
     expect(newCoord[1]).toBeCloseTo(50, 4);
+  });
+});
+
+describe('fromDeckCoordinateSystem', () => {
+  test('COORDINATE_SYSTEM.LNGLAT returns GeoCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.LNGLAT)).toBeInstanceOf(GeoCoordinateSystem);
+  });
+
+  test('COORDINATE_SYSTEM.DEFAULT returns GeoCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.DEFAULT)).toBeInstanceOf(GeoCoordinateSystem);
+  });
+
+  test('COORDINATE_SYSTEM.LNGLAT_OFFSETS returns GeoCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.LNGLAT_OFFSETS)).toBeInstanceOf(
+      GeoCoordinateSystem
+    );
+  });
+
+  test('COORDINATE_SYSTEM.CARTESIAN returns CartesianCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.CARTESIAN)).toBeInstanceOf(
+      CartesianCoordinateSystem
+    );
+  });
+
+  test('COORDINATE_SYSTEM.METER_OFFSETS returns CartesianCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.METER_OFFSETS)).toBeInstanceOf(
+      CartesianCoordinateSystem
+    );
+  });
+
+  test('undefined returns GeoCoordinateSystem as default', () => {
+    expect(fromDeckCoordinateSystem(undefined)).toBeInstanceOf(GeoCoordinateSystem);
   });
 });
