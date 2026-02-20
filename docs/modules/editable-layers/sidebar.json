@@ -7,7 +7,6 @@
     "modules/editable-layers/developer-guide/data-model",
     "modules/editable-layers/developer-guide/geojson-types",
     "modules/editable-layers/developer-guide/configuration",
-    "modules/editable-layers/developer-guide/design-decisions",
     {
       "type": "category",
       "label": "Layers",
