@@ -1,0 +1,59 @@
+diff --git a/dist/helpers/get-ocular-config.js b/dist/helpers/get-ocular-config.js
+index 33d323580550535b21534612d010a2da6545bcf7..0221abfba41be612ab30a5b6ccc46ee22d8ca72b 100644
+--- a/dist/helpers/get-ocular-config.js
++++ b/dist/helpers/get-ocular-config.js
+@@ -1,6 +1,7 @@
+ /* @typedef {import('./get-ocular-config')} default */
+ import fs from 'fs';
+ import { resolve } from 'path';
++import { pathToFileURL } from 'url';
+ import getAliases, { getModuleInfo } from './aliases.js';
+ import { shallowMerge, getValidPath, ocularRoot } from '../utils/utils.js';
+ export async function getOcularConfig(options = {}) {
+@@ -59,7 +60,7 @@ async function getUserConfig(packageRoot) {
+     // deprecated
+     resolve(packageRoot, './ocular-dev-tools.config.js'));
+     if (userConfigPath) {
+-        const userConfigModule = (await import(userConfigPath));
++        const userConfigModule = (await import(pathToFileURL(userConfigPath).href));
+         if ('default' in userConfigModule) {
+             return userConfigModule.default;
+         }
+diff --git a/scripts/lint.js b/scripts/lint.js
+index 78eaa0ddc9e391eb7753ae52eab7e4f9f187238f..91e8b89944fd4184471d554046ff7feeff6e3e5f 100644
+--- a/scripts/lint.js
++++ b/scripts/lint.js
+@@ -1,8 +1,9 @@
+ #!/usr/bin/env node
+ 
+ import {execShellCommand} from './shell.js';
+-import {join} from 'path';
++import {join, dirname} from 'path';
++import {fileURLToPath} from 'url';
+ 
+-const scriptDir = new URL(import.meta.url).pathname;
++const scriptDir = dirname(fileURLToPath(import.meta.url));
+ // Runs the bash script and forward the arguments, exiting with the same code
+-execShellCommand(join(scriptDir, '../lint.sh'), process.argv.slice(2));
++execShellCommand(join(scriptDir, 'lint.sh'), process.argv.slice(2));
+diff --git a/scripts/shell.js b/scripts/shell.js
+index 7071711de4d4833d31214fde97d75d691f66af8e..e3759925322f9b5f722eefd390d6f2e714467d64 100644
+--- a/scripts/shell.js
++++ b/scripts/shell.js
+@@ -1,8 +1,15 @@
+ import {execSync} from 'child_process';
++import {platform} from 'process';
+ 
+ export function execShellCommand(command, args = []) {
+   try {
+-    execSync(`${command} ${args.join(' ')}`, {
++    const isWindows = platform === 'win32';
++    // On Windows, convert backslashes to forward slashes so bash can resolve the path
++    const normalizedCommand = isWindows ? command.replace(/\\/g, '/') : command;
++    const cmd = isWindows
++      ? `bash "${normalizedCommand}" ${args.join(' ')}`
++      : `${command} ${args.join(' ')}`;
++    execSync(cmd, {
+       stdio: 'inherit'
+     });
+   } catch (err) {

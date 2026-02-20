@@ -35,8 +35,8 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.2.1",
-    "@deck.gl/mesh-layers": "~9.2.1",
+    "@deck.gl/core": "~9.2.8",
+    "@deck.gl/mesh-layers": "~9.2.8",
     "three": "^0.170.0"
   },
   "devDependencies": {

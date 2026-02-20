@@ -534,8 +534,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/three@workspace:modules/three"
   dependencies:
-    "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/mesh-layers": "npm:~9.2.1"
+    "@deck.gl/core": "npm:~9.2.8"
+    "@deck.gl/mesh-layers": "npm:~9.2.8"
     "@types/three": "npm:^0.170.0"
     three: "npm:^0.170.0"
   languageName: unknown
@@ -4823,7 +4823,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vis.gl/dev-tools@npm:^1.0.1":
+"@vis.gl/dev-tools@npm:1.0.1":
   version: 1.0.1
   resolution: "@vis.gl/dev-tools@npm:1.0.1"
   dependencies:
@@ -4867,6 +4867,53 @@ __metadata:
     ocular-publish: scripts/publish.js
     ocular-test: scripts/test.js
   checksum: 10c0/c1d63c38e3a7de574586c19669e8f8b155387beff56843604750fa1d2daa162ed5206f196c91d4c24c05833da20ed2ed55964606a7c4bb0f451a622184800d46
+  languageName: node
+  linkType: hard
+
+"@vis.gl/dev-tools@patch:@vis.gl/dev-tools@npm%3A1.0.1#~/.yarn/patches/@vis.gl-dev-tools-npm-1.0.1-f38d363810.patch":
+  version: 1.0.1
+  resolution: "@vis.gl/dev-tools@patch:@vis.gl/dev-tools@npm%3A1.0.1#~/.yarn/patches/@vis.gl-dev-tools-npm-1.0.1-f38d363810.patch::version=1.0.1&hash=73bb0f"
+  dependencies:
+    "@esbuild-plugins/node-globals-polyfill": "npm:^0.2.0"
+    "@esbuild-plugins/node-modules-polyfill": "npm:^0.2.0"
+    "@probe.gl/test-utils": "npm:^4.0.6"
+    c8: "npm:^7.12.0"
+    coveralls: "npm:^3.0.3"
+    deepmerge: "npm:^4.2.2"
+    esbuild: "npm:^0.16.7"
+    esbuild-plugin-external-global: "npm:^1.0.1"
+    eslint: "npm:^8.52.0"
+    eslint-config-prettier: "npm:^8.0.0"
+    eslint-plugin-import: "npm:^2.28.0"
+    eslint-plugin-jsx-a11y: "npm:^6.1.2"
+    eslint-plugin-markdown: "npm:^2.2.0"
+    eslint-plugin-react: "npm:^7.22.0"
+    eslint-plugin-react-hooks: "npm:^4.0.0"
+    glob: "npm:^7.1.4"
+    lerna: "npm:^8.1.0"
+    minimatch: "npm:^3.0.0"
+    prettier: "npm:^3.2.0"
+    semver: "npm:^7.6.0"
+    tap-spec: "npm:^5.0.0"
+    tape: "npm:^4.11.0"
+    tape-promise: "npm:^4.0.0"
+    ts-node: "npm:~10.9.0"
+    ts-patch: "npm:^3.1.2"
+    tsconfig-paths: "npm:^4.1.1"
+    typescript: "npm:^5.2.2"
+    typescript-eslint: "npm:^7.7.0"
+    vite: "npm:^4.5.0"
+  bin:
+    ocular-bootstrap: scripts/bootstrap.js
+    ocular-build: scripts/build.js
+    ocular-bump: scripts/bump.js
+    ocular-bundle: scripts/bundle.js
+    ocular-clean: scripts/clean.js
+    ocular-lint: scripts/lint.js
+    ocular-metrics: scripts/metrics.js
+    ocular-publish: scripts/publish.js
+    ocular-test: scripts/test.js
+  checksum: 10c0/506427b170122659b87b99a89a58e07c9fd9d899e73056b47e3be0e96c99da6d2d547b73f7716a2d725ac73f0b04d2ce9cf8f724de920dccaa87d68b282408c9
   languageName: node
   linkType: hard
 
@@ -6967,7 +7014,7 @@ __metadata:
     "@luma.gl/webgl": "npm:~9.2.6"
     "@testing-library/react": "npm:^14.3.0"
     "@types/bin-pack": "npm:^1.0.3"
-    "@vis.gl/dev-tools": "npm:^1.0.1"
+    "@vis.gl/dev-tools": "patch:@vis.gl/dev-tools@npm%3A1.0.1#~/.yarn/patches/@vis.gl-dev-tools-npm-1.0.1-f38d363810.patch"
     "@vis.gl/ts-plugins": "npm:^1.0.0"
     "@vitejs/plugin-react": "npm:^5.1.4"
     "@vitest/browser": "npm:^4.0.18"
@@ -16672,8 +16719,8 @@ __metadata:
   resolution: "wild-forest-ea7bdb@workspace:examples/three/wild-forest"
   dependencies:
     "@deck.gl-community/three": "workspace:*"
-    "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
+    "@deck.gl/core": "npm:~9.2.8"
+    "@deck.gl/react": "npm:~9.2.8"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"

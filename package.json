@@ -20,6 +20,7 @@
     "build": "ocular-clean && ocular-build && npx lerna run build",
     "build-bundles": "node ./scripts/build-bundles.mjs",
     "lint": "ocular-lint",
+    "lint-pre-commit": "ocular-lint pre-commit",
     "lint-fix": "ocular-lint --fix",
     "publish-beta": "ocular-publish version-only-beta",
     "publish-prod": "ocular-publish version-only-prod",
@@ -43,7 +44,7 @@
     "@luma.gl/webgl": "~9.2.6",
     "@testing-library/react": "^14.3.0",
     "@types/bin-pack": "^1.0.3",
-    "@vis.gl/dev-tools": "^1.0.1",
+    "@vis.gl/dev-tools": "patch:@vis.gl/dev-tools@npm%3A1.0.1#~/.yarn/patches/@vis.gl-dev-tools-npm-1.0.1-f38d363810.patch",
     "@vis.gl/ts-plugins": "^1.0.0",
     "@vitejs/plugin-react": "^5.1.4",
     "@vitest/browser": "^4.0.18",
@@ -77,7 +78,7 @@
     }
   },
   "pre-commit": [
-    "lint",
+    "lint-pre-commit",
     "test"
   ],
   "packageManager": "yarn@4.10.3"
