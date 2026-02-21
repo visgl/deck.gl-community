@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Position, Point, SimpleGeometry, Feature} from '../utils/geojson-types';
+import type {EditModeCoordinateSystem} from './coordinate-system';
 
 export type ScreenCoordinates = [number, number];
 
@@ -134,6 +135,9 @@ export type ModeProps<TData> = {
 
   // The last pointer move event that occurred
   lastPointerMoveEvent: PointerMoveEvent;
+
+  // Coordinate system to use for geometric calculations (defaults to GeoCoordinateSystem)
+  coordinateSystem?: EditModeCoordinateSystem;
 
   // Callback used to notify applications of an edit action
   onEdit: (editAction: EditAction<TData>) => void;

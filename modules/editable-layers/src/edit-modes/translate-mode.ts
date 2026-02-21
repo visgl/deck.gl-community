@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBearing from '@turf/bearing';
-import turfDistance from '@turf/distance';
 import clone from '@turf/clone';
-import {point} from '@turf/helpers';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {
   FeatureCollection,
@@ -24,6 +21,7 @@ import {mapCoords} from './utils';
 import {translateFromCenter} from '../utils/translate-from-center';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {getEditModeCoordinateSystem} from './coordinate-system';
 
 export class TranslateMode extends GeoJsonEditMode {
   _geometryBeforeTranslate: SimpleFeatureCollection | null | undefined;
@@ -142,14 +140,13 @@ export class TranslateMode extends GeoJsonEditMode {
         }
       }
     } else {
-      const p1 = point(startDragPoint);
-      const p2 = point(currentPoint);
+      const coordinateSystem = getEditModeCoordinateSystem(props.coordinateSystem);
 
-      const distanceMoved = turfDistance(p1, p2);
-      const direction = turfBearing(p1, p2);
+      const distanceMoved = coordinateSystem.distance(startDragPoint, currentPoint);
+      const direction = coordinateSystem.bearing(startDragPoint, currentPoint);
 
       const movedFeatures = this._geometryBeforeTranslate.features.map((feature) =>
-        translateFromCenter(clone(feature), distanceMoved, direction)
+        translateFromCenter(clone(feature), distanceMoved, direction, coordinateSystem)
       );
 
       for (let i = 0; i < selectedIndexes.length; i++) {
