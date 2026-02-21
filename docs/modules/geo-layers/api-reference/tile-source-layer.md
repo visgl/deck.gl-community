@@ -1,3 +1,7 @@
+---
+unlisted: true
+---
+
 # TileSourceLayer
 
 <p class="badges">
