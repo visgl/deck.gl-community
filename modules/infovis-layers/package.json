@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/infovis-layers",
-  "version": "9.2.1",
+  "version": "9.2.2",
   "description": "Infovis layers (non-geospatial) for deck.gl",
   "license": "MIT",
   "publishConfig": {

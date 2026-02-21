@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/graph-layers",
-  "version": "9.2.1",
+  "version": "9.2.2",
   "description": "WebGL2-Powered library for Graph Visualization",
   "license": "MIT",
   "publishConfig": {

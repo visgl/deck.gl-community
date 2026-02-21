@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/arrow-layers",
-  "version": "9.2.1",
+  "version": "9.2.2",
   "description": "A suite of Apache Arrow enabled layers for deck.gl",
   "license": "MIT",
   "private": true,

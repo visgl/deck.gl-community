@@ -1,20 +1,25 @@
 # deck.gl-community CHANGELOG
 
-## v9.2.1
+### v9.2.2
 
-- See all beta releases below, the whats new and upgrade guide in website for full v9.1 -> 9.2 changelog
-
-## v9.2.0-beta.10
-
+- See all v9.2.0-beta releases for complete v9.2 upgrade!
 - feat(three): Add `TreeLayer` for 3D tree/forest visualization (#515)
 - fix(editable-layers): prevent removing rectangle corner when `lockRectangles` is used (#511)
 - fix(editable-layers): add missing `@turf/rhumb-bearing` and `@turf/rhumb-distance` dependencies (#519)
 - fix(editable-layers): fix three-click polygon mode — skip guide processing without a prior pointer-move event (#482)
 - chore(deps): bump `@deck.gl/*` to `~9.2.8` and `@luma.gl/*` to `~9.2.6` (#518)
 - fix(three): bump `@deck.gl` deps to `~9.2.8`, fix Windows dev tooling (#520)
-- chore: move WIP docs into module directories, remove wip/ top-level directory (#510)
+- chore: move WIP docs into module directories, remove wip/ top-level directory (#510, #527)
 - docs(geo-layers): initial TileSourceLayer documentation (draft/hidden until implementation ready)
 - chore(deps): security bumps — node-forge, ajv, axios, diff, tar (#514, #521, #522, #523, #525)
+
+### v9.2.1
+
+- Skipped
+
+## v9.2.0-beta.10
+
+- Skipped
 
 ## v9.2.0-beta.9
 

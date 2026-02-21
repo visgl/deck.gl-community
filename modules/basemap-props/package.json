@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/basemap-props",
-  "version": "9.2.1",
+  "version": "9.2.2",
   "description": "Basemap style parsing and rendering layers for deck.gl — Mapbox Style Spec converter, globe layers, and MVT label layer.",
   "license": "MIT",
   "private": true,
