@@ -1,5 +1,11 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.3
+
+- fix(ci): update yarn.lock after -wip workspace directory renames
+- chore: remove stale `*-wip` exclusion patterns from vitest config
+- chore: exclude basemap-props broken tests (private module with outdated upstream dep)
+
 ## v9.2.1
 
 - See all beta releases below, the whats new and upgrade guide in website for full v9.1 -> 9.2 changelog
