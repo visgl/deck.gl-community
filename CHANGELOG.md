@@ -1,10 +1,10 @@
 # deck.gl-community CHANGELOG
 
-## v9.2.3
+## v9.2.4
 
 - fix(ci): update yarn.lock after -wip workspace directory renames
-- chore: remove stale `*-wip` exclusion patterns from vitest config
-- chore: exclude basemap-props broken tests (private module with outdated upstream dep)
+- chore: remove stale `*-wip` exclusion patterns from vitest config and eslintignore
+- chore: exclude private modules (arrow-layers, basemap-props) from lint and broken basemap-props tests
 
 ## v9.2.1
 

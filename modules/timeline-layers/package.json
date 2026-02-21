@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/timeline-layers",
-  "version": "9.2.3",
+  "version": "9.2.4",
   "description": "Layers for compact timeline visualizations in deck.gl",
   "license": "MIT",
   "publishConfig": {
