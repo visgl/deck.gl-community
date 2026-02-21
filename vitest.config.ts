@@ -18,7 +18,7 @@ const CONFIG = defineConfig({
           include: ['modules/**/*.{test,spec}.{js,ts}'],
           exclude: [
             'modules/**/*.browser.{test,spec}.{js,ts}',
-            'modules/*-wip/**'
+            'modules/basemap-props/**'
           ],
           browser: {
             enabled: false
@@ -33,7 +33,7 @@ const CONFIG = defineConfig({
           include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
           exclude: [
             'modules/**/*.node.{test,spec}.{js,ts,jsx,tsx}',
-            'modules/*-wip/**'
+            'modules/basemap-props/**'
           ],
           browser: {
             enabled: true,
@@ -50,7 +50,7 @@ const CONFIG = defineConfig({
           include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
           exclude: [
             'modules/**/*.node.{test,spec}.{js,ts,jsx,tsx}',
-            'modules/*-wip/**'
+            'modules/basemap-props/**'
           ],
           browser: {
             enabled: true,

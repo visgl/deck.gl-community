@@ -286,9 +286,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@deck.gl-community/arrow-layers@workspace:*, @deck.gl-community/arrow-layers@workspace:modules/arrow-layers-wip":
+"@deck.gl-community/arrow-layers@workspace:*, @deck.gl-community/arrow-layers@workspace:modules/arrow-layers":
   version: 0.0.0-use.local
-  resolution: "@deck.gl-community/arrow-layers@workspace:modules/arrow-layers-wip"
+  resolution: "@deck.gl-community/arrow-layers@workspace:modules/arrow-layers"
   dependencies:
     "@deck.gl/aggregation-layers": "npm:~9.2.8"
     "@deck.gl/core": "npm:~9.2.8"
@@ -302,9 +302,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/basemap-props@workspace:modules/basemap-props-wip":
+"@deck.gl-community/basemap-props@workspace:modules/basemap-props":
   version: 0.0.0-use.local
-  resolution: "@deck.gl-community/basemap-props@workspace:modules/basemap-props-wip"
+  resolution: "@deck.gl-community/basemap-props@workspace:modules/basemap-props"
   dependencies:
     "@deck.gl/core": "npm:~9.2.8"
     "@deck.gl/geo-layers": "npm:~9.2.8"
@@ -494,19 +494,6 @@ __metadata:
     leaflet: "npm:^1.9.4"
   peerDependencies:
     leaflet: ^1.9.4
-  languageName: unknown
-  linkType: soft
-
-"@deck.gl-community/raster-layers@workspace:modules/raster-layers-wip":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/raster-layers@workspace:modules/raster-layers-wip"
-  dependencies:
-    "@deck.gl/core": "npm:~9.2.8"
-    "@deck.gl/layers": "npm:~9.2.8"
-    "@deck.gl/mesh-layers": "npm:~9.2.8"
-    "@luma.gl/core": "npm:~9.2.6"
-    "@luma.gl/engine": "npm:~9.2.6"
-    lodash.isequal: "npm:^4.5.0"
   languageName: unknown
   linkType: soft
 
