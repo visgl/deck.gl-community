@@ -1,5 +1,9 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.5
+
+- lint fix
+
 ## v9.2.4
 
 - fix(ci): update yarn.lock after -wip workspace directory renames
