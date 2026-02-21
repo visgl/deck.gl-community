@@ -29,7 +29,7 @@ Released: February 20, 2026
 
 ### `@deck.gl-community/three`
 
-- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
+- `TreeLayer` - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
 
 ### `@deck.gl-community/widgets` (NEW module)
 
