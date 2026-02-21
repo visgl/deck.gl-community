@@ -9,7 +9,6 @@
     "modules/geo-layers/api-reference/h3-grid",
     "modules/geo-layers/api-reference/s2-grid",
     "modules/geo-layers/api-reference/geohash-grid",
-    "modules/geo-layers/api-reference/quadkey-grid",
-    "modules/geo-layers/api-reference/tile-source-layer"
+    "modules/geo-layers/api-reference/quadkey-grid"
   ]
 }
