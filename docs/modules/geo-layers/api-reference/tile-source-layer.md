@@ -8,10 +8,6 @@ unlisted: true
   <img src="https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square" alt="from v9.0" />
 </p>
 
-import {TileSourceLayerDemo} from '@site/src/doc-demos/geo-layers';
-
-<TileSourceLayerDemo />
-
 > This class is experimental, which means it does not provide the compatibility and stability that one would typically expect from other layers, detailed in the [limitations](#limitations) section. Use with caution and report any issues that you find on GitHub.
 
 
