@@ -1,5 +1,9 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.1
+
+- See all beta releases below, the whats new and upgrade guide in website for full v9.1 -> 9.2 changelog
+
 ## v9.2.0-beta.10
 
 - feat(three): Add `TreeLayer` for 3D tree/forest visualization (#515)

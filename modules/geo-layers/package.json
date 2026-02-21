@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/geo-layers",
-  "version": "9.2.0-beta.10",
+  "version": "9.2.1",
   "description": "Add-0n geospatial layers for deck.gl",
   "license": "MIT",
   "publishConfig": {
