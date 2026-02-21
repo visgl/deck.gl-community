@@ -15,64 +15,87 @@ Some inofficial wishlist and roadmap type information is available in github tra
 - **`@deck.gl-community/infovis-layers`**
   - Goal: Some of the improved support for (non-geospatial) views etc should be upstreamed into deck.gl v9.3.
 
-## v9.2 - Currently in alpha
+## v9.2
 
-Target Release Date: Nov 2025
+Released: February 20, 2026
 
-Highlights:
-- deck.gl v9.2 compatibility.
-- Website: Documentation improvements and search.
-- Tests updated to use `vitest` instead of `jest`
-- editable-layers now uses turf.js 7 (and geojson types)
+**Highlights:**
+- deck.gl v9.2 compatibility (`~9.2.8`).
+- Website: documentation improvements, search, and new gallery examples.
+- Tests migrated from `jest` to `vitest`.
+- `editable-layers` now uses turf.js 7 and official GeoJSON types.
+- New `@deck.gl-community/widgets` module with unofficial deck.gl UI widgets.
+- New `@deck.gl-community/timeline-layers` module for time-series visualization.
+
+### `@deck.gl-community/three`
+
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
 
 ### `@deck.gl-community/widgets` (NEW module)
 
-A new module containing unofficial / experimental widgets for deck.gl, initially:
+A new module containing unofficial / experimental widgets for deck.gl:
 
 - `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
-- `PanWidget` - NEW deck.gl `Widget` providing buttons for panning the view.
+- `PanWidget` - NEW deck.gl `Widget` providing pan buttons for moving the viewport.
+
+### `@deck.gl-community/timeline-layers` (NEW module)
+
+A new module providing time-series and timeline visualization layers (layers previously available in `@deck.gl-community/infovis-layers`):
+
+- [`HorizonGraphLayer`](/docs/modules/timeline-layers/api-reference/horizon-graph-layer) - Compact time-series visualization using the horizon graph technique.
+- [`MultiHorizonGraphLayer`](/docs/modules/timeline-layers/api-reference/multi-horizon-graph-layer) - Stack multiple horizon graphs with dividers.
+- [`TimeAxisLayer`](/docs/modules/timeline-layers/api-reference/time-axis-layer) - Dynamic tick-mark time axis for timeline views.
+- [`VerticalGridLayer`](/docs/modules/timeline-layers/api-reference/vertical-grid-layer) - Dynamic vertical grid lines that can sync with a time layer.
 
 ### `@deck.gl-community/editable-layers`
 
-- DrawPolygonMode: Added `allowHoles` configuration to enable drawing polygon holes within existing polygons
-- DrawPolygonMode: Enhanced hole creation with validation to prevent overlapping or nested holes
-- DrawPolygonMode: Added comprehensive edit types for hole operations (`addHole`, `invalidHole`)
+- `DrawPolygonMode`: Added `allowHoles` configuration to enable drawing polygon holes within existing polygons.
+- `DrawPolygonMode`: Enhanced hole creation with validation to prevent overlapping or nested holes.
+- `DrawPolygonMode`: Added comprehensive edit types for hole operations (`addHole`, `invalidHole`).
+- `DeleteMode` is now exported from the top-level `edit-modes` entry point.
+- Fixed: rectangle corners can no longer be accidentally removed when `lockRectangles` is set.
+- Fixed: three-click polygon mode no longer misprocesses guide vertices.
 
 Breaking Changes:
-- DrawPolygonMode: `preventOverlappingLines` configuration renamed to `allowSelfIntersection` for consistency
-  - **Migration**: Update your modeConfig from `{preventOverlappingLines: false}` to `{allowSelfIntersection: true}`
-  - **Migration**: Update your modeConfig from `{preventOverlappingLines: true}` to `{allowSelfIntersection: false}` (or omit as this is now the default)
-  - The behavior logic has been inverted: the new parameter enables self-intersection when `true`, while the old parameter prevented it when `true`
+- `DrawPolygonMode`: `preventOverlappingLines` configuration renamed to `allowSelfIntersection` (with inverted logic).
+  - **Migration**: `{preventOverlappingLines: false}` → `{allowSelfIntersection: true}`
+  - **Migration**: `{preventOverlappingLines: true}` → `{allowSelfIntersection: false}` (or omit — this is now the default)
 
-### `@deck.gl-community/graph-layers` 
+### `@deck.gl-community/leaflet`
+
+- `DeckLayer` has been renamed to `DeckOverlay` for consistency with the deck.gl ecosystem.
+  - **Migration**: replace all `DeckLayer` imports and usages with `DeckOverlay`.
+
+### `@deck.gl-community/graph-layers`
 
 - [`GraphLayer`](/docs/modules/graph-layers/api-reference/layers/graph-layer)
-  - `GraphLayerProps.data` - `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via the new `data` prop (including async URLs).
+  - `GraphLayerProps.data` — `GraphLayer` now accepts `GraphEngine`, `Graph`, or raw JSON via the new `data` prop (including async URLs).
 
-Graph Loaders
-  - A common `GraphData` schema is defined and returned by graph loaders.
-  - `JSONGraphLoader` normalizes edge arrays or `{nodes, edges}` objects.
-  - `DOTGraphLoader` 
+Graph Loaders:
+- A common `GraphData` schema is defined and returned by all graph loaders.
+- `JSONGraphLoader` normalizes edge arrays or `{nodes, edges}` objects.
+- `DOTGraphLoader` — load graphs from Graphviz DOT format, including remote URLs.
+- `ArrowGraph` — load graphs from Arrow columnar format.
 
 Graph Styling:
-- `GraphLayerProps.stylesheet` - accepts a unified stylesheet containing all for node, edge, and decorator styles.
-- `GraphStylesheet` - NEW `'arrow'` edge decorator  that renders arrows on directional edges.
-- `GraphStylesheet` - constants can now be defined using simple string literals.
+- `GraphLayerProps.stylesheet` — unified stylesheet prop covering node, edge, and decorator styles.
+- `GraphStylesheet` — NEW `'arrow'` edge decorator renders arrows on directional edges.
+- `GraphStylesheet` — style constants can now be defined with simple string literals (e.g. `'circle'` instead of `NODE_TYPE.CIRCLE`).
 
 Graph Layouts:
-- `D3DagLayout` - NEW `GraphLayout` for visualiation of DAGs (Directed Acyclic Graphs) with layering and collapse/expand functionality.
-- `RadialLayout` - NEW `GraphLayout` for visualiation of radial graph layouts.
-- `HivePlotLayout` - NEW `GraphLayout` for visualiation of hive plot graph layouts.
-- `D3MultiGraphLayout` - NEW `GraphLayout` for visualiation of multi-edge graph layouts.
+- `D3DagLayout` — NEW `GraphLayout` for DAGs (Directed Acyclic Graphs) with layering and collapse/expand support.
+- `RadialLayout` — NEW `GraphLayout` for radial graph layouts.
+- `HivePlotLayout` — NEW `GraphLayout` for hive plot graph layouts.
+- `D3MultiGraphLayout` — NEW `GraphLayout` for multi-edge graph layouts.
 
 Graph Event Handling:
-- Graph event handling is supported via callback props instead of EventTarget.
+- Graph events are now handled via callback props rather than `EventTarget`.
 
 Graph Examples:
-- The `GraphViewer` example expanded to cover all new layouts, including a UI for dynamically changing layout options.
+- `GraphViewer` example expanded to cover all new layouts with live UI controls for layout options.
 
-Graph Documentation
-- significant updates / new content.
+Graph Documentation:
+- Significant updates and new content throughout.
 
 ## v9.1
 
