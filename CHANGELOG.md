@@ -1,11 +1,23 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.0-beta.10
+
+- feat(three): Add `TreeLayer` for 3D tree/forest visualization (#515)
+- fix(editable-layers): prevent removing rectangle corner when `lockRectangles` is used (#511)
+- fix(editable-layers): add missing `@turf/rhumb-bearing` and `@turf/rhumb-distance` dependencies (#519)
+- fix(editable-layers): fix three-click polygon mode — skip guide processing without a prior pointer-move event (#482)
+- chore(deps): bump `@deck.gl/*` to `~9.2.8` and `@luma.gl/*` to `~9.2.6` (#518)
+- fix(three): bump `@deck.gl` deps to `~9.2.8`, fix Windows dev tooling (#520)
+- chore: move WIP docs into module directories, remove wip/ top-level directory (#510)
+- docs(geo-layers): initial TileSourceLayer documentation (draft/hidden until implementation ready)
+- chore(deps): security bumps — node-forge, ajv, axios, diff, tar (#514, #521, #522, #523, #525)
+
 ## v9.2.0-beta.9
 
 - feat(editable-layers): tracker tasks (#491)
 - fix(editable-layers): use turf/kinks for self-intersection test in DrawPolygonMode (#471)
 - chore(deps): replace viewport-mercator-project with @math.gl/web-mercator (#502)
-- chore: promote WIP modules to modules/*-wip (#509)
+- chore: promote WIP modules to modules/\*-wip (#509)
 - chore: remove dead code and outdated WIP content (#505)
 - chore: remove playground example (#508)
 - chore: enable pre-commit lint and test hooks (#492)
