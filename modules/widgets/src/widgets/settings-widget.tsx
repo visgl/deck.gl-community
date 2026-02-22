@@ -221,10 +221,10 @@ function setValueAtPath(
 function clamp(value: number, min?: number, max?: number): number {
   let clamped = value;
   if (Number.isFinite(min)) {
-    clamped = Math.max(min as number, clamped);
+    clamped = Math.max(min, clamped);
   }
   if (Number.isFinite(max)) {
-    clamped = Math.min(max as number, clamped);
+    clamped = Math.min(max, clamped);
   }
   return clamped;
 }
@@ -253,13 +253,13 @@ function normalizeOption(option: SettingsWidgetOption): {
   if (isRecord(option) && 'label' in option && 'value' in option) {
     return {
       label: String(option.label),
-      value: option.value as SettingsWidgetValue,
+      value: option.value,
     };
   }
 
   return {
     label: String(option),
-    value: option as SettingsWidgetValue,
+    value: option,
   };
 }
 
@@ -273,7 +273,7 @@ function getDefaultValue(setting: SettingsWidgetSettingDescriptor): SettingsWidg
   }
 
   if (setting.type === 'number') {
-    return Number.isFinite(setting.min) ? (setting.min as number) : 0;
+    return Number.isFinite(setting.min) ? (setting.min) : 0;
   }
 
   if (setting.type === 'select') {
@@ -286,6 +286,7 @@ function getDefaultValue(setting: SettingsWidgetSettingDescriptor): SettingsWidg
   return '';
 }
 
+// eslint-disable-next-line complexity
 function resolveSettingValue(
   setting: SettingsWidgetSettingDescriptor,
   settings: SettingsWidgetState,
@@ -356,13 +357,14 @@ type SettingsControlProps = {
   onValueChange: (nextValue: SettingsWidgetValue) => void;
 };
 
+// eslint-disable-next-line complexity
 function SettingsControl({ setting, value, onValueChange }: SettingsControlProps) {
   const label = setting.label ?? setting.name;
   const tooltip = setting.description?.trim();
   const inputId = `settings-widget-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
   const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    onValueChange((event.currentTarget as HTMLInputElement).checked);
+    onValueChange((event.currentTarget).checked);
   };
 
   const handleNumberChange = (nextValue: number) => {
@@ -373,11 +375,11 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
   };
 
   const handleTextChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    onValueChange((event.currentTarget as HTMLInputElement).value);
+    onValueChange((event.currentTarget).value);
   };
 
   const handleSelectChange: JSX.GenericEventHandler<HTMLSelectElement> = (event) => {
-    const selectedRaw = (event.currentTarget as HTMLSelectElement).value;
+    const selectedRaw = (event.currentTarget).value;
     const selectedValue = (setting.options ?? []).map(normalizeOption).find((option) => {
       return String(option.value) === selectedRaw;
     });
@@ -414,10 +416,10 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
           onInput={(event) =>
-            handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+            handleNumberChange(Number((event.currentTarget).value))
           }
           onChange={(event) =>
-            handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+            handleNumberChange(Number((event.currentTarget).value))
           }
           aria-label={label}
           style={RANGE_INPUT_STYLE}
@@ -429,10 +431,10 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
           onInput={(event) =>
-            handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+            handleNumberChange(Number((event.currentTarget).value))
           }
           onChange={(event) =>
-            handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+            handleNumberChange(Number((event.currentTarget).value))
           }
           aria-label={`${label} numeric value`}
           style={NUMBER_INPUT_STYLE}
@@ -445,10 +447,10 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
         step={String(setting.step ?? 1)}
         value={String(numericValue)}
         onInput={(event) =>
-          handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+          handleNumberChange(Number((event.currentTarget).value))
         }
         onChange={(event) =>
-          handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+          handleNumberChange(Number((event.currentTarget).value))
         }
         aria-label={label}
         style={INPUT_STYLE}

@@ -109,9 +109,7 @@ describe('SettingsWidget', () => {
     await Promise.resolve();
     expect(visibilityToggle.getAttribute('aria-expanded')).toBe('true');
 
-    const enabledSettingRow = root.querySelector('[data-setting-row-for="flags.enabled"]') as
-      | HTMLElement
-      | undefined;
+    const enabledSettingRow = root.querySelector('[data-setting-row-for="flags.enabled"]');
     expect(enabledSettingRow).toBeTruthy();
     expect(enabledSettingRow?.getAttribute('title')).toBe('Enable rendering for this layer.');
 
@@ -119,9 +117,7 @@ describe('SettingsWidget', () => {
     await Promise.resolve();
     expect(modeToggle.getAttribute('aria-expanded')).toBe('true');
 
-    const modeSettingRow = root.querySelector('[data-setting-row-for="mode"]') as
-      | HTMLElement
-      | undefined;
+    const modeSettingRow = root.querySelector('[data-setting-row-for="mode"]');
     expect(modeSettingRow?.getAttribute('title')).toBe('Control which traces remain visible.');
 
     document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
@@ -135,7 +131,7 @@ describe('SettingsWidget', () => {
     const handleSettingsChange = vi.fn<(settings: SettingsWidgetState) => void>();
     const { root, cleanup } = renderWidget({ onSettingsChange: handleSettingsChange });
 
-    (root.querySelector('button[title="Visualization settings"]') as HTMLButtonElement).click();
+    (root.querySelector('button[title="Visualization settings"]')).click();
     await Promise.resolve();
 
     const sectionToggles = root.querySelectorAll('button[aria-expanded]');
@@ -145,7 +141,7 @@ describe('SettingsWidget', () => {
     visibilityToggle.click();
     await Promise.resolve();
 
-    const checkbox = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const checkbox = root.querySelector('input[type="checkbox"]');
     expect(checkbox.checked).toBe(true);
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('input', { bubbles: true }));
@@ -157,7 +153,7 @@ describe('SettingsWidget', () => {
       }),
     );
 
-    const numberInput = root.querySelector('input[type="number"]') as HTMLInputElement;
+    const numberInput = root.querySelector('input[type="number"]');
     numberInput.value = '2';
     numberInput.dispatchEvent(new Event('change', { bubbles: true }));
     await Promise.resolve();
@@ -171,7 +167,7 @@ describe('SettingsWidget', () => {
     modeToggle.click();
     await Promise.resolve();
 
-    const select = root.querySelector('select') as HTMLSelectElement;
+    const select = root.querySelector('select');
     select.value = 'critical-path';
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await Promise.resolve();

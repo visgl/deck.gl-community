@@ -88,46 +88,6 @@ const DEFAULT_OPTION_CONTENT_STYLE: JSX.CSSProperties = {
   gap: '10px',
 };
 
-function stopEventPropagation(event: Event): void {
-  event.stopPropagation();
-  if (
-    typeof (event as { stopImmediatePropagation?: () => void }).stopImmediatePropagation ===
-    'function'
-  ) {
-    (event as { stopImmediatePropagation: () => void }).stopImmediatePropagation();
-  }
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) {
-    return false;
-  }
-
-  if (target instanceof HTMLInputElement) {
-    return target.type !== 'button' && target.type !== 'checkbox' && target.type !== 'radio';
-  }
-
-  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
-    return true;
-  }
-
-  return target instanceof HTMLElement ? target.isContentEditable : false;
-}
-
-function getWidgetMarginPx(element: HTMLElement): number {
-  const value = window.getComputedStyle(element).getPropertyValue('--widget-margin').trim();
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : FALLBACK_WIDGET_MARGIN_PX;
-}
-
-function getDeckCanvasRect(deck: Deck | undefined): DOMRect | null {
-  const canvas = (deck as (Deck & { canvas?: HTMLCanvasElement | null }) | undefined)?.canvas;
-  if (!canvas) {
-    return null;
-  }
-  return canvas.getBoundingClientRect();
-}
-
 export type OmniBoxOption = {
   id: string;
   label: string;
@@ -160,6 +120,139 @@ export type OmniBoxWidgetProps = WidgetProps & {
   onNavigateOption?: (option: OmniBoxOption) => void;
   onQueryChange?: (query: string) => void;
 };
+
+export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
+  static override defaultProps = {
+    ...Widget.defaultProps,
+    id: 'omni-box',
+    placement: 'top-left',
+    placeholder: 'Search trace blocks…',
+    minQueryLength: 1,
+    defaultOpen: false,
+    topOffsetPx: undefined,
+    getOptions: (() => []) as OmniBoxOptionProvider,
+    renderOption: undefined,
+    onSelectOption: undefined,
+    onActiveOptionChange: undefined,
+    onNavigateOption: undefined,
+    onQueryChange: undefined,
+  } satisfies Required<WidgetProps> &
+    Required<Pick<OmniBoxWidgetProps, 'placeholder' | 'minQueryLength' | 'placement'>> &
+    OmniBoxWidgetProps;
+
+  placement: WidgetPlacement = OmniBoxWidget.defaultProps.placement;
+  className = 'deck-widget-omni-box';
+
+  #rootElement: HTMLElement | null = null;
+  #hasLayoutListeners = false;
+
+  #handleWindowLayoutChange = () => {
+    this.#updateRootLayout();
+  };
+
+  constructor(props: OmniBoxWidgetProps = {}) {
+    super({ ...OmniBoxWidget.defaultProps, ...props });
+    if (props.placement !== undefined) {
+      this.placement = props.placement;
+    }
+  }
+
+  override setProps(props: Partial<OmniBoxWidgetProps>): void {
+    if (props.placement !== undefined) {
+      this.placement = props.placement;
+    }
+    super.setProps(props);
+  }
+
+  override onRenderHTML(rootElement: HTMLElement): void {
+    this.#rootElement = rootElement;
+
+    rootElement.className = ['deck-widget', this.className, this.props.className]
+      .filter(Boolean)
+      .join(' ');
+
+    Object.assign(rootElement.style, ROOT_STYLE);
+    this.#attachLayoutListeners();
+    this.#updateRootLayout();
+
+    render(
+      <OmniBoxWidgetView
+        placeholder={this.props.placeholder ?? OmniBoxWidget.defaultProps.placeholder}
+        minQueryLength={this.props.minQueryLength ?? OmniBoxWidget.defaultProps.minQueryLength}
+        defaultOpen={this.props.defaultOpen ?? OmniBoxWidget.defaultProps.defaultOpen}
+        getOptions={this.props.getOptions ?? OmniBoxWidget.defaultProps.getOptions}
+        renderOption={this.props.renderOption}
+        onSelectOption={this.props.onSelectOption}
+        onActiveOptionChange={this.props.onActiveOptionChange}
+        onNavigateOption={this.props.onNavigateOption}
+        onQueryChange={this.props.onQueryChange}
+      />,
+      rootElement,
+    );
+  }
+
+  override onViewportChange(_viewport: Viewport): void {
+    this.#updateRootLayout();
+  }
+
+  override onRemove(): void {
+    this.#detachLayoutListeners();
+    if (this.#rootElement) {
+      render(null, this.#rootElement);
+    }
+  }
+
+  #attachLayoutListeners(): void {
+    if (this.#hasLayoutListeners || typeof window === 'undefined') {
+      return;
+    }
+
+    window.addEventListener('resize', this.#handleWindowLayoutChange);
+    window.addEventListener('scroll', this.#handleWindowLayoutChange, true);
+    this.#hasLayoutListeners = true;
+  }
+
+  #detachLayoutListeners(): void {
+    if (!this.#hasLayoutListeners || typeof window === 'undefined') {
+      return;
+    }
+
+    window.removeEventListener('resize', this.#handleWindowLayoutChange);
+    window.removeEventListener('scroll', this.#handleWindowLayoutChange, true);
+    this.#hasLayoutListeners = false;
+  }
+
+  #updateRootLayout(): void {
+    if (!this.#rootElement || typeof window === 'undefined') {
+      return;
+    }
+
+    const fallbackTopOffsetPx = getWidgetMarginPx(this.#rootElement);
+    const configuredTopOffsetPx = this.props.topOffsetPx;
+    const topOffsetPx =
+      configuredTopOffsetPx !== undefined && Number.isFinite(configuredTopOffsetPx)
+        ? configuredTopOffsetPx
+        : fallbackTopOffsetPx;
+    const canvasRect = getDeckCanvasRect(this.deck);
+
+    if (canvasRect) {
+      const availableWidthPx = Math.max(0, canvasRect.width - OMNIBOX_HORIZONTAL_MARGIN_PX * 2);
+      const resolvedWidthPx =
+        availableWidthPx > 0
+          ? Math.min(OMNIBOX_MAX_WIDTH_PX, availableWidthPx)
+          : OMNIBOX_MAX_WIDTH_PX;
+
+      this.#rootElement.style.left = `${canvasRect.left + canvasRect.width / 2}px`;
+      this.#rootElement.style.top = `${canvasRect.top + topOffsetPx}px`;
+      this.#rootElement.style.width = `${resolvedWidthPx}px`;
+      return;
+    }
+
+    this.#rootElement.style.left = '50%';
+    this.#rootElement.style.top = `${topOffsetPx}px`;
+    this.#rootElement.style.width = `min(${OMNIBOX_MAX_WIDTH_PX}px, calc(100vw - ${OMNIBOX_HORIZONTAL_MARGIN_PX * 2}px))`;
+  }
+}
 
 type OmniBoxWidgetViewProps = {
   placeholder: string;
@@ -398,7 +491,7 @@ function OmniBoxWidgetView({
 
   const handleInput: JSX.GenericEventHandler<HTMLInputElement> = useCallback((event) => {
     stopEventPropagation(event as unknown as Event);
-    setQuery((event.currentTarget as HTMLInputElement).value);
+    setQuery((event.currentTarget).value);
     setIsFocused(true);
   }, []);
 
@@ -633,135 +726,42 @@ function OmniBoxWidgetView({
   );
 }
 
-export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
-  static override defaultProps = {
-    ...Widget.defaultProps,
-    id: 'omni-box',
-    placement: 'top-left',
-    placeholder: 'Search trace blocks…',
-    minQueryLength: 1,
-    defaultOpen: false,
-    topOffsetPx: undefined,
-    getOptions: (() => []) as OmniBoxOptionProvider,
-    renderOption: undefined,
-    onSelectOption: undefined,
-    onActiveOptionChange: undefined,
-    onNavigateOption: undefined,
-    onQueryChange: undefined,
-  } satisfies Required<WidgetProps> &
-    Required<Pick<OmniBoxWidgetProps, 'placeholder' | 'minQueryLength' | 'placement'>> &
-    OmniBoxWidgetProps;
+function stopEventPropagation(event: Event): void {
+  event.stopPropagation();
+  if (
+    typeof (event as { stopImmediatePropagation?: () => void }).stopImmediatePropagation ===
+    'function'
+  ) {
+    (event as { stopImmediatePropagation: () => void }).stopImmediatePropagation();
+  }
+}
 
-  placement: WidgetPlacement = OmniBoxWidget.defaultProps.placement;
-  className = 'deck-widget-omni-box';
-
-  #rootElement: HTMLElement | null = null;
-  #hasLayoutListeners = false;
-
-  #handleWindowLayoutChange = () => {
-    this.#updateRootLayout();
-  };
-
-  constructor(props: OmniBoxWidgetProps = {}) {
-    super({ ...OmniBoxWidget.defaultProps, ...props });
-    if (props.placement !== undefined) {
-      this.placement = props.placement;
-    }
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
   }
 
-  override setProps(props: Partial<OmniBoxWidgetProps>): void {
-    if (props.placement !== undefined) {
-      this.placement = props.placement;
-    }
-    super.setProps(props);
+  if (target instanceof HTMLInputElement) {
+    return target.type !== 'button' && target.type !== 'checkbox' && target.type !== 'radio';
   }
 
-  override onRenderHTML(rootElement: HTMLElement): void {
-    this.#rootElement = rootElement;
-
-    rootElement.className = ['deck-widget', this.className, this.props.className]
-      .filter(Boolean)
-      .join(' ');
-
-    Object.assign(rootElement.style, ROOT_STYLE);
-    this.#attachLayoutListeners();
-    this.#updateRootLayout();
-
-    render(
-      <OmniBoxWidgetView
-        placeholder={this.props.placeholder ?? OmniBoxWidget.defaultProps.placeholder}
-        minQueryLength={this.props.minQueryLength ?? OmniBoxWidget.defaultProps.minQueryLength}
-        defaultOpen={this.props.defaultOpen ?? OmniBoxWidget.defaultProps.defaultOpen}
-        getOptions={this.props.getOptions ?? OmniBoxWidget.defaultProps.getOptions}
-        renderOption={this.props.renderOption}
-        onSelectOption={this.props.onSelectOption}
-        onActiveOptionChange={this.props.onActiveOptionChange}
-        onNavigateOption={this.props.onNavigateOption}
-        onQueryChange={this.props.onQueryChange}
-      />,
-      rootElement,
-    );
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+    return true;
   }
 
-  override onViewportChange(_viewport: Viewport): void {
-    this.#updateRootLayout();
+  return target instanceof HTMLElement ? target.isContentEditable : false;
+}
+
+function getWidgetMarginPx(element: HTMLElement): number {
+  const value = window.getComputedStyle(element).getPropertyValue('--widget-margin').trim();
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : FALLBACK_WIDGET_MARGIN_PX;
+}
+
+function getDeckCanvasRect(deck: Deck | undefined): DOMRect | null {
+  const canvas = (deck as (Deck & { canvas?: HTMLCanvasElement | null }) | undefined)?.canvas;
+  if (!canvas) {
+    return null;
   }
-
-  override onRemove(): void {
-    this.#detachLayoutListeners();
-    if (this.#rootElement) {
-      render(null, this.#rootElement);
-    }
-  }
-
-  #attachLayoutListeners(): void {
-    if (this.#hasLayoutListeners || typeof window === 'undefined') {
-      return;
-    }
-
-    window.addEventListener('resize', this.#handleWindowLayoutChange);
-    window.addEventListener('scroll', this.#handleWindowLayoutChange, true);
-    this.#hasLayoutListeners = true;
-  }
-
-  #detachLayoutListeners(): void {
-    if (!this.#hasLayoutListeners || typeof window === 'undefined') {
-      return;
-    }
-
-    window.removeEventListener('resize', this.#handleWindowLayoutChange);
-    window.removeEventListener('scroll', this.#handleWindowLayoutChange, true);
-    this.#hasLayoutListeners = false;
-  }
-
-  #updateRootLayout(): void {
-    if (!this.#rootElement || typeof window === 'undefined') {
-      return;
-    }
-
-    const fallbackTopOffsetPx = getWidgetMarginPx(this.#rootElement);
-    const configuredTopOffsetPx = this.props.topOffsetPx;
-    const topOffsetPx =
-      configuredTopOffsetPx !== undefined && Number.isFinite(configuredTopOffsetPx)
-        ? configuredTopOffsetPx
-        : fallbackTopOffsetPx;
-    const canvasRect = getDeckCanvasRect(this.deck);
-
-    if (canvasRect) {
-      const availableWidthPx = Math.max(0, canvasRect.width - OMNIBOX_HORIZONTAL_MARGIN_PX * 2);
-      const resolvedWidthPx =
-        availableWidthPx > 0
-          ? Math.min(OMNIBOX_MAX_WIDTH_PX, availableWidthPx)
-          : OMNIBOX_MAX_WIDTH_PX;
-
-      this.#rootElement.style.left = `${canvasRect.left + canvasRect.width / 2}px`;
-      this.#rootElement.style.top = `${canvasRect.top + topOffsetPx}px`;
-      this.#rootElement.style.width = `${resolvedWidthPx}px`;
-      return;
-    }
-
-    this.#rootElement.style.left = '50%';
-    this.#rootElement.style.top = `${topOffsetPx}px`;
-    this.#rootElement.style.width = `min(${OMNIBOX_MAX_WIDTH_PX}px, calc(100vw - ${OMNIBOX_HORIZONTAL_MARGIN_PX * 2}px))`;
-  }
+  return canvas.getBoundingClientRect();
 }

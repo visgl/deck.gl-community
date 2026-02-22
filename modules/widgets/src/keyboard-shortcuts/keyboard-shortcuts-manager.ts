@@ -13,23 +13,23 @@ export class KeyboardShortcutsManager {
   }
 
   start() {
-    console.log('Installing keyboard shortcuts:', this.shortcuts);
+    // console.log('Installing keyboard shortcuts:', this.shortcuts);
     this.eventManager.on('keydown', this._handleKeyDown);
   }
 
   stop() {
     this.eventManager.off('keydown', this._handleKeyDown);
-    console.log('Uninstalling keyboard shortcuts:', this.shortcuts);
+    // console.log('Uninstalling keyboard shortcuts:', this.shortcuts);
   }
 
   private _handleKeyDown = (e: MjolnirKeyEvent) => {
-    console.log('Mjolnir key event:', e);
+    // console.log('Mjolnir key event:', e);
     const shortcut = findShortcutMatchingKeyEvent(e.srcEvent, this.shortcuts);
     if (shortcut) {
       shortcut?.onKeyPress?.();
       // e.preventDefault();
     }
-    console.log('Key pressed:', e.srcEvent.key, 'Matching shortcut:', shortcut?.name);
+    // console.log('Key pressed:', e.srcEvent.key, 'Matching shortcut:', shortcut?.name);
   };
 }
 
@@ -54,6 +54,6 @@ export class KeyboardShortcutsManagerDocument {
       shortcut?.onKeyPress?.();
       // e.preventDefault();
     }
-    console.log('Key pressed:', e.key, 'Matching shortcut:', shortcut?.name);
+    // console.log('Key pressed:', e.key, 'Matching shortcut:', shortcut?.name);
   }
 }
