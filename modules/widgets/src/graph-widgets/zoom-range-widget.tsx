@@ -5,7 +5,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {cloneViewState, hasViewManager} from './view-manager-utils';
+import {cloneViewState, hasViewManager} from '../widgets/view-manager-utils';
 import {
   Widget,
   type Deck,
@@ -13,14 +13,6 @@ import {
   type WidgetPlacement,
   type WidgetProps
 } from '@deck.gl/core';
-
-export type ZoomRangeWidgetProps = WidgetProps & {
-  viewId?: string | null;
-  placement?: WidgetPlacement;
-  minZoom?: number;
-  maxZoom?: number;
-  step?: number;
-};
 
 const WRAPPER_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'absolute',
@@ -56,6 +48,14 @@ const VERTICAL_SLIDER_STYLE: JSX.CSSProperties = {
   padding: '0',
   margin: '0',
   width: '10px'
+};
+
+export type ZoomRangeWidgetProps = WidgetProps & {
+  viewId?: string | null;
+  placement?: WidgetPlacement;
+  minZoom?: number;
+  maxZoom?: number;
+  step?: number;
 };
 
 export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {

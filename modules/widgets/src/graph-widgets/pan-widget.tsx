@@ -5,7 +5,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {cloneViewState, hasViewManager} from './view-manager-utils';
+import {cloneViewState, hasViewManager} from '../widgets/view-manager-utils';
 import {
   Widget,
   type Deck,
@@ -13,13 +13,6 @@ import {
   type WidgetPlacement,
   type WidgetProps
 } from '@deck.gl/core';
-
-export type PanWidgetProps = WidgetProps & {
-  viewId?: string | null;
-  placement?: WidgetPlacement;
-  /** Amount in screen pixels to pan by when a button is pressed. */
-  step?: number;
-};
 
 const WRAPPER_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'absolute',
@@ -45,6 +38,13 @@ const NAVIGATION_BUTTON_STYLE: JSX.CSSProperties = {
   cursor: 'pointer',
   position: 'absolute',
   pointerEvents: 'auto'
+};
+
+export type PanWidgetProps = WidgetProps & {
+  viewId?: string | null;
+  placement?: WidgetPlacement;
+  /** Amount in screen pixels to pan by when a button is pressed. */
+  step?: number;
 };
 
 export class PanWidget extends Widget<PanWidgetProps> {
