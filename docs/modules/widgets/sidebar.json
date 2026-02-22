@@ -12,7 +12,9 @@
         "modules/widgets/api-reference/html-overlay-widget",
         "modules/widgets/api-reference/html-cluster-widget",
         "modules/widgets/api-reference/html-overlay-item",
-        "modules/widgets/api-reference/html-tooltip-widget"
+        "modules/widgets/api-reference/html-tooltip-widget",
+        "modules/widgets/api-reference/settings-widget",
+        "modules/widgets/api-reference/omni-widget"
       ]
     }
   ]
