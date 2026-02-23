@@ -1,5 +1,11 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.6
+
+- feat(widgets): add `onCreateOverlay` and `onRenderOverlay` callbacks to HtmlOverlayWidget (#430)
+- test(widgets): overlay and callback coverage (#528)
+- fix(ci): restrict headless/browser projects to browser-specific tests only
+
 ## v9.2.5
 
 - lint fix
