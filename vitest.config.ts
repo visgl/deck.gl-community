@@ -30,11 +30,11 @@ const CONFIG = defineConfig({
         test: {
           name: 'browser',
           environment: 'node',
-          include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-          exclude: [
-            'modules/**/*.node.{test,spec}.{js,ts,jsx,tsx}',
-            'modules/basemap-props/**'
+          include: [
+            'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'modules/**/*.{test,spec}.{jsx,tsx}'
           ],
+          exclude: ['modules/basemap-props/**'],
           browser: {
             enabled: true,
             provider: playwright(),
@@ -47,11 +47,11 @@ const CONFIG = defineConfig({
         test: {
           name: 'headless',
           environment: 'node',
-          include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-          exclude: [
-            'modules/**/*.node.{test,spec}.{js,ts,jsx,tsx}',
-            'modules/basemap-props/**'
+          include: [
+            'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'modules/**/*.{test,spec}.{jsx,tsx}'
           ],
+          exclude: ['modules/basemap-props/**'],
           browser: {
             enabled: true,
             headless: true,
