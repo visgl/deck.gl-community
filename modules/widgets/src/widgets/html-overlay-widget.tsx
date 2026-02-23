@@ -68,7 +68,22 @@ export class HtmlOverlayWidget<
     if (props.viewId !== undefined) {
       this.viewId = props.viewId;
     }
-    super.setProps(props);
+    // Widget.setProps() unconditionally calls updateHTML(), which triggers
+    // onRenderHTML → onRenderOverlay on every call. When used with useWidget
+    // (which calls setProps on every React render), this creates an infinite
+    // re-render loop if onRenderOverlay sets React state.
+    // Fix: only delegate to super (and thus updateHTML) when props actually changed.
+    const oldProps = this.props;
+    let changed = false;
+    for (const key in props) {
+      if ((props as Record<string, unknown>)[key] !== (oldProps as Record<string, unknown>)[key]) {
+        changed = true;
+        break;
+      }
+    }
+    if (changed) {
+      super.setProps(props);
+    }
   }
 
   override onAdd({deck, viewId}: {deck: Deck; viewId: string | null}): void {

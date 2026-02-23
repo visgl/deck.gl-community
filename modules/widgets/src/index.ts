@@ -13,6 +13,6 @@ export type {HtmlOverlayWidgetProps} from './widgets/html-overlay-widget';
 export {HtmlOverlayItem} from './widgets/html-overlay-item';
 export type {HtmlOverlayItemProps} from './widgets/html-overlay-item';
 export {HtmlClusterWidget} from './widgets/html-cluster-widget';
-export type {HtmlClusterWidgetProps} from './widgets/html-cluster-widget';
+export type {HtmlClusterWidgetProps, ProjectedCluster} from './widgets/html-cluster-widget';
 export {HtmlTooltipWidget} from './widgets/html-tooltip-widget';
 export type {HtmlTooltipWidgetProps} from './widgets/html-tooltip-widget';
