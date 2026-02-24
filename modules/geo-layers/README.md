@@ -1,4 +1,6 @@
-# @deck.gl-community/layers
+# @deck.gl-community/geo-layers
+
+[![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/geo-layers.svg)](https://www.npmjs.com/package/@deck.gl-community/geo-layers)
 
 This module contains a suite of non-official deck.gl layers.
 
