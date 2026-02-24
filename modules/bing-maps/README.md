@@ -1,5 +1,7 @@
 # @deck.gl-community/bing-maps
 
+[![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/bing-maps.svg)](https://www.npmjs.com/package/@deck.gl-community/bing-maps)
+
 This module allows [deck.gl](https://deck.gl) to be used as a Bing Maps custom layer.
 
 ## Installation

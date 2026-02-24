@@ -1,5 +1,7 @@
 # @deck.gl-community/leaflet
 
+[![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/leaflet.svg)](https://www.npmjs.com/package/@deck.gl-community/leaflet)
+
 This module allows [Leaflet](https://leafletjs.com/) to be used as a [deck.gl](https://deck.gl) basemap. 
 
 More precisely, it provides a Leaflet custom layer that wraps a deck.gl renderer, enabling deck.gl to render layers synchronized with the Leaflet basemap. 
