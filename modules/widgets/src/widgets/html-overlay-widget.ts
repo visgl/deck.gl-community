@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  cloneElement,
-  render,
-  toChildArray,
-  Fragment,
-  type ComponentChildren,
-  type VNode,
-  type JSX
-} from 'preact';
 import type {Deck, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import {Widget} from '@deck.gl/core';
+
+/** Framework-agnostic overlay item descriptor. */
+export type OverlayItemData = {
+  /** World coordinates [lng, lat, ...]. */
+  coordinates: number[];
+  /** Stable key for reconciliation. */
+  key?: string | number;
+  /** Create a positioned DOM element at the given screen-space coordinates. */
+  createElement: (x: number, y: number) => HTMLElement;
+};
 
 export type HtmlOverlayWidgetProps = WidgetProps & {
   /** View id to attach the overlay to. Defaults to the containing view. */
@@ -21,12 +22,12 @@ export type HtmlOverlayWidgetProps = WidgetProps & {
   overflowMargin?: number;
   /** z-index for the overlay container. */
   zIndex?: number;
-  /** Items to render; defaults to the supplied children. */
-  items?: ComponentChildren;
+  /** Items to render; used by the default getOverlayItems(). */
+  items?: OverlayItemData[];
   /** Create an overlay root for custom rendering. */
   onCreateOverlay?: (container: HTMLElement) => unknown;
   /** Render into a previously created overlay root. */
-  onRenderOverlay?: (overlayRoot: unknown, element: JSX.Element | null, container: HTMLElement) => void;
+  onRenderOverlay?: (overlayRoot: unknown, element: HTMLElement | null, container: HTMLElement) => void;
 };
 
 const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
@@ -125,39 +126,28 @@ export class HtmlOverlayWidget<
     );
   }
 
-  protected getOverlayItems(viewport: Viewport): VNode[] {
-    const {items} = this.props;
-    return (items ? toChildArray(items) : []) as VNode[];
+  protected getOverlayItems(viewport: Viewport): OverlayItemData[] {
+    return (this.props.items as OverlayItemData[] | undefined) ?? [];
   }
 
-  protected projectItems(items: VNode[], viewport: Viewport): VNode[] {
-    const renderItems: VNode[] = [];
-    items.filter(Boolean).forEach((item, index) => {
-      const coordinates = (item.props as any)?.coordinates;
-      if (!coordinates) {
-        return;
-      }
+  protected projectItems(items: OverlayItemData[], viewport: Viewport): HTMLElement[] {
+    const rendered: HTMLElement[] = [];
+    for (const item of items) {
+      if (!item) continue;
+      const coordinates = item.coordinates;
+      if (!coordinates) continue;
       const [x, y] = this.getCoords(viewport, coordinates);
       if (this.inView(viewport, [x, y])) {
-        const key = item.key === null || item.key === undefined ? index : item.key;
-        renderItems.push(cloneElement(item, {x, y, key}));
+        rendered.push(item.createElement(x, y));
       }
-    });
-
-    return renderItems;
+    }
+    return rendered;
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {
     Object.assign(rootElement.style, ROOT_STYLE, {zIndex: `${this.props.zIndex ?? 1}`});
 
     const viewport = this.getViewport();
-    const element = viewport
-      ? (() => {
-          const overlayItems = this.getOverlayItems(viewport);
-          const renderedItems = this.projectItems(overlayItems, viewport);
-          return <Fragment>{renderedItems}</Fragment>;
-        })()
-      : null;
 
     const {onRenderOverlay, onCreateOverlay} = this.props;
     if (onRenderOverlay) {
@@ -165,10 +155,31 @@ export class HtmlOverlayWidget<
         this.overlayRoot = onCreateOverlay?.(rootElement) ?? null;
         this.overlayRootInitialized = true;
       }
-      onRenderOverlay(this.overlayRoot, element, rootElement);
+      // For React portal path: pass a container element with projected children
+      const container = viewport
+        ? (() => {
+            const items = this.getOverlayItems(viewport);
+            const elements = this.projectItems(items, viewport);
+            const wrapper = document.createElement('div');
+            for (const el of elements) wrapper.appendChild(el);
+            return wrapper;
+          })()
+        : null;
+      onRenderOverlay(this.overlayRoot, container, rootElement);
       return;
     }
 
-    render(element, rootElement);
+    // Vanilla DOM path: clear and re-append projected elements
+    while (rootElement.firstChild) {
+      rootElement.removeChild(rootElement.firstChild);
+    }
+
+    if (viewport) {
+      const items = this.getOverlayItems(viewport);
+      const elements = this.projectItems(items, viewport);
+      for (const el of elements) {
+        rootElement.appendChild(el);
+      }
+    }
   }
 }

@@ -7,7 +7,6 @@
     "rootDir": "src",
     "outDir": "dist",
     "noEmit": false,
-    "jsx": "react-jsx",
-    "jsxImportSource": "preact"
+    "jsx": "react-jsx"
   }
 }

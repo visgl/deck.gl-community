@@ -2,29 +2,27 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {ComponentChildren, VNode} from 'preact';
 import type {PickingInfo, WidgetProps, Viewport} from '@deck.gl/core';
-import {HtmlOverlayItem} from './html-overlay-item';
-import {HtmlOverlayWidget, type HtmlOverlayWidgetProps} from './html-overlay-widget';
+import {HtmlOverlayWidget, type HtmlOverlayWidgetProps, type OverlayItemData} from './html-overlay-widget';
 
 export type HtmlTooltipWidgetProps = HtmlOverlayWidgetProps & {
   /** Delay before showing the tooltip (ms). */
   showDelay?: number;
-  /** Extract a tooltip string or node from picking info. */
-  getTooltip?: (pickingInfo: PickingInfo) => ComponentChildren;
+  /** Extract a tooltip string from picking info. */
+  getTooltip?: (pickingInfo: PickingInfo) => string | null | undefined;
 };
 
-const TOOLTIP_STYLE = {
+const TOOLTIP_STYLE: Partial<CSSStyleDeclaration> = {
   transform: 'translate(-50%,-100%)',
   backgroundColor: 'rgba(0, 0, 0, 0.3)',
   padding: '4px 8px',
-  borderRadius: 8,
+  borderRadius: '8px',
   color: 'white'
 };
 
 const SHOW_TOOLTIP_TIMEOUT = 250;
 
-function defaultGetTooltip(pickingInfo: PickingInfo): ComponentChildren {
+function defaultGetTooltip(pickingInfo: PickingInfo): string | null | undefined {
   return pickingInfo.object?.style?.tooltip;
 }
 
@@ -73,7 +71,7 @@ export class HtmlTooltipWidget extends HtmlOverlayWidget<HtmlTooltipWidgetProps>
     }
   }
 
-  protected override getOverlayItems(viewport: Viewport): VNode[] {
+  protected override getOverlayItems(viewport: Viewport): OverlayItemData[] {
     if (!this.visible || !this.pickingInfo) {
       return [];
     }
@@ -88,9 +86,22 @@ export class HtmlTooltipWidget extends HtmlOverlayWidget<HtmlTooltipWidgetProps>
     }
 
     return [
-      <HtmlOverlayItem key="tooltip" coordinates={coordinates} style={TOOLTIP_STYLE}>
-        {tooltipContent}
-      </HtmlOverlayItem>
+      {
+        coordinates,
+        key: 'tooltip',
+        createElement: (x: number, y: number): HTMLElement => {
+          const outer = document.createElement('div');
+          outer.style.transform = `translate(${x}px, ${y}px)`;
+          outer.style.position = 'absolute';
+
+          const inner = document.createElement('div');
+          Object.assign(inner.style, TOOLTIP_STYLE);
+          inner.textContent = tooltipContent;
+
+          outer.appendChild(inner);
+          return outer;
+        }
+      }
     ];
   }
 }

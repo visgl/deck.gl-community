@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {render} from 'preact';
-import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
 import {cloneViewState, hasViewManager} from './view-manager-utils';
 import {
@@ -30,7 +28,7 @@ const WRAPPER_STYLE: Partial<CSSStyleDeclaration> = {
   userSelect: 'none'
 };
 
-const NAVIGATION_CONTAINER_STYLE: JSX.CSSProperties = {
+const NAVIGATION_CONTAINER_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'relative',
   background: '#f7f7f7',
   borderRadius: '23px',
@@ -40,7 +38,7 @@ const NAVIGATION_CONTAINER_STYLE: JSX.CSSProperties = {
   width: '46px'
 };
 
-const NAVIGATION_BUTTON_STYLE: JSX.CSSProperties = {
+const NAVIGATION_BUTTON_STYLE: Partial<CSSStyleDeclaration> = {
   color: '#848484',
   cursor: 'pointer',
   position: 'absolute',
@@ -62,6 +60,8 @@ export class PanWidget extends Widget<PanWidgetProps> {
   className = 'deck-widget-pan';
   deck?: Deck | null = null;
   step: number;
+
+  private _buttons: LongPressButton[] = [];
 
   constructor(props: PanWidgetProps = {}) {
     super({...PanWidget.defaultProps, ...props});
@@ -92,38 +92,44 @@ export class PanWidget extends Widget<PanWidgetProps> {
 
   override onRemove(): void {
     this.deck = null;
+    for (const b of this._buttons) b.destroy();
+    this._buttons = [];
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {
     const style = {...WRAPPER_STYLE, ...this.props.style};
     Object.assign(rootElement.style, style);
 
+    // Only build DOM once
+    if (rootElement.childElementCount > 0) return;
+
+    for (const b of this._buttons) b.destroy();
+    this._buttons = [];
+
+    const container = document.createElement('div');
+    Object.assign(container.style, NAVIGATION_CONTAINER_STYLE);
+
     const buttons = [
-      {top: -2, left: 14, onClick: () => this.handlePan(0, this.step), label: '▲', key: 'up'},
-      {top: 12, left: 0, onClick: () => this.handlePan(this.step, 0), label: '◀', key: 'left'},
-      {top: 12, left: 28, onClick: () => this.handlePan(-this.step, 0), label: '▶', key: 'right'},
-      {top: 25, left: 14, onClick: () => this.handlePan(0, -this.step), label: '▼', key: 'down'}
+      {top: -2, left: 14, onClick: () => this.handlePan(0, this.step), label: '\u25B2', key: 'up'},
+      {top: 12, left: 0, onClick: () => this.handlePan(this.step, 0), label: '\u25C0', key: 'left'},
+      {top: 12, left: 28, onClick: () => this.handlePan(-this.step, 0), label: '\u25B6', key: 'right'},
+      {top: 25, left: 14, onClick: () => this.handlePan(0, -this.step), label: '\u25BC', key: 'down'}
     ] as const;
 
-    const ui = (
-      <div style={NAVIGATION_CONTAINER_STYLE}>
-        {buttons.map((button) => {
-          const buttonStyle: JSX.CSSProperties = {
-            ...NAVIGATION_BUTTON_STYLE,
-            top: `${button.top}px`,
-            left: `${button.left}px`
-          };
+    for (const def of buttons) {
+      const wrapper = document.createElement('div');
+      Object.assign(wrapper.style, NAVIGATION_BUTTON_STYLE, {
+        top: `${def.top}px`,
+        left: `${def.left}px`
+      });
 
-          return (
-            <div key={button.key} style={buttonStyle}>
-              <LongPressButton onClick={button.onClick}>{button.label}</LongPressButton>
-            </div>
-          );
-        })}
-      </div>
-    );
+      const btn = new LongPressButton({onClick: def.onClick, label: def.label});
+      this._buttons.push(btn);
+      wrapper.appendChild(btn.element);
+      container.appendChild(wrapper);
+    }
 
-    render(ui, rootElement);
+    rootElement.appendChild(container);
   }
 
   private getTargetViewports(): Viewport[] {

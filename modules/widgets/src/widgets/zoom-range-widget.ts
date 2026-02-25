@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {render} from 'preact';
-import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
 import {cloneViewState, hasViewManager} from './view-manager-utils';
 import {
@@ -36,21 +34,21 @@ const WRAPPER_STYLE: Partial<CSSStyleDeclaration> = {
   pointerEvents: 'auto'
 };
 
-const ZOOM_BUTTON_STYLE: JSX.CSSProperties = {
+const ZOOM_BUTTON_STYLE: Partial<CSSStyleDeclaration> = {
   cursor: 'pointer',
   fontSize: '14px',
   fontWeight: '500',
   margin: '-4px'
 };
 
-const SLIDER_CONTAINER_STYLE: JSX.CSSProperties = {
+const SLIDER_CONTAINER_STYLE: Partial<CSSStyleDeclaration> = {
   display: 'inline-block',
   height: '100px',
   padding: '0',
   width: '10px'
 };
 
-const VERTICAL_SLIDER_STYLE: JSX.CSSProperties = {
+const VERTICAL_SLIDER_STYLE: Partial<CSSStyleDeclaration> = {
   writingMode: 'vertical-lr',
   height: '100px',
   padding: '0',
@@ -81,6 +79,10 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   inferredMinZoom: number | null = null;
   inferredMaxZoom: number | null = null;
 
+  private _zoomInBtn: LongPressButton | null = null;
+  private _zoomOutBtn: LongPressButton | null = null;
+  private _rangeInput: HTMLInputElement | null = null;
+
   constructor(props: ZoomRangeWidgetProps = {}) {
     super({...ZoomRangeWidget.defaultProps, ...props});
     this.viewId = props.viewId ?? null;
@@ -110,6 +112,11 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
 
   override onRemove(): void {
     this.deck = null;
+    this._zoomInBtn?.destroy();
+    this._zoomOutBtn?.destroy();
+    this._zoomInBtn = null;
+    this._zoomOutBtn = null;
+    this._rangeInput = null;
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {
@@ -119,65 +126,83 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
     const {minZoom, maxZoom} = this.getZoomBounds();
     const clampedZoom = Math.max(minZoom, Math.min(maxZoom, this.currentZoom));
 
-    const stopEventPropagation = (event: Event) => {
-      event.stopPropagation();
-      if (typeof (event as any).stopImmediatePropagation === 'function') {
-        (event as any).stopImmediatePropagation();
+    // Build DOM once, update values on subsequent calls
+    if (rootElement.childElementCount === 0) {
+      this._zoomInBtn?.destroy();
+      this._zoomOutBtn?.destroy();
+
+      const stopEventPropagation = (event: Event) => {
+        event.stopPropagation();
+        if (typeof (event as any).stopImmediatePropagation === 'function') {
+          (event as any).stopImmediatePropagation();
+        }
+      };
+
+      // Zoom in button
+      const zoomInWrapper = document.createElement('div');
+      Object.assign(zoomInWrapper.style, ZOOM_BUTTON_STYLE);
+      this._zoomInBtn = new LongPressButton({
+        onClick: () => this.handleZoomDelta(this.step),
+        label: '+'
+      });
+      zoomInWrapper.appendChild(this._zoomInBtn.element);
+
+      // Slider container
+      const sliderContainer = document.createElement('div');
+      Object.assign(sliderContainer.style, SLIDER_CONTAINER_STYLE);
+
+      const stopEvents = [
+        'pointerdown',
+        'pointermove',
+        'pointerup',
+        'mousedown',
+        'mousemove',
+        'mouseup',
+        'click',
+        'wheel',
+        'touchstart',
+        'touchmove',
+        'touchend'
+      ] as const;
+      for (const evt of stopEvents) {
+        sliderContainer.addEventListener(evt, stopEventPropagation);
       }
-    };
 
-    const ui = (
-      <>
-        <div style={ZOOM_BUTTON_STYLE}>
-          <LongPressButton onClick={() => this.handleZoomDelta(this.step)}>{'+'}</LongPressButton>
-        </div>
-        <div
-          style={SLIDER_CONTAINER_STYLE}
-          onPointerDown={stopEventPropagation}
-          onPointerMove={stopEventPropagation}
-          onPointerUp={stopEventPropagation}
-          onMouseDown={stopEventPropagation}
-          onMouseMove={stopEventPropagation}
-          onMouseUp={stopEventPropagation}
-          onClick={stopEventPropagation}
-          onWheel={stopEventPropagation}
-          onTouchStart={stopEventPropagation}
-          onTouchMove={stopEventPropagation}
-          onTouchEnd={stopEventPropagation}
-        >
-          <input
-            type="range"
-            value={clampedZoom}
-            min={minZoom}
-            max={maxZoom}
-            step={this.step}
-            onInput={(event) => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
-            onChange={(event) =>
-              this.handleZoomTo(Number((event.target as HTMLInputElement).value))
-            }
-            onPointerDown={stopEventPropagation}
-            onPointerMove={stopEventPropagation}
-            onPointerUp={stopEventPropagation}
-            onMouseDown={stopEventPropagation}
-            onMouseMove={stopEventPropagation}
-            onMouseUp={stopEventPropagation}
-            onClick={stopEventPropagation}
-            onWheel={stopEventPropagation}
-            onTouchStart={stopEventPropagation}
-            onTouchMove={stopEventPropagation}
-            onTouchEnd={stopEventPropagation}
-            /* @ts-expect-error - non-standard attribute for vertical sliders */
-            orient="vertical"
-            style={VERTICAL_SLIDER_STYLE}
-          />
-        </div>
-        <div style={ZOOM_BUTTON_STYLE}>
-          <LongPressButton onClick={() => this.handleZoomDelta(-this.step)}>{'-'}</LongPressButton>
-        </div>
-      </>
-    );
+      const rangeInput = document.createElement('input');
+      rangeInput.type = 'range';
+      rangeInput.step = String(this.step);
+      rangeInput.setAttribute('orient', 'vertical');
+      Object.assign(rangeInput.style, VERTICAL_SLIDER_STYLE);
 
-    render(ui, rootElement);
+      for (const evt of stopEvents) {
+        rangeInput.addEventListener(evt, stopEventPropagation);
+      }
+      rangeInput.addEventListener('input', () => this.handleZoomTo(Number(rangeInput.value)));
+      rangeInput.addEventListener('change', () => this.handleZoomTo(Number(rangeInput.value)));
+
+      sliderContainer.appendChild(rangeInput);
+      this._rangeInput = rangeInput;
+
+      // Zoom out button
+      const zoomOutWrapper = document.createElement('div');
+      Object.assign(zoomOutWrapper.style, ZOOM_BUTTON_STYLE);
+      this._zoomOutBtn = new LongPressButton({
+        onClick: () => this.handleZoomDelta(-this.step),
+        label: '-'
+      });
+      zoomOutWrapper.appendChild(this._zoomOutBtn.element);
+
+      rootElement.appendChild(zoomInWrapper);
+      rootElement.appendChild(sliderContainer);
+      rootElement.appendChild(zoomOutWrapper);
+    }
+
+    // Update slider value on every render
+    if (this._rangeInput) {
+      this._rangeInput.min = String(minZoom);
+      this._rangeInput.max = String(maxZoom);
+      this._rangeInput.value = String(clampedZoom);
+    }
   }
 
   override onViewportChange(viewport: Viewport): void {

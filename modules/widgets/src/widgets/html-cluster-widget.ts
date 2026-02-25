@@ -4,10 +4,9 @@
 
 import {point} from '@turf/helpers';
 import Supercluster from 'supercluster';
-import type {VNode} from 'preact';
 
 import type {WidgetProps, Viewport} from '@deck.gl/core';
-import {HtmlOverlayWidget, type HtmlOverlayWidgetProps} from './html-overlay-widget';
+import {HtmlOverlayWidget, type HtmlOverlayWidgetProps, type OverlayItemData} from './html-overlay-widget';
 
 export type HtmlClusterWidgetProps = HtmlOverlayWidgetProps & WidgetProps;
 
@@ -20,7 +19,7 @@ export abstract class HtmlClusterWidget<ObjType> extends HtmlOverlayWidget<HtmlC
   protected superCluster: Supercluster | null = null;
   protected lastObjects: ObjType[] | null = null;
 
-  protected override getOverlayItems(viewport: Viewport): VNode[] {
+  protected override getOverlayItems(viewport: Viewport): OverlayItemData[] {
     const newObjects = this.getAllObjects();
     if (newObjects !== this.lastObjects) {
       this.superCluster = new Supercluster(this.getClusterOptions());
@@ -43,7 +42,7 @@ export abstract class HtmlClusterWidget<ObjType> extends HtmlOverlayWidget<HtmlC
           : this.renderObject(coordinates, object)
     );
 
-    return overlayItems.filter(Boolean) as VNode[];
+    return overlayItems.filter(Boolean) as OverlayItemData[];
   }
 
   getClusterObjects(clusterId: number): ObjType[] {
@@ -69,17 +68,17 @@ export abstract class HtmlClusterWidget<ObjType> extends HtmlOverlayWidget<HtmlC
     };
   }
 
-  // Override to return an HtmlOverlayItem
+  // Override to return an OverlayItemData
   abstract renderObject(
     coordinates: number[],
     obj: ObjType
-  ): VNode<Record<string, any>> | null | undefined;
+  ): OverlayItemData | null | undefined;
 
-  // Override to return an HtmlOverlayItem
+  // Override to return an OverlayItemData
   // use getClusterObjects() to get cluster contents
   abstract renderCluster(
     coordinates: number[],
     clusterId: number,
     pointCount: number
-  ): VNode<Record<string, any>> | null | undefined;
+  ): OverlayItemData | null | undefined;
 }

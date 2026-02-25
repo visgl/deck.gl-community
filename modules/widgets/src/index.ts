@@ -9,8 +9,8 @@ export {ZoomRangeWidget} from './widgets/zoom-range-widget';
 export type {ZoomRangeWidgetProps} from './widgets/zoom-range-widget';
 
 export {HtmlOverlayWidget} from './widgets/html-overlay-widget';
-export type {HtmlOverlayWidgetProps} from './widgets/html-overlay-widget';
-export {HtmlOverlayItem} from './widgets/html-overlay-item';
+export type {HtmlOverlayWidgetProps, OverlayItemData} from './widgets/html-overlay-widget';
+export {createOverlayItemElement} from './widgets/html-overlay-item';
 export type {HtmlOverlayItemProps} from './widgets/html-overlay-item';
 export {HtmlClusterWidget} from './widgets/html-cluster-widget';
 export type {HtmlClusterWidgetProps} from './widgets/html-cluster-widget';
