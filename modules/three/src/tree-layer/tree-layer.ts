@@ -305,7 +305,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           return DEFAULT_CANOPY_COLORS[type][season];
         },
         pickable: this.props.pickable,
-        material: {ambient: 0.4, diffuse: 0.7, shininess: 12}
+        material: {ambient: 0.5, diffuse: 0.8, shininess: 0}
       })
     );
   }

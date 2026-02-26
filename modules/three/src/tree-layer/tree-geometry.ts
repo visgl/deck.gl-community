@@ -8,6 +8,7 @@ import {
   CylinderGeometry,
   ConeGeometry,
   SphereGeometry,
+  IcosahedronGeometry,
   Matrix4
 } from 'three';
 
@@ -153,14 +154,24 @@ export function createPineCanopyMesh(levels = 3, segments = 8): TreeMesh {
 }
 
 /**
- * Unit oak canopy mesh: a large sphere.
- * Extends from z=0 to z=1, center at z=0.5.
+ * Unit oak canopy mesh: high-segment sphere, smooth pole, no shading stripe.
+ *
+ * IcosahedronGeometry (detail ≥ 1) always creates a single vertex at the
+ * sphere's north pole via subdivision (normalized midpoint of the top edge),
+ * giving 5 triangles meeting at the apex — the visible spike. Rotating the
+ * icosahedron only moves WHICH original vertex becomes the apex; all 12 base
+ * vertices are 5-connected, so the artifact persists.
+ *
+ * SphereGeometry(24, 16) places 24 tiny triangles at the pole instead of 5,
+ * which is invisible at normal viewing distances. The earlier "shading stripe"
+ * with the low-poly sphere (12 × 8 = 22.5° bands) was coarse Gouraud banding,
+ * not a UV-seam issue. At 24 × 16 (7.5° bands) the shading is smooth.
+ * Extends z = 0 (base) to z = 1 (top).
  */
 export function createOakCanopyMesh(): TreeMesh {
-  const geo = new SphereGeometry(0.5, 12, 8);
-  // SphereGeometry is centered at origin, radius=0.5
+  const geo = new SphereGeometry(0.5, 24, 16);
   geo.applyMatrix4(Y_TO_Z_UP);
-  geo.translate(0, 0, 0.5); // center at z=0.5, extends z=0 to z=1
+  geo.translate(0, 0, 0.5);
   return extractMesh(geo);
 }
 
