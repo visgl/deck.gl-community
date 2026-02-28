@@ -6,12 +6,11 @@ import {
   type SimpleGeometryCoordinates,
   ImmutableFeatureCollection,
   type SimpleGeometry,
-  type EditAction,
-} from "@deck.gl-community/editable-layers";
+  type EditAction
+} from '@deck.gl-community/editable-layers';
 
 import clone from '@turf/clone';
-import { point, type Feature as TurfFeature, type Geometry as TurfGeometry } from '@turf/helpers';
-
+import {point, type Feature as TurfFeature, type Geometry as TurfGeometry} from '@turf/helpers';
 
 /** Creates a copy of feature's coordinates.
  * Each position in coordinates is transformed by calling the provided function.
@@ -42,17 +41,21 @@ function translate(feature: TurfFeature<TurfGeometry>, dp: [number, number]) {
   const movedCoordinates = mapCoords(
     feature.geometry.coordinates as SimpleGeometryCoordinates,
     (coordinate) => [coordinate[0] - dp[0], coordinate[1] - dp[1]]
-  )
+  );
   feature.geometry.coordinates = movedCoordinates;
   return feature;
 }
-
 
 /**
  * This is an edit mode for translating GeoJSON features with non-geographic coordinates.
  */
 export default class TranslateModeEx extends TranslateMode {
-  getTranslateAction(startDragPoint: Position, currentPoint: Position, editType: string, props: ModeProps<FeatureCollection>): EditAction<FeatureCollection> | null | undefined {
+  getTranslateAction(
+    startDragPoint: Position,
+    currentPoint: Position,
+    editType: string,
+    props: ModeProps<FeatureCollection>
+  ): EditAction<FeatureCollection> | null | undefined {
     if (!this._geometryBeforeTranslate) {
       return null;
     }
@@ -60,7 +63,7 @@ export default class TranslateModeEx extends TranslateMode {
     let updatedData = new ImmutableFeatureCollection(props.data);
     const selectedIndexes = props.selectedIndexes;
 
-    const { viewport: viewportDesc, screenSpace } = props.modeConfig || {};
+    const {viewport: viewportDesc, screenSpace} = props.modeConfig || {};
 
     // move features without adapting to mercator projection - use original implementation
     if (viewportDesc && screenSpace) {
@@ -82,7 +85,10 @@ export default class TranslateModeEx extends TranslateMode {
     for (let i = 0; i < selectedIndexes.length; i++) {
       const selectedIndex = selectedIndexes[i];
       const movedFeature = movedFeatures[i];
-      updatedData = updatedData.replaceGeometry(selectedIndex, movedFeature.geometry as SimpleGeometry);
+      updatedData = updatedData.replaceGeometry(
+        selectedIndex,
+        movedFeature.geometry as SimpleGeometry
+      );
     }
 
     return {
