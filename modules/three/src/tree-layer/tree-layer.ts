@@ -11,7 +11,8 @@ import {
   createOakCanopyMesh,
   createPalmCanopyMesh,
   createBirchCanopyMesh,
-  createCherryCanopyMesh
+  createCherryCanopyMesh,
+  createCropMesh
 } from './tree-geometry';
 
 // ---------------------------------------------------------------------------
@@ -23,6 +24,31 @@ export type TreeType = 'pine' | 'oak' | 'palm' | 'birch' | 'cherry';
 
 /** Season that drives default canopy colour when no explicit colour is supplied. */
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+
+/**
+ * Crop configuration for a single tree.
+ *
+ * Pass this from `getCrop` to render small spherical crop points on the tree
+ * and/or scattered on the ground around it. Works for fruit, nuts, or flowers
+ * (flowering stage is expressed simply as a flower-coloured crop config).
+ *
+ * Positions are randomised deterministically from the tree's geographic
+ * coordinates, so they are stable across re-renders.
+ */
+export type CropConfig = {
+  /** Colour of each crop sphere [r, g, b, a]. */
+  color: Color;
+  /** Number of crop spheres placed in the outer canopy volume (live/in-tree crops). */
+  count: number;
+  /**
+   * Number of crop spheres scattered on the ground within the canopy footprint
+   * (dropped/fallen crops).
+   * @default 0
+   */
+  droppedCount?: number;
+  /** Radius of each individual crop sphere in metres. */
+  radius: number;
+};
 
 // ---------------------------------------------------------------------------
 // Default colours
@@ -85,7 +111,148 @@ const CANOPY_MESHES: Record<TreeType, ReturnType<typeof createTrunkMesh>> = {
   cherry: createCherryCanopyMesh()
 };
 
+const CROP_MESH = createCropMesh();
+
 const ALL_TREE_TYPES: TreeType[] = ['pine', 'oak', 'palm', 'birch', 'cherry'];
+
+/**
+ * Fraction of canopy height by which the canopy mesh is lowered into the trunk.
+ * Hides the trunk-top disk that would otherwise peek above the canopy base.
+ * 0.22 means the canopy base sits 22% of canopy-height below the trunk top.
+ */
+const CANOPY_TRUNK_OVERLAP = 0.22;
+
+// ---------------------------------------------------------------------------
+// Crop helpers
+// ---------------------------------------------------------------------------
+
+/** splitmix32 — fast, high-quality seeded PRNG returning values in [0, 1). */
+function createRng(seed: number): () => number {
+  let s = seed >>> 0;
+  return (): number => {
+    s = (s + 0x9e3779b9) | 0;
+    let t = s ^ (s >>> 16);
+    t = Math.imul(t, 0x21f0aaad);
+    t ^= t >>> 15;
+    t = Math.imul(t, 0x735a2d97);
+    return ((t ^ (t >>> 15)) >>> 0) / 4294967296;
+  };
+}
+
+/** Deterministic integer seed derived from a geographic position. */
+function positionSeed(lng: number, lat: number): number {
+  return ((Math.round(lng * 10000) * 92821) ^ (Math.round(lat * 10000) * 65537)) >>> 0;
+}
+
+const DEG_PER_METER_LAT = 1 / 111320;
+
+function lngDegreesPerMeter(latDeg: number): number {
+  return 1 / (111320 * Math.cos((latDeg * Math.PI) / 180));
+}
+
+/** Internal flat record for a single rendered crop sphere. */
+type CropPoint = {
+  position: [number, number, number];
+  color: Color;
+  scale: number;
+};
+
+/**
+ * Expand live crop positions so they straddle the canopy surface.
+ *
+ * The canopy mesh is a SphereGeometry(0.5, …) which, after SimpleMeshLayer
+ * applies getScale = [r, r, H], has a true XY radius of 0.5 * r and a true
+ * Z half-height of 0.5 * H.  Crops are placed at 85–110 % of those real
+ * dimensions so most of each sphere sits just outside the canopy surface.
+ *
+ * Positions are seeded from the tree's geographic coordinates so they are
+ * stable across re-renders.
+ */
+function expandLiveCropPoints(
+  lng: number,
+  lat: number,
+  elevation: number,
+  height: number,
+  trunkFraction: number,
+  canopyRadius: number,
+  cropConfig: CropConfig,
+  out: CropPoint[]
+): void {
+  if (cropConfig.count <= 0) return;
+
+  // Actual canopy sphere radii after SimpleMeshLayer scaling.
+  // SphereGeometry has unit radius 0.5, so world radius = 0.5 * getScale component.
+  const rxy = canopyRadius * 0.5;
+  const canopyH = height * (1 - trunkFraction);
+  const rz = canopyH * 0.5;
+  // Canopy position is lowered by CANOPY_TRUNK_OVERLAP to hide the trunk-top disk
+  const canopyCenterZ = elevation + height * trunkFraction - canopyH * CANOPY_TRUNK_OVERLAP + rz;
+
+  const dLng = lngDegreesPerMeter(lat);
+  const rng = createRng(positionSeed(lng, lat));
+
+  for (let i = 0; i < cropConfig.count; i++) {
+    const theta = rng() * Math.PI * 2;
+    // Exclude top and bottom caps so crops never crown the canopy or hang below.
+    // cos(phi) in [-0.80, 0.80] → phi from ~37° to ~143° (equatorial band).
+    const cosPhi = -0.80 + rng() * 1.60;
+    const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
+    // 90–102 % of canopy radius: crops sit just at/inside the surface, tips barely poke out
+    const radFrac = 0.90 + rng() * 0.12;
+
+    const dx = rxy * radFrac * sinPhi * Math.cos(theta);
+    const dy = rxy * radFrac * sinPhi * Math.sin(theta);
+    const dz = rz * radFrac * cosPhi;
+
+    out.push({
+      position: [lng + dx * dLng, lat + dy * DEG_PER_METER_LAT, canopyCenterZ + dz],
+      color: cropConfig.color,
+      scale: cropConfig.radius
+    });
+  }
+}
+
+/**
+ * Expand dropped crop positions uniformly across the ground disk within the
+ * canopy footprint.  Uses a separate seed offset from live crops so that
+ * changing `count` does not affect dropped positions.
+ */
+function expandDroppedCropPoints(
+  lng: number,
+  lat: number,
+  elevation: number,
+  canopyRadius: number,
+  cropConfig: CropConfig,
+  out: CropPoint[]
+): void {
+  const droppedCount = cropConfig.droppedCount ?? 0;
+  if (droppedCount <= 0) return;
+
+  // Actual canopy footprint radius (see note in expandLiveCropPoints)
+  const footprintRadius = canopyRadius * 0.5;
+  const dLng = lngDegreesPerMeter(lat);
+  // XOR with a constant so the dropped sequence is independent of the live one
+  const rng = createRng(positionSeed(lng, lat) ^ 0x1a2b3c4d);
+
+  // Dropped crops are semi-transparent so they read as fallen/decaying
+  const c = cropConfig.color as number[];
+  const droppedColor: Color = [c[0], c[1], c[2], Math.round((c[3] ?? 255) * 0.45)] as Color;
+
+  for (let i = 0; i < droppedCount; i++) {
+    const theta = rng() * Math.PI * 2;
+    // sqrt for uniform-area disk sampling
+    const dist = Math.sqrt(rng()) * footprintRadius;
+
+    const dx = dist * Math.cos(theta);
+    const dy = dist * Math.sin(theta);
+
+    out.push({
+      position: [lng + dx * dLng, lat + dy * DEG_PER_METER_LAT, elevation + 0.05],
+      color: droppedColor,
+      scale: cropConfig.radius
+    });
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -164,6 +331,23 @@ type _TreeLayerProps<DataT> = {
   getBranchLevels?: (d: DataT) => number;
 
   /**
+   * Optional crop configuration for this tree.
+   *
+   * Return a `CropConfig` to render small spherical crop points in the outer
+   * canopy volume (live crops) and/or scattered on the ground around the trunk
+   * (dropped crops).  Return `null` to show no crops for this tree.
+   *
+   * The same accessor can express fruit, nuts, or flowering stage — pass
+   * flower-coloured points (e.g. `[255, 200, 220, 255]`) for a blossom effect.
+   *
+   * Crop positions are randomised deterministically from the tree's geographic
+   * coordinates; they are stable across re-renders.
+   *
+   * @default null (no crops)
+   */
+  getCrop?: (d: DataT) => CropConfig | null;
+
+  /**
    * Global size multiplier applied to all dimensions.
    * @default 1
    */
@@ -184,6 +368,7 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getCanopyColor: {type: 'accessor', value: (_d: any) => null},
   getSeason: {type: 'accessor', value: (_d: any) => 'summer' as Season},
   getBranchLevels: {type: 'accessor', value: (_d: any) => 3},
+  getCrop: {type: 'accessor', value: (_d: any) => null},
   sizeScale: {type: 'number', value: 1, min: 0}
 };
 
@@ -194,6 +379,8 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
 type TreeLayerState = {
   grouped: Record<TreeType, unknown[]>;
   pineMeshes: Record<number, ReturnType<typeof createPineCanopyMesh>>;
+  liveCropPoints: CropPoint[];
+  droppedCropPoints: CropPoint[];
 };
 
 // ---------------------------------------------------------------------------
@@ -216,6 +403,7 @@ type TreeLayerState = {
  * - Trunk and canopy radii (`getTrunkRadius`, `getCanopyRadius`)
  * - Explicit or season-driven colours (`getTrunkColor`, `getCanopyColor`, `getSeason`)
  * - Pine tier density (`getBranchLevels`)
+ * - Crop / fruit / flower visualisation (`getCrop`)
  * - Global scale factor (`sizeScale`)
  */
 export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends CompositeLayer<
@@ -229,13 +417,27 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   initializeState() {
     this.state = {
       grouped: {pine: [], oak: [], palm: [], birch: [], cherry: []},
-      pineMeshes: {}
+      pineMeshes: {},
+      liveCropPoints: [],
+      droppedCropPoints: []
     };
   }
 
-  updateState({props, changeFlags}) {
-    if (changeFlags.dataChanged || changeFlags.updateTriggersChanged) {
-      const {data, getTreeType, getBranchLevels} = props;
+  updateState({props, oldProps, changeFlags}) {
+    if (changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.updateTriggersChanged) {
+      const {
+        data,
+        getTreeType,
+        getBranchLevels,
+        getCrop,
+        getPosition,
+        getElevation,
+        getHeight,
+        getTrunkHeightFraction,
+        getCanopyRadius,
+        sizeScale
+      } = props;
+
       const grouped: Record<TreeType, DataT[]> = {
         pine: [],
         oak: [],
@@ -244,24 +446,52 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         cherry: []
       };
 
-      // Build per-level pine mesh cache
       const pineMeshes: Record<number, ReturnType<typeof createPineCanopyMesh>> = {};
+      const liveCropPoints: CropPoint[] = [];
+      const droppedCropPoints: CropPoint[] = [];
 
       for (const d of data as DataT[]) {
         const type = getTreeType(d) as TreeType;
         if (grouped[type]) grouped[type].push(d);
+
         if (type === 'pine') {
           const levels = Math.max(1, Math.min(5, Math.round(getBranchLevels(d) as number)));
           pineMeshes[levels] ??= createPineCanopyMesh(levels);
         }
+
+        const cropConfig = getCrop(d);
+        if (cropConfig) {
+          const pos = getPosition(d);
+          const lng = pos[0];
+          const lat = pos[1];
+          const elev = getElevation(d) || 0;
+          const h = getHeight(d) * sizeScale;
+          const f = getTrunkHeightFraction(d);
+          const r = getCanopyRadius(d) * sizeScale;
+
+          // Scale crop radius in lock-step with all other dimensions
+          const scaledCropConfig: CropConfig = {...cropConfig, radius: cropConfig.radius * sizeScale};
+          expandLiveCropPoints(lng, lat, elev, h, f, r, scaledCropConfig, liveCropPoints);
+          expandDroppedCropPoints(lng, lat, elev, r, scaledCropConfig, droppedCropPoints);
+        }
       }
 
-      this.setState({grouped, pineMeshes});
+      this.setState({grouped, pineMeshes, liveCropPoints, droppedCropPoints});
     }
   }
 
-  /** Build a single canopy sub-layer for one tree type. */
-  private _buildCanopyLayer(type: TreeType) {
+  /**
+   * Build a single canopy sub-layer.
+   *
+   * Takes explicit `mesh`, `data`, and `layerId` so that pine trees can be
+   * split into one sub-layer per level count (each with its own mesh).
+   */
+  private _buildCanopyLayer(
+    type: TreeType,
+    mesh: ReturnType<typeof createTrunkMesh>,
+    data: unknown[],
+    layerId: string
+  ): SimpleMeshLayer {
     const {
       getPosition,
       getElevation,
@@ -271,32 +501,42 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       getCanopyColor,
       getSeason,
       sizeScale
-    } = this.props; // eslint-disable-line max-len
-    const {grouped, pineMeshes} = this.state;
-
-    let mesh = CANOPY_MESHES[type];
-    if (type === 'pine') {
-      const firstLevel = Object.keys(pineMeshes)[0];
-      if (firstLevel) mesh = pineMeshes[Number(firstLevel)];
-    }
+    } = this.props;
 
     return new SimpleMeshLayer(
       this.getSubLayerProps({
-        id: `canopy-${type}`,
-        data: grouped[type],
+        id: layerId,
+        data,
         mesh,
         getPosition: (d) => {
           const pos = getPosition(d);
           const elevation = getElevation(d) || 0;
           const h = getHeight(d) * sizeScale;
           const f = getTrunkHeightFraction(d);
-          return [pos[0], pos[1], elevation + h * f];
+          const canopyH = h * (1 - f);
+          return [pos[0], pos[1], elevation + h * f - canopyH * CANOPY_TRUNK_OVERLAP];
         },
         getScale: (d) => {
+          const pos = getPosition(d);
           const h = getHeight(d) * sizeScale;
           const f = getTrunkHeightFraction(d);
           const r = getCanopyRadius(d) * sizeScale;
-          return [r, r, h * (1 - f)];
+          // Per-tree asymmetric XY scale from position hash — no two canopies
+          // are the same oval, giving organic variety with zero extra draw calls.
+          const seed = positionSeed(pos[0], pos[1]);
+          const sx = 1 + (((seed & 0xffff) / 65535) - 0.5) * 0.30;
+          const sy = 1 + ((((seed >>> 16) & 0xffff) / 65535) - 0.5) * 0.30;
+          return [r * sx, r * sy, h * (1 - f)];
+        },
+        getOrientation: (d) => {
+          // Random bearing per tree: yaw (index 1) rotates around the vertical
+          // Z axis in deck.gl's [pitch, yaw, roll] convention.
+          // Pine tiers face different compass directions; bumpy canopies present
+          // a unique silhouette from every viewing angle.
+          const pos = getPosition(d);
+          const seed = positionSeed(pos[0], pos[1]);
+          const angle = ((seed ^ (seed >>> 13)) & 0xffff) / 65535 * 360;
+          return [0, angle, 0];
         },
         getColor: (d) => {
           const explicit = getCanopyColor(d);
@@ -305,7 +545,12 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           return DEFAULT_CANOPY_COLORS[type][season];
         },
         pickable: this.props.pickable,
-        material: {ambient: 0.5, diffuse: 0.8, shininess: 0}
+        material: {ambient: 0.55, diffuse: 0.55, shininess: 0},
+        updateTriggers: {
+          getPosition: sizeScale,
+          getScale: sizeScale,
+          getOrientation: sizeScale
+        }
       })
     );
   }
@@ -319,10 +564,11 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       getTrunkHeightFraction,
       getTrunkRadius,
       getTrunkColor,
+      getBranchLevels,
       sizeScale
     } = this.props;
 
-    const {grouped} = this.state;
+    const {grouped, pineMeshes, liveCropPoints, droppedCropPoints} = this.state;
 
     // -----------------------------------------------------------------------
     // 1. Trunk layer — one layer for ALL tree types, shared cylinder geometry
@@ -349,17 +595,73 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           return DEFAULT_TRUNK_COLORS[type] ?? DEFAULT_TRUNK_COLORS.pine;
         },
         pickable: this.props.pickable,
-        material: {ambient: 0.35, diffuse: 0.6, shininess: 8}
+        material: {ambient: 0.45, diffuse: 0.55, shininess: 4},
+        updateTriggers: {getScale: sizeScale}
       })
     );
 
     // -----------------------------------------------------------------------
-    // 2. Canopy layers — one per tree type, only for trees of that type
+    // 2. Canopy layers
+    //    Non-pine: one sub-layer per species.
+    //    Pine: one sub-layer per branch-level count, each using its own mesh,
+    //    so trees with 2/3/4 tiers never share a mismatched mesh.
     // -----------------------------------------------------------------------
-    const canopyLayers = ALL_TREE_TYPES.filter((type) => grouped[type].length > 0).map((type) =>
-      this._buildCanopyLayer(type)
-    );
+    const nonPineCanopies = ALL_TREE_TYPES.filter(
+      (t) => t !== 'pine' && grouped[t].length > 0
+    ).map((t) => this._buildCanopyLayer(t, CANOPY_MESHES[t], grouped[t], `canopy-${t}`));
 
-    return [trunkLayer, ...canopyLayers];
+    const pineCanopies = Object.entries(pineMeshes).flatMap(([levelStr, mesh]) => {
+      const levels = Number(levelStr);
+      const pineData = grouped.pine.filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (d) => Math.max(1, Math.min(5, Math.round(getBranchLevels(d as any) as number))) === levels
+      );
+      return pineData.length > 0
+        ? [this._buildCanopyLayer('pine', mesh, pineData, `canopy-pine-${levels}`)]
+        : [];
+    });
+
+    const canopyLayers = [...nonPineCanopies, ...pineCanopies];
+
+    // -----------------------------------------------------------------------
+    // 3. Crop layers — live (in canopy) and dropped (on ground)
+    // -----------------------------------------------------------------------
+    const cropLayers = [];
+
+    if (liveCropPoints.length > 0) {
+      cropLayers.push(
+        new SimpleMeshLayer(
+          this.getSubLayerProps({
+            id: 'live-crops',
+            data: liveCropPoints,
+            mesh: CROP_MESH,
+            getPosition: (d: CropPoint) => d.position,
+            getScale: (d: CropPoint) => [d.scale, d.scale, d.scale],
+            getColor: (d: CropPoint) => d.color,
+            pickable: false,
+            material: {ambient: 0.5, diffuse: 0.8, shininess: 40}
+          })
+        )
+      );
+    }
+
+    if (droppedCropPoints.length > 0) {
+      cropLayers.push(
+        new SimpleMeshLayer(
+          this.getSubLayerProps({
+            id: 'dropped-crops',
+            data: droppedCropPoints,
+            mesh: CROP_MESH,
+            getPosition: (d: CropPoint) => d.position,
+            getScale: (d: CropPoint) => [d.scale, d.scale, d.scale],
+            getColor: (d: CropPoint) => d.color,
+            pickable: false,
+            material: {ambient: 0.6, diffuse: 0.5, shininess: 10}
+          })
+        )
+      );
+    }
+
+    return [trunkLayer, ...canopyLayers, ...cropLayers];
   }
 }
