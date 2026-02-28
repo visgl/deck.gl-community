@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/experimental",
-  "version": "9.2.6",
+  "version": "9.2.7",
   "description": "Experimental layers for deck.gl",
   "license": "MIT",
   "publishConfig": {
