@@ -1,0 +1,8 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/three",
+  "items": [
+    "modules/three/README",
+    "modules/three/api-reference/tree-layer"
+  ]
+}

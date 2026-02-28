@@ -168,16 +168,17 @@ type CropPoint = {
  * Positions are seeded from the tree's geographic coordinates so they are
  * stable across re-renders.
  */
-function expandLiveCropPoints(
-  lng: number,
-  lat: number,
-  elevation: number,
-  height: number,
-  trunkFraction: number,
-  canopyRadius: number,
-  cropConfig: CropConfig,
-  out: CropPoint[]
-): void {
+function expandLiveCropPoints(opts: {
+  lng: number;
+  lat: number;
+  elevation: number;
+  height: number;
+  trunkFraction: number;
+  canopyRadius: number;
+  cropConfig: CropConfig;
+  out: CropPoint[];
+}): void {
+  const {lng, lat, elevation, height, trunkFraction, canopyRadius, cropConfig, out} = opts;
   if (cropConfig.count <= 0) return;
 
   // Actual canopy sphere radii after SimpleMeshLayer scaling.
@@ -195,10 +196,10 @@ function expandLiveCropPoints(
     const theta = rng() * Math.PI * 2;
     // Exclude top and bottom caps so crops never crown the canopy or hang below.
     // cos(phi) in [-0.80, 0.80] → phi from ~37° to ~143° (equatorial band).
-    const cosPhi = -0.80 + rng() * 1.60;
+    const cosPhi = -0.8 + rng() * 1.6;
     const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
     // 90–102 % of canopy radius: crops sit just at/inside the surface, tips barely poke out
-    const radFrac = 0.90 + rng() * 0.12;
+    const radFrac = 0.9 + rng() * 0.12;
 
     const dx = rxy * radFrac * sinPhi * Math.cos(theta);
     const dy = rxy * radFrac * sinPhi * Math.sin(theta);
@@ -217,14 +218,15 @@ function expandLiveCropPoints(
  * canopy footprint.  Uses a separate seed offset from live crops so that
  * changing `count` does not affect dropped positions.
  */
-function expandDroppedCropPoints(
-  lng: number,
-  lat: number,
-  elevation: number,
-  canopyRadius: number,
-  cropConfig: CropConfig,
-  out: CropPoint[]
-): void {
+function expandDroppedCropPoints(opts: {
+  lng: number;
+  lat: number;
+  elevation: number;
+  canopyRadius: number;
+  cropConfig: CropConfig;
+  out: CropPoint[];
+}): void {
+  const {lng, lat, elevation, canopyRadius, cropConfig, out} = opts;
   const droppedCount = cropConfig.droppedCount ?? 0;
   if (droppedCount <= 0) return;
 
@@ -470,9 +472,28 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           const r = getCanopyRadius(d) * sizeScale;
 
           // Scale crop radius in lock-step with all other dimensions
-          const scaledCropConfig: CropConfig = {...cropConfig, radius: cropConfig.radius * sizeScale};
-          expandLiveCropPoints(lng, lat, elev, h, f, r, scaledCropConfig, liveCropPoints);
-          expandDroppedCropPoints(lng, lat, elev, r, scaledCropConfig, droppedCropPoints);
+          const scaledCropConfig: CropConfig = {
+            ...cropConfig,
+            radius: cropConfig.radius * sizeScale
+          };
+          expandLiveCropPoints({
+            lng,
+            lat,
+            elevation: elev,
+            height: h,
+            trunkFraction: f,
+            canopyRadius: r,
+            cropConfig: scaledCropConfig,
+            out: liveCropPoints
+          });
+          expandDroppedCropPoints({
+            lng,
+            lat,
+            elevation: elev,
+            canopyRadius: r,
+            cropConfig: scaledCropConfig,
+            out: droppedCropPoints
+          });
         }
       }
 
@@ -524,8 +545,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           // Per-tree asymmetric XY scale from position hash — no two canopies
           // are the same oval, giving organic variety with zero extra draw calls.
           const seed = positionSeed(pos[0], pos[1]);
-          const sx = 1 + (((seed & 0xffff) / 65535) - 0.5) * 0.30;
-          const sy = 1 + ((((seed >>> 16) & 0xffff) / 65535) - 0.5) * 0.30;
+          const sx = 1 + ((seed & 0xffff) / 65535 - 0.5) * 0.3;
+          const sy = 1 + (((seed >>> 16) & 0xffff) / 65535 - 0.5) * 0.3;
           return [r * sx, r * sy, h * (1 - f)];
         },
         getOrientation: (d) => {
@@ -535,7 +556,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           // a unique silhouette from every viewing angle.
           const pos = getPosition(d);
           const seed = positionSeed(pos[0], pos[1]);
-          const angle = ((seed ^ (seed >>> 13)) & 0xffff) / 65535 * 360;
+          const angle = (((seed ^ (seed >>> 13)) & 0xffff) / 65535) * 360;
           return [0, angle, 0];
         },
         getColor: (d) => {
@@ -606,15 +627,15 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     //    Pine: one sub-layer per branch-level count, each using its own mesh,
     //    so trees with 2/3/4 tiers never share a mismatched mesh.
     // -----------------------------------------------------------------------
-    const nonPineCanopies = ALL_TREE_TYPES.filter(
-      (t) => t !== 'pine' && grouped[t].length > 0
-    ).map((t) => this._buildCanopyLayer(t, CANOPY_MESHES[t], grouped[t], `canopy-${t}`));
+    const nonPineCanopies = ALL_TREE_TYPES.filter((t) => t !== 'pine' && grouped[t].length > 0).map(
+      (t) => this._buildCanopyLayer(t, CANOPY_MESHES[t], grouped[t], `canopy-${t}`)
+    );
 
     const pineCanopies = Object.entries(pineMeshes).flatMap(([levelStr, mesh]) => {
       const levels = Number(levelStr);
       const pineData = grouped.pine.filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (d) => Math.max(1, Math.min(5, Math.round(getBranchLevels(d as any) as number))) === levels
+        (d) => Math.max(1, Math.min(5, Math.round(getBranchLevels(d as any)))) === levels
       );
       return pineData.length > 0
         ? [this._buildCanopyLayer('pine', mesh, pineData, `canopy-pine-${levels}`)]

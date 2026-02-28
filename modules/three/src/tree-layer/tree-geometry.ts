@@ -62,19 +62,24 @@ function jitterSmooth(geo: BufferGeometry, magnitude: number, seed: number): voi
 
   const pos = geo.attributes.position.array as Float32Array;
   for (let i = 0; i < pos.length; i += 3) {
-    const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+    const x = pos[i];
+    const y = pos[i + 1];
+    const z = pos[i + 2];
     const r = Math.sqrt(x * x + y * y + z * z);
-    if (r === 0) continue;
-    const nx = x / r, ny = y / r, nz = z / r;
-    let noise = 0;
-    for (const w of waves) {
-      noise += Math.sin(nx * w.fx + ny * w.fy + nz * w.fz + w.phase);
+    if (r !== 0) {
+      const nx = x / r;
+      const ny = y / r;
+      const nz = z / r;
+      let noise = 0;
+      for (const w of waves) {
+        noise += Math.sin(nx * w.fx + ny * w.fy + nz * w.fz + w.phase);
+      }
+      noise /= 4; // normalise to ~ [-1, 1]
+      const scale = 1 + noise * magnitude;
+      pos[i] = x * scale;
+      pos[i + 1] = y * scale;
+      pos[i + 2] = z * scale;
     }
-    noise /= 4; // normalise to ~ [-1, 1]
-    const scale = 1 + noise * magnitude;
-    pos[i] = x * scale;
-    pos[i + 1] = y * scale;
-    pos[i + 2] = z * scale;
   }
 }
 
@@ -193,10 +198,10 @@ export function createPineCanopyMesh(levels = 3, segments = 8): TreeMesh {
 
     // Width narrows toward the top; each tier gets ±20 % random variation.
     const baseRadius = (1 - t * 0.5) * 0.85;
-    const radius = baseRadius * (0.80 + rng() * 0.40);
+    const radius = baseRadius * (0.8 + rng() * 0.4);
 
     // Height varies ±15 % per tier for uneven silhouette.
-    const tierH = tierHeight * (0.85 + rng() * 0.30);
+    const tierH = tierHeight * (0.85 + rng() * 0.3);
 
     const cone = new ConeGeometry(radius, tierH, segments);
     cone.applyMatrix4(Y_TO_Z_UP);
@@ -204,8 +209,8 @@ export function createPineCanopyMesh(levels = 3, segments = 8): TreeMesh {
     // Drift increases from 0 at the bottom tier to ±0.10 at the top tier.
     // Bottom tier stays centred so it always connects cleanly to the trunk.
     const driftScale = levels > 1 ? i / (levels - 1) : 0;
-    const driftX = (rng() - 0.5) * 0.20 * driftScale;
-    const driftY = (rng() - 0.5) * 0.20 * driftScale;
+    const driftX = (rng() - 0.5) * 0.2 * driftScale;
+    const driftY = (rng() - 0.5) * 0.2 * driftScale;
     cone.translate(driftX, driftY, zCursor + tierH / 2);
     geos.push(cone);
 
@@ -219,7 +224,6 @@ export function createPineCanopyMesh(levels = 3, segments = 8): TreeMesh {
   geos.push(tip);
 
   const merged = mergeGeometries(geos);
-  merged.computeVertexNormals();
   return extractMesh(merged);
 }
 
@@ -253,7 +257,7 @@ export function createOakCanopyMesh(): TreeMesh {
 export function createPalmCanopyMesh(): TreeMesh {
   // Flattened sphere acting as a spread crown
   const geo = new SphereGeometry(0.7, 12, 5);
-  jitterSmooth(geo, 0.10, 4);
+  jitterSmooth(geo, 0.1, 4);
   const flatten = new Matrix4().makeScale(1.4, 0.35, 1.4);
   geo.applyMatrix4(flatten);
   geo.applyMatrix4(Y_TO_Z_UP);
@@ -282,7 +286,7 @@ export function createBirchCanopyMesh(): TreeMesh {
  */
 export function createCherryCanopyMesh(): TreeMesh {
   const geo = new SphereGeometry(0.52, 12, 8);
-  jitterSmooth(geo, 0.20, 3);
+  jitterSmooth(geo, 0.2, 3);
   geo.applyMatrix4(Y_TO_Z_UP);
   geo.translate(0, 0, 0.5);
   return extractMesh(geo);
