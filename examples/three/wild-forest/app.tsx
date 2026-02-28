@@ -6,7 +6,7 @@ import React, {useCallback, useMemo, useState} from 'react';
 import DeckGL from '@deck.gl/react';
 import type {MapViewState, PickingInfo} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/three';
-import type {TreeType, Season} from '@deck.gl-community/three';
+import type {TreeType, Season, CropConfig} from '@deck.gl-community/three';
 
 // ---------------------------------------------------------------------------
 // Data types
@@ -22,6 +22,7 @@ type TreeDatum = {
   season: Season;
   branchLevels: number;
   label: string;
+  crop: CropConfig | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -37,10 +38,7 @@ function makeRng(seed: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Forest generation
-// Each zone showcases a different species / season combination.
-// Coordinates are centred around a fictitious clearing so the example works
-// without any map tile API key.
+// Forest + orchard generation
 // ---------------------------------------------------------------------------
 
 function generateForest(): TreeDatum[] {
@@ -58,7 +56,8 @@ function generateForest(): TreeDatum[] {
       trunkHeightFraction: 0.38 + pineRng() * 0.12,
       season: 'summer',
       branchLevels: 2 + Math.round(pineRng() * 2),
-      label: 'Pine'
+      label: 'Pine',
+      crop: null
     });
   }
 
@@ -74,23 +73,32 @@ function generateForest(): TreeDatum[] {
       trunkHeightFraction: 0.28 + oakRng() * 0.12,
       season: 'autumn',
       branchLevels: 0,
-      label: 'Oak (Autumn)'
+      label: 'Oak (Autumn)',
+      crop: null
     });
   }
 
-  // ── Zone 3: Cherry blossom orchard (centre, spring) ──────────────────────
+  // ── Zone 3: Cherry blossom orchard (centre, spring) ───────────────────────
+  // Flowering stage: small white-pink blossom clusters in the outer canopy
   const cherryRng = makeRng(3);
   for (let i = 0; i < 55; i++) {
+    const r = cherryRng;
     trees.push({
-      position: [-0.025 + cherryRng() * 0.05, 51.495 + cherryRng() * 0.018],
+      position: [-0.025 + r() * 0.05, 51.495 + r() * 0.018],
       type: 'cherry',
-      height: 5 + cherryRng() * 6,
-      trunkRadius: 0.2 + cherryRng() * 0.25,
-      canopyRadius: 2 + cherryRng() * 2.5,
-      trunkHeightFraction: 0.32 + cherryRng() * 0.12,
+      height: 5 + r() * 6,
+      trunkRadius: 0.2 + r() * 0.25,
+      canopyRadius: 2 + r() * 2.5,
+      trunkHeightFraction: 0.32 + r() * 0.12,
       season: 'spring',
       branchLevels: 0,
-      label: 'Cherry (Spring)'
+      label: 'Cherry Blossom',
+      crop: {
+        color: [255, 230, 240, 210],
+        count: Math.round(20 + r() * 18),
+        droppedCount: Math.round(5 + r() * 10),
+        radius: 0.07
+      }
     });
   }
 
@@ -106,7 +114,8 @@ function generateForest(): TreeDatum[] {
       trunkHeightFraction: 0.72 + palmRng() * 0.15,
       season: 'summer',
       branchLevels: 0,
-      label: 'Palm'
+      label: 'Palm',
+      crop: null
     });
   }
 
@@ -122,7 +131,8 @@ function generateForest(): TreeDatum[] {
       trunkHeightFraction: 0.48 + birchRng() * 0.16,
       season: 'autumn',
       branchLevels: 0,
-      label: 'Birch (Autumn)'
+      label: 'Birch (Autumn)',
+      crop: null
     });
   }
 
@@ -138,7 +148,8 @@ function generateForest(): TreeDatum[] {
       trunkHeightFraction: 0.3 + winterRng() * 0.1,
       season: 'winter',
       branchLevels: 0,
-      label: 'Oak (Winter)'
+      label: 'Oak (Winter)',
+      crop: null
     });
   }
 
@@ -154,7 +165,54 @@ function generateForest(): TreeDatum[] {
       trunkHeightFraction: 0.5 + springBirchRng() * 0.14,
       season: 'spring',
       branchLevels: 0,
-      label: 'Birch (Spring)'
+      label: 'Birch (Spring)',
+      crop: null
+    });
+  }
+
+  // ── Zone 8: Citrus orchard (south-centre) — orange fruit + dropped ────────
+  const citrusRng = makeRng(8);
+  for (let i = 0; i < 50; i++) {
+    const r = citrusRng;
+    trees.push({
+      position: [-0.01 + r() * 0.04, 51.481 + r() * 0.012],
+      type: 'cherry', // round dense canopy suits citrus
+      height: 4 + r() * 4,
+      trunkRadius: 0.18 + r() * 0.18,
+      canopyRadius: 2 + r() * 2,
+      trunkHeightFraction: 0.3 + r() * 0.12,
+      season: 'summer',
+      branchLevels: 0,
+      label: 'Citrus (Fruiting)',
+      crop: {
+        color: [255, 140, 0, 255],
+        count: Math.round(22 + r() * 20),
+        droppedCount: Math.round(6 + r() * 10),
+        radius: 0.11
+      }
+    });
+  }
+
+  // ── Zone 9: Almond grove (south-west of citrus) — tan nuts + dropped ──────
+  const almondRng = makeRng(9);
+  for (let i = 0; i < 45; i++) {
+    const r = almondRng;
+    trees.push({
+      position: [-0.065 + r() * 0.03, 51.481 + r() * 0.012],
+      type: 'oak', // wide spreading canopy typical of almond
+      height: 5 + r() * 5,
+      trunkRadius: 0.22 + r() * 0.2,
+      canopyRadius: 2.5 + r() * 2,
+      trunkHeightFraction: 0.32 + r() * 0.12,
+      season: 'summer',
+      branchLevels: 0,
+      label: 'Almond (Harvest)',
+      crop: {
+        color: [195, 155, 90, 255],
+        count: Math.round(28 + r() * 22),
+        droppedCount: Math.round(10 + r() * 16),
+        radius: 0.09
+      }
     });
   }
 
@@ -185,11 +243,13 @@ type ZoneInfo = {
 const ZONES: ZoneInfo[] = [
   {label: 'Pine Forest (Summer)', color: '#006400'},
   {label: 'Oak Grove (Autumn)', color: '#b45314'},
-  {label: 'Cherry Orchard (Spring)', color: '#ffb4c8'},
+  {label: 'Cherry Blossom (Spring ✿)', color: '#ffb4c8'},
   {label: 'Palm Grove (Summer)', color: '#14911e'},
   {label: 'Birch Glade (Autumn)', color: '#e6b928'},
-  {label: 'Oak Silhouettes (Winter)', color: 'rgba(100,80,80,0.24)'},
-  {label: 'Birch Grove (Spring)', color: '#96d26e'}
+  {label: 'Oak Silhouettes (Winter)', color: 'rgba(100,80,80,0.4)'},
+  {label: 'Birch Grove (Spring)', color: '#96d26e'},
+  {label: 'Citrus Orchard (Fruiting)', color: '#ff8c00'},
+  {label: 'Almond Grove (Harvest)', color: '#c39b5a'}
 ];
 
 // ---------------------------------------------------------------------------
@@ -200,7 +260,7 @@ const FOREST_DATA = generateForest();
 
 export default function App(): React.ReactElement {
   const [sizeScale, setSizeScale] = useState(30);
-  const [tooltip, setTooltip] = useState<string | null>(null);
+  const [showCrops, setShowCrops] = useState(true);
 
   const treeLayer = useMemo(
     () =>
@@ -215,19 +275,16 @@ export default function App(): React.ReactElement {
         getTrunkHeightFraction: (d) => d.trunkHeightFraction,
         getSeason: (d) => d.season,
         getBranchLevels: (d) => d.branchLevels || 3,
+        getCrop: showCrops ? (d) => d.crop : () => null,
         sizeScale,
-        pickable: true
+        pickable: true,
+        updateTriggers: {getCrop: showCrops}
       }),
-    [sizeScale]
+    [sizeScale, showCrops]
   );
 
   const onHover = useCallback((info: PickingInfo) => {
-    const d = info.object as TreeDatum | null;
-    setTooltip(
-      d
-        ? `${d.label} · ${d.height.toFixed(1)} m tall · canopy ⌀ ${(d.canopyRadius * 2).toFixed(1)} m`
-        : null
-    );
+    void info;
   }, []);
 
   return (
@@ -235,7 +292,9 @@ export default function App(): React.ReactElement {
       <DeckGL
         layers={[treeLayer]}
         initialViewState={INITIAL_VIEW_STATE}
-        controller={true}
+        controller={{
+          maxPitch: 80
+        }}
         onHover={onHover}
         parameters={{clearColor: [0.06, 0.1, 0.06, 1]}}
         style={{position: 'absolute', width: '100%', height: '100%'}}
@@ -266,14 +325,14 @@ export default function App(): React.ReactElement {
           color: '#e8f5e8',
           borderRadius: 10,
           padding: '14px 18px',
-          minWidth: 220,
+          minWidth: 230,
           fontFamily: 'system-ui, sans-serif',
           fontSize: 13,
           boxShadow: '0 4px 24px rgba(0,0,0,0.5)'
         }}
       >
         <div style={{fontWeight: 700, fontSize: 15, marginBottom: 12, letterSpacing: 0.5}}>
-          🌲 Wild Forest
+          🌲 Wild Forest + Orchards
         </div>
 
         <label style={{display: 'block', marginBottom: 4}}>
@@ -286,8 +345,30 @@ export default function App(): React.ReactElement {
           step={1}
           value={sizeScale}
           onChange={(e) => setSizeScale(Number(e.target.value))}
-          style={{width: '100%', marginBottom: 14}}
+          style={{width: '100%', marginBottom: 12}}
         />
+
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 14,
+            cursor: 'pointer',
+            userSelect: 'none'
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={showCrops}
+            onChange={(e) => setShowCrops(e.target.checked)}
+            style={{width: 14, height: 14, cursor: 'pointer'}}
+          />
+          <span>
+            Show crops{' '}
+            <span style={{opacity: 0.6, fontSize: 11}}>(blossoms · oranges · almonds)</span>
+          </span>
+        </label>
 
         <div style={{fontWeight: 600, marginBottom: 8, color: '#adf0ad'}}>Forest zones</div>
         {ZONES.map((z) => (
