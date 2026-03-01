@@ -72,11 +72,8 @@
     "@turf/transform-translate": "^7.2.0",
     "@turf/union": "^7.2.0",
     "@types/geojson": "^7946.0.16",
-    "eventemitter3": "^5.0.0",
-    "lodash.omit": "^4.1.1",
     "lodash.throttle": "^4.1.1",
-    "preact": "^10.17.0",
-    "uuid": "9.0.0"
+    "preact": "^10.17.0"
   },
   "peerDependencies": {
     "@deck.gl-community/layers": "^9.2.0-beta",
