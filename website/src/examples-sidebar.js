@@ -81,14 +81,6 @@ const sidebars = {
     //   ]
     // },
 
-    {
-      type: 'category',
-      label: '@deck.gl-community/three',
-      items: [
-        "three/wild-forest"
-      ]
-    },
-
     // TODO - need BING map key
     // {
     //   type: 'category',
