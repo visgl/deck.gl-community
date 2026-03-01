@@ -27,9 +27,16 @@ Released: February 20, 2026
 - New `@deck.gl-community/widgets` module with unofficial deck.gl UI widgets.
 - New `@deck.gl-community/timeline-layers` module for time-series visualization.
 
-### `@deck.gl-community/three`
+### `@deck.gl-community/three` (NEW module)
 
-- `TreeLayer` - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
+  - 5 species / silhouettes: pine, oak, palm, birch, cherry.
+  - Organic canopy geometry with smooth low-frequency vertex jitter.
+  - Per-tree variety via position-derived random bearing and asymmetric XY scale.
+  - Season-driven canopy colours (spring / summer / autumn / winter).
+  - Pine tier density control (`getBranchLevels` 1–5) with per-tier drift.
+  - Crop / fruit / flower visualisation (`getCrop`) with live and dropped crop spheres.
+  - [Wild Forest example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/wild-forest) with 9 forest zones and interactive controls.
 
 ### `@deck.gl-community/widgets` (NEW module)
 

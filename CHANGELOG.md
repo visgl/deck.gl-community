@@ -1,5 +1,20 @@
 # deck.gl-community CHANGELOG
 
+## v9.2.8
+
+- fix(three/tree-layer): resolve ESLint errors blocking v9.2.7 release (one-var, no-continue, max-statements, max-params, unnecessary type assertion)
+- fix(widgets): prettier formatting for html-overlay-widget
+- docs(three): add formal TreeLayer documentation (sidebar, README, API reference)
+- docs(three): wire three module into website docs and examples sidebars
+- docs: expand whats-new.md with full TreeLayer feature details
+
+## v9.2.7
+
+- feat(three/tree-layer): crop/fruit visualisation, organic canopy & per-tree variety (#533)
+- docs: add npm weekly download badges to all module READMEs (#536)
+- docs: add npm version badges to all module READMEs (#531)
+- docs(agents): document publish-prod/publish-beta release workflow (#529)
+
 ## v9.2.6
 
 - feat(widgets): add `onCreateOverlay` and `onRenderOverlay` callbacks to HtmlOverlayWidget (#430)

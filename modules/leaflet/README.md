@@ -1,6 +1,7 @@
 # @deck.gl-community/leaflet
 
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/leaflet.svg)](https://www.npmjs.com/package/@deck.gl-community/leaflet)
+[![NPM Downloads](https://img.shields.io/npm/dw/@deck.gl-community/leaflet.svg)](https://www.npmjs.com/package/@deck.gl-community/leaflet)
 
 This module allows [Leaflet](https://leafletjs.com/) to be used as a [deck.gl](https://deck.gl) basemap. 
 

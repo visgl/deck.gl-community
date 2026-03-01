@@ -40,6 +40,15 @@ export type {EditMode} from './edit-modes/edit-mode';
 export type {GeoJsonEditModeType} from './edit-modes/geojson-edit-mode';
 export type {GeoJsonEditModeConstructor} from './edit-modes/geojson-edit-mode';
 
+export type {EditModeCoordinateSystem} from './edit-modes/coordinate-system';
+export {GeoCoordinateSystem, CartesianCoordinateSystem} from './edit-modes/coordinate-system';
+export {
+  geoCoordinateSystem,
+  cartesianCoordinateSystem,
+  getEditModeCoordinateSystem,
+  fromDeckCoordinateSystem
+} from './edit-modes/coordinate-system';
+
 export type {EditableGeoJsonLayerProps} from './editable-layers/editable-geojson-layer';
 export type {SelectionLayerProps} from './editable-layers/selection-layer';
 
