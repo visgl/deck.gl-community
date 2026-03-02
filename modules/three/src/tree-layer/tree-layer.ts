@@ -545,19 +545,19 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           // Per-tree asymmetric XY scale from position hash — no two canopies
           // are the same oval, giving organic variety with zero extra draw calls.
           const seed = positionSeed(pos[0], pos[1]);
-          const sx = 1 + ((seed & 0xffff) / 65535 - 0.5) * 0.3;
-          const sy = 1 + (((seed >>> 16) & 0xffff) / 65535 - 0.5) * 0.3;
+          const sx = 1 + ((seed & 0xffff) / 65535 - 0.5) * 0.6;
+          const sy = 1 + (((seed >>> 16) & 0xffff) / 65535 - 0.5) * 0.6;
           return [r * sx, r * sy, h * (1 - f)];
         },
         getOrientation: (d) => {
-          // Random bearing per tree: yaw (index 1) rotates around the vertical
-          // Z axis in deck.gl's [pitch, yaw, roll] convention.
-          // Pine tiers face different compass directions; bumpy canopies present
-          // a unique silhouette from every viewing angle.
+          // Random bearing + slight pitch per tree so spherical canopies show
+          // visible lean variety at typical farm viewing angles (30–60° pitch).
+          // pitch [0]: ±12°, yaw [1]: full 360°, roll [2]: 0
           const pos = getPosition(d);
           const seed = positionSeed(pos[0], pos[1]);
-          const angle = (((seed ^ (seed >>> 13)) & 0xffff) / 65535) * 360;
-          return [0, angle, 0];
+          const yaw = (((seed ^ (seed >>> 13)) & 0xffff) / 65535) * 360;
+          const pitch = (((seed ^ (seed >>> 7)) & 0xff) / 255 - 0.5) * 24;
+          return [pitch, yaw, 0];
         },
         getColor: (d) => {
           const explicit = getCanopyColor(d);
