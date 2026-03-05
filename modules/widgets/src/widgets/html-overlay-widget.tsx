@@ -26,11 +26,7 @@ export type HtmlOverlayWidgetProps = WidgetProps & {
   /** Create an overlay root for custom rendering. */
   onCreateOverlay?: (container: HTMLElement) => unknown;
   /** Render into a previously created overlay root. */
-  onRenderOverlay?: (
-    overlayRoot: unknown,
-    element: JSX.Element | null,
-    container: HTMLElement
-  ) => void;
+  onRenderOverlay?: (overlayRoot: unknown, element: JSX.Element | null, container: HTMLElement) => void;
 };
 
 const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
