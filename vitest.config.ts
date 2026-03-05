@@ -10,14 +10,21 @@ const CONFIG = defineConfig({
     conditions: ['node'] // prefer node resolution
   },
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['modules/*/src/**/*.{ts,tsx,js,jsx}', 'dev/*/src/**/*.{ts,tsx,js,jsx}'],
+      exclude: ['modules/template/**', 'modules/*/src/**/*.d.ts', 'dev/*/src/**/*.d.ts']
+    },
     projects: [
       {
         test: {
           name: 'node',
           environment: 'node',
-          include: ['modules/**/*.{test,spec}.{js,ts}'],
+          include: ['modules/**/*.{test,spec}.{js,ts}', 'dev/**/*.{test,spec}.{js,ts}'],
           exclude: [
             'modules/**/*.browser.{test,spec}.{js,ts}',
+            'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/basemap-props/**'
           ],
           browser: {
@@ -32,9 +39,10 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
-            'modules/**/*.{test,spec}.{jsx,tsx}'
+            'modules/**/*.{test,spec}.{jsx,tsx}',
+            'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
-          exclude: ['modules/basemap-props/**'],
           browser: {
             enabled: true,
             provider: playwright(),
@@ -49,9 +57,10 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
-            'modules/**/*.{test,spec}.{jsx,tsx}'
+            'modules/**/*.{test,spec}.{jsx,tsx}',
+            'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
-          exclude: ['modules/basemap-props/**'],
           browser: {
             enabled: true,
             headless: true,

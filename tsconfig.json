@@ -34,7 +34,8 @@
       "@deck.gl-community/react": ["./modules/react/src"],
       "@deck.gl-community/template": ["./modules/template/src"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
-      "@deck.gl-community/three": ["./modules/three/src"]
+      "@deck.gl-community/three": ["./modules/three/src"],
+      "@deck.gl-community/timeline-layers": ["./dev/timeline-layers/src"]
     },
     "typeRoots": ["./node_modules/@types"],
     "plugins": [
@@ -64,6 +65,7 @@
   },
   "include": [
     "modules",
+    "dev",
     "test",
     "examples",
     "scripts"
