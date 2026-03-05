@@ -81,13 +81,51 @@ jobs:
         run: yarn build
 
       - name: Run node tests with coverage
-        run: yarn test-ci
+        run: yarn test-ci 2>&1 | tee /tmp/coverage.txt; exit ${PIPESTATUS[0]}
 
-      - name: Coveralls
-        uses: coverallsapp/github-action@v2
+      - name: Post coverage summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          fail-on-error: false
+          script: |
+            const fs = require('fs');
+            const raw = fs.readFileSync('/tmp/coverage.txt', 'utf8');
+            // extract the coverage table (lines between the --- dividers)
+            const lines = raw.split('\n');
+            const start = lines.findIndex(l => l.includes('% Stmts'));
+            const end = lines.findLastIndex(l => l.match(/^-+\|/));
+            const table = start >= 0 && end > start
+              ? lines.slice(start - 1, end + 1).join('\n')
+              : '_Coverage table not found_';
+            const testLine = lines.find(l => l.includes('Test Files')) || '';
+            const body = [
+              '## Coverage report',
+              '```',
+              table,
+              '```',
+              testLine.trim() ? `\`${testLine.trim()}\`` : '',
+            ].filter(Boolean).join('\n');
+            const {data: comments} = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.startsWith('## Coverage report'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
 
   test-headless:
     runs-on: ubuntu-22.04
