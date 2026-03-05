@@ -10,6 +10,17 @@ const CONFIG = defineConfig({
     conditions: ['node'] // prefer node resolution
   },
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['modules/*/src/**/*.{ts,tsx,js,jsx}'],
+      exclude: [
+        'modules/basemap-props/**',
+        'modules/basemap-props-wip/**',
+        'modules/template/**',
+        'modules/*/src/**/*.d.ts'
+      ]
+    },
     projects: [
       {
         test: {
