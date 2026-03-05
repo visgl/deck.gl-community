@@ -237,8 +237,13 @@ function expandDroppedCropPoints(opts: {
   const rng = createRng(positionSeed(lng, lat) ^ 0x1a2b3c4d);
 
   // Dropped crops are semi-transparent so they read as fallen/decaying
-  const c = cropConfig.color as number[];
-  const droppedColor: Color = [c[0], c[1], c[2], Math.round((c[3] ?? 255) * 0.45)] as Color;
+  const c = cropConfig.color as unknown as number[];
+  const droppedColor: Color = [
+    c[0],
+    c[1],
+    c[2],
+    Math.round((c[3] ?? 255) * 0.45)
+  ] as unknown as Color;
 
   for (let i = 0; i < droppedCount; i++) {
     const theta = rng() * Math.PI * 2;
