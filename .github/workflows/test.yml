@@ -90,20 +90,19 @@ jobs:
           script: |
             const fs = require('fs');
             const raw = fs.readFileSync('/tmp/coverage.txt', 'utf8');
-            // extract the coverage table (lines between the --- dividers)
             const lines = raw.split('\n');
-            const start = lines.findIndex(l => l.includes('% Stmts'));
-            const end = lines.findLastIndex(l => l.match(/^-+\|/));
-            const table = start >= 0 && end > start
-              ? lines.slice(start - 1, end + 1).join('\n')
-              : '_Coverage table not found_';
+            // Extract the "All files" totals line
+            const allFiles = lines.find(l => l.match(/^All files\s*\|/));
+            let coverageLine = '_Coverage data not found_';
+            if (allFiles) {
+              const [, stmts, branch, funcs, ln] = allFiles.split('|').map(s => s.trim());
+              coverageLine = `Stmts: **${stmts}%** | Branch: **${branch}%** | Funcs: **${funcs}%** | Lines: **${ln}%**`;
+            }
             const testLine = lines.find(l => l.includes('Test Files')) || '';
             const body = [
-              '## Coverage report',
-              '```',
-              table,
-              '```',
-              testLine.trim() ? `\`${testLine.trim()}\`` : '',
+              '## Coverage',
+              coverageLine,
+              testLine.trim() ? `> ${testLine.trim()}` : '',
             ].filter(Boolean).join('\n');
             const {data: comments} = await github.rest.issues.listComments({
               owner: context.repo.owner,
