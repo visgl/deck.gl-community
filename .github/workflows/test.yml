@@ -39,6 +39,8 @@ jobs:
 
       - name: Install dependencies
         run: yarn
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
 
       - name: Lint
         run: yarn lint
@@ -77,6 +79,8 @@ jobs:
 
       - name: Install dependencies
         run: yarn
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
 
       - name: Build packages
         run: yarn build
@@ -231,6 +235,8 @@ jobs:
 
       - name: Install dependencies
         run: yarn
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
 
       - name: Build packages
         run: yarn build
