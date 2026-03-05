@@ -157,13 +157,16 @@ jobs:
             let baseline = null;
             try { baseline = parseAllFiles(fs.readFileSync('/tmp/baseline/coverage-summary.txt', 'utf8')); } catch {}
 
+            const stripAnsi = s => s.replace(/\x1b\[[0-9;]*m/g, '');
+
             const fmt = (val, baseVal) => {
               const str = `**${val.toFixed(2)}%**`;
               if (baseline === null || isNaN(baseVal)) return str;
-              const d = (val - baseVal).toFixed(2);
-              const sign = d >= 0 ? '+' : '';
-              const color = d > 0 ? '▲' : d < 0 ? '▼' : '●';
-              return `${str} ${color}${sign}${d}%`;
+              const d = val - baseVal;
+              if (Math.abs(d) < 0.005) return str;
+              const sign = d > 0 ? '+' : '';
+              const arrow = d > 0 ? '▲' : '▼';
+              return `${str} ${arrow}${sign}${d.toFixed(2)}%`;
             };
 
             let coverageLine = '_Coverage data not found_';
@@ -177,7 +180,7 @@ jobs:
               ].join(' | ');
             }
 
-            const testLine = lines.find(l => l.includes('Test Files')) || '';
+            const testLine = lines.map(stripAnsi).find(l => l.includes('Test Files')) || '';
             const body = [
               '## Coverage',
               coverageLine,
