@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
+/** @jsxImportSource preact */
 
 import {render} from 'preact';
 import type {JSX} from 'preact';
@@ -75,7 +76,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
 
   placement: WidgetPlacement = 'top-left';
   className = 'deck-widget-zoom-range';
-  deck?: Deck | null = null;
+
   step: number;
   currentZoom = 0;
   inferredMinZoom: number | null = null;
@@ -109,7 +110,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   }
 
   override onRemove(): void {
-    this.deck = null;
+    this.deck = undefined;
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {

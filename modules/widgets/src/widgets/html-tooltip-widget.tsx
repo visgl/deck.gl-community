@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
+/** @jsxImportSource preact */
 
 import type {ComponentChildren, VNode} from 'preact';
 import type {PickingInfo, WidgetProps, Viewport} from '@deck.gl/core';
