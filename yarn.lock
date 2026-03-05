@@ -510,7 +510,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/timeline-layers@workspace:dev/timeline-layers":
+"@deck.gl-community/timeline-layers@workspace:*, @deck.gl-community/timeline-layers@workspace:dev/timeline-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/timeline-layers@workspace:dev/timeline-layers"
   dependencies:
@@ -551,6 +551,31 @@ __metadata:
     "@luma.gl/core": ~9.2.6
     "@luma.gl/engine": ~9.2.6
   checksum: 10c0/9d2cbf442603cf0e89c400b9219a16b19f8d09206f63ce73222b3216dd9919a46f7be5ec634fae5fe84182ca58223ed22ff270f2334d60b00fb322425f7bc859
+  languageName: node
+  linkType: hard
+
+"@deck.gl/core@npm:~9.2.1":
+  version: 9.2.10
+  resolution: "@deck.gl/core@npm:9.2.10"
+  dependencies:
+    "@loaders.gl/core": "npm:^4.3.4"
+    "@loaders.gl/images": "npm:^4.3.4"
+    "@luma.gl/constants": "npm:^9.2.6"
+    "@luma.gl/core": "npm:^9.2.6"
+    "@luma.gl/engine": "npm:^9.2.6"
+    "@luma.gl/shadertools": "npm:^9.2.6"
+    "@luma.gl/webgl": "npm:^9.2.6"
+    "@math.gl/core": "npm:^4.1.0"
+    "@math.gl/sun": "npm:^4.1.0"
+    "@math.gl/types": "npm:^4.1.0"
+    "@math.gl/web-mercator": "npm:^4.1.0"
+    "@probe.gl/env": "npm:^4.1.1"
+    "@probe.gl/log": "npm:^4.1.1"
+    "@probe.gl/stats": "npm:^4.1.1"
+    "@types/offscreencanvas": "npm:^2019.6.4"
+    gl-matrix: "npm:^3.0.0"
+    mjolnir.js: "npm:^3.0.0"
+  checksum: 10c0/195a5a2ae4216bfef0c7d280fd8b28a3be14c423ee4d42e4a0c8c6d960b9845ce33eba72390b61d5f57fa9be676672fe7f92013ff5c02989f85792c309480c8e
   languageName: node
   linkType: hard
 
@@ -627,6 +652,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@deck.gl/layers@npm:~9.2.1":
+  version: 9.2.10
+  resolution: "@deck.gl/layers@npm:9.2.10"
+  dependencies:
+    "@loaders.gl/images": "npm:^4.3.4"
+    "@loaders.gl/schema": "npm:^4.3.4"
+    "@luma.gl/shadertools": "npm:^9.2.6"
+    "@mapbox/tiny-sdf": "npm:^2.0.5"
+    "@math.gl/core": "npm:^4.1.0"
+    "@math.gl/polygon": "npm:^4.1.0"
+    "@math.gl/web-mercator": "npm:^4.1.0"
+    earcut: "npm:^2.2.4"
+  peerDependencies:
+    "@deck.gl/core": ~9.2.0
+    "@loaders.gl/core": ^4.3.4
+    "@luma.gl/core": ~9.2.6
+    "@luma.gl/engine": ~9.2.6
+  checksum: 10c0/78e55822e06981725784b4d876a1aa2cc51a607c5e53bd5cf319abb6134305b83f2d07699932b6b0143cb4a14c8b3befedccb575cde62a24211e3c2052dc5a13
+  languageName: node
+  linkType: hard
+
 "@deck.gl/layers@npm:~9.2.8":
   version: 9.2.8
   resolution: "@deck.gl/layers@npm:9.2.8"
@@ -663,6 +709,18 @@ __metadata:
     "@luma.gl/gltf": ~9.2.6
     "@luma.gl/shadertools": ~9.2.6
   checksum: 10c0/adb2786026a4be0534779e0a019edc4b0629dea249909513fab00b793e8478d15a714d9fc6f98ade1355a966c08fe7adc6c0fc25d92b05f1bcbca083d653b4ac
+  languageName: node
+  linkType: hard
+
+"@deck.gl/react@npm:~9.2.1":
+  version: 9.2.10
+  resolution: "@deck.gl/react@npm:9.2.10"
+  peerDependencies:
+    "@deck.gl/core": ~9.2.0
+    "@deck.gl/widgets": ~9.2.0
+    react: ">=16.3.0"
+    react-dom: ">=16.3.0"
+  checksum: 10c0/87b79ad77e494fb16cb0c0ac0d00d9911478a95f9e686e681687fc3e395e469380f1f79429bbbdc67c9e8adac49d8c2311aba991222e30620ca5a540e72578ed
   languageName: node
   linkType: hard
 
@@ -2112,7 +2170,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/core@npm:^9.2.6, @luma.gl/core@npm:~9.2.6":
+"@luma.gl/core@npm:^9.2.6, @luma.gl/core@npm:~9.2.0, @luma.gl/core@npm:~9.2.6":
   version: 9.2.6
   resolution: "@luma.gl/core@npm:9.2.6"
   dependencies:
@@ -2939,6 +2997,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@probe.gl/env@npm:4.1.1, @probe.gl/env@npm:^4.1.1":
+  version: 4.1.1
+  resolution: "@probe.gl/env@npm:4.1.1"
+  checksum: 10c0/431f53d95936ba1ee08e8d4c155cc3c49d80d528acaff933ae8f32a4725f04d88ee634707e20baa885a505d6f1401f895bdfcfa42c259b3220dd26463d2cfb2d
+  languageName: node
+  linkType: hard
+
 "@probe.gl/log@npm:4.1.0, @probe.gl/log@npm:^4.0.2, @probe.gl/log@npm:^4.0.4, @probe.gl/log@npm:^4.0.8, @probe.gl/log@npm:^4.1.0":
   version: 4.1.0
   resolution: "@probe.gl/log@npm:4.1.0"
@@ -2948,10 +3013,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@probe.gl/log@npm:^4.1.1":
+  version: 4.1.1
+  resolution: "@probe.gl/log@npm:4.1.1"
+  dependencies:
+    "@probe.gl/env": "npm:4.1.1"
+  checksum: 10c0/713043aea095dbe6e97525a5d254f2563e9e0b6c64fdb888603f41342ed0f0a76a64e6996d2d461c7f1f9c6271a931b2e922d9e47f8c43f3d4116867f4cd5d0a
+  languageName: node
+  linkType: hard
+
 "@probe.gl/stats@npm:^4.0.0, @probe.gl/stats@npm:^4.0.2, @probe.gl/stats@npm:^4.0.8, @probe.gl/stats@npm:^4.1.0":
   version: 4.1.0
   resolution: "@probe.gl/stats@npm:4.1.0"
   checksum: 10c0/c16ac4c18f116067a5382a43d114b3c7d1ce723a5ebcdd96de7c59bb7380bb29275bb5f40f740efbf077a910c5a38405a4b4e1a47b565d582f26591163a407d5
+  languageName: node
+  linkType: hard
+
+"@probe.gl/stats@npm:^4.1.1":
+  version: 4.1.1
+  resolution: "@probe.gl/stats@npm:4.1.1"
+  checksum: 10c0/7fd49d891e5ecfc82330c0db9180cc6a3fae0f78062570fabdc1860f79f09b612c53af08b9d6e2bb701b79fb7156ec2c9c0ddf53e5dba12b0560c7bbc957afc7
   languageName: node
   linkType: hard
 
@@ -9273,6 +9354,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"horizon-graph-layer-289f4b@workspace:dev/timeline-layers/examples/horizon-graph-layer":
+  version: 0.0.0-use.local
+  resolution: "horizon-graph-layer-289f4b@workspace:dev/timeline-layers/examples/horizon-graph-layer"
+  dependencies:
+    "@deck.gl-community/timeline-layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.2.8"
+    "@deck.gl/layers": "npm:~9.2.8"
+    "@deck.gl/react": "npm:~9.2.8"
+    "@deck.gl/widgets": "npm:~9.2.8"
+    "@loaders.gl/core": "npm:^4.2.0"
+    "@luma.gl/core": "npm:~9.2.6"
+    "@luma.gl/engine": "npm:~9.2.6"
+    "@luma.gl/shadertools": "npm:~9.2.6"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "hosted-git-info@npm:^2.1.4":
   version: 2.8.9
   resolution: "hosted-git-info@npm:2.8.9"
@@ -15004,9 +15104,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"timeline-layer-0054e4@workspace:examples/timeline-layers/timeline-layer":
+"timeline-layer-a0fda1@workspace:dev/timeline-layers/examples/timeline-layer":
   version: 0.0.0-use.local
-  resolution: "timeline-layer-0054e4@workspace:examples/timeline-layers/timeline-layer"
+  resolution: "timeline-layer-a0fda1@workspace:dev/timeline-layers/examples/timeline-layer"
   dependencies:
     "@deck.gl-community/timeline-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.2.1"
