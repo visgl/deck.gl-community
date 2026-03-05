@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
+/** @jsxImportSource preact */
 
 import {render} from 'preact';
 import type {JSX} from 'preact';
@@ -60,7 +61,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
 
   placement: WidgetPlacement = 'top-left';
   className = 'deck-widget-pan';
-  deck?: Deck | null = null;
+
   step: number;
 
   constructor(props: PanWidgetProps = {}) {
@@ -91,7 +92,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
   }
 
   override onRemove(): void {
-    this.deck = null;
+    this.deck = undefined;
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {

@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
+/** @jsxImportSource preact */
 
 import {
   cloneElement,
@@ -58,7 +59,6 @@ export class HtmlOverlayWidget<
 
   placement: WidgetPlacement = 'fill';
   className = 'deck-widget-html-overlay';
-  deck?: Deck | null = null;
   protected viewport: Viewport | null = null;
   protected overlayRoot: unknown = null;
   protected overlayRootInitialized = false;
@@ -83,7 +83,7 @@ export class HtmlOverlayWidget<
   }
 
   override onRemove(): void {
-    this.deck = null;
+    this.deck = undefined;
     this.viewport = null;
     this.overlayRoot = null;
     this.overlayRootInitialized = false;
