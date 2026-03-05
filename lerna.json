@@ -2,7 +2,8 @@
   "version": "9.2.8",
   "npmClient": "yarn",
   "packages": [
-    "modules/*"
+    "modules/*",
+    "dev/*"
   ],
   "publishConfig": {
     "access": "public"

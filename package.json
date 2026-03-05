@@ -13,6 +13,7 @@
   "type": "module",
   "workspaces": [
     "modules/*",
+    "dev/*",
     "examples/**"
   ],
   "scripts": {
