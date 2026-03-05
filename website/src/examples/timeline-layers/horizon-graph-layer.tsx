@@ -8,7 +8,7 @@ import {makeExample} from '../../components';
 class HorizonDemo extends Component {
   static title = 'Horizon Graph Layer Demo';
 
-  static code = `${GITHUB_TREE}/examples/timeline-layers/horizon-graph-layer`;
+  static code = `${GITHUB_TREE}/dev/timeline-layers/examples/horizon-graph-layer`;
 
   static renderInfo(meta) {
     return <></>;
@@ -20,7 +20,7 @@ class HorizonDemo extends Component {
     return (
       <BrowserOnly>
         {() => {
-          const App = require('../../../../examples/timeline-layers/horizon-graph-layer/app').default;
+          const App = require('../../../../dev/timeline-layers/examples/horizon-graph-layer/app').default;
           return <App {...otherProps} />;
         }}
       </BrowserOnly>
