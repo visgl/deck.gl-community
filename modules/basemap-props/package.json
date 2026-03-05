@@ -34,11 +34,11 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.2.8",
-    "@deck.gl/geo-layers": "~9.2.8",
-    "@deck.gl/layers": "~9.2.8",
-    "@luma.gl/core": "~9.2.6",
-    "@luma.gl/engine": "~9.2.6",
+    "@deck.gl/core": "~9.2.10",
+    "@deck.gl/geo-layers": "~9.2.10",
+    "@deck.gl/layers": "~9.2.10",
+    "@luma.gl/core": "~9.3.0-alpha.2",
+    "@luma.gl/engine": "~9.3.0-alpha.2",
     "@mapbox/mapbox-gl-style-spec": "^13.12.0",
     "@turf/polygon-to-line": "^6.0.3"
   }
