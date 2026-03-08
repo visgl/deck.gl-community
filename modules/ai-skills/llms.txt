@@ -1,0 +1,215 @@
+# @deck.gl-community/ai-skills
+
+AI agent reference for deck.gl visualizations.
+
+This module supports two patterns. Pick the one that fits your context.
+
+---
+
+## Pattern A — Native TypeScript (recommended for code generation)
+
+Write TypeScript directly. Use the typed factory functions to get correct props
+with sensible defaults, then pass them to standard deck.gl layer constructors.
+
+**Install:**
+```
+npm install @deck.gl/core @deck.gl/layers @deck.gl-community/ai-skills
+```
+
+**Basic map with scatterplot:**
+```ts
+import {Deck} from '@deck.gl/core';
+import {ScatterplotLayer} from '@deck.gl/layers';
+import {scatterplotLayer, fitViewport} from '@deck.gl-community/ai-skills';
+
+const cities = [
+  {name: 'New York', coordinates: [-74.006, 40.7128], population: 8_300_000},
+  {name: 'Los Angeles', coordinates: [-118.2437, 34.0522], population: 3_900_000},
+  {name: 'Chicago', coordinates: [-87.6298, 41.8781], population: 2_700_000}
+];
+
+const layer = new ScatterplotLayer(
+  scatterplotLayer({
+    data: cities,
+    getPosition: d => d.coordinates,
+    getRadius: d => d.population,
+    getFillColor: [255, 140, 0],
+    radiusScale: 0.00003,
+    id: 'cities'
+  })
+);
+
+const viewState = fitViewport(cities.map(c => c.coordinates));
+
+new Deck({initialViewState: viewState, layers: [layer], ...});
+```
+
+**Arc layer (origin→destination flows):**
+```ts
+import {ArcLayer} from '@deck.gl/layers';
+import {arcLayer} from '@deck.gl-community/ai-skills';
+
+const flights = [{source: [-74, 40.7], target: [-118.2, 34.1], value: 1200}];
+
+const layer = new ArcLayer(
+  arcLayer({
+    data: flights,
+    getSourcePosition: d => d.source,
+    getTargetPosition: d => d.target,
+    getSourceColor: [0, 128, 200],
+    getTargetColor: [200, 0, 80],
+    getWidth: d => Math.sqrt(d.value)
+  })
+);
+```
+
+**Heatmap:**
+```ts
+import {HeatmapLayer} from '@deck.gl/aggregation-layers';
+import {heatmapLayer} from '@deck.gl-community/ai-skills';
+
+const layer = new HeatmapLayer(
+  heatmapLayer({
+    data: events,
+    getPosition: d => [d.lng, d.lat],
+    getWeight: d => d.intensity,
+    radiusPixels: 40
+  })
+);
+```
+
+---
+
+## Pattern B — JSON descriptors (for serializable configs / low-code UI)
+
+Produce pure JSON that is safe to store, transmit, or emit from an LLM to a
+server. Accessor props are dot-path strings resolved at hydration time.
+
+**Produce a descriptor:**
+```ts
+import {createDescriptor, validateDescriptor, hydrateDescriptor} from '@deck.gl-community/ai-skills';
+import {ScatterplotLayer} from '@deck.gl/layers';
+
+// Agent or UI emits this as plain JSON — no callbacks, no runtime execution
+const desc = createDescriptor('ScatterplotLayer', {
+  data: cities,
+  getPosition: 'coordinates',    // resolved to d => d.coordinates
+  getRadius: 'population',       // resolved to d => d.population
+  getFillColor: [255, 140, 0],
+  radiusScale: 0.00003
+});
+
+// Validate before use
+const {valid, errors} = validateDescriptor(desc);
+if (!valid) throw new Error(errors.join(', '));
+
+// Hydrate and render
+const layer = new ScatterplotLayer(hydrateDescriptor(desc));
+```
+
+**Compose with DeckBuilder:**
+```ts
+import {DeckBuilder, createDescriptor, fitViewport} from '@deck.gl-community/ai-skills';
+
+const config = new DeckBuilder()
+  .addLayer(createDescriptor('ScatterplotLayer', {
+    data: cities,
+    getPosition: 'coordinates',
+    getFillColor: [255, 140, 0]
+  }))
+  .addLayer(createDescriptor('TextLayer', {
+    data: cities,
+    getPosition: 'coordinates',
+    getText: 'name',
+    getSize: 14
+  }))
+  .setViewState(fitViewport(cities.map(c => c.coordinates)))
+  .setMapStyle('https://basemaps.cartocdn.com/gl/positron-gl-style/style.json')
+  .build();
+// config is a plain JSON object — safe to store/transmit
+```
+
+---
+
+## Layer reference
+
+All layers accept `id` (string), `data` (array or URL), `pickable` (boolean),
+`opacity` (0–1). Accessor props (prefixed with `get`) accept functions or, in
+descriptor mode, dot-path strings.
+
+### ScatterplotLayer
+Required: `data`, `getPosition`
+Key props: `getRadius`, `getFillColor`, `radiusScale`, `radiusUnits` ('meters'|'pixels'), `stroked`, `getLineColor`, `getLineWidth`
+
+### PathLayer
+Required: `data`, `getPath`
+Key props: `getColor`, `getWidth`, `widthUnits` ('meters'|'pixels')
+
+### PolygonLayer
+Required: `data`, `getPolygon`
+Key props: `getFillColor`, `getLineColor`, `extruded`, `getElevation`
+
+### TextLayer
+Required: `data`, `getText`, `getPosition`
+Key props: `getColor`, `getSize`, `sizeUnits`, `getTextAnchor`, `getAlignmentBaseline`
+
+### ArcLayer
+Required: `data`, `getSourcePosition`, `getTargetPosition`
+Key props: `getSourceColor`, `getTargetColor`, `getWidth`
+
+### HeatmapLayer
+Required: `data`, `getPosition`
+Key props: `getWeight`, `radiusPixels`, `intensity`, `threshold`, `colorRange`
+
+### GeoJsonLayer
+Required: `data` (GeoJSON FeatureCollection or URL)
+Key props: `getFillColor`, `getLineColor`, `getLineWidth`, `extruded`, `getElevation`
+
+---
+
+## Viewport helpers
+
+```ts
+import {fitViewport, getBoundingBox, createViewState} from '@deck.gl-community/ai-skills';
+
+// Fit viewport to a set of [lng, lat] positions
+const vs = fitViewport(positions);                          // auto zoom
+const vs = fitViewport(positions, 1280, 720, 0.05);        // custom viewport + padding
+
+// Just bounding box: [minLng, minLat, maxLng, maxLat]
+const bbox = getBoundingBox(positions);
+
+// Explicit view state
+const vs = createViewState(-74.006, 40.7128, 12, {pitch: 45});
+```
+
+---
+
+## Color conventions
+
+Colors are `[R, G, B]` or `[R, G, B, A]` with values 0–255.
+
+```ts
+const red: ColorRGBA = [255, 0, 0];
+const semiTransparentBlue: ColorRGBA = [0, 0, 255, 180];
+```
+
+---
+
+## Decision guide
+
+| Situation | Use |
+|-----------|-----|
+| LLM writing TypeScript code directly | Pattern A — factories + native constructors |
+| LLM emitting config to a server/API | Pattern B — descriptors |
+| Low-code drag-and-drop UI | Pattern B — descriptors |
+| UNDO history / saved dashboards | Pattern B — descriptors |
+| Need full deck.gl prop surface | Pattern A — factories are a starting point; add extra props directly |
+
+---
+
+## Further reading
+
+- deck.gl layer catalog: https://deck.gl/docs/api-reference/layers
+- deck.gl/json module (runtime JSON rendering): https://deck.gl/docs/api-reference/json/json-converter
+- vis.gl community modules: https://github.com/visgl/deck.gl-community

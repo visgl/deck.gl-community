@@ -1,0 +1,46 @@
+{
+  "name": "@deck.gl-community/ai-skills",
+  "version": "9.2.8",
+  "description": "AI agent helpers for deck.gl — typed factories, JSON descriptors, and llms.txt reference docs",
+  "license": "MIT",
+  "_publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "webgl",
+    "visualization",
+    "deck.gl",
+    "ai",
+    "llm",
+    "agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community.git"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "llms.txt"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "peerDependencies": {
+    "@deck.gl/core": "~9.2.0",
+    "@deck.gl/layers": "~9.2.0"
+  }
+}

@@ -286,6 +286,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@deck.gl-community/ai-skills@workspace:modules/ai-skills":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/ai-skills@workspace:modules/ai-skills"
+  peerDependencies:
+    "@deck.gl/core": ~9.2.0
+    "@deck.gl/layers": ~9.2.0
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/arrow-layers@workspace:*, @deck.gl-community/arrow-layers@workspace:modules/arrow-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/arrow-layers@workspace:modules/arrow-layers"
