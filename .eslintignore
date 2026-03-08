@@ -8,3 +8,4 @@ public/
 modules/arrow-layers/
 modules/basemap-props/
 *.json
+*.txt
