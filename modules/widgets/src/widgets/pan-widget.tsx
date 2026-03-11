@@ -6,7 +6,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {cloneViewState, hasViewManager} from './view-manager-utils';
+import {hasViewManager} from './view-manager-utils';
 import {
   Widget,
   type Deck,
@@ -143,20 +143,6 @@ export class PanWidget extends Widget<PanWidgetProps> {
     return deck.getViewports();
   }
 
-  private getViewState(viewport: Viewport): any {
-    const deck = this.deck;
-    const viewManager = hasViewManager(deck) ? deck.viewManager : null;
-    const viewId = this.viewId || viewport.id;
-    if (viewManager) {
-      try {
-        return {...viewManager.getViewState(viewId)};
-      } catch (err) {
-        return cloneViewState(viewManager.viewState);
-      }
-    }
-    return cloneViewState(viewport);
-  }
-
   private handlePan(deltaX: number, deltaY: number) {
     if (!this.deck) {
       return;
@@ -171,13 +157,10 @@ export class PanWidget extends Widget<PanWidgetProps> {
           viewport.height / 2 + deltaY
         ];
 
-        const viewState = this.getViewState(viewport);
-        const panUpdate = viewport.panByPosition(center, nextPixel);
-        const nextViewState = {...viewState, ...panUpdate};
         const viewId = this.viewId || viewport.id || 'default-view';
-
-        // @ts-ignore Using private method until a public alternative is available
-        this.deck._onViewStateChange({viewId, viewState: nextViewState, interactionState: {}});
+        const viewState = this.getViewState(viewId);
+        const panUpdate = viewport.panByPosition(center, nextPixel);
+        this.setViewState(viewId, {...viewState, ...panUpdate});
       }
     }
   }

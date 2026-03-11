@@ -6,7 +6,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {cloneViewState, hasViewManager} from './view-manager-utils';
+import {hasViewManager} from './view-manager-utils';
 import {
   Widget,
   type Deck,
@@ -182,7 +182,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   }
 
   override onViewportChange(viewport: Viewport): void {
-    const viewState = this.getViewState(viewport);
+    const viewState = this.getViewState(this.viewId || viewport.id);
     const zoom = Number(viewState?.zoom);
     if (Number.isFinite(zoom)) {
       this.currentZoom = zoom;
@@ -233,29 +233,18 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
     return deck.getViewports();
   }
 
-  private getViewState(viewport: Viewport): any {
-    const deck = this.deck;
-    const viewManager = hasViewManager(deck) ? deck.viewManager : null;
-    const viewId = this.viewId || viewport.id;
-    if (viewManager) {
-      try {
-        return {...viewManager.getViewState(viewId)};
-      } catch (err) {
-        return cloneViewState(viewManager.viewState);
-      }
-    }
-    return cloneViewState(viewport);
-  }
-
   private handleZoomDelta(delta: number) {
     const {minZoom, maxZoom} = this.getZoomBounds();
 
     for (const viewport of this.getTargetViewports()) {
-      const viewState = this.getViewState(viewport);
+      const viewId = this.viewId || viewport.id || 'default-view';
+      const viewState = this.getViewState(viewId);
       const baseZoom = Number(viewState.zoom);
       const current = Number.isFinite(baseZoom) ? baseZoom : this.currentZoom;
       const nextZoom = Math.max(minZoom, Math.min(maxZoom, current + delta));
-      this.updateViewState(viewport, {...viewState, zoom: nextZoom});
+      this.currentZoom = nextZoom;
+      this.updateHTML();
+      this.setViewState(viewId, {...viewState, zoom: nextZoom});
     }
   }
 
@@ -264,21 +253,11 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
     const nextZoom = Math.max(minZoom, Math.min(maxZoom, zoom));
 
     for (const viewport of this.getTargetViewports()) {
-      const viewState = this.getViewState(viewport);
-      this.updateViewState(viewport, {...viewState, zoom: nextZoom});
+      const viewId = this.viewId || viewport.id || 'default-view';
+      const viewState = this.getViewState(viewId);
+      this.currentZoom = nextZoom;
+      this.updateHTML();
+      this.setViewState(viewId, {...viewState, zoom: nextZoom});
     }
-  }
-
-  private updateViewState(viewport: Viewport, viewState: any) {
-    if (!this.deck) {
-      return;
-    }
-
-    const viewId = this.viewId || viewport.id || 'default-view';
-    this.currentZoom = Number(viewState.zoom) || this.currentZoom;
-    this.updateHTML();
-
-    // @ts-ignore Using private method until a public alternative is available
-    this.deck._onViewStateChange({viewId, viewState, interactionState: {}});
   }
 }
