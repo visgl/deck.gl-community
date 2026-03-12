@@ -21,6 +21,7 @@ import {
   type GeoJsonEditModeType
 } from '@deck.gl-community/editable-layers';
 import type {FeatureCollection} from 'geojson';
+import {COORDINATE_SYSTEM, OrthographicView, OrthographicViewState} from '@deck.gl/core';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -30,9 +31,8 @@ import '@deck.gl/widgets/stylesheet.css';
 const BACKGROUND_IMAGE =
   'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Dendrocygna_eytoni_-_Macquarie_University.jpg/1280px-Dendrocygna_eytoni_-_Macquarie_University.jpg';
 
-// Position the image near the equator where Mercator distortion is minimal.
-// Bounds: [west, south, east, north]
-const IMAGE_BOUNDS: [number, number, number, number] = [-10, -8, 10, 8];
+// Bounds: [left, top, right, bottom] - flipped from original bounds
+const IMAGE_BOUNDS: [number, number, number, number] = [10, 8, -10, -8];
 
 function getDefaultGeoJSON(): FeatureCollection {
   return {
@@ -66,10 +66,8 @@ function getDefaultGeoJSON(): FeatureCollection {
   };
 }
 
-// Centered at [0, 0] — no basemap rendered, just a plain background
-const INITIAL_VIEW_STATE = {
-  longitude: 0,
-  latitude: 0,
+const INITIAL_VIEW_STATE: OrthographicViewState = {
+  target: [0, 0, 0],
   zoom: 5
 };
 
@@ -166,22 +164,25 @@ export function Example() {
   const backgroundLayer = new BitmapLayer({
     id: 'background-image',
     bounds: IMAGE_BOUNDS,
-    image: BACKGROUND_IMAGE
+    image: BACKGROUND_IMAGE,
+    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
   });
 
   const editableLayer = new EditableGeoJsonLayer({
     data: geoJson,
+    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     mode,
     selectedFeatureIndexes,
     onEdit: ({updatedData}) => {
       setGeoJson(updatedData);
     },
-    getFillColor: [0, 100, 200, 80],
-    getLineColor: [0, 100, 200, 200],
+    getLineColor: (feature, isSelected) => (isSelected ? [2, 107, 60, 130] : [0, 77, 153, 100]),
     getLineWidth: 2,
     lineWidthMinPixels: 2,
     pointRadiusMinPixels: 6,
-    editHandlePointRadiusMinPixels: 5
+    editHandlePointRadiusMinPixels: 5,
+    autoHighlight: true,
+    getFillColor: (feature, isSelected) => (isSelected ? [0, 200, 110, 150] : [0, 100, 200, 130])
   });
 
   return (
@@ -189,6 +190,7 @@ export function Example() {
       <DeckGL
         initialViewState={INITIAL_VIEW_STATE}
         controller={{doubleClickZoom: false}}
+        views={new OrthographicView()}
         layers={[backgroundLayer, editableLayer]}
         getCursor={editableLayer.getCursor.bind(editableLayer)}
         onClick={(info) => {
