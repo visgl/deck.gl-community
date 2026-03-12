@@ -35,16 +35,16 @@
     "update-release-branch": "scripts/update-release-branch.sh"
   },
   "devDependencies": {
-    "@deck.gl/aggregation-layers": "~9.2.8",
-    "@deck.gl/core": "~9.2.8",
-    "@deck.gl/layers": "~9.2.8",
-    "@deck.gl/mesh-layers": "~9.2.8",
-    "@loaders.gl/core": "^4.2.0",
-    "@luma.gl/constants": "~9.2.6",
-    "@luma.gl/core": "~9.2.6",
-    "@luma.gl/engine": "~9.2.6",
-    "@luma.gl/shadertools": "~9.2.6",
-    "@luma.gl/webgl": "~9.2.6",
+    "@deck.gl/aggregation-layers": "~9.3.0-alpha.1",
+    "@deck.gl/core": "~9.3.0-alpha.1",
+    "@deck.gl/layers": "~9.3.0-alpha.1",
+    "@deck.gl/mesh-layers": "~9.3.0-alpha.1",
+    "@loaders.gl/core": "^4.4.0-alpha.16",
+    "@luma.gl/constants": "~9.3.0-alpha.2",
+    "@luma.gl/core": "~9.3.0-alpha.2",
+    "@luma.gl/engine": "~9.3.0-alpha.2",
+    "@luma.gl/shadertools": "~9.3.0-alpha.2",
+    "@luma.gl/webgl": "~9.3.0-alpha.2",
     "@testing-library/react": "^14.3.0",
     "@types/bin-pack": "^1.0.3",
     "@vis.gl/dev-tools": "patch:@vis.gl/dev-tools@npm%3A1.0.1#~/.yarn/patches/@vis.gl-dev-tools-npm-1.0.1-f38d363810.patch",
@@ -67,12 +67,30 @@
     "vitest": "^4.0.18",
     "vitest-browser-react": "^2.0.5"
   },
+  "resolutions": {
+    "@luma.gl/constants": "~9.3.0-alpha.2",
+    "@luma.gl/core": "~9.3.0-alpha.2",
+    "@luma.gl/engine": "~9.3.0-alpha.2",
+    "@luma.gl/shadertools": "~9.3.0-alpha.2",
+    "@luma.gl/webgl": "~9.3.0-alpha.2",
+    "@luma.gl/webgpu": "~9.3.0-alpha.2"
+  },
   "packageExtensions": {
     "deck.gl@*": {
       "peerDependenciesMeta": {
         "@arcgis/core": {
           "optional": true
         }
+      }
+    },
+    "@deck.gl/*@*": {
+      "peerDependencies": {
+        "@luma.gl/constants": ">=9.2.6",
+        "@luma.gl/core": ">=9.2.6",
+        "@luma.gl/engine": ">=9.2.6",
+        "@luma.gl/shadertools": ">=9.2.6",
+        "@luma.gl/webgl": ">=9.2.6",
+        "@luma.gl/webgpu": ">=9.2.6"
       }
     },
     "zod-to-json-schema@*": {
