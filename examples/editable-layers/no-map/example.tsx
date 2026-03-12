@@ -20,7 +20,6 @@ import {
   type GeoJsonEditModeConstructor,
   type GeoJsonEditModeType
 } from '@deck.gl-community/editable-layers';
-import TranslateModeEx from './translate_example';
 import type {FeatureCollection} from 'geojson';
 import {COORDINATE_SYSTEM, OrthographicView, OrthographicViewState} from '@deck.gl/core';
 
@@ -75,7 +74,7 @@ const INITIAL_VIEW_STATE: OrthographicViewState = {
 const MODE_OPTIONS: EditModeTrayWidgetModeOption[] = [
   {id: 'view', mode: ViewMode, icon: '👆', title: 'View mode', label: 'View'},
   {id: 'modify', mode: ModifyMode, icon: '✎', title: 'Modify vertices', label: 'Modify'},
-  {id: 'translate', mode: TranslateModeEx, icon: '↔', title: 'Move features', label: 'Move'},
+  {id: 'translate', mode: TranslateMode, icon: '↔', title: 'Move features', label: 'Move'},
   {id: 'draw-point', mode: DrawPointMode, icon: '•', title: 'Draw point', label: 'Point'},
   {
     id: 'draw-line',
