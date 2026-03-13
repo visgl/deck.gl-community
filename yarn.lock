@@ -525,6 +525,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/visgl-skills@workspace:modules/visgl-skills":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/visgl-skills@workspace:modules/visgl-skills"
+  peerDependencies:
+    "@deck.gl/aggregation-layers": ">=9.0.0"
+    "@deck.gl/core": ">=9.0.0"
+    "@deck.gl/layers": ">=9.0.0"
+  peerDependenciesMeta:
+    "@deck.gl/aggregation-layers":
+      optional: true
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/widgets@workspace:*, @deck.gl-community/widgets@workspace:modules/widgets":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/widgets@workspace:modules/widgets"

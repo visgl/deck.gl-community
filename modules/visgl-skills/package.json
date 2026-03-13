@@ -1,0 +1,52 @@
+{
+  "name": "@deck.gl-community/visgl-skills",
+  "version": "9.2.6",
+  "description": "Agent skills for deck.gl – typed helpers that simplify layer construction for Claude Code, Openclaw, and other AI coding agents",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "deck.gl",
+    "visualization",
+    "ai",
+    "agent",
+    "skills",
+    "claude",
+    "copilot"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community.git"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "peerDependencies": {
+    "@deck.gl/aggregation-layers": ">=9.0.0",
+    "@deck.gl/core": ">=9.0.0",
+    "@deck.gl/layers": ">=9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@deck.gl/aggregation-layers": {
+      "optional": true
+    }
+  }
+}
