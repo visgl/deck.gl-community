@@ -13,6 +13,7 @@ import {
 } from '../../../src/utils/utils';
 import {nearestPointOnLine} from '../../../src/edit-modes/utils';
 import {Position} from '../../../src/utils/geojson-types';
+import {COORDINATE_SYSTEM} from '@deck.gl/core';
 
 const Point = {
   type: 'Feature',
@@ -247,6 +248,16 @@ describe('nearestPointOnLine()', () => {
     expect(result.geometry.coordinates.length).toEqual(2);
     expect(result.geometry.coordinates[0]).toBeCloseTo(102.0, 3);
     expect(result.geometry.coordinates[1]).toBeCloseTo(0.0, 3);
+    expect(result.properties.index).toEqual(0);
+  });
+
+  it('Correctly intersects line normal to slope of line WITH CARTESIAN COORDINATES ', () => {
+    // @ts-expect-error TODO
+    const result = nearestPointOnLine(LineString, Point, viewport, COORDINATE_SYSTEM.CARTESIAN);
+    expect(result.geometry.type).toEqual('Point');
+    expect(result.geometry.coordinates.length).toEqual(2);
+    expect(result.geometry.coordinates[0]).toBeCloseTo(102.25, 3);
+    expect(result.geometry.coordinates[1]).toBeCloseTo(0.25, 3);
     expect(result.properties.index).toEqual(0);
   });
 });

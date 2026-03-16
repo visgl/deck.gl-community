@@ -38,6 +38,7 @@ import {
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import type {CoordinateSystem} from '@deck.gl/core';
 
 export class ModifyMode extends GeoJsonEditMode {
   // eslint-disable-next-line complexity
@@ -129,13 +130,14 @@ export class ModifyMode extends GeoJsonEditMode {
   getNearestPoint(
     line: Feature<LineString>,
     inPoint: Feature<Point>,
-    viewport: Viewport | null | undefined
+    viewport: Viewport | null | undefined,
+    coordinateSystem?: CoordinateSystem
   ): NearestPointType {
     const {coordinates} = line.geometry;
     if (coordinates.some((coord) => coord.length > 2)) {
       if (viewport) {
         // This line has elevation, we need to use alternative algorithm
-        return nearestPointOnProjectedLine(line, inPoint, viewport);
+        return nearestPointOnProjectedLine(line, inPoint, viewport, coordinateSystem);
       }
       // eslint-disable-next-line no-console,no-undef
       console.log(
