@@ -20,7 +20,15 @@ import {
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
 
-const EVENT_TYPES = ['click', 'pointermove', 'panstart', 'panmove', 'panend', 'keyup', 'dblclick'];
+export const EVENT_TYPES = [
+  'click',
+  'pointermove',
+  'panstart',
+  'panmove',
+  'panend',
+  'keyup',
+  'dblclick'
+];
 
 // TODO(v9): remove generic layer
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
