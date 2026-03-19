@@ -6,13 +6,17 @@
 
 import type {CompositeLayerProps} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
+import {MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
+
 import {
   DraggingEvent,
   ClickEvent,
   StartDraggingEvent,
   StopDraggingEvent,
   PointerMoveEvent,
-  DoubleClickEvent
+  DoubleClickEvent,
+  BasePointerEvent,
+  ScreenCoordinates
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
 
@@ -91,7 +95,7 @@ export abstract class EditableLayer<
     const {eventHandler} = this.state._editableLayerState;
 
     for (const eventType of EVENT_TYPES) {
-      eventManager.on(eventType as any, eventHandler, {
+      eventManager.on(eventType, eventHandler, {
         // give nebula a higher priority so that it can stop propagation to deck.gl's map panning handlers
         priority: 100
       });
@@ -104,14 +108,14 @@ export abstract class EditableLayer<
     const {eventHandler} = this.state._editableLayerState;
 
     for (const eventType of EVENT_TYPES) {
-      eventManager.off(eventType as any, eventHandler);
+      eventManager.off(eventType, eventHandler);
     }
   }
 
   // A new layer instance is created on every render, so forward the event to the current layer
   // This means that the first layer instance will stick around to be the event listener, but will forward the event
   // to the latest layer instance.
-  _forwardEventToCurrentLayer(event: any) {
+  _forwardEventToCurrentLayer(event: MjolnirEvent) {
     const currentLayer = this.getCurrentLayer();
 
     // Use a naming convention to find the event handling function for this event type
@@ -123,77 +127,55 @@ export abstract class EditableLayer<
     func(event);
   }
 
-  _onclick({srcEvent}: any) {
-    const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
-    const mapCoords = this.getMapCoords(screenCoords);
-
-    const picks = this.getPicks(screenCoords);
-
-    this.onLayerClick({
-      mapCoords,
-      screenCoords,
-      picks,
-      sourceEvent: srcEvent
-    });
+  _onclick(event: MjolnirGestureEvent) {
+    this.onLayerClick(this.toBasePointerEvent(event));
   }
 
-  _ondblclick({srcEvent}: any) {
-    this.onLayerDoubleClick(srcEvent);
+  _ondblclick(event: MjolnirGestureEvent) {
+    this.onLayerDoubleClick(this.toBasePointerEvent(event));
   }
 
-  _onkeyup({srcEvent}: {srcEvent: KeyboardEvent}) {
+  _onkeyup({srcEvent}: MjolnirKeyEvent) {
     this.onLayerKeyUp(srcEvent);
   }
 
-  _onpanstart(event: any) {
-    const screenCoords = this.getScreenCoords(event.srcEvent) as [number, number];
-    const mapCoords = this.getMapCoords(screenCoords);
-    const picks = this.getPicks(screenCoords);
+  _onpanstart(event: MjolnirGestureEvent) {
+    const basePointerEvent = this.toBasePointerEvent(event);
+    const {picks, screenCoords, mapCoords} = basePointerEvent;
 
     this.setState({
       _editableLayerState: {
         ...this.state._editableLayerState,
+        pointerDownPicks: picks,
         pointerDownScreenCoords: screenCoords,
-        pointerDownMapCoords: mapCoords,
-        pointerDownPicks: picks
+        pointerDownMapCoords: mapCoords
       }
     });
 
     this.onStartDragging({
-      picks,
-      screenCoords,
-      mapCoords,
+      ...basePointerEvent,
+      pointerDownPicks: picks,
       pointerDownScreenCoords: screenCoords,
       pointerDownMapCoords: mapCoords,
       cancelPan: () => {
         if (this.props.onCancelPan) {
           this.props.onCancelPan();
         }
-
         event.stopImmediatePropagation();
-      },
-      sourceEvent: event.srcEvent
+      }
     });
   }
 
-  _onpanmove(event: any) {
-    const {srcEvent} = event;
-    const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
-    const mapCoords = this.getMapCoords(screenCoords);
-
+  _onpanmove(event: MjolnirGestureEvent) {
+    const basePointerEvent = this.toBasePointerEvent(event);
     const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
-    const picks = this.getPicks(screenCoords);
-
     this.onDragging({
-      screenCoords,
-      mapCoords,
-      picks,
+      ...basePointerEvent,
       pointerDownPicks,
       pointerDownScreenCoords,
       pointerDownMapCoords,
-      sourceEvent: srcEvent,
       cancelPan: event.stopImmediatePropagation
       // another (hacky) approach for cancelling map panning
       // const controller = this.context.deck.viewManager.controllers[
@@ -203,23 +185,16 @@ export abstract class EditableLayer<
     });
   }
 
-  _onpanend({srcEvent}: any) {
-    const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
-    const mapCoords = this.getMapCoords(screenCoords);
-
+  _onpanend(event: MjolnirGestureEvent) {
+    const basePointerEvent = this.toBasePointerEvent(event);
     const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
-    const picks = this.getPicks(screenCoords);
-
     this.onStopDragging({
-      picks,
-      screenCoords,
-      mapCoords,
+      ...basePointerEvent,
       pointerDownPicks,
       pointerDownScreenCoords,
-      pointerDownMapCoords,
-      sourceEvent: srcEvent
+      pointerDownMapCoords
     });
 
     this.setState({
@@ -232,29 +207,33 @@ export abstract class EditableLayer<
     });
   }
 
-  _onpointermove(event: any) {
-    const {srcEvent} = event;
-    const screenCoords = this.getScreenCoords(srcEvent) as [number, number];
-    const mapCoords = this.getMapCoords(screenCoords);
-
+  _onpointermove(event: MjolnirGestureEvent) {
+    const basePointerEvent = this.toBasePointerEvent(event);
     const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
-    const picks = this.getPicks(screenCoords);
-
     this.onPointerMove({
-      screenCoords,
-      mapCoords,
-      picks,
+      ...basePointerEvent,
       pointerDownPicks,
       pointerDownScreenCoords,
       pointerDownMapCoords,
-      sourceEvent: srcEvent,
       cancelPan: event.stopImmediatePropagation
     });
   }
 
-  getPicks(screenCoords: [number, number]) {
+  toBasePointerEvent(event: MjolnirGestureEvent): BasePointerEvent {
+    const screenCoords: ScreenCoordinates = [event.offsetCenter.x, event.offsetCenter.y];
+    const mapCoords = this.getMapCoords(screenCoords);
+    const picks = this.getPicks(screenCoords);
+    return {
+      screenCoords,
+      mapCoords,
+      picks,
+      sourceEvent: event.srcEvent
+    };
+  }
+
+  getPicks(screenCoords: ScreenCoordinates) {
     return this.context.deck.pickMultipleObjects({
       x: screenCoords[0],
       y: screenCoords[1],
@@ -264,16 +243,7 @@ export abstract class EditableLayer<
     });
   }
 
-  getScreenCoords(pointerEvent: any): Position {
-    return [
-      pointerEvent.clientX -
-        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().left,
-      pointerEvent.clientY -
-        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().top
-    ];
-  }
-
-  getMapCoords(screenCoords: Position): Position {
+  getMapCoords(screenCoords: ScreenCoordinates): Position {
     return this.context.viewport.unproject([screenCoords[0], screenCoords[1]]) as Position;
   }
 }
