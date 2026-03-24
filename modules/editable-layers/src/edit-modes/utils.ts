@@ -11,7 +11,14 @@ import {flattenEach} from '@turf/meta';
 import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
-import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
+import {
+  Viewport,
+  Pick,
+  EditHandleFeature,
+  EditHandleType,
+  StartDraggingEvent,
+  PointWithIndex
+} from './types';
 import {
   SimpleGeometry,
   Position,
@@ -21,8 +28,7 @@ import {
   Feature,
   SimpleGeometryCoordinates
 } from '../utils/geojson-types';
-import type {CoordinateSystem} from '@deck.gl/core';
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
+import {CartesianCoordinateSystem, EditModeCoordinateSystem} from './coordinate-system';
 
 export type NearestPointType = Feature<Point, {dist: number; index: number}>;
 
@@ -118,26 +124,49 @@ export function mix(a: number, b: number, ratio: number): number {
   return b * ratio + a * (1 - ratio);
 }
 
+export function projectOrUnprojectPoints(
+  inputPoints: Position,
+  coordinateSystem: EditModeCoordinateSystem,
+  wmViewport: WebMercatorViewport,
+  project: 'PROJECT' | 'UNPROJECT'
+): Position {
+  if (coordinateSystem === undefined) return [...inputPoints];
+  else if (coordinateSystem instanceof CartesianCoordinateSystem) return [...inputPoints];
+  return project === 'PROJECT'
+    ? wmViewport.project([...inputPoints])
+    : wmViewport.unproject([...inputPoints]);
+}
+
 export function nearestPointOnProjectedLine(
   line: Feature<LineString>,
   inPoint: Feature<Point>,
   viewport: Viewport,
-  coordinateSystem?: CoordinateSystem
+  coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  const wmViewport = new WebMercatorViewport(viewport);
-  // Project the line to viewport, then find the nearest point
-  const coordinates: Array<Array<number>> = line.geometry.coordinates as any;
-  const projectedCoords =
-    coordinateSystem === COORDINATE_SYSTEM.CARTESIAN
-      ? coordinates
-      : coordinates.map(([x, y, z = 0]) => wmViewport.project([x, y, z]));
-  const [x, y] =
-    coordinateSystem === COORDINATE_SYSTEM.CARTESIAN
-      ? inPoint.geometry.coordinates
-      : wmViewport.project(inPoint.geometry.coordinates);
-
+  // return sentinel value if no coordinates key
   let minDistance = Infinity;
-  let minPointInfo = {};
+  const coordinates = line?.geometry?.coordinates;
+  if (!coordinates)
+    return {
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [0, 0, 0]},
+      properties: {dist: minDistance, index: -1}
+    };
+
+  // Project the line to viewport, then find the nearest point
+  const wmViewport = new WebMercatorViewport(viewport);
+
+  const [x, y] = projectOrUnprojectPoints(
+    inPoint.geometry.coordinates,
+    coordinateSystem,
+    wmViewport,
+    'PROJECT'
+  );
+  const projectedCoords = coordinates.map(([px, py, pz = 0]) =>
+    projectOrUnprojectPoints([px, py, pz], coordinateSystem, wmViewport, 'PROJECT')
+  );
+
+  let minPointInfo: PointWithIndex = {index: 0, x0: 0, y0: 0};
 
   projectedCoords.forEach(([x2, y2], index) => {
     if (index === 0) {
@@ -167,7 +196,7 @@ export function nearestPointOnProjectedLine(
       };
     }
   });
-  // @ts-expect-error TODO
+
   const {index, x0, y0} = minPointInfo;
   const [x1, y1, z1 = 0] = projectedCoords[index - 1];
   const [x2, y2, z2 = 0] = projectedCoords[index];
@@ -182,10 +211,7 @@ export function nearestPointOnProjectedLine(
     type: 'Feature',
     geometry: {
       type: 'Point',
-      coordinates:
-        coordinateSystem === COORDINATE_SYSTEM.CARTESIAN
-          ? [x0, y0, z0]
-          : wmViewport.unproject([x0, y0, z0])
+      coordinates: projectOrUnprojectPoints([x0, y0, z0], coordinateSystem, wmViewport, 'UNPROJECT')
     },
     properties: {
       // TODO: calculate the distance in proper units
@@ -199,16 +225,12 @@ export function nearestPointOnLine(
   lines: Feature<LineString>,
   inPoint: Feature<Point>,
   viewport?: Viewport,
-  coordinateSystem?: CoordinateSystem
+  coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  let mercator: WebMercatorViewport | null;
+  // const wmViewport = viewport ? new WebMercatorViewport(viewport) : null;
+  const wmViewport = new WebMercatorViewport(viewport);
 
-  if (viewport) {
-    mercator = new WebMercatorViewport(viewport);
-  }
-  let closestPoint: any = point([Infinity, Infinity], {
-    dist: Infinity
-  });
+  let closestPoint: any = point([Infinity, Infinity], {dist: Infinity});
 
   if (!lines.geometry?.coordinates.length || lines.geometry?.coordinates.length < 2) {
     return closestPoint;
@@ -228,22 +250,15 @@ export function nearestPointOnLine(
     let dist: null | undefined | number;
 
     if (coords.length > 1 && pointCoords.length) {
-      let lineCoordinates: Array<null | undefined | number>;
-      let pointCoordinate: Array<null | undefined | number>;
-
-      // If viewport is given, then translate these coordinates to pixels to increase precision
-      if (coordinateSystem === COORDINATE_SYSTEM.CARTESIAN) {
-        lineCoordinates = coords;
-        pointCoordinate = pointCoords;
-      } else if (mercator) {
-        lineCoordinates = coords.map((lineCoordinate: Array<null | undefined | number>) =>
-          mercator.project(lineCoordinate)
-        );
-        pointCoordinate = mercator.project(pointCoords);
-      } else {
-        lineCoordinates = coords;
-        pointCoordinate = pointCoords;
-      }
+      const pointCoordinate = projectOrUnprojectPoints(
+        pointCoords,
+        coordinateSystem,
+        wmViewport,
+        'PROJECT'
+      );
+      const lineCoordinates = coords.map(([px, py, pz = 0]) =>
+        projectOrUnprojectPoints([px, py, pz], coordinateSystem, wmViewport, 'PROJECT')
+      );
 
       for (let n = 1; n < lineCoordinates.length; n++) {
         if (lineCoordinates[n][0] !== lineCoordinates[n - 1][0]) {
@@ -314,17 +329,19 @@ export function nearestPointOnLine(
     // index needs to be -1 because we have to account for the shift from initial backscan
     let snapPoint = {x, y, idx: segmentIdx - 1, to, from};
 
-    if (mercator && coordinateSystem !== COORDINATE_SYSTEM.CARTESIAN) {
-      // if (mercator) {
-      const pixelToLatLong = mercator.unproject([snapPoint.x, snapPoint.y]);
-      snapPoint = {
-        x: pixelToLatLong[0],
-        y: pixelToLatLong[1],
-        idx: segmentIdx - 1,
-        to,
-        from
-      };
-    }
+    const pixelToLatLong = projectOrUnprojectPoints(
+      [snapPoint.x, snapPoint.y],
+      coordinateSystem,
+      wmViewport,
+      'UNPROJECT'
+    );
+    snapPoint = {
+      x: pixelToLatLong[0],
+      y: pixelToLatLong[1],
+      idx: segmentIdx - 1,
+      to,
+      from
+    };
 
     closestPoint = point([snapPoint.x, snapPoint.y], {
       dist: Math.abs(snapPoint.from - snapPoint.to),

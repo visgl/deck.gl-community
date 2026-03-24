@@ -145,3 +145,9 @@ export type ModeProps<TData> = {
   // Callback used to update cursor
   onUpdateCursor: (cursor: string | null | undefined) => void;
 };
+
+export type PointWithIndex = {
+  index: number;
+  x0: number;
+  y0: number;
+};
