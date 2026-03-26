@@ -28,7 +28,8 @@ import {
   SimpleGeometry,
   Position,
   SimpleFeatureCollection,
-  SimpleFeature
+  SimpleFeature,
+  MultiPolygon
 } from '../utils/geojson-types';
 import {getPickedEditHandles, getNonGuidePicks} from './utils';
 import {EditMode} from './edit-mode';
@@ -52,11 +53,11 @@ export interface GeoJsonEditModeConstructor {
 export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeatureCollection> {
   _clickSequence: Position[] = [];
 
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(_props: ModeProps<FeatureCollection>): GuideFeatureCollection {
     return DEFAULT_GUIDES;
   }
 
-  getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
+  getTooltips(_props: ModeProps<FeatureCollection>): Tooltip[] {
     return DEFAULT_TOOLTIPS;
   }
 
@@ -219,7 +220,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
               geometry: featureOrGeometryAsAny
             };
 
-      let updatedGeometry;
+      let updatedGeometry: Feature<Polygon | MultiPolygon> | null;
       if (modeConfig.booleanOperation === 'union') {
         updatedGeometry = turfUnion(featureCollection([selectedFeature, feature]));
       } else if (modeConfig.booleanOperation === 'difference') {
@@ -257,14 +258,14 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return this.getAddFeatureAction(featureOrGeometry, props.data, featureProperties);
   }
 
-  createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature | null {
+  createTentativeFeature(_props: ModeProps<FeatureCollection>): TentativeFeature | null {
     return null;
   }
 
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {}
-  handleDoubleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {}
+  handleClick(_event: ClickEvent, _props: ModeProps<FeatureCollection>): void {}
+  handleDoubleClick(_event: ClickEvent, _props: ModeProps<FeatureCollection>): void {}
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(_event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
     const tentativeFeature = this.createTentativeFeature(props);
     if (tentativeFeature) {
       props.onEdit({
@@ -276,9 +277,9 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
       });
     }
   }
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>): void {}
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>): void {}
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>): void {}
+  handleStartDragging(_event: StartDraggingEvent, _props: ModeProps<FeatureCollection>): void {}
+  handleStopDragging(_event: StopDraggingEvent, _props: ModeProps<FeatureCollection>): void {}
+  handleDragging(_event: DraggingEvent, _props: ModeProps<FeatureCollection>): void {}
 
   handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>): void {
     if (event.key === 'Escape') {
