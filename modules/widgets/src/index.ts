@@ -34,6 +34,23 @@ export {
   type OmniBoxRenderOptionArgs,
   type OmniBoxWidgetProps,
 } from './widgets/omni-box-widget';
+export {ResetViewWidget, type ResetViewWidgetProps} from './panel-widgets/reset-view-widget';
+export {
+  TimeMeasureWidget,
+  type TimeMeasureRange,
+  type TimeMeasureSelectionState,
+} from './panel-widgets/time-measure-widget';
+export {
+  ToastWidget,
+  type ToastWidgetProps,
+} from './panel-widgets/toast-widget';
+export {
+  toastManager,
+  type ToastEntry,
+  type ToastKind,
+  type ToastRequest,
+} from './panel-widgets/toast-manager';
+export {YZoomWidget, type YZoomWidgetProps} from './panel-widgets/y-zoom-widget';
 export {
   AccordeonWidgetPanel,
   AccordeonWidgetContainer,

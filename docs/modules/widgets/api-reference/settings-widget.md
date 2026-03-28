@@ -1,15 +1,22 @@
 # SettingsWidget
 
-`SettingsWidget` is a deck.gl widget that renders a button that opens a settings panel. The panel is driven by a simple JSON schema and accepts a settings object, and emits updates whenever the user changes a setting.
+<p class="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+</p>
 
-The `SettingsWidget` makes it very easy to add a settings menu to your application.
+`SettingsWidget` is a deck.gl HTML widget that renders a dat.gui-style settings button and panel.
+
+It is exported from `@deck.gl-community/widgets`.
 
 ## Import
 
 ```ts
 import {
   SettingsWidget,
+  type SettingsWidgetProps,
   type SettingsWidgetSchema,
+  type SettingsWidgetSectionDescriptor,
+  type SettingsWidgetSettingDescriptor,
   type SettingsWidgetState,
 } from '@deck.gl-community/widgets';
 ```
@@ -21,63 +28,39 @@ type SettingsWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
   label?: string;
   schema?: SettingsWidgetSchema;
-  settings?: Record<string, unknown>;
-  onSettingsChange?: (settings: Record<string, unknown>) => void;
+  settings?: SettingsWidgetState;
+  onSettingsChange?: (
+    settings: SettingsWidgetState,
+    changedSettings?: Array<{
+      name: string;
+      previousValue: unknown;
+      nextValue: unknown;
+      descriptor?: SettingsWidgetSettingDescriptor;
+    }>,
+  ) => void;
 };
 ```
 
-## Schema shape
+## Schema model
 
-A schema contains sections, and each section contains controls.
+A settings schema contains sections, and each section contains setting descriptors.
 
-```ts
-const schema: SettingsWidgetSchema = {
-  title: 'Visualization settings',
-  sections: [
-    {
-      id: 'rendering',
-      name: 'Rendering',
-      description: 'Visual toggles and appearance.',
-      settings: [
-        {
-          name: 'showDependencies',
-          label: 'Show dependencies',
-          type: 'boolean',
-          description: 'Render dependency links.',
-        },
-        {
-          name: 'dependencyOpacity',
-          label: 'Dependency opacity',
-          type: 'number',
-          min: 0,
-          max: 1,
-          step: 0.01,
-        },
-        {
-          name: 'lineRoutingMode',
-          type: 'select',
-          options: ['straight', 'route'],
-        },
-      ],
-    },
-  ],
-};
-```
+Supported setting types:
 
-## Control types
+- `boolean`
+- `number`
+- `string`
+- `select`
 
-Supported control types:
+Notable behavior:
 
-- `boolean` → checkbox
-- `number` → numeric input, and range slider when `min`/`max` are supplied
-- `string` → text input
-- `select` → dropdown from `options`
+- section collapse state is tracked while the widget stays mounted
+- dot-path names such as `render.opacity` map into nested settings state
+- string controls keep a small recent-values history and require explicit apply/Enter commit
+- numeric controls clamp and validate against descriptor limits
+- `onSettingsChange` can receive change descriptors, not just the next full settings object
 
-Each setting renders on a single row with the setting name on the left and the control on the right. Hovering anywhere on the setting row shows the setting description tooltip.
-
-Setting names support dot-path notation (for example `rendering.opacity`) when you want to update nested keys.
-
-## Usage with Deck
+## Usage
 
 ```ts
 const widget = new SettingsWidget({
@@ -85,25 +68,14 @@ const widget = new SettingsWidget({
   placement: 'top-left',
   label: 'Visualization settings',
   schema,
-  settings: {
-    showDependencies: true,
-    dependencyOpacity: 0.2,
-    lineRoutingMode: 'straight',
-  },
-  onSettingsChange: (nextSettings) => {
-    // Persist state in your store.
+  settings,
+  onSettingsChange: (nextSettings, changed) => {
     setSettings(nextSettings);
+    console.log(changed);
   },
-});
-
-new Deck({
-  // ...
-  widgets: [widget],
 });
 ```
 
-## Notes
+## Related helper
 
-- Sections are collapsible, start collapsed by default, and preserve collapse state while the widget remains mounted.
-- Click outside the panel to close it.
-- The widget can be updated over time via `widget.setProps(...)`.
+See `SettingsManager` for the UI-agnostic change-tracking helper that complements this widget.

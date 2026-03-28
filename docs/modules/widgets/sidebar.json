@@ -7,14 +7,21 @@
       "type": "category",
       "label": "API Reference",
       "items": [
+        "modules/widgets/api-reference/README",
+        "modules/widgets/api-reference/heap-memory-widget",
+        "modules/widgets/api-reference/keyboard-shortcuts-widget",
         "modules/widgets/api-reference/pan-widget",
         "modules/widgets/api-reference/zoom-range-widget",
         "modules/widgets/api-reference/html-overlay-widget",
         "modules/widgets/api-reference/html-cluster-widget",
         "modules/widgets/api-reference/html-overlay-item",
         "modules/widgets/api-reference/html-tooltip-widget",
+        "modules/widgets/api-reference/reset-view-widget",
         "modules/widgets/api-reference/settings-widget",
-        "modules/widgets/api-reference/omni-box-widget"
+        "modules/widgets/api-reference/omni-box-widget",
+        "modules/widgets/api-reference/time-measure-widget",
+        "modules/widgets/api-reference/toast-widget",
+        "modules/widgets/api-reference/trace-y-zoom-widget"
       ]
     }
   ]

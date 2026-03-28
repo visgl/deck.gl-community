@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { TraceYZoomWidget } from './trace-y-zoom-widget';
+import { YZoomWidget } from './y-zoom-widget';
 
 type MockViewportOptions = {
   id?: string;
@@ -28,8 +28,8 @@ function createViewport(options: MockViewportOptions = {}) {
 /**
  * Builds a widget instance with a spyable HTML update path.
  */
-function createWidget(props: ConstructorParameters<typeof TraceYZoomWidget>[0] = {}) {
-  const widget = new TraceYZoomWidget(props);
+function createWidget(props: ConstructorParameters<typeof YZoomWidget>[0] = {}) {
+  const widget = new YZoomWidget(props);
   const updateHTMLSpy = vi.spyOn(widget, 'updateHTML').mockImplementation(() => undefined);
   return { widget, updateHTMLSpy };
 }
@@ -39,7 +39,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('TraceYZoomWidget', () => {
+describe('YZoomWidget', () => {
   it('does not re-render for viewport updates when Y zoom and bounds are unchanged', () => {
     const { widget, updateHTMLSpy } = createWidget();
     const viewport = createViewport({ zoomY: 2, minZoom: [-5, -3], maxZoom: [5, 4] });

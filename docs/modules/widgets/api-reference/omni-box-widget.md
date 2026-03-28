@@ -1,22 +1,32 @@
 # OmniBoxWidget
 
-`OmniBoxWidget` is a deck.gl widget that renders a one-line omnibox input and an autocomplete dropdown.
+<p class="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+</p>
+
+`OmniBoxWidget` is a deck.gl HTML widget that renders a one-line omnibox input with an autocomplete dropdown.
+
+It is exported from `@deck.gl-community/widgets`.
+
+## Import
 
 ```ts
 import {
   OmniBoxWidget,
   type OmniBoxOption,
+  type OmniBoxOptionProvider,
   type OmniBoxRenderOptionArgs,
 } from '@deck.gl-community/widgets';
 ```
 
 ## Behavior
 
-- Input field is rendered at the top of the deck canvas and starts hidden by default.
-- Dropdown suggestions are produced by your `getOptions` callback.
-- Dropdown is capped to 4 visible rows and becomes scrollable when there are more matches.
-- Built-in `<` and `>` buttons cycle active matches, keep the active row scrolled into view, and can trigger navigation callbacks.
-- A close button hides the widget; press `/` from the canvas to reopen and focus the input.
+- Renders a floating search input centered near the top of the deck canvas.
+- Supports sync or async option providers.
+- Caps the dropdown to 4 visible rows and makes it scrollable beyond that.
+- Includes built-in `<` and `>` navigation controls for cycling the active option.
+- Opens and focuses from the keyboard shortcut path used by the owning view.
+- Closes on blur after a short delay so option clicks can still land.
 
 ## Types
 
@@ -29,6 +39,10 @@ export type OmniBoxOption = {
   data?: unknown;
 };
 
+export type OmniBoxOptionProvider =
+  | ((query: string) => Promise<ReadonlyArray<OmniBoxOption>>)
+  | ((query: string) => ReadonlyArray<OmniBoxOption>);
+
 export type OmniBoxRenderOptionArgs = {
   option: OmniBoxOption;
   index: number;
@@ -40,66 +54,34 @@ export type OmniBoxRenderOptionArgs = {
 ## Props
 
 ```ts
-export type OmniBoxWidgetProps = WidgetProps & {
+type OmniBoxWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
   placeholder?: string;
   minQueryLength?: number;
   defaultOpen?: boolean;
-
-  // Vertical offset from canvas top in pixels.
-  // If omitted, OmniBox uses the deck widget margin CSS variable.
   topOffsetPx?: number;
-
-  // Called as the user types. Can return sync or async matches.
-  getOptions?:
-    | ((query: string) => ReadonlyArray<OmniBoxOption>)
-    | ((query: string) => Promise<ReadonlyArray<OmniBoxOption>>);
-
-  // Optional custom row renderer for suggestions.
+  getOptions?: OmniBoxOptionProvider;
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
-
-  // Fired when user commits a selection (click/Enter).
   onSelectOption?: (option: OmniBoxOption) => void;
-
-  // Fired whenever active match index changes.
   onActiveOptionChange?: (option: OmniBoxOption | null) => void;
-
-  // Fired when user cycles matches with the < / > navigation buttons.
   onNavigateOption?: (option: OmniBoxOption) => void;
-
   onQueryChange?: (query: string) => void;
 };
 ```
 
-## Example: custom option rendering + navigation
+## Usage
 
 ```ts
 const widget = new OmniBoxWidget({
   placeholder: 'Search blocks…',
   defaultOpen: true,
-  topOffsetPx: 40,
+  minQueryLength: 1,
   getOptions: (query) => searchBlocks(query),
-  renderOption: ({ option }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '8px', width: '100%' }}>
-      <span
-        style={{
-          borderRadius: '999px',
-          padding: '0 8px',
-          backgroundColor: (option.data as any)?.badgeColor ?? '#64748b',
-          color: 'white',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {option.label}
-      </span>
-      <span style={{ color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {option.description}
-      </span>
-    </div>
-  ),
-  onNavigateOption: (option) => zoomToBlock((option.data as any).blockId),
   onSelectOption: (option) => zoomToBlock((option.data as any).blockId),
+  onNavigateOption: (option) => zoomToBlock((option.data as any).blockId),
 });
 ```
+
+## Notes
+
+This widget is intentionally generic. It does not know about trace blocks or color schemes on its own; callers provide search options, selection behavior, and optional custom row rendering.

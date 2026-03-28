@@ -7,7 +7,7 @@ import { IconButton, makeTextIcon } from './widget-utils';
 import type { Deck, OrthographicViewState, WidgetPlacement, WidgetProps } from '@deck.gl/core';
 import type { JSX } from 'preact';
 
-export type TraceYZoomWidgetProps = WidgetProps & {
+export type YZoomWidgetProps = WidgetProps & {
   contentBounds?: [[number, number], [number, number]];
   viewId?: string | null;
   targetViewId?: string | null;
@@ -98,10 +98,10 @@ function clamp(value: number, min: number, max: number): number {
   return value;
 }
 
-export class TraceYZoomWidget extends Widget<TraceYZoomWidgetProps> {
+export class YZoomWidget extends Widget<YZoomWidgetProps> {
   static override defaultProps = {
     ...Widget.defaultProps,
-    id: 'trace-y-zoom',
+    id: 'y-zoom',
     viewId: null,
     targetViewId: null,
     placement: 'top-left',
@@ -109,25 +109,25 @@ export class TraceYZoomWidget extends Widget<TraceYZoomWidgetProps> {
     maxZoom: undefined,
     step: 0.1,
   } satisfies Required<WidgetProps> &
-    Required<Pick<TraceYZoomWidgetProps, 'step'>> &
-    TraceYZoomWidgetProps;
+    Required<Pick<YZoomWidgetProps, 'step'>> &
+    YZoomWidgetProps;
 
   placement: WidgetPlacement = 'top-left';
-  className = 'deck-widget-trace-y-zoom';
+  className = 'deck-widget-y-zoom';
   step: number;
   currentZoom = 0;
   inferredMinZoom: number | null = null;
   inferredMaxZoom: number | null = null;
   lastRenderedZoomState: RenderedZoomState | null = null;
 
-  constructor(props: TraceYZoomWidgetProps = {}) {
-    super({ ...TraceYZoomWidget.defaultProps, ...props });
+  constructor(props: YZoomWidgetProps = {}) {
+    super({ ...YZoomWidget.defaultProps, ...props });
     this.viewId = props.viewId ?? null;
     this.placement = props.placement ?? 'top-left';
-    this.step = props.step ?? TraceYZoomWidget.defaultProps.step;
+    this.step = props.step ?? YZoomWidget.defaultProps.step;
   }
 
-  override setProps(props: Partial<TraceYZoomWidgetProps>): void {
+  override setProps(props: Partial<YZoomWidgetProps>): void {
     if (props.viewId !== undefined) {
       this.viewId = props.viewId;
     }
