@@ -1,29 +1,13 @@
-import React, {Component} from 'react';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-
 import {GITHUB_TREE} from '../../constants/defaults';
-import App from '../../../../examples/editable-layers/advanced/src/example';
+import {makeImperativeExample} from '../../components';
 
-import {makeExample} from '../../components';
-
-class AdvancedDemo extends Component {
-  static title = 'Advanced';
-
-  static code = `${GITHUB_TREE}/examples/editable-layers/advanced`;
-
-  static renderInfo(meta) {
-    return <></>;
-  }
-
-  render() {
-    const {...otherProps} = this.props;
-
-    return (
-      <BrowserOnly>
-        {() => <App {...otherProps} />}
-      </BrowserOnly>
+export default makeImperativeExample({
+  title: 'Advanced',
+  code: `${GITHUB_TREE}/examples/editable-layers/advanced`,
+  async mount(container) {
+    const {mountEditableLayersAdvancedExample} = await import(
+      '../../../../examples/editable-layers/advanced/src/app'
     );
+    return mountEditableLayersAdvancedExample(container);
   }
-}
-
-export default makeExample(AdvancedDemo);
+});

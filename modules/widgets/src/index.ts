@@ -76,6 +76,8 @@ export {
   type WidgetPanelContainer,
   type WidgetPanelContainerProps,
   type WidgetPanelRecord,
+  type WidgetPanelTheme,
+  type WidgetPanelThemeMode,
 } from './panel-widgets/widget-containers';
 export { BoxWidget, type BoxWidgetProps } from './panel-widgets/box-widget';
 export {

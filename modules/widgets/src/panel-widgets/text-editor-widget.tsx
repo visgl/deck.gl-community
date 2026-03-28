@@ -2,8 +2,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { loadTextEditorMonacoRuntime } from './text-editor-widget-monaco-runtime';
+import { useEffectiveWidgetPanelThemeMode } from './widget-containers';
 
-import type { WidgetPanel } from './widget-containers';
+import type { WidgetPanel, WidgetPanelTheme } from './widget-containers';
 import type { editor as EditorNamespace, IDisposable } from 'monaco-editor';
 import type { JSX } from 'preact';
 
@@ -29,6 +30,12 @@ export type TextEditorWidgetPanelProps = {
   placeholder?: string;
   /** Optional class name applied to the outer panel content wrapper. */
   className?: string;
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
+  /** Monaco theme id used when the effective panel theme resolves to light mode. */
+  lightMonacoTheme?: string;
+  /** Monaco theme id used when the effective panel theme resolves to dark mode. */
+  darkMonacoTheme?: string;
 };
 
 /**
@@ -37,11 +44,13 @@ export type TextEditorWidgetPanelProps = {
 export class TextEditorWidgetPanel implements WidgetPanel {
   id: string;
   title: string;
+  theme?: WidgetPanelTheme;
   content: JSX.Element;
 
   constructor(props: TextEditorWidgetPanelProps) {
     this.id = props.id;
     this.title = props.title;
+    this.theme = props.theme ?? 'inherit';
     this.content = <TextEditorWidgetPanelContent {...props} />;
   }
 }
@@ -67,6 +76,8 @@ function TextEditorWidgetPanelContent({
   readOnly = false,
   placeholder,
   className,
+  lightMonacoTheme = 'vs',
+  darkMonacoTheme = 'vs-dark',
 }: TextEditorWidgetPanelProps) {
   const hostElementRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<EditorNamespace.IStandaloneCodeEditor | null>(null);
@@ -84,22 +95,14 @@ function TextEditorWidgetPanelContent({
   const isControlled = value !== undefined;
   const resolvedValue = isControlled ? value : displayValue;
   const runtime = loadState.status === 'ready' ? loadState.runtime : undefined;
+  const themeMode = useEffectiveWidgetPanelThemeMode();
 
   useEffect(() => {
     isControlledRef.current = isControlled;
-  }, [isControlled]);
-
-  useEffect(() => {
     resolvedValueRef.current = resolvedValue;
-  }, [resolvedValue]);
-
-  useEffect(() => {
     languageRef.current = language;
-  }, [language]);
-
-  useEffect(() => {
     onValueChangeRef.current = onValueChange;
-  }, [onValueChange]);
+  }, [isControlled, language, onValueChange, resolvedValue]);
 
   useEffect(() => {
     let isDisposed = false;
@@ -147,6 +150,7 @@ function TextEditorWidgetPanelContent({
     }
 
     modelRef.current = model;
+    monaco.editor.setTheme(getMonacoThemeId(themeMode, lightMonacoTheme, darkMonacoTheme));
     editorRef.current = monaco.editor.create(hostElementRef.current, {
       ...TEXT_EDITOR_MONACO_OPTIONS,
       model,
@@ -176,7 +180,15 @@ function TextEditorWidgetPanelContent({
       model.dispose();
       modelRef.current = null;
     };
-  }, [id, runtime]);
+  }, [darkMonacoTheme, id, lightMonacoTheme, runtime, themeMode]);
+
+  useEffect(() => {
+    if (!runtime) {
+      return;
+    }
+
+    runtime.monaco.editor.setTheme(getMonacoThemeId(themeMode, lightMonacoTheme, darkMonacoTheme));
+  }, [darkMonacoTheme, lightMonacoTheme, runtime, themeMode]);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -284,6 +296,17 @@ function getTextEditorLanguageId(language: TextEditorWidgetPanelProps['language'
   }
 
   return 'json';
+}
+
+/**
+ * Maps the effective widget panel theme mode onto a Monaco editor theme id.
+ */
+function getMonacoThemeId(
+  themeMode: 'light' | 'dark',
+  lightMonacoTheme: string,
+  darkMonacoTheme: string,
+): string {
+  return themeMode === 'dark' ? darkMonacoTheme : lightMonacoTheme;
 }
 
 const TEXT_EDITOR_MONACO_OPTIONS: EditorNamespace.IStandaloneEditorConstructionOptions = {

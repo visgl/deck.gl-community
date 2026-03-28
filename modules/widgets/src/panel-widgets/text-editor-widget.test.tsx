@@ -1,7 +1,8 @@
 /** @jsxImportSource preact */
-import { render } from 'preact';
+import { h, render } from 'preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { WidgetContainerRenderer, asPanelContainer } from './widget-containers';
 import { TextEditorWidgetPanel } from './text-editor-widget';
 
 const monacoHarness = vi.hoisted(() => {
@@ -23,6 +24,7 @@ const monacoHarness = vi.hoisted(() => {
   const modelsByUri = new Map<string, FakeModel>();
   const configureJsonSchema = vi.fn();
   const clearJsonSchema = vi.fn();
+  const setTheme = vi.fn();
   const loadTextEditorMonacoRuntime = vi.fn();
   let lastCreatedModel: FakeModel | null = null;
   let lastCreatedEditor: FakeEditor | null = null;
@@ -78,6 +80,7 @@ const monacoHarness = vi.hoisted(() => {
           setModelLanguage: (model: FakeModel, language: string) => {
             model.language = language;
           },
+          setTheme,
         },
       },
       configureJsonSchema,
@@ -92,6 +95,7 @@ const monacoHarness = vi.hoisted(() => {
     modelsByUri.clear();
     configureJsonSchema.mockReset();
     clearJsonSchema.mockReset();
+    setTheme.mockReset();
     loadTextEditorMonacoRuntime.mockReset();
     loadTextEditorMonacoRuntime.mockResolvedValue(createRuntime());
     lastCreatedModel = null;
@@ -120,6 +124,7 @@ const monacoHarness = vi.hoisted(() => {
     getLastCreatedModel,
     loadTextEditorMonacoRuntime,
     reset,
+    setTheme,
   };
 });
 
@@ -216,6 +221,157 @@ describe('TextEditorWidgetPanel', () => {
 
     expect(monacoHarness.getLastCreatedModel()?.getValue()).toBe('{"alpha":1}');
     expect(root.querySelector('[data-text-editor-host]')).toBeTruthy();
+  });
+
+  it('uses the light Monaco theme by default', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    render(
+      h(WidgetContainerRenderer, {
+        container: asPanelContainer(new TextEditorWidgetPanel({ id: 'light', title: 'Light' })),
+      }),
+      root,
+    );
+
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedModel() !== null,
+      'Expected Monaco model to be created for light theme panel.',
+    );
+
+    expect(monacoHarness.setTheme).toHaveBeenCalledWith('vs');
+  });
+
+  it('uses the dark Monaco theme for a dark panel override', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    render(
+      h(WidgetContainerRenderer, {
+        container: asPanelContainer(
+          new TextEditorWidgetPanel({
+            id: 'dark',
+            title: 'Dark',
+            theme: 'dark',
+          }),
+        ),
+      }),
+      root,
+    );
+
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedModel() !== null,
+      'Expected Monaco model to be created for dark theme panel.',
+    );
+
+    expect(monacoHarness.setTheme).toHaveBeenCalledWith('vs-dark');
+  });
+
+  it('uses custom Monaco theme ids when provided', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    render(
+      h(WidgetContainerRenderer, {
+        container: asPanelContainer(
+          new TextEditorWidgetPanel({
+            id: 'custom-theme',
+            title: 'Custom theme',
+            theme: 'dark',
+            lightMonacoTheme: 'custom-light',
+            darkMonacoTheme: 'custom-dark',
+          }),
+        ),
+      }),
+      root,
+    );
+
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedModel() !== null,
+      'Expected Monaco model to be created for custom theme panel.',
+    );
+
+    expect(monacoHarness.setTheme).toHaveBeenCalledWith('custom-dark');
+  });
+
+  it('updates the Monaco theme when the effective panel theme changes', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    render(
+      h(WidgetContainerRenderer, {
+        container: asPanelContainer(
+          new TextEditorWidgetPanel({
+            id: 'theme-switch',
+            title: 'Theme switch',
+            theme: 'dark',
+          }),
+        ),
+      }),
+      root,
+    );
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedModel() !== null,
+      'Expected Monaco model to be created before theme update.',
+    );
+
+    render(
+      h(WidgetContainerRenderer, {
+        container: asPanelContainer(
+          new TextEditorWidgetPanel({
+            id: 'theme-switch',
+            title: 'Theme switch',
+            theme: 'light',
+          }),
+        ),
+      }),
+      root,
+    );
+    await flushMicrotasks();
+
+    expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs');
+  });
+
+  it('updates to the custom light Monaco theme when the effective panel theme changes', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    render(
+      h(WidgetContainerRenderer, {
+        container: asPanelContainer(
+          new TextEditorWidgetPanel({
+            id: 'custom-theme-switch',
+            title: 'Custom theme switch',
+            theme: 'dark',
+            lightMonacoTheme: 'custom-light',
+            darkMonacoTheme: 'custom-dark',
+          }),
+        ),
+      }),
+      root,
+    );
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedModel() !== null,
+      'Expected Monaco model to be created before custom theme update.',
+    );
+
+    render(
+      h(WidgetContainerRenderer, {
+        container: asPanelContainer(
+          new TextEditorWidgetPanel({
+            id: 'custom-theme-switch',
+            title: 'Custom theme switch',
+            theme: 'light',
+            lightMonacoTheme: 'custom-light',
+            darkMonacoTheme: 'custom-dark',
+          }),
+        ),
+      }),
+      root,
+    );
+    await flushMicrotasks();
+
+    expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('custom-light');
   });
 
   it('respects controlled value updates', async () => {

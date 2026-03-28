@@ -18,7 +18,7 @@ import type {
   SettingsState,
   SettingValue,
 } from '../lib/settings/settings';
-import type { WidgetPanel } from './widget-containers';
+import type { WidgetPanel, WidgetPanelTheme } from './widget-containers';
 import type { JSX } from 'preact';
 
 type SettingsWidgetPanelChangeHandler = (
@@ -43,6 +43,8 @@ export type SettingsWidgetPanelProps = {
   settings?: SettingsState;
   /** Called when a setting value changes. */
   onSettingsChange?: SettingsWidgetPanelChangeHandler;
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
 };
 
 const SECTION_TOGGLE_STYLE: JSX.CSSProperties = {
@@ -578,6 +580,7 @@ function SettingsPanelContent({ schema, settings, onSettingsChange }: SettingsPa
 export class SettingsWidgetPanel implements WidgetPanel {
   id: string;
   title: string;
+  theme?: WidgetPanelTheme;
   content: JSX.Element;
 
   /**
@@ -588,6 +591,7 @@ export class SettingsWidgetPanel implements WidgetPanel {
     schema = DEFAULT_SETTINGS_PANEL_SCHEMA,
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
+    theme = 'inherit',
   }: Omit<SettingsWidgetPanelProps, 'id'>): Record<string, WidgetPanel> {
     return schema.sections.reduce<Record<string, WidgetPanel>>((panels, section, index) => {
       const panelId = getSectionKey(section, index);
@@ -595,6 +599,7 @@ export class SettingsWidgetPanel implements WidgetPanel {
       panels[panelId] = {
         id: panelId,
         title: section.name || label,
+        theme,
         content: (
           <SettingsSectionPanelContent
             onSettingsChange={onSettingsChange}
@@ -614,9 +619,11 @@ export class SettingsWidgetPanel implements WidgetPanel {
     schema = DEFAULT_SETTINGS_PANEL_SCHEMA,
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
+    theme = 'inherit',
   }: SettingsWidgetPanelProps = {}) {
     this.id = id;
     this.title = schema.title ?? label;
+    this.theme = theme;
     this.content = (
       <SettingsPanelContent
         schema={schema}

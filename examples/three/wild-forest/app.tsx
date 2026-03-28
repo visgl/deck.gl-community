@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import React, {useCallback, useMemo, useState} from 'react';
+import {createRoot} from 'react-dom/client';
 import DeckGL from '@deck.gl/react';
 import type {MapViewState, PickingInfo} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/three';
@@ -23,6 +24,18 @@ type TreeDatum = {
   branchLevels: number;
   label: string;
 };
+
+/**
+ * Mounts the wild-forest example.
+ */
+export function mountWildForestExample(container: HTMLElement): () => void {
+  const root = createRoot(container);
+  root.render(<App />);
+  return () => {
+    root.unmount();
+    container.replaceChildren();
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Seeded pseudo-random (deterministic forest layout)

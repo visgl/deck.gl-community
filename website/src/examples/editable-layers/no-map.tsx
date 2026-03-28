@@ -1,31 +1,11 @@
-import React, {Component} from 'react';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-
 import {GITHUB_TREE} from '../../constants/defaults';
+import {makeImperativeExample} from '../../components';
 
-import {makeExample} from '../../components';
-
-class NoMapDemo extends Component {
-  static title = 'No Map';
-
-  static code = `${GITHUB_TREE}/examples/editable-layers/no-map`;
-
-  static renderInfo(meta) {
-    return <></>;
+export default makeImperativeExample({
+  title: 'No Map',
+  code: `${GITHUB_TREE}/examples/editable-layers/no-map`,
+  async mount(container) {
+    const {mountNoMapExample} = await import('../../../../examples/editable-layers/no-map/app');
+    return mountNoMapExample(container);
   }
-
-  render() {
-    const {...otherProps} = this.props;
-
-    return (
-      <BrowserOnly>
-        {() => {
-          const App = require('../../../../examples/editable-layers/no-map/example');
-          return <App.Example {...otherProps} />;
-        }}
-      </BrowserOnly>
-    );
-  }
-}
-
-export default makeExample(NoMapDemo);
+});

@@ -1,6 +1,4 @@
-import React from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './app';
+import {mountStandaloneExample} from '../../mount-example';
+import {mountMinimalExample} from './app';
 
-const root = createRoot(document.body.appendChild(document.createElement('div')));
-root.render(<App />);
+void mountStandaloneExample(mountMinimalExample);

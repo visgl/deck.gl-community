@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { DarkTheme, LightTheme } from '@deck.gl/widgets';
 import { h, render } from 'preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,6 +24,10 @@ function getPanelContent(root: ParentNode, panelId: string): HTMLElement | null 
 
 function createPanelContent(panelId: string) {
   return <div data-panel-id={panelId}>{panelId} content</div>;
+}
+
+function getThemeScopes(root: ParentNode): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>('[data-panel-theme-mode]')];
 }
 
 afterEach(() => {
@@ -263,6 +268,84 @@ describe('widget containers', () => {
     expect(root.textContent).toContain('direct content');
     expect(root.querySelector('section > button')).toBeNull();
     expect(root.querySelector('div > button')).toBeNull();
+  });
+
+  it('preserves inherited theme mode for direct panel content', async () => {
+    const root = document.createElement('div');
+    root.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    document.body.appendChild(root);
+
+    const panelContainer = asPanelContainer({
+      id: 'direct',
+      title: 'Direct',
+      content: <div>direct content</div>,
+    });
+
+    render(h(WidgetContainerRenderer, { container: panelContainer }), root);
+    await Promise.resolve();
+
+    const scope = getThemeScopes(root)[0];
+    expect(scope?.dataset.panelThemeMode).toBe('dark');
+    expect(scope?.style.getPropertyValue('--menu-background')).toBe(DarkTheme['--menu-background']);
+  });
+
+  it('forces explicit light and dark theme overrides', async () => {
+    const root = document.createElement('div');
+    root.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    document.body.appendChild(root);
+
+    const panelContainer = asPanelContainer(
+      new ColumnWidgetPanel({
+        id: 'forced-themes',
+        title: 'Forced themes',
+        panels: {
+          light: { id: 'light', title: 'Light', theme: 'light', content: <div>light</div> },
+          dark: { id: 'dark', title: 'Dark', theme: 'dark', content: <div>dark</div> },
+        },
+      }),
+    );
+
+    render(h(WidgetContainerRenderer, { container: panelContainer }), root);
+    await Promise.resolve();
+
+    const scopes = getThemeScopes(root);
+    expect(scopes[1]?.dataset.panelThemeMode).toBe('light');
+    expect(scopes[1]?.style.getPropertyValue('--menu-background')).toBe(
+      LightTheme['--menu-background'],
+    );
+    expect(scopes[2]?.dataset.panelThemeMode).toBe('dark');
+    expect(scopes[2]?.style.getPropertyValue('--menu-background')).toBe(
+      DarkTheme['--menu-background'],
+    );
+  });
+
+  it('inverts theme mode relative to the parent and supports nested invert', async () => {
+    const root = document.createElement('div');
+    root.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    document.body.appendChild(root);
+
+    const panelContainer = asPanelContainer(
+      new ColumnWidgetPanel({
+        id: 'invert-root',
+        title: 'Invert root',
+        theme: 'invert',
+        panels: {
+          nested: new MarkdownWidgetPanel({
+            id: 'nested',
+            title: 'Nested',
+            theme: 'invert',
+            markdown: 'nested content',
+          }),
+        },
+      }),
+    );
+
+    render(h(WidgetContainerRenderer, { container: panelContainer }), root);
+    await Promise.resolve();
+
+    const scopes = getThemeScopes(root);
+    expect(scopes[0]?.dataset.panelThemeMode).toBe('light');
+    expect(scopes[1]?.dataset.panelThemeMode).toBe('dark');
   });
 
   it('renders imperative HTML through a custom widget panel and runs cleanup on unmount', async () => {

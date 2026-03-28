@@ -1,31 +1,13 @@
-import React, {Component} from 'react';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-
 import {GITHUB_TREE} from '../../constants/defaults';
+import {makeImperativeExample} from '../../components';
 
-import {makeExample} from '../../components';
-
-class GettingStartedDemo extends Component {
-  static title = 'Getting Started';
-
-  static code = `${GITHUB_TREE}/examples/editable-layers/getting-started`;
-
-  static renderInfo(meta) {
-    return <></>;
-  }
-
-  render() {
-    const {...otherProps} = this.props;
-
-    return (
-      <BrowserOnly>
-        {() => {
-          const App = require('../../../../examples/editable-layers/getting-started/example');
-          return <App.Example {...otherProps} />;
-        }}
-      </BrowserOnly>
+export default makeImperativeExample({
+  title: 'Getting Started',
+  code: `${GITHUB_TREE}/examples/editable-layers/getting-started`,
+  async mount(container) {
+    const {mountGettingStartedExample} = await import(
+      '../../../../examples/editable-layers/getting-started/app'
     );
+    return mountGettingStartedExample(container);
   }
-}
-
-export default makeExample(GettingStartedDemo);
+});

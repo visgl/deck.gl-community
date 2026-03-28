@@ -16,6 +16,7 @@ import {
   SettingsWidgetPanel,
   SidebarWidget,
   TabbedWidgetPanel,
+  TextEditorWidgetPanel,
   type KeyboardShortcut,
   type SettingsWidgetSchema,
   type SettingsWidgetState
@@ -270,6 +271,22 @@ const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   }
 ];
 
+const EXAMPLE_STYLESHEET_JSON = JSON.stringify(
+  {
+    nodes: {
+      fill: 'palette.primary',
+      stroke: 'palette.stroke',
+      opacity: 'settings.render.opacity',
+    },
+    labels: {
+      color: 'palette.label',
+      enabled: 'settings.render.showLabels',
+    },
+  },
+  null,
+  2,
+);
+
 const THEME_WIDGET_ICON_OVERRIDES = `
   .widget-panels-example .deck-widget.deck-widget-theme .deck-widget-button {
     width: var(--button-size, 28px);
@@ -380,6 +397,7 @@ export function mountWidgetPanelsExample(
   container: HTMLElement,
   options: WidgetPanelsExampleOptions = {},
 ): () => void {
+  Object.keys(options);
   const rootElement = container.ownerDocument.createElement('div');
   rootElement.className = 'widget-panels-example';
   applyElementStyle(rootElement, ROOT_STYLE);
@@ -576,6 +594,7 @@ function buildSidebarPanel(
   const summary = new MarkdownWidgetPanel({
     id: 'summary',
     title: 'Summary',
+    theme: 'invert',
     markdown: [
       'This sidebar uses an accordion container with reusable panel definitions.',
       '',
@@ -606,6 +625,7 @@ function buildModalPanel(
   return new TabbedWidgetPanel({
     id: 'modal-panels',
     title: 'Modal panels',
+    theme: 'invert',
     panels: {
       overview: new MarkdownWidgetPanel({
         id: 'overview',
@@ -627,6 +647,15 @@ function buildModalPanel(
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange: handlers.setSettings
+      }),
+      stylesheet: new TextEditorWidgetPanel({
+        id: 'modal-stylesheet',
+        title: 'Stylesheet',
+        theme: 'invert',
+        language: 'json',
+        readOnly: true,
+        defaultValue: EXAMPLE_STYLESHEET_JSON,
+        placeholder: 'Stylesheet JSON preview'
       })
     }
   });

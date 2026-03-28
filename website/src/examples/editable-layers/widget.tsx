@@ -1,31 +1,13 @@
-import React, {Component} from 'react';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-
 import {GITHUB_TREE} from '../../constants/defaults';
+import {makeImperativeExample} from '../../components';
 
-import {makeExample} from '../../components';
-
-class WidgetDemo extends Component {
-  static title = 'Widget';
-
-  static code = `${GITHUB_TREE}/examples/editable-layers/widget`;
-
-  static renderInfo(meta) {
-    return <></>;
-  }
-
-  render() {
-    const {...otherProps} = this.props;
-
-    return (
-      <BrowserOnly>
-        {() => {
-          const App = require('../../../../examples/editable-layers/widget/example');
-          return <App.Example {...otherProps} />;
-        }}
-      </BrowserOnly>
+export default makeImperativeExample({
+  title: 'Widget',
+  code: `${GITHUB_TREE}/examples/editable-layers/widget`,
+  async mount(container) {
+    const {mountEditableLayersWidgetExample} = await import(
+      '../../../../examples/editable-layers/widget/app'
     );
+    return mountEditableLayersWidgetExample(container);
   }
-}
-
-export default makeExample(WidgetDemo);
+});

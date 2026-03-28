@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useMemo} from 'react';
-import DeckGL from '@deck.gl/react';
-import type {MapViewState, TooltipInfo} from '@deck.gl/core';
+import {Deck, type MapViewState, type PickingInfo} from '@deck.gl/core';
 import {PathOutlineLayer, PathMarkerLayer} from '@deck.gl-community/layers';
 
 type TransitRoute = {
@@ -124,9 +122,22 @@ const INITIAL_VIEW_STATE: MapViewState = {
   bearing: -10
 };
 
-export default function App(): React.ReactElement {
-  const layers = useMemo(
-    () => [
+/**
+ * Mounts the path outline and marker example without React.
+ */
+export function mountPathOutlineAndMarkersExample(container: HTMLElement): () => void {
+  const rootElement = container.ownerDocument.createElement('div');
+  rootElement.style.position = 'relative';
+  rootElement.style.width = '100%';
+  rootElement.style.height = '100%';
+  container.replaceChildren(rootElement);
+
+  const deck = new Deck({
+    parent: rootElement,
+    initialViewState: INITIAL_VIEW_STATE,
+    controller: true,
+    parameters: {clearColor: [0.96, 0.97, 1, 1]},
+    layers: [
       new PathOutlineLayer<WaterfrontSegment>({
         id: 'trail-outlines',
         data: WATERFRONT_SEGMENTS,
@@ -152,46 +163,37 @@ export default function App(): React.ReactElement {
         getColor: (d) => d.color,
         getMarkerColor: (d) => d.markerColor,
         getDirection: (d) => d.direction,
-        getMarkerPercentages: (object, {lineLength}) =>
-          lineLength > 800 ? [0.2, 0.5, 0.8] : [0.5],
+        getMarkerPercentages: (_object, {lineLength}) => (lineLength > 800 ? [0.2, 0.5, 0.8] : [0.5]),
         parameters: {depthTest: false}
       })
     ],
-    []
-  );
+    getTooltip: (info: PickingInfo<LayerDatum>) => getTooltip(info)
+  });
 
-  const getTooltip = useCallback(
-    (info: TooltipInfo<LayerDatum>) => {
-      const {object, layer, index} = info;
-      if (!object) {
-        return null;
-      }
+  return () => {
+    deck.finalize();
+    rootElement.remove();
+    container.replaceChildren();
+  };
+}
 
-      if (typeof (object as any).name === 'string') {
-        return {text: (object as any).name};
-      }
+function getTooltip(info: PickingInfo<LayerDatum>) {
+  const {object, layer, index} = info;
+  if (!object) {
+    return null;
+  }
 
-      if (Array.isArray(object) && layer?.props?.data) {
-        const data = layer.props.data as LayerDatum[];
-        const datum = data[index];
-        if (datum && typeof (datum as any).name === 'string') {
-          return {text: (datum as any).name};
-        }
-      }
+  if (typeof (object as LayerDatum).name === 'string') {
+    return {text: (object as LayerDatum).name};
+  }
 
-      return null;
-    },
-    []
-  );
+  if (Array.isArray(object) && layer?.props?.data) {
+    const data = layer.props.data as LayerDatum[];
+    const datum = data[index];
+    if (datum && typeof datum.name === 'string') {
+      return {text: datum.name};
+    }
+  }
 
-  return (
-    <DeckGL
-      layers={layers}
-      initialViewState={INITIAL_VIEW_STATE}
-      controller={true}
-      getTooltip={getTooltip}
-      parameters={{clearColor: [0.96, 0.97, 1, 1]}}
-      style={{position: 'absolute', width: '100%', height: '100%'}}
-    />
-  );
+  return null;
 }

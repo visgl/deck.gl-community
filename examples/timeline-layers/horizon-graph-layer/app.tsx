@@ -5,6 +5,7 @@
 import type {OrthographicViewState} from '@deck.gl/core';
 
 import React, {useState, useMemo, ReactElement} from 'react';
+import {createRoot} from 'react-dom/client';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView} from '@deck.gl/core';
 import {TextLayer, LineLayer} from '@deck.gl/layers';
@@ -506,4 +507,16 @@ export default function App(): ReactElement {
       </div>
     </div>
   );
+}
+
+/**
+ * Mounts the horizon graph example into a supplied container.
+ */
+export function mountHorizonGraphLayerExample(container: HTMLElement): () => void {
+  const root = createRoot(container);
+  root.render(<App />);
+  return () => {
+    root.unmount();
+    container.replaceChildren();
+  };
 }

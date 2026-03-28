@@ -1,5 +1,8 @@
 /** @jsxImportSource preact */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { createContext } from 'preact';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+
+import { DarkTheme, LightTheme } from '@deck.gl/widgets';
 
 import type { ComponentChildren, JSX } from 'preact';
 
@@ -7,6 +10,12 @@ import type { ComponentChildren, JSX } from 'preact';
  * Internal panel identifier used by both accordion and tab containers.
  */
 type WidgetPanelId = string;
+
+/** Light/dark theme modes used for panel-scoped overrides. */
+export type WidgetPanelThemeMode = 'light' | 'dark';
+
+/** Public theme override options for widget panels. */
+export type WidgetPanelTheme = 'inherit' | 'light' | 'dark' | 'invert';
 
 /**
  * Describes one entry in an accordion or tabbed container.
@@ -18,6 +27,8 @@ export type WidgetPanel = {
   title: string;
   /** Renderable panel body. */
   content: JSX.Element;
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
   /**
    * If true, the panel can not be interacted with and will not switch/expand.
    */
@@ -39,6 +50,8 @@ export type AccordeonWidgetPanelProps = {
   id?: string;
   /** Optional heading used by outer overlays when this is rendered as a direct child panel. */
   title?: string;
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
 };
 
 export type TabbedWidgetPanelProps = {
@@ -52,6 +65,8 @@ export type TabbedWidgetPanelProps = {
   title?: string;
   /** Controls whether the tab list wraps onto multiple rows or scrolls horizontally. */
   tabListLayout?: 'wrap' | 'scroll';
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
 };
 
 export type ColumnWidgetPanelProps = {
@@ -63,6 +78,8 @@ export type ColumnWidgetPanelProps = {
   id?: string;
   /** Optional heading used by outer overlays when this is rendered as a direct child panel. */
   title?: string;
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
 };
 
 export type CustomWidgetPanelProps = {
@@ -85,6 +102,8 @@ export type CustomWidgetPanelProps = {
   keepMounted?: boolean;
   /** Optional class name applied to the host element. */
   className?: string;
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
 };
 
 export type MarkdownWidgetPanelProps = {
@@ -104,6 +123,8 @@ export type MarkdownWidgetPanelProps = {
   keepMounted?: boolean;
   /** Optional class name applied to the markdown content host. */
   className?: string;
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
 };
 
 /**
@@ -131,7 +152,7 @@ function CustomWidgetPanelContent({
   useEffect(() => {
     const rootElement = rootElementRef.current;
     if (!rootElement) {
-      return;
+      return undefined;
     }
 
     const cleanup = onRenderHTML(rootElement);
@@ -152,10 +173,17 @@ export class AccordeonWidgetPanel implements WidgetPanel {
   id: string;
   title: string;
   content: JSX.Element;
+  theme?: WidgetPanelTheme;
 
-  constructor({ panels, id = 'accordeon-widgets', title = 'Panels' }: AccordeonWidgetPanelProps) {
+  constructor({
+    panels,
+    id = 'accordeon-widgets',
+    title = 'Panels',
+    theme = 'inherit',
+  }: AccordeonWidgetPanelProps) {
     this.id = id;
     this.title = title;
+    this.theme = theme;
     this.content = <AccordeonWidgetContainer panels={normalizePanelRecordPanels(panels)} />;
   }
 }
@@ -167,15 +195,18 @@ export class TabbedWidgetPanel implements WidgetPanel {
   id: string;
   title: string;
   content: JSX.Element;
+  theme?: WidgetPanelTheme;
 
   constructor({
     panels,
     id = 'tabbed-widgets',
     title = 'Panels',
     tabListLayout = 'wrap',
+    theme = 'inherit',
   }: TabbedWidgetPanelProps) {
     this.id = id;
     this.title = title;
+    this.theme = theme;
     this.content = (
       <TabbedWidgetContainer
         panels={normalizePanelRecordPanels(panels)}
@@ -192,10 +223,17 @@ export class ColumnWidgetPanel implements WidgetPanel {
   id: string;
   title: string;
   content: JSX.Element;
+  theme?: WidgetPanelTheme;
 
-  constructor({ panels, id = 'column-widgets', title = 'Panels' }: ColumnWidgetPanelProps) {
+  constructor({
+    panels,
+    id = 'column-widgets',
+    title = 'Panels',
+    theme = 'inherit',
+  }: ColumnWidgetPanelProps) {
     this.id = id;
     this.title = title;
+    this.theme = theme;
     this.content = <ColumnWidgetContainer panels={normalizePanelRecordPanels(panels)} />;
   }
 }
@@ -207,6 +245,7 @@ export class CustomWidgetPanel implements WidgetPanel {
   id: string;
   title: string;
   content: JSX.Element;
+  theme?: WidgetPanelTheme;
   disabled?: boolean;
   keepMounted?: boolean;
 
@@ -217,9 +256,11 @@ export class CustomWidgetPanel implements WidgetPanel {
     disabled,
     keepMounted,
     className,
+    theme = 'inherit',
   }: CustomWidgetPanelProps) {
     this.id = id;
     this.title = title;
+    this.theme = theme;
     this.disabled = disabled;
     this.keepMounted = keepMounted;
     this.content = <CustomWidgetPanelContent className={className} onRenderHTML={onRenderHTML} />;
@@ -233,12 +274,22 @@ export class MarkdownWidgetPanel implements WidgetPanel {
   id: string;
   title: string;
   content: JSX.Element;
+  theme?: WidgetPanelTheme;
   disabled?: boolean;
   keepMounted?: boolean;
 
-  constructor({ id, title, markdown, disabled, keepMounted, className }: MarkdownWidgetPanelProps) {
+  constructor({
+    id,
+    title,
+    markdown,
+    disabled,
+    keepMounted,
+    className,
+    theme = 'inherit',
+  }: MarkdownWidgetPanelProps) {
     this.id = id;
     this.title = title;
+    this.theme = theme;
     this.disabled = disabled;
     this.keepMounted = keepMounted;
     this.content = (
@@ -437,7 +488,7 @@ export function AccordeonWidgetContainer({
                 display: isExpanded ? 'block' : 'none',
               }}
             >
-              {shouldRenderContent ? panel.content : null}
+              {shouldRenderContent ? <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope> : null}
             </div>
           </section>
         );
@@ -532,7 +583,7 @@ export function TabbedWidgetContainer({
                 pointerEvents: isActive ? 'auto' : 'none',
               }}
             >
-              {panel.content}
+              <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope>
             </div>
           );
         })}
@@ -560,7 +611,9 @@ export function ColumnWidgetContainer({ panels, className }: ColumnWidgetContain
           }}
         >
           {panel.title ? <header style={COLUMN_PANEL_HEADER_STYLE}>{panel.title}</header> : null}
-          <div style={COLUMN_PANEL_CONTENT_STYLE}>{panel.content}</div>
+          <div style={COLUMN_PANEL_CONTENT_STYLE}>
+            <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope>
+          </div>
         </section>
       ))}
     </div>
@@ -575,9 +628,156 @@ export function WidgetContainerRenderer({ container }: { container: WidgetContai
     return <AccordeonWidgetContainer {...container.props} />;
   }
   if (container.kind === 'panel') {
-    return <div className={container.props.className}>{container.props.panel.content}</div>;
+    return (
+      <div className={container.props.className}>
+        <WidgetPanelThemeScope panel={container.props.panel}>
+          {container.props.panel.content}
+        </WidgetPanelThemeScope>
+      </div>
+    );
   }
   return <TabbedWidgetContainer {...container.props} />;
+}
+
+const PanelThemeModeContext = createContext<WidgetPanelThemeMode | undefined>(undefined);
+
+/**
+ * Returns the effective light/dark theme mode for the current panel subtree.
+ */
+export function useEffectiveWidgetPanelThemeMode(): WidgetPanelThemeMode {
+  return useContext(PanelThemeModeContext) ?? 'light';
+}
+
+/**
+ * Applies a panel-level theme override and exposes the resolved mode to descendants.
+ */
+function WidgetPanelThemeScope({
+  panel,
+  children,
+}: {
+  panel: WidgetPanel;
+  children: ComponentChildren;
+}) {
+  const inheritedMode = useContext(PanelThemeModeContext);
+  const hostElementRef = useRef<HTMLDivElement | null>(null);
+  const [rootMode, setRootMode] = useState<WidgetPanelThemeMode>('light');
+  const parentMode = inheritedMode ?? rootMode;
+  const resolvedMode = resolveWidgetPanelThemeMode(parentMode, panel.theme);
+
+  useLayoutEffect(() => {
+    if (inheritedMode) {
+      return;
+    }
+
+    const hostElement = hostElementRef.current;
+    if (!hostElement) {
+      return;
+    }
+
+    const inferredMode = inferWidgetPanelThemeMode(hostElement);
+    setRootMode((previousMode) => (previousMode === inferredMode ? previousMode : inferredMode));
+  }, [inheritedMode]);
+
+  return (
+    <PanelThemeModeContext.Provider value={resolvedMode}>
+      <div
+        ref={hostElementRef}
+        data-panel-theme-mode={resolvedMode}
+        style={getWidgetPanelThemeScopeStyle(resolvedMode)}
+      >
+        {children}
+      </div>
+    </PanelThemeModeContext.Provider>
+  );
+}
+
+/**
+ * Resolves one local panel theme override against its parent effective mode.
+ */
+function resolveWidgetPanelThemeMode(
+  parentMode: WidgetPanelThemeMode,
+  theme: WidgetPanelTheme | undefined,
+): WidgetPanelThemeMode {
+  if (theme === 'dark') {
+    return 'dark';
+  }
+  if (theme === 'light') {
+    return 'light';
+  }
+  if (theme === 'invert') {
+    return parentMode === 'dark' ? 'light' : 'dark';
+  }
+
+  return parentMode;
+}
+
+/**
+ * Builds the inline CSS variable scope for one resolved panel theme mode.
+ */
+function getWidgetPanelThemeScopeStyle(mode: WidgetPanelThemeMode): JSX.CSSProperties {
+  const themeVariables = mode === 'dark' ? DarkTheme : LightTheme;
+  return {...themeVariables} as JSX.CSSProperties;
+}
+
+/**
+ * Infers the surrounding widget theme mode from resolved CSS variables.
+ */
+function inferWidgetPanelThemeMode(hostElement: HTMLElement): WidgetPanelThemeMode {
+  const ownerWindow = hostElement.ownerDocument.defaultView;
+  if (!ownerWindow) {
+    return 'light';
+  }
+
+  const computedStyle = ownerWindow.getComputedStyle(hostElement);
+  const menuBackground = computedStyle.getPropertyValue('--menu-background').trim();
+  const parsedColor = parseThemeColor(menuBackground);
+  if (!parsedColor) {
+    return 'light';
+  }
+
+  return getRelativeLuminance(parsedColor) < 0.5 ? 'dark' : 'light';
+}
+
+/**
+ * Parses a CSS rgb/rgba/hex color string into numeric channels.
+ */
+function parseThemeColor(value: string): [number, number, number] | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith('#')) {
+    const hex = value.slice(1);
+    if (hex.length === 3) {
+      return [
+        parseInt(hex[0] + hex[0], 16),
+        parseInt(hex[1] + hex[1], 16),
+        parseInt(hex[2] + hex[2], 16),
+      ];
+    }
+    if (hex.length >= 6) {
+      return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+    }
+    return null;
+  }
+
+  const channelMatches = value.match(/[\d.]+/g);
+  if (!channelMatches || channelMatches.length < 3) {
+    return null;
+  }
+
+  return [
+    Number(channelMatches[0]),
+    Number(channelMatches[1]),
+    Number(channelMatches[2]),
+  ];
+}
+
+/**
+ * Computes relative luminance for an RGB color.
+ */
+function getRelativeLuminance([red, green, blue]: [number, number, number]): number {
+  return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
 }
 
 /**

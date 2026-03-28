@@ -6,7 +6,7 @@ import { DEFAULT_SHORTCUTS, formatKey } from '../keyboard-shortcuts/keyboard-sho
 import { KeyboardShortcutsManager } from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 
 import type { KeyboardShortcut } from '../keyboard-shortcuts/keyboard-shortcuts';
-import type { WidgetPanel } from './widget-containers';
+import type { WidgetPanel, WidgetPanelTheme } from './widget-containers';
 import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
 import type { JSX } from 'preact';
 
@@ -19,6 +19,8 @@ export type KeyboardShortcutsWidgetProps = WidgetProps & {
 export type KeyboardSettingsWidgetPanelProps = {
   /** Optional list of keyboard shortcuts to render in the panel. */
   keyboardShortcuts?: KeyboardShortcut[];
+  /** Optional theme override applied to this panel subtree. */
+  theme?: WidgetPanelTheme;
 };
 
 /**
@@ -27,9 +29,11 @@ export type KeyboardSettingsWidgetPanelProps = {
 export class KeyboardSettingsWidgetPanel implements WidgetPanel {
   id = 'keyboard-shortcuts';
   title = 'Keyboard Shortcuts';
+  theme?: WidgetPanelTheme;
   content: JSX.Element;
 
-  constructor({ keyboardShortcuts = [] }: KeyboardSettingsWidgetPanelProps = {}) {
+  constructor({ keyboardShortcuts = [], theme = 'inherit' }: KeyboardSettingsWidgetPanelProps = {}) {
+    this.theme = theme;
     this.content = <KeyboardSettingsPanelContent keyboardShortcuts={keyboardShortcuts} />;
   }
 }
