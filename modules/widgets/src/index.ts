@@ -88,6 +88,10 @@ export {
   type SettingsWidgetPanelProps,
 } from './panel-widgets/settings-widget';
 export { SidebarWidget, type SidebarWidgetProps } from './panel-widgets/sidebar-widget';
+export {
+  TextEditorWidgetPanel,
+  type TextEditorWidgetPanelProps
+} from './panel-widgets/text-editor-widget';
 
 export {
   type KeyboardShortcut,

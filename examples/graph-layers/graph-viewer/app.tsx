@@ -2,61 +2,1293 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-/* eslint-disable max-statements, complexity */
+/* eslint-disable max-lines, max-statements, complexity */
 
-import React, {useCallback, useEffect, useMemo, useState, useRef} from 'react';
-import {createRoot} from 'react-dom/client';
-
-import DeckGL, {type DeckGLRef} from '@deck.gl/react';
-
-import {OrthographicView} from '@deck.gl/core';
-import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
-// @ts-expect-error CSS import
-import '@deck.gl/widgets/stylesheet.css';
-
+import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {
-  GraphLayer,
+  SidebarWidget,
+  ColumnWidgetPanel,
+  CustomWidgetPanel,
+  PanWidget,
+  SettingsWidgetPanel,
+  TextEditorWidgetPanel,
+  ZoomRangeWidget,
+  type SettingsWidgetSchema,
+  type SettingsWidgetSettingDescriptor,
+  type SettingsWidgetState,
+  type WidgetPanelRecord
+} from '@deck.gl-community/widgets';
+import {
+  CollapsableD3DagLayout,
+  D3DagLayout,
+  D3ForceLayout,
+  ForceMultiGraphLayout,
+  GPUForceLayout,
   GraphEngine,
+  GraphLayer,
   GraphLayout,
+  HivePlotLayout,
+  RadialLayout,
+  SimpleLayout,
   type Graph,
   type GraphLayoutEventDetail,
-  SimpleLayout,
-  D3ForceLayout,
-  GPUForceLayout,
-  RadialLayout,
-  HivePlotLayout,
-  ForceMultiGraphLayout,
-  D3DagLayout,
-  CollapsableD3DagLayout,
-  type RankGridConfig,
-  ArrowGraph
+  type RankGridConfig
 } from '@deck.gl-community/graph-layers';
 
-import {ControlPanel} from './control-panel';
-import type {
-  LayoutType,
-  ExampleDefinition,
-  GraphExampleType,
-  ExampleMetadata
+import {
+  DAG_LAYOUT_PROP_DESCRIPTIONS,
+  D3_FORCE_DEFAULT_OPTIONS,
+  FORCE_LAYOUT_PROP_DESCRIPTIONS,
+  FORCE_MULTI_GRAPH_PROP_DESCRIPTIONS,
+  GPU_FORCE_DEFAULT_OPTIONS,
+  HIVE_PLOT_PROP_DESCRIPTIONS,
+  LAYOUT_LABELS,
+  RADIAL_LAYOUT_PROP_DESCRIPTIONS,
+  createDagFormState,
+  createForceLayoutFormState,
+  createForceMultiGraphFormState,
+  createHivePlotLayoutFormState,
+  createRadialLayoutFormState,
+  mapDagFormStateToOptions,
+  mapForceLayoutFormStateToOptions,
+  mapForceMultiGraphFormStateToOptions,
+  mapHivePlotLayoutFormStateToOptions,
+  mapRadialLayoutFormStateToOptions,
+  type ExampleDefinition,
+  type ExampleGraphData,
+  type ExampleMetadata,
+  type GraphExampleType,
+  type LayoutType
 } from './layout-options';
-import {CollapseControls} from './collapse-controls';
-import {StylesheetEditor} from './stylesheet-editor';
 import {EXAMPLES, filterExamplesByType} from './examples';
-import {useGraphViewport} from './use-graph-viewport';
 import {createArrowGraphFromJson, type JsonGraph} from './sanitize-graph';
+import type {PropDescription} from './props-form';
+
+import '@deck.gl/widgets/stylesheet.css';
+
+export type GraphViewerExampleOptions = {
+  graphType?: GraphExampleType;
+};
+
+type GraphTooltipObject = {
+  isNode?: boolean;
+  _data?: Record<string, unknown> | null;
+};
+
+type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
+
+type LoadingState = {
+  loaded: boolean;
+  rendered: boolean;
+  isLoading: boolean;
+};
+
+type DagChainSummary = {
+  chainIds: string[];
+  collapsedIds: string[];
+};
+
+type ViewState = {
+  target: [number, number];
+  zoom: number;
+  width?: number;
+  height?: number;
+};
+
+type GraphViewerState = {
+  graphType?: GraphExampleType;
+  examples: ExampleDefinition[];
+  selectedExampleName: string;
+  selectedLayout: LayoutType;
+  layoutOverrides: Partial<Record<LayoutType, Record<string, unknown>>>;
+  collapseEnabled: boolean;
+  dagChainSummary: DagChainSummary | null;
+  metadataByExample: Record<string, ExampleMetadata>;
+  stylesheetValue: string;
+  loading: LoadingState;
+  resolvedEngine: GraphEngine | null;
+  viewState: ViewState;
+  isSidebarOpen: boolean;
+};
+
+type GraphViewerRuntime = {
+  selectedExample: ExampleDefinition;
+  graphData: ExampleGraphData | null;
+  activeMetadata?: ExampleMetadata;
+  layoutOptions?: Record<string, unknown>;
+  layout: GraphLayout | null;
+  dagLayout: CollapsableD3DagLayout | null;
+  isDagLayout: boolean;
+  manualEngine: GraphEngine | null;
+  graphLayer: GraphLayer | null;
+  metadataLoading: boolean;
+  layoutDescription?: string;
+};
+
+type ViewportSource = GraphEngine | GraphLayout | null;
 
 const INITIAL_VIEW_STATE = {
-  /** the target origin of the view */
   target: [0, 0] as [number, number],
-  /** zoom level */
   zoom: 1
 } as const;
 
-// the default cursor in the view
+const ROOT_STYLE = {
+  position: 'relative',
+  width: '100%',
+  height: '100%',
+  minHeight: '100%',
+  overflow: 'hidden',
+  borderRadius: '16px',
+  background: '#ffffff',
+  fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
+} as const;
+
+const LOADING_STYLE = {
+  position: 'absolute',
+  inset: '0',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '14px',
+  color: '#475569',
+  zIndex: '1',
+  pointerEvents: 'none'
+} as const;
+
 const DEFAULT_CURSOR = 'default';
 const DEFAULT_STYLESHEET_MESSAGE = '// No style defined for this example';
-
+const MIN_ZOOM = -20;
+const MAX_ZOOM = 20;
+const VIEWPORT_PADDING = 8;
+const BOUNDS_PADDING_RATIO = 0.02;
+const EPSILON = 1e-6;
 const GRAPH_LAYER_ID = 'graph-viewer-layer';
+const INITIAL_LOADING_STATE: LoadingState = {loaded: false, rendered: false, isLoading: true};
+const RESUME_LAYOUT_AFTER_DRAGGING = false;
+const TOOLTIP_THEME = {
+  background: '#0f172a',
+  border: '#1e293b',
+  header: '#38bdf8',
+  key: '#facc15',
+  value: '#f8fafc'
+} as const;
+
+const VIEW = new OrthographicView({
+  minZoom: MIN_ZOOM,
+  maxZoom: MAX_ZOOM,
+  controller: {
+    scrollZoom: true,
+    touchZoom: true,
+    doubleClickZoom: true,
+    dragPan: true
+  }
+});
+
+const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
+  'd3-force-layout': () => new D3ForceLayout(),
+  'gpu-force-layout': () => new GPUForceLayout(),
+  'simple-layout': () => new SimpleLayout(),
+  'radial-layout': (options) => new RadialLayout(options),
+  'hive-plot-layout': (options) => new HivePlotLayout(options),
+  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
+  'd3-dag-layout': (options) => new CollapsableD3DagLayout(options)
+};
+
+export function mountGraphViewerExample(
+  container: HTMLElement,
+  options: GraphViewerExampleOptions = {}
+): () => void {
+  const examples = getExamplesForType(options.graphType);
+  const defaultExample = examples[0] ?? EXAMPLES[0];
+  const defaultLayout = defaultExample?.layouts[0] ?? 'd3-force-layout';
+
+  const rootElement = container.ownerDocument.createElement('div');
+  const loadingElement = container.ownerDocument.createElement('div');
+  applyElementStyle(rootElement, ROOT_STYLE);
+  applyElementStyle(loadingElement, LOADING_STYLE);
+  loadingElement.textContent = 'Computing layout...';
+  rootElement.append(loadingElement);
+  container.replaceChildren(rootElement);
+
+  const state: GraphViewerState = {
+    graphType: options.graphType,
+    examples,
+    selectedExampleName: defaultExample.name,
+    selectedLayout: defaultLayout,
+    layoutOverrides: {},
+    collapseEnabled: defaultLayout === 'd3-dag-layout',
+    dagChainSummary: null,
+    metadataByExample: {},
+    stylesheetValue: serializeStylesheet(defaultExample.style),
+    loading: {...INITIAL_LOADING_STATE},
+    resolvedEngine: null,
+    viewState: {...INITIAL_VIEW_STATE},
+    isSidebarOpen: true
+  };
+
+  let deck: Deck | null = null;
+  let currentRuntime: GraphViewerRuntime | null = null;
+  let isApplyingViewState = false;
+
+  const panWidget = new PanWidget({
+    id: 'pan-widget',
+    style: {margin: '20px 0 0 20px'}
+  });
+  const zoomWidget = new ZoomRangeWidget({
+    id: 'zoom-range-widget',
+    style: {margin: '90px 0 0 20px'},
+    minZoom: MIN_ZOOM,
+    maxZoom: MAX_ZOOM
+  });
+  const sidebarWidget = new SidebarWidget({
+    id: 'graph-viewer-sidebar',
+    placement: 'top-right',
+    side: 'right',
+    widthPx: 360,
+    title: 'Graph controls',
+    triggerLabel: 'Toggle graph controls',
+    hideTrigger: false,
+    button: true,
+    open: state.isSidebarOpen,
+    onOpenChange(nextOpen) {
+      if (state.isSidebarOpen === nextOpen) {
+        return;
+      }
+      state.isSidebarOpen = nextOpen;
+      syncWidgets();
+    }
+  });
+
+  const viewportController = createViewportController({
+    getSource: () => state.resolvedEngine ?? currentRuntime?.layout ?? null,
+    getViewState: () => state.viewState,
+    updateViewState(nextViewState, syncToDeck) {
+      state.viewState = nextViewState;
+      if (syncToDeck && deck) {
+        applyDeckViewState();
+      }
+    }
+  });
+
+  const handlers = {
+    onSelectionSettingsChange(nextSettings: SettingsWidgetState) {
+      const selectedExample = findExampleByName(state.examples, String(nextSettings.example ?? ''));
+      if (selectedExample && selectedExample.name !== state.selectedExampleName) {
+        state.selectedExampleName = selectedExample.name;
+        state.selectedLayout = selectedExample.layouts[0] ?? state.selectedLayout;
+        state.stylesheetValue = serializeStylesheet(selectedExample.style);
+        state.resolvedEngine = null;
+        state.dagChainSummary = null;
+        state.collapseEnabled = state.selectedLayout === 'd3-dag-layout';
+        state.loading = {...INITIAL_LOADING_STATE};
+        applyState();
+        return;
+      }
+
+      const nextLayout = String(nextSettings.layout ?? '') as LayoutType;
+      if (
+        nextLayout &&
+        nextLayout !== state.selectedLayout &&
+        getSelectedExample(state).layouts.includes(nextLayout)
+      ) {
+        state.selectedLayout = nextLayout;
+        state.resolvedEngine = null;
+        state.dagChainSummary = null;
+        state.collapseEnabled = nextLayout === 'd3-dag-layout';
+        state.loading = {...INITIAL_LOADING_STATE};
+        applyState();
+      }
+    },
+    onLayoutOptionsChange(nextSettings: SettingsWidgetState) {
+      const nextOptions = mapLayoutSettingsToOptions(state.selectedLayout, nextSettings);
+      state.layoutOverrides = {...state.layoutOverrides, [state.selectedLayout]: nextOptions};
+      state.resolvedEngine = null;
+      state.dagChainSummary = null;
+      state.loading = {...INITIAL_LOADING_STATE};
+      applyState();
+    },
+    onToggleCollapseEnabled() {
+      state.collapseEnabled = !state.collapseEnabled;
+      const dagLayout = currentRuntime?.dagLayout;
+      if (dagLayout) {
+        dagLayout.setProps({collapseLinearChains: state.collapseEnabled});
+        if (!state.collapseEnabled) {
+          dagLayout.setCollapsedChains([]);
+        }
+      }
+      updateChainSummary();
+      syncWidgets();
+    },
+    onCollapseAll() {
+      if (!state.collapseEnabled || !currentRuntime?.dagLayout || !state.dagChainSummary) {
+        return;
+      }
+      currentRuntime.dagLayout.setCollapsedChains(state.dagChainSummary.chainIds);
+      updateChainSummary();
+      syncWidgets();
+    },
+    onExpandAll() {
+      if (!state.collapseEnabled || !currentRuntime?.dagLayout) {
+        return;
+      }
+      currentRuntime.dagLayout.setCollapsedChains([]);
+      updateChainSummary();
+      syncWidgets();
+    },
+    onStylesheetChange(nextValue: string) {
+      state.stylesheetValue = nextValue;
+    }
+  };
+
+  deck = new Deck({
+    parent: rootElement,
+    views: VIEW,
+    controller: true,
+    getCursor: () => DEFAULT_CURSOR,
+    getTooltip: ({object}: PickingInfo) => getToolTip(object),
+    onAfterRender: handleAfterRender,
+    onResize: ({width, height}) => {
+      viewportController.onResize(width, height);
+    },
+    onViewStateChange: ({viewState}) => {
+      viewportController.onViewStateChange(viewState as {target: [number, number]; zoom: number});
+    },
+    viewState: toDeckViewState(state.viewState),
+    layers: [],
+    widgets: [panWidget, zoomWidget, sidebarWidget]
+  });
+
+  applyState();
+
+  return () => {
+    deck?.finalize();
+    loadingElement.remove();
+    rootElement.remove();
+    container.replaceChildren();
+  };
+
+  function applyState() {
+    const runtime = buildRuntime(state);
+    currentRuntime = runtime;
+
+    if (runtime.manualEngine) {
+      state.resolvedEngine = runtime.manualEngine;
+    } else if (isRemoteExample(runtime.selectedExample)) {
+      state.resolvedEngine = null;
+    }
+
+    updateInlineMetadata(runtime);
+    updateResolvedEngineMetadata(runtime);
+    updateChainSummary(runtime);
+    syncWidgets(runtime);
+    syncDeck(runtime);
+    syncLoadingOverlay();
+    viewportController.fitBounds();
+  }
+
+  function syncDeck(runtime: GraphViewerRuntime) {
+    if (!deck) {
+      return;
+    }
+
+    deck.setProps({
+      viewState: toDeckViewState(state.viewState),
+      layers: runtime.graphLayer ? [runtime.graphLayer] : []
+    });
+  }
+
+  function syncWidgets(runtime: GraphViewerRuntime = currentRuntime ?? buildRuntime(state)) {
+    sidebarWidget.setProps({
+      title: 'Graph controls',
+      open: state.isSidebarOpen,
+      panel: buildSidebarPanel(runtime, state, handlers)
+    });
+    zoomWidget.setProps({minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM});
+  }
+
+  function syncLoadingOverlay() {
+    loadingElement.hidden = !state.loading.isLoading;
+  }
+
+  function handleAfterRender() {
+    if (state.loading.loaded && !state.loading.rendered) {
+      state.loading = {
+        loaded: true,
+        rendered: true,
+        isLoading: false
+      };
+      syncLoadingOverlay();
+    }
+    updateResolvedEngineFromLayer();
+  }
+
+  function updateResolvedEngineFromLayer() {
+    if (!deck || currentRuntime?.manualEngine) {
+      return;
+    }
+
+    const layerManager = (deck as unknown as {layerManager?: {getLayers?: () => unknown[]; layers?: unknown[]}})
+      .layerManager;
+    const layers = layerManager?.getLayers?.() ?? layerManager?.layers;
+    if (!layers) {
+      return;
+    }
+
+    const graphLayerInstance = layers.find(
+      (layer) => (layer as {id?: string} | null)?.id === GRAPH_LAYER_ID
+    ) as {state?: {graphEngine?: GraphEngine}} | undefined;
+    const nextEngine = graphLayerInstance?.state?.graphEngine ?? null;
+    if (!nextEngine || nextEngine === state.resolvedEngine) {
+      return;
+    }
+
+    state.resolvedEngine = nextEngine;
+    updateResolvedEngineMetadata(currentRuntime ?? buildRuntime(state));
+    updateChainSummary();
+    syncWidgets();
+    viewportController.fitBounds();
+  }
+
+  function updateInlineMetadata(runtime: GraphViewerRuntime) {
+    if (!runtime.graphData) {
+      return;
+    }
+
+    updateExampleMetadata(runtime.selectedExample, {
+      nodeCount: Array.isArray(runtime.graphData.nodes) ? runtime.graphData.nodes.length : undefined,
+      edgeCount: Array.isArray(runtime.graphData.edges) ? runtime.graphData.edges.length : undefined,
+      sourceType: 'inline'
+    });
+  }
+
+  function updateResolvedEngineMetadata(runtime: GraphViewerRuntime) {
+    const engine = state.resolvedEngine;
+    if (!engine) {
+      return;
+    }
+
+    updateExampleMetadata(runtime.selectedExample, {
+      nodeCount: engine.getNodes().length,
+      edgeCount: engine.getEdges().length,
+      ...(isRemoteExample(runtime.selectedExample) ? {sourceType: 'remote' as const} : {})
+    });
+  }
+
+  function updateExampleMetadata(
+    example: ExampleDefinition | undefined,
+    incoming: ExampleMetadata | null | undefined
+  ) {
+    if (!example || !incoming) {
+      return;
+    }
+
+    const previous = state.metadataByExample[example.name];
+    const merged = mergeMetadata(previous, incoming);
+    if (merged === previous) {
+      return;
+    }
+
+    state.metadataByExample = {
+      ...state.metadataByExample,
+      [example.name]: merged
+    };
+  }
+
+  function updateChainSummary(runtime: GraphViewerRuntime = currentRuntime ?? buildRuntime(state)) {
+    if (!runtime.isDagLayout) {
+      state.dagChainSummary = null;
+      return;
+    }
+
+    const engine = state.resolvedEngine;
+    if (!runtime.dagLayout || !engine) {
+      state.dagChainSummary = {chainIds: [], collapsedIds: []};
+      return;
+    }
+
+    const chainIds: string[] = [];
+    const collapsedIds: string[] = [];
+
+    for (const node of engine.getNodes()) {
+      const chainId = node.getPropertyValue('collapsedChainId');
+      const nodeIds = node.getPropertyValue('collapsedNodeIds');
+      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
+      const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
+
+      if (
+        chainId !== null &&
+        chainId !== undefined &&
+        Array.isArray(nodeIds) &&
+        nodeIds.length > 1 &&
+        representativeId === node.getId()
+      ) {
+        const chainKey = String(chainId);
+        chainIds.push(chainKey);
+        if (isCollapsed) {
+          collapsedIds.push(chainKey);
+        }
+      }
+    }
+
+    state.dagChainSummary = {chainIds, collapsedIds};
+  }
+
+  function applyDeckViewState() {
+    if (!deck) {
+      return;
+    }
+
+    isApplyingViewState = true;
+    deck.setProps({viewState: toDeckViewState(state.viewState)});
+    isApplyingViewState = false;
+  }
+
+  function createViewportController({
+    getSource,
+    getViewState,
+    updateViewState
+  }: {
+    getSource: () => ViewportSource;
+    getViewState: () => ViewState;
+    updateViewState: (nextViewState: ViewState, syncToDeck: boolean) => void;
+  }) {
+    let latestBounds: [[number, number], [number, number]] | null = null;
+
+    const fitBounds = (incomingBounds?: [[number, number], [number, number]] | null) => {
+      const source = getSource();
+      if (!source) {
+        return;
+      }
+
+      const bounds = incomingBounds ?? getEventSourceBounds(source);
+      if (!bounds) {
+        return;
+      }
+
+      const [[minX, minY], [maxX, maxY]] = bounds;
+      if (
+        !Number.isFinite(minX) ||
+        !Number.isFinite(minY) ||
+        !Number.isFinite(maxX) ||
+        !Number.isFinite(maxY)
+      ) {
+        return;
+      }
+
+      latestBounds = bounds;
+      const currentViewState = getViewState();
+      if (!currentViewState.width || !currentViewState.height) {
+        return;
+      }
+
+      const target: [number, number] = [(minX + maxX) / 2, (minY + maxY) / 2];
+      const spanX = Math.max(maxX - minX, EPSILON);
+      const spanY = Math.max(maxY - minY, EPSILON);
+      const paddedSpanX = spanX * (1 + BOUNDS_PADDING_RATIO);
+      const paddedSpanY = spanY * (1 + BOUNDS_PADDING_RATIO);
+      const innerWidth = Math.max(1, currentViewState.width - VIEWPORT_PADDING * 2);
+      const innerHeight = Math.max(1, currentViewState.height - VIEWPORT_PADDING * 2);
+      const scale = Math.min(innerWidth / paddedSpanX, innerHeight / paddedSpanY);
+      const zoom = Math.min(Math.max(MIN_ZOOM, Math.log2(Math.max(scale, EPSILON))), MAX_ZOOM);
+
+      if (!Number.isFinite(zoom)) {
+        return;
+      }
+
+      const targetUnchanged =
+        Math.abs(currentViewState.target[0] - target[0]) < EPSILON &&
+        Math.abs(currentViewState.target[1] - target[1]) < EPSILON;
+      const zoomUnchanged = Math.abs(currentViewState.zoom - zoom) < EPSILON;
+      if (targetUnchanged && zoomUnchanged) {
+        return;
+      }
+
+      updateViewState(
+        {
+          ...currentViewState,
+          target,
+          zoom
+        },
+        true
+      );
+    };
+
+    return {
+      fitBounds,
+      onResize(width: number, height: number) {
+        const nextViewState: ViewState = {...getViewState(), width, height};
+        updateViewState(nextViewState, false);
+        if (latestBounds) {
+          fitBounds(latestBounds);
+          return;
+        }
+
+        const source = getSource();
+        if (source) {
+          const bounds = getEventSourceBounds(source);
+          if (bounds) {
+            fitBounds(bounds);
+          }
+        }
+      },
+      onViewStateChange(nextViewState: {target: [number, number]; zoom: number}) {
+        const currentViewState = getViewState();
+        const mergedViewState: ViewState = {
+          ...currentViewState,
+          target: nextViewState.target,
+          zoom: nextViewState.zoom
+        };
+        updateViewState(mergedViewState, false);
+        if (!isApplyingViewState) {
+          applyDeckViewState();
+        }
+      },
+      handleLayoutEvent(detail?: GraphLayoutEventDetail) {
+        fitBounds((detail?.bounds as [[number, number], [number, number]] | undefined) ?? null);
+      }
+    };
+  }
+
+  function buildRuntime(currentState: GraphViewerState): GraphViewerRuntime {
+    const selectedExample = getSelectedExample(currentState);
+    const graphData = isInlineExample(selectedExample)
+      ? selectedExample.data()
+      : null;
+    const activeMetadata = currentState.metadataByExample[selectedExample.name];
+    const selectedLayout = currentState.selectedLayout;
+    const baseOptions = selectedExample.getLayoutOptions?.(selectedLayout, {
+      data: graphData ?? undefined,
+      metadata: activeMetadata
+    });
+    const overrides = currentState.layoutOverrides[selectedLayout];
+    const layoutOptions = baseOptions && overrides ? {...baseOptions, ...overrides} : overrides ?? baseOptions;
+    const layoutFactory = LAYOUT_FACTORIES[selectedLayout];
+    const layout = layoutFactory ? layoutFactory(layoutOptions) : null;
+    const dagLayout = layout instanceof CollapsableD3DagLayout ? layout : null;
+    if (dagLayout) {
+      dagLayout.setProps({collapseLinearChains: currentState.collapseEnabled});
+      if (!currentState.collapseEnabled) {
+        dagLayout.setCollapsedChains([]);
+      }
+    }
+
+    const manualEngine =
+      graphData && layout ? new GraphEngine({graph: createArrowGraphFromJson(graphData as JsonGraph), layout}) : null;
+
+    const graphLayer = buildGraphLayer({
+      selectedExample,
+      layout,
+      manualEngine,
+      rankGrid: buildRankGrid(selectedLayout, layoutOptions, dagLayout),
+      onLayoutStart: (detail) => {
+        state.loading = {...INITIAL_LOADING_STATE};
+        syncLoadingOverlay();
+        viewportController.handleLayoutEvent(detail);
+      },
+      onLayoutChange: (detail) => {
+        viewportController.handleLayoutEvent(detail);
+        updateChainSummary();
+      },
+      onLayoutDone: (detail) => {
+        state.loading = {
+          loaded: true,
+          rendered: state.loading.rendered,
+          isLoading: !state.loading.rendered
+        };
+        syncLoadingOverlay();
+        viewportController.handleLayoutEvent(detail);
+        updateChainSummary();
+      },
+      onDataLoad: (data) => {
+        handleDataLoad(selectedExample, data);
+      }
+    });
+
+    return {
+      selectedExample,
+      graphData,
+      activeMetadata,
+      layoutOptions,
+      layout,
+      dagLayout,
+      isDagLayout: selectedLayout === 'd3-dag-layout',
+      manualEngine,
+      graphLayer,
+      metadataLoading: Boolean(isRemoteExample(selectedExample) && !activeMetadata),
+      layoutDescription: selectedExample.layoutDescriptions[selectedLayout]
+    };
+  }
+
+  function handleDataLoad(example: ExampleDefinition, data: unknown) {
+    const metadata = deriveMetadataFromData(data);
+    if (!metadata) {
+      return;
+    }
+
+    updateExampleMetadata(example, {
+      ...metadata,
+      ...(isRemoteExample(example) ? {sourceType: 'remote' as const} : {})
+    });
+    syncWidgets();
+  }
+}
+
+function buildGraphLayer({
+  selectedExample,
+  layout,
+  manualEngine,
+  rankGrid,
+  onLayoutStart,
+  onLayoutChange,
+  onLayoutDone,
+  onDataLoad
+}: {
+  selectedExample: ExampleDefinition;
+  layout: GraphLayout | null;
+  manualEngine: GraphEngine | null;
+  rankGrid: RankGridConfig | false;
+  onLayoutStart: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutChange: (detail?: GraphLayoutEventDetail) => void;
+  onLayoutDone: (detail?: GraphLayoutEventDetail) => void;
+  onDataLoad: (data: unknown) => void;
+}): GraphLayer | null {
+  if (!layout) {
+    return null;
+  }
+
+  const baseProps = {
+    id: GRAPH_LAYER_ID,
+    layout,
+    stylesheet: selectedExample.style,
+    onLayoutStart,
+    onLayoutChange,
+    onLayoutDone,
+    resumeLayoutAfterDragging: RESUME_LAYOUT_AFTER_DRAGGING,
+    rankGrid,
+    ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {})
+  } as const;
+
+  if (manualEngine) {
+    return new GraphLayer({
+      ...baseProps,
+      data: manualEngine,
+      engine: manualEngine
+    });
+  }
+
+  if (isRemoteExample(selectedExample)) {
+    return new GraphLayer({
+      ...baseProps,
+      data: selectedExample.dataUrl,
+      ...(selectedExample.loaders ? {loaders: selectedExample.loaders} : {}),
+      ...(selectedExample.loadOptions ? {loadOptions: selectedExample.loadOptions} : {}),
+      onDataLoad
+    });
+  }
+
+  return null;
+}
+
+function buildSidebarPanel(
+  runtime: GraphViewerRuntime,
+  state: GraphViewerState,
+  handlers: {
+    onSelectionSettingsChange: (nextSettings: SettingsWidgetState) => void;
+    onLayoutOptionsChange: (nextSettings: SettingsWidgetState) => void;
+    onToggleCollapseEnabled: () => void;
+    onCollapseAll: () => void;
+    onExpandAll: () => void;
+    onStylesheetChange: (nextValue: string) => void;
+  }
+) {
+  const panels: WidgetPanelRecord = {
+    controls: new SettingsWidgetPanel({
+      id: 'graph-selection',
+      schema: buildSelectionSchema(runtime.selectedExample, state.examples, state.selectedLayout),
+      settings: {
+        example: runtime.selectedExample.name,
+        layout: state.selectedLayout
+      },
+      onSettingsChange: handlers.onSelectionSettingsChange
+    }),
+    layoutOptions: new SettingsWidgetPanel({
+      id: 'graph-layout-options',
+      schema: buildLayoutOptionsSchema(state.selectedLayout, runtime.layoutDescription, runtime.layoutOptions),
+      settings: buildLayoutOptionSettingsState(state.selectedLayout, runtime.layoutOptions),
+      onSettingsChange: handlers.onLayoutOptionsChange
+    })
+  };
+
+  if (runtime.isDagLayout) {
+    panels.collapse = new CustomWidgetPanel({
+      id: 'dag-collapse',
+      title: 'Collapsed chains',
+      onRenderHTML: (rootElement) => {
+        renderCollapseControlsPanel(rootElement, state, handlers);
+      }
+    });
+  }
+
+  panels.metadata = new CustomWidgetPanel({
+    id: 'dataset-metadata',
+    title: 'Dataset stats',
+    onRenderHTML: (rootElement) => {
+      renderMetadataPanel(rootElement, runtime.activeMetadata, runtime.metadataLoading);
+    }
+  });
+
+  panels.stylesheet = new TextEditorWidgetPanel({
+    id: 'stylesheet-json',
+    title: 'Stylesheet JSON',
+    language: 'json',
+    value: state.stylesheetValue,
+    onValueChange: handlers.onStylesheetChange,
+    readOnly: false,
+    placeholder: DEFAULT_STYLESHEET_MESSAGE
+  });
+
+  return new ColumnWidgetPanel({
+    id: 'graph-viewer-sidebar-panels',
+    title: '',
+    panels
+  });
+}
+
+function buildSelectionSchema(
+  selectedExample: ExampleDefinition,
+  examples: ExampleDefinition[],
+  selectedLayout: LayoutType
+): SettingsWidgetSchema {
+  return {
+    title: 'Graph controls',
+    sections: [
+      {
+        id: 'dataset',
+        name: 'Dataset',
+        description: selectedExample.description,
+        initiallyCollapsed: false,
+        settings: [
+          {
+            name: 'example',
+            label: 'Dataset',
+            type: 'select',
+            options: examples.map((example) => ({label: example.name, value: example.name}))
+          }
+        ]
+      },
+      {
+        id: 'layout',
+        name: 'Layout',
+        description: selectedExample.layoutDescriptions[selectedLayout],
+        initiallyCollapsed: false,
+        settings: [
+          {
+            name: 'layout',
+            label: 'Layout',
+            type: 'select',
+            options: selectedExample.layouts.map((layout) => ({
+              label: LAYOUT_LABELS[layout] ?? layout,
+              value: layout
+            }))
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function buildLayoutOptionsSchema(
+  layout: LayoutType,
+  layoutDescription: string | undefined,
+  appliedOptions?: Record<string, unknown>
+): SettingsWidgetSchema {
+  const settings = getLayoutSettingsDescriptors(layout, appliedOptions);
+  return {
+    title: 'Layout options',
+    sections: [
+      {
+        id: 'layout-options',
+        name: LAYOUT_LABELS[layout] ?? layout,
+        description: getLayoutOptionsDescription(layout, layoutDescription),
+        initiallyCollapsed: false,
+        settings
+      }
+    ]
+  };
+}
+
+function getLayoutOptionsDescription(layout: LayoutType, layoutDescription?: string) {
+  if (layout === 'simple-layout') {
+    return 'Simple layout reads node positions directly from the dataset.';
+  }
+  if (layoutDescription) {
+    return layoutDescription;
+  }
+  return 'Adjust layout parameters. Changes apply immediately.';
+}
+
+function getLayoutSettingsDescriptors(
+  layout: LayoutType,
+  appliedOptions?: Record<string, unknown>
+): SettingsWidgetSettingDescriptor[] {
+  if (layout === 'd3-force-layout') {
+    const values = createForceLayoutFormState(appliedOptions, D3_FORCE_DEFAULT_OPTIONS);
+    return mapPropDescriptionsToSettings(values, FORCE_LAYOUT_PROP_DESCRIPTIONS);
+  }
+  if (layout === 'gpu-force-layout') {
+    const values = createForceLayoutFormState(appliedOptions, GPU_FORCE_DEFAULT_OPTIONS);
+    return mapPropDescriptionsToSettings(values, FORCE_LAYOUT_PROP_DESCRIPTIONS);
+  }
+  if (layout === 'force-multi-graph-layout') {
+    const values = createForceMultiGraphFormState(appliedOptions);
+    return mapPropDescriptionsToSettings(values, FORCE_MULTI_GRAPH_PROP_DESCRIPTIONS);
+  }
+  if (layout === 'radial-layout') {
+    const values = createRadialLayoutFormState(appliedOptions);
+    return mapPropDescriptionsToSettings(values, RADIAL_LAYOUT_PROP_DESCRIPTIONS);
+  }
+  if (layout === 'hive-plot-layout') {
+    const values = createHivePlotLayoutFormState(appliedOptions);
+    return mapPropDescriptionsToSettings(values, HIVE_PLOT_PROP_DESCRIPTIONS);
+  }
+  if (layout === 'd3-dag-layout') {
+    const values = createDagFormState(appliedOptions);
+    return mapPropDescriptionsToSettings(values, DAG_LAYOUT_PROP_DESCRIPTIONS);
+  }
+  return [];
+}
+
+function buildLayoutOptionSettingsState(
+  layout: LayoutType,
+  appliedOptions?: Record<string, unknown>
+): SettingsWidgetState {
+  if (layout === 'd3-force-layout') {
+    return createForceLayoutFormState(appliedOptions, D3_FORCE_DEFAULT_OPTIONS);
+  }
+  if (layout === 'gpu-force-layout') {
+    return createForceLayoutFormState(appliedOptions, GPU_FORCE_DEFAULT_OPTIONS);
+  }
+  if (layout === 'force-multi-graph-layout') {
+    return createForceMultiGraphFormState(appliedOptions);
+  }
+  if (layout === 'radial-layout') {
+    return createRadialLayoutFormState(appliedOptions);
+  }
+  if (layout === 'hive-plot-layout') {
+    return createHivePlotLayoutFormState(appliedOptions);
+  }
+  if (layout === 'd3-dag-layout') {
+    return createDagFormState(appliedOptions);
+  }
+  return {};
+}
+
+function mapLayoutSettingsToOptions(
+  layout: LayoutType,
+  nextSettings: SettingsWidgetState
+): Record<string, unknown> {
+  if (layout === 'd3-force-layout' || layout === 'gpu-force-layout') {
+    return mapForceLayoutFormStateToOptions(nextSettings as ReturnType<typeof createForceLayoutFormState>);
+  }
+  if (layout === 'force-multi-graph-layout') {
+    return mapForceMultiGraphFormStateToOptions(
+      nextSettings as ReturnType<typeof createForceMultiGraphFormState>
+    );
+  }
+  if (layout === 'radial-layout') {
+    return mapRadialLayoutFormStateToOptions(nextSettings as ReturnType<typeof createRadialLayoutFormState>);
+  }
+  if (layout === 'hive-plot-layout') {
+    return mapHivePlotLayoutFormStateToOptions(
+      nextSettings as ReturnType<typeof createHivePlotLayoutFormState>
+    );
+  }
+  if (layout === 'd3-dag-layout') {
+    return mapDagFormStateToOptions(nextSettings as ReturnType<typeof createDagFormState>);
+  }
+  return {};
+}
+
+function mapPropDescriptionsToSettings<TValues extends Record<string, unknown>>(
+  values: TValues,
+  descriptions: Record<string, PropDescription<TValues>>
+): SettingsWidgetSettingDescriptor[] {
+  return Object.entries(descriptions).map(([name, description]) => {
+    if (description.type === 'number') {
+      return {
+        name,
+        label: description.title,
+        description: description.description,
+        type: 'number',
+        step: description.step,
+        min: typeof description.min === 'function' ? description.min(values) : description.min,
+        max: typeof description.max === 'function' ? description.max(values) : description.max,
+        defaultValue: Number(values[name] ?? 0)
+      };
+    }
+
+    if (description.type === 'select') {
+      return {
+        name,
+        label: description.title,
+        description: description.description,
+        type: 'select',
+        options: description.options.map((option) => ({
+          label: option.label,
+          value: option.value
+        })),
+        defaultValue: String(values[name] ?? '')
+      };
+    }
+
+    return {
+      name,
+      label: description.title,
+      description: description.description,
+      type: 'boolean',
+      defaultValue: Boolean(values[name])
+    };
+  });
+}
+
+function renderCollapseControlsPanel(
+  rootElement: HTMLElement,
+  state: GraphViewerState,
+  handlers: {
+    onToggleCollapseEnabled: () => void;
+    onCollapseAll: () => void;
+    onExpandAll: () => void;
+  }
+) {
+  const summary = state.dagChainSummary;
+  const totalChainCount = summary?.chainIds.length ?? 0;
+  const collapsedChainCount = summary?.collapsedIds.length ?? 0;
+  const collapseAllDisabled = !state.collapseEnabled || totalChainCount === 0;
+  const expandAllDisabled = !state.collapseEnabled || collapsedChainCount === 0;
+
+  const section = rootElement.ownerDocument.createElement('section');
+  applyElementStyle(section, {display: 'grid', gap: '8px', fontSize: '13px', color: '#334155'});
+
+  const details = rootElement.ownerDocument.createElement('details');
+  applyElementStyle(details, {fontSize: '12px', color: '#475569'});
+  const summaryElement = rootElement.ownerDocument.createElement('summary');
+  summaryElement.textContent = 'How collapsed chains work';
+  applyElementStyle(summaryElement, {cursor: 'pointer', fontWeight: '600', color: '#0f172a'});
+  const description = rootElement.ownerDocument.createElement('p');
+  description.textContent =
+    'Linear chains collapse to a single node marked with plus and minus icons. Individual chains remain interactive on the canvas.';
+  applyElementStyle(description, {margin: '8px 0 0', lineHeight: '1.5'});
+  details.append(summaryElement, description);
+
+  const statusRow = rootElement.ownerDocument.createElement('div');
+  applyElementStyle(statusRow, {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '12px',
+    color: '#475569'
+  });
+  const statusLabel = rootElement.ownerDocument.createElement('span');
+  statusLabel.textContent = 'Status';
+  const statusValue = rootElement.ownerDocument.createElement('span');
+  statusValue.textContent = `${collapsedChainCount} / ${totalChainCount} collapsed`;
+  statusRow.append(statusLabel, statusValue);
+
+  const controls = rootElement.ownerDocument.createElement('div');
+  applyElementStyle(controls, {display: 'flex', gap: '8px', flexWrap: 'wrap'});
+  controls.append(
+    createActionButton(
+      rootElement.ownerDocument,
+      state.collapseEnabled ? 'Disable' : 'Enable',
+      handlers.onToggleCollapseEnabled,
+      {
+        background: state.collapseEnabled ? '#4c6ef5' : '#1f2937'
+      }
+    ),
+    createActionButton(
+      rootElement.ownerDocument,
+      'Collapse all',
+      handlers.onCollapseAll,
+      {background: '#2563eb'},
+      collapseAllDisabled
+    ),
+    createActionButton(
+      rootElement.ownerDocument,
+      'Expand all',
+      handlers.onExpandAll,
+      {background: '#16a34a'},
+      expandAllDisabled
+    )
+  );
+
+  section.append(details, statusRow, controls);
+  rootElement.replaceChildren(section);
+}
+
+function renderMetadataPanel(
+  rootElement: HTMLElement,
+  metadata?: ExampleMetadata,
+  dataLoading?: boolean
+) {
+  const section = rootElement.ownerDocument.createElement('section');
+  applyElementStyle(section, {
+    display: 'grid',
+    gap: '8px',
+    fontSize: '13px',
+    color: '#334155'
+  });
+
+  if (dataLoading) {
+    const loading = rootElement.ownerDocument.createElement('p');
+    loading.textContent = 'Loading dataset details...';
+    applyElementStyle(loading, {margin: '0', fontSize: '12px', color: '#475569'});
+    section.append(loading);
+    rootElement.replaceChildren(section);
+    return;
+  }
+
+  if (!metadata) {
+    const empty = rootElement.ownerDocument.createElement('p');
+    empty.textContent = 'No metadata available for this dataset yet.';
+    applyElementStyle(empty, {margin: '0', fontSize: '12px', color: '#475569'});
+    section.append(empty);
+    rootElement.replaceChildren(section);
+    return;
+  }
+
+  const grid = rootElement.ownerDocument.createElement('dl');
+  applyElementStyle(grid, {
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr',
+    columnGap: '12px',
+    rowGap: '6px',
+    margin: '0'
+  });
+
+  appendMetadataRow(grid, rootElement.ownerDocument, 'Source', metadata.sourceType === 'remote' ? 'Remote (URL)' : metadata.sourceType === 'inline' ? 'Inline sample' : undefined);
+  appendMetadataRow(grid, rootElement.ownerDocument, 'Nodes', typeof metadata.nodeCount === 'number' ? metadata.nodeCount.toLocaleString() : undefined);
+  appendMetadataRow(grid, rootElement.ownerDocument, 'Edges', typeof metadata.edgeCount === 'number' ? metadata.edgeCount.toLocaleString() : undefined);
+  appendMetadataRow(grid, rootElement.ownerDocument, 'Graph ID', metadata.graphId);
+  appendMetadataRow(
+    grid,
+    rootElement.ownerDocument,
+    'Directed',
+    metadata.directed !== undefined ? (metadata.directed ? 'Yes' : 'No') : undefined
+  );
+  appendMetadataRow(
+    grid,
+    rootElement.ownerDocument,
+    'Strict',
+    metadata.strict !== undefined ? (metadata.strict ? 'Yes' : 'No') : undefined
+  );
+  section.append(grid);
+
+  const attributeEntries = metadata.attributes
+    ? Object.entries(metadata.attributes).filter(([key]) => key.length)
+    : [];
+  if (attributeEntries.length) {
+    const details = rootElement.ownerDocument.createElement('details');
+    const summary = rootElement.ownerDocument.createElement('summary');
+    summary.textContent = 'Additional attributes';
+    applyElementStyle(summary, {cursor: 'pointer', fontWeight: '600', color: '#0f172a'});
+    const list = rootElement.ownerDocument.createElement('ul');
+    applyElementStyle(list, {
+      margin: '8px 0 0',
+      paddingLeft: '20px',
+      display: 'grid',
+      rowGap: '4px'
+    });
+    for (const [key, value] of attributeEntries) {
+      const item = rootElement.ownerDocument.createElement('li');
+      item.innerHTML = `<strong>${escapeHtml(key)}:</strong> ${escapeHtml(formatMetadataValue(value))}`;
+      applyElementStyle(item, {color: '#475569'});
+      list.append(item);
+    }
+    details.append(summary, list);
+    section.append(details);
+  }
+
+  rootElement.replaceChildren(section);
+}
+
+function appendMetadataRow(grid: HTMLElement, document: Document, label: string, value?: string) {
+  if (!value) {
+    return;
+  }
+
+  const term = document.createElement('dt');
+  term.textContent = label;
+  applyElementStyle(term, {fontWeight: '600', color: '#0f172a', margin: '0'});
+  const description = document.createElement('dd');
+  description.textContent = value;
+  applyElementStyle(description, {margin: '0', color: '#1f2937'});
+  grid.append(term, description);
+}
+
+function createActionButton(
+  document: Document,
+  label: string,
+  onClick: () => void,
+  style: Record<string, string>,
+  disabled = false
+) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.disabled = disabled;
+  applyElementStyle(button, {
+    border: 'none',
+    borderRadius: '6px',
+    padding: '6px 12px',
+    fontFamily: 'inherit',
+    fontSize: '12px',
+    color: '#ffffff',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? '0.5' : '1',
+    ...style
+  });
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+function buildRankGrid(
+  selectedLayout: LayoutType,
+  layoutOptions: Record<string, unknown> | undefined,
+  dagLayout: D3DagLayout | null
+): RankGridConfig | false {
+  if (!dagLayout || selectedLayout !== 'd3-dag-layout') {
+    return false;
+  }
+
+  const orientation =
+    (layoutOptions?.orientation as string | undefined) ?? D3DagLayout.defaultProps.orientation;
+  const direction: RankGridConfig['direction'] =
+    orientation === 'LR' || orientation === 'RL' ? 'vertical' : 'horizontal';
+  const usesExplicitRank = (layoutOptions?.nodeRank as string | undefined) === 'rank';
+
+  return {
+    enabled: true,
+    direction,
+    maxLines: 10,
+    ...(usesExplicitRank ? {rankAccessor: 'rank'} : {}),
+    gridProps: {
+      color: [148, 163, 184, 220],
+      labelOffset: direction === 'vertical' ? [0, 8] : [8, 0]
+    }
+  };
+}
+
+function getSelectedExample(state: GraphViewerState): ExampleDefinition {
+  return findExampleByName(state.examples, state.selectedExampleName) ?? state.examples[0] ?? EXAMPLES[0];
+}
+
+function getExamplesForType(graphType?: GraphExampleType): ExampleDefinition[] {
+  const filteredExamples = filterExamplesByType(EXAMPLES, graphType);
+  return filteredExamples.length ? filteredExamples : EXAMPLES;
+}
+
+function findExampleByName(examples: ExampleDefinition[], exampleName: string) {
+  return examples.find((example) => example.name === exampleName);
+}
 
 function isInlineExample(
   example: ExampleDefinition | undefined
@@ -84,7 +1316,6 @@ function shallowEqualRecords(
 
   const keysA = Object.keys(a);
   const keysB = Object.keys(b);
-
   if (keysA.length !== keysB.length) {
     return false;
   }
@@ -93,7 +1324,6 @@ function shallowEqualRecords(
     if (!Object.prototype.hasOwnProperty.call(b, key)) {
       return false;
     }
-
     if (!Object.is(a[key], b[key])) {
       return false;
     }
@@ -137,725 +1367,124 @@ function mergeMetadata(
   return metadataEquals(previous, merged) ? previous ?? merged : merged;
 }
 
-type LayoutFactory = (options?: Record<string, unknown>) => GraphLayout;
-
-const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
-  'd3-force-layout': () => new D3ForceLayout(),
-  'gpu-force-layout': () => new GPUForceLayout(),
-  'simple-layout': () => new SimpleLayout(),
-  'radial-layout': (options) => new RadialLayout(options),
-  'hive-plot-layout': (options) => new HivePlotLayout(options),
-  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
-  'd3-dag-layout': (options) => new CollapsableD3DagLayout(options),
-};
-
-
-const INITIAL_LOADING_STATE = {loaded: false, rendered: false, isLoading: true};
-
-const loadingReducer = (state, action) => {
-  switch (action.type) {
-    case 'startLayout':
-      return {loaded: false, rendered: false, isLoading: true};
-    case 'layoutDone':
-      return state.loaded ? state : {...state, loaded: true};
-    case 'afterRender':
-      if (!state.loaded) {
-        return state;
-      }
-
-      // not interested after the first render, the state won't change
-      return state.rendered ? state : {...state, rendered: true, isLoading: false};
-    default:
-      throw new Error(`Unhandled action type: ${action.type}`);
+function deriveMetadataFromData(data: unknown): ExampleMetadata | null {
+  if (!data || typeof data !== 'object') {
+    return null;
   }
-};
 
-export const useLoading = () => {
-  const [state, setState] = useState(INITIAL_LOADING_STATE);
-  const loadingDispatch = useCallback((action) => {
-    setState((current) => loadingReducer(current, action));
-  }, []);
-
-  const layoutCallbacks = {
-    onLayoutStart: () => loadingDispatch({type: 'startLayout'}),
-    onLayoutDone: () => loadingDispatch({type: 'layoutDone'})
-  } as const;
-
-  return [state, loadingDispatch, layoutCallbacks] as const;
-};
-
-type AppProps = {
-  graphType?: GraphExampleType;
-};
-
-export function App({graphType}: AppProps) {
-  const exampleType = graphType;
-  const examplesForType = useMemo(
-    () => filterExamplesByType(EXAMPLES, exampleType),
-    [exampleType]
-  );
-  const defaultExample = useMemo(
-    () => (examplesForType.length ? examplesForType[0] : EXAMPLES[0]),
-    [examplesForType]
-  );
-  const defaultLayout = defaultExample?.layouts[0] ?? 'd3-force-layout';
-
-  const [selectedExample, setSelectedExample] = useState<ExampleDefinition | undefined>(
-    () => defaultExample
-  );
-  const [selectedLayout, setSelectedLayout] = useState<LayoutType>(() => defaultLayout);
-  const [collapseEnabled, setCollapseEnabled] = useState(true);
-  const [layoutOverrides, setLayoutOverrides] = useState<
-    Partial<Record<LayoutType, Record<string, unknown>>>
-  >({});
-  const [dagChainSummary, setDagChainSummary] = useState<
-    {chainIds: string[]; collapsedIds: string[]}
-    | null>(null);
-  const [metadataByExample, setMetadataByExample] = useState<Record<string, ExampleMetadata>>({});
-  const deckRef = useRef<DeckGLRef | null>(null);
-
-  useEffect(() => {
-    setSelectedExample(defaultExample);
-    setSelectedLayout(defaultLayout);
-    setLayoutOverrides({});
-  }, [defaultExample, defaultLayout]);
-
-  const graphData = useMemo(() => {
-    if (!isInlineExample(selectedExample)) {
-      return null;
-    }
-
-    return selectedExample.data();
-  }, [selectedExample]);
-
-  const activeMetadata = useMemo(() => {
-    if (!selectedExample) {
-      return undefined;
-    }
-
-    return metadataByExample[selectedExample.name];
-  }, [metadataByExample, selectedExample]);
-
-  const layoutOptions = useMemo(() => {
-    if (!selectedExample || !selectedLayout) {
-      return undefined;
-    }
-
-    const baseOptions = selectedExample.getLayoutOptions?.(selectedLayout, {
-      data: graphData ?? undefined,
-      metadata: activeMetadata
-    });
-    const overrides = layoutOverrides[selectedLayout];
-
-    if (baseOptions && overrides) {
-      return {...baseOptions, ...overrides};
-    }
-
-    return overrides ?? baseOptions;
-  }, [selectedExample, selectedLayout, graphData, activeMetadata, layoutOverrides]);
-
-  const graph = useMemo(() => createArrowGraphFromJson(graphData as JsonGraph), [graphData]);
-  const layout = useMemo(() => {
-    if (!selectedLayout) {
-      return null;
-    }
-
-    const factory = LAYOUT_FACTORIES[selectedLayout];
-    return factory ? factory(layoutOptions) : null;
-  }, [selectedLayout, layoutOptions]);
-  const manualEngine = useMemo(() => {
-    if (!graph || !layout) {
-      return null;
-    }
-
-    return new GraphEngine({graph, layout});
-  }, [graph, layout]);
-  const [resolvedEngine, setResolvedEngine] = useState<GraphEngine | null>(manualEngine ?? null);
-  const [loadingState, loadingDispatch, loadingCallbacks] = useLoading();
-  useEffect(() => {
-    setResolvedEngine(manualEngine ?? null);
-  }, [manualEngine, selectedExample]);
-  const dagLayout = layout instanceof D3DagLayout ? (layout as D3DagLayout) : null;
-  const selectedStyles = selectedExample?.style;
-  const metadataLoading = Boolean(isRemoteExample(selectedExample) && !activeMetadata);
-
-  const updateExampleMetadata = useCallback(
-    (example: ExampleDefinition | undefined, incoming: ExampleMetadata | null | undefined) => {
-      if (!example || !incoming) {
-        return;
-      }
-
-      setMetadataByExample((current) => {
-        const previous = current[example.name];
-        const merged = mergeMetadata(previous, incoming);
-        if (merged === previous) {
-          return current;
-        }
-
-        return {...current, [example.name]: merged};
-      });
-    },
-    []
-  );
-
-  const deriveMetadataFromData = useCallback((data: unknown): ExampleMetadata | null => {
-    if (!data || typeof data !== 'object') {
-      return null;
-    }
-
-    const record = data as Record<string, unknown>;
-
-    if (Array.isArray(record.nodes) && Array.isArray(record.edges)) {
-      return {
-        nodeCount: record.nodes.length,
-        edgeCount: record.edges.length
-      };
-    }
-
-    const graphCandidate = record.graph;
-    if (graphCandidate && typeof (graphCandidate as Graph).getNodes === 'function') {
-      const parsedGraph = graphCandidate as Graph;
-      const nodes = Array.from(parsedGraph.getNodes?.() ?? []);
-      const edges = Array.from(parsedGraph.getEdges?.() ?? []);
-      const metadata: ExampleMetadata = {
-        nodeCount: nodes.length,
-        edgeCount: edges.length
-      };
-
-      const dotMetadata = record.metadata as
-        | {
-            id?: string;
-            directed?: boolean;
-            strict?: boolean;
-            attributes?: Record<string, unknown>;
-          }
-        | undefined;
-
-      if (dotMetadata) {
-        if (typeof dotMetadata.id === 'string') {
-          metadata.graphId = dotMetadata.id;
-        }
-        if (typeof dotMetadata.directed === 'boolean') {
-          metadata.directed = dotMetadata.directed;
-        }
-        if (typeof dotMetadata.strict === 'boolean') {
-          metadata.strict = dotMetadata.strict;
-        }
-        if (dotMetadata.attributes && typeof dotMetadata.attributes === 'object') {
-          metadata.attributes = {...dotMetadata.attributes};
-        }
-      }
-
-      return metadata;
-    }
-
-    return null;
-  }, []);
-
-  const handleDataLoad = useCallback(
-    (data: unknown) => {
-      if (!selectedExample) {
-        return;
-      }
-
-      const metadata = deriveMetadataFromData(data);
-      if (!metadata) {
-        return;
-      }
-
-      const sourceType = isRemoteExample(selectedExample) ? 'remote' : metadata.sourceType;
-      updateExampleMetadata(selectedExample, {
-        ...metadata,
-        ...(sourceType ? {sourceType} : {})
-      });
-    },
-    [deriveMetadataFromData, selectedExample, updateExampleMetadata]
-  );
-
-  useEffect(() => {
-    if (!selectedExample || !graphData) {
-      return;
-    }
-
-    const metadata: ExampleMetadata = {sourceType: 'inline'};
-    if (Array.isArray(graphData.nodes)) {
-      metadata.nodeCount = graphData.nodes.length;
-    }
-    if (Array.isArray(graphData.edges)) {
-      metadata.edgeCount = graphData.edges.length;
-    }
-
-    updateExampleMetadata(selectedExample, metadata);
-  }, [graphData, selectedExample, updateExampleMetadata]);
-
-  useEffect(() => {
-    if (!selectedExample || !resolvedEngine) {
-      return;
-    }
-
-    const metadata: ExampleMetadata = {
-      nodeCount: resolvedEngine.getNodes().length,
-      edgeCount: resolvedEngine.getEdges().length,
-      ...(isRemoteExample(selectedExample) ? {sourceType: 'remote'} : {})
-    };
-
-    updateExampleMetadata(selectedExample, metadata);
-  }, [resolvedEngine, selectedExample, updateExampleMetadata]);
-
-  const updateResolvedEngineFromLayer = useCallback(() => {
-    if (manualEngine) {
-      return;
-    }
-
-    const deck = deckRef.current?.deck as {layerManager?: {getLayers?: () => any[]; layers?: any[]}} | undefined;
-    const layerManager = deck?.layerManager;
-    const layers = layerManager?.getLayers?.() ?? layerManager?.layers;
-    if (!layers) {
-      return;
-    }
-
-    const graphLayerInstance = layers.find((layer) => layer?.id === GRAPH_LAYER_ID);
-    const layerEngine = graphLayerInstance?.state?.graphEngine ?? null;
-    if (layerEngine && layerEngine !== resolvedEngine) {
-      setResolvedEngine(layerEngine);
-    }
-  }, [manualEngine, resolvedEngine]);
-
-  const handleAfterRender = useCallback(() => {
-    if (!loadingState.rendered) {
-      loadingDispatch({type: 'afterRender'});
-    }
-    updateResolvedEngineFromLayer();
-  }, [loadingDispatch, loadingState.rendered, updateResolvedEngineFromLayer]);
-
-  const serializedStylesheet = useMemo(() => {
-    if (!selectedStyles) {
-      return '';
-    }
-
-    return JSON.stringify(
-      selectedStyles,
-      (_key, value) => (typeof value === 'function' ? value.toString() : value),
-      2
-    );
-  }, [selectedStyles]);
-
-  const [stylesheetValue, setStylesheetValue] = useState(
-    serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE
-  );
-  const stylesheetDraftRef = useRef<string>(stylesheetValue);
-
-  useEffect(() => {
-    const nextValue = serializedStylesheet || DEFAULT_STYLESHEET_MESSAGE;
-    setStylesheetValue(nextValue);
-    stylesheetDraftRef.current = nextValue;
-  }, [serializedStylesheet]);
-
-  const handleStylesheetChange = useCallback((nextValue: string) => {
-    stylesheetDraftRef.current = nextValue;
-    setStylesheetValue(nextValue);
-  }, []);
-
-  const handleStylesheetSubmit = useCallback((nextValue: string) => {
-    stylesheetDraftRef.current = nextValue;
-    setStylesheetValue(nextValue);
-  }, []);
-
-  // eslint-disable-next-line no-console
-  const initialViewState = INITIAL_VIEW_STATE;
-  const minZoom = -20;
-  const maxZoom = 20;
-  // const enableDragging = false;
-  const resumeLayoutAfterDragging = false;
-
-  const viewportSource = resolvedEngine ?? (layout instanceof GraphLayout ? layout : null);
-  const {viewState, onResize, onViewStateChange, layoutCallbacks} = useGraphViewport(viewportSource, {
-    minZoom,
-    maxZoom,
-    viewportPadding: 8,
-    boundsPaddingRatio: 0.02,
-    initialViewState
-  });
-  // const [viewState, setViewState] = useState({
-  //   ...INITIAL_VIEW_STATE,
-  //   ...initialViewState
-  // });
-
-  const widgets = useMemo(
-    () => [
-      new PanWidget({
-        id: 'pan-widget',
-        style: {margin: '20px 0 0 20px'}
-      }),
-      new ZoomRangeWidget({
-        id: 'zoom-range-widget',
-        style: {margin: '90px 0 0 20px'}
-      })
-    ],
-    []
-  );
-
-  const {isLoading} = loadingState;
-
-  const isDagLayout = selectedLayout === 'd3-dag-layout';
-
-  const rankGrid = useMemo<RankGridConfig | false>(() => {
-    if (!dagLayout) {
-      return false;
-    }
-
-    const orientation =
-      (layoutOptions?.orientation as string | undefined) ?? D3DagLayout.defaultProps.orientation;
-    const direction: RankGridConfig['direction'] =
-      orientation === 'LR' || orientation === 'RL' ? 'vertical' : 'horizontal';
-    const usesExplicitRank = (layoutOptions?.nodeRank as string | undefined) === 'rank';
-
+  const record = data as Record<string, unknown>;
+  if (Array.isArray(record.nodes) && Array.isArray(record.edges)) {
     return {
-      enabled: true,
-      direction,
-      maxLines: 10,
-      ...(usesExplicitRank ? {rankAccessor: 'rank'} : {}),
-      gridProps: {
-        color: [148, 163, 184, 220],
-        labelOffset: direction === 'vertical' ? [0, 8] : [8, 0]
-      }
+      nodeCount: record.nodes.length,
+      edgeCount: record.edges.length
     };
-  }, [dagLayout, layoutOptions]);
+  }
 
-  useEffect(() => {
-    if (isDagLayout) {
-      setCollapseEnabled(true);
-    }
-  }, [isDagLayout, selectedExample]);
+  const graphCandidate = record.graph;
+  if (graphCandidate && typeof (graphCandidate as Graph).getNodes === 'function') {
+    const parsedGraph = graphCandidate as Graph;
+    const nodes = Array.from(parsedGraph.getNodes?.() ?? []);
+    const edges = Array.from(parsedGraph.getEdges?.() ?? []);
+    const metadata: ExampleMetadata = {
+      nodeCount: nodes.length,
+      edgeCount: edges.length
+    };
 
-  useEffect(() => {
-    if (!dagLayout) {
-      return;
-    }
-    dagLayout.setProps({collapseLinearChains: collapseEnabled});
-    if (!collapseEnabled) {
-      dagLayout.setCollapsedChains([]);
-    }
-  }, [dagLayout, collapseEnabled]);
-
-  const updateChainSummary = useCallback(() => {
-    if (!dagLayout || !resolvedEngine || !isDagLayout) {
-      setDagChainSummary(isDagLayout ? {chainIds: [], collapsedIds: []} : null);
-      return;
-    }
-
-    const chainIds: string[] = [];
-    const collapsedIds: string[] = [];
-
-    for (const node of resolvedEngine.getNodes()) {
-      const chainId = node.getPropertyValue('collapsedChainId');
-      const nodeIds = node.getPropertyValue('collapsedNodeIds');
-      const representativeId = node.getPropertyValue('collapsedChainRepresentativeId');
-      const isCollapsed = Boolean(node.getPropertyValue('isCollapsedChain'));
-
-      if (
-        chainId !== null &&
-        chainId !== undefined &&
-        Array.isArray(nodeIds) &&
-        nodeIds.length > 1 &&
-        representativeId === node.getId()
-      ) {
-        const chainKey = String(chainId);
-        chainIds.push(chainKey);
-        if (isCollapsed) {
-          collapsedIds.push(chainKey);
+    const dotMetadata = record.metadata as
+      | {
+          id?: string;
+          directed?: boolean;
+          strict?: boolean;
+          attributes?: Record<string, unknown>;
         }
+      | undefined;
+
+    if (dotMetadata) {
+      if (typeof dotMetadata.id === 'string') {
+        metadata.graphId = dotMetadata.id;
+      }
+      if (typeof dotMetadata.directed === 'boolean') {
+        metadata.directed = dotMetadata.directed;
+      }
+      if (typeof dotMetadata.strict === 'boolean') {
+        metadata.strict = dotMetadata.strict;
+      }
+      if (dotMetadata.attributes && typeof dotMetadata.attributes === 'object') {
+        metadata.attributes = {...dotMetadata.attributes};
       }
     }
 
-    setDagChainSummary({chainIds, collapsedIds});
-  }, [dagLayout, resolvedEngine, isDagLayout]);
+    return metadata;
+  }
 
-  useEffect(() => {
-    updateChainSummary();
-  }, [updateChainSummary]);
+  return null;
+}
 
-  const handleLayoutStart = useCallback(
-    (detail?: GraphLayoutEventDetail) => {
-      loadingCallbacks.onLayoutStart();
-      layoutCallbacks.onLayoutStart(detail);
-    },
-    [loadingCallbacks, layoutCallbacks]
-  );
+function serializeStylesheet(stylesheet: unknown): string {
+  if (!stylesheet) {
+    return DEFAULT_STYLESHEET_MESSAGE;
+  }
 
-  const handleLayoutChange = useCallback(
-    (detail?: GraphLayoutEventDetail) => {
-      layoutCallbacks.onLayoutChange(detail);
-      updateChainSummary();
-    },
-    [layoutCallbacks, updateChainSummary]
-  );
-
-  const handleLayoutDone = useCallback(
-    (detail?: GraphLayoutEventDetail) => {
-      loadingCallbacks.onLayoutDone();
-      layoutCallbacks.onLayoutDone(detail);
-      updateChainSummary();
-    },
-    [loadingCallbacks, layoutCallbacks, updateChainSummary]
-  );
-
-  const graphLayerInstance = useMemo(() => {
-    if (!selectedExample || !layout) {
-      return null;
-    }
-
-    const baseProps = {
-      id: GRAPH_LAYER_ID,
-      layout,
-      stylesheet: selectedStyles,
-      onLayoutStart: handleLayoutStart,
-      onLayoutChange: handleLayoutChange,
-      onLayoutDone: handleLayoutDone,
-      resumeLayoutAfterDragging,
-      rankGrid,
-      ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {})
-    } as const;
-
-    if (manualEngine) {
-      return new GraphLayer({
-        ...baseProps,
-        data: manualEngine,
-        engine: manualEngine
-      });
-    }
-
-    if (isRemoteExample(selectedExample) && selectedExample.dataUrl) {
-      return new GraphLayer({
-        ...baseProps,
-        data: selectedExample.dataUrl,
-        ...(selectedExample.loaders ? {loaders: selectedExample.loaders} : {}),
-        ...(selectedExample.loadOptions ? {loadOptions: selectedExample.loadOptions} : {}),
-        onDataLoad: handleDataLoad
-      });
-    }
-
-    return null;
-  }, [
-    selectedExample,
-    layout,
-    selectedStyles,
-    handleLayoutStart,
-    handleLayoutChange,
-    handleLayoutDone,
-    resumeLayoutAfterDragging,
-    rankGrid,
-    manualEngine,
-    handleDataLoad
-  ]);
-
-  const handleToggleCollapseEnabled = useCallback(() => {
-    setCollapseEnabled((value) => !value);
-  }, []);
-
-  const handleCollapseAll = useCallback(() => {
-    if (!collapseEnabled || !dagLayout || !dagChainSummary) {
-      return;
-    }
-    dagLayout.setCollapsedChains(dagChainSummary.chainIds);
-  }, [collapseEnabled, dagLayout, dagChainSummary]);
-
-  const handleExpandAll = useCallback(() => {
-    if (!collapseEnabled || !dagLayout) {
-      return;
-    }
-    dagLayout.setCollapsedChains([]);
-  }, [collapseEnabled, dagLayout]);
-
-  // Relatively pan the graph by a specified position vector.
-  // const panBy = useCallback(
-  //   (dx, dy) =>
-  //     setViewState({
-  //       ...viewState,
-  //       target: [viewState.target[0] + dx, viewState.target[1] + dy]
-  //     }),
-  //   [viewState, setViewState]
-  // );
-
-  // // Relatively zoom the graph by a delta zoom level
-  // const zoomBy = useCallback(
-  //   (deltaZoom) => {
-  //     const newZoom = viewState.zoom + deltaZoom;
-  //     setViewState({
-  //       ...viewState,
-  //       zoom: Math.min(Math.max(newZoom, minZoom), maxZoom)
-  //     });
-  //   },
-  //   [maxZoom, minZoom, viewState, setViewState]
-  // );
-
-  // useEffect(() => {
-  //   if (!layout) {
-  //     return () => undefined;
-  //   }
-
-  //   if (zoomToFitOnLoad && isLoading) {
-  //     layout.addEventListener('onLayoutDone', fitBounds, {once: true});
-  //   }
-  //   return () => {
-  //     layout.removeEventListener('onLayoutDone', fitBounds);
-  //   };
-  // }, [layout, isLoading, fitBounds, zoomToFitOnLoad]);
-
-  useEffect(() => {
-    const zoomWidget = widgets.find((widget) => widget instanceof ZoomRangeWidget);
-    zoomWidget?.setProps({minZoom, maxZoom});
-  }, [widgets, minZoom, maxZoom]);
-  const handleExampleChange = useCallback((example: ExampleDefinition, layoutType: LayoutType) => {
-    setSelectedExample(example);
-    setSelectedLayout(layoutType);
-  }, []);
-
-  const handleApplyLayoutOptions = useCallback(
-    (layoutType: LayoutType, options: Record<string, unknown>) => {
-      setLayoutOverrides((current) => ({...current, [layoutType]: options}));
-    },
-    []
-  );
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100%',
-        minHeight: '100vh',
-        width: '100%',
-        boxSizing: 'border-box',
-        fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
-      }}
-    >
-      <div
-        style={{
-          flex: '1 1 auto',
-          minWidth: 0,
-          position: 'relative'
-        }}
-      >
-        {isLoading ? (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.875rem',
-              color: '#475569',
-              zIndex: 1,
-              pointerEvents: 'none'
-            }}
-          >
-            Computing layout…
-          </div>
-        ) : null}
-        <DeckGL
-          ref={deckRef}
-          onAfterRender={handleAfterRender}
-          width="100%"
-          height="100%"
-          getCursor={() => DEFAULT_CURSOR}
-          viewState={viewState as any}
-          onResize={onResize}
-          onViewStateChange={onViewStateChange}
-          views={[
-            new OrthographicView({
-              minZoom,
-              maxZoom,
-              controller: {
-                scrollZoom: true,
-                touchZoom: true,
-                doubleClickZoom: true,
-                dragPan: true,
-                wheelSensitivity: 0.5
-              }
-            })
-          ]}
-          layers={graphLayerInstance ? [graphLayerInstance] : []}
-          widgets={widgets}
-          getTooltip={(info) => getToolTip(info.object)}
-        />
-      </div>
-      <aside
-        style={{
-          width: '320px',
-          minWidth: '260px',
-          maxWidth: '360px',
-          padding: '1.5rem 1rem',
-          boxSizing: 'border-box',
-          borderLeft: '1px solid #e2e8f0',
-          background: '#f1f5f9',
-          maxHeight: '100vh',
-          overflowY: 'auto',
-          fontFamily: 'inherit'
-        }}
-      >
-        <ControlPanel
-          examples={EXAMPLES}
-          defaultExample={selectedExample ?? defaultExample}
-          graphType={exampleType}
-          onExampleChange={handleExampleChange}
-          layoutOptions={layoutOptions}
-          onLayoutOptionsApply={handleApplyLayoutOptions}
-          metadata={activeMetadata}
-          dataLoading={metadataLoading}
-        >
-          <>
-            {isDagLayout ? (
-              <CollapseControls
-                enabled={collapseEnabled}
-                summary={dagChainSummary}
-                onToggle={handleToggleCollapseEnabled}
-                onCollapseAll={handleCollapseAll}
-                onExpandAll={handleExpandAll}
-              />
-            ) : null}
-            <section
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                fontSize: '0.75rem',
-                gap: '0.25rem'
-              }}
-            >
-              <h3 style={{margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#0f172a'}}>
-                Stylesheet JSON
-              </h3>
-              <div style={{borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #1f2937'}}>
-                <StylesheetEditor
-                  value={stylesheetValue}
-                  onChange={handleStylesheetChange}
-                  onSubmit={handleStylesheetSubmit}
-                />
-              </div>
-            </section>
-          </>
-        </ControlPanel>
-      </aside>
-    </div>
+  return JSON.stringify(
+    stylesheet,
+    (_key, value) => (typeof value === 'function' ? value.toString() : value),
+    2
   );
 }
 
-type GraphTooltipObject = {
-  isNode?: boolean;
-  _data?: Record<string, unknown> | null;
-};
+function getEventSourceBounds(source: ViewportSource): [[number, number], [number, number]] | null {
+  if (!source) {
+    return null;
+  }
+
+  if ('getLayoutBounds' in source && typeof source.getLayoutBounds === 'function') {
+    return source.getLayoutBounds() as [[number, number], [number, number]] | null;
+  }
+
+  if ('getBounds' in source && typeof source.getBounds === 'function') {
+    return source.getBounds() as [[number, number], [number, number]] | null;
+  }
+
+  return null;
+}
+
+function toDeckViewState(viewState: ViewState): DeckProps['viewState'] {
+  return {
+    target: viewState.target,
+    zoom: viewState.zoom
+  };
+}
+
+function applyElementStyle(element: HTMLElement, style: Record<string, string>) {
+  for (const [key, value] of Object.entries(style)) {
+    element.style.setProperty(camelCaseToKebabCase(key), value);
+  }
+}
+
+function camelCaseToKebabCase(value: string) {
+  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+}
+
+function formatMetadataValue(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => formatMetadataValue(entry)).join(', ');
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch (_error) {
+      return String(value);
+    }
+  }
+  return String(value);
+}
 
 function isGraphTooltipObject(value: unknown): value is GraphTooltipObject {
   return typeof value === 'object' && value !== null;
 }
-
-const TOOLTIP_THEME = {
-  background: '#0f172a',
-  border: '#1e293b',
-  header: '#38bdf8',
-  key: '#facc15',
-  value: '#f8fafc'
-} as const;
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {
@@ -896,7 +1525,6 @@ function getToolTip(object: unknown): {html: string} | null {
 
   const data = object._data ?? {};
   const entries = Object.entries(data).filter(([, value]) => value !== undefined);
-
   if (!entries.length) {
     return null;
   }
@@ -922,23 +1550,9 @@ function getToolTip(object: unknown): {html: string} | null {
       <div style="background: ${TOOLTIP_THEME.background}; border: 1px solid ${TOOLTIP_THEME.border}; border-radius: 0.75rem; padding: 0.75rem; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.45); font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; font-size: 0.75rem; min-width: 14rem; max-width: 22rem;">
         <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.65rem; font-weight: 700; color: ${TOOLTIP_THEME.header}; margin-bottom: 0.5rem;">${typeLabel}</div>
         <table style="border-collapse: collapse; width: 100%;">
-          <tbody>
-            ${rowsHtml}
-          </tbody>
+          <tbody>${rowsHtml}</tbody>
         </table>
       </div>
-    `
-      .trim()
+    `.trim()
   };
-}
-
-export function renderToDOM() {
-  if (document.body) {
-    document.body.style.margin = '0';
-    document.body.style.fontFamily = 'Inter, "Helvetica Neue", Arial, sans-serif';
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-    root.render(<App />);
-  }
 }

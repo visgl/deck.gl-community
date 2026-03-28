@@ -1,29 +1,16 @@
-import React, {Component} from 'react';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-
 import {GITHUB_TREE} from '../../constants/defaults';
-import {App} from '../../../../examples/graph-layers/graph-viewer/app';
+import {makeImperativeExample} from '../../components';
 
-import {makeExample} from '../../components';
-
-class GraphViewerDemo extends Component {
-  static title = 'Graph Viewer';
-
-  static code = `${GITHUB_TREE}/examples/graph-layers/graph-viewer`;
-
-  static renderInfo(meta) {
-    return <></>;
-  }
-
-  render() {
-    const {...otherProps} = this.props;
-
-    return (
-      <BrowserOnly>
-        {() => <App {...otherProps} />}
-      </BrowserOnly>
-    );
-  }
-}
-
-export default makeExample(GraphViewerDemo, {addInfoPanel: false});
+export default makeImperativeExample(
+  {
+    title: 'Graph Viewer',
+    code: `${GITHUB_TREE}/examples/graph-layers/graph-viewer`,
+    async mount(container, props) {
+      const {mountGraphViewerExample} = await import(
+        '../../../../examples/graph-layers/graph-viewer/app'
+      );
+      return mountGraphViewerExample(container, props);
+    }
+  },
+  {addInfoPanel: false}
+);

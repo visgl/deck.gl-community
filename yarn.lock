@@ -316,7 +316,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/bing-maps@workspace:modules/bing-maps":
+"@deck.gl-community/bing-maps@workspace:*, @deck.gl-community/bing-maps@workspace:modules/bing-maps":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/bing-maps@workspace:modules/bing-maps"
   dependencies:
@@ -873,6 +873,21 @@ __metadata:
     "@luma.gl/core": ~9.2.6
     "@math.gl/web-mercator": ^4.1.0
   checksum: 10c0/2846a382b48bcf59c9c1d1246f7914597a9a2179ebb5246b71799b0c2ccdca5f84cadaae4a2fd9918671383fe1b22347f66ad7ecce1b1523632621ed94e77f47
+  languageName: node
+  linkType: hard
+
+"@deck.gl/mapbox@npm:~9.2.11":
+  version: 9.2.11
+  resolution: "@deck.gl/mapbox@npm:9.2.11"
+  dependencies:
+    "@luma.gl/constants": "npm:~9.2.6"
+    "@math.gl/web-mercator": "npm:^4.1.0"
+  peerDependencies:
+    "@deck.gl/core": ~9.2.0
+    "@luma.gl/constants": ~9.2.6
+    "@luma.gl/core": ~9.2.6
+    "@math.gl/web-mercator": ^4.1.0
+  checksum: 10c0/9a2b57a43d4b26b53aa6e73c1b509d146a1496936dd0f78240bb648b12d30f65b2443e2594bf03a5fbc4a80e1fb7b73ab4132f82b5ef4ff9fd307bf63a8032a1
   languageName: node
   linkType: hard
 
@@ -2712,28 +2727,6 @@ __metadata:
     "@babel/runtime": "npm:^7.12.0"
     gl-matrix: "npm:^3.4.0"
   checksum: 10c0/95a1267261e03fa0194ec5ac5f3f8c3a13e1182cf3865d4d3bbd669706d42bd067335d1812df2e844c63c1f0f21c50e08af2b90168f2db1d3fa3ba2087f59703
-  languageName: node
-  linkType: hard
-
-"@monaco-editor/loader@npm:^1.5.0":
-  version: 1.6.1
-  resolution: "@monaco-editor/loader@npm:1.6.1"
-  dependencies:
-    state-local: "npm:^1.0.6"
-  checksum: 10c0/88fed11f7e5892c2221b649328490512591b3eca432c9613c5a0b737d624b741fcc774197b119e681360454931a19de26b271ede567ddb226ab63f0d1ec67c89
-  languageName: node
-  linkType: hard
-
-"@monaco-editor/react@npm:^4.6.0":
-  version: 4.7.0
-  resolution: "@monaco-editor/react@npm:4.7.0"
-  dependencies:
-    "@monaco-editor/loader": "npm:^1.5.0"
-  peerDependencies:
-    monaco-editor: ">= 0.25.0 < 1"
-    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/a4e91c6eda1a71f5fd23871bd801de435490ccbc43934d23cba65cefe2be7e9d02c9a57c4ef80fc9fe99e4d4deea51e5db19cb4e0ecf3f51818dda0eb9cdbf12
   languageName: node
   linkType: hard
 
@@ -5993,6 +5986,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "bing-deck-get-started-example@workspace:examples/bing-maps/get-started"
   dependencies:
+    "@deck.gl-community/bing-maps": "workspace:*"
     "@deck.gl/core": "npm:~9.2.11"
     "@deck.gl/layers": "npm:~9.2.11"
     "@loaders.gl/core": "npm:^4.3.4"
@@ -9662,20 +9656,15 @@ __metadata:
   resolution: "graph-layers-example@workspace:examples/graph-layers/graph-viewer"
   dependencies:
     "@deck.gl-community/graph-layers": "workspace:*"
-    "@deck.gl-community/react": "workspace:*"
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.2.11"
     "@deck.gl/layers": "npm:~9.2.11"
-    "@deck.gl/react": "npm:~9.2.11"
     "@deck.gl/widgets": "npm:~9.2.11"
     "@loaders.gl/core": "npm:^4.3.4"
     "@luma.gl/core": "npm:~9.2.6"
     "@luma.gl/engine": "npm:~9.2.6"
     "@luma.gl/shadertools": "npm:~9.2.6"
-    "@monaco-editor/react": "npm:^4.6.0"
     monaco-editor: "npm:^0.53.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -12843,24 +12832,21 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "overlays-022e03@workspace:examples/widgets/overlays"
   dependencies:
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.2.11"
     "@deck.gl/extensions": "npm:~9.2.11"
     "@deck.gl/geo-layers": "npm:~9.2.11"
     "@deck.gl/layers": "npm:~9.2.11"
+    "@deck.gl/mapbox": "npm:~9.2.11"
     "@deck.gl/mesh-layers": "npm:~9.2.11"
-    "@deck.gl/react": "npm:~9.2.11"
     "@deck.gl/widgets": "npm:~9.2.11"
     "@loaders.gl/core": "npm:^4.3.4"
     "@luma.gl/constants": "npm:~9.2.6"
     "@luma.gl/core": "npm:~9.2.6"
     "@luma.gl/engine": "npm:~9.2.6"
     "@luma.gl/shadertools": "npm:~9.2.6"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
     maplibre-gl: "npm:^4.1.3"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-map-gl: "npm:^7.1.7"
+    preact: "npm:^10.17.0"
     typescript: "npm:^5.4.4"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -15124,13 +15110,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"state-local@npm:^1.0.6":
-  version: 1.0.7
-  resolution: "state-local@npm:1.0.7"
-  checksum: 10c0/8dc7daeac71844452fafb514a6d6b6f40d7e2b33df398309ea1c7b3948d6110c57f112b7196500a10c54fdde40291488c52c875575670fb5c819602deca48bd9
-  languageName: node
-  linkType: hard
-
 "std-env@npm:^3.10.0":
   version: 3.10.0
   resolution: "std-env@npm:3.10.0"
@@ -16868,13 +16847,10 @@ __metadata:
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.2.11"
     "@deck.gl/layers": "npm:~9.2.11"
-    "@deck.gl/react": "npm:~9.2.11"
+    "@deck.gl/mapbox": "npm:~9.2.11"
     "@deck.gl/widgets": "npm:~9.2.11"
     maplibre-gl: "npm:^4.1.3"
     preact: "npm:^10.17.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-map-gl: "npm:^7.1.7"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -16886,10 +16862,7 @@ __metadata:
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.2.11"
     "@deck.gl/layers": "npm:~9.2.11"
-    "@deck.gl/react": "npm:~9.2.11"
     "@deck.gl/widgets": "npm:~9.2.11"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft

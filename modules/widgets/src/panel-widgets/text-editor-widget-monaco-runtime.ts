@@ -1,6 +1,3 @@
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-
 import type * as MonacoNamespace from 'monaco-editor';
 
 /**
@@ -72,9 +69,15 @@ function configureMonacoEnvironment(): void {
   runtimeTarget.MonacoEnvironment = {
     getWorker: (_workerId, label) => {
       if (label === 'json') {
-        return new jsonWorker();
+        return new Worker(
+          new URL('monaco-editor/esm/vs/language/json/json.worker.js', import.meta.url),
+          {type: 'module'}
+        );
       }
-      return new editorWorker();
+      return new Worker(
+        new URL('monaco-editor/esm/vs/editor/editor.worker.js', import.meta.url),
+        {type: 'module'}
+      );
     },
   };
 }

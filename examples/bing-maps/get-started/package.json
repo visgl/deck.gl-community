@@ -8,6 +8,7 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
+    "@deck.gl-community/bing-maps": "workspace:*",
     "@deck.gl/core": "~9.2.11",
     "@deck.gl/layers": "~9.2.11",
     "@loaders.gl/core": "^4.3.4",

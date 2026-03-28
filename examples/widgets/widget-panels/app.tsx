@@ -375,13 +375,11 @@ const SECONDARY_BUTTON_STYLE = {
   fontWeight: '700'
 } as const;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function mountWidgetPanelsExample(
   container: HTMLElement,
   options: WidgetPanelsExampleOptions = {},
 ): () => void {
-  if (Object.keys(options).length > 0) {
-    throw new Error('mountWidgetPanelsExample does not accept options');
-  }
   const rootElement = container.ownerDocument.createElement('div');
   rootElement.className = 'widget-panels-example';
   applyElementStyle(rootElement, ROOT_STYLE);
