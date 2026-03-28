@@ -177,7 +177,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     };
 
     render(
-      <div class="deck-widget-button-group" style={WRAPPER_STYLE}>
+      <div className="deck-widget-button-group" style={WRAPPER_STYLE}>
         <IconButton
           icon={makeTextIcon('—')}
           style={ZOOM_BUTTON_STYLE}
@@ -236,14 +236,14 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     if (this.props.minZoom === undefined) {
       const minZoom = getZoomLimitForAxis(viewState.minZoom, 1);
       if (Number.isFinite(minZoom)) {
-        this.inferredMinZoom = minZoom as number;
+        this.inferredMinZoom = minZoom;
       }
     }
 
     if (this.props.maxZoom === undefined) {
       const maxZoom = getZoomLimitForAxis(viewState.maxZoom, 1);
       if (Number.isFinite(maxZoom)) {
-        this.inferredMaxZoom = maxZoom as number;
+        this.inferredMaxZoom = maxZoom;
       }
     }
 
@@ -353,7 +353,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     }
 
     const { contentBounds } = this.props;
-    const viewState = this.getViewState(viewport as OrthographicViewport);
+    const viewState = this.getViewState(viewport);
     const zoomX = viewport.zoomX;
     const newViewState = { ...viewState, zoom: [zoomX, nextZoomY] };
     if (contentBounds) {

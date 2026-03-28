@@ -16901,10 +16901,7 @@ __metadata:
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.2.11"
     "@deck.gl/layers": "npm:~9.2.11"
-    "@deck.gl/react": "npm:~9.2.11"
     "@deck.gl/widgets": "npm:~9.2.11"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft

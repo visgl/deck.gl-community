@@ -19,7 +19,7 @@ These are exported from `@deck.gl-community/widgets`:
 - [SettingsWidget](./settings-widget.md)
 - [TimeMeasureWidget](./time-measure-widget.md)
 - [ToastWidget](./toast-widget.md)
-- [TraceYZoomWidget](./trace-y-zoom-widget.md)
+- [YZoomWidget](./y-zoom-widget.md)
 
 ## Related helpers
 

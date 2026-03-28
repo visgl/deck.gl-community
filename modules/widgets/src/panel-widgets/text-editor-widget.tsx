@@ -105,11 +105,11 @@ function TextEditorWidgetPanelContent({
     let isDisposed = false;
 
     loadTextEditorMonacoRuntime()
-      .then((runtime) => {
+      .then((loadedRuntime) => {
         if (isDisposed) {
           return;
         }
-        setLoadState({ status: 'ready', runtime });
+        setLoadState({ status: 'ready', runtime: loadedRuntime });
       })
       .catch((error) => {
         if (isDisposed) {
@@ -128,7 +128,7 @@ function TextEditorWidgetPanelContent({
 
   useEffect(() => {
     if (!runtime || !hostElementRef.current || editorRef.current) {
-      return;
+      return undefined;
     }
 
     const { monaco } = runtime;
@@ -193,16 +193,17 @@ function TextEditorWidgetPanelContent({
   useEffect(() => {
     const model = modelRef.current;
     if (!model || !runtime) {
-      return;
+      return undefined;
     }
 
     runtime.monaco.editor.setModelLanguage(model, getTextEditorLanguageId(language));
+    return undefined;
   }, [language, runtime]);
 
   useEffect(() => {
     const model = modelRef.current;
     if (!model || !runtime) {
-      return;
+      return () => {};
     }
 
     const modelUri = model.uri.toString();
@@ -214,7 +215,7 @@ function TextEditorWidgetPanelContent({
     }
 
     runtime.clearJsonSchema(modelUri);
-    return undefined;
+    return () => {};
   }, [jsonSchema, language, runtime]);
 
   useEffect(() => {
@@ -271,7 +272,7 @@ function resolveInitialEditorValue(value: string | undefined, defaultValue: stri
  * Returns the stable in-memory Monaco model URI for one panel id.
  */
 function getTextEditorModelUri(id: string): string {
-  return `inmemory://periscopevis/widgets/${encodeURIComponent(id)}`;
+  return `inmemory://deck-gl-community/widgets/${encodeURIComponent(id)}`;
 }
 
 /**

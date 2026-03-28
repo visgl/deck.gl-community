@@ -297,7 +297,7 @@ describe('TextEditorWidgetPanel', () => {
     );
 
     expect(monacoHarness.configureJsonSchema).toHaveBeenCalledWith(
-      'inmemory://periscopevis/widgets/json-editor',
+      'inmemory://deck-gl-community/widgets/json-editor',
       { type: 'object' },
     );
 
@@ -315,7 +315,7 @@ describe('TextEditorWidgetPanel', () => {
     await flushMicrotasks();
 
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
-      'inmemory://periscopevis/widgets/plain-editor',
+      'inmemory://deck-gl-community/widgets/plain-editor',
     );
   });
 
@@ -350,7 +350,7 @@ describe('TextEditorWidgetPanel', () => {
     await flushMicrotasks();
 
     expect(monacoHarness.configureJsonSchema).toHaveBeenLastCalledWith(
-      'inmemory://periscopevis/widgets/schema-editor',
+      'inmemory://deck-gl-community/widgets/schema-editor',
       {
         type: 'object',
         required: ['beta'],
@@ -379,7 +379,7 @@ describe('TextEditorWidgetPanel', () => {
     expect(editor?.dispose).toHaveBeenCalledTimes(1);
     expect(model?.dispose).toHaveBeenCalledTimes(1);
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
-      'inmemory://periscopevis/widgets/dispose',
+      'inmemory://deck-gl-community/widgets/dispose',
     );
   });
 

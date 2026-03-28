@@ -2,16 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useMemo, useState} from 'react';
-import DeckGL from '@deck.gl/react';
-import {OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-import {h, render as renderPreact} from 'preact';
-import {
-  _ThemeWidget as ThemeWidget,
-  DarkTheme,
-  LightTheme
-} from '@deck.gl/widgets';
+import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
   AccordeonWidgetPanel,
   BoxWidget,
@@ -29,6 +22,8 @@ import {
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
+
+export type WidgetPanelsExampleOptions = Record<string, never>;
 
 type PaletteName = 'ember' | 'lagoon' | 'mono';
 type FocusCluster = 'all' | 'north' | 'south';
@@ -55,11 +50,21 @@ type PointDatum = {
   weight: number;
 };
 
-const INITIAL_VIEW_STATE: {
-  target: [number, number];
-  zoom: number;
-} = {
-  target: [0, 0],
+type WidgetPanelsExampleState = {
+  settings: ExampleSettings;
+  isModalOpen: boolean;
+  isSidebarOpen: boolean;
+};
+
+type WidgetPanelsExampleHandlers = {
+  setSettings: (nextSettings: SettingsWidgetState) => void;
+  setModalOpen: (nextOpen: boolean) => void;
+  setSidebarOpen: (nextOpen: boolean) => void;
+  toggleSidebar: () => void;
+};
+
+const INITIAL_VIEW_STATE = {
+  target: [0, 0] as [number, number],
   zoom: 0
 };
 
@@ -218,6 +223,18 @@ const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     badges: ['Global']
   },
   {
+    key: 'Enter',
+    name: 'Commit selection',
+    description: 'Apply the current highlight to the focused cluster.',
+    badges: ['Canvas']
+  },
+  {
+    key: 'Escape',
+    name: 'Clear focus',
+    description: 'Reset the current cluster emphasis.',
+    badges: ['Canvas']
+  },
+  {
     key: 'ArrowLeft',
     name: 'Shift focus left',
     description: 'Move the selection horizontally.',
@@ -321,285 +338,402 @@ const THEME_WIDGET_ICON_OVERRIDES = `
   }
 `;
 
-export function App(): React.JSX.Element {
-  const [settings, setSettings] = useState(INITIAL_SETTINGS);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+const ROOT_STYLE = {
+  position: 'relative',
+  height: '100%',
+  minHeight: '100%',
+  width: '100%',
+  overflow: 'hidden',
+  borderRadius: '16px'
+} as const;
 
-  const handleSettingsChange = useCallback((nextSettings: SettingsWidgetState) => {
-    setSettings(nextSettings as ExampleSettings);
-  }, []);
+const ROOT_BUTTON_GROUP_STYLE = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px'
+} as const;
 
-  const palette = PALETTES[settings.theme.palette];
+const PRIMARY_BUTTON_STYLE = {
+  border: '0',
+  borderRadius: '999px',
+  background: 'var(--button-text, rgb(24, 24, 26))',
+  color: 'var(--menu-background, #fff)',
+  padding: '10px 14px',
+  cursor: 'pointer',
+  fontSize: '14px',
+  fontWeight: '700'
+} as const;
 
-  const filteredPoints = useMemo(() => {
-    if (settings.focus.cluster === 'all') {
-      return POINTS;
+const SECONDARY_BUTTON_STYLE = {
+  border: '1px solid var(--button-text, rgb(24, 24, 26))',
+  borderRadius: '999px',
+  background: 'transparent',
+  color: 'var(--button-text, rgb(24, 24, 26))',
+  padding: '10px 14px',
+  cursor: 'pointer',
+  fontSize: '14px',
+  fontWeight: '700'
+} as const;
+
+export function mountWidgetPanelsExample(
+  container: HTMLElement,
+  options: WidgetPanelsExampleOptions = {},
+): () => void {
+  if (Object.keys(options).length > 0) {
+    throw new Error('mountWidgetPanelsExample does not accept options');
+  }
+  const rootElement = container.ownerDocument.createElement('div');
+  rootElement.className = 'widget-panels-example';
+  applyElementStyle(rootElement, ROOT_STYLE);
+  container.replaceChildren(rootElement);
+
+  const styleElement = container.ownerDocument.createElement('style');
+  styleElement.textContent = THEME_WIDGET_ICON_OVERRIDES;
+  rootElement.append(styleElement);
+
+  const state: WidgetPanelsExampleState = {
+    settings: cloneSettings(INITIAL_SETTINGS),
+    isModalOpen: false,
+    isSidebarOpen: true
+  };
+
+  let deck: Deck<OrthographicView> | null = null;
+
+  const handlers: WidgetPanelsExampleHandlers = {
+    setSettings(nextSettings) {
+      state.settings = cloneSettings(nextSettings as ExampleSettings);
+      applyState();
+    },
+    setModalOpen(nextOpen) {
+      if (state.isModalOpen === nextOpen) {
+        return;
+      }
+      state.isModalOpen = nextOpen;
+      syncWidgets();
+    },
+    setSidebarOpen(nextOpen) {
+      if (state.isSidebarOpen === nextOpen) {
+        return;
+      }
+      state.isSidebarOpen = nextOpen;
+      syncWidgets();
+    },
+    toggleSidebar() {
+      state.isSidebarOpen = !state.isSidebarOpen;
+      syncWidgets();
+    }
+  };
+
+  const themeWidget = new ThemeWidget({
+    id: 'widget-theme',
+    placement: 'top-left',
+    initialThemeMode: 'light',
+    lightModeTheme: {
+      ...LightTheme
+    },
+    darkModeTheme: {
+      ...DarkTheme
+    }
+  });
+
+  const modalWidget = new ModalWidget({
+    id: 'widget-panel-modal',
+    placement: 'top-left',
+    title: 'Modal panels',
+    triggerLabel: 'Open modal panels',
+    panel: buildModalPanel(state, handlers),
+    hideTrigger: true,
+    open: state.isModalOpen,
+    onOpenChange: handlers.setModalOpen
+  });
+
+  const sidebarWidget = new SidebarWidget({
+    id: 'widget-panel-sidebar',
+    placement: 'top-right',
+    side: 'right',
+    widthPx: 380,
+    title: 'Sidebar panels',
+    triggerLabel: 'Toggle sidebar panels',
+    panel: buildSidebarPanel(state, handlers),
+    hideTrigger: false,
+    button: true,
+    open: state.isSidebarOpen,
+    onOpenChange: handlers.setSidebarOpen
+  });
+
+  const boxWidget = new BoxWidget({
+    id: 'widget-panel-box',
+    placement: 'bottom-left',
+    title: 'Widget Panels',
+    widthPx: 360,
+    panel: buildInfoBoxPanel(state, handlers)
+  });
+
+  deck = new Deck({
+    parent: rootElement,
+    views: VIEW,
+    initialViewState: INITIAL_VIEW_STATE,
+    controller: {dragMode: 'pan'},
+    layers: buildLayers(state),
+    widgets: [themeWidget, modalWidget, sidebarWidget, boxWidget],
+    style: getDeckStyle(state)
+  });
+
+  applyState();
+
+  return () => {
+    deck?.finalize();
+    styleElement.remove();
+    rootElement.remove();
+    if (container.childElementCount === 0) {
+      container.replaceChildren();
+    }
+  };
+
+  function applyState() {
+    syncDeck();
+    syncWidgets();
+  }
+
+  function syncDeck() {
+    if (!deck) {
+      return;
     }
 
-    return POINTS.filter((point) => point.cluster === settings.focus.cluster);
-  }, [settings.focus.cluster]);
-
-  const layers = useMemo(() => {
-    const circleLayer = new ScatterplotLayer<PointDatum>({
-      id: 'widget-panel-points',
-      data: filteredPoints,
-      getPosition: (point) => point.position,
-      getFillColor: (point) => (point.cluster === 'north' ? palette.pointFill : palette.pointFillAlt),
-      getLineColor: palette.pointStroke,
-      opacity: settings.render.opacity,
-      lineWidthMinPixels: 2,
-      stroked: true,
-      radiusUnits: 'pixels',
-      radiusMinPixels: 6,
-      radiusMaxPixels: 56,
-      getRadius: (point) => point.weight * 20 * settings.render.radiusScale,
-      updateTriggers: {
-        getFillColor: [palette.pointFill, palette.pointFillAlt],
-        getLineColor: [palette.pointStroke],
-        getRadius: [settings.render.radiusScale]
-      },
-      pickable: false
+    rootElement.style.background = getPalette(state).background;
+    deck.setProps({
+      layers: buildLayers(state),
+      style: getDeckStyle(state)
     });
+  }
 
-    const labelLayer = settings.render.showLabels
-      ? new TextLayer<PointDatum>({
-          id: 'widget-panel-labels',
-          data: filteredPoints,
-          getPosition: (point) => point.position,
-          getText: (point) => point.label,
-          getColor: palette.label,
-          getSize: 14,
-          getTextAnchor: 'middle',
-          getAlignmentBaseline: 'bottom',
-          getPixelOffset: (point) => [0, -(point.weight * 20 * settings.render.radiusScale + 8)],
-          updateTriggers: {
-            getColor: [palette.label],
-            getPixelOffset: [settings.render.radiusScale]
-          },
-          pickable: false
-        })
-      : null;
-
-    return labelLayer ? [circleLayer, labelLayer] : [circleLayer];
-  }, [filteredPoints, palette, settings.render.opacity, settings.render.radiusScale, settings.render.showLabels]);
-
-  const sidebarPanel = useMemo(() => {
-    const summary = new MarkdownWidgetPanel({
-      id: 'summary',
-      title: 'Summary',
-      markdown: [
-        'This sidebar uses an accordion container with reusable panel definitions.',
-        '',
-        `- Active palette: **${settings.theme.palette}**`,
-        `- Visible cluster: **${settings.focus.cluster}**`,
-        `- Labels: **${settings.render.showLabels ? 'on' : 'off'}**`
-      ].join('\n')
+  function syncWidgets() {
+    modalWidget.setProps({
+      panel: buildModalPanel(state, handlers),
+      open: state.isModalOpen
     });
-
-    return new AccordeonWidgetPanel({
-      id: 'sidebar-controls',
-      title: 'Sidebar controls',
-      panels: {
-        summary,
-        ...SettingsWidgetPanel.createSectionPanels({
-          schema: SETTINGS_SCHEMA,
-          settings,
-          onSettingsChange: handleSettingsChange
-        })
-      }
+    sidebarWidget.setProps({
+      panel: buildSidebarPanel(state, handlers),
+      open: state.isSidebarOpen
     });
-  }, [handleSettingsChange, settings]);
+    boxWidget.setProps({
+      panel: buildInfoBoxPanel(state, handlers)
+    });
+  }
+}
 
-  const modalPanel = useMemo(
-    () =>
-      new TabbedWidgetPanel({
-        id: 'modal-panels',
-        title: 'Modal panels',
-        panels: {
-          overview: new MarkdownWidgetPanel({
-            id: 'overview',
-            title: 'Overview',
-            markdown: [
-              'The modal uses the same panel API, but arranged as tabs instead of an accordion.',
-              '',
-              '- `SidebarWidget` keeps persistent controls within reach.',
-              '- `ModalWidget` groups secondary context into a compact dialog.',
-              '- `SettingsWidgetPanel` can be reused in either container.'
-            ].join('\n')
-          }),
-          shortcuts: new KeyboardSettingsWidgetPanel({
-            keyboardShortcuts: KEYBOARD_SHORTCUTS
-          }),
-          settings: new SettingsWidgetPanel({
-            id: 'modal-settings',
-            label: 'Panel controls',
-            schema: SETTINGS_SCHEMA,
-            settings,
-            onSettingsChange: handleSettingsChange
-          })
-        }
-      }),
-    [handleSettingsChange, settings]
-  );
+function buildLayers(state: WidgetPanelsExampleState) {
+  const palette = getPalette(state);
+  const filteredPoints = getFilteredPoints(state);
 
-  const infoBoxPanel = useMemo(
-    () =>
-      new ColumnWidgetPanel({
-        id: 'widget-panels-box',
-        title: 'Widget Panels',
-        panels: {
-          summary: new MarkdownWidgetPanel({
-            id: 'summary',
-            title: '',
-            markdown: [
-              'This example pairs a persistent sidebar with a tabbed modal. Both are assembled from the same reusable panel primitives in [@deck.gl-community/widgets](/deck.gl-community/docs/modules/widgets).',
-              '',
-              'Use the sidebar to edit the live scene. Open the modal to compare a tabbed layout with the same settings and shortcut panels.'
-            ].join('\n')
-          }),
-          actions: new CustomWidgetPanel({
-            id: 'actions',
-            title: '',
-            onRenderHTML: hostElement => {
-              renderPreact(
-                h(
-                  'div',
-                  {
-                    style: {
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '10px'
-                    }
-                  },
-                  [
-                    h(
-                      'button',
-                      {
-                        key: 'open-modal',
-                        type: 'button',
-                        onClick: () => setIsModalOpen(true),
-                        style: {
-                          border: 0,
-                          borderRadius: 999,
-                          background: 'var(--button-text, rgb(24, 24, 26))',
-                          color: 'var(--menu-background, #fff)',
-                          padding: '10px 14px',
-                          cursor: 'pointer',
-                          fontSize: 14,
-                          fontWeight: 700
-                        }
-                      },
-                      'Open Modal'
-                    ),
-                    h(
-                      'button',
-                      {
-                        key: 'toggle-sidebar',
-                        type: 'button',
-                        onClick: () => setIsSidebarOpen(open => !open),
-                        style: {
-                          border: '1px solid var(--button-text, rgb(24, 24, 26))',
-                          borderRadius: 999,
-                          background: 'transparent',
-                          color: 'var(--button-text, rgb(24, 24, 26))',
-                          padding: '10px 14px',
-                          cursor: 'pointer',
-                          fontSize: 14,
-                          fontWeight: 700
-                        }
-                      },
-                      isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'
-                    )
-                  ]
-                ),
-                hostElement
-              );
+  const circleLayer = new ScatterplotLayer<PointDatum>({
+    id: 'widget-panel-points',
+    data: filteredPoints,
+    getPosition: (point) => point.position,
+    getFillColor: (point) => (point.cluster === 'north' ? palette.pointFill : palette.pointFillAlt),
+    getLineColor: palette.pointStroke,
+    opacity: state.settings.render.opacity,
+    lineWidthMinPixels: 2,
+    stroked: true,
+    radiusUnits: 'pixels',
+    radiusMinPixels: 6,
+    radiusMaxPixels: 56,
+    getRadius: (point) => point.weight * 20 * state.settings.render.radiusScale,
+    updateTriggers: {
+      getFillColor: [palette.pointFill, palette.pointFillAlt],
+      getLineColor: [palette.pointStroke],
+      getRadius: [state.settings.render.radiusScale]
+    },
+    pickable: false
+  });
 
-              return () => renderPreact(null, hostElement);
-            }
-          })
-        }
-      }),
-    [isSidebarOpen]
-  );
+  if (!state.settings.render.showLabels) {
+    return [circleLayer];
+  }
 
-  const widgets = useMemo(
-    () => [
-      new ThemeWidget({
-        id: 'widget-theme',
-        placement: 'top-left',
-        initialThemeMode: 'light',
-        lightModeTheme: {
-          ...LightTheme,
-          // '--button-size': '34px',
-          // '--button-background': 'rgba(255, 255, 255, 0.96)',
-          // '--button-inner-stroke': '1px solid rgba(91, 44, 19, 0.18)',
-          // '--button-shadow': '0 8px 24px rgba(15, 23, 42, 0.16)'
-        },
-        darkModeTheme: {
-          ...DarkTheme,
-          // '--button-size': '34px',
-          // '--button-background': 'rgba(24, 24, 27, 0.96)',
-          // '--button-inner-stroke': '1px solid rgba(255, 255, 255, 0.12)',
-          // '--button-shadow': '0 8px 24px rgba(15, 23, 42, 0.28)'
-        }
-      }),
-      new ModalWidget({
-        id: 'widget-panel-modal',
-        placement: 'top-left',
-        title: 'Modal panels',
-        triggerLabel: 'Open modal panels',
-        panel: modalPanel,
-        hideTrigger: true,
-        open: isModalOpen,
-        onOpenChange: setIsModalOpen
-      }),
-      new SidebarWidget({
-        id: 'widget-panel-sidebar',
-        placement: 'top-right',
-        side: 'right',
-        widthPx: 380,
-        title: 'Sidebar panels',
-        triggerLabel: 'Toggle sidebar panels',
-        panel: sidebarPanel,
-        hideTrigger: false,
-        button: true,
-        open: isSidebarOpen,
-        onOpenChange: setIsSidebarOpen
-      }),
-      new BoxWidget({
-        id: 'widget-panel-box',
-        placement: 'bottom-left',
-        title: 'Widget Panels',
-        widthPx: 360,
-        panel: infoBoxPanel
+  const labelLayer = new TextLayer<PointDatum>({
+    id: 'widget-panel-labels',
+    data: filteredPoints,
+    getPosition: (point) => point.position,
+    getText: (point) => point.label,
+    getColor: palette.label,
+    getSize: 14,
+    getTextAnchor: 'middle',
+    getAlignmentBaseline: 'bottom',
+    getPixelOffset: (point) => [0, -(point.weight * 20 * state.settings.render.radiusScale + 8)],
+    updateTriggers: {
+      getColor: [palette.label],
+      getPixelOffset: [state.settings.render.radiusScale]
+    },
+    pickable: false
+  });
+
+  return [circleLayer, labelLayer];
+}
+
+function buildSidebarPanel(
+  state: WidgetPanelsExampleState,
+  handlers: WidgetPanelsExampleHandlers,
+) {
+  const summary = new MarkdownWidgetPanel({
+    id: 'summary',
+    title: 'Summary',
+    markdown: [
+      'This sidebar uses an accordion container with reusable panel definitions.',
+      '',
+      `- Active palette: **${state.settings.theme.palette}**`,
+      `- Visible cluster: **${state.settings.focus.cluster}**`,
+      `- Labels: **${state.settings.render.showLabels ? 'on' : 'off'}**`
+    ].join('\n')
+  });
+
+  return new AccordeonWidgetPanel({
+    id: 'sidebar-controls',
+    title: 'Sidebar controls',
+    panels: {
+      summary,
+      ...SettingsWidgetPanel.createSectionPanels({
+        schema: SETTINGS_SCHEMA,
+        settings: state.settings,
+        onSettingsChange: handlers.setSettings
       })
-    ],
-    [infoBoxPanel, isModalOpen, isSidebarOpen, modalPanel, sidebarPanel]
-  );
+    }
+  });
+}
 
-  return (
-    <div
-      className="widget-panels-example"
-      style={{
-        position: 'relative',
-        height: '100%',
-        minHeight: '100%',
-        width: '100%',
-        overflow: 'hidden',
-        borderRadius: 16
-      }}
-    >
-      <style>{THEME_WIDGET_ICON_OVERRIDES}</style>
-      <DeckGL
-        views={VIEW}
-        initialViewState={INITIAL_VIEW_STATE}
-        controller={{dragMode: 'pan'}}
-        layers={layers}
-        widgets={widgets}
-        style={{position: 'absolute', inset: '0', background: palette.background}}
-      />
-    </div>
-  );
+function buildModalPanel(
+  state: WidgetPanelsExampleState,
+  handlers: WidgetPanelsExampleHandlers,
+) {
+  return new TabbedWidgetPanel({
+    id: 'modal-panels',
+    title: 'Modal panels',
+    panels: {
+      overview: new MarkdownWidgetPanel({
+        id: 'overview',
+        title: 'Overview',
+        markdown: [
+          'The modal uses the same panel API, but arranged as tabs instead of an accordion.',
+          '',
+          '- `SidebarWidget` keeps persistent controls within reach.',
+          '- `ModalWidget` groups secondary context into a compact dialog.',
+          '- `SettingsWidgetPanel` can be reused in either container.'
+        ].join('\n')
+      }),
+      shortcuts: new KeyboardSettingsWidgetPanel({
+        keyboardShortcuts: KEYBOARD_SHORTCUTS
+      }),
+      settings: new SettingsWidgetPanel({
+        id: 'modal-settings',
+        label: 'Panel controls',
+        schema: SETTINGS_SCHEMA,
+        settings: state.settings,
+        onSettingsChange: handlers.setSettings
+      })
+    }
+  });
+}
+
+function buildInfoBoxPanel(
+  state: WidgetPanelsExampleState,
+  handlers: WidgetPanelsExampleHandlers,
+) {
+  return new ColumnWidgetPanel({
+    id: 'widget-panels-box',
+    title: 'Widget Panels',
+    panels: {
+      summary: new MarkdownWidgetPanel({
+        id: 'summary',
+        title: '',
+        markdown: [
+          'This example pairs a persistent sidebar with a tabbed modal. Both are assembled from the same reusable panel primitives in [@deck.gl-community/widgets](/deck.gl-community/docs/modules/widgets).',
+          '',
+          'Use the sidebar to edit the live scene. Open the modal to compare a tabbed layout with the same settings and shortcut panels.'
+        ].join('\n')
+      }),
+      actions: new CustomWidgetPanel({
+        id: 'actions',
+        title: '',
+        onRenderHTML(hostElement) {
+          const controls = hostElement.ownerDocument.createElement('div');
+          applyElementStyle(controls, ROOT_BUTTON_GROUP_STYLE);
+
+          const openModalButton = createButton(
+            hostElement.ownerDocument,
+            'Open Modal',
+            PRIMARY_BUTTON_STYLE,
+            () => handlers.setModalOpen(true),
+          );
+
+          const toggleSidebarButton = createButton(
+            hostElement.ownerDocument,
+            state.isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar',
+            SECONDARY_BUTTON_STYLE,
+            handlers.toggleSidebar,
+          );
+
+          controls.append(openModalButton, toggleSidebarButton);
+          hostElement.replaceChildren(controls);
+
+          return () => {
+            openModalButton.onclick = null;
+            toggleSidebarButton.onclick = null;
+            hostElement.replaceChildren();
+          };
+        }
+      })
+    }
+  });
+}
+
+function getPalette(state: WidgetPanelsExampleState) {
+  return PALETTES[state.settings.theme.palette];
+}
+
+function getFilteredPoints(state: WidgetPanelsExampleState) {
+  if (state.settings.focus.cluster === 'all') {
+    return POINTS;
+  }
+
+  return POINTS.filter((point) => point.cluster === state.settings.focus.cluster);
+}
+
+function getDeckStyle(state: WidgetPanelsExampleState) {
+  return {
+    position: 'absolute',
+    inset: '0',
+    background: getPalette(state).background
+  };
+}
+
+function cloneSettings(settings: ExampleSettings): ExampleSettings {
+  return {
+    render: {...settings.render},
+    theme: {...settings.theme},
+    focus: {...settings.focus}
+  };
+}
+
+function applyElementStyle(element: HTMLElement, style: Record<string, string>) {
+  for (const [key, value] of Object.entries(style)) {
+    element.style.setProperty(camelCaseToKebabCase(key), value);
+  }
+}
+
+function camelCaseToKebabCase(value: string) {
+  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+}
+
+function createButton(
+  ownerDocument: Document,
+  label: string,
+  style: Record<string, string>,
+  onClick: () => void,
+) {
+  const button = ownerDocument.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.onclick = onClick;
+  applyElementStyle(button, style);
+  return button;
 }
