@@ -615,6 +615,10 @@ __metadata:
     preact: "npm:^10.17.0"
   peerDependencies:
     "@deck.gl/widgets": ~9.3.0
+    apache-arrow: ">=17"
+  peerDependenciesMeta:
+    apache-arrow:
+      optional: true
   languageName: unknown
   linkType: soft
 
@@ -6651,6 +6655,7 @@ __metadata:
     "@vitest/browser": "npm:^4.0.18"
     "@vitest/browser-playwright": "npm:^4.0.18"
     "@vitest/coverage-v8": "npm:^4.0.18"
+    apache-arrow: "npm:^17.0.0"
     bin-pack: "npm:^1.0.2"
     datauri: "npm:^4.1.0"
     ndarray: "npm:^1.0.19"
