@@ -4,6 +4,12 @@ export type KeyboardShortcut = {
   shiftKey?: boolean;
   ctrlKey?: boolean;
   dragMouse?: boolean;
+  badges?: string[];
+  displayPair?: {
+    id: string;
+    position: 'primary' | 'secondary';
+    description: string;
+  };
 
   name: string;
   description: string;

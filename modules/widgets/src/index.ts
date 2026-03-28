@@ -34,6 +34,43 @@ export {
   type OmniBoxRenderOptionArgs,
   type OmniBoxWidgetProps,
 } from './widgets/omni-box-widget';
+export {
+  AccordeonWidgetPanel,
+  AccordeonWidgetContainer,
+  ColumnWidgetContainer,
+  ColumnWidgetPanel,
+  CustomWidgetPanel,
+  MarkdownWidgetPanel,
+  TabbedWidgetPanel,
+  TabbedWidgetContainer,
+  WidgetContainerRenderer,
+  asPanelContainer,
+  type AccordeonWidgetContainerProps,
+  type AccordeonWidgetPanelProps,
+  type ColumnWidgetContainerProps,
+  type ColumnWidgetPanelProps,
+  type CustomWidgetPanelProps,
+  type MarkdownWidgetPanelProps,
+  type TabbedWidgetContainerProps,
+  type TabbedWidgetPanelProps,
+  type WidgetContainer,
+  type WidgetContainerPanelBase,
+  type WidgetPanel,
+  type WidgetPanelContainer,
+  type WidgetPanelContainerProps,
+  type WidgetPanelRecord,
+} from './panel-widgets/widget-containers';
+export { BoxWidget, type BoxWidgetProps } from './panel-widgets/box-widget';
+export {
+  KeyboardSettingsWidgetPanel,
+  type KeyboardSettingsWidgetPanelProps,
+} from './panel-widgets/keyboard-shortcuts-widget';
+export { ModalWidget, type ModalWidgetProps } from './panel-widgets/modal-widget';
+export {
+  SettingsWidgetPanel,
+  type SettingsWidgetPanelProps,
+} from './panel-widgets/settings-widget';
+export { SidebarWidget, type SidebarWidgetProps } from './panel-widgets/sidebar-widget';
 
 export {
   type KeyboardShortcut,

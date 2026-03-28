@@ -66,14 +66,45 @@ function renderWidget(options?: {
 
   widget.onRenderHTML(root);
 
+  const cleanup = () => {
+    widget.onRemove();
+    root.remove();
+  };
+
   return {
     root,
     widget,
-    cleanup() {
-      widget.onRemove();
-      root.remove();
-    },
+    cleanup,
   };
+}
+
+async function flushEffects(): Promise<void> {
+  await Promise.resolve();
+}
+
+function clickButton(button: HTMLButtonElement | null): void {
+  expect(button).toBeTruthy();
+  button?.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+}
+
+function getSectionToggles(root: ParentNode): NodeListOf<HTMLButtonElement> {
+  return root.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+}
+
+function getRequiredInput(root: ParentNode, selector: string): HTMLInputElement {
+  const input = root.querySelector<HTMLInputElement>(selector);
+  if (!input) {
+    throw new Error(`Expected input matching selector: ${selector}`);
+  }
+  return input;
+}
+
+function getRequiredSelect(root: ParentNode, selector: string): HTMLSelectElement {
+  const select = root.querySelector<HTMLSelectElement>(selector);
+  if (!select) {
+    throw new Error(`Expected select matching selector: ${selector}`);
+  }
+  return select;
 }
 
 afterEach(() => {
@@ -81,14 +112,12 @@ afterEach(() => {
 });
 
 describe('SettingsWidget', () => {
+  // eslint-disable-next-line max-statements
   it('opens and closes the settings pane and toggles section collapse state', async () => {
     const { root, cleanup } = renderWidget();
 
-    const openButton = root.querySelector('button[title="Visualization settings"]');
-    expect(openButton).toBeTruthy();
-
-    (openButton as HTMLButtonElement).click();
-    await Promise.resolve();
+    clickButton(root.querySelector<HTMLButtonElement>('button[title="Visualization settings"]'));
+    await flushEffects();
 
     const dialog = root.querySelector('[role="dialog"]');
     expect(dialog).toBeTruthy();
@@ -96,56 +125,57 @@ describe('SettingsWidget', () => {
     expect(root.textContent).not.toContain('Enable rendering for this layer.');
     expect(root.querySelector('[data-setting-info-for]')).toBeNull();
 
-    const sectionToggles = root.querySelectorAll('button[aria-expanded]');
+    const sectionToggles = getSectionToggles(root);
     expect(sectionToggles.length).toBe(2);
 
-    const visibilityToggle = sectionToggles[0] as HTMLButtonElement;
-    const modeToggle = sectionToggles[1] as HTMLButtonElement;
+    const visibilityToggle = sectionToggles[0];
+    const modeToggle = sectionToggles[1];
 
     expect(visibilityToggle.getAttribute('aria-expanded')).toBe('false');
     expect(modeToggle.getAttribute('aria-expanded')).toBe('false');
 
-    visibilityToggle.click();
-    await Promise.resolve();
+    clickButton(visibilityToggle);
+    await flushEffects();
     expect(visibilityToggle.getAttribute('aria-expanded')).toBe('true');
 
     const enabledSettingRow = root.querySelector('[data-setting-row-for="flags.enabled"]');
     expect(enabledSettingRow).toBeTruthy();
     expect(enabledSettingRow?.getAttribute('title')).toBe('Enable rendering for this layer.');
 
-    modeToggle.click();
-    await Promise.resolve();
+    clickButton(modeToggle);
+    await flushEffects();
     expect(modeToggle.getAttribute('aria-expanded')).toBe('true');
 
     const modeSettingRow = root.querySelector('[data-setting-row-for="mode"]');
     expect(modeSettingRow?.getAttribute('title')).toBe('Control which traces remain visible.');
 
     document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    await Promise.resolve();
+    await flushEffects();
     expect(root.querySelector('[role="dialog"]')).toBeNull();
 
     cleanup();
   });
 
+  // eslint-disable-next-line max-statements
   it('emits updated settings for nested boolean, clamped numeric, and select values', async () => {
     const handleSettingsChange = vi.fn<(settings: SettingsWidgetState) => void>();
     const { root, cleanup } = renderWidget({ onSettingsChange: handleSettingsChange });
 
-    (root.querySelector('button[title="Visualization settings"]')).click();
-    await Promise.resolve();
+    clickButton(root.querySelector<HTMLButtonElement>('button[title="Visualization settings"]'));
+    await flushEffects();
 
-    const sectionToggles = root.querySelectorAll('button[aria-expanded]');
-    const visibilityToggle = sectionToggles[0] as HTMLButtonElement;
-    const modeToggle = sectionToggles[1] as HTMLButtonElement;
+    const sectionToggles = getSectionToggles(root);
+    const visibilityToggle = sectionToggles[0];
+    const modeToggle = sectionToggles[1];
 
-    visibilityToggle.click();
-    await Promise.resolve();
+    clickButton(visibilityToggle);
+    await flushEffects();
 
-    const checkbox = root.querySelector('input[type="checkbox"]');
+    const checkbox = getRequiredInput(root, 'input[type="checkbox"]');
     expect(checkbox.checked).toBe(true);
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('input', { bubbles: true }));
-    await Promise.resolve();
+    await flushEffects();
 
     expect(handleSettingsChange).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -153,10 +183,10 @@ describe('SettingsWidget', () => {
       }),
     );
 
-    const numberInput = root.querySelector('input[type="number"]');
+    const numberInput = getRequiredInput(root, 'input[type="number"]');
     numberInput.value = '2';
     numberInput.dispatchEvent(new Event('change', { bubbles: true }));
-    await Promise.resolve();
+    await flushEffects();
 
     expect(handleSettingsChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -164,13 +194,13 @@ describe('SettingsWidget', () => {
       }),
     );
 
-    modeToggle.click();
-    await Promise.resolve();
+    clickButton(modeToggle);
+    await flushEffects();
 
-    const select = root.querySelector('select');
+    const select = getRequiredSelect(root, 'select');
     select.value = 'critical-path';
     select.dispatchEvent(new Event('change', { bubbles: true }));
-    await Promise.resolve();
+    await flushEffects();
 
     expect(handleSettingsChange).toHaveBeenLastCalledWith(
       expect.objectContaining({

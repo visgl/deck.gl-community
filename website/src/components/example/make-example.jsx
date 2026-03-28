@@ -7,6 +7,11 @@ import {MAPBOX_STYLES} from '../../constants/defaults';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
 const DemoContainer = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+
   .tooltip,
   .deck-tooltip {
     position: absolute;

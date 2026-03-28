@@ -32,11 +32,11 @@
     "update-release-branch": "scripts/update-release-branch.sh"
   },
   "devDependencies": {
-    "@deck.gl/aggregation-layers": "~9.2.8",
-    "@deck.gl/core": "~9.2.8",
-    "@deck.gl/layers": "~9.2.8",
-    "@deck.gl/mesh-layers": "~9.2.8",
-    "@loaders.gl/core": "^4.2.0",
+    "@deck.gl/aggregation-layers": "~9.2.11",
+    "@deck.gl/core": "~9.2.11",
+    "@deck.gl/layers": "~9.2.11",
+    "@deck.gl/mesh-layers": "~9.2.11",
+    "@loaders.gl/core": "^4.3.4",
     "@luma.gl/constants": "~9.2.6",
     "@luma.gl/core": "~9.2.6",
     "@luma.gl/engine": "~9.2.6",

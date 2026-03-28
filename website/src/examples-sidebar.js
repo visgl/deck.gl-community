@@ -70,7 +70,8 @@ const sidebars = {
       items: [
         "widgets/html-overlays",
         "widgets/overlays",
-        "widgets/pan-and-zoom-controls"
+        "widgets/pan-and-zoom-controls",
+        "widgets/widget-panels"
       ]
     },
     // {
