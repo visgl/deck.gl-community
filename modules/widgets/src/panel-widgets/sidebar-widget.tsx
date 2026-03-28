@@ -114,6 +114,19 @@ function SidebarWidgetView({
           <div
             data-sidebar-shell=""
             style={SIDEBAR_SHELL_STYLE(side, panelWidthPx, panelWidthWithHandlePx, open)}
+            onPointerDown={stopSidebarEventPropagation}
+            onPointerMove={stopSidebarEventPropagation}
+            onPointerUp={stopSidebarEventPropagation}
+            onMouseDown={stopSidebarEventPropagation}
+            onMouseMove={stopSidebarEventPropagation}
+            onMouseUp={stopSidebarEventPropagation}
+            onTouchStart={stopSidebarEventPropagation}
+            onTouchMove={stopSidebarEventPropagation}
+            onTouchEnd={stopSidebarEventPropagation}
+            onClick={stopSidebarEventPropagation}
+            onDblClick={stopSidebarEventPropagation}
+            onContextMenu={stopSidebarEventPropagation}
+            onWheel={stopSidebarEventPropagation}
           >
             {!hideTrigger && (
               <div data-sidebar-handle="" style={SIDEBAR_HANDLE_WRAPPER_STYLE}>
@@ -163,6 +176,13 @@ function SidebarWidgetView({
       )}
     </div>
   );
+}
+
+/**
+ * Prevents pointer and wheel events from reaching the underlying deck canvas.
+ */
+function stopSidebarEventPropagation(event: Event): void {
+  event.stopPropagation();
 }
 
 /**
@@ -420,7 +440,7 @@ const SIDEBAR_SHELL_STYLE = (
   display: 'flex',
   flexDirection: side === 'left' ? 'row-reverse' : 'row',
   alignItems: 'flex-start',
-  pointerEvents: 'none',
+  pointerEvents: 'auto',
   transform: open
     ? 'translateX(0px)'
     : `translateX(${side === 'left' ? -panelWidthPx : panelWidthPx}px)`,

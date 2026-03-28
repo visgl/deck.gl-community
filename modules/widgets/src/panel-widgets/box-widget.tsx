@@ -20,6 +20,14 @@ export type BoxWidgetProps = WidgetProps & {
   title?: string;
   /** Box width in pixels. */
   widthPx?: number;
+  /** Whether the header toggles the box body open and closed. */
+  collapsible?: boolean;
+  /** Uncontrolled default open state. */
+  defaultOpen?: boolean;
+  /** Controlled open state for the box body. */
+  open?: boolean;
+  /** Called when user intent changes open/closed state. */
+  onOpenChange?: (open: boolean) => void;
 };
 
 const BOX_WIDGET_CLASS = 'deck-widget-box';
@@ -60,19 +68,39 @@ function BoxWidgetView({
   container,
   title,
   widthPx,
+  open,
+  collapsible,
+  onOpenChange,
 }: {
   container: WidgetContainer;
   title?: string;
   widthPx: number;
+  open: boolean;
+  collapsible: boolean;
+  onOpenChange: (next: boolean) => void;
 }) {
   return (
     <section style={BOX_WIDGET_STYLE(widthPx)} aria-label={title ?? 'Box widget'}>
       {title ? (
         <header style={BOX_HEADER_STYLE}>
-          <span>{title}</span>
+          {collapsible ? (
+            <button
+              type="button"
+              aria-expanded={open}
+              style={BOX_HEADER_BUTTON_STYLE}
+              onClick={() => onOpenChange(!open)}
+            >
+              <span>{title}</span>
+              <span aria-hidden="true" style={BOX_HEADER_CHEVRON_STYLE(open)}>
+                {open ? '▾' : '▸'}
+              </span>
+            </button>
+          ) : (
+            <span>{title}</span>
+          )}
         </header>
       ) : null}
-      <div style={BOX_CONTENT_STYLE}>
+      <div style={BOX_CONTENT_STYLE(open)}>
         <WidgetContainerRenderer container={container} />
       </div>
     </section>
@@ -89,6 +117,10 @@ export class BoxWidget extends Widget<BoxWidgetProps> {
     placement: 'bottom-left',
     title: undefined!,
     widthPx: 360,
+    collapsible: true,
+    defaultOpen: true,
+    open: undefined!,
+    onOpenChange: undefined!,
     panel: undefined!,
     container: {
       kind: 'panel',
@@ -106,8 +138,13 @@ export class BoxWidget extends Widget<BoxWidgetProps> {
   placement: WidgetPlacement = BoxWidget.defaultProps.placement;
   title: string | undefined = BoxWidget.defaultProps.title;
   widthPx = BoxWidget.defaultProps.widthPx;
+  collapsible = BoxWidget.defaultProps.collapsible;
+  isOpen = BoxWidget.defaultProps.defaultOpen;
   #container: WidgetContainer = BoxWidget.defaultProps.container;
   #rootElement: HTMLElement | null = null;
+  #hasOpenStateInitialized = false;
+  #isControlled = false;
+  #openChange: ((open: boolean) => void) | undefined = undefined;
 
   constructor(props: Partial<BoxWidgetProps> = {}) {
     super({
@@ -128,6 +165,10 @@ export class BoxWidget extends Widget<BoxWidgetProps> {
     if (props.widthPx !== undefined) {
       this.widthPx = normalizeBoxWidthPx(props.widthPx);
     }
+    if (props.collapsible !== undefined) {
+      this.collapsible = props.collapsible;
+    }
+    this.#setOpenProps(props);
     if (props.container !== undefined) {
       this.#container = props.container;
     } else if (props.panel !== undefined) {
@@ -150,16 +191,47 @@ export class BoxWidget extends Widget<BoxWidgetProps> {
     this.#render();
   }
 
+  #handleOpenChange = (nextOpen: boolean) => {
+    if (!this.#isControlled) {
+      this.isOpen = nextOpen;
+    }
+    this.#openChange?.(nextOpen);
+    this.#render();
+  };
+
   #render = () => {
     if (!this.#rootElement) {
       return;
     }
 
     render(
-      <BoxWidgetView container={this.#container} title={this.title} widthPx={this.widthPx} />,
+      <BoxWidgetView
+        container={this.#container}
+        title={this.title}
+        widthPx={this.widthPx}
+        open={this.isOpen}
+        collapsible={this.collapsible}
+        onOpenChange={this.#handleOpenChange}
+      />,
       this.#rootElement,
     );
   };
+
+  #setOpenProps(props: Partial<BoxWidgetProps>): void {
+    this.#isControlled = props.open !== undefined;
+    if (props.onOpenChange !== undefined) {
+      this.#openChange = props.onOpenChange;
+    }
+    if (props.open !== undefined) {
+      this.isOpen = props.open;
+      this.#hasOpenStateInitialized = true;
+      return;
+    }
+    if (!this.#hasOpenStateInitialized && props.defaultOpen !== undefined) {
+      this.isOpen = props.defaultOpen;
+      this.#hasOpenStateInitialized = true;
+    }
+  }
 }
 
 const BOX_WIDGET_STYLE = (widthPx: number): JSX.CSSProperties => ({
@@ -177,10 +249,6 @@ const BOX_WIDGET_STYLE = (widthPx: number): JSX.CSSProperties => ({
 });
 
 const BOX_HEADER_STYLE: JSX.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-start',
-  gap: '10px',
   padding: '14px 16px 10px',
   fontSize: '18px',
   fontWeight: 700,
@@ -188,6 +256,29 @@ const BOX_HEADER_STYLE: JSX.CSSProperties = {
   color: 'var(--button-text, currentColor)',
 };
 
-const BOX_CONTENT_STYLE: JSX.CSSProperties = {
-  padding: '0 16px 14px',
+const BOX_HEADER_BUTTON_STYLE: JSX.CSSProperties = {
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  padding: '0',
+  border: '0',
+  background: 'transparent',
+  color: 'inherit',
+  font: 'inherit',
+  textAlign: 'left',
+  cursor: 'pointer',
 };
+
+const BOX_HEADER_CHEVRON_STYLE = (open: boolean): JSX.CSSProperties => ({
+  display: 'block',
+  fontSize: '16px',
+  lineHeight: 1,
+  transform: open ? 'translateY(1px)' : 'translateY(0)',
+});
+
+const BOX_CONTENT_STYLE = (open: boolean): JSX.CSSProperties => ({
+  padding: '0 16px 14px',
+  display: open ? 'block' : 'none',
+});

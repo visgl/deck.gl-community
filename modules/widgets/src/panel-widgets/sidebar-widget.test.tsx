@@ -116,6 +116,7 @@ describe('SidebarWidget', () => {
 
     expect(shell?.style.alignItems).toBe('flex-start');
     expect(shell?.style.position).toBe('absolute');
+    expect(shell?.style.pointerEvents).toBe('auto');
     expect(handle?.style.alignItems).toBe('flex-start');
     expect(shell?.style.gap).toBe('8px');
     expect(handleButton?.style.width).toBe('36px');
@@ -187,5 +188,28 @@ describe('SidebarWidget', () => {
     expect(openShell).toBe(closedShell);
     expect(openShell?.style.transform).toBe('translateX(0px)');
     expect(openShell?.style.transition).toContain('transform 320ms');
+  });
+
+  it('stops mouse move events from leaking past the sidebar shell', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const widget = new SidebarWidget({
+      id: 'settings-sidebar-stop-mousemove',
+      panel,
+      open: true,
+      side: 'right',
+    });
+
+    let bodyMouseMoveCount = 0;
+    document.body.addEventListener('mousemove', () => {
+      bodyMouseMoveCount += 1;
+    });
+
+    widget.onRenderHTML(root);
+
+    const shell = root.querySelector<HTMLDivElement>('[data-sidebar-shell]');
+    shell?.dispatchEvent(new MouseEvent('mousemove', {bubbles: true}));
+
+    expect(bodyMouseMoveCount).toBe(0);
   });
 });

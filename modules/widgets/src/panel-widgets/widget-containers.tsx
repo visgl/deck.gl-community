@@ -674,8 +674,33 @@ function WidgetPanelThemeScope({
       return;
     }
 
-    const inferredMode = inferWidgetPanelThemeMode(hostElement);
-    setRootMode((previousMode) => (previousMode === inferredMode ? previousMode : inferredMode));
+    const updateRootMode = () => {
+      const inferredMode = inferWidgetPanelThemeMode(hostElement);
+      setRootMode((previousMode) => (previousMode === inferredMode ? previousMode : inferredMode));
+    };
+
+    updateRootMode();
+
+    const themedContainer = hostElement.closest('.deck-widget-container');
+    const mutationObserver = new MutationObserver(() => {
+      updateRootMode();
+    });
+
+    mutationObserver.observe(hostElement, {
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    });
+
+    if (themedContainer && themedContainer !== hostElement) {
+      mutationObserver.observe(themedContainer, {
+        attributes: true,
+        attributeFilter: ['style', 'class'],
+      });
+    }
+
+    return () => {
+      mutationObserver.disconnect();
+    };
   }, [inheritedMode]);
 
   return (

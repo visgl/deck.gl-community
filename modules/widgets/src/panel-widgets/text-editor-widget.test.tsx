@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { DarkTheme, LightTheme } from '@deck.gl/widgets';
 import { h, render } from 'preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -372,6 +373,37 @@ describe('TextEditorWidgetPanel', () => {
     await flushMicrotasks();
 
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('custom-light');
+  });
+
+  it('updates the Monaco theme when inherited widget theme variables change', async () => {
+    const widgetContainer = document.createElement('div');
+    const root = document.createElement('div');
+    widgetContainer.className = 'deck-widget-container';
+    widgetContainer.style.setProperty('--menu-background', LightTheme['--menu-background'] ?? '');
+    widgetContainer.appendChild(root);
+    document.body.appendChild(widgetContainer);
+
+    render(
+      h(WidgetContainerRenderer, {
+        container: asPanelContainer(
+          new TextEditorWidgetPanel({
+            id: 'theme-vars-switch',
+            title: 'Theme vars switch',
+          }),
+        ),
+      }),
+      root,
+    );
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedModel() !== null,
+      'Expected Monaco model to be created before inherited theme update.',
+    );
+    expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs');
+
+    widgetContainer.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    await flushMicrotasks();
+
+    expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs-dark');
   });
 
   it('respects controlled value updates', async () => {

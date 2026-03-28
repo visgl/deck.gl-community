@@ -5,10 +5,13 @@
 /* eslint-disable max-lines, max-statements, complexity */
 
 import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl/core';
+import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
+  BoxWidget,
   SidebarWidget,
   ColumnWidgetPanel,
   CustomWidgetPanel,
+  MarkdownWidgetPanel,
   PanWidget,
   SettingsWidgetPanel,
   TextEditorWidgetPanel,
@@ -143,6 +146,74 @@ const ROOT_STYLE = {
   fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif'
 } as const;
 
+const THEME_WIDGET_ICON_OVERRIDES = `
+  .graph-viewer-example .deck-widget.deck-widget-theme .deck-widget-button {
+    width: var(--button-size, 28px);
+    height: var(--button-size, 28px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--button-stroke, rgba(255, 255, 255, 0.3));
+    border-radius: var(--button-corner-radius, 8px);
+    box-shadow: var(--button-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25));
+  }
+
+  .graph-viewer-example .deck-widget.deck-widget-theme .deck-widget-button > button {
+    width: calc(var(--button-size, 28px) - 2px);
+    height: calc(var(--button-size, 28px) - 2px);
+    display: block;
+    padding: 0;
+    border: var(--button-inner-stroke, unset);
+    border-radius: calc(var(--button-corner-radius, 8px) - 1px);
+    background: var(--button-background, #fff);
+    backdrop-filter: var(--button-backdrop-filter, unset);
+    cursor: pointer;
+  }
+
+  .graph-viewer-example .deck-widget.deck-widget-theme .deck-widget-icon {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-color: var(--button-icon-idle, #616166);
+    background-position: center;
+    background-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-position: center;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-size: 70%;
+    -webkit-mask-size: 70%;
+  }
+
+  .graph-viewer-example .deck-widget.deck-widget-theme .deck-widget-button > button:hover .deck-widget-icon {
+    background-color: var(--button-icon-hover, rgb(24, 24, 26));
+  }
+
+  .graph-viewer-example .deck-widget.deck-widget-theme button.deck-widget-sun .deck-widget-icon {
+    mask-image: var(
+      --icon-sun,
+      url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="black" stroke="black"><g><circle cx="12" cy="12" r="6" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></g></svg>')
+    );
+    -webkit-mask-image: var(
+      --icon-sun,
+      url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="black" stroke="black"><g><circle cx="12" cy="12" r="6" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></g></svg>')
+    );
+    mask-size: contain;
+    -webkit-mask-size: contain;
+  }
+
+  .graph-viewer-example .deck-widget.deck-widget-theme button.deck-widget-moon .deck-widget-icon {
+    mask-image: var(
+      --icon-moon,
+      url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="black" mask="url(%23moon-mask)" /><mask id="moon-mask" viewBox="0 0 24 24"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="24" cy="10" r="12" fill="black"/></mask></svg>')
+    );
+    -webkit-mask-image: var(
+      --icon-moon,
+      url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="black" mask="url(%23moon-mask)" /><mask id="moon-mask" viewBox="0 0 24 24"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="24" cy="10" r="12" fill="black"/></mask></svg>')
+    );
+  }
+`;
+
 const LOADING_STYLE = {
   position: 'absolute',
   inset: '0',
@@ -165,6 +236,14 @@ const EPSILON = 1e-6;
 const GRAPH_LAYER_ID = 'graph-viewer-layer';
 const INITIAL_LOADING_STATE: LoadingState = {loaded: false, rendered: false, isLoading: true};
 const RESUME_LAYOUT_AFTER_DRAGGING = false;
+const GRAPH_DOCS_PATH = '/deck.gl-community/docs/modules/graph-layers';
+const GRAPH_TYPE_TITLES: Record<GraphExampleType, string> = {
+  graph: 'Simple Graphs',
+  radial: 'Radial Layouts',
+  'multi-graph': 'Multi Graphs',
+  hive: 'Hive Plots',
+  dag: 'DAGs'
+};
 const TOOLTIP_THEME = {
   background: '#0f172a',
   border: '#1e293b',
@@ -203,10 +282,14 @@ export function mountGraphViewerExample(
   const defaultLayout = defaultExample?.layouts[0] ?? 'd3-force-layout';
 
   const rootElement = container.ownerDocument.createElement('div');
+  rootElement.className = 'graph-viewer-example';
   const loadingElement = container.ownerDocument.createElement('div');
   applyElementStyle(rootElement, ROOT_STYLE);
   applyElementStyle(loadingElement, LOADING_STYLE);
   loadingElement.textContent = 'Computing layout...';
+  const styleElement = container.ownerDocument.createElement('style');
+  styleElement.textContent = THEME_WIDGET_ICON_OVERRIDES;
+  rootElement.append(styleElement);
   rootElement.append(loadingElement);
   container.replaceChildren(rootElement);
 
@@ -231,14 +314,23 @@ export function mountGraphViewerExample(
   let isApplyingViewState = false;
 
   const panWidget = new PanWidget({
-    id: 'pan-widget',
-    style: {margin: '20px 0 0 20px'}
+    id: 'pan-widget'
   });
   const zoomWidget = new ZoomRangeWidget({
     id: 'zoom-range-widget',
-    style: {margin: '90px 0 0 20px'},
     minZoom: MIN_ZOOM,
     maxZoom: MAX_ZOOM
+  });
+  const themeWidget = new ThemeWidget({
+    id: 'graph-viewer-theme',
+    placement: 'top-left',
+    initialThemeMode: 'light',
+    lightModeTheme: {
+      ...LightTheme
+    },
+    darkModeTheme: {
+      ...DarkTheme
+    }
   });
   const sidebarWidget = new SidebarWidget({
     id: 'graph-viewer-sidebar',
@@ -257,6 +349,13 @@ export function mountGraphViewerExample(
       state.isSidebarOpen = nextOpen;
       syncWidgets();
     }
+  });
+  const boxWidget = new BoxWidget({
+    id: 'graph-viewer-box',
+    placement: 'bottom-left',
+    widthPx: 360,
+    title: getGraphViewerBoxTitle(options.graphType),
+    panel: buildInfoBoxPanel(buildRuntime(state), state.selectedLayout)
   });
 
   const viewportController = createViewportController({
@@ -355,13 +454,14 @@ export function mountGraphViewerExample(
     },
     viewState: toDeckViewState(state.viewState),
     layers: [],
-    widgets: [panWidget, zoomWidget, sidebarWidget]
+    widgets: [panWidget, zoomWidget, themeWidget, sidebarWidget, boxWidget]
   });
 
   applyState();
 
   return () => {
     deck?.finalize();
+    styleElement.remove();
     loadingElement.remove();
     rootElement.remove();
     container.replaceChildren();
@@ -402,6 +502,10 @@ export function mountGraphViewerExample(
       title: 'Graph controls',
       open: state.isSidebarOpen,
       panel: buildSidebarPanel(runtime, state, handlers)
+    });
+    boxWidget.setProps({
+      title: getGraphViewerBoxTitle(options.graphType),
+      panel: buildInfoBoxPanel(runtime, state.selectedLayout)
     });
     zoomWidget.setProps({minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM});
   }
@@ -844,13 +948,33 @@ function buildSidebarPanel(
     value: state.stylesheetValue,
     onValueChange: handlers.onStylesheetChange,
     readOnly: false,
-    placeholder: DEFAULT_STYLESHEET_MESSAGE
+    placeholder: DEFAULT_STYLESHEET_MESSAGE,
+    theme: 'invert'
   });
 
   return new ColumnWidgetPanel({
     id: 'graph-viewer-sidebar-panels',
     title: '',
     panels
+  });
+}
+
+function buildInfoBoxPanel(
+  runtime: GraphViewerRuntime,
+  selectedLayout: LayoutType
+): MarkdownWidgetPanel {
+  const selectedLayoutLabel = LAYOUT_LABELS[selectedLayout] ?? selectedLayout;
+  const markdown = [
+    runtime.selectedExample.description,
+    `Current dataset: **${runtime.selectedExample.name}**`,
+    `Current layout: **${selectedLayoutLabel}**`,
+    `[Graph Layers docs](${GRAPH_DOCS_PATH})`
+  ].join('\n\n');
+
+  return new MarkdownWidgetPanel({
+    id: 'graph-viewer-info',
+    title: '',
+    markdown
   });
 }
 
@@ -925,6 +1049,13 @@ function getLayoutOptionsDescription(layout: LayoutType, layoutDescription?: str
     return layoutDescription;
   }
   return 'Adjust layout parameters. Changes apply immediately.';
+}
+
+function getGraphViewerBoxTitle(graphType?: GraphExampleType): string {
+  if (!graphType) {
+    return 'Graph Viewer';
+  }
+  return GRAPH_TYPE_TITLES[graphType];
 }
 
 function getLayoutSettingsDescriptors(

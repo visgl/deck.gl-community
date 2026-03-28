@@ -109,9 +109,9 @@ const config = {
             '@deck.gl/react': resolve('../node_modules/@deck.gl/react'),
             '@luma.gl': resolve('../node_modules/@luma.gl'),
             '@math.gl': resolve('../node_modules/@math.gl'),
-            // Webpack falls back to long's UMD main entry here, which breaks
-            // @loaders.gl/3d-tiles' default import in the docs site bundle.
-            long: resolve('../node_modules/@loaders.gl/3d-tiles/node_modules/long/index.js'),
+            // Force the hoisted ESM entry. Webpack otherwise resolves to the
+            // package's UMD main, which breaks default imports in vis.gl S2 code.
+            long: resolve('../node_modules/long/index.js'),
             '@loaders.gl/csv': resolve('node_modules/@loaders.gl/csv'),
             '@loaders.gl/json': resolve('node_modules/@loaders.gl/json'),
             '@loaders.gl/i3s': resolve('node_modules/@loaders.gl/i3s'),
