@@ -287,9 +287,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/basemap-props@workspace:modules/basemap-props":
+"@deck.gl-community/basemaps@workspace:modules/basemaps":
   version: 0.0.0-use.local
-  resolution: "@deck.gl-community/basemap-props@workspace:modules/basemap-props"
+  resolution: "@deck.gl-community/basemaps@workspace:modules/basemaps"
   dependencies:
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/geo-layers": "npm:~9.3.0-alpha.1"

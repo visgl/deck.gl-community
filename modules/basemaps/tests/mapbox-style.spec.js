@@ -1,4 +1,12 @@
-import {filterFeatures} from '../src/mapbox-style';
+import {describe, expect, test} from 'vitest';
+import {generateLayers} from '@deck.gl-community/basemaps';
+import {filterFeatures} from '@deck.gl-community/basemaps/style-spec';
+
+describe('package exports', () => {
+  test('exports generateLayers from the package root', () => {
+    expect(typeof generateLayers).toBe('function');
+  });
+});
 
 describe('filterFeatures', () => {
   describe('filter geometry correctly', () => {
