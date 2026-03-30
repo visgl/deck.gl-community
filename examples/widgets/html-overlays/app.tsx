@@ -124,7 +124,7 @@ const OVERLAY_STYLE = {
   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.18)',
   border: '1px solid rgba(0, 0, 0, 0.05)',
   transform: 'translate(-50%, -110%)'
-};
+} as const;
 
 const CLUSTER_STYLE = {
   width: 34,
@@ -151,7 +151,7 @@ const PIN_STYLE = {
   border: '1px solid rgba(255,255,255,0.08)',
   transform: 'translate(-50%, -115%)',
   minWidth: 150
-};
+} as const;
 
 export function mountHtmlOverlaysExample(container: HTMLElement): () => void {
   const rootElement = container.ownerDocument.createElement('div');
@@ -253,12 +253,6 @@ class StopoverClusterWidget extends HtmlClusterWidget<Stopover> {
     );
 }
 
-function applyElementStyle(element: HTMLElement, style: Record<string, string>) {
-  for (const [key, value] of Object.entries(style)) {
-    element.style.setProperty(camelCaseToKebabCase(key), value);
-  }
-}
-
 function buildDestinationOverlayItems() {
   return DESTINATIONS.map(({id, name, subtitle, coordinates}) =>
     h(
@@ -331,6 +325,12 @@ function buildTooltip(stop: TooltipDatum | null) {
       h('div', {style: {opacity: 0.8}}, 'subtitle' in stop ? stop.subtitle : stop.city)
     ]
   );
+}
+
+function applyElementStyle(element: HTMLElement, style: Record<string, string>) {
+  for (const [key, value] of Object.entries(style)) {
+    element.style.setProperty(camelCaseToKebabCase(key), value);
+  }
 }
 
 function camelCaseToKebabCase(value: string) {

@@ -1,0 +1,51 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {TimelineClip, ClipWithSubtrack} from './timeline-types';
+
+export type {ClipWithSubtrack};
+/**
+ * Detects overlapping clips and assigns them to subtracks.
+ * Uses a greedy algorithm to minimize the number of subtracks needed.
+ */
+export function assignClipsToSubtracks(clips: TimelineClip[]): ClipWithSubtrack[] {
+  if (clips.length === 0) return [];
+
+  // Sort clips by start time
+  const sortedClips = [...clips].sort((a, b) => a.startMs - b.startMs);
+
+  // Track the end time of the last clip in each subtrack
+  const subtrackEndTimes: number[] = [];
+  const result: ClipWithSubtrack[] = [];
+
+  for (const clip of sortedClips) {
+    let assignedSubtrack = -1;
+
+    for (let i = 0; i < subtrackEndTimes.length; i++) {
+      if (clip.startMs >= subtrackEndTimes[i]) {
+        assignedSubtrack = i;
+        subtrackEndTimes[i] = clip.endMs;
+        break;
+      }
+    }
+
+    if (assignedSubtrack === -1) {
+      assignedSubtrack = subtrackEndTimes.length;
+      subtrackEndTimes.push(clip.endMs);
+    }
+
+    result.push({...clip, subtrackIndex: assignedSubtrack});
+  }
+
+  return result;
+}
+
+/**
+ * Calculate the number of subtracks needed for a set of clips.
+ */
+export function calculateSubtrackCount(clips: TimelineClip[]): number {
+  if (clips.length === 0) return 1;
+  const clipsWithSubtracks = assignClipsToSubtracks(clips);
+  return Math.max(...clipsWithSubtracks.map((c) => c.subtrackIndex)) + 1;
+}

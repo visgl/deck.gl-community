@@ -10,4 +10,4 @@ export default makeImperativeExample({
     );
     return mountEditableLayersAdvancedExample(container);
   }
-});
+}, {addInfoPanel: false});

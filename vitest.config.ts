@@ -10,14 +10,21 @@ const CONFIG = defineConfig({
     conditions: ['node'] // prefer node resolution
   },
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['modules/*/src/**/*.{ts,tsx,js,jsx}', 'dev/*/src/**/*.{ts,tsx,js,jsx}'],
+      exclude: ['modules/template/**', 'modules/*/src/**/*.d.ts', 'dev/*/src/**/*.d.ts']
+    },
     projects: [
       {
         test: {
           name: 'node',
           environment: 'node',
-          include: ['modules/**/*.{test,spec}.{js,ts}'],
+          include: ['modules/**/*.{test,spec}.{js,ts}', 'dev/**/*.{test,spec}.{js,ts}'],
           exclude: [
             'modules/**/*.browser.{test,spec}.{js,ts}',
+            'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/basemap-props/**'
           ],
           browser: {
@@ -30,10 +37,11 @@ const CONFIG = defineConfig({
         test: {
           name: 'browser',
           environment: 'node',
-          include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-          exclude: [
-            'modules/**/*.node.{test,spec}.{js,ts,jsx,tsx}',
-            'modules/basemap-props/**'
+          include: [
+            'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'modules/**/*.{test,spec}.{jsx,tsx}',
+            'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
           browser: {
             enabled: true,
@@ -47,10 +55,11 @@ const CONFIG = defineConfig({
         test: {
           name: 'headless',
           environment: 'node',
-          include: ['modules/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-          exclude: [
-            'modules/**/*.node.{test,spec}.{js,ts,jsx,tsx}',
-            'modules/basemap-props/**'
+          include: [
+            'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'modules/**/*.{test,spec}.{jsx,tsx}',
+            'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
           browser: {
             enabled: true,

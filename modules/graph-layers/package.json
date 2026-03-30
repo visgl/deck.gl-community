@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/graph-layers",
-  "version": "9.2.5",
+  "version": "9.2.8",
   "description": "WebGL2-Powered library for Graph Visualization",
   "license": "MIT",
   "publishConfig": {
@@ -41,13 +41,13 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.2.11",
-    "@deck.gl/layers": "~9.2.11",
-    "@deck.gl/widgets": "~9.2.11",
-    "@loaders.gl/core": "^4.3.4",
-    "@luma.gl/core": "~9.2.6",
-    "@luma.gl/engine": "~9.2.6",
-    "@luma.gl/shadertools": "~9.2.6",
+    "@deck.gl/core": "~9.3.0-alpha.1",
+    "@deck.gl/layers": "~9.3.0-alpha.1",
+    "@deck.gl/widgets": "~9.3.0-alpha.1",
+    "@loaders.gl/core": "^4.4.0-alpha.16",
+    "@luma.gl/core": "~9.3.0-alpha.2",
+    "@luma.gl/engine": "~9.3.0-alpha.2",
+    "@luma.gl/shadertools": "~9.3.0-alpha.2",
     "@probe.gl/log": "^4.0.4",
     "apache-arrow": "^17.0.0",
     "cardinal-spline-js": "^2.3.10",

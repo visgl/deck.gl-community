@@ -1,5 +1,8 @@
 # graph-layers
 
+[![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/graph-layers.svg)](https://www.npmjs.com/package/@deck.gl-community/graph-layers)
+[![NPM Downloads](https://img.shields.io/npm/dw/@deck.gl-community/graph-layers.svg)](https://www.npmjs.com/package/@deck.gl-community/graph-layers)
+
 TBD
 
 <p align="center">

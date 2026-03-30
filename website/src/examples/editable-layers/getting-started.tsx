@@ -10,4 +10,4 @@ export default makeImperativeExample({
     );
     return mountGettingStartedExample(container);
   }
-});
+}, {addInfoPanel: false});

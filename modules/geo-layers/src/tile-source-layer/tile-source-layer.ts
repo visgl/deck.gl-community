@@ -12,7 +12,7 @@ import type {TileSource} from '@loaders.gl/loader-utils';
 const devicePixelRatio = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
 
 export type TileSourceLayerProps = TileLayerProps & {
-  tileSource: TileSource<any>;
+  tileSource: TileSource;
   showTileBorders?: boolean;
 };
 
@@ -30,7 +30,7 @@ export class TileSourceLayer extends CompositeLayer<TileSourceLayerProps> {
   };
 
   state: {
-    tileSource: TileSource<any> | null;
+    tileSource: TileSource | null;
   } = undefined!;
 
   initializeState() {

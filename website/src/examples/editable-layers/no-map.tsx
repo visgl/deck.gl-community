@@ -8,4 +8,4 @@ export default makeImperativeExample({
     const {mountNoMapExample} = await import('../../../../examples/editable-layers/no-map/app');
     return mountNoMapExample(container);
   }
-});
+}, {addInfoPanel: false});

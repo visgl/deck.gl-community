@@ -6,10 +6,17 @@ import {MapboxOverlay} from '@deck.gl/mapbox';
 import maplibregl from 'maplibre-gl';
 import {h} from 'preact';
 
-import {HtmlOverlayItem, HtmlOverlayWidget, type HtmlOverlayWidgetProps} from '@deck.gl-community/widgets';
+import {
+  BoxWidget,
+  HtmlOverlayItem,
+  HtmlOverlayWidget,
+  MarkdownWidgetPanel,
+  type HtmlOverlayWidgetProps
+} from '@deck.gl-community/widgets';
 import {INITIAL_COORDS, INITIAL_VIEW_STATE} from './constants';
 import type {WikipediaEntry} from './types';
 
+import '@deck.gl/widgets/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type WikipediaPage = WikipediaEntry & {
@@ -45,9 +52,27 @@ export function mountOverlaysExample(container: HTMLElement): () => void {
   container.replaceChildren(rootElement);
 
   const overlayWidget = new HtmlOverlayWidget<HtmlOverlayWidgetProps>({id: 'wikipedia-overlay'});
+  const infoWidget = new BoxWidget({
+    id: 'wikipedia-overlays-info',
+    placement: 'top-right',
+    widthPx: 320,
+    title: 'Overlays',
+    collapsible: false,
+    panel: new MarkdownWidgetPanel({
+      id: 'summary',
+      title: '',
+      markdown: [
+        'This example uses `HtmlOverlayWidget` to pin Wikipedia thumbnails directly over nearby locations.',
+        '',
+        '- Source: **Wikipedia geosearch API**',
+        '- Overlay: **thumbnail image markers**',
+        '- Interaction: **pan and zoom to keep DOM elements anchored**'
+      ].join('\n')
+    })
+  });
   const deckOverlay = new MapboxOverlay({
     interleaved: false,
-    widgets: [overlayWidget]
+    widgets: [overlayWidget, infoWidget]
   });
 
   const map = new maplibregl.Map({

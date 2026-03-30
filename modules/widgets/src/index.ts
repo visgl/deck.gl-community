@@ -91,6 +91,15 @@ export {
 } from './panel-widgets/settings-widget';
 export { SidebarWidget, type SidebarWidgetProps } from './panel-widgets/sidebar-widget';
 export {
+  ToolbarWidget,
+  type ToolbarWidgetActionItem,
+  type ToolbarWidgetBadgeItem,
+  type ToolbarWidgetItem,
+  type ToolbarWidgetProps,
+  type ToolbarWidgetToggleGroupItem,
+  type ToolbarWidgetToggleOption
+} from './panel-widgets/toolbar-widget';
+export {
   TextEditorWidgetPanel,
   type TextEditorWidgetPanelProps
 } from './panel-widgets/text-editor-widget';

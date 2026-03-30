@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
+/** @jsxImportSource preact */
 
 import {render} from 'preact';
 import type {JSX} from 'preact';
@@ -60,7 +61,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
 
   placement: WidgetPlacement = 'top-left';
   className = 'deck-widget-pan';
-  deck?: Deck | null = null;
+
   step: number;
 
   constructor(props: PanWidgetProps = {}) {
@@ -91,7 +92,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
   }
 
   override onRemove(): void {
-    this.deck = null;
+    this.deck = undefined;
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {
@@ -142,18 +143,28 @@ export class PanWidget extends Widget<PanWidgetProps> {
     return deck.getViewports();
   }
 
-  private getViewState(viewport: Viewport): any {
+  private getViewportViewState(viewport: Viewport): Record<string, unknown> {
     const deck = this.deck;
-    const viewManager = hasViewManager(deck) ? deck.viewManager : null;
-    const viewId = this.viewId || viewport.id;
-    if (viewManager) {
+    if (deck && hasViewManager(deck)) {
+      const viewId = this.viewId || viewport.id;
       try {
-        return {...viewManager.getViewState(viewId)};
-      } catch (err) {
-        return cloneViewState(viewManager.viewState);
+        return cloneViewState(deck.viewManager?.getViewState(viewId));
+      } catch {
+        return cloneViewState(deck.viewManager?.viewState);
       }
     }
+
     return cloneViewState(viewport);
+  }
+
+  private updateViewState(viewport: Viewport, nextViewState: Record<string, unknown>): void {
+    if (!this.deck) {
+      return;
+    }
+
+    const viewId = this.viewId || viewport.id || 'default-view';
+    // @ts-expect-error Using private method until a public alternative is available
+    this.deck._onViewStateChange({viewId, viewState: nextViewState, interactionState: {}});
   }
 
   private handlePan(deltaX: number, deltaY: number) {
@@ -170,13 +181,9 @@ export class PanWidget extends Widget<PanWidgetProps> {
           viewport.height / 2 + deltaY
         ];
 
-        const viewState = this.getViewState(viewport);
+        const viewState = this.getViewportViewState(viewport);
         const panUpdate = viewport.panByPosition(center, nextPixel);
-        const nextViewState = {...viewState, ...panUpdate};
-        const viewId = this.viewId || viewport.id || 'default-view';
-
-        // @ts-ignore Using private method until a public alternative is available
-        this.deck._onViewStateChange({viewId, viewState: nextViewState, interactionState: {}});
+        this.updateViewState(viewport, {...viewState, ...panUpdate});
       }
     }
   }

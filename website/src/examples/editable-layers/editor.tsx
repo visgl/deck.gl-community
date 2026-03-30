@@ -3,11 +3,11 @@ import {makeImperativeExample} from '../../components';
 
 export default makeImperativeExample({
   title: 'Editor',
-  code: `${GITHUB_TREE}/examples/editable-layers/editor`,
+  code: `${GITHUB_TREE}/examples/editable-layers/widget`,
   async mount(container) {
-    const {mountEditableLayersEditorExample} = await import(
-      '../../../../examples/editable-layers/editor/app'
+    const {mountEditableLayersWidgetExample} = await import(
+      '../../../../examples/editable-layers/widget/app'
     );
-    return mountEditableLayersEditorExample(container);
+    return mountEditableLayersWidgetExample(container);
   }
-});
+}, {addInfoPanel: false});

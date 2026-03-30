@@ -13,6 +13,8 @@
   "type": "module",
   "workspaces": [
     "modules/*",
+    "dev/*",
+    "dev/timeline-layers/examples/*",
     "examples/**"
   ],
   "scripts": {
@@ -26,17 +28,19 @@
     "publish-prod": "ocular-publish version-only-prod",
     "test": "yarn test-node",
     "test-node": "vitest --project node",
+    "test-ci": "vitest run --project node --coverage",
     "test-browser": "vitest --project browser",
     "test-headless": "vitest run --project headless",
     "metrics": "ocular-metrics",
     "update-release-branch": "scripts/update-release-branch.sh"
   },
   "devDependencies": {
-    "@deck.gl/aggregation-layers": "~9.2.11",
-    "@deck.gl/core": "~9.2.11",
-    "@deck.gl/layers": "~9.2.11",
-    "@deck.gl/mesh-layers": "~9.2.11",
-    "@loaders.gl/core": "^4.3.4",
+    "@deck.gl/aggregation-layers": "~9.3.0-alpha.1",
+    "@deck.gl/core": "~9.3.0-alpha.1",
+    "@deck.gl/layers": "~9.3.0-alpha.1",
+    "@deck.gl/mesh-layers": "~9.3.0-alpha.1",
+    "@floating-ui/dom": "^1.7.5",
+    "@loaders.gl/core": "^4.4.0-alpha.16",
     "@luma.gl/constants": "~9.2.6",
     "@luma.gl/core": "~9.2.6",
     "@luma.gl/engine": "~9.2.6",
@@ -49,6 +53,7 @@
     "@vitejs/plugin-react": "^5.1.4",
     "@vitest/browser": "^4.0.18",
     "@vitest/browser-playwright": "^4.0.18",
+    "@vitest/coverage-v8": "^4.0.18",
     "@vitest/eslint-plugin": "^1.6.9",
     "bin-pack": "^1.0.2",
     "datauri": "^4.1.0",
@@ -63,12 +68,30 @@
     "vitest": "^4.0.18",
     "vitest-browser-react": "^2.0.5"
   },
+  "resolutions": {
+    "@luma.gl/constants": "~9.3.0-alpha.2",
+    "@luma.gl/core": "~9.3.0-alpha.2",
+    "@luma.gl/engine": "~9.3.0-alpha.2",
+    "@luma.gl/shadertools": "~9.3.0-alpha.2",
+    "@luma.gl/webgl": "~9.3.0-alpha.2",
+    "@luma.gl/webgpu": "~9.3.0-alpha.2"
+  },
   "packageExtensions": {
     "deck.gl@*": {
       "peerDependenciesMeta": {
         "@arcgis/core": {
           "optional": true
         }
+      }
+    },
+    "@deck.gl/*@*": {
+      "peerDependencies": {
+        "@luma.gl/constants": ">=9.2.6",
+        "@luma.gl/core": ">=9.2.6",
+        "@luma.gl/engine": ">=9.2.6",
+        "@luma.gl/shadertools": ">=9.2.6",
+        "@luma.gl/webgl": ">=9.2.6",
+        "@luma.gl/webgpu": ">=9.2.6"
       }
     },
     "zod-to-json-schema@*": {
@@ -81,5 +104,5 @@
     "lint-pre-commit",
     "test"
   ],
-  "packageManager": "yarn@4.10.3"
+  "packageManager": "yarn@4.13.0"
 }

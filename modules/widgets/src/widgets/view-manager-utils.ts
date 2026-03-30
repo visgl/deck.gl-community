@@ -12,7 +12,7 @@ export type DeckWithViewManager = Deck & {
   };
 };
 
-export function hasViewManager(deck: Deck | null): deck is DeckWithViewManager {
+export function hasViewManager(deck: Deck | null | undefined): deck is DeckWithViewManager {
   return Boolean(deck && typeof deck === 'object' && 'viewManager' in deck);
 }
 

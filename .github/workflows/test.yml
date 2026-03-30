@@ -1,0 +1,251 @@
+name: test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack / Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.10.3 --activate
+
+      - name: Cache Yarn 4 artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .pnp.*
+            .yarn/install-state.gz
+          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            yarn-cache-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: yarn
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Lint
+        run: yarn lint
+
+  test-node:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+      checks: write
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack / Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.10.3 --activate
+
+      - name: Cache Yarn 4 artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .pnp.*
+            .yarn/install-state.gz
+          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            yarn-cache-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: yarn
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Run node tests with coverage
+        run: yarn test-ci 2>&1 | tee /tmp/coverage.txt; exit ${PIPESTATUS[0]}
+
+      - name: Save coverage summary
+        if: always()
+        run: grep -m1 "^All files" /tmp/coverage.txt > /tmp/coverage-summary.txt || true
+
+      - name: Upload coverage baseline
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-baseline
+          path: /tmp/coverage-summary.txt
+          retention-days: 90
+
+      - name: Find latest master run with baseline
+        if: github.event_name == 'pull_request'
+        id: find-baseline
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'test.yml',
+              branch: 'master',
+              status: 'success',
+              per_page: 5,
+            });
+            for (const run of runs.data.workflow_runs) {
+              const {data} = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+              });
+              if (data.artifacts.find(a => a.name === 'coverage-baseline')) {
+                return String(run.id);
+              }
+            }
+            return '';
+
+      - name: Download coverage baseline
+        if: github.event_name == 'pull_request' && steps.find-baseline.outputs.result != ''
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-baseline
+          path: /tmp/baseline
+          run-id: ${{ steps.find-baseline.outputs.result }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post coverage summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const raw = fs.readFileSync('/tmp/coverage.txt', 'utf8');
+            const lines = raw.split('\n');
+
+            const parseAllFiles = text => {
+              const line = text.split('\n').find(l => l.match(/^All files\s*\|/));
+              if (!line) return null;
+              const [, stmts, branch, funcs, ln] = line.split('|').map(s => s.trim());
+              return {stmts: parseFloat(stmts), branch: parseFloat(branch), funcs: parseFloat(funcs), ln: parseFloat(ln)};
+            };
+
+            const current = parseAllFiles(raw);
+            let baseline = null;
+            try { baseline = parseAllFiles(fs.readFileSync('/tmp/baseline/coverage-summary.txt', 'utf8')); } catch {}
+
+            const stripAnsi = s => s.replace(/\x1b\[[0-9;]*m/g, '');
+
+            const fmt = (val, baseVal) => {
+              const str = `**${val.toFixed(2)}%**`;
+              if (baseline === null || isNaN(baseVal)) return str;
+              const d = val - baseVal;
+              if (Math.abs(d) < 0.005) return str;
+              const sign = d > 0 ? '+' : '';
+              const arrow = d > 0 ? '▲' : '▼';
+              return `${str} ${arrow}${sign}${d.toFixed(2)}%`;
+            };
+
+            let coverageLine = '_Coverage data not found_';
+            if (current) {
+              const b = baseline || {};
+              coverageLine = [
+                `Stmts: ${fmt(current.stmts, b.stmts)}`,
+                `Branch: ${fmt(current.branch, b.branch)}`,
+                `Funcs: ${fmt(current.funcs, b.funcs)}`,
+                `Lines: ${fmt(current.ln, b.ln)}`,
+              ].join(' | ');
+            }
+
+            const testLine = lines.map(stripAnsi).find(l => l.includes('Test Files')) || '';
+            const body = [
+              '## Coverage',
+              coverageLine,
+              testLine.trim() ? `> ${testLine.trim()}` : '',
+            ].filter(Boolean).join('\n');
+
+            const {data: comments} = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.startsWith('## Coverage'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  test-headless:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack / Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.10.3 --activate
+
+      - name: Cache Yarn 4 artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .pnp.*
+            .yarn/install-state.gz
+          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            yarn-cache-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: yarn
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run headless browser tests
+        run: yarn test-headless

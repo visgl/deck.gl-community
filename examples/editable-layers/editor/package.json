@@ -9,18 +9,19 @@
   },
   "dependencies": {
     "@deck.gl-community/editable-layers": "workspace:*",
-    "@deck.gl/core": "~9.2.11",
-    "@deck.gl/layers": "~9.2.11",
-    "@deck.gl/react": "~9.2.11",
-    "@deck.gl/widgets": "~9.2.11",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
+    "@deck.gl-community/widgets": "workspace:*",
+    "@deck.gl/core": "~9.3.0-alpha.1",
+    "@deck.gl/layers": "~9.3.0-alpha.1",
+    "@deck.gl/react": "~9.3.0-alpha.1",
+    "@deck.gl/widgets": "~9.3.0-alpha.1",
     "maplibre-gl": "^4.1.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-map-gl": "^7.1.7"
   },
   "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "typescript": "^5.4.4",
     "vite": "^7.3.1"
   }

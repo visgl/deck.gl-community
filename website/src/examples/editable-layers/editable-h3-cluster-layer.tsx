@@ -10,4 +10,4 @@ export default makeImperativeExample({
     );
     return mountEditableH3ClusterLayerExample(container);
   }
-});
+}, {addInfoPanel: false});

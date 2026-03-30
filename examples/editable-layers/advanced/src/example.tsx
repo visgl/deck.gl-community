@@ -50,6 +50,7 @@ import {
   Color,
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
+import {BoxWidget, ColumnWidgetPanel, MarkdownWidgetPanel} from '@deck.gl-community/widgets';
 
 
 import sampleGeoJson from '../../data/sample-geojson.json';
@@ -64,6 +65,8 @@ import {
   ToolboxButton,
   ToolboxCheckbox
 } from './toolbox';
+
+import '@deck.gl/widgets/stylesheet.css';
 
 type RGBAColor = Color;
 const COMPOSITE_MODE = new CompositeMode([new DrawLineStringMode(), new ModifyMode()]);
@@ -219,6 +222,61 @@ function getEditHandleColor(handle: {}): RGBAColor {
   }
 }
 
+function getModeLabel(mode: unknown): string {
+  for (const category of ALL_MODES) {
+    const match = category.modes.find((modeOption) => modeOption.mode === mode);
+    if (match) {
+      return match.label;
+    }
+  }
+
+  if (typeof mode === 'function' && mode.name) {
+    return mode.name;
+  }
+
+  if (typeof mode === 'object' && mode && 'constructor' in mode) {
+    return (mode.constructor as {name?: string}).name ?? 'Custom';
+  }
+
+  return 'Custom';
+}
+
+function buildInfoPanel({
+  modeLabel,
+  featureCount,
+  selectedFeatureIndexes,
+  selectionTool,
+  showGeoJson
+}: {
+  modeLabel: string;
+  featureCount: number;
+  selectedFeatureIndexes: number[];
+  selectionTool?: string;
+  showGeoJson: boolean;
+}) {
+  return new ColumnWidgetPanel({
+    id: 'advanced-info-panel',
+    title: '',
+    panels: {
+      summary: new MarkdownWidgetPanel({
+        id: 'summary',
+        title: '',
+        markdown: [
+          'The full editable-layers sandbox with drawing, transform, snapping, measurement, and data-loading tools.',
+          '',
+          `- Mode: **${modeLabel}**`,
+          `- Features: **${featureCount}**`,
+          `- Selected: **${
+            selectedFeatureIndexes.length > 0 ? selectedFeatureIndexes.join(', ') : 'none'
+          }**`,
+          `- Selection tool: **${selectionTool ?? 'off'}**`,
+          `- GeoJSON panel: **${showGeoJson ? 'open' : 'closed'}**`
+        ].join('\n')
+      })
+    }
+  });
+}
+
 export function Example() {
   const [viewport, setViewport] = useState<Record<string, any>>(initialViewport);
   const [testFeatures, setTestFeatures] = useState<any>(sampleGeoJson);
@@ -230,6 +288,29 @@ export function Example() {
   const [selectionTool, setSelectionTool] = useState<string | undefined>(undefined);
   const [showGeoJson, setShowGeoJson] = useState<boolean>(false);
   const [featureMenu, setFeatureMenu] = useState<{index: number; x: number; y: number} | undefined>(undefined);
+  const infoWidget = React.useMemo(
+    () =>
+      new BoxWidget({
+        id: 'advanced-editable-layers-info',
+        placement: 'top-right',
+        widthPx: 360,
+        title: 'Advanced',
+        collapsible: false
+      }),
+    []
+  );
+
+  React.useEffect(() => {
+    infoWidget.setProps({
+      panel: buildInfoPanel({
+        modeLabel: getModeLabel(mode),
+        featureCount: Array.isArray(testFeatures?.features) ? testFeatures.features.length : 0,
+        selectedFeatureIndexes,
+        selectionTool,
+        showGeoJson
+      })
+    });
+  }, [infoWidget, mode, selectedFeatureIndexes, selectionTool, showGeoJson, testFeatures]);
 
   const getDefaultModeConfig = useCallback((mode: any) => {
     if (mode === DrawPolygonMode) {
@@ -1077,6 +1158,7 @@ export function Example() {
         viewState={currentViewport}
         getCursor={editableGeoJsonLayer.getCursor.bind(editableGeoJsonLayer)}
         layers={layers}
+        widgets={[infoWidget]}
         height="100%"
         width="100%"
         views={[

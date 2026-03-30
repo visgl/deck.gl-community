@@ -17,16 +17,6 @@ const sidebars = {
       id: 'index'
     },
     {
-      type: 'doc',
-      label: 'Scripting gallery',
-      id: 'gallery'
-    },
-    // {
-    //   type: 'doc',
-    //   label: 'Playground',
-    //   id: "playground"
-    // },
-    {
       type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
@@ -48,7 +38,8 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/timeline-layers',
       items: [
-        "timeline-layers/horizon-graph-layer"
+        "timeline-layers/horizon-graph-layer",
+        "timeline-layers/multi-horizon-graph-layer"
       ]
     },
     {
@@ -57,7 +48,7 @@ const sidebars = {
       items: [
         "editable-layers/getting-started",
         "editable-layers/editor",
-        "editable-layers/widget",
+        "editable-layers/editor-react",
         "editable-layers/advanced",
         "editable-layers/sf",
         "editable-layers/no-map",
@@ -99,6 +90,16 @@ const sidebars = {
         "leaflet/get-started"
       ]
     },
+    {
+      type: 'doc',
+      label: 'Scripting gallery',
+      id: 'gallery'
+    },
+    // {
+    //   type: 'doc',
+    //   label: 'Playground',
+    //   id: "playground"
+    // },
   ]
 };
 

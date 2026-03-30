@@ -14,6 +14,7 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 ## Documentation and release process
 - Follow the contribution flow in `docs/CONTRIBUTING.md` before landing breaking changes.
 - When adding or removing packages or examples, update any related documentation, sidebars, or release notes under `docs/`.
+- **Publishing:** Use `yarn publish-prod` (production) or `yarn publish-beta` (pre-release) to version packages. These run `ocular-publish version-only-prod` / `version-only-beta` which bump versions and create git tags. The actual NPM publish is handled by the `release` CI workflow, which triggers on `v*` tags pushed to `master` or `*-release` branches.
 
 ## Code style
 

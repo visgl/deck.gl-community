@@ -229,7 +229,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     const targetViewId = this.props.targetViewId ?? this.viewId;
     if (targetViewId && targetViewId !== viewport.id) return;
 
-    const viewState = this.getViewState(viewport);
+    const viewState = this.getViewportViewState(viewport);
     const zoomY = viewport.zoomY;
     this.currentZoom = zoomY;
 
@@ -313,7 +313,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     return deck.getViewports() as OrthographicViewport[];
   }
 
-  private getViewState(viewport: OrthographicViewport): OrthographicViewState {
+  private getViewportViewState(viewport: OrthographicViewport): OrthographicViewState {
     const deck = this.deck;
     const viewManager =
       deck && hasViewManager(deck) ? (deck as Deck & { viewManager?: any }).viewManager : null;
@@ -353,7 +353,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     }
 
     const { contentBounds } = this.props;
-    const viewState = this.getViewState(viewport);
+    const viewState = this.getViewportViewState(viewport);
     const zoomX = viewport.zoomX;
     const newViewState = { ...viewState, zoom: [zoomX, nextZoomY] };
     if (contentBounds) {

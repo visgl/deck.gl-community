@@ -9,4 +9,4 @@ export default makeImperativeExample({
       ({mountLeafletGetStartedExample}) => mountLeafletGetStartedExample(container),
     );
   },
-});
+}, {addInfoPanel: false});

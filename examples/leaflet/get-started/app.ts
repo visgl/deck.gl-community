@@ -1,7 +1,10 @@
 import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView, type PickingInfo} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
+import {BoxWidget, ColumnWidgetPanel, MarkdownWidgetPanel} from '@deck.gl-community/widgets';
 import * as L from 'leaflet';
+
+import '@deck.gl/widgets/stylesheet.css';
 import 'leaflet/dist/leaflet.css';
 
 // source: Natural Earth http://www.naturalearthdata.com/ via geojson.xyz
@@ -44,11 +47,37 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
       '© <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>, © <a href="http://www.openstreetmap.org/about/" target="_blank">OpenStreetMap</a> contributors',
   }).addTo(map);
 
+  const infoWidget = new BoxWidget({
+    id: 'leaflet-info',
+    placement: 'top-right',
+    widthPx: 320,
+    title: 'deck.gl with Leaflet',
+    collapsible: false,
+    panel: new ColumnWidgetPanel({
+      id: 'leaflet-info-panel',
+      title: '',
+      panels: {
+        summary: new MarkdownWidgetPanel({
+          id: 'summary',
+          title: '',
+          markdown: [
+            'Use Leaflet as the basemap while deck.gl renders airport points and connection arcs on top.',
+            '',
+            '- Basemap: **Carto Dark Matter**',
+            '- Overlay: **GeoJsonLayer + ArcLayer**',
+            '- Interaction: **hover tooltips and click details**'
+          ].join('\n')
+        })
+      }
+    })
+  });
+
   // Add deck.gl overlay
   const deckOverlay = new DeckOverlay({
     views: [
       new MapView({ repeat: true }),
     ],
+    widgets: [infoWidget],
     layers: [
       new GeoJsonLayer<NaturalEarthAirportFeature>({
         id: 'airports',

@@ -8,4 +8,4 @@ export default makeImperativeExample({
     const {mountSfExample} = await import('../../../../examples/editable-layers/sf/app');
     return mountSfExample(container);
   }
-});
+}, {addInfoPanel: false});

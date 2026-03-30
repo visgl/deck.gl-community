@@ -15,6 +15,5 @@ export function mountEditableLayersAdvancedExample(container: HTMLElement): () =
   root.render(<Example />);
   return () => {
     root.unmount();
-    container.replaceChildren();
   };
 }

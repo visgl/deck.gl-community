@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
+/** @jsxImportSource preact */
 
 import {render} from 'preact';
 import type {JSX} from 'preact';
@@ -75,7 +76,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
 
   placement: WidgetPlacement = 'top-left';
   className = 'deck-widget-zoom-range';
-  deck?: Deck | null = null;
+
   step: number;
   currentZoom = 0;
   inferredMinZoom: number | null = null;
@@ -109,7 +110,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   }
 
   override onRemove(): void {
-    this.deck = null;
+    this.deck = undefined;
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {
@@ -181,7 +182,7 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
   }
 
   override onViewportChange(viewport: Viewport): void {
-    const viewState = this.getViewState(viewport);
+    const viewState = this.getViewportViewState(viewport);
     const zoom = Number(viewState?.zoom);
     if (Number.isFinite(zoom)) {
       this.currentZoom = zoom;
@@ -232,28 +233,40 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
     return deck.getViewports();
   }
 
-  private getViewState(viewport: Viewport): any {
+  private getViewportViewState(viewport: Viewport): Record<string, unknown> {
     const deck = this.deck;
-    const viewManager = hasViewManager(deck) ? deck.viewManager : null;
-    const viewId = this.viewId || viewport.id;
-    if (viewManager) {
+    if (deck && hasViewManager(deck)) {
+      const viewId = this.viewId || viewport.id;
       try {
-        return {...viewManager.getViewState(viewId)};
-      } catch (err) {
-        return cloneViewState(viewManager.viewState);
+        return cloneViewState(deck.viewManager?.getViewState(viewId));
+      } catch {
+        return cloneViewState(deck.viewManager?.viewState);
       }
     }
+
     return cloneViewState(viewport);
+  }
+
+  private updateViewState(viewport: Viewport, nextViewState: Record<string, unknown>): void {
+    if (!this.deck) {
+      return;
+    }
+
+    const viewId = this.viewId || viewport.id || 'default-view';
+    // @ts-expect-error Using private method until a public alternative is available
+    this.deck._onViewStateChange({viewId, viewState: nextViewState, interactionState: {}});
   }
 
   private handleZoomDelta(delta: number) {
     const {minZoom, maxZoom} = this.getZoomBounds();
 
     for (const viewport of this.getTargetViewports()) {
-      const viewState = this.getViewState(viewport);
+      const viewState = this.getViewportViewState(viewport);
       const baseZoom = Number(viewState.zoom);
       const current = Number.isFinite(baseZoom) ? baseZoom : this.currentZoom;
       const nextZoom = Math.max(minZoom, Math.min(maxZoom, current + delta));
+      this.currentZoom = nextZoom;
+      this.updateHTML();
       this.updateViewState(viewport, {...viewState, zoom: nextZoom});
     }
   }
@@ -263,21 +276,10 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
     const nextZoom = Math.max(minZoom, Math.min(maxZoom, zoom));
 
     for (const viewport of this.getTargetViewports()) {
-      const viewState = this.getViewState(viewport);
+      const viewState = this.getViewportViewState(viewport);
+      this.currentZoom = nextZoom;
+      this.updateHTML();
       this.updateViewState(viewport, {...viewState, zoom: nextZoom});
     }
-  }
-
-  private updateViewState(viewport: Viewport, viewState: any) {
-    if (!this.deck) {
-      return;
-    }
-
-    const viewId = this.viewId || viewport.id || 'default-view';
-    this.currentZoom = Number(viewState.zoom) || this.currentZoom;
-    this.updateHTML();
-
-    // @ts-ignore Using private method until a public alternative is available
-    this.deck._onViewStateChange({viewId, viewState, interactionState: {}});
   }
 }

@@ -7,9 +7,9 @@
 import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
+  AccordeonWidgetPanel,
   BoxWidget,
   SidebarWidget,
-  ColumnWidgetPanel,
   CustomWidgetPanel,
   MarkdownWidgetPanel,
   PanWidget,
@@ -112,6 +112,7 @@ type GraphViewerState = {
   resolvedEngine: GraphEngine | null;
   viewState: ViewState;
   isSidebarOpen: boolean;
+  themeMode: 'light' | 'dark';
 };
 
 type GraphViewerRuntime = {
@@ -306,7 +307,8 @@ export function mountGraphViewerExample(
     loading: {...INITIAL_LOADING_STATE},
     resolvedEngine: null,
     viewState: {...INITIAL_VIEW_STATE},
-    isSidebarOpen: true
+    isSidebarOpen: true,
+    themeMode: 'light'
   };
 
   let deck: Deck | null = null;
@@ -314,10 +316,12 @@ export function mountGraphViewerExample(
   let isApplyingViewState = false;
 
   const panWidget = new PanWidget({
-    id: 'pan-widget'
+    id: 'pan-widget',
+    placement: 'bottom-left'
   });
   const zoomWidget = new ZoomRangeWidget({
     id: 'zoom-range-widget',
+    placement: 'bottom-left',
     minZoom: MIN_ZOOM,
     maxZoom: MAX_ZOOM
   });
@@ -331,7 +335,18 @@ export function mountGraphViewerExample(
     darkModeTheme: {
       ...DarkTheme
     }
-  });
+  }) as ThemeWidget & {
+    _setThemeMode: (themeMode: 'light' | 'dark') => void;
+    themeMode: 'light' | 'dark';
+  };
+  const originalSetThemeMode = themeWidget._setThemeMode.bind(themeWidget);
+  themeWidget._setThemeMode = (themeMode: 'light' | 'dark') => {
+    originalSetThemeMode(themeMode);
+    if (state.themeMode !== themeMode) {
+      state.themeMode = themeMode;
+      syncWidgets();
+    }
+  };
   const sidebarWidget = new SidebarWidget({
     id: 'graph-viewer-sidebar',
     placement: 'top-right',
@@ -352,7 +367,7 @@ export function mountGraphViewerExample(
   });
   const boxWidget = new BoxWidget({
     id: 'graph-viewer-box',
-    placement: 'bottom-left',
+    placement: 'top-left',
     widthPx: 360,
     title: getGraphViewerBoxTitle(options.graphType),
     panel: buildInfoBoxPanel(buildRuntime(state), state.selectedLayout)
@@ -454,7 +469,7 @@ export function mountGraphViewerExample(
     },
     viewState: toDeckViewState(state.viewState),
     layers: [],
-    widgets: [panWidget, zoomWidget, themeWidget, sidebarWidget, boxWidget]
+    widgets: [panWidget, zoomWidget, boxWidget, themeWidget, sidebarWidget]
   });
 
   applyState();
@@ -505,7 +520,7 @@ export function mountGraphViewerExample(
     });
     boxWidget.setProps({
       title: getGraphViewerBoxTitle(options.graphType),
-      panel: buildInfoBoxPanel(runtime, state.selectedLayout)
+      panel: buildInfoBoxPanel(runtime, state.selectedLayout, state.themeMode)
     });
     zoomWidget.setProps({minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM});
   }
@@ -952,16 +967,18 @@ function buildSidebarPanel(
     theme: 'invert'
   });
 
-  return new ColumnWidgetPanel({
+  return new AccordeonWidgetPanel({
     id: 'graph-viewer-sidebar-panels',
     title: '',
-    panels
+    panels,
+    defaultExpandedPanelIds: Object.values(panels).map((panel) => panel.id)
   });
 }
 
 function buildInfoBoxPanel(
   runtime: GraphViewerRuntime,
-  selectedLayout: LayoutType
+  selectedLayout: LayoutType,
+  themeMode: 'light' | 'dark'
 ): MarkdownWidgetPanel {
   const selectedLayoutLabel = LAYOUT_LABELS[selectedLayout] ?? selectedLayout;
   const markdown = [
@@ -974,7 +991,8 @@ function buildInfoBoxPanel(
   return new MarkdownWidgetPanel({
     id: 'graph-viewer-info',
     title: '',
-    markdown
+    markdown,
+    theme: themeMode
   });
 }
 

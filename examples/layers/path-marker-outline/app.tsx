@@ -4,6 +4,9 @@
 
 import {Deck, type MapViewState, type PickingInfo} from '@deck.gl/core';
 import {PathOutlineLayer, PathMarkerLayer} from '@deck.gl-community/layers';
+import {BoxWidget, MarkdownWidgetPanel} from '@deck.gl-community/widgets';
+
+import '@deck.gl/widgets/stylesheet.css';
 
 type TransitRoute = {
   name: string;
@@ -134,9 +137,26 @@ export function mountPathOutlineAndMarkersExample(container: HTMLElement): () =>
 
   const deck = new Deck({
     parent: rootElement,
+    width: '100%',
+    height: '100%',
     initialViewState: INITIAL_VIEW_STATE,
     controller: true,
     parameters: {clearColor: [0.96, 0.97, 1, 1]},
+    widgets: [
+      new BoxWidget({
+        id: 'path-outline-and-markers-info',
+        placement: 'top-left',
+        widthPx: 360,
+        title: 'Path Outline and Markers',
+        collapsible: false,
+        panel: new MarkdownWidgetPanel({
+          id: 'path-outline-and-markers-info-panel',
+          title: '',
+          markdown:
+            'Demonstrates `PathOutlineLayer` for outlined dashed routes and `PathMarkerLayer` for directional markers along transit lines.\n\nHover a path to inspect each route or trail.'
+        })
+      })
+    ],
     layers: [
       new PathOutlineLayer<WaterfrontSegment>({
         id: 'trail-outlines',

@@ -59,8 +59,6 @@ in float outline_vzLevel;
 // in vec2 outline_vUV;
 in vec4 outline_vPosition;
 
-out vec4 fragColor;
-
 const float OUTLINE_Z_LEVEL_ERROR = 0.01;
 
 // Return a darker color in shadowmap
@@ -73,12 +71,12 @@ vec4 outline_filterDarkenColor(vec4 color) {
   if (outline_uEnabled) {
     float maxZLevel;
     if (outline_vPosition.q > 0.0) {
-      maxZLevel = texture2DProj(outline_uShadowmap, outline_vPosition).r * 255.;
+      maxZLevel = textureProj(outline_uShadowmap, outline_vPosition).r * 255.;
     } else {
       discard;
     }
     if (maxZLevel < outline_vzLevel + OUTLINE_Z_LEVEL_ERROR) {
-      vec4(color.rgb * 0.5, color.a);
+      return vec4(color.rgb * 0.5, color.a);
     } else {
       discard;
     }

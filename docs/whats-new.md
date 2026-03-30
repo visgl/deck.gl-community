@@ -6,6 +6,8 @@ deck.gl versions.
 
 ## v9.3 - In planning
 
+<img src="/images/icon-no-react.svg" alt="No React example UI initiative" width="72" align="right" />
+
 Some inofficial wishlist and roadmap type information is available in github trackers:
 
 - **`@deck.gl-community/editable-layers`** 
@@ -14,6 +16,9 @@ Some inofficial wishlist and roadmap type information is available in github tra
   - [Tracker](https://github.com/visgl/deck.gl-community/issues/78)
 - **`@deck.gl-community/infovis-layers`**
   - Goal: Some of the improved support for (non-geospatial) views etc should be upstreamed into deck.gl v9.3.
+
+Website and examples:
+- More example UIs are being moved away from React-owned sidebars and page-level info components toward deck.gl widget panels and `InfoBox`-style overlays.
 
 ## v9.2
 
@@ -27,9 +32,16 @@ Released: February 20, 2026
 - New `@deck.gl-community/widgets` module with unofficial deck.gl UI widgets.
 - New `@deck.gl-community/timeline-layers` module for time-series visualization.
 
-### `@deck.gl-community/three`
+### `@deck.gl-community/three` (NEW module)
 
-- `TreeLayer` - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
+  - 5 species / silhouettes: pine, oak, palm, birch, cherry.
+  - Organic canopy geometry with smooth low-frequency vertex jitter.
+  - Per-tree variety via position-derived random bearing and asymmetric XY scale.
+  - Season-driven canopy colours (spring / summer / autumn / winter).
+  - Pine tier density control (`getBranchLevels` 1–5) with per-tier drift.
+  - Crop / fruit / flower visualisation (`getCrop`) with live and dropped crop spheres.
+  - [Wild Forest example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/wild-forest) with 9 forest zones and interactive controls.
 
 ### `@deck.gl-community/widgets` (NEW module)
 

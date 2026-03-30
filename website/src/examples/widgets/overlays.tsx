@@ -6,4 +6,4 @@ export default makeImperativeExample({
   title: 'Overlays',
   code: `${GITHUB_TREE}/examples/widgets/overlays`,
   mount: mountOverlaysExample,
-});
+}, {addInfoPanel: false});
