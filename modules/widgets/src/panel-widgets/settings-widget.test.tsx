@@ -105,7 +105,7 @@ describe('SettingsWidgetPanel', () => {
     visibilityToggle.click();
     await Promise.resolve();
 
-    const checkbox = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const checkbox = root.querySelector('input[type="checkbox"]');
     expect(checkbox.checked).toBe(true);
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('input', { bubbles: true }));
@@ -117,7 +117,7 @@ describe('SettingsWidgetPanel', () => {
       }),
     );
 
-    const numberInput = root.querySelector('input[type="number"]') as HTMLInputElement;
+    const numberInput = root.querySelector('input[type="number"]');
     numberInput.value = '2';
     numberInput.dispatchEvent(new Event('change', { bubbles: true }));
     await Promise.resolve();
@@ -131,7 +131,7 @@ describe('SettingsWidgetPanel', () => {
     modeToggle.click();
     await Promise.resolve();
 
-    const select = root.querySelector('select') as HTMLSelectElement;
+    const select = root.querySelector('select');
     select.value = 'critical-path';
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await Promise.resolve();
@@ -147,11 +147,11 @@ describe('SettingsWidgetPanel', () => {
 
   it('uses deck widget theme CSS variables for the settings controls', async () => {
     const { root, cleanup } = renderSettingsPanel();
-    const sectionToggle = root.querySelector('button[aria-expanded]') as HTMLButtonElement;
+    const sectionToggle = root.querySelector('button[aria-expanded]');
     sectionToggle.click();
     await Promise.resolve();
 
-    const numberInput = root.querySelector('input[type="number"]') as HTMLInputElement;
+    const numberInput = root.querySelector('input[type="number"]');
     expect(numberInput.getAttribute('style')).toContain('var(--button-backdrop-filter');
 
     cleanup();
@@ -168,7 +168,7 @@ describe('SettingsWidgetPanel', () => {
     visibilityToggle.click();
     await Promise.resolve();
 
-    const checkbox = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const checkbox = root.querySelector('input[type="checkbox"]');
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('input', { bubbles: true }));
     await Promise.resolve();
@@ -202,7 +202,7 @@ describe('SettingsWidgetPanel', () => {
     expect(root.textContent?.match(/Visibility/g)).toHaveLength(1);
     expect(root.textContent).toContain('Mode');
 
-    const checkbox = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const checkbox = root.querySelector('input[type="checkbox"]');
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('input', { bubbles: true }));
     await Promise.resolve();
@@ -236,13 +236,13 @@ describe('SettingsWidgetPanel', () => {
 
     const visibilityButton = Array.from(root.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Visibility'),
-    ) as HTMLButtonElement | undefined;
+    );
     visibilityButton?.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     await Promise.resolve();
 
     expect(root.textContent?.match(/Visibility/g)).toHaveLength(1);
 
-    const checkbox = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const checkbox = root.querySelector('input[type="checkbox"]');
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('input', { bubbles: true }));
     await Promise.resolve();

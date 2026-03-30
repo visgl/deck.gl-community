@@ -46,10 +46,10 @@ describe('OmniBoxWidget', () => {
     expect(styles?.textContent).toContain('var(--menu-shadow');
     expect(styles?.textContent).toContain('var(--menu-item-hover');
 
-    const controls = root.querySelector('[data-omni-box-controls="true"]') as HTMLDivElement;
+    const controls = root.querySelector('[data-omni-box-controls="true"]');
     expect(controls.getAttribute('style') || '').toContain('var(--button-shadow');
 
-    const input = root.querySelector('input[aria-label="OmniBox"]') as HTMLInputElement;
+    const input = root.querySelector('input[aria-label="OmniBox"]');
     expect(input.getAttribute('style') || '').toContain('var(--button-backdrop-filter');
     expect(input.getAttribute('style') || '').toContain('var(--button-inner-stroke');
 

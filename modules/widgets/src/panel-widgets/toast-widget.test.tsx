@@ -58,7 +58,7 @@ describe('ToastWidget', () => {
 
     const closeButton = root.querySelector(
       `[data-toast-close="${id}"]`,
-    ) as HTMLButtonElement | null;
+    );
     expect(closeButton).toBeTruthy();
     closeButton?.click();
 
@@ -87,7 +87,7 @@ describe('ToastWidget', () => {
     const { root, cleanup } = mountToastWidget();
 
     toastManager.toast({ type: 'info', message: 'Width-safe toast' });
-    const stack = root.querySelector('.deck-widget-toast-stack') as HTMLDivElement | null;
+    const stack = root.querySelector('.deck-widget-toast-stack');
 
     expect(stack).toBeTruthy();
     expect(root.getAttribute('style') || '').toContain('width: 360px');
@@ -97,7 +97,7 @@ describe('ToastWidget', () => {
     expect(root.getAttribute('style') || '').toContain('bottom: 0px');
     expect(root.getAttribute('style') || '').toContain('right: 0px');
 
-    const card = root.querySelector('[data-toast-id]') as HTMLDivElement | null;
+    const card = root.querySelector('[data-toast-id]');
     expect(card?.getAttribute('style') || '').toContain('width: 100%');
     expect(card?.getAttribute('style') || '').toContain('min-width: 0');
 

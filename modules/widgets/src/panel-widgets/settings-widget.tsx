@@ -190,7 +190,7 @@ function StringSettingControl({ inputId, label, value, onApply }: StringSettingC
   }, [value]);
 
   const handlePendingTextChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    setPendingValue((event.currentTarget as HTMLInputElement).value);
+    setPendingValue((event.currentTarget).value);
   };
 
   const applyPendingText = () => {
@@ -258,7 +258,7 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
   const inputId = `settings-widget-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
   const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    onValueChange((event.currentTarget as HTMLInputElement).checked);
+    onValueChange((event.currentTarget).checked);
   };
 
   const handleNumberChange = (nextValue: number) => {
@@ -269,7 +269,7 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
   };
 
   const handleSelectChange: JSX.GenericEventHandler<HTMLSelectElement> = (event) => {
-    const selectedRaw = (event.currentTarget as HTMLSelectElement).value;
+    const selectedRaw = (event.currentTarget).value;
     const selectedValue = (setting.options ?? []).map(normalizeOption).find((option) => {
       return String(option.value) === selectedRaw;
     });
@@ -306,10 +306,10 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
           onInput={(event) =>
-            handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+            handleNumberChange(Number((event.currentTarget).value))
           }
           onChange={(event) =>
-            handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+            handleNumberChange(Number((event.currentTarget).value))
           }
           aria-label={label}
           style={RANGE_INPUT_STYLE}
@@ -321,10 +321,10 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
           onInput={(event) =>
-            handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+            handleNumberChange(Number((event.currentTarget).value))
           }
           onChange={(event) =>
-            handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+            handleNumberChange(Number((event.currentTarget).value))
           }
           aria-label={`${label} numeric value`}
           style={NUMBER_INPUT_STYLE}
@@ -337,10 +337,10 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
         step={String(setting.step ?? 1)}
         value={String(numericValue)}
         onInput={(event) =>
-          handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+          handleNumberChange(Number((event.currentTarget).value))
         }
         onChange={(event) =>
-          handleNumberChange(Number((event.currentTarget as HTMLInputElement).value))
+          handleNumberChange(Number((event.currentTarget).value))
         }
         aria-label={label}
         style={INPUT_STYLE}

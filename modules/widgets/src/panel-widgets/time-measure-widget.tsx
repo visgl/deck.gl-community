@@ -89,7 +89,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     }
     // @ts-expect-error accessing protected member
     // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
-    const eventManager = deck?.eventManager!;
+    const eventManager = deck?.eventManager;
     this.#attachEventListeners(eventManager);
     return this.onCreateRootElement();
   }
@@ -321,7 +321,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     }
     if (info.coordinate && Number.isFinite(info.coordinate[0])) {
       if (!projectionViewport.id || info.viewport?.id === projectionViewport.id) {
-        return info.coordinate[0] as number;
+        return info.coordinate[0];
       }
     }
     const center = (event as any).offsetCenter ?? (event as any).center;

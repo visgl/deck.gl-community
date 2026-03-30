@@ -465,7 +465,7 @@ function OmniBoxWidgetView({
 
   const handleInput: JSX.GenericEventHandler<HTMLInputElement> = useCallback((event) => {
     stopEventPropagation(event as unknown as Event);
-    setQuery((event.currentTarget as HTMLInputElement).value);
+    setQuery((event.currentTarget).value);
     setIsFocused(true);
   }, []);
 
