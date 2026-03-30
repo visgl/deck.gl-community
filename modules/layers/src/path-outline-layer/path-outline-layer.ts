@@ -5,9 +5,8 @@
 import type {PathLayerProps} from '@deck.gl/layers';
 import {PathLayer} from '@deck.gl/layers';
 import type {DefaultProps, LayerContext} from '@deck.gl/core';
-import {GL} from '@luma.gl/constants';
 import {Framebuffer} from '@luma.gl/core';
-import type {RenderPipelineParameters} from '@luma.gl/core';
+import type {RenderPipelineParameters, Texture} from '@luma.gl/core';
 import {outline} from './outline';
 
 /**
@@ -89,30 +88,65 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
   initializeState(context: LayerContext) {
     super.initializeState();
 
+    const attributeManager = this.getAttributeManager();
+
+    if (!attributeManager) {
+      throw new Error('PathOutlineLayer requires an attribute manager during initialization.');
+    }
+
     // Create an outline "shadow" map
     // TODO - we should create a single outlineMap for all layers
     const outlineFramebuffer = context.device.createFramebuffer({
-      colorAttachments: ['rgba8unorm']
+      colorAttachments: [
+        context.device.createTexture({
+          format: 'rgba8unorm',
+          width: 1,
+          height: 1,
+          mipLevels: 1
+        })
+      ]
     });
 
-    this.setState({
-      outlineFramebuffer
-    });
-
-    // Create an attribute manager
-    // @ts-expect-error check whether this.getAttributeManager works here
-    this.state.attributeManager.addInstanced({
+    attributeManager.addInstanced({
       instanceZLevel: {
         size: 1,
-        type: GL.UNSIGNED_BYTE,
+        type: 'uint8',
         accessor: 'getZLevel'
       }
     });
+
+    this.setState({
+      outlineFramebuffer,
+      model: this._getModel()
+    });
+  }
+
+  finalizeState(context: LayerContext) {
+    this.state.outlineFramebuffer?.destroy();
+    super.finalizeState(context);
   }
 
   // Override draw to add render module
-  draw({moduleParameters = {}, parameters, uniforms, context}) {
-    // Need to calculate same uniforms as base layer
+  draw() {
+    const model = this.state.model;
+    const outlineFramebuffer = this.state.outlineFramebuffer;
+
+    if (!model || !outlineFramebuffer) {
+      return;
+    }
+
+    const viewport = this.context.viewport;
+    const viewportWidth = Math.max(1, Math.ceil(viewport.width));
+    const viewportHeight = Math.max(1, Math.ceil(viewport.height));
+
+    outlineFramebuffer.resize({width: viewportWidth, height: viewportHeight});
+
+    const shadowmapTexture = getFramebufferTexture(outlineFramebuffer);
+
+    if (!shadowmapTexture) {
+      return;
+    }
+
     const {
       jointRounded,
       capRounded,
@@ -124,7 +158,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
       widthMaxPixels
     } = this.props;
 
-    uniforms = Object.assign({}, uniforms, {
+    const basePathProps = {
       jointType: Number(jointRounded),
       capType: Number(capRounded),
       billboard,
@@ -133,58 +167,57 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
       miterLimit,
       widthMinPixels,
       widthMaxPixels
-    });
+    };
 
     // Render the outline shadowmap (based on segment z orders)
-    const {outlineFramebuffer} = this.state;
-
-    if (context?.viewport) {
-      const viewportWidth = Math.max(1, Math.ceil(context.viewport.width));
-      const viewportHeight = Math.max(1, Math.ceil(context.viewport.height));
-
-      outlineFramebuffer.resize({width: viewportWidth, height: viewportHeight});
-    } else {
-      outlineFramebuffer.resize();
-    }
-
-    const shadowmapTexture = outlineFramebuffer.colorAttachments[0]?.texture;
-
-    if (!shadowmapTexture) {
-      return;
-    }
-    // TODO(v9): resize, see 'sf' example.
-    // outlineFramebuffer.resize();
-    // TODO(v9) clear FBO
-    // outlineFramebuffer.clear({ color: true, depth: true, stencil: true });
-
-    this.state.model.updateModuleSettings({
-      outlineEnabled: true,
-      outlineRenderShadowmap: true,
-      outlineShadowmap: shadowmapTexture
+    this.setShaderModuleProps({
+      outline: {
+        outlineEnabled: true,
+        outlineRenderShadowmap: true,
+        outlineShadowmap: shadowmapTexture
+      }
     });
-
-    this.state.model.draw({
-      uniforms: Object.assign({}, uniforms, {
+    model.shaderInputs.setProps({
+      path: {
+        ...basePathProps,
         jointType: 0,
-        widthScale: this.props.widthScale * 1.3
-      }),
-      parameters: OUTLINE_SHADOWMAP_PARAMETERS,
-      framebuffer: outlineFramebuffer
+        widthScale: widthScale * 1.3
+      }
     });
+    model.setParameters(OUTLINE_SHADOWMAP_PARAMETERS);
+    const shadowRenderPass = this.context.device.beginRenderPass({
+      id: `${this.props.id}-outline-shadowmap`,
+      framebuffer: outlineFramebuffer,
+      parameters: {viewport: [0, 0, viewportWidth, viewportHeight]},
+      clearColor: [0, 0, 0, 0],
+      clearDepth: 1,
+      clearStencil: 0
+    });
+    model.draw(shadowRenderPass);
+    shadowRenderPass.end();
 
     // Now use the outline shadowmap to render the lines (with outlines)
-    this.state.model.updateModuleSettings({
-      outlineEnabled: true,
-      outlineRenderShadowmap: false,
-      outlineShadowmap: shadowmapTexture
+    this.setShaderModuleProps({
+      outline: {
+        outlineEnabled: true,
+        outlineRenderShadowmap: false,
+        outlineShadowmap: shadowmapTexture
+      }
     });
-    this.state.model.draw({
-      uniforms: Object.assign({}, uniforms, {
-        jointType: Number(jointRounded),
-        capType: Number(capRounded),
-        widthScale: this.props.widthScale
-      }),
-      parameters: OUTLINE_RENDER_PARAMETERS
+    model.shaderInputs.setProps({
+      path: basePathProps
     });
+    model.setParameters(OUTLINE_RENDER_PARAMETERS);
+    model.draw(this.context.renderPass);
   }
+}
+
+function getFramebufferTexture(framebuffer: Framebuffer): Texture | null {
+  const colorAttachment = framebuffer.colorAttachments[0];
+
+  if (!colorAttachment) {
+    return null;
+  }
+
+  return 'texture' in colorAttachment ? colorAttachment.texture : colorAttachment;
 }

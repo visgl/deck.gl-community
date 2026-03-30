@@ -7,12 +7,13 @@ import {createRoot} from 'react-dom/client';
 
 import {Example} from './example';
 
-const container = document.createElement('div');
-
-if (document.body) {
-  document.body.style.margin = '0';
-  document.body.appendChild(container);
-
+/**
+ * Mounts the editable-layers advanced example.
+ */
+export function mountEditableLayersAdvancedExample(container: HTMLElement): () => void {
   const root = createRoot(container);
   root.render(<Example />);
+  return () => {
+    root.unmount();
+  };
 }

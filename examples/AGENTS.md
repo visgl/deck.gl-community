@@ -7,7 +7,10 @@ This file supplements `/AGENTS.md` for everything under `examples/`.
 - Use the optional `start-local` script (when defined) to alias workspace modules through `examples/vite.config.local.mjs` for rapid iteration against local package changes.
 
 ## Authoring conventions
-- Keep example entry points in `src/example.tsx` (or `index.tsx` for legacy folders) and export an `App` component so the website embedding utilities can import it.
+- Prefer imperative examples that export a named `mount...Example(container, options?) => cleanup` function and own their runtime without React.
+- Keep standalone workspace entry points thin: find `#app`, size it, and call the example's `mount...Example(...)`.
+- Docusaurus wrappers should use `makeImperativeExample(...)` when an example exposes a mount function.
+- Legacy React `App` components are tolerated only for examples that have not been migrated yet.
 - Mirror new examples in `website/src/examples-sidebar.js` to make them visible on the docs site.
 
 ## Pitfalls and references

@@ -19,8 +19,14 @@
     <body>
         <div id="map"></div>
         <script type="module">
-            import {exampleApplication} from './app.ts';
-            exampleApplication();
+            import {mountBingMapsGetStartedExample} from './app.ts';
+
+            const container = document.getElementById('map');
+            if (!(container instanceof HTMLElement)) {
+              throw new Error('Unable to find #map container');
+            }
+
+            mountBingMapsGetStartedExample(container);
         </script>
     </body>
 </html>

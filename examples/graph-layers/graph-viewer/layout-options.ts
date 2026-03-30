@@ -26,7 +26,7 @@ export type LayoutType =
 
 export type ExampleStyles = GraphStylesheet;
 
-export type ExampleGraphData = {nodes: unknown[]; edges: unknown[]};
+export type ExampleGraphData = {nodes: Record<string, unknown>[]; edges: Record<string, unknown>[]};
 
 export type ExampleMetadata = {
   nodeCount?: number;
@@ -89,16 +89,35 @@ const NUMBER_FALLBACK = (value: unknown, fallback: number): number => {
   return Number.isFinite(numericValue) ? numericValue : fallback;
 };
 
-export const D3_FORCE_DEFAULT_OPTIONS = D3ForceLayout.defaultProps;
-export const GPU_FORCE_DEFAULT_OPTIONS = GPUForceLayout.defaultProps;
-export const FORCE_MULTI_GRAPH_DEFAULT_OPTIONS = ForceMultiGraphLayout.defaultProps;
+export const D3_FORCE_DEFAULT_OPTIONS = {
+  alpha: D3ForceLayout.defaultProps.alpha,
+  resumeAlpha: D3ForceLayout.defaultProps.resumeAlpha,
+  nBodyStrength: D3ForceLayout.defaultProps.nBodyStrength,
+  nBodyDistanceMin: D3ForceLayout.defaultProps.nBodyDistanceMin,
+  nBodyDistanceMax: D3ForceLayout.defaultProps.nBodyDistanceMax,
+  getCollisionRadius: D3ForceLayout.defaultProps.getCollisionRadius
+} as const;
+export const GPU_FORCE_DEFAULT_OPTIONS = {
+  alpha: GPUForceLayout.defaultProps.alpha,
+  resumeAlpha: GPUForceLayout.defaultProps.resumeAlpha,
+  nBodyStrength: GPUForceLayout.defaultProps.nBodyStrength,
+  nBodyDistanceMin: GPUForceLayout.defaultProps.nBodyDistanceMin,
+  nBodyDistanceMax: GPUForceLayout.defaultProps.nBodyDistanceMax,
+  getCollisionRadius: GPUForceLayout.defaultProps.getCollisionRadius
+} as const;
+export const FORCE_MULTI_GRAPH_DEFAULT_OPTIONS = {
+  alpha: ForceMultiGraphLayout.defaultProps.alpha,
+  nBodyStrength: ForceMultiGraphLayout.defaultProps.nBodyStrength,
+  nBodyDistanceMin: ForceMultiGraphLayout.defaultProps.nBodyDistanceMin,
+  nBodyDistanceMax: ForceMultiGraphLayout.defaultProps.nBodyDistanceMax
+} as const;
 export const RADIAL_DEFAULT_OPTIONS = {
   radius: RadialLayout.defaultProps.radius
-} as const;
+};
 export const HIVE_PLOT_DEFAULT_OPTIONS = {
   innerRadius: HivePlotLayout.defaultProps.innerRadius,
   outerRadius: HivePlotLayout.defaultProps.outerRadius
-} as const;
+};
 export const DAG_DEFAULT_OPTIONS = D3DagLayout.defaultProps;
 
 export type ForceLayoutNumericKey = keyof typeof D3_FORCE_DEFAULT_OPTIONS;

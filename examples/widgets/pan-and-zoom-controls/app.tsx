@@ -2,40 +2,61 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {useMemo} from 'react';
-import DeckGL from '@deck.gl/react';
-import {OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
+import {
+  BoxWidget,
+  MarkdownWidgetPanel,
+  PanWidget,
+  ZoomRangeWidget
+} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
+type PointDatum = {
+  position: [number, number];
+  color: [number, number, number, number];
+};
+
 const INITIAL_VIEW_STATE = {
-  target: [0, 0],
+  target: [0, 0] as [number, number],
   zoom: 0
+};
+
+const VIEW = new OrthographicView({id: 'ortho'});
+
+const ROOT_STYLE = {
+  position: 'relative',
+  width: '100%',
+  height: '100%',
+  minHeight: '100%'
 } as const;
 
-const view = new OrthographicView({id: 'ortho'});
+const POINTS = buildPoints();
 
-export function App() {
-  const data = useMemo(() => {
-    const points: {position: [number, number]; color: [number, number, number, number]}[] = [];
-    const size = 10;
-    for (let x = -size; x <= size; x++) {
-      for (let y = -size; y <= size; y++) {
-        const distance = Math.sqrt(x * x + y * y);
-        const intensity = Math.max(0, 1 - distance / size);
-        points.push({
-          position: [x * 20, y * 20],
-          color: [255 * intensity, 128 + 80 * intensity, 200, 200]
-        });
-      }
-    }
-    return points;
-  }, []);
+export function mountPanAndZoomControlsExample(container: HTMLElement): () => void {
+  const rootElement = container.ownerDocument.createElement('div');
+  applyElementStyle(rootElement, ROOT_STYLE);
+  container.replaceChildren(rootElement);
 
-  const widgets = useMemo(
-    () => [
+  const deck = new Deck({
+    parent: rootElement,
+    views: VIEW,
+    initialViewState: INITIAL_VIEW_STATE,
+    controller: {dragMode: 'pan'},
+    layers: [
+      new ScatterplotLayer<PointDatum>({
+        id: 'points',
+        data: POINTS,
+        getPosition: (point) => point.position,
+        getFillColor: (point) => point.color,
+        radiusMinPixels: 4,
+        radiusMaxPixels: 12,
+        radiusUnits: 'pixels',
+        pickable: false
+      })
+    ],
+    widgets: [
       new PanWidget({
         style: {margin: '16px 0 0 16px'}
       }),
@@ -44,55 +65,56 @@ export function App() {
         minZoom: -3,
         maxZoom: 6,
         step: 0.1
+      }),
+      new BoxWidget({
+        id: 'pan-and-zoom-info',
+        placement: 'top-right',
+        widthPx: 320,
+        title: 'Pan & Zoom Widgets',
+        panel: new MarkdownWidgetPanel({
+          id: 'summary',
+          title: '',
+          markdown: [
+            'Use the navigation pad and slider to explore this abstract scatterplot.',
+            '',
+            "The controls update the view state directly through deck.gl's widget API, making them reusable outside geospatial maps."
+          ].join('\n')
+        })
       })
-    ],
-    []
-  );
+    ]
+  });
 
-  const layers = useMemo(
-    () => [
-      new ScatterplotLayer({
-        id: 'points',
-        data,
-        getPosition: (d) => d.position,
-        getFillColor: (d) => d.color,
-        radiusMinPixels: 4,
-        radiusMaxPixels: 12,
-        radiusUnits: 'pixels',
-        pickable: false
-      })
-    ],
-    [data]
-  );
+  return () => {
+    deck.finalize();
+    rootElement.remove();
+    container.replaceChildren();
+  };
+}
 
-  return (
-    <DeckGL
-      views={view}
-      initialViewState={INITIAL_VIEW_STATE}
-      controller={{dragMode: 'pan'}}
-      layers={layers}
-      widgets={widgets}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          right: 16,
-          top: 16,
-          maxWidth: 320,
-          padding: '12px 16px',
-          background: 'rgba(255, 255, 255, 0.9)',
-          borderRadius: '8px',
-          fontFamily: 'var(--ifm-font-family-base, sans-serif)',
-          lineHeight: 1.5
-        }}
-      >
-        <h3 style={{margin: '0 0 8px'}}>Pan &amp; Zoom Widgets</h3>
-        <p style={{margin: 0}}>
-          Use the navigation pad and slider to explore this abstract scatterplot. The controls update the
-          view state directly through deck.gl&apos;s widget API, making them reusable outside geospatial
-          maps.
-        </p>
-      </div>
-    </DeckGL>
-  );
+function applyElementStyle(element: HTMLElement, style: Record<string, string>) {
+  for (const [key, value] of Object.entries(style)) {
+    element.style.setProperty(camelCaseToKebabCase(key), value);
+  }
+}
+
+function buildPoints(): PointDatum[] {
+  const points: PointDatum[] = [];
+  const size = 10;
+
+  for (let x = -size; x <= size; x++) {
+    for (let y = -size; y <= size; y++) {
+      const distance = Math.sqrt(x * x + y * y);
+      const intensity = Math.max(0, 1 - distance / size);
+      points.push({
+        position: [x * 20, y * 20],
+        color: [255 * intensity, 128 + 80 * intensity, 200, 200]
+      });
+    }
+  }
+
+  return points;
+}
+
+function camelCaseToKebabCase(value: string) {
+  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
 }

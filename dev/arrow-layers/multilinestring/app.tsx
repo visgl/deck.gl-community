@@ -2,12 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useState, useEffect} from 'react';
-import {createRoot} from 'react-dom/client';
-import {StaticMap, MapContext, NavigationControl} from 'react-map-gl';
-import DeckGL, {Layer} from 'deck.gl';
 import {GeoArrowPathLayer} from '@deck.gl-community/arrow-layers';
-import * as arrow from 'apache-arrow';
+import {mountGeoArrowMapExample} from '../mount-geoarrow-map-example';
 
 const GEOARROW_MULTILINESTRING_DATA = 'http://localhost:8080/ne_10m_roads_north_america.feather';
 
@@ -17,13 +13,6 @@ const INITIAL_VIEW_STATE = {
   zoom: 4,
   bearing: 0,
   pitch: 0
-};
-
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json';
-const NAV_CONTROL_STYLE = {
-  position: 'absolute',
-  top: 10,
-  left: 10
 };
 
 // https://colorbrewer2.org/#type=sequential&scheme=PuBuGn&n=9
@@ -39,28 +28,14 @@ const COLORS_LOOKUP = {
   '11': [1, 70, 54]
 };
 
-function Root() {
-  const [table, setTable] = useState<arrow.Table | null>(null);
-
-  useEffect(() => {
-    // declare the data fetching function
-    const fetchData = async () => {
-      const data = await fetch(GEOARROW_MULTILINESTRING_DATA);
-      const buffer = await data.arrayBuffer();
-      const table = arrow.tableFromIPC(buffer);
-      console.log(table);
-      setTable(table);
-    };
-
-    if (!table) {
-      fetchData().catch(console.error);
-    }
-  });
-
-  const layers: Layer[] = [];
-
-  table &&
-    layers.push(
+/**
+ * Mounts the GeoArrow MultiLineString example.
+ */
+export function mountGeoArrowMultiLineStringExample(container: HTMLElement): () => void {
+  return mountGeoArrowMapExample(container, {
+    dataUrl: GEOARROW_MULTILINESTRING_DATA,
+    initialViewState: INITIAL_VIEW_STATE,
+    getLayers: (table) => [
       new GeoArrowPathLayer({
         id: 'geoarrow-path',
         data: table,
@@ -72,22 +47,6 @@ function Root() {
         widthMinPixels: 0.8,
         pickable: true
       })
-    );
-
-  return (
-    <DeckGL
-      initialViewState={INITIAL_VIEW_STATE}
-      controller={true}
-      layers={layers}
-      // @ts-expect-error
-      ContextProvider={MapContext.Provider}
-    >
-      <StaticMap mapStyle={MAP_STYLE} />
-      <NavigationControl style={NAV_CONTROL_STYLE} />
-    </DeckGL>
-  );
+    ]
+  });
 }
-
-/* global document */
-const container = document.body.appendChild(document.createElement('div'));
-createRoot(container).render(<Root />);

@@ -1,27 +1,16 @@
-import React, {Component} from 'react';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-
 import {GITHUB_TREE} from '../../constants/defaults';
-import {default as ExampleApp} from '../../../../examples/layers/path-marker-outline/app';
+import {makeImperativeExample} from '../../components';
 
-import {makeExample} from '../../components';
-
-class PathOutlineAndMarkersDemo extends Component {
-  static title = 'Path outline and marker';
-
-  static code = `${GITHUB_TREE}/examples/layers/path-marker-outline`;
-
-  static renderInfo() {
-    return <></>;
-  }
-
-  render() {
-    const {...otherProps} = this.props;
-
-    return (
-      <BrowserOnly>{() => <ExampleApp {...otherProps} />}</BrowserOnly>
-    );
-  }
-}
-
-export default makeExample(PathOutlineAndMarkersDemo, {addInfoPanel: false});
+export default makeImperativeExample(
+  {
+    title: 'Path outline and marker',
+    code: `${GITHUB_TREE}/examples/layers/path-marker-outline`,
+    async mount(container) {
+      const {mountPathOutlineAndMarkersExample} = await import(
+        '../../../../examples/layers/path-marker-outline/app'
+      );
+      return mountPathOutlineAndMarkersExample(container);
+    }
+  },
+  {addInfoPanel: false}
+);

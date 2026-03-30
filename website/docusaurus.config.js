@@ -42,6 +42,7 @@ const config = {
         theme: {
           customCss: [
             resolve('./src/styles.css'),
+            resolve('../node_modules/@deck.gl/widgets/src/stylesheet.css'),
             resolve('./node_modules/maplibre-gl/dist/maplibre-gl.css')
           ]
         }
@@ -108,6 +109,9 @@ const config = {
             '@deck.gl/react': resolve('../node_modules/@deck.gl/react'),
             '@luma.gl': resolve('../node_modules/@luma.gl'),
             '@math.gl': resolve('../node_modules/@math.gl'),
+            // Force the hoisted ESM entry. Webpack otherwise resolves to the
+            // package's UMD main, which breaks default imports in vis.gl S2 code.
+            long: resolve('../node_modules/long/index.js'),
             '@loaders.gl/csv': resolve('node_modules/@loaders.gl/csv'),
             '@loaders.gl/json': resolve('node_modules/@loaders.gl/json'),
             '@loaders.gl/i3s': resolve('node_modules/@loaders.gl/i3s'),

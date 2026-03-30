@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React from 'react';
-import {createRoot} from 'react-dom/client';
-
-import {App} from './app';
+import {mountPanAndZoomControlsExample} from './app';
 
 const container = document.getElementById('app');
-if (!container) {
+if (!(container instanceof HTMLElement)) {
   throw new Error('Unable to find #app container');
 }
 
-const root = createRoot(container);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+document.documentElement.style.height = '100%';
+document.body.style.margin = '0';
+document.body.style.height = '100%';
+container.style.width = '100vw';
+container.style.height = '100vh';
+
+mountPanAndZoomControlsExample(container);

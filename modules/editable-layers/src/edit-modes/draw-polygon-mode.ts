@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {lineIntersect} from '@turf/line-intersect';
+import lineIntersect from '@turf/line-intersect';
 import {polygon as turfPolygon} from '@turf/helpers';
-import {booleanWithin} from '@turf/boolean-within';
+import booleanWithin from '@turf/boolean-within';
 import type {Geometry} from 'geojson';
-import {kinks} from '@turf/kinks';
+import kinks from '@turf/kinks';
 
 import {
   ClickEvent,

@@ -2,15 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useCallback, useMemo, useState} from 'react';
-import DeckGL from '@deck.gl/react';
-import type {MapViewState, PickingInfo} from '@deck.gl/core';
+import {Deck, type MapViewState} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/three';
-import type {TreeType, Season, CropConfig} from '@deck.gl-community/three';
+import type {CropConfig, Season, TreeType} from '@deck.gl-community/three';
+import {
+  BoxWidget,
+  ColumnWidgetPanel,
+  CustomWidgetPanel,
+  MarkdownWidgetPanel,
+  SettingsWidgetPanel,
+  type SettingsWidgetSchema,
+  type SettingsWidgetState
+} from '@deck.gl-community/widgets';
 
-// ---------------------------------------------------------------------------
-// Data types
-// ---------------------------------------------------------------------------
+import '@deck.gl/widgets/stylesheet.css';
 
 type TreeDatum = {
   position: [number, number];
@@ -25,9 +30,258 @@ type TreeDatum = {
   crop: CropConfig | null;
 };
 
-// ---------------------------------------------------------------------------
-// Seeded pseudo-random (deterministic forest layout)
-// ---------------------------------------------------------------------------
+type WildForestSettings = {
+  render: {
+    sizeScale: number;
+    showCrops: boolean;
+  };
+};
+
+type WildForestState = {
+  settings: WildForestSettings;
+};
+
+type ZoneInfo = {
+  label: string;
+  color: string;
+};
+
+const INITIAL_VIEW_STATE: MapViewState = {
+  longitude: -0.022,
+  latitude: 51.503,
+  zoom: 13,
+  pitch: 62,
+  bearing: 20
+};
+
+const ROOT_STYLE = {
+  position: 'relative',
+  width: '100%',
+  height: '100%',
+  minHeight: '100%'
+} as const;
+
+const INITIAL_SETTINGS: WildForestSettings = {
+  render: {
+    sizeScale: 30,
+    showCrops: true
+  }
+};
+
+const SETTINGS_SCHEMA: SettingsWidgetSchema = {
+  title: 'Wild Forest Controls',
+  sections: [
+    {
+      id: 'render',
+      name: 'Render',
+      initiallyCollapsed: false,
+      settings: [
+        {
+          name: 'render.sizeScale',
+          label: 'Size Scale',
+          type: 'number',
+          min: 5,
+          max: 80,
+          step: 1,
+          description: 'Scales tree geometry uniformly.'
+        },
+        {
+          name: 'render.showCrops',
+          label: 'Show Crops',
+          type: 'boolean',
+          description: 'Toggle blossoms, oranges, and almonds.'
+        }
+      ]
+    }
+  ]
+};
+
+const ZONES: ZoneInfo[] = [
+  {label: 'Pine Forest (Summer)', color: '#006400'},
+  {label: 'Oak Grove (Autumn)', color: '#b45314'},
+  {label: 'Cherry Blossom (Spring)', color: '#ffb4c8'},
+  {label: 'Palm Grove (Summer)', color: '#14911e'},
+  {label: 'Birch Glade (Autumn)', color: '#e6b928'},
+  {label: 'Oak Silhouettes (Winter)', color: 'rgba(100,80,80,0.4)'},
+  {label: 'Birch Grove (Spring)', color: '#96d26e'},
+  {label: 'Citrus Orchard (Fruiting)', color: '#ff8c00'},
+  {label: 'Almond Grove (Harvest)', color: '#c39b5a'}
+];
+
+const FOREST_DATA = generateForest();
+
+export function mountWildForestExample(container: HTMLElement): () => void {
+  const rootElement = container.ownerDocument.createElement('div');
+  applyElementStyle(rootElement, ROOT_STYLE);
+  container.replaceChildren(rootElement);
+
+  const state: WildForestState = {
+    settings: cloneSettings(INITIAL_SETTINGS)
+  };
+
+  const controlsWidget = new BoxWidget({
+    id: 'wild-forest-controls',
+    placement: 'top-right',
+    widthPx: 320,
+    title: 'Wild Forest + Orchards',
+    panel: buildControlPanel(state, handleSettingsChange)
+  });
+
+  const deck = new Deck({
+    parent: rootElement,
+    initialViewState: INITIAL_VIEW_STATE,
+    controller: {
+      maxPitch: 80
+    },
+    layers: buildLayers(state),
+    parameters: {clearColor: [0.06, 0.1, 0.06, 1]},
+    getTooltip: getTooltip,
+    widgets: [controlsWidget]
+  });
+
+  return () => {
+    deck.finalize();
+    rootElement.remove();
+    container.replaceChildren();
+  };
+
+  function handleSettingsChange(nextSettings: SettingsWidgetState) {
+    state.settings = cloneSettings(nextSettings as WildForestSettings);
+    deck.setProps({layers: buildLayers(state)});
+    controlsWidget.setProps({
+      panel: buildControlPanel(state, handleSettingsChange)
+    });
+  }
+}
+
+function buildLayers(state: WildForestState) {
+  return [
+    new TreeLayer<TreeDatum>({
+      id: 'wild-forest',
+      data: FOREST_DATA,
+      getPosition: (datum) => datum.position,
+      getTreeType: (datum) => datum.type,
+      getHeight: (datum) => datum.height,
+      getTrunkRadius: (datum) => datum.trunkRadius,
+      getCanopyRadius: (datum) => datum.canopyRadius,
+      getTrunkHeightFraction: (datum) => datum.trunkHeightFraction,
+      getSeason: (datum) => datum.season,
+      getBranchLevels: (datum) => datum.branchLevels || 3,
+      getCrop: state.settings.render.showCrops ? (datum) => datum.crop : () => null,
+      sizeScale: state.settings.render.sizeScale,
+      pickable: true,
+      updateTriggers: {
+        getCrop: [state.settings.render.showCrops],
+        sizeScale: [state.settings.render.sizeScale]
+      }
+    })
+  ];
+}
+
+function buildControlPanel(
+  state: WildForestState,
+  onSettingsChange: (nextSettings: SettingsWidgetState) => void
+) {
+  return new ColumnWidgetPanel({
+    id: 'wild-forest-panel',
+    title: 'Wild Forest + Orchards',
+    panels: {
+      summary: new MarkdownWidgetPanel({
+        id: 'summary',
+        title: '',
+        markdown: [
+          'A procedural forest scene rendered with `TreeLayer`.',
+          '',
+          `- Trees: **${FOREST_DATA.length}**`,
+          `- Size scale: **${state.settings.render.sizeScale.toFixed(1)}x**`,
+          `- Crops: **${state.settings.render.showCrops ? 'visible' : 'hidden'}**`
+        ].join('\n')
+      }),
+      settings: new SettingsWidgetPanel({
+        id: 'settings',
+        label: 'Controls',
+        schema: SETTINGS_SCHEMA,
+        settings: state.settings,
+        onSettingsChange
+      }),
+      legend: new CustomWidgetPanel({
+        id: 'legend',
+        title: 'Forest Zones',
+        onRenderHTML(hostElement) {
+          const legend = hostElement.ownerDocument.createElement('div');
+          applyElementStyle(legend, {
+            display: 'grid',
+            gap: '6px',
+            fontSize: '12px'
+          });
+
+          for (const zone of ZONES) {
+            const row = hostElement.ownerDocument.createElement('div');
+            const swatch = hostElement.ownerDocument.createElement('span');
+            const label = hostElement.ownerDocument.createElement('span');
+
+            applyElementStyle(row, {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            });
+            applyElementStyle(swatch, {
+              display: 'inline-block',
+              width: '12px',
+              height: '12px',
+              borderRadius: '3px',
+              background: zone.color,
+              border: '1px solid rgba(0, 0, 0, 0.12)',
+              flexShrink: '0'
+            });
+
+            label.textContent = zone.label;
+            row.append(swatch, label);
+            legend.append(row);
+          }
+
+          hostElement.replaceChildren(legend);
+
+          return () => {
+            hostElement.replaceChildren();
+          };
+        }
+      })
+    }
+  });
+}
+
+function getTooltip({object}: {object?: unknown}) {
+  const datum = object as TreeDatum | null;
+  return datum
+    ? {
+        text: `${datum.label}\nHeight: ${datum.height.toFixed(1)} m\nCanopy ⌀: ${(datum.canopyRadius * 2).toFixed(1)} m`,
+        style: {
+          background: 'rgba(0,0,0,0.75)',
+          color: '#fff',
+          borderRadius: '6px',
+          padding: '6px 10px',
+          fontSize: '12px'
+        }
+      }
+    : null;
+}
+
+function cloneSettings(settings: WildForestSettings): WildForestSettings {
+  return {
+    render: {...settings.render}
+  };
+}
+
+function applyElementStyle(element: HTMLElement, style: Record<string, string>) {
+  for (const [key, value] of Object.entries(style)) {
+    element.style.setProperty(camelCaseToKebabCase(key), value);
+  }
+}
+
+function camelCaseToKebabCase(value: string) {
+  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+}
 
 function makeRng(seed: number) {
   let s = seed;
@@ -37,14 +291,9 @@ function makeRng(seed: number) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Forest + orchard generation
-// ---------------------------------------------------------------------------
-
 function generateForest(): TreeDatum[] {
   const trees: TreeDatum[] = [];
 
-  // ── Zone 1: Dense evergreen pine forest (north-west) ──────────────────────
   const pineRng = makeRng(1);
   for (let i = 0; i < 90; i++) {
     trees.push({
@@ -61,7 +310,6 @@ function generateForest(): TreeDatum[] {
     });
   }
 
-  // ── Zone 2: Autumn oak grove (north-east) ─────────────────────────────────
   const oakRng = makeRng(2);
   for (let i = 0; i < 65; i++) {
     trees.push({
@@ -78,8 +326,6 @@ function generateForest(): TreeDatum[] {
     });
   }
 
-  // ── Zone 3: Cherry blossom orchard (centre, spring) ───────────────────────
-  // Flowering stage: small white-pink blossom clusters in the outer canopy
   const cherryRng = makeRng(3);
   for (let i = 0; i < 55; i++) {
     const r = cherryRng;
@@ -102,7 +348,6 @@ function generateForest(): TreeDatum[] {
     });
   }
 
-  // ── Zone 4: Tropical palm grove (south-east) ─────────────────────────────
   const palmRng = makeRng(4);
   for (let i = 0; i < 35; i++) {
     trees.push({
@@ -119,7 +364,6 @@ function generateForest(): TreeDatum[] {
     });
   }
 
-  // ── Zone 5: Autumn birch glade (south-west) ───────────────────────────────
   const birchRng = makeRng(5);
   for (let i = 0; i < 60; i++) {
     trees.push({
@@ -136,7 +380,6 @@ function generateForest(): TreeDatum[] {
     });
   }
 
-  // ── Zone 6: Winter oak silhouettes (far north) ───────────────────────────
   const winterRng = makeRng(6);
   for (let i = 0; i < 40; i++) {
     trees.push({
@@ -153,7 +396,6 @@ function generateForest(): TreeDatum[] {
     });
   }
 
-  // ── Zone 7: Spring birch grove (west) ────────────────────────────────────
   const springBirchRng = makeRng(7);
   for (let i = 0; i < 45; i++) {
     trees.push({
@@ -170,13 +412,12 @@ function generateForest(): TreeDatum[] {
     });
   }
 
-  // ── Zone 8: Citrus orchard (south-centre) — orange fruit + dropped ────────
   const citrusRng = makeRng(8);
   for (let i = 0; i < 50; i++) {
     const r = citrusRng;
     trees.push({
       position: [-0.01 + r() * 0.04, 51.481 + r() * 0.012],
-      type: 'cherry', // round dense canopy suits citrus
+      type: 'cherry',
       height: 4 + r() * 4,
       trunkRadius: 0.18 + r() * 0.18,
       canopyRadius: 2 + r() * 2,
@@ -193,13 +434,12 @@ function generateForest(): TreeDatum[] {
     });
   }
 
-  // ── Zone 9: Almond grove (south-west of citrus) — tan nuts + dropped ──────
   const almondRng = makeRng(9);
   for (let i = 0; i < 45; i++) {
     const r = almondRng;
     trees.push({
       position: [-0.065 + r() * 0.03, 51.481 + r() * 0.012],
-      type: 'oak', // wide spreading canopy typical of almond
+      type: 'oak',
       height: 5 + r() * 5,
       trunkRadius: 0.22 + r() * 0.2,
       canopyRadius: 2.5 + r() * 2,
@@ -217,190 +457,4 @@ function generateForest(): TreeDatum[] {
   }
 
   return trees;
-}
-
-// ---------------------------------------------------------------------------
-// View state
-// ---------------------------------------------------------------------------
-
-const INITIAL_VIEW_STATE: MapViewState = {
-  longitude: -0.022,
-  latitude: 51.503,
-  zoom: 13,
-  pitch: 62,
-  bearing: 20
-};
-
-// ---------------------------------------------------------------------------
-// Zone legend config
-// ---------------------------------------------------------------------------
-
-type ZoneInfo = {
-  label: string;
-  color: string;
-};
-
-const ZONES: ZoneInfo[] = [
-  {label: 'Pine Forest (Summer)', color: '#006400'},
-  {label: 'Oak Grove (Autumn)', color: '#b45314'},
-  {label: 'Cherry Blossom (Spring ✿)', color: '#ffb4c8'},
-  {label: 'Palm Grove (Summer)', color: '#14911e'},
-  {label: 'Birch Glade (Autumn)', color: '#e6b928'},
-  {label: 'Oak Silhouettes (Winter)', color: 'rgba(100,80,80,0.4)'},
-  {label: 'Birch Grove (Spring)', color: '#96d26e'},
-  {label: 'Citrus Orchard (Fruiting)', color: '#ff8c00'},
-  {label: 'Almond Grove (Harvest)', color: '#c39b5a'}
-];
-
-// ---------------------------------------------------------------------------
-// App
-// ---------------------------------------------------------------------------
-
-const FOREST_DATA = generateForest();
-
-export default function App(): React.ReactElement {
-  const [sizeScale, setSizeScale] = useState(30);
-  const [showCrops, setShowCrops] = useState(true);
-
-  const treeLayer = useMemo(
-    () =>
-      new TreeLayer<TreeDatum>({
-        id: 'wild-forest',
-        data: FOREST_DATA,
-        getPosition: (d) => d.position,
-        getTreeType: (d) => d.type,
-        getHeight: (d) => d.height,
-        getTrunkRadius: (d) => d.trunkRadius,
-        getCanopyRadius: (d) => d.canopyRadius,
-        getTrunkHeightFraction: (d) => d.trunkHeightFraction,
-        getSeason: (d) => d.season,
-        getBranchLevels: (d) => d.branchLevels || 3,
-        getCrop: showCrops ? (d) => d.crop : () => null,
-        sizeScale,
-        pickable: true,
-        updateTriggers: {getCrop: showCrops}
-      }),
-    [sizeScale, showCrops]
-  );
-
-  const onHover = useCallback((info: PickingInfo) => {
-    void info;
-  }, []);
-
-  return (
-    <div style={{position: 'relative', width: '100%', height: '100%'}}>
-      <DeckGL
-        layers={[treeLayer]}
-        initialViewState={INITIAL_VIEW_STATE}
-        controller={{
-          maxPitch: 80
-        }}
-        onHover={onHover}
-        parameters={{clearColor: [0.06, 0.1, 0.06, 1]}}
-        style={{position: 'absolute', width: '100%', height: '100%'}}
-        getTooltip={({object}: PickingInfo) => {
-          const d = object as TreeDatum | null;
-          return d
-            ? {
-                text: `${d.label}\nHeight: ${d.height.toFixed(1)} m\nCanopy ⌀: ${(d.canopyRadius * 2).toFixed(1)} m`,
-                style: {
-                  background: 'rgba(0,0,0,0.75)',
-                  color: '#fff',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
-                  fontSize: '12px'
-                }
-              }
-            : null;
-        }}
-      />
-
-      {/* ── Controls panel ── */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          background: 'rgba(10,20,10,0.82)',
-          color: '#e8f5e8',
-          borderRadius: 10,
-          padding: '14px 18px',
-          minWidth: 230,
-          fontFamily: 'system-ui, sans-serif',
-          fontSize: 13,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.5)'
-        }}
-      >
-        <div style={{fontWeight: 700, fontSize: 15, marginBottom: 12, letterSpacing: 0.5}}>
-          🌲 Wild Forest + Orchards
-        </div>
-
-        <label style={{display: 'block', marginBottom: 4}}>
-          Size scale: <strong>{sizeScale.toFixed(1)}×</strong>
-        </label>
-        <input
-          type="range"
-          min={5}
-          max={80}
-          step={1}
-          value={sizeScale}
-          onChange={(e) => setSizeScale(Number(e.target.value))}
-          style={{width: '100%', marginBottom: 12}}
-        />
-
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 14,
-            cursor: 'pointer',
-            userSelect: 'none'
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={showCrops}
-            onChange={(e) => setShowCrops(e.target.checked)}
-            style={{width: 14, height: 14, cursor: 'pointer'}}
-          />
-          <span>
-            Show crops{' '}
-            <span style={{opacity: 0.6, fontSize: 11}}>(blossoms · oranges · almonds)</span>
-          </span>
-        </label>
-
-        <div style={{fontWeight: 600, marginBottom: 8, color: '#adf0ad'}}>Forest zones</div>
-        {ZONES.map((z) => (
-          <div key={z.label} style={{display: 'flex', alignItems: 'center', marginBottom: 5}}>
-            <span
-              style={{
-                display: 'inline-block',
-                width: 12,
-                height: 12,
-                borderRadius: 3,
-                background: z.color,
-                marginRight: 8,
-                border: '1px solid rgba(255,255,255,0.3)',
-                flexShrink: 0
-              }}
-            />
-            <span style={{opacity: 0.9}}>{z.label}</span>
-          </div>
-        ))}
-
-        <div
-          style={{
-            marginTop: 14,
-            paddingTop: 10,
-            borderTop: '1px solid rgba(255,255,255,0.15)',
-            fontSize: 11,
-            opacity: 0.65
-          }}
-        >
-          {FOREST_DATA.length} trees · drag to orbit
-        </div>
-      </div>
-    </div>
-  );
 }

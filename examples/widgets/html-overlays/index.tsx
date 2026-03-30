@@ -2,19 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React from 'react';
-import {createRoot} from 'react-dom/client';
-
-import {App} from './app';
+import {mountHtmlOverlaysExample} from './app';
 
 const container = document.getElementById('app');
 if (!container) {
   throw new Error('Unable to find #app container');
 }
 
-const root = createRoot(container);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+document.body.style.margin = '0';
+container.style.width = '100vw';
+container.style.height = '100vh';
+
+mountHtmlOverlaysExample(container);

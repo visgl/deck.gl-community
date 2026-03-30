@@ -301,7 +301,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/bing-maps@workspace:modules/bing-maps":
+"@deck.gl-community/bing-maps@workspace:*, @deck.gl-community/bing-maps@workspace:modules/bing-maps":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/bing-maps@workspace:modules/bing-maps"
   dependencies:
@@ -479,7 +479,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/react@workspace:*, @deck.gl-community/react@workspace:modules/react":
+"@deck.gl-community/react@workspace:modules/react":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react@workspace:modules/react"
   dependencies:
@@ -551,31 +551,6 @@ __metadata:
     "@luma.gl/core": ~9.3.0-alpha.2
     "@luma.gl/engine": ~9.3.0-alpha.2
   checksum: 10c0/9778bbe93504b0fbf760875bac31dac98df0a002077dff5566de164b12c7afd3927bde88a6ff6e2d4fa23548ddb48842b1de3ee3bab1443dc50db8a720fda61b
-  languageName: node
-  linkType: hard
-
-"@deck.gl/core@npm:~9.2.1":
-  version: 9.2.10
-  resolution: "@deck.gl/core@npm:9.2.10"
-  dependencies:
-    "@loaders.gl/core": "npm:^4.3.4"
-    "@loaders.gl/images": "npm:^4.3.4"
-    "@luma.gl/constants": "npm:^9.2.6"
-    "@luma.gl/core": "npm:^9.2.6"
-    "@luma.gl/engine": "npm:^9.2.6"
-    "@luma.gl/shadertools": "npm:^9.2.6"
-    "@luma.gl/webgl": "npm:^9.2.6"
-    "@math.gl/core": "npm:^4.1.0"
-    "@math.gl/sun": "npm:^4.1.0"
-    "@math.gl/types": "npm:^4.1.0"
-    "@math.gl/web-mercator": "npm:^4.1.0"
-    "@probe.gl/env": "npm:^4.1.1"
-    "@probe.gl/log": "npm:^4.1.1"
-    "@probe.gl/stats": "npm:^4.1.1"
-    "@types/offscreencanvas": "npm:^2019.6.4"
-    gl-matrix: "npm:^3.0.0"
-    mjolnir.js: "npm:^3.0.0"
-  checksum: 10c0/195a5a2ae4216bfef0c7d280fd8b28a3be14c423ee4d42e4a0c8c6d960b9845ce33eba72390b61d5f57fa9be676672fe7f92013ff5c02989f85792c309480c8e
   languageName: node
   linkType: hard
 
@@ -652,27 +627,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@deck.gl/layers@npm:~9.2.1":
-  version: 9.2.10
-  resolution: "@deck.gl/layers@npm:9.2.10"
-  dependencies:
-    "@loaders.gl/images": "npm:^4.3.4"
-    "@loaders.gl/schema": "npm:^4.3.4"
-    "@luma.gl/shadertools": "npm:^9.2.6"
-    "@mapbox/tiny-sdf": "npm:^2.0.5"
-    "@math.gl/core": "npm:^4.1.0"
-    "@math.gl/polygon": "npm:^4.1.0"
-    "@math.gl/web-mercator": "npm:^4.1.0"
-    earcut: "npm:^2.2.4"
-  peerDependencies:
-    "@deck.gl/core": ~9.2.0
-    "@loaders.gl/core": ^4.3.4
-    "@luma.gl/core": ~9.2.6
-    "@luma.gl/engine": ~9.2.6
-  checksum: 10c0/78e55822e06981725784b4d876a1aa2cc51a607c5e53bd5cf319abb6134305b83f2d07699932b6b0143cb4a14c8b3befedccb575cde62a24211e3c2052dc5a13
-  languageName: node
-  linkType: hard
-
 "@deck.gl/layers@npm:~9.3.0-alpha.1":
   version: 9.3.0-alpha.1
   resolution: "@deck.gl/layers@npm:9.3.0-alpha.1"
@@ -694,6 +648,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@deck.gl/mapbox@npm:~9.3.0-alpha.1":
+  version: 9.3.0-alpha.3
+  resolution: "@deck.gl/mapbox@npm:9.3.0-alpha.3"
+  dependencies:
+    "@luma.gl/constants": "npm:^9.3.0-alpha.6"
+    "@math.gl/web-mercator": "npm:^4.1.0"
+  peerDependencies:
+    "@deck.gl/core": ~9.2.0
+    "@luma.gl/constants": ~9.3.0-alpha.6
+    "@luma.gl/core": ~9.3.0-alpha.6
+    "@math.gl/web-mercator": ^4.1.0
+  checksum: 10c0/e6d8d73d80869be2aa7b40e6a899c445527c0e6e4e49d9a0e4433dd7cc832ac1fb72443dee25d051ea0a04637b2d72c742ee28513c004d8640d425ac385a7ba8
+  languageName: node
+  linkType: hard
+
 "@deck.gl/mesh-layers@npm:~9.3.0-alpha.1":
   version: 9.3.0-alpha.1
   resolution: "@deck.gl/mesh-layers@npm:9.3.0-alpha.1"
@@ -709,18 +678,6 @@ __metadata:
     "@luma.gl/gltf": ~9.3.0-alpha.2
     "@luma.gl/shadertools": ~9.3.0-alpha.2
   checksum: 10c0/5d71ff70f907b15f6d169f29360b0818f6c87b3ca5d4373d4ed73a935cbb80ac478326c2ee4779e0e86e720b5f260a0b8e14bda7efbb5624d124947a992558bc
-  languageName: node
-  linkType: hard
-
-"@deck.gl/react@npm:~9.2.1":
-  version: 9.2.10
-  resolution: "@deck.gl/react@npm:9.2.10"
-  peerDependencies:
-    "@deck.gl/core": ~9.2.0
-    "@deck.gl/widgets": ~9.2.0
-    react: ">=16.3.0"
-    react-dom: ">=16.3.0"
-  checksum: 10c0/87b79ad77e494fb16cb0c0ac0d00d9911478a95f9e686e681687fc3e395e469380f1f79429bbbdc67c9e8adac49d8c2311aba991222e30620ca5a540e72578ed
   languageName: node
   linkType: hard
 
@@ -1561,6 +1518,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@floating-ui/core@npm:^1.7.5":
+  version: 1.7.5
+  resolution: "@floating-ui/core@npm:1.7.5"
+  dependencies:
+    "@floating-ui/utils": "npm:^0.2.11"
+  checksum: 10c0/f9c52205e198b231d63a387b09c659aab08c46a1899e0b0bbe147b8b4f048b546f15ba17cb5d2a471da9534f1883d979425e13e5c4ceee67be63e4b0abd4db5d
+  languageName: node
+  linkType: hard
+
+"@floating-ui/dom@npm:^1.7.5":
+  version: 1.7.6
+  resolution: "@floating-ui/dom@npm:1.7.6"
+  dependencies:
+    "@floating-ui/core": "npm:^1.7.5"
+    "@floating-ui/utils": "npm:^0.2.11"
+  checksum: 10c0/5c098e0d7b58c9bc769f276cca1766994c2c9c70c92d091a61bba8b3e9be53c011e0a79a8457fc2fb2f3d91697a26eb52e0a4962ef936dc963b45f58613c212f
+  languageName: node
+  linkType: hard
+
+"@floating-ui/utils@npm:^0.2.11":
+  version: 0.2.11
+  resolution: "@floating-ui/utils@npm:0.2.11"
+  checksum: 10c0/f4bcea1559bdbb721ecc8e8ead423ac58d6a5b6e70b602cf0810ba6ad4ed1c77211b207faa88b278a9042f0c743133de08a203ed6741c1b6443423332884d5b3
+  languageName: node
+  linkType: hard
+
 "@geoarrow/geoarrow-js@npm:^0.3.0":
   version: 0.3.3
   resolution: "@geoarrow/geoarrow-js@npm:0.3.3"
@@ -1885,7 +1868,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/core@npm:^4.2.0, @loaders.gl/core@npm:^4.3.4":
+"@loaders.gl/core@npm:^4.2.0":
   version: 4.3.4
   resolution: "@loaders.gl/core@npm:4.3.4"
   dependencies:
@@ -2036,7 +2019,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/images@npm:4.3.4, @loaders.gl/images@npm:^4.3.4":
+"@loaders.gl/images@npm:4.3.4":
   version: 4.3.4
   resolution: "@loaders.gl/images@npm:4.3.4"
   dependencies:
@@ -2125,7 +2108,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/schema@npm:4.3.4, @loaders.gl/schema@npm:^4.3.4":
+"@loaders.gl/schema@npm:4.3.4":
   version: 4.3.4
   resolution: "@loaders.gl/schema@npm:4.3.4"
   dependencies:
@@ -2590,28 +2573,6 @@ __metadata:
   dependencies:
     "@math.gl/core": "npm:4.1.0"
   checksum: 10c0/7aa4921b9442da75664ef517f41de65b1eae9970d7eee61d14d2eb0b332e1af6203785e8d198376a8ab5924d62b24856d648ff6478cca95b14d3a8d82822ef93
-  languageName: node
-  linkType: hard
-
-"@monaco-editor/loader@npm:^1.5.0":
-  version: 1.6.1
-  resolution: "@monaco-editor/loader@npm:1.6.1"
-  dependencies:
-    state-local: "npm:^1.0.6"
-  checksum: 10c0/88fed11f7e5892c2221b649328490512591b3eca432c9613c5a0b737d624b741fcc774197b119e681360454931a19de26b271ede567ddb226ab63f0d1ec67c89
-  languageName: node
-  linkType: hard
-
-"@monaco-editor/react@npm:^4.6.0":
-  version: 4.7.0
-  resolution: "@monaco-editor/react@npm:4.7.0"
-  dependencies:
-    "@monaco-editor/loader": "npm:^1.5.0"
-  peerDependencies:
-    monaco-editor: ">= 0.25.0 < 1"
-    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/a4e91c6eda1a71f5fd23871bd801de435490ccbc43934d23cba65cefe2be7e9d02c9a57c4ef80fc9fe99e4d4deea51e5db19cb4e0ecf3f51818dda0eb9cdbf12
   languageName: node
   linkType: hard
 
@@ -5619,13 +5580,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"attr-accept@npm:^2.0.0":
-  version: 2.2.5
-  resolution: "attr-accept@npm:2.2.5"
-  checksum: 10c0/9b4cb82213925cab2d568f71b3f1c7a7778f9192829aac39a281e5418cd00c04a88f873eb89f187e0bf786fa34f8d52936f178e62cbefb9254d57ecd88ada99b
-  languageName: node
-  linkType: hard
-
 "available-typed-arrays@npm:^1.0.7":
   version: 1.0.7
   resolution: "available-typed-arrays@npm:1.0.7"
@@ -5827,6 +5781,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "bing-deck-get-started-example@workspace:examples/bing-maps/get-started"
   dependencies:
+    "@deck.gl-community/bing-maps": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
     "@loaders.gl/core": "npm:^4.4.0-alpha.16"
@@ -6997,12 +6952,13 @@ __metadata:
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
     "@deck.gl/mesh-layers": "npm:~9.3.0-alpha.1"
+    "@floating-ui/dom": "npm:^1.7.5"
     "@loaders.gl/core": "npm:^4.4.0-alpha.16"
-    "@luma.gl/constants": "npm:~9.3.0-alpha.2"
-    "@luma.gl/core": "npm:~9.3.0-alpha.2"
-    "@luma.gl/engine": "npm:~9.3.0-alpha.2"
-    "@luma.gl/shadertools": "npm:~9.3.0-alpha.2"
-    "@luma.gl/webgl": "npm:~9.3.0-alpha.2"
+    "@luma.gl/constants": "npm:~9.2.6"
+    "@luma.gl/core": "npm:~9.2.6"
+    "@luma.gl/engine": "npm:~9.2.6"
+    "@luma.gl/shadertools": "npm:~9.2.6"
+    "@luma.gl/webgl": "npm:~9.2.6"
     "@testing-library/react": "npm:^14.3.0"
     "@types/bin-pack": "npm:^1.0.3"
     "@vis.gl/dev-tools": "patch:@vis.gl/dev-tools@npm%3A1.0.1#~/.yarn/patches/@vis.gl-dev-tools-npm-1.0.1-f38d363810.patch"
@@ -7391,12 +7347,13 @@ __metadata:
   dependencies:
     "@deck.gl-community/editable-layers": "workspace:*"
     "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/extensions": "npm:~9.3.0-alpha.1"
     "@deck.gl/geo-layers": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
+    "@deck.gl/mapbox": "npm:~9.3.0-alpha.1"
     "@deck.gl/mesh-layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     "@loaders.gl/core": "npm:^4.4.0-alpha.16"
     "@luma.gl/constants": "npm:~9.3.0-alpha.2"
@@ -7404,12 +7361,7 @@ __metadata:
     "@luma.gl/engine": "npm:~9.3.0-alpha.2"
     "@luma.gl/shadertools": "npm:~9.3.0-alpha.2"
     "@math.gl/core": "npm:^4.0.0"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
     maplibre-gl: "npm:^4.1.3"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-map-gl: "npm:^7.1.7"
     typescript: "npm:^5.4.4"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -7420,6 +7372,7 @@ __metadata:
   resolution: "editable-layers-advanced-example@workspace:examples/editable-layers/advanced"
   dependencies:
     "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/extensions": "npm:~9.3.0-alpha.1"
     "@deck.gl/geo-layers": "npm:~9.3.0-alpha.1"
@@ -7450,6 +7403,7 @@ __metadata:
   resolution: "editable-layers-editor@workspace:examples/editable-layers/editor"
   dependencies:
     "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
     "@deck.gl/react": "npm:~9.3.0-alpha.1"
@@ -7471,13 +7425,13 @@ __metadata:
   dependencies:
     "@deck.gl-community/editable-layers": "workspace:*"
     "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/react": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/extensions": "npm:~9.3.0-alpha.1"
     "@deck.gl/geo-layers": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
+    "@deck.gl/mapbox": "npm:~9.3.0-alpha.1"
     "@deck.gl/mesh-layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     "@loaders.gl/core": "npm:^4.4.0-alpha.16"
     "@loaders.gl/wkt": "npm:^4.4.0-alpha.16"
@@ -7490,18 +7444,10 @@ __metadata:
     "@tmcw/togeojson": "npm:^3.2.0"
     "@turf/helpers": "npm:^6.5.0"
     "@types/downloadjs": "npm:1.4.3"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
     "@types/wellknown": "npm:0.5.4"
-    boxicons: "npm:^2.1.4"
     clipboard-copy: "npm:^3.2.0"
     downloadjs: "npm:^1.4.7"
     maplibre-gl: "npm:^4.1.3"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-dropzone: "npm:^10.2.2"
-    react-map-gl: "npm:^7.1.7"
-    styled-components: "npm:^6.1.9"
     typescript: "npm:^5.4.4"
     vite: "npm:^7.3.1"
     wellknown: "npm:^0.5.0"
@@ -8635,15 +8581,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"file-selector@npm:^0.1.12":
-  version: 0.1.19
-  resolution: "file-selector@npm:0.1.19"
-  dependencies:
-    tslib: "npm:^2.0.1"
-  checksum: 10c0/6ed76fd91b77f05c0f3d089aa67d198e4c6096b5752796f1875cd9302664acaccfa35bf2fb6f4c6bcf5527775d9ef80f6d2dc6197d6a5eee91ef26c2160853c1
-  languageName: node
-  linkType: hard
-
 "filelist@npm:^1.0.4":
   version: 1.0.4
   resolution: "filelist@npm:1.0.4"
@@ -9074,15 +9011,13 @@ __metadata:
   resolution: "getting-started-46c11b@workspace:examples/editable-layers/getting-started"
   dependencies:
     "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
+    "@deck.gl/mapbox": "npm:~9.3.0-alpha.1"
+    "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
+    "@types/geojson": "npm:^7946.0.16"
     maplibre-gl: "npm:^4.1.3"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-map-gl: "npm:^7.1.7"
     typescript: "npm:^5.4.4"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -9304,20 +9239,15 @@ __metadata:
   resolution: "graph-layers-example@workspace:examples/graph-layers/graph-viewer"
   dependencies:
     "@deck.gl-community/graph-layers": "workspace:*"
-    "@deck.gl-community/react": "workspace:*"
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     "@loaders.gl/core": "npm:^4.4.0-alpha.16"
     "@luma.gl/core": "npm:~9.3.0-alpha.2"
     "@luma.gl/engine": "npm:~9.3.0-alpha.2"
     "@luma.gl/shadertools": "npm:~9.3.0-alpha.2"
-    "@monaco-editor/react": "npm:^4.6.0"
     monaco-editor: "npm:^0.53.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -9493,16 +9423,14 @@ __metadata:
   resolution: "horizon-graph-layer-289f4b@workspace:dev/timeline-layers/examples/horizon-graph-layer"
   dependencies:
     "@deck.gl-community/timeline-layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     "@loaders.gl/core": "npm:^4.4.0-alpha.16"
     "@luma.gl/core": "npm:~9.3.0-alpha.2"
     "@luma.gl/engine": "npm:~9.3.0-alpha.2"
     "@luma.gl/shadertools": "npm:~9.3.0-alpha.2"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -10746,8 +10674,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "leaflet-deck-get-started-example@workspace:examples/leaflet/get-started"
   dependencies:
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
+    "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     "@loaders.gl/core": "npm:^4.4.0-alpha.16"
     "@luma.gl/core": "npm:~9.3.0-alpha.2"
     "@luma.gl/engine": "npm:~9.3.0-alpha.2"
@@ -11412,8 +11342,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "minimal-example-fb04b6@workspace:examples/template/minimal-example"
   dependencies:
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -11847,14 +11775,10 @@ __metadata:
   resolution: "no-map-90d205@workspace:examples/editable-layers/no-map"
   dependencies:
     "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     typescript: "npm:^5.4.4"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -12398,24 +12322,21 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "overlays-022e03@workspace:examples/widgets/overlays"
   dependencies:
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/extensions": "npm:~9.3.0-alpha.1"
     "@deck.gl/geo-layers": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
+    "@deck.gl/mapbox": "npm:~9.3.0-alpha.1"
     "@deck.gl/mesh-layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     "@loaders.gl/core": "npm:^4.4.0-alpha.16"
     "@luma.gl/constants": "npm:~9.3.0-alpha.2"
     "@luma.gl/core": "npm:~9.3.0-alpha.2"
     "@luma.gl/engine": "npm:~9.3.0-alpha.2"
     "@luma.gl/shadertools": "npm:~9.3.0-alpha.2"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
     maplibre-gl: "npm:^4.1.3"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-map-gl: "npm:^7.1.7"
+    preact: "npm:^10.17.0"
     typescript: "npm:^5.4.4"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -12736,9 +12657,6 @@ __metadata:
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -13199,7 +13117,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prop-types@npm:^15.6.0, prop-types@npm:^15.6.1, prop-types@npm:^15.6.2, prop-types@npm:^15.7.2, prop-types@npm:^15.8.1":
+"prop-types@npm:^15.6.0, prop-types@npm:^15.6.1, prop-types@npm:^15.6.2, prop-types@npm:^15.8.1":
   version: 15.8.1
   resolution: "prop-types@npm:15.8.1"
   dependencies:
@@ -13359,19 +13277,6 @@ __metadata:
   peerDependencies:
     react: ^18.3.1
   checksum: 10c0/a752496c1941f958f2e8ac56239172296fcddce1365ce45222d04a1947e0cc5547df3e8447f855a81d6d39f008d7c32eab43db3712077f09e3f67c4874973e85
-  languageName: node
-  linkType: hard
-
-"react-dropzone@npm:^10.2.2":
-  version: 10.2.2
-  resolution: "react-dropzone@npm:10.2.2"
-  dependencies:
-    attr-accept: "npm:^2.0.0"
-    file-selector: "npm:^0.1.12"
-    prop-types: "npm:^15.7.2"
-  peerDependencies:
-    react: ">= 16.8"
-  checksum: 10c0/64d94db7c0ba6d21a69ded4cb383df8228f0e99ba4377da975c20432595ed53cb1ece47a1412a0378e1da8048066dae21b688dccd22adb9c46a18419a57a362d
   languageName: node
   linkType: hard
 
@@ -14181,15 +14086,12 @@ __metadata:
   resolution: "sf-42f06e@workspace:examples/editable-layers/sf"
   dependencies:
     "@deck.gl-community/editable-layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
-    "@types/react": "npm:^18.3.3"
-    "@types/react-dom": "npm:^18.3.0"
+    "@deck.gl/mapbox": "npm:~9.3.0-alpha.1"
+    "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     maplibre-gl: "npm:^4.1.3"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-map-gl: "npm:^7.1.7"
     typescript: "npm:^5.4.4"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -14642,13 +14544,6 @@ __metadata:
   version: 0.0.2
   resolution: "stackback@npm:0.0.2"
   checksum: 10c0/89a1416668f950236dd5ac9f9a6b2588e1b9b62b1b6ad8dff1bfc5d1a15dbf0aafc9b52d2226d00c28dffff212da464eaeebfc6b7578b9d180cef3e3782c5983
-  languageName: node
-  linkType: hard
-
-"state-local@npm:^1.0.6":
-  version: 1.0.7
-  resolution: "state-local@npm:1.0.7"
-  checksum: 10c0/8dc7daeac71844452fafb514a6d6b6f40d7e2b33df398309ea1c7b3948d6110c57f112b7196500a10c54fdde40291488c52c875575670fb5c819602deca48bd9
   languageName: node
   linkType: hard
 
@@ -15243,10 +15138,8 @@ __metadata:
   resolution: "timeline-layer-a0fda1@workspace:dev/timeline-layers/examples/timeline-layer"
   dependencies:
     "@deck.gl-community/timeline-layers": "workspace:*"
-    "@deck.gl/core": "npm:~9.2.1"
-    "@deck.gl/layers": "npm:~9.2.1"
-    "@deck.gl/react": "npm:~9.2.1"
-    "@luma.gl/core": "npm:~9.2.0"
+    "@deck.gl/core": "npm:~9.3.0-alpha.1"
+    "@deck.gl/react": "npm:~9.3.0-alpha.1"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
     vite: "npm:7.1.11"
@@ -15495,7 +15388,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.0.1, tslib@npm:^2.1.0, tslib@npm:^2.3.0, tslib@npm:^2.4.0, tslib@npm:^2.6.2, tslib@npm:^2.8.0, tslib@npm:^2.8.1":
+"tslib@npm:^2.1.0, tslib@npm:^2.3.0, tslib@npm:^2.4.0, tslib@npm:^2.6.2, tslib@npm:^2.8.0, tslib@npm:^2.8.1":
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
@@ -16432,13 +16325,10 @@ __metadata:
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
+    "@deck.gl/mapbox": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     maplibre-gl: "npm:^4.1.3"
     preact: "npm:^10.17.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-map-gl: "npm:^7.1.7"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -16450,10 +16340,19 @@ __metadata:
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"widgets-widget-panels-example@workspace:examples/widgets/widget-panels":
+  version: 0.0.0-use.local
+  resolution: "widgets-widget-panels-example@workspace:examples/widgets/widget-panels"
+  dependencies:
+    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl/core": "npm:~9.3.0-alpha.1"
+    "@deck.gl/layers": "npm:~9.3.0-alpha.1"
+    "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -16463,10 +16362,9 @@ __metadata:
   resolution: "wild-forest-ea7bdb@workspace:examples/three/wild-forest"
   dependencies:
     "@deck.gl-community/three": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
-    "@deck.gl/react": "npm:~9.3.0-alpha.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
+    "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
