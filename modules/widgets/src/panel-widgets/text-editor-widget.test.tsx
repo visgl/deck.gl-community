@@ -330,6 +330,10 @@ describe('TextEditorWidgetPanel', () => {
     );
     await flushMicrotasks();
 
+    await waitForCondition(
+      () => monacoHarness.setTheme.mock.lastCall?.[0] === 'vs',
+      'Expected Monaco theme to update to the light theme.'
+    );
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs');
   });
 
@@ -372,6 +376,10 @@ describe('TextEditorWidgetPanel', () => {
     );
     await flushMicrotasks();
 
+    await waitForCondition(
+      () => monacoHarness.setTheme.mock.lastCall?.[0] === 'custom-light',
+      'Expected Monaco theme to update to the custom light theme.'
+    );
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('custom-light');
   });
 
@@ -401,7 +409,10 @@ describe('TextEditorWidgetPanel', () => {
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs');
 
     widgetContainer.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
-    await flushMicrotasks();
+    await waitForCondition(
+      () => monacoHarness.setTheme.mock.lastCall?.[0] === 'vs-dark',
+      'Expected Monaco theme to update after inherited widget theme changes.'
+    );
 
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs-dark');
   });
@@ -432,7 +443,10 @@ describe('TextEditorWidgetPanel', () => {
       }).content,
       root
     );
-    await flushMicrotasks();
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedModel()?.getValue() === '{"alpha":2}',
+      'Expected controlled Monaco value to update after rerender.'
+    );
 
     expect(monacoHarness.getLastCreatedModel()?.getValue()).toBe('{"alpha":2}');
   });
@@ -500,7 +514,13 @@ describe('TextEditorWidgetPanel', () => {
       }).content,
       root
     );
-    await flushMicrotasks();
+    await waitForCondition(
+      () =>
+        monacoHarness.clearJsonSchema.mock.calls.some(
+          ([uri]) => uri === 'inmemory://deck-gl-community/widgets/plain-editor'
+        ),
+      'Expected plain-text mode to clear JSON schema registration.'
+    );
 
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
       'inmemory://deck-gl-community/widgets/plain-editor'
@@ -537,6 +557,17 @@ describe('TextEditorWidgetPanel', () => {
     );
     await flushMicrotasks();
 
+    await waitForCondition(
+      () =>
+        monacoHarness.configureJsonSchema.mock.lastCall?.[0] ===
+          'inmemory://deck-gl-community/widgets/schema-editor' &&
+        JSON.stringify(monacoHarness.configureJsonSchema.mock.lastCall?.[1]) ===
+          JSON.stringify({
+            type: 'object',
+            required: ['beta']
+          }),
+      'Expected schema registration to update after jsonSchema changes.'
+    );
     expect(monacoHarness.configureJsonSchema).toHaveBeenLastCalledWith(
       'inmemory://deck-gl-community/widgets/schema-editor',
       {
@@ -577,7 +608,10 @@ describe('TextEditorWidgetPanel', () => {
     monacoHarness.loadTextEditorMonacoRuntime.mockRejectedValueOnce(new Error('boom'));
 
     render(new TextEditorWidgetPanel({id: 'error', title: 'Error'}).content, root);
-    await flushMicrotasks();
+    await waitForCondition(
+      () => (root.querySelector('[data-text-editor-error]')?.textContent ?? '').includes('boom'),
+      'Expected text editor error fallback to render when Monaco loading fails.'
+    );
 
     expect(root.querySelector('[data-text-editor-error]')?.textContent).toContain('boom');
   });

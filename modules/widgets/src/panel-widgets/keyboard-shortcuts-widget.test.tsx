@@ -70,6 +70,22 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+async function waitForCondition(
+  predicate: () => boolean,
+  message: string,
+  attempts = 8
+): Promise<void> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (predicate()) {
+      return;
+    }
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  throw new Error(message);
+}
+
 describe('KeyboardShortcutsWidget', () => {
   it('renders paired and single shortcut rows with shared descriptions', async () => {
     const {root, cleanup} = renderWidget({
@@ -125,7 +141,9 @@ describe('KeyboardShortcutsWidget', () => {
       '[data-shortcut-description="true"]'
     );
     const shortcutBadges = root.querySelector<HTMLSpanElement>('[data-shortcut-badges="true"]');
-    expect(shortcutRow?.style.gridTemplateColumns).toBe('minmax(104px, 148px) minmax(0, 1fr) auto');
+    expect(shortcutRow?.style.gridTemplateColumns).toBe(
+      'minmax(104px, 148px) minmax(0px, 1fr) auto'
+    );
     expect(shortcutDescription?.style.width).toBe('100%');
     expect(shortcutBadges?.style.justifySelf).toBe('end');
 
@@ -180,8 +198,19 @@ describe('KeyboardShortcutsWidget', () => {
       installShortcuts: true
     });
 
-    eventManager.emit('keydown', new KeyboardEvent('keydown', {key: '/', ctrlKey: true}));
-    await Promise.resolve();
+    const isMac = navigator.platform.toUpperCase().includes('MAC');
+    eventManager.emit(
+      'keydown',
+      new KeyboardEvent('keydown', {
+        key: '/',
+        ctrlKey: !isMac,
+        metaKey: isMac
+      })
+    );
+    await waitForCondition(
+      () => root.querySelector('[role="dialog"]') !== null,
+      'Expected keyboard shortcut dialog to open from the default binding.'
+    );
     expect(root.querySelector('[role="dialog"]')).toBeTruthy();
 
     cleanup();

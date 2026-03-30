@@ -90,7 +90,7 @@ describe('ToastWidget', () => {
 
     expect(stack).toBeTruthy();
     expect(root.getAttribute('style') || '').toContain('width: 360px');
-    expect(root.getAttribute('style') || '').toContain('max-width: calc(100vw - 24px)');
+    expect(root.getAttribute('style') || '').toContain('max-width: calc(-24px + 100vw)');
     expect(root.getAttribute('style') || '').toContain('pointer-events: auto');
     expect(root.getAttribute('style') || '').toContain('position: absolute');
     expect(root.getAttribute('style') || '').toContain('bottom: 0px');

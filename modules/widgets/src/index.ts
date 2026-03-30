@@ -18,7 +18,6 @@ export {HtmlTooltipWidget} from './html-overlay-widgets/html-tooltip-widget';
 export type {HtmlTooltipWidgetProps} from './html-overlay-widgets/html-tooltip-widget';
 
 export {HeapMemoryWidget} from './widgets/heap-memory-widget';
-export {KeyboardShortcutsWidget} from './widgets/keyboard-shortcuts-widget';
 export {
   SettingsWidget,
   type SettingsWidgetProps,
@@ -78,6 +77,7 @@ export {
 } from './panel-widgets/widget-containers';
 export {BoxWidget, type BoxWidgetProps} from './panel-widgets/box-widget';
 export {
+  KeyboardShortcutsWidget,
   KeyboardSettingsWidgetPanel,
   type KeyboardSettingsWidgetPanelProps
 } from './panel-widgets/keyboard-shortcuts-widget';

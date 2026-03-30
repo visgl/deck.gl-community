@@ -157,7 +157,7 @@ function CustomWidgetPanelContent({
 }: Pick<CustomWidgetPanelProps, 'className' | 'onRenderHTML'>) {
   const rootElementRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const rootElement = rootElementRef.current;
     if (!rootElement) {
       return undefined;
@@ -680,9 +680,11 @@ function WidgetPanelThemeScope({
       if (!hostElement) {
         return undefined;
       }
+      const parentHostElement =
+        hostElement.parentElement instanceof HTMLElement ? hostElement.parentElement : hostElement;
 
       const updateRootMode = () => {
-        const inferredMode = inferWidgetPanelThemeMode(hostElement);
+        const inferredMode = inferWidgetPanelThemeMode(parentHostElement);
         setRootMode((previousMode) =>
           previousMode === inferredMode ? previousMode : inferredMode
         );
@@ -690,17 +692,17 @@ function WidgetPanelThemeScope({
 
       updateRootMode();
 
-      const themedContainer = hostElement.closest('.deck-widget-container');
+      const themedContainer = parentHostElement.closest('.deck-widget-container');
       const mutationObserver = new MutationObserver(() => {
         updateRootMode();
       });
 
-      mutationObserver.observe(hostElement, {
+      mutationObserver.observe(parentHostElement, {
         attributes: true,
         attributeFilter: ['style', 'class']
       });
 
-      if (themedContainer && themedContainer !== hostElement) {
+      if (themedContainer && themedContainer !== parentHostElement) {
         mutationObserver.observe(themedContainer, {
           attributes: true,
           attributeFilter: ['style', 'class']

@@ -30,6 +30,22 @@ function getThemeScopes(root: ParentNode): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>('[data-panel-theme-mode]')];
 }
 
+async function waitForCondition(
+  predicate: () => boolean,
+  message: string,
+  attempts = 8
+): Promise<void> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (predicate()) {
+      return;
+    }
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+
+  throw new Error(message);
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
 });
@@ -102,16 +118,16 @@ describe('widget containers', () => {
 
     const firstPanel = getPanelContent(root, 'first');
     const secondPanel = getPanelContent(root, 'second');
-    expect(firstPanel?.parentElement?.style.visibility).toBe('hidden');
-    expect(secondPanel?.parentElement?.style.visibility).toBe('visible');
+    expect(firstPanel?.parentElement?.parentElement?.style.visibility).toBe('hidden');
+    expect(secondPanel?.parentElement?.parentElement?.style.visibility).toBe('visible');
 
     firstTab.dispatchEvent(new Event('pointerdown', {bubbles: true}));
     await Promise.resolve();
 
     const firstPanelAfter = getPanelContent(root, 'first');
     const secondPanelAfter = getPanelContent(root, 'second');
-    expect(firstPanelAfter?.parentElement?.style.visibility).toBe('visible');
-    expect(secondPanelAfter?.parentElement?.style.visibility).toBe('hidden');
+    expect(firstPanelAfter?.parentElement?.parentElement?.style.visibility).toBe('visible');
+    expect(secondPanelAfter?.parentElement?.parentElement?.style.visibility).toBe('hidden');
     expect(onActivePanelIdChange).toHaveBeenLastCalledWith('first');
   });
 
@@ -308,6 +324,10 @@ describe('widget containers', () => {
     render(h(WidgetContainerRenderer, {container: panelContainer}), root);
     await Promise.resolve();
 
+    await waitForCondition(
+      () => getThemeScopes(root)[2]?.dataset.panelThemeMode === 'dark',
+      'Expected explicit dark theme scope to render.'
+    );
     const scopes = getThemeScopes(root);
     expect(scopes[1]?.dataset.panelThemeMode).toBe('light');
     expect(scopes[1]?.style.getPropertyValue('--menu-background')).toBe(
@@ -343,6 +363,10 @@ describe('widget containers', () => {
     render(h(WidgetContainerRenderer, {container: panelContainer}), root);
     await Promise.resolve();
 
+    await waitForCondition(
+      () => getThemeScopes(root)[1]?.dataset.panelThemeMode === 'dark',
+      'Expected nested inverted theme scope to render as dark.'
+    );
     const scopes = getThemeScopes(root);
     expect(scopes[0]?.dataset.panelThemeMode).toBe('light');
     expect(scopes[1]?.dataset.panelThemeMode).toBe('dark');
@@ -352,22 +376,29 @@ describe('widget containers', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const cleanup = vi.fn();
+    const onRenderHTML = vi.fn((hostElement: HTMLElement) => {
+      hostElement.textContent = 'custom content';
+      return cleanup;
+    });
     const panelContainer = asPanelContainer(
       new CustomWidgetPanel({
         id: 'custom',
         title: 'Custom',
-        onRenderHTML: (hostElement) => {
-          hostElement.textContent = 'custom content';
-          return cleanup;
-        }
+        onRenderHTML
       })
     );
 
     render(h(WidgetContainerRenderer, {container: panelContainer}), root);
-    await Promise.resolve();
-    await Promise.resolve();
+    await waitForCondition(
+      () =>
+        onRenderHTML.mock.calls.length > 0 &&
+        (root.textContent?.includes('custom content') ?? false),
+      'Expected custom widget panel content to render.',
+      60
+    );
 
     expect(root.textContent).toContain('custom content');
+    expect(onRenderHTML).toHaveBeenCalledTimes(1);
 
     render(null, root);
     await Promise.resolve();
