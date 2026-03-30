@@ -21,7 +21,10 @@ import {
   EditorToolbarWidget
 } from '@deck.gl-community/editable-layers';
 import type {BooleanOperation} from '@deck.gl-community/editable-layers';
+import {BoxWidget, ColumnWidgetPanel, MarkdownWidgetPanel} from '@deck.gl-community/widgets';
 import StaticMap from 'react-map-gl/maplibre';
+
+import '@deck.gl/widgets/stylesheet.css';
 
 // --- Default data ---
 
@@ -101,6 +104,39 @@ function downloadGeoJson(geoJson: any) {
   URL.revokeObjectURL(url);
 }
 
+function buildInfoPanel({
+  modeLabel,
+  booleanOperation,
+  featureCount,
+  selectedFeatureIndexes
+}: {
+  modeLabel: string;
+  booleanOperation: BooleanOperation;
+  featureCount: number;
+  selectedFeatureIndexes: number[];
+}) {
+  return new ColumnWidgetPanel({
+    id: 'editor-info-panel',
+    title: '',
+    panels: {
+      summary: new MarkdownWidgetPanel({
+        id: 'summary',
+        title: '',
+        markdown: [
+          'Supplementary React integration example using the editable-layers widgets inside a React map shell.',
+          '',
+          `- Mode: **${modeLabel}**`,
+          `- Boolean op: **${booleanOperation ?? 'edit'}**`,
+          `- Features: **${featureCount}**`,
+          `- Selected: **${
+            selectedFeatureIndexes.length > 0 ? selectedFeatureIndexes.join(', ') : 'none'
+          }**`
+        ].join('\n')
+      })
+    }
+  });
+}
+
 // --- Component ---
 
 export function Example() {
@@ -124,6 +160,18 @@ export function Example() {
       new EditorToolbarWidget({
         placement: 'bottom-left',
         style: {margin: '0 0 20px 12px'}
+      }),
+    []
+  );
+
+  const infoWidget = useMemo(
+    () =>
+      new BoxWidget({
+        id: 'editor-info',
+        placement: 'top-right',
+        widthPx: 320,
+        title: 'Editor (React)',
+        collapsible: false
       }),
     []
   );
@@ -172,7 +220,22 @@ export function Example() {
     });
   }, [modeConfig, geoJson.features.length, handleSetBooleanOp, handleClear, handleExport, toolbarWidget]);
 
-  const widgets = useMemo(() => [trayWidget, toolbarWidget], [trayWidget, toolbarWidget]);
+  useEffect(() => {
+    const modeLabel = MODE_OPTIONS.find((option) => option.mode === mode)?.label ?? 'View';
+    infoWidget.setProps({
+      panel: buildInfoPanel({
+        modeLabel,
+        booleanOperation: (modeConfig?.booleanOperation as BooleanOperation) ?? null,
+        featureCount: geoJson.features.length,
+        selectedFeatureIndexes
+      })
+    });
+  }, [geoJson.features.length, infoWidget, mode, modeConfig, selectedFeatureIndexes]);
+
+  const widgets = useMemo(
+    () => [trayWidget, toolbarWidget, infoWidget],
+    [infoWidget, trayWidget, toolbarWidget]
+  );
 
   const layer = new EditableGeoJsonLayer({
     data: geoJson,

@@ -1,31 +1,22 @@
-import React, {Component} from 'react';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-
 import {GITHUB_TREE} from '../../constants/defaults';
+import {makeImperativeExample} from '../../components';
 
-import {makeExample} from '../../components';
-
-class HorizonDemo extends Component {
-  static title = 'Horizon Graph Layer Demo';
-
-  static code = `${GITHUB_TREE}/dev/timeline-layers/examples/horizon-graph-layer`;
-
-  static renderInfo(meta) {
-    return <></>;
+export default makeImperativeExample(
+  {
+    title: 'Horizon Graph Layer Demo',
+    code: `${GITHUB_TREE}/dev/timeline-layers/examples/horizon-graph-layer`,
+    async mount(container) {
+      const {mountHorizonGraphLayerExample} = await import(
+        '../../../../dev/timeline-layers/examples/horizon-graph-layer/app'
+      );
+      return mountHorizonGraphLayerExample(container);
+    }
+  },
+  {
+    addInfoPanel: false,
+    style: {
+      height: '560px',
+      minHeight: '560px'
+    }
   }
-
-  render() {
-    const {...otherProps} = this.props;
-
-    return (
-      <BrowserOnly>
-        {() => {
-          const App = require('../../../../dev/timeline-layers/examples/horizon-graph-layer/app').default;
-          return <App {...otherProps} />;
-        }}
-      </BrowserOnly>
-    );
-  }
-}
-
-export default makeExample(HorizonDemo);
+);

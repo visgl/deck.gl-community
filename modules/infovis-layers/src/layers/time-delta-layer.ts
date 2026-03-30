@@ -86,7 +86,7 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
     //   getWidth: 1,
     // }),
 
-    // TODO - triggers an update of monorepo root files
+    // TODO - triggers broader root-level file updates
     //   new PathLayer({
     //     id: 'dotted-path',
     //     data: route,

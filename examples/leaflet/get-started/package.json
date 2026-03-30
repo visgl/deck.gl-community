@@ -8,8 +8,10 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
+    "@deck.gl-community/widgets": "workspace:*",
     "@deck.gl/core": "~9.3.0-alpha.1",
     "@deck.gl/layers": "~9.3.0-alpha.1",
+    "@deck.gl/widgets": "~9.3.0-alpha.1",
     "@loaders.gl/core": "^4.4.0-alpha.16",
     "@luma.gl/core": "~9.3.0-alpha.2",
     "@luma.gl/engine": "~9.3.0-alpha.2",

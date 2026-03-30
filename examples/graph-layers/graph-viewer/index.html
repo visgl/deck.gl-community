@@ -5,9 +5,23 @@
     <title>deck.gl Community Example</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   </head>
-  <body></body>
+  <body>
+    <div id="app"></div>
+  </body>
   <script type="module">
-    import {renderToDOM} from "./app.tsx";
-    renderToDOM(document.body);
+    import {mountGraphViewerExample} from "./app.ts";
+
+    const container = document.getElementById("app");
+    if (!(container instanceof HTMLElement)) {
+      throw new Error("Unable to find #app container");
+    }
+
+    document.documentElement.style.height = "100%";
+    document.body.style.margin = "0";
+    document.body.style.height = "100%";
+    container.style.width = "100vw";
+    container.style.height = "100vh";
+
+    mountGraphViewerExample(container);
   </script>
 </html>

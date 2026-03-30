@@ -13,7 +13,7 @@ draft: true
 
 The `TileSourceLayer` is a composite layer that connects with an image service that can render map images optimized for the current view. Instead of loading a detailed map image covering the entire globe, an image is rendered.
 
-In contrast to the [TileLayer](./tile-layer.md) which loads many small image tiles, the `TileSourceLayer` loads a single image that covers the entire viewport in one single request, and updates the image by performing additional requests when the viewport changes.
+In contrast to the [TileLayer](https://deck.gl/docs/api-reference/geo-layers/tile-layer) which loads many small image tiles, the `TileSourceLayer` loads a single image that covers the entire viewport in one single request, and updates the image by performing additional requests when the viewport changes.
 
 To use this layer, an *image source* must be specified. Image sources are specified by supplying a URL to the `TileSourceLayer` `data` property. See the section on image sources below for mor information.
 
@@ -186,7 +186,7 @@ Returns
 
 ## Properties
 
-Inherits all properties from [base `Layer`](../core/layer.md).
+Inherits all properties from [base `Layer`](https://deck.gl/docs/api-reference/core/layer).
 
 ### Data Options
 
@@ -285,9 +285,9 @@ Receives arguments:
 
 ## Limitations
 
-- Each instance of the `TileSourceLayer` only supports being rendered in one view. See [rendering layers in multiple views](../../developer-guide/views.md#rendering-layers-in-multiple-views) for a workaround.
+- Each instance of the `TileSourceLayer` only supports being rendered in one view. See [rendering layers in multiple views](https://deck.gl/docs/developer-guide/views#rendering-layers-in-multiple-views) for a workaround.
 - This layer currently does not work well with perspective views (i.e. `pitch>0`).
-- This layer does not work with non-geospatial views such as the [OrthographicView](../core/orthographic-view.md) or the [OrbitView](../core/orbit-view.md).
+- This layer does not work with non-geospatial views such as the [OrthographicView](https://deck.gl/docs/api-reference/core/orthographic-view) or the [OrbitView](https://deck.gl/docs/api-reference/core/orbit-view).
 
 ## Source
 

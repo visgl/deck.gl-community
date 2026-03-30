@@ -56,6 +56,7 @@ export {HivePlotLayout} from './layouts/experimental/hive-plot-layout';
 export type {
   Marker,
   NodeState,
+  EdgeState,
   NodeType,
   EdgeType,
   EdgeDecoratorType,
@@ -64,7 +65,7 @@ export type {
 
 // deck.gl components
 export {GraphLayer} from './layers/graph-layer';
-export type {RankGridConfig} from './layers/graph-layer';
+export type {GraphLayerProps, RankGridConfig} from './layers/graph-layer';
 export {EdgeLayer} from './layers/edge-layer';
 export {
   GridLayer,

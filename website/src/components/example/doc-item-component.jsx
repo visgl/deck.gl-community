@@ -3,12 +3,11 @@ import styled from 'styled-components';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
 const DemoContainer = styled.div`
-  position: absolute;
+  position: relative;
   overflow: hidden !important;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
+  width: 100%;
+  height: calc(100vh - var(--ifm-navbar-height) - 24px);
+  min-height: calc(100vh - var(--ifm-navbar-height) - 24px);
 
   > h1 {
     display: none;

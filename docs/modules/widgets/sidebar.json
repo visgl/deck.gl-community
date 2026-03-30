@@ -7,12 +7,50 @@
       "type": "category",
       "label": "API Reference",
       "items": [
+        "modules/widgets/api-reference/README",
+        {
+          "type": "category",
+          "label": "Panel Widgets",
+          "items": [
+            "modules/widgets/api-reference/widget-panels",
+            "modules/widgets/api-reference/box-widget",
+            "modules/widgets/api-reference/modal-widget",
+            "modules/widgets/api-reference/sidebar-widget",
+            "modules/widgets/api-reference/toolbar-widget",
+            "modules/widgets/api-reference/accordeon-widget-panel",
+            "modules/widgets/api-reference/column-widget-panel",
+            "modules/widgets/api-reference/custom-widget-panel",
+            "modules/widgets/api-reference/keyboard-settings-widget-panel",
+            "modules/widgets/api-reference/markdown-widget-panel",
+            "modules/widgets/api-reference/settings-widget-panel",
+            "modules/widgets/api-reference/tabbed-widget-panel",
+            "modules/widgets/api-reference/text-editor-widget-panel",
+            "modules/widgets/api-reference/accordeon-widget-container",
+            "modules/widgets/api-reference/column-widget-container",
+            "modules/widgets/api-reference/tabbed-widget-container",
+            "modules/widgets/api-reference/widget-container-renderer"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Overlay Widgets",
+          "items": [
+            "modules/widgets/api-reference/html-overlay-widget",
+            "modules/widgets/api-reference/html-cluster-widget",
+            "modules/widgets/api-reference/html-overlay-item",
+            "modules/widgets/api-reference/html-tooltip-widget"
+          ]
+        },
+        "modules/widgets/api-reference/heap-memory-widget",
+        "modules/widgets/api-reference/keyboard-shortcuts-widget",
+        "modules/widgets/api-reference/omni-box-widget",
         "modules/widgets/api-reference/pan-widget",
-        "modules/widgets/api-reference/zoom-range-widget",
-        "modules/widgets/api-reference/html-overlay-widget",
-        "modules/widgets/api-reference/html-cluster-widget",
-        "modules/widgets/api-reference/html-overlay-item",
-        "modules/widgets/api-reference/html-tooltip-widget"
+        "modules/widgets/api-reference/reset-view-widget",
+        "modules/widgets/api-reference/settings-widget",
+        "modules/widgets/api-reference/time-measure-widget",
+        "modules/widgets/api-reference/toast-widget",
+        "modules/widgets/api-reference/y-zoom-widget",
+        "modules/widgets/api-reference/zoom-range-widget"
       ]
     }
   ]

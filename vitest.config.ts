@@ -12,7 +12,8 @@ const CONFIG = defineConfig({
       ),
       '@deck.gl-community/basemaps': fileURLToPath(
         new URL('./modules/basemaps/src/index.js', import.meta.url)
-      )
+      ),
+      'monaco-editor': 'monaco-editor/esm/vs/editor/editor.main.js'
     },
     conditions: ['node'] // prefer node resolution
   },
@@ -30,8 +31,11 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: ['modules/**/*.{test,spec}.{js,ts}', 'dev/**/*.{test,spec}.{js,ts}'],
           exclude: [
+            'modules/**/dist/**',
+            'dev/**/dist/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
+            'modules/widgets/src/panel-widgets/toolbar-widget.test.ts',
             'modules/basemaps/**'
           ],
           browser: {

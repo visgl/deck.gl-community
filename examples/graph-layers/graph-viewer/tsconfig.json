@@ -1,4 +1,9 @@
 {
-    "extends": "../../../tsconfig.json",
-    "include": ["./*.tsx"]
+  "extends": "../../../tsconfig.json",
+  "files": [
+    "./app.ts",
+    "./examples.ts",
+    "./layout-options.ts",
+    "./sanitize-graph.ts"
+  ]
 }

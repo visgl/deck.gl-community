@@ -2,6 +2,8 @@
 
 This package bundles widgets that integrate with deck.gl's built-in widget system. Widgets are small UI controls that the `Deck` class can mount in a view to manipulate the current view state.
 
+Alongside classic navigation and overlay widgets, the package also exports generic panel widgets for assembling reusable sidebars, modals, and summary cards around a deck.gl canvas.
+
 :::danger
 The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
 :::
@@ -40,6 +42,8 @@ export function App() {
 
 The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) shows the controls managing an orthographic view over abstract data.
 
+The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the panel composition APIs with a persistent sidebar, a tabbed modal, and a static info box built from shared panel definitions.
+
 ### HTML overlays
 
 Use `HtmlOverlayWidget` when you need HTML anchored to geographic coordinates. The widget renders
@@ -67,3 +71,8 @@ map positions via the widget lifecycle.
 - [HtmlClusterWidget](./api-reference/html-cluster-widget.md)
 - [HtmlOverlayItem](./api-reference/html-overlay-item.md)
 - [HtmlTooltipWidget](./api-reference/html-tooltip-widget.md)
+- [BoxWidget](./api-reference/box-widget.md)
+- [ModalWidget](./api-reference/modal-widget.md)
+- [SidebarWidget](./api-reference/sidebar-widget.md)
+- [ToolbarWidget](./api-reference/toolbar-widget.md)
+- [Widget Panels](./api-reference/widget-panels.md)

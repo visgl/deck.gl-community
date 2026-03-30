@@ -1,31 +1,11 @@
-import React, {Component} from 'react';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-
 import {GITHUB_TREE} from '../../constants/defaults';
+import {makeImperativeExample} from '../../components';
 
-import {makeExample} from '../../components';
-
-class SfDemo extends Component {
-  static title = 'SF Polygons';
-
-  static code = `${GITHUB_TREE}/examples/editable-layers/sf`;
-
-  static renderInfo(meta) {
-    return <></>;
+export default makeImperativeExample({
+  title: 'SF Polygons',
+  code: `${GITHUB_TREE}/examples/editable-layers/sf`,
+  async mount(container) {
+    const {mountSfExample} = await import('../../../../examples/editable-layers/sf/app');
+    return mountSfExample(container);
   }
-
-  render() {
-    const {...otherProps} = this.props;
-
-    return (
-      <BrowserOnly>
-        {() => {
-          const App = require('../../../../examples/editable-layers/sf/example');
-          return <App.Example {...otherProps} />;
-        }}
-      </BrowserOnly>
-    );
-  }
-}
-
-export default makeExample(SfDemo);
+}, {addInfoPanel: false});
