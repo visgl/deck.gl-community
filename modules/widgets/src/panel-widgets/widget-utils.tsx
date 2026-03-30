@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import type { JSX } from 'preact';
+import type {JSX} from 'preact';
 
 export function makeTextIcon(content: string, fontSize = 16, viewBoxSize = 24): string {
   const halfViewBoxSize = viewBoxSize / 2;
@@ -13,7 +13,7 @@ export function IconButton({
   style,
   className = '',
   title,
-  onClick,
+  onClick
 }: {
   icon: string;
   color?: string;
@@ -29,7 +29,7 @@ export function IconButton({
           className="deck-widget-icon"
           style={{
             backgroundColor: color,
-            maskImage: `url('${icon}')`,
+            maskImage: `url('${icon}')`
           }}
         />
       </button>

@@ -1,14 +1,14 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import { DEFAULT_SHORTCUTS, formatKey } from '../keyboard-shortcuts/keyboard-shortcuts';
-import { KeyboardShortcutsManager } from '../keyboard-shortcuts/keyboard-shortcuts-manager';
+import {DEFAULT_SHORTCUTS, formatKey} from '../keyboard-shortcuts/keyboard-shortcuts';
+import {KeyboardShortcutsManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 
-import type { KeyboardShortcut } from '../keyboard-shortcuts/keyboard-shortcuts';
-import type { WidgetPanel, WidgetPanelTheme } from './widget-containers';
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {KeyboardShortcut} from '../keyboard-shortcuts/keyboard-shortcuts';
+import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 export type KeyboardShortcutsWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
@@ -32,7 +32,7 @@ export class KeyboardSettingsWidgetPanel implements WidgetPanel {
   theme?: WidgetPanelTheme;
   content: JSX.Element;
 
-  constructor({ keyboardShortcuts = [], theme = 'inherit' }: KeyboardSettingsWidgetPanelProps = {}) {
+  constructor({keyboardShortcuts = [], theme = 'inherit'}: KeyboardSettingsWidgetPanelProps = {}) {
     this.theme = theme;
     this.content = <KeyboardSettingsPanelContent keyboardShortcuts={keyboardShortcuts} />;
   }
@@ -43,7 +43,7 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
     ...Widget.defaultProps,
     id: 'keyboard-bindings',
     placement: 'top-left',
-    keyboardShortcuts: [],
+    keyboardShortcuts: []
   } satisfies Required<WidgetProps> &
     Required<Pick<KeyboardShortcutsWidgetProps, 'placement' | 'keyboardShortcuts'>> &
     KeyboardShortcutsWidgetProps;
@@ -57,7 +57,7 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
   #keyboardShortcutsManager: KeyboardShortcutsManager | null = null;
 
   constructor(props: KeyboardShortcutsWidgetProps) {
-    super({ ...KeyboardShortcutsWidget.defaultProps, ...props });
+    super({...KeyboardShortcutsWidget.defaultProps, ...props});
     this.#keyboardShortcuts = props.keyboardShortcuts;
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -114,7 +114,7 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
     if (eventManager && this.props.installShortcuts) {
       this.#keyboardShortcutsManager = new KeyboardShortcutsManager(
         eventManager,
-        this.#getEffectiveKeyboardShortcuts(),
+        this.#getEffectiveKeyboardShortcuts()
       );
       this.#keyboardShortcutsManager.start();
     }
@@ -132,7 +132,7 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
         onClose={this.#handleClose}
         onOpen={this.#handleOpen}
       />,
-      this.#rootElement,
+      this.#rootElement
     );
   }
 
@@ -140,9 +140,9 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
     return [
       ...DEFAULT_SHORTCUTS.map((shortcut) => ({
         ...shortcut,
-        onKeyPress: this.#handleOpen,
+        onKeyPress: this.#handleOpen
       })),
-      ...this.#keyboardShortcuts,
+      ...this.#keyboardShortcuts
     ];
   }
 
@@ -173,7 +173,7 @@ const MODAL_BACKDROP_STYLE: JSX.CSSProperties = {
   justifyContent: 'center',
   backgroundColor: 'rgba(15, 23, 42, 0.28)',
   pointerEvents: 'auto',
-  zIndex: 1000,
+  zIndex: 1000
 };
 
 const MODAL_STYLE: JSX.CSSProperties = {
@@ -185,7 +185,7 @@ const MODAL_STYLE: JSX.CSSProperties = {
   boxShadow: '0 14px 40px rgba(15, 23, 42, 0.28)',
   display: 'flex',
   flexDirection: 'column',
-  overflow: 'hidden',
+  overflow: 'hidden'
 };
 
 const KEY_STYLE: JSX.CSSProperties = {
@@ -195,7 +195,7 @@ const KEY_STYLE: JSX.CSSProperties = {
   padding: '2px 8px',
   fontSize: '11px',
   color: 'var(--button-text, #0f172a)',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'nowrap'
 };
 const ICON_COLOR = 'var(--button-icon-idle, var(--button-text, currentColor))';
 const SHORTCUT_BADGE_STYLE: JSX.CSSProperties = {
@@ -208,7 +208,7 @@ const SHORTCUT_BADGE_STYLE: JSX.CSSProperties = {
   fontSize: '10px',
   lineHeight: '12px',
   color: 'rgb(71, 85, 105)',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'nowrap'
 };
 const SHORTCUT_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
@@ -216,14 +216,14 @@ const SHORTCUT_ROW_STYLE: JSX.CSSProperties = {
   gap: '10px 14px',
   alignItems: 'start',
   padding: '10px 0',
-  borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
+  borderBottom: '1px solid rgba(226, 232, 240, 0.8)'
 };
 const SHORTCUT_KEYS_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
   flexWrap: 'wrap',
   gap: '10px',
-  minWidth: 0,
+  minWidth: 0
 };
 const SHORTCUT_DESCRIPTION_STYLE: JSX.CSSProperties = {
   fontSize: '13px',
@@ -232,14 +232,14 @@ const SHORTCUT_DESCRIPTION_STYLE: JSX.CSSProperties = {
   color: 'rgb(71, 85, 105)',
   textAlign: 'left',
   minWidth: 0,
-  width: '100%',
+  width: '100%'
 };
 const SHORTCUT_BADGES_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
   gap: '6px',
   flexWrap: 'wrap',
-  justifySelf: 'end',
+  justifySelf: 'end'
 };
 const SHORTCUT_CHORD_STYLE: JSX.CSSProperties = {
   display: 'inline-flex',
@@ -247,14 +247,14 @@ const SHORTCUT_CHORD_STYLE: JSX.CSSProperties = {
   gap: '2px',
   color: 'rgb(51, 65, 85)',
   fontSize: '11px',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'nowrap'
 };
 
 function KeyboardShortcutsWidgetView({
   isOpen,
   keyboardShortcuts,
   onClose,
-  onOpen,
+  onOpen
 }: {
   isOpen: boolean;
   keyboardShortcuts: KeyboardShortcut[];
@@ -266,7 +266,7 @@ function KeyboardShortcutsWidgetView({
       <div className="deck-widget-button">
         <button
           className="deck-widget-icon-button"
-          style={{ color: 'var(--button-text, currentColor)' }}
+          style={{color: 'var(--button-text, currentColor)'}}
           type="button"
           title="Keyboard shortcuts"
           aria-label="Keyboard shortcuts"
@@ -276,12 +276,12 @@ function KeyboardShortcutsWidgetView({
             style={{
               fontSize: '12px',
               fontWeight: 700,
-              color: ICON_COLOR,
+              color: ICON_COLOR
             }}
           >
             <kbd
               style={{
-                color: ICON_COLOR,
+                color: ICON_COLOR
               }}
             >
               ?
@@ -304,10 +304,10 @@ function KeyboardShortcutsWidgetView({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 borderBottom: '1px solid rgba(226, 232, 240, 1)',
-                padding: '10px 12px',
+                padding: '10px 12px'
               }}
             >
-              <div style={{ fontSize: '14px', fontWeight: 700, color: 'rgb(30, 41, 59)' }}>
+              <div style={{fontSize: '14px', fontWeight: 700, color: 'rgb(30, 41, 59)'}}>
                 Keyboard Shortcuts
               </div>
               <button
@@ -319,7 +319,7 @@ function KeyboardShortcutsWidgetView({
                   color: 'rgb(71, 85, 105)',
                   cursor: 'pointer',
                   fontSize: '18px',
-                  lineHeight: '18px',
+                  lineHeight: '18px'
                 }}
                 aria-label="Close keyboard shortcuts"
                 title="Close"
@@ -336,15 +336,15 @@ function KeyboardShortcutsWidgetView({
 }
 
 function KeyboardSettingsPanelContent({
-  keyboardShortcuts,
+  keyboardShortcuts
 }: {
   keyboardShortcuts: KeyboardShortcut[];
 }) {
   const shortcutRows = buildKeyboardShortcutRows(keyboardShortcuts);
 
   return (
-    <div style={{ overflowY: 'auto', padding: '10px 12px', flex: 1, minHeight: 0 }}>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div style={{overflowY: 'auto', padding: '10px 12px', flex: 1, minHeight: 0}}>
+      <div style={{display: 'flex', flexDirection: 'column'}}>
         {shortcutRows.map((row) => (
           <div key={row.key} style={SHORTCUT_ROW_STYLE}>
             <div
@@ -354,7 +354,7 @@ function KeyboardSettingsPanelContent({
               {row.shortcuts.map((shortcut, index) => (
                 <div
                   key={`${row.key}-${index}`}
-                  style={{ display: 'inline-flex', alignItems: 'center' }}
+                  style={{display: 'inline-flex', alignItems: 'center'}}
                 >
                   <div data-shortcut-key-group="true" key={`${row.key}-${index}`}>
                     <ShortcutKey shortcut={shortcut} />
@@ -381,52 +381,49 @@ function KeyboardSettingsPanelContent({
   );
 }
 
-function ShortcutKey({ shortcut }: { shortcut: KeyboardShortcut }) {
+function ShortcutKey({shortcut}: {shortcut: KeyboardShortcut}) {
   const parts: JSX.Element[] = [];
 
   if (shortcut.commandKey) {
     parts.push(
       <kbd key="command" style={KEY_STYLE}>
         ⌘
-      </kbd>,
+      </kbd>
     );
   }
   if (shortcut.ctrlKey) {
     parts.push(
       <kbd key="ctrl" style={KEY_STYLE}>
         ^
-      </kbd>,
+      </kbd>
     );
   }
   if (shortcut.shiftKey) {
     parts.push(
       <kbd key="shift" style={KEY_STYLE}>
         Shift
-      </kbd>,
+      </kbd>
     );
   }
   if (shortcut.key) {
     parts.push(
       <kbd key="key" style={KEY_STYLE}>
         {formatKey(shortcut.key)}
-      </kbd>,
+      </kbd>
     );
   }
   if (shortcut.dragMouse) {
     parts.push(
-      <span key="drag" style={{ whiteSpace: 'nowrap' }}>
+      <span key="drag" style={{whiteSpace: 'nowrap'}}>
         drag mouse
-      </span>,
+      </span>
     );
   }
 
   return (
     <div style={SHORTCUT_CHORD_STYLE}>
       {parts.map((part, index) => (
-        <span
-          key={`shortcut-part-${index}`}
-          style={{ display: 'inline-flex', alignItems: 'center' }}
-        >
+        <span key={`shortcut-part-${index}`} style={{display: 'inline-flex', alignItems: 'center'}}>
           {part}
         </span>
       ))}
@@ -459,7 +456,7 @@ function buildKeyboardShortcutRows(shortcuts: KeyboardShortcut[]): KeyboardShort
         badges: mergeShortcutBadges(shortcut, nextShortcut),
         description: shortcutDisplayPair.description,
         key: `${shortcutDisplayPair.id}-${index}`,
-        shortcuts: [shortcut, nextShortcut],
+        shortcuts: [shortcut, nextShortcut]
       });
       index += 1;
     } else if (shortcut) {
@@ -467,7 +464,7 @@ function buildKeyboardShortcutRows(shortcuts: KeyboardShortcut[]): KeyboardShort
         badges: [...(shortcut.badges ?? [])],
         description: shortcut.description,
         key: `${shortcut.name}-${shortcut.key}-${index}`,
-        shortcuts: [shortcut],
+        shortcuts: [shortcut]
       });
     }
   }
@@ -477,7 +474,7 @@ function buildKeyboardShortcutRows(shortcuts: KeyboardShortcut[]): KeyboardShort
 
 function canPairShortcuts(
   shortcut: KeyboardShortcut,
-  nextShortcut: KeyboardShortcut | undefined,
+  nextShortcut: KeyboardShortcut | undefined
 ): nextShortcut is KeyboardShortcut {
   if (!nextShortcut) {
     return false;

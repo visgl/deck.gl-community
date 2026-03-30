@@ -1,14 +1,14 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
-import { useState } from 'preact/hooks';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
+import {useState} from 'preact/hooks';
 
-import { formatKey } from '../keyboard-shortcuts/keyboard-shortcuts';
-import { KeyboardShortcutsManager } from '../keyboard-shortcuts/keyboard-shortcuts-manager';
+import {formatKey} from '../keyboard-shortcuts/keyboard-shortcuts';
+import {KeyboardShortcutsManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 
-import type { KeyboardShortcut } from '../keyboard-shortcuts/keyboard-shortcuts';
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {KeyboardShortcut} from '../keyboard-shortcuts/keyboard-shortcuts';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 export type KeyboardShortcutsWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
@@ -21,7 +21,7 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
     ...Widget.defaultProps,
     id: 'keyboard-bindings',
     placement: 'top-left',
-    keyboardShortcuts: [],
+    keyboardShortcuts: []
   } satisfies Required<WidgetProps> &
     Required<Pick<KeyboardShortcutsWidgetProps, 'placement' | 'keyboardShortcuts'>> &
     KeyboardShortcutsWidgetProps;
@@ -34,7 +34,7 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
   #keyboardShortcutsManager: KeyboardShortcutsManager | null = null;
 
   constructor(props: KeyboardShortcutsWidgetProps) {
-    super({ ...KeyboardShortcutsWidget.defaultProps, ...props });
+    super({...KeyboardShortcutsWidget.defaultProps, ...props});
     this.#keyboardShortcuts = props.keyboardShortcuts;
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -57,7 +57,7 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
     if (eventManager && this.props.installShortcuts) {
       this.#keyboardShortcutsManager = new KeyboardShortcutsManager(
         eventManager,
-        this.#keyboardShortcuts,
+        this.#keyboardShortcuts
       );
       this.#keyboardShortcutsManager.start();
     }
@@ -73,7 +73,7 @@ export class KeyboardShortcutsWidget extends Widget<KeyboardShortcutsWidgetProps
 
     render(
       <KeyboardShortcutsWidgetView keyboardShortcuts={this.#keyboardShortcuts} />,
-      rootElement,
+      rootElement
     );
   }
 
@@ -96,7 +96,7 @@ const MODAL_BACKDROP_STYLE: JSX.CSSProperties = {
   justifyContent: 'center',
   backgroundColor: 'rgba(15, 23, 42, 0.28)',
   pointerEvents: 'auto',
-  zIndex: 1000,
+  zIndex: 1000
 };
 
 const MODAL_STYLE: JSX.CSSProperties = {
@@ -108,7 +108,7 @@ const MODAL_STYLE: JSX.CSSProperties = {
   boxShadow: '0 14px 40px rgba(15, 23, 42, 0.28)',
   display: 'flex',
   flexDirection: 'column',
-  overflow: 'hidden',
+  overflow: 'hidden'
 };
 
 const KEY_STYLE: JSX.CSSProperties = {
@@ -118,14 +118,10 @@ const KEY_STYLE: JSX.CSSProperties = {
   padding: '2px 8px',
   fontSize: '11px',
   color: 'rgb(51, 65, 85)',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'nowrap'
 };
 
-function KeyboardShortcutsWidgetView({
-  keyboardShortcuts,
-}: {
-  keyboardShortcuts: KeyboardShortcut[];
-}) {
+function KeyboardShortcutsWidgetView({keyboardShortcuts}: {keyboardShortcuts: KeyboardShortcut[]}) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -142,12 +138,12 @@ function KeyboardShortcutsWidgetView({
             style={{
               fontSize: '12px',
               fontWeight: 700,
-              color: 'var(--deck-widget-icon-color, #0f172a)',
+              color: 'var(--deck-widget-icon-color, #0f172a)'
             }}
           >
             <kbd
               style={{
-                color: 'var(--deck-widget-icon-color, #0f172a)',
+                color: 'var(--deck-widget-icon-color, #0f172a)'
               }}
             >
               ?
@@ -170,10 +166,10 @@ function KeyboardShortcutsWidgetView({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 borderBottom: '1px solid rgba(226, 232, 240, 1)',
-                padding: '10px 12px',
+                padding: '10px 12px'
               }}
             >
-              <div style={{ fontSize: '14px', fontWeight: 700, color: 'rgb(30, 41, 59)' }}>
+              <div style={{fontSize: '14px', fontWeight: 700, color: 'rgb(30, 41, 59)'}}>
                 Keyboard Shortcuts
               </div>
               <button
@@ -185,7 +181,7 @@ function KeyboardShortcutsWidgetView({
                   color: 'rgb(71, 85, 105)',
                   cursor: 'pointer',
                   fontSize: '18px',
-                  lineHeight: '18px',
+                  lineHeight: '18px'
                 }}
                 aria-label="Close keyboard shortcuts"
                 title="Close"
@@ -194,8 +190,8 @@ function KeyboardShortcutsWidgetView({
               </button>
             </div>
 
-            <div style={{ overflowY: 'auto', padding: '10px 12px' }}>
-              <div style={{ display: 'grid', gap: '8px' }}>
+            <div style={{overflowY: 'auto', padding: '10px 12px'}}>
+              <div style={{display: 'grid', gap: '8px'}}>
                 {keyboardShortcuts.map((shortcut, index) => (
                   <div
                     key={`${shortcut.name}-${shortcut.key}-${index}`}
@@ -203,11 +199,11 @@ function KeyboardShortcutsWidgetView({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: '8px',
+                      gap: '8px'
                     }}
                   >
                     <ShortcutKey shortcut={shortcut} />
-                    <span style={{ fontSize: '12px', color: 'rgb(71, 85, 105)' }}>
+                    <span style={{fontSize: '12px', color: 'rgb(71, 85, 105)'}}>
                       {shortcut.name}
                     </span>
                   </div>
@@ -221,9 +217,9 @@ function KeyboardShortcutsWidgetView({
   );
 }
 
-function ShortcutKey({ shortcut }: { shortcut: KeyboardShortcut }) {
+function ShortcutKey({shortcut}: {shortcut: KeyboardShortcut}) {
   return (
-    <div style={{ color: 'rgb(51, 65, 85)', fontSize: '11px' }}>
+    <div style={{color: 'rgb(51, 65, 85)', fontSize: '11px'}}>
       {shortcut.commandKey && (
         <span>
           <kbd style={KEY_STYLE}>⌘</kbd>

@@ -1,18 +1,18 @@
 /** @jsxImportSource preact */
-import { Deck, Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {Deck, Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import { IconButton, makeTextIcon } from './widget-utils';
+import {IconButton, makeTextIcon} from './widget-utils';
 
-import type { PickingInfo, Viewport, WidgetPlacement, WidgetProps } from '@deck.gl/core';
+import type {PickingInfo, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {
   EventManager,
   MjolnirGestureEvent,
   MjolnirKeyEvent,
-  MjolnirPointerEvent,
+  MjolnirPointerEvent
 } from 'mjolnir.js';
 
-export type TimeMeasureRange = { startTimeMs: number; endTimeMs: number };
+export type TimeMeasureRange = {startTimeMs: number; endTimeMs: number};
 
 type TimeMeasureWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
@@ -49,7 +49,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     onActivate: undefined!,
     onDeactivate: undefined!,
     onRangeChange: undefined!,
-    onSelectionChange: undefined!,
+    onSelectionChange: undefined!
   };
 
   className = 'deck-widget-time-measure';
@@ -83,7 +83,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     super.setProps(props);
   }
 
-  onAdd({ deck, viewId }: { deck: Deck; viewId: string | null }): HTMLDivElement | void {
+  onAdd({deck, viewId}: {deck: Deck; viewId: string | null}): HTMLDivElement | void {
     if (viewId && !this.viewId) {
       this.viewId = viewId;
     }
@@ -108,7 +108,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
         className={appearance.isActive ? 'deck-widget-button-active' : ''}
         onClick={() => this.#handleWidgetClick()}
       />,
-      rootElement,
+      rootElement
     );
   }
 
@@ -124,6 +124,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     this.#emitSelectionChange();
   }
 
+  // eslint-disable-next-line complexity
   onClick(info: PickingInfo, event: MjolnirGestureEvent): void {
     if (this.#dragSelecting) {
       return;
@@ -156,7 +157,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
         this.#draftStartTimeMs <= timeMs
           ? [this.#draftStartTimeMs, timeMs]
           : [timeMs, this.#draftStartTimeMs];
-      this.#finalizeRange({ startTimeMs, endTimeMs });
+      this.#finalizeRange({startTimeMs, endTimeMs});
     }
   }
 
@@ -214,7 +215,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
       this.#draftStartTimeMs <= timeMs
         ? [this.#draftStartTimeMs, timeMs]
         : [timeMs, this.#draftStartTimeMs];
-    this.#finalizeRange({ startTimeMs, endTimeMs });
+    this.#finalizeRange({startTimeMs, endTimeMs});
   }
 
   #handleKeyDown = (event: MjolnirKeyEvent) => {
@@ -259,16 +260,16 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     }
 
     if (this.#phase === 'selected') {
-      this.#beginSelection({ resetRange: true });
+      this.#beginSelection({resetRange: true});
       return;
     }
 
-    this.#beginSelection({ resetRange: true });
+    this.#beginSelection({resetRange: true});
   }
 
-  #beginSelection({ resetRange }: { resetRange: boolean }) {
+  #beginSelection({resetRange}: {resetRange: boolean}) {
     if (resetRange) {
-      this.#updateRange(null, { suppressEmit: false });
+      this.#updateRange(null, {suppressEmit: false});
     }
     this.#phase = 'selecting-start';
     this.#draftStartTimeMs = null;
@@ -280,7 +281,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
   }
 
   #beginDragSelection(startTimeMs: number) {
-    this.#updateRange(null, { suppressEmit: false });
+    this.#updateRange(null, {suppressEmit: false});
     this.#phase = 'selecting-end';
     this.#draftStartTimeMs = startTimeMs;
     this.#cursorTimeMs = startTimeMs;
@@ -311,9 +312,10 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     return viewportId === eventViewId;
   }
 
+  // eslint-disable-next-line complexity
   #eventToTimeMs(
     info: PickingInfo,
-    event: MjolnirGestureEvent | MjolnirPointerEvent,
+    event: MjolnirGestureEvent | MjolnirPointerEvent
   ): number | null {
     const projectionViewport = this.#getProjectionViewport(info);
     if (!projectionViewport) {
@@ -355,7 +357,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
   }
 
   #finalizeRange(range: TimeMeasureRange) {
-    this.#updateRange(range, { suppressEmit: false });
+    this.#updateRange(range, {suppressEmit: false});
     this.#phase = 'selected';
     this.#draftStartTimeMs = null;
     this.#cursorTimeMs = null;
@@ -367,9 +369,9 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
 
   #updateRange(
     range: TimeMeasureRange | null,
-    { suppressEmit = false }: { suppressEmit?: boolean } = {},
+    {suppressEmit = false}: {suppressEmit?: boolean} = {}
   ) {
-    this.#timeMeasureRange = range ? { ...range } : null;
+    this.#timeMeasureRange = range ? {...range} : null;
     if (!suppressEmit) {
       this.props.onRangeChange?.(this.#timeMeasureRange);
     }
@@ -403,7 +405,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
       phase: this.#phase,
       cursorTimeMs: this.#cursorTimeMs,
       draftStartTimeMs: this.#draftStartTimeMs,
-      range: this.#timeMeasureRange,
+      range: this.#timeMeasureRange
     });
   }
 
@@ -421,7 +423,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
         color: activeColor,
         icon: makeTextIcon(this.#phase === 'selecting-start' ? '│' : '││'),
         isActive: true,
-        title: 'Select time range…',
+        title: 'Select time range…'
       };
     }
 
@@ -430,14 +432,14 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
         color: focusColor,
         icon: makeTextIcon('Δt'),
         isActive: true,
-        title: this.props.activeLabel,
+        title: this.props.activeLabel
       };
     }
 
     return {
       icon: makeTextIcon('Δt'),
       isActive: false,
-      title: this.props.label,
+      title: this.props.label
     };
   }
 }

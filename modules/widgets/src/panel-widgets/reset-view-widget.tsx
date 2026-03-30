@@ -1,8 +1,8 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
 
 export type ResetViewWidgetProps = WidgetProps & {
   /** Widget positioning within the view. Default 'top-left'. */
@@ -19,7 +19,7 @@ export class ResetViewWidget extends Widget<ResetViewWidgetProps> {
     id: 'reset-view',
     placement: 'top-left',
     label: 'Resize to fit',
-    onResetView: undefined!,
+    onResetView: undefined!
   };
 
   className = 'deck-widget-reset-view';
@@ -50,7 +50,7 @@ export class ResetViewWidget extends Widget<ResetViewWidgetProps> {
           <div className="deck-widget-icon" />
         </button>
       </div>,
-      rootElement,
+      rootElement
     );
   }
 }

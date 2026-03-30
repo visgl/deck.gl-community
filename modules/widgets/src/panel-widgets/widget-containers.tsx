@@ -1,10 +1,18 @@
 /** @jsxImportSource preact */
-import { createContext } from 'preact';
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import {createContext} from 'preact';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'preact/hooks';
 
-import { DarkTheme, LightTheme } from '@deck.gl/widgets';
+import {DarkTheme, LightTheme} from '@deck.gl/widgets';
 
-import type { ComponentChildren, JSX } from 'preact';
+import type {ComponentChildren, JSX} from 'preact';
 
 /**
  * Internal panel identifier used by both accordion and tab containers.
@@ -135,7 +143,7 @@ function normalizePanelRecordPanels(panels: WidgetPanelRecord): WidgetPanel[] {
     const panel = panels[panelId];
     return {
       ...panel,
-      id: panelId,
+      id: panelId
     };
   });
 }
@@ -145,7 +153,7 @@ function normalizePanelRecordPanels(panels: WidgetPanelRecord): WidgetPanel[] {
  */
 function CustomWidgetPanelContent({
   className,
-  onRenderHTML,
+  onRenderHTML
 }: Pick<CustomWidgetPanelProps, 'className' | 'onRenderHTML'>) {
   const rootElementRef = useRef<HTMLDivElement | null>(null);
 
@@ -179,7 +187,7 @@ export class AccordeonWidgetPanel implements WidgetPanel {
     panels,
     id = 'accordeon-widgets',
     title = 'Panels',
-    theme = 'inherit',
+    theme = 'inherit'
   }: AccordeonWidgetPanelProps) {
     this.id = id;
     this.title = title;
@@ -202,7 +210,7 @@ export class TabbedWidgetPanel implements WidgetPanel {
     id = 'tabbed-widgets',
     title = 'Panels',
     tabListLayout = 'wrap',
-    theme = 'inherit',
+    theme = 'inherit'
   }: TabbedWidgetPanelProps) {
     this.id = id;
     this.title = title;
@@ -229,7 +237,7 @@ export class ColumnWidgetPanel implements WidgetPanel {
     panels,
     id = 'column-widgets',
     title = 'Panels',
-    theme = 'inherit',
+    theme = 'inherit'
   }: ColumnWidgetPanelProps) {
     this.id = id;
     this.title = title;
@@ -256,7 +264,7 @@ export class CustomWidgetPanel implements WidgetPanel {
     disabled,
     keepMounted,
     className,
-    theme = 'inherit',
+    theme = 'inherit'
   }: CustomWidgetPanelProps) {
     this.id = id;
     this.title = title;
@@ -285,7 +293,7 @@ export class MarkdownWidgetPanel implements WidgetPanel {
     disabled,
     keepMounted,
     className,
-    theme = 'inherit',
+    theme = 'inherit'
   }: MarkdownWidgetPanelProps) {
     this.id = id;
     this.title = title;
@@ -400,8 +408,8 @@ export function asPanelContainer(panel: WidgetPanel): WidgetPanelContainer {
   return {
     kind: 'panel',
     props: {
-      panel,
-    },
+      panel
+    }
   };
 }
 
@@ -414,16 +422,16 @@ export function AccordeonWidgetContainer({
   defaultExpandedPanelIds = [],
   expandedPanelIds,
   onExpandedPanelIdsChange,
-  allowMultipleExpanded = true,
+  allowMultipleExpanded = true
 }: AccordeonWidgetContainerProps) {
   const [currentExpandedPanelIds, setCurrentExpandedPanelIds] = useControlledStringListState(
     expandedPanelIds,
-    defaultExpandedPanelIds,
+    defaultExpandedPanelIds
   );
 
   const expandedPanelIdSet = useMemo(
     () => new Set(currentExpandedPanelIds),
-    [currentExpandedPanelIds],
+    [currentExpandedPanelIds]
   );
 
   const effectivePanels = useMemo(() => [...panels], [panels]);
@@ -444,7 +452,7 @@ export function AccordeonWidgetContainer({
       setCurrentExpandedPanelIds(next);
       onExpandedPanelIdsChange?.(next);
     },
-    [allowMultipleExpanded, currentExpandedPanelIds, onExpandedPanelIdsChange],
+    [allowMultipleExpanded, currentExpandedPanelIds, onExpandedPanelIdsChange]
   );
 
   return (
@@ -460,7 +468,7 @@ export function AccordeonWidgetContainer({
               style={{
                 ...ACCORDION_HEADING_STYLE,
                 cursor: panel.disabled ? 'not-allowed' : 'pointer',
-                opacity: panel.disabled ? 0.55 : 1,
+                opacity: panel.disabled ? 0.55 : 1
               }}
               disabled={panel.disabled}
               onPointerDown={(event) => {
@@ -476,7 +484,7 @@ export function AccordeonWidgetContainer({
               <span
                 style={{
                   transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                  transition: 'transform 160ms ease',
+                  transition: 'transform 160ms ease'
                 }}
               >
                 ▸
@@ -485,10 +493,12 @@ export function AccordeonWidgetContainer({
             <div
               style={{
                 ...ACCORDION_CONTENT_STYLE,
-                display: isExpanded ? 'block' : 'none',
+                display: isExpanded ? 'block' : 'none'
               }}
             >
-              {shouldRenderContent ? <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope> : null}
+              {shouldRenderContent ? (
+                <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope>
+              ) : null}
             </div>
           </section>
         );
@@ -506,11 +516,11 @@ export function TabbedWidgetContainer({
   defaultActivePanelId,
   activePanelId,
   onActivePanelIdChange,
-  tabListLayout = 'wrap',
+  tabListLayout = 'wrap'
 }: TabbedWidgetContainerProps) {
   const [currentActivePanelId, setCurrentActivePanelId] = useControlledStringState(
     activePanelId,
-    defaultActivePanelId,
+    defaultActivePanelId
   );
 
   const enabledPanels = useMemo(() => panels.filter((panel) => !panel.disabled), [panels]);
@@ -551,7 +561,7 @@ export function TabbedWidgetContainer({
                 color: isActive
                   ? 'var(--button-text, rgb(24, 24, 26))'
                   : 'var(--button-icon-idle, rgb(71, 85, 105))',
-                boxShadow: isActive ? '0 1px 2px rgba(15, 23, 42, 0.08)' : 'none',
+                boxShadow: isActive ? '0 1px 2px rgba(15, 23, 42, 0.08)' : 'none'
               }}
               disabled={panel.disabled}
               onPointerDown={(event) => {
@@ -580,7 +590,7 @@ export function TabbedWidgetContainer({
               style={{
                 ...TAB_PANEL_CONTENT_STYLE,
                 visibility: isActive ? 'visible' : 'hidden',
-                pointerEvents: isActive ? 'auto' : 'none',
+                pointerEvents: isActive ? 'auto' : 'none'
               }}
             >
               <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope>
@@ -595,7 +605,7 @@ export function TabbedWidgetContainer({
 /**
  * Renders child panels in a simple vertical column.
  */
-export function ColumnWidgetContainer({ panels, className }: ColumnWidgetContainerProps) {
+export function ColumnWidgetContainer({panels, className}: ColumnWidgetContainerProps) {
   const effectivePanels = useMemo(() => [...panels], [panels]);
 
   return (
@@ -607,7 +617,7 @@ export function ColumnWidgetContainer({ panels, className }: ColumnWidgetContain
             ...COLUMN_PANEL_STYLE,
             borderTop:
               panelIndex > 0 ? '1px solid var(--menu-border, rgba(148, 163, 184, 0.25))' : 'none',
-            opacity: panel.disabled ? 0.55 : 1,
+            opacity: panel.disabled ? 0.55 : 1
           }}
         >
           {panel.title ? <header style={COLUMN_PANEL_HEADER_STYLE}>{panel.title}</header> : null}
@@ -623,7 +633,7 @@ export function ColumnWidgetContainer({ panels, className }: ColumnWidgetContain
 /**
  * Renders the requested container based on descriptor kind.
  */
-export function WidgetContainerRenderer({ container }: { container: WidgetContainer }) {
+export function WidgetContainerRenderer({container}: {container: WidgetContainer}) {
   if (container.kind === 'accordeon') {
     return <AccordeonWidgetContainer {...container.props} />;
   }
@@ -653,7 +663,7 @@ export function useEffectiveWidgetPanelThemeMode(): WidgetPanelThemeMode {
  */
 function WidgetPanelThemeScope({
   panel,
-  children,
+  children
 }: {
   panel: WidgetPanel;
   children: ComponentChildren;
@@ -665,42 +675,44 @@ function WidgetPanelThemeScope({
   const resolvedMode = resolveWidgetPanelThemeMode(parentMode, panel.theme);
 
   useLayoutEffect(() => {
-    if (inheritedMode) {
-      return;
-    }
+    if (!inheritedMode) {
+      const hostElement = hostElementRef.current;
+      if (!hostElement) {
+        return undefined;
+      }
 
-    const hostElement = hostElementRef.current;
-    if (!hostElement) {
-      return;
-    }
+      const updateRootMode = () => {
+        const inferredMode = inferWidgetPanelThemeMode(hostElement);
+        setRootMode((previousMode) =>
+          previousMode === inferredMode ? previousMode : inferredMode
+        );
+      };
 
-    const updateRootMode = () => {
-      const inferredMode = inferWidgetPanelThemeMode(hostElement);
-      setRootMode((previousMode) => (previousMode === inferredMode ? previousMode : inferredMode));
-    };
-
-    updateRootMode();
-
-    const themedContainer = hostElement.closest('.deck-widget-container');
-    const mutationObserver = new MutationObserver(() => {
       updateRootMode();
-    });
 
-    mutationObserver.observe(hostElement, {
-      attributes: true,
-      attributeFilter: ['style', 'class'],
-    });
-
-    if (themedContainer && themedContainer !== hostElement) {
-      mutationObserver.observe(themedContainer, {
-        attributes: true,
-        attributeFilter: ['style', 'class'],
+      const themedContainer = hostElement.closest('.deck-widget-container');
+      const mutationObserver = new MutationObserver(() => {
+        updateRootMode();
       });
+
+      mutationObserver.observe(hostElement, {
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
+
+      if (themedContainer && themedContainer !== hostElement) {
+        mutationObserver.observe(themedContainer, {
+          attributes: true,
+          attributeFilter: ['style', 'class']
+        });
+      }
+
+      return () => {
+        mutationObserver.disconnect();
+      };
     }
 
-    return () => {
-      mutationObserver.disconnect();
-    };
+    return undefined;
   }, [inheritedMode]);
 
   return (
@@ -721,7 +733,7 @@ function WidgetPanelThemeScope({
  */
 function resolveWidgetPanelThemeMode(
   parentMode: WidgetPanelThemeMode,
-  theme: WidgetPanelTheme | undefined,
+  theme: WidgetPanelTheme | undefined
 ): WidgetPanelThemeMode {
   if (theme === 'dark') {
     return 'dark';
@@ -777,11 +789,15 @@ function parseThemeColor(value: string): [number, number, number] | null {
       return [
         parseInt(hex[0] + hex[0], 16),
         parseInt(hex[1] + hex[1], 16),
-        parseInt(hex[2] + hex[2], 16),
+        parseInt(hex[2] + hex[2], 16)
       ];
     }
     if (hex.length >= 6) {
-      return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+      return [
+        parseInt(hex.slice(0, 2), 16),
+        parseInt(hex.slice(2, 4), 16),
+        parseInt(hex.slice(4, 6), 16)
+      ];
     }
     return null;
   }
@@ -791,11 +807,7 @@ function parseThemeColor(value: string): [number, number, number] | null {
     return null;
   }
 
-  return [
-    Number(channelMatches[0]),
-    Number(channelMatches[1]),
-    Number(channelMatches[2]),
-  ];
+  return [Number(channelMatches[0]), Number(channelMatches[1]), Number(channelMatches[2])];
 }
 
 /**
@@ -810,7 +822,7 @@ function getRelativeLuminance([red, green, blue]: [number, number, number]): num
  */
 function useControlledStringState(
   controlledValue?: WidgetPanelId,
-  defaultValue?: WidgetPanelId,
+  defaultValue?: WidgetPanelId
 ): [WidgetPanelId | undefined, (next: WidgetPanelId | undefined) => void] {
   const [internalValue, setInternalValue] = useState<WidgetPanelId | undefined>(defaultValue);
   const isControlled = controlledValue !== undefined;
@@ -829,7 +841,7 @@ function useControlledStringState(
         setInternalValue(next);
       }
     },
-    [isControlled],
+    [isControlled]
   );
 
   return [resolvedValue, setValue];
@@ -838,6 +850,7 @@ function useControlledStringState(
 /**
  * Renders a Markdown document into a safe built-in subset of block elements.
  */
+/* eslint-disable max-statements, no-continue */
 function renderMarkdownBlocks(markdown: string): JSX.Element[] {
   const normalizedMarkdown = markdown.replace(/\r\n?/g, '\n');
   const lines = normalizedMarkdown.split('\n');
@@ -858,7 +871,7 @@ function renderMarkdownBlocks(markdown: string): JSX.Element[] {
     blocks.push(
       <p key={currentBlockKey} style={MARKDOWN_PARAGRAPH_STYLE}>
         {renderInlineMarkdown(paragraphText, currentBlockKey)}
-      </p>,
+      </p>
     );
     paragraphLines.length = 0;
   };
@@ -879,7 +892,7 @@ function renderMarkdownBlocks(markdown: string): JSX.Element[] {
             {renderInlineMarkdown(item, `unordered-item-${currentBlockIndex}-${itemIndex}`)}
           </li>
         ))}
-      </ul>,
+      </ul>
     );
     unorderedListItems.length = 0;
   };
@@ -900,7 +913,7 @@ function renderMarkdownBlocks(markdown: string): JSX.Element[] {
             {renderInlineMarkdown(item, `ordered-item-${currentBlockIndex}-${itemIndex}`)}
           </li>
         ))}
-      </ol>,
+      </ol>
     );
     orderedListItems.length = 0;
   };
@@ -913,7 +926,7 @@ function renderMarkdownBlocks(markdown: string): JSX.Element[] {
     blocks.push(
       <pre key={`code-${blockIndex++}`} style={MARKDOWN_CODE_BLOCK_STYLE}>
         <code>{fencedCodeLines.join('\n')}</code>
-      </pre>,
+      </pre>
     );
     fencedCodeLines = undefined;
   };
@@ -958,7 +971,7 @@ function renderMarkdownBlocks(markdown: string): JSX.Element[] {
       blocks.push(
         <HeadingTag key={currentBlockKey} style={getMarkdownHeadingStyle(headingLevel)}>
           {renderInlineMarkdown(headingText, currentBlockKey)}
-        </HeadingTag>,
+        </HeadingTag>
       );
       continue;
     }
@@ -993,6 +1006,7 @@ function renderMarkdownBlocks(markdown: string): JSX.Element[] {
 /**
  * Renders a minimal inline Markdown subset into safe text and inline elements.
  */
+// eslint-disable-next-line complexity
 function renderInlineMarkdown(source: string, keyPrefix: string): ComponentChildren[] {
   const inlineTokenPattern =
     /(\[([^\]]+)\]\(([^)\s]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*]+)\*|_([^_]+)_)/g;
@@ -1016,17 +1030,17 @@ function renderInlineMarkdown(source: string, keyPrefix: string): ComponentChild
           style={MARKDOWN_LINK_STYLE}
         >
           {match[2]}
-        </a>,
+        </a>
       );
     } else if (match[4] !== undefined) {
       children.push(
         <code key={`${keyPrefix}-code-${tokenIndex}`} style={MARKDOWN_INLINE_CODE_STYLE}>
           {match[4]}
-        </code>,
+        </code>
       );
     } else if (match[5] !== undefined || match[6] !== undefined) {
       children.push(
-        <strong key={`${keyPrefix}-strong-${tokenIndex}`}>{match[5] ?? match[6]}</strong>,
+        <strong key={`${keyPrefix}-strong-${tokenIndex}`}>{match[5] ?? match[6]}</strong>
       );
     } else if (match[7] !== undefined || match[8] !== undefined) {
       children.push(<em key={`${keyPrefix}-em-${tokenIndex}`}>{match[7] ?? match[8]}</em>);
@@ -1046,6 +1060,7 @@ function renderInlineMarkdown(source: string, keyPrefix: string): ComponentChild
 
   return children;
 }
+/* eslint-enable max-statements, no-continue */
 
 /**
  * Returns the heading style for one Markdown heading level.
@@ -1068,7 +1083,7 @@ function getMarkdownHeadingStyle(level: number): JSX.CSSProperties {
  * Normalizes panel id collections for deterministic membership checks and stable state.
  */
 function normalizePanelIds(
-  values: ReadonlyArray<WidgetPanelId> | undefined,
+  values: ReadonlyArray<WidgetPanelId> | undefined
 ): ReadonlyArray<WidgetPanelId> {
   if (!values || values.length === 0) {
     return [];
@@ -1077,11 +1092,10 @@ function normalizePanelIds(
   const seen = new Set<string>();
   for (const value of values) {
     const trimmed = String(value);
-    if (seen.has(trimmed)) {
-      continue;
+    if (!seen.has(trimmed)) {
+      seen.add(trimmed);
+      deduped.push(trimmed);
     }
-    seen.add(trimmed);
-    deduped.push(trimmed);
   }
   return deduped;
 }
@@ -1091,10 +1105,10 @@ function normalizePanelIds(
  */
 function useControlledStringListState(
   controlledValue?: ReadonlyArray<WidgetPanelId>,
-  defaultValue?: ReadonlyArray<WidgetPanelId>,
+  defaultValue?: ReadonlyArray<WidgetPanelId>
 ): [ReadonlyArray<WidgetPanelId>, (next: ReadonlyArray<WidgetPanelId>) => void] {
   const [internalValue, setInternalValue] = useState<ReadonlyArray<WidgetPanelId>>(() =>
-    normalizePanelIds(controlledValue ?? defaultValue),
+    normalizePanelIds(controlledValue ?? defaultValue)
   );
   const isControlled = controlledValue !== undefined;
   const resolvedValue = isControlled ? normalizePanelIds(controlledValue) : internalValue;
@@ -1112,7 +1126,7 @@ function useControlledStringListState(
         setInternalValue(normalizePanelIds(next));
       }
     },
-    [isControlled],
+    [isControlled]
   );
 
   return [resolvedValue, setValue];
@@ -1124,13 +1138,13 @@ function useControlledStringListState(
 const ACCORDEON_CONTAINER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '8px',
+  gap: '8px'
 };
 
 const ACCORDION_PANEL_STYLE: JSX.CSSProperties = {
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
   borderRadius: 'var(--button-corner-radius, 8px)',
-  overflow: 'hidden',
+  overflow: 'hidden'
 };
 
 const ACCORDION_HEADING_STYLE: JSX.CSSProperties = {
@@ -1146,14 +1160,14 @@ const ACCORDION_HEADING_STYLE: JSX.CSSProperties = {
   color: 'var(--menu-text, rgb(24, 24, 26))',
   fontSize: '12px',
   lineHeight: 1.2,
-  fontWeight: 700,
+  fontWeight: 700
 };
 
 const ACCORDION_CONTENT_STYLE: JSX.CSSProperties = {
   padding: '8px 10px 10px 12px',
   borderTop: 'var(--menu-divider, var(--menu-border, 1px solid rgba(148, 163, 184, 0.25)))',
   backgroundColor: 'var(--menu-background, #fff)',
-  color: 'var(--menu-text, rgb(24, 24, 26))',
+  color: 'var(--menu-text, rgb(24, 24, 26))'
 };
 
 const TABBED_CONTAINER_STYLE: JSX.CSSProperties = {
@@ -1164,7 +1178,7 @@ const TABBED_CONTAINER_STYLE: JSX.CSSProperties = {
   borderRadius: 'var(--button-corner-radius, 8px)',
   overflow: 'hidden',
   backgroundColor: 'var(--menu-background, #fff)',
-  color: 'var(--menu-text, rgb(24, 24, 26))',
+  color: 'var(--menu-text, rgb(24, 24, 26))'
 };
 
 function getTabListStyle(tabListLayout: 'wrap' | 'scroll'): JSX.CSSProperties {
@@ -1175,12 +1189,13 @@ function getTabListStyle(tabListLayout: 'wrap' | 'scroll'): JSX.CSSProperties {
     gap: '4px',
     overflowX: tabListLayout === 'scroll' ? 'auto' : 'hidden',
     overflowY: 'hidden',
-    background: 'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
+    background:
+      'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
     padding: '4px 6px',
     borderBottom: 'var(--menu-divider, var(--menu-border, 1px solid rgba(148, 163, 184, 0.2)))',
     position: 'sticky',
     top: 0,
-    zIndex: 1,
+    zIndex: 1
   };
 }
 
@@ -1197,41 +1212,41 @@ const TAB_BUTTON_STYLE: JSX.CSSProperties = {
   color: 'var(--menu-text, rgb(24, 24, 26))',
   backgroundColor: 'rgba(255, 255, 255, 0.35)',
   whiteSpace: 'nowrap',
-  transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease',
+  transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease'
 };
 
 const TAB_PANEL_STYLE: JSX.CSSProperties = {
   display: 'grid',
   alignItems: 'start',
   padding: '10px',
-  overflow: 'auto',
+  overflow: 'auto'
 };
 
 const TAB_PANEL_CONTENT_STYLE: JSX.CSSProperties = {
   gridArea: '1 / 1',
-  minWidth: 0,
+  minWidth: 0
 };
 
 const COLUMN_CONTAINER_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '0',
+  gap: '0'
 };
 
 const COLUMN_PANEL_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gap: '10px',
-  padding: '12px 0',
+  padding: '12px 0'
 };
 
 const COLUMN_PANEL_HEADER_STYLE: JSX.CSSProperties = {
   fontSize: '12px',
   fontWeight: 700,
   color: 'var(--button-text, currentColor)',
-  padding: '0 2px',
+  padding: '0 2px'
 };
 
 const COLUMN_PANEL_CONTENT_STYLE: JSX.CSSProperties = {
-  minWidth: 0,
+  minWidth: 0
 };
 
 const MARKDOWN_PANEL_STYLE: JSX.CSSProperties = {
@@ -1240,11 +1255,11 @@ const MARKDOWN_PANEL_STYLE: JSX.CSSProperties = {
   gap: '12px',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   fontSize: '13px',
-  lineHeight: '1.5',
+  lineHeight: '1.5'
 };
 
 const MARKDOWN_PARAGRAPH_STYLE: JSX.CSSProperties = {
-  margin: '0',
+  margin: '0'
 };
 
 const MARKDOWN_LIST_STYLE: JSX.CSSProperties = {
@@ -1252,11 +1267,11 @@ const MARKDOWN_LIST_STYLE: JSX.CSSProperties = {
   paddingLeft: '18px',
   display: 'flex',
   flexDirection: 'column',
-  gap: '6px',
+  gap: '6px'
 };
 
 const MARKDOWN_LIST_ITEM_STYLE: JSX.CSSProperties = {
-  margin: '0',
+  margin: '0'
 };
 
 const MARKDOWN_CODE_BLOCK_STYLE: JSX.CSSProperties = {
@@ -1268,7 +1283,7 @@ const MARKDOWN_CODE_BLOCK_STYLE: JSX.CSSProperties = {
   border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.2))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   fontSize: '12px',
-  lineHeight: '1.45',
+  lineHeight: '1.45'
 };
 
 const MARKDOWN_INLINE_CODE_STYLE: JSX.CSSProperties = {
@@ -1277,37 +1292,37 @@ const MARKDOWN_INLINE_CODE_STYLE: JSX.CSSProperties = {
   background: 'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
   border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.2))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: '12px'
 };
 
 const MARKDOWN_LINK_STYLE: JSX.CSSProperties = {
-  color: 'var(--button-text, rgb(29, 78, 216))',
+  color: 'var(--button-text, rgb(29, 78, 216))'
 };
 
 const MARKDOWN_HEADING_1_STYLE: JSX.CSSProperties = {
   margin: '0',
   fontSize: '20px',
   fontWeight: 700,
-  lineHeight: '1.25',
+  lineHeight: '1.25'
 };
 
 const MARKDOWN_HEADING_2_STYLE: JSX.CSSProperties = {
   margin: '0',
   fontSize: '17px',
   fontWeight: 700,
-  lineHeight: '1.3',
+  lineHeight: '1.3'
 };
 
 const MARKDOWN_HEADING_3_STYLE: JSX.CSSProperties = {
   margin: '0',
   fontSize: '15px',
   fontWeight: 700,
-  lineHeight: '1.35',
+  lineHeight: '1.35'
 };
 
 const MARKDOWN_HEADING_4_TO_6_STYLE: JSX.CSSProperties = {
   margin: '0',
   fontSize: '13px',
   fontWeight: 700,
-  lineHeight: '1.4',
+  lineHeight: '1.4'
 };

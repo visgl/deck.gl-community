@@ -2,8 +2,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {it, expect} from 'vitest';
-import * as Widgets from '../src/index';
+import {beforeAll, expect, it, vi} from 'vitest';
+
+vi.mock('../src/panel-widgets/text-editor-widget', () => ({
+  TextEditorWidgetPanel: class TextEditorWidgetPanel {}
+}));
+
+let Widgets: typeof import('../src/index');
+
+beforeAll(async () => {
+  Widgets = await import('../src/index');
+});
 
 it('exports PanWidget', () => {
   expect(Widgets.PanWidget).toBeDefined();

@@ -1,12 +1,12 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import { asPanelContainer, WidgetContainerRenderer } from './widget-containers';
+import {asPanelContainer, WidgetContainerRenderer} from './widget-containers';
 
-import type { WidgetContainer, WidgetPanel } from './widget-containers';
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {WidgetContainer, WidgetPanel} from './widget-containers';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 /** Static card widget properties. */
 export type BoxWidgetProps = WidgetProps & {
@@ -58,9 +58,9 @@ function asContainer(container?: WidgetContainer, panel?: WidgetPanel): WidgetCo
       panel: {
         id: 'empty-box-panel',
         title: '',
-        content: <div />,
-      },
-    },
+        content: <div />
+      }
+    }
   };
 }
 
@@ -70,7 +70,7 @@ function BoxWidgetView({
   widthPx,
   open,
   collapsible,
-  onOpenChange,
+  onOpenChange
 }: {
   container: WidgetContainer;
   title?: string;
@@ -128,10 +128,10 @@ export class BoxWidget extends Widget<BoxWidgetProps> {
         panel: {
           id: 'empty-box-panel',
           title: '',
-          content: <div />,
-        },
-      },
-    },
+          content: <div />
+        }
+      }
+    }
   };
 
   className = BOX_WIDGET_CLASS;
@@ -150,7 +150,7 @@ export class BoxWidget extends Widget<BoxWidgetProps> {
     super({
       ...BoxWidget.defaultProps,
       ...props,
-      container: asContainer(props.container, props.panel),
+      container: asContainer(props.container, props.panel)
     } as BoxWidgetProps);
     this.setProps(this.props);
   }
@@ -213,7 +213,7 @@ export class BoxWidget extends Widget<BoxWidgetProps> {
         collapsible={this.collapsible}
         onOpenChange={this.#handleOpenChange}
       />,
-      this.#rootElement,
+      this.#rootElement
     );
   };
 
@@ -245,7 +245,7 @@ const BOX_WIDGET_STYLE = (widthPx: number): JSX.CSSProperties => ({
   backdropFilter: 'var(--menu-backdrop-filter, unset)',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   boxShadow: 'var(--menu-shadow, 0 18px 40px rgba(15, 23, 42, 0.16))',
-  overflow: 'hidden',
+  overflow: 'hidden'
 });
 
 const BOX_HEADER_STYLE: JSX.CSSProperties = {
@@ -253,7 +253,7 @@ const BOX_HEADER_STYLE: JSX.CSSProperties = {
   fontSize: '18px',
   fontWeight: 700,
   lineHeight: 1.2,
-  color: 'var(--button-text, currentColor)',
+  color: 'var(--button-text, currentColor)'
 };
 
 const BOX_HEADER_BUTTON_STYLE: JSX.CSSProperties = {
@@ -268,17 +268,17 @@ const BOX_HEADER_BUTTON_STYLE: JSX.CSSProperties = {
   color: 'inherit',
   font: 'inherit',
   textAlign: 'left',
-  cursor: 'pointer',
+  cursor: 'pointer'
 };
 
 const BOX_HEADER_CHEVRON_STYLE = (open: boolean): JSX.CSSProperties => ({
   display: 'block',
   fontSize: '16px',
   lineHeight: 1,
-  transform: open ? 'translateY(1px)' : 'translateY(0)',
+  transform: open ? 'translateY(1px)' : 'translateY(0)'
 });
 
 const BOX_CONTENT_STYLE = (open: boolean): JSX.CSSProperties => ({
   padding: '0 16px 14px',
-  display: open ? 'block' : 'none',
+  display: open ? 'block' : 'none'
 });

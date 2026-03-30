@@ -21,11 +21,11 @@ export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
     key: '/',
     commandKey: true,
     name: 'Show Shortcuts',
-    description: 'Show keyboard shortcuts',
-  },
+    description: 'Show keyboard shortcuts'
+  }
 ];
 
-const navigator = typeof window !== 'undefined' ? globalThis.navigator : { platform: '' };
+const navigator = typeof window !== 'undefined' ? globalThis.navigator : {platform: ''};
 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
 export const isShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcut: KeyboardShortcut) => {
@@ -45,51 +45,51 @@ export const findShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcuts: Keyboa
 // Pretty “keycap” glyphs for KeyboardEvent.key (browser KeyEvent)
 export const keyCharacter: Record<string, string> = {
   // Arrows
-  'ArrowLeft': '←',
-  'ArrowRight': '→',
-  'ArrowUp': '↑',
-  'ArrowDown': '↓',
+  ArrowLeft: '←',
+  ArrowRight: '→',
+  ArrowUp: '↑',
+  ArrowDown: '↓',
 
   // Navigation
-  'Home': '⤒',
-  'End': '⤓',
-  'PageUp': '⇞',
-  'PageDown': '⇟',
+  Home: '⤒',
+  End: '⤓',
+  PageUp: '⇞',
+  PageDown: '⇟',
 
   // Editing
-  'Backspace': '⌫',
-  'Delete': '⌦',
-  'Insert': 'Ins',
+  Backspace: '⌫',
+  Delete: '⌦',
+  Insert: 'Ins',
 
   // Whitespace / confirm / escape
-  'Enter': '⏎',
-  'Escape': '⎋',
-  'Tab': '⇥',
+  Enter: '⏎',
+  Escape: '⎋',
+  Tab: '⇥',
   ' ': '␠', // KeyboardEvent.key for Space is literally " "
-  'Spacebar': '␠', // legacy (some older browsers)
+  Spacebar: '␠', // legacy (some older browsers)
 
   // Modifiers
-  'Shift': 'Shift', // '⇧',
-  'Control': '⌃',
-  'Alt': '⌥',
-  'Meta': '⌘', // Windows key on Win; Command on macOS
-  'CapsLock': '⇪',
+  Shift: 'Shift', // '⇧',
+  Control: '⌃',
+  Alt: '⌥',
+  Meta: '⌘', // Windows key on Win; Command on macOS
+  CapsLock: '⇪',
 
   // System / toggles
-  'ContextMenu': '≣',
-  'PrintScreen': '⎙',
-  'ScrollLock': '⇳',
-  'Pause': '⏸',
-  'NumLock': '⇭',
+  ContextMenu: '≣',
+  PrintScreen: '⎙',
+  ScrollLock: '⇳',
+  Pause: '⏸',
+  NumLock: '⇭',
 
   // Media keys (common)
-  'MediaPlayPause': '⏯',
-  'MediaStop': '⏹',
-  'MediaTrackNext': '⏭',
-  'MediaTrackPrevious': '⏮',
-  'AudioVolumeMute': '🔇',
-  'AudioVolumeDown': '🔉',
-  'AudioVolumeUp': '🔊',
+  MediaPlayPause: '⏯',
+  MediaStop: '⏹',
+  MediaTrackNext: '⏭',
+  MediaTrackPrevious: '⏮',
+  AudioVolumeMute: '🔇',
+  AudioVolumeDown: '🔉',
+  AudioVolumeUp: '🔊'
 };
 
 // Optional: normalize a KeyboardEvent into a human-friendly label

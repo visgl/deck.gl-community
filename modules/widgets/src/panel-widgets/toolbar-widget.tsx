@@ -132,7 +132,10 @@ const BADGE_STYLE: JSX.CSSProperties = {
 
 function stopToolbarEventPropagation(event: Event) {
   event.stopPropagation();
-  if (typeof (event as {stopImmediatePropagation?: () => void}).stopImmediatePropagation === 'function') {
+  if (
+    typeof (event as {stopImmediatePropagation?: () => void}).stopImmediatePropagation ===
+    'function'
+  ) {
     (event as {stopImmediatePropagation?: () => void}).stopImmediatePropagation?.();
   }
 }
@@ -272,7 +275,9 @@ export class ToolbarWidget extends Widget<ToolbarWidgetProps> {
 
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
-    const className = ['deck-widget', this.className, this.props.className].filter(Boolean).join(' ');
+    const className = ['deck-widget', this.className, this.props.className]
+      .filter(Boolean)
+      .join(' ');
     rootElement.className = className;
     Object.assign(rootElement.style, ROOT_STYLE, this.props.style ?? {});
     this.#render();

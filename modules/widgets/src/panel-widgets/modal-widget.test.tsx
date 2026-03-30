@@ -1,15 +1,15 @@
 /** @jsxImportSource preact */
-import { afterEach, describe, expect, it } from 'vitest';
+import {afterEach, describe, expect, it} from 'vitest';
 
-import { ModalWidget } from './modal-widget';
-import { TabbedWidgetPanel } from './widget-containers';
+import {ModalWidget} from './modal-widget';
+import {TabbedWidgetPanel} from './widget-containers';
 
-import type { WidgetPanel } from './widget-containers';
+import type {WidgetPanel} from './widget-containers';
 
 const panel: WidgetPanel = {
   id: 'help',
   title: 'Help',
-  content: <div>help content</div>,
+  content: <div>help content</div>
 };
 
 afterEach(() => {
@@ -24,7 +24,7 @@ describe('ModalWidget', () => {
       id: 'help',
       panel,
       button: true,
-      icon: 'icon',
+      icon: 'icon'
     });
 
     widget.onRenderHTML(root);
@@ -41,7 +41,7 @@ describe('ModalWidget', () => {
     const widget = new ModalWidget({
       id: 'help-hidden-button',
       panel,
-      button: false,
+      button: false
     });
 
     widget.onRenderHTML(root);
@@ -56,14 +56,14 @@ describe('ModalWidget', () => {
       id: 'help-escape',
       panel,
       defaultOpen: true,
-      button: true,
+      button: true
     });
 
     widget.onRenderHTML(root);
 
     expect(root.textContent).toContain('help content');
 
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
 
     expect(root.textContent).not.toContain('help content');
     expect(root.querySelector('[aria-label="Close"]')).toBeNull();
@@ -81,16 +81,16 @@ describe('ModalWidget', () => {
           first: {
             id: 'first',
             title: 'First',
-            content: <div>first content</div>,
+            content: <div>first content</div>
           },
           second: {
             id: 'second',
             title: 'Second',
-            content: <div>second content</div>,
-          },
-        },
+            content: <div>second content</div>
+          }
+        }
       }),
-      title: 'Help',
+      title: 'Help'
     });
 
     widget.onRenderHTML(root);
@@ -112,7 +112,7 @@ describe('ModalWidget', () => {
       id: 'help-stacking',
       panel,
       defaultOpen: true,
-      button: true,
+      button: true
     });
 
     widget.onRenderHTML(root);

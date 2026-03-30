@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import {useEffect, useMemo, useState} from 'preact/hooks';
 
 import {
   buildInitialCollapsedState,
@@ -8,7 +8,7 @@ import {
   mergeCollapsedState,
   normalizeOption,
   resolveSettingValue,
-  setValueAtPath,
+  setValueAtPath
 } from '../lib/settings/settings';
 
 import type {
@@ -16,10 +16,10 @@ import type {
   SettingsSchema,
   SettingsSectionDescriptor,
   SettingsState,
-  SettingValue,
+  SettingValue
 } from '../lib/settings/settings';
-import type { WidgetPanel, WidgetPanelTheme } from './widget-containers';
-import type { JSX } from 'preact';
+import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
+import type {JSX} from 'preact';
 
 type SettingsWidgetPanelChangeHandler = (
   settings: SettingsState,
@@ -28,7 +28,7 @@ type SettingsWidgetPanelChangeHandler = (
     previousValue: unknown;
     nextValue: unknown;
     descriptor?: SettingDescriptor;
-  }>,
+  }>
 ) => void;
 
 /** Settings panel configuration for sidebar/modal container composition. */
@@ -59,26 +59,26 @@ const SECTION_TOGGLE_STYLE: JSX.CSSProperties = {
   background: 'transparent',
   color: 'inherit',
   cursor: 'pointer',
-  fontSize: '12px',
+  fontSize: '12px'
 };
 
 const SECTION_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gap: '8px',
-  padding: '8px 12px 12px 18px',
+  padding: '8px 12px 12px 18px'
 };
 
 const SECTION_PANEL_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gap: '8px',
-  padding: '10px 12px 12px',
+  padding: '10px 12px 12px'
 };
 
 const SETTING_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(120px, 1fr) minmax(200px, 1.4fr)',
   alignItems: 'center',
-  gap: '8px',
+  gap: '8px'
 };
 
 const SETTING_LABEL_STYLE: JSX.CSSProperties = {
@@ -87,13 +87,13 @@ const SETTING_LABEL_STYLE: JSX.CSSProperties = {
   color: 'var(--button-text, currentColor)',
   whiteSpace: 'nowrap',
   overflow: 'hidden',
-  textOverflow: 'ellipsis',
+  textOverflow: 'ellipsis'
 };
 
 const SETTING_CONTROL_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'center'
 };
 
 const INPUT_STYLE: JSX.CSSProperties = {
@@ -105,12 +105,12 @@ const INPUT_STYLE: JSX.CSSProperties = {
   color: 'var(--button-text, currentColor)',
   fontSize: '12px',
   padding: '4px 6px',
-  boxSizing: 'border-box',
+  boxSizing: 'border-box'
 };
 
 const STRING_CONTROL_STYLE: JSX.CSSProperties = {
   ...INPUT_STYLE,
-  flex: 1,
+  flex: 1
 };
 
 const STRING_APPLY_BUTTON_STYLE: JSX.CSSProperties = {
@@ -121,26 +121,26 @@ const STRING_APPLY_BUTTON_STYLE: JSX.CSSProperties = {
   fontSize: '11px',
   padding: '4px 8px',
   cursor: 'pointer',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'nowrap'
 };
 
 const RANGE_INPUT_STYLE: JSX.CSSProperties = {
   width: '100%',
   minWidth: '120px',
-  margin: 0,
+  margin: 0
 };
 
 const NUMBER_INPUT_STYLE: JSX.CSSProperties = {
   ...INPUT_STYLE,
   width: '84px',
-  flexShrink: 0,
+  flexShrink: 0
 };
 
 const CHECKBOX_STYLE: JSX.CSSProperties = {
   width: '14px',
   height: '14px',
   margin: 0,
-  accentColor: 'var(--button-icon-hover, currentColor)',
+  accentColor: 'var(--button-icon-hover, currentColor)'
 };
 
 function stopPropagation(event: Event) {
@@ -150,10 +150,10 @@ function stopPropagation(event: Event) {
 function stopPropagationForInput(event: Event) {
   event.stopPropagation();
   if (
-    typeof (event as { stopImmediatePropagation?: () => void }).stopImmediatePropagation ===
+    typeof (event as {stopImmediatePropagation?: () => void}).stopImmediatePropagation ===
     'function'
   ) {
-    (event as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+    (event as {stopImmediatePropagation?: () => void}).stopImmediatePropagation?.();
   }
 }
 
@@ -170,7 +170,7 @@ type StringSettingControlProps = {
   onApply: (nextValue: string) => void;
 };
 
-function StringSettingControl({ inputId, label, value, onApply }: StringSettingControlProps) {
+function StringSettingControl({inputId, label, value, onApply}: StringSettingControlProps) {
   const [pendingValue, setPendingValue] = useState(value);
   const [recentValues, setRecentValues] = useState<string[]>(() => (value ? [value] : []));
 
@@ -185,12 +185,12 @@ function StringSettingControl({ inputId, label, value, onApply }: StringSettingC
       return;
     }
     setRecentValues((previous) =>
-      previous.includes(value) ? previous : [value, ...previous].slice(0, 8),
+      previous.includes(value) ? previous : [value, ...previous].slice(0, 8)
     );
   }, [value]);
 
   const handlePendingTextChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    setPendingValue((event.currentTarget).value);
+    setPendingValue(event.currentTarget.value);
   };
 
   const applyPendingText = () => {
@@ -199,7 +199,7 @@ function StringSettingControl({ inputId, label, value, onApply }: StringSettingC
     }
     onApply(pendingValue);
     setRecentValues((previous) =>
-      [pendingValue, ...previous.filter((entry) => entry !== pendingValue)].slice(0, 8),
+      [pendingValue, ...previous.filter((entry) => entry !== pendingValue)].slice(0, 8)
     );
   };
 
@@ -239,7 +239,7 @@ function StringSettingControl({ inputId, label, value, onApply }: StringSettingC
           ...STRING_APPLY_BUTTON_STYLE,
           opacity: isDirty ? 1 : 0.55,
           cursor: isDirty ? 'pointer' : 'default',
-          marginLeft: '6px',
+          marginLeft: '6px'
         }}
         onClick={applyPendingText}
         onPointerDown={stopPropagationForInput}
@@ -252,13 +252,14 @@ function StringSettingControl({ inputId, label, value, onApply }: StringSettingC
   );
 }
 
-function SettingsControl({ setting, value, onValueChange }: SettingsControlProps) {
+// eslint-disable-next-line complexity
+function SettingsControl({setting, value, onValueChange}: SettingsControlProps) {
   const label = setting.label ?? setting.name;
   const tooltip = setting.description?.trim();
   const inputId = `settings-widget-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
   const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    onValueChange((event.currentTarget).checked);
+    onValueChange(event.currentTarget.checked);
   };
 
   const handleNumberChange = (nextValue: number) => {
@@ -269,7 +270,7 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
   };
 
   const handleSelectChange: JSX.GenericEventHandler<HTMLSelectElement> = (event) => {
-    const selectedRaw = (event.currentTarget).value;
+    const selectedRaw = event.currentTarget.value;
     const selectedValue = (setting.options ?? []).map(normalizeOption).find((option) => {
       return String(option.value) === selectedRaw;
     });
@@ -295,9 +296,7 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
     const showRange = Number.isFinite(setting.min) && Number.isFinite(setting.max);
 
     control = showRange ? (
-      <div
-        style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%' }}
-      >
+      <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%'}}>
         <input
           id={inputId}
           type="range"
@@ -305,12 +304,8 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
           max={String(setting.max)}
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
-          onInput={(event) =>
-            handleNumberChange(Number((event.currentTarget).value))
-          }
-          onChange={(event) =>
-            handleNumberChange(Number((event.currentTarget).value))
-          }
+          onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
+          onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
           aria-label={label}
           style={RANGE_INPUT_STYLE}
         />
@@ -320,12 +315,8 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
           max={Number.isFinite(setting.max) ? String(setting.max) : undefined}
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
-          onInput={(event) =>
-            handleNumberChange(Number((event.currentTarget).value))
-          }
-          onChange={(event) =>
-            handleNumberChange(Number((event.currentTarget).value))
-          }
+          onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
+          onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
           aria-label={`${label} numeric value`}
           style={NUMBER_INPUT_STYLE}
         />
@@ -336,12 +327,8 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
         type="number"
         step={String(setting.step ?? 1)}
         value={String(numericValue)}
-        onInput={(event) =>
-          handleNumberChange(Number((event.currentTarget).value))
-        }
-        onChange={(event) =>
-          handleNumberChange(Number((event.currentTarget).value))
-        }
+        onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
+        onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
         aria-label={label}
         style={INPUT_STYLE}
       />
@@ -418,7 +405,7 @@ function SettingsSectionBody({
   contentStyle,
   onValueChange,
   section,
-  settings,
+  settings
 }: SettingsSectionBodyProps) {
   return (
     <div style={contentStyle}>
@@ -440,7 +427,7 @@ function SettingsSectionBody({
 function SettingsSectionPanelContent({
   onSettingsChange,
   section,
-  settings,
+  settings
 }: SettingsSectionPanelContentProps) {
   const [localSettings, setLocalSettings] = useState<SettingsState>(settings);
 
@@ -458,7 +445,7 @@ function SettingsSectionPanelContent({
 
   return (
     <div
-      style={{ overflowY: 'auto', paddingBottom: '8px' }}
+      style={{overflowY: 'auto', paddingBottom: '8px'}}
       onPointerMove={(event) => stopPropagation(event as unknown as Event)}
       onMouseMove={(event) => stopPropagation(event as unknown as Event)}
       onPointerDown={(event) => stopPropagation(event as unknown as Event)}
@@ -476,16 +463,16 @@ function SettingsSectionPanelContent({
   );
 }
 
-const DEFAULT_SETTINGS_PANEL_SCHEMA: SettingsSchema = { sections: [] };
+const DEFAULT_SETTINGS_PANEL_SCHEMA: SettingsSchema = {sections: []};
 const DEFAULT_SETTINGS_PANEL_STATE: SettingsState = {};
 
 /**
  * Shared settings body used by both the legacy popover widget and panel-based containers.
  */
-function SettingsPanelContent({ schema, settings, onSettingsChange }: SettingsPanelContentProps) {
+function SettingsPanelContent({schema, settings, onSettingsChange}: SettingsPanelContentProps) {
   const [localSettings, setLocalSettings] = useState<SettingsState>(settings);
   const [collapsedState, setCollapsedState] = useState<Record<string, boolean>>(() =>
-    buildInitialCollapsedState(schema.sections),
+    buildInitialCollapsedState(schema.sections)
   );
 
   useEffect(() => {
@@ -500,9 +487,9 @@ function SettingsPanelContent({ schema, settings, onSettingsChange }: SettingsPa
     () =>
       schema.sections.map((section, index) => ({
         key: getSectionKey(section, index),
-        section,
+        section
       })),
-    [schema.sections],
+    [schema.sections]
   );
 
   const updateSetting = (path: string, nextValue: SettingValue) => {
@@ -515,7 +502,7 @@ function SettingsPanelContent({ schema, settings, onSettingsChange }: SettingsPa
 
   return (
     <div
-      style={{ overflowY: 'auto', paddingBottom: '8px' }}
+      style={{overflowY: 'auto', paddingBottom: '8px'}}
       onPointerMove={(event) => stopPropagation(event as unknown as Event)}
       onMouseMove={(event) => stopPropagation(event as unknown as Event)}
       onPointerDown={(event) => stopPropagation(event as unknown as Event)}
@@ -523,13 +510,13 @@ function SettingsPanelContent({ schema, settings, onSettingsChange }: SettingsPa
       onWheel={(event) => stopPropagation(event as unknown as Event)}
       onClick={(event) => stopPropagation(event as unknown as Event)}
     >
-      {sectionEntries.map(({ key, section }) => {
+      {sectionEntries.map(({key, section}) => {
         const isCollapsed = collapsedState[key] ?? false;
         return (
           <div
             key={key}
             style={{
-              borderBottom: '1px solid var(--menu-item-hover, rgba(128, 128, 128, 0.22))',
+              borderBottom: '1px solid var(--menu-item-hover, rgba(128, 128, 128, 0.22))'
             }}
           >
             <button
@@ -538,18 +525,18 @@ function SettingsPanelContent({ schema, settings, onSettingsChange }: SettingsPa
               onClick={() =>
                 setCollapsedState((previous) => ({
                   ...previous,
-                  [key]: !isCollapsed,
+                  [key]: !isCollapsed
                 }))
               }
               aria-expanded={!isCollapsed}
             >
-              <span style={{ display: 'grid', gap: '2px', textAlign: 'left' }}>
-                <span style={{ fontWeight: 700, fontSize: '12px' }}>{section.name}</span>
+              <span style={{display: 'grid', gap: '2px', textAlign: 'left'}}>
+                <span style={{fontWeight: 700, fontSize: '12px'}}>{section.name}</span>
                 {section.description && (
                   <span
                     style={{
                       fontSize: '11px',
-                      color: 'var(--button-icon-idle, currentColor)',
+                      color: 'var(--button-icon-idle, currentColor)'
                     }}
                   >
                     {section.description}
@@ -591,7 +578,7 @@ export class SettingsWidgetPanel implements WidgetPanel {
     schema = DEFAULT_SETTINGS_PANEL_SCHEMA,
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
-    theme = 'inherit',
+    theme = 'inherit'
   }: Omit<SettingsWidgetPanelProps, 'id'>): Record<string, WidgetPanel> {
     return schema.sections.reduce<Record<string, WidgetPanel>>((panels, section, index) => {
       const panelId = getSectionKey(section, index);
@@ -606,7 +593,7 @@ export class SettingsWidgetPanel implements WidgetPanel {
             section={section}
             settings={settings}
           />
-        ),
+        )
       };
 
       return panels;
@@ -619,7 +606,7 @@ export class SettingsWidgetPanel implements WidgetPanel {
     schema = DEFAULT_SETTINGS_PANEL_SCHEMA,
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
-    theme = 'inherit',
+    theme = 'inherit'
   }: SettingsWidgetPanelProps = {}) {
     this.id = id;
     this.title = schema.title ?? label;

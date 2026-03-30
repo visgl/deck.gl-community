@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import { YZoomWidget } from './y-zoom-widget';
+import {YZoomWidget} from './y-zoom-widget';
 
 type MockViewportOptions = {
   id?: string;
@@ -21,7 +21,7 @@ function createViewport(options: MockViewportOptions = {}) {
     zoomX: options.zoomX ?? 0,
     minZoom: options.minZoom,
     maxZoom: options.maxZoom,
-    target: options.target ?? [0, 0, 0],
+    target: options.target ?? [0, 0, 0]
   } as any;
 }
 
@@ -31,7 +31,7 @@ function createViewport(options: MockViewportOptions = {}) {
 function createWidget(props: ConstructorParameters<typeof YZoomWidget>[0] = {}) {
   const widget = new YZoomWidget(props);
   const updateHTMLSpy = vi.spyOn(widget, 'updateHTML').mockImplementation(() => undefined);
-  return { widget, updateHTMLSpy };
+  return {widget, updateHTMLSpy};
 }
 
 afterEach(() => {
@@ -41,8 +41,8 @@ afterEach(() => {
 
 describe('YZoomWidget', () => {
   it('does not re-render for viewport updates when Y zoom and bounds are unchanged', () => {
-    const { widget, updateHTMLSpy } = createWidget();
-    const viewport = createViewport({ zoomY: 2, minZoom: [-5, -3], maxZoom: [5, 4] });
+    const {widget, updateHTMLSpy} = createWidget();
+    const viewport = createViewport({zoomY: 2, minZoom: [-5, -3], maxZoom: [5, 4]});
 
     widget.onViewportChange(viewport);
     widget.onViewportChange(viewport);
@@ -51,26 +51,26 @@ describe('YZoomWidget', () => {
   });
 
   it('re-renders when Y zoom changes', () => {
-    const { widget, updateHTMLSpy } = createWidget();
+    const {widget, updateHTMLSpy} = createWidget();
 
-    widget.onViewportChange(createViewport({ zoomY: 1, minZoom: [-5, -3], maxZoom: [5, 4] }));
-    widget.onViewportChange(createViewport({ zoomY: 2, minZoom: [-5, -3], maxZoom: [5, 4] }));
+    widget.onViewportChange(createViewport({zoomY: 1, minZoom: [-5, -3], maxZoom: [5, 4]}));
+    widget.onViewportChange(createViewport({zoomY: 2, minZoom: [-5, -3], maxZoom: [5, 4]}));
 
     expect(updateHTMLSpy).toHaveBeenCalledTimes(2);
   });
 
   it('re-renders when effective zoom bounds change without changing Y zoom', () => {
-    const { widget, updateHTMLSpy } = createWidget();
+    const {widget, updateHTMLSpy} = createWidget();
 
-    widget.onViewportChange(createViewport({ zoomY: 1, minZoom: [-5, -3], maxZoom: [5, 4] }));
-    widget.onViewportChange(createViewport({ zoomY: 1, minZoom: [-5, -2], maxZoom: [5, 4] }));
+    widget.onViewportChange(createViewport({zoomY: 1, minZoom: [-5, -3], maxZoom: [5, 4]}));
+    widget.onViewportChange(createViewport({zoomY: 1, minZoom: [-5, -2], maxZoom: [5, 4]}));
 
     expect(updateHTMLSpy).toHaveBeenCalledTimes(2);
   });
 
   it('only re-renders once across repeated identical viewport updates', () => {
-    const { widget, updateHTMLSpy } = createWidget();
-    const viewport = createViewport({ zoomY: 1.5, minZoom: [-5, -3], maxZoom: [5, 4] });
+    const {widget, updateHTMLSpy} = createWidget();
+    const viewport = createViewport({zoomY: 1.5, minZoom: [-5, -3], maxZoom: [5, 4]});
 
     widget.onViewportChange(viewport);
     widget.onViewportChange(viewport);
@@ -80,10 +80,10 @@ describe('YZoomWidget', () => {
   });
 
   it('does not double re-render when a widget-driven zoom is followed by the matching viewport callback', () => {
-    const { widget, updateHTMLSpy } = createWidget();
-    const viewport = createViewport({ zoomY: 1, zoomX: 0, minZoom: [-5, -3], maxZoom: [5, 4] });
+    const {widget, updateHTMLSpy} = createWidget();
+    const viewport = createViewport({zoomY: 1, zoomX: 0, minZoom: [-5, -3], maxZoom: [5, 4]});
     const deck = {
-      _onViewStateChange: vi.fn(),
+      _onViewStateChange: vi.fn()
     } as any;
 
     widget.deck = deck;
@@ -92,7 +92,7 @@ describe('YZoomWidget', () => {
 
     (widget as any).updateViewState(viewport, 2);
     widget.onViewportChange(
-      createViewport({ zoomY: 2, zoomX: 0, minZoom: [-5, -3], maxZoom: [5, 4] }),
+      createViewport({zoomY: 2, zoomX: 0, minZoom: [-5, -3], maxZoom: [5, 4]})
     );
 
     expect(updateHTMLSpy).toHaveBeenCalledTimes(1);

@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import {afterEach, describe, expect, it} from 'vitest';
 
-import { KeyboardShortcutsWidget } from './keyboard-shortcuts-widget';
+import {KeyboardShortcutsWidget} from './keyboard-shortcuts-widget';
 
-import type { KeyboardShortcut } from '../keyboard-shortcuts/keyboard-shortcuts';
+import type {KeyboardShortcut} from '../keyboard-shortcuts/keyboard-shortcuts';
 
-type Handler = (event: { srcEvent: KeyboardEvent }) => void;
+type Handler = (event: {srcEvent: KeyboardEvent}) => void;
 
 class FakeEventManager {
   handlers = new Map<string, Handler>();
@@ -22,7 +22,7 @@ class FakeEventManager {
 
   emit(event: string, srcEvent: KeyboardEvent) {
     const handler = this.handlers.get(event);
-    handler?.({ srcEvent });
+    handler?.({srcEvent});
   }
 }
 
@@ -39,7 +39,7 @@ function renderWidget(options?: {
 
   const widget = new KeyboardShortcutsWidget({
     installShortcuts: options?.installShortcuts,
-    keyboardShortcuts: options?.keyboardShortcuts ?? [],
+    keyboardShortcuts: options?.keyboardShortcuts ?? []
   });
 
   if (options?.eventManager) {
@@ -57,7 +57,7 @@ function renderWidget(options?: {
   return {
     root,
     widget,
-    cleanup,
+    cleanup
   };
 }
 
@@ -72,7 +72,7 @@ afterEach(() => {
 
 describe('KeyboardShortcutsWidget', () => {
   it('renders paired and single shortcut rows with shared descriptions', async () => {
-    const { root, cleanup } = renderWidget({
+    const {root, cleanup} = renderWidget({
       keyboardShortcuts: [
         {
           key: 'a',
@@ -82,8 +82,8 @@ describe('KeyboardShortcutsWidget', () => {
           displayPair: {
             id: 'pan-horizontal',
             position: 'primary',
-            description: 'Pan horizontally.',
-          },
+            description: 'Pan horizontally.'
+          }
         },
         {
           key: 'd',
@@ -93,22 +93,22 @@ describe('KeyboardShortcutsWidget', () => {
           displayPair: {
             id: 'pan-horizontal',
             position: 'secondary',
-            description: 'Pan horizontally.',
-          },
+            description: 'Pan horizontally.'
+          }
         },
         {
           key: 'g',
           name: 'Jump',
-          description: 'Move to the selected block.',
-        },
-      ],
+          description: 'Move to the selected block.'
+        }
+      ]
     });
 
     clickButton(root.querySelector<HTMLButtonElement>('button[title="Keyboard shortcuts"]'));
     await Promise.resolve();
 
     const descriptions = Array.from(
-      root.querySelectorAll('[data-shortcut-description="true"]'),
+      root.querySelectorAll('[data-shortcut-description="true"]')
     ).map((element) => element.textContent);
 
     expect(descriptions).toContain('Show keyboard shortcuts');
@@ -122,7 +122,7 @@ describe('KeyboardShortcutsWidget', () => {
 
     const shortcutRow = root.querySelector('[data-shortcut-row-kind="pair"]')?.parentElement;
     const shortcutDescription = root.querySelector<HTMLSpanElement>(
-      '[data-shortcut-description="true"]',
+      '[data-shortcut-description="true"]'
     );
     const shortcutBadges = root.querySelector<HTMLSpanElement>('[data-shortcut-badges="true"]');
     expect(shortcutRow?.style.gridTemplateColumns).toBe('minmax(104px, 148px) minmax(0, 1fr) auto');
@@ -133,7 +133,7 @@ describe('KeyboardShortcutsWidget', () => {
   });
 
   it('falls back to separate rows when pair metadata is not adjacent', async () => {
-    const { root, cleanup } = renderWidget({
+    const {root, cleanup} = renderWidget({
       keyboardShortcuts: [
         {
           key: 'a',
@@ -142,13 +142,13 @@ describe('KeyboardShortcutsWidget', () => {
           displayPair: {
             id: 'pan-horizontal',
             position: 'primary',
-            description: 'Pan horizontally.',
-          },
+            description: 'Pan horizontally.'
+          }
         },
         {
           key: 'g',
           name: 'Jump',
-          description: 'Move to the selected block.',
+          description: 'Move to the selected block.'
         },
         {
           key: 'd',
@@ -157,10 +157,10 @@ describe('KeyboardShortcutsWidget', () => {
           displayPair: {
             id: 'pan-horizontal',
             position: 'secondary',
-            description: 'Pan horizontally.',
-          },
-        },
-      ],
+            description: 'Pan horizontally.'
+          }
+        }
+      ]
     });
 
     clickButton(root.querySelector<HTMLButtonElement>('button[title="Keyboard shortcuts"]'));
@@ -175,12 +175,12 @@ describe('KeyboardShortcutsWidget', () => {
 
   it('opens the shortcuts dialog from both default keyboard bindings', async () => {
     const eventManager = new FakeEventManager();
-    const { root, cleanup } = renderWidget({
+    const {root, cleanup} = renderWidget({
       eventManager,
-      installShortcuts: true,
+      installShortcuts: true
     });
 
-    eventManager.emit('keydown', new KeyboardEvent('keydown', { key: '/', ctrlKey: true }));
+    eventManager.emit('keydown', new KeyboardEvent('keydown', {key: '/', ctrlKey: true}));
     await Promise.resolve();
     expect(root.querySelector('[role="dialog"]')).toBeTruthy();
 

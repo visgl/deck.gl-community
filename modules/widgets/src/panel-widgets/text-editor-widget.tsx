@@ -1,12 +1,12 @@
 /** @jsxImportSource preact */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import {useEffect, useRef, useState} from 'preact/hooks';
 
-import { loadTextEditorMonacoRuntime } from './text-editor-widget-monaco-runtime';
-import { useEffectiveWidgetPanelThemeMode } from './widget-containers';
+import {loadTextEditorMonacoRuntime} from './text-editor-widget-monaco-runtime';
+import {useEffectiveWidgetPanelThemeMode} from './widget-containers';
 
-import type { WidgetPanel, WidgetPanelTheme } from './widget-containers';
-import type { editor as EditorNamespace, IDisposable } from 'monaco-editor';
-import type { JSX } from 'preact';
+import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
+import type {editor as EditorNamespace, IDisposable} from 'monaco-editor';
+import type {JSX} from 'preact';
 
 /** Text-editor widget panel configuration. */
 export type TextEditorWidgetPanelProps = {
@@ -59,9 +59,9 @@ export class TextEditorWidgetPanel implements WidgetPanel {
  * Internal runtime state for the asynchronous Monaco loader.
  */
 type TextEditorLoadState =
-  | { status: 'loading' }
-  | { status: 'ready'; runtime: Awaited<ReturnType<typeof loadTextEditorMonacoRuntime>> }
-  | { status: 'error'; error: Error };
+  | {status: 'loading'}
+  | {status: 'ready'; runtime: Awaited<ReturnType<typeof loadTextEditorMonacoRuntime>>}
+  | {status: 'error'; error: Error};
 
 /**
  * Renders the Monaco-backed editor body used by the widget panel.
@@ -77,7 +77,7 @@ function TextEditorWidgetPanelContent({
   placeholder,
   className,
   lightMonacoTheme = 'vs',
-  darkMonacoTheme = 'vs-dark',
+  darkMonacoTheme = 'vs-dark'
 }: TextEditorWidgetPanelProps) {
   const hostElementRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<EditorNamespace.IStandaloneCodeEditor | null>(null);
@@ -88,9 +88,9 @@ function TextEditorWidgetPanelContent({
   const resolvedValueRef = useRef(resolveInitialEditorValue(value, defaultValue));
   const languageRef = useRef<TextEditorWidgetPanelProps['language']>(language);
   const onValueChangeRef = useRef(onValueChange);
-  const [loadState, setLoadState] = useState<TextEditorLoadState>({ status: 'loading' });
+  const [loadState, setLoadState] = useState<TextEditorLoadState>({status: 'loading'});
   const [displayValue, setDisplayValue] = useState(() =>
-    resolveInitialEditorValue(value, defaultValue),
+    resolveInitialEditorValue(value, defaultValue)
   );
   const isControlled = value !== undefined;
   const resolvedValue = isControlled ? value : displayValue;
@@ -112,7 +112,7 @@ function TextEditorWidgetPanelContent({
         if (isDisposed) {
           return;
         }
-        setLoadState({ status: 'ready', runtime: loadedRuntime });
+        setLoadState({status: 'ready', runtime: loadedRuntime});
       })
       .catch((error) => {
         if (isDisposed) {
@@ -120,7 +120,7 @@ function TextEditorWidgetPanelContent({
         }
         setLoadState({
           status: 'error',
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: error instanceof Error ? error : new Error(String(error))
         });
       });
 
@@ -134,7 +134,7 @@ function TextEditorWidgetPanelContent({
       return undefined;
     }
 
-    const { monaco } = runtime;
+    const {monaco} = runtime;
     const modelUri = monaco.Uri.parse(getTextEditorModelUri(id));
     const existingModel = monaco.editor.getModel(modelUri);
     const model =
@@ -142,7 +142,7 @@ function TextEditorWidgetPanelContent({
       monaco.editor.createModel(
         resolvedValueRef.current,
         getTextEditorLanguageId(languageRef.current),
-        modelUri,
+        modelUri
       );
 
     if (existingModel && existingModel.getValue() !== resolvedValueRef.current) {
@@ -154,7 +154,7 @@ function TextEditorWidgetPanelContent({
     editorRef.current = monaco.editor.create(hostElementRef.current, {
       ...TEXT_EDITOR_MONACO_OPTIONS,
       model,
-      readOnly,
+      readOnly
     });
     setDisplayValue(model.getValue());
 
@@ -198,7 +198,7 @@ function TextEditorWidgetPanelContent({
 
     editor.updateOptions({
       ...TEXT_EDITOR_MONACO_OPTIONS,
-      readOnly,
+      readOnly
     });
   }, [readOnly]);
 
@@ -304,17 +304,17 @@ function getTextEditorLanguageId(language: TextEditorWidgetPanelProps['language'
 function getMonacoThemeId(
   themeMode: 'light' | 'dark',
   lightMonacoTheme: string,
-  darkMonacoTheme: string,
+  darkMonacoTheme: string
 ): string {
   return themeMode === 'dark' ? darkMonacoTheme : lightMonacoTheme;
 }
 
 const TEXT_EDITOR_MONACO_OPTIONS: EditorNamespace.IStandaloneEditorConstructionOptions = {
   automaticLayout: true,
-  minimap: { enabled: false },
+  minimap: {enabled: false},
   scrollbar: {
     verticalScrollbarSize: 10,
-    horizontalScrollbarSize: 10,
+    horizontalScrollbarSize: 10
   },
   fontSize: 12,
   lineHeight: 18,
@@ -323,13 +323,13 @@ const TEXT_EDITOR_MONACO_OPTIONS: EditorNamespace.IStandaloneEditorConstructionO
   glyphMargin: false,
   folding: false,
   scrollBeyondLastLine: false,
-  tabSize: 2,
+  tabSize: 2
 };
 
 const TEXT_EDITOR_PANEL_STYLE: JSX.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  minHeight: '280px',
+  minHeight: '280px'
 };
 
 const TEXT_EDITOR_SURFACE_STYLE: JSX.CSSProperties = {
@@ -338,12 +338,12 @@ const TEXT_EDITOR_SURFACE_STYLE: JSX.CSSProperties = {
   border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.35))',
   borderRadius: 'var(--button-corner-radius, 8px)',
   overflow: 'hidden',
-  background: 'var(--menu-background, #fff)',
+  background: 'var(--menu-background, #fff)'
 };
 
 const TEXT_EDITOR_HOST_STYLE: JSX.CSSProperties = {
   width: '100%',
-  minHeight: '280px',
+  minHeight: '280px'
 };
 
 const TEXT_EDITOR_STATUS_STYLE: JSX.CSSProperties = {
@@ -353,12 +353,12 @@ const TEXT_EDITOR_STATUS_STYLE: JSX.CSSProperties = {
   justifyContent: 'center',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   fontSize: '12px',
-  padding: '16px',
+  padding: '16px'
 };
 
 const TEXT_EDITOR_ERROR_STYLE: JSX.CSSProperties = {
   ...TEXT_EDITOR_STATUS_STYLE,
-  color: 'rgb(185, 28, 28)',
+  color: 'rgb(185, 28, 28)'
 };
 
 const TEXT_EDITOR_PLACEHOLDER_STYLE: JSX.CSSProperties = {
@@ -371,5 +371,5 @@ const TEXT_EDITOR_PLACEHOLDER_STYLE: JSX.CSSProperties = {
   pointerEvents: 'none',
   whiteSpace: 'nowrap',
   overflow: 'hidden',
-  textOverflow: 'ellipsis',
+  textOverflow: 'ellipsis'
 };

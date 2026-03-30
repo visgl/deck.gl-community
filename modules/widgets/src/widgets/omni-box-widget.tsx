@@ -1,10 +1,10 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
+import {useCallback, useEffect, useRef, useState} from 'preact/hooks';
 
-import type { Deck, Viewport, WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { ComponentChildren, JSX } from 'preact';
+import type {Deck, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {ComponentChildren, JSX} from 'preact';
 
 const OPTION_ROW_HEIGHT_PX = 32;
 const MAX_VISIBLE_OPTION_COUNT = 4;
@@ -18,21 +18,21 @@ const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
   transform: 'translateX(-50%)',
   margin: '0',
   zIndex: '2',
-  pointerEvents: 'auto',
+  pointerEvents: 'auto'
 };
 
 const WRAPPER_STYLE: JSX.CSSProperties = {
   width: '100%',
   display: 'flex',
   flexDirection: 'column',
-  gap: '4px',
+  gap: '4px'
 };
 
 const INPUT_ROW_STYLE: JSX.CSSProperties = {
   width: '100%',
   display: 'grid',
   gridTemplateColumns: '1fr auto auto auto',
-  gap: '4px',
+  gap: '4px'
 };
 
 const INPUT_STYLE: JSX.CSSProperties = {
@@ -48,7 +48,7 @@ const INPUT_STYLE: JSX.CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.2,
   outline: 'none',
-  boxShadow: '0 4px 16px rgba(15, 23, 42, 0.15)',
+  boxShadow: '0 4px 16px rgba(15, 23, 42, 0.15)'
 };
 
 const NAV_BUTTON_STYLE: JSX.CSSProperties = {
@@ -62,12 +62,12 @@ const NAV_BUTTON_STYLE: JSX.CSSProperties = {
   fontSize: '13px',
   fontWeight: 600,
   cursor: 'pointer',
-  userSelect: 'none',
+  userSelect: 'none'
 };
 
 const NAV_BUTTON_DISABLED_STYLE: JSX.CSSProperties = {
   opacity: 0.45,
-  cursor: 'not-allowed',
+  cursor: 'not-allowed'
 };
 
 const DROPDOWN_STYLE: JSX.CSSProperties = {
@@ -76,7 +76,7 @@ const DROPDOWN_STYLE: JSX.CSSProperties = {
   backgroundColor: 'rgba(255, 255, 255, 0.98)',
   boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)',
   overflowY: 'auto',
-  maxHeight: `${OPTION_ROW_HEIGHT_PX * MAX_VISIBLE_OPTION_COUNT}px`,
+  maxHeight: `${OPTION_ROW_HEIGHT_PX * MAX_VISIBLE_OPTION_COUNT}px`
 };
 
 const DEFAULT_OPTION_CONTENT_STYLE: JSX.CSSProperties = {
@@ -85,7 +85,7 @@ const DEFAULT_OPTION_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '10px',
+  gap: '10px'
 };
 
 export type OmniBoxOption = {
@@ -135,7 +135,7 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
     onSelectOption: undefined,
     onActiveOptionChange: undefined,
     onNavigateOption: undefined,
-    onQueryChange: undefined,
+    onQueryChange: undefined
   } satisfies Required<WidgetProps> &
     Required<Pick<OmniBoxWidgetProps, 'placeholder' | 'minQueryLength' | 'placement'>> &
     OmniBoxWidgetProps;
@@ -151,7 +151,7 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
   };
 
   constructor(props: OmniBoxWidgetProps = {}) {
-    super({ ...OmniBoxWidget.defaultProps, ...props });
+    super({...OmniBoxWidget.defaultProps, ...props});
     if (props.placement !== undefined) {
       this.placement = props.placement;
     }
@@ -187,7 +187,7 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
         onNavigateOption={this.props.onNavigateOption}
         onQueryChange={this.props.onQueryChange}
       />,
-      rootElement,
+      rootElement
     );
   }
 
@@ -266,7 +266,7 @@ type OmniBoxWidgetViewProps = {
   onQueryChange?: (query: string) => void;
 };
 
-function DefaultOptionContent({ option }: { option: OmniBoxOption }) {
+function DefaultOptionContent({option}: {option: OmniBoxOption}) {
   return (
     <div style={DEFAULT_OPTION_CONTENT_STYLE}>
       <span
@@ -275,7 +275,7 @@ function DefaultOptionContent({ option }: { option: OmniBoxOption }) {
           color: 'rgba(15, 23, 42, 1)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          whiteSpace: 'nowrap'
         }}
       >
         {option.label}
@@ -287,7 +287,7 @@ function DefaultOptionContent({ option }: { option: OmniBoxOption }) {
             color: 'rgba(100, 116, 139, 1)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            whiteSpace: 'nowrap'
           }}
         >
           {option.description}
@@ -297,6 +297,7 @@ function DefaultOptionContent({ option }: { option: OmniBoxOption }) {
   );
 }
 
+// eslint-disable-next-line max-statements
 function OmniBoxWidgetView({
   placeholder,
   minQueryLength,
@@ -306,7 +307,7 @@ function OmniBoxWidgetView({
   onSelectOption,
   onActiveOptionChange,
   onNavigateOption,
-  onQueryChange,
+  onQueryChange
 }: OmniBoxWidgetViewProps) {
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<ReadonlyArray<OmniBoxOption>>([]);
@@ -448,11 +449,11 @@ function OmniBoxWidgetView({
       setActiveOptionIndex(-1);
       onSelectOption?.(option);
     },
-    [onSelectOption],
+    [onSelectOption]
   );
 
   const moveActiveOptionBy = useCallback(
-    (delta: -1 | 1, { navigate = false }: { navigate?: boolean } = {}) => {
+    (delta: -1 | 1, {navigate = false}: {navigate?: boolean} = {}) => {
       if (!options.length) {
         return;
       }
@@ -468,7 +469,7 @@ function OmniBoxWidgetView({
         onNavigateOption?.(nextOption);
       }
     },
-    [activeOptionIndex, onNavigateOption, options],
+    [activeOptionIndex, onNavigateOption, options]
   );
 
   const handleHide = useCallback(
@@ -486,12 +487,12 @@ function OmniBoxWidgetView({
       setIsFocused(false);
       setIsHidden(true);
     },
-    [clearBlurTimeout],
+    [clearBlurTimeout]
   );
 
   const handleInput: JSX.GenericEventHandler<HTMLInputElement> = useCallback((event) => {
     stopEventPropagation(event as unknown as Event);
-    setQuery((event.currentTarget).value);
+    setQuery(event.currentTarget.value);
     setIsFocused(true);
   }, []);
 
@@ -540,7 +541,7 @@ function OmniBoxWidgetView({
         handleHide(event as unknown as Event);
       }
     },
-    [activeOptionIndex, handleHide, moveActiveOptionBy, options, selectOption],
+    [activeOptionIndex, handleHide, moveActiveOptionBy, options, selectOption]
   );
 
   const handlePointerEvent: JSX.PointerEventHandler<HTMLElement> = useCallback((event) => {
@@ -599,7 +600,7 @@ function OmniBoxWidgetView({
           disabled={!hasMatches}
           style={{
             ...NAV_BUTTON_STYLE,
-            ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE),
+            ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE)
           }}
           onMouseDown={(event) => {
             event.preventDefault();
@@ -607,7 +608,7 @@ function OmniBoxWidgetView({
           }}
           onClick={(event) => {
             stopEventPropagation(event as unknown as Event);
-            moveActiveOptionBy(-1, { navigate: true });
+            moveActiveOptionBy(-1, {navigate: true});
           }}
         >
           {'<'}
@@ -620,7 +621,7 @@ function OmniBoxWidgetView({
           disabled={!hasMatches}
           style={{
             ...NAV_BUTTON_STYLE,
-            ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE),
+            ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE)
           }}
           onMouseDown={(event) => {
             event.preventDefault();
@@ -628,7 +629,7 @@ function OmniBoxWidgetView({
           }}
           onClick={(event) => {
             stopEventPropagation(event as unknown as Event);
-            moveActiveOptionBy(1, { navigate: true });
+            moveActiveOptionBy(1, {navigate: true});
           }}
         >
           {'>'}
@@ -666,7 +667,7 @@ function OmniBoxWidgetView({
                 alignItems: 'center',
                 padding: '0 12px',
                 fontSize: '12px',
-                color: 'rgba(71, 85, 105, 1)',
+                color: 'rgba(71, 85, 105, 1)'
               }}
             >
               Searching…
@@ -680,7 +681,7 @@ function OmniBoxWidgetView({
                 option,
                 index,
                 isActive,
-                query,
+                query
               }) ?? <DefaultOptionContent option={option} />;
 
               return (
@@ -713,7 +714,7 @@ function OmniBoxWidgetView({
                       ? 'rgba(226, 232, 240, 0.95)'
                       : 'rgba(255, 255, 255, 1)',
                     borderBottom:
-                      index < options.length - 1 ? '1px solid rgba(226, 232, 240, 1)' : 'none',
+                      index < options.length - 1 ? '1px solid rgba(226, 232, 240, 1)' : 'none'
                   }}
                 >
                   {content}
@@ -729,10 +730,10 @@ function OmniBoxWidgetView({
 function stopEventPropagation(event: Event): void {
   event.stopPropagation();
   if (
-    typeof (event as { stopImmediatePropagation?: () => void }).stopImmediatePropagation ===
+    typeof (event as {stopImmediatePropagation?: () => void}).stopImmediatePropagation ===
     'function'
   ) {
-    (event as { stopImmediatePropagation: () => void }).stopImmediatePropagation();
+    (event as {stopImmediatePropagation: () => void}).stopImmediatePropagation();
   }
 }
 
@@ -759,7 +760,7 @@ function getWidgetMarginPx(element: HTMLElement): number {
 }
 
 function getDeckCanvasRect(deck: Deck | undefined): DOMRect | null {
-  const canvas = (deck as (Deck & { canvas?: HTMLCanvasElement | null }) | undefined)?.canvas;
+  const canvas = (deck as (Deck & {canvas?: HTMLCanvasElement | null}) | undefined)?.canvas;
   if (!canvas) {
     return null;
   }

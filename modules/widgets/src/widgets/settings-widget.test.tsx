@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import { SettingsWidget } from './settings-widget';
+import {SettingsWidget} from './settings-widget';
 
-import type { SettingsWidgetSchema, SettingsWidgetState } from './settings-widget';
+import type {SettingsWidgetSchema, SettingsWidgetState} from './settings-widget';
 
 const TEST_SCHEMA: SettingsWidgetSchema = {
   title: 'Test settings',
@@ -15,7 +15,7 @@ const TEST_SCHEMA: SettingsWidgetSchema = {
           name: 'flags.enabled',
           label: 'Enabled',
           type: 'boolean',
-          description: 'Enable rendering for this layer.',
+          description: 'Enable rendering for this layer.'
         },
         {
           name: 'render.opacity',
@@ -24,9 +24,9 @@ const TEST_SCHEMA: SettingsWidgetSchema = {
           min: 0,
           max: 1,
           step: 0.1,
-          description: 'Adjust alpha for rendered paths.',
-        },
-      ],
+          description: 'Adjust alpha for rendered paths.'
+        }
+      ]
     },
     {
       id: 'mode',
@@ -37,17 +37,17 @@ const TEST_SCHEMA: SettingsWidgetSchema = {
           label: 'Mode',
           type: 'select',
           options: ['all', 'critical-path', 'selected-only'],
-          description: 'Control which traces remain visible.',
-        },
-      ],
-    },
-  ],
+          description: 'Control which traces remain visible.'
+        }
+      ]
+    }
+  ]
 };
 
 const INITIAL_SETTINGS: SettingsWidgetState = {
-  flags: { enabled: true },
-  render: { opacity: 0.4 },
-  mode: 'all',
+  flags: {enabled: true},
+  render: {opacity: 0.4},
+  mode: 'all'
 };
 
 function renderWidget(options?: {
@@ -61,7 +61,7 @@ function renderWidget(options?: {
     label: 'Visualization settings',
     schema: TEST_SCHEMA,
     settings: options?.settings ?? INITIAL_SETTINGS,
-    onSettingsChange: options?.onSettingsChange,
+    onSettingsChange: options?.onSettingsChange
   });
 
   widget.onRenderHTML(root);
@@ -74,7 +74,7 @@ function renderWidget(options?: {
   return {
     root,
     widget,
-    cleanup,
+    cleanup
   };
 }
 
@@ -114,7 +114,7 @@ afterEach(() => {
 describe('SettingsWidget', () => {
   // eslint-disable-next-line max-statements
   it('opens and closes the settings pane and toggles section collapse state', async () => {
-    const { root, cleanup } = renderWidget();
+    const {root, cleanup} = renderWidget();
 
     clickButton(root.querySelector<HTMLButtonElement>('button[title="Visualization settings"]'));
     await flushEffects();
@@ -149,7 +149,7 @@ describe('SettingsWidget', () => {
     const modeSettingRow = root.querySelector('[data-setting-row-for="mode"]');
     expect(modeSettingRow?.getAttribute('title')).toBe('Control which traces remain visible.');
 
-    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    document.body.dispatchEvent(new Event('pointerdown', {bubbles: true}));
     await flushEffects();
     expect(root.querySelector('[role="dialog"]')).toBeNull();
 
@@ -159,7 +159,7 @@ describe('SettingsWidget', () => {
   // eslint-disable-next-line max-statements
   it('emits updated settings for nested boolean, clamped numeric, and select values', async () => {
     const handleSettingsChange = vi.fn<(settings: SettingsWidgetState) => void>();
-    const { root, cleanup } = renderWidget({ onSettingsChange: handleSettingsChange });
+    const {root, cleanup} = renderWidget({onSettingsChange: handleSettingsChange});
 
     clickButton(root.querySelector<HTMLButtonElement>('button[title="Visualization settings"]'));
     await flushEffects();
@@ -174,24 +174,24 @@ describe('SettingsWidget', () => {
     const checkbox = getRequiredInput(root, 'input[type="checkbox"]');
     expect(checkbox.checked).toBe(true);
     checkbox.checked = false;
-    checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+    checkbox.dispatchEvent(new Event('input', {bubbles: true}));
     await flushEffects();
 
     expect(handleSettingsChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        flags: expect.objectContaining({ enabled: false }),
-      }),
+        flags: expect.objectContaining({enabled: false})
+      })
     );
 
     const numberInput = getRequiredInput(root, 'input[type="number"]');
     numberInput.value = '2';
-    numberInput.dispatchEvent(new Event('change', { bubbles: true }));
+    numberInput.dispatchEvent(new Event('change', {bubbles: true}));
     await flushEffects();
 
     expect(handleSettingsChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        render: expect.objectContaining({ opacity: 1 }),
-      }),
+        render: expect.objectContaining({opacity: 1})
+      })
     );
 
     clickButton(modeToggle);
@@ -199,13 +199,13 @@ describe('SettingsWidget', () => {
 
     const select = getRequiredSelect(root, 'select');
     select.value = 'critical-path';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    select.dispatchEvent(new Event('change', {bubbles: true}));
     await flushEffects();
 
     expect(handleSettingsChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        mode: 'critical-path',
-      }),
+        mode: 'critical-path'
+      })
     );
 
     cleanup();

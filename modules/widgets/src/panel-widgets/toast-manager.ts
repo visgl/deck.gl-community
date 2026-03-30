@@ -20,7 +20,7 @@ const DEFAULT_MAX_VISIBLE_TOASTS = 3;
 const AUTO_DISMISS_BY_TYPE: Record<ToastKind, number> = {
   error: 8_000,
   info: 4_000,
-  warning: 6_000,
+  warning: 6_000
 };
 
 function createToastId(prefix = 'toast'): string {
@@ -42,7 +42,7 @@ export class ToastManager {
     const toast: ToastEntry = {
       id: createToastId(),
       createdAtMs: now,
-      ...request,
+      ...request
     };
 
     if (toast.key) {

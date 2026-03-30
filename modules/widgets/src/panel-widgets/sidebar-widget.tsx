@@ -1,13 +1,13 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import { asPanelContainer, WidgetContainerRenderer } from './widget-containers';
-import { makeTextIcon } from './widget-utils';
+import {asPanelContainer, WidgetContainerRenderer} from './widget-containers';
+import {makeTextIcon} from './widget-utils';
 
-import type { WidgetContainer, WidgetPanel } from './widget-containers';
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {WidgetContainer, WidgetPanel} from './widget-containers';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 /** Sidebar widget properties. */
 export type SidebarWidgetProps = WidgetProps & {
@@ -58,13 +58,7 @@ const SIDEBAR_OVERLAY_Z_INDEX = '35';
 /**
  * Resolves the trigger icon from legacy and new prop names.
  */
-function resolveTriggerIcon({
-  icon,
-  triggerIcon,
-}: {
-  icon?: string;
-  triggerIcon?: string;
-}): string {
+function resolveTriggerIcon({icon, triggerIcon}: {icon?: string; triggerIcon?: string}): string {
   if (icon !== undefined) {
     return icon;
   }
@@ -88,7 +82,7 @@ function SidebarWidgetView({
   button,
   hideTrigger,
   panelWidthPx,
-  onOpenChange,
+  onOpenChange
 }: {
   container: WidgetContainer;
   side: 'left' | 'right';
@@ -204,8 +198,8 @@ export class SidebarWidget extends Widget<SidebarWidgetProps> {
     container: {
       kind: 'accordeon',
       props: {
-        panels: [],
-      },
+        panels: []
+      }
     },
     side: 'right',
     widthPx: 360,
@@ -218,7 +212,7 @@ export class SidebarWidget extends Widget<SidebarWidgetProps> {
     hideTrigger: false,
     triggerLabel: 'Open sidebar',
     triggerIcon: SIDEBAR_TRIGGER_ICON,
-    button: false,
+    button: false
   };
 
   className = SIDEBAR_WIDGET_CLASS;
@@ -243,7 +237,7 @@ export class SidebarWidget extends Widget<SidebarWidgetProps> {
       ...SidebarWidget.defaultProps,
       ...props,
       container: props.container ?? asContainer(props.panel),
-      triggerIcon: resolveTriggerIcon(props),
+      triggerIcon: resolveTriggerIcon(props)
     } as SidebarWidgetProps);
     this.setProps(this.props);
   }
@@ -279,17 +273,15 @@ export class SidebarWidget extends Widget<SidebarWidgetProps> {
     rootElement.style.position = 'absolute';
     rootElement.style.top = 'var(--widget-margin, 12px)';
     rootElement.style.bottom = 'var(--widget-margin, 12px)';
-    rootElement.style.left =
-      this.side === 'left' ? '-1px' : 'var(--widget-margin, 12px)';
-    rootElement.style.right =
-      this.side === 'right' ? '-1px' : 'var(--widget-margin, 12px)';
+    rootElement.style.left = this.side === 'left' ? '-1px' : 'var(--widget-margin, 12px)';
+    rootElement.style.right = this.side === 'right' ? '-1px' : 'var(--widget-margin, 12px)';
     rootElement.style.width = 'auto';
     rootElement.style.height = 'auto';
     rootElement.style.margin = '0';
     rootElement.style.overflow = 'hidden';
     rootElement.style.pointerEvents = 'none';
     rootElement.style.zIndex = SIDEBAR_OVERLAY_Z_INDEX;
-    (this.props as { _widgetContainer?: 'overlay' })._widgetContainer = 'overlay';
+    (this.props as {_widgetContainer?: 'overlay'})._widgetContainer = 'overlay';
     this.#render();
   }
 
@@ -318,7 +310,7 @@ export class SidebarWidget extends Widget<SidebarWidgetProps> {
         panelWidthPx={this.widthPx}
         onOpenChange={this.#handleOpenChange}
       />,
-      this.#rootElement,
+      this.#rootElement
     );
   };
 
@@ -390,8 +382,8 @@ function asContainer(panel?: WidgetPanel): WidgetContainer {
     return {
       kind: 'accordeon',
       props: {
-        panels: [],
-      },
+        panels: []
+      }
     };
   }
   return asPanelContainer(panel);
@@ -416,21 +408,21 @@ const SIDEBAR_TRIGGER_STYLE: JSX.CSSProperties = {
   fontSize: '12px',
   lineHeight: '1.1',
   padding: '8px 10px',
-  cursor: 'pointer',
+  cursor: 'pointer'
 };
 
 const SIDEBAR_PANEL_WRAPPER_STYLE: JSX.CSSProperties = {
   position: 'absolute',
   inset: '0',
   pointerEvents: 'none',
-  zIndex: 31,
+  zIndex: 31
 };
 
 const SIDEBAR_SHELL_STYLE = (
   side: 'left' | 'right',
   panelWidthPx: number,
   panelWidthWithHandlePx: number,
-  open: boolean,
+  open: boolean
 ): JSX.CSSProperties => ({
   position: 'absolute',
   top: '0',
@@ -446,7 +438,7 @@ const SIDEBAR_SHELL_STYLE = (
     : `translateX(${side === 'left' ? -panelWidthPx : panelWidthPx}px)`,
   transition: `transform ${SIDEBAR_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
   willChange: 'transform',
-  gap: `${SIDEBAR_HANDLE_GAP_PX}px`,
+  gap: `${SIDEBAR_HANDLE_GAP_PX}px`
 });
 
 const SIDEBAR_HANDLE_WRAPPER_STYLE: JSX.CSSProperties = {
@@ -454,13 +446,13 @@ const SIDEBAR_HANDLE_WRAPPER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
   justifyContent: 'center',
-  pointerEvents: 'auto',
+  pointerEvents: 'auto'
 };
 
 const SIDEBAR_HANDLE_BUTTON_WRAPPER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
+  justifyContent: 'center'
 };
 
 const SIDEBAR_HANDLE_BUTTON_STYLE: JSX.CSSProperties = {
@@ -478,7 +470,7 @@ const SIDEBAR_HANDLE_BUTTON_STYLE: JSX.CSSProperties = {
   justifyContent: 'center',
   cursor: 'pointer',
   pointerEvents: 'auto',
-  padding: '0',
+  padding: '0'
 };
 
 const SIDEBAR_HANDLE_CHEVRON_STYLE: JSX.CSSProperties = {
@@ -488,13 +480,13 @@ const SIDEBAR_HANDLE_CHEVRON_STYLE: JSX.CSSProperties = {
   lineHeight: '1',
   transform: 'translateY(-1px)',
   color: 'var(--button-icon-idle, #616166)',
-  transition: `transform ${SIDEBAR_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+  transition: `transform ${SIDEBAR_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
 };
 
 const SIDEBAR_PANEL_STYLE = (
   side: 'left' | 'right',
   panelWidthPx: number,
-  open: boolean,
+  open: boolean
 ): JSX.CSSProperties => ({
   pointerEvents: 'auto',
   width: `${panelWidthPx}px`,
@@ -510,7 +502,7 @@ const SIDEBAR_PANEL_STYLE = (
   boxShadow: 'var(--menu-shadow, -8px 0 25px rgba(0, 0, 0, 0.22))',
   display: 'flex',
   flexDirection: 'column',
-  opacity: open ? 1 : 0.98,
+  opacity: open ? 1 : 0.98
 });
 
 const SIDEBAR_HEADER_STYLE: JSX.CSSProperties = {
@@ -523,11 +515,11 @@ const SIDEBAR_HEADER_STYLE: JSX.CSSProperties = {
   background: 'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   fontSize: '13px',
-  fontWeight: 700,
+  fontWeight: 700
 };
 
 const SIDEBAR_CONTENT_STYLE: JSX.CSSProperties = {
   flex: 1,
   overflow: 'auto',
-  padding: '10px',
+  padding: '10px'
 };

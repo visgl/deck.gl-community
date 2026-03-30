@@ -1,14 +1,14 @@
 /** @jsxImportSource preact */
-import { afterEach, describe, expect, it } from 'vitest';
+import {afterEach, describe, expect, it} from 'vitest';
 
-import { BoxWidget } from './box-widget';
+import {BoxWidget} from './box-widget';
 
-import type { WidgetPanel } from './widget-containers';
+import type {WidgetPanel} from './widget-containers';
 
 const panel: WidgetPanel = {
   id: 'box-panel',
   title: 'Box Panel',
-  content: <div>box content</div>,
+  content: <div>box content</div>
 };
 
 afterEach(() => {
@@ -22,7 +22,7 @@ describe('BoxWidget', () => {
     const widget = new BoxWidget({
       id: 'box-widget-basic',
       title: 'Widget Panels',
-      panel,
+      panel
     });
 
     widget.onRenderHTML(root);
@@ -38,7 +38,7 @@ describe('BoxWidget', () => {
       id: 'box-widget-width',
       panel,
       placement: 'bottom-right',
-      widthPx: 420,
+      widthPx: 420
     });
 
     widget.onRenderHTML(root);

@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
-import { DarkTheme, LightTheme } from '@deck.gl/widgets';
-import { h, render } from 'preact';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {h, render} from 'preact';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {
   AccordeonWidgetContainer,
@@ -13,10 +13,10 @@ import {
   MarkdownWidgetPanel,
   TabbedWidgetContainer,
   TabbedWidgetPanel,
-  WidgetContainerRenderer,
+  WidgetContainerRenderer
 } from './widget-containers';
 
-import type { WidgetAccordeonContainer, WidgetTabbedContainer } from './widget-containers';
+import type {WidgetAccordeonContainer, WidgetTabbedContainer} from './widget-containers';
 
 function getPanelContent(root: ParentNode, panelId: string): HTMLElement | null {
   return root.querySelector<HTMLElement>(`[data-panel-id="${panelId}"]`);
@@ -43,13 +43,13 @@ describe('widget containers', () => {
     render(
       h(AccordeonWidgetContainer, {
         panels: [
-          { id: 'first', title: 'First', content: createPanelContent('first') },
-          { id: 'second', title: 'Second', content: createPanelContent('second') },
+          {id: 'first', title: 'First', content: createPanelContent('first')},
+          {id: 'second', title: 'Second', content: createPanelContent('second')}
         ],
         allowMultipleExpanded: true,
-        onExpandedPanelIdsChange,
+        onExpandedPanelIdsChange
       }),
-      root,
+      root
     );
 
     const firstButton = root.querySelector<HTMLButtonElement>('section > button');
@@ -57,12 +57,12 @@ describe('widget containers', () => {
     expect(root.querySelector('[data-panel-id="first"]')).toBeFalsy();
     expect(root.querySelector('[data-panel-id="second"]')).toBeFalsy();
 
-    firstButton.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    firstButton.dispatchEvent(new Event('pointerdown', {bubbles: true}));
     await Promise.resolve();
     expect(onExpandedPanelIdsChange).toHaveBeenLastCalledWith(['first']);
     expect(root.querySelector('[data-panel-id="first"]')).toBeTruthy();
 
-    firstButton.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    firstButton.dispatchEvent(new Event('pointerdown', {bubbles: true}));
     await Promise.resolve();
     expect(onExpandedPanelIdsChange).toHaveBeenLastCalledWith([]);
     expect(root.querySelector('[data-panel-id="first"]')).toBeFalsy();
@@ -82,17 +82,17 @@ describe('widget containers', () => {
             id: 'first',
             title: 'First',
             content: createPanelContent('first'),
-            keepMounted: true,
+            keepMounted: true
           },
           {
             id: 'second',
             title: 'Second',
             content: createPanelContent('second'),
-            keepMounted: true,
-          },
-        ],
+            keepMounted: true
+          }
+        ]
       }),
-      root,
+      root
     );
 
     const firstTab = root.querySelectorAll<HTMLButtonElement>('button')[0];
@@ -105,7 +105,7 @@ describe('widget containers', () => {
     expect(firstPanel?.parentElement?.style.visibility).toBe('hidden');
     expect(secondPanel?.parentElement?.style.visibility).toBe('visible');
 
-    firstTab.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    firstTab.dispatchEvent(new Event('pointerdown', {bubbles: true}));
     await Promise.resolve();
 
     const firstPanelAfter = getPanelContent(root, 'first');
@@ -121,24 +121,24 @@ describe('widget containers', () => {
     const accordeonContainer: WidgetAccordeonContainer = {
       kind: 'accordeon',
       props: {
-        panels: [{ id: 'one', title: 'One', content: createPanelContent('one') }],
-        defaultExpandedPanelIds: ['one'],
-      },
+        panels: [{id: 'one', title: 'One', content: createPanelContent('one')}],
+        defaultExpandedPanelIds: ['one']
+      }
     };
     const tabbedContainer: WidgetTabbedContainer = {
       kind: 'tabs',
       props: {
         panels: [
-          { id: 'alpha', title: 'Alpha', content: createPanelContent('alpha') },
-          { id: 'beta', title: 'Beta', content: createPanelContent('beta'), disabled: true },
+          {id: 'alpha', title: 'Alpha', content: createPanelContent('alpha')},
+          {id: 'beta', title: 'Beta', content: createPanelContent('beta'), disabled: true}
         ],
-        defaultActivePanelId: 'alpha',
-      },
+        defaultActivePanelId: 'alpha'
+      }
     };
 
-    render(h(WidgetContainerRenderer, { container: accordeonContainer }), root);
+    render(h(WidgetContainerRenderer, {container: accordeonContainer}), root);
     expect(root.textContent).toContain('One');
-    render(h(WidgetContainerRenderer, { container: tabbedContainer }), root);
+    render(h(WidgetContainerRenderer, {container: tabbedContainer}), root);
     expect(root.textContent).toContain('Alpha');
   });
 
@@ -149,11 +149,11 @@ describe('widget containers', () => {
     render(
       h(ColumnWidgetContainer, {
         panels: [
-          { id: 'overview', title: '', content: createPanelContent('overview') },
-          { id: 'actions', title: 'Actions', content: createPanelContent('actions') },
-        ],
+          {id: 'overview', title: '', content: createPanelContent('overview')},
+          {id: 'actions', title: 'Actions', content: createPanelContent('actions')}
+        ]
       }),
-      root,
+      root
     );
 
     expect(root.textContent).toContain('overview content');
@@ -173,9 +173,9 @@ describe('widget containers', () => {
       id: 'shortcut-tabs',
       title: 'Keyboard Shortcuts',
       panels: {
-        b: { id: 'b', title: 'B', content: <div>B content</div> },
-        a: { id: 'a', title: 'A', content: <div>A content</div> },
-      },
+        b: {id: 'b', title: 'B', content: <div>B content</div>},
+        a: {id: 'a', title: 'A', content: <div>A content</div>}
+      }
     });
 
     render(panel.content, root);
@@ -197,9 +197,9 @@ describe('widget containers', () => {
       id: 'column-panels',
       title: 'Column Panels',
       panels: {
-        overview: { id: 'overview', title: '', content: <div>overview content</div> },
-        actions: { id: 'actions', title: 'Actions', content: <div>actions content</div> },
-      },
+        overview: {id: 'overview', title: '', content: <div>overview content</div>},
+        actions: {id: 'actions', title: 'Actions', content: <div>actions content</div>}
+      }
     });
 
     render(panel.content, root);
@@ -219,12 +219,12 @@ describe('widget containers', () => {
       h(TabbedWidgetContainer, {
         tabListLayout: 'scroll',
         panels: [
-          { id: 'one', title: 'One', content: createPanelContent('one') },
-          { id: 'two', title: 'Two', content: createPanelContent('two') },
-          { id: 'three', title: 'Three', content: createPanelContent('three') },
-        ],
+          {id: 'one', title: 'One', content: createPanelContent('one')},
+          {id: 'two', title: 'Two', content: createPanelContent('two')},
+          {id: 'three', title: 'Three', content: createPanelContent('three')}
+        ]
       }),
-      root,
+      root
     );
 
     const tabList = root.querySelector<HTMLDivElement>('[data-widget-tabs]');
@@ -238,16 +238,16 @@ describe('widget containers', () => {
 
     const panel = new AccordeonWidgetPanel({
       panels: {
-        first: { id: 'first', title: 'First', content: <div>first content</div> },
-        second: { id: 'second', title: 'Second', content: <div>second content</div> },
-      },
+        first: {id: 'first', title: 'First', content: <div>first content</div>},
+        second: {id: 'second', title: 'Second', content: <div>second content</div>}
+      }
     });
 
     render(panel.content, root);
 
     const firstButton = root.querySelector<HTMLButtonElement>('section > button');
     expect(firstButton).toBeTruthy();
-    firstButton.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    firstButton.dispatchEvent(new Event('pointerdown', {bubbles: true}));
     await Promise.resolve();
 
     expect(root.textContent).toContain('first content');
@@ -260,10 +260,10 @@ describe('widget containers', () => {
     const panelContainer = asPanelContainer({
       id: 'direct',
       title: 'Direct',
-      content: <div>direct content</div>,
+      content: <div>direct content</div>
     });
 
-    render(h(WidgetContainerRenderer, { container: panelContainer }), root);
+    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
 
     expect(root.textContent).toContain('direct content');
     expect(root.querySelector('section > button')).toBeNull();
@@ -278,10 +278,10 @@ describe('widget containers', () => {
     const panelContainer = asPanelContainer({
       id: 'direct',
       title: 'Direct',
-      content: <div>direct content</div>,
+      content: <div>direct content</div>
     });
 
-    render(h(WidgetContainerRenderer, { container: panelContainer }), root);
+    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
     await Promise.resolve();
 
     const scope = getThemeScopes(root)[0];
@@ -299,23 +299,23 @@ describe('widget containers', () => {
         id: 'forced-themes',
         title: 'Forced themes',
         panels: {
-          light: { id: 'light', title: 'Light', theme: 'light', content: <div>light</div> },
-          dark: { id: 'dark', title: 'Dark', theme: 'dark', content: <div>dark</div> },
-        },
-      }),
+          light: {id: 'light', title: 'Light', theme: 'light', content: <div>light</div>},
+          dark: {id: 'dark', title: 'Dark', theme: 'dark', content: <div>dark</div>}
+        }
+      })
     );
 
-    render(h(WidgetContainerRenderer, { container: panelContainer }), root);
+    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
     await Promise.resolve();
 
     const scopes = getThemeScopes(root);
     expect(scopes[1]?.dataset.panelThemeMode).toBe('light');
     expect(scopes[1]?.style.getPropertyValue('--menu-background')).toBe(
-      LightTheme['--menu-background'],
+      LightTheme['--menu-background']
     );
     expect(scopes[2]?.dataset.panelThemeMode).toBe('dark');
     expect(scopes[2]?.style.getPropertyValue('--menu-background')).toBe(
-      DarkTheme['--menu-background'],
+      DarkTheme['--menu-background']
     );
   });
 
@@ -334,13 +334,13 @@ describe('widget containers', () => {
             id: 'nested',
             title: 'Nested',
             theme: 'invert',
-            markdown: 'nested content',
-          }),
-        },
-      }),
+            markdown: 'nested content'
+          })
+        }
+      })
     );
 
-    render(h(WidgetContainerRenderer, { container: panelContainer }), root);
+    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
     await Promise.resolve();
 
     const scopes = getThemeScopes(root);
@@ -359,11 +359,11 @@ describe('widget containers', () => {
         onRenderHTML: (hostElement) => {
           hostElement.textContent = 'custom content';
           return cleanup;
-        },
-      }),
+        }
+      })
     );
 
-    render(h(WidgetContainerRenderer, { container: panelContainer }), root);
+    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -391,8 +391,8 @@ describe('widget containers', () => {
         '',
         '```',
         'const value = 1;',
-        '```',
-      ].join('\n'),
+        '```'
+      ].join('\n')
     });
 
     render(panel.content, root);
@@ -411,7 +411,7 @@ describe('widget containers', () => {
     const panel = new MarkdownWidgetPanel({
       id: 'markdown-html',
       title: 'Markdown HTML',
-      markdown: '<b>unsafe</b>',
+      markdown: '<b>unsafe</b>'
     });
 
     render(panel.content, root);

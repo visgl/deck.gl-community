@@ -17,38 +17,35 @@ export type {HtmlClusterWidgetProps} from './html-overlay-widgets/html-cluster-w
 export {HtmlTooltipWidget} from './html-overlay-widgets/html-tooltip-widget';
 export type {HtmlTooltipWidgetProps} from './html-overlay-widgets/html-tooltip-widget';
 
-export { HeapMemoryWidget } from './widgets/heap-memory-widget';
-export { KeyboardShortcutsWidget } from './widgets/keyboard-shortcuts-widget';
+export {HeapMemoryWidget} from './widgets/heap-memory-widget';
+export {KeyboardShortcutsWidget} from './widgets/keyboard-shortcuts-widget';
 export {
   SettingsWidget,
   type SettingsWidgetProps,
   type SettingsWidgetSchema,
   type SettingsWidgetSectionDescriptor,
   type SettingsWidgetSettingDescriptor,
-  type SettingsWidgetState,
+  type SettingsWidgetState
 } from './widgets/settings-widget';
 export {
   OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
   type OmniBoxRenderOptionArgs,
-  type OmniBoxWidgetProps,
+  type OmniBoxWidgetProps
 } from './widgets/omni-box-widget';
 export {ResetViewWidget, type ResetViewWidgetProps} from './panel-widgets/reset-view-widget';
 export {
   TimeMeasureWidget,
   type TimeMeasureRange,
-  type TimeMeasureSelectionState,
+  type TimeMeasureSelectionState
 } from './panel-widgets/time-measure-widget';
-export {
-  ToastWidget,
-  type ToastWidgetProps,
-} from './panel-widgets/toast-widget';
+export {ToastWidget, type ToastWidgetProps} from './panel-widgets/toast-widget';
 export {
   toastManager,
   type ToastEntry,
   type ToastKind,
-  type ToastRequest,
+  type ToastRequest
 } from './panel-widgets/toast-manager';
 export {YZoomWidget, type YZoomWidgetProps} from './panel-widgets/y-zoom-widget';
 export {
@@ -77,19 +74,16 @@ export {
   type WidgetPanelContainerProps,
   type WidgetPanelRecord,
   type WidgetPanelTheme,
-  type WidgetPanelThemeMode,
+  type WidgetPanelThemeMode
 } from './panel-widgets/widget-containers';
-export { BoxWidget, type BoxWidgetProps } from './panel-widgets/box-widget';
+export {BoxWidget, type BoxWidgetProps} from './panel-widgets/box-widget';
 export {
   KeyboardSettingsWidgetPanel,
-  type KeyboardSettingsWidgetPanelProps,
+  type KeyboardSettingsWidgetPanelProps
 } from './panel-widgets/keyboard-shortcuts-widget';
-export { ModalWidget, type ModalWidgetProps } from './panel-widgets/modal-widget';
-export {
-  SettingsWidgetPanel,
-  type SettingsWidgetPanelProps,
-} from './panel-widgets/settings-widget';
-export { SidebarWidget, type SidebarWidgetProps } from './panel-widgets/sidebar-widget';
+export {ModalWidget, type ModalWidgetProps} from './panel-widgets/modal-widget';
+export {SettingsWidgetPanel, type SettingsWidgetPanelProps} from './panel-widgets/settings-widget';
+export {SidebarWidget, type SidebarWidgetProps} from './panel-widgets/sidebar-widget';
 export {
   ToolbarWidget,
   type ToolbarWidgetActionItem,
@@ -109,5 +103,5 @@ export {
   isShortcutMatchingKeyEvent,
   findShortcutMatchingKeyEvent,
   DEFAULT_SHORTCUTS,
-  formatKey,
+  formatKey
 } from './keyboard-shortcuts/keyboard-shortcuts';

@@ -1,11 +1,11 @@
 /** @jsxImportSource preact */
-import { OrthographicViewport, Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {OrthographicViewport, Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import { IconButton, makeTextIcon } from './widget-utils';
+import {IconButton, makeTextIcon} from './widget-utils';
 
-import type { Deck, OrthographicViewState, WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {Deck, OrthographicViewState, WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 export type YZoomWidgetProps = WidgetProps & {
   contentBounds?: [[number, number], [number, number]];
@@ -17,7 +17,7 @@ export type YZoomWidgetProps = WidgetProps & {
   step?: number;
 };
 
-const DEFAULT_ZOOM_LIMITS = { min: -20, max: 20 } as const;
+const DEFAULT_ZOOM_LIMITS = {min: -20, max: 20} as const;
 
 type RenderedZoomState = {
   clampedZoom: number;
@@ -39,18 +39,18 @@ const WRAPPER_STYLE: JSX.CSSProperties = {
   width: 'var(--button-size)',
   boxSizing: 'border-box',
   userSelect: 'none',
-  pointerEvents: 'auto',
+  pointerEvents: 'auto'
 };
 
 const ZOOM_BUTTON_STYLE: JSX.CSSProperties = {
-  boxShadow: 'none',
+  boxShadow: 'none'
 };
 
 const SLIDER_CONTAINER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'stretch',
   height: '120px',
-  padding: '2px 0',
+  padding: '2px 0'
 };
 
 const VERTICAL_SLIDER_STYLE: JSX.CSSProperties = {
@@ -58,23 +58,23 @@ const VERTICAL_SLIDER_STYLE: JSX.CSSProperties = {
   height: '120px',
   width: '14px',
   margin: 0,
-  padding: 0,
+  padding: 0
 };
 
 function cloneViewState(viewState: unknown): Record<string, unknown> {
   return viewState && typeof viewState === 'object'
-    ? { ...(viewState as Record<string, unknown>) }
+    ? {...(viewState as Record<string, unknown>)}
     : {};
 }
 
 function hasViewManager(deck: Deck): boolean {
-  return Boolean((deck as Deck & { viewManager?: unknown }).viewManager);
+  return Boolean((deck as Deck & {viewManager?: unknown}).viewManager);
 }
 
 function stopEventPropagation(event: Event) {
   event.stopPropagation();
   if (
-    typeof (event as { stopImmediatePropagation?: () => void }).stopImmediatePropagation ===
+    typeof (event as {stopImmediatePropagation?: () => void}).stopImmediatePropagation ===
     'function'
   ) {
     event.stopImmediatePropagation();
@@ -83,7 +83,7 @@ function stopEventPropagation(event: Event) {
 
 function getZoomLimitForAxis(
   limit: OrthographicViewState['minZoom' | 'maxZoom'] | undefined,
-  axisIndex: 0 | 1,
+  axisIndex: 0 | 1
 ): number | undefined {
   if (Array.isArray(limit)) {
     const [x, y] = limit;
@@ -107,10 +107,8 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     placement: 'top-left',
     minZoom: undefined,
     maxZoom: undefined,
-    step: 0.1,
-  } satisfies Required<WidgetProps> &
-    Required<Pick<YZoomWidgetProps, 'step'>> &
-    YZoomWidgetProps;
+    step: 0.1
+  } satisfies Required<WidgetProps> & Required<Pick<YZoomWidgetProps, 'step'>> & YZoomWidgetProps;
 
   placement: WidgetPlacement = 'top-left';
   className = 'deck-widget-y-zoom';
@@ -121,7 +119,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
   lastRenderedZoomState: RenderedZoomState | null = null;
 
   constructor(props: YZoomWidgetProps = {}) {
-    super({ ...YZoomWidget.defaultProps, ...props });
+    super({...YZoomWidget.defaultProps, ...props});
     this.viewId = props.viewId ?? null;
     this.placement = props.placement ?? 'top-left';
     this.step = props.step ?? YZoomWidget.defaultProps.step;
@@ -140,7 +138,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     super.setProps(props);
   }
 
-  override onAdd({ deck, viewId }: { deck: Deck; viewId: string | null }): void {
+  override onAdd({deck, viewId}: {deck: Deck; viewId: string | null}): void {
     this.deck = deck;
     if (this.viewId === undefined) {
       this.viewId = viewId;
@@ -152,8 +150,8 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {
-    const { minZoom, maxZoom, clampedZoom } = this.getRenderedZoomState();
-    this.lastRenderedZoomState = { minZoom, maxZoom, clampedZoom };
+    const {minZoom, maxZoom, clampedZoom} = this.getRenderedZoomState();
+    this.lastRenderedZoomState = {minZoom, maxZoom, clampedZoom};
 
     const handleInput = (event: Event) => {
       stopEventPropagation(event);
@@ -221,7 +219,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
           onClick={() => this.handleZoomDelta(this.step)}
         />
       </div>,
-      rootElement,
+      rootElement
     );
   }
 
@@ -254,11 +252,11 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
    * Returns the effective min/max bounds and the clamped zoom value currently shown in the slider.
    */
   private getRenderedZoomState(): RenderedZoomState {
-    const { minZoom, maxZoom } = this.getZoomBounds();
+    const {minZoom, maxZoom} = this.getZoomBounds();
     return {
       minZoom,
       maxZoom,
-      clampedZoom: clamp(this.currentZoom, minZoom, maxZoom),
+      clampedZoom: clamp(this.currentZoom, minZoom, maxZoom)
     };
   }
 
@@ -283,16 +281,16 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
   /**
    * Resolves the slider min/max bounds from explicit props or inferred viewport limits.
    */
-  private getZoomBounds(): { minZoom: number; maxZoom: number } {
+  private getZoomBounds(): {minZoom: number; maxZoom: number} {
     const minZoom = this.props.minZoom ?? this.inferredMinZoom ?? Number.NEGATIVE_INFINITY;
     const maxZoom = this.props.maxZoom ?? this.inferredMaxZoom ?? Number.POSITIVE_INFINITY;
 
     if (minZoom > maxZoom) {
-      return { minZoom: maxZoom, maxZoom: minZoom };
+      return {minZoom: maxZoom, maxZoom: minZoom};
     }
     return {
       minZoom: Number.isFinite(minZoom) ? minZoom : DEFAULT_ZOOM_LIMITS.min,
-      maxZoom: Number.isFinite(maxZoom) ? maxZoom : DEFAULT_ZOOM_LIMITS.max,
+      maxZoom: Number.isFinite(maxZoom) ? maxZoom : DEFAULT_ZOOM_LIMITS.max
     };
   }
 
@@ -303,8 +301,8 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     }
     if (this.viewId) {
       if (hasViewManager(deck)) {
-        const viewport = (deck as Deck & { viewManager?: any }).viewManager?.getViewport(
-          this.props.targetViewId ?? this.viewId,
+        const viewport = (deck as Deck & {viewManager?: any}).viewManager?.getViewport(
+          this.props.targetViewId ?? this.viewId
         );
         return viewport ? [viewport] : [];
       }
@@ -316,11 +314,11 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
   private getViewportViewState(viewport: OrthographicViewport): OrthographicViewState {
     const deck = this.deck;
     const viewManager =
-      deck && hasViewManager(deck) ? (deck as Deck & { viewManager?: any }).viewManager : null;
+      deck && hasViewManager(deck) ? (deck as Deck & {viewManager?: any}).viewManager : null;
     const viewId = this.viewId || viewport.id;
     if (viewManager) {
       try {
-        return { ...viewManager.getViewState(viewId) } as OrthographicViewState;
+        return {...viewManager.getViewState(viewId)} as OrthographicViewState;
       } catch (err) {
         return cloneViewState(viewManager.viewState) as OrthographicViewState;
       }
@@ -329,7 +327,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
   }
 
   private handleZoomDelta(delta: number) {
-    const { minZoom, maxZoom } = this.getZoomBounds();
+    const {minZoom, maxZoom} = this.getZoomBounds();
 
     for (const viewport of this.getTargetViewports()) {
       const zoomY = viewport.zoomY;
@@ -339,7 +337,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
   }
 
   private handleZoomTo(zoom: number) {
-    const { minZoom, maxZoom } = this.getZoomBounds();
+    const {minZoom, maxZoom} = this.getZoomBounds();
     const nextZoom = clamp(zoom, minZoom, maxZoom);
 
     for (const viewport of this.getTargetViewports()) {
@@ -352,16 +350,16 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
       return;
     }
 
-    const { contentBounds } = this.props;
+    const {contentBounds} = this.props;
     const viewState = this.getViewportViewState(viewport);
     const zoomX = viewport.zoomX;
-    const newViewState = { ...viewState, zoom: [zoomX, nextZoomY] };
+    const newViewState = {...viewState, zoom: [zoomX, nextZoomY]};
     if (contentBounds) {
       const targetY = viewport.target?.[1] ?? 0;
       const minY = contentBounds[0][1];
       const maxY = contentBounds[1][1];
       if (targetY < minY || targetY > maxY) {
-        const nextViewport = new OrthographicViewport({ ...viewport, zoomY: nextZoomY });
+        const nextViewport = new OrthographicViewport({...viewport, zoomY: nextZoomY});
         const anchor = [contentBounds[0][0], Math.max(minY, Math.min(maxY, targetY))];
         const anchorPixels = viewport.project(anchor);
         newViewState.target = nextViewport.panByPosition(anchor, anchorPixels).target;
@@ -373,6 +371,6 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     this.updateHTMLIfRenderedStateChanged();
 
     // @ts-expect-error Using private method until a public alternative is available
-    this.deck._onViewStateChange({ viewId, viewState: newViewState, interactionState: {} });
+    this.deck._onViewStateChange({viewId, viewState: newViewState, interactionState: {}});
   }
 }

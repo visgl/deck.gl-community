@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import {afterEach, describe, expect, it} from 'vitest';
 
-import { OmniBoxWidget } from './omni-box-widget';
+import {OmniBoxWidget} from './omni-box-widget';
 
 function renderWidget() {
   const root = document.createElement('div');
@@ -12,20 +12,21 @@ function renderWidget() {
       {
         id: 'alpha',
         label: 'Alpha block',
-        description: 'First result',
-      },
-    ],
+        description: 'First result'
+      }
+    ]
   });
 
   widget.onRenderHTML(root);
+  const cleanup = () => {
+    widget.onRemove();
+    root.remove();
+  };
 
   return {
     root,
     widget,
-    cleanup() {
-      widget.onRemove();
-      root.remove();
-    },
+    cleanup
   };
 }
 
@@ -35,7 +36,7 @@ afterEach(() => {
 
 describe('OmniBoxWidget', () => {
   it('uses deck widget theme CSS variables for the control row and dropdown', async () => {
-    const { root, cleanup } = renderWidget();
+    const {root, cleanup} = renderWidget();
 
     const styles = root.querySelector('style');
     expect(styles?.textContent).toContain('var(--button-stroke');

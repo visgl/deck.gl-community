@@ -1,12 +1,12 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
+import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 
-import { IconButton, makeTextIcon } from '../preact-components/icon-button';
+import {IconButton, makeTextIcon} from '../preact-components/icon-button';
 
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 export type SettingsWidgetValue = boolean | number | string;
 
@@ -73,7 +73,7 @@ const PANE_STYLE: JSX.CSSProperties = {
   flexDirection: 'column',
   overflow: 'hidden',
   pointerEvents: 'auto',
-  zIndex: 20,
+  zIndex: 20
 };
 
 const HEADER_STYLE: JSX.CSSProperties = {
@@ -81,7 +81,7 @@ const HEADER_STYLE: JSX.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   borderBottom: '1px solid rgba(100, 116, 139, 0.45)',
-  padding: '10px 12px',
+  padding: '10px 12px'
 };
 
 const SECTION_TOGGLE_STYLE: JSX.CSSProperties = {
@@ -96,20 +96,20 @@ const SECTION_TOGGLE_STYLE: JSX.CSSProperties = {
   background: 'rgba(30, 41, 59, 0.75)',
   color: 'inherit',
   cursor: 'pointer',
-  fontSize: '12px',
+  fontSize: '12px'
 };
 
 const SECTION_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gap: '8px',
-  padding: '8px 12px 12px',
+  padding: '8px 12px 12px'
 };
 
 const SETTING_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(120px, 1fr) minmax(200px, 1.4fr)',
   alignItems: 'center',
-  gap: '8px',
+  gap: '8px'
 };
 
 const SETTING_LABEL_STYLE: JSX.CSSProperties = {
@@ -118,13 +118,13 @@ const SETTING_LABEL_STYLE: JSX.CSSProperties = {
   color: 'rgba(226, 232, 240, 0.98)',
   whiteSpace: 'nowrap',
   overflow: 'hidden',
-  textOverflow: 'ellipsis',
+  textOverflow: 'ellipsis'
 };
 
 const SETTING_CONTROL_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'center'
 };
 
 const INPUT_STYLE: JSX.CSSProperties = {
@@ -135,25 +135,25 @@ const INPUT_STYLE: JSX.CSSProperties = {
   color: 'inherit',
   fontSize: '12px',
   padding: '4px 6px',
-  boxSizing: 'border-box',
+  boxSizing: 'border-box'
 };
 
 const RANGE_INPUT_STYLE: JSX.CSSProperties = {
   width: '100%',
   minWidth: '120px',
-  margin: 0,
+  margin: 0
 };
 
 const NUMBER_INPUT_STYLE: JSX.CSSProperties = {
   ...INPUT_STYLE,
   width: '84px',
-  flexShrink: 0,
+  flexShrink: 0
 };
 
 const CHECKBOX_STYLE: JSX.CSSProperties = {
   width: '14px',
   height: '14px',
-  margin: 0,
+  margin: 0
 };
 
 const SETTINGS_BUTTON_ICON = makeTextIcon('⚙', 24, 36);
@@ -188,14 +188,14 @@ function getValueAtPath(settings: SettingsWidgetState, path: string): unknown {
 function setValueAtPath(
   settings: SettingsWidgetState,
   path: string,
-  value: SettingsWidgetValue,
+  value: SettingsWidgetValue
 ): SettingsWidgetState {
   const segments = parsePath(path);
   if (!segments.length) {
     return settings;
   }
 
-  const nextSettings: SettingsWidgetState = { ...settings };
+  const nextSettings: SettingsWidgetState = {...settings};
   let writeCursor: Record<string, unknown> = nextSettings;
   let readCursor: Record<string, unknown> = settings;
 
@@ -208,7 +208,7 @@ function setValueAtPath(
     }
 
     const existingChild = readCursor[segment];
-    const nextChild = isRecord(existingChild) ? { ...existingChild } : {};
+    const nextChild = isRecord(existingChild) ? {...existingChild} : {};
     writeCursor[segment] = nextChild;
 
     writeCursor = nextChild;
@@ -238,7 +238,7 @@ function getInitialCollapsedState(section: SettingsWidgetSectionDescriptor): boo
 }
 
 function buildInitialCollapsedState(
-  sections: SettingsWidgetSectionDescriptor[],
+  sections: SettingsWidgetSectionDescriptor[]
 ): Record<string, boolean> {
   return sections.reduce<Record<string, boolean>>((result, section, index) => {
     result[getSectionKey(section, index)] = getInitialCollapsedState(section);
@@ -253,13 +253,13 @@ function normalizeOption(option: SettingsWidgetOption): {
   if (isRecord(option) && 'label' in option && 'value' in option) {
     return {
       label: String(option.label),
-      value: option.value,
+      value: option.value
     };
   }
 
   return {
     label: String(option),
-    value: option,
+    value: option
   };
 }
 
@@ -273,7 +273,7 @@ function getDefaultValue(setting: SettingsWidgetSettingDescriptor): SettingsWidg
   }
 
   if (setting.type === 'number') {
-    return Number.isFinite(setting.min) ? (setting.min) : 0;
+    return Number.isFinite(setting.min) ? setting.min : 0;
   }
 
   if (setting.type === 'select') {
@@ -289,7 +289,7 @@ function getDefaultValue(setting: SettingsWidgetSettingDescriptor): SettingsWidg
 // eslint-disable-next-line complexity
 function resolveSettingValue(
   setting: SettingsWidgetSettingDescriptor,
-  settings: SettingsWidgetState,
+  settings: SettingsWidgetState
 ): SettingsWidgetValue {
   const currentValue = getValueAtPath(settings, setting.name);
 
@@ -335,7 +335,7 @@ function resolveSettingValue(
 
 function mergeCollapsedState(
   previous: Record<string, boolean>,
-  sections: SettingsWidgetSectionDescriptor[],
+  sections: SettingsWidgetSectionDescriptor[]
 ): Record<string, boolean> {
   const nextState: Record<string, boolean> = {};
 
@@ -358,13 +358,13 @@ type SettingsControlProps = {
 };
 
 // eslint-disable-next-line complexity
-function SettingsControl({ setting, value, onValueChange }: SettingsControlProps) {
+function SettingsControl({setting, value, onValueChange}: SettingsControlProps) {
   const label = setting.label ?? setting.name;
   const tooltip = setting.description?.trim();
   const inputId = `settings-widget-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
   const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    onValueChange((event.currentTarget).checked);
+    onValueChange(event.currentTarget.checked);
   };
 
   const handleNumberChange = (nextValue: number) => {
@@ -375,11 +375,11 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
   };
 
   const handleTextChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    onValueChange((event.currentTarget).value);
+    onValueChange(event.currentTarget.value);
   };
 
   const handleSelectChange: JSX.GenericEventHandler<HTMLSelectElement> = (event) => {
-    const selectedRaw = (event.currentTarget).value;
+    const selectedRaw = event.currentTarget.value;
     const selectedValue = (setting.options ?? []).map(normalizeOption).find((option) => {
       return String(option.value) === selectedRaw;
     });
@@ -405,9 +405,7 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
     const showRange = Number.isFinite(setting.min) && Number.isFinite(setting.max);
 
     control = showRange ? (
-      <div
-        style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%' }}
-      >
+      <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%'}}>
         <input
           id={inputId}
           type="range"
@@ -415,12 +413,8 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
           max={String(setting.max)}
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
-          onInput={(event) =>
-            handleNumberChange(Number((event.currentTarget).value))
-          }
-          onChange={(event) =>
-            handleNumberChange(Number((event.currentTarget).value))
-          }
+          onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
+          onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
           aria-label={label}
           style={RANGE_INPUT_STYLE}
         />
@@ -430,12 +424,8 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
           max={Number.isFinite(setting.max) ? String(setting.max) : undefined}
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
-          onInput={(event) =>
-            handleNumberChange(Number((event.currentTarget).value))
-          }
-          onChange={(event) =>
-            handleNumberChange(Number((event.currentTarget).value))
-          }
+          onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
+          onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
           aria-label={`${label} numeric value`}
           style={NUMBER_INPUT_STYLE}
         />
@@ -446,12 +436,8 @@ function SettingsControl({ setting, value, onValueChange }: SettingsControlProps
         type="number"
         step={String(setting.step ?? 1)}
         value={String(numericValue)}
-        onInput={(event) =>
-          handleNumberChange(Number((event.currentTarget).value))
-        }
-        onChange={(event) =>
-          handleNumberChange(Number((event.currentTarget).value))
-        }
+        onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
+        onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
         aria-label={label}
         style={INPUT_STYLE}
       />
@@ -509,20 +495,15 @@ type SettingsWidgetViewProps = {
   onSettingsChange?: (settings: SettingsWidgetState) => void;
 };
 
-const DEFAULT_SETTINGS_WIDGET_SCHEMA: SettingsWidgetSchema = { sections: [] };
+const DEFAULT_SETTINGS_WIDGET_SCHEMA: SettingsWidgetSchema = {sections: []};
 const DEFAULT_SETTINGS_WIDGET_STATE: SettingsWidgetState = {};
 
-function SettingsWidgetView({
-  label,
-  schema,
-  settings,
-  onSettingsChange,
-}: SettingsWidgetViewProps) {
+function SettingsWidgetView({label, schema, settings, onSettingsChange}: SettingsWidgetViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isPaneOpen, setIsPaneOpen] = useState(false);
   const [localSettings, setLocalSettings] = useState<SettingsWidgetState>(settings);
   const [collapsedState, setCollapsedState] = useState<Record<string, boolean>>(() =>
-    buildInitialCollapsedState(schema.sections),
+    buildInitialCollapsedState(schema.sections)
   );
 
   useEffect(() => {
@@ -534,32 +515,32 @@ function SettingsWidgetView({
   }, [schema.sections]);
 
   useEffect(() => {
-    if (!isPaneOpen || typeof document === 'undefined') {
-      return;
+    if (isPaneOpen && typeof document !== 'undefined') {
+      const handleDocumentPointerDown = (event: PointerEvent) => {
+        if (!containerRef.current || !event.target) {
+          return;
+        }
+        if (!containerRef.current.contains(event.target as Node)) {
+          setIsPaneOpen(false);
+        }
+      };
+
+      document.addEventListener('pointerdown', handleDocumentPointerDown);
+      return () => {
+        document.removeEventListener('pointerdown', handleDocumentPointerDown);
+      };
     }
 
-    const handleDocumentPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current || !event.target) {
-        return;
-      }
-      if (!containerRef.current.contains(event.target as Node)) {
-        setIsPaneOpen(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', handleDocumentPointerDown);
-    return () => {
-      document.removeEventListener('pointerdown', handleDocumentPointerDown);
-    };
+    return undefined;
   }, [isPaneOpen]);
 
   const sectionEntries = useMemo(
     () =>
       schema.sections.map((section, index) => ({
         key: getSectionKey(section, index),
-        section,
+        section
       })),
-    [schema.sections],
+    [schema.sections]
   );
 
   const updateSetting = (path: string, nextValue: SettingsWidgetValue) => {
@@ -571,7 +552,7 @@ function SettingsWidgetView({
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', pointerEvents: 'auto' }}>
+    <div ref={containerRef} style={{position: 'relative', pointerEvents: 'auto'}}>
       <IconButton
         icon={SETTINGS_BUTTON_ICON}
         title={label}
@@ -590,7 +571,7 @@ function SettingsWidgetView({
           onClick={(event) => stopPropagation(event as unknown as Event)}
         >
           <div style={HEADER_STYLE}>
-            <div style={{ fontSize: '13px', fontWeight: 700 }}>{schema.title ?? label}</div>
+            <div style={{fontSize: '13px', fontWeight: 700}}>{schema.title ?? label}</div>
             <button
               type="button"
               onClick={() => setIsPaneOpen(false)}
@@ -602,7 +583,7 @@ function SettingsWidgetView({
                 color: 'inherit',
                 cursor: 'pointer',
                 fontSize: '14px',
-                lineHeight: 1,
+                lineHeight: 1
               }}
               title="Close settings"
               aria-label="Close settings"
@@ -611,26 +592,26 @@ function SettingsWidgetView({
             </button>
           </div>
 
-          <div style={{ overflowY: 'auto', paddingBottom: '8px' }}>
-            {sectionEntries.map(({ key, section }) => {
+          <div style={{overflowY: 'auto', paddingBottom: '8px'}}>
+            {sectionEntries.map(({key, section}) => {
               const isCollapsed = collapsedState[key] ?? false;
               return (
-                <div key={key} style={{ borderBottom: '1px solid rgba(51, 65, 85, 0.7)' }}>
+                <div key={key} style={{borderBottom: '1px solid rgba(51, 65, 85, 0.7)'}}>
                   <button
                     type="button"
                     style={SECTION_TOGGLE_STYLE}
                     onClick={() =>
                       setCollapsedState((previous) => ({
                         ...previous,
-                        [key]: !isCollapsed,
+                        [key]: !isCollapsed
                       }))
                     }
                     aria-expanded={!isCollapsed}
                   >
-                    <span style={{ display: 'grid', gap: '2px', textAlign: 'left' }}>
-                      <span style={{ fontWeight: 700, fontSize: '12px' }}>{section.name}</span>
+                    <span style={{display: 'grid', gap: '2px', textAlign: 'left'}}>
+                      <span style={{fontWeight: 700, fontSize: '12px'}}>{section.name}</span>
                       {section.description && (
-                        <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 1)' }}>
+                        <span style={{fontSize: '11px', color: 'rgba(148, 163, 184, 1)'}}>
                           {section.description}
                         </span>
                       )}
@@ -668,7 +649,7 @@ export class SettingsWidget extends Widget<SettingsWidgetProps> {
     label: 'Settings',
     schema: DEFAULT_SETTINGS_WIDGET_SCHEMA,
     settings: DEFAULT_SETTINGS_WIDGET_STATE,
-    onSettingsChange: undefined,
+    onSettingsChange: undefined
   } satisfies Required<WidgetProps> &
     Required<Pick<SettingsWidgetProps, 'placement' | 'label' | 'schema' | 'settings'>> &
     SettingsWidgetProps;
@@ -684,7 +665,7 @@ export class SettingsWidget extends Widget<SettingsWidgetProps> {
   #rootElement: HTMLElement | null = null;
 
   constructor(props: SettingsWidgetProps = {}) {
-    super({ ...SettingsWidget.defaultProps, ...props });
+    super({...SettingsWidget.defaultProps, ...props});
 
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -738,7 +719,7 @@ export class SettingsWidget extends Widget<SettingsWidgetProps> {
         settings={this.#settings}
         onSettingsChange={this.#onSettingsChange}
       />,
-      rootElement,
+      rootElement
     );
   }
 

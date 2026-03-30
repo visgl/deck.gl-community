@@ -31,7 +31,7 @@ async function createTextEditorMonacoRuntime(): Promise<TextEditorMonacoRuntime>
 
   const [monaco] = await Promise.all([
     import('monaco-editor'),
-    import('monaco-editor/esm/vs/language/json/monaco.contribution'),
+    import('monaco-editor/esm/vs/language/json/monaco.contribution')
   ]);
 
   return {
@@ -48,7 +48,7 @@ async function createTextEditorMonacoRuntime(): Promise<TextEditorMonacoRuntime>
     clearJsonSchema: (modelUri) => {
       jsonSchemasByModelUri.delete(modelUri);
       applyJsonDiagnostics(monaco);
-    },
+    }
   };
 }
 
@@ -74,11 +74,10 @@ function configureMonacoEnvironment(): void {
           {type: 'module'}
         );
       }
-      return new Worker(
-        new URL('monaco-editor/esm/vs/editor/editor.worker.js', import.meta.url),
-        {type: 'module'}
-      );
-    },
+      return new Worker(new URL('monaco-editor/esm/vs/editor/editor.worker.js', import.meta.url), {
+        type: 'module'
+      });
+    }
   };
 }
 
@@ -92,7 +91,7 @@ function applyJsonDiagnostics(monaco: typeof MonacoNamespace): void {
     schemas: [...jsonSchemasByModelUri.entries()].map(([modelUri, schema]) => ({
       uri: `${modelUri}#schema`,
       fileMatch: [modelUri],
-      schema,
-    })),
+      schema
+    }))
   });
 }

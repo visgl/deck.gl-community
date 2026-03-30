@@ -122,7 +122,7 @@ export function resolveSettingValue(
       return String(candidateValue);
     }
 
-    const match = normalizedOptions.find(option => option.value === candidateValue);
+    const match = normalizedOptions.find((option) => option.value === candidateValue);
     return match ? match.value : normalizedOptions[0].value;
   }
 
@@ -155,7 +155,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parsePath(path: string): string[] {
   return path
     .split('.')
-    .map(segment => segment.trim())
+    .map((segment) => segment.trim())
     .filter(Boolean);
 }
 

@@ -1,7 +1,7 @@
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
 
 /** @jsxImportSource preact */
 
@@ -38,7 +38,7 @@ export class ToggleWidget extends Widget<ToggleWidgetProps> {
     onIcon: undefined!,
     onLabel: undefined!,
     onColor: '#3b82f6',
-    onChange: undefined!,
+    onChange: undefined!
   };
 
   className = 'deck-widget-toggle';
@@ -65,7 +65,7 @@ export class ToggleWidget extends Widget<ToggleWidgetProps> {
   };
 
   onRenderHTML(rootElement: HTMLElement): void {
-    const { icon, label, onIcon = icon, onLabel = label, onColor } = this.props;
+    const {icon, label, onIcon = icon, onLabel = label, onColor} = this.props;
     const on = this.checked;
     const title = on ? onLabel : label;
 
@@ -82,12 +82,12 @@ export class ToggleWidget extends Widget<ToggleWidgetProps> {
             className="deck-widget-icon"
             style={{
               backgroundColor: on ? onColor : '',
-              maskImage: `url('${on ? onIcon : icon}')`,
+              maskImage: `url('${on ? onIcon : icon}')`
             }}
           />
         </button>
       </div>,
-      rootElement,
+      rootElement
     );
   }
 }

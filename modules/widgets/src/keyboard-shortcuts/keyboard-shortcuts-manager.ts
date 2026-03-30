@@ -1,7 +1,7 @@
-import { findShortcutMatchingKeyEvent } from './keyboard-shortcuts';
+import {findShortcutMatchingKeyEvent} from './keyboard-shortcuts';
 
-import type { KeyboardShortcut } from './keyboard-shortcuts';
-import type { EventManager, MjolnirKeyEvent } from 'mjolnir.js';
+import type {KeyboardShortcut} from './keyboard-shortcuts';
+import type {EventManager, MjolnirKeyEvent} from 'mjolnir.js';
 
 export class KeyboardShortcutsManager {
   private shortcuts: KeyboardShortcut[] = [];
@@ -35,6 +35,14 @@ export class KeyboardShortcutsManager {
 
 export class KeyboardShortcutsManagerDocument {
   private shortcuts: KeyboardShortcut[] = [];
+  private _handleKeyDown = (e: KeyboardEvent) => {
+    const shortcut = findShortcutMatchingKeyEvent(e, this.shortcuts);
+    if (shortcut) {
+      shortcut?.onKeyPress?.();
+      // e.preventDefault();
+    }
+    // console.log('Key pressed:', e.key, 'Matching shortcut:', shortcut?.name);
+  };
 
   constructor(shortcuts: KeyboardShortcut[]) {
     this.shortcuts = shortcuts;
@@ -46,14 +54,5 @@ export class KeyboardShortcutsManagerDocument {
 
   stop() {
     document.removeEventListener('keydown', this._handleKeyDown);
-  }
-
-  private _handleKeyDown(e: KeyboardEvent) {
-    const shortcut = findShortcutMatchingKeyEvent(e, this.shortcuts);
-    if (shortcut) {
-      shortcut?.onKeyPress?.();
-      // e.preventDefault();
-    }
-    // console.log('Key pressed:', e.key, 'Matching shortcut:', shortcut?.name);
   }
 }

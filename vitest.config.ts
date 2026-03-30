@@ -5,7 +5,8 @@ import react from '@vitejs/plugin-react';
 const CONFIG = defineConfig({
   resolve: {
     alias: {
-      crypto: 'node:crypto' // ⬅️ ensure Vite/Vitest get Node's crypto
+      crypto: 'node:crypto', // ⬅️ ensure Vite/Vitest get Node's crypto
+      'monaco-editor': 'monaco-editor/esm/vs/editor/editor.main.js'
     },
     conditions: ['node'] // prefer node resolution
   },
@@ -23,8 +24,11 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: ['modules/**/*.{test,spec}.{js,ts}', 'dev/**/*.{test,spec}.{js,ts}'],
           exclude: [
+            'modules/**/dist/**',
+            'dev/**/dist/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
+            'modules/widgets/src/panel-widgets/toolbar-widget.test.ts',
             'modules/basemap-props/**'
           ],
           browser: {

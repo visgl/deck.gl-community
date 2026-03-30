@@ -1,12 +1,12 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import { toastManager } from './toast-manager';
+import {toastManager} from './toast-manager';
 
-import type { ToastEntry, ToastKind } from './toast-manager';
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {ToastEntry, ToastKind} from './toast-manager';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 export type ToastWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
@@ -18,28 +18,28 @@ type ToastWidgetViewProps = {
   showBorder: boolean;
 };
 
-const TOAST_KIND_STYLES: Record<ToastKind, { accent: string; background: string; icon: string }> = {
+const TOAST_KIND_STYLES: Record<ToastKind, {accent: string; background: string; icon: string}> = {
   error: {
     accent: 'var(--deck-widget-error-color, var(--button-icon-idle, currentColor))',
     background: 'var(--button-background)',
-    icon: '⚠',
+    icon: '⚠'
   },
   info: {
     accent: 'var(--deck-widget-info-color, var(--button-icon-idle, currentColor))',
     background: 'var(--button-background)',
-    icon: 'ⓘ',
+    icon: 'ⓘ'
   },
   warning: {
     accent: 'var(--deck-widget-warning-color, var(--button-icon-idle, currentColor))',
     background: 'var(--button-background)',
-    icon: '⚠',
-  },
+    icon: '⚠'
+  }
 };
 
 const TOAST_KIND_ICON_COLOR: Record<ToastKind, string> = {
   error: 'var(--deck-widget-error-color, var(--button-icon-idle, currentColor))',
   info: 'var(--deck-widget-info-color, var(--button-icon-idle, currentColor))',
-  warning: 'var(--deck-widget-warning-color, var(--button-icon-idle, currentColor))',
+  warning: 'var(--deck-widget-warning-color, var(--button-icon-idle, currentColor))'
 };
 
 const TOAST_CONTAINER_STYLE: JSX.CSSProperties = {
@@ -52,7 +52,7 @@ const TOAST_CONTAINER_STYLE: JSX.CSSProperties = {
   maxWidth: 'calc(100vw - 24px)',
   maxHeight: 'calc(100vh - 24px)',
   overflow: 'auto',
-  boxSizing: 'border-box',
+  boxSizing: 'border-box'
 };
 
 const TOAST_CARD_STYLE: JSX.CSSProperties = {
@@ -69,7 +69,7 @@ const TOAST_CARD_STYLE: JSX.CSSProperties = {
   animation: 'deck-toast-enter 160ms ease-out',
   transformOrigin: 'top right',
   backdropFilter: 'var(--button-backdrop-filter)',
-  WebkitBackdropFilter: 'var(--button-backdrop-filter)',
+  WebkitBackdropFilter: 'var(--button-backdrop-filter)'
 };
 
 const CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
@@ -85,7 +85,7 @@ const CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   cursor: 'pointer',
   padding: 0,
   minWidth: 'unset',
-  minHeight: 'unset',
+  minHeight: 'unset'
 };
 
 const TOAST_WIDGET_CLASS = 'deck-widget-toast';
@@ -124,7 +124,7 @@ function ToastWidgetStyles() {
   );
 }
 
-function ToastWidgetView({ toasts, showBorder }: ToastWidgetViewProps) {
+function ToastWidgetView({toasts, showBorder}: ToastWidgetViewProps) {
   return (
     <div
       className={TOAST_WIDGET_STACK_CLASS}
@@ -146,7 +146,7 @@ function ToastWidgetView({ toasts, showBorder }: ToastWidgetViewProps) {
               borderLeftColor: palette.accent,
               boxShadow: showBorder
                 ? 'inset 0 0 0 0.5px var(--deck-widget-toast-border, rgba(148, 163, 184, 0.35)), var(--button-shadow)'
-                : 'var(--button-shadow)',
+                : 'var(--button-shadow)'
             }}
             data-toast-id={toast.id}
           >
@@ -156,20 +156,20 @@ function ToastWidgetView({ toasts, showBorder }: ToastWidgetViewProps) {
                 display: 'grid',
                 gridTemplateColumns: 'auto 1fr auto',
                 alignItems: 'start',
-                gap: '8px',
+                gap: '8px'
               }}
             >
-              <div style={{ fontSize: '16px', lineHeight: 1, color: iconColor }} aria-hidden="true">
+              <div style={{fontSize: '16px', lineHeight: 1, color: iconColor}} aria-hidden="true">
                 {palette.icon}
               </div>
-              <div style={{ minWidth: 0 }}>
+              <div style={{minWidth: 0}}>
                 {toast.title && (
                   <div
                     style={{
                       fontSize: '13px',
                       fontWeight: 700,
                       color: 'var(--button-text)',
-                      marginBottom: '2px',
+                      marginBottom: '2px'
                     }}
                   >
                     {toast.title}
@@ -180,7 +180,7 @@ function ToastWidgetView({ toasts, showBorder }: ToastWidgetViewProps) {
                     fontSize: '12px',
                     lineHeight: 1.35,
                     color: 'var(--button-text)',
-                    opacity: '0.8',
+                    opacity: '0.8'
                   }}
                 >
                   {toast.message}
@@ -213,7 +213,7 @@ export class ToastWidget extends Widget<ToastWidgetProps> {
     ...Widget.defaultProps,
     id: 'toast',
     placement: 'bottom-right',
-    showBorder: false,
+    showBorder: false
   };
 
   className = TOAST_WIDGET_CLASS;
@@ -246,7 +246,7 @@ export class ToastWidget extends Widget<ToastWidgetProps> {
       if (this.#rootElement) {
         render(
           <ToastWidgetView toasts={this.#toasts} showBorder={this.showBorder} />,
-          this.#rootElement,
+          this.#rootElement
         );
       }
     });

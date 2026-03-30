@@ -1,13 +1,13 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
 
-import { asPanelContainer, WidgetContainerRenderer } from './widget-containers';
-import { IconButton, makeTextIcon } from './widget-utils';
+import {asPanelContainer, WidgetContainerRenderer} from './widget-containers';
+import {IconButton, makeTextIcon} from './widget-utils';
 
-import type { WidgetContainer, WidgetPanel } from './widget-containers';
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {WidgetContainer, WidgetPanel} from './widget-containers';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 /** Trigger and panel configuration for a modal-style widget. */
 export type ModalWidgetProps = WidgetProps & {
@@ -68,21 +68,15 @@ function asContainer(container?: WidgetContainer, panel?: WidgetPanel): WidgetCo
   return {
     kind: 'accordeon',
     props: {
-      panels: [],
-    },
+      panels: []
+    }
   };
 }
 
 /**
  * Resolves the trigger icon from legacy and new prop names.
  */
-function resolveTriggerIcon({
-  icon,
-  triggerIcon,
-}: {
-  icon?: string;
-  triggerIcon?: string;
-}): string {
+function resolveTriggerIcon({icon, triggerIcon}: {icon?: string; triggerIcon?: string}): string {
   if (icon !== undefined) {
     return icon;
   }
@@ -99,7 +93,7 @@ function resolveTriggerIcon({
  */
 function resolveHideTrigger({
   hideTrigger,
-  button,
+  button
 }: {
   hideTrigger?: boolean;
   button?: boolean;
@@ -125,7 +119,7 @@ function ModalWidgetView({
   triggerLabel,
   triggerIcon,
   open,
-  onOpenChange,
+  onOpenChange
 }: {
   container: WidgetContainer;
   title: string;
@@ -202,10 +196,10 @@ export class ModalWidget extends Widget<ModalWidgetProps> {
         panel: {
           id: 'empty-modal-panel',
           title: 'Empty',
-          content: <div />,
-        },
-      },
-    },
+          content: <div />
+        }
+      }
+    }
   };
 
   className = MODAL_WIDGET_CLASS;
@@ -229,7 +223,7 @@ export class ModalWidget extends Widget<ModalWidgetProps> {
       ...ModalWidget.defaultProps,
       ...props,
       container: asContainer(props.container, props.panel),
-      triggerIcon: resolveTriggerIcon(props),
+      triggerIcon: resolveTriggerIcon(props)
     } as ModalWidgetProps);
     this.setProps(this.props);
   }
@@ -291,7 +285,7 @@ export class ModalWidget extends Widget<ModalWidgetProps> {
     if (props.hideTrigger !== undefined || props.button !== undefined) {
       this.hideTrigger = resolveHideTrigger({
         hideTrigger: props.hideTrigger,
-        button: props.button,
+        button: props.button
       });
     }
     if (props.title !== undefined) {
@@ -395,7 +389,7 @@ export class ModalWidget extends Widget<ModalWidgetProps> {
         open={this.isOpen}
         onOpenChange={this.#handleOpenChange}
       />,
-      this.#rootElement,
+      this.#rootElement
     );
   };
 }
@@ -407,7 +401,7 @@ const OVERLAY_BACKDROP_STYLE: JSX.CSSProperties = {
   border: 'none',
   padding: '0',
   margin: '0',
-  zIndex: 30,
+  zIndex: 30
 };
 
 const MODAL_DIALOG_WRAPPER_STYLE: JSX.CSSProperties = {
@@ -417,7 +411,7 @@ const MODAL_DIALOG_WRAPPER_STYLE: JSX.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   pointerEvents: 'none',
-  zIndex: 31,
+  zIndex: 31
 };
 
 const MODAL_DIALOG_PANEL_STYLE: JSX.CSSProperties = {
@@ -432,7 +426,7 @@ const MODAL_DIALOG_PANEL_STYLE: JSX.CSSProperties = {
   boxShadow: 'var(--menu-shadow, 0px 12px 30px rgba(0,0,0,0.25))',
   overflow: 'hidden',
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column'
 };
 
 const MODAL_HEADER_STYLE: JSX.CSSProperties = {
@@ -444,13 +438,13 @@ const MODAL_HEADER_STYLE: JSX.CSSProperties = {
   borderBottom: 'var(--menu-divider, var(--menu-border, 1px solid rgba(148, 163, 184, 0.25)))',
   backgroundColor:
     'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
-  color: 'var(--menu-text, rgb(24, 24, 26))',
+  color: 'var(--menu-text, rgb(24, 24, 26))'
 };
 
 const MODAL_HEADER_TITLE_STYLE: JSX.CSSProperties = {
   margin: 0,
   fontSize: '13px',
-  fontWeight: 700,
+  fontWeight: 700
 };
 
 const MODAL_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
@@ -460,11 +454,11 @@ const MODAL_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   border: 'var(--menu-inner-border, 1px solid rgba(148, 163, 184, 0.35))',
   backgroundColor: 'transparent',
   color: 'var(--button-text, rgb(24, 24, 26))',
-  cursor: 'pointer',
+  cursor: 'pointer'
 };
 
 const MODAL_CONTENT_STYLE: JSX.CSSProperties = {
   flex: 1,
   overflow: 'auto',
-  padding: '10px',
+  padding: '10px'
 };

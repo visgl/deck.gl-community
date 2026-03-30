@@ -1,19 +1,19 @@
 /** @jsxImportSource preact */
-import { DarkTheme, LightTheme } from '@deck.gl/widgets';
-import { h, render } from 'preact';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {h, render} from 'preact';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-import { WidgetContainerRenderer, asPanelContainer } from './widget-containers';
-import { TextEditorWidgetPanel } from './text-editor-widget';
+import {WidgetContainerRenderer, asPanelContainer} from './widget-containers';
+import {TextEditorWidgetPanel} from './text-editor-widget';
 
 const monacoHarness = vi.hoisted(() => {
   type FakeListener = () => void;
   type FakeModel = {
-    uri: { toString: () => string };
+    uri: {toString: () => string};
     language: string;
     getValue: () => string;
     setValue: (nextValue: string) => void;
-    onDidChangeContent: (listener: FakeListener) => { dispose: () => void };
+    onDidChangeContent: (listener: FakeListener) => {dispose: () => void};
     dispose: ReturnType<typeof vi.fn>;
     emitUserInput: (nextValue: string) => void;
   };
@@ -38,12 +38,12 @@ const monacoHarness = vi.hoisted(() => {
       monaco: {
         Uri: {
           parse: (uri: string) => ({
-            toString: () => uri,
-          }),
+            toString: () => uri
+          })
         },
         editor: {
-          getModel: (uri: { toString: () => string }) => modelsByUri.get(uri.toString()) ?? null,
-          createModel: (value: string, language: string, uri: { toString: () => string }) => {
+          getModel: (uri: {toString: () => string}) => modelsByUri.get(uri.toString()) ?? null,
+          createModel: (value: string, language: string, uri: {toString: () => string}) => {
             let currentValue = value;
             const listeners = new Set<FakeListener>();
             const model: FakeModel = {
@@ -57,14 +57,14 @@ const monacoHarness = vi.hoisted(() => {
               onDidChangeContent: (listener: FakeListener) => {
                 listeners.add(listener);
                 return {
-                  dispose: () => listeners.delete(listener),
+                  dispose: () => listeners.delete(listener)
                 };
               },
               dispose: vi.fn(),
               emitUserInput: (nextValue: string) => {
                 currentValue = nextValue;
                 listeners.forEach((listener) => listener());
-              },
+              }
             };
             modelsByUri.set(uri.toString(), model);
             lastCreatedModel = model;
@@ -73,7 +73,7 @@ const monacoHarness = vi.hoisted(() => {
           create: (_hostElement: HTMLElement, _options: unknown) => {
             const editor: FakeEditor = {
               updateOptions: vi.fn(),
-              dispose: vi.fn(),
+              dispose: vi.fn()
             };
             lastCreatedEditor = editor;
             return editor;
@@ -81,11 +81,11 @@ const monacoHarness = vi.hoisted(() => {
           setModelLanguage: (model: FakeModel, language: string) => {
             model.language = language;
           },
-          setTheme,
-        },
+          setTheme
+        }
       },
       configureJsonSchema,
-      clearJsonSchema,
+      clearJsonSchema
     };
   }
 
@@ -125,12 +125,12 @@ const monacoHarness = vi.hoisted(() => {
     getLastCreatedModel,
     loadTextEditorMonacoRuntime,
     reset,
-    setTheme,
+    setTheme
   };
 });
 
 vi.mock('./text-editor-widget-monaco-runtime', () => ({
-  loadTextEditorMonacoRuntime: monacoHarness.loadTextEditorMonacoRuntime,
+  loadTextEditorMonacoRuntime: monacoHarness.loadTextEditorMonacoRuntime
 }));
 
 /**
@@ -150,7 +150,7 @@ async function flushMicrotasks(): Promise<void> {
 async function waitForCondition(
   predicate: () => boolean,
   message: string,
-  attempts = 8,
+  attempts = 8
 ): Promise<void> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (predicate()) {
@@ -177,7 +177,7 @@ describe('TextEditorWidgetPanel', () => {
   it('creates a widget panel with the expected id and title', () => {
     const panel = new TextEditorWidgetPanel({
       id: 'text-editor',
-      title: 'Text editor',
+      title: 'Text editor'
     });
 
     expect(panel.id).toBe('text-editor');
@@ -193,10 +193,10 @@ describe('TextEditorWidgetPanel', () => {
     });
     monacoHarness.loadTextEditorMonacoRuntime.mockReturnValueOnce(pendingRuntime);
 
-    render(new TextEditorWidgetPanel({ id: 'loading', title: 'Loading' }).content, root);
+    render(new TextEditorWidgetPanel({id: 'loading', title: 'Loading'}).content, root);
 
     expect(root.querySelector('[data-text-editor-loading]')?.textContent).toContain(
-      'Loading editor',
+      'Loading editor'
     );
     expect(root.querySelector('[data-text-editor-host]')).toBeNull();
 
@@ -211,13 +211,13 @@ describe('TextEditorWidgetPanel', () => {
       new TextEditorWidgetPanel({
         id: 'uncontrolled',
         title: 'Uncontrolled',
-        defaultValue: '{\"alpha\":1}',
+        defaultValue: '{\"alpha\":1}'
       }).content,
-      root,
+      root
     );
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model to be created for uncontrolled panel.',
+      'Expected Monaco model to be created for uncontrolled panel.'
     );
 
     expect(monacoHarness.getLastCreatedModel()?.getValue()).toBe('{"alpha":1}');
@@ -230,14 +230,14 @@ describe('TextEditorWidgetPanel', () => {
 
     render(
       h(WidgetContainerRenderer, {
-        container: asPanelContainer(new TextEditorWidgetPanel({ id: 'light', title: 'Light' })),
+        container: asPanelContainer(new TextEditorWidgetPanel({id: 'light', title: 'Light'}))
       }),
-      root,
+      root
     );
 
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model to be created for light theme panel.',
+      'Expected Monaco model to be created for light theme panel.'
     );
 
     expect(monacoHarness.setTheme).toHaveBeenCalledWith('vs');
@@ -253,16 +253,16 @@ describe('TextEditorWidgetPanel', () => {
           new TextEditorWidgetPanel({
             id: 'dark',
             title: 'Dark',
-            theme: 'dark',
-          }),
-        ),
+            theme: 'dark'
+          })
+        )
       }),
-      root,
+      root
     );
 
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model to be created for dark theme panel.',
+      'Expected Monaco model to be created for dark theme panel.'
     );
 
     expect(monacoHarness.setTheme).toHaveBeenCalledWith('vs-dark');
@@ -280,16 +280,16 @@ describe('TextEditorWidgetPanel', () => {
             title: 'Custom theme',
             theme: 'dark',
             lightMonacoTheme: 'custom-light',
-            darkMonacoTheme: 'custom-dark',
-          }),
-        ),
+            darkMonacoTheme: 'custom-dark'
+          })
+        )
       }),
-      root,
+      root
     );
 
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model to be created for custom theme panel.',
+      'Expected Monaco model to be created for custom theme panel.'
     );
 
     expect(monacoHarness.setTheme).toHaveBeenCalledWith('custom-dark');
@@ -305,15 +305,15 @@ describe('TextEditorWidgetPanel', () => {
           new TextEditorWidgetPanel({
             id: 'theme-switch',
             title: 'Theme switch',
-            theme: 'dark',
-          }),
-        ),
+            theme: 'dark'
+          })
+        )
       }),
-      root,
+      root
     );
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model to be created before theme update.',
+      'Expected Monaco model to be created before theme update.'
     );
 
     render(
@@ -322,11 +322,11 @@ describe('TextEditorWidgetPanel', () => {
           new TextEditorWidgetPanel({
             id: 'theme-switch',
             title: 'Theme switch',
-            theme: 'light',
-          }),
-        ),
+            theme: 'light'
+          })
+        )
       }),
-      root,
+      root
     );
     await flushMicrotasks();
 
@@ -345,15 +345,15 @@ describe('TextEditorWidgetPanel', () => {
             title: 'Custom theme switch',
             theme: 'dark',
             lightMonacoTheme: 'custom-light',
-            darkMonacoTheme: 'custom-dark',
-          }),
-        ),
+            darkMonacoTheme: 'custom-dark'
+          })
+        )
       }),
-      root,
+      root
     );
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model to be created before custom theme update.',
+      'Expected Monaco model to be created before custom theme update.'
     );
 
     render(
@@ -364,11 +364,11 @@ describe('TextEditorWidgetPanel', () => {
             title: 'Custom theme switch',
             theme: 'light',
             lightMonacoTheme: 'custom-light',
-            darkMonacoTheme: 'custom-dark',
-          }),
-        ),
+            darkMonacoTheme: 'custom-dark'
+          })
+        )
       }),
-      root,
+      root
     );
     await flushMicrotasks();
 
@@ -388,15 +388,15 @@ describe('TextEditorWidgetPanel', () => {
         container: asPanelContainer(
           new TextEditorWidgetPanel({
             id: 'theme-vars-switch',
-            title: 'Theme vars switch',
-          }),
-        ),
+            title: 'Theme vars switch'
+          })
+        )
       }),
-      root,
+      root
     );
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model to be created before inherited theme update.',
+      'Expected Monaco model to be created before inherited theme update.'
     );
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs');
 
@@ -414,13 +414,13 @@ describe('TextEditorWidgetPanel', () => {
       new TextEditorWidgetPanel({
         id: 'controlled',
         title: 'Controlled',
-        value: '{"alpha":1}',
+        value: '{"alpha":1}'
       }).content,
-      root,
+      root
     );
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model to be created for controlled panel.',
+      'Expected Monaco model to be created for controlled panel.'
     );
     expect(monacoHarness.getLastCreatedModel()?.getValue()).toBe('{"alpha":1}');
 
@@ -428,9 +428,9 @@ describe('TextEditorWidgetPanel', () => {
       new TextEditorWidgetPanel({
         id: 'controlled',
         title: 'Controlled',
-        value: '{"alpha":2}',
+        value: '{"alpha":2}'
       }).content,
-      root,
+      root
     );
     await flushMicrotasks();
 
@@ -447,19 +447,19 @@ describe('TextEditorWidgetPanel', () => {
         id: 'changes',
         title: 'Changes',
         defaultValue: 'start',
-        onValueChange,
+        onValueChange
       }).content,
-      root,
+      root
     );
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
-      'Expected Monaco model before simulating user input.',
+      'Expected Monaco model before simulating user input.'
     );
 
     monacoHarness.getLastCreatedModel()?.emitUserInput('next');
     await waitForCondition(
       () => onValueChange.mock.calls.length > 0,
-      'Expected onValueChange to be called after simulated input.',
+      'Expected onValueChange to be called after simulated input.'
     );
 
     expect(onValueChange).toHaveBeenLastCalledWith('next');
@@ -474,19 +474,19 @@ describe('TextEditorWidgetPanel', () => {
         id: 'json-editor',
         title: 'JSON editor',
         jsonSchema: {
-          type: 'object',
-        },
+          type: 'object'
+        }
       }).content,
-      root,
+      root
     );
     await waitForCondition(
       () => monacoHarness.configureJsonSchema.mock.calls.length > 0,
-      'Expected JSON schema registration for JSON editor.',
+      'Expected JSON schema registration for JSON editor.'
     );
 
     expect(monacoHarness.configureJsonSchema).toHaveBeenCalledWith(
       'inmemory://deck-gl-community/widgets/json-editor',
-      { type: 'object' },
+      {type: 'object'}
     );
 
     render(
@@ -495,15 +495,15 @@ describe('TextEditorWidgetPanel', () => {
         title: 'Plain editor',
         language: 'plaintext',
         jsonSchema: {
-          type: 'object',
-        },
+          type: 'object'
+        }
       }).content,
-      root,
+      root
     );
     await flushMicrotasks();
 
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
-      'inmemory://deck-gl-community/widgets/plain-editor',
+      'inmemory://deck-gl-community/widgets/plain-editor'
     );
   });
 
@@ -517,10 +517,10 @@ describe('TextEditorWidgetPanel', () => {
         title: 'Schema editor',
         jsonSchema: {
           type: 'object',
-          required: ['alpha'],
-        },
+          required: ['alpha']
+        }
       }).content,
-      root,
+      root
     );
     await flushMicrotasks();
 
@@ -530,10 +530,10 @@ describe('TextEditorWidgetPanel', () => {
         title: 'Schema editor',
         jsonSchema: {
           type: 'object',
-          required: ['beta'],
-        },
+          required: ['beta']
+        }
       }).content,
-      root,
+      root
     );
     await flushMicrotasks();
 
@@ -541,8 +541,8 @@ describe('TextEditorWidgetPanel', () => {
       'inmemory://deck-gl-community/widgets/schema-editor',
       {
         type: 'object',
-        required: ['beta'],
-      },
+        required: ['beta']
+      }
     );
   });
 
@@ -550,12 +550,12 @@ describe('TextEditorWidgetPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    render(new TextEditorWidgetPanel({ id: 'dispose', title: 'Dispose' }).content, root);
+    render(new TextEditorWidgetPanel({id: 'dispose', title: 'Dispose'}).content, root);
     await waitForCondition(
       () =>
         monacoHarness.getLastCreatedModel() !== null &&
         monacoHarness.getLastCreatedEditor() !== null,
-      'Expected Monaco resources before unmount.',
+      'Expected Monaco resources before unmount.'
     );
 
     const model = monacoHarness.getLastCreatedModel();
@@ -567,7 +567,7 @@ describe('TextEditorWidgetPanel', () => {
     expect(editor?.dispose).toHaveBeenCalledTimes(1);
     expect(model?.dispose).toHaveBeenCalledTimes(1);
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
-      'inmemory://deck-gl-community/widgets/dispose',
+      'inmemory://deck-gl-community/widgets/dispose'
     );
   });
 
@@ -576,7 +576,7 @@ describe('TextEditorWidgetPanel', () => {
     document.body.appendChild(root);
     monacoHarness.loadTextEditorMonacoRuntime.mockRejectedValueOnce(new Error('boom'));
 
-    render(new TextEditorWidgetPanel({ id: 'error', title: 'Error' }).content, root);
+    render(new TextEditorWidgetPanel({id: 'error', title: 'Error'}).content, root);
     await flushMicrotasks();
 
     expect(root.querySelector('[data-text-editor-error]')?.textContent).toContain('boom');

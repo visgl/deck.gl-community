@@ -1,10 +1,10 @@
 /** @jsxImportSource preact */
-import { Widget } from '@deck.gl/core';
-import { render } from 'preact';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import {Widget} from '@deck.gl/core';
+import {render} from 'preact';
+import {useEffect, useMemo, useState} from 'preact/hooks';
 
-import type { WidgetPlacement, WidgetProps } from '@deck.gl/core';
-import type { JSX } from 'preact';
+import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
+import type {JSX} from 'preact';
 
 type HeapMemoryInfo = {
   jsHeapSizeLimit: number;
@@ -21,7 +21,7 @@ export type HeapMemoryWidgetProps = WidgetProps & {
 const DEFAULT_MEMORY_INFO: HeapMemoryInfo = {
   jsHeapSizeLimit: 0,
   totalJSHeapSize: 0,
-  usedJSHeapSize: 0,
+  usedJSHeapSize: 0
 };
 
 function clampRatio(value: number): number {
@@ -46,7 +46,7 @@ type HeapMemoryWidgetViewProps = {
   pollIntervalMs: number;
 };
 
-function HeapMemoryWidgetView({ pollIntervalMs }: HeapMemoryWidgetViewProps) {
+function HeapMemoryWidgetView({pollIntervalMs}: HeapMemoryWidgetViewProps) {
   const [memoryInfo, setMemoryInfo] = useState<HeapMemoryInfo>(DEFAULT_MEMORY_INFO);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ function HeapMemoryWidgetView({ pollIntervalMs }: HeapMemoryWidgetViewProps) {
       if (!isMounted || typeof window === 'undefined') {
         return;
       }
-      const memory = (window.performance as Performance & { memory?: HeapMemoryInfo }).memory;
+      const memory = (window.performance as Performance & {memory?: HeapMemoryInfo}).memory;
       if (!memory) {
         return;
       }
@@ -64,7 +64,7 @@ function HeapMemoryWidgetView({ pollIntervalMs }: HeapMemoryWidgetViewProps) {
       setMemoryInfo({
         jsHeapSizeLimit: memory.jsHeapSizeLimit ?? 0,
         totalJSHeapSize: memory.totalJSHeapSize ?? 0,
-        usedJSHeapSize: memory.usedJSHeapSize ?? 0,
+        usedJSHeapSize: memory.usedJSHeapSize ?? 0
       });
     };
 
@@ -76,19 +76,19 @@ function HeapMemoryWidgetView({ pollIntervalMs }: HeapMemoryWidgetViewProps) {
     };
   }, [pollIntervalMs]);
 
-  const { jsHeapSizeLimit, totalJSHeapSize, usedJSHeapSize } = memoryInfo;
+  const {jsHeapSizeLimit, totalJSHeapSize, usedJSHeapSize} = memoryInfo;
 
-  const { usedRatio, reservedRatio } = useMemo(() => {
+  const {usedRatio, reservedRatio} = useMemo(() => {
     const limit = jsHeapSizeLimit || 0;
     if (!limit) {
-      return { usedRatio: 0, reservedRatio: 0 } as const;
+      return {usedRatio: 0, reservedRatio: 0} as const;
     }
     const used = clampRatio(usedJSHeapSize / limit);
     const total = clampRatio(totalJSHeapSize / limit);
 
     return {
       usedRatio: used,
-      reservedRatio: Math.max(0, total - used),
+      reservedRatio: Math.max(0, total - used)
     } as const;
   }, [jsHeapSizeLimit, totalJSHeapSize, usedJSHeapSize]);
 
@@ -133,7 +133,7 @@ function HeapMemoryWidgetView({ pollIntervalMs }: HeapMemoryWidgetViewProps) {
     backgroundRepeat: 'no-repeat',
     backgroundSize: '100% 100%',
     width: '100%',
-    height: '100%',
+    height: '100%'
   };
 
   return (
@@ -149,7 +149,7 @@ function HeapMemoryWidgetView({ pollIntervalMs }: HeapMemoryWidgetViewProps) {
           style={{
             lineHeight: 1.05,
             fontSize: '10px',
-            textShadow: '0 1px 1px rgba(255, 255, 255, 0.35)',
+            textShadow: '0 1px 1px rgba(255, 255, 255, 0.35)'
           }}
         >
           {valueText}
@@ -158,7 +158,7 @@ function HeapMemoryWidgetView({ pollIntervalMs }: HeapMemoryWidgetViewProps) {
           style={{
             lineHeight: 1,
             fontSize: '9px',
-            textShadow: '0 1px 1px rgba(255, 255, 255, 0.35)',
+            textShadow: '0 1px 1px rgba(255, 255, 255, 0.35)'
           }}
         >
           GB
@@ -173,7 +173,7 @@ export class HeapMemoryWidget extends Widget<HeapMemoryWidgetProps> {
     ...Widget.defaultProps,
     id: 'heap-memory',
     placement: 'top-right',
-    pollIntervalMs: 2000,
+    pollIntervalMs: 2000
   } satisfies Required<WidgetProps> &
     Required<Pick<HeapMemoryWidgetProps, 'placement' | 'pollIntervalMs'>> &
     HeapMemoryWidgetProps;
@@ -185,7 +185,7 @@ export class HeapMemoryWidget extends Widget<HeapMemoryWidgetProps> {
   #rootElement: HTMLElement | null = null;
 
   constructor(props: HeapMemoryWidgetProps = {}) {
-    super({ ...HeapMemoryWidget.defaultProps, ...props });
+    super({...HeapMemoryWidget.defaultProps, ...props});
     if (props.placement !== undefined) {
       this.placement = props.placement;
     }

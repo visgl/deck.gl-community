@@ -1,14 +1,14 @@
 /** @jsxImportSource preact */
-import { afterEach, describe, expect, it } from 'vitest';
+import {afterEach, describe, expect, it} from 'vitest';
 
-import { SidebarWidget } from './sidebar-widget';
+import {SidebarWidget} from './sidebar-widget';
 
-import type { WidgetPanel } from './widget-containers';
+import type {WidgetPanel} from './widget-containers';
 
 const panel: WidgetPanel = {
   id: 'settings',
   title: 'Settings',
-  content: <div>settings content</div>,
+  content: <div>settings content</div>
 };
 
 afterEach(() => {
@@ -22,7 +22,7 @@ describe('SidebarWidget', () => {
     const widget = new SidebarWidget({
       id: 'settings-sidebar-default-open',
       panel,
-      side: 'right',
+      side: 'right'
     });
 
     widget.onRenderHTML(root);
@@ -46,7 +46,7 @@ describe('SidebarWidget', () => {
       id: 'settings-sidebar',
       panel,
       button: true,
-      icon: 'icon',
+      icon: 'icon'
     });
 
     widget.onRenderHTML(root);
@@ -65,7 +65,7 @@ describe('SidebarWidget', () => {
       button: true,
       icon: 'icon',
       title: 'Visualization settings',
-      side: 'right',
+      side: 'right'
     });
 
     widget.onRenderHTML(root);
@@ -86,7 +86,7 @@ describe('SidebarWidget', () => {
       panel,
       open: false,
       title: 'Visualization settings',
-      side: 'right',
+      side: 'right'
     });
 
     widget.onRenderHTML(root);
@@ -105,7 +105,7 @@ describe('SidebarWidget', () => {
       button: true,
       icon: 'icon',
       title: 'Visualization settings',
-      side: 'right',
+      side: 'right'
     });
 
     widget.onRenderHTML(root);
@@ -134,7 +134,7 @@ describe('SidebarWidget', () => {
 
     const widget = new SidebarWidget({
       id: 'settings-sidebar-overlay-parent',
-      panel,
+      panel
     });
 
     widget.onRenderHTML(widgetRoot);
@@ -155,7 +155,7 @@ describe('SidebarWidget', () => {
     const widget = new SidebarWidget({
       id: 'settings-sidebar-stable-overlay-parent',
       panel,
-      open: false,
+      open: false
     });
 
     widget.onRenderHTML(widgetRoot);
@@ -173,7 +173,7 @@ describe('SidebarWidget', () => {
       panel,
       button: true,
       open: false,
-      side: 'right',
+      side: 'right'
     });
 
     widget.onRenderHTML(root);
@@ -197,7 +197,7 @@ describe('SidebarWidget', () => {
       id: 'settings-sidebar-stop-mousemove',
       panel,
       open: true,
-      side: 'right',
+      side: 'right'
     });
 
     let bodyMouseMoveCount = 0;
