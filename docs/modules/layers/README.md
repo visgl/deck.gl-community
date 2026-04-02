@@ -28,3 +28,4 @@ Release date: 2023
 
 - `TileSourceLayer`
 - `DataDrivenTile3DLayer`
+- `SkyboxLayer`

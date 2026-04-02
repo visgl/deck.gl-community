@@ -12,3 +12,7 @@ it('exports PathOutlineLayer', () => {
 it('exports PathMarkerLayer', () => {
   expect(Layers.PathMarkerLayer).toBeDefined();
 });
+
+it('exports SkyboxLayer', () => {
+  expect(Layers.SkyboxLayer).toBeDefined();
+});

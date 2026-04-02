@@ -31,7 +31,9 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/layers',
       items: [
-        "layers/path-outline-and-markers"
+        "layers/path-outline-and-markers",
+        "layers/skybox-globe",
+        "layers/skybox-first-person"
       ]
     },
     {
