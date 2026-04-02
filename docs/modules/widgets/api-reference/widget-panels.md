@@ -28,6 +28,7 @@ These are the deck.gl widgets that consume `WidgetPanel` and `WidgetContainer` v
 - [ColumnWidgetPanel](./column-widget-panel.md)
 - [CustomWidgetPanel](./custom-widget-panel.md)
 - [MarkdownWidgetPanel](./markdown-widget-panel.md)
+- [StatsWidgetPanel](./stats-widget-panel.md)
 - [SettingsWidgetPanel](./settings-widget-panel.md)
 - [KeyboardSettingsWidgetPanel](./keyboard-settings-widget-panel.md)
 - [TextEditorWidgetPanel](./text-editor-widget-panel.md)
@@ -46,6 +47,7 @@ These are the deck.gl widgets that consume `WidgetPanel` and `WidgetContainer` v
 - Use `TabbedWidgetPanel` when several panels share the same footprint and only one should be visible at a time.
 - Use `ColumnWidgetPanel` when all child panels should remain visible in order.
 - Use `MarkdownWidgetPanel` for small descriptive content without mounting your own renderer.
+- Use `StatsWidgetPanel` for compact probe.gl stats tables inside an existing panel layout.
 - Use `CustomWidgetPanel` when content must be rendered imperatively into a DOM host.
 - Use `TextEditorWidgetPanel` for Monaco-backed JSON or plaintext editing within a panel layout.
 

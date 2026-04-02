@@ -44,6 +44,8 @@ The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) show
 
 The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the panel composition APIs with a persistent sidebar, a tabbed modal, and a static info box built from shared panel definitions.
 
+The [Shared Tileset example](/examples/geo-layers/shared-tile-cockpit) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxWidget`.
+
 ### HTML overlays
 
 Use `HtmlOverlayWidget` when you need HTML anchored to geographic coordinates. The widget renders
@@ -76,3 +78,4 @@ map positions via the widget lifecycle.
 - [SidebarWidget](./api-reference/sidebar-widget.md)
 - [ToolbarWidget](./api-reference/toolbar-widget.md)
 - [Widget Panels](./api-reference/widget-panels.md)
+- [StatsWidgetPanel](./api-reference/stats-widget-panel.md)

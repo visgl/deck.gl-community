@@ -3,6 +3,9 @@
   "label": "@deck.gl-community/geo-layers",
   "items": [
     "modules/geo-layers/README",
+    "modules/geo-layers/api-reference/tile-2d-layer",
+    "modules/geo-layers/api-reference/tile-2d-tileset",
+    "modules/geo-layers/api-reference/tile-source-layer",
     "modules/geo-layers/api-reference/global-grid-layer",
     "modules/geo-layers/api-reference/global-grid",
     "modules/geo-layers/api-reference/a5-grid",

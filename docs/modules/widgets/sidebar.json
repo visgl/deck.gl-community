@@ -22,6 +22,7 @@
             "modules/widgets/api-reference/custom-widget-panel",
             "modules/widgets/api-reference/keyboard-settings-widget-panel",
             "modules/widgets/api-reference/markdown-widget-panel",
+            "modules/widgets/api-reference/stats-widget-panel",
             "modules/widgets/api-reference/settings-widget-panel",
             "modules/widgets/api-reference/tabbed-widget-panel",
             "modules/widgets/api-reference/text-editor-widget-panel",

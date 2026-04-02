@@ -19,3 +19,16 @@ npm install @deck.gl-community/geo-layers
 ## Background
 
 This modules exports various geospatial deck.gl layers developed by the community that could be of use to others.
+
+## API Reference
+
+- [Tile2DLayer](./api-reference/tile-2d-layer)
+- [Tile2DTileset](./api-reference/tile-2d-tileset)
+- [TileSourceLayer](./api-reference/tile-source-layer)
+- [GlobalGridLayer](./api-reference/global-grid-layer)
+- [GlobalGrid](./api-reference/global-grid)
+
+## Examples
+
+- [Shared Tileset](/examples/geo-layers/shared-tile-cockpit) demonstrates one shared loaders.gl `TileSource` feeding multiple `Tile2DLayer`s across multiple views.
+  It also shows shared `Tile2DTileset` cache stats rendered through `Tile2DTileset.stats`.

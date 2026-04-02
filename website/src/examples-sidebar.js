@@ -18,6 +18,13 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/geo-layers',
+      items: [
+        'geo-layers/shared-tile-cockpit'
+      ]
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
         "graph-layers/simple-graph",
@@ -94,7 +101,7 @@ const sidebars = {
       type: 'doc',
       label: 'Scripting gallery',
       id: 'gallery'
-    },
+    }
     // {
     //   type: 'doc',
     //   label: 'Playground',
