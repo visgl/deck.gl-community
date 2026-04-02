@@ -5,4 +5,4 @@ dist.*.js
 public/
 .cache/
 modules/arrow-layers/
-modules/basemap-props/
+modules/basemaps/

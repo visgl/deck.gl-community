@@ -1,3 +1,4 @@
+import {fileURLToPath} from 'node:url';
 import {defineConfig} from 'vitest/config';
 import {playwright} from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
@@ -5,7 +6,13 @@ import react from '@vitejs/plugin-react';
 const CONFIG = defineConfig({
   resolve: {
     alias: {
-      crypto: 'node:crypto', // ⬅️ ensure Vite/Vitest get Node's crypto
+      crypto: 'node:crypto', // ensure Vite/Vitest get Node's crypto
+      '@deck.gl-community/basemaps/style-spec': fileURLToPath(
+        new URL('./modules/basemaps/src/style-spec.js', import.meta.url)
+      ),
+      '@deck.gl-community/basemaps': fileURLToPath(
+        new URL('./modules/basemaps/src/index.js', import.meta.url)
+      ),
       'monaco-editor': 'monaco-editor/esm/vs/editor/editor.main.js'
     },
     conditions: ['node'] // prefer node resolution
@@ -29,7 +36,7 @@ const CONFIG = defineConfig({
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/widgets/src/panel-widgets/toolbar-widget.test.ts',
-            'modules/basemap-props/**'
+            'modules/basemaps/**'
           ],
           browser: {
             enabled: false

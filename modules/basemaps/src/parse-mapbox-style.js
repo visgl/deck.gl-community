@@ -1,4 +1,4 @@
-import {findFeaturesStyledByLayer} from './mapbox-style';
+import {findFeaturesStyledByLayer, parseProperties} from './style-spec';
 
 // globalProperties' type:
 // https://github.com/maplibre/maplibre-gl-js/blob/2112766af5d68a7ea885156c8c186c72a4e912ca/src/style-spec/expression/index.js#L41-L47
