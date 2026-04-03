@@ -57,8 +57,8 @@ function StatsWidgetPanelContent({
     const table = stats.getTable();
     const names = statNames ?? Object.keys(table);
     return names
-      .filter(name => table[name])
-      .map(name => ({
+      .filter((name) => table[name])
+      .map((name) => ({
         name,
         label: labels?.[name] ?? name,
         value: table[name].count
@@ -93,7 +93,9 @@ function StatsWidgetPanelContent({
             borderTop: index === 0 ? 'none' : `1px solid ${colors.divider}`
           }}
         >
-          <span style={{color: colors.muted, font: '600 12px/1.4 ui-sans-serif,system-ui,sans-serif'}}>
+          <span
+            style={{color: colors.muted, font: '600 12px/1.4 ui-sans-serif,system-ui,sans-serif'}}
+          >
             {row.label}
           </span>
           <span
