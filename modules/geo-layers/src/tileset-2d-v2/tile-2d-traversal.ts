@@ -171,7 +171,9 @@ export function getOSMTileIndices(
   bounds?: Bounds
 ): TileIndex[] {
   const project: ((xyz: number[]) => number[]) | null =
-    viewport instanceof _GlobeViewport && viewport.resolution ? viewport.projectPosition : null;
+    viewport instanceof _GlobeViewport && viewport.resolution
+      ? xyz => viewport.projectPosition(xyz)
+      : null;
 
   const planes: Plane[] = Object.values(viewport.getFrustumPlanes()).map(
     ({normal, distance}) => new Plane(normal.clone().negate(), distance)
@@ -203,25 +205,42 @@ export function getOSMTileIndices(
   };
 
   root.update(traversalParams);
-
-  if (
-    viewport instanceof WebMercatorViewport &&
-    viewport.subViewports &&
-    viewport.subViewports.length > 1
-  ) {
-    traversalParams.offset = -1;
-    while (root.update(traversalParams)) {
-      if (--traversalParams.offset < -MAX_MAPS) {
-        break;
-      }
-    }
-    traversalParams.offset = 1;
-    while (root.update(traversalParams)) {
-      if (++traversalParams.offset > MAX_MAPS) {
-        break;
-      }
-    }
-  }
+  updateWrappedWorldCopies(root, traversalParams, viewport);
 
   return root.getSelected();
+}
+
+function updateWrappedWorldCopies(
+  root: OSMNode,
+  traversalParams: Parameters<OSMNode['update']>[0],
+  viewport: Viewport
+): void {
+  if (
+    !(viewport instanceof WebMercatorViewport) ||
+    !viewport.subViewports ||
+    viewport.subViewports.length <= 1
+  ) {
+    return;
+  }
+
+  sweepOffsets(root, traversalParams, -1, -MAX_MAPS);
+  sweepOffsets(root, traversalParams, 1, MAX_MAPS);
+}
+
+function sweepOffsets(
+  root: OSMNode,
+  traversalParams: Parameters<OSMNode['update']>[0],
+  startOffset: number,
+  limit: number
+): void {
+  traversalParams.offset = startOffset;
+  while (root.update(traversalParams)) {
+    traversalParams.offset += Math.sign(startOffset);
+    if (
+      (startOffset < 0 && traversalParams.offset < limit) ||
+      (startOffset > 0 && traversalParams.offset > limit)
+    ) {
+      break;
+    }
+  }
 }

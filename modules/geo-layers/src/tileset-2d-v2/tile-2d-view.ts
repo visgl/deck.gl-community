@@ -7,7 +7,6 @@ import {Matrix4, equals, type NumericArray} from '@math.gl/core';
 
 import {memoize} from '../utils/memoize';
 import {getCullBounds, transformBox} from './utils';
-import type {RefinementStrategy} from './tileset-2d';
 import {STRATEGY_DEFAULT, STRATEGY_NEVER, STRATEGY_REPLACE} from './tileset-2d';
 import type {Tile2DTileset} from './tileset-2d';
 import {Tile2DHeader2} from './tile-2d-header';
@@ -121,7 +120,7 @@ export class Tile2DView<DataT = any> {
       this._selectedTiles = tileIndices.map(index => this._tileset.getTile(index, true));
       this._tileset.prepareTiles();
     } else if (this.needsReload) {
-      this._selectedTiles = this._selectedTiles!.map(tile => this._tileset.getTile(tile.index, true));
+      this._selectedTiles = (this._selectedTiles || []).map(tile => this._tileset.getTile(tile.index, true));
       this._tileset.prepareTiles();
     }
 
@@ -145,36 +144,15 @@ export class Tile2DView<DataT = any> {
       return false;
     }
 
-    if (cullRect && this._viewport) {
-      const boundsArr = this._getCullBounds({
-        viewport: this._viewport,
-        z: this._zRange,
-        cullRect
-      });
-      let {bbox} = tile;
-      for (const [minX, minY, maxX, maxY] of boundsArr) {
-        let overlaps;
-        if ('west' in bbox) {
-          overlaps = bbox.west < maxX && bbox.east > minX && bbox.south < maxY && bbox.north > minY;
-        } else {
-          if (modelMatrix && !Matrix4.IDENTITY.equals(modelMatrix)) {
-            const [left, top, right, bottom] = transformBox(
-              [bbox.left, bbox.top, bbox.right, bbox.bottom],
-              modelMatrix
-            );
-            bbox = {left, top, right, bottom};
-          }
-          const y0 = Math.min(bbox.top, bbox.bottom);
-          const y1 = Math.max(bbox.top, bbox.bottom);
-          overlaps = bbox.left < maxX && bbox.right > minX && y0 < maxY && y1 > minY;
-        }
-        if (overlaps) {
-          return true;
-        }
-      }
-      return false;
+    if (!cullRect || !this._viewport) {
+      return true;
     }
-    return true;
+    const boundsArr = this._getCullBounds({
+      viewport: this._viewport,
+      z: this._zRange,
+      cullRect
+    });
+    return boundsArr.some(bounds => this._tileOverlapsBounds(tile, bounds, modelMatrix));
   }
 
   /** Collects tiles currently marked visible for this view. */
@@ -210,55 +188,85 @@ export class Tile2DView<DataT = any> {
       this._state.set(tile, state);
     }
 
-    (typeof refinementStrategy === 'function'
-      ? (tiles: Tile2DHeader2[]) =>
-          refinementStrategy(tiles as never)
-      : STRATEGIES[refinementStrategy])(allTiles, this._state);
+    if (typeof refinementStrategy === 'function') {
+      refinementStrategy(allTiles);
+    } else {
+      STRATEGIES[refinementStrategy](allTiles, this._state);
+    }
 
     let changed = false;
     for (const tile of allTiles) {
-      const state = this._state.get(tile)!;
-      if (state.isVisible !== previousVisibility.get(tile)) {
+      const state = this._state.get(tile);
+      if (state && state.isVisible !== previousVisibility.get(tile)) {
         changed = true;
       }
     }
     return changed;
+  }
+
+  /** Tests one tile against one culling bounds rectangle. */
+  private _tileOverlapsBounds(
+    tile: Tile2DHeader2<DataT>,
+    [minX, minY, maxX, maxY]: [number, number, number, number],
+    modelMatrix?: Matrix4 | null
+  ): boolean {
+    const bbox = this._getTileBoundingBox(tile, modelMatrix);
+    if ('west' in bbox) {
+      return bbox.west < maxX && bbox.east > minX && bbox.south < maxY && bbox.north > minY;
+    }
+    const y0 = Math.min(bbox.top, bbox.bottom);
+    const y1 = Math.max(bbox.top, bbox.bottom);
+    return bbox.left < maxX && bbox.right > minX && y0 < maxY && y1 > minY;
+  }
+
+  /** Applies model-matrix transforms to non-geospatial tile bounds when needed. */
+  private _getTileBoundingBox(tile: Tile2DHeader2<DataT>, modelMatrix?: Matrix4 | null) {
+    const {bbox} = tile;
+    if ('west' in bbox || !modelMatrix || Matrix4.IDENTITY.equals(modelMatrix)) {
+      return bbox;
+    }
+    const [left, top, right, bottom] = transformBox(
+      [bbox.left, bbox.top, bbox.right, bbox.bottom],
+      modelMatrix
+    );
+    return {left, top, right, bottom};
   }
 }
 
 /** Default refinement strategy that prefers best available loaded descendants. */
 function updateTileStateDefault(allTiles: Tile2DHeader2[], stateMap: Map<Tile2DHeader2, TileViewState>) {
   for (const tile of allTiles) {
-    stateMap.get(tile)!.state = 0;
+    getTileState(stateMap, tile).state = 0;
   }
   for (const tile of allTiles) {
-    if (stateMap.get(tile)!.isSelected && !getPlaceholderInAncestors(tile, stateMap)) {
+    if (getTileState(stateMap, tile).isSelected && !getPlaceholderInAncestors(tile, stateMap)) {
       getPlaceholderInChildren(tile, stateMap);
     }
   }
   for (const tile of allTiles) {
-    stateMap.get(tile)!.isVisible = Boolean(stateMap.get(tile)!.state & TILE_STATE_VISIBLE);
+    const state = getTileState(stateMap, tile);
+    state.isVisible = Boolean(state.state & TILE_STATE_VISIBLE);
   }
 }
 
 /** Replacement refinement strategy that avoids visible overlap between ancestors and descendants. */
 function updateTileStateReplace(allTiles: Tile2DHeader2[], stateMap: Map<Tile2DHeader2, TileViewState>) {
   for (const tile of allTiles) {
-    stateMap.get(tile)!.state = 0;
+    getTileState(stateMap, tile).state = 0;
   }
   for (const tile of allTiles) {
-    if (stateMap.get(tile)!.isSelected) {
+    if (getTileState(stateMap, tile).isSelected) {
       getPlaceholderInAncestors(tile, stateMap);
     }
   }
   const sortedTiles = Array.from(allTiles).sort((t1, t2) => t1.zoom - t2.zoom);
   for (const tile of sortedTiles) {
-    const tileState = stateMap.get(tile)!;
+    const tileState = getTileState(stateMap, tile);
     tileState.isVisible = Boolean(tileState.state & TILE_STATE_VISIBLE);
 
     if (tile.children && (tileState.isVisible || tileState.state & TILE_STATE_VISITED)) {
       for (const child of tile.children) {
-        stateMap.get(child)!.state = TILE_STATE_VISITED;
+        getTileState(stateMap, child).state = TILE_STATE_VISITED;
       }
     } else if (tileState.isSelected) {
       getPlaceholderInChildren(tile, stateMap);
@@ -274,7 +282,7 @@ function getPlaceholderInAncestors(
   let tile: Tile2DHeader2 | null = startTile;
   while (tile) {
     if (tile.isLoaded || tile.content) {
-      stateMap.get(tile)!.state |= TILE_STATE_VISIBLE;
+      getTileState(stateMap, tile).state |= TILE_STATE_VISIBLE;
       return true;
     }
     tile = tile.parent;
@@ -286,9 +294,20 @@ function getPlaceholderInAncestors(
 function getPlaceholderInChildren(tile: Tile2DHeader2, stateMap: Map<Tile2DHeader2, TileViewState>) {
   for (const child of tile.children || []) {
     if (child.isLoaded || child.content) {
-      stateMap.get(child)!.state |= TILE_STATE_VISIBLE;
+      getTileState(stateMap, child).state |= TILE_STATE_VISIBLE;
     } else {
       getPlaceholderInChildren(child, stateMap);
     }
   }
+}
+
+function getTileState(
+  stateMap: Map<Tile2DHeader2, TileViewState>,
+  tile: Tile2DHeader2
+): TileViewState {
+  const state = stateMap.get(tile);
+  if (!state) {
+    throw new Error(`Missing tile state for ${tile.id}`);
+  }
+  return state;
 }

@@ -17,7 +17,7 @@ function createMockTileSource(
   } = {}
 ): TileSource {
   return {
-    getMetadata: async () => ({
+    getMetadata: () => Promise.resolve({
       minZoom: 1,
       maxZoom: 4,
       boundingBox: [
@@ -25,14 +25,37 @@ function createMockTileSource(
         [30, 40]
       ]
     }),
-    getTile: async () => null,
-    getTileData: async ({id}) => {
+    getTile: () => Promise.resolve(null),
+    getTileData: ({id}) => {
       const result = [{tileId: id}] as TestTileData;
       result.byteLength = 16;
-      return result;
+      return Promise.resolve(result);
     },
     ...overrides
   };
+}
+
+function expectSharedTilesetState(
+  sharedTileset: Tile2DTileset<TestTileData>,
+  leftTileIds: Set<string>,
+  rightTileIds: Set<string>,
+  statsChangeCount: number
+): void {
+  expect(leftTileIds.size).toBeGreaterThan(0);
+  expect(rightTileIds.size).toBeGreaterThan(0);
+  expect([...leftTileIds].some(id => !rightTileIds.has(id))).toBe(true);
+  expect(sharedTileset.tiles.length).toBeGreaterThanOrEqual(leftTileIds.size + rightTileIds.size - 1);
+  expect(sharedTileset.visibleTiles.length).toBeGreaterThanOrEqual(
+    Math.max(leftTileIds.size, rightTileIds.size)
+  );
+  expect(sharedTileset.visibleTiles.some(tile => leftTileIds.has(tile.id))).toBe(true);
+  expect(sharedTileset.visibleTiles.some(tile => rightTileIds.has(tile.id))).toBe(true);
+  expect(sharedTileset.stats.get('Visible Tiles').count).toBe(sharedTileset.visibleTiles.length);
+  expect(sharedTileset.stats.get('Tiles In Cache').count).toBe(sharedTileset.tiles.length);
+  expect(sharedTileset.stats.get('Cache Size').count).toBeGreaterThan(0);
+  expect(sharedTileset.stats.get('Unloaded Tiles').count).toBeGreaterThanOrEqual(0);
+  expect(sharedTileset.stats.get('Consumers').count).toBe(2);
+  expect(statsChangeCount).toBeGreaterThan(0);
 }
 
 async function waitFor(condition: () => boolean, message: string): Promise<void> {
@@ -120,42 +143,30 @@ describe('Tile2DLayer', () => {
       zoom: 1
     });
 
-    leftView.update(leftViewport);
-    rightView.update(rightViewport);
+    try {
+      leftView.update(leftViewport);
+      rightView.update(rightViewport);
 
-    await waitFor(
-      () => Boolean(leftView.isLoaded && rightView.isLoaded),
-      'expected both views to finish loading shared tiles'
-    );
-    leftView.update(leftViewport);
-    rightView.update(rightViewport);
+      await waitFor(
+        () => Boolean(leftView.isLoaded && rightView.isLoaded),
+        'expected both views to finish loading shared tiles'
+      );
+      leftView.update(leftViewport);
+      rightView.update(rightViewport);
 
-    const leftTileIds = new Set(leftView.selectedTiles?.map(tile => tile.id));
-    const rightTileIds = new Set(rightView.selectedTiles?.map(tile => tile.id));
+      const leftTileIds = new Set(leftView.selectedTiles?.map(tile => tile.id));
+      const rightTileIds = new Set(rightView.selectedTiles?.map(tile => tile.id));
 
-    expect(leftTileIds.size).toBeGreaterThan(0);
-    expect(rightTileIds.size).toBeGreaterThan(0);
-    expect([...leftTileIds].some(id => !rightTileIds.has(id))).toBe(true);
-    expect(sharedTileset.tiles.length).toBeGreaterThanOrEqual(leftTileIds.size + rightTileIds.size - 1);
-    expect(sharedTileset.visibleTiles.length).toBeGreaterThanOrEqual(
-      Math.max(leftTileIds.size, rightTileIds.size)
-    );
-    expect(sharedTileset.visibleTiles.some(tile => leftTileIds.has(tile.id))).toBe(true);
-    expect(sharedTileset.visibleTiles.some(tile => rightTileIds.has(tile.id))).toBe(true);
-    expect(sharedTileset.stats.get('Visible Tiles').count).toBe(sharedTileset.visibleTiles.length);
-    expect(sharedTileset.stats.get('Tiles In Cache').count).toBe(sharedTileset.tiles.length);
-    expect(sharedTileset.stats.get('Cache Size').count).toBeGreaterThan(0);
-    expect(sharedTileset.stats.get('Unloaded Tiles').count).toBeGreaterThanOrEqual(0);
-    expect(sharedTileset.stats.get('Consumers').count).toBe(2);
-    expect(statsChangeCount).toBeGreaterThan(0);
+      expectSharedTilesetState(sharedTileset, leftTileIds, rightTileIds, statsChangeCount);
 
-    leftView.finalize();
-    rightView.update(rightViewport);
-    expect(rightView.selectedTiles?.length).toBeGreaterThan(0);
-
-    unsubscribe();
-    rightView.finalize();
-    sharedTileset.finalize();
+      leftView.finalize();
+      rightView.update(rightViewport);
+      expect(rightView.selectedTiles?.length).toBeGreaterThan(0);
+    } finally {
+      unsubscribe();
+      rightView.finalize();
+      sharedTileset.finalize();
+    }
   });
 
   it('evicts least recently used non-visible tiles once the cache exceeds the high-water mark', () => {

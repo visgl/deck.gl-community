@@ -219,17 +219,10 @@ export function getTileIndices({
   modelMatrixInverse?: Matrix4;
   zoomOffset?: number;
 }): TileIndex[] {
-  let z = viewport.isGeospatial
-    ? Math.round(viewport.zoom + Math.log2(TILE_SIZE / tileSize)) + zoomOffset
-    : Math.ceil(viewport.zoom) + zoomOffset;
-  if (typeof minZoom === 'number' && Number.isFinite(minZoom) && z < minZoom) {
-    if (!extent) {
-      return [];
-    }
-    z = minZoom;
-  }
-  if (typeof maxZoom === 'number' && Number.isFinite(maxZoom) && z > maxZoom) {
-    z = maxZoom;
+  let z = getTileZoomForViewport(viewport, tileSize, zoomOffset);
+  z = applyZoomBounds(z, minZoom, maxZoom, extent);
+  if (z === null) {
+    return [];
   }
 
   let transformedExtent = extent;
@@ -246,6 +239,30 @@ export function getTileIndices({
         transformedExtent || DEFAULT_EXTENT,
         modelMatrixInverse
       );
+}
+
+function getTileZoomForViewport(viewport: Viewport, tileSize: number, zoomOffset: number): number {
+  return viewport.isGeospatial
+    ? Math.round(viewport.zoom + Math.log2(TILE_SIZE / tileSize)) + zoomOffset
+    : Math.ceil(viewport.zoom) + zoomOffset;
+}
+
+function applyZoomBounds(
+  z: number,
+  minZoom: number | undefined,
+  maxZoom: number | undefined,
+  extent?: Bounds
+): number | null {
+  if (typeof minZoom === 'number' && Number.isFinite(minZoom) && z < minZoom) {
+    if (!extent) {
+      return null;
+    }
+    z = minZoom;
+  }
+  if (typeof maxZoom === 'number' && Number.isFinite(maxZoom) && z > maxZoom) {
+    z = maxZoom;
+  }
+  return z;
 }
 
 export function isURLTemplate(s: string): boolean {

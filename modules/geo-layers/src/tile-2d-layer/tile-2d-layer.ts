@@ -6,24 +6,26 @@ import {
   CompositeLayer,
   type CompositeLayerProps,
   Layer,
+  type LayersList,
   type LayerProps,
   type UpdateParameters,
   type PickingInfo,
   type GetPickingInfoParams,
   type DefaultProps,
   type FilterContext,
+  type Viewport,
   _flatten as flatten
 } from '@deck.gl/core';
-import type {Viewport} from '@deck.gl/core';
 import {GeoJsonLayer} from '@deck.gl/layers';
-import type {LayersList} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
 import type {TileSource} from '@loaders.gl/loader-utils';
 
-import type {TileLoadProps, ZRange, URLTemplate} from '../tileset-2d-v2/index';
 import {
   Tile2DTileset,
   Tile2DHeader2,
+  type TileLoadProps,
+  type ZRange,
+  type URLTemplate,
   type RefinementStrategy,
   STRATEGY_DEFAULT,
   getURLFromTemplate
@@ -73,7 +75,7 @@ const defaultProps: DefaultProps<Tile2DLayerProps> = {
   onViewportLoad: {type: 'function', optional: true, value: null},
   onTileLoad: {type: 'function', value: () => {}},
   onTileUnload: {type: 'function', value: () => {}},
-  onTileError: {type: 'function', value: (err) => console.error(err)},
+  onTileError: {type: 'function', value: () => {}},
   extent: {type: 'array', optional: true, value: null, compare: true},
   tileSize: 512,
   maxZoom: null,
@@ -233,11 +235,13 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
     return Boolean(
       Array.from(tilesetViews.values()).every(tilesetView =>
         tilesetView.selectedTiles?.every(
-          tile =>
-            tile.isLoaded &&
-            (!tile.content ||
-              !tileLayers.get(tile.id) ||
-              tileLayers.get(tile.id)!.every(layer => layer.isLoaded))
+          tile => {
+            const cachedLayers = tileLayers.get(tile.id);
+            return (
+              tile.isLoaded &&
+              (!tile.content || !cachedLayers || cachedLayers.every(layer => layer.isLoaded))
+            );
+          }
         )
       )
     );
@@ -253,7 +257,7 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
     if (this.context.viewport) {
       this._knownViewports.set(this._getViewportKey(), this.context.viewport);
     }
-    const propsChanged = changeFlags.propsOrDataChanged || changeFlags.updateTriggersChanged;
+    const propsChanged = Boolean(changeFlags.propsOrDataChanged || changeFlags.updateTriggersChanged);
     const dataChanged =
       changeFlags.dataChanged ||
       (changeFlags.updateTriggersChanged &&
@@ -262,26 +266,12 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
     let {tileset, ownsTileset} = this.state;
     const nextExternalTileset = this.props.data instanceof Tile2DTileset ? this.props.data : null;
     const nextOwnsTileset = !nextExternalTileset;
-    let nextTileset: Tile2DTileset<DataT>;
-    if (nextExternalTileset) {
-      nextTileset = nextExternalTileset;
-    } else if (tileset && ownsTileset) {
-      nextTileset = tileset;
-    } else {
-      nextTileset = new this.props.TilesetClass(this._getTilesetOptions()) as Tile2DTileset<DataT>;
-    }
+    const nextTileset = this._resolveTileset(tileset, ownsTileset, nextExternalTileset);
 
     const tilesetChanged = nextTileset !== tileset || nextOwnsTileset !== ownsTileset;
 
     if (tilesetChanged) {
-      this.state.unsubscribeTilesetEvents?.();
-      for (const tilesetView of this.state.tilesetViews.values()) {
-        tilesetView.finalize();
-      }
-      if (ownsTileset) {
-        tileset?.finalize();
-      }
-
+      this._releaseTileset(tileset, ownsTileset);
       tileset = nextTileset;
       ownsTileset = nextOwnsTileset;
       this.setState({
@@ -298,19 +288,60 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
           onError: error => this.raiseError(error, 'loading TileSource metadata')
         })
       });
-    } else if (propsChanged && ownsTileset) {
-      nextTileset.setOptions(this._getTilesetOptions());
-
-      if (dataChanged) {
-        nextTileset.reloadAll();
-      } else {
-        this.state.tileLayers.clear();
-      }
-    } else if (propsChanged) {
-      this.state.tileLayers.clear();
+    } else {
+      this._updateExistingTileset(propsChanged, ownsTileset, Boolean(dataChanged), nextTileset);
     }
 
     this._updateTileset();
+  }
+
+  /** Resolves whether to reuse a shared tileset, reuse an owned tileset, or create a new one. */
+  private _resolveTileset(
+    currentTileset: Tile2DTileset<DataT> | null,
+    ownsCurrentTileset: boolean,
+    nextExternalTileset: Tile2DTileset<DataT> | null
+  ): Tile2DTileset<DataT> {
+    if (nextExternalTileset) {
+      return nextExternalTileset;
+    }
+    if (currentTileset && ownsCurrentTileset) {
+      return currentTileset;
+    }
+    return new this.props.TilesetClass(this._getTilesetOptions());
+  }
+
+  /** Tears down subscriptions and per-view state for the outgoing tileset. */
+  private _releaseTileset(
+    tileset: Tile2DTileset<DataT> | null,
+    ownsTileset: boolean
+  ): void {
+    this.state.unsubscribeTilesetEvents?.();
+    for (const tilesetView of this.state.tilesetViews.values()) {
+      tilesetView.finalize();
+    }
+    if (ownsTileset) {
+      tileset?.finalize();
+    }
+  }
+
+  /** Applies prop updates to an existing tileset without replacing it. */
+  private _updateExistingTileset(
+    propsChanged: boolean,
+    ownsTileset: boolean,
+    dataChanged: boolean,
+    tileset: Tile2DTileset<DataT>
+  ): void {
+    if (!propsChanged) {
+      return;
+    }
+    if (ownsTileset) {
+      tileset.setOptions(this._getTilesetOptions());
+      if (dataChanged) {
+        tileset.reloadAll();
+        return;
+      }
+    }
+    this.state.tileLayers.clear();
   }
 
   /** Resolves the current tileset configuration from layer props. */
@@ -390,7 +421,9 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
 
   /** Emits the viewport-load callback for one view. */
   _onViewportLoad(tilesetView: Tile2DView<DataT>): void {
-    this.props.onViewportLoad?.(tilesetView.selectedTiles!);
+    if (tilesetView.selectedTiles) {
+      this.props.onViewportLoad?.(tilesetView.selectedTiles);
+    }
   }
 
   /** Clears cached sub-layers when a tile loads. */
@@ -420,7 +453,7 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
     if (!isURLTemplate(data)) {
       return null;
     }
-    tile.url = getURLFromTemplate(data, tile as any);
+    tile.url = getURLFromTemplate(data, tile);
     if (getTileData) {
       return getTileData(tile);
     }
@@ -449,7 +482,10 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
 
   /** Adds tile references to picking info returned from sub-layers. */
   getPickingInfo(params: GetPickingInfoParams): Tile2DLayerPickingInfo<DataT> {
-    const sourceLayer = params.sourceLayer!;
+    const {sourceLayer} = params;
+    if (!sourceLayer) {
+      throw new Error('Tile2DLayer picking info requires a source layer.');
+    }
     const sourceTile: Tile2DHeader2<DataT> = (sourceLayer.props as any).tile;
     const info = params.info as Tile2DLayerPickingInfo<DataT>;
     if (info.picked) {
@@ -468,7 +504,10 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
   /** Renders cached or newly generated sub-layers for each loaded tile. */
   renderLayers(): Layer | null | LayersList {
     const {tileset, tileLayers} = this.state;
-    return tileset!.tiles.map(tile => {
+    if (!tileset) {
+      return null;
+    }
+    return tileset.tiles.map(tile => {
       const subLayerProps = this.getSubLayerPropsByTile(tile);
       let layers = tileLayers.get(tile.id);
       if (!tile.isLoaded && !tile.content) {
@@ -481,18 +520,18 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
             id: tile.id,
             updateTriggers: this.props.updateTriggers
           }),
-          data: tile.content as DataT,
+          data: tile.content,
           _offset: 0,
           tile
         });
-        layers = (flatten(rendered, Boolean) as Layer<{tile?: Tile2DHeader2<DataT>}>[]).map(layer =>
+        layers = this._flattenTileLayers(rendered).map(layer =>
           layer.clone({tile, ...subLayerProps})
         );
         tileLayers.set(tile.id, layers);
       } else if (
         subLayerProps &&
         layers[0] &&
-        Object.keys(subLayerProps).some(propName => layers![0].props[propName] !== subLayerProps[propName])
+        Object.keys(subLayerProps).some(propName => layers[0].props[propName] !== subLayerProps[propName])
       ) {
         layers = layers.map(layer => layer.clone(subLayerProps));
         tileLayers.set(tile.id, layers);
@@ -559,7 +598,11 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
   private _getOrCreateTilesetView(viewportKey: string): Tile2DView<DataT> {
     let tilesetView = this.state.tilesetViews.get(viewportKey);
     if (!tilesetView) {
-      tilesetView = new Tile2DView(this.state.tileset!);
+      const tileset = this.state.tileset;
+      if (!tileset) {
+        throw new Error('Tile2DLayer tileset was not initialized.');
+      }
+      tilesetView = new Tile2DView(tileset);
       this.state.tilesetViews.set(viewportKey, tilesetView);
     }
     return tilesetView;
@@ -574,5 +617,12 @@ export class Tile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends Compo
       this.setNeedsUpdate();
     }
     super.activateViewport(viewport);
+  }
+
+  /** Normalizes nested render output into a flat tile sub-layer array. */
+  private _flattenTileLayers(
+    rendered: Layer | null | LayersList
+  ): Layer<{tile?: Tile2DHeader2<DataT>}>[] {
+    return flatten(rendered as any, Boolean) as Layer<{tile?: Tile2DHeader2<DataT>}>[];
   }
 }

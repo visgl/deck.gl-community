@@ -12,7 +12,7 @@ import {Matrix4} from '@math.gl/core';
 import {Stats} from '@probe.gl/stats';
 import {Tile2DHeader2} from './tile-2d-header';
 import {getTileIndices, tileToBoundingBox} from './utils';
-import type {Bounds, TileIndex, TileLoadProps, ZRange} from './types';
+import type {TileIndex, TileLoadProps, ZRange} from './types';
 
 export const STRATEGY_NEVER = 'never';
 export const STRATEGY_REPLACE = 'no-overlap';
@@ -162,7 +162,7 @@ export class Tile2DTileset<DataT = any> {
     this.opts = {
       ...DEFAULT_TILESET2D_PROPS,
       ...opts,
-      getTileData: opts.getTileData || (async () => null),
+      getTileData: opts.getTileData || (() => null),
       tileSource: opts.tileSource
     } as Required<Tile2DTilesetProps<DataT>>;
 
@@ -185,7 +185,7 @@ export class Tile2DTileset<DataT = any> {
     this._updateStats();
 
     if (this.opts.tileSource) {
-      void this._initializeTileSource(this.opts.tileSource);
+      this._initializeTileSource(this.opts.tileSource).catch(() => {});
     }
   }
 
@@ -291,10 +291,10 @@ export class Tile2DTileset<DataT = any> {
   reloadAll(): void {
     const selectedTiles = this._getSelectedTilesUnion();
     for (const id of this._cache.keys()) {
-      const tile = this._cache.get(id) as Tile2DHeader2<DataT>;
-      if (!selectedTiles.has(tile)) {
+      const tile = this._cache.get(id);
+      if (tile && !selectedTiles.has(tile)) {
         this._cache.delete(id);
-      } else {
+      } else if (tile) {
         tile.setNeedsReload();
       }
     }
@@ -353,7 +353,7 @@ export class Tile2DTileset<DataT = any> {
       minZoom,
       zRange,
       tileSize,
-      extent: extent as Bounds | undefined,
+      extent: normalizeBounds(extent),
       modelMatrix,
       modelMatrixInverse,
       zoomOffset
@@ -372,8 +372,11 @@ export class Tile2DTileset<DataT = any> {
 
   /** Returns derived metadata used to initialize a tile header. */
   getTileMetadata(index: TileIndex): Record<string, any> {
+    if (!this._lastViewport) {
+      throw new Error('Tile2DTileset metadata requested before a viewport was set.');
+    }
     const {tileSize} = this.opts;
-    return {bbox: tileToBoundingBox(this._lastViewport!, index.x, index.y, index.z, tileSize)};
+    return {bbox: tileToBoundingBox(this._lastViewport, index.x, index.y, index.z, tileSize)};
   }
 
   /** Returns the parent tile index in the quadtree. */
@@ -406,12 +409,12 @@ export class Tile2DTileset<DataT = any> {
     }
 
     if (tile && needsReload) {
-      void tile.loadData({
-        getData: this.opts.getTileData as (props: TileLoadProps) => Promise<DataT | null> | DataT | null,
+      tile.loadData({
+        getData: this.opts.getTileData,
         requestScheduler: this._requestScheduler,
         onLoad: this._handleTileLoad.bind(this),
         onError: this._handleTileError.bind(this)
-      });
+      }).catch(() => {});
       this._updateStats();
     }
 
@@ -448,13 +451,20 @@ export class Tile2DTileset<DataT = any> {
     } as Required<Tile2DTilesetProps<DataT>>;
 
     if (resolvedOpts.tileSource) {
+      const tileSource = resolvedOpts.tileSource;
       resolvedOpts.getTileData = (loadProps: TileLoadProps) =>
-        resolvedOpts.tileSource!.getTileData(loadProps) as Promise<DataT | null> | DataT | null;
+        tileSource.getTileData(loadProps) as Promise<DataT | null> | DataT | null;
     }
 
     this.opts = resolvedOpts;
-    this._maxZoom = Number.isFinite(this.opts.maxZoom) ? Math.floor(this.opts.maxZoom as number) : undefined;
-    this._minZoom = Number.isFinite(this.opts.minZoom) ? Math.ceil(this.opts.minZoom as number) : undefined;
+    this._maxZoom =
+      typeof this.opts.maxZoom === 'number' && Number.isFinite(this.opts.maxZoom)
+        ? Math.floor(this.opts.maxZoom)
+        : undefined;
+    this._minZoom =
+      typeof this.opts.minZoom === 'number' && Number.isFinite(this.opts.minZoom)
+        ? Math.ceil(this.opts.minZoom)
+        : undefined;
   }
 
   /** Maps TileSource metadata into supported tileset options. */
@@ -482,7 +492,7 @@ export class Tile2DTileset<DataT = any> {
 
   /** Handles successful tile loads. */
   private _handleTileLoad(tile: Tile2DHeader2<DataT>): void {
-    this.opts.onTileLoad?.(tile as never);
+    this.opts.onTileLoad?.(tile);
     this._cacheByteSize = this._getCacheByteSize();
     this._resizeCache();
     for (const listener of this._listeners) {
@@ -493,7 +503,7 @@ export class Tile2DTileset<DataT = any> {
 
   /** Handles tile load failures. */
   private _handleTileError(error: any, tile: Tile2DHeader2<DataT>): void {
-    this.opts.onTileError?.(error, tile as never);
+    this.opts.onTileError?.(error, tile);
     for (const listener of this._listeners) {
       listener.onTileError?.(error, tile);
     }
@@ -502,7 +512,7 @@ export class Tile2DTileset<DataT = any> {
 
   /** Handles tile eviction from cache. */
   private _handleTileUnload(tile: Tile2DHeader2<DataT>): void {
-    this.opts.onTileUnload?.(tile as never);
+    this.opts.onTileUnload?.(tile);
     for (const listener of this._listeners) {
       listener.onTileUnload?.(tile);
     }
@@ -598,7 +608,10 @@ export class Tile2DTileset<DataT = any> {
     }
 
     while (maxRequests > 0 && ongoingRequestCount > maxRequests && abortCandidates.length > 0) {
-      abortCandidates.shift()!.abort();
+      const tile = abortCandidates.shift();
+      if (tile) {
+        tile.abort();
+      }
       ongoingRequestCount--;
     }
   }
@@ -667,4 +680,8 @@ export class Tile2DTileset<DataT = any> {
     }
     return null;
   }
+}
+
+function normalizeBounds(extent: number[] | null | undefined) {
+  return extent && extent.length === 4 ? (extent as [number, number, number, number]) : undefined;
 }

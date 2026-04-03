@@ -93,7 +93,11 @@ export class Tile2DHeader2<DataT = any> {
 
   /** Resolves to loaded content while a request is in flight, otherwise returns the cached content. */
   get data(): Promise<DataT | null> | DataT | null {
-    return this.isLoading && this._loader ? this._loader.then(() => this.data) : this.content;
+    const loader = this._loader;
+    if (!this._isCancelled && loader !== undefined) {
+      return loader.then(() => this.data);
+    }
+    return this.content;
   }
 
   /** Indicates whether tile content is available and up to date. */
@@ -124,6 +128,29 @@ export class Tile2DHeader2<DataT = any> {
     onLoad,
     onError
   }: Tile2DLoadDataProps<DataT>): Promise<void> {
+    const completeLoad = (tileData: DataT | null, error: unknown, loaderId: number): void => {
+      if (loaderId !== this._loaderId) {
+        return;
+      }
+
+      this._loader = undefined;
+      this.content = tileData;
+
+      if (this._isCancelled && !tileData) {
+        this._isLoaded = false;
+        return;
+      }
+
+      this._isLoaded = true;
+      this._isCancelled = false;
+
+      if (error) {
+        onError(error, this);
+        return;
+      }
+      onLoad(this);
+    };
+
     const {index, id, bbox, userData, zoom} = this;
     const loaderId = this._loaderId;
 
@@ -150,26 +177,7 @@ export class Tile2DHeader2<DataT = any> {
       requestToken.done();
     }
 
-    if (loaderId !== this._loaderId) {
-      return;
-    }
-
-    this._loader = undefined;
-    this.content = tileData;
-
-    if (this._isCancelled && !tileData) {
-      this._isLoaded = false;
-      return;
-    }
-
-    this._isLoaded = true;
-    this._isCancelled = false;
-
-    if (error) {
-      onError(error, this);
-    } else {
-      onLoad(this);
-    }
+    completeLoad(tileData, error, loaderId);
   }
 
   /** Loads tile data through the shared scheduler. */
