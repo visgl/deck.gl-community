@@ -287,9 +287,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/basemap-props@workspace:modules/basemap-props":
+"@deck.gl-community/basemaps@workspace:modules/basemaps":
   version: 0.0.0-use.local
-  resolution: "@deck.gl-community/basemap-props@workspace:modules/basemap-props"
+  resolution: "@deck.gl-community/basemaps@workspace:modules/basemaps"
   dependencies:
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/geo-layers": "npm:~9.3.0-alpha.1"
@@ -398,6 +398,7 @@ __metadata:
     "@luma.gl/shadertools": "npm:~9.3.0-alpha.2"
     "@luma.gl/webgpu": "npm:~9.3.0-alpha.2"
     "@math.gl/core": "npm:^4.0.0"
+    "@probe.gl/stats": "npm:^4.1.1"
     "@probe.gl/test-utils": "npm:^4.0.4"
     a5-js: "npm:^0.5.0"
     h3-js: "npm:^4.2.1"
@@ -530,6 +531,7 @@ __metadata:
   resolution: "@deck.gl-community/widgets@workspace:modules/widgets"
   dependencies:
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
+    "@probe.gl/stats": "npm:^4.1.1"
     "@turf/helpers": "npm:^6.5.0"
     preact: "npm:^10.17.0"
     supercluster: "npm:^8.0.1"
@@ -14113,9 +14115,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shared-tile-cockpit-example@workspace:examples/geo-layers/shared-tile-cockpit":
+"shared-tileset-example@workspace:examples/geo-layers/shared-tile-cockpit":
   version: 0.0.0-use.local
-  resolution: "shared-tile-cockpit-example@workspace:examples/geo-layers/shared-tile-cockpit"
+  resolution: "shared-tileset-example@workspace:examples/geo-layers/shared-tile-cockpit"
   dependencies:
     "@deck.gl-community/geo-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"

@@ -24,7 +24,7 @@ export function filterFeatures({features, filter, globalProperties = {}}) {
   if (!features || features.length === 0) return [];
 
   // filterFn will be a function that returns a boolean
-  const filterFn = featureFilter(filter);
+  const filterFn = featureFilter(filter).filter;
 
   // Filter array of features based on filter function
   return features.filter(feature => {
