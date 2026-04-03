@@ -2,8 +2,8 @@ import {COORDINATE_SYSTEM, log} from '@deck.gl/core';
 import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
-import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './AtmosphereLayer';
-import {MVTLabelLayer} from './MVTLabelLayer';
+import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
+import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {

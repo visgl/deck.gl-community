@@ -168,9 +168,14 @@ const SETTINGS_SCHEMA: SettingsWidgetSchema = {
   ]
 };
 
+const DEFAULT_FLAT_STYLE_ID: ExampleStyleOption['id'] = 'carto-voyager';
+const DEFAULT_GLOBE_STYLE_ID: ExampleStyleOption['id'] = 'light';
+
 export function mountBasemapLayerMapViewExample(container: HTMLElement): () => void {
   const rootElement = createRoot(container);
-  const defaultStyleId: ExampleStyleOption['id'] = 'carto-voyager';
+  const defaultStyleId = DEFAULT_FLAT_STYLE_ID;
+  const flatView = new MapView();
+  const globeView = new _GlobeView();
   const state = {
     settings: {
       view: {
@@ -205,22 +210,8 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
       return;
     }
 
-    state.settings.basemap.style = styleOption.id;
-    status.activeStyleId = styleOption.id;
-    status.activeStyleName = getStyleDisplayName(styleOption);
-    status.styleMetadataRequests = 0;
-    status.tileRequests = 0;
-    status.tileErrors = 0;
-    status.basemapLoaded = false;
-    status.lastError = null;
-
-    deck.setProps({
-      views: createView(state.settings),
-      initialViewState: getViewState(state.settings),
-      layers: [createBasemapLayer(state.settings, status, trackedFetch)],
-      widgets: [infoWidget]
-    });
-
+    applyStyleSelection(nextStyleId);
+    syncDeckLayers();
     syncInfoWidget();
   };
   const handleViewModeChange = (nextMode: ExampleSettings['view']['mode']) => {
@@ -229,14 +220,11 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
     }
 
     state.settings.view.mode = nextMode;
+    if (nextMode === 'globe' && !isStableGlobeStyle(status.activeStyleId)) {
+      applyStyleSelection(DEFAULT_GLOBE_STYLE_ID);
+    }
 
-    deck.setProps({
-      views: createView(state.settings),
-      initialViewState: getViewState(state.settings),
-      layers: [createBasemapLayer(state.settings, status, trackedFetch)],
-      widgets: [infoWidget]
-    });
-
+    syncDeckMode();
     syncInfoWidget();
   };
 
@@ -280,7 +268,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
 
   const deck = new Deck({
     parent: rootElement,
-    views: createView(state.settings),
+    views: getView(state.settings, flatView, globeView),
     initialViewState: getViewState(state.settings),
     controller: true,
     parameters: {clearColor: [0.92, 0.94, 0.94, 1]},
@@ -296,6 +284,38 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
     container.replaceChildren();
   };
 
+  function applyStyleSelection(nextStyleId: ExampleStyleOption['id']) {
+    const styleOption = STYLE_OPTIONS.find(option => option.id === nextStyleId);
+    if (!styleOption) {
+      return;
+    }
+
+    state.settings.basemap.style = styleOption.id;
+    status.activeStyleId = styleOption.id;
+    status.activeStyleName = getStyleDisplayName(styleOption);
+    status.styleMetadataRequests = 0;
+    status.tileRequests = 0;
+    status.tileErrors = 0;
+    status.basemapLoaded = false;
+    status.lastError = null;
+  }
+
+  function syncDeckLayers() {
+    deck.setProps({
+      layers: [createBasemapLayer(state.settings, status, trackedFetch)],
+      widgets: [infoWidget]
+    });
+  }
+
+  function syncDeckMode() {
+    deck.setProps({
+      views: getView(state.settings, flatView, globeView),
+      initialViewState: getViewState(state.settings),
+      layers: [createBasemapLayer(state.settings, status, trackedFetch)],
+      widgets: [infoWidget]
+    });
+  }
+
   function syncInfoWidget() {
     const stateLabel = status.lastError ? 'error' : status.basemapLoaded ? 'loaded' : 'loading';
     infoWidget.setProps({
@@ -307,7 +327,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
             id: 'summary',
             title: '',
             markdown: [
-              'This example validates the flat-map `MapView` render path.',
+              'This example validates both the flat `MapView` path and the experimental globe path.',
               '',
               `- View: **${state.settings.view.mode === 'globe' ? 'GlobeView' : 'MapView'}**`,
               `- Resolved style: **${escapeMarkdown(status.activeStyleName)}**`,
@@ -380,12 +400,20 @@ function createBasemapLayer(
   });
 }
 
-function createView(settings: ExampleSettings) {
-  return settings.view.mode === 'globe' ? new _GlobeView() : new MapView();
+function getView(
+  settings: ExampleSettings,
+  flatView: MapView,
+  globeView: _GlobeView
+) {
+  return settings.view.mode === 'globe' ? globeView : flatView;
 }
 
 function getViewState(settings: ExampleSettings) {
   return settings.view.mode === 'globe' ? GLOBE_VIEW_STATE : FLAT_VIEW_STATE;
+}
+
+function isStableGlobeStyle(styleId: ExampleStyleOption['id']) {
+  return typeof (STYLE_OPTIONS.find(option => option.id === styleId) || STYLE_OPTIONS[0]).style !== 'string';
 }
 
 function getStyleDisplayName(styleOption: ExampleStyleOption): string {

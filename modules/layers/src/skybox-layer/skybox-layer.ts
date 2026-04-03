@@ -90,7 +90,7 @@ export class SkyboxLayer<
   static defaultProps = defaultProps;
   static layerName = 'SkyboxLayer';
 
-  declare state: SkyboxLayerState;
+  state: SkyboxLayerState = undefined!;
 
   /** Initializes the cube model and starts loading the cubemap texture. */
   initializeState(): void {

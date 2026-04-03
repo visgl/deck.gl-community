@@ -146,7 +146,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   };
 
   /** Current label-row state. */
-  declare state: MVTLabelLayerState;
+  state: MVTLabelLayerState = undefined!;
 
   /**
    * Extracts the visible label text for a decoded feature.
