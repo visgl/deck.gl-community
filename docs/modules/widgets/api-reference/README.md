@@ -22,6 +22,7 @@ Generic panel widgets and the composition helpers they use:
 - [CustomWidgetPanel](./custom-widget-panel.md)
 - [KeyboardSettingsWidgetPanel](./keyboard-settings-widget-panel.md)
 - [MarkdownWidgetPanel](./markdown-widget-panel.md)
+- [StatsWidgetPanel](./stats-widget-panel.md)
 - [SettingsWidgetPanel](./settings-widget-panel.md)
 - [TabbedWidgetPanel](./tabbed-widget-panel.md)
 - [TextEditorWidgetPanel](./text-editor-widget-panel.md)

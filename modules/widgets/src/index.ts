@@ -83,6 +83,7 @@ export {
 } from './panel-widgets/keyboard-shortcuts-widget';
 export {ModalWidget, type ModalWidgetProps} from './panel-widgets/modal-widget';
 export {SettingsWidgetPanel, type SettingsWidgetPanelProps} from './panel-widgets/settings-widget';
+export {StatsWidgetPanel, type StatsWidgetPanelProps} from './panel-widgets/stats-widget-panel';
 export {SidebarWidget, type SidebarWidgetProps} from './panel-widgets/sidebar-widget';
 export {
   ToolbarWidget,

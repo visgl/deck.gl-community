@@ -19,3 +19,23 @@ npm install @deck.gl-community/geo-layers
 ## Background
 
 This modules exports various geospatial deck.gl layers developed by the community that could be of use to others.
+
+## API Reference
+
+- [SharedTile2DLayer](/docs/modules/geo-layers/api-reference/shared-tile-2d-layer)
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
+- [SharedTileset2D](/docs/modules/geo-layers/api-reference/shared-tileset-2d)
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
+- [TileGridLayer](/docs/modules/geo-layers/api-reference/tile-grid-layer)
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
+- [TileSourceLayer](/docs/modules/geo-layers/api-reference/tile-source-layer)
+- [GlobalGridLayer](/docs/modules/geo-layers/api-reference/global-grid-layer)
+- [GlobalGrid](/docs/modules/geo-layers/api-reference/global-grid)
+
+## Examples
+
+- [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) demonstrates one shared loaders.gl `TileSource` feeding multiple `SharedTile2DLayer`s across multiple views.
+  It also shows shared `SharedTileset2D` cache stats rendered through `SharedTileset2D.stats` and uses `TileGridLayer` to visualize tile loading.

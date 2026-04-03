@@ -1,5 +1,9 @@
 /* eslint-disable no-template-curly-in-string */
+import React, {useEffect, useRef} from 'react';
+import BrowserOnly from '@docusaurus/BrowserOnly';
+import styled from 'styled-components';
 import {BitmapLayer} from '@deck.gl/layers';
+import {mountSharedTile2DLayerExample} from '../../../examples/geo-layers/shared-tile-2d-layer/app';
 
 import {
   GreatCircleLayer,
@@ -17,6 +21,56 @@ import {
 
 import {makeLayerDemo} from './demo-base';
 import {DATA_URI} from '../constants/defaults';
+
+const ImperativeDemoPlaceholder = styled.div`
+  height: 50vh;
+  min-height: 260px;
+  position: relative;
+  margin-bottom: 24px;
+
+  @media screen and (max-width: 768px) {
+    height: 55vh;
+    min-height: 300px;
+  }
+`;
+
+const ImperativeDemoContainer = styled.div`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+`;
+
+function SharedTile2DLayerDemoHost() {
+  const hostRef = useRef(null);
+
+  useEffect(() => {
+    const hostElement = hostRef.current;
+    if (!hostElement) {
+      return undefined;
+    }
+
+    const cleanup = mountSharedTile2DLayerExample(hostElement, {mode: 'compact'});
+    return () => cleanup();
+  }, []);
+
+  return <ImperativeDemoContainer ref={hostRef} />;
+}
+
+export function SharedTile2DLayerDemo() {
+  return (
+    <BrowserOnly>
+      {() => (
+        <ImperativeDemoPlaceholder>
+          <SharedTile2DLayerDemoHost />
+        </ImperativeDemoPlaceholder>
+      )}
+    </BrowserOnly>
+  );
+}
 
 export const GreatCircleLayerDemo = makeLayerDemo({
   Layer: GreatCircleLayer,

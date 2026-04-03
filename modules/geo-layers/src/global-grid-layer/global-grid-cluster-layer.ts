@@ -34,7 +34,7 @@ export class GlobalGridClusterLayer<DataT = any, ExtraProps extends {} = {}> ext
     globalGrid: {type: 'object', compare: true, value: undefined!}
   } as const satisfies DefaultProps<GlobalGridClusterLayerProps>;
 
-  declare state: {
+  state = null as unknown as {
     polygons: {polygon: number[][][]}[];
   };
 
