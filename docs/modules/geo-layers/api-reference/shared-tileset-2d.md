@@ -136,7 +136,7 @@ The shared tileset currently populates:
 - `Visible Tiles`
 - `Selected Tiles`
 - `Loading Tiles`
-- `Unloaded Tiles`
+- `Unloaded Tiles` (cumulative evictions)
 - `Consumers`
 
 #### `minZoom` / `maxZoom` {#resolved-zoom-bounds}

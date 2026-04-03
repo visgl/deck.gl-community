@@ -129,6 +129,8 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
   private _tiles: SharedTile2DHeader<DataT>[];
   /** Running total of cached payload byte size. */
   private _cacheByteSize: number;
+  /** Cumulative number of tiles evicted from the shared cache. */
+  private _unloadedTileCount: number;
   /** Subscribers watching tileset lifecycle events. */
   private _listeners = new Set<Tile2DListener<DataT>>();
   /** Selected and visible tiles tracked per consumer. */
@@ -177,6 +179,7 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
     this._tiles = [];
     this._dirty = false;
     this._cacheByteSize = 0;
+    this._unloadedTileCount = 0;
 
     if (!this.opts.tileSource && !opts.getTileData) {
       throw new Error('SharedTileset2D requires either `getTileData` or `tileSource`.');
@@ -290,6 +293,7 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
     this._tiles = [];
     this._consumers.clear();
     this._cacheByteSize = 0;
+    this._unloadedTileCount = 0;
     this._updateStats();
   }
 
@@ -525,6 +529,7 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
 
   /** Handles tile eviction from cache. */
   private _handleTileUnload(tile: SharedTile2DHeader<DataT>): void {
+    this._unloadedTileCount++;
     this.opts.onTileUnload?.(tile);
     for (const listener of this._listeners) {
       listener.onTileUnload?.(tile);
@@ -553,7 +558,7 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
     this._setStatCount('Visible Tiles', this.visibleTiles.length);
     this._setStatCount('Selected Tiles', this.selectedTiles.length);
     this._setStatCount('Loading Tiles', this.loadingTiles.length);
-    this._setStatCount('Unloaded Tiles', this.unloadedTiles.length);
+    this._setStatCount('Unloaded Tiles', this._unloadedTileCount);
     this._setStatCount('Consumers', this._consumers.size);
 
     for (const listener of this._listeners) {

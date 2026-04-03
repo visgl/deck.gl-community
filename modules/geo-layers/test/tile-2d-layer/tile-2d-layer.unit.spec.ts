@@ -210,7 +210,7 @@ describe('SharedTile2DLayer', () => {
     expect(tileset.tiles.map((tile) => tile.id)).toContain('0-1-1');
     expect(tileset.tiles.map((tile) => tile.id)).not.toContain('1-0-1');
     expect(tileset.stats.get('Tiles In Cache').count).toBe(2);
-    expect(tileset.stats.get('Unloaded Tiles').count).toBe(2);
+    expect(tileset.stats.get('Unloaded Tiles').count).toBe(1);
 
     tileset.detachConsumer(consumerId);
     tileset.finalize();

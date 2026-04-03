@@ -363,7 +363,7 @@ function buildInfoPanel(tileset: SharedTileset2D<TileContent>, hoveredId: string
               'Cache Size': 'Cache size (bytes)',
               'Visible Tiles': 'Visible tiles across views',
               'Loading Tiles': 'Tiles loading',
-              'Unloaded Tiles': 'Unloaded tiles'
+              'Unloaded Tiles': 'Tiles evicted from cache'
             }
           })
         }
