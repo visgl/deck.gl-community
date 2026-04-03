@@ -1,0 +1,11 @@
+{
+  "shape": "image-texture-cube",
+  "faces": {
+    "+X": "sky-posx.png",
+    "-X": "sky-negx.png",
+    "+Y": "sky-posy.png",
+    "-Y": "sky-negy.png",
+    "+Z": "sky-posz.png",
+    "-Z": "sky-negz.png"
+  }
+}

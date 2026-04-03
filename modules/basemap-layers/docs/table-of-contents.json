@@ -1,0 +1,32 @@
+{
+  "id": "table-of-contents",
+  "chapters": [
+    {
+      "title": "Developer Guide",
+      "chapters": [
+        {
+          "title": "Overview",
+          "entries": [
+            {"entry": "docs"},
+            {"entry": "docs/whats-new"}
+          ]
+        },
+        {
+          "title": "Guides",
+          "entries": [
+            {"entry": "docs/developer-guide/get-started"}
+          ]
+        }
+      ]
+    },
+    {
+      "title": "API Reference",
+      "entries": [
+        {"entry": "docs/basemap-layers"},
+        {"entry": "docs/api-reference/basemap-layer"},
+        {"entry": "docs/api-reference/map-style"},
+        {"entry": "docs/api-reference/map-style-loader"}
+      ]
+    }
+  ]
+}

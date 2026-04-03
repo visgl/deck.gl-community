@@ -28,3 +28,19 @@ Release date: 2023
 
 - `TileSourceLayer`
 - `DataDrivenTile3DLayer`
+- `SkyboxLayer`
+
+## Exports
+
+- `SkyboxLayer`
+
+<p class="badges">
+  <img src="https://img.shields.io/badge/From-v9.3-blue.svg?style=flat-square" alt="From v9.3" />
+  <img src="https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square" alt="Experimental" />
+</p>
+
+## Examples
+
+- [SkyboxLayer MapView](/examples/layers/skybox-map-view)
+- [SkyboxLayer GlobeView](/examples/layers/skybox-globe)
+- [SkyboxLayer FirstPersonView](/examples/layers/skybox-first-person)
