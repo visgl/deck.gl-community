@@ -14115,15 +14115,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shared-tileset-example@workspace:examples/geo-layers/shared-tile-cockpit":
+"shared-tileset-example@workspace:examples/geo-layers/shared-tileset":
   version: 0.0.0-use.local
-  resolution: "shared-tileset-example@workspace:examples/geo-layers/shared-tile-cockpit"
+  resolution: "shared-tileset-example@workspace:examples/geo-layers/shared-tileset"
   dependencies:
     "@deck.gl-community/geo-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
     "@deck.gl/widgets": "npm:~9.3.0-alpha.1"
     "@loaders.gl/loader-utils": "npm:^4.4.0-alpha.16"
+    "@loaders.gl/mvt": "npm:^4.4.0-alpha.16"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft

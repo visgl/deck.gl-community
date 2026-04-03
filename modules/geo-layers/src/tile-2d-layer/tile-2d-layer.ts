@@ -20,14 +20,14 @@ import type {LayersList} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
 import type {TileSource} from '@loaders.gl/loader-utils';
 
-import type {TileLoadProps, ZRange, URLTemplate} from '../tileset-2d-v2';
+import type {TileLoadProps, ZRange, URLTemplate} from '../tileset-2d-v2/index';
 import {
   Tile2DTileset,
   Tile2DHeader2,
   type RefinementStrategy,
   STRATEGY_DEFAULT,
   getURLFromTemplate
-} from '../tileset-2d-v2';
+} from '../tileset-2d-v2/index';
 import {Tile2DView} from '../tileset-2d-v2/tile-2d-view';
 
 /** Tests whether a value looks like a loaders.gl {@link TileSource}. */

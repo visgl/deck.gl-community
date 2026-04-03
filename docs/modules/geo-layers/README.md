@@ -23,12 +23,19 @@ This modules exports various geospatial deck.gl layers developed by the communit
 ## API Reference
 
 - [Tile2DLayer](./api-reference/tile-2d-layer)
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
 - [Tile2DTileset](./api-reference/tile-2d-tileset)
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
+- [TileGridLayer](./api-reference/tile-grid-layer)
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
 - [TileSourceLayer](./api-reference/tile-source-layer)
 - [GlobalGridLayer](./api-reference/global-grid-layer)
 - [GlobalGrid](./api-reference/global-grid)
 
 ## Examples
 
-- [Shared Tileset](/examples/geo-layers/shared-tile-cockpit) demonstrates one shared loaders.gl `TileSource` feeding multiple `Tile2DLayer`s across multiple views.
-  It also shows shared `Tile2DTileset` cache stats rendered through `Tile2DTileset.stats`.
+- [Tile2DLayer example](/examples/geo-layers/tile-2d-layer) demonstrates one shared loaders.gl `TileSource` feeding multiple `Tile2DLayer`s across multiple views.
+  It also shows shared `Tile2DTileset` cache stats rendered through `Tile2DTileset.stats` and uses `TileGridLayer` to visualize tile loading.

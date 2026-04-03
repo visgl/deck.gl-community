@@ -1,5 +1,5 @@
 {
-  "name": "shared-tileset-example",
+  "name": "tile-2d-layer-example",
   "version": "9.2.0",
   "private": true,
   "license": "MIT",
@@ -13,7 +13,8 @@
     "@deck.gl/core": "~9.3.0-alpha.1",
     "@deck.gl/layers": "~9.3.0-alpha.1",
     "@deck.gl/widgets": "~9.3.0-alpha.1",
-    "@loaders.gl/loader-utils": "^4.4.0-alpha.16"
+    "@loaders.gl/loader-utils": "^4.4.0-alpha.16",
+    "@loaders.gl/mvt": "^4.4.0-alpha.16"
   },
   "devDependencies": {
     "vite": "^7.3.1"

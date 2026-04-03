@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {mountStandaloneExample} from '../../mount-example';
-import {mountSharedTileCockpitExample} from './app';
+import {mountTile2DLayerExample} from './app';
 
-void mountStandaloneExample(mountSharedTileCockpitExample);
+// eslint-disable-next-line no-void
+void mountStandaloneExample(mountTile2DLayerExample);

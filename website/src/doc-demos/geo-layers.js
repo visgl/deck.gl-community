@@ -3,7 +3,7 @@ import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import styled from 'styled-components';
 import {BitmapLayer} from '@deck.gl/layers';
-import {mountSharedTileCockpitExample} from '../../../examples/geo-layers/shared-tile-cockpit/app';
+import {mountTile2DLayerExample} from '../../../examples/geo-layers/tile-2d-layer/app';
 
 import {
   GreatCircleLayer,
@@ -44,7 +44,7 @@ const ImperativeDemoContainer = styled.div`
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
 `;
 
-function SharedTileCockpitDemoHost() {
+function Tile2DLayerDemoHost() {
   const hostRef = useRef(null);
 
   useEffect(() => {
@@ -53,19 +53,19 @@ function SharedTileCockpitDemoHost() {
       return undefined;
     }
 
-    const cleanup = mountSharedTileCockpitExample(hostElement, {mode: 'compact'});
+    const cleanup = mountTile2DLayerExample(hostElement, {mode: 'compact'});
     return () => cleanup();
   }, []);
 
   return <ImperativeDemoContainer ref={hostRef} />;
 }
 
-export function SharedTileCockpitDemo() {
+export function Tile2DLayerDemo() {
   return (
     <BrowserOnly>
       {() => (
         <ImperativeDemoPlaceholder>
-          <SharedTileCockpitDemoHost />
+          <Tile2DLayerDemoHost />
         </ImperativeDemoPlaceholder>
       )}
     </BrowserOnly>

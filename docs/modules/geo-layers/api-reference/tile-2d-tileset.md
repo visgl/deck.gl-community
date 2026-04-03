@@ -1,7 +1,8 @@
 # Tile2DTileset
 
 <p class="badges">
-  <img src="https://img.shields.io/badge/from-v9.2.8-green.svg?style=flat-square" alt="from v9.2.8" />
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
 </p>
 
 `Tile2DTileset` is the shared cache and loading engine used by `Tile2DLayer`.
@@ -15,7 +16,7 @@ This makes it possible to feed the same tileset to multiple layers and multiple 
 
 The tileset also owns the shared cache policy and the shared stats object used by the example infobox and other monitoring UIs.
 
-See the [Shared Tileset example](/examples/geo-layers/shared-tile-cockpit).
+See the [Tile2DLayer example](/examples/geo-layers/tile-2d-layer).
 
 ## Installation
 

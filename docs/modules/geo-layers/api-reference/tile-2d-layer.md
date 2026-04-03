@@ -1,12 +1,13 @@
 # Tile2DLayer
 
-import {SharedTileCockpitDemo} from '@site/src/doc-demos/geo-layers';
+import {Tile2DLayerDemo} from '@site/src/doc-demos/geo-layers';
 
 <p class="badges">
-  <img src="https://img.shields.io/badge/from-v9.2.8-green.svg?style=flat-square" alt="from v9.2.8" />
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
 </p>
 
-> This layer is community-maintained and still evolving. Expect API changes while the shared-tileset model settles.
+> This layer is community-maintained and still evolving. Expect API changes while the shared tileset workflow settles.
 
 The `Tile2DLayer` is a `CompositeLayer` for tiled content that can reuse a shared `Tile2DTileset` across:
 
@@ -15,9 +16,9 @@ The `Tile2DLayer` is a `CompositeLayer` for tiled content that can reuse a share
 
 Unlike deck.gl core's `TileLayer`, this implementation keeps traversal state per view while sharing tile cache and loading state through `Tile2DTileset`.
 
-See the [Shared Tileset example](/examples/geo-layers/shared-tile-cockpit).
+See the [Tile2DLayer example](/examples/geo-layers/tile-2d-layer).
 
-<SharedTileCockpitDemo />
+<Tile2DLayerDemo />
 
 This embedded demo shows:
 

@@ -12,6 +12,7 @@ it('exports TileSourceLayer', () => {
 it('exports Tile2DLayer and Tile2DTileset', () => {
   expect(GeoLayers.Tile2DLayer).toBeDefined();
   expect(GeoLayers.Tile2DTileset).toBeDefined();
+  expect(GeoLayers.TileGridLayer).toBeDefined();
 });
 
 it('exports GlobalGridLayer', () => {
