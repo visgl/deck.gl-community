@@ -8,7 +8,7 @@
 `TileGridLayer` is a public helper layer for visualizing tile loading. It renders a
 border and optional label for a single tile header.
 
-It is intended to be used inside `Tile2DLayer.renderSubLayers`, where `props.tile` is already available. This makes it useful for:
+It is intended to be used inside `SharedTile2DLayer.renderSubLayers`, where `props.tile` is already available. This makes it useful for:
 
 - visualizing tile boundaries
 - showing tile zoom depth and `x/y/z` indices
@@ -24,9 +24,9 @@ import {TileGridLayer, type TileGridLayerProps} from '@deck.gl-community/geo-lay
 ## Usage
 
 ```ts
-import {Tile2DLayer, TileGridLayer} from '@deck.gl-community/geo-layers';
+import {SharedTile2DLayer, TileGridLayer} from '@deck.gl-community/geo-layers';
 
-new Tile2DLayer({
+new SharedTile2DLayer({
   id: 'tile-grid',
   data: sharedTileset,
   pickable: false,
@@ -41,7 +41,7 @@ new Tile2DLayer({
 
 ## Props
 
-#### `tile` (`Tile2DHeader2`) {#tile}
+#### `tile` (`SharedTile2DHeader`) {#tile}
 
 Tile header whose bounds and index should be visualized.
 
@@ -96,12 +96,12 @@ Screen-space font size of the tile label in pixels.
 ## Notes
 
 - `TileGridLayer` does not select or load tiles by itself.
-- It is best paired with `Tile2DLayer` or another tiled renderer that already exposes tile headers.
+- It is best paired with `SharedTile2DLayer` or another tiled renderer that already exposes tile headers.
 - Use it as a lightweight overlay when you want to inspect tile loading behavior without changing your tile source or tileset implementation.
 - For geospatial tiles, the border is rendered in longitude/latitude coordinates taken from the tile bounds.
 
 ## See Also
 
-- [Tile2DLayer](./tile-2d-layer.md)
-- [Tile2DTileset](./tile-2d-tileset.md)
-- [Tile2DLayer example](/examples/geo-layers/tile-2d-layer)
+- [SharedTile2DLayer](./shared-tile-2d-layer.md)
+- [SharedTileset2D](./shared-tileset-2d.md)
+- [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer)

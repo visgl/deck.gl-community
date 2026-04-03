@@ -20,6 +20,13 @@ Some inofficial wishlist and roadmap type information is available in github tra
 Website and examples:
 - More example UIs are being moved away from React-owned sidebars and page-level info components toward deck.gl widget panels and `InfoBox`-style overlays.
 
+### `@deck.gl-community/geo-layers`
+
+- `SharedTile2DLayer` - NEW experimental tiled `CompositeLayer` that can share one `SharedTileset2D` across multiple layer instances and multiple views.
+- `SharedTileset2D` - NEW shared tile cache and loading engine for coordinated multi-view / multi-layer tile loading.
+- `TileGridLayer` - NEW helper overlay for visualizing tile loading, tile bounds, and tile zoom depth while debugging tiled rendering.
+- New [`SharedTile2DLayer` example](/examples/geo-layers/shared-tile-2d-layer) showing one shared auto-tiled GeoJSON `TableTileSource` and one shared `SharedTileset2D` feeding multiple styled comparisons plus a minimap.
+
 ## v9.2
 
 Released: February 20, 2026

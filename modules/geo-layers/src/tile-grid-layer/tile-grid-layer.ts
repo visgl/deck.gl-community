@@ -5,11 +5,11 @@
 import {CompositeLayer, type Color, type DefaultProps} from '@deck.gl/core';
 import {PathLayer, TextLayer} from '@deck.gl/layers';
 
-import type {Tile2DHeader2} from '../tileset-2d-v2/index';
-import type {TileBoundingBox} from '../tileset-2d-v2/types';
+import type {SharedTile2DHeader} from '../tileset/index';
+import type {TileBoundingBox} from '../tileset/types';
 
 /** Label content or formatter used by {@link TileGridLayer}. */
-type TileGridLabelAccessor = string | ((tile: Tile2DHeader2<unknown>) => string);
+type TileGridLabelAccessor = string | ((tile: SharedTile2DHeader<unknown>) => string);
 
 /**
  * Props for {@link TileGridLayer}, a helper overlay for visualizing tile loading
@@ -17,7 +17,7 @@ type TileGridLabelAccessor = string | ((tile: Tile2DHeader2<unknown>) => string)
  */
 export type TileGridLayerProps = {
   /** Tile header whose bounds and index should be visualized. */
-  tile: Tile2DHeader2<unknown>;
+  tile: SharedTile2DHeader<unknown>;
   /** Whether to draw an outline around the tile bounds. Defaults to `true`. */
   showBorder?: boolean;
   /** Whether to render a label at the tile center. Defaults to `true`. */
@@ -50,7 +50,7 @@ const defaultProps: DefaultProps<TileGridLayerProps> = {
   showLabel: true,
   getLabel: {
     type: 'function',
-    value: (tile: Tile2DHeader2<unknown>) => `z${tile.index.z} x${tile.index.x} y${tile.index.y}`
+    value: (tile: SharedTile2DHeader<unknown>) => `z${tile.index.z} x${tile.index.x} y${tile.index.y}`
   },
   borderColor: [255, 255, 255, 180],
   labelColor: [255, 255, 255, 255],

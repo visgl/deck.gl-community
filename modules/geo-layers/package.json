@@ -22,6 +22,11 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
+    },
+    "./tileset": {
+      "types": "./dist/tileset/index.d.ts",
+      "require": "./dist/tileset/index.cjs",
+      "import": "./dist/tileset/index.js"
     }
   },
   "files": [

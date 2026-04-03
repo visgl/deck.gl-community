@@ -4,10 +4,10 @@
 
 export type {TileSourceLayerProps} from './tile-source-layer/tile-source-layer';
 export {TileSourceLayer} from './tile-source-layer/tile-source-layer';
-export type {Tile2DLayerProps, Tile2DLayerPickingInfo} from './tile-2d-layer/index';
-export {Tile2DLayer} from './tile-2d-layer/index';
-export type {Tile2DTilesetProps} from './tileset-2d-v2/index';
-export {Tile2DTileset, Tile2DHeader2} from './tileset-2d-v2/index';
+export type {SharedTile2DLayerProps, SharedTile2DLayerPickingInfo} from './shared-tile-2d-layer/index';
+export {SharedTile2DLayer} from './shared-tile-2d-layer/index';
+export type {SharedTileset2DProps, SharedTileset2DBaseProps} from './tileset/index';
+export {SharedTileset2D, SharedTile2DHeader} from './tileset/index';
 export type {TileGridLayerProps} from './tile-grid-layer/tile-grid-layer';
 export {TileGridLayer} from './tile-grid-layer/tile-grid-layer';
 
