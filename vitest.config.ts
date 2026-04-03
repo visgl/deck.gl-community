@@ -7,11 +7,17 @@ const CONFIG = defineConfig({
   resolve: {
     alias: {
       crypto: 'node:crypto', // ensure Vite/Vitest get Node's crypto
+      '@deck.gl-community/basemap-layers/style-spec': fileURLToPath(
+        new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)
+      ),
+      '@deck.gl-community/basemap-layers': fileURLToPath(
+        new URL('./modules/basemap-layers/src/index.ts', import.meta.url)
+      ),
       '@deck.gl-community/basemaps/style-spec': fileURLToPath(
-        new URL('./modules/basemaps/src/style-spec.js', import.meta.url)
+        new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)
       ),
       '@deck.gl-community/basemaps': fileURLToPath(
-        new URL('./modules/basemaps/src/index.js', import.meta.url)
+        new URL('./modules/basemap-layers/src/index.ts', import.meta.url)
       ),
       'monaco-editor': 'monaco-editor/esm/vs/editor/editor.main.js'
     },
@@ -36,7 +42,7 @@ const CONFIG = defineConfig({
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/widgets/src/panel-widgets/toolbar-widget.test.ts',
-            'modules/basemaps/**'
+            'modules/basemap-layers/**'
           ],
           browser: {
             enabled: false

@@ -287,13 +287,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/basemaps@workspace:modules/basemaps":
+"@deck.gl-community/basemap-layers@workspace:*, @deck.gl-community/basemap-layers@workspace:modules/basemap-layers":
   version: 0.0.0-use.local
-  resolution: "@deck.gl-community/basemaps@workspace:modules/basemaps"
+  resolution: "@deck.gl-community/basemap-layers@workspace:modules/basemap-layers"
   dependencies:
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/geo-layers": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"
+    "@loaders.gl/core": "npm:^4.4.1"
+    "@loaders.gl/mvt": "npm:^4.4.1"
     "@luma.gl/core": "npm:~9.3.0-alpha.2"
     "@luma.gl/engine": "npm:~9.3.0-alpha.2"
     "@mapbox/mapbox-gl-style-spec": "npm:^13.12.0"
@@ -5632,6 +5634,16 @@ __metadata:
   checksum: 10c0/55ea09f2fd8efd90bb735f114f8ac9df310ac4daf598537bf5d2d9a8cdca31747756e77796a3d2465199d94ae5f0b26ea05ff70f856947c5b3c6c718a37d12e5
   languageName: node
   linkType: hard
+
+"basemap-layer-map-view-7c2ef2@workspace:examples/layers/basemap-layer-map-view":
+  version: 0.0.0-use.local
+  resolution: "basemap-layer-map-view-7c2ef2@workspace:examples/layers/basemap-layer-map-view"
+  dependencies:
+    "@deck.gl-community/basemap-layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.3.0-alpha.1"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
 
 "bcrypt-pbkdf@npm:^1.0.0":
   version: 1.0.2
@@ -14197,6 +14209,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "skybox-globe-c5fa13@workspace:examples/layers/skybox-globe"
   dependencies:
+    "@deck.gl-community/basemap-layers": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl/core": "npm:~9.3.0-alpha.1"
+    "@deck.gl/layers": "npm:~9.3.0-alpha.1"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"skybox-map-view-9054d9@workspace:examples/layers/skybox-map-view":
+  version: 0.0.0-use.local
+  resolution: "skybox-map-view-9054d9@workspace:examples/layers/skybox-map-view"
+  dependencies:
+    "@deck.gl-community/basemap-layers": "workspace:*"
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
     "@deck.gl/layers": "npm:~9.3.0-alpha.1"

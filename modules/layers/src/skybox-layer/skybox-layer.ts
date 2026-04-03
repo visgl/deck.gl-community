@@ -18,8 +18,11 @@ import type {ShaderModule} from '@luma.gl/shadertools';
 import {convertLoadedCubemapToTextureData, createCubemapLoadOptions} from './cubemap-utils';
 
 type AppUniforms = {
+  /** World transform for the unit cube used to draw the skybox. */
   modelMatrix: number[];
+  /** View transform with translation removed so the skybox stays camera-centered. */
   viewMatrix: number[];
+  /** Projection transform for the active viewport. */
   projectionMatrix: number[];
 };
 
@@ -38,16 +41,25 @@ const SKYBOX_PARAMETERS: RenderPipelineParameters = {
   depthCompare: 'less-equal'
 };
 
-const SKYBOX_MODEL_MATRIX = new Matrix4().scale([2, 2, 2]);
+const SKYBOX_SCALE = new Matrix4().scale([2, 2, 2]);
 
 const defaultProps: DefaultProps<SkyboxLayerProps> = {
   cubemap: null,
-  loadOptions: null
+  loadOptions: null,
+  orientation: 'default'
 };
 
 type _SkyboxLayerProps = {
+  /** Cubemap manifest URL or manifest object to load and render. */
   cubemap: string | TextureCubeManifest | null;
+  /** Optional loaders.gl texture-cube load options. */
   loadOptions?: TextureCubeLoaderOptions | null;
+  /**
+   * Declares how the cubemap faces are oriented relative to deck.gl's Z-up
+   * world. Use `y-up` for cubemaps authored for Y-up scenes, such as the
+   * Tycho star map faces from the luma.gl globe showcase.
+   */
+  orientation?: 'default' | 'y-up';
 };
 
 export type SkyboxLayerProps = _SkyboxLayerProps & LayerProps;
@@ -58,12 +70,20 @@ type LoadedCubemapTexture = {
 };
 
 type SkyboxLayerState = {
+  /** Active GPU cubemap texture, if one has been loaded successfully. */
   cubemapTexture: DynamicTexture | null;
+  /** Monotonic load token used to discard stale async cubemap loads. */
   loadCount: number;
+  /** Backing model that renders the cube geometry. */
   model?: Model;
+  /** Shader input manager for the skybox uniforms. */
   shaderInputs?: ShaderInputs<{app: typeof app.props}>;
 };
 
+/**
+ * Renders a camera-centered cubemap background for `MapView`, `GlobeView`,
+ * `FirstPersonView`, and other 3D-capable deck.gl views.
+ */
 export class SkyboxLayer<
   ExtraProps extends Record<string, unknown> = Record<string, unknown>
 > extends Layer<Required<_SkyboxLayerProps> & ExtraProps> {
@@ -72,6 +92,7 @@ export class SkyboxLayer<
 
   state!: SkyboxLayerState;
 
+  /** Initializes the cube model and starts loading the cubemap texture. */
   initializeState(): void {
     const attributeManager = this.getAttributeManager();
     attributeManager?.remove(['instancePickingColors']);
@@ -91,20 +112,23 @@ export class SkyboxLayer<
       shaderInputs
     });
 
-    this._loadCubemap();
+    void this._loadCubemap();
   }
 
+  /** Reloads the cubemap when its source manifest or load options change. */
   updateState({props, oldProps}: UpdateParameters<this>): void {
     if (props.cubemap !== oldProps.cubemap || props.loadOptions !== oldProps.loadOptions) {
-      this._loadCubemap();
+      void this._loadCubemap();
     }
   }
 
+  /** Releases GPU resources owned by the layer. */
   finalizeState(): void {
     this.state.cubemapTexture?.destroy();
     this.state.model?.destroy();
   }
 
+  /** Draws the skybox cube for the current viewport. */
   draw(): void {
     const {model, cubemapTexture, shaderInputs} = this.state;
     if (!model || !cubemapTexture || !shaderInputs) {
@@ -114,7 +138,7 @@ export class SkyboxLayer<
     const viewport = this.context.viewport;
     shaderInputs.setProps({
       app: {
-        modelMatrix: SKYBOX_MODEL_MATRIX,
+        modelMatrix: getSkyboxModelMatrix(this.props.orientation),
         viewMatrix: getSkyboxViewMatrix(viewport),
         projectionMatrix: viewport.projectionMatrix
       }
@@ -123,6 +147,7 @@ export class SkyboxLayer<
     model.draw(this.context.renderPass);
   }
 
+  /** Creates the luma.gl model used to render the skybox cube. */
   protected _getModel(shaderInputs: ShaderInputs<{app: typeof app.props}>): Model {
     return new Model(this.context.device, {
       ...this.getShaders(),
@@ -135,6 +160,7 @@ export class SkyboxLayer<
     });
   }
 
+  /** Returns the WGSL/GLSL shader pair used by the layer. */
   getShaders() {
     return {
       source: SKYBOX_WGSL,
@@ -143,6 +169,7 @@ export class SkyboxLayer<
     };
   }
 
+  /** Starts an asynchronous cubemap load for the current props. */
   private async _loadCubemap(): Promise<void> {
     const {cubemap, loadOptions} = this.props;
     const nextLoadCount = this.state.loadCount + 1;
@@ -168,6 +195,7 @@ export class SkyboxLayer<
     }
   }
 
+  /** Swaps the active GPU cubemap texture and updates model bindings. */
   private _setCubemapTexture(texture: DynamicTexture | null): void {
     const {cubemapTexture, model} = this.state;
     if (cubemapTexture === texture) {
@@ -185,6 +213,7 @@ export class SkyboxLayer<
   }
 }
 
+/** Loads a cubemap manifest or manifest URL through loaders.gl. */
 async function loadCubemapSource(
   cubemap: string | TextureCubeManifest,
   loadOptions?: TextureCubeLoaderOptions | null
@@ -201,6 +230,7 @@ async function loadCubemapSource(
   )) as LoadedCubemapTexture;
 }
 
+/** Creates the runtime `DynamicTexture` instance used by the skybox model. */
 function createCubemapTexture(device: Device, data: TextureCubeData): DynamicTexture {
   return new DynamicTexture(device, {
     dimension: 'cube',
@@ -217,6 +247,7 @@ function createCubemapTexture(device: Device, data: TextureCubeData): DynamicTex
   });
 }
 
+/** Removes camera translation from the active view matrix for skybox rendering. */
 function getSkyboxViewMatrix(viewport: Viewport): Matrix4 {
   const viewMatrix = new Matrix4(viewport.viewMatrixUncentered || viewport.viewMatrix);
   viewMatrix[12] = 0;
@@ -225,6 +256,16 @@ function getSkyboxViewMatrix(viewport: Viewport): Matrix4 {
   return viewMatrix;
 }
 
+/** Returns the skybox cube transform for the requested cubemap orientation. */
+function getSkyboxModelMatrix(orientation: 'default' | 'y-up' = 'default'): Matrix4 {
+  if (orientation === 'y-up') {
+    return new Matrix4().rotateX(Math.PI / 2).scale([2, 2, 2]);
+  }
+
+  return new Matrix4(SKYBOX_SCALE);
+}
+
+/** Converts the current shader module list into a name-indexed dictionary. */
 function createShaderInputModules(defaultShaderModules: ShaderModule[]): {
   [moduleName: string]: ShaderModule;
 } {

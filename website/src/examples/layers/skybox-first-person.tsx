@@ -3,7 +3,7 @@ import {makeImperativeExample} from '../../components';
 
 export default makeImperativeExample(
   {
-    title: 'Skybox First Person',
+    title: 'SkyboxLayer FirstPersonView',
     code: `${GITHUB_TREE}/examples/layers/skybox-first-person`,
     async mount(container) {
       const {mountSkyboxFirstPersonExample} = await import(
