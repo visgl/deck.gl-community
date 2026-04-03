@@ -14029,9 +14029,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shared-tileset-example@workspace:examples/geo-layers/shared-tileset":
+"shared-tile-2d-layer-example@workspace:examples/geo-layers/shared-tile-2d-layer":
   version: 0.0.0-use.local
-  resolution: "shared-tileset-example@workspace:examples/geo-layers/shared-tileset"
+  resolution: "shared-tile-2d-layer-example@workspace:examples/geo-layers/shared-tile-2d-layer"
   dependencies:
     "@deck.gl-community/geo-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0-alpha.1"
