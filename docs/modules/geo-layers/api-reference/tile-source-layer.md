@@ -1,7 +1,3 @@
----
-draft: true
----
-
 # TileSourceLayer
 
 <p class="badges">

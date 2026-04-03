@@ -44,7 +44,7 @@ The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) show
 
 The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the panel composition APIs with a persistent sidebar, a tabbed modal, and a static info box built from shared panel definitions.
 
-The [Shared Tileset example](/examples/geo-layers/shared-tileset) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxWidget`.
+The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxWidget`.
 
 ### HTML overlays
 

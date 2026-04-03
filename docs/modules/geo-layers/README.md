@@ -22,18 +22,18 @@ This modules exports various geospatial deck.gl layers developed by the communit
 
 ## API Reference
 
-- [SharedTile2DLayer](./api-reference/shared-tile-2d-layer)
+- [SharedTile2DLayer](/docs/modules/geo-layers/api-reference/shared-tile-2d-layer)
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
   <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
-- [SharedTileset2D](./api-reference/shared-tileset-2d)
+- [SharedTileset2D](/docs/modules/geo-layers/api-reference/shared-tileset-2d)
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
   <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
-- [TileGridLayer](./api-reference/tile-grid-layer)
+- [TileGridLayer](/docs/modules/geo-layers/api-reference/tile-grid-layer)
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
   <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
-- [TileSourceLayer](./api-reference/tile-source-layer)
-- [GlobalGridLayer](./api-reference/global-grid-layer)
-- [GlobalGrid](./api-reference/global-grid)
+- [TileSourceLayer](/docs/modules/geo-layers/api-reference/tile-source-layer)
+- [GlobalGridLayer](/docs/modules/geo-layers/api-reference/global-grid-layer)
+- [GlobalGrid](/docs/modules/geo-layers/api-reference/global-grid)
 
 ## Examples
 

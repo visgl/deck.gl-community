@@ -59,7 +59,11 @@ Whether to render a label at the tile center.
 
 #### `getLabel` (`string | (tile) => string`, optional) {#getlabel}
 
-- Default: `tile => \`z\${tile.index.z} x\${tile.index.x} y\${tile.index.y}\``
+- Default:
+
+```ts
+tile => `z${tile.index.z} x${tile.index.x} y${tile.index.y}`
+```
 
 Static label text or formatter for per-tile label content.
 
