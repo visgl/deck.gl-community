@@ -1,0 +1,56 @@
+{
+  "name": "@deck.gl-community/basemap-layers",
+  "version": "9.2.8",
+  "description": "Basemap layer and map-style helpers for deck.gl.",
+  "license": "MIT",
+  "keywords": [
+    "deck.gl",
+    "mapbox",
+    "basemap"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    },
+    "./map-style": {
+      "types": "./dist/map-style.d.ts",
+      "require": "./dist/map-style.cjs",
+      "import": "./dist/map-style.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "yarn --cwd ../.. vitest run --config modules/basemap-layers/vitest.config.ts",
+    "test-watch": "yarn --cwd ../.. vitest --config modules/basemap-layers/vitest.config.ts"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@deck.gl/core": "~9.3.0-alpha.1",
+    "@deck.gl/geo-layers": "~9.3.0-alpha.1",
+    "@deck.gl/layers": "~9.3.0-alpha.1",
+    "@loaders.gl/core": "^4.4.1",
+    "@loaders.gl/loader-utils": "^4.4.1",
+    "@loaders.gl/mvt": "^4.4.1",
+    "@luma.gl/core": "~9.3.0-alpha.2",
+    "@luma.gl/engine": "~9.3.0-alpha.2",
+    "@mapbox/mapbox-gl-style-spec": "^13.12.0",
+    "@turf/polygon-to-line": "^6.0.3",
+    "zod": "^4.0.0"
+  }
+}

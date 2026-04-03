@@ -491,6 +491,10 @@ function SettingsPanelContent({schema, settings, onSettingsChange}: SettingsPane
       })),
     [schema.sections]
   );
+  const renderInlineSingleSection =
+    sectionEntries.length === 1 &&
+    !sectionEntries[0].section.name &&
+    !sectionEntries[0].section.description;
 
   const updateSetting = (path: string, nextValue: SettingValue) => {
     setLocalSettings((previous) => {
@@ -510,53 +514,62 @@ function SettingsPanelContent({schema, settings, onSettingsChange}: SettingsPane
       onWheel={(event) => stopPropagation(event as unknown as Event)}
       onClick={(event) => stopPropagation(event as unknown as Event)}
     >
-      {sectionEntries.map(({key, section}) => {
-        const isCollapsed = collapsedState[key] ?? false;
-        return (
-          <div
-            key={key}
-            style={{
-              borderBottom: '1px solid var(--menu-item-hover, rgba(128, 128, 128, 0.22))'
-            }}
-          >
-            <button
-              type="button"
-              style={SECTION_TOGGLE_STYLE}
-              onClick={() =>
-                setCollapsedState((previous) => ({
-                  ...previous,
-                  [key]: !isCollapsed
-                }))
-              }
-              aria-expanded={!isCollapsed}
+      {renderInlineSingleSection ? (
+        <SettingsSectionBody
+          contentStyle={SECTION_CONTENT_STYLE}
+          onValueChange={updateSetting}
+          section={sectionEntries[0].section}
+          settings={localSettings}
+        />
+      ) : (
+        sectionEntries.map(({key, section}) => {
+          const isCollapsed = collapsedState[key] ?? false;
+          return (
+            <div
+              key={key}
+              style={{
+                borderBottom: '1px solid var(--menu-item-hover, rgba(128, 128, 128, 0.22))'
+              }}
             >
-              <span style={{display: 'grid', gap: '2px', textAlign: 'left'}}>
-                <span style={{fontWeight: 700, fontSize: '12px'}}>{section.name}</span>
-                {section.description && (
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      color: 'var(--button-icon-idle, currentColor)'
-                    }}
-                  >
-                    {section.description}
-                  </span>
-                )}
-              </span>
-              <span aria-hidden>{isCollapsed ? '▸' : '▾'}</span>
-            </button>
+              <button
+                type="button"
+                style={SECTION_TOGGLE_STYLE}
+                onClick={() =>
+                  setCollapsedState((previous) => ({
+                    ...previous,
+                    [key]: !isCollapsed
+                  }))
+                }
+                aria-expanded={!isCollapsed}
+              >
+                <span style={{display: 'grid', gap: '2px', textAlign: 'left'}}>
+                  <span style={{fontWeight: 700, fontSize: '12px'}}>{section.name}</span>
+                  {section.description && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--button-icon-idle, currentColor)'
+                      }}
+                    >
+                      {section.description}
+                    </span>
+                  )}
+                </span>
+                <span aria-hidden>{isCollapsed ? '▸' : '▾'}</span>
+              </button>
 
-            {!isCollapsed && (
-              <SettingsSectionBody
-                contentStyle={SECTION_CONTENT_STYLE}
-                onValueChange={updateSetting}
-                section={section}
-                settings={localSettings}
-              />
-            )}
-          </div>
-        );
-      })}
+              {!isCollapsed && (
+                <SettingsSectionBody
+                  contentStyle={SECTION_CONTENT_STYLE}
+                  onValueChange={updateSetting}
+                  section={section}
+                  settings={localSettings}
+                />
+              )}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }

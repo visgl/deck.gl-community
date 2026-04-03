@@ -1,0 +1,15 @@
+{
+  "license": "MIT",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/layers": "workspace:*",
+    "@deck.gl/core": "~9.3.0-alpha.1",
+    "@deck.gl/layers": "~9.3.0-alpha.1"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

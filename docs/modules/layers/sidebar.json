@@ -3,6 +3,7 @@
   "label": "@deck.gl-community/layers",
   "items": [
     "modules/layers/README",
+    "modules/layers/api-reference/skybox-layer",
     "modules/layers/api-reference/path-marker-layer",
     "modules/layers/api-reference/path-outline-layer"
   ]
