@@ -1,11 +1,50 @@
+/* eslint-disable import/no-extraneous-dependencies, import/named */
 import {describe, expect, test} from 'vitest';
 import {
   BasemapLayer,
   generateLayers,
   getBasemapLayers,
   resolveBasemapStyle
-} from '@deck.gl-community/basemap-layers';
-import {filterFeatures} from '@deck.gl-community/basemap-layers/style-spec';
+} from '../src/index.ts';
+import {filterFeatures} from '../src/style-spec.ts';
+
+const GEOMETRY_TYPE_CASES = [
+  {label: 'Point geometry matches Point filter', featureType: 'Point', filterType: 'Point', expected: true},
+  {label: 'LineString geometry does not match Point filter', featureType: 'LineString', filterType: 'Point', expected: false},
+  {
+    label: 'LineString geometry matches LineString filter',
+    featureType: 'LineString',
+    filterType: 'LineString',
+    expected: true
+  },
+  {
+    label: 'Point geometry does not match LineString filter',
+    featureType: 'Point',
+    filterType: 'LineString',
+    expected: false
+  },
+  {label: 'Polygon geometry matches Polygon filter', featureType: 'Polygon', filterType: 'Polygon', expected: true},
+  {label: 'Point geometry does not match Polygon filter', featureType: 'Point', filterType: 'Polygon', expected: false}
+];
+
+const NUMERIC_TYPE_CASES = [
+  {label: 'numeric Point matches Point filter', featureType: 1, filterType: 'Point', expected: true},
+  {label: 'numeric LineString does not match Point filter', featureType: 2, filterType: 'Point', expected: false},
+  {
+    label: 'numeric LineString matches LineString filter',
+    featureType: 2,
+    filterType: 'LineString',
+    expected: true
+  },
+  {
+    label: 'numeric Point does not match LineString filter',
+    featureType: 1,
+    filterType: 'LineString',
+    expected: false
+  },
+  {label: 'numeric Polygon matches Polygon filter', featureType: 3, filterType: 'Polygon', expected: true},
+  {label: 'numeric Point does not match Polygon filter', featureType: 1, filterType: 'Polygon', expected: false}
+];
 
 describe('package exports', () => {
   test('exports generateLayers from the package root', () => {
@@ -20,192 +59,36 @@ describe('package exports', () => {
 });
 
 describe('filterFeatures', () => {
-  describe('filter geometry correctly', () => {
-    describe('filter using geometry.type', () => {
-      test('filter true Point', () => {
-        const features = [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: []
-            },
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'Point'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual(features);
-      });
-      test('filter false Point', () => {
-        const features = [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: []
-            },
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'Point'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual([]);
-      });
-      test('filter true LineString', () => {
-        const features = [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: []
-            },
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'LineString'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual(features);
-      });
-      test('filter false LineString', () => {
-        const features = [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: []
-            },
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'LineString'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual([]);
-      });
-      test('filter true Polygon', () => {
-        const features = [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'Polygon',
-              coordinates: []
-            },
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'Polygon'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual(features);
-      });
-      test('filter false Polygon', () => {
-        const features = [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: []
-            },
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'Polygon'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual([]);
-      });
-    });
+  test.each(GEOMETRY_TYPE_CASES)('$label', ({featureType, filterType, expected}) => {
+    const features = [
+      {
+        type: 'Feature',
+        geometry: {
+          type: featureType,
+          coordinates: []
+        },
+        properties: {
+          class: 'minor'
+        }
+      }
+    ];
 
-    describe('filter using provided numeric type', () => {
-      test('filter true Point', () => {
-        const features = [
-          {
-            type: 1,
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'Point'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual(features);
-      });
-      test('filter false Point', () => {
-        const features = [
-          {
-            type: 2,
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'Point'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual([]);
-      });
-      test('filter true LineString', () => {
-        const features = [
-          {
-            type: 2,
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'LineString'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual(features);
-      });
-      test('filter false LineString', () => {
-        const features = [
-          {
-            type: 1,
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'LineString'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual([]);
-      });
-      test('filter true Polygon', () => {
-        const features = [
-          {
-            type: 3,
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'Polygon'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual(features);
-      });
-      test('filter false Polygon', () => {
-        const features = [
-          {
-            type: 1,
-            properties: {
-              class: 'minor'
-            }
-          }
-        ];
-        const filter = ['==', '$type', 'Polygon'];
-        const result = filterFeatures({features, filter});
-        expect(result).toStrictEqual([]);
-      });
-    });
+    const result = filterFeatures({features, filter: ['==', '$type', filterType]});
+    expect(result).toStrictEqual(expected ? features : []);
+  });
+
+  test.each(NUMERIC_TYPE_CASES)('$label', ({featureType, filterType, expected}) => {
+    const features = [
+      {
+        type: featureType,
+        properties: {
+          class: 'minor'
+        }
+      }
+    ];
+
+    const result = filterFeatures({features, filter: ['==', '$type', filterType]});
+    expect(result).toStrictEqual(expected ? features : []);
   });
 });
 

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {TextureCubeManifest, TextureCubeLoaderOptions} from '@loaders.gl/textures';
-import type {TextureCubeData, TextureCubeFace, TextureSliceData} from '@luma.gl/engine';
+import type {TextureCubeData, TextureCubeFace} from '@luma.gl/engine';
 
 const CUBE_FACES: TextureCubeFace[] = ['+X', '-X', '+Y', '-Y', '+Z', '-Z'];
 
@@ -64,7 +64,7 @@ export function convertLoadedCubemapToTextureData(texture: LoadedCubemapTexture)
 }
 
 /** Normalizes a cubemap face that may contain one or more mip levels. */
-function normalizeTextureSlice(faceData: unknown, face: TextureCubeFace): TextureSliceData {
+function normalizeTextureSlice(faceData: unknown, face: TextureCubeFace): any {
   if (Array.isArray(faceData)) {
     if (faceData.length === 0) {
       throw new Error(`SkyboxLayer received an empty mip chain for face ${face}.`);

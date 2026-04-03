@@ -8,7 +8,7 @@ import type {BasemapSource, BasemapStyleLayer} from '../style-resolver';
 export function generateRasterLayer(
   sources: Record<string, BasemapSource>,
   layer: BasemapStyleLayer
-) {
+): any {
   const source = sources[layer.source || ''];
   if (!source?.tiles) {
     return null;
@@ -24,15 +24,19 @@ export function generateRasterLayer(
     maxZoom,
     tileSize,
     renderSubLayers: props => {
-      const {
-        bbox: {west, south, east, north}
-      } = props.tile;
+      const {west, south, east, north} = (props.tile?.bbox || {}) as {
+        west: number;
+        south: number;
+        east: number;
+        north: number;
+      };
 
-      return new BitmapLayer(props, {
+      return new BitmapLayer({
+        ...props,
         data: null,
         image: props.data,
         bounds: [west, south, east, north]
-      });
+      } as any);
     }
   });
 }
@@ -43,7 +47,6 @@ export function generateRasterLayer(
 export function generateBackgroundLayer(
   _sources: Record<string, BasemapSource>,
   _layer: BasemapStyleLayer
-) {
+): null {
   return null;
 }
-

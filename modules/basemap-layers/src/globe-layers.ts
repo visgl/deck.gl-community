@@ -1,4 +1,4 @@
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, log} from '@deck.gl/core';
 import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
@@ -40,27 +40,23 @@ type VectorSourceGroup = {
 };
 
 function logBasemapRuntimeEvent(message: string, details?: unknown): void {
-  if (details !== undefined) {
-    console.info(`[BasemapLayer] ${message}`, details);
-  } else {
-    console.info(`[BasemapLayer] ${message}`);
-  }
+  log.info(`[BasemapLayer] ${message}`, details ?? '')();
 }
 
 function logBasemapRuntimeError(message: string, error: unknown, details?: unknown): void {
-  console.error(`[BasemapLayer] ${message}`, details || '', error);
+  log.error(`[BasemapLayer] ${message}`, details || '', error)();
 }
 
 function getBackgroundParameters(mode: BasemapMode) {
-  return mode === 'globe'
+  return (mode === 'globe'
     ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
-    : {depthTest: false, cullMode: 'none'};
+    : {depthTest: false, cullMode: 'none'}) as any;
 }
 
 function getTileParameters(mode: BasemapMode) {
-  return mode === 'globe'
+  return (mode === 'globe'
     ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
-    : {depthTest: false, cullMode: 'none'};
+    : {depthTest: false, cullMode: 'none'}) as any;
 }
 
 const BACKGROUND_DATA = [[[-180, 90], [0, 90], [180, 90], [180, -90], [0, -90], [-180, -90]]];
@@ -209,17 +205,21 @@ function createRasterLayer({
     maxZoom: layer.maxzoom ?? source.maxzoom ?? 22,
     tileSize: source.tileSize || 512,
     renderSubLayers: props => {
-      const {
-        bbox: {west, south, east, north}
-      } = props.tile;
+      const {west, south, east, north} = (props.tile?.bbox || {}) as {
+        west: number;
+        south: number;
+        east: number;
+        north: number;
+      };
 
-      return new BitmapLayer(props, {
+      return new BitmapLayer({
+        ...props,
         _imageCoordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         data: null,
         image: props.data,
         bounds: [west, south, east, north],
         parameters: getTileParameters(mode)
-      });
+      } as any);
     },
     onTileError: error => {
       logBasemapRuntimeError('Raster tile failed to load', error, {
@@ -250,7 +250,7 @@ class StyledMVTLayer extends MVTLayer<any> {
         ...loadOptions,
         mimeType: 'application/x-protobuf',
         mvt: {
-          ...loadOptions?.mvt,
+          ...((loadOptions?.mvt as Record<string, unknown> | undefined) || {}),
           shape: 'geojson',
           coordinates,
           tileIndex: loadProps.index
@@ -299,43 +299,10 @@ function createStyledVectorSubLayer({
   const lineColor = withOpacity(paint['line-color'] || paint['fill-outline-color'] || [0, 0, 0, 0], opacity);
 
   if (styleLayer.type === 'symbol') {
-    return new MVTLabelLayer({
-      ...getSubLayerBaseProps(props),
-      id: `${props.id}-${styleLayer.id}`,
-      data: features,
-      config,
-      mode,
-      styleLayer,
-      zoom,
-      textColor: withOpacity(paint['text-color'], opacity),
-      labelBackground: paint['text-halo-color']
-        ? withOpacity(paint['text-halo-color'], paint['text-halo-width'] ? 255 : opacity)
-        : null,
-      billboard: true
-    });
+    return createSymbolSubLayer({props, styleLayer, features, config, mode, zoom, opacity, paint});
   }
 
-  return new GeoJsonLayer({
-    ...getSubLayerBaseProps(props),
-    id: `${props.id}-${styleLayer.id}`,
-    data: features,
-    stroked: styleLayer.type === 'line',
-    filled: styleLayer.type === 'fill',
-    getFillColor: styleLayer.type === 'fill' ? getGlobeFillColor(fillColor, mode) : [0, 0, 0, 0],
-    getLineColor: lineColor,
-    getLineWidth:
-      styleLayer.type === 'line'
-        ? Math.max(0.25, Number(paint['line-width'] ?? 1) * getLineWidthScale(styleLayer))
-        : 0,
-    lineWidthUnits: 'pixels',
-    lineWidthMinPixels: 0,
-    lineWidthMaxPixels: 20,
-    lineCapRounded: styleLayer.type === 'line',
-    lineJointRounded: styleLayer.type === 'line',
-    getPointRadius: 0,
-    pointRadiusMinPixels: 0,
-    parameters: getTileParameters(mode)
-  });
+  return createGeometrySubLayer({props, styleLayer, features, mode, fillColor, lineColor, paint});
 }
 
 function createVectorLayerGroup({
@@ -370,7 +337,7 @@ function createVectorLayerGroup({
     loadOptions: {
       ...(loadOptions || {}),
       mvt: {
-        ...loadOptions?.mvt,
+        ...((loadOptions?.mvt as Record<string, unknown> | undefined) || {}),
         shape: 'geojson'
       }
     },
@@ -400,9 +367,9 @@ function createVectorLayerGroup({
               sourceId,
               layerId: styleLayer.id,
               sourceLayer: styleLayer['source-layer'],
-              tileIndex: props.tile?.index
-            });
-          }
+            tileIndex: props.tile?.index
+          });
+        }
 
           return createStyledVectorSubLayer({
             idPrefix,
@@ -415,11 +382,11 @@ function createVectorLayerGroup({
             mode
           });
         })
-        .filter(Boolean);
+        .filter(layer => Boolean(layer));
 
-      return layers;
+      return layers as any;
     }
-  });
+  } as any);
 }
 
 function inferWaterColor(styleLayers: BasemapStyleLayer[], zoom: number): [number, number, number, number] {
@@ -442,24 +409,10 @@ function getVectorSourceGroups(
   const groups = new Map<string, VectorSourceGroup>();
 
   for (const layer of styleLayers) {
-    if (!layer.source) {
-      continue;
-    }
-
-    const source = styleDefinition.sources?.[layer.source];
-    if (!source?.tiles || source.type !== 'vector') {
-      continue;
-    }
-
-    const group = groups.get(layer.source);
-    if (group) {
-      group.styleLayers.push(layer);
-    } else {
-      groups.set(layer.source, {
-        sourceId: layer.source,
-        source,
-        styleLayers: [layer]
-      });
+    const sourceId = layer.source;
+    const source = sourceId ? styleDefinition.sources?.[sourceId] : null;
+    if (sourceId && source?.tiles && source.type === 'vector') {
+      appendVectorSourceGroup(groups, sourceId, source, layer);
     }
   }
 
@@ -476,15 +429,238 @@ export function getBasemapLayers({
 }: BasemapLayerGroup) {
   const config = getConfig(globe);
   const styleLayers = (styleDefinition.layers || []).filter(layer => SUPPORTED_TYPES.has(layer.type));
-  const layers = [];
+  const layers: any[] = [];
   logBasemapRuntimeEvent('Generating basemap layers', {
     mode,
     styleLayerCount: styleLayers.length,
     sourceCount: Object.keys(styleDefinition.sources || {}).length
   });
 
+  layers.push(...getGlobePreLayers({idPrefix, mode, config, styleLayers}));
+
+  if (config.basemap) {
+    layers.push(...getBackgroundLayers({idPrefix, styleLayers, zoom, mode}));
+    layers.push(
+      ...getVectorLayers({idPrefix, styleLayers, styleDefinition, zoom, config, loadOptions, mode})
+    );
+    layers.push(...getRasterLayers({idPrefix, styleLayers, styleDefinition, mode}));
+  }
+
+  layers.push(...getGlobePostLayers({idPrefix, mode, config, styleLayers, zoom}));
+
+  return layers.filter(layer => Boolean(layer));
+}
+
+export function getGlobeBaseLayers({
+  globe,
+  styleDefinition,
+  idPrefix = 'globe-basemap',
+  zoom = 0,
+  loadOptions
+}: Omit<BasemapLayerGroup, 'mode'>) {
+  return getBasemapLayers({idPrefix, mode: 'globe', globe, styleDefinition, zoom, loadOptions});
+}
+
+export function getGlobeTopLayers({globe}: {globe: {config: BasemapGlobeConfig}}) {
+  const {config} = globe;
+  return config.atmosphere ? [getGlobeAtmosphereLayer()] : [];
+}
+
+function createSymbolSubLayer({
+  props,
+  styleLayer,
+  features,
+  config,
+  mode,
+  zoom,
+  opacity,
+  paint
+}: {
+  props: any;
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  config: BasemapLayerConfig;
+  mode: BasemapMode;
+  zoom: number;
+  opacity: number;
+  paint: Record<string, any>;
+}) {
+  return new MVTLabelLayer({
+    ...getSubLayerBaseProps(props),
+    id: `${props.id}-${styleLayer.id}`,
+    data: features,
+    config,
+    mode,
+    styleLayer,
+    zoom,
+    textColor: withOpacity(paint['text-color'], opacity),
+    labelBackground: paint['text-halo-color']
+      ? withOpacity(paint['text-halo-color'], paint['text-halo-width'] ? 255 : opacity)
+      : null,
+    billboard: true
+  });
+}
+
+function createGeometrySubLayer({
+  props,
+  styleLayer,
+  features,
+  mode,
+  fillColor,
+  lineColor,
+  paint
+}: {
+  props: any;
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  mode: BasemapMode;
+  fillColor: [number, number, number, number];
+  lineColor: [number, number, number, number];
+  paint: Record<string, any>;
+}) {
+  const isLine = styleLayer.type === 'line';
+  const isFill = styleLayer.type === 'fill';
+
+  return new GeoJsonLayer({
+    ...getSubLayerBaseProps(props),
+    id: `${props.id}-${styleLayer.id}`,
+    data: features,
+    stroked: isLine,
+    filled: isFill,
+    getFillColor: isFill ? getGlobeFillColor(fillColor, mode) : [0, 0, 0, 0],
+    getLineColor: lineColor,
+    getLineWidth: isLine
+      ? Math.max(0.25, Number(paint['line-width'] ?? 1) * getLineWidthScale(styleLayer))
+      : 0,
+    lineWidthUnits: 'pixels',
+    lineWidthMinPixels: 0,
+    lineWidthMaxPixels: 20,
+    lineCapRounded: isLine,
+    lineJointRounded: isLine,
+    getPointRadius: 0,
+    pointRadiusMinPixels: 0,
+    parameters: getTileParameters(mode)
+  });
+}
+
+function getBackgroundLayers({
+  idPrefix,
+  styleLayers,
+  zoom,
+  mode
+}: {
+  idPrefix: string;
+  styleLayers: BasemapStyleLayer[];
+  zoom: number;
+  mode: BasemapMode;
+}) {
+  return styleLayers
+    .filter(layer => layer.type === 'background')
+    .map(layer => createBackgroundLayer({idPrefix, layer, zoom, mode}));
+}
+
+function getVectorLayers({
+  idPrefix,
+  styleLayers,
+  styleDefinition,
+  zoom,
+  config,
+  loadOptions,
+  mode
+}: {
+  idPrefix: string;
+  styleLayers: BasemapStyleLayer[];
+  styleDefinition: ResolvedBasemapStyle;
+  zoom: number;
+  config: BasemapLayerConfig;
+  loadOptions?: BasemapLoadOptions;
+  mode: BasemapMode;
+}) {
+  const visibleVectorLayers = styleLayers.filter(layer => {
+    if (layer.type === 'symbol') {
+      return config.labels;
+    }
+    return layer.type === 'fill' || layer.type === 'line';
+  });
+
+  return getVectorSourceGroups(visibleVectorLayers, styleDefinition).map(group =>
+    createVectorLayerGroup({
+      idPrefix,
+      sourceId: group.sourceId,
+      source: group.source,
+      styleLayers: group.styleLayers,
+      zoom,
+      config,
+      loadOptions,
+      mode
+    })
+  );
+}
+
+function getRasterLayers({
+  idPrefix,
+  styleLayers,
+  styleDefinition,
+  mode
+}: {
+  idPrefix: string;
+  styleLayers: BasemapStyleLayer[];
+  styleDefinition: ResolvedBasemapStyle;
+  mode: BasemapMode;
+}) {
+  const rasterLayers = [];
+
+  for (const layer of styleLayers) {
+    if (layer.type === 'raster') {
+      const source = styleDefinition.sources?.[layer.source];
+      if (!source?.tiles) {
+        logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {
+          layerId: layer.id,
+          sourceId: layer.source
+        });
+      } else {
+        rasterLayers.push(createRasterLayer({idPrefix, layer, source, mode}));
+      }
+    }
+  }
+
+  return rasterLayers;
+}
+
+function appendVectorSourceGroup(
+  groups: Map<string, VectorSourceGroup>,
+  sourceId: string,
+  source: BasemapSource,
+  layer: BasemapStyleLayer
+) {
+  const group = groups.get(sourceId);
+  if (group) {
+    group.styleLayers.push(layer);
+    return;
+  }
+
+  groups.set(sourceId, {
+    sourceId,
+    source,
+    styleLayers: [layer]
+  });
+}
+
+function getGlobePreLayers({
+  idPrefix,
+  mode,
+  config,
+  styleLayers
+}: {
+  idPrefix: string;
+  mode: BasemapMode;
+  config: BasemapLayerConfig;
+  styleLayers: BasemapStyleLayer[];
+}) {
+  const layers = [];
+
   if (mode === 'globe' && config.atmosphere) {
-    layers.push(getGlobeAtmosphereSkyLayer({config}));
+    layers.push(getGlobeAtmosphereSkyLayer());
   }
 
   const hasBackground = styleLayers.some(layer => layer.type === 'background');
@@ -502,53 +678,23 @@ export function getBasemapLayers({
     );
   }
 
-  if (config.basemap) {
-    for (const layer of styleLayers) {
-      if (layer.type === 'background') {
-        layers.push(createBackgroundLayer({idPrefix, layer, zoom, mode}));
-      }
-    }
+  return layers;
+}
 
-    for (const group of getVectorSourceGroups(
-      styleLayers.filter(layer => {
-        if (layer.type === 'symbol') {
-          return config.labels;
-        }
-        return layer.type === 'fill' || layer.type === 'line';
-      }),
-      styleDefinition
-    )) {
-      layers.push(
-        createVectorLayerGroup({
-          idPrefix,
-          sourceId: group.sourceId,
-          source: group.source,
-          styleLayers: group.styleLayers,
-          zoom,
-          config,
-          loadOptions,
-          mode
-        })
-      );
-    }
-
-    for (const layer of styleLayers) {
-      if (layer.type !== 'raster') {
-        continue;
-      }
-
-      const source = styleDefinition.sources?.[layer.source];
-      if (!source?.tiles) {
-        logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {
-          layerId: layer.id,
-          sourceId: layer.source
-        });
-        continue;
-      }
-
-      layers.push(createRasterLayer({idPrefix, layer, source, mode}));
-    }
-  }
+function getGlobePostLayers({
+  idPrefix,
+  mode,
+  config,
+  styleLayers,
+  zoom
+}: {
+  idPrefix: string;
+  mode: BasemapMode;
+  config: BasemapLayerConfig;
+  styleLayers: BasemapStyleLayer[];
+  zoom: number;
+}) {
+  const layers = [];
 
   if (mode === 'globe' && config.basemap) {
     layers.push(
@@ -565,23 +711,8 @@ export function getBasemapLayers({
   }
 
   if (mode === 'globe' && config.atmosphere) {
-    layers.push(getGlobeAtmosphereLayer({config}));
+    layers.push(getGlobeAtmosphereLayer());
   }
 
-  return layers.filter(Boolean);
-}
-
-export function getGlobeBaseLayers({
-  globe,
-  styleDefinition,
-  idPrefix = 'globe-basemap',
-  zoom = 0,
-  loadOptions
-}: Omit<BasemapLayerGroup, 'mode'>) {
-  return getBasemapLayers({idPrefix, mode: 'globe', globe, styleDefinition, zoom, loadOptions});
-}
-
-export function getGlobeTopLayers({globe}: {globe: {config: BasemapGlobeConfig}}) {
-  const {config} = globe;
-  return [config.atmosphere && getGlobeAtmosphereLayer({config})].filter(Boolean);
+  return layers;
 }

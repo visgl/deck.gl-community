@@ -1,4 +1,5 @@
 import {CompositeLayer} from '@deck.gl/core';
+import type {UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
 import {GeoJsonLayer, TextLayer} from '@deck.gl/layers';
 
@@ -52,6 +53,8 @@ export type MVTLabelLayerProps = {
   renderGeometry?: boolean;
   /** Additional extension instances passed through to the text sublayer. */
   extensions?: any[];
+  /** Active basemap mode. */
+  mode?: 'map' | 'globe';
 };
 
 type MVTLabelLayerState = {
@@ -93,7 +96,7 @@ function resolveTokenString(
 
   return template.replace(/\{([^}]+)\}/g, (_, token) => {
     const value = properties?.[token];
-    return value == null ? '' : String(value);
+    return value === null || value === undefined ? '' : String(value);
   });
 }
 
@@ -146,7 +149,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   };
 
   /** Current label-row state. */
-  state!: MVTLabelLayerState;
+  declare state: MVTLabelLayerState;
 
   /**
    * Extracts the visible label text for a decoded feature.
@@ -199,7 +202,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Recomputes label anchor rows when the source tile data changes.
    */
-  updateState({changeFlags}: {changeFlags: {dataChanged?: boolean}}): void {
+  updateState({changeFlags}: UpdateParameters<this>): void {
     const {data} = this.props;
     if (changeFlags.dataChanged && data) {
       const features = Array.isArray(data) ? data : data.features || [];
@@ -215,13 +218,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Renders the optional debug geometry and the text labels.
    */
-  renderLayers() {
+  renderLayers(): any {
     const {config, labelSizeUnits, labelBackground, billboard, renderGeometry} = this.props;
     const layers: any[] = [];
 
     if (renderGeometry) {
       layers.push(
-        new GeoJsonLayer(this.props as any, this.getSubLayerProps({id: 'geojson'}), {
+        new GeoJsonLayer({
+          ...this.props,
+          ...this.getSubLayerProps({id: 'geojson'}),
           data: this.props.data
         })
       );
@@ -230,7 +235,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (config.labels) {
       const hasBackground = Array.isArray(labelBackground) && labelBackground.length >= 3;
       layers.push(
-        new TextLayer(this.getSubLayerProps({id: 'text'}), {
+        new TextLayer({
+          ...this.getSubLayerProps({id: 'text'}),
           data: this.state.labelData,
           extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
           parameters: {
@@ -240,17 +246,23 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           characterSet: 'auto',
           collisionEnabled: true,
           collisionGroup: 'basemap-labels',
-          getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
-            getCollisionPriority(feature)
-          ),
+          getCollisionPriority: this.getSubLayerAccessor(
+            (feature: FeatureLike) => getCollisionPriority(feature)
+          ) as any,
           fontFamily: this.props.fontFamily,
           sizeUnits: labelSizeUnits,
           background: hasBackground,
-          getBackgroundColor: hasBackground ? labelBackground : [0, 0, 0, 0],
+          getBackgroundColor: (hasBackground ? labelBackground : [0, 0, 0, 0]) as any,
           getPosition: (d: LabelRow) => d.position,
-          getText: this.getSubLayerAccessor((feature: FeatureLike) => this.getLabel(feature)),
-          getSize: this.getSubLayerAccessor((feature: FeatureLike) => this.getLabelSize(feature)),
-          getColor: this.getSubLayerAccessor((feature: FeatureLike) => this.getLabelColor(feature))
+          getText: this.getSubLayerAccessor(
+            (feature: FeatureLike) => this.getLabel(feature)
+          ) as any,
+          getSize: this.getSubLayerAccessor(
+            (feature: FeatureLike) => this.getLabelSize(feature)
+          ) as any,
+          getColor: this.getSubLayerAccessor(
+            (feature: FeatureLike) => this.getLabelColor(feature)
+          ) as any
         })
       );
     }
@@ -258,4 +270,3 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return layers;
   }
 }
-

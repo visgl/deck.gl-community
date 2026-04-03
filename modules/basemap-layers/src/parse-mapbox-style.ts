@@ -1,3 +1,4 @@
+import {log} from '@deck.gl/core';
 import {generateBackgroundLayer, generateRasterLayer} from './deck-layers/bitmap';
 import {generateHeatmapLayer} from './deck-layers/heatmap';
 import {generateSymbolLayer} from './deck-layers/icon';
@@ -19,6 +20,15 @@ type DataTransform = ((data: unknown) => unknown) | undefined;
 
 const DEFAULT_GLOBAL_PROPERTIES: GlobalProperties = {zoom: 0};
 const FILTERABLE_LAYERS = ['fill', 'line', 'symbol', 'circle', 'fill-extrusion'];
+const LAYER_GENERATORS = {
+  background: generateBackgroundLayer,
+  line: generateLineLayer,
+  symbol: generateSymbolLayer,
+  raster: generateRasterLayer,
+  circle: generateCircleLayer,
+  heatmap: generateHeatmapLayer,
+  'fill-extrusion': generateFillExtrusionLayer
+} as const;
 
 /**
  * Generates deck.gl layers for every layer entry in a style document.
@@ -45,6 +55,11 @@ function generateLayer(
   globalProperties: GlobalProperties
 ) {
   const {type} = layer;
+  const directGenerator = LAYER_GENERATORS[type as keyof typeof LAYER_GENERATORS];
+  if (directGenerator) {
+    return directGenerator(sources, layer as never);
+  }
+
   const properties = parseProperties(layer, globalProperties);
 
   const deckProperties: Record<string, unknown> = {};
@@ -66,27 +81,12 @@ function generateLayer(
       });
   }
 
-  switch (type) {
-    case 'background':
-      return generateBackgroundLayer(sources, layer);
-    case 'fill':
-      return generateFillLayer(sources, layer, deckProperties, dataTransform);
-    case 'line':
-      return generateLineLayer(sources, layer);
-    case 'symbol':
-      return generateSymbolLayer(sources, layer);
-    case 'raster':
-      return generateRasterLayer(sources, layer);
-    case 'circle':
-      return generateCircleLayer(sources, layer);
-    case 'fill-extrusion':
-      return generateFillExtrusionLayer(sources, layer);
-    case 'heatmap':
-      return generateHeatmapLayer(sources, layer);
-    default:
-      console.warn(`Invalid/unsupported layer type: ${type}`);
-      return null;
+  if (type === 'fill') {
+    return generateFillLayer(sources, layer, deckProperties, dataTransform);
   }
+
+  log.warn(`Invalid/unsupported layer type: ${type}`)();
+  return null;
 }
 
 /**
@@ -98,4 +98,3 @@ function generateFillExtrusionLayer(
 ) {
   return null;
 }
-

@@ -300,6 +300,7 @@ __metadata:
     "@luma.gl/engine": "npm:~9.3.0-alpha.2"
     "@mapbox/mapbox-gl-style-spec": "npm:^13.12.0"
     "@turf/polygon-to-line": "npm:^6.0.3"
+    vitest: "npm:^4.0.18"
   languageName: unknown
   linkType: soft
 

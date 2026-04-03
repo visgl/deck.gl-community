@@ -19,11 +19,11 @@ import {convertLoadedCubemapToTextureData, createCubemapLoadOptions} from './cub
 
 type AppUniforms = {
   /** World transform for the unit cube used to draw the skybox. */
-  modelMatrix: number[];
+  modelMatrix: any;
   /** View transform with translation removed so the skybox stays camera-centered. */
-  viewMatrix: number[];
+  viewMatrix: any;
   /** Projection transform for the active viewport. */
-  projectionMatrix: number[];
+  projectionMatrix: any;
 };
 
 const app: ShaderModule<AppUniforms, AppUniforms> = {
@@ -33,7 +33,7 @@ const app: ShaderModule<AppUniforms, AppUniforms> = {
     viewMatrix: 'mat4x4<f32>',
     projectionMatrix: 'mat4x4<f32>'
   }
-};
+} as any;
 
 const SKYBOX_PARAMETERS: RenderPipelineParameters = {
   cullMode: 'front',
@@ -77,7 +77,7 @@ type SkyboxLayerState = {
   /** Backing model that renders the cube geometry. */
   model?: Model;
   /** Shader input manager for the skybox uniforms. */
-  shaderInputs?: ShaderInputs<{app: typeof app.props}>;
+  shaderInputs?: ShaderInputs<any>;
 };
 
 /**
@@ -90,7 +90,7 @@ export class SkyboxLayer<
   static defaultProps = defaultProps;
   static layerName = 'SkyboxLayer';
 
-  state!: SkyboxLayerState;
+  declare state: SkyboxLayerState;
 
   /** Initializes the cube model and starts loading the cubemap texture. */
   initializeState(): void {
@@ -112,13 +112,13 @@ export class SkyboxLayer<
       shaderInputs
     });
 
-    void this._loadCubemap();
+    this._loadCubemap().catch(() => {});
   }
 
   /** Reloads the cubemap when its source manifest or load options change. */
   updateState({props, oldProps}: UpdateParameters<this>): void {
     if (props.cubemap !== oldProps.cubemap || props.loadOptions !== oldProps.loadOptions) {
-      void this._loadCubemap();
+      this._loadCubemap().catch(() => {});
     }
   }
 
@@ -148,7 +148,7 @@ export class SkyboxLayer<
   }
 
   /** Creates the luma.gl model used to render the skybox cube. */
-  protected _getModel(shaderInputs: ShaderInputs<{app: typeof app.props}>): Model {
+  protected _getModel(shaderInputs: ShaderInputs<any>): Model {
     return new Model(this.context.device, {
       ...this.getShaders(),
       id: this.props.id,
@@ -209,7 +209,7 @@ export class SkyboxLayer<
       model.setBindings({cubeTexture: texture});
     }
 
-    this.setNeedsRedraw('skybox cubemap updated');
+    this.setNeedsRedraw();
   }
 }
 
@@ -269,7 +269,7 @@ function getSkyboxModelMatrix(orientation: 'default' | 'y-up' = 'default'): Matr
 function createShaderInputModules(defaultShaderModules: ShaderModule[]): {
   [moduleName: string]: ShaderModule;
 } {
-  return Object.fromEntries([app, ...defaultShaderModules].map((module) => [module.name, module]));
+  return Object.fromEntries([app, ...defaultShaderModules].map(module => [module.name, module]));
 }
 
 const SKYBOX_WGSL = /* wgsl */ `

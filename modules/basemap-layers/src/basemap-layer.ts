@@ -3,25 +3,17 @@ import {getBasemapLayers} from './globe-layers';
 import {resolveBasemapStyle, type BasemapStyle, type ResolvedBasemapStyle} from './style-resolver';
 
 /**
- * Logs a non-error basemap-layer runtime event to deck.gl logging and the
- * browser console.
+ * Logs a non-error basemap-layer runtime event to deck.gl logging.
  */
 function logBasemapLayerEvent(message: string, details?: unknown): void {
   log.info(message, details ?? '')();
-  if (details !== undefined) {
-    console.info(`[BasemapLayer] ${message}`, details);
-  } else {
-    console.info(`[BasemapLayer] ${message}`);
-  }
 }
 
 /**
- * Logs a basemap-layer runtime error to deck.gl logging and the browser
- * console.
+ * Logs a basemap-layer runtime error to deck.gl logging.
  */
 function logBasemapLayerError(message: string, error: Error): void {
   log.error(`${message}: ${error.message}`)();
-  console.error(`[BasemapLayer] ${message}`, error);
 }
 
 /**

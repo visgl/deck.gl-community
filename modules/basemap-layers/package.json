@@ -34,8 +34,11 @@
     "src"
   ],
   "scripts": {
-    "test": "yarn --cwd ../.. vitest run modules/basemap-layers/tests/mapbox-style.spec.js",
-    "test-watch": "yarn --cwd ../.. vitest modules/basemap-layers/tests/mapbox-style.spec.js"
+    "test": "yarn --cwd ../.. vitest run --config modules/basemap-layers/vitest.config.ts",
+    "test-watch": "yarn --cwd ../.. vitest --config modules/basemap-layers/vitest.config.ts"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "@deck.gl/core": "~9.3.0-alpha.1",

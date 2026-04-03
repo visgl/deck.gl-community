@@ -9,7 +9,7 @@ export function generateFillLayer(
   layer: BasemapStyleLayer,
   _properties?: Record<string, unknown>,
   dataTransform?: (data: unknown) => unknown
-) {
+): any {
   const source = sources[layer.source || ''];
   if (!source?.tiles) {
     return null;
@@ -22,7 +22,7 @@ export function generateFillLayer(
     data: source.tiles,
     minZoom,
     maxZoom,
-    dataTransform
+    dataTransform: dataTransform as any
   });
 }
 
@@ -32,7 +32,7 @@ export function generateFillLayer(
 export function generateLineLayer(
   _sources: Record<string, BasemapSource>,
   _layer: BasemapStyleLayer
-) {
+): null {
   return null;
 }
 
@@ -42,7 +42,6 @@ export function generateLineLayer(
 export function generateCircleLayer(
   _sources: Record<string, BasemapSource>,
   _layer: BasemapStyleLayer
-) {
+): null {
   return null;
 }
-
