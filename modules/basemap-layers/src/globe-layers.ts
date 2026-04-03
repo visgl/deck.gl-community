@@ -120,6 +120,17 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
   });
 }
 
+function isStyleLayerVisibleAtZoom(
+  styleLayer: BasemapStyleLayer,
+  zoom: number,
+  source?: BasemapSource
+): boolean {
+  const minZoom = styleLayer.minzoom ?? source?.minzoom ?? 0;
+  const maxZoom = styleLayer.maxzoom ?? source?.maxzoom ?? 22;
+
+  return zoom >= minZoom && zoom < maxZoom;
+}
+
 function getTileFeatures(data: unknown): any[] {
   if (Array.isArray(data)) {
     return data;
@@ -393,6 +404,10 @@ function createVectorLayerGroup({
       const features = getTileFeatures(props.data);
       const layers = styleLayers
         .map((styleLayer) => {
+          if (!isStyleLayerVisibleAtZoom(styleLayer, zoom, source)) {
+            return null;
+          }
+
           const filteredData = filterTileFeatures(features, styleLayer, zoom);
 
           if (features.length > 0 && filteredData.length === 0) {
@@ -481,7 +496,7 @@ export function getBasemapLayers({
     layers.push(
       ...getVectorLayers({idPrefix, styleLayers, styleDefinition, zoom, config, loadOptions, mode})
     );
-    layers.push(...getRasterLayers({idPrefix, styleLayers, styleDefinition, mode}));
+    layers.push(...getRasterLayers({idPrefix, styleLayers, styleDefinition, zoom, mode}));
   }
 
   layers.push(...getGlobePostLayers({idPrefix, mode, config, styleLayers, zoom}));
@@ -593,7 +608,7 @@ function getBackgroundLayers({
   mode: BasemapMode;
 }) {
   return styleLayers
-    .filter((layer) => layer.type === 'background')
+    .filter((layer) => layer.type === 'background' && isStyleLayerVisibleAtZoom(layer, zoom))
     .map((layer) => createBackgroundLayer({idPrefix, layer, zoom, mode}));
 }
 
@@ -615,6 +630,10 @@ function getVectorLayers({
   mode: BasemapMode;
 }) {
   const visibleVectorLayers = styleLayers.filter((layer) => {
+    if (!isStyleLayerVisibleAtZoom(layer, zoom, styleDefinition.sources?.[layer.source || ''])) {
+      return false;
+    }
+
     if (layer.type === 'symbol') {
       return config.labels;
     }
@@ -639,17 +658,22 @@ function getRasterLayers({
   idPrefix,
   styleLayers,
   styleDefinition,
+  zoom,
   mode
 }: {
   idPrefix: string;
   styleLayers: BasemapStyleLayer[];
   styleDefinition: ResolvedBasemapStyle;
+  zoom: number;
   mode: BasemapMode;
 }) {
   const rasterLayers = [];
 
   for (const layer of styleLayers) {
-    if (layer.type === 'raster') {
+    if (
+      layer.type === 'raster' &&
+      isStyleLayerVisibleAtZoom(layer, zoom, styleDefinition.sources?.[layer.source || ''])
+    ) {
       const source = styleDefinition.sources?.[layer.source];
       if (!source?.tiles) {
         logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {

@@ -1,6 +1,8 @@
 import {CompositeLayer, log, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
+import {load} from '@loaders.gl/core';
 import {getBasemapLayers} from './globe-layers';
-import {resolveBasemapStyle, type BasemapStyle, type ResolvedBasemapStyle} from './style-resolver';
+import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
+import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
 
 /**
  * Logs a non-error basemap-layer runtime event to deck.gl logging.
@@ -14,6 +16,14 @@ function logBasemapLayerEvent(message: string, details?: unknown): void {
  */
 function logBasemapLayerError(message: string, error: Error): void {
   log.error(`${message}: ${error.message}`)();
+}
+
+function getMapStyleLoaderOptions(
+  loadOptions: BasemapLayerProps['loadOptions']
+): MapStyleLoaderOptions {
+  return {
+    mapStyle: (loadOptions || undefined) as NonNullable<MapStyleLoaderOptions['mapStyle']>
+  };
 }
 
 /**
@@ -116,8 +126,9 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     loadOptions: BasemapLayerProps['loadOptions']
   ): void {
     if (!style) {
+      const loadToken = this.state.loadToken + 1;
       logBasemapLayerEvent('Clearing basemap style');
-      this.setState({resolvedStyle: null, loadError: null});
+      this.setState({resolvedStyle: null, loadError: null, loadToken});
       return;
     }
 
@@ -128,7 +139,14 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       loadToken
     });
 
-    Promise.resolve(resolveBasemapStyle(style, loadOptions))
+    Promise.resolve(
+      typeof style === 'string'
+        ? load(style, MapStyleLoader, getMapStyleLoaderOptions(loadOptions))
+        : MapStyleLoader.parse(
+            new TextEncoder().encode(JSON.stringify(style)).buffer,
+            getMapStyleLoaderOptions(loadOptions)
+          )
+    )
       .then((resolvedStyle) => {
         if (this.state.loadToken === loadToken) {
           logBasemapLayerEvent('Resolved basemap style', {

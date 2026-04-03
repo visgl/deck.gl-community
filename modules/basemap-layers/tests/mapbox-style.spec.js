@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies, import/named */
-import {describe, expect, test} from 'vitest';
+import {describe, expect, test, vi} from 'vitest';
 import {BasemapLayer, getBasemapLayers} from '../src/index.ts';
 import {
   BasemapStyleSchema,
@@ -96,6 +96,38 @@ describe('package exports', () => {
     expect(typeof resolveBasemapStyle).toBe('function');
     expect(MapStyleLoader.id).toBe('map-style');
     expect(typeof BasemapStyleSchema.parse).toBe('function');
+  });
+});
+
+describe('BasemapLayer', () => {
+  test('clearing style invalidates in-flight loader results', async () => {
+    let resolveParse;
+    const parseSpy = vi.spyOn(MapStyleLoader, 'parse').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveParse = resolve;
+        })
+    );
+
+    const layer = {
+      state: {resolvedStyle: null, loadError: null, loadToken: 0},
+      setState(update) {
+        this.state = {...this.state, ...update};
+      }
+    };
+
+    BasemapLayer.prototype.loadStyle.call(layer, {version: 8, sources: {}, layers: []}, null);
+    BasemapLayer.prototype.loadStyle.call(layer, null, null);
+
+    resolveParse({version: 8, sources: {stale: {}}, layers: []});
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(layer.state.loadToken).toBe(2);
+    expect(layer.state.resolvedStyle).toBeNull();
+    expect(layer.state.loadError).toBeNull();
+
+    parseSpy.mockRestore();
   });
 });
 
@@ -272,5 +304,57 @@ describe('getBasemapLayers', () => {
     });
 
     expect(backgroundLayer.props.getFillColor).toEqual([10, 20, 30, 128]);
+  });
+
+  test('skips vector style sublayers outside per-layer zoom bounds', () => {
+    const layers = getBasemapLayers({
+      idPrefix: 'zoom-gate',
+      mode: 'map',
+      zoom: 5,
+      styleDefinition: {
+        version: 8,
+        sources: {
+          carto: {
+            type: 'vector',
+            tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']
+          }
+        },
+        layers: [
+          {
+            id: 'roads-visible',
+            type: 'line',
+            source: 'carto',
+            'source-layer': 'transportation',
+            minzoom: 0,
+            maxzoom: 10,
+            paint: {'line-color': '#112233', 'line-width': 1}
+          },
+          {
+            id: 'roads-hidden',
+            type: 'line',
+            source: 'carto',
+            'source-layer': 'transportation',
+            minzoom: 10,
+            maxzoom: 22,
+            paint: {'line-color': '#445566', 'line-width': 1}
+          }
+        ]
+      }
+    });
+
+    const vectorLayer = layers.find((layer) => layer.id === 'zoom-gate-carto');
+    const sublayers = vectorLayer.props.renderSubLayers({
+      id: 'zoom-gate-carto-tile',
+      data: [
+        {
+          type: 'Feature',
+          geometry: {type: 'LineString', coordinates: []},
+          properties: {layerName: 'transportation'}
+        }
+      ],
+      tile: {index: {x: 0, y: 0, z: 5}}
+    });
+
+    expect(sublayers.map((layer) => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
   });
 });
