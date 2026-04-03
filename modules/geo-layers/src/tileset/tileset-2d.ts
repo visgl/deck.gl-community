@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Viewport} from '@deck.gl/core';
-import {
-  RequestScheduler,
-  type TileSource,
-  type TileSourceMetadata
-} from '@loaders.gl/loader-utils';
-import {Matrix4} from '@math.gl/core';
+import {RequestScheduler, type TileSource, type TileSourceMetadata} from '@loaders.gl/loader-utils';
+import type {Matrix4} from '@math.gl/core';
 import {Stats} from '@probe.gl/stats';
 import {SharedTile2DHeader} from './tile-2d-header';
-import {getTileIndices, tileToBoundingBox} from './utils';
+import type {SharedTileset2DAdapter, SharedTileset2DTileContext} from './adapter';
 import type {TileIndex, TileLoadProps, ZRange} from './types';
 
 export const STRATEGY_NEVER = 'never';
@@ -28,9 +23,11 @@ export type RefinementStrategy =
   | RefinementStrategyFunction;
 
 /** Core configuration shared by all {@link SharedTileset2D} instances. */
-export type Tileset2DProps<DataT = any> = {
+export type Tileset2DProps<DataT = any, ViewStateT = unknown> = {
   /** Callback used to load tile payloads. */
   getTileData: (props: TileLoadProps) => Promise<DataT | null> | DataT | null;
+  /** Adapter used to compute tile traversal and tile metadata. */
+  adapter?: SharedTileset2DAdapter<ViewStateT> | null;
   /** Bounding box limiting tile generation. */
   extent?: number[] | null;
   /** Tile size in pixels. */
@@ -62,6 +59,7 @@ export type Tileset2DProps<DataT = any> = {
 };
 
 export const DEFAULT_TILESET2D_PROPS: Omit<Required<Tileset2DProps>, 'getTileData'> = {
+  adapter: null,
   extent: null,
   tileSize: 512,
   maxZoom: null,
@@ -103,7 +101,10 @@ type ConsumerState<DataT = any> = {
 };
 
 /** Options for creating a shared tile cache that can be reused by multiple layers and views. */
-export type SharedTileset2DProps<DataT = any> = Omit<Tileset2DProps<DataT>, 'getTileData'> & {
+export type SharedTileset2DProps<DataT = any, ViewStateT = unknown> = Omit<
+  Tileset2DProps<DataT, ViewStateT>,
+  'getTileData'
+> & {
   /** Optional tile loader used when not sourcing data from a loaders.gl TileSource. */
   getTileData?: (props: TileLoadProps) => Promise<DataT | null> | DataT | null;
   /** Optional loaders.gl TileSource backing this shared tileset. */
@@ -111,11 +112,11 @@ export type SharedTileset2DProps<DataT = any> = Omit<Tileset2DProps<DataT>, 'get
 };
 
 /** Shared tile cache and loading engine for one or more {@link SharedTile2DLayer} instances. */
-export class SharedTileset2D<DataT = any> {
+export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
   /** Live counters describing shared tileset state. */
   readonly stats: Stats;
   /** Effective runtime options after defaults and metadata overrides have been applied. */
-  protected opts: Required<SharedTileset2DProps<DataT>>;
+  protected opts: Required<SharedTileset2DProps<DataT, ViewStateT>>;
   /** Cached metadata returned by the backing TileSource, if any. */
   protected sourceMetadata: TileSourceMetadata | null = null;
   /** Scheduler shared across all tile requests for this tileset. */
@@ -135,18 +136,18 @@ export class SharedTileset2D<DataT = any> {
   /** Option names explicitly set by the caller. */
   private _explicitOptionKeys = new Set<string>();
   /** Caller-provided options before metadata-derived overrides are applied. */
-  private _baseOpts: Partial<SharedTileset2DProps<DataT>> = {};
+  private _baseOpts: Partial<SharedTileset2DProps<DataT, ViewStateT>> = {};
   /** Derived overrides sourced from TileSource metadata. */
-  private _sourceMetadataOverrides: Partial<SharedTileset2DProps<DataT>> = {};
+  private _sourceMetadataOverrides: Partial<SharedTileset2DProps<DataT, ViewStateT>> = {};
   /** Resolved maximum zoom level used by traversal. */
   private _maxZoom?: number;
   /** Resolved minimum zoom level used by traversal. */
   private _minZoom?: number;
-  /** Most recent viewport seen during tile selection. */
-  private _lastViewport: Viewport | null = null;
+  /** Most recent traversal context used to derive tile metadata. */
+  private _lastTileContext: SharedTileset2DTileContext<ViewStateT> | null = null;
 
   /** Creates a tileset from either `getTileData` or a loaders.gl `TileSource`. */
-  constructor(opts: SharedTileset2DProps<DataT>) {
+  constructor(opts: SharedTileset2DProps<DataT, ViewStateT>) {
     this.stats = new Stats({
       id: 'SharedTileset2D',
       stats: [
@@ -164,7 +165,7 @@ export class SharedTileset2D<DataT = any> {
       ...opts,
       getTileData: opts.getTileData || (() => null),
       tileSource: opts.tileSource
-    } as Required<SharedTileset2DProps<DataT>>;
+    } as Required<SharedTileset2DProps<DataT, ViewStateT>>;
 
     this._requestScheduler = new RequestScheduler({
       throttleRequests: this.opts.maxRequests > 0 || this.opts.debounceTime > 0,
@@ -223,12 +224,12 @@ export class SharedTileset2D<DataT = any> {
 
   /** Tiles currently loading anywhere in the shared cache. */
   get loadingTiles(): SharedTile2DHeader<DataT>[] {
-    return Array.from(this._cache.values()).filter(tile => tile.isLoading);
+    return Array.from(this._cache.values()).filter((tile) => tile.isLoading);
   }
 
   /** Tiles retained in cache that do not currently have loaded content. */
   get unloadedTiles(): SharedTile2DHeader<DataT>[] {
-    return Array.from(this._cache.values()).filter(tile => !tile.isLoaded);
+    return Array.from(this._cache.values()).filter((tile) => !tile.isLoaded);
   }
 
   /** Maximum resolved zoom level after applying metadata and explicit options. */
@@ -244,6 +245,11 @@ export class SharedTileset2D<DataT = any> {
   /** Active refinement strategy for placeholder handling. */
   get refinementStrategy(): RefinementStrategy {
     return this.opts.refinementStrategy || STRATEGY_DEFAULT;
+  }
+
+  /** Adapter currently used for traversal and tile metadata. */
+  get adapter(): SharedTileset2DAdapter<ViewStateT> | null {
+    return this.opts.adapter;
   }
 
   /** Subscribes to tileset lifecycle events. */
@@ -267,7 +273,7 @@ export class SharedTileset2D<DataT = any> {
   }
 
   /** Updates tileset options and reapplies TileSource metadata overrides. */
-  setOptions(opts: SharedTileset2DProps<DataT>): void {
+  setOptions(opts: Partial<SharedTileset2DProps<DataT, ViewStateT>>): void {
     this._rememberExplicitOptions(opts);
     this._baseOpts = {...this._baseOpts, ...opts};
     this._applyResolvedOptions();
@@ -329,26 +335,27 @@ export class SharedTileset2D<DataT = any> {
 
   /** Returns tile indices needed to cover a viewport. */
   getTileIndices({
-    viewport,
+    viewState,
     maxZoom,
     minZoom,
     zRange,
     modelMatrix,
     modelMatrixInverse
   }: {
-    viewport: Viewport;
+    viewState: ViewStateT;
     maxZoom?: number;
     minZoom?: number;
     zRange: ZRange | null;
-    tileSize?: number;
-    modelMatrix?: Matrix4;
-    modelMatrixInverse?: Matrix4;
-    zoomOffset?: number;
+    modelMatrix?: Matrix4 | null;
+    modelMatrixInverse?: Matrix4 | null;
   }): TileIndex[] {
-    this._lastViewport = viewport;
-    const {tileSize, extent, zoomOffset} = this.opts;
-    return getTileIndices({
-      viewport,
+    const {adapter, tileSize, extent, zoomOffset} = this.opts;
+    if (!adapter) {
+      throw new Error('SharedTileset2D requires an adapter before tile traversal can be used.');
+    }
+    this._lastTileContext = {viewState, tileSize};
+    return adapter.getTileIndices({
+      viewState,
       maxZoom,
       minZoom,
       zRange,
@@ -372,11 +379,13 @@ export class SharedTileset2D<DataT = any> {
 
   /** Returns derived metadata used to initialize a tile header. */
   getTileMetadata(index: TileIndex): Record<string, any> {
-    if (!this._lastViewport) {
-      throw new Error('SharedTileset2D metadata requested before a viewport was set.');
+    if (!this._lastTileContext) {
+      throw new Error('SharedTileset2D metadata requested before traversal context was set.');
     }
-    const {tileSize} = this.opts;
-    return {bbox: tileToBoundingBox(this._lastViewport, index.x, index.y, index.z, tileSize)};
+    if (!this.opts.adapter) {
+      throw new Error('SharedTileset2D requires an adapter before tile metadata can be derived.');
+    }
+    return {bbox: this.opts.adapter.getTileBoundingBox(this._lastTileContext, index)};
   }
 
   /** Returns the parent tile index in the quadtree. */
@@ -409,12 +418,14 @@ export class SharedTileset2D<DataT = any> {
     }
 
     if (tile && needsReload) {
-      tile.loadData({
-        getData: this.opts.getTileData,
-        requestScheduler: this._requestScheduler,
-        onLoad: this._handleTileLoad.bind(this),
-        onError: this._handleTileError.bind(this)
-      }).catch(() => {});
+      tile
+        .loadData({
+          getData: this.opts.getTileData,
+          requestScheduler: this._requestScheduler,
+          onLoad: this._handleTileLoad.bind(this),
+          onError: this._handleTileError.bind(this)
+        })
+        .catch(() => {});
       this._updateStats();
     }
 
@@ -436,7 +447,7 @@ export class SharedTileset2D<DataT = any> {
   }
 
   /** Tracks which options were explicitly set by the caller. */
-  private _rememberExplicitOptions(opts: SharedTileset2DProps<DataT>): void {
+  private _rememberExplicitOptions(opts: Partial<SharedTileset2DProps<DataT, ViewStateT>>): void {
     for (const key of Object.keys(opts)) {
       this._explicitOptionKeys.add(key);
     }
@@ -448,7 +459,7 @@ export class SharedTileset2D<DataT = any> {
       ...DEFAULT_TILESET2D_PROPS,
       ...this._sourceMetadataOverrides,
       ...this._baseOpts
-    } as Required<SharedTileset2DProps<DataT>>;
+    } as Required<SharedTileset2DProps<DataT, ViewStateT>>;
 
     if (resolvedOpts.tileSource) {
       const tileSource = resolvedOpts.tileSource;
@@ -468,11 +479,13 @@ export class SharedTileset2D<DataT = any> {
   }
 
   /** Maps TileSource metadata into supported tileset options. */
-  private _getMetadataOverrides(metadata: TileSourceMetadata | null): Partial<SharedTileset2DProps<DataT>> {
+  private _getMetadataOverrides(
+    metadata: TileSourceMetadata | null
+  ): Partial<SharedTileset2DProps<DataT, ViewStateT>> {
     if (!metadata) {
       return {};
     }
-    const overrides: Partial<SharedTileset2DProps<DataT>> = {};
+    const overrides: Partial<SharedTileset2DProps<DataT, ViewStateT>> = {};
     if (!this._explicitOptionKeys.has('minZoom') && Number.isFinite(metadata.minZoom)) {
       overrides.minZoom = metadata.minZoom;
     }

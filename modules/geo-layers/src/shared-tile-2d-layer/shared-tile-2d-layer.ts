@@ -25,12 +25,12 @@ import {
   SharedTile2DHeader,
   type TileLoadProps,
   type ZRange,
-  type URLTemplate,
   type RefinementStrategy,
-  STRATEGY_DEFAULT,
-  getURLFromTemplate
+  STRATEGY_DEFAULT
 } from '../tileset/index';
-import {SharedTile2DView} from '../tileset/tile-2d-view';
+import {SharedTile2DView} from './shared-tile-2d-view';
+import {sharedTile2DDeckAdapter} from './deck-tileset-adapter';
+import {type URLTemplate, getURLFromTemplate} from './url-template';
 
 /** Tests whether a value looks like a loaders.gl {@link TileSource}. */
 function isTileSource(value: unknown): value is TileSource {
@@ -49,7 +49,7 @@ function isURLTemplate(value: unknown): value is URLTemplate {
   return (
     value === null ||
     typeof value === 'string' ||
-    (Array.isArray(value) && value.every(url => typeof url === 'string'))
+    (Array.isArray(value) && value.every((url) => typeof url === 'string'))
   );
 }
 
@@ -106,7 +106,7 @@ const TILE2D_LAYER_DEFAULT_OPTION_VALUES = {
 /** Props for {@link SharedTile2DLayer}. */
 export type SharedTile2DLayerProps<DataT = unknown> = CompositeLayerProps & {
   /** URL template, shared tileset, or loaders.gl TileSource backing the layer. */
-  data: URLTemplate | SharedTileset2D<DataT> | TileSource;
+  data: URLTemplate | SharedTileset2D<DataT, any> | TileSource;
   /** Tileset class used when the layer creates its own internal tileset. */
   TilesetClass?: typeof SharedTileset2D;
   /** Sub-layer factory invoked for each loaded tile. */
@@ -168,7 +168,7 @@ export type SharedTile2DLayerPickingInfo<
 /** Internal mutable state owned by {@link SharedTile2DLayer}. */
 type SharedTile2DLayerState<DataT> = {
   /** Shared or owned tileset used by the layer. */
-  tileset: SharedTileset2D<DataT> | null;
+  tileset: SharedTileset2D<DataT, any> | null;
   /** Per-viewport traversal state. */
   tilesetViews: Map<string, SharedTile2DView<DataT>>;
   /** Whether the layer owns and should finalize the tileset. */
@@ -233,16 +233,14 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
       return false;
     }
     return Boolean(
-      Array.from(tilesetViews.values()).every(tilesetView =>
-        tilesetView.selectedTiles?.every(
-          tile => {
-            const cachedLayers = tileLayers.get(tile.id);
-            return (
-              tile.isLoaded &&
-              (!tile.content || !cachedLayers || cachedLayers.every(layer => layer.isLoaded))
-            );
-          }
-        )
+      Array.from(tilesetViews.values()).every((tilesetView) =>
+        tilesetView.selectedTiles?.every((tile) => {
+          const cachedLayers = tileLayers.get(tile.id);
+          return (
+            tile.isLoaded &&
+            (!tile.content || !cachedLayers || cachedLayers.every((layer) => layer.isLoaded))
+          );
+        })
       )
     );
   }
@@ -257,7 +255,9 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     if (this.context.viewport) {
       this._knownViewports.set(this._getViewportKey(), this.context.viewport);
     }
-    const propsChanged = Boolean(changeFlags.propsOrDataChanged || changeFlags.updateTriggersChanged);
+    const propsChanged = Boolean(
+      changeFlags.propsOrDataChanged || changeFlags.updateTriggersChanged
+    );
     const dataChanged =
       changeFlags.dataChanged ||
       (changeFlags.updateTriggersChanged &&
@@ -265,6 +265,9 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
 
     let {tileset, ownsTileset} = this.state;
     const nextExternalTileset = this.props.data instanceof SharedTileset2D ? this.props.data : null;
+    if (nextExternalTileset && !nextExternalTileset.adapter) {
+      nextExternalTileset.setOptions({adapter: sharedTile2DDeckAdapter});
+    }
     const nextOwnsTileset = !nextExternalTileset;
     const nextTileset = this._resolveTileset(tileset, ownsTileset, nextExternalTileset);
 
@@ -285,7 +288,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
           onTileError: this._onTileError.bind(this),
           onTileUnload: this._onTileUnload.bind(this),
           onUpdate: () => this.setNeedsUpdate(),
-          onError: error => this.raiseError(error, 'loading TileSource metadata')
+          onError: (error) => this.raiseError(error, 'loading TileSource metadata')
         })
       });
     } else {
@@ -297,10 +300,10 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
 
   /** Resolves whether to reuse a shared tileset, reuse an owned tileset, or create a new one. */
   private _resolveTileset(
-    currentTileset: SharedTileset2D<DataT> | null,
+    currentTileset: SharedTileset2D<DataT, any> | null,
     ownsCurrentTileset: boolean,
-    nextExternalTileset: SharedTileset2D<DataT> | null
-  ): SharedTileset2D<DataT> {
+    nextExternalTileset: SharedTileset2D<DataT, any> | null
+  ): SharedTileset2D<DataT, any> {
     if (nextExternalTileset) {
       return nextExternalTileset;
     }
@@ -311,10 +314,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
   }
 
   /** Tears down subscriptions and per-view state for the outgoing tileset. */
-  private _releaseTileset(
-    tileset: SharedTileset2D<DataT> | null,
-    ownsTileset: boolean
-  ): void {
+  private _releaseTileset(tileset: SharedTileset2D<DataT, any> | null, ownsTileset: boolean): void {
     this.state.unsubscribeTilesetEvents?.();
     for (const tilesetView of this.state.tilesetViews.values()) {
       tilesetView.finalize();
@@ -329,7 +329,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     propsChanged: boolean,
     ownsTileset: boolean,
     dataChanged: boolean,
-    tileset: SharedTileset2D<DataT>
+    tileset: SharedTileset2D<DataT, any>
   ): void {
     if (!propsChanged) {
       return;
@@ -362,22 +362,73 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     const tileSource = isTileSource(this.props.data) ? this.props.data : undefined;
     const options = {
       tileSource,
+      adapter: sharedTile2DDeckAdapter,
       getTileData: tileSource ? undefined : this.getTileData.bind(this),
       onTileLoad: () => {},
       onTileError: () => {},
       onTileUnload: () => {}
     } as Record<string, unknown>;
 
-    this._assignTilesetOptionIfExplicit(options, 'maxCacheSize', maxCacheSize, TILE2D_LAYER_DEFAULT_OPTION_VALUES.maxCacheSize);
-    this._assignTilesetOptionIfExplicit(options, 'maxCacheByteSize', maxCacheByteSize, TILE2D_LAYER_DEFAULT_OPTION_VALUES.maxCacheByteSize);
-    this._assignTilesetOptionIfExplicit(options, 'maxZoom', maxZoom, TILE2D_LAYER_DEFAULT_OPTION_VALUES.maxZoom);
-    this._assignTilesetOptionIfExplicit(options, 'minZoom', minZoom, TILE2D_LAYER_DEFAULT_OPTION_VALUES.minZoom);
-    this._assignTilesetOptionIfExplicit(options, 'tileSize', tileSize, TILE2D_LAYER_DEFAULT_OPTION_VALUES.tileSize);
-    this._assignTilesetOptionIfExplicit(options, 'refinementStrategy', refinementStrategy, TILE2D_LAYER_DEFAULT_OPTION_VALUES.refinementStrategy);
-    this._assignTilesetOptionIfExplicit(options, 'extent', extent, TILE2D_LAYER_DEFAULT_OPTION_VALUES.extent);
-    this._assignTilesetOptionIfExplicit(options, 'maxRequests', maxRequests, TILE2D_LAYER_DEFAULT_OPTION_VALUES.maxRequests);
-    this._assignTilesetOptionIfExplicit(options, 'debounceTime', debounceTime, TILE2D_LAYER_DEFAULT_OPTION_VALUES.debounceTime);
-    this._assignTilesetOptionIfExplicit(options, 'zoomOffset', zoomOffset, TILE2D_LAYER_DEFAULT_OPTION_VALUES.zoomOffset);
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'maxCacheSize',
+      maxCacheSize,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.maxCacheSize
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'maxCacheByteSize',
+      maxCacheByteSize,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.maxCacheByteSize
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'maxZoom',
+      maxZoom,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.maxZoom
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'minZoom',
+      minZoom,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.minZoom
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'tileSize',
+      tileSize,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.tileSize
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'refinementStrategy',
+      refinementStrategy,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.refinementStrategy
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'extent',
+      extent,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.extent
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'maxRequests',
+      maxRequests,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.maxRequests
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'debounceTime',
+      debounceTime,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.debounceTime
+    );
+    this._assignTilesetOptionIfExplicit(
+      options,
+      'zoomOffset',
+      zoomOffset,
+      TILE2D_LAYER_DEFAULT_OPTION_VALUES.zoomOffset
+    );
 
     return options;
   }
@@ -507,7 +558,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     if (!tileset) {
       return null;
     }
-    return tileset.tiles.map(tile => {
+    return tileset.tiles.map((tile) => {
       const subLayerProps = this.getSubLayerPropsByTile(tile);
       let layers = tileLayers.get(tile.id);
       if (!tile.isLoaded && !tile.content) {
@@ -524,16 +575,18 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
           _offset: 0,
           tile
         });
-        layers = this._flattenTileLayers(rendered).map(layer =>
+        layers = this._flattenTileLayers(rendered).map((layer) =>
           layer.clone({tile, ...subLayerProps})
         );
         tileLayers.set(tile.id, layers);
       } else if (
         subLayerProps &&
         layers[0] &&
-        Object.keys(subLayerProps).some(propName => layers[0].props[propName] !== subLayerProps[propName])
+        Object.keys(subLayerProps).some(
+          (propName) => layers[0].props[propName] !== subLayerProps[propName]
+        )
       ) {
-        layers = layers.map(layer => layer.clone(subLayerProps));
+        layers = layers.map((layer) => layer.clone(subLayerProps));
         tileLayers.set(tile.id, layers);
       }
       return layers;

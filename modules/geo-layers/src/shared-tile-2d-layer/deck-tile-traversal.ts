@@ -10,8 +10,8 @@ import {
   makeOrientedBoundingBoxFromPoints
 } from '@math.gl/culling';
 import {lngLatToWorld} from '@math.gl/web-mercator';
-import type {Bounds, TileIndex, ZRange} from './types';
-import {osmTile2lngLat} from './utils';
+import type {Bounds, TileIndex, ZRange} from '../tileset/types';
+import {osmTile2lngLat} from './deck-tileset-adapter';
 
 const TILE_SIZE = 512;
 const MAX_MAPS = 3;
@@ -164,6 +164,7 @@ class OSMNode {
   }
 }
 
+/** deck.gl-specific OSM tile traversal for geospatial viewports. */
 export function getOSMTileIndices(
   viewport: Viewport,
   maxZ: number,
@@ -172,7 +173,7 @@ export function getOSMTileIndices(
 ): TileIndex[] {
   const project: ((xyz: number[]) => number[]) | null =
     viewport instanceof _GlobeViewport && viewport.resolution
-      ? xyz => viewport.projectPosition(xyz)
+      ? (xyz) => viewport.projectPosition(xyz)
       : null;
 
   const planes: Plane[] = Object.values(viewport.getFrustumPlanes()).map(

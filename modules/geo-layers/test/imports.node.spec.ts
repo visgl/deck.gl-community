@@ -13,6 +13,7 @@ it('exports TileSourceLayer', () => {
 it('exports SharedTile2DLayer and SharedTileset2D', () => {
   expect(GeoLayers.SharedTile2DLayer).toBeDefined();
   expect(GeoLayers.SharedTileset2D).toBeDefined();
+  expect(GeoLayers.sharedTile2DDeckAdapter).toBeDefined();
   expect(GeoLayers.TileGridLayer).toBeDefined();
 });
 

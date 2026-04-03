@@ -5,8 +5,19 @@
 import {describe, expect, it} from 'vitest';
 import {OrthographicViewport, WebMercatorViewport} from '@deck.gl/core';
 import type {TileSource} from '@loaders.gl/loader-utils';
+import type {SharedTileset2DAdapter} from '../../src';
 import {SharedTile2DLayer, SharedTileset2D} from '../../src';
-import {SharedTile2DView} from '../../src/tileset/tile-2d-view';
+import {SharedTile2DView} from '../../src/shared-tile-2d-layer/shared-tile-2d-view';
+
+const mockTilesetAdapter: SharedTileset2DAdapter<string> = {
+  getTileIndices: () => [],
+  getTileBoundingBox: (_context, index) => ({
+    left: index.x,
+    top: index.y,
+    right: index.x + 1,
+    bottom: index.y + 1
+  })
+};
 
 type TestTileData = Array<{tileId: string}> & {byteLength?: number};
 
@@ -17,14 +28,15 @@ function createMockTileSource(
   } = {}
 ): TileSource {
   return {
-    getMetadata: () => Promise.resolve({
-      minZoom: 1,
-      maxZoom: 4,
-      boundingBox: [
-        [-10, -20],
-        [30, 40]
-      ]
-    }),
+    getMetadata: () =>
+      Promise.resolve({
+        minZoom: 1,
+        maxZoom: 4,
+        boundingBox: [
+          [-10, -20],
+          [30, 40]
+        ]
+      }),
     getTile: () => Promise.resolve(null),
     getTileData: ({id}) => {
       const result = [{tileId: id}] as TestTileData;
@@ -43,13 +55,15 @@ function expectSharedTilesetState(
 ): void {
   expect(leftTileIds.size).toBeGreaterThan(0);
   expect(rightTileIds.size).toBeGreaterThan(0);
-  expect([...leftTileIds].some(id => !rightTileIds.has(id))).toBe(true);
-  expect(sharedTileset.tiles.length).toBeGreaterThanOrEqual(leftTileIds.size + rightTileIds.size - 1);
+  expect([...leftTileIds].some((id) => !rightTileIds.has(id))).toBe(true);
+  expect(sharedTileset.tiles.length).toBeGreaterThanOrEqual(
+    leftTileIds.size + rightTileIds.size - 1
+  );
   expect(sharedTileset.visibleTiles.length).toBeGreaterThanOrEqual(
     Math.max(leftTileIds.size, rightTileIds.size)
   );
-  expect(sharedTileset.visibleTiles.some(tile => leftTileIds.has(tile.id))).toBe(true);
-  expect(sharedTileset.visibleTiles.some(tile => rightTileIds.has(tile.id))).toBe(true);
+  expect(sharedTileset.visibleTiles.some((tile) => leftTileIds.has(tile.id))).toBe(true);
+  expect(sharedTileset.visibleTiles.some((tile) => rightTileIds.has(tile.id))).toBe(true);
   expect(sharedTileset.stats.get('Visible Tiles').count).toBe(sharedTileset.visibleTiles.length);
   expect(sharedTileset.stats.get('Tiles In Cache').count).toBe(sharedTileset.tiles.length);
   expect(sharedTileset.stats.get('Cache Size').count).toBeGreaterThan(0);
@@ -63,7 +77,7 @@ async function waitFor(condition: () => boolean, message: string): Promise<void>
     if (condition()) {
       return;
     }
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
   throw new Error(message);
 }
@@ -79,7 +93,7 @@ describe('SharedTile2DLayer', () => {
     const layer = new SharedTile2DLayer({
       id: 'tile-2d-url-template',
       data: 'https://example.com/{z}/{x}/{y}.json',
-      getTileData: tile => {
+      getTileData: (tile) => {
         requestedUrl = tile.url;
         return null;
       }
@@ -154,8 +168,8 @@ describe('SharedTile2DLayer', () => {
       leftView.update(leftViewport);
       rightView.update(rightViewport);
 
-      const leftTileIds = new Set(leftView.selectedTiles?.map(tile => tile.id));
-      const rightTileIds = new Set(rightView.selectedTiles?.map(tile => tile.id));
+      const leftTileIds = new Set(leftView.selectedTiles?.map((tile) => tile.id));
+      const rightTileIds = new Set(rightView.selectedTiles?.map((tile) => tile.id));
 
       expectSharedTilesetState(sharedTileset, leftTileIds, rightTileIds, statsChangeCount);
 
@@ -172,16 +186,13 @@ describe('SharedTile2DLayer', () => {
   it('evicts least recently used non-visible tiles once the cache exceeds the high-water mark', () => {
     const tileset = new SharedTileset2D({
       getTileData: () => null,
-      maxCacheSize: 2
+      maxCacheSize: 2,
+      adapter: mockTilesetAdapter
     });
-    const viewport = new OrthographicViewport({
-      id: 'cache-test',
-      width: 256,
-      height: 256,
-      target: [0, 0],
-      zoom: 1
+    tileset.getTileIndices({
+      viewState: 'cache-test',
+      zRange: null
     });
-    (tileset as any)._lastViewport = viewport;
 
     const consumerId = Symbol('consumer');
     tileset.attachConsumer(consumerId);
@@ -195,13 +206,28 @@ describe('SharedTile2DLayer', () => {
     const tile3 = tileset.getTile({x: 0, y: 1, z: 1}, true);
     tileset.updateConsumer(consumerId, [tile3], [tile3]);
 
-    expect(tileset.tiles.map(tile => tile.id)).toContain('0-0-1');
-    expect(tileset.tiles.map(tile => tile.id)).toContain('0-1-1');
-    expect(tileset.tiles.map(tile => tile.id)).not.toContain('1-0-1');
+    expect(tileset.tiles.map((tile) => tile.id)).toContain('0-0-1');
+    expect(tileset.tiles.map((tile) => tile.id)).toContain('0-1-1');
+    expect(tileset.tiles.map((tile) => tile.id)).not.toContain('1-0-1');
     expect(tileset.stats.get('Tiles In Cache').count).toBe(2);
     expect(tileset.stats.get('Unloaded Tiles').count).toBe(2);
 
     tileset.detachConsumer(consumerId);
+    tileset.finalize();
+  });
+
+  it('throws if traversal is requested without an adapter', () => {
+    const tileset = new SharedTileset2D({
+      getTileData: () => null
+    });
+
+    expect(() =>
+      tileset.getTileIndices({
+        viewState: 'missing-adapter',
+        zRange: null
+      })
+    ).toThrow('SharedTileset2D requires an adapter before tile traversal can be used.');
+
     tileset.finalize();
   });
 
@@ -221,7 +247,10 @@ describe('SharedTile2DLayer', () => {
     });
 
     externalView.update(viewport);
-    await waitFor(() => externalView.isLoaded, 'expected shared tileset to load before finalization');
+    await waitFor(
+      () => externalView.isLoaded,
+      'expected shared tileset to load before finalization'
+    );
 
     (layer as any).state = {
       tileset: sharedTileset,

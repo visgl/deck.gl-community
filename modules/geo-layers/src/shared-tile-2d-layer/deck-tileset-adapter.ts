@@ -2,16 +2,23 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Viewport} from '@deck.gl/core';
+import type {Viewport} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
-import {getOSMTileIndices} from './tile-2d-traversal';
-import type {Bounds, GeoBoundingBox, TileBoundingBox, TileIndex, ZRange} from './types';
+import type {Bounds, GeoBoundingBox, TileBoundingBox, TileIndex, ZRange} from '../tileset/types';
+import type {
+  SharedTileset2DAdapter,
+  SharedTileset2DTileContext,
+  SharedTileset2DTraversalContext
+} from '../tileset/adapter';
+import {getOSMTileIndices} from './deck-tile-traversal';
 
 const TILE_SIZE = 512;
 const DEFAULT_EXTENT: Bounds = [-Infinity, -Infinity, Infinity, Infinity];
 
-export type URLTemplate = string | string[] | null;
+/** deck.gl viewport type used by the shared tile layer adapter. */
+export type SharedTile2DDeckViewState = Viewport;
 
+/** Applies a model transform to an axis-aligned bounding box. */
 export function transformBox(bbox: Bounds, modelMatrix: Matrix4): Bounds {
   const transformedCoords = [
     modelMatrix.transformAsPoint([bbox[0], bbox[1]]),
@@ -20,42 +27,11 @@ export function transformBox(bbox: Bounds, modelMatrix: Matrix4): Bounds {
     modelMatrix.transformAsPoint([bbox[2], bbox[3]])
   ];
   return [
-    Math.min(...transformedCoords.map(i => i[0])),
-    Math.min(...transformedCoords.map(i => i[1])),
-    Math.max(...transformedCoords.map(i => i[0])),
-    Math.max(...transformedCoords.map(i => i[1]))
+    Math.min(...transformedCoords.map((i) => i[0])),
+    Math.min(...transformedCoords.map((i) => i[1])),
+    Math.max(...transformedCoords.map((i) => i[0])),
+    Math.max(...transformedCoords.map((i) => i[1]))
   ];
-}
-
-function stringHash(s: string): number {
-  return Math.abs(s.split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0));
-}
-
-export function getURLFromTemplate(
-  template: URLTemplate,
-  tile: {
-    index: TileIndex;
-    id: string;
-  }
-): string | null {
-  if (!template || !template.length) {
-    return null;
-  }
-  const {index, id} = tile;
-
-  if (Array.isArray(template)) {
-    template = template[stringHash(id) % template.length];
-  }
-
-  let url = template;
-  for (const key of Object.keys(index)) {
-    url = url.replace(new RegExp(`{${key}}`, 'g'), String(index[key as keyof TileIndex]));
-  }
-
-  if (Number.isInteger(index.y) && Number.isInteger(index.z)) {
-    url = url.replace(/\{-y\}/g, String(Math.pow(2, index.z) - index.y - 1));
-  }
-  return url;
 }
 
 function getBoundingBox(viewport: Viewport, zRange: number[] | null, extent: Bounds): Bounds {
@@ -89,6 +65,7 @@ function getBoundingBox(viewport: Viewport, zRange: number[] | null, extent: Bou
   ];
 }
 
+/** Computes cull bounds in projected/world coordinates for one deck viewport. */
 export function getCullBounds({
   viewport,
   z,
@@ -99,7 +76,7 @@ export function getCullBounds({
   cullRect: {x: number; y: number; width: number; height: number};
 }): [number, number, number, number][] {
   const subViewports = viewport.subViewports || [viewport];
-  return subViewports.map(v => getCullBoundsInViewport(v, z || 0, cullRect));
+  return subViewports.map((v) => getCullBoundsInViewport(v, z || 0, cullRect));
 }
 
 function getCullBoundsInViewport(
@@ -137,17 +114,22 @@ function getCullBoundsInViewport(
   ];
 }
 
-function getIndexingCoords(bbox: Bounds, scale: number, modelMatrixInverse?: Matrix4): Bounds {
+function getIndexingCoords(
+  bbox: Bounds,
+  scale: number,
+  modelMatrixInverse?: Matrix4 | null
+): Bounds {
   if (modelMatrixInverse) {
-    return transformBox(bbox, modelMatrixInverse).map(i => (i * scale) / TILE_SIZE) as Bounds;
+    return transformBox(bbox, modelMatrixInverse).map((i) => (i * scale) / TILE_SIZE) as Bounds;
   }
-  return bbox.map(i => (i * scale) / TILE_SIZE) as Bounds;
+  return bbox.map((i) => (i * scale) / TILE_SIZE) as Bounds;
 }
 
 function getScale(z: number, tileSize: number): number {
   return (Math.pow(2, z) * TILE_SIZE) / tileSize;
 }
 
+/** Converts an OSM tile coordinate to longitude/latitude. */
 export function osmTile2lngLat(x: number, y: number, z: number): [number, number] {
   const scale = getScale(z, TILE_SIZE);
   const lng = (x / scale) * 360 - 180;
@@ -161,7 +143,7 @@ function tile2XY(x: number, y: number, z: number, tileSize: number): [number, nu
   return [(x / scale) * TILE_SIZE, (y / scale) * TILE_SIZE];
 }
 
-export function tileToBoundingBox(
+function tileToBoundingBox(
   viewport: Viewport,
   x: number,
   y: number,
@@ -183,7 +165,7 @@ function getIdentityTileIndices(
   z: number,
   tileSize: number,
   extent: Bounds,
-  modelMatrixInverse?: Matrix4
+  modelMatrixInverse?: Matrix4 | null
 ): TileIndex[] {
   const bbox = getBoundingBox(viewport, null, extent);
   const scale = getScale(z, tileSize);
@@ -198,49 +180,6 @@ function getIdentityTileIndices(
   return indices;
 }
 
-export function getTileIndices({
-  viewport,
-  maxZoom,
-  minZoom,
-  zRange,
-  extent,
-  tileSize = TILE_SIZE,
-  modelMatrix,
-  modelMatrixInverse,
-  zoomOffset = 0
-}: {
-  viewport: Viewport;
-  maxZoom?: number;
-  minZoom?: number;
-  zRange: ZRange | null;
-  extent?: Bounds;
-  tileSize?: number;
-  modelMatrix?: Matrix4;
-  modelMatrixInverse?: Matrix4;
-  zoomOffset?: number;
-}): TileIndex[] {
-  let z = getTileZoomForViewport(viewport, tileSize, zoomOffset);
-  z = applyZoomBounds(z, minZoom, maxZoom, extent);
-  if (z === null) {
-    return [];
-  }
-
-  let transformedExtent = extent;
-  if (modelMatrix && modelMatrixInverse && extent && !viewport.isGeospatial) {
-    transformedExtent = transformBox(extent, modelMatrix);
-  }
-
-  return viewport.isGeospatial
-    ? getOSMTileIndices(viewport, z, zRange, extent)
-    : getIdentityTileIndices(
-        viewport,
-        z,
-        tileSize,
-        transformedExtent || DEFAULT_EXTENT,
-        modelMatrixInverse
-      );
-}
-
 function getTileZoomForViewport(viewport: Viewport, tileSize: number, zoomOffset: number): number {
   return viewport.isGeospatial
     ? Math.round(viewport.zoom + Math.log2(TILE_SIZE / tileSize)) + zoomOffset
@@ -251,7 +190,7 @@ function applyZoomBounds(
   z: number,
   minZoom: number | undefined,
   maxZoom: number | undefined,
-  extent?: Bounds
+  extent?: Bounds | null
 ): number | null {
   if (typeof minZoom === 'number' && Number.isFinite(minZoom) && z < minZoom) {
     if (!extent) {
@@ -265,10 +204,54 @@ function applyZoomBounds(
   return z;
 }
 
-export function isURLTemplate(s: string): boolean {
-  return /(?=.*{z})(?=.*{x})(?=.*({y}|{-y}))/.test(s);
+function getDeckTileIndices(context: SharedTileset2DTraversalContext<Viewport>): TileIndex[] {
+  const {
+    viewState: viewport,
+    maxZoom,
+    minZoom,
+    zRange = null,
+    extent,
+    tileSize = TILE_SIZE,
+    modelMatrix,
+    modelMatrixInverse,
+    zoomOffset = 0
+  } = context;
+  let z = getTileZoomForViewport(viewport, tileSize, zoomOffset);
+  z = applyZoomBounds(z, minZoom, maxZoom, extent);
+  if (z === null) {
+    return [];
+  }
+
+  let transformedExtent = extent || undefined;
+  if (modelMatrix && modelMatrixInverse && extent && !viewport.isGeospatial) {
+    transformedExtent = transformBox(extent, modelMatrix);
+  }
+
+  return viewport.isGeospatial
+    ? getOSMTileIndices(viewport, z, zRange, extent || undefined)
+    : getIdentityTileIndices(
+        viewport,
+        z,
+        tileSize,
+        transformedExtent || DEFAULT_EXTENT,
+        modelMatrixInverse
+      );
 }
 
+function getDeckTileBoundingBox(
+  context: SharedTileset2DTileContext<Viewport>,
+  index: TileIndex
+): TileBoundingBox {
+  return tileToBoundingBox(context.viewState, index.x, index.y, index.z, context.tileSize);
+}
+
+/** Deck.gl adapter used by {@link SharedTile2DLayer} to drive a generic {@link SharedTileset2D}. */
+export const sharedTile2DDeckAdapter: SharedTileset2DAdapter<Viewport> = {
+  getTileIndices: getDeckTileIndices,
+  getTileBoundingBox: getDeckTileBoundingBox
+};
+
+/** Type guard for geographic tile bounds. */
 export function isGeoBoundingBox(v: any): v is GeoBoundingBox {
   return (
     Number.isFinite(v.west) &&

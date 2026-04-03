@@ -4,3 +4,4 @@
 
 export {SharedTile2DLayer} from './shared-tile-2d-layer';
 export type {SharedTile2DLayerProps, SharedTile2DLayerPickingInfo} from './shared-tile-2d-layer';
+export {sharedTile2DDeckAdapter} from './deck-tileset-adapter';

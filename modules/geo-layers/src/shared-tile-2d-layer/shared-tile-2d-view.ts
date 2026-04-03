@@ -2,14 +2,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Viewport} from '@deck.gl/core';
+import {type Viewport} from '@deck.gl/core';
 import {Matrix4, equals, type NumericArray} from '@math.gl/core';
 
 import {memoize} from '../utils/memoize';
-import {getCullBounds, transformBox} from './utils';
-import {STRATEGY_DEFAULT, STRATEGY_NEVER, STRATEGY_REPLACE} from './tileset-2d';
-import type {SharedTileset2D} from './tileset-2d';
-import {SharedTile2DHeader} from './tile-2d-header';
+import {
+  STRATEGY_DEFAULT,
+  STRATEGY_NEVER,
+  STRATEGY_REPLACE,
+  SharedTile2DHeader,
+  type SharedTileset2D
+} from '../tileset/index';
+import {getCullBounds, sharedTile2DDeckAdapter, transformBox} from './deck-tileset-adapter';
 
 /** Bit flag marking a tile as visited during refinement traversal. */
 const TILE_STATE_VISITED = 1;
@@ -33,13 +37,13 @@ type TileViewState = {
   state: number;
 };
 
-/** Per-viewport traversal state for a shared {@link SharedTileset2D}. */
+/** Per-viewport traversal state for the deck-facing shared tile layer. */
 export class SharedTile2DView<DataT = any> {
   /** Unique consumer identifier used by the shared tileset cache. */
   readonly id = Symbol('tile-2d-view');
 
   /** Shared tileset queried by this view. */
-  private _tileset: SharedTileset2D<DataT>;
+  private _tileset: SharedTileset2D<DataT, Viewport>;
   /** Tiles selected during the latest traversal. */
   private _selectedTiles: SharedTile2DHeader<DataT>[] | null = null;
   /** Incremented whenever this view's visible tile set changes. */
@@ -56,8 +60,11 @@ export class SharedTile2DView<DataT = any> {
   private _state = new Map<SharedTile2DHeader<DataT>, TileViewState>();
 
   /** Creates a viewport-specific view of a shared tileset. */
-  constructor(tileset: SharedTileset2D<DataT>) {
+  constructor(tileset: SharedTileset2D<DataT, Viewport>) {
     this._tileset = tileset;
+    if (!this._tileset.adapter) {
+      this._tileset.setOptions({adapter: sharedTile2DDeckAdapter});
+    }
     this._tileset.attachConsumer(this.id);
   }
 
@@ -75,12 +82,12 @@ export class SharedTile2DView<DataT = any> {
 
   /** Indicates whether all selected tiles are fully loaded for this view. */
   get isLoaded(): boolean {
-    return this._selectedTiles !== null && this._selectedTiles.every(tile => tile.isLoaded);
+    return this._selectedTiles !== null && this._selectedTiles.every((tile) => tile.isLoaded);
   }
 
   /** Indicates whether any selected tile needs to be re-requested. */
   get needsReload(): boolean {
-    return this._selectedTiles !== null && this._selectedTiles.some(tile => tile.needsReload);
+    return this._selectedTiles !== null && this._selectedTiles.some((tile) => tile.needsReload);
   }
 
   /** Updates tile selection and visibility for a viewport and returns the current frame number. */
@@ -110,17 +117,19 @@ export class SharedTile2DView<DataT = any> {
       this._viewport = viewport;
       this._zRange = zRange;
       const tileIndices = this._tileset.getTileIndices({
-        viewport,
+        viewState: viewport,
         maxZoom: this._tileset.maxZoom,
         minZoom: this._tileset.minZoom,
         zRange,
         modelMatrix: this._modelMatrix,
         modelMatrixInverse: this._modelMatrixInverse
       });
-      this._selectedTiles = tileIndices.map(index => this._tileset.getTile(index, true));
+      this._selectedTiles = tileIndices.map((index) => this._tileset.getTile(index, true));
       this._tileset.prepareTiles();
     } else if (this.needsReload) {
-      this._selectedTiles = (this._selectedTiles || []).map(tile => this._tileset.getTile(tile.index, true));
+      this._selectedTiles = (this._selectedTiles || []).map((tile) =>
+        this._tileset.getTile(tile.index, true)
+      );
       this._tileset.prepareTiles();
     }
 
@@ -152,7 +161,7 @@ export class SharedTile2DView<DataT = any> {
       z: this._zRange,
       cullRect
     });
-    return boundsArr.some(bounds => this._tileOverlapsBounds(tile, bounds, modelMatrix));
+    return boundsArr.some((bounds) => this._tileOverlapsBounds(tile, bounds, modelMatrix));
   }
 
   /** Collects tiles currently marked visible for this view. */
@@ -234,7 +243,10 @@ export class SharedTile2DView<DataT = any> {
 }
 
 /** Default refinement strategy that prefers best available loaded descendants. */
-function updateTileStateDefault(allTiles: SharedTile2DHeader[], stateMap: Map<SharedTile2DHeader, TileViewState>) {
+function updateTileStateDefault(
+  allTiles: SharedTile2DHeader[],
+  stateMap: Map<SharedTile2DHeader, TileViewState>
+) {
   for (const tile of allTiles) {
     getTileState(stateMap, tile).state = 0;
   }
@@ -250,7 +262,10 @@ function updateTileStateDefault(allTiles: SharedTile2DHeader[], stateMap: Map<Sh
 }
 
 /** Replacement refinement strategy that avoids visible overlap between ancestors and descendants. */
-function updateTileStateReplace(allTiles: SharedTile2DHeader[], stateMap: Map<SharedTile2DHeader, TileViewState>) {
+function updateTileStateReplace(
+  allTiles: SharedTile2DHeader[],
+  stateMap: Map<SharedTile2DHeader, TileViewState>
+) {
   for (const tile of allTiles) {
     getTileState(stateMap, tile).state = 0;
   }
@@ -278,36 +293,47 @@ function updateTileStateReplace(allTiles: SharedTile2DHeader[], stateMap: Map<Sh
 function getPlaceholderInAncestors(
   startTile: SharedTile2DHeader,
   stateMap: Map<SharedTile2DHeader, TileViewState>
-) {
+): boolean {
   let tile: SharedTile2DHeader | null = startTile;
-  while (tile) {
+  while ((tile = tile.parent)) {
+    const state = getTileState(stateMap, tile);
+    state.state |= TILE_STATE_VISIBLE | TILE_STATE_VISITED;
     if (tile.isLoaded || tile.content) {
-      getTileState(stateMap, tile).state |= TILE_STATE_VISIBLE;
       return true;
     }
-    tile = tile.parent;
   }
   return false;
 }
 
 /** Searches downward for loaded descendants that can stand in for an unavailable selected tile. */
-function getPlaceholderInChildren(tile: SharedTile2DHeader, stateMap: Map<SharedTile2DHeader, TileViewState>) {
-  for (const child of tile.children || []) {
-    if (child.isLoaded || child.content) {
-      getTileState(stateMap, child).state |= TILE_STATE_VISIBLE;
-    } else {
+function getPlaceholderInChildren(
+  tile: SharedTile2DHeader,
+  stateMap: Map<SharedTile2DHeader, TileViewState>
+): void {
+  const state = getTileState(stateMap, tile);
+  state.state |= TILE_STATE_VISIBLE | TILE_STATE_VISITED;
+
+  if (!tile.children || !tile.children.length || tile.isLoaded || tile.content) {
+    return;
+  }
+
+  for (const child of tile.children) {
+    const childState = getTileState(stateMap, child);
+    if (!(childState.state & TILE_STATE_VISITED)) {
       getPlaceholderInChildren(child, stateMap);
     }
   }
 }
 
+/** Returns view state for a tile, creating a default record when needed. */
 function getTileState(
   stateMap: Map<SharedTile2DHeader, TileViewState>,
   tile: SharedTile2DHeader
 ): TileViewState {
-  const state = stateMap.get(tile);
-  if (!state) {
-    throw new Error(`Missing tile state for ${tile.id}`);
+  let tileState = stateMap.get(tile);
+  if (!tileState) {
+    tileState = {isSelected: false, isVisible: false, state: 0};
+    stateMap.set(tile, tileState);
   }
-  return state;
+  return tileState;
 }
