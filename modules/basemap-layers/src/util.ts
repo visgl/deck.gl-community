@@ -36,4 +36,3 @@ export function featuresArrayToObject(
 
   return {[sourceName]: featuresByLayer};
 }
-

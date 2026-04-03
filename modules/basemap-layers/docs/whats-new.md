@@ -6,7 +6,7 @@
 - Added a public `BasemapLayer` composite layer
 - Added style-resolution helpers for style URLs, in-memory styles, and TileJSON-backed sources
 - Added globe-oriented basemap helper exports and example usage
-- Updated module documentation to describe the current runtime and style-spec APIs
+- Updated module documentation to describe the current runtime and map-style APIs
 
 ## December 2020
 

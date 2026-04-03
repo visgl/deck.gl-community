@@ -111,7 +111,10 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
    * Resolves the configured style input and stores the latest successful result
    * in layer state.
    */
-  loadStyle(style: BasemapLayerProps['style'], loadOptions: BasemapLayerProps['loadOptions']): void {
+  loadStyle(
+    style: BasemapLayerProps['style'],
+    loadOptions: BasemapLayerProps['loadOptions']
+  ): void {
     if (!style) {
       logBasemapLayerEvent('Clearing basemap style');
       this.setState({resolvedStyle: null, loadError: null});
@@ -126,7 +129,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     });
 
     Promise.resolve(resolveBasemapStyle(style, loadOptions))
-      .then(resolvedStyle => {
+      .then((resolvedStyle) => {
         if (this.state.loadToken === loadToken) {
           logBasemapLayerEvent('Resolved basemap style', {
             loadToken,

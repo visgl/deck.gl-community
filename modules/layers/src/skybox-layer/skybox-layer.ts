@@ -269,7 +269,7 @@ function getSkyboxModelMatrix(orientation: 'default' | 'y-up' = 'default'): Matr
 function createShaderInputModules(defaultShaderModules: ShaderModule[]): {
   [moduleName: string]: ShaderModule;
 } {
-  return Object.fromEntries([app, ...defaultShaderModules].map(module => [module.name, module]));
+  return Object.fromEntries([app, ...defaultShaderModules].map((module) => [module.name, module]));
 }
 
 const SKYBOX_WGSL = /* wgsl */ `

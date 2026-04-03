@@ -86,10 +86,7 @@ function evaluateStyleValue(value: unknown, zoom: number): unknown {
 /**
  * Replaces style-spec token placeholders in a label template.
  */
-function resolveTokenString(
-  template: unknown,
-  properties?: Record<string, any>
-): string | null {
+function resolveTokenString(template: unknown, properties?: Record<string, any>): string | null {
   if (typeof template !== 'string') {
     return null;
   }
@@ -208,7 +205,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       const features = Array.isArray(data) ? data : data.features || [];
       const labelData = features.flatMap((feature, index) => {
         const labelAnchors = this.getLabelAnchors(feature);
-        return labelAnchors.map(position => this.getSubLayerRow({position}, feature, index));
+        return labelAnchors.map((position) => this.getSubLayerRow({position}, feature, index));
       });
 
       this.setState({labelData});
@@ -246,22 +243,22 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           characterSet: 'auto',
           collisionEnabled: true,
           collisionGroup: 'basemap-labels',
-          getCollisionPriority: this.getSubLayerAccessor(
-            (feature: FeatureLike) => getCollisionPriority(feature)
+          getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
+            getCollisionPriority(feature)
           ) as any,
           fontFamily: this.props.fontFamily,
           sizeUnits: labelSizeUnits,
           background: hasBackground,
           getBackgroundColor: (hasBackground ? labelBackground : [0, 0, 0, 0]) as any,
           getPosition: (d: LabelRow) => d.position,
-          getText: this.getSubLayerAccessor(
-            (feature: FeatureLike) => this.getLabel(feature)
+          getText: this.getSubLayerAccessor((feature: FeatureLike) =>
+            this.getLabel(feature)
           ) as any,
-          getSize: this.getSubLayerAccessor(
-            (feature: FeatureLike) => this.getLabelSize(feature)
+          getSize: this.getSubLayerAccessor((feature: FeatureLike) =>
+            this.getLabelSize(feature)
           ) as any,
-          getColor: this.getSubLayerAccessor(
-            (feature: FeatureLike) => this.getLabelColor(feature)
+          getColor: this.getSubLayerAccessor((feature: FeatureLike) =>
+            this.getLabelColor(feature)
           ) as any
         })
       );

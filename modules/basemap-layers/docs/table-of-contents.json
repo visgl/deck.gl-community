@@ -24,7 +24,8 @@
       "entries": [
         {"entry": "docs/basemap-layers"},
         {"entry": "docs/api-reference/basemap-layer"},
-        {"entry": "docs/api-reference/style-parser"}
+        {"entry": "docs/api-reference/map-style"},
+        {"entry": "docs/api-reference/map-style-loader"}
       ]
     }
   ]

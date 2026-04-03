@@ -70,7 +70,7 @@ export function filterFeatures({
 
   const filterFn = featureFilter(filter).filter;
 
-  return features.filter(feature => {
+  return features.filter((feature) => {
     if (![1, 2, 3].includes(Number(feature.type))) {
       feature.type = GEOM_TYPES[feature.geometry?.type || ''] ?? feature.type;
     }
@@ -112,7 +112,7 @@ export function parseProperties(
   globalProperties: GlobalProperties
 ): Array<Record<string, unknown>> {
   const layerProperties: Array<Record<string, unknown>> = [];
-  visitProperties(layer, {paint: true}, property => {
+  visitProperties(layer, {paint: true}, (property) => {
     layerProperties.push(parseProperty(property, globalProperties));
   });
 
@@ -133,7 +133,7 @@ function visitProperties(
       return;
     }
 
-    Object.keys(properties).forEach(key => {
+    Object.keys(properties).forEach((key) => {
       callback({
         layer: targetLayer,
         path: [targetLayer.id, propertyType, key],
@@ -194,4 +194,3 @@ function parseProperty(
 
   return {[property.key]: result};
 }
-

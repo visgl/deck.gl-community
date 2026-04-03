@@ -50,9 +50,8 @@ new BasemapLayer({
 - `getGlobeBaseLayers`
 - `getGlobeTopLayers`
 - `resolveBasemapStyle`
-- `generateLayers`
 
-The pure style helpers are exported from `@deck.gl-community/basemap-layers/style-spec`.
+The separate map-style helpers are exported from `@deck.gl-community/basemap-layers/map-style`.
 
 ## Local Development
 

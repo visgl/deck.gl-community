@@ -1,3 +1,5 @@
+import {BasemapStyleSchema, ResolvedBasemapStyleSchema} from './map-style-schema';
+
 /**
  * A basemap source entry from a style document.
  */
@@ -100,7 +102,7 @@ function normalizeUrl(url: string | undefined, baseUrl?: string) {
 
 /** Resolves all tile templates in a source against the source base URL. */
 function normalizeTiles(tiles: string[] | undefined, baseUrl?: string) {
-  return Array.isArray(tiles) ? tiles.map(tile => normalizeUrl(tile, baseUrl) || tile) : tiles;
+  return Array.isArray(tiles) ? tiles.map((tile) => normalizeUrl(tile, baseUrl) || tile) : tiles;
 }
 
 /** Fetches and parses a JSON resource. */
@@ -151,8 +153,9 @@ export async function resolveBasemapStyle(
   style: string | BasemapStyle,
   loadOptions?: BasemapLoadOptions
 ): Promise<ResolvedBasemapStyle> {
-  const styleDefinition: BasemapStyle =
-    typeof style === 'string' ? await fetchJson(style, loadOptions) : structuredClone(style);
+  const styleDefinition = BasemapStyleSchema.parse(
+    typeof style === 'string' ? await fetchJson(style, loadOptions) : structuredClone(style)
+  );
   const baseUrl = typeof style === 'string' ? style : loadOptions?.baseUrl;
   const resolvedSources: Record<string, BasemapSource> = {};
 
@@ -162,9 +165,9 @@ export async function resolveBasemapStyle(
     })
   );
 
-  return {
+  return ResolvedBasemapStyleSchema.parse({
     ...styleDefinition,
     sources: resolvedSources,
     layers: [...(styleDefinition.layers || [])]
-  };
+  });
 }

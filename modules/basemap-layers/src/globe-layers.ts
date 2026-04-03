@@ -4,11 +4,8 @@ import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './AtmosphereLayer';
 import {MVTLabelLayer} from './MVTLabelLayer';
-import {filterFeatures, parseProperties} from './style-spec';
-import type {
-  BasemapGlobeConfig,
-  BasemapLayerProps
-} from './basemap-layer';
+import {filterFeatures, parseProperties} from './map-style';
+import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
   BasemapSource,
@@ -48,26 +45,49 @@ function logBasemapRuntimeError(message: string, error: unknown, details?: unkno
 }
 
 function getBackgroundParameters(mode: BasemapMode) {
-  return (mode === 'globe'
-    ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
-    : {depthTest: false, cullMode: 'none'}) as any;
+  return (
+    mode === 'globe'
+      ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
+      : {depthTest: false, cullMode: 'none'}
+  ) as any;
 }
 
 function getTileParameters(mode: BasemapMode) {
-  return (mode === 'globe'
-    ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
-    : {depthTest: false, cullMode: 'none'}) as any;
+  return (
+    mode === 'globe'
+      ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
+      : {depthTest: false, cullMode: 'none'}
+  ) as any;
 }
 
-const BACKGROUND_DATA = [[[-180, 90], [0, 90], [180, 90], [180, -90], [0, -90], [-180, -90]]];
+const BACKGROUND_DATA = [
+  [
+    [-180, 90],
+    [0, 90],
+    [180, 90],
+    [180, -90],
+    [0, -90],
+    [-180, -90]
+  ]
+];
 
 const BACKGROUND_NORTH_POLE_DATA = [
-  [[-180, 90], [0, 90], [180, 90], [180, 85], [0, 85], [-180, 85]]
+  [
+    [-180, 90],
+    [0, 90],
+    [180, 90],
+    [180, 85],
+    [0, 85],
+    [-180, 85]
+  ]
 ];
 
 const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster']);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
-function withOpacity(color: number[] | null | undefined, opacity = 1): [number, number, number, number] {
+function withOpacity(
+  color: number[] | null | undefined,
+  opacity = 1
+): [number, number, number, number] {
   if (!color) {
     return [0, 0, 0, 0];
   }
@@ -78,20 +98,26 @@ function withOpacity(color: number[] | null | undefined, opacity = 1): [number, 
 
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
   const properties = parseProperties(layer, {zoom});
-  return Object.fromEntries(properties.map(entry => [Object.keys(entry)[0], Object.values(entry)[0]]));
+  return Object.fromEntries(
+    properties.map((entry) => [Object.keys(entry)[0], Object.values(entry)[0]])
+  );
 }
 
 function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom: number): any[] {
   const sourceLayer = styleLayer['source-layer'];
   const sourceFeatures = sourceLayer
-    ? features.filter(feature => feature.properties?.layerName === sourceLayer)
+    ? features.filter((feature) => feature.properties?.layerName === sourceLayer)
     : features;
 
   if (!styleLayer.filter) {
     return sourceFeatures;
   }
 
-  return filterFeatures({features: sourceFeatures, filter: styleLayer.filter, globalProperties: {zoom}});
+  return filterFeatures({
+    features: sourceFeatures,
+    filter: styleLayer.filter,
+    globalProperties: {zoom}
+  });
 }
 
 function getTileFeatures(data: unknown): any[] {
@@ -99,7 +125,11 @@ function getTileFeatures(data: unknown): any[] {
     return data;
   }
 
-  if (data && typeof data === 'object' && Array.isArray((data as {features?: unknown[]}).features)) {
+  if (
+    data &&
+    typeof data === 'object' &&
+    Array.isArray((data as {features?: unknown[]}).features)
+  ) {
     return (data as {features: unknown[]}).features as any[];
   }
 
@@ -179,7 +209,7 @@ function createBackgroundLayer({
   return new SolidPolygonLayer({
     id: `${idPrefix}-${layer.id}`,
     data: BACKGROUND_DATA,
-    getPolygon: d => d,
+    getPolygon: (d) => d,
     stroked: false,
     filled: true,
     getFillColor: withOpacity(paint['background-color'], paint['background-opacity'] ?? 1),
@@ -204,7 +234,7 @@ function createRasterLayer({
     minZoom: layer.minzoom ?? source.minzoom ?? 0,
     maxZoom: layer.maxzoom ?? source.maxzoom ?? 22,
     tileSize: source.tileSize || 512,
-    renderSubLayers: props => {
+    renderSubLayers: (props) => {
       const {west, south, east, north} = (props.tile?.bbox || {}) as {
         west: number;
         south: number;
@@ -221,7 +251,7 @@ function createRasterLayer({
         parameters: getTileParameters(mode)
       } as any);
     },
-    onTileError: error => {
+    onTileError: (error) => {
       logBasemapRuntimeError('Raster tile failed to load', error, {
         layerId: layer.id,
         sourceId: layer.source
@@ -296,7 +326,10 @@ function createStyledVectorSubLayer({
     (styleLayer.type === 'fill' ? paint['fill-opacity'] : paint['line-opacity']) ??
     1;
   const fillColor = withOpacity(paint['fill-color'], opacity);
-  const lineColor = withOpacity(paint['line-color'] || paint['fill-outline-color'] || [0, 0, 0, 0], opacity);
+  const lineColor = withOpacity(
+    paint['line-color'] || paint['fill-outline-color'] || [0, 0, 0, 0],
+    opacity
+  );
 
   if (styleLayer.type === 'symbol') {
     return createSymbolSubLayer({props, styleLayer, features, config, mode, zoom, opacity, paint});
@@ -324,8 +357,8 @@ function createVectorLayerGroup({
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
 }) {
-  const minZoom = Math.min(...styleLayers.map(layer => layer.minzoom ?? source.minzoom ?? 0));
-  const maxZoom = Math.max(...styleLayers.map(layer => layer.maxzoom ?? source.maxzoom ?? 22));
+  const minZoom = Math.min(...styleLayers.map((layer) => layer.minzoom ?? source.minzoom ?? 0));
+  const maxZoom = Math.max(...styleLayers.map((layer) => layer.maxzoom ?? source.maxzoom ?? 22));
 
   return new StyledMVTLayer({
     id: `${idPrefix}-${sourceId}`,
@@ -341,12 +374,12 @@ function createVectorLayerGroup({
         shape: 'geojson'
       }
     },
-    onTileError: error => {
+    onTileError: (error) => {
       logBasemapRuntimeError('Vector tile layer failed', error, {
         sourceId
       });
     },
-    onTileLoad: tile => {
+    onTileLoad: (tile) => {
       const features = Array.isArray(tile.content) ? tile.content : [];
       if (features.length === 0) {
         logBasemapRuntimeEvent('Loaded empty vector tile', {
@@ -356,10 +389,10 @@ function createVectorLayerGroup({
       }
     },
     parameters: getTileParameters(mode),
-    renderSubLayers: props => {
+    renderSubLayers: (props) => {
       const features = getTileFeatures(props.data);
       const layers = styleLayers
-        .map(styleLayer => {
+        .map((styleLayer) => {
           const filteredData = filterTileFeatures(features, styleLayer, zoom);
 
           if (features.length > 0 && filteredData.length === 0) {
@@ -367,9 +400,9 @@ function createVectorLayerGroup({
               sourceId,
               layerId: styleLayer.id,
               sourceLayer: styleLayer['source-layer'],
-            tileIndex: props.tile?.index
-          });
-        }
+              tileIndex: props.tile?.index
+            });
+          }
 
           return createStyledVectorSubLayer({
             idPrefix,
@@ -382,16 +415,19 @@ function createVectorLayerGroup({
             mode
           });
         })
-        .filter(layer => Boolean(layer));
+        .filter((layer) => Boolean(layer));
 
       return layers as any;
     }
   } as any);
 }
 
-function inferWaterColor(styleLayers: BasemapStyleLayer[], zoom: number): [number, number, number, number] {
+function inferWaterColor(
+  styleLayers: BasemapStyleLayer[],
+  zoom: number
+): [number, number, number, number] {
   const waterLayer = styleLayers.find(
-    layer => layer.type === 'fill' && `${layer['source-layer'] || ''}`.includes('water')
+    (layer) => layer.type === 'fill' && `${layer['source-layer'] || ''}`.includes('water')
   );
 
   if (!waterLayer) {
@@ -428,7 +464,9 @@ export function getBasemapLayers({
   loadOptions
 }: BasemapLayerGroup) {
   const config = getConfig(globe);
-  const styleLayers = (styleDefinition.layers || []).filter(layer => SUPPORTED_TYPES.has(layer.type));
+  const styleLayers = (styleDefinition.layers || []).filter((layer) =>
+    SUPPORTED_TYPES.has(layer.type)
+  );
   const layers: any[] = [];
   logBasemapRuntimeEvent('Generating basemap layers', {
     mode,
@@ -448,7 +486,7 @@ export function getBasemapLayers({
 
   layers.push(...getGlobePostLayers({idPrefix, mode, config, styleLayers, zoom}));
 
-  return layers.filter(layer => Boolean(layer));
+  return layers.filter((layer) => Boolean(layer));
 }
 
 export function getGlobeBaseLayers({
@@ -555,8 +593,8 @@ function getBackgroundLayers({
   mode: BasemapMode;
 }) {
   return styleLayers
-    .filter(layer => layer.type === 'background')
-    .map(layer => createBackgroundLayer({idPrefix, layer, zoom, mode}));
+    .filter((layer) => layer.type === 'background')
+    .map((layer) => createBackgroundLayer({idPrefix, layer, zoom, mode}));
 }
 
 function getVectorLayers({
@@ -576,14 +614,14 @@ function getVectorLayers({
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
 }) {
-  const visibleVectorLayers = styleLayers.filter(layer => {
+  const visibleVectorLayers = styleLayers.filter((layer) => {
     if (layer.type === 'symbol') {
       return config.labels;
     }
     return layer.type === 'fill' || layer.type === 'line';
   });
 
-  return getVectorSourceGroups(visibleVectorLayers, styleDefinition).map(group =>
+  return getVectorSourceGroups(visibleVectorLayers, styleDefinition).map((group) =>
     createVectorLayerGroup({
       idPrefix,
       sourceId: group.sourceId,
@@ -663,13 +701,13 @@ function getGlobePreLayers({
     layers.push(getGlobeAtmosphereSkyLayer());
   }
 
-  const hasBackground = styleLayers.some(layer => layer.type === 'background');
+  const hasBackground = styleLayers.some((layer) => layer.type === 'background');
   if (mode === 'globe' && !hasBackground) {
     layers.push(
       new SolidPolygonLayer({
         id: `${idPrefix}-background-fallback`,
         data: BACKGROUND_DATA,
-        getPolygon: d => d,
+        getPolygon: (d) => d,
         stroked: false,
         filled: true,
         getFillColor: [10, 24, 46, 255],
@@ -701,7 +739,7 @@ function getGlobePostLayers({
       new SolidPolygonLayer({
         id: `${idPrefix}-background-north-pole`,
         data: BACKGROUND_NORTH_POLE_DATA,
-        getPolygon: d => d,
+        getPolygon: (d) => d,
         stroked: false,
         filled: true,
         getFillColor: inferWaterColor(styleLayers, zoom),
