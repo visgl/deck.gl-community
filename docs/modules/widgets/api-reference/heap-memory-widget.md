@@ -1,8 +1,12 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # HeapMemoryWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<WidgetLiveExample highlight="heap-memory-widget" />
 
 `HeapMemoryWidget` is a small diagnostic widget that displays browser JS heap usage in gigabytes.
 
@@ -21,12 +25,11 @@ type HeapMemoryWidgetProps = WidgetProps & {
 };
 ```
 
-
 ## Usage
 
 ```ts
 new Deck({
-  widgets: [new HeapMemoryWidget({ pollIntervalMs: 1000 })],
+  widgets: [new HeapMemoryWidget({pollIntervalMs: 1000})]
 });
 ```
 

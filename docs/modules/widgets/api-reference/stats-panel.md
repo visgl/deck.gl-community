@@ -1,8 +1,12 @@
+import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
+
 # StatsPanel
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<WidgetPanelsLiveExample highlight="stats-panel" />
 
 `StatsPanel` renders a compact table from a [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `@probe.gl/stats`.
 
@@ -26,7 +30,6 @@ type StatsPanelProps = {
   theme?: WidgetPanelTheme;
 };
 ```
-
 
 ## Usage
 

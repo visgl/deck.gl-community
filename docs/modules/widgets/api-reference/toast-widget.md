@@ -1,8 +1,12 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # ToastWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<WidgetLiveExample highlight="toast-widget" />
 
 `ToastWidget` is a deck.gl HTML widget that renders a compact toast stack in the deck overlay.
 
@@ -14,7 +18,7 @@ import {
   toastManager,
   type ToastEntry,
   type ToastKind,
-  type ToastRequest,
+  type ToastRequest
 } from '@deck.gl-community/widgets';
 ```
 
@@ -51,19 +55,18 @@ Default props:
 - `placement: 'bottom-right'`
 - `showBorder: false`
 
-
 ## Usage
 
 ```ts
 new Deck({
-  widgets: [new ToastWidget()],
+  widgets: [new ToastWidget()]
 });
 
 toastManager.toast({
   type: 'warning',
   title: 'Build delayed',
   message: 'Dependency graph refresh is still running',
-  key: 'build-status',
+  key: 'build-status'
 });
 ```
 

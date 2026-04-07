@@ -6,6 +6,7 @@
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {Stats} from '@probe.gl/stats';
 import {render} from 'preact';
 import {
   AccordeonPanel,
@@ -18,6 +19,7 @@ import {
   ModalWidget,
   SettingsPanel,
   SidebarWidget,
+  StatsPanel,
   TabbedPanel,
   TextEditorPanel,
   type KeyboardShortcut,
@@ -37,6 +39,7 @@ export type WidgetPanelsExampleHighlight =
   | 'modal-widget'
   | 'sidebar-widget'
   | 'settings-panel'
+  | 'stats-panel'
   | 'keyboard-shortcuts-panel'
   | 'text-editor-panel'
   | 'accordeon-panel'
@@ -171,6 +174,7 @@ const HIGHLIGHT_LABELS: Record<WidgetPanelsExampleHighlight, string> = {
   'modal-widget': 'ModalWidget',
   'sidebar-widget': 'SidebarWidget',
   'settings-panel': 'SettingsPanel',
+  'stats-panel': 'StatsPanel',
   'keyboard-shortcuts-panel': 'KeyboardShortcutsPanel',
   'text-editor-panel': 'TextEditorPanel',
   'accordeon-panel': 'AccordeonPanel',
@@ -1117,6 +1121,27 @@ function buildBoxWidgetMarkdownPanel() {
   });
 }
 
+function buildStatsPanel() {
+  const stats = new Stats({
+    id: 'Widget docs',
+    stats: [{name: 'Visible Points'}, {name: 'Filtered Points'}, {name: 'Theme Updates'}]
+  });
+  stats.get('Visible Points').addCount(POINTS.length);
+  stats.get('Filtered Points').addCount(POINTS.length);
+  stats.get('Theme Updates').addCount(3);
+
+  return new StatsPanel({
+    id: 'docs-stats-panel',
+    title: 'Stats',
+    stats,
+    labels: {
+      'Visible Points': 'Visible points',
+      'Filtered Points': 'Filtered points',
+      'Theme Updates': 'Theme updates'
+    }
+  });
+}
+
 function renderDocsModalPreview(rootElement: HTMLElement, panel: WidgetPanel): void {
   const container: WidgetContainer = {
     kind: 'panel',
@@ -1156,6 +1181,8 @@ function buildHighlightedPanel(
     case 'accordeon-panel':
     case 'settings-panel':
       return buildSidebarPanel(state, handlers, highlight);
+    case 'stats-panel':
+      return buildStatsPanel();
     case 'keyboard-shortcuts-panel':
       return new KeyboardShortcutsPanel({
         keyboardShortcuts: KEYBOARD_SHORTCUTS

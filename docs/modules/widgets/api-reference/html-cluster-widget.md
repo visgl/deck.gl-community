@@ -1,4 +1,8 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # HtmlClusterWidget
+
+<WidgetLiveExample highlight="html-cluster-widget" />
 
 Cluster HTML overlay items based on zoom level. Subclass this widget and implement the abstract
 methods to describe your data. Each method should return [`HtmlOverlayItem`](./html-overlay-item.md)

@@ -1,8 +1,12 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # ResetViewWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<WidgetLiveExample highlight="reset-view-widget" />
 
 `ResetViewWidget` is a small icon button widget that invokes a caller-provided “fit/reset view” callback.
 
@@ -27,7 +31,6 @@ Default props:
 - `id: 'reset-view'`
 - `placement: 'top-left'`
 - `label: 'Resize to fit'`
-
 
 ## Usage
 

@@ -1,8 +1,12 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # YZoomWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<WidgetLiveExample highlight="y-zoom-widget" />
 
 `YZoomWidget` is a vertical zoom control for orthographic trace views.
 
@@ -30,7 +34,6 @@ Default props:
 - `id: 'y-zoom'`
 - `placement: 'top-left'`
 - `step: 0.1`
-
 
 ## Usage
 

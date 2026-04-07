@@ -1,8 +1,12 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # OmniBoxWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<WidgetLiveExample highlight="omni-box-widget" />
 
 `OmniBoxWidget` is a deck.gl HTML widget that renders a one-line omnibox input with an autocomplete dropdown.
 
@@ -13,10 +17,9 @@ import {
   OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
-  type OmniBoxRenderOptionArgs,
+  type OmniBoxRenderOptionArgs
 } from '@deck.gl-community/widgets';
 ```
-
 
 ## Types
 
@@ -68,7 +71,7 @@ const widget = new OmniBoxWidget({
   minQueryLength: 1,
   getOptions: (query) => searchBlocks(query),
   onSelectOption: (option) => zoomToBlock((option.data as any).blockId),
-  onNavigateOption: (option) => zoomToBlock((option.data as any).blockId),
+  onNavigateOption: (option) => zoomToBlock((option.data as any).blockId)
 });
 ```
 

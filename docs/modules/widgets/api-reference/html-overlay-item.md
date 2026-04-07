@@ -1,4 +1,8 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # HtmlOverlayItem
+
+<WidgetLiveExample highlight="html-overlay-item" />
 
 An HTML element that will be positioned by [`HtmlOverlayWidget`](./html-overlay-widget.md) or
 [`HtmlClusterWidget`](./html-cluster-widget.md).
