@@ -44,7 +44,8 @@ export const MapStyleLoader = {
     options?: MapStyleLoaderOptions,
     context?: LoaderContext
   ) => {
-    const text = new TextDecoder().decode(arrayBuffer);
+    const text =
+      typeof arrayBuffer === 'string' ? arrayBuffer : new TextDecoder().decode(arrayBuffer);
     const style = JSON.parse(text) as BasemapStyle;
     const resolved = await resolveBasemapStyle(style, getMapStyleLoadOptions(options, context));
     return ResolvedBasemapStyleSchema.parse(resolved);

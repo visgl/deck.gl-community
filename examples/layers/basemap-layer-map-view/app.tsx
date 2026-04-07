@@ -14,7 +14,7 @@ import {
 } from '../../../modules/widgets/src';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
-import '@deck.gl/widgets/stylesheet.css';
+// import '@deck.gl/widgets/stylesheet.css';
 
 type ExampleBasemapStyle = typeof deckLightStyle | string | RasterBasemapStyle;
 

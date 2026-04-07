@@ -17,7 +17,7 @@ import {SkyboxLayer} from '../../../modules/layers/src';
 import {TYCHO_CUBEMAP} from '../skybox-assets/cubemap';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
-import '@deck.gl/widgets/stylesheet.css';
+// import '@deck.gl/widgets/stylesheet.css';
 
 type City = {
   name: string;
