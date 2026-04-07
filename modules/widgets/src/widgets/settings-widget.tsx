@@ -1,9 +1,10 @@
 /** @jsxImportSource preact */
 import {Widget} from '@deck.gl/core';
 import {render} from 'preact';
-import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
+import {useEffect, useRef, useState} from 'preact/hooks';
 
-import {IconButton, makeTextIcon} from '../preact-components/icon-button';
+import {SettingsPanelContent} from '../widget-panels/settings-panel';
+import {IconButton, makeTextIcon} from '../widget-components/icon-button';
 
 import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {JSX} from 'preact';
@@ -58,7 +59,7 @@ export type SettingsWidgetProps = WidgetProps & {
   onSettingsChange?: (settings: SettingsWidgetState) => void;
 };
 
-const PANE_STYLE: JSX.CSSProperties = {
+const PANE_STYLE: JSX.CSSProperties & Record<string, string | number> = {
   position: 'absolute',
   top: 'calc(100% + 8px)',
   left: 0,
@@ -73,7 +74,17 @@ const PANE_STYLE: JSX.CSSProperties = {
   flexDirection: 'column',
   overflow: 'hidden',
   pointerEvents: 'auto',
-  zIndex: 20
+  zIndex: 20,
+  '--button-background': 'rgba(30, 41, 59, 0.92)',
+  '--button-background-hover': 'rgba(15, 23, 42, 0.9)',
+  '--button-inner-stroke': '1px solid rgba(100, 116, 139, 0.72)',
+  '--button-corner-radius': '8px',
+  '--button-text': 'rgba(241, 245, 249, 0.98)',
+  '--button-icon-idle': 'rgba(203, 213, 225, 0.92)',
+  '--button-icon-hover': 'rgba(125, 211, 252, 0.98)',
+  '--button-backdrop-filter': 'blur(10px)',
+  '--container-background': 'rgba(15, 23, 42, 0.98)',
+  '--menu-item-hover': 'rgba(51, 65, 85, 0.82)'
 };
 
 const HEADER_STYLE: JSX.CSSProperties = {
@@ -84,408 +95,10 @@ const HEADER_STYLE: JSX.CSSProperties = {
   padding: '10px 12px'
 };
 
-const SECTION_TOGGLE_STYLE: JSX.CSSProperties = {
-  width: '100%',
-  border: 0,
-  margin: 0,
-  padding: '8px 12px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '8px',
-  background: 'rgba(30, 41, 59, 0.75)',
-  color: 'inherit',
-  cursor: 'pointer',
-  fontSize: '12px'
-};
-
-const SECTION_CONTENT_STYLE: JSX.CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  padding: '8px 12px 12px'
-};
-
-const SETTING_ROW_STYLE: JSX.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(120px, 1fr) minmax(200px, 1.4fr)',
-  alignItems: 'center',
-  gap: '8px'
-};
-
-const SETTING_LABEL_STYLE: JSX.CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 600,
-  color: 'rgba(226, 232, 240, 0.98)',
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis'
-};
-
-const SETTING_CONTROL_STYLE: JSX.CSSProperties = {
-  minWidth: 0,
-  display: 'flex',
-  alignItems: 'center'
-};
-
-const INPUT_STYLE: JSX.CSSProperties = {
-  width: '100%',
-  border: '1px solid rgba(100, 116, 139, 0.8)',
-  borderRadius: '4px',
-  backgroundColor: 'rgba(15, 23, 42, 0.7)',
-  color: 'inherit',
-  fontSize: '12px',
-  padding: '4px 6px',
-  boxSizing: 'border-box'
-};
-
-const RANGE_INPUT_STYLE: JSX.CSSProperties = {
-  width: '100%',
-  minWidth: '120px',
-  margin: 0
-};
-
-const NUMBER_INPUT_STYLE: JSX.CSSProperties = {
-  ...INPUT_STYLE,
-  width: '84px',
-  flexShrink: 0
-};
-
-const CHECKBOX_STYLE: JSX.CSSProperties = {
-  width: '14px',
-  height: '14px',
-  margin: 0
-};
-
 const SETTINGS_BUTTON_ICON = makeTextIcon('⚙', 24, 36);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function parsePath(path: string): string[] {
-  return path
-    .split('.')
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-}
-
-function getValueAtPath(settings: SettingsWidgetState, path: string): unknown {
-  const segments = parsePath(path);
-  if (!segments.length) {
-    return undefined;
-  }
-
-  let current: unknown = settings;
-  for (const segment of segments) {
-    if (!isRecord(current)) {
-      return undefined;
-    }
-    current = current[segment];
-  }
-  return current;
-}
-
-function setValueAtPath(
-  settings: SettingsWidgetState,
-  path: string,
-  value: SettingsWidgetValue
-): SettingsWidgetState {
-  const segments = parsePath(path);
-  if (!segments.length) {
-    return settings;
-  }
-
-  const nextSettings: SettingsWidgetState = {...settings};
-  let writeCursor: Record<string, unknown> = nextSettings;
-  let readCursor: Record<string, unknown> = settings;
-
-  segments.forEach((segment, index) => {
-    const isLeaf = index === segments.length - 1;
-
-    if (isLeaf) {
-      writeCursor[segment] = value;
-      return;
-    }
-
-    const existingChild = readCursor[segment];
-    const nextChild = isRecord(existingChild) ? {...existingChild} : {};
-    writeCursor[segment] = nextChild;
-
-    writeCursor = nextChild;
-    readCursor = isRecord(existingChild) ? existingChild : {};
-  });
-
-  return nextSettings;
-}
-
-function clamp(value: number, min?: number, max?: number): number {
-  let clamped = value;
-  if (Number.isFinite(min)) {
-    clamped = Math.max(min, clamped);
-  }
-  if (Number.isFinite(max)) {
-    clamped = Math.min(max, clamped);
-  }
-  return clamped;
-}
-
-function getSectionKey(section: SettingsWidgetSectionDescriptor, index: number): string {
-  return section.id ?? section.name ?? `section-${index}`;
-}
-
-function getInitialCollapsedState(section: SettingsWidgetSectionDescriptor): boolean {
-  return section.initiallyCollapsed ?? true;
-}
-
-function buildInitialCollapsedState(
-  sections: SettingsWidgetSectionDescriptor[]
-): Record<string, boolean> {
-  return sections.reduce<Record<string, boolean>>((result, section, index) => {
-    result[getSectionKey(section, index)] = getInitialCollapsedState(section);
-    return result;
-  }, {});
-}
-
-function normalizeOption(option: SettingsWidgetOption): {
-  label: string;
-  value: SettingsWidgetValue;
-} {
-  if (isRecord(option) && 'label' in option && 'value' in option) {
-    return {
-      label: String(option.label),
-      value: option.value
-    };
-  }
-
-  return {
-    label: String(option),
-    value: option
-  };
-}
-
-function getDefaultValue(setting: SettingsWidgetSettingDescriptor): SettingsWidgetValue {
-  if (setting.defaultValue !== undefined) {
-    return setting.defaultValue;
-  }
-
-  if (setting.type === 'boolean') {
-    return false;
-  }
-
-  if (setting.type === 'number') {
-    return Number.isFinite(setting.min) ? setting.min : 0;
-  }
-
-  if (setting.type === 'select') {
-    if (setting.options?.length) {
-      return normalizeOption(setting.options[0]).value;
-    }
-    return '';
-  }
-
-  return '';
-}
-
-// eslint-disable-next-line complexity
-function resolveSettingValue(
-  setting: SettingsWidgetSettingDescriptor,
-  settings: SettingsWidgetState
-): SettingsWidgetValue {
-  const currentValue = getValueAtPath(settings, setting.name);
-
-  if (setting.type === 'boolean') {
-    return typeof currentValue === 'boolean' ? currentValue : (getDefaultValue(setting) as boolean);
-  }
-
-  if (setting.type === 'number') {
-    const numericValue =
-      typeof currentValue === 'number'
-        ? currentValue
-        : Number.isFinite(Number(currentValue))
-          ? Number(currentValue)
-          : (getDefaultValue(setting) as number);
-    return clamp(numericValue, setting.min, setting.max);
-  }
-
-  if (setting.type === 'select') {
-    const normalizedOptions = (setting.options ?? []).map(normalizeOption);
-    const defaultValue = getDefaultValue(setting);
-    const candidateValue =
-      typeof currentValue === 'string' ||
-      typeof currentValue === 'number' ||
-      typeof currentValue === 'boolean'
-        ? currentValue
-        : defaultValue;
-
-    if (!normalizedOptions.length) {
-      return String(candidateValue);
-    }
-
-    const match = normalizedOptions.find((option) => option.value === candidateValue);
-    return match ? match.value : normalizedOptions[0].value;
-  }
-
-  if (typeof currentValue === 'string') {
-    return currentValue;
-  }
-
-  const defaultValue = getDefaultValue(setting);
-  return typeof defaultValue === 'string' ? defaultValue : String(defaultValue);
-}
-
-function mergeCollapsedState(
-  previous: Record<string, boolean>,
-  sections: SettingsWidgetSectionDescriptor[]
-): Record<string, boolean> {
-  const nextState: Record<string, boolean> = {};
-
-  sections.forEach((section, index) => {
-    const key = getSectionKey(section, index);
-    nextState[key] = previous[key] ?? getInitialCollapsedState(section);
-  });
-
-  return nextState;
-}
 
 function stopPropagation(event: Event) {
   event.stopPropagation();
-}
-
-type SettingsControlProps = {
-  setting: SettingsWidgetSettingDescriptor;
-  value: SettingsWidgetValue;
-  onValueChange: (nextValue: SettingsWidgetValue) => void;
-};
-
-// eslint-disable-next-line complexity
-function SettingsControl({setting, value, onValueChange}: SettingsControlProps) {
-  const label = setting.label ?? setting.name;
-  const tooltip = setting.description?.trim();
-  const inputId = `settings-widget-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-
-  const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    onValueChange(event.currentTarget.checked);
-  };
-
-  const handleNumberChange = (nextValue: number) => {
-    if (!Number.isFinite(nextValue)) {
-      return;
-    }
-    onValueChange(clamp(nextValue, setting.min, setting.max));
-  };
-
-  const handleTextChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
-    onValueChange(event.currentTarget.value);
-  };
-
-  const handleSelectChange: JSX.GenericEventHandler<HTMLSelectElement> = (event) => {
-    const selectedRaw = event.currentTarget.value;
-    const selectedValue = (setting.options ?? []).map(normalizeOption).find((option) => {
-      return String(option.value) === selectedRaw;
-    });
-    onValueChange(selectedValue ? selectedValue.value : selectedRaw);
-  };
-
-  let control: JSX.Element;
-
-  if (setting.type === 'boolean') {
-    control = (
-      <input
-        id={inputId}
-        type="checkbox"
-        checked={Boolean(value)}
-        onInput={handleBooleanChange}
-        onChange={handleBooleanChange}
-        aria-label={label}
-        style={CHECKBOX_STYLE}
-      />
-    );
-  } else if (setting.type === 'number') {
-    const numericValue = Number(value);
-    const showRange = Number.isFinite(setting.min) && Number.isFinite(setting.max);
-
-    control = showRange ? (
-      <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%'}}>
-        <input
-          id={inputId}
-          type="range"
-          min={String(setting.min)}
-          max={String(setting.max)}
-          step={String(setting.step ?? 1)}
-          value={String(numericValue)}
-          onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
-          onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
-          aria-label={label}
-          style={RANGE_INPUT_STYLE}
-        />
-        <input
-          type="number"
-          min={Number.isFinite(setting.min) ? String(setting.min) : undefined}
-          max={Number.isFinite(setting.max) ? String(setting.max) : undefined}
-          step={String(setting.step ?? 1)}
-          value={String(numericValue)}
-          onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
-          onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
-          aria-label={`${label} numeric value`}
-          style={NUMBER_INPUT_STYLE}
-        />
-      </div>
-    ) : (
-      <input
-        id={inputId}
-        type="number"
-        step={String(setting.step ?? 1)}
-        value={String(numericValue)}
-        onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
-        onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
-        aria-label={label}
-        style={INPUT_STYLE}
-      />
-    );
-  } else if (setting.type === 'select') {
-    const normalizedOptions = (setting.options ?? []).map(normalizeOption);
-
-    control = (
-      <select
-        id={inputId}
-        value={String(value)}
-        onInput={handleSelectChange}
-        onChange={handleSelectChange}
-        aria-label={label}
-        style={INPUT_STYLE}
-      >
-        {normalizedOptions.map((option, index) => (
-          <option
-            key={`${setting.name}-${index}-${String(option.value)}`}
-            value={String(option.value)}
-          >
-            {option.label}
-          </option>
-        ))}
-      </select>
-    );
-  } else {
-    control = (
-      <input
-        id={inputId}
-        type="text"
-        value={String(value)}
-        onInput={handleTextChange}
-        onChange={handleTextChange}
-        aria-label={label}
-        style={INPUT_STYLE}
-      />
-    );
-  }
-
-  return (
-    <div data-setting-row-for={setting.name} style={SETTING_ROW_STYLE} title={tooltip}>
-      <label htmlFor={inputId} style={SETTING_LABEL_STYLE}>
-        {label}
-      </label>
-      <div style={SETTING_CONTROL_STYLE}>{control}</div>
-    </div>
-  );
 }
 
 type SettingsWidgetViewProps = {
@@ -501,18 +114,6 @@ const DEFAULT_SETTINGS_WIDGET_STATE: SettingsWidgetState = {};
 function SettingsWidgetView({label, schema, settings, onSettingsChange}: SettingsWidgetViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isPaneOpen, setIsPaneOpen] = useState(false);
-  const [localSettings, setLocalSettings] = useState<SettingsWidgetState>(settings);
-  const [collapsedState, setCollapsedState] = useState<Record<string, boolean>>(() =>
-    buildInitialCollapsedState(schema.sections)
-  );
-
-  useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
-
-  useEffect(() => {
-    setCollapsedState((previous) => mergeCollapsedState(previous, schema.sections));
-  }, [schema.sections]);
 
   useEffect(() => {
     if (isPaneOpen && typeof document !== 'undefined') {
@@ -533,23 +134,6 @@ function SettingsWidgetView({label, schema, settings, onSettingsChange}: Setting
 
     return undefined;
   }, [isPaneOpen]);
-
-  const sectionEntries = useMemo(
-    () =>
-      schema.sections.map((section, index) => ({
-        key: getSectionKey(section, index),
-        section
-      })),
-    [schema.sections]
-  );
-
-  const updateSetting = (path: string, nextValue: SettingsWidgetValue) => {
-    setLocalSettings((previous) => {
-      const nextSettings = setValueAtPath(previous, path, nextValue);
-      onSettingsChange?.(nextSettings);
-      return nextSettings;
-    });
-  };
 
   return (
     <div ref={containerRef} style={{position: 'relative', pointerEvents: 'auto'}}>
@@ -592,49 +176,11 @@ function SettingsWidgetView({label, schema, settings, onSettingsChange}: Setting
             </button>
           </div>
 
-          <div style={{overflowY: 'auto', paddingBottom: '8px'}}>
-            {sectionEntries.map(({key, section}) => {
-              const isCollapsed = collapsedState[key] ?? false;
-              return (
-                <div key={key} style={{borderBottom: '1px solid rgba(51, 65, 85, 0.7)'}}>
-                  <button
-                    type="button"
-                    style={SECTION_TOGGLE_STYLE}
-                    onClick={() =>
-                      setCollapsedState((previous) => ({
-                        ...previous,
-                        [key]: !isCollapsed
-                      }))
-                    }
-                    aria-expanded={!isCollapsed}
-                  >
-                    <span style={{display: 'grid', gap: '2px', textAlign: 'left'}}>
-                      <span style={{fontWeight: 700, fontSize: '12px'}}>{section.name}</span>
-                      {section.description && (
-                        <span style={{fontSize: '11px', color: 'rgba(148, 163, 184, 1)'}}>
-                          {section.description}
-                        </span>
-                      )}
-                    </span>
-                    <span aria-hidden>{isCollapsed ? '▸' : '▾'}</span>
-                  </button>
-
-                  {!isCollapsed && (
-                    <div style={SECTION_CONTENT_STYLE}>
-                      {section.settings.map((setting) => (
-                        <SettingsControl
-                          key={setting.name}
-                          setting={setting}
-                          value={resolveSettingValue(setting, localSettings)}
-                          onValueChange={(nextValue) => updateSetting(setting.name, nextValue)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <SettingsPanelContent
+            schema={schema}
+            settings={settings}
+            onSettingsChange={onSettingsChange}
+          />
         </div>
       )}
     </div>

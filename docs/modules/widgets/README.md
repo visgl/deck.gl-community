@@ -44,6 +44,8 @@ The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) show
 
 The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the panel composition APIs with a persistent sidebar, a tabbed modal, and a static info box built from shared panel definitions.
 
+See the [Widget Panels developer guide](./developer-guide/widget-panels.md) for the core panel composition concepts.
+
 The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxWidget`.
 
 ### HTML overlays
@@ -65,17 +67,58 @@ const overlayWidget = new HtmlOverlayWidget({
 The [HTML overlays example](/examples/widgets/html-overlays) shows styled city callouts bound to
 map positions via the widget lifecycle.
 
-## Widgets
+## Classic Widgets
 
+- [HeapMemoryWidget](./api-reference/heap-memory-widget.md)
 - [PanWidget](./api-reference/pan-widget.md)
+- [ResetViewWidget](./api-reference/reset-view-widget.md)
+- [YZoomWidget](./api-reference/y-zoom-widget.md)
 - [ZoomRangeWidget](./api-reference/zoom-range-widget.md)
+- [ToolbarWidget](./api-reference/toolbar-widget.md)
+
+## Overlay Widgets
+
 - [HtmlOverlayWidget](./api-reference/html-overlay-widget.md)
 - [HtmlClusterWidget](./api-reference/html-cluster-widget.md)
 - [HtmlOverlayItem](./api-reference/html-overlay-item.md)
 - [HtmlTooltipWidget](./api-reference/html-tooltip-widget.md)
+
+## Advanced UI Widgets
+
+- [OmniBoxWidget](./api-reference/omni-box-widget.md)
+- [ToastWidget](./api-reference/toast-widget.md)
+- [TimeMeasureWidget](./api-reference/time-measure-widget.md)
+
+## Panel Widgets
+
+Widgets that host reusable panel content:
+
 - [BoxWidget](./api-reference/box-widget.md)
+- [FullScreenPanelWidget](./api-reference/full-screen-panel-widget.md)
 - [ModalWidget](./api-reference/modal-widget.md)
 - [SidebarWidget](./api-reference/sidebar-widget.md)
-- [ToolbarWidget](./api-reference/toolbar-widget.md)
-- [Widget Panels](./api-reference/widget-panels.md)
-- [StatsWidgetPanel](./api-reference/stats-widget-panel.md)
+
+## Panels
+
+Reusable panel definitions for panel widgets:
+
+- [CustomPanel](./api-reference/custom-panel.md)
+- [KeyboardShortcutsPanel](./api-reference/keyboard-shortcuts-panel.md)
+- [MarkdownPanel](./api-reference/markdown-panel.md)
+- [StatsPanel](./api-reference/stats-panel.md)
+- [SettingsPanel](./api-reference/settings-panel.md)
+- [TextEditorPanel](./api-reference/text-editor-panel.md)
+
+## Container Panels
+
+- [AccordeonPanel](./api-reference/accordeon-panel.md)
+- [ColumnPanel](./api-reference/column-panel.md)
+- [TabbedPanel](./api-reference/tabbed-panel.md)
+
+## Related helpers
+
+Several widgets wrap helper libraries rather than owning their own state model:
+
+- `KeyboardShortcutsManager`
+- `SettingsManager`
+- `ToastManager`

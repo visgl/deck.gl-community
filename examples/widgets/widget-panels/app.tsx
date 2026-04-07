@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
@@ -5,26 +6,48 @@
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {render} from 'preact';
 import {
-  AccordeonWidgetPanel,
+  AccordeonPanel,
   BoxWidget,
-  ColumnWidgetPanel,
-  CustomWidgetPanel,
-  KeyboardSettingsWidgetPanel,
-  MarkdownWidgetPanel,
+  ColumnPanel,
+  CustomPanel,
+  FullScreenPanelWidget,
+  KeyboardShortcutsPanel,
+  MarkdownPanel,
   ModalWidget,
-  SettingsWidgetPanel,
+  SettingsPanel,
   SidebarWidget,
-  TabbedWidgetPanel,
-  TextEditorWidgetPanel,
+  TabbedPanel,
+  TextEditorPanel,
   type KeyboardShortcut,
   type SettingsWidgetSchema,
-  type SettingsWidgetState
+  type SettingsWidgetState,
+  type WidgetContainer,
+  WidgetContainerRenderer,
+  type WidgetPanel
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
-export type WidgetPanelsExampleOptions = Record<string, never>;
+export type WidgetPanelsExampleHighlight =
+  | 'widget-panels'
+  | 'box-widget'
+  | 'full-screen-panel-widget'
+  | 'modal-widget'
+  | 'sidebar-widget'
+  | 'settings-panel'
+  | 'keyboard-shortcuts-panel'
+  | 'text-editor-panel'
+  | 'accordeon-panel'
+  | 'tabbed-panel'
+  | 'column-panel'
+  | 'custom-panel'
+  | 'markdown-panel';
+
+export type WidgetPanelsExampleOptions = {
+  highlight?: WidgetPanelsExampleHighlight;
+};
 
 type PaletteName = 'ember' | 'lagoon' | 'mono';
 type FocusCluster = 'all' | 'north' | 'south';
@@ -140,6 +163,35 @@ const INITIAL_SETTINGS: ExampleSettings = {
     cluster: 'all'
   }
 };
+
+const HIGHLIGHT_LABELS: Record<WidgetPanelsExampleHighlight, string> = {
+  'widget-panels': 'Widget Panels',
+  'box-widget': 'BoxWidget',
+  'full-screen-panel-widget': 'FullScreenPanelWidget',
+  'modal-widget': 'ModalWidget',
+  'sidebar-widget': 'SidebarWidget',
+  'settings-panel': 'SettingsPanel',
+  'keyboard-shortcuts-panel': 'KeyboardShortcutsPanel',
+  'text-editor-panel': 'TextEditorPanel',
+  'accordeon-panel': 'AccordeonPanel',
+  'tabbed-panel': 'TabbedPanel',
+  'column-panel': 'ColumnPanel',
+  'custom-panel': 'CustomPanel',
+  'markdown-panel': 'MarkdownPanel'
+};
+
+const MODAL_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
+  'modal-widget',
+  'tabbed-panel',
+  'keyboard-shortcuts-panel',
+  'text-editor-panel'
+]);
+
+const SIDEBAR_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
+  'sidebar-widget',
+  'settings-panel',
+  'accordeon-panel'
+]);
 
 const SETTINGS_SCHEMA: SettingsWidgetSchema = {
   title: 'Panel controls',
@@ -276,19 +328,19 @@ const EXAMPLE_STYLESHEET_JSON = JSON.stringify(
     nodes: {
       fill: 'palette.primary',
       stroke: 'palette.stroke',
-      opacity: 'settings.render.opacity',
+      opacity: 'settings.render.opacity'
     },
     labels: {
       color: 'palette.label',
-      enabled: 'settings.render.showLabels',
-    },
+      enabled: 'settings.render.showLabels'
+    }
   },
   null,
-  2,
+  2
 );
 
 const THEME_WIDGET_ICON_OVERRIDES = `
-  .widget-panels-example .deck-widget.deck-widget-theme .deck-widget-button {
+  :where(.widget-panels-example, .widget-panels-docs-example) .deck-widget.deck-widget-theme .deck-widget-button {
     width: var(--button-size, 28px);
     height: var(--button-size, 28px);
     display: flex;
@@ -299,7 +351,7 @@ const THEME_WIDGET_ICON_OVERRIDES = `
     box-shadow: var(--button-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25));
   }
 
-  .widget-panels-example .deck-widget.deck-widget-theme .deck-widget-button > button {
+  :where(.widget-panels-example, .widget-panels-docs-example) .deck-widget.deck-widget-theme .deck-widget-button > button {
     width: calc(var(--button-size, 28px) - 2px);
     height: calc(var(--button-size, 28px) - 2px);
     display: block;
@@ -311,7 +363,7 @@ const THEME_WIDGET_ICON_OVERRIDES = `
     cursor: pointer;
   }
 
-  .widget-panels-example .deck-widget.deck-widget-theme .deck-widget-icon {
+  :where(.widget-panels-example, .widget-panels-docs-example) .deck-widget.deck-widget-theme .deck-widget-icon {
     display: block;
     width: 100%;
     height: 100%;
@@ -326,11 +378,11 @@ const THEME_WIDGET_ICON_OVERRIDES = `
     -webkit-mask-size: 70%;
   }
 
-  .widget-panels-example .deck-widget.deck-widget-theme .deck-widget-button > button:hover .deck-widget-icon {
+  :where(.widget-panels-example, .widget-panels-docs-example) .deck-widget.deck-widget-theme .deck-widget-button > button:hover .deck-widget-icon {
     background-color: var(--button-icon-hover, rgb(24, 24, 26));
   }
 
-  .widget-panels-example .deck-widget.deck-widget-theme button.deck-widget-sun .deck-widget-icon {
+  :where(.widget-panels-example, .widget-panels-docs-example) .deck-widget.deck-widget-theme button.deck-widget-sun .deck-widget-icon {
     mask-image: var(
       --icon-sun,
       url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="black" stroke="black"><g><circle cx="12" cy="12" r="6" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></g></svg>')
@@ -343,7 +395,7 @@ const THEME_WIDGET_ICON_OVERRIDES = `
     -webkit-mask-size: contain;
   }
 
-  .widget-panels-example .deck-widget.deck-widget-theme button.deck-widget-moon .deck-widget-icon {
+  :where(.widget-panels-example, .widget-panels-docs-example) .deck-widget.deck-widget-theme button.deck-widget-moon .deck-widget-icon {
     mask-image: var(
       --icon-moon,
       url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="black" mask="url(%23moon-mask)" /><mask id="moon-mask" viewBox="0 0 24 24"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="24" cy="10" r="12" fill="black"/></mask></svg>')
@@ -392,12 +444,89 @@ const SECONDARY_BUTTON_STYLE = {
   fontWeight: '700'
 } as const;
 
+const DOCS_EXAMPLE_ROOT_STYLE = {
+  position: 'relative',
+  height: '100%',
+  minHeight: '350px',
+  borderRadius: '8px',
+  overflow: 'hidden',
+  background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 58%, #fef3c7 100%)',
+  color: '#111827',
+  boxSizing: 'border-box'
+} as const;
+
+const DOCS_EXAMPLE_WIDGET_LAYER_STYLE = {
+  position: 'absolute',
+  inset: '0'
+} as const;
+
+const DOCS_BOX_WIDGET_ROOT_STYLE = {
+  position: 'absolute',
+  top: '24px',
+  left: '24px',
+  width: 'auto'
+} as const;
+
+const DOCS_THEME_WIDGET_ROOT_STYLE = {
+  position: 'absolute',
+  bottom: '12px',
+  left: '12px',
+  zIndex: '1000'
+} as const;
+
+const DOCS_MODAL_PREVIEW_ROOT_STYLE = {
+  position: 'absolute',
+  top: '28px',
+  left: '50%',
+  width: 'min(360px, 34%)',
+  minWidth: '280px',
+  transform: 'translateX(-50%)',
+  pointerEvents: 'auto'
+} as const;
+
+const DOCS_MODAL_PREVIEW_PANEL_STYLE = {
+  border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.45))',
+  borderRadius: '16px',
+  background: 'var(--menu-background, rgb(17, 24, 39))',
+  color: 'var(--menu-text, rgb(243, 244, 246))',
+  boxShadow: 'var(--menu-shadow, 0 24px 60px rgba(15, 23, 42, 0.28))',
+  overflow: 'hidden'
+} as const;
+
+const DOCS_MODAL_PREVIEW_HEADER_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  padding: '12px 14px',
+  borderBottom: 'var(--menu-divider, 1px solid rgba(148, 163, 184, 0.28))',
+  fontSize: '12px',
+  fontWeight: '800',
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase'
+} as const;
+
+const DOCS_MODAL_PREVIEW_CLOSE_STYLE = {
+  width: '22px',
+  height: '22px',
+  border: '0',
+  borderRadius: '999px',
+  background: 'var(--menu-item-hover, rgba(255, 255, 255, 0.14))',
+  color: 'inherit',
+  lineHeight: '22px'
+} as const;
+
+const DOCS_MODAL_PREVIEW_CONTENT_STYLE = {
+  maxHeight: '420px',
+  overflow: 'auto'
+} as const;
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function mountWidgetPanelsExample(
   container: HTMLElement,
-  options: WidgetPanelsExampleOptions = {},
+  options: WidgetPanelsExampleOptions = {}
 ): () => void {
-  Object.keys(options);
+  const highlight = options.highlight ?? 'widget-panels';
   const rootElement = container.ownerDocument.createElement('div');
   rootElement.className = 'widget-panels-example';
   applyElementStyle(rootElement, ROOT_STYLE);
@@ -409,8 +538,8 @@ export function mountWidgetPanelsExample(
 
   const state: WidgetPanelsExampleState = {
     settings: cloneSettings(INITIAL_SETTINGS),
-    isModalOpen: false,
-    isSidebarOpen: true
+    isModalOpen: MODAL_HIGHLIGHTS.has(highlight),
+    isSidebarOpen: SIDEBAR_HIGHLIGHTS.has(highlight) || !MODAL_HIGHLIGHTS.has(highlight)
   };
 
   let deck: Deck<OrthographicView> | null = null;
@@ -457,7 +586,7 @@ export function mountWidgetPanelsExample(
     placement: 'top-left',
     title: 'Modal panels',
     triggerLabel: 'Open modal panels',
-    panel: buildModalPanel(state, handlers),
+    panel: buildModalPanel(state, handlers, highlight),
     hideTrigger: true,
     open: state.isModalOpen,
     onOpenChange: handlers.setModalOpen
@@ -470,7 +599,7 @@ export function mountWidgetPanelsExample(
     widthPx: 380,
     title: 'Sidebar panels',
     triggerLabel: 'Toggle sidebar panels',
-    panel: buildSidebarPanel(state, handlers),
+    panel: buildSidebarPanel(state, handlers, highlight),
     hideTrigger: false,
     button: true,
     open: state.isSidebarOpen,
@@ -482,7 +611,7 @@ export function mountWidgetPanelsExample(
     placement: 'bottom-left',
     title: 'Widget Panels',
     widthPx: 360,
-    panel: buildInfoBoxPanel(state, handlers)
+    panel: buildInfoBoxPanel(state, handlers, highlight)
   });
 
   deck = new Deck({
@@ -525,15 +654,15 @@ export function mountWidgetPanelsExample(
 
   function syncWidgets() {
     modalWidget.setProps({
-      panel: buildModalPanel(state, handlers),
+      panel: buildModalPanel(state, handlers, highlight),
       open: state.isModalOpen
     });
     sidebarWidget.setProps({
-      panel: buildSidebarPanel(state, handlers),
+      panel: buildSidebarPanel(state, handlers, highlight),
       open: state.isSidebarOpen
     });
     boxWidget.setProps({
-      panel: buildInfoBoxPanel(state, handlers)
+      panel: buildInfoBoxPanel(state, handlers, highlight)
     });
   }
 }
@@ -590,26 +719,27 @@ function buildLayers(state: WidgetPanelsExampleState) {
 function buildSidebarPanel(
   state: WidgetPanelsExampleState,
   handlers: WidgetPanelsExampleHandlers,
+  highlight: WidgetPanelsExampleHighlight
 ) {
-  const summary = new MarkdownWidgetPanel({
+  const summary = new MarkdownPanel({
     id: 'summary',
     title: 'Summary',
-    theme: 'invert',
     markdown: [
       'This sidebar uses an accordion container with reusable panel definitions.',
       '',
+      `- Highlight: **${HIGHLIGHT_LABELS[highlight]}**`,
       `- Active palette: **${state.settings.theme.palette}**`,
       `- Visible cluster: **${state.settings.focus.cluster}**`,
       `- Labels: **${state.settings.render.showLabels ? 'on' : 'off'}**`
     ].join('\n')
   });
 
-  return new AccordeonWidgetPanel({
+  return new AccordeonPanel({
     id: 'sidebar-controls',
     title: 'Sidebar controls',
     panels: {
       summary,
-      ...SettingsWidgetPanel.createSectionPanels({
+      ...SettingsPanel.createSectionPanels({
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange: handlers.setSettings
@@ -621,13 +751,13 @@ function buildSidebarPanel(
 function buildModalPanel(
   state: WidgetPanelsExampleState,
   handlers: WidgetPanelsExampleHandlers,
+  highlight: WidgetPanelsExampleHighlight
 ) {
-  return new TabbedWidgetPanel({
+  return new TabbedPanel({
     id: 'modal-panels',
     title: 'Modal panels',
-    theme: 'invert',
     panels: {
-      overview: new MarkdownWidgetPanel({
+      overview: new MarkdownPanel({
         id: 'overview',
         title: 'Overview',
         markdown: [
@@ -635,23 +765,24 @@ function buildModalPanel(
           '',
           '- `SidebarWidget` keeps persistent controls within reach.',
           '- `ModalWidget` groups secondary context into a compact dialog.',
-          '- `SettingsWidgetPanel` can be reused in either container.'
+          '- `SettingsPanel` can be reused in either container.',
+          '',
+          `Highlighted API: **${HIGHLIGHT_LABELS[highlight]}**`
         ].join('\n')
       }),
-      shortcuts: new KeyboardSettingsWidgetPanel({
+      shortcuts: new KeyboardShortcutsPanel({
         keyboardShortcuts: KEYBOARD_SHORTCUTS
       }),
-      settings: new SettingsWidgetPanel({
+      settings: new SettingsPanel({
         id: 'modal-settings',
         label: 'Panel controls',
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange: handlers.setSettings
       }),
-      stylesheet: new TextEditorWidgetPanel({
+      stylesheet: new TextEditorPanel({
         id: 'modal-stylesheet',
         title: 'Stylesheet',
-        theme: 'invert',
         language: 'json',
         readOnly: true,
         defaultValue: EXAMPLE_STYLESHEET_JSON,
@@ -664,51 +795,62 @@ function buildModalPanel(
 function buildInfoBoxPanel(
   state: WidgetPanelsExampleState,
   handlers: WidgetPanelsExampleHandlers,
+  highlight: WidgetPanelsExampleHighlight
 ) {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'widget-panels-box',
     title: 'Widget Panels',
     panels: {
-      summary: new MarkdownWidgetPanel({
-        id: 'summary',
-        title: '',
-        markdown: [
-          'This example pairs a persistent sidebar with a tabbed modal. Both are assembled from the same reusable panel primitives in [@deck.gl-community/widgets](/deck.gl-community/docs/modules/widgets).',
-          '',
-          'Use the sidebar to edit the live scene. Open the modal to compare a tabbed layout with the same settings and shortcut panels.'
-        ].join('\n')
-      }),
-      actions: new CustomWidgetPanel({
-        id: 'actions',
-        title: '',
-        onRenderHTML(hostElement) {
-          const controls = hostElement.ownerDocument.createElement('div');
-          applyElementStyle(controls, ROOT_BUTTON_GROUP_STYLE);
+      summary: buildOverviewMarkdownPanel(highlight),
+      actions: buildActionsPanel(state, handlers)
+    }
+  });
+}
 
-          const openModalButton = createButton(
-            hostElement.ownerDocument,
-            'Open Modal',
-            PRIMARY_BUTTON_STYLE,
-            () => handlers.setModalOpen(true),
-          );
+function buildOverviewMarkdownPanel(highlight: WidgetPanelsExampleHighlight) {
+  return new MarkdownPanel({
+    id: 'summary',
+    title: 'Overview',
+    markdown: [
+      'This example pairs a persistent sidebar with a tabbed modal. Both are assembled from the same reusable panel primitives in [@deck.gl-community/widgets](/deck.gl-community/docs/modules/widgets).',
+      '',
+      `Highlighted API: **${HIGHLIGHT_LABELS[highlight]}**`,
+      '',
+      'Use the sidebar to edit the live scene. Open the modal to compare a tabbed layout with the same settings and shortcut panels.'
+    ].join('\n')
+  });
+}
 
-          const toggleSidebarButton = createButton(
-            hostElement.ownerDocument,
-            state.isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar',
-            SECONDARY_BUTTON_STYLE,
-            handlers.toggleSidebar,
-          );
+function buildActionsPanel(state: WidgetPanelsExampleState, handlers: WidgetPanelsExampleHandlers) {
+  return new CustomPanel({
+    id: 'actions',
+    title: 'Actions',
+    onRenderHTML(hostElement) {
+      const controls = hostElement.ownerDocument.createElement('div');
+      applyElementStyle(controls, ROOT_BUTTON_GROUP_STYLE);
 
-          controls.append(openModalButton, toggleSidebarButton);
-          hostElement.replaceChildren(controls);
+      const openModalButton = createButton(
+        hostElement.ownerDocument,
+        'Open Modal',
+        PRIMARY_BUTTON_STYLE,
+        () => handlers.setModalOpen(true)
+      );
 
-          return () => {
-            openModalButton.onclick = null;
-            toggleSidebarButton.onclick = null;
-            hostElement.replaceChildren();
-          };
-        }
-      })
+      const toggleSidebarButton = createButton(
+        hostElement.ownerDocument,
+        state.isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar',
+        SECONDARY_BUTTON_STYLE,
+        handlers.toggleSidebar
+      );
+
+      controls.append(openModalButton, toggleSidebarButton);
+      hostElement.replaceChildren(controls);
+
+      return () => {
+        openModalButton.onclick = null;
+        toggleSidebarButton.onclick = null;
+        hostElement.replaceChildren();
+      };
     }
   });
 }
@@ -733,6 +875,312 @@ function getDeckStyle(state: WidgetPanelsExampleState) {
   };
 }
 
+export function mountWidgetPanelsDocsExample(
+  container: HTMLElement,
+  options: WidgetPanelsExampleOptions = {}
+): () => void {
+  const highlight = options.highlight ?? 'widget-panels';
+  if (highlight === 'widget-panels') {
+    return mountWidgetPanelsDocsCompositionExample(container, highlight);
+  }
+  if (highlight === 'box-widget') {
+    return mountWidgetPanelsDocsBoxExample(container, highlight);
+  }
+
+  const rootElement = container.ownerDocument.createElement('div');
+  const widgetRootElement = container.ownerDocument.createElement('div');
+  rootElement.className = 'widget-panels-docs-example deck-widget-container';
+  applyElementStyle(rootElement, DOCS_EXAMPLE_ROOT_STYLE);
+  applyElementStyle(widgetRootElement, DOCS_EXAMPLE_WIDGET_LAYER_STYLE);
+  rootElement.append(widgetRootElement);
+  container.replaceChildren(rootElement);
+  const cleanupThemeWidget = renderDocsThemeWidget(rootElement);
+
+  const state: WidgetPanelsExampleState = {
+    settings: cloneSettings(INITIAL_SETTINGS),
+    isModalOpen: true,
+    isSidebarOpen: true
+  };
+  let fullScreenPanelWidget: FullScreenPanelWidget | null = null;
+
+  const handlers: WidgetPanelsExampleHandlers = {
+    setSettings(nextSettings) {
+      state.settings = cloneSettings(nextSettings as ExampleSettings);
+      syncDocsWidget();
+    },
+    setModalOpen(nextOpen) {
+      state.isModalOpen = nextOpen;
+      syncDocsWidget();
+    },
+    setSidebarOpen(nextOpen) {
+      state.isSidebarOpen = nextOpen;
+      syncDocsWidget();
+    },
+    toggleSidebar() {
+      state.isSidebarOpen = !state.isSidebarOpen;
+      syncDocsWidget();
+    }
+  };
+
+  fullScreenPanelWidget = new FullScreenPanelWidget({
+    id: 'widget-panels-docs-full-screen-panel',
+    title: HIGHLIGHT_LABELS[highlight],
+    panel: buildHighlightedPanel(state, handlers, highlight),
+    marginPx: 24
+  });
+  fullScreenPanelWidget.onRenderHTML(widgetRootElement);
+
+  return () => {
+    cleanupThemeWidget();
+    fullScreenPanelWidget?.onRemove();
+    rootElement.remove();
+  };
+
+  function syncDocsWidget() {
+    fullScreenPanelWidget?.setProps({
+      panel: buildHighlightedPanel(state, handlers, highlight)
+    });
+  }
+}
+
+function mountWidgetPanelsDocsCompositionExample(
+  container: HTMLElement,
+  highlight: WidgetPanelsExampleHighlight
+): () => void {
+  const rootElement = container.ownerDocument.createElement('div');
+  const boxRootElement = container.ownerDocument.createElement('div');
+  const modalRootElement = container.ownerDocument.createElement('div');
+  const sidebarRootElement = container.ownerDocument.createElement('div');
+  rootElement.className = 'widget-panels-docs-example deck-widget-container';
+  applyElementStyle(rootElement, DOCS_EXAMPLE_ROOT_STYLE);
+  applyElementStyle(boxRootElement, DOCS_BOX_WIDGET_ROOT_STYLE);
+  applyElementStyle(modalRootElement, DOCS_MODAL_PREVIEW_ROOT_STYLE);
+  rootElement.append(boxRootElement, modalRootElement, sidebarRootElement);
+  container.replaceChildren(rootElement);
+  const cleanupThemeWidget = renderDocsThemeWidget(rootElement);
+
+  const state: WidgetPanelsExampleState = {
+    settings: cloneSettings(INITIAL_SETTINGS),
+    isModalOpen: true,
+    isSidebarOpen: true
+  };
+
+  let boxWidget: BoxWidget | null = null;
+  let sidebarWidget: SidebarWidget | null = null;
+
+  const handlers: WidgetPanelsExampleHandlers = {
+    setSettings(nextSettings) {
+      state.settings = cloneSettings(nextSettings as ExampleSettings);
+      syncDocsWidgets();
+    },
+    setModalOpen(nextOpen) {
+      state.isModalOpen = nextOpen;
+      syncDocsWidgets();
+    },
+    setSidebarOpen(nextOpen) {
+      state.isSidebarOpen = nextOpen;
+      syncDocsWidgets();
+    },
+    toggleSidebar() {
+      state.isSidebarOpen = !state.isSidebarOpen;
+      syncDocsWidgets();
+    }
+  };
+
+  boxWidget = new BoxWidget({
+    id: 'widget-panels-docs-box-widget',
+    placement: 'top-left',
+    title: 'BoxWidget',
+    widthPx: 300,
+    panel: buildInfoBoxPanel(state, handlers, highlight),
+    collapsible: false,
+    open: true
+  });
+  boxWidget.onRenderHTML(boxRootElement);
+
+  sidebarWidget = new SidebarWidget({
+    id: 'widget-panels-docs-sidebar-widget',
+    side: 'right',
+    widthPx: 340,
+    title: 'SidebarWidget',
+    panel: buildSidebarPanel(state, handlers, highlight),
+    button: true,
+    open: state.isSidebarOpen,
+    onOpenChange: handlers.setSidebarOpen
+  });
+  (sidebarWidget.props as {_container?: HTMLElement})._container = rootElement;
+  sidebarWidget.onRenderHTML(sidebarRootElement);
+  renderDocsModalPreview(modalRootElement, buildModalPanel(state, handlers, highlight));
+
+  return () => {
+    cleanupThemeWidget();
+    boxWidget?.onRemove();
+    sidebarWidget?.onRemove();
+    render(null, modalRootElement);
+    rootElement.remove();
+  };
+
+  function syncDocsWidgets() {
+    boxWidget?.setProps({
+      panel: buildInfoBoxPanel(state, handlers, highlight),
+      open: true
+    });
+    sidebarWidget?.setProps({
+      panel: buildSidebarPanel(state, handlers, highlight),
+      open: state.isSidebarOpen
+    });
+    renderDocsModalPreview(modalRootElement, buildModalPanel(state, handlers, highlight));
+  }
+}
+
+function mountWidgetPanelsDocsBoxExample(
+  container: HTMLElement,
+  highlight: WidgetPanelsExampleHighlight
+): () => void {
+  const rootElement = container.ownerDocument.createElement('div');
+  const boxRootElement = container.ownerDocument.createElement('div');
+  rootElement.className = 'widget-panels-docs-example deck-widget-container';
+  applyElementStyle(rootElement, DOCS_EXAMPLE_ROOT_STYLE);
+  applyElementStyle(boxRootElement, DOCS_BOX_WIDGET_ROOT_STYLE);
+  rootElement.append(boxRootElement);
+  container.replaceChildren(rootElement);
+  const cleanupThemeWidget = renderDocsThemeWidget(rootElement);
+
+  const boxWidget = new BoxWidget({
+    id: 'widget-panels-docs-box-widget',
+    placement: 'top-left',
+    title: 'BoxWidget',
+    widthPx: 340,
+    panel: buildBoxWidgetMarkdownPanel(),
+    collapsible: false,
+    open: true
+  });
+  boxWidget.onRenderHTML(boxRootElement);
+
+  return () => {
+    cleanupThemeWidget();
+    boxWidget.onRemove();
+    rootElement.remove();
+  };
+}
+
+function renderDocsThemeWidget(rootElement: HTMLElement): () => void {
+  const styleElement = rootElement.ownerDocument.createElement('style');
+  const themeRootElement = rootElement.ownerDocument.createElement('div');
+  const buttonWrapperElement = rootElement.ownerDocument.createElement('div');
+  const buttonElement = rootElement.ownerDocument.createElement('button');
+  const iconElement = rootElement.ownerDocument.createElement('span');
+  let themeMode: 'light' | 'dark' = 'light';
+
+  styleElement.textContent = THEME_WIDGET_ICON_OVERRIDES;
+  themeRootElement.className = 'deck-widget deck-widget-theme';
+  buttonWrapperElement.className = 'deck-widget-button';
+  buttonElement.type = 'button';
+  buttonElement.className = 'deck-widget-sun';
+  buttonElement.title = 'Switch to dark theme';
+  buttonElement.setAttribute('aria-label', 'Switch to dark theme');
+  iconElement.className = 'deck-widget-icon';
+  buttonElement.append(iconElement);
+  buttonWrapperElement.append(buttonElement);
+  themeRootElement.append(buttonWrapperElement);
+  applyElementStyle(themeRootElement, DOCS_THEME_WIDGET_ROOT_STYLE);
+  applyElementStyle(rootElement, LightTheme);
+  rootElement.append(styleElement, themeRootElement);
+
+  buttonElement.onclick = () => {
+    themeMode = themeMode === 'light' ? 'dark' : 'light';
+    applyElementStyle(rootElement, themeMode === 'light' ? LightTheme : DarkTheme);
+    buttonElement.className = themeMode === 'light' ? 'deck-widget-sun' : 'deck-widget-moon';
+    const title = themeMode === 'light' ? 'Switch to dark theme' : 'Switch to light theme';
+    buttonElement.title = title;
+    buttonElement.setAttribute('aria-label', title);
+  };
+
+  return () => {
+    buttonElement.onclick = null;
+    styleElement.remove();
+    themeRootElement.remove();
+  };
+}
+
+function buildBoxWidgetMarkdownPanel() {
+  return new MarkdownPanel({
+    id: 'box-widget-summary',
+    title: 'BoxWidget',
+    markdown: [
+      '`BoxWidget` anchors a themed card in a deck.gl widget corner.',
+      '',
+      'Use it for compact summaries, hints, or small always-visible controls that should not need modal or sidebar chrome.',
+      '',
+      `Highlighted API: **${HIGHLIGHT_LABELS['box-widget']}**`
+    ].join('\n')
+  });
+}
+
+function renderDocsModalPreview(rootElement: HTMLElement, panel: WidgetPanel): void {
+  const container: WidgetContainer = {
+    kind: 'panel',
+    props: {
+      panel
+    }
+  };
+
+  render(
+    <section style={DOCS_MODAL_PREVIEW_PANEL_STYLE} aria-label="ModalWidget preview">
+      <header style={DOCS_MODAL_PREVIEW_HEADER_STYLE}>
+        <span>ModalWidget</span>
+        <span aria-hidden="true" style={DOCS_MODAL_PREVIEW_CLOSE_STYLE}>
+          ×
+        </span>
+      </header>
+      <div style={DOCS_MODAL_PREVIEW_CONTENT_STYLE}>
+        <WidgetContainerRenderer container={container} />
+      </div>
+    </section>,
+    rootElement
+  );
+}
+
+function buildHighlightedPanel(
+  state: WidgetPanelsExampleState,
+  handlers: WidgetPanelsExampleHandlers,
+  highlight: WidgetPanelsExampleHighlight
+): WidgetPanel {
+  switch (highlight) {
+    case 'modal-widget':
+    case 'tabbed-panel':
+      return buildModalPanel(state, handlers, highlight);
+    case 'full-screen-panel-widget':
+      return buildInfoBoxPanel(state, handlers, highlight);
+    case 'sidebar-widget':
+    case 'accordeon-panel':
+    case 'settings-panel':
+      return buildSidebarPanel(state, handlers, highlight);
+    case 'keyboard-shortcuts-panel':
+      return new KeyboardShortcutsPanel({
+        keyboardShortcuts: KEYBOARD_SHORTCUTS
+      });
+    case 'text-editor-panel':
+      return new TextEditorPanel({
+        id: 'docs-text-editor-panel',
+        title: 'Stylesheet',
+        language: 'json',
+        readOnly: true,
+        defaultValue: EXAMPLE_STYLESHEET_JSON,
+        placeholder: 'Stylesheet JSON preview'
+      });
+    case 'custom-panel':
+      return buildActionsPanel(state, handlers);
+    case 'markdown-panel':
+      return buildOverviewMarkdownPanel(highlight);
+    case 'box-widget':
+    case 'column-panel':
+    case 'widget-panels':
+    default:
+      return buildInfoBoxPanel(state, handlers, highlight);
+  }
+}
+
 function cloneSettings(settings: ExampleSettings): ExampleSettings {
   return {
     render: {...settings.render},
@@ -755,7 +1203,7 @@ function createButton(
   ownerDocument: Document,
   label: string,
   style: Record<string, string>,
-  onClick: () => void,
+  onClick: () => void
 ) {
   const button = ownerDocument.createElement('button');
   button.type = 'button';

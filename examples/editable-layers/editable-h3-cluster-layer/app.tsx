@@ -14,8 +14,8 @@ import {
 } from '@deck.gl-community/editable-layers';
 import {
   BoxWidget,
-  ColumnWidgetPanel,
-  MarkdownWidgetPanel,
+  ColumnPanel,
+  MarkdownPanel,
   ToolbarWidget,
   type ToolbarWidgetItem
 } from '@deck.gl-community/widgets';
@@ -330,11 +330,11 @@ function buildInfoPanel({
   clusterCount: number;
   selectedIndexes: number[];
 }) {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'editable-h3-info-panel',
     title: '',
     panels: {
-      summary: new MarkdownWidgetPanel({
+      summary: new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [

@@ -4,7 +4,7 @@
 
 import {Deck, type MapViewState, type PickingInfo} from '@deck.gl/core';
 import {PathOutlineLayer, PathMarkerLayer} from '@deck.gl-community/layers';
-import {BoxWidget, MarkdownWidgetPanel} from '@deck.gl-community/widgets';
+import {BoxWidget, MarkdownPanel} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -149,7 +149,7 @@ export function mountPathOutlineAndMarkersExample(container: HTMLElement): () =>
         widthPx: 360,
         title: 'Path Outline and Markers',
         collapsible: false,
-        panel: new MarkdownWidgetPanel({
+        panel: new MarkdownPanel({
           id: 'path-outline-and-markers-info-panel',
           title: '',
           markdown:

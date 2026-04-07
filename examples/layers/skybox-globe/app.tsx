@@ -7,9 +7,9 @@ import {ArcLayer, ScatterplotLayer} from '@deck.gl/layers';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {
   BoxWidget,
-  ColumnWidgetPanel,
-  MarkdownWidgetPanel,
-  SettingsWidgetPanel,
+  ColumnPanel,
+  MarkdownPanel,
+  SettingsPanel,
   type SettingsWidgetSchema,
   type SettingsWidgetState
 } from '../../../modules/widgets/src';
@@ -118,11 +118,11 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
 
   function syncInfoWidget() {
     infoWidget.setProps({
-      panel: new ColumnWidgetPanel({
+      panel: new ColumnPanel({
         id: 'skybox-globe-panel',
         title: 'SkyboxLayer GlobeView',
         panels: {
-          summary: new MarkdownWidgetPanel({
+          summary: new MarkdownPanel({
             id: 'summary',
             title: '',
             markdown: [
@@ -133,7 +133,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
               '- Basemap: CARTO vector style rendered through `BasemapLayer`.'
             ].join('\n')
           }),
-          settings: new SettingsWidgetPanel({
+          settings: new SettingsPanel({
             id: 'settings',
             label: 'Controls',
             schema: SETTINGS_SCHEMA,

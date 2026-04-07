@@ -99,14 +99,6 @@ function getRequiredInput(root: ParentNode, selector: string): HTMLInputElement 
   return input;
 }
 
-function getRequiredSelect(root: ParentNode, selector: string): HTMLSelectElement {
-  const select = root.querySelector<HTMLSelectElement>(selector);
-  if (!select) {
-    throw new Error(`Expected select matching selector: ${selector}`);
-  }
-  return select;
-}
-
 afterEach(() => {
   document.body.innerHTML = '';
 });
@@ -197,9 +189,16 @@ describe('SettingsWidget', () => {
     clickButton(modeToggle);
     await flushEffects();
 
-    const select = getRequiredSelect(root, 'select');
-    select.value = 'critical-path';
-    select.dispatchEvent(new Event('change', {bubbles: true}));
+    expect(root.querySelector('select')).toBeNull();
+
+    const selectButton = root.querySelector<HTMLButtonElement>('#settings-widget-input-mode');
+    clickButton(selectButton);
+    await flushEffects();
+
+    const option = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="option"]')).find(
+      (button) => button.textContent?.includes('critical-path')
+    );
+    clickButton(option ?? null);
     await flushEffects();
 
     expect(handleSettingsChange).toHaveBeenLastCalledWith(

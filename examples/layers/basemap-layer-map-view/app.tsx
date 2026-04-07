@@ -6,9 +6,9 @@ import {Deck, MapView, _GlobeView} from '@deck.gl/core';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {
   BoxWidget,
-  ColumnWidgetPanel,
-  MarkdownWidgetPanel,
-  SettingsWidgetPanel,
+  ColumnPanel,
+  MarkdownPanel,
+  SettingsPanel,
   type SettingsWidgetSchema,
   type SettingsWidgetState
 } from '../../../modules/widgets/src';
@@ -319,11 +319,11 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
   function syncInfoWidget() {
     const stateLabel = status.lastError ? 'error' : status.basemapLoaded ? 'loaded' : 'loading';
     infoWidget.setProps({
-      panel: new ColumnWidgetPanel({
+      panel: new ColumnPanel({
         id: 'basemap-map-view-panel',
         title: 'BasemapLayer',
         panels: {
-          summary: new MarkdownWidgetPanel({
+          summary: new MarkdownPanel({
             id: 'summary',
             title: '',
             markdown: [
@@ -340,7 +340,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
                 : '- No fetch errors observed.'
             ].join('\n')
           }),
-          settings: new SettingsWidgetPanel({
+          settings: new SettingsPanel({
             id: 'settings',
             label: 'Settings',
             schema: SETTINGS_SCHEMA,

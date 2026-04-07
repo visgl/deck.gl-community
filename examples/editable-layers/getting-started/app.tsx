@@ -5,9 +5,9 @@
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {
   BoxWidget,
-  ColumnWidgetPanel,
-  MarkdownWidgetPanel,
-  SettingsWidgetPanel,
+  ColumnPanel,
+  MarkdownPanel,
+  SettingsPanel,
   type SettingsWidgetSchema,
   type SettingsWidgetState
 } from '@deck.gl-community/widgets';
@@ -204,10 +204,10 @@ function buildControlPanel(
   state: GettingStartedState,
   onSettingsChange: (nextSettings: SettingsWidgetState) => void
 ) {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'getting-started-panel',
     panels: {
-      summary: new MarkdownWidgetPanel({
+      summary: new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -222,7 +222,7 @@ function buildControlPanel(
           }**`
         ].join('\n')
       }),
-      settings: new SettingsWidgetPanel({
+      settings: new SettingsPanel({
         id: 'settings',
         label: 'Controls',
         schema: SETTINGS_SCHEMA,

@@ -4,8 +4,8 @@
 
 import {beforeAll, expect, it, vi} from 'vitest';
 
-vi.mock('../src/panel-widgets/text-editor-widget', () => ({
-  TextEditorWidgetPanel: class TextEditorWidgetPanel {}
+vi.mock('../src/widget-panels/text-editor-panel', () => ({
+  TextEditorPanel: class TextEditorPanel {}
 }));
 
 let Widgets: typeof import('../src/index');
@@ -34,6 +34,10 @@ it('exports BoxWidget', () => {
   expect(Widgets.BoxWidget).toBeDefined();
 });
 
+it('exports FullScreenPanelWidget', () => {
+  expect(Widgets.FullScreenPanelWidget).toBeDefined();
+});
+
 it('exports ModalWidget', () => {
   expect(Widgets.ModalWidget).toBeDefined();
 });
@@ -46,8 +50,8 @@ it('exports ToolbarWidget', () => {
   expect(Widgets.ToolbarWidget).toBeDefined();
 });
 
-it('exports TextEditorWidgetPanel', () => {
-  expect(Widgets.TextEditorWidgetPanel).toBeDefined();
+it('exports TextEditorPanel', () => {
+  expect(Widgets.TextEditorPanel).toBeDefined();
 });
 
 it('exports WidgetContainerRenderer', () => {

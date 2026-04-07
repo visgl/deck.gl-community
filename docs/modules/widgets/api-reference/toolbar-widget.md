@@ -107,4 +107,4 @@ Use for compact read-only status such as feature counts or active dataset names.
 
 - [BoxWidget](./box-widget.md)
 - [SidebarWidget](./sidebar-widget.md)
-- [Widget Panels](./widget-panels.md)
+- [Widget Panels](../developer-guide/widget-panels.md)

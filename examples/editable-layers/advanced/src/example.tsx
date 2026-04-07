@@ -50,7 +50,7 @@ import {
   Color,
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnWidgetPanel, MarkdownWidgetPanel} from '@deck.gl-community/widgets';
+import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
 
 
 import sampleGeoJson from '../../data/sample-geojson.json';
@@ -254,11 +254,11 @@ function buildInfoPanel({
   selectionTool?: string;
   showGeoJson: boolean;
 }) {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'advanced-info-panel',
     title: '',
     panels: {
-      summary: new MarkdownWidgetPanel({
+      summary: new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [

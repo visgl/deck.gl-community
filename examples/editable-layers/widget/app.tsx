@@ -19,9 +19,9 @@ import {
 } from '@deck.gl-community/editable-layers';
 import {
   BoxWidget,
-  ColumnWidgetPanel,
-  CustomWidgetPanel,
-  MarkdownWidgetPanel,
+  ColumnPanel,
+  CustomPanel,
+  MarkdownPanel,
   type WidgetPanel
 } from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
@@ -390,11 +390,11 @@ function buildInfoPanel(
     onClear: () => void;
   }
 ): WidgetPanel {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'editable-layers-widget-info-panel',
     title: '',
     panels: {
-      summary: new MarkdownWidgetPanel({
+      summary: new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -410,7 +410,7 @@ function buildInfoPanel(
           }**`
         ].join('\n')
       }),
-      booleanOps: new CustomWidgetPanel({
+      booleanOps: new CustomPanel({
         id: 'boolean-operations',
         title: 'Boolean operations',
         onRenderHTML: (host) => {
@@ -445,7 +445,7 @@ function buildInfoPanel(
           host.replaceChildren(section);
         }
       }),
-      dataset: new CustomWidgetPanel({
+      dataset: new CustomPanel({
         id: 'dataset',
         title: 'Dataset',
         onRenderHTML: (host) => {

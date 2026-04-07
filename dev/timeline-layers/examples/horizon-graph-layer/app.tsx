@@ -7,8 +7,8 @@ import {LineLayer, TextLayer} from '@deck.gl/layers';
 import {MultiHorizonGraphLayer} from '@deck.gl-community/timeline-layers';
 import {
   BoxWidget,
-  MarkdownWidgetPanel,
-  SettingsWidgetPanel,
+  MarkdownPanel,
+  SettingsPanel,
   SidebarWidget,
   type SettingsWidgetSchema,
   type SettingsWidgetState
@@ -271,7 +271,7 @@ export function mountHorizonGraphLayerExample(
     mousePosition: null
   };
 
-  const settingsPanel = new SettingsWidgetPanel({
+  const settingsPanel = new SettingsPanel({
     id: 'horizon-graph-controls',
     label: resolvedConfig.sidebarTitle,
     schema: SETTINGS_SCHEMA,
@@ -301,7 +301,7 @@ export function mountHorizonGraphLayerExample(
         widthPx: 360,
         title: resolvedConfig.infoTitle,
         collapsible: false,
-        panel: new MarkdownWidgetPanel({
+        panel: new MarkdownPanel({
           id: `${resolvedConfig.layerId}-info-panel`,
           title: '',
           markdown: resolvedConfig.infoMarkdown

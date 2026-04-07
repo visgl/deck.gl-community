@@ -50,4 +50,4 @@ For the generic panel APIs, see the [Widget Panels example](../../examples/widge
 - `ModalWidget` for tabbed secondary panels
 - `BoxWidget` for static summary cards
 - `ToolbarWidget` for compact action and toggle controls
-- `AccordeonWidgetPanel`, `TabbedWidgetPanel`, `ColumnWidgetPanel`, `MarkdownWidgetPanel`, `CustomWidgetPanel`, and `TextEditorWidgetPanel` for reusable panel composition
+- `AccordeonPanel`, `TabbedPanel`, `ColumnPanel`, `MarkdownPanel`, `CustomPanel`, and `TextEditorPanel` for reusable panel composition

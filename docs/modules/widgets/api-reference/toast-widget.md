@@ -1,12 +1,10 @@
 # ToastWidget
 
-<p class="badges">
+<p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
 `ToastWidget` is a deck.gl HTML widget that renders a compact toast stack in the deck overlay.
-
-It is exported from `@deck.gl-community/widgets`.
 
 ## Import
 
@@ -53,13 +51,6 @@ Default props:
 - `placement: 'bottom-right'`
 - `showBorder: false`
 
-## Behavior
-
-- Subscribes to the shared `toastManager` singleton.
-- Renders up to the currently active toast entries.
-- Supports dismiss buttons per toast.
-- Applies type-specific iconography and accent colors.
-- Uses deck widget theme variables for integration with the host UI.
 
 ## Usage
 
@@ -79,3 +70,11 @@ toastManager.toast({
 ## Related helper
 
 See `ToastManager` for the lifecycle and subscription model behind the rendered toast stack.
+
+## Remarks
+
+- Subscribes to the shared `toastManager` singleton.
+- Renders up to the currently active toast entries.
+- Supports dismiss buttons per toast.
+- Applies type-specific iconography and accent colors.
+- Uses deck widget theme variables for integration with the host UI.
