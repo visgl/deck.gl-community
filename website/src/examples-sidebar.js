@@ -66,6 +66,7 @@ const sidebars = {
         "editable-layers/getting-started",
         "editable-layers/editor",
         "editable-layers/editor-react",
+        "editable-layers/3d-tiles",
         "editable-layers/advanced",
         "editable-layers/sf",
         "editable-layers/no-map",
