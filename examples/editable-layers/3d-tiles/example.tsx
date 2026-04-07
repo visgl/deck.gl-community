@@ -33,7 +33,7 @@ const TILESET_URL = 'https://tile.googleapis.com/v1/3dtiles/root.json';
 const INITIAL_VIEW_STATE = {
   latitude: 36.1069,
   longitude: -112.1129,
-  zoom: 15,
+  zoom: 14,
   minZoom: 13,
   maxZoom: 18,
   bearing: 30,
