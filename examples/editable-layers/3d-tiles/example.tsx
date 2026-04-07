@@ -26,7 +26,7 @@ import {BoxWidget, ColumnWidgetPanel, MarkdownWidgetPanel} from '@deck.gl-commun
 
 import '@deck.gl/widgets/stylesheet.css';
 
-const GOOGLE_MAPS_API_KEY = 'XXX'; // eslint-disable-line
+const GOOGLE_MAPS_API_KEY = process.env.GoogleMapsAPIKey; // eslint-disable-line
 const TILESET_URL = 'https://tile.googleapis.com/v1/3dtiles/root.json';
 
 // Grand Canyon, Arizona

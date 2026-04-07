@@ -31,5 +31,4 @@ function checkToken(key) {
   }
 }
 
-// checkToken('MapboxAccessToken');
-// checkToken('GoogleMapsAPIKey');
+checkToken('GoogleMapsAPIKey');

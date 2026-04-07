@@ -131,11 +131,9 @@ const config = {
           }
         },
         plugins: [
-          // new webpack.EnvironmentPlugin([
-          //   'MapboxAccessToken',
-          //   'GoogleMapsAPIKey',
-          //   'GoogleMapsMapId'
-          // ]),
+          new webpack.EnvironmentPlugin({
+            GoogleMapsAPIKey: ''
+          }),
           // These modules break server side bundling
           new webpack.IgnorePlugin({
             resourceRegExp: /asciify-image/
