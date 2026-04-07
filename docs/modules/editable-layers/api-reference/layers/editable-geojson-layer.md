@@ -380,6 +380,44 @@ Number of pixels around the mouse cursor used for picking. This value determines
 
 Number of layers of overlapping features that will be picked. Useful in cases where features overlap.
 
+#### `unproject3D` (Boolean, optional)
+
+- Default: `false`
+
+When `true`, uses deck.gl's 3D picking to obtain map coordinates from screen coordinates. This enables accurate editing on 3D terrain surfaces, such as Google 3D Tiles rendered with `pickable: '3d'` and `operation: 'terrain+draw'`.
+
+When a 3D pick is performed, only the longitude and latitude are used — the Z (elevation) coordinate is discarded so that extensions like `TerrainExtension` can drape the edited geometry onto the terrain without double-offsetting. If the 3D pick misses (e.g. the user clicks on empty sky), the layer falls back to the standard 2D `viewport.unproject`.
+
+Requires deck.gl 9.3+.
+
+```js
+import {Tile3DLayer} from '@deck.gl/geo-layers';
+import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
+import {TerrainController} from '@deck.gl/core';
+import {EditableGeoJsonLayer, DrawPolygonMode} from '@deck.gl-community/editable-layers';
+
+const tile3DLayer = new Tile3DLayer({
+  id: 'google-3d-tiles',
+  data: TILESET_URL,
+  loadOptions: {
+    fetch: {headers: {'X-GOOG-API-KEY': GOOGLE_MAPS_API_KEY}}
+  },
+  pickable: '3d',
+  operation: 'terrain+draw'
+});
+
+const editableLayer = new EditableGeoJsonLayer({
+  data: myFeatureCollection,
+  mode: DrawPolygonMode,
+  selectedFeatureIndexes: [],
+  unproject3D: true,
+  extensions: [new TerrainExtension()],
+  onEdit: ({updatedData}) => {
+    setData(updatedData);
+  }
+});
+```
+
 #### `pickingLineWidthExtraPixels` (Number, optional)
 
 - Default: `0`
