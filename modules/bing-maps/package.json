@@ -36,6 +36,6 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.3.0-alpha.1"
+    "@deck.gl/core": "~9.3.0-alpha.6"
   }
 }
