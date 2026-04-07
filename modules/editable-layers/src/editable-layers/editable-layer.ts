@@ -23,6 +23,7 @@ const EVENT_TYPES = ['click', 'pointermove', 'panstart', 'panmove', 'panend', 'k
 export type EditableLayerProps<DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
+  unproject3D?: boolean;
   onCancelPan?: () => void;
 };
 
@@ -274,6 +275,23 @@ export abstract class EditableLayer<
   }
 
   getMapCoords(screenCoords: Position): Position {
+    if (this.props.unproject3D && this.context.deck) {
+      const layerIds = this.context.layerManager
+        .getLayers()
+        .filter((l) => l.props.pickable === '3d')
+        .map((l) => l.id);
+      const pickInfo = this.context.deck.pickObject({
+        x: screenCoords[0],
+        y: screenCoords[1],
+        layerIds,
+        unproject3D: true
+      });
+      if (pickInfo?.coordinate) {
+        // Return only lon/lat — discard Z so that TerrainExtension
+        // can drape geometry onto the surface without double-offsetting.
+        return [pickInfo.coordinate[0], pickInfo.coordinate[1]] as Position;
+      }
+    }
     return this.context.viewport.unproject([screenCoords[0], screenCoords[1]]) as Position;
   }
 }
