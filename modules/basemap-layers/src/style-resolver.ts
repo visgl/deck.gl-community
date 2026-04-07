@@ -27,7 +27,7 @@ export type BasemapStyleLayer = {
   /** Unique layer identifier. */
   id: string;
   /** Style layer type such as `background`, `fill`, `line`, `symbol`, or `raster`. */
-  type: string;
+  type?: string;
   /** Referenced source identifier. */
   source?: string;
   /** Referenced vector source-layer identifier. */
