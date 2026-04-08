@@ -120,5 +120,4 @@ Reusable panel definitions for panel widgets:
 Several widgets wrap helper libraries rather than owning their own state model:
 
 - `KeyboardShortcutsManager`
-- `SettingsManager`
 - `ToastManager`

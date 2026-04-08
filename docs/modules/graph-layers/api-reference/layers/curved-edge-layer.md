@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # CurvedEdgeLayer
+
+<LayerLiveExample highlight="curved-edge-layer" size="tall" />
 
 `CurvedEdgeLayer` renders Catmull–Rom spline curves between nodes. It relies on
 the reusable [`SplineLayer`](./spline-layer.md) to generate interpolated points

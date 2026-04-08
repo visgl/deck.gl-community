@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # HorizonGraphLayer
+
+<LayerLiveExample highlight="horizon-graph-layer" size="tall" />
 
 Render a single time series using the [horizon graph](https://en.wikipedia.org/wiki/Horizon_graph) visualization technique.
 

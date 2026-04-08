@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # StraightLineEdgeLayer
+
+<LayerLiveExample highlight="straight-line-edge-layer" size="tall" />
 
 `StraightLineEdgeLayer` renders direct connections between nodes using Deck.gl's
 `LineLayer`. `GraphLayer` selects it whenever an edge layout returns

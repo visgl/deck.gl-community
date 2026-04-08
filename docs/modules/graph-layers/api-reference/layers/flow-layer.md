@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # FlowLayer
+
+<LayerLiveExample highlight="flow-layer" size="tall" />
 
 `FlowLayer` renders animated flow lines between nodes. It wraps the reusable
 [`FlowPathLayer`](./flow-path-layer.md) and maps graph stylesheet accessors to the

@@ -16,8 +16,9 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 import {
   SettingsPanel,
   type SettingsPanelProps,
-  type SettingsWidgetSchema,
-  type SettingsWidgetState
+  type SettingDescriptor,
+  type SettingsSchema,
+  type SettingsState
 } from '@deck.gl-community/widgets';
 ```
 
@@ -27,10 +28,10 @@ import {
 type SettingsPanelProps = {
   id?: string;
   label?: string;
-  schema?: SettingsWidgetSchema;
-  settings?: SettingsWidgetState;
+  schema?: SettingsSchema;
+  settings?: SettingsState;
   onSettingsChange?: (
-    settings: SettingsWidgetState,
+    settings: SettingsState,
     changedSettings?: Array<{
       name: string;
       previousValue: unknown;
@@ -53,6 +54,6 @@ Use `SettingsPanel` when a settings form should live inside `SidebarWidget`, `Mo
 
 ## Remarks
 
-- Reuses the same schema-driven controls as `SettingsWidget`, but exposes them as a `WidgetPanel`.
+- Reuses the shared schema-driven controls, but exposes them as a `WidgetPanel`.
 - Tracks section collapse state while the panel stays mounted.
 - Supports nested dot-path setting names and change descriptors in `onSettingsChange`.

@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # Layers
+
+<LayerLiveExample highlight="arrow-layers" />
 
 The following layers are provided, offer Apache Arrow bindings to the corresponding official deck.gl layers
 

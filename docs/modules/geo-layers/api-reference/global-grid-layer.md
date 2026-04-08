@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # GlobalGridLayer
+
+<LayerLiveExample highlight="global-grid-layer" />
 
 <!--
 import {GlobalGridLayerDemo} from '@site/src/doc-demos/geo-layers';

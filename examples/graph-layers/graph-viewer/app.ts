@@ -16,9 +16,9 @@ import {
   SettingsPanel,
   TextEditorPanel,
   ZoomRangeWidget,
-  type SettingsWidgetSchema,
-  type SettingsWidgetSettingDescriptor,
-  type SettingsWidgetState,
+  type SettingsSchema,
+  type SettingDescriptor,
+  type SettingsState,
   type WidgetPanelRecord
 } from '@deck.gl-community/widgets';
 import {
@@ -71,6 +71,7 @@ import '@deck.gl/widgets/stylesheet.css';
 
 export type GraphViewerExampleOptions = {
   graphType?: GraphExampleType;
+  showInfoWidget?: boolean;
 };
 
 type GraphTooltipObject = {
@@ -365,13 +366,16 @@ export function mountGraphViewerExample(
       syncWidgets();
     }
   });
-  const boxWidget = new BoxWidget({
-    id: 'graph-viewer-box',
-    placement: 'top-left',
-    widthPx: 360,
-    title: getGraphViewerBoxTitle(options.graphType),
-    panel: buildInfoBoxPanel(buildRuntime(state), state.selectedLayout)
-  });
+  const boxWidget =
+    options.showInfoWidget === false
+      ? null
+      : new BoxWidget({
+          id: 'graph-viewer-box',
+          placement: 'top-left',
+          widthPx: 360,
+          title: getGraphViewerBoxTitle(options.graphType),
+          panel: buildInfoBoxPanel(buildRuntime(state), state.selectedLayout)
+        });
 
   const viewportController = createViewportController({
     getSource: () => state.resolvedEngine ?? currentRuntime?.layout ?? null,
@@ -385,7 +389,7 @@ export function mountGraphViewerExample(
   });
 
   const handlers = {
-    onSelectionSettingsChange(nextSettings: SettingsWidgetState) {
+    onSelectionSettingsChange(nextSettings: SettingsState) {
       const selectedExample = findExampleByName(state.examples, String(nextSettings.example ?? ''));
       if (selectedExample && selectedExample.name !== state.selectedExampleName) {
         state.selectedExampleName = selectedExample.name;
@@ -413,7 +417,7 @@ export function mountGraphViewerExample(
         applyState();
       }
     },
-    onLayoutOptionsChange(nextSettings: SettingsWidgetState) {
+    onLayoutOptionsChange(nextSettings: SettingsState) {
       const nextOptions = mapLayoutSettingsToOptions(state.selectedLayout, nextSettings);
       state.layoutOverrides = {...state.layoutOverrides, [state.selectedLayout]: nextOptions};
       state.resolvedEngine = null;
@@ -469,7 +473,13 @@ export function mountGraphViewerExample(
     },
     viewState: toDeckViewState(state.viewState),
     layers: [],
-    widgets: [panWidget, zoomWidget, boxWidget, themeWidget, sidebarWidget]
+    widgets: [
+      panWidget,
+      zoomWidget,
+      ...(boxWidget ? [boxWidget] : []),
+      themeWidget,
+      sidebarWidget
+    ]
   });
 
   applyState();
@@ -518,7 +528,7 @@ export function mountGraphViewerExample(
       open: state.isSidebarOpen,
       panel: buildSidebarPanel(runtime, state, handlers)
     });
-    boxWidget.setProps({
+    boxWidget?.setProps({
       title: getGraphViewerBoxTitle(options.graphType),
       panel: buildInfoBoxPanel(runtime, state.selectedLayout, state.themeMode)
     });
@@ -912,8 +922,8 @@ function buildSidebarPanel(
   runtime: GraphViewerRuntime,
   state: GraphViewerState,
   handlers: {
-    onSelectionSettingsChange: (nextSettings: SettingsWidgetState) => void;
-    onLayoutOptionsChange: (nextSettings: SettingsWidgetState) => void;
+    onSelectionSettingsChange: (nextSettings: SettingsState) => void;
+    onLayoutOptionsChange: (nextSettings: SettingsState) => void;
     onToggleCollapseEnabled: () => void;
     onCollapseAll: () => void;
     onExpandAll: () => void;
@@ -1000,7 +1010,7 @@ function buildSelectionSchema(
   selectedExample: ExampleDefinition,
   examples: ExampleDefinition[],
   selectedLayout: LayoutType
-): SettingsWidgetSchema {
+): SettingsSchema {
   return {
     title: 'Graph controls',
     sections: [
@@ -1043,7 +1053,7 @@ function buildLayoutOptionsSchema(
   layout: LayoutType,
   layoutDescription: string | undefined,
   appliedOptions?: Record<string, unknown>
-): SettingsWidgetSchema {
+): SettingsSchema {
   const settings = getLayoutSettingsDescriptors(layout, appliedOptions);
   return {
     title: 'Layout options',
@@ -1079,7 +1089,7 @@ function getGraphViewerBoxTitle(graphType?: GraphExampleType): string {
 function getLayoutSettingsDescriptors(
   layout: LayoutType,
   appliedOptions?: Record<string, unknown>
-): SettingsWidgetSettingDescriptor[] {
+): SettingDescriptor[] {
   if (layout === 'd3-force-layout') {
     const values = createForceLayoutFormState(appliedOptions, D3_FORCE_DEFAULT_OPTIONS);
     return mapPropDescriptionsToSettings(values, FORCE_LAYOUT_PROP_DESCRIPTIONS);
@@ -1110,7 +1120,7 @@ function getLayoutSettingsDescriptors(
 function buildLayoutOptionSettingsState(
   layout: LayoutType,
   appliedOptions?: Record<string, unknown>
-): SettingsWidgetState {
+): SettingsState {
   if (layout === 'd3-force-layout') {
     return createForceLayoutFormState(appliedOptions, D3_FORCE_DEFAULT_OPTIONS);
   }
@@ -1134,7 +1144,7 @@ function buildLayoutOptionSettingsState(
 
 function mapLayoutSettingsToOptions(
   layout: LayoutType,
-  nextSettings: SettingsWidgetState
+  nextSettings: SettingsState
 ): Record<string, unknown> {
   if (layout === 'd3-force-layout' || layout === 'gpu-force-layout') {
     return mapForceLayoutFormStateToOptions(nextSettings as ReturnType<typeof createForceLayoutFormState>);
@@ -1161,7 +1171,7 @@ function mapLayoutSettingsToOptions(
 function mapPropDescriptionsToSettings<TValues extends Record<string, unknown>>(
   values: TValues,
   descriptions: Record<string, PropDescription<TValues>>
-): SettingsWidgetSettingDescriptor[] {
+): SettingDescriptor[] {
   return Object.entries(descriptions).map(([name, description]) => {
     if (description.type === 'number') {
       return {

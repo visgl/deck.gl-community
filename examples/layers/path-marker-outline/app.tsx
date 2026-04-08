@@ -128,7 +128,14 @@ const INITIAL_VIEW_STATE: MapViewState = {
 /**
  * Mounts the path outline and marker example without React.
  */
-export function mountPathOutlineAndMarkersExample(container: HTMLElement): () => void {
+type PathOutlineAndMarkersExampleOptions = {
+  showInfoWidget?: boolean;
+};
+
+export function mountPathOutlineAndMarkersExample(
+  container: HTMLElement,
+  options: PathOutlineAndMarkersExampleOptions = {}
+): () => void {
   const rootElement = container.ownerDocument.createElement('div');
   rootElement.style.position = 'relative';
   rootElement.style.width = '100%';
@@ -142,21 +149,24 @@ export function mountPathOutlineAndMarkersExample(container: HTMLElement): () =>
     initialViewState: INITIAL_VIEW_STATE,
     controller: true,
     parameters: {clearColor: [0.96, 0.97, 1, 1]},
-    widgets: [
-      new BoxWidget({
-        id: 'path-outline-and-markers-info',
-        placement: 'top-left',
-        widthPx: 360,
-        title: 'Path Outline and Markers',
-        collapsible: false,
-        panel: new MarkdownPanel({
-          id: 'path-outline-and-markers-info-panel',
-          title: '',
-          markdown:
-            'Demonstrates `PathOutlineLayer` for outlined dashed routes and `PathMarkerLayer` for directional markers along transit lines.\n\nHover a path to inspect each route or trail.'
-        })
-      })
-    ],
+    widgets:
+      options.showInfoWidget === false
+        ? []
+        : [
+            new BoxWidget({
+              id: 'path-outline-and-markers-info',
+              placement: 'top-left',
+              widthPx: 360,
+              title: 'Path Outline and Markers',
+              collapsible: false,
+              panel: new MarkdownPanel({
+                id: 'path-outline-and-markers-info-panel',
+                title: '',
+                markdown:
+                  'Demonstrates `PathOutlineLayer` for outlined dashed routes and `PathMarkerLayer` for directional markers along transit lines.\n\nHover a path to inspect each route or trail.'
+              })
+            })
+          ],
     layers: [
       new PathOutlineLayer<WaterfrontSegment>({
         id: 'trail-outlines',

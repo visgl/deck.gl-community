@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # RectangleLayer
+
+<LayerLiveExample highlight="rectangle-layer" size="tall" />
 
 `RectangleLayer` renders axis-aligned rectangles around graph nodes. It derives
 size, fill, and stroke accessors from a [`GraphStylesheetEngine`](../internal/graph-stylesheet-engine.md)

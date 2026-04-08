@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # PathOutlineLayer
+
+<LayerLiveExample highlight="path-outline-layer" />
 
 `PathOutlineLayer` extends deck.gl's [`PathLayer`](https://deck.gl/docs/api-reference/layers/path-layer)
 to render crisp outlines around line work. The layer renders each path twice:

@@ -28,7 +28,6 @@ function getUniforms({outlineEnabled, outlineRenderShadowmap, outlineShadowmap} 
 }
 
 const vs = `\
-#version 300 es
 in float instanceZLevel;
 out float outline_vzLevel;
 out vec4 outline_vPosition;

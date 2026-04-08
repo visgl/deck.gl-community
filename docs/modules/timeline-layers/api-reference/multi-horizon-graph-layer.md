@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # MultiHorizonGraphLayer
+
+<LayerLiveExample highlight="multi-horizon-graph-layer" size="tall" />
 
 Render multiple horizon graphs stacked vertically. Each series is drawn using an underlying `HorizonGraphLayer` and optional divider lines.
 

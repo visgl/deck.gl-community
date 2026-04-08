@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # LabelLayer
+
+<LayerLiveExample highlight="label-layer" size="tall" />
 
 `LabelLayer` renders text for graph nodes using the reusable
 [`ZoomableTextLayer`](./zoomable-text-layer.md). It resolves text, color, and size

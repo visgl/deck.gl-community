@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # TileSourceLayer
+
+<LayerLiveExample highlight="tile-source-layer" />
 
 <p class="badges">
   <img src="https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square" alt="from v9.0" />

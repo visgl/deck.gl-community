@@ -257,7 +257,7 @@ function StringSettingControl({inputId, label, value, onApply}: StringSettingCon
 function SettingsControl({setting, value, onValueChange}: SettingsControlProps) {
   const label = setting.label ?? setting.name;
   const tooltip = setting.description?.trim();
-  const inputId = `settings-widget-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+  const inputId = `settings-panel-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
   const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
     onValueChange(event.currentTarget.checked);

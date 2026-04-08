@@ -23,8 +23,8 @@ import {
   TabbedPanel,
   TextEditorPanel,
   type KeyboardShortcut,
-  type SettingsWidgetSchema,
-  type SettingsWidgetState,
+  type SettingsSchema,
+  type SettingsState,
   type WidgetContainer,
   WidgetContainerRenderer,
   type WidgetPanel
@@ -84,7 +84,7 @@ type WidgetPanelsExampleState = {
 };
 
 type WidgetPanelsExampleHandlers = {
-  setSettings: (nextSettings: SettingsWidgetState) => void;
+  setSettings: (nextSettings: SettingsState) => void;
   setModalOpen: (nextOpen: boolean) => void;
   setSidebarOpen: (nextOpen: boolean) => void;
   toggleSidebar: () => void;
@@ -197,7 +197,7 @@ const SIDEBAR_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
   'accordeon-panel'
 ]);
 
-const SETTINGS_SCHEMA: SettingsWidgetSchema = {
+const SETTINGS_SCHEMA: SettingsSchema = {
   title: 'Panel controls',
   sections: [
     {

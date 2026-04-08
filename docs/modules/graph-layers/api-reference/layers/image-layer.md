@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # ImageLayer
+
+<LayerLiveExample highlight="image-layer" size="tall" />
 
 `ImageLayer` draws icon-based nodes using Deck.gl's `IconLayer`. It sources icon
 positions from `getPosition` and forwards color, size, and icon mapping accessors

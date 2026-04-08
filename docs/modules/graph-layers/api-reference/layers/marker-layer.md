@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # MarkerLayer
+
+<LayerLiveExample highlight="marker-layer" size="tall" />
 
 `MarkerLayer` renders a packed atlas of 32×32 SVG-inspired glyphs on top of
 Deck.gl's `IconLayer`. It is reused by `ZoomableMarkerLayer` for marker-based

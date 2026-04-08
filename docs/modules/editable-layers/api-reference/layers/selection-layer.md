@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # SelectionLayer
+
+<LayerLiveExample highlight="selection-layer" />
 
 This layer can be used to select deck.gl objects using mouse drawing.
 

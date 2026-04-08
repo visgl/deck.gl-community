@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # GraphLayer
+
+<LayerLiveExample highlight="graph-layer" size="tall" />
 
 `GraphLayer` is a composite Deck.gl layer that renders graph nodes, edges, and
 optional decorators using the declarative [graph stylesheet](../styling/graph-stylesheet.md).

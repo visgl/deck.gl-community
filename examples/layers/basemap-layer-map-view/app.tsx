@@ -9,8 +9,8 @@ import {
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
-  type SettingsWidgetSchema,
-  type SettingsWidgetState
+  type SettingsSchema,
+  type SettingsState
 } from '../../../modules/widgets/src';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
@@ -140,7 +140,7 @@ const GLOBE_VIEW_STATE = {
   maxZoom: 12
 };
 
-const SETTINGS_SCHEMA: SettingsWidgetSchema = {
+const SETTINGS_SCHEMA: SettingsSchema = {
   title: 'Settings',
   sections: [
     {
@@ -344,7 +344,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
             id: 'settings',
             label: 'Settings',
             schema: SETTINGS_SCHEMA,
-            settings: state.settings as unknown as SettingsWidgetState,
+            settings: state.settings as unknown as SettingsState,
             onSettingsChange: (nextSettings) => {
               const nextMode = nextSettings.view?.mode as ExampleSettings['view']['mode'] | undefined;
               const nextStyleId = nextSettings.basemap?.style as ExampleStyleOption['id'] | undefined;

@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # PathEdgeLayer
+
+<LayerLiveExample highlight="path-edge-layer" size="tall" />
 
 `PathEdgeLayer` renders polylines that pass through intermediate control points.
 It builds a path array for each edge and hands the result to Deck.gl's

@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # ZoomableMarkerLayer
+
+<LayerLiveExample highlight="zoomable-marker-layer" size="tall" />
 
 `ZoomableMarkerLayer` draws atlas-based markers that can optionally scale with
 zoom. It wraps [`MarkerLayer`](./marker-layer.md) and reads marker, size, and
