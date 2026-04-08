@@ -137,7 +137,7 @@ describe('SettingsPanel', () => {
 
     const numberInput = getRequiredInput(root, 'input[type="number"]');
     numberInput.value = '2';
-    numberInput.dispatchEvent(new Event('change', {bubbles: true}));
+    numberInput.dispatchEvent(new Event('input', {bubbles: true}));
     await Promise.resolve();
 
     expect(handleSettingsChange).toHaveBeenLastCalledWith(
@@ -155,9 +155,9 @@ describe('SettingsPanel', () => {
     selectButton.click();
     await Promise.resolve();
 
-    const option = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="option"]')).find(
-      (button) => button.textContent?.includes('critical-path')
-    );
+    const option = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')
+    ).find((button) => button.textContent?.includes('critical-path'));
     expect(option).toBeTruthy();
     option?.click();
     await Promise.resolve();

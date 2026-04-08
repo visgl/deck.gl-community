@@ -177,7 +177,7 @@ describe('SettingsWidget', () => {
 
     const numberInput = getRequiredInput(root, 'input[type="number"]');
     numberInput.value = '2';
-    numberInput.dispatchEvent(new Event('change', {bubbles: true}));
+    numberInput.dispatchEvent(new Event('input', {bubbles: true}));
     await flushEffects();
 
     expect(handleSettingsChange).toHaveBeenLastCalledWith(
@@ -195,9 +195,9 @@ describe('SettingsWidget', () => {
     clickButton(selectButton);
     await flushEffects();
 
-    const option = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="option"]')).find(
-      (button) => button.textContent?.includes('critical-path')
-    );
+    const option = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')
+    ).find((button) => button.textContent?.includes('critical-path'));
     clickButton(option ?? null);
     await flushEffects();
 
