@@ -1,12 +1,14 @@
+import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
+
 # ModalWidget
 
-<p class="badges">
+<p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-`ModalWidget` renders a deck.gl widget trigger that opens a centered overlay panel.
+<WidgetPanelsLiveExample highlight="modal-widget" />
 
-It is exported from `@deck.gl-community/widgets`.
+`ModalWidget` renders a deck.gl widget trigger that opens a centered overlay panel.
 
 ## Import
 
@@ -33,14 +35,15 @@ type ModalWidgetProps = WidgetProps & {
 };
 ```
 
-## Behavior
+
+## Usage
+
+Use `ModalWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.
+
+## Remarks
 
 - Accepts either a full `container` description or a single `panel`.
 - Can render with the built-in icon trigger or be controlled externally.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.
 - Raises its placement container while open so the dialog stays above neighboring widgets.
-
-## Usage
-
-Use `ModalWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.

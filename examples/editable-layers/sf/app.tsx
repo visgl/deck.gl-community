@@ -11,9 +11,9 @@ import {
 } from '@deck.gl-community/editable-layers';
 import {
   BoxWidget,
-  ColumnWidgetPanel,
-  CustomWidgetPanel,
-  MarkdownWidgetPanel
+  ColumnPanel,
+  CustomPanel,
+  MarkdownPanel
 } from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
@@ -250,11 +250,11 @@ function buildInfoPanel({
   onSetSelectionType: (nextSelectionType: string) => void;
   onToggleAllowEdit: () => void;
 }) {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'sf-polygons-info-panel',
     title: '',
     panels: {
-      summary: new MarkdownWidgetPanel({
+      summary: new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -267,7 +267,7 @@ function buildInfoPanel({
           `- Editing: **${allowEdit ? 'enabled' : 'disabled'}**`
         ].join('\n')
       }),
-      actions: new CustomWidgetPanel({
+      actions: new CustomPanel({
         id: 'actions',
         title: 'Selection',
         onRenderHTML: (host) => {

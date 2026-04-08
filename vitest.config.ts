@@ -41,7 +41,7 @@ const CONFIG = defineConfig({
             'dev/**/dist/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
-            'modules/widgets/src/panel-widgets/toolbar-widget.test.ts',
+            'modules/widgets/src/widget-panels/toolbar-widget.test.ts',
             'modules/basemap-layers/**'
           ],
           browser: {

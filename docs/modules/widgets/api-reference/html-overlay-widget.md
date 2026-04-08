@@ -1,4 +1,8 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # HtmlOverlayWidget
+
+<WidgetLiveExample highlight="html-overlay-widget" />
 
 Use this widget to render HTML items anchored to geographic coordinates. It projects every
 [`HtmlOverlayItem`](./html-overlay-item.md) into screen space using the current view and draws

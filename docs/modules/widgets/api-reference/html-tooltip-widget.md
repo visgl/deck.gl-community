@@ -1,4 +1,8 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # HtmlTooltipWidget
+
+<WidgetLiveExample highlight="html-tooltip-widget" />
 
 Display a tooltip built from picking info returned by deck.gl hover events. Tooltips are rendered
 as [`HtmlOverlayItem`](./html-overlay-item.md) instances by the widget, so you only need to supply

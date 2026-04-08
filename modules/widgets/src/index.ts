@@ -33,39 +33,39 @@ export {
   type OmniBoxRenderOptionArgs,
   type OmniBoxWidgetProps
 } from './widgets/omni-box-widget';
-export {ResetViewWidget, type ResetViewWidgetProps} from './panel-widgets/reset-view-widget';
+export {ResetViewWidget, type ResetViewWidgetProps} from './widget-panels/reset-view-widget';
 export {
   TimeMeasureWidget,
   type TimeMeasureRange,
   type TimeMeasureSelectionState
-} from './panel-widgets/time-measure-widget';
-export {ToastWidget, type ToastWidgetProps} from './panel-widgets/toast-widget';
+} from './widget-panels/time-measure-widget';
+export {ToastWidget, type ToastWidgetProps} from './widget-panels/toast-widget';
 export {
   toastManager,
   type ToastEntry,
   type ToastKind,
   type ToastRequest
-} from './panel-widgets/toast-manager';
-export {YZoomWidget, type YZoomWidgetProps} from './panel-widgets/y-zoom-widget';
+} from './widget-panels/toast-manager';
+export {YZoomWidget, type YZoomWidgetProps} from './widget-panels/y-zoom-widget';
 export {
-  AccordeonWidgetPanel,
+  AccordeonPanel,
   AccordeonWidgetContainer,
   ColumnWidgetContainer,
-  ColumnWidgetPanel,
-  CustomWidgetPanel,
-  MarkdownWidgetPanel,
-  TabbedWidgetPanel,
+  ColumnPanel,
+  CustomPanel,
+  MarkdownPanel,
+  TabbedPanel,
   TabbedWidgetContainer,
   WidgetContainerRenderer,
   asPanelContainer,
   type AccordeonWidgetContainerProps,
-  type AccordeonWidgetPanelProps,
+  type AccordeonPanelProps,
   type ColumnWidgetContainerProps,
-  type ColumnWidgetPanelProps,
-  type CustomWidgetPanelProps,
-  type MarkdownWidgetPanelProps,
+  type ColumnPanelProps,
+  type CustomPanelProps,
+  type MarkdownPanelProps,
   type TabbedWidgetContainerProps,
-  type TabbedWidgetPanelProps,
+  type TabbedPanelProps,
   type WidgetContainer,
   type WidgetContainerPanelBase,
   type WidgetPanel,
@@ -74,17 +74,27 @@ export {
   type WidgetPanelRecord,
   type WidgetPanelTheme,
   type WidgetPanelThemeMode
-} from './panel-widgets/widget-containers';
-export {BoxWidget, type BoxWidgetProps} from './panel-widgets/box-widget';
+} from './widget-panels/widget-containers';
+export {BoxWidget, type BoxWidgetProps} from './widget-panels/box-widget';
+export {
+  FullScreenPanelWidget,
+  type FullScreenPanelWidgetProps
+} from './widget-panels/full-screen-panel-widget';
 export {
   KeyboardShortcutsWidget,
-  KeyboardSettingsWidgetPanel,
-  type KeyboardSettingsWidgetPanelProps
-} from './panel-widgets/keyboard-shortcuts-widget';
-export {ModalWidget, type ModalWidgetProps} from './panel-widgets/modal-widget';
-export {SettingsWidgetPanel, type SettingsWidgetPanelProps} from './panel-widgets/settings-widget';
-export {StatsWidgetPanel, type StatsWidgetPanelProps} from './panel-widgets/stats-widget-panel';
-export {SidebarWidget, type SidebarWidgetProps} from './panel-widgets/sidebar-widget';
+  KeyboardShortcutsPanel,
+  type KeyboardShortcutsPanelProps
+} from './widget-panels/keyboard-shortcuts-widget';
+export {ModalWidget, type ModalWidgetProps} from './widget-panels/modal-widget';
+export {SettingsPanel, type SettingsPanelProps} from './widget-panels/settings-panel';
+export {
+  SelectWidgetComponent,
+  type SelectWidgetComponentOption,
+  type SelectWidgetComponentProps
+} from './widget-components/select-widget-component';
+export {IconButton, makeTextIcon} from './widget-components/icon-button';
+export {StatsPanel, type StatsPanelProps} from './widget-panels/stats-panel';
+export {SidebarWidget, type SidebarWidgetProps} from './widget-panels/sidebar-widget';
 export {
   ToolbarWidget,
   type ToolbarWidgetActionItem,
@@ -93,11 +103,8 @@ export {
   type ToolbarWidgetProps,
   type ToolbarWidgetToggleGroupItem,
   type ToolbarWidgetToggleOption
-} from './panel-widgets/toolbar-widget';
-export {
-  TextEditorWidgetPanel,
-  type TextEditorWidgetPanelProps
-} from './panel-widgets/text-editor-widget';
+} from './widget-panels/toolbar-widget';
+export {TextEditorPanel, type TextEditorPanelProps} from './widget-panels/text-editor-panel';
 
 export {
   type KeyboardShortcut,
