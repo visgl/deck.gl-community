@@ -39,7 +39,7 @@ const MOCK_POINTER_DOWN_STATE_PICK: PickingInfo = {
   layer: null,
   index: 0,
   picked: true,
-  object: {id: 1},
+  object: {id: 2},
   x: 10,
   y: 20,
   pixelRatio: 1
@@ -88,6 +88,40 @@ beforeEach(() => {
   layer.initializeState();
 });
 
+const assertBasePointerEvent = (event: BasePointerEvent, mockSrcEvent: any) => {
+  expect(event.screenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
+  expect(event.mapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
+  expect(event.sourceEvent).toBe(mockSrcEvent.srcEvent);
+  expect(Array.isArray(event.picks)).toBe(true);
+  expect(event.picks[0]).toMatchObject({index: 0, object: {id: 1}});
+  return event;
+};
+
+const assertPointerDownEvent = (
+  event: StartDraggingEvent | DraggingEvent | StopDraggingEvent | PointerMoveEvent
+) => {
+  expect(event.pointerDownScreenCoords).toEqual(MOCK_POINTER_DOWN_STATE_SCREEN_COORDS);
+  expect(event.pointerDownMapCoords).toEqual(MOCK_POINTER_DOWN_STATE_MAP_COORDS);
+  expect(Array.isArray(event.pointerDownPicks)).toBe(true);
+  expect(event.pointerDownPicks[0]).toMatchObject({index: 0, object: {id: 2}});
+};
+
+const expectBasePointerEvent = <E extends BasePointerEvent>(
+  callback: any,
+  mockSrcEvent: any
+): E => {
+  expect(callback).toHaveBeenCalledOnce();
+
+  return assertBasePointerEvent(callback.mock.calls[0][0], mockSrcEvent) as E;
+};
+
+test('toBasePointerEvent uses offsetCenter, not clientX/Y', () => {
+  const event = makeMockGestureEvent('click');
+  const result = layer.toBasePointerEvent(event);
+
+  assertBasePointerEvent(result, event);
+});
+
 test('initializeState registers event handlers', () => {
   const registeredHandler = layer.state._editableLayerState.eventHandler;
 
@@ -111,133 +145,79 @@ test('finalizeState deregisters event handlers', () => {
 });
 
 test('_onclick calls onLayerClick with correct event', () => {
-  const clickSpy = vi.fn();
-  layer.onLayerClick = clickSpy;
+  const onLayerClickSpy = vi.spyOn(layer, 'onLayerClick');
 
   const mockEvent = makeMockGestureEvent('click');
   layer._onclick(mockEvent);
 
-  expect(clickSpy).toHaveBeenCalledOnce();
-  const evt: BasePointerEvent = clickSpy.mock.calls[0][0];
-  expect(evt.screenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
-  expect(evt.mapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
-  expect(Array.isArray(evt.picks)).toBe(true);
-  expect(evt.picks[0]).toMatchObject({index: 0, object: {id: 1}});
-  expect(evt.sourceEvent).toBe(mockEvent.srcEvent);
+  expectBasePointerEvent(onLayerClickSpy, mockEvent);
 });
 
 test('_ondblclick calls onLayerDoubleClick with correct event', () => {
-  const dblClickSpy = vi.fn();
-  layer.onLayerDoubleClick = dblClickSpy;
+  const onLayerDoubleClickSpy = vi.spyOn(layer, 'onLayerDoubleClick');
 
   const mockEvent = makeMockGestureEvent('dblclick');
   layer._ondblclick(mockEvent);
 
-  expect(dblClickSpy).toHaveBeenCalledOnce();
-  const evt: BasePointerEvent = dblClickSpy.mock.calls[0][0];
-  expect(evt.screenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
-  expect(evt.mapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
-  expect(Array.isArray(evt.picks)).toBe(true);
-  expect(evt.picks[0]).toMatchObject({index: 0, object: {id: 1}});
-  expect(evt.sourceEvent).toBe(mockEvent.srcEvent);
+  expectBasePointerEvent(onLayerDoubleClickSpy, mockEvent);
 });
 
 test('_onpanstart calls onStartDragging with correct event', () => {
-  const startDragSpy = vi.fn();
-  layer.onStartDragging = startDragSpy;
+  const onStartDraggingSpy = vi.spyOn(layer, 'onStartDragging');
 
   const mockEvent = makeMockGestureEvent('panstart');
   layer._onpanstart(mockEvent);
 
-  expect(startDragSpy).toHaveBeenCalledOnce();
-  const evt: StartDraggingEvent = startDragSpy.mock.calls[0][0];
-  expect(evt.screenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
-  expect(evt.mapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
-  expect(evt.pointerDownScreenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
-  expect(evt.pointerDownMapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
-  expect(Array.isArray(evt.picks)).toBe(true);
-  expect(evt.picks[0]).toMatchObject({index: 0, object: {id: 1}});
-  expect(Array.isArray(evt.pointerDownPicks)).toBe(true);
-  expect(evt.sourceEvent).toBe(mockEvent.srcEvent);
-  expect(typeof evt.cancelPan).toBe('function');
-});
+  const event: StartDraggingEvent = expectBasePointerEvent(onStartDraggingSpy, mockEvent);
+  expect(event.pointerDownScreenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
+  expect(event.pointerDownMapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
+  expect(Array.isArray(event.pointerDownPicks)).toBe(true);
+  expect(event.pointerDownPicks[0]).toMatchObject({index: 0, object: {id: 1}});
 
-test('_onpanstart writes pointerDown coords and picks into state', () => {
-  layer.onStartDragging = vi.fn();
-
-  const mockEvent = makeMockGestureEvent('panstart');
-  layer._onpanstart(mockEvent);
-
-  const s = layer.state._editableLayerState;
-  expect(s.pointerDownScreenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
-  expect(s.pointerDownMapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
-  expect(Array.isArray(s.pointerDownPicks)).toBe(true);
-});
-
-test('_onpanstart cancelPan calls stopImmediatePropagation', () => {
-  layer.onStartDragging = vi.fn();
-
-  const mockEvent = makeMockGestureEvent('panstart');
-  layer._onpanstart(mockEvent);
-
-  const evt: StartDraggingEvent = (layer.onStartDragging as any).mock.calls[0][0];
-  evt.cancelPan();
+  expect(typeof event.cancelPan).toBe('function');
+  event.cancelPan();
   expect(mockEvent.stopImmediatePropagation).toHaveBeenCalledOnce();
 });
 
-test('_onpanmove calls onDragging with correct event', () => {
-  const dragSpy = vi.fn();
-  layer.onDragging = dragSpy;
-  layer.state._editableLayerState = {...MOCK_POINTER_DOWN_STATE};
+test('_onpanstart writes pointerDown coords and picks into state', () => {
+  const mockEvent = makeMockGestureEvent('panstart');
+  layer._onpanstart(mockEvent);
 
-  const mockEvent = makeMockGestureEvent('panmove');
-  layer._onpanmove(mockEvent);
-
-  expect(dragSpy).toHaveBeenCalledOnce();
-  const evt: DraggingEvent = dragSpy.mock.calls[0][0];
-  expect(evt.screenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
-  expect(evt.mapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
-  expect(evt.pointerDownScreenCoords).toEqual(MOCK_POINTER_DOWN_STATE_SCREEN_COORDS);
-  expect(evt.pointerDownMapCoords).toEqual(MOCK_POINTER_DOWN_STATE_MAP_COORDS);
-  expect(Array.isArray(evt.picks)).toBe(true);
-  expect(evt.sourceEvent).toBe(mockEvent.srcEvent);
-  expect(typeof evt.cancelPan).toBe('function');
+  const state = layer.state._editableLayerState;
+  expect(state.pointerDownScreenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
+  expect(state.pointerDownMapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
+  expect(Array.isArray(state.pointerDownPicks)).toBe(true);
+  expect(state.pointerDownPicks[0]).toMatchObject({index: 0, object: {id: 1}});
 });
 
-test('_onpanmove cancelPan delegates to event.stopImmediatePropagation', () => {
-  layer.onDragging = vi.fn();
+test('_onpanmove calls onDragging with correct event', () => {
+  const onDraggingSpy = vi.spyOn(layer, 'onDragging');
   layer.state._editableLayerState = {...MOCK_POINTER_DOWN_STATE};
 
   const mockEvent = makeMockGestureEvent('panmove');
   layer._onpanmove(mockEvent);
 
-  const evt: DraggingEvent = (layer.onDragging as any).mock.calls[0][0];
-  evt.cancelPan();
+  const event: DraggingEvent = expectBasePointerEvent(onDraggingSpy, mockEvent);
+  assertPointerDownEvent(event);
+
+  expect(typeof event.cancelPan).toBe('function');
+  event.cancelPan();
   expect(mockEvent.stopImmediatePropagation).toHaveBeenCalledOnce();
 });
 
 test('_onpanend calls onStopDragging with correct event', () => {
-  const stopDragSpy = vi.fn();
-  layer.onStopDragging = stopDragSpy;
+  const stopDragSpy = vi.spyOn(layer, 'onStopDragging');
   layer.state._editableLayerState = {...MOCK_POINTER_DOWN_STATE};
 
   const mockEvent = makeMockGestureEvent('panend');
   layer._onpanend(mockEvent);
 
-  expect(stopDragSpy).toHaveBeenCalledOnce();
-  const evt: StopDraggingEvent = stopDragSpy.mock.calls[0][0];
-  expect(evt.screenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
-  expect(evt.mapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
-  expect(evt.pointerDownScreenCoords).toEqual(MOCK_POINTER_DOWN_STATE_SCREEN_COORDS);
-  expect(evt.pointerDownMapCoords).toEqual(MOCK_POINTER_DOWN_STATE_MAP_COORDS);
-  expect(Array.isArray(evt.picks)).toBe(true);
-  expect(evt.sourceEvent).toBe(mockEvent.srcEvent);
+  const event: StopDraggingEvent = expectBasePointerEvent(stopDragSpy, mockEvent);
+  assertPointerDownEvent(event);
 });
 
 test('_onpanend resets pointerDown state to null', () => {
-  layer.onStopDragging = vi.fn();
   layer.state._editableLayerState = {...MOCK_POINTER_DOWN_STATE};
-
   layer._onpanend(makeMockGestureEvent('panend'));
 
   const s = layer.state._editableLayerState;
@@ -247,33 +227,16 @@ test('_onpanend resets pointerDown state to null', () => {
 });
 
 test('_onpointermove calls onPointerMove with correct event', () => {
-  const pointerMoveSpy = vi.fn();
-  layer.onPointerMove = pointerMoveSpy;
+  const pointerMoveSpy = vi.spyOn(layer, 'onPointerMove');
   layer.state._editableLayerState = {...MOCK_POINTER_DOWN_STATE};
 
   const mockEvent = makeMockGestureEvent('pointermove');
   layer._onpointermove(mockEvent);
 
-  expect(pointerMoveSpy).toHaveBeenCalledOnce();
-  const evt: PointerMoveEvent = pointerMoveSpy.mock.calls[0][0];
-  expect(evt.screenCoords).toEqual(MOCK_EVENT_SCREEN_COORDS);
-  expect(evt.mapCoords).toEqual(MOCK_EVENT_MAP_COORDS);
-  expect(evt.pointerDownScreenCoords).toEqual(MOCK_POINTER_DOWN_STATE_SCREEN_COORDS);
-  expect(evt.pointerDownMapCoords).toEqual(MOCK_POINTER_DOWN_STATE_MAP_COORDS);
-  expect(Array.isArray(evt.picks)).toBe(true);
-  expect(evt.picks[0]).toMatchObject({index: 0, object: {id: 1}});
-  expect(evt.sourceEvent).toBe(mockEvent.srcEvent);
-  expect(typeof evt.cancelPan).toBe('function');
-});
+  const event: PointerMoveEvent = expectBasePointerEvent(pointerMoveSpy, mockEvent);
+  assertPointerDownEvent(event);
 
-test('_onpointermove cancelPan delegates to event.stopImmediatePropagation', () => {
-  layer.onPointerMove = vi.fn();
-  layer.state._editableLayerState = {...MOCK_POINTER_DOWN_STATE};
-
-  const mockEvent = makeMockGestureEvent('pointermove');
-  layer._onpointermove(mockEvent);
-
-  const evt: PointerMoveEvent = (layer.onPointerMove as any).mock.calls[0][0];
-  evt.cancelPan();
+  expect(typeof event.cancelPan).toBe('function');
+  event.cancelPan();
   expect(mockEvent.stopImmediatePropagation).toHaveBeenCalledOnce();
 });
