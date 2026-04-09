@@ -14,26 +14,29 @@ import {
 import {nearestPointOnLine} from '../../../src/edit-modes/utils';
 import {Position} from '../../../src/utils/geojson-types';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
+import {CartesianCoordinateSystem} from '../../../src/edit-modes/coordinate-system';
 
 const Point = {
-  type: 'Feature',
+  type: 'Feature' as const,
   geometry: {
-    type: 'Point',
+    type: 'Point' as const,
     coordinates: [102.0, 0.5]
-  }
+  },
+  properties: {}
 };
 
 const LineString = {
-  type: 'Feature',
+  type: 'Feature' as const,
   geometry: {
-    type: 'LineString',
+    type: 'LineString' as const,
     coordinates: [
       [102.0, 0.0],
       [103.0, 1.0],
       [104.0, 0.0],
       [105.0, 1.0]
     ]
-  }
+  },
+  properties: {}
 };
 
 const Polygon = {
@@ -219,13 +222,9 @@ describe('nearestPointOnProjectedLine() and related functions', () => {
 });
 
 describe('nearestPointOnLine()', () => {
-  const viewport = {
-    project: (x) => x,
-    unproject: (x) => x
-  };
+  const viewport = {width: 0, height: 0, longitude: 0, latitude: 0, zoom: 0};
 
   it('Correctly intersects line normal to slope of line', () => {
-    // @ts-expect-error TODO
     const result = nearestPointOnLine(LineString, Point, viewport);
     expect(result.geometry.type).toEqual('Point');
     expect(result.geometry.coordinates.length).toEqual(2);
@@ -236,13 +235,13 @@ describe('nearestPointOnLine()', () => {
 
   it('Snaps to the end when the point is past the end of the LineString', () => {
     const point = {
-      type: 'Feature',
+      type: 'Feature' as const,
       geometry: {
-        type: 'Point',
+        type: 'Point' as const,
         coordinates: [100.0, -4.0]
-      }
+      },
+      properties: {}
     };
-    // @ts-expect-error TODO
     const result = nearestPointOnLine(LineString, point, viewport);
     expect(result.geometry.type).toEqual('Point');
     expect(result.geometry.coordinates.length).toEqual(2);
@@ -252,8 +251,7 @@ describe('nearestPointOnLine()', () => {
   });
 
   it('Correctly intersects line normal to slope of line WITH CARTESIAN COORDINATES ', () => {
-    // @ts-expect-error TODO
-    const result = nearestPointOnLine(LineString, Point, viewport, COORDINATE_SYSTEM.CARTESIAN);
+    const result = nearestPointOnLine(LineString, Point, viewport, new CartesianCoordinateSystem());
     expect(result.geometry.type).toEqual('Point');
     expect(result.geometry.coordinates.length).toEqual(2);
     expect(result.geometry.coordinates[0]).toBeCloseTo(102.25, 3);

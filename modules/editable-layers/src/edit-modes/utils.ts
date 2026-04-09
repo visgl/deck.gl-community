@@ -127,8 +127,8 @@ export function mix(a: number, b: number, ratio: number): number {
 export function projectOrUnprojectPoints(
   inputPoints: Position,
   coordinateSystem: EditModeCoordinateSystem,
-  wmViewport: WebMercatorViewport,
-  project: 'PROJECT' | 'UNPROJECT'
+  project: 'PROJECT' | 'UNPROJECT',
+  wmViewport?: WebMercatorViewport
 ): Position {
   if (coordinateSystem === undefined) return [...inputPoints];
   else if (coordinateSystem instanceof CartesianCoordinateSystem) return [...inputPoints];
@@ -159,11 +159,11 @@ export function nearestPointOnProjectedLine(
   const [x, y] = projectOrUnprojectPoints(
     inPoint.geometry.coordinates,
     coordinateSystem,
-    wmViewport,
-    'PROJECT'
+    'PROJECT',
+    wmViewport
   );
   const projectedCoords = coordinates.map(([px, py, pz = 0]) =>
-    projectOrUnprojectPoints([px, py, pz], coordinateSystem, wmViewport, 'PROJECT')
+    projectOrUnprojectPoints([px, py, pz], coordinateSystem, 'PROJECT', wmViewport)
   );
 
   let minPointInfo: PointWithIndex = {index: 0, x0: 0, y0: 0};
@@ -211,7 +211,7 @@ export function nearestPointOnProjectedLine(
     type: 'Feature',
     geometry: {
       type: 'Point',
-      coordinates: projectOrUnprojectPoints([x0, y0, z0], coordinateSystem, wmViewport, 'UNPROJECT')
+      coordinates: projectOrUnprojectPoints([x0, y0, z0], coordinateSystem, 'UNPROJECT', wmViewport)
     },
     properties: {
       // TODO: calculate the distance in proper units
@@ -227,8 +227,10 @@ export function nearestPointOnLine(
   viewport?: Viewport,
   coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  // const wmViewport = viewport ? new WebMercatorViewport(viewport) : null;
-  const wmViewport = new WebMercatorViewport(viewport);
+  const viewportCheck = viewport
+    ? viewport
+    : {width: 0, height: 0, longitude: 0, latitude: 0, zoom: 0};
+  const wmViewport = new WebMercatorViewport(viewportCheck);
 
   let closestPoint: any = point([Infinity, Infinity], {dist: Infinity});
 
@@ -253,11 +255,11 @@ export function nearestPointOnLine(
       const pointCoordinate = projectOrUnprojectPoints(
         pointCoords,
         coordinateSystem,
-        wmViewport,
-        'PROJECT'
+        'PROJECT',
+        wmViewport
       );
       const lineCoordinates = coords.map(([px, py, pz = 0]) =>
-        projectOrUnprojectPoints([px, py, pz], coordinateSystem, wmViewport, 'PROJECT')
+        projectOrUnprojectPoints([px, py, pz], coordinateSystem, 'PROJECT', wmViewport)
       );
 
       for (let n = 1; n < lineCoordinates.length; n++) {
@@ -332,8 +334,8 @@ export function nearestPointOnLine(
     const pixelToLatLong = projectOrUnprojectPoints(
       [snapPoint.x, snapPoint.y],
       coordinateSystem,
-      wmViewport,
-      'UNPROJECT'
+      'UNPROJECT',
+      wmViewport
     );
     snapPoint = {
       x: pixelToLatLong[0],

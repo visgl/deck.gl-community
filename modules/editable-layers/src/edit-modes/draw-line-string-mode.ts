@@ -170,7 +170,10 @@ export class DrawLineStringMode extends GeoJsonEditMode {
   }
 
   // utility function
-  calculateInfoDraw(clickSequence: Position[], coordinateSystem: EditModeCoordinateSystem) {
+  calculateInfoDraw(
+    clickSequence: Position[],
+    coordinateSystem: EditModeCoordinateSystem = new GeoCoordinateSystem()
+  ) {
     // check if the selected points are at least 2
     if (clickSequence.length > 1) {
       // setting the last point
@@ -198,7 +201,9 @@ export class DrawLineStringMode extends GeoJsonEditMode {
       if (formatTooltip) {
         text = formatTooltip(dist);
       } else {
-        const coordSys = getEditModeCoordinateSystem(coordinateSystem);
+        const coordSys = coordinateSystem
+          ? getEditModeCoordinateSystem(coordinateSystem)
+          : new GeoCoordinateSystem();
         const labelUnits = coordSys instanceof GeoCoordinateSystem ? 'kilometers' : 'pixels';
         // By default, round to 2 decimal places and append units
         text = `Distance: ${parseFloat(dist).toFixed(2)} ${labelUnits}`;
