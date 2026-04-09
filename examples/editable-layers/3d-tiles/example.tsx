@@ -204,7 +204,6 @@ export function Example() {
     mode,
     modeConfig,
     selectedFeatureIndexes,
-    unproject3D: true,
     extensions: [new TerrainExtension()],
     getLineColor: () => UI_BLUE,
     getFillColor: () => UI_BLUE_SEMI,
@@ -270,7 +269,7 @@ function buildInfoPanel({
         id: 'summary',
         title: '',
         markdown: [
-          'Editable layers on Google 3D Tiles with `unproject3D` enabled.',
+          'Editable layers on Google 3D Tiles.',
           'Drawn features snap to 3D terrain surface.',
           '',
           `- Mode: **${modeLabel}**`,
