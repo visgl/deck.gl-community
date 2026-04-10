@@ -45,9 +45,9 @@
     "@loaders.gl/zip": "4.4.1"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.3.0-alpha.6",
-    "@deck.gl/google-maps": "~9.3.0-alpha.6",
-    "@deck.gl/json": "~9.3.0-alpha.6",
+    "@deck.gl/core": "~9.3.0-beta.1",
+    "@deck.gl/google-maps": "~9.3.0-beta.1",
+    "@deck.gl/json": "~9.3.0-beta.1",
     "@loaders.gl/core": "^4.4.1",
     "@loaders.gl/csv": "^4.4.1",
     "@loaders.gl/i3s": "^4.4.1",

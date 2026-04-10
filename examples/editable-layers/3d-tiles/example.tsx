@@ -22,7 +22,7 @@ import {
   EditorToolbarWidget
 } from '@deck.gl-community/editable-layers';
 import type {BooleanOperation} from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnWidgetPanel, MarkdownWidgetPanel} from '@deck.gl-community/widgets';
+import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -261,11 +261,11 @@ function buildInfoPanel({
   featureCount: number;
   selectedFeatureIndexes: number[];
 }) {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'editor-info-panel',
     title: '',
     panels: {
-      summary: new MarkdownWidgetPanel({
+      summary: new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
