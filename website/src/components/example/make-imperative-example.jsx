@@ -22,25 +22,28 @@ function ImperativeExampleHost({mount, mountLabel, ...mountProps}) {
 
     let cleanup;
     let isDisposed = false;
-
-    Promise.resolve(mount(hostElement, initialPropsRef.current))
-      .then((nextCleanup) => {
-        if (typeof nextCleanup !== 'function') {
-          return;
-        }
-        if (isDisposed) {
-          nextCleanup();
-          return;
-        }
-        cleanup = nextCleanup;
-      })
-      .catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error(`Failed to mount ${mountLabel}`, error);
-      });
+    const animationFrame = window.requestAnimationFrame(() => {
+      Promise.resolve()
+        .then(() => mount(hostElement, initialPropsRef.current))
+        .then((nextCleanup) => {
+          if (typeof nextCleanup !== 'function') {
+            return;
+          }
+          if (isDisposed) {
+            nextCleanup();
+            return;
+          }
+          cleanup = nextCleanup;
+        })
+        .catch((error) => {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to mount ${mountLabel}`, error);
+        });
+    });
 
     return () => {
       isDisposed = true;
+      window.cancelAnimationFrame(animationFrame);
       cleanup?.();
     };
   }, [mount, mountLabel]);
@@ -50,7 +53,7 @@ function ImperativeExampleHost({mount, mountLabel, ...mountProps}) {
 
 export default function makeImperativeExample(
   {title, code, renderInfo = () => null, mount, parameters, mapStyle, data},
-  options,
+  options
 ) {
   function ImperativeDemo(props) {
     return (

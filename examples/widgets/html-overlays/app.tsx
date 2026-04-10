@@ -11,7 +11,7 @@ import {
   HtmlOverlayWidget,
   HtmlTooltipWidget,
   type HtmlOverlayWidgetProps,
-  MarkdownWidgetPanel
+  MarkdownPanel
 } from '@deck.gl-community/widgets';
 import {h} from 'preact';
 import maplibregl from 'maplibre-gl';
@@ -192,7 +192,7 @@ export function mountHtmlOverlaysExample(container: HTMLElement): () => void {
     placement: 'top-right',
     widthPx: 340,
     title: 'HTML Overlay Widgets',
-    panel: new MarkdownWidgetPanel({
+    panel: new MarkdownPanel({
       id: 'summary',
       title: '',
       markdown: [

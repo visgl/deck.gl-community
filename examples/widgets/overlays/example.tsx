@@ -10,7 +10,7 @@ import {
   BoxWidget,
   HtmlOverlayItem,
   HtmlOverlayWidget,
-  MarkdownWidgetPanel,
+  MarkdownPanel,
   type HtmlOverlayWidgetProps
 } from '@deck.gl-community/widgets';
 import {INITIAL_COORDS, INITIAL_VIEW_STATE} from './constants';
@@ -58,7 +58,7 @@ export function mountOverlaysExample(container: HTMLElement): () => void {
     widthPx: 320,
     title: 'Overlays',
     collapsible: false,
-    panel: new MarkdownWidgetPanel({
+    panel: new MarkdownPanel({
       id: 'summary',
       title: '',
       markdown: [

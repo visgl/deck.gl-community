@@ -1,4 +1,8 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # PanWidget
+
+<WidgetLiveExample highlight="pan-widget" />
 
 A directional pad that pans the target view by a fixed number of screen pixels per interaction.
 

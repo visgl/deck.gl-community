@@ -1,4 +1,8 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # ToolbarWidget
+
+<WidgetLiveExample highlight="toolbar-widget" />
 
 A compact deck.gl widget for horizontal action buttons, single-select toggle groups, and read-only status badges.
 
@@ -107,4 +111,4 @@ Use for compact read-only status such as feature counts or active dataset names.
 
 - [BoxWidget](./box-widget.md)
 - [SidebarWidget](./sidebar-widget.md)
-- [Widget Panels](./widget-panels.md)
+- [Widget Panels](../developer-guide/widget-panels.md)

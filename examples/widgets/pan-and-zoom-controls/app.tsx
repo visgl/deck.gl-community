@@ -6,7 +6,7 @@ import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {
   BoxWidget,
-  MarkdownWidgetPanel,
+  MarkdownPanel,
   PanWidget,
   ZoomRangeWidget
 } from '@deck.gl-community/widgets';
@@ -71,7 +71,7 @@ export function mountPanAndZoomControlsExample(container: HTMLElement): () => vo
         placement: 'top-right',
         widthPx: 320,
         title: 'Pan & Zoom Widgets',
-        panel: new MarkdownWidgetPanel({
+        panel: new MarkdownPanel({
           id: 'summary',
           title: '',
           markdown: [

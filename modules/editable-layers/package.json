@@ -36,6 +36,7 @@
     "src"
   ],
   "dependencies": {
+    "@math.gl/core": "^4.0.0",
     "@math.gl/web-mercator": ">=4.0.1",
     "@turf/along": "^7.2.0",
     "@turf/area": "^7.2.0",
@@ -84,8 +85,7 @@
     "@deck.gl/mesh-layers": "~9.3.0-alpha.6",
     "@luma.gl/constants": "~9.3.2",
     "@luma.gl/core": "~9.3.2",
-    "@luma.gl/engine": "~9.3.2",
-    "@math.gl/core": ">=4.0.1"
+    "@luma.gl/engine": "~9.3.2"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
 }

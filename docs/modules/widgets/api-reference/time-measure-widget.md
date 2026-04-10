@@ -1,26 +1,25 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # TimeMeasureWidget
 
-<p class="badges">
+<p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-`TimeMeasureWidget` is an interactive measurement widget for selecting a time range directly from a deck trace view.
+<WidgetLiveExample highlight="time-measure-widget" />
 
-It is exported from `@deck.gl-community/widgets`.
+`TimeMeasureWidget` is an interactive measurement widget for selecting a time range directly from a deck trace view.
 
 ## Import
 
 ```ts
-import {
-  TimeMeasureWidget,
-  type TimeMeasureRange,
-} from '@deck.gl-community/widgets';
+import {TimeMeasureWidget, type TimeMeasureRange} from '@deck.gl-community/widgets';
 ```
 
 ## Types
 
 ```ts
-type TimeMeasureRange = { startTimeMs: number; endTimeMs: number };
+type TimeMeasureRange = {startTimeMs: number; endTimeMs: number};
 
 type TimeMeasureSelectionState = {
   phase: 'idle' | 'selecting-start' | 'selecting-end' | 'selected';
@@ -54,7 +53,20 @@ Default props:
 - `eventViewId: 'main'`
 - `projectionViewId: 'main'`
 
-## Behavior
+## Usage
+
+```ts
+new TimeMeasureWidget({
+  onRangeChange: (range) => setSelectedRange(range),
+  onSelectionChange: (selection) => setMeasureState(selection)
+});
+```
+
+## Related surface
+
+The selected range can be rendered or visualized further with `TimeMeasureLayer`.
+
+## Remarks
 
 - Renders a toolbar button for entering measurement mode.
 - Supports click-based two-step range selection.
@@ -62,16 +74,3 @@ Default props:
 - Emits incremental selection state updates while the user is dragging or hovering.
 - Cancels on `Escape`.
 - Tracks separate event and projection views so input and coordinate projection can be decoupled.
-
-## Usage
-
-```ts
-new TimeMeasureWidget({
-  onRangeChange: (range) => setSelectedRange(range),
-  onSelectionChange: (selection) => setMeasureState(selection),
-});
-```
-
-## Related surface
-
-The selected range can be rendered or visualized further with `TimeMeasureLayer`.

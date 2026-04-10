@@ -6,11 +6,11 @@ import {Deck, MapView, type MapViewState} from '@deck.gl/core';
 import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {
-  AccordeonWidgetPanel,
+  AccordeonPanel,
   BoxWidget,
-  ColumnWidgetPanel,
-  MarkdownWidgetPanel,
-  StatsWidgetPanel
+  ColumnPanel,
+  MarkdownPanel,
+  StatsPanel
 } from '../../../modules/widgets/src';
 import {SharedTile2DLayer, TileGridLayer} from '../../../modules/geo-layers/src';
 import {SharedTileset2D} from '../../../modules/geo-layers/src/tileset';
@@ -330,11 +330,11 @@ function createThemeWidget(onThemeModeChange: (nextThemeMode: ThemeMode) => void
 }
 
 function buildInfoPanel(tileset: SharedTileset2D<TileContent>, hoveredId: string | null, selectedId: string | null) {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'shared-tile-2d-layer-panel',
     title: '',
     panels: {
-      overview: new MarkdownWidgetPanel({
+      overview: new MarkdownPanel({
         id: 'shared-tile-2d-layer-overview',
         title: '',
         markdown: [
@@ -343,11 +343,11 @@ function buildInfoPanel(tileset: SharedTileset2D<TileContent>, hoveredId: string
           `Selected feature: **${selectedId ?? 'none'}**`
         ].join('\n\n')
       }),
-      stats: new AccordeonWidgetPanel({
+      stats: new AccordeonPanel({
         id: 'shared-tile-2d-layer-stats-accordion',
         title: '',
         panels: {
-          stats: new StatsWidgetPanel({
+          stats: new StatsPanel({
             id: 'shared-tile-2d-layer-stats',
             title: 'Stats',
             stats: tileset.stats,

@@ -1,12 +1,14 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # OmniBoxWidget
 
-<p class="badges">
+<p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-`OmniBoxWidget` is a deck.gl HTML widget that renders a one-line omnibox input with an autocomplete dropdown.
+<WidgetLiveExample highlight="omni-box-widget" />
 
-It is exported from `@deck.gl-community/widgets`.
+`OmniBoxWidget` is a deck.gl HTML widget that renders a one-line omnibox input with an autocomplete dropdown.
 
 ## Import
 
@@ -15,18 +17,9 @@ import {
   OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
-  type OmniBoxRenderOptionArgs,
+  type OmniBoxRenderOptionArgs
 } from '@deck.gl-community/widgets';
 ```
-
-## Behavior
-
-- Renders a floating search input centered near the top of the deck canvas.
-- Supports sync or async option providers.
-- Caps the dropdown to 4 visible rows and makes it scrollable beyond that.
-- Includes built-in `<` and `>` navigation controls for cycling the active option.
-- Opens and focuses from the keyboard shortcut path used by the owning view.
-- Closes on blur after a short delay so option clicks can still land.
 
 ## Types
 
@@ -78,10 +71,19 @@ const widget = new OmniBoxWidget({
   minQueryLength: 1,
   getOptions: (query) => searchBlocks(query),
   onSelectOption: (option) => zoomToBlock((option.data as any).blockId),
-  onNavigateOption: (option) => zoomToBlock((option.data as any).blockId),
+  onNavigateOption: (option) => zoomToBlock((option.data as any).blockId)
 });
 ```
 
 ## Notes
 
 This widget is intentionally generic. It does not know about trace blocks or color schemes on its own; callers provide search options, selection behavior, and optional custom row rendering.
+
+## Remarks
+
+- Renders a floating search input centered near the top of the deck canvas.
+- Supports sync or async option providers.
+- Caps the dropdown to 4 visible rows and makes it scrollable beyond that.
+- Includes built-in `<` and `>` navigation controls for cycling the active option.
+- Opens and focuses from the keyboard shortcut path used by the owning view.
+- Closes on blur after a short delay so option clicks can still land.

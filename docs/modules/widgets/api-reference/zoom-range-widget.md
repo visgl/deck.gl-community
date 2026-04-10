@@ -1,4 +1,8 @@
+import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
+
 # ZoomRangeWidget
+
+<WidgetLiveExample highlight="zoom-range-widget" />
 
 A vertical slider with increment/decrement buttons that adjusts the zoom level of the target view.
 

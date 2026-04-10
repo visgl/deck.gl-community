@@ -55,7 +55,7 @@ const sidebars = {
         graphLayerDocs,
         geoLayerDocs,
         editableLayerDocs,
-        threeModuleDocs,
+        threeModuleDocs
         // arrowLayerDocs,
       ]
     },
@@ -64,6 +64,11 @@ const sidebars = {
       label: 'Components',
       className: 'heading_bold',
       collapsed: false,
+      link: {
+        type: 'generated-index',
+        title: 'Components',
+        description: 'deck.gl-community component packages and integrations.'
+      },
       items: [widgetsDocs, reactDocs, experimentalDocs]
     }
   ]

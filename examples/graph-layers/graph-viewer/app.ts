@@ -7,14 +7,14 @@
 import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
-  AccordeonWidgetPanel,
+  AccordeonPanel,
   BoxWidget,
   SidebarWidget,
-  CustomWidgetPanel,
-  MarkdownWidgetPanel,
+  CustomPanel,
+  MarkdownPanel,
   PanWidget,
-  SettingsWidgetPanel,
-  TextEditorWidgetPanel,
+  SettingsPanel,
+  TextEditorPanel,
   ZoomRangeWidget,
   type SettingsWidgetSchema,
   type SettingsWidgetSettingDescriptor,
@@ -921,7 +921,7 @@ function buildSidebarPanel(
   }
 ) {
   const panels: WidgetPanelRecord = {
-    controls: new SettingsWidgetPanel({
+    controls: new SettingsPanel({
       id: 'graph-selection',
       schema: buildSelectionSchema(runtime.selectedExample, state.examples, state.selectedLayout),
       settings: {
@@ -930,7 +930,7 @@ function buildSidebarPanel(
       },
       onSettingsChange: handlers.onSelectionSettingsChange
     }),
-    layoutOptions: new SettingsWidgetPanel({
+    layoutOptions: new SettingsPanel({
       id: 'graph-layout-options',
       schema: buildLayoutOptionsSchema(state.selectedLayout, runtime.layoutDescription, runtime.layoutOptions),
       settings: buildLayoutOptionSettingsState(state.selectedLayout, runtime.layoutOptions),
@@ -939,7 +939,7 @@ function buildSidebarPanel(
   };
 
   if (runtime.isDagLayout) {
-    panels.collapse = new CustomWidgetPanel({
+    panels.collapse = new CustomPanel({
       id: 'dag-collapse',
       title: 'Collapsed chains',
       onRenderHTML: (rootElement) => {
@@ -948,7 +948,7 @@ function buildSidebarPanel(
     });
   }
 
-  panels.metadata = new CustomWidgetPanel({
+  panels.metadata = new CustomPanel({
     id: 'dataset-metadata',
     title: 'Dataset stats',
     onRenderHTML: (rootElement) => {
@@ -956,7 +956,7 @@ function buildSidebarPanel(
     }
   });
 
-  panels.stylesheet = new TextEditorWidgetPanel({
+  panels.stylesheet = new TextEditorPanel({
     id: 'stylesheet-json',
     title: 'Stylesheet JSON',
     language: 'json',
@@ -967,7 +967,7 @@ function buildSidebarPanel(
     theme: 'invert'
   });
 
-  return new AccordeonWidgetPanel({
+  return new AccordeonPanel({
     id: 'graph-viewer-sidebar-panels',
     title: '',
     panels,
@@ -979,7 +979,7 @@ function buildInfoBoxPanel(
   runtime: GraphViewerRuntime,
   selectedLayout: LayoutType,
   themeMode: 'light' | 'dark'
-): MarkdownWidgetPanel {
+): MarkdownPanel {
   const selectedLayoutLabel = LAYOUT_LABELS[selectedLayout] ?? selectedLayout;
   const markdown = [
     runtime.selectedExample.description,
@@ -988,7 +988,7 @@ function buildInfoBoxPanel(
     `[Graph Layers docs](${GRAPH_DOCS_PATH})`
   ].join('\n\n');
 
-  return new MarkdownWidgetPanel({
+  return new MarkdownPanel({
     id: 'graph-viewer-info',
     title: '',
     markdown,

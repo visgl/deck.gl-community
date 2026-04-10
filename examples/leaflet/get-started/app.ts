@@ -1,7 +1,7 @@
 import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView, type PickingInfo} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
-import {BoxWidget, ColumnWidgetPanel, MarkdownWidgetPanel} from '@deck.gl-community/widgets';
+import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
 import * as L from 'leaflet';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -53,11 +53,11 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
     widthPx: 320,
     title: 'deck.gl with Leaflet',
     collapsible: false,
-    panel: new ColumnWidgetPanel({
+    panel: new ColumnPanel({
       id: 'leaflet-info-panel',
       title: '',
       panels: {
-        summary: new MarkdownWidgetPanel({
+        summary: new MarkdownPanel({
           id: 'summary',
           title: '',
           markdown: [

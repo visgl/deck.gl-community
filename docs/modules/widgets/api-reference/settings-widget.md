@@ -1,12 +1,10 @@
 # SettingsWidget
 
-<p class="badges">
+<p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
 `SettingsWidget` is a deck.gl HTML widget that renders a dat.gui-style settings button and panel.
-
-It is exported from `@deck.gl-community/widgets`.
 
 ## Import
 

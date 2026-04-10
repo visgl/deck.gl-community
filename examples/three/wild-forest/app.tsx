@@ -7,10 +7,10 @@ import {TreeLayer} from '@deck.gl-community/three';
 import type {CropConfig, Season, TreeType} from '@deck.gl-community/three';
 import {
   BoxWidget,
-  ColumnWidgetPanel,
-  CustomWidgetPanel,
-  MarkdownWidgetPanel,
-  SettingsWidgetPanel,
+  ColumnPanel,
+  CustomPanel,
+  MarkdownPanel,
+  SettingsPanel,
   type SettingsWidgetSchema,
   type SettingsWidgetState
 } from '@deck.gl-community/widgets';
@@ -182,11 +182,11 @@ function buildControlPanel(
   state: WildForestState,
   onSettingsChange: (nextSettings: SettingsWidgetState) => void
 ) {
-  return new ColumnWidgetPanel({
+  return new ColumnPanel({
     id: 'wild-forest-panel',
     title: 'Wild Forest + Orchards',
     panels: {
-      summary: new MarkdownWidgetPanel({
+      summary: new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -197,14 +197,14 @@ function buildControlPanel(
           `- Crops: **${state.settings.render.showCrops ? 'visible' : 'hidden'}**`
         ].join('\n')
       }),
-      settings: new SettingsWidgetPanel({
+      settings: new SettingsPanel({
         id: 'settings',
         label: 'Controls',
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange
       }),
-      legend: new CustomWidgetPanel({
+      legend: new CustomPanel({
         id: 'legend',
         title: 'Forest Zones',
         onRenderHTML(hostElement) {
