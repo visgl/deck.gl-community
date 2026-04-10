@@ -108,6 +108,7 @@ const config = {
             '@deck.gl/mapbox': resolve('../node_modules/@deck.gl/mapbox'),
             '@deck.gl/mesh-layers': resolve('../node_modules/@deck.gl/mesh-layers'),
             '@deck.gl/react': resolve('../node_modules/@deck.gl/react'),
+            '@luma.gl/webgl/constants': resolve('../node_modules/@luma.gl/webgl/dist/constants/index.js'),
             '@luma.gl': resolve('../node_modules/@luma.gl'),
             '@math.gl': resolve('../node_modules/@math.gl'),
             // Force the hoisted ESM entry. Webpack otherwise resolves to the
@@ -130,11 +131,9 @@ const config = {
           }
         },
         plugins: [
-          // new webpack.EnvironmentPlugin([
-          //   'MapboxAccessToken',
-          //   'GoogleMapsAPIKey',
-          //   'GoogleMapsMapId'
-          // ]),
+          new webpack.EnvironmentPlugin({
+            GoogleMapsAPIKey: ''
+          }),
           // These modules break server side bundling
           new webpack.IgnorePlugin({
             resourceRegExp: /asciify-image/

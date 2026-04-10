@@ -251,7 +251,35 @@ export abstract class EditableLayer<
     });
   }
 
-  getMapCoords(screenCoords: ScreenCoordinates): Position {
+  getScreenCoords(pointerEvent: any): Position {
+    return [
+      pointerEvent.clientX -
+        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().left,
+      pointerEvent.clientY -
+        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().top
+    ];
+  }
+
+  getMapCoords(screenCoords: Position): Position {
+    if (this.context.deck) {
+      const layerIds = this.context.layerManager
+        .getLayers()
+        .filter((l) => l.props.pickable === '3d')
+        .map((l) => l.id);
+      if (layerIds.length > 0) {
+        const pickInfo = this.context.deck.pickObject({
+          x: screenCoords[0],
+          y: screenCoords[1],
+          layerIds,
+          unproject3D: true
+        });
+        if (pickInfo?.coordinate) {
+          // Return only lon/lat — discard Z so that TerrainExtension
+          // can drape geometry onto the surface without double-offsetting.
+          return [pickInfo.coordinate[0], pickInfo.coordinate[1]] as Position;
+        }
+      }
+    }
     return this.context.viewport.unproject([screenCoords[0], screenCoords[1]]) as Position;
   }
 }

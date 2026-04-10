@@ -61,6 +61,9 @@ function makeMockContext() {
         off: vi.fn()
       }
     },
+    layerManager: {
+      getLayers: vi.fn(() => [])
+    },
     viewport: {
       // use static map coords for testing, instead of doing actual unprojection
       unproject: (coords: [number, number]) => MOCK_EVENT_MAP_COORDS

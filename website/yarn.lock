@@ -2337,17 +2337,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@deck.gl/core@npm:~9.3.0-alpha.1":
-  version: 9.3.0-alpha.1
-  resolution: "@deck.gl/core@npm:9.3.0-alpha.1"
+"@deck.gl/core@npm:~9.3.0-alpha.6":
+  version: 9.3.0-alpha.6
+  resolution: "@deck.gl/core@npm:9.3.0-alpha.6"
   dependencies:
-    "@loaders.gl/core": "npm:^4.4.0-alpha.16"
-    "@loaders.gl/images": "npm:^4.4.0-alpha.16"
-    "@luma.gl/constants": "npm:^9.3.0-alpha.2"
-    "@luma.gl/core": "npm:^9.3.0-alpha.2"
-    "@luma.gl/engine": "npm:^9.3.0-alpha.2"
-    "@luma.gl/shadertools": "npm:^9.3.0-alpha.2"
-    "@luma.gl/webgl": "npm:^9.3.0-alpha.2"
+    "@loaders.gl/core": "npm:^4.4.1"
+    "@loaders.gl/images": "npm:^4.4.1"
+    "@luma.gl/core": "npm:^9.3.2"
+    "@luma.gl/engine": "npm:^9.3.2"
+    "@luma.gl/shadertools": "npm:^9.3.2"
+    "@luma.gl/webgl": "npm:^9.3.2"
     "@math.gl/core": "npm:^4.1.0"
     "@math.gl/sun": "npm:^4.1.0"
     "@math.gl/types": "npm:^4.1.0"
@@ -2358,35 +2357,33 @@ __metadata:
     "@types/offscreencanvas": "npm:^2019.6.4"
     gl-matrix: "npm:^3.0.0"
     mjolnir.js: "npm:^3.0.0"
-  checksum: 10c0/bc5d7bf5309fe9b787dc3856fbd4b95cf8c0de703f9c809cb451b8cc82c5da4dcd0fbbb4f2e6b70adda748ad7b803dcd450dbc035f854c2d0cffd5d0b0708100
+  checksum: 10c0/571d03f2a55a45a71908c13316e9ef014290c661bc442cd778ba735172a6236827cfbfec1926045b36d02bc59c0803d13b8358ae2f0f9b622288c1769fe24a3c
   languageName: node
   linkType: hard
 
-"@deck.gl/google-maps@npm:~9.3.0-alpha.1":
-  version: 9.3.0-alpha.1
-  resolution: "@deck.gl/google-maps@npm:9.3.0-alpha.1"
+"@deck.gl/google-maps@npm:~9.3.0-alpha.6":
+  version: 9.3.0-alpha.6
+  resolution: "@deck.gl/google-maps@npm:9.3.0-alpha.6"
   dependencies:
-    "@luma.gl/constants": "npm:^9.3.0-alpha.2"
-    "@luma.gl/webgl": "npm:^9.3.0-alpha.2"
+    "@luma.gl/webgl": "npm:^9.3.2"
     "@math.gl/core": "npm:^4.1.0"
     "@types/google.maps": "npm:^3.48.6"
   peerDependencies:
-    "@deck.gl/core": ~9.2.0
-    "@luma.gl/constants": ~9.3.0-alpha.2
-    "@luma.gl/core": ~9.3.0-alpha.2
-    "@luma.gl/webgl": ~9.3.0-alpha.2
-  checksum: 10c0/b513341bdbe0ba88fc73a6cc74f6a2ae335ec0b756473af8e993f5de5603e07b0778fe390334c439f2093a5e7ae3eba3309411aab90d2ec8646ca2873817cd1e
+    "@deck.gl/core": ~9.3.0-alpha.1
+    "@luma.gl/core": ~9.3.2
+    "@luma.gl/webgl": ~9.3.2
+  checksum: 10c0/9700c3a736870a5b33fd34ddc8c641407a226cd6da66f2b749a34238c64a1f1d44c1f11229b139758d16f7dbda29c9913197026eccd87c31c995c5b388773e29
   languageName: node
   linkType: hard
 
-"@deck.gl/json@npm:~9.3.0-alpha.1":
-  version: 9.3.0-alpha.1
-  resolution: "@deck.gl/json@npm:9.3.0-alpha.1"
+"@deck.gl/json@npm:~9.3.0-alpha.6":
+  version: 9.3.0-alpha.6
+  resolution: "@deck.gl/json@npm:9.3.0-alpha.6"
   dependencies:
     jsep: "npm:^0.3.0"
   peerDependencies:
-    "@deck.gl/core": ~9.2.0
-  checksum: 10c0/7c35c094bf6253eb87ea25e0385548937066ade693439693811e39a94702aa8745798f708a46a43afdbeaf23dc9a655fe8873fd969378bc175f03d78b70eb5e9
+    "@deck.gl/core": ~9.3.0-alpha.1
+  checksum: 10c0/950e0fcfc205a275d981cb24623177734bb6a3b60590bfd25f80128626b15e7418cc810d67264af64ec72cfd03f04ec962362083165496fe48249489b926e536
   languageName: node
   linkType: hard
 
@@ -3552,13 +3549,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/constants@npm:9.3.0-alpha.4, @luma.gl/constants@npm:^9.3.0-alpha.2":
-  version: 9.3.0-alpha.4
-  resolution: "@luma.gl/constants@npm:9.3.0-alpha.4"
-  checksum: 10c0/ce35ff19f29583d396aea40371e3d824e1c9a59592ad4be83696587bb9f6b8dc15b10f04ad568a4775b66a6e5c40eae3474e19a70b5637bb8b8077fe1bdfbac5
-  languageName: node
-  linkType: hard
-
 "@luma.gl/constants@npm:^8.4.0":
   version: 8.5.21
   resolution: "@luma.gl/constants@npm:8.5.21"
@@ -3566,56 +3556,55 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@luma.gl/core@npm:^9.3.0-alpha.2, @luma.gl/core@npm:~9.3.0-alpha.2":
-  version: 9.3.0-alpha.4
-  resolution: "@luma.gl/core@npm:9.3.0-alpha.4"
+"@luma.gl/core@npm:^9.3.2, @luma.gl/core@npm:~9.3.2":
+  version: 9.3.2
+  resolution: "@luma.gl/core@npm:9.3.2"
   dependencies:
     "@math.gl/types": "npm:^4.1.0"
     "@probe.gl/env": "npm:^4.1.1"
     "@probe.gl/log": "npm:^4.1.1"
     "@probe.gl/stats": "npm:^4.1.1"
-    "@types/offscreencanvas": "npm:^2019.6.4"
-  checksum: 10c0/af1f6a7acd32c80987963e150448598a923c0ba9878d6bfe7323092c230d0494035a87f7cbd62a3303e4affeae0a99b531fc7c8ccf4e774f640f0686275a7f31
+    "@types/offscreencanvas": "npm:^2019.7.3"
+  checksum: 10c0/5450f84e7cae241fd5801ceb12e10cf574b85565a9c7afff97bf2f5cc394ec21734e57b86fb78cab8416414b0e777bb0e20a8d533bc79151eeb64248898dd178
   languageName: node
   linkType: hard
 
-"@luma.gl/engine@npm:^9.3.0-alpha.2":
-  version: 9.3.0-alpha.4
-  resolution: "@luma.gl/engine@npm:9.3.0-alpha.4"
+"@luma.gl/engine@npm:^9.3.2":
+  version: 9.3.2
+  resolution: "@luma.gl/engine@npm:9.3.2"
   dependencies:
     "@math.gl/core": "npm:^4.1.0"
     "@math.gl/types": "npm:^4.1.0"
     "@probe.gl/log": "npm:^4.1.1"
     "@probe.gl/stats": "npm:^4.1.1"
   peerDependencies:
-    "@luma.gl/core": 9.2.0-alpha.6
-    "@luma.gl/shadertools": 9.2.0-alpha.6
-  checksum: 10c0/c3fd09f706cf9dc0f980ff69011a3ab0fa468401be57635d7c3b449242bbca9a7a293bd0c3818c97b8d5f9271162e2c4c2ecb85e8b1715f27d461ef34e9172be
+    "@luma.gl/core": ~9.3.0
+    "@luma.gl/shadertools": ~9.3.0
+  checksum: 10c0/1a63efefcc6835d3be2c9a2e558673c865e5eb852b1369dceb243c4b7fe8b1394a7c837617ccd4e22c707ddc668be5becfe667f9e3c3d4a6d060a4764eca8e7a
   languageName: node
   linkType: hard
 
-"@luma.gl/shadertools@npm:^9.3.0-alpha.2":
-  version: 9.3.0-alpha.4
-  resolution: "@luma.gl/shadertools@npm:9.3.0-alpha.4"
+"@luma.gl/shadertools@npm:^9.3.2":
+  version: 9.3.2
+  resolution: "@luma.gl/shadertools@npm:9.3.2"
   dependencies:
     "@math.gl/core": "npm:^4.1.0"
     "@math.gl/types": "npm:^4.1.0"
   peerDependencies:
-    "@luma.gl/core": 9.2.0-alpha.6
-  checksum: 10c0/ab86853b2ac21f107e265d9b79fb76a4571f63aa4ebe48158982da6843411fd07d24f948994211f105557430ed0686945f6805e31b4b9dd26403f8e26a260333
+    "@luma.gl/core": ~9.3.0
+  checksum: 10c0/aa2cbeba6b34c043aeafce96c5c67aca1b06191a608470dc8ee0b22ef39a98e77fd910d12c6a094ceb38d8da8ee9ac1435992b949bbd4c2fa84fc58e33ec3393
   languageName: node
   linkType: hard
 
-"@luma.gl/webgl@npm:^9.3.0-alpha.2":
-  version: 9.3.0-alpha.4
-  resolution: "@luma.gl/webgl@npm:9.3.0-alpha.4"
+"@luma.gl/webgl@npm:^9.3.2":
+  version: 9.3.2
+  resolution: "@luma.gl/webgl@npm:9.3.2"
   dependencies:
-    "@luma.gl/constants": "npm:9.3.0-alpha.4"
     "@math.gl/types": "npm:^4.1.0"
     "@probe.gl/env": "npm:^4.1.1"
   peerDependencies:
-    "@luma.gl/core": 9.2.0-alpha.6
-  checksum: 10c0/be59e6f12968e41a5e61e5cecbc1cf41780bbb292ad80b404a4699ddbea17d093e73fd41220e5c8eeb2f0eb8fab0e76e362345b3a01216743c9d70d7021398c3
+    "@luma.gl/core": ~9.3.0
+  checksum: 10c0/0dfc293f6e8102866550685ed8bfb0f5f00872a1880203b91aa1d799aa4910aeca0aa61ea623c62303716b9401f46d665cda880638f2f3bc46d5e8522f634c05
   languageName: node
   linkType: hard
 
@@ -5992,7 +5981,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/offscreencanvas@npm:^2019.6.4":
+"@types/offscreencanvas@npm:^2019.6.4, @types/offscreencanvas@npm:^2019.7.3":
   version: 2019.7.3
   resolution: "@types/offscreencanvas@npm:2019.7.3"
   checksum: 10c0/6d1dfae721d321cd2b5435f347a0e53b09f33b2f9e9333396480f592823bc323847b8169f7d251d2285cb93dbc1ba2e30741ac5cf4b1c003d660fd4c24526963
@@ -13908,9 +13897,9 @@ __metadata:
   resolution: "project-website@workspace:."
   dependencies:
     "@cmfcmf/docusaurus-search-local": "npm:^2"
-    "@deck.gl/core": "npm:~9.3.0-alpha.1"
-    "@deck.gl/google-maps": "npm:~9.3.0-alpha.1"
-    "@deck.gl/json": "npm:~9.3.0-alpha.1"
+    "@deck.gl/core": "npm:~9.3.0-alpha.6"
+    "@deck.gl/google-maps": "npm:~9.3.0-alpha.6"
+    "@deck.gl/json": "npm:~9.3.0-alpha.6"
     "@docusaurus/core": "npm:^3.9.2"
     "@docusaurus/module-type-aliases": "npm:^3.9.2"
     "@docusaurus/plugin-content-docs": "npm:^3.9.2"
@@ -13924,7 +13913,7 @@ __metadata:
     "@loaders.gl/las": "npm:^4.4.1"
     "@loaders.gl/obj": "npm:^4.4.1"
     "@loaders.gl/ply": "npm:^4.4.1"
-    "@luma.gl/core": "npm:~9.3.0-alpha.2"
+    "@luma.gl/core": "npm:~9.3.2"
     "@mdx-js/react": "npm:^3.0.1"
     "@turf/turf": "npm:^6.5.0"
     "@types/node": "npm:^20.11.24"

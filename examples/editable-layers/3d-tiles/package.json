@@ -1,4 +1,6 @@
 {
+  "name": "editable-layers-3d-tiles",
+  "version": "9.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,12 +11,17 @@
     "@deck.gl-community/editable-layers": "workspace:*",
     "@deck.gl-community/widgets": "workspace:*",
     "@deck.gl/core": "~9.3.0-beta.1",
+    "@deck.gl/extensions": "~9.3.0-beta.1",
+    "@deck.gl/geo-layers": "~9.3.0-beta.1",
     "@deck.gl/layers": "~9.3.0-beta.1",
-    "@deck.gl/mapbox": "~9.3.0-beta.1",
+    "@deck.gl/react": "~9.3.0-beta.1",
     "@deck.gl/widgets": "~9.3.0-beta.1",
-    "maplibre-gl": "^4.1.3"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "typescript": "^5.4.4",
     "vite": "^7.3.1"
   }
