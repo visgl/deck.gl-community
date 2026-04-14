@@ -130,7 +130,7 @@ export function projectOrUnprojectPoints(
   project: 'PROJECT' | 'UNPROJECT',
   wmViewport?: WebMercatorViewport
 ): Position {
-  if (coordinateSystem === undefined) return [...inputPoints];
+  if (coordinateSystem === undefined || wmViewport === undefined) return [...inputPoints];
   else if (coordinateSystem instanceof CartesianCoordinateSystem) return [...inputPoints];
   return project === 'PROJECT'
     ? wmViewport.project([...inputPoints])
@@ -227,10 +227,7 @@ export function nearestPointOnLine(
   viewport?: Viewport,
   coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  const viewportCheck = viewport
-    ? viewport
-    : {width: 0, height: 0, longitude: 0, latitude: 0, zoom: 0};
-  const wmViewport = new WebMercatorViewport(viewportCheck);
+  const wmViewport = viewport ? new WebMercatorViewport(viewport) : undefined;
 
   let closestPoint: any = point([Infinity, Infinity], {dist: Infinity});
 
