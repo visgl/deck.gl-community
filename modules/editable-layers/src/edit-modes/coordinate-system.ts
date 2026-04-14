@@ -8,6 +8,7 @@ import turfDestination from '@turf/destination';
 import turfMidpoint from '@turf/midpoint';
 import {point} from '@turf/helpers';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
+import type {CoordinateSystem} from '@deck.gl/core';
 
 import {Position} from '../utils/geojson-types';
 
@@ -148,7 +149,7 @@ export function getEditModeCoordinateSystem(
  * | `COORDINATE_SYSTEM.LNGLAT_OFFSETS` | GeoCoordinateSystem   |
  */
 export function fromDeckCoordinateSystem(
-  deckCoordSystem: number | undefined
+  deckCoordSystem: CoordinateSystem | undefined
 ): EditModeCoordinateSystem {
   switch (deckCoordSystem) {
     case COORDINATE_SYSTEM.CARTESIAN:

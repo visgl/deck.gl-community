@@ -129,6 +129,6 @@ export class MeasureAngleMode extends GeoJsonEditMode {
       vertex: points[0],
       point1: points[1],
       point2: points[2]
-    }) as Tooltip[];
+    });
   }
 }
