@@ -38,6 +38,7 @@ import {
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {EditModeCoordinateSystem} from './coordinate-system';
 
 export class ModifyMode extends GeoJsonEditMode {
   // eslint-disable-next-line complexity
@@ -85,7 +86,8 @@ export class ModifyMode extends GeoJsonEditMode {
             const candidateIntermediatePoint = this.getNearestPoint(
               lineStringFeature,
               referencePoint,
-              props.modeConfig && props.modeConfig.viewport
+              props.modeConfig && props.modeConfig.viewport,
+              props.coordinateSystem
             );
             if (
               !intermediatePoint ||
@@ -129,20 +131,21 @@ export class ModifyMode extends GeoJsonEditMode {
   getNearestPoint(
     line: Feature<LineString>,
     inPoint: Feature<Point>,
-    viewport: Viewport | null | undefined
+    viewport: Viewport | null | undefined,
+    coordinateSystem?: EditModeCoordinateSystem
   ): NearestPointType {
     const {coordinates} = line.geometry;
     if (coordinates.some((coord) => coord.length > 2)) {
       if (viewport) {
         // This line has elevation, we need to use alternative algorithm
-        return nearestPointOnProjectedLine(line, inPoint, viewport);
+        return nearestPointOnProjectedLine(line, inPoint, viewport, coordinateSystem);
       }
       // eslint-disable-next-line no-console,no-undef
       console.log(
         'Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.'
       );
     }
-    return nearestPointOnLine(line, inPoint, viewport);
+    return nearestPointOnLine(line, inPoint, viewport, coordinateSystem);
   }
 
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
