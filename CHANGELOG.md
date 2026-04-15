@@ -1,5 +1,9 @@
 # deck.gl-community CHANGELOG
 
+## v9.3.0-beta.2
+
+- fix(basemap-layers): add publishConfig for public npm access
+
 ## v9.3.0-beta.1
 
 ## v9.3.0
