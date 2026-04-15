@@ -1,5 +1,15 @@
 # deck.gl-community CHANGELOG
 
+## v9.3.1
+
+- feat(editable-layers): non-geospatial coordinate system support — `EditModeCoordinateSystem` abstraction with `GeoCoordinateSystem` and `CartesianCoordinateSystem` implementations, auto-derived from deck.gl `COORDINATE_SYSTEM` prop (#587)
+- docs: add live interactive examples to 30+ API reference pages across graph-layers, editable-layers, geo-layers, timeline-layers, layers, widgets, and three modules (#582)
+- refactor(widgets): move settings types to `lib/settings/settings.ts` — `SettingsWidgetSchema` → `SettingsSchema`, `SettingsWidgetState` → `SettingsState`
+- refactor(widgets): remove standalone `KeyboardShortcutsWidget` class (use `KeyboardShortcutsPanel` instead)
+- fix(layers): remove `#version 300 es` from path-outline-layer vertex shader
+- docs(geo-layers): reorganize sidebar with nested "Grids" category
+- docs(graph-layers): restructure sidebar with sublayer categories
+
 ## v9.3.0-beta.2
 
 - fix(basemap-layers): add publishConfig for public npm access

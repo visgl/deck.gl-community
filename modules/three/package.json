@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/three",
-  "version": "9.3.0-beta.2",
+  "version": "9.3.1",
   "description": "Three.js-powered layers for deck.gl",
   "license": "MIT",
   "publishConfig": {
