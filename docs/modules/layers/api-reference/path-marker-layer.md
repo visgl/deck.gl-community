@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # PathMarkerLayer
+
+<LayerLiveExample highlight="path-marker-layer" />
 
 Create directional markers along a path (arrows by default) while reusing the
 [`PathOutlineLayer`](./path-outline-layer.md) halo renderer. The layer is useful

@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # ZoomableTextLayer
+
+<LayerLiveExample highlight="zoomable-text-layer" size="tall" />
 
 `ZoomableTextLayer` wraps Deck.gl's `TextLayer` to optionally scale font sizes
 with the current viewport zoom. It also maintains a minimal character set so the

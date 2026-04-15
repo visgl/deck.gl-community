@@ -15,10 +15,18 @@ const INITIAL_VIEW_STATE = {
   bearing: 20
 };
 
-export function mountSkyboxMapViewExample(container: HTMLElement): () => void {
+type SkyboxMapViewExampleOptions = {
+  showInfoOverlay?: boolean;
+};
+
+export function mountSkyboxMapViewExample(
+  container: HTMLElement,
+  options: SkyboxMapViewExampleOptions = {}
+): () => void {
   const rootElement = createRoot(container);
-  const overlay = createOverlay(rootElement.ownerDocument);
-  rootElement.appendChild(overlay);
+  if (options.showInfoOverlay !== false) {
+    rootElement.appendChild(createOverlay(rootElement.ownerDocument));
+  }
 
   const deck = new Deck({
     parent: rootElement,

@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # TreeLayer
+
+<LayerLiveExample highlight="tree-layer" size="tall" />
 
 Renders richly configurable 3D trees at geographic positions using procedural geometry generated with Three.js `BufferGeometry` primitives and rendered via deck.gl's `SimpleMeshLayer`.
 

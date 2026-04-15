@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # RoundedRectangleLayer
+
+<LayerLiveExample highlight="rounded-rectangle-layer" size="tall" />
 
 `RoundedRectangleLayer` renders rectangles with programmable corner radii. It
 extends [`RectangleLayer`](./rectangle-layer.md) and injects a fragment shader

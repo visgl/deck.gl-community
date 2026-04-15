@@ -1,17 +1,42 @@
-import type {
-  SettingsWidgetOption,
-  SettingsWidgetSchema,
-  SettingsWidgetSectionDescriptor,
-  SettingsWidgetSettingDescriptor,
-  SettingsWidgetState,
-  SettingsWidgetValue
-} from '../../widgets/settings-widget';
+export type SettingValue = boolean | number | string;
 
-export type SettingValue = SettingsWidgetValue;
-export type SettingDescriptor = SettingsWidgetSettingDescriptor;
-export type SettingsSectionDescriptor = SettingsWidgetSectionDescriptor;
-export type SettingsSchema = SettingsWidgetSchema;
-export type SettingsState = SettingsWidgetState;
+export type SettingsOption =
+  | SettingValue
+  | {
+      label: string;
+      value: SettingValue;
+    };
+
+export type SettingDescriptor = {
+  /** Path in the settings object (dot notation supported). */
+  name: string;
+  /** Human-friendly label shown in the control list. Defaults to `name`. */
+  label?: string;
+  description?: string;
+  type: 'boolean' | 'number' | 'string' | 'select';
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: SettingsOption[];
+  defaultValue?: SettingValue;
+};
+
+export type SettingsSectionDescriptor = {
+  /** Optional stable id for preserving collapse state across re-renders. */
+  id?: string;
+  name: string;
+  description?: string;
+  /** Whether this section starts collapsed when first seen. Defaults to true. */
+  initiallyCollapsed?: boolean;
+  settings: SettingDescriptor[];
+};
+
+export type SettingsSchema = {
+  title?: string;
+  sections: SettingsSectionDescriptor[];
+};
+
+export type SettingsState = Record<string, unknown>;
 
 export function clamp(value: number, min?: number, max?: number): number {
   let clamped = value;
@@ -70,7 +95,7 @@ export function buildInitialCollapsedState(
   }, {});
 }
 
-export function normalizeOption(option: SettingsWidgetOption): {
+export function normalizeOption(option: SettingsOption): {
   label: string;
   value: SettingValue;
 } {

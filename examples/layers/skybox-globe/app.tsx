@@ -10,8 +10,8 @@ import {
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
-  type SettingsWidgetSchema,
-  type SettingsWidgetState
+  type SettingsSchema,
+  type SettingsState
 } from '../../../modules/widgets/src';
 import {SkyboxLayer} from '../../../modules/layers/src';
 import {TYCHO_CUBEMAP} from '../skybox-assets/cubemap';
@@ -38,7 +38,7 @@ const INITIAL_VIEW_STATE = {
   zoom: 0.9
 };
 
-const SETTINGS_SCHEMA: SettingsWidgetSchema = {
+const SETTINGS_SCHEMA: SettingsSchema = {
   title: 'SkyboxLayer GlobeView',
   sections: [
     {
@@ -79,7 +79,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
       render: {
         showSkybox: true
       }
-    } as SettingsWidgetState
+    } as SettingsState
   };
 
   const infoWidget = new BoxWidget({
@@ -160,7 +160,7 @@ function createRoot(container: HTMLElement): HTMLDivElement {
   return root;
 }
 
-function buildLayers(settings: SettingsWidgetState) {
+function buildLayers(settings: SettingsState) {
   return [
     settings.render?.showSkybox !== false &&
       new SkyboxLayer({

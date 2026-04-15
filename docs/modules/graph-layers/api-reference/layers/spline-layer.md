@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # SplineLayer
+
+<LayerLiveExample highlight="spline-layer" size="tall" />
 
 `SplineLayer` evaluates Catmull–Rom splines through supplied control points and
 renders the result with Deck.gl's `PathLayer`. It is the core renderer used by

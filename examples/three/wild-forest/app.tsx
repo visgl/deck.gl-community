@@ -11,8 +11,8 @@ import {
   CustomPanel,
   MarkdownPanel,
   SettingsPanel,
-  type SettingsWidgetSchema,
-  type SettingsWidgetState
+  type SettingsSchema,
+  type SettingsState
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -39,6 +39,10 @@ type WildForestSettings = {
 
 type WildForestState = {
   settings: WildForestSettings;
+};
+
+type WildForestExampleOptions = {
+  showControlsWidget?: boolean;
 };
 
 type ZoneInfo = {
@@ -68,7 +72,7 @@ const INITIAL_SETTINGS: WildForestSettings = {
   }
 };
 
-const SETTINGS_SCHEMA: SettingsWidgetSchema = {
+const SETTINGS_SCHEMA: SettingsSchema = {
   title: 'Wild Forest Controls',
   sections: [
     {
@@ -110,7 +114,10 @@ const ZONES: ZoneInfo[] = [
 
 const FOREST_DATA = generateForest();
 
-export function mountWildForestExample(container: HTMLElement): () => void {
+export function mountWildForestExample(
+  container: HTMLElement,
+  options: WildForestExampleOptions = {}
+): () => void {
   const rootElement = container.ownerDocument.createElement('div');
   applyElementStyle(rootElement, ROOT_STYLE);
   container.replaceChildren(rootElement);
@@ -119,13 +126,16 @@ export function mountWildForestExample(container: HTMLElement): () => void {
     settings: cloneSettings(INITIAL_SETTINGS)
   };
 
-  const controlsWidget = new BoxWidget({
-    id: 'wild-forest-controls',
-    placement: 'top-right',
-    widthPx: 320,
-    title: 'Wild Forest + Orchards',
-    panel: buildControlPanel(state, handleSettingsChange)
-  });
+  const controlsWidget =
+    options.showControlsWidget === false
+      ? null
+      : new BoxWidget({
+          id: 'wild-forest-controls',
+          placement: 'top-right',
+          widthPx: 320,
+          title: 'Wild Forest + Orchards',
+          panel: buildControlPanel(state, handleSettingsChange)
+        });
 
   const deck = new Deck({
     parent: rootElement,
@@ -136,7 +146,7 @@ export function mountWildForestExample(container: HTMLElement): () => void {
     layers: buildLayers(state),
     parameters: {clearColor: [0.06, 0.1, 0.06, 1]},
     getTooltip: getTooltip,
-    widgets: [controlsWidget]
+    widgets: controlsWidget ? [controlsWidget] : []
   });
 
   return () => {
@@ -145,10 +155,10 @@ export function mountWildForestExample(container: HTMLElement): () => void {
     container.replaceChildren();
   };
 
-  function handleSettingsChange(nextSettings: SettingsWidgetState) {
+  function handleSettingsChange(nextSettings: SettingsState) {
     state.settings = cloneSettings(nextSettings as WildForestSettings);
     deck.setProps({layers: buildLayers(state)});
-    controlsWidget.setProps({
+    controlsWidget?.setProps({
       panel: buildControlPanel(state, handleSettingsChange)
     });
   }
@@ -180,7 +190,7 @@ function buildLayers(state: WildForestState) {
 
 function buildControlPanel(
   state: WildForestState,
-  onSettingsChange: (nextSettings: SettingsWidgetState) => void
+  onSettingsChange: (nextSettings: SettingsState) => void
 ) {
   return new ColumnPanel({
     id: 'wild-forest-panel',

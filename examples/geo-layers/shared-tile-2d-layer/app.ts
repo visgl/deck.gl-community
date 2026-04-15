@@ -56,6 +56,7 @@ const INITIAL_VIEW_STATE: Record<string, MapViewState> = {
 
 type SharedTile2DLayerExampleOptions = {
   mode?: 'full' | 'compact';
+  showInfoWidget?: boolean;
 };
 
 function deriveMinimapViewState(viewState: MapViewState): MapViewState {
@@ -407,14 +408,17 @@ export function mountSharedTile2DLayerExample(
     minimap: deriveMinimapViewState(INITIAL_VIEW_STATE.priority)
   };
 
-  const infoWidget = new BoxWidget({
-    id: 'shared-tile-2d-layer-info',
-    placement: 'top-left',
-    widthPx: mode === 'compact' ? 286 : 340,
-    title: 'SharedTile2DLayer',
-    collapsible: true,
-    panel: buildInfoPanel(tileset, hoveredId, selectedId)
-  });
+  const infoWidget =
+    options.showInfoWidget === false
+      ? null
+      : new BoxWidget({
+          id: 'shared-tile-2d-layer-info',
+          placement: 'top-left',
+          widthPx: mode === 'compact' ? 286 : 340,
+          title: 'SharedTile2DLayer',
+          collapsible: true,
+          panel: buildInfoPanel(tileset, hoveredId, selectedId)
+        });
   const themeWidget = createThemeWidget(nextThemeMode => {
     if (state.themeMode !== nextThemeMode) {
       state.themeMode = nextThemeMode;
@@ -445,7 +449,7 @@ export function mountSharedTile2DLayerExample(
       deck.setProps({viewState});
       render();
     },
-    widgets: [infoWidget, themeWidget],
+    widgets: [...(infoWidget ? [infoWidget] : []), themeWidget],
     layerFilter: ({layer, viewport}) =>
       layer.id.startsWith('severity-')
         ? viewport.id === 'severity'
@@ -464,14 +468,14 @@ export function mountSharedTile2DLayerExample(
 
   const render = () => {
     root.style.background = getPalette(state.themeMode).background;
-    infoWidget.setProps({
+    infoWidget?.setProps({
       widthPx: mode === 'compact' ? 286 : 340,
       panel: buildInfoPanel(tileset, hoveredId, selectedId)
     });
     deck.setProps({
       viewState,
       views: createViews(mode, state.themeMode),
-      widgets: [infoWidget, themeWidget],
+      widgets: [...(infoWidget ? [infoWidget] : []), themeWidget],
       layers: [
         new SharedTile2DLayer<TileContent>({
           id: 'severity-grid',

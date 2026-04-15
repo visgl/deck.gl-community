@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # GridLayer
+
+<LayerLiveExample highlight="grid-layer" size="tall" />
 
 `GridLayer` renders labeled reference lines that align with graph ranks or any
 other scalar dimension. [`GraphLayer`](./graph-layer.md) uses it to draw the

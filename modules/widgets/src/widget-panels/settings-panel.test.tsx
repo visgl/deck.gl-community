@@ -151,7 +151,7 @@ describe('SettingsPanel', () => {
 
     expect(root.querySelector('select')).toBeNull();
 
-    const selectButton = getRequiredButton(root, '#settings-widget-input-mode');
+    const selectButton = getRequiredButton(root, '#settings-panel-input-mode');
     selectButton.click();
     await Promise.resolve();
 

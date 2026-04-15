@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # FlowPathLayer
+
+<LayerLiveExample highlight="flow-path-layer" size="tall" />
 
 `FlowPathLayer` extends Deck.gl's `LineLayer` to add instanced attributes for
 flow animations. It introduces `getSpeed` and `getTailLength` accessors so custom

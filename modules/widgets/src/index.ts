@@ -19,13 +19,11 @@ export type {HtmlTooltipWidgetProps} from './html-overlay-widgets/html-tooltip-w
 
 export {HeapMemoryWidget} from './widgets/heap-memory-widget';
 export {
-  SettingsWidget,
-  type SettingsWidgetProps,
-  type SettingsWidgetSchema,
-  type SettingsWidgetSectionDescriptor,
-  type SettingsWidgetSettingDescriptor,
-  type SettingsWidgetState
-} from './widgets/settings-widget';
+  type SettingDescriptor,
+  type SettingsSchema,
+  type SettingsSectionDescriptor,
+  type SettingsState
+} from './lib/settings/settings';
 export {
   OmniBoxWidget,
   type OmniBoxOption,
@@ -81,7 +79,6 @@ export {
   type FullScreenPanelWidgetProps
 } from './widget-panels/full-screen-panel-widget';
 export {
-  KeyboardShortcutsWidget,
   KeyboardShortcutsPanel,
   type KeyboardShortcutsPanelProps
 } from './widget-panels/keyboard-shortcuts-widget';

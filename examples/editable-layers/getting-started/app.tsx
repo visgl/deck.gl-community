@@ -8,8 +8,8 @@ import {
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
-  type SettingsWidgetSchema,
-  type SettingsWidgetState
+  type SettingsSchema,
+  type SettingsState
 } from '@deck.gl-community/widgets';
 import {ViewMode, DrawPolygonMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
 import maplibregl from 'maplibre-gl';
@@ -30,6 +30,10 @@ type GettingStartedState = {
   settings: GettingStartedSettings;
   geoJson: FeatureCollection;
   selectedFeatureIndexes: number[];
+};
+
+type GettingStartedExampleOptions = {
+  showControlsWidget?: boolean;
 };
 
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
@@ -63,7 +67,7 @@ const INITIAL_SETTINGS: GettingStartedSettings = {
   }
 };
 
-const SETTINGS_SCHEMA: SettingsWidgetSchema = {
+const SETTINGS_SCHEMA: SettingsSchema = {
   title: 'Getting Started Controls',
   sections: [
     {
@@ -86,7 +90,10 @@ const SETTINGS_SCHEMA: SettingsWidgetSchema = {
   ]
 };
 
-export function mountGettingStartedExample(container: HTMLElement): () => void {
+export function mountGettingStartedExample(
+  container: HTMLElement,
+  options: GettingStartedExampleOptions = {}
+): () => void {
   const rootElement = container.ownerDocument.createElement('div');
   const mapElement = container.ownerDocument.createElement('div');
   applyElementStyle(rootElement, ROOT_STYLE);
@@ -100,20 +107,23 @@ export function mountGettingStartedExample(container: HTMLElement): () => void {
     selectedFeatureIndexes: []
   };
 
-  const controlsWidget = new BoxWidget({
-    id: 'getting-started-controls',
-    placement: 'top-left',
-    widthPx: 320,
-    title: 'Getting Started',
-    collapsible: false,
-    panel: buildControlPanel(state, handleSettingsChange)
-  });
+  const controlsWidget =
+    options.showControlsWidget === false
+      ? null
+      : new BoxWidget({
+          id: 'getting-started-controls',
+          placement: 'top-left',
+          widthPx: 320,
+          title: 'Getting Started',
+          collapsible: false,
+          panel: buildControlPanel(state, handleSettingsChange)
+        });
 
   const deckOverlay = new MapboxOverlay({
     interleaved: true,
     layers: buildLayers(state, handleEdit, handleFeatureClick),
     getCursor: getCursor(state),
-    widgets: [controlsWidget]
+    widgets: controlsWidget ? [controlsWidget] : []
   });
 
   const map = new maplibregl.Map({
@@ -134,7 +144,7 @@ export function mountGettingStartedExample(container: HTMLElement): () => void {
     container.replaceChildren();
   };
 
-  function handleSettingsChange(nextSettings: SettingsWidgetState) {
+  function handleSettingsChange(nextSettings: SettingsState) {
     state.settings = cloneSettings(nextSettings as GettingStartedSettings);
     syncOverlay();
     syncWidgets();
@@ -165,12 +175,12 @@ export function mountGettingStartedExample(container: HTMLElement): () => void {
     deckOverlay.setProps({
       layers: buildLayers(state, handleEdit, handleFeatureClick),
       getCursor: getCursor(state),
-      widgets: [controlsWidget]
+      widgets: controlsWidget ? [controlsWidget] : []
     });
   }
 
   function syncWidgets() {
-    controlsWidget.setProps({
+    controlsWidget?.setProps({
       panel: buildControlPanel(state, handleSettingsChange)
     });
   }
@@ -202,7 +212,7 @@ function buildLayers(
 
 function buildControlPanel(
   state: GettingStartedState,
-  onSettingsChange: (nextSettings: SettingsWidgetState) => void
+  onSettingsChange: (nextSettings: SettingsState) => void
 ) {
   return new ColumnPanel({
     id: 'getting-started-panel',

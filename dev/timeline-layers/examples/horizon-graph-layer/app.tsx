@@ -10,8 +10,8 @@ import {
   MarkdownPanel,
   SettingsPanel,
   SidebarWidget,
-  type SettingsWidgetSchema,
-  type SettingsWidgetState
+  type SettingsSchema,
+  type SettingsState
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -81,6 +81,7 @@ type HorizonExampleConfig = {
   sidebarTitle?: string;
   infoTitle?: string;
   infoMarkdown?: string;
+  showInfoWidget?: boolean;
 };
 
 const VIEW = new OrthographicView({id: 'ortho'});
@@ -136,7 +137,7 @@ const INITIAL_SETTINGS: HorizonGraphSettings = {
   }
 };
 
-const SETTINGS_SCHEMA: SettingsWidgetSchema = {
+const SETTINGS_SCHEMA: SettingsSchema = {
   title: 'Horizon Graph Controls',
   sections: [
     {
@@ -253,7 +254,8 @@ const DEFAULT_EXAMPLE_CONFIG: Required<HorizonExampleConfig> = {
   sidebarTitle: 'Horizon Graph Controls',
   infoTitle: 'HorizonGraphLayer',
   infoMarkdown:
-    'Interactive horizon graph demo built with `MultiHorizonGraphLayer`.\n\nAdjust the series count, waveform inputs, colors, and layout from the sidebar.'
+    'Interactive horizon graph demo built with `MultiHorizonGraphLayer`.\n\nAdjust the series count, waveform inputs, colors, and layout from the sidebar.',
+  showInfoWidget: true
 };
 
 export function mountHorizonGraphLayerExample(
@@ -293,7 +295,7 @@ export function mountHorizonGraphLayerExample(
 
   const widgets = [];
 
-  if (resolvedConfig.infoTitle && resolvedConfig.infoMarkdown) {
+  if (resolvedConfig.showInfoWidget && resolvedConfig.infoTitle && resolvedConfig.infoMarkdown) {
     widgets.push(
       new BoxWidget({
         id: `${resolvedConfig.layerId}-info`,
@@ -341,7 +343,7 @@ export function mountHorizonGraphLayerExample(
     container.replaceChildren();
   };
 
-  function handleSettingsChange(nextSettingsState: SettingsWidgetState): void {
+  function handleSettingsChange(nextSettingsState: SettingsState): void {
     state.settings = sanitizeSettings(state.settings, nextSettingsState);
     state.derived = buildDerivedState(state.settings);
     syncDeck();
@@ -354,13 +356,17 @@ export function mountHorizonGraphLayerExample(
   }
 }
 
-export function mountMultiHorizonGraphLayerExample(container: HTMLElement): () => void {
+export function mountMultiHorizonGraphLayerExample(
+  container: HTMLElement,
+  config: HorizonExampleConfig = {}
+): () => void {
   return mountHorizonGraphLayerExample(container, {
     layerId: 'multi-horizon-graph-layer',
     sidebarTitle: 'Multi Horizon Graph Controls',
     infoTitle: 'MultiHorizonGraphLayer',
     infoMarkdown:
-      'Multiple stacked horizon graphs rendered inside one example frame.\n\nUse the sidebar to change the repeated waveforms, band count, colors, and overall layout.'
+      'Multiple stacked horizon graphs rendered inside one example frame.\n\nUse the sidebar to change the repeated waveforms, band count, colors, and overall layout.',
+    ...config
   });
 }
 
@@ -565,7 +571,7 @@ function generateSeriesData(
 
 function sanitizeSettings(
   previous: HorizonGraphSettings,
-  nextState: SettingsWidgetState
+  nextState: SettingsState
 ): HorizonGraphSettings {
   const nextData = asRecord(nextState.data);
   const nextColors = asRecord(nextState.colors);

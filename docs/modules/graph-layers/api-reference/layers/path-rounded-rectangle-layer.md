@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # PathBasedRoundedRectangleLayer
+
+<LayerLiveExample highlight="path-rounded-rectangle-layer" size="tall" />
 
 `PathBasedRoundedRectangleLayer` renders rounded rectangles by tessellating a
 polygon path. Unlike [`RoundedRectangleLayer`](./rounded-rectangle-layer.md),

@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # CircleLayer
+
+<LayerLiveExample highlight="circle-layer" size="tall" />
 
 `CircleLayer` renders circular graph nodes for [`GraphLayer`](./graph-layer.md)
 using Deck.gl's `ScatterplotLayer`. It resolves fill, stroke, and radius

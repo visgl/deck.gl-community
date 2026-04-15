@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # EdgeLayer
+
+<LayerLiveExample highlight="edge-layer" size="tall" />
 
 `EdgeLayer` renders graph connections using the reusable edge sublayers that
 power [`GraphLayer`](./graph-layer.md). It buckets edges by layout type and

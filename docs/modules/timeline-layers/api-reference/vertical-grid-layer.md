@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # VerticalGridLayer
+
+<LayerLiveExample highlight="vertical-grid-layer" size="tall" />
 
 ```ts
 export type VerticalGridLayerProps = LayerProps & {

@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # TimeAxisLayer
+
+<LayerLiveExample highlight="time-axis-layer" size="tall" />
 
 Draws a horizontal time axis with tick marks and labels.
 

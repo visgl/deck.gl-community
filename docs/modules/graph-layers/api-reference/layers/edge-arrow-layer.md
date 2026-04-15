@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # EdgeArrowLayer
+
+<LayerLiveExample highlight="edge-arrow-layer" size="tall" />
 
 `EdgeArrowLayer` draws arrowheads at the end of directed edges. It uses Deck.gl's
 `SimpleMeshLayer` with a 2D arrow mesh and positions each arrow according to the

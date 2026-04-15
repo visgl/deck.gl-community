@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # EdgeLabelLayer
+
+<LayerLiveExample highlight="edge-label-layer" size="tall" />
 
 `EdgeLabelLayer` renders text annotations along edges. It wraps the reusable
 [`ZoomableTextLayer`](./zoomable-text-layer.md), positions labels at the centroid
