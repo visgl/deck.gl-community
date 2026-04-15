@@ -6,3 +6,4 @@ public/
 .cache/
 modules/arrow-layers/
 modules/basemaps/
+*.snap

@@ -458,6 +458,17 @@ describe('getGuides()', () => {
         screenCoords: [42, 42],
         cancelPan: vi.fn(),
         sourceEvent: null
+      },
+      modeConfig: {
+        viewport: {
+          width: 800,
+          height: 600,
+          latitude: 37.8,
+          longitude: -122.4,
+          zoom: 10,
+          project: (x: number) => x,
+          unproject: (x: number) => x
+        }
       }
     });
 

@@ -30,11 +30,17 @@ function isEqual(a: any, b: any) {
  * https://en.wikipedia.org/wiki/Memoization
  * @param {function} compute - the function to be memoized
  */
-export function memoize(compute: Function) {
-  let cachedArgs = {};
-  let cachedResult;
+export function memoize<T, R>(compute: (args: T) => R): (args: T) => R {
+  let cachedArgs: T | null = null;
+  let cachedResult: R | null = null;
 
-  return (args: any) => {
+  return (args: T) => {
+    //  check for null args on first run
+    if (!cachedArgs) {
+      cachedResult = compute(args);
+      cachedArgs = args;
+      return cachedResult;
+    }
     for (const key in args) {
       if (!isEqual(args[key], cachedArgs[key])) {
         cachedResult = compute(args);

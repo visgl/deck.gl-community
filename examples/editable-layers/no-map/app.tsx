@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import type {OrthographicViewState} from '@deck.gl/core';
 import {BitmapLayer} from '@deck.gl/layers';
 import {
   ViewMode,
@@ -30,12 +31,11 @@ import '@deck.gl/widgets/stylesheet.css';
 const BACKGROUND_IMAGE =
   'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Dendrocygna_eytoni_-_Macquarie_University.jpg/1280px-Dendrocygna_eytoni_-_Macquarie_University.jpg';
 
-// Bounds: [west, south, east, north]
-const IMAGE_BOUNDS: [number, number, number, number] = [-10, -8, 10, 8];
+// Bounds: [left, top, right, bottom] - OrthographicView pixel coordinates
+const IMAGE_BOUNDS: [number, number, number, number] = [10, 8, -10, -8];
 
-const INITIAL_VIEW_STATE = {
-  longitude: 0,
-  latitude: 0,
+const INITIAL_VIEW_STATE: OrthographicViewState = {
+  target: [0, 0, 0],
   zoom: 5
 };
 
@@ -116,6 +116,7 @@ export function mountNoMapExample(container: HTMLElement): () => void {
 
   const deck = new Deck({
     parent: rootElement,
+    views: new OrthographicView(),
     initialViewState: INITIAL_VIEW_STATE,
     controller: {doubleClickZoom: false},
     layers: buildLayers(state, handleEdit, handleFeatureClick),
@@ -201,23 +202,26 @@ function buildLayers(
     new BitmapLayer({
       id: 'background-image',
       bounds: IMAGE_BOUNDS,
-      image: BACKGROUND_IMAGE
+      image: BACKGROUND_IMAGE,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
     }),
     new EditableGeoJsonLayer({
       id: 'editable-geojson',
       data: state.geoJson,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       mode: state.mode,
       selectedFeatureIndexes: state.selectedFeatureIndexes,
       onClick: state.mode === ViewMode ? onFeatureClick : undefined,
       onEdit: ({updatedData}) => {
         onEdit(updatedData as FeatureCollection);
       },
-      getFillColor: [0, 100, 200, 80],
-      getLineColor: [0, 100, 200, 200],
+      getFillColor: (feature, isSelected) => (isSelected ? [0, 200, 110, 150] : [0, 100, 200, 130]),
+      getLineColor: (feature, isSelected) => (isSelected ? [2, 107, 60, 130] : [0, 77, 153, 100]),
       getLineWidth: 2,
       lineWidthMinPixels: 2,
       pointRadiusMinPixels: 6,
-      editHandlePointRadiusMinPixels: 5
+      editHandlePointRadiusMinPixels: 5,
+      autoHighlight: true
     })
   ];
 }
@@ -241,7 +245,7 @@ function buildInfoPanel({
         markdown: [
           'Edit GeoJSON features without a basemap.',
           '',
-          'This demo uses a Mercator projection centered near the equator with a bitmap bird photo as the background layer.',
+          'This demo uses an OrthographicView with Cartesian coordinates and a bitmap bird photo as the background layer.',
           '',
           `- Mode: **${modeLabel}**`,
           `- Features: **${featureCount}**`,

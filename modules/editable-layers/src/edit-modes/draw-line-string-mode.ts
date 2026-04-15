@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import distance from '@turf/distance';
 import {memoize} from '../utils/memoize';
 import {
   LineString,
@@ -21,6 +20,11 @@ import {
 } from './types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {
+  EditModeCoordinateSystem,
+  GeoCoordinateSystem,
+  getEditModeCoordinateSystem
+} from './coordinate-system';
 
 export class DrawLineStringMode extends GeoJsonEditMode {
   // declaration of variables for the calculation of the distance of linestring
@@ -37,11 +41,11 @@ export class DrawLineStringMode extends GeoJsonEditMode {
       this.addClickSequence(event);
       positionAdded = true;
     }
-    const clickSequence = this.getClickSequence();
+    const clickSequence: Position[] = this.getClickSequence();
 
     // check if the pointer is on editable state calculate the distance of new point
     if (!clickedEditHandle) {
-      this.calculateInfoDraw(clickSequence);
+      this.calculateInfoDraw(clickSequence, props?.coordinateSystem);
     }
 
     if (
@@ -67,7 +71,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
     }
   }
 
-  handleDoubleClick(event: DoubleClickEvent, props: ModeProps<SimpleFeatureCollection>) {
+  handleDoubleClick(_event: DoubleClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     this.finishDrawing(props);
   }
 
@@ -112,7 +116,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
       features: []
     };
 
-    let tentativeFeature;
+    let tentativeFeature: GuideFeature;
     if (clickSequence.length > 0) {
       tentativeFeature = {
         type: 'Feature',
@@ -148,7 +152,7 @@ export class DrawLineStringMode extends GeoJsonEditMode {
     return guides;
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(_event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
     props.onUpdateCursor('cell');
   }
 
@@ -160,19 +164,24 @@ export class DrawLineStringMode extends GeoJsonEditMode {
   getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
     return this._getTooltips({
       modeConfig: props.modeConfig,
-      dist: this.dist
+      dist: this.dist,
+      coordinateSystem: props?.coordinateSystem
     });
   }
 
   // utility function
-  calculateInfoDraw(clickSequence) {
+  calculateInfoDraw(
+    clickSequence: Position[],
+    coordinateSystem: EditModeCoordinateSystem = new GeoCoordinateSystem()
+  ) {
     // check if the selected points are at least 2
     if (clickSequence.length > 1) {
       // setting the last point
       this.position = clickSequence[clickSequence.length - 1];
       // calculate the new distance by adding the
       // distance of the new drawn linestring
-      this.dist += distance(
+      const coordSys = getEditModeCoordinateSystem(coordinateSystem);
+      this.dist += coordSys.distance(
         clickSequence[clickSequence.length - 2],
         clickSequence[clickSequence.length - 1]
       );
@@ -184,16 +193,20 @@ export class DrawLineStringMode extends GeoJsonEditMode {
    * @param modeConfig
    * @param dist
    */
-  _getTooltips = memoize(({modeConfig, dist}) => {
+  _getTooltips = memoize(({modeConfig, dist, coordinateSystem}) => {
     let tooltips: Tooltip[] = [];
     const {formatTooltip} = modeConfig || {};
-    let text;
+    let text: string;
     if (dist) {
       if (formatTooltip) {
         text = formatTooltip(dist);
       } else {
+        const coordSys = coordinateSystem
+          ? getEditModeCoordinateSystem(coordinateSystem)
+          : new GeoCoordinateSystem();
+        const labelUnits = coordSys instanceof GeoCoordinateSystem ? 'kilometers' : 'pixels';
         // By default, round to 2 decimal places and append units
-        text = `Distance: ${parseFloat(dist).toFixed(2)} kilometers`;
+        text = `Distance: ${parseFloat(dist).toFixed(2)} ${labelUnits}`;
       }
 
       tooltips = [
