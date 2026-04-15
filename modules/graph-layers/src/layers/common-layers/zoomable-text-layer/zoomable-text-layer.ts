@@ -53,6 +53,11 @@ export class ZoomableTextLayer extends CompositeLayer {
       return [];
     }
 
+    // Defensive getText wrapper that guarantees a non-empty string.
+    // TextLayer's internal MultiIconLayer generates NaN in instanceIconDefs
+    // when a character is missing from the font atlas.
+    const safeGetText = (d: any) => String(newGetText(d) ?? '') || ' ';
+
     return [
       new TextLayer(
         this.getSubLayerProps({
@@ -66,10 +71,10 @@ export class ZoomableTextLayer extends CompositeLayer {
           getTextAnchor,
           getAlignmentBaseline,
           getAngle,
-          getText: newGetText,
+          getText: safeGetText,
           maxWidth: textMaxWidth ?? 12,
           wordBreak: textWordBreak ?? 'break-all',
-          fontFamily: fontFamily ?? 'Red Hat Text',
+          fontFamily: fontFamily ?? 'sans-serif',
           wordUnits: textWordUnits ?? 'pixels',
           sizeMinPixels: textSizeMinPixels ?? 9,
           updateTriggers: {
