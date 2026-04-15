@@ -11,9 +11,9 @@ Inofficial wishlist and roadmap type information is available in github trackers
 - **`@deck.gl-community/infovis-layers`**
   - Goal: Some of the improved support for (non-geospatial) views etc should be upstreamed into deck.gl v9.3.
 
-## v9.3 - In Development
+## v9.3
 
-Target Release Date: April 2026
+Released: April 15, 2026
 
 ### `@deck.gl-community/geo-layers`
 

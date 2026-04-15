@@ -7,7 +7,7 @@ import * as React from 'react';
 import {useState, useCallback} from 'react';
 import DeckGL from '@deck.gl/react';
 import {MapView, MapController} from '@deck.gl/core';
-import StaticMap from 'react-map-gl/maplibre';
+import {Map as StaticMap} from 'react-map-gl/maplibre';
 import {GL} from '@luma.gl/constants';
 import circle from '@turf/circle';
 
@@ -67,6 +67,7 @@ import {
 } from './toolbox';
 
 import '@deck.gl/widgets/stylesheet.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 type RGBAColor = Color;
 const COMPOSITE_MODE = new CompositeMode([new DrawLineStringMode(), new ModifyMode()]);
@@ -874,14 +875,7 @@ export function Example() {
   }, [mode, showGeoJson, testFeatures, copy, paste, download, loadSample, editHandleType,
       renderModeConfigControls, renderSelectFeatureCheckboxes, getDefaultModeConfig]);
 
-  const renderStaticMap = useCallback((currentViewport: Record<string, any>) => {
-    return (
-      <StaticMap
-        {...currentViewport}
-        mapStyle={'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
-      />
-    );
-  }, []);
+  const mapStyle = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
   const featureMenuClick = useCallback((action: string) => {
     const {index} = featureMenu || {};
@@ -1154,27 +1148,29 @@ export function Example() {
 
   return (
     <div style={styles.mapContainer}>
-      <DeckGL
-        viewState={currentViewport}
-        getCursor={editableGeoJsonLayer.getCursor.bind(editableGeoJsonLayer)}
-        layers={layers}
-        widgets={[infoWidget]}
-        height="100%"
-        width="100%"
-        views={[
-          new MapView({
-            id: 'basemap',
-            controller: {
-              type: MapController,
-              doubleClickZoom: false
-            }
-          })
-        ]}
-        onClick={onLayerClick}
-        onViewStateChange={({viewState}) => setViewport(viewState)}
+      <StaticMap
+        {...currentViewport}
+        mapStyle={mapStyle}
+        style={{width: '100%', height: '100%'}}
       >
-        {renderStaticMap(currentViewport)}
-      </DeckGL>
+        <DeckGL
+          viewState={currentViewport}
+          getCursor={editableGeoJsonLayer.getCursor.bind(editableGeoJsonLayer)}
+          layers={layers}
+          widgets={[infoWidget]}
+          views={[
+            new MapView({
+              id: 'basemap',
+              controller: {
+                type: MapController,
+                doubleClickZoom: false
+              }
+            })
+          ]}
+          onClick={onLayerClick}
+          onViewStateChange={({viewState}) => setViewport(viewState)}
+        />
+      </StaticMap>
       {renderToolBox()}
       {featureMenu && renderFeatureMenu(featureMenu)}
     </div>

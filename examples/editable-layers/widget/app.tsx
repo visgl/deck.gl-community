@@ -183,7 +183,7 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
   });
 
   const deckOverlay = new MapboxOverlay({
-    interleaved: false,
+    interleaved: true,
     layers: buildLayers(state, handleEdit, handleFeatureClick),
     widgets: [trayWidget, infoWidget],
     getCursor: getCursor(state),

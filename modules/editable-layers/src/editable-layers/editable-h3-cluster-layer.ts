@@ -6,8 +6,7 @@
 
 import type {DefaultProps} from '@deck.gl/core';
 import {H3ClusterLayer} from '@deck.gl/geo-layers';
-// TODO: Fix H3 support.
-// import { polyfill, geoToH3 } from 'h3-js';
+import {polygonToCells, latLngToCell} from 'h3-js';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
 import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {EditableLayer, EditableLayerProps} from './editable-layer';
@@ -85,14 +84,21 @@ export class EditableH3ClusterLayer extends EditableLayer<any, EditableH3Cluster
 
   // convert array of (lng, lat) coords to cluster of hexes
   getDerivedHexagonIDs(coords) {
-    throw new Error('not implemented'); // TODO
-    // return polyfill(coords, this.props.resolution, true);
+    const outerRing = coords?.[0];
+    if (!outerRing || outerRing.length < 4) {
+      return [];
+    }
+    try {
+      return polygonToCells(coords, this.props.resolution, true);
+    } catch {
+      // h3 rejects degenerate polygons (zero area, collinear points, etc.)
+      return [];
+    }
   }
 
   // convert pair of (lng, lat) coords into single hex
   getDerivedHexagonID(coords) {
-    throw new Error('not implemented'); // TODO
-    // return geoToH3(coords[1], coords[0], this.props.resolution);
+    return latLngToCell(coords[1], coords[0], this.props.resolution);
   }
 
   renderLayers() {

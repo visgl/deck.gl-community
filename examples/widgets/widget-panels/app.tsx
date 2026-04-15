@@ -5,7 +5,7 @@
 
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {Stats} from '@probe.gl/stats';
 import {render} from 'preact';
 import {

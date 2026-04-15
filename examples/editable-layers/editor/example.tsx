@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import {Map} from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
 import {
   ViewMode,
@@ -22,8 +23,8 @@ import {
 } from '@deck.gl-community/editable-layers';
 import type {BooleanOperation} from '@deck.gl-community/editable-layers';
 import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
-import StaticMap from 'react-map-gl/maplibre';
 
+import 'maplibre-gl/dist/maplibre-gl.css';
 import '@deck.gl/widgets/stylesheet.css';
 
 // --- Default data ---
@@ -248,24 +249,27 @@ export function Example() {
   });
 
   return (
-    <DeckGL
+    <Map
       initialViewState={initialViewState}
-      controller={{doubleClickZoom: false}}
-      layers={[layer]}
-      getCursor={layer.getCursor.bind(layer)}
-      onClick={(info) => {
-        if (mode === ViewMode) {
-          const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
-          if (index !== null) {
-            setSelectedFeatureIndexes([index]);
-          } else {
-            setSelectedFeatureIndexes([]);
-          }
-        }
-      }}
-      widgets={widgets}
+      mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+      style={{width: '100%', height: '100%'}}
     >
-      <StaticMap mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
-    </DeckGL>
+      <DeckGL
+        controller={{doubleClickZoom: false}}
+        layers={[layer]}
+        getCursor={layer.getCursor.bind(layer)}
+        onClick={(info) => {
+          if (mode === ViewMode) {
+            const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
+            if (index !== null) {
+              setSelectedFeatureIndexes([index]);
+            } else {
+              setSelectedFeatureIndexes([]);
+            }
+          }
+        }}
+        widgets={widgets}
+      />
+    </Map>
   );
 }

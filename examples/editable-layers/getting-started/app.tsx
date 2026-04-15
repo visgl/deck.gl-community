@@ -110,7 +110,7 @@ export function mountGettingStartedExample(container: HTMLElement): () => void {
   });
 
   const deckOverlay = new MapboxOverlay({
-    interleaved: false,
+    interleaved: true,
     layers: buildLayers(state, handleEdit, handleFeatureClick),
     getCursor: getCursor(state),
     widgets: [controlsWidget]

@@ -136,6 +136,7 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
     const textLayer = new TextLayer({
       id: `${this.props.id}-labels`,
       data: textData,
+      characterSet: 'auto',
       getPosition: (d) => d.position,
       getText: (d) => d.text,
       getColor: getColor ? (d) => getColor(d.datum) ?? color : () => color,
