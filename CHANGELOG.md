@@ -1,5 +1,7 @@
 # deck.gl-community CHANGELOG
 
+## v9.3.0-beta.1
+
 ## v9.3.0
 
 - chore(deps): bump vis.gl dependencies to 9.3 — deck.gl ~9.3.0-beta.1, luma.gl ~9.3.2, loaders.gl ^4.4.1 (#546)

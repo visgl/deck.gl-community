@@ -1,7 +1,10 @@
 {
-  "version": "9.3.0-beta.0",
+  "version": "9.3.0-beta.1",
   "npmClient": "yarn",
-  "packages": ["modules/*", "dev/*"],
+  "packages": [
+    "modules/*",
+    "dev/*"
+  ],
   "publishConfig": {
     "access": "public"
   }
