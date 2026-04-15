@@ -13,7 +13,7 @@ Inofficial wishlist and roadmap type information is available in github trackers
 
 ## v9.3
 
-Released: April 14, 2026
+Released: April 15, 2026
 
 ### `@deck.gl-community/geo-layers`
 
