@@ -35,10 +35,11 @@
     "update-release-branch": "scripts/update-release-branch.sh"
   },
   "devDependencies": {
-    "@deck.gl/aggregation-layers": "~9.3.0-beta.1",
-    "@deck.gl/core": "~9.3.0-beta.1",
-    "@deck.gl/layers": "~9.3.0-beta.1",
-    "@deck.gl/mesh-layers": "~9.3.0-beta.1",
+    "@deck.gl/aggregation-layers": "~9.3.0",
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@deck.gl/mapbox": "~9.3.0",
+    "@deck.gl/mesh-layers": "~9.3.0",
     "@floating-ui/dom": "^1.7.5",
     "@loaders.gl/core": "^4.4.1",
     "@loaders.gl/textures": "^4.4.1",

@@ -4,6 +4,20 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## v9.3
+
+### Dependencies
+
+- Requires `deck.gl@~9.3.0-beta.1` or later.
+- Requires `@luma.gl/*@~9.3.2` or later.
+- Requires `@loaders.gl/*@^4.4.1` or later.
+
+### `@deck.gl-community/editable-layers`
+
+- The `@deck.gl-community/layers` peer dependency has been bumped from `^9.2.0-beta` to `^9.3.0`.
+
+No other breaking changes in this release.
+
 ## v9.2
 
 ### `@deck.gl-community/editable-layers`

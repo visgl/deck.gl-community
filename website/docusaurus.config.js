@@ -148,10 +148,10 @@ const config = {
                 fullySpecified: false
               }
             },
-            // widgets module JSX must be traspiled as preact
+            // widgets and editable-layers module JSX must be transpiled as preact
             {
               test: /\.[jt]sx?$/,
-              include: [resolve('../modules/widgets/src')],
+              include: [resolve('../modules/widgets/src'), resolve('../modules/editable-layers/src')],
               use: [
                 {
                   loader: require.resolve('babel-loader'),

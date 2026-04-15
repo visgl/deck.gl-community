@@ -104,7 +104,7 @@ export function mountSfExample(container: HTMLElement): () => void {
   });
 
   const deckOverlay = new MapboxOverlay({
-    interleaved: false,
+    interleaved: true,
     layers: buildLayers(state, handleEdit, handleSelect, handleFeatureClick),
     widgets: [infoWidget],
     getCursor: getCursor(state)

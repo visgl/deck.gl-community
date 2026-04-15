@@ -8,10 +8,6 @@ import {TextLayer} from '@deck.gl/layers';
 export class ZoomableTextLayer extends CompositeLayer {
   static layerName = 'ZoomableTextLayer';
 
-  initializeState() {
-    this.state = {characterSet: []};
-  }
-
   shouldUpdateState({props, changeFlags}) {
     const {scaleWithZoom} = this.props as any;
     if (!scaleWithZoom) {
@@ -20,22 +16,7 @@ export class ZoomableTextLayer extends CompositeLayer {
     return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged;
   }
 
-  updateState({props, oldProps, changeFlags}) {
-    super.updateState({props, oldProps, changeFlags} as any);
-    if (changeFlags.propsOrDataChanged) {
-      const {getText} = props;
-      let textLabels = [];
-      if (typeof getText === 'function') {
-        textLabels = props.data.map(getText);
-      } else {
-        textLabels = [getText];
-      }
-      const characterSet = new Set(textLabels.join(''));
-      const uniqueCharacters = Array.from(characterSet);
-      this.setState({characterSet: uniqueCharacters});
-    }
-  }
-
+  // eslint-disable-next-line complexity
   renderLayers() {
     const {
       data,
@@ -59,13 +40,26 @@ export class ZoomableTextLayer extends CompositeLayer {
     // getText only expects function not plain value (string)
     const newGetText = typeof getText === 'function' ? getText : () => getText;
 
+    // Filter data to items that have non-empty text to avoid deck.gl 9.3
+    // MultiIconLayer attribute validation errors with undefined/empty labels
+    const filteredData = data
+      ? data.filter((d: any) => {
+          const t = newGetText(d);
+          return t !== null && t !== undefined && t !== '';
+        })
+      : [];
+
+    if (filteredData.length === 0) {
+      return [];
+    }
+
     return [
       new TextLayer(
         this.getSubLayerProps({
           id: '__text-layer',
-          data,
+          data: filteredData,
           sizeScale: scaleWithZoom ? Math.pow(2, this.context.viewport.zoom - 1) : 1,
-          characterSet: this.state.characterSet,
+          characterSet: 'auto',
           getPosition,
           getColor,
           getSize,

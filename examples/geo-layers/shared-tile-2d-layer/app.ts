@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, MapView, type MapViewState} from '@deck.gl/core';
-import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {
   AccordeonPanel,

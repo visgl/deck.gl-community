@@ -1,5 +1,23 @@
 # deck.gl-community CHANGELOG
 
+## v9.3.0
+
+- chore(deps): bump vis.gl dependencies to 9.3 — deck.gl ~9.3.0-beta.1, luma.gl ~9.3.2, loaders.gl ^4.4.1 (#546)
+- feat(geo-layers): SharedTile2DLayer, SharedTileset2D, TileGridLayer for coordinated multi-view tile loading (#574)
+- feat(basemap-layers): NEW BasemapLayer module for rendering style-defined basemaps with deck.gl (#572, #567)
+- feat(layers): SkyboxLayer for rendering camera-centered cubemap backgrounds
+- feat(three/tree-layer): crop/fruit visualisation, organic canopy & per-tree variety (#533, #540)
+- feat(widgets): new widgets, de-reactify examples (#568)
+- docs(widgets): improve widget module docs (#581)
+- feat(editable-layers): integrate 3D picking (#577)
+- fix(editable-layers): CSS scale handling by passing through mjolnir.js event data (#558)
+- chore(editable-layers): move @math.gl/core to dependencies (#584)
+- feat: CI testing, dev/ structure, TimelineLayer, and coverage reporting (#544)
+- fix(widgets): restore Preact as JSX renderer, align with @deck.gl/widgets design (#543)
+- fix/yarn-hardened-mode-ci (#550)
+- docs: rewrite README as focused awesome list (#553)
+- See whats-new.md and upgrade-guide.md for full details
+
 ## v9.2.8
 
 - fix(three/tree-layer): resolve ESLint errors blocking v9.2.7 release (one-var, no-continue, max-statements, max-params, unnecessary type assertion)

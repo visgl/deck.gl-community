@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/layers",
-  "version": "9.2.8",
+  "version": "9.3.0",
   "description": "Add-on layers for deck.gl",
   "license": "MIT",
   "publishConfig": {
@@ -33,9 +33,9 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.3.0-beta.1",
-    "@deck.gl/layers": "~9.3.0-beta.1",
-    "@deck.gl/mesh-layers": "~9.3.0-beta.1",
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@deck.gl/mesh-layers": "~9.3.0",
     "@loaders.gl/core": "^4.4.1",
     "@loaders.gl/textures": "^4.4.1",
     "@luma.gl/constants": "~9.3.2",
@@ -45,7 +45,7 @@
     "@math.gl/core": "^4.0.0"
   },
   "devDependencies": {
-    "@deck.gl/test-utils": "~9.3.0-beta.1",
+    "@deck.gl/test-utils": "~9.3.0",
     "@luma.gl/webgpu": "~9.3.2",
     "@probe.gl/test-utils": "^4.0.4"
   }

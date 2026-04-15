@@ -123,7 +123,7 @@ export function mountEditableH3ClusterLayerExample(container: HTMLElement): () =
   });
 
   const deckOverlay = new MapboxOverlay({
-    interleaved: false,
+    interleaved: true,
     layers: buildLayers(state, handleEdit),
     widgets: [trayWidget, toolbarWidget, infoWidget],
     getCursor: getCursor(state)

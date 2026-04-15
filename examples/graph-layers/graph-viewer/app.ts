@@ -5,7 +5,7 @@
 /* eslint-disable max-lines, max-statements, complexity */
 
 import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl/core';
-import {_ThemeWidget as ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
   AccordeonPanel,
   BoxWidget,
@@ -336,12 +336,12 @@ export function mountGraphViewerExample(
       ...DarkTheme
     }
   }) as ThemeWidget & {
-    _setThemeMode: (themeMode: 'light' | 'dark') => void;
+    _applyTheme: (themeMode: 'light' | 'dark') => void;
     themeMode: 'light' | 'dark';
   };
-  const originalSetThemeMode = themeWidget._setThemeMode.bind(themeWidget);
-  themeWidget._setThemeMode = (themeMode: 'light' | 'dark') => {
-    originalSetThemeMode(themeMode);
+  const originalApplyTheme = themeWidget._applyTheme.bind(themeWidget);
+  themeWidget._applyTheme = (themeMode: 'light' | 'dark') => {
+    originalApplyTheme(themeMode);
     if (state.themeMode !== themeMode) {
       state.themeMode = themeMode;
       syncWidgets();
