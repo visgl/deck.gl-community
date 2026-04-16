@@ -33,11 +33,13 @@
     "test-watch": "vitest"
   },
   "dependencies": {
+    "@luma.gl/shadertools": "~9.3.2"
+  },
+  "peerDependencies": {
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/layers": "~9.3.0",
     "@luma.gl/core": "~9.3.2",
-    "@luma.gl/engine": "~9.3.2",
-    "@luma.gl/shadertools": "~9.3.2"
+    "@luma.gl/engine": "~9.3.2"
   },
   "devDependencies": {
     "@deck.gl/test-utils": "~9.3.0",

@@ -275,15 +275,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/arrow-layers@workspace:modules/arrow-layers"
   dependencies:
-    "@deck.gl/aggregation-layers": "npm:~9.3.0"
-    "@deck.gl/core": "npm:~9.3.0"
-    "@deck.gl/geo-layers": "npm:~9.3.0"
-    "@deck.gl/layers": "npm:~9.3.0"
     "@geoarrow/geoarrow-js": "npm:^0.3.0"
     "@math.gl/core": "npm:^4.0.0"
     "@math.gl/polygon": "npm:^4.0.0"
     apache-arrow: "npm:>=15"
     threads: "npm:^1.7.0"
+  peerDependencies:
+    "@deck.gl/aggregation-layers": ~9.3.0
+    "@deck.gl/core": ~9.3.0
+    "@deck.gl/geo-layers": ~9.3.0
+    "@deck.gl/layers": ~9.3.0
   languageName: unknown
   linkType: soft
 
@@ -291,26 +292,27 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/basemap-layers@workspace:modules/basemap-layers"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
-    "@deck.gl/geo-layers": "npm:~9.3.0"
-    "@deck.gl/layers": "npm:~9.3.0"
-    "@loaders.gl/core": "npm:^4.4.1"
     "@loaders.gl/loader-utils": "npm:^4.4.1"
     "@loaders.gl/mvt": "npm:^4.4.1"
-    "@luma.gl/core": "npm:~9.3.2"
-    "@luma.gl/engine": "npm:~9.3.2"
     "@mapbox/mapbox-gl-style-spec": "npm:^13.12.0"
     "@turf/polygon-to-line": "npm:^6.0.3"
     vitest: "npm:^4.0.18"
     zod: "npm:^4.0.0"
+  peerDependencies:
+    "@deck.gl/core": ~9.3.0
+    "@deck.gl/geo-layers": ~9.3.0
+    "@deck.gl/layers": ~9.3.0
+    "@loaders.gl/core": ^4.4.1
+    "@luma.gl/core": ~9.3.2
+    "@luma.gl/engine": ~9.3.2
   languageName: unknown
   linkType: soft
 
 "@deck.gl-community/bing-maps@workspace:*, @deck.gl-community/bing-maps@workspace:modules/bing-maps":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/bing-maps@workspace:modules/bing-maps"
-  dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
+  peerDependencies:
+    "@deck.gl/core": ~9.3.0
   languageName: unknown
   linkType: soft
 
@@ -358,7 +360,7 @@ __metadata:
     lodash.throttle: "npm:^4.1.1"
     preact: "npm:^10.17.0"
   peerDependencies:
-    "@deck.gl-community/layers": ^9.3.0
+    "@deck.gl-community/layers": ~9.3.0
     "@deck.gl/core": ~9.3.0
     "@deck.gl/extensions": ~9.3.0
     "@deck.gl/geo-layers": ~9.3.0
@@ -375,18 +377,19 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/experimental@workspace:modules/experimental"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
-    "@deck.gl/geo-layers": "npm:~9.3.0"
-    "@deck.gl/layers": "npm:~9.3.0"
-    "@deck.gl/mesh-layers": "npm:~9.3.0"
-    "@loaders.gl/core": "npm:^4.4.1"
     "@loaders.gl/i3s": "npm:^4.4.1"
     "@loaders.gl/loader-utils": "npm:^4.4.1"
     "@loaders.gl/schema": "npm:^4.4.1"
     "@loaders.gl/tiles": "npm:^4.4.1"
-    "@luma.gl/core": "npm:~9.3.2"
-    "@luma.gl/engine": "npm:~9.3.2"
     "@luma.gl/shadertools": "npm:~9.3.2"
+  peerDependencies:
+    "@deck.gl/core": ~9.3.0
+    "@deck.gl/geo-layers": ~9.3.0
+    "@deck.gl/layers": ~9.3.0
+    "@deck.gl/mesh-layers": ~9.3.0
+    "@loaders.gl/core": ^4.4.1
+    "@luma.gl/core": ~9.3.2
+    "@luma.gl/engine": ~9.3.2
   languageName: unknown
   linkType: soft
 
@@ -394,13 +397,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/geo-layers@workspace:modules/geo-layers"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
-    "@deck.gl/geo-layers": "npm:~9.3.0"
-    "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/test-utils": "npm:~9.3.0"
     "@loaders.gl/loader-utils": "npm:^4.4.1"
-    "@luma.gl/core": "npm:~9.3.2"
-    "@luma.gl/engine": "npm:~9.3.2"
     "@luma.gl/shadertools": "npm:~9.3.2"
     "@luma.gl/webgpu": "npm:~9.3.2"
     "@math.gl/core": "npm:^4.0.0"
@@ -408,6 +406,12 @@ __metadata:
     "@probe.gl/test-utils": "npm:^4.0.4"
     a5-js: "npm:^0.5.0"
     h3-js: "npm:^4.2.1"
+  peerDependencies:
+    "@deck.gl/core": ~9.3.0
+    "@deck.gl/geo-layers": ~9.3.0
+    "@deck.gl/layers": ~9.3.0
+    "@luma.gl/core": ~9.3.2
+    "@luma.gl/engine": ~9.3.2
   languageName: unknown
   linkType: soft
 
@@ -415,12 +419,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/graph-layers@workspace:modules/graph-layers"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
-    "@deck.gl/layers": "npm:~9.3.0"
-    "@deck.gl/widgets": "npm:~9.3.0"
-    "@loaders.gl/core": "npm:^4.4.1"
-    "@luma.gl/core": "npm:~9.3.2"
-    "@luma.gl/engine": "npm:~9.3.2"
     "@luma.gl/shadertools": "npm:~9.3.2"
     "@probe.gl/log": "npm:^4.0.4"
     apache-arrow: "npm:^17.0.0"
@@ -437,6 +435,12 @@ __metadata:
     zod: "npm:^4.0.0"
     zod-to-json-schema: "patch:zod-to-json-schema@npm%3A3.24.6#~/.yarn/patches/zod-to-json-schema-npm-3.24.6-1ea8d4e085.patch"
   peerDependencies:
+    "@deck.gl/core": ~9.3.0
+    "@deck.gl/layers": ~9.3.0
+    "@deck.gl/widgets": ~9.3.0
+    "@loaders.gl/core": ^4.4.1
+    "@luma.gl/core": ~9.3.2
+    "@luma.gl/engine": ~9.3.2
     zod: ^4.0.0
   languageName: unknown
   linkType: soft
@@ -445,14 +449,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/infovis-layers@workspace:modules/infovis-layers"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
-    "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/test-utils": "npm:~9.3.0"
-    "@luma.gl/core": "npm:~9.3.2"
-    "@luma.gl/engine": "npm:~9.3.2"
     "@luma.gl/shadertools": "npm:~9.3.2"
     "@luma.gl/webgpu": "npm:~9.3.2"
     "@probe.gl/test-utils": "npm:^4.0.4"
+  peerDependencies:
+    "@deck.gl/core": ~9.3.0
+    "@deck.gl/layers": ~9.3.0
+    "@luma.gl/core": ~9.3.2
+    "@luma.gl/engine": ~9.3.2
   languageName: unknown
   linkType: soft
 
@@ -460,19 +465,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
-    "@deck.gl/layers": "npm:~9.3.0"
-    "@deck.gl/mesh-layers": "npm:~9.3.0"
     "@deck.gl/test-utils": "npm:~9.3.0"
-    "@loaders.gl/core": "npm:^4.4.1"
     "@loaders.gl/textures": "npm:^4.4.1"
     "@luma.gl/constants": "npm:~9.3.2"
-    "@luma.gl/core": "npm:~9.3.2"
-    "@luma.gl/engine": "npm:~9.3.2"
     "@luma.gl/shadertools": "npm:~9.3.2"
     "@luma.gl/webgpu": "npm:~9.3.2"
     "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.0.4"
+  peerDependencies:
+    "@deck.gl/core": ~9.3.0
+    "@deck.gl/layers": ~9.3.0
+    "@deck.gl/mesh-layers": ~9.3.0
+    "@loaders.gl/core": ^4.4.1
+    "@luma.gl/core": ~9.3.2
+    "@luma.gl/engine": ~9.3.2
   languageName: unknown
   linkType: soft
 
@@ -480,10 +486,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/leaflet@workspace:modules/leaflet"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
     "@types/leaflet": "npm:^1.9.18"
     leaflet: "npm:^1.9.4"
   peerDependencies:
+    "@deck.gl/core": ~9.3.0
     leaflet: ^1.9.4
   languageName: unknown
   linkType: soft
@@ -512,10 +518,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/three@workspace:modules/three"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
-    "@deck.gl/mesh-layers": "npm:~9.3.0"
     "@types/three": "npm:^0.170.0"
     three: "npm:^0.170.0"
+  peerDependencies:
+    "@deck.gl/core": ~9.3.0
+    "@deck.gl/mesh-layers": ~9.3.0
   languageName: unknown
   linkType: soft
 
@@ -538,11 +545,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/widgets@workspace:modules/widgets"
   dependencies:
-    "@deck.gl/core": "npm:~9.3.0"
     "@probe.gl/stats": "npm:^4.1.1"
     "@turf/helpers": "npm:^6.5.0"
     preact: "npm:^10.17.0"
     supercluster: "npm:^8.0.1"
+  peerDependencies:
+    "@deck.gl/core": ~9.3.0
   languageName: unknown
   linkType: soft
 

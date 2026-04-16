@@ -35,7 +35,7 @@
     "test": "vitest run",
     "test-watch": "vitest"
   },
-  "dependencies": {
+  "peerDependencies": {
     "@deck.gl/core": "~9.3.0"
   }
 }
