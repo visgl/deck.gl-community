@@ -41,12 +41,6 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.3.0",
-    "@deck.gl/layers": "~9.3.0",
-    "@deck.gl/widgets": "~9.3.0",
-    "@loaders.gl/core": "^4.4.1",
-    "@luma.gl/core": "~9.3.2",
-    "@luma.gl/engine": "~9.3.2",
     "@luma.gl/shadertools": "~9.3.2",
     "@probe.gl/log": "^4.0.4",
     "apache-arrow": "^17.0.0",
@@ -66,6 +60,12 @@
     "zod-to-json-schema": "patch:zod-to-json-schema@npm%3A3.24.6#~/.yarn/patches/zod-to-json-schema-npm-3.24.6-1ea8d4e085.patch"
   },
   "peerDependencies": {
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@deck.gl/widgets": "~9.3.0",
+    "@loaders.gl/core": "^4.4.1",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/engine": "~9.3.2",
     "zod": "^4.0.0"
   }
 }

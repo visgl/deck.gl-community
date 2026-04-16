@@ -38,14 +38,12 @@
     "test": "vitest run",
     "test-watch": "vitest"
   },
-  "dependencies": {
-    "@deck.gl/core": "~9.3.0"
-  },
   "devDependencies": {
     "@types/leaflet": "^1.9.18",
     "leaflet": "^1.9.4"
   },
   "peerDependencies": {
+    "@deck.gl/core": "~9.3.0",
     "leaflet": "^1.9.4"
   }
 }

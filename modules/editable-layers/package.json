@@ -77,7 +77,7 @@
     "preact": "^10.17.0"
   },
   "peerDependencies": {
-    "@deck.gl-community/layers": "^9.3.0",
+    "@deck.gl-community/layers": "~9.3.0",
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/extensions": "~9.3.0",
     "@deck.gl/geo-layers": "~9.3.0",
