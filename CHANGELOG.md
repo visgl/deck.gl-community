@@ -1,11 +1,5 @@
 # deck.gl-community CHANGELOG
 
-## v9.3.2
-
-- fix: move vis.gl singleton deps (`@deck.gl/*`, `@luma.gl/core`, `@luma.gl/engine`, `@loaders.gl/core`) to peerDependencies across all modules, matching `@deck.gl` upstream pattern (#590)
-- fix(editable-layers): use tilde (`~`) instead of caret (`^`) for `@deck.gl-community/layers` peer dep to prevent cross-minor resolution (#590)
-- test: add peer dependency structure validation — catches singleton deps in wrong field, caret vs tilde misuse, and cross-module version drift
-
 ## v9.3.1
 
 - feat(editable-layers): non-geospatial coordinate system support — `EditModeCoordinateSystem` abstraction with `GeoCoordinateSystem` and `CartesianCoordinateSystem` implementations, auto-derived from deck.gl `COORDINATE_SYSTEM` prop (#587)
