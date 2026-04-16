@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/basemap-layers",
-  "version": "9.3.1",
+  "version": "9.3.2",
   "description": "Basemap layer and map-style helpers for deck.gl.",
   "license": "MIT",
   "keywords": [
