@@ -128,3 +128,7 @@ export type {
 
 // Experimental
 export {memoize as _memoize} from './utils/memoize';
+
+// AI-forward tools
+export {createEditTools} from './ai-tools';
+export type {EditResult, EditToolsConfig, AiTool} from './ai-tools';
