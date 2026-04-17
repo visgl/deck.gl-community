@@ -3,12 +3,13 @@
 // Copyright (c) vis.gl contributors
 
 import {z} from 'zod';
+import {PositionSchema} from '@deck.gl-community/json';
 import type {FeatureCollection, Feature, Point, Position} from 'geojson';
 import type {AiTool, EditToolsConfig} from '../types';
 
 const schema = z.object({
-  /** [longitude, latitude] */
-  position: z.tuple([z.number(), z.number()]),
+  /** [longitude, latitude] or [longitude, latitude, altitude] */
+  position: PositionSchema,
   properties: z.record(z.string(), z.unknown()).optional()
 });
 

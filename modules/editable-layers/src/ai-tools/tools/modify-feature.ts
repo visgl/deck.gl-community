@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {z} from 'zod';
+import {PositionSchema} from '@deck.gl-community/json';
 import type {AiTool, EditToolsConfig} from '../types';
 
 /**
@@ -14,15 +15,15 @@ const vertexEditSchema = z.discriminatedUnion('op', [
     op: z.literal('move'),
     /** Path to the vertex in the geometry coordinates tree. */
     positionIndexes: z.array(z.number()),
-    /** New [longitude, latitude]. */
-    position: z.tuple([z.number(), z.number()])
+    /** New [longitude, latitude] or [longitude, latitude, altitude]. */
+    position: PositionSchema
   }),
   z.object({
     op: z.literal('add'),
     /** Path at which to insert the new vertex. */
     positionIndexes: z.array(z.number()),
-    /** New [longitude, latitude]. */
-    position: z.tuple([z.number(), z.number()])
+    /** New [longitude, latitude] or [longitude, latitude, altitude]. */
+    position: PositionSchema
   }),
   z.object({
     op: z.literal('remove'),

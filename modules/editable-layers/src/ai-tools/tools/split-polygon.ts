@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {z} from 'zod';
+import {PositionSchema} from '@deck.gl-community/json';
 import type {AiTool, EditToolsConfig} from '../types';
 
 const schema = z.object({
@@ -11,7 +12,7 @@ const schema = z.object({
    * LineString coordinates defining the splitter line.
    * Must cross the polygon boundary at two or more points.
    */
-  splitterCoordinates: z.array(z.tuple([z.number(), z.number()]))
+  splitterCoordinates: z.array(PositionSchema)
 });
 
 export function makeSplitPolygon(config: EditToolsConfig): AiTool<typeof schema> {

@@ -4,6 +4,7 @@
 
 import type {FeatureCollection} from 'geojson';
 import type {z} from 'zod';
+import {PositionSchema} from '@deck.gl-community/json';
 
 /**
  * Uniform result type for all AI edit tools.
@@ -53,13 +54,13 @@ export interface AiTool<T extends z.ZodTypeAny> {
 export interface EditTools {
   draw_point: AiTool<
     z.ZodObject<{
-      position: z.ZodTuple<[z.ZodNumber, z.ZodNumber]>;
+      position: typeof PositionSchema;
       properties: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     }>
   >;
   draw_polygon: AiTool<
     z.ZodObject<{
-      coordinates: z.ZodArray<z.ZodArray<z.ZodTuple<[z.ZodNumber, z.ZodNumber]>>>;
+      coordinates: z.ZodArray<z.ZodArray<typeof PositionSchema>>;
       properties: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     }>
   >;
@@ -74,7 +75,7 @@ export interface EditTools {
   >;
   draw_line_string: AiTool<
     z.ZodObject<{
-      coordinates: z.ZodArray<z.ZodTuple<[z.ZodNumber, z.ZodNumber]>>;
+      coordinates: z.ZodArray<typeof PositionSchema>;
       properties: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     }>
   >;
@@ -94,12 +95,12 @@ export interface EditTools {
             z.ZodObject<{
               op: z.ZodLiteral<'move'>;
               positionIndexes: z.ZodArray<z.ZodNumber>;
-              position: z.ZodTuple<[z.ZodNumber, z.ZodNumber]>;
+              position: typeof PositionSchema;
             }>,
             z.ZodObject<{
               op: z.ZodLiteral<'add'>;
               positionIndexes: z.ZodArray<z.ZodNumber>;
-              position: z.ZodTuple<[z.ZodNumber, z.ZodNumber]>;
+              position: typeof PositionSchema;
             }>,
             z.ZodObject<{op: z.ZodLiteral<'remove'>; positionIndexes: z.ZodArray<z.ZodNumber>}>
           ]
@@ -111,7 +112,7 @@ export interface EditTools {
     z.ZodObject<{
       featureIndex: z.ZodNumber;
       angle: z.ZodNumber;
-      pivot: z.ZodOptional<z.ZodTuple<[z.ZodNumber, z.ZodNumber]>>;
+      pivot: z.ZodOptional<typeof PositionSchema>;
     }>
   >;
   scale_feature: AiTool<
@@ -124,7 +125,7 @@ export interface EditTools {
   split_polygon: AiTool<
     z.ZodObject<{
       featureIndex: z.ZodNumber;
-      splitterCoordinates: z.ZodArray<z.ZodTuple<[z.ZodNumber, z.ZodNumber]>>;
+      splitterCoordinates: z.ZodArray<typeof PositionSchema>;
     }>
   >;
   duplicate_feature: AiTool<

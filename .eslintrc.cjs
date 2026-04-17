@@ -21,6 +21,10 @@ module.exports = getESLintConfig({
       {
         files: ['modules/*/src/**/*.{ts,tsx}', 'modules/*/test/**/*.{ts,tsx}'],
         rules: {
+          // Workspace packages are resolved via tsconfig paths; the node import resolver
+          // cannot follow workspace symlinks to unbuilt src. TypeScript and vitest both
+          // resolve these correctly, so ignore false positives for @deck.gl-community/* imports.
+          'import/no-unresolved': ['error', {ignore: ['^@deck.gl-community/']}],
           // We definitely don't want to enable these rules
           'no-use-before-define': 0,
           // TODO: Gradually enable, at least for non-test code.

@@ -19,9 +19,12 @@ const CONFIG = defineConfig({
       '@deck.gl-community/basemaps': fileURLToPath(
         new URL('./modules/basemap-layers/src/index.ts', import.meta.url)
       ),
-      'monaco-editor': 'monaco-editor/esm/vs/editor/editor.main.js'
+      'monaco-editor': 'monaco-editor/esm/vs/editor/editor.main.js',
+      '@deck.gl-community/json': fileURLToPath(
+        new URL('./modules/json/src/index.ts', import.meta.url)
+      )
     },
-    conditions: ['node'] // prefer node resolution
+    conditions: ['development', 'node'] // development picks up workspace src; node for CJS compat
   },
   test: {
     coverage: {
@@ -39,6 +42,8 @@ const CONFIG = defineConfig({
           exclude: [
             'modules/**/dist/**',
             'dev/**/dist/**',
+            'modules/**/node_modules/**',
+            'dev/**/node_modules/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/widgets/src/widget-panels/toolbar-widget.test.ts',

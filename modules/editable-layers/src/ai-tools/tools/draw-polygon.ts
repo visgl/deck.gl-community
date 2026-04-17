@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {z} from 'zod';
+import {PositionSchema} from '@deck.gl-community/json';
 import kinks from '@turf/kinks';
 import {polygon as turfPolygon} from '@turf/helpers';
 import type {FeatureCollection, Feature, Polygon} from 'geojson';
@@ -11,10 +12,10 @@ import type {AiTool, EditToolsConfig, EditResult} from '../types';
 const schema = z.object({
   /**
    * Polygon ring coordinates: outer ring first, then optional holes.
-   * Each ring is an array of [longitude, latitude] pairs.
+   * Each ring is an array of [longitude, latitude] (or 3D) pairs.
    * Rings do NOT need to be explicitly closed — this tool closes them automatically.
    */
-  coordinates: z.array(z.array(z.tuple([z.number(), z.number()]))),
+  coordinates: z.array(z.array(PositionSchema)),
   properties: z.record(z.string(), z.unknown()).optional()
 });
 

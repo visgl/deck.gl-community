@@ -10,6 +10,7 @@ const schema = z.object({
   /**
    * Optional [dx, dy] offset in meters applied to the duplicate.
    * Defaults to [50, 50] (50m east, 50m north) so it's visible.
+   * Note: uses a plain 2-number tuple (not a GeoJSON position) — it's a vector delta, not a coordinate.
    */
   offsetMeters: z.tuple([z.number(), z.number()]).optional()
 });
