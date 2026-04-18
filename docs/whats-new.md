@@ -4,15 +4,6 @@
 
 Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
-Inofficial wishlist and roadmap type information is also available in github trackers:
-
-- **`@deck.gl-community/editable-layers`**
-  - [Tracker](https://github.com/visgl/deck.gl-community/issues/38)
-- **`@deck.gl-community/graph-layers`**
-  - [Tracker](https://github.com/visgl/deck.gl-community/issues/78)
-- **`@deck.gl-community/infovis-layers`**
-  - Goal: Some of the improved support for (non-geospatial) views etc should be upstreamed into deck.gl v9.3.
-
 ## v9.3
 
 Released: April 15, 2026
