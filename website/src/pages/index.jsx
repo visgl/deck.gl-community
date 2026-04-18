@@ -4,8 +4,19 @@ import styled from 'styled-components';
 import Layout from '@theme/Layout';
 
 import {Home} from '../components';
-// import HeroExample from '../examples/home-demo';
-const HeroExample = () => <div />;
+
+const HeroImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+`;
+
+const HeroExample = () => {
+  const src = useBaseUrl('/images/hero-editable-3d-tiles.png');
+  return <HeroImage src={src} alt="deck.gl-community editable 3D tiles over the Grand Canyon" />;
+};
 
 const FeatureImage = styled.div`
   position: absolute;
