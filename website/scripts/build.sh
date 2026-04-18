@@ -9,14 +9,6 @@ MODE=$1
 WEBSITE_DIR=`pwd`
 OUTPUT_DIR=build
 
-# include gallery (scripting) examples
-GALLERY_SOURCE=../examples/gallery
-GALLERY_STATIC=static/gallery
-
-rm -rf $GALLERY_STATIC
-mkdir -p $GALLERY_STATIC
-cp -r $GALLERY_SOURCE/* $GALLERY_STATIC/
-
 # clean up cache
 docusaurus clear
 
