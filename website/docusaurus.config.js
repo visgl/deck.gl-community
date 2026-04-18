@@ -12,7 +12,7 @@ const {resolve} = require('path');
 const config = {
   title: 'deck.gl-community',
   tagline: 'Unofficial layers, basemaps and add-ons for deck.gl',
-  url: 'https://deck.gl-community',
+  url: 'https://visgl.github.io',
   baseUrl: '/deck.gl-community/', // process.env.STAGING ? '/deck.gl-community/' : '/',
   onBrokenLinks: 'throw',
   markdown: {
@@ -216,6 +216,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      image: 'images/hero-editable-3d-tiles.png',
       navbar: {
         title: 'deck.gl-community',
         logo: {
