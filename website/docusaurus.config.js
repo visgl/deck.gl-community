@@ -201,13 +201,6 @@ const config = {
       }
     ],
     [
-      resolve('./plugins/gallery-static-plugin'),
-      {
-        sourceDir: resolve('../examples/gallery'),
-        routeBase: '/gallery'
-      }
-    ],
-    [
       '@docusaurus/plugin-content-docs',
       {
         id: 'examples',
@@ -240,21 +233,6 @@ const config = {
             to: '/examples',
             position: 'left',
             label: 'Examples'
-          },
-          {
-            to: '/gallery',
-            position: 'left',
-            label: 'Gallery'
-          },
-          // {
-          //   to: '/showcase',
-          //   position: 'left',
-          //   label: 'Showcase'
-          // },
-          {
-            to: 'https://medium.com/vis-gl',
-            label: 'Blog',
-            position: 'left'
           },
           {
             href: 'https://github.com/visgl/deck.gl-community',
