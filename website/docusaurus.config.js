@@ -216,7 +216,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      image: 'images/hero-editable-3d-tiles.png',
+      image: 'images/og-preview.jpg',
       navbar: {
         title: 'deck.gl-community',
         logo: {

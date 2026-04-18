@@ -14,7 +14,7 @@ const HeroImage = styled.img`
 `;
 
 const HeroExample = () => {
-  const src = useBaseUrl('/images/hero-editable-3d-tiles.png');
+  const src = useBaseUrl('/images/hero-editable-3d-tiles.jpg');
   return <HeroImage src={src} alt="deck.gl-community editable 3D tiles over the Grand Canyon" />;
 };
 
