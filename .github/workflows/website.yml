@@ -1,0 +1,85 @@
+name: website
+
+on:
+  push:
+    branches:
+      - master
+      - '*-release'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    if: ${{ github.repository_owner == 'visgl' }}
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack / Yarn 4
+        run: |
+          corepack enable
+          corepack prepare yarn@4.10.3 --activate
+
+      - name: Cache Yarn 4 artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn/cache
+            .pnp.*
+            .yarn/install-state.gz
+          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            yarn-cache-${{ runner.os }}-
+
+      - name: Install root workspace dependencies
+        run: yarn
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Install website dependencies
+        run: cd website && yarn
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build website
+        env:
+          MapboxAccessToken: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
+          GoogleMapsAPIKey: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          GoogleMapsMapId: ${{ secrets.GOOGLE_MAPS_MAP_ID }}
+        run: cd website && yarn build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-22.04
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
