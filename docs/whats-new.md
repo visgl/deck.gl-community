@@ -2,14 +2,7 @@
 
 ## v9.4 - In Planning
 
-Inofficial wishlist and roadmap type information is available in github trackers:
-
-- **`@deck.gl-community/editable-layers`**
-  - [Tracker](https://github.com/visgl/deck.gl-community/issues/38)
-- **`@deck.gl-community/graph-layers`**
-  - [Tracker](https://github.com/visgl/deck.gl-community/issues/78)
-- **`@deck.gl-community/infovis-layers`**
-  - Goal: Some of the improved support for (non-geospatial) views etc should be upstreamed into deck.gl v9.3.
+Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
 ## v9.3
 
@@ -33,7 +26,7 @@ Highlights:
 
 A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
 
-- [`BasemapLayer`](/docs/modules/basemap-layers/api-reference/basemap-layer) - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
+- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
 - `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
 - `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
 - `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
