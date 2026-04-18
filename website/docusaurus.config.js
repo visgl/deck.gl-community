@@ -175,6 +175,26 @@ const config = {
                   }
                 }
               ]
+            },
+            // Modules using TypeScript `declare` class fields need allowDeclareFields
+            {
+              test: /\.[jt]sx?$/,
+              include: [resolve('../modules/three/src'), resolve('../modules/arrow-layers/src')],
+              use: [
+                {
+                  loader: require.resolve('babel-loader'),
+                  options: {
+                    babelrc: false,
+                    configFile: false,
+                    presets: [
+                      [
+                        require.resolve('@babel/preset-typescript'),
+                        {isTSX: true, allExtensions: true, allowDeclareFields: true}
+                      ]
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }

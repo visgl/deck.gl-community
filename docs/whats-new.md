@@ -33,7 +33,7 @@ Highlights:
 
 A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
 
-- [`BasemapLayer`](/docs/modules/basemap-layers/api-reference/basemap-layer) - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
+- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
 - `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
 - `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
 - `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
