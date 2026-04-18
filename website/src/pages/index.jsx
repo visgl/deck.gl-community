@@ -77,7 +77,10 @@ export default function IndexPage() {
   const baseUrl = useBaseUrl('/');
 
   return (
-    <Layout title="Home" description="deck.gl">
+    <Layout
+      title="Unofficial layers, basemaps & add-ons"
+      description="deck.gl-community is a collection of unofficial add-on modules for deck.gl — advanced layer types, basemap integrations, editable GeoJSON, 3D tiles, graph & infovis layers, and more."
+    >
       <Home HeroExample={HeroExample}>
         <div style={{position: 'relative'}}>
           <FeatureImage src={`${baseUrl}images/maps.jpg`} />
