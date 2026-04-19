@@ -1,0 +1,44 @@
+{
+  "name": "@deck.gl-community/json",
+  "description": "Zod schemas for GeoJSON primitives — shared foundation for deck.gl-community AI tooling",
+  "license": "MIT",
+  "version": "9.3.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community"
+  },
+  "keywords": [
+    "geojson",
+    "zod",
+    "schema",
+    "validation",
+    "ai"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  }
+}

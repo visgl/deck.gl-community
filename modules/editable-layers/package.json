@@ -36,6 +36,7 @@
     "src"
   ],
   "dependencies": {
+    "@deck.gl-community/json": "^9.3.1",
     "@math.gl/core": "^4.0.0",
     "@math.gl/web-mercator": ">=4.0.1",
     "@turf/along": "^7.2.0",
@@ -74,7 +75,8 @@
     "@turf/union": "^7.2.0",
     "@types/geojson": "^7946.0.16",
     "lodash.throttle": "^4.1.1",
-    "preact": "^10.17.0"
+    "preact": "^10.17.0",
+    "zod": "^3.22.0"
   },
   "peerDependencies": {
     "@deck.gl-community/layers": "~9.3.0",
@@ -88,5 +90,5 @@
     "@luma.gl/engine": "~9.3.2",
     "h3-js": "^4.2.1"
   },
-  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
+  "gitHead": "9bc327e5ca881aa2e7098412d117ca6a93ae9849"
 }

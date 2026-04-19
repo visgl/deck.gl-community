@@ -39,7 +39,8 @@
       "@deck.gl-community/template": ["./modules/template/src"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
       "@deck.gl-community/three": ["./modules/three/src"],
-      "@deck.gl-community/timeline-layers": ["./dev/timeline-layers/src"]
+      "@deck.gl-community/timeline-layers": ["./dev/timeline-layers/src"],
+      "@deck.gl-community/json": ["./modules/json/src"]
     },
     "typeRoots": ["./node_modules/@types"],
     "plugins": [
