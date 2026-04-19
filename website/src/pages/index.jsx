@@ -78,15 +78,15 @@ export default function IndexPage() {
 
   return (
     <Layout
-      title="Unofficial layers, basemaps & add-ons"
-      description="deck.gl-community is a collection of unofficial add-on modules for deck.gl — advanced layer types, basemap integrations, editable GeoJSON, 3D tiles, graph & infovis layers, and more."
+      title="Experimental layers, basemaps & add-ons"
+      description="deck.gl-community is a collection of experimental add-on modules for deck.gl — advanced layer types, basemap integrations, editable GeoJSON, 3D tiles, graph & infovis layers, and more."
     >
       <Home HeroExample={HeroExample}>
         <div style={{position: 'relative'}}>
           <FeatureImage src={`${baseUrl}images/maps.jpg`} />
           <TextContainer>
             <h2>
-              deck.gl-community is a set of unofficial add-on modules for deck.gl.
+              deck.gl-community is a set of experimental add-on modules for deck.gl.
             </h2>
             <hr className="short" />
 

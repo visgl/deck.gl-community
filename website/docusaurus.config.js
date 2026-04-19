@@ -11,7 +11,7 @@ const {resolve} = require('path');
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'deck.gl-community',
-  tagline: 'Unofficial layers, basemaps and add-ons for deck.gl',
+  tagline: 'Experimental layers, basemaps and add-ons for deck.gl',
   url: 'https://visgl.github.io',
   baseUrl: '/deck.gl-community/', // process.env.STAGING ? '/deck.gl-community/' : '/',
   onBrokenLinks: 'throw',
