@@ -79,12 +79,12 @@ Released: February 20, 2026
 - Website: documentation improvements, search, and new gallery examples.
 - Tests migrated from `jest` to `vitest`.
 - `editable-layers` now uses turf.js 7 and official GeoJSON types.
-- New `@deck.gl-community/widgets` module with unofficial deck.gl UI widgets.
+- New `@deck.gl-community/widgets` module with experimental deck.gl UI widgets.
 - New `@deck.gl-community/timeline-layers` module for time-series visualization.
 
 ### `@deck.gl-community/widgets` (NEW module)
 
-A new module containing unofficial / experimental widgets for deck.gl:
+A new module containing experimental widgets for deck.gl:
 
 - `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
 - `PanWidget` - NEW deck.gl `Widget` providing pan buttons for moving the viewport.
