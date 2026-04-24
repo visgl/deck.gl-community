@@ -188,6 +188,10 @@ export class DrawLineStringMode extends GeoJsonEditMode {
     }
   }
 
+  displaySnapSourcesInSnappingMode(): boolean {
+    return false;
+  }
+
   /**
    * redefine the tooltip of geometry
    * @param modeConfig

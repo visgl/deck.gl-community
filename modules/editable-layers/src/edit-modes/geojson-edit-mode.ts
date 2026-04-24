@@ -292,6 +292,10 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
       });
     }
   }
+
+  displaySnapSourcesInSnappingMode(): boolean {
+    return true;
+  }
 }
 
 export function getIntermediatePosition(position1: Position, position2: Position): Position {

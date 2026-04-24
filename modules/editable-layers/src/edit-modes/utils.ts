@@ -154,7 +154,7 @@ export function nearestPointOnProjectedLine(
     };
 
   // Project the line to viewport, then find the nearest point
-  const wmViewport = new WebMercatorViewport(viewport);
+  const wmViewport = toWebMercatorViewport(viewport);
 
   const [x, y] = projectOrUnprojectPoints(
     inPoint.geometry.coordinates,
@@ -227,7 +227,7 @@ export function nearestPointOnLine(
   viewport?: Viewport,
   coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  const wmViewport = viewport ? new WebMercatorViewport(viewport) : undefined;
+  const wmViewport = viewport ? toWebMercatorViewport(viewport) : undefined;
 
   let closestPoint: any = point([Infinity, Infinity], {dist: Infinity});
 
@@ -550,4 +550,13 @@ export function mapCoords(
 
 export function shouldCancelPan(event: StartDraggingEvent) {
   return event.picks.length && event.picks.find(p => p.featureType === 'points');
+}
+
+// Accepts either a plain viewport descriptor or an already-constructed WebMercatorViewport instance
+export function toWebMercatorViewport(
+  viewport: Viewport | WebMercatorViewport
+): WebMercatorViewport {
+  return (viewport as WebMercatorViewport).project
+    ? (viewport as WebMercatorViewport)
+    : new WebMercatorViewport(viewport as Viewport);
 }

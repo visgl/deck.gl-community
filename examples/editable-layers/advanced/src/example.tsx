@@ -50,8 +50,8 @@ import {
   Color,
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
-import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 
 import sampleGeoJson from '../../data/sample-geojson.json';
 
@@ -109,7 +109,7 @@ const ALL_MODES: any = [
   {
     category: 'Draw',
     modes: [
-      {label: 'Draw Point', mode: DrawPointMode},
+      {label: 'Draw Point', mode: new SnappableMode(new DrawPointMode())},
       {label: 'Draw LineString', mode: DrawLineStringMode},
       {label: 'Draw Polygon', mode: DrawPolygonMode},
       {label: 'Draw 90° Polygon', mode: Draw90DegreePolygonMode},
@@ -386,7 +386,7 @@ export function Example() {
       } else if (type === 'file') {
         const el = document.createElement('input');
         el.type = 'file';
-        el.onchange = e => {
+        el.onchange = (e) => {
           const eventTarget = e.target as HTMLInputElement;
           if (eventTarget.files && eventTarget.files[0]) {
             const reader = new FileReader();
@@ -451,7 +451,7 @@ export function Example() {
   const getDeckColorForFeature = useCallback(
     (index: number, bright: number, alpha: number): RGBAColor => {
       const length = FEATURE_COLORS.length;
-      const color = FEATURE_COLORS[index % length].map(c => c * bright * 255);
+      const color = FEATURE_COLORS[index % length].map((c) => c * bright * 255);
 
       // @ts-expect-error TODO
       return [...color, alpha * 255];
@@ -469,7 +469,7 @@ export function Example() {
             checked={selectedFeatureIndexes.includes(index)}
             onChange={() => {
               if (selectedFeatureIndexes.includes(index)) {
-                setSelectedFeatureIndexes(selectedFeatureIndexes.filter(e => e !== index));
+                setSelectedFeatureIndexes(selectedFeatureIndexes.filter((e) => e !== index));
               } else {
                 setSelectedFeatureIndexes([...selectedFeatureIndexes, index]);
               }
@@ -486,7 +486,7 @@ export function Example() {
             </span>
             <a
               style={{position: 'absolute', right: 12}}
-              onClick={e => {
+              onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setSelectedFeatureIndexes([index]);
@@ -589,7 +589,7 @@ export function Example() {
           <input
             type="checkbox"
             checked={Boolean(modeConfig && modeConfig.lock90Degree)}
-            onChange={event => setModeConfig({lock90Degree: Boolean(event.target.checked)})}
+            onChange={(event) => setModeConfig({lock90Degree: Boolean(event.target.checked)})}
           />
         </ToolboxControl>
       </ToolboxRow>
@@ -1022,10 +1022,13 @@ export function Example() {
       lockRectangles: true
     };
   } else if (mode instanceof SnappableMode && currentModeConfig) {
+    currentModeConfig = {
+      ...currentModeConfig,
+      viewport: currentViewport
+    };
     if (mode._handler instanceof TranslateMode) {
       currentModeConfig = {
         ...currentModeConfig,
-        viewport: currentViewport,
         screenSpace: true
       };
     }

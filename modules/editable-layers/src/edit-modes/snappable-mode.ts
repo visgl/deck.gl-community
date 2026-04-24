@@ -9,6 +9,7 @@ import {
   SimpleFeature
 } from '../utils/geojson-types';
 import {
+  ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
@@ -21,7 +22,9 @@ import {
 import {
   getPickedSnapSourceEditHandle,
   getPickedEditHandles,
-  getEditHandlesForGeometry
+  getEditHandlesForGeometry,
+  toWebMercatorViewport,
+  distance2d
 } from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
@@ -95,13 +98,34 @@ export class SnappableMode extends GeoJsonEditMode {
     return features;
   }
 
+  _getClosestSnapTargetHandle(
+    props: ModeProps<SimpleFeatureCollection>,
+    cursorCoords: [number, number],
+    wmViewport: ReturnType<typeof toWebMercatorViewport>
+  ): EditHandleFeature | undefined {
+    const {pickingRadius} = props;
+    const getScreenDist = (handle: EditHandleFeature) => {
+      const [px, py] = wmViewport.project(handle.geometry.coordinates);
+      return distance2d(cursorCoords[0], cursorCoords[1], px, py);
+    };
+    const result = this._getSnapTargetHandles(props).reduce(
+      (closest, handle) => {
+        const dist = getScreenDist(handle);
+        return dist <= pickingRadius && dist < closest.dist ? {handle, dist} : closest;
+      },
+      {handle: undefined, dist: Infinity}
+    );
+    return result.handle;
+  }
+
   _getSnapTargetHandles(props: ModeProps<SimpleFeatureCollection>): EditHandleFeature[] {
     const handles: EditHandleFeature[] = [];
     const features = this._getSnapTargets(props);
 
     for (let i = 0; i < features.length; i++) {
-      // Filter out the currently selected feature(s)
-      const isCurrentIndexFeatureNotSelected = !props.selectedIndexes.includes(i);
+      // Filter out the currently selected feature(s) if _handler is a mode which renders snap sources on them
+      const isCurrentIndexFeatureNotSelected =
+        !this._handler.displaySnapSourcesInSnappingMode() || !props.selectedIndexes.includes(i);
 
       if (isCurrentIndexFeatureNotSelected) {
         const {geometry} = features[i];
@@ -130,23 +154,49 @@ export class SnappableMode extends GeoJsonEditMode {
     const snapSourceHandle: EditHandleFeature | null | undefined =
       lastPointerMoveEvent && this._getPickedSnapSource(lastPointerMoveEvent.pointerDownPicks);
 
-    // They started dragging a handle
-    // So render the picked handle (in its updated location) and all possible snap targets
     if (snapSourceHandle) {
-      guides.features.push(
-        ...this._getSnapTargetHandles(props),
-        this._getUpdatedSnapSourceHandle(snapSourceHandle, props.data)
-      );
-
-      return guides;
+      // They started dragging a handle
+      // So render the picked handle (in its updated location) and all possible snap targets
+      guides.features.push(...this._getDraggingSnapGuides(props, snapSourceHandle));
+    } else {
+      guides.features.push(...this._getSnapGuides(props));
     }
 
-    // Render the possible snap source handles
-    const {features} = props.data;
-    for (const index of props.selectedIndexes) {
-      if (index < features.length) {
-        const {geometry} = features[index];
-        guides.features.push(...getEditHandlesForGeometry(geometry, index, 'snap-source'));
+    return guides;
+  }
+
+  _getDraggingSnapGuides(
+    props: ModeProps<SimpleFeatureCollection>,
+    snapSourceHandle: EditHandleFeature
+  ): EditHandleFeature[] {
+    return [
+      ...this._getSnapTargetHandles(props),
+      this._getUpdatedSnapSourceHandle(snapSourceHandle, props.data)
+    ];
+  }
+
+  // No active drag: snap-source handles for selected features + closest snap-target near cursor
+  _getSnapGuides(props: ModeProps<SimpleFeatureCollection>): EditHandleFeature[] {
+    const guides: EditHandleFeature[] = [];
+
+    if (this._handler.displaySnapSourcesInSnappingMode()) {
+      for (const index of props.selectedIndexes) {
+        if (index < props.data.features.length) {
+          guides.push(
+            ...getEditHandlesForGeometry(props.data.features[index].geometry, index, 'snap-source')
+          );
+        }
+      }
+    } else {
+      const viewport = props.modeConfig?.viewport;
+      const lastPointerMoveEvent = props.lastPointerMoveEvent;
+      if (viewport && props.pickingRadius !== undefined && lastPointerMoveEvent) {
+        const wmViewport = toWebMercatorViewport(viewport);
+        const cursorCoords = wmViewport.project(lastPointerMoveEvent.mapCoords) as [number, number];
+        const closest = this._getClosestSnapTargetHandle(props, cursorCoords, wmViewport);
+        if (closest) {
+          guides.push(closest);
+        }
       }
     }
 
@@ -163,6 +213,18 @@ export class SnappableMode extends GeoJsonEditMode {
     return snapSource && snapTarget
       ? this._getSnappedMouseEvent(event, snapSource, snapTarget)
       : event;
+  }
+
+  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+    const {enableSnapping} = props.modeConfig || {};
+    if (enableSnapping) {
+      const snapTarget = this._getPickedSnapTarget(event.picks);
+      if (snapTarget) {
+        this._handler.handleClick({...event, mapCoords: snapTarget.geometry.coordinates}, props);
+        return;
+      }
+    }
+    this._handler.handleClick(event, props);
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {

@@ -144,6 +144,9 @@ export type ModeProps<TData> = {
 
   // Callback used to update cursor
   onUpdateCursor: (cursor: string | null | undefined) => void;
+
+  // The picking radius used by the layer, in pixels
+  pickingRadius?: number;
 };
 
 export type PointWithIndex = {

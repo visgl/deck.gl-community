@@ -36,4 +36,8 @@ export class DrawPointMode extends GeoJsonEditMode {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
   }
+
+  displaySnapSourcesInSnappingMode(): boolean {
+    return false;
+  }
 }

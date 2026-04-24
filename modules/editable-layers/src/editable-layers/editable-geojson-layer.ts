@@ -438,6 +438,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
       data: props.data,
       selectedIndexes: props.selectedFeatureIndexes,
       lastPointerMoveEvent: this.state.lastPointerMoveEvent,
+      pickingRadius: props.pickingRadius,
       cursor: this.state.cursor,
       // Derive edit-mode math from deck.gl's coordinateSystem layer prop.
       // This ensures that when the layer is configured for Cartesian or other
