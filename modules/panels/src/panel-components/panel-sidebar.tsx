@@ -149,7 +149,11 @@ function PanelSidebarView({
                 )}
               </div>
             )}
-            <div style={SIDEBAR_PANEL_STYLE(side, panelWidthPx, open)} role="dialog">
+            <div
+              style={SIDEBAR_PANEL_STYLE(side, panelWidthPx, open)}
+              role="dialog"
+              aria-hidden={open ? 'false' : 'true'}
+            >
               {title ? <header style={SIDEBAR_HEADER_STYLE}>{title}</header> : null}
               <div style={SIDEBAR_CONTENT_STYLE}>
                 <WidgetContainerRenderer container={container} />
@@ -255,6 +259,7 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
 
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
+    reparentToOverlayRoot(rootElement);
     rootElement.style.position = 'absolute';
     rootElement.style.top = 'var(--widget-margin, 12px)';
     rootElement.style.bottom = 'var(--widget-margin, 12px)';
@@ -310,6 +315,25 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
       this.#rootElement
     );
   };
+}
+
+function reparentToOverlayRoot(rootElement: HTMLElement): HTMLElement | null {
+  const placementElement = rootElement.parentElement;
+  const overlayElement = placementElement?.parentElement;
+
+  if (!isElementNode(placementElement) || !isElementNode(overlayElement)) {
+    return null;
+  }
+
+  if (rootElement.parentElement !== overlayElement) {
+    overlayElement.appendChild(rootElement);
+  }
+
+  return overlayElement;
+}
+
+function isElementNode(value: Element | null | undefined): value is HTMLElement {
+  return Boolean(value && value.nodeType === 1);
 }
 
 const SIDEBAR_TRIGGER_STYLE: JSX.CSSProperties = {

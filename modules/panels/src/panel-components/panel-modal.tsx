@@ -80,17 +80,20 @@ function PanelModalView({
   return (
     <div>
       {!hideTrigger && (
-        <button
-          type="button"
-          style={MODAL_TRIGGER_STYLE}
-          aria-label={open ? `Close ${triggerLabel}` : `Open ${triggerLabel}`}
-          onClick={() => onOpenChange(!open)}
-        >
-          <span aria-hidden="true" style={MODAL_TRIGGER_ICON_STYLE}>
-            {triggerIcon}
-          </span>
-          <span>{triggerLabel}</span>
-        </button>
+        <div className="deck-widget-button">
+          <button
+            type="button"
+            className="deck-widget-icon-button"
+            style={MODAL_TRIGGER_STYLE}
+            aria-label={open ? `Close ${triggerLabel}` : `Open ${triggerLabel}`}
+            onClick={() => onOpenChange(!open)}
+          >
+            <span aria-hidden="true" style={MODAL_TRIGGER_ICON_STYLE}>
+              {triggerIcon}
+            </span>
+            <span>{triggerLabel}</span>
+          </button>
+        </div>
       )}
 
       {open && (
@@ -167,6 +170,8 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
   #openChange: ((open: boolean) => void) | undefined = undefined;
   #rootElement: HTMLElement | null = null;
   #isDocumentKeyListenerAttached = false;
+  #placementContainerElement: HTMLElement | null = null;
+  #basePlacementZIndex: string | null = null;
 
   constructor(props: Partial<PanelModalProps> = {}) {
     super({
@@ -209,6 +214,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
 
   override onRemove(): void {
     this.#detachDocumentKeyListener();
+    this.#syncPlacementZIndex(false);
     if (this.#rootElement) {
       render(null, this.#rootElement);
     }
@@ -216,6 +222,10 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
 
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
+    this.#placementContainerElement = isElementNode(rootElement.parentElement)
+      ? rootElement.parentElement
+      : null;
+    this.#basePlacementZIndex = this.#placementContainerElement?.style.zIndex ?? null;
     this.#render();
   }
 
@@ -276,6 +286,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     }
 
     this.#syncDocumentKeyListener();
+    this.#syncPlacementZIndex(this.isOpen);
     render(
       <PanelModalView
         container={this.#container}
@@ -289,6 +300,20 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
       this.#rootElement
     );
   };
+
+  #syncPlacementZIndex(isOpen: boolean): void {
+    if (!this.#placementContainerElement) {
+      return;
+    }
+
+    this.#placementContainerElement.style.zIndex = isOpen
+      ? '40'
+      : (this.#basePlacementZIndex ?? '');
+  }
+}
+
+function isElementNode(value: Element | null | undefined): value is HTMLElement {
+  return Boolean(value && value.nodeType === 1);
 }
 
 const MODAL_TRIGGER_STYLE: JSX.CSSProperties = {

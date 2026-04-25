@@ -81,23 +81,27 @@ export abstract class PanelContainer<PropsT extends PanelContainerProps = PanelC
    */
   setProps(props: Partial<PropsT>): void {
     const oldProps = this.props;
+    const nextProps = {
+      ...oldProps,
+      ...props
+    } as Required<PropsT>;
     const rootElement = this.rootElement;
 
-    if (rootElement && oldProps.className !== props.className) {
+    if (rootElement && oldProps.className !== nextProps.className) {
       if (oldProps.className) {
         rootElement.classList.remove(oldProps.className);
       }
-      if (props.className) {
-        rootElement.classList.add(props.className);
+      if (nextProps.className) {
+        rootElement.classList.add(nextProps.className);
       }
     }
 
-    if (rootElement && !areStylesEqual(oldProps.style, props.style)) {
+    if (rootElement && !areStylesEqual(oldProps.style, nextProps.style)) {
       removeStyles(rootElement, oldProps.style);
-      applyStyles(rootElement, props.style);
+      applyStyles(rootElement, nextProps.style);
     }
 
-    Object.assign(this.props, props);
+    this.props = nextProps;
     this.updateHTML();
   }
 
