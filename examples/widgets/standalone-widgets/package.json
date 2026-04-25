@@ -1,0 +1,18 @@
+{
+  "name": "widgets-standalone-widgets-example",
+  "version": "9.2.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/panels": "workspace:*",
+    "@deck.gl/widgets": "~9.3.0"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

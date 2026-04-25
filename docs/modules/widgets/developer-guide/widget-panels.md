@@ -8,7 +8,9 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 <WidgetPanelsLiveExample highlight="widget-panels" size="tall" />
 
-`@deck.gl-community/widgets` includes a small composition model for building generic panel-based widgets.
+`@deck.gl-community/panels` owns the composition model for building generic panel-based UI.
+`@deck.gl-community/widgets` consumes those panel definitions in deck-facing wrapper widgets and
+temporarily re-exports them for compatibility.
 
 ## Core concepts
 
@@ -25,6 +27,9 @@ These are the deck.gl widgets that consume `WidgetPanel` and `WidgetContainer` v
 - [SidebarWidget](../api-reference/sidebar-widget.md)
 
 ## Container Panels
+
+For standalone hosting, composition, and standalone UI widgets such as `ToolbarWidget` and
+`ToastWidget`, use [`@deck.gl-community/panels`](/docs/modules/panels/README).
 
 - [AccordeonPanel](../api-reference/accordeon-panel.md)
 - [TabbedPanel](../api-reference/tabbed-panel.md)

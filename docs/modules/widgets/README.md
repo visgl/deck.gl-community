@@ -2,12 +2,13 @@
 
 This package bundles widgets that integrate with deck.gl's built-in widget system. Widgets are small UI controls that the `Deck` class can mount in a view to manipulate the current view state.
 
-Alongside classic navigation and overlay widgets, the package also exports generic panel widgets for assembling reusable sidebars, modals, and summary cards around a deck.gl canvas.
+Alongside classic navigation and overlay widgets, the package also exports deck-facing panel wrappers for assembling reusable sidebars, modals, and summary cards around a deck.gl canvas.
+
+Standalone panel composition, `WidgetHost`, `ToolbarWidget`, and `ToastWidget` now live in [`@deck.gl-community/panels`](/docs/modules/panels/README). This package re-exports those APIs during the transition, but new code should import them from `panels`.
 
 :::danger
 The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
 :::
-
 
 ## Installation
 
@@ -44,7 +45,9 @@ The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) show
 
 The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the panel composition APIs with a persistent sidebar, a tabbed modal, and a static info box built from shared panel definitions.
 
-See the [Widget Panels developer guide](./developer-guide/widget-panels.md) for the core panel composition concepts.
+The [Standalone Widgets example](/examples/widgets/standalone-widgets) shows the `panels` runtime mounted into plain HTML through `WidgetHost`, with no deck.gl runtime instance.
+
+See the [Panels developer guide](/docs/modules/panels/developer-guide/widget-panels) for the core panel composition concepts.
 
 The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxWidget`.
 
@@ -98,9 +101,9 @@ Widgets that host reusable panel content:
 - [ModalWidget](./api-reference/modal-widget.md)
 - [SidebarWidget](./api-reference/sidebar-widget.md)
 
-## Panels
+## Compatibility Re-exports
 
-Reusable panel definitions for panel widgets:
+These APIs now live in `@deck.gl-community/panels` and are re-exported here for compatibility:
 
 - [CustomPanel](./api-reference/custom-panel.md)
 - [KeyboardShortcutsPanel](./api-reference/keyboard-shortcuts-panel.md)
@@ -116,6 +119,8 @@ Reusable panel definitions for panel widgets:
 - [TabbedPanel](./api-reference/tabbed-panel.md)
 
 ## Related helpers
+
+- [WidgetHost](./api-reference/widget-host.md)
 
 Several widgets wrap helper libraries rather than owning their own state model:
 

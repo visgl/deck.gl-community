@@ -13,6 +13,15 @@ const CONFIG = defineConfig({
       '@deck.gl-community/basemap-layers': fileURLToPath(
         new URL('./modules/basemap-layers/src/index.ts', import.meta.url)
       ),
+      '@deck.gl-community/react': fileURLToPath(
+        new URL('./modules/react/src/index.ts', import.meta.url)
+      ),
+      '@deck.gl-community/panels': fileURLToPath(
+        new URL('./modules/panels/src/index.ts', import.meta.url)
+      ),
+      '@deck.gl-community/widgets': fileURLToPath(
+        new URL('./modules/widgets/src/index.ts', import.meta.url)
+      ),
       '@deck.gl-community/basemaps/style-spec': fileURLToPath(
         new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)
       ),

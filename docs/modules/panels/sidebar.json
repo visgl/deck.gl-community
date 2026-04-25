@@ -1,0 +1,50 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/panels",
+  "items": [
+    "modules/panels/README",
+    {
+      "type": "category",
+      "label": "Developer Guide",
+      "items": [
+        "modules/panels/developer-guide/widget-panels"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference",
+      "items": [
+        {
+          "type": "category",
+          "label": "Standalone UI",
+          "items": [
+            "modules/panels/api-reference/widget-host",
+            "modules/panels/api-reference/toolbar-widget",
+            "modules/panels/api-reference/toast-widget"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Panels",
+          "items": [
+            "modules/panels/api-reference/custom-panel",
+            "modules/panels/api-reference/keyboard-shortcuts-panel",
+            "modules/panels/api-reference/markdown-panel",
+            "modules/panels/api-reference/stats-panel",
+            "modules/panels/api-reference/settings-panel",
+            "modules/panels/api-reference/text-editor-panel"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Container Panels",
+          "items": [
+            "modules/panels/api-reference/accordeon-panel",
+            "modules/panels/api-reference/column-panel",
+            "modules/panels/api-reference/tabbed-panel"
+          ]
+        }
+      ]
+    }
+  ]
+}

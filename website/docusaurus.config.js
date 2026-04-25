@@ -97,6 +97,7 @@ const config = {
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
+            '@deck.gl-community/panels': resolve('../modules/panels/src'),
             '@deck.gl-community/widgets': resolve('../modules/widgets/src'),
             '@deck.gl/aggregation-layers': resolve('../node_modules/@deck.gl/aggregation-layers'),
             '@deck.gl/arcgis': resolve('../node_modules/@deck.gl/arcgis'),
@@ -150,10 +151,16 @@ const config = {
                 fullySpecified: false
               }
             },
-            // widgets and editable-layers module JSX must be transpiled as preact
+            // Local TS/TSX sources that need Babel's TypeScript transform with
+            // support for `declare` fields, plus Preact JSX for the Preact-based modules.
             {
               test: /\.[jt]sx?$/,
-              include: [resolve('../modules/widgets/src'), resolve('../modules/editable-layers/src')],
+              include: [
+                resolve('../modules/panels/src'),
+                resolve('../modules/three/src'),
+                resolve('../modules/widgets/src'),
+                resolve('../modules/editable-layers/src')
+              ],
               use: [
                 {
                   loader: require.resolve('babel-loader'),

@@ -8,7 +8,7 @@
 
  Create as many sidebars as you want.
  */
- 
+
 const sidebars = {
   examplesSidebar: [
     {
@@ -19,68 +19,62 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/geo-layers',
-      items: [
-        'geo-layers/shared-tile-2d-layer'
-      ]
+      items: ['geo-layers/shared-tile-2d-layer']
     },
     {
       type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
-        "graph-layers/simple-graph",
-        "graph-layers/multi-graph",
-        "graph-layers/radial",
-        "graph-layers/hive-plot",
-        "graph-layers/dag"
+        'graph-layers/simple-graph',
+        'graph-layers/multi-graph',
+        'graph-layers/radial',
+        'graph-layers/hive-plot',
+        'graph-layers/dag'
       ]
     },
     {
       type: 'category',
       label: '@deck.gl-community/layers',
       items: [
-        "layers/path-outline-and-markers",
-        "layers/skybox-map-view",
-        "layers/skybox-globe",
-        "layers/skybox-first-person"
+        'layers/path-outline-and-markers',
+        'layers/skybox-map-view',
+        'layers/skybox-globe',
+        'layers/skybox-first-person'
       ]
     },
     {
       type: 'category',
       label: '@deck.gl-community/basemap-layers',
-      items: [
-        "layers/basemap-layer-map-view"
-      ]
+      items: ['layers/basemap-layer-map-view']
     },
     {
       type: 'category',
       label: '@deck.gl-community/timeline-layers',
-      items: [
-        "timeline-layers/horizon-graph-layer",
-        "timeline-layers/multi-horizon-graph-layer"
-      ]
+      items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
     },
     {
       type: 'category',
       label: '@deck.gl-community/editable-layers',
       items: [
-        "editable-layers/getting-started",
-        "editable-layers/editor",
-        "editable-layers/editor-react",
-        "editable-layers/3d-tiles",
-        "editable-layers/advanced",
-        "editable-layers/sf",
-        "editable-layers/no-map",
-        "editable-layers/editable-h3-cluster-layer"
+        'editable-layers/getting-started',
+        'editable-layers/editor',
+        'editable-layers/editor-react',
+        'editable-layers/3d-tiles',
+        'editable-layers/advanced',
+        'editable-layers/sf',
+        'editable-layers/no-map',
+        'editable-layers/editable-h3-cluster-layer'
       ]
     },
     {
       type: 'category',
       label: '@deck.gl-community/widgets',
       items: [
-        "widgets/html-overlays",
-        "widgets/overlays",
-        "widgets/pan-and-zoom-controls",
-        "widgets/widget-panels"
+        'widgets/html-overlays',
+        'widgets/overlays',
+        'widgets/pan-and-zoom-controls',
+        'widgets/standalone-widgets',
+        'widgets/widget-panels'
       ]
     },
     // {
@@ -104,9 +98,7 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/leaflet',
-      items: [
-        "leaflet/get-started"
-      ]
+      items: ['leaflet/get-started']
     },
     {
       type: 'doc',

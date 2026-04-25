@@ -11,6 +11,8 @@ The deck.gl-community repo is specifically set up to collect useful code that no
 
 This module packages UI widgets that integrate with [deck.gl](https://deck.gl) view state management. It includes classic navigation widgets such as `PanWidget` and `ZoomRangeWidget`, HTML overlays, and a newer set of generic panel widgets for composing sidebars, modals, info cards, and reusable panel content.
 
+For DOM-only usage, the package also exports `WidgetHost`, which can mount compatible widget instances into a plain `HTMLElement` without creating a `Deck` instance.
+
 ## Installation
 
 ```bash
@@ -43,6 +45,8 @@ function App() {
 ```
 
 See the [Pan and Zoom widgets example](../../examples/widgets/pan-and-zoom-controls) for a non-geospatial walkthrough.
+
+See the [Standalone Widgets example](../../examples/widgets/standalone-widgets) for deck-independent usage through `WidgetHost`.
 
 For the generic panel APIs, see the [Widget Panels example](../../examples/widgets/widget-panels), which combines:
 

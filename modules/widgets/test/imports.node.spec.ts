@@ -4,7 +4,7 @@
 
 import {beforeAll, expect, it, vi} from 'vitest';
 
-vi.mock('../src/widget-panels/text-editor-panel', () => ({
+vi.mock('../../panels/src/widget-panels/text-editor-panel', () => ({
   TextEditorPanel: class TextEditorPanel {}
 }));
 
@@ -22,6 +22,10 @@ it('exports ZoomRangeWidget', () => {
   expect(Widgets.ZoomRangeWidget).toBeDefined();
 });
 
+it('exports WidgetHost', () => {
+  expect(Widgets.WidgetHost).toBeDefined();
+});
+
 it('exports HtmlOverlayWidget', () => {
   expect(Widgets.HtmlOverlayWidget).toBeDefined();
 });
@@ -32,6 +36,14 @@ it('exports HtmlTooltipWidget', () => {
 
 it('exports BoxWidget', () => {
   expect(Widgets.BoxWidget).toBeDefined();
+});
+
+it('exports DeviceManager', () => {
+  expect(Widgets.DeviceManager).toBeDefined();
+});
+
+it('exports DeviceTabsWidget', () => {
+  expect(Widgets.DeviceTabsWidget).toBeDefined();
 });
 
 it('exports FullScreenPanelWidget', () => {

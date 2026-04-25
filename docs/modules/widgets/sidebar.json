@@ -10,9 +10,7 @@
     {
       "type": "category",
       "label": "Developer Guide",
-      "items": [
-        "modules/widgets/developer-guide/widget-panels"
-      ]
+      "items": ["modules/widgets/developer-guide/widget-panels"]
     },
     {
       "type": "category",
@@ -79,6 +77,11 @@
             "modules/widgets/api-reference/column-panel",
             "modules/widgets/api-reference/tabbed-panel"
           ]
+        },
+        {
+          "type": "category",
+          "label": "Standalone Hosting",
+          "items": ["modules/widgets/api-reference/widget-host"]
         }
       ]
     }

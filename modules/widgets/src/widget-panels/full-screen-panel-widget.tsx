@@ -1,10 +1,12 @@
 /** @jsxImportSource preact */
 import {Widget} from '@deck.gl/core';
 import {render} from 'preact';
-
-import {asPanelContainer, WidgetContainerRenderer} from './widget-containers';
-
-import type {WidgetContainer, WidgetPanel} from './widget-containers';
+import {
+  asPanelContainer,
+  WidgetContainerRenderer,
+  type WidgetContainer,
+  type WidgetPanel
+} from '../../../panels/src';
 import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {JSX} from 'preact';
 
