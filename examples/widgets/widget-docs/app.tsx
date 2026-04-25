@@ -9,6 +9,8 @@ import {DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {ToastWidget, ToolbarWidget, toastManager} from '@deck.gl-community/panels';
 import {h, type VNode} from 'preact';
 import {
+  DeviceManager,
+  DeviceTabsWidget,
   HeapMemoryWidget,
   HtmlClusterWidget,
   HtmlOverlayItem,
@@ -27,6 +29,7 @@ import '@deck.gl/widgets/stylesheet.css';
 import type {PickingInfo} from '@deck.gl/core';
 
 export type WidgetDocsExampleHighlight =
+  | 'device-tabs-widget'
   | 'heap-memory-widget'
   | 'pan-widget'
   | 'reset-view-widget'
@@ -70,6 +73,7 @@ const POINTS: PointDatum[] = [
 ];
 
 const HIGHLIGHT_LABELS: Record<WidgetDocsExampleHighlight, string> = {
+  'device-tabs-widget': 'DeviceTabsWidget',
   'heap-memory-widget': 'HeapMemoryWidget',
   'pan-widget': 'PanWidget',
   'reset-view-widget': 'ResetViewWidget',
@@ -154,6 +158,44 @@ const CLUSTER_STYLE = {
   font: '800 13px/1 ui-sans-serif, system-ui, sans-serif'
 } as const;
 
+const DEVICE_SURFACE_STYLE = {
+  position: 'absolute',
+  right: '16px',
+  bottom: '16px',
+  zIndex: '25',
+  width: '260px',
+  minHeight: '180px',
+  borderRadius: '12px',
+  border: '1px solid rgba(15, 23, 42, 0.12)',
+  background: 'rgba(255, 255, 255, 0.9)',
+  boxShadow: '0 16px 40px rgba(15, 23, 42, 0.14)',
+  overflow: 'hidden',
+  display: 'grid',
+  gridTemplateRows: 'auto auto 1fr'
+} as const;
+
+const DEVICE_SURFACE_HEADER_STYLE = {
+  padding: '10px 12px 0',
+  color: '#0f172a',
+  font: '700 12px/1.4 ui-sans-serif, system-ui, sans-serif'
+} as const;
+
+const DEVICE_SURFACE_STATUS_STYLE = {
+  padding: '2px 12px 10px',
+  color: '#475569',
+  font: '600 11px/1.4 ui-sans-serif, system-ui, sans-serif'
+} as const;
+
+const DEVICE_SURFACE_CANVAS_STYLE = {
+  margin: '0 12px 12px',
+  minHeight: '112px',
+  borderRadius: '10px',
+  border: '1px solid rgba(148, 163, 184, 0.4)',
+  background: 'linear-gradient(180deg, rgba(226, 232, 240, 0.9), rgba(241, 245, 249, 0.92))',
+  overflow: 'hidden',
+  position: 'relative'
+} as const;
+
 export function mountWidgetDocsExample(
   container: HTMLElement,
   options: WidgetDocsExampleOptions = {}
@@ -167,6 +209,8 @@ export function mountWidgetDocsExample(
 
   const cleanupThemeToggle = renderDocsThemeToggle(rootElement);
   renderCaption(rootElement, highlight);
+  const cleanupDeviceSurface =
+    highlight === 'device-tabs-widget' ? renderDeviceTabsExampleSurface(rootElement) : null;
 
   const tooltipWidget =
     highlight === 'html-tooltip-widget'
@@ -222,6 +266,7 @@ export function mountWidgetDocsExample(
     if (tooltipFrame) {
       window.cancelAnimationFrame(tooltipFrame);
     }
+    cleanupDeviceSurface?.();
     cleanupThemeToggle();
     toastManager.clear();
     deck.finalize();
@@ -237,6 +282,8 @@ function getPointTooltip(info: PickingInfo): string | null {
 
 function buildClassicWidgets(highlight: WidgetDocsExampleHighlight) {
   switch (highlight) {
+    case 'device-tabs-widget':
+      return [new DeviceTabsWidget({placement: 'top-left'})];
     case 'heap-memory-widget':
       return [new HeapMemoryWidget({placement: 'top-left', pollIntervalMs: 1000})];
     case 'pan-widget':
@@ -438,6 +485,61 @@ function buildLayers(highlight: WidgetDocsExampleHighlight) {
   });
 
   return [scatterplotLayer, labelLayer];
+}
+
+function renderDeviceTabsExampleSurface(rootElement: HTMLElement): () => void {
+  const panelElement = rootElement.ownerDocument.createElement('section');
+  const headerElement = rootElement.ownerDocument.createElement('div');
+  const statusElement = rootElement.ownerDocument.createElement('div');
+  const canvasHostElement = rootElement.ownerDocument.createElement('div');
+
+  applyElementStyle(panelElement, DEVICE_SURFACE_STYLE);
+  applyElementStyle(headerElement, DEVICE_SURFACE_HEADER_STYLE);
+  applyElementStyle(statusElement, DEVICE_SURFACE_STATUS_STYLE);
+  applyElementStyle(canvasHostElement, DEVICE_SURFACE_CANVAS_STYLE);
+
+  headerElement.textContent = 'Managed device canvas';
+  panelElement.append(headerElement, statusElement, canvasHostElement);
+  rootElement.append(panelElement);
+
+  const updateStatus = () => {
+    const state = DeviceManager.getState();
+    const backendLabel =
+      state.deviceType === 'webgpu' ? 'WebGPU' : state.deviceType === 'webgl' ? 'WebGL2' : 'None';
+
+    statusElement.textContent = state.deviceError
+      ? `Error: ${state.deviceError}`
+      : state.isLoading
+        ? `Creating ${backendLabel} device...`
+        : `Active backend: ${backendLabel}`;
+
+    const canvas = DeviceManager.reparentCanvas(canvasHostElement);
+    if (canvas instanceof HTMLCanvasElement) {
+      canvas.style.width = '100%';
+      canvas.style.height = '112px';
+      canvas.style.display = 'block';
+      canvas.style.background =
+        'radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.45), rgba(15, 23, 42, 0.88))';
+    }
+  };
+
+  const unsubscribe = DeviceManager.subscribe(() => {
+    updateStatus();
+  });
+
+  updateStatus();
+  DeviceManager.initialize()
+    .then(() => {
+      updateStatus();
+    })
+    .catch(() => {});
+
+  return () => {
+    unsubscribe();
+    DeviceManager.reparentCanvas(null);
+    DeviceManager.reset();
+    panelElement.remove();
+  };
 }
 
 function openToastForPoint(point: PointDatum) {

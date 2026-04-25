@@ -24,12 +24,12 @@ Pass those panel definitions to deck.gl widgets from `@deck.gl-community/widgets
 
 These are the deck.gl widgets that consume `WidgetPanel` and `WidgetContainer` values:
 
-| Widget | Purpose |
-| --- | --- |
-| [BoxPanelWidget](../api-reference/box-widget.md) | Static panel content anchored in a deck.gl widget corner. |
+| Widget                                                                | Purpose                                                        |
+| --------------------------------------------------------------------- | -------------------------------------------------------------- |
+| [BoxPanelWidget](../api-reference/box-widget.md)                      | Static panel content anchored in a deck.gl widget corner.      |
 | [FullScreenPanelWidget](../api-reference/full-screen-panel-widget.md) | A large inset panel layout that occupies most of the viewport. |
-| [ModalPanelWidget](../api-reference/modal-widget.md) | On-demand panel content shown in a centered overlay. |
-| [SidebarPanelWidget](../api-reference/sidebar-widget.md) | Persistent panel content attached to the left or right edge. |
+| [ModalPanelWidget](../api-reference/modal-widget.md)                  | On-demand panel content shown in a centered overlay.           |
+| [SidebarPanelWidget](../api-reference/sidebar-widget.md)              | Persistent panel content attached to the left or right edge.   |
 
 ## Panel definitions
 
@@ -47,3 +47,12 @@ Use [`@deck.gl-community/panels`](/docs/modules/panels/README) for panel composi
 - Use `ModalPanelWidget` when panel content should open on demand.
 - Use `FullScreenPanelWidget` when one panel layout should temporarily take over the viewport.
 - Build the panel content itself in `@deck.gl-community/panels`, then reuse the same definitions across multiple widget wrappers.
+
+## Renderer selection
+
+When a surface needs to switch between WebGPU and WebGL while keeping a reusable luma device alive, use the widgets package's renderer-selection APIs:
+
+- [`DeviceManager`](../api-reference/device-manager.md) owns shared backend state, cached devices, and canvas reparenting.
+- [`DeviceTabsWidget`](../api-reference/device-tabs-widget.md) provides a deck.gl widget UI for switching the active backend.
+
+This backend-selection layer is separate from panel composition, but it fits naturally beside panel widgets when an application needs both a control surface and a managed render device.

@@ -37,7 +37,6 @@
     "src"
   ],
   "dependencies": {
-    "@deck.gl-community/panels": "~9.3.2",
     "@types/styled-react-modal": "^1.2.5",
     "boxicons": "^2.1.4",
     "preact": "^10.17.0",
@@ -48,6 +47,7 @@
     "styled-react-modal": "^3.1.1"
   },
   "peerDependencies": {
+    "@deck.gl-community/panels": "~9.3.2",
     "@deck.gl/widgets": "~9.3.0"
   },
   "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"

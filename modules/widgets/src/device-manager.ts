@@ -6,15 +6,32 @@ const DEVICE_TYPE_STORAGE_KEY = 'deck.gl-community-device-type';
 const DEFAULT_DEVICE_TYPE: DeviceType = 'webgpu';
 const FALLBACK_DEVICE_TYPE_ORDER: DeviceType[] = ['webgpu', 'webgl'];
 
+/** Supported rendering backends managed by {@link DeviceManagerController}. */
 export type DeviceType = 'webgl' | 'webgpu';
 
+/**
+ * Snapshot of the shared device manager state.
+ *
+ * Applications can read this synchronously with {@link DeviceManagerController.getState}
+ * or observe updates with {@link DeviceManagerController.subscribe}.
+ */
 export type DeviceManagerState = {
+  /** Currently selected backend, if any. */
   deviceType?: DeviceType;
+  /** Reusable luma device for the selected backend. */
   device?: Device;
+  /** Last device creation error for the selected backend. */
   deviceError?: string;
+  /** Whether the manager is currently resolving or switching devices. */
   isLoading: boolean;
 };
 
+/**
+ * Shared controller that chooses between WebGPU and WebGL and caches one reusable device per backend.
+ *
+ * This is modeled on luma.gl's `DeviceTabs` store, but uses a small imperative subscription
+ * surface rather than Zustand.
+ */
 export class DeviceManagerController {
   #state: DeviceManagerState = {
     deviceType: undefined,
@@ -30,10 +47,17 @@ export class DeviceManagerController {
   #canvasParent: HTMLElement | null = null;
   #hiddenCanvasParent: HTMLDivElement | null = null;
 
+  /** Returns a copy of the current manager state. */
   getState(): DeviceManagerState {
     return {...this.#state};
   }
 
+  /**
+   * Subscribes to state changes.
+   *
+   * @param listener Called whenever the manager state changes.
+   * @returns Unsubscribe function.
+   */
   subscribe(listener: (state: DeviceManagerState) => void): () => void {
     this.#listeners.add(listener);
     return () => {
@@ -41,6 +65,11 @@ export class DeviceManagerController {
     };
   }
 
+  /**
+   * Returns the preferred canvas parent for the managed device canvas.
+   *
+   * Falls back to the hidden cache container until a visible parent is assigned.
+   */
   getCanvasParent(): HTMLElement {
     if (!this.#canvasParent) {
       return this.getHiddenCanvasParent();
@@ -48,6 +77,11 @@ export class DeviceManagerController {
     return this.#canvasParent;
   }
 
+  /**
+   * Returns the hidden container used to keep cached canvases attached to the DOM.
+   *
+   * The container is created lazily on first access.
+   */
   getHiddenCanvasParent(): HTMLDivElement {
     if (!this.#hiddenCanvasParent) {
       const container = document.createElement('div');
@@ -60,6 +94,11 @@ export class DeviceManagerController {
     return this.#hiddenCanvasParent;
   }
 
+  /**
+   * Creates or returns the cached reusable device for one backend.
+   *
+   * @param type Backend to create.
+   */
   async createDevice(type: DeviceType): Promise<Device> {
     const devicePromise =
       this.#cachedDevices[type] !== undefined
@@ -78,10 +117,20 @@ export class DeviceManagerController {
     return await devicePromise;
   }
 
+  /**
+   * Returns a cached device, creating it if needed.
+   *
+   * @param type Backend to resolve. Defaults to the selected backend or the default preferred backend.
+   */
   async getDevice(type: DeviceType = this.#state.deviceType ?? DEFAULT_DEVICE_TYPE) {
     return await this.createDevice(type);
   }
 
+  /**
+   * Checks whether one backend can create a reusable device in the current environment.
+   *
+   * Results are cached per backend.
+   */
   async canCreateDeviceType(type: DeviceType): Promise<boolean> {
     const availabilityPromise =
       this.#cachedDeviceAvailability[type] !== undefined
@@ -99,6 +148,11 @@ export class DeviceManagerController {
     return await availabilityPromise;
   }
 
+  /**
+   * Returns the first available backend from a preferred order.
+   *
+   * @param preferredTypes Backend preference order.
+   */
   async getPreferredAvailableDeviceType(
     preferredTypes: readonly DeviceType[]
   ): Promise<DeviceType | undefined> {
@@ -111,10 +165,21 @@ export class DeviceManagerController {
     return undefined;
   }
 
+  /**
+   * Initializes the manager using the persisted backend preference when available.
+   *
+   * Falls back to WebGPU, then WebGL.
+   */
   async initialize(): Promise<DeviceType | undefined> {
     return await this.ensureDeviceType(this.#getDefaultPreferredDeviceTypes());
   }
 
+  /**
+   * Ensures that the active backend is one of the allowed preferred backends.
+   *
+   * If the current backend is unavailable or disallowed, the manager switches to the first
+   * available backend in `preferredTypes`.
+   */
   async ensureDeviceType(preferredTypes: readonly DeviceType[]): Promise<DeviceType | undefined> {
     const currentDeviceType = this.#state.deviceType;
 
@@ -138,6 +203,11 @@ export class DeviceManagerController {
     return preferredDeviceType;
   }
 
+  /**
+   * Selects one backend, creates its reusable device, and publishes the resulting state.
+   *
+   * The chosen backend is persisted to local storage for future sessions.
+   */
   async setDeviceType(type: DeviceType): Promise<Device | undefined> {
     const requestGeneration = ++this.#requestGeneration;
 
@@ -177,6 +247,13 @@ export class DeviceManagerController {
     return device;
   }
 
+  /**
+   * Reparents the managed canvas into a new DOM container.
+   *
+   * @param parentElement Destination parent. Pass `null` to move the canvas back into the hidden cache container.
+   * @param deviceOrType Optional device instance or backend type. When omitted, the current selected device is used.
+   * @returns The canvas when it was synchronously available.
+   */
   reparentCanvas(
     parentElement: HTMLElement | null,
     deviceOrType?: Device | DeviceType
@@ -204,6 +281,11 @@ export class DeviceManagerController {
     return this.#reparentDeviceCanvas(device, resolvedParent);
   }
 
+  /**
+   * Clears cached devices, DOM state, and subscriptions.
+   *
+   * Primarily intended for tests and controlled teardown.
+   */
   reset(): void {
     this.#state = {
       deviceType: undefined,
@@ -278,6 +360,7 @@ export class DeviceManagerController {
   }
 }
 
+/** Shared application-level device manager singleton. */
 export const DeviceManager = new DeviceManagerController();
 
 function dedupeDeviceTypes(deviceTypes: readonly DeviceType[]): DeviceType[] {

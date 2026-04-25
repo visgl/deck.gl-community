@@ -4,6 +4,8 @@ This package bundles widgets that integrate with deck.gl's built-in widget syste
 
 Alongside classic navigation and overlay widgets, the package also exports deck-facing panel wrappers for assembling reusable sidebars, modals, and summary cards around a deck.gl canvas.
 
+For renderer selection and reusable luma device lifecycle, the package also exports `DeviceManager` and `DeviceTabsWidget`.
+
 Panel definitions and standalone mounting live in [`@deck.gl-community/panels`](/docs/modules/panels/README). Import panels and panel containers from `panels`, then pass them to the panel widgets in this package.
 
 :::caution
@@ -49,6 +51,8 @@ For deck-independent mounting, use [`@deck.gl-community/panels`](/docs/modules/p
 
 See the [Panels developer guide](/docs/modules/panels/developer-guide/widget-panels) for the core panel composition concepts.
 
+Use [`DeviceManager`](./api-reference/device-manager.md) when an application needs one reusable WebGPU or WebGL device that can be shared across UI surfaces and reparented into different DOM hosts. Use [`DeviceTabsWidget`](./api-reference/device-tabs-widget.md) when you want a built-in widget for switching the active backend.
+
 The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxPanelWidget`.
 
 ### HTML overlays
@@ -87,6 +91,8 @@ map positions via the widget lifecycle.
 
 ## Advanced UI Widgets
 
+- [DeviceManager](./api-reference/device-manager.md)
+- [DeviceTabsWidget](./api-reference/device-tabs-widget.md)
 - [OmniBoxPanelWidget](./api-reference/omni-box-widget.md)
 - [TimeMeasureWidget](./api-reference/time-measure-widget.md)
 

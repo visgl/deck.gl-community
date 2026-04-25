@@ -41,6 +41,8 @@
           "type": "category",
           "label": "Advanced UI Widgets",
           "items": [
+            "modules/widgets/api-reference/device-manager",
+            "modules/widgets/api-reference/device-tabs-widget",
             "modules/widgets/api-reference/omni-box-widget",
             "modules/widgets/api-reference/time-measure-widget"
           ]

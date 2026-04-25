@@ -11,11 +11,16 @@ import {
   type DeviceType
 } from '../device-manager';
 
+/** Backend labels accepted by {@link DeviceTabsWidget}. */
 export type DeviceTabsWidgetDevice = 'webgl2' | 'webgpu';
 
+/** Props for {@link DeviceTabsWidget}. */
 export type DeviceTabsWidgetProps = WidgetProps & {
+  /** Ordered list of backends exposed as tabs. */
   devices?: DeviceTabsWidgetDevice[];
+  /** Widget placement anchor. */
   placement?: WidgetPlacement;
+  /** Shared device manager instance that drives the widget state. */
   manager?: DeviceManagerController;
 };
 
@@ -154,6 +159,12 @@ function DeviceTabsWidgetView({
   );
 }
 
+/**
+ * Widget that exposes a compact WebGPU/WebGL tab switcher backed by {@link DeviceManager}.
+ *
+ * The widget mirrors the behavior of luma.gl's `DeviceTabs` UI while keeping device state in a
+ * reusable manager that can also be consumed independently.
+ */
 export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
   static defaultProps: Required<DeviceTabsWidgetProps> = {
     ...Widget.defaultProps,
@@ -172,6 +183,7 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
   #unsubscribe: (() => void) | null = null;
   #availabilityRequest = 0;
 
+  /** Creates a device tabs widget. */
   constructor(props: Partial<DeviceTabsWidgetProps> = {}) {
     super({
       ...DeviceTabsWidget.defaultProps,
@@ -180,6 +192,7 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
     this.setProps(this.props);
   }
 
+  /** Updates widget configuration and refreshes backend availability. */
   setProps(props: Partial<DeviceTabsWidgetProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -199,11 +212,13 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
     super.setProps(props);
   }
 
+  /** Starts listening to the shared manager when the widget is mounted. */
   onAdd(): void {
     this.#subscribeToManager();
     this.#refreshAvailability().catch(() => {});
   }
 
+  /** Removes manager subscriptions and unmounts the internal Preact view. */
   onRemove(): void {
     this.#unsubscribe?.();
     this.#unsubscribe = null;
@@ -212,6 +227,7 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
     }
   }
 
+  /** Renders the widget into the supplied host element. */
   onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
     rootElement.style.margin = '0';

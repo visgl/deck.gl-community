@@ -11,6 +11,8 @@ The deck.gl-community repository is semi-maintaned. One of its goals is to colle
 
 This module packages UI widgets that integrate with [deck.gl](https://deck.gl) view state management. It includes classic navigation widgets such as `PanWidget` and `ZoomRangeWidget`, HTML overlays, and deck-facing panel widgets for composing sidebars, modals, and info cards around a deck.gl canvas.
 
+For renderer lifecycle management, the package also exports `DeviceManager` and `DeviceTabsWidget`. Together they let applications choose WebGPU or WebGL, reuse one cached luma device per backend, and reparent the managed canvas between host elements.
+
 Panel definitions and standalone mounting live in `@deck.gl-community/panels`. Import panels from `panels`, then pass them to the deck-facing widgets in this package.
 
 ## Installation
@@ -54,6 +56,8 @@ For the deck-facing panel widget APIs, see the [Widget Panels example](../../exa
 - `ModalPanelWidget` for tabbed secondary panels
 - `BoxPanelWidget` for static summary cards
 - reusable panel definitions imported from `@deck.gl-community/panels`
+
+Use `DeviceManager` directly when your application wants custom backend-selection UI or needs to move the managed canvas between containers. Use `DeviceTabsWidget` when you want a ready-made widget for switching between `webgpu` and `webgl2`.
 
 Standalone UI such as `ToolbarWidget`, `ToastWidget`, and `toastManager` is exported from
 `@deck.gl-community/panels`, not from this package.
