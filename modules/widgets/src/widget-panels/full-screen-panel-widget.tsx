@@ -6,10 +6,14 @@ import {PanelFullScreen} from '../../../panels/src';
 
 import type {PanelFullScreenProps} from '../../../panels/src';
 
-/** Full-screen panel widget properties. */
+/**
+ * Props for {@link FullScreenPanelWidget}.
+ *
+ * This is the deck.gl wrapper surface for {@link PanelFullScreenProps}.
+ */
 export type FullScreenPanelWidgetProps = PanelFullScreenProps;
 
 /**
- * deck.gl wrapper for `PanelFullScreen`.
+ * deck.gl widget wrapper for `PanelFullScreen`.
  */
 export class FullScreenPanelWidget extends PanelFullScreen {}

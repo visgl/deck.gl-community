@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/**
+ * CSS custom properties understood by the panel styling system.
+ *
+ * These variables mirror the deck.gl widget theme contract so standalone panel
+ * hosts can render with the same visual language without importing deck.gl
+ * runtime code.
+ */
 export type PanelThemeVariables = Record<`--${string}`, string>;
 
 const PANEL_THEME_KEYS = [
@@ -33,6 +40,9 @@ const PANEL_THEME_KEYS = [
   '--range-decoration-active-color'
 ] as const satisfies ReadonlyArray<`--${string}`>;
 
+/**
+ * Built-in light panel theme variables.
+ */
 export const PANEL_THEME_LIGHT = {
   '--widget-margin': '12px',
   '--button-size': '28px',
@@ -62,6 +72,9 @@ export const PANEL_THEME_LIGHT = {
   '--range-decoration-active-color': '#f8dd50'
 } as const satisfies PanelThemeVariables;
 
+/**
+ * Built-in dark panel theme variables.
+ */
 export const PANEL_THEME_DARK = {
   '--widget-margin': '12px',
   '--button-size': '28px',
@@ -92,7 +105,10 @@ export const PANEL_THEME_DARK = {
 } as const satisfies PanelThemeVariables;
 
 /**
- * Applies one panel theme to an HTML element by setting the known panel theme variables.
+ * Applies one panel theme to an HTML element.
+ *
+ * Existing panel theme variables are cleared before the supplied variables are
+ * written, which makes repeated theme switching deterministic.
  */
 export function applyPanelTheme(element: HTMLElement, theme: PanelThemeVariables): void {
   for (const key of PANEL_THEME_KEYS) {

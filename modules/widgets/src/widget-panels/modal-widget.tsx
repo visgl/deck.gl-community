@@ -6,13 +6,18 @@ import {PanelModal} from '../../../panels/src';
 
 import type {PanelModalProps} from '../../../panels/src';
 
-/** Trigger and panel configuration for a modal-style widget. */
-export type ModalWidgetProps = PanelModalProps & {
+/**
+ * Props for {@link ModalPanelWidget}.
+ *
+ * This is the deck.gl wrapper surface for {@link PanelModalProps}, plus the
+ * legacy `icon` alias for `triggerIcon`.
+ */
+export type ModalPanelWidgetProps = PanelModalProps & {
   /** Trigger icon alias for legacy compatibility. */
   icon?: string;
 };
 
-function normalizeModalProps(props: Partial<ModalWidgetProps>): Partial<PanelModalProps> {
+function normalizeModalProps(props: Partial<ModalPanelWidgetProps>): Partial<PanelModalProps> {
   return {
     ...props,
     triggerIcon: props.icon ?? props.triggerIcon
@@ -20,14 +25,24 @@ function normalizeModalProps(props: Partial<ModalWidgetProps>): Partial<PanelMod
 }
 
 /**
- * deck.gl wrapper for `PanelModal`.
+ * deck.gl widget wrapper for `PanelModal`.
  */
-export class ModalWidget extends PanelModal {
-  constructor(props: Partial<ModalWidgetProps> = {}) {
+export class ModalPanelWidget extends PanelModal {
+  constructor(props: Partial<ModalPanelWidgetProps> = {}) {
     super(normalizeModalProps(props));
   }
 
-  override setProps(props: Partial<ModalWidgetProps>): void {
+  override setProps(props: Partial<ModalPanelWidgetProps>): void {
     super.setProps(normalizeModalProps(props));
   }
 }
+
+/**
+ * @deprecated Use {@link ModalPanelWidget}.
+ */
+export type ModalWidgetProps = ModalPanelWidgetProps;
+
+/**
+ * @deprecated Use {@link ModalPanelWidget}.
+ */
+export const ModalWidget = ModalPanelWidget;

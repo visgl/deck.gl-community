@@ -6,17 +6,31 @@ import {WidgetContainerRenderer, asPanelContainer} from '../widget-panels/widget
 import type {WidgetContainer, WidgetPanel} from '../widget-panels/widget-containers';
 import type {JSX} from 'preact';
 
+/**
+ * Props for {@link PanelModal}.
+ */
 export type PanelModalProps = PanelContainerProps & {
+  /** One pre-built container definition to render. */
   container?: WidgetContainer;
+  /** Convenience single-panel input converted into a container automatically. */
   panel?: WidgetPanel;
+  /** Placement anchor used for the trigger when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
+  /** Dialog header title. */
   title?: string;
+  /** Trigger label shown when the modal is closed. */
   triggerLabel?: string;
+  /** Optional trigger icon glyph. */
   triggerIcon?: string;
+  /** Whether the trigger should be hidden. */
   hideTrigger?: boolean;
+  /** Legacy compatibility flag that maps to a visible trigger button. */
   button?: boolean;
+  /** Initial open state for uncontrolled usage. */
   defaultOpen?: boolean;
+  /** Controlled open state. */
   open?: boolean;
+  /** Callback fired when the open state changes. */
   onOpenChange?: (open: boolean) => void;
 };
 
@@ -106,6 +120,9 @@ function PanelModalView({
   );
 }
 
+/**
+ * Overlay-style panel container that renders one modal dialog and optional trigger.
+ */
 export class PanelModal extends PanelContainer<PanelModalProps> {
   static defaultProps: Required<PanelModalProps> = {
     ...PanelContainer.defaultProps,

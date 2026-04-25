@@ -51,7 +51,7 @@ import {
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
-import {BoxWidget} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 
 import sampleGeoJson from '../../data/sample-geojson.json';
@@ -292,7 +292,7 @@ export function Example() {
   const [featureMenu, setFeatureMenu] = useState<{index: number; x: number; y: number} | undefined>(undefined);
   const infoWidget = React.useMemo(
     () =>
-      new BoxWidget({
+      new BoxPanelWidget({
         id: 'advanced-editable-layers-info',
         placement: 'top-right',
         widthPx: 360,

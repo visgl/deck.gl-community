@@ -60,4 +60,4 @@ type PanelBoxProps = PanelContainerProps & {
 - Accepts either a full panel container description or a single panel.
 - Renders a themed card with optional title and collapsible body.
 - Supports controlled and uncontrolled open state.
-- Use `BoxWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.
+- Use `BoxPanelWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.

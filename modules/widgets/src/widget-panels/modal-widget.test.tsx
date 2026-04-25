@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import {afterEach, describe, expect, it} from 'vitest';
 
-import {ModalWidget} from './modal-widget';
+import {ModalPanelWidget} from './modal-widget';
 import {TabbedPanel} from './widget-containers';
 
 import type {WidgetPanel} from './widget-containers';
@@ -16,11 +16,11 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('ModalWidget', () => {
+describe('ModalPanelWidget', () => {
   it('shows a built-in trigger when button is enabled', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new ModalWidget({
+    const widget = new ModalPanelWidget({
       id: 'help',
       panel,
       button: true,
@@ -38,7 +38,7 @@ describe('ModalWidget', () => {
   it('hides the built-in trigger when button is disabled', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new ModalWidget({
+    const widget = new ModalPanelWidget({
       id: 'help-hidden-button',
       panel,
       button: false
@@ -52,7 +52,7 @@ describe('ModalWidget', () => {
   it('closes the modal when Escape is pressed', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new ModalWidget({
+    const widget = new ModalPanelWidget({
       id: 'help-escape',
       panel,
       defaultOpen: true,
@@ -72,7 +72,7 @@ describe('ModalWidget', () => {
   it('renders a visible tab row when given a tabbed widget panel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new ModalWidget({
+    const widget = new ModalPanelWidget({
       id: 'help-tabs',
       defaultOpen: true,
       panel: new TabbedPanel({
@@ -108,7 +108,7 @@ describe('ModalWidget', () => {
     placementContainer.appendChild(root);
     document.body.appendChild(placementContainer);
 
-    const widget = new ModalWidget({
+    const widget = new ModalPanelWidget({
       id: 'help-stacking',
       panel,
       defaultOpen: true,

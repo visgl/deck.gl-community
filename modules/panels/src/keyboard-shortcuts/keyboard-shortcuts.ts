@@ -1,21 +1,38 @@
+/**
+ * One keyboard shortcut entry rendered by shortcut-oriented panels and managed
+ * by the keyboard shortcut helpers.
+ */
 export type KeyboardShortcut = {
+  /** KeyboardEvent.key value that activates the shortcut. */
   key: string;
+  /** Whether the platform command key must be pressed. */
   commandKey?: boolean;
+  /** Whether the shift key must be pressed. */
   shiftKey?: boolean;
+  /** Whether the control key must be pressed. */
   ctrlKey?: boolean;
+  /** Whether the shortcut is associated with a drag gesture. */
   dragMouse?: boolean;
+  /** Optional visual badges displayed next to the shortcut. */
   badges?: string[];
+  /** Optional paired display metadata used for grouped shortcut rows. */
   displayPair?: {
     id: string;
     position: 'primary' | 'secondary';
     description: string;
   };
 
+  /** Short display name shown in shortcut lists. */
   name: string;
+  /** Longer explanation of what the shortcut does. */
   description: string;
+  /** Optional callback invoked when the shortcut is triggered. */
   onKeyPress?: () => void;
 };
 
+/**
+ * Minimal default shortcut set used by shortcut panels when no explicit list is provided.
+ */
 export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
   {
     key: '/',
@@ -28,6 +45,9 @@ export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
 const navigator = typeof window !== 'undefined' ? globalThis.navigator : {platform: ''};
 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
+/**
+ * Returns `true` when one DOM keyboard event matches one shortcut definition.
+ */
 export const isShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcut: KeyboardShortcut) => {
   const isCmd = isMac ? e.metaKey : e.ctrlKey;
   return (
@@ -38,11 +58,16 @@ export const isShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcut: KeyboardS
   );
 };
 
+/**
+ * Finds the first shortcut definition that matches one DOM keyboard event.
+ */
 export const findShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcuts: KeyboardShortcut[]) => {
   return shortcuts.find((shortcut) => isShortcutMatchingKeyEvent(e, shortcut));
 };
 
-// Pretty “keycap” glyphs for KeyboardEvent.key (browser KeyEvent)
+/**
+ * Human-friendly glyphs for special `KeyboardEvent.key` values.
+ */
 export const keyCharacter: Record<string, string> = {
   // Arrows
   ArrowLeft: '←',
@@ -92,7 +117,9 @@ export const keyCharacter: Record<string, string> = {
   AudioVolumeUp: '🔊'
 };
 
-// Optional: normalize a KeyboardEvent into a human-friendly label
+/**
+ * Formats one `KeyboardEvent.key` value for display inside shortcut UIs.
+ */
 export function formatKey(key: string): string {
   // Prefer mapping for special keys, otherwise use the raw key (letters, digits, punctuation).
   // Make single characters uppercase for nicer display.

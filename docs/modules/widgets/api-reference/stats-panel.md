@@ -34,7 +34,7 @@ type StatsPanelProps = {
 ## Usage
 
 ```ts
-import {BoxWidget, StatsPanel} from '@deck.gl-community/widgets';
+import {BoxPanelWidget, StatsPanel} from '@deck.gl-community/widgets';
 import {Stats} from '@probe.gl/stats';
 
 const stats = new Stats({
@@ -55,7 +55,7 @@ const panel = new StatsPanel({
   }
 });
 
-const widget = new BoxWidget({
+const widget = new BoxPanelWidget({
   id: 'tile-stats-box',
   title: 'Shared Tileset',
   panel

@@ -20,7 +20,7 @@ export type WidgetPanelThemeMode = 'inherit' | 'light' | 'dark';
 
 type WidgetPanelWithPanelProps = {
   /**
-   * One panel definition to render inside a small framed host.
+   * One panel definition imported from `@deck.gl-community/panels`.
    */
   panel: WidgetPanelDefinition;
   container?: never;
@@ -28,7 +28,7 @@ type WidgetPanelWithPanelProps = {
 
 type WidgetPanelWithContainerProps = {
   /**
-   * One full widget container definition to render.
+   * One full container definition imported from `@deck.gl-community/panels`.
    */
   container: WidgetContainer;
   panel?: never;

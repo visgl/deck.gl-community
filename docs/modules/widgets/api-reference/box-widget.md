@@ -1,6 +1,6 @@
 import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
 
-# BoxWidget
+# BoxPanelWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
@@ -8,13 +8,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 <WidgetPanelsLiveExample highlight="box-widget" />
 
-`BoxWidget` renders a static card-style [`Panel`](/docs/modules/panels/api-reference/custom-panel) in a deck.gl widget corner.
+`BoxPanelWidget` renders a static card-style [`Panel`](/docs/modules/panels/api-reference/custom-panel) in a deck.gl widget corner.
 
 ## Usage
 
 ```ts
 import {MarkdownPanel} from '@deck.gl-community/panels';
-import {BoxWidget} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 const summaryPanel = new MarkdownPanel({
   id: 'summary',
@@ -22,22 +22,22 @@ const summaryPanel = new MarkdownPanel({
   markdown: 'Always-visible context for the current view.'
 });
 
-const widget = new BoxWidget({
+const widget = new BoxPanelWidget({
   id: 'summary-widget',
   panel: summaryPanel,
   placement: 'top-right'
 });
 ```
 
-Use `BoxWidget` for always-visible summaries, quick actions, or contextual help that should stay anchored to the canvas without modal or sidebar chrome.
+Use `BoxPanelWidget` for always-visible summaries, quick actions, or contextual help that should stay anchored to the canvas without modal or sidebar chrome.
 
-Import panel definitions from `@deck.gl-community/panels` and pass them to `BoxWidget`
+Import panel definitions from `@deck.gl-community/panels` and pass them to `BoxPanelWidget`
 through `panel` or `container`.
 
 ## Props
 
 ```ts
-type BoxWidgetProps = WidgetProps & {
+type BoxPanelWidgetProps = WidgetProps & {
   container?: WidgetContainer;
   panel?: WidgetPanel;
   placement?: WidgetPlacement;

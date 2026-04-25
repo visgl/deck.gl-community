@@ -76,4 +76,4 @@ type PanelSidebarProps = PanelContainerProps & {
 - Accepts either a full panel container description or a single panel.
 - Slides open from the selected edge while keeping the shell mounted for smooth transitions.
 - Supports controlled and uncontrolled open state.
-- Use `SidebarWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.
+- Use `SidebarPanelWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.

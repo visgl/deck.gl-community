@@ -6,11 +6,19 @@ import {WidgetContainerRenderer, asPanelContainer} from '../widget-panels/widget
 import type {WidgetContainer, WidgetPanel} from '../widget-panels/widget-containers';
 import type {JSX} from 'preact';
 
+/**
+ * Props for {@link PanelFullScreen}.
+ */
 export type PanelFullScreenProps = PanelContainerProps & {
+  /** One pre-built container definition to render. */
   container?: WidgetContainer;
+  /** Convenience single-panel input converted into a container automatically. */
   panel?: WidgetPanel;
+  /** Placement anchor used when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
+  /** Optional header title shown above the content. */
   title?: string;
+  /** Outer inset applied between the host bounds and the full-screen panel. */
   marginPx?: number;
 };
 
@@ -78,6 +86,9 @@ function PanelFullScreenView({
   );
 }
 
+/**
+ * Fill-placement panel container for focused, workspace-style layouts.
+ */
 export class PanelFullScreen extends PanelContainer<PanelFullScreenProps> {
   static defaultProps: Required<PanelFullScreenProps> = {
     ...PanelContainer.defaultProps,

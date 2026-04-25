@@ -39,4 +39,4 @@ Use `AccordeonPanel` when a single widget panel should expand into several colla
 ## Remarks
 
 - Normalizes an object map of child panels into insertion-order accordion sections.
-- Exposes one outer `WidgetPanel` that can be passed into `BoxWidget`, `ModalWidget`, or `SidebarWidget`.
+- Exposes one outer `WidgetPanel` that can be passed into `BoxPanelWidget`, `ModalPanelWidget`, or `SidebarPanelWidget`.

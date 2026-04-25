@@ -8,7 +8,7 @@ import {h} from 'preact';
 import {MarkdownPanel} from '@deck.gl-community/panels';
 
 import {
-  BoxWidget,
+  BoxPanelWidget,
   HtmlOverlayItem,
   HtmlOverlayWidget,
   type HtmlOverlayWidgetProps
@@ -52,7 +52,7 @@ export function mountOverlaysExample(container: HTMLElement): () => void {
   container.replaceChildren(rootElement);
 
   const overlayWidget = new HtmlOverlayWidget<HtmlOverlayWidgetProps>({id: 'wikipedia-overlay'});
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'wikipedia-overlays-info',
     placement: 'top-right',
     widthPx: 320,

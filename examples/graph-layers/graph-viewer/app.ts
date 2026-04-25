@@ -18,8 +18,8 @@ import {
   type WidgetPanelRecord
 } from '@deck.gl-community/panels';
 import {
-  BoxWidget,
-  SidebarWidget,
+  BoxPanelWidget,
+  SidebarPanelWidget,
   PanWidget,
   ZoomRangeWidget
 } from '@deck.gl-community/widgets';
@@ -350,7 +350,7 @@ export function mountGraphViewerExample(
       syncWidgets();
     }
   };
-  const sidebarWidget = new SidebarWidget({
+  const sidebarWidget = new SidebarPanelWidget({
     id: 'graph-viewer-sidebar',
     placement: 'top-right',
     side: 'right',
@@ -371,7 +371,7 @@ export function mountGraphViewerExample(
   const boxWidget =
     options.showInfoWidget === false
       ? null
-      : new BoxWidget({
+      : new BoxPanelWidget({
           id: 'graph-viewer-box',
           placement: 'top-left',
           widthPx: 360,

@@ -26,10 +26,10 @@ import {
   type WidgetPanel
 } from '@deck.gl-community/panels';
 import {
-  BoxWidget,
+  BoxPanelWidget,
   FullScreenPanelWidget,
-  ModalWidget,
-  SidebarWidget
+  ModalPanelWidget,
+  SidebarPanelWidget
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -171,10 +171,10 @@ const INITIAL_SETTINGS: ExampleSettings = {
 
 const HIGHLIGHT_LABELS: Record<WidgetPanelsExampleHighlight, string> = {
   'widget-panels': 'Widget Panels',
-  'box-widget': 'BoxWidget',
+  'box-widget': 'BoxPanelWidget',
   'full-screen-panel-widget': 'FullScreenPanelWidget',
-  'modal-widget': 'ModalWidget',
-  'sidebar-widget': 'SidebarWidget',
+  'modal-widget': 'ModalPanelWidget',
+  'sidebar-widget': 'SidebarPanelWidget',
   'settings-panel': 'SettingsPanel',
   'stats-panel': 'StatsPanel',
   'keyboard-shortcuts-panel': 'KeyboardShortcutsPanel',
@@ -587,7 +587,7 @@ export function mountWidgetPanelsExample(
     }
   });
 
-  const modalWidget = new ModalWidget({
+  const modalWidget = new ModalPanelWidget({
     id: 'widget-panel-modal',
     placement: 'top-left',
     title: 'Modal panels',
@@ -598,7 +598,7 @@ export function mountWidgetPanelsExample(
     onOpenChange: handlers.setModalOpen
   });
 
-  const sidebarWidget = new SidebarWidget({
+  const sidebarWidget = new SidebarPanelWidget({
     id: 'widget-panel-sidebar',
     placement: 'top-right',
     side: 'right',
@@ -612,7 +612,7 @@ export function mountWidgetPanelsExample(
     onOpenChange: handlers.setSidebarOpen
   });
 
-  const boxWidget = new BoxWidget({
+  const boxWidget = new BoxPanelWidget({
     id: 'widget-panel-box',
     placement: 'bottom-left',
     title: 'Widget Panels',
@@ -769,8 +769,8 @@ function buildModalPanel(
         markdown: [
           'The modal uses the same panel API, but arranged as tabs instead of an accordion.',
           '',
-          '- `SidebarWidget` keeps persistent controls within reach.',
-          '- `ModalWidget` groups secondary context into a compact dialog.',
+          '- `SidebarPanelWidget` keeps persistent controls within reach.',
+          '- `ModalPanelWidget` groups secondary context into a compact dialog.',
           '- `SettingsPanel` can be reused in either container.',
           '',
           `Highlighted API: **${HIGHLIGHT_LABELS[highlight]}**`
@@ -974,8 +974,8 @@ function mountWidgetPanelsDocsCompositionExample(
     isSidebarOpen: true
   };
 
-  let boxWidget: BoxWidget | null = null;
-  let sidebarWidget: SidebarWidget | null = null;
+  let boxWidget: BoxPanelWidget | null = null;
+  let sidebarWidget: SidebarPanelWidget | null = null;
 
   const handlers: WidgetPanelsExampleHandlers = {
     setSettings(nextSettings) {
@@ -996,10 +996,10 @@ function mountWidgetPanelsDocsCompositionExample(
     }
   };
 
-  boxWidget = new BoxWidget({
+  boxWidget = new BoxPanelWidget({
     id: 'widget-panels-docs-box-widget',
     placement: 'top-left',
-    title: 'BoxWidget',
+    title: 'BoxPanelWidget',
     widthPx: 300,
     panel: buildInfoBoxPanel(state, handlers, highlight),
     collapsible: false,
@@ -1007,11 +1007,11 @@ function mountWidgetPanelsDocsCompositionExample(
   });
   boxWidget.onRenderHTML(boxRootElement);
 
-  sidebarWidget = new SidebarWidget({
+  sidebarWidget = new SidebarPanelWidget({
     id: 'widget-panels-docs-sidebar-widget',
     side: 'right',
     widthPx: 340,
-    title: 'SidebarWidget',
+    title: 'SidebarPanelWidget',
     panel: buildSidebarPanel(state, handlers, highlight),
     button: true,
     open: state.isSidebarOpen,
@@ -1064,28 +1064,28 @@ function mountWidgetPanelsDocsSidebarExample(
   const handlers: WidgetPanelsExampleHandlers = {
     setSettings(nextSettings) {
       state.settings = cloneSettings(nextSettings as ExampleSettings);
-      syncSidebarWidget();
+      syncSidebarPanelWidget();
     },
     setModalOpen(nextOpen) {
       state.isModalOpen = nextOpen;
-      syncSidebarWidget();
+      syncSidebarPanelWidget();
     },
     setSidebarOpen(nextOpen) {
       state.isSidebarOpen = nextOpen;
-      syncSidebarWidget();
+      syncSidebarPanelWidget();
     },
     toggleSidebar() {
       state.isSidebarOpen = !state.isSidebarOpen;
-      syncSidebarWidget();
+      syncSidebarPanelWidget();
     }
   };
 
-  const sidebarWidget = new SidebarWidget({
+  const sidebarWidget = new SidebarPanelWidget({
     id: 'widget-panels-docs-sidebar-widget',
     placement: 'top-right',
     side: 'right',
     widthPx: 340,
-    title: 'SidebarWidget',
+    title: 'SidebarPanelWidget',
     triggerLabel: 'Open sidebar',
     panel: buildSidebarPanel(state, handlers, highlight),
     button: true,
@@ -1101,7 +1101,7 @@ function mountWidgetPanelsDocsSidebarExample(
     rootElement.remove();
   };
 
-  function syncSidebarWidget() {
+  function syncSidebarPanelWidget() {
     sidebarWidget.setProps({
       panel: buildSidebarPanel(state, handlers, highlight),
       open: state.isSidebarOpen
@@ -1111,7 +1111,7 @@ function mountWidgetPanelsDocsSidebarExample(
 
 function mountWidgetPanelsDocsBoxExample(
   container: HTMLElement,
-  highlight: WidgetPanelsExampleHighlight
+  _highlight: WidgetPanelsExampleHighlight
 ): () => void {
   const rootElement = container.ownerDocument.createElement('div');
   const boxRootElement = container.ownerDocument.createElement('div');
@@ -1122,12 +1122,12 @@ function mountWidgetPanelsDocsBoxExample(
   container.replaceChildren(rootElement);
   const cleanupThemeWidget = renderDocsThemeWidget(rootElement);
 
-  const boxWidget = new BoxWidget({
+  const boxWidget = new BoxPanelWidget({
     id: 'widget-panels-docs-box-widget',
     placement: 'top-left',
-    title: 'BoxWidget',
+    title: 'BoxPanelWidget',
     widthPx: 340,
-    panel: buildBoxWidgetMarkdownPanel(),
+    panel: buildBoxPanelWidgetMarkdownPanel(),
     collapsible: false,
     open: true
   });
@@ -1179,12 +1179,12 @@ function renderDocsThemeWidget(rootElement: HTMLElement): () => void {
   };
 }
 
-function buildBoxWidgetMarkdownPanel() {
+function buildBoxPanelWidgetMarkdownPanel() {
   return new MarkdownPanel({
     id: 'box-widget-summary',
-    title: 'BoxWidget',
+    title: 'BoxPanelWidget',
     markdown: [
-      '`BoxWidget` anchors a themed card in a deck.gl widget corner.',
+      '`BoxPanelWidget` anchors a themed card in a deck.gl widget corner.',
       '',
       'Use it for compact summaries, hints, or small always-visible controls that should not need modal or sidebar chrome.',
       '',
@@ -1223,9 +1223,9 @@ function renderDocsModalPreview(rootElement: HTMLElement, panel: WidgetPanel): v
   };
 
   render(
-    <section style={DOCS_MODAL_PREVIEW_PANEL_STYLE} aria-label="ModalWidget preview">
+    <section style={DOCS_MODAL_PREVIEW_PANEL_STYLE} aria-label="ModalPanelWidget preview">
       <header style={DOCS_MODAL_PREVIEW_HEADER_STYLE}>
-        <span>ModalWidget</span>
+        <span>ModalPanelWidget</span>
         <span aria-hidden="true" style={DOCS_MODAL_PREVIEW_CLOSE_STYLE}>
           ×
         </span>

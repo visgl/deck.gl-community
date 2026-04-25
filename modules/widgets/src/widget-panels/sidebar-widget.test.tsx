@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import {afterEach, describe, expect, it} from 'vitest';
 
-import {SidebarWidget} from './sidebar-widget';
+import {SidebarPanelWidget} from './sidebar-widget';
 
 import type {WidgetPanel} from './widget-containers';
 
@@ -15,11 +15,11 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('SidebarWidget', () => {
+describe('SidebarPanelWidget', () => {
   it('starts open by default when uncontrolled', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar-default-open',
       panel,
       side: 'right'
@@ -42,7 +42,7 @@ describe('SidebarWidget', () => {
   it('renders a built-in icon trigger when button is enabled', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar',
       panel,
       button: true,
@@ -59,7 +59,7 @@ describe('SidebarWidget', () => {
   it('opens the sidebar panel when the built-in icon trigger is clicked', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar-open',
       panel,
       button: true,
@@ -81,7 +81,7 @@ describe('SidebarWidget', () => {
   it('respects controlled closed state even though defaultOpen is true', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar-controlled-closed',
       panel,
       open: false,
@@ -99,7 +99,7 @@ describe('SidebarWidget', () => {
   it('top-aligns the sidebar handle with the panel shell', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar-top-aligned-handle',
       panel,
       button: true,
@@ -132,7 +132,7 @@ describe('SidebarWidget', () => {
     placementRoot.appendChild(widgetRoot);
     document.body.appendChild(overlayRoot);
 
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar-overlay-parent',
       panel
     });
@@ -152,7 +152,7 @@ describe('SidebarWidget', () => {
     placementRoot.appendChild(widgetRoot);
     document.body.appendChild(overlayRoot);
 
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar-stable-overlay-parent',
       panel,
       open: false
@@ -168,7 +168,7 @@ describe('SidebarWidget', () => {
   it('keeps the same shell mounted and only updates transform when open changes', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar-animated-shell',
       panel,
       button: true,
@@ -193,7 +193,7 @@ describe('SidebarWidget', () => {
   it('stops mouse move events from leaking past the sidebar shell', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new SidebarWidget({
+    const widget = new SidebarPanelWidget({
       id: 'settings-sidebar-stop-mousemove',
       panel,
       open: true,

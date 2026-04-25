@@ -57,11 +57,26 @@ export {
   type TimeMeasureSelectionState
 } from './widget-panels/time-measure-widget';
 export {YZoomWidget, type YZoomWidgetProps} from './widget-panels/y-zoom-widget';
-export {BoxWidget, type BoxWidgetProps} from './widget-panels/box-widget';
+export {
+  BoxPanelWidget,
+  BoxWidget,
+  type BoxPanelWidgetProps,
+  type BoxWidgetProps
+} from './widget-panels/box-widget';
 export {
   FullScreenPanelWidget,
   type FullScreenPanelWidgetProps
 } from './widget-panels/full-screen-panel-widget';
-export {ModalWidget, type ModalWidgetProps} from './widget-panels/modal-widget';
+export {
+  ModalPanelWidget,
+  ModalWidget,
+  type ModalPanelWidgetProps,
+  type ModalWidgetProps
+} from './widget-panels/modal-widget';
 export {IconButton, makeTextIcon} from './widget-components/icon-button';
-export {SidebarWidget, type SidebarWidgetProps} from './widget-panels/sidebar-widget';
+export {
+  SidebarPanelWidget,
+  SidebarWidget,
+  type SidebarPanelWidgetProps,
+  type SidebarWidgetProps
+} from './widget-panels/sidebar-widget';

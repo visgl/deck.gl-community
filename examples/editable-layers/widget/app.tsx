@@ -23,7 +23,7 @@ import {
   MarkdownPanel,
   type WidgetPanel
 } from '@deck.gl-community/panels';
-import {BoxWidget} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
@@ -174,7 +174,7 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
     style: {margin: '16px 0 0 16px'}
   });
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'editable-layers-widget-info',
     placement: 'top-right',
     widthPx: 320,

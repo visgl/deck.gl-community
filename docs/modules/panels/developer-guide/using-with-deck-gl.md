@@ -20,14 +20,14 @@ Use the deck.gl path when:
 ## Core pieces
 
 - leaf panels and composite panels describe UI structure
-- `BoxWidget`, `SidebarWidget`, `ModalWidget`, and `FullScreenPanelWidget` mount those panel definitions through deck.gl
+- `BoxPanelWidget`, `SidebarPanelWidget`, `ModalPanelWidget`, and `FullScreenPanelWidget` mount those panel definitions through deck.gl
 - `Deck` owns placement and lifecycle through its `widgets` prop
 
 ## Example
 
 ```ts
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
-import {BoxWidget, SidebarWidget} from '@deck.gl-community/widgets';
+import {BoxPanelWidget, SidebarPanelWidget} from '@deck.gl-community/widgets';
 
 const sharedPanel = new ColumnPanel({
   id: 'summary',
@@ -41,14 +41,14 @@ const sharedPanel = new ColumnPanel({
   }
 });
 
-const boxWidget = new BoxWidget({
+const boxWidget = new BoxPanelWidget({
   id: 'box',
   title: 'Summary',
   panel: sharedPanel,
   placement: 'top-left'
 });
 
-const sidebarWidget = new SidebarWidget({
+const sidebarWidget = new SidebarPanelWidget({
   id: 'sidebar',
   title: 'Details',
   panel: sharedPanel,
@@ -60,7 +60,7 @@ Pass those widget instances to deck.gl through the `widgets` prop on `Deck`.
 
 ## Related pages
 
-- [BoxWidget](/docs/modules/widgets/api-reference/box-widget)
-- [SidebarWidget](/docs/modules/widgets/api-reference/sidebar-widget)
-- [ModalWidget](/docs/modules/widgets/api-reference/modal-widget)
+- [BoxPanelWidget](/docs/modules/widgets/api-reference/box-widget)
+- [SidebarPanelWidget](/docs/modules/widgets/api-reference/sidebar-widget)
+- [ModalPanelWidget](/docs/modules/widgets/api-reference/modal-widget)
 - [FullScreenPanelWidget](/docs/modules/widgets/api-reference/full-screen-panel-widget)

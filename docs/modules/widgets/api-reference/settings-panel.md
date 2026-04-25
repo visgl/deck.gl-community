@@ -46,7 +46,7 @@ type SettingsPanelProps = {
 
 ## Usage
 
-Use `SettingsPanel` when a settings form should live inside `SidebarWidget`, `ModalWidget`, or `BoxWidget` instead of the standalone floating settings button.
+Use `SettingsPanel` when a settings form should live inside `SidebarPanelWidget`, `ModalPanelWidget`, or `BoxPanelWidget` instead of the standalone floating settings button.
 
 ## See Also
 

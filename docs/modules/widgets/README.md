@@ -49,7 +49,7 @@ For deck-independent mounting, use [`@deck.gl-community/panels`](/docs/modules/p
 
 See the [Panels developer guide](/docs/modules/panels/developer-guide/widget-panels) for the core panel composition concepts.
 
-The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxWidget`.
+The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxPanelWidget`.
 
 ### HTML overlays
 
@@ -88,7 +88,7 @@ map positions via the widget lifecycle.
 
 ## Advanced UI Widgets
 
-- [OmniBoxWidget](./api-reference/omni-box-widget.md)
+- [OmniBoxPanelWidget](./api-reference/omni-box-widget.md)
 - [ToastWidget](./api-reference/toast-widget.md)
 - [TimeMeasureWidget](./api-reference/time-measure-widget.md)
 
@@ -96,10 +96,10 @@ map positions via the widget lifecycle.
 
 Widgets that host reusable panel content:
 
-- [BoxWidget](./api-reference/box-widget.md)
+- [BoxPanelWidget](./api-reference/box-widget.md)
 - [FullScreenPanelWidget](./api-reference/full-screen-panel-widget.md)
-- [ModalWidget](./api-reference/modal-widget.md)
-- [SidebarWidget](./api-reference/sidebar-widget.md)
+- [ModalPanelWidget](./api-reference/modal-widget.md)
+- [SidebarPanelWidget](./api-reference/sidebar-widget.md)
 
 Use panel definitions from [`@deck.gl-community/panels`](/docs/modules/panels/README):
 

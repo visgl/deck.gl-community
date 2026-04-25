@@ -13,7 +13,7 @@ import {
   HtmlOverlayItem,
   HtmlOverlayWidget,
   HtmlTooltipWidget,
-  OmniBoxWidget,
+  OmniBoxPanelWidget,
   PanWidget,
   ResetViewWidget,
   TimeMeasureWidget,
@@ -82,7 +82,7 @@ const HIGHLIGHT_LABELS: Record<WidgetDocsExampleHighlight, string> = {
   'html-cluster-widget': 'HtmlClusterWidget',
   'html-overlay-item': 'HtmlOverlayItem',
   'html-tooltip-widget': 'HtmlTooltipWidget',
-  'omni-box-widget': 'OmniBoxWidget',
+  'omni-box-widget': 'OmniBoxPanelWidget',
   'toast-widget': 'ToastWidget',
   'time-measure-widget': 'TimeMeasureWidget'
 };
@@ -311,7 +311,7 @@ function buildAdvancedWidgets(
   switch (highlight) {
     case 'omni-box-widget':
       return [
-        new OmniBoxWidget({
+        new OmniBoxPanelWidget({
           placement: 'top-left',
           defaultOpen: true,
           placeholder: 'Search example points...',

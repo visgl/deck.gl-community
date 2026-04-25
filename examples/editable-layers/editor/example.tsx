@@ -23,7 +23,7 @@ import {
 } from '@deck.gl-community/editable-layers';
 import type {BooleanOperation} from '@deck.gl-community/editable-layers';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
-import {BoxWidget} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@deck.gl/widgets/stylesheet.css';
@@ -168,7 +168,7 @@ export function Example() {
 
   const infoWidget = useMemo(
     () =>
-      new BoxWidget({
+      new BoxPanelWidget({
         id: 'editor-info',
         placement: 'top-right',
         widthPx: 320,

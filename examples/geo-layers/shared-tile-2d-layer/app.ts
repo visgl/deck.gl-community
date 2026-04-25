@@ -12,7 +12,7 @@ import {
   StatsPanel
 } from '../../../modules/panels/src';
 import {
-  BoxWidget,
+  BoxPanelWidget,
 } from '../../../modules/widgets/src';
 import {SharedTile2DLayer, TileGridLayer} from '../../../modules/geo-layers/src';
 import {SharedTileset2D} from '../../../modules/geo-layers/src/tileset';
@@ -413,7 +413,7 @@ export function mountSharedTile2DLayerExample(
   const infoWidget =
     options.showInfoWidget === false
       ? null
-      : new BoxWidget({
+      : new BoxPanelWidget({
           id: 'shared-tile-2d-layer-info',
           placement: 'top-left',
           widthPx: mode === 'compact' ? 286 : 340,

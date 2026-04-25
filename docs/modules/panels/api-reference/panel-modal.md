@@ -63,4 +63,4 @@ type PanelModalProps = PanelContainerProps & {
 - Accepts either a full panel container description or a single panel.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.
-- Use `ModalWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.
+- Use `ModalPanelWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.

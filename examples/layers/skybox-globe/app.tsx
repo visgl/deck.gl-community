@@ -13,7 +13,7 @@ import {
   type SettingsState
 } from '../../../modules/panels/src';
 import {
-  BoxWidget
+  BoxPanelWidget
 } from '../../../modules/widgets/src';
 import {SkyboxLayer} from '../../../modules/layers/src';
 import {TYCHO_CUBEMAP} from '../skybox-assets/cubemap';
@@ -84,7 +84,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
     } as SettingsState
   };
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'skybox-globe-info',
     placement: 'top-left',
     widthPx: 340,

@@ -50,8 +50,8 @@ See the [Standalone Widgets example](../../examples/widgets/standalone-widgets) 
 
 For the deck-facing panel widget APIs, see the [Widget Panels example](../../examples/widgets/widget-panels), which combines:
 
-- `SidebarWidget` for persistent controls
-- `ModalWidget` for tabbed secondary panels
-- `BoxWidget` for static summary cards
+- `SidebarPanelWidget` for persistent controls
+- `ModalPanelWidget` for tabbed secondary panels
+- `BoxPanelWidget` for static summary cards
 - `ToolbarWidget` for compact action and toggle controls
 - reusable panel definitions imported from `@deck.gl-community/panels`

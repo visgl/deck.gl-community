@@ -12,7 +12,7 @@ import {
   type SettingsState
 } from '../../../modules/panels/src';
 import {
-  BoxWidget
+  BoxPanelWidget
 } from '../../../modules/widgets/src';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
@@ -199,7 +199,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
     basemapLoaded: false,
     lastError: null
   };
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'basemap-map-view-info',
     placement: 'top-left',
     widthPx: 360,

@@ -14,7 +14,7 @@ import {
   type SettingsState
 } from '@deck.gl-community/panels';
 import {
-  BoxWidget
+  BoxPanelWidget
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -131,7 +131,7 @@ export function mountWildForestExample(
   const controlsWidget =
     options.showControlsWidget === false
       ? null
-      : new BoxWidget({
+      : new BoxPanelWidget({
           id: 'wild-forest-controls',
           placement: 'top-right',
           widthPx: 320,

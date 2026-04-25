@@ -6,15 +6,27 @@ import {WidgetContainerRenderer, asPanelContainer} from '../widget-panels/widget
 import type {WidgetContainer, WidgetPanel} from '../widget-panels/widget-containers';
 import type {JSX} from 'preact';
 
+/**
+ * Props for {@link PanelBox}.
+ */
 export type PanelBoxProps = PanelContainerProps & {
+  /** One pre-built container definition to render. */
   container?: WidgetContainer;
+  /** Convenience single-panel input converted into a container automatically. */
   panel?: WidgetPanel;
+  /** Placement anchor used when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
+  /** Optional header title shown above the panel content. */
   title?: string;
+  /** Preferred box width in pixels. */
   widthPx?: number;
+  /** Whether the header toggles the open state. */
   collapsible?: boolean;
+  /** Initial open state for uncontrolled usage. */
   defaultOpen?: boolean;
+  /** Controlled open state. */
   open?: boolean;
+  /** Callback fired when the open state changes. */
   onOpenChange?: (open: boolean) => void;
 };
 
@@ -87,6 +99,9 @@ function PanelBoxView({
   );
 }
 
+/**
+ * Fixed-size standalone panel container for compact, always-available content.
+ */
 export class PanelBox extends PanelContainer<PanelBoxProps> {
   static defaultProps: Required<PanelBoxProps> = {
     ...PanelContainer.defaultProps,

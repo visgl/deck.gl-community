@@ -57,12 +57,12 @@ onEvent(
 
 ## Usage
 
-Use `WidgetHost` when you want to reuse `BoxWidget`, `SidebarWidget`, `ModalWidget`,
+Use `WidgetHost` when you want to reuse `BoxPanelWidget`, `SidebarPanelWidget`, `ModalPanelWidget`,
 `ToolbarWidget`, `ToastWidget`, and similar DOM-oriented widgets outside deck.gl's
 canvas lifecycle.
 
 ```ts
-import {BoxWidget, MarkdownPanel, WidgetHost} from '@deck.gl-community/widgets';
+import {BoxPanelWidget, MarkdownPanel, WidgetHost} from '@deck.gl-community/widgets';
 
 const host = new WidgetHost({
   parentElement: document.getElementById('app') as HTMLElement
@@ -70,7 +70,7 @@ const host = new WidgetHost({
 
 host.setProps({
   widgets: [
-    new BoxWidget({
+    new BoxPanelWidget({
       id: 'summary',
       title: 'Summary',
       collapsible: false,

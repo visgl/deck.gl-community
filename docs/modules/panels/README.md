@@ -15,9 +15,9 @@ theming, and application-managed UI state such as toast notifications.
 
 For deck-facing wrappers, use [`@deck.gl-community/widgets`](/docs/modules/widgets/README):
 
-- [BoxWidget](/docs/modules/widgets/api-reference/box-widget)
-- [ModalWidget](/docs/modules/widgets/api-reference/modal-widget)
-- [SidebarWidget](/docs/modules/widgets/api-reference/sidebar-widget)
+- [BoxPanelWidget](/docs/modules/widgets/api-reference/box-widget)
+- [ModalPanelWidget](/docs/modules/widgets/api-reference/modal-widget)
+- [SidebarPanelWidget](/docs/modules/widgets/api-reference/sidebar-widget)
 - [FullScreenPanelWidget](/docs/modules/widgets/api-reference/full-screen-panel-widget)
 
 :::caution

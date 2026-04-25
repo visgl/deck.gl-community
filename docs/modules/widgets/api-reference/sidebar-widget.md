@@ -1,6 +1,6 @@
 import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
 
-# SidebarWidget
+# SidebarPanelWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
@@ -8,13 +8,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 <WidgetPanelsLiveExample highlight="sidebar-widget" />
 
-`SidebarWidget` renders a slide-over panel anchored to the left or right edge of the deck overlay.
+`SidebarPanelWidget` renders a slide-over panel anchored to the left or right edge of the deck overlay.
 
 ## Usage
 
 ```ts
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
-import {SidebarWidget} from '@deck.gl-community/widgets';
+import {SidebarPanelWidget} from '@deck.gl-community/widgets';
 
 const inspectorPanel = new ColumnPanel({
   id: 'inspector',
@@ -28,22 +28,22 @@ const inspectorPanel = new ColumnPanel({
   }
 });
 
-const widget = new SidebarWidget({
+const widget = new SidebarPanelWidget({
   id: 'inspector-widget',
   panel: inspectorPanel,
   side: 'right'
 });
 ```
 
-Use `SidebarWidget` for persistent controls, inspector panels, or other UI that should stay reachable while the user continues interacting with the visualization.
+Use `SidebarPanelWidget` for persistent controls, inspector panels, or other UI that should stay reachable while the user continues interacting with the visualization.
 
-Import panel definitions from `@deck.gl-community/panels` and pass them to `SidebarWidget`
+Import panel definitions from `@deck.gl-community/panels` and pass them to `SidebarPanelWidget`
 through `panel` or `container`.
 
 ## Props
 
 ```ts
-type SidebarWidgetProps = WidgetProps & {
+type SidebarPanelWidgetProps = WidgetProps & {
   icon?: string;
   container?: WidgetContainer;
   panel?: WidgetPanel;

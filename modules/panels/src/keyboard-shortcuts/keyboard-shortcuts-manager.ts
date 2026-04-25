@@ -25,15 +25,24 @@ export class KeyboardShortcutsManager {
   private shortcuts: KeyboardShortcut[] = [];
   eventManager: KeyboardShortcutEventManager;
 
+  /**
+   * Creates a shortcut manager bound to one event-manager style source.
+   */
   constructor(eventManager: KeyboardShortcutEventManager, shortcuts: KeyboardShortcut[]) {
     this.eventManager = eventManager;
     this.shortcuts = shortcuts;
   }
 
+  /**
+   * Starts listening for forwarded `keydown` events.
+   */
   start() {
     this.eventManager.on('keydown', this._handleKeyDown);
   }
 
+  /**
+   * Stops listening for forwarded `keydown` events.
+   */
   stop() {
     this.eventManager.off('keydown', this._handleKeyDown);
   }
@@ -52,14 +61,23 @@ export class KeyboardShortcutsManager {
 export class KeyboardShortcutsManagerDocument {
   private shortcuts: KeyboardShortcut[] = [];
 
+  /**
+   * Creates a shortcut manager that listens directly on `document`.
+   */
   constructor(shortcuts: KeyboardShortcut[]) {
     this.shortcuts = shortcuts;
   }
 
+  /**
+   * Starts listening for `keydown` events on `document`.
+   */
   start() {
     document.addEventListener('keydown', this._handleKeyDown);
   }
 
+  /**
+   * Stops listening for `keydown` events on `document`.
+   */
   stop() {
     document.removeEventListener('keydown', this._handleKeyDown);
   }

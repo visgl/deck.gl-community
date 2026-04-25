@@ -11,7 +11,7 @@ import {
   type SettingsState
 } from '@deck.gl-community/panels';
 import {
-  BoxWidget
+  BoxPanelWidget
 } from '@deck.gl-community/widgets';
 import {ViewMode, DrawPolygonMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
 import maplibregl from 'maplibre-gl';
@@ -112,7 +112,7 @@ export function mountGettingStartedExample(
   const controlsWidget =
     options.showControlsWidget === false
       ? null
-      : new BoxWidget({
+      : new BoxPanelWidget({
           id: 'getting-started-controls',
           placement: 'top-left',
           widthPx: 320,

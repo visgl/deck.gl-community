@@ -1,6 +1,6 @@
 import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
 
-# ModalWidget
+# ModalPanelWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
@@ -8,13 +8,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 <WidgetPanelsLiveExample highlight="modal-widget" />
 
-`ModalWidget` renders a deck.gl widget trigger that opens a centered overlay panel.
+`ModalPanelWidget` renders a deck.gl widget trigger that opens a centered overlay panel.
 
 ## Usage
 
 ```ts
 import {MarkdownPanel, TabbedPanel} from '@deck.gl-community/panels';
-import {ModalWidget} from '@deck.gl-community/widgets';
+import {ModalPanelWidget} from '@deck.gl-community/widgets';
 
 const helpPanel = new TabbedPanel({
   id: 'help',
@@ -28,22 +28,22 @@ const helpPanel = new TabbedPanel({
   }
 });
 
-const widget = new ModalWidget({
+const widget = new ModalPanelWidget({
   id: 'help-widget',
   panel: helpPanel,
   triggerLabel: 'Help'
 });
 ```
 
-Use `ModalWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.
+Use `ModalPanelWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.
 
-Import panel definitions from `@deck.gl-community/panels` and pass them to `ModalWidget`
+Import panel definitions from `@deck.gl-community/panels` and pass them to `ModalPanelWidget`
 through `panel` or `container`.
 
 ## Props
 
 ```ts
-type ModalWidgetProps = WidgetProps & {
+type ModalPanelWidgetProps = WidgetProps & {
   icon?: string;
   container?: WidgetContainer;
   panel?: WidgetPanel;

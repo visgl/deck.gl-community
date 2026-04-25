@@ -6,18 +6,33 @@ import {WidgetContainerRenderer, asPanelContainer} from '../widget-panels/widget
 import type {WidgetContainer, WidgetPanel} from '../widget-panels/widget-containers';
 import type {JSX} from 'preact';
 
+/**
+ * Props for {@link PanelSidebar}.
+ */
 export type PanelSidebarProps = PanelContainerProps & {
+  /** One pre-built container definition to render. */
   container?: WidgetContainer;
+  /** Convenience single-panel input converted into a container automatically. */
   panel?: WidgetPanel;
+  /** Edge from which the sidebar opens. */
   side?: 'left' | 'right';
+  /** Preferred sidebar width in pixels. */
   widthPx?: number;
+  /** Placement anchor used for the trigger shell when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
+  /** Optional header title shown above the sidebar content. */
   title?: string;
+  /** Initial open state for uncontrolled usage. */
   defaultOpen?: boolean;
+  /** Controlled open state. */
   open?: boolean;
+  /** Callback fired when the open state changes. */
   onOpenChange?: (open: boolean) => void;
+  /** Label used for the trigger affordance. */
   triggerLabel?: string;
+  /** Whether the trigger affordance should be hidden. */
   hideTrigger?: boolean;
+  /** Whether to render the compact side-handle button style. */
   button?: boolean;
 };
 
@@ -146,6 +161,9 @@ function PanelSidebarView({
   );
 }
 
+/**
+ * Edge-attached panel container with an optional side handle for open/close control.
+ */
 export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
   static defaultProps: Required<PanelSidebarProps> = {
     ...PanelContainer.defaultProps,

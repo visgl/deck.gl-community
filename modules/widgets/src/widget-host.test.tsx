@@ -1,10 +1,10 @@
 /** @jsxImportSource preact */
 import {afterEach, describe, expect, it} from 'vitest';
 
-import {BoxWidget} from './widget-panels/box-widget';
+import {BoxPanelWidget} from './widget-panels/box-widget';
 import {MarkdownPanel, TabbedPanel} from './widget-panels/widget-containers';
-import {ModalWidget} from './widget-panels/modal-widget';
-import {SidebarWidget} from './widget-panels/sidebar-widget';
+import {ModalPanelWidget} from './widget-panels/modal-widget';
+import {SidebarPanelWidget} from './widget-panels/sidebar-widget';
 import {ToolbarWidget} from './widget-panels/toolbar-widget';
 import {WidgetHost} from './widget-host';
 
@@ -28,7 +28,7 @@ describe('WidgetHost', () => {
 
     host.setProps({
       widgets: [
-        new BoxWidget({
+        new BoxPanelWidget({
           id: 'box',
           placement: 'top-left',
           title: 'Summary',
@@ -40,7 +40,7 @@ describe('WidgetHost', () => {
           collapsible: false,
           open: true
         }),
-        new SidebarWidget({
+        new SidebarPanelWidget({
           id: 'sidebar',
           panel: new MarkdownPanel({
             id: 'sidebar-panel',
@@ -51,7 +51,7 @@ describe('WidgetHost', () => {
           open: true,
           button: true
         }),
-        new ModalWidget({
+        new ModalPanelWidget({
           id: 'modal',
           title: 'Modal',
           defaultOpen: true,
@@ -93,7 +93,7 @@ describe('WidgetHost', () => {
   it('reconciles widgets by id and updates an existing mounted instance', () => {
     const root = createHostRoot();
     const host = new WidgetHost({parentElement: root});
-    const initialWidget = new BoxWidget({
+    const initialWidget = new BoxPanelWidget({
       id: 'box',
       title: 'Summary',
       panel: new MarkdownPanel({
@@ -107,7 +107,7 @@ describe('WidgetHost', () => {
 
     host.setProps({widgets: [initialWidget]});
 
-    const updatedWidget = new BoxWidget({
+    const updatedWidget = new BoxPanelWidget({
       id: 'box',
       title: 'Summary',
       panel: new MarkdownPanel({
@@ -154,7 +154,7 @@ describe('WidgetHost', () => {
 
     host.setProps({
       widgets: [
-        new BoxWidget({
+        new BoxPanelWidget({
           id: 'box',
           panel: new MarkdownPanel({
             id: 'panel',
@@ -184,7 +184,7 @@ describe('WidgetHost', () => {
       sidebarOpen: false
     };
 
-    const boxWidget = new BoxWidget({
+    const boxWidget = new BoxPanelWidget({
       id: 'box',
       placement: 'top-left',
       title: 'Summary',
@@ -197,7 +197,7 @@ describe('WidgetHost', () => {
       open: true
     });
 
-    const sidebarWidget = new SidebarWidget({
+    const sidebarWidget = new SidebarPanelWidget({
       id: 'sidebar',
       title: 'Controls',
       button: true,

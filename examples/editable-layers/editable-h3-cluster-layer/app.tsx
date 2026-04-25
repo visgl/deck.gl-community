@@ -18,7 +18,7 @@ import {
   ToolbarWidget,
   type ToolbarWidgetItem
 } from '@deck.gl-community/panels';
-import {BoxWidget} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 
 import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data';
@@ -114,7 +114,7 @@ export function mountEditableH3ClusterLayerExample(container: HTMLElement): () =
     style: {margin: '16px 16px 0 0'}
   });
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'editable-h3-info',
     placement: 'bottom-right',
     widthPx: 320,
