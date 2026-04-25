@@ -10,10 +10,10 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `AccordeonPanel` wraps multiple child panels into one collapsible accordion panel.
 
-## Import
+## Usage
 
 ```ts
-import {AccordeonPanel, type AccordeonPanelProps} from '@deck.gl-community/widgets';
+import {AccordeonPanel, type AccordeonPanelProps} from '@deck.gl-community/panels';
 ```
 
 ## Props
@@ -39,4 +39,4 @@ Use `AccordeonPanel` when a single widget panel should expand into several colla
 ## Remarks
 
 - Normalizes an object map of child panels into insertion-order accordion sections.
-- Exposes one outer `WidgetPanel` that can be passed into `BoxWidget`, `ModalWidget`, or `SidebarWidget`.
+- Exposes one outer `WidgetPanel` that can be passed into `BoxPanelWidget`, `ModalPanelWidget`, or `SidebarPanelWidget`.

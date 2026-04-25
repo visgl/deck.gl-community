@@ -1,7 +1,8 @@
 import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView, type PickingInfo} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import * as L from 'leaflet';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -47,7 +48,7 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
       '© <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>, © <a href="http://www.openstreetmap.org/about/" target="_blank">OpenStreetMap</a> contributors',
   }).addTo(map);
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'leaflet-info',
     placement: 'top-right',
     widthPx: 320,

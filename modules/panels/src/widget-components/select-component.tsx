@@ -1,3 +1,4 @@
+/* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
 import {createPortal} from 'preact/compat';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks';
@@ -5,16 +6,16 @@ import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hook
 import type {SettingValue} from '../lib/settings/settings';
 import type {JSX} from 'preact';
 
-export type SelectWidgetComponentOption = {
+export type SelectComponentOption = {
   label: string;
   value: SettingValue;
 };
 
-export type SelectWidgetComponentProps = {
+export type SelectComponentProps = {
   id: string;
   label: string;
   value: SettingValue;
-  options: SelectWidgetComponentOption[];
+  options: SelectComponentOption[];
   onValueChange: (nextValue: SettingValue) => void;
 };
 
@@ -119,10 +120,7 @@ function stopEventPropagation(event: Event): void {
   }
 }
 
-function findSelectedOptionIndex(
-  options: SelectWidgetComponentOption[],
-  value: SettingValue
-): number {
+function findSelectedOptionIndex(options: SelectComponentOption[], value: SettingValue): number {
   return options.findIndex((option) => option.value === value);
 }
 
@@ -134,13 +132,7 @@ function getNextOptionIndex(currentIndex: number, delta: -1 | 1, optionCount: nu
   return (resolvedIndex + delta + optionCount) % optionCount;
 }
 
-export function SelectWidgetComponent({
-  id,
-  label,
-  value,
-  options,
-  onValueChange
-}: SelectWidgetComponentProps) {
+export function SelectComponent({id, label, value, options, onValueChange}: SelectComponentProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeOptionIndex, setActiveOptionIndex] = useState(() =>
     findSelectedOptionIndex(options, value)
@@ -226,7 +218,7 @@ export function SelectWidgetComponent({
     optionRefs.current[activeOptionIndex]?.scrollIntoView?.({block: 'nearest'});
   }, [activeOptionIndex, isOpen]);
 
-  const selectOption = (option: SelectWidgetComponentOption) => {
+  const selectOption = (option: SelectComponentOption) => {
     onValueChange(option.value);
     setIsOpen(false);
   };

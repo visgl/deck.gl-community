@@ -20,7 +20,8 @@ import {
   type GeoJsonEditModeConstructor,
   type GeoJsonEditModeType
 } from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import type {FeatureCollection} from 'geojson';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -106,7 +107,7 @@ export function mountNoMapExample(container: HTMLElement): () => void {
     style: {margin: '16px 0 0 16px'}
   });
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'no-map-info',
     placement: 'top-right',
     widthPx: 320,

@@ -13,7 +13,6 @@ import {
 } from '../../src/utils/utils';
 import type {
   Position,
-  FeatureOf,
   LineString as LineStringType,
   Point as PointType,
   Viewport

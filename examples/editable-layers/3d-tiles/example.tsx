@@ -22,7 +22,8 @@ import {
   EditorToolbarWidget
 } from '@deck.gl-community/editable-layers';
 import type {BooleanOperation} from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -91,7 +92,7 @@ export function Example() {
 
   const infoWidget = useMemo(
     () =>
-      new BoxWidget({
+      new BoxPanelWidget({
         id: 'editor-info',
         placement: 'top-right',
         widthPx: 320,

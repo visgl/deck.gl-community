@@ -3,8 +3,8 @@
 This repository contains a collection of "community supported" modules for [deck.gl](https://deck.gl).
 deck.gl-community was originally created to provide a home for a number of excellent deck.gl add-on modules that no longer have active maintainers, with the hope that it would allow the community to keep using these add-ons, and that community contributions would help keep them alive.
 
-:::danger
-The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
+:::caution
+The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
 
 ## Scope

@@ -17,6 +17,9 @@ module.exports = getESLintConfig({
       jest: true,
       es2020: true
     },
+    settings: {
+      'import/core-modules': ['@deck.gl-community/panels']
+    },
     overrides: [
       {
         files: ['modules/*/src/**/*.{ts,tsx}', 'modules/*/test/**/*.{ts,tsx}'],
@@ -26,6 +29,7 @@ module.exports = getESLintConfig({
           // TODO: Gradually enable, at least for non-test code.
           '@typescript-eslint/no-redundant-type-constituents': 0,
           'import/no-extraneous-dependencies': 0,
+          'import/no-unresolved': 0,
           'import/no-named-as-default': ['warn'],
           'import/named': ['warn'],
           '@typescript-eslint/no-unsafe-argument': 0,

@@ -4,12 +4,8 @@
 
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {
-  BoxWidget,
-  MarkdownPanel,
-  PanWidget,
-  ZoomRangeWidget
-} from '@deck.gl-community/widgets';
+import {MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget, PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -66,7 +62,7 @@ export function mountPanAndZoomControlsExample(container: HTMLElement): () => vo
         maxZoom: 6,
         step: 0.1
       }),
-      new BoxWidget({
+      new BoxPanelWidget({
         id: 'pan-and-zoom-info',
         placement: 'top-right',
         widthPx: 320,

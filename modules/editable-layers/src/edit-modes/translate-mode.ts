@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import clone from '@turf/clone';
+import turfClone from '@turf/clone';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {
   FeatureCollection,
@@ -146,7 +146,7 @@ export class TranslateMode extends GeoJsonEditMode {
       const direction = coordinateSystem.bearing(startDragPoint, currentPoint);
 
       const movedFeatures = this._geometryBeforeTranslate.features.map((feature) =>
-        translateFromCenter(clone(feature), distanceMoved, direction, coordinateSystem)
+        translateFromCenter(turfClone(feature), distanceMoved, direction, coordinateSystem)
       );
 
       for (let i = 0; i < selectedIndexes.length; i++) {

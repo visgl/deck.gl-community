@@ -8,43 +8,51 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 <WidgetPanelsLiveExample highlight="widget-panels" size="tall" />
 
-`@deck.gl-community/widgets` includes a small composition model for building generic panel-based widgets.
+Panel widgets lets you use panels and components from the
+[`@deck.gl-community/panels`](/docs/modules/panels/README) module in deck.gl applications.
 
-## Core concepts
+- `@deck.gl-community/panels` provides a generic panel-based UI.
+- `@deck.gl-community/widgets` enables you to use those panel definitions through
+  convenient deck.gl wrapper widgets.
 
-- `WidgetPanel`: one titled unit of content with optional theme override and disabled/keep-mounted flags.
-- `WidgetContainer`: a serialized description of how one or more panels should be arranged.
+## Usage
+
+Import panels from [`@deck.gl-community/panels`](/docs/modules/panels/README).
+Pass those panel definitions to deck.gl widgets from `@deck.gl-community/widgets`.
 
 ## Container widgets
 
 These are the deck.gl widgets that consume `WidgetPanel` and `WidgetContainer` values:
 
-- [BoxWidget](../api-reference/box-widget.md)
-- [FullScreenPanelWidget](../api-reference/full-screen-panel-widget.md)
-- [ModalWidget](../api-reference/modal-widget.md)
-- [SidebarWidget](../api-reference/sidebar-widget.md)
+| Widget                                                                | Purpose                                                        |
+| --------------------------------------------------------------------- | -------------------------------------------------------------- |
+| [BoxPanelWidget](../api-reference/box-widget.md)                      | Static panel content anchored in a deck.gl widget corner.      |
+| [FullScreenPanelWidget](../api-reference/full-screen-panel-widget.md) | A large inset panel layout that occupies most of the viewport. |
+| [ModalPanelWidget](../api-reference/modal-widget.md)                  | On-demand panel content shown in a centered overlay.           |
+| [SidebarPanelWidget](../api-reference/sidebar-widget.md)              | Persistent panel content attached to the left or right edge.   |
 
-## Container Panels
+## Panel definitions
 
-- [AccordeonPanel](../api-reference/accordeon-panel.md)
-- [TabbedPanel](../api-reference/tabbed-panel.md)
-- [ColumnPanel](../api-reference/column-panel.md)
+Use [`@deck.gl-community/panels`](/docs/modules/panels/README) for panel composition:
 
-## Panels
-
-- [CustomPanel](../api-reference/custom-panel.md)
-- [MarkdownPanel](../api-reference/markdown-panel.md)
-- [StatsPanel](../api-reference/stats-panel.md)
-- [SettingsPanel](../api-reference/settings-panel.md)
-- [KeyboardShortcutsPanel](../api-reference/keyboard-shortcuts-panel.md)
-- [TextEditorPanel](../api-reference/text-editor-panel.md)
+- [Using with deck.gl](/docs/modules/panels/developer-guide/using-with-deck-gl)
+- [Leaf Panels](/docs/modules/panels/api-reference/custom-panel)
+- [Composite Panels](/docs/modules/panels/api-reference/accordeon-panel)
+- [Panel Containers](/docs/modules/panels/api-reference/panel-container)
 
 ## Composition patterns
 
-- Use `AccordeonPanel` when you want a stack of collapsible sections.
-- Use `TabbedPanel` when several panels share the same footprint and only one should be visible at a time.
-- Use `ColumnPanel` when all child panels should remain visible in order.
-- Use `MarkdownPanel` for small descriptive content without mounting your own renderer.
-- Use `StatsPanel` for compact probe.gl stats tables inside an existing panel layout.
-- Use `CustomPanel` when content must be rendered imperatively into a DOM host.
-- Use `TextEditorPanel` for Monaco-backed JSON or plaintext editing within a panel layout.
+- Use `BoxPanelWidget` for compact summaries or status cards.
+- Use `SidebarPanelWidget` for persistent controls or inspectors.
+- Use `ModalPanelWidget` when panel content should open on demand.
+- Use `FullScreenPanelWidget` when one panel layout should temporarily take over the viewport.
+- Build the panel content itself in `@deck.gl-community/panels`, then reuse the same definitions across multiple widget wrappers.
+
+## Renderer selection
+
+When a surface needs to switch between WebGPU and WebGL while keeping a reusable luma device alive, use the widgets package's renderer-selection APIs:
+
+- [`DeviceManager`](../api-reference/device-manager.md) owns shared backend state, cached devices, and canvas reparenting.
+- [`DeviceTabsWidget`](../api-reference/device-tabs-widget.md) provides a deck.gl widget UI for switching the active backend.
+
+This backend-selection layer is separate from panel composition, but it fits naturally beside panel widgets when an application needs both a control surface and a managed render device.

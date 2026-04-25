@@ -4,9 +4,14 @@
 
 import {beforeAll, expect, it, vi} from 'vitest';
 
-vi.mock('../src/widget-panels/text-editor-panel', () => ({
-  TextEditorPanel: class TextEditorPanel {}
-}));
+vi.mock('@deck.gl-community/panels', () => {
+  return {
+    PanelBox: class PanelBox {},
+    PanelModal: class PanelModal {},
+    PanelSidebar: class PanelSidebar {},
+    PanelFullScreen: class PanelFullScreen {}
+  };
+});
 
 let Widgets: typeof import('../src/index');
 
@@ -30,30 +35,38 @@ it('exports HtmlTooltipWidget', () => {
   expect(Widgets.HtmlTooltipWidget).toBeDefined();
 });
 
-it('exports BoxWidget', () => {
-  expect(Widgets.BoxWidget).toBeDefined();
+it('exports BoxPanelWidget', () => {
+  expect(Widgets.BoxPanelWidget).toBeDefined();
+});
+
+it('exports DeviceManager', () => {
+  expect(Widgets.DeviceManager).toBeDefined();
+});
+
+it('exports DeviceTabsWidget', () => {
+  expect(Widgets.DeviceTabsWidget).toBeDefined();
 });
 
 it('exports FullScreenPanelWidget', () => {
   expect(Widgets.FullScreenPanelWidget).toBeDefined();
 });
 
-it('exports ModalWidget', () => {
-  expect(Widgets.ModalWidget).toBeDefined();
+it('exports ModalPanelWidget', () => {
+  expect(Widgets.ModalPanelWidget).toBeDefined();
 });
 
-it('exports SidebarWidget', () => {
-  expect(Widgets.SidebarWidget).toBeDefined();
+it('exports SidebarPanelWidget', () => {
+  expect(Widgets.SidebarPanelWidget).toBeDefined();
 });
 
-it('exports ToolbarWidget', () => {
-  expect(Widgets.ToolbarWidget).toBeDefined();
+it('exports BoxWidget alias', () => {
+  expect(Widgets.BoxWidget).toBe(Widgets.BoxPanelWidget);
 });
 
-it('exports TextEditorPanel', () => {
-  expect(Widgets.TextEditorPanel).toBeDefined();
+it('exports ModalWidget alias', () => {
+  expect(Widgets.ModalWidget).toBe(Widgets.ModalPanelWidget);
 });
 
-it('exports WidgetContainerRenderer', () => {
-  expect(Widgets.WidgetContainerRenderer).toBeDefined();
+it('exports SidebarWidget alias', () => {
+  expect(Widgets.SidebarWidget).toBe(Widgets.SidebarPanelWidget);
 });

@@ -10,9 +10,7 @@
     {
       "type": "category",
       "label": "Developer Guide",
-      "items": [
-        "modules/widgets/developer-guide/widget-panels"
-      ]
+      "items": ["modules/widgets/developer-guide/widget-panels"]
     },
     {
       "type": "category",
@@ -26,8 +24,7 @@
             "modules/widgets/api-reference/pan-widget",
             "modules/widgets/api-reference/reset-view-widget",
             "modules/widgets/api-reference/y-zoom-widget",
-            "modules/widgets/api-reference/zoom-range-widget",
-            "modules/widgets/api-reference/toolbar-widget"
+            "modules/widgets/api-reference/zoom-range-widget"
           ]
         },
         {
@@ -44,8 +41,9 @@
           "type": "category",
           "label": "Advanced UI Widgets",
           "items": [
+            "modules/widgets/api-reference/device-manager",
+            "modules/widgets/api-reference/device-tabs-widget",
             "modules/widgets/api-reference/omni-box-widget",
-            "modules/widgets/api-reference/toast-widget",
             "modules/widgets/api-reference/time-measure-widget"
           ]
         },
@@ -57,27 +55,6 @@
             "modules/widgets/api-reference/full-screen-panel-widget",
             "modules/widgets/api-reference/modal-widget",
             "modules/widgets/api-reference/sidebar-widget"
-          ]
-        },
-        {
-          "type": "category",
-          "label": "Panels",
-          "items": [
-            "modules/widgets/api-reference/custom-panel",
-            "modules/widgets/api-reference/keyboard-shortcuts-panel",
-            "modules/widgets/api-reference/markdown-panel",
-            "modules/widgets/api-reference/stats-panel",
-            "modules/widgets/api-reference/settings-panel",
-            "modules/widgets/api-reference/text-editor-panel"
-          ]
-        },
-        {
-          "type": "category",
-          "label": "Container Panels",
-          "items": [
-            "modules/widgets/api-reference/accordeon-panel",
-            "modules/widgets/api-reference/column-panel",
-            "modules/widgets/api-reference/tabbed-panel"
           ]
         }
       ]

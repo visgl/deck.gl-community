@@ -1,3 +1,4 @@
+/* eslint react/no-unknown-property: 0 */
 /** @jsxImportSource preact */
 import {Widget} from '@deck.gl/core';
 import {render} from 'preact';

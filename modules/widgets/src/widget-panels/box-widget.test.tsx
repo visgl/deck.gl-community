@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import {afterEach, describe, expect, it} from 'vitest';
 
-import {BoxWidget} from './box-widget';
+import {BoxPanelWidget} from './box-widget';
 
 import type {WidgetPanel} from './widget-containers';
 
@@ -15,11 +15,11 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('BoxWidget', () => {
+describe('BoxPanelWidget', () => {
   it('renders title and direct panel content', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new BoxWidget({
+    const widget = new BoxPanelWidget({
       id: 'box-widget-basic',
       title: 'Widget Panels',
       panel
@@ -34,7 +34,7 @@ describe('BoxWidget', () => {
   it('normalizes width configuration and placement props', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new BoxWidget({
+    const widget = new BoxPanelWidget({
       id: 'box-widget-width',
       panel,
       placement: 'bottom-right',

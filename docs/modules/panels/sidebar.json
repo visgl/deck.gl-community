@@ -1,0 +1,59 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/panels",
+  "items": [
+    "modules/panels/README",
+    {
+      "type": "category",
+      "label": "Developer Guide",
+      "items": [
+        "modules/panels/developer-guide/widget-panels",
+        "modules/panels/developer-guide/using-stand-alone",
+        "modules/panels/developer-guide/using-with-deck-gl"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Panels API",
+      "items": [
+        "modules/panels/api-reference/panel-manager",
+        "modules/panels/api-reference/panel-theme",
+        "modules/panels/api-reference/toast-manager",
+        "modules/panels/api-reference/keyboard-shortcuts-manager"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Leaf Panels",
+      "items": [
+        "modules/panels/api-reference/binary-data-panel",
+        "modules/panels/api-reference/custom-panel",
+        "modules/panels/api-reference/keyboard-shortcuts-panel",
+        "modules/panels/api-reference/markdown-panel",
+        "modules/panels/api-reference/stats-panel",
+        "modules/panels/api-reference/settings-panel",
+        "modules/panels/api-reference/text-editor-panel"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Composite Panels",
+      "items": [
+        "modules/panels/api-reference/accordeon-panel",
+        "modules/panels/api-reference/column-panel",
+        "modules/panels/api-reference/tabbed-panel"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Panel Containers",
+      "items": [
+        "modules/panels/api-reference/panel-box",
+        "modules/panels/api-reference/panel-modal",
+        "modules/panels/api-reference/panel-sidebar",
+        "modules/panels/api-reference/panel-full-screen",
+        "modules/panels/api-reference/panel-container"
+      ]
+    }
+  ]
+}

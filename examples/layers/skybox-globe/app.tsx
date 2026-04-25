@@ -6,12 +6,14 @@ import {Deck, _GlobeView, type PickingInfo} from '@deck.gl/core';
 import {ArcLayer, ScatterplotLayer} from '@deck.gl/layers';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {
-  BoxWidget,
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
   type SettingsSchema,
   type SettingsState
+} from '../../../modules/panels/src';
+import {
+  BoxPanelWidget
 } from '../../../modules/widgets/src';
 import {SkyboxLayer} from '../../../modules/layers/src';
 import {TYCHO_CUBEMAP} from '../skybox-assets/cubemap';
@@ -82,7 +84,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
     } as SettingsState
   };
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'skybox-globe-info',
     placement: 'top-left',
     widthPx: 340,

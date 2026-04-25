@@ -1,6 +1,6 @@
 import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
-# OmniBoxWidget
+# OmniBoxPanelWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
@@ -8,13 +8,13 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 <WidgetLiveExample highlight="omni-box-widget" />
 
-`OmniBoxWidget` is a deck.gl HTML widget that renders a one-line omnibox input with an autocomplete dropdown.
+`OmniBoxPanelWidget` is a deck.gl HTML widget that renders a one-line omnibox input with an autocomplete dropdown.
 
 ## Import
 
 ```ts
 import {
-  OmniBoxWidget,
+  OmniBoxPanelWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
   type OmniBoxRenderOptionArgs
@@ -47,7 +47,7 @@ export type OmniBoxRenderOptionArgs = {
 ## Props
 
 ```ts
-type OmniBoxWidgetProps = WidgetProps & {
+type OmniBoxPanelWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
   placeholder?: string;
   minQueryLength?: number;
@@ -65,7 +65,7 @@ type OmniBoxWidgetProps = WidgetProps & {
 ## Usage
 
 ```ts
-const widget = new OmniBoxWidget({
+const widget = new OmniBoxPanelWidget({
   placeholder: 'Search blocks…',
   defaultOpen: true,
   minQueryLength: 1,

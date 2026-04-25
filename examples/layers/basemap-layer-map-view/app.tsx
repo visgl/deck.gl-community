@@ -5,12 +5,14 @@
 import {Deck, MapView, _GlobeView} from '@deck.gl/core';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {
-  BoxWidget,
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
   type SettingsSchema,
   type SettingsState
+} from '../../../modules/panels/src';
+import {
+  BoxPanelWidget
 } from '../../../modules/widgets/src';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
@@ -197,7 +199,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
     basemapLoaded: false,
     lastError: null
   };
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'basemap-map-view-info',
     placement: 'top-left',
     widthPx: 360,

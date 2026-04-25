@@ -8,7 +8,6 @@ import {
   CylinderGeometry,
   ConeGeometry,
   SphereGeometry,
-  IcosahedronGeometry,
   Matrix4
 } from 'three';
 

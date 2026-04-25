@@ -5,12 +5,12 @@
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import maplibregl from 'maplibre-gl';
 import {h} from 'preact';
+import {MarkdownPanel} from '@deck.gl-community/panels';
 
 import {
-  BoxWidget,
+  BoxPanelWidget,
   HtmlOverlayItem,
   HtmlOverlayWidget,
-  MarkdownPanel,
   type HtmlOverlayWidgetProps
 } from '@deck.gl-community/widgets';
 import {INITIAL_COORDS, INITIAL_VIEW_STATE} from './constants';
@@ -52,7 +52,7 @@ export function mountOverlaysExample(container: HTMLElement): () => void {
   container.replaceChildren(rootElement);
 
   const overlayWidget = new HtmlOverlayWidget<HtmlOverlayWidgetProps>({id: 'wikipedia-overlay'});
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'wikipedia-overlays-info',
     placement: 'top-right',
     widthPx: 320,

@@ -7,9 +7,7 @@
     {
       "type": "category",
       "label": "Components",
-      "items": [
-        "modules/react/api-reference/viewport"
-      ]
+      "items": ["modules/react/api-reference/widget-panel", "modules/react/api-reference/viewport"]
     }
   ]
 }

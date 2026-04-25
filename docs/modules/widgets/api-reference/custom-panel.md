@@ -10,10 +10,10 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `CustomPanel` hosts imperative DOM content inside the panel composition model.
 
-## Import
+## Usage
 
 ```ts
-import {CustomPanel, type CustomPanelProps} from '@deck.gl-community/widgets';
+import {CustomPanel, type CustomPanelProps} from '@deck.gl-community/panels';
 ```
 
 ## Props

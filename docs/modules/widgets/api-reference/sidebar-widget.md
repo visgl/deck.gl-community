@@ -1,6 +1,6 @@
 import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
 
-# SidebarWidget
+# SidebarPanelWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
@@ -8,18 +8,42 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 <WidgetPanelsLiveExample highlight="sidebar-widget" />
 
-`SidebarWidget` renders a slide-over panel anchored to the left or right edge of the deck overlay.
+`SidebarPanelWidget` renders a slide-over panel anchored to the left or right edge of the deck overlay.
 
-## Import
+## Usage
 
 ```ts
-import {SidebarWidget} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {SidebarPanelWidget} from '@deck.gl-community/widgets';
+
+const inspectorPanel = new ColumnPanel({
+  id: 'inspector',
+  title: 'Inspector',
+  panels: {
+    details: new MarkdownPanel({
+      id: 'details',
+      title: 'Details',
+      markdown: 'Persistent controls and context.'
+    })
+  }
+});
+
+const widget = new SidebarPanelWidget({
+  id: 'inspector-widget',
+  panel: inspectorPanel,
+  side: 'right'
+});
 ```
+
+Use `SidebarPanelWidget` for persistent controls, inspector panels, or other UI that should stay reachable while the user continues interacting with the visualization.
+
+Import panel definitions from `@deck.gl-community/panels` and pass them to `SidebarPanelWidget`
+through `panel` or `container`.
 
 ## Props
 
 ```ts
-type SidebarWidgetProps = WidgetProps & {
+type SidebarPanelWidgetProps = WidgetProps & {
   icon?: string;
   container?: WidgetContainer;
   panel?: WidgetPanel;
@@ -37,14 +61,9 @@ type SidebarWidgetProps = WidgetProps & {
 };
 ```
 
-
-## Usage
-
-Use `SidebarWidget` for persistent controls, inspector panels, or other UI that should stay reachable while the user continues interacting with the visualization.
-
 ## Remarks
 
-- Accepts either a full `container` description or a single `panel`.
+- Accepts either a full panel `container` description or a single `panel`.
 - Slides open from the selected edge while keeping the shell mounted for smooth animation.
 - Can render with a built-in handle trigger or stay externally controlled.
 - Stops pointer, mouse, touch, and wheel propagation so sidebar interactions do not leak into the deck canvas.

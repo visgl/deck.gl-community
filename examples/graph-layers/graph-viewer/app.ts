@@ -8,18 +8,20 @@ import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl
 import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
   AccordeonPanel,
-  BoxWidget,
-  SidebarWidget,
   CustomPanel,
   MarkdownPanel,
-  PanWidget,
   SettingsPanel,
   TextEditorPanel,
-  ZoomRangeWidget,
   type SettingsSchema,
   type SettingDescriptor,
   type SettingsState,
   type WidgetPanelRecord
+} from '@deck.gl-community/panels';
+import {
+  BoxPanelWidget,
+  SidebarPanelWidget,
+  PanWidget,
+  ZoomRangeWidget
 } from '@deck.gl-community/widgets';
 import {
   CollapsableD3DagLayout,
@@ -348,7 +350,7 @@ export function mountGraphViewerExample(
       syncWidgets();
     }
   };
-  const sidebarWidget = new SidebarWidget({
+  const sidebarWidget = new SidebarPanelWidget({
     id: 'graph-viewer-sidebar',
     placement: 'top-right',
     side: 'right',
@@ -369,7 +371,7 @@ export function mountGraphViewerExample(
   const boxWidget =
     options.showInfoWidget === false
       ? null
-      : new BoxWidget({
+      : new BoxPanelWidget({
           id: 'graph-viewer-box',
           placement: 'top-left',
           widthPx: 360,

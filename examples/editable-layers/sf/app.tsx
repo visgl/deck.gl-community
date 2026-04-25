@@ -9,11 +9,9 @@ import {
   EditableGeoJsonLayer,
   SelectionLayer
 } from '@deck.gl-community/editable-layers';
+import {ColumnPanel, CustomPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {
-  BoxWidget,
-  ColumnPanel,
-  CustomPanel,
-  MarkdownPanel
+  BoxPanelWidget
 } from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
@@ -95,7 +93,7 @@ export function mountSfExample(container: HTMLElement): () => void {
     selectionType: null
   };
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'sf-polygons-info',
     placement: 'top-left',
     widthPx: 320,

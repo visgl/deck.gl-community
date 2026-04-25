@@ -10,6 +10,7 @@
  */
 
 const layerDocs = require('../../docs/modules/layers/sidebar.json');
+const basemapLayerDocs = require('../../docs/modules/basemap-layers/sidebar.json');
 
 const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
 const timelineLayerDocs = require('../../docs/modules/timeline-layers/sidebar.json');
@@ -26,6 +27,7 @@ const leafletDocs = require('../../docs/modules/leaflet/sidebar.json');
 const reactDocs = require('../../docs/modules/react/sidebar.json');
 
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
+const panelsDocs = require('../../docs/modules/panels/sidebar.json');
 const widgetsDocs = require('../../docs/modules/widgets/sidebar.json');
 
 const sidebars = {
@@ -41,7 +43,7 @@ const sidebars = {
       label: 'Basemaps',
       className: 'heading_bold',
       collapsed: false,
-      items: [leafletDocs, bingMapsDocs]
+      items: [leafletDocs, bingMapsDocs, basemapLayerDocs]
     },
     {
       type: 'category',
@@ -69,7 +71,7 @@ const sidebars = {
         title: 'Components',
         description: 'deck.gl-community component packages and integrations.'
       },
-      items: [widgetsDocs, reactDocs, experimentalDocs]
+      items: [widgetsDocs, panelsDocs, reactDocs, experimentalDocs]
     }
   ]
 };

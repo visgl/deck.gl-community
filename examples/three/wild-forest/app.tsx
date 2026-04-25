@@ -6,13 +6,15 @@ import {Deck, type MapViewState} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/three';
 import type {CropConfig, Season, TreeType} from '@deck.gl-community/three';
 import {
-  BoxWidget,
   ColumnPanel,
   CustomPanel,
   MarkdownPanel,
   SettingsPanel,
   type SettingsSchema,
   type SettingsState
+} from '@deck.gl-community/panels';
+import {
+  BoxPanelWidget
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -129,7 +131,7 @@ export function mountWildForestExample(
   const controlsWidget =
     options.showControlsWidget === false
       ? null
-      : new BoxWidget({
+      : new BoxPanelWidget({
           id: 'wild-forest-controls',
           placement: 'top-right',
           widthPx: 320,

@@ -6,6 +6,7 @@ import {fileURLToPath} from 'url';
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const devModules = join(packageRoot, 'dev-modules');
 const testDir = join(packageRoot, 'test');
+const panelsModule = join(packageRoot, 'modules/panels/src');
 
 /** @type {OcularConfig} */
 const config = {
@@ -23,6 +24,9 @@ const config = {
   aliases: {
     // DEV MODULES
     'dev-modules': devModules,
+
+    // WORKSPACE MODULES
+    '@deck.gl-community/panels': panelsModule,
 
     // TEST
     test: testDir

@@ -6,12 +6,14 @@ import {Deck, OrthographicView, type OrthographicViewState} from '@deck.gl/core'
 import {LineLayer, TextLayer} from '@deck.gl/layers';
 import {MultiHorizonGraphLayer} from '@deck.gl-community/timeline-layers';
 import {
-  BoxWidget,
   MarkdownPanel,
   SettingsPanel,
-  SidebarWidget,
   type SettingsSchema,
   type SettingsState
+} from '@deck.gl-community/panels';
+import {
+  BoxWidget,
+  SidebarWidget
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';

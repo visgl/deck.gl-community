@@ -755,7 +755,8 @@ async function mountVerticalGridLayerExample(container) {
 
 async function mountInfoDeck(container, {title, markdown}) {
   const {Deck} = await import('@deck.gl/core');
-  const {BoxWidget, MarkdownPanel} = await import('@deck.gl-community/widgets');
+  const {MarkdownPanel} = await import('@deck.gl-community/panels');
+  const {BoxPanelWidget} = await import('@deck.gl-community/widgets');
   const rootElement = createRoot(container);
   rootElement.style.background = 'linear-gradient(135deg, #f8fafc 0%, #dbeafe 50%, #ecfeff 100%)';
 
@@ -766,7 +767,7 @@ async function mountInfoDeck(container, {title, markdown}) {
     parameters: {clearColor: [0.96, 0.98, 1, 1]},
     layers: [],
     widgets: [
-      new BoxWidget({
+      new BoxPanelWidget({
         id: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-docs-info`,
         placement: 'top-left',
         widthPx: 380,

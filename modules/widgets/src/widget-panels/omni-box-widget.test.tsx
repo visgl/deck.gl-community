@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 describe('OmniBoxWidget', () => {
-  it('uses deck widget theme CSS variables for the control row and dropdown', async () => {
+  it('uses deck widget theme CSS variables for the control row and dropdown', () => {
     const {root, cleanup} = renderWidget();
 
     const styles = root.querySelector('style');

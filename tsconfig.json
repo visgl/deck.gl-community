@@ -1,9 +1,6 @@
 {
   "ts-node": {
-    "include": [
-      "modules",
-      "test/modules"
-    ],
+    "include": ["modules", "test/modules"],
     // It is faster to skip typechecking. Remove if you want ts-node to do typechecking.
     "transpileOnly": true
   },
@@ -31,6 +28,7 @@
       "@deck.gl-community/leaflet": ["./modules/leaflet/src"],
       "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],
       "@deck.gl-community/experimental": ["./modules/experimental/src"],
+      "@deck.gl-community/panels": ["./modules/panels/src"],
       "@deck.gl-community/widgets": ["./modules/widgets/src"],
       "@deck.gl-community/layers": ["./modules/layers/src"],
       "@deck.gl-community/geo-layers": ["./modules/geo-layers/src"],
@@ -67,15 +65,6 @@
     "strict": false,
     "noImplicitAny": false
   },
-  "include": [
-    "modules",
-    "dev",
-    "test",
-    "examples",
-    "scripts"
-  ],
-  "exclude": [
-    "**/node_modules",
-    "**/dist"
-  ]
+  "include": ["modules", "dev", "test", "examples", "scripts"],
+  "exclude": ["**/node_modules", "**/dist"]
 }

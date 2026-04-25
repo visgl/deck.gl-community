@@ -4,14 +4,14 @@
 
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {MapboxOverlay} from '@deck.gl/mapbox';
+import {MarkdownPanel} from '@deck.gl-community/panels';
 import {
-  BoxWidget,
+  BoxPanelWidget,
   HtmlClusterWidget,
   HtmlOverlayItem,
   HtmlOverlayWidget,
   HtmlTooltipWidget,
-  type HtmlOverlayWidgetProps,
-  MarkdownPanel
+  type HtmlOverlayWidgetProps
 } from '@deck.gl-community/widgets';
 import {h} from 'preact';
 import maplibregl from 'maplibre-gl';
@@ -187,7 +187,7 @@ export function mountHtmlOverlaysExample(container: HTMLElement): () => void {
     zIndex: 6,
     getTooltip: (info) => buildTooltip(info.object as TooltipDatum | null)
   });
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'html-overlay-summary',
     placement: 'top-right',
     widthPx: 340,

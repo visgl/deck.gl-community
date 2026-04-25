@@ -1,6 +1,6 @@
 import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
 
-# ModalWidget
+# ModalPanelWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
@@ -8,18 +8,42 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 <WidgetPanelsLiveExample highlight="modal-widget" />
 
-`ModalWidget` renders a deck.gl widget trigger that opens a centered overlay panel.
+`ModalPanelWidget` renders a deck.gl widget trigger that opens a centered overlay panel.
 
-## Import
+## Usage
 
 ```ts
-import {ModalWidget} from '@deck.gl-community/widgets';
+import {MarkdownPanel, TabbedPanel} from '@deck.gl-community/panels';
+import {ModalPanelWidget} from '@deck.gl-community/widgets';
+
+const helpPanel = new TabbedPanel({
+  id: 'help',
+  title: 'Help',
+  panels: {
+    overview: new MarkdownPanel({
+      id: 'overview',
+      title: 'Overview',
+      markdown: 'Secondary content that opens on demand.'
+    })
+  }
+});
+
+const widget = new ModalPanelWidget({
+  id: 'help-widget',
+  panel: helpPanel,
+  triggerLabel: 'Help'
+});
 ```
+
+Use `ModalPanelWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.
+
+Import panel definitions from `@deck.gl-community/panels` and pass them to `ModalPanelWidget`
+through `panel` or `container`.
 
 ## Props
 
 ```ts
-type ModalWidgetProps = WidgetProps & {
+type ModalPanelWidgetProps = WidgetProps & {
   icon?: string;
   container?: WidgetContainer;
   panel?: WidgetPanel;
@@ -35,14 +59,9 @@ type ModalWidgetProps = WidgetProps & {
 };
 ```
 
-
-## Usage
-
-Use `ModalWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.
-
 ## Remarks
 
-- Accepts either a full `container` description or a single `panel`.
+- Accepts either a full panel `container` description or a single `panel`.
 - Can render with the built-in icon trigger or be controlled externally.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.

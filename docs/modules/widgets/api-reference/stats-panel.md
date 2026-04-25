@@ -10,10 +10,10 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `StatsPanel` renders a compact table from a [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `@probe.gl/stats`.
 
-## Import
+## Usage
 
 ```ts
-import {StatsPanel, type StatsPanelProps} from '@deck.gl-community/widgets';
+import {StatsPanel, type StatsPanelProps} from '@deck.gl-community/panels';
 import {Stats} from '@probe.gl/stats';
 ```
 
@@ -34,7 +34,8 @@ type StatsPanelProps = {
 ## Usage
 
 ```ts
-import {BoxWidget, StatsPanel} from '@deck.gl-community/widgets';
+import {StatsPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {Stats} from '@probe.gl/stats';
 
 const stats = new Stats({
@@ -55,7 +56,7 @@ const panel = new StatsPanel({
   }
 });
 
-const widget = new BoxWidget({
+const widget = new BoxPanelWidget({
   id: 'tile-stats-box',
   title: 'Shared Tileset',
   panel

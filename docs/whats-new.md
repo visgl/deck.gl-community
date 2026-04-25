@@ -4,6 +4,15 @@
 
 Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
+### `@deck.gl-community/panels` (NEW module)
+
+A new module for deck-independent panel composition and small application UI.
+
+- `PanelManager` - mount compatible panel-managed UI into a plain `HTMLElement`
+- Panel/container composition APIs extracted into a dedicated package
+- Stand-alone documentation and examples for panel composition outside deck.gl
+- `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
+
 ## v9.3
 
 Released: April 15, 2026

@@ -10,7 +10,7 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `SettingsPanel` embeds the settings-schema UI inside the panel composition model.
 
-## Import
+## Usage
 
 ```ts
 import {
@@ -19,7 +19,7 @@ import {
   type SettingDescriptor,
   type SettingsSchema,
   type SettingsState
-} from '@deck.gl-community/widgets';
+} from '@deck.gl-community/panels';
 ```
 
 ## Props
@@ -46,7 +46,7 @@ type SettingsPanelProps = {
 
 ## Usage
 
-Use `SettingsPanel` when a settings form should live inside `SidebarWidget`, `ModalWidget`, or `BoxWidget` instead of the standalone floating settings button.
+Use `SettingsPanel` when a settings form should live inside `SidebarPanelWidget`, `ModalPanelWidget`, or `BoxPanelWidget` instead of the standalone floating settings button.
 
 ## See Also
 
@@ -54,6 +54,6 @@ Use `SettingsPanel` when a settings form should live inside `SidebarWidget`, `Mo
 
 ## Remarks
 
-- Reuses the shared schema-driven controls, but exposes them as a `WidgetPanel`.
+- Reuses the shared schema-driven controls inside the panel composition model.
 - Tracks section collapse state while the panel stays mounted.
 - Supports nested dot-path setting names and change descriptors in `onSettingsChange`.
