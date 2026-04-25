@@ -7,26 +7,33 @@ import {useEffectiveWidgetPanelThemeMode} from './widget-containers';
 import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
 import type {JSX} from 'preact';
 
+/** Default byte count rendered on each hex preview row. */
 const DEFAULT_ROW_BYTE_LENGTH = 8;
+/** Default preview cap used to avoid rendering very large binary files in full. */
 const DEFAULT_MAX_BYTE_LENGTH = 10_000;
 
-/** Props for {@link BinaryDataPanel}. */
+/**
+ * Props for {@link BinaryDataPanel}.
+ *
+ * `byteOffset` and `byteLength` first select the source range from `data`.
+ * `maxByteLength` then caps how many selected bytes are rendered.
+ */
 export type BinaryDataPanelProps = {
   /** Stable panel id used by parent containers. */
   id: string;
   /** Visible heading text for the panel. */
   title: string;
-  /** Binary data rendered by this panel. */
+  /** Binary data rendered by this panel as offset, hex, and optional ASCII rows. */
   data: ArrayBuffer | ArrayBufferView;
-  /** Byte offset, relative to `data`, where the preview starts. */
+  /** Byte offset, relative to `data`, where the preview starts. Defaults to `0`. */
   byteOffset?: number;
-  /** Maximum source byte length, before preview limiting, to include from `data`. */
+  /** Maximum source byte length, before preview limiting, to include from `data`. Defaults to all remaining bytes. */
   byteLength?: number;
-  /** Number of bytes rendered per row. Defaults to 8. */
+  /** Number of bytes rendered per row. Defaults to `8`. */
   rowByteLength?: number;
-  /** Maximum number of bytes rendered before omitting the remainder. Defaults to 10,000. */
+  /** Maximum number of bytes rendered before omitting the remainder. Defaults to `10_000`. */
   maxByteLength?: number;
-  /** If true, show printable ASCII characters below each byte. Defaults to true. */
+  /** If `true`, show printable ASCII characters below each byte. Defaults to `true`. */
   showAscii?: boolean;
   /** Optional class name applied to the outer panel content wrapper. */
   className?: string;
@@ -55,9 +62,13 @@ export class BinaryDataPanel implements WidgetPanel {
 }
 
 type BinaryPreview = {
+  /** Source range selected from the input bytes before preview limiting. */
   sourceBytes: Uint8Array;
+  /** Rendered prefix of `sourceBytes` after applying `maxByteLength`. */
   previewBytes: Uint8Array;
+  /** Effective input offset shown in the first rendered row. */
   byteOffset: number;
+  /** Effective row width after clamping invalid values to at least one byte. */
   rowByteLength: number;
 };
 
