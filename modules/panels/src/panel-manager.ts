@@ -18,6 +18,10 @@ const DEFAULT_PLACEMENT = 'top-left';
 const ROOT_CONTAINER_ID = 'root';
 
 type PanelPlacement = keyof typeof PLACEMENTS;
+type DeckLike = {
+  width?: number;
+  height?: number;
+};
 
 /**
  * Configuration for one standalone panel host.
@@ -294,7 +298,7 @@ export class PanelManager {
       return viewIdOrContainer;
     }
 
-    const containerId = viewIdOrContainer || ROOT_CONTAINER_ID;
+    const containerId: string = viewIdOrContainer || ROOT_CONTAINER_ID;
     let viewContainer = this.containers[containerId];
     if (!viewContainer) {
       const document = this.parentElement.ownerDocument;
@@ -320,8 +324,9 @@ export class PanelManager {
   }
 
   private _updateContainers() {
-    const canvasWidth = this.deck?.width ?? this.parentElement.clientWidth;
-    const canvasHeight = this.deck?.height ?? this.parentElement.clientHeight;
+    const deck = this.deck as DeckLike | null | undefined;
+    const canvasWidth = deck?.width ?? this.parentElement.clientWidth;
+    const canvasHeight = deck?.height ?? this.parentElement.clientHeight;
 
     for (const id in this.containers) {
       const viewport = this.lastViewports[id] || null;

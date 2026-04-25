@@ -28,7 +28,7 @@ class TestWidget extends PanelContainer<TestWidgetProps> {
   };
 
   className = 'deck-widget-test';
-  placement = TestWidget.defaultProps.placement;
+  placement: TestWidgetProps['placement'] = TestWidget.defaultProps.placement;
 
   constructor(props: Partial<TestWidgetProps> & Pick<TestWidgetProps, 'text'>) {
     super({...TestWidget.defaultProps, ...props});

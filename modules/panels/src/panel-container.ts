@@ -133,7 +133,8 @@ export abstract class PanelContainer<PropsT extends PanelContainerProps = PanelC
    * Internal mount hook used by standalone and deck hosts.
    */
   _onAdd(params: {deck: unknown; viewId: string | null}): HTMLDivElement {
-    return this.onAdd(params) ?? this.onCreateRootElement();
+    const rootElement = this.onAdd(params);
+    return rootElement ?? this.onCreateRootElement();
   }
 
   /**

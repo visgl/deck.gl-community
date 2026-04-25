@@ -12,13 +12,13 @@ import {
 
 function createStyleHost(): HTMLElement {
   const values = new Map<string, string>();
-  return {
+  return ({
     style: {
       setProperty: (name: string, value: string) => values.set(name, value),
       removeProperty: (name: string) => values.delete(name),
       getPropertyValue: (name: string) => values.get(name) ?? ''
     }
-  } as HTMLElement;
+  } as unknown) as HTMLElement;
 }
 
 describe('panel-theme', () => {
