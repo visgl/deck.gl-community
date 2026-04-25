@@ -1,5 +1,5 @@
 // test/editable-layers/event-handlers.spec.ts
-import {LayerContext, PickingInfo} from '@deck.gl/core';
+import type {PickingInfo} from '@deck.gl/core';
 import {test, expect, vi, beforeEach} from 'vitest';
 
 import type {

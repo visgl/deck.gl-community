@@ -4,7 +4,7 @@
 
 import {beforeAll, expect, it, vi} from 'vitest';
 
-vi.mock('@deck.gl-community/panels', async () => {
+vi.mock('@deck.gl-community/panels', () => {
   return {
     PanelBox: class PanelBox {},
     PanelModal: class PanelModal {},

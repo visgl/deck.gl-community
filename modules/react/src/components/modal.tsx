@@ -8,9 +8,9 @@
 
 import * as React from 'react';
 import Modal, {ModalProvider} from 'styled-react-modal';
-import styled from 'styled-components';
+import styledComponents from 'styled-components';
 
-export const Button = styled.button`
+export const Button = styledComponents.button`
   display: inline-block;
   color: #fff;
   background-color: rgb(90, 98, 94);
@@ -38,7 +38,7 @@ const StyledModal = Modal.styled`
   text-align: left;
 `;
 
-const Content = styled.div`
+const Content = styledComponents.div`
   position: relative;
   display: flex;
   flex-direction: column;
@@ -51,7 +51,7 @@ const Content = styled.div`
   outline: 0;
 `;
 
-const HeaderRow = styled.div`
+const HeaderRow = styledComponents.div`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
