@@ -10,10 +10,10 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `ColumnPanel` wraps multiple child panels into one vertically stacked panel.
 
-## Import
+## Usage
 
 ```ts
-import {ColumnPanel, type ColumnPanelProps} from '@deck.gl-community/widgets';
+import {ColumnPanel, type ColumnPanelProps} from '@deck.gl-community/panels';
 ```
 
 ## Props

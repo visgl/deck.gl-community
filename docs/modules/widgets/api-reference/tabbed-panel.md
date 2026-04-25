@@ -10,10 +10,10 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `TabbedPanel` wraps multiple child panels into one tabbed parent panel.
 
-## Import
+## Usage
 
 ```ts
-import {TabbedPanel, type TabbedPanelProps} from '@deck.gl-community/widgets';
+import {TabbedPanel, type TabbedPanelProps} from '@deck.gl-community/panels';
 ```
 
 ## Props

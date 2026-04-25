@@ -24,8 +24,7 @@
             "modules/widgets/api-reference/pan-widget",
             "modules/widgets/api-reference/reset-view-widget",
             "modules/widgets/api-reference/y-zoom-widget",
-            "modules/widgets/api-reference/zoom-range-widget",
-            "modules/widgets/api-reference/toolbar-widget"
+            "modules/widgets/api-reference/zoom-range-widget"
           ]
         },
         {
@@ -43,7 +42,6 @@
           "label": "Advanced UI Widgets",
           "items": [
             "modules/widgets/api-reference/omni-box-widget",
-            "modules/widgets/api-reference/toast-widget",
             "modules/widgets/api-reference/time-measure-widget"
           ]
         },

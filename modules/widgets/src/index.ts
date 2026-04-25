@@ -4,21 +4,6 @@
 
 export {PanWidget} from './graph-widgets/pan-widget';
 export type {PanWidgetProps} from './graph-widgets/pan-widget';
-export {
-  ToastWidget,
-  ToolbarWidget,
-  toastManager,
-  type ToastEntry,
-  type ToastKind,
-  type ToastRequest,
-  type ToastWidgetProps,
-  type ToolbarWidgetActionItem,
-  type ToolbarWidgetBadgeItem,
-  type ToolbarWidgetItem,
-  type ToolbarWidgetProps,
-  type ToolbarWidgetToggleGroupItem,
-  type ToolbarWidgetToggleOption
-} from '@deck.gl-community/panels';
 export {ZoomRangeWidget} from './graph-widgets/zoom-range-widget';
 export type {ZoomRangeWidgetProps} from './graph-widgets/zoom-range-widget';
 

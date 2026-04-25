@@ -8,14 +8,14 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 <WidgetLiveExample highlight="toolbar-widget" />
 
-A compact deck.gl widget for horizontal action buttons, single-select toggle groups, and read-only status badges.
+A compact stand-alone toolbar for horizontal action buttons, single-select toggle groups, and read-only status badges.
 
-Use it when an example or app needs a small control strip without building a custom React toolbar. `ToolbarWidget` is generic and lives in `@deck.gl-community/widgets`, unlike edit-mode-specific widgets from `@deck.gl-community/editable-layers`.
+Use it when an example or app needs a small control strip without building a custom React toolbar. Import it from `@deck.gl-community/panels`.
 
 ## Usage
 
 ```tsx
-import {ToolbarWidget} from '@deck.gl-community/widgets';
+import {ToolbarWidget, type ToolbarWidgetItem} from '@deck.gl-community/panels';
 
 const toolbar = new ToolbarWidget({
   placement: 'top-right',
@@ -49,7 +49,7 @@ const toolbar = new ToolbarWidget({
 - Type: `WidgetPlacement`
 - Default: `'top-right'`
 
-Where to position the toolbar within the deck widget overlay.
+Where to position the toolbar within the panel-managed overlay.
 
 ### `items`
 

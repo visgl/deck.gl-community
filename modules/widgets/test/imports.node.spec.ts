@@ -9,12 +9,7 @@ vi.mock('@deck.gl-community/panels', () => {
     PanelBox: class PanelBox {},
     PanelModal: class PanelModal {},
     PanelSidebar: class PanelSidebar {},
-    PanelFullScreen: class PanelFullScreen {},
-    ToolbarWidget: class ToolbarWidget {},
-    ToastWidget: class ToastWidget {},
-    KeyboardShortcutsManager: class KeyboardShortcutsManager {},
-    KeyboardShortcutsManagerDocument: class KeyboardShortcutsManagerDocument {},
-    toastManager: {}
+    PanelFullScreen: class PanelFullScreen {}
   };
 });
 
@@ -74,8 +69,4 @@ it('exports ModalWidget alias', () => {
 
 it('exports SidebarWidget alias', () => {
   expect(Widgets.SidebarWidget).toBe(Widgets.SidebarPanelWidget);
-});
-
-it('exports ToolbarWidget', () => {
-  expect(Widgets.ToolbarWidget).toBeDefined();
 });

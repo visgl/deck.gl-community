@@ -77,7 +77,6 @@ map positions via the widget lifecycle.
 - [ResetViewWidget](./api-reference/reset-view-widget.md)
 - [YZoomWidget](./api-reference/y-zoom-widget.md)
 - [ZoomRangeWidget](./api-reference/zoom-range-widget.md)
-- [ToolbarWidget](./api-reference/toolbar-widget.md)
 
 ## Overlay Widgets
 
@@ -89,8 +88,10 @@ map positions via the widget lifecycle.
 ## Advanced UI Widgets
 
 - [OmniBoxPanelWidget](./api-reference/omni-box-widget.md)
-- [ToastWidget](./api-reference/toast-widget.md)
 - [TimeMeasureWidget](./api-reference/time-measure-widget.md)
+
+Standalone UI such as `ToolbarWidget`, `ToastWidget`, and `toastManager` lives in
+[`@deck.gl-community/panels`](/docs/modules/panels/README).
 
 ## Panel Widgets
 

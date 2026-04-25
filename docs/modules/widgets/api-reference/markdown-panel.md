@@ -10,10 +10,10 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `MarkdownPanel` renders a small built-in Markdown subset inside a widget panel.
 
-## Import
+## Usage
 
 ```ts
-import {MarkdownPanel, type MarkdownPanelProps} from '@deck.gl-community/widgets';
+import {MarkdownPanel, type MarkdownPanelProps} from '@deck.gl-community/panels';
 ```
 
 ## Props

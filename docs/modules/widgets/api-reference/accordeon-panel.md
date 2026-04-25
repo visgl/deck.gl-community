@@ -10,10 +10,10 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `AccordeonPanel` wraps multiple child panels into one collapsible accordion panel.
 
-## Import
+## Usage
 
 ```ts
-import {AccordeonPanel, type AccordeonPanelProps} from '@deck.gl-community/widgets';
+import {AccordeonPanel, type AccordeonPanelProps} from '@deck.gl-community/panels';
 ```
 
 ## Props

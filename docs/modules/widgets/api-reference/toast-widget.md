@@ -8,18 +8,34 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 <WidgetLiveExample highlight="toast-widget" />
 
-`ToastWidget` is a deck.gl HTML widget that renders a compact toast stack in the deck overlay.
+`ToastWidget` renders a compact toast stack managed by `toastManager`.
 
-## Import
+## Usage
 
-```ts
+```tsx
 import {
+  PanelManager,
   ToastWidget,
   toastManager,
   type ToastEntry,
   type ToastKind,
   type ToastRequest
-} from '@deck.gl-community/widgets';
+} from '@deck.gl-community/panels';
+
+const manager = new PanelManager({
+  parentElement: document.getElementById('app') as HTMLElement
+});
+
+manager.setProps({
+  components: [new ToastWidget()]
+});
+
+toastManager.toast({
+  type: 'warning',
+  title: 'Build delayed',
+  message: 'Dependency graph refresh is still running',
+  key: 'build-status'
+});
 ```
 
 ## Types
@@ -43,8 +59,8 @@ export type ToastEntry = ToastRequest & {
 ## Props
 
 ```ts
-type ToastWidgetProps = WidgetProps & {
-  placement?: WidgetPlacement;
+type ToastWidgetProps = PanelContainerProps & {
+  placement?: PanelPlacement;
   showBorder?: boolean;
 };
 ```
@@ -54,21 +70,6 @@ Default props:
 - `id: 'toast'`
 - `placement: 'bottom-right'`
 - `showBorder: false`
-
-## Usage
-
-```ts
-new Deck({
-  widgets: [new ToastWidget()]
-});
-
-toastManager.toast({
-  type: 'warning',
-  title: 'Build delayed',
-  message: 'Dependency graph refresh is still running',
-  key: 'build-status'
-});
-```
 
 ## Related helper
 

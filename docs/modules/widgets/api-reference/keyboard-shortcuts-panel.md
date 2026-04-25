@@ -10,13 +10,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `KeyboardShortcutsPanel` renders a read-only keyboard-shortcuts panel that can be embedded inside a modal, sidebar, or info box.
 
-## Import
+## Usage
 
 ```ts
 import {
   KeyboardShortcutsPanel,
   type KeyboardShortcutsPanelProps
-} from '@deck.gl-community/widgets';
+} from '@deck.gl-community/panels';
 ```
 
 ## Props

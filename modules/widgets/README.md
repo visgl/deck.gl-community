@@ -53,5 +53,7 @@ For the deck-facing panel widget APIs, see the [Widget Panels example](../../exa
 - `SidebarPanelWidget` for persistent controls
 - `ModalPanelWidget` for tabbed secondary panels
 - `BoxPanelWidget` for static summary cards
-- `ToolbarWidget` for compact action and toggle controls
 - reusable panel definitions imported from `@deck.gl-community/panels`
+
+Standalone UI such as `ToolbarWidget`, `ToastWidget`, and `toastManager` is exported from
+`@deck.gl-community/panels`, not from this package.

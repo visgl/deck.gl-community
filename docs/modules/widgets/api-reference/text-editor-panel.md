@@ -10,10 +10,10 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `TextEditorPanel` lazily loads Monaco and renders one text editor inside a widget panel.
 
-## Import
+## Usage
 
 ```ts
-import {TextEditorPanel, type TextEditorPanelProps} from '@deck.gl-community/widgets';
+import {TextEditorPanel, type TextEditorPanelProps} from '@deck.gl-community/panels';
 ```
 
 ## Props

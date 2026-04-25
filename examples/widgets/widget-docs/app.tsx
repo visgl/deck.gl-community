@@ -6,6 +6,7 @@
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {ToastWidget, ToolbarWidget, toastManager} from '@deck.gl-community/panels';
 import {h, type VNode} from 'preact';
 import {
   HeapMemoryWidget,
@@ -13,15 +14,12 @@ import {
   HtmlOverlayItem,
   HtmlOverlayWidget,
   HtmlTooltipWidget,
-  OmniBoxPanelWidget,
+  OmniBoxWidget,
   PanWidget,
   ResetViewWidget,
   TimeMeasureWidget,
-  ToastWidget,
-  ToolbarWidget,
   YZoomWidget,
-  ZoomRangeWidget,
-  toastManager
+  ZoomRangeWidget
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -82,7 +80,7 @@ const HIGHLIGHT_LABELS: Record<WidgetDocsExampleHighlight, string> = {
   'html-cluster-widget': 'HtmlClusterWidget',
   'html-overlay-item': 'HtmlOverlayItem',
   'html-tooltip-widget': 'HtmlTooltipWidget',
-  'omni-box-widget': 'OmniBoxPanelWidget',
+  'omni-box-widget': 'OmniBoxWidget',
   'toast-widget': 'ToastWidget',
   'time-measure-widget': 'TimeMeasureWidget'
 };
@@ -311,7 +309,7 @@ function buildAdvancedWidgets(
   switch (highlight) {
     case 'omni-box-widget':
       return [
-        new OmniBoxPanelWidget({
+        new OmniBoxWidget({
           placement: 'top-left',
           defaultOpen: true,
           placeholder: 'Search example points...',
