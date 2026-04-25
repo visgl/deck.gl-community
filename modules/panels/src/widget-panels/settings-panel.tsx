@@ -11,7 +11,7 @@ import {
   resolveSettingValue,
   setValueAtPath
 } from '../lib/settings/settings';
-import {SelectWidgetComponent} from '../widget-components/select-widget-component';
+import {SelectComponent} from '../widget-components/select-component';
 
 import type {
   SettingDescriptor,
@@ -331,7 +331,7 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
     const normalizedOptions = (setting.options ?? []).map(normalizeOption);
 
     control = (
-      <SelectWidgetComponent
+      <SelectComponent
         id={inputId}
         value={value}
         label={label}

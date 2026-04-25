@@ -11,8 +11,8 @@ const {resolve} = require('path');
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'deck.gl-community',
-  tagline: 'Unofficial layers, basemaps and add-ons for deck.gl',
-  url: 'https://deck.gl-community',
+  tagline: 'Experimental layers, basemaps and add-ons for deck.gl',
+  url: 'https://visgl.github.io',
   baseUrl: '/deck.gl-community/', // process.env.STAGING ? '/deck.gl-community/' : '/',
   onBrokenLinks: 'throw',
   markdown: {
@@ -182,16 +182,29 @@ const config = {
                   }
                 }
               ]
+            },
+            // Modules using TypeScript `declare` class fields need allowDeclareFields
+            {
+              test: /\.[jt]sx?$/,
+              include: [resolve('../modules/three/src'), resolve('../modules/arrow-layers/src')],
+              use: [
+                {
+                  loader: require.resolve('babel-loader'),
+                  options: {
+                    babelrc: false,
+                    configFile: false,
+                    presets: [
+                      [
+                        require.resolve('@babel/preset-typescript'),
+                        {isTSX: true, allExtensions: true, allowDeclareFields: true}
+                      ]
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }
-      }
-    ],
-    [
-      resolve('./plugins/gallery-static-plugin'),
-      {
-        sourceDir: resolve('../examples/gallery'),
-        routeBase: '/gallery'
       }
     ],
     [
@@ -210,6 +223,13 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      image: 'images/og-preview.jpg',
+      metadata: [
+        {property: 'og:image:width', content: '1200'},
+        {property: 'og:image:height', content: '630'},
+        {property: 'og:image:type', content: 'image/jpeg'},
+        {name: 'twitter:card', content: 'summary_large_image'}
+      ],
       navbar: {
         title: 'deck.gl-community',
         logo: {
@@ -227,21 +247,6 @@ const config = {
             to: '/examples',
             position: 'left',
             label: 'Examples'
-          },
-          {
-            to: '/gallery',
-            position: 'left',
-            label: 'Gallery'
-          },
-          // {
-          //   to: '/showcase',
-          //   position: 'left',
-          //   label: 'Showcase'
-          // },
-          {
-            to: 'https://medium.com/vis-gl',
-            label: 'Blog',
-            position: 'left'
           },
           {
             href: 'https://github.com/visgl/deck.gl-community',

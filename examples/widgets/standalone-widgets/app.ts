@@ -2,28 +2,29 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {h, render} from 'preact';
 import {
+  PANEL_THEME_DARK,
+  PANEL_THEME_LIGHT,
+  applyPanelTheme,
   ColumnPanel,
   CustomPanel,
   MarkdownPanel,
+  PanelManager,
   TabbedPanel,
   ToastWidget,
   ToolbarWidget,
   WidgetContainerRenderer,
-  WidgetHost,
   asPanelContainer,
   toastManager
 } from '../../../modules/panels/src';
 
-import '@deck.gl/widgets/stylesheet.css';
-
 type PaletteName = 'lagoon' | 'sunset' | 'mono';
 type FocusName = 'overview' | 'alerts' | 'shipments';
+type ThemeName = 'light' | 'dark';
 
 type ExampleState = {
-  darkMode: boolean;
+  theme: ThemeName;
   palette: PaletteName;
   focus: FocusName;
 };
@@ -99,9 +100,10 @@ export function mountStandaloneWidgetsExample(container: HTMLElement): () => voi
   const rootElement = container.ownerDocument.createElement('div');
   const sceneElement = container.ownerDocument.createElement('div');
   const panelElement = container.ownerDocument.createElement('div');
+  const themeControlElement = container.ownerDocument.createElement('div');
   const footerElement = container.ownerDocument.createElement('div');
 
-  rootElement.append(sceneElement, panelElement, footerElement);
+  rootElement.append(sceneElement, panelElement, themeControlElement, footerElement);
   container.replaceChildren(rootElement);
 
   applyElementStyle(rootElement, {
@@ -142,9 +144,17 @@ export function mountStandaloneWidgetsExample(container: HTMLElement): () => voi
     color: 'rgba(15, 23, 42, 0.72)'
   });
 
-  const host = new WidgetHost({parentElement: rootElement});
+  applyElementStyle(themeControlElement, {
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    zIndex: '5',
+    pointerEvents: 'auto'
+  });
+
+  const host = new PanelManager({parentElement: rootElement});
   const state: ExampleState = {
-    darkMode: false,
+    theme: 'light',
     palette: 'lagoon',
     focus: 'overview'
   };
@@ -161,7 +171,7 @@ export function mountStandaloneWidgetsExample(container: HTMLElement): () => voi
     showBorder: true
   });
 
-  host.setProps({widgets: [toolbarWidget, toastWidget]});
+  host.setProps({components: [toolbarWidget, toastWidget]});
   sync();
 
   return () => {
@@ -172,15 +182,14 @@ export function mountStandaloneWidgetsExample(container: HTMLElement): () => voi
 
   function sync() {
     const palette = PALETTES[state.palette];
-    const themeVariables = state.darkMode ? DarkTheme : LightTheme;
+    const themeVariables = state.theme === 'dark' ? PANEL_THEME_DARK : PANEL_THEME_LIGHT;
 
-    applyElementStyle(rootElement, {
-      ...themeVariables,
-      background: palette.background
-    });
+    applyPanelTheme(rootElement, themeVariables);
+    applyElementStyle(rootElement, {background: palette.background});
+    renderThemeControl(themeControlElement, state, sync);
 
-    footerElement.textContent = `No Deck instance. Shared widget classes. DOM host only.`;
-    footerElement.style.color = state.darkMode
+    footerElement.textContent = `No Deck instance. Panel theme applied through @deck.gl-community/panels.`;
+    footerElement.style.color = state.theme === 'dark'
       ? 'rgba(226, 232, 240, 0.76)'
       : 'rgba(15, 23, 42, 0.72)';
 
@@ -217,10 +226,10 @@ export function mountStandaloneWidgetsExample(container: HTMLElement): () => voi
       {
         kind: 'action' as const,
         id: 'theme',
-        label: currentState.darkMode ? 'Light mode' : 'Dark mode',
-        active: currentState.darkMode,
+        label: currentState.theme === 'dark' ? 'Light mode' : 'Dark mode',
+        active: currentState.theme === 'dark',
         onClick: () => {
-          currentState.darkMode = !currentState.darkMode;
+          currentState.theme = currentState.theme === 'dark' ? 'light' : 'dark';
           rerender();
         }
       },
@@ -258,7 +267,7 @@ function buildDashboardPanel(state: ExampleState, sync: () => void) {
           '',
           `**Palette:** ${state.palette}`,
           '',
-          `**Theme:** ${state.darkMode ? 'Dark' : 'Light'}`,
+          `**Theme:** ${state.theme === 'dark' ? 'Dark' : 'Light'}`,
           '',
           FOCUS_NOTES[state.focus]
         ].join('\n')
@@ -276,18 +285,18 @@ function buildDashboardPanel(state: ExampleState, sync: () => void) {
             id: 'overview-tab',
             title: 'Overview',
             markdown: [
-              `The host is a plain \`HTMLElement\` wired through \`WidgetHost\`.`,
+              `The host is a plain \`HTMLElement\` wired through \`PanelManager\`.`,
               '',
-              `Current focus is **${FOCUS_LABELS[state.focus]}** with the **${state.palette}** palette.`,
+              `Current focus is **${FOCUS_LABELS[state.focus]}** with the **${state.palette}** palette and **${state.theme}** panel theme.`,
               '',
-              `The panel model is rendered directly through \`WidgetContainerRenderer\` outside deck.gl.`
+              `The panel theme is applied through \`applyPanelTheme(...)\` outside deck.gl.`
             ].join('\n')
           }),
           structure: new MarkdownPanel({
             id: 'structure-tab',
             title: 'Composition',
             markdown: [
-              `- \`WidgetHost\` mounts toolbar and toast widgets`,
+              `- \`PanelManager\` mounts toolbar and toast widgets`,
               `- \`ColumnPanel\` groups reusable panel content`,
               `- \`TabbedPanel\` still works without a Deck instance`,
               `- toolbar callbacks update local app state and trigger re-rendering`
@@ -354,6 +363,66 @@ function renderPaletteControls(rootElement: HTMLElement, state: ExampleState, sy
       button.onclick = null;
     }
   };
+}
+
+function renderThemeControl(rootElement: HTMLElement, state: ExampleState, sync: () => void) {
+  const document = rootElement.ownerDocument;
+  const wrapper = document.createElement('div');
+  const label = document.createElement('div');
+  const buttonRow = document.createElement('div');
+
+  applyElementStyle(wrapper, {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    background: 'var(--menu-background)',
+    color: 'var(--menu-text)',
+    boxShadow: 'var(--menu-shadow)',
+    border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.35))',
+    minWidth: '172px'
+  });
+
+  label.textContent = 'Panel theme';
+  applyElementStyle(label, {
+    fontSize: '12px',
+    fontWeight: '700',
+    lineHeight: '1.2',
+    color: 'var(--button-text)'
+  });
+
+  applyElementStyle(buttonRow, {
+    display: 'flex',
+    gap: '8px'
+  });
+
+  for (const themeName of ['light', 'dark'] as const) {
+    const button = document.createElement('button');
+    const isActive = state.theme === themeName;
+    button.type = 'button';
+    button.textContent = themeName === 'light' ? 'Light' : 'Dark';
+    applyElementStyle(button, {
+      flex: '1 1 0',
+      border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.35))',
+      borderRadius: '8px',
+      padding: '8px 10px',
+      cursor: 'pointer',
+      fontSize: '12px',
+      fontWeight: '700',
+      background: isActive ? 'var(--button-background)' : 'transparent',
+      color: 'var(--button-text)',
+      boxShadow: isActive ? 'var(--button-shadow)' : 'none'
+    });
+    button.onclick = () => {
+      state.theme = themeName;
+      sync();
+    };
+    buttonRow.append(button);
+  }
+
+  wrapper.append(label, buttonRow);
+  rootElement.replaceChildren(wrapper);
 }
 
 function renderScene(sceneElement: HTMLElement, state: ExampleState) {

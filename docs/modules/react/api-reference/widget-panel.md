@@ -79,7 +79,7 @@ export function DocsCallout() {
         new MarkdownPanel({
           id: 'summary',
           title: 'Summary',
-          markdown: 'Rendered inside React without a WidgetHost.'
+          markdown: 'Rendered inside React without a PanelManager.'
         })
       }
       themeMode="light"

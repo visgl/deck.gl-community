@@ -98,18 +98,8 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/leaflet',
-      items: ['leaflet/get-started']
-    },
-    {
-      type: 'doc',
-      label: 'Scripting gallery',
-      id: 'gallery'
+      items: ['leaflet/get-started', 'leaflet/scripting']
     }
-    // {
-    //   type: 'doc',
-    //   label: 'Playground',
-    //   id: "playground"
-    // },
   ]
 };
 

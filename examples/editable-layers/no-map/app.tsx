@@ -20,7 +20,8 @@ import {
   type GeoJsonEditModeConstructor,
   type GeoJsonEditModeType
 } from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxWidget} from '@deck.gl-community/widgets';
 import type {FeatureCollection} from 'geojson';
 
 import '@deck.gl/widgets/stylesheet.css';

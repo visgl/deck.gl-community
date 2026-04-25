@@ -4,10 +4,10 @@ This package bundles widgets that integrate with deck.gl's built-in widget syste
 
 Alongside classic navigation and overlay widgets, the package also exports deck-facing panel wrappers for assembling reusable sidebars, modals, and summary cards around a deck.gl canvas.
 
-Standalone panel composition, `WidgetHost`, `ToolbarWidget`, and `ToastWidget` now live in [`@deck.gl-community/panels`](/docs/modules/panels/README). This package re-exports those APIs during the transition, but new code should import them from `panels`.
+Panel definitions and standalone mounting live in [`@deck.gl-community/panels`](/docs/modules/panels/README). Import panels and panel containers from `panels`, then pass them to the panel widgets in this package.
 
-:::danger
-The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
+:::caution
+The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
 
 ## Installation
@@ -45,7 +45,7 @@ The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) show
 
 The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the panel composition APIs with a persistent sidebar, a tabbed modal, and a static info box built from shared panel definitions.
 
-The [Standalone Widgets example](/examples/widgets/standalone-widgets) shows the `panels` runtime mounted into plain HTML through `WidgetHost`, with no deck.gl runtime instance.
+For deck-independent mounting, use [`@deck.gl-community/panels`](/docs/modules/panels/README) and the [Standalone Widgets example](/examples/widgets/standalone-widgets).
 
 See the [Panels developer guide](/docs/modules/panels/developer-guide/widget-panels) for the core panel composition concepts.
 
@@ -101,28 +101,9 @@ Widgets that host reusable panel content:
 - [ModalWidget](./api-reference/modal-widget.md)
 - [SidebarWidget](./api-reference/sidebar-widget.md)
 
-## Compatibility Re-exports
+Use panel definitions from [`@deck.gl-community/panels`](/docs/modules/panels/README):
 
-These APIs now live in `@deck.gl-community/panels` and are re-exported here for compatibility:
-
-- [CustomPanel](./api-reference/custom-panel.md)
-- [KeyboardShortcutsPanel](./api-reference/keyboard-shortcuts-panel.md)
-- [MarkdownPanel](./api-reference/markdown-panel.md)
-- [StatsPanel](./api-reference/stats-panel.md)
-- [SettingsPanel](./api-reference/settings-panel.md)
-- [TextEditorPanel](./api-reference/text-editor-panel.md)
-
-## Container Panels
-
-- [AccordeonPanel](./api-reference/accordeon-panel.md)
-- [ColumnPanel](./api-reference/column-panel.md)
-- [TabbedPanel](./api-reference/tabbed-panel.md)
-
-## Related helpers
-
-- [WidgetHost](./api-reference/widget-host.md)
-
-Several widgets wrap helper libraries rather than owning their own state model:
-
-- `KeyboardShortcutsManager`
-- `ToastManager`
+- [Using with deck.gl](/docs/modules/panels/developer-guide/using-with-deck-gl)
+- [Leaf Panels](/docs/modules/panels/api-reference/custom-panel)
+- [Composite Panels](/docs/modules/panels/api-reference/accordeon-panel)
+- [Panel Containers](/docs/modules/panels/api-reference/panel-container)

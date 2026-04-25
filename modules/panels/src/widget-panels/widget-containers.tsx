@@ -10,7 +10,7 @@ import {
   useState
 } from 'preact/hooks';
 
-import {DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 
 import type {ComponentChildren, JSX} from 'preact';
 
@@ -754,7 +754,7 @@ function resolveWidgetPanelThemeMode(
  * Builds the inline CSS variable scope for one resolved panel theme mode.
  */
 function getWidgetPanelThemeScopeStyle(mode: WidgetPanelThemeMode): JSX.CSSProperties {
-  const themeVariables = mode === 'dark' ? DarkTheme : LightTheme;
+  const themeVariables = mode === 'dark' ? PANEL_THEME_DARK : PANEL_THEME_LIGHT;
   return {...themeVariables} as JSX.CSSProperties;
 }
 

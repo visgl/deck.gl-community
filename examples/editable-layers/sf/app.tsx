@@ -9,11 +9,9 @@ import {
   EditableGeoJsonLayer,
   SelectionLayer
 } from '@deck.gl-community/editable-layers';
+import {ColumnPanel, CustomPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {
-  BoxWidget,
-  ColumnPanel,
-  CustomPanel,
-  MarkdownPanel
+  BoxWidget
 } from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';

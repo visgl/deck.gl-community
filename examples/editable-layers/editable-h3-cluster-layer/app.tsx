@@ -13,12 +13,12 @@ import {
   type EditModeTrayWidgetModeOption
 } from '@deck.gl-community/editable-layers';
 import {
-  BoxWidget,
   ColumnPanel,
   MarkdownPanel,
   ToolbarWidget,
   type ToolbarWidgetItem
-} from '@deck.gl-community/widgets';
+} from '@deck.gl-community/panels';
+import {BoxWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 
 import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data';

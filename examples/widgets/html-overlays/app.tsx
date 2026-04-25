@@ -4,14 +4,14 @@
 
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {MapboxOverlay} from '@deck.gl/mapbox';
+import {MarkdownPanel} from '@deck.gl-community/panels';
 import {
   BoxWidget,
   HtmlClusterWidget,
   HtmlOverlayItem,
   HtmlOverlayWidget,
   HtmlTooltipWidget,
-  type HtmlOverlayWidgetProps,
-  MarkdownPanel
+  type HtmlOverlayWidgetProps
 } from '@deck.gl-community/widgets';
 import {h} from 'preact';
 import maplibregl from 'maplibre-gl';

@@ -1,4 +1,4 @@
-import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 # TabbedPanel
 
@@ -6,11 +6,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<WidgetPanelsLiveExample highlight="tabbed-panel" />
+<PanelLiveExample highlight="tabbed-panel" />
 
 `TabbedPanel` wraps multiple child panels into one tabbed parent panel.
 
-## Import
+## Usage
+
+Use `TabbedPanel` when several panels share the same footprint and only one should be visible at a time.
 
 ```ts
 import {TabbedPanel, type TabbedPanelProps} from '@deck.gl-community/panels';
@@ -20,24 +22,19 @@ import {TabbedPanel, type TabbedPanelProps} from '@deck.gl-community/panels';
 
 ```ts
 type TabbedPanelProps = {
-  panels: Record<string, WidgetPanel>;
+  panels: Record<string, Panel>;
   id?: string;
   title?: string;
   tabListLayout?: 'wrap' | 'scroll';
-  theme?: WidgetPanelTheme;
+  theme?: 'inherit' | 'light' | 'dark' | 'invert';
 };
 ```
 
-
-## Usage
-
-Use `TabbedPanel` when several panels share the same footprint and only one should be visible at a time.
-
 ## See Also
 
-- [Widget Panels](../developer-guide/widget-panels.md)
+- [Using Panels](../developer-guide/widget-panels.md)
 
 ## Remarks
 
-- Exposes one outer `WidgetPanel` whose body is a tabbed switcher of child panels.
+- Produces one composite panel whose body is a tabbed switcher of child panels.
 - Supports wrapped or horizontally scrolling tab lists.

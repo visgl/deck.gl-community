@@ -10,15 +10,11 @@ import {Stats} from '@probe.gl/stats';
 import {render} from 'preact';
 import {
   AccordeonPanel,
-  BoxWidget,
   ColumnPanel,
   CustomPanel,
-  FullScreenPanelWidget,
   KeyboardShortcutsPanel,
   MarkdownPanel,
-  ModalWidget,
   SettingsPanel,
-  SidebarWidget,
   StatsPanel,
   TabbedPanel,
   TextEditorPanel,
@@ -28,6 +24,12 @@ import {
   type WidgetContainer,
   WidgetContainerRenderer,
   type WidgetPanel
+} from '@deck.gl-community/panels';
+import {
+  BoxWidget,
+  FullScreenPanelWidget,
+  ModalWidget,
+  SidebarWidget
 } from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -887,6 +889,9 @@ export function mountWidgetPanelsDocsExample(
   if (highlight === 'widget-panels') {
     return mountWidgetPanelsDocsCompositionExample(container, highlight);
   }
+  if (highlight === 'sidebar-widget') {
+    return mountWidgetPanelsDocsSidebarExample(container, highlight);
+  }
   if (highlight === 'box-widget') {
     return mountWidgetPanelsDocsBoxExample(container, highlight);
   }
@@ -1034,6 +1039,73 @@ function mountWidgetPanelsDocsCompositionExample(
       open: state.isSidebarOpen
     });
     renderDocsModalPreview(modalRootElement, buildModalPanel(state, handlers, highlight));
+  }
+}
+
+function mountWidgetPanelsDocsSidebarExample(
+  container: HTMLElement,
+  highlight: WidgetPanelsExampleHighlight
+): () => void {
+  const rootElement = container.ownerDocument.createElement('div');
+  const sidebarRootElement = container.ownerDocument.createElement('div');
+  rootElement.className = 'widget-panels-docs-example deck-widget-container';
+  applyElementStyle(rootElement, DOCS_EXAMPLE_ROOT_STYLE);
+  applyElementStyle(sidebarRootElement, DOCS_EXAMPLE_WIDGET_LAYER_STYLE);
+  rootElement.append(sidebarRootElement);
+  container.replaceChildren(rootElement);
+  const cleanupThemeWidget = renderDocsThemeWidget(rootElement);
+
+  const state: WidgetPanelsExampleState = {
+    settings: cloneSettings(INITIAL_SETTINGS),
+    isModalOpen: false,
+    isSidebarOpen: true
+  };
+
+  const handlers: WidgetPanelsExampleHandlers = {
+    setSettings(nextSettings) {
+      state.settings = cloneSettings(nextSettings as ExampleSettings);
+      syncSidebarWidget();
+    },
+    setModalOpen(nextOpen) {
+      state.isModalOpen = nextOpen;
+      syncSidebarWidget();
+    },
+    setSidebarOpen(nextOpen) {
+      state.isSidebarOpen = nextOpen;
+      syncSidebarWidget();
+    },
+    toggleSidebar() {
+      state.isSidebarOpen = !state.isSidebarOpen;
+      syncSidebarWidget();
+    }
+  };
+
+  const sidebarWidget = new SidebarWidget({
+    id: 'widget-panels-docs-sidebar-widget',
+    placement: 'top-right',
+    side: 'right',
+    widthPx: 340,
+    title: 'SidebarWidget',
+    triggerLabel: 'Open sidebar',
+    panel: buildSidebarPanel(state, handlers, highlight),
+    button: true,
+    open: state.isSidebarOpen,
+    onOpenChange: handlers.setSidebarOpen
+  });
+
+  sidebarWidget.onRenderHTML(sidebarRootElement);
+
+  return () => {
+    cleanupThemeWidget();
+    sidebarWidget.onRemove();
+    rootElement.remove();
+  };
+
+  function syncSidebarWidget() {
+    sidebarWidget.setProps({
+      panel: buildSidebarPanel(state, handlers, highlight),
+      open: state.isSidebarOpen
+    });
   }
 }
 

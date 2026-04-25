@@ -64,7 +64,7 @@ export type WidgetPanelProps = (WidgetPanelWithPanelProps | WidgetPanelWithConta
  *
  * This is primarily intended for documentation pages, MDX content, and other
  * React surfaces that want to reuse the panel composition model from
- * `@deck.gl-community/panels` without creating a standalone `WidgetHost`.
+ * `@deck.gl-community/panels` without creating a standalone `PanelManager`.
  */
 export function WidgetPanel({
   panel,

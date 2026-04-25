@@ -3,24 +3,24 @@
 // Copyright (c) vis.gl contributors
 
 /**
- * Supported placement anchors for standalone widgets.
+ * Supported placement anchors for standalone panel containers.
  */
-export type WidgetPlacement = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'fill';
+export type PanelPlacement = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'fill';
 
 /**
- * Shared props supported by standalone widgets.
+ * Shared props supported by standalone panel containers.
  */
-export type WidgetProps = {
+export type PanelContainerProps = {
   /**
-   * Stable widget id used for reconciliation.
+   * Stable id used for reconciliation.
    */
   id?: string;
   /**
-   * CSS inline style overrides applied to the widget root.
+   * CSS inline style overrides applied to the root element.
    */
   style?: Partial<CSSStyleDeclaration>;
   /**
-   * Additional CSS class applied to the widget root.
+   * Additional CSS class applied to the root element.
    */
   className?: string;
   /**
@@ -30,22 +30,22 @@ export type WidgetProps = {
 };
 
 /**
- * Minimal widget contract shared by the standalone host and deck-compatible UI widgets.
+ * Base class for panel-managed UI containers that render into a DOM host.
  */
-export abstract class Widget<PropsT extends WidgetProps = WidgetProps> {
-  static defaultProps: Required<WidgetProps> = {
-    id: 'widget',
+export abstract class PanelContainer<PropsT extends PanelContainerProps = PanelContainerProps> {
+  static defaultProps: Required<PanelContainerProps> = {
+    id: 'panel-container',
     style: {},
     className: '',
     _container: null
   };
 
   /**
-   * Stable widget id.
+   * Stable id.
    */
   id: string;
   /**
-   * Current widget props with defaults applied.
+   * Current props with defaults applied.
    */
   props: Required<PropsT>;
   /**
@@ -53,11 +53,11 @@ export abstract class Widget<PropsT extends WidgetProps = WidgetProps> {
    */
   viewId?: string | null = null;
   /**
-   * Placement anchor used by `WidgetHost` or deck.gl's widget manager.
+   * Placement anchor used by `PanelManager` or deck.gl's widget manager.
    */
-  abstract placement: WidgetPlacement;
+  abstract placement: PanelPlacement;
   /**
-   * Widget root class name.
+   * Root class name.
    */
   abstract className: string;
 
@@ -70,14 +70,14 @@ export abstract class Widget<PropsT extends WidgetProps = WidgetProps> {
 
   constructor(props: PropsT) {
     this.props = {
-      ...(this.constructor as typeof Widget).defaultProps,
+      ...(this.constructor as typeof PanelContainer).defaultProps,
       ...props
     } as Required<PropsT>;
     this.id = this.props.id;
   }
 
   /**
-   * Updates widget props and refreshes rendered DOM when mounted.
+   * Updates props and refreshes rendered DOM when mounted.
    */
   setProps(props: Partial<PropsT>): void {
     const oldProps = this.props;
@@ -102,7 +102,7 @@ export abstract class Widget<PropsT extends WidgetProps = WidgetProps> {
   }
 
   /**
-   * Re-renders the widget into its mounted root element.
+   * Re-renders into the mounted root element.
    */
   updateHTML(): void {
     if (this.rootElement) {
@@ -111,7 +111,7 @@ export abstract class Widget<PropsT extends WidgetProps = WidgetProps> {
   }
 
   /**
-   * Creates the top-level host element for this widget.
+   * Creates the top-level host element.
    */
   protected onCreateRootElement(): HTMLDivElement {
     const element = document.createElement('div');
@@ -125,7 +125,7 @@ export abstract class Widget<PropsT extends WidgetProps = WidgetProps> {
   }
 
   /**
-   * Host hook that renders widget content into the supplied root element.
+   * Host hook that renders content into the supplied root element.
    */
   abstract onRenderHTML(rootElement: HTMLElement): void;
 
@@ -137,12 +137,12 @@ export abstract class Widget<PropsT extends WidgetProps = WidgetProps> {
   }
 
   /**
-   * Called when the widget is mounted.
+   * Called when the container is mounted.
    */
   onAdd(_params: {deck: unknown; viewId: string | null}): HTMLDivElement | void {}
 
   /**
-   * Called when the widget is removed.
+   * Called when the container is removed.
    */
   onRemove(): void {}
 

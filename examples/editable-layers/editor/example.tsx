@@ -22,7 +22,8 @@ import {
   EditorToolbarWidget
 } from '@deck.gl-community/editable-layers';
 import type {BooleanOperation} from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxWidget} from '@deck.gl-community/widgets';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@deck.gl/widgets/stylesheet.css';

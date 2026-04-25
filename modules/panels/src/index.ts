@@ -2,9 +2,23 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-export {Widget} from './widget';
-export type {WidgetPlacement, WidgetProps} from './widget';
-export {WidgetHost, type WidgetHostProps} from './widget-host';
+export {PanelContainer} from './panel-container';
+export type {PanelContainerProps, PanelPlacement} from './panel-container';
+export {PanelManager, type PanelManagerProps} from './panel-manager';
+export {PanelBox, type PanelBoxProps} from './panel-components/panel-box';
+export {PanelModal, type PanelModalProps} from './panel-components/panel-modal';
+export {PanelSidebar, type PanelSidebarProps} from './panel-components/panel-sidebar';
+export {
+  PanelFullScreen,
+  type PanelFullScreenProps
+} from './panel-components/panel-full-screen';
+
+export {
+  PANEL_THEME_DARK,
+  PANEL_THEME_LIGHT,
+  applyPanelTheme,
+  type PanelThemeVariables
+} from './lib/panel-theme';
 
 export {
   AccordeonPanel,
@@ -73,3 +87,9 @@ export {
   DEFAULT_SHORTCUTS,
   formatKey
 } from './keyboard-shortcuts/keyboard-shortcuts';
+export {
+  KeyboardShortcutsManager,
+  KeyboardShortcutsManagerDocument,
+  type KeyboardShortcutEventManager,
+  type KeyboardShortcutManagerEvent
+} from './keyboard-shortcuts/keyboard-shortcuts-manager';

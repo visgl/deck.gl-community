@@ -1,4 +1,4 @@
-import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 # CustomPanel
 
@@ -6,11 +6,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<WidgetPanelsLiveExample highlight="custom-panel" />
+<PanelLiveExample highlight="custom-panel" />
 
 `CustomPanel` hosts imperative DOM content inside the panel composition model.
 
-## Import
+## Usage
+
+Use `CustomPanel` when panel content must be rendered imperatively instead of as a static JSX subtree.
 
 ```ts
 import {CustomPanel, type CustomPanelProps} from '@deck.gl-community/panels';
@@ -26,14 +28,9 @@ type CustomPanelProps = {
   disabled?: boolean;
   keepMounted?: boolean;
   className?: string;
-  theme?: WidgetPanelTheme;
+  theme?: 'inherit' | 'light' | 'dark' | 'invert';
 };
 ```
-
-
-## Usage
-
-Use `CustomPanel` when panel content must be rendered imperatively instead of as a static JSX subtree.
 
 ## Remarks
 

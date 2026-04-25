@@ -1,7 +1,7 @@
 # Overview
 
-:::danger
-The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
+:::caution
+The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
 
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/widgets.svg)](https://www.npmjs.com/package/@deck.gl-community/widgets)
@@ -9,9 +9,9 @@ The deck.gl-community repo is specifically set up to collect useful code that no
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
-This module packages UI widgets that integrate with [deck.gl](https://deck.gl) view state management. It includes classic navigation widgets such as `PanWidget` and `ZoomRangeWidget`, HTML overlays, and a newer set of generic panel widgets for composing sidebars, modals, info cards, and reusable panel content.
+This module packages UI widgets that integrate with [deck.gl](https://deck.gl) view state management. It includes classic navigation widgets such as `PanWidget` and `ZoomRangeWidget`, HTML overlays, and deck-facing panel widgets for composing sidebars, modals, and info cards around a deck.gl canvas.
 
-For DOM-only usage, the package also exports `WidgetHost`, which can mount compatible widget instances into a plain `HTMLElement` without creating a `Deck` instance.
+Panel definitions and standalone mounting live in `@deck.gl-community/panels`. Import panels from `panels`, then pass them to the deck-facing widgets in this package.
 
 ## Installation
 
@@ -46,12 +46,12 @@ function App() {
 
 See the [Pan and Zoom widgets example](../../examples/widgets/pan-and-zoom-controls) for a non-geospatial walkthrough.
 
-See the [Standalone Widgets example](../../examples/widgets/standalone-widgets) for deck-independent usage through `WidgetHost`.
+See the [Standalone Widgets example](../../examples/widgets/standalone-widgets) for deck-independent usage through `@deck.gl-community/panels`.
 
-For the generic panel APIs, see the [Widget Panels example](../../examples/widgets/widget-panels), which combines:
+For the deck-facing panel widget APIs, see the [Widget Panels example](../../examples/widgets/widget-panels), which combines:
 
 - `SidebarWidget` for persistent controls
 - `ModalWidget` for tabbed secondary panels
 - `BoxWidget` for static summary cards
 - `ToolbarWidget` for compact action and toggle controls
-- `AccordeonPanel`, `TabbedPanel`, `ColumnPanel`, `MarkdownPanel`, `CustomPanel`, and `TextEditorPanel` for reusable panel composition
+- reusable panel definitions imported from `@deck.gl-community/panels`

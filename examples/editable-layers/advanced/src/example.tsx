@@ -50,7 +50,8 @@ import {
   Color,
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxWidget} from '@deck.gl-community/widgets';
 
 
 import sampleGeoJson from '../../data/sample-geojson.json';

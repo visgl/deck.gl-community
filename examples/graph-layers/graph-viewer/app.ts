@@ -8,18 +8,20 @@ import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl
 import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
   AccordeonPanel,
-  BoxWidget,
-  SidebarWidget,
   CustomPanel,
   MarkdownPanel,
-  PanWidget,
   SettingsPanel,
   TextEditorPanel,
-  ZoomRangeWidget,
   type SettingsSchema,
   type SettingDescriptor,
   type SettingsState,
   type WidgetPanelRecord
+} from '@deck.gl-community/panels';
+import {
+  BoxWidget,
+  SidebarWidget,
+  PanWidget,
+  ZoomRangeWidget
 } from '@deck.gl-community/widgets';
 import {
   CollapsableD3DagLayout,

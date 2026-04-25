@@ -1,4 +1,4 @@
-import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 # MarkdownPanel
 
@@ -6,11 +6,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<WidgetPanelsLiveExample highlight="markdown-panel" />
+<PanelLiveExample highlight="markdown-panel" />
 
-`MarkdownPanel` renders a small built-in Markdown subset inside a widget panel.
+`MarkdownPanel` renders a small built-in Markdown subset inside a panel.
 
-## Import
+## Usage
+
+Use `MarkdownPanel` when panel content is mostly descriptive text or links.
 
 ```ts
 import {MarkdownPanel, type MarkdownPanelProps} from '@deck.gl-community/panels';
@@ -26,14 +28,9 @@ type MarkdownPanelProps = {
   disabled?: boolean;
   keepMounted?: boolean;
   className?: string;
-  theme?: WidgetPanelTheme;
+  theme?: 'inherit' | 'light' | 'dark' | 'invert';
 };
 ```
-
-
-## Usage
-
-Use `MarkdownPanel` when panel content is mostly descriptive text or links.
 
 ## Remarks
 

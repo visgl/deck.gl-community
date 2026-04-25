@@ -2,6 +2,10 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 # ToolbarWidget
 
+<p className="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+</p>
+
 <WidgetLiveExample highlight="toolbar-widget" />
 
 A compact deck.gl widget for horizontal action buttons, single-select toggle groups, and read-only status badges.

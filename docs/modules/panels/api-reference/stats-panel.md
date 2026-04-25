@@ -1,4 +1,4 @@
-import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 # StatsPanel
 
@@ -6,36 +6,14 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<WidgetPanelsLiveExample highlight="stats-panel" />
+<PanelLiveExample highlight="stats-panel" />
 
 `StatsPanel` renders a compact table from a [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `@probe.gl/stats`.
-
-## Import
-
-```ts
-import {StatsPanel, type StatsPanelProps} from '@deck.gl-community/panels';
-import {Stats} from '@probe.gl/stats';
-```
-
-## Props
-
-```ts
-type StatsPanelProps = {
-  id: string;
-  title: string;
-  stats: Stats;
-  statNames?: string[];
-  labels?: Partial<Record<string, string>>;
-  className?: string;
-  theme?: WidgetPanelTheme;
-};
-```
 
 ## Usage
 
 ```ts
-import {BoxWidget} from '@deck.gl-community/widgets';
-import {StatsPanel} from '@deck.gl-community/panels';
+import {PanelBox, PanelManager, StatsPanel} from '@deck.gl-community/panels';
 import {Stats} from '@probe.gl/stats';
 
 const stats = new Stats({
@@ -56,16 +34,32 @@ const panel = new StatsPanel({
   }
 });
 
-const widget = new BoxWidget({
-  id: 'tile-stats-box',
-  title: 'Shared Tileset',
-  panel
+const panelManager = new PanelManager({
+  parentElement: document.getElementById('app') as HTMLElement
 });
+
+panelManager.setProps({
+  components: [new PanelBox({id: 'stats-box', panel})]
+});
+```
+
+## Props
+
+```ts
+type StatsPanelProps = {
+  id: string;
+  title: string;
+  stats: Stats;
+  statNames?: string[];
+  labels?: Partial<Record<string, string>>;
+  className?: string;
+  theme?: 'inherit' | 'light' | 'dark' | 'invert';
+};
 ```
 
 ## See Also
 
-- [Widget Panels](../developer-guide/widget-panels.md)
+- [Using Panels](../developer-guide/widget-panels.md)
 - [ColumnPanel](./column-panel.md)
 - [MarkdownPanel](./markdown-panel.md)
 

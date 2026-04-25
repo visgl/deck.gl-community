@@ -2,14 +2,15 @@
 
 ## v9.4 - In Planning
 
-Inofficial wishlist and roadmap type information is available in github trackers:
+Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
-- **`@deck.gl-community/editable-layers`**
-  - [Tracker](https://github.com/visgl/deck.gl-community/issues/38)
-- **`@deck.gl-community/graph-layers`**
-  - [Tracker](https://github.com/visgl/deck.gl-community/issues/78)
-- **`@deck.gl-community/infovis-layers`**
-  - Goal: Some of the improved support for (non-geospatial) views etc should be upstreamed into deck.gl v9.3.
+### `@deck.gl-community/panels` (NEW module)
+
+A new module for deck-independent panel composition and small application UI.
+
+- `PanelManager` - mount compatible panel-managed UI into a plain `HTMLElement`
+- Panel/container composition APIs extracted into a dedicated package
+- Stand-alone documentation and examples for panel composition outside deck.gl
 
 ## v9.3
 
@@ -33,7 +34,7 @@ Highlights:
 
 A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
 
-- [`BasemapLayer`](/docs/modules/basemap-layers/api-reference/basemap-layer) - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
+- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
 - `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
 - `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
 - `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
@@ -86,12 +87,12 @@ Released: February 20, 2026
 - Website: documentation improvements, search, and new gallery examples.
 - Tests migrated from `jest` to `vitest`.
 - `editable-layers` now uses turf.js 7 and official GeoJSON types.
-- New `@deck.gl-community/widgets` module with unofficial deck.gl UI widgets.
+- New `@deck.gl-community/widgets` module with experimental deck.gl UI widgets.
 - New `@deck.gl-community/timeline-layers` module for time-series visualization.
 
 ### `@deck.gl-community/widgets` (NEW module)
 
-A new module containing unofficial / experimental widgets for deck.gl:
+A new module containing experimental widgets for deck.gl:
 
 - `ZoomRangeWidget` - NEW deck.gl `Widget` providing a zoom slider.
 - `PanWidget` - NEW deck.gl `Widget` providing pan buttons for moving the viewport.

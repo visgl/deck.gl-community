@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
-import {DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {h, render} from 'preact';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 
 import {WidgetContainerRenderer, asPanelContainer} from './widget-containers';
 import {TextEditorPanel} from './text-editor-panel';
@@ -387,7 +387,10 @@ describe('TextEditorPanel', () => {
     const widgetContainer = document.createElement('div');
     const root = document.createElement('div');
     widgetContainer.className = 'deck-widget-container';
-    widgetContainer.style.setProperty('--menu-background', LightTheme['--menu-background'] ?? '');
+    widgetContainer.style.setProperty(
+      '--menu-background',
+      PANEL_THEME_LIGHT['--menu-background'] ?? ''
+    );
     widgetContainer.appendChild(root);
     document.body.appendChild(widgetContainer);
 
@@ -408,7 +411,10 @@ describe('TextEditorPanel', () => {
     );
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs');
 
-    widgetContainer.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    widgetContainer.style.setProperty(
+      '--menu-background',
+      PANEL_THEME_DARK['--menu-background'] ?? ''
+    );
     await waitForCondition(
       () => monacoHarness.setTheme.mock.lastCall?.[0] === 'vs-dark',
       'Expected Monaco theme to update after inherited widget theme changes.'

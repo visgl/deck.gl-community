@@ -4,12 +4,8 @@
 
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {
-  BoxWidget,
-  MarkdownPanel,
-  PanWidget,
-  ZoomRangeWidget
-} from '@deck.gl-community/widgets';
+import {MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxWidget, PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 

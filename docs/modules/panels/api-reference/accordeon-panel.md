@@ -1,4 +1,4 @@
-import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 # AccordeonPanel
 
@@ -6,11 +6,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<WidgetPanelsLiveExample highlight="accordeon-panel" />
+<PanelLiveExample highlight="accordeon-panel" />
 
 `AccordeonPanel` wraps multiple child panels into one collapsible accordion panel.
 
-## Import
+## Usage
+
+Use `AccordeonPanel` when one panel should expand into several collapsible subsections.
 
 ```ts
 import {AccordeonPanel, type AccordeonPanelProps} from '@deck.gl-community/panels';
@@ -20,23 +22,18 @@ import {AccordeonPanel, type AccordeonPanelProps} from '@deck.gl-community/panel
 
 ```ts
 type AccordeonPanelProps = {
-  panels: Record<string, WidgetPanel>;
+  panels: Record<string, Panel>;
   id?: string;
   title?: string;
-  theme?: WidgetPanelTheme;
+  theme?: 'inherit' | 'light' | 'dark' | 'invert';
 };
 ```
 
-
-## Usage
-
-Use `AccordeonPanel` when a single widget panel should expand into several collapsible subsections.
-
 ## See Also
 
-- [Widget Panels](../developer-guide/widget-panels.md)
+- [Using Panels](../developer-guide/widget-panels.md)
 
 ## Remarks
 
 - Normalizes an object map of child panels into insertion-order accordion sections.
-- Exposes one outer `WidgetPanel` that can be passed into `BoxWidget`, `ModalWidget`, or `SidebarWidget`.
+- Produces one composite panel that can be used directly or passed into the deck.gl wrapper module.

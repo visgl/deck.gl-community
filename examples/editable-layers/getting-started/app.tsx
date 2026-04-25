@@ -4,12 +4,14 @@
 
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {
-  BoxWidget,
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
   type SettingsSchema,
   type SettingsState
+} from '@deck.gl-community/panels';
+import {
+  BoxWidget
 } from '@deck.gl-community/widgets';
 import {ViewMode, DrawPolygonMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
 import maplibregl from 'maplibre-gl';

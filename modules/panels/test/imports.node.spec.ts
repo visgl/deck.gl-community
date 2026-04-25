@@ -14,8 +14,14 @@ beforeAll(async () => {
   Panels = await import('../src/index');
 });
 
-it('exports WidgetHost', () => {
-  expect(Panels.WidgetHost).toBeDefined();
+it('exports PanelManager', () => {
+  expect(Panels.PanelManager).toBeDefined();
+});
+
+it('exports panel theme primitives', () => {
+  expect(Panels.PANEL_THEME_LIGHT).toBeDefined();
+  expect(Panels.PANEL_THEME_DARK).toBeDefined();
+  expect(Panels.applyPanelTheme).toBeDefined();
 });
 
 it('exports WidgetContainerRenderer', () => {

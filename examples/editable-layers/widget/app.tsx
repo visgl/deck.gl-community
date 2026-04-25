@@ -18,12 +18,12 @@ import {
   type EditModeTrayWidgetModeOption
 } from '@deck.gl-community/editable-layers';
 import {
-  BoxWidget,
   ColumnPanel,
   CustomPanel,
   MarkdownPanel,
   type WidgetPanel
-} from '@deck.gl-community/widgets';
+} from '@deck.gl-community/panels';
+import {BoxWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 

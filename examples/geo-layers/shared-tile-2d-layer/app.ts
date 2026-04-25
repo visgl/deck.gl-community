@@ -7,10 +7,12 @@ import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {
   AccordeonPanel,
-  BoxWidget,
   ColumnPanel,
   MarkdownPanel,
   StatsPanel
+} from '../../../modules/panels/src';
+import {
+  BoxWidget,
 } from '../../../modules/widgets/src';
 import {SharedTile2DLayer, TileGridLayer} from '../../../modules/geo-layers/src';
 import {SharedTileset2D} from '../../../modules/geo-layers/src/tileset';

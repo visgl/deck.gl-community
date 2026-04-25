@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
-import {DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {h, render} from 'preact';
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 
 import {
   AccordeonWidgetContainer,
@@ -288,7 +288,7 @@ describe('widget containers', () => {
 
   it('preserves inherited theme mode for direct panel content', async () => {
     const root = document.createElement('div');
-    root.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    root.style.setProperty('--menu-background', PANEL_THEME_DARK['--menu-background'] ?? '');
     document.body.appendChild(root);
 
     const panelContainer = asPanelContainer({
@@ -302,12 +302,14 @@ describe('widget containers', () => {
 
     const scope = getThemeScopes(root)[0];
     expect(scope?.dataset.panelThemeMode).toBe('dark');
-    expect(scope?.style.getPropertyValue('--menu-background')).toBe(DarkTheme['--menu-background']);
+    expect(scope?.style.getPropertyValue('--menu-background')).toBe(
+      PANEL_THEME_DARK['--menu-background']
+    );
   });
 
   it('forces explicit light and dark theme overrides', async () => {
     const root = document.createElement('div');
-    root.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    root.style.setProperty('--menu-background', PANEL_THEME_DARK['--menu-background'] ?? '');
     document.body.appendChild(root);
 
     const panelContainer = asPanelContainer(
@@ -331,17 +333,17 @@ describe('widget containers', () => {
     const scopes = getThemeScopes(root);
     expect(scopes[1]?.dataset.panelThemeMode).toBe('light');
     expect(scopes[1]?.style.getPropertyValue('--menu-background')).toBe(
-      LightTheme['--menu-background']
+      PANEL_THEME_LIGHT['--menu-background']
     );
     expect(scopes[2]?.dataset.panelThemeMode).toBe('dark');
     expect(scopes[2]?.style.getPropertyValue('--menu-background')).toBe(
-      DarkTheme['--menu-background']
+      PANEL_THEME_DARK['--menu-background']
     );
   });
 
   it('inverts theme mode relative to the parent and supports nested invert', async () => {
     const root = document.createElement('div');
-    root.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    root.style.setProperty('--menu-background', PANEL_THEME_DARK['--menu-background'] ?? '');
     document.body.appendChild(root);
 
     const panelContainer = asPanelContainer(

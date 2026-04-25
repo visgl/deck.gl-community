@@ -1,7 +1,8 @@
 import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView, type PickingInfo} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxWidget} from '@deck.gl-community/widgets';
 import * as L from 'leaflet';
 
 import '@deck.gl/widgets/stylesheet.css';

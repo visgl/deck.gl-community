@@ -1,9 +1,9 @@
 /** @jsxImportSource preact */
 import {render} from 'preact';
-import {Widget} from '../widget';
+import {PanelContainer} from '../panel-container';
 
 import type {ComponentChild, JSX} from 'preact';
-import type {WidgetPlacement, WidgetProps} from '../widget';
+import type {PanelPlacement, PanelContainerProps} from '../panel-container';
 
 export type ToolbarWidgetActionItem = {
   kind: 'action';
@@ -47,8 +47,8 @@ export type ToolbarWidgetItem =
   | ToolbarWidgetToggleGroupItem
   | ToolbarWidgetBadgeItem;
 
-export type ToolbarWidgetProps = WidgetProps & {
-  placement?: WidgetPlacement;
+export type ToolbarWidgetProps = PanelContainerProps & {
+  placement?: PanelPlacement;
   items?: ToolbarWidgetItem[];
 };
 
@@ -242,16 +242,16 @@ function renderToolbarItem(item: ToolbarWidgetItem): JSX.Element {
   );
 }
 
-export class ToolbarWidget extends Widget<ToolbarWidgetProps> {
+export class ToolbarWidget extends PanelContainer<ToolbarWidgetProps> {
   static defaultProps: Required<ToolbarWidgetProps> = {
-    ...Widget.defaultProps,
+    ...PanelContainer.defaultProps,
     id: 'toolbar-widget',
     placement: 'top-right',
     items: []
   };
 
   className = 'deck-widget-toolbar';
-  placement: WidgetPlacement = ToolbarWidget.defaultProps.placement;
+  placement: PanelPlacement = ToolbarWidget.defaultProps.placement;
   #rootElement: HTMLElement | null = null;
 
   constructor(props: ToolbarWidgetProps = {}) {

@@ -1,4 +1,4 @@
-import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 # SettingsPanel
 
@@ -6,11 +6,13 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<WidgetPanelsLiveExample highlight="settings-panel" />
+<PanelLiveExample highlight="settings-panel" />
 
 `SettingsPanel` embeds the settings-schema UI inside the panel composition model.
 
-## Import
+## Usage
+
+Use `SettingsPanel` when a settings form should live inside a panel layout or panel container.
 
 ```ts
 import {
@@ -39,21 +41,16 @@ type SettingsPanelProps = {
       descriptor?: SettingDescriptor;
     }>
   ) => void;
-  theme?: WidgetPanelTheme;
+  theme?: 'inherit' | 'light' | 'dark' | 'invert';
 };
 ```
 
-
-## Usage
-
-Use `SettingsPanel` when a settings form should live inside `SidebarWidget`, `ModalWidget`, or `BoxWidget` instead of the standalone floating settings button.
-
 ## See Also
 
-- [Widget Panels](../developer-guide/widget-panels.md)
+- [Using Panels](../developer-guide/widget-panels.md)
 
 ## Remarks
 
-- Reuses the shared schema-driven controls, but exposes them as a `WidgetPanel`.
+- Reuses the shared schema-driven controls as a panel.
 - Tracks section collapse state while the panel stays mounted.
 - Supports nested dot-path setting names and change descriptors in `onSettingsChange`.

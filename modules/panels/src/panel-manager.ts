@@ -3,7 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import type {MjolnirGestureEvent, MjolnirPointerEvent} from 'mjolnir.js';
-import {Widget} from './widget';
+import {PanelContainer} from './panel-container';
+import {ensurePanelStylesheet} from './lib/panel-styles';
 
 const PLACEMENTS = {
   'top-left': {top: 0, left: 0},
@@ -16,19 +17,19 @@ const PLACEMENTS = {
 const DEFAULT_PLACEMENT = 'top-left';
 const ROOT_CONTAINER_ID = 'root';
 
-type WidgetPlacement = keyof typeof PLACEMENTS;
+type PanelPlacement = keyof typeof PLACEMENTS;
 
 /**
- * Configuration for one standalone widget host.
+ * Configuration for one standalone panel host.
  */
-export type WidgetHostProps = {
+export type PanelManagerProps = {
   /**
    * Root HTML element that receives placement containers and widget DOM.
    */
   parentElement: HTMLElement;
   /**
    * Optional deck instance used to forward redraw, viewport, and event hooks
-   * for widgets that can take advantage of deck runtime state.
+   * for panel containers that can take advantage of deck runtime state.
    */
   deck?: unknown | null;
   /**
@@ -39,16 +40,16 @@ export type WidgetHostProps = {
 };
 
 /**
- * Mounts compatible widget instances into a plain HTML element without
+ * Mounts compatible panel-managed UI instances into a plain HTML element without
  * requiring Deck to own the widget lifecycle.
  *
- * `WidgetHost` mirrors the DOM-facing behavior of deck.gl's internal
- * `WidgetManager`: it creates placement containers, reconciles widget
- * instances by id, and calls the normal widget lifecycle hooks.
+ * `PanelManager` mirrors the DOM-facing behavior of deck.gl's internal
+ * `WidgetManager`: it creates placement containers, reconciles mounted
+ * instances by id, and calls the normal lifecycle hooks.
  */
-export class WidgetHost {
+export class PanelManager {
   /**
-   * Optional deck instance forwarded into widget lifecycle hooks.
+   * Optional deck instance forwarded into panel lifecycle hooks.
    */
   deck?: unknown | null;
   /**
@@ -57,21 +58,22 @@ export class WidgetHost {
   parentElement: HTMLElement;
 
   private className?: string;
-  private defaultWidgets: Widget[] = [];
-  private widgets: Widget[] = [];
-  private resolvedWidgets: Widget[] = [];
+  private defaultComponents: PanelContainer[] = [];
+  private components: PanelContainer[] = [];
+  private resolvedComponents: PanelContainer[] = [];
   private containers: {[id: string]: HTMLDivElement} = {};
   private lastViewports: {
     [id: string]: {id: string; x: number; y: number; width: number; height: number};
   } = {};
 
   /**
-   * Creates a standalone widget host rooted in the supplied HTML element.
+   * Creates a standalone panel host rooted in the supplied HTML element.
    */
-  constructor({parentElement, deck = null, className}: WidgetHostProps) {
+  constructor({parentElement, deck = null, className}: PanelManagerProps) {
     this.deck = deck;
     this.parentElement = parentElement;
     this.className = className;
+    ensurePanelStylesheet(parentElement.ownerDocument);
     this.parentElement.classList.add('deck-widget-container');
     if (className) {
       this.parentElement.classList.add(className);
@@ -79,35 +81,35 @@ export class WidgetHost {
   }
 
   /**
-   * Returns the currently mounted widget instances after reconciliation.
+   * Returns the currently mounted instances after reconciliation.
    */
-  getWidgets(): Widget[] {
-    return this.resolvedWidgets;
+  getComponents(): PanelContainer[] {
+    return this.resolvedComponents;
   }
 
   /**
-   * Reconciles the declarative widget list against the current host state.
+   * Reconciles the declarative component list against the current host state.
    *
-   * Matching widget ids preserve the mounted instance and receive prop updates
+   * Matching ids preserve the mounted instance and receive prop updates
    * through `setProps`. Added and removed ids trigger the normal lifecycle.
    */
-  setProps(props: {widgets?: (Widget | null | undefined)[]}) {
-    if (props.widgets && !areWidgetListsEqual(props.widgets, this.widgets)) {
-      const nextWidgets = props.widgets.filter(isWidget);
-      this._setWidgets(nextWidgets);
+  setProps(props: {components?: (PanelContainer | null | undefined)[]}) {
+    if (props.components && !areComponentListsEqual(props.components, this.components)) {
+      const nextComponents = props.components.filter(isPanelContainer);
+      this._setComponents(nextComponents);
     }
   }
 
   /**
-   * Removes all mounted widgets and internal placement containers.
+   * Removes all mounted instances and internal placement containers.
    */
   finalize() {
-    for (const widget of this.getWidgets()) {
-      this._removeWidget(widget);
+    for (const component of this.getComponents()) {
+      this._removeComponent(component);
     }
-    this.defaultWidgets.length = 0;
-    this.widgets.length = 0;
-    this.resolvedWidgets.length = 0;
+    this.defaultComponents.length = 0;
+    this.components.length = 0;
+    this.resolvedComponents.length = 0;
     this.lastViewports = {};
 
     for (const id in this.containers) {
@@ -122,14 +124,14 @@ export class WidgetHost {
   }
 
   /**
-   * Adds one imperative default widget that stays mounted independently of
-   * `setProps({widgets})` calls.
+   * Adds one imperative default instance that stays mounted independently of
+   * `setProps({components})` calls.
    */
-  addDefault(widget: Widget) {
-    if (!this.defaultWidgets.find((existingWidget) => existingWidget.id === widget.id)) {
-      this._addWidget(widget);
-      this.defaultWidgets.push(widget);
-      this._setWidgets(this.widgets);
+  addDefault(component: PanelContainer) {
+    if (!this.defaultComponents.find((existingComponent) => existingComponent.id === component.id)) {
+      this._addComponent(component);
+      this.defaultComponents.push(component);
+      this._setComponents(this.components);
     }
   }
 
@@ -154,14 +156,14 @@ export class WidgetHost {
       return acc;
     }, {});
 
-    for (const widget of this.getWidgets()) {
-      if (widget.viewId) {
-        const viewport = viewportsById[widget.viewId];
+    for (const component of this.getComponents()) {
+      if (component.viewId) {
+        const viewport = viewportsById[component.viewId];
         if (viewport) {
-          this._notifyViewportChange(widget, [viewport], layers);
+          this._notifyViewportChange(component, [viewport], layers);
         }
       } else {
-        this._notifyViewportChange(widget, viewports, layers);
+        this._notifyViewportChange(component, viewports, layers);
       }
     }
 
@@ -173,10 +175,10 @@ export class WidgetHost {
    * Forwards hover events to widgets whose `viewId` matches the hovered view.
    */
   onHover(info: {viewport?: {id?: string}}, event: MjolnirPointerEvent) {
-    for (const widget of this.getWidgets()) {
-      const {viewId} = widget;
+    for (const component of this.getComponents()) {
+      const {viewId} = component;
       if (!viewId || viewId === info.viewport?.id) {
-        widget.onHover?.(info, event);
+        component.onHover?.(info, event);
       }
     }
   }
@@ -190,103 +192,103 @@ export class WidgetHost {
     info: {viewport?: {id?: string}},
     event: MjolnirGestureEvent
   ) {
-    for (const widget of this.getWidgets()) {
-      const {viewId} = widget;
+    for (const component of this.getComponents()) {
+      const {viewId} = component;
       if (!viewId || viewId === info.viewport?.id) {
-        widget[eventHandlerProp]?.(info, event);
+        component[eventHandlerProp]?.(info, event);
       }
     }
   }
 
-  private _setWidgets(nextWidgets: Widget[]) {
-    const oldWidgetMap: Record<string, Widget | null> = {};
+  private _setComponents(nextComponents: PanelContainer[]) {
+    const oldComponentMap: Record<string, PanelContainer | null> = {};
 
-    for (const widget of this.resolvedWidgets) {
-      oldWidgetMap[widget.id] = widget;
+    for (const component of this.resolvedComponents) {
+      oldComponentMap[component.id] = component;
     }
 
-    this.resolvedWidgets.length = 0;
+    this.resolvedComponents.length = 0;
 
-    for (const widget of this.defaultWidgets) {
-      oldWidgetMap[widget.id] = null;
-      this.resolvedWidgets.push(widget);
+    for (const component of this.defaultComponents) {
+      oldComponentMap[component.id] = null;
+      this.resolvedComponents.push(component);
     }
 
-    for (let widget of nextWidgets) {
-      const oldWidget = oldWidgetMap[widget.id];
-      if (!oldWidget) {
-        this._addWidget(widget);
+    for (let component of nextComponents) {
+      const oldComponent = oldComponentMap[component.id];
+      if (!oldComponent) {
+        this._addComponent(component);
       } else if (
-        oldWidget.viewId !== widget.viewId ||
-        oldWidget.placement !== widget.placement ||
-        oldWidget.props._container !== widget.props._container
+        oldComponent.viewId !== component.viewId ||
+        oldComponent.placement !== component.placement ||
+        oldComponent.props._container !== component.props._container
       ) {
-        this._removeWidget(oldWidget);
-        this._addWidget(widget);
-      } else if (widget !== oldWidget) {
-        oldWidget.setProps(widget.props);
-        widget = oldWidget;
+        this._removeComponent(oldComponent);
+        this._addComponent(component);
+      } else if (component !== oldComponent) {
+        oldComponent.setProps(component.props);
+        component = oldComponent;
       }
 
-      oldWidgetMap[widget.id] = null;
-      this.resolvedWidgets.push(widget);
+      oldComponentMap[component.id] = null;
+      this.resolvedComponents.push(component);
     }
 
-    for (const id in oldWidgetMap) {
-      const oldWidget = oldWidgetMap[id];
-      if (oldWidget) {
-        this._removeWidget(oldWidget);
+    for (const id in oldComponentMap) {
+      const oldComponent = oldComponentMap[id];
+      if (oldComponent) {
+        this._removeComponent(oldComponent);
       }
     }
 
-    this.widgets = nextWidgets;
+    this.components = nextComponents;
   }
 
-  private _addWidget(widget: Widget) {
-    const {viewId = null, placement = DEFAULT_PLACEMENT} = widget as Widget & {
-      placement?: WidgetPlacement;
+  private _addComponent(component: PanelContainer) {
+    const {viewId = null, placement = DEFAULT_PLACEMENT} = component as PanelContainer & {
+      placement?: PanelPlacement;
     };
-    const container = widget.props._container ?? viewId;
+    const container = component.props._container ?? viewId;
 
-    widget.widgetManager = this as never;
-    widget.deck = this.deck ?? undefined;
+    component.widgetManager = this as never;
+    component.deck = this.deck ?? undefined;
 
-    widget.rootElement = widget._onAdd({deck: this.deck ?? undefined, viewId});
+    component.rootElement = component._onAdd({deck: this.deck ?? undefined, viewId});
 
-    if (widget.rootElement) {
-      this._getContainer(container, placement).append(widget.rootElement);
+    if (component.rootElement) {
+      this._getContainer(container, placement).append(component.rootElement);
     }
 
-    widget.updateHTML();
+    component.updateHTML();
   }
 
-  private _removeWidget(widget: Widget) {
-    widget.onRemove?.();
+  private _removeComponent(component: PanelContainer) {
+    component.onRemove?.();
 
-    if (widget.rootElement) {
-      widget.rootElement.remove();
+    if (component.rootElement) {
+      component.rootElement.remove();
     }
-    widget.rootElement = undefined;
-    widget.deck = undefined;
-    widget.widgetManager = undefined;
+    component.rootElement = undefined;
+    component.deck = undefined;
+    component.widgetManager = undefined;
   }
 
   private _notifyViewportChange(
-    widget: Widget,
+    component: PanelContainer,
     viewports: Array<{id: string; x: number; y: number; width: number; height: number}>,
     layers: unknown[]
   ) {
-    if (widget.onViewportChange) {
+    if (component.onViewportChange) {
       for (const viewport of viewports) {
-        widget.onViewportChange(viewport);
+        component.onViewportChange(viewport);
       }
     }
-    widget.onRedraw?.({viewports, layers});
+    component.onRedraw?.({viewports, layers});
   }
 
   private _getContainer(
     viewIdOrContainer: string | HTMLDivElement | null,
-    placement: WidgetPlacement
+    placement: PanelPlacement
   ): HTMLDivElement {
     if (viewIdOrContainer && typeof viewIdOrContainer !== 'string') {
       return viewIdOrContainer;
@@ -339,9 +341,9 @@ export class WidgetHost {
   }
 }
 
-function areWidgetListsEqual(
-  left: readonly (Widget | null | undefined)[],
-  right: readonly Widget[]
+function areComponentListsEqual(
+  left: readonly (PanelContainer | null | undefined)[],
+  right: readonly PanelContainer[]
 ): boolean {
   if (left.length !== right.length) {
     return false;
@@ -356,6 +358,8 @@ function areWidgetListsEqual(
   return true;
 }
 
-function isWidget(widget: Widget | null | undefined): widget is Widget {
-  return Boolean(widget);
+function isPanelContainer(
+  component: PanelContainer | null | undefined
+): component is PanelContainer {
+  return Boolean(component);
 }

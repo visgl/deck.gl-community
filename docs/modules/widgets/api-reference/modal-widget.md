@@ -10,11 +10,35 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 `ModalWidget` renders a deck.gl widget trigger that opens a centered overlay panel.
 
-## Import
+## Usage
 
 ```ts
+import {MarkdownPanel, TabbedPanel} from '@deck.gl-community/panels';
 import {ModalWidget} from '@deck.gl-community/widgets';
+
+const helpPanel = new TabbedPanel({
+  id: 'help',
+  title: 'Help',
+  panels: {
+    overview: new MarkdownPanel({
+      id: 'overview',
+      title: 'Overview',
+      markdown: 'Secondary content that opens on demand.'
+    })
+  }
+});
+
+const widget = new ModalWidget({
+  id: 'help-widget',
+  panel: helpPanel,
+  triggerLabel: 'Help'
+});
 ```
+
+Use `ModalWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.
+
+Import panel definitions from `@deck.gl-community/panels` and pass them to `ModalWidget`
+through `panel` or `container`.
 
 ## Props
 
@@ -35,14 +59,9 @@ type ModalWidgetProps = WidgetProps & {
 };
 ```
 
-
-## Usage
-
-Use `ModalWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.
-
 ## Remarks
 
-- Accepts either a full `container` description or a single `panel`.
+- Accepts either a full panel `container` description or a single `panel`.
 - Can render with the built-in icon trigger or be controlled externally.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.

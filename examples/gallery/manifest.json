@@ -1,9 +1,0 @@
-[
-  {
-    "id": "leaflet",
-    "title": "Leaflet Basemap",
-    "description": "deck.gl layers synchronized with Leaflet basemap.",
-    "thumbnail": "/images/gallery/leaflet.png",
-    "href": "/gallery/leaflet.html"
-  }
-]

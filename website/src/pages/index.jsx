@@ -4,8 +4,19 @@ import styled from 'styled-components';
 import Layout from '@theme/Layout';
 
 import {Home} from '../components';
-// import HeroExample from '../examples/home-demo';
-const HeroExample = () => <div />;
+
+const HeroImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+`;
+
+const HeroExample = () => {
+  const src = useBaseUrl('/images/hero-editable-3d-tiles.jpg');
+  return <HeroImage src={src} alt="deck.gl-community editable 3D tiles over the Grand Canyon" />;
+};
 
 const FeatureImage = styled.div`
   position: absolute;
@@ -66,13 +77,16 @@ export default function IndexPage() {
   const baseUrl = useBaseUrl('/');
 
   return (
-    <Layout title="Home" description="deck.gl">
+    <Layout
+      title="Experimental layers, basemaps & add-ons"
+      description="deck.gl-community is a collection of experimental add-on modules for deck.gl — advanced layer types, basemap integrations, editable GeoJSON, 3D tiles, graph & infovis layers, and more."
+    >
       <Home HeroExample={HeroExample}>
         <div style={{position: 'relative'}}>
           <FeatureImage src={`${baseUrl}images/maps.jpg`} />
           <TextContainer>
             <h2>
-              deck.gl-community is a set of unofficial add-on modules for deck.gl.
+              deck.gl-community is a set of experimental add-on modules for deck.gl.
             </h2>
             <hr className="short" />
 

@@ -1,15 +1,15 @@
 /** @jsxImportSource preact */
 import {render} from 'preact';
-import {Widget} from '../widget';
+import {PanelContainer} from '../panel-container';
 
 import {toastManager} from './toast-manager';
 
 import type {ToastEntry, ToastKind} from './toast-manager';
 import type {JSX} from 'preact';
-import type {WidgetPlacement, WidgetProps} from '../widget';
+import type {PanelPlacement, PanelContainerProps} from '../panel-container';
 
-export type ToastWidgetProps = WidgetProps & {
-  placement?: WidgetPlacement;
+export type ToastWidgetProps = PanelContainerProps & {
+  placement?: PanelPlacement;
   showBorder?: boolean;
 };
 
@@ -208,16 +208,16 @@ function ToastWidgetView({toasts, showBorder}: ToastWidgetViewProps) {
   );
 }
 
-export class ToastWidget extends Widget<ToastWidgetProps> {
+export class ToastWidget extends PanelContainer<ToastWidgetProps> {
   static defaultProps: Required<ToastWidgetProps> = {
-    ...Widget.defaultProps,
+    ...PanelContainer.defaultProps,
     id: 'toast',
     placement: 'bottom-right',
     showBorder: false
   };
 
   className = TOAST_WIDGET_CLASS;
-  placement: WidgetPlacement = 'bottom-right';
+  placement: PanelPlacement = 'bottom-right';
   showBorder = false;
   #unsubscriber: () => void = () => {};
   #toasts: ReadonlyArray<ToastEntry> = [];

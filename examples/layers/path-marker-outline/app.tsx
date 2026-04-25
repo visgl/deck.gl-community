@@ -4,7 +4,8 @@
 
 import {Deck, type MapViewState, type PickingInfo} from '@deck.gl/core';
 import {PathOutlineLayer, PathMarkerLayer} from '@deck.gl-community/layers';
-import {BoxWidget, MarkdownPanel} from '@deck.gl-community/widgets';
+import {MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 

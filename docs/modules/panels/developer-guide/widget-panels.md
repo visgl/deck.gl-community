@@ -1,39 +1,29 @@
-import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-live-example';
-
-# Panel Widgets
+# Using Panels
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<WidgetPanelsLiveExample highlight="widget-panels" size="tall" />
-
-`@deck.gl-community/panels` includes a small composition model for building generic panel-based widgets.
-Those panels can be hosted either by deck.gl widget classes or by the standalone `WidgetHost`
-API when you want to mount them into plain HTML without a `Deck` instance.
+`@deck.gl-community/panels` provides the composition model for building panel-based UI.
+It focuses on panel definitions, container composition, and rendering structure.
 
 ## Core concepts
 
-- `WidgetPanel`: one titled unit of content with optional theme override and disabled/keep-mounted flags.
-- `WidgetContainer`: a serialized description of how one or more panels should be arranged.
+- A leaf panel defines one titled unit of content.
+- A composite panel combines other panels into a larger structure.
+- A panel container describes how panels are arranged and rendered.
 
-## Deck wrappers
+## Composite Panels
 
-These panel definitions are consumed by deck-facing wrappers from
-[`@deck.gl-community/widgets`](/docs/modules/widgets/README):
-
-- [BoxWidget](/docs/modules/widgets/api-reference/box-widget)
-- [FullScreenPanelWidget](/docs/modules/widgets/api-reference/full-screen-panel-widget)
-- [ModalWidget](/docs/modules/widgets/api-reference/modal-widget)
-- [SidebarWidget](/docs/modules/widgets/api-reference/sidebar-widget)
-
-## Container Panels
+Panels built from other panels.
 
 - [AccordeonPanel](../api-reference/accordeon-panel.md)
 - [TabbedPanel](../api-reference/tabbed-panel.md)
 - [ColumnPanel](../api-reference/column-panel.md)
 
-## Panels
+## Leaf Panels
+
+Panels with no child panels.
 
 - [CustomPanel](../api-reference/custom-panel.md)
 - [MarkdownPanel](../api-reference/markdown-panel.md)

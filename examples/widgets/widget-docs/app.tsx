@@ -188,7 +188,15 @@ export function mountWidgetDocsExample(
     widgets: [
       ...buildClassicWidgets(highlight),
       ...buildOverlayWidgets(highlight, tooltipWidget),
-      ...buildAdvancedWidgets(highlight)
+      ...buildAdvancedWidgets(highlight, (target) => {
+        deck.setProps({
+          viewState: {
+            ...INITIAL_VIEW_STATE,
+            target,
+            zoom: 1.1
+          }
+        });
+      })
     ],
     style: {
       position: 'absolute',
@@ -199,12 +207,6 @@ export function mountWidgetDocsExample(
 
   if (highlight === 'toast-widget') {
     toastManager.clear();
-    toastManager.toast({
-      type: 'warning',
-      title: 'Live widget',
-      message: 'ToastWidget renders a themed notification stack.',
-      key: 'widget-docs-toast'
-    });
   }
 
   const tooltipFrame =
@@ -302,7 +304,10 @@ function buildOverlayWidgets(
   }
 }
 
-function buildAdvancedWidgets(highlight: WidgetDocsExampleHighlight) {
+function buildAdvancedWidgets(
+  highlight: WidgetDocsExampleHighlight,
+  onCenterView: (target: [number, number]) => void
+) {
   switch (highlight) {
     case 'omni-box-widget':
       return [
@@ -315,9 +320,24 @@ function buildAdvancedWidgets(highlight: WidgetDocsExampleHighlight) {
               (point) => ({
                 id: point.id,
                 label: point.label,
-                description: `${point.position[0]}, ${point.position[1]}`
+                description: `${point.position[0]}, ${point.position[1]}`,
+                data: point
               })
-            )
+            ),
+          onSelectOption: (option) => {
+            const point = option.data as PointDatum | undefined;
+            if (!point) {
+              return;
+            }
+            onCenterView(point.position);
+          },
+          onNavigateOption: (option) => {
+            const point = option.data as PointDatum | undefined;
+            if (!point) {
+              return;
+            }
+            onCenterView(point.position);
+          }
         })
       ];
     case 'toast-widget':
@@ -387,23 +407,47 @@ function buildLayers(highlight: WidgetDocsExampleHighlight) {
     radiusMaxPixels: 28,
     stroked: true,
     lineWidthMinPixels: 2,
-    pickable: highlight === 'html-tooltip-widget'
+    pickable: highlight === 'html-tooltip-widget' || highlight === 'toast-widget',
+    onClick:
+      highlight === 'toast-widget'
+        ? ({object}) => {
+            if (object) {
+              openToastForPoint(object as PointDatum);
+            }
+          }
+        : undefined
   });
 
   const labelLayer = new TextLayer<PointDatum>({
     id: 'widget-docs-labels',
     data: POINTS,
     getPosition: (point) => point.position,
-    getText: (point) => point.label,
+    getText: (point) => (highlight === 'toast-widget' ? 'Click me' : point.label),
     getSize: 13,
     getColor: [15, 23, 42, 230],
     getTextAnchor: 'middle',
     getAlignmentBaseline: 'top',
     getPixelOffset: [0, 22],
-    pickable: false
+    pickable: highlight === 'toast-widget',
+    onClick:
+      highlight === 'toast-widget'
+        ? ({object}) => {
+            if (object) {
+              openToastForPoint(object as PointDatum);
+            }
+          }
+        : undefined
   });
 
   return [scatterplotLayer, labelLayer];
+}
+
+function openToastForPoint(point: PointDatum) {
+  toastManager.toast({
+    type: 'info',
+    title: point.label,
+    message: `Toast opened from ${point.label}.`
+  });
 }
 
 function renderCaption(rootElement: HTMLElement, highlight: WidgetDocsExampleHighlight) {

@@ -5,12 +5,12 @@
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import maplibregl from 'maplibre-gl';
 import {h} from 'preact';
+import {MarkdownPanel} from '@deck.gl-community/panels';
 
 import {
   BoxWidget,
   HtmlOverlayItem,
   HtmlOverlayWidget,
-  MarkdownPanel,
   type HtmlOverlayWidgetProps
 } from '@deck.gl-community/widgets';
 import {INITIAL_COORDS, INITIAL_VIEW_STATE} from './constants';

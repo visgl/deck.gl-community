@@ -5,12 +5,14 @@
 import {Deck, MapView, _GlobeView} from '@deck.gl/core';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {
-  BoxWidget,
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
   type SettingsSchema,
   type SettingsState
+} from '../../../modules/panels/src';
+import {
+  BoxWidget
 } from '../../../modules/widgets/src';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 

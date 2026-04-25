@@ -1,11 +1,14 @@
 /** @jsxImportSource preact */
+import React from 'react';
 import {render} from 'preact';
 import {afterEach, describe, expect, it} from 'vitest';
 
+import {PanelManager} from './panel-manager';
+import {PanelContainer} from './panel-container';
+import {PANEL_THEME_DARK, PANEL_THEME_LIGHT, applyPanelTheme} from './lib/panel-theme';
 import {ToastWidget} from './widget-panels/toast-widget';
 import {ToolbarWidget} from './widget-panels/toolbar-widget';
-import {WidgetHost} from './widget-host';
-import {Widget} from './widget';
+import {MarkdownPanel, WidgetContainerRenderer, asPanelContainer} from './widget-panels/widget-containers';
 
 type TestWidgetProps = {
   id?: string;
@@ -16,9 +19,9 @@ type TestWidgetProps = {
   text: string;
 };
 
-class TestWidget extends Widget<TestWidgetProps> {
+class TestWidget extends PanelContainer<TestWidgetProps> {
   static defaultProps = {
-    ...Widget.defaultProps,
+    ...PanelContainer.defaultProps,
     id: 'test-widget',
     placement: 'top-left' as const,
     text: ''
@@ -49,6 +52,9 @@ class TestWidget extends Widget<TestWidgetProps> {
 
 afterEach(() => {
   document.body.innerHTML = '';
+  document.head.querySelectorAll('style[data-deck-gl-community-panels-styles]').forEach((element) => {
+    element.remove();
+  });
 });
 
 function createHostRoot() {
@@ -60,13 +66,13 @@ function createHostRoot() {
   return root;
 }
 
-describe('WidgetHost', () => {
+describe('PanelManager', () => {
   it('mounts standalone widgets without a Deck instance', () => {
     const root = createHostRoot();
-    const host = new WidgetHost({parentElement: root});
+    const host = new PanelManager({parentElement: root});
 
     host.setProps({
-      widgets: [
+      components: [
         new TestWidget({
           id: 'summary',
           placement: 'top-left',
@@ -93,24 +99,53 @@ describe('WidgetHost', () => {
     expect(root.querySelector('.bottom-right')).toBeTruthy();
   });
 
+  it('injects the base panel stylesheet when deck widget styles are not present', () => {
+    const root = createHostRoot();
+
+    expect(document.querySelector('[data-deck-gl-community-panels-styles]')).toBeNull();
+
+    const host = new PanelManager({parentElement: root});
+
+    const styleElement = document.querySelector<HTMLStyleElement>(
+      'style[data-deck-gl-community-panels-styles]'
+    );
+    expect(styleElement).toBeTruthy();
+    expect(styleElement?.textContent).toContain('.deck-widget');
+    expect(styleElement?.textContent).toContain('.deck-widget-button');
+
+    host.finalize();
+  });
+
+  it('does not inject duplicate base stylesheets', () => {
+    const root = createHostRoot();
+
+    const firstHost = new PanelManager({parentElement: root});
+    const secondHost = new PanelManager({parentElement: createHostRoot()});
+
+    expect(document.querySelectorAll('style[data-deck-gl-community-panels-styles]')).toHaveLength(1);
+
+    firstHost.finalize();
+    secondHost.finalize();
+  });
+
   it('reconciles widgets by id and updates an existing mounted instance', () => {
     const root = createHostRoot();
-    const host = new WidgetHost({parentElement: root});
+    const host = new PanelManager({parentElement: root});
     const initialWidget = new TestWidget({
       id: 'summary',
       text: 'First content'
     });
 
-    host.setProps({widgets: [initialWidget]});
+    host.setProps({components: [initialWidget]});
 
     const updatedWidget = new TestWidget({
       id: 'summary',
       text: 'Updated content'
     });
 
-    host.setProps({widgets: [updatedWidget]});
+    host.setProps({components: [updatedWidget]});
 
-    expect(host.getWidgets()[0]).toBe(initialWidget);
+    expect(host.getComponents()[0]).toBe(initialWidget);
     expect(root.textContent).toContain('Updated content');
     expect(root.querySelectorAll('.deck-widget-test')).toHaveLength(1);
   });
@@ -120,9 +155,9 @@ describe('WidgetHost', () => {
     const explicitContainer = document.createElement('div');
     root.appendChild(explicitContainer);
 
-    const host = new WidgetHost({parentElement: root});
+    const host = new PanelManager({parentElement: root});
     host.setProps({
-      widgets: [
+      components: [
         new ToolbarWidget({
           id: 'toolbar',
           _container: explicitContainer,
@@ -139,10 +174,10 @@ describe('WidgetHost', () => {
 
   it('finalizes widgets and removes internal placement containers', () => {
     const root = createHostRoot();
-    const host = new WidgetHost({parentElement: root});
+    const host = new PanelManager({parentElement: root});
 
     host.setProps({
-      widgets: [new TestWidget({id: 'summary', text: 'Content', placement: 'bottom-left'})]
+      components: [new TestWidget({id: 'summary', text: 'Content', placement: 'bottom-left'})]
     });
 
     expect(root.querySelector('.bottom-left')).toBeTruthy();
@@ -156,7 +191,7 @@ describe('WidgetHost', () => {
 
   it('supports interactive updates in standalone mode', async () => {
     const root = createHostRoot();
-    const host = new WidgetHost({parentElement: root});
+    const host = new PanelManager({parentElement: root});
     const state = {
       accent: 'Ocean'
     };
@@ -195,7 +230,7 @@ describe('WidgetHost', () => {
       ]
     });
 
-    host.setProps({widgets: [summaryWidget, toolbarWidget]});
+    host.setProps({components: [summaryWidget, toolbarWidget]});
 
     const actionButtons = root.querySelectorAll<HTMLButtonElement>(
       '.deck-widget-toolbar [data-toolbar-item-kind="action"]'
@@ -208,5 +243,43 @@ describe('WidgetHost', () => {
     actionButtons[1].click();
     await Promise.resolve();
     expect(root.textContent).toContain('Accent: Midnight');
+  });
+
+  it('updates inherited panel theme mode when the host theme changes', async () => {
+    const root = createHostRoot();
+    const host = new PanelManager({parentElement: root});
+    const containerWidget = new TestWidget({
+      id: 'theme-panel',
+      text: ''
+    });
+
+    const panelRoot = document.createElement('div');
+    root.appendChild(panelRoot);
+    applyPanelTheme(root, PANEL_THEME_LIGHT);
+
+    render(
+      <WidgetContainerRenderer
+        container={asPanelContainer(
+          new MarkdownPanel({
+            id: 'summary',
+            title: 'Summary',
+            markdown: 'Theme inheritance'
+          })
+        )}
+      />,
+      panelRoot
+    );
+
+    host.setProps({components: [containerWidget]});
+    await Promise.resolve();
+
+    const themeScope = panelRoot.querySelector<HTMLElement>('[data-panel-theme-mode]');
+    expect(themeScope?.dataset.panelThemeMode).toBe('light');
+
+    applyPanelTheme(root, PANEL_THEME_DARK);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(themeScope?.dataset.panelThemeMode).toBe('dark');
   });
 });
