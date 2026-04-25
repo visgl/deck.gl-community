@@ -1,3 +1,4 @@
+/* eslint react/no-unknown-property: 0 */
 /** @jsxImportSource preact */
 import {render} from 'preact';
 import {PanelContainer} from '../panel-container';

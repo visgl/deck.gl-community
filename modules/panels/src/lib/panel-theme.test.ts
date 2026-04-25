@@ -4,21 +4,17 @@
 
 import {describe, expect, it} from 'vitest';
 
-import {
-  PANEL_THEME_DARK,
-  PANEL_THEME_LIGHT,
-  applyPanelTheme
-} from './panel-theme';
+import {PANEL_THEME_DARK, PANEL_THEME_LIGHT, applyPanelTheme} from './panel-theme';
 
 function createStyleHost(): HTMLElement {
   const values = new Map<string, string>();
-  return ({
+  return {
     style: {
       setProperty: (name: string, value: string) => values.set(name, value),
       removeProperty: (name: string) => values.delete(name),
       getPropertyValue: (name: string) => values.get(name) ?? ''
     }
-  } as unknown) as HTMLElement;
+  } as unknown as HTMLElement;
 }
 
 describe('panel-theme', () => {

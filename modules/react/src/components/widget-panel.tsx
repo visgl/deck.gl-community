@@ -6,10 +6,11 @@ import * as React from 'react';
 import {h, render as renderPreact} from 'preact';
 import {DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
+  asPanelContainer,
   WidgetContainerRenderer,
   type WidgetContainer,
   type WidgetPanel as WidgetPanelDefinition
-} from '../../../panels/src';
+} from '@deck.gl-community/panels';
 
 import type {CSSProperties, ReactElement} from 'react';
 
@@ -80,12 +81,7 @@ export function WidgetPanel({
       return container;
     }
 
-    return {
-      kind: 'column',
-      props: {
-        panels: [panel]
-      }
-    };
+    return asPanelContainer(panel);
   }, [container, panel]);
 
   React.useEffect(() => {

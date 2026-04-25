@@ -8,7 +8,11 @@ import {PanelContainer} from './panel-container';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT, applyPanelTheme} from './lib/panel-theme';
 import {ToastWidget} from './widget-panels/toast-widget';
 import {ToolbarWidget} from './widget-panels/toolbar-widget';
-import {MarkdownPanel, WidgetContainerRenderer, asPanelContainer} from './widget-panels/widget-containers';
+import {
+  MarkdownPanel,
+  WidgetContainerRenderer,
+  asPanelContainer
+} from './widget-panels/widget-containers';
 
 type TestWidgetProps = {
   id?: string;
@@ -52,9 +56,11 @@ class TestWidget extends PanelContainer<TestWidgetProps> {
 
 afterEach(() => {
   document.body.innerHTML = '';
-  document.head.querySelectorAll('style[data-deck-gl-community-panels-styles]').forEach((element) => {
-    element.remove();
-  });
+  document.head
+    .querySelectorAll('style[data-deck-gl-community-panels-styles]')
+    .forEach((element) => {
+      element.remove();
+    });
 });
 
 function createHostRoot() {
@@ -122,7 +128,9 @@ describe('PanelManager', () => {
     const firstHost = new PanelManager({parentElement: root});
     const secondHost = new PanelManager({parentElement: createHostRoot()});
 
-    expect(document.querySelectorAll('style[data-deck-gl-community-panels-styles]')).toHaveLength(1);
+    expect(document.querySelectorAll('style[data-deck-gl-community-panels-styles]')).toHaveLength(
+      1
+    );
 
     firstHost.finalize();
     secondHost.finalize();

@@ -33,8 +33,10 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/widgets": "~9.3.0",
     "@probe.gl/stats": "^4.1.1",
     "preact": "^10.17.0"
+  },
+  "peerDependencies": {
+    "@deck.gl/widgets": "~9.3.0"
   }
 }

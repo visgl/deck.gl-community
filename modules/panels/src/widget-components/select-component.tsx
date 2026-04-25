@@ -120,10 +120,7 @@ function stopEventPropagation(event: Event): void {
   }
 }
 
-function findSelectedOptionIndex(
-  options: SelectComponentOption[],
-  value: SettingValue
-): number {
+function findSelectedOptionIndex(options: SelectComponentOption[], value: SettingValue): number {
   return options.findIndex((option) => option.value === value);
 }
 
@@ -135,13 +132,7 @@ function getNextOptionIndex(currentIndex: number, delta: -1 | 1, optionCount: nu
   return (resolvedIndex + delta + optionCount) % optionCount;
 }
 
-export function SelectComponent({
-  id,
-  label,
-  value,
-  options,
-  onValueChange
-}: SelectComponentProps) {
+export function SelectComponent({id, label, value, options, onValueChange}: SelectComponentProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeOptionIndex, setActiveOptionIndex] = useState(() =>
     findSelectedOptionIndex(options, value)

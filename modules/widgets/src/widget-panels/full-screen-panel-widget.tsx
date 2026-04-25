@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {PanelFullScreen} from '../../../panels/src';
+import {PanelFullScreen} from '@deck.gl-community/panels';
 
-import type {PanelFullScreenProps} from '../../../panels/src';
+import type {PanelFullScreenProps} from '@deck.gl-community/panels';
 
 /**
  * Props for {@link FullScreenPanelWidget}.

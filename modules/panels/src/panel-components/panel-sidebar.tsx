@@ -1,3 +1,4 @@
+/* eslint react/react-in-jsx-scope: 0, react/no-unknown-property: 0 */
 /** @jsxImportSource preact */
 import {render} from 'preact';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';

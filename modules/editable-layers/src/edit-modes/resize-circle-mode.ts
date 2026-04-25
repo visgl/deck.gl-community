@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import nearestPointOnLine from '@turf/nearest-point-on-line';
+import turfNearestPointOnLine from '@turf/nearest-point-on-line';
 import {point, lineString as toLineString} from '@turf/helpers';
-import circle from '@turf/circle';
-import distance from '@turf/distance';
+import turfCircle from '@turf/circle';
+import turfDistance from '@turf/distance';
 import turfCenter from '@turf/center';
 import {
   recursivelyTraverseNestedArrays,
@@ -134,7 +134,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
         'Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.'
       );
     }
-    return nearestPointOnLine(line, inPoint);
+    return turfNearestPointOnLine(line, inPoint);
   }
 
   handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
@@ -149,11 +149,11 @@ export class ResizeCircleMode extends GeoJsonEditMode {
       const feature = this.getSelectedFeature(props);
       const center = turfCenter(feature).geometry.coordinates;
       const numberOfSteps = Object.entries(feature.geometry.coordinates[0]).length - 1;
-      const radius = Math.max(distance(center, event.mapCoords), 0.001);
+      const radius = Math.max(turfDistance(center, event.mapCoords), 0.001);
 
       const {steps = numberOfSteps} = {};
       const options = {steps};
-      const updatedFeature = circle(center, radius, options);
+      const updatedFeature = turfCircle(center, radius, options);
       const geometry = updatedFeature.geometry;
 
       const updatedData = new ImmutableFeatureCollection(props.data)

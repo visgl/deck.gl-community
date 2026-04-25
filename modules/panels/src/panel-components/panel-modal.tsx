@@ -1,3 +1,4 @@
+/* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
 import {h, render} from 'preact';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
@@ -94,7 +95,11 @@ function PanelModalView({
 
       {open && (
         <>
-          <button type="button" style={OVERLAY_BACKDROP_STYLE} onPointerDown={() => onOpenChange(false)} />
+          <button
+            type="button"
+            style={OVERLAY_BACKDROP_STYLE}
+            onPointerDown={() => onOpenChange(false)}
+          />
           <div style={MODAL_DIALOG_WRAPPER_STYLE}>
             <div style={MODAL_DIALOG_PANEL_STYLE}>
               <div style={MODAL_HEADER_STYLE}>
@@ -172,6 +177,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     this.setProps(this.props);
   }
 
+  // eslint-disable-next-line complexity
   override setProps(props: Partial<PanelModalProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -183,7 +189,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
       this.triggerIcon = props.triggerIcon;
     }
     if (props.hideTrigger !== undefined || props.button !== undefined) {
-      this.hideTrigger = props.button !== undefined ? !props.button : props.hideTrigger ?? false;
+      this.hideTrigger = props.button !== undefined ? !props.button : (props.hideTrigger ?? false);
     }
     if (props.title !== undefined) {
       this.title = props.title;

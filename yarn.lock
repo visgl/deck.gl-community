@@ -498,9 +498,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/panels@workspace:modules/panels"
   dependencies:
-    "@deck.gl/widgets": "npm:~9.3.0"
     "@probe.gl/stats": "npm:^4.1.1"
     preact: "npm:^10.17.0"
+  peerDependencies:
+    "@deck.gl/widgets": ~9.3.0
   languageName: unknown
   linkType: soft
 
@@ -508,8 +509,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react@workspace:modules/react"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl/widgets": "npm:~9.3.0"
     "@types/styled-react-modal": "npm:^1.2.5"
     boxicons: "npm:^2.1.4"
     preact: "npm:^10.17.0"
@@ -518,6 +517,9 @@ __metadata:
     react-dom: "npm:^18.3.1"
     styled-components: "npm:^6.1.1"
     styled-react-modal: "npm:^3.1.1"
+  peerDependencies:
+    "@deck.gl-community/panels": ~9.3.2
+    "@deck.gl/widgets": ~9.3.0
   languageName: unknown
   linkType: soft
 
@@ -558,12 +560,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/widgets@workspace:modules/widgets"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
     "@probe.gl/stats": "npm:^4.1.1"
     "@turf/helpers": "npm:^6.5.0"
     preact: "npm:^10.17.0"
     supercluster: "npm:^8.0.1"
   peerDependencies:
+    "@deck.gl-community/panels": ~9.3.2
     "@deck.gl/core": ~9.3.0
     "@luma.gl/core": ~9.3.2
     "@luma.gl/webgl": ~9.3.2

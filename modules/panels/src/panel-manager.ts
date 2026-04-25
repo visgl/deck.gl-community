@@ -132,7 +132,9 @@ export class PanelManager {
    * `setProps({components})` calls.
    */
   addDefault(component: PanelContainer) {
-    if (!this.defaultComponents.find((existingComponent) => existingComponent.id === component.id)) {
+    if (
+      !this.defaultComponents.find((existingComponent) => existingComponent.id === component.id)
+    ) {
       this._addComponent(component);
       this.defaultComponents.push(component);
       this._setComponents(this.components);
@@ -298,7 +300,8 @@ export class PanelManager {
       return viewIdOrContainer;
     }
 
-    const containerId: string = viewIdOrContainer || ROOT_CONTAINER_ID;
+    const containerId =
+      typeof viewIdOrContainer === 'string' ? viewIdOrContainer : ROOT_CONTAINER_ID;
     let viewContainer = this.containers[containerId];
     if (!viewContainer) {
       const document = this.parentElement.ownerDocument;

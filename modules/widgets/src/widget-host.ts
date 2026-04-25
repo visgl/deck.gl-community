@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Widget} from '@deck.gl/core';
-
-import type Deck from '@deck.gl/core/lib/deck';
 import type {MjolnirGestureEvent, MjolnirPointerEvent} from 'mjolnir.js';
 
 const PLACEMENTS = {
@@ -19,6 +16,31 @@ const DEFAULT_PLACEMENT = 'top-left';
 const ROOT_CONTAINER_ID = 'root';
 
 type WidgetPlacement = keyof typeof PLACEMENTS;
+type DeckLike = {
+  width?: number;
+  height?: number;
+};
+type WidgetViewport = {id: string; x: number; y: number; width: number; height: number};
+type WidgetLike = {
+  id: string;
+  props: {_container?: string | HTMLDivElement | null; [key: string]: unknown};
+  viewId?: string | null;
+  placement?: WidgetPlacement;
+  widgetManager?: unknown;
+  deck?: unknown;
+  rootElement?: HTMLDivElement;
+  setProps(props: Record<string, unknown>): void;
+  _onAdd(params: {deck: unknown; viewId: string | null}): HTMLDivElement;
+  updateHTML(): void;
+  onRemove?(): void;
+  onViewportChange?(viewport: unknown): void;
+  onRedraw?(params: {viewports: unknown[]; layers: unknown[]}): void;
+  onHover?(info: unknown, event: MjolnirPointerEvent): void;
+  onClick?(info: unknown, event: MjolnirGestureEvent): void;
+  onDrag?(info: unknown, event: MjolnirGestureEvent): void;
+  onDragStart?(info: unknown, event: MjolnirGestureEvent): void;
+  onDragEnd?(info: unknown, event: MjolnirGestureEvent): void;
+};
 
 /**
  * Configuration for one standalone widget host.
@@ -32,7 +54,7 @@ export type WidgetHostProps = {
    * Optional deck instance used to forward redraw, viewport, and event hooks
    * for widgets that can take advantage of deck runtime state.
    */
-  deck?: Deck<any> | null;
+  deck?: DeckLike | null;
   /**
    * Optional class name appended to the host root alongside
    * `deck-widget-container`.
@@ -52,20 +74,18 @@ export class WidgetHost {
   /**
    * Optional deck instance forwarded into widget lifecycle hooks.
    */
-  deck?: Deck<any> | null;
+  deck?: DeckLike | null;
   /**
    * Root HTML element that owns this host's placement containers.
    */
   parentElement: HTMLElement;
 
   private className?: string;
-  private defaultWidgets: Widget[] = [];
-  private widgets: Widget[] = [];
-  private resolvedWidgets: Widget[] = [];
+  private defaultWidgets: WidgetLike[] = [];
+  private widgets: WidgetLike[] = [];
+  private resolvedWidgets: WidgetLike[] = [];
   private containers: {[id: string]: HTMLDivElement} = {};
-  private lastViewports: {
-    [id: string]: {id: string; x: number; y: number; width: number; height: number};
-  } = {};
+  private lastViewports: {[id: string]: WidgetViewport} = {};
 
   /**
    * Creates a standalone widget host rooted in the supplied HTML element.
@@ -83,7 +103,7 @@ export class WidgetHost {
   /**
    * Returns the currently mounted widget instances after reconciliation.
    */
-  getWidgets(): Widget[] {
+  getWidgets(): WidgetLike[] {
     return this.resolvedWidgets;
   }
 
@@ -93,7 +113,7 @@ export class WidgetHost {
    * Matching widget ids preserve the mounted instance and receive prop updates
    * through `setProps`. Added and removed ids trigger the normal lifecycle.
    */
-  setProps(props: {widgets?: (Widget | null | undefined)[]}) {
+  setProps(props: {widgets?: (WidgetLike | null | undefined)[]}) {
     if (props.widgets && !areWidgetListsEqual(props.widgets, this.widgets)) {
       const nextWidgets = props.widgets.filter(isWidget);
       this._setWidgets(nextWidgets);
@@ -127,7 +147,7 @@ export class WidgetHost {
    * Adds one imperative default widget that stays mounted independently of
    * `setProps({widgets})` calls.
    */
-  addDefault(widget: Widget) {
+  addDefault(widget: WidgetLike) {
     if (!this.defaultWidgets.find((existingWidget) => existingWidget.id === widget.id)) {
       this._addWidget(widget);
       this.defaultWidgets.push(widget);
@@ -142,19 +162,14 @@ export class WidgetHost {
    * paired with a real deck instance or another renderer that can supply
    * viewport-like geometry.
    */
-  onRedraw({
-    viewports,
-    layers
-  }: {
-    viewports: Array<{id: string; x: number; y: number; width: number; height: number}>;
-    layers: unknown[];
-  }) {
-    const viewportsById: {
-      [id: string]: {id: string; x: number; y: number; width: number; height: number};
-    } = viewports.reduce((acc, viewport) => {
-      acc[viewport.id] = viewport;
-      return acc;
-    }, {});
+  onRedraw({viewports, layers}: {viewports: WidgetViewport[]; layers: unknown[]}) {
+    const viewportsById: {[id: string]: WidgetViewport} = viewports.reduce(
+      (acc, viewport) => {
+        acc[viewport.id] = viewport;
+        return acc;
+      },
+      {} as {[id: string]: WidgetViewport}
+    );
 
     for (const widget of this.getWidgets()) {
       if (widget.viewId) {
@@ -200,8 +215,8 @@ export class WidgetHost {
     }
   }
 
-  private _setWidgets(nextWidgets: Widget[]) {
-    const oldWidgetMap: Record<string, Widget | null> = {};
+  private _setWidgets(nextWidgets: WidgetLike[]) {
+    const oldWidgetMap: Record<string, WidgetLike | null> = {};
 
     for (const widget of this.resolvedWidgets) {
       oldWidgetMap[widget.id] = widget;
@@ -244,17 +259,15 @@ export class WidgetHost {
     this.widgets = nextWidgets;
   }
 
-  private _addWidget(widget: Widget) {
-    const {viewId = null, placement = DEFAULT_PLACEMENT} = widget as Widget & {
-      placement?: WidgetPlacement;
-    };
+  private _addWidget(widget: WidgetLike) {
+    const {viewId = null, placement = DEFAULT_PLACEMENT} = widget;
     const container = widget.props._container ?? viewId;
 
     widget.widgetManager = this as never;
     widget.deck = this.deck ?? undefined;
 
     widget.rootElement = widget._onAdd({
-      deck: (this.deck ?? undefined) as Deck<any>,
+      deck: this.deck ?? undefined,
       viewId
     });
 
@@ -265,7 +278,7 @@ export class WidgetHost {
     widget.updateHTML();
   }
 
-  private _removeWidget(widget: Widget) {
+  private _removeWidget(widget: WidgetLike) {
     widget.onRemove?.();
 
     if (widget.rootElement) {
@@ -277,8 +290,8 @@ export class WidgetHost {
   }
 
   private _notifyViewportChange(
-    widget: Widget,
-    viewports: Array<{id: string; x: number; y: number; width: number; height: number}>,
+    widget: WidgetLike,
+    viewports: WidgetViewport[],
     layers: unknown[]
   ) {
     if (widget.onViewportChange) {
@@ -297,7 +310,8 @@ export class WidgetHost {
       return viewIdOrContainer;
     }
 
-    const containerId = viewIdOrContainer || ROOT_CONTAINER_ID;
+    const containerId =
+      typeof viewIdOrContainer === 'string' ? viewIdOrContainer : ROOT_CONTAINER_ID;
     let viewContainer = this.containers[containerId];
     if (!viewContainer) {
       const document = this.parentElement.ownerDocument;
@@ -345,8 +359,8 @@ export class WidgetHost {
 }
 
 function areWidgetListsEqual(
-  left: readonly (Widget | null | undefined)[],
-  right: readonly Widget[]
+  left: readonly (WidgetLike | null | undefined)[],
+  right: readonly WidgetLike[]
 ): boolean {
   if (left.length !== right.length) {
     return false;
@@ -361,6 +375,6 @@ function areWidgetListsEqual(
   return true;
 }
 
-function isWidget(widget: Widget | null | undefined): widget is Widget {
+function isWidget(widget: WidgetLike | null | undefined): widget is WidgetLike {
   return Boolean(widget);
 }

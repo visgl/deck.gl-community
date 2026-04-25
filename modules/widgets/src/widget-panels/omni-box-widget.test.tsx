@@ -1,12 +1,12 @@
 import {afterEach, describe, expect, it} from 'vitest';
 
-import {OmniBoxPanelWidget} from './omni-box-widget';
+import {OmniBoxWidget} from './omni-box-widget';
 
 function renderWidget() {
   const root = document.createElement('div');
   document.body.appendChild(root);
 
-  const widget = new OmniBoxPanelWidget({
+  const widget = new OmniBoxWidget({
     defaultOpen: true,
     getOptions: () => [
       {
@@ -34,8 +34,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('OmniBoxPanelWidget', () => {
-  it('uses deck widget theme CSS variables for the control row and dropdown', async () => {
+describe('OmniBoxWidget', () => {
+  it('uses deck widget theme CSS variables for the control row and dropdown', () => {
     const {root, cleanup} = renderWidget();
 
     const styles = root.querySelector('style');

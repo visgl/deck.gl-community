@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {PanelModal} from '../../../panels/src';
+import {PanelModal} from '@deck.gl-community/panels';
 
-import type {PanelModalProps} from '../../../panels/src';
+import type {PanelModalProps} from '@deck.gl-community/panels';
 
 /**
  * Props for {@link ModalPanelWidget}.

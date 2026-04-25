@@ -19,7 +19,7 @@ test('Propagates update triggers to geojson layer', () => {
   editableLayer.createGuidesLayers = () => [];
   editableLayer.createTooltipsLayers = () => [];
 
-  const [geoJsonLayer, ..._rest] = editableLayer.renderLayers();
+  const [geoJsonLayer] = editableLayer.renderLayers();
   const {updateTriggers} = geoJsonLayer.props;
   expect(updateTriggers.getLineColor.flat()).toContain('lineColor');
   expect(updateTriggers.getFillColor.flat()).toContain('fillColor');

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {PanelBox} from '../../../panels/src';
+import {PanelBox} from '@deck.gl-community/panels';
 
-import type {PanelBoxProps} from '../../../panels/src';
+import type {PanelBoxProps} from '@deck.gl-community/panels';
 
 /**
  * Props for {@link BoxPanelWidget}.

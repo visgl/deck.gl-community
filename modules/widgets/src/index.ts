@@ -18,7 +18,7 @@ export {
   type ToolbarWidgetProps,
   type ToolbarWidgetToggleGroupItem,
   type ToolbarWidgetToggleOption
-} from '../../panels/src';
+} from '@deck.gl-community/panels';
 export {ZoomRangeWidget} from './graph-widgets/zoom-range-widget';
 export type {ZoomRangeWidgetProps} from './graph-widgets/zoom-range-widget';
 

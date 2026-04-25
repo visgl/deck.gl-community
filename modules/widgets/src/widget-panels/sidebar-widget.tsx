@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {PanelSidebar} from '../../../panels/src';
+import {PanelSidebar} from '@deck.gl-community/panels';
 
-import type {PanelSidebarProps} from '../../../panels/src';
+import type {PanelSidebarProps} from '@deck.gl-community/panels';
 
 /**
  * Props for {@link SidebarPanelWidget}.
@@ -18,7 +18,9 @@ export type SidebarPanelWidgetProps = PanelSidebarProps & {
   triggerIcon?: string;
 };
 
-function normalizeSidebarProps(props: Partial<SidebarPanelWidgetProps>): Partial<PanelSidebarProps> {
+function normalizeSidebarProps(
+  props: Partial<SidebarPanelWidgetProps>
+): Partial<PanelSidebarProps> {
   return {
     ...props
   };

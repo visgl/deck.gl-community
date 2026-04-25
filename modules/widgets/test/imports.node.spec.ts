@@ -4,9 +4,19 @@
 
 import {beforeAll, expect, it, vi} from 'vitest';
 
-vi.mock('../../panels/src/widget-panels/text-editor-panel', () => ({
-  TextEditorPanel: class TextEditorPanel {}
-}));
+vi.mock('@deck.gl-community/panels', async () => {
+  return {
+    PanelBox: class PanelBox {},
+    PanelModal: class PanelModal {},
+    PanelSidebar: class PanelSidebar {},
+    PanelFullScreen: class PanelFullScreen {},
+    ToolbarWidget: class ToolbarWidget {},
+    ToastWidget: class ToastWidget {},
+    KeyboardShortcutsManager: class KeyboardShortcutsManager {},
+    KeyboardShortcutsManagerDocument: class KeyboardShortcutsManagerDocument {},
+    toastManager: {}
+  };
+});
 
 let Widgets: typeof import('../src/index');
 

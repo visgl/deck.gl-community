@@ -10,6 +10,13 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 ## Quality gates
 - Run `yarn lint` or `yarn lint-fix` before committing JavaScript/TypeScript changes.
 - Run the relevant Vitest project: `yarn test` (Node), `yarn test-browser`, or `yarn test-headless` as appropriate for your change.
+- When asked to "get ready for merge", do the full merge-readiness pass:
+  - TSDoc the public API surface affected by the change
+  - do a documentation pass, including `docs/whats-new.md` and any relevant upgrade or migration guide content
+  - run `yarn` in the repo root so workspace metadata and `yarn.lock` are up to date, especially after any `package.json` changes
+  - run the build
+  - run `yarn lint-fix`
+  - run the relevant tests for the changed packages, examples, and website/docs wiring
 
 ## Documentation and release process
 - Follow the contribution flow in `docs/CONTRIBUTING.md` before landing breaking changes.
@@ -46,4 +53,3 @@ Formatting is enforced by Prettier and ESLint via `ocular-lint`.
 - vis.gl ecosystem dependencies are acceptable, as long as they respect the layering of those frameworks (a math library should not include luma.gl or deck.gl for instance).
 - For math use math.gl modules. Do not introduce d3-extents or similar to save just a few lines
 - Try to avoid lodash dependencies.
-

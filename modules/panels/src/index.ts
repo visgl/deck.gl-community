@@ -8,10 +8,7 @@ export {PanelManager, type PanelManagerProps} from './panel-manager';
 export {PanelBox, type PanelBoxProps} from './panel-components/panel-box';
 export {PanelModal, type PanelModalProps} from './panel-components/panel-modal';
 export {PanelSidebar, type PanelSidebarProps} from './panel-components/panel-sidebar';
-export {
-  PanelFullScreen,
-  type PanelFullScreenProps
-} from './panel-components/panel-full-screen';
+export {PanelFullScreen, type PanelFullScreenProps} from './panel-components/panel-full-screen';
 
 export {
   PANEL_THEME_DARK,

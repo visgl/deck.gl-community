@@ -3,4 +3,4 @@ export {
   KeyboardShortcutsManagerDocument,
   type KeyboardShortcutEventManager,
   type KeyboardShortcutManagerEvent
-} from '../../../panels/src/keyboard-shortcuts/keyboard-shortcuts-manager';
+} from '@deck.gl-community/panels';

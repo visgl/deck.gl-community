@@ -2,7 +2,7 @@ import * as React from 'react';
 import {render, screen} from '@testing-library/react';
 import {afterEach, describe, expect, it} from 'vitest';
 
-import {MarkdownPanel} from '../../../panels/src';
+import {MarkdownPanel} from '@deck.gl-community/panels';
 
 import {WidgetPanel} from './widget-panel';
 

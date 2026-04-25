@@ -13,7 +13,6 @@ import {
 } from '../../../src/utils/utils';
 import {nearestPointOnLine} from '../../../src/edit-modes/utils';
 import {Position} from '../../../src/utils/geojson-types';
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {CartesianCoordinateSystem} from '../../../src/edit-modes/coordinate-system';
 
 const Point = {

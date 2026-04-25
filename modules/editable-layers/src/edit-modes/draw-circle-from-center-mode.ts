@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import circle from '@turf/circle';
-import distance from '@turf/distance';
-import area from '@turf/area';
+import turfCircle from '@turf/circle';
+import turfDistance from '@turf/distance';
+import turfArea from '@turf/area';
 import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
 import {Position, Polygon, Feature, FeatureCollection} from '../utils/geojson-types';
@@ -27,8 +27,8 @@ export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
     }
 
     // setting value of radius as distance of center and other point
-    this.radius = Math.max(distance(coord1, coord2), 0.001);
-    const geometry = circle(coord1, this.radius, options);
+    this.radius = Math.max(turfDistance(coord1, coord2), 0.001);
+    const geometry = turfCircle(coord1, this.radius, options);
 
     geometry.properties = geometry.properties || {};
     geometry.properties.shape = 'Circle';
@@ -37,7 +37,7 @@ export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
     geometry.properties.editProperties.radius = {value: this.radius, unit: 'kilometers'};
     geometry.properties.editProperties.center = coord1;
     // calculate area of circle with turf function
-    this.areaCircle = area(geometry);
+    this.areaCircle = turfArea(geometry);
 
     return geometry;
   }

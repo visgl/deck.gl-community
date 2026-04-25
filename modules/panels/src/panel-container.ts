@@ -134,7 +134,10 @@ export abstract class PanelContainer<PropsT extends PanelContainerProps = PanelC
    */
   _onAdd(params: {deck: unknown; viewId: string | null}): HTMLDivElement {
     const rootElement = this.onAdd(params);
-    return rootElement ?? this.onCreateRootElement();
+    if (rootElement) {
+      return rootElement;
+    }
+    return this.onCreateRootElement();
   }
 
   /**

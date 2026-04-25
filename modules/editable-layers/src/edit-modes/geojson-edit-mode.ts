@@ -6,7 +6,7 @@ import {featureCollection} from '@turf/helpers';
 import turfUnion from '@turf/union';
 import turfDifference from '@turf/difference';
 import turfIntersect from '@turf/intersect';
-import rewind from '@turf/rewind';
+import turfRewind from '@turf/rewind';
 
 import {
   EditAction,
@@ -123,7 +123,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 
     const isPolygonal = geometry.type === 'Polygon' || geometry.type === 'MultiPolygon';
     if (isPolygonal) {
-      return rewind(feature) as SimpleFeature;
+      return turfRewind(feature) as SimpleFeature;
     }
 
     return feature;
