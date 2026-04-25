@@ -6,7 +6,6 @@ import * as React from 'react';
 import {h, render as renderPreact} from 'preact';
 import {DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
-  asPanelContainer,
   WidgetContainerRenderer,
   type WidgetContainer,
   type WidgetPanel as WidgetPanelDefinition
@@ -76,13 +75,10 @@ export function WidgetPanel({
   framed = true
 }: WidgetPanelProps): ReactElement {
   const mountElementRef = React.useRef<HTMLDivElement | null>(null);
-  const resolvedContainer = React.useMemo<WidgetContainer>(() => {
-    if (container) {
-      return container;
-    }
-
-    return asPanelContainer(panel);
-  }, [container, panel]);
+  const resolvedContainer = React.useMemo<WidgetContainer | null>(
+    () => (container ? container : null),
+    [container]
+  );
 
   React.useEffect(() => {
     const mountElement = mountElementRef.current;
@@ -90,11 +86,23 @@ export function WidgetPanel({
       return undefined;
     }
 
-    renderPreact(h(WidgetContainerRenderer, {container: resolvedContainer}), mountElement);
+    if (resolvedContainer) {
+      renderPreact(h(WidgetContainerRenderer, {container: resolvedContainer}), mountElement);
+    } else {
+      renderPreact(
+        h('div', null, [
+          h('section', {style: DIRECT_PANEL_SECTION_STYLE}, [
+            panel.title ? h('header', {style: DIRECT_PANEL_HEADER_STYLE}, panel.title) : null,
+            h('div', {style: DIRECT_PANEL_CONTENT_STYLE}, panel.content)
+          ])
+        ]),
+        mountElement
+      );
+    }
     return () => {
       renderPreact(null, mountElement);
     };
-  }, [resolvedContainer]);
+  }, [panel, resolvedContainer]);
 
   return (
     <div
@@ -107,6 +115,27 @@ export function WidgetPanel({
     </div>
   );
 }
+
+const DIRECT_PANEL_SECTION_STYLE = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  opacity: 1
+} as const;
+
+const DIRECT_PANEL_HEADER_STYLE = {
+  fontSize: '12px',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  color: 'var(--button-text, rgb(24, 24, 26))'
+} as const;
+
+const DIRECT_PANEL_CONTENT_STYLE = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px'
+} as const;
 
 function getHostStyle(
   themeMode: WidgetPanelThemeMode,

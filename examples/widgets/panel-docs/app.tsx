@@ -6,6 +6,7 @@
 import {Stats} from '@probe.gl/stats';
 import {
   AccordeonPanel,
+  BinaryDataPanel,
   ColumnPanel,
   CustomPanel,
   KeyboardShortcutsPanel,
@@ -27,15 +28,12 @@ import {
   toastManager
 } from '../../../modules/panels/src';
 
-import type {
-  KeyboardShortcut,
-  SettingsSchema,
-  SettingsState
-} from '../../../modules/panels/src';
+import type {KeyboardShortcut, SettingsSchema, SettingsState} from '../../../modules/panels/src';
 
 export type PanelDocsExampleHighlight =
   | 'widget-panels'
   | 'markdown-panel'
+  | 'binary-data-panel'
   | 'custom-panel'
   | 'stats-panel'
   | 'settings-panel'
@@ -144,7 +142,11 @@ export function mountPanelDocsExample(
     });
     renderScene(sceneElement, highlight, state.theme);
     panelManager.setProps({
-      components: [...buildHighlightComponents(highlight, panelElement, overlayElement), toolbar, toast]
+      components: [
+        ...buildHighlightComponents(highlight, panelElement, overlayElement),
+        toolbar,
+        toast
+      ]
     });
   }
 }
@@ -152,6 +154,7 @@ export function mountPanelDocsExample(
 const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   'widget-panels': 'Using Panels',
   'markdown-panel': 'MarkdownPanel',
+  'binary-data-panel': 'BinaryDataPanel',
   'custom-panel': 'CustomPanel',
   'stats-panel': 'StatsPanel',
   'settings-panel': 'SettingsPanel',
@@ -267,13 +270,32 @@ function buildHighlightComponents(
   }
 }
 
+// eslint-disable-next-line complexity
 function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
   switch (highlight) {
     case 'markdown-panel':
       return new MarkdownPanel({
         id: 'markdown',
         title: 'Overview',
-        markdown: ['A small built-in markdown subset.', '', '- Headings', '- Lists', '- Inline emphasis'].join('\n')
+        markdown: [
+          'A small built-in markdown subset.',
+          '',
+          '- Headings',
+          '- Lists',
+          '- Inline emphasis'
+        ].join('\n')
+      });
+
+    case 'binary-data-panel':
+      return new BinaryDataPanel({
+        id: 'binary-data',
+        title: 'Binary Data',
+        data: new Uint8Array([
+          0x47, 0x4c, 0x42, 0x02, 0x18, 0x00, 0x00, 0x00, 0x4a, 0x53, 0x4f, 0x4e, 0x7b, 0x22, 0x61,
+          0x73, 0x73, 0x65, 0x74, 0x22, 0x3a, 0x7b, 0x7d, 0x7d, 0x00, 0x01, 0x02, 0x7e
+        ]),
+        rowByteLength: 8,
+        maxByteLength: 24
       });
 
     case 'custom-panel':
@@ -460,7 +482,8 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
           notes: new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
-            markdown: 'Use `PanelFullScreen` when the panel layout should dominate the available space.'
+            markdown:
+              'Use `PanelFullScreen` when the panel layout should dominate the available space.'
           })
         }
       });
@@ -497,7 +520,11 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
   }
 }
 
-function renderScene(sceneElement: HTMLElement, highlight: PanelDocsExampleHighlight, theme: 'light' | 'dark') {
+function renderScene(
+  sceneElement: HTMLElement,
+  highlight: PanelDocsExampleHighlight,
+  theme: 'light' | 'dark'
+) {
   const document = sceneElement.ownerDocument;
   const wrapper = document.createElement('div');
   const title = document.createElement('div');

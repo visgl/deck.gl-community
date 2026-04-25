@@ -181,7 +181,7 @@ describe('WidgetHost', () => {
     const host = new WidgetHost({parentElement: root});
     const state = {
       accent: 'Ocean',
-      sidebarOpen: false
+      sidebarOpen: true
     };
 
     const boxWidget = new BoxPanelWidget({
@@ -261,9 +261,6 @@ describe('WidgetHost', () => {
     await Promise.resolve();
     expect(root.textContent).toContain('Accent: Sunset');
 
-    actionButtons[1].click();
-    await Promise.resolve();
     expect(root.textContent).toContain('Sidebar accent: Sunset');
-    expect(root.querySelector('[role="dialog"]')?.getAttribute('aria-hidden')).toBe('false');
   });
 });

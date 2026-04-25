@@ -48,6 +48,7 @@ export {
 
 export {SettingsPanel, type SettingsPanelProps} from './widget-panels/settings-panel';
 export {StatsPanel, type StatsPanelProps} from './widget-panels/stats-panel';
+export {BinaryDataPanel, type BinaryDataPanelProps} from './widget-panels/binary-data-panel';
 export {
   KeyboardShortcutsPanel,
   type KeyboardShortcutsPanelProps

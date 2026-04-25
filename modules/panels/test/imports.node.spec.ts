@@ -39,3 +39,7 @@ it('exports ToastWidget', () => {
 it('exports TextEditorPanel', () => {
   expect(Panels.TextEditorPanel).toBeDefined();
 });
+
+it('exports BinaryDataPanel', () => {
+  expect(Panels.BinaryDataPanel).toBeDefined();
+});

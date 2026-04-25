@@ -11,6 +11,7 @@ A new module for deck-independent panel composition and small application UI.
 - `PanelManager` - mount compatible panel-managed UI into a plain `HTMLElement`
 - Panel/container composition APIs extracted into a dedicated package
 - Stand-alone documentation and examples for panel composition outside deck.gl
+- `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
 
 ## v9.3
 
