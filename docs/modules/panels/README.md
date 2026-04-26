@@ -13,7 +13,7 @@ theming, and application-managed UI state such as toast notifications.
 
 ## Using with deck.gl
 
-For deck-facing wrappers, use [`@deck.gl-community/widgets`](/docs/modules/widgets/README):
+For deck-facing wrappers, use [`@deck.gl-community/widgets`](/docs/modules/widgets):
 
 - [BoxPanelWidget](/docs/modules/widgets/api-reference/box-widget)
 - [ModalPanelWidget](/docs/modules/widgets/api-reference/modal-widget)
