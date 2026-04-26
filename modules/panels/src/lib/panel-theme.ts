@@ -12,7 +12,7 @@
 export type PanelThemeVariables = Record<`--${string}`, string>;
 
 const PANEL_THEME_KEYS = [
-  '--panel-margin',
+  '--widget-margin',
   '--button-size',
   '--button-corner-radius',
   '--button-background',
@@ -44,7 +44,7 @@ const PANEL_THEME_KEYS = [
  * Built-in light panel theme variables.
  */
 export const PANEL_THEME_LIGHT = {
-  '--panel-margin': '12px',
+  '--widget-margin': '12px',
   '--button-size': '28px',
   '--button-corner-radius': '8px',
   '--button-background': '#fff',
@@ -76,7 +76,7 @@ export const PANEL_THEME_LIGHT = {
  * Built-in dark panel theme variables.
  */
 export const PANEL_THEME_DARK = {
-  '--panel-margin': '12px',
+  '--widget-margin': '12px',
   '--button-size': '28px',
   '--button-corner-radius': '8px',
   '--button-background': 'rgba(18, 18, 20, 1)',

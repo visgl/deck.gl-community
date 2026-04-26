@@ -110,7 +110,7 @@ export class PanelFullScreen extends PanelContainer<PanelFullScreenProps> {
     }
   };
 
-  className = 'deck-panel-full-screen-panel';
+  className = 'deck-widget-full-screen-panel';
   placement: PanelPlacement = PanelFullScreen.defaultProps.placement;
   title: string | undefined = PanelFullScreen.defaultProps.title;
   marginPx = PanelFullScreen.defaultProps.marginPx;

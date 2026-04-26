@@ -38,7 +38,7 @@ export type PanelManagerProps = {
   deck?: unknown | null;
   /**
    * Optional class name appended to the host root alongside
-   * `deck-panel-container`.
+   * `deck-widget-container`.
    */
   className?: string;
 };
@@ -78,7 +78,7 @@ export class PanelManager {
     this.parentElement = parentElement;
     this.className = className;
     ensurePanelStylesheet(parentElement.ownerDocument);
-    this.parentElement.classList.add('deck-panel-container');
+    this.parentElement.classList.add('deck-widget-container');
     if (className) {
       this.parentElement.classList.add(className);
     }
@@ -124,7 +124,7 @@ export class PanelManager {
     if (this.className) {
       this.parentElement.classList.remove(this.className);
     }
-    this.parentElement.classList.remove('deck-panel-container');
+    this.parentElement.classList.remove('deck-widget-container');
   }
 
   /**

@@ -386,7 +386,7 @@ describe('TextEditorPanel', () => {
   it('updates the Monaco theme when inherited panel theme variables change', async () => {
     const panelContainer = document.createElement('div');
     const root = document.createElement('div');
-    panelContainer.className = 'deck-panel-container';
+    panelContainer.className = 'deck-widget-container';
     panelContainer.style.setProperty(
       '--menu-background',
       PANEL_THEME_LIGHT['--menu-background'] ?? ''

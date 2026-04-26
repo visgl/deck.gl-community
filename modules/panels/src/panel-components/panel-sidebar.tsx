@@ -192,7 +192,7 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
     button: false
   };
 
-  className = 'deck-panel-sidebar';
+  className = 'deck-widget-sidebar';
   placement: PanelPlacement = PanelSidebar.defaultProps.placement;
   side: 'left' | 'right' = PanelSidebar.defaultProps.side;
   widthPx = PanelSidebar.defaultProps.widthPx;
@@ -261,10 +261,10 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
     this.#rootElement = rootElement;
     reparentToOverlayRoot(rootElement);
     rootElement.style.position = 'absolute';
-    rootElement.style.top = 'var(--panel-margin, 12px)';
-    rootElement.style.bottom = 'var(--panel-margin, 12px)';
-    rootElement.style.left = this.side === 'left' ? '-1px' : 'var(--panel-margin, 12px)';
-    rootElement.style.right = this.side === 'right' ? '-1px' : 'var(--panel-margin, 12px)';
+    rootElement.style.top = 'var(--widget-margin, 12px)';
+    rootElement.style.bottom = 'var(--widget-margin, 12px)';
+    rootElement.style.left = this.side === 'left' ? '-1px' : 'var(--widget-margin, 12px)';
+    rootElement.style.right = this.side === 'right' ? '-1px' : 'var(--widget-margin, 12px)';
     rootElement.style.width = 'auto';
     rootElement.style.height = 'auto';
     rootElement.style.margin = '0';

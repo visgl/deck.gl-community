@@ -251,7 +251,7 @@ export class ToolbarPanelContainer extends PanelContainer<ToolbarPanelContainerP
     items: []
   };
 
-  className = 'deck-panel-toolbar';
+  className = 'deck-widget-toolbar';
   placement: PanelPlacement = ToolbarPanelContainer.defaultProps.placement;
   #rootElement: HTMLElement | null = null;
 
@@ -276,7 +276,7 @@ export class ToolbarPanelContainer extends PanelContainer<ToolbarPanelContainerP
 
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
-    const className = ['deck-panel', this.className, this.props.className]
+    const className = ['deck-widget', this.className, this.props.className]
       .filter(Boolean)
       .join(' ');
     rootElement.className = className;

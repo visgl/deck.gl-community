@@ -20,32 +20,32 @@ type ToastPanelContainerViewProps = {
 
 const TOAST_KIND_STYLES: Record<ToastKind, {accent: string; background: string; icon: string}> = {
   error: {
-    accent: 'var(--deck-panel-error-color, var(--button-icon-idle, currentColor))',
+    accent: 'var(--deck-widget-error-color, var(--button-icon-idle, currentColor))',
     background: 'var(--button-background)',
     icon: '⚠'
   },
   info: {
-    accent: 'var(--deck-panel-info-color, var(--button-icon-idle, currentColor))',
+    accent: 'var(--deck-widget-info-color, var(--button-icon-idle, currentColor))',
     background: 'var(--button-background)',
     icon: 'ⓘ'
   },
   warning: {
-    accent: 'var(--deck-panel-warning-color, var(--button-icon-idle, currentColor))',
+    accent: 'var(--deck-widget-warning-color, var(--button-icon-idle, currentColor))',
     background: 'var(--button-background)',
     icon: '⚠'
   }
 };
 
 const TOAST_KIND_ICON_COLOR: Record<ToastKind, string> = {
-  error: 'var(--deck-panel-error-color, var(--button-icon-idle, currentColor))',
-  info: 'var(--deck-panel-info-color, var(--button-icon-idle, currentColor))',
-  warning: 'var(--deck-panel-warning-color, var(--button-icon-idle, currentColor))'
+  error: 'var(--deck-widget-error-color, var(--button-icon-idle, currentColor))',
+  info: 'var(--deck-widget-info-color, var(--button-icon-idle, currentColor))',
+  warning: 'var(--deck-widget-warning-color, var(--button-icon-idle, currentColor))'
 };
 
 const TOAST_CONTAINER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: 'var(--panel-margin, 8px)',
+  gap: 'var(--widget-margin, 8px)',
   alignItems: 'stretch',
   pointerEvents: 'auto',
   width: '100%',
@@ -88,8 +88,8 @@ const CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   minHeight: 'unset'
 };
 
-const TOAST_WIDGET_CLASS = 'deck-panel-toast';
-const TOAST_WIDGET_STACK_CLASS = 'deck-panel-toast-stack';
+const TOAST_WIDGET_CLASS = 'deck-widget-toast';
+const TOAST_WIDGET_STACK_CLASS = 'deck-widget-toast-stack';
 
 function ToastPanelContainerStyles() {
   return (
@@ -116,7 +116,7 @@ function ToastPanelContainerStyles() {
         margin: 0;
       }
 
-      .${TOAST_WIDGET_CLASS} .deck-panel-icon-button {
+      .${TOAST_WIDGET_CLASS} .deck-widget-icon-button {
         border: 0;
         box-shadow: none;
       }
@@ -145,7 +145,7 @@ function ToastPanelContainerView({toasts, showBorder}: ToastPanelContainerViewPr
               backgroundColor: palette.background,
               borderLeftColor: palette.accent,
               boxShadow: showBorder
-                ? 'inset 0 0 0 0.5px var(--deck-panel-toast-border, rgba(148, 163, 184, 0.35)), var(--button-shadow)'
+                ? 'inset 0 0 0 0.5px var(--deck-widget-toast-border, rgba(148, 163, 184, 0.35)), var(--button-shadow)'
                 : 'var(--button-shadow)'
             }}
             data-toast-id={toast.id}
@@ -187,7 +187,7 @@ function ToastPanelContainerView({toasts, showBorder}: ToastPanelContainerViewPr
                 </div>
               </div>
               <button
-                className="deck-panel-icon-button"
+                className="deck-widget-icon-button"
                 type="button"
                 title="Dismiss"
                 aria-label="Dismiss toast"
@@ -262,7 +262,7 @@ export class ToastPanelContainer extends PanelContainer<ToastPanelContainerProps
 
   onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
-    const className = ['deck-panel', this.className, this.props.className]
+    const className = ['deck-widget', this.className, this.props.className]
       .filter(Boolean)
       .join(' ');
     rootElement.className = className;

@@ -886,18 +886,12 @@ function PanelThemeScope({panel, children}: {panel: Panel; children: ComponentCh
 
       updateRootMode();
 
-      const themedContainer = parentHostElement.closest('.deck-panel-container');
       const mutationObserver = new MutationObserver(() => {
         updateRootMode();
       });
 
-      mutationObserver.observe(parentHostElement, {
-        attributes: true,
-        attributeFilter: ['style', 'class']
-      });
-
-      if (themedContainer && themedContainer !== parentHostElement) {
-        mutationObserver.observe(themedContainer, {
+      for (const themeHostElement of getThemeHostElements(parentHostElement)) {
+        mutationObserver.observe(themeHostElement, {
           attributes: true,
           attributeFilter: ['style', 'class']
         });
@@ -942,6 +936,22 @@ function resolvePanelThemeMode(
   }
 
   return parentMode;
+}
+
+function getThemeHostElements(hostElement: HTMLElement): HTMLElement[] {
+  const elements: HTMLElement[] = [];
+  let element: HTMLElement | null = hostElement;
+  const documentElement = hostElement.ownerDocument.documentElement;
+
+  while (element) {
+    elements.push(element);
+    if (element === documentElement) {
+      break;
+    }
+    element = element.parentElement;
+  }
+
+  return elements;
 }
 
 /**

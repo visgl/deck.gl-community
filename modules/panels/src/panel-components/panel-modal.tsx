@@ -80,10 +80,10 @@ function PanelModalView({
   return (
     <div>
       {!hideTrigger && (
-        <div className="deck-panel-button">
+        <div className="deck-widget-button">
           <button
             type="button"
-            className="deck-panel-icon-button"
+            className="deck-widget-icon-button"
             style={MODAL_TRIGGER_STYLE}
             aria-label={open ? `Close ${triggerLabel}` : `Open ${triggerLabel}`}
             onClick={() => onOpenChange(!open)}
@@ -157,7 +157,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     }
   };
 
-  className = 'deck-panel-modal';
+  className = 'deck-widget-modal';
   placement: PanelPlacement = PanelModal.defaultProps.placement;
   title = PanelModal.defaultProps.title;
   triggerLabel = PanelModal.defaultProps.triggerLabel;

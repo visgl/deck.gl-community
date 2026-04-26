@@ -31,9 +31,9 @@ describe('SidebarPanelWidget', () => {
     expect(root.querySelector('[role="dialog"]')).toBeTruthy();
     expect(root.querySelector('header')).toBeNull();
     expect(widget.placement).toBe('top-right');
-    expect(root.style.top).toBe('var(--panel-margin, 12px)');
-    expect(root.style.bottom).toBe('var(--panel-margin, 12px)');
-    expect(root.style.left).toBe('var(--panel-margin, 12px)');
+    expect(root.style.top).toBe('var(--widget-margin, 12px)');
+    expect(root.style.bottom).toBe('var(--widget-margin, 12px)');
+    expect(root.style.left).toBe('var(--widget-margin, 12px)');
     expect(root.style.right).toBe('-1px');
     expect(root.style.width).toBe('auto');
     expect(root.style.height).toBe('auto');

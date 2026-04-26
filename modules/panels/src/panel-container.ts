@@ -119,7 +119,7 @@ export abstract class PanelContainer<PropsT extends PanelContainerProps = PanelC
    */
   protected onCreateRootElement(): HTMLDivElement {
     const element = document.createElement('div');
-    for (const className of ['deck-panel', this.className, this.props.className]) {
+    for (const className of ['deck-widget', this.className, this.props.className]) {
       if (className) {
         element.classList.add(className);
       }

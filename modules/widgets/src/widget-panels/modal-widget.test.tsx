@@ -29,10 +29,10 @@ describe('ModalPanelWidget', () => {
 
     widget.onRenderHTML(root);
 
-    const triggerButton = root.querySelector<HTMLButtonElement>('.deck-panel-icon-button');
+    const triggerButton = root.querySelector<HTMLButtonElement>('.deck-widget-icon-button');
     expect(triggerButton).toBeTruthy();
     const triggerWrapper = triggerButton?.parentElement;
-    expect(triggerWrapper?.className).toContain('deck-panel-button');
+    expect(triggerWrapper?.className).toContain('deck-widget-button');
   });
 
   it('hides the built-in trigger when button is disabled', () => {

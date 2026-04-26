@@ -86,7 +86,7 @@ describe('ToastPanelContainer', () => {
     const {root, cleanup} = mountToastPanelContainer();
 
     toastManager.toast({type: 'info', message: 'Width-safe toast'});
-    const stack = root.querySelector('.deck-panel-toast-stack');
+    const stack = root.querySelector('.deck-widget-toast-stack');
 
     expect(stack).toBeTruthy();
     expect(root.getAttribute('style') || '').toContain('width: 360px');

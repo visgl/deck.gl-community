@@ -127,7 +127,7 @@ export class PanelBox extends PanelContainer<PanelBoxProps> {
     }
   };
 
-  className = 'deck-panel-box';
+  className = 'deck-widget-box';
   placement: PanelPlacement = PanelBox.defaultProps.placement;
   title: string | undefined = PanelBox.defaultProps.title;
   widthPx = PanelBox.defaultProps.widthPx;

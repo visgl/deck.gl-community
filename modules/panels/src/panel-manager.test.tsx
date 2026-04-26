@@ -26,7 +26,7 @@ class TestPanelContainer extends PanelContainer<TestPanelContainerProps> {
     text: ''
   };
 
-  className = 'deck-panel-test';
+  className = 'deck-widget-test';
   placement: TestPanelContainerProps['placement'] = TestPanelContainer.defaultProps.placement;
 
   constructor(props: Partial<TestPanelContainerProps> & Pick<TestPanelContainerProps, 'text'>) {
@@ -42,7 +42,7 @@ class TestPanelContainer extends PanelContainer<TestPanelContainerProps> {
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {
-    rootElement.className = ['deck-panel', this.className, this.props.className]
+    rootElement.className = ['deck-widget', this.className, this.props.className]
       .filter(Boolean)
       .join(' ');
     render(<div data-test-panel-container-text="">{this.props.text}</div>, rootElement);
@@ -87,12 +87,12 @@ describe('PanelManager', () => {
       ]
     });
 
-    expect(root.classList.contains('deck-panel-container')).toBe(true);
-    expect(root.querySelector('.deck-panel-test')?.textContent).toContain(
+    expect(root.classList.contains('deck-widget-container')).toBe(true);
+    expect(root.querySelector('.deck-widget-test')?.textContent).toContain(
       'Standalone host content'
     );
-    expect(root.querySelector('.deck-panel-toolbar')?.textContent).toContain('Save');
-    expect(root.querySelector('.deck-panel-toast')).toBeTruthy();
+    expect(root.querySelector('.deck-widget-toolbar')?.textContent).toContain('Save');
+    expect(root.querySelector('.deck-widget-toast')).toBeTruthy();
     expect(root.querySelector('.top-left')).toBeTruthy();
     expect(root.querySelector('.top-right')).toBeTruthy();
     expect(root.querySelector('.bottom-right')).toBeTruthy();
@@ -109,8 +109,8 @@ describe('PanelManager', () => {
       'style[data-deck-gl-community-panels-styles]'
     );
     expect(styleElement).toBeTruthy();
-    expect(styleElement?.textContent).toContain('.deck-panel');
-    expect(styleElement?.textContent).toContain('.deck-panel-button');
+    expect(styleElement?.textContent).toContain('.deck-widget');
+    expect(styleElement?.textContent).toContain('.deck-widget-button');
 
     host.finalize();
   });
@@ -148,7 +148,7 @@ describe('PanelManager', () => {
 
     expect(host.getComponents()[0]).toBe(initialPanelContainer);
     expect(root.textContent).toContain('Updated content');
-    expect(root.querySelectorAll('.deck-panel-test')).toHaveLength(1);
+    expect(root.querySelectorAll('.deck-widget-test')).toHaveLength(1);
   });
 
   it('honors an explicit HTMLElement container override', () => {
@@ -167,10 +167,10 @@ describe('PanelManager', () => {
       ]
     });
 
-    expect(explicitContainer.querySelector('.deck-panel-toolbar')?.textContent).toContain(
+    expect(explicitContainer.querySelector('.deck-widget-toolbar')?.textContent).toContain(
       'Explicit'
     );
-    expect(root.querySelector('.top-right .deck-panel-toolbar')).toBeNull();
+    expect(root.querySelector('.top-right .deck-widget-toolbar')).toBeNull();
   });
 
   it('finalizes panel containers and removes internal placement containers', () => {
@@ -187,8 +187,8 @@ describe('PanelManager', () => {
 
     host.finalize();
 
-    expect(root.classList.contains('deck-panel-container')).toBe(false);
-    expect(root.querySelector('.deck-panel-test')).toBeNull();
+    expect(root.classList.contains('deck-widget-container')).toBe(false);
+    expect(root.querySelector('.deck-widget-test')).toBeNull();
     expect(root.querySelector('.bottom-left')).toBeNull();
   });
 
@@ -236,7 +236,7 @@ describe('PanelManager', () => {
     host.setProps({components: [summaryPanelContainer, toolbarPanelContainer]});
 
     const actionButtons = root.querySelectorAll<HTMLButtonElement>(
-      '.deck-panel-toolbar [data-toolbar-item-kind="action"]'
+      '.deck-widget-toolbar [data-toolbar-item-kind="action"]'
     );
 
     actionButtons[0].click();
