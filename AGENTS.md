@@ -18,6 +18,7 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
   - install website dependencies and build the website with `yarn install` followed by `cd website; yarn build`
   - run `yarn lint-fix`
   - run the relevant tests for the changed packages, examples, and website/docs wiring
+  - prepare a copyable Markdown pull request description based on the branch diff compared to `master`
 
 ## Documentation and release process
 - Follow the contribution flow in `docs/CONTRIBUTING.md` before landing breaking changes.
