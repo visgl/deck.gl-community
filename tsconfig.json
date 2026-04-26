@@ -14,6 +14,7 @@
     "allowJs": true,
     "checkJs": false,
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
