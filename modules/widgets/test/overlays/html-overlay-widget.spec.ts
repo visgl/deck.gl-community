@@ -32,12 +32,12 @@ describe('HtmlOverlayWidget', () => {
     const projected = overlay.projectItems(overlay.getOverlayItems(viewport), viewport);
 
     expect(projected).toHaveLength(2);
-    expect(projected.map((item) => item.props.children)).toStrictEqual([
+    expect(projected.map(item => item.props.children)).toStrictEqual([
       'Map Center Zero Elevation',
       'Map Center 50km Elevation'
     ]);
-    expect(projected.map((item) => item.props.x)).toStrictEqual([0, 0]);
-    expect(projected.map((item) => item.props.y)).toStrictEqual([0, 0]);
+    expect(projected.map(item => item.props.x)).toStrictEqual([0, 0]);
+    expect(projected.map(item => item.props.y)).toStrictEqual([0, 0]);
   });
 
   it('renders no content when no items are provided', () => {

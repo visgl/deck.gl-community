@@ -40,12 +40,12 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
   // Create map
   const map = L.map(container, {
     center: [51.47, 0.45],
-    zoom: 4,
+    zoom: 4
   });
   L.tileLayer('https://tiles.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png', {
     maxZoom: 22,
     attribution:
-      '© <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>, © <a href="http://www.openstreetmap.org/about/" target="_blank">OpenStreetMap</a> contributors',
+      '© <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>, © <a href="http://www.openstreetmap.org/about/" target="_blank">OpenStreetMap</a> contributors'
   }).addTo(map);
 
   const infoWidget = new BoxPanelWidget({
@@ -75,9 +75,7 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
 
   // Add deck.gl overlay
   const deckOverlay = new DeckOverlay({
-    views: [
-      new MapView({ repeat: true }),
-    ],
+    views: [new MapView({repeat: true})],
     widgets: [infoWidget],
     layers: [
       new GeoJsonLayer<NaturalEarthAirportFeature>({
@@ -87,12 +85,12 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
         filled: true,
         pointRadiusMinPixels: 2,
         pointRadiusScale: 2000,
-        getPointRadius: (feature) => 11 - feature.properties.scalerank,
+        getPointRadius: feature => 11 - feature.properties.scalerank,
         getFillColor: [200, 0, 80, 180],
         // Interactive props
         pickable: true,
         autoHighlight: true,
-        onClick: (info) =>
+        onClick: info =>
           // eslint-disable-next-line
           info.object && alert(`${info.object.properties.name} (${info.object.properties.abbrev})`)
       }),
@@ -100,16 +98,17 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
         id: 'arcs',
         data: AIR_PORTS,
         dataTransform: (data: NaturalEarthAirportCollection) =>
-          data.features.filter((feature) => feature.properties.scalerank < 4),
+          data.features.filter(feature => feature.properties.scalerank < 4),
         // Styles
         getSourcePosition: () => [-0.4531566, 51.4709959], // London
-        getTargetPosition: (feature) => feature.geometry.coordinates,
+        getTargetPosition: feature => feature.geometry.coordinates,
         getSourceColor: [0, 128, 200],
         getTargetColor: [200, 0, 80],
         getWidth: 1
       })
     ],
-    getTooltip: (info: PickingInfo<NaturalEarthAirportFeature>) => info.object?.properties.name ?? null
+    getTooltip: (info: PickingInfo<NaturalEarthAirportFeature>) =>
+      info.object?.properties.name ?? null
   });
   map.addLayer(deckOverlay);
 

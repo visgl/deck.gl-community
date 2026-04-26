@@ -79,18 +79,43 @@ const DESTINATIONS: Destination[] = [
 const STOPOVERS: Stopover[] = [
   {id: 'seattle-harbor', city: 'Seattle', title: 'Harbor Steps', coordinates: [-122.3403, 47.6068]},
   {id: 'seattle-park', city: 'Seattle', title: 'Volunteer Park', coordinates: [-122.314, 47.6292]},
-  {id: 'sf-embarcadero', city: 'San Francisco', title: 'Embarcadero', coordinates: [-122.3952, 37.795]},
-  {id: 'sf-sutro', city: 'San Francisco', title: 'Sutro Heights', coordinates: [-122.5078, 37.7774]},
-  {id: 'sf-mission', city: 'San Francisco', title: 'Mission Dolores', coordinates: [-122.4256, 37.7599]},
+  {
+    id: 'sf-embarcadero',
+    city: 'San Francisco',
+    title: 'Embarcadero',
+    coordinates: [-122.3952, 37.795]
+  },
+  {
+    id: 'sf-sutro',
+    city: 'San Francisco',
+    title: 'Sutro Heights',
+    coordinates: [-122.5078, 37.7774]
+  },
+  {
+    id: 'sf-mission',
+    city: 'San Francisco',
+    title: 'Mission Dolores',
+    coordinates: [-122.4256, 37.7599]
+  },
   {id: 'denver-park', city: 'Denver', title: 'City Park', coordinates: [-104.9551, 39.7475]},
   {id: 'denver-rino', city: 'Denver', title: 'RiNo Arts', coordinates: [-104.9793, 39.7691]},
   {id: 'denver-sloan', city: 'Denver', title: 'Sloan Lake', coordinates: [-105.047, 39.7479]},
   {id: 'austin-zilker', city: 'Austin', title: 'Zilker Park', coordinates: [-97.7713, 30.2665]},
   {id: 'austin-lake', city: 'Austin', title: 'Lady Bird Lake', coordinates: [-97.7438, 30.2653]},
   {id: 'austin-mueller', city: 'Austin', title: 'Mueller Lake', coordinates: [-97.6996, 30.2977]},
-  {id: 'ny-central', city: 'New York City', title: 'Central Park', coordinates: [-73.9765, 40.7812]},
+  {
+    id: 'ny-central',
+    city: 'New York City',
+    title: 'Central Park',
+    coordinates: [-73.9765, 40.7812]
+  },
   {id: 'ny-dumbo', city: 'New York City', title: 'DUMBO Landing', coordinates: [-73.9903, 40.7033]},
-  {id: 'ny-highline', city: 'New York City', title: 'The High Line', coordinates: [-74.0048, 40.7479]},
+  {
+    id: 'ny-highline',
+    city: 'New York City',
+    title: 'The High Line',
+    coordinates: [-74.0048, 40.7479]
+  },
   {id: 'miami-beach', city: 'Miami', title: 'South Beach', coordinates: [-80.1321, 25.784]},
   {id: 'miami-wynwood', city: 'Miami', title: 'Wynwood Walls', coordinates: [-80.1995, 25.8007]},
   {id: 'miami-key', city: 'Miami', title: 'Virginia Key', coordinates: [-80.1632, 25.7444]}
@@ -185,7 +210,7 @@ export function mountHtmlOverlaysExample(container: HTMLElement): () => void {
     id: 'html-overlay-tooltips',
     showDelay: 120,
     zIndex: 6,
-    getTooltip: (info) => buildTooltip(info.object as TooltipDatum | null)
+    getTooltip: info => buildTooltip(info.object as TooltipDatum | null)
   });
   const infoWidget = new BoxPanelWidget({
     id: 'html-overlay-summary',
@@ -236,14 +261,10 @@ class StopoverClusterWidget extends HtmlClusterWidget<Stopover> {
   override getObjectCoordinates = (stopover: Stopover) => stopover.coordinates;
 
   override renderObject = (coordinates: [number, number], stopover: Stopover) =>
-    h(
-      HtmlOverlayItem,
-      {key: stopover.id, coordinates, style: PIN_STYLE},
-      [
-        h('div', {style: {fontWeight: 700}}, stopover.title),
-        h('div', {style: {fontSize: 12, opacity: 0.8}}, stopover.city)
-      ]
-    );
+    h(HtmlOverlayItem, {key: stopover.id, coordinates, style: PIN_STYLE}, [
+      h('div', {style: {fontWeight: 700}}, stopover.title),
+      h('div', {style: {fontSize: 12, opacity: 0.8}}, stopover.city)
+    ]);
 
   override renderCluster = (coordinates: number[], clusterId: number, pointCount: number) =>
     h(
@@ -281,7 +302,7 @@ function buildLayers() {
     new ScatterplotLayer<Destination>({
       id: 'destinations',
       data: DESTINATIONS,
-      getPosition: (destination) => destination.coordinates,
+      getPosition: destination => destination.coordinates,
       getFillColor: [0, 122, 255, 200],
       radiusMinPixels: 10,
       radiusMaxPixels: 22,
@@ -293,7 +314,7 @@ function buildLayers() {
     new ScatterplotLayer<Stopover>({
       id: 'stopovers',
       data: STOPOVERS,
-      getPosition: (stopover) => stopover.coordinates,
+      getPosition: stopover => stopover.coordinates,
       getFillColor: [255, 115, 29, 220],
       radiusMinPixels: 6,
       stroked: true,
@@ -334,5 +355,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

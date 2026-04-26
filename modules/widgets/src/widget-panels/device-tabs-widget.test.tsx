@@ -44,7 +44,7 @@ class MockDeviceManager {
   async getPreferredAvailableDeviceType(
     preferredTypes: readonly DeviceType[]
   ): Promise<DeviceType | undefined> {
-    return Promise.resolve(preferredTypes.find((type) => this.availability[type]));
+    return Promise.resolve(preferredTypes.find(type => this.availability[type]));
   }
 
   async setDeviceType(type: DeviceType): Promise<void> {

@@ -5,15 +5,8 @@
 import {Deck, MapView, type MapViewState} from '@deck.gl/core';
 import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-import {
-  AccordeonPanel,
-  ColumnPanel,
-  MarkdownPanel,
-  StatsPanel
-} from '../../../modules/panels/src';
-import {
-  BoxPanelWidget,
-} from '../../../modules/widgets/src';
+import {AccordeonPanel, ColumnPanel, MarkdownPanel, StatsPanel} from '../../../modules/panels/src';
+import {BoxPanelWidget} from '../../../modules/widgets/src';
 import {SharedTile2DLayer, TileGridLayer} from '../../../modules/geo-layers/src';
 import {SharedTileset2D} from '../../../modules/geo-layers/src/tileset';
 import {TableTileSource} from '@loaders.gl/mvt';
@@ -209,14 +202,46 @@ function getViewBackgroundColor(viewId: 'severity' | 'priority' | 'minimap', the
 
 function createSharedGeojsonTable() {
   const corridors = [
-    {id: 'golden-gate', anchor: [-122.515, 37.808] as [number, number], delta: [0.0105, -0.0042] as [number, number]},
-    {id: 'market', anchor: [-122.514, 37.793] as [number, number], delta: [0.0135, -0.0012] as [number, number]},
-    {id: 'mission', anchor: [-122.500, 37.759] as [number, number], delta: [0.0128, 0.0014] as [number, number]},
-    {id: 'bay-shore', anchor: [-122.470, 37.726] as [number, number], delta: [0.0118, -0.0016] as [number, number]},
-    {id: 'east-bay', anchor: [-122.330, 37.804] as [number, number], delta: [0.0112, -0.0046] as [number, number]},
-    {id: 'oakland-port', anchor: [-122.315, 37.786] as [number, number], delta: [0.0104, -0.0033] as [number, number]},
-    {id: 'berkeley', anchor: [-122.321, 37.879] as [number, number], delta: [0.0095, -0.0027] as [number, number]},
-    {id: 'peninsula', anchor: [-122.401, 37.641] as [number, number], delta: [0.0124, 0.0011] as [number, number]}
+    {
+      id: 'golden-gate',
+      anchor: [-122.515, 37.808] as [number, number],
+      delta: [0.0105, -0.0042] as [number, number]
+    },
+    {
+      id: 'market',
+      anchor: [-122.514, 37.793] as [number, number],
+      delta: [0.0135, -0.0012] as [number, number]
+    },
+    {
+      id: 'mission',
+      anchor: [-122.5, 37.759] as [number, number],
+      delta: [0.0128, 0.0014] as [number, number]
+    },
+    {
+      id: 'bay-shore',
+      anchor: [-122.47, 37.726] as [number, number],
+      delta: [0.0118, -0.0016] as [number, number]
+    },
+    {
+      id: 'east-bay',
+      anchor: [-122.33, 37.804] as [number, number],
+      delta: [0.0112, -0.0046] as [number, number]
+    },
+    {
+      id: 'oakland-port',
+      anchor: [-122.315, 37.786] as [number, number],
+      delta: [0.0104, -0.0033] as [number, number]
+    },
+    {
+      id: 'berkeley',
+      anchor: [-122.321, 37.879] as [number, number],
+      delta: [0.0095, -0.0027] as [number, number]
+    },
+    {
+      id: 'peninsula',
+      anchor: [-122.401, 37.641] as [number, number],
+      delta: [0.0124, 0.0011] as [number, number]
+    }
   ];
 
   const features: SharedPointFeature[] = [];
@@ -270,7 +295,10 @@ function estimateFeatureByteLength(feature: SharedPointFeature): number {
 
 function attachEstimatedByteLength(features: SharedPointFeature[]): TileContent {
   const tileContent = features as TileContent;
-  tileContent.byteLength = features.reduce((sum, feature) => sum + estimateFeatureByteLength(feature), 0);
+  tileContent.byteLength = features.reduce(
+    (sum, feature) => sum + estimateFeatureByteLength(feature),
+    0
+  );
   return tileContent;
 }
 
@@ -314,7 +342,9 @@ function getProjectedFeaturePosition(tileIndex: TileIndex) {
     projectLocalTilePositionToLngLat(feature.geometry.coordinates, tileIndex);
 }
 
-function createThemeWidget(onThemeModeChange: (nextThemeMode: ThemeMode) => void): ThemeWidgetWithSetter {
+function createThemeWidget(
+  onThemeModeChange: (nextThemeMode: ThemeMode) => void
+): ThemeWidgetWithSetter {
   const themeWidget = new ThemeWidget({
     id: 'shared-tile-2d-layer-theme',
     placement: 'top-left',
@@ -332,7 +362,11 @@ function createThemeWidget(onThemeModeChange: (nextThemeMode: ThemeMode) => void
   return themeWidget;
 }
 
-function buildInfoPanel(tileset: SharedTileset2D<TileContent>, hoveredId: string | null, selectedId: string | null) {
+function buildInfoPanel(
+  tileset: SharedTileset2D<TileContent>,
+  hoveredId: string | null,
+  selectedId: string | null
+) {
   return new ColumnPanel({
     id: 'shared-tile-2d-layer-panel',
     title: '',
@@ -457,7 +491,7 @@ export function mountSharedTile2DLayerExample(
         ? viewport.id === 'severity'
         : layer.id.startsWith('priority-')
           ? viewport.id === 'priority'
-        : layer.id.startsWith('minimap-')
+          : layer.id.startsWith('minimap-')
             ? viewport.id === 'minimap'
             : true,
     getTooltip: ({object}: {object?: SharedPointFeature}) =>
@@ -486,8 +520,7 @@ export function mountSharedTile2DLayerExample(
           renderSubLayers: props =>
             new TileGridLayer(props, {
               tile: props.tile,
-              borderColor:
-                state.themeMode === 'dark' ? [148, 163, 184, 170] : [71, 85, 105, 170],
+              borderColor: state.themeMode === 'dark' ? [148, 163, 184, 170] : [71, 85, 105, 170],
               labelColor: state.themeMode === 'dark' ? [241, 245, 249, 255] : [15, 23, 42, 255],
               labelBackgroundColor:
                 state.themeMode === 'dark' ? [15, 23, 42, 220] : [255, 255, 255, 220]
@@ -536,8 +569,7 @@ export function mountSharedTile2DLayerExample(
           renderSubLayers: props =>
             new TileGridLayer(props, {
               tile: props.tile,
-              borderColor:
-                state.themeMode === 'dark' ? [167, 139, 250, 165] : [124, 58, 237, 150],
+              borderColor: state.themeMode === 'dark' ? [167, 139, 250, 165] : [124, 58, 237, 150],
               labelColor: state.themeMode === 'dark' ? [245, 243, 255, 255] : [46, 16, 101, 255],
               labelBackgroundColor:
                 state.themeMode === 'dark' ? [36, 25, 56, 220] : [250, 245, 255, 220]
@@ -631,8 +663,7 @@ export function mountSharedTile2DLayerExample(
           renderSubLayers: props =>
             new TileGridLayer(props, {
               tile: props.tile,
-              borderColor:
-                state.themeMode === 'dark' ? [226, 232, 240, 120] : [30, 41, 59, 120],
+              borderColor: state.themeMode === 'dark' ? [226, 232, 240, 120] : [30, 41, 59, 120],
               labelColor: state.themeMode === 'dark' ? [226, 232, 240, 230] : [15, 23, 42, 230],
               labelBackgroundColor:
                 state.themeMode === 'dark' ? [15, 23, 42, 170] : [255, 255, 255, 190],

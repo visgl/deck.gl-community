@@ -1,3 +1,4 @@
+// biome-ignore lint/correctness/noUnusedImports: React is required by the classic JSX transform.
 import * as React from 'react';
 import {render, screen} from '@testing-library/react';
 import {afterEach, describe, expect, it} from 'vitest';

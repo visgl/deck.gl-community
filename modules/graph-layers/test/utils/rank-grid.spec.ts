@@ -28,16 +28,16 @@ describe('rank-grid utilities', () => {
       createNode('d', 3, 20, 'three')
     ];
 
-    const nodes = entries.map((entry) => entry.node);
+    const nodes = entries.map(entry => entry.node);
     const positions = new Map<Node, [number, number]>(
-      entries.map((entry) => [entry.node, entry.position])
+      entries.map(entry => [entry.node, entry.position])
     );
 
-    const ranks = mapRanksToYPositions(nodes, (node) => positions.get(node) ?? null);
+    const ranks = mapRanksToYPositions(nodes, node => positions.get(node) ?? null);
 
-    expect(ranks.map((entry) => entry.rank)).toEqual([1, 2, 3]);
-    expect(ranks.map((entry) => entry.label)).toEqual(['one', 'two', 'three']);
-    expect(ranks.map((entry) => entry.yPosition)).toEqual([10, 25, 40]);
+    expect(ranks.map(entry => entry.rank)).toEqual([1, 2, 3]);
+    expect(ranks.map(entry => entry.label)).toEqual(['one', 'two', 'three']);
+    expect(ranks.map(entry => entry.yPosition)).toEqual([10, 25, 40]);
   });
 
   it('distributes overlapping ranks evenly across the layout bounds', () => {
@@ -48,15 +48,15 @@ describe('rank-grid utilities', () => {
       createNode('d', 3, 30)
     ];
 
-    const nodes = entries.map((entry) => entry.node);
+    const nodes = entries.map(entry => entry.node);
     const positions = new Map<Node, [number, number]>(
-      entries.map((entry) => [entry.node, entry.position])
+      entries.map(entry => [entry.node, entry.position])
     );
 
-    const ranks = mapRanksToYPositions(nodes, (node) => positions.get(node) ?? null);
+    const ranks = mapRanksToYPositions(nodes, node => positions.get(node) ?? null);
 
-    expect(ranks.map((entry) => entry.rank)).toEqual([0, 1, 2, 3]);
-    expect(ranks.map((entry) => entry.yPosition)).toEqual([0, 10, 20, 30]);
+    expect(ranks.map(entry => entry.rank)).toEqual([0, 1, 2, 3]);
+    expect(ranks.map(entry => entry.yPosition)).toEqual([0, 10, 20, 30]);
   });
 
   it('preserves sparse rank values from node data', () => {
@@ -67,14 +67,14 @@ describe('rank-grid utilities', () => {
       createNode('experiment', 13, 140)
     ];
 
-    const nodes = entries.map((entry) => entry.node);
+    const nodes = entries.map(entry => entry.node);
     const positions = new Map<Node, [number, number]>(
-      entries.map((entry) => [entry.node, entry.position])
+      entries.map(entry => [entry.node, entry.position])
     );
 
-    const ranks = mapRanksToYPositions(nodes, (node) => positions.get(node) ?? null);
+    const ranks = mapRanksToYPositions(nodes, node => positions.get(node) ?? null);
 
-    expect(ranks.map((entry) => entry.rank)).toEqual([0, 5, 10, 13]);
+    expect(ranks.map(entry => entry.rank)).toEqual([0, 5, 10, 13]);
   });
 
   it('selects rank lines within a range and limits the output count', () => {
@@ -85,10 +85,10 @@ describe('rank-grid utilities', () => {
     }));
 
     const selected = selectRankLines(ranks, {yMin: 0, yMax: 90, maxCount: 5});
-    expect(selected.map((entry) => entry.yPosition)).toEqual([0, 20, 40, 70, 90]);
+    expect(selected.map(entry => entry.yPosition)).toEqual([0, 20, 40, 70, 90]);
 
     const narrowed = selectRankLines(ranks, {yMin: 15, yMax: 65, maxCount: 3});
-    expect(narrowed.map((entry) => entry.yPosition)).toEqual([20, 40, 60]);
+    expect(narrowed.map(entry => entry.yPosition)).toEqual([20, 40, 60]);
 
     const single = selectRankLines(ranks, {yMin: 0, yMax: 90, maxCount: 1});
     expect(single).toHaveLength(1);
@@ -105,7 +105,7 @@ describe('rank-grid utilities', () => {
       {rank: 6, yPosition: 50, label: 6}
     ];
     const selected = selectRankLines(ranks, {yMin: 0, yMax: 50, maxCount: 4});
-    expect(selected.map((entry) => entry.yPosition)).toEqual([0, 20, 30, 50]);
+    expect(selected.map(entry => entry.yPosition)).toEqual([0, 20, 30, 50]);
   });
 
   it('spreads ML lineage ranks across the requested range', () => {
@@ -118,7 +118,7 @@ describe('rank-grid utilities', () => {
     });
 
     const nodes = rawNodes.map(
-      (raw) =>
+      raw =>
         new Node({
           id: raw.id,
           data: {
@@ -134,7 +134,7 @@ describe('rank-grid utilities', () => {
       positions.set(node, [0, raw.sequenceIndex]);
     });
 
-    const ranks = mapRanksToYPositions(nodes, (node) => positions.get(node) ?? null, {
+    const ranks = mapRanksToYPositions(nodes, node => positions.get(node) ?? null, {
       rankAccessor: 'runNumber',
       labelAccessor: 'label',
       yRange: {min: 0, max: 600}
@@ -145,7 +145,7 @@ describe('rank-grid utilities', () => {
     expect(ranks[ranks.length - 1].yPosition).toBeCloseTo(600, 6);
 
     const selected = selectRankLines(ranks, {yMin: 0, yMax: 600, maxCount: 8});
-    const offsets = selected.map((entry) => entry.yPosition);
+    const offsets = selected.map(entry => entry.yPosition);
 
     expect(new Set(offsets).size).toBe(offsets.length);
     expect(offsets[0]).toBeCloseTo(0, 6);

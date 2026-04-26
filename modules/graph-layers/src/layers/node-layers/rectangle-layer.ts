@@ -33,7 +33,7 @@ export class RectangleLayer extends CompositeLayer {
         this.getSubLayerProps({
           id: '__polygon-layer',
           data,
-          getPolygon: (node) =>
+          getPolygon: node =>
             generateRectangle(node, {
               getPosition,
               getWidth: stylesheet.getDeckGLAccessor('getWidth'),

@@ -148,7 +148,7 @@ export class WidgetHost {
    * `setProps({widgets})` calls.
    */
   addDefault(widget: WidgetLike) {
-    if (!this.defaultWidgets.find((existingWidget) => existingWidget.id === widget.id)) {
+    if (!this.defaultWidgets.find(existingWidget => existingWidget.id === widget.id)) {
       this._addWidget(widget);
       this.defaultWidgets.push(widget);
       this._setWidgets(this.widgets);

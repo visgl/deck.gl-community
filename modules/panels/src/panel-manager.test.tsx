@@ -1,5 +1,4 @@
 /** @jsxImportSource preact */
-import React from 'react';
 import {render} from 'preact';
 import {afterEach, describe, expect, it} from 'vitest';
 
@@ -56,11 +55,9 @@ class TestWidget extends PanelContainer<TestWidgetProps> {
 
 afterEach(() => {
   document.body.innerHTML = '';
-  document.head
-    .querySelectorAll('style[data-deck-gl-community-panels-styles]')
-    .forEach((element) => {
-      element.remove();
-    });
+  document.head.querySelectorAll('style[data-deck-gl-community-panels-styles]').forEach(element => {
+    element.remove();
+  });
 });
 
 function createHostRoot() {

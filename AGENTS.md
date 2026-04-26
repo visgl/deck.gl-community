@@ -15,6 +15,7 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
   - do a documentation pass, including `docs/whats-new.md` and any relevant upgrade or migration guide content
   - run `yarn` in the repo root so workspace metadata and `yarn.lock` are up to date, especially after any `package.json` changes
   - run the build
+  - install website dependencies and build the website with `yarn install` followed by `cd website; yarn build`
   - run `yarn lint-fix`
   - run the relevant tests for the changed packages, examples, and website/docs wiring
 
@@ -25,9 +26,9 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 
 ## Code style
 
-Formatting is enforced by Prettier and ESLint via `ocular-lint`.
+Formatting and linting are enforced by Biome via `yarn lint` / `yarn lint-fix`.
 
-**Prettier rules** (`.prettierrc`):
+**Biome formatter rules** (`biome.jsonc`):
 - Print width: 100
 - Semicolons: yes
 - Single quotes: yes

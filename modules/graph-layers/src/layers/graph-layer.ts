@@ -670,19 +670,19 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   private _applyGraphEngineCallbacks(engine: GraphEngine) {
     engine.setProps({
-      onLayoutStart: (detail) => {
+      onLayoutStart: detail => {
         this._handleLayoutEvent();
         this.props.onLayoutStart?.(detail);
       },
-      onLayoutChange: (detail) => {
+      onLayoutChange: detail => {
         this._handleLayoutEvent();
         this.props.onLayoutChange?.(detail);
       },
-      onLayoutDone: (detail) => {
+      onLayoutDone: detail => {
         this._handleLayoutEvent();
         this.props.onLayoutDone?.(detail);
       },
-      onLayoutError: (error) => {
+      onLayoutError: error => {
         this._handleLayoutEvent();
         this.props.onLayoutError?.(error);
       }
@@ -751,7 +751,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     const [[minXRaw, minYRaw], [maxXRaw, maxYRaw]] = bounds;
     const values = [minXRaw, minYRaw, maxXRaw, maxYRaw];
-    if (!values.every((value) => typeof value === 'number' && Number.isFinite(value))) {
+    if (!values.every(value => typeof value === 'number' && Number.isFinite(value))) {
       return null;
     }
 
@@ -827,7 +827,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     const baseLayers = nodeStyles
       .filter(Boolean)
       .map((style, idx) => {
-        const {pickable = true, visible = true, data = (nodes) => nodes, ...restStyle} = style;
+        const {pickable = true, visible = true, data = nodes => nodes, ...restStyle} = style;
         const LayerType = NODE_LAYER_MAP[style.type];
         if (!LayerType) {
           warn(`GraphLayer: Invalid node type "${style.type}".`);
@@ -884,7 +884,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     });
 
     return edgeStyleArray.filter(Boolean).flatMap((style, idx) => {
-      const {decorators, data = (edges) => edges, visible = true, ...restEdgeStyle} = style;
+      const {decorators, data = edges => edges, visible = true, ...restEdgeStyle} = style;
       const stylesheet = this._createStylesheetEngine(
         {
           type: 'edge',

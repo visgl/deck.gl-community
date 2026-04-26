@@ -32,7 +32,7 @@ export const EVENT_TYPES = [
 
 // TODO(v9): remove generic layer
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type EditableLayerProps<DataType = any> = CompositeLayerProps & {
+export type EditableLayerProps<_DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
   onCancelPan?: () => void;
@@ -264,8 +264,8 @@ export abstract class EditableLayer<
     if (this.context.deck) {
       const layerIds = this.context.layerManager
         .getLayers()
-        .filter((l) => l.props.pickable === '3d')
-        .map((l) => l.id);
+        .filter(l => l.props.pickable === '3d')
+        .map(l => l.id);
       if (layerIds.length > 0) {
         const pickInfo = this.context.deck.pickObject({
           x: screenCoords[0],

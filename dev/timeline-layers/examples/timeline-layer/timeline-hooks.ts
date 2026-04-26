@@ -3,7 +3,11 @@
 // Copyright (c) vis.gl contributors
 
 import {useState, useRef, useEffect, useCallback, useMemo} from 'react';
-import type {TimelineLayer, TimelineClipInfo, TimelineTrackInfo} from '@deck.gl-community/timeline-layers';
+import type {
+  TimelineLayer,
+  TimelineClipInfo,
+  TimelineTrackInfo
+} from '@deck.gl-community/timeline-layers';
 import {positionToTime} from '@deck.gl-community/timeline-layers';
 import type {TimelineControlsState} from './demo-controls';
 
@@ -56,7 +60,14 @@ export function useTimelineInteractionState(): {
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
 
   const state = useMemo(
-    () => ({isDraggingScrubber, isPanning, panStartX, panStartViewport, mouseDownPos, hoveredObjectId}),
+    () => ({
+      isDraggingScrubber,
+      isPanning,
+      panStartX,
+      panStartViewport,
+      mouseDownPos,
+      hoveredObjectId
+    }),
     [isDraggingScrubber, isPanning, panStartX, panStartViewport, mouseDownPos, hoveredObjectId]
   );
 
@@ -145,12 +156,30 @@ export function useTimelineCallbacks(controls: TimelineControls): {
     setZoomLevel
   } = controls;
 
-  const handleClipClick = useCallback((info: TimelineClipInfo) => setSelectedClip(info.clip), [setSelectedClip]);
-  const handleClipHover = useCallback((info: TimelineClipInfo | null) => setHoveredClip(info?.clip ?? null), [setHoveredClip]);
-  const handleTrackClick = useCallback((info: TimelineTrackInfo) => setSelectedTrack(info.track), [setSelectedTrack]);
-  const handleTrackHover = useCallback((info: TimelineTrackInfo | null) => setHoveredTrack(info?.track ?? null), [setHoveredTrack]);
-  const handleScrubberDrag = useCallback((timeMs: number) => setCurrentTimeMs(timeMs), [setCurrentTimeMs]);
-  const handleTimelineClick = useCallback((timeMs: number) => setCurrentTimeMs(timeMs), [setCurrentTimeMs]);
+  const handleClipClick = useCallback(
+    (info: TimelineClipInfo) => setSelectedClip(info.clip),
+    [setSelectedClip]
+  );
+  const handleClipHover = useCallback(
+    (info: TimelineClipInfo | null) => setHoveredClip(info?.clip ?? null),
+    [setHoveredClip]
+  );
+  const handleTrackClick = useCallback(
+    (info: TimelineTrackInfo) => setSelectedTrack(info.track),
+    [setSelectedTrack]
+  );
+  const handleTrackHover = useCallback(
+    (info: TimelineTrackInfo | null) => setHoveredTrack(info?.track ?? null),
+    [setHoveredTrack]
+  );
+  const handleScrubberDrag = useCallback(
+    (timeMs: number) => setCurrentTimeMs(timeMs),
+    [setCurrentTimeMs]
+  );
+  const handleTimelineClick = useCallback(
+    (timeMs: number) => setCurrentTimeMs(timeMs),
+    [setCurrentTimeMs]
+  );
 
   const handleViewportChange = useCallback(
     (startMs: number, endMs: number) => {
@@ -160,7 +189,10 @@ export function useTimelineCallbacks(controls: TimelineControls): {
     [setViewportStartMs, setViewportEndMs]
   );
 
-  const handleZoomChange = useCallback((zoomLevel: number) => setZoomLevel(zoomLevel), [setZoomLevel]);
+  const handleZoomChange = useCallback(
+    (zoomLevel: number) => setZoomLevel(zoomLevel),
+    [setZoomLevel]
+  );
 
   return useMemo(
     () => ({
@@ -263,7 +295,8 @@ export function useContainerHandlers(
       if (interactionState.isPanning && interactionState.panStartViewport) {
         e.preventDefault();
         const deltaX = mouseX - interactionState.panStartX;
-        const currentRange = interactionState.panStartViewport.end - interactionState.panStartViewport.start;
+        const currentRange =
+          interactionState.panStartViewport.end - interactionState.panStartViewport.start;
         const timeDelta = -(deltaX / state.timelineWidth) * currentRange;
 
         let newStart = interactionState.panStartViewport.start + timeDelta;

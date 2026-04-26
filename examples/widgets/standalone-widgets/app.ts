@@ -189,9 +189,8 @@ export function mountStandaloneWidgetsExample(container: HTMLElement): () => voi
     renderThemeControl(themeControlElement, state, sync);
 
     footerElement.textContent = `No Deck instance. Panel theme applied through @deck.gl-community/panels.`;
-    footerElement.style.color = state.theme === 'dark'
-      ? 'rgba(226, 232, 240, 0.76)'
-      : 'rgba(15, 23, 42, 0.72)';
+    footerElement.style.color =
+      state.theme === 'dark' ? 'rgba(226, 232, 240, 0.76)' : 'rgba(15, 23, 42, 0.72)';
 
     renderScene(sceneElement, state);
     render(
@@ -275,7 +274,7 @@ function buildDashboardPanel(state: ExampleState, sync: () => void) {
       palette: new CustomPanel({
         id: 'palette-panel',
         title: 'Palette',
-        onRenderHTML: (rootElement) => renderPaletteControls(rootElement, state, sync)
+        onRenderHTML: rootElement => renderPaletteControls(rootElement, state, sync)
       }),
       details: new TabbedPanel({
         id: 'details-tabs',

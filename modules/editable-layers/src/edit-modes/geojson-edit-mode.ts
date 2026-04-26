@@ -82,7 +82,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     props: ModeProps<SimpleFeatureCollection>
   ): SimpleFeatureCollection {
     const {features} = props.data;
-    const selectedFeatures = props.selectedIndexes.map((selectedIndex) => features[selectedIndex]);
+    const selectedFeatures = props.selectedIndexes.map(selectedIndex => features[selectedIndex]);
     return {
       type: 'FeatureCollection',
       features: selectedFeatures
@@ -104,7 +104,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
   getTentativeGuide(props: ModeProps<FeatureCollection>): TentativeFeature | null | undefined {
     const guides = this.getGuides(props);
     return guides.features.find(
-      (f) => f.properties && f.properties.guideType === 'tentative'
+      f => f.properties && f.properties.guideType === 'tentative'
     ) as TentativeFeature;
   }
 
@@ -115,7 +115,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
       ({properties}) => properties.featureIndex
     );
     const pickedIndexes = new Set([...pickedFeatures, ...pickedHandles]);
-    return props.selectedIndexes.some((index) => pickedIndexes.has(index));
+    return props.selectedIndexes.some(index => pickedIndexes.has(index));
   }
 
   rewindPolygon(feature: SimpleFeature): SimpleFeature {

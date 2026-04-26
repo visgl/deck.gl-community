@@ -45,7 +45,7 @@ type BingMapsModule = {
       supportedMapTypes: string[];
       disableBirdsEye: boolean;
       disableStreetside: boolean;
-    },
+    }
   ) => {
     setView(view: {center: unknown; zoom: number}): void;
     layers: {
@@ -77,9 +77,7 @@ export function exampleApplication(): Promise<(() => void) | undefined> {
   return mountBingMapsGetStartedExample(container);
 }
 
-export async function mountBingMapsGetStartedExample(
-  container: HTMLElement,
-): Promise<() => void> {
+export async function mountBingMapsGetStartedExample(container: HTMLElement): Promise<() => void> {
   const {Map, MapTypeId, Location, DeckOverlay} = (await loadModule()) as BingMapsModule;
 
   container.replaceChildren();
@@ -104,11 +102,11 @@ export async function mountBingMapsGetStartedExample(
         filled: true,
         pointRadiusMinPixels: 2,
         pointRadiusScale: 2000,
-        getPointRadius: (feature) => 11 - (feature.properties?.scalerank ?? 0),
+        getPointRadius: feature => 11 - (feature.properties?.scalerank ?? 0),
         getFillColor: [200, 0, 80, 180],
         pickable: true,
         autoHighlight: true,
-        onClick: (info) => {
+        onClick: info => {
           const airport = info.object as NaturalEarthAirportFeature | null;
           if (!airport) {
             return;
@@ -125,13 +123,14 @@ export async function mountBingMapsGetStartedExample(
           previousData?: LayerDataT
         ) => LayerDataT,
         getSourcePosition: () => [-0.4531566, 51.4709959],
-        getTargetPosition: (feature) => feature.geometry.coordinates as [number, number],
+        getTargetPosition: feature => feature.geometry.coordinates as [number, number],
         getSourceColor: [0, 128, 200],
         getTargetColor: [200, 0, 80],
         getWidth: 1
       })
     ],
-    getTooltip: (info: PickingInfo<NaturalEarthAirportFeature>) => info.object?.properties.name ?? null
+    getTooltip: (info: PickingInfo<NaturalEarthAirportFeature>) =>
+      info.object?.properties.name ?? null
   });
 
   map.layers.insert(deckOverlay);
@@ -144,6 +143,8 @@ export async function mountBingMapsGetStartedExample(
   };
 }
 
-function getPrimaryAirportFeatures(data: NaturalEarthAirportCollection): NaturalEarthAirportFeature[] {
-  return data.features.filter((feature) => (feature.properties?.scalerank ?? 0) < 4);
+function getPrimaryAirportFeatures(
+  data: NaturalEarthAirportCollection
+): NaturalEarthAirportFeature[] {
+  return data.features.filter(feature => (feature.properties?.scalerank ?? 0) < 4);
 }

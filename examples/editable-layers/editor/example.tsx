@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import {useState, useEffect, useCallback, useMemo} from 'react';
 import {Map} from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
 import {
@@ -198,7 +198,7 @@ export function Example() {
 
   // Sync mode tray widget
   useEffect(() => {
-    const selected = MODE_OPTIONS.find((option) => option.mode === mode)?.id ?? null;
+    const selected = MODE_OPTIONS.find(option => option.mode === mode)?.id ?? null;
     trayWidget.setProps({
       modes: MODE_OPTIONS,
       activeMode: mode,
@@ -220,10 +220,17 @@ export function Example() {
       onClear: handleClear,
       onExport: handleExport
     });
-  }, [modeConfig, geoJson.features.length, handleSetBooleanOp, handleClear, handleExport, toolbarWidget]);
+  }, [
+    modeConfig,
+    geoJson.features.length,
+    handleSetBooleanOp,
+    handleClear,
+    handleExport,
+    toolbarWidget
+  ]);
 
   useEffect(() => {
-    const modeLabel = MODE_OPTIONS.find((option) => option.mode === mode)?.label ?? 'View';
+    const modeLabel = MODE_OPTIONS.find(option => option.mode === mode)?.label ?? 'View';
     infoWidget.setProps({
       panel: buildInfoPanel({
         modeLabel,
@@ -259,7 +266,7 @@ export function Example() {
         controller={{doubleClickZoom: false}}
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
-        onClick={(info) => {
+        onClick={info => {
           if (mode === ViewMode) {
             const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
             if (index !== null) {

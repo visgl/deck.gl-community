@@ -52,8 +52,8 @@ function StatsPanelContent({stats, statNames, labels, className}: StatsPanelProp
     const table = stats.getTable();
     const names = statNames ?? Object.keys(table);
     return names
-      .filter((name) => table[name])
-      .map((name) => ({
+      .filter(name => table[name])
+      .map(name => ({
         name,
         label: labels?.[name] ?? name,
         value: table[name].count

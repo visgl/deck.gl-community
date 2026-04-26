@@ -31,7 +31,7 @@ export function getColumnVector(table: arrow.Table, columnName: string): arrow.V
     .getChildAt;
   const schema = (table as arrow.Table & {schema?: {fields?: Array<{name: string}>}}).schema;
   if (schema && Array.isArray(schema.fields) && typeof getChildAt === 'function') {
-    const index = schema.fields.findIndex((field) => field?.name === columnName);
+    const index = schema.fields.findIndex(field => field?.name === columnName);
     if (index >= 0) {
       return getChildAt.call(table, index) ?? null;
     }

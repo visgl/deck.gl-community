@@ -82,12 +82,12 @@ export class SharedTile2DView<DataT = any> {
 
   /** Indicates whether all selected tiles are fully loaded for this view. */
   get isLoaded(): boolean {
-    return this._selectedTiles !== null && this._selectedTiles.every((tile) => tile.isLoaded);
+    return this._selectedTiles !== null && this._selectedTiles.every(tile => tile.isLoaded);
   }
 
   /** Indicates whether any selected tile needs to be re-requested. */
   get needsReload(): boolean {
-    return this._selectedTiles !== null && this._selectedTiles.some((tile) => tile.needsReload);
+    return this._selectedTiles !== null && this._selectedTiles.some(tile => tile.needsReload);
   }
 
   /** Updates tile selection and visibility for a viewport and returns the current frame number. */
@@ -124,10 +124,10 @@ export class SharedTile2DView<DataT = any> {
         modelMatrix: this._modelMatrix,
         modelMatrixInverse: this._modelMatrixInverse
       });
-      this._selectedTiles = tileIndices.map((index) => this._tileset.getTile(index, true));
+      this._selectedTiles = tileIndices.map(index => this._tileset.getTile(index, true));
       this._tileset.prepareTiles();
     } else if (this.needsReload) {
-      this._selectedTiles = (this._selectedTiles || []).map((tile) =>
+      this._selectedTiles = (this._selectedTiles || []).map(tile =>
         this._tileset.getTile(tile.index, true)
       );
       this._tileset.prepareTiles();
@@ -161,7 +161,7 @@ export class SharedTile2DView<DataT = any> {
       z: this._zRange,
       cullRect
     });
-    return boundsArr.some((bounds) => this._tileOverlapsBounds(tile, bounds, modelMatrix));
+    return boundsArr.some(bounds => this._tileOverlapsBounds(tile, bounds, modelMatrix));
   }
 
   /** Collects tiles currently marked visible for this view. */
@@ -294,13 +294,14 @@ function getPlaceholderInAncestors(
   startTile: SharedTile2DHeader,
   stateMap: Map<SharedTile2DHeader, TileViewState>
 ): boolean {
-  let tile: SharedTile2DHeader | null = startTile;
-  while ((tile = tile.parent)) {
+  let tile: SharedTile2DHeader | null = startTile.parent;
+  while (tile) {
     const state = getTileState(stateMap, tile);
     state.state |= TILE_STATE_VISIBLE | TILE_STATE_VISITED;
     if (tile.isLoaded || tile.content) {
       return true;
     }
+    tile = tile.parent;
   }
   return false;
 }

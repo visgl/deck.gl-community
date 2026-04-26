@@ -73,7 +73,7 @@ function createArrowTable(columns: Record<string, unknown[]>): any {
       return vectors[name] ?? null;
     },
     schema: {
-      fields: Object.keys(columns).map((name) => ({name}))
+      fields: Object.keys(columns).map(name => ({name}))
     }
   };
 }

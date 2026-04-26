@@ -62,7 +62,7 @@ describe('three clicks + pointer move', () => {
   it('can format angle', () => {
     const tooltips = mode.getTooltips({
       ...props,
-      modeConfig: {formatTooltip: (angle) => String(Math.round(angle))}
+      modeConfig: {formatTooltip: angle => String(Math.round(angle))}
     });
     expect(tooltips[0].text).toEqual('45');
   });

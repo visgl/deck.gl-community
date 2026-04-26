@@ -45,7 +45,7 @@ async function createTextEditorMonacoRuntime(): Promise<TextEditorMonacoRuntime>
 
       applyJsonDiagnostics(monaco);
     },
-    clearJsonSchema: (modelUri) => {
+    clearJsonSchema: modelUri => {
       jsonSchemasByModelUri.delete(modelUri);
       applyJsonDiagnostics(monaco);
     }

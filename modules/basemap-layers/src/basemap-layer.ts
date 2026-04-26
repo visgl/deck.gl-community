@@ -147,7 +147,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
             getMapStyleLoaderOptions(loadOptions)
           )
     )
-      .then((resolvedStyle) => {
+      .then(resolvedStyle => {
         if (this.state.loadToken === loadToken) {
           logBasemapLayerEvent('Resolved basemap style', {
             loadToken,

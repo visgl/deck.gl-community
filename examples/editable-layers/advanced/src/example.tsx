@@ -53,7 +53,6 @@ import {
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
-
 import sampleGeoJson from '../../data/sample-geojson.json';
 
 import iconSheet from '../../data/edit-handles.png';
@@ -180,7 +179,7 @@ const EMPTY_FEATURE_COLLECTION = {
 
 function hex2rgb(hex: string) {
   const value = parseInt(hex, 16);
-  return [16, 8, 0].map((shift) => ((value >> shift) & 0xff) / 255);
+  return [16, 8, 0].map(shift => ((value >> shift) & 0xff) / 255);
 }
 
 const FEATURE_COLORS = [
@@ -226,7 +225,7 @@ function getEditHandleColor(handle: {}): RGBAColor {
 
 function getModeLabel(mode: unknown): string {
   for (const category of ALL_MODES) {
-    const match = category.modes.find((modeOption) => modeOption.mode === mode);
+    const match = category.modes.find(modeOption => modeOption.mode === mode);
     if (match) {
       return match.label;
     }
@@ -283,13 +282,18 @@ export function Example() {
   const [viewport, setViewport] = useState<Record<string, any>>(initialViewport);
   const [testFeatures, setTestFeatures] = useState<any>(sampleGeoJson);
   const [mode, setMode] = useState<typeof GeoJsonEditMode>(() => DrawPolygonMode);
-  const [modeConfig, setModeConfig] = useState<any>({allowHoles: true, allowSelfIntersection: false});
+  const [modeConfig, setModeConfig] = useState<any>({
+    allowHoles: true,
+    allowSelfIntersection: false
+  });
   const [pointsRemovable, setPointsRemovable] = useState<boolean>(true);
   const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState<number[]>([]);
   const [editHandleType, setEditHandleType] = useState<string>('point');
   const [selectionTool, setSelectionTool] = useState<string | undefined>(undefined);
   const [showGeoJson, setShowGeoJson] = useState<boolean>(false);
-  const [featureMenu, setFeatureMenu] = useState<{index: number; x: number; y: number} | undefined>(undefined);
+  const [featureMenu, setFeatureMenu] = useState<{index: number; x: number; y: number} | undefined>(
+    undefined
+  );
   const infoWidget = React.useMemo(
     () =>
       new BoxPanelWidget({
@@ -321,23 +325,26 @@ export function Example() {
     return {};
   }, []);
 
-  const onLayerClick = useCallback((info: any) => {
-    console.log('onLayerClick', info); // eslint-disable-line
-    if (mode !== ViewMode || selectionTool) {
-      // don't change selection while editing
-      return;
-    }
+  const onLayerClick = useCallback(
+    (info: any) => {
+      console.log('onLayerClick', info); // eslint-disable-line
+      if (mode !== ViewMode || selectionTool) {
+        // don't change selection while editing
+        return;
+      }
 
-    if (info) {
-      console.log(`select editing feature ${info.index}`); // eslint-disable-line
-      // a feature was clicked
-      setSelectedFeatureIndexes([info.index]);
-    } else {
-      console.log('deselect editing feature'); // eslint-disable-line
-      // open space was clicked, so stop editing
-      setSelectedFeatureIndexes([]);
-    }
-  }, [mode, selectionTool]);
+      if (info) {
+        console.log(`select editing feature ${info.index}`); // eslint-disable-line
+        // a feature was clicked
+        setSelectedFeatureIndexes([info.index]);
+      } else {
+        console.log('deselect editing feature'); // eslint-disable-line
+        // open space was clicked, so stop editing
+        setSelectedFeatureIndexes([]);
+      }
+    },
+    [mode, selectionTool]
+  );
 
   const parseStringJson = useCallback((json: string) => {
     let parsedFeatures: FeatureCollection | null = null;
@@ -357,40 +364,43 @@ export function Example() {
     }
   }, []);
 
-  const loadSample = useCallback((type: string) => {
-    if (type === 'mixed') {
-      setTestFeatures(sampleGeoJson);
-      setSelectedFeatureIndexes([]);
-    } else if (type === 'complex') {
-      setTestFeatures({
-        type: 'FeatureCollection',
-        features: [
-          circle([-122.45, 37.81], 4, {steps: 5000}),
-          circle([-122.33, 37.81], 4, {steps: 5000}),
-          circle([-122.45, 37.73], 4, {steps: 5000}),
-          circle([-122.33, 37.73], 4, {steps: 5000})
-        ]
-      });
-      setSelectedFeatureIndexes([]);
-    } else if (type === 'blank') {
-      setTestFeatures(EMPTY_FEATURE_COLLECTION);
-      setSelectedFeatureIndexes([]);
-    } else if (type === 'file') {
-      const el = document.createElement('input');
-      el.type = 'file';
-      el.onchange = (e) => {
-        const eventTarget = e.target as HTMLInputElement;
-        if (eventTarget.files && eventTarget.files[0]) {
-          const reader = new FileReader();
-          reader.onload = ({target}) => {
-            parseStringJson(target.result as string);
-          };
-          reader.readAsText(eventTarget.files[0]);
-        }
-      };
-      el.click();
-    }
-  }, [parseStringJson]);
+  const loadSample = useCallback(
+    (type: string) => {
+      if (type === 'mixed') {
+        setTestFeatures(sampleGeoJson);
+        setSelectedFeatureIndexes([]);
+      } else if (type === 'complex') {
+        setTestFeatures({
+          type: 'FeatureCollection',
+          features: [
+            circle([-122.45, 37.81], 4, {steps: 5000}),
+            circle([-122.33, 37.81], 4, {steps: 5000}),
+            circle([-122.45, 37.73], 4, {steps: 5000}),
+            circle([-122.33, 37.73], 4, {steps: 5000})
+          ]
+        });
+        setSelectedFeatureIndexes([]);
+      } else if (type === 'blank') {
+        setTestFeatures(EMPTY_FEATURE_COLLECTION);
+        setSelectedFeatureIndexes([]);
+      } else if (type === 'file') {
+        const el = document.createElement('input');
+        el.type = 'file';
+        el.onchange = e => {
+          const eventTarget = e.target as HTMLInputElement;
+          if (eventTarget.files && eventTarget.files[0]) {
+            const reader = new FileReader();
+            reader.onload = ({target}) => {
+              parseStringJson(target.result as string);
+            };
+            reader.readAsText(eventTarget.files[0]);
+          }
+        };
+        el.click();
+      }
+    },
+    [parseStringJson]
+  );
 
   const error = useCallback((err: any) => {
     // eslint-disable-next-line
@@ -408,10 +418,10 @@ export function Example() {
   const paste = useCallback(() => {
     if (navigator && navigator.clipboard) {
       navigator.clipboard.readText().then(
-        (value) => {
+        value => {
           parseStringJson(value);
         },
-        (reason) => {
+        reason => {
           error(reason);
         }
       );
@@ -432,59 +442,65 @@ export function Example() {
 
   const getHtmlColorForFeature = useCallback((index: number, selected: boolean) => {
     const length = FEATURE_COLORS.length;
-    const color = FEATURE_COLORS[index % length].map((c) => c * 255).join(',');
+    const color = FEATURE_COLORS[index % length].map(c => c * 255).join(',');
     const alpha = selected ? 1.0 : 0.7;
 
     return `rgba(${color}, ${alpha})`;
   }, []);
 
-  const getDeckColorForFeature = useCallback((index: number, bright: number, alpha: number): RGBAColor => {
-    const length = FEATURE_COLORS.length;
-    const color = FEATURE_COLORS[index % length].map((c) => c * bright * 255);
+  const getDeckColorForFeature = useCallback(
+    (index: number, bright: number, alpha: number): RGBAColor => {
+      const length = FEATURE_COLORS.length;
+      const color = FEATURE_COLORS[index % length].map(c => c * bright * 255);
 
-    // @ts-expect-error TODO
-    return [...color, alpha * 255];
-  }, []);
+      // @ts-expect-error TODO
+      return [...color, alpha * 255];
+    },
+    []
+  );
 
-  const renderSelectFeatureCheckbox = useCallback((index: number, featureType: string) => {
-    return (
-      <div key={index}>
-        <ToolboxCheckbox
-          style={styles.checkbox}
-          type="checkbox"
-          checked={selectedFeatureIndexes.includes(index)}
-          onChange={() => {
-            if (selectedFeatureIndexes.includes(index)) {
-              setSelectedFeatureIndexes(selectedFeatureIndexes.filter((e) => e !== index));
-            } else {
-              setSelectedFeatureIndexes([...selectedFeatureIndexes, index]);
-            }
-          }}
-        >
-          <span
-            style={{
-              color: getHtmlColorForFeature(index, selectedFeatureIndexes.includes(index))
+  const renderSelectFeatureCheckbox = useCallback(
+    (index: number, featureType: string) => {
+      return (
+        <div key={index}>
+          <ToolboxCheckbox
+            style={styles.checkbox}
+            type="checkbox"
+            checked={selectedFeatureIndexes.includes(index)}
+            onChange={() => {
+              if (selectedFeatureIndexes.includes(index)) {
+                setSelectedFeatureIndexes(selectedFeatureIndexes.filter(e => e !== index));
+              } else {
+                setSelectedFeatureIndexes([...selectedFeatureIndexes, index]);
+              }
             }}
           >
-            {index}
-            {': '}
-            {featureType}
-          </span>
-          <a
-            style={{position: 'absolute', right: 12}}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setSelectedFeatureIndexes([index]);
-              setFeatureMenu({index, x: e.clientX, y: e.clientY});
-            }}
-          >
-            &gt;&gt;
-          </a>
-        </ToolboxCheckbox>
-      </div>
-    );
-  }, [selectedFeatureIndexes, getHtmlColorForFeature]);
+            <span
+              style={{
+                color: getHtmlColorForFeature(index, selectedFeatureIndexes.includes(index))
+              }}
+            >
+              {index}
+              {': '}
+              {featureType}
+            </span>
+            <a
+              style={{position: 'absolute', right: 12}}
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedFeatureIndexes([index]);
+                setFeatureMenu({index, x: e.clientX, y: e.clientY});
+              }}
+            >
+              &gt;&gt;
+            </a>
+          </ToolboxCheckbox>
+        </div>
+      );
+    },
+    [selectedFeatureIndexes, getHtmlColorForFeature]
+  );
 
   const renderSelectFeatureCheckboxes = useCallback(() => {
     const checkboxes: React.ReactElement[] = [];
@@ -504,12 +520,10 @@ export function Example() {
           (requires single selection)
         </ToolboxTitle>
         <ToolboxControl>
-          {operations.map((operation) => (
+          {operations.map(operation => (
             <ToolboxButton
               key={operation}
-              selected={
-                modeConfig && modeConfig.booleanOperation === operation
-              }
+              selected={modeConfig && modeConfig.booleanOperation === operation}
               onClick={() => {
                 if (modeConfig && modeConfig.booleanOperation === operation) {
                   setModeConfig({
@@ -540,7 +554,7 @@ export function Example() {
           <input
             type="checkbox"
             checked={Boolean(modeConfig && modeConfig.dragToDraw)}
-            onChange={(event) =>
+            onChange={event =>
               setModeConfig({
                 ...(modeConfig || {}),
                 dragToDraw: Boolean(event.target.checked)
@@ -575,9 +589,7 @@ export function Example() {
           <input
             type="checkbox"
             checked={Boolean(modeConfig && modeConfig.lock90Degree)}
-            onChange={(event) =>
-              setModeConfig({lock90Degree: Boolean(event.target.checked)})
-            }
+            onChange={event => setModeConfig({lock90Degree: Boolean(event.target.checked)})}
           />
         </ToolboxControl>
       </ToolboxRow>
@@ -593,7 +605,7 @@ export function Example() {
             <input
               type="checkbox"
               checked={Boolean(modeConfig && modeConfig.enableSnapping)}
-              onChange={(event) => {
+              onChange={event => {
                 const newModeConfig = {
                   ...modeConfig,
                   enableSnapping: Boolean(event.target.checked)
@@ -614,12 +626,9 @@ export function Example() {
         <ToolboxControl>
           <select
             value={
-              (modeConfig &&
-                modeConfig.turfOptions &&
-                modeConfig.turfOptions.units) ||
-              'kilometers'
+              (modeConfig && modeConfig.turfOptions && modeConfig.turfOptions.units) || 'kilometers'
             }
-            onChange={(event) => {
+            onChange={event => {
               const newModeConfig = {
                 ...modeConfig,
                 turfOptions: {units: event.target.value}
@@ -639,7 +648,7 @@ export function Example() {
           <input
             type="checkbox"
             checked={Boolean(modeConfig && modeConfig.centerTooltipsOnLine)}
-            onChange={(event) => {
+            onChange={event => {
               const newModeConfig = {
                 ...modeConfig,
                 centerTooltipsOnLine: Boolean(event.target.checked)
@@ -662,7 +671,7 @@ export function Example() {
             <ToolboxCheckbox
               type="checkbox"
               checked={Boolean(currentModeConfig.allowHoles)}
-              onChange={(event) =>
+              onChange={event =>
                 setModeConfig({
                   ...currentModeConfig,
                   allowHoles: Boolean(event.target.checked),
@@ -682,7 +691,7 @@ export function Example() {
             <input
               type="checkbox"
               checked={Boolean(currentModeConfig.allowSelfIntersection)}
-              onChange={(event) =>
+              onChange={event =>
                 setModeConfig({
                   ...currentModeConfig,
                   allowSelfIntersection: Boolean(event.target.checked)
@@ -747,13 +756,21 @@ export function Example() {
     }
 
     return controls;
-  }, [mode, renderBooleanOperationControls, renderTwoClickPolygonControls, renderModifyModeControls,
-      renderSplitModeControls, renderSnappingControls, renderMeasureDistanceControls, renderDrawPolygonModeControls]);
+  }, [
+    mode,
+    renderBooleanOperationControls,
+    renderTwoClickPolygonControls,
+    renderModifyModeControls,
+    renderSplitModeControls,
+    renderSnappingControls,
+    renderMeasureDistanceControls,
+    renderDrawPolygonModeControls
+  ]);
 
   const renderToolBox = useCallback(() => {
     return (
       <Toolbox>
-        {ALL_MODES.map((category) => (
+        {ALL_MODES.map(category => (
           <ToolboxRow key={category.category}>
             <ToolboxTitle>{category.category} Modes</ToolboxTitle>
             {category.modes.map(({mode: modeOption, label}) => (
@@ -775,16 +792,14 @@ export function Example() {
         {showGeoJson && (
           <React.Fragment>
             <ToolboxTitle>GeoJSON</ToolboxTitle>
-            <ToolboxButton onClick={() => setShowGeoJson(!showGeoJson)}>
-              hide &#9650;
-            </ToolboxButton>
+            <ToolboxButton onClick={() => setShowGeoJson(!showGeoJson)}>hide &#9650;</ToolboxButton>
             <ToolboxControl>
               <textarea
                 id="geo-json-text"
                 rows={5}
                 style={{width: '100%'}}
                 value={JSON.stringify(testFeatures)}
-                onChange={(event) => setTestFeatures(JSON.parse(event.target.value))}
+                onChange={event => setTestFeatures(JSON.parse(event.target.value))}
               />
             </ToolboxControl>
           </React.Fragment>
@@ -792,9 +807,7 @@ export function Example() {
         {!showGeoJson && (
           <React.Fragment>
             <ToolboxTitle>GeoJSON</ToolboxTitle>
-            <ToolboxButton onClick={() => setShowGeoJson(!showGeoJson)}>
-              show &#9660;
-            </ToolboxButton>
+            <ToolboxButton onClick={() => setShowGeoJson(!showGeoJson)}>show &#9660;</ToolboxButton>
           </React.Fragment>
         )}
         <ToolboxButton onClick={() => copy()}>Copy</ToolboxButton>
@@ -804,9 +817,7 @@ export function Example() {
           <ToolboxTitle>Load data</ToolboxTitle>
           <ToolboxControl>
             <ToolboxButton onClick={() => loadSample('mixed')}>Mixed Sample</ToolboxButton>
-            <ToolboxButton onClick={() => loadSample('complex')}>
-              Complex Sample
-            </ToolboxButton>
+            <ToolboxButton onClick={() => loadSample('complex')}>Complex Sample</ToolboxButton>
             <ToolboxButton onClick={() => loadSample('blank')}>Blank</ToolboxButton>
             <ToolboxButton onClick={() => loadSample('file')}>Open file...</ToolboxButton>
           </ToolboxControl>
@@ -818,9 +829,7 @@ export function Example() {
             <ToolboxCheckbox
               type="checkbox"
               checked={editHandleType === 'icon'}
-              onChange={() =>
-                setEditHandleType(editHandleType === 'icon' ? 'point' : 'icon')
-              }
+              onChange={() => setEditHandleType(editHandleType === 'icon' ? 'point' : 'icon')}
             >
               Use Icons
             </ToolboxCheckbox>
@@ -837,7 +846,6 @@ export function Example() {
               Use ElevatedEditHandleLayer
             </ToolboxCheckbox>
           </ToolboxControl>
-
         </ToolboxRow>
 
         <ToolboxRow>
@@ -873,97 +881,123 @@ export function Example() {
         <ToolboxRow>{renderSelectFeatureCheckboxes()}</ToolboxRow>
       </Toolbox>
     );
-  }, [mode, showGeoJson, testFeatures, copy, paste, download, loadSample, editHandleType,
-      renderModeConfigControls, renderSelectFeatureCheckboxes, getDefaultModeConfig]);
+  }, [
+    mode,
+    showGeoJson,
+    testFeatures,
+    copy,
+    paste,
+    download,
+    loadSample,
+    editHandleType,
+    renderModeConfigControls,
+    renderSelectFeatureCheckboxes,
+    getDefaultModeConfig
+  ]);
 
   const mapStyle = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
-  const featureMenuClick = useCallback((action: string) => {
-    const {index} = featureMenu || {};
-    let updatedFeatures = testFeatures;
+  const featureMenuClick = useCallback(
+    (action: string) => {
+      const {index} = featureMenu || {};
+      let updatedFeatures = testFeatures;
 
-    if (action === 'delete') {
-      const features = [...updatedFeatures.features];
-      features.splice(index as any, 1);
-      updatedFeatures = Object.assign({}, updatedFeatures, {
-        features
-      });
-    } else if (action === 'split') {
-      // TODO
-    } else if (action === 'info') {
-      // eslint-disable-next-line
-      console.log(updatedFeatures.features[index as any]);
-    }
-
-    setFeatureMenu(undefined);
-    setTestFeatures(updatedFeatures);
-  }, [featureMenu, testFeatures]);
-
-  const renderFeatureMenu = useCallback(({x, y}: {x: number; y: number}) => {
-    return (
-      <div style={{position: 'fixed', top: y - 40, left: x + 20}}>
-        <ToolboxButton onClick={() => featureMenuClick('delete')}>Delete</ToolboxButton>
-        <ToolboxButton onClick={() => featureMenuClick('split')}>Split</ToolboxButton>
-        <ToolboxButton onClick={() => featureMenuClick('info')}>Info</ToolboxButton>
-        <ToolboxButton onClick={() => featureMenuClick('')}>Close</ToolboxButton>
-      </div>
-    );
-  }, [featureMenuClick]);
-
-  const onEdit = useCallback(({updatedData, editType, editContext}) => {
-    let updatedSelectedFeatureIndexes = selectedFeatureIndexes;
-
-    if (
-      ![
-        'movePosition',
-        'extruding',
-        'rotating',
-        'translating',
-        'scaling',
-        'updateTentativeFeature'
-      ].includes(editType)
-    ) {
-      // Don't log edits that happen as the pointer moves since they're really chatty
-      const updatedDataInfo = featuresToInfoString(updatedData);
-      // eslint-disable-next-line
-      console.log('onEdit', editType, editContext, updatedDataInfo);
-
-      // Special logging for hole-related events
-      if (editType === 'addHole' || editType === 'invalidHole') {
+      if (action === 'delete') {
+        const features = [...updatedFeatures.features];
+        features.splice(index as any, 1);
+        updatedFeatures = Object.assign({}, updatedFeatures, {
+          features
+        });
+      } else if (action === 'split') {
+        // TODO
+      } else if (action === 'info') {
         // eslint-disable-next-line
-        console.log('🕳️ Hole event:', editType, editContext);
+        console.log(updatedFeatures.features[index as any]);
       }
-    }
 
-    if (editType === 'removePosition' && !pointsRemovable) {
-      // This is a simple example of custom handling of edits
-      // reject the edit
-      return;
-    }
+      setFeatureMenu(undefined);
+      setTestFeatures(updatedFeatures);
+    },
+    [featureMenu, testFeatures]
+  );
 
-    if (editType === 'addFeature' && mode !== DuplicateMode) {
-      const {featureIndexes} = editContext;
-      // Add the new feature to the selection
-      updatedSelectedFeatureIndexes = [...selectedFeatureIndexes, ...featureIndexes];
-    }
+  const renderFeatureMenu = useCallback(
+    ({x, y}: {x: number; y: number}) => {
+      return (
+        <div style={{position: 'fixed', top: y - 40, left: x + 20}}>
+          <ToolboxButton onClick={() => featureMenuClick('delete')}>Delete</ToolboxButton>
+          <ToolboxButton onClick={() => featureMenuClick('split')}>Split</ToolboxButton>
+          <ToolboxButton onClick={() => featureMenuClick('info')}>Info</ToolboxButton>
+          <ToolboxButton onClick={() => featureMenuClick('')}>Close</ToolboxButton>
+        </div>
+      );
+    },
+    [featureMenuClick]
+  );
 
-    setTestFeatures(updatedData);
-    setSelectedFeatureIndexes(updatedSelectedFeatureIndexes);
-  }, [selectedFeatureIndexes, pointsRemovable, mode]);
+  const onEdit = useCallback(
+    ({updatedData, editType, editContext}) => {
+      let updatedSelectedFeatureIndexes = selectedFeatureIndexes;
 
-  const getFillColor = useCallback((feature, isSelected) => {
-    const index = testFeatures.features.indexOf(feature);
-    return isSelected
-      ? getDeckColorForFeature(index, 1.0, 0.5)
-      : getDeckColorForFeature(index, 0.5, 0.5);
-  }, [testFeatures.features, getDeckColorForFeature]);
+      if (
+        ![
+          'movePosition',
+          'extruding',
+          'rotating',
+          'translating',
+          'scaling',
+          'updateTentativeFeature'
+        ].includes(editType)
+      ) {
+        // Don't log edits that happen as the pointer moves since they're really chatty
+        const updatedDataInfo = featuresToInfoString(updatedData);
+        // eslint-disable-next-line
+        console.log('onEdit', editType, editContext, updatedDataInfo);
 
-  const getLineColor = useCallback((feature, isSelected) => {
-    const index = testFeatures.features.indexOf(feature);
-    return isSelected
-      ? getDeckColorForFeature(index, 1.0, 1.0)
-      : getDeckColorForFeature(index, 0.5, 1.0);
-  }, [testFeatures.features, getDeckColorForFeature]);
+        // Special logging for hole-related events
+        if (editType === 'addHole' || editType === 'invalidHole') {
+          // eslint-disable-next-line
+          console.log('🕳️ Hole event:', editType, editContext);
+        }
+      }
+
+      if (editType === 'removePosition' && !pointsRemovable) {
+        // This is a simple example of custom handling of edits
+        // reject the edit
+        return;
+      }
+
+      if (editType === 'addFeature' && mode !== DuplicateMode) {
+        const {featureIndexes} = editContext;
+        // Add the new feature to the selection
+        updatedSelectedFeatureIndexes = [...selectedFeatureIndexes, ...featureIndexes];
+      }
+
+      setTestFeatures(updatedData);
+      setSelectedFeatureIndexes(updatedSelectedFeatureIndexes);
+    },
+    [selectedFeatureIndexes, pointsRemovable, mode]
+  );
+
+  const getFillColor = useCallback(
+    (feature, isSelected) => {
+      const index = testFeatures.features.indexOf(feature);
+      return isSelected
+        ? getDeckColorForFeature(index, 1.0, 0.5)
+        : getDeckColorForFeature(index, 0.5, 0.5);
+    },
+    [testFeatures.features, getDeckColorForFeature]
+  );
+
+  const getLineColor = useCallback(
+    (feature, isSelected) => {
+      const index = testFeatures.features.indexOf(feature);
+      return isSelected
+        ? getDeckColorForFeature(index, 1.0, 1.0)
+        : getDeckColorForFeature(index, 0.5, 1.0);
+    },
+    [testFeatures.features, getDeckColorForFeature]
+  );
 
   // eslint-disable-next-line complexity
   const currentViewport: Record<string, any> = {
@@ -978,7 +1012,7 @@ export function Example() {
     currentModeConfig = {
       ...currentModeConfig,
       viewport: currentViewport,
-      calculateElevationChange: (opts) =>
+      calculateElevationChange: opts =>
         ElevationMode.calculateElevationChangeWithViewport(currentViewport, opts)
     };
   } else if (mode === ModifyMode) {
@@ -1093,7 +1127,7 @@ export function Example() {
         mask: false
       }
     },
-    getEditHandleIcon: (d) => getEditHandleTypeFromEitherLayer(d),
+    getEditHandleIcon: d => getEditHandleTypeFromEitherLayer(d),
     getEditHandleIconSize: 40,
     getEditHandleIconColor: getEditHandleColor,
 
@@ -1136,7 +1170,7 @@ export function Example() {
         // @ts-expect-error TODO
         selectionType: selectionTool,
         onSelect: ({pickingInfos}) => {
-          setSelectedFeatureIndexes(pickingInfos.map((pi) => pi.index));
+          setSelectedFeatureIndexes(pickingInfos.map(pi => pi.index));
         },
         layerIds: ['geojson'],
 
@@ -1149,11 +1183,7 @@ export function Example() {
 
   return (
     <div style={styles.mapContainer}>
-      <StaticMap
-        {...currentViewport}
-        mapStyle={mapStyle}
-        style={{width: '100%', height: '100%'}}
-      >
+      <StaticMap {...currentViewport} mapStyle={mapStyle} style={{width: '100%', height: '100%'}}>
         <DeckGL
           viewState={currentViewport}
           getCursor={editableGeoJsonLayer.getCursor.bind(editableGeoJsonLayer)}
@@ -1182,7 +1212,7 @@ export default Example;
 
 function featuresToInfoString(featureCollection: any): string {
   const info = featureCollection.features.map(
-    (feature) => `${feature.geometry.type}(${getPositionCount(feature.geometry)})`
+    feature => `${feature.geometry.type}(${getPositionCount(feature.geometry)})`
   );
 
   return JSON.stringify(info);
@@ -1200,9 +1230,9 @@ function getPositionCount(geometry): number {
       return coordinates.length;
     case 'Polygon':
     case 'MultiLineString':
-      return flatMap((x) => x, coordinates).length;
+      return flatMap(x => x, coordinates).length;
     case 'MultiPolygon':
-      return flatMap((x) => flatMap((y) => y, x), coordinates).length;
+      return flatMap(x => flatMap(y => y, x), coordinates).length;
     default:
       throw Error(`Unknown geometry type: ${type}`);
   }

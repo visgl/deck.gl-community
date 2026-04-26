@@ -230,7 +230,7 @@ export function mountWidgetDocsExample(
     widgets: [
       ...buildClassicWidgets(highlight),
       ...buildOverlayWidgets(highlight, tooltipWidget),
-      ...buildAdvancedWidgets(highlight, (target) => {
+      ...buildAdvancedWidgets(highlight, target => {
         deck.setProps({
           viewState: {
             ...INITIAL_VIEW_STATE,
@@ -360,23 +360,23 @@ function buildAdvancedWidgets(
           placement: 'top-left',
           defaultOpen: true,
           placeholder: 'Search example points...',
-          getOptions: (query) =>
-            POINTS.filter((point) => point.label.toLowerCase().includes(query.toLowerCase())).map(
-              (point) => ({
+          getOptions: query =>
+            POINTS.filter(point => point.label.toLowerCase().includes(query.toLowerCase())).map(
+              point => ({
                 id: point.id,
                 label: point.label,
                 description: `${point.position[0]}, ${point.position[1]}`,
                 data: point
               })
             ),
-          onSelectOption: (option) => {
+          onSelectOption: option => {
             const point = option.data as PointDatum | undefined;
             if (!point) {
               return;
             }
             onCenterView(point.position);
           },
-          onNavigateOption: (option) => {
+          onNavigateOption: option => {
             const point = option.data as PointDatum | undefined;
             if (!point) {
               return;
@@ -401,7 +401,7 @@ function buildAdvancedWidgets(
 }
 
 function buildOverlayItems() {
-  return POINTS.slice(0, 4).map((point) =>
+  return POINTS.slice(0, 4).map(point =>
     h(
       HtmlOverlayItem,
       {
@@ -443,8 +443,8 @@ function buildLayers(highlight: WidgetDocsExampleHighlight) {
   const scatterplotLayer = new ScatterplotLayer<PointDatum>({
     id: 'widget-docs-points',
     data: POINTS,
-    getPosition: (point) => point.position,
-    getFillColor: (point) => point.color,
+    getPosition: point => point.position,
+    getFillColor: point => point.color,
     getLineColor: [15, 23, 42, 220],
     getRadius: 18,
     radiusUnits: 'pixels',
@@ -466,8 +466,8 @@ function buildLayers(highlight: WidgetDocsExampleHighlight) {
   const labelLayer = new TextLayer<PointDatum>({
     id: 'widget-docs-labels',
     data: POINTS,
-    getPosition: (point) => point.position,
-    getText: (point) => (highlight === 'toast-widget' ? 'Click me' : point.label),
+    getPosition: point => point.position,
+    getText: point => (highlight === 'toast-widget' ? 'Click me' : point.label),
     getSize: 13,
     getColor: [15, 23, 42, 230],
     getTextAnchor: 'middle',
@@ -585,5 +585,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

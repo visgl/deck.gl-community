@@ -61,10 +61,10 @@ describe('createGraphFromData (PlainGraphData)', () => {
     const edges = Array.from(graph.getEdges());
 
     expect(graph.version).toBe(3);
-    expect(nodes.map((node) => node.getId())).toEqual(['a', 'b']);
-    expect(edges.map((edge) => edge.getId())).toEqual(['a-b', 'b-a']);
+    expect(nodes.map(node => node.getId())).toEqual(['a', 'b']);
+    expect(edges.map(edge => edge.getId())).toEqual(['a-b', 'b-a']);
 
-    const nodeSummaries = nodes.map((node) => ({
+    const nodeSummaries = nodes.map(node => ({
       id: node.getId(),
       state: node.getState(),
       selectable: node.isSelectable(),
@@ -94,7 +94,7 @@ describe('createGraphFromData (PlainGraphData)', () => {
       }
     ]);
 
-    const edgeSummaries = edges.map((edge) => ({
+    const edgeSummaries = edges.map(edge => ({
       id: edge.getId(),
       state: edge.getState(),
       directed: edge.isDirected(),

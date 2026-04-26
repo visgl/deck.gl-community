@@ -39,7 +39,7 @@ export const isShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcut: KeyboardS
 };
 
 export const findShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcuts: KeyboardShortcut[]) => {
-  return shortcuts.find((shortcut) => isShortcutMatchingKeyEvent(e, shortcut));
+  return shortcuts.find(shortcut => isShortcutMatchingKeyEvent(e, shortcut));
 };
 
 // Pretty “keycap” glyphs for KeyboardEvent.key (browser KeyEvent)

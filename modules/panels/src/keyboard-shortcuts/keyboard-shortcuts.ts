@@ -62,7 +62,7 @@ export const isShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcut: KeyboardS
  * Finds the first shortcut definition that matches one DOM keyboard event.
  */
 export const findShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcuts: KeyboardShortcut[]) => {
-  return shortcuts.find((shortcut) => isShortcutMatchingKeyEvent(e, shortcut));
+  return shortcuts.find(shortcut => isShortcutMatchingKeyEvent(e, shortcut));
 };
 
 /**

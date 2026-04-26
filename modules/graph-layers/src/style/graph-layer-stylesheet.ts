@@ -91,7 +91,7 @@ export function normalizeGraphLayerStylesheet({
       ? [resolvedEdgeStyles]
       : DEFAULT_GRAPH_LAYER_STYLESHEET.edges;
 
-  const edges: GraphLayerEdgeStyle[] = edgeEntries.filter(Boolean).map((edgeStyleEntry) => ({
+  const edges: GraphLayerEdgeStyle[] = edgeEntries.filter(Boolean).map(edgeStyleEntry => ({
     ...edgeStyleEntry,
     type: edgeStyleEntry.type ?? 'edge',
     decorators: edgeStyleEntry.decorators ?? []

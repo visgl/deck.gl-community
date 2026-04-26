@@ -20,9 +20,9 @@ export class JunctionScatterplotLayer extends CompositeLayer<JunctionScatterplot
   static layerName = 'JunctionScatterplotLayer';
   static defaultProps: DefaultProps<JunctionScatterplotLayerProps> = {
     ...ScatterplotLayer.defaultProps,
-    getFillColor: (d) => [0, 0, 0, 255],
-    getStrokeColor: (d) => [255, 255, 255, 255],
-    getInnerRadius: (d) => 1
+    getFillColor: _d => [0, 0, 0, 255],
+    getStrokeColor: _d => [255, 255, 255, 255],
+    getInnerRadius: _d => 1
   };
 
   renderLayers() {

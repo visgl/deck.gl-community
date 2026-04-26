@@ -27,7 +27,7 @@ export function getPrettyTicks(startTime: number, endTime: number, tickCount: nu
   const multiples = [1, 2, 5, 10];
 
   // Find the smallest multiple that is greater than or equal to roughStep
-  const niceStep = multiples.find((m) => base * m >= roughStep) * base;
+  const niceStep = multiples.find(m => base * m >= roughStep) * base;
 
   const niceStart = Math.ceil(startTime / niceStep) * niceStep;
   const niceEnd = Math.floor(endTime / niceStep) * niceStep;

@@ -10,8 +10,8 @@ import {getCurvePoints} from 'cardinal-spline-js';
 /* Constants */
 const defaultProps = {
   id: 'spline-layer',
-  getData: (d) => d.points,
-  getAngle: (x) => 0,
+  getData: d => d.points,
+  getAngle: _x => 0,
   fontSize: 24,
   coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
   fp64: false
@@ -70,7 +70,7 @@ export class SplineLayer extends CompositeLayer {
     return new PathLayer({
       id: `${id}-splines`,
       data: paths as any,
-      getPath: (d) => d,
+      getPath: d => d,
       getColor,
       getWidth,
       coordinateSystem,

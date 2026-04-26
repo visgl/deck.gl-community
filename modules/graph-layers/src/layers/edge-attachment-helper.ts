@@ -198,8 +198,8 @@ export class EdgeAttachmentHelper {
 
     const styles = Array.isArray(nodeStyle) ? nodeStyle : [nodeStyle];
 
-    styles.filter(Boolean).forEach((style) => {
-      const {data = (nodes) => nodes, ...restStyle} = style;
+    styles.filter(Boolean).forEach(style => {
+      const {data = nodes => nodes, ...restStyle} = style;
       const type = restStyle.type;
 
       if (!type || !GEOMETRY_NODE_TYPES.includes(type as GeometryNodeType)) {

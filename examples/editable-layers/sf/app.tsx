@@ -10,9 +10,7 @@ import {
   SelectionLayer
 } from '@deck.gl-community/editable-layers';
 import {ColumnPanel, CustomPanel, MarkdownPanel} from '@deck.gl-community/panels';
-import {
-  BoxPanelWidget
-} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
@@ -178,7 +176,7 @@ export function mountSfExample(container: HTMLElement): () => void {
         selectedFeatureIndexes: state.selectedFeatureIndexes,
         allowEdit: state.allowEdit,
         selectionType: state.selectionType,
-        onSetSelectionType: (nextSelectionType) => {
+        onSetSelectionType: nextSelectionType => {
           state.selectionType = nextSelectionType;
           syncOverlay();
           syncInfoWidget();
@@ -222,7 +220,7 @@ function buildLayers(
       id: 'selection',
       selectionType: state.selectionType,
       onSelect: ({pickingInfos}) => {
-        onSelect(pickingInfos.map((pickingInfo) => pickingInfo.index));
+        onSelect(pickingInfos.map(pickingInfo => pickingInfo.index));
       },
       layerIds: ['geojson'],
       getTentativeFillColor: () => [255, 0, 255, 100],
@@ -268,17 +266,14 @@ function buildInfoPanel({
       actions: new CustomPanel({
         id: 'actions',
         title: 'Selection',
-        onRenderHTML: (host) => {
+        onRenderHTML: host => {
           const ownerDocument = host.ownerDocument;
           const buttonGroup = ownerDocument.createElement('div');
 
           applyElementStyle(buttonGroup, BUTTON_GROUP_STYLE);
           buttonGroup.append(
-            createButton(
-              ownerDocument,
-              'Select by Rectangle',
-              selectionType === 'rectangle',
-              () => onSetSelectionType('rectangle')
+            createButton(ownerDocument, 'Select by Rectangle', selectionType === 'rectangle', () =>
+              onSetSelectionType('rectangle')
             ),
             createButton(ownerDocument, 'Select by Polygon', selectionType === 'polygon', () =>
               onSetSelectionType('polygon')
@@ -335,5 +330,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

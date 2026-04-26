@@ -172,7 +172,7 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
 
       const angles = {first: [] as number[], second: [] as number[]};
       // calculate 3 right angle points for first and last points in lineString
-      [1, 2, 3].forEach((factor) => {
+      [1, 2, 3].forEach(factor => {
         const newAngle1 = angle1 + factor * 90;
         // convert angles to 0 to -180 for anti-clock and 0 to 180 for clock wise
         angles.first.push(newAngle1 > 180 ? newAngle1 - 360 : newAngle1);
@@ -183,12 +183,12 @@ export class Draw90DegreePolygonHandler extends ModeHandler {
       const distance = turfDistance(point(p1), point(p3));
       // Draw imaginary right angle lines for both first and last points in lineString
       // If there is intersection point for any 2 lines, will be the 90 degree point.
-      [0, 1, 2].forEach((indexFirst) => {
+      [0, 1, 2].forEach(indexFirst => {
         const line1 = lineString([
           p1,
           destination(p1, distance, angles.first[indexFirst]).geometry.coordinates
         ]);
-        [0, 1, 2].forEach((indexSecond) => {
+        [0, 1, 2].forEach(indexSecond => {
           const line2 = lineString([
             p3,
             destination(p3, distance, angles.second[indexSecond]).geometry.coordinates

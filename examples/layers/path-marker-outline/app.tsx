@@ -176,11 +176,11 @@ export function mountPathOutlineAndMarkersExample(
         autoHighlight: true,
         widthUnits: 'pixels',
         widthScale: 8,
-        getWidth: (d) => d.width,
-        getColor: (d) => d.color,
-        getDashArray: (d) => d.dashArray ?? null,
+        getWidth: d => d.width,
+        getColor: d => d.color,
+        getDashArray: d => d.dashArray ?? null,
         dashJustified: true,
-        getZLevel: (d) => d.zLevel ?? 0,
+        getZLevel: d => d.zLevel ?? 0,
         parameters: {depthTest: false}
       }),
       new PathMarkerLayer<TransitRoute>({
@@ -190,11 +190,12 @@ export function mountPathOutlineAndMarkersExample(
         autoHighlight: true,
         widthUnits: 'pixels',
         widthScale: 10,
-        getWidth: (d) => d.width,
-        getColor: (d) => d.color,
-        getMarkerColor: (d) => d.markerColor,
-        getDirection: (d) => d.direction,
-        getMarkerPercentages: (_object, {lineLength}) => (lineLength > 800 ? [0.2, 0.5, 0.8] : [0.5]),
+        getWidth: d => d.width,
+        getColor: d => d.color,
+        getMarkerColor: d => d.markerColor,
+        getDirection: d => d.direction,
+        getMarkerPercentages: (_object, {lineLength}) =>
+          lineLength > 800 ? [0.2, 0.5, 0.8] : [0.5],
         parameters: {depthTest: false}
       })
     ],

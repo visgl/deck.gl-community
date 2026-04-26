@@ -1,5 +1,5 @@
 import {CompositeLayer} from '@deck.gl/core';
-import type {UpdateParameters} from '@deck.gl/core';
+import type {DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
 import {GeoJsonLayer, TextLayer} from '@deck.gl/layers';
 
@@ -61,6 +61,12 @@ type MVTLabelLayerState = {
   /** Flattened label rows generated from the current tile data. */
   labelData?: LabelRow[];
 };
+
+const geoJsonDefaultProps = {...GeoJsonLayer.defaultProps} as Omit<
+  typeof GeoJsonLayer.defaultProps,
+  'data'
+>;
+delete (geoJsonDefaultProps as typeof GeoJsonLayer.defaultProps).data;
 
 /**
  * Evaluates a style value that may contain stop definitions.
@@ -136,8 +142,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   static layerName = 'MVTLabelLayer';
 
   /** Default props for {@link MVTLabelLayer}. */
-  static defaultProps = {
-    ...GeoJsonLayer.defaultProps,
+  static defaultProps: DefaultProps<MVTLabelLayerProps> = {
+    ...geoJsonDefaultProps,
     billboard: true,
     renderGeometry: false,
     labelSizeUnits: 'pixels',
@@ -205,7 +211,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       const features = Array.isArray(data) ? data : data.features || [];
       const labelData = features.flatMap((feature, index) => {
         const labelAnchors = this.getLabelAnchors(feature);
-        return labelAnchors.map((position) => this.getSubLayerRow({position}, feature, index));
+        return labelAnchors.map(position => this.getSubLayerRow({position}, feature, index));
       });
 
       this.setState({labelData});
