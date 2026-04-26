@@ -637,6 +637,19 @@ __metadata:
     react-dom: "npm:^18.3.1"
   peerDependencies:
     "@deck.gl/widgets": ~9.3.0
+    "@openassistant/core": 0.5.20
+    "@openassistant/ui": ^0.5.20
+    react: ">=18.2"
+    react-dom: ">=18.2"
+  peerDependenciesMeta:
+    "@openassistant/core":
+      optional: true
+    "@openassistant/ui":
+      optional: true
+    react:
+      optional: true
+    react-dom:
+      optional: true
   languageName: unknown
   linkType: soft
 

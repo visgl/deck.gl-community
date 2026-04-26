@@ -210,6 +210,8 @@ const SHORTCUTS: KeyboardShortcut[] = [
   {key: 't', name: 'Theme', description: 'Toggle theme'}
 ];
 
+const AI_ASSIST_DEMO_CHAT_ENDPOINT = getAIAssistDemoChatEndpoint();
+
 function buildHighlightComponents(
   highlight: PanelDocsExampleHighlight,
   panelElement: HTMLElement,
@@ -281,9 +283,12 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         id: 'ai-assist',
         title: 'AI Assist',
         assistantName: 'Deck Assistant',
+        chatEndpoint: AI_ASSIST_DEMO_CHAT_ENDPOINT,
         showConfigPanel: true,
         heightPx: 560,
-        welcomeMessage: 'Hello, how can I help you explore this visualization?'
+        welcomeMessage: 'Hello, how can I help you explore this visualization?',
+        instructions: 'This demo uses a local no-key provider and does not call an LLM service.',
+        enableVoice: false
       });
 
     case 'markdown-panel':
@@ -531,6 +536,16 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         }
       });
   }
+}
+
+function getAIAssistDemoChatEndpoint(): string {
+  const demoMessage =
+    'No LLM API key provided. This live example uses a local demo provider and does not call an LLM service.';
+  const streamResponse = [
+    `0:${JSON.stringify(demoMessage)}`,
+    `d:${JSON.stringify({finishReason: 'stop', usage: {promptTokens: 0, completionTokens: 0}})}`
+  ].join('\n');
+  return `data:text/plain;charset=utf-8,${encodeURIComponent(`${streamResponse}\n`)}`;
 }
 
 function renderScene(

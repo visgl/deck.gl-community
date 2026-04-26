@@ -3,7 +3,7 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 # BinaryDataPanel
 
 <p className="badges">
-  <img src="https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square" alt="from v9.4" />
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
 <PanelLiveExample highlight="binary-data-panel" />

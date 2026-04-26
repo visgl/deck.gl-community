@@ -2,8 +2,6 @@ import React, {useEffect, useRef} from 'react';
 // eslint-disable-next-line import/no-unresolved
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
-import {mountPanelDocsExample} from '../../../../examples/widgets/panel-docs/app';
-
 const WRAPPER_STYLE = {
   position: 'relative',
   width: '100%',
@@ -31,7 +29,10 @@ function PanelLiveExampleHost({highlight, height}) {
 
     let cleanup;
     let isDisposed = false;
-    const animationFrame = window.requestAnimationFrame(() => {
+    const animationFrame = window.requestAnimationFrame(async () => {
+      const {mountPanelDocsExample} = await import(
+        '../../../../examples/widgets/panel-docs/app'
+      );
       cleanup = mountPanelDocsExample(hostElement, {highlight});
       if (isDisposed) {
         cleanup();

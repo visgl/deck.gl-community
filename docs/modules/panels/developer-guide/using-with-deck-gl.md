@@ -1,5 +1,9 @@
 # Using with deck.gl
 
+<p className="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+</p>
+
 Use `@deck.gl-community/panels` with `@deck.gl-community/widgets` when the UI
 should be mounted through deck.gl's widget system.
 

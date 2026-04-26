@@ -1,19 +1,31 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
-import * as React from 'react';
-import {createRoot} from 'react-dom/client';
-import {AiAssistant, ConfigPanel} from '@openassistant/ui';
 
+import {ensureFallbackStylesheet} from '../lib/panel-styles';
+import {OPENASSISTANT_UI_STYLES} from '../lib/openassistant-ui-styles';
 import {useEffectiveWidgetPanelThemeMode} from './widget-containers';
 
-import type {MessageModel, UseAssistantProps} from '@openassistant/core';
-import type {AiAssistantConfig} from '@openassistant/ui';
-import type {Root} from 'react-dom/client';
 import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
 import type {JSX} from 'preact';
 
-import '@openassistant/ui/dist/index.css';
+type AIAssistFunctionTools = Record<string, unknown>;
+
+type ReactRoot = {
+  render: (element: unknown) => void;
+  unmount: () => void;
+};
+
+type OpenAssistantRuntime = {
+  createElement: (
+    type: unknown,
+    props?: Record<string, unknown> | null,
+    ...children: unknown[]
+  ) => unknown;
+  createRoot: (element: Element | DocumentFragment) => ReactRoot;
+  AiAssistant: unknown;
+  ConfigPanel: unknown;
+};
 
 /** Model configuration edited by the built-in OpenAssistant config panel. */
 export type AIAssistPanelConfig = {
@@ -64,7 +76,7 @@ export type AIAssistPanelProps = {
   /** System instructions passed to OpenAssistant. */
   instructions?: string;
   /** Function tools passed to OpenAssistant. */
-  functionTools?: UseAssistantProps['tools'];
+  functionTools?: AIAssistFunctionTools;
   /** Sampling temperature. */
   temperature?: number;
   /** Nucleus sampling top-p value. */
@@ -131,6 +143,14 @@ const DEFAULT_AI_ASSIST_PANEL_PROPS = {
   'className' | 'theme' | 'widthPx' | 'assistantTheme' | 'functionTools' | 'onConfigChange'
 >;
 
+const OPENASSISTANT_STYLESHEET_ATTRIBUTE = 'data-deck-gl-community-openassistant-styles';
+const OPENASSISTANT_OVERRIDES_ATTRIBUTE = 'data-deck-gl-community-openassistant-overrides';
+const OPENASSISTANT_OVERRIDES = `
+[data-ai-assist-panel] .order-1.overflow-y-auto {
+  overflow-y: hidden;
+}
+`;
+
 /** Widget panel that renders the OpenAssistant chat UI inside panel containers. */
 export class AIAssistPanel implements WidgetPanel {
   /** Stable panel id used by parent containers. */
@@ -183,9 +203,10 @@ function AIAssistPanelContent(props: ResolvedAIAssistPanelProps): JSX.Element {
     onConfigChange
   } = props;
   const hostElementRef = useRef<HTMLDivElement | null>(null);
-  const reactRootRef = useRef<Root | null>(null);
+  const reactRootRef = useRef<ReactRoot | null>(null);
   const effectiveThemeMode = useEffectiveWidgetPanelThemeMode();
   const resolvedAssistantTheme = assistantTheme ?? effectiveThemeMode;
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [assistantConfig, setAssistantConfig] = useState<AIAssistPanelConfig>(() =>
     getInitialAssistantConfig(props)
   );
@@ -212,26 +233,44 @@ function AIAssistPanelContent(props: ResolvedAIAssistPanelProps): JSX.Element {
       return undefined;
     }
 
-    const reactRoot = reactRootRef.current ?? createRoot(hostElement);
-    reactRootRef.current = reactRoot;
-    reactRoot.render(
-      React.createElement(AIAssistReactContent, {
-        assistantConfig,
-        assistantName,
-        chatEndpoint,
-        enableVoice,
-        functionTools,
-        handleConfigChange,
-        instructions,
-        resolvedAssistantTheme,
-        showConfigPanel,
-        version,
-        voiceEndpoint,
-        welcomeMessage
-      })
-    );
+    ensureOpenAssistantStylesheet(hostElement.ownerDocument);
 
-    return undefined;
+    let isActive = true;
+    loadOpenAssistantRuntime()
+      .then((runtime) => {
+        if (!isActive) {
+          return;
+        }
+        setLoadError(null);
+        const reactRoot = reactRootRef.current ?? runtime.createRoot(hostElement);
+        reactRootRef.current = reactRoot;
+        reactRoot.render(
+          runtime.createElement(AIAssistReactContent, {
+            assistantConfig,
+            assistantName,
+            chatEndpoint,
+            enableVoice,
+            functionTools,
+            handleConfigChange,
+            instructions,
+            resolvedAssistantTheme,
+            runtime,
+            showConfigPanel,
+            version,
+            voiceEndpoint,
+            welcomeMessage
+          })
+        );
+      })
+      .catch((error: unknown) => {
+        if (isActive) {
+          setLoadError(error instanceof Error ? error : new Error(String(error)));
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, [
     assistantConfig,
     assistantName,
@@ -272,6 +311,7 @@ function AIAssistPanelContent(props: ResolvedAIAssistPanelProps): JSX.Element {
       onTouchStart={stopEventPropagation}
       onTouchMove={stopEventPropagation}
     >
+      {loadError ? <div style={AI_ASSIST_ERROR_STYLE}>{getAIAssistLoadErrorMessage()}</div> : null}
       <div ref={hostElementRef} style={AI_ASSIST_HOST_STYLE} data-ai-assist-panel-host="" />
     </div>
   );
@@ -282,10 +322,11 @@ type AIAssistReactContentProps = {
   assistantName: string;
   chatEndpoint: string;
   enableVoice: boolean;
-  functionTools: UseAssistantProps['tools'];
+  functionTools: AIAssistFunctionTools;
   handleConfigChange: (config: AIAssistPanelConfig) => void;
   instructions: string;
   resolvedAssistantTheme: 'light' | 'dark';
+  runtime: OpenAssistantRuntime;
   showConfigPanel: boolean;
   version: string;
   voiceEndpoint: string;
@@ -301,12 +342,13 @@ function AIAssistReactContent({
   handleConfigChange,
   instructions,
   resolvedAssistantTheme,
+  runtime,
   showConfigPanel,
   version,
   voiceEndpoint,
   welcomeMessage
-}: AIAssistReactContentProps): React.ReactElement {
-  return React.createElement(AiAssistant, {
+}: AIAssistReactContentProps): unknown {
+  return runtime.createElement(runtime.AiAssistant, {
     name: assistantName,
     apiKey: assistantConfig.apiKey,
     version,
@@ -323,25 +365,25 @@ function AIAssistReactContent({
     voiceEndpoint,
     theme: resolvedAssistantTheme,
     initialMessages: showConfigPanel
-      ? ([
+      ? [
           {
             direction: 'incoming',
             position: 'single',
-            payload: React.createElement(
+            payload: runtime.createElement(
               'div',
               {style: {display: 'grid', gap: '16px'}},
-              React.createElement(
+              runtime.createElement(
                 'p',
                 {style: {margin: 0}},
                 'Please select your preferred LLM model and use your API key to start the chat.'
               ),
-              React.createElement(ConfigPanel, {
+              runtime.createElement(runtime.ConfigPanel, {
                 initialConfig: getOpenAssistantConfig(assistantConfig),
                 onConfigChange: handleConfigChange
-              } as React.ComponentProps<typeof ConfigPanel>)
+              })
             )
           }
-        ] satisfies MessageModel[])
+        ]
       : []
   });
 }
@@ -357,16 +399,59 @@ function getInitialAssistantConfig(props: ResolvedAIAssistPanelProps): AIAssistP
   };
 }
 
-function getOpenAssistantConfig(config: AIAssistPanelConfig): AiAssistantConfig {
+function getOpenAssistantConfig(config: AIAssistPanelConfig): Record<string, unknown> {
   return {
     isReady: false,
-    provider: config.provider as AiAssistantConfig['provider'],
+    provider: config.provider,
     model: config.model,
     apiKey: config.apiKey,
     temperature: config.temperature,
     topP: config.topP,
     baseUrl: config.baseUrl ?? ''
   };
+}
+
+async function loadOpenAssistantRuntime(): Promise<OpenAssistantRuntime> {
+  const [react, reactDomClient, openAssistantUi] = await Promise.all([
+    import('react'),
+    import('react-dom/client'),
+    import('@openassistant/ui')
+  ]);
+
+  return {
+    createElement: react.createElement as OpenAssistantRuntime['createElement'],
+    createRoot: reactDomClient.createRoot as OpenAssistantRuntime['createRoot'],
+    AiAssistant: openAssistantUi.AiAssistant,
+    ConfigPanel: openAssistantUi.ConfigPanel
+  };
+}
+
+function getAIAssistLoadErrorMessage(): string {
+  return [
+    'AIAssistPanel requires optional peer dependencies to be installed:',
+    '@openassistant/ui, @openassistant/core, react, and react-dom.'
+  ].join(' ');
+}
+
+function ensureOpenAssistantStylesheet(document: Document): void {
+  ensureFallbackStylesheet(document, {
+    attribute: OPENASSISTANT_STYLESHEET_ATTRIBUTE,
+    styles: OPENASSISTANT_UI_STYLES,
+    isExistingRule: hasOpenAssistantRule,
+    isExistingLink: hasOpenAssistantLink
+  });
+  ensureFallbackStylesheet(document, {
+    attribute: OPENASSISTANT_OVERRIDES_ATTRIBUTE,
+    styles: OPENASSISTANT_OVERRIDES
+  });
+}
+
+function hasOpenAssistantRule(rule: CSSRule): boolean {
+  return rule.cssText.includes('--heroui-') || rule.cssText.includes('.bg-content2');
+}
+
+function hasOpenAssistantLink(linkElement: HTMLLinkElement): boolean {
+  return /@openassistant\/ui|openassistant-ui/.test(linkElement.href);
 }
 
 function stopEventPropagation(event: Event): void {
@@ -392,4 +477,11 @@ const AI_ASSIST_HOST_STYLE: JSX.CSSProperties = {
   width: '100%',
   height: '100%',
   minWidth: 0
+};
+
+const AI_ASSIST_ERROR_STYLE: JSX.CSSProperties = {
+  padding: '12px',
+  fontSize: '13px',
+  lineHeight: 1.4,
+  color: 'var(--menu-text, currentColor)'
 };

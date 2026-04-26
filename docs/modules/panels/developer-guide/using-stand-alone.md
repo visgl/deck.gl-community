@@ -1,5 +1,9 @@
 # Using Stand-Alone
 
+<p className="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+</p>
+
 Use `@deck.gl-community/panels` directly when you want panel-based UI without
 creating a `Deck` instance.
 

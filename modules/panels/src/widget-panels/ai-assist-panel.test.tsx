@@ -6,6 +6,9 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {WidgetContainerRenderer, asPanelContainer} from './widget-containers';
 import {AIAssistPanel} from './ai-assist-panel';
 
+const OPENASSISTANT_STYLES_SELECTOR = 'style[data-deck-gl-community-openassistant-styles]';
+const OPENASSISTANT_OVERRIDES_SELECTOR = 'style[data-deck-gl-community-openassistant-overrides]';
+
 const reactRootHarness = vi.hoisted(() => {
   const createRoot = vi.fn();
   const renderRoot = vi.fn();
@@ -50,7 +53,7 @@ async function flushEffects(): Promise<void> {
 }
 
 async function waitForReactRender(previousRenderCount = 0): Promise<void> {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     if (reactRootHarness.renderRoot.mock.calls.length > previousRenderCount) {
       return;
     }
@@ -90,6 +93,12 @@ afterEach(() => {
     render(null, rootElement as HTMLElement);
   }
   document.body.innerHTML = '';
+  document.head.querySelectorAll(OPENASSISTANT_STYLES_SELECTOR).forEach((element) => {
+    element.remove();
+  });
+  document.head.querySelectorAll(OPENASSISTANT_OVERRIDES_SELECTOR).forEach((element) => {
+    element.remove();
+  });
 });
 
 beforeEach(() => {
@@ -117,6 +126,12 @@ describe('AIAssistPanel', () => {
     await waitForReactRender();
 
     expect(root.querySelector('[data-ai-assist-panel]')).toBeTruthy();
+    expect(document.head.querySelector(OPENASSISTANT_STYLES_SELECTOR)?.textContent).toContain(
+      '--heroui-'
+    );
+    expect(document.head.querySelector(OPENASSISTANT_OVERRIDES_SELECTOR)?.textContent).toContain(
+      '.order-1.overflow-y-auto'
+    );
     expect(reactRootHarness.createRoot).toHaveBeenCalledWith(
       root.querySelector('[data-ai-assist-panel-host]')
     );
@@ -250,5 +265,19 @@ describe('AIAssistPanel', () => {
       ?.dispatchEvent(new MouseEvent('click', {bubbles: true}));
 
     expect(parentClickHandler).not.toHaveBeenCalled();
+  });
+
+  it('does not inject fallback styles when app-provided OpenAssistant styles are present', async () => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = ':root { --heroui-background: 0 0% 100%; }';
+    document.head.appendChild(styleElement);
+
+    renderPanel(new AIAssistPanel());
+    await waitForReactRender();
+
+    expect(document.head.querySelector(OPENASSISTANT_STYLES_SELECTOR)).toBeNull();
+    expect(document.head.querySelector(OPENASSISTANT_OVERRIDES_SELECTOR)).toBeTruthy();
+
+    styleElement.remove();
   });
 });

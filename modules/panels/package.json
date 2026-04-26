@@ -13,10 +13,7 @@
     "visualization"
   ],
   "type": "module",
-  "sideEffects": [
-    "**/*.css",
-    "src/widget-panels/ai-assist-panel.tsx"
-  ],
+  "sideEffects": false,
   "types": "./dist/index.d.ts",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -36,18 +33,36 @@
     "test-watch": "vitest"
   },
   "devDependencies": {
-    "@types/react": "^18.3.27",
-    "@types/react-dom": "^18.3.7"
-  },
-  "dependencies": {
     "@openassistant/core": "0.5.20",
     "@openassistant/ui": "^0.5.20",
-    "@probe.gl/stats": "^4.1.1",
-    "preact": "^10.17.0",
+    "@types/react": "^18.3.27",
+    "@types/react-dom": "^18.3.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
+  "dependencies": {
+    "@probe.gl/stats": "^4.1.1",
+    "preact": "^10.17.0"
+  },
   "peerDependencies": {
-    "@deck.gl/widgets": "~9.3.0"
+    "@deck.gl/widgets": "~9.3.0",
+    "@openassistant/core": "0.5.20",
+    "@openassistant/ui": "^0.5.20",
+    "react": ">=18.2",
+    "react-dom": ">=18.2"
+  },
+  "peerDependenciesMeta": {
+    "@openassistant/core": {
+      "optional": true
+    },
+    "@openassistant/ui": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   }
 }

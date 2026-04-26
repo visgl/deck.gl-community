@@ -1,5 +1,9 @@
 # Overview
 
+<p className="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+</p>
+
 `@deck.gl-community/panels` provides a set of composable UI-components intended
 for small data visualization applications.
 
@@ -13,7 +17,7 @@ theming, and application-managed UI state such as toast notifications.
 
 ## Using with deck.gl
 
-For deck-facing wrappers, use [`@deck.gl-community/widgets`](/docs/modules/widgets/README):
+For deck-facing wrappers, use [`@deck.gl-community/widgets`](/docs/modules/widgets):
 
 - [BoxPanelWidget](/docs/modules/widgets/api-reference/box-widget)
 - [ModalPanelWidget](/docs/modules/widgets/api-reference/modal-widget)

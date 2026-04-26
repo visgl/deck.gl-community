@@ -74,6 +74,15 @@ const config = {
             optimization: {
               concatenateModules: false,
             },
+            resolve: isServer
+              ? {
+                  alias: {
+                    'react-audio-voice-recorder': resolve(
+                      './src/ssr-stubs/react-audio-voice-recorder.js'
+                    )
+                  }
+                }
+              : {},
           };
         },
       };
