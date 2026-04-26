@@ -6,6 +6,7 @@
 import {Stats} from '@probe.gl/stats';
 import {
   AccordeonPanel,
+  AIAssistPanel,
   BinaryDataPanel,
   ColumnPanel,
   CustomPanel,
@@ -32,6 +33,7 @@ import type {KeyboardShortcut, SettingsSchema, SettingsState} from '../../../mod
 
 export type PanelDocsExampleHighlight =
   | 'widget-panels'
+  | 'ai-assist-panel'
   | 'markdown-panel'
   | 'binary-data-panel'
   | 'custom-panel'
@@ -153,6 +155,7 @@ export function mountPanelDocsExample(
 
 const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   'widget-panels': 'Using Panels',
+  'ai-assist-panel': 'AIAssistPanel',
   'markdown-panel': 'MarkdownPanel',
   'binary-data-panel': 'BinaryDataPanel',
   'custom-panel': 'CustomPanel',
@@ -273,6 +276,16 @@ function buildHighlightComponents(
 // eslint-disable-next-line complexity
 function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
   switch (highlight) {
+    case 'ai-assist-panel':
+      return new AIAssistPanel({
+        id: 'ai-assist',
+        title: 'AI Assist',
+        assistantName: 'Deck Assistant',
+        showConfigPanel: true,
+        heightPx: 560,
+        welcomeMessage: 'Hello, how can I help you explore this visualization?'
+      });
+
     case 'markdown-panel':
       return new MarkdownPanel({
         id: 'markdown',

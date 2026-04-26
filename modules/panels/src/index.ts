@@ -50,6 +50,11 @@ export {SettingsPanel, type SettingsPanelProps} from './widget-panels/settings-p
 export {StatsPanel, type StatsPanelProps} from './widget-panels/stats-panel';
 export {BinaryDataPanel, type BinaryDataPanelProps} from './widget-panels/binary-data-panel';
 export {
+  AIAssistPanel,
+  type AIAssistPanelConfig,
+  type AIAssistPanelProps
+} from './widget-panels/ai-assist-panel';
+export {
   KeyboardShortcutsPanel,
   type KeyboardShortcutsPanelProps
 } from './widget-panels/keyboard-shortcuts-widget';
