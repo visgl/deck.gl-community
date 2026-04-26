@@ -53,7 +53,7 @@ export abstract class PanelContainer<PropsT extends PanelContainerProps = PanelC
    */
   viewId?: string | null = null;
   /**
-   * Placement anchor used by `PanelManager` or deck.gl's widget manager.
+   * Placement anchor used by `PanelManager` or deck.gl's panel manager.
    */
   abstract placement: PanelPlacement;
   /**
@@ -62,9 +62,9 @@ export abstract class PanelContainer<PropsT extends PanelContainerProps = PanelC
   abstract className: string;
 
   /**
-   * Optional deck/widget-manager references populated by host environments.
+   * Optional deck/panel-manager references populated by host environments.
    */
-  widgetManager?: unknown;
+  panelManager?: unknown;
   deck?: unknown;
   rootElement?: HTMLDivElement | null;
 
@@ -119,7 +119,7 @@ export abstract class PanelContainer<PropsT extends PanelContainerProps = PanelC
    */
   protected onCreateRootElement(): HTMLDivElement {
     const element = document.createElement('div');
-    for (const className of ['deck-widget', this.className, this.props.className]) {
+    for (const className of ['deck-panel', this.className, this.props.className]) {
       if (className) {
         element.classList.add(className);
       }

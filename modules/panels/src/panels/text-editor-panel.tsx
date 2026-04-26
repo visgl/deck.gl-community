@@ -3,13 +3,13 @@
 import {useEffect, useRef, useState} from 'preact/hooks';
 
 import {loadTextEditorMonacoRuntime} from './text-editor-panel-monaco-runtime';
-import {useEffectiveWidgetPanelThemeMode} from './widget-containers';
+import {useEffectivePanelThemeMode} from './panel-containers';
 
-import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
+import type {Panel, PanelTheme} from './panel-containers';
 import type {editor as EditorNamespace, IDisposable} from 'monaco-editor';
 import type {JSX} from 'preact';
 
-/** Text-editor widget panel configuration. */
+/** Text-editor panel configuration. */
 export type TextEditorPanelProps = {
   /** Stable panel id used by parent containers. */
   id: string;
@@ -32,7 +32,7 @@ export type TextEditorPanelProps = {
   /** Optional class name applied to the outer panel content wrapper. */
   className?: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   /** Monaco theme id used when the effective panel theme resolves to light mode. */
   lightMonacoTheme?: string;
   /** Monaco theme id used when the effective panel theme resolves to dark mode. */
@@ -40,12 +40,12 @@ export type TextEditorPanelProps = {
 };
 
 /**
- * A widget panel that lazily loads Monaco and edits one text document.
+ * A panel that lazily loads Monaco and edits one text document.
  */
-export class TextEditorPanel implements WidgetPanel {
+export class TextEditorPanel implements Panel {
   id: string;
   title: string;
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   content: JSX.Element;
 
   constructor(props: TextEditorPanelProps) {
@@ -65,7 +65,7 @@ type TextEditorLoadState =
   | {status: 'error'; error: Error};
 
 /**
- * Renders the Monaco-backed editor body used by the widget panel.
+ * Renders the Monaco-backed editor body used by the panel.
  */
 function TextEditorPanelContent({
   id,
@@ -96,7 +96,7 @@ function TextEditorPanelContent({
   const isControlled = value !== undefined;
   const resolvedValue = isControlled ? value : displayValue;
   const runtime = loadState.status === 'ready' ? loadState.runtime : undefined;
-  const themeMode = useEffectiveWidgetPanelThemeMode();
+  const themeMode = useEffectivePanelThemeMode();
 
   useEffect(() => {
     isControlledRef.current = isControlled;
@@ -285,7 +285,7 @@ function resolveInitialEditorValue(value: string | undefined, defaultValue: stri
  * Returns the stable in-memory Monaco model URI for one panel id.
  */
 function getTextEditorModelUri(id: string): string {
-  return `inmemory://deck-gl-community/widgets/${encodeURIComponent(id)}`;
+  return `inmemory://deck-gl-community/panels/${encodeURIComponent(id)}`;
 }
 
 /**
@@ -300,7 +300,7 @@ function getTextEditorLanguageId(language: TextEditorPanelProps['language']): st
 }
 
 /**
- * Maps the effective widget panel theme mode onto a Monaco editor theme id.
+ * Maps the effective panel theme mode onto a Monaco editor theme id.
  */
 function getMonacoThemeId(
   themeMode: 'light' | 'dark',

@@ -6,9 +6,9 @@ import * as React from 'react';
 import {h, render as renderPreact} from 'preact';
 import {DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
-  WidgetContainerRenderer,
-  type WidgetContainer,
-  type WidgetPanel as WidgetPanelDefinition
+  PanelContentRenderer,
+  type Panel,
+  type PanelContentContainer
 } from '@deck.gl-community/panels';
 
 import type {CSSProperties, ReactElement} from 'react';
@@ -22,7 +22,7 @@ type WidgetPanelWithPanelProps = {
   /**
    * One panel definition imported from `@deck.gl-community/panels`.
    */
-  panel: WidgetPanelDefinition;
+  panel: Panel;
   container?: never;
 };
 
@@ -30,7 +30,7 @@ type WidgetPanelWithContainerProps = {
   /**
    * One full container definition imported from `@deck.gl-community/panels`.
    */
-  container: WidgetContainer;
+  container: PanelContentContainer;
   panel?: never;
 };
 
@@ -75,7 +75,7 @@ export function WidgetPanel({
   framed = true
 }: WidgetPanelProps): ReactElement {
   const mountElementRef = React.useRef<HTMLDivElement | null>(null);
-  const resolvedContainer = React.useMemo<WidgetContainer | null>(
+  const resolvedContainer = React.useMemo<PanelContentContainer | null>(
     () => (container ? container : null),
     [container]
   );
@@ -87,7 +87,7 @@ export function WidgetPanel({
     }
 
     if (resolvedContainer) {
-      renderPreact(h(WidgetContainerRenderer, {container: resolvedContainer}), mountElement);
+      renderPreact(h(PanelContentRenderer, {container: resolvedContainer}), mountElement);
     } else {
       renderPreact(
         h('div', null, [

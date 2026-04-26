@@ -17,26 +17,26 @@ import type {ComponentChildren, JSX} from 'preact';
 /**
  * Internal panel identifier used by both accordion and tab containers.
  */
-type WidgetPanelId = string;
+type PanelId = string;
 
 /** Light/dark theme modes used for panel-scoped overrides. */
-export type WidgetPanelThemeMode = 'light' | 'dark';
+export type PanelThemeMode = 'light' | 'dark';
 
-/** Public theme override options for widget panels. */
-export type WidgetPanelTheme = 'inherit' | 'light' | 'dark' | 'invert';
+/** Public theme override options for panels. */
+export type PanelTheme = 'inherit' | 'light' | 'dark' | 'invert';
 
 /**
  * Describes one entry in an accordion or tabbed container.
  */
-export type WidgetPanel = {
+export type Panel = {
   /** Stable id used for expansion/selection bookkeeping. */
-  id: WidgetPanelId;
+  id: PanelId;
   /** Visible heading text for the panel. */
   title: string;
   /** Renderable panel body. */
   content: JSX.Element;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   /**
    * If true, the panel can not be interacted with and will not switch/expand.
    */
@@ -47,26 +47,26 @@ export type WidgetPanel = {
   keepMounted?: boolean;
 };
 
-export type WidgetPanelRecord = Record<string, WidgetPanel>;
+export type PanelRecord = Record<string, Panel>;
 
 export type AccordeonPanelProps = {
   /**
    * Map of panel IDs to panel definitions.
    */
-  panels: WidgetPanelRecord;
+  panels: PanelRecord;
   /** Optional identifier for the wrapper panel when embedded in another container. */
   id?: string;
   /** Optional heading used by outer overlays when this is rendered as a direct child panel. */
   title?: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 };
 
 export type TabbedPanelProps = {
   /**
    * Map of panel IDs to panel definitions.
    */
-  panels: WidgetPanelRecord;
+  panels: PanelRecord;
   /** Optional identifier for the wrapper panel when embedded in another container. */
   id?: string;
   /** Optional heading used by outer overlays when this is rendered as a direct child panel. */
@@ -74,20 +74,51 @@ export type TabbedPanelProps = {
   /** Controls whether the tab list wraps onto multiple rows or scrolls horizontally. */
   tabListLayout?: 'wrap' | 'scroll';
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 };
 
 export type ColumnPanelProps = {
   /**
    * Map of panel IDs to panel definitions.
    */
-  panels: WidgetPanelRecord;
+  panels: PanelRecord;
   /** Optional identifier for the wrapper panel when embedded in another container. */
   id?: string;
   /** Optional heading used by outer overlays when this is rendered as a direct child panel. */
   title?: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
+};
+
+export type SplitterPanelOrientation = 'horizontal' | 'vertical';
+
+export type SplitterPanelProps = {
+  /**
+   * Map of panel IDs to panel definitions.
+   */
+  panels: PanelRecord;
+  /** Optional identifier for the wrapper panel when embedded in another container. */
+  id?: string;
+  /** Optional heading used by outer overlays when this is rendered as a direct child panel. */
+  title?: string;
+  /** Optional theme override applied to this panel subtree. */
+  theme?: PanelTheme;
+  /** Stacking orientation of the split panes. */
+  orientation?: SplitterPanelOrientation;
+  /** Initial ratio allocated to the first panel. */
+  initialSplit?: number;
+  /** Whether the split can be changed by dragging the divider. */
+  editable?: boolean;
+  /** Minimum ratio allocated to the first panel. */
+  minSplit?: number;
+  /** Maximum ratio allocated to the first panel. */
+  maxSplit?: number;
+  /** Called while dragging with the updated split ratio. */
+  onChange?: (split: number) => void;
+  /** Called when dragging starts. */
+  onDragStart?: () => void;
+  /** Called when dragging ends. */
+  onDragEnd?: () => void;
 };
 
 export type CustomPanelProps = {
@@ -111,7 +142,7 @@ export type CustomPanelProps = {
   /** Optional class name applied to the host element. */
   className?: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 };
 
 export type MarkdownPanelProps = {
@@ -132,13 +163,13 @@ export type MarkdownPanelProps = {
   /** Optional class name applied to the markdown content host. */
   className?: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 };
 
 /**
  * Normalizes an object map of panels into an array in insertion order.
  */
-function normalizePanelRecordPanels(panels: WidgetPanelRecord): WidgetPanel[] {
+function normalizePanelRecordPanels(panels: PanelRecord): Panel[] {
   return Object.keys(panels).map(panelId => {
     const panel = panels[panelId];
     return {
@@ -149,7 +180,7 @@ function normalizePanelRecordPanels(panels: WidgetPanelRecord): WidgetPanel[] {
 }
 
 /**
- * Mounts an imperative HTML host for custom widget panels.
+ * Mounts an imperative HTML host for custom panels.
  */
 function CustomPanelContent({
   className,
@@ -177,37 +208,37 @@ function CustomPanelContent({
 /**
  * A wrapper panel that renders child panels in an accordion layout.
  */
-export class AccordeonPanel implements WidgetPanel {
+export class AccordeonPanel implements Panel {
   id: string;
   title: string;
   content: JSX.Element;
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 
   constructor({
     panels,
-    id = 'accordeon-widgets',
+    id = 'accordeon-panels',
     title = 'Panels',
     theme = 'inherit'
   }: AccordeonPanelProps) {
     this.id = id;
     this.title = title;
     this.theme = theme;
-    this.content = <AccordeonWidgetContainer panels={normalizePanelRecordPanels(panels)} />;
+    this.content = <AccordeonPanelContainer panels={normalizePanelRecordPanels(panels)} />;
   }
 }
 
 /**
  * A wrapper panel that renders child panels in a tabbed layout.
  */
-export class TabbedPanel implements WidgetPanel {
+export class TabbedPanel implements Panel {
   id: string;
   title: string;
   content: JSX.Element;
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 
   constructor({
     panels,
-    id = 'tabbed-widgets',
+    id = 'tabbed-panels',
     title = 'Panels',
     tabListLayout = 'wrap',
     theme = 'inherit'
@@ -216,7 +247,7 @@ export class TabbedPanel implements WidgetPanel {
     this.title = title;
     this.theme = theme;
     this.content = (
-      <TabbedWidgetContainer
+      <TabbedPanelContainer
         panels={normalizePanelRecordPanels(panels)}
         tabListLayout={tabListLayout}
       />
@@ -227,33 +258,76 @@ export class TabbedPanel implements WidgetPanel {
 /**
  * A wrapper panel that renders child panels in a vertical column.
  */
-export class ColumnPanel implements WidgetPanel {
+export class ColumnPanel implements Panel {
   id: string;
   title: string;
   content: JSX.Element;
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 
   constructor({
     panels,
-    id = 'column-widgets',
+    id = 'column-panels',
     title = 'Panels',
     theme = 'inherit'
   }: ColumnPanelProps) {
     this.id = id;
     this.title = title;
     this.theme = theme;
-    this.content = <ColumnWidgetContainer panels={normalizePanelRecordPanels(panels)} />;
+    this.content = <ColumnPanelContainer panels={normalizePanelRecordPanels(panels)} />;
+  }
+}
+
+/**
+ * A wrapper panel that renders the first child panel in a resizable split view
+ * against all remaining child panels.
+ */
+export class SplitterPanel implements Panel {
+  id: string;
+  title: string;
+  content: JSX.Element;
+  theme?: PanelTheme;
+
+  constructor({
+    panels,
+    id = 'splitter-panels',
+    title = 'Panels',
+    theme = 'inherit',
+    orientation = 'horizontal',
+    initialSplit = 0.5,
+    editable = true,
+    minSplit = 0.05,
+    maxSplit = 0.95,
+    onChange,
+    onDragStart,
+    onDragEnd
+  }: SplitterPanelProps) {
+    this.id = id;
+    this.title = title;
+    this.theme = theme;
+    this.content = (
+      <SplitterPanelContent
+        panels={normalizePanelRecordPanels(panels)}
+        orientation={orientation}
+        initialSplit={initialSplit}
+        editable={editable}
+        minSplit={minSplit}
+        maxSplit={maxSplit}
+        onChange={onChange}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      />
+    );
   }
 }
 
 /**
  * A wrapper panel that renders imperative HTML content into a managed host element.
  */
-export class CustomPanel implements WidgetPanel {
+export class CustomPanel implements Panel {
   id: string;
   title: string;
   content: JSX.Element;
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   disabled?: boolean;
   keepMounted?: boolean;
 
@@ -278,11 +352,11 @@ export class CustomPanel implements WidgetPanel {
 /**
  * A wrapper panel that renders a minimal built-in Markdown subset without external parsers.
  */
-export class MarkdownPanel implements WidgetPanel {
+export class MarkdownPanel implements Panel {
   id: string;
   title: string;
   content: JSX.Element;
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   disabled?: boolean;
   keepMounted?: boolean;
 
@@ -311,37 +385,37 @@ export class MarkdownPanel implements WidgetPanel {
 /**
  * Shared props for both container implementations.
  */
-export type WidgetContainerPanelBase = {
+export type PanelContentContainerBase = {
   /** Optional class name applied to the outer container. */
   className?: string;
   /** Optional set of panels to render. */
-  panels: ReadonlyArray<WidgetPanel>;
+  panels: ReadonlyArray<Panel>;
 };
 
 /**
  * Single-panel container props for direct modal/sidebar content rendering.
  */
-export type WidgetPanelContainerProps = {
+export type SinglePanelContentContainerProps = {
   /** Optional class name applied to the outer container. */
   className?: string;
   /** The panel to render as raw content. */
-  panel: WidgetPanel;
+  panel: Panel;
 };
 
 /**
  * Accordion container properties.
  */
-export type AccordeonWidgetContainerProps = WidgetContainerPanelBase & {
+export type AccordeonPanelContainerProps = PanelContentContainerBase & {
   /** Optional uncontrolled default expanded panel ids. */
-  defaultExpandedPanelIds?: ReadonlyArray<WidgetPanelId>;
+  defaultExpandedPanelIds?: ReadonlyArray<PanelId>;
   /**
    * Controlled expanded panel ids. If supplied, callers manage expand/collapse state.
    */
-  expandedPanelIds?: ReadonlyArray<WidgetPanelId>;
+  expandedPanelIds?: ReadonlyArray<PanelId>;
   /**
    * Called when user intent changes expanded panel ids.
    */
-  onExpandedPanelIdsChange?: (expandedPanelIds: ReadonlyArray<WidgetPanelId>) => void;
+  onExpandedPanelIdsChange?: (expandedPanelIds: ReadonlyArray<PanelId>) => void;
   /**
    * If false, opening one panel closes all others. Defaults to true.
    */
@@ -351,17 +425,17 @@ export type AccordeonWidgetContainerProps = WidgetContainerPanelBase & {
 /**
  * Tabs container properties.
  */
-export type TabbedWidgetContainerProps = WidgetContainerPanelBase & {
+export type TabbedPanelContainerProps = PanelContentContainerBase & {
   /** Optional uncontrolled default active tab id. */
-  defaultActivePanelId?: WidgetPanelId;
+  defaultActivePanelId?: PanelId;
   /**
    * Controlled active tab id. If supplied, callers manage active tab state.
    */
-  activePanelId?: WidgetPanelId;
+  activePanelId?: PanelId;
   /**
    * Called when user intent changes active tab id.
    */
-  onActivePanelIdChange?: (activePanelId: WidgetPanelId | undefined) => void;
+  onActivePanelIdChange?: (activePanelId: PanelId | undefined) => void;
   /** Controls whether the tab list wraps onto multiple rows or scrolls horizontally. */
   tabListLayout?: 'wrap' | 'scroll';
 };
@@ -369,42 +443,54 @@ export type TabbedWidgetContainerProps = WidgetContainerPanelBase & {
 /**
  * Column container properties.
  */
-export type ColumnWidgetContainerProps = WidgetContainerPanelBase;
+export type ColumnPanelContainerProps = PanelContentContainerBase;
 
-/** A serialized form describing an accordion widget container. */
-export type WidgetAccordeonContainer = {
+type SplitterPanelContentProps = {
+  panels: ReadonlyArray<Panel>;
+  orientation: SplitterPanelOrientation;
+  initialSplit: number;
+  editable: boolean;
+  minSplit: number;
+  maxSplit: number;
+  onChange?: (split: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+};
+
+/** A serialized form describing an accordion panel content container. */
+export type PanelAccordeonContentContainer = {
   /** Container variant discriminator. */
   kind: 'accordeon';
   /** Accordion container props. */
-  props: AccordeonWidgetContainerProps;
+  props: AccordeonPanelContainerProps;
 };
 
-/** A serialized form describing a tabbed widget container. */
-export type WidgetTabbedContainer = {
+/** A serialized form describing a tabbed panel content container. */
+export type PanelTabbedContentContainer = {
   /** Container variant discriminator. */
   kind: 'tabs';
   /** Tabs container props. */
-  props: TabbedWidgetContainerProps;
+  props: TabbedPanelContainerProps;
 };
 
-/** A serialized form describing a single panel widget container. */
-export type WidgetPanelContainer = {
+/** A serialized form describing a single panel panel content container. */
+export type SinglePanelContentContainer = {
   /** Container variant discriminator. */
   kind: 'panel';
   /** Single-panel props. */
-  props: WidgetPanelContainerProps;
+  props: SinglePanelContentContainerProps;
 };
 
-/** A serialized widget-container description consumed by modal and sidebar widgets. */
-export type WidgetContainer =
-  | WidgetAccordeonContainer
-  | WidgetTabbedContainer
-  | WidgetPanelContainer;
+/** A serialized panel-content-container description consumed by modal and sidebar panel containers. */
+export type PanelContentContainer =
+  | PanelAccordeonContentContainer
+  | PanelTabbedContentContainer
+  | SinglePanelContentContainer;
 
 /**
  * Builds a direct-content container for modal-style and sidebar panel shorthands.
  */
-export function asPanelContainer(panel: WidgetPanel): WidgetPanelContainer {
+export function asPanelContainer(panel: Panel): SinglePanelContentContainer {
   return {
     kind: 'panel',
     props: {
@@ -414,16 +500,16 @@ export function asPanelContainer(panel: WidgetPanel): WidgetPanelContainer {
 }
 
 /**
- * Renders an accordion-style widget panel stack.
+ * Renders an accordion-style panel stack.
  */
-export function AccordeonWidgetContainer({
+export function AccordeonPanelContainer({
   panels,
   className,
   defaultExpandedPanelIds = [],
   expandedPanelIds,
   onExpandedPanelIdsChange,
   allowMultipleExpanded = true
-}: AccordeonWidgetContainerProps) {
+}: AccordeonPanelContainerProps) {
   const [currentExpandedPanelIds, setCurrentExpandedPanelIds] = useControlledStringListState(
     expandedPanelIds,
     defaultExpandedPanelIds
@@ -437,7 +523,7 @@ export function AccordeonWidgetContainer({
   const effectivePanels = useMemo(() => [...panels], [panels]);
 
   const handleTogglePanel = useCallback(
-    (panelId: WidgetPanelId) => {
+    (panelId: PanelId) => {
       const nextPanelIds = new Set(allowMultipleExpanded ? currentExpandedPanelIds : []);
       if (nextPanelIds.has(panelId)) {
         nextPanelIds.delete(panelId);
@@ -497,7 +583,7 @@ export function AccordeonWidgetContainer({
               }}
             >
               {shouldRenderContent ? (
-                <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope>
+                <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope>
               ) : null}
             </div>
           </section>
@@ -508,16 +594,16 @@ export function AccordeonWidgetContainer({
 }
 
 /**
- * Renders a tabbed widget panel switcher.
+ * Renders a tabbed panel switcher.
  */
-export function TabbedWidgetContainer({
+export function TabbedPanelContainer({
   panels,
   className,
   defaultActivePanelId,
   activePanelId,
   onActivePanelIdChange,
   tabListLayout = 'wrap'
-}: TabbedWidgetContainerProps) {
+}: TabbedPanelContainerProps) {
   const [currentActivePanelId, setCurrentActivePanelId] = useControlledStringState(
     activePanelId,
     defaultActivePanelId
@@ -542,7 +628,7 @@ export function TabbedWidgetContainer({
   }, [currentActivePanelId, initialActivePanelId, onActivePanelIdChange, setCurrentActivePanelId]);
   return (
     <div className={className} style={TABBED_CONTAINER_STYLE}>
-      <div data-widget-tabs="" style={getTabListStyle(tabListLayout)}>
+      <div data-panel-tabs="" style={getTabListStyle(tabListLayout)}>
         {panels.map(panel => {
           const isActive = panel.id === initialActivePanelId;
           return (
@@ -593,7 +679,7 @@ export function TabbedWidgetContainer({
                 pointerEvents: isActive ? 'auto' : 'none'
               }}
             >
-              <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope>
+              <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope>
             </div>
           );
         })}
@@ -605,7 +691,7 @@ export function TabbedWidgetContainer({
 /**
  * Renders child panels in a simple vertical column.
  */
-export function ColumnWidgetContainer({panels, className}: ColumnWidgetContainerProps) {
+export function ColumnPanelContainer({panels, className}: ColumnPanelContainerProps) {
   const effectivePanels = useMemo(() => [...panels], [panels]);
 
   return (
@@ -622,7 +708,7 @@ export function ColumnWidgetContainer({panels, className}: ColumnWidgetContainer
         >
           {panel.title ? <header style={COLUMN_PANEL_HEADER_STYLE}>{panel.title}</header> : null}
           <div style={COLUMN_PANEL_CONTENT_STYLE}>
-            <WidgetPanelThemeScope panel={panel}>{panel.content}</WidgetPanelThemeScope>
+            <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope>
           </div>
         </section>
       ))}
@@ -630,49 +716,165 @@ export function ColumnWidgetContainer({panels, className}: ColumnWidgetContainer
   );
 }
 
+function SplitterPanelContent({
+  panels,
+  orientation,
+  initialSplit,
+  editable,
+  minSplit,
+  maxSplit,
+  onChange,
+  onDragStart,
+  onDragEnd
+}: SplitterPanelContentProps) {
+  const effectivePanels = useMemo(() => [...panels], [panels]);
+  const firstPanel = effectivePanels[0];
+  const remainingPanels = effectivePanels.slice(1);
+  const resolvedMinSplit = normalizeSplitBoundary(minSplit, 0);
+  const resolvedMaxSplit = Math.max(resolvedMinSplit, normalizeSplitBoundary(maxSplit, 1));
+  const [split, setSplit] = useState(() =>
+    clampSplit(initialSplit, resolvedMinSplit, resolvedMaxSplit)
+  );
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    setSplit(clampSplit(initialSplit, resolvedMinSplit, resolvedMaxSplit));
+  }, [initialSplit, resolvedMinSplit, resolvedMaxSplit]);
+
+  useEffect(() => {
+    return () => {
+      dragCleanupRef.current?.();
+    };
+  }, []);
+
+  const updateSplitFromEvent = useCallback(
+    (event: PointerEvent | MouseEvent) => {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+      const rect = container.getBoundingClientRect();
+      const size = orientation === 'horizontal' ? rect.width : rect.height;
+      if (size <= 0) {
+        return;
+      }
+
+      const offset =
+        orientation === 'horizontal' ? event.clientX - rect.left : event.clientY - rect.top;
+      const nextSplit = clampSplit(offset / size, resolvedMinSplit, resolvedMaxSplit);
+      setSplit(nextSplit);
+      onChange?.(nextSplit);
+    },
+    [onChange, orientation, resolvedMinSplit, resolvedMaxSplit]
+  );
+
+  if (!firstPanel) {
+    return <div style={SPLITTER_CONTAINER_STYLE(orientation)} />;
+  }
+
+  if (remainingPanels.length === 0) {
+    return (
+      <div style={SPLITTER_CONTAINER_STYLE(orientation)}>
+        <div style={SPLITTER_PANE_STYLE(1, orientation)}>
+          <PanelThemeScope panel={firstPanel}>{firstPanel.content}</PanelThemeScope>
+        </div>
+      </div>
+    );
+  }
+
+  const handlePointerDown = (event: JSX.TargetedPointerEvent<HTMLDivElement>) => {
+    if (!editable) {
+      return;
+    }
+    event.preventDefault();
+    dragCleanupRef.current?.();
+    const ownerDocument = event.currentTarget.ownerDocument;
+    const handlePointerMove = (moveEvent: PointerEvent | MouseEvent) => {
+      updateSplitFromEvent(moveEvent);
+    };
+    const handlePointerEnd = () => {
+      dragCleanupRef.current?.();
+      dragCleanupRef.current = null;
+      onDragEnd?.();
+    };
+
+    ownerDocument.addEventListener('pointermove', handlePointerMove);
+    ownerDocument.addEventListener('pointerup', handlePointerEnd);
+    ownerDocument.addEventListener('pointercancel', handlePointerEnd);
+    dragCleanupRef.current = () => {
+      ownerDocument.removeEventListener('pointermove', handlePointerMove);
+      ownerDocument.removeEventListener('pointerup', handlePointerEnd);
+      ownerDocument.removeEventListener('pointercancel', handlePointerEnd);
+    };
+    onDragStart?.();
+  };
+
+  return (
+    <div ref={containerRef} style={SPLITTER_CONTAINER_STYLE(orientation)}>
+      <div style={SPLITTER_PANE_STYLE(split, orientation)}>
+        <PanelThemeScope panel={firstPanel}>{firstPanel.content}</PanelThemeScope>
+      </div>
+      <div
+        data-panel-splitter=""
+        role="separator"
+        aria-orientation={orientation === 'horizontal' ? 'vertical' : 'horizontal'}
+        aria-valuemin={Math.round(resolvedMinSplit * 100)}
+        aria-valuemax={Math.round(resolvedMaxSplit * 100)}
+        aria-valuenow={Math.round(split * 100)}
+        style={SPLITTER_HANDLE_STYLE(orientation, editable)}
+        onPointerDown={handlePointerDown}
+      />
+      <div style={SPLITTER_PANE_STYLE(1 - split, orientation)}>
+        <ColumnPanelContainer panels={remainingPanels} />
+      </div>
+    </div>
+  );
+}
+
 /**
  * Renders the requested container based on descriptor kind.
  */
-export function WidgetContainerRenderer({container}: {container: WidgetContainer}) {
+export function PanelContentRenderer({container}: {container: PanelContentContainer}) {
   if (container.kind === 'accordeon') {
-    return <AccordeonWidgetContainer {...container.props} />;
+    return <AccordeonPanelContainer {...container.props} />;
   }
   if (container.kind === 'panel') {
     return (
       <div className={container.props.className}>
-        <WidgetPanelThemeScope panel={container.props.panel}>
+        <PanelThemeScope panel={container.props.panel}>
           {container.props.panel.content}
-        </WidgetPanelThemeScope>
+        </PanelThemeScope>
       </div>
     );
   }
-  return <TabbedWidgetContainer {...container.props} />;
+  return <TabbedPanelContainer {...container.props} />;
 }
 
-const PanelThemeModeContext = createContext<WidgetPanelThemeMode | undefined>(undefined);
+const PanelThemeModeContext = createContext<PanelThemeMode | undefined>(undefined);
 
 /**
  * Returns the effective light/dark theme mode for the current panel subtree.
  */
-export function useEffectiveWidgetPanelThemeMode(): WidgetPanelThemeMode {
+export function useEffectivePanelThemeMode(): PanelThemeMode {
   return useContext(PanelThemeModeContext) ?? 'light';
 }
 
 /**
  * Applies a panel-level theme override and exposes the resolved mode to descendants.
  */
-function WidgetPanelThemeScope({
+function PanelThemeScope({
   panel,
   children
 }: {
-  panel: WidgetPanel;
+  panel: Panel;
   children: ComponentChildren;
 }) {
   const inheritedMode = useContext(PanelThemeModeContext);
   const hostElementRef = useRef<HTMLDivElement | null>(null);
-  const [rootMode, setRootMode] = useState<WidgetPanelThemeMode>('light');
+  const [rootMode, setRootMode] = useState<PanelThemeMode>('light');
   const parentMode = inheritedMode ?? rootMode;
-  const resolvedMode = resolveWidgetPanelThemeMode(parentMode, panel.theme);
+  const resolvedMode = resolvePanelThemeMode(parentMode, panel.theme);
 
   useLayoutEffect(() => {
     if (!inheritedMode) {
@@ -684,13 +886,13 @@ function WidgetPanelThemeScope({
         hostElement.parentElement instanceof HTMLElement ? hostElement.parentElement : hostElement;
 
       const updateRootMode = () => {
-        const inferredMode = inferWidgetPanelThemeMode(parentHostElement);
+        const inferredMode = inferPanelThemeMode(parentHostElement);
         setRootMode(previousMode => (previousMode === inferredMode ? previousMode : inferredMode));
       };
 
       updateRootMode();
 
-      const themedContainer = parentHostElement.closest('.deck-widget-container');
+      const themedContainer = parentHostElement.closest('.deck-panel-container');
       const mutationObserver = new MutationObserver(() => {
         updateRootMode();
       });
@@ -720,7 +922,7 @@ function WidgetPanelThemeScope({
       <div
         ref={hostElementRef}
         data-panel-theme-mode={resolvedMode}
-        style={getWidgetPanelThemeScopeStyle(resolvedMode)}
+        style={getPanelThemeScopeStyle(resolvedMode)}
       >
         {children}
       </div>
@@ -731,10 +933,10 @@ function WidgetPanelThemeScope({
 /**
  * Resolves one local panel theme override against its parent effective mode.
  */
-function resolveWidgetPanelThemeMode(
-  parentMode: WidgetPanelThemeMode,
-  theme: WidgetPanelTheme | undefined
-): WidgetPanelThemeMode {
+function resolvePanelThemeMode(
+  parentMode: PanelThemeMode,
+  theme: PanelTheme | undefined
+): PanelThemeMode {
   if (theme === 'dark') {
     return 'dark';
   }
@@ -751,15 +953,15 @@ function resolveWidgetPanelThemeMode(
 /**
  * Builds the inline CSS variable scope for one resolved panel theme mode.
  */
-function getWidgetPanelThemeScopeStyle(mode: WidgetPanelThemeMode): JSX.CSSProperties {
+function getPanelThemeScopeStyle(mode: PanelThemeMode): JSX.CSSProperties {
   const themeVariables = mode === 'dark' ? PANEL_THEME_DARK : PANEL_THEME_LIGHT;
   return {...themeVariables} as JSX.CSSProperties;
 }
 
 /**
- * Infers the surrounding widget theme mode from resolved CSS variables.
+ * Infers the surrounding panel theme mode from resolved CSS variables.
  */
-function inferWidgetPanelThemeMode(hostElement: HTMLElement): WidgetPanelThemeMode {
+function inferPanelThemeMode(hostElement: HTMLElement): PanelThemeMode {
   const ownerWindow = hostElement.ownerDocument.defaultView;
   if (!ownerWindow) {
     return 'light';
@@ -821,10 +1023,10 @@ function getRelativeLuminance([red, green, blue]: [number, number, number]): num
  * Keeps local string-state in sync with controlled/uncontrolled props.
  */
 function useControlledStringState(
-  controlledValue?: WidgetPanelId,
-  defaultValue?: WidgetPanelId
-): [WidgetPanelId | undefined, (next: WidgetPanelId | undefined) => void] {
-  const [internalValue, setInternalValue] = useState<WidgetPanelId | undefined>(defaultValue);
+  controlledValue?: PanelId,
+  defaultValue?: PanelId
+): [PanelId | undefined, (next: PanelId | undefined) => void] {
+  const [internalValue, setInternalValue] = useState<PanelId | undefined>(defaultValue);
   const isControlled = controlledValue !== undefined;
   const resolvedValue = isControlled ? controlledValue : internalValue;
 
@@ -836,7 +1038,7 @@ function useControlledStringState(
   }, [isControlled, controlledValue]);
 
   const setValue = useCallback(
-    (next: WidgetPanelId | undefined) => {
+    (next: PanelId | undefined) => {
       if (!isControlled) {
         setInternalValue(next);
       }
@@ -1083,12 +1285,12 @@ function getMarkdownHeadingStyle(level: number): JSX.CSSProperties {
  * Normalizes panel id collections for deterministic membership checks and stable state.
  */
 function normalizePanelIds(
-  values: ReadonlyArray<WidgetPanelId> | undefined
-): ReadonlyArray<WidgetPanelId> {
+  values: ReadonlyArray<PanelId> | undefined
+): ReadonlyArray<PanelId> {
   if (!values || values.length === 0) {
     return [];
   }
-  const deduped: WidgetPanelId[] = [];
+  const deduped: PanelId[] = [];
   const seen = new Set<string>();
   for (const value of values) {
     const trimmed = String(value);
@@ -1104,10 +1306,10 @@ function normalizePanelIds(
  * Keeps local list state in sync with controlled/uncontrolled props.
  */
 function useControlledStringListState(
-  controlledValue?: ReadonlyArray<WidgetPanelId>,
-  defaultValue?: ReadonlyArray<WidgetPanelId>
-): [ReadonlyArray<WidgetPanelId>, (next: ReadonlyArray<WidgetPanelId>) => void] {
-  const [internalValue, setInternalValue] = useState<ReadonlyArray<WidgetPanelId>>(() =>
+  controlledValue?: ReadonlyArray<PanelId>,
+  defaultValue?: ReadonlyArray<PanelId>
+): [ReadonlyArray<PanelId>, (next: ReadonlyArray<PanelId>) => void] {
+  const [internalValue, setInternalValue] = useState<ReadonlyArray<PanelId>>(() =>
     normalizePanelIds(controlledValue ?? defaultValue)
   );
   const isControlled = controlledValue !== undefined;
@@ -1121,7 +1323,7 @@ function useControlledStringListState(
   }, [isControlled, controlledValue]);
 
   const setValue = useCallback(
-    (next: ReadonlyArray<WidgetPanelId>) => {
+    (next: ReadonlyArray<PanelId>) => {
       if (!isControlled) {
         setInternalValue(normalizePanelIds(next));
       }
@@ -1248,6 +1450,60 @@ const COLUMN_PANEL_HEADER_STYLE: JSX.CSSProperties = {
 const COLUMN_PANEL_CONTENT_STYLE: JSX.CSSProperties = {
   minWidth: 0
 };
+
+const SPLITTER_HANDLE_SIZE_PX = 8;
+
+function SPLITTER_CONTAINER_STYLE(orientation: SplitterPanelOrientation): JSX.CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: orientation === 'horizontal' ? 'row' : 'column',
+    minWidth: 0,
+    minHeight: 0,
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    color: 'var(--menu-text, rgb(24, 24, 26))'
+  };
+}
+
+function SPLITTER_PANE_STYLE(
+  split: number,
+  orientation: SplitterPanelOrientation
+): JSX.CSSProperties {
+  const basis = `${split * 100}%`;
+  return {
+    flex: `0 0 ${basis}`,
+    minWidth: 0,
+    minHeight: 0,
+    overflow: 'auto',
+    padding: '0 8px',
+    boxSizing: 'border-box'
+  };
+}
+
+function SPLITTER_HANDLE_STYLE(
+  orientation: SplitterPanelOrientation,
+  editable: boolean
+): JSX.CSSProperties {
+  return {
+    flex: `0 0 ${SPLITTER_HANDLE_SIZE_PX}px`,
+    alignSelf: 'stretch',
+    cursor: editable ? (orientation === 'horizontal' ? 'col-resize' : 'row-resize') : 'default',
+    background:
+      'linear-gradient(var(--menu-border, rgba(148, 163, 184, 0.35)), var(--menu-border, rgba(148, 163, 184, 0.35))) center / 1px 100% no-repeat',
+    opacity: editable ? 1 : 0.55,
+    touchAction: 'none'
+  };
+}
+
+function normalizeSplitBoundary(value: number, fallback: number): number {
+  return Number.isFinite(value) ? Math.min(Math.max(value, 0), 1) : fallback;
+}
+
+function clampSplit(value: number, minSplit: number, maxSplit: number): number {
+  const normalizedValue = normalizeSplitBoundary(value, 0.5);
+  return Math.min(Math.max(normalizedValue, minSplit), maxSplit);
+}
 
 const MARKDOWN_PANEL_STYLE: JSX.CSSProperties = {
   display: 'flex',

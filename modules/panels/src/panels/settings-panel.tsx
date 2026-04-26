@@ -11,7 +11,7 @@ import {
   resolveSettingValue,
   setValueAtPath
 } from '../lib/settings/settings';
-import {SelectComponent} from '../widget-components/select-component';
+import {SelectComponent} from '../preact/select-component';
 
 import type {
   SettingDescriptor,
@@ -20,7 +20,7 @@ import type {
   SettingsState,
   SettingValue
 } from '../lib/settings/settings';
-import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
+import type {Panel, PanelTheme} from './panel-containers';
 import type {JSX} from 'preact';
 
 type SettingsPanelChangeHandler = (
@@ -46,7 +46,7 @@ export type SettingsPanelProps = {
   /** Called when a setting value changes. */
   onSettingsChange?: SettingsPanelChangeHandler;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 };
 
 const SECTION_TOGGLE_STYLE: JSX.CSSProperties = {
@@ -403,7 +403,7 @@ function SettingsSectionBody({
 }
 
 /**
- * Renders one settings schema section as direct panel content for generic widget containers.
+ * Renders one settings schema section as direct panel content for generic panel content containers.
  */
 function SettingsSectionPanelContent({
   onSettingsChange,
@@ -448,7 +448,7 @@ const DEFAULT_SETTINGS_PANEL_SCHEMA: SettingsSchema = {sections: []};
 const DEFAULT_SETTINGS_PANEL_STATE: SettingsState = {};
 
 /**
- * Shared settings body used by both the legacy popover widget and panel-based containers.
+ * Shared settings body used by both the legacy popover panelContainer and panel-based containers.
  */
 export function SettingsPanelContent({
   schema,
@@ -560,16 +560,16 @@ export function SettingsPanelContent({
 }
 
 /**
- * A reusable settings panel that can be mounted inside modal and sidebar widget containers.
+ * A reusable settings panel that can be mounted inside modal and sidebar panel content containers.
  */
-export class SettingsPanel implements WidgetPanel {
+export class SettingsPanel implements Panel {
   id: string;
   title: string;
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   content: JSX.Element;
 
   /**
-   * Creates one widget panel per top-level settings schema section for generic composition.
+   * Creates one panel per top-level settings schema section for generic composition.
    */
   static createSectionPanels({
     label = 'Settings',
@@ -577,8 +577,8 @@ export class SettingsPanel implements WidgetPanel {
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
     theme = 'inherit'
-  }: Omit<SettingsPanelProps, 'id'>): Record<string, WidgetPanel> {
-    return schema.sections.reduce<Record<string, WidgetPanel>>((panels, section, index) => {
+  }: Omit<SettingsPanelProps, 'id'>): Record<string, Panel> {
+    return schema.sections.reduce<Record<string, Panel>>((panels, section, index) => {
       const panelId = getSectionKey(section, index);
 
       panels[panelId] = {

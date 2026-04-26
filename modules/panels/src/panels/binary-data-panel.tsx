@@ -2,9 +2,9 @@
 /** @jsxImportSource preact */
 import {useMemo} from 'preact/hooks';
 
-import {useEffectiveWidgetPanelThemeMode} from './widget-containers';
+import {useEffectivePanelThemeMode} from './panel-containers';
 
-import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
+import type {Panel, PanelTheme} from './panel-containers';
 import type {JSX} from 'preact';
 
 /** Default byte count rendered on each hex preview row. */
@@ -38,17 +38,17 @@ export type BinaryDataPanelProps = {
   /** Optional class name applied to the outer panel content wrapper. */
   className?: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 };
 
-/** Widget panel that renders binary data as offset, hex, and ASCII rows. */
-export class BinaryDataPanel implements WidgetPanel {
+/** Panel that renders binary data as offset, hex, and ASCII rows. */
+export class BinaryDataPanel implements Panel {
   /** Stable panel id used by parent containers. */
   id: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   /** Rendered Preact content for this panel. */
   content: JSX.Element;
 
@@ -82,7 +82,7 @@ function BinaryDataPanelContent({
   showAscii = true,
   className
 }: BinaryDataPanelProps): JSX.Element {
-  const themeMode = useEffectiveWidgetPanelThemeMode();
+  const themeMode = useEffectivePanelThemeMode();
   const preview = useMemo(
     () => createBinaryPreview(data, byteOffset, byteLength, rowByteLength, maxByteLength),
     [byteLength, byteOffset, data, maxByteLength, rowByteLength]

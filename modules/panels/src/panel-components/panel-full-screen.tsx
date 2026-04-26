@@ -2,9 +2,9 @@
 /** @jsxImportSource preact */
 import {h, render} from 'preact';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
-import {WidgetContainerRenderer, asPanelContainer} from '../widget-panels/widget-containers';
+import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
 
-import type {WidgetContainer, WidgetPanel} from '../widget-panels/widget-containers';
+import type {PanelContentContainer, Panel} from '../panels/panel-containers';
 import type {JSX} from 'preact';
 
 /**
@@ -12,9 +12,9 @@ import type {JSX} from 'preact';
  */
 export type PanelFullScreenProps = PanelContainerProps & {
   /** One pre-built container definition to render. */
-  container?: WidgetContainer;
+  container?: PanelContentContainer;
   /** Convenience single-panel input converted into a container automatically. */
-  panel?: WidgetPanel;
+  panel?: Panel;
   /** Placement anchor used when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
   /** Optional header title shown above the content. */
@@ -28,7 +28,7 @@ function normalizeMarginPx(marginPx: number): number {
   return Number.isFinite(clamped) ? clamped : 24;
 }
 
-function resolveContainer(container?: WidgetContainer, panel?: WidgetPanel): WidgetContainer {
+function resolveContainer(container?: PanelContentContainer, panel?: Panel): PanelContentContainer {
   if (container !== undefined) {
     return container;
   }
@@ -58,7 +58,7 @@ function PanelFullScreenView({
   title,
   marginPx
 }: {
-  container: WidgetContainer;
+  container: PanelContentContainer;
   title?: string;
   marginPx: number;
 }) {
@@ -81,7 +81,7 @@ function PanelFullScreenView({
     >
       {title ? <header style={FULL_SCREEN_HEADER_STYLE}>{title}</header> : null}
       <div style={FULL_SCREEN_CONTENT_STYLE}>
-        <WidgetContainerRenderer container={container} />
+        <PanelContentRenderer container={container} />
       </div>
     </section>
   );
@@ -110,11 +110,11 @@ export class PanelFullScreen extends PanelContainer<PanelFullScreenProps> {
     }
   };
 
-  className = 'deck-widget-full-screen-panel';
+  className = 'deck-panel-full-screen-panel';
   placement: PanelPlacement = PanelFullScreen.defaultProps.placement;
   title: string | undefined = PanelFullScreen.defaultProps.title;
   marginPx = PanelFullScreen.defaultProps.marginPx;
-  #container: WidgetContainer = PanelFullScreen.defaultProps.container;
+  #container: PanelContentContainer = PanelFullScreen.defaultProps.container;
   #rootElement: HTMLElement | null = null;
 
   constructor(props: Partial<PanelFullScreenProps> = {}) {

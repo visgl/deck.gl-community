@@ -5,14 +5,14 @@
 /**
  * CSS custom properties understood by the panel styling system.
  *
- * These variables mirror the deck.gl widget theme contract so standalone panel
+ * These variables mirror the deck.gl panel theme contract so standalone panel
  * hosts can render with the same visual language without importing deck.gl
  * runtime code.
  */
 export type PanelThemeVariables = Record<`--${string}`, string>;
 
 const PANEL_THEME_KEYS = [
-  '--widget-margin',
+  '--panel-margin',
   '--button-size',
   '--button-corner-radius',
   '--button-background',
@@ -44,7 +44,7 @@ const PANEL_THEME_KEYS = [
  * Built-in light panel theme variables.
  */
 export const PANEL_THEME_LIGHT = {
-  '--widget-margin': '12px',
+  '--panel-margin': '12px',
   '--button-size': '28px',
   '--button-corner-radius': '8px',
   '--button-background': '#fff',
@@ -76,7 +76,7 @@ export const PANEL_THEME_LIGHT = {
  * Built-in dark panel theme variables.
  */
 export const PANEL_THEME_DARK = {
-  '--widget-margin': '12px',
+  '--panel-margin': '12px',
   '--button-size': '28px',
   '--button-corner-radius': '8px',
   '--button-background': 'rgba(18, 18, 20, 1)',

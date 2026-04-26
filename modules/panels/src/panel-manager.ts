@@ -28,7 +28,7 @@ type DeckLike = {
  */
 export type PanelManagerProps = {
   /**
-   * Root HTML element that receives placement containers and widget DOM.
+   * Root HTML element that receives placement containers and panel container DOM.
    */
   parentElement: HTMLElement;
   /**
@@ -38,17 +38,17 @@ export type PanelManagerProps = {
   deck?: unknown | null;
   /**
    * Optional class name appended to the host root alongside
-   * `deck-widget-container`.
+   * `deck-panel-container`.
    */
   className?: string;
 };
 
 /**
  * Mounts compatible panel-managed UI instances into a plain HTML element without
- * requiring Deck to own the widget lifecycle.
+ * requiring Deck to own the panel lifecycle.
  *
  * `PanelManager` mirrors the DOM-facing behavior of deck.gl's internal
- * `WidgetManager`: it creates placement containers, reconciles mounted
+ * `PanelManager`: it creates placement containers, reconciles mounted
  * instances by id, and calls the normal lifecycle hooks.
  */
 export class PanelManager {
@@ -78,7 +78,7 @@ export class PanelManager {
     this.parentElement = parentElement;
     this.className = className;
     ensurePanelStylesheet(parentElement.ownerDocument);
-    this.parentElement.classList.add('deck-widget-container');
+    this.parentElement.classList.add('deck-panel-container');
     if (className) {
       this.parentElement.classList.add(className);
     }
@@ -124,7 +124,7 @@ export class PanelManager {
     if (this.className) {
       this.parentElement.classList.remove(this.className);
     }
-    this.parentElement.classList.remove('deck-widget-container');
+    this.parentElement.classList.remove('deck-panel-container');
   }
 
   /**
@@ -140,7 +140,7 @@ export class PanelManager {
   }
 
   /**
-   * Forwards redraw and viewport notifications to mounted widgets.
+   * Forwards redraw and viewport notifications to mounted panel containers.
    *
    * This is optional in standalone mode and is mainly useful when the host is
    * paired with a real deck instance or another renderer that can supply
@@ -176,7 +176,7 @@ export class PanelManager {
   }
 
   /**
-   * Forwards hover events to widgets whose `viewId` matches the hovered view.
+   * Forwards hover events to panel containers whose `viewId` matches the hovered view.
    */
   onHover(info: {viewport?: {id?: string}}, event: MjolnirPointerEvent) {
     for (const component of this.getComponents()) {
@@ -188,7 +188,7 @@ export class PanelManager {
   }
 
   /**
-   * Forwards one gesture event family to widgets whose `viewId` matches the
+   * Forwards one gesture event family to panel containers whose `viewId` matches the
    * active view.
    */
   onEvent(
@@ -254,7 +254,7 @@ export class PanelManager {
     };
     const container = component.props._container ?? viewId;
 
-    component.widgetManager = this as never;
+    component.panelManager = this as never;
     component.deck = this.deck ?? undefined;
 
     component.rootElement = component._onAdd({deck: this.deck ?? undefined, viewId});
@@ -274,7 +274,7 @@ export class PanelManager {
     }
     component.rootElement = undefined;
     component.deck = undefined;
-    component.widgetManager = undefined;
+    component.panelManager = undefined;
   }
 
   private _notifyViewportChange(

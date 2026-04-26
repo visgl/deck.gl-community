@@ -12,9 +12,9 @@ import {
   MarkdownPanel,
   PanelManager,
   TabbedPanel,
-  ToastWidget,
-  ToolbarWidget,
-  WidgetContainerRenderer,
+  ToastPanelContainer,
+  ToolbarPanelContainer,
+  PanelContentRenderer,
   asPanelContainer,
   toastManager
 } from '../../../modules/panels/src';
@@ -96,7 +96,7 @@ const DOT_LAYOUT: Record<
   ]
 };
 
-export function mountStandaloneWidgetsExample(container: HTMLElement): () => void {
+export function mountStandalonePanelContainersExample(container: HTMLElement): () => void {
   const rootElement = container.ownerDocument.createElement('div');
   const sceneElement = container.ownerDocument.createElement('div');
   const panelElement = container.ownerDocument.createElement('div');
@@ -159,19 +159,19 @@ export function mountStandaloneWidgetsExample(container: HTMLElement): () => voi
     focus: 'overview'
   };
 
-  const toolbarWidget = new ToolbarWidget({
+  const toolbarPanelContainer = new ToolbarPanelContainer({
     id: 'standalone-toolbar',
     placement: 'bottom-left',
     items: buildToolbarItems(state, sync)
   });
 
-  const toastWidget = new ToastWidget({
+  const toastPanelContainer = new ToastPanelContainer({
     id: 'standalone-toast',
     placement: 'bottom-right',
     showBorder: true
   });
 
-  host.setProps({components: [toolbarWidget, toastWidget]});
+  host.setProps({components: [toolbarPanelContainer, toastPanelContainer]});
   sync();
 
   return () => {
@@ -194,13 +194,13 @@ export function mountStandaloneWidgetsExample(container: HTMLElement): () => voi
 
     renderScene(sceneElement, state);
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(buildDashboardPanel(state, sync))
       }),
       panelElement
     );
 
-    toolbarWidget.setProps({
+    toolbarPanelContainer.setProps({
       items: buildToolbarItems(state, sync)
     });
   }

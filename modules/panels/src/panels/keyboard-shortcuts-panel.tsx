@@ -3,23 +3,23 @@
 import {formatKey} from '../keyboard-shortcuts/keyboard-shortcuts';
 
 import type {KeyboardShortcut} from '../keyboard-shortcuts/keyboard-shortcuts';
-import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
+import type {Panel, PanelTheme} from './panel-containers';
 import type {JSX} from 'preact';
 
 export type KeyboardShortcutsPanelProps = {
   /** Optional list of keyboard shortcuts to render in the panel. */
   keyboardShortcuts?: KeyboardShortcut[];
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 };
 
 /**
  * A panel definition representing keyboard shortcut details for a modal/tab container.
  */
-export class KeyboardShortcutsPanel implements WidgetPanel {
+export class KeyboardShortcutsPanel implements Panel {
   id = 'keyboard-shortcuts';
   title = 'Keyboard Shortcuts';
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   content: JSX.Element;
 
   constructor({keyboardShortcuts = [], theme = 'inherit'}: KeyboardShortcutsPanelProps = {}) {

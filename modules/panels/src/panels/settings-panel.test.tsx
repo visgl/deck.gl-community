@@ -3,7 +3,7 @@ import {render} from 'preact';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {SettingsPanel} from './settings-panel';
-import {AccordeonPanel, TabbedPanel} from './widget-containers';
+import {AccordeonPanel, TabbedPanel} from './panel-containers';
 
 import type {SettingsSchema, SettingsState} from '../lib/settings/settings';
 
@@ -171,7 +171,7 @@ describe('SettingsPanel', () => {
     cleanup();
   });
 
-  it('uses deck widget theme CSS variables for the settings controls', async () => {
+  it('uses panel theme CSS variables for the settings controls', async () => {
     const {root, cleanup} = renderSettingsPanel();
     const sectionToggle = getRequiredButton(root, 'button[aria-expanded]');
     sectionToggle.click();

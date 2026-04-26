@@ -69,5 +69,5 @@ toastManager.toast({
 - [Toast Manager](../api-reference/toast-manager.md)
 - [Panel Manager](../api-reference/panel-manager.md)
 - [Panel Themes](../api-reference/panel-theme.md)
-- [Using Panels](./widget-panels.md)
+- [Using Panels](./using-panels.md)
 - [Standalone panels example](/examples/widgets/standalone-widgets)

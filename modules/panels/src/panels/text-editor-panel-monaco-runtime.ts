@@ -1,7 +1,7 @@
 import type * as MonacoNamespace from 'monaco-editor';
 
 /**
- * Shared Monaco runtime services used by the text-editor widget panel.
+ * Shared Monaco runtime services used by the text-editor panel.
  */
 export type TextEditorMonacoRuntime = {
   /** Monaco module namespace used for model and editor creation. */
@@ -24,7 +24,7 @@ export async function loadTextEditorMonacoRuntime(): Promise<TextEditorMonacoRun
 }
 
 /**
- * Creates the Monaco runtime singleton used by text-editor widget panels.
+ * Creates the Monaco runtime singleton used by text-editor panels.
  */
 async function createTextEditorMonacoRuntime(): Promise<TextEditorMonacoRuntime> {
   configureMonacoEnvironment();

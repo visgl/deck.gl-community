@@ -5,15 +5,15 @@ import {afterEach, describe, expect, it} from 'vitest';
 import {PanelManager} from './panel-manager';
 import {PanelContainer} from './panel-container';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT, applyPanelTheme} from './lib/panel-theme';
-import {ToastWidget} from './widget-panels/toast-widget';
-import {ToolbarWidget} from './widget-panels/toolbar-widget';
+import {ToastPanelContainer} from './panels/toast-panel-container';
+import {ToolbarPanelContainer} from './panels/toolbar-panel-container';
 import {
   MarkdownPanel,
-  WidgetContainerRenderer,
+  PanelContentRenderer,
   asPanelContainer
-} from './widget-panels/widget-containers';
+} from './panels/panel-containers';
 
-type TestWidgetProps = {
+type TestPanelContainerProps = {
   id?: string;
   className?: string;
   style?: Partial<CSSStyleDeclaration>;
@@ -22,23 +22,23 @@ type TestWidgetProps = {
   text: string;
 };
 
-class TestWidget extends PanelContainer<TestWidgetProps> {
+class TestPanelContainer extends PanelContainer<TestPanelContainerProps> {
   static defaultProps = {
     ...PanelContainer.defaultProps,
-    id: 'test-widget',
+    id: 'test-panel-container',
     placement: 'top-left' as const,
     text: ''
   };
 
-  className = 'deck-widget-test';
-  placement: TestWidgetProps['placement'] = TestWidget.defaultProps.placement;
+  className = 'deck-panel-test';
+  placement: TestPanelContainerProps['placement'] = TestPanelContainer.defaultProps.placement;
 
-  constructor(props: Partial<TestWidgetProps> & Pick<TestWidgetProps, 'text'>) {
-    super({...TestWidget.defaultProps, ...props});
+  constructor(props: Partial<TestPanelContainerProps> & Pick<TestPanelContainerProps, 'text'>) {
+    super({...TestPanelContainer.defaultProps, ...props});
     this.setProps(this.props);
   }
 
-  override setProps(props: Partial<TestWidgetProps>): void {
+  override setProps(props: Partial<TestPanelContainerProps>): void {
     if (props.placement) {
       this.placement = props.placement;
     }
@@ -46,10 +46,10 @@ class TestWidget extends PanelContainer<TestWidgetProps> {
   }
 
   override onRenderHTML(rootElement: HTMLElement): void {
-    rootElement.className = ['deck-widget', this.className, this.props.className]
+    rootElement.className = ['deck-panel', this.className, this.props.className]
       .filter(Boolean)
       .join(' ');
-    render(<div data-test-widget-text="">{this.props.text}</div>, rootElement);
+    render(<div data-test-panel-container-text="">{this.props.text}</div>, rootElement);
   }
 }
 
@@ -70,39 +70,39 @@ function createHostRoot() {
 }
 
 describe('PanelManager', () => {
-  it('mounts standalone widgets without a Deck instance', () => {
+  it('mounts standalone panel containers without a Deck instance', () => {
     const root = createHostRoot();
     const host = new PanelManager({parentElement: root});
 
     host.setProps({
       components: [
-        new TestWidget({
+        new TestPanelContainer({
           id: 'summary',
           placement: 'top-left',
           text: 'Standalone host content'
         }),
-        new ToolbarWidget({
+        new ToolbarPanelContainer({
           id: 'toolbar',
           items: [{kind: 'action', id: 'save', label: 'Save'}]
         }),
-        new ToastWidget({
+        new ToastPanelContainer({
           id: 'toast'
         })
       ]
     });
 
-    expect(root.classList.contains('deck-widget-container')).toBe(true);
-    expect(root.querySelector('.deck-widget-test')?.textContent).toContain(
+    expect(root.classList.contains('deck-panel-container')).toBe(true);
+    expect(root.querySelector('.deck-panel-test')?.textContent).toContain(
       'Standalone host content'
     );
-    expect(root.querySelector('.deck-widget-toolbar')?.textContent).toContain('Save');
-    expect(root.querySelector('.deck-widget-toast')).toBeTruthy();
+    expect(root.querySelector('.deck-panel-toolbar')?.textContent).toContain('Save');
+    expect(root.querySelector('.deck-panel-toast')).toBeTruthy();
     expect(root.querySelector('.top-left')).toBeTruthy();
     expect(root.querySelector('.top-right')).toBeTruthy();
     expect(root.querySelector('.bottom-right')).toBeTruthy();
   });
 
-  it('injects the base panel stylesheet when deck widget styles are not present', () => {
+  it('injects the base panel stylesheet when deck panel styles are not present', () => {
     const root = createHostRoot();
 
     expect(document.querySelector('[data-deck-gl-community-panels-styles]')).toBeNull();
@@ -113,8 +113,8 @@ describe('PanelManager', () => {
       'style[data-deck-gl-community-panels-styles]'
     );
     expect(styleElement).toBeTruthy();
-    expect(styleElement?.textContent).toContain('.deck-widget');
-    expect(styleElement?.textContent).toContain('.deck-widget-button');
+    expect(styleElement?.textContent).toContain('.deck-panel');
+    expect(styleElement?.textContent).toContain('.deck-panel-button');
 
     host.finalize();
   });
@@ -133,26 +133,26 @@ describe('PanelManager', () => {
     secondHost.finalize();
   });
 
-  it('reconciles widgets by id and updates an existing mounted instance', () => {
+  it('reconciles panel containers by id and updates an existing mounted instance', () => {
     const root = createHostRoot();
     const host = new PanelManager({parentElement: root});
-    const initialWidget = new TestWidget({
+    const initialPanelContainer = new TestPanelContainer({
       id: 'summary',
       text: 'First content'
     });
 
-    host.setProps({components: [initialWidget]});
+    host.setProps({components: [initialPanelContainer]});
 
-    const updatedWidget = new TestWidget({
+    const updatedPanelContainer = new TestPanelContainer({
       id: 'summary',
       text: 'Updated content'
     });
 
-    host.setProps({components: [updatedWidget]});
+    host.setProps({components: [updatedPanelContainer]});
 
-    expect(host.getComponents()[0]).toBe(initialWidget);
+    expect(host.getComponents()[0]).toBe(initialPanelContainer);
     expect(root.textContent).toContain('Updated content');
-    expect(root.querySelectorAll('.deck-widget-test')).toHaveLength(1);
+    expect(root.querySelectorAll('.deck-panel-test')).toHaveLength(1);
   });
 
   it('honors an explicit HTMLElement container override', () => {
@@ -163,7 +163,7 @@ describe('PanelManager', () => {
     const host = new PanelManager({parentElement: root});
     host.setProps({
       components: [
-        new ToolbarWidget({
+        new ToolbarPanelContainer({
           id: 'toolbar',
           _container: explicitContainer,
           items: [{kind: 'action', id: 'custom', label: 'Explicit'}]
@@ -171,26 +171,26 @@ describe('PanelManager', () => {
       ]
     });
 
-    expect(explicitContainer.querySelector('.deck-widget-toolbar')?.textContent).toContain(
+    expect(explicitContainer.querySelector('.deck-panel-toolbar')?.textContent).toContain(
       'Explicit'
     );
-    expect(root.querySelector('.top-right .deck-widget-toolbar')).toBeNull();
+    expect(root.querySelector('.top-right .deck-panel-toolbar')).toBeNull();
   });
 
-  it('finalizes widgets and removes internal placement containers', () => {
+  it('finalizes panel containers and removes internal placement containers', () => {
     const root = createHostRoot();
     const host = new PanelManager({parentElement: root});
 
     host.setProps({
-      components: [new TestWidget({id: 'summary', text: 'Content', placement: 'bottom-left'})]
+      components: [new TestPanelContainer({id: 'summary', text: 'Content', placement: 'bottom-left'})]
     });
 
     expect(root.querySelector('.bottom-left')).toBeTruthy();
 
     host.finalize();
 
-    expect(root.classList.contains('deck-widget-container')).toBe(false);
-    expect(root.querySelector('.deck-widget-test')).toBeNull();
+    expect(root.classList.contains('deck-panel-container')).toBe(false);
+    expect(root.querySelector('.deck-panel-test')).toBeNull();
     expect(root.querySelector('.bottom-left')).toBeNull();
   });
 
@@ -201,17 +201,17 @@ describe('PanelManager', () => {
       accent: 'Ocean'
     };
 
-    const summaryWidget = new TestWidget({
+    const summaryPanelContainer = new TestPanelContainer({
       id: 'summary',
       placement: 'top-left',
       text: `Accent: ${state.accent}`
     });
 
-    const syncWidgets = () => {
-      summaryWidget.setProps({text: `Accent: ${state.accent}`});
+    const syncPanelContainers = () => {
+      summaryPanelContainer.setProps({text: `Accent: ${state.accent}`});
     };
 
-    const toolbarWidget = new ToolbarWidget({
+    const toolbarPanelContainer = new ToolbarPanelContainer({
       id: 'toolbar',
       items: [
         {
@@ -220,7 +220,7 @@ describe('PanelManager', () => {
           label: 'Accent',
           onClick: () => {
             state.accent = 'Sunset';
-            syncWidgets();
+            syncPanelContainers();
           }
         },
         {
@@ -229,16 +229,16 @@ describe('PanelManager', () => {
           label: 'Night',
           onClick: () => {
             state.accent = 'Midnight';
-            syncWidgets();
+            syncPanelContainers();
           }
         }
       ]
     });
 
-    host.setProps({components: [summaryWidget, toolbarWidget]});
+    host.setProps({components: [summaryPanelContainer, toolbarPanelContainer]});
 
     const actionButtons = root.querySelectorAll<HTMLButtonElement>(
-      '.deck-widget-toolbar [data-toolbar-item-kind="action"]'
+      '.deck-panel-toolbar [data-toolbar-item-kind="action"]'
     );
 
     actionButtons[0].click();
@@ -253,7 +253,7 @@ describe('PanelManager', () => {
   it('updates inherited panel theme mode when the host theme changes', async () => {
     const root = createHostRoot();
     const host = new PanelManager({parentElement: root});
-    const containerWidget = new TestWidget({
+    const containerPanelContainer = new TestPanelContainer({
       id: 'theme-panel',
       text: ''
     });
@@ -263,7 +263,7 @@ describe('PanelManager', () => {
     applyPanelTheme(root, PANEL_THEME_LIGHT);
 
     render(
-      <WidgetContainerRenderer
+      <PanelContentRenderer
         container={asPanelContainer(
           new MarkdownPanel({
             id: 'summary',
@@ -275,7 +275,7 @@ describe('PanelManager', () => {
       panelRoot
     );
 
-    host.setProps({components: [containerWidget]});
+    host.setProps({components: [containerPanelContainer]});
     await Promise.resolve();
 
     const themeScope = panelRoot.querySelector<HTMLElement>('[data-panel-theme-mode]');

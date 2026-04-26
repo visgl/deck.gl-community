@@ -47,7 +47,7 @@ type SettingsPanelProps = {
 
 ## See Also
 
-- [Using Panels](../developer-guide/widget-panels.md)
+- [Using Panels](../developer-guide/using-panels.md)
 
 ## Remarks
 
