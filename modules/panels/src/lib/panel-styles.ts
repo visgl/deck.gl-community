@@ -4,6 +4,17 @@
 
 const PANEL_BASE_STYLESHEET_ATTRIBUTE = 'data-deck-gl-community-panels-styles';
 
+export type PanelStylesheetOptions = {
+  /** Attribute used to identify the fallback stylesheet injected by panels. */
+  attribute: string;
+  /** Stylesheet text to inject when no existing app stylesheet is detected. */
+  styles: string;
+  /** Returns true when a rule appears to belong to the app-provided stylesheet. */
+  isExistingRule?: (rule: CSSRule) => boolean;
+  /** Returns true when a link element appears to load the app-provided stylesheet. */
+  isExistingLink?: (linkElement: HTMLLinkElement) => boolean;
+};
+
 const PANEL_BASE_STYLES = `.deck-widget {
   margin: var(--widget-margin, 12px);
   box-sizing: border-box;
@@ -708,7 +719,50 @@ function hasDeckWidgetSelector(rule: CSSRule): boolean {
   );
 }
 
-function hasDeckWidgetBaseStyles(document: Document): boolean {
+export function ensurePanelStylesheet(document: Document): void {
+  ensureFallbackStylesheet(document, {
+    attribute: PANEL_BASE_STYLESHEET_ATTRIBUTE,
+    styles: PANEL_BASE_STYLES,
+    isExistingRule: hasDeckWidgetSelector
+  });
+}
+
+export function ensureFallbackStylesheet(
+  document: Document,
+  {
+    attribute,
+    styles,
+    isExistingRule = () => false,
+    isExistingLink = () => false
+  }: PanelStylesheetOptions
+): void {
+  if (document.querySelector(`style[${attribute}]`)) {
+    return;
+  }
+
+  if (hasExistingStylesheet(document, isExistingRule, isExistingLink)) {
+    return;
+  }
+
+  const styleElement = document.createElement('style');
+  styleElement.setAttribute(attribute, 'true');
+  styleElement.textContent = styles;
+  document.head.appendChild(styleElement);
+}
+
+function hasExistingStylesheet(
+  document: Document,
+  isExistingRule: (rule: CSSRule) => boolean,
+  isExistingLink: (linkElement: HTMLLinkElement) => boolean
+): boolean {
+  if (
+    Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).some(
+      isExistingLink
+    )
+  ) {
+    return true;
+  }
+
   for (const styleSheet of Array.from(document.styleSheets)) {
     let cssRules;
     try {
@@ -716,25 +770,10 @@ function hasDeckWidgetBaseStyles(document: Document): boolean {
     } catch {
       cssRules = null;
     }
-    if (cssRules && Array.from(cssRules).some(hasDeckWidgetSelector)) {
+    if (cssRules && Array.from(cssRules).some(isExistingRule)) {
       return true;
     }
   }
 
   return false;
-}
-
-export function ensurePanelStylesheet(document: Document): void {
-  if (document.querySelector(`style[${PANEL_BASE_STYLESHEET_ATTRIBUTE}]`)) {
-    return;
-  }
-
-  if (hasDeckWidgetBaseStyles(document)) {
-    return;
-  }
-
-  const styleElement = document.createElement('style');
-  styleElement.setAttribute(PANEL_BASE_STYLESHEET_ATTRIBUTE, 'true');
-  styleElement.textContent = PANEL_BASE_STYLES;
-  document.head.appendChild(styleElement);
 }

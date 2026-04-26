@@ -26,6 +26,7 @@ Panels built from other panels.
 Panels with no child panels.
 
 - [CustomPanel](../api-reference/custom-panel.md)
+- [AIAssistPanel](../api-reference/ai-assist-panel.md)
 - [BinaryDataPanel](../api-reference/binary-data-panel.md)
 - [MarkdownPanel](../api-reference/markdown-panel.md)
 - [StatsPanel](../api-reference/stats-panel.md)
@@ -39,6 +40,7 @@ Panels with no child panels.
 - Use `TabbedPanel` when several panels share the same footprint and only one should be visible at a time.
 - Use `ColumnPanel` when all child panels should remain visible in order.
 - Use `MarkdownPanel` for small descriptive content without mounting your own renderer.
+- Use `AIAssistPanel` for OpenAssistant-powered chat inside panel containers.
 - Use `BinaryDataPanel` for capped hex and ASCII previews of caller-supplied binary data.
 - Use `StatsPanel` for compact probe.gl stats tables inside an existing panel layout.
 - Use `CustomPanel` when content must be rendered imperatively into a DOM host.

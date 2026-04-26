@@ -32,7 +32,8 @@
         "modules/panels/api-reference/markdown-panel",
         "modules/panels/api-reference/stats-panel",
         "modules/panels/api-reference/settings-panel",
-        "modules/panels/api-reference/text-editor-panel"
+        "modules/panels/api-reference/text-editor-panel",
+        "modules/panels/api-reference/ai-assist-panel"
       ]
     },
     {

@@ -1,5 +1,9 @@
 # Overview
 
+<p className="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+</p>
+
 `@deck.gl-community/panels` provides a set of composable UI-components intended
 for small data visualization applications.
 

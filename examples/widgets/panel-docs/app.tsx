@@ -6,6 +6,7 @@
 import {Stats} from '@probe.gl/stats';
 import {
   AccordeonPanel,
+  AIAssistPanel,
   BinaryDataPanel,
   ColumnPanel,
   CustomPanel,
@@ -32,6 +33,7 @@ import type {KeyboardShortcut, SettingsSchema, SettingsState} from '../../../mod
 
 export type PanelDocsExampleHighlight =
   | 'widget-panels'
+  | 'ai-assist-panel'
   | 'markdown-panel'
   | 'binary-data-panel'
   | 'custom-panel'
@@ -153,6 +155,7 @@ export function mountPanelDocsExample(
 
 const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   'widget-panels': 'Using Panels',
+  'ai-assist-panel': 'AIAssistPanel',
   'markdown-panel': 'MarkdownPanel',
   'binary-data-panel': 'BinaryDataPanel',
   'custom-panel': 'CustomPanel',
@@ -206,6 +209,8 @@ const SHORTCUTS: KeyboardShortcut[] = [
   {key: 'Escape', name: 'Close', description: 'Close the current panel'},
   {key: 't', name: 'Theme', description: 'Toggle theme'}
 ];
+
+const AI_ASSIST_DEMO_CHAT_ENDPOINT = getAIAssistDemoChatEndpoint();
 
 function buildHighlightComponents(
   highlight: PanelDocsExampleHighlight,
@@ -273,6 +278,19 @@ function buildHighlightComponents(
 // eslint-disable-next-line complexity
 function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
   switch (highlight) {
+    case 'ai-assist-panel':
+      return new AIAssistPanel({
+        id: 'ai-assist',
+        title: 'AI Assist',
+        assistantName: 'Deck Assistant',
+        chatEndpoint: AI_ASSIST_DEMO_CHAT_ENDPOINT,
+        showConfigPanel: true,
+        heightPx: 560,
+        welcomeMessage: 'Hello, how can I help you explore this visualization?',
+        instructions: 'This demo uses a local no-key provider and does not call an LLM service.',
+        enableVoice: false
+      });
+
     case 'markdown-panel':
       return new MarkdownPanel({
         id: 'markdown',
@@ -518,6 +536,16 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         }
       });
   }
+}
+
+function getAIAssistDemoChatEndpoint(): string {
+  const demoMessage =
+    'No LLM API key provided. This live example uses a local demo provider and does not call an LLM service.';
+  const streamResponse = [
+    `0:${JSON.stringify(demoMessage)}`,
+    `d:${JSON.stringify({finishReason: 'stop', usage: {promptTokens: 0, completionTokens: 0}})}`
+  ].join('\n');
+  return `data:text/plain;charset=utf-8,${encodeURIComponent(`${streamResponse}\n`)}`;
 }
 
 function renderScene(
