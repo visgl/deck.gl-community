@@ -1,5 +1,11 @@
 # Introduction
 
+<p align="right">
+  <a href="https://www.typescriptlang.org/">
+    <img src="https://img.shields.io/badge/typescript-6.0.3-3178c6.svg?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 6.0.3" />
+  </a>
+</p>
+
 This repository contains a collection of "community supported" modules for [deck.gl](https://deck.gl).
 deck.gl-community was originally created to provide a home for a number of excellent deck.gl add-on modules that no longer have active maintainers, with the hope that it would allow the community to keep using these add-ons, and that community contributions would help keep them alive.
 

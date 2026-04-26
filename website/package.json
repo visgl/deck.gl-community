@@ -42,7 +42,8 @@
     "@loaders.gl/wms": "4.4.1",
     "@loaders.gl/worker-utils": "4.4.1",
     "@loaders.gl/xml": "4.4.1",
-    "@loaders.gl/zip": "4.4.1"
+    "@loaders.gl/zip": "4.4.1",
+    "typescript": "6.0.3"
   },
   "dependencies": {
     "@deck.gl/core": "~9.3.0",
@@ -92,7 +93,7 @@
     "babel-plugin-styled-components": "^2.0.0",
     "prism-react-renderer": "^2.3.1",
     "ts-node": "~10.9.2",
-    "typescript": "^5.4.0"
+    "typescript": "6.0.3"
   },
   "browserslist": [
     ">0.2% and supports async-functions",

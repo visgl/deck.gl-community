@@ -17,7 +17,7 @@
     "@luma.gl/shadertools": "~9.3.2"
   },
   "devDependencies": {
-    "typescript": "^5.4.4",
+    "typescript": "6.0.3",
     "vite": "^7.3.1"
   }
 }
