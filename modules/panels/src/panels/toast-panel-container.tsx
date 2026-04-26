@@ -8,12 +8,12 @@ import type {ToastEntry, ToastKind} from './toast-manager';
 import type {JSX} from 'preact';
 import type {PanelPlacement, PanelContainerProps} from '../panel-container';
 
-export type ToastWidgetProps = PanelContainerProps & {
+export type ToastPanelContainerProps = PanelContainerProps & {
   placement?: PanelPlacement;
   showBorder?: boolean;
 };
 
-type ToastWidgetViewProps = {
+type ToastPanelContainerViewProps = {
   toasts: ReadonlyArray<ToastEntry>;
   showBorder: boolean;
 };
@@ -91,7 +91,7 @@ const CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
 const TOAST_WIDGET_CLASS = 'deck-widget-toast';
 const TOAST_WIDGET_STACK_CLASS = 'deck-widget-toast-stack';
 
-function ToastWidgetStyles() {
+function ToastPanelContainerStyles() {
   return (
     <style>{`
       @keyframes deck-toast-enter {
@@ -124,7 +124,7 @@ function ToastWidgetStyles() {
   );
 }
 
-function ToastWidgetView({toasts, showBorder}: ToastWidgetViewProps) {
+function ToastPanelContainerView({toasts, showBorder}: ToastPanelContainerViewProps) {
   return (
     <div
       className={TOAST_WIDGET_STACK_CLASS}
@@ -132,7 +132,7 @@ function ToastWidgetView({toasts, showBorder}: ToastWidgetViewProps) {
       role="status"
       aria-live="polite"
     >
-      <ToastWidgetStyles />
+      <ToastPanelContainerStyles />
       {toasts.map(toast => {
         const palette = TOAST_KIND_STYLES[toast.type];
         const iconColor = TOAST_KIND_ICON_COLOR[toast.type];
@@ -208,8 +208,8 @@ function ToastWidgetView({toasts, showBorder}: ToastWidgetViewProps) {
   );
 }
 
-export class ToastWidget extends PanelContainer<ToastWidgetProps> {
-  static defaultProps: Required<ToastWidgetProps> = {
+export class ToastPanelContainer extends PanelContainer<ToastPanelContainerProps> {
+  static defaultProps: Required<ToastPanelContainerProps> = {
     ...PanelContainer.defaultProps,
     id: 'toast',
     placement: 'bottom-right',
@@ -223,12 +223,12 @@ export class ToastWidget extends PanelContainer<ToastWidgetProps> {
   #toasts: ReadonlyArray<ToastEntry> = [];
   #rootElement: HTMLElement | null = null;
 
-  constructor(props: ToastWidgetProps = {}) {
+  constructor(props: ToastPanelContainerProps = {}) {
     super(props);
     this.setProps(this.props);
   }
 
-  setProps(props: Partial<ToastWidgetProps>): void {
+  setProps(props: Partial<ToastPanelContainerProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
     }
@@ -245,7 +245,7 @@ export class ToastWidget extends PanelContainer<ToastWidgetProps> {
       this.#toasts = toasts;
       if (this.#rootElement) {
         render(
-          <ToastWidgetView toasts={this.#toasts} showBorder={this.showBorder} />,
+          <ToastPanelContainerView toasts={this.#toasts} showBorder={this.showBorder} />,
           this.#rootElement
         );
       }
@@ -288,6 +288,9 @@ export class ToastWidget extends PanelContainer<ToastWidgetProps> {
     }
 
     this.#toasts = toastManager.getToasts();
-    render(<ToastWidgetView toasts={this.#toasts} showBorder={this.showBorder} />, rootElement);
+    render(
+      <ToastPanelContainerView toasts={this.#toasts} showBorder={this.showBorder} />,
+      rootElement
+    );
   }
 }

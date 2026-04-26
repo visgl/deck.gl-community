@@ -48,7 +48,7 @@ function PanelLiveExampleHost({highlight, height}) {
   return <div ref={hostRef} style={{...WRAPPER_STYLE, height}} />;
 }
 
-export default function PanelLiveExample({highlight = 'widget-panels', size = 'narrow', height}) {
+export default function PanelLiveExample({highlight = 'panels', size = 'narrow', height}) {
   const resolvedHeight = height ?? SIZE_TO_HEIGHT[size] ?? SIZE_TO_HEIGHT.narrow;
 
   return (

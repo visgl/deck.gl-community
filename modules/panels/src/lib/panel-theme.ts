@@ -5,7 +5,7 @@
 /**
  * CSS custom properties understood by the panel styling system.
  *
- * These variables mirror the deck.gl widget theme contract so standalone panel
+ * These variables mirror the deck.gl panel theme contract so standalone panel
  * hosts can render with the same visual language without importing deck.gl
  * runtime code.
  */

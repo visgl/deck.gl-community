@@ -6,7 +6,7 @@ import {PanelContainer} from '../panel-container';
 import type {ComponentChild, JSX} from 'preact';
 import type {PanelPlacement, PanelContainerProps} from '../panel-container';
 
-export type ToolbarWidgetActionItem = {
+export type ToolbarPanelContainerActionItem = {
   kind: 'action';
   id: string;
   label: string;
@@ -17,7 +17,7 @@ export type ToolbarWidgetActionItem = {
   onClick?: () => void;
 };
 
-export type ToolbarWidgetToggleOption = {
+export type ToolbarPanelContainerToggleOption = {
   id: string;
   label: string;
   icon?: ComponentChild;
@@ -25,32 +25,32 @@ export type ToolbarWidgetToggleOption = {
   disabled?: boolean;
 };
 
-export type ToolbarWidgetToggleGroupItem = {
+export type ToolbarPanelContainerToggleGroupItem = {
   kind: 'toggle-group';
   id: string;
   label?: string;
   title?: string;
   disabled?: boolean;
   selectedId?: string | null;
-  options: ToolbarWidgetToggleOption[];
+  options: ToolbarPanelContainerToggleOption[];
   onSelect?: (optionId: string) => void;
 };
 
-export type ToolbarWidgetBadgeItem = {
+export type ToolbarPanelContainerBadgeItem = {
   kind: 'badge';
   id: string;
   label: string;
   title?: string;
 };
 
-export type ToolbarWidgetItem =
-  | ToolbarWidgetActionItem
-  | ToolbarWidgetToggleGroupItem
-  | ToolbarWidgetBadgeItem;
+export type ToolbarPanelContainerItem =
+  | ToolbarPanelContainerActionItem
+  | ToolbarPanelContainerToggleGroupItem
+  | ToolbarPanelContainerBadgeItem;
 
-export type ToolbarWidgetProps = PanelContainerProps & {
+export type ToolbarPanelContainerProps = PanelContainerProps & {
   placement?: PanelPlacement;
-  items?: ToolbarWidgetItem[];
+  items?: ToolbarPanelContainerItem[];
 };
 
 const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
@@ -141,7 +141,7 @@ function stopToolbarEventPropagation(event: Event) {
   }
 }
 
-function ToolbarWidgetView({items}: {items: ToolbarWidgetItem[]}) {
+function ToolbarPanelContainerView({items}: {items: ToolbarPanelContainerItem[]}) {
   return (
     <div
       style={TOOLBAR_STYLE}
@@ -164,7 +164,7 @@ function ToolbarWidgetView({items}: {items: ToolbarWidgetItem[]}) {
   );
 }
 
-function renderToolbarItem(item: ToolbarWidgetItem): JSX.Element {
+function renderToolbarItem(item: ToolbarPanelContainerItem): JSX.Element {
   if (item.kind === 'badge') {
     return (
       <div key={item.id} title={item.title} style={BADGE_STYLE} data-toolbar-item-kind="badge">
@@ -243,24 +243,24 @@ function renderToolbarItem(item: ToolbarWidgetItem): JSX.Element {
   );
 }
 
-export class ToolbarWidget extends PanelContainer<ToolbarWidgetProps> {
-  static defaultProps: Required<ToolbarWidgetProps> = {
+export class ToolbarPanelContainer extends PanelContainer<ToolbarPanelContainerProps> {
+  static defaultProps: Required<ToolbarPanelContainerProps> = {
     ...PanelContainer.defaultProps,
-    id: 'toolbar-widget',
+    id: 'toolbar-panel-container',
     placement: 'top-right',
     items: []
   };
 
   className = 'deck-widget-toolbar';
-  placement: PanelPlacement = ToolbarWidget.defaultProps.placement;
+  placement: PanelPlacement = ToolbarPanelContainer.defaultProps.placement;
   #rootElement: HTMLElement | null = null;
 
-  constructor(props: ToolbarWidgetProps = {}) {
-    super({...ToolbarWidget.defaultProps, ...props});
+  constructor(props: ToolbarPanelContainerProps = {}) {
+    super({...ToolbarPanelContainer.defaultProps, ...props});
     this.setProps(this.props);
   }
 
-  override setProps(props: Partial<ToolbarWidgetProps>): void {
+  override setProps(props: Partial<ToolbarPanelContainerProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
     }
@@ -289,6 +289,6 @@ export class ToolbarWidget extends PanelContainer<ToolbarWidgetProps> {
       return;
     }
 
-    render(<ToolbarWidgetView items={this.props.items ?? []} />, this.#rootElement);
+    render(<ToolbarPanelContainerView items={this.props.items ?? []} />, this.#rootElement);
   }
 }

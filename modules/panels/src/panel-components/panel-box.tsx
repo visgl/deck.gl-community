@@ -2,9 +2,9 @@
 /** @jsxImportSource preact */
 import {h, render} from 'preact';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
-import {WidgetContainerRenderer, asPanelContainer} from '../widget-panels/widget-containers';
+import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
 
-import type {WidgetContainer, WidgetPanel} from '../widget-panels/widget-containers';
+import type {PanelContentContainer, Panel} from '../panels/panel-containers';
 import type {JSX} from 'preact';
 
 /**
@@ -12,9 +12,9 @@ import type {JSX} from 'preact';
  */
 export type PanelBoxProps = PanelContainerProps & {
   /** One pre-built container definition to render. */
-  container?: WidgetContainer;
+  container?: PanelContentContainer;
   /** Convenience single-panel input converted into a container automatically. */
-  panel?: WidgetPanel;
+  panel?: Panel;
   /** Placement anchor used when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
   /** Optional header title shown above the panel content. */
@@ -36,7 +36,7 @@ function normalizeBoxWidthPx(widthPx: number): number {
   return Number.isFinite(clamped) ? clamped : 360;
 }
 
-function resolveContainer(container?: WidgetContainer, panel?: WidgetPanel): WidgetContainer {
+function resolveContainer(container?: PanelContentContainer, panel?: Panel): PanelContentContainer {
   if (container !== undefined) {
     return container;
   }
@@ -65,7 +65,7 @@ function PanelBoxView({
   collapsible,
   onOpenChange
 }: {
-  container: WidgetContainer;
+  container: PanelContentContainer;
   title?: string;
   widthPx: number;
   open: boolean;
@@ -94,7 +94,7 @@ function PanelBoxView({
         </header>
       ) : null}
       <div style={BOX_CONTENT_STYLE(open)}>
-        <WidgetContainerRenderer container={container} />
+        <PanelContentRenderer container={container} />
       </div>
     </section>
   );
@@ -133,7 +133,7 @@ export class PanelBox extends PanelContainer<PanelBoxProps> {
   widthPx = PanelBox.defaultProps.widthPx;
   collapsible = PanelBox.defaultProps.collapsible;
   isOpen = PanelBox.defaultProps.defaultOpen;
-  #container: WidgetContainer = PanelBox.defaultProps.container;
+  #container: PanelContentContainer = PanelBox.defaultProps.container;
   #rootElement: HTMLElement | null = null;
   #hasOpenStateInitialized = false;
   #isControlled = false;

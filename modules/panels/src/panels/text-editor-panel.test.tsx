@@ -3,7 +3,7 @@ import {h, render} from 'preact';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 
-import {WidgetContainerRenderer, asPanelContainer} from './widget-containers';
+import {PanelContentRenderer, asPanelContainer} from './panel-containers';
 import {TextEditorPanel} from './text-editor-panel';
 
 const monacoHarness = vi.hoisted(() => {
@@ -31,7 +31,7 @@ const monacoHarness = vi.hoisted(() => {
   let lastCreatedEditor: FakeEditor | null = null;
 
   /**
-   * Builds a fake Monaco runtime used by the text-editor widget tests.
+   * Builds a fake Monaco runtime used by the text-editor panel tests.
    */
   function createRuntime() {
     return {
@@ -174,7 +174,7 @@ beforeEach(() => {
 });
 
 describe('TextEditorPanel', () => {
-  it('creates a widget panel with the expected id and title', () => {
+  it('creates a panel with the expected id and title', () => {
     const panel = new TextEditorPanel({
       id: 'text-editor',
       title: 'Text editor'
@@ -229,7 +229,7 @@ describe('TextEditorPanel', () => {
     document.body.appendChild(root);
 
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(new TextEditorPanel({id: 'light', title: 'Light'}))
       }),
       root
@@ -248,7 +248,7 @@ describe('TextEditorPanel', () => {
     document.body.appendChild(root);
 
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(
           new TextEditorPanel({
             id: 'dark',
@@ -273,7 +273,7 @@ describe('TextEditorPanel', () => {
     document.body.appendChild(root);
 
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(
           new TextEditorPanel({
             id: 'custom-theme',
@@ -300,7 +300,7 @@ describe('TextEditorPanel', () => {
     document.body.appendChild(root);
 
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(
           new TextEditorPanel({
             id: 'theme-switch',
@@ -317,7 +317,7 @@ describe('TextEditorPanel', () => {
     );
 
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(
           new TextEditorPanel({
             id: 'theme-switch',
@@ -342,7 +342,7 @@ describe('TextEditorPanel', () => {
     document.body.appendChild(root);
 
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(
           new TextEditorPanel({
             id: 'custom-theme-switch',
@@ -361,7 +361,7 @@ describe('TextEditorPanel', () => {
     );
 
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(
           new TextEditorPanel({
             id: 'custom-theme-switch',
@@ -383,19 +383,19 @@ describe('TextEditorPanel', () => {
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('custom-light');
   });
 
-  it('updates the Monaco theme when inherited widget theme variables change', async () => {
-    const widgetContainer = document.createElement('div');
+  it('updates the Monaco theme when inherited panel theme variables change', async () => {
+    const panelContainer = document.createElement('div');
     const root = document.createElement('div');
-    widgetContainer.className = 'deck-widget-container';
-    widgetContainer.style.setProperty(
+    panelContainer.className = 'deck-widget-container';
+    panelContainer.style.setProperty(
       '--menu-background',
       PANEL_THEME_LIGHT['--menu-background'] ?? ''
     );
-    widgetContainer.appendChild(root);
-    document.body.appendChild(widgetContainer);
+    panelContainer.appendChild(root);
+    document.body.appendChild(panelContainer);
 
     render(
-      h(WidgetContainerRenderer, {
+      h(PanelContentRenderer, {
         container: asPanelContainer(
           new TextEditorPanel({
             id: 'theme-vars-switch',
@@ -411,13 +411,13 @@ describe('TextEditorPanel', () => {
     );
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs');
 
-    widgetContainer.style.setProperty(
+    panelContainer.style.setProperty(
       '--menu-background',
       PANEL_THEME_DARK['--menu-background'] ?? ''
     );
     await waitForCondition(
       () => monacoHarness.setTheme.mock.lastCall?.[0] === 'vs-dark',
-      'Expected Monaco theme to update after inherited widget theme changes.'
+      'Expected Monaco theme to update after inherited panel theme changes.'
     );
 
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs-dark');
@@ -505,7 +505,7 @@ describe('TextEditorPanel', () => {
     );
 
     expect(monacoHarness.configureJsonSchema).toHaveBeenCalledWith(
-      'inmemory://deck-gl-community/widgets/json-editor',
+      'inmemory://deck-gl-community/panels/json-editor',
       {type: 'object'}
     );
 
@@ -523,13 +523,13 @@ describe('TextEditorPanel', () => {
     await waitForCondition(
       () =>
         monacoHarness.clearJsonSchema.mock.calls.some(
-          ([uri]) => uri === 'inmemory://deck-gl-community/widgets/plain-editor'
+          ([uri]) => uri === 'inmemory://deck-gl-community/panels/plain-editor'
         ),
       'Expected plain-text mode to clear JSON schema registration.'
     );
 
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
-      'inmemory://deck-gl-community/widgets/plain-editor'
+      'inmemory://deck-gl-community/panels/plain-editor'
     );
   });
 
@@ -566,7 +566,7 @@ describe('TextEditorPanel', () => {
     await waitForCondition(
       () =>
         monacoHarness.configureJsonSchema.mock.lastCall?.[0] ===
-          'inmemory://deck-gl-community/widgets/schema-editor' &&
+          'inmemory://deck-gl-community/panels/schema-editor' &&
         JSON.stringify(monacoHarness.configureJsonSchema.mock.lastCall?.[1]) ===
           JSON.stringify({
             type: 'object',
@@ -575,7 +575,7 @@ describe('TextEditorPanel', () => {
       'Expected schema registration to update after jsonSchema changes.'
     );
     expect(monacoHarness.configureJsonSchema).toHaveBeenLastCalledWith(
-      'inmemory://deck-gl-community/widgets/schema-editor',
+      'inmemory://deck-gl-community/panels/schema-editor',
       {
         type: 'object',
         required: ['beta']
@@ -604,7 +604,7 @@ describe('TextEditorPanel', () => {
     expect(editor?.dispose).toHaveBeenCalledTimes(1);
     expect(model?.dispose).toHaveBeenCalledTimes(1);
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
-      'inmemory://deck-gl-community/widgets/dispose'
+      'inmemory://deck-gl-community/panels/dispose'
     );
   });
 

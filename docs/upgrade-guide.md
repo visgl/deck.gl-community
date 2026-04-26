@@ -4,6 +4,26 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## v9.4
+
+### `@deck.gl-community/panels`
+
+- Breaking change: panel composition APIs no longer expose `Widget*` names from `@deck.gl-community/panels`.
+- Migration:
+  - `WidgetPanel` -> `Panel`
+  - `WidgetPanelRecord` -> `PanelRecord`
+  - `WidgetPanelTheme` -> `PanelTheme`
+  - `WidgetPanelThemeMode` -> `PanelThemeMode`
+  - `WidgetContainer` -> `PanelContentContainer`
+  - `WidgetContainerRenderer` -> `PanelContentRenderer`
+  - `AccordeonWidgetContainer` -> `AccordeonPanelContainer`
+  - `TabbedWidgetContainer` -> `TabbedPanelContainer`
+  - `ColumnWidgetContainer` -> `ColumnPanelContainer`
+  - `ToolbarWidget` -> `ToolbarPanelContainer`
+  - `ToastWidget` -> `ToastPanelContainer`
+  - `useEffectiveWidgetPanelThemeMode` -> `useEffectivePanelThemeMode`
+- New API: `SplitterPanel` composes the first panel in one resizable pane and the remaining panels in a second pane.
+
 ## v9.3
 
 ### Dependencies

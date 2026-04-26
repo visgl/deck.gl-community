@@ -4,7 +4,7 @@
 
 import {beforeAll, expect, it, vi} from 'vitest';
 
-vi.mock('../src/widget-panels/text-editor-panel', () => ({
+vi.mock('../src/panels/text-editor-panel', () => ({
   TextEditorPanel: class TextEditorPanel {}
 }));
 
@@ -24,16 +24,20 @@ it('exports panel theme primitives', () => {
   expect(Panels.applyPanelTheme).toBeDefined();
 });
 
-it('exports WidgetContainerRenderer', () => {
-  expect(Panels.WidgetContainerRenderer).toBeDefined();
+it('exports PanelContentRenderer', () => {
+  expect(Panels.PanelContentRenderer).toBeDefined();
 });
 
-it('exports ToolbarWidget', () => {
-  expect(Panels.ToolbarWidget).toBeDefined();
+it('exports SplitterPanel', () => {
+  expect(Panels.SplitterPanel).toBeDefined();
 });
 
-it('exports ToastWidget', () => {
-  expect(Panels.ToastWidget).toBeDefined();
+it('exports ToolbarPanelContainer', () => {
+  expect(Panels.ToolbarPanelContainer).toBeDefined();
+});
+
+it('exports ToastPanelContainer', () => {
+  expect(Panels.ToastPanelContainer).toBeDefined();
 });
 
 it('exports TextEditorPanel', () => {

@@ -2,9 +2,9 @@
 /** @jsxImportSource preact */
 import {render} from 'preact';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
-import {WidgetContainerRenderer, asPanelContainer} from '../widget-panels/widget-containers';
+import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
 
-import type {WidgetContainer, WidgetPanel} from '../widget-panels/widget-containers';
+import type {PanelContentContainer, Panel} from '../panels/panel-containers';
 import type {JSX} from 'preact';
 
 /**
@@ -12,9 +12,9 @@ import type {JSX} from 'preact';
  */
 export type PanelSidebarProps = PanelContainerProps & {
   /** One pre-built container definition to render. */
-  container?: WidgetContainer;
+  container?: PanelContentContainer;
   /** Convenience single-panel input converted into a container automatically. */
-  panel?: WidgetPanel;
+  panel?: Panel;
   /** Edge from which the sidebar opens. */
   side?: 'left' | 'right';
   /** Preferred sidebar width in pixels. */
@@ -42,7 +42,7 @@ const SIDEBAR_HANDLE_GAP_PX = 8;
 const SIDEBAR_TRANSITION_MS = 320;
 const SIDEBAR_OVERLAY_Z_INDEX = '35';
 
-function resolveContainer(container?: WidgetContainer, panel?: WidgetPanel): WidgetContainer {
+function resolveContainer(container?: PanelContentContainer, panel?: Panel): PanelContentContainer {
   if (container !== undefined) {
     return container;
   }
@@ -84,7 +84,7 @@ function PanelSidebarView({
   panelWidthPx,
   onOpenChange
 }: {
-  container: WidgetContainer;
+  container: PanelContentContainer;
   side: 'left' | 'right';
   title?: string;
   triggerLabel: string;
@@ -156,7 +156,7 @@ function PanelSidebarView({
             >
               {title ? <header style={SIDEBAR_HEADER_STYLE}>{title}</header> : null}
               <div style={SIDEBAR_CONTENT_STYLE}>
-                <WidgetContainerRenderer container={container} />
+                <PanelContentRenderer container={container} />
               </div>
             </div>
           </div>
@@ -202,7 +202,7 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
   button = PanelSidebar.defaultProps.button;
   isOpen = false;
   #hasOpenStateInitialized = false;
-  #container: WidgetContainer = PanelSidebar.defaultProps.container;
+  #container: PanelContentContainer = PanelSidebar.defaultProps.container;
   #isControlled = false;
   #openChange: ((open: boolean) => void) | undefined = undefined;
   #rootElement: HTMLElement | null = null;

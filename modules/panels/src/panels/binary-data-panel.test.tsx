@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe('BinaryDataPanel', () => {
-  it('creates a widget panel with the expected id, title, theme, and content', () => {
+  it('creates a panel with the expected id, title, theme, and content', () => {
     const panel = new BinaryDataPanel({
       id: 'binary-data',
       title: 'Binary Data',

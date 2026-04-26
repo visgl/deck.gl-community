@@ -1,23 +1,23 @@
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 
 import {toastManager} from './toast-manager';
-import {ToastWidget} from './toast-widget';
+import {ToastPanelContainer} from './toast-panel-container';
 
-function mountToastWidget() {
+function mountToastPanelContainer() {
   const root = document.createElement('div');
   document.body.appendChild(root);
 
-  const widget = new ToastWidget();
-  widget.onAdd();
-  widget.onRenderHTML(root);
+  const panelContainer = new ToastPanelContainer();
+  panelContainer.onAdd();
+  panelContainer.onRenderHTML(root);
   const cleanup = () => {
-    widget.onRemove();
+    panelContainer.onRemove();
     root.remove();
   };
 
   return {
     root,
-    widget,
+    panelContainer,
     cleanup
   };
 }
@@ -31,7 +31,7 @@ afterEach(() => {
   toastManager.clear();
 });
 
-describe('ToastWidget', () => {
+describe('ToastPanelContainer', () => {
   it('renders existing toasts from the manager', () => {
     toastManager.toast({
       type: 'info',
@@ -39,7 +39,7 @@ describe('ToastWidget', () => {
       message: 'Data loaded'
     });
 
-    const {root, cleanup} = mountToastWidget();
+    const {root, cleanup} = mountToastPanelContainer();
 
     expect(root.textContent).toContain('Loaded');
     expect(root.textContent).toContain('Data loaded');
@@ -55,7 +55,7 @@ describe('ToastWidget', () => {
       message: 'Needs attention'
     });
 
-    const {root, cleanup} = mountToastWidget();
+    const {root, cleanup} = mountToastPanelContainer();
 
     const closeButton = root.querySelector<HTMLButtonElement>(`[data-toast-close="${id}"]`);
     expect(closeButton).toBeTruthy();
@@ -68,12 +68,12 @@ describe('ToastWidget', () => {
   });
 
   it('unsubscribes from the manager on remove to avoid listener leaks', () => {
-    const {root, widget} = mountToastWidget();
+    const {root, panelContainer} = mountToastPanelContainer();
     toastManager.toast({type: 'error', message: 'Initial toast'});
 
     expect(root.querySelector('[data-toast-id]')).toBeTruthy();
 
-    widget.onRemove();
+    panelContainer.onRemove();
 
     expect(root.textContent).toBe('');
     toastManager.toast({type: 'info', message: 'Should not appear'});
@@ -83,7 +83,7 @@ describe('ToastWidget', () => {
   });
 
   it('renders the toast host with visible, viewport-safe dimensions', () => {
-    const {root, cleanup} = mountToastWidget();
+    const {root, cleanup} = mountToastPanelContainer();
 
     toastManager.toast({type: 'info', message: 'Width-safe toast'});
     const stack = root.querySelector('.deck-widget-toast-stack');

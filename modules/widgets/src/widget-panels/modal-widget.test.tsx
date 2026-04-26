@@ -95,7 +95,7 @@ describe('ModalPanelWidget', () => {
 
     widget.onRenderHTML(root);
 
-    const tabRow = root.querySelector<HTMLDivElement>('[data-widget-tabs]');
+    const tabRow = root.querySelector<HTMLDivElement>('[data-panel-tabs]');
     expect(tabRow).toBeTruthy();
     expect(tabRow?.textContent).toContain('First');
     expect(tabRow?.textContent).toContain('Second');

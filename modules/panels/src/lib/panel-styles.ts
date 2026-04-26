@@ -178,7 +178,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
   );
 }
 
-/* Theme widget styles */
+/* Theme panelContainer styles */
 .deck-widget.deck-widget-theme button.deck-widget-sun .deck-widget-icon {
   mask-image: var(
     --icon-sun,
@@ -209,7 +209,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
   );
 }
 
-/* Timeline widget styles */
+/* Timeline panelContainer styles */
 .deck-widget.deck-widget-timeline {
   position: absolute;
   margin: var(--widget-margin, 12px);
@@ -700,7 +700,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
 }
 `;
 
-function hasDeckWidgetSelector(rule: CSSRule): boolean {
+function hasDeckPanelSelector(rule: CSSRule): boolean {
   return (
     'selectorText' in rule &&
     typeof rule.selectorText === 'string' &&
@@ -708,7 +708,7 @@ function hasDeckWidgetSelector(rule: CSSRule): boolean {
   );
 }
 
-function hasDeckWidgetBaseStyles(document: Document): boolean {
+function hasDeckPanelBaseStyles(document: Document): boolean {
   for (const styleSheet of Array.from(document.styleSheets)) {
     let cssRules;
     try {
@@ -716,7 +716,7 @@ function hasDeckWidgetBaseStyles(document: Document): boolean {
     } catch {
       cssRules = null;
     }
-    if (cssRules && Array.from(cssRules).some(hasDeckWidgetSelector)) {
+    if (cssRules && Array.from(cssRules).some(hasDeckPanelSelector)) {
       return true;
     }
   }
@@ -729,7 +729,7 @@ export function ensurePanelStylesheet(document: Document): void {
     return;
   }
 
-  if (hasDeckWidgetBaseStyles(document)) {
+  if (hasDeckPanelBaseStyles(document)) {
     return;
   }
 

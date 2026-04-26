@@ -383,13 +383,13 @@ describe('TextEditorPanel', () => {
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('custom-light');
   });
 
-  it('updates the Monaco theme when inherited widget theme variables change', async () => {
-    const widgetContainer = document.createElement('div');
+  it('updates the Monaco theme when inherited panel theme variables change', async () => {
+    const panelContainer = document.createElement('div');
     const root = document.createElement('div');
-    widgetContainer.className = 'deck-widget-container';
-    widgetContainer.style.setProperty('--menu-background', LightTheme['--menu-background'] ?? '');
-    widgetContainer.appendChild(root);
-    document.body.appendChild(widgetContainer);
+    panelContainer.className = 'deck-widget-container';
+    panelContainer.style.setProperty('--menu-background', LightTheme['--menu-background'] ?? '');
+    panelContainer.appendChild(root);
+    document.body.appendChild(panelContainer);
 
     render(
       h(WidgetContainerRenderer, {
@@ -408,7 +408,7 @@ describe('TextEditorPanel', () => {
     );
     expect(monacoHarness.setTheme).toHaveBeenLastCalledWith('vs');
 
-    widgetContainer.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
+    panelContainer.style.setProperty('--menu-background', DarkTheme['--menu-background'] ?? '');
     await waitForCondition(
       () => monacoHarness.setTheme.mock.lastCall?.[0] === 'vs-dark',
       'Expected Monaco theme to update after inherited widget theme changes.'

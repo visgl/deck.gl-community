@@ -4,19 +4,20 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 
 import {
-  AccordeonWidgetContainer,
+  AccordeonPanelContainer,
   AccordeonPanel,
   asPanelContainer,
-  ColumnWidgetContainer,
+  ColumnPanelContainer,
   ColumnPanel,
   CustomPanel,
   MarkdownPanel,
-  TabbedWidgetContainer,
+  SplitterPanel,
+  TabbedPanelContainer,
   TabbedPanel,
-  WidgetContainerRenderer
-} from './widget-containers';
+  PanelContentRenderer
+} from './panel-containers';
 
-import type {WidgetAccordeonContainer, WidgetTabbedContainer} from './widget-containers';
+import type {PanelAccordeonContentContainer, PanelTabbedContentContainer} from './panel-containers';
 
 function getPanelContent(root: ParentNode, panelId: string): HTMLElement | null {
   return root.querySelector<HTMLElement>(`[data-panel-id="${panelId}"]`);
@@ -46,18 +47,25 @@ async function waitForCondition(
   throw new Error(message);
 }
 
+async function waitForAnimationFrame(): Promise<void> {
+  await new Promise<void>(resolve => {
+    requestAnimationFrame(() => resolve());
+  });
+  await Promise.resolve();
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('widget containers', () => {
+describe('panel content containers', () => {
   it('toggles accordion panels with uncontrolled multi-expand behavior and emits panel ids', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
     const onExpandedPanelIdsChange = vi.fn();
     render(
-      h(AccordeonWidgetContainer, {
+      h(AccordeonPanelContainer, {
         panels: [
           {id: 'first', title: 'First', content: createPanelContent('first')},
           {id: 'second', title: 'Second', content: createPanelContent('second')}
@@ -90,7 +98,7 @@ describe('widget containers', () => {
     const onActivePanelIdChange = vi.fn();
 
     render(
-      h(TabbedWidgetContainer, {
+      h(TabbedPanelContainer, {
         defaultActivePanelId: 'second',
         onActivePanelIdChange,
         panels: [
@@ -131,17 +139,17 @@ describe('widget containers', () => {
     expect(onActivePanelIdChange).toHaveBeenLastCalledWith('first');
   });
 
-  it('renders tab and accordion containers through WidgetContainerRenderer', () => {
+  it('renders tab and accordion containers through PanelContentRenderer', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const accordeonContainer: WidgetAccordeonContainer = {
+    const accordeonContainer: PanelAccordeonContentContainer = {
       kind: 'accordeon',
       props: {
         panels: [{id: 'one', title: 'One', content: createPanelContent('one')}],
         defaultExpandedPanelIds: ['one']
       }
     };
-    const tabbedContainer: WidgetTabbedContainer = {
+    const tabbedContainer: PanelTabbedContentContainer = {
       kind: 'tabs',
       props: {
         panels: [
@@ -152,9 +160,9 @@ describe('widget containers', () => {
       }
     };
 
-    render(h(WidgetContainerRenderer, {container: accordeonContainer}), root);
+    render(h(PanelContentRenderer, {container: accordeonContainer}), root);
     expect(root.textContent).toContain('One');
-    render(h(WidgetContainerRenderer, {container: tabbedContainer}), root);
+    render(h(PanelContentRenderer, {container: tabbedContainer}), root);
     expect(root.textContent).toContain('Alpha');
   });
 
@@ -163,7 +171,7 @@ describe('widget containers', () => {
     document.body.appendChild(root);
 
     render(
-      h(ColumnWidgetContainer, {
+      h(ColumnPanelContainer, {
         panels: [
           {id: 'overview', title: '', content: createPanelContent('overview')},
           {id: 'actions', title: 'Actions', content: createPanelContent('actions')}
@@ -200,7 +208,7 @@ describe('widget containers', () => {
     expect(buttons[0]?.textContent).toBe('B');
     expect(buttons[1]?.textContent).toBe('A');
 
-    const tabList = root.querySelector<HTMLDivElement>('[data-widget-tabs]');
+    const tabList = root.querySelector<HTMLDivElement>('[data-panel-tabs]');
     expect(tabList?.style.flexWrap).toBe('wrap');
     expect(tabList?.style.overflowX).toBe('hidden');
   });
@@ -227,12 +235,163 @@ describe('widget containers', () => {
     expect(sections[1]?.textContent).toContain('actions content');
   });
 
+  it('wraps split panels with the first panel in the first pane and remaining panels in order', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    const panel = new SplitterPanel({
+      id: 'splitter-panels',
+      title: 'Splitter Panels',
+      panels: {
+        first: {id: 'first', title: 'First', content: createPanelContent('first')},
+        second: {id: 'second', title: 'Second', content: createPanelContent('second')},
+        third: {id: 'third', title: 'Third', content: createPanelContent('third')}
+      }
+    });
+
+    render(panel.content, root);
+
+    const handle = root.querySelector<HTMLElement>('[data-panel-splitter]');
+    expect(handle).toBeTruthy();
+    expect(handle?.getAttribute('aria-orientation')).toBe('vertical');
+
+    const firstContent = getPanelContent(root, 'first');
+    const secondContent = getPanelContent(root, 'second');
+    const thirdContent = getPanelContent(root, 'third');
+    expect(firstContent?.compareDocumentPosition(secondContent!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(secondContent?.compareDocumentPosition(thirdContent!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
+  it('supports horizontal and vertical splitter layouts', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    const horizontalPanel = new SplitterPanel({
+      orientation: 'horizontal',
+      initialSplit: 0.25,
+      panels: {
+        first: {id: 'first', title: 'First', content: createPanelContent('first')},
+        second: {id: 'second', title: 'Second', content: createPanelContent('second')}
+      }
+    });
+
+    render(horizontalPanel.content, root);
+    expect(
+      root.firstElementChild instanceof HTMLElement && root.firstElementChild.style.flexDirection
+    ).toBe('row');
+    expect(root.querySelector<HTMLElement>('[data-panel-splitter]')?.style.cursor).toBe(
+      'col-resize'
+    );
+
+    const verticalPanel = new SplitterPanel({
+      orientation: 'vertical',
+      initialSplit: 0.25,
+      panels: {
+        first: {id: 'first', title: 'First', content: createPanelContent('first')},
+        second: {id: 'second', title: 'Second', content: createPanelContent('second')}
+      }
+    });
+
+    render(verticalPanel.content, root);
+    expect(
+      root.firstElementChild instanceof HTMLElement && root.firstElementChild.style.flexDirection
+    ).toBe('column');
+    expect(root.querySelector<HTMLElement>('[data-panel-splitter]')?.style.cursor).toBe(
+      'row-resize'
+    );
+  });
+
+  it('clamps splitter drag changes and emits drag lifecycle callbacks', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const onChange = vi.fn();
+    const onDragStart = vi.fn();
+    const onDragEnd = vi.fn();
+    const panel = new SplitterPanel({
+      initialSplit: 2,
+      minSplit: 0.2,
+      maxSplit: 0.8,
+      onChange,
+      onDragStart,
+      onDragEnd,
+      panels: {
+        first: {id: 'first', title: 'First', content: createPanelContent('first')},
+        second: {id: 'second', title: 'Second', content: createPanelContent('second')}
+      }
+    });
+
+    render(panel.content, root);
+    const container = root.firstElementChild as HTMLElement;
+    container.getBoundingClientRect = () =>
+      ({left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100}) as DOMRect;
+
+    const handle = root.querySelector<HTMLElement>('[data-panel-splitter]');
+    expect(handle?.getAttribute('aria-valuenow')).toBe('80');
+    handle?.dispatchEvent(new Event('pointerdown', {bubbles: true}));
+    await waitForAnimationFrame();
+    document.dispatchEvent(
+      new MouseEvent('pointermove', {clientX: 10, clientY: 50, bubbles: true})
+    );
+    document.dispatchEvent(new Event('pointerup', {bubbles: true}));
+    await Promise.resolve();
+
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith(0.2);
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not drag when the splitter is not editable', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const onChange = vi.fn();
+    const panel = new SplitterPanel({
+      editable: false,
+      onChange,
+      panels: {
+        first: {id: 'first', title: 'First', content: createPanelContent('first')},
+        second: {id: 'second', title: 'Second', content: createPanelContent('second')}
+      }
+    });
+
+    render(panel.content, root);
+    root
+      .querySelector<HTMLElement>('[data-panel-splitter]')
+      ?.dispatchEvent(new Event('pointerdown', {bubbles: true}));
+    document.dispatchEvent(new MouseEvent('pointermove', {clientX: 10, bubbles: true}));
+    await Promise.resolve();
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('renders one splitter panel without a handle and renders empty input as empty content', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    const singlePanel = new SplitterPanel({
+      panels: {
+        only: {id: 'only', title: 'Only', content: createPanelContent('only')}
+      }
+    });
+    render(singlePanel.content, root);
+    expect(root.querySelector('[data-panel-id="only"]')).toBeTruthy();
+    expect(root.querySelector('[data-panel-splitter]')).toBeNull();
+
+    const emptyPanel = new SplitterPanel({panels: {}});
+    render(emptyPanel.content, root);
+    expect(root.textContent).toBe('');
+    expect(root.querySelector('[data-panel-splitter]')).toBeNull();
+  });
+
   it('supports horizontally scrollable tab rows when requested', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
     render(
-      h(TabbedWidgetContainer, {
+      h(TabbedPanelContainer, {
         tabListLayout: 'scroll',
         panels: [
           {id: 'one', title: 'One', content: createPanelContent('one')},
@@ -243,7 +402,7 @@ describe('widget containers', () => {
       root
     );
 
-    const tabList = root.querySelector<HTMLDivElement>('[data-widget-tabs]');
+    const tabList = root.querySelector<HTMLDivElement>('[data-panel-tabs]');
     expect(tabList?.style.flexWrap).toBe('nowrap');
     expect(tabList?.style.overflowX).toBe('auto');
   });
@@ -279,7 +438,7 @@ describe('widget containers', () => {
       content: <div>direct content</div>
     });
 
-    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
+    render(h(PanelContentRenderer, {container: panelContainer}), root);
 
     expect(root.textContent).toContain('direct content');
     expect(root.querySelector('section > button')).toBeNull();
@@ -297,7 +456,7 @@ describe('widget containers', () => {
       content: <div>direct content</div>
     });
 
-    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
+    render(h(PanelContentRenderer, {container: panelContainer}), root);
     await Promise.resolve();
 
     const scope = getThemeScopes(root)[0];
@@ -323,7 +482,7 @@ describe('widget containers', () => {
       })
     );
 
-    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
+    render(h(PanelContentRenderer, {container: panelContainer}), root);
     await Promise.resolve();
 
     await waitForCondition(
@@ -362,7 +521,7 @@ describe('widget containers', () => {
       })
     );
 
-    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
+    render(h(PanelContentRenderer, {container: panelContainer}), root);
     await Promise.resolve();
 
     await waitForCondition(
@@ -374,7 +533,7 @@ describe('widget containers', () => {
     expect(scopes[1]?.dataset.panelThemeMode).toBe('dark');
   });
 
-  it('renders imperative HTML through a custom widget panel and runs cleanup on unmount', async () => {
+  it('renders imperative HTML through a custom panel and runs cleanup on unmount', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const cleanup = vi.fn();
@@ -390,12 +549,12 @@ describe('widget containers', () => {
       })
     );
 
-    render(h(WidgetContainerRenderer, {container: panelContainer}), root);
+    render(h(PanelContentRenderer, {container: panelContainer}), root);
     await waitForCondition(
       () =>
         onRenderHTML.mock.calls.length > 0 &&
         (root.textContent?.includes('custom content') ?? false),
-      'Expected custom widget panel content to render.',
+      'Expected custom panel content to render.',
       60
     );
 
@@ -408,7 +567,7 @@ describe('widget containers', () => {
     expect(cleanup).toHaveBeenCalledTimes(1);
   });
 
-  it('renders a minimal safe markdown subset through a markdown widget panel', () => {
+  it('renders a minimal safe markdown subset through a markdown panel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const panel = new MarkdownPanel({
@@ -438,7 +597,7 @@ describe('widget containers', () => {
     expect(root.querySelector('pre code')?.textContent).toContain('const value = 1;');
   });
 
-  it('treats raw html-like input as text in markdown widget panels', () => {
+  it('treats raw html-like input as text in markdown panels', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const panel = new MarkdownPanel({

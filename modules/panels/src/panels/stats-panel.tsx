@@ -2,9 +2,9 @@
 /** @jsxImportSource preact */
 import {useMemo} from 'preact/hooks';
 
-import {useEffectiveWidgetPanelThemeMode} from './widget-containers';
+import {useEffectivePanelThemeMode} from './panel-containers';
 
-import type {WidgetPanel, WidgetPanelTheme} from './widget-containers';
+import type {Panel, PanelTheme} from './panel-containers';
 import type {JSX} from 'preact';
 import type {Stats} from '@probe.gl/stats';
 
@@ -23,17 +23,17 @@ export type StatsPanelProps = {
   /** Optional class name applied to the outer panel content wrapper. */
   className?: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
 };
 
-/** Widget panel that renders a compact table of probe.gl stats. */
-export class StatsPanel implements WidgetPanel {
+/** Panel that renders a compact table of probe.gl stats. */
+export class StatsPanel implements Panel {
   /** Stable panel id used by parent containers. */
   id: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Optional theme override applied to this panel subtree. */
-  theme?: WidgetPanelTheme;
+  theme?: PanelTheme;
   /** Rendered Preact content for this panel. */
   content: JSX.Element;
 
@@ -48,7 +48,7 @@ export class StatsPanel implements WidgetPanel {
 
 /** Renders the stats rows used by {@link StatsPanel}. */
 function StatsPanelContent({stats, statNames, labels, className}: StatsPanelProps): JSX.Element {
-  const themeMode = useEffectiveWidgetPanelThemeMode();
+  const themeMode = useEffectivePanelThemeMode();
   const rows = useMemo(() => {
     const table = stats.getTable();
     const names = statNames ?? Object.keys(table);

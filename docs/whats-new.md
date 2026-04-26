@@ -12,6 +12,8 @@ A new module for deck-independent panel composition and small application UI.
 - Panel/container composition APIs extracted into a dedicated package
 - Stand-alone documentation and examples for panel composition outside deck.gl
 - `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
+- `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
+- Panel APIs now use panel terminology throughout `@deck.gl-community/panels`; deck.gl widget-facing wrappers remain in `@deck.gl-community/widgets`.
 
 ## v9.3
 

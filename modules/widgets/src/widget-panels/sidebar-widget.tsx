@@ -30,6 +30,8 @@ function normalizeSidebarProps(
  * deck.gl widget wrapper for `PanelSidebar`.
  */
 export class SidebarPanelWidget extends PanelSidebar {
+  className = 'deck-widget-sidebar';
+
   constructor(props: Partial<SidebarPanelWidgetProps> = {}) {
     super(normalizeSidebarProps(props));
   }

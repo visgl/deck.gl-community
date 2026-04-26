@@ -15,7 +15,7 @@ Use the deck.gl path when:
 
 - the UI should stay anchored to a deck.gl view
 - widget placement should follow deck.gl corners or fill layout
-- panel interactions should live inside the deck.gl widget lifecycle
+- panel interactions should live inside the deck.gl panel lifecycle
 
 ## Core pieces
 

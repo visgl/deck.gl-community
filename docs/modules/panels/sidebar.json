@@ -7,7 +7,7 @@
       "type": "category",
       "label": "Developer Guide",
       "items": [
-        "modules/panels/developer-guide/widget-panels",
+        "modules/panels/developer-guide/using-panels",
         "modules/panels/developer-guide/using-stand-alone",
         "modules/panels/developer-guide/using-with-deck-gl"
       ]
@@ -41,6 +41,7 @@
       "items": [
         "modules/panels/api-reference/accordeon-panel",
         "modules/panels/api-reference/column-panel",
+        "modules/panels/api-reference/splitter-panel",
         "modules/panels/api-reference/tabbed-panel"
       ]
     },

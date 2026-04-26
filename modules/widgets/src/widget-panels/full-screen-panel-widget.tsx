@@ -16,4 +16,6 @@ export type FullScreenPanelWidgetProps = PanelFullScreenProps;
 /**
  * deck.gl widget wrapper for `PanelFullScreen`.
  */
-export class FullScreenPanelWidget extends PanelFullScreen {}
+export class FullScreenPanelWidget extends PanelFullScreen {
+  className = 'deck-widget-full-screen';
+}

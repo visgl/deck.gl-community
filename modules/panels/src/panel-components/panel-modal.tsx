@@ -2,9 +2,9 @@
 /** @jsxImportSource preact */
 import {h, render} from 'preact';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
-import {WidgetContainerRenderer, asPanelContainer} from '../widget-panels/widget-containers';
+import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
 
-import type {WidgetContainer, WidgetPanel} from '../widget-panels/widget-containers';
+import type {PanelContentContainer, Panel} from '../panels/panel-containers';
 import type {JSX} from 'preact';
 
 /**
@@ -12,9 +12,9 @@ import type {JSX} from 'preact';
  */
 export type PanelModalProps = PanelContainerProps & {
   /** One pre-built container definition to render. */
-  container?: WidgetContainer;
+  container?: PanelContentContainer;
   /** Convenience single-panel input converted into a container automatically. */
-  panel?: WidgetPanel;
+  panel?: Panel;
   /** Placement anchor used for the trigger when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
   /** Dialog header title. */
@@ -37,7 +37,7 @@ export type PanelModalProps = PanelContainerProps & {
 
 const DEFAULT_TRIGGER_ICON = '▦';
 
-function resolveContainer(container?: WidgetContainer, panel?: WidgetPanel): WidgetContainer {
+function resolveContainer(container?: PanelContentContainer, panel?: Panel): PanelContentContainer {
   if (container !== undefined) {
     return container;
   }
@@ -69,7 +69,7 @@ function PanelModalView({
   open,
   onOpenChange
 }: {
-  container: WidgetContainer;
+  container: PanelContentContainer;
   title: string;
   hideTrigger: boolean;
   triggerIcon: string;
@@ -118,7 +118,7 @@ function PanelModalView({
                 </button>
               </div>
               <div style={MODAL_CONTENT_STYLE}>
-                <WidgetContainerRenderer container={container} />
+                <PanelContentRenderer container={container} />
               </div>
             </div>
           </div>
@@ -165,7 +165,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
   hideTrigger = PanelModal.defaultProps.hideTrigger;
   isOpen = false;
   #hasOpenStateInitialized = false;
-  #container: WidgetContainer = PanelModal.defaultProps.container;
+  #container: PanelContentContainer = PanelModal.defaultProps.container;
   #isControlled = false;
   #openChange: ((open: boolean) => void) | undefined = undefined;
   #rootElement: HTMLElement | null = null;

@@ -16,7 +16,9 @@ export type BoxPanelWidgetProps = PanelBoxProps;
 /**
  * deck.gl widget wrapper for `PanelBox`.
  */
-export class BoxPanelWidget extends PanelBox {}
+export class BoxPanelWidget extends PanelBox {
+  className = 'deck-widget-box';
+}
 
 /**
  * @deprecated Use {@link BoxPanelWidget}.

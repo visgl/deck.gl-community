@@ -17,7 +17,7 @@ import {
   EditModeTrayWidget,
   type EditModeTrayWidgetModeOption
 } from '@deck.gl-community/editable-layers';
-import {ColumnPanel, CustomPanel, MarkdownPanel, type WidgetPanel} from '@deck.gl-community/panels';
+import {ColumnPanel, CustomPanel, MarkdownPanel, type Panel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
@@ -384,7 +384,7 @@ function buildInfoPanel(
     onReset: () => void;
     onClear: () => void;
   }
-): WidgetPanel {
+): Panel {
   return new ColumnPanel({
     id: 'editable-layers-widget-info-panel',
     title: '',

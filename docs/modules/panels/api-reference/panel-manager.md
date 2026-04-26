@@ -86,7 +86,7 @@ onEvent(
 
 ## Remarks
 
-- Adds `deck-widget-container` to the supplied host root so existing panel theme inference continues to work.
+- Adds `deck-panel-container` to the supplied host root so existing panel theme inference continues to work.
 - Reconciles components by `id`, preserving mounted instances and routing updates through each component's `setProps`.
 - Supports the normal placement buckets: `top-left`, `top-right`, `bottom-left`, `bottom-right`, and `fill`.
 - Honors `_container` when a component points at an explicit `HTMLElement`.

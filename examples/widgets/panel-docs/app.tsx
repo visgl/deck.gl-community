@@ -19,11 +19,12 @@ import {
   PanelModal,
   PanelSidebar,
   SettingsPanel,
+  SplitterPanel,
   StatsPanel,
   TabbedPanel,
   TextEditorPanel,
-  ToastWidget,
-  ToolbarWidget,
+  ToastPanelContainer,
+  ToolbarPanelContainer,
   applyPanelTheme,
   toastManager
 } from '../../../modules/panels/src';
@@ -31,7 +32,7 @@ import {
 import type {KeyboardShortcut, SettingsSchema, SettingsState} from '../../../modules/panels/src';
 
 export type PanelDocsExampleHighlight =
-  | 'widget-panels'
+  | 'panels'
   | 'markdown-panel'
   | 'binary-data-panel'
   | 'custom-panel'
@@ -42,6 +43,7 @@ export type PanelDocsExampleHighlight =
   | 'accordeon-panel'
   | 'tabbed-panel'
   | 'column-panel'
+  | 'splitter-panel'
   | 'panel-box'
   | 'panel-modal'
   | 'panel-sidebar'
@@ -49,7 +51,7 @@ export type PanelDocsExampleHighlight =
 
 export function mountPanelDocsExample(
   container: HTMLElement,
-  {highlight = 'widget-panels'}: {highlight?: PanelDocsExampleHighlight} = {}
+  {highlight = 'panels'}: {highlight?: PanelDocsExampleHighlight} = {}
 ): () => void {
   const rootElement = container.ownerDocument.createElement('div');
   const sceneElement = container.ownerDocument.createElement('div');
@@ -96,7 +98,7 @@ export function mountPanelDocsExample(
   });
 
   const panelManager = new PanelManager({parentElement: rootElement});
-  const toolbar = new ToolbarWidget({
+  const toolbar = new ToolbarPanelContainer({
     id: 'panel-docs-toolbar',
     placement: 'bottom-left',
     items: [
@@ -114,7 +116,7 @@ export function mountPanelDocsExample(
       }
     ]
   });
-  const toast = new ToastWidget({
+  const toast = new ToastPanelContainer({
     id: 'panel-docs-toast',
     placement: 'bottom-right',
     showBorder: true
@@ -152,7 +154,7 @@ export function mountPanelDocsExample(
 }
 
 const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
-  'widget-panels': 'Using Panels',
+  panels: 'Using Panels',
   'markdown-panel': 'MarkdownPanel',
   'binary-data-panel': 'BinaryDataPanel',
   'custom-panel': 'CustomPanel',
@@ -163,6 +165,7 @@ const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   'accordeon-panel': 'AccordeonPanel',
   'tabbed-panel': 'TabbedPanel',
   'column-panel': 'ColumnPanel',
+  'splitter-panel': 'SplitterPanel',
   'panel-box': 'PanelBox',
   'panel-modal': 'PanelModal',
   'panel-sidebar': 'PanelSidebar',
@@ -415,6 +418,40 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         }
       });
 
+    case 'splitter-panel':
+      return new SplitterPanel({
+        id: 'splitter',
+        title: 'Splitter',
+        orientation: 'horizontal',
+        initialSplit: 0.44,
+        minSplit: 0.25,
+        maxSplit: 0.75,
+        panels: {
+          preview: new MarkdownPanel({
+            id: 'preview',
+            title: 'Preview',
+            markdown: [
+              'Drag the divider to resize this first panel.',
+              '',
+              '- Uses SplitterPanel',
+              '- Keeps the first child isolated',
+              '- Groups the remaining panels on the other side'
+            ].join('\n')
+          }),
+          details: new MarkdownPanel({
+            id: 'details',
+            title: 'Details',
+            markdown: 'The second pane is a column of every remaining child panel.'
+          }),
+          settings: new SettingsPanel({
+            id: 'splitter-settings',
+            title: 'Settings',
+            schema: SETTINGS_SCHEMA,
+            settings: SETTINGS_STATE
+          })
+        }
+      });
+
     case 'panel-box':
       return new ColumnPanel({
         id: 'panel-box-content',
@@ -488,7 +525,7 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         }
       });
 
-    case 'widget-panels':
+    case 'panels':
     default:
       return new ColumnPanel({
         id: 'overview',
@@ -529,7 +566,7 @@ function renderScene(
   const wrapper = document.createElement('div');
   const title = document.createElement('div');
   const subtitle = document.createElement('div');
-  const showSceneTitle = highlight === 'widget-panels';
+  const showSceneTitle = highlight === 'panels';
 
   applyStyle(wrapper, {position: 'absolute', inset: '0'});
   if (showSceneTitle) {

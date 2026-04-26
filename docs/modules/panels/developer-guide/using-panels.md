@@ -20,6 +20,7 @@ Panels built from other panels.
 - [AccordeonPanel](../api-reference/accordeon-panel.md)
 - [TabbedPanel](../api-reference/tabbed-panel.md)
 - [ColumnPanel](../api-reference/column-panel.md)
+- [SplitterPanel](../api-reference/splitter-panel.md)
 
 ## Leaf Panels
 
@@ -38,6 +39,7 @@ Panels with no child panels.
 - Use `AccordeonPanel` when you want a stack of collapsible sections.
 - Use `TabbedPanel` when several panels share the same footprint and only one should be visible at a time.
 - Use `ColumnPanel` when all child panels should remain visible in order.
+- Use `SplitterPanel` when the first child panel should resize against the remaining child panels.
 - Use `MarkdownPanel` for small descriptive content without mounting your own renderer.
 - Use `BinaryDataPanel` for capped hex and ASCII previews of caller-supplied binary data.
 - Use `StatsPanel` for compact probe.gl stats tables inside an existing panel layout.

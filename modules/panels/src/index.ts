@@ -19,58 +19,64 @@ export {
 
 export {
   AccordeonPanel,
-  AccordeonWidgetContainer,
-  ColumnWidgetContainer,
+  AccordeonPanelContainer,
+  ColumnPanelContainer,
   ColumnPanel,
   CustomPanel,
   MarkdownPanel,
+  SplitterPanel,
   TabbedPanel,
-  TabbedWidgetContainer,
-  WidgetContainerRenderer,
+  TabbedPanelContainer,
+  PanelContentRenderer,
   asPanelContainer,
-  type AccordeonWidgetContainerProps,
+  useEffectivePanelThemeMode,
+  type AccordeonPanelContainerProps,
   type AccordeonPanelProps,
-  type ColumnWidgetContainerProps,
+  type ColumnPanelContainerProps,
   type ColumnPanelProps,
   type CustomPanelProps,
   type MarkdownPanelProps,
-  type TabbedWidgetContainerProps,
+  type SplitterPanelOrientation,
+  type SplitterPanelProps,
+  type TabbedPanelContainerProps,
   type TabbedPanelProps,
-  type WidgetContainer,
-  type WidgetContainerPanelBase,
-  type WidgetPanel,
-  type WidgetPanelContainer,
-  type WidgetPanelContainerProps,
-  type WidgetPanelRecord,
-  type WidgetPanelTheme,
-  type WidgetPanelThemeMode
-} from './widget-panels/widget-containers';
+  type PanelContentContainer,
+  type PanelContentContainerBase,
+  type Panel,
+  type PanelAccordeonContentContainer,
+  type SinglePanelContentContainer,
+  type SinglePanelContentContainerProps,
+  type PanelTabbedContentContainer,
+  type PanelRecord,
+  type PanelTheme,
+  type PanelThemeMode
+} from './panels/panel-containers';
 
-export {SettingsPanel, type SettingsPanelProps} from './widget-panels/settings-panel';
-export {StatsPanel, type StatsPanelProps} from './widget-panels/stats-panel';
-export {BinaryDataPanel, type BinaryDataPanelProps} from './widget-panels/binary-data-panel';
+export {SettingsPanel, type SettingsPanelProps} from './panels/settings-panel';
+export {StatsPanel, type StatsPanelProps} from './panels/stats-panel';
+export {BinaryDataPanel, type BinaryDataPanelProps} from './panels/binary-data-panel';
 export {
   KeyboardShortcutsPanel,
   type KeyboardShortcutsPanelProps
-} from './widget-panels/keyboard-shortcuts-widget';
-export {TextEditorPanel, type TextEditorPanelProps} from './widget-panels/text-editor-panel';
+} from './panels/keyboard-shortcuts-panel';
+export {TextEditorPanel, type TextEditorPanelProps} from './panels/text-editor-panel';
 
 export {
-  ToolbarWidget,
-  type ToolbarWidgetActionItem,
-  type ToolbarWidgetBadgeItem,
-  type ToolbarWidgetItem,
-  type ToolbarWidgetProps,
-  type ToolbarWidgetToggleGroupItem,
-  type ToolbarWidgetToggleOption
-} from './widget-panels/toolbar-widget';
-export {ToastWidget, type ToastWidgetProps} from './widget-panels/toast-widget';
+  ToolbarPanelContainer,
+  type ToolbarPanelContainerActionItem,
+  type ToolbarPanelContainerBadgeItem,
+  type ToolbarPanelContainerItem,
+  type ToolbarPanelContainerProps,
+  type ToolbarPanelContainerToggleGroupItem,
+  type ToolbarPanelContainerToggleOption
+} from './panels/toolbar-panel-container';
+export {ToastPanelContainer, type ToastPanelContainerProps} from './panels/toast-panel-container';
 export {
   toastManager,
   type ToastEntry,
   type ToastKind,
   type ToastRequest
-} from './widget-panels/toast-manager';
+} from './panels/toast-manager';
 
 export {
   type SettingDescriptor,

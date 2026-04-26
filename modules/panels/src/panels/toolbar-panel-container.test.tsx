@@ -1,17 +1,17 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {ToolbarWidget} from './toolbar-widget';
+import {ToolbarPanelContainer} from './toolbar-panel-container';
 
 afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('ToolbarWidget', () => {
+describe('ToolbarPanelContainer', () => {
   it('fires action callbacks when action buttons are clicked', () => {
     const root = document.createElement('div');
     const onClick = vi.fn();
     document.body.appendChild(root);
-    const widget = new ToolbarWidget({
+    const panelContainer = new ToolbarPanelContainer({
       id: 'toolbar-actions',
       items: [
         {
@@ -23,7 +23,7 @@ describe('ToolbarWidget', () => {
       ]
     });
 
-    widget.onRenderHTML(root);
+    panelContainer.onRenderHTML(root);
 
     root.querySelector<HTMLButtonElement>('[data-toolbar-item-id="reset"]')?.click();
 
@@ -34,7 +34,7 @@ describe('ToolbarWidget', () => {
     const root = document.createElement('div');
     const onSelect = vi.fn();
     document.body.appendChild(root);
-    const widget = new ToolbarWidget({
+    const panelContainer = new ToolbarPanelContainer({
       id: 'toolbar-toggle',
       items: [
         {
@@ -50,7 +50,7 @@ describe('ToolbarWidget', () => {
       ]
     });
 
-    widget.onRenderHTML(root);
+    panelContainer.onRenderHTML(root);
 
     const unionButton = root.querySelector<HTMLButtonElement>('[data-toolbar-option-id="union"]');
     const differenceButton = root.querySelector<HTMLButtonElement>(
@@ -70,7 +70,7 @@ describe('ToolbarWidget', () => {
     const onClick = vi.fn();
     const onSelect = vi.fn();
     document.body.appendChild(root);
-    const widget = new ToolbarWidget({
+    const panelContainer = new ToolbarPanelContainer({
       id: 'toolbar-disabled',
       items: [
         {
@@ -90,7 +90,7 @@ describe('ToolbarWidget', () => {
       ]
     });
 
-    widget.onRenderHTML(root);
+    panelContainer.onRenderHTML(root);
 
     const actionButton = root.querySelector<HTMLButtonElement>(
       '[data-toolbar-item-id="disabled-action"]'
@@ -110,7 +110,7 @@ describe('ToolbarWidget', () => {
   it('renders badges as read-only status items', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const widget = new ToolbarWidget({
+    const panelContainer = new ToolbarPanelContainer({
       id: 'toolbar-badge',
       items: [
         {
@@ -121,7 +121,7 @@ describe('ToolbarWidget', () => {
       ]
     });
 
-    widget.onRenderHTML(root);
+    panelContainer.onRenderHTML(root);
 
     const badge = root.querySelector<HTMLElement>('[data-toolbar-item-kind="badge"]');
     expect(badge?.textContent).toContain('3 clusters');
