@@ -30,6 +30,7 @@ Highlights:
 
 - deck.gl v9.3 compatibility
 - Examples transitioned from React to "pure JavaScript" examples using deck.gl widget panels.
+- Website and remaining React examples now build against React 19; `@deck.gl-community/react` accepts both React 18 and React 19.
 
 ### `@deck.gl-community/basemap-layers` (NEW module)
 

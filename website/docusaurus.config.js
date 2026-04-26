@@ -129,8 +129,7 @@ const config = {
             'preact/jsx-runtime': resolve('node_modules/preact/jsx-runtime'),
             'preact/jsx-dev-runtime': resolve('node_modules/preact/jsx-dev-runtime'),
             react: resolve('node_modules/react'),
-            'react-dom': resolve('node_modules/react-dom'),
-            'styled-react-modal': resolve('node_modules/styled-react-modal')
+            'react-dom': resolve('node_modules/react-dom')
           }
         },
         plugins: [

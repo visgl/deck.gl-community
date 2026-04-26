@@ -10,6 +10,7 @@
   "dependencies": {
     "@deck.gl-community/editable-layers": "workspace:*",
     "@deck.gl-community/layers": "workspace:*",
+    "@deck.gl-community/panels": "workspace:*",
     "@deck.gl-community/widgets": "workspace:*",
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/extensions": "~9.3.0",
@@ -24,6 +25,8 @@
     "@luma.gl/core": "~9.3.2",
     "@luma.gl/engine": "~9.3.2",
     "@luma.gl/shadertools": "~9.3.2",
+    "@luma.gl/webgl": "~9.3.2",
+    "@luma.gl/webgpu": "~9.3.2",
     "@maphubs/tokml": "^0.6.1",
     "@math.gl/core": "^4.0.0",
     "@tmcw/togeojson": "^3.2.0",
@@ -32,6 +35,7 @@
     "@types/wellknown": "0.5.4",
     "clipboard-copy": "^3.2.0",
     "downloadjs": "^1.4.7",
+    "h3-js": "^4.2.1",
     "maplibre-gl": "^4.1.3",
     "wellknown": "^0.5.0"
   },

@@ -56,7 +56,7 @@ The main effort should be to replace your dependencies in package.json and repla
 ### editable-layers v9.3
 
 - **EditModeTrayWidget** — New deck.gl widget providing a mode selection tray UI, eliminating the need for custom React toolbars.
-- **All examples modernized** — Every example now uses Vite, TypeScript, React 18 with functional components and hooks.
+- **All examples modernized** — Every example now uses Vite, TypeScript, React 19 with functional components and hooks.
 - **New examples** — `getting-started` (minimal setup), `no-map` (editing without a basemap using BitmapLayer background).
 - **Deprecated MeshLayer docs removed** — MeshLayer was never part of editable-layers; use `@deck.gl/mesh-layers` directly.
 - **Overlays example moved** to `@deck.gl-community/widgets` where it belongs.

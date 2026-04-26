@@ -55,6 +55,7 @@
     "lodash.isequal": "^4.5.0"
   },
   "devDependencies": {
+    "@luma.gl/core": "~9.3.2",
     "ngraph.generators": "^20.1.0",
     "zod": "^4.0.0",
     "zod-to-json-schema": "patch:zod-to-json-schema@npm%3A3.24.6#~/.yarn/patches/zod-to-json-schema-npm-3.24.6-1ea8d4e085.patch"

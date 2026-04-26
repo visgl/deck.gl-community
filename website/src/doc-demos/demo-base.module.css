@@ -1,0 +1,46 @@
+.demoPlaceholder {
+  height: 50vh;
+  min-height: 200px;
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.demoContainer {
+  height: 50vh;
+  min-height: 200px;
+  position: absolute;
+  width: 100%;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+}
+
+.demoSourceLink {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 8px;
+  background: var(--ifm-background-surface-color);
+  margin: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.demoSourceLink:hover {
+  color: var(--ifm-color-primary);
+}
+
+.demoSourceLink svg {
+  width: 20px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+@media screen and (max-width: 768px) {
+  .demoPlaceholder,
+  .demoContainer {
+    height: 60vh;
+  }
+}

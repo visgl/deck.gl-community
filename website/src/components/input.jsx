@@ -1,69 +1,5 @@
 import React, {useCallback} from 'react';
-import styled from 'styled-components';
-
-const InputContainer = styled.div`
-  position: relative;
-  width: 100%;
-
-  &:last-child {
-    margin-bottom: 20px;
-  }
-
-  > * {
-    vertical-align: middle;
-    white-space: nowrap;
-  }
-  label {
-    display: inline-block;
-    width: 40%;
-    margin-right: 10%;
-    margin-top: 2px;
-    margin-bottom: 2px;
-  }
-  input,
-  a,
-  button {
-    background: var(--ifm-background-surface-color);
-    font-size: 0.9em;
-    text-transform: none;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    display: inline-block;
-    padding: 0 4px;
-    margin: 0;
-    width: 50%;
-    height: 20px;
-    line-height: 1.833;
-    text-align: left;
-  }
-  button {
-    color: initial;
-  }
-  button:disabled {
-    color: var(--ifm-color-gray-500);
-    cursor: default;
-    background: var(--ifm-color-gray-300);
-  }
-  input {
-    border: solid 1px var(--ifm-color-gray-500);
-    &:disabled {
-      background: var(--ifm-color-gray-300);
-    }
-    &[type='checkbox'] {
-      height: auto;
-    }
-  }
-  .tooltip {
-    left: 50%;
-    top: 24px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 200ms;
-  }
-  &:hover .tooltip {
-    opacity: 1;
-  }
-`;
+import styles from './input.module.css';
 
 function RangeInput({name, min, max, step, displayName, displayValue, onChange}) {
   const onInput = useCallback(
@@ -82,13 +18,13 @@ function RangeInput({name, min, max, step, displayName, displayValue, onChange})
   );
 
   return (
-    <InputContainer>
+    <div className={styles.inputContainer}>
       <label>{displayName}</label>
       <div className="tooltip">
         {displayName}: {String(displayValue)}
       </div>
       <input type="range" min={min} max={max} value={displayValue} step={step} onChange={onInput} />
-    </InputContainer>
+    </div>
   );
 }
 
@@ -102,13 +38,13 @@ function Checkbox({name, value, displayName, displayValue, onChange}) {
   );
 
   return (
-    <InputContainer>
+    <div className={styles.inputContainer}>
       <label>{displayName}</label>
       <div className="tooltip">
         {displayName}: {String(displayValue)}
       </div>
       <input type="checkbox" checked={value} onChange={onInput} />
-    </InputContainer>
+    </div>
   );
 }
 
@@ -131,29 +67,29 @@ export default function GenericInput(props) {
   switch (props.type) {
     case 'link':
       return (
-        <InputContainer>
+        <div className={styles.inputContainer}>
           <label>{displayName}</label>
           <a href={displayValue} target="_new">
             {displayValue}
           </a>
-        </InputContainer>
+        </div>
       );
 
     case 'function':
     case 'json':
       const editable = Boolean(altValue);
       return (
-        <InputContainer>
+        <div className={styles.inputContainer}>
           <label>{displayName}</label>
           <button type="text" disabled={!editable} onClick={reset}>
             {displayValue}
           </button>
-        </InputContainer>
+        </div>
       );
 
     case 'select':
       return (
-        <InputContainer>
+        <div className={styles.inputContainer}>
           <label>{displayName}</label>
           <select onChange={onInput} value={displayValue}>
             {props.options.map((value, i) => (
@@ -162,7 +98,7 @@ export default function GenericInput(props) {
               </option>
             ))}
           </select>
-        </InputContainer>
+        </div>
       );
 
     case 'checkbox':
@@ -173,13 +109,13 @@ export default function GenericInput(props) {
 
     default:
       return (
-        <InputContainer>
+        <div className={styles.inputContainer}>
           <label>{displayName}</label>
           <div className="tooltip">
             {displayName}: {String(displayValue)}
           </div>
           <input {...inputProps} value={displayValue} onChange={onInput} />
-        </InputContainer>
+        </div>
       );
   }
 }
