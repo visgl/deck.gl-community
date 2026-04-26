@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@deck.gl-community/panels": "workspace:*",
-    "@deck.gl/widgets": "~9.3.0"
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/widgets": "~9.3.0",
+    "@luma.gl/core": "~9.3.2"
   },
   "devDependencies": {
     "vite": "^7.3.1"

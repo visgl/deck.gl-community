@@ -50,8 +50,11 @@
     "@luma.gl/engine": "~9.3.2",
     "@luma.gl/shadertools": "~9.3.2",
     "@luma.gl/webgl": "~9.3.2",
-    "@testing-library/react": "^14.3.0",
+    "@testing-library/dom": "^10.0.0",
+    "@testing-library/react": "^16.3.2",
     "@types/bin-pack": "^1.0.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vis.gl/dev-tools": "patch:@vis.gl/dev-tools@npm%3A1.0.1#~/.yarn/patches/@vis.gl-dev-tools-npm-1.0.1-f38d363810.patch",
     "@vis.gl/ts-plugins": "^1.0.0",
     "@vitejs/plugin-react": "^5.1.4",
@@ -64,8 +67,8 @@
     "ndarray-pixels": "^3.1.0",
     "playwright": "^1.56.1",
     "pre-commit": "^1.2.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "typescript": "6.0.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.18",
@@ -137,5 +140,5 @@
     "lint-pre-commit",
     "test"
   ],
-  "packageManager": "yarn@4.13.0"
+  "packageManager": "yarn@4.14.1"
 }

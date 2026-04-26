@@ -47,8 +47,12 @@
     "@luma.gl/engine": "~9.3.2"
   },
   "devDependencies": {
+    "@deck.gl/core": "~9.3.0",
     "@deck.gl/test-utils": "~9.3.0",
+    "@loaders.gl/core": "^4.4.1",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/engine": "~9.3.2",
     "@luma.gl/webgpu": "~9.3.2",
-    "@probe.gl/test-utils": "^4.0.4"
+    "@probe.gl/test-utils": "^4.1.1"
   }
 }

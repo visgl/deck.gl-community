@@ -47,5 +47,9 @@
     "@loaders.gl/core": "^4.4.1",
     "@luma.gl/core": "~9.3.2",
     "@luma.gl/engine": "~9.3.2"
+  },
+  "devDependencies": {
+    "@loaders.gl/core": "^4.4.1",
+    "@luma.gl/core": "~9.3.2"
   }
 }

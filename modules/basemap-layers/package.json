@@ -41,6 +41,7 @@
     "test-watch": "yarn --cwd ../.. vitest --config modules/basemap-layers/vitest.config.ts"
   },
   "devDependencies": {
+    "@loaders.gl/core": "^4.4.1",
     "vitest": "^4.0.18"
   },
   "dependencies": {

@@ -40,8 +40,8 @@
     "boxicons": "^2.1.4",
     "preact": "^10.17.0",
     "prop-types": "^15.8.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "^18.3.1 || ^19.0.0",
+    "react-dom": "^18.3.1 || ^19.0.0"
   },
   "peerDependencies": {
     "@deck.gl-community/panels": "~9.3.2",
