@@ -824,7 +824,9 @@ function SplitterPanelContent({
         aria-valuenow={Math.round(split * 100)}
         style={SPLITTER_HANDLE_STYLE(orientation, editable)}
         onPointerDown={handlePointerDown}
-      />
+      >
+        <span aria-hidden="true" style={SPLITTER_GRIP_STYLE(orientation, editable)} />
+      </div>
       <div style={SPLITTER_PANE_STYLE(1 - split, orientation)}>
         <ColumnPanelContainer panels={remainingPanels} />
       </div>
@@ -1491,10 +1493,34 @@ function SPLITTER_HANDLE_STYLE(
     flex: `0 0 ${SPLITTER_HANDLE_SIZE_PX}px`,
     alignSelf: 'stretch',
     cursor: editable ? (orientation === 'horizontal' ? 'col-resize' : 'row-resize') : 'default',
+    position: 'relative',
     background:
       'linear-gradient(var(--menu-border, rgba(148, 163, 184, 0.35)), var(--menu-border, rgba(148, 163, 184, 0.35))) center / 1px 100% no-repeat',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     opacity: editable ? 1 : 0.55,
     touchAction: 'none'
+  };
+}
+
+function SPLITTER_GRIP_STYLE(
+  orientation: SplitterPanelOrientation,
+  editable: boolean
+): JSX.CSSProperties {
+  const isHorizontal = orientation === 'horizontal';
+  const gripColor = 'var(--menu-border, rgba(148, 163, 184, 0.55))';
+  return {
+    display: editable ? 'block' : 'none',
+    width: isHorizontal ? '8px' : '30px',
+    height: isHorizontal ? '30px' : '8px',
+    background: isHorizontal
+      ? `linear-gradient(${gripColor}, ${gripColor}) left center / 1px 18px no-repeat,
+        linear-gradient(${gripColor}, ${gripColor}) right center / 1px 18px no-repeat`
+      : `linear-gradient(${gripColor}, ${gripColor}) center top / 18px 1px no-repeat,
+        linear-gradient(${gripColor}, ${gripColor}) center bottom / 18px 1px no-repeat`,
+    opacity: 0.75,
+    pointerEvents: 'none'
   };
 }
 
