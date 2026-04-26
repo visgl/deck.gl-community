@@ -9,7 +9,7 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 <WidgetPanelsLiveExample highlight="widget-panels" size="tall" />
 
 Panel widgets lets you use panels and components from the
-[`@deck.gl-community/panels`](/docs/modules/panels/README) module in deck.gl applications.
+[`@deck.gl-community/panels`](/docs/modules/panels) module in deck.gl applications.
 
 - `@deck.gl-community/panels` provides a generic panel-based UI.
 - `@deck.gl-community/widgets` enables you to use those panel definitions through
@@ -17,7 +17,7 @@ Panel widgets lets you use panels and components from the
 
 ## Usage
 
-Import panels from [`@deck.gl-community/panels`](/docs/modules/panels/README).
+Import panels from [`@deck.gl-community/panels`](/docs/modules/panels).
 Pass those panel definitions to deck.gl widgets from `@deck.gl-community/widgets`.
 
 ## Container widgets
@@ -33,7 +33,7 @@ These are the deck.gl widgets that consume `WidgetPanel` and `WidgetContainer` v
 
 ## Panel definitions
 
-Use [`@deck.gl-community/panels`](/docs/modules/panels/README) for panel composition:
+Use [`@deck.gl-community/panels`](/docs/modules/panels) for panel composition:
 
 - [Using with deck.gl](/docs/modules/panels/developer-guide/using-with-deck-gl)
 - [Leaf Panels](/docs/modules/panels/api-reference/custom-panel)

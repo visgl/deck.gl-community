@@ -6,7 +6,7 @@ Alongside classic navigation and overlay widgets, the package also exports deck-
 
 For renderer selection and reusable luma device lifecycle, the package also exports `DeviceManager` and `DeviceTabsWidget`.
 
-Panel definitions and standalone mounting live in [`@deck.gl-community/panels`](/docs/modules/panels/README). Import panels and panel containers from `panels`, then pass them to the panel widgets in this package.
+Panel definitions and standalone mounting live in [`@deck.gl-community/panels`](/docs/modules/panels). Import panels and panel containers from `panels`, then pass them to the panel widgets in this package.
 
 :::caution
 The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
@@ -47,7 +47,7 @@ The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) show
 
 The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the panel composition APIs with a persistent sidebar, a tabbed modal, and a static info box built from shared panel definitions.
 
-For deck-independent mounting, use [`@deck.gl-community/panels`](/docs/modules/panels/README) and the [Standalone Widgets example](/examples/widgets/standalone-widgets).
+For deck-independent mounting, use [`@deck.gl-community/panels`](/docs/modules/panels) and the [Standalone Widgets example](/examples/widgets/standalone-widgets).
 
 See the [Panels developer guide](/docs/modules/panels/developer-guide/widget-panels) for the core panel composition concepts.
 
@@ -97,7 +97,7 @@ map positions via the widget lifecycle.
 - [TimeMeasureWidget](./api-reference/time-measure-widget.md)
 
 Standalone UI such as `ToolbarWidget`, `ToastWidget`, and `toastManager` lives in
-[`@deck.gl-community/panels`](/docs/modules/panels/README).
+[`@deck.gl-community/panels`](/docs/modules/panels).
 
 ## Panel Widgets
 
@@ -108,7 +108,7 @@ Widgets that host reusable panel content:
 - [ModalPanelWidget](./api-reference/modal-widget.md)
 - [SidebarPanelWidget](./api-reference/sidebar-widget.md)
 
-Use panel definitions from [`@deck.gl-community/panels`](/docs/modules/panels/README):
+Use panel definitions from [`@deck.gl-community/panels`](/docs/modules/panels):
 
 - [Using with deck.gl](/docs/modules/panels/developer-guide/using-with-deck-gl)
 - [Leaf Panels](/docs/modules/panels/api-reference/custom-panel)

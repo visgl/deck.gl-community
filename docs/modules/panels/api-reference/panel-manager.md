@@ -16,7 +16,7 @@ A `PanelManager` lets your application add Panel Container components to your we
 application. It mounts compatible panel module UI components into your HTML DOM.
 
 Note: If your application is using deck.gl it is recommended to use the panel
-widgets in [`@deck.gl-community/widgets`](/docs/modules/widgets/README) directly
+widgets in [`@deck.gl-community/widgets`](/docs/modules/widgets) directly
 instead of instantiating a `PanelManager`.
 
 ```ts
@@ -40,7 +40,7 @@ panelManager.setProps({
 
 This lets standalone panel apps render with the expected light/dark theme styles
 without importing deck.gl styles manually. When the same panels are used through
-[`@deck.gl-community/widgets`](/docs/modules/widgets/README), they inherit the
+[`@deck.gl-community/widgets`](/docs/modules/widgets), they inherit the
 existing deck.gl widget styling and theming instead.
 
 ## Types
