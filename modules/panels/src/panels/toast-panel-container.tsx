@@ -288,6 +288,9 @@ export class ToastPanelContainer extends PanelContainer<ToastPanelContainerProps
     }
 
     this.#toasts = toastManager.getToasts();
-    render(<ToastPanelContainerView toasts={this.#toasts} showBorder={this.showBorder} />, rootElement);
+    render(
+      <ToastPanelContainerView toasts={this.#toasts} showBorder={this.showBorder} />,
+      rootElement
+    );
   }
 }

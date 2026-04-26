@@ -49,7 +49,7 @@ The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the pa
 
 For deck-independent mounting, use [`@deck.gl-community/panels`](/docs/modules/panels) and the [Standalone Widgets example](/examples/widgets/standalone-widgets).
 
-See the [Panels developer guide](/docs/modules/panels/developer-guide/widget-panels) for the core panel composition concepts.
+See the [Panels developer guide](/docs/modules/panels/developer-guide/using-panels) for the core panel composition concepts.
 
 Use [`DeviceManager`](./api-reference/device-manager.md) when an application needs one reusable WebGPU or WebGL device that can be shared across UI surfaces and reparented into different DOM hosts. Use [`DeviceTabsWidget`](./api-reference/device-tabs-widget.md) when you want a built-in widget for switching the active backend.
 
@@ -96,7 +96,7 @@ map positions via the widget lifecycle.
 - [OmniBoxPanelWidget](./api-reference/omni-box-widget.md)
 - [TimeMeasureWidget](./api-reference/time-measure-widget.md)
 
-Standalone UI such as `ToolbarWidget`, `ToastWidget`, and `toastManager` lives in
+Standalone UI such as `ToolbarPanelContainer`, `ToastPanelContainer`, and `toastManager` lives in
 [`@deck.gl-community/panels`](/docs/modules/panels).
 
 ## Panel Widgets

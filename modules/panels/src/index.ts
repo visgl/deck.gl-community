@@ -29,6 +29,7 @@ export {
   TabbedPanelContainer,
   PanelContentRenderer,
   asPanelContainer,
+  useEffectivePanelThemeMode,
   type AccordeonPanelContainerProps,
   type AccordeonPanelProps,
   type ColumnPanelContainerProps,
@@ -42,8 +43,10 @@ export {
   type PanelContentContainer,
   type PanelContentContainerBase,
   type Panel,
+  type PanelAccordeonContentContainer,
   type SinglePanelContentContainer,
   type SinglePanelContentContainerProps,
+  type PanelTabbedContentContainer,
   type PanelRecord,
   type PanelTheme,
   type PanelThemeMode

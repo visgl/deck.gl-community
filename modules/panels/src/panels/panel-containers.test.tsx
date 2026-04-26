@@ -280,9 +280,9 @@ describe('panel content containers', () => {
     });
 
     render(horizontalPanel.content, root);
-    expect(root.firstElementChild instanceof HTMLElement && root.firstElementChild.style.flexDirection).toBe(
-      'row'
-    );
+    expect(
+      root.firstElementChild instanceof HTMLElement && root.firstElementChild.style.flexDirection
+    ).toBe('row');
     expect(root.querySelector<HTMLElement>('[data-panel-splitter]')?.style.cursor).toBe(
       'col-resize'
     );
@@ -297,9 +297,9 @@ describe('panel content containers', () => {
     });
 
     render(verticalPanel.content, root);
-    expect(root.firstElementChild instanceof HTMLElement && root.firstElementChild.style.flexDirection).toBe(
-      'column'
-    );
+    expect(
+      root.firstElementChild instanceof HTMLElement && root.firstElementChild.style.flexDirection
+    ).toBe('column');
     expect(root.querySelector<HTMLElement>('[data-panel-splitter]')?.style.cursor).toBe(
       'row-resize'
     );
@@ -327,13 +327,15 @@ describe('panel content containers', () => {
     render(panel.content, root);
     const container = root.firstElementChild as HTMLElement;
     container.getBoundingClientRect = () =>
-      ({left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100} as DOMRect);
+      ({left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100}) as DOMRect;
 
     const handle = root.querySelector<HTMLElement>('[data-panel-splitter]');
     expect(handle?.getAttribute('aria-valuenow')).toBe('80');
     handle?.dispatchEvent(new Event('pointerdown', {bubbles: true}));
     await waitForAnimationFrame();
-    document.dispatchEvent(new MouseEvent('pointermove', {clientX: 10, clientY: 50, bubbles: true}));
+    document.dispatchEvent(
+      new MouseEvent('pointermove', {clientX: 10, clientY: 50, bubbles: true})
+    );
     document.dispatchEvent(new Event('pointerup', {bubbles: true}));
     await Promise.resolve();
 
@@ -356,9 +358,9 @@ describe('panel content containers', () => {
     });
 
     render(panel.content, root);
-    root.querySelector<HTMLElement>('[data-panel-splitter]')?.dispatchEvent(
-      new Event('pointerdown', {bubbles: true})
-    );
+    root
+      .querySelector<HTMLElement>('[data-panel-splitter]')
+      ?.dispatchEvent(new Event('pointerdown', {bubbles: true}));
     document.dispatchEvent(new MouseEvent('pointermove', {clientX: 10, bubbles: true}));
     await Promise.resolve();
 

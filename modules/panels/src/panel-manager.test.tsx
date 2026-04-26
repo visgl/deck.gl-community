@@ -7,11 +7,7 @@ import {PanelContainer} from './panel-container';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT, applyPanelTheme} from './lib/panel-theme';
 import {ToastPanelContainer} from './panels/toast-panel-container';
 import {ToolbarPanelContainer} from './panels/toolbar-panel-container';
-import {
-  MarkdownPanel,
-  PanelContentRenderer,
-  asPanelContainer
-} from './panels/panel-containers';
+import {MarkdownPanel, PanelContentRenderer, asPanelContainer} from './panels/panel-containers';
 
 type TestPanelContainerProps = {
   id?: string;
@@ -182,7 +178,9 @@ describe('PanelManager', () => {
     const host = new PanelManager({parentElement: root});
 
     host.setProps({
-      components: [new TestPanelContainer({id: 'summary', text: 'Content', placement: 'bottom-left'})]
+      components: [
+        new TestPanelContainer({id: 'summary', text: 'Content', placement: 'bottom-left'})
+      ]
     });
 
     expect(root.querySelector('.bottom-left')).toBeTruthy();

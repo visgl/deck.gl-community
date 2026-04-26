@@ -28,6 +28,8 @@ function normalizeModalProps(props: Partial<ModalPanelWidgetProps>): Partial<Pan
  * deck.gl widget wrapper for `PanelModal`.
  */
 export class ModalPanelWidget extends PanelModal {
+  className = 'deck-widget-modal';
+
   constructor(props: Partial<ModalPanelWidgetProps> = {}) {
     super(normalizeModalProps(props));
   }

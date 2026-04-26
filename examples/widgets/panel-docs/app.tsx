@@ -154,7 +154,7 @@ export function mountPanelDocsExample(
 }
 
 const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
-  'panels': 'Using Panels',
+  panels: 'Using Panels',
   'markdown-panel': 'MarkdownPanel',
   'binary-data-panel': 'BinaryDataPanel',
   'custom-panel': 'CustomPanel',

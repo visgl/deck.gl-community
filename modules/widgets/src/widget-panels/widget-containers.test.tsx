@@ -200,7 +200,7 @@ describe('widget containers', () => {
     expect(buttons[0]?.textContent).toBe('B');
     expect(buttons[1]?.textContent).toBe('A');
 
-    const tabList = root.querySelector<HTMLDivElement>('[data-widget-tabs]');
+    const tabList = root.querySelector<HTMLDivElement>('[data-panel-tabs]');
     expect(tabList?.style.flexWrap).toBe('wrap');
     expect(tabList?.style.overflowX).toBe('hidden');
   });
@@ -243,7 +243,7 @@ describe('widget containers', () => {
       root
     );
 
-    const tabList = root.querySelector<HTMLDivElement>('[data-widget-tabs]');
+    const tabList = root.querySelector<HTMLDivElement>('[data-panel-tabs]');
     expect(tabList?.style.flexWrap).toBe('nowrap');
     expect(tabList?.style.overflowX).toBe('auto');
   });

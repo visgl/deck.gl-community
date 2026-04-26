@@ -19,11 +19,11 @@ import {
   TabbedPanel,
   TextEditorPanel,
   type KeyboardShortcut,
+  type Panel,
+  type PanelContentContainer,
+  PanelContentRenderer,
   type SettingsSchema,
-  type SettingsState,
-  type WidgetContainer,
-  WidgetContainerRenderer,
-  type WidgetPanel
+  type SettingsState
 } from '@deck.gl-community/panels';
 import {
   BoxPanelWidget,
@@ -1214,8 +1214,8 @@ function buildStatsPanel() {
   });
 }
 
-function renderDocsModalPreview(rootElement: HTMLElement, panel: WidgetPanel): void {
-  const container: WidgetContainer = {
+function renderDocsModalPreview(rootElement: HTMLElement, panel: Panel): void {
+  const container: PanelContentContainer = {
     kind: 'panel',
     props: {
       panel
@@ -1231,7 +1231,7 @@ function renderDocsModalPreview(rootElement: HTMLElement, panel: WidgetPanel): v
         </span>
       </header>
       <div style={DOCS_MODAL_PREVIEW_CONTENT_STYLE}>
-        <WidgetContainerRenderer container={container} />
+        <PanelContentRenderer container={container} />
       </div>
     </section>,
     rootElement
@@ -1242,7 +1242,7 @@ function buildHighlightedPanel(
   state: WidgetPanelsExampleState,
   handlers: WidgetPanelsExampleHandlers,
   highlight: WidgetPanelsExampleHighlight
-): WidgetPanel {
+): Panel {
   switch (highlight) {
     case 'modal-widget':
     case 'tabbed-panel':

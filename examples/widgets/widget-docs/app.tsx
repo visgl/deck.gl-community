@@ -6,7 +6,7 @@
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {DarkTheme, LightTheme} from '@deck.gl/widgets';
-import {ToastWidget, ToolbarWidget, toastManager} from '@deck.gl-community/panels';
+import {ToastPanelContainer, ToolbarPanelContainer, toastManager} from '@deck.gl-community/panels';
 import {h, type VNode} from 'preact';
 import {
   DeviceManager,
@@ -302,7 +302,7 @@ function buildClassicWidgets(highlight: WidgetDocsExampleHighlight) {
       return [new ZoomRangeWidget({placement: 'top-left', minZoom: -4, maxZoom: 5, step: 0.2})];
     case 'toolbar-widget':
       return [
-        new ToolbarWidget({
+        new ToolbarPanelContainer({
           placement: 'top-left',
           items: [
             {kind: 'action', id: 'inspect', label: 'Inspect', active: true},
@@ -386,7 +386,7 @@ function buildAdvancedWidgets(
         })
       ];
     case 'toast-widget':
-      return [new ToastWidget({placement: 'top-left', showBorder: true})];
+      return [new ToastPanelContainer({placement: 'top-left', showBorder: true})];
     case 'time-measure-widget':
       return [
         new TimeMeasureWidget({

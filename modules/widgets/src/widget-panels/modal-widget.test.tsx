@@ -29,10 +29,10 @@ describe('ModalPanelWidget', () => {
 
     widget.onRenderHTML(root);
 
-    const triggerButton = root.querySelector<HTMLButtonElement>('.deck-widget-icon-button');
+    const triggerButton = root.querySelector<HTMLButtonElement>('.deck-panel-icon-button');
     expect(triggerButton).toBeTruthy();
     const triggerWrapper = triggerButton?.parentElement;
-    expect(triggerWrapper?.className).toContain('deck-widget-button');
+    expect(triggerWrapper?.className).toContain('deck-panel-button');
   });
 
   it('hides the built-in trigger when button is disabled', () => {
@@ -95,7 +95,7 @@ describe('ModalPanelWidget', () => {
 
     widget.onRenderHTML(root);
 
-    const tabRow = root.querySelector<HTMLDivElement>('[data-widget-tabs]');
+    const tabRow = root.querySelector<HTMLDivElement>('[data-panel-tabs]');
     expect(tabRow).toBeTruthy();
     expect(tabRow?.textContent).toContain('First');
     expect(tabRow?.textContent).toContain('Second');

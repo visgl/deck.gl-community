@@ -12,10 +12,10 @@ import {
   MarkdownPanel,
   SettingsPanel,
   TextEditorPanel,
+  type PanelRecord,
   type SettingsSchema,
   type SettingDescriptor,
-  type SettingsState,
-  type WidgetPanelRecord
+  type SettingsState
 } from '@deck.gl-community/panels';
 import {
   BoxPanelWidget,
@@ -932,7 +932,7 @@ function buildSidebarPanel(
     onStylesheetChange: (nextValue: string) => void;
   }
 ) {
-  const panels: WidgetPanelRecord = {
+  const panels: PanelRecord = {
     controls: new SettingsPanel({
       id: 'graph-selection',
       schema: buildSelectionSchema(runtime.selectedExample, state.examples, state.selectedLayout),

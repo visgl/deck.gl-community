@@ -863,13 +863,7 @@ export function useEffectivePanelThemeMode(): PanelThemeMode {
 /**
  * Applies a panel-level theme override and exposes the resolved mode to descendants.
  */
-function PanelThemeScope({
-  panel,
-  children
-}: {
-  panel: Panel;
-  children: ComponentChildren;
-}) {
+function PanelThemeScope({panel, children}: {panel: Panel; children: ComponentChildren}) {
   const inheritedMode = useContext(PanelThemeModeContext);
   const hostElementRef = useRef<HTMLDivElement | null>(null);
   const [rootMode, setRootMode] = useState<PanelThemeMode>('light');
@@ -1284,9 +1278,7 @@ function getMarkdownHeadingStyle(level: number): JSX.CSSProperties {
 /**
  * Normalizes panel id collections for deterministic membership checks and stable state.
  */
-function normalizePanelIds(
-  values: ReadonlyArray<PanelId> | undefined
-): ReadonlyArray<PanelId> {
+function normalizePanelIds(values: ReadonlyArray<PanelId> | undefined): ReadonlyArray<PanelId> {
   if (!values || values.length === 0) {
     return [];
   }
