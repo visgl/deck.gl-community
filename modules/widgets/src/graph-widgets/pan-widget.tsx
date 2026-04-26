@@ -108,7 +108,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
 
     const ui = (
       <div style={NAVIGATION_CONTAINER_STYLE}>
-        {buttons.map((button) => {
+        {buttons.map(button => {
           const buttonStyle: JSX.CSSProperties = {
             ...NAVIGATION_BUTTON_STYLE,
             top: `${button.top}px`,

@@ -37,7 +37,7 @@ export class LongPressButton extends Component<LongPressButtonProps> {
           style={{
             pointerEvents: 'auto'
           }}
-          onMouseDown={(event) => {
+          onMouseDown={_event => {
             this._handleButtonPress();
             document.addEventListener('mouseup', this._handleButtonRelease, {once: true});
           }}

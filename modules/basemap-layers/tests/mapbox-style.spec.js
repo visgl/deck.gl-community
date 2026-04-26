@@ -104,7 +104,7 @@ describe('BasemapLayer', () => {
     let resolveParse;
     const parseSpy = vi.spyOn(MapStyleLoader, 'parse').mockImplementation(
       () =>
-        new Promise((resolve) => {
+        new Promise(resolve => {
           resolveParse = resolve;
         })
     );
@@ -279,9 +279,9 @@ describe('getBasemapLayers', () => {
       }
     });
 
-    expect(layers.map((layer) => layer.id)).toContain('test-background');
-    expect(layers.map((layer) => layer.id)).toContain('test-carto');
-    expect(layers.map((layer) => layer.id)).toContain('test-background-north-pole');
+    expect(layers.map(layer => layer.id)).toContain('test-background');
+    expect(layers.map(layer => layer.id)).toContain('test-carto');
+    expect(layers.map(layer => layer.id)).toContain('test-background-north-pole');
   });
 
   test('converts style alpha values into deck color alpha values', () => {
@@ -342,7 +342,7 @@ describe('getBasemapLayers', () => {
       }
     });
 
-    const vectorLayer = layers.find((layer) => layer.id === 'zoom-gate-carto');
+    const vectorLayer = layers.find(layer => layer.id === 'zoom-gate-carto');
     const sublayers = vectorLayer.props.renderSubLayers({
       id: 'zoom-gate-carto-tile',
       data: [
@@ -355,6 +355,6 @@ describe('getBasemapLayers', () => {
       tile: {index: {x: 0, y: 0, z: 5}}
     });
 
-    expect(sublayers.map((layer) => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
+    expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
   });
 });

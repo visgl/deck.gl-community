@@ -157,7 +157,7 @@ describe('SettingsPanel', () => {
 
     const option = Array.from(
       document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')
-    ).find((button) => button.textContent?.includes('critical-path'));
+    ).find(button => button.textContent?.includes('critical-path'));
     expect(option).toBeTruthy();
     option?.click();
     await Promise.resolve();
@@ -261,7 +261,7 @@ describe('SettingsPanel', () => {
 
     render(panel.content, root);
 
-    const visibilityButton = Array.from(root.querySelectorAll('button')).find((button) =>
+    const visibilityButton = Array.from(root.querySelectorAll('button')).find(button =>
       button.textContent?.includes('Visibility')
     );
     visibilityButton?.dispatchEvent(new Event('pointerdown', {bubbles: true}));

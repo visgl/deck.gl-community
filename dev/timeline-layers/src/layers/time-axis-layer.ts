@@ -56,12 +56,12 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
     // Generate tick positions and labels
     const ticks = getPrettyTicks(startTimeZoomed, endTimeZoomed, tickCount);
 
-    const tickLines = ticks.map((x) => ({
+    const tickLines = ticks.map(x => ({
       sourcePosition: [x, y - 5],
       targetPosition: [x, y + 5]
     }));
 
-    const tickLabels = ticks.map((x) => ({
+    const tickLabels = ticks.map(x => ({
       position: [x, y - 10],
       text:
         this.props.unit === 'timestamp' ? new Date(x).toLocaleTimeString() : formatTimeMs(x, false)
@@ -72,8 +72,8 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
       new LineLayer({
         id: 'axis-line',
         data: [{sourcePosition: [startTimeZoomed, y], targetPosition: [endTimeZoomed, y]}],
-        getSourcePosition: (d) => d.sourcePosition,
-        getTargetPosition: (d) => d.targetPosition,
+        getSourcePosition: d => d.sourcePosition,
+        getTargetPosition: d => d.targetPosition,
         getColor: color,
         getWidth: 2
       }),
@@ -81,8 +81,8 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
       new LineLayer({
         id: 'tick-marks',
         data: tickLines,
-        getSourcePosition: (d) => d.sourcePosition,
-        getTargetPosition: (d) => d.targetPosition,
+        getSourcePosition: d => d.sourcePosition,
+        getTargetPosition: d => d.targetPosition,
         getColor: color,
         getWidth: 1
       }),
@@ -90,8 +90,8 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
       new TextLayer({
         id: 'tick-labels',
         data: tickLabels,
-        getPosition: (d) => d.position,
-        getText: (d) => d.text,
+        getPosition: d => d.position,
+        getText: d => d.text,
         getSize: 12,
         getColor: color,
         getTextAnchor: 'middle',

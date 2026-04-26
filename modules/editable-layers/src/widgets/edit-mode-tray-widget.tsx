@@ -223,7 +223,7 @@ export class EditModeTrayWidget extends Widget<EditModeTrayWidgetProps> {
               title={title || undefined}
               aria-pressed={active}
               style={buttonStyle}
-              onClick={(event) => {
+              onClick={event => {
                 stopEvent(event);
                 this.handleSelect(option, id);
               }}

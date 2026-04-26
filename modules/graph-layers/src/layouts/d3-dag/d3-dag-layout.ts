@@ -414,8 +414,8 @@ export class D3DagLayout<
     const edges = Array.from(this._graph.getEdges());
 
     const data: ConnectDatum[] = edges
-      .filter((edge) => edge.isDirected())
-      .map((edge) => {
+      .filter(edge => edge.isDirected())
+      .map(edge => {
         const sourceId = this._mapNodeId(edge.getSourceNodeId());
         const targetId = this._mapNodeId(edge.getTargetNodeId());
         return {sourceId, targetId, edge};
@@ -469,7 +469,7 @@ export class D3DagLayout<
       });
 
     const nodes = Array.from(this._graph.getNodes());
-    const dag = stratify(nodes.filter((node) => !this._shouldSkipNode(node.getId())));
+    const dag = stratify(nodes.filter(node => !this._shouldSkipNode(node.getId())));
     return this._ensureEdgeData(dag);
   }
 
@@ -499,14 +499,14 @@ export class D3DagLayout<
     const nodeId = node.getId();
     return node
       .getConnectedEdges()
-      .filter((edge) => edge.isDirected() && edge.getTargetNodeId() === nodeId);
+      .filter(edge => edge.isDirected() && edge.getTargetNodeId() === nodeId);
   }
 
   protected _getOutgoingEdges(node: NodeInterface): EdgeInterface[] {
     const nodeId = node.getId();
     return node
       .getConnectedEdges()
-      .filter((edge) => edge.isDirected() && edge.getSourceNodeId() === nodeId);
+      .filter(edge => edge.isDirected() && edge.getSourceNodeId() === nodeId);
   }
 
   private _ensureEdgeData<T>(
@@ -552,7 +552,7 @@ export class D3DagLayout<
       const {nodeRank} = this.props;
       if (nodeRank) {
         // @ts-expect-error TS2345 - Argument of type '(dagNode: MutGraphNode<NodeInterface, EdgeInterface>) => number | undefined' is not assignable to parameter of type '(dagNode: MutGraphNode<NodeInterface, EdgeInterface>) => number'.
-        layeringOperator = layeringOperator.rank((dagNode) => {
+        layeringOperator = layeringOperator.rank(dagNode => {
           const node = dagNode.data as NodeInterface;
           const rank =
             typeof nodeRank === 'function'
@@ -659,7 +659,7 @@ export class D3DagLayout<
             ];
       this._rawEdgePoints.set(
         edge.getId(),
-        points.map((point) => [...point] as [number, number])
+        points.map(point => [...point] as [number, number])
       );
     }
 

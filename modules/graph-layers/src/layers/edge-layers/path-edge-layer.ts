@@ -22,7 +22,7 @@ export class PathEdgeLayer extends CompositeLayer {
         this.getSubLayerProps({
           id: '__line-layer',
           data,
-          getPath: (e) => {
+          getPath: e => {
             const {sourcePosition, targetPosition, controlPoints} = getLayoutInfo(e);
             return [sourcePosition, ...controlPoints, targetPosition];
           },

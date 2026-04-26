@@ -205,7 +205,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       const features = Array.isArray(data) ? data : data.features || [];
       const labelData = features.flatMap((feature, index) => {
         const labelAnchors = this.getLabelAnchors(feature);
-        return labelAnchors.map((position) => this.getSubLayerRow({position}, feature, index));
+        return labelAnchors.map(position => this.getSubLayerRow({position}, feature, index));
       });
 
       this.setState({labelData});

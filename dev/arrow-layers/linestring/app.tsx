@@ -24,7 +24,7 @@ export function mountGeoArrowLineStringExample(container: HTMLElement): () => vo
     dataUrl: GEOARROW_POINT_DATA,
     initialViewState: INITIAL_VIEW_STATE,
     onClick: handleClick,
-    getLayers: (table) => [
+    getLayers: table => [
       new GeoArrowPathLayer({
         id: 'geoarrow-linestring',
         data: table,

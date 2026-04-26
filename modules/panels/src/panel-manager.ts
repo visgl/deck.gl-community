@@ -132,9 +132,7 @@ export class PanelManager {
    * `setProps({components})` calls.
    */
   addDefault(component: PanelContainer) {
-    if (
-      !this.defaultComponents.find((existingComponent) => existingComponent.id === component.id)
-    ) {
+    if (!this.defaultComponents.find(existingComponent => existingComponent.id === component.id)) {
       this._addComponent(component);
       this.defaultComponents.push(component);
       this._setComponents(this.components);

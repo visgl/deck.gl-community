@@ -55,7 +55,7 @@ export class ScaleMode extends GeoJsonEditMode {
     const guidePointCount = this._cornerGuidePoints.length;
     const oppositeIndex = (selectedHandleIndex + guidePointCount / 2) % guidePointCount;
     return (
-      this._cornerGuidePoints.find((p) => {
+      this._cornerGuidePoints.find(p => {
         if (!Array.isArray(p.properties.positionIndexes)) {
           return false;
         }

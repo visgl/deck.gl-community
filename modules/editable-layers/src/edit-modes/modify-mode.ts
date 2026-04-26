@@ -63,7 +63,7 @@ export class ModifyMode extends GeoJsonEditMode {
     if (picks && picks.length && mapCoords) {
       const existingEditHandle = getPickedExistingEditHandle(picks);
       // don't show intermediate point when too close to an existing edit handle
-      const featureAsPick = !existingEditHandle && picks.find((pick) => !pick.isGuide);
+      const featureAsPick = !existingEditHandle && picks.find(pick => !pick.isGuide);
 
       // is the feature in the pick selected
       if (
@@ -135,7 +135,7 @@ export class ModifyMode extends GeoJsonEditMode {
     coordinateSystem?: EditModeCoordinateSystem
   ): NearestPointType {
     const {coordinates} = line.geometry;
-    if (coordinates.some((coord) => coord.length > 2)) {
+    if (coordinates.some(coord => coord.length > 2)) {
       if (viewport) {
         // This line has elevation, we need to use alternative algorithm
         return nearestPointOnProjectedLine(line, inPoint, viewport, coordinateSystem);
@@ -165,7 +165,7 @@ export class ModifyMode extends GeoJsonEditMode {
           updatedData = new ImmutableFeatureCollection(props.data)
             .removePosition(featureIndex, positionIndexes)
             .getObject();
-        } catch (ignored) {
+        } catch (_ignored) {
           // This happens if user attempts to remove the last point
         }
 

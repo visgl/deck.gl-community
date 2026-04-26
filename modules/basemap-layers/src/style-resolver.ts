@@ -102,7 +102,7 @@ function normalizeUrl(url: string | undefined, baseUrl?: string) {
 
 /** Resolves all tile templates in a source against the source base URL. */
 function normalizeTiles(tiles: string[] | undefined, baseUrl?: string) {
-  return Array.isArray(tiles) ? tiles.map((tile) => normalizeUrl(tile, baseUrl) || tile) : tiles;
+  return Array.isArray(tiles) ? tiles.map(tile => normalizeUrl(tile, baseUrl) || tile) : tiles;
 }
 
 /** Fetches and parses a JSON resource. */

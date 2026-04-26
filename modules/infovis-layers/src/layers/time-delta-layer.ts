@@ -67,8 +67,8 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
         new LineLayer({
           id: 'time-delta-side-bars',
           data: timeLines,
-          getSourcePosition: (d) => d.sourcePosition,
-          getTargetPosition: (d) => d.targetPosition,
+          getSourcePosition: d => d.sourcePosition,
+          getTargetPosition: d => d.targetPosition,
           getColor: color,
           getWidth: 4,
           widthUnits: 'pixels'
@@ -128,8 +128,8 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
       new LineLayer({
         id: 'header-time-delta-side-bars',
         data: timeLines,
-        getSourcePosition: (d) => d.sourcePosition,
-        getTargetPosition: (d) => d.targetPosition,
+        getSourcePosition: d => d.sourcePosition,
+        getTargetPosition: d => d.targetPosition,
         getColor: color,
         getWidth: 4,
         widthUnits: 'pixels'
@@ -144,8 +144,8 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
             targetPosition: [endTimeMs, HEADER_Y - 7]
           }
         ],
-        getSourcePosition: (d) => d.sourcePosition,
-        getTargetPosition: (d) => d.targetPosition,
+        getSourcePosition: d => d.sourcePosition,
+        getTargetPosition: d => d.targetPosition,
         getColor: color,
         getWidth: 1,
         widthUnits: 'pixels'
@@ -155,8 +155,8 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
       new TextLayer({
         id: 'header-time-delta-label',
         data: [{position: timeDeltaPosition, text: timeDeltaLabel}],
-        getPosition: (d) => d.position,
-        getText: (d) => d.text,
+        getPosition: d => d.position,
+        getText: d => d.text,
         getSize: 12,
         getColor: color,
         getTextAnchor: 'middle',

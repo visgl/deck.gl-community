@@ -47,5 +47,5 @@ export function assignClipsToSubtracks(clips: TimelineClip[]): ClipWithSubtrack[
 export function calculateSubtrackCount(clips: TimelineClip[]): number {
   if (clips.length === 0) return 1;
   const clipsWithSubtracks = assignClipsToSubtracks(clips);
-  return Math.max(...clipsWithSubtracks.map((c) => c.subtrackIndex)) + 1;
+  return Math.max(...clipsWithSubtracks.map(c => c.subtrackIndex)) + 1;
 }

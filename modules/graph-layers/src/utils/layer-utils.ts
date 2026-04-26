@@ -8,7 +8,7 @@ export const mixedGetPosition = (getPosition, getOffset) => {
   }
 
   if (typeof getOffset === 'function') {
-    return (d) => {
+    return d => {
       const [x, y] = getPosition(d);
       const [offX, offY] = getOffset(d);
       return [x + offX, y + offY];
@@ -16,7 +16,7 @@ export const mixedGetPosition = (getPosition, getOffset) => {
   }
 
   const [offX, offY] = getOffset;
-  return (d) => {
+  return d => {
     const [x, y] = getPosition(d);
     return [x + offX, y + offY];
   };

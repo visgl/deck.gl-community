@@ -93,7 +93,7 @@ describe('BinaryDataPanel', () => {
     const root = renderPanel(new Uint8Array([0x1f, 0x20, 0x7e, 0x7f]));
     const asciiBytes = [...root.querySelectorAll('[data-binary-ascii-byte]')];
 
-    expect(asciiBytes.map((element) => element.textContent)).toEqual(['', ' ', '~', '']);
+    expect(asciiBytes.map(element => element.textContent)).toEqual(['', ' ', '~', '']);
   });
 
   it('shows a byte summary when preview bytes are capped', () => {

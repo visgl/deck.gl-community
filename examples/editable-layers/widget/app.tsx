@@ -17,12 +17,7 @@ import {
   EditModeTrayWidget,
   type EditModeTrayWidgetModeOption
 } from '@deck.gl-community/editable-layers';
-import {
-  ColumnPanel,
-  CustomPanel,
-  MarkdownPanel,
-  type WidgetPanel
-} from '@deck.gl-community/panels';
+import {ColumnPanel, CustomPanel, MarkdownPanel, type WidgetPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
@@ -259,7 +254,7 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
   function syncInfoWidget() {
     infoWidget.setProps({
       panel: buildInfoPanel(state, {
-        onSetBooleanOperation: (booleanOperation) => {
+        onSetBooleanOperation: booleanOperation => {
           state.booleanOperation = booleanOperation;
           syncOverlay();
           syncInfoWidget();
@@ -316,7 +311,7 @@ function getCursor(state: WidgetExampleState) {
 }
 
 function getModeOption(id: string): EditModeTrayWidgetModeOption | undefined {
-  return MODE_OPTIONS.find((option) => option.id === id);
+  return MODE_OPTIONS.find(option => option.id === id);
 }
 
 function createButton(ownerDocument: Document, label: string, onClick: () => void) {
@@ -335,7 +330,7 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }
 
 function getDefaultGeoJSON(): FeatureCollection {
@@ -413,7 +408,7 @@ function buildInfoPanel(
       booleanOps: new CustomPanel({
         id: 'boolean-operations',
         title: 'Boolean operations',
-        onRenderHTML: (host) => {
+        onRenderHTML: host => {
           const ownerDocument = host.ownerDocument;
           const section = ownerDocument.createElement('section');
           const description = ownerDocument.createElement('p');
@@ -448,7 +443,7 @@ function buildInfoPanel(
       dataset: new CustomPanel({
         id: 'dataset',
         title: 'Dataset',
-        onRenderHTML: (host) => {
+        onRenderHTML: host => {
           const ownerDocument = host.ownerDocument;
           const section = ownerDocument.createElement('section');
           const status = ownerDocument.createElement('p');

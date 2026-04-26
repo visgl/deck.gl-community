@@ -46,7 +46,7 @@ export class ToastManager {
     };
 
     if (toast.key) {
-      const duplicateKeyIndex = this.#toasts.findIndex((nextToast) => nextToast.key === toast.key);
+      const duplicateKeyIndex = this.#toasts.findIndex(nextToast => nextToast.key === toast.key);
       if (duplicateKeyIndex !== -1) {
         const existingToast = this.#toasts[duplicateKeyIndex];
         toast.id = existingToast.id;
@@ -63,7 +63,7 @@ export class ToastManager {
   }
 
   dismiss(toastId: string): void {
-    const toastIndex = this.#toasts.findIndex((toast) => toast.id === toastId);
+    const toastIndex = this.#toasts.findIndex(toast => toast.id === toastId);
     if (toastIndex === -1) {
       return;
     }
@@ -74,7 +74,7 @@ export class ToastManager {
   }
 
   clear(): void {
-    for (const toastId of this.#toasts.map((toast) => toast.id)) {
+    for (const toastId of this.#toasts.map(toast => toast.id)) {
       this.#clearAutoDismissTimer(toastId);
     }
 

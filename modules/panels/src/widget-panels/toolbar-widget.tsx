@@ -159,7 +159,7 @@ function ToolbarWidgetView({items}: {items: ToolbarWidgetItem[]}) {
       onContextMenu={stopToolbarEventPropagation}
       onWheel={stopToolbarEventPropagation}
     >
-      {items.map((item) => renderToolbarItem(item))}
+      {items.map(item => renderToolbarItem(item))}
     </div>
   );
 }
@@ -208,7 +208,7 @@ function renderToolbarItem(item: ToolbarWidgetItem): JSX.Element {
   return (
     <div key={item.id} style={ITEM_GROUP_STYLE} data-toolbar-item-kind="toggle-group">
       {item.label ? <span style={GROUP_LABEL_STYLE}>{item.label}</span> : null}
-      {item.options.map((option) => {
+      {item.options.map(option => {
         const disabled = groupDisabled || option.disabled;
         const active = item.selectedId === option.id;
         const buttonStyle: JSX.CSSProperties = {

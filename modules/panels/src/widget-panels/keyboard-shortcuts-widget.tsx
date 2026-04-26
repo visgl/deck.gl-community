@@ -99,7 +99,7 @@ function KeyboardSettingsPanelContent({
   return (
     <div style={{overflowY: 'auto', padding: '10px 12px', flex: 1, minHeight: 0}}>
       <div style={{display: 'flex', flexDirection: 'column'}}>
-        {shortcutRows.map((row) => (
+        {shortcutRows.map(row => (
           <div key={row.key} style={SHORTCUT_ROW_STYLE}>
             <div
               data-shortcut-row-kind={row.shortcuts.length === 2 ? 'pair' : 'single'}
@@ -121,7 +121,7 @@ function KeyboardSettingsPanelContent({
             </span>
             {row.badges.length > 0 ? (
               <span data-shortcut-badges="true" style={SHORTCUT_BADGES_STYLE}>
-                {row.badges.map((badge) => (
+                {row.badges.map(badge => (
                   <span key={`${row.key}-${badge}`} style={SHORTCUT_BADGE_STYLE}>
                     {badge}
                   </span>

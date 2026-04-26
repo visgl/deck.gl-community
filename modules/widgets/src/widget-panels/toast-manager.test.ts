@@ -31,7 +31,7 @@ describe('ToastManager', () => {
 
     toastManager.dismiss(secondId);
     expect(toastManager.getToasts()).toHaveLength(1);
-    expect(toastManager.getToasts().find((toast) => toast.id === secondId)).toBeUndefined();
+    expect(toastManager.getToasts().find(toast => toast.id === secondId)).toBeUndefined();
 
     toastManager.clear();
     expect(toastManager.getToasts()).toHaveLength(0);
@@ -61,7 +61,7 @@ describe('ToastManager', () => {
     ids.push(addToast({type: 'info', message: '4'}));
 
     expect(toastManager.getToasts()).toHaveLength(3);
-    expect(toastManager.getToasts().map((toast) => toast.id)).toEqual([ids[3], ids[2], ids[1]]);
+    expect(toastManager.getToasts().map(toast => toast.id)).toEqual([ids[3], ids[2], ids[1]]);
   });
 
   it('auto dismisses according to toast kind durations', () => {
@@ -71,13 +71,13 @@ describe('ToastManager', () => {
     const warningId = addToast({type: 'warning', message: 'warning'});
     const errorId = addToast({type: 'error', message: 'error'});
 
-    expect(toastManager.getToasts().map((toast) => toast.id)).toEqual([errorId, warningId, infoId]);
+    expect(toastManager.getToasts().map(toast => toast.id)).toEqual([errorId, warningId, infoId]);
 
     vi.advanceTimersByTime(4_000);
-    expect(toastManager.getToasts().map((toast) => toast.id)).toEqual([errorId, warningId]);
+    expect(toastManager.getToasts().map(toast => toast.id)).toEqual([errorId, warningId]);
 
     vi.advanceTimersByTime(2_000);
-    expect(toastManager.getToasts().map((toast) => toast.id)).toEqual([errorId]);
+    expect(toastManager.getToasts().map(toast => toast.id)).toEqual([errorId]);
 
     vi.advanceTimersByTime(2_000);
     expect(toastManager.getToasts()).toHaveLength(0);

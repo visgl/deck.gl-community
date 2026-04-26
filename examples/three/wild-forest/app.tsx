@@ -13,9 +13,7 @@ import {
   type SettingsSchema,
   type SettingsState
 } from '@deck.gl-community/panels';
-import {
-  BoxPanelWidget
-} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -171,15 +169,15 @@ function buildLayers(state: WildForestState) {
     new TreeLayer<TreeDatum>({
       id: 'wild-forest',
       data: FOREST_DATA,
-      getPosition: (datum) => datum.position,
-      getTreeType: (datum) => datum.type,
-      getHeight: (datum) => datum.height,
-      getTrunkRadius: (datum) => datum.trunkRadius,
-      getCanopyRadius: (datum) => datum.canopyRadius,
-      getTrunkHeightFraction: (datum) => datum.trunkHeightFraction,
-      getSeason: (datum) => datum.season,
-      getBranchLevels: (datum) => datum.branchLevels || 3,
-      getCrop: state.settings.render.showCrops ? (datum) => datum.crop : () => null,
+      getPosition: datum => datum.position,
+      getTreeType: datum => datum.type,
+      getHeight: datum => datum.height,
+      getTrunkRadius: datum => datum.trunkRadius,
+      getCanopyRadius: datum => datum.canopyRadius,
+      getTrunkHeightFraction: datum => datum.trunkHeightFraction,
+      getSeason: datum => datum.season,
+      getBranchLevels: datum => datum.branchLevels || 3,
+      getCrop: state.settings.render.showCrops ? datum => datum.crop : () => null,
       sizeScale: state.settings.render.sizeScale,
       pickable: true,
       updateTriggers: {
@@ -292,7 +290,7 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }
 
 function makeRng(seed: number) {

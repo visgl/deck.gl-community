@@ -50,7 +50,7 @@ const defaultProps: DefaultProps<EditableH3ClusterLayerProps<any>> = {
   lineWidthMinPixels: 1,
   lineWidthMaxPixels: Number.MAX_SAFE_INTEGER,
   lineWidthUnits: 'pixels',
-  getHexagons: (d) => d.hexIds,
+  getHexagons: d => d.hexIds,
   getEditedCluster: (updatedHexagons, existingCluster) => {
     if (existingCluster) {
       return {
@@ -111,7 +111,7 @@ export class EditableH3ClusterLayer extends EditableLayer<any, EditableH3Cluster
           data: EMPTY_FEATURE_COLLECTION,
           selectedFeatureIndexes: [],
 
-          onEdit: (editAction) => {
+          onEdit: editAction => {
             const {editType, editContext} = editAction;
 
             switch (editType) {
@@ -205,7 +205,7 @@ export class EditableH3ClusterLayer extends EditableLayer<any, EditableH3Cluster
               hexIds: this.state.tentativeHexagonIDs
             }
           ],
-          getHexagons: (d) => d.hexIds
+          getHexagons: d => d.hexIds
         })
       )
     ];
@@ -216,7 +216,7 @@ export class EditableH3ClusterLayer extends EditableLayer<any, EditableH3Cluster
   // using props.getHexagons to support multiple data types
   getSelectedHexIDs() {
     let cumulativeHexIDs: number[] = [];
-    this.props.selectedIndexes.forEach((index) => {
+    this.props.selectedIndexes.forEach(index => {
       const selectedCluster = this.props.data[index];
       const hexIDs = this.props.getHexagons(selectedCluster);
       cumulativeHexIDs = cumulativeHexIDs.concat(hexIDs);

@@ -88,15 +88,15 @@ export function mountOverlaysExample(container: HTMLElement): () => void {
   let isDisposed = false;
 
   getWikipediaEntriesNearby({lon: INITIAL_COORDS.lon, lat: INITIAL_COORDS.lat})
-    .then((response) => {
+    .then(response => {
       if (isDisposed) {
         return;
       }
 
       const pages = response.query?.pages ?? {};
-      const data = Object.values(pages).filter((page) => page.thumbnail?.source);
+      const data = Object.values(pages).filter(page => page.thumbnail?.source);
       overlayWidget.setProps({
-        items: data.map((entry) =>
+        items: data.map(entry =>
           h(
             HtmlOverlayItem,
             {
@@ -134,7 +134,13 @@ export function mountOverlaysExample(container: HTMLElement): () => void {
   };
 }
 
-async function getWikipediaEntriesNearby({lon, lat}: {lon: number; lat: number}): Promise<WikipediaApiResponse> {
+async function getWikipediaEntriesNearby({
+  lon,
+  lat
+}: {
+  lon: number;
+  lat: number;
+}): Promise<WikipediaApiResponse> {
   const url = `https://en.wikipedia.org/w/api.php?origin=*&action=query&generator=geosearch&ggscoord=${lat}%7C${lon}&format=json&prop=coordinates|pageimages`;
   const response = await fetch(url);
 
@@ -154,5 +160,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

@@ -99,7 +99,7 @@ function DeviceTabsWidgetView({
   availability: Partial<Record<DeviceType, boolean>>;
   onSelectDeviceType: (deviceType: DeviceType) => void;
 }) {
-  const hasAvailableDevice = deviceEntries.some((entry) => availability[entry.id] !== false);
+  const hasAvailableDevice = deviceEntries.some(entry => availability[entry.id] !== false);
 
   return (
     <div
@@ -118,7 +118,7 @@ function DeviceTabsWidgetView({
       onWheel={stopDeviceTabsEventPropagation}
     >
       <div style={TAB_LIST_STYLE} role="tablist" aria-label="Graphics backend">
-        {deviceEntries.map((entry) => {
+        {deviceEntries.map(entry => {
           const isSelected = state.deviceType === entry.id;
           const isDisabled = availability[entry.id] === false;
           const label =
@@ -251,7 +251,7 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
 
     const availabilityEntries = await Promise.all(
       allowedDeviceTypes.map(
-        async (deviceType) =>
+        async deviceType =>
           [deviceType, await this.#manager.canCreateDeviceType(deviceType)] as const
       )
     );
@@ -291,14 +291,14 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
 }
 
 function getAllowedDeviceTypes(devices: readonly DeviceTabsWidgetDevice[]): DeviceType[] {
-  const deviceTypes = devices.map((device) => (device === 'webgl2' ? 'webgl' : 'webgpu'));
+  const deviceTypes = devices.map(device => (device === 'webgl2' ? 'webgl' : 'webgpu'));
   return deviceTypes.filter((deviceType, index) => deviceTypes.indexOf(deviceType) === index);
 }
 
 function getDeviceEntries(
   devices: readonly DeviceTabsWidgetDevice[]
 ): Array<{id: DeviceType; title: string}> {
-  return getAllowedDeviceTypes(devices).map((deviceType) => ({
+  return getAllowedDeviceTypes(devices).map(deviceType => ({
     id: deviceType,
     title: deviceType === 'webgl' ? 'WebGL2' : 'WebGPU'
   }));

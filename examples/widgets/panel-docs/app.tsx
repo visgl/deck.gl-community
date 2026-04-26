@@ -136,7 +136,7 @@ export function mountPanelDocsExample(
           : 'linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%)'
     });
 
-    renderThemeControl(themeControlElement, state.theme, (theme) => {
+    renderThemeControl(themeControlElement, state.theme, theme => {
       state.theme = theme;
       sync();
     });
@@ -302,7 +302,7 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
       return new CustomPanel({
         id: 'custom',
         title: 'Imperative Content',
-        onRenderHTML: (rootElement) => {
+        onRenderHTML: rootElement => {
           const document = rootElement.ownerDocument;
           const wrapper = document.createElement('div');
           const title = document.createElement('div');

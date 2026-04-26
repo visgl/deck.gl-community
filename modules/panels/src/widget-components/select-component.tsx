@@ -121,7 +121,7 @@ function stopEventPropagation(event: Event): void {
 }
 
 function findSelectedOptionIndex(options: SelectComponentOption[], value: SettingValue): number {
-  return options.findIndex((option) => option.value === value);
+  return options.findIndex(option => option.value === value);
 }
 
 function getNextOptionIndex(currentIndex: number, delta: -1 | 1, optionCount: number): number {
@@ -223,13 +223,13 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
     setIsOpen(false);
   };
 
-  const handleButtonKeyDown: JSX.KeyboardEventHandler<HTMLButtonElement> = (event) => {
+  const handleButtonKeyDown: JSX.KeyboardEventHandler<HTMLButtonElement> = event => {
     stopEventPropagation(event as unknown as Event);
 
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       setIsOpen(true);
-      setActiveOptionIndex((previous) =>
+      setActiveOptionIndex(previous =>
         getNextOptionIndex(previous, event.key === 'ArrowDown' ? 1 : -1, options.length)
       );
       return;
@@ -259,10 +259,10 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
     <div
       ref={rootRef}
       style={SELECT_ROOT_STYLE}
-      onPointerDown={(event) => stopEventPropagation(event as unknown as Event)}
-      onMouseDown={(event) => stopEventPropagation(event as unknown as Event)}
-      onWheel={(event) => stopEventPropagation(event as unknown as Event)}
-      onClick={(event) => stopEventPropagation(event as unknown as Event)}
+      onPointerDown={event => stopEventPropagation(event as unknown as Event)}
+      onMouseDown={event => stopEventPropagation(event as unknown as Event)}
+      onWheel={event => stopEventPropagation(event as unknown as Event)}
+      onClick={event => stopEventPropagation(event as unknown as Event)}
     >
       <button
         id={id}
@@ -278,9 +278,9 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
           cursor: options.length ? 'pointer' : 'default'
         }}
         disabled={!options.length}
-        onClick={() => setIsOpen((previous) => !previous)}
+        onClick={() => setIsOpen(previous => !previous)}
         onKeyDown={handleButtonKeyDown}
-        onKeyUp={(event) => stopEventPropagation(event as unknown as Event)}
+        onKeyUp={event => stopEventPropagation(event as unknown as Event)}
       >
         <span style={SELECT_VALUE_STYLE}>{selectedLabel}</span>
         <span
@@ -303,10 +303,10 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
             role="listbox"
             aria-label={label}
             style={listStyle}
-            onPointerDown={(event) => stopEventPropagation(event as unknown as Event)}
-            onMouseDown={(event) => stopEventPropagation(event as unknown as Event)}
-            onWheel={(event) => stopEventPropagation(event as unknown as Event)}
-            onClick={(event) => stopEventPropagation(event as unknown as Event)}
+            onPointerDown={event => stopEventPropagation(event as unknown as Event)}
+            onMouseDown={event => stopEventPropagation(event as unknown as Event)}
+            onWheel={event => stopEventPropagation(event as unknown as Event)}
+            onClick={event => stopEventPropagation(event as unknown as Event)}
           >
             {options.map((option, index) => {
               const isSelected = index === selectedOptionIndex;
@@ -315,7 +315,7 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
               return (
                 <button
                   key={`${id}-${index}-${String(option.value)}`}
-                  ref={(element) => {
+                  ref={element => {
                     optionRefs.current[index] = element;
                   }}
                   type="button"
@@ -327,7 +327,7 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
                     ...(isSelected ? SELECT_OPTION_SELECTED_STYLE : {})
                   }}
                   onPointerEnter={() => setActiveOptionIndex(index)}
-                  onMouseDown={(event) => {
+                  onMouseDown={event => {
                     event.preventDefault();
                     stopEventPropagation(event as unknown as Event);
                   }}

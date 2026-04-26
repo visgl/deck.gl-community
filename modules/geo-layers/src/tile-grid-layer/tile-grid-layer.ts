@@ -126,7 +126,7 @@ export class TileGridLayer extends CompositeLayer<TileGridLayerProps> {
             }),
             {
               data: [item],
-              getPath: (d) => d.path,
+              getPath: d => d.path,
               getColor: borderColor,
               widthMinPixels: borderWidthMinPixels,
               pickable: false
@@ -140,8 +140,8 @@ export class TileGridLayer extends CompositeLayer<TileGridLayerProps> {
             }),
             {
               data: [item],
-              getPosition: (d) => d.center,
-              getText: (d) => d.label,
+              getPosition: d => d.center,
+              getText: d => d.label,
               getColor: labelColor,
               getBackgroundColor: labelBackgroundColor,
               getSize: labelSize,

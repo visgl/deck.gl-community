@@ -49,7 +49,7 @@ export class MeasureAngleMode extends GeoJsonEditMode {
 
         const position = turfCenter({
           type: 'FeatureCollection',
-          features: [point1, point2].map((p) => ({
+          features: [point1, point2].map(p => ({
             type: 'Feature',
             geometry: {
               type: 'Point',

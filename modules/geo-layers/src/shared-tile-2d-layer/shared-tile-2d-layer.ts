@@ -49,7 +49,7 @@ function isURLTemplate(value: unknown): value is URLTemplate {
   return (
     value === null ||
     typeof value === 'string' ||
-    (Array.isArray(value) && value.every((url) => typeof url === 'string'))
+    (Array.isArray(value) && value.every(url => typeof url === 'string'))
   );
 }
 
@@ -233,12 +233,12 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
       return false;
     }
     return Boolean(
-      Array.from(tilesetViews.values()).every((tilesetView) =>
-        tilesetView.selectedTiles?.every((tile) => {
+      Array.from(tilesetViews.values()).every(tilesetView =>
+        tilesetView.selectedTiles?.every(tile => {
           const cachedLayers = tileLayers.get(tile.id);
           return (
             tile.isLoaded &&
-            (!tile.content || !cachedLayers || cachedLayers.every((layer) => layer.isLoaded))
+            (!tile.content || !cachedLayers || cachedLayers.every(layer => layer.isLoaded))
           );
         })
       )
@@ -288,7 +288,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
           onTileError: this._onTileError.bind(this),
           onTileUnload: this._onTileUnload.bind(this),
           onUpdate: () => this.setNeedsUpdate(),
-          onError: (error) => this.raiseError(error, 'loading TileSource metadata')
+          onError: error => this.raiseError(error, 'loading TileSource metadata')
         })
       });
     } else {
@@ -558,7 +558,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     if (!tileset) {
       return null;
     }
-    return tileset.tiles.map((tile) => {
+    return tileset.tiles.map(tile => {
       const subLayerProps = this.getSubLayerPropsByTile(tile);
       let layers = tileLayers.get(tile.id);
       if (!tile.isLoaded && !tile.content) {
@@ -575,7 +575,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
           _offset: 0,
           tile
         });
-        layers = this._flattenTileLayers(rendered).map((layer) =>
+        layers = this._flattenTileLayers(rendered).map(layer =>
           layer.clone({tile, ...subLayerProps})
         );
         tileLayers.set(tile.id, layers);
@@ -583,10 +583,10 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
         subLayerProps &&
         layers[0] &&
         Object.keys(subLayerProps).some(
-          (propName) => layers[0].props[propName] !== subLayerProps[propName]
+          propName => layers[0].props[propName] !== subLayerProps[propName]
         )
       ) {
-        layers = layers.map((layer) => layer.clone(subLayerProps));
+        layers = layers.map(layer => layer.clone(subLayerProps));
         tileLayers.set(tile.id, layers);
       }
       return layers;

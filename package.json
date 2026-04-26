@@ -12,6 +12,7 @@
   },
   "type": "module",
   "workspaces": [
+    "dev-modules/*",
     "modules/*",
     "dev/*",
     "dev/timeline-layers/examples/*",
@@ -21,9 +22,9 @@
     "bootstrap": "ocular-bootstrap",
     "build": "ocular-clean && ocular-build && npx lerna run build",
     "build-bundles": "node ./scripts/build-bundles.mjs",
-    "lint": "ocular-lint",
-    "lint-pre-commit": "ocular-lint pre-commit",
-    "lint-fix": "ocular-lint --fix",
+    "lint": "yarn workspace @deck.gl-community/devtools-extensions lint",
+    "lint-pre-commit": "yarn lint",
+    "lint-fix": "yarn workspace @deck.gl-community/devtools-extensions lint fix",
     "publish-beta": "ocular-publish version-only-beta",
     "publish-prod": "ocular-publish version-only-prod",
     "test": "yarn test-node",
@@ -35,6 +36,7 @@
     "update-release-branch": "scripts/update-release-branch.sh"
   },
   "devDependencies": {
+    "@deck.gl-community/devtools-extensions": "workspace:*",
     "@deck.gl/aggregation-layers": "~9.3.0",
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/layers": "~9.3.0",
@@ -56,7 +58,6 @@
     "@vitest/browser": "^4.0.18",
     "@vitest/browser-playwright": "^4.0.18",
     "@vitest/coverage-v8": "^4.0.18",
-    "@vitest/eslint-plugin": "^1.6.9",
     "bin-pack": "^1.0.2",
     "datauri": "^4.1.0",
     "ndarray": "^1.0.19",

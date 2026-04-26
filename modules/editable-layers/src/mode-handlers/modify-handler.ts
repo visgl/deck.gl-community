@@ -44,10 +44,10 @@ export class ModifyHandler extends ModeHandler {
     // intermediate edit handle
     if (picks && picks.length && mapCoords) {
       const existingEditHandle = picks.find(
-        (pick) => pick.isEditingHandle && pick.object && pick.object.type === 'existing'
+        pick => pick.isEditingHandle && pick.object && pick.object.type === 'existing'
       );
       // don't show intermediate point when too close to an existing edit handle
-      const featureAsPick = !existingEditHandle && picks.find((pick) => !pick.isEditingHandle);
+      const featureAsPick = !existingEditHandle && picks.find(pick => !pick.isEditingHandle);
 
       // is the feature in the pick selected
       if (
@@ -103,7 +103,7 @@ export class ModifyHandler extends ModeHandler {
   // turf.js does not support elevation for nearestPointOnLine
   nearestPointOnLine(line: Feature<LineString>, inPoint: Feature<Point>): NearestPointType {
     const {coordinates} = line.geometry;
-    if (coordinates.some((coord) => coord.length > 2)) {
+    if (coordinates.some(coord => coord.length > 2)) {
       const modeConfig = this.getModeConfig();
       if (modeConfig && modeConfig.viewport) {
         // This line has elevation, we need to use alternative algorithm
@@ -129,7 +129,7 @@ export class ModifyHandler extends ModeHandler {
           updatedData = this.getImmutableFeatureCollection()
             .removePosition(clickedEditHandle.featureIndex, clickedEditHandle.positionIndexes)
             .getObject();
-        } catch (ignored) {
+        } catch (_ignored) {
           // This happens if user attempts to remove the last point
         }
 
@@ -254,7 +254,7 @@ export class ModifyHandler extends ModeHandler {
     const picks = this._lastPointerMovePicks;
 
     if (picks && picks.length > 0) {
-      const handlePicked = picks.some((pick) => pick.isEditingHandle);
+      const handlePicked = picks.some(pick => pick.isEditingHandle);
       if (handlePicked) {
         return 'cell';
       }

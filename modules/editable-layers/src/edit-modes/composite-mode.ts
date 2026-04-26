@@ -41,23 +41,23 @@ export class CompositeMode extends GeoJsonEditMode {
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {
-    this._coalesce((handler) => handler.handleClick(event, props));
+    this._coalesce(handler => handler.handleClick(event, props));
   }
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
-    return this._coalesce((handler) => handler.handlePointerMove(event, props));
+    return this._coalesce(handler => handler.handlePointerMove(event, props));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>): void {
-    return this._coalesce((handler) => handler.handleStartDragging(event, props));
+    return this._coalesce(handler => handler.handleStartDragging(event, props));
   }
 
   handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>): void {
-    return this._coalesce((handler) => handler.handleStopDragging(event, props));
+    return this._coalesce(handler => handler.handleStopDragging(event, props));
   }
 
   handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>): void {
-    return this._coalesce((handler) => handler.handleDragging(event, props));
+    return this._coalesce(handler => handler.handleDragging(event, props));
   }
 
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {

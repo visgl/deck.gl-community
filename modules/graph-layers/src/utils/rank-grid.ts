@@ -416,8 +416,7 @@ export function selectRankLines(
 
   const filtered = ranks
     .filter(
-      (entry) =>
-        Number.isFinite(entry.yPosition) && entry.yPosition >= min && entry.yPosition <= max
+      entry => Number.isFinite(entry.yPosition) && entry.yPosition >= min && entry.yPosition <= max
     )
     .sort((a, b) => a.yPosition - b.yPosition);
 
@@ -436,5 +435,5 @@ export function selectRankLines(
   }
 
   const selected = chooseEvenlySpacedIndices(filtered, maxCount);
-  return selected.map((index) => filtered[index]);
+  return selected.map(index => filtered[index]);
 }

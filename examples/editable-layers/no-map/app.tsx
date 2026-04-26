@@ -164,7 +164,7 @@ export function mountNoMapExample(container: HTMLElement): () => void {
   }
 
   function syncTrayWidget() {
-    const selected = MODE_OPTIONS.find((option) => option.mode === state.mode)?.id ?? null;
+    const selected = MODE_OPTIONS.find(option => option.mode === state.mode)?.id ?? null;
     trayWidget.setProps({
       modes: MODE_OPTIONS,
       activeMode: state.mode,
@@ -183,7 +183,7 @@ export function mountNoMapExample(container: HTMLElement): () => void {
   }
 
   function syncInfoWidget() {
-    const modeLabel = MODE_OPTIONS.find((option) => option.mode === state.mode)?.label ?? 'View';
+    const modeLabel = MODE_OPTIONS.find(option => option.mode === state.mode)?.label ?? 'View';
     infoWidget.setProps({
       panel: buildInfoPanel({
         modeLabel,
@@ -309,5 +309,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

@@ -227,12 +227,12 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
 
   /** Tiles currently loading anywhere in the shared cache. */
   get loadingTiles(): SharedTile2DHeader<DataT>[] {
-    return Array.from(this._cache.values()).filter((tile) => tile.isLoading);
+    return Array.from(this._cache.values()).filter(tile => tile.isLoading);
   }
 
   /** Tiles retained in cache that do not currently have loaded content. */
   get unloadedTiles(): SharedTile2DHeader<DataT>[] {
-    return Array.from(this._cache.values()).filter((tile) => !tile.isLoaded);
+    return Array.from(this._cache.values()).filter(tile => !tile.isLoaded);
   }
 
   /** Maximum resolved zoom level after applying metadata and explicit options. */

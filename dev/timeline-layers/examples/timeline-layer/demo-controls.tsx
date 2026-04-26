@@ -11,7 +11,8 @@ import {
 import {generateRandomTracks} from './demo-utils';
 
 const PANEL_WIDTH = 320;
-const INITIAL_CANVAS_WIDTH = (typeof window !== 'undefined' ? window.innerWidth : 1280) - PANEL_WIDTH;
+const INITIAL_CANVAS_WIDTH =
+  (typeof window !== 'undefined' ? window.innerWidth : 1280) - PANEL_WIDTH;
 
 export type TimelineControlsState = {
   tracks: TimelineTrack[];
@@ -206,7 +207,7 @@ export function TimelineControls({
             max={300000}
             step={1000}
             value={state.timelineEnd - state.timelineStart}
-            onChange={(v) => controls.setTimelineEnd(state.timelineStart + v)}
+            onChange={v => controls.setTimelineEnd(state.timelineStart + v)}
           />
         </Section>
 
@@ -217,7 +218,7 @@ export function TimelineControls({
             </label>
             <select
               value={labelFormatterType}
-              onChange={(e) =>
+              onChange={e =>
                 controls.setLabelFormatterType(e.target.value as keyof typeof timeAxisFormatters)
               }
               style={{width: '100%', padding: '5px'}}
@@ -272,11 +273,18 @@ export function TimelineControls({
         <AdvancedSettings state={state} controls={controls} />
 
         {state.selectedClip && (
-          <ClipDetails clip={state.selectedClip} formatter={state.labelFormatter} onClear={() => controls.setSelectedClip(null)} />
+          <ClipDetails
+            clip={state.selectedClip}
+            formatter={state.labelFormatter}
+            onClear={() => controls.setSelectedClip(null)}
+          />
         )}
 
         {state.selectedTrack && (
-          <TrackDetails track={state.selectedTrack} onClear={() => controls.setSelectedTrack(null)} />
+          <TrackDetails
+            track={state.selectedTrack}
+            onClear={() => controls.setSelectedTrack(null)}
+          />
         )}
       </div>
     </div>
@@ -316,7 +324,7 @@ function RangeField({
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={e => onChange(Number(e.target.value))}
         style={{width: '100%'}}
       />
     </div>
@@ -339,10 +347,10 @@ function SelectField({
       <label style={{display: 'block', fontSize: '12px', marginBottom: '4px'}}>{label}</label>
       <select
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={e => onChange(Number(e.target.value))}
         style={{width: '100%', padding: '5px'}}
       >
-        {options.map((o) => (
+        {options.map(o => (
           <option key={o} value={o}>
             {o}
           </option>
@@ -411,7 +419,7 @@ function AdvancedSettings({
             <input
               type="checkbox"
               checked={state.showSubtrackSeparators}
-              onChange={(e) => controls.setShowSubtrackSeparators(e.target.checked)}
+              onChange={e => controls.setShowSubtrackSeparators(e.target.checked)}
               style={{marginRight: '8px'}}
             />
             Show subtrack separators
@@ -473,13 +481,7 @@ function ClipDetails({
   );
 }
 
-function TrackDetails({
-  track,
-  onClear
-}: {
-  track: TimelineTrack;
-  onClear: () => void;
-}): ReactElement {
+function TrackDetails({track, onClear}: {track: TimelineTrack; onClear: () => void}): ReactElement {
   return (
     <div style={{marginBottom: '20px'}}>
       <h3 style={{margin: '0 0 10px 0', fontSize: '14px', fontWeight: 'bold', color: '#4a90e2'}}>

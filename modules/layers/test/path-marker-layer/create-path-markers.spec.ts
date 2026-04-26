@@ -123,6 +123,6 @@ const data = [
 ];
 
 it('test createPathMarkers', () => {
-  const result = createPathMarkers({data, projectFlat: (x) => x});
+  const result = createPathMarkers({data, projectFlat: x => x});
   expect(result).toMatchSnapshot();
 });

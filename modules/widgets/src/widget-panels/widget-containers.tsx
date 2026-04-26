@@ -139,7 +139,7 @@ export type MarkdownPanelProps = {
  * Normalizes an object map of panels into an array in insertion order.
  */
 function normalizePanelRecordPanels(panels: WidgetPanelRecord): WidgetPanel[] {
-  return Object.keys(panels).map((panelId) => {
+  return Object.keys(panels).map(panelId => {
     const panel = panels[panelId];
     return {
       ...panel,
@@ -457,7 +457,7 @@ export function AccordeonWidgetContainer({
 
   return (
     <div className={className} style={ACCORDEON_CONTAINER_STYLE}>
-      {effectivePanels.map((panel) => {
+      {effectivePanels.map(panel => {
         const isExpanded = expandedPanelIdSet.has(panel.id);
         const shouldRenderContent = panel.keepMounted || isExpanded;
 
@@ -471,7 +471,7 @@ export function AccordeonWidgetContainer({
                 opacity: panel.disabled ? 0.55 : 1
               }}
               disabled={panel.disabled}
-              onPointerDown={(event) => {
+              onPointerDown={event => {
                 if (panel.disabled) {
                   event.stopPropagation();
                   return;
@@ -523,10 +523,10 @@ export function TabbedWidgetContainer({
     defaultActivePanelId
   );
 
-  const enabledPanels = useMemo(() => panels.filter((panel) => !panel.disabled), [panels]);
+  const enabledPanels = useMemo(() => panels.filter(panel => !panel.disabled), [panels]);
   const initialActivePanelId = useMemo(() => {
     const isActivePanelEnabled = currentActivePanelId
-      ? enabledPanels.some((panel) => panel.id === currentActivePanelId)
+      ? enabledPanels.some(panel => panel.id === currentActivePanelId)
       : false;
     return isActivePanelEnabled ? currentActivePanelId : enabledPanels[0]?.id;
   }, [currentActivePanelId, enabledPanels]);
@@ -543,7 +543,7 @@ export function TabbedWidgetContainer({
   return (
     <div className={className} style={TABBED_CONTAINER_STYLE}>
       <div data-widget-tabs="" style={getTabListStyle(tabListLayout)}>
-        {panels.map((panel) => {
+        {panels.map(panel => {
           const isActive = panel.id === initialActivePanelId;
           return (
             <button
@@ -564,7 +564,7 @@ export function TabbedWidgetContainer({
                 boxShadow: isActive ? '0 1px 2px rgba(15, 23, 42, 0.08)' : 'none'
               }}
               disabled={panel.disabled}
-              onPointerDown={(event) => {
+              onPointerDown={event => {
                 if (panel.disabled) {
                   event.stopPropagation();
                   return;
@@ -580,7 +580,7 @@ export function TabbedWidgetContainer({
         })}
       </div>
       <div style={TAB_PANEL_STYLE}>
-        {panels.map((panel) => {
+        {panels.map(panel => {
           const isActive = panel.id === initialActivePanelId;
 
           return (
@@ -685,9 +685,7 @@ function WidgetPanelThemeScope({
 
       const updateRootMode = () => {
         const inferredMode = inferWidgetPanelThemeMode(parentHostElement);
-        setRootMode((previousMode) =>
-          previousMode === inferredMode ? previousMode : inferredMode
-        );
+        setRootMode(previousMode => (previousMode === inferredMode ? previousMode : inferredMode));
       };
 
       updateRootMode();

@@ -43,7 +43,7 @@ function createClassicGraphFromComponents(nodes: Node[], edges: Edge[]): Classic
 }
 
 function createSampleDag(): SampleGraph {
-  const nodes = ['a', 'b', 'c', 'd'].map((id) => new Node({id}));
+  const nodes = ['a', 'b', 'c', 'd'].map(id => new Node({id}));
   const edges = [
     new Edge({id: 'ab', sourceId: 'a', targetId: 'b', directed: true}),
     new Edge({id: 'ac', sourceId: 'a', targetId: 'c', directed: true}),
@@ -54,13 +54,13 @@ function createSampleDag(): SampleGraph {
   const graph = createClassicGraphFromComponents(nodes, edges);
   return {
     graph,
-    nodes: Object.fromEntries(nodes.map((node) => [String(node.getId()), node])),
-    edges: Object.fromEntries(edges.map((edge) => [String(edge.getId()), edge]))
+    nodes: Object.fromEntries(nodes.map(node => [String(node.getId()), node])),
+    edges: Object.fromEntries(edges.map(edge => [String(edge.getId()), edge]))
   };
 }
 
 function createLinearChainGraph(): SampleGraph {
-  const nodes = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => new Node({id}));
+  const nodes = ['a', 'b', 'c', 'd', 'e', 'f'].map(id => new Node({id}));
   const edges = [
     new Edge({id: 'ab', sourceId: 'a', targetId: 'b', directed: true}),
     new Edge({id: 'bc', sourceId: 'b', targetId: 'c', directed: true}),
@@ -72,8 +72,8 @@ function createLinearChainGraph(): SampleGraph {
   const graph = createClassicGraphFromComponents(nodes, edges);
   return {
     graph,
-    nodes: Object.fromEntries(nodes.map((node) => [String(node.getId()), node])),
-    edges: Object.fromEntries(edges.map((edge) => [String(edge.getId()), edge]))
+    nodes: Object.fromEntries(nodes.map(node => [String(node.getId()), node])),
+    edges: Object.fromEntries(edges.map(edge => [String(edge.getId()), edge]))
   };
 }
 
@@ -214,14 +214,14 @@ describe('CollapsableD3DagLayout', () => {
     const engine = new GraphEngine({graph, layout});
     engine.run();
 
-    const collapsedIds = engine.getNodes().map((node) => node.getId());
+    const collapsedIds = engine.getNodes().map(node => node.getId());
     expect(collapsedIds).toEqual(['a', 'd', 'e', 'f']);
 
     const chainId = graph.findNode('a')?.getPropertyValue('collapsedChainId');
     expect(chainId).toBeTruthy();
     layout.toggleCollapsedChain(String(chainId));
 
-    const expandedIds = engine.getNodes().map((node) => node.getId());
+    const expandedIds = engine.getNodes().map(node => node.getId());
     expect(expandedIds).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
   });
 
@@ -240,7 +240,7 @@ describe('CollapsableD3DagLayout', () => {
     const engine = new GraphEngine({graph, layout});
     engine.run();
 
-    const ids = engine.getNodes().map((node) => node.getId());
+    const ids = engine.getNodes().map(node => node.getId());
     expect(ids).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
   });
 

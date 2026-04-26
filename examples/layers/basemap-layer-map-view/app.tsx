@@ -11,9 +11,7 @@ import {
   type SettingsSchema,
   type SettingsState
 } from '../../../modules/panels/src';
-import {
-  BoxPanelWidget
-} from '../../../modules/widgets/src';
+import {BoxPanelWidget} from '../../../modules/widgets/src';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -231,9 +229,11 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
   };
 
   const trackedFetch: typeof fetch = async (input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+    const url =
+      typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
     const isTileMetadataRequest = url.endsWith('/tiles.json') || url.includes('tilejson');
-    const isTileRequest = /\.mvt(?:$|\?)/.test(url) || /\.(png|jpg|jpeg|webp|avif)(?:$|\?)/.test(url);
+    const isTileRequest =
+      /\.mvt(?:$|\?)/.test(url) || /\.(png|jpg|jpeg|webp|avif)(?:$|\?)/.test(url);
 
     if (isTileMetadataRequest) {
       status.styleMetadataRequests += 1;
@@ -347,9 +347,13 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
             label: 'Settings',
             schema: SETTINGS_SCHEMA,
             settings: state.settings as unknown as SettingsState,
-            onSettingsChange: (nextSettings) => {
-              const nextMode = nextSettings.view?.mode as ExampleSettings['view']['mode'] | undefined;
-              const nextStyleId = nextSettings.basemap?.style as ExampleStyleOption['id'] | undefined;
+            onSettingsChange: nextSettings => {
+              const nextMode = nextSettings.view?.mode as
+                | ExampleSettings['view']['mode']
+                | undefined;
+              const nextStyleId = nextSettings.basemap?.style as
+                | ExampleStyleOption['id']
+                | undefined;
               if (nextMode) {
                 handleViewModeChange(nextMode);
               }
@@ -402,11 +406,7 @@ function createBasemapLayer(
   });
 }
 
-function getView(
-  settings: ExampleSettings,
-  flatView: MapView,
-  globeView: _GlobeView
-) {
+function getView(settings: ExampleSettings, flatView: MapView, globeView: _GlobeView) {
   return settings.view.mode === 'globe' ? globeView : flatView;
 }
 
@@ -415,7 +415,10 @@ function getViewState(settings: ExampleSettings) {
 }
 
 function isStableGlobeStyle(styleId: ExampleStyleOption['id']) {
-  return typeof (STYLE_OPTIONS.find(option => option.id === styleId) || STYLE_OPTIONS[0]).style !== 'string';
+  return (
+    typeof (STYLE_OPTIONS.find(option => option.id === styleId) || STYLE_OPTIONS[0]).style !==
+    'string'
+  );
 }
 
 function getStyleDisplayName(styleOption: ExampleStyleOption): string {

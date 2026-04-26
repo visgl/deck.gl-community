@@ -812,7 +812,7 @@ export class TimelineLayer extends CompositeLayer<TimelineLayerProps> {
     const effectiveStartMs = viewport?.startMs ?? timelineStart;
     const effectiveEndMs = viewport?.endMs ?? timelineEnd;
 
-    const visibleTracks = tracks.filter((track) => track.visible !== false);
+    const visibleTracks = tracks.filter(track => track.visible !== false);
 
     const tracksWithSubtracks: TrackWithSubtracks[] = visibleTracks.map((track, trackIndex) => {
       const clips = track.clips || [];
@@ -836,7 +836,7 @@ export class TimelineLayer extends CompositeLayer<TimelineLayerProps> {
       effectiveStartMs,
       effectiveEndMs
     );
-    const clipLabelsData = clipPolygons.map((clip) => ({
+    const clipLabelsData = clipPolygons.map(clip => ({
       text: clip.label,
       position: clip.labelPosition
     }));

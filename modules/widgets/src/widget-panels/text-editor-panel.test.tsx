@@ -52,7 +52,7 @@ const monacoHarness = vi.hoisted(() => {
               getValue: () => currentValue,
               setValue: (nextValue: string) => {
                 currentValue = nextValue;
-                listeners.forEach((listener) => listener());
+                listeners.forEach(listener => listener());
               },
               onDidChangeContent: (listener: FakeListener) => {
                 listeners.add(listener);
@@ -63,7 +63,7 @@ const monacoHarness = vi.hoisted(() => {
               dispose: vi.fn(),
               emitUserInput: (nextValue: string) => {
                 currentValue = nextValue;
-                listeners.forEach((listener) => listener());
+                listeners.forEach(listener => listener());
               }
             };
             modelsByUri.set(uri.toString(), model);
@@ -139,9 +139,9 @@ vi.mock('./text-editor-panel-monaco-runtime', () => ({
 async function flushMicrotasks(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
   await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
 }
 
 /**
@@ -188,7 +188,7 @@ describe('TextEditorPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     let resolveRuntime: ((value: unknown) => void) | undefined;
-    const pendingRuntime = new Promise((resolve) => {
+    const pendingRuntime = new Promise(resolve => {
       resolveRuntime = resolve;
     });
     monacoHarness.loadTextEditorMonacoRuntime.mockReturnValueOnce(pendingRuntime);

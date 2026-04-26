@@ -382,7 +382,7 @@ function OmniBoxWidgetView({
     setIsLoading(true);
 
     Promise.resolve(getOptions(normalizedQuery))
-      .then((nextOptions) => {
+      .then(nextOptions => {
         if (requestVersionRef.current !== requestVersion) {
           return;
         }
@@ -490,7 +490,7 @@ function OmniBoxWidgetView({
     [clearBlurTimeout]
   );
 
-  const handleInput: JSX.GenericEventHandler<HTMLInputElement> = useCallback((event) => {
+  const handleInput: JSX.GenericEventHandler<HTMLInputElement> = useCallback(event => {
     stopEventPropagation(event as unknown as Event);
     setQuery(event.currentTarget.value);
     setIsFocused(true);
@@ -510,7 +510,7 @@ function OmniBoxWidgetView({
   }, [clearBlurTimeout]);
 
   const handleKeyDown: JSX.KeyboardEventHandler<HTMLInputElement> = useCallback(
-    (event) => {
+    event => {
       stopEventPropagation(event as unknown as Event);
 
       if (event.key === 'ArrowDown') {
@@ -544,15 +544,15 @@ function OmniBoxWidgetView({
     [activeOptionIndex, handleHide, moveActiveOptionBy, options, selectOption]
   );
 
-  const handlePointerEvent: JSX.PointerEventHandler<HTMLElement> = useCallback((event) => {
+  const handlePointerEvent: JSX.PointerEventHandler<HTMLElement> = useCallback(event => {
     stopEventPropagation(event as unknown as Event);
   }, []);
 
-  const handleMouseEvent: JSX.MouseEventHandler<HTMLElement> = useCallback((event) => {
+  const handleMouseEvent: JSX.MouseEventHandler<HTMLElement> = useCallback(event => {
     stopEventPropagation(event as unknown as Event);
   }, []);
 
-  const handleWheelEvent: JSX.WheelEventHandler<HTMLElement> = useCallback((event) => {
+  const handleWheelEvent: JSX.WheelEventHandler<HTMLElement> = useCallback(event => {
     stopEventPropagation(event as unknown as Event);
   }, []);
 
@@ -602,11 +602,11 @@ function OmniBoxWidgetView({
             ...NAV_BUTTON_STYLE,
             ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE)
           }}
-          onMouseDown={(event) => {
+          onMouseDown={event => {
             event.preventDefault();
             stopEventPropagation(event as unknown as Event);
           }}
-          onClick={(event) => {
+          onClick={event => {
             stopEventPropagation(event as unknown as Event);
             moveActiveOptionBy(-1, {navigate: true});
           }}
@@ -623,11 +623,11 @@ function OmniBoxWidgetView({
             ...NAV_BUTTON_STYLE,
             ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE)
           }}
-          onMouseDown={(event) => {
+          onMouseDown={event => {
             event.preventDefault();
             stopEventPropagation(event as unknown as Event);
           }}
-          onClick={(event) => {
+          onClick={event => {
             stopEventPropagation(event as unknown as Event);
             moveActiveOptionBy(1, {navigate: true});
           }}
@@ -640,11 +640,11 @@ function OmniBoxWidgetView({
           title="Hide OmniBox"
           aria-label="Hide OmniBox"
           style={NAV_BUTTON_STYLE}
-          onMouseDown={(event) => {
+          onMouseDown={event => {
             event.preventDefault();
             stopEventPropagation(event as unknown as Event);
           }}
-          onClick={(event) => {
+          onClick={event => {
             handleHide(event as unknown as Event);
           }}
         >
@@ -687,17 +687,17 @@ function OmniBoxWidgetView({
               return (
                 <button
                   key={option.id}
-                  ref={(element) => {
+                  ref={element => {
                     optionElementRefs.current[index] = element;
                   }}
                   type="button"
                   role="option"
                   aria-selected={isActive}
-                  onMouseDown={(event) => {
+                  onMouseDown={event => {
                     event.preventDefault();
                     stopEventPropagation(event as unknown as Event);
                   }}
-                  onClick={(event) => {
+                  onClick={event => {
                     stopEventPropagation(event as unknown as Event);
                     selectOption(option);
                   }}

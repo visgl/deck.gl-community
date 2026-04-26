@@ -36,19 +36,19 @@ export class CompositeModeHandler extends ModeHandler {
   }
 
   setFeatureCollection(featureCollection: SimpleFeatureCollection): void {
-    this.handlers.forEach((handler) => handler.setFeatureCollection(featureCollection));
+    this.handlers.forEach(handler => handler.setFeatureCollection(featureCollection));
   }
 
   setModeConfig(modeConfig: any): void {
-    this.handlers.forEach((handler) => handler.setModeConfig(modeConfig));
+    this.handlers.forEach(handler => handler.setModeConfig(modeConfig));
   }
 
   setSelectedFeatureIndexes(indexes: number[]): void {
-    this.handlers.forEach((handler) => handler.setSelectedFeatureIndexes(indexes));
+    this.handlers.forEach(handler => handler.setSelectedFeatureIndexes(indexes));
   }
 
   handleClick(event: ClickEvent): EditAction | null | undefined {
-    return this._coalesce((handler) => handler.handleClick(event));
+    return this._coalesce(handler => handler.handleClick(event));
   }
 
   handlePointerMove(event: PointerMoveEvent): {
@@ -56,21 +56,21 @@ export class CompositeModeHandler extends ModeHandler {
     cancelMapPan: boolean;
   } {
     return this._coalesce(
-      (handler) => handler.handlePointerMove(event),
-      (result) => result && Boolean(result.editAction)
+      handler => handler.handlePointerMove(event),
+      result => result && Boolean(result.editAction)
     ) as any; // TODO
   }
 
   handleStartDragging(event: StartDraggingEvent): EditAction | null | undefined {
-    return this._coalesce((handler) => handler.handleStartDragging(event));
+    return this._coalesce(handler => handler.handleStartDragging(event));
   }
 
   handleStopDragging(event: StopDraggingEvent): EditAction | null | undefined {
-    return this._coalesce((handler) => handler.handleStopDragging(event));
+    return this._coalesce(handler => handler.handleStopDragging(event));
   }
 
   getTentativeFeature(): SimpleFeature | null | undefined {
-    return this._coalesce((handler) => handler.getTentativeFeature());
+    return this._coalesce(handler => handler.getTentativeFeature());
   }
 
   getEditHandles(picks?: Array<Record<string, any>>, mapCoords?: Position): EditHandle[] {
@@ -78,12 +78,12 @@ export class CompositeModeHandler extends ModeHandler {
     // changed to return the same object so that "editHandles !== this.state.editHandles"
     // in editable-geojson-layer works.
     return this._coalesce(
-      (handler) => handler.getEditHandles(picks, mapCoords),
-      (handles) => Array.isArray(handles) && handles.length > 0
+      handler => handler.getEditHandles(picks, mapCoords),
+      handles => Array.isArray(handles) && handles.length > 0
     ) as any; // TODO
   }
 
   getCursor({isDragging}: {isDragging: boolean}): string {
-    return this._coalesce((handler) => handler.getCursor({isDragging})) as any; // TODO
+    return this._coalesce(handler => handler.getCursor({isDragging})) as any; // TODO
   }
 }

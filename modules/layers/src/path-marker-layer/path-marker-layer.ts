@@ -50,10 +50,10 @@ const defaultProps: DefaultProps<PathMarkerLayerProps<any>> = Object.assign(
     highlightIndex: -1,
     highlightPoint: null,
 
-    getPath: (x) => x.path,
-    getColor: (x) => x.color,
-    getMarkerColor: (x) => [0, 0, 0, 255],
-    getDirection: (x) => x.direction,
+    getPath: x => x.path,
+    getColor: x => x.color,
+    getMarkerColor: _x => [0, 0, 0, 255],
+    getDirection: x => x.direction,
     getMarkerPercentages: (object, {lineLength}) =>
       lineLength > DISTANCE_FOR_MULTI_ARROWS ? [0.25, 0.5, 0.75] : [0.5]
   }
@@ -109,7 +109,7 @@ export class PathMarkerLayer<
       } = this.props;
 
       const {viewport} = this.context;
-      const projectFlat = (o) => this.projectFlat(o, viewport, coordinateSystem, coordinateOrigin);
+      const projectFlat = o => this.projectFlat(o, viewport, coordinateSystem, coordinateOrigin);
       this.state.markers = createPathMarkers({
         data,
         getPath,
@@ -161,8 +161,8 @@ export class PathMarkerLayer<
           Object.assign({}, this.props.markerLayerProps, {
             id: 'markers',
             data: this.state.markers,
-            getOrientation: (x) => [0, -x.angle, 0],
-            getColor: (x) => x.color,
+            getOrientation: x => [0, -x.angle, 0],
+            getColor: x => x.color,
             sizeScale: this.props.sizeScale,
             fp64: this.props.fp64,
             pickable: false,

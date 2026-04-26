@@ -51,7 +51,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._nodeMap = new Map();
     this._edgeMap = new Map();
     // nodes
-    const d3Nodes = Array.from(graph.getNodes(), (node) => {
+    const d3Nodes = Array.from(graph.getNodes(), node => {
       const id = node.getId();
       const locked = node.getPropertyValue('locked') || false;
       const x = node.getPropertyValue('x') || 0;
@@ -70,7 +70,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
       return d3Node;
     });
     // edges
-    const d3Edges = Array.from(graph.getEdges(), (edge) => {
+    const d3Edges = Array.from(graph.getEdges(), edge => {
       const id = edge.getId();
       const d3Edge = {
         id,
@@ -114,7 +114,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
         getCollisionRadius
       }
     });
-    this._worker.onmessage = (event) => {
+    this._worker.onmessage = event => {
       switch (event.data.type) {
         case 'tick':
           this.ticked(event.data);
@@ -159,7 +159,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     // update internal layout data
     // nodes
     const newNodeMap = new Map<string | number, any>();
-    const newD3Nodes = Array.from(graph.getNodes(), (node) => {
+    const newD3Nodes = Array.from(graph.getNodes(), node => {
       const id = node.getId();
       const locked = node.getPropertyValue('locked') || false;
       const x = node.getPropertyValue('x') || 0;
@@ -177,7 +177,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._d3Graph.nodes = newD3Nodes;
     // edges
     const newEdgeMap = new Map<string | number, any>();
-    const newD3Edges = Array.from(graph.getEdges(), (edge) => {
+    const newD3Edges = Array.from(graph.getEdges(), edge => {
       const id = edge.getId();
       const oldD3Edge = this._edgeMap.get(id);
       const newD3Edge = oldD3Edge || {
@@ -197,9 +197,9 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     // update internal layout data
     // nodes
     const newNodeMap = new Map<string | number, any>();
-    const newD3Nodes = graph.nodes.map((node) => {
+    const newD3Nodes = graph.nodes.map(node => {
       // Update existing _graph with the new values
-      const existingNode = existingNodes.find((n) => n.getId() === node.id);
+      const existingNode = existingNodes.find(n => n.getId() === node.id);
       existingNode?.setDataProperty('locked', node.locked);
       existingNode?.setDataProperty('x', node.x);
       existingNode?.setDataProperty('y', node.y);
@@ -212,7 +212,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._d3Graph.nodes = newD3Nodes;
     // edges
     const newEdgeMap = new Map<string | number, any>();
-    const newD3Edges = graph.edges.map((edge) => {
+    const newD3Edges = graph.edges.map(edge => {
       newEdgeMap.set(edge.id, edge);
       return edge;
     });
@@ -272,7 +272,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   };
 
   protected override _updateBounds(): void {
-    const positions = Array.from(this._nodeMap.values(), (node) => this._normalizePosition(node));
+    const positions = Array.from(this._nodeMap.values(), node => this._normalizePosition(node));
     this._bounds = this._calculateBounds(positions);
   }
 }

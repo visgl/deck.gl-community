@@ -174,7 +174,7 @@ export class ViewControl extends Component<ViewControlProps> {
   // zoom actions
   zoomIn = () => this.props.zoomBy(this.props.deltaZoom);
   zoomOut = () => this.props.zoomBy(-1 * this.props.deltaZoom);
-  onChangeZoomLevel = (evt) => {
+  onChangeZoomLevel = evt => {
     const delta = evt.target.value - this.props.zoomLevel;
     this.props.zoomBy(delta);
   };

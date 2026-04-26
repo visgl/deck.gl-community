@@ -78,18 +78,18 @@ describe('ArrowGraph', () => {
     expect(classicGraph).toBeInstanceOf(ClassicGraph);
 
     const classicNodes = Array.from(classicGraph.getNodes());
-    const nodeA = classicNodes.find((node) => node.getId() === 'a');
+    const nodeA = classicNodes.find(node => node.getId() === 'a');
     expect(nodeA?.getState()).toBe('hover');
     expect(nodeA?.isSelectable()).toBe(true);
     expect(nodeA?.shouldHighlightConnectedEdges()).toBe(true);
     expect(nodeA?.getPropertyValue('label')).toBe('Node A');
 
-    const nodeB = classicNodes.find((node) => node.getId() === 2);
+    const nodeB = classicNodes.find(node => node.getId() === 2);
     expect(nodeB?.getState()).toBe('default');
     expect(nodeB?.isSelectable()).toBe(false);
 
     const classicEdges = Array.from(classicGraph.getEdges());
-    const edge = classicEdges.find((candidate) => candidate.getId() === 'e-1');
+    const edge = classicEdges.find(candidate => candidate.getId() === 'e-1');
     expect(edge?.isDirected()).toBe(true);
     expect(edge?.getState()).toBe('selected');
     expect(edge?.getPropertyValue('label')).toBe('Edge');
@@ -131,7 +131,7 @@ function createArrowTable(columns: Record<string, unknown[]>): any {
       return vectors[name] ?? null;
     },
     schema: {
-      fields: Object.keys(columns).map((name) => ({name}))
+      fields: Object.keys(columns).map(name => ({name}))
     }
   };
 }
