@@ -3287,7 +3287,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/core@npm:^4.4.1":
+"@loaders.gl/core@npm:4.4.1":
   version: 4.4.1
   resolution: "@loaders.gl/core@npm:4.4.1"
   dependencies:
@@ -3313,7 +3313,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/csv@npm:^4.4.1":
+"@loaders.gl/csv@npm:4.4.1":
   version: 4.4.1
   resolution: "@loaders.gl/csv@npm:4.4.1"
   dependencies:
@@ -3370,7 +3370,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/i3s@npm:^4.4.1":
+"@loaders.gl/i3s@npm:4.4.1":
   version: 4.4.1
   resolution: "@loaders.gl/i3s@npm:4.4.1"
   dependencies:
@@ -3393,7 +3393,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/images@npm:4.4.1, @loaders.gl/images@npm:^4.4.1":
+"@loaders.gl/images@npm:4.4.1":
   version: 4.4.1
   resolution: "@loaders.gl/images@npm:4.4.1"
   dependencies:
@@ -3404,7 +3404,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/json@npm:^4.4.1":
+"@loaders.gl/json@npm:4.4.1":
   version: 4.4.1
   resolution: "@loaders.gl/json@npm:4.4.1"
   dependencies:
@@ -3418,7 +3418,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/las@npm:^4.4.1":
+"@loaders.gl/las@npm:4.4.1":
   version: 4.4.1
   resolution: "@loaders.gl/las@npm:4.4.1"
   dependencies:
@@ -3455,7 +3455,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/obj@npm:^4.4.1":
+"@loaders.gl/obj@npm:4.4.1":
   version: 4.4.1
   resolution: "@loaders.gl/obj@npm:4.4.1"
   dependencies:
@@ -3468,7 +3468,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@loaders.gl/ply@npm:^4.4.1":
+"@loaders.gl/ply@npm:4.4.1":
   version: 4.4.1
   resolution: "@loaders.gl/ply@npm:4.4.1"
   dependencies:
