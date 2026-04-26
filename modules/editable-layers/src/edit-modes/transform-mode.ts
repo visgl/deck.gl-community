@@ -21,7 +21,7 @@ export class TransformMode extends CompositeMode {
     let updatedCursor: string | null = null;
     super.handlePointerMove(event, {
       ...props,
-      onUpdateCursor: (cursor) => {
+      onUpdateCursor: cursor => {
         updatedCursor = cursor || updatedCursor;
       }
     });
@@ -41,7 +41,7 @@ export class TransformMode extends CompositeMode {
     // it is possible for both scale and translate actions to be triggered. This logic prevents
     // this simultaneous action trigger from happening by putting a higher priority on scaling
     // since the user needs to be more precise to hover over a scaling edit handle.
-    this._modes.forEach((mode) => {
+    this._modes.forEach(mode => {
       if (mode instanceof TranslateMode) {
         translateMode = mode;
       } else {
@@ -56,15 +56,15 @@ export class TransformMode extends CompositeMode {
       filteredModes.push(translateMode);
     }
 
-    filteredModes.filter(Boolean).forEach((mode) => mode.handleStartDragging(event, props));
+    filteredModes.filter(Boolean).forEach(mode => mode.handleStartDragging(event, props));
   }
 
   getGuides(props: ModeProps<FeatureCollection>) {
     let compositeGuides = super.getGuides(props);
-    const rotateMode = (this._modes || []).find((mode) => mode instanceof RotateMode);
+    const rotateMode = (this._modes || []).find(mode => mode instanceof RotateMode);
 
     if (rotateMode instanceof RotateMode) {
-      const nonEnvelopeGuides = compositeGuides.features.filter((guide) => {
+      const nonEnvelopeGuides = compositeGuides.features.filter(guide => {
         const {editHandleType, mode} = (guide.properties as any) || {};
         // Both scale and rotate modes have the same enveloping box as a guide - only need one
         const guidesToFilterOut = [mode];

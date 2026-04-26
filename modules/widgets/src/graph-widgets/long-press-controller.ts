@@ -41,9 +41,9 @@ export class LongPressController {
     element.addEventListener('touchend', this.handleTouchEnd, {passive: false});
     element.addEventListener('touchcancel', this.handleTouchEnd, {passive: false});
     element.addEventListener('touchmove', this.handleTouchMove, {passive: false});
-    element.addEventListener('contextmenu', (event) => event.preventDefault());
-    element.addEventListener('wheel', (event) => this.stopEvent(event));
-    element.addEventListener('click', (event) => this.stopEvent(event));
+    element.addEventListener('contextmenu', event => event.preventDefault());
+    element.addEventListener('wheel', event => this.stopEvent(event));
+    element.addEventListener('click', event => this.stopEvent(event));
   }
 
   destroy(): void {

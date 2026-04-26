@@ -214,8 +214,8 @@ describe('nearestPointOnProjectedLine() and related functions', () => {
     };
     const viewport: Viewport = {
       // @ts-expect-error TODO
-      project: (x) => x,
-      unproject: (x) => x
+      project: x => x,
+      unproject: x => x
     };
     const result = nearestPointOnProjectedLine(line, inPoint, viewport);
     expect(result.geometry.type).toEqual('Point');

@@ -299,7 +299,7 @@ export function createFeatureCollection(options?: {[K: string]: any}) {
 
 export function getMockFeatureDetails(featureType: string) {
   const featureCollectionIndex = getFeatureCollectionFeatures().findIndex(
-    (feature) => feature.geometry.type === featureType
+    feature => feature.geometry.type === featureType
   );
   const featureDetails = mockFeatures[featureType];
   featureDetails.index = featureCollectionIndex;

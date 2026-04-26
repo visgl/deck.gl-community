@@ -56,7 +56,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
       selectedFeatureIndexes.length === 1 &&
       !this._isResizing
     ) {
-      const featureAsPick = picks.find((pick) => !pick.isGuide);
+      const featureAsPick = picks.find(pick => !pick.isGuide);
 
       // is the feature in the pick selected
       if (
@@ -124,7 +124,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
     viewport: Viewport | null | undefined
   ): NearestPointType {
     const {coordinates} = line.geometry;
-    if (coordinates.some((coord) => coord.length > 2)) {
+    if (coordinates.some(coord => coord.length > 2)) {
       if (viewport) {
         // This line has elevation, we need to use alternative algorithm
         return nearestPointOnProjectedLine(line, inPoint, viewport);

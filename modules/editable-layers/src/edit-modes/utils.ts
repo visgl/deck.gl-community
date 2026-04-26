@@ -362,11 +362,11 @@ export function getPickedSnapSourceEditHandle(
   picks: Pick[] | null | undefined
 ): EditHandleFeature | null | undefined {
   const handles = getPickedEditHandles(picks);
-  return handles.find((handle) => handle.properties.editHandleType === 'snap-source');
+  return handles.find(handle => handle.properties.editHandleType === 'snap-source');
 }
 
 export function getNonGuidePicks(picks: Pick[]): Pick[] {
-  return picks && picks.filter((pick) => !pick.isGuide);
+  return picks && picks.filter(pick => !pick.isGuide);
 }
 
 export function getPickedExistingEditHandle(
@@ -391,8 +391,8 @@ export function getPickedEditHandles(picks: Pick[] | null | undefined): EditHand
   const handles =
     (picks &&
       picks
-        .filter((pick) => pick.isGuide && pick.object.properties.guideType === 'editHandle')
-        .map((pick) => pick.object)) ||
+        .filter(pick => pick.isGuide && pick.object.properties.guideType === 'editHandle')
+        .map(pick => pick.object)) ||
     [];
 
   return handles;
@@ -535,19 +535,19 @@ export function mapCoords(
   callback: (coords: Position) => Position
 ): SimpleGeometryCoordinates {
   if (typeof coords[0] === 'number') {
-    if (!isNaN(coords[0]) && isFinite(coords[0])) {
+    if (!Number.isNaN(coords[0]) && isFinite(coords[0])) {
       return callback(coords as Position);
     }
     return coords;
   }
 
   return (coords as Position[])
-    .map((coord) => {
+    .map(coord => {
       return mapCoords(coord, callback) as Position;
     })
     .filter(Boolean);
 }
 
 export function shouldCancelPan(event: StartDraggingEvent) {
-  return event.picks.length && event.picks.find((p) => p.featureType === 'points');
+  return event.picks.length && event.picks.find(p => p.featureType === 'points');
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+// biome-ignore lint/correctness/noUnusedImports: React is required by the classic JSX transform.
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 
@@ -35,7 +36,7 @@ export class LongPressButton extends PureComponent {
   render() {
     return (
       <div
-        onMouseDown={(event) => {
+        onMouseDown={_event => {
           this._handleButtonPress();
           document.addEventListener('mouseup', this._handleButtonRelease, {once: true});
         }}

@@ -162,15 +162,15 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
       element?.setAttribute('orient', 'vertical');
     };
 
-    const stopPointerPropagation: JSX.PointerEventHandler<HTMLElement> = (event) => {
+    const stopPointerPropagation: JSX.PointerEventHandler<HTMLElement> = event => {
       stopEventPropagation(event as unknown as Event);
     };
 
-    const stopWheelPropagation: JSX.WheelEventHandler<HTMLElement> = (event) => {
+    const stopWheelPropagation: JSX.WheelEventHandler<HTMLElement> = event => {
       stopEventPropagation(event as unknown as Event);
     };
 
-    const stopMousePropagation: JSX.MouseEventHandler<HTMLElement> = (event) => {
+    const stopMousePropagation: JSX.MouseEventHandler<HTMLElement> = event => {
       stopEventPropagation(event as unknown as Event);
     };
 
@@ -319,7 +319,7 @@ export class YZoomWidget extends Widget<YZoomWidgetProps> {
     if (viewManager) {
       try {
         return {...viewManager.getViewState(viewId)} as OrthographicViewState;
-      } catch (err) {
+      } catch (_err) {
         return cloneViewState(viewManager.viewState) as OrthographicViewState;
       }
     }

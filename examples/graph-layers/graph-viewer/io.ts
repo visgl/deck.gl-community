@@ -21,7 +21,7 @@ const PREFIX = 'https://d1a3f4spazzrp4.cloudfront.net/mlvis/graphgl';
  */
 export const fetchJSONFromS3 = async (paths: string[]) =>
   await Promise.all(
-    paths.map(async (path) => {
+    paths.map(async path => {
       const response = await fetch(`${PREFIX}/${path}`);
       return await response.json();
     })

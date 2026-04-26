@@ -85,7 +85,7 @@ export class ModeHandler {
   getSelectedFeaturesAsFeatureCollection(): SimpleFeatureCollection {
     const {features} = this.featureCollection.getObject();
     const selectedFeatures = this.getSelectedFeatureIndexes().map(
-      (selectedIndex) => features[selectedIndex]
+      selectedIndex => features[selectedIndex]
     );
     return {
       type: 'FeatureCollection',
@@ -161,7 +161,7 @@ export class ModeHandler {
     if (!picks.length) return false;
     const pickedIndexes = picks.map(({index}) => index);
     const selectedFeatureIndexes = this.getSelectedFeatureIndexes();
-    return selectedFeatureIndexes.some((index) => pickedIndexes.includes(index));
+    return selectedFeatureIndexes.some(index => pickedIndexes.includes(index));
   }
 
   getAddFeatureAction(geometry: SimpleGeometry): EditAction {
@@ -304,7 +304,7 @@ export class ModeHandler {
 export function getPickedEditHandle(
   picks: any[] | null | undefined
 ): EditHandle | null | undefined {
-  const info = picks && picks.find((pick) => pick.isEditingHandle);
+  const info = picks && picks.find(pick => pick.isEditingHandle);
   if (info) {
     return info.object;
   }

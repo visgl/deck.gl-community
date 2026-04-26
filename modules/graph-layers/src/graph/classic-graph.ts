@@ -183,7 +183,7 @@ export class ClassicGraph extends Graph {
    * @param edges - a list of edges to be added.
    */
   batchAddEdges(edges: Edge[]): void {
-    edges.forEach((edge) => this.addEdge(edge));
+    edges.forEach(edge => this.addEdge(edge));
     this._bumpVersion();
   }
 
@@ -208,7 +208,7 @@ export class ClassicGraph extends Graph {
       return;
     }
     // remove all edges connect to this node from map
-    node.getConnectedEdges().forEach((e) => {
+    node.getConnectedEdges().forEach(e => {
       delete this._edgeMap[e.getId()];
     });
     // remove the node from map
@@ -293,7 +293,7 @@ export class ClassicGraph extends Graph {
       warn(`Unable to find node ${nodeId} - doesn't exist`);
       return [];
     }
-    return node.getSiblingIds().map((siblingNodeId) => this.findNode(siblingNodeId));
+    return node.getSiblingIds().map(siblingNodeId => this.findNode(siblingNodeId));
   }
 
   /**
@@ -385,7 +385,7 @@ function createNodesFromPlainGraphData(nodes?: GraphNodeData[] | null): Node[] {
   if (!nodes) {
     return [];
   }
-  return nodes.map((nodeData) => {
+  return nodes.map(nodeData => {
     const nodeAttributes = createNodeAttributesFromPlainData(nodeData);
     const selectable =
       typeof nodeData.selectable === 'boolean'
@@ -411,7 +411,7 @@ function createEdgesFromPlainGraphData(edges?: GraphEdgeData[] | null): Edge[] {
   if (!edges) {
     return [];
   }
-  return edges.map((edgeData) => {
+  return edges.map(edgeData => {
     const edgeAttributes = createEdgeAttributesFromPlainData(edgeData);
     const directed =
       typeof edgeData.directed === 'boolean' ? edgeData.directed : Boolean(edgeAttributes.directed);

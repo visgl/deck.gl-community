@@ -113,10 +113,10 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
     const lineLayer = new LineLayer({
       id: `${this.props.id}-lines`,
       data: lines,
-      getSourcePosition: (d) => d.sourcePosition,
-      getTargetPosition: (d) => d.targetPosition,
-      getColor: getColor ? (d) => getColor(d.datum) ?? color : () => color,
-      getWidth: getWidth ? (d) => getWidth(d.datum) ?? width : () => width,
+      getSourcePosition: d => d.sourcePosition,
+      getTargetPosition: d => d.targetPosition,
+      getColor: getColor ? d => getColor(d.datum) ?? color : () => color,
+      getWidth: getWidth ? d => getWidth(d.datum) ?? width : () => width,
       widthUnits: 'pixels',
       parameters: {
         depthTest: false
@@ -137,9 +137,9 @@ export class GridLayer<DatumT extends GridLineDatum = GridLineDatum> extends Com
       id: `${this.props.id}-labels`,
       data: textData,
       characterSet: 'auto',
-      getPosition: (d) => d.position,
-      getText: (d) => d.text,
-      getColor: getColor ? (d) => getColor(d.datum) ?? color : () => color,
+      getPosition: d => d.position,
+      getText: d => d.text,
+      getColor: getColor ? d => getColor(d.datum) ?? color : () => color,
       getSize: 12,
       sizeUnits: 'pixels',
       getPixelOffset: labelOffset,

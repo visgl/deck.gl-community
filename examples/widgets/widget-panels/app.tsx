@@ -680,8 +680,8 @@ function buildLayers(state: WidgetPanelsExampleState) {
   const circleLayer = new ScatterplotLayer<PointDatum>({
     id: 'widget-panel-points',
     data: filteredPoints,
-    getPosition: (point) => point.position,
-    getFillColor: (point) => (point.cluster === 'north' ? palette.pointFill : palette.pointFillAlt),
+    getPosition: point => point.position,
+    getFillColor: point => (point.cluster === 'north' ? palette.pointFill : palette.pointFillAlt),
     getLineColor: palette.pointStroke,
     opacity: state.settings.render.opacity,
     lineWidthMinPixels: 2,
@@ -689,7 +689,7 @@ function buildLayers(state: WidgetPanelsExampleState) {
     radiusUnits: 'pixels',
     radiusMinPixels: 6,
     radiusMaxPixels: 56,
-    getRadius: (point) => point.weight * 20 * state.settings.render.radiusScale,
+    getRadius: point => point.weight * 20 * state.settings.render.radiusScale,
     updateTriggers: {
       getFillColor: [palette.pointFill, palette.pointFillAlt],
       getLineColor: [palette.pointStroke],
@@ -705,13 +705,13 @@ function buildLayers(state: WidgetPanelsExampleState) {
   const labelLayer = new TextLayer<PointDatum>({
     id: 'widget-panel-labels',
     data: filteredPoints,
-    getPosition: (point) => point.position,
-    getText: (point) => point.label,
+    getPosition: point => point.position,
+    getText: point => point.label,
     getColor: palette.label,
     getSize: 14,
     getTextAnchor: 'middle',
     getAlignmentBaseline: 'bottom',
-    getPixelOffset: (point) => [0, -(point.weight * 20 * state.settings.render.radiusScale + 8)],
+    getPixelOffset: point => [0, -(point.weight * 20 * state.settings.render.radiusScale + 8)],
     updateTriggers: {
       getColor: [palette.label],
       getPixelOffset: [state.settings.render.radiusScale]
@@ -870,7 +870,7 @@ function getFilteredPoints(state: WidgetPanelsExampleState) {
     return POINTS;
   }
 
-  return POINTS.filter((point) => point.cluster === state.settings.focus.cluster);
+  return POINTS.filter(point => point.cluster === state.settings.focus.cluster);
 }
 
 function getDeckStyle(state: WidgetPanelsExampleState) {
@@ -1295,7 +1295,7 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }
 
 function createButton(

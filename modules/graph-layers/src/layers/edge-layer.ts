@@ -20,7 +20,7 @@ export class EdgeLayer extends CompositeLayer {
   static defaultProps = {
     data: [],
     pickable: true,
-    getLayoutInfo: (d) => ({
+    getLayoutInfo: d => ({
       type: d.type,
       sourcePosition: d.sourcePosition,
       targetPosition: d.targetPosition,

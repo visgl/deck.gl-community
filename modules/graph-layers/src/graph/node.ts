@@ -170,7 +170,7 @@ export class Node implements NodeInterface {
    */
   addConnectedEdges(edge: EdgeInterface | EdgeInterface[]): void {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];
-    iterableEdges.forEach((e) => {
+    iterableEdges.forEach(e => {
       this._connectedEdges[e.getId()] = e;
       e.addNode(this);
     });
@@ -182,7 +182,7 @@ export class Node implements NodeInterface {
    */
   removeConnectedEdges(edge: EdgeInterface | EdgeInterface[]): void {
     const iterableEdges = Array.isArray(edge) ? edge : [edge];
-    iterableEdges.forEach((e) => {
+    iterableEdges.forEach(e => {
       e.removeNode(this);
       delete this._connectedEdges[e.getId()];
     });
@@ -192,7 +192,7 @@ export class Node implements NodeInterface {
    * Clear this._connectedEdges
    */
   clearConnectedEdges(): void {
-    Object.values(this._connectedEdges).forEach((e) => e.removeNode(this));
+    Object.values(this._connectedEdges).forEach(e => e.removeNode(this));
     this._connectedEdges = {};
   }
 

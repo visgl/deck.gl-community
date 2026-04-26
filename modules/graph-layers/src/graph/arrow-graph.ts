@@ -133,6 +133,24 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
     this.edges.length = 0;
   }
 
+  private getNodeOverride(index: number): NodeOverride {
+    let override = this.nodeOverrides[index];
+    if (!override) {
+      override = {};
+      this.nodeOverrides[index] = override;
+    }
+    return override;
+  }
+
+  private getEdgeOverride(index: number): EdgeOverride {
+    let override = this.edgeOverrides[index];
+    if (!override) {
+      override = {};
+      this.edgeOverrides[index] = override;
+    }
+    return override;
+  }
+
   getNodeIdByIndex(index: number): string | number {
     const value = getVectorValue(this.nodeVectors.id, index);
     if (typeof value === 'undefined') {
@@ -151,7 +169,7 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
   }
 
   setNodeStateByIndex(index: number, state: NodeState): void {
-    const override = (this.nodeOverrides[index] ??= {});
+    const override = this.getNodeOverride(index);
     override.state = state;
   }
 
@@ -215,12 +233,12 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
 
   getNodeConnectedEdgesByIndex(index: number): EdgeInterface[] {
     return (this.nodeEdgeIndices[index] ?? [])
-      .map((edgeIndex) => this.edges[edgeIndex])
+      .map(edgeIndex => this.edges[edgeIndex])
       .filter((edge): edge is ArrowGraphEdge => Boolean(edge));
   }
 
   setNodeDataByIndex(index: number, data: Record<string, unknown>): void {
-    const override = (this.nodeOverrides[index] ??= {});
+    const override = this.getNodeOverride(index);
     override.data = {...data};
     this.nodeDataCache[index] = {...data};
   }
@@ -228,7 +246,7 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
   setNodeDataPropertyByIndex(index: number, key: string, value: unknown): void {
     const data = this.getNodeDataInternal(index);
     data[key] = value;
-    const override = (this.nodeOverrides[index] ??= {});
+    const override = this.getNodeOverride(index);
     override.data = {...data};
     this.nodeDataCache[index] = {...data};
   }
@@ -268,7 +286,7 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
       return;
     }
     const edges = this.nodeEdgeIndices[nodeIndex];
-    const next = edges.filter((candidate) => candidate !== edgeIndex);
+    const next = edges.filter(candidate => candidate !== edgeIndex);
     this.nodeEdgeIndices[nodeIndex] = next;
   }
 
@@ -290,7 +308,7 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
   }
 
   setEdgeStateByIndex(index: number, state: EdgeState): void {
-    const override = (this.edgeOverrides[index] ??= {});
+    const override = this.getEdgeOverride(index);
     override.state = state;
   }
 
@@ -325,7 +343,7 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
   }
 
   setEdgeDataByIndex(index: number, data: Record<string, unknown>): void {
-    const override = (this.edgeOverrides[index] ??= {});
+    const override = this.getEdgeOverride(index);
     override.data = {...data};
     this.edgeDataCache[index] = {...data};
   }
@@ -333,7 +351,7 @@ export class ArrowGraph extends Graph<ArrowGraphProps> {
   setEdgeDataPropertyByIndex(index: number, key: string, value: unknown): void {
     const data = this.getEdgeDataInternal(index);
     data[key] = value;
-    const override = (this.edgeOverrides[index] ??= {});
+    const override = this.getEdgeOverride(index);
     override.data = {...data};
     this.edgeDataCache[index] = {...data};
   }

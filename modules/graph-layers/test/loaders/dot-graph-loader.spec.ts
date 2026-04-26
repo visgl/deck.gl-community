@@ -31,7 +31,7 @@ describe('loadDOTGraph', () => {
     expect(nodeZero?.getPropertyValue('label')).toBe('Mr. Hi');
     expect(nodeZero?.getPropertyValue('shape')).toBe('circle');
 
-    const edge = Array.from(graph.getEdges()).find((candidate) => {
+    const edge = Array.from(graph.getEdges()).find(candidate => {
       const source = candidate.getSourceNodeId();
       const target = candidate.getTargetNodeId();
       return (source === 0 && target === 1) || (source === 1 && target === 0);
@@ -49,9 +49,9 @@ describe('loadDOTGraph', () => {
 
     expect(metadata.directed).toBe(true);
     expect(metadata.attributes).toMatchObject({label: 'Cluster Example'});
-    expect(metadata.subgraphs.map((entry) => entry.id).sort()).toEqual(['cluster_0', 'cluster_1']);
+    expect(metadata.subgraphs.map(entry => entry.id).sort()).toEqual(['cluster_0', 'cluster_1']);
 
-    const cluster0 = metadata.subgraphs.find((entry) => entry.id === 'cluster_0');
+    const cluster0 = metadata.subgraphs.find(entry => entry.id === 'cluster_0');
     expect(cluster0?.attributes).toMatchObject({
       style: 'filled',
       color: 'lightgrey',
@@ -67,7 +67,7 @@ describe('loadDOTGraph', () => {
     expect(membership?.[0]?.id).toBe('cluster_0');
 
     const endEdge = Array.from(graph.getEdges()).find(
-      (candidate) => candidate.getSourceNodeId() === 'a3' && candidate.getTargetNodeId() === 'end'
+      candidate => candidate.getSourceNodeId() === 'a3' && candidate.getTargetNodeId() === 'end'
     );
     expect(endEdge?.isDirected()).toBe(false);
     expect(endEdge?.getPropertyValue('dir')).toBe('none');
@@ -114,7 +114,7 @@ describe('DOTGraphLoader', () => {
     const buffer = new TextEncoder().encode(clusterDot).buffer;
     const data = await DOTGraphLoader.parse(buffer, {dot: {version: 1}});
 
-    expect((data.metadata?.subgraphs ?? []).map((entry) => entry.id).sort()).toEqual([
+    expect((data.metadata?.subgraphs ?? []).map(entry => entry.id).sort()).toEqual([
       'cluster_0',
       'cluster_1'
     ]);

@@ -26,9 +26,9 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 
 ## Code style
 
-Formatting is enforced by Prettier and ESLint via `ocular-lint`.
+Formatting and linting are enforced by Biome via `yarn lint` / `yarn lint-fix`.
 
-**Prettier rules** (`.prettierrc`):
+**Biome formatter rules** (`biome.jsonc`):
 - Print width: 100
 - Semicolons: yes
 - Single quotes: yes

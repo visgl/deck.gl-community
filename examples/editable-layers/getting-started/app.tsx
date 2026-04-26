@@ -10,9 +10,7 @@ import {
   type SettingsSchema,
   type SettingsState
 } from '@deck.gl-community/panels';
-import {
-  BoxPanelWidget
-} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {ViewMode, DrawPolygonMode, EditableGeoJsonLayer} from '@deck.gl-community/editable-layers';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
@@ -201,10 +199,7 @@ function buildLayers(
       data: state.geoJson,
       mode,
       selectedFeatureIndexes: state.selectedFeatureIndexes,
-      onClick:
-        state.settings.editing.mode === 'view'
-          ? onFeatureClick
-          : undefined,
+      onClick: state.settings.editing.mode === 'view' ? onFeatureClick : undefined,
       onEdit: ({updatedData}) => {
         onEdit(updatedData as FeatureCollection);
       }
@@ -265,7 +260,7 @@ function cloneSettings(settings: GettingStartedSettings): GettingStartedSettings
 function cloneFeatureCollection(collection: FeatureCollection): FeatureCollection {
   return {
     ...collection,
-    features: collection.features.map((feature) => ({
+    features: collection.features.map(feature => ({
       ...feature,
       properties: feature.properties ? {...feature.properties} : feature.properties,
       geometry: JSON.parse(JSON.stringify(feature.geometry))
@@ -280,5 +275,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

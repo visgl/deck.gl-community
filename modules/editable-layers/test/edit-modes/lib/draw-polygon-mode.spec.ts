@@ -262,7 +262,7 @@ describe('allowSelfIntersection configuration', () => {
         ]
       }
     ];
-    problematicCases.forEach((testCase) => {
+    problematicCases.forEach(testCase => {
       // eslint-disable-next-line max-nested-callbacks
       it(`allows creating valid non-intersecting polygons -  ${testCase.id}`, () => {
         mode.handleClick(createClickEvent(testCase.points[0]), props);

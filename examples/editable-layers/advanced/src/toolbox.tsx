@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import * as React from 'react';
 import styled from 'styled-components';
 
 const styles = {
@@ -25,8 +24,8 @@ export const Toolbox = styled.div`
   z-index: 30;
 `;
 
-export const ToolboxRow = (props) => <div>{props.children}</div>;
-export const ToolboxControl = (props) => <div style={styles.toolboxItem}>{props.children}</div>;
+export const ToolboxRow = props => <div>{props.children}</div>;
+export const ToolboxControl = props => <div style={styles.toolboxItem}>{props.children}</div>;
 
 export const ToolboxTitle = styled.div`
   background: rgba(39, 45, 59, 0.8);
@@ -76,7 +75,7 @@ const ToolboxCheckboxContainer = styled.div`
   }
 `;
 
-export const ToolboxCheckbox = (props) => (
+export const ToolboxCheckbox = props => (
   <label>
     <ToolboxCheckboxContainer>
       <input {...{...props, children: null}} />

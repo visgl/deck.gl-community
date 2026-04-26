@@ -32,7 +32,7 @@ const traverseTree = (nodeId, nodeMap) => {
   }
   return {
     ...node,
-    children: (node.children ?? []).map((nid) => traverseTree(nid, nodeMap))
+    children: (node.children ?? []).map(nid => traverseTree(nid, nodeMap))
   };
 };
 
@@ -61,7 +61,7 @@ const getPath = (node, targetId, path) => {
     path.push(node.id);
     return true;
   }
-  const inChildren = node.children && node.children.some((c) => getPath(c, targetId, path));
+  const inChildren = node.children && node.children.some(c => getPath(c, targetId, path));
   if (inChildren) {
     path.push(node.id);
     return true;
@@ -148,7 +148,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
             );
         // calculate children position
         let tempAngle = startAngle;
-        node.children.forEach((n) => {
+        node.children.forEach(n => {
           calculatePosition(n, level + 1, tempAngle, positionMap);
           tempAngle += getLeafNodeCount(n, 0) * unitAngle;
         });
@@ -226,7 +226,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   };
 
   protected override _updateBounds(): void {
-    const positions = Object.values(this._hierarchicalPoints ?? {}).map((position) =>
+    const positions = Object.values(this._hierarchicalPoints ?? {}).map(position =>
       this._normalizePosition(position)
     );
     this._bounds = this._calculateBounds(positions);

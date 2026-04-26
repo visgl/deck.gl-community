@@ -152,10 +152,8 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
             min={minZoom}
             max={maxZoom}
             step={this.step}
-            onInput={(event) => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
-            onChange={(event) =>
-              this.handleZoomTo(Number((event.target as HTMLInputElement).value))
-            }
+            onInput={event => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
+            onChange={event => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
             onPointerDown={stopEventPropagation}
             onPointerMove={stopEventPropagation}
             onPointerUp={stopEventPropagation}

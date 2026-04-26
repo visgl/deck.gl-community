@@ -50,7 +50,7 @@ export class SnappableHandler extends ModeHandler {
     const {picks} = event;
 
     const potentialSnapHandle = picks.find(
-      (pick) => pick.object && pick.object.type === 'intermediate'
+      pick => pick.object && pick.object.type === 'intermediate'
     );
     const handles = {potentialSnapHandle: potentialSnapHandle && potentialSnapHandle.object};
 

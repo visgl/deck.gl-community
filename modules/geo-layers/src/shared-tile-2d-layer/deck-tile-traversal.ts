@@ -173,7 +173,7 @@ export function getOSMTileIndices(
 ): TileIndex[] {
   const project: ((xyz: number[]) => number[]) | null =
     viewport instanceof _GlobeViewport && viewport.resolution
-      ? (xyz) => viewport.projectPosition(xyz)
+      ? xyz => viewport.projectPosition(xyz)
       : null;
 
   const planes: Plane[] = Object.values(viewport.getFrustumPlanes()).map(

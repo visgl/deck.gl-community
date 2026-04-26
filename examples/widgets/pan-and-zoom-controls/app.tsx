@@ -44,8 +44,8 @@ export function mountPanAndZoomControlsExample(container: HTMLElement): () => vo
       new ScatterplotLayer<PointDatum>({
         id: 'points',
         data: POINTS,
-        getPosition: (point) => point.position,
-        getFillColor: (point) => point.color,
+        getPosition: point => point.position,
+        getFillColor: point => point.color,
         radiusMinPixels: 4,
         radiusMaxPixels: 12,
         radiusUnits: 'pixels',
@@ -112,5 +112,5 @@ function buildPoints(): PointDatum[] {
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

@@ -24,7 +24,7 @@ export function mountGeoArrowTextExample(container: HTMLElement): () => void {
     dataUrl: GEOARROW_POLYGON_DATA,
     initialViewState: INITIAL_VIEW_STATE,
     onClick: handleClick,
-    getLayers: (table) => [
+    getLayers: table => [
       new _GeoArrowTextLayer({
         id: 'geoarrow-polygons',
         data: table,

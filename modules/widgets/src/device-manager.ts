@@ -265,7 +265,7 @@ export class DeviceManagerController {
       const cachedDevice = this.#cachedDevices[deviceOrType];
       if (cachedDevice !== undefined) {
         cachedDevice
-          .then((device) => {
+          .then(device => {
             this.#reparentDeviceCanvas(device, resolvedParent);
           })
           .catch(() => {});

@@ -186,12 +186,12 @@ function StringSettingControl({inputId, label, value, onApply}: StringSettingCon
     if (!value) {
       return;
     }
-    setRecentValues((previous) =>
+    setRecentValues(previous =>
       previous.includes(value) ? previous : [value, ...previous].slice(0, 8)
     );
   }, [value]);
 
-  const handlePendingTextChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
+  const handlePendingTextChange: JSX.GenericEventHandler<HTMLInputElement> = event => {
     setPendingValue(event.currentTarget.value);
   };
 
@@ -200,8 +200,8 @@ function StringSettingControl({inputId, label, value, onApply}: StringSettingCon
       return;
     }
     onApply(pendingValue);
-    setRecentValues((previous) =>
-      [pendingValue, ...previous.filter((entry) => entry !== pendingValue)].slice(0, 8)
+    setRecentValues(previous =>
+      [pendingValue, ...previous.filter(entry => entry !== pendingValue)].slice(0, 8)
     );
   };
 
@@ -229,7 +229,7 @@ function StringSettingControl({inputId, label, value, onApply}: StringSettingCon
       />
       {recentValues.length > 0 && (
         <datalist id={`${inputId}-recent-values`}>
-          {recentValues.map((recentValue) => (
+          {recentValues.map(recentValue => (
             <option key={`${inputId}-${recentValue}`} value={recentValue} />
           ))}
         </datalist>
@@ -260,7 +260,7 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
   const tooltip = setting.description?.trim();
   const inputId = `settings-panel-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
-  const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = (event) => {
+  const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = event => {
     onValueChange(event.currentTarget.checked);
   };
 
@@ -298,8 +298,8 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
           max={String(setting.max)}
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
-          onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
-          onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
+          onInput={event => handleNumberChange(Number(event.currentTarget.value))}
+          onChange={event => handleNumberChange(Number(event.currentTarget.value))}
           aria-label={label}
           style={RANGE_INPUT_STYLE}
         />
@@ -309,8 +309,8 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
           max={Number.isFinite(setting.max) ? String(setting.max) : undefined}
           step={String(setting.step ?? 1)}
           value={String(numericValue)}
-          onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
-          onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
+          onInput={event => handleNumberChange(Number(event.currentTarget.value))}
+          onChange={event => handleNumberChange(Number(event.currentTarget.value))}
           aria-label={`${label} numeric value`}
           style={NUMBER_INPUT_STYLE}
         />
@@ -321,8 +321,8 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
         type="number"
         step={String(setting.step ?? 1)}
         value={String(numericValue)}
-        onInput={(event) => handleNumberChange(Number(event.currentTarget.value))}
-        onChange={(event) => handleNumberChange(Number(event.currentTarget.value))}
+        onInput={event => handleNumberChange(Number(event.currentTarget.value))}
+        onChange={event => handleNumberChange(Number(event.currentTarget.value))}
         aria-label={label}
         style={INPUT_STYLE}
       />
@@ -390,12 +390,12 @@ function SettingsSectionBody({
 }: SettingsSectionBodyProps) {
   return (
     <div style={contentStyle}>
-      {section.settings.map((setting) => (
+      {section.settings.map(setting => (
         <SettingsControl
           key={setting.name}
           setting={setting}
           value={resolveSettingValue(setting, settings)}
-          onValueChange={(nextValue) => onValueChange(setting.name, nextValue)}
+          onValueChange={nextValue => onValueChange(setting.name, nextValue)}
         />
       ))}
     </div>
@@ -417,7 +417,7 @@ function SettingsSectionPanelContent({
   }, [settings]);
 
   const updateSetting = (path: string, nextValue: SettingValue) => {
-    setLocalSettings((previous) => {
+    setLocalSettings(previous => {
       const nextSettings = setValueAtPath(previous, path, nextValue);
       onSettingsChange?.(nextSettings);
       return nextSettings;
@@ -427,12 +427,12 @@ function SettingsSectionPanelContent({
   return (
     <div
       style={{overflowY: 'auto', paddingBottom: '8px'}}
-      onPointerMove={(event) => stopPropagation(event as unknown as Event)}
-      onMouseMove={(event) => stopPropagation(event as unknown as Event)}
-      onPointerDown={(event) => stopPropagation(event as unknown as Event)}
-      onMouseDown={(event) => stopPropagation(event as unknown as Event)}
-      onWheel={(event) => stopPropagation(event as unknown as Event)}
-      onClick={(event) => stopPropagation(event as unknown as Event)}
+      onPointerMove={event => stopPropagation(event as unknown as Event)}
+      onMouseMove={event => stopPropagation(event as unknown as Event)}
+      onPointerDown={event => stopPropagation(event as unknown as Event)}
+      onMouseDown={event => stopPropagation(event as unknown as Event)}
+      onWheel={event => stopPropagation(event as unknown as Event)}
+      onClick={event => stopPropagation(event as unknown as Event)}
     >
       <SettingsSectionBody
         contentStyle={SECTION_PANEL_CONTENT_STYLE}
@@ -465,7 +465,7 @@ export function SettingsPanelContent({
   }, [settings]);
 
   useEffect(() => {
-    setCollapsedState((previous) => mergeCollapsedState(previous, schema.sections));
+    setCollapsedState(previous => mergeCollapsedState(previous, schema.sections));
   }, [schema.sections]);
 
   const sectionEntries = useMemo(
@@ -482,7 +482,7 @@ export function SettingsPanelContent({
     !sectionEntries[0].section.description;
 
   const updateSetting = (path: string, nextValue: SettingValue) => {
-    setLocalSettings((previous) => {
+    setLocalSettings(previous => {
       const nextSettings = setValueAtPath(previous, path, nextValue);
       onSettingsChange?.(nextSettings);
       return nextSettings;
@@ -492,12 +492,12 @@ export function SettingsPanelContent({
   return (
     <div
       style={{overflowY: 'auto', paddingBottom: '8px'}}
-      onPointerMove={(event) => stopPropagation(event as unknown as Event)}
-      onMouseMove={(event) => stopPropagation(event as unknown as Event)}
-      onPointerDown={(event) => stopPropagation(event as unknown as Event)}
-      onMouseDown={(event) => stopPropagation(event as unknown as Event)}
-      onWheel={(event) => stopPropagation(event as unknown as Event)}
-      onClick={(event) => stopPropagation(event as unknown as Event)}
+      onPointerMove={event => stopPropagation(event as unknown as Event)}
+      onMouseMove={event => stopPropagation(event as unknown as Event)}
+      onPointerDown={event => stopPropagation(event as unknown as Event)}
+      onMouseDown={event => stopPropagation(event as unknown as Event)}
+      onWheel={event => stopPropagation(event as unknown as Event)}
+      onClick={event => stopPropagation(event as unknown as Event)}
     >
       {renderInlineSingleSection ? (
         <SettingsSectionBody
@@ -520,7 +520,7 @@ export function SettingsPanelContent({
                 type="button"
                 style={SECTION_TOGGLE_STYLE}
                 onClick={() =>
-                  setCollapsedState((previous) => ({
+                  setCollapsedState(previous => ({
                     ...previous,
                     [key]: !isCollapsed
                   }))

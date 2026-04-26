@@ -133,7 +133,7 @@ function ToastWidgetView({toasts, showBorder}: ToastWidgetViewProps) {
       aria-live="polite"
     >
       <ToastWidgetStyles />
-      {toasts.map((toast) => {
+      {toasts.map(toast => {
         const palette = TOAST_KIND_STYLES[toast.type];
         const iconColor = TOAST_KIND_ICON_COLOR[toast.type];
 
@@ -193,7 +193,7 @@ function ToastWidgetView({toasts, showBorder}: ToastWidgetViewProps) {
                 aria-label="Dismiss toast"
                 style={CLOSE_BUTTON_STYLE}
                 onClick={() => toastManager.dismiss(toast.id)}
-                onPointerDown={(event) => {
+                onPointerDown={event => {
                   event.stopPropagation();
                 }}
                 data-toast-close={toast.id}
@@ -241,7 +241,7 @@ export class ToastWidget extends PanelContainer<ToastWidgetProps> {
 
   onAdd() {
     this.#unsubscriber();
-    this.#unsubscriber = toastManager.subscribe((toasts) => {
+    this.#unsubscriber = toastManager.subscribe(toasts => {
       this.#toasts = toasts;
       if (this.#rootElement) {
         render(

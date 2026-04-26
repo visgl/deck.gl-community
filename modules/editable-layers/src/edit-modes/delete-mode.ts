@@ -4,7 +4,7 @@ import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ClickEvent, ModeProps} from './types';
 export class DeleteMode extends GeoJsonEditMode {
   handleClick(_event: ClickEvent, props: ModeProps<FeatureCollection>): void {
-    const selectedFeatureIndexes = props.lastPointerMoveEvent.picks.map((pick) => pick.index);
+    const selectedFeatureIndexes = props.lastPointerMoveEvent.picks.map(pick => pick.index);
     if (selectedFeatureIndexes.length > 0) {
       const indexToDelete = selectedFeatureIndexes[0];
 

@@ -192,7 +192,7 @@ export class DataDrivenTile3DLayer<
       this.setState({
         loadingCounter: this.state.loadingCounter + 1
       });
-      Promise.allSettled(promises).then((result) => {
+      Promise.allSettled(promises).then(result => {
         this.setState({
           loadingCounter: this.state.loadingCounter - 1
         });
@@ -230,7 +230,7 @@ export class DataDrivenTile3DLayer<
       this.setState({
         loadingCounter: this.state.loadingCounter + 1
       });
-      Promise.allSettled(promises).then((result) => {
+      Promise.allSettled(promises).then(result => {
         this.setState({
           loadingCounter: this.state.loadingCounter - 1
         });

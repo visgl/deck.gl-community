@@ -14,9 +14,9 @@ export class MarkerLayer extends CompositeLayer {
   static defaultProps = {
     id: 'MarkerLayer',
     data: [],
-    getMarker: (d) => d.marker,
-    getColor: (d) => [0, 0, 0],
-    getSize: (d) => 10
+    getMarker: d => d.marker,
+    getColor: _d => [0, 0, 0],
+    getSize: _d => 10
   };
 
   renderLayers() {

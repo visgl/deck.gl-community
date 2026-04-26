@@ -187,8 +187,8 @@ export class HorizonGraphLayer<ExtraProps extends {} = {}> extends Layer<
         bandsInv: 1.0 / bands,
         yAxisScaleInv: 1.0 / yAxisScale,
 
-        positiveColor: positiveColor.map((c) => c / 255),
-        negativeColor: negativeColor.map((c) => c / 255)
+        positiveColor: positiveColor.map(c => c / 255),
+        negativeColor: negativeColor.map(c => c / 255)
       }
     });
     model.draw(this.context.renderPass);

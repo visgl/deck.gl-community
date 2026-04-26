@@ -105,18 +105,18 @@ export class LongPressButton extends Component<LongPressButtonProps> {
           onPointerDown={this.handlePointerDown}
           onPointerUp={this.handlePointerUp}
           onPointerCancel={this.handlePointerCancel}
-          onPointerMove={(event) => this.stopEvent(event)}
+          onPointerMove={event => this.stopEvent(event)}
           onPointerLeave={this.handlePointerCancel}
           onPointerOut={this.handlePointerCancel}
           onMouseDown={this.handleMouseDown}
           onMouseUp={this.handleMouseUp}
-          onMouseMove={(event) => this.stopEvent(event)}
+          onMouseMove={event => this.stopEvent(event)}
           onTouchStart={this.handleTouchStart}
           onTouchEnd={this.handleTouchEnd}
-          onTouchMove={(event) => this.stopEvent(event)}
-          onContextMenu={(event) => event.preventDefault()}
-          onWheel={(event) => this.stopEvent(event)}
-          onClick={(event) => this.stopEvent(event)}
+          onTouchMove={event => this.stopEvent(event)}
+          onContextMenu={event => event.preventDefault()}
+          onWheel={event => this.stopEvent(event)}
+          onClick={event => this.stopEvent(event)}
         >
           {this.props.children}
         </div>

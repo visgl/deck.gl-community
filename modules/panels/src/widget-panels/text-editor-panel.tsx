@@ -109,13 +109,13 @@ function TextEditorPanelContent({
     let isDisposed = false;
 
     loadTextEditorMonacoRuntime()
-      .then((loadedRuntime) => {
+      .then(loadedRuntime => {
         if (isDisposed) {
           return;
         }
         setLoadState({status: 'ready', runtime: loadedRuntime});
       })
-      .catch((error) => {
+      .catch(error => {
         if (isDisposed) {
           return;
         }

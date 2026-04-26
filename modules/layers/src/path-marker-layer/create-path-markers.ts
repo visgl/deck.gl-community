@@ -32,8 +32,8 @@ const DEFAULT_DIRECTION = {forward: true, backward: false};
 export function createPathMarkers({
   data,
   getPath = (x, context) => x.path,
-  getDirection = (x) => x.direction,
-  getColor = (x) => DEFAULT_COLOR,
+  getDirection = x => x.direction,
+  getColor = _x => DEFAULT_COLOR,
   getMarkerPercentages = (x, info) => [0.5],
   projectFlat
 }): PathMarker[] {
@@ -44,7 +44,7 @@ export function createPathMarkers({
     const direction = getDirection(object) || DEFAULT_DIRECTION;
     const color = getColor(object);
 
-    const vPoints = path.map((p) => new Vector2(p));
+    const vPoints = path.map(p => new Vector2(p));
     const vPointsReverse = vPoints.slice(0).reverse();
 
     // calculate total length

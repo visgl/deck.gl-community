@@ -21,7 +21,7 @@ onmessage = function (event) {
     .force(
       'edge',
       // @ts-expect-error TODO
-      d3.forceLink(edges).id((n) => n.id)
+      d3.forceLink(edges).id(n => n.id)
     )
     .force(
       'charge',

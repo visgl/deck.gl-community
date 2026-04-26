@@ -15,7 +15,7 @@ export class EdgeLabelLayer extends CompositeLayer {
         this.getSubLayerProps({
           id: 'edge-label-layer',
           data,
-          getPosition: (e) => {
+          getPosition: e => {
             const {sourcePosition, targetPosition, controlPoints = []} = getLayoutInfo(e);
             // consider all the points on this edge
             const allPoints = [sourcePosition, targetPosition, ...controlPoints];
@@ -24,7 +24,7 @@ export class EdgeLabelLayer extends CompositeLayer {
             // find the centroid of those points
             return [sumX / allPoints.length, sumY / allPoints.length];
           },
-          getAngle: (e) => {
+          getAngle: e => {
             const {sourcePosition, targetPosition} = getLayoutInfo(e);
             // sort the nodes from left to right
             const [newSourcePosition, newTargetPosition] =

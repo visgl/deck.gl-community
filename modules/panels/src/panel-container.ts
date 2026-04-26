@@ -199,10 +199,10 @@ function areStylesEqual(
     return false;
   }
   return leftKeys.every(
-    (key) => left?.[key as keyof CSSStyleDeclaration] === right?.[key as keyof CSSStyleDeclaration]
+    key => left?.[key as keyof CSSStyleDeclaration] === right?.[key as keyof CSSStyleDeclaration]
   );
 }
 
 function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
 }

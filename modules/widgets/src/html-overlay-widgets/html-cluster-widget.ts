@@ -25,7 +25,7 @@ export abstract class HtmlClusterWidget<ObjType> extends HtmlOverlayWidget<HtmlC
     if (newObjects !== this.lastObjects) {
       this.superCluster = new Supercluster(this.getClusterOptions());
       this.superCluster.load(
-        newObjects.map((object) => point(this.getObjectCoordinates(object), {object}))
+        newObjects.map(object => point(this.getObjectCoordinates(object), {object}))
       );
       this.lastObjects = newObjects;
     }
@@ -50,7 +50,7 @@ export abstract class HtmlClusterWidget<ObjType> extends HtmlOverlayWidget<HtmlC
     return (
       this.superCluster
         ?.getLeaves(clusterId, Infinity)
-        .map((leaf) => leaf.properties.object as ObjType) ?? []
+        .map(leaf => leaf.properties.object as ObjType) ?? []
     );
   }
 

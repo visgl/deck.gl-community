@@ -353,7 +353,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     if (!deck?.isInitialized) {
       return info.viewport ?? null;
     }
-    return deck.getViewports().find((viewport) => viewport.id === projectionViewId) ?? null;
+    return deck.getViewports().find(viewport => viewport.id === projectionViewId) ?? null;
   }
 
   #finalizeRange(range: TimeMeasureRange) {
