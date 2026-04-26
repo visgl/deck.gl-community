@@ -37,14 +37,11 @@
     "src"
   ],
   "dependencies": {
-    "@types/styled-react-modal": "^1.2.5",
     "boxicons": "^2.1.4",
     "preact": "^10.17.0",
     "prop-types": "^15.8.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "styled-components": "^6.1.1",
-    "styled-react-modal": "^3.1.1"
+    "react-dom": "^18.3.1"
   },
   "peerDependencies": {
     "@deck.gl-community/panels": "~9.3.2",

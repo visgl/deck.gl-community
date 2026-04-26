@@ -8,8 +8,6 @@ module.exports = {
       {
         patterns: ['**/*.glsl.js', '**/*.glsl.ts']
       }
-    ],
-    // Ensure consistently hashed component classNames between environments (a must for SSR)
-    'styled-components'
+    ]
   ]
 };

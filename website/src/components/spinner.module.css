@@ -1,0 +1,37 @@
+.spinnerContainer {
+  height: 18px;
+  line-height: 18px;
+  font-size: 10px;
+}
+
+.spinnerContainer > div {
+  white-space: nowrap;
+  left: 0;
+  bottom: 0;
+  position: absolute;
+  height: 18px;
+  padding-left: 20px;
+  transition: width 0.5s;
+}
+
+.spinnerContainer :global(.spinner--fill) {
+  background: var(--ifm-color-primary);
+  color: var(--ifm-color-white);
+  overflow: hidden;
+}
+
+.spinnerContainer :global(.spinner--text) {
+  color: rgba(25, 32, 44, 0.4);
+}
+
+.spinnerContainer.done {
+  height: 0 !important;
+  line-height: 0;
+  font-size: 0;
+  transition: height 0.5s 1s;
+}
+
+.spinnerContainer.done > div {
+  height: 0 !important;
+  transition: height 0.5s 1s;
+}

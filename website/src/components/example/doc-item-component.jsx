@@ -1,18 +1,6 @@
 import React from 'react';
-import styled from 'styled-components';
 import useBaseUrl from '@docusaurus/useBaseUrl';
-
-const DemoContainer = styled.div`
-  position: relative;
-  overflow: hidden !important;
-  width: 100%;
-  height: calc(100vh - var(--ifm-navbar-height) - 24px);
-  min-height: calc(100vh - var(--ifm-navbar-height) - 24px);
-
-  > h1 {
-    display: none;
-  }
-`;
+import styles from './doc-item-component.module.css';
 
 /** Passed to @docusaurus/plugin-content-docs to render the mdx content */
 export default function DocItem({content, route}) {
@@ -28,8 +16,8 @@ export default function DocItem({content, route}) {
   }
 
   return (
-    <DemoContainer key="demo">
+    <div className={styles.demoContainer} key="demo">
       <MDXComponent />
-    </DemoContainer>
+    </div>
   );
 }
