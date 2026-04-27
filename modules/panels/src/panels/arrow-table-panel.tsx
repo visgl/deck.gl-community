@@ -213,11 +213,18 @@ function formatCellValue(value: unknown): string {
   }
   if (typeof value === 'object') {
     if ('toArray' in value && typeof (value as {toArray?: unknown}).toArray === 'function') {
-      return JSON.stringify((value as {toArray: () => unknown}).toArray());
+      return stringifyCellValue((value as {toArray: () => unknown}).toArray());
     }
-    return JSON.stringify(value);
+    return stringifyCellValue(value);
   }
   return String(value);
+}
+
+/** JSON stringifies cell values while preserving BigInt values as strings. */
+function stringifyCellValue(value: unknown): string {
+  return JSON.stringify(value, (_key, nestedValue) =>
+    typeof nestedValue === 'bigint' ? nestedValue.toString() : nestedValue
+  );
 }
 
 const ARROW_TABLE_PANEL_STYLE: JSX.CSSProperties = {

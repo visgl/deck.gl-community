@@ -49,6 +49,8 @@ describe('ArrowTablePanel', () => {
       createTable({
         bigint: [1n],
         vector: [{toArray: () => [1, 2]}],
+        bigintVector: [{toArray: () => [1n, 2n]}],
+        bigintObject: [{id: 1n}],
         object: [{nested: true}],
         empty: [null]
       })
@@ -56,6 +58,8 @@ describe('ArrowTablePanel', () => {
 
     expect(root.textContent).toContain('1');
     expect(root.textContent).toContain('[1,2]');
+    expect(root.textContent).toContain('["1","2"]');
+    expect(root.textContent).toContain('{"id":"1"}');
     expect(root.textContent).toContain('{"nested":true}');
   });
 
