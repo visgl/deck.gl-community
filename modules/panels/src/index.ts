@@ -56,6 +56,21 @@ export {SettingsPanel, type SettingsPanelProps} from './panels/settings-panel';
 export {StatsPanel, type StatsPanelProps} from './panels/stats-panel';
 export {BinaryDataPanel, type BinaryDataPanelProps} from './panels/binary-data-panel';
 export {
+  ArrowTablePanel,
+  type ArrowTableFieldLike,
+  type ArrowTableLike,
+  type ArrowTablePanelProps,
+  type ArrowTableSchemaLike,
+  type ArrowTableVectorLike
+} from './panels/arrow-table-panel';
+export {
+  ArrowSchemaPanel,
+  type ArrowMetadataLike,
+  type ArrowSchemaFieldLike,
+  type ArrowSchemaLike,
+  type ArrowSchemaPanelProps
+} from './panels/arrow-schema-panel';
+export {
   KeyboardShortcutsPanel,
   type KeyboardShortcutsPanelProps
 } from './panels/keyboard-shortcuts-panel';

@@ -47,3 +47,11 @@ it('exports TextEditorPanel', () => {
 it('exports BinaryDataPanel', () => {
   expect(Panels.BinaryDataPanel).toBeDefined();
 });
+
+it('exports ArrowTablePanel', () => {
+  expect(Panels.ArrowTablePanel).toBeDefined();
+});
+
+it('exports ArrowSchemaPanel', () => {
+  expect(Panels.ArrowSchemaPanel).toBeDefined();
+});
