@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {tableFromArrays} from 'apache-arrow';
 import {Stats} from '@probe.gl/stats';
 import {
   AccordeonPanel,
+  ArrowSchemaPanel,
+  ArrowTablePanel,
   BinaryDataPanel,
   ColumnPanel,
   CustomPanel,
@@ -30,10 +33,13 @@ import {
 } from '../../../modules/panels/src';
 
 import type {KeyboardShortcut, SettingsSchema, SettingsState} from '../../../modules/panels/src';
+import type {ArrowSchemaLike} from '../../../modules/panels/src';
 
 export type PanelDocsExampleHighlight =
   | 'panels'
   | 'markdown-panel'
+  | 'arrow-table-panel'
+  | 'arrow-schema-panel'
   | 'binary-data-panel'
   | 'custom-panel'
   | 'stats-panel'
@@ -156,6 +162,8 @@ export function mountPanelDocsExample(
 const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   panels: 'Using Panels',
   'markdown-panel': 'MarkdownPanel',
+  'arrow-table-panel': 'ArrowTablePanel',
+  'arrow-schema-panel': 'ArrowSchemaPanel',
   'binary-data-panel': 'BinaryDataPanel',
   'custom-panel': 'CustomPanel',
   'stats-panel': 'StatsPanel',
@@ -209,6 +217,34 @@ const SHORTCUTS: KeyboardShortcut[] = [
   {key: 'Escape', name: 'Close', description: 'Close the current panel'},
   {key: 't', name: 'Theme', description: 'Toggle theme'}
 ];
+
+const ARROW_TABLE = tableFromArrays({
+  id: ['station-001', 'station-002', 'station-003', 'station-004', 'station-005'],
+  city: ['Oakland', 'San Jose', 'Fremont', 'Berkeley', 'Richmond'],
+  trips: [1840, 1320, 980, 760, 540],
+  active: [true, true, false, true, false]
+});
+
+const ARROW_SCHEMA: ArrowSchemaLike = {
+  metadata: new Map([
+    ['source', 'Station activity sample'],
+    ['deck.gl', JSON.stringify({panel: 'ArrowSchemaPanel', arrow: '>=17'})]
+  ]),
+  fields: ARROW_TABLE.schema.fields.map(field => ({
+    name: field.name,
+    nullable: field.nullable,
+    type: field.type,
+    metadata: new Map([
+      [
+        'analytics',
+        JSON.stringify({
+          role: field.name === 'trips' ? 'measure' : 'dimension',
+          visible: true
+        })
+      ]
+    ])
+  }))
+};
 
 function buildHighlightComponents(
   highlight: PanelDocsExampleHighlight,
@@ -299,6 +335,21 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         ]),
         rowByteLength: 8,
         maxByteLength: 24
+      });
+
+    case 'arrow-table-panel':
+      return new ArrowTablePanel({
+        id: 'arrow-table',
+        title: 'Arrow Table',
+        table: ARROW_TABLE,
+        maxRows: 3
+      });
+
+    case 'arrow-schema-panel':
+      return new ArrowSchemaPanel({
+        id: 'arrow-schema',
+        title: 'Arrow Schema',
+        schema: ARROW_SCHEMA
       });
 
     case 'custom-panel':

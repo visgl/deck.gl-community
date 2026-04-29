@@ -91,6 +91,7 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'modules/panels/test/imports.spec.ts',
             'modules/**/*.{test,spec}.{jsx,tsx}',
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'
@@ -110,6 +111,7 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'modules/panels/test/imports.spec.ts',
             'modules/**/*.{test,spec}.{jsx,tsx}',
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'

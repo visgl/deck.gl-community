@@ -64,6 +64,21 @@ export {
   type DocumentationLinkSpacer
 } from './panels/documentation-links-panel';
 export {
+  ArrowTablePanel,
+  type ArrowTableFieldLike,
+  type ArrowTableLike,
+  type ArrowTablePanelProps,
+  type ArrowTableSchemaLike,
+  type ArrowTableVectorLike
+} from './panels/arrow-table-panel';
+export {
+  ArrowSchemaPanel,
+  type ArrowMetadataLike,
+  type ArrowSchemaFieldLike,
+  type ArrowSchemaLike,
+  type ArrowSchemaPanelProps
+} from './panels/arrow-schema-panel';
+export {
   KeyboardShortcutsPanel,
   KeyboardShortcutsPanelContent,
   type KeyboardShortcutsPanelProps

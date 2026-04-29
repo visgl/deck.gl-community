@@ -27,6 +27,8 @@
       "type": "category",
       "label": "Leaf Panels",
       "items": [
+        "modules/panels/api-reference/arrow-schema-panel",
+        "modules/panels/api-reference/arrow-table-panel",
         "modules/panels/api-reference/binary-data-panel",
         "modules/panels/api-reference/custom-panel",
         "modules/panels/api-reference/keyboard-shortcuts-panel",

@@ -57,3 +57,11 @@ it('exports URL parameter helpers', () => {
 it('exports DocumentationLinksPanel', () => {
   expect(Panels.DocumentationLinksPanel).toBeDefined();
 });
+
+it('exports ArrowTablePanel', () => {
+  expect(Panels.ArrowTablePanel).toBeDefined();
+});
+
+it('exports ArrowSchemaPanel', () => {
+  expect(Panels.ArrowSchemaPanel).toBeDefined();
+});
