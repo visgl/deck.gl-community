@@ -47,3 +47,13 @@ it('exports TextEditorPanel', () => {
 it('exports BinaryDataPanel', () => {
   expect(Panels.BinaryDataPanel).toBeDefined();
 });
+
+it('exports URL parameter helpers', () => {
+  expect(Panels.URLManager).toBeDefined();
+  expect(Panels.URLParametersPanel).toBeDefined();
+  expect(Panels.parseUrlParametersIntoState).toBeDefined();
+});
+
+it('exports DocumentationLinksPanel', () => {
+  expect(Panels.DocumentationLinksPanel).toBeDefined();
+});

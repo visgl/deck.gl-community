@@ -44,17 +44,20 @@ panelManager.setProps({
 
 ```ts
 type PanelModalProps = PanelContainerProps & {
-  container?: PanelContainer;
+  container?: PanelContentContainer;
   panel?: Panel;
   placement?: PanelPlacement;
   title?: string;
   triggerLabel?: string;
   triggerIcon?: string;
+  showTitleBar?: boolean;
   hideTrigger?: boolean;
   button?: boolean;
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  openShortcuts?: KeyboardShortcut[];
+  shortcuts?: KeyboardShortcut[];
 };
 ```
 
@@ -63,4 +66,9 @@ type PanelModalProps = PanelContainerProps & {
 - Accepts either a full panel container description or a single panel.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.
+- `openShortcuts` are installed through `deck.eventManager` when available and
+  open the modal without importing deck.gl into `@deck.gl-community/panels`.
+- `shortcuts` are also registered through the same manager and keep their own
+  handlers.
+- Restores focus to `deck.canvas` after close when mounted by deck.gl.
 - Use `ModalPanelWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.

@@ -50,6 +50,9 @@ export class KeyboardShortcutsManager {
   private _handleKeyDown = (event: KeyboardShortcutManagerEvent) => {
     const shortcut = findShortcutMatchingKeyEvent(event.srcEvent, this.shortcuts);
     if (shortcut) {
+      if (shortcut.preventDefault) {
+        event.srcEvent.preventDefault?.();
+      }
       shortcut.onKeyPress?.();
     }
   };
@@ -85,6 +88,9 @@ export class KeyboardShortcutsManagerDocument {
   private _handleKeyDown = (event: KeyboardEvent) => {
     const shortcut = findShortcutMatchingKeyEvent(event, this.shortcuts);
     if (shortcut) {
+      if (shortcut.preventDefault) {
+        event.preventDefault();
+      }
       shortcut.onKeyPress?.();
     }
   };

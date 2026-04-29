@@ -1,9 +1,12 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
 import {h, render} from 'preact';
+import {KeyboardShortcutsManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
 import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
 
+import type {KeyboardShortcut} from '../keyboard-shortcuts/keyboard-shortcuts';
+import type {KeyboardShortcutEventManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 import type {PanelContentContainer, Panel} from '../panels/panel-containers';
 import type {JSX} from 'preact';
 
@@ -23,6 +26,8 @@ export type PanelModalProps = PanelContainerProps & {
   triggerLabel?: string;
   /** Optional trigger icon glyph. */
   triggerIcon?: string;
+  /** Whether to render modal title bar chrome. */
+  showTitleBar?: boolean;
   /** Whether the trigger should be hidden. */
   hideTrigger?: boolean;
   /** Legacy compatibility flag that maps to a visible trigger button. */
@@ -33,6 +38,10 @@ export type PanelModalProps = PanelContainerProps & {
   open?: boolean;
   /** Callback fired when the open state changes. */
   onOpenChange?: (open: boolean) => void;
+  /** Optional keyboard shortcuts that open this modal. */
+  openShortcuts?: KeyboardShortcut[];
+  /** Optional keyboard shortcuts to register while this modal is mounted. */
+  shortcuts?: KeyboardShortcut[];
 };
 
 const DEFAULT_TRIGGER_ICON = '▦';
@@ -60,12 +69,40 @@ function stopPropagation(event: Event): void {
   event.stopPropagation();
 }
 
+function getDeckCanvasElement(deck: unknown): HTMLElement | null {
+  const canvas = (deck as {canvas?: HTMLElement | null} | undefined)?.canvas;
+  return canvas instanceof HTMLElement ? canvas : null;
+}
+
+function focusDeckCanvas(deck: unknown): void {
+  const canvas = getDeckCanvasElement(deck);
+  if (!canvas) {
+    return;
+  }
+  if (canvas.tabIndex < 0) {
+    canvas.tabIndex = 0;
+  }
+  queueMicrotask(() => {
+    if (!canvas.isConnected) {
+      return;
+    }
+    canvas.focus({preventScroll: true});
+  });
+}
+
+function getDeckEventManager(deck: unknown): KeyboardShortcutEventManager | null {
+  const eventManager = (deck as {eventManager?: KeyboardShortcutEventManager} | undefined)
+    ?.eventManager;
+  return eventManager ?? null;
+}
+
 function PanelModalView({
   container,
   title,
   hideTrigger,
   triggerLabel,
   triggerIcon,
+  showTitleBar,
   open,
   onOpenChange
 }: {
@@ -74,6 +111,7 @@ function PanelModalView({
   hideTrigger: boolean;
   triggerIcon: string;
   triggerLabel: string;
+  showTitleBar: boolean;
   open: boolean;
   onOpenChange: (next: boolean) => void;
 }) {
@@ -102,21 +140,34 @@ function PanelModalView({
             type="button"
             style={OVERLAY_BACKDROP_STYLE}
             onPointerDown={() => onOpenChange(false)}
+            onClick={() => onOpenChange(false)}
           />
           <div style={MODAL_DIALOG_WRAPPER_STYLE}>
             <div style={MODAL_DIALOG_PANEL_STYLE}>
-              <div style={MODAL_HEADER_STYLE}>
-                <span style={MODAL_HEADER_TITLE_STYLE}>{title}</span>
+              {showTitleBar ? (
+                <div style={MODAL_HEADER_STYLE}>
+                  <span style={MODAL_HEADER_TITLE_STYLE}>{title}</span>
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    style={MODAL_CLOSE_BUTTON_STYLE}
+                    onPointerDown={stopPropagation}
+                    onPointerUp={() => onOpenChange(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
                   aria-label="Close"
-                  style={MODAL_CLOSE_BUTTON_STYLE}
+                  style={MODAL_FLOATING_CLOSE_BUTTON_STYLE}
                   onPointerDown={stopPropagation}
                   onPointerUp={() => onOpenChange(false)}
                 >
                   ×
                 </button>
-              </div>
+              )}
               <div style={MODAL_CONTENT_STYLE}>
                 <PanelContentRenderer container={container} />
               </div>
@@ -139,11 +190,14 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     title: 'Panel',
     triggerLabel: 'Open panel',
     triggerIcon: DEFAULT_TRIGGER_ICON,
+    showTitleBar: true,
     hideTrigger: false,
     button: false,
     defaultOpen: false,
     onOpenChange: undefined!,
     open: undefined!,
+    openShortcuts: [],
+    shortcuts: [],
     panel: undefined!,
     container: {
       kind: 'panel',
@@ -162,6 +216,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
   title = PanelModal.defaultProps.title;
   triggerLabel = PanelModal.defaultProps.triggerLabel;
   triggerIcon = PanelModal.defaultProps.triggerIcon;
+  showTitleBar = PanelModal.defaultProps.showTitleBar;
   hideTrigger = PanelModal.defaultProps.hideTrigger;
   isOpen = false;
   #hasOpenStateInitialized = false;
@@ -172,6 +227,9 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
   #isDocumentKeyListenerAttached = false;
   #placementContainerElement: HTMLElement | null = null;
   #basePlacementZIndex: string | null = null;
+  #keyboardShortcutsManager: KeyboardShortcutsManager | null = null;
+  #openShortcuts: KeyboardShortcut[] = PanelModal.defaultProps.openShortcuts;
+  #shortcuts: KeyboardShortcut[] = PanelModal.defaultProps.shortcuts;
 
   constructor(props: Partial<PanelModalProps> = {}) {
     super({
@@ -193,6 +251,9 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     if (props.triggerIcon !== undefined) {
       this.triggerIcon = props.triggerIcon;
     }
+    if (props.showTitleBar !== undefined) {
+      this.showTitleBar = props.showTitleBar;
+    }
     if (props.hideTrigger !== undefined || props.button !== undefined) {
       this.hideTrigger = props.button !== undefined ? !props.button : (props.hideTrigger ?? false);
     }
@@ -207,14 +268,30 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     if (props.onOpenChange !== undefined) {
       this.#openChange = props.onOpenChange;
     }
+    if (props.openShortcuts !== undefined) {
+      this.#openShortcuts = props.openShortcuts;
+      this.#restartKeyboardShortcutsManager();
+    }
+    if (props.shortcuts !== undefined) {
+      this.#shortcuts = props.shortcuts;
+      this.#restartKeyboardShortcutsManager();
+    }
     this.#setOpenProps(props);
     this.#render();
     super.setProps(props);
   }
 
+  override onAdd(_params: {deck: unknown; viewId: string | null}): void {
+    this.#restartKeyboardShortcutsManager();
+  }
+
   override onRemove(): void {
     this.#detachDocumentKeyListener();
     this.#syncPlacementZIndex(false);
+    if (this.#keyboardShortcutsManager) {
+      this.#keyboardShortcutsManager.stop();
+      this.#keyboardShortcutsManager = null;
+    }
     if (this.#rootElement) {
       render(null, this.#rootElement);
     }
@@ -235,6 +312,13 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     }
     this.#openChange?.(nextOpen);
     this.#render();
+    if (!nextOpen) {
+      focusDeckCanvas(this.deck);
+    }
+  };
+
+  #handleKeyboardOpen = (): void => {
+    this.#handleOpenChange(true);
   };
 
   #setOpenProps(props: Partial<PanelModalProps>): void {
@@ -280,6 +364,26 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     this.#isDocumentKeyListenerAttached = false;
   }
 
+  #restartKeyboardShortcutsManager(): void {
+    if (this.#keyboardShortcutsManager) {
+      this.#keyboardShortcutsManager.stop();
+      this.#keyboardShortcutsManager = null;
+    }
+    const eventManager = getDeckEventManager(this.deck);
+    if (!eventManager || (this.#openShortcuts.length === 0 && this.#shortcuts.length === 0)) {
+      return;
+    }
+
+    this.#keyboardShortcutsManager = new KeyboardShortcutsManager(eventManager, [
+      ...this.#openShortcuts.map(shortcut => ({
+        ...shortcut,
+        onKeyPress: this.#handleKeyboardOpen
+      })),
+      ...this.#shortcuts
+    ]);
+    this.#keyboardShortcutsManager.start();
+  }
+
   #render = () => {
     if (!this.#rootElement) {
       return;
@@ -294,6 +398,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
         hideTrigger={this.hideTrigger}
         triggerLabel={this.triggerLabel}
         triggerIcon={this.triggerIcon}
+        showTitleBar={this.showTitleBar}
         open={this.isOpen}
         onOpenChange={this.#handleOpenChange}
       />,
@@ -307,7 +412,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     }
 
     this.#placementContainerElement.style.zIndex = isOpen
-      ? '40'
+      ? '2100'
       : (this.#basePlacementZIndex ?? '');
   }
 }
@@ -396,6 +501,16 @@ const MODAL_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   backgroundColor: 'transparent',
   color: 'var(--button-text, rgb(24, 24, 26))',
   cursor: 'pointer'
+};
+
+const MODAL_FLOATING_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
+  ...MODAL_CLOSE_BUTTON_STYLE,
+  position: 'absolute',
+  top: '12px',
+  right: '12px',
+  zIndex: 2,
+  backgroundColor: 'var(--menu-background, #fff)',
+  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.12)'
 };
 
 const MODAL_CONTENT_STYLE: JSX.CSSProperties = {

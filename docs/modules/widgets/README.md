@@ -93,7 +93,7 @@ map positions via the widget lifecycle.
 
 - [DeviceManager](./api-reference/device-manager.md)
 - [DeviceTabsWidget](./api-reference/device-tabs-widget.md)
-- [OmniBoxPanelWidget](./api-reference/omni-box-widget.md)
+- [OmniBoxWidget](./api-reference/omni-box-widget.md)
 - [TimeMeasureWidget](./api-reference/time-measure-widget.md)
 
 Standalone UI such as `ToolbarPanelContainer`, `ToastPanelContainer`, and `toastManager` lives in

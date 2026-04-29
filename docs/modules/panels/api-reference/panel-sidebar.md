@@ -56,7 +56,7 @@ panelManager.setProps({
 
 ```ts
 type PanelSidebarProps = PanelContainerProps & {
-  container?: PanelContainer;
+  container?: PanelContentContainer;
   panel?: Panel;
   side?: 'left' | 'right';
   widthPx?: number;
@@ -66,8 +66,15 @@ type PanelSidebarProps = PanelContainerProps & {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   triggerLabel?: string;
+  triggerIcon?: string;
+  showTitleBar?: boolean;
   hideTrigger?: boolean;
   button?: boolean;
+  openShortcuts?: KeyboardShortcut[];
+  shortcuts?: KeyboardShortcut[];
+  viewportMarginPx?: number;
+  dockTriggerWhenOpen?: boolean;
+  showBackdrop?: boolean;
 };
 ```
 
@@ -76,4 +83,10 @@ type PanelSidebarProps = PanelContainerProps & {
 - Accepts either a full panel container description or a single panel.
 - Slides open from the selected edge while keeping the shell mounted for smooth transitions.
 - Supports controlled and uncontrolled open state.
+- Supports `Escape` close, optional backdrop close, and focus restoration to
+  `deck.canvas` after close.
+- `openShortcuts` and `shortcuts` are registered through structural
+  `deck.eventManager` access when available.
+- `viewportMarginPx` controls the docked panel margin, and
+  `dockTriggerWhenOpen` keeps the trigger aligned beside the open panel.
 - Use `SidebarPanelWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.

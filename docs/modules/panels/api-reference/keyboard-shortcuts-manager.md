@@ -24,6 +24,7 @@ const shortcuts: KeyboardShortcut[] = [
     commandKey: true,
     name: 'Show shortcuts',
     description: 'Open keyboard shortcuts',
+    preventDefault: true,
     onKeyPress: () => setOpen(true)
   }
 ];
@@ -65,6 +66,28 @@ type KeyboardShortcutEventManager = {
   on(event: 'keydown', handler: (event: KeyboardShortcutManagerEvent) => void): void;
   off(event: 'keydown', handler: (event: KeyboardShortcutManagerEvent) => void): void;
 };
+
+type KeyboardShortcutDisplayPair = {
+  id: string;
+  position: 'primary' | 'secondary';
+  description: string;
+};
+
+type KeyboardShortcut = {
+  key: string;
+  name: string;
+  description: string;
+  onKeyPress?: () => void;
+  commandKey?: boolean;
+  ctrlKey?: boolean;
+  shiftKey?: boolean;
+  dragMouse?: boolean;
+  badges?: string[];
+  preventDefault?: boolean;
+  displayInputs?: ShortcutDisplayInput[];
+  displaySection?: 'navigation' | 'interaction' | 'commands' | 'settings';
+  displayPair?: KeyboardShortcutDisplayPair;
+};
 ```
 
 ## Methods
@@ -80,7 +103,13 @@ stop(): void;
   `on('keydown', ...)` and `off('keydown', ...)` contract.
 - `KeyboardShortcutsManagerDocument` is the simplest option for stand-alone DOM
   usage.
-- Both managers dispatch `onKeyPress` on the first matching `KeyboardShortcut`.
+- Both managers dispatch `onKeyPress` on the most specific matching
+  `KeyboardShortcut`.
+- Shortcut matching is exact for modifiers: extra command, control, shift, or
+  alt modifiers do not trigger shortcuts unless the shortcut explicitly matches
+  them. Alt-key shortcuts are reserved for future support.
+- Set `preventDefault` on a shortcut to prevent the browser default behavior
+  after it matches.
 - Shortcut matching is shared with `KeyboardShortcutsPanel` and the exported
   keyboard shortcut helpers.
 

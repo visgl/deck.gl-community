@@ -56,10 +56,24 @@ export {SettingsPanel, type SettingsPanelProps} from './panels/settings-panel';
 export {StatsPanel, type StatsPanelProps} from './panels/stats-panel';
 export {BinaryDataPanel, type BinaryDataPanelProps} from './panels/binary-data-panel';
 export {
+  DocumentationLinksPanel,
+  DocumentationLinksPanelContent,
+  type DocumentationLink,
+  type DocumentationLinkItem,
+  type DocumentationLinksPanelProps,
+  type DocumentationLinkSpacer
+} from './panels/documentation-links-panel';
+export {
   KeyboardShortcutsPanel,
+  KeyboardShortcutsPanelContent,
   type KeyboardShortcutsPanelProps
 } from './panels/keyboard-shortcuts-panel';
 export {TextEditorPanel, type TextEditorPanelProps} from './panels/text-editor-panel';
+export {
+  URLParametersPanel,
+  URLParametersPanelContent,
+  type URLParametersPanelProps
+} from './panels/url-parameters-panel';
 
 export {
   ToolbarPanelContainer,
@@ -85,7 +99,13 @@ export {
   type SettingsState
 } from './lib/settings/settings';
 export {
+  type KeyboardShortcutDisplayPair,
+  type KeyboardShortcutDisplaySection,
   type KeyboardShortcut,
+  type ShortcutDisplayIcon,
+  type ShortcutDisplayInput,
+  type ShortcutDisplayInputKind,
+  type ShortcutDisplayModifier,
   isShortcutMatchingKeyEvent,
   findShortcutMatchingKeyEvent,
   DEFAULT_SHORTCUTS,
@@ -97,3 +117,17 @@ export {
   type KeyboardShortcutEventManager,
   type KeyboardShortcutManagerEvent
 } from './keyboard-shortcuts/keyboard-shortcuts-manager';
+export {
+  getRecognizedUrlParameterKeys,
+  parseUrlParametersIntoState,
+  serializeUrlParameters,
+  serializeUrlSearchParams,
+  type ParseUrlParametersIntoStateOptions,
+  type RawUrlParametersInput,
+  type URLParameter,
+  type URLParameterValue
+} from './lib/url-parameters/url-parameters';
+export {
+  URLManager,
+  type URLManagerCreateSearchParamsOptions
+} from './lib/url-parameters/url-manager';

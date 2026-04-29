@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import {Widget} from '@deck.gl/core';
 import {render} from 'preact';
-import {useCallback, useEffect, useRef, useState} from 'preact/hooks';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'preact/hooks';
 
 import type {Deck, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {ComponentChildren, JSX} from 'preact';
@@ -19,37 +19,49 @@ const OMNIBOX_INPUT_CLASS = 'deck-widget-omni-box-input';
 const OMNIBOX_BUTTON_CLASS = 'deck-widget-omni-box-button';
 const OMNIBOX_OPTION_CLASS = 'deck-widget-omni-box-option';
 const OMNIBOX_OPTION_ACTIVE_CLASS = 'deck-widget-omni-box-option-active';
+const OMNIBOX_SURFACE_BACKGROUND = 'var(--omni-box-surface-background, rgba(255, 255, 255, 0.72))';
+const OMNIBOX_ROW_BACKGROUND = 'var(--omni-box-row-background, rgba(255, 255, 255, 0.22))';
+const DEFAULT_MAX_REMEMBERED_QUERY_COUNT = 8;
 
 const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'fixed',
   transform: 'translateX(-50%)',
   margin: '0',
   zIndex: '2',
-  pointerEvents: 'auto'
+  pointerEvents: 'none'
 };
 
 const WRAPPER_STYLE: JSX.CSSProperties = {
   width: '100%',
   display: 'flex',
   flexDirection: 'column',
-  gap: 'var(--menu-gap, 4px)'
+  gap: 'var(--menu-gap, 4px)',
+  pointerEvents: 'none'
 };
 
 const INPUT_ROW_STYLE: JSX.CSSProperties = {
   width: '100%',
   display: 'grid',
-  gridTemplateColumns: '1fr auto auto auto',
+  gridTemplateColumns: 'auto 1fr auto auto auto',
   gap: '1px',
   padding: '1px',
   overflow: 'hidden',
-  backgroundColor: 'var(--button-stroke, rgba(255, 255, 255, 0.3))',
+  background: OMNIBOX_ROW_BACKGROUND,
   borderRadius: 'var(--button-corner-radius, 8px)',
-  boxShadow: 'var(--button-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25))'
+  boxShadow: 'var(--button-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25))',
+  pointerEvents: 'auto'
+};
+
+const ANCHOR_ROW_STYLE: JSX.CSSProperties = {
+  ...INPUT_ROW_STYLE,
+  width: 'auto',
+  alignSelf: 'center',
+  gridTemplateColumns: 'auto'
 };
 
 const CONTROL_SURFACE_STYLE: JSX.CSSProperties = {
   height: OMNIBOX_CONTROL_HEIGHT,
-  backgroundColor: 'var(--button-background, #fff)',
+  background: OMNIBOX_SURFACE_BACKGROUND,
   backdropFilter: 'var(--button-backdrop-filter, unset)',
   WebkitBackdropFilter: 'var(--button-backdrop-filter, unset)',
   border: 'var(--button-inner-stroke, unset)'
@@ -61,9 +73,7 @@ const INPUT_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   boxSizing: 'border-box',
   padding: '0 12px',
-  borderRadius: 'calc(var(--button-corner-radius, 8px) - 1px)',
-  borderTopRightRadius: 0,
-  borderBottomRightRadius: 0,
+  borderRadius: 0,
   color: 'var(--button-text, rgb(24, 24, 26))',
   fontSize: '13px',
   lineHeight: 1.2,
@@ -91,9 +101,31 @@ const NAV_BUTTON_DISABLED_STYLE: JSX.CSSProperties = {
   cursor: 'not-allowed'
 };
 
+const FIRST_NAV_BUTTON_STYLE: JSX.CSSProperties = {
+  borderTopLeftRadius: 'calc(var(--button-corner-radius, 8px) - 1px)',
+  borderBottomLeftRadius: 'calc(var(--button-corner-radius, 8px) - 1px)'
+};
+
 const LAST_NAV_BUTTON_STYLE: JSX.CSSProperties = {
   borderTopRightRadius: 'calc(var(--button-corner-radius, 8px) - 1px)',
   borderBottomRightRadius: 'calc(var(--button-corner-radius, 8px) - 1px)'
+};
+
+const ANCHOR_BUTTON_STYLE: JSX.CSSProperties = {
+  ...NAV_BUTTON_STYLE,
+  ...LAST_NAV_BUTTON_STYLE,
+  minWidth: OMNIBOX_CONTROL_HEIGHT,
+  borderTopLeftRadius: 'calc(var(--button-corner-radius, 8px) - 1px)',
+  borderBottomLeftRadius: 'calc(var(--button-corner-radius, 8px) - 1px)',
+  fontSize: '16px'
+};
+
+const DOWN_TRIANGLE_STYLE: JSX.CSSProperties = {
+  width: 0,
+  height: 0,
+  borderLeft: '4px solid transparent',
+  borderRight: '4px solid transparent',
+  borderTop: '6px solid currentColor'
 };
 
 const DROPDOWN_STYLE: JSX.CSSProperties = {
@@ -106,7 +138,8 @@ const DROPDOWN_STYLE: JSX.CSSProperties = {
   color: 'var(--menu-text, rgb(24, 24, 26))',
   overflowY: 'auto',
   maxHeight: `${OPTION_ROW_HEIGHT_PX * MAX_VISIBLE_OPTION_COUNT}px`,
-  padding: '4px 0'
+  padding: '4px 0',
+  pointerEvents: 'auto'
 };
 
 const DEFAULT_OPTION_CONTENT_STYLE: JSX.CSSProperties = {
@@ -158,6 +191,60 @@ function getDeckCanvasRect(deck: Deck | undefined): DOMRect | null {
   return canvas.getBoundingClientRect();
 }
 
+function readRememberedQueries(storageKey: string | undefined): ReadonlyArray<string> {
+  if (!storageKey || typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(storageKey);
+    if (!storedValue) {
+      return [];
+    }
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!Array.isArray(parsedValue)) {
+      return [];
+    }
+
+    return parsedValue.filter((value): value is string => typeof value === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function writeRememberedQueries(
+  storageKey: string | undefined,
+  queries: ReadonlyArray<string>
+): void {
+  if (!storageKey || typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(queries));
+  } catch {
+    // Ignore storage failures so private browsing and full storage do not break search.
+  }
+}
+
+function addRememberedQuery(
+  queries: ReadonlyArray<string>,
+  query: string,
+  maxQueryCount: number
+): ReadonlyArray<string> {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) {
+    return queries;
+  }
+
+  const nextQueries = [
+    normalizedQuery,
+    ...queries.filter(rememberedQuery => rememberedQuery !== normalizedQuery)
+  ];
+  return nextQueries.slice(0, Math.max(1, maxQueryCount));
+}
+
 export type OmniBoxOption = {
   id: string;
   label: string;
@@ -182,6 +269,16 @@ export type OmniBoxWidgetProps = WidgetProps & {
   placeholder?: string;
   minQueryLength?: number;
   defaultOpen?: boolean;
+  /** Whether selecting a suggestion should close the dropdown and copy the selected label into the input. */
+  closeOnSelect?: boolean;
+  /** Whether to remember selected search queries for later reuse. */
+  rememberQueries?: boolean;
+  /** Maximum number of recent search queries to remember. */
+  maxRememberedQueryCount?: number;
+  /** Local storage key used to persist remembered search queries across reloads. */
+  queryHistoryStorageKey?: string;
+  /** Whether to render a compact slash button while the omnibox input is closed. */
+  showAnchorButton?: boolean;
   topOffsetPx?: number;
   getOptions?: OmniBoxOptionProvider;
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
@@ -192,14 +289,33 @@ export type OmniBoxWidgetProps = WidgetProps & {
 };
 
 type OmniBoxWidgetViewProps = {
+  /** Placeholder text shown when the search input is empty. */
   placeholder: string;
+  /** Minimum trimmed query length required before suggestions are loaded. */
   minQueryLength: number;
+  /** Whether the input row is open when the widget first renders. */
   defaultOpen: boolean;
+  /** Whether selecting a suggestion should close the dropdown and copy the selected label into the input. */
+  closeOnSelect: boolean;
+  /** Whether to remember selected search queries for later reuse. */
+  rememberQueries: boolean;
+  /** Maximum number of recent search queries to remember. */
+  maxRememberedQueryCount: number;
+  /** Local storage key used to persist remembered search queries across reloads. */
+  queryHistoryStorageKey?: string;
+  /** Whether to render a compact slash button while the omnibox input is closed. */
+  showAnchorButton: boolean;
+  /** Provides suggestion options for the current trimmed query. */
   getOptions: OmniBoxOptionProvider;
+  /** Custom renderer for a suggestion row. */
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
+  /** Called when a suggestion is selected by click or Enter. */
   onSelectOption?: (option: OmniBoxOption) => void;
+  /** Called when keyboard navigation changes the active suggestion. */
   onActiveOptionChange?: (option: OmniBoxOption | null) => void;
+  /** Called when previous/next controls navigate to a suggestion. */
   onNavigateOption?: (option: OmniBoxOption) => void;
+  /** Called whenever the input query changes. */
   onQueryChange?: (query: string) => void;
 };
 
@@ -238,6 +354,16 @@ function DefaultOptionContent({option}: {option: OmniBoxOption}) {
 function OmniBoxWidgetStyles() {
   return (
     <style>{`
+      .deck-widget-omni-box {
+        --omni-box-surface-background: color-mix(in srgb, var(--button-background, #fff) 72%, transparent);
+        --omni-box-row-background: color-mix(in srgb, var(--button-stroke, rgba(255, 255, 255, 0.3)) 72%, transparent);
+      }
+
+      .deck-widget-omni-box .${OMNIBOX_INPUT_CLASS},
+      .deck-widget-omni-box .${OMNIBOX_BUTTON_CLASS} {
+        background: ${OMNIBOX_SURFACE_BACKGROUND};
+      }
+
       .deck-widget-omni-box .${OMNIBOX_INPUT_CLASS}:focus,
       .deck-widget-omni-box .${OMNIBOX_BUTTON_CLASS}:focus,
       .deck-widget-omni-box .${OMNIBOX_OPTION_CLASS}:focus {
@@ -245,7 +371,7 @@ function OmniBoxWidgetStyles() {
       }
 
       .deck-widget-omni-box [data-omni-box-controls='true'] {
-        background-color: var(--button-stroke, rgba(255, 255, 255, 0.3));
+        background-color: ${OMNIBOX_ROW_BACKGROUND};
       }
 
       .deck-widget-omni-box [data-omni-box-dropdown='true'] {
@@ -271,11 +397,15 @@ function OmniBoxWidgetStyles() {
   );
 }
 
-// eslint-disable-next-line max-statements
 function OmniBoxWidgetView({
   placeholder,
   minQueryLength,
   defaultOpen,
+  closeOnSelect,
+  rememberQueries,
+  maxRememberedQueryCount,
+  queryHistoryStorageKey,
+  showAnchorButton,
   getOptions,
   renderOption,
   onSelectOption,
@@ -289,6 +419,10 @@ function OmniBoxWidgetView({
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [isHidden, setIsHidden] = useState(() => !defaultOpen);
+  const [isQueryHistoryOpen, setIsQueryHistoryOpen] = useState(false);
+  const [rememberedQueries, setRememberedQueries] = useState<ReadonlyArray<string>>(() =>
+    rememberQueries ? readRememberedQueries(queryHistoryStorageKey) : []
+  );
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -309,6 +443,24 @@ function OmniBoxWidgetView({
     };
   }, [clearBlurTimeout]);
 
+  const handleShow = useCallback(
+    (event?: Event) => {
+      clearBlurTimeout();
+      setIsHidden(false);
+      setIsFocused(true);
+
+      window.requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+
+      if (event) {
+        event.preventDefault();
+        stopEventPropagation(event);
+      }
+    },
+    [clearBlurTimeout]
+  );
+
   useEffect(() => {
     const handleWindowKeyDown = (event: KeyboardEvent) => {
       if (event.key !== '/' || event.altKey || event.ctrlKey || event.metaKey) {
@@ -319,26 +471,22 @@ function OmniBoxWidgetView({
         return;
       }
 
-      event.preventDefault();
-      stopEventPropagation(event);
-      clearBlurTimeout();
-      setIsHidden(false);
-      setIsFocused(true);
-
-      window.requestAnimationFrame(() => {
-        inputRef.current?.focus();
-      });
+      handleShow(event);
     };
 
     window.addEventListener('keydown', handleWindowKeyDown, true);
     return () => {
       window.removeEventListener('keydown', handleWindowKeyDown, true);
     };
-  }, [clearBlurTimeout]);
+  }, [handleShow]);
 
   useEffect(() => {
     setIsHidden(!defaultOpen);
   }, [defaultOpen]);
+
+  useEffect(() => {
+    setRememberedQueries(rememberQueries ? readRememberedQueries(queryHistoryStorageKey) : []);
+  }, [queryHistoryStorageKey, rememberQueries]);
 
   useEffect(() => {
     onQueryChange?.(query);
@@ -378,19 +526,57 @@ function OmniBoxWidgetView({
   }, [getOptions, minQueryLength, onQueryChange, query]);
 
   useEffect(() => {
+    if (isQueryHistoryOpen) {
+      onActiveOptionChange?.(null);
+      return;
+    }
+
     if (activeOptionIndex < 0 || activeOptionIndex >= options.length) {
       onActiveOptionChange?.(null);
       return;
     }
     onActiveOptionChange?.(options[activeOptionIndex] ?? null);
-  }, [activeOptionIndex, onActiveOptionChange, options]);
+  }, [activeOptionIndex, isQueryHistoryOpen, onActiveOptionChange, options]);
+
+  const rememberQuery = useCallback(
+    (queryToRemember: string) => {
+      if (!rememberQueries) {
+        return;
+      }
+
+      setRememberedQueries(currentQueries => {
+        const nextQueries = addRememberedQuery(
+          currentQueries,
+          queryToRemember,
+          maxRememberedQueryCount
+        );
+        writeRememberedQueries(queryHistoryStorageKey, nextQueries);
+        return nextQueries;
+      });
+    },
+    [maxRememberedQueryCount, queryHistoryStorageKey, rememberQueries]
+  );
+
+  const queryHistoryOptions = useMemo<ReadonlyArray<OmniBoxOption>>(
+    () =>
+      rememberedQueries.map((rememberedQuery, index) => ({
+        id: `query-history-${index}`,
+        label: rememberedQuery,
+        value: rememberedQuery,
+        description: 'Recent search'
+      })),
+    [rememberedQueries]
+  );
+
+  const isShowingQueryHistory = isQueryHistoryOpen && queryHistoryOptions.length > 0;
+  const visibleOptions = isShowingQueryHistory ? queryHistoryOptions : options;
 
   useEffect(() => {
-    optionElementRefs.current = optionElementRefs.current.slice(0, options.length);
-  }, [options.length]);
+    optionElementRefs.current = optionElementRefs.current.slice(0, visibleOptions.length);
+  }, [visibleOptions.length]);
 
   useEffect(() => {
-    if (!isFocused || activeOptionIndex < 0 || activeOptionIndex >= options.length) {
+    if (!isFocused || activeOptionIndex < 0 || activeOptionIndex >= visibleOptions.length) {
       return;
     }
 
@@ -413,37 +599,59 @@ function OmniBoxWidgetView({
     if (optionBottom > viewportBottom) {
       dropdownElement.scrollTop = optionBottom - dropdownElement.clientHeight;
     }
-  }, [activeOptionIndex, isFocused, options.length]);
+  }, [activeOptionIndex, isFocused, visibleOptions.length]);
 
   const selectOption = useCallback(
-    (option: OmniBoxOption) => {
-      setQuery(option.value ?? option.label);
-      setIsFocused(false);
-      setOptions([]);
-      setActiveOptionIndex(-1);
+    (option: OmniBoxOption, nextActiveOptionIndex?: number) => {
+      rememberQuery(query);
+      if (closeOnSelect) {
+        setQuery(option.value ?? option.label);
+        setIsFocused(false);
+        setOptions([]);
+        setActiveOptionIndex(-1);
+      } else {
+        setIsQueryHistoryOpen(false);
+        setIsFocused(true);
+        if (nextActiveOptionIndex !== undefined) {
+          setActiveOptionIndex(nextActiveOptionIndex);
+        }
+        window.requestAnimationFrame(() => {
+          inputRef.current?.focus();
+        });
+      }
       onSelectOption?.(option);
     },
-    [onSelectOption]
+    [closeOnSelect, onSelectOption, query, rememberQuery]
   );
+
+  const selectRememberedQuery = useCallback((option: OmniBoxOption) => {
+    setQuery(option.value ?? option.label);
+    setIsQueryHistoryOpen(false);
+    setIsFocused(true);
+    setActiveOptionIndex(-1);
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, []);
 
   const moveActiveOptionBy = useCallback(
     (delta: -1 | 1, {navigate = false}: {navigate?: boolean} = {}) => {
-      if (!options.length) {
+      if (!visibleOptions.length) {
         return;
       }
       const currentIndex = activeOptionIndex >= 0 ? activeOptionIndex : 0;
-      const nextIndex = (currentIndex + delta + options.length) % options.length;
-      const nextOption = options[nextIndex];
+      const nextIndex = (currentIndex + delta + visibleOptions.length) % visibleOptions.length;
+      const nextOption = visibleOptions[nextIndex];
       if (!nextOption) {
         return;
       }
       setActiveOptionIndex(nextIndex);
       setIsFocused(true);
-      if (navigate) {
+      if (navigate && !isShowingQueryHistory) {
         onNavigateOption?.(nextOption);
       }
     },
-    [activeOptionIndex, onNavigateOption, options]
+    [activeOptionIndex, isShowingQueryHistory, onNavigateOption, visibleOptions]
   );
 
   const handleHide = useCallback(
@@ -453,21 +661,24 @@ function OmniBoxWidgetView({
       }
 
       clearBlurTimeout();
+      rememberQuery(query);
       requestVersionRef.current += 1;
       setQuery('');
       setOptions([]);
       setActiveOptionIndex(-1);
       setIsLoading(false);
       setIsFocused(false);
+      setIsQueryHistoryOpen(false);
       setIsHidden(true);
     },
-    [clearBlurTimeout]
+    [clearBlurTimeout, query, rememberQuery]
   );
 
   const handleInput: JSX.GenericEventHandler<HTMLInputElement> = useCallback(event => {
     stopEventPropagation(event as unknown as Event);
-    setQuery(event.currentTarget.value);
+    setQuery((event.currentTarget as HTMLInputElement).value);
     setIsFocused(true);
+    setIsQueryHistoryOpen(false);
   }, []);
 
   const handleFocus: JSX.FocusEventHandler<HTMLInputElement> = useCallback(() => {
@@ -482,6 +693,14 @@ function OmniBoxWidgetView({
       setActiveOptionIndex(-1);
     }, BLUR_CLOSE_DELAY_MS);
   }, [clearBlurTimeout]);
+
+  const hasMatches = options.length > 0;
+  const hasQueryHistory = queryHistoryOptions.length > 0;
+  const normalizedQuery = query.trim();
+  const shouldShowDropdown =
+    !isHidden &&
+    (isShowingQueryHistory ||
+      (isFocused && normalizedQuery.length >= minQueryLength && (isLoading || options.length > 0)));
 
   const handleKeyDown: JSX.KeyboardEventHandler<HTMLInputElement> = useCallback(
     event => {
@@ -500,11 +719,15 @@ function OmniBoxWidgetView({
       }
 
       if (event.key === 'Enter') {
-        if (activeOptionIndex >= 0 && activeOptionIndex < options.length) {
+        if (activeOptionIndex >= 0 && activeOptionIndex < visibleOptions.length) {
           event.preventDefault();
-          const option = options[activeOptionIndex];
+          const option = visibleOptions[activeOptionIndex];
           if (option) {
-            selectOption(option);
+            if (isShowingQueryHistory) {
+              selectRememberedQuery(option);
+            } else {
+              selectOption(option, activeOptionIndex);
+            }
           }
         }
         return;
@@ -512,10 +735,47 @@ function OmniBoxWidgetView({
 
       if (event.key === 'Escape') {
         event.preventDefault();
+        if (isShowingQueryHistory || shouldShowDropdown) {
+          requestVersionRef.current += 1;
+          setIsLoading(false);
+          setIsFocused(false);
+          setIsQueryHistoryOpen(false);
+          setActiveOptionIndex(-1);
+          return;
+        }
         handleHide(event as unknown as Event);
       }
     },
-    [activeOptionIndex, handleHide, moveActiveOptionBy, options, selectOption]
+    [
+      activeOptionIndex,
+      handleHide,
+      isShowingQueryHistory,
+      moveActiveOptionBy,
+      selectOption,
+      selectRememberedQuery,
+      shouldShowDropdown,
+      visibleOptions
+    ]
+  );
+
+  const handleToggleQueryHistory = useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      stopEventPropagation(event);
+      clearBlurTimeout();
+
+      if (!queryHistoryOptions.length) {
+        return;
+      }
+
+      setIsQueryHistoryOpen(currentValue => !currentValue);
+      setIsFocused(true);
+      setActiveOptionIndex(0);
+      window.requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    },
+    [clearBlurTimeout, queryHistoryOptions.length]
   );
 
   const handlePointerEvent: JSX.PointerEventHandler<HTMLElement> = useCallback(event => {
@@ -530,15 +790,7 @@ function OmniBoxWidgetView({
     stopEventPropagation(event as unknown as Event);
   }, []);
 
-  const hasMatches = options.length > 0;
-  const normalizedQuery = query.trim();
-  const shouldShowDropdown =
-    !isHidden &&
-    isFocused &&
-    normalizedQuery.length >= minQueryLength &&
-    (isLoading || options.length > 0);
-
-  if (isHidden) {
+  if (isHidden && !showAnchorButton) {
     return null;
   }
 
@@ -554,85 +806,158 @@ function OmniBoxWidgetView({
       onWheel={handleWheelEvent}
     >
       <OmniBoxWidgetStyles />
-      <div data-omni-box-controls="true" style={INPUT_ROW_STYLE}>
-        <input
-          className={OMNIBOX_INPUT_CLASS}
-          ref={inputRef}
-          type="text"
-          value={query}
-          placeholder={placeholder}
-          style={INPUT_STYLE}
-          onInput={handleInput}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          aria-label="OmniBox"
-        />
-
-        <button
-          className={OMNIBOX_BUTTON_CLASS}
-          type="button"
-          title="Previous match"
-          aria-label="Previous match"
-          disabled={!hasMatches}
+      {isHidden ? (
+        <div data-omni-box-anchor="true" style={ANCHOR_ROW_STYLE}>
+          <button
+            className={OMNIBOX_BUTTON_CLASS}
+            type="button"
+            title="Open Search"
+            aria-label="Open Search"
+            style={ANCHOR_BUTTON_STYLE}
+            onMouseDown={event => {
+              event.preventDefault();
+              stopEventPropagation(event as unknown as Event);
+            }}
+            onClick={event => {
+              handleShow();
+              stopEventPropagation(event as unknown as Event);
+            }}
+          >
+            /
+          </button>
+        </div>
+      ) : (
+        <div
+          data-omni-box-controls="true"
           style={{
-            ...NAV_BUTTON_STYLE,
-            ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE)
-          }}
-          onMouseDown={event => {
-            event.preventDefault();
-            stopEventPropagation(event as unknown as Event);
-          }}
-          onClick={event => {
-            stopEventPropagation(event as unknown as Event);
-            moveActiveOptionBy(-1, {navigate: true});
+            ...INPUT_ROW_STYLE,
+            gridTemplateColumns: rememberQueries
+              ? 'auto 1fr auto auto auto auto'
+              : INPUT_ROW_STYLE.gridTemplateColumns
           }}
         >
-          {'<'}
-        </button>
+          <button
+            className={OMNIBOX_BUTTON_CLASS}
+            type="button"
+            title="Close Search"
+            aria-label="Close Search"
+            style={{
+              ...NAV_BUTTON_STYLE,
+              ...FIRST_NAV_BUTTON_STYLE
+            }}
+            onMouseDown={event => {
+              event.preventDefault();
+              handleHide(event as unknown as Event);
+            }}
+            onClick={event => {
+              handleHide(event as unknown as Event);
+            }}
+          >
+            /
+          </button>
 
-        <button
-          className={OMNIBOX_BUTTON_CLASS}
-          type="button"
-          title="Next match"
-          aria-label="Next match"
-          disabled={!hasMatches}
-          style={{
-            ...NAV_BUTTON_STYLE,
-            ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE)
-          }}
-          onMouseDown={event => {
-            event.preventDefault();
-            stopEventPropagation(event as unknown as Event);
-          }}
-          onClick={event => {
-            stopEventPropagation(event as unknown as Event);
-            moveActiveOptionBy(1, {navigate: true});
-          }}
-        >
-          {'>'}
-        </button>
+          <input
+            className={OMNIBOX_INPUT_CLASS}
+            ref={inputRef}
+            type="text"
+            value={query}
+            placeholder={placeholder}
+            style={INPUT_STYLE}
+            onInput={handleInput}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            aria-label="OmniBox"
+          />
 
-        <button
-          className={OMNIBOX_BUTTON_CLASS}
-          type="button"
-          title="Hide OmniBox"
-          aria-label="Hide OmniBox"
-          style={{
-            ...NAV_BUTTON_STYLE,
-            ...LAST_NAV_BUTTON_STYLE
-          }}
-          onMouseDown={event => {
-            event.preventDefault();
-            stopEventPropagation(event as unknown as Event);
-          }}
-          onClick={event => {
-            handleHide(event as unknown as Event);
-          }}
-        >
-          ×
-        </button>
-      </div>
+          {rememberQueries && (
+            <button
+              className={OMNIBOX_BUTTON_CLASS}
+              type="button"
+              title="Recent searches"
+              aria-label="Recent searches"
+              disabled={!hasQueryHistory}
+              style={{
+                ...NAV_BUTTON_STYLE,
+                ...(hasQueryHistory ? {} : NAV_BUTTON_DISABLED_STYLE)
+              }}
+              onMouseDown={event => {
+                event.preventDefault();
+                stopEventPropagation(event as unknown as Event);
+              }}
+              onClick={event => {
+                handleToggleQueryHistory(event as unknown as Event);
+              }}
+            >
+              <span aria-hidden="true" style={DOWN_TRIANGLE_STYLE} />
+            </button>
+          )}
+
+          <button
+            className={OMNIBOX_BUTTON_CLASS}
+            type="button"
+            title="Previous match"
+            aria-label="Previous match"
+            disabled={!hasMatches}
+            style={{
+              ...NAV_BUTTON_STYLE,
+              ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE)
+            }}
+            onMouseDown={event => {
+              event.preventDefault();
+              stopEventPropagation(event as unknown as Event);
+            }}
+            onClick={event => {
+              stopEventPropagation(event as unknown as Event);
+              moveActiveOptionBy(-1, {navigate: true});
+            }}
+          >
+            {'<'}
+          </button>
+
+          <button
+            className={OMNIBOX_BUTTON_CLASS}
+            type="button"
+            title="Next match"
+            aria-label="Next match"
+            disabled={!hasMatches}
+            style={{
+              ...NAV_BUTTON_STYLE,
+              ...(hasMatches ? {} : NAV_BUTTON_DISABLED_STYLE)
+            }}
+            onMouseDown={event => {
+              event.preventDefault();
+              stopEventPropagation(event as unknown as Event);
+            }}
+            onClick={event => {
+              stopEventPropagation(event as unknown as Event);
+              moveActiveOptionBy(1, {navigate: true});
+            }}
+          >
+            {'>'}
+          </button>
+
+          <button
+            className={OMNIBOX_BUTTON_CLASS}
+            type="button"
+            title="Hide OmniBox"
+            aria-label="Hide OmniBox"
+            style={{
+              ...NAV_BUTTON_STYLE,
+              ...LAST_NAV_BUTTON_STYLE
+            }}
+            onMouseDown={event => {
+              event.preventDefault();
+              stopEventPropagation(event as unknown as Event);
+            }}
+            onClick={event => {
+              handleHide(event as unknown as Event);
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {shouldShowDropdown && (
         <div
@@ -660,14 +985,18 @@ function OmniBoxWidgetView({
           )}
 
           {!isLoading &&
-            options.map((option, index) => {
+            visibleOptions.map((option, index) => {
               const isActive = index === activeOptionIndex;
-              const content = renderOption?.({
-                option,
-                index,
-                isActive,
-                query
-              }) ?? <DefaultOptionContent option={option} />;
+              const content = isShowingQueryHistory ? (
+                <DefaultOptionContent option={option} />
+              ) : (
+                (renderOption?.({
+                  option,
+                  index,
+                  isActive,
+                  query
+                }) ?? <DefaultOptionContent option={option} />)
+              );
 
               return (
                 <button
@@ -687,7 +1016,11 @@ function OmniBoxWidgetView({
                   }}
                   onClick={event => {
                     stopEventPropagation(event as unknown as Event);
-                    selectOption(option);
+                    if (isShowingQueryHistory) {
+                      selectRememberedQuery(option);
+                    } else {
+                      selectOption(option, index);
+                    }
                   }}
                   style={{
                     width: '100%',
@@ -720,9 +1053,14 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
     ...Widget.defaultProps,
     id: 'omni-box',
     placement: 'top-left',
-    placeholder: 'Search trace blocks…',
+    placeholder: 'Search…',
     minQueryLength: 1,
-    defaultOpen: false,
+    defaultOpen: true,
+    closeOnSelect: true,
+    rememberQueries: false,
+    maxRememberedQueryCount: DEFAULT_MAX_REMEMBERED_QUERY_COUNT,
+    queryHistoryStorageKey: undefined,
+    showAnchorButton: false,
     topOffsetPx: undefined,
     getOptions: (() => []) as OmniBoxOptionProvider,
     renderOption: undefined,
@@ -774,6 +1112,15 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
         placeholder={this.props.placeholder ?? OmniBoxWidget.defaultProps.placeholder}
         minQueryLength={this.props.minQueryLength ?? OmniBoxWidget.defaultProps.minQueryLength}
         defaultOpen={this.props.defaultOpen ?? OmniBoxWidget.defaultProps.defaultOpen}
+        closeOnSelect={this.props.closeOnSelect ?? OmniBoxWidget.defaultProps.closeOnSelect}
+        rememberQueries={this.props.rememberQueries ?? OmniBoxWidget.defaultProps.rememberQueries}
+        maxRememberedQueryCount={
+          this.props.maxRememberedQueryCount ?? OmniBoxWidget.defaultProps.maxRememberedQueryCount
+        }
+        queryHistoryStorageKey={this.props.queryHistoryStorageKey}
+        showAnchorButton={
+          this.props.showAnchorButton ?? OmniBoxWidget.defaultProps.showAnchorButton
+        }
         getOptions={this.props.getOptions ?? OmniBoxWidget.defaultProps.getOptions}
         renderOption={this.props.renderOption}
         onSelectOption={this.props.onSelectOption}
