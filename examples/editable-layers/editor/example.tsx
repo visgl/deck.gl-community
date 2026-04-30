@@ -3,8 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {useState, useEffect, useCallback, useMemo} from 'react';
-import {Map} from 'react-map-gl/maplibre';
-import DeckGL from '@deck.gl/react';
+import {Map, useControl} from 'react-map-gl/maplibre';
+import {MapboxOverlay as DeckOverlay} from '@deck.gl/mapbox';
 import {
   ViewMode,
   ModifyMode,
@@ -139,6 +139,12 @@ function buildInfoPanel({
   });
 }
 
+function DeckGLOverlay(props) {
+  const overlay = useControl(() => new DeckOverlay(props));
+  overlay.setProps(props);
+  return null;
+}
+
 // --- Component ---
 
 export function Example() {
@@ -262,7 +268,7 @@ export function Example() {
       mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
       style={{width: '100%', height: '100%'}}
     >
-      <DeckGL
+      <DeckGLOverlay
         controller={{doubleClickZoom: false}}
         layers={[layer]}
         getCursor={layer.getCursor.bind(layer)}
