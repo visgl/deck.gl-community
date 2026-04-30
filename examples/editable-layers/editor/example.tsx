@@ -257,27 +257,25 @@ export function Example() {
   });
 
   return (
-    <Map
+    <DeckGL
       initialViewState={initialViewState}
-      mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
       style={{width: '100%', height: '100%'}}
-    >
-      <DeckGL
-        controller={{doubleClickZoom: false}}
-        layers={[layer]}
-        getCursor={layer.getCursor.bind(layer)}
-        onClick={info => {
-          if (mode === ViewMode) {
-            const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
-            if (index !== null) {
-              setSelectedFeatureIndexes([index]);
-            } else {
-              setSelectedFeatureIndexes([]);
-            }
+      controller={{doubleClickZoom: false}}
+      layers={[layer]}
+      getCursor={layer.getCursor.bind(layer)}
+      onClick={info => {
+        if (mode === ViewMode) {
+          const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
+          if (index !== null) {
+            setSelectedFeatureIndexes([index]);
+          } else {
+            setSelectedFeatureIndexes([]);
           }
-        }}
-        widgets={widgets}
-      />
-    </Map>
+        }
+      }}
+      widgets={widgets}
+    >
+      <Map mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
+    </DeckGL>
   );
 }
