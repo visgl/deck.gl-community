@@ -10,6 +10,7 @@ import {
 } from '../utils/geojson-types';
 import {
   ClickEvent,
+  DoubleClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
@@ -21,10 +22,11 @@ import {
 } from './types';
 import {
   getPickedSnapSourceEditHandle,
-  getPickedEditHandles,
+  getPickedSnapTargetEditHandle,
   getEditHandlesForGeometry,
   toWebMercatorViewport,
-  distance2d
+  distance2d,
+  getPickedEditHandle
 } from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
@@ -36,6 +38,97 @@ export class SnappableMode extends GeoJsonEditMode {
   constructor(handler: GeoJsonEditMode) {
     super();
     this._handler = handler;
+  }
+
+  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+    const {enableSnapping} = props.modeConfig || {};
+    if (enableSnapping && this._handler.getSnappingBehavior() !== 'FromSnapSources') {
+      const snapTarget = this._getPickedSnapTarget(event.picks);
+      if (snapTarget) {
+        return this._handler.handleClick(
+          {
+            ...event,
+            mapCoords: snapTarget.geometry.coordinates,
+            picks: event.picks.filter(p => p.object?.properties?.editHandleType !== 'snap-target')
+          },
+          props
+        );
+      }
+    }
+    this._handler.handleClick(event, props);
+  }
+
+  handleDoubleClick(event: DoubleClickEvent, props: ModeProps<FeatureCollection>) {
+    this._handler.handleDoubleClick(event, props);
+  }
+
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+    this._handler.handlePointerMove(this._getSnapAwareEvent(event, props), props);
+  }
+
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+    this._handler.handleStartDragging(event, props);
+  }
+
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
+    this._handler.handleStopDragging(this._getSnapAwareEvent(event, props), props);
+  }
+
+  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
+    this._handler.handleDragging(this._getSnapAwareEvent(event, props), props);
+  }
+
+  handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>) {
+    this._handler.handleKeyUp(event, props);
+  }
+
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
+    const {modeConfig, lastPointerMoveEvent} = props;
+    const {enableSnapping} = modeConfig || {};
+
+    const guides: GuideFeatureCollection = {
+      type: 'FeatureCollection',
+      features: [...this._handler.getGuides(props).features]
+    };
+
+    if (!enableSnapping) {
+      return guides;
+    }
+
+    const snapSourceHandle: EditHandleFeature | null | undefined =
+      lastPointerMoveEvent && this._getPickedSnapSource(lastPointerMoveEvent.pointerDownPicks);
+
+    if (snapSourceHandle) {
+      guides.features.push(...this._getDraggingSnapGuides(props, snapSourceHandle));
+    } else {
+      guides.features.push(...this._getSnapGuides(props));
+    }
+
+    return guides;
+  }
+
+  getTooltips(props: ModeProps<FeatureCollection>) {
+    return this._handler.getTooltips(props);
+  }
+
+  _getSnapAwareEvent<T extends MovementTypeEvent>(
+    event: T,
+    props: ModeProps<FeatureCollection>
+  ): T {
+    const snapSource = this._getPickedSnapSource(props.lastPointerMoveEvent.pointerDownPicks);
+    const {enableSnapping} = props.modeConfig || {};
+
+    if (
+      enableSnapping &&
+      (snapSource || this._handler.getSnappingBehavior() !== 'FromSnapSources')
+    ) {
+      const snapTarget = this._getPickedSnapTarget(event.picks);
+      if (snapTarget) {
+        return this._getSnappedMouseEvent(event, snapSource, snapTarget);
+      }
+    }
+
+    return event;
   }
 
   _getSnappedMouseEvent<T extends MovementTypeEvent>(
@@ -50,9 +143,7 @@ export class SnappableMode extends GeoJsonEditMode {
   }
 
   _getPickedSnapTarget(picks: Pick[]): EditHandleFeature | null | undefined {
-    return getPickedEditHandles(picks).find(
-      handle => handle.properties.editHandleType === 'snap-target'
-    );
+    return getPickedSnapTargetEditHandle(picks);
   }
 
   _getPickedSnapSource(
@@ -98,19 +189,23 @@ export class SnappableMode extends GeoJsonEditMode {
     return features;
   }
 
-  _getClosestSnapTargetHandle(
-    props: ModeProps<SimpleFeatureCollection>,
-    cursorCoords: [number, number],
-    wmViewport: ReturnType<typeof toWebMercatorViewport>
+  _getClosestPickedSnapTargetHandle(
+    screenCoords: [number, number],
+    props: ModeProps<SimpleFeatureCollection>
   ): EditHandleFeature | undefined {
+    const {viewport} = props.modeConfig || {};
+    if (!viewport || props.pickingRadius === undefined) {
+      return undefined;
+    }
+
+    const wmViewport = toWebMercatorViewport(viewport);
+    const [cx, cy] = screenCoords;
     const {pickingRadius} = props;
-    const getScreenDist = (handle: EditHandleFeature) => {
-      const [px, py] = wmViewport.project(handle.geometry.coordinates);
-      return distance2d(cursorCoords[0], cursorCoords[1], px, py);
-    };
+
     const result = this._getSnapTargetHandles(props).reduce(
       (closest, handle) => {
-        const dist = getScreenDist(handle);
+        const [px, py] = wmViewport.project(handle.geometry.coordinates);
+        const dist = distance2d(cx, cy, px, py);
         return dist <= pickingRadius && dist < closest.dist ? {handle, dist} : closest;
       },
       {handle: undefined, dist: Infinity}
@@ -121,48 +216,19 @@ export class SnappableMode extends GeoJsonEditMode {
   _getSnapTargetHandles(props: ModeProps<SimpleFeatureCollection>): EditHandleFeature[] {
     const handles: EditHandleFeature[] = [];
     const features = this._getSnapTargets(props);
+    const showSnappingSources = this._handler.getSnappingBehavior() === 'FromSnapSources';
+    const editHandle = getPickedEditHandle(props.lastPointerMoveEvent.pointerDownPicks);
+    const editHandleFeatureIndex = editHandle?.properties.featureIndex;
 
     for (let i = 0; i < features.length; i++) {
-      // Filter out the currently selected feature(s) if _handler is a mode which renders snap sources on them
-      const isCurrentIndexFeatureNotSelected =
-        !this._handler.displaySnapSourcesInSnappingMode() || !props.selectedIndexes.includes(i);
-
-      if (isCurrentIndexFeatureNotSelected) {
-        const {geometry} = features[i];
-        handles.push(...getEditHandlesForGeometry(geometry, i, 'snap-target'));
+      if (
+        (showSnappingSources && !props.selectedIndexes.includes(i)) ||
+        (!showSnappingSources && i !== editHandleFeatureIndex)
+      ) {
+        handles.push(...getEditHandlesForGeometry(features[i].geometry, i, 'snap-target'));
       }
     }
     return handles;
-  }
-
-  // If no snap handle has been picked, only display the edit handles of the
-  // selected feature. If a snap handle has been picked, display said snap handle
-  // along with all snappable points on all non-selected features.
-  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
-    const {modeConfig, lastPointerMoveEvent} = props;
-    const {enableSnapping} = modeConfig || {};
-
-    const guides: GuideFeatureCollection = {
-      type: 'FeatureCollection',
-      features: [...this._handler.getGuides(props).features]
-    };
-
-    if (!enableSnapping) {
-      return guides;
-    }
-
-    const snapSourceHandle: EditHandleFeature | null | undefined =
-      lastPointerMoveEvent && this._getPickedSnapSource(lastPointerMoveEvent.pointerDownPicks);
-
-    if (snapSourceHandle) {
-      // They started dragging a handle
-      // So render the picked handle (in its updated location) and all possible snap targets
-      guides.features.push(...this._getDraggingSnapGuides(props, snapSourceHandle));
-    } else {
-      guides.features.push(...this._getSnapGuides(props));
-    }
-
-    return guides;
   }
 
   _getDraggingSnapGuides(
@@ -175,11 +241,17 @@ export class SnappableMode extends GeoJsonEditMode {
     ];
   }
 
-  // No active drag: snap-source handles for selected features + closest snap-target near cursor
   _getSnapGuides(props: ModeProps<SimpleFeatureCollection>): EditHandleFeature[] {
     const guides: EditHandleFeature[] = [];
 
-    if (this._handler.displaySnapSourcesInSnappingMode()) {
+    if (
+      this._handler.getSnappingBehavior() === 'WhenDragging' &&
+      !getPickedEditHandle(props.lastPointerMoveEvent.pointerDownPicks)
+    ) {
+      return [];
+    }
+
+    if (this._handler.getSnappingBehavior() === 'FromSnapSources') {
       for (const index of props.selectedIndexes) {
         if (index < props.data.features.length) {
           guides.push(
@@ -188,12 +260,13 @@ export class SnappableMode extends GeoJsonEditMode {
         }
       }
     } else {
-      const viewport = props.modeConfig?.viewport;
-      const lastPointerMoveEvent = props.lastPointerMoveEvent;
-      if (viewport && props.pickingRadius !== undefined && lastPointerMoveEvent) {
-        const wmViewport = toWebMercatorViewport(viewport);
-        const cursorCoords = wmViewport.project(lastPointerMoveEvent.mapCoords) as [number, number];
-        const closest = this._getClosestSnapTargetHandle(props, cursorCoords, wmViewport);
+      const {lastPointerMoveEvent} = props;
+      if (lastPointerMoveEvent) {
+        const closest = this._getClosestPickedSnapTargetHandle(
+          // Note: we can't use the mapCoords because they might already have been updated to snap to the nearest target rather than current position
+          lastPointerMoveEvent.screenCoords,
+          props
+        );
         if (closest) {
           guides.push(closest);
         }
@@ -201,45 +274,5 @@ export class SnappableMode extends GeoJsonEditMode {
     }
 
     return guides;
-  }
-
-  _getSnapAwareEvent<T extends MovementTypeEvent>(
-    event: T,
-    props: ModeProps<FeatureCollection>
-  ): T {
-    const snapSource = this._getPickedSnapSource(props.lastPointerMoveEvent.pointerDownPicks);
-    const snapTarget = this._getPickedSnapTarget(event.picks);
-
-    return snapSource && snapTarget
-      ? this._getSnappedMouseEvent(event, snapSource, snapTarget)
-      : event;
-  }
-
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
-    const {enableSnapping} = props.modeConfig || {};
-    if (enableSnapping) {
-      const snapTarget = this._getPickedSnapTarget(event.picks);
-      if (snapTarget) {
-        this._handler.handleClick({...event, mapCoords: snapTarget.geometry.coordinates}, props);
-        return;
-      }
-    }
-    this._handler.handleClick(event, props);
-  }
-
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
-    this._handler.handleStartDragging(event, props);
-  }
-
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
-    this._handler.handleStopDragging(this._getSnapAwareEvent(event, props), props);
-  }
-
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
-    this._handler.handleDragging(this._getSnapAwareEvent(event, props), props);
-  }
-
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
-    this._handler.handlePointerMove(this._getSnapAwareEvent(event, props), props);
   }
 }

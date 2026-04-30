@@ -16,7 +16,8 @@ import {
   GuideFeatureCollection,
   GuideFeature,
   Tooltip,
-  DoubleClickEvent
+  DoubleClickEvent,
+  SnappingBehavior
 } from './types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
@@ -188,8 +189,8 @@ export class DrawLineStringMode extends GeoJsonEditMode {
     }
   }
 
-  displaySnapSourcesInSnappingMode(): boolean {
-    return false;
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 
   /**

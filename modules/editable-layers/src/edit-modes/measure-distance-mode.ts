@@ -9,7 +9,8 @@ import {
   ModeProps,
   GuideFeatureCollection,
   Tooltip,
-  GuideFeature
+  GuideFeature,
+  SnappingBehavior
 } from './types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
@@ -217,5 +218,9 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
     }
 
     return this._currentTooltips;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 }

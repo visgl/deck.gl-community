@@ -2,7 +2,14 @@ import turfBearing from '@turf/bearing';
 import turfCenter from '@turf/center';
 import {memoize} from '../utils/memoize';
 
-import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
+import {
+  ClickEvent,
+  PointerMoveEvent,
+  Tooltip,
+  ModeProps,
+  GuideFeatureCollection,
+  SnappingBehavior
+} from './types';
 import {FeatureCollection, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
@@ -130,5 +137,9 @@ export class MeasureAngleMode extends GeoJsonEditMode {
       point1: points[1],
       point2: points[2]
     });
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 }

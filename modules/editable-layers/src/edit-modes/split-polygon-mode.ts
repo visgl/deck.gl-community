@@ -20,7 +20,8 @@ import {
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature
+  TentativeFeature,
+  SnappingBehavior
 } from './types';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -205,5 +206,9 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     };
 
     return editAction;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 }

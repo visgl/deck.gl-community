@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import turfClone from '@turf/clone';
 import {
   FeatureCollection,
   Position,
@@ -13,7 +14,8 @@ import {
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  ModeProps
+  ModeProps,
+  SnappingBehavior
 } from './types';
 import {mapCoords, toWebMercatorViewport} from './utils';
 import {translateFromCenter} from '../utils/translate-from-center';
@@ -161,5 +163,9 @@ export class TranslateMode extends GeoJsonEditMode {
         featureIndexes: selectedIndexes
       }
     };
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'FromSnapSources';
   }
 }

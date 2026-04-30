@@ -17,7 +17,8 @@ import {
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature
+  TentativeFeature,
+  SnappingBehavior
 } from './types';
 import {
   Polygon,
@@ -226,5 +227,9 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
       });
     }
     return pt;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 }

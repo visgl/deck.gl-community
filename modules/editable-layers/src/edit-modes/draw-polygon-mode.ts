@@ -15,7 +15,8 @@ import {
   GuideFeatureCollection,
   TentativeFeature,
   GuideFeature,
-  DoubleClickEvent
+  DoubleClickEvent,
+  SnappingBehavior
 } from './types';
 import {Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
@@ -190,6 +191,10 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 
   // eslint-disable-next-line max-statements, complexity

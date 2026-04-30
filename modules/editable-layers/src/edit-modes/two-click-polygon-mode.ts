@@ -9,7 +9,8 @@ import {
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature
+  TentativeFeature,
+  SnappingBehavior
 } from './types';
 import {
   Polygon,
@@ -138,5 +139,9 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     }
 
     return tentativeFeature;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 }

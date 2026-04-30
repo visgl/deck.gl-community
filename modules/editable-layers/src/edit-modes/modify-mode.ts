@@ -34,7 +34,8 @@ import {
   Viewport,
   GuideFeatureCollection,
   EditHandleFeature,
-  GuideFeature
+  GuideFeature,
+  SnappingBehavior
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -313,5 +314,9 @@ export class ModifyMode extends GeoJsonEditMode {
       return 'cell';
     }
     return null;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'WhenDragging';
   }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature} from './types';
+import {ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature, SnappingBehavior} from './types';
 import {FeatureCollection, SimpleFeatureCollection, Point} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
@@ -37,7 +37,7 @@ export class DrawPointMode extends GeoJsonEditMode {
     super.handlePointerMove(event, props);
   }
 
-  displaySnapSourcesInSnappingMode(): boolean {
-    return false;
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 }

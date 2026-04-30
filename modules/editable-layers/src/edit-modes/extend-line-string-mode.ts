@@ -8,7 +8,13 @@ import {
   FeatureCollection,
   SimpleFeatureCollection
 } from '../utils/geojson-types';
-import {ClickEvent, PointerMoveEvent, ModeProps, GuideFeatureCollection} from './types';
+import {
+  ClickEvent,
+  PointerMoveEvent,
+  ModeProps,
+  GuideFeatureCollection,
+  SnappingBehavior
+} from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
@@ -98,5 +104,9 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
     props.onUpdateCursor('cell');
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 }

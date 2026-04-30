@@ -70,7 +70,10 @@ import '@deck.gl/widgets/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type RGBAColor = Color;
-const COMPOSITE_MODE = new CompositeMode([new DrawLineStringMode(), new ModifyMode()]);
+const COMPOSITE_MODE = new CompositeMode([
+  new SnappableMode(new DrawLineStringMode()),
+  new SnappableMode(new ModifyMode())
+]);
 
 const styles = {
   mapContainer: {
@@ -100,27 +103,30 @@ const ALL_MODES: any = [
       {label: 'View', mode: ViewMode},
       {
         label: 'Measure Distance',
-        mode: MeasureDistanceMode
+        mode: new SnappableMode(new MeasureDistanceMode())
       },
-      {label: 'Measure Area', mode: MeasureAreaMode},
-      {label: 'Measure Angle', mode: MeasureAngleMode}
+      {label: 'Measure Area', mode: new SnappableMode(new MeasureAreaMode())},
+      {label: 'Measure Angle', mode: new SnappableMode(new MeasureAngleMode())}
     ]
   },
   {
     category: 'Draw',
     modes: [
       {label: 'Draw Point', mode: new SnappableMode(new DrawPointMode())},
-      {label: 'Draw LineString', mode: DrawLineStringMode},
-      {label: 'Draw Polygon', mode: DrawPolygonMode},
+      {label: 'Draw LineString', mode: new SnappableMode(new DrawLineStringMode())},
+      {label: 'Draw Polygon', mode: new SnappableMode(new DrawPolygonMode())},
       {label: 'Draw 90° Polygon', mode: Draw90DegreePolygonMode},
       {label: 'Draw Polygon By Dragging', mode: DrawPolygonByDraggingMode},
-      {label: 'Draw Rectangle', mode: DrawRectangleMode},
+      {label: 'Draw Rectangle', mode: new SnappableMode(new DrawRectangleMode())},
       {label: 'Draw Rectangle From Center', mode: DrawRectangleFromCenterMode},
-      {label: 'Draw Rectangle Using 3 Points', mode: DrawRectangleUsingThreePointsMode},
+      {
+        label: 'Draw Rectangle Using 3 Points',
+        mode: new SnappableMode(new DrawRectangleUsingThreePointsMode())
+      },
       {label: 'Draw Square', mode: DrawSquareMode},
       {label: 'Draw Square From Center', mode: DrawSquareFromCenterMode},
-      {label: 'Draw Circle From Center', mode: DrawCircleFromCenterMode},
-      {label: 'Draw Circle By Diameter', mode: DrawCircleByDiameterMode},
+      {label: 'Draw Circle From Center', mode: new SnappableMode(new DrawCircleFromCenterMode())},
+      {label: 'Draw Circle By Diameter', mode: new SnappableMode(new DrawCircleByDiameterMode())},
       {label: 'Draw Ellipse By Bounding Box', mode: DrawEllipseByBoundingBoxMode},
       {label: 'Draw Ellipse Using 3 Points', mode: DrawEllipseUsingThreePointsMode}
     ]
@@ -128,17 +134,17 @@ const ALL_MODES: any = [
   {
     category: 'Alter',
     modes: [
-      {label: 'Modify', mode: ModifyMode},
-      {label: 'Resize Circle', mode: ResizeCircleMode},
+      {label: 'Modify', mode: new SnappableMode(new ModifyMode())},
+      {label: 'Resize Circle', mode: new SnappableMode(new ResizeCircleMode())},
       {label: 'Elevation', mode: ElevationMode},
       {label: 'Translate', mode: new SnappableMode(new TranslateMode())},
       {label: 'Rotate', mode: RotateMode},
       {label: 'Scale', mode: ScaleMode},
       {label: 'Duplicate', mode: DuplicateMode},
-      {label: 'Extend LineString', mode: ExtendLineStringMode},
-      {label: 'Extrude', mode: ExtrudeMode},
-      {label: 'Split', mode: SplitPolygonMode},
-      {label: 'Transform', mode: new SnappableMode(new TransformMode())}
+      {label: 'Extend LineString', mode: new SnappableMode(new ExtendLineStringMode())},
+      {label: 'Extrude', mode: new SnappableMode(new ExtrudeMode())},
+      {label: 'Split', mode: new SnappableMode(new SplitPolygonMode())},
+      {label: 'Transform', mode: new TransformMode()}
     ]
   },
   {
@@ -386,7 +392,7 @@ export function Example() {
       } else if (type === 'file') {
         const el = document.createElement('input');
         el.type = 'file';
-        el.onchange = (e) => {
+        el.onchange = e => {
           const eventTarget = e.target as HTMLInputElement;
           if (eventTarget.files && eventTarget.files[0]) {
             const reader = new FileReader();
@@ -451,7 +457,7 @@ export function Example() {
   const getDeckColorForFeature = useCallback(
     (index: number, bright: number, alpha: number): RGBAColor => {
       const length = FEATURE_COLORS.length;
-      const color = FEATURE_COLORS[index % length].map((c) => c * bright * 255);
+      const color = FEATURE_COLORS[index % length].map(c => c * bright * 255);
 
       // @ts-expect-error TODO
       return [...color, alpha * 255];
@@ -469,7 +475,7 @@ export function Example() {
             checked={selectedFeatureIndexes.includes(index)}
             onChange={() => {
               if (selectedFeatureIndexes.includes(index)) {
-                setSelectedFeatureIndexes(selectedFeatureIndexes.filter((e) => e !== index));
+                setSelectedFeatureIndexes(selectedFeatureIndexes.filter(e => e !== index));
               } else {
                 setSelectedFeatureIndexes([...selectedFeatureIndexes, index]);
               }
@@ -486,7 +492,7 @@ export function Example() {
             </span>
             <a
               style={{position: 'absolute', right: 12}}
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault();
                 e.stopPropagation();
                 setSelectedFeatureIndexes([index]);
@@ -589,7 +595,7 @@ export function Example() {
           <input
             type="checkbox"
             checked={Boolean(modeConfig && modeConfig.lock90Degree)}
-            onChange={(event) => setModeConfig({lock90Degree: Boolean(event.target.checked)})}
+            onChange={event => setModeConfig({lock90Degree: Boolean(event.target.checked)})}
           />
         </ToolboxControl>
       </ToolboxRow>
@@ -745,7 +751,11 @@ export function Example() {
     if (mode === SplitPolygonMode) {
       controls.push(renderSplitModeControls());
     }
-    if (mode instanceof SnappableMode) {
+    if (
+      mode instanceof SnappableMode ||
+      mode instanceof TransformMode ||
+      mode instanceof CompositeMode
+    ) {
       controls.push(renderSnappingControls());
     }
     if (mode === MeasureDistanceMode) {

@@ -11,10 +11,11 @@ import {RotateMode} from './rotate-mode';
 
 import {CompositeMode} from './composite-mode';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {SnappableMode} from './snappable-mode';
 
 export class TransformMode extends CompositeMode {
   constructor() {
-    super([new TranslateMode(), new ScaleMode(), new RotateMode()]);
+    super([new SnappableMode(new TranslateMode()), new ScaleMode(), new RotateMode()]);
   }
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {

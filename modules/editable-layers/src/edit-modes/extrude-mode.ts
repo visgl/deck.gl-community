@@ -10,7 +10,13 @@ import {
   shouldCancelPan
 } from './utils';
 import {SimpleFeatureCollection} from '../utils/geojson-types';
-import {ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent} from './types';
+import {
+  ModeProps,
+  StartDraggingEvent,
+  StopDraggingEvent,
+  DraggingEvent,
+  SnappingBehavior
+} from './types';
 import {ModifyMode} from './modify-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 
@@ -259,5 +265,9 @@ export class ExtrudeMode extends ModifyMode {
       }
     }
     return p1;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'WhenDragging';
   }
 }

@@ -4,8 +4,6 @@
 
 export const center = [-122, 37];
 
-export const pickingRadius = 10;
-
 export const viewport = {
   bearing: 0,
   height: 600,

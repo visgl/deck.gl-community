@@ -3,7 +3,14 @@
 // Copyright (c) vis.gl contributors
 
 import throttle from 'lodash.throttle';
-import {ClickEvent, StartDraggingEvent, StopDraggingEvent, DraggingEvent, ModeProps} from './types';
+import {
+  ClickEvent,
+  StartDraggingEvent,
+  StopDraggingEvent,
+  DraggingEvent,
+  ModeProps,
+  SnappingBehavior
+} from './types';
 import {Polygon, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {DrawPolygonMode} from './draw-polygon-mode';
@@ -102,5 +109,9 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
         editContext: {}
       });
     }
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'NotSupported';
   }
 }
