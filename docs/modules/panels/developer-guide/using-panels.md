@@ -31,8 +31,10 @@ Panels with no child panels.
 - [MarkdownPanel](../api-reference/markdown-panel.md)
 - [StatsPanel](../api-reference/stats-panel.md)
 - [SettingsPanel](../api-reference/settings-panel.md)
+- [DocumentationLinksPanel](../api-reference/documentation-links-panel.md)
 - [KeyboardShortcutsPanel](../api-reference/keyboard-shortcuts-panel.md)
 - [TextEditorPanel](../api-reference/text-editor-panel.md)
+- [URLParametersPanel](../api-reference/url-parameters-panel.md)
 
 ## Composition patterns
 
@@ -43,5 +45,59 @@ Panels with no child panels.
 - Use `MarkdownPanel` for small descriptive content without mounting your own renderer.
 - Use `BinaryDataPanel` for capped hex and ASCII previews of caller-supplied binary data.
 - Use `StatsPanel` for compact probe.gl stats tables inside an existing panel layout.
+- Use `DocumentationLinksPanel` for generic help and resource links.
+- Use `KeyboardShortcutsPanel` for keyboard, mouse, and trackpad interaction
+  references.
+- Use `URLParametersPanel` for documenting deep-link query parameters.
 - Use `CustomPanel` when content must be rendered imperatively into a DOM host.
 - Use `TextEditorPanel` for Monaco-backed JSON or plaintext editing within a panel layout.
+
+## Tabbed help modal
+
+Combine standalone panel primitives to build reusable help UI without taking a
+dependency on deck.gl.
+
+```ts
+import {
+  DocumentationLinksPanel,
+  KeyboardShortcutsPanel,
+  PanelManager,
+  PanelModal,
+  TabbedPanel,
+  URLParametersPanel
+} from '@deck.gl-community/panels';
+
+const helpTabs = new TabbedPanel({
+  id: 'help-tabs',
+  title: 'Help',
+  panels: {
+    shortcuts: new KeyboardShortcutsPanel({keyboardShortcuts}),
+    url: new URLParametersPanel({urlParameters}),
+    docs: new DocumentationLinksPanel({links: documentationLinks})
+  }
+});
+
+const helpModal = new PanelModal({
+  id: 'help-modal',
+  panel: helpTabs,
+  title: 'Help',
+  triggerLabel: 'Help',
+  openShortcuts: [
+    {
+      key: '/',
+      commandKey: true,
+      name: 'Open help',
+      description: 'Open help.',
+      preventDefault: true
+    }
+  ]
+});
+
+const panelManager = new PanelManager({
+  parentElement: document.getElementById('app') as HTMLElement
+});
+
+panelManager.setProps({
+  components: [helpModal]
+});
+```

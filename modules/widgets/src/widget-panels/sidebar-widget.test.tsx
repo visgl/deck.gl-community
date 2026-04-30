@@ -4,6 +4,7 @@ import {afterEach, describe, expect, it} from 'vitest';
 import {SidebarPanelWidget} from './sidebar-widget';
 
 import type {WidgetPanel} from './widget-containers';
+import type {KeyboardShortcutEventManager} from '@deck.gl-community/panels';
 
 const panel: WidgetPanel = {
   id: 'settings',
@@ -14,6 +15,38 @@ const panel: WidgetPanel = {
 afterEach(() => {
   document.body.innerHTML = '';
 });
+
+type Handler = (event: {srcEvent: KeyboardEvent}) => void;
+
+class FakeEventManager implements KeyboardShortcutEventManager {
+  handlers = new Map<string, Handler>();
+
+  on(event: 'keydown', handler: Handler) {
+    this.handlers.set(event, handler);
+  }
+
+  off(event: 'keydown', handler: Handler) {
+    const existing = this.handlers.get(event);
+    if (existing === handler) {
+      this.handlers.delete(event);
+    }
+  }
+
+  emit(event: string, srcEvent: KeyboardEvent) {
+    const handler = this.handlers.get(event);
+    handler?.({srcEvent});
+  }
+}
+
+const isMac = globalThis.navigator.platform.toUpperCase().includes('MAC');
+
+function commandKeyEvent(key: string): KeyboardEvent {
+  return new KeyboardEvent('keydown', {
+    key,
+    ctrlKey: !isMac,
+    metaKey: isMac
+  });
+}
 
 describe('SidebarPanelWidget', () => {
   it('starts open by default when uncontrolled', () => {
@@ -140,7 +173,7 @@ describe('SidebarPanelWidget', () => {
     widget.onRenderHTML(widgetRoot);
 
     expect(widgetRoot.parentElement).toBe(overlayRoot);
-    expect(widgetRoot.style.zIndex).toBe('35');
+    expect(widgetRoot.style.zIndex).toBe('2100');
   });
 
   it('keeps the same overlay parent after open state updates', () => {
@@ -211,5 +244,75 @@ describe('SidebarPanelWidget', () => {
     shell?.dispatchEvent(new MouseEvent('mousemove', {bubbles: true}));
 
     expect(bodyMouseMoveCount).toBe(0);
+  });
+
+  it('closes the sidebar when Escape is pressed', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const widget = new SidebarPanelWidget({
+      id: 'settings-sidebar-escape',
+      panel,
+      defaultOpen: true
+    });
+
+    widget.onRenderHTML(root);
+    expect(root.querySelector('[role="dialog"]')?.getAttribute('aria-hidden')).toBe('false');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+
+    expect(root.querySelector('[role="dialog"]')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('opens from configured keyboard shortcuts and cleans up listeners', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const eventManager = new FakeEventManager();
+    const widget = new SidebarPanelWidget({
+      id: 'settings-sidebar-shortcuts',
+      panel,
+      defaultOpen: false,
+      openShortcuts: [
+        {
+          key: '/',
+          commandKey: true,
+          name: 'Show Settings',
+          description: 'Show settings.'
+        }
+      ]
+    });
+    (widget as {deck?: {eventManager: FakeEventManager}}).deck = {eventManager};
+
+    widget.onRenderHTML(root);
+    widget.onAdd({deck: (widget as {deck: unknown}).deck, viewId: null});
+    eventManager.emit('keydown', commandKeyEvent('/'));
+
+    expect(root.querySelector('[role="dialog"]')?.getAttribute('aria-hidden')).toBe('false');
+    widget.onRemove();
+    expect(eventManager.handlers.has('keydown')).toBe(false);
+  });
+
+  it('restores keyboard focus to the deck canvas after closing', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const canvas = document.createElement('canvas');
+    canvas.tabIndex = -1;
+    document.body.appendChild(canvas);
+    const widget = new SidebarPanelWidget({
+      id: 'settings-sidebar-focus',
+      panel,
+      open: true,
+      showBackdrop: true
+    });
+    (widget as {deck?: {canvas: HTMLCanvasElement}}).deck = {canvas};
+
+    widget.onRenderHTML(root);
+    const backdrop = root.querySelector<HTMLButtonElement>(
+      'button[aria-label="Close Open sidebar"]'
+    );
+    backdrop?.click();
+    await Promise.resolve();
+
+    expect(canvas.tabIndex).toBe(0);
+    expect(document.activeElement).toBe(canvas);
   });
 });

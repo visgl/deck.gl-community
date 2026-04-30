@@ -1,27 +1,64 @@
-/**
- * One keyboard shortcut entry rendered by shortcut-oriented panels and managed
- * by the keyboard shortcut helpers.
- */
+/** Describes how two related shortcuts should be presented on one panel row. */
+export type KeyboardShortcutDisplayPair = {
+  /** Stable identifier used to join two related shortcuts into one row. */
+  id: string;
+  /** Whether this shortcut renders first or second within the paired row. */
+  position: 'primary' | 'secondary';
+  /** Shared description rendered for the paired row. */
+  description: string;
+};
+
+/** User-facing input category shown in shortcut/help panels. */
+export type ShortcutDisplayInputKind = 'keyboard' | 'mouse' | 'trackpad';
+
+/** Modifier label displayed before a pointer or keyboard interaction. */
+export type ShortcutDisplayModifier = 'command' | 'ctrl' | 'shift' | 'alt';
+
+/** Icon style displayed for a pointer or trackpad interaction. */
+export type ShortcutDisplayIcon =
+  | 'keyboard'
+  | 'mouse-drag'
+  | 'trackpad-click'
+  | 'trackpad-pan'
+  | 'trackpad-zoom';
+
+/** Shortcut panel section used by the help panel. */
+export type KeyboardShortcutDisplaySection = 'navigation' | 'interaction' | 'commands' | 'settings';
+
+/** Describes one display-only keyboard, mouse, or trackpad interaction in help panels. */
+export type ShortcutDisplayInput = {
+  /** Input device category shown by the help panel. */
+  kind: ShortcutDisplayInputKind;
+  /** Human-readable gesture label, such as "drag" or "two-finger swipe". */
+  label: string;
+  /** Optional modifier keys shown before the gesture label. */
+  modifiers?: ShortcutDisplayModifier[];
+  /** Optional icon override used by the help panel. */
+  icon?: ShortcutDisplayIcon;
+};
+
+/** One keyboard shortcut entry rendered by shortcut-oriented panels and managed by helpers. */
 export type KeyboardShortcut = {
   /** KeyboardEvent.key value that activates the shortcut. */
   key: string;
-  /** Whether the platform command key must be pressed. */
+  /** Requires Command on macOS and Control on other platforms. */
   commandKey?: boolean;
-  /** Whether the shift key must be pressed. */
+  /** Requires the Shift modifier to be pressed. */
   shiftKey?: boolean;
-  /** Whether the control key must be pressed. */
+  /** Requires the Control modifier to be pressed. */
   ctrlKey?: boolean;
-  /** Whether the shortcut is associated with a drag gesture. */
+  /** Indicates that the shortcut is shown as a drag interaction in the UI. */
   dragMouse?: boolean;
+  /** Optional display-only keyboard, mouse, or trackpad interaction chips. */
+  displayInputs?: ShortcutDisplayInput[];
+  /** Optional explicit section override for the help panel. */
+  displaySection?: KeyboardShortcutDisplaySection;
+  /** Prevents the browser default behavior when this shortcut matches. */
+  preventDefault?: boolean;
   /** Optional visual badges displayed next to the shortcut. */
   badges?: string[];
   /** Optional paired display metadata used for grouped shortcut rows. */
-  displayPair?: {
-    id: string;
-    position: 'primary' | 'secondary';
-    description: string;
-  };
-
+  displayPair?: KeyboardShortcutDisplayPair;
   /** Short display name shown in shortcut lists. */
   name: string;
   /** Longer explanation of what the shortcut does. */
@@ -49,20 +86,53 @@ const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
  * Returns `true` when one DOM keyboard event matches one shortcut definition.
  */
 export const isShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcut: KeyboardShortcut) => {
-  const isCmd = isMac ? e.metaKey : e.ctrlKey;
-  return (
-    shortcut.key.toLowerCase() === e.key.toLowerCase() &&
-    (shortcut.commandKey ? isCmd : true) &&
-    (shortcut.shiftKey ? e.shiftKey : true) &&
-    (shortcut.ctrlKey ? e.ctrlKey : true)
-  );
+  const requiresCommandKey = Boolean(shortcut.commandKey);
+  const requiresShiftKey = Boolean(shortcut.shiftKey);
+  const requiresCtrlKey = Boolean(shortcut.ctrlKey);
+  const requiresPrimaryCtrlKey = !isMac && (requiresCommandKey || requiresCtrlKey);
+
+  if (shortcut.key.toLowerCase() !== e.key.toLowerCase()) {
+    return false;
+  }
+
+  if (e.shiftKey !== requiresShiftKey) {
+    return false;
+  }
+
+  if (e.altKey) {
+    return false;
+  }
+
+  if (isMac) {
+    return e.metaKey === requiresCommandKey && e.ctrlKey === requiresCtrlKey;
+  }
+
+  return e.ctrlKey === requiresPrimaryCtrlKey && e.metaKey === false;
 };
 
 /**
- * Finds the first shortcut definition that matches one DOM keyboard event.
+ * Finds the most specific shortcut definition that matches one DOM keyboard event.
  */
 export const findShortcutMatchingKeyEvent = (e: KeyboardEvent, shortcuts: KeyboardShortcut[]) => {
-  return shortcuts.find(shortcut => isShortcutMatchingKeyEvent(e, shortcut));
+  let bestMatch: KeyboardShortcut | undefined;
+  let bestSpecificity = -1;
+
+  for (const shortcut of shortcuts) {
+    if (!isShortcutMatchingKeyEvent(e, shortcut)) {
+      continue;
+    }
+
+    const specificity =
+      Number(Boolean(shortcut.commandKey)) +
+      Number(Boolean(shortcut.shiftKey)) +
+      Number(Boolean(shortcut.ctrlKey));
+    if (specificity > bestSpecificity) {
+      bestMatch = shortcut;
+      bestSpecificity = specificity;
+    }
+  }
+
+  return bestMatch;
 };
 
 /**

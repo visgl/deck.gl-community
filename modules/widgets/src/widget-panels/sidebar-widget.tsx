@@ -22,7 +22,8 @@ function normalizeSidebarProps(
   props: Partial<SidebarPanelWidgetProps>
 ): Partial<PanelSidebarProps> {
   return {
-    ...props
+    ...props,
+    triggerIcon: props.icon ?? props.triggerIcon
   };
 }
 

@@ -1,6 +1,6 @@
 import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
-# OmniBoxPanelWidget
+# OmniBoxWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
@@ -8,13 +8,13 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 <WidgetLiveExample highlight="omni-box-widget" />
 
-`OmniBoxPanelWidget` is a deck.gl HTML widget that renders a one-line omnibox input with an autocomplete dropdown.
+`OmniBoxWidget` is a deck.gl HTML widget that renders an omnibox input with an autocomplete dropdown.
 
 ## Import
 
 ```ts
 import {
-  OmniBoxPanelWidget,
+  OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
   type OmniBoxRenderOptionArgs
@@ -47,11 +47,16 @@ export type OmniBoxRenderOptionArgs = {
 ## Props
 
 ```ts
-type OmniBoxPanelWidgetProps = WidgetProps & {
+type OmniBoxWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
   placeholder?: string;
   minQueryLength?: number;
   defaultOpen?: boolean;
+  closeOnSelect?: boolean;
+  rememberQueries?: boolean;
+  maxRememberedQueryCount?: number;
+  queryHistoryStorageKey?: string;
+  showAnchorButton?: boolean;
   topOffsetPx?: number;
   getOptions?: OmniBoxOptionProvider;
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
@@ -65,19 +70,22 @@ type OmniBoxPanelWidgetProps = WidgetProps & {
 ## Usage
 
 ```ts
-const widget = new OmniBoxPanelWidget({
-  placeholder: 'Search blocks…',
+const widget = new OmniBoxWidget({
+  placeholder: 'Search items…',
   defaultOpen: true,
+  closeOnSelect: false,
+  rememberQueries: true,
+  queryHistoryStorageKey: 'example-search-history',
   minQueryLength: 1,
-  getOptions: (query) => searchBlocks(query),
-  onSelectOption: (option) => zoomToBlock((option.data as any).blockId),
-  onNavigateOption: (option) => zoomToBlock((option.data as any).blockId)
+  getOptions: (query) => searchItems(query),
+  onSelectOption: (option) => selectItem((option.data as any).id),
+  onNavigateOption: (option) => previewItem((option.data as any).id)
 });
 ```
 
 ## Notes
 
-This widget is intentionally generic. It does not know about trace blocks or color schemes on its own; callers provide search options, selection behavior, and optional custom row rendering.
+This widget is intentionally generic. Callers provide search options, selection behavior, and optional custom row rendering.
 
 ## Remarks
 
@@ -85,5 +93,8 @@ This widget is intentionally generic. It does not know about trace blocks or col
 - Supports sync or async option providers.
 - Caps the dropdown to 4 visible rows and makes it scrollable beyond that.
 - Includes built-in `<` and `>` navigation controls for cycling the active option.
-- Opens and focuses from the keyboard shortcut path used by the owning view.
+- Opens and focuses from `/` when focus is not already inside an editable element.
+- Can render a compact slash anchor button while closed.
+- Can keep the result list open after selection with `closeOnSelect: false`.
+- Can remember recent selected queries in `localStorage`.
 - Closes on blur after a short delay so option clicks can still land.

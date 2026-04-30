@@ -19,7 +19,8 @@
         "modules/panels/api-reference/panel-manager",
         "modules/panels/api-reference/panel-theme",
         "modules/panels/api-reference/toast-manager",
-        "modules/panels/api-reference/keyboard-shortcuts-manager"
+        "modules/panels/api-reference/keyboard-shortcuts-manager",
+        "modules/panels/api-reference/url-manager"
       ]
     },
     {
@@ -34,7 +35,9 @@
         "modules/panels/api-reference/markdown-panel",
         "modules/panels/api-reference/stats-panel",
         "modules/panels/api-reference/settings-panel",
-        "modules/panels/api-reference/text-editor-panel"
+        "modules/panels/api-reference/documentation-links-panel",
+        "modules/panels/api-reference/text-editor-panel",
+        "modules/panels/api-reference/url-parameters-panel"
       ]
     },
     {

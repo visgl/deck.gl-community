@@ -8,7 +8,8 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 <PanelLiveExample highlight="keyboard-shortcuts-panel" />
 
-`KeyboardShortcutsPanel` renders a read-only keyboard-shortcuts panel that can be embedded inside a modal, sidebar, or info box.
+`KeyboardShortcutsPanel` renders a read-only keyboard, mouse, and trackpad
+interaction reference. It can be embedded inside a modal, sidebar, or info box.
 
 ## Usage
 
@@ -32,6 +33,11 @@ type KeyboardShortcutsPanelProps = {
 
 ## Remarks
 
-- Uses the built-in keyboard shortcut list renderer from the keyboard widget.
-- Defaults to an id of `keyboard-shortcuts` and a title of `Keyboard Shortcuts`.
+- Renders keyboard chords, mouse interactions, and trackpad interactions from
+  `displayInputs`.
+- Groups shortcuts into navigation, interaction, command, and settings sections.
+- Uses `displayPair` to render related primary and secondary shortcuts on the
+  same row.
+- De-duplicates badges for paired rows.
+- Defaults to an id of `keyboard-shortcuts` and a title of `Keyboard & Mouse`.
 - Works as a plain panel, so it can be combined with tabbed, column, or accordion layouts.
