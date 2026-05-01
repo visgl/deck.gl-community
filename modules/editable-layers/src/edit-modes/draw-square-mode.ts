@@ -8,6 +8,7 @@ import turfAlong from '@turf/along';
 import {point, lineString as turfLineString} from '@turf/helpers';
 import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
+import {SnappingBehavior} from './types';
 
 export class DrawSquareMode extends TwoClickPolygonMode {
   getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): Feature<Polygon> {
@@ -35,5 +36,9 @@ export class DrawSquareMode extends TwoClickPolygonMode {
     square.properties.shape = 'Square';
 
     return square;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'NotSupported';
   }
 }

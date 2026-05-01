@@ -3,7 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import turfClone from '@turf/clone';
-import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {
   FeatureCollection,
   Position,
@@ -15,9 +14,10 @@ import {
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  ModeProps
+  ModeProps,
+  SnappingBehavior
 } from './types';
-import {mapCoords} from './utils';
+import {mapCoords, toWebMercatorViewport} from './utils';
 import {translateFromCenter} from '../utils/translate-from-center';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -110,7 +110,7 @@ export class TranslateMode extends GeoJsonEditMode {
 
     // move features without adapting to mercator projection
     if (viewportDesc && screenSpace) {
-      const viewport = viewportDesc.project ? viewportDesc : new WebMercatorViewport(viewportDesc);
+      const viewport = toWebMercatorViewport(viewportDesc);
 
       const from = viewport.project(startDragPoint);
       const to = viewport.project(currentPoint);
@@ -163,5 +163,9 @@ export class TranslateMode extends GeoJsonEditMode {
         featureIndexes: selectedIndexes
       }
     };
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'FromSnapSources';
   }
 }

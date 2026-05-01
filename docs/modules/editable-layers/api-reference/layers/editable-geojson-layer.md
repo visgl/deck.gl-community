@@ -79,10 +79,14 @@ There are a extensive number of modes that come out-of-the-box with from '@deck.
 
 An arbitrary object used to further configure the current mode.
 
-Snapping-related `modeConfig` properties:
+Snapping-related `modeConfig` properties (used by `SnappableMode`):
 
-- `enableSnapping` (Boolean, optional) - Enables snapping for modes that support snapping such as translate mode.
+- `enableSnapping` (Boolean, optional) - Enables snapping for modes that support snapping such as `TranslateMode`.
+- `edgeSnapping` (Boolean, optional) - When `true`, snap targets include the nearest point on any edge of a candidate feature, not just its vertices. Requires `viewport` to be set.
 - `additionalSnapTargets` (Object[], optional) - An array of GeoJSON Features that can be snapped to. This property only needs to be specified if you want to snap to features in other deck.gl layers. All features in this `EditableGeoJsonLayer` will be snap targets.
+- `viewport` (Viewport, optional) - The current deck.gl viewport. Required for certain snapping behavior.
+
+The snap distance threshold is controlled by the layer's `pickingRadius` prop. Increase it to make snapping easier to trigger.
 
 #### `selectedFeatureIndexes` (Array, optional)
 

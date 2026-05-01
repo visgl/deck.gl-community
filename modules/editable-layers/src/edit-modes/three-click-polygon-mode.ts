@@ -7,7 +7,8 @@ import {
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature
+  TentativeFeature,
+  SnappingBehavior
 } from './types';
 import {
   Position,
@@ -114,5 +115,9 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
     }
 
     return tentativeFeature;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'Freehand';
   }
 }

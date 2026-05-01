@@ -30,7 +30,8 @@ import {
   DraggingEvent,
   EditHandleFeature,
   GuideFeatureCollection,
-  GuideFeature
+  GuideFeature,
+  SnappingBehavior
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -205,5 +206,9 @@ export class ResizeCircleMode extends GeoJsonEditMode {
       return 'cell';
     }
     return null;
+  }
+
+  getSnappingBehavior(): SnappingBehavior {
+    return 'WhenDragging';
   }
 }

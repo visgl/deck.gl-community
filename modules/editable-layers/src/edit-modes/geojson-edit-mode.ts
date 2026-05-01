@@ -19,7 +19,8 @@ import {
   Tooltip,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature
+  TentativeFeature,
+  SnappingBehavior
 } from './types';
 import {
   FeatureCollection,
@@ -291,6 +292,11 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
         editContext: {}
       });
     }
+  }
+
+  // Returns the expected snapping behavior as a hint for SnappableMode. Returns 'NotSupported' by default.
+  getSnappingBehavior(): SnappingBehavior {
+    return 'NotSupported';
   }
 }
 

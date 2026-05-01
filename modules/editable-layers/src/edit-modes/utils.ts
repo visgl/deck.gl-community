@@ -8,7 +8,7 @@ import turfDestination from '@turf/destination';
 import turfBearing from '@turf/bearing';
 import turfPointToLineDistance from '@turf/point-to-line-distance';
 import {flattenEach} from '@turf/meta';
-import {point} from '@turf/helpers';
+import {point, lineString} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {
@@ -137,6 +137,50 @@ export function projectOrUnprojectPoints(
     : wmViewport.unproject([...inputPoints]);
 }
 
+export function getNearestPoint(
+  line: Feature<LineString>,
+  inPoint: Feature<Point>,
+  viewport: Viewport | null | undefined,
+  coordinateSystem?: EditModeCoordinateSystem
+): NearestPointType {
+  const {coordinates} = line.geometry;
+  if (coordinates.some(coord => coord.length > 2)) {
+    if (viewport) {
+      // This line has elevation, we need to use alternative algorithm
+      return nearestPointOnProjectedLine(line, inPoint, viewport, coordinateSystem);
+    }
+
+    // eslint-disable-next-line no-console,no-undef
+    console.log('Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.');
+  }
+  return nearestPointOnLine(line, inPoint, viewport, coordinateSystem);
+}
+
+export function findNearestPointOnGeometry(
+  feature: Feature<SimpleGeometry>,
+  mapCoords: Position,
+  viewport?: Viewport,
+  coordinateSystem?: EditModeCoordinateSystem
+): {nearestPoint: NearestPointType | null; positionIndexPrefix: number[]} {
+  let nearestPoint: NearestPointType | null = null;
+  let positionIndexPrefix: number[] = [];
+  const referencePoint = point(mapCoords);
+  recursivelyTraverseNestedArrays(feature.geometry.coordinates, [], (feature, prefix) => {
+    const lineStringFeature = lineString(feature);
+    const candidate = getNearestPoint(
+      lineStringFeature,
+      referencePoint,
+      viewport,
+      coordinateSystem
+    );
+    if (!nearestPoint || candidate.properties.dist < nearestPoint.properties.dist) {
+      nearestPoint = candidate;
+      positionIndexPrefix = prefix;
+    }
+  });
+  return {nearestPoint, positionIndexPrefix};
+}
+
 export function nearestPointOnProjectedLine(
   line: Feature<LineString>,
   inPoint: Feature<Point>,
@@ -154,7 +198,7 @@ export function nearestPointOnProjectedLine(
     };
 
   // Project the line to viewport, then find the nearest point
-  const wmViewport = new WebMercatorViewport(viewport);
+  const wmViewport = toWebMercatorViewport(viewport);
 
   const [x, y] = projectOrUnprojectPoints(
     inPoint.geometry.coordinates,
@@ -227,7 +271,7 @@ export function nearestPointOnLine(
   viewport?: Viewport,
   coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  const wmViewport = viewport ? new WebMercatorViewport(viewport) : undefined;
+  const wmViewport = viewport ? toWebMercatorViewport(viewport) : undefined;
 
   let closestPoint: any = point([Infinity, Infinity], {dist: Infinity});
 
@@ -363,6 +407,13 @@ export function getPickedSnapSourceEditHandle(
 ): EditHandleFeature | null | undefined {
   const handles = getPickedEditHandles(picks);
   return handles.find(handle => handle.properties.editHandleType === 'snap-source');
+}
+
+export function getPickedSnapTargetEditHandle(
+  picks: Pick[] | null | undefined
+): EditHandleFeature | null | undefined {
+  const handles = getPickedEditHandles(picks);
+  return handles.find(handle => handle.properties.editHandleType === 'snap-target');
 }
 
 export function getNonGuidePicks(picks: Pick[]): Pick[] {
@@ -550,4 +601,13 @@ export function mapCoords(
 
 export function shouldCancelPan(event: StartDraggingEvent) {
   return event.picks.length && event.picks.find(p => p.featureType === 'points');
+}
+
+// Accepts either a plain viewport descriptor or an already-constructed WebMercatorViewport instance
+export function toWebMercatorViewport(
+  viewport: Viewport | WebMercatorViewport
+): WebMercatorViewport {
+  return (viewport as WebMercatorViewport).project
+    ? (viewport as WebMercatorViewport)
+    : new WebMercatorViewport(viewport as Viewport);
 }
