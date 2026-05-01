@@ -8,7 +8,7 @@ import turfDestination from '@turf/destination';
 import turfBearing from '@turf/bearing';
 import turfPointToLineDistance from '@turf/point-to-line-distance';
 import {flattenEach} from '@turf/meta';
-import {point} from '@turf/helpers';
+import {point, lineString} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {
@@ -135,6 +135,50 @@ export function projectOrUnprojectPoints(
   return project === 'PROJECT'
     ? wmViewport.project([...inputPoints])
     : wmViewport.unproject([...inputPoints]);
+}
+
+export function getNearestPoint(
+  line: Feature<LineString>,
+  inPoint: Feature<Point>,
+  viewport: Viewport | null | undefined,
+  coordinateSystem?: EditModeCoordinateSystem
+): NearestPointType {
+  const {coordinates} = line.geometry;
+  if (coordinates.some(coord => coord.length > 2)) {
+    if (viewport) {
+      // This line has elevation, we need to use alternative algorithm
+      return nearestPointOnProjectedLine(line, inPoint, viewport, coordinateSystem);
+    }
+
+    // eslint-disable-next-line no-console,no-undef
+    console.log('Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.');
+  }
+  return nearestPointOnLine(line, inPoint, viewport, coordinateSystem);
+}
+
+export function findNearestPointOnGeometry(
+  feature: Feature<SimpleGeometry>,
+  mapCoords: Position,
+  viewport?: Viewport,
+  coordinateSystem?: EditModeCoordinateSystem
+): {nearestPoint: NearestPointType | null; positionIndexPrefix: number[]} {
+  let nearestPoint: NearestPointType | null = null;
+  let positionIndexPrefix: number[] = [];
+  const referencePoint = point(mapCoords);
+  recursivelyTraverseNestedArrays(feature.geometry.coordinates, [], (feature, prefix) => {
+    const lineStringFeature = lineString(feature);
+    const candidate = getNearestPoint(
+      lineStringFeature,
+      referencePoint,
+      viewport,
+      coordinateSystem
+    );
+    if (!nearestPoint || candidate.properties.dist < nearestPoint.properties.dist) {
+      nearestPoint = candidate;
+      positionIndexPrefix = prefix;
+    }
+  });
+  return {nearestPoint, positionIndexPrefix};
 }
 
 export function nearestPointOnProjectedLine(

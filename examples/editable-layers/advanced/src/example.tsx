@@ -603,6 +603,7 @@ export function Example() {
   }, [modeConfig]);
 
   const renderSnappingControls = useCallback(() => {
+    const snappingEnabled = Boolean(modeConfig && modeConfig.enableSnapping);
     return (
       <div key="snap">
         <ToolboxRow>
@@ -610,13 +611,28 @@ export function Example() {
           <ToolboxControl>
             <input
               type="checkbox"
-              checked={Boolean(modeConfig && modeConfig.enableSnapping)}
+              checked={snappingEnabled}
               onChange={event => {
-                const newModeConfig = {
+                setModeConfig({
                   ...modeConfig,
                   enableSnapping: Boolean(event.target.checked)
-                };
-                setModeConfig(newModeConfig);
+                });
+              }}
+            />
+          </ToolboxControl>
+        </ToolboxRow>
+        <ToolboxRow>
+          <ToolboxTitle>Edge snapping</ToolboxTitle>
+          <ToolboxControl>
+            <input
+              type="checkbox"
+              disabled={!snappingEnabled}
+              checked={Boolean(modeConfig && modeConfig.edgeSnapping)}
+              onChange={event => {
+                setModeConfig({
+                  ...modeConfig,
+                  edgeSnapping: Boolean(event.target.checked)
+                });
               }}
             />
           </ToolboxControl>

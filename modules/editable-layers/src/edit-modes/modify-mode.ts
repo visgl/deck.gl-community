@@ -2,27 +2,25 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {point, lineString as toLineString} from '@turf/helpers';
 import {
-  recursivelyTraverseNestedArrays,
-  nearestPointOnProjectedLine,
-  nearestPointOnLine,
   getEditHandlesForGeometry,
   getPickedEditHandles,
   getPickedEditHandle,
   getPickedExistingEditHandle,
   getPickedIntermediateEditHandle,
   updateRectanglePosition,
-  NearestPointType,
-  shouldCancelPan
+  shouldCancelPan,
+  findNearestPointOnGeometry,
+  getNearestPoint,
+  NearestPointType
 } from './utils';
 import {
-  LineString,
-  Point,
   Polygon,
   FeatureCollection,
   Feature,
-  SimpleFeatureCollection
+  SimpleFeatureCollection,
+  Point,
+  LineString
 } from '../utils/geojson-types';
 import {
   ModeProps,
@@ -31,11 +29,11 @@ import {
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  Viewport,
   GuideFeatureCollection,
   EditHandleFeature,
   GuideFeature,
-  SnappingBehavior
+  SnappingBehavior,
+  Viewport
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -75,31 +73,12 @@ export class ModifyMode extends GeoJsonEditMode {
         ) &&
         props.selectedIndexes.includes(featureAsPick.index)
       ) {
-        let intermediatePoint: NearestPointType | null | undefined = null;
-        let positionIndexPrefix: number[] = [];
-        const referencePoint = point(mapCoords);
-        // process all lines of the (single) feature
-        recursivelyTraverseNestedArrays(
-          featureAsPick.object.geometry.coordinates,
-          [],
-          (lineString, prefix) => {
-            const lineStringFeature = toLineString(lineString);
-            const candidateIntermediatePoint = this.getNearestPoint(
-              lineStringFeature,
-              referencePoint,
-              props.modeConfig && props.modeConfig.viewport,
-              props.coordinateSystem
-            );
-            if (
-              !intermediatePoint ||
-              candidateIntermediatePoint.properties.dist < intermediatePoint.properties.dist
-            ) {
-              intermediatePoint = candidateIntermediatePoint;
-              positionIndexPrefix = prefix;
-            }
-          }
+        const {nearestPoint: intermediatePoint, positionIndexPrefix} = findNearestPointOnGeometry(
+          featureAsPick.object,
+          mapCoords,
+          props.modeConfig?.viewport,
+          props.coordinateSystem
         );
-        // tack on the lone intermediate point to the set of handles
         if (intermediatePoint) {
           const {
             geometry: {coordinates: position},
@@ -128,25 +107,13 @@ export class ModifyMode extends GeoJsonEditMode {
     };
   }
 
-  // turf.js does not support elevation for nearestPointOnLine
   getNearestPoint(
     line: Feature<LineString>,
     inPoint: Feature<Point>,
     viewport: Viewport | null | undefined,
     coordinateSystem?: EditModeCoordinateSystem
   ): NearestPointType {
-    const {coordinates} = line.geometry;
-    if (coordinates.some(coord => coord.length > 2)) {
-      if (viewport) {
-        // This line has elevation, we need to use alternative algorithm
-        return nearestPointOnProjectedLine(line, inPoint, viewport, coordinateSystem);
-      }
-      // eslint-disable-next-line no-console,no-undef
-      console.log(
-        'Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.'
-      );
-    }
-    return nearestPointOnLine(line, inPoint, viewport, coordinateSystem);
+    return getNearestPoint(line, inPoint, viewport, coordinateSystem);
   }
 
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {

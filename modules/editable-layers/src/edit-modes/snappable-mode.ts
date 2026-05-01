@@ -26,23 +26,37 @@ import {
   getEditHandlesForGeometry,
   toWebMercatorViewport,
   distance2d,
-  getPickedEditHandle
+  getPickedEditHandle,
+  findNearestPointOnGeometry,
+  NearestPointType
 } from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import WebMercatorViewport from '@math.gl/web-mercator';
 
 type MovementTypeEvent = PointerMoveEvent | StartDraggingEvent | StopDraggingEvent | DraggingEvent;
 
+type EdgeSnapCandidate = NearestPointType & {
+  index: number;
+  screenDistance: number;
+};
+
 export class SnappableMode extends GeoJsonEditMode {
   _handler: GeoJsonEditMode;
+  _handlerSupportsSnapping: boolean;
 
   constructor(handler: GeoJsonEditMode) {
     super();
     this._handler = handler;
+    this._handlerSupportsSnapping = handler.getSnappingBehavior() !== 'NotSupported';
   }
 
   handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
     const {enableSnapping} = props.modeConfig || {};
-    if (enableSnapping && this._handler.getSnappingBehavior() !== 'FromSnapSources') {
+    if (
+      this._handlerSupportsSnapping &&
+      enableSnapping &&
+      this._handler.getSnappingBehavior() !== 'FromSnapSources'
+    ) {
       const snapTarget = this._getPickedSnapTarget(event.picks);
       if (snapTarget) {
         return this._handler.handleClick(
@@ -91,7 +105,7 @@ export class SnappableMode extends GeoJsonEditMode {
       features: [...this._handler.getGuides(props).features]
     };
 
-    if (!enableSnapping) {
+    if (!enableSnapping || !this._handlerSupportsSnapping) {
       return guides;
     }
 
@@ -119,6 +133,7 @@ export class SnappableMode extends GeoJsonEditMode {
     const {enableSnapping} = props.modeConfig || {};
 
     if (
+      this._handlerSupportsSnapping &&
       enableSnapping &&
       (snapSource || this._handler.getSnappingBehavior() !== 'FromSnapSources')
     ) {
@@ -215,20 +230,66 @@ export class SnappableMode extends GeoJsonEditMode {
 
   _getSnapTargetHandles(props: ModeProps<SimpleFeatureCollection>): EditHandleFeature[] {
     const handles: EditHandleFeature[] = [];
+    const edgeSnapCandidates: EdgeSnapCandidate[] = [];
     const features = this._getSnapTargets(props);
-    const showSnappingSources = this._handler.getSnappingBehavior() === 'FromSnapSources';
     const editHandle = getPickedEditHandle(props.lastPointerMoveEvent.pointerDownPicks);
     const editHandleFeatureIndex = editHandle?.properties.featureIndex;
+    const wmViewport = props.modeConfig?.viewport
+      ? toWebMercatorViewport(props.modeConfig.viewport)
+      : undefined;
 
     for (let i = 0; i < features.length; i++) {
-      if (
-        (showSnappingSources && !props.selectedIndexes.includes(i)) ||
-        (!showSnappingSources && i !== editHandleFeatureIndex)
-      ) {
-        handles.push(...getEditHandlesForGeometry(features[i].geometry, i, 'snap-target'));
+      const isExcluded =
+        this._handler.getSnappingBehavior() === 'FromSnapSources'
+          ? props.selectedIndexes.includes(i)
+          : i === editHandleFeatureIndex;
+
+      if (!isExcluded) {
+        const feature = features[i];
+        handles.push(...getEditHandlesForGeometry(feature.geometry, i, 'snap-target'));
+        if (props.modeConfig?.edgeSnapping && wmViewport) {
+          const candidate = this._findEdgeSnapCandidateForFeature(feature, i, props, wmViewport);
+          if (candidate) {
+            edgeSnapCandidates.push(candidate);
+          }
+        }
       }
     }
+
+    if (edgeSnapCandidates.length > 0) {
+      const closestEdgeSnap = edgeSnapCandidates.reduce(
+        (closest, snap) => (snap.screenDistance < closest.screenDistance ? snap : closest),
+        edgeSnapCandidates[0]
+      );
+      handles.push(
+        ...getEditHandlesForGeometry(closestEdgeSnap.geometry, closestEdgeSnap.index, 'snap-target')
+      );
+    }
+
     return handles;
+  }
+
+  _findEdgeSnapCandidateForFeature(
+    feature: SimpleFeature,
+    featureIndex: number,
+    props: ModeProps<SimpleFeatureCollection>,
+    wmViewport: WebMercatorViewport
+  ): EdgeSnapCandidate | undefined {
+    const edgeSnap = findNearestPointOnGeometry(
+      feature,
+      props.lastPointerMoveEvent.mapCoords,
+      props.modeConfig.viewport,
+      props.coordinateSystem
+    );
+    if (!edgeSnap.nearestPoint) {
+      return undefined;
+    }
+    const [cx, cy] = props.lastPointerMoveEvent.screenCoords;
+    const [px, py] = wmViewport.project(edgeSnap.nearestPoint.geometry.coordinates);
+    const dist = distance2d(cx, cy, px, py);
+    return dist <= props.pickingRadius
+      ? {...edgeSnap.nearestPoint, index: featureIndex, screenDistance: dist}
+      : undefined;
   }
 
   _getDraggingSnapGuides(

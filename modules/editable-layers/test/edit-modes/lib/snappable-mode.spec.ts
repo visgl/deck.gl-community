@@ -202,6 +202,60 @@ describe('translate mode', () => {
     expect(lastHandle.geometry.coordinates).toEqual(pointAMapCoords);
     expect(lastHandle.properties.editHandleType).toBe('snap-source');
   });
+
+  test('when edge snapping enabled, snap target is rendered if edge within radius', () => {
+    const snapToEdgeScreenCoords: [number, number] = [10.1, 9.9];
+    const snapToEdgeMapCoords = webMercatorViewport.unproject(snapToEdgeScreenCoords);
+    const expectedSnapMapCoords = webMercatorViewport.unproject([10, 10]);
+
+    const pointSnapSourceHandle: EditHandleFeature = {
+      type: 'Feature',
+      properties: {
+        guideType: 'editHandle',
+        editHandleType: 'snap-source',
+        featureIndex: 1,
+        positionIndexes: []
+      },
+      geometry: {type: 'Point', coordinates: pointCMapCoords}
+    };
+    const pointSourcePick = {index: 1, isGuide: true, object: pointSnapSourceHandle};
+
+    const props = {
+      ...defaultProps,
+      selectedIndexes: [1],
+      lastPointerMoveEvent: {
+        ...createPointerMoveEvent(snapToEdgeMapCoords, [], snapToEdgeScreenCoords),
+        pointerDownPicks: [pointSourcePick],
+        isDragging: true
+      },
+      modeConfig: {
+        ...modeConfig,
+        edgeSnapping: true
+      }
+    };
+
+    const guides = mode.getGuides(props);
+
+    expect(guides.features.length).toBe(4);
+
+    const edgeSnapTarget = guides.features[2] as EditHandleFeature;
+    expect(edgeSnapTarget.properties.guideType).toBe('editHandle');
+    expect(edgeSnapTarget.geometry.type).toEqual('Point');
+    expect(edgeSnapTarget.properties.editHandleType).toBe('snap-target');
+    expect(edgeSnapTarget.properties.featureIndex).toBe(0);
+    // Verify snapping actually moved the point: the result must differ from the cursor position
+    expect(edgeSnapTarget.geometry.coordinates).not.toEqual(snapToEdgeMapCoords);
+    // ...and must instead be close to the perpendicular foot on the line at [10, 10]
+    expect(edgeSnapTarget.geometry.coordinates[0]).toBeCloseTo(expectedSnapMapCoords[0], 4);
+    expect(edgeSnapTarget.geometry.coordinates[1]).toBeCloseTo(expectedSnapMapCoords[1], 4);
+
+    // The snap source shows its original position since onEdit is mocked
+    const lastHandle = guides.features[3] as EditHandleFeature;
+    expect(lastHandle.properties.guideType).toBe('editHandle');
+    expect(lastHandle.geometry.type).toEqual('Point');
+    expect(lastHandle.geometry.coordinates).toEqual(pointCMapCoords);
+    expect(lastHandle.properties.editHandleType).toBe('snap-source');
+  });
 });
 
 describe('draw point mode', () => {
