@@ -230,6 +230,6 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
   }
 
   getSnappingBehavior(): SnappingBehavior {
-    return 'Freehand';
+    return 'NotSupported';
   }
 }
