@@ -63,7 +63,8 @@ const CONTROL_SECTION_STYLE = {
 const CONTROL_BUTTON_GROUP_STYLE = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '8px'
+  gap: '8px',
+  pointerEvents: 'auto'
 } as const;
 
 const CONTROL_BUTTON_STYLE = {
