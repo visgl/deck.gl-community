@@ -16,7 +16,7 @@ import type {FeatureCollection} from 'geojson';
 
 import testPolygons from '../data/sf-polygons';
 
-import '@deck.gl/widgets/stylesheet.css';
+import '@deck.gl/widgets/dist/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';

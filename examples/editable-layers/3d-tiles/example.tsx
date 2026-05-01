@@ -25,7 +25,7 @@ import type {BooleanOperation} from '@deck.gl-community/editable-layers';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
-import '@deck.gl/widgets/stylesheet.css';
+import '@deck.gl/widgets/dist/stylesheet.css';
 
 const GOOGLE_MAPS_API_KEY = process.env.GoogleMapsAPIKey; // eslint-disable-line
 const TILESET_URL = 'https://tile.googleapis.com/v1/3dtiles/root.json';

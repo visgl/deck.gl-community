@@ -66,7 +66,7 @@ import {
   ToolboxCheckbox
 } from './toolbox';
 
-import '@deck.gl/widgets/stylesheet.css';
+import '@deck.gl/widgets/dist/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type RGBAColor = Color;
