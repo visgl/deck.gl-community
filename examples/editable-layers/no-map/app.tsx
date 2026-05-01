@@ -24,7 +24,7 @@ import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import type {FeatureCollection} from 'geojson';
 
-import '@deck.gl/widgets/stylesheet.css';
+import '@deck.gl/widgets/dist/stylesheet.css';
 
 // Bird image used as a non-map background
 // Source: JJ Harrison - CC BY-SA 4.0

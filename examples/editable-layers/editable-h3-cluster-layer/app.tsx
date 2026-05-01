@@ -23,7 +23,7 @@ import maplibregl from 'maplibre-gl';
 
 import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data';
 
-import '@deck.gl/widgets/stylesheet.css';
+import '@deck.gl/widgets/dist/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type ClusterDatum = {
