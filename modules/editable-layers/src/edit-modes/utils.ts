@@ -228,11 +228,9 @@ export function nearestPointOnLine(
 ): NearestPointType {
   const wmViewport = viewport ? new WebMercatorViewport(viewport) : undefined;
 
-  const closestPoint = point([Infinity, Infinity], {dist: Infinity, index: undefined});
-
   const coords = lines.geometry?.coordinates;
   if (!coords || coords.length < 2) {
-    return closestPoint;
+    return point([Infinity, Infinity], {dist: Infinity, index: undefined});
   }
 
   const pointCoords = getCoords(inPoint);
