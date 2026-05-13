@@ -121,8 +121,8 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
       panel: new ColumnPanel({
         id: 'skybox-globe-panel',
         title: 'SkyboxLayer GlobeView',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: '',
             markdown: [
@@ -133,7 +133,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
               '- Basemap: CARTO vector style rendered through `BasemapLayer`.'
             ].join('\n')
           }),
-          settings: new SettingsPanel({
+          new SettingsPanel({
             id: 'settings',
             label: 'Controls',
             schema: SETTINGS_SCHEMA,
@@ -144,7 +144,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
               syncInfoWidget();
             }
           })
-        }
+        ]
       })
     });
   }

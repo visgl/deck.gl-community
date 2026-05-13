@@ -195,8 +195,8 @@ function buildControlPanel(
   return new ColumnPanel({
     id: 'wild-forest-panel',
     title: 'Wild Forest + Orchards',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -207,14 +207,14 @@ function buildControlPanel(
           `- Crops: **${state.settings.render.showCrops ? 'visible' : 'hidden'}**`
         ].join('\n')
       }),
-      settings: new SettingsPanel({
+      new SettingsPanel({
         id: 'settings',
         label: 'Controls',
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange
       }),
-      legend: new CustomPanel({
+      new CustomPanel({
         id: 'legend',
         title: 'Forest Zones',
         onRenderHTML(hostElement) {
@@ -257,7 +257,7 @@ function buildControlPanel(
           };
         }
       })
-    }
+    ]
   });
 }
 

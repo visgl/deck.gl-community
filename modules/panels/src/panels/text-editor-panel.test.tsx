@@ -3,8 +3,9 @@ import {h, render} from 'preact';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 
-import {PanelContentRenderer, asPanelContainer} from './panel-containers';
+import {PanelThemeScope} from './panel-theme-scope';
 import {TextEditorPanel} from './text-editor-panel';
+import type {Panel} from './panel-types';
 
 const monacoHarness = vi.hoisted(() => {
   type FakeListener = () => void;
@@ -129,6 +130,10 @@ const monacoHarness = vi.hoisted(() => {
   };
 });
 
+function renderPanel(panel: Panel, root: Element): void {
+  render(h(PanelThemeScope, {panel}, panel.content), root);
+}
+
 vi.mock('./text-editor-panel-monaco-runtime', () => ({
   loadTextEditorMonacoRuntime: monacoHarness.loadTextEditorMonacoRuntime
 }));
@@ -228,12 +233,7 @@ describe('TextEditorPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(new TextEditorPanel({id: 'light', title: 'Light'}))
-      }),
-      root
-    );
+    renderPanel(new TextEditorPanel({id: 'light', title: 'Light'}), root);
 
     await waitForCondition(
       () => monacoHarness.getLastCreatedModel() !== null,
@@ -247,15 +247,11 @@ describe('TextEditorPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(
-          new TextEditorPanel({
-            id: 'dark',
-            title: 'Dark',
-            theme: 'dark'
-          })
-        )
+    renderPanel(
+      new TextEditorPanel({
+        id: 'dark',
+        title: 'Dark',
+        theme: 'dark'
       }),
       root
     );
@@ -272,17 +268,13 @@ describe('TextEditorPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(
-          new TextEditorPanel({
-            id: 'custom-theme',
-            title: 'Custom theme',
-            theme: 'dark',
-            lightMonacoTheme: 'custom-light',
-            darkMonacoTheme: 'custom-dark'
-          })
-        )
+    renderPanel(
+      new TextEditorPanel({
+        id: 'custom-theme',
+        title: 'Custom theme',
+        theme: 'dark',
+        lightMonacoTheme: 'custom-light',
+        darkMonacoTheme: 'custom-dark'
       }),
       root
     );
@@ -299,15 +291,11 @@ describe('TextEditorPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(
-          new TextEditorPanel({
-            id: 'theme-switch',
-            title: 'Theme switch',
-            theme: 'dark'
-          })
-        )
+    renderPanel(
+      new TextEditorPanel({
+        id: 'theme-switch',
+        title: 'Theme switch',
+        theme: 'dark'
       }),
       root
     );
@@ -316,15 +304,11 @@ describe('TextEditorPanel', () => {
       'Expected Monaco model to be created before theme update.'
     );
 
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(
-          new TextEditorPanel({
-            id: 'theme-switch',
-            title: 'Theme switch',
-            theme: 'light'
-          })
-        )
+    renderPanel(
+      new TextEditorPanel({
+        id: 'theme-switch',
+        title: 'Theme switch',
+        theme: 'light'
       }),
       root
     );
@@ -341,17 +325,13 @@ describe('TextEditorPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(
-          new TextEditorPanel({
-            id: 'custom-theme-switch',
-            title: 'Custom theme switch',
-            theme: 'dark',
-            lightMonacoTheme: 'custom-light',
-            darkMonacoTheme: 'custom-dark'
-          })
-        )
+    renderPanel(
+      new TextEditorPanel({
+        id: 'custom-theme-switch',
+        title: 'Custom theme switch',
+        theme: 'dark',
+        lightMonacoTheme: 'custom-light',
+        darkMonacoTheme: 'custom-dark'
       }),
       root
     );
@@ -360,17 +340,13 @@ describe('TextEditorPanel', () => {
       'Expected Monaco model to be created before custom theme update.'
     );
 
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(
-          new TextEditorPanel({
-            id: 'custom-theme-switch',
-            title: 'Custom theme switch',
-            theme: 'light',
-            lightMonacoTheme: 'custom-light',
-            darkMonacoTheme: 'custom-dark'
-          })
-        )
+    renderPanel(
+      new TextEditorPanel({
+        id: 'custom-theme-switch',
+        title: 'Custom theme switch',
+        theme: 'light',
+        lightMonacoTheme: 'custom-light',
+        darkMonacoTheme: 'custom-dark'
       }),
       root
     );
@@ -394,14 +370,10 @@ describe('TextEditorPanel', () => {
     panelContainer.appendChild(root);
     document.body.appendChild(panelContainer);
 
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(
-          new TextEditorPanel({
-            id: 'theme-vars-switch',
-            title: 'Theme vars switch'
-          })
-        )
+    renderPanel(
+      new TextEditorPanel({
+        id: 'theme-vars-switch',
+        title: 'Theme vars switch'
       }),
       root
     );

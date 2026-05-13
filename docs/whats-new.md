@@ -16,6 +16,7 @@ A new module for deck-independent panel composition and small application UI.
 - `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema and field metadata with JSON metadata formatting.
 - `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
 - Panel APIs now use panel terminology throughout `@deck.gl-community/panels`; deck.gl widget-facing wrappers remain in `@deck.gl-community/widgets`.
+- Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs, and the redundant descriptor/`WidgetHost` surfaces are removed.
 
 ## v9.3
 

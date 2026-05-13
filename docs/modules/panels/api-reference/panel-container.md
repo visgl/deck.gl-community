@@ -1,8 +1,12 @@
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
+
 # Panel Container
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<PanelLiveExample highlight="panel-box" />
 
 `PanelContainer` is the base class for creating custom panel containers in
 `@deck.gl-community/panels`.

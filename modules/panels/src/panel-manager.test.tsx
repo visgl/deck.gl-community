@@ -7,7 +7,8 @@ import {PanelContainer} from './panel-container';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT, applyPanelTheme} from './lib/panel-theme';
 import {ToastPanelContainer} from './panels/toast-panel-container';
 import {ToolbarPanelContainer} from './panels/toolbar-panel-container';
-import {MarkdownPanel, PanelContentRenderer, asPanelContainer} from './panels/panel-containers';
+import {MarkdownPanel} from './panels/panel-containers';
+import {PanelThemeScope} from './panels/panel-theme-scope';
 
 type TestPanelContainerProps = {
   id?: string;
@@ -260,18 +261,12 @@ describe('PanelManager', () => {
     root.appendChild(panelRoot);
     applyPanelTheme(root, PANEL_THEME_LIGHT);
 
-    render(
-      <PanelContentRenderer
-        container={asPanelContainer(
-          new MarkdownPanel({
-            id: 'summary',
-            title: 'Summary',
-            markdown: 'Theme inheritance'
-          })
-        )}
-      />,
-      panelRoot
-    );
+    const panel = new MarkdownPanel({
+      id: 'summary',
+      title: 'Summary',
+      markdown: 'Theme inheritance'
+    });
+    render(<PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope>, panelRoot);
 
     host.setProps({components: [containerPanelContainer]});
     await Promise.resolve();

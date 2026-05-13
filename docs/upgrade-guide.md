@@ -9,13 +9,14 @@ Please refer the documentation of each module for detailed upgrade guides.
 ### `@deck.gl-community/panels`
 
 - Breaking change: panel composition APIs no longer expose `Widget*` names from `@deck.gl-community/panels`.
+- Breaking change: composite panel constructors now accept ordered `Panel[]` arrays instead of `PanelRecord` maps.
+- Breaking change: shell containers (`PanelBox`, `PanelModal`, `PanelSidebar`, `PanelFullScreen`) accept `panel` only; descriptor-style `container` inputs were removed.
+- Breaking change: `PanelContentContainer`, `PanelContentRenderer`, and `asPanelContainer` were removed.
+- Breaking change: `WidgetHost` was removed. Use `PanelManager` outside deck.gl and widget wrapper classes inside deck.gl.
 - Migration:
   - `WidgetPanel` -> `Panel`
-  - `WidgetPanelRecord` -> `PanelRecord`
   - `WidgetPanelTheme` -> `PanelTheme`
   - `WidgetPanelThemeMode` -> `PanelThemeMode`
-  - `WidgetContainer` -> `PanelContentContainer`
-  - `WidgetContainerRenderer` -> `PanelContentRenderer`
   - `AccordeonWidgetContainer` -> `AccordeonPanelContainer`
   - `TabbedWidgetContainer` -> `TabbedPanelContainer`
   - `ColumnWidgetContainer` -> `ColumnPanelContainer`

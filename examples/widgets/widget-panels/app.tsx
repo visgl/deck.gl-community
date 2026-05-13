@@ -20,8 +20,6 @@ import {
   TextEditorPanel,
   type KeyboardShortcut,
   type Panel,
-  type PanelContentContainer,
-  PanelContentRenderer,
   type SettingsSchema,
   type SettingsState
 } from '@deck.gl-community/panels';
@@ -743,14 +741,14 @@ function buildSidebarPanel(
   return new AccordeonPanel({
     id: 'sidebar-controls',
     title: 'Sidebar controls',
-    panels: {
+    panels: [
       summary,
       ...SettingsPanel.createSectionPanels({
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange: handlers.setSettings
       })
-    }
+    ]
   });
 }
 
@@ -762,8 +760,8 @@ function buildModalPanel(
   return new TabbedPanel({
     id: 'modal-panels',
     title: 'Modal panels',
-    panels: {
-      overview: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'overview',
         title: 'Overview',
         markdown: [
@@ -776,17 +774,17 @@ function buildModalPanel(
           `Highlighted API: **${HIGHLIGHT_LABELS[highlight]}**`
         ].join('\n')
       }),
-      shortcuts: new KeyboardShortcutsPanel({
+      new KeyboardShortcutsPanel({
         keyboardShortcuts: KEYBOARD_SHORTCUTS
       }),
-      settings: new SettingsPanel({
+      new SettingsPanel({
         id: 'modal-settings',
         label: 'Panel controls',
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange: handlers.setSettings
       }),
-      stylesheet: new TextEditorPanel({
+      new TextEditorPanel({
         id: 'modal-stylesheet',
         title: 'Stylesheet',
         language: 'json',
@@ -794,7 +792,7 @@ function buildModalPanel(
         defaultValue: EXAMPLE_STYLESHEET_JSON,
         placeholder: 'Stylesheet JSON preview'
       })
-    }
+    ]
   });
 }
 
@@ -806,10 +804,7 @@ function buildInfoBoxPanel(
   return new ColumnPanel({
     id: 'widget-panels-box',
     title: 'Widget Panels',
-    panels: {
-      summary: buildOverviewMarkdownPanel(highlight),
-      actions: buildActionsPanel(state, handlers)
-    }
+    panels: [buildOverviewMarkdownPanel(highlight), buildActionsPanel(state, handlers)]
   });
 }
 
@@ -1215,13 +1210,6 @@ function buildStatsPanel() {
 }
 
 function renderDocsModalPreview(rootElement: HTMLElement, panel: Panel): void {
-  const container: PanelContentContainer = {
-    kind: 'panel',
-    props: {
-      panel
-    }
-  };
-
   render(
     <section style={DOCS_MODAL_PREVIEW_PANEL_STYLE} aria-label="ModalPanelWidget preview">
       <header style={DOCS_MODAL_PREVIEW_HEADER_STYLE}>
@@ -1230,9 +1218,7 @@ function renderDocsModalPreview(rootElement: HTMLElement, panel: Panel): void {
           ×
         </span>
       </header>
-      <div style={DOCS_MODAL_PREVIEW_CONTENT_STYLE}>
-        <PanelContentRenderer container={container} />
-      </div>
+      <div style={DOCS_MODAL_PREVIEW_CONTENT_STYLE}>{panel.content}</div>
     </section>,
     rootElement
   );

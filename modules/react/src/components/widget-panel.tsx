@@ -5,11 +5,7 @@
 import * as React from 'react';
 import {h, render as renderPreact} from 'preact';
 import {DarkTheme, LightTheme} from '@deck.gl/widgets';
-import {
-  PanelContentRenderer,
-  type Panel,
-  type PanelContentContainer
-} from '@deck.gl-community/panels';
+import {type Panel} from '@deck.gl-community/panels';
 
 import type {CSSProperties, ReactElement} from 'react';
 
@@ -18,26 +14,12 @@ import type {CSSProperties, ReactElement} from 'react';
  */
 export type WidgetPanelThemeMode = 'inherit' | 'light' | 'dark';
 
-type WidgetPanelWithPanelProps = {
-  /**
-   * One panel definition imported from `@deck.gl-community/panels`.
-   */
-  panel: Panel;
-  container?: never;
-};
-
-type WidgetPanelWithContainerProps = {
-  /**
-   * One full container definition imported from `@deck.gl-community/panels`.
-   */
-  container: PanelContentContainer;
-  panel?: never;
-};
-
 /**
  * Props for the React `WidgetPanel` component.
  */
-export type WidgetPanelProps = (WidgetPanelWithPanelProps | WidgetPanelWithContainerProps) & {
+export type WidgetPanelProps = {
+  /** One panel definition imported from `@deck.gl-community/panels`. */
+  panel: Panel;
   /**
    * Theme mode applied to the widget host.
    *
@@ -68,17 +50,12 @@ export type WidgetPanelProps = (WidgetPanelWithPanelProps | WidgetPanelWithConta
  */
 export function WidgetPanel({
   panel,
-  container,
   themeMode = 'light',
   className,
   style,
   framed = true
 }: WidgetPanelProps): ReactElement {
   const mountElementRef = React.useRef<HTMLDivElement | null>(null);
-  const resolvedContainer = React.useMemo<PanelContentContainer | null>(
-    () => (container ? container : null),
-    [container]
-  );
 
   React.useEffect(() => {
     const mountElement = mountElementRef.current;
@@ -86,23 +63,19 @@ export function WidgetPanel({
       return undefined;
     }
 
-    if (resolvedContainer) {
-      renderPreact(h(PanelContentRenderer, {container: resolvedContainer}), mountElement);
-    } else {
-      renderPreact(
-        h('div', null, [
-          h('section', {style: DIRECT_PANEL_SECTION_STYLE}, [
-            panel.title ? h('header', {style: DIRECT_PANEL_HEADER_STYLE}, panel.title) : null,
-            h('div', {style: DIRECT_PANEL_CONTENT_STYLE}, panel.content)
-          ])
-        ]),
-        mountElement
-      );
-    }
+    renderPreact(
+      h('div', null, [
+        h('section', {style: DIRECT_PANEL_SECTION_STYLE}, [
+          panel.title ? h('header', {style: DIRECT_PANEL_HEADER_STYLE}, panel.title) : null,
+          h('div', {style: DIRECT_PANEL_CONTENT_STYLE}, panel.content)
+        ])
+      ]),
+      mountElement
+    );
     return () => {
       renderPreact(null, mountElement);
     };
-  }, [panel, resolvedContainer]);
+  }, [panel]);
 
   return (
     <div

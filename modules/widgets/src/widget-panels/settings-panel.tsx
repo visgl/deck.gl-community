@@ -576,11 +576,10 @@ export class SettingsPanel implements WidgetPanel {
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
     theme = 'inherit'
-  }: Omit<SettingsPanelProps, 'id'>): Record<string, WidgetPanel> {
-    return schema.sections.reduce<Record<string, WidgetPanel>>((panels, section, index) => {
+  }: Omit<SettingsPanelProps, 'id'>): WidgetPanel[] {
+    return schema.sections.map((section, index) => {
       const panelId = getSectionKey(section, index);
-
-      panels[panelId] = {
+      return {
         id: panelId,
         title: section.name || label,
         theme,
@@ -592,9 +591,7 @@ export class SettingsPanel implements WidgetPanel {
           />
         )
       };
-
-      return panels;
-    }, {});
+    });
   }
 
   constructor({

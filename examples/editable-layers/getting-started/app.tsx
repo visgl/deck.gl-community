@@ -213,8 +213,8 @@ function buildControlPanel(
 ) {
   return new ColumnPanel({
     id: 'getting-started-panel',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -229,14 +229,14 @@ function buildControlPanel(
           }**`
         ].join('\n')
       }),
-      settings: new SettingsPanel({
+      new SettingsPanel({
         id: 'settings',
         label: 'Controls',
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange
       })
-    }
+    ]
   });
 }
 

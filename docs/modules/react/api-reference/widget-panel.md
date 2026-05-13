@@ -4,7 +4,7 @@ import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 
 # WidgetPanel
 
-`WidgetPanel` renders a `@deck.gl-community/panels` panel or container inside a React tree.
+`WidgetPanel` renders a `@deck.gl-community/panels` panel inside a React tree.
 
 ## Import
 
@@ -15,23 +15,13 @@ import {WidgetPanel, type WidgetPanelProps} from '@deck.gl-community/react';
 ## Props
 
 ```ts
-type WidgetPanelProps =
-  | {
-      panel: WidgetPanelDefinition;
-      container?: never;
-      themeMode?: 'inherit' | 'light' | 'dark';
-      className?: string;
-      style?: CSSProperties;
-      framed?: boolean;
-    }
-  | {
-      container: WidgetContainer;
-      panel?: never;
-      themeMode?: 'inherit' | 'light' | 'dark';
-      className?: string;
-      style?: CSSProperties;
-      framed?: boolean;
-    };
+type WidgetPanelProps = {
+  panel: WidgetPanelDefinition;
+  themeMode?: 'inherit' | 'light' | 'dark';
+  className?: string;
+  style?: CSSProperties;
+  framed?: boolean;
+};
 ```
 
 ## Demo
@@ -40,29 +30,26 @@ The component is intended for React surfaces such as Docusaurus MDX. This page i
 
 <ReactWidgetPanel
 themeMode="light"
-container={{
-    kind: 'panel',
-    props: {
-      panel: new ColumnPanel({
-        id: 'mdx-react-panel',
-        title: 'MDX',
-        panels: {
-          intro: new MarkdownPanel({
-            id: 'intro',
-            title: 'React host',
-            markdown:
-              'This panel is rendered in MDX through `@deck.gl-community/react`.'
-          }),
-          notes: new MarkdownPanel({
-            id: 'notes',
-            title: 'Why this exists',
-            markdown:
-              'Use it when you want widget panels in docs, React apps, or other component trees without creating a Deck instance.'
-          })
-        }
+panel={
+  new ColumnPanel({
+    id: 'mdx-react-panel',
+    title: 'MDX',
+    panels: [
+      new MarkdownPanel({
+        id: 'intro',
+        title: 'React host',
+        markdown:
+          'This panel is rendered in MDX through `@deck.gl-community/react`.'
+      }),
+      new MarkdownPanel({
+        id: 'notes',
+        title: 'Why this exists',
+        markdown:
+          'Use it when you want widget panels in docs, React apps, or other component trees without creating a Deck instance.'
       })
-    }
-  }}
+    ]
+  })
+}
 style={{maxWidth: 720, marginBottom: 24}}
 />
 
@@ -90,7 +77,7 @@ export function DocsCallout() {
 
 ## Remarks
 
-- Accepts either one `WidgetPanel` definition or a full `WidgetContainer`.
+- Accepts one reusable panel definition.
 - Uses the panels module's existing Preact renderer internally, so existing panel implementations keep working unchanged.
 - Adds `deck-widget-container` to its host so panel theme inference behaves the same way it does in widget hosts.
 - Supports `light`, `dark`, and `inherit` theme modes.

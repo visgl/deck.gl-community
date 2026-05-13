@@ -19,13 +19,13 @@ import {ModalPanelWidget} from '@deck.gl-community/widgets';
 const helpPanel = new TabbedPanel({
   id: 'help',
   title: 'Help',
-  panels: {
-    overview: new MarkdownPanel({
+  panels: [
+    new MarkdownPanel({
       id: 'overview',
       title: 'Overview',
       markdown: 'Secondary content that opens on demand.'
     })
-  }
+  ]
 });
 
 const widget = new ModalPanelWidget({
@@ -38,14 +38,13 @@ const widget = new ModalPanelWidget({
 Use `ModalPanelWidget` for secondary controls or reference material that should be available on demand without permanently occupying canvas space.
 
 Import panel definitions from `@deck.gl-community/panels` and pass them to `ModalPanelWidget`
-through `panel` or `container`.
+through `panel`.
 
 ## Props
 
 ```ts
 type ModalPanelWidgetProps = WidgetProps & {
   icon?: string;
-  container?: WidgetContainer;
   panel?: WidgetPanel;
   placement?: WidgetPlacement;
   title?: string;
@@ -61,7 +60,7 @@ type ModalPanelWidgetProps = WidgetProps & {
 
 ## Remarks
 
-- Accepts either a full panel `container` description or a single `panel`.
+- Accepts one reusable `panel` definition.
 - Can render with the built-in icon trigger or be controlled externally.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.

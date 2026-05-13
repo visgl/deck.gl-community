@@ -32,13 +32,13 @@ import {BoxPanelWidget, SidebarPanelWidget} from '@deck.gl-community/widgets';
 const sharedPanel = new ColumnPanel({
   id: 'summary',
   title: 'Summary',
-  panels: {
-    intro: new MarkdownPanel({
+  panels: [
+    new MarkdownPanel({
       id: 'intro',
       title: 'Overview',
       markdown: 'Rendered inside deck.gl widget wrappers.'
     })
-  }
+  ]
 });
 
 const boxWidget = new BoxPanelWidget({

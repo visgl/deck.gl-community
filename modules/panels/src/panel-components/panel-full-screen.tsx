@@ -1,19 +1,17 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
-import {h, render} from 'preact';
+import {render} from 'preact';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
-import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
+import {PanelThemeScope} from '../panels/panel-theme-scope';
 
-import type {PanelContentContainer, Panel} from '../panels/panel-containers';
+import type {Panel} from '../panels/panel-types';
 import type {JSX} from 'preact';
 
 /**
  * Props for {@link PanelFullScreen}.
  */
 export type PanelFullScreenProps = PanelContainerProps & {
-  /** One pre-built container definition to render. */
-  container?: PanelContentContainer;
-  /** Convenience single-panel input converted into a container automatically. */
+  /** Panel content rendered inside the full-screen shell. */
   panel?: Panel;
   /** Placement anchor used when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
@@ -28,37 +26,16 @@ function normalizeMarginPx(marginPx: number): number {
   return Number.isFinite(clamped) ? clamped : 24;
 }
 
-function resolveContainer(container?: PanelContentContainer, panel?: Panel): PanelContentContainer {
-  if (container !== undefined) {
-    return container;
-  }
-
-  if (panel !== undefined) {
-    return asPanelContainer(panel);
-  }
-
-  return {
-    kind: 'panel',
-    props: {
-      panel: {
-        id: 'empty-panel-full-screen-panel',
-        title: '',
-        content: h('div', {})
-      }
-    }
-  };
-}
-
 function stopFullScreenPanelEventPropagation(event: Event): void {
   event.stopPropagation();
 }
 
 function PanelFullScreenView({
-  container,
+  panel,
   title,
   marginPx
 }: {
-  container: PanelContentContainer;
+  panel?: Panel;
   title?: string;
   marginPx: number;
 }) {
@@ -81,7 +58,7 @@ function PanelFullScreenView({
     >
       {title ? <header style={FULL_SCREEN_HEADER_STYLE}>{title}</header> : null}
       <div style={FULL_SCREEN_CONTENT_STYLE}>
-        <PanelContentRenderer container={container} />
+        {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
       </div>
     </section>
   );
@@ -97,31 +74,20 @@ export class PanelFullScreen extends PanelContainer<PanelFullScreenProps> {
     placement: 'fill',
     title: undefined!,
     marginPx: 24,
-    panel: undefined!,
-    container: {
-      kind: 'panel',
-      props: {
-        panel: {
-          id: 'empty-panel-full-screen-panel',
-          title: '',
-          content: h('div', {})
-        }
-      }
-    }
+    panel: undefined!
   };
 
   className = 'deck-widget-full-screen-panel';
   placement: PanelPlacement = PanelFullScreen.defaultProps.placement;
   title: string | undefined = PanelFullScreen.defaultProps.title;
   marginPx = PanelFullScreen.defaultProps.marginPx;
-  #container: PanelContentContainer = PanelFullScreen.defaultProps.container;
+  #panel: Panel | undefined = PanelFullScreen.defaultProps.panel;
   #rootElement: HTMLElement | null = null;
 
   constructor(props: Partial<PanelFullScreenProps> = {}) {
     super({
       ...PanelFullScreen.defaultProps,
-      ...props,
-      container: resolveContainer(props.container, props.panel)
+      ...props
     } as PanelFullScreenProps);
     this.setProps(this.props);
   }
@@ -136,10 +102,8 @@ export class PanelFullScreen extends PanelContainer<PanelFullScreenProps> {
     if (props.marginPx !== undefined) {
       this.marginPx = normalizeMarginPx(props.marginPx);
     }
-    if (props.container !== undefined) {
-      this.#container = props.container;
-    } else if (props.panel !== undefined) {
-      this.#container = resolveContainer(undefined, props.panel);
+    if ('panel' in props) {
+      this.#panel = props.panel;
     }
 
     this.#render();
@@ -168,11 +132,7 @@ export class PanelFullScreen extends PanelContainer<PanelFullScreenProps> {
     }
 
     render(
-      <PanelFullScreenView
-        container={this.#container}
-        title={this.title}
-        marginPx={this.marginPx}
-      />,
+      <PanelFullScreenView panel={this.#panel} title={this.title} marginPx={this.marginPx} />,
       this.#rootElement
     );
   };

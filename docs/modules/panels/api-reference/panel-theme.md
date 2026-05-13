@@ -1,8 +1,12 @@
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
+
 # Panel Themes
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<PanelLiveExample highlight="panels" />
 
 `@deck.gl-community/panels` exports built-in light and dark panel theme variables
 plus a small helper for applying them to a DOM host.

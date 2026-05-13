@@ -12,7 +12,7 @@ import {
   MarkdownPanel,
   SettingsPanel,
   TextEditorPanel,
-  type PanelRecord,
+  type Panel,
   type SettingsSchema,
   type SettingDescriptor,
   type SettingsState
@@ -932,8 +932,8 @@ function buildSidebarPanel(
     onStylesheetChange: (nextValue: string) => void;
   }
 ) {
-  const panels: PanelRecord = {
-    controls: new SettingsPanel({
+  const panels: Panel[] = [
+    new SettingsPanel({
       id: 'graph-selection',
       schema: buildSelectionSchema(runtime.selectedExample, state.examples, state.selectedLayout),
       settings: {
@@ -942,7 +942,7 @@ function buildSidebarPanel(
       },
       onSettingsChange: handlers.onSelectionSettingsChange
     }),
-    layoutOptions: new SettingsPanel({
+    new SettingsPanel({
       id: 'graph-layout-options',
       schema: buildLayoutOptionsSchema(
         state.selectedLayout,
@@ -952,42 +952,48 @@ function buildSidebarPanel(
       settings: buildLayoutOptionSettingsState(state.selectedLayout, runtime.layoutOptions),
       onSettingsChange: handlers.onLayoutOptionsChange
     })
-  };
+  ];
 
   if (runtime.isDagLayout) {
-    panels.collapse = new CustomPanel({
-      id: 'dag-collapse',
-      title: 'Collapsed chains',
-      onRenderHTML: rootElement => {
-        renderCollapseControlsPanel(rootElement, state, handlers);
-      }
-    });
+    panels.push(
+      new CustomPanel({
+        id: 'dag-collapse',
+        title: 'Collapsed chains',
+        onRenderHTML: rootElement => {
+          renderCollapseControlsPanel(rootElement, state, handlers);
+        }
+      })
+    );
   }
 
-  panels.metadata = new CustomPanel({
-    id: 'dataset-metadata',
-    title: 'Dataset stats',
-    onRenderHTML: rootElement => {
-      renderMetadataPanel(rootElement, runtime.activeMetadata, runtime.metadataLoading);
-    }
-  });
+  panels.push(
+    new CustomPanel({
+      id: 'dataset-metadata',
+      title: 'Dataset stats',
+      onRenderHTML: rootElement => {
+        renderMetadataPanel(rootElement, runtime.activeMetadata, runtime.metadataLoading);
+      }
+    })
+  );
 
-  panels.stylesheet = new TextEditorPanel({
-    id: 'stylesheet-json',
-    title: 'Stylesheet JSON',
-    language: 'json',
-    value: state.stylesheetValue,
-    onValueChange: handlers.onStylesheetChange,
-    readOnly: false,
-    placeholder: DEFAULT_STYLESHEET_MESSAGE,
-    theme: 'invert'
-  });
+  panels.push(
+    new TextEditorPanel({
+      id: 'stylesheet-json',
+      title: 'Stylesheet JSON',
+      language: 'json',
+      value: state.stylesheetValue,
+      onValueChange: handlers.onStylesheetChange,
+      readOnly: false,
+      placeholder: DEFAULT_STYLESHEET_MESSAGE,
+      theme: 'invert'
+    })
+  );
 
   return new AccordeonPanel({
     id: 'graph-viewer-sidebar-panels',
     title: '',
     panels,
-    defaultExpandedPanelIds: Object.values(panels).map(panel => panel.id)
+    defaultExpandedPanelIds: panels.map(panel => panel.id)
   });
 }
 

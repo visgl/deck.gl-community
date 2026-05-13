@@ -3,20 +3,18 @@
 import {render} from 'preact';
 import {KeyboardShortcutsManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
-import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
+import {PanelThemeScope} from '../panels/panel-theme-scope';
 
 import type {KeyboardShortcut} from '../keyboard-shortcuts/keyboard-shortcuts';
 import type {KeyboardShortcutEventManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
-import type {PanelContentContainer, Panel} from '../panels/panel-containers';
+import type {Panel} from '../panels/panel-types';
 import type {JSX} from 'preact';
 
 /**
  * Props for {@link PanelSidebar}.
  */
 export type PanelSidebarProps = PanelContainerProps & {
-  /** One pre-built container definition to render. */
-  container?: PanelContentContainer;
-  /** Convenience single-panel input converted into a container automatically. */
+  /** Panel content rendered inside the sidebar shell. */
   panel?: Panel;
   /** Edge from which the sidebar opens. */
   side?: 'left' | 'right';
@@ -59,21 +57,6 @@ const SIDEBAR_HANDLE_GAP_PX = 8;
 const SIDEBAR_TRANSITION_MS = 320;
 const SIDEBAR_OVERLAY_Z_INDEX = '35';
 const SIDEBAR_OPEN_Z_INDEX = '2100';
-
-function resolveContainer(container?: PanelContentContainer, panel?: Panel): PanelContentContainer {
-  if (container !== undefined) {
-    return container;
-  }
-  if (panel !== undefined) {
-    return asPanelContainer(panel);
-  }
-  return {
-    kind: 'accordeon',
-    props: {
-      panels: []
-    }
-  };
-}
 
 function normalizeSidebarWidthPx(widthPx: number): number {
   const clamped = Math.max(220, Math.floor(widthPx));
@@ -119,7 +102,7 @@ function getSidebarHandleChevron(side: 'left' | 'right', open: boolean): string 
 }
 
 function PanelSidebarView({
-  container,
+  panel,
   side,
   title,
   triggerLabel,
@@ -134,7 +117,7 @@ function PanelSidebarView({
   showBackdrop,
   onOpenChange
 }: {
-  container: PanelContentContainer;
+  panel?: Panel;
   side: 'left' | 'right';
   title?: string;
   triggerLabel: string;
@@ -248,7 +231,7 @@ function PanelSidebarView({
                 </header>
               ) : null}
               <div style={SIDEBAR_CONTENT_STYLE}>
-                <PanelContentRenderer container={container} />
+                {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
               </div>
             </div>
           </div>
@@ -266,12 +249,6 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
     ...PanelContainer.defaultProps,
     id: 'panel-sidebar',
     panel: undefined!,
-    container: {
-      kind: 'accordeon',
-      props: {
-        panels: []
-      }
-    },
     side: 'right',
     widthPx: 360,
     placement: 'top-right',
@@ -306,7 +283,7 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
   showBackdrop = PanelSidebar.defaultProps.showBackdrop;
   isOpen = false;
   #hasOpenStateInitialized = false;
-  #container: PanelContentContainer = PanelSidebar.defaultProps.container;
+  #panel: Panel | undefined = PanelSidebar.defaultProps.panel;
   #isControlled = false;
   #openChange: ((open: boolean) => void) | undefined = undefined;
   #rootElement: HTMLElement | null = null;
@@ -318,8 +295,7 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
   constructor(props: Partial<PanelSidebarProps> = {}) {
     super({
       ...PanelSidebar.defaultProps,
-      ...props,
-      container: resolveContainer(props.container, props.panel)
+      ...props
     } as PanelSidebarProps);
     this.setProps(this.props);
   }
@@ -361,10 +337,8 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
     if (props.showBackdrop !== undefined) {
       this.showBackdrop = props.showBackdrop;
     }
-    if (props.container !== undefined) {
-      this.#container = props.container;
-    } else if (props.panel !== undefined) {
-      this.#container = resolveContainer(undefined, props.panel);
+    if ('panel' in props) {
+      this.#panel = props.panel;
     }
     if (props.onOpenChange !== undefined) {
       this.#openChange = props.onOpenChange;
@@ -501,7 +475,7 @@ export class PanelSidebar extends PanelContainer<PanelSidebarProps> {
     this.#rootElement.style.zIndex = this.isOpen ? SIDEBAR_OPEN_Z_INDEX : SIDEBAR_OVERLAY_Z_INDEX;
     render(
       <PanelSidebarView
-        container={this.#container}
+        panel={this.#panel}
         side={this.side}
         title={this.title}
         triggerLabel={this.triggerLabel}

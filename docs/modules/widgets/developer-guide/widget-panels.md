@@ -22,7 +22,7 @@ Pass those panel definitions to deck.gl widgets from `@deck.gl-community/widgets
 
 ## Container widgets
 
-These are the deck.gl widgets that consume `WidgetPanel` and `WidgetContainer` values:
+These are the deck.gl widgets that consume reusable `Panel` values:
 
 | Widget                                                                | Purpose                                                        |
 | --------------------------------------------------------------------- | -------------------------------------------------------------- |

@@ -27,13 +27,13 @@ import {
 const inspectorPanel = new ColumnPanel({
   id: 'inspector',
   title: 'Inspector',
-  panels: {
-    details: new MarkdownPanel({
+  panels: [
+    new MarkdownPanel({
       id: 'details',
       title: 'Details',
       markdown: 'Persistent standalone controls and context.'
     })
-  }
+  ]
 });
 
 const panelSidebar = new PanelSidebar({
@@ -56,7 +56,6 @@ panelManager.setProps({
 
 ```ts
 type PanelSidebarProps = PanelContainerProps & {
-  container?: PanelContentContainer;
   panel?: Panel;
   side?: 'left' | 'right';
   widthPx?: number;
@@ -80,7 +79,7 @@ type PanelSidebarProps = PanelContainerProps & {
 
 ## Remarks
 
-- Accepts either a full panel container description or a single panel.
+- Accepts one reusable panel definition.
 - Slides open from the selected edge while keeping the shell mounted for smooth transitions.
 - Supports controlled and uncontrolled open state.
 - Supports `Escape` close, optional backdrop close, and focus restoration to
