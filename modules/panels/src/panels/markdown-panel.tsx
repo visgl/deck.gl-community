@@ -2,6 +2,7 @@
 import type {ComponentChildren, JSX} from 'preact';
 import type {Panel, PanelTheme} from './panel-types';
 
+/** Props for a markdown-backed panel definition. */
 export type MarkdownPanelProps = {
   id: string;
   title: string;
@@ -12,6 +13,7 @@ export type MarkdownPanelProps = {
   theme?: PanelTheme;
 };
 
+/** Panel definition that renders the supported markdown subset into panel content. */
 export class MarkdownPanel implements Panel {
   id: string;
   title: string;

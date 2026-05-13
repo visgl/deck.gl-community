@@ -7,8 +7,10 @@ import {PanelThemeScope} from './panel-theme-scope';
 import type {JSX} from 'preact';
 import type {Panel, PanelTheme} from './panel-types';
 
+/** Supported divider orientations for `SplitterPanel`. */
 export type SplitterPanelOrientation = 'horizontal' | 'vertical';
 
+/** Props for the composite `SplitterPanel` definition. */
 export type SplitterPanelProps = {
   panels: ReadonlyArray<Panel>;
   id?: string;
@@ -36,6 +38,7 @@ type SplitterPanelContentProps = {
   onDragEnd?: () => void;
 };
 
+/** Panel definition that splits one leading panel from the remaining panel stack. */
 export class SplitterPanel implements Panel {
   id: string;
   title: string;

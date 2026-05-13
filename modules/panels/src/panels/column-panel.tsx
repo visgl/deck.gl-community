@@ -4,6 +4,7 @@ import {PanelThemeScope} from './panel-theme-scope';
 import type {JSX} from 'preact';
 import type {Panel, PanelListContainerProps, PanelTheme} from './panel-types';
 
+/** Props for the composite `ColumnPanel` definition. */
 export type ColumnPanelProps = {
   panels: ReadonlyArray<Panel>;
   id?: string;
@@ -11,8 +12,10 @@ export type ColumnPanelProps = {
   theme?: PanelTheme;
 };
 
+/** Props for the rendered vertical panel list. */
 export type ColumnPanelContainerProps = PanelListContainerProps;
 
+/** Panel definition that renders child panels in one vertical column. */
 export class ColumnPanel implements Panel {
   id: string;
   title: string;
@@ -32,6 +35,7 @@ export class ColumnPanel implements Panel {
   }
 }
 
+/** Renders ordered panels in a vertical column. */
 export function ColumnPanelContainer({panels, className}: ColumnPanelContainerProps) {
   return (
     <div className={className} style={COLUMN_CONTAINER_STYLE}>

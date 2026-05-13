@@ -7,6 +7,7 @@ import {PanelThemeScope} from './panel-theme-scope';
 import type {JSX} from 'preact';
 import type {Panel, PanelId, PanelListContainerProps, PanelTheme} from './panel-types';
 
+/** Props for the composite `AccordeonPanel` definition. */
 export type AccordeonPanelProps = {
   panels: ReadonlyArray<Panel>;
   id?: string;
@@ -14,6 +15,7 @@ export type AccordeonPanelProps = {
   theme?: PanelTheme;
 };
 
+/** Props for the rendered accordion panel list. */
 export type AccordeonPanelContainerProps = PanelListContainerProps & {
   defaultExpandedPanelIds?: ReadonlyArray<PanelId>;
   expandedPanelIds?: ReadonlyArray<PanelId>;
@@ -21,6 +23,7 @@ export type AccordeonPanelContainerProps = PanelListContainerProps & {
   allowMultipleExpanded?: boolean;
 };
 
+/** Panel definition that renders child panels as expandable accordion sections. */
 export class AccordeonPanel implements Panel {
   id: string;
   title: string;
@@ -40,6 +43,7 @@ export class AccordeonPanel implements Panel {
   }
 }
 
+/** Renders ordered panels as an accordion layout. */
 export function AccordeonPanelContainer({
   panels,
   className,

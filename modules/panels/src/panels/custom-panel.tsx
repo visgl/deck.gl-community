@@ -4,6 +4,7 @@ import {useLayoutEffect, useRef} from 'preact/hooks';
 import type {JSX} from 'preact';
 import type {Panel, PanelTheme} from './panel-types';
 
+/** Props for an imperative DOM-backed panel definition. */
 export type CustomPanelProps = {
   id: string;
   title: string;
@@ -37,6 +38,7 @@ function CustomPanelContent({
   return <div ref={rootElementRef} className={className} />;
 }
 
+/** Panel definition that lets callers render custom HTML into a managed host. */
 export class CustomPanel implements Panel {
   id: string;
   title: string;

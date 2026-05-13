@@ -7,6 +7,7 @@ import {PanelThemeScope} from './panel-theme-scope';
 import type {JSX} from 'preact';
 import type {Panel, PanelId, PanelListContainerProps, PanelTheme} from './panel-types';
 
+/** Props for the composite `TabbedPanel` definition. */
 export type TabbedPanelProps = {
   panels: ReadonlyArray<Panel>;
   id?: string;
@@ -15,6 +16,7 @@ export type TabbedPanelProps = {
   theme?: PanelTheme;
 };
 
+/** Props for the rendered tabbed panel list. */
 export type TabbedPanelContainerProps = PanelListContainerProps & {
   defaultActivePanelId?: PanelId;
   activePanelId?: PanelId;
@@ -22,6 +24,7 @@ export type TabbedPanelContainerProps = PanelListContainerProps & {
   tabListLayout?: 'wrap' | 'scroll';
 };
 
+/** Panel definition that renders child panels behind a tab strip. */
 export class TabbedPanel implements Panel {
   id: string;
   title: string;
@@ -42,6 +45,7 @@ export class TabbedPanel implements Panel {
   }
 }
 
+/** Renders ordered panels as a tabbed layout. */
 export function TabbedPanelContainer({
   panels,
   className,
