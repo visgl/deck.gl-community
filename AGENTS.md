@@ -14,10 +14,10 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
   - TSDoc the public API surface affected by the change
   - do a documentation pass, including `docs/whats-new.md` and any relevant upgrade or migration guide content
   - run `yarn` in the repo root so workspace metadata and `yarn.lock` are up to date, especially after any `package.json` changes
-  - run the build
-  - install website dependencies and build the website with `yarn install` followed by `cd website; yarn build`
-  - run `yarn lint-fix`
+  - run `yarn build` as the repo-wide type, declaration, and package build gate
+  - build the website from its own workspace context with `cd website; yarn; yarn build`
   - run the relevant tests for the changed packages, examples, and website/docs wiring
+  - finish with `yarn lint-fix`, then review the resulting diff before preparing the PR
   - prepare a copyable Markdown pull request description based on the branch diff compared to `master`
 
 ## Documentation and release process

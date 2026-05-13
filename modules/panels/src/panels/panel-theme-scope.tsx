@@ -19,7 +19,7 @@ export function useEffectivePanelThemeMode(): PanelThemeMode {
 /**
  * Applies a panel-level theme override and exposes the resolved mode to descendants.
  */
-export function PanelThemeScope({panel, children}: {panel: Panel; children: ComponentChildren}) {
+export function PanelThemeScope({panel, children}: {panel: Panel; children?: ComponentChildren}) {
   const inheritedMode = useContext(PanelThemeModeContext);
   const hostElementRef = useRef<HTMLDivElement | null>(null);
   const [rootMode, setRootMode] = useState<PanelThemeMode>('light');
