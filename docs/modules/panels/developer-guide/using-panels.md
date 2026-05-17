@@ -70,11 +70,11 @@ import {
 const helpTabs = new TabbedPanel({
   id: 'help-tabs',
   title: 'Help',
-  panels: {
-    shortcuts: new KeyboardShortcutsPanel({keyboardShortcuts}),
-    url: new URLParametersPanel({urlParameters}),
-    docs: new DocumentationLinksPanel({links: documentationLinks})
-  }
+  panels: [
+    new KeyboardShortcutsPanel({keyboardShortcuts}),
+    new URLParametersPanel({urlParameters}),
+    new DocumentationLinksPanel({links: documentationLinks})
+  ]
 });
 
 const helpModal = new PanelModal({

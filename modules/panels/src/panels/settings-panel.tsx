@@ -577,11 +577,10 @@ export class SettingsPanel implements Panel {
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
     theme = 'inherit'
-  }: Omit<SettingsPanelProps, 'id'>): Record<string, Panel> {
-    return schema.sections.reduce<Record<string, Panel>>((panels, section, index) => {
+  }: Omit<SettingsPanelProps, 'id'>): Panel[] {
+    return schema.sections.map((section, index) => {
       const panelId = getSectionKey(section, index);
-
-      panels[panelId] = {
+      return {
         id: panelId,
         title: section.name || label,
         theme,
@@ -593,9 +592,7 @@ export class SettingsPanel implements Panel {
           />
         )
       };
-
-      return panels;
-    }, {});
+    });
   }
 
   constructor({

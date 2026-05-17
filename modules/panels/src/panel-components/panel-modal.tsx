@@ -1,22 +1,20 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
-import {h, render} from 'preact';
+import {render} from 'preact';
 import {KeyboardShortcutsManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
-import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
+import {PanelThemeScope} from '../panels/panel-theme-scope';
 
 import type {KeyboardShortcut} from '../keyboard-shortcuts/keyboard-shortcuts';
 import type {KeyboardShortcutEventManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
-import type {PanelContentContainer, Panel} from '../panels/panel-containers';
+import type {Panel} from '../panels/panel-types';
 import type {JSX} from 'preact';
 
 /**
  * Props for {@link PanelModal}.
  */
 export type PanelModalProps = PanelContainerProps & {
-  /** One pre-built container definition to render. */
-  container?: PanelContentContainer;
-  /** Convenience single-panel input converted into a container automatically. */
+  /** Panel content rendered inside the modal shell. */
   panel?: Panel;
   /** Placement anchor used for the trigger when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
@@ -45,25 +43,6 @@ export type PanelModalProps = PanelContainerProps & {
 };
 
 const DEFAULT_TRIGGER_ICON = '▦';
-
-function resolveContainer(container?: PanelContentContainer, panel?: Panel): PanelContentContainer {
-  if (container !== undefined) {
-    return container;
-  }
-  if (panel !== undefined) {
-    return asPanelContainer(panel);
-  }
-  return {
-    kind: 'panel',
-    props: {
-      panel: {
-        id: 'empty-panel-modal-panel',
-        title: '',
-        content: h('div', {})
-      }
-    }
-  };
-}
 
 function stopPropagation(event: Event): void {
   event.stopPropagation();
@@ -97,7 +76,7 @@ function getDeckEventManager(deck: unknown): KeyboardShortcutEventManager | null
 }
 
 function PanelModalView({
-  container,
+  panel,
   title,
   hideTrigger,
   triggerLabel,
@@ -106,7 +85,7 @@ function PanelModalView({
   open,
   onOpenChange
 }: {
-  container: PanelContentContainer;
+  panel?: Panel;
   title: string;
   hideTrigger: boolean;
   triggerIcon: string;
@@ -169,7 +148,7 @@ function PanelModalView({
                 </button>
               )}
               <div style={MODAL_CONTENT_STYLE}>
-                <PanelContentRenderer container={container} />
+                {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
               </div>
             </div>
           </div>
@@ -198,17 +177,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     open: undefined!,
     openShortcuts: [],
     shortcuts: [],
-    panel: undefined!,
-    container: {
-      kind: 'panel',
-      props: {
-        panel: {
-          id: 'empty-panel-modal-panel',
-          title: '',
-          content: h('div', {})
-        }
-      }
-    }
+    panel: undefined!
   };
 
   className = 'deck-widget-modal';
@@ -220,7 +189,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
   hideTrigger = PanelModal.defaultProps.hideTrigger;
   isOpen = false;
   #hasOpenStateInitialized = false;
-  #container: PanelContentContainer = PanelModal.defaultProps.container;
+  #panel: Panel | undefined = PanelModal.defaultProps.panel;
   #isControlled = false;
   #openChange: ((open: boolean) => void) | undefined = undefined;
   #rootElement: HTMLElement | null = null;
@@ -234,8 +203,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
   constructor(props: Partial<PanelModalProps> = {}) {
     super({
       ...PanelModal.defaultProps,
-      ...props,
-      container: resolveContainer(props.container, props.panel)
+      ...props
     } as PanelModalProps);
     this.setProps(this.props);
   }
@@ -260,10 +228,8 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     if (props.title !== undefined) {
       this.title = props.title;
     }
-    if (props.container !== undefined) {
-      this.#container = props.container;
-    } else if (props.panel !== undefined) {
-      this.#container = resolveContainer(undefined, props.panel);
+    if ('panel' in props) {
+      this.#panel = props.panel;
     }
     if (props.onOpenChange !== undefined) {
       this.#openChange = props.onOpenChange;
@@ -393,7 +359,7 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     this.#syncPlacementZIndex(this.isOpen);
     render(
       <PanelModalView
-        container={this.#container}
+        panel={this.#panel}
         title={this.title}
         hideTrigger={this.hideTrigger}
         triggerLabel={this.triggerLabel}

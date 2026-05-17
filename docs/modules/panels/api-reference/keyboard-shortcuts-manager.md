@@ -1,8 +1,12 @@
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
+
 # KeyboardShortcutsManager
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<PanelLiveExample highlight="keyboard-shortcuts-panel" />
 
 `KeyboardShortcutsManager` installs keyboard shortcuts on an event source that
 forwards DOM `keydown` events.

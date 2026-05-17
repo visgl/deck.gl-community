@@ -249,8 +249,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'sf-polygons-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -263,7 +263,7 @@ function buildInfoPanel({
           `- Editing: **${allowEdit ? 'enabled' : 'disabled'}**`
         ].join('\n')
       }),
-      actions: new CustomPanel({
+      new CustomPanel({
         id: 'actions',
         title: 'Selection',
         onRenderHTML: host => {
@@ -286,7 +286,7 @@ function buildInfoPanel({
           host.replaceChildren(buttonGroup);
         }
       })
-    }
+    ]
   });
 }
 

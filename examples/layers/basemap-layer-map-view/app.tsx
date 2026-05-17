@@ -324,8 +324,8 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
       panel: new ColumnPanel({
         id: 'basemap-map-view-panel',
         title: 'BasemapLayer',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: '',
             markdown: [
@@ -342,7 +342,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
                 : '- No fetch errors observed.'
             ].join('\n')
           }),
-          settings: new SettingsPanel({
+          new SettingsPanel({
             id: 'settings',
             label: 'Settings',
             schema: SETTINGS_SCHEMA,
@@ -362,7 +362,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
               }
             }
           })
-        }
+        ]
       })
     });
   }

@@ -57,8 +57,8 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
     panel: new ColumnPanel({
       id: 'leaflet-info-panel',
       title: '',
-      panels: {
-        summary: new MarkdownPanel({
+      panels: [
+        new MarkdownPanel({
           id: 'summary',
           title: '',
           markdown: [
@@ -69,7 +69,7 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
             '- Interaction: **hover tooltips and click details**'
           ].join('\n')
         })
-      }
+      ]
     })
   });
 

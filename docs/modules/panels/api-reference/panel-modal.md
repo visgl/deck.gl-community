@@ -44,7 +44,6 @@ panelManager.setProps({
 
 ```ts
 type PanelModalProps = PanelContainerProps & {
-  container?: PanelContentContainer;
   panel?: Panel;
   placement?: PanelPlacement;
   title?: string;
@@ -63,7 +62,7 @@ type PanelModalProps = PanelContainerProps & {
 
 ## Remarks
 
-- Accepts either a full panel container description or a single panel.
+- Accepts one reusable panel definition.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.
 - `openShortcuts` are installed through `deck.eventManager` when available and

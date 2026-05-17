@@ -19,13 +19,13 @@ import {SidebarPanelWidget} from '@deck.gl-community/widgets';
 const inspectorPanel = new ColumnPanel({
   id: 'inspector',
   title: 'Inspector',
-  panels: {
-    details: new MarkdownPanel({
+  panels: [
+    new MarkdownPanel({
       id: 'details',
       title: 'Details',
       markdown: 'Persistent controls and context.'
     })
-  }
+  ]
 });
 
 const widget = new SidebarPanelWidget({
@@ -38,14 +38,13 @@ const widget = new SidebarPanelWidget({
 Use `SidebarPanelWidget` for persistent controls, inspector panels, or other UI that should stay reachable while the user continues interacting with the visualization.
 
 Import panel definitions from `@deck.gl-community/panels` and pass them to `SidebarPanelWidget`
-through `panel` or `container`.
+through `panel`.
 
 ## Props
 
 ```ts
 type SidebarPanelWidgetProps = WidgetProps & {
   icon?: string;
-  container?: WidgetContainer;
   panel?: WidgetPanel;
   side?: 'left' | 'right';
   widthPx?: number;
@@ -63,7 +62,7 @@ type SidebarPanelWidgetProps = WidgetProps & {
 
 ## Remarks
 
-- Accepts either a full panel `container` description or a single `panel`.
+- Accepts one reusable `panel` definition.
 - Slides open from the selected edge while keeping the shell mounted for smooth animation.
 - Can render with a built-in handle trigger or stay externally controlled.
 - Stops pointer, mouse, touch, and wheel propagation so sidebar interactions do not leak into the deck canvas.
