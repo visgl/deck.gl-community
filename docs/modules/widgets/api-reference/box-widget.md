@@ -32,13 +32,12 @@ const widget = new BoxPanelWidget({
 Use `BoxPanelWidget` for always-visible summaries, quick actions, or contextual help that should stay anchored to the canvas without modal or sidebar chrome.
 
 Import panel definitions from `@deck.gl-community/panels` and pass them to `BoxPanelWidget`
-through `panel` or `container`.
+through `panel`.
 
 ## Props
 
 ```ts
 type BoxPanelWidgetProps = WidgetProps & {
-  container?: WidgetContainer;
   panel?: WidgetPanel;
   placement?: WidgetPlacement;
   title?: string;
@@ -52,7 +51,7 @@ type BoxPanelWidgetProps = WidgetProps & {
 
 ## Remarks
 
-- Accepts either a full panel container description or a single panel.
+- Accepts one reusable panel definition.
 - Renders a themed box with optional title and collapsible body.
 - Supports controlled and uncontrolled open state.
 - Clamps width to a practical minimum so narrow configurations stay usable.

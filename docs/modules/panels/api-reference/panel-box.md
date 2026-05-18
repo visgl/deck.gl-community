@@ -8,7 +8,7 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 <PanelLiveExample highlight="panel-box" />
 
-`PanelBox` renders one panel or panel container inside a static card-style container.
+`PanelBox` renders one panel inside a static card-style container.
 
 Use it when panel content should stay visible in a fixed standalone card without
 deck.gl widget placement.
@@ -43,7 +43,6 @@ panelManager.setProps({
 
 ```ts
 type PanelBoxProps = PanelContainerProps & {
-  container?: PanelContainer;
   panel?: Panel;
   placement?: PanelPlacement;
   title?: string;
@@ -57,7 +56,7 @@ type PanelBoxProps = PanelContainerProps & {
 
 ## Remarks
 
-- Accepts either a full panel container description or a single panel.
+- Accepts one reusable panel definition.
 - Renders a themed card with optional title and collapsible body.
 - Supports controlled and uncontrolled open state.
 - Use `BoxPanelWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.

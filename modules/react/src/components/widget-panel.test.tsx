@@ -3,7 +3,7 @@ import * as React from 'react';
 import {render, screen} from '@testing-library/react';
 import {afterEach, describe, expect, it} from 'vitest';
 
-import {MarkdownPanel} from '@deck.gl-community/panels';
+import {MarkdownPanel, TabbedPanel} from '@deck.gl-community/panels';
 
 import {WidgetPanel} from './widget-panel';
 
@@ -29,12 +29,13 @@ describe('WidgetPanel', () => {
     expect(screen.getByText('Rendered from React')).toBeTruthy();
   });
 
-  it('renders a full widget container when provided', () => {
+  it('renders a composite widget panel when provided', () => {
     render(
       <WidgetPanel
-        container={{
-          kind: 'tabs',
-          props: {
+        panel={
+          new TabbedPanel({
+            id: 'tabs',
+            title: 'Tabs',
             panels: [
               new MarkdownPanel({
                 id: 'first',
@@ -47,8 +48,8 @@ describe('WidgetPanel', () => {
                 markdown: 'Second tab'
               })
             ]
-          }
-        }}
+          })
+        }
       />
     );
 

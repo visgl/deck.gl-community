@@ -24,10 +24,6 @@ it('exports panel theme primitives', () => {
   expect(Panels.applyPanelTheme).toBeDefined();
 });
 
-it('exports PanelContentRenderer', () => {
-  expect(Panels.PanelContentRenderer).toBeDefined();
-});
-
 it('exports SplitterPanel', () => {
   expect(Panels.SplitterPanel).toBeDefined();
 });

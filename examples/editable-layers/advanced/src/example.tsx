@@ -264,8 +264,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'advanced-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -280,7 +280,7 @@ function buildInfoPanel({
           `- GeoJSON panel: **${showGeoJson ? 'open' : 'closed'}**`
         ].join('\n')
       })
-    }
+    ]
   });
 }
 

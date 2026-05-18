@@ -110,18 +110,18 @@ describe('ModalPanelWidget', () => {
       defaultOpen: true,
       panel: new TabbedPanel({
         id: 'help-tabs-panel',
-        panels: {
-          first: {
+        panels: [
+          {
             id: 'first',
             title: 'First',
             content: <div>first content</div>
           },
-          second: {
+          {
             id: 'second',
             title: 'Second',
             content: <div>second content</div>
           }
-        }
+        ]
       }),
       title: 'Help'
     });

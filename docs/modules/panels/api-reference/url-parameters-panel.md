@@ -1,8 +1,12 @@
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
+
 # URLParametersPanel
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<PanelLiveExample highlight="url-parameters-panel" />
 
 `URLParametersPanel` renders a read-only reference for URL parameters supported
 by the current view. Use it inside a tabbed help modal or sidebar when users

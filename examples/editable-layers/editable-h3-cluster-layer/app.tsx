@@ -335,8 +335,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'editable-h3-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -350,7 +350,7 @@ function buildInfoPanel({
           }**`
         ].join('\n')
       })
-    }
+    ]
   });
 }
 

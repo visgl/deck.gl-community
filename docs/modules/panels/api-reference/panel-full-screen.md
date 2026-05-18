@@ -8,7 +8,7 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 <PanelLiveExample highlight="panel-full-screen" size="tall" />
 
-`PanelFullScreen` renders one panel or panel container inside a large inset full-screen container.
+`PanelFullScreen` renders one panel inside a large inset full-screen container.
 
 Use it when one focused standalone panel layout should occupy most of the host
 while preserving a visible edge around it.
@@ -27,13 +27,13 @@ import {
 const detailPanel = new ColumnPanel({
   id: 'details',
   title: 'Details',
-  panels: {
-    summary: new MarkdownPanel({
+  panels: [
+    new MarkdownPanel({
       id: 'summary',
       title: 'Summary',
       markdown: 'A focused standalone panel layout.'
     })
-  }
+  ]
 });
 
 const panelFullScreen = new PanelFullScreen({
@@ -55,7 +55,6 @@ panelManager.setProps({
 
 ```ts
 type PanelFullScreenProps = PanelContainerProps & {
-  container?: PanelContainer;
   panel?: Panel;
   placement?: PanelPlacement;
   title?: string;
@@ -66,6 +65,6 @@ type PanelFullScreenProps = PanelContainerProps & {
 ## Remarks
 
 - Uses the `fill` placement by default.
-- Accepts either a full panel container description or a single panel.
+- Accepts one reusable panel definition.
 - Insets itself from the host edge with `marginPx`.
 - Use `FullScreenPanelWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.

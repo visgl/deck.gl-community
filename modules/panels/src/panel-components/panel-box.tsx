@@ -1,19 +1,17 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
-import {h, render} from 'preact';
+import {render} from 'preact';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
-import {PanelContentRenderer, asPanelContainer} from '../panels/panel-containers';
+import {PanelThemeScope} from '../panels/panel-theme-scope';
 
-import type {PanelContentContainer, Panel} from '../panels/panel-containers';
+import type {Panel} from '../panels/panel-types';
 import type {JSX} from 'preact';
 
 /**
  * Props for {@link PanelBox}.
  */
 export type PanelBoxProps = PanelContainerProps & {
-  /** One pre-built container definition to render. */
-  container?: PanelContentContainer;
-  /** Convenience single-panel input converted into a container automatically. */
+  /** Panel content rendered inside the box shell. */
   panel?: Panel;
   /** Placement anchor used when mounted by {@link PanelManager}. */
   placement?: PanelPlacement;
@@ -36,36 +34,15 @@ function normalizeBoxWidthPx(widthPx: number): number {
   return Number.isFinite(clamped) ? clamped : 360;
 }
 
-function resolveContainer(container?: PanelContentContainer, panel?: Panel): PanelContentContainer {
-  if (container !== undefined) {
-    return container;
-  }
-
-  if (panel !== undefined) {
-    return asPanelContainer(panel);
-  }
-
-  return {
-    kind: 'panel',
-    props: {
-      panel: {
-        id: 'empty-panel-box-panel',
-        title: '',
-        content: h('div', {})
-      }
-    }
-  };
-}
-
 function PanelBoxView({
-  container,
+  panel,
   title,
   widthPx,
   open,
   collapsible,
   onOpenChange
 }: {
-  container: PanelContentContainer;
+  panel?: Panel;
   title?: string;
   widthPx: number;
   open: boolean;
@@ -94,7 +71,7 @@ function PanelBoxView({
         </header>
       ) : null}
       <div style={BOX_CONTENT_STYLE(open)}>
-        <PanelContentRenderer container={container} />
+        {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
       </div>
     </section>
   );
@@ -114,17 +91,7 @@ export class PanelBox extends PanelContainer<PanelBoxProps> {
     defaultOpen: true,
     open: undefined!,
     onOpenChange: undefined!,
-    panel: undefined!,
-    container: {
-      kind: 'panel',
-      props: {
-        panel: {
-          id: 'empty-panel-box-panel',
-          title: '',
-          content: h('div', {})
-        }
-      }
-    }
+    panel: undefined!
   };
 
   className = 'deck-widget-box';
@@ -133,7 +100,7 @@ export class PanelBox extends PanelContainer<PanelBoxProps> {
   widthPx = PanelBox.defaultProps.widthPx;
   collapsible = PanelBox.defaultProps.collapsible;
   isOpen = PanelBox.defaultProps.defaultOpen;
-  #container: PanelContentContainer = PanelBox.defaultProps.container;
+  #panel: Panel | undefined = PanelBox.defaultProps.panel;
   #rootElement: HTMLElement | null = null;
   #hasOpenStateInitialized = false;
   #isControlled = false;
@@ -142,8 +109,7 @@ export class PanelBox extends PanelContainer<PanelBoxProps> {
   constructor(props: Partial<PanelBoxProps> = {}) {
     super({
       ...PanelBox.defaultProps,
-      ...props,
-      container: resolveContainer(props.container, props.panel)
+      ...props
     } as PanelBoxProps);
     this.setProps(this.props);
   }
@@ -162,10 +128,8 @@ export class PanelBox extends PanelContainer<PanelBoxProps> {
       this.collapsible = props.collapsible;
     }
     this.#setOpenProps(props);
-    if (props.container !== undefined) {
-      this.#container = props.container;
-    } else if (props.panel !== undefined) {
-      this.#container = resolveContainer(undefined, props.panel);
+    if ('panel' in props) {
+      this.#panel = props.panel;
     }
 
     this.#render();
@@ -199,7 +163,7 @@ export class PanelBox extends PanelContainer<PanelBoxProps> {
 
     render(
       <PanelBoxView
-        container={this.#container}
+        panel={this.#panel}
         title={this.title}
         widthPx={this.widthPx}
         open={this.isOpen}

@@ -6,18 +6,16 @@ import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 import {
   AccordeonPanelContainer,
   AccordeonPanel,
-  asPanelContainer,
   ColumnPanelContainer,
   ColumnPanel,
   CustomPanel,
   MarkdownPanel,
   SplitterPanel,
   TabbedPanelContainer,
-  TabbedPanel,
-  PanelContentRenderer
+  TabbedPanel
 } from './panel-containers';
-
-import type {PanelAccordeonContentContainer, PanelTabbedContentContainer} from './panel-containers';
+import {PanelThemeScope} from './panel-theme-scope';
+import type {Panel} from './panel-types';
 
 function getPanelContent(root: ParentNode, panelId: string): HTMLElement | null {
   return root.querySelector<HTMLElement>(`[data-panel-id="${panelId}"]`);
@@ -25,6 +23,10 @@ function getPanelContent(root: ParentNode, panelId: string): HTMLElement | null 
 
 function createPanelContent(panelId: string) {
   return <div data-panel-id={panelId}>{panelId} content</div>;
+}
+
+function renderPanel(panel: Panel, root: Element): void {
+  render(h(PanelThemeScope, {panel}, panel.content), root);
 }
 
 function getThemeScopes(root: ParentNode): HTMLElement[] {
@@ -139,33 +141,6 @@ describe('panel content containers', () => {
     expect(onActivePanelIdChange).toHaveBeenLastCalledWith('first');
   });
 
-  it('renders tab and accordion containers through PanelContentRenderer', () => {
-    const root = document.createElement('div');
-    document.body.appendChild(root);
-    const accordeonContainer: PanelAccordeonContentContainer = {
-      kind: 'accordeon',
-      props: {
-        panels: [{id: 'one', title: 'One', content: createPanelContent('one')}],
-        defaultExpandedPanelIds: ['one']
-      }
-    };
-    const tabbedContainer: PanelTabbedContentContainer = {
-      kind: 'tabs',
-      props: {
-        panels: [
-          {id: 'alpha', title: 'Alpha', content: createPanelContent('alpha')},
-          {id: 'beta', title: 'Beta', content: createPanelContent('beta'), disabled: true}
-        ],
-        defaultActivePanelId: 'alpha'
-      }
-    };
-
-    render(h(PanelContentRenderer, {container: accordeonContainer}), root);
-    expect(root.textContent).toContain('One');
-    render(h(PanelContentRenderer, {container: tabbedContainer}), root);
-    expect(root.textContent).toContain('Alpha');
-  });
-
   it('renders child panels in order through a column container and hides empty titles', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
@@ -189,17 +164,17 @@ describe('panel content containers', () => {
     expect(headers[0]?.textContent).toBe('Actions');
   });
 
-  it('wraps tabbed panels from a panel record and preserves key order', () => {
+  it('wraps tabbed panels from an ordered panel array', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
     const panel = new TabbedPanel({
       id: 'shortcut-tabs',
       title: 'Keyboard Shortcuts',
-      panels: {
-        b: {id: 'b', title: 'B', content: <div>B content</div>},
-        a: {id: 'a', title: 'A', content: <div>A content</div>}
-      }
+      panels: [
+        {id: 'b', title: 'B', content: <div>B content</div>},
+        {id: 'a', title: 'A', content: <div>A content</div>}
+      ]
     });
 
     render(panel.content, root);
@@ -213,17 +188,17 @@ describe('panel content containers', () => {
     expect(tabList?.style.overflowX).toBe('hidden');
   });
 
-  it('wraps column panels from a panel record and preserves key order', () => {
+  it('wraps column panels from an ordered panel array', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
     const panel = new ColumnPanel({
       id: 'column-panels',
       title: 'Column Panels',
-      panels: {
-        overview: {id: 'overview', title: '', content: <div>overview content</div>},
-        actions: {id: 'actions', title: 'Actions', content: <div>actions content</div>}
-      }
+      panels: [
+        {id: 'overview', title: '', content: <div>overview content</div>},
+        {id: 'actions', title: 'Actions', content: <div>actions content</div>}
+      ]
     });
 
     render(panel.content, root);
@@ -242,11 +217,11 @@ describe('panel content containers', () => {
     const panel = new SplitterPanel({
       id: 'splitter-panels',
       title: 'Splitter Panels',
-      panels: {
-        first: {id: 'first', title: 'First', content: createPanelContent('first')},
-        second: {id: 'second', title: 'Second', content: createPanelContent('second')},
-        third: {id: 'third', title: 'Third', content: createPanelContent('third')}
-      }
+      panels: [
+        {id: 'first', title: 'First', content: createPanelContent('first')},
+        {id: 'second', title: 'Second', content: createPanelContent('second')},
+        {id: 'third', title: 'Third', content: createPanelContent('third')}
+      ]
     });
 
     render(panel.content, root);
@@ -273,10 +248,10 @@ describe('panel content containers', () => {
     const horizontalPanel = new SplitterPanel({
       orientation: 'horizontal',
       initialSplit: 0.25,
-      panels: {
-        first: {id: 'first', title: 'First', content: createPanelContent('first')},
-        second: {id: 'second', title: 'Second', content: createPanelContent('second')}
-      }
+      panels: [
+        {id: 'first', title: 'First', content: createPanelContent('first')},
+        {id: 'second', title: 'Second', content: createPanelContent('second')}
+      ]
     });
 
     render(horizontalPanel.content, root);
@@ -290,10 +265,10 @@ describe('panel content containers', () => {
     const verticalPanel = new SplitterPanel({
       orientation: 'vertical',
       initialSplit: 0.25,
-      panels: {
-        first: {id: 'first', title: 'First', content: createPanelContent('first')},
-        second: {id: 'second', title: 'Second', content: createPanelContent('second')}
-      }
+      panels: [
+        {id: 'first', title: 'First', content: createPanelContent('first')},
+        {id: 'second', title: 'Second', content: createPanelContent('second')}
+      ]
     });
 
     render(verticalPanel.content, root);
@@ -318,10 +293,10 @@ describe('panel content containers', () => {
       onChange,
       onDragStart,
       onDragEnd,
-      panels: {
-        first: {id: 'first', title: 'First', content: createPanelContent('first')},
-        second: {id: 'second', title: 'Second', content: createPanelContent('second')}
-      }
+      panels: [
+        {id: 'first', title: 'First', content: createPanelContent('first')},
+        {id: 'second', title: 'Second', content: createPanelContent('second')}
+      ]
     });
 
     render(panel.content, root);
@@ -351,10 +326,10 @@ describe('panel content containers', () => {
     const panel = new SplitterPanel({
       editable: false,
       onChange,
-      panels: {
-        first: {id: 'first', title: 'First', content: createPanelContent('first')},
-        second: {id: 'second', title: 'Second', content: createPanelContent('second')}
-      }
+      panels: [
+        {id: 'first', title: 'First', content: createPanelContent('first')},
+        {id: 'second', title: 'Second', content: createPanelContent('second')}
+      ]
     });
 
     render(panel.content, root);
@@ -372,15 +347,13 @@ describe('panel content containers', () => {
     document.body.appendChild(root);
 
     const singlePanel = new SplitterPanel({
-      panels: {
-        only: {id: 'only', title: 'Only', content: createPanelContent('only')}
-      }
+      panels: [{id: 'only', title: 'Only', content: createPanelContent('only')}]
     });
     render(singlePanel.content, root);
     expect(root.querySelector('[data-panel-id="only"]')).toBeTruthy();
     expect(root.querySelector('[data-panel-splitter]')).toBeNull();
 
-    const emptyPanel = new SplitterPanel({panels: {}});
+    const emptyPanel = new SplitterPanel({panels: []});
     render(emptyPanel.content, root);
     expect(root.textContent).toBe('');
     expect(root.querySelector('[data-panel-splitter]')).toBeNull();
@@ -407,15 +380,15 @@ describe('panel content containers', () => {
     expect(tabList?.style.overflowX).toBe('auto');
   });
 
-  it('renders a wrapper accordion panel from a panel record', async () => {
+  it('renders a wrapper accordion panel from an ordered panel array', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
     const panel = new AccordeonPanel({
-      panels: {
-        first: {id: 'first', title: 'First', content: <div>first content</div>},
-        second: {id: 'second', title: 'Second', content: <div>second content</div>}
-      }
+      panels: [
+        {id: 'first', title: 'First', content: <div>first content</div>},
+        {id: 'second', title: 'Second', content: <div>second content</div>}
+      ]
     });
 
     render(panel.content, root);
@@ -428,17 +401,16 @@ describe('panel content containers', () => {
     expect(root.textContent).toContain('first content');
   });
 
-  it('renders direct panel content via a single-panel container without accordion chrome', () => {
+  it('renders direct panel content without accordion chrome', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    const panelContainer = asPanelContainer({
+    const panel = {
       id: 'direct',
       title: 'Direct',
       content: <div>direct content</div>
-    });
-
-    render(h(PanelContentRenderer, {container: panelContainer}), root);
+    };
+    renderPanel(panel, root);
 
     expect(root.textContent).toContain('direct content');
     expect(root.querySelector('section > button')).toBeNull();
@@ -450,13 +422,12 @@ describe('panel content containers', () => {
     root.style.setProperty('--menu-background', PANEL_THEME_DARK['--menu-background'] ?? '');
     document.body.appendChild(root);
 
-    const panelContainer = asPanelContainer({
+    const panel = {
       id: 'direct',
       title: 'Direct',
       content: <div>direct content</div>
-    });
-
-    render(h(PanelContentRenderer, {container: panelContainer}), root);
+    };
+    renderPanel(panel, root);
     await Promise.resolve();
 
     const scope = getThemeScopes(root)[0];
@@ -471,18 +442,15 @@ describe('panel content containers', () => {
     root.style.setProperty('--menu-background', PANEL_THEME_DARK['--menu-background'] ?? '');
     document.body.appendChild(root);
 
-    const panelContainer = asPanelContainer(
-      new ColumnPanel({
-        id: 'forced-themes',
-        title: 'Forced themes',
-        panels: {
-          light: {id: 'light', title: 'Light', theme: 'light', content: <div>light</div>},
-          dark: {id: 'dark', title: 'Dark', theme: 'dark', content: <div>dark</div>}
-        }
-      })
-    );
-
-    render(h(PanelContentRenderer, {container: panelContainer}), root);
+    const panel = new ColumnPanel({
+      id: 'forced-themes',
+      title: 'Forced themes',
+      panels: [
+        {id: 'light', title: 'Light', theme: 'light', content: <div>light</div>},
+        {id: 'dark', title: 'Dark', theme: 'dark', content: <div>dark</div>}
+      ]
+    });
+    renderPanel(panel, root);
     await Promise.resolve();
 
     await waitForCondition(
@@ -505,23 +473,20 @@ describe('panel content containers', () => {
     root.style.setProperty('--menu-background', PANEL_THEME_DARK['--menu-background'] ?? '');
     document.body.appendChild(root);
 
-    const panelContainer = asPanelContainer(
-      new ColumnPanel({
-        id: 'invert-root',
-        title: 'Invert root',
-        theme: 'invert',
-        panels: {
-          nested: new MarkdownPanel({
-            id: 'nested',
-            title: 'Nested',
-            theme: 'invert',
-            markdown: 'nested content'
-          })
-        }
-      })
-    );
-
-    render(h(PanelContentRenderer, {container: panelContainer}), root);
+    const panel = new ColumnPanel({
+      id: 'invert-root',
+      title: 'Invert root',
+      theme: 'invert',
+      panels: [
+        new MarkdownPanel({
+          id: 'nested',
+          title: 'Nested',
+          theme: 'invert',
+          markdown: 'nested content'
+        })
+      ]
+    });
+    renderPanel(panel, root);
     await Promise.resolve();
 
     await waitForCondition(
@@ -541,15 +506,12 @@ describe('panel content containers', () => {
       hostElement.textContent = 'custom content';
       return cleanup;
     });
-    const panelContainer = asPanelContainer(
-      new CustomPanel({
-        id: 'custom',
-        title: 'Custom',
-        onRenderHTML
-      })
-    );
-
-    render(h(PanelContentRenderer, {container: panelContainer}), root);
+    const panel = new CustomPanel({
+      id: 'custom',
+      title: 'Custom',
+      onRenderHTML
+    });
+    renderPanel(panel, root);
     await waitForCondition(
       () =>
         onRenderHTML.mock.calls.length > 0 &&

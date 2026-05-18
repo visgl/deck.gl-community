@@ -389,8 +389,8 @@ function buildInfoPanel(
   return new ColumnPanel({
     id: 'editable-layers-widget-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -406,7 +406,7 @@ function buildInfoPanel(
           }**`
         ].join('\n')
       }),
-      booleanOps: new CustomPanel({
+      new CustomPanel({
         id: 'boolean-operations',
         title: 'Boolean operations',
         onRenderHTML: host => {
@@ -441,7 +441,7 @@ function buildInfoPanel(
           host.replaceChildren(section);
         }
       }),
-      dataset: new CustomPanel({
+      new CustomPanel({
         id: 'dataset',
         title: 'Dataset',
         onRenderHTML: host => {
@@ -471,6 +471,6 @@ function buildInfoPanel(
           host.replaceChildren(section);
         }
       })
-    }
+    ]
   });
 }

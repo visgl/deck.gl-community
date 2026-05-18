@@ -106,9 +106,9 @@ describe('SettingsPanel', () => {
       settings: INITIAL_SETTINGS
     });
 
-    expect(Object.keys(panels)).toEqual(['visibility', 'mode']);
-    expect(panels.visibility?.title).toBe('Visibility');
-    expect(panels.mode?.title).toBe('Mode');
+    expect(panels.map(panel => panel.id)).toEqual(['visibility', 'mode']);
+    expect(panels[0]?.title).toBe('Visibility');
+    expect(panels[1]?.title).toBe('Mode');
   });
 
   // eslint-disable-next-line max-statements

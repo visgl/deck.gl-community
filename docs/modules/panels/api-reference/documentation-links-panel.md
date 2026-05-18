@@ -1,8 +1,12 @@
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
+
 # DocumentationLinksPanel
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<PanelLiveExample highlight="documentation-links-panel" />
 
 `DocumentationLinksPanel` renders a compact list of documentation and resource
 links. It is useful in help modals, sidebars, and other panel containers.
