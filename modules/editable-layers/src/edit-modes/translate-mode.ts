@@ -14,16 +14,17 @@ import {
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  ModeProps,
-  SnappingBehavior
+  ModeProps
 } from './types';
 import {mapCoords, toWebMercatorViewport} from './utils';
 import {translateFromCenter} from '../utils/translate-from-center';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {getEditModeCoordinateSystem} from './coordinate-system';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {FromSnapSourcesSnappingStrategy} from './snapping/from-snap-sources-snapping-strategy';
 
-export class TranslateMode extends GeoJsonEditMode {
+export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode {
   _geometryBeforeTranslate: SimpleFeatureCollection | null | undefined;
   _isTranslatable: boolean = undefined!;
 
@@ -165,7 +166,7 @@ export class TranslateMode extends GeoJsonEditMode {
     };
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'FromSnapSources';
+  getSnappingStrategy() {
+    return new FromSnapSourcesSnappingStrategy();
   }
 }

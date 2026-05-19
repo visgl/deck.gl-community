@@ -247,7 +247,7 @@ const modeNameMapping = {
   modify: ModifyMode,
   translate: new SnappableMode(new TranslateMode()),
 
-  transform: new SnappableMode(new TransformMode()),
+  transform: TransformMode,
   scale: ScaleMode,
   rotate: RotateMode,
   duplicate: DuplicateMode,

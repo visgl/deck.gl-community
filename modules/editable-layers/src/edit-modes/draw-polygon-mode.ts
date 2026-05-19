@@ -15,15 +15,16 @@ import {
   GuideFeatureCollection,
   TentativeFeature,
   GuideFeature,
-  DoubleClickEvent,
-  SnappingBehavior
+  DoubleClickEvent
 } from './types';
 import {Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
 
-export class DrawPolygonMode extends GeoJsonEditMode {
+export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   holeSequence: Position[] = [];
   isDrawingHole = false;
 
@@ -193,8 +194,8 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     super.handlePointerMove(event, props);
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'Freehand';
+  getSnappingStrategy() {
+    return new FreehandSnappingStrategy();
   }
 
   // eslint-disable-next-line max-statements, complexity

@@ -7,8 +7,7 @@ import {
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
-  TentativeFeature,
-  SnappingBehavior
+  TentativeFeature
 } from './types';
 import {
   Position,
@@ -18,8 +17,10 @@ import {
   SimpleFeatureCollection
 } from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
 
-export class ThreeClickPolygonMode extends GeoJsonEditMode {
+export class ThreeClickPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     this.addClickSequence(event);
 
@@ -117,7 +118,7 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
     return tentativeFeature;
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'Freehand';
+  getSnappingStrategy() {
+    return new FreehandSnappingStrategy();
   }
 }

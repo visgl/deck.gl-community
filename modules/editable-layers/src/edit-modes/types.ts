@@ -80,6 +80,12 @@ export type PointerMoveEvent = BasePointerEvent & {
   isDragging?: boolean;
 };
 
+export type MovementEvent =
+  | PointerMoveEvent
+  | StartDraggingEvent
+  | StopDraggingEvent
+  | DraggingEvent;
+
 export type Tooltip = {
   position: Position;
   text: string;
@@ -154,12 +160,3 @@ export type PointWithIndex = {
   x0: number;
   y0: number;
 };
-
-export type SnappingBehavior =
-  // Uses snap source handles to originate a snap
-  | 'FromSnapSources'
-  // Snap to nearby snap targets when dragging
-  | 'WhenDragging'
-  // Snap to nearby snap targets as pointer moves
-  | 'Freehand'
-  | 'NotSupported';

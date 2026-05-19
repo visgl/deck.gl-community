@@ -9,7 +9,6 @@ import {point} from '@turf/helpers';
 import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
-import {SnappingBehavior} from './types';
 
 export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
   getTwoClickPolygon(coord1: Position, coord2: Position, modeConfig: any): Feature<Polygon> {
@@ -43,7 +42,7 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
     return geometry;
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'NotSupported';
+  getSnappingStrategy() {
+    return undefined;
   }
 }

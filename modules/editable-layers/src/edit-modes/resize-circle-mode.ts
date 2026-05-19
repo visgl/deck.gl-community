@@ -30,13 +30,14 @@ import {
   DraggingEvent,
   EditHandleFeature,
   GuideFeatureCollection,
-  GuideFeature,
-  SnappingBehavior
+  GuideFeature
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {WhenDraggingSnappingStrategy} from './snapping/when-dragging-snapping-strategy';
 
-export class ResizeCircleMode extends GeoJsonEditMode {
+export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMode {
   _selectedEditHandle: EditHandleFeature | null | undefined;
   _isResizing = false;
 
@@ -208,7 +209,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
     return null;
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'WhenDragging';
+  getSnappingStrategy() {
+    return new WhenDraggingSnappingStrategy();
   }
 }

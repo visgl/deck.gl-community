@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {StartDraggingEvent, ModeProps, SnappingBehavior} from './types';
+import {StartDraggingEvent, ModeProps} from './types';
 import {FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 
@@ -23,7 +23,7 @@ export class DuplicateMode extends TranslateMode {
     }
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'NotSupported';
+  getSnappingStrategy() {
+    return undefined;
   }
 }

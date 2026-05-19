@@ -39,6 +39,8 @@ export {getPickedEditHandle, getEditHandlesForGeometry} from './edit-modes/utils
 export type {EditMode} from './edit-modes/edit-mode';
 export type {GeoJsonEditModeType} from './edit-modes/geojson-edit-mode';
 export type {GeoJsonEditModeConstructor} from './edit-modes/geojson-edit-mode';
+export type {SnappableEditMode} from './edit-modes/snappable-edit-mode';
+export type {SnappingStrategy} from './edit-modes/snapping/snapping-strategy';
 
 export type {EditModeCoordinateSystem} from './edit-modes/coordinate-system';
 export {GeoCoordinateSystem, CartesianCoordinateSystem} from './edit-modes/coordinate-system';
@@ -92,6 +94,11 @@ export {MeasureAreaMode} from './edit-modes/measure-area-mode';
 export {MeasureAngleMode} from './edit-modes/measure-angle-mode';
 export {CompositeMode} from './edit-modes/composite-mode';
 export {SnappableMode} from './edit-modes/snappable-mode';
+
+// Snapping strategies
+export {FreehandSnappingStrategy} from './edit-modes/snapping/freehand-snapping-strategy';
+export {WhenDraggingSnappingStrategy} from './edit-modes/snapping/when-dragging-snapping-strategy';
+export {FromSnapSourcesSnappingStrategy} from './edit-modes/snapping/from-snap-sources-snapping-strategy';
 
 export type {
   ScreenCoordinates,

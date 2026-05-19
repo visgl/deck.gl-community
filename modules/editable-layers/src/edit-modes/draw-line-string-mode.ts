@@ -16,8 +16,7 @@ import {
   GuideFeatureCollection,
   GuideFeature,
   Tooltip,
-  DoubleClickEvent,
-  SnappingBehavior
+  DoubleClickEvent
 } from './types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
@@ -26,8 +25,10 @@ import {
   GeoCoordinateSystem,
   getEditModeCoordinateSystem
 } from './coordinate-system';
+import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
+import {SnappableEditMode} from './snappable-edit-mode';
 
-export class DrawLineStringMode extends GeoJsonEditMode {
+export class DrawLineStringMode extends GeoJsonEditMode implements SnappableEditMode {
   // declaration of variables for the calculation of the distance of linestring
   dist = 0;
   position: Position = null!;
@@ -189,8 +190,8 @@ export class DrawLineStringMode extends GeoJsonEditMode {
     }
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'Freehand';
+  getSnappingStrategy() {
+    return new FreehandSnappingStrategy();
   }
 
   /**

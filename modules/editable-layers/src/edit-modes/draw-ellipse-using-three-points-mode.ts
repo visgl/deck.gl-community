@@ -9,7 +9,6 @@ import {point} from '@turf/helpers';
 import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {ThreeClickPolygonMode} from './three-click-polygon-mode';
-import {SnappingBehavior} from './types';
 
 export class DrawEllipseUsingThreePointsMode extends ThreeClickPolygonMode {
   getThreeClickPolygon(
@@ -35,7 +34,7 @@ export class DrawEllipseUsingThreePointsMode extends ThreeClickPolygonMode {
     return geometry;
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'NotSupported';
+  getSnappingStrategy() {
+    return undefined;
   }
 }

@@ -2,20 +2,15 @@ import turfBearing from '@turf/bearing';
 import turfCenter from '@turf/center';
 import {memoize} from '../utils/memoize';
 
-import {
-  ClickEvent,
-  PointerMoveEvent,
-  Tooltip,
-  ModeProps,
-  GuideFeatureCollection,
-  SnappingBehavior
-} from './types';
+import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
 import {FeatureCollection, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
 
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
 
-export class MeasureAngleMode extends GeoJsonEditMode {
+export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMode {
   _getTooltips = memoize(
     ({
       modeConfig,
@@ -139,7 +134,7 @@ export class MeasureAngleMode extends GeoJsonEditMode {
     });
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'Freehand';
+  getSnappingStrategy() {
+    return new FreehandSnappingStrategy();
   }
 }

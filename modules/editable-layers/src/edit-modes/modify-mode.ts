@@ -32,14 +32,15 @@ import {
   GuideFeatureCollection,
   EditHandleFeature,
   GuideFeature,
-  SnappingBehavior,
   Viewport
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {EditModeCoordinateSystem} from './coordinate-system';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {WhenDraggingSnappingStrategy} from './snapping/when-dragging-snapping-strategy';
 
-export class ModifyMode extends GeoJsonEditMode {
+export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
   // eslint-disable-next-line complexity
   getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const handles: GuideFeature[] = [];
@@ -283,7 +284,7 @@ export class ModifyMode extends GeoJsonEditMode {
     return null;
   }
 
-  getSnappingBehavior(): SnappingBehavior {
-    return 'WhenDragging';
+  getSnappingStrategy() {
+    return new WhenDraggingSnappingStrategy();
   }
 }
