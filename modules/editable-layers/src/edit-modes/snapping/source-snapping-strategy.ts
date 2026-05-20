@@ -23,7 +23,7 @@ import {SnappingStrategy} from './snapping-strategy';
  * The picked snap-source handle snaps onto a target if nearby.
  * Click events are never snapped — only drag movement applies snapping.
  */
-export class FromSnapSourcesSnappingStrategy implements SnappingStrategy {
+export class SourceSnappingStrategy implements SnappingStrategy {
   snapClickEvent(_props: ModeProps<FeatureCollection>, event: ClickEvent): ClickEvent {
     return event;
   }
@@ -70,7 +70,7 @@ export class FromSnapSourcesSnappingStrategy implements SnappingStrategy {
     }
     const snapSourceFeature = data.features[featureIndex] as SimpleFeature;
     const snapSourceCoordinates = positionIndexes.reduce(
-      (a: any[], b: number) => a[b],
+      (coords: any[], index: number) => coords[index],
       snapSourceFeature.geometry.coordinates
     );
     return {

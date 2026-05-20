@@ -5,7 +5,7 @@
 import {ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature} from './types';
 import {FeatureCollection, SimpleFeatureCollection, Point} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
-import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 import {SnappableEditMode} from './snappable-edit-mode';
 
 export class DrawPointMode extends GeoJsonEditMode implements SnappableEditMode {
@@ -40,6 +40,6 @@ export class DrawPointMode extends GeoJsonEditMode implements SnappableEditMode 
   }
 
   getSnappingStrategy() {
-    return new FreehandSnappingStrategy();
+    return new ClickSnappingStrategy();
   }
 }

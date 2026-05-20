@@ -17,15 +17,15 @@ import {GeoJsonEditMode} from './geojson-edit-mode';
 import {SnappableEditMode} from './snappable-edit-mode';
 import {SnappingStrategy} from './snapping/snapping-strategy';
 
-type SnappableHandlerType = GeoJsonEditMode & SnappableEditMode;
+type SnappableGeoJsonEditMode = GeoJsonEditMode & SnappableEditMode;
 
 export class SnappableMode extends GeoJsonEditMode {
-  _handler: SnappableHandlerType;
+  _wrappedMode: SnappableGeoJsonEditMode;
   _strategy: SnappingStrategy | undefined;
 
-  constructor(handler: SnappableHandlerType) {
+  constructor(handler: SnappableGeoJsonEditMode) {
     super();
-    this._handler = handler;
+    this._wrappedMode = handler;
     this._strategy = handler.getSnappingStrategy();
   }
 
@@ -33,44 +33,44 @@ export class SnappableMode extends GeoJsonEditMode {
     const enableSnapping = props.modeConfig?.enableSnapping;
     const snappedEvent =
       enableSnapping && this._strategy ? this._strategy.snapClickEvent(props, event) : event;
-    this._handler.handleClick(snappedEvent, props);
+    this._wrappedMode.handleClick(snappedEvent, props);
   }
 
   handleDoubleClick(event: DoubleClickEvent, props: ModeProps<FeatureCollection>) {
-    this._handler.handleDoubleClick(event, props);
+    this._wrappedMode.handleDoubleClick(event, props);
   }
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
     const enableSnapping = props.modeConfig?.enableSnapping;
     const snappedEvent =
       enableSnapping && this._strategy ? this._strategy.snapMovementEvent(props, event) : event;
-    this._handler.handlePointerMove(snappedEvent, props);
+    this._wrappedMode.handlePointerMove(snappedEvent, props);
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
-    this._handler.handleStartDragging(event, props);
+    this._wrappedMode.handleStartDragging(event, props);
   }
 
   handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
     const enableSnapping = props.modeConfig?.enableSnapping;
     const snappedEvent =
       enableSnapping && this._strategy ? this._strategy.snapMovementEvent(props, event) : event;
-    this._handler.handleStopDragging(snappedEvent, props);
+    this._wrappedMode.handleStopDragging(snappedEvent, props);
   }
 
   handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
     const enableSnapping = props.modeConfig?.enableSnapping;
     const snappedEvent =
       enableSnapping && this._strategy ? this._strategy.snapMovementEvent(props, event) : event;
-    this._handler.handleDragging(snappedEvent, props);
+    this._wrappedMode.handleDragging(snappedEvent, props);
   }
 
   handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>) {
-    this._handler.handleKeyUp(event, props);
+    this._wrappedMode.handleKeyUp(event, props);
   }
 
   getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const handlerGuides = this._handler.getGuides(props);
+    const handlerGuides = this._wrappedMode.getGuides(props);
     const enableSnapping = props.modeConfig?.enableSnapping;
 
     if (!enableSnapping || !this._strategy) {
@@ -85,6 +85,6 @@ export class SnappableMode extends GeoJsonEditMode {
   }
 
   getTooltips(props: ModeProps<FeatureCollection>) {
-    return this._handler.getTooltips(props);
+    return this._wrappedMode.getTooltips(props);
   }
 }

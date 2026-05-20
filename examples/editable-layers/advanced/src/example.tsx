@@ -1047,12 +1047,12 @@ export function Example() {
       viewport: currentViewport,
       lockRectangles: true
     };
-  } else if (mode instanceof SnappableMode && currentModeConfig) {
+  } else if (currentModeConfig?.enableSnapping) {
     currentModeConfig = {
       ...currentModeConfig,
       viewport: currentViewport
     };
-    if (mode._handler instanceof TranslateMode) {
+    if (mode instanceof SnappableMode && mode._wrappedMode instanceof TranslateMode) {
       currentModeConfig = {
         ...currentModeConfig,
         screenSpace: true

@@ -18,7 +18,7 @@ import {
 } from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {SnappableEditMode} from './snappable-edit-mode';
-import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
 export class ThreeClickPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -119,6 +119,6 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode implements SnappableE
   }
 
   getSnappingStrategy() {
-    return new FreehandSnappingStrategy();
+    return new ClickSnappingStrategy();
   }
 }

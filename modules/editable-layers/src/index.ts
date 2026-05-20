@@ -96,9 +96,9 @@ export {CompositeMode} from './edit-modes/composite-mode';
 export {SnappableMode} from './edit-modes/snappable-mode';
 
 // Snapping strategies
-export {FreehandSnappingStrategy} from './edit-modes/snapping/freehand-snapping-strategy';
-export {WhenDraggingSnappingStrategy} from './edit-modes/snapping/when-dragging-snapping-strategy';
-export {FromSnapSourcesSnappingStrategy} from './edit-modes/snapping/from-snap-sources-snapping-strategy';
+export {ClickSnappingStrategy} from './edit-modes/snapping/click-snapping-strategy';
+export {DragSnappingStrategy} from './edit-modes/snapping/drag-snapping-strategy';
+export {SourceSnappingStrategy} from './edit-modes/snapping/source-snapping-strategy';
 
 export type {
   ScreenCoordinates,

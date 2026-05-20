@@ -22,7 +22,7 @@ import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {getEditModeCoordinateSystem} from './coordinate-system';
 import {SnappableEditMode} from './snappable-edit-mode';
-import {FromSnapSourcesSnappingStrategy} from './snapping/from-snap-sources-snapping-strategy';
+import {SourceSnappingStrategy} from './snapping/source-snapping-strategy';
 
 export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode {
   _geometryBeforeTranslate: SimpleFeatureCollection | null | undefined;
@@ -167,6 +167,6 @@ export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode 
   }
 
   getSnappingStrategy() {
-    return new FromSnapSourcesSnappingStrategy();
+    return new SourceSnappingStrategy();
   }
 }

@@ -22,7 +22,7 @@ import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {SnappableEditMode} from './snappable-edit-mode';
-import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
 export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   holeSequence: Position[] = [];
@@ -195,7 +195,7 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
   }
 
   getSnappingStrategy() {
-    return new FreehandSnappingStrategy();
+    return new ClickSnappingStrategy();
   }
 
   // eslint-disable-next-line max-statements, complexity

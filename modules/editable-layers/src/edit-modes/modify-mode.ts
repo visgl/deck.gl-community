@@ -38,7 +38,7 @@ import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {EditModeCoordinateSystem} from './coordinate-system';
 import {SnappableEditMode} from './snappable-edit-mode';
-import {WhenDraggingSnappingStrategy} from './snapping/when-dragging-snapping-strategy';
+import {DragSnappingStrategy} from './snapping/drag-snapping-strategy';
 
 export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
   // eslint-disable-next-line complexity
@@ -285,6 +285,6 @@ export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
   }
 
   getSnappingStrategy() {
-    return new WhenDraggingSnappingStrategy();
+    return new DragSnappingStrategy();
   }
 }

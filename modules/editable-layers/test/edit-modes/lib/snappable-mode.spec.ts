@@ -14,6 +14,7 @@ import {
 import {viewport} from '../../mocks';
 import {SimpleFeatureCollection, FeatureCollection} from '../../../src/utils/geojson-types';
 import {TranslateMode} from '../../../src/edit-modes/translate-mode';
+import {TransformMode} from '../../../src/edit-modes/transform-mode';
 import {EditHandleFeature, ModeProps, Pick} from '../../../src/edit-modes/types';
 import {GeoJsonEditMode} from '../../../src/edit-modes/geojson-edit-mode';
 import {DrawLineStringMode} from '../../../src/edit-modes/draw-line-string-mode';
@@ -107,7 +108,10 @@ const defaultProps: ModeProps<SimpleFeatureCollection> = {
   pickingRadius
 };
 
-describe('translate mode', () => {
+describe.each([
+  {name: 'translate mode', createMode: () => new SnappableMode(new TranslateMode())},
+  {name: 'transform mode', createMode: () => new TransformMode()}
+])('$name', ({createMode}) => {
   let mode: GeoJsonEditMode;
 
   const snapSourceHandle: EditHandleFeature = {
@@ -123,7 +127,7 @@ describe('translate mode', () => {
   const sourcePick = {index: 0, isGuide: true, object: snapSourceHandle};
 
   beforeEach(() => {
-    mode = new SnappableMode(new TranslateMode());
+    mode = createMode();
   });
 
   test('when no pointer down picks renders snap source handles on selected feature', () => {
@@ -134,27 +138,38 @@ describe('translate mode', () => {
     };
 
     const guides = mode.getGuides(props);
+    const snapSourceGuides = guides.features.filter(
+      f => (f as EditHandleFeature).properties.editHandleType === 'snap-source'
+    );
 
-    expect(guides.features.length).toBe(2);
-    expect(guides.features[0].properties.guideType).toBe('editHandle');
-    expect((guides.features[0] as EditHandleFeature).properties.editHandleType).toBe('snap-source');
-    expect(guides.features[0].geometry.type).toEqual('Point');
-    expect(guides.features[0].geometry.coordinates).toEqual(pointAMapCoords);
+    expect(snapSourceGuides.length).toBe(2);
+    expect(snapSourceGuides[0].properties.guideType).toBe('editHandle');
+    expect((snapSourceGuides[0] as EditHandleFeature).properties.editHandleType).toBe(
+      'snap-source'
+    );
+    expect(snapSourceGuides[0].geometry.type).toEqual('Point');
+    expect(snapSourceGuides[0].geometry.coordinates).toEqual(pointAMapCoords);
 
-    expect(guides.features[1].properties.guideType).toBe('editHandle');
-    expect((guides.features[1] as EditHandleFeature).properties.editHandleType).toBe('snap-source');
-    expect(guides.features[1].geometry.type).toEqual('Point');
-    expect(guides.features[1].geometry.coordinates).toEqual(pointBMapCoords);
+    expect(snapSourceGuides[1].properties.guideType).toBe('editHandle');
+    expect((snapSourceGuides[1] as EditHandleFeature).properties.editHandleType).toBe(
+      'snap-source'
+    );
+    expect(snapSourceGuides[1].geometry.type).toEqual('Point');
+    expect(snapSourceGuides[1].geometry.coordinates).toEqual(pointBMapCoords);
   });
 
   test('when no pointer down picks renders no snap targets', () => {
     const props = {
       ...defaultProps,
+      selectedIndexes: [0],
       lastPointerMoveEvent: createPointerMoveEvent(snapToAMapCoords)
     };
 
     const guides = mode.getGuides(props);
-    expect(guides.features.length).toBe(0);
+    const snapTargetGuides = guides.features.filter(
+      f => (f as EditHandleFeature).properties.editHandleType === 'snap-target'
+    );
+    expect(snapTargetGuides.length).toBe(0);
   });
 
   test('dragging snap source onto snap target calls onEdit with snapped coordinates', () => {
@@ -185,22 +200,25 @@ describe('translate mode', () => {
     };
 
     const guides = mode.getGuides(props);
+    const snapTarget = guides.features.find(
+      f => (f as EditHandleFeature).properties.editHandleType === 'snap-target'
+    ) as EditHandleFeature;
+    const snapSource = guides.features.find(
+      f => (f as EditHandleFeature).properties.editHandleType === 'snap-source'
+    ) as EditHandleFeature;
 
-    expect(guides.features.length).toBe(2);
-
-    const firstHandle = guides.features[0] as EditHandleFeature;
-    expect(firstHandle.properties.guideType).toBe('editHandle');
-    expect(firstHandle.geometry.type).toEqual('Point');
-    expect(firstHandle.geometry.coordinates).toEqual(pointCMapCoords);
-    expect(firstHandle.properties.editHandleType).toBe('snap-target');
-    expect(firstHandle.properties.featureIndex).toBe(1);
+    expect(snapTarget).toBeDefined();
+    expect(snapTarget.properties.guideType).toBe('editHandle');
+    expect(snapTarget.geometry.type).toEqual('Point');
+    expect(snapTarget.geometry.coordinates).toEqual(pointCMapCoords);
+    expect(snapTarget.properties.featureIndex).toBe(1);
 
     // The snap source shows its original position since onEdit is mocked
-    const lastHandle = guides.features[1] as EditHandleFeature;
-    expect(lastHandle.properties.guideType).toBe('editHandle');
-    expect(lastHandle.geometry.type).toEqual('Point');
-    expect(lastHandle.geometry.coordinates).toEqual(pointAMapCoords);
-    expect(lastHandle.properties.editHandleType).toBe('snap-source');
+    expect(snapSource).toBeDefined();
+    expect(snapSource.properties.guideType).toBe('editHandle');
+    expect(snapSource.geometry.type).toEqual('Point');
+    expect(snapSource.geometry.coordinates).toEqual(pointAMapCoords);
+    expect(snapSource.properties.editHandleType).toBe('snap-source');
   });
 
   test('when edge snapping enabled, snap target is rendered if edge within radius', () => {

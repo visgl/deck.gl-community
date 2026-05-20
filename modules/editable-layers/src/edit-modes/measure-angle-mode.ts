@@ -6,7 +6,7 @@ import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection
 import {FeatureCollection, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {SnappableEditMode} from './snappable-edit-mode';
-import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
 
@@ -135,6 +135,6 @@ export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMo
   }
 
   getSnappingStrategy() {
-    return new FreehandSnappingStrategy();
+    return new ClickSnappingStrategy();
   }
 }

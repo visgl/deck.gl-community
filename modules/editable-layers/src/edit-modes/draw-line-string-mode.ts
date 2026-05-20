@@ -25,7 +25,7 @@ import {
   GeoCoordinateSystem,
   getEditModeCoordinateSystem
 } from './coordinate-system';
-import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 import {SnappableEditMode} from './snappable-edit-mode';
 
 export class DrawLineStringMode extends GeoJsonEditMode implements SnappableEditMode {
@@ -191,7 +191,7 @@ export class DrawLineStringMode extends GeoJsonEditMode implements SnappableEdit
   }
 
   getSnappingStrategy() {
-    return new FreehandSnappingStrategy();
+    return new ClickSnappingStrategy();
   }
 
   /**

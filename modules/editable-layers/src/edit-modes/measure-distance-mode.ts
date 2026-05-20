@@ -15,7 +15,7 @@ import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {getEditModeCoordinateSystem} from './coordinate-system';
 import {SnappableEditMode} from './snappable-edit-mode';
-import {FreehandSnappingStrategy} from './snapping/freehand-snapping-strategy';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
 export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEditMode {
   _isMeasuringSessionFinished = false;
@@ -222,6 +222,6 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
   }
 
   getSnappingStrategy() {
-    return new FreehandSnappingStrategy();
+    return new ClickSnappingStrategy();
   }
 }

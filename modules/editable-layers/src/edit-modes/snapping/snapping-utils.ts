@@ -170,17 +170,17 @@ export function getSnapTargetHandles(
 }
 
 /**
- * Returns an array containing the single snap-target handle closest to the pointer within picking radius,
- * or an empty array when none qualifies.
+ * Returns the single snap-target handle closest to the pointer within picking radius,
+ * or undefined when none qualifies.
  */
 export function getClosestSnapTargetHandle(
-  screenCoords: [number, number] | undefined,
   props: ModeProps<FeatureCollection>,
   excludedFeatureIndexes: number[]
-): EditHandleFeature[] {
+): EditHandleFeature | undefined {
+  const screenCoords = props.lastPointerMoveEvent?.screenCoords;
   const {pickingRadius, modeConfig: {viewport} = {}} = props;
   if (!screenCoords || !viewport || pickingRadius === undefined) {
-    return [];
+    return undefined;
   }
   const wmViewport = toWebMercatorViewport(viewport);
   const [cx, cy] = screenCoords;
@@ -194,5 +194,5 @@ export function getClosestSnapTargetHandle(
       minDist = dist;
     }
   }
-  return closest ? [closest] : [];
+  return closest;
 }

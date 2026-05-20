@@ -13,7 +13,7 @@ import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {ModeProps, StartDraggingEvent, StopDraggingEvent, DraggingEvent} from './types';
 import {ModifyMode} from './modify-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
-import {WhenDraggingSnappingStrategy} from './snapping/when-dragging-snapping-strategy';
+import {DragSnappingStrategy} from './snapping/drag-snapping-strategy';
 
 export class ExtrudeMode extends ModifyMode {
   // this mode is busted =(
@@ -263,6 +263,6 @@ export class ExtrudeMode extends ModifyMode {
   }
 
   getSnappingStrategy() {
-    return new WhenDraggingSnappingStrategy();
+    return new DragSnappingStrategy();
   }
 }
