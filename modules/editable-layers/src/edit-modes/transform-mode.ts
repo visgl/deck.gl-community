@@ -31,7 +31,7 @@ export class TransformMode extends CompositeMode {
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
     let scaleMode: ScaleMode | null = null;
-    let translateMode: TranslateMode | null = null;
+    let translateMode: GeoJsonEditMode | null = null;
     const filteredModes: GeoJsonEditMode[] = [];
 
     if (event.picks.length) {
@@ -43,7 +43,7 @@ export class TransformMode extends CompositeMode {
     // this simultaneous action trigger from happening by putting a higher priority on scaling
     // since the user needs to be more precise to hover over a scaling edit handle.
     this._modes.forEach(mode => {
-      if (mode instanceof TranslateMode) {
+      if (mode instanceof SnappableMode && mode._wrappedMode instanceof TranslateMode) {
         translateMode = mode;
       } else {
         if (mode instanceof ScaleMode) {
