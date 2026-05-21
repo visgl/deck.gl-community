@@ -26,7 +26,7 @@ import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
-import '@deck.gl/widgets/stylesheet.css';
+import '@deck.gl/widgets/dist/stylesheet.css';
 
 // --- Default data ---
 

@@ -15,7 +15,7 @@ import {ViewMode, DrawPolygonMode, EditableGeoJsonLayer} from '@deck.gl-communit
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
-import '@deck.gl/widgets/stylesheet.css';
+import '@deck.gl/widgets/dist/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type GettingStartedMode = 'draw' | 'view';

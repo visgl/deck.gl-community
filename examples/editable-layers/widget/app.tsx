@@ -22,7 +22,7 @@ import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
-import '@deck.gl/widgets/stylesheet.css';
+import '@deck.gl/widgets/dist/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type BooleanOperation = 'union' | 'difference' | 'intersection' | null;
