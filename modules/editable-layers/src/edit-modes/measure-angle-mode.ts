@@ -5,10 +5,12 @@ import {memoize} from '../utils/memoize';
 import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
 import {FeatureCollection, Position} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
 
-export class MeasureAngleMode extends GeoJsonEditMode {
+export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMode {
   _getTooltips = memoize(
     ({
       modeConfig,
@@ -130,5 +132,9 @@ export class MeasureAngleMode extends GeoJsonEditMode {
       point1: points[1],
       point2: points[2]
     });
+  }
+
+  getSnappingStrategy() {
+    return new ClickSnappingStrategy();
   }
 }

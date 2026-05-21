@@ -34,8 +34,10 @@ import {
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {DragSnappingStrategy} from './snapping/drag-snapping-strategy';
 
-export class ResizeCircleMode extends GeoJsonEditMode {
+export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMode {
   _selectedEditHandle: EditHandleFeature | null | undefined;
   _isResizing = false;
 
@@ -205,5 +207,9 @@ export class ResizeCircleMode extends GeoJsonEditMode {
       return 'cell';
     }
     return null;
+  }
+
+  getSnappingStrategy() {
+    return new DragSnappingStrategy();
   }
 }
