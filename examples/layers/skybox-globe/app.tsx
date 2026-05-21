@@ -165,8 +165,7 @@ function buildLayers(settings: SettingsState) {
     settings.render?.showSkybox !== false &&
       new SkyboxLayer({
         id: 'skybox',
-        cubemap: TYCHO_CUBEMAP,
-        orientation: 'y-up'
+        cubemap: TYCHO_CUBEMAP
       }),
     new BasemapLayer({
       id: 'earth',
