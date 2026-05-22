@@ -25,6 +25,15 @@ Please refer the documentation of each module for detailed upgrade guides.
   - `useEffectiveWidgetPanelThemeMode` -> `useEffectivePanelThemeMode`
 - New API: `SplitterPanel` composes the first panel in one resizable pane and the remaining panels in a second pane.
 
+### `@deck.gl-community/react`
+
+- Breaking change: `WidgetPanel` was renamed to `Panel`.
+- Migration:
+  - `WidgetPanel` -> `Panel`
+  - `WidgetPanelProps` -> `PanelProps`
+  - `WidgetPanelThemeMode` -> `PanelHostThemeMode`
+- The React `Panel` host now uses `@deck.gl-community/panels` theme variables directly and no longer has an `@deck.gl/widgets` peer dependency.
+
 ## v9.3
 
 ### Dependencies
