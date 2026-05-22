@@ -1,13 +1,5 @@
 # deck.gl-community CHANGELOG
 
-## v9.3.3
-
-- feat(panels): break out the standalone panels module, add ArrowTablePanel, ArrowSchemaPanel, SplitterPanel, and panel cleanup/improvements (#608, #613, #615, #619, #634)
-- feat(website): add the refreshed landing page, social preview image/metadata, deployment workflow, and website build coverage in CI (#598, #603, #604, #605, #606, #610)
-- chore: replace ESLint/Prettier with Biome, upgrade to TypeScript 6, and remove styled-components (#611, #612, #614)
-- fix: resolve MapLibre/DeckGL context wiring, info panel button styling, and Leaflet scripting demo route collision (#602, #618, #621)
-- chore(deps): update axios, fast-uri, fast-xml-builder, ip-address, protocol-buffers-schema, follow-redirects, and Babel website dependency patches (#592, #593, #599, #626, #627, #631, #632, #633, #636)
-
 ## v9.3.2
 
 - fix: move vis.gl singleton deps (`@deck.gl/*`, `@luma.gl/core`, `@luma.gl/engine`, `@loaders.gl/core`) to peerDependencies across all modules, matching `@deck.gl` upstream pattern (#590)
