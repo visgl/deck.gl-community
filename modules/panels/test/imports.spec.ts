@@ -61,3 +61,7 @@ it('exports ArrowTablePanel', () => {
 it('exports ArrowSchemaPanel', () => {
   expect(Panels.ArrowSchemaPanel).toBeDefined();
 });
+
+it('exports ArrowBatchesPanel', () => {
+  expect(Panels.ArrowBatchesPanel).toBeDefined();
+});

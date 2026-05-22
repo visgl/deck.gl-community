@@ -48,6 +48,7 @@ export {
   type PanelTheme,
   type PanelThemeMode
 } from './panels/panel-containers';
+export {PanelThemeScope} from './panels/panel-theme-scope';
 
 export {SettingsPanel, type SettingsPanelProps} from './panels/settings-panel';
 export {
@@ -72,19 +73,31 @@ export {
 } from './panels/documentation-links-panel';
 export {
   ArrowTablePanel,
+  type ArrowCellFormatContext,
+  type ArrowTableColumnFormatters,
   type ArrowTableFieldLike,
+  type ArrowTableInput,
   type ArrowTableLike,
   type ArrowTablePanelProps,
   type ArrowTableSchemaLike,
-  type ArrowTableVectorLike
+  type ArrowTableVectorLike,
+  type ArrowTableWrapperLike
 } from './panels/arrow-table-panel';
 export {
   ArrowSchemaPanel,
+  type ArrowMetadataEntry,
   type ArrowMetadataLike,
   type ArrowSchemaFieldLike,
   type ArrowSchemaLike,
   type ArrowSchemaPanelProps
 } from './panels/arrow-schema-panel';
+export {
+  ArrowBatchesPanel,
+  type ArrowBatchPreview,
+  type ArrowBatchPreviewRow,
+  type ArrowBatchesPanelProps,
+  type ArrowRecordBatchLike
+} from './panels/arrow-batches-panel';
 export {
   KeyboardShortcutsPanel,
   KeyboardShortcutsPanelContent,

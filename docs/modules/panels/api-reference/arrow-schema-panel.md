@@ -8,7 +8,9 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 <PanelLiveExample highlight="arrow-schema-panel" />
 
-`ArrowSchemaPanel` renders an Apache Arrow schema as a table with one row per field.
+`ArrowSchemaPanel` renders an Apache Arrow schema as a table with one row per
+field. It is deck.gl-independent and works with structural Arrow schema-like
+objects.
 
 ## Usage
 
@@ -50,10 +52,19 @@ type ArrowSchemaPanelProps = {
 
 ## Metadata
 
-Arrow schema and field metadata are shown as key/value entries. When a metadata value is a string containing JSON, `ArrowSchemaPanel` parses it and renders the parsed value as formatted JSON.
+Arrow schema and field metadata are shown as key/value entries. When a metadata
+value is a string containing JSON, `ArrowSchemaPanel` parses it and renders the
+parsed value as formatted JSON.
+
+Field child metadata is also shown. This surfaces luma.gl annotations that are
+stored on fixed-size-list child fields, including `luma.gl:matrix-shape`,
+`luma.gl:matrix-order`, `luma.gl:matrix-layout`, and prepared temporal metadata
+keys such as `luma.gl:temporal-kind` and `luma.gl:temporal-unit`.
 
 ## Remarks
 
 - Accepts Apache Arrow JS schema-like objects, including Arrow JS v17 and newer.
-- Renders field name, type, nullable state, and field metadata.
+- Renders field name, type, nullable state, field metadata, and child metadata.
 - Shows schema-level metadata above the field table when metadata is present.
+- Highlights known `luma.gl:*` metadata keys for matrix and temporal Arrow
+  columns.

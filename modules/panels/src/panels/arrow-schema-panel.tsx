@@ -3,35 +3,17 @@
 import {useMemo} from 'preact/hooks';
 
 import {useEffectivePanelThemeMode} from './panel-containers';
+import {
+  createArrowSchemaPreview,
+  type ArrowMetadataEntry,
+  type ArrowSchemaLike
+} from './arrow-preview-utils';
 
 import type {Panel, PanelTheme} from './panel-containers';
 import type {JSX} from 'preact';
 
-/** Arrow metadata container shape used by Apache Arrow JS schemas and fields. */
-export type ArrowMetadataLike =
-  | Map<string, unknown>
-  | Iterable<[string, unknown]>
-  | Record<string, unknown>;
-
-/** Arrow schema field subset used by {@link ArrowSchemaPanel}. */
-export type ArrowSchemaFieldLike = {
-  /** Field name. */
-  name?: string;
-  /** Whether the field accepts null values. */
-  nullable?: boolean;
-  /** Arrow data type. */
-  type?: string | {toString?: () => string};
-  /** Field-level metadata. */
-  metadata?: ArrowMetadataLike;
-};
-
-/** Arrow schema subset used by {@link ArrowSchemaPanel}. */
-export type ArrowSchemaLike = {
-  /** Ordered schema fields. */
-  fields?: ArrowSchemaFieldLike[];
-  /** Schema-level metadata. */
-  metadata?: ArrowMetadataLike;
-};
+export type {ArrowMetadataLike, ArrowSchemaFieldLike, ArrowSchemaLike} from './arrow-preview-utils';
+export type {ArrowMetadataEntry};
 
 /** Props for {@link ArrowSchemaPanel}. */
 export type ArrowSchemaPanelProps = {
@@ -161,105 +143,17 @@ function ArrowSchemaPanelContent({schema, title, className}: ArrowSchemaPanelPro
   );
 }
 
-type ArrowSchemaRow = {
-  key: string;
-  name: string;
-  type: string;
-  nullable: string;
-  metadata: MetadataEntry[];
-};
-
-type ArrowSchemaPreview = {
-  schemaMetadata: MetadataEntry[];
-  fields: ArrowSchemaRow[];
-};
-
-type MetadataEntry = {
-  key: string;
-  value: string;
-};
-
 type MetadataColors = {
   text: string;
   muted: string;
   divider: string;
 };
 
-/** Builds display rows for Arrow schema fields and metadata. */
-function createArrowSchemaPreview(schema: ArrowSchemaLike | null | undefined): ArrowSchemaPreview {
-  return {
-    schemaMetadata: normalizeMetadata(schema?.metadata),
-    fields: (schema?.fields ?? []).map((field, index) => ({
-      key: `${field.name || 'field'}-${index}`,
-      name: field.name || `field_${index}`,
-      type: formatFieldType(field.type),
-      nullable: field.nullable ? 'yes' : 'no',
-      metadata: normalizeMetadata(field.metadata)
-    }))
-  };
-}
-
-/** Formats an Arrow field type without depending on a specific Arrow JS class. */
-function formatFieldType(type: ArrowSchemaFieldLike['type']): string {
-  if (typeof type === 'string') {
-    return type;
-  }
-  return type?.toString?.() || 'unknown';
-}
-
-/** Converts Arrow metadata maps or objects into display entries. */
-function normalizeMetadata(metadata: ArrowMetadataLike | null | undefined): MetadataEntry[] {
-  if (!metadata || typeof metadata !== 'object') {
-    return [];
-  }
-
-  const entries =
-    metadata instanceof Map
-      ? [...metadata.entries()]
-      : Symbol.iterator in metadata
-        ? [...(metadata as Iterable<[string, unknown]>)]
-        : Object.entries(metadata);
-
-  return entries
-    .filter((entry): entry is [string, unknown] => Array.isArray(entry) && entry.length >= 2)
-    .map(([key, value]) => ({
-      key,
-      value: formatMetadataValue(value)
-    }));
-}
-
-/** Attempts to parse JSON metadata values before falling back to a readable scalar. */
-function formatMetadataValue(value: unknown): string {
-  if (typeof value === 'string') {
-    const parsedValue = parseJsonValue(value);
-    return parsedValue === undefined ? value : stringifyMetadataValue(parsedValue);
-  }
-  return stringifyMetadataValue(value);
-}
-
-function parseJsonValue(value: string): unknown | undefined {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
-}
-
-function stringifyMetadataValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value, null, 2);
-  }
-  return String(value);
-}
-
 function MetadataPreview({
   metadata,
   colors
 }: {
-  metadata: MetadataEntry[];
+  metadata: ArrowMetadataEntry[];
   colors: MetadataColors;
 }): JSX.Element | null {
   if (metadata.length === 0) {
@@ -269,8 +163,19 @@ function MetadataPreview({
   return (
     <dl style={ARROW_SCHEMA_METADATA_LIST_STYLE}>
       {metadata.map(entry => (
-        <div key={entry.key} style={ARROW_SCHEMA_METADATA_ROW_STYLE}>
-          <dt style={{...ARROW_SCHEMA_METADATA_KEY_STYLE, color: colors.muted}}>{entry.key}</dt>
+        <div
+          key={entry.key}
+          style={ARROW_SCHEMA_METADATA_ROW_STYLE}
+          data-arrow-luma-metadata={entry.isLumaMetadata ? '' : undefined}
+        >
+          <dt
+            style={{
+              ...ARROW_SCHEMA_METADATA_KEY_STYLE,
+              color: entry.isLumaMetadata ? '#2563eb' : colors.muted
+            }}
+          >
+            {entry.key}
+          </dt>
           <dd style={{...ARROW_SCHEMA_METADATA_VALUE_STYLE, color: colors.text}}>{entry.value}</dd>
         </div>
       ))}

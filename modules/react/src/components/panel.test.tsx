@@ -1,20 +1,20 @@
 // biome-ignore lint/correctness/noUnusedImports: React is required by the classic JSX transform.
 import * as React from 'react';
-import {render, screen} from '@testing-library/react';
+import {render, screen, waitFor} from '@testing-library/react';
 import {afterEach, describe, expect, it} from 'vitest';
 
 import {MarkdownPanel, TabbedPanel} from '@deck.gl-community/panels';
 
-import {WidgetPanel} from './widget-panel';
+import {Panel} from './panel';
 
 afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('WidgetPanel', () => {
-  it('renders a single widget panel inside a React tree', () => {
+describe('Panel', () => {
+  it('renders a single panel definition inside a React tree', () => {
     render(
-      <WidgetPanel
+      <Panel
         panel={
           new MarkdownPanel({
             id: 'summary',
@@ -29,9 +29,9 @@ describe('WidgetPanel', () => {
     expect(screen.getByText('Rendered from React')).toBeTruthy();
   });
 
-  it('renders a composite widget panel when provided', () => {
+  it('renders a composite panel when provided', () => {
     render(
-      <WidgetPanel
+      <Panel
         panel={
           new TabbedPanel({
             id: 'tabs',
@@ -58,9 +58,9 @@ describe('WidgetPanel', () => {
     expect(screen.getByText('First tab')).toBeTruthy();
   });
 
-  it('applies a dark theme host when requested', () => {
+  it('applies a dark theme host when requested', async () => {
     const {container} = render(
-      <WidgetPanel
+      <Panel
         themeMode="dark"
         panel={
           new MarkdownPanel({
@@ -72,13 +72,16 @@ describe('WidgetPanel', () => {
       />
     );
 
-    const host = container.querySelector<HTMLDivElement>('.deck-react-widget-panel');
+    const host = container.querySelector<HTMLDivElement>('.deck-react-panel');
     expect(host?.style.getPropertyValue('--menu-background')).toContain('rgba');
+    await waitFor(() => {
+      expect(host?.querySelector('[data-panel-theme-mode="dark"]')).toBeTruthy();
+    });
   });
 
   it('supports unframed rendering for embedded layouts', () => {
     const {container} = render(
-      <WidgetPanel
+      <Panel
         framed={false}
         panel={
           new MarkdownPanel({
@@ -90,7 +93,7 @@ describe('WidgetPanel', () => {
       />
     );
 
-    const host = container.querySelector<HTMLDivElement>('.deck-react-widget-panel');
+    const host = container.querySelector<HTMLDivElement>('.deck-react-panel');
     expect(host?.style.border).toBe('');
     expect(screen.getByText('Unframed content')).toBeTruthy();
   });
