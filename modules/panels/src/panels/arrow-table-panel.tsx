@@ -3,37 +3,27 @@
 import {useMemo} from 'preact/hooks';
 
 import {useEffectivePanelThemeMode} from './panel-containers';
+import {
+  createArrowTablePreview,
+  formatArrowColumnCount,
+  formatArrowRowCount,
+  type ArrowTableColumnFormatters,
+  type ArrowTableInput
+} from './arrow-preview-utils';
 
 import type {Panel, PanelTheme} from './panel-containers';
 import type {JSX} from 'preact';
 
-/** Arrow vector subset used by {@link ArrowTablePanel}. */
-export type ArrowTableVectorLike = {
-  /** Returns the cell value at the supplied row index. */
-  get?: (index: number) => unknown;
-};
-
-/** Arrow schema field subset used by {@link ArrowTablePanel}. */
-export type ArrowTableFieldLike = {
-  /** Column name. */
-  name?: string;
-};
-
-/** Arrow schema subset used by {@link ArrowTablePanel}. */
-export type ArrowTableSchemaLike = {
-  /** Ordered schema fields. */
-  fields?: ArrowTableFieldLike[];
-};
-
-/** Arrow table subset used by {@link ArrowTablePanel}. */
-export type ArrowTableLike = {
-  /** Number of rows in the table. */
-  numRows?: number;
-  /** Table schema. */
-  schema?: ArrowTableSchemaLike;
-  /** Returns a column vector by index. */
-  getChildAt?: (columnIndex: number) => ArrowTableVectorLike | null | undefined;
-};
+export type {
+  ArrowCellFormatContext,
+  ArrowTableColumnFormatters,
+  ArrowTableFieldLike,
+  ArrowTableInput,
+  ArrowTableLike,
+  ArrowTableSchemaLike,
+  ArrowTableVectorLike,
+  ArrowTableWrapperLike
+} from './arrow-preview-utils';
 
 /** Props for {@link ArrowTablePanel}. */
 export type ArrowTablePanelProps = {
@@ -41,10 +31,20 @@ export type ArrowTablePanelProps = {
   id: string;
   /** Visible heading text for the panel. */
   title: string;
-  /** Arrow table to display. Accepts Apache Arrow Table-like objects. */
-  table?: ArrowTableLike | null;
+  /** Arrow table to display. Accepts Apache Arrow Table-like objects and loaders.gl wrappers. */
+  table?: ArrowTableInput;
   /** Maximum rows to render in the DOM at once. Defaults to `1000`. */
   maxRows?: number;
+  /** Maximum columns to render in the DOM at once. Defaults to all columns. */
+  maxColumns?: number;
+  /** Whether to render the absolute row index as the first column. Defaults to `false`. */
+  showRowIndex?: boolean;
+  /** Record batch to render, or `'all'` to render the full table. Defaults to `'all'`. */
+  batchIndex?: number | 'all';
+  /** Maximum entries shown inside list-like or vector cell values. Defaults to `8`. */
+  maxNestedItems?: number;
+  /** Optional cell formatters keyed by dot-notation field path or field name. */
+  columnFormatters?: ArrowTableColumnFormatters;
   /** Optional class name applied to the outer panel content wrapper. */
   className?: string;
   /** Optional theme override applied to this panel subtree. */
@@ -76,10 +76,27 @@ function ArrowTablePanelContent({
   table,
   title,
   maxRows = 1000,
+  maxColumns,
+  showRowIndex,
+  batchIndex,
+  maxNestedItems,
+  columnFormatters,
   className
 }: ArrowTablePanelProps): JSX.Element {
   const themeMode = useEffectivePanelThemeMode();
-  const preview = useMemo(() => createArrowTablePreview(table, maxRows), [maxRows, table]);
+  const preview = useMemo(
+    () =>
+      createArrowTablePreview({
+        table,
+        maxRows,
+        maxColumns,
+        showRowIndex,
+        batchIndex,
+        maxNestedItems,
+        columnFormatters
+      }),
+    [batchIndex, columnFormatters, maxColumns, maxNestedItems, maxRows, showRowIndex, table]
+  );
   const colors =
     themeMode === 'dark'
       ? {
@@ -149,81 +166,18 @@ function ArrowTablePanelContent({
         </table>
       </div>
       <div style={{...ARROW_TABLE_SUMMARY_STYLE, color: colors.muted}} data-arrow-table-summary="">
-        {formatRowCount(preview.rowsToRender)} included,{' '}
-        {formatRowCount(preview.numRows - preview.rowsToRender)} omitted
+        {[
+          `${formatArrowRowCount(preview.rowsToRender)} included`,
+          `${formatArrowRowCount(preview.omittedRows)} omitted`,
+          preview.omittedColumns > 0
+            ? `${formatArrowColumnCount(preview.omittedColumns)} omitted`
+            : '',
+          preview.batchLabel || ''
+        ]
+          .filter(Boolean)
+          .join(', ')}
       </div>
     </div>
-  );
-}
-
-type ArrowTablePreview = {
-  fields: {key: string; label: string}[];
-  rows: {key: string; cells: {key: string; value: string}[]}[];
-  numRows: number;
-  rowsToRender: number;
-};
-
-/** Builds a bounded row model so rendering never walks the full table by default. */
-function createArrowTablePreview(
-  table: ArrowTableLike | null | undefined,
-  maxRows: number
-): ArrowTablePreview {
-  const fields = table?.schema?.fields ?? [];
-  const numRows = toNonNegativeInteger(table?.numRows ?? 0);
-  const rowsToRender = Math.min(numRows, toNonNegativeInteger(maxRows));
-  const previewFields = fields.map((field, index) => ({
-    key: `${field.name || 'column'}-${index}`,
-    label: field.name || `column_${index}`
-  }));
-
-  return {
-    fields: previewFields,
-    rows: Array.from({length: rowsToRender}, (_row, rowIndex) => ({
-      key: `row-${rowIndex}`,
-      cells: previewFields.map((field, columnIndex) => ({
-        key: `${field.key}-${rowIndex}`,
-        value: formatCellValue(table?.getChildAt?.(columnIndex)?.get?.(rowIndex))
-      }))
-    })),
-    numRows,
-    rowsToRender
-  };
-}
-
-/** Normalizes row counts and limits to finite non-negative integers. */
-function toNonNegativeInteger(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.floor(value));
-}
-
-/** Formats row counts for the bottom summary. */
-function formatRowCount(rowCount: number): string {
-  return `${rowCount.toLocaleString()} ${rowCount === 1 ? 'row' : 'rows'}`;
-}
-
-/** Formats arbitrary Arrow cell values for compact display. */
-function formatCellValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  if (typeof value === 'bigint') {
-    return value.toString();
-  }
-  if (typeof value === 'object') {
-    if ('toArray' in value && typeof (value as {toArray?: unknown}).toArray === 'function') {
-      return stringifyCellValue((value as {toArray: () => unknown}).toArray());
-    }
-    return stringifyCellValue(value);
-  }
-  return String(value);
-}
-
-/** JSON stringifies cell values while preserving BigInt values as strings. */
-function stringifyCellValue(value: unknown): string {
-  return JSON.stringify(value, (_key, nestedValue) =>
-    typeof nestedValue === 'bigint' ? nestedValue.toString() : nestedValue
   );
 }
 

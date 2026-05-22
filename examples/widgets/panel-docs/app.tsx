@@ -7,6 +7,7 @@ import {tableFromArrays} from 'apache-arrow';
 import {Stats} from '@probe.gl/stats';
 import {
   AccordeonPanel,
+  ArrowBatchesPanel,
   ArrowSchemaPanel,
   ArrowTablePanel,
   BinaryDataPanel,
@@ -35,6 +36,7 @@ import {
 } from '../../../modules/panels/src';
 
 import type {
+  ArrowTableLike,
   KeyboardShortcut,
   SettingsSchema,
   SettingsState,
@@ -44,6 +46,7 @@ import type {ArrowSchemaLike} from '../../../modules/panels/src';
 
 export type PanelDocsExampleHighlight =
   | 'panels'
+  | 'arrow-batches-panel'
   | 'markdown-panel'
   | 'arrow-table-panel'
   | 'arrow-schema-panel'
@@ -170,6 +173,7 @@ export function mountPanelDocsExample(
 
 const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   panels: 'Using Panels',
+  'arrow-batches-panel': 'ArrowBatchesPanel',
   'markdown-panel': 'MarkdownPanel',
   'arrow-table-panel': 'ArrowTablePanel',
   'arrow-schema-panel': 'ArrowSchemaPanel',
@@ -273,6 +277,15 @@ const ARROW_SCHEMA: ArrowSchemaLike = {
   }))
 };
 
+const ARROW_BATCHED_TABLE: ArrowTableLike = {
+  numRows: ARROW_TABLE.numRows,
+  schema: ARROW_TABLE.schema,
+  batches: [
+    {numRows: 2, numCols: ARROW_TABLE.schema.fields.length, schema: ARROW_TABLE.schema},
+    {numRows: 3, numCols: ARROW_TABLE.schema.fields.length, schema: ARROW_TABLE.schema}
+  ]
+};
+
 function buildHighlightComponents(
   highlight: PanelDocsExampleHighlight,
   panelElement: HTMLElement,
@@ -370,6 +383,14 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         title: 'Arrow Table',
         table: ARROW_TABLE,
         maxRows: 3
+      });
+
+    case 'arrow-batches-panel':
+      return new ArrowBatchesPanel({
+        id: 'arrow-batches',
+        title: 'Arrow Batches',
+        table: ARROW_BATCHED_TABLE,
+        selectedBatchIndex: 1
       });
 
     case 'arrow-schema-panel':

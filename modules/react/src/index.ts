@@ -12,9 +12,9 @@ export {EditorModal as Modal} from './components/modal';
 export {Button} from './components/modal';
 export {Icon} from './components/icon';
 export {
-  WidgetPanel,
-  type WidgetPanelProps,
-  type WidgetPanelThemeMode
-} from './components/widget-panel';
+  Panel,
+  type PanelHostThemeMode,
+  type PanelProps
+} from './components/panel';
 
 // Overlays migrated to @deck.gl-community/widgets

@@ -76,6 +76,43 @@ describe('ArrowSchemaPanel', () => {
     expect(root.textContent).toContain('optional geometry');
   });
 
+  it('renders nested child metadata and highlights luma.gl metadata keys', () => {
+    const root = renderPanel({
+      fields: [
+        {
+          name: 'matrix',
+          type: {
+            toString: () => 'FixedSizeList<Float32>[16]',
+            listSize: 16,
+            children: [
+              {
+                name: 'value',
+                type: 'Float32',
+                metadata: new Map([
+                  ['luma.gl:matrix-shape', 'mat4x4'],
+                  ['luma.gl:matrix-layout', 'packed']
+                ])
+              }
+            ]
+          }
+        },
+        {
+          name: 'timestamp',
+          type: 'TimestampMillisecond',
+          metadata: new Map([
+            ['luma.gl:temporal-kind', 'timestamp'],
+            ['luma.gl:temporal-unit', 'ms']
+          ])
+        }
+      ]
+    });
+
+    expect(root.textContent).toContain('matrix.value.luma.gl:matrix-shape');
+    expect(root.textContent).toContain('mat4x4');
+    expect(root.textContent).toContain('luma.gl:temporal-kind');
+    expect(root.querySelectorAll('[data-arrow-luma-metadata]')).toHaveLength(4);
+  });
+
   it('renders an empty schema when no schema is supplied', () => {
     const root = renderPanel(null);
 

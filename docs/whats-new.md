@@ -12,8 +12,9 @@ A new module for deck-independent panel composition and small application UI.
 - Panel/container composition APIs extracted into a dedicated package
 - Stand-alone documentation and examples for panel composition outside deck.gl
 - `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
-- `ArrowTablePanel` - NEW reusable panel for bounded Apache Arrow table previews with a row-limit summary.
-- `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema and field metadata with JSON metadata formatting.
+- `ArrowTablePanel` - NEW reusable panel for bounded Apache Arrow table previews with row, column, batch, nested-list, matrix, temporal, and loaders.gl wrapper support.
+- `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema, field, child, matrix, and temporal metadata with JSON metadata formatting.
+- `ArrowBatchesPanel` - NEW reusable panel for inspecting Arrow record batches, row counts, cumulative row ranges, and column counts.
 - `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
 - `StudioSettingsPanel` - NEW schema-driven settings surface with grouped controls, compact navigation, and visual routing-shape controls.
 - `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.
@@ -28,6 +29,10 @@ A new module for deck-independent panel composition and small application UI.
 - `createStudioSettingsWidget` and `updateStudioSettingsWidget` - NEW helpers for hosting `StudioSettingsPanel` in a floating deck widget.
 - `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
 - `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `PanelModal`.
+
+### `@deck.gl-community/react`
+
+- `Panel` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.
 
 ## v9.3
 

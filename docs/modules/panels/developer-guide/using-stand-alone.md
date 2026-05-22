@@ -19,7 +19,7 @@ Use the standalone path when:
 
 ## Core pieces
 
-- `MarkdownPanel`, `CustomPanel`, `StatsPanel`, `SettingsPanel`, and similar classes define content
+- `MarkdownPanel`, `CustomPanel`, `StatsPanel`, `SettingsPanel`, Arrow inspection panels, and similar classes define content
 - `ColumnPanel`, `TabbedPanel`, and `AccordeonPanel` compose multiple panels
 - `PanelBox`, `PanelModal`, `PanelSidebar`, and `PanelFullScreen` mount panel content into concrete standalone containers
 - `PanelManager` mounts panel-managed UI into an HTML element
