@@ -1,6 +1,7 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
 import {render} from 'preact';
+import {useCallback, useEffect, useRef, useState} from 'preact/hooks';
 import {KeyboardShortcutsManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 import {PanelContainer, type PanelContainerProps, type PanelPlacement} from '../panel-container';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
@@ -9,6 +10,19 @@ import type {KeyboardShortcut} from '../keyboard-shortcuts/keyboard-shortcuts';
 import type {KeyboardShortcutEventManager} from '../keyboard-shortcuts/keyboard-shortcuts-manager';
 import type {Panel} from '../panels/panel-types';
 import type {JSX} from 'preact';
+
+type ModalDragState = {
+  startX: number;
+  startY: number;
+  originX: number;
+  originY: number;
+};
+
+/** Initial screen placement modes for an open modal dialog wrapper. */
+export type PanelModalDialogPlacement = 'center' | 'left';
+
+/** Controls whether the modal blocks pointer interaction outside the dialog. */
+export type PanelModalPresentation = 'modal' | 'floating';
 
 /**
  * Props for {@link PanelModal}.
@@ -26,8 +40,22 @@ export type PanelModalProps = PanelContainerProps & {
   triggerIcon?: string;
   /** Whether to render modal title bar chrome. */
   showTitleBar?: boolean;
+  /** Controls whether the open panel blocks pointer interaction outside itself. */
+  presentation?: PanelModalPresentation;
+  /** Whether the dialog can be dragged by its title bar or configured drag handle. */
+  draggable?: boolean;
+  /** Optional selector for the element that starts a dialog drag. */
+  dragHandleSelector?: string;
+  /** Optional inline style merged into the dialog panel. */
+  dialogStyle?: JSX.CSSProperties;
+  /** Initial screen placement for the dialog wrapper. */
+  dialogPlacement?: PanelModalDialogPlacement;
+  /** Optional inline style merged into the dialog body. */
+  contentStyle?: JSX.CSSProperties;
   /** Whether the trigger should be hidden. */
   hideTrigger?: boolean;
+  /** Hides modal chrome close controls when content renders its own close action. */
+  hideCloseButton?: boolean;
   /** Legacy compatibility flag that maps to a visible trigger button. */
   button?: boolean;
   /** Initial open state for uncontrolled usage. */
@@ -46,6 +74,16 @@ const DEFAULT_TRIGGER_ICON = '▦';
 
 function stopPropagation(event: Event): void {
   event.stopPropagation();
+}
+
+function isModalDragHandleTarget(target: Element, dragHandleSelector?: string): boolean {
+  if (target.closest('button,a,input,select,textarea,[role="button"],[role="option"]')) {
+    return false;
+  }
+  if (dragHandleSelector) {
+    return Boolean(target.closest(dragHandleSelector));
+  }
+  return Boolean(target.closest('[data-modal-widget-header="true"]'));
 }
 
 function getDeckCanvasElement(deck: unknown): HTMLElement | null {
@@ -82,6 +120,13 @@ function PanelModalView({
   triggerLabel,
   triggerIcon,
   showTitleBar,
+  presentation,
+  draggable,
+  dragHandleSelector,
+  dialogStyle,
+  dialogPlacement,
+  contentStyle,
+  hideCloseButton,
   open,
   onOpenChange
 }: {
@@ -91,16 +136,95 @@ function PanelModalView({
   triggerIcon: string;
   triggerLabel: string;
   showTitleBar: boolean;
+  presentation: PanelModalPresentation;
+  draggable: boolean;
+  dragHandleSelector?: string;
+  dialogStyle?: JSX.CSSProperties;
+  dialogPlacement: PanelModalDialogPlacement;
+  contentStyle?: JSX.CSSProperties;
+  hideCloseButton: boolean;
   open: boolean;
   onOpenChange: (next: boolean) => void;
 }) {
+  const dragState = useRef<ModalDragState | null>(null);
+  const [dragOffset, setDragOffset] = useState({x: 0, y: 0});
+
+  const handlePointerMove = useCallback((event: PointerEvent) => {
+    const state = dragState.current;
+    if (!state) {
+      return;
+    }
+    setDragOffset({
+      x: state.originX + event.clientX - state.startX,
+      y: state.originY + event.clientY - state.startY
+    });
+  }, []);
+  const handlePointerUp = useCallback(() => {
+    dragState.current = null;
+    document.removeEventListener('pointermove', handlePointerMove);
+    document.removeEventListener('pointerup', handlePointerUp);
+  }, [handlePointerMove]);
+
+  useEffect(() => {
+    if (open) {
+      return;
+    }
+    handlePointerUp();
+    setDragOffset(current => (current.x === 0 && current.y === 0 ? current : {x: 0, y: 0}));
+  }, [handlePointerUp, open]);
+
+  useEffect(
+    () => () => {
+      handlePointerUp();
+    },
+    [handlePointerUp]
+  );
+
+  const panelStyle =
+    presentation === 'floating'
+      ? {...MODAL_FLOATING_DIALOG_PANEL_STYLE, ...dialogStyle}
+      : {...MODAL_DIALOG_PANEL_STYLE, ...dialogStyle};
+  const wrapperStyle = getModalDialogWrapperStyle(dialogPlacement, dragOffset);
+  const bodyStyle =
+    presentation === 'floating'
+      ? {...MODAL_FLOATING_CONTENT_STYLE, ...contentStyle}
+      : {...MODAL_CONTENT_STYLE, ...contentStyle};
+
+  const handleDialogPointerDown = (event: JSX.TargetedPointerEvent<HTMLDivElement>) => {
+    if (!draggable || event.button !== 0 || !(event.target instanceof Element)) {
+      return;
+    }
+    if (!isModalDragHandleTarget(event.target, dragHandleSelector)) {
+      return;
+    }
+    event.preventDefault();
+    dragState.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: dragOffset.x,
+      originY: dragOffset.y
+    };
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+  };
+  const handleDialogClick = (event: JSX.TargetedMouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    if (event.target.closest('[data-modal-widget-close="true"]')) {
+      onOpenChange(false);
+    }
+  };
+
   return (
     <div>
       {!hideTrigger && (
         <div className="deck-widget-button">
           <button
             type="button"
-            className="deck-widget-icon-button"
+            className={
+              open ? 'deck-widget-icon-button deck-widget-button-active' : 'deck-widget-icon-button'
+            }
             style={MODAL_TRIGGER_STYLE}
             aria-label={open ? `Close ${triggerLabel}` : `Open ${triggerLabel}`}
             onClick={() => onOpenChange(!open)}
@@ -115,31 +239,44 @@ function PanelModalView({
 
       {open && (
         <>
-          <button
-            type="button"
-            style={OVERLAY_BACKDROP_STYLE}
-            onPointerDown={() => onOpenChange(false)}
-            onClick={() => onOpenChange(false)}
-          />
-          <div style={MODAL_DIALOG_WRAPPER_STYLE}>
-            <div style={MODAL_DIALOG_PANEL_STYLE}>
+          {presentation === 'modal' ? (
+            <button
+              type="button"
+              style={OVERLAY_BACKDROP_STYLE}
+              onPointerDown={() => onOpenChange(false)}
+              onPointerUp={() => onOpenChange(false)}
+              onClick={() => onOpenChange(false)}
+            />
+          ) : null}
+          <div style={wrapperStyle}>
+            <div
+              style={panelStyle}
+              role="dialog"
+              aria-label={title}
+              onPointerDown={handleDialogPointerDown}
+              onClick={handleDialogClick}
+            >
               {showTitleBar ? (
-                <div style={MODAL_HEADER_STYLE}>
+                <div data-modal-widget-header="true" style={MODAL_HEADER_STYLE}>
                   <span style={MODAL_HEADER_TITLE_STYLE}>{title}</span>
-                  <button
-                    type="button"
-                    aria-label="Close"
-                    style={MODAL_CLOSE_BUTTON_STYLE}
-                    onPointerDown={stopPropagation}
-                    onPointerUp={() => onOpenChange(false)}
-                  >
-                    ×
-                  </button>
+                  {hideCloseButton ? null : (
+                    <button
+                      type="button"
+                      aria-label="Close"
+                      data-modal-widget-close="true"
+                      style={MODAL_CLOSE_BUTTON_STYLE}
+                      onPointerDown={stopPropagation}
+                      onPointerUp={() => onOpenChange(false)}
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
-              ) : (
+              ) : hideCloseButton ? null : (
                 <button
                   type="button"
                   aria-label="Close"
+                  data-modal-widget-close="true"
                   style={MODAL_FLOATING_CLOSE_BUTTON_STYLE}
                   onPointerDown={stopPropagation}
                   onPointerUp={() => onOpenChange(false)}
@@ -147,7 +284,7 @@ function PanelModalView({
                   ×
                 </button>
               )}
-              <div style={MODAL_CONTENT_STYLE}>
+              <div style={bodyStyle}>
                 {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
               </div>
             </div>
@@ -170,7 +307,14 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     triggerLabel: 'Open panel',
     triggerIcon: DEFAULT_TRIGGER_ICON,
     showTitleBar: true,
+    presentation: 'modal',
+    draggable: false,
+    dragHandleSelector: undefined!,
+    dialogStyle: undefined!,
+    dialogPlacement: 'center',
+    contentStyle: undefined!,
     hideTrigger: false,
+    hideCloseButton: false,
     button: false,
     defaultOpen: false,
     onOpenChange: undefined!,
@@ -186,7 +330,14 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
   triggerLabel = PanelModal.defaultProps.triggerLabel;
   triggerIcon = PanelModal.defaultProps.triggerIcon;
   showTitleBar = PanelModal.defaultProps.showTitleBar;
+  presentation: PanelModalPresentation = PanelModal.defaultProps.presentation;
+  draggable = PanelModal.defaultProps.draggable;
+  dragHandleSelector: string | undefined = PanelModal.defaultProps.dragHandleSelector;
+  dialogStyle: JSX.CSSProperties | undefined = PanelModal.defaultProps.dialogStyle;
+  dialogPlacement: PanelModalDialogPlacement = PanelModal.defaultProps.dialogPlacement;
+  contentStyle: JSX.CSSProperties | undefined = PanelModal.defaultProps.contentStyle;
   hideTrigger = PanelModal.defaultProps.hideTrigger;
+  hideCloseButton = PanelModal.defaultProps.hideCloseButton;
   isOpen = false;
   #hasOpenStateInitialized = false;
   #panel: Panel | undefined = PanelModal.defaultProps.panel;
@@ -222,8 +373,29 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
     if (props.showTitleBar !== undefined) {
       this.showTitleBar = props.showTitleBar;
     }
+    if (props.presentation !== undefined) {
+      this.presentation = props.presentation;
+    }
+    if (props.draggable !== undefined) {
+      this.draggable = props.draggable;
+    }
+    if (props.dragHandleSelector !== undefined) {
+      this.dragHandleSelector = props.dragHandleSelector;
+    }
+    if (props.dialogStyle !== undefined) {
+      this.dialogStyle = props.dialogStyle;
+    }
+    if (props.dialogPlacement !== undefined) {
+      this.dialogPlacement = props.dialogPlacement;
+    }
+    if (props.contentStyle !== undefined) {
+      this.contentStyle = props.contentStyle;
+    }
     if (props.hideTrigger !== undefined || props.button !== undefined) {
       this.hideTrigger = props.button !== undefined ? !props.button : (props.hideTrigger ?? false);
+    }
+    if (props.hideCloseButton !== undefined) {
+      this.hideCloseButton = props.hideCloseButton;
     }
     if (props.title !== undefined) {
       this.title = props.title;
@@ -365,6 +537,13 @@ export class PanelModal extends PanelContainer<PanelModalProps> {
         triggerLabel={this.triggerLabel}
         triggerIcon={this.triggerIcon}
         showTitleBar={this.showTitleBar}
+        presentation={this.presentation}
+        draggable={this.draggable}
+        dragHandleSelector={this.dragHandleSelector}
+        dialogStyle={this.dialogStyle}
+        dialogPlacement={this.dialogPlacement}
+        contentStyle={this.contentStyle}
+        hideCloseButton={this.hideCloseButton}
         open={this.isOpen}
         onOpenChange={this.#handleOpenChange}
       />,
@@ -426,6 +605,28 @@ const MODAL_DIALOG_WRAPPER_STYLE: JSX.CSSProperties = {
   zIndex: 31
 };
 
+function getModalDialogWrapperStyle(
+  dialogPlacement: PanelModalDialogPlacement,
+  dragOffset: {x: number; y: number}
+): JSX.CSSProperties {
+  const placementStyle =
+    dialogPlacement === 'left'
+      ? {
+          justifyContent: 'flex-start',
+          padding: '24px'
+        }
+      : {};
+  const transformStyle =
+    dragOffset.x === 0 && dragOffset.y === 0
+      ? {}
+      : {transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`};
+  return {
+    ...MODAL_DIALOG_WRAPPER_STYLE,
+    ...placementStyle,
+    ...transformStyle
+  };
+}
+
 const MODAL_DIALOG_PANEL_STYLE: JSX.CSSProperties = {
   pointerEvents: 'auto',
   width: 'min(90vw, 760px)',
@@ -438,7 +639,23 @@ const MODAL_DIALOG_PANEL_STYLE: JSX.CSSProperties = {
   boxShadow: 'var(--menu-shadow, 0px 12px 30px rgba(0,0,0,0.25))',
   overflow: 'hidden',
   display: 'flex',
-  flexDirection: 'column'
+  flexDirection: 'column',
+  position: 'relative'
+};
+
+const MODAL_FLOATING_DIALOG_PANEL_STYLE: JSX.CSSProperties = {
+  pointerEvents: 'auto',
+  width: 'fit-content',
+  maxWidth: 'calc(100vw - 48px)',
+  maxHeight: 'min(88vh, 88dvh)',
+  border: 'none',
+  background: 'transparent',
+  color: 'var(--menu-text, rgb(24, 24, 26))',
+  boxShadow: 'none',
+  overflow: 'visible',
+  display: 'flex',
+  flexDirection: 'column',
+  position: 'relative'
 };
 
 const MODAL_HEADER_STYLE: JSX.CSSProperties = {
@@ -483,4 +700,10 @@ const MODAL_CONTENT_STYLE: JSX.CSSProperties = {
   flex: 1,
   overflow: 'auto',
   padding: '10px'
+};
+
+const MODAL_FLOATING_CONTENT_STYLE: JSX.CSSProperties = {
+  flex: 1,
+  overflow: 'visible',
+  padding: '0'
 };

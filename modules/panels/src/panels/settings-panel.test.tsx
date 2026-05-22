@@ -27,6 +27,7 @@ const TEST_SCHEMA: SettingsSchema = {
           min: 0,
           max: 1,
           step: 0.1,
+          sliderDebounceMs: 20,
           description: 'Adjust alpha for rendered paths.'
         }
       ]
@@ -40,7 +41,7 @@ const TEST_SCHEMA: SettingsSchema = {
           label: 'Mode',
           type: 'select',
           options: ['all', 'critical-path', 'selected-only'],
-          description: 'Control which traces remain visible.'
+          description: 'Control which items remain visible.'
         }
       ]
     }
@@ -179,8 +180,44 @@ describe('SettingsPanel', () => {
 
     const numberInput = getRequiredInput(root, 'input[type="number"]');
     expect(numberInput.getAttribute('style')).toContain('var(--button-backdrop-filter');
+    expect(numberInput.style.height).toBe('28px');
+    expect(numberInput.style.padding).toBe('2px 6px');
 
     cleanup();
+  });
+
+  it('debounces range slider changes when requested by the setting descriptor', async () => {
+    vi.useFakeTimers();
+    const handleSettingsChange = vi.fn<(settings: SettingsState) => void>();
+    const {root, cleanup} = renderSettingsPanel({onSettingsChange: handleSettingsChange});
+
+    try {
+      const sectionToggle = getRequiredButton(root, 'button[aria-expanded]');
+      sectionToggle.click();
+      await Promise.resolve();
+
+      const rangeInput = getRequiredInput(root, 'input[type="range"]');
+      rangeInput.value = '0.7';
+      rangeInput.dispatchEvent(new Event('input', {bubbles: true}));
+      await Promise.resolve();
+
+      expect(handleSettingsChange).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          render: expect.objectContaining({opacity: 0.7})
+        })
+      );
+
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(handleSettingsChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          render: expect.objectContaining({opacity: 0.7})
+        })
+      );
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+    }
   });
 
   // eslint-disable-next-line max-statements

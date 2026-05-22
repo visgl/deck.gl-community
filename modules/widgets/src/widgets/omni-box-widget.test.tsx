@@ -162,6 +162,40 @@ describe('OmniBoxWidget', () => {
     cleanup();
   });
 
+  it('renders a caller-provided results summary above search options', async () => {
+    const {root, cleanup} = renderWidget({
+      minQueryLength: 0,
+      getOptions: () => [
+        {
+          id: 'alpha',
+          label: 'Alpha item'
+        },
+        {
+          id: 'beta',
+          label: 'Beta item'
+        }
+      ],
+      renderResultsSummary: ({mode, options, query}) =>
+        `${mode}:${query || '<empty>'}:${options.length}`
+    });
+
+    await act(async () => {});
+    const input = root.querySelector('input[aria-label="OmniBox"]') as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.dispatchEvent(new FocusEvent('focus', {bubbles: false}));
+      input.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+    });
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 0));
+    });
+
+    const summary = root.querySelector('[data-omni-box-results-summary="true"]');
+    expect(summary?.textContent).toBe('search:<empty>:2');
+
+    cleanup();
+  });
+
   it('closes an open result dropdown before hiding the widget on Escape', async () => {
     const {root, cleanup} = renderWidget({
       minQueryLength: 0,

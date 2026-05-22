@@ -1,26 +1,48 @@
+/** Primitive value supported by schema-driven settings controls. */
 export type SettingValue = boolean | number | string;
 
-export type SettingsOption =
-  | SettingValue
+/** Built-in control kinds supported by settings panels. */
+export type SettingType = 'boolean' | 'number' | 'string' | 'select';
+
+/** Persistence bucket used by settings managers and URL integrations. */
+export type SettingPersistenceTarget = 'local-storage' | 'url' | 'none';
+
+/** One selectable setting option, either as a raw value or label/value pair. */
+export type SettingOption<Value extends SettingValue = SettingValue> =
+  | Value
   | {
       label: string;
-      value: SettingValue;
+      value: Value;
     };
 
-export type SettingDescriptor = {
+/** Backwards-compatible alias for selectable setting options. */
+export type SettingsOption<Value extends SettingValue = SettingValue> = SettingOption<Value>;
+
+/** Describes one schema-driven setting control. */
+export type SettingDescriptor<
+  Name extends string = string,
+  Value extends SettingValue = SettingValue
+> = {
   /** Path in the settings object (dot notation supported). */
-  name: string;
+  name: Name;
   /** Human-friendly label shown in the control list. Defaults to `name`. */
   label?: string;
+  /** Optional visual group label used by richer settings panels. */
+  group?: string;
+  /** Persistence target used by settings managers and URL/shareable-link integrations. */
+  persist?: SettingPersistenceTarget;
   description?: string;
-  type: 'boolean' | 'number' | 'string' | 'select';
+  type: SettingType;
   min?: number;
   max?: number;
   step?: number;
-  options?: SettingsOption[];
-  defaultValue?: SettingValue;
+  /** Optional trailing debounce, in milliseconds, for numeric range-slider input events. */
+  sliderDebounceMs?: number;
+  options?: readonly SettingOption<Value>[];
+  defaultValue?: Value;
 };
 
+/** Describes one section of a settings schema. */
 export type SettingsSectionDescriptor = {
   /** Optional stable id for preserving collapse state across re-renders. */
   id?: string;
@@ -31,13 +53,36 @@ export type SettingsSectionDescriptor = {
   settings: SettingDescriptor[];
 };
 
+/** Full schema rendered by settings panels and consumed by settings managers. */
 export type SettingsSchema = {
   title?: string;
   sections: SettingsSectionDescriptor[];
 };
 
+/** Runtime settings snapshot keyed by setting path or nested object keys. */
 export type SettingsState = Record<string, unknown>;
 
+/** Settings schema split by each supported persistence target. */
+export type PartitionedSettingsSchema = Record<SettingPersistenceTarget, SettingsSchema>;
+
+/** Returns the value at `path` in a nested settings object without throwing. */
+export function getValueAtPath(settings: SettingsState, path: string): unknown {
+  const segments = parsePath(path);
+  if (!segments.length) {
+    return undefined;
+  }
+
+  let current: unknown = settings;
+  for (const segment of segments) {
+    if (!isRecord(current)) {
+      return undefined;
+    }
+    current = current[segment];
+  }
+  return current;
+}
+
+/** Clamps a numeric setting value within optional bounds. */
 export function clamp(value: number, min?: number, max?: number): number {
   let clamped = value;
   if (Number.isFinite(min)) {
@@ -49,6 +94,7 @@ export function clamp(value: number, min?: number, max?: number): number {
   return clamped;
 }
 
+/** Returns a copy of `settings` with a primitive value written at `path`. */
 export function setValueAtPath(
   settings: SettingsState,
   path: string,
@@ -82,10 +128,27 @@ export function setValueAtPath(
   return nextSettings;
 }
 
+/** Returns the stable key used to preserve state for one settings section. */
 export function getSectionKey(section: SettingsSectionDescriptor, index: number): string {
-  return section.id ?? section.name ?? `section-${index}`;
+  const id = section.id?.trim();
+  if (id) {
+    return id;
+  }
+
+  const name = section.name?.trim();
+  if (name) {
+    return name;
+  }
+
+  return `section-${index}`;
 }
 
+/** Returns whether a section should start collapsed, defaulting to `true`. */
+export function getInitialCollapsedState(section: SettingsSectionDescriptor): boolean {
+  return section.initiallyCollapsed ?? true;
+}
+
+/** Builds initial collapsed state keyed by settings section id, name, or index. */
 export function buildInitialCollapsedState(
   sections: SettingsSectionDescriptor[]
 ): Record<string, boolean> {
@@ -95,6 +158,7 @@ export function buildInitialCollapsedState(
   }, {});
 }
 
+/** Normalizes a setting option into a label/value pair. */
 export function normalizeOption(option: SettingsOption): {
   label: string;
   value: SettingValue;
@@ -102,16 +166,90 @@ export function normalizeOption(option: SettingsOption): {
   if (isRecord(option) && 'label' in option && 'value' in option) {
     return {
       label: String(option.label),
-      value: option.value
+      value: option.value as SettingValue
     };
   }
 
   return {
     label: String(option),
-    value: option
+    value: option as SettingValue
   };
 }
 
+/** Returns the canonical persistence target for a setting descriptor. */
+export function getSettingPersistenceTarget(
+  setting: SettingDescriptor | undefined
+): SettingPersistenceTarget {
+  if (!setting) {
+    return 'local-storage';
+  }
+
+  if (setting.persist) {
+    return setting.persist;
+  }
+
+  return 'local-storage';
+}
+
+/** Returns a schema filtered to settings that match one persistence target. */
+export function filterSettingsSchemaByPersistence(
+  schema: SettingsSchema,
+  persist: SettingPersistenceTarget
+): SettingsSchema {
+  return {
+    ...schema,
+    sections: schema.sections.flatMap(section => {
+      const settings = section.settings.filter(
+        setting => getSettingPersistenceTarget(setting) === persist
+      );
+      return settings.length > 0
+        ? [
+            {
+              ...section,
+              settings
+            }
+          ]
+        : [];
+    })
+  };
+}
+
+/** Partitions one schema into per-persistence filtered schema copies. */
+export function partitionSettingsSchemaByPersistence(
+  schema: SettingsSchema
+): PartitionedSettingsSchema {
+  return {
+    'local-storage': filterSettingsSchemaByPersistence(schema, 'local-storage'),
+    url: filterSettingsSchemaByPersistence(schema, 'url'),
+    none: filterSettingsSchemaByPersistence(schema, 'none')
+  };
+}
+
+/** Returns a typed default value for a setting when explicit value is missing. */
+export function getDefaultValue(setting: SettingDescriptor): SettingValue {
+  if (setting.defaultValue !== undefined) {
+    return setting.defaultValue;
+  }
+
+  if (setting.type === 'boolean') {
+    return false;
+  }
+
+  if (setting.type === 'number') {
+    return Number.isFinite(setting.min) ? (setting.min as number) : 0;
+  }
+
+  if (setting.type === 'select') {
+    if (setting.options?.length) {
+      return normalizeOption(setting.options[0]).value;
+    }
+    return '';
+  }
+
+  return '';
+}
+
+/** Resolves the effective setting value from a settings snapshot and descriptor defaults. */
 // eslint-disable-next-line complexity
 export function resolveSettingValue(
   setting: SettingDescriptor,
@@ -159,6 +297,7 @@ export function resolveSettingValue(
   return typeof defaultValue === 'string' ? defaultValue : String(defaultValue);
 }
 
+/** Merges previous collapsed state with current section defaults. */
 export function mergeCollapsedState(
   previous: Record<string, boolean>,
   sections: SettingsSectionDescriptor[]
@@ -182,47 +321,4 @@ function parsePath(path: string): string[] {
     .split('.')
     .map(segment => segment.trim())
     .filter(Boolean);
-}
-
-function getValueAtPath(settings: SettingsState, path: string): unknown {
-  const segments = parsePath(path);
-  if (!segments.length) {
-    return undefined;
-  }
-
-  let current: unknown = settings;
-  for (const segment of segments) {
-    if (!isRecord(current)) {
-      return undefined;
-    }
-    current = current[segment];
-  }
-  return current;
-}
-
-function getInitialCollapsedState(section: SettingsSectionDescriptor): boolean {
-  return section.initiallyCollapsed ?? true;
-}
-
-function getDefaultValue(setting: SettingDescriptor): SettingValue {
-  if (setting.defaultValue !== undefined) {
-    return setting.defaultValue;
-  }
-
-  if (setting.type === 'boolean') {
-    return false;
-  }
-
-  if (setting.type === 'number') {
-    return Number.isFinite(setting.min) ? setting.min : 0;
-  }
-
-  if (setting.type === 'select') {
-    if (setting.options?.length) {
-      return normalizeOption(setting.options[0]).value;
-    }
-    return '';
-  }
-
-  return '';
 }

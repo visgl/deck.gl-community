@@ -6,7 +6,12 @@ export {PanelContainer} from './panel-container';
 export type {PanelContainerProps, PanelPlacement} from './panel-container';
 export {PanelManager, type PanelManagerProps} from './panel-manager';
 export {PanelBox, type PanelBoxProps} from './panel-components/panel-box';
-export {PanelModal, type PanelModalProps} from './panel-components/panel-modal';
+export {
+  PanelModal,
+  type PanelModalDialogPlacement,
+  type PanelModalPresentation,
+  type PanelModalProps
+} from './panel-components/panel-modal';
 export {PanelSidebar, type PanelSidebarProps} from './panel-components/panel-sidebar';
 export {PanelFullScreen, type PanelFullScreenProps} from './panel-components/panel-full-screen';
 
@@ -45,6 +50,16 @@ export {
 } from './panels/panel-containers';
 
 export {SettingsPanel, type SettingsPanelProps} from './panels/settings-panel';
+export {
+  StudioSettingsIcon,
+  StudioSettingsPanel,
+  createStudioSettingsPanel,
+  type StudioDependencyShape,
+  type StudioSettingsIconName,
+  type StudioSettingsIconProps,
+  type StudioSettingsPanelProps,
+  type StudioSettingsTabId
+} from './panels/studio-settings-panel';
 export {StatsPanel, type StatsPanelProps} from './panels/stats-panel';
 export {BinaryDataPanel, type BinaryDataPanelProps} from './panels/binary-data-panel';
 export {
@@ -100,11 +115,49 @@ export {
 } from './panels/toast-manager';
 
 export {
+  buildInitialCollapsedState,
+  clamp,
+  filterSettingsSchemaByPersistence,
+  getDefaultValue,
+  getInitialCollapsedState,
+  getSectionKey,
+  getSettingPersistenceTarget,
+  getValueAtPath,
+  mergeCollapsedState,
+  normalizeOption,
+  partitionSettingsSchemaByPersistence,
+  resolveSettingValue,
+  setValueAtPath,
+  type PartitionedSettingsSchema,
   type SettingDescriptor,
+  type SettingOption,
+  type SettingPersistenceTarget,
+  type SettingType,
+  type SettingValue,
+  type SettingsOption,
   type SettingsSchema,
   type SettingsSectionDescriptor,
   type SettingsState
 } from './lib/settings/settings';
+export {
+  SettingsManager,
+  settingsManager,
+  type SettingsChangeDescriptor,
+  type SettingsManagerLocalStorageConfig,
+  type SettingsManagerOnChange
+} from './lib/settings/settings-manager';
+export {
+  CommandManager,
+  commandManager,
+  type CommandArgsSchema,
+  type CommandAutomationSupport,
+  type CommandDefinition,
+  type CommandDescriptor,
+  type CommandState,
+  type ExecuteCommandAsyncOptions,
+  type InstallCommandAutomationOptions,
+  type ListCommandsOptions
+} from './lib/commands/command-manager';
 export {
   type KeyboardShortcutDisplayPair,
   type KeyboardShortcutDisplaySection,

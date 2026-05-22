@@ -54,6 +54,7 @@
             "modules/widgets/api-reference/box-widget",
             "modules/widgets/api-reference/full-screen-panel-widget",
             "modules/widgets/api-reference/modal-widget",
+            "modules/widgets/api-reference/studio-settings-widget",
             "modules/widgets/api-reference/sidebar-widget"
           ]
         }
