@@ -8,7 +8,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/visgl/deck.gl-community.git"
   },
   "type": "module",
   "workspaces": [
