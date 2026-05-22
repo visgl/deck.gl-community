@@ -45,6 +45,11 @@ type SettingsPanelProps = {
 };
 ```
 
+Settings schema descriptors may include `group` for richer panels,
+`persist: 'local-storage' | 'url' | 'none'` for manager persistence policy, and
+numeric descriptors may include `sliderDebounceMs` to apply a trailing debounce
+to range-slider input events while keeping direct numeric entry immediate.
+
 ## See Also
 
 - [Using Panels](../developer-guide/using-panels.md)
@@ -54,3 +59,5 @@ type SettingsPanelProps = {
 - Reuses the shared schema-driven controls as a panel.
 - Tracks section collapse state while the panel stays mounted.
 - Supports nested dot-path setting names and change descriptors in `onSettingsChange`.
+- Pair with [SettingsManager](./settings-manager.md) when settings snapshots
+  should emit structured change descriptors or persist through local storage.

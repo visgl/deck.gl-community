@@ -43,6 +43,10 @@ type SettingsPanelProps = {
 };
 ```
 
+Settings descriptors may include `group` for richer panels,
+`persist: 'local-storage' | 'url' | 'none'` for manager persistence policy, and
+numeric descriptors may include `sliderDebounceMs` for trailing range-slider
+debounce.
 
 ## Usage
 
@@ -57,3 +61,6 @@ Use `SettingsPanel` when a settings form should live inside `SidebarPanelWidget`
 - Reuses the shared schema-driven controls inside the panel composition model.
 - Tracks section collapse state while the panel stays mounted.
 - Supports nested dot-path setting names and change descriptors in `onSettingsChange`.
+- Pair with `SettingsManager` from `@deck.gl-community/panels` when settings
+  snapshots should emit structured change descriptors or persist through local
+  storage.

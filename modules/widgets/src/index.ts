@@ -33,6 +33,7 @@ export {
   type OmniBoxOption,
   type OmniBoxOptionProvider,
   type OmniBoxRenderOptionArgs,
+  type OmniBoxResultsSummaryArgs,
   type OmniBoxWidgetProps
 } from './widgets/omni-box-widget';
 export {ResetViewWidget, type ResetViewWidgetProps} from './widget-panels/reset-view-widget';
@@ -58,6 +59,11 @@ export {
   type ModalPanelWidgetProps,
   type ModalWidgetProps
 } from './widget-panels/modal-widget';
+export {
+  createStudioSettingsWidget,
+  updateStudioSettingsWidget,
+  type StudioSettingsWidgetProps
+} from './widget-panels/studio-settings-widget';
 export {IconButton, makeTextIcon} from './widget-components/icon-button';
 export {
   SidebarPanelWidget,

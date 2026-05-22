@@ -50,7 +50,14 @@ type ModalPanelWidgetProps = WidgetProps & {
   title?: string;
   triggerLabel?: string;
   triggerIcon?: string;
+  presentation?: 'modal' | 'floating';
+  draggable?: boolean;
+  dragHandleSelector?: string;
+  dialogStyle?: JSX.CSSProperties;
+  dialogPlacement?: 'center' | 'left';
+  contentStyle?: JSX.CSSProperties;
   hideTrigger?: boolean;
+  hideCloseButton?: boolean;
   button?: boolean;
   defaultOpen?: boolean;
   open?: boolean;
@@ -64,4 +71,6 @@ type ModalPanelWidgetProps = WidgetProps & {
 - Can render with the built-in icon trigger or be controlled externally.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.
+- Supports non-blocking floating dialogs, left-biased placement, custom dialog
+  sizing, and content-rendered close controls.
 - Raises its placement container while open so the dialog stays above neighboring widgets.

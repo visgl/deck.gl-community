@@ -1,6 +1,6 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
-import {useEffect, useMemo, useState} from 'preact/hooks';
+import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 
 import {
   buildInitialCollapsedState,
@@ -135,7 +135,10 @@ const RANGE_INPUT_STYLE: JSX.CSSProperties = {
 const NUMBER_INPUT_STYLE: JSX.CSSProperties = {
   ...INPUT_STYLE,
   width: '84px',
-  flexShrink: 0
+  flexShrink: 0,
+  height: '28px',
+  lineHeight: '16px',
+  padding: '2px 6px'
 };
 
 const CHECKBOX_STYLE: JSX.CSSProperties = {
@@ -170,6 +173,14 @@ type StringSettingControlProps = {
   label: string;
   value: string;
   onApply: (nextValue: string) => void;
+};
+
+type NumberSettingControlProps = {
+  inputId: string;
+  label: string;
+  setting: SettingDescriptor;
+  value: number;
+  onValueChange: (nextValue: SettingValue) => void;
 };
 
 function StringSettingControl({inputId, label, value, onApply}: StringSettingControlProps) {
@@ -254,6 +265,116 @@ function StringSettingControl({inputId, label, value, onApply}: StringSettingCon
   );
 }
 
+function NumberSettingControl({
+  inputId,
+  label,
+  setting,
+  value,
+  onValueChange
+}: NumberSettingControlProps) {
+  const showRange = Number.isFinite(setting.min) && Number.isFinite(setting.max);
+  const numericValue = clamp(value, setting.min, setting.max);
+  const sliderDebounceMs = getSliderDebounceMs(setting);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [draftValue, setDraftValue] = useState(numericValue);
+
+  useEffect(() => {
+    setDraftValue(numericValue);
+  }, [numericValue]);
+
+  useEffect(
+    () => () => {
+      clearPendingSliderChange(debounceTimerRef);
+    },
+    []
+  );
+
+  const commitValue = (nextValue: number): void => {
+    if (!Number.isFinite(nextValue)) {
+      return;
+    }
+    const clampedValue = clamp(nextValue, setting.min, setting.max);
+    clearPendingSliderChange(debounceTimerRef);
+    setDraftValue(clampedValue);
+    onValueChange(clampedValue);
+  };
+
+  const scheduleSliderValue = (nextValue: number): void => {
+    if (!Number.isFinite(nextValue)) {
+      return;
+    }
+    const clampedValue = clamp(nextValue, setting.min, setting.max);
+    setDraftValue(clampedValue);
+    if (sliderDebounceMs <= 0) {
+      onValueChange(clampedValue);
+      return;
+    }
+
+    clearPendingSliderChange(debounceTimerRef);
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
+      onValueChange(clampedValue);
+    }, sliderDebounceMs);
+  };
+
+  if (!showRange) {
+    return (
+      <input
+        id={inputId}
+        type="number"
+        step={String(setting.step ?? 1)}
+        value={String(draftValue)}
+        onInput={event => commitValue(Number(event.currentTarget.value))}
+        onChange={event => commitValue(Number(event.currentTarget.value))}
+        aria-label={label}
+        style={INPUT_STYLE}
+      />
+    );
+  }
+
+  return (
+    <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%'}}>
+      <input
+        id={inputId}
+        type="range"
+        min={String(setting.min)}
+        max={String(setting.max)}
+        step={String(setting.step ?? 1)}
+        value={String(draftValue)}
+        onInput={event => scheduleSliderValue(Number(event.currentTarget.value))}
+        aria-label={label}
+        style={RANGE_INPUT_STYLE}
+      />
+      <input
+        type="number"
+        min={Number.isFinite(setting.min) ? String(setting.min) : undefined}
+        max={Number.isFinite(setting.max) ? String(setting.max) : undefined}
+        step={String(setting.step ?? 1)}
+        value={String(draftValue)}
+        onInput={event => commitValue(Number(event.currentTarget.value))}
+        onChange={event => commitValue(Number(event.currentTarget.value))}
+        aria-label={`${label} numeric value`}
+        style={NUMBER_INPUT_STYLE}
+      />
+    </div>
+  );
+}
+
+function getSliderDebounceMs(setting: SettingDescriptor): number {
+  if (!Number.isFinite(setting.sliderDebounceMs)) {
+    return 0;
+  }
+  return Math.max(0, setting.sliderDebounceMs as number);
+}
+
+function clearPendingSliderChange(timerRef: {current: ReturnType<typeof setTimeout> | null}): void {
+  if (timerRef.current == null) {
+    return;
+  }
+  clearTimeout(timerRef.current);
+  timerRef.current = null;
+}
+
 // eslint-disable-next-line complexity
 function SettingsControl({setting, value, onValueChange}: SettingsControlProps) {
   const label = setting.label ?? setting.name;
@@ -262,13 +383,6 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
 
   const handleBooleanChange: JSX.GenericEventHandler<HTMLInputElement> = event => {
     onValueChange(event.currentTarget.checked);
-  };
-
-  const handleNumberChange = (nextValue: number) => {
-    if (!Number.isFinite(nextValue)) {
-      return;
-    }
-    onValueChange(clamp(nextValue, setting.min, setting.max));
   };
 
   let control: JSX.Element;
@@ -286,45 +400,13 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
       />
     );
   } else if (setting.type === 'number') {
-    const numericValue = Number(value);
-    const showRange = Number.isFinite(setting.min) && Number.isFinite(setting.max);
-
-    control = showRange ? (
-      <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%'}}>
-        <input
-          id={inputId}
-          type="range"
-          min={String(setting.min)}
-          max={String(setting.max)}
-          step={String(setting.step ?? 1)}
-          value={String(numericValue)}
-          onInput={event => handleNumberChange(Number(event.currentTarget.value))}
-          onChange={event => handleNumberChange(Number(event.currentTarget.value))}
-          aria-label={label}
-          style={RANGE_INPUT_STYLE}
-        />
-        <input
-          type="number"
-          min={Number.isFinite(setting.min) ? String(setting.min) : undefined}
-          max={Number.isFinite(setting.max) ? String(setting.max) : undefined}
-          step={String(setting.step ?? 1)}
-          value={String(numericValue)}
-          onInput={event => handleNumberChange(Number(event.currentTarget.value))}
-          onChange={event => handleNumberChange(Number(event.currentTarget.value))}
-          aria-label={`${label} numeric value`}
-          style={NUMBER_INPUT_STYLE}
-        />
-      </div>
-    ) : (
-      <input
-        id={inputId}
-        type="number"
-        step={String(setting.step ?? 1)}
-        value={String(numericValue)}
-        onInput={event => handleNumberChange(Number(event.currentTarget.value))}
-        onChange={event => handleNumberChange(Number(event.currentTarget.value))}
-        aria-label={label}
-        style={INPUT_STYLE}
+    control = (
+      <NumberSettingControl
+        inputId={inputId}
+        label={label}
+        setting={setting}
+        value={Number(value)}
+        onValueChange={onValueChange}
       />
     );
   } else if (setting.type === 'select') {

@@ -7,6 +7,7 @@ import type {Deck, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {ComponentChildren, JSX} from 'preact';
 
 const OPTION_ROW_HEIGHT_PX = 32;
+const RESULTS_SUMMARY_HEIGHT_PX = 24;
 const MAX_VISIBLE_OPTION_COUNT = 4;
 const BLUR_CLOSE_DELAY_MS = 100;
 const OMNIBOX_MAX_WIDTH_PX = 520;
@@ -137,9 +138,22 @@ const DROPDOWN_STYLE: JSX.CSSProperties = {
   boxShadow: 'var(--menu-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   overflowY: 'auto',
-  maxHeight: `${OPTION_ROW_HEIGHT_PX * MAX_VISIBLE_OPTION_COUNT}px`,
+  maxHeight: `${OPTION_ROW_HEIGHT_PX * MAX_VISIBLE_OPTION_COUNT + RESULTS_SUMMARY_HEIGHT_PX}px`,
   padding: '4px 0',
   pointerEvents: 'auto'
+};
+
+const RESULTS_SUMMARY_STYLE: JSX.CSSProperties = {
+  minHeight: `${RESULTS_SUMMARY_HEIGHT_PX}px`,
+  boxSizing: 'border-box',
+  display: 'flex',
+  alignItems: 'center',
+  padding: '4px 12px',
+  borderBottom: '1px solid var(--menu-border-color, rgba(148, 163, 184, 0.28))',
+  color: 'var(--menu-text, rgb(24, 24, 26))',
+  fontSize: '11px',
+  fontFamily: WIDGET_FONT_FAMILY,
+  opacity: 0.68
 };
 
 const DEFAULT_OPTION_CONTENT_STYLE: JSX.CSSProperties = {
@@ -264,6 +278,15 @@ export type OmniBoxRenderOptionArgs = {
   query: string;
 };
 
+export type OmniBoxResultsSummaryArgs = {
+  /** Current trimmed query used to produce the visible dropdown options. */
+  readonly query: string;
+  /** Options currently rendered in the dropdown. */
+  readonly options: ReadonlyArray<OmniBoxOption>;
+  /** Dropdown mode that produced the visible options. */
+  readonly mode: 'search' | 'command' | 'history';
+};
+
 export type OmniBoxWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
   placeholder?: string;
@@ -282,6 +305,8 @@ export type OmniBoxWidgetProps = WidgetProps & {
   topOffsetPx?: number;
   getOptions?: OmniBoxOptionProvider;
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
+  /** Optional renderer for a compact row above the current dropdown results. */
+  renderResultsSummary?: (args: OmniBoxResultsSummaryArgs) => ComponentChildren;
   onSelectOption?: (option: OmniBoxOption) => void;
   onActiveOptionChange?: (option: OmniBoxOption | null) => void;
   onNavigateOption?: (option: OmniBoxOption) => void;
@@ -309,6 +334,8 @@ type OmniBoxWidgetViewProps = {
   getOptions: OmniBoxOptionProvider;
   /** Custom renderer for a suggestion row. */
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
+  /** Optional renderer for a compact row above the current dropdown results. */
+  renderResultsSummary?: (args: OmniBoxResultsSummaryArgs) => ComponentChildren;
   /** Called when a suggestion is selected by click or Enter. */
   onSelectOption?: (option: OmniBoxOption) => void;
   /** Called when keyboard navigation changes the active suggestion. */
@@ -408,6 +435,7 @@ function OmniBoxWidgetView({
   showAnchorButton,
   getOptions,
   renderOption,
+  renderResultsSummary,
   onSelectOption,
   onActiveOptionChange,
   onNavigateOption,
@@ -697,6 +725,17 @@ function OmniBoxWidgetView({
   const hasMatches = options.length > 0;
   const hasQueryHistory = queryHistoryOptions.length > 0;
   const normalizedQuery = query.trim();
+  const dropdownMode: OmniBoxResultsSummaryArgs['mode'] = isShowingQueryHistory
+    ? 'history'
+    : 'search';
+  const resultsSummary =
+    !isLoading && renderResultsSummary
+      ? renderResultsSummary({
+          query: normalizedQuery,
+          options: visibleOptions,
+          mode: dropdownMode
+        })
+      : null;
   const shouldShowDropdown =
     !isHidden &&
     (isShowingQueryHistory ||
@@ -984,6 +1023,12 @@ function OmniBoxWidgetView({
             </div>
           )}
 
+          {!isLoading && resultsSummary != null && resultsSummary !== false && (
+            <div data-omni-box-results-summary="true" style={RESULTS_SUMMARY_STYLE}>
+              {resultsSummary}
+            </div>
+          )}
+
           {!isLoading &&
             visibleOptions.map((option, index) => {
               const isActive = index === activeOptionIndex;
@@ -1064,6 +1109,7 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
     topOffsetPx: undefined,
     getOptions: (() => []) as OmniBoxOptionProvider,
     renderOption: undefined,
+    renderResultsSummary: undefined,
     onSelectOption: undefined,
     onActiveOptionChange: undefined,
     onNavigateOption: undefined,
@@ -1123,6 +1169,7 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
         }
         getOptions={this.props.getOptions ?? OmniBoxWidget.defaultProps.getOptions}
         renderOption={this.props.renderOption}
+        renderResultsSummary={this.props.renderResultsSummary}
         onSelectOption={this.props.onSelectOption}
         onActiveOptionChange={this.props.onActiveOptionChange}
         onNavigateOption={this.props.onNavigateOption}

@@ -1,0 +1,58 @@
+# StudioSettingsPanel
+
+<p className="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+</p>
+
+`StudioSettingsPanel` renders a dense schema-driven settings surface with a
+section rail, compact mode, grouped settings, and a visual dependency-shape
+selector for a `lineRoutingMode` setting.
+
+## Import
+
+```ts
+import {
+  StudioSettingsPanel,
+  createStudioSettingsPanel,
+  type StudioSettingsPanelProps
+} from '@deck.gl-community/panels';
+```
+
+## Props
+
+```ts
+type StudioSettingsPanelProps = {
+  schema: SettingsSchema;
+  applicationSchema?: SettingsSchema;
+  fontFamily?: string;
+  settings: SettingsState;
+  onSettingsChange?: SettingsManagerOnChange;
+  presetLabel?: string;
+};
+```
+
+`schema` supplies visualization controls. `applicationSchema` is rendered as a
+separate rail group for app-level controls. Setting descriptors may include
+`group` to organize rows within a section and `sliderDebounceMs` for numeric
+range controls.
+
+## Panel Factory
+
+```ts
+const panel = createStudioSettingsPanel({
+  schema,
+  settings,
+  onSettingsChange: manager.setSettings.bind(manager)
+});
+```
+
+The factory returns a deck-independent `Panel` object that can be used with
+`PanelModal`, `PanelSidebar`, or any panel container.
+
+## Remarks
+
+- The panel is deck.gl-independent and lives in `@deck.gl-community/panels`.
+- The close button emits `data-modal-widget-close="true"` so `PanelModal` can
+  close from content when built-in modal chrome is hidden.
+- Compact mode is remembered in `localStorage` under the
+  `deck.gl-community:studio-settings:navigation-collapsed` key.

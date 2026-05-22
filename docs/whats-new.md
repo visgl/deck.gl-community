@@ -15,8 +15,19 @@ A new module for deck-independent panel composition and small application UI.
 - `ArrowTablePanel` - NEW reusable panel for bounded Apache Arrow table previews with a row-limit summary.
 - `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema and field metadata with JSON metadata formatting.
 - `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
+- `StudioSettingsPanel` - NEW schema-driven settings surface with grouped controls, compact navigation, and visual routing-shape controls.
+- `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.
+- `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
 - Panel APIs now use panel terminology throughout `@deck.gl-community/panels`; deck.gl widget-facing wrappers remain in `@deck.gl-community/widgets`.
 - Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs, and the redundant descriptor/`WidgetHost` surfaces are removed.
+- `PanelModal` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
+- `SettingsPanel` numeric range inputs can apply descriptor-level trailing debounce via `sliderDebounceMs`.
+
+### `@deck.gl-community/widgets`
+
+- `createStudioSettingsWidget` and `updateStudioSettingsWidget` - NEW helpers for hosting `StudioSettingsPanel` in a floating deck widget.
+- `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
+- `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `PanelModal`.
 
 ## v9.3
 

@@ -50,7 +50,14 @@ type PanelModalProps = PanelContainerProps & {
   triggerLabel?: string;
   triggerIcon?: string;
   showTitleBar?: boolean;
+  presentation?: 'modal' | 'floating';
+  draggable?: boolean;
+  dragHandleSelector?: string;
+  dialogStyle?: JSX.CSSProperties;
+  dialogPlacement?: 'center' | 'left';
+  contentStyle?: JSX.CSSProperties;
   hideTrigger?: boolean;
+  hideCloseButton?: boolean;
   button?: boolean;
   defaultOpen?: boolean;
   open?: boolean;
@@ -65,6 +72,11 @@ type PanelModalProps = PanelContainerProps & {
 - Accepts one reusable panel definition.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.
+- Use `presentation: 'floating'` for non-blocking dialogs.
+- Use `dialogPlacement: 'left'`, `dialogStyle`, and `contentStyle` to tune
+  larger custom dialogs.
+- Set `hideCloseButton` when panel content renders its own
+  `data-modal-widget-close="true"` close control.
 - `openShortcuts` are installed through `deck.eventManager` when available and
   open the modal without importing deck.gl into `@deck.gl-community/panels`.
 - `shortcuts` are also registered through the same manager and keep their own
