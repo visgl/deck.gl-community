@@ -193,6 +193,37 @@ describe('ArrowTablePanel', () => {
     expect(root.textContent).toContain('... +1');
   });
 
+  it('formats list fields with plain object entries without recursing', () => {
+    const root = renderPanel(
+      createTable(
+        {
+          structs: [[{id: 1}, {id: 2}, {id: 3}]]
+        },
+        {
+          structs: {
+            type: {
+              toString: () => 'List<Struct>',
+              children: [
+                {
+                  name: 'item',
+                  type: {
+                    toString: () => 'Struct',
+                    children: [{name: 'id', type: 'Int32'}]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ),
+      {maxNestedItems: 2}
+    );
+
+    expect(root.textContent).toContain('{"id":1}');
+    expect(root.textContent).toContain('{"id":2}');
+    expect(root.textContent).toContain('... +1');
+  });
+
   it('uses column formatters keyed by field path', () => {
     const root = renderPanel(createTable({value: [10]}), {
       columnFormatters: {

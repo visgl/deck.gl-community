@@ -574,7 +574,7 @@ function isStructField(field: ArrowSchemaFieldLike): boolean {
   const typeObject = typeof field.type === 'object' ? field.type : null;
 
   return (
-    typeName.includes('struct') ||
+    (typeName.includes('struct') && !typeName.includes('list')) ||
     (hasChildren && !typeName.includes('list') && typeObject?.listSize === undefined)
   );
 }
@@ -780,7 +780,7 @@ function formatValue(value: unknown, context: ArrowCellFormatContext): string {
     return String(value);
   }
 
-  if (isListLikeField(context.field)) {
+  if (isListLikeField(context.field) && isListLikeValue(value)) {
     return formatArrayPreview(value, context.maxNestedItems, context);
   }
 
@@ -898,7 +898,7 @@ function formatNestedScalar(value: unknown, context?: ArrowCellFormatContext): s
     return JSON.stringify(value);
   }
   if (typeof value === 'object') {
-    return context ? formatValue(value, context) : stringifyCellValue(value);
+    return stringifyCellValue(value);
   }
   return String(value);
 }
