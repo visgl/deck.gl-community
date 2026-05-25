@@ -278,6 +278,11 @@ export abstract class EditableLayer<
           // can drape geometry onto the surface without double-offsetting.
           return [pickInfo.coordinate[0], pickInfo.coordinate[1]] as Position;
         }
+        // No terrain hit (e.g. no-data gap) — still strip Z for the same reason:
+        // TerrainExtension is present whenever pickable:'3d' layers exist and will
+        // add terrain height at render time, so pre-baking Z would double-offset.
+        const pos = this.context.viewport.unproject([screenCoords[0], screenCoords[1]]);
+        return [pos[0], pos[1]] as Position;
       }
     }
     return this.context.viewport.unproject([screenCoords[0], screenCoords[1]]) as Position;
