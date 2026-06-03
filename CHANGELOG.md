@@ -1,5 +1,43 @@
 # deck.gl-community CHANGELOG
 
+## v9.3.3
+
+- ci: validate npm access before release publish
+- feat(panels) updates from loaders.gl (#640)
+- feat(panels) Various panel updates (#639)
+- Fix Tycho skybox cubemap orientation (#638)
+- chore(deps): bump webpack-dev-server from 5.2.2 to 5.2.4 in /website (#637)
+- chore(panels) Cleanup pass (#634)
+- chore(deps): bump axios from 1.15.0 to 1.16.1 (#636)
+- chore(deps): bump fast-uri from 3.1.0 to 3.1.2 in /website (#632)
+- chore(deps): bump @babel/plugin-transform-modules-systemjs in /website (#633)
+- chore(deps): bump fast-xml-builder from 1.1.4 to 1.2.0 (#631)
+- chore(deps): bump ip-address from 10.1.0 to 10.2.0 (#627)
+- chore(deps): bump ip-address from 10.0.1 to 10.2.0 in /website (#626)
+- fix: update css for info panel buttons section (#621)
+- fix: place maplibre component inside deckgl to avoid contexts conflict (#618)
+- feat(panels) Panel improvements (#619)
+- feat(panels) ArrowTablePanel and ArrowSchemaPanel (#615)
+- feat(panels) SplitterPanel (#613)
+- chore: remove styled-components (#614)
+- chore: Upgrade to TypeScript 6 (#612)
+- chore: Replace eslint/prettier with biome (#611)
+- chore: Add website build step to CI (#610)
+- feat(panels) Break out panels module, improve website (#608)
+- Replace "Unofficial" with "Experimental" throughout website (#607)
+- fix(website): expand OG title/description, add CTA + explicit image meta (#606)
+- fix(website): shrink hero + add dedicated 1200x630 og:image (#605)
+- chore(deps): bump protocol-buffers-schema in /website (#599)
+- feat(website): set hero image as default social preview (og:image) (#604)
+- feat(website): add landing page hero image (#603)
+- fix: move leaflet scripting demo out of /examples/ to avoid route collision (#602)
+- cleanup: drop /gallery route + Blog navbar, inline scripting demo under examples (#601)
+- ci: node 24, fix website build errors surfaced in first deploy (#600)
+- ci: add website deploy workflow and fix missing webpack aliases (#598)
+- chore(deps): bump follow-redirects from 1.15.11 to 1.16.0 in /website (#589)
+- chore(deps): bump follow-redirects from 1.15.11 to 1.16.0 (#593)
+- chore(deps): bump protocol-buffers-schema from 3.6.0 to 3.6.1 (#592)
+
 ## v9.3.2
 
 - fix: move vis.gl singleton deps (`@deck.gl/*`, `@luma.gl/core`, `@luma.gl/engine`, `@loaders.gl/core`) to peerDependencies across all modules, matching `@deck.gl` upstream pattern (#590)
