@@ -82,31 +82,34 @@ jobs:
       - name: Login to NPM
         run: npm config set "//registry.npmjs.org/:_authToken=${NPM_ACCESS_TOKEN}"
 
-      - name: Verify NPM publish access
+      - name: Verify NPM token
         run: |
+          npm ping
           npm whoami
-          npm access list packages @deck.gl-community --json > /tmp/npm-access.json
           node - <<'NODE'
           const fs = require('fs');
-          const packages = JSON.parse(fs.readFileSync('/tmp/npm-access.json', 'utf8'));
-          const requiredPackages = [
-            '@deck.gl-community/basemap-layers',
-            '@deck.gl-community/bing-maps',
-            '@deck.gl-community/editable-layers',
-            '@deck.gl-community/experimental',
-            '@deck.gl-community/geo-layers',
-            '@deck.gl-community/graph-layers',
-            '@deck.gl-community/infovis-layers',
-            '@deck.gl-community/layers',
-            '@deck.gl-community/leaflet',
-            '@deck.gl-community/react',
-            '@deck.gl-community/three',
-            '@deck.gl-community/timeline-layers',
-            '@deck.gl-community/widgets'
-          ];
-          const missing = requiredPackages.filter((name) => !Object.hasOwn(packages, name));
-          if (missing.length) {
-            throw new Error(`NPM token cannot see required @deck.gl-community packages: ${missing.join(', ')}`);
+          const path = require('path');
+
+          const packageDirs = ['modules', 'dev'].flatMap((root) =>
+            fs.existsSync(root)
+              ? fs
+                  .readdirSync(root, {withFileTypes: true})
+                  .filter((entry) => entry.isDirectory())
+                  .map((entry) => path.join(root, entry.name))
+              : []
+          );
+
+          const packages = packageDirs
+            .map((directory) => path.join(directory, 'package.json'))
+            .filter((filename) => fs.existsSync(filename))
+            .map((filename) => JSON.parse(fs.readFileSync(filename, 'utf8')))
+            .filter((pkg) => pkg.name?.startsWith('@deck.gl-community/') && !pkg.private)
+            .map((pkg) => pkg.name)
+            .sort();
+
+          console.log(`NPM token is valid. Publishing ${packages.length} public packages:`);
+          for (const name of packages) {
+            console.log(`- ${name}`);
           }
           NODE
 

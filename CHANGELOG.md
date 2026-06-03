@@ -1,5 +1,13 @@
 # deck.gl-community CHANGELOG
 
+## v9.3.5
+
+- ci: one more attempt
+
+## v9.3.4
+
+- ci: loosen npm access check
+
 ## v9.3.3
 
 - ci: validate npm access before release publish
