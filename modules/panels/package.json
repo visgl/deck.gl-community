@@ -37,7 +37,6 @@
     "preact": "^10.17.0"
   },
   "peerDependencies": {
-    "@deck.gl/widgets": "~9.3.0",
     "apache-arrow": ">=17"
   },
   "peerDependenciesMeta": {

@@ -614,7 +614,6 @@ __metadata:
     "@probe.gl/stats": "npm:^4.1.1"
     preact: "npm:^10.17.0"
   peerDependencies:
-    "@deck.gl/widgets": ~9.3.0
     apache-arrow: ">=17"
   peerDependenciesMeta:
     apache-arrow:
