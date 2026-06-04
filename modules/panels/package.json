@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@probe.gl/stats": "^4.1.1",
+    "monaco-editor": "^0.53.0",
     "preact": "^10.17.0"
   },
   "peerDependencies": {
