@@ -31,7 +31,7 @@ async function createTextEditorMonacoRuntime(): Promise<TextEditorMonacoRuntime>
 
   const [monaco] = await Promise.all([
     import('monaco-editor'),
-    import('monaco-editor/esm/vs/language/json/monaco.contribution')
+    import('monaco-editor/esm/vs/language/json/monaco.contribution.js')
   ]);
 
   return {
