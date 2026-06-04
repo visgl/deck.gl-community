@@ -29,6 +29,7 @@
     "src"
   ],
   "scripts": {
+    "prepack": "yarn --cwd ../.. build",
     "test": "vitest run",
     "test-watch": "vitest"
   },
