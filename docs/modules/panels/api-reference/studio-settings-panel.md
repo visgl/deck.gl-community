@@ -28,13 +28,17 @@ type StudioSettingsPanelProps = {
   settings: SettingsState;
   onSettingsChange?: SettingsManagerOnChange;
   presetLabel?: string;
+  settingRowLayout?: 'aligned' | 'fit-labels';
 };
 ```
 
 `schema` supplies visualization controls. `applicationSchema` is rendered as a
 separate rail group for app-level controls. Setting descriptors may include
 `group` to organize rows within a section and `sliderDebounceMs` for numeric
-range controls.
+range controls. Select options may include `description` alongside `label` and
+`value` to render supporting copy below each option label in the open menu.
+`settingRowLayout` defaults to `'aligned'`; use `'fit-labels'` when each row
+should size its label column to its content and give more width to the control.
 
 ## Panel Factory
 

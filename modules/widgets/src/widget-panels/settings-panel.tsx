@@ -351,7 +351,7 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
 
   return (
     <div data-setting-row-for={setting.name} style={SETTING_ROW_STYLE} title={tooltip}>
-      <label htmlFor={inputId} style={SETTING_LABEL_STYLE}>
+      <label htmlFor={setting.type === 'select' ? undefined : inputId} style={SETTING_LABEL_STYLE}>
         {label}
       </label>
       <div style={SETTING_CONTROL_STYLE}>{control}</div>

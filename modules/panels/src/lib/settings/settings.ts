@@ -11,8 +11,12 @@ export type SettingPersistenceTarget = 'local-storage' | 'url' | 'none';
 export type SettingOption<Value extends SettingValue = SettingValue> =
   | Value
   | {
+      /** Human-friendly label shown in the select control. */
       label: string;
+      /** Primitive setting value written when the option is selected. */
       value: Value;
+      /** Optional supporting copy shown below the option label in an open select menu. */
+      description?: string;
     };
 
 /** Backwards-compatible alias for selectable setting options. */
@@ -162,11 +166,13 @@ export function buildInitialCollapsedState(
 export function normalizeOption(option: SettingsOption): {
   label: string;
   value: SettingValue;
+  description?: string;
 } {
   if (isRecord(option) && 'label' in option && 'value' in option) {
     return {
       label: String(option.label),
-      value: option.value as SettingValue
+      value: option.value as SettingValue,
+      description: typeof option.description === 'string' ? option.description : undefined
     };
   }
 

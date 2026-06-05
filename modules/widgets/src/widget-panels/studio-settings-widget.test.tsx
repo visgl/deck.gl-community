@@ -61,4 +61,16 @@ describe('createStudioSettingsWidget', () => {
     expect(widget.props.triggerLabel).toBe('Display');
     expect(widget.props.panel?.content).toBeTruthy();
   });
+
+  it('forwards Studio row layout without leaking it into modal props', () => {
+    const widget = createStudioSettingsWidget({
+      schema: TEST_SCHEMA,
+      settings: TEST_SETTINGS,
+      settingRowLayout: 'fit-labels'
+    });
+    const panelContent = widget.props.panel?.content as {props?: {settingRowLayout?: string}};
+
+    expect(panelContent.props?.settingRowLayout).toBe('fit-labels');
+    expect((widget.props as Record<string, unknown>).settingRowLayout).toBeUndefined();
+  });
 });

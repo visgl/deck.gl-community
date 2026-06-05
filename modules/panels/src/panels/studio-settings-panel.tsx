@@ -29,6 +29,9 @@ import type {ComponentChildren, JSX} from 'preact';
 /** Studio settings tab id derived from the backing settings schema section key. */
 export type StudioSettingsTabId = string;
 
+/** Label/control column sizing used by Studio setting rows. */
+export type StudioSettingsRowLayout = 'aligned' | 'fit-labels';
+
 /** Visual dependency routing card variants supported by the settings panel. */
 export type StudioDependencyShape = 'straight' | 'arc' | 'step';
 
@@ -66,6 +69,11 @@ export type StudioSettingsPanelProps = {
   onSettingsChange?: SettingsManagerOnChange;
   /** Optional static preset label shown in the tab rail. */
   presetLabel?: string;
+  /**
+   * Setting row label/control sizing. `aligned` keeps stable columns, while `fit-labels`
+   * lets each label use its content width so controls can claim more horizontal space.
+   */
+  settingRowLayout?: StudioSettingsRowLayout;
 };
 
 /** Creates a panel wrapper for the Studio settings panel. */
@@ -84,7 +92,8 @@ export function StudioSettingsPanel({
   fontFamily,
   settings,
   onSettingsChange,
-  presetLabel
+  presetLabel,
+  settingRowLayout = 'aligned'
 }: StudioSettingsPanelProps) {
   const [activeTabId, setActiveTabId] = useState<StudioSettingsTabId>('');
   const [isNavigationCollapsed, setIsNavigationCollapsed] = useState(
@@ -137,6 +146,7 @@ export function StudioSettingsPanel({
               tab={tab}
               settings={localSettings}
               compact={compact}
+              settingRowLayout={settingRowLayout}
               onChange={(setting, value) => applySetting(setting, value)}
             />
           ) : (
@@ -408,11 +418,13 @@ function SettingGroups({
   tab,
   settings,
   compact,
+  settingRowLayout,
   onChange
 }: {
   tab: TabDefinition | undefined;
   settings: SettingsState;
   compact: boolean;
+  settingRowLayout: StudioSettingsRowLayout;
   onChange: (setting: SettingDescriptor, value: SettingValue) => void;
 }) {
   return (
@@ -427,6 +439,7 @@ function SettingGroups({
                 setting={setting}
                 settings={settings}
                 compact={compact}
+                settingRowLayout={settingRowLayout}
                 onChange={value => onChange(setting, value)}
               />
             ))}
@@ -462,16 +475,26 @@ function SettingControl({
   setting,
   settings,
   compact,
+  settingRowLayout,
   onChange
 }: {
   setting: SettingDescriptor;
   settings: SettingsState;
   compact: boolean;
+  settingRowLayout: StudioSettingsRowLayout;
   onChange: (value: SettingValue) => void;
 }) {
   const value = resolveSettingValue(setting, settings);
   if (setting.type === 'select') {
-    return <SelectControl setting={setting} value={value} compact={compact} onChange={onChange} />;
+    return (
+      <SelectControl
+        setting={setting}
+        value={value}
+        compact={compact}
+        settingRowLayout={settingRowLayout}
+        onChange={onChange}
+      />
+    );
   }
   if (setting.type === 'boolean') {
     return (
@@ -479,6 +502,7 @@ function SettingControl({
         setting={setting}
         value={Boolean(value)}
         compact={compact}
+        settingRowLayout={settingRowLayout}
         onChange={onChange}
       />
     );
@@ -489,12 +513,19 @@ function SettingControl({
         setting={setting}
         value={Number(value)}
         compact={compact}
+        settingRowLayout={settingRowLayout}
         onChange={onChange}
       />
     );
   }
   return (
-    <StringControl setting={setting} value={String(value)} compact={compact} onChange={onChange} />
+    <StringControl
+      setting={setting}
+      value={String(value)}
+      compact={compact}
+      settingRowLayout={settingRowLayout}
+      onChange={onChange}
+    />
   );
 }
 
@@ -503,16 +534,18 @@ function SelectControl({
   setting,
   value,
   compact,
+  settingRowLayout,
   onChange
 }: {
   setting: SettingDescriptor;
   value: SettingValue;
   compact: boolean;
+  settingRowLayout: StudioSettingsRowLayout;
   onChange: (value: SettingValue) => void;
 }) {
   const options = (setting.options ?? [getDefaultValue(setting)]).map(normalizeOption);
   return (
-    <SettingRow setting={setting} compact={compact}>
+    <SettingRow setting={setting} compact={compact} settingRowLayout={settingRowLayout}>
       <SelectComponent
         id={`studio-settings-${setting.name.replace(/[^a-z0-9_-]+/gi, '-')}`}
         label={setting.label ?? setting.name}
@@ -529,15 +562,17 @@ function BooleanControl({
   setting,
   value,
   compact,
+  settingRowLayout,
   onChange
 }: {
   setting: SettingDescriptor;
   value: boolean;
   compact: boolean;
+  settingRowLayout: StudioSettingsRowLayout;
   onChange: (value: SettingValue) => void;
 }) {
   return (
-    <SettingRow setting={setting} compact={compact}>
+    <SettingRow setting={setting} compact={compact} settingRowLayout={settingRowLayout}>
       <button
         type="button"
         aria-pressed={value}
@@ -558,11 +593,13 @@ function NumberControl({
   setting,
   value,
   compact,
+  settingRowLayout,
   onChange
 }: {
   setting: SettingDescriptor;
   value: number;
   compact: boolean;
+  settingRowLayout: StudioSettingsRowLayout;
   onChange: (value: SettingValue) => void;
 }) {
   const min = Number.isFinite(setting.min) ? (setting.min as number) : 0;
@@ -605,7 +642,7 @@ function NumberControl({
   }
 
   return (
-    <SettingRow setting={setting} compact={compact}>
+    <SettingRow setting={setting} compact={compact} settingRowLayout={settingRowLayout}>
       <div style={STYLES.numberGrid}>
         <input
           aria-label={`${setting.label ?? setting.name} slider`}
@@ -654,15 +691,17 @@ function StringControl({
   setting,
   value,
   compact,
+  settingRowLayout,
   onChange
 }: {
   setting: SettingDescriptor;
   value: string;
   compact: boolean;
+  settingRowLayout: StudioSettingsRowLayout;
   onChange: (value: SettingValue) => void;
 }) {
   return (
-    <SettingRow setting={setting} compact={compact}>
+    <SettingRow setting={setting} compact={compact} settingRowLayout={settingRowLayout}>
       <input
         aria-label={setting.label ?? setting.name}
         type="text"
@@ -678,14 +717,19 @@ function StringControl({
 function SettingRow({
   setting,
   compact,
+  settingRowLayout,
   children
 }: {
   setting: SettingDescriptor;
   compact: boolean;
+  settingRowLayout: StudioSettingsRowLayout;
   children: ComponentChildren;
 }) {
   return (
-    <div style={compact ? STYLES.settingPillCollapsed : STYLES.settingPill}>
+    <div
+      data-studio-setting-row-layout={settingRowLayout}
+      style={getSettingRowStyle(compact, settingRowLayout)}
+    >
       <div style={STYLES.settingMeta}>
         <div style={STYLES.settingLabel}>{setting.label ?? humanizeSettingName(setting.name)}</div>
         {!compact && setting.description ? (
@@ -695,6 +739,17 @@ function SettingRow({
       <div style={STYLES.settingControl}>{children}</div>
     </div>
   );
+}
+
+/** Returns the setting row grid for the requested navigation and label layout. */
+function getSettingRowStyle(
+  compact: boolean,
+  settingRowLayout: StudioSettingsRowLayout
+): JSX.CSSProperties {
+  if (settingRowLayout === 'fit-labels') {
+    return compact ? STYLES.settingPillCollapsedFitLabels : STYLES.settingPillFitLabels;
+  }
+  return compact ? STYLES.settingPillCollapsed : STYLES.settingPill;
 }
 
 /** Renders the dependency shape card section for lineRoutingMode. */
@@ -1261,6 +1316,28 @@ const STYLES = {
   settingPillCollapsed: {
     display: 'grid',
     gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 56,
+    borderRadius: 14,
+    background: 'var(--button-background, rgba(15, 23, 42, 0.32))',
+    boxShadow: 'inset 0 0 0 1px rgba(15, 23, 42, 0.08)',
+    padding: '10px 14px'
+  },
+  settingPillFitLabels: {
+    display: 'grid',
+    gridTemplateColumns: 'max-content minmax(180px, 1fr)',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 56,
+    borderRadius: 14,
+    background: 'var(--button-background, rgba(15, 23, 42, 0.32))',
+    boxShadow: 'inset 0 0 0 1px rgba(15, 23, 42, 0.08)',
+    padding: '10px 14px'
+  },
+  settingPillCollapsedFitLabels: {
+    display: 'grid',
+    gridTemplateColumns: 'max-content minmax(0, 1fr)',
     alignItems: 'center',
     gap: 10,
     minHeight: 56,

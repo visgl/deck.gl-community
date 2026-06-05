@@ -33,7 +33,9 @@ deck.setProps({widgets: [widget]});
 `createStudioSettingsWidget` returns a `ModalPanelWidget` configured as a
 non-blocking floating modal. It uses the Studio panel's header as the drag
 handle and hides the modal chrome close button because the panel renders its
-own close action.
+own close action. Pass `settingRowLayout: 'fit-labels'` when short setting
+labels should leave more horizontal room for their controls; the default
+`'aligned'` layout keeps stable label/control columns.
 
 ## Updating
 

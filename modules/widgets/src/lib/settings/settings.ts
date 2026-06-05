@@ -5,6 +5,7 @@ export type SettingsOption =
   | {
       label: string;
       value: SettingValue;
+      description?: string;
     };
 
 export type SettingDescriptor = {
@@ -98,11 +99,13 @@ export function buildInitialCollapsedState(
 export function normalizeOption(option: SettingsOption): {
   label: string;
   value: SettingValue;
+  description?: string;
 } {
   if (isRecord(option) && 'label' in option && 'value' in option) {
     return {
       label: String(option.label),
-      value: option.value
+      value: option.value,
+      description: typeof option.description === 'string' ? option.description : undefined
     };
   }
 

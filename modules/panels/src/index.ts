@@ -59,6 +59,7 @@ export {
   type StudioSettingsIconName,
   type StudioSettingsIconProps,
   type StudioSettingsPanelProps,
+  type StudioSettingsRowLayout,
   type StudioSettingsTabId
 } from './panels/studio-settings-panel';
 export {StatsPanel, type StatsPanelProps} from './panels/stats-panel';

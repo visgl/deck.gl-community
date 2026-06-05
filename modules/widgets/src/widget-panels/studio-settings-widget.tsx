@@ -44,6 +44,7 @@ function buildStudioSettingsWidgetProps(props: StudioSettingsWidgetProps): Modal
     settings,
     onSettingsChange,
     presetLabel,
+    settingRowLayout,
     ...modalProps
   } = props;
   const title = modalProps.title ?? 'Settings';
@@ -73,7 +74,8 @@ function buildStudioSettingsWidgetProps(props: StudioSettingsWidgetProps): Modal
       fontFamily,
       settings,
       onSettingsChange,
-      presetLabel
+      presetLabel,
+      settingRowLayout
     })
   };
 }

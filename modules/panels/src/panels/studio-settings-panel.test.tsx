@@ -223,6 +223,24 @@ describe('StudioSettingsPanel', () => {
     ).toBe('false');
   });
 
+  it('lets callers size compact setting rows from their labels', async () => {
+    const root = renderStudioPanel(vi.fn(), {settingRowLayout: 'fit-labels'});
+    const expandedRow = getButtonByLabel(root, 'Item Colors').closest<HTMLElement>(
+      '[data-studio-setting-row-layout]'
+    );
+
+    expect(expandedRow?.dataset.studioSettingRowLayout).toBe('fit-labels');
+    expect(expandedRow?.style.gridTemplateColumns).toBe('max-content minmax(180px, 1fr)');
+
+    getButtonByLabel(root, 'Collapse settings dialog').click();
+    await Promise.resolve();
+
+    const compactRow = getButtonByLabel(root, 'Item Colors').closest<HTMLElement>(
+      '[data-studio-setting-row-layout]'
+    );
+    expect(compactRow?.style.gridTemplateColumns).toBe('max-content minmax(0px, 1fr)');
+  });
+
   it('emits updated settings for select, boolean, and number controls', async () => {
     const onSettingsChange = vi.fn();
     const root = renderStudioPanel(onSettingsChange);

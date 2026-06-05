@@ -40,8 +40,23 @@ const TEST_SCHEMA: SettingsSchema = {
           name: 'mode',
           label: 'Mode',
           type: 'select',
-          options: ['all', 'critical-path', 'selected-only'],
+          options: [
+            'all',
+            {
+              label: 'critical-path with a full visible label',
+              value: 'critical-path',
+              description: 'Only keep critical traces visible.'
+            },
+            'selected-only'
+          ],
           description: 'Control which items remain visible.'
+        },
+        {
+          name: 'sort',
+          label: 'Sort',
+          type: 'select',
+          options: ['newest', 'oldest'],
+          description: 'Choose result ordering.'
         }
       ]
     }
@@ -51,7 +66,8 @@ const TEST_SCHEMA: SettingsSchema = {
 const INITIAL_SETTINGS: SettingsState = {
   flags: {enabled: true},
   render: {opacity: 0.4},
-  mode: 'all'
+  mode: 'all',
+  sort: 'newest'
 };
 
 function renderSettingsPanel(options?: {
@@ -94,6 +110,35 @@ function getRequiredButton(root: ParentNode, selector: string): HTMLButtonElemen
     throw new Error(`Expected button matching selector: ${selector}`);
   }
   return button;
+}
+
+function createDomRect({
+  bottom,
+  left,
+  right,
+  top
+}: {
+  bottom: number;
+  left: number;
+  right: number;
+  top: number;
+}): DOMRect {
+  return {
+    bottom,
+    height: bottom - top,
+    left,
+    right,
+    toJSON: () => ({}),
+    top,
+    width: right - left,
+    x: left,
+    y: top
+  } as DOMRect;
+}
+
+function clickWithPointer(element: HTMLElement): void {
+  element.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  element.click();
 }
 
 afterEach(() => {
@@ -182,6 +227,75 @@ describe('SettingsPanel', () => {
     expect(numberInput.getAttribute('style')).toContain('var(--button-backdrop-filter');
     expect(numberInput.style.height).toBe('28px');
     expect(numberInput.style.padding).toBe('2px 6px');
+
+    cleanup();
+  });
+
+  it('lets open select menus exceed the control width and renders option descriptions', async () => {
+    const {root, cleanup} = renderSettingsPanel();
+    const modeToggle = root.querySelectorAll('button[aria-expanded]')[1] as HTMLButtonElement;
+    modeToggle.click();
+    await Promise.resolve();
+
+    const selectButton = getRequiredButton(root, '#settings-panel-input-mode');
+    (selectButton.parentElement as HTMLDivElement).getBoundingClientRect = () =>
+      createDomRect({bottom: 44, left: 24, right: 224, top: 12});
+    selectButton.click();
+    await Promise.resolve();
+
+    const listbox = document.body.querySelector<HTMLDivElement>('[role="listbox"]');
+    expect(listbox).toBeTruthy();
+    expect(listbox?.parentElement).toBe(document.body);
+    expect(listbox?.style.width).toBe('max-content');
+    expect(listbox?.style.minWidth).toBe('200px');
+    expect(listbox?.getBoundingClientRect().width).toBeGreaterThan(200);
+
+    const option = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')
+    ).find(button => button.textContent?.includes('critical-path'));
+    const optionLabel = option?.querySelector<HTMLElement>('[data-select-option-label="true"]');
+    const optionDescription = option?.querySelector<HTMLElement>(
+      '[data-select-option-description="true"]'
+    );
+    expect(optionLabel?.textContent).toBe('critical-path with a full visible label');
+    expect(optionLabel?.style.whiteSpace).toBe('nowrap');
+    expect(optionLabel?.style.textOverflow).toBe('');
+    expect(optionDescription?.textContent).toBe('Only keep critical traces visible.');
+    expect(optionDescription?.style.fontSize).toBe('11px');
+
+    cleanup();
+  });
+
+  it('only opens selects from their buttons and closes other open selects', async () => {
+    const {root, cleanup} = renderSettingsPanel();
+    const modeToggle = root.querySelectorAll('button[aria-expanded]')[1] as HTMLButtonElement;
+    modeToggle.click();
+    await Promise.resolve();
+
+    const modeButton = getRequiredButton(root, '#settings-panel-input-mode');
+    const sortButton = getRequiredButton(root, '#settings-panel-input-sort');
+    const sortLabel = root.querySelector<HTMLElement>('[data-setting-row-for="sort"] label');
+    expect(sortLabel).toBeTruthy();
+    expect(sortLabel?.getAttribute('for')).toBeNull();
+
+    modeButton.click();
+    await Promise.resolve();
+    expect(document.body.querySelector('[role="listbox"]')?.id).toBe(
+      'settings-panel-input-mode-listbox'
+    );
+
+    clickWithPointer(sortLabel as HTMLElement);
+    await Promise.resolve();
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull();
+
+    modeButton.click();
+    await Promise.resolve();
+    sortButton.click();
+    await Promise.resolve();
+    expect(document.body.querySelectorAll('[role="listbox"]')).toHaveLength(1);
+    expect(document.body.querySelector('[role="listbox"]')?.id).toBe(
+      'settings-panel-input-sort-listbox'
+    );
 
     cleanup();
   });

@@ -47,6 +47,8 @@ Settings descriptors may include `group` for richer panels,
 `persist: 'local-storage' | 'url' | 'none'` for manager persistence policy, and
 numeric descriptors may include `sliderDebounceMs` for trailing range-slider
 debounce.
+Select options may be raw primitive values or `{label, value, description?}`
+objects; `description` renders below the option label in the open menu.
 
 ## Usage
 
