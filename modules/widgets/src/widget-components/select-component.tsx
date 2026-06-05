@@ -7,8 +7,11 @@ import type {SettingValue} from '../lib/settings/settings';
 import type {JSX} from 'preact';
 
 export type SelectComponentOption = {
+  /** Human-friendly label shown in the select control. */
   label: string;
+  /** Primitive setting value written when the option is selected. */
   value: SettingValue;
+  /** Optional supporting copy shown below the option label in an open select menu. */
   description?: string;
 };
 
