@@ -3,13 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {beforeEach, describe, it, expect} from 'vitest';
-import {
-  DrawPolygonMode,
-  pointInPolygon,
-  polygonEdgesIntersect,
-  polygonWithinPolygon,
-  segmentsIntersect
-} from '../../../src/edit-modes/draw-polygon-mode';
+import {DrawPolygonMode} from '../../../src/edit-modes/draw-polygon-mode';
 import {
   createFeatureCollectionProps,
   createClickEvent,
@@ -17,6 +11,12 @@ import {
   createPolygonFeature
 } from '../test-utils';
 import {Feature, Polygon, Position} from 'geojson';
+import {
+  pointInPolygon,
+  polygonEdgesIntersect,
+  polygonWithinPolygon,
+  segmentsIntersect
+} from '../../../src/edit-modes/cartesian-utils';
 
 let props;
 let mode;
