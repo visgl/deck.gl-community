@@ -54,6 +54,11 @@ const BROWSER_RESOLVE_CONFIG = {
   alias: ALIASES
 };
 
+const HEADLESS_BROWSER_PROVIDER =
+  process.env.GITHUB_ACTIONS === 'true'
+    ? playwright({launchOptions: {channel: 'chrome'}})
+    : playwright();
+
 const CONFIG = defineConfig({
   resolve: NODE_RESOLVE_CONFIG,
   test: {
@@ -119,7 +124,7 @@ const CONFIG = defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            provider: HEADLESS_BROWSER_PROVIDER,
             instances: [{browser: 'chromium'}]
           }
         }
