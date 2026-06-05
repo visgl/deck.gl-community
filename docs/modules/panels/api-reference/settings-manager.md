@@ -12,6 +12,8 @@ to local storage.
 
 ```ts
 import {
+  getChangedSetting,
+  getSettingDefinitions,
   SettingsManager,
   settingsManager,
   type SettingsChangeDescriptor,
@@ -24,13 +26,12 @@ import {
 ```ts
 const manager = new SettingsManager();
 
-manager.setSettingDefinitions(
-  new Map(schema.sections.flatMap((section) => section.settings.map((setting) => [setting.name, setting])))
-);
+manager.setSettingDefinitions(getSettingDefinitions(schema));
 
 manager.setCurrentSettings(settings);
 manager.setOnSettingsChange((nextSettings, changedSettings) => {
-  console.log(nextSettings, changedSettings);
+  const opacityChange = getChangedSetting(changedSettings, 'render.opacity');
+  console.log(nextSettings, opacityChange?.nextValue);
 });
 
 manager.setSettingValue('render.opacity', 0.5);
@@ -52,6 +53,10 @@ the local-storage persistence path.
 
 - `setSettingValue` resolves values through the registered descriptor before
   emitting changes.
+- `getSettingDefinitions` indexes schema descriptors for
+  `setSettingDefinitions`.
+- `getChangedSetting` returns the change descriptor for one setting name from
+  an emitted change list.
 - `setSettings` accepts a full settings snapshot and emits one descriptor per
   known value that changed.
 - `getSettingsWithLocalStorage` overlays stored values onto a caller-provided

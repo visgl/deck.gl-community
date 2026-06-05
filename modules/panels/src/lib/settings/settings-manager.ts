@@ -5,7 +5,12 @@ import {
   setValueAtPath
 } from './settings';
 
-import type {SettingDescriptor, SettingsState, SettingValue} from './settings';
+import type {
+  SettingDescriptor,
+  SettingDescriptorByName,
+  SettingsState,
+  SettingValue
+} from './settings';
 
 /**
  * Describes one tracked setting value transition emitted by a settings manager update.
@@ -35,14 +40,19 @@ export type SettingsManagerOnChange<
   changedSettings?: Change[]
 ) => void;
 
-type SettingDescriptorByName = Map<string, SettingDescriptor>;
-
 export type SettingsManagerLocalStorageConfig = {
   /** Browser local storage key that stores settings unless the descriptor explicitly opts out. */
   storageKey: string;
   /** Optional storage provider used by tests or non-browser integrations. */
   getStorage?: () => Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null | undefined;
 };
+
+/** Returns the emitted change descriptor for one setting path when present. */
+export function getChangedSetting<
+  Change extends SettingsChangeDescriptor = SettingsChangeDescriptor
+>(changedSettings: readonly Change[] | undefined, name: string): Change | undefined {
+  return changedSettings?.find(changedSetting => changedSetting.name === name);
+}
 
 /**
  * Coordinates settings snapshots, change emission, and descriptor-aware local persistence.

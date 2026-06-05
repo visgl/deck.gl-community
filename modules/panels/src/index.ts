@@ -50,7 +50,11 @@ export {
 } from './panels/panel-containers';
 export {PanelThemeScope} from './panels/panel-theme-scope';
 
-export {SettingsPanel, type SettingsPanelProps} from './panels/settings-panel';
+export {
+  SettingsPanel,
+  type SettingsPanelFontSize,
+  type SettingsPanelProps
+} from './panels/settings-panel';
 export {
   StudioSettingsIcon,
   StudioSettingsPanel,
@@ -135,6 +139,7 @@ export {
   getDefaultValue,
   getInitialCollapsedState,
   getSectionKey,
+  getSettingDefinitions,
   getSettingPersistenceTarget,
   getValueAtPath,
   mergeCollapsedState,
@@ -144,6 +149,7 @@ export {
   setValueAtPath,
   type PartitionedSettingsSchema,
   type SettingDescriptor,
+  type SettingDescriptorByName,
   type SettingOption,
   type SettingPersistenceTarget,
   type SettingType,
@@ -154,6 +160,7 @@ export {
   type SettingsState
 } from './lib/settings/settings';
 export {
+  getChangedSetting,
   SettingsManager,
   settingsManager,
   type SettingsChangeDescriptor,

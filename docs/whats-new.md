@@ -24,6 +24,7 @@ A new module for deck-independent panel composition and small application UI.
 - `PanelModal` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
 - `SettingsPanel` numeric range inputs can apply descriptor-level trailing debounce via `sliderDebounceMs`.
 - `SettingsPanel` and `StudioSettingsPanel` select menus can render option descriptions and grow to fit long labels; `StudioSettingsPanel` also accepts `settingRowLayout: 'fit-labels'` when controls should claim width from short labels.
+- `SettingsManager` now exposes schema indexing and named change lookup helpers, and `SettingsPanel` accepts supported control text sizing through `fontSize`.
 
 ### `@deck.gl-community/widgets`
 

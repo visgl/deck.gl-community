@@ -63,6 +63,9 @@ export type SettingsSchema = {
   sections: SettingsSectionDescriptor[];
 };
 
+/** Setting descriptor lookup keyed by setting path. */
+export type SettingDescriptorByName = Map<string, SettingDescriptor>;
+
 /** Runtime settings snapshot keyed by setting path or nested object keys. */
 export type SettingsState = Record<string, unknown>;
 
@@ -150,6 +153,19 @@ export function getSectionKey(section: SettingsSectionDescriptor, index: number)
 /** Returns whether a section should start collapsed, defaulting to `true`. */
 export function getInitialCollapsedState(section: SettingsSectionDescriptor): boolean {
   return section.initiallyCollapsed ?? true;
+}
+
+/** Indexes a settings schema by setting path for settings-manager registration. */
+export function getSettingDefinitions(schema: SettingsSchema): SettingDescriptorByName {
+  const settingDefinitions: SettingDescriptorByName = new Map();
+
+  for (const section of schema.sections) {
+    for (const setting of section.settings) {
+      settingDefinitions.set(setting.name, setting);
+    }
+  }
+
+  return settingDefinitions;
 }
 
 /** Builds initial collapsed state keyed by settings section id, name, or index. */

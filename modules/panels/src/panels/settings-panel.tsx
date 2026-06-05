@@ -33,6 +33,9 @@ type SettingsPanelChangeHandler = (
   }>
 ) => void;
 
+/** CSS font-size value accepted by settings panel controls. */
+export type SettingsPanelFontSize = number | string;
+
 /** Settings panel configuration for sidebar/modal container composition. */
 export type SettingsPanelProps = {
   /** Stable panel id used by parent containers. */
@@ -45,6 +48,8 @@ export type SettingsPanelProps = {
   settings?: SettingsState;
   /** Called when a setting value changes. */
   onSettingsChange?: SettingsPanelChangeHandler;
+  /** Optional text size used by setting labels and text, number, and select controls. */
+  fontSize?: SettingsPanelFontSize;
   /** Optional theme override applied to this panel subtree. */
   theme?: PanelTheme;
 };
@@ -148,6 +153,13 @@ const CHECKBOX_STYLE: JSX.CSSProperties = {
   accentColor: 'var(--button-icon-hover, currentColor)'
 };
 
+function withFontSize(
+  style: JSX.CSSProperties,
+  fontSize: SettingsPanelFontSize | undefined
+): JSX.CSSProperties {
+  return fontSize === undefined ? style : {...style, fontSize};
+}
+
 function stopPropagation(event: Event) {
   event.stopPropagation();
 }
@@ -163,12 +175,14 @@ function stopPropagationForInput(event: Event) {
 }
 
 type SettingsControlProps = {
+  fontSize?: SettingsPanelFontSize;
   setting: SettingDescriptor;
   value: SettingValue;
   onValueChange: (nextValue: SettingValue) => void;
 };
 
 type StringSettingControlProps = {
+  fontSize?: SettingsPanelFontSize;
   inputId: string;
   label: string;
   value: string;
@@ -176,6 +190,7 @@ type StringSettingControlProps = {
 };
 
 type NumberSettingControlProps = {
+  fontSize?: SettingsPanelFontSize;
   inputId: string;
   label: string;
   setting: SettingDescriptor;
@@ -183,7 +198,13 @@ type NumberSettingControlProps = {
   onValueChange: (nextValue: SettingValue) => void;
 };
 
-function StringSettingControl({inputId, label, value, onApply}: StringSettingControlProps) {
+function StringSettingControl({
+  fontSize,
+  inputId,
+  label,
+  value,
+  onApply
+}: StringSettingControlProps) {
   const [pendingValue, setPendingValue] = useState(value);
   const [recentValues, setRecentValues] = useState<string[]>(() => (value ? [value] : []));
 
@@ -236,7 +257,7 @@ function StringSettingControl({inputId, label, value, onApply}: StringSettingCon
         onKeyUp={stopPropagationForInput}
         onPointerDown={stopPropagationForInput}
         aria-label={label}
-        style={STRING_CONTROL_STYLE}
+        style={withFontSize(STRING_CONTROL_STYLE, fontSize)}
       />
       {recentValues.length > 0 && (
         <datalist id={`${inputId}-recent-values`}>
@@ -249,7 +270,7 @@ function StringSettingControl({inputId, label, value, onApply}: StringSettingCon
         type="button"
         disabled={!isDirty}
         style={{
-          ...STRING_APPLY_BUTTON_STYLE,
+          ...withFontSize(STRING_APPLY_BUTTON_STYLE, fontSize),
           opacity: isDirty ? 1 : 0.55,
           cursor: isDirty ? 'pointer' : 'default',
           marginLeft: '6px'
@@ -266,6 +287,7 @@ function StringSettingControl({inputId, label, value, onApply}: StringSettingCon
 }
 
 function NumberSettingControl({
+  fontSize,
   inputId,
   label,
   setting,
@@ -327,7 +349,7 @@ function NumberSettingControl({
         onInput={event => commitValue(Number(event.currentTarget.value))}
         onChange={event => commitValue(Number(event.currentTarget.value))}
         aria-label={label}
-        style={INPUT_STYLE}
+        style={withFontSize(INPUT_STYLE, fontSize)}
       />
     );
   }
@@ -354,7 +376,7 @@ function NumberSettingControl({
         onInput={event => commitValue(Number(event.currentTarget.value))}
         onChange={event => commitValue(Number(event.currentTarget.value))}
         aria-label={`${label} numeric value`}
-        style={NUMBER_INPUT_STYLE}
+        style={withFontSize(NUMBER_INPUT_STYLE, fontSize)}
       />
     </div>
   );
@@ -376,7 +398,7 @@ function clearPendingSliderChange(timerRef: {current: ReturnType<typeof setTimeo
 }
 
 // eslint-disable-next-line complexity
-function SettingsControl({setting, value, onValueChange}: SettingsControlProps) {
+function SettingsControl({fontSize, setting, value, onValueChange}: SettingsControlProps) {
   const label = setting.label ?? setting.name;
   const tooltip = setting.description?.trim();
   const inputId = `settings-panel-input-${setting.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
@@ -402,6 +424,7 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
   } else if (setting.type === 'number') {
     control = (
       <NumberSettingControl
+        fontSize={fontSize}
         inputId={inputId}
         label={label}
         setting={setting}
@@ -419,11 +442,13 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
         label={label}
         options={normalizedOptions}
         onValueChange={onValueChange}
+        fontSize={fontSize}
       />
     );
   } else {
     control = (
       <StringSettingControl
+        fontSize={fontSize}
         inputId={inputId}
         label={label}
         value={String(value)}
@@ -434,7 +459,10 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
 
   return (
     <div data-setting-row-for={setting.name} style={SETTING_ROW_STYLE} title={tooltip}>
-      <label htmlFor={setting.type === 'select' ? undefined : inputId} style={SETTING_LABEL_STYLE}>
+      <label
+        htmlFor={setting.type === 'select' ? undefined : inputId}
+        style={withFontSize(SETTING_LABEL_STYLE, fontSize)}
+      >
         {label}
       </label>
       <div style={SETTING_CONTROL_STYLE}>{control}</div>
@@ -443,6 +471,7 @@ function SettingsControl({setting, value, onValueChange}: SettingsControlProps) 
 }
 
 type SettingsPanelContentProps = {
+  fontSize?: SettingsPanelFontSize;
   schema: SettingsSchema;
   settings: SettingsState;
   onSettingsChange?: SettingsPanelChangeHandler;
@@ -450,12 +479,14 @@ type SettingsPanelContentProps = {
 
 type SettingsSectionBodyProps = {
   contentStyle: JSX.CSSProperties;
+  fontSize?: SettingsPanelFontSize;
   onValueChange: (path: string, nextValue: SettingValue) => void;
   section: SettingsSectionDescriptor;
   settings: SettingsState;
 };
 
 type SettingsSectionPanelContentProps = {
+  fontSize?: SettingsPanelFontSize;
   onSettingsChange?: SettingsPanelChangeHandler;
   section: SettingsSectionDescriptor;
   settings: SettingsState;
@@ -466,6 +497,7 @@ type SettingsSectionPanelContentProps = {
  */
 function SettingsSectionBody({
   contentStyle,
+  fontSize,
   onValueChange,
   section,
   settings
@@ -475,6 +507,7 @@ function SettingsSectionBody({
       {section.settings.map(setting => (
         <SettingsControl
           key={setting.name}
+          fontSize={fontSize}
           setting={setting}
           value={resolveSettingValue(setting, settings)}
           onValueChange={nextValue => onValueChange(setting.name, nextValue)}
@@ -488,6 +521,7 @@ function SettingsSectionBody({
  * Renders one settings schema section as direct panel content for generic panel content containers.
  */
 function SettingsSectionPanelContent({
+  fontSize,
   onSettingsChange,
   section,
   settings
@@ -518,6 +552,7 @@ function SettingsSectionPanelContent({
     >
       <SettingsSectionBody
         contentStyle={SECTION_PANEL_CONTENT_STYLE}
+        fontSize={fontSize}
         onValueChange={updateSetting}
         section={section}
         settings={localSettings}
@@ -533,6 +568,7 @@ const DEFAULT_SETTINGS_PANEL_STATE: SettingsState = {};
  * Shared settings body used by both the legacy popover panelContainer and panel-based containers.
  */
 export function SettingsPanelContent({
+  fontSize,
   schema,
   settings,
   onSettingsChange
@@ -584,6 +620,7 @@ export function SettingsPanelContent({
       {renderInlineSingleSection ? (
         <SettingsSectionBody
           contentStyle={SECTION_CONTENT_STYLE}
+          fontSize={fontSize}
           onValueChange={updateSetting}
           section={sectionEntries[0].section}
           settings={localSettings}
@@ -628,6 +665,7 @@ export function SettingsPanelContent({
               {!isCollapsed && (
                 <SettingsSectionBody
                   contentStyle={SECTION_CONTENT_STYLE}
+                  fontSize={fontSize}
                   onValueChange={updateSetting}
                   section={section}
                   settings={localSettings}
@@ -658,6 +696,7 @@ export class SettingsPanel implements Panel {
     schema = DEFAULT_SETTINGS_PANEL_SCHEMA,
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
+    fontSize,
     theme = 'inherit'
   }: Omit<SettingsPanelProps, 'id'>): Panel[] {
     return schema.sections.map((section, index) => {
@@ -668,6 +707,7 @@ export class SettingsPanel implements Panel {
         theme,
         content: (
           <SettingsSectionPanelContent
+            fontSize={fontSize}
             onSettingsChange={onSettingsChange}
             section={section}
             settings={settings}
@@ -683,6 +723,7 @@ export class SettingsPanel implements Panel {
     schema = DEFAULT_SETTINGS_PANEL_SCHEMA,
     settings = DEFAULT_SETTINGS_PANEL_STATE,
     onSettingsChange,
+    fontSize,
     theme = 'inherit'
   }: SettingsPanelProps = {}) {
     this.id = id;
@@ -690,6 +731,7 @@ export class SettingsPanel implements Panel {
     this.theme = theme;
     this.content = (
       <SettingsPanelContent
+        fontSize={fontSize}
         schema={schema}
         settings={settings}
         onSettingsChange={onSettingsChange}

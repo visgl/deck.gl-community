@@ -17,6 +17,7 @@ Use `SettingsPanel` when a settings form should live inside a panel layout or pa
 ```ts
 import {
   SettingsPanel,
+  type SettingsPanelFontSize,
   type SettingsPanelProps,
   type SettingDescriptor,
   type SettingsSchema,
@@ -41,6 +42,7 @@ type SettingsPanelProps = {
       descriptor?: SettingDescriptor;
     }>
   ) => void;
+  fontSize?: SettingsPanelFontSize;
   theme?: 'inherit' | 'light' | 'dark' | 'invert';
 };
 ```
@@ -51,6 +53,8 @@ numeric descriptors may include `sliderDebounceMs` to apply a trailing debounce
 to range-slider input events while keeping direct numeric entry immediate.
 Select options may be raw primitive values or `{label, value, description?}`
 objects; `description` renders below the option label in the open menu.
+Set `fontSize` when labels and text, number, or select controls need a larger
+or smaller supported text size; open select menu options use the same size.
 
 ## See Also
 

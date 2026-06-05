@@ -71,6 +71,7 @@ const INITIAL_SETTINGS: SettingsState = {
 };
 
 function renderSettingsPanel(options?: {
+  fontSize?: number | string;
   settings?: SettingsState;
   onSettingsChange?: (settings: SettingsState) => void;
 }) {
@@ -81,7 +82,8 @@ function renderSettingsPanel(options?: {
     label: 'Visualization settings',
     schema: TEST_SCHEMA,
     settings: options?.settings ?? INITIAL_SETTINGS,
-    onSettingsChange: options?.onSettingsChange
+    onSettingsChange: options?.onSettingsChange,
+    fontSize: options?.fontSize
   });
 
   render(panel.content, root);
@@ -227,6 +229,31 @@ describe('SettingsPanel', () => {
     expect(numberInput.getAttribute('style')).toContain('var(--button-backdrop-filter');
     expect(numberInput.style.height).toBe('28px');
     expect(numberInput.style.padding).toBe('2px 6px');
+
+    cleanup();
+  });
+
+  it('applies supported font size overrides to labels and select menu options', async () => {
+    const {root, cleanup} = renderSettingsPanel({fontSize: '15px'});
+    const visibilityToggle = getRequiredButton(root, 'button[aria-expanded]');
+    const modeToggle = root.querySelectorAll('button[aria-expanded]')[1] as HTMLButtonElement;
+    visibilityToggle.click();
+    modeToggle.click();
+    await Promise.resolve();
+
+    const settingLabel = root.querySelector<HTMLElement>(
+      '[data-setting-row-for="flags.enabled"] label'
+    );
+    const numberInput = getRequiredInput(root, 'input[type="number"]');
+    const selectButton = getRequiredButton(root, '#settings-panel-input-mode');
+    selectButton.click();
+    await Promise.resolve();
+
+    const selectOption = document.body.querySelector<HTMLButtonElement>('[role="option"]');
+    expect(settingLabel?.style.fontSize).toBe('15px');
+    expect(numberInput.style.fontSize).toBe('15px');
+    expect(selectButton.style.fontSize).toBe('15px');
+    expect(selectOption?.style.fontSize).toBe('15px');
 
     cleanup();
   });

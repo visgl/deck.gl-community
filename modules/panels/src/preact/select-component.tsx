@@ -21,6 +21,8 @@ export type SelectComponentProps = {
   value: SettingValue;
   options: SelectComponentOption[];
   onValueChange: (nextValue: SettingValue) => void;
+  /** Optional text size used by the closed control and open menu options. */
+  fontSize?: number | string;
 };
 
 type SelectOpenEventDetail = {
@@ -176,7 +178,14 @@ function dispatchSelectOpenEvent(ownerDocument: Document, root: HTMLDivElement):
   );
 }
 
-export function SelectComponent({id, label, value, options, onValueChange}: SelectComponentProps) {
+export function SelectComponent({
+  id,
+  label,
+  value,
+  options,
+  onValueChange,
+  fontSize
+}: SelectComponentProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeOptionIndex, setActiveOptionIndex] = useState(() =>
     findSelectedOptionIndex(options, value)
@@ -364,6 +373,7 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
         aria-controls={isOpen ? listboxId : undefined}
         style={{
           ...SELECT_BUTTON_STYLE,
+          ...(fontSize === undefined ? {} : {fontSize}),
           ...(isOpen ? SELECT_BUTTON_OPEN_STYLE : {}),
           opacity: options.length ? 1 : 0.58,
           cursor: options.length ? 'pointer' : 'default'
@@ -415,6 +425,7 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
                   aria-selected={isSelected}
                   style={{
                     ...SELECT_OPTION_STYLE,
+                    ...(fontSize === undefined ? {} : {fontSize}),
                     ...(isActive ? SELECT_OPTION_ACTIVE_STYLE : {}),
                     ...(isSelected ? SELECT_OPTION_SELECTED_STYLE : {})
                   }}
