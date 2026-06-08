@@ -18,18 +18,18 @@ import {
   MarkdownPanel,
   PANEL_THEME_DARK,
   PANEL_THEME_LIGHT,
-  PanelBox,
-  PanelFullScreen,
+  BoxPanelContainer,
+  FullScreenPanelContainer,
   PanelManager,
-  PanelModal,
-  PanelSidebar,
+  ModalPanelContainer,
+  SidebarPanelContainer,
   SettingsPanel,
   SplitterPanel,
   StatsPanel,
   TabbedPanel,
   TextEditorPanel,
-  ToastPanelContainer,
-  ToolbarPanelContainer,
+  ToastComponent,
+  ToolbarComponent,
   URLParametersPanel,
   applyPanelTheme,
   toastManager
@@ -62,10 +62,10 @@ export type PanelDocsExampleHighlight =
   | 'tabbed-panel'
   | 'column-panel'
   | 'splitter-panel'
-  | 'panel-box'
-  | 'panel-modal'
-  | 'panel-sidebar'
-  | 'panel-full-screen';
+  | 'box-panel-container'
+  | 'modal-panel-container'
+  | 'sidebar-panel-container'
+  | 'full-screen-panel-container';
 
 export function mountPanelDocsExample(
   container: HTMLElement,
@@ -116,7 +116,7 @@ export function mountPanelDocsExample(
   });
 
   const panelManager = new PanelManager({parentElement: rootElement});
-  const toolbar = new ToolbarPanelContainer({
+  const toolbar = new ToolbarComponent({
     id: 'panel-docs-toolbar',
     placement: 'bottom-left',
     items: [
@@ -134,7 +134,7 @@ export function mountPanelDocsExample(
       }
     ]
   });
-  const toast = new ToastPanelContainer({
+  const toast = new ToastComponent({
     id: 'panel-docs-toast',
     placement: 'bottom-right',
     showBorder: true
@@ -189,10 +189,10 @@ const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   'tabbed-panel': 'TabbedPanel',
   'column-panel': 'ColumnPanel',
   'splitter-panel': 'SplitterPanel',
-  'panel-box': 'PanelBox',
-  'panel-modal': 'PanelModal',
-  'panel-sidebar': 'PanelSidebar',
-  'panel-full-screen': 'PanelFullScreen'
+  'box-panel-container': 'BoxPanelContainer',
+  'modal-panel-container': 'ModalPanelContainer',
+  'sidebar-panel-container': 'SidebarPanelContainer',
+  'full-screen-panel-container': 'FullScreenPanelContainer'
 };
 
 const SETTINGS_SCHEMA: SettingsSchema = {
@@ -290,14 +290,16 @@ function buildHighlightComponents(
   highlight: PanelDocsExampleHighlight,
   panelElement: HTMLElement,
   overlayElement: HTMLElement
-): Array<PanelBox | PanelModal | PanelSidebar | PanelFullScreen> {
+): Array<
+  BoxPanelContainer | ModalPanelContainer | SidebarPanelContainer | FullScreenPanelContainer
+> {
   const panel = buildHighlightPanel(highlight);
   const title = HIGHLIGHT_TITLES[highlight];
 
   switch (highlight) {
-    case 'panel-modal':
+    case 'modal-panel-container':
       return [
-        new PanelModal({
+        new ModalPanelContainer({
           id: 'panel-docs-modal',
           title,
           panel,
@@ -308,9 +310,9 @@ function buildHighlightComponents(
         })
       ];
 
-    case 'panel-sidebar':
+    case 'sidebar-panel-container':
       return [
-        new PanelSidebar({
+        new SidebarPanelContainer({
           id: 'panel-docs-sidebar',
           title,
           panel,
@@ -323,9 +325,9 @@ function buildHighlightComponents(
         })
       ];
 
-    case 'panel-full-screen':
+    case 'full-screen-panel-container':
       return [
-        new PanelFullScreen({
+        new FullScreenPanelContainer({
           id: 'panel-docs-full-screen',
           title,
           panel,
@@ -334,10 +336,10 @@ function buildHighlightComponents(
         })
       ];
 
-    case 'panel-box':
+    case 'box-panel-container':
     default:
       return [
-        new PanelBox({
+        new BoxPanelContainer({
           id: 'panel-docs-box',
           _container: panelElement,
           widthPx: 420,
@@ -580,9 +582,9 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         ]
       });
 
-    case 'panel-box':
+    case 'box-panel-container':
       return new ColumnPanel({
-        id: 'panel-box-content',
+        id: 'box-panel-container-content',
         title: 'Details',
         panels: [
           new MarkdownPanel({
@@ -593,14 +595,14 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
           new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
-            markdown: 'Use `PanelBox` when content should stay visible.'
+            markdown: 'Use `BoxPanelContainer` when content should stay visible.'
           })
         ]
       });
 
-    case 'panel-modal':
+    case 'modal-panel-container':
       return new ColumnPanel({
-        id: 'panel-modal-content',
+        id: 'modal-panel-container-content',
         title: 'Details',
         panels: [
           new MarkdownPanel({
@@ -611,14 +613,14 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
           new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
-            markdown: 'Use `PanelModal` when content should open on demand.'
+            markdown: 'Use `ModalPanelContainer` when content should open on demand.'
           })
         ]
       });
 
-    case 'panel-sidebar':
+    case 'sidebar-panel-container':
       return new ColumnPanel({
-        id: 'panel-sidebar-content',
+        id: 'sidebar-panel-container-content',
         title: 'Inspector',
         panels: [
           new MarkdownPanel({
@@ -629,14 +631,15 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
           new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
-            markdown: 'Use `PanelSidebar` to keep content reachable while the scene stays visible.'
+            markdown:
+              'Use `SidebarPanelContainer` to keep content reachable while the scene stays visible.'
           })
         ]
       });
 
-    case 'panel-full-screen':
+    case 'full-screen-panel-container':
       return new ColumnPanel({
-        id: 'panel-full-screen-content',
+        id: 'full-screen-panel-container-content',
         title: 'Workspace',
         panels: [
           new MarkdownPanel({
@@ -648,7 +651,7 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
             id: 'notes',
             title: 'Notes',
             markdown:
-              'Use `PanelFullScreen` when the panel layout should dominate the available space.'
+              'Use `FullScreenPanelContainer` when the panel layout should dominate the available space.'
           })
         ]
       });

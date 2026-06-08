@@ -11,8 +11,12 @@ export type SettingPersistenceTarget = 'local-storage' | 'url' | 'none';
 export type SettingOption<Value extends SettingValue = SettingValue> =
   | Value
   | {
+      /** Human-friendly label shown in the select control. */
       label: string;
+      /** Primitive setting value written when the option is selected. */
       value: Value;
+      /** Optional supporting copy shown below the option label in an open select menu. */
+      description?: string;
     };
 
 /** Backwards-compatible alias for selectable setting options. */
@@ -58,6 +62,9 @@ export type SettingsSchema = {
   title?: string;
   sections: SettingsSectionDescriptor[];
 };
+
+/** Setting descriptor lookup keyed by setting path. */
+export type SettingDescriptorByName = Map<string, SettingDescriptor>;
 
 /** Runtime settings snapshot keyed by setting path or nested object keys. */
 export type SettingsState = Record<string, unknown>;
@@ -148,6 +155,19 @@ export function getInitialCollapsedState(section: SettingsSectionDescriptor): bo
   return section.initiallyCollapsed ?? true;
 }
 
+/** Indexes a settings schema by setting path for settings-manager registration. */
+export function getSettingDefinitions(schema: SettingsSchema): SettingDescriptorByName {
+  const settingDefinitions: SettingDescriptorByName = new Map();
+
+  for (const section of schema.sections) {
+    for (const setting of section.settings) {
+      settingDefinitions.set(setting.name, setting);
+    }
+  }
+
+  return settingDefinitions;
+}
+
 /** Builds initial collapsed state keyed by settings section id, name, or index. */
 export function buildInitialCollapsedState(
   sections: SettingsSectionDescriptor[]
@@ -162,11 +182,13 @@ export function buildInitialCollapsedState(
 export function normalizeOption(option: SettingsOption): {
   label: string;
   value: SettingValue;
+  description?: string;
 } {
   if (isRecord(option) && 'label' in option && 'value' in option) {
     return {
       label: String(option.label),
-      value: option.value as SettingValue
+      value: option.value as SettingValue,
+      description: typeof option.description === 'string' ? option.description : undefined
     };
   }
 

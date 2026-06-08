@@ -5,7 +5,12 @@ import {
   setValueAtPath
 } from './settings';
 
-import type {SettingDescriptor, SettingsState, SettingValue} from './settings';
+import type {
+  SettingDescriptor,
+  SettingDescriptorByName,
+  SettingsState,
+  SettingValue
+} from './settings';
 
 /**
  * Describes one tracked setting value transition emitted by a settings manager update.
@@ -35,14 +40,20 @@ export type SettingsManagerOnChange<
   changedSettings?: Change[]
 ) => void;
 
-type SettingDescriptorByName = Map<string, SettingDescriptor>;
-
+/** Local-storage provider configuration for descriptor-backed settings persistence. */
 export type SettingsManagerLocalStorageConfig = {
   /** Browser local storage key that stores settings unless the descriptor explicitly opts out. */
   storageKey: string;
   /** Optional storage provider used by tests or non-browser integrations. */
   getStorage?: () => Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null | undefined;
 };
+
+/** Returns the emitted change descriptor for one setting path when present. */
+export function getChangedSetting<
+  Change extends SettingsChangeDescriptor = SettingsChangeDescriptor
+>(changedSettings: readonly Change[] | undefined, name: string): Change | undefined {
+  return changedSettings?.find(changedSetting => changedSetting.name === name);
+}
 
 /**
  * Coordinates settings snapshots, change emission, and descriptor-aware local persistence.
@@ -191,14 +202,6 @@ export class SettingsManager<Change extends SettingsChangeDescriptor = SettingsC
     this.emitSettingsChange(nextSettings);
   }
 
-  /**
-   * Applies one full settings snapshot received from a widget callback.
-   * @deprecated Use setSettings instead.
-   */
-  setFromWidget(nextSettings: SettingsState): void {
-    this.setSettings(nextSettings);
-  }
-
   #computeChangedSettings(nextSettings: SettingsState): Change[] {
     const changedSettings: Change[] = [];
 
@@ -321,4 +324,5 @@ function shouldPersistSetting(descriptor: SettingDescriptor | undefined): boolea
   return getSettingPersistenceTarget(descriptor) === 'local-storage';
 }
 
+/** Shared settings manager for apps that do not need an isolated registry. */
 export const settingsManager = new SettingsManager();

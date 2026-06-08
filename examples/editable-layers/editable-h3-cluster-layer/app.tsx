@@ -12,13 +12,8 @@ import {
   EditModeTrayWidget,
   type EditModeTrayWidgetModeOption
 } from '@deck.gl-community/editable-layers';
-import {
-  ColumnPanel,
-  MarkdownPanel,
-  ToolbarPanelContainer,
-  type ToolbarPanelContainerItem
-} from '@deck.gl-community/panels';
-import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel, type ToolbarComponentItem} from '@deck.gl-community/panels';
+import {BoxPanelWidget, ToolbarWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 
 import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data';
@@ -109,7 +104,7 @@ export function mountEditableH3ClusterLayerExample(container: HTMLElement): () =
     style: {margin: '16px 0 0 16px'}
   });
 
-  const toolbarWidget = new ToolbarPanelContainer({
+  const toolbarWidget = new ToolbarWidget({
     placement: 'top-right',
     style: {margin: '16px 16px 0 0'}
   });
@@ -281,7 +276,7 @@ function buildToolbarItems({
   selectedIndexes: number[];
   onSetBooleanOperation: (booleanOperation: BooleanOperation) => void;
   onToggleClusterSelection: (index: number) => void;
-}): ToolbarPanelContainerItem[] {
+}): ToolbarComponentItem[] {
   return [
     {
       kind: 'toggle-group',
@@ -302,7 +297,7 @@ function buildToolbarItems({
     },
     ...Array.from(
       {length: clusterCount},
-      (_, index): ToolbarPanelContainerItem => ({
+      (_, index): ToolbarComponentItem => ({
         kind: 'action',
         id: `cluster-${index}`,
         label: `Cluster ${index + 1}`,

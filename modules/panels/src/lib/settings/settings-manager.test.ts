@@ -1,10 +1,52 @@
 import {describe, expect, it, vi} from 'vitest';
 
-import {SettingsManager} from './settings-manager';
+import {getChangedSetting, SettingsManager} from './settings-manager';
+import {getSettingDefinitions} from './settings';
 
-import type {SettingDescriptor} from './settings';
+import type {SettingDescriptor, SettingsSchema} from './settings';
 
 describe('SettingsManager', () => {
+  it('indexes schema settings for settings manager registration', () => {
+    const interactionDescriptor: SettingDescriptor = {
+      name: 'interaction.mode',
+      type: 'select',
+      options: ['drag-to-zoom', 'drag-to-pan']
+    };
+    const schema: SettingsSchema = {
+      sections: [
+        {
+          name: 'Interaction',
+          settings: [interactionDescriptor]
+        }
+      ]
+    };
+
+    expect(getSettingDefinitions(schema)).toEqual(
+      new Map([['interaction.mode', interactionDescriptor]])
+    );
+  });
+
+  it('returns one named change descriptor from an emitted change list', () => {
+    const opacityChange = {
+      type: 'setting' as const,
+      name: 'render.opacity',
+      previousValue: 0.4,
+      nextValue: 0.5
+    };
+    const visibilityChange = {
+      type: 'setting' as const,
+      name: 'render.visible',
+      previousValue: true,
+      nextValue: false
+    };
+
+    expect(getChangedSetting([opacityChange, visibilityChange], 'render.visible')).toBe(
+      visibilityChange
+    );
+    expect(getChangedSetting([opacityChange], 'render.visible')).toBeUndefined();
+    expect(getChangedSetting(undefined, 'render.visible')).toBeUndefined();
+  });
+
   it('overlays stored local storage settings unless a descriptor opts out', () => {
     const manager = new SettingsManager();
     const storage = makeMemoryStorage({
@@ -149,7 +191,7 @@ describe('SettingsManager', () => {
     expect(storage.getItem('panel-settings')).toBe('{"interactionMode":"drag-to-pan"}');
   });
 
-  it('keeps persisted settings when partial widget updates omit them', () => {
+  it('keeps persisted settings when partial settings snapshots omit them', () => {
     const manager = new SettingsManager();
     const storage = makeMemoryStorage({
       'panel-settings': JSON.stringify({interactionMode: 'drag-to-pan'})

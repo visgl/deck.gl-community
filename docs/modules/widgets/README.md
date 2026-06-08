@@ -2,14 +2,19 @@
 
 This package bundles widgets that integrate with deck.gl's built-in widget system. Widgets are small UI controls that the `Deck` class can mount in a view to manipulate the current view state.
 
-Alongside classic navigation and overlay widgets, the package also exports deck-facing panel wrappers for assembling reusable sidebars, modals, and summary cards around a deck.gl canvas.
+Alongside classic navigation and overlay widgets, the package exports
+`PanelWidget`, the deck adapter for `PanelComponent` instances owned by
+`@deck.gl-community/panels`.
 
 For renderer selection and reusable luma device lifecycle, the package also exports `DeviceManager` and `DeviceTabsWidget`.
 
-Panel definitions and standalone mounting live in [`@deck.gl-community/panels`](/docs/modules/panels). Import panels and panel containers from `panels`, then pass them to the panel widgets in this package.
+Panel definitions, panel containers, specialized toolbar/toast components, and
+standalone mounting live in [`@deck.gl-community/panels`](/docs/modules/panels).
+Import components from `panels`, then pass them through `PanelWidget` or one of
+the thin named adapters in this package.
 
 :::caution
-The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
+The deck.gl-community repository is semi-maintained. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
 
 ## Installation
@@ -96,21 +101,18 @@ map positions via the widget lifecycle.
 - [OmniBoxWidget](./api-reference/omni-box-widget.md)
 - [TimeMeasureWidget](./api-reference/time-measure-widget.md)
 
-Standalone UI such as `ToolbarPanelContainer`, `ToastPanelContainer`, and `toastManager` lives in
+Standalone UI such as `ToolbarComponent`, `ToastComponent`, and `toastManager` lives in
 [`@deck.gl-community/panels`](/docs/modules/panels).
 
 ## Panel Widgets
 
-Widgets that host reusable panel content:
+Widgets that adapt panel-owned components:
 
-- [BoxPanelWidget](./api-reference/box-widget.md)
-- [FullScreenPanelWidget](./api-reference/full-screen-panel-widget.md)
-- [ModalPanelWidget](./api-reference/modal-widget.md)
-- [SidebarPanelWidget](./api-reference/sidebar-widget.md)
+- [PanelWidget](./api-reference/panel-widget.md)
 
 Use panel definitions from [`@deck.gl-community/panels`](/docs/modules/panels):
 
 - [Using with deck.gl](/docs/modules/panels/developer-guide/using-with-deck-gl)
 - [Leaf Panels](/docs/modules/panels/api-reference/custom-panel)
-- [Composite Panels](/docs/modules/panels/api-reference/accordeon-panel)
-- [Panel Containers](/docs/modules/panels/api-reference/panel-container)
+- [Composite Panels](/docs/modules/panels/api-reference/composite-panels/accordeon-panel)
+- [Panel Containers](/docs/modules/panels/api-reference/panel-containers/panel-container)

@@ -7,8 +7,12 @@ import type {SettingValue} from '../lib/settings/settings';
 import type {JSX} from 'preact';
 
 export type SelectComponentOption = {
+  /** Human-friendly label shown in the select control. */
   label: string;
+  /** Primitive setting value written when the option is selected. */
   value: SettingValue;
+  /** Optional supporting copy shown below the option label in an open select menu. */
+  description?: string;
 };
 
 export type SelectComponentProps = {
@@ -17,7 +21,16 @@ export type SelectComponentProps = {
   value: SettingValue;
   options: SelectComponentOption[];
   onValueChange: (nextValue: SettingValue) => void;
+  /** Optional text size used by the closed control and open menu options. */
+  fontSize?: number | string;
 };
+
+type OpenSelectRegistration = {
+  close: () => void;
+  root: HTMLDivElement;
+};
+
+const OPEN_SELECTS_BY_DOCUMENT = new WeakMap<Document, OpenSelectRegistration>();
 
 const SELECT_ROOT_STYLE: JSX.CSSProperties = {
   position: 'relative',
@@ -72,7 +85,10 @@ const SELECT_CARET_STYLE: JSX.CSSProperties = {
 const SELECT_LIST_STYLE: JSX.CSSProperties = {
   position: 'fixed',
   zIndex: 10000,
+  width: 'max-content',
+  maxWidth: 'calc(100vw - 16px)',
   maxHeight: '192px',
+  overflowX: 'auto',
   overflowY: 'auto',
   padding: '4px',
   border: 'var(--button-inner-stroke, 1px solid rgba(148, 163, 184, 0.48))',
@@ -99,6 +115,27 @@ const SELECT_OPTION_STYLE: JSX.CSSProperties = {
   cursor: 'pointer',
   fontSize: '12px',
   textAlign: 'left'
+};
+
+const SELECT_OPTION_CONTENT_STYLE: JSX.CSSProperties = {
+  minWidth: 0,
+  display: 'grid',
+  gap: '1px'
+};
+
+const SELECT_OPTION_LABEL_STYLE: JSX.CSSProperties = {
+  whiteSpace: 'nowrap',
+  textAlign: 'left'
+};
+
+const SELECT_OPTION_DESCRIPTION_STYLE: JSX.CSSProperties = {
+  color: 'var(--button-icon-idle, currentColor)',
+  fontSize: '11px',
+  fontWeight: 400,
+  lineHeight: 1.25,
+  opacity: 0.78,
+  textAlign: 'left',
+  whiteSpace: 'normal'
 };
 
 const SELECT_OPTION_ACTIVE_STYLE: JSX.CSSProperties = {
@@ -132,7 +169,30 @@ function getNextOptionIndex(currentIndex: number, delta: -1 | 1, optionCount: nu
   return (resolvedIndex + delta + optionCount) % optionCount;
 }
 
-export function SelectComponent({id, label, value, options, onValueChange}: SelectComponentProps) {
+function registerOpenSelect(root: HTMLDivElement, close: () => void): void {
+  const ownerDocument = root.ownerDocument;
+  const openSelect = OPEN_SELECTS_BY_DOCUMENT.get(ownerDocument);
+  if (openSelect && openSelect.root !== root) {
+    openSelect.close();
+  }
+  OPEN_SELECTS_BY_DOCUMENT.set(ownerDocument, {close, root});
+}
+
+function unregisterOpenSelect(root: HTMLDivElement): void {
+  const ownerDocument = root.ownerDocument;
+  if (OPEN_SELECTS_BY_DOCUMENT.get(ownerDocument)?.root === root) {
+    OPEN_SELECTS_BY_DOCUMENT.delete(ownerDocument);
+  }
+}
+
+export function SelectComponent({
+  id,
+  label,
+  value,
+  options,
+  onValueChange,
+  fontSize
+}: SelectComponentProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeOptionIndex, setActiveOptionIndex] = useState(() =>
     findSelectedOptionIndex(options, value)
@@ -149,6 +209,27 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
   );
   const selectedOption = selectedOptionIndex >= 0 ? options[selectedOptionIndex] : undefined;
   const selectedLabel = selectedOption?.label ?? String(value);
+
+  const closeSelect = () => {
+    const root = rootRef.current;
+    if (root) {
+      unregisterOpenSelect(root);
+    }
+    setIsOpen(false);
+  };
+
+  const openSelect = () => {
+    const root = rootRef.current;
+    if (root) {
+      registerOpenSelect(root, closeSelect);
+    }
+    setIsOpen(true);
+  };
+
+  const selectOption = (option: SelectComponentOption) => {
+    onValueChange(option.value);
+    closeSelect();
+  };
 
   useEffect(() => {
     optionRefs.current = optionRefs.current.slice(0, options.length);
@@ -172,13 +253,25 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
       }
       const target = event.target as Node;
       if (!rootRef.current.contains(target) && !listboxRef.current?.contains(target)) {
-        setIsOpen(false);
+        closeSelect();
       }
     };
 
-    ownerDocument.addEventListener('pointerdown', handleDocumentPointerDown);
+    ownerDocument.addEventListener('pointerdown', handleDocumentPointerDown, true);
     return () => {
-      ownerDocument.removeEventListener('pointerdown', handleDocumentPointerDown);
+      ownerDocument.removeEventListener('pointerdown', handleDocumentPointerDown, true);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!isOpen || !root) {
+      return undefined;
+    }
+
+    registerOpenSelect(root, closeSelect);
+    return () => {
+      unregisterOpenSelect(root);
     };
   }, [isOpen]);
 
@@ -194,11 +287,23 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
         return;
       }
       const rect = rootRef.current.getBoundingClientRect();
+      const viewportWidth =
+        ownerDocument.documentElement.clientWidth || ownerWindow.innerWidth || rect.right;
+      const viewportPadding = 8;
+      const alignRight = viewportWidth - rect.right < rect.left;
+      const edgeOffset = alignRight
+        ? Math.max(viewportWidth - rect.right, viewportPadding)
+        : Math.max(rect.left, viewportPadding);
+      const availableWidth = alignRight
+        ? Math.max(rect.right - viewportPadding, 0)
+        : Math.max(viewportWidth - edgeOffset - viewportPadding, 0);
       setListStyle({
         ...SELECT_LIST_STYLE,
         top: `${rect.bottom + 4}px`,
-        left: `${rect.left}px`,
-        width: `${rect.width}px`
+        left: alignRight ? undefined : `${edgeOffset}px`,
+        right: alignRight ? `${edgeOffset}px` : undefined,
+        minWidth: `${Math.min(rect.width, availableWidth)}px`,
+        maxWidth: `${availableWidth}px`
       });
     };
 
@@ -218,9 +323,12 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
     optionRefs.current[activeOptionIndex]?.scrollIntoView?.({block: 'nearest'});
   }, [activeOptionIndex, isOpen]);
 
-  const selectOption = (option: SelectComponentOption) => {
-    onValueChange(option.value);
-    setIsOpen(false);
+  const handleButtonClick = () => {
+    if (isOpen) {
+      closeSelect();
+      return;
+    }
+    openSelect();
   };
 
   const handleButtonKeyDown: JSX.KeyboardEventHandler<HTMLButtonElement> = event => {
@@ -228,7 +336,7 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
 
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
-      setIsOpen(true);
+      openSelect();
       setActiveOptionIndex(previous =>
         getNextOptionIndex(previous, event.key === 'ArrowDown' ? 1 : -1, options.length)
       );
@@ -244,14 +352,14 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
         }
         return;
       }
-      setIsOpen(true);
+      openSelect();
       setActiveOptionIndex(selectedOptionIndex);
       return;
     }
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      setIsOpen(false);
+      closeSelect();
     }
   };
 
@@ -273,12 +381,13 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
         aria-controls={isOpen ? listboxId : undefined}
         style={{
           ...SELECT_BUTTON_STYLE,
+          ...(fontSize === undefined ? {} : {fontSize}),
           ...(isOpen ? SELECT_BUTTON_OPEN_STYLE : {}),
           opacity: options.length ? 1 : 0.58,
           cursor: options.length ? 'pointer' : 'default'
         }}
         disabled={!options.length}
-        onClick={() => setIsOpen(previous => !previous)}
+        onClick={handleButtonClick}
         onKeyDown={handleButtonKeyDown}
         onKeyUp={event => stopEventPropagation(event as unknown as Event)}
       >
@@ -311,6 +420,7 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
             {options.map((option, index) => {
               const isSelected = index === selectedOptionIndex;
               const isActive = index === activeOptionIndex;
+              const description = option.description?.trim();
 
               return (
                 <button
@@ -323,6 +433,7 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
                   aria-selected={isSelected}
                   style={{
                     ...SELECT_OPTION_STYLE,
+                    ...(fontSize === undefined ? {} : {fontSize}),
                     ...(isActive ? SELECT_OPTION_ACTIVE_STYLE : {}),
                     ...(isSelected ? SELECT_OPTION_SELECTED_STYLE : {})
                   }}
@@ -333,7 +444,19 @@ export function SelectComponent({id, label, value, options, onValueChange}: Sele
                   }}
                   onClick={() => selectOption(option)}
                 >
-                  <span style={SELECT_VALUE_STYLE}>{option.label}</span>
+                  <span style={SELECT_OPTION_CONTENT_STYLE}>
+                    <span data-select-option-label="true" style={SELECT_OPTION_LABEL_STYLE}>
+                      {option.label}
+                    </span>
+                    {description && (
+                      <span
+                        data-select-option-description="true"
+                        style={SELECT_OPTION_DESCRIPTION_STYLE}
+                      >
+                        {description}
+                      </span>
+                    )}
+                  </span>
                   {isSelected && <span aria-hidden>✓</span>}
                 </button>
               );

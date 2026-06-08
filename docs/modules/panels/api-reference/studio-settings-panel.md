@@ -28,13 +28,17 @@ type StudioSettingsPanelProps = {
   settings: SettingsState;
   onSettingsChange?: SettingsManagerOnChange;
   presetLabel?: string;
+  settingRowLayout?: 'aligned' | 'fit-labels';
 };
 ```
 
 `schema` supplies visualization controls. `applicationSchema` is rendered as a
 separate rail group for app-level controls. Setting descriptors may include
 `group` to organize rows within a section and `sliderDebounceMs` for numeric
-range controls.
+range controls. Select options may include `description` alongside `label` and
+`value` to render supporting copy below each option label in the open menu.
+`settingRowLayout` defaults to `'aligned'`; use `'fit-labels'` when each row
+should size its label column to its content and give more width to the control.
 
 ## Panel Factory
 
@@ -47,12 +51,15 @@ const panel = createStudioSettingsPanel({
 ```
 
 The factory returns a deck-independent `Panel` object that can be used with
-`PanelModal`, `PanelSidebar`, or any panel container.
+`ModalPanelContainer`, `SidebarPanelContainer`, or any panel container.
+
+When deck.gl should host the panel, pass that panel into `ModalPanelWidget` or
+another named adapter from `@deck.gl-community/widgets`.
 
 ## Remarks
 
 - The panel is deck.gl-independent and lives in `@deck.gl-community/panels`.
-- The close button emits `data-modal-widget-close="true"` so `PanelModal` can
+- The close button emits `data-modal-panel-container-close="true"` so `ModalPanelContainer` can
   close from content when built-in modal chrome is hidden.
 - Compact mode is remembered in `localStorage` under the
   `deck.gl-community:studio-settings:navigation-collapsed` key.

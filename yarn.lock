@@ -612,9 +612,9 @@ __metadata:
   resolution: "@deck.gl-community/panels@workspace:modules/panels"
   dependencies:
     "@probe.gl/stats": "npm:^4.1.1"
+    monaco-editor: "npm:^0.53.0"
     preact: "npm:^10.17.0"
   peerDependencies:
-    "@deck.gl/widgets": ~9.3.0
     apache-arrow: ">=17"
   peerDependenciesMeta:
     apache-arrow:
