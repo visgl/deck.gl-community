@@ -48,7 +48,7 @@ void main(void) {
   pixelSize.y = clamp_signed_size(pixelSize.y, block.heightMinPixels, block.sizeMaxPixels);
   unitPosition = positions.xy;
   size = pixelSize;
-  lineWidth = project_size_to_pixel(instanceLineWidths, block.lineWidthUnits);
+  lineWidth = project_size_to_pixel(vec2(instanceLineWidths, 0.0), block.lineWidthUnits).x;
 
   // Find the center of the point and add the current vertex
   vec3 offset = vec3(unitPosition * project_pixel_size(pixelSize), 0.0);

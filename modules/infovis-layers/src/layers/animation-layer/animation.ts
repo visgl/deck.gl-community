@@ -221,8 +221,8 @@ export function resolveAnimationFrames<LayerT extends Layer = Layer>(
   } else {
     const resolved = resolveFramesGroup(frames, 0);
     return {
-      start: time,
-      end: time + resolved.duration,
+      start,
+      end: start + resolved.duration,
       inProgress: true,
       iterations,
       frames: resolved.frames
