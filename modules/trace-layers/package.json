@@ -1,0 +1,58 @@
+{
+  "name": "@deck.gl-community/trace-layers",
+  "version": "9.3.5",
+  "description": "Trace visualization layers and viewer scaffolding for deck.gl",
+  "license": "MIT",
+  "private": true,
+  "keywords": [
+    "deck.gl",
+    "webgl",
+    "visualization",
+    "trace",
+    "timeline"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    },
+    "./trace-graph": {
+      "types": "./dist/trace-graph/index.d.ts",
+      "require": "./dist/trace-graph/index.cjs",
+      "import": "./dist/trace-graph/index.js"
+    },
+    "./deck-trace-layers": {
+      "types": "./dist/deck-trace-layers/index.d.ts",
+      "require": "./dist/deck-trace-layers/index.cjs",
+      "import": "./dist/deck-trace-layers/index.js"
+    },
+    "./trace-loaders": {
+      "types": "./dist/trace-loaders/index.d.ts",
+      "require": "./dist/trace-loaders/index.cjs",
+      "import": "./dist/trace-loaders/index.js"
+    },
+    "./tracevis": {
+      "types": "./dist/tracevis/index.d.ts",
+      "require": "./dist/tracevis/index.cjs",
+      "import": "./dist/tracevis/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest"
+  }
+}

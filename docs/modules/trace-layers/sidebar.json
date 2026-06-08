@@ -1,0 +1,9 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/trace-layers",
+  "link": {
+    "type": "doc",
+    "id": "modules/trace-layers/README"
+  },
+  "items": ["modules/trace-layers/README"]
+}

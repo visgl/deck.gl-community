@@ -13,21 +13,21 @@ A new module for deck-independent panel composition and small application UI.
 - `Panel` now inherits the shared `PanelComponent` lifecycle, including direct mounting.
 - Panel/container composition APIs extracted into a dedicated package
 - Stand-alone documentation and examples for panel composition outside deck.gl
+- Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs.
+- `ModalPanelContainer` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
+
+- `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
+
 - `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
 - `ArrowTablePanel` - NEW reusable panel for bounded Apache Arrow table previews with row, column, batch, nested-list, matrix, temporal, and loaders.gl wrapper support.
 - `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema, field, child, matrix, and temporal metadata with JSON metadata formatting.
 - `ArrowBatchesPanel` - NEW reusable panel for inspecting Arrow record batches, row counts, cumulative row ranges, and column counts.
-- `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
 - `StudioSettingsPanel` - NEW schema-driven settings surface with grouped controls, compact navigation, and visual routing-shape controls.
-- `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.
-- `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
-- Panel APIs now use panel terminology throughout `@deck.gl-community/panels`;
-  deck.gl widget-facing adapters remain in `@deck.gl-community/widgets`.
-- Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs, and the redundant descriptor/`WidgetHost` surfaces are removed.
-- `ModalPanelContainer` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
 - `SettingsPanel` numeric range inputs can apply descriptor-level trailing debounce via `sliderDebounceMs`.
 - `SettingsPanel` and `StudioSettingsPanel` select menus can render option descriptions and grow to fit long labels; `StudioSettingsPanel` also accepts `settingRowLayout: 'fit-labels'` when controls should claim width from short labels.
-- `SettingsManager` now exposes schema indexing and named change lookup helpers, and `SettingsPanel` accepts supported control text sizing through `fontSize`.
+
+- `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
+- `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.
 
 ### `@deck.gl-community/widgets`
 

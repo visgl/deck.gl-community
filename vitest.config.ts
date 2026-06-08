@@ -28,6 +28,14 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/widgets/src/index.ts', import.meta.url))
   },
   {
+    find: /^@deck\.gl-community\/trace-layers\/(.+)$/,
+    replacement: fileURLToPath(new URL('./modules/trace-layers/src/$1', import.meta.url))
+  },
+  {
+    find: /^@deck\.gl-community\/trace-layers$/,
+    replacement: fileURLToPath(new URL('./modules/trace-layers/src/index.ts', import.meta.url))
+  },
+  {
     find: '@deck.gl-community/basemaps/style-spec',
     replacement: fileURLToPath(
       new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)
