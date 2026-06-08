@@ -305,14 +305,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     }
 
     // Check outer polygon conflicts after iteration
-    // const intersectionWithOuter = cartesian
-    //   ? polygonEdgesIntersect(outer, newPolygon)
-    //   : lineIntersect(outer, newPolygon).features.length > 0;
-    const intersectionWithOuter = isIntersectionWithOuter(
-      outer,
-      newPolygon,
-      props.coordinateSystem
-    );
+    const intersectionWithOuter = isPolygonIntersecting(outer, newPolygon, props.coordinateSystem);
     if (intersectionWithOuter) {
       props.onEdit({
         updatedData: props.data,
@@ -322,9 +315,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
       return {handled: true};
     }
 
-    const outerWithin = cartesian
-      ? polygonWithinPolygon(outer, newPolygon)
-      : booleanWithin(outer, newPolygon);
+    const outerWithin = isPolygonWithin(outer, newPolygon, props.coordinateSystem);
     if (outerWithin) {
       props.onEdit({
         updatedData: props.data,
@@ -335,9 +326,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     }
 
     // Check if new polygon is within outer polygon (valid hole)
-    const newWithinOuter = cartesian
-      ? polygonWithinPolygon(newPolygon, outer)
-      : booleanWithin(newPolygon, outer);
+    const newWithinOuter = isPolygonWithin(newPolygon, outer, props.coordinateSystem);
     if (newWithinOuter) {
       const updatedData = new ImmutableFeatureCollection(props.data)
         .replaceGeometry(featureIndex, {
@@ -386,63 +375,47 @@ function getPolygonFeature(
     : turfPolygon(polygonGeometry);
 }
 
+// Dispatch function to call function based on coord system, defaults to geo mode
+function forCoordSystem<T>(
+  coordSystem: EditModeCoordinateSystem,
+  geoFn: () => T,
+  cartFn: () => T
+): T {
+  return coordSystem === cartesianCoordinateSystem ? cartFn() : geoFn();
+}
+
 function isContainingOrContained(
-  polygon1: Feature<Polygon>,
-  polygon2: Feature<Polygon>,
-  coordinateSystem: EditModeCoordinateSystem
+  poly1: Feature<Polygon>,
+  poly2: Feature<Polygon>,
+  coordSystem: EditModeCoordinateSystem
 ): boolean {
-  let containsOrContained = false;
-  switch (coordinateSystem) {
-    case geoCoordinateSystem:
-    case undefined:
-      containsOrContained = booleanWithin(polygon1, polygon2) || booleanWithin(polygon2, polygon1);
-      break;
-    case cartesianCoordinateSystem:
-      containsOrContained =
-        polygonWithinPolygon(polygon1, polygon2) || polygonWithinPolygon(polygon2, polygon1);
-      break;
-    default:
-      break;
-  }
-  return containsOrContained;
+  return forCoordSystem(
+    coordSystem,
+    () => booleanWithin(poly1, poly2) || booleanWithin(poly2, poly1),
+    () => polygonWithinPolygon(poly1, poly2) || polygonWithinPolygon(poly2, poly1)
+  );
 }
 
 function isPolygonIntersecting(
-  polygon1: Feature<Polygon>,
-  polygon2: Feature<Polygon>,
-  coordinateSystem: EditModeCoordinateSystem
+  poly1: Feature<Polygon>,
+  poly2: Feature<Polygon>,
+  coordSystem: EditModeCoordinateSystem
 ): boolean {
-  let polygonIntersecting = false;
-  switch (coordinateSystem) {
-    case geoCoordinateSystem:
-    case undefined:
-      polygonIntersecting = lineIntersect(polygon1, polygon2).features.length > 0;
-      break;
-    case cartesianCoordinateSystem:
-      polygonIntersecting = polygonEdgesIntersect(polygon1, polygon2);
-      break;
-    default:
-      break;
-  }
-  return polygonIntersecting;
+  return forCoordSystem(
+    coordSystem,
+    () => lineIntersect(poly1, poly2).features.length > 0,
+    () => polygonEdgesIntersect(poly1, poly2)
+  );
 }
 
-function isIntersectionWithOuter(
-  polygon1: Feature<Polygon>,
-  polygon2: Feature<Polygon>,
-  coordinateSystem: EditModeCoordinateSystem
+function isPolygonWithin(
+  poly1: Feature<Polygon>,
+  poly2: Feature<Polygon>,
+  coordSystem: EditModeCoordinateSystem
 ): boolean {
-  let intersectionWithOuter = false;
-  switch (coordinateSystem) {
-    case geoCoordinateSystem:
-    case undefined:
-      intersectionWithOuter = lineIntersect(polygon1, polygon2).features.length > 0;
-      break;
-    case cartesianCoordinateSystem:
-      intersectionWithOuter = polygonEdgesIntersect(polygon1, polygon2);
-      break;
-    default:
-      break;
-  }
-  return intersectionWithOuter;
+  return forCoordSystem(
+    coordSystem,
+    () => booleanWithin(poly1, poly2),
+    () => polygonWithinPolygon(poly1, poly2)
+  );
 }
