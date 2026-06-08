@@ -19,7 +19,8 @@ Please refer the documentation of each module for detailed upgrade guides.
 - Breaking change: shell containers accept `panel` only; descriptor-style
   `container` inputs were removed.
 - Breaking change: `PanelContentContainer`, `PanelContentRenderer`, and `asPanelContainer` were removed.
-- Breaking change: `WidgetHost` was removed. Use `PanelManager` outside deck.gl and widget wrapper classes inside deck.gl.
+- Breaking change: `WidgetHost` was removed. Use `PanelManager` outside deck.gl
+  and `PanelWidget` adapters inside deck.gl.
 - Breaking change: `ToolbarPanelContainer` and `ToastPanelContainer` were
   renamed to `ToolbarComponent` and `ToastComponent`; they are specialized
   `PanelComponent` instances, not panel containers.

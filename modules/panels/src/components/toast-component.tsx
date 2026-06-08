@@ -8,8 +8,11 @@ import type {ToastEntry, ToastKind} from '../lib/toasts/toast-manager';
 import type {JSX} from 'preact';
 import type {PanelComponentProps, PanelPlacement} from '../panels/panel-component';
 
+/** Props for {@link ToastComponent}. */
 export type ToastComponentProps = PanelComponentProps & {
+  /** Placement anchor used by panel hosts. */
   placement?: PanelPlacement;
+  /** Whether visible toast cards render an inset border. */
   showBorder?: boolean;
 };
 
@@ -208,7 +211,9 @@ function ToastComponentView({toasts, showBorder}: ToastComponentViewProps) {
   );
 }
 
+/** Toast stack renderer backed by the shared {@link toastManager}. */
 export class ToastComponent extends PanelComponent<ToastComponentProps> {
+  /** Default props applied before caller-provided toast component props. */
   static defaultProps: Required<ToastComponentProps> = {
     ...PanelComponent.defaultProps,
     id: 'toast-component',
@@ -216,19 +221,24 @@ export class ToastComponent extends PanelComponent<ToastComponentProps> {
     showBorder: false
   };
 
+  /** Root CSS class applied to the mounted toast component. */
   className = TOAST_WIDGET_CLASS;
+  /** Placement anchor used by panel hosts. */
   placement: PanelPlacement = 'bottom-right';
+  /** Whether visible toast cards render an inset border. */
   showBorder = false;
   #unsubscriber: () => void = () => {};
   #toasts: ReadonlyArray<ToastEntry> = [];
   #rootElement: HTMLElement | null = null;
 
+  /** Creates one toast stack component. */
   constructor(props: ToastComponentProps = {}) {
     super({...ToastComponent.defaultProps, ...props});
     this.setProps(this.props);
   }
 
-  setProps(props: Partial<ToastComponentProps>): void {
+  /** Updates toast component props and refreshes mounted content when present. */
+  override setProps(props: Partial<ToastComponentProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
     }
@@ -239,7 +249,8 @@ export class ToastComponent extends PanelComponent<ToastComponentProps> {
     super.setProps(props);
   }
 
-  onAdd() {
+  /** Subscribes to shared toast state when the host mounts the component. */
+  override onAdd(): void {
     this.#unsubscriber();
     this.#unsubscriber = toastManager.subscribe(toasts => {
       this.#toasts = toasts;
@@ -252,7 +263,8 @@ export class ToastComponent extends PanelComponent<ToastComponentProps> {
     });
   }
 
-  onRemove(): void {
+  /** Unsubscribes from toast state and unmounts current toast content. */
+  override onRemove(): void {
     this.#unsubscriber();
     this.#unsubscriber = () => {};
     if (this.#rootElement) {
@@ -260,7 +272,8 @@ export class ToastComponent extends PanelComponent<ToastComponentProps> {
     }
   }
 
-  onRenderHTML(rootElement: HTMLElement): void {
+  /** Renders current toast state into a mounted root element. */
+  override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
     const className = ['deck-widget', this.className, this.props.className]
       .filter(Boolean)

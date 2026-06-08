@@ -85,6 +85,7 @@ function BoxPanelContainerView({
  * Fixed-size standalone panel container for compact, always-available content.
  */
 export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
+  /** Default props applied before caller-provided box container props. */
   static defaultProps: Required<BoxPanelContainerProps> = {
     ...PanelContainer.defaultProps,
     id: 'box-panel-container',
@@ -98,11 +99,17 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
     panel: undefined!
   };
 
+  /** Root CSS class applied to the mounted box container. */
   className = 'deck-widget-box';
+  /** Placement anchor used by panel hosts. */
   placement: PanelPlacement = BoxPanelContainer.defaultProps.placement;
+  /** Optional header title shown above panel content. */
   title: string | undefined = BoxPanelContainer.defaultProps.title;
+  /** Normalized preferred box width in pixels. */
   widthPx = BoxPanelContainer.defaultProps.widthPx;
+  /** Whether the header toggles the open state. */
   collapsible = BoxPanelContainer.defaultProps.collapsible;
+  /** Current controlled or uncontrolled open state. */
   isOpen = BoxPanelContainer.defaultProps.defaultOpen;
   #panel: Panel | undefined = BoxPanelContainer.defaultProps.panel;
   #rootElement: HTMLElement | null = null;
@@ -110,6 +117,7 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
   #isControlled = false;
   #openChange: ((open: boolean) => void) | undefined = undefined;
 
+  /** Creates one compact box panel container. */
   constructor(props: Partial<BoxPanelContainerProps> = {}) {
     super({
       ...BoxPanelContainer.defaultProps,
@@ -118,6 +126,7 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
     this.setProps(this.props);
   }
 
+  /** Updates box container props and refreshes mounted content when present. */
   override setProps(props: Partial<BoxPanelContainerProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -140,12 +149,14 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
     super.setProps(props);
   }
 
+  /** Unmounts box content from the current root element. */
   override onRemove(): void {
     if (this.#rootElement) {
       render(null, this.#rootElement);
     }
   }
 
+  /** Renders box chrome and panel content into a mounted root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
     rootElement.style.margin = '0';

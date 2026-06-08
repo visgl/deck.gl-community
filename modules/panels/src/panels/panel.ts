@@ -36,6 +36,7 @@ export type PanelProps = PanelComponentProps & {
  * Base class for titled panel content rendered directly or by panel containers.
  */
 export abstract class Panel extends PanelComponent<PanelProps> {
+  /** Default props applied before caller-provided panel props. */
   static defaultProps: Required<PanelProps> = {
     ...PanelComponent.defaultProps,
     id: 'panel',
@@ -46,14 +47,22 @@ export abstract class Panel extends PanelComponent<PanelProps> {
     keepMounted: false
   };
 
+  /** Default standalone placement used when a panel is mounted directly. */
   placement: PanelPlacement = 'top-left';
+  /** Root CSS class applied when a panel is mounted directly. */
   className = 'deck-widget-panel';
+  /** Visible panel heading text. */
   title: string;
+  /** Renderable panel body. */
   content: ComponentChildren;
+  /** Optional panel-scoped theme override. */
   theme?: PanelTheme;
+  /** Whether the panel should be treated as disabled by parent compositions. */
   disabled?: boolean;
+  /** Whether parent compositions should keep collapsed content mounted. */
   keepMounted?: boolean;
 
+  /** Creates one titled panel definition. */
   constructor(props: PanelProps) {
     super(props);
     this.title = this.props.title;
@@ -63,6 +72,7 @@ export abstract class Panel extends PanelComponent<PanelProps> {
     this.keepMounted = this.props.keepMounted;
   }
 
+  /** Updates panel props and refreshes direct mounted content when present. */
   override setProps(props: Partial<PanelProps>): void {
     const nextProps = {...this.props, ...props} as Required<PanelProps>;
     this.title = nextProps.title;
@@ -73,10 +83,12 @@ export abstract class Panel extends PanelComponent<PanelProps> {
     super.setProps(props);
   }
 
+  /** Renders themed panel content into a mounted root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
     render(h(PanelThemeScope, {panel: this}, this.content), rootElement);
   }
 
+  /** Unmounts direct panel content from the current root element. */
   override onRemove(): void {
     if (this.rootElement) {
       render(null, this.rootElement);

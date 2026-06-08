@@ -33,6 +33,7 @@ export type PanelComponentProps = {
  * Base class for panel-managed UI components that render into a DOM host.
  */
 export abstract class PanelComponent<PropsT extends PanelComponentProps = PanelComponentProps> {
+  /** Default props applied before caller-provided component props. */
   static defaultProps: Required<PanelComponentProps> = {
     id: 'panel-component',
     style: {},
@@ -61,11 +62,11 @@ export abstract class PanelComponent<PropsT extends PanelComponentProps = PanelC
    */
   abstract className: string;
 
-  /**
-   * Optional host references populated by standalone and deck environments.
-   */
+  /** Host manager reference populated by standalone and deck environments. */
   panelManager?: unknown;
+  /** Deck instance reference populated when a deck host mounts the component. */
   deck?: unknown;
+  /** Mounted root element populated while the component is attached to a host. */
   rootElement?: HTMLDivElement | null;
   /**
    * Optional explicit mount host from the current props.
@@ -74,6 +75,7 @@ export abstract class PanelComponent<PropsT extends PanelComponentProps = PanelC
     return this.props._container;
   }
 
+  /** Creates one panel-managed component with defaults applied. */
   constructor(props: PropsT) {
     this.props = {
       ...(this.constructor as typeof PanelComponent).defaultProps,
@@ -165,15 +167,19 @@ export abstract class PanelComponent<PropsT extends PanelComponentProps = PanelC
    */
   onRemove(): void {}
 
-  /**
-   * Optional deck integration hooks.
-   */
+  /** Called when a host viewport changes. */
   onViewportChange(_viewport: unknown): void {}
+  /** Called after a host redraw with current viewports and layers. */
   onRedraw(_params: {viewports: unknown[]; layers: unknown[]}): void {}
+  /** Called when the host forwards a hover event. */
   onHover(_info: unknown, _event: unknown): void {}
+  /** Called when the host forwards a click event. */
   onClick(_info: unknown, _event: unknown): void {}
+  /** Called when the host forwards a drag event. */
   onDrag(_info: unknown, _event: unknown): void {}
+  /** Called when the host forwards a drag-start event. */
   onDragStart(_info: unknown, _event: unknown): void {}
+  /** Called when the host forwards a drag-end event. */
   onDragEnd(_info: unknown, _event: unknown): void {}
 }
 

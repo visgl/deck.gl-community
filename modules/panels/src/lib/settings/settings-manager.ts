@@ -40,6 +40,7 @@ export type SettingsManagerOnChange<
   changedSettings?: Change[]
 ) => void;
 
+/** Local-storage provider configuration for descriptor-backed settings persistence. */
 export type SettingsManagerLocalStorageConfig = {
   /** Browser local storage key that stores settings unless the descriptor explicitly opts out. */
   storageKey: string;
@@ -323,4 +324,5 @@ function shouldPersistSetting(descriptor: SettingDescriptor | undefined): boolea
   return getSettingPersistenceTarget(descriptor) === 'local-storage';
 }
 
+/** Shared settings manager for apps that do not need an isolated registry. */
 export const settingsManager = new SettingsManager();

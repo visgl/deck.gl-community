@@ -1,14 +1,23 @@
+/** Severity buckets supported by toast requests and rendered toast cards. */
 export type ToastKind = 'info' | 'warning' | 'error';
 
+/** Input accepted when application code enqueues one toast notification. */
 export type ToastRequest = {
+  /** Toast severity used for icon color and auto-dismiss timing. */
   type: ToastKind;
+  /** Optional title rendered above the toast message. */
   title?: string;
+  /** Required toast body copy. */
   message: string;
+  /** Optional dedupe key that replaces a visible toast with the same key. */
   key?: string;
 };
 
+/** Visible toast snapshot managed by {@link ToastManager}. */
 export type ToastEntry = ToastRequest & {
+  /** Stable runtime toast id used for dismissal. */
   id: string;
+  /** Millisecond creation timestamp. */
   createdAtMs: number;
 };
 
@@ -27,16 +36,19 @@ function createToastId(prefix = 'toast'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+/** In-memory toast queue with subscriptions and type-specific auto-dismiss timing. */
 export class ToastManager {
   #toasts: ToastEntry[] = [];
   #listeners = new Set<ToastListener>();
   #timers = new Map<string, ToastTimer>();
   #maxVisibleToasts: number;
 
+  /** Creates one toast manager with a visible-stack cap. */
   constructor(maxVisibleToasts = DEFAULT_MAX_VISIBLE_TOASTS) {
     this.#maxVisibleToasts = maxVisibleToasts;
   }
 
+  /** Enqueues one toast request and returns its dismissal id. */
   toast(request: ToastRequest): string {
     const now = Date.now();
     const toast: ToastEntry = {
@@ -62,6 +74,7 @@ export class ToastManager {
     return toast.id;
   }
 
+  /** Dismisses one visible toast by id. */
   dismiss(toastId: string): void {
     const toastIndex = this.#toasts.findIndex(toast => toast.id === toastId);
     if (toastIndex === -1) {
@@ -73,6 +86,7 @@ export class ToastManager {
     this.#notify();
   }
 
+  /** Dismisses every visible toast. */
   clear(): void {
     for (const toastId of this.#toasts.map(toast => toast.id)) {
       this.#clearAutoDismissTimer(toastId);
@@ -82,10 +96,12 @@ export class ToastManager {
     this.#notify();
   }
 
+  /** Returns a snapshot of currently visible toast entries. */
   getToasts(): ReadonlyArray<ToastEntry> {
     return this.#toasts.slice();
   }
 
+  /** Subscribes to toast snapshots and returns an unsubscribe callback. */
   subscribe(listener: ToastListener): () => void {
     this.#listeners.add(listener);
     listener(this.getToasts());
@@ -131,4 +147,5 @@ export class ToastManager {
   }
 }
 
+/** Shared toast manager used by panel and widget toast renderers. */
 export const toastManager = new ToastManager();

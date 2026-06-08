@@ -22,6 +22,7 @@ export type PanelContainerProps = PanelComponentProps & {
 export abstract class PanelContainer<
   PropsT extends PanelContainerProps = PanelContainerProps
 > extends PanelComponent<PropsT> {
+  /** Default props applied before caller-provided panel container props. */
   static defaultProps: Required<PanelContainerProps> = {
     ...PanelComponent.defaultProps,
     panel: undefined!,

@@ -6,50 +6,83 @@ import {PanelComponent} from '../panels/panel-component';
 import type {ComponentChild, JSX} from 'preact';
 import type {PanelComponentProps, PanelPlacement} from '../panels/panel-component';
 
+/** One toolbar button that invokes an action callback. */
 export type ToolbarComponentActionItem = {
+  /** Toolbar item discriminator. */
   kind: 'action';
+  /** Stable toolbar item id. */
   id: string;
+  /** Visible action label. */
   label: string;
+  /** Optional icon rendered before the label. */
   icon?: ComponentChild;
+  /** Optional tooltip and accessible label override. */
   title?: string;
+  /** Whether the action is disabled. */
   disabled?: boolean;
+  /** Whether the action renders active styling. */
   active?: boolean;
+  /** Callback fired when the enabled action is clicked. */
   onClick?: () => void;
 };
 
+/** One option rendered inside a toolbar toggle group. */
 export type ToolbarComponentToggleOption = {
+  /** Stable toggle option id. */
   id: string;
+  /** Visible option label. */
   label: string;
+  /** Optional icon rendered before the label. */
   icon?: ComponentChild;
+  /** Optional tooltip and accessible label override. */
   title?: string;
+  /** Whether the option is disabled. */
   disabled?: boolean;
 };
 
+/** One mutually exclusive toolbar toggle group. */
 export type ToolbarComponentToggleGroupItem = {
+  /** Toolbar item discriminator. */
   kind: 'toggle-group';
+  /** Stable toolbar item id. */
   id: string;
+  /** Optional visible group label. */
   label?: string;
+  /** Optional tooltip fallback for group options. */
   title?: string;
+  /** Whether every option in the group is disabled. */
   disabled?: boolean;
+  /** Currently selected option id. */
   selectedId?: string | null;
+  /** Ordered toggle options rendered by the group. */
   options: ToolbarComponentToggleOption[];
+  /** Callback fired when an enabled option is clicked. */
   onSelect?: (optionId: string) => void;
 };
 
+/** One read-only toolbar badge. */
 export type ToolbarComponentBadgeItem = {
+  /** Toolbar item discriminator. */
   kind: 'badge';
+  /** Stable toolbar item id. */
   id: string;
+  /** Visible badge label. */
   label: string;
+  /** Optional badge tooltip. */
   title?: string;
 };
 
+/** Supported toolbar item variants. */
 export type ToolbarComponentItem =
   | ToolbarComponentActionItem
   | ToolbarComponentToggleGroupItem
   | ToolbarComponentBadgeItem;
 
+/** Props for {@link ToolbarComponent}. */
 export type ToolbarComponentProps = PanelComponentProps & {
+  /** Placement anchor used by panel hosts. */
   placement?: PanelPlacement;
+  /** Ordered toolbar items rendered by the component. */
   items?: ToolbarComponentItem[];
 };
 
@@ -243,7 +276,9 @@ function renderToolbarItem(item: ToolbarComponentItem): JSX.Element {
   );
 }
 
+/** Compact action/status toolbar rendered as a panel-managed component. */
 export class ToolbarComponent extends PanelComponent<ToolbarComponentProps> {
+  /** Default props applied before caller-provided toolbar props. */
   static defaultProps: Required<ToolbarComponentProps> = {
     ...PanelComponent.defaultProps,
     id: 'toolbar-component',
@@ -251,15 +286,19 @@ export class ToolbarComponent extends PanelComponent<ToolbarComponentProps> {
     items: []
   };
 
+  /** Root CSS class applied to the mounted toolbar component. */
   className = 'deck-widget-toolbar';
+  /** Placement anchor used by panel hosts. */
   placement: PanelPlacement = ToolbarComponent.defaultProps.placement;
   #rootElement: HTMLElement | null = null;
 
+  /** Creates one toolbar component. */
   constructor(props: ToolbarComponentProps = {}) {
     super({...ToolbarComponent.defaultProps, ...props});
     this.setProps(this.props);
   }
 
+  /** Updates toolbar props and refreshes mounted content when present. */
   override setProps(props: Partial<ToolbarComponentProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -268,12 +307,14 @@ export class ToolbarComponent extends PanelComponent<ToolbarComponentProps> {
     this.#render();
   }
 
+  /** Unmounts toolbar content from the current root element. */
   override onRemove(): void {
     if (this.#rootElement) {
       render(null, this.#rootElement);
     }
   }
 
+  /** Renders toolbar items into a mounted root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
     const className = ['deck-widget', this.className, this.props.className]

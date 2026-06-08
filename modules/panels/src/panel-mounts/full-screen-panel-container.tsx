@@ -72,6 +72,7 @@ function FullScreenPanelContainerView({
  * Fill-placement panel container for focused, workspace-style layouts.
  */
 export class FullScreenPanelContainer extends PanelContainer<FullScreenPanelContainerProps> {
+  /** Default props applied before caller-provided full-screen container props. */
   static defaultProps: Required<FullScreenPanelContainerProps> = {
     ...PanelContainer.defaultProps,
     id: 'full-screen-panel-container',
@@ -81,13 +82,18 @@ export class FullScreenPanelContainer extends PanelContainer<FullScreenPanelCont
     panel: undefined!
   };
 
+  /** Root CSS class applied to the mounted full-screen container. */
   className = 'deck-widget-full-screen-panel';
+  /** Placement anchor used by panel hosts. */
   placement: PanelPlacement = FullScreenPanelContainer.defaultProps.placement;
+  /** Optional header title shown above full-screen panel content. */
   title: string | undefined = FullScreenPanelContainer.defaultProps.title;
+  /** Normalized outer inset in pixels. */
   marginPx = FullScreenPanelContainer.defaultProps.marginPx;
   #panel: Panel | undefined = FullScreenPanelContainer.defaultProps.panel;
   #rootElement: HTMLElement | null = null;
 
+  /** Creates one fill-placement panel container. */
   constructor(props: Partial<FullScreenPanelContainerProps> = {}) {
     super({
       ...FullScreenPanelContainer.defaultProps,
@@ -96,6 +102,7 @@ export class FullScreenPanelContainer extends PanelContainer<FullScreenPanelCont
     this.setProps(this.props);
   }
 
+  /** Updates full-screen container props and refreshes mounted content when present. */
   override setProps(props: Partial<FullScreenPanelContainerProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -114,12 +121,14 @@ export class FullScreenPanelContainer extends PanelContainer<FullScreenPanelCont
     super.setProps(props);
   }
 
+  /** Unmounts full-screen content from the current root element. */
   override onRemove(): void {
     if (this.#rootElement) {
       render(null, this.#rootElement);
     }
   }
 
+  /** Renders full-screen chrome and panel content into a mounted root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
     rootElement.style.position = 'absolute';

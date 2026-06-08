@@ -249,6 +249,7 @@ function SidebarPanelContainerView({
  * Edge-attached panel container with an optional side handle for open/close control.
  */
 export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerProps> {
+  /** Default props applied before caller-provided sidebar container props. */
   static defaultProps: Required<SidebarPanelContainerProps> = {
     ...PanelContainer.defaultProps,
     id: 'sidebar-panel-container',
@@ -272,19 +273,33 @@ export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerP
     showBackdrop: false
   };
 
+  /** Root CSS class applied to the mounted sidebar container. */
   className = 'deck-widget-sidebar';
+  /** Placement anchor used for the trigger shell. */
   placement: PanelPlacement = SidebarPanelContainer.defaultProps.placement;
+  /** Edge from which the sidebar opens. */
   side: 'left' | 'right' = SidebarPanelContainer.defaultProps.side;
+  /** Normalized preferred sidebar width in pixels. */
   widthPx = SidebarPanelContainer.defaultProps.widthPx;
+  /** Optional header title shown above sidebar content. */
   title: string | undefined = SidebarPanelContainer.defaultProps.title;
+  /** Label used for the trigger affordance. */
   triggerLabel = SidebarPanelContainer.defaultProps.triggerLabel;
+  /** Optional trigger icon glyph. */
   triggerIcon: string | undefined = SidebarPanelContainer.defaultProps.triggerIcon;
+  /** Whether sidebar title bar chrome is rendered. */
   showTitleBar = SidebarPanelContainer.defaultProps.showTitleBar;
+  /** Whether the trigger affordance is hidden. */
   hideTrigger = SidebarPanelContainer.defaultProps.hideTrigger;
+  /** Whether the compact side-handle trigger style is rendered. */
   button = SidebarPanelContainer.defaultProps.button;
+  /** Outer viewport margin applied to the docked panel. */
   viewportMarginPx = SidebarPanelContainer.defaultProps.viewportMarginPx;
+  /** Whether the trigger slides beside the panel while open. */
   dockTriggerWhenOpen = SidebarPanelContainer.defaultProps.dockTriggerWhenOpen;
+  /** Whether the sidebar renders a document backdrop while open. */
   showBackdrop = SidebarPanelContainer.defaultProps.showBackdrop;
+  /** Current controlled or uncontrolled open state. */
   isOpen = false;
   #hasOpenStateInitialized = false;
   #panel: Panel | undefined = SidebarPanelContainer.defaultProps.panel;
@@ -296,6 +311,7 @@ export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerP
   #openShortcuts: KeyboardShortcut[] = SidebarPanelContainer.defaultProps.openShortcuts;
   #shortcuts: KeyboardShortcut[] = SidebarPanelContainer.defaultProps.shortcuts;
 
+  /** Creates one edge-attached sidebar panel container. */
   constructor(props: Partial<SidebarPanelContainerProps> = {}) {
     super({
       ...SidebarPanelContainer.defaultProps,
@@ -304,6 +320,7 @@ export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerP
     this.setProps(this.props);
   }
 
+  /** Updates sidebar container props and refreshes mounted content when present. */
   override setProps(props: Partial<SidebarPanelContainerProps>): void {
     if (props.placement !== undefined) {
       this.placement = props.placement;
@@ -360,10 +377,12 @@ export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerP
     super.setProps(props);
   }
 
+  /** Starts sidebar keyboard shortcut handling when the host mounts the container. */
   override onAdd(_params: {deck: unknown; viewId: string | null}): void {
     this.#restartKeyboardShortcutsManager();
   }
 
+  /** Stops sidebar listeners and unmounts sidebar content from the current root. */
   override onRemove(): void {
     this.#detachDocumentKeyListener();
     if (this.#keyboardShortcutsManager) {
@@ -375,6 +394,7 @@ export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerP
     }
   }
 
+  /** Renders sidebar trigger, backdrop, and panel content into a mounted root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
     reparentToOverlayRoot(rootElement);

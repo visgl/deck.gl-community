@@ -303,6 +303,7 @@ function ModalPanelContainerView({
  * Overlay-style panel container that renders one modal dialog and optional trigger.
  */
 export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps> {
+  /** Default props applied before caller-provided modal container props. */
   static defaultProps: Required<ModalPanelContainerProps> = {
     ...PanelContainer.defaultProps,
     id: 'modal-panel-container',
@@ -328,21 +329,36 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
     panel: undefined!
   };
 
+  /** Root CSS class applied to the mounted modal container. */
   className = 'deck-widget-modal';
+  /** Placement anchor used for the trigger shell. */
   placement: PanelPlacement = ModalPanelContainer.defaultProps.placement;
+  /** Dialog header title. */
   title = ModalPanelContainer.defaultProps.title;
+  /** Trigger label shown while the modal is closed. */
   triggerLabel = ModalPanelContainer.defaultProps.triggerLabel;
+  /** Trigger icon glyph. */
   triggerIcon = ModalPanelContainer.defaultProps.triggerIcon;
+  /** Whether modal title bar chrome is rendered. */
   showTitleBar = ModalPanelContainer.defaultProps.showTitleBar;
+  /** Whether the modal blocks or floats over outside pointer interaction. */
   presentation: ModalPanelContainerPresentation = ModalPanelContainer.defaultProps.presentation;
+  /** Whether the dialog can be dragged from its configured handle. */
   draggable = ModalPanelContainer.defaultProps.draggable;
+  /** Optional selector for a custom dialog drag handle. */
   dragHandleSelector: string | undefined = ModalPanelContainer.defaultProps.dragHandleSelector;
+  /** Optional inline style merged into the dialog panel. */
   dialogStyle: JSX.CSSProperties | undefined = ModalPanelContainer.defaultProps.dialogStyle;
+  /** Initial screen placement for the dialog wrapper. */
   dialogPlacement: ModalPanelContainerDialogPlacement =
     ModalPanelContainer.defaultProps.dialogPlacement;
+  /** Optional inline style merged into the dialog body. */
   contentStyle: JSX.CSSProperties | undefined = ModalPanelContainer.defaultProps.contentStyle;
+  /** Whether the modal trigger is hidden. */
   hideTrigger = ModalPanelContainer.defaultProps.hideTrigger;
+  /** Whether modal chrome close controls are hidden. */
   hideCloseButton = ModalPanelContainer.defaultProps.hideCloseButton;
+  /** Current controlled or uncontrolled open state. */
   isOpen = false;
   #hasOpenStateInitialized = false;
   #panel: Panel | undefined = ModalPanelContainer.defaultProps.panel;
@@ -356,6 +372,7 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
   #openShortcuts: KeyboardShortcut[] = ModalPanelContainer.defaultProps.openShortcuts;
   #shortcuts: KeyboardShortcut[] = ModalPanelContainer.defaultProps.shortcuts;
 
+  /** Creates one modal panel container. */
   constructor(props: Partial<ModalPanelContainerProps> = {}) {
     super({
       ...ModalPanelContainer.defaultProps,
@@ -364,6 +381,7 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
     this.setProps(this.props);
   }
 
+  /** Updates modal container props and refreshes mounted content when present. */
   // eslint-disable-next-line complexity
   override setProps(props: Partial<ModalPanelContainerProps>): void {
     if (props.placement !== undefined) {
@@ -424,10 +442,12 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
     super.setProps(props);
   }
 
+  /** Starts modal keyboard shortcut handling when the host mounts the container. */
   override onAdd(_params: {deck: unknown; viewId: string | null}): void {
     this.#restartKeyboardShortcutsManager();
   }
 
+  /** Stops modal listeners and unmounts modal content from the current root. */
   override onRemove(): void {
     this.#detachDocumentKeyListener();
     this.#syncPlacementZIndex(false);
@@ -440,6 +460,7 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
     }
   }
 
+  /** Renders modal trigger, overlay, and panel content into a mounted root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
     this.#placementContainerElement = isElementNode(rootElement.parentElement)

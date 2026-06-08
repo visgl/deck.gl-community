@@ -93,4 +93,4 @@ onEvent(
 - Supports the normal placement buckets: `top-left`, `top-right`, `bottom-left`, `bottom-right`, and `fill`.
 - Honors `_container` when a component points at an explicit `HTMLElement`.
 - Can optionally forward redraw, viewport, hover, and gesture hooks when paired with a real deck instance or another runtime that can supply equivalent event data.
-- Does not make deck-coupled widget wrappers useful on its own; controls that fundamentally depend on view-state mutation, redraws, or picking still need those inputs.
+- Does not make deck-coupled widget adapters useful on its own; controls that fundamentally depend on view-state mutation, redraws, or picking still need those inputs.

@@ -44,16 +44,20 @@ export type PanelWidgetProps<ComponentT extends PanelComponent = PanelComponent>
 export class PanelWidget<ComponentT extends PanelComponent = PanelComponent> extends Widget<
   PanelWidgetProps<ComponentT>
 > {
+  /** Panel-owned component delegated by this deck.gl widget. */
   component: ComponentT;
 
+  /** Placement anchor forwarded from the delegated component. */
   get placement(): WidgetPlacement {
     return this.component.placement;
   }
 
+  /** Root CSS class forwarded from the delegated component. */
   get className(): string {
     return this.component.className;
   }
 
+  /** Creates one deck.gl adapter around a panel-owned component. */
   constructor(props: PanelWidgetProps<ComponentT>) {
     const {component, viewId = component.viewId ?? null, ...widgetProps} = props;
     super({
@@ -68,6 +72,7 @@ export class PanelWidget<ComponentT extends PanelComponent = PanelComponent> ext
     this.#syncComponentHost();
   }
 
+  /** Updates widget props and reconciles or swaps the delegated component. */
   override setProps(props: Partial<PanelWidgetProps<ComponentT>>): void {
     const nextComponent = props.component;
     if (nextComponent && nextComponent !== this.component) {
@@ -91,6 +96,7 @@ export class PanelWidget<ComponentT extends PanelComponent = PanelComponent> ext
     } as Partial<PanelWidgetProps<ComponentT>>);
   }
 
+  /** Mounts the delegated component through deck.gl's widget lifecycle. */
   override onAdd(params: {deck: unknown; viewId: string | null}): HTMLDivElement {
     this.deck = params.deck as never;
     this.viewId ??= params.viewId;
@@ -101,11 +107,13 @@ export class PanelWidget<ComponentT extends PanelComponent = PanelComponent> ext
     });
   }
 
+  /** Renders the delegated component into deck.gl's widget root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
     this.component.rootElement = rootElement as HTMLDivElement;
     this.component.onRenderHTML(rootElement);
   }
 
+  /** Removes the delegated component from deck.gl's widget lifecycle. */
   override onRemove(): void {
     this.component.onRemove();
     this.component.rootElement = undefined;
@@ -113,30 +121,37 @@ export class PanelWidget<ComponentT extends PanelComponent = PanelComponent> ext
     this.component.panelManager = undefined;
   }
 
+  /** Forwards viewport changes to the delegated component. */
   override onViewportChange(viewport: unknown): void {
     this.component.onViewportChange(viewport);
   }
 
+  /** Forwards redraw notifications to the delegated component. */
   override onRedraw(params: {viewports: unknown[]; layers: unknown[]}): void {
     this.component.onRedraw(params);
   }
 
+  /** Forwards hover events to the delegated component. */
   override onHover(info: unknown, event: unknown): void {
     this.component.onHover(info, event);
   }
 
+  /** Forwards click events to the delegated component. */
   override onClick(info: unknown, event: unknown): void {
     this.component.onClick(info, event);
   }
 
+  /** Forwards drag events to the delegated component. */
   override onDrag(info: unknown, event: unknown): void {
     this.component.onDrag(info, event);
   }
 
+  /** Forwards drag-start events to the delegated component. */
   override onDragStart(info: unknown, event: unknown): void {
     this.component.onDragStart(info, event);
   }
 
+  /** Forwards drag-end events to the delegated component. */
   override onDragEnd(info: unknown, event: unknown): void {
     this.component.onDragEnd(info, event);
   }
@@ -176,10 +191,12 @@ export type BoxPanelWidgetProps = NamedPanelWidgetProps<BoxPanelContainerProps>;
 
 /** deck.gl adapter that constructs one {@link BoxPanelContainer}. */
 export class BoxPanelWidget extends PanelWidget<BoxPanelContainer> {
+  /** Creates one deck.gl adapter around a new box panel container. */
   constructor(props: Partial<BoxPanelWidgetProps> = {}) {
     super(createNamedPanelWidgetProps(BoxPanelContainer, props));
   }
 
+  /** Updates the constructed box panel container or swaps an explicit delegate. */
   override setProps(props: NamedPanelWidgetUpdateProps<BoxPanelContainer>): void {
     updateNamedPanelWidget(this, props);
   }
@@ -190,10 +207,12 @@ export type ModalPanelWidgetProps = NamedPanelWidgetProps<ModalPanelContainerPro
 
 /** deck.gl adapter that constructs one {@link ModalPanelContainer}. */
 export class ModalPanelWidget extends PanelWidget<ModalPanelContainer> {
+  /** Creates one deck.gl adapter around a new modal panel container. */
   constructor(props: Partial<ModalPanelWidgetProps> = {}) {
     super(createNamedPanelWidgetProps(ModalPanelContainer, props));
   }
 
+  /** Updates the constructed modal panel container or swaps an explicit delegate. */
   override setProps(props: NamedPanelWidgetUpdateProps<ModalPanelContainer>): void {
     updateNamedPanelWidget(this, props);
   }
@@ -204,10 +223,12 @@ export type SidebarPanelWidgetProps = NamedPanelWidgetProps<SidebarPanelContaine
 
 /** deck.gl adapter that constructs one {@link SidebarPanelContainer}. */
 export class SidebarPanelWidget extends PanelWidget<SidebarPanelContainer> {
+  /** Creates one deck.gl adapter around a new sidebar panel container. */
   constructor(props: Partial<SidebarPanelWidgetProps> = {}) {
     super(createNamedPanelWidgetProps(SidebarPanelContainer, props));
   }
 
+  /** Updates the constructed sidebar panel container or swaps an explicit delegate. */
   override setProps(props: NamedPanelWidgetUpdateProps<SidebarPanelContainer>): void {
     updateNamedPanelWidget(this, props);
   }
@@ -218,10 +239,12 @@ export type FullScreenPanelWidgetProps = NamedPanelWidgetProps<FullScreenPanelCo
 
 /** deck.gl adapter that constructs one {@link FullScreenPanelContainer}. */
 export class FullScreenPanelWidget extends PanelWidget<FullScreenPanelContainer> {
+  /** Creates one deck.gl adapter around a new full-screen panel container. */
   constructor(props: Partial<FullScreenPanelWidgetProps> = {}) {
     super(createNamedPanelWidgetProps(FullScreenPanelContainer, props));
   }
 
+  /** Updates the constructed full-screen panel container or swaps an explicit delegate. */
   override setProps(props: NamedPanelWidgetUpdateProps<FullScreenPanelContainer>): void {
     updateNamedPanelWidget(this, props);
   }
@@ -232,10 +255,12 @@ export type ToolbarWidgetProps = NamedPanelWidgetProps<ToolbarComponentProps>;
 
 /** deck.gl adapter that constructs one {@link ToolbarComponent}. */
 export class ToolbarWidget extends PanelWidget<ToolbarComponent> {
+  /** Creates one deck.gl adapter around a new toolbar component. */
   constructor(props: Partial<ToolbarWidgetProps> = {}) {
     super(createNamedPanelWidgetProps(ToolbarComponent, props));
   }
 
+  /** Updates the constructed toolbar component or swaps an explicit delegate. */
   override setProps(props: NamedPanelWidgetUpdateProps<ToolbarComponent>): void {
     updateNamedPanelWidget(this, props);
   }
@@ -246,10 +271,12 @@ export type ToastWidgetProps = NamedPanelWidgetProps<ToastComponentProps>;
 
 /** deck.gl adapter that constructs one {@link ToastComponent}. */
 export class ToastWidget extends PanelWidget<ToastComponent> {
+  /** Creates one deck.gl adapter around a new toast component. */
   constructor(props: Partial<ToastWidgetProps> = {}) {
     super(createNamedPanelWidgetProps(ToastComponent, props));
   }
 
+  /** Updates the constructed toast component or swaps an explicit delegate. */
   override setProps(props: NamedPanelWidgetUpdateProps<ToastComponent>): void {
     updateNamedPanelWidget(this, props);
   }
