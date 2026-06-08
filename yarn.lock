@@ -561,6 +561,7 @@ __metadata:
     "@luma.gl/engine": "npm:~9.3.2"
     "@luma.gl/shadertools": "npm:~9.3.2"
     "@luma.gl/webgpu": "npm:~9.3.2"
+    "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.1.1"
   peerDependencies:
     "@deck.gl/core": ~9.3.0
