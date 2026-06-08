@@ -1,38 +1,45 @@
-import {CompositeLayer, DefaultProps, LayerProps} from '@deck.gl/core';
-import {LineLayer, TextLayer} from '@deck.gl/layers';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {CompositeLayer, type DefaultProps, type Layer, type LayerProps} from '@deck.gl/core';
+import {LineLayer, TextLayer, type TextLayerProps} from '@deck.gl/layers';
 
 // import {PathStyleExtension} from '@deck.gl/extensions';
 
 import {formatTimeMs} from '../utils/format-utils';
 
-import type {Layer} from '@deck.gl/core';
-import type {TextLayerProps} from '@deck.gl/layers';
-
+/** Properties supported by {@link TimeDeltaLayer}. */
 export type TimeDeltaLayerProps = LayerProps & _TimeDeltaLayerProps;
 
 type _TimeDeltaLayerProps = Pick<TextLayerProps, 'fontFamily' | 'fontSettings' | 'fontWeight'> & {
+  /** Legacy time label unit retained for compatibility. @defaultValue 'timestamp' */
   unit: 'timestamp' | 'milliseconds';
+  /** Minimum trace time represented by the surrounding view. @defaultValue 0 */
   minTimeMs: number;
+  /** Maximum trace time represented by the surrounding view. @defaultValue 100 */
   maxTimeMs: number;
-  /** Start time in milliseconds since epoch */
+  /** Start time in milliseconds since epoch. @defaultValue 0 */
   startTimeMs: number;
-  /** End time in milliseconds since epoch */
+  /** End time in milliseconds since epoch. @defaultValue 100 */
   endTimeMs: number;
-  /** Optional: Y-coordinate for the axis line (default: 0) */
+  /** Y coordinate for the header interval guide. @defaultValue 0 */
   y?: number;
+  /** Whether to render the compact header label instead of full-height guide lines. @defaultValue false */
   header: boolean;
 
-  /** Header label text size */
+  /** Header label text size. @defaultValue 12 */
   fontSize?: number;
 
-  /** Optional: RGBA color for axis and ticks (default: [0, 0, 0, 255]) */
+  /** RGBA color for interval guides and labels. @defaultValue [0, 0, 0, 255] */
   color?: [number, number, number, number];
-  /** Minimum Y-coordinate for grid lines. @todo (ib) Remve and calculate from viewport? */
+  /** Minimum Y coordinate for full-height guide lines. @defaultValue -1e6 */
   yMin?: number;
-  /** Maximum Y-coordinate for grid lines. @todo (ib) Remve and calculate from viewport? */
+  /** Maximum Y coordinate for full-height guide lines. @defaultValue 1e6 */
   yMax?: number;
 };
 
+/** Renders a selected time interval as header or viewport guide lines. */
 export class TimeDeltaLayer extends CompositeLayer<Required<_TimeDeltaLayerProps>> {
   static override layerName = 'TimeDeltaLayer';
   static override defaultProps: DefaultProps<_TimeDeltaLayerProps> = {

@@ -33,8 +33,7 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@luma.gl/shadertools": "~9.3.2",
-    "@math.gl/core": "^4.0.0"
+    "@luma.gl/shadertools": "~9.3.2"
   },
   "peerDependencies": {
     "@deck.gl/core": "~9.3.0",

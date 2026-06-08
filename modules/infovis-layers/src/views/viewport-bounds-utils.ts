@@ -1,24 +1,32 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import type {Bounds} from './bounds-utils';
 import type {OrthographicViewState} from '@deck.gl/core';
 
-/**
- * Default floating-point tolerance used when comparing bounds values.
- */
+/** Default floating-point tolerance used when comparing bounds values. @defaultValue 1e-6 */
 export const DEFAULT_BOUNDS_EPSILON = 1e-6;
 
 /**
  * Axis-aligned bounding box describing the area that is currently visible in a Deck.gl viewport.
  *
- * @property minX - Inclusive minimum world-space X coordinate within the viewport.
- * @property maxX - Inclusive maximum world-space X coordinate within the viewport.
- * @property minY - Inclusive minimum world-space Y coordinate within the viewport.
- * @property maxY - Inclusive maximum world-space Y coordinate within the viewport.
  */
 export type ViewportBounds = {
+  /** Inclusive minimum world-space X coordinate within the viewport. */
   minX: number;
+  /** Inclusive maximum world-space X coordinate within the viewport. */
   maxX: number;
+  /** Inclusive minimum world-space Y coordinate within the viewport. */
   minY: number;
+  /** Inclusive maximum world-space Y coordinate within the viewport. */
   maxY: number;
+};
+
+/** Floating-point comparison configuration for {@link boundsAreEqual}. */
+export type BoundsEqualityOptions = {
+  /** Maximum allowed coordinate delta before bounds differ. @defaultValue DEFAULT_BOUNDS_EPSILON */
+  epsilon?: number;
 };
 
 /**
@@ -31,7 +39,7 @@ export type ViewportBounds = {
  * @param options.epsilon - Maximum allowed absolute difference between coordinate values before
  * the bounds are considered distinct. Defaults to {@link DEFAULT_BOUNDS_EPSILON}.
  */
-export function boundsAreEqual(a: Bounds, b: Bounds, options?: {epsilon?: number}): boolean {
+export function boundsAreEqual(a: Bounds, b: Bounds, options?: BoundsEqualityOptions): boolean {
   const epsilon = options?.epsilon ?? DEFAULT_BOUNDS_EPSILON;
   let [ax, ay] = a[0];
   let [bx, by] = b[0];

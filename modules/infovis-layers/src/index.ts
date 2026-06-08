@@ -11,22 +11,16 @@ export type {
   AnimationFrame,
   AnimationFramesGroup
 } from './layers/animation-layer/animation';
-export {
-  DependencyArrowLayer,
-  PathDirection,
-  type DependencyArrowLayerProps
-} from './layers/dependency-arrow-layer/dependency-arrow-layer';
 export {BlockLayer, type BlockLayerProps} from './layers/block-layer/block-layer';
-export {
-  TimeAxisLayer,
-  type TimeAxisLayerProps,
-  type TimeAxisTickFormatter
-} from './layers/time-axis-layer';
 
 export {fitBoundsOrthographic, getBoundsOrthographic} from './views/orthographic-utils';
-export {getPaddedBlockBounds, type Bounds} from './views/bounds-utils';
-export {formatTimeMs, formatTimeRangeMs} from './utils/format-utils';
-export {formatDuration, type Tick} from './utils/tick-utils';
+export {
+  getPaddedBlockBounds,
+  type Bounds,
+  type Geometry,
+  type PaddedBlockBoundsOptions
+} from './views/bounds-utils';
+export {formatTimeMs, formatTimeRangeMs, type FormatTimeMsOptions} from './utils/format-utils';
 export {validateViewState, mergeViewStates, type OptionalViewState} from './views/view-state-utils';
 export {makeLayerFilter} from './views/layer-filter';
 export {
@@ -34,6 +28,7 @@ export {
   boundsAreEqual,
   getViewportBoundsForViewState,
   isBoundsCompletelyOutside,
+  type BoundsEqualityOptions,
   type ViewportBounds
 } from './views/viewport-bounds-utils';
 export {

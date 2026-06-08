@@ -1,4 +1,4 @@
-// deck.gl
+// deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
@@ -41,75 +41,76 @@ const defaultProps: DefaultProps<BlockLayerProps> = {
   getLineColor: {type: 'accessor', value: DEFAULT_COLOR}
 };
 
-/** All properties supported by BlockLayer. */
+/** Properties supported by {@link BlockLayer}. */
 export type BlockLayerProps<DataT = unknown> = _BlockLayerProps<DataT> & LayerProps;
 
 /** Properties added by BlockLayer. */
 type _BlockLayerProps<DataT> = {
+  /** Data objects rendered as rectangular blocks. */
   data: LayerDataSource<DataT>;
   /**
    * The units of the block size, one of `'meters'`, `'common'`, and `'pixels'`.
-   * @default 'meters'
+   * @defaultValue 'meters'
    */
   sizeUnits?: Unit;
 
   /**
    * The minimum width in pixels. This prop can be used to prevent the block from getting too small when zoomed out.
-   * @default 0
+   * @defaultValue 0
    */
   widthMinPixels?: number;
   /**
    * The minimum height in pixels. This prop can be used to prevent the block from getting too small when zoomed out.
-   * @default 0
+   * @defaultValue 0
    */
   heightMinPixels?: number;
   /**
    * The maximum width or height in pixels. This prop can be used to prevent the block from getting too big when zoomed in.
-   * @default Number.MAX_SAFE_INTEGER
+   * @defaultValue Number.MAX_SAFE_INTEGER
    */
   sizeMaxPixels?: number;
 
   /**
    * The units of the stroke width, one of `'meters'`, `'common'`, and `'pixels'`.
-   * @default 'pixels'
+   * @defaultValue 'pixels'
    */
   lineWidthUnits?: Unit;
 
   /**
    * The outline width of each object.
-   * @default 1
+   * @defaultValue 1
    */
   getLineWidth?: Accessor<DataT, number>;
 
   /**
    * Method called to retrieve the position of each object.
-   * @default object => object.position
+   * @defaultValue object => object.position
    */
   getPosition?: AccessorFunction<DataT, Position>;
-  /** The width and height of each object */
+  /** Width and height of each block. @defaultValue [10, 10] */
   getSize?: Accessor<DataT, [number, number]>;
   /**
    * The rgba color is in the format of `[r, g, b, [a]]`
-   * @default [0, 0, 0, 255]
+   * @defaultValue [0, 0, 0, 255]
    */
   getLineColor?: Accessor<DataT, Color>;
   /**
    * The rgba color is in the format of `[r, g, b, [a]]`
-   * @default [0, 0, 0, 255]
+   * @defaultValue [0, 0, 0, 255]
    */
   getFillColor?: Accessor<DataT, Color>;
 };
 
-/** Render a point cloud with 3D positions, normals and colors. */
+/** Renders axis-aligned rectangular blocks with fill and outline colors. */
 export class BlockLayer<DataT = any, ExtraPropsT extends {} = {}> extends Layer<
   ExtraPropsT & Required<_BlockLayerProps<DataT>>
 > {
   static override layerName = 'BlockLayer';
   static override defaultProps = defaultProps;
 
-  declare state: {
+  override state: {
     model?: Model;
-  };
+  } = {};
 
   override getShaders() {
     return super.getShaders({

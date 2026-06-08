@@ -72,6 +72,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
     model?: any;
     pathTesselator: any;
     outlineFramebuffer: Framebuffer;
+    outlineEmptyTexture: Texture;
   } = undefined!;
 
   // Override getShaders to inject the outline module
@@ -106,6 +107,12 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
         })
       ]
     });
+    const outlineEmptyTexture = context.device.createTexture({
+      format: 'rgba8unorm',
+      width: 1,
+      height: 1,
+      mipLevels: 1
+    });
 
     attributeManager.addInstanced({
       instanceZLevel: {
@@ -117,12 +124,14 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
 
     this.setState({
       outlineFramebuffer,
+      outlineEmptyTexture,
       model: this._getModel()
     });
   }
 
   finalizeState(context: LayerContext) {
     this.state.outlineFramebuffer?.destroy();
+    this.state.outlineEmptyTexture?.destroy();
     super.finalizeState(context);
   }
 
@@ -130,8 +139,9 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
   draw() {
     const model = this.state.model;
     const outlineFramebuffer = this.state.outlineFramebuffer;
+    const outlineEmptyTexture = this.state.outlineEmptyTexture;
 
-    if (!model || !outlineFramebuffer) {
+    if (!model || !outlineFramebuffer || !outlineEmptyTexture) {
       return;
     }
 
@@ -174,7 +184,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
       outline: {
         outlineEnabled: true,
         outlineRenderShadowmap: true,
-        outlineShadowmap: shadowmapTexture
+        outlineShadowmap: outlineEmptyTexture
       }
     });
     model.shaderInputs.setProps({

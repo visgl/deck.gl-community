@@ -1,5 +1,19 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+/** Two-dimensional world-space bounds represented by minimum and maximum corners. */
 export type Bounds = [[number, number], [number, number]];
+/** Interleaved X/Y block geometry values accepted by {@link getPaddedBlockBounds}. */
 export type Geometry = ArrayLike<number> | null | undefined;
+
+/** Padding configuration for {@link getPaddedBlockBounds}. */
+export type PaddedBlockBoundsOptions = {
+  /** Padding added as a fraction of geometry width and height. @defaultValue 0.1 */
+  paddingFraction?: number;
+  /** Minimum world-space padding added on each axis. @defaultValue 1 */
+  minimumPadding?: number;
+};
 
 /**
  * Computes padded bounds for a block geometry represented as an interleaved array of X/Y
@@ -13,10 +27,7 @@ export type Geometry = ArrayLike<number> | null | undefined;
  */
 export function getPaddedBlockBounds(
   geometry: Geometry,
-  options?: {
-    paddingFraction?: number;
-    minimumPadding?: number;
-  }
+  options?: PaddedBlockBoundsOptions
 ): Bounds | null {
   const bounds = getGeometryBounds(geometry);
   if (!bounds) {

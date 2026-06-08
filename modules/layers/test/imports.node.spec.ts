@@ -13,6 +13,10 @@ it('exports PathMarkerLayer', () => {
   expect(Layers.PathMarkerLayer).toBeDefined();
 });
 
+it('exports DependencyArrowLayer', () => {
+  expect(Layers.DependencyArrowLayer).toBeDefined();
+});
+
 it('exports SkyboxLayer', () => {
   expect(Layers.SkyboxLayer).toBeDefined();
 });

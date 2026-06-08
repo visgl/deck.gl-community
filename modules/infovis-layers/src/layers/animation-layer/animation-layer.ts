@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {CompositeLayer} from '@deck.gl/core';
 
 import {
@@ -9,31 +13,33 @@ import {
 
 import type {CompositeLayerProps, Layer} from '@deck.gl/core';
 
+/** Properties supported by {@link AnimationLayer}. */
 export type AnimationLayerProps<LayerT extends Layer> = CompositeLayerProps &
   _AnimationLayerProps<LayerT>;
 
 type _AnimationLayerProps<LayerT extends Layer> = {
-  /** Base instance of the animated layer */
+  /** Base child layer cloned for each animation frame. */
   layer: LayerT;
-  /** Frames of changing layer props */
+  /** Frames that describe how child layer props change over time. */
   frames: AnimationFramesGroup<LayerT>;
+  /** Number of additional animation iterations after the first pass. @defaultValue 0 */
   repeat?: number;
+  /** Whether repeated frames restart or alternate in reverse. @defaultValue 'loop' */
   repeatType?: 'loop' | 'reverse';
+  /** Delay in milliseconds before each repeated iteration. @defaultValue 0 */
   repeatDelay?: number;
 };
 
-/** A composite layer that animates its child layer with composable frames */
+/** A composite layer that animates its child layer with composable frames. */
 export class AnimationLayer<LayerT extends Layer> extends CompositeLayer<
   _AnimationLayerProps<LayerT>
 > {
   static override layerName = 'AnimationLayer';
 
-  static override componentName = 'AnimationLayer';
-
-  declare state: {
+  override state: {
     layer?: LayerT;
     animationState?: AnimationState<LayerT>;
-  };
+  } = {};
 
   // Hack - hijacking another flag to force updates
   override hasUniformTransition(): boolean {

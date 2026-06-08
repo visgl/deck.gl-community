@@ -15,7 +15,7 @@ Use [`PathMarkerLayer`](./path-marker-layer.md) when you need arrows or other
 markers along a path. The `PathOutlineLayer` is focused purely on the outline
 pass and can be combined with any other overlays.
 
-See the [Path outline and marker example](/examples/layers/path-outline-and-markers)
+See the [path outline, marker, and dependency arrow example](/examples/layers/path-outline-and-markers)
 for a live demonstration.
 
 ## Usage

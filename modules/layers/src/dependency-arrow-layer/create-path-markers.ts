@@ -1,34 +1,68 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {createIterable} from '@deck.gl/core';
 import {Vector2} from '@math.gl/core';
 
 import type {Accessor, AccessorContext, AccessorFunction, Position} from '@deck.gl/core';
 import type {NumericArray} from '@math.gl/core';
 
+/** Path positions accepted by dependency marker helpers. */
 export type PathGeometry = Position[] | NumericArray;
 type PathAccessor<DataT> = AccessorFunction<DataT, PathGeometry>;
-type MarkerPlacementsAccessorContext<DataT> = AccessorContext<DataT> & {lineLength: number};
+/** Accessor context passed while resolving dependency marker placements. */
+export type MarkerPlacementsAccessorContext<DataT> = AccessorContext<DataT> & {
+  /** Total resolved dependency path length. */
+  lineLength: number;
+};
+/** Accessor that resolves dependency marker direction for one datum. */
 export type PathDirectionAccessor<DataT> = Accessor<DataT, PathDirection>;
+/** Accessor that resolves marker placements along one dependency path. */
 export type MarkerPlacementsAccessor<DataT> =
   | number[]
   | ((datum: DataT, context: MarkerPlacementsAccessorContext<DataT>) => number[]);
 
+/** One marker placement resolved along a dependency path. */
 export interface PathMarker<DataT> {
+  /** Segment start used to orient the marker. */
   source: Position;
+  /** Segment end used to orient the marker. */
   target: Position;
+  /** Marker ratio within the resolved segment. */
   percentage: number;
+  /** Original source datum used for picking and accessor forwarding. */
   __source: {
+    /** Original source datum. */
     object: DataT;
+    /** Original source datum index. */
     index: number;
   };
 }
 
+/** Directions in which dependency markers may be rendered. */
 export enum PathDirection {
+  /** Do not render dependency markers. */
   NONE = 0,
+  /** Render markers from source to target. */
   FORWARD = 1,
+  /** Render markers from target to source. */
   BACKWARD = 2,
+  /** Render markers in both directions. */
   BOTH = 3
 }
 
+/**
+ * Resolves directional marker placements for dependency path data.
+ * @param options - Marker resolution options.
+ * @param options.data - Dependency path data to inspect.
+ * @param options.getPath - Accessor returning nested or flat path coordinates.
+ * @param options.positionSize - Number of coordinate values in one flat path position.
+ * @param options.getDirection - Accessor returning marker direction flags.
+ * @param options.getMarkerPlacements - Accessor returning path ratios for marker placement.
+ * @param options.mode - Routing mode used by the dependency line.
+ * @returns Marker placements resolved against each dependency path.
+ */
 export function createPathMarkers<DataT>({
   data,
   getPath,

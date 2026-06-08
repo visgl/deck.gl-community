@@ -1,24 +1,29 @@
-/**
- * A simple animation engine for deck.gl layers
- */
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+/** A simple animation engine for deck.gl layers. */
 import {type Layer} from '@deck.gl/core';
 
+/** One timed set of layer prop changes in an animation. */
 export type AnimationFrame<LayerT extends Layer> = {
-  /** The prop values to transition to */
+  /** Child layer prop values to transition to. */
   props: Partial<LayerT['props']>;
-  /** The duration in milliseconds to execute the transition */
+  /** Duration in milliseconds used to execute the transition. */
   duration: number;
-  /** The pause before start. @default 0 */
+  /** Pause in milliseconds before this frame starts. @defaultValue 0 */
   delay?: number;
-  /** The easing function that defines the transition curve. @default linear */
+  /** Easing function that defines the transition curve. @defaultValue linear */
   easing?: (t: number) => number;
 };
+
+/** A schedulable group of animation frames. */
 export type AnimationFramesGroup<LayerT extends Layer> = {
   /**
    * How to schedule the child frames.
-   * sequence: each frame is started after the previous frame ends.
-   * concurrence: all frames are started together.
-   * stagger: each frame is started one-by-one, at a fixed interval
+   * `sequence`: each frame starts after the previous frame ends.
+   * `concurrence`: all frames start together.
+   * `stagger`: frames start one-by-one at a fixed interval.
    */
   type: 'sequence' | 'concurrence' | 'stagger';
   /**
@@ -29,13 +34,19 @@ export type AnimationFramesGroup<LayerT extends Layer> = {
    */
   delay?: number;
 
+  /** Frames or nested frame groups scheduled by this group. */
   frames: (AnimationFramesGroup<LayerT> | AnimationFrame<LayerT>)[];
 };
 
+/** Repeat and schedule options used to resolve an animation timeline. */
 export type AnimationExtensionOptions<LayerT extends Layer> = {
+  /** Frames scheduled by the animation. */
   frames: AnimationFramesGroup<LayerT>;
+  /** Number of additional animation iterations after the first pass. @defaultValue 0 */
   repeat?: number;
+  /** Whether repeated frames restart or alternate in reverse. @defaultValue 'loop' */
   repeatType?: 'loop' | 'reverse';
+  /** Delay in milliseconds before each repeated iteration. @defaultValue 0 */
   repeatDelay?: number;
 };
 
@@ -52,16 +63,17 @@ type ResolvedAnimationFrame<LayerT extends Layer> = {
   easing: (t: number) => number;
 };
 
+/** Runtime state for one resolved layer animation. */
 export type AnimationState<LayerT extends Layer> = {
-  // timestamp at which the current iteration started
+  /** Timeline timestamp at which the current iteration started. */
   start: number;
-  // timestamp at which the current iteration will ended
+  /** Timeline timestamp at which the current iteration ends. */
   end: number;
-  // true if the end state has not been fully committed
+  /** Whether the end state has not yet been fully committed. */
   inProgress: boolean;
-  // iterations completed
+  /** Number of completed animation iterations. */
   iterations: number;
-  // frames to execute
+  /** Resolved frames executed during the current iteration. */
   frames: ResolvedAnimationFrame<LayerT>[];
 };
 
@@ -162,6 +174,13 @@ function reverseResolvedFrames<LayerT extends Layer = Layer>(
   return reversed;
 }
 
+/**
+ * Resolves the animation iteration that should be active at a timeline timestamp.
+ * @param time - Current timeline timestamp in milliseconds.
+ * @param opts - Animation frame and repeat configuration.
+ * @param prevState - Previous animation state, when one has already been resolved.
+ * @returns The current or next resolved animation state.
+ */
 export function resolveAnimationFrames<LayerT extends Layer = Layer>(
   time: number,
   opts: AnimationExtensionOptions<LayerT>,
@@ -237,6 +256,13 @@ function interpolateProp<PropT extends number | number[] | string | Function | o
   return to;
 }
 
+/**
+ * Resolves animated child layer props for a point inside one animation iteration.
+ * @param layer - Base child layer whose props provide the interpolation starting values.
+ * @param frames - Resolved frames for the active animation iteration.
+ * @param timeSinceStart - Milliseconds elapsed since the iteration started.
+ * @returns Child layer props that should be applied at the requested time.
+ */
 export function resolveProps<LayerT extends Layer = Layer>(
   layer: LayerT,
   frames: ResolvedAnimationFrame<LayerT>[],

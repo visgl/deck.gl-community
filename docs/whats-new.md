@@ -4,6 +4,30 @@
 
 Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
+### `@deck.gl-community/layers`
+
+- `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
+
+### `@deck.gl-community/infovis-layers`
+
+- Added generic animation, block, and viewport-bounds helpers for trace-style visualizations.
+
+### `@deck.gl-community/timeline-layers`
+
+- `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
+
+### `@deck.gl-community/react`
+
+- `<Panel />` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.
+
+### `@deck.gl-community/widgets`
+
+- `PanelWidget` - NEW generic deck adapter for any panel-owned `PanelComponent`.
+- Thin named adapters now cover real panel containers plus specialized toolbar
+  and toast components without duplicating panel rendering logic.
+- `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
+- `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
+
 ### `@deck.gl-community/panels` (NEW module)
 
 A new module for deck-independent panel composition and small application UI.
@@ -29,18 +53,6 @@ A new module for deck-independent panel composition and small application UI.
 - `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
 - `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.
 
-### `@deck.gl-community/widgets`
-
-- `PanelWidget` - NEW generic deck adapter for any panel-owned `PanelComponent`.
-- Thin named adapters now cover real panel containers plus specialized toolbar
-  and toast components without duplicating panel rendering logic.
-- `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
-- `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
-
-### `@deck.gl-community/react`
-
-- `Panel` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.
-
 ## v9.3
 
 Released: April 15, 2026
@@ -60,27 +72,6 @@ Highlights:
 - Examples transitioned from React to "pure JavaScript" examples using deck.gl widget panels.
 - Website and remaining React examples now build against React 19; `@deck.gl-community/react` accepts both React 18 and React 19.
 
-### `@deck.gl-community/basemap-layers` (NEW module)
-
-A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
-
-- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
-- `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
-- `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
-- `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
-- [BasemapLayer MapView](/examples/layers/basemap-layer-map-view) - Interactive flat-map control example with style switching and globe/flat runtime validation.
-
-#### `@deck.gl-community/basemap-layers/map-style`
-
-Utilities for loading and working with map styles available as a separate deck.gl independent sub-export.
-
-- `MapStyleLoader` - loaders.gl-compatible loader wrapper for resolving and validating style documents.
-- `BasemapSourceSchema`, `BasemapStyleLayerSchema`, `BasemapStyleSchema`, `ResolvedBasemapStyleSchema` - Zod schemas for strongly typed style validation.
-- `parseProperties` - Resolve style paint/layout properties for a given zoom level.
-- `filterFeatures` - Apply Mapbox-style feature filters to decoded features.
-- `findFeaturesStyledByLayer` - Inspect which features match a specific style layer.
-- `resolveBasemapStyle` - Resolve style URLs, in-memory style objects, relative TileJSON references, and source URLs into a validated runtime style definition.
-
 ### `@deck.gl-community/layers`
 
 - [`SkyboxLayer`](/docs/modules/layers/api-reference/skybox-layer) - NEW experimental layer for rendering a camera-centered cubemap background in deck.gl.
@@ -93,6 +84,25 @@ Examples:
 - [SkyboxLayer MapView](/examples/layers/skybox-map-view)
 - [SkyboxLayer GlobeView](/examples/layers/skybox-globe)
 - [SkyboxLayer FirstPersonView](/examples/layers/skybox-first-person)
+
+### `@deck.gl-community/basemap-layers` (NEW module)
+
+A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
+
+- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
+- `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
+- `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
+- `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
+- [BasemapLayer MapView](/examples/layers/basemap-layer-map-view) - Interactive flat-map control example with style switching and globe/flat runtime validation.
+
+**`@deck.gl-community/basemap-layers/map-style`** - Utilities for loading and working with map styles available as a separate deck.gl independent sub-export:
+
+- `MapStyleLoader` - loaders.gl-compatible loader wrapper for resolving and validating style documents.
+- `BasemapSourceSchema`, `BasemapStyleLayerSchema`, `BasemapStyleSchema`, `ResolvedBasemapStyleSchema` - Zod schemas for strongly typed style validation.
+- `parseProperties` - Resolve style paint/layout properties for a given zoom level.
+- `filterFeatures` - Apply Mapbox-style feature filters to decoded features.
+- `findFeaturesStyledByLayer` - Inspect which features match a specific style layer.
+- `resolveBasemapStyle` - Resolve style URLs, in-memory style objects, relative TileJSON references, and source URLs into a validated runtime style definition.
 
 ### `@deck.gl-community/three` (NEW module)
 

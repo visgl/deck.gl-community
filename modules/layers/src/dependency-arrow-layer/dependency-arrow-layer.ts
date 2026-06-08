@@ -1,13 +1,18 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {CompositeLayer} from '@deck.gl/core';
 import {ArcLayer, LineLayer, PathLayer} from '@deck.gl/layers';
 import {Vector3} from '@math.gl/core';
 
-import {createPathMarkers, PathDirection, PathGeometry} from './create-path-markers';
+import {createPathMarkers, PathDirection} from './create-path-markers';
 import {GeometryLayer} from './geometry-layer';
 
 import type {
   MarkerPlacementsAccessor,
   PathDirectionAccessor,
+  PathGeometry,
   PathMarker
 } from './create-path-markers';
 import type {
@@ -24,37 +29,59 @@ import type {
 import type {ArcLayerProps, LineLayerProps, PathLayerProps} from '@deck.gl/layers';
 
 export {PathDirection};
+export type {
+  MarkerPlacementsAccessor,
+  MarkerPlacementsAccessorContext,
+  PathDirectionAccessor,
+  PathGeometry,
+  PathMarker
+} from './create-path-markers';
 
+/** Properties supported by {@link DependencyArrowLayer}. */
 export type DependencyArrowLayerProps<DataT = unknown> = LayerProps &
   _DependencyArrowLayerProps<DataT>;
 
 type _DependencyArrowLayerProps<DataT = unknown> = {
+  /** Dependency data rendered by the layer. */
   data: LayerDataSource<DataT>;
+  /** Dependency routing mode. @defaultValue 'path' */
   mode?: 'path' | 'line' | 'arc';
 
+  /** Accessor returning nested or flat dependency path coordinates. */
   getPath?: PathLayerProps<DataT>['getPath'];
+  /** Accessor returning dependency line color. */
   getColor?: LineLayerProps<DataT>['getColor'];
+  /** Accessor returning dependency line width. */
   getWidth?: LineLayerProps<DataT>['getWidth'];
+  /** Units used by dependency line width. */
   widthUnits?: LineLayerProps<DataT>['widthUnits'];
+  /** Scale applied to dependency line width. */
   widthScale?: LineLayerProps<DataT>['widthScale'];
+  /** Minimum rendered dependency line width in pixels. */
   widthMinPixels?: LineLayerProps<DataT>['widthMinPixels'];
+  /** Maximum rendered dependency line width in pixels. */
   widthMaxPixels?: LineLayerProps<DataT>['widthMaxPixels'];
 
+  /** Arc segment count used when `mode` is `'arc'`. */
   arcNumSegments?: ArcLayerProps<DataT>['numSegments'];
+  /** Accessor returning arc height when `mode` is `'arc'`. */
   getArcHeight?: ArcLayerProps<DataT>['getHeight'];
+  /** Accessor returning arc tilt when `mode` is `'arc'`. */
   getArcTilt?: ArcLayerProps<DataT>['getTilt'];
 
-  /** Path direction */
+  /** Accessor returning marker direction flags. @defaultValue PathDirection.FORWARD */
   getDirection?: PathDirectionAccessor<DataT>;
-  /** Marker color, falls back to path color (getColor) if not specified */
+  /** Marker color accessor; falls back to `getColor` when omitted. */
   getMarkerColor?: Accessor<DataT, Color>;
-  /** Returns a list of positions to place the marker at. Each position is a ratio on the path, 0 is the start, 1 is the end */
+  /** Accessor returning marker ratios along the path, from 0 at start to 1 at end. */
   getMarkerPlacements?: MarkerPlacementsAccessor<DataT>;
-  /** Marker size in [widthPixels, heightPixels] */
+  /** Marker size accessor in marker-local `[width, height]` units. */
   getMarkerSize?: Accessor<DataT, [number, number]>;
+  /** Optional point used by callers to identify a highlighted dependency location. */
   highlightPoint?: Position | Vector3 | null;
+  /** Optional source datum index used with `highlightPoint`. */
   highlightIndex?: number;
-  /** Marker size multiplier */
+  /** Marker size multiplier. @defaultValue 10 */
   markerSizeScale?: number;
 };
 
@@ -83,6 +110,7 @@ const defaultProps: DefaultProps<_DependencyArrowLayerProps> = {
   getMarkerPlacements: {type: 'accessor', value: [0.5]}
 };
 
+/** Renders paths, lines, or arcs with directional dependency markers. */
 export class DependencyArrowLayer<
   DataT = any,
   ExtraPropsT = Record<string, unknown>
@@ -99,11 +127,15 @@ export class DependencyArrowLayer<
   override updateState({props, oldProps, changeFlags}: UpdateParameters<this>) {
     const shouldRebuildMarkers =
       changeFlags.dataChanged ||
+      props.mode !== oldProps.mode ||
       props.positionFormat !== oldProps.positionFormat ||
+      props.getPath !== oldProps.getPath ||
+      props.getDirection !== oldProps.getDirection ||
+      props.getMarkerPlacements !== oldProps.getMarkerPlacements ||
       (changeFlags.updateTriggersChanged &&
         (changeFlags.updateTriggersChanged['getPath'] ||
           changeFlags.updateTriggersChanged['getDirection'] ||
-          changeFlags.updateTriggersChanged['getMarkerPlacement']));
+          changeFlags.updateTriggersChanged['getMarkerPlacements']));
 
     if (shouldRebuildMarkers) {
       const {data, mode, getPath, getDirection, getMarkerPlacements} = this.props;

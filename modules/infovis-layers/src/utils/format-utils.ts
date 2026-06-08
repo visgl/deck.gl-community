@@ -1,15 +1,27 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /**
- * Convert a time in microseconds to a human-readable string
- * @param us Time in microseconds
+ * Options for formatting millisecond duration labels.
  */
-export function formatTimeMs(
-  timeMs: number,
-  options?: {
-    space?: boolean;
-    roundDigits?: number;
-  }
-): string {
-  const {space = true, roundDigits = 5} = options || {};
+export type FormatTimeMsOptions = {
+  /** Whether to include a space between the value and unit. @defaultValue true */
+  space?: boolean;
+  /** Number of significant digits used for fractional values. @defaultValue 5 */
+  roundDigits?: number;
+};
+
+/**
+ * Convert a time in milliseconds to a human-readable string.
+ * @param timeMs Time in milliseconds.
+ * @param options Formatting options, or the legacy `space` boolean argument.
+ * @returns Human-readable duration label.
+ */
+export function formatTimeMs(timeMs: number, options: boolean | FormatTimeMsOptions = {}): string {
+  const normalizedOptions: FormatTimeMsOptions =
+    typeof options === 'boolean' ? {space: options} : options;
+  const {space = true, roundDigits = 5} = normalizedOptions;
   const sep = space ? ' ' : '';
   const us = timeMs * 1000;
   if (us === 0) {
@@ -37,6 +49,12 @@ export function formatTimeMs(
   return formatDayDuration(s);
 }
 
+/**
+ * Convert a millisecond time range to a human-readable string.
+ * @param startMs Range start in milliseconds.
+ * @param endMs Range end in milliseconds.
+ * @returns Human-readable start and end labels joined by a separator.
+ */
 export function formatTimeRangeMs(startMs: number, endMs: number): string {
   return `${formatTimeMs(startMs)} - ${formatTimeMs(endMs)}`;
 }

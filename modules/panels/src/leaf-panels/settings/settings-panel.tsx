@@ -85,7 +85,7 @@ const SECTION_PANEL_CONTENT_STYLE: JSX.CSSProperties = {
 
 const SETTING_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(120px, 1fr) minmax(200px, 1.4fr)',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)',
   alignItems: 'center',
   gap: '8px'
 };
@@ -100,6 +100,7 @@ const SETTING_LABEL_STYLE: JSX.CSSProperties = {
 };
 
 const SETTING_CONTROL_STYLE: JSX.CSSProperties = {
+  width: '100%',
   minWidth: 0,
   display: 'flex',
   alignItems: 'center'
@@ -544,13 +545,15 @@ function SettingsSectionPanelContent({
 
   return (
     <div
-      style={{overflowY: 'auto', paddingBottom: '8px'}}
+      style={{minWidth: 0, paddingBottom: '8px'}}
       onPointerMove={event => stopPropagation(event as unknown as Event)}
       onMouseMove={event => stopPropagation(event as unknown as Event)}
       onPointerDown={event => stopPropagation(event as unknown as Event)}
       onMouseDown={event => stopPropagation(event as unknown as Event)}
       onWheel={event => stopPropagation(event as unknown as Event)}
       onClick={event => stopPropagation(event as unknown as Event)}
+      onKeyDown={event => stopPropagation(event as unknown as Event)}
+      onKeyUp={event => stopPropagation(event as unknown as Event)}
     >
       <SettingsSectionBody
         contentStyle={SECTION_PANEL_CONTENT_STYLE}
@@ -611,13 +614,15 @@ export function SettingsPanelContent({
 
   return (
     <div
-      style={{overflowY: 'auto', paddingBottom: '8px'}}
+      style={{minWidth: 0, paddingBottom: '8px'}}
       onPointerMove={event => stopPropagation(event as unknown as Event)}
       onMouseMove={event => stopPropagation(event as unknown as Event)}
       onPointerDown={event => stopPropagation(event as unknown as Event)}
       onMouseDown={event => stopPropagation(event as unknown as Event)}
       onWheel={event => stopPropagation(event as unknown as Event)}
       onClick={event => stopPropagation(event as unknown as Event)}
+      onKeyDown={event => stopPropagation(event as unknown as Event)}
+      onKeyUp={event => stopPropagation(event as unknown as Event)}
     >
       {renderInlineSingleSection ? (
         <SettingsSectionBody

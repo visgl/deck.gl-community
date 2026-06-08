@@ -328,6 +328,27 @@ describe('SettingsPanel', () => {
     cleanup();
   });
 
+  it('keeps keyboard events inside settings content', async () => {
+    const handleKeyDown = vi.fn();
+    const host = document.createElement('div');
+    host.addEventListener('keydown', handleKeyDown);
+    document.body.appendChild(host);
+    const {root, cleanup} = renderSettingsPanel();
+    host.appendChild(root);
+
+    const visibilityToggle = getRequiredButton(root, 'button[aria-expanded]');
+    visibilityToggle.click();
+    await Promise.resolve();
+
+    const checkbox = getRequiredInput(root, 'input[type="checkbox"]');
+    checkbox.dispatchEvent(new KeyboardEvent('keydown', {bubbles: true, key: ' '}));
+
+    expect(handleKeyDown).not.toHaveBeenCalled();
+
+    cleanup();
+    host.remove();
+  });
+
   it('debounces range slider changes when requested by the setting descriptor', async () => {
     vi.useFakeTimers();
     const handleSettingsChange = vi.fn<(settings: SettingsState) => void>();

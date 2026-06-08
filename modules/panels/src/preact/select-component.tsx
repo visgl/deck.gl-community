@@ -88,7 +88,7 @@ const SELECT_LIST_STYLE: JSX.CSSProperties = {
   width: 'max-content',
   maxWidth: 'calc(100vw - 16px)',
   maxHeight: '192px',
-  overflowX: 'auto',
+  overflowX: 'hidden',
   overflowY: 'auto',
   padding: '4px',
   border: 'var(--button-inner-stroke, 1px solid rgba(148, 163, 184, 0.48))',

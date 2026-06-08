@@ -1,0 +1,25 @@
+{
+  "name": "infovis-layer-primitives-example",
+  "version": "9.3.5",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/infovis-layers": "workspace:*",
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@loaders.gl/core": "^4.4.1",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/engine": "~9.3.2",
+    "@luma.gl/shadertools": "~9.3.2",
+    "@luma.gl/webgl": "~9.3.2",
+    "@luma.gl/webgpu": "~9.3.2"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

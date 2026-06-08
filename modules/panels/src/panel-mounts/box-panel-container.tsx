@@ -42,6 +42,7 @@ function BoxPanelContainerView({
   panel,
   title,
   widthPx,
+  maxHeightPx,
   open,
   collapsible,
   onOpenChange
@@ -49,12 +50,28 @@ function BoxPanelContainerView({
   panel?: Panel;
   title?: string;
   widthPx: number;
+  maxHeightPx?: number;
   open: boolean;
   collapsible: boolean;
   onOpenChange: (next: boolean) => void;
 }) {
   return (
-    <section style={BOX_STYLE(widthPx)} aria-label={title ?? 'Panel box'}>
+    <section
+      style={BOX_STYLE(widthPx, maxHeightPx)}
+      aria-label={title ?? 'Panel box'}
+      onPointerDown={stopBoxPanelEventPropagation}
+      onPointerMove={stopBoxPanelEventPropagation}
+      onPointerUp={stopBoxPanelEventPropagation}
+      onMouseDown={stopBoxPanelEventPropagation}
+      onMouseMove={stopBoxPanelEventPropagation}
+      onMouseUp={stopBoxPanelEventPropagation}
+      onTouchStart={stopBoxPanelEventPropagation}
+      onTouchMove={stopBoxPanelEventPropagation}
+      onTouchEnd={stopBoxPanelEventPropagation}
+      onClick={stopBoxPanelEventPropagation}
+      onContextMenu={stopBoxPanelEventPropagation}
+      onWheel={stopBoxPanelEventPropagation}
+    >
       {title ? (
         <header style={BOX_HEADER_STYLE}>
           {collapsible ? (
@@ -113,6 +130,7 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
   isOpen = BoxPanelContainer.defaultProps.defaultOpen;
   #panel: Panel | undefined = BoxPanelContainer.defaultProps.panel;
   #rootElement: HTMLElement | null = null;
+  #maxHeightPx: number | undefined = undefined;
   #hasOpenStateInitialized = false;
   #isControlled = false;
   #openChange: ((open: boolean) => void) | undefined = undefined;
@@ -163,6 +181,11 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
     this.#render();
   }
 
+  /** Refreshes viewport-relative box bounds after the host viewport changes. */
+  override onViewportChange(): void {
+    this.#render();
+  }
+
   #handleOpenChange = (nextOpen: boolean) => {
     if (!this.#isControlled) {
       this.isOpen = nextOpen;
@@ -175,12 +198,14 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
     if (!this.#rootElement) {
       return;
     }
+    this.#maxHeightPx = getBoxHostMaxHeightPx(this.#rootElement);
 
     render(
       <BoxPanelContainerView
         panel={this.#panel}
         title={this.title}
         widthPx={this.widthPx}
+        maxHeightPx={this.#maxHeightPx}
         open={this.isOpen}
         collapsible={this.collapsible}
         onOpenChange={this.#handleOpenChange}
@@ -206,9 +231,35 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
   }
 }
 
-const BOX_STYLE = (widthPx: number): JSX.CSSProperties => ({
+function stopBoxPanelEventPropagation(event: Event): void {
+  event.stopPropagation();
+}
+
+function getBoxHostMaxHeightPx(rootElement: HTMLElement): number | undefined {
+  let element = rootElement.parentElement;
+  while (element) {
+    const style = element.ownerDocument.defaultView?.getComputedStyle(element);
+    const clipsOverflow =
+      style?.overflow === 'hidden' ||
+      style?.overflowX === 'hidden' ||
+      style?.overflowY === 'hidden';
+    if (clipsOverflow && element.clientHeight > 0) {
+      const availableHeight =
+        element.getBoundingClientRect().bottom - rootElement.getBoundingClientRect().top;
+      return availableHeight > 0 ? availableHeight : element.clientHeight;
+    }
+    element = element.parentElement;
+  }
+  return undefined;
+}
+
+const BOX_STYLE = (widthPx: number, maxHeightPx?: number): JSX.CSSProperties => ({
   width: `${widthPx}px`,
   maxWidth: `min(84vw, ${widthPx}px)`,
+  ...(maxHeightPx === undefined ? {} : {maxHeight: `${maxHeightPx}px`}),
+  boxSizing: 'border-box',
+  display: 'flex',
+  flexDirection: 'column',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
   borderRadius: '12px',
   background: 'var(--menu-background, rgba(255, 255, 255, 0.96))',
@@ -251,5 +302,11 @@ const BOX_HEADER_CHEVRON_STYLE = (open: boolean): JSX.CSSProperties => ({
 
 const BOX_CONTENT_STYLE = (open: boolean): JSX.CSSProperties => ({
   display: open ? 'block' : 'none',
+  flex: '1 1 auto',
+  minHeight: 0,
+  overflowX: 'hidden',
+  overflowY: 'auto',
+  touchAction: 'pan-y',
+  overscrollBehavior: 'contain',
   padding: '0 16px 16px'
 });

@@ -1,27 +1,45 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import type {FilterContext, Layer, Viewport} from '@deck.gl/core';
 
+/** Deck.gl layer filter callback or `null` when no filter should be applied. */
 export type LayerFilter = ((context: FilterContext) => boolean) | null;
 
+/** Flat two-dimensional bounds represented as `[minX, minY, maxX, maxY]`. */
 export type Bounds = [number, number, number, number];
 
+/** Reason emitted when the viewport bounds filter makes or skips a filter decision. */
 export type LayerBoundsFilterDecision =
   | {
+      /** Indicates that the layer was filtered because it missed the viewport. */
       decision: 'filter';
+      /** Deck.gl filter context evaluated by the filter. */
       context: FilterContext;
+      /** Layer bounds evaluated by the filter. */
       layerBounds: Bounds;
+      /** Viewport bounds evaluated by the filter. */
       viewportBounds: Bounds;
     }
   | {
+      /** Indicates that the layer did not expose usable bounds. */
       decision: 'missing-layer-bounds';
+      /** Deck.gl filter context evaluated by the filter. */
       context: FilterContext;
     }
   | {
+      /** Indicates that the viewport did not expose usable bounds. */
       decision: 'missing-viewport-bounds';
+      /** Deck.gl filter context evaluated by the filter. */
       context: FilterContext;
+      /** Layer bounds evaluated before viewport bounds were found missing. */
       layerBounds: Bounds;
     };
 
+/** Configuration for {@link createViewportBoundsFilter}. */
 export type LayerBoundsFilterOptions = {
+  /** Callback invoked when the filter skips or applies a bounds decision. */
   onDecision?: (decision: LayerBoundsFilterDecision) => void;
 };
 
@@ -30,6 +48,8 @@ type BoundsCache<Id extends WeakKey> = WeakMap<Id, Bounds | null>;
 /**
  * Combine multiple layer filters.
  * Returns null when none of the supplied filters are defined.
+ * @param filters - Layer filters to evaluate in order.
+ * @returns One filter that requires every defined filter to pass, or `null`.
  */
 export function combineLayerFilters(filters: (LayerFilter | undefined | null)[]): LayerFilter {
   const definedFilters = filters.filter(Boolean) as ((context: FilterContext) => boolean)[];
@@ -45,6 +65,8 @@ export function combineLayerFilters(filters: (LayerFilter | undefined | null)[])
 /**
  * Creates a layer filter that compares layer and viewport bounds.
  * Layers that do not intersect the viewport bounds are filtered out.
+ * @param options - Optional decision callback configuration.
+ * @returns Layer filter that keeps only layers intersecting the current viewport.
  */
 export function createViewportBoundsFilter(options?: LayerBoundsFilterOptions): LayerFilter {
   const layerBoundsCache: BoundsCache<Layer> = new WeakMap();

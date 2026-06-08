@@ -1,3 +1,7 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {Layer, picking, project32, UNIT} from '@deck.gl/core';
 import {Geometry, Model} from '@luma.gl/engine';
 
@@ -11,31 +15,37 @@ import type {
   UpdateParameters
 } from '@deck.gl/core';
 
+/** Properties supported by the internal dependency marker geometry layer. */
 export type GeometryLayerProps<DataT = unknown> = LayerProps & _GeometryLayerProps<DataT>;
 
 type _GeometryLayerProps<DataT> = {
+  /** Units used by marker size. @defaultValue 'common' */
   sizeUnits?: Unit;
+  /** Scale applied to marker size. @defaultValue 1 */
   sizeScale?: number;
 
-  // Retained for API compatibility with existing callers.
+  /** Retained for API compatibility with existing callers. */
   nodeDepth?: unknown;
 
+  /** Marker interpolation route. @defaultValue 'line' */
   interpolationMode?: 'line' | 'arc';
 
+  /** Accessor returning encoded picking color. */
   getPickingColor?: Accessor<DataT, Color>;
-  /** Start of the geometry */
+  /** Accessor returning the marker segment start. */
   getSourcePosition?: Accessor<DataT, Position>;
-  /** End of the geometry */
+  /** Accessor returning the marker segment end. */
   getTargetPosition?: Accessor<DataT, Position>;
-  /** Position along the geometry as percentage of length */
+  /** Accessor returning marker position ratio along the segment. */
   getPositionRatio?: Accessor<DataT, number>;
-  /** Bounding box of the geometry in [along, width] */
+  /** Accessor returning marker bounding box as `[along, width]`. */
   getSize?: Accessor<DataT, [number, number]>;
-  /** Object color in [R, G, B, A?] */
+  /** Accessor returning marker color as `[R, G, B, A?]`. */
   getColor?: Accessor<DataT, Color>;
 
-  /** Accessors used if interpolationMode: 'arc' */
+  /** Accessor returning arc height when `interpolationMode` is `'arc'`. */
   getArcHeight?: Accessor<DataT, number>;
+  /** Accessor returning arc tilt when `interpolationMode` is `'arc'`. */
   getArcTilt?: Accessor<DataT, number>;
 };
 
@@ -233,13 +243,14 @@ void main(void) {
 }
 `;
 
+/** Renders triangle markers resolved by {@link DependencyArrowLayer}. */
 export class GeometryLayer<DataT = unknown> extends Layer<Required<_GeometryLayerProps<DataT>>> {
   static override defaultProps = defaultProps;
   static override layerName = 'GeometryLayer';
 
-  declare state: {
+  override state: {
     model?: Model;
-  };
+  } = {};
 
   override getShaders() {
     return super.getShaders({vs, fs, modules: [project32, picking, geometryLayerUniforms]});

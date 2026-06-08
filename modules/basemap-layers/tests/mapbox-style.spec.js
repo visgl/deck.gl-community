@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies, import/named */
 import {describe, expect, test, vi} from 'vitest';
+import {log} from '@deck.gl/core';
 import {BasemapLayer, getBasemapLayers} from '../src/index.ts';
 import {
   BasemapStyleSchema,
@@ -356,5 +357,58 @@ describe('getBasemapLayers', () => {
     });
 
     expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
+  });
+
+  test('keeps expected vector style misses behind probe logging', () => {
+    const infoSpy = vi.spyOn(log, 'info');
+    const probeSpy = vi.spyOn(log, 'probe');
+
+    try {
+      const layers = getBasemapLayers({
+        idPrefix: 'style-miss',
+        mode: 'globe',
+        styleDefinition: {
+          version: 8,
+          sources: {
+            carto: {
+              type: 'vector',
+              tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']
+            }
+          },
+          layers: [
+            {
+              id: 'water',
+              type: 'fill',
+              source: 'carto',
+              'source-layer': 'water',
+              paint: {'fill-color': '#224466'}
+            }
+          ]
+        }
+      });
+
+      const vectorLayer = layers.find(layer => layer.id === 'style-miss-carto');
+      vectorLayer.props.renderSubLayers({
+        id: 'style-miss-carto-tile',
+        data: [
+          {
+            type: 'Feature',
+            geometry: {type: 'Polygon', coordinates: []},
+            properties: {layerName: 'landuse'}
+          }
+        ],
+        tile: {index: {x: 0, y: 0, z: 0}}
+      });
+
+      expect(infoSpy).not.toHaveBeenCalled();
+      expect(probeSpy).toHaveBeenCalledWith(
+        1,
+        '[BasemapLayer] Vector tile rendered no matching features',
+        expect.objectContaining({sourceId: 'carto', layerId: 'water'})
+      );
+    } finally {
+      infoSpy.mockRestore();
+      probeSpy.mockRestore();
+    }
   });
 });
