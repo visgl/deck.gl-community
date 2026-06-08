@@ -5,7 +5,11 @@
 import type {Feature, Polygon} from 'geojson';
 import {ModeProps} from './types';
 import {Position, FeatureCollection} from '../utils/geojson-types';
-import {CartesianCoordinateSystem} from './coordinate-system';
+import {
+  cartesianCoordinateSystem,
+  CartesianCoordinateSystem,
+  EditModeCoordinateSystem
+} from './coordinate-system';
 
 /** Given 3 positions compute cross product of vectors (q-p) and (r-p)
  * @param p start of directed line segment
@@ -92,4 +96,29 @@ export function polygonWithinPolygon(
     if (!pointInPolygon(p, outer)) return false;
   }
   return true;
+}
+
+export function pointToLineDistanceCartesian(p: Position, p1: Position, p2: Position): number {
+  const dx = p2[0] - p1[0];
+  const dy = p2[1] - p1[1];
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return Math.sqrt((p[0] - p1[0]) ** 2 + (p[1] - p1[1]) ** 2);
+  return Math.abs(orientation(p1, p2, p)) / len;
+}
+
+export function generatePointsParallelToLinePointsCartesian(
+  p1: Position,
+  p2: Position,
+  coords: Position
+): Position[] {
+  const dx = p2[0] - p1[0];
+  const dy = p2[1] - p1[1];
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const px = -dy / len;
+  const py = dx / len;
+  const d = orientation(p1, p2, coords) / len;
+  return [
+    [p2[0] + d * px, p2[1] + d * py],
+    [p1[0] + d * px, p1[1] + d * py]
+  ];
 }
