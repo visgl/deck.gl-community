@@ -36,10 +36,24 @@ export {
   type OmniBoxResultsSummaryArgs,
   type OmniBoxWidgetProps
 } from './widgets/omni-box-widget';
+export {
+  CommandResetViewWidget,
+  type CommandResetViewWidgetProps
+} from './widgets/command-reset-view-widget';
+export {
+  CommandToggleWidget,
+  type CommandToggleWidgetProps
+} from './widgets/command-toggle-widget';
+export {
+  KeyboardShortcutsWidget,
+  type KeyboardShortcutsWidgetProps
+} from './widgets/keyboard-shortcuts-widget';
 export {ResetViewWidget, type ResetViewWidgetProps} from './widgets/reset-view-widget';
+export {SettingsWidget, type SettingsWidgetProps} from './widgets/settings-widget';
 export {
   TimeMeasureWidget,
   type TimeMeasureRange,
+  type TimeMeasureWidgetProps,
   type TimeMeasureSelectionState
 } from './widgets/time-measure-widget';
 export {YZoomWidget, type YZoomWidgetProps} from './widgets/y-zoom-widget';
@@ -59,4 +73,3 @@ export {
   type ToastWidgetProps,
   type ToolbarWidgetProps
 } from './panel-widgets/panel-widget';
-export {IconButton, makeTextIcon} from './preact/icon-button';

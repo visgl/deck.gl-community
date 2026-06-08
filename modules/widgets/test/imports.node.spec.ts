@@ -12,7 +12,8 @@ vi.mock('@deck.gl-community/panels', () => {
     SidebarPanelContainer: class SidebarPanelContainer {},
     FullScreenPanelContainer: class FullScreenPanelContainer {},
     ToolbarComponent: class ToolbarComponent {},
-    ToastComponent: class ToastComponent {}
+    ToastComponent: class ToastComponent {},
+    makeTextIcon: vi.fn(() => '')
   };
 });
 
