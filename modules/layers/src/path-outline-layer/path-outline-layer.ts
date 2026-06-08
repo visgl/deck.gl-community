@@ -6,7 +6,7 @@ import type {PathLayerProps} from '@deck.gl/layers';
 import {PathLayer} from '@deck.gl/layers';
 import type {DefaultProps, LayerContext} from '@deck.gl/core';
 import {Framebuffer} from '@luma.gl/core';
-import type {RenderPipelineParameters, Texture} from '@luma.gl/core';
+import type {Parameters, RenderPipelineParameters, Texture} from '@luma.gl/core';
 import {outline} from './outline';
 
 /**
@@ -136,7 +136,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
   }
 
   // Override draw to add render module
-  draw() {
+  draw({parameters}: {parameters: Parameters}) {
     const model = this.state.model;
     const outlineFramebuffer = this.state.outlineFramebuffer;
     const outlineEmptyTexture = this.state.outlineEmptyTexture;
@@ -194,7 +194,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
         widthScale: widthScale * 1.3
       }
     });
-    model.setParameters(OUTLINE_SHADOWMAP_PARAMETERS);
+    model.setParameters({...parameters, ...OUTLINE_SHADOWMAP_PARAMETERS});
     const shadowRenderPass = this.context.device.beginRenderPass({
       id: `${this.props.id}-outline-shadowmap`,
       framebuffer: outlineFramebuffer,
@@ -217,9 +217,15 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
     model.shaderInputs.setProps({
       path: basePathProps
     });
-    model.setParameters(OUTLINE_RENDER_PARAMETERS);
+    model.setParameters(
+      isPickingPass(parameters) ? parameters : {...parameters, ...OUTLINE_RENDER_PARAMETERS}
+    );
     model.draw(this.context.renderPass);
   }
+}
+
+function isPickingPass(parameters: Parameters): boolean {
+  return parameters.blend === true && parameters.blendAlphaSrcFactor === 'constant';
 }
 
 function getFramebufferTexture(framebuffer: Framebuffer): Texture | null {
