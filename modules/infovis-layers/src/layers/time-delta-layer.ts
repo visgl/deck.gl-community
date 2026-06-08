@@ -2,36 +2,47 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, type LayerProps} from '@deck.gl/core';
-import {LineLayer, TextLayer} from '@deck.gl/layers';
+import {CompositeLayer, type DefaultProps, type Layer, type LayerProps} from '@deck.gl/core';
+import {LineLayer, TextLayer, type TextLayerProps} from '@deck.gl/layers';
 
 // import {PathStyleExtension} from '@deck.gl/extensions';
 
 import {formatTimeMs} from '../utils/format-utils';
 
-export type TimeDeltaLayerProps = LayerProps & {
+/** Properties supported by {@link TimeDeltaLayer}. */
+export type TimeDeltaLayerProps = LayerProps & _TimeDeltaLayerProps;
+
+type _TimeDeltaLayerProps = Pick<TextLayerProps, 'fontFamily' | 'fontSettings' | 'fontWeight'> & {
+  /** Legacy time label unit retained for compatibility. @defaultValue 'timestamp' */
   unit: 'timestamp' | 'milliseconds';
+  /** Minimum trace time represented by the surrounding view. @defaultValue 0 */
   minTimeMs: number;
+  /** Maximum trace time represented by the surrounding view. @defaultValue 100 */
   maxTimeMs: number;
-  /** Start time in milliseconds since epoch */
+  /** Start time in milliseconds since epoch. @defaultValue 0 */
   startTimeMs: number;
-  /** End time in milliseconds since epoch */
+  /** End time in milliseconds since epoch. @defaultValue 100 */
   endTimeMs: number;
-  /** Optional: Y-coordinate for the axis line (default: 0) */
+  /** Y coordinate for the header interval guide. @defaultValue 0 */
   y?: number;
+  /** Whether to render the compact header label instead of full-height guide lines. @defaultValue false */
   header: boolean;
 
-  /** Optional: RGBA color for axis and ticks (default: [0, 0, 0, 255]) */
+  /** Header label text size. @defaultValue 12 */
+  fontSize?: number;
+
+  /** RGBA color for interval guides and labels. @defaultValue [0, 0, 0, 255] */
   color?: [number, number, number, number];
-  /** Minimum Y-coordinate for grid lines. @todo (ib) Remve and calculate from viewport? */
+  /** Minimum Y coordinate for full-height guide lines. @defaultValue -1e6 */
   yMin?: number;
-  /** Maximum Y-coordinate for grid lines. @todo (ib) Remve and calculate from viewport? */
+  /** Maximum Y coordinate for full-height guide lines. @defaultValue 1e6 */
   yMax?: number;
 };
 
-export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
+/** Renders a selected time interval as header or viewport guide lines. */
+export class TimeDeltaLayer extends CompositeLayer<Required<_TimeDeltaLayerProps>> {
   static override layerName = 'TimeDeltaLayer';
-  static override defaultProps: Required<Omit<TimeDeltaLayerProps, keyof LayerProps>> = {
+  static override defaultProps: DefaultProps<_TimeDeltaLayerProps> = {
     header: false,
     minTimeMs: 0,
     maxTimeMs: 100,
@@ -41,15 +52,15 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
     color: [0, 0, 0, 255],
     unit: 'timestamp',
     yMin: -1e6, // Should cover full viewport height in most cases
-    yMax: 1e6 // Should cover full viewport height in most cases
+    yMax: 1e6, // Should cover full viewport height in most cases
+    fontSize: 12,
+    fontFamily: TextLayer.defaultProps.fontFamily,
+    fontSettings: TextLayer.defaultProps.fontSettings,
+    fontWeight: TextLayer.defaultProps.fontWeight
   };
 
-  override renderLayers() {
+  override renderLayers(): Layer[] {
     const {startTimeMs, endTimeMs, color = [0, 0, 0, 255], yMin, yMax} = this.props;
-
-    const timeDeltaPosition = [(startTimeMs + endTimeMs) / 2, 10];
-    const timeDeltaMs = Math.abs(endTimeMs - startTimeMs);
-    const timeDeltaLabel = formatTimeMs(timeDeltaMs, false);
 
     if (!this.props.header) {
       const timeLines = [
@@ -76,50 +87,20 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
       ];
     }
 
-    // // Tick marks
-    // new LineLayer({
-    //   id: 'time-delta-marks',
-    //   data: tickLines,
-    //   getSourcePosition: (d) => d.sourcePosition,
-    //   getTargetPosition: (d) => d.targetPosition,
-    //   getColor: color,
-    //   getWidth: 1,
-    // }),
+    const {y, fontSize, fontFamily, fontSettings, fontWeight} = this.props;
 
-    // TODO - triggers broader root-level file updates
-    //   new PathLayer({
-    //     id: 'dotted-path',
-    //     data: route,
-    //     getPath: d => d.path,
-    //     getWidth: 4,
-    //     getColor: [255, 0, 0],
+    const timeDeltaPosition = [(startTimeMs + endTimeMs) / 2, y - 10];
+    const timeDeltaMs = Math.abs(endTimeMs - startTimeMs);
+    const timeDeltaLabel = formatTimeMs(timeDeltaMs, {space: false});
 
-    //     // Enable rounded caps on each dash
-    //     rounded: true,
-
-    //     // Add the dash extension
-    //     extensions: [
-    //       new PathStyleExtension({
-    //         dash: true,
-    //         // highPrecisionDash: true, // uncomment for finer control at low zoom
-    //         capRounded: true          // draw dash ends as semicircles
-    //       })
-    //     ],
-
-    //     // [dashLength, gapLength] in pixels
-    //     // small dash + equal or larger gap = dotted effect
-    //     getDashArray: () => [2, 6]
-    //   })
-    // ]
-    const HEADER_Y = 12;
     const timeLines = [
       {
-        sourcePosition: [startTimeMs, -100],
-        targetPosition: [startTimeMs, HEADER_Y]
+        sourcePosition: [startTimeMs, y],
+        targetPosition: [startTimeMs, y - 7]
       },
       {
-        sourcePosition: [endTimeMs, -100],
-        targetPosition: [endTimeMs, HEADER_Y]
+        sourcePosition: [endTimeMs, y],
+        targetPosition: [endTimeMs, y - 7]
       }
     ];
 
@@ -140,8 +121,8 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
         id: 'header-time-delta-dotted-line',
         data: [
           {
-            sourcePosition: [startTimeMs, HEADER_Y - 7],
-            targetPosition: [endTimeMs, HEADER_Y - 7]
+            sourcePosition: [startTimeMs, y - 7],
+            targetPosition: [endTimeMs, y - 7]
           }
         ],
         getSourcePosition: d => d.sourcePosition,
@@ -157,12 +138,16 @@ export class TimeDeltaLayer extends CompositeLayer<TimeDeltaLayerProps> {
         data: [{position: timeDeltaPosition, text: timeDeltaLabel}],
         getPosition: d => d.position,
         getText: d => d.text,
-        getSize: 12,
+        characterSet: '-0123456789.dhmsµ',
+        getSize: fontSize,
+        fontFamily,
+        fontSettings,
+        fontWeight,
         getColor: color,
         getTextAnchor: 'middle',
-        getAlignmentBaseline: 'top',
+        getAlignmentBaseline: 'center',
         background: true,
-        getBackgroundColor: [255, 255, 255, 255], // Solid green background
+        getBackgroundColor: [255 - color[0], 255 - color[1], 255 - color[2], 255],
         backgroundPadding: [4, 2] // Horizontal and vertical padding
       })
     ];

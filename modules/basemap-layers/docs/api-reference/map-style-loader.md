@@ -55,5 +55,6 @@ Both `MapStyleLoader` and `resolveBasemapStyle` return a validated `ResolvedBase
 - `layers` is guaranteed to be an array
 - resolved TileJSON metadata is merged into each source
 - relative URLs are normalized to absolute URLs when enough base information is available
+- legacy Mapbox `ref` layers are expanded to concrete resolved layers
 
 Use `ResolvedBasemapStyleSchema` from `@deck.gl-community/basemap-layers/map-style` if you want to re-validate or further refine the output in your own application code.

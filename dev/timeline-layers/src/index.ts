@@ -9,11 +9,16 @@ export type {MultiHorizonGraphLayerProps} from './layers/horizon-graph-layer/mul
 export {MultiHorizonGraphLayer} from './layers/horizon-graph-layer/multi-horizon-graph-layer';
 
 // AXIS LAYERS
-export type {TimeAxisLayerProps} from './layers/time-axis-layer';
+export type {
+  TimeAxisLayerProps,
+  TimeAxisTickFormatter,
+  TimeAxisTickFormatterContext
+} from './layers/time-axis-layer';
 export {TimeAxisLayer} from './layers/time-axis-layer';
 export type {VerticalGridLayerProps} from './layers/vertical-grid-layer';
 export {VerticalGridLayer} from './layers/vertical-grid-layer';
 export {formatTimeMs, formatTimeRangeMs} from './utils/format-utils';
+export {formatDuration, type Tick, type TimeRange} from './utils/tick-utils';
 
 // TIMELINE LAYER
 export type {TimelineLayerProps} from './layers/timeline-layer/timeline-layer';

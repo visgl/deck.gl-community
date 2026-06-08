@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # BasemapLayer
+
+<LayerLiveExample highlight="basemap-layer" />
 
 <p class="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
@@ -113,6 +117,7 @@ Loads and normalizes a style document. This resolves:
 - remote style JSON URLs
 - TileJSON-backed source definitions
 - relative tile template URLs
+- legacy Mapbox `ref` layer inheritance
 
 ## Example
 

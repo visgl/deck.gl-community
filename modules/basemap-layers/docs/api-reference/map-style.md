@@ -43,6 +43,10 @@ The Zod schemas validate the public map-style data structures and provide strong
 const parsed = BasemapStyleSchema.parse(styleJson);
 ```
 
+`BasemapStyleLayerSchema` accepts ordinary layers with a concrete `type` and legacy Mapbox
+`ref` layers that inherit structural render properties from another layer. Resolved styles
+always contain concrete layer types.
+
 Use `ResolvedBasemapStyleSchema` when validating the result of `resolveBasemapStyle` or `MapStyleLoader`.
 
 ## `filterFeatures({features, filter, globalProperties})`
@@ -79,6 +83,7 @@ Resolves a style URL or in-memory style document into a fully normalized style d
 - fetches the top-level style document when given a URL
 - resolves TileJSON-backed sources
 - normalizes relative URLs against the style URL or provided `baseUrl`
+- dereferences legacy Mapbox `ref` layers before output validation
 - returns a `ResolvedBasemapStyle`
 
 If you want a loaders.gl-compatible wrapper around the same behavior, use [`MapStyleLoader`](./map-style-loader).

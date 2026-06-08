@@ -8,5 +8,16 @@ export {PathOutlineLayer} from './path-outline-layer/path-outline-layer';
 export type {PathMarkerLayerProps} from './path-marker-layer/path-marker-layer';
 export {PathMarkerLayer} from './path-marker-layer/path-marker-layer';
 
+export {
+  DependencyArrowLayer,
+  PathDirection,
+  type DependencyArrowLayerProps,
+  type MarkerPlacementsAccessor,
+  type MarkerPlacementsAccessorContext,
+  type PathDirectionAccessor,
+  type PathGeometry,
+  type PathMarker
+} from './dependency-arrow-layer/dependency-arrow-layer';
+
 export type {SkyboxLayerProps} from './skybox-layer/skybox-layer';
 export {SkyboxLayer} from './skybox-layer/skybox-layer';

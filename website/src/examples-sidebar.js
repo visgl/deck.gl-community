@@ -44,6 +44,11 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/infovis-layers',
+      items: ['infovis-layers/layer-primitives']
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/basemap-layers',
       items: ['layers/basemap-layer-map-view']
     },

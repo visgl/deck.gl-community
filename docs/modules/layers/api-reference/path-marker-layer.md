@@ -10,7 +10,7 @@ for visualizing traffic flow, transit routes, or any polyline where the travel
 direction matters. Markers are positioned in screen space so they stay evenly
 spaced regardless of map zoom level.
 
-See the [Path outline and marker example](/examples/layers/path-outline-and-markers)
+See the [path outline, marker, and dependency arrow example](/examples/layers/path-outline-and-markers)
 for a live walkthrough.
 
 ## Usage

@@ -276,6 +276,7 @@ describe('SettingsPanel', () => {
     expect(listbox?.parentElement).toBe(document.body);
     expect(listbox?.style.width).toBe('max-content');
     expect(listbox?.style.minWidth).toBe('200px');
+    expect(listbox?.style.overflowX).toBe('hidden');
     expect(listbox?.getBoundingClientRect().width).toBeGreaterThan(200);
 
     const option = Array.from(
@@ -290,6 +291,24 @@ describe('SettingsPanel', () => {
     expect(optionLabel?.style.textOverflow).toBe('');
     expect(optionDescription?.textContent).toBe('Only keep critical traces visible.');
     expect(optionDescription?.style.fontSize).toBe('11px');
+
+    cleanup();
+  });
+
+  it('lets the panel container own vertical scrolling', async () => {
+    const {root, cleanup} = renderSettingsPanel();
+    const visibilityToggle = getRequiredButton(root, 'button[aria-expanded]');
+    visibilityToggle.click();
+    await Promise.resolve();
+
+    const content = root.firstElementChild as HTMLElement | null;
+    const settingRow = root.querySelector<HTMLElement>('[data-setting-row-for="flags.enabled"]');
+    const settingControl = settingRow?.lastElementChild as HTMLElement | null;
+
+    expect(content?.style.overflowY).toBe('');
+    expect(content?.style.minWidth).toBe('0px');
+    expect(settingRow?.style.gridTemplateColumns).toBe('minmax(0px, 1fr) minmax(0px, 1.4fr)');
+    expect(settingControl?.style.width).toBe('100%');
 
     cleanup();
   });
@@ -326,6 +345,27 @@ describe('SettingsPanel', () => {
     );
 
     cleanup();
+  });
+
+  it('keeps keyboard events inside settings content', async () => {
+    const handleKeyDown = vi.fn();
+    const host = document.createElement('div');
+    host.addEventListener('keydown', handleKeyDown);
+    document.body.appendChild(host);
+    const {root, cleanup} = renderSettingsPanel();
+    host.appendChild(root);
+
+    const visibilityToggle = getRequiredButton(root, 'button[aria-expanded]');
+    visibilityToggle.click();
+    await Promise.resolve();
+
+    const checkbox = getRequiredInput(root, 'input[type="checkbox"]');
+    checkbox.dispatchEvent(new KeyboardEvent('keydown', {bubbles: true, key: ' '}));
+
+    expect(handleKeyDown).not.toHaveBeenCalled();
+
+    cleanup();
+    host.remove();
   });
 
   it('debounces range slider changes when requested by the setting descriptor', async () => {
