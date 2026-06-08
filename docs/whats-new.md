@@ -9,6 +9,8 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 A new module for deck-independent panel composition and small application UI.
 
 - `PanelManager` - mount compatible panel-managed UI into a plain `HTMLElement`
+- `PanelComponent` - NEW root lifecycle for mountable panels-owned UI.
+- `Panel` now inherits the shared `PanelComponent` lifecycle, including direct mounting.
 - Panel/container composition APIs extracted into a dedicated package
 - Stand-alone documentation and examples for panel composition outside deck.gl
 - `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
@@ -21,16 +23,18 @@ A new module for deck-independent panel composition and small application UI.
 - `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
 - Panel APIs now use panel terminology throughout `@deck.gl-community/panels`; deck.gl widget-facing wrappers remain in `@deck.gl-community/widgets`.
 - Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs, and the redundant descriptor/`WidgetHost` surfaces are removed.
-- `PanelModal` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
+- `ModalPanelContainer` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
 - `SettingsPanel` numeric range inputs can apply descriptor-level trailing debounce via `sliderDebounceMs`.
 - `SettingsPanel` and `StudioSettingsPanel` select menus can render option descriptions and grow to fit long labels; `StudioSettingsPanel` also accepts `settingRowLayout: 'fit-labels'` when controls should claim width from short labels.
 - `SettingsManager` now exposes schema indexing and named change lookup helpers, and `SettingsPanel` accepts supported control text sizing through `fontSize`.
 
 ### `@deck.gl-community/widgets`
 
-- `createStudioSettingsWidget` and `updateStudioSettingsWidget` - NEW helpers for hosting `StudioSettingsPanel` in a floating deck widget.
+- `PanelWidget` - NEW generic deck adapter for any panels-owned `PanelComponent`.
+- Thin named adapters now cover real panel containers plus specialized toolbar
+  and toast components without duplicating panels rendering logic.
 - `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
-- `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `PanelModal`.
+- `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
 
 ### `@deck.gl-community/react`
 

@@ -16,7 +16,7 @@ is deck.gl-independent and accepts Apache Arrow table-like objects or loaders.gl
 
 ```ts
 import {tableFromArrays} from 'apache-arrow';
-import {ArrowTablePanel, PanelBox, PanelManager} from '@deck.gl-community/panels';
+import {ArrowTablePanel, BoxPanelContainer, PanelManager} from '@deck.gl-community/panels';
 
 const table = tableFromArrays({
   city: ['Oakland', 'San Jose', 'Fremont'],
@@ -35,7 +35,7 @@ const panelManager = new PanelManager({
 });
 
 panelManager.setProps({
-  components: [new PanelBox({id: 'arrow-table-box', panel})]
+  components: [new BoxPanelContainer({id: 'arrow-table-box', panel})]
 });
 ```
 
@@ -77,7 +77,7 @@ Use the panel from a luma.gl example by mounting it into any DOM node. This path
 does not import deck.gl or deck.gl widgets.
 
 ```ts
-import {ArrowTablePanel, PanelBox, PanelManager} from '@deck.gl-community/panels';
+import {ArrowTablePanel, BoxPanelContainer, PanelManager} from '@deck.gl-community/panels';
 
 const panelManager = new PanelManager({
   parentElement: document.getElementById('inspector') as HTMLElement
@@ -85,7 +85,7 @@ const panelManager = new PanelManager({
 
 panelManager.setProps({
   components: [
-    new PanelBox({
+    new BoxPanelContainer({
       id: 'arrow-table-box',
       title: 'Arrow Table',
       panel: new ArrowTablePanel({

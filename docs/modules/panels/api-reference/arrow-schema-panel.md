@@ -16,7 +16,7 @@ objects.
 
 ```ts
 import {tableFromArrays} from 'apache-arrow';
-import {ArrowSchemaPanel, PanelBox, PanelManager} from '@deck.gl-community/panels';
+import {ArrowSchemaPanel, BoxPanelContainer, PanelManager} from '@deck.gl-community/panels';
 
 const table = tableFromArrays({
   city: ['Oakland', 'San Jose', 'Fremont'],
@@ -34,7 +34,7 @@ const panelManager = new PanelManager({
 });
 
 panelManager.setProps({
-  components: [new PanelBox({id: 'arrow-schema-box', panel})]
+  components: [new BoxPanelContainer({id: 'arrow-schema-box', panel})]
 });
 ```
 

@@ -15,7 +15,7 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 Use `BinaryDataPanel` when a sidebar or modal needs a compact read-only preview of file bytes.
 
 ```ts
-import {BinaryDataPanel, PanelBox, PanelManager} from '@deck.gl-community/panels';
+import {BinaryDataPanel, BoxPanelContainer, PanelManager} from '@deck.gl-community/panels';
 
 const panel = new BinaryDataPanel({
   id: 'source-bytes',
@@ -30,7 +30,7 @@ const panelManager = new PanelManager({
 });
 
 panelManager.setProps({
-  components: [new PanelBox({id: 'source-bytes-box', panel})]
+  components: [new BoxPanelContainer({id: 'source-bytes-box', panel})]
 });
 ```
 

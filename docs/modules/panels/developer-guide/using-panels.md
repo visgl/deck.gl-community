@@ -11,16 +11,21 @@ It focuses on panel definitions, container composition, and rendering structure.
 
 - A leaf panel defines one titled unit of content.
 - A composite panel combines other panels into a larger structure.
-- A panel container describes how panels are arranged and rendered.
+- A panel container hosts one panel inside box, modal, sidebar, or full-screen chrome.
+- A `PanelComponent` is any panel-managed UI that can be mounted directly.
+
+Use [Using Components](./using-components.md) for panel-managed UI that is not
+titled panel content, and [Using Managers](./using-managers.md) when one app
+descriptor list should also drive panel help or settings UI.
 
 ## Composite Panels
 
 Panels built from other panels.
 
-- [AccordeonPanel](../api-reference/accordeon-panel.md)
-- [TabbedPanel](../api-reference/tabbed-panel.md)
-- [ColumnPanel](../api-reference/column-panel.md)
-- [SplitterPanel](../api-reference/splitter-panel.md)
+- [AccordeonPanel](../api-reference/composite-panels/accordeon-panel.md)
+- [TabbedPanel](../api-reference/composite-panels/tabbed-panel.md)
+- [ColumnPanel](../api-reference/composite-panels/column-panel.md)
+- [SplitterPanel](../api-reference/composite-panels/splitter-panel.md)
 
 ## Leaf Panels
 
@@ -68,7 +73,7 @@ import {
   DocumentationLinksPanel,
   KeyboardShortcutsPanel,
   PanelManager,
-  PanelModal,
+  ModalPanelContainer,
   TabbedPanel,
   URLParametersPanel
 } from '@deck.gl-community/panels';
@@ -83,7 +88,7 @@ const helpTabs = new TabbedPanel({
   ]
 });
 
-const helpModal = new PanelModal({
+const helpModal = new ModalPanelContainer({
   id: 'help-modal',
   panel: helpTabs,
   title: 'Help',
@@ -120,7 +125,7 @@ import {
   ArrowSchemaPanel,
   ArrowTablePanel,
   ColumnPanel,
-  PanelBox,
+  BoxPanelContainer,
   PanelManager
 } from '@deck.gl-community/panels';
 
@@ -135,7 +140,7 @@ let selectedBatchIndex: number | undefined;
 function renderArrowInspector(table: ArrowTableInput, schema: ArrowSchemaLike) {
   panelManager.setProps({
     components: [
-      new PanelBox({
+      new BoxPanelContainer({
         id: 'arrow-inspector-box',
         title: 'Arrow Inspector',
         panel: new ColumnPanel({

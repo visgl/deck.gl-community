@@ -201,14 +201,6 @@ export class SettingsManager<Change extends SettingsChangeDescriptor = SettingsC
     this.emitSettingsChange(nextSettings);
   }
 
-  /**
-   * Applies one full settings snapshot received from a widget callback.
-   * @deprecated Use setSettings instead.
-   */
-  setFromWidget(nextSettings: SettingsState): void {
-    this.setSettings(nextSettings);
-  }
-
   #computeChangedSettings(nextSettings: SettingsState): Change[] {
     const changedSettings: Change[] = [];
 

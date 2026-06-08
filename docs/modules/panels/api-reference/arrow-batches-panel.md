@@ -16,7 +16,7 @@ deck.gl-independent and accepts Apache Arrow table-like objects or loaders.gl
 ## Usage
 
 ```ts
-import {ArrowBatchesPanel, PanelBox, PanelManager} from '@deck.gl-community/panels';
+import {ArrowBatchesPanel, BoxPanelContainer, PanelManager} from '@deck.gl-community/panels';
 
 const panel = new ArrowBatchesPanel({
   id: 'arrow-batches',
@@ -33,7 +33,7 @@ const panelManager = new PanelManager({
 });
 
 panelManager.setProps({
-  components: [new PanelBox({id: 'arrow-batches-box', panel})]
+  components: [new BoxPanelContainer({id: 'arrow-batches-box', panel})]
 });
 ```
 

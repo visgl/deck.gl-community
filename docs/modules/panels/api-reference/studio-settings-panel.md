@@ -51,12 +51,15 @@ const panel = createStudioSettingsPanel({
 ```
 
 The factory returns a deck-independent `Panel` object that can be used with
-`PanelModal`, `PanelSidebar`, or any panel container.
+`ModalPanelContainer`, `SidebarPanelContainer`, or any panel container.
+
+When deck.gl should host the panel, pass that panel into `ModalPanelWidget` or
+another named adapter from `@deck.gl-community/widgets`.
 
 ## Remarks
 
 - The panel is deck.gl-independent and lives in `@deck.gl-community/panels`.
-- The close button emits `data-modal-widget-close="true"` so `PanelModal` can
+- The close button emits `data-modal-panel-container-close="true"` so `ModalPanelContainer` can
   close from content when built-in modal chrome is hidden.
 - Compact mode is remembered in `localStorage` under the
   `deck.gl-community:studio-settings:navigation-collapsed` key.

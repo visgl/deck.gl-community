@@ -191,7 +191,7 @@ describe('SettingsManager', () => {
     expect(storage.getItem('panel-settings')).toBe('{"interactionMode":"drag-to-pan"}');
   });
 
-  it('keeps persisted settings when partial widget updates omit them', () => {
+  it('keeps persisted settings when partial settings snapshots omit them', () => {
     const manager = new SettingsManager();
     const storage = makeMemoryStorage({
       'panel-settings': JSON.stringify({interactionMode: 'drag-to-pan'})

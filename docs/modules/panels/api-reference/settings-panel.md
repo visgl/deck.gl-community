@@ -65,5 +65,5 @@ or smaller supported text size; open select menu options use the same size.
 - Reuses the shared schema-driven controls as a panel.
 - Tracks section collapse state while the panel stays mounted.
 - Supports nested dot-path setting names and change descriptors in `onSettingsChange`.
-- Pair with [SettingsManager](./settings-manager.md) when settings snapshots
+- Pair with [SettingsManager](./managers/settings-manager.md) when settings snapshots
   should emit structured change descriptors or persist through local storage.

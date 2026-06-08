@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from 'preact/hooks';
 
-import type {PanelId} from './panel-types';
+import type {PanelId} from './panel';
 
 /**
  * Keeps local string-state in sync with controlled/uncontrolled props.

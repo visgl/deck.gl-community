@@ -58,4 +58,4 @@ type URLParametersPanelProps = {
 
 ## Related Pages
 
-- [URLManager](./url-manager.md)
+- [URLManager](./managers/url-manager.md)

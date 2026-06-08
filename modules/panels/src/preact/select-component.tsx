@@ -25,11 +25,12 @@ export type SelectComponentProps = {
   fontSize?: number | string;
 };
 
-type SelectOpenEventDetail = {
+type OpenSelectRegistration = {
+  close: () => void;
   root: HTMLDivElement;
 };
 
-const SELECT_OPEN_EVENT = 'deck-gl-community-select-open';
+const OPEN_SELECTS_BY_DOCUMENT = new WeakMap<Document, OpenSelectRegistration>();
 
 const SELECT_ROOT_STYLE: JSX.CSSProperties = {
   position: 'relative',
@@ -168,14 +169,20 @@ function getNextOptionIndex(currentIndex: number, delta: -1 | 1, optionCount: nu
   return (resolvedIndex + delta + optionCount) % optionCount;
 }
 
-function dispatchSelectOpenEvent(ownerDocument: Document, root: HTMLDivElement): void {
-  const CustomEventConstructor = ownerDocument.defaultView?.CustomEvent;
-  if (!CustomEventConstructor) {
-    return;
+function registerOpenSelect(root: HTMLDivElement, close: () => void): void {
+  const ownerDocument = root.ownerDocument;
+  const openSelect = OPEN_SELECTS_BY_DOCUMENT.get(ownerDocument);
+  if (openSelect && openSelect.root !== root) {
+    openSelect.close();
   }
-  ownerDocument.dispatchEvent(
-    new CustomEventConstructor<SelectOpenEventDetail>(SELECT_OPEN_EVENT, {detail: {root}})
-  );
+  OPEN_SELECTS_BY_DOCUMENT.set(ownerDocument, {close, root});
+}
+
+function unregisterOpenSelect(root: HTMLDivElement): void {
+  const ownerDocument = root.ownerDocument;
+  if (OPEN_SELECTS_BY_DOCUMENT.get(ownerDocument)?.root === root) {
+    OPEN_SELECTS_BY_DOCUMENT.delete(ownerDocument);
+  }
 }
 
 export function SelectComponent({
@@ -203,6 +210,27 @@ export function SelectComponent({
   const selectedOption = selectedOptionIndex >= 0 ? options[selectedOptionIndex] : undefined;
   const selectedLabel = selectedOption?.label ?? String(value);
 
+  const closeSelect = () => {
+    const root = rootRef.current;
+    if (root) {
+      unregisterOpenSelect(root);
+    }
+    setIsOpen(false);
+  };
+
+  const openSelect = () => {
+    const root = rootRef.current;
+    if (root) {
+      registerOpenSelect(root, closeSelect);
+    }
+    setIsOpen(true);
+  };
+
+  const selectOption = (option: SelectComponentOption) => {
+    onValueChange(option.value);
+    closeSelect();
+  };
+
   useEffect(() => {
     optionRefs.current = optionRefs.current.slice(0, options.length);
   }, [options.length]);
@@ -225,7 +253,7 @@ export function SelectComponent({
       }
       const target = event.target as Node;
       if (!rootRef.current.contains(target) && !listboxRef.current?.contains(target)) {
-        setIsOpen(false);
+        closeSelect();
       }
     };
 
@@ -236,21 +264,14 @@ export function SelectComponent({
   }, [isOpen]);
 
   useEffect(() => {
-    const ownerDocument = rootRef.current?.ownerDocument;
-    if (!isOpen || !ownerDocument) {
+    const root = rootRef.current;
+    if (!isOpen || !root) {
       return undefined;
     }
 
-    const handleSelectOpen = (event: Event) => {
-      const openedRoot = (event as CustomEvent<SelectOpenEventDetail>).detail?.root;
-      if (openedRoot && openedRoot !== rootRef.current) {
-        setIsOpen(false);
-      }
-    };
-
-    ownerDocument.addEventListener(SELECT_OPEN_EVENT, handleSelectOpen);
+    registerOpenSelect(root, closeSelect);
     return () => {
-      ownerDocument.removeEventListener(SELECT_OPEN_EVENT, handleSelectOpen);
+      unregisterOpenSelect(root);
     };
   }, [isOpen]);
 
@@ -302,22 +323,9 @@ export function SelectComponent({
     optionRefs.current[activeOptionIndex]?.scrollIntoView?.({block: 'nearest'});
   }, [activeOptionIndex, isOpen]);
 
-  const selectOption = (option: SelectComponentOption) => {
-    onValueChange(option.value);
-    setIsOpen(false);
-  };
-
-  const openSelect = () => {
-    const root = rootRef.current;
-    if (root) {
-      dispatchSelectOpenEvent(root.ownerDocument, root);
-    }
-    setIsOpen(true);
-  };
-
   const handleButtonClick = () => {
     if (isOpen) {
-      setIsOpen(false);
+      closeSelect();
       return;
     }
     openSelect();
@@ -351,7 +359,7 @@ export function SelectComponent({
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      setIsOpen(false);
+      closeSelect();
     }
   };
 

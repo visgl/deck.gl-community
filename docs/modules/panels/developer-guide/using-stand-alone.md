@@ -6,7 +6,7 @@ creating a `Deck` instance.
 The standalone path has three pieces:
 
 - panel composition through panels and panel containers
-- mounting through `PanelManager` and standalone panel containers
+- mounting through `PanelManager` and standalone `PanelComponent` instances
 - host theming through exported panel theme variables
 
 ## When to use this
@@ -21,7 +21,10 @@ Use the standalone path when:
 
 - `MarkdownPanel`, `CustomPanel`, `StatsPanel`, `SettingsPanel`, Arrow inspection panels, and similar classes define content
 - `ColumnPanel`, `TabbedPanel`, and `AccordeonPanel` compose multiple panels
-- `PanelBox`, `PanelModal`, `PanelSidebar`, and `PanelFullScreen` mount panel content into concrete standalone containers
+- `BoxPanelContainer`, `ModalPanelContainer`, `SidebarPanelContainer`, and
+  `FullScreenPanelContainer` mount panel content into concrete standalone containers
+- `ToolbarComponent` and `ToastComponent` are specialized standalone
+  `PanelComponent` instances rather than panel containers
 - `PanelManager` mounts panel-managed UI into an HTML element
 - `applyPanelTheme` applies light or dark panel theme variables to a host element
 - `toastManager` manages toast state independently of any particular renderer
@@ -32,7 +35,7 @@ Use the standalone path when:
 import {
   PANEL_THEME_DARK,
   MarkdownPanel,
-  PanelBox,
+  BoxPanelContainer,
   PanelManager,
   applyPanelTheme,
   toastManager
@@ -50,7 +53,7 @@ const overviewPanel = new MarkdownPanel({
 
 panelManager.setProps({
   components: [
-    new PanelBox({
+    new BoxPanelContainer({
       id: 'summary-box',
       title: 'Summary',
       panel: overviewPanel
@@ -66,8 +69,10 @@ toastManager.toast({
 
 ## Related pages
 
-- [Toast Manager](../api-reference/toast-manager.md)
-- [Panel Manager](../api-reference/panel-manager.md)
+- [Toast Manager](../api-reference/managers/toast-manager.md)
+- [Panel Manager](../api-reference/managers/panel-manager.md)
 - [Panel Themes](../api-reference/panel-theme.md)
 - [Using Panels](./using-panels.md)
+- [Using Components](./using-components.md)
+- [Using Managers](./using-managers.md)
 - [Standalone panels example](/examples/widgets/standalone-widgets)
