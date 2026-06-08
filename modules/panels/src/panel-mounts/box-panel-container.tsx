@@ -260,6 +260,7 @@ const BOX_STYLE = (widthPx: number, maxHeightPx?: number): JSX.CSSProperties => 
   boxSizing: 'border-box',
   display: 'flex',
   flexDirection: 'column',
+  pointerEvents: 'auto',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
   borderRadius: '12px',
   background: 'var(--menu-background, rgba(255, 255, 255, 0.96))',

@@ -212,6 +212,59 @@ describe('resolveBasemapStyle', () => {
     expect(resolved.sources.carto.minzoom).toBe(1);
   });
 
+  test('dereferences legacy ref layers before validating resolved styles', async () => {
+    const style = {
+      version: 8,
+      sources: {
+        carto: {
+          type: 'vector',
+          tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']
+        }
+      },
+      layers: [
+        {
+          id: 'roads',
+          type: 'line',
+          source: 'carto',
+          'source-layer': 'transportation',
+          filter: ['==', 'class', 'major'],
+          layout: {visibility: 'visible'},
+          paint: {'line-color': '#111827'}
+        },
+        {
+          id: 'roads-casing',
+          ref: 'roads',
+          paint: {'line-color': '#f8fafc'}
+        }
+      ]
+    };
+
+    const resolved = await resolveBasemapStyle(style);
+
+    expect(resolved.layers[1]).toEqual(
+      expect.objectContaining({
+        id: 'roads-casing',
+        type: 'line',
+        source: 'carto',
+        'source-layer': 'transportation',
+        filter: ['==', 'class', 'major'],
+        layout: {visibility: 'visible'},
+        paint: {'line-color': '#f8fafc'}
+      })
+    );
+    expect(resolved.layers[1]).not.toHaveProperty('ref');
+  });
+
+  test('rejects layers without a concrete type or legacy ref', () => {
+    expect(() =>
+      BasemapStyleSchema.parse({
+        version: 8,
+        sources: {},
+        layers: [{id: 'invalid-layer'}]
+      })
+    ).toThrow(/Style layers must define either/);
+  });
+
   test('MapStyleLoader parses and resolves a style document', async () => {
     const style = {
       version: 8,

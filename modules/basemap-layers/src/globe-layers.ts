@@ -9,7 +9,7 @@ import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
   BasemapSource,
-  BasemapStyleLayer,
+  ResolvedBasemapStyleLayer as BasemapStyleLayer,
   ResolvedBasemapStyle
 } from './style-resolver';
 

@@ -117,6 +117,7 @@ Loads and normalizes a style document. This resolves:
 - remote style JSON URLs
 - TileJSON-backed source definitions
 - relative tile template URLs
+- legacy Mapbox `ref` layer inheritance
 
 ## Example
 

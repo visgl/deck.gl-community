@@ -136,7 +136,7 @@ export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>
   }
 
   // Override draw to add render module
-  draw({parameters}: {parameters: Parameters}) {
+  draw({parameters = {} as Parameters}: {parameters?: Parameters; uniforms?: unknown}) {
     const model = this.state.model;
     const outlineFramebuffer = this.state.outlineFramebuffer;
     const outlineEmptyTexture = this.state.outlineEmptyTexture;

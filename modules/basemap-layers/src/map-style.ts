@@ -14,5 +14,6 @@ export {
   type BasemapSource,
   type BasemapStyle,
   type BasemapStyleLayer,
+  type ResolvedBasemapStyleLayer,
   type ResolvedBasemapStyle
 } from './style-resolver';
