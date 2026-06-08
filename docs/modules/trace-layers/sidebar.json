@@ -5,5 +5,45 @@
     "type": "doc",
     "id": "modules/trace-layers/README"
   },
-  "items": ["modules/trace-layers/README"]
+  "items": [
+    "modules/trace-layers/README",
+    {
+      "type": "category",
+      "label": "Developer Guide",
+      "items": [
+        "modules/trace-layers/developer-guide/README",
+        "modules/trace-layers/developer-guide/getting-started",
+        "modules/trace-layers/developer-guide/data-model",
+        "modules/trace-layers/developer-guide/loading-traces",
+        "modules/trace-layers/developer-guide/incremental-ingestion",
+        "modules/trace-layers/developer-guide/filtering-traces",
+        "modules/trace-layers/developer-guide/rendering-traces",
+        "modules/trace-layers/developer-guide/chrome-trace"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference",
+      "items": [
+        "modules/trace-layers/api-reference/README",
+        "modules/trace-layers/api-reference/deck-trace-graph",
+        "modules/trace-layers/api-reference/trace-graph",
+        "modules/trace-layers/api-reference/json-trace",
+        "modules/trace-layers/api-reference/trace-graph-data",
+        "modules/trace-layers/api-reference/trace-chunk-data",
+        "modules/trace-layers/api-reference/trace-chunk-store",
+        "modules/trace-layers/api-reference/trace-stream-session",
+        "modules/trace-layers/api-reference/trace-layout",
+        "modules/trace-layers/api-reference/trace-vis-settings",
+        "modules/trace-layers/api-reference/trace-objects",
+        "modules/trace-layers/api-reference/trace-ids",
+        "modules/trace-layers/api-reference/trace-style",
+        "modules/trace-layers/api-reference/deck-trace-graph-controller",
+        "modules/trace-layers/api-reference/imperative-deck-controller",
+        "modules/trace-layers/api-reference/time-measure-layer",
+        "modules/trace-layers/api-reference/chrome-trace",
+        "modules/trace-layers/api-reference/perfetto-trace"
+      ]
+    }
+  ]
 }

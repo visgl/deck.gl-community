@@ -59,6 +59,11 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/trace-layers',
+      items: ['trace-layers/tracevis']
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/editable-layers',
       items: [
         'editable-layers/getting-started',

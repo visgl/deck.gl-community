@@ -94,6 +94,27 @@ describe('SidebarPanelContainer', () => {
     expect(root.querySelector('[role="dialog"]')?.getAttribute('aria-hidden')).toBe('false');
   });
 
+  it('renders a configured trigger icon URL as a mask', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const triggerIcon =
+      "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E";
+    const container = new SidebarPanelContainer({
+      id: 'settings-sidebar-mask-icon',
+      panel,
+      button: true,
+      triggerIcon,
+      defaultOpen: false
+    });
+
+    container.onRenderHTML(root);
+
+    const triggerButton = root.querySelector<HTMLButtonElement>('[data-sidebar-handle-button]');
+    const triggerIconElement = triggerButton?.querySelector<HTMLElement>('span');
+    expect(triggerButton?.textContent).not.toContain(triggerIcon);
+    expect(triggerIconElement?.style.maskImage).toContain(triggerIcon);
+  });
+
   it('closes when Escape is pressed', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);

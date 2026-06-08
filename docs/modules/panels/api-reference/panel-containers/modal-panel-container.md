@@ -72,6 +72,8 @@ type ModalPanelContainerProps = PanelContainerProps & {
 - Accepts one reusable panel definition.
 - Supports controlled and uncontrolled open state.
 - Closes on backdrop click and `Escape`.
+- `triggerLabel` names the icon trigger for accessible labels and browser title text.
+- `triggerIcon` accepts a text glyph or a data/http(s) image URL rendered as a CSS mask icon.
 - Use `presentation: 'floating'` for non-blocking dialogs.
 - Use `dialogPlacement: 'left'`, `dialogStyle`, and `contentStyle` to tune
   larger custom dialogs.

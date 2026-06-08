@@ -9,6 +9,7 @@ import {
   type PanelPlacement
 } from '../panels/panel-container';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
+import {getMaskIconStyle, isMaskIcon} from './trigger-icon';
 
 import type {KeyboardShortcut} from '../lib/keyboard-shortcuts/keyboard-shortcuts';
 import type {KeyboardShortcutEventManager} from '../lib/keyboard-shortcuts/keyboard-shortcuts-manager';
@@ -38,9 +39,9 @@ export type ModalPanelContainerProps = PanelContainerProps & {
   placement?: PanelPlacement;
   /** Dialog header title. */
   title?: string;
-  /** Trigger label shown when the modal is closed. */
+  /** Label used by the trigger accessible name and title. */
   triggerLabel?: string;
-  /** Optional trigger icon glyph. */
+  /** Optional trigger icon glyph or data/http(s) mask image URL. */
   triggerIcon?: string;
   /** Whether to render modal title bar chrome. */
   showTitleBar?: boolean;
@@ -229,14 +230,19 @@ function ModalPanelContainerView({
             className={
               open ? 'deck-widget-icon-button deck-widget-button-active' : 'deck-widget-icon-button'
             }
-            style={MODAL_TRIGGER_STYLE}
             aria-label={open ? `Close ${triggerLabel}` : `Open ${triggerLabel}`}
-            onClick={() => onOpenChange(!open)}
+            title={open ? `Close ${triggerLabel}` : `Open ${triggerLabel}`}
+            onPointerDown={stopPropagation}
+            onPointerUp={stopPropagation}
+            onClick={event => {
+              stopPropagation(event);
+              onOpenChange(!open);
+            }}
+            onDblClick={stopPropagation}
           >
-            <span aria-hidden="true" style={MODAL_TRIGGER_ICON_STYLE}>
-              {triggerIcon}
+            <span aria-hidden="true" style={getModalTriggerIconStyle(triggerIcon, open)}>
+              {!isMaskIcon(triggerIcon) ? triggerIcon : null}
             </span>
-            <span>{triggerLabel}</span>
           </button>
         </div>
       )}
@@ -592,24 +598,20 @@ function isElementNode(value: Element | null | undefined): value is HTMLElement 
   return Boolean(value && value.nodeType === 1);
 }
 
-const MODAL_TRIGGER_STYLE: JSX.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '8px',
-  border: 'var(--button-inner-stroke, 1px solid rgba(148, 163, 184, 0.35))',
-  borderRadius: '6px',
-  background: 'var(--button-background, #fff)',
-  color: 'var(--button-text, rgb(24, 24, 26))',
-  boxShadow: 'var(--button-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25))',
-  cursor: 'pointer',
-  font: '600 12px/1 ui-sans-serif, system-ui, sans-serif',
-  padding: '8px 10px'
+const MODAL_TRIGGER_ICON_STYLE: JSX.CSSProperties = {
+  display: 'block',
+  fontSize: '16px',
+  lineHeight: 1,
+  color: 'var(--button-icon-idle, #616166)'
 };
 
-const MODAL_TRIGGER_ICON_STYLE: JSX.CSSProperties = {
-  fontSize: '16px',
-  lineHeight: 1
-};
+function getModalTriggerIconStyle(triggerIcon: string, open: boolean): JSX.CSSProperties {
+  const color = open ? 'var(--button-icon-hover, #18181a)' : 'var(--button-icon-idle, #616166)';
+
+  return isMaskIcon(triggerIcon)
+    ? getMaskIconStyle(triggerIcon, color)
+    : {...MODAL_TRIGGER_ICON_STYLE, color};
+}
 
 const OVERLAY_BACKDROP_STYLE: JSX.CSSProperties = {
   position: 'fixed',

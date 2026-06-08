@@ -205,11 +205,16 @@ export class BoxPanelWidget extends PanelWidget<BoxPanelContainer> {
 /** Props for {@link ModalPanelWidget}. */
 export type ModalPanelWidgetProps = NamedPanelWidgetProps<ModalPanelContainerProps>;
 
-/** deck.gl adapter that constructs one {@link ModalPanelContainer}. */
+/**
+ * deck.gl adapter that constructs one {@link ModalPanelContainer}.
+ *
+ * Named modal widgets expose their icon trigger by default, matching the
+ * legacy modal widget behavior unless callers own trigger visibility.
+ */
 export class ModalPanelWidget extends PanelWidget<ModalPanelContainer> {
   /** Creates one deck.gl adapter around a new modal panel container. */
   constructor(props: Partial<ModalPanelWidgetProps> = {}) {
-    super(createNamedPanelWidgetProps(ModalPanelContainer, props));
+    super(createNamedPanelWidgetProps(ModalPanelContainer, getModalPanelWidgetProps(props)));
   }
 
   /** Updates the constructed modal panel container or swaps an explicit delegate. */
@@ -294,6 +299,16 @@ function createNamedPanelWidgetProps<
     component: new Component(componentProps as Partial<PropsT>),
     viewId
   };
+}
+
+/** Applies widget-level modal trigger defaults before constructing the panel container. */
+function getModalPanelWidgetProps(
+  props: Partial<ModalPanelWidgetProps>
+): Partial<ModalPanelWidgetProps> {
+  if (props.button !== undefined || props.hideTrigger !== undefined) {
+    return props;
+  }
+  return {...props, button: true};
 }
 
 function updateNamedPanelWidget<ComponentT extends PanelComponent>(

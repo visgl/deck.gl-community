@@ -1,4 +1,9 @@
 {
   "extends": "../../../tsconfig.json",
-  "include": ["./*.ts", "./*.tsx"]
+  "include": ["./**/*.ts", "./**/*.tsx"],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["react", "react-dom"]
+  }
 }

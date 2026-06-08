@@ -2,6 +2,8 @@ import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import '@deck.gl/widgets/stylesheet.css';
 
+import {deferImperativeCleanup} from '../imperative-cleanup';
+
 const WRAPPER_STYLE = {
   position: 'relative',
   width: '100%',
@@ -69,7 +71,7 @@ function LayerLiveExampleHost({highlight, height}) {
       mountLayerDocsExample(hostElement, highlight)
         .then((nextCleanup) => {
           if (isDisposed) {
-            nextCleanup?.();
+            deferImperativeCleanup(nextCleanup);
             return;
           }
           cleanup = nextCleanup;
@@ -83,7 +85,7 @@ function LayerLiveExampleHost({highlight, height}) {
     return () => {
       isDisposed = true;
       window.cancelAnimationFrame(animationFrame);
-      cleanup?.();
+      deferImperativeCleanup(cleanup);
     };
   }, [highlight]);
 
