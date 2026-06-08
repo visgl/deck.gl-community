@@ -670,6 +670,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/trace-layers@workspace:*, @deck.gl-community/trace-layers@workspace:modules/trace-layers":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/trace-layers@workspace:modules/trace-layers"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/widgets@workspace:*, @deck.gl-community/widgets@workspace:modules/widgets":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/widgets@workspace:modules/widgets"
@@ -14960,6 +14966,15 @@ __metadata:
   checksum: 10c0/047cb209a6b60c742f05c9d3ace8fa510bff609995c129a37ace03476a9b12db4dbf975e74600830ef0796e18882b2381fb5fb1f6b4f96b832c374de3ab91a11
   languageName: node
   linkType: hard
+
+"trace-layers-tracevis-example@workspace:examples/trace-layers/tracevis":
+  version: 0.0.0-use.local
+  resolution: "trace-layers-tracevis-example@workspace:examples/trace-layers/tracevis"
+  dependencies:
+    "@deck.gl-community/trace-layers": "workspace:*"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
 
 "treeverse@npm:^3.0.0":
   version: 3.0.0
