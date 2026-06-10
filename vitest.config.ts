@@ -55,11 +55,17 @@ const ALIASES = [
 
 const NODE_RESOLVE_CONFIG = {
   alias: ALIASES,
+  dedupe: ['react', 'react-dom'],
   conditions: ['node'] // prefer node resolution
 };
 
 const BROWSER_RESOLVE_CONFIG = {
-  alias: ALIASES
+  alias: ALIASES,
+  dedupe: ['react', 'react-dom']
+};
+
+const BROWSER_OPTIMIZE_DEPS_CONFIG = {
+  include: ['apache-arrow', 'protobufjs', 'zod']
 };
 
 const HEADLESS_BROWSER_PROVIDER =
@@ -98,6 +104,7 @@ const CONFIG = defineConfig({
       },
       {
         resolve: BROWSER_RESOLVE_CONFIG,
+        optimizeDeps: BROWSER_OPTIMIZE_DEPS_CONFIG,
         plugins: [react()],
         test: {
           name: 'browser',
@@ -118,6 +125,7 @@ const CONFIG = defineConfig({
       },
       {
         resolve: BROWSER_RESOLVE_CONFIG,
+        optimizeDeps: BROWSER_OPTIMIZE_DEPS_CONFIG,
         plugins: [react()],
         test: {
           name: 'headless',

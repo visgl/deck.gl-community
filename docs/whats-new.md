@@ -10,11 +10,17 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 ### `@deck.gl-community/infovis-layers`
 
-- Added generic animation, block, and viewport-bounds helpers for trace-style visualizations.
+- Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.
 
 ### `@deck.gl-community/timeline-layers`
 
 - `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
+
+### `@deck.gl-community/trace-layers`
+
+- Trace graph data, layout, style, runtime-ref, Chrome trace, Perfetto trace, and Arrow ingestion APIs now ship from normalized `trace`, `layers`, `loaders`, and `react` package subpaths.
+- `DeckTraceGraph`, deck controllers/layers, trace loaders, and the Tracevis React surface now consume shared `@deck.gl-community/panels`, `@deck.gl-community/widgets`, and `@deck.gl-community/infovis-layers` APIs instead of vendored upstream copies.
+- Added the website Tracevis example for exercising trace loading, selection, catalog, and Studio visualization settings workflows.
 
 ### `@deck.gl-community/react`
 
@@ -26,7 +32,9 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - Thin named adapters now cover real panel containers plus specialized toolbar
   and toast components without duplicating panel rendering logic.
 - `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
+- `OmniBoxWidget` now accepts shared command manager search prefixes for command-mode Tracevis integrations.
 - `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
+- `createStudioSettingsWidget` and `updateStudioSettingsWidget` now host the shared Studio settings panel through deck widget chrome.
 
 ### `@deck.gl-community/panels` (NEW module)
 
@@ -47,8 +55,10 @@ A new module for deck-independent panel composition and small application UI.
 - `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema, field, child, matrix, and temporal metadata with JSON metadata formatting.
 - `ArrowBatchesPanel` - NEW reusable panel for inspecting Arrow record batches, row counts, cumulative row ranges, and column counts.
 - `StudioSettingsPanel` - NEW schema-driven settings surface with grouped controls, compact navigation, and visual routing-shape controls.
+- `SettingsPanel` now renders `multi-select` descriptors through the shared searchable panel selector.
 - `SettingsPanel` numeric range inputs can apply descriptor-level trailing debounce via `sliderDebounceMs`.
 - `SettingsPanel` and `StudioSettingsPanel` select menus can render option descriptions and grow to fit long labels; `StudioSettingsPanel` also accepts `settingRowLayout: 'fit-labels'` when controls should claim width from short labels.
+- `ModalPanelContainer` and `SidebarPanelContainer` trigger icons can render data/http(s) image URLs as CSS mask icons.
 
 - `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
 - `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.

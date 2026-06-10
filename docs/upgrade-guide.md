@@ -47,7 +47,27 @@ Please refer the documentation of each module for detailed upgrade guides.
   or use the thin named adapters `BoxPanelWidget`, `ModalPanelWidget`,
   `SidebarPanelWidget`, `FullScreenPanelWidget`, `ToolbarWidget`, and
   `ToastWidget`.
+- Deck migration: import `createStudioSettingsWidget` and
+  `updateStudioSettingsWidget` from `@deck.gl-community/widgets` instead of
+  `@deck.gl-community/panels`.
 - New API: `SplitterPanel` composes the first panel in one resizable pane and the remaining panels in a second pane.
+
+### `@deck.gl-community/trace-layers`
+
+- Breaking change: package subpaths were normalized:
+  - `@deck.gl-community/trace-layers/trace-graph` -> `@deck.gl-community/trace-layers/trace`
+  - `@deck.gl-community/trace-layers/deck-trace-layers` -> `@deck.gl-community/trace-layers/layers`
+  - `@deck.gl-community/trace-layers/trace-loaders` -> `@deck.gl-community/trace-layers/loaders`
+  - `@deck.gl-community/trace-layers/tracevis` -> `@deck.gl-community/trace-layers/react`
+- Breaking change: trace-layers no longer owns vendored community panel/widget
+  helpers or vendored deck fast-text/view-layout helpers.
+- Migration:
+  - Import panel definitions, settings managers, commands, keyboard shortcuts,
+    and panel containers from `@deck.gl-community/panels`.
+  - Import deck widget adapters, `OmniBoxWidget`, toast/time/heap widgets, and
+    Studio settings widget helpers from `@deck.gl-community/widgets`.
+  - Import `FastTextLayer`, UTF8 Arrow string-view helpers, and view-layout
+    helpers from `@deck.gl-community/infovis-layers`.
 
 ### `@deck.gl-community/react`
 

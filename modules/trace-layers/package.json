@@ -1,7 +1,7 @@
 {
   "name": "@deck.gl-community/trace-layers",
   "version": "9.3.5",
-  "description": "Trace visualization layers and viewer scaffolding for deck.gl",
+  "description": "Trace visualization layers and React viewer components for deck.gl",
   "license": "MIT",
   "private": true,
   "keywords": [
@@ -26,25 +26,25 @@
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
     },
-    "./trace-graph": {
-      "types": "./dist/trace-graph/index.d.ts",
-      "require": "./dist/trace-graph/index.cjs",
-      "import": "./dist/trace-graph/index.js"
+    "./trace": {
+      "types": "./dist/trace/index.d.ts",
+      "require": "./dist/trace/index.cjs",
+      "import": "./dist/trace/index.js"
     },
-    "./deck-trace-layers": {
-      "types": "./dist/deck-trace-layers/index.d.ts",
-      "require": "./dist/deck-trace-layers/index.cjs",
-      "import": "./dist/deck-trace-layers/index.js"
+    "./layers": {
+      "types": "./dist/layers/index.d.ts",
+      "require": "./dist/layers/index.cjs",
+      "import": "./dist/layers/index.js"
     },
-    "./trace-loaders": {
-      "types": "./dist/trace-loaders/index.d.ts",
-      "require": "./dist/trace-loaders/index.cjs",
-      "import": "./dist/trace-loaders/index.js"
+    "./loaders": {
+      "types": "./dist/loaders/index.d.ts",
+      "require": "./dist/loaders/index.cjs",
+      "import": "./dist/loaders/index.js"
     },
-    "./tracevis": {
-      "types": "./dist/tracevis/index.d.ts",
-      "require": "./dist/tracevis/index.cjs",
-      "import": "./dist/tracevis/index.js"
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "require": "./dist/react/index.cjs",
+      "import": "./dist/react/index.js"
     }
   },
   "files": [
@@ -52,7 +52,57 @@
     "src"
   ],
   "scripts": {
+    "prepack": "yarn --cwd ../.. build",
     "test": "vitest run",
     "test-watch": "vitest"
+  },
+  "dependencies": {
+    "@deck.gl-community/infovis-layers": "workspace:*",
+    "@deck.gl-community/layers": "workspace:*",
+    "@deck.gl-community/panels": "workspace:*",
+    "@deck.gl-community/timeline-layers": "workspace:*",
+    "@deck.gl-community/widgets": "workspace:*",
+    "@math.gl/core": "^4.0.0",
+    "@probe.gl/log": "^4.1.1",
+    "apache-arrow": "^17.0.0",
+    "lucide-react": "0.456.0",
+    "preact": "^10.17.0",
+    "protobufjs": "^7.2.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "zod": "^4.0.0"
+  },
+  "peerDependencies": {
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/extensions": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@deck.gl/mesh-layers": "~9.3.0",
+    "@deck.gl/react": "~9.3.0",
+    "@deck.gl/widgets": "~9.3.0",
+    "@loaders.gl/core": "^4.4.1",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/engine": "~9.3.2",
+    "@luma.gl/shadertools": "~9.3.2",
+    "@luma.gl/webgl": "~9.3.2",
+    "mjolnir.js": "^3.0.0"
+  },
+  "devDependencies": {
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/extensions": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@deck.gl/mesh-layers": "~9.3.0",
+    "@deck.gl/react": "~9.3.0",
+    "@deck.gl/widgets": "~9.3.0",
+    "@loaders.gl/core": "^4.4.1",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/engine": "~9.3.2",
+    "@luma.gl/shadertools": "~9.3.2",
+    "@luma.gl/webgl": "~9.3.2",
+    "@luma.gl/webgpu": "~9.3.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "happy-dom": "^17.4.4",
+    "mjolnir.js": "^3.0.0",
+    "vitest": "^3.2.4"
   }
 }

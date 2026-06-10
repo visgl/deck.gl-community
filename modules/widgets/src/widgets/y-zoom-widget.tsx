@@ -2,7 +2,7 @@
 import {OrthographicViewport, Widget} from '@deck.gl/core';
 import {render} from 'preact';
 
-import {IconButton, makeTextIcon} from '../preact/icon-button';
+import {IconButton, makeTextIcon} from '@deck.gl-community/panels';
 
 import type {Deck, OrthographicViewState, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {JSX} from 'preact';

@@ -1,14 +1,17 @@
-/** Primitive value supported by schema-driven settings controls. */
-export type SettingValue = boolean | number | string;
+/** Scalar value supported by single-value settings controls. */
+export type SettingScalarValue = boolean | number | string;
+
+/** Persistable value supported by settings controls. */
+export type SettingValue = SettingScalarValue | readonly string[];
 
 /** Built-in control kinds supported by settings panels. */
-export type SettingType = 'boolean' | 'number' | 'string' | 'select';
+export type SettingType = 'boolean' | 'number' | 'string' | 'select' | 'multi-select';
 
 /** Persistence bucket used by settings managers and URL integrations. */
 export type SettingPersistenceTarget = 'local-storage' | 'url' | 'none';
 
 /** One selectable setting option, either as a raw value or label/value pair. */
-export type SettingOption<Value extends SettingValue = SettingValue> =
+export type SettingOption<Value extends SettingScalarValue = SettingScalarValue> =
   | Value
   | {
       /** Human-friendly label shown in the select control. */
@@ -20,7 +23,8 @@ export type SettingOption<Value extends SettingValue = SettingValue> =
     };
 
 /** Backwards-compatible alias for selectable setting options. */
-export type SettingsOption<Value extends SettingValue = SettingValue> = SettingOption<Value>;
+export type SettingsOption<Value extends SettingScalarValue = SettingScalarValue> =
+  SettingOption<Value>;
 
 /** Describes one schema-driven setting control. */
 export type SettingDescriptor<
@@ -42,7 +46,7 @@ export type SettingDescriptor<
   step?: number;
   /** Optional trailing debounce, in milliseconds, for numeric range-slider input events. */
   sliderDebounceMs?: number;
-  options?: readonly SettingOption<Value>[];
+  options?: readonly SettingOption[];
   defaultValue?: Value;
 };
 
@@ -181,20 +185,20 @@ export function buildInitialCollapsedState(
 /** Normalizes a setting option into a label/value pair. */
 export function normalizeOption(option: SettingsOption): {
   label: string;
-  value: SettingValue;
+  value: SettingScalarValue;
   description?: string;
 } {
   if (isRecord(option) && 'label' in option && 'value' in option) {
     return {
       label: String(option.label),
-      value: option.value as SettingValue,
+      value: option.value as SettingScalarValue,
       description: typeof option.description === 'string' ? option.description : undefined
     };
   }
 
   return {
     label: String(option),
-    value: option as SettingValue
+    value: option as SettingScalarValue
   };
 }
 
@@ -268,6 +272,10 @@ export function getDefaultValue(setting: SettingDescriptor): SettingValue {
     return '';
   }
 
+  if (setting.type === 'multi-select') {
+    return [];
+  }
+
   return '';
 }
 
@@ -309,6 +317,16 @@ export function resolveSettingValue(
 
     const match = normalizedOptions.find(option => option.value === candidateValue);
     return match ? match.value : normalizedOptions[0].value;
+  }
+
+  if (setting.type === 'multi-select') {
+    if (Array.isArray(currentValue)) {
+      return currentValue.filter(
+        (value): value is string => typeof value === 'string' && value.length > 0
+      );
+    }
+    const defaultValue = getDefaultValue(setting);
+    return Array.isArray(defaultValue) ? defaultValue : [];
   }
 
   if (typeof currentValue === 'string') {

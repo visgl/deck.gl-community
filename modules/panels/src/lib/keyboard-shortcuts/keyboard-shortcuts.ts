@@ -55,6 +55,10 @@ export type KeyboardShortcut = {
   displaySection?: KeyboardShortcutDisplaySection;
   /** Prevents the browser default behavior when this shortcut matches. */
   preventDefault?: boolean;
+  /** Optional runtime guard that can reject a matching keyboard event. */
+  shouldHandle?: (event: KeyboardEvent) => boolean;
+  /** Optional command id executed through the shared command manager. */
+  commandId?: string;
   /** Optional visual badges displayed next to the shortcut. */
   badges?: string[];
   /** Optional paired display metadata used for grouped shortcut rows. */
@@ -207,4 +211,23 @@ export function formatKey(key: string): string {
 
   // Fallback for less common named keys
   return key.toUpperCase();
+}
+
+/** Formats one keyboard shortcut as compact text for shortcut chips. */
+export function formatShortcutKeyHTML(shortcut: KeyboardShortcut): string {
+  const parts: string[] = [];
+  if (shortcut.commandKey) {
+    parts.push(isMac ? '⌘' : 'Ctrl');
+  }
+  if (shortcut.ctrlKey) {
+    parts.push(isMac ? '⌃' : 'Ctrl');
+  }
+  if (shortcut.shiftKey) {
+    parts.push('Shift');
+  }
+  if (shortcut.key) {
+    parts.push(formatKey(shortcut.key));
+  }
+
+  return isMac ? parts.join('') : parts.join('+');
 }

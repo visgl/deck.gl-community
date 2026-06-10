@@ -19,6 +19,7 @@ import type {
 } from '../../lib/settings/settings-manager';
 import type {
   SettingDescriptor,
+  SettingScalarValue,
   SettingsSchema,
   SettingsSectionDescriptor,
   SettingsState,
@@ -545,7 +546,11 @@ function SelectControl({
   settingRowLayout: StudioSettingsRowLayout;
   onChange: (value: SettingValue) => void;
 }) {
-  const options = (setting.options ?? [getDefaultValue(setting)]).map(normalizeOption);
+  const defaultValue = getDefaultValue(setting);
+  const fallbackOptions: SettingScalarValue[] = isSettingScalarValue(defaultValue)
+    ? [defaultValue]
+    : [];
+  const options = (setting.options ?? fallbackOptions).map(normalizeOption);
   return (
     <SettingRow setting={setting} compact={compact} settingRowLayout={settingRowLayout}>
       <SelectComponent
@@ -557,6 +562,11 @@ function SelectControl({
       />
     </SettingRow>
   );
+}
+
+/** Returns whether one setting value can populate a single-value control. */
+function isSettingScalarValue(value: SettingValue): value is SettingScalarValue {
+  return typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string';
 }
 
 /** Renders a boolean setting row. */

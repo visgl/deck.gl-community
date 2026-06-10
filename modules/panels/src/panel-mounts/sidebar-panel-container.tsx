@@ -8,6 +8,7 @@ import {
   type PanelPlacement
 } from '../panels/panel-container';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
+import {getMaskIconStyle, isMaskIcon} from './trigger-icon';
 
 import type {KeyboardShortcut} from '../lib/keyboard-shortcuts/keyboard-shortcuts';
 import type {KeyboardShortcutEventManager} from '../lib/keyboard-shortcuts/keyboard-shortcuts-manager';
@@ -36,7 +37,7 @@ export type SidebarPanelContainerProps = PanelContainerProps & {
   onOpenChange?: (open: boolean) => void;
   /** Label used for the trigger affordance. */
   triggerLabel?: string;
-  /** Optional trigger icon glyph. */
+  /** Optional trigger icon glyph or data/http(s) mask image URL. */
   triggerIcon?: string;
   /** Whether to render sidebar title bar chrome. */
   showTitleBar?: boolean;
@@ -195,11 +196,11 @@ function SidebarPanelContainerView({
                     onClick={() => onOpenChange(!open)}
                   >
                     {triggerIcon ? (
-                      <span aria-hidden="true" style={SIDEBAR_HANDLE_ICON_STYLE}>
-                        {triggerIcon}
+                      <span aria-hidden="true" style={getSidebarHandleIconStyle(triggerIcon, open)}>
+                        {!isMaskIcon(triggerIcon) ? triggerIcon : null}
                       </span>
                     ) : null}
-                    <span aria-hidden="true" style={SIDEBAR_HANDLE_CHEVRON_STYLE}>
+                    <span aria-hidden="true" style={getSidebarHandleChevronStyle(open)}>
                       {handleChevron}
                     </span>
                   </button>
@@ -640,23 +641,31 @@ function getSidebarTriggerTransform(
   return side === 'left' ? `translateX(${openOffset})` : `translateX(calc(-1 * ${openOffset}))`;
 }
 
-const SIDEBAR_HANDLE_ICON_STYLE: JSX.CSSProperties = {
-  display: 'block',
-  fontSize: '12px',
-  fontWeight: 700,
-  lineHeight: '1',
-  color: 'var(--button-icon-idle, #616166)'
-};
+function getSidebarHandleIconStyle(triggerIcon: string, open: boolean): JSX.CSSProperties {
+  const color = open ? 'var(--button-icon-hover, #18181a)' : 'var(--button-icon-idle, #616166)';
 
-const SIDEBAR_HANDLE_CHEVRON_STYLE: JSX.CSSProperties = {
-  display: 'block',
-  fontSize: '22px',
-  fontWeight: 700,
-  lineHeight: '1',
-  transform: 'translateY(-1px)',
-  color: 'var(--button-icon-idle, #616166)',
-  transition: `transform ${SIDEBAR_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
-};
+  return isMaskIcon(triggerIcon)
+    ? getMaskIconStyle(triggerIcon, color)
+    : {
+        display: 'block',
+        fontSize: '12px',
+        fontWeight: 700,
+        lineHeight: '1',
+        color
+      };
+}
+
+function getSidebarHandleChevronStyle(open: boolean): JSX.CSSProperties {
+  return {
+    display: 'block',
+    fontSize: '22px',
+    fontWeight: 700,
+    lineHeight: '1',
+    transform: 'translateY(-1px)',
+    color: open ? 'var(--button-icon-hover, #18181a)' : 'var(--button-icon-idle, #616166)',
+    transition: `transform ${SIDEBAR_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
+  };
+}
 
 const SIDEBAR_PANEL_STYLE = (
   side: 'left' | 'right',

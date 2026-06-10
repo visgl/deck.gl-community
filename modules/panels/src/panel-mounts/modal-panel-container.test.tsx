@@ -144,6 +144,22 @@ describe('ModalPanelContainer', () => {
     hiddenModal.cleanup();
   });
 
+  it('renders a configured trigger icon URL as a mask', () => {
+    const triggerIcon =
+      "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E";
+    const {root, cleanup} = renderModal({
+      button: true,
+      defaultOpen: false,
+      triggerIcon
+    });
+
+    const triggerButton = root.querySelector<HTMLButtonElement>('.deck-widget-icon-button');
+    const triggerIconElement = triggerButton?.querySelector<HTMLElement>('span');
+    expect(triggerButton?.textContent).not.toContain(triggerIcon);
+    expect(triggerIconElement?.style.maskImage).toContain(triggerIcon);
+    cleanup();
+  });
+
   it('closes when Escape is pressed', () => {
     const {root, cleanup} = renderModal({button: true});
 

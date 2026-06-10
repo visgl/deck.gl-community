@@ -122,6 +122,10 @@ export {
   type ArrowRecordBatchLike
 } from './leaf-panels/arrow/arrow-batches-panel';
 export {
+  CommandDocumentationPanel,
+  type CommandDocumentationPanelProps
+} from './leaf-panels/commands/command-documentation-panel';
+export {
   KeyboardShortcutsPanel,
   KeyboardShortcutsPanelContent,
   type KeyboardShortcutsPanelProps
@@ -173,6 +177,7 @@ export {
   type SettingDescriptorByName,
   type SettingOption,
   type SettingPersistenceTarget,
+  type SettingScalarValue,
   type SettingType,
   type SettingValue,
   type SettingsOption,
@@ -211,7 +216,8 @@ export {
   isShortcutMatchingKeyEvent,
   findShortcutMatchingKeyEvent,
   DEFAULT_SHORTCUTS,
-  formatKey
+  formatKey,
+  formatShortcutKeyHTML
 } from './lib/keyboard-shortcuts/keyboard-shortcuts';
 export {
   KeyboardShortcutsManager,
@@ -233,3 +239,18 @@ export {
   URLManager,
   type URLManagerCreateSearchParamsOptions
 } from './lib/url-parameters/url-manager';
+export {IconButton, makeTextIcon} from './preact/icon-button';
+export {
+  PanelMultiSelect,
+  PanelSelect,
+  type PanelMultiSelectOption,
+  type PanelMultiSelectProps,
+  type PanelSelectOption,
+  type PanelSelectProps,
+  type PanelSelectValue
+} from './preact/panel-select';
+export {
+  WidgetTooltip,
+  type WidgetTooltipPlacement,
+  type WidgetTooltipProps
+} from './preact/widget-tooltip';

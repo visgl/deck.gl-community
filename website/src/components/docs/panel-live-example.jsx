@@ -3,6 +3,7 @@ import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
 import {mountPanelDocsExample} from '../../../../examples/widgets/panel-docs/app';
+import {deferImperativeCleanup} from '../imperative-cleanup';
 
 const WRAPPER_STYLE = {
   position: 'relative',
@@ -34,14 +35,14 @@ function PanelLiveExampleHost({highlight, height}) {
     const animationFrame = window.requestAnimationFrame(() => {
       cleanup = mountPanelDocsExample(hostElement, {highlight});
       if (isDisposed) {
-        cleanup();
+        deferImperativeCleanup(cleanup);
       }
     });
 
     return () => {
       isDisposed = true;
       window.cancelAnimationFrame(animationFrame);
-      cleanup?.();
+      deferImperativeCleanup(cleanup);
     };
   }, [highlight]);
 

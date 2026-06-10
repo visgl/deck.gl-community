@@ -144,8 +144,18 @@ vi.mock('./text-editor-panel-monaco-runtime', () => ({
 async function flushMicrotasks(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await waitForAnimationFrame();
   await Promise.resolve();
+  await waitForAnimationFrame();
+}
+
+/**
+ * Waits through Preact's post-paint effect scheduling path.
+ */
+async function waitForAnimationFrame(): Promise<void> {
+  await new Promise<void>(resolve => {
+    requestAnimationFrame(() => resolve());
+  });
   await new Promise(resolve => setTimeout(resolve, 0));
 }
 
