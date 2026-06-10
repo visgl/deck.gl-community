@@ -101,7 +101,7 @@
     "@luma.gl/webgpu": "~9.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "happy-dom": "^17.4.4",
+    "happy-dom": "^20.8.9",
     "mjolnir.js": "^3.0.0",
     "vitest": "^3.2.4"
   }

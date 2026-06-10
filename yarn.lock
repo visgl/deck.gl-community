@@ -708,7 +708,7 @@ __metadata:
     "@types/react": "npm:^19.2.14"
     "@types/react-dom": "npm:^19.2.3"
     apache-arrow: "npm:^17.0.0"
-    happy-dom: "npm:^17.4.4"
+    happy-dom: "npm:^20.8.9"
     lucide-react: "npm:0.456.0"
     mjolnir.js: "npm:^3.0.0"
     preact: "npm:^10.17.0"
@@ -4375,6 +4375,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/node@npm:>=20.0.0":
+  version: 25.9.2
+  resolution: "@types/node@npm:25.9.2"
+  dependencies:
+    undici-types: "npm:>=7.24.0 <7.24.7"
+  checksum: 10c0/f14c0d56361febb985eccc45cf0834ee6e2f07c4389a636f3e1a55ebde320077a80bface18c9afd3092f5fa295925502c1a9d55f805efa813f634aa9c941cbac
+  languageName: node
+  linkType: hard
+
 "@types/node@npm:^20.13.0":
   version: 20.19.24
   resolution: "@types/node@npm:20.19.24"
@@ -4503,6 +4512,22 @@ __metadata:
   version: 0.5.4
   resolution: "@types/wellknown@npm:0.5.4"
   checksum: 10c0/dfd19a8e96e8f8a45baacf28790e1b2264f3e1c1c2fd0257fda22ad55a011bc28ae35cf0d9e9da30ed5b7628cb4b474c0d8fdd98189ccb06091e1734d033f9c1
+  languageName: node
+  linkType: hard
+
+"@types/whatwg-mimetype@npm:^3.0.2":
+  version: 3.0.2
+  resolution: "@types/whatwg-mimetype@npm:3.0.2"
+  checksum: 10c0/dad39d1e4abe760a0a963c84bbdbd26b1df0eb68aff83bdf6ecbb50ad781ead777f6906d19a87007790b750f7500a12e5624d31fc6a1529d14bd19b5c3a316d1
+  languageName: node
+  linkType: hard
+
+"@types/ws@npm:^8.18.1":
+  version: 8.18.1
+  resolution: "@types/ws@npm:8.18.1"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/61aff1129143fcc4312f083bc9e9e168aa3026b7dd6e70796276dcfb2c8211c4292603f9c4864fae702f2ed86e4abd4d38aa421831c2fd7f856c931a481afbab
   languageName: node
   linkType: hard
 
@@ -7661,6 +7686,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"entities@npm:^7.0.1":
+  version: 7.0.1
+  resolution: "entities@npm:7.0.1"
+  checksum: 10c0/b4fb9937bb47ecb00aaaceb9db9cdd1cc0b0fb649c0e843d05cf5dbbd2e9d2df8f98721d8b1b286445689c72af7b54a7242fc2d63ef7c9739037a8c73363e7ca
+  languageName: node
+  linkType: hard
+
 "env-paths@npm:^2.2.0, env-paths@npm:^2.2.1":
   version: 2.2.1
   resolution: "env-paths@npm:2.2.1"
@@ -9357,13 +9389,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"happy-dom@npm:^17.4.4":
-  version: 17.6.3
-  resolution: "happy-dom@npm:17.6.3"
+"happy-dom@npm:^20.8.9":
+  version: 20.8.9
+  resolution: "happy-dom@npm:20.8.9"
   dependencies:
-    webidl-conversions: "npm:^7.0.0"
+    "@types/node": "npm:>=20.0.0"
+    "@types/whatwg-mimetype": "npm:^3.0.2"
+    "@types/ws": "npm:^8.18.1"
+    entities: "npm:^7.0.1"
     whatwg-mimetype: "npm:^3.0.0"
-  checksum: 10c0/bf29e0cd4c39412476ac3e44b86f2f97345241237e902ca822021e030ad475dd5517a0eabffdc4ecbfa3d4becbdd60bcbe9279dab625712930b0c612593335f5
+    ws: "npm:^8.18.3"
+  checksum: 10c0/12fe9b85891b1289935b2a4f726e2839e7c92e3f55401bd20cb5500763dd994364645acaab20a754fd90d5e1b2ffdf734b39a32ea02704c3e3ee0c4d30cf958e
   languageName: node
   linkType: hard
 
@@ -16784,13 +16820,6 @@ __metadata:
   version: 3.0.1
   resolution: "webidl-conversions@npm:3.0.1"
   checksum: 10c0/5612d5f3e54760a797052eb4927f0ddc01383550f542ccd33d5238cfd65aeed392a45ad38364970d0a0f4fea32e1f4d231b3d8dac4a3bdd385e5cf802ae097db
-  languageName: node
-  linkType: hard
-
-"webidl-conversions@npm:^7.0.0":
-  version: 7.0.0
-  resolution: "webidl-conversions@npm:7.0.0"
-  checksum: 10c0/228d8cb6d270c23b0720cb2d95c579202db3aaf8f633b4e9dd94ec2000a04e7e6e43b76a94509cdb30479bd00ae253ab2371a2da9f81446cc313f89a4213a2c4
   languageName: node
   linkType: hard
 
