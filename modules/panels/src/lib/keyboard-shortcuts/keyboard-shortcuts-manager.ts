@@ -1,4 +1,5 @@
-import {findShortcutMatchingKeyEvent} from './keyboard-shortcuts';
+import {commandManager} from '../commands/command-manager';
+import {findShortcutMatchingKeyEvent, formatShortcutKeyHTML} from './keyboard-shortcuts';
 
 import type {KeyboardShortcut} from './keyboard-shortcuts';
 
@@ -22,6 +23,7 @@ export type KeyboardShortcutEventManager = {
  * Installs keyboard shortcuts on an event manager that forwards `keydown` events.
  */
 export class KeyboardShortcutsManager {
+  static readonly #keyHTMLByCommandId = new Map<string, string>();
   private shortcuts: KeyboardShortcut[] = [];
   eventManager: KeyboardShortcutEventManager;
 
@@ -31,6 +33,20 @@ export class KeyboardShortcutsManager {
   constructor(eventManager: KeyboardShortcutEventManager, shortcuts: KeyboardShortcut[]) {
     this.eventManager = eventManager;
     this.shortcuts = shortcuts;
+    KeyboardShortcutsManager.registerShortcutKeyHTML(shortcuts);
+  }
+
+  /** Returns compact key display text for one command id when known. */
+  static getKeyHTML(commandId: string): string | undefined {
+    return KeyboardShortcutsManager.#keyHTMLByCommandId.get(commandId);
+  }
+
+  /** Returns compact key display text for one command id from this manager. */
+  getKeyHTML(commandId: string): string | undefined {
+    return (
+      getKeyHTMLForShortcuts(this.shortcuts, commandId) ??
+      KeyboardShortcutsManager.getKeyHTML(commandId)
+    );
   }
 
   /**
@@ -50,12 +66,28 @@ export class KeyboardShortcutsManager {
   private _handleKeyDown = (event: KeyboardShortcutManagerEvent) => {
     const shortcut = findShortcutMatchingKeyEvent(event.srcEvent, this.shortcuts);
     if (shortcut) {
+      if (shortcut.shouldHandle && !shortcut.shouldHandle(event.srcEvent)) {
+        return;
+      }
       if (shortcut.preventDefault) {
         event.srcEvent.preventDefault?.();
       }
-      shortcut.onKeyPress?.();
+      runShortcutCommand(shortcut);
     }
   };
+
+  /** Records command key labels from shortcut definitions for external tooltip rendering. */
+  static registerShortcutKeyHTML(shortcuts: readonly KeyboardShortcut[]): void {
+    for (const shortcut of shortcuts) {
+      if (!shortcut.commandId) {
+        continue;
+      }
+      KeyboardShortcutsManager.#keyHTMLByCommandId.set(
+        shortcut.commandId,
+        formatShortcutKeyHTML(shortcut)
+      );
+    }
+  }
 }
 
 /**
@@ -69,6 +101,15 @@ export class KeyboardShortcutsManagerDocument {
    */
   constructor(shortcuts: KeyboardShortcut[]) {
     this.shortcuts = shortcuts;
+    KeyboardShortcutsManager.registerShortcutKeyHTML(shortcuts);
+  }
+
+  /** Returns compact key display text for one command id when known. */
+  getKeyHTML(commandId: string): string | undefined {
+    return (
+      getKeyHTMLForShortcuts(this.shortcuts, commandId) ??
+      KeyboardShortcutsManager.getKeyHTML(commandId)
+    );
   }
 
   /**
@@ -88,10 +129,29 @@ export class KeyboardShortcutsManagerDocument {
   private _handleKeyDown = (event: KeyboardEvent) => {
     const shortcut = findShortcutMatchingKeyEvent(event, this.shortcuts);
     if (shortcut) {
+      if (shortcut.shouldHandle && !shortcut.shouldHandle(event)) {
+        return;
+      }
       if (shortcut.preventDefault) {
         event.preventDefault();
       }
-      shortcut.onKeyPress?.();
+      runShortcutCommand(shortcut);
     }
   };
+}
+
+function runShortcutCommand(shortcut: KeyboardShortcut): void {
+  if (shortcut.commandId) {
+    commandManager.executeCommand(shortcut.commandId);
+    return;
+  }
+  shortcut.onKeyPress?.();
+}
+
+function getKeyHTMLForShortcuts(
+  shortcuts: readonly KeyboardShortcut[],
+  commandId: string
+): string | undefined {
+  const shortcut = shortcuts.find(candidate => candidate.commandId === commandId);
+  return shortcut ? formatShortcutKeyHTML(shortcut) : undefined;
 }

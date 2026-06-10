@@ -10,9 +10,29 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@deck.gl-community/trace-layers": "workspace:*"
+    "@deck.gl-community/trace-layers": "workspace:*",
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/extensions": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@deck.gl/mesh-layers": "~9.3.0",
+    "@deck.gl/react": "~9.3.0",
+    "@deck.gl/widgets": "~9.3.0",
+    "@loaders.gl/core": "^4.4.1",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/engine": "~9.3.2",
+    "@luma.gl/shadertools": "~9.3.2",
+    "@tanstack/react-table": "8.21.2",
+    "lucide-react": "0.456.0",
+    "mjolnir.js": "^3.0.0",
+    "preact": "^10.17.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "zustand": "5.0.8"
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
     "vite": "^7.3.1"
   }
 }

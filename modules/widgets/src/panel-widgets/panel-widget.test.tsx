@@ -177,4 +177,25 @@ describe('PanelWidget', () => {
     expect(new ToolbarWidget().component).toBeInstanceOf(ToolbarComponent);
     expect(new ToastWidget().component).toBeInstanceOf(ToastComponent);
   });
+
+  it('shows modal widget triggers by default and honors explicit trigger hiding', () => {
+    const visibleWidget = new ModalPanelWidget({triggerLabel: 'Settings'});
+    const visibleRoot = visibleWidget.onAdd({deck: {}, viewId: null});
+    visibleWidget.rootElement = visibleRoot;
+    visibleWidget.onRenderHTML(visibleRoot);
+
+    const trigger = visibleRoot.querySelector('button[aria-label="Open Settings"]');
+    expect(trigger).toBeTruthy();
+    expect(trigger?.textContent).not.toContain('Settings');
+
+    const hiddenWidget = new ModalPanelWidget({hideTrigger: true});
+    const hiddenRoot = hiddenWidget.onAdd({deck: {}, viewId: null});
+    hiddenWidget.rootElement = hiddenRoot;
+    hiddenWidget.onRenderHTML(hiddenRoot);
+
+    expect(hiddenRoot.querySelector('.deck-widget-icon-button')).toBeNull();
+
+    visibleWidget.onRemove();
+    hiddenWidget.onRemove();
+  });
 });

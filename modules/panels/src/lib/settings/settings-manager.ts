@@ -173,7 +173,7 @@ export class SettingsManager<Change extends SettingsChangeDescriptor = SettingsC
       ? resolveSettingValue(descriptor, candidateSettings)
       : nextValue;
     const previousValue = getValueAtPath(this.#currentSettings, name);
-    if (Object.is(previousValue, resolvedNextValue)) {
+    if (areSettingValuesEqual(previousValue, resolvedNextValue)) {
       return;
     }
 
@@ -209,7 +209,7 @@ export class SettingsManager<Change extends SettingsChangeDescriptor = SettingsC
       const previousValue = getValueAtPath(this.#currentSettings, name);
       const nextValue = getValueAtPath(nextSettings, name);
 
-      if (!Object.is(previousValue, nextValue)) {
+      if (!areSettingValuesEqual(previousValue, nextValue)) {
         changedSettings.push({
           type: 'setting',
           name,
@@ -317,7 +317,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isSettingValue(value: unknown): value is SettingValue {
-  return typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string';
+  return (
+    typeof value === 'boolean' ||
+    typeof value === 'number' ||
+    typeof value === 'string' ||
+    isStringArray(value)
+  );
+}
+
+/** Returns whether two setting values should be treated as unchanged. */
+function areSettingValuesEqual(left: unknown, right: unknown): boolean {
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return areStringArraysEqual(left, right);
+  }
+
+  return Object.is(left, right);
+}
+
+/** Compares string-array settings with order-sensitive value equality. */
+function areStringArraysEqual(left: unknown, right: unknown): boolean {
+  if (!isStringArray(left) || !isStringArray(right)) {
+    return false;
+  }
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
+/** Returns whether the value is a string-array setting candidate. */
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(entry => typeof entry === 'string');
 }
 
 function shouldPersistSetting(descriptor: SettingDescriptor | undefined): boolean {

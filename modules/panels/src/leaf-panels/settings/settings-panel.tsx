@@ -11,6 +11,7 @@ import {
   resolveSettingValue,
   setValueAtPath
 } from '../../lib/settings/settings';
+import {PanelMultiSelect} from '../../preact/panel-select';
 import {SelectComponent} from '../../preact/select-component';
 
 import type {
@@ -448,6 +449,28 @@ function SettingsControl({fontSize, setting, value, onValueChange}: SettingsCont
         fontSize={fontSize}
       />
     );
+  } else if (setting.type === 'multi-select') {
+    const selectedValues = Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+      : [];
+    const normalizedOptions = (setting.options ?? []).map(option => {
+      const normalized = normalizeOption(option);
+      return {
+        label: normalized.label,
+        value: String(normalized.value)
+      };
+    });
+
+    control = (
+      <PanelMultiSelect
+        id={inputId}
+        ariaLabel={label}
+        value={selectedValues}
+        options={normalizedOptions}
+        onChange={onValueChange}
+        fontSize={fontSize}
+      />
+    );
   } else {
     control = (
       <StringSettingControl
@@ -459,11 +482,12 @@ function SettingsControl({fontSize, setting, value, onValueChange}: SettingsCont
       />
     );
   }
+  const controlOwnsLabel = setting.type === 'select' || setting.type === 'multi-select';
 
   return (
     <div data-setting-row-for={setting.name} style={SETTING_ROW_STYLE} title={tooltip}>
       <label
-        htmlFor={setting.type === 'select' ? undefined : inputId}
+        htmlFor={controlOwnsLabel ? undefined : inputId}
         style={withFontSize(SETTING_LABEL_STYLE, fontSize)}
       >
         {label}

@@ -12,7 +12,8 @@ vi.mock('@deck.gl-community/panels', () => {
     SidebarPanelContainer: class SidebarPanelContainer {},
     FullScreenPanelContainer: class FullScreenPanelContainer {},
     ToolbarComponent: class ToolbarComponent {},
-    ToastComponent: class ToastComponent {}
+    ToastComponent: class ToastComponent {},
+    makeTextIcon: vi.fn(() => '')
   };
 });
 
@@ -74,10 +75,12 @@ it('exports ToastWidget', () => {
   expect(Widgets.ToastWidget).toBeDefined();
 });
 
-it('removes panel compatibility aliases and studio settings helpers', () => {
+it('removes panel compatibility aliases while exporting studio settings helpers', () => {
   expect(Widgets.BoxWidget).toBeUndefined();
+  expect(Widgets.KeyboardShortcutsWidget).toBeUndefined();
   expect(Widgets.ModalWidget).toBeUndefined();
+  expect(Widgets.SettingsWidget).toBeUndefined();
   expect(Widgets.SidebarWidget).toBeUndefined();
-  expect(Widgets.createStudioSettingsWidget).toBeUndefined();
-  expect(Widgets.updateStudioSettingsWidget).toBeUndefined();
+  expect(Widgets.createStudioSettingsWidget).toBeDefined();
+  expect(Widgets.updateStudioSettingsWidget).toBeDefined();
 });

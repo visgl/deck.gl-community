@@ -2,7 +2,7 @@
 import {Deck, Widget} from '@deck.gl/core';
 import {render} from 'preact';
 
-import {IconButton, makeTextIcon} from '../preact/icon-button';
+import {IconButton, makeTextIcon, WidgetTooltip} from '@deck.gl-community/panels';
 
 import type {PickingInfo, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {
@@ -12,30 +12,55 @@ import type {
   MjolnirPointerEvent
 } from 'mjolnir.js';
 
-export type TimeMeasureRange = {startTimeMs: number; endTimeMs: number};
+/** Absolute time range selected by the time-measure widget. */
+export type TimeMeasureRange = {
+  /** Start timestamp of the measured range in milliseconds. */
+  startTimeMs: number;
+  /** End timestamp of the measured range in milliseconds. */
+  endTimeMs: number;
+};
 
-type TimeMeasureWidgetProps = WidgetProps & {
+/** Props accepted by {@link TimeMeasureWidget}. */
+export type TimeMeasureWidgetProps = WidgetProps & {
+  /** Widget placement within the deck widget layout. */
   placement?: WidgetPlacement;
+  /** Deck view id that owns the widget root. */
   viewId?: string | null;
   /** View to listen to for interactions. Defaults to 'main'. */
   eventViewId?: string | string[] | null;
   /** View to use for projecting pointer -> time. Defaults to event view. */
   projectionViewId?: string | null;
+  /** Trigger label shown while no range is selected. */
   label?: string;
+  /** Trigger label shown after a range has been selected. */
   activeLabel?: string;
+  /** Optional command id metadata used by external command wiring. */
+  commandId?: string;
+  /** Optional caller-owned HTML renderer for the trigger tooltip. */
+  renderTooltipHTML?: ({widget}: {widget: TimeMeasureWidget}) => HTMLElement | string;
+  /** Called when time-range selection starts. */
   onActivate?: () => void;
+  /** Called when time-range selection completes or is cleared. */
   onDeactivate?: () => void;
+  /** Called when the completed measured range changes. */
   onRangeChange?: (range: TimeMeasureRange | null) => void;
+  /** Called when any time-measure interaction state changes. */
   onSelectionChange?: (selection: TimeMeasureSelectionState) => void;
 };
 
+/** Current time-measure interaction state. */
 export type TimeMeasureSelectionState = {
+  /** Current interaction phase for range selection. */
   phase: 'idle' | 'selecting-start' | 'selecting-end' | 'selected';
+  /** Time under the cursor while the widget is active. */
   cursorTimeMs: number | null;
+  /** Provisional start timestamp while selecting a range. */
   draftStartTimeMs: number | null;
+  /** Completed selected time range, or null when none is selected. */
   range: TimeMeasureRange | null;
 };
 
+/** Deck widget that lets users measure a time range by interacting with a trace view. */
 export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
   static defaultProps: Required<TimeMeasureWidgetProps> = {
     ...Widget.defaultProps,
@@ -46,6 +71,8 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     projectionViewId: 'main',
     label: 'Measure time',
     activeLabel: 'Time range selected',
+    commandId: 'time-measure.toggle',
+    renderTooltipHTML: undefined!,
     onActivate: undefined!,
     onDeactivate: undefined!,
     onRangeChange: undefined!,
@@ -69,17 +96,27 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
   #projectionViewId: string | null = null;
   #eventManager?: EventManager | null;
   #dragSelecting = false;
+  /** Command id registered for toggling the measure-time interaction. */
+  commandId = TimeMeasureWidget.defaultProps.commandId;
 
+  /** Creates a time-measure widget. */
   constructor(props: TimeMeasureWidgetProps = {}) {
     super(props);
     this.setProps(this.props);
   }
 
+  /** Performs the measure-time trigger action for external command wiring. */
+  static performAction({widget}: {widget: TimeMeasureWidget}): void {
+    widget.#handleWidgetCommand();
+  }
+
+  /** Updates time-measure widget props. */
   setProps(props: Partial<TimeMeasureWidgetProps>): void {
     this.placement = props.placement ?? this.placement;
     this.viewId = props.viewId ?? this.viewId;
     this.#eventViewId = props.eventViewId ?? this.#eventViewId;
     this.#projectionViewId = props.projectionViewId ?? this.#projectionViewId;
+    this.commandId = props.commandId ?? this.commandId;
     super.setProps(props);
   }
 
@@ -89,7 +126,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     }
     // @ts-expect-error accessing protected member
     // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
-    const eventManager = deck?.eventManager;
+    const eventManager = deck?.eventManager!;
     this.#attachEventListeners(eventManager);
     return this.onCreateRootElement();
   }
@@ -100,14 +137,17 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
 
   onRenderHTML(rootElement: HTMLElement): void {
     const appearance = this.#getAppearance();
+    const tooltipHTML = this.props.renderTooltipHTML?.({widget: this});
     render(
-      <IconButton
-        icon={appearance.icon}
-        color={appearance.color}
-        title={appearance.title}
-        className={appearance.isActive ? 'deck-widget-button-active' : ''}
-        onClick={() => this.#handleWidgetClick()}
-      />,
+      <WidgetTooltip label={appearance.title} html={tooltipHTML} placement="right">
+        <IconButton
+          icon={appearance.icon}
+          color={appearance.color}
+          ariaLabel={appearance.title}
+          className={appearance.isActive ? 'deck-widget-button-active' : ''}
+          onClick={() => TimeMeasureWidget.performAction({widget: this})}
+        />
+      </WidgetTooltip>,
       rootElement
     );
   }
@@ -124,7 +164,6 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     this.#emitSelectionChange();
   }
 
-  // eslint-disable-next-line complexity
   onClick(info: PickingInfo, event: MjolnirGestureEvent): void {
     if (this.#dragSelecting) {
       return;
@@ -219,7 +258,14 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
   }
 
   #handleKeyDown = (event: MjolnirKeyEvent) => {
-    if (event.srcEvent.key === 'Shift' && this.#phase === 'selected' && this.#timeMeasureRange) {
+    if (
+      event.srcEvent.key === 'Shift' &&
+      !event.srcEvent.metaKey &&
+      !event.srcEvent.ctrlKey &&
+      !event.srcEvent.altKey &&
+      this.#phase === 'selected' &&
+      this.#timeMeasureRange
+    ) {
       this.#cancelSelection();
       return;
     }
@@ -312,7 +358,6 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     return viewportId === eventViewId;
   }
 
-  // eslint-disable-next-line complexity
   #eventToTimeMs(
     info: PickingInfo,
     event: MjolnirGestureEvent | MjolnirPointerEvent
@@ -323,7 +368,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     }
     if (info.coordinate && Number.isFinite(info.coordinate[0])) {
       if (!projectionViewport.id || info.viewport?.id === projectionViewport.id) {
-        return info.coordinate[0];
+        return info.coordinate[0] as number;
       }
     }
     const center = (event as any).offsetCenter ?? (event as any).center;
@@ -392,7 +437,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     return this.#phase === 'selecting-start' || this.#phase === 'selecting-end';
   }
 
-  #handleWidgetClick() {
+  #handleWidgetCommand() {
     if (this.#isSelecting()) {
       this.#cancelSelection();
       return;
@@ -415,12 +460,12 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     isActive: boolean;
     title: string;
   } {
-    const focusColor = '#10374b';
-    const activeColor = '#1a95d3';
+    const completedColor = '#000000';
+    const selectingColor = '#4b5563';
 
     if (this.#phase === 'selecting-start' || this.#phase === 'selecting-end') {
       return {
-        color: activeColor,
+        color: selectingColor,
         icon: makeTextIcon(this.#phase === 'selecting-start' ? '│' : '││'),
         isActive: true,
         title: 'Select time range…'
@@ -429,7 +474,7 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
 
     if (this.#phase === 'selected' && this.#timeMeasureRange) {
       return {
-        color: focusColor,
+        color: completedColor,
         icon: makeTextIcon('Δt'),
         isActive: true,
         title: this.props.activeLabel

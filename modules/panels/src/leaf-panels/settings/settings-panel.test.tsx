@@ -58,6 +58,13 @@ const TEST_SCHEMA: SettingsSchema = {
           type: 'select',
           options: ['newest', 'oldest'],
           description: 'Choose result ordering.'
+        },
+        {
+          name: 'streams',
+          label: 'Streams',
+          type: 'multi-select',
+          options: ['worker-1', 'worker-2'],
+          description: 'Choose visible streams.'
         }
       ]
     }
@@ -68,7 +75,8 @@ const INITIAL_SETTINGS: SettingsState = {
   flags: {enabled: true},
   render: {opacity: 0.4},
   mode: 'all',
-  sort: 'newest'
+  sort: 'newest',
+  streams: []
 };
 
 function renderSettingsPanel(options?: {
@@ -217,6 +225,23 @@ describe('SettingsPanel', () => {
       })
     );
 
+    const streamsButton = getRequiredButton(root, '#settings-panel-input-streams');
+    streamsButton.click();
+    await Promise.resolve();
+
+    const streamOption = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')
+    ).find(button => button.textContent?.includes('worker-2'));
+    expect(streamOption).toBeTruthy();
+    streamOption?.click();
+    await Promise.resolve();
+
+    expect(handleSettingsChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        streams: ['worker-2']
+      })
+    );
+
     cleanup();
   });
 
@@ -247,6 +272,7 @@ describe('SettingsPanel', () => {
     );
     const numberInput = getRequiredInput(root, 'input[type="number"]');
     const selectButton = getRequiredButton(root, '#settings-panel-input-mode');
+    const multiSelectButton = getRequiredButton(root, '#settings-panel-input-streams');
     selectButton.click();
     await Promise.resolve();
 
@@ -254,7 +280,16 @@ describe('SettingsPanel', () => {
     expect(settingLabel?.style.fontSize).toBe('15px');
     expect(numberInput.style.fontSize).toBe('15px');
     expect(selectButton.style.fontSize).toBe('15px');
+    expect(multiSelectButton.style.fontSize).toBe('15px');
     expect(selectOption?.style.fontSize).toBe('15px');
+
+    multiSelectButton.click();
+    await Promise.resolve();
+
+    const multiSelectOption = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')
+    ).find(button => button.textContent?.includes('worker-1'));
+    expect(multiSelectOption?.style.fontSize).toBe('15px');
 
     cleanup();
   });

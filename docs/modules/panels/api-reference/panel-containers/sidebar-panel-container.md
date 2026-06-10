@@ -82,6 +82,7 @@ type SidebarPanelContainerProps = PanelContainerProps & {
 - Accepts one reusable panel definition.
 - Slides open from the selected edge while keeping the shell mounted for smooth transitions.
 - Supports controlled and uncontrolled open state.
+- `triggerIcon` accepts a text glyph or a data/http(s) image URL rendered as a CSS mask icon.
 - Supports `Escape` close, optional backdrop close, and focus restoration to
   `deck.canvas` after close.
 - `openShortcuts` and `shortcuts` are registered through structural

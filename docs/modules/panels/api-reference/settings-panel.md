@@ -53,8 +53,12 @@ numeric descriptors may include `sliderDebounceMs` to apply a trailing debounce
 to range-slider input events while keeping direct numeric entry immediate.
 Select options may be raw primitive values or `{label, value, description?}`
 objects; `description` renders below the option label in the open menu.
-Set `fontSize` when labels and text, number, or select controls need a larger
-or smaller supported text size; open select menu options use the same size.
+`multi-select` descriptors render a searchable string selector and preserve
+selected values that are not present in the current option list so callers can
+still clear stale selections.
+Set `fontSize` when labels and text, number, select, or multi-select controls
+need a larger or smaller supported text size; open select menu options use the
+same size.
 
 ## See Also
 
