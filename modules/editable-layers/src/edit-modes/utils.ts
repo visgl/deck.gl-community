@@ -28,7 +28,11 @@ import {
   Feature,
   SimpleGeometryCoordinates
 } from '../utils/geojson-types';
-import {CartesianCoordinateSystem, EditModeCoordinateSystem} from './coordinate-system';
+import {
+  cartesianCoordinateSystem,
+  CartesianCoordinateSystem,
+  EditModeCoordinateSystem
+} from './coordinate-system';
 
 export type NearestPointType = Feature<Point, {dist: number; index: number}>;
 
@@ -550,4 +554,13 @@ export function mapCoords(
 
 export function shouldCancelPan(event: StartDraggingEvent) {
   return event.picks.length && event.picks.find(p => p.featureType === 'points');
+}
+
+// Dispatch function to call function based on coord system, defaults to geo mode
+export function forCoordSystem<T>(
+  coordSystem: EditModeCoordinateSystem,
+  geoFn: () => T,
+  cartFn: () => T
+): T {
+  return coordSystem === cartesianCoordinateSystem ? cartFn() : geoFn();
 }
