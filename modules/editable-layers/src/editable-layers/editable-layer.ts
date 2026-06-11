@@ -136,11 +136,19 @@ export abstract class EditableLayer<
   }
 
   _onclick(event: MjolnirGestureEvent) {
-    this.onLayerClick(this.toBasePointerEvent(event));
+    const basePointerEvent = this.toBasePointerEvent(event);
+    if (!basePointerEvent) {
+      return;
+    }
+    this.onLayerClick(basePointerEvent);
   }
 
   _ondblclick(event: MjolnirGestureEvent) {
-    this.onLayerDoubleClick(this.toBasePointerEvent(event));
+    const basePointerEvent = this.toBasePointerEvent(event);
+    if (!basePointerEvent) {
+      return;
+    }
+    this.onLayerDoubleClick(basePointerEvent);
   }
 
   _onkeyup({srcEvent}: MjolnirKeyEvent) {
@@ -149,6 +157,9 @@ export abstract class EditableLayer<
 
   _onpanstart(event: MjolnirGestureEvent) {
     const basePointerEvent = this.toBasePointerEvent(event);
+    if (!basePointerEvent) {
+      return;
+    }
     const {picks, screenCoords, mapCoords} = basePointerEvent;
 
     this.setState({
@@ -176,6 +187,9 @@ export abstract class EditableLayer<
 
   _onpanmove(event: MjolnirGestureEvent) {
     const basePointerEvent = this.toBasePointerEvent(event);
+    if (!basePointerEvent) {
+      return;
+    }
     const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
@@ -198,12 +212,14 @@ export abstract class EditableLayer<
     const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
-    this.onStopDragging({
-      ...basePointerEvent,
-      pointerDownPicks,
-      pointerDownScreenCoords,
-      pointerDownMapCoords
-    });
+    if (basePointerEvent) {
+      this.onStopDragging({
+        ...basePointerEvent,
+        pointerDownPicks,
+        pointerDownScreenCoords,
+        pointerDownMapCoords
+      });
+    }
 
     this.setState({
       _editableLayerState: {
@@ -217,6 +233,9 @@ export abstract class EditableLayer<
 
   _onpointermove(event: MjolnirGestureEvent) {
     const basePointerEvent = this.toBasePointerEvent(event);
+    if (!basePointerEvent) {
+      return;
+    }
     const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
@@ -229,9 +248,12 @@ export abstract class EditableLayer<
     });
   }
 
-  toBasePointerEvent(event: MjolnirGestureEvent): BasePointerEvent {
+  toBasePointerEvent(event: MjolnirGestureEvent): BasePointerEvent | null {
     const screenCoords: ScreenCoordinates = [event.offsetCenter.x, event.offsetCenter.y];
     const mapCoords = this.getMapCoords(screenCoords);
+    if (!mapCoords) {
+      return null;
+    }
     const picks = this.getPicks(screenCoords);
     return {
       screenCoords,
@@ -260,7 +282,7 @@ export abstract class EditableLayer<
     ];
   }
 
-  getMapCoords(screenCoords: Position): Position {
+  getMapCoords(screenCoords: Position): Position | null {
     if (this.context.deck) {
       const layerIds = this.context.layerManager
         .getLayers()
@@ -273,12 +295,13 @@ export abstract class EditableLayer<
           layerIds,
           unproject3D: true
         });
-        const position =
-          pickInfo?.coordinate ??
-          this.context.viewport.unproject([screenCoords[0], screenCoords[1]]);
+        if (!pickInfo?.coordinate) {
+          return null;
+        }
+        const position = pickInfo.coordinate;
 
         // Keep terrain-edited geometry 2D. TerrainExtension applies height at
-        // render time, so both terrain hits and no-hit fallbacks must discard Z.
+        // render time, so editable coordinates should not carry picked terrain Z.
         return [position[0], position[1]] as Position;
       }
     }
