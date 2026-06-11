@@ -273,16 +273,13 @@ export abstract class EditableLayer<
           layerIds,
           unproject3D: true
         });
-        if (pickInfo?.coordinate) {
-          // Return only lon/lat — discard Z so that TerrainExtension
-          // can drape geometry onto the surface without double-offsetting.
-          return [pickInfo.coordinate[0], pickInfo.coordinate[1]] as Position;
-        }
-        // No terrain hit (e.g. no-data gap) — still strip Z for the same reason:
-        // TerrainExtension is present whenever pickable:'3d' layers exist and will
-        // add terrain height at render time, so pre-baking Z would double-offset.
-        const pos = this.context.viewport.unproject([screenCoords[0], screenCoords[1]]);
-        return [pos[0], pos[1]] as Position;
+        const position =
+          pickInfo?.coordinate ??
+          this.context.viewport.unproject([screenCoords[0], screenCoords[1]]);
+
+        // Keep terrain-edited geometry 2D. TerrainExtension applies height at
+        // render time, so both terrain hits and no-hit fallbacks must discard Z.
+        return [position[0], position[1]] as Position;
       }
     }
     return this.context.viewport.unproject([screenCoords[0], screenCoords[1]]) as Position;
