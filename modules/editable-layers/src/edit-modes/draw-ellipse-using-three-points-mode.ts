@@ -33,4 +33,8 @@ export class DrawEllipseUsingThreePointsMode extends ThreeClickPolygonMode {
 
     return geometry;
   }
+
+  getSnappingStrategy() {
+    return undefined;
+  }
 }

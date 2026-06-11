@@ -21,8 +21,10 @@ import {Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geo
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class DrawPolygonMode extends GeoJsonEditMode {
+export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   holeSequence: Position[] = [];
   isDrawingHole = false;
 
@@ -190,6 +192,10 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
+  }
+
+  getSnappingStrategy() {
+    return new ClickSnappingStrategy();
   }
 
   // eslint-disable-next-line max-statements, complexity

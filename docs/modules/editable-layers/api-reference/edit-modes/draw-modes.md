@@ -2,6 +2,8 @@
 
 `EditMode`s provide a way of handling user interactions in order to manipulate GeoJSON features and geometries.
 
+\* Supports snapping when wrapped with `SnappableMode`.
+
 ## Draw configuration options
 
 Note that for all polygon drawing modes, the following options can also be provided in the `modeConfig` object:
@@ -13,19 +15,19 @@ Note that for all polygon drawing modes, the following options can also be provi
   - If `difference`, the drawn `Polygon` is subtracted from the selected geometry
   - If `intersection`, the drawn `Polygon` is intersected with the selected geometry
 
-## DrawPointMode
+## DrawPointMode *
 
 User can draw a new `Point` feature by clicking where the point is to be.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-point-mode.ts)
 
-## DrawLineStringMode
+## DrawLineStringMode *
 
 User can draw a new `LineString` feature by clicking positions to add. User finishes drawing by double-clicking.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-line-string-mode.ts)
 
-## ExtendLineStringMode
+## ExtendLineStringMode *
 
 User can extend an existing `LineString` feature by clicking positions to add. A single `LineString` feature must be selected for this mode.
 
@@ -44,13 +46,13 @@ Callback parameters
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/extend-line-string-mode.ts)
 
-## ResizeCircleMode
+## ResizeCircleMode *
 
 User can resize an existing circular Polygon feature by clicking and dragging along the ring.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/resize-circle-mode.js)
 
-## DrawPolygonMode
+## DrawPolygonMode *
 
 User can draw a new `Polygon` feature by clicking positions to add then closing the polygon (or double-clicking).
 
@@ -107,7 +109,7 @@ The following options can be provided in the `modeConfig` object:
 - `throttleMs` (optional): `number`
   - If provided, the dragging function will be throttled by the specified number of milliseconds.
 
-## DrawRectangleMode
+## DrawRectangleMode *
 
 User can draw a new rectangular `Polygon` feature by clicking two opposing corners of the rectangle.
 
@@ -129,7 +131,7 @@ The following options can be provided in the `modeConfig` object:
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-rectangle-from-center-mode.ts)
 
-## DrawRectangleUsingThreePointsMode
+## DrawRectangleUsingThreePointsMode *
 
 User can draw a new rectangular `Polygon` feature by clicking three corners of the rectangle.
 
@@ -152,7 +154,7 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-## DrawCircleFromCenterMode
+## DrawCircleFromCenterMode *
 
 User can draw a new circular `Polygon` feature by clicking the center then along the ring. Properties of the circle will be added to the resulting geometry in the object editProperties.
 
@@ -165,7 +167,7 @@ The following options can be provided in the `modeConfig` object:
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modesdraw-circle-from-center-mode..ts)
 
-## DrawCircleByDiameterMode
+## DrawCircleByDiameterMode *
 
 User can draw a new circular `Polygon` feature by clicking the two ends of its diameter. Properties of the circle will be added to the resulting geometry in the object editProperties.
 
@@ -195,7 +197,7 @@ User can draw a new ellipse shape `Polygon` feature by clicking three points alo
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-ellipse-using-three-points-mode.ts)
 
-## SplitPolygonMode
+## SplitPolygonMode *
 
 User can split a polygon by drawing a new `LineString` feature on top of the polygon.
 
