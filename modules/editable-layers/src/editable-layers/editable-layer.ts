@@ -273,11 +273,13 @@ export abstract class EditableLayer<
           layerIds,
           unproject3D: true
         });
-        if (pickInfo?.coordinate) {
-          // Return only lon/lat — discard Z so that TerrainExtension
-          // can drape geometry onto the surface without double-offsetting.
-          return [pickInfo.coordinate[0], pickInfo.coordinate[1]] as Position;
-        }
+        const position =
+          pickInfo?.coordinate ??
+          this.context.viewport.unproject([screenCoords[0], screenCoords[1]]);
+
+        // Keep terrain-edited geometry 2D. TerrainExtension applies height at
+        // render time, so both terrain hits and no-hit fallbacks must discard Z.
+        return [position[0], position[1]] as Position;
       }
     }
     return this.context.viewport.unproject([screenCoords[0], screenCoords[1]]) as Position;
