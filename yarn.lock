@@ -587,6 +587,7 @@ __metadata:
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
     "@deck.gl/core": "npm:~9.3.0"
+    "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/test-utils": "npm:~9.3.0"
     "@loaders.gl/core": "npm:^4.4.1"
     "@loaders.gl/textures": "npm:^4.4.1"
@@ -599,6 +600,7 @@ __metadata:
     "@probe.gl/test-utils": "npm:^4.1.1"
   peerDependencies:
     "@deck.gl/core": ~9.3.0
+    "@deck.gl/extensions": ~9.3.0
     "@deck.gl/layers": ~9.3.0
     "@deck.gl/mesh-layers": ~9.3.0
     "@loaders.gl/core": ^4.4.1
@@ -12877,6 +12879,7 @@ __metadata:
     "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0"
+    "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/mesh-layers": "npm:~9.3.0"
     "@deck.gl/widgets": "npm:~9.3.0"

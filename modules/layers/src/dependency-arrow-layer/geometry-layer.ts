@@ -29,6 +29,8 @@ type _GeometryLayerProps<DataT> = {
 
   /** Marker interpolation route. @defaultValue 'line' */
   interpolationMode?: 'line' | 'arc';
+  /** Marker anchor point. @defaultValue 'tip' */
+  markerAnchor?: 'tip' | 'center';
 
   /** Accessor returning encoded picking color. */
   getPickingColor?: Accessor<DataT, Color>;
@@ -53,6 +55,7 @@ type GeometryLayerUniformProps = {
   sizeScale: number;
   sizeUnits: number;
   interpolationMode: number;
+  markerAnchor: number;
 };
 
 const geometryLayerUniforms = {
@@ -62,6 +65,7 @@ uniform geometryLayerUniforms {
   float sizeScale;
   highp int sizeUnits;
   highp int interpolationMode;
+  highp int markerAnchor;
 } geometryLayer;
 `,
   fs: `\
@@ -69,12 +73,14 @@ uniform geometryLayerUniforms {
   float sizeScale;
   highp int sizeUnits;
   highp int interpolationMode;
+  highp int markerAnchor;
 } geometryLayer;
   `,
   uniformTypes: {
     sizeScale: 'f32',
     sizeUnits: 'i32',
-    interpolationMode: 'i32'
+    interpolationMode: 'i32',
+    markerAnchor: 'i32'
   }
 } as const;
 
@@ -83,6 +89,7 @@ const defaultProps: DefaultProps<_GeometryLayerProps<any>> = {
   sizeScale: {type: 'number', min: 0, value: 1},
 
   interpolationMode: 'line',
+  markerAnchor: 'tip',
 
   getPickingColor: {type: 'accessor', value: [0, 0, 0]},
   getSourcePosition: {type: 'accessor', value: (x: any) => x.source},
@@ -116,6 +123,8 @@ flat out vec2 vPixelSize;
 
 const int GEOMETRY_LINE = 0;
 const int GEOMETRY_ARC = 1;
+const int MARKER_ANCHOR_TIP = 0;
+const int MARKER_ANCHOR_CENTER = 1;
 
 // START ARC LAYER VERTEX
 
@@ -177,8 +186,12 @@ void main(void) {
   }
 
   vec2 scaledSize = instanceSizes * geometryLayer.sizeScale;
-  // Anchor the marker at the triangle tip, so ratio 1.0 places the arrowhead on the endpoint.
-  vec2 markerPosition = vec2((positions.x - 1.0) / 2.0, positions.y / 2.0);
+  vec2 markerPosition;
+  if (geometryLayer.markerAnchor == MARKER_ANCHOR_CENTER) {
+    markerPosition = vec2(positions.x / 2.0, positions.y / 2.0);
+  } else {
+    markerPosition = vec2((positions.x - 1.0) / 2.0, positions.y / 2.0);
+  }
   vec2 offset = markerPosition * scaledSize;
   float angle = atan(normal.y, normal.x);
   float cosA = cos(angle);
@@ -196,7 +209,7 @@ void main(void) {
   }
 
   geometry.pickingColor = instancePickingColors;
-  geometry.position = vec4(curr + offsetCommon, 0.1);
+  geometry.position = vec4(curr + offsetCommon, 1.0);
   gl_Position = project_common_position_to_clipspace(geometry.position);
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 
@@ -222,16 +235,20 @@ float smoothedgeSigned(float signedDistance) {
   return smoothstep(-edgeRadius, edgeRadius, signedDistance);
 }
 
-float inTriangle(vec2 bbox, vec2 uv) {
+float triangleMask(vec2 bbox, vec2 uv, float xOffset, float xScale) {
   float w = max(bbox.x, 1.0);
-  float h = max(bbox.y, 1.0);
-  float d = ((1.0 - abs(1.0 - uv.y * 2.0)) - uv.x) * w;
+  float profile = 1.0 - abs(1.0 - uv.y * 2.0);
+  float d = (xOffset + profile * xScale - uv.x) * w;
   return smoothedgeSigned(d);
+}
+
+float inArrowhead(vec2 bbox, vec2 uv) {
+  return triangleMask(bbox, uv, 0.0, 1.0);
 }
 
 void main(void) {
   geometry.uv = vPosition;
-  float inShape = inTriangle(vPixelSize, vPosition);
+  float inShape = inArrowhead(vPixelSize, vPosition);
 
   if (inShape == 0.0) {
     discard;
@@ -323,12 +340,13 @@ export class GeometryLayer<DataT = unknown> extends Layer<Required<_GeometryLaye
       return;
     }
 
-    const {sizeScale, sizeUnits, interpolationMode} = this.props;
+    const {sizeScale, sizeUnits, interpolationMode, markerAnchor} = this.props;
 
     const geometryLayerProps: GeometryLayerUniformProps = {
       sizeScale,
       sizeUnits: UNIT[sizeUnits],
-      interpolationMode: interpolationMode === 'line' ? 0 : 1
+      interpolationMode: interpolationMode === 'line' ? 0 : 1,
+      markerAnchor: markerAnchor === 'center' ? 1 : 0
     };
 
     model.shaderInputs.setProps({geometryLayer: geometryLayerProps});

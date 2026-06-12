@@ -7,6 +7,7 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 ### `@deck.gl-community/layers`
 
 - `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
+- `PathOutlineLayer` and `PathMarkerLayer` now use deck.gl v9-native sublayers for outlined paths, dashed strokes, and pixel-sized directional markers, restoring the path outline and marker example.
 
 ### `@deck.gl-community/infovis-layers`
 
