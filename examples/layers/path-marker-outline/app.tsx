@@ -14,8 +14,6 @@ import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
-const ROUTE_OUTLINE_COLOR: [number, number, number, number] = [255, 255, 255, 245];
-const TRAIL_OUTLINE_COLOR: [number, number, number, number] = [255, 255, 255, 235];
 const DEPENDENCY_OUTLINE_COLOR: [number, number, number, number] = [255, 255, 255, 235];
 const DEPENDENCY_MARKER_COLOR: [number, number, number, number] = [15, 23, 42, 170];
 
@@ -23,6 +21,7 @@ type TransitRoute = {
   name: string;
   path: [number, number][];
   color: [number, number, number, number];
+  outlineColor: [number, number, number, number];
   markerColor: [number, number, number, number];
   width: number;
   direction: {forward: boolean; backward: boolean};
@@ -39,6 +38,7 @@ const TRANSIT_ROUTES: TransitRoute[] = [
       [-122.4209, 37.8118]
     ],
     color: [17, 138, 178, 220],
+    outlineColor: [186, 230, 253, 230],
     markerColor: [12, 82, 112, 235],
     width: 4,
     direction: {forward: true, backward: false}
@@ -53,6 +53,7 @@ const TRANSIT_ROUTES: TransitRoute[] = [
       [-122.4011, 37.7587]
     ],
     color: [245, 101, 101, 220],
+    outlineColor: [254, 202, 202, 230],
     markerColor: [153, 27, 27, 235],
     width: 4,
     direction: {forward: true, backward: true}
@@ -67,6 +68,7 @@ const TRANSIT_ROUTES: TransitRoute[] = [
       [-122.4193, 37.7675]
     ],
     color: [94, 234, 212, 220],
+    outlineColor: [153, 246, 228, 230],
     markerColor: [13, 99, 89, 235],
     width: 5,
     direction: {forward: true, backward: false}
@@ -77,6 +79,7 @@ type WaterfrontSegment = {
   name: string;
   path: [number, number][];
   color: [number, number, number, number];
+  outlineColor: [number, number, number, number];
   width: number;
   dashArray?: [number, number];
   zLevel?: number;
@@ -92,6 +95,7 @@ const WATERFRONT_SEGMENTS: WaterfrontSegment[] = [
       [-122.3849, 37.8096]
     ],
     color: [129, 140, 248, 220],
+    outlineColor: [196, 181, 253, 230],
     width: 6,
     dashArray: [2.8, 2.6],
     zLevel: 1
@@ -106,6 +110,7 @@ const WATERFRONT_SEGMENTS: WaterfrontSegment[] = [
       [-122.431, 37.7948]
     ],
     color: [96, 165, 250, 220],
+    outlineColor: [191, 219, 254, 230],
     width: 7,
     dashArray: [3.2, 2.8],
     zLevel: 0
@@ -120,8 +125,8 @@ const WATERFRONT_SEGMENTS: WaterfrontSegment[] = [
       [-122.424, 37.7769]
     ],
     color: [56, 189, 248, 220],
+    outlineColor: [165, 243, 252, 225],
     width: 5,
-    dashArray: [2.7, 2.5],
     zLevel: 0
   }
 ];
@@ -244,9 +249,9 @@ export function mountPathOutlineAndMarkersExample(
         widthUnits: 'pixels',
         capRounded: true,
         jointRounded: true,
-        widthScale: 1.35,
-        outlineWidthScale: 1.18,
-        getOutlineColor: TRAIL_OUTLINE_COLOR,
+        widthScale: 1.45,
+        outlineWidthScale: 1.42,
+        getOutlineColor: d => d.outlineColor,
         getWidth: d => d.width,
         getColor: d => d.color,
         getDashArray: d => d.dashArray ?? null,
@@ -262,13 +267,13 @@ export function mountPathOutlineAndMarkersExample(
         widthUnits: 'pixels',
         capRounded: true,
         jointRounded: true,
-        widthScale: 1.85,
-        outlineWidthScale: 1.22,
-        getOutlineColor: ROUTE_OUTLINE_COLOR,
+        widthScale: 1.75,
+        outlineWidthScale: 1.36,
+        getOutlineColor: d => d.outlineColor,
         getWidth: d => d.width,
         getColor: d => d.color,
         getMarkerColor: d => d.markerColor,
-        getMarkerOutlineColor: ROUTE_OUTLINE_COLOR,
+        getMarkerOutlineColor: d => d.outlineColor,
         getMarkerSize: [0.26, 0.18],
         markerOutlineWidthScale: 1.2,
         getDirection: d => d.direction,
