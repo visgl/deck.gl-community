@@ -7,8 +7,9 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 Create directional markers along a path (arrows by default) while reusing the
 [`PathOutlineLayer`](./path-outline-layer.md) halo renderer. The layer is useful
 for visualizing traffic flow, transit routes, or any polyline where the travel
-direction matters. Markers are positioned in screen space so they stay evenly
-spaced regardless of map zoom level.
+direction matters. Marker placement is resolved from projected screen-space path
+length, and the default marker renderer uses pixel-sized triangle arrows so they
+remain legible while zooming.
 
 See the [path outline, marker, and dependency arrow example](/examples/layers/path-outline-and-markers)
 for a live walkthrough.
@@ -48,6 +49,11 @@ layer reads `object.direction` or defaults to `{forward: true, backward: false}`
 
 Accessor that returns the RGBA color of each marker. Defaults to `[0, 0, 0, 255]`.
 
+### `getMarkerOutlineColor` (`function`, optional)
+
+Accessor that returns the RGBA color of the marker halo rendered underneath the
+default marker layer. Defaults to `[255, 255, 255, 220]`.
+
 ### `getMarkerPercentages` (`function`, optional)
 
 Controls where markers are placed along each path. The accessor receives the
@@ -56,6 +62,14 @@ array of numbers between `0` and `1`, representing the percentage along the
 polyline from the start vertex. The default accessor places three markers at 25,
 50, and 75 percent for longer paths and a single marker at the midpoint for
 shorter ones.
+
+### `getMarkerSize` (`number[] | function`, optional)
+
+Accessor returning the default marker size in local `[length, width]` units.
+The result is multiplied by `sizeScale`. Defaults to `[0.28, 0.18]`, which gives
+roughly 28 by 18 pixel arrows with the default `sizeScale: 100`. The default
+marker renderer centers the arrow on each placement and uses an arrow-shaped
+halo so the path clears around the marker without oversized front or tail gaps.
 
 ### `highlightPoint` (`[number, number] | [number, number, number]`, optional)
 
@@ -71,21 +85,24 @@ Index of the path to inspect when `highlightPoint` is provided. Defaults to `-1`
 
 ### `MarkerLayer` (`Layer`, optional)
 
-Layer class used to render each marker. Defaults to deck.gl's `SimpleMeshLayer`
-with a 2D arrow mesh. Supply your own layer (for example, `IconLayer`) to change
-the marker geometry.
+Layer class used to render each marker. Defaults to the package's internal
+pixel-sized triangle marker layer. Supply your own layer (for example,
+`IconLayer` or `SimpleMeshLayer`) to change the marker geometry.
 
 ### `markerLayerProps` (`object`, optional)
 
-Static props merged into the `MarkerLayer` constructor. The defaults provide the
-bundled arrow mesh. Override this to adjust orientation, lighting, or other
-per-layer options. Dynamic props can also be supplied via `updateTriggers` on
-the composite layer.
+Static props merged into the `MarkerLayer` constructor. Override this to adjust
+orientation, lighting, or other per-layer options. Dynamic props can also be
+supplied via `updateTriggers` on the composite layer.
+
+### `markerOutlineWidthScale` (`number`, optional)
+
+Scale applied to the default marker halo relative to `sizeScale`. Defaults to
+`1.2`. Set to `1` to disable the halo.
 
 ### `sizeScale` (`number`, optional)
 
-Scale applied to the marker geometry. Defaults to `100`, matching the size range
-of the arrow mesh used by the `SimpleMeshLayer`.
+Scale applied to the marker geometry. Defaults to `100`.
 
 ### `fp64` (`boolean`, optional)
 
@@ -99,15 +116,19 @@ creating a new `MarkerLayer`.
 
 ## Sublayers
 
-`PathMarkerLayer` renders three sublayers:
+`PathMarkerLayer` renders up to four sublayers:
 
 1. A `PathOutlineLayer` to draw the base stroke and halo.
-2. A marker layer (default `SimpleMeshLayer`) positioned at the percentages
-   returned by `getMarkerPercentages`.
-3. A `ScatterplotLayer` that marks the closest point to `highlightPoint` when
+2. An optional marker halo layer when the default marker renderer is used.
+3. A marker layer positioned at the percentages returned by
+   `getMarkerPercentages`.
+4. A `ScatterplotLayer` that marks the closest point to `highlightPoint` when
    highlighting is enabled.
 
 Because the outline already renders the base path, disable picking on the marker
 layer if you only want to interact with the path geometry. The composite layer's
 `getPickingInfo` helper also forwards the picked object from the outline so tool
 tips receive the original data object instead of the generated marker vertices.
+Generated marker rows include `position`, `angle`, `source`, `target`, and
+`percentage` fields so custom marker layers can choose either legacy
+position/orientation props or segment-based rendering.

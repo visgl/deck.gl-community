@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 
 import {DependencyArrowLayer} from '../../src/dependency-arrow-layer/dependency-arrow-layer';
 
@@ -19,6 +19,12 @@ type TestableDependencyArrowLayer = DependencyArrowLayer<Datum> & {
       target: [number, number];
     }[];
   };
+};
+
+type RenderableDependencyArrowLayer = TestableDependencyArrowLayer & {
+  getSubLayerAccessor: ReturnType<typeof vi.fn>;
+  getSubLayerProps: ReturnType<typeof vi.fn>;
+  encodePickingColor: ReturnType<typeof vi.fn>;
 };
 
 const DATA: Datum[] = [
@@ -41,6 +47,20 @@ function makeLayer(mode: 'path' | 'line'): TestableDependencyArrowLayer {
     getPath: GET_PATH
   }) as TestableDependencyArrowLayer;
   layer.state = {markers: []};
+  return layer;
+}
+
+function makeRenderableLayer(): RenderableDependencyArrowLayer {
+  const layer = makeLayer('line') as RenderableDependencyArrowLayer;
+  layer.props = {
+    ...layer.props,
+    getOutlineColor: () => [255, 255, 255, 220],
+    outlineWidthScale: 3,
+    widthScale: 2
+  };
+  layer.getSubLayerAccessor = vi.fn(accessor => accessor);
+  layer.getSubLayerProps = vi.fn(props => props);
+  layer.encodePickingColor = vi.fn(() => [0, 0, 0]);
   return layer;
 }
 
@@ -67,5 +87,16 @@ describe('DependencyArrowLayer', () => {
     updateLayer(layer, pathProps, {propsChanged: true});
 
     expect(layer.state.markers[0]?.target).toEqual([10, 10]);
+  });
+
+  it('renders dependency outlines before line and marker sublayers', () => {
+    const layer = makeRenderableLayer();
+    const [outlineLayer, lineLayer, markerLayer] = layer.renderLayers();
+
+    expect(outlineLayer?.props.id).toBe('links-line-outline');
+    expect(outlineLayer?.props.getColor).toBe(layer.props.getOutlineColor);
+    expect(outlineLayer?.props.widthScale).toBe(6);
+    expect(lineLayer?.props.id).toBe('links-line');
+    expect(markerLayer?.props.id).toBe('arrows');
   });
 });
