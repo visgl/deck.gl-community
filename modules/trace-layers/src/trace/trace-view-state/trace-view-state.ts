@@ -76,9 +76,9 @@ export type BuildTraceViewStateParams = {
   >;
   /** Vertical inset applied to the first visible process row. */
   readonly layoutTopPadding?: number;
-  /** Optional timing key used to rebuild block geometry. */
+  /** Optional timing key recorded for prepared binary geometry derivation. */
   readonly layoutTimingKey?: string | null;
-  /** Canonical minimum time paired with timing-key geometry rebuilds. */
+  /** Canonical minimum time paired with timing-key prepared geometry derivation. */
   readonly minTimeMs?: number;
   /** Whether minimap layouts should be attached to base layouts. */
   readonly buildMinimapLayouts: boolean;
@@ -112,8 +112,16 @@ export type TraceViewStateBuildPhaseTimings = {
   readonly threadCollapsePruneDurationMs: number;
   /** Time spent building prepared scene inputs. */
   readonly preparedSceneDurationMs: number;
-  /** Time spent estimating retained render-state sizes. */
-  readonly sizeEstimateDurationMs: number;
+};
+
+/** On-demand retained-size estimate for one prepared TraceViewState. */
+export type TraceViewStateRetainedSizeEstimate = {
+  /** Estimated retained byte size of current TraceViewState-owned render data. */
+  readonly traceViewStateSizeBytes: number;
+  /** Estimated retained byte size of current TraceLayout outputs. */
+  readonly traceLayoutSizeBytes: number;
+  /** Estimated retained byte size of current prepared deck input outputs. */
+  readonly traceDeckInputsSizeBytes: number;
 };
 
 /** Inputs used to build the TraceViewState base layout reuse key. */
@@ -130,9 +138,9 @@ export type BuildTraceViewBaseLayoutKeyParams = {
   >;
   /** Vertical inset applied to the first visible process row. */
   readonly layoutTopPadding: number;
-  /** Optional timing key used to rebuild block geometry. */
+  /** Optional timing key recorded for prepared binary geometry derivation. */
   readonly layoutTimingKey?: string | null;
-  /** Canonical minimum time paired with timing-key geometry rebuilds. */
+  /** Canonical minimum time paired with timing-key prepared geometry derivation. */
   readonly minTimeMs: number;
   /** Whether minimap layouts should be attached to base layouts. */
   readonly shouldPrepareOverviewData: boolean;
@@ -152,9 +160,9 @@ export type BuildTraceViewRenderInputsParams = {
   readonly collapseStateForLayout: TraceLayoutCollapseState;
   /** Vertical inset applied to the first visible process row. */
   readonly layoutTopPadding: number;
-  /** Optional timing key used to rebuild block geometry. */
+  /** Optional timing key recorded for prepared binary geometry derivation. */
   readonly layoutTimingKey?: string | null;
-  /** Canonical minimum time paired with timing-key geometry rebuilds. */
+  /** Canonical minimum time paired with timing-key prepared geometry derivation. */
   readonly minTimeMs: number;
   /** Whether minimap layouts should be attached to base layouts. */
   readonly shouldPrepareOverviewData: boolean;
@@ -200,12 +208,6 @@ export type TraceViewState = {
   readonly threadCollapsePruneRequest: TraceViewThreadCollapsePruneRequest | null;
   /** Last build's phase timings, used only for performance attribution. */
   readonly buildPhaseTimings: TraceViewStateBuildPhaseTimings;
-  /** Estimated kept bytes for TraceViewState-owned render data. */
-  readonly traceViewStateSizeBytes: number;
-  /** Estimated kept bytes for active layouts. */
-  readonly traceLayoutSizeBytes: number;
-  /** Estimated kept bytes for prepared scene inputs. */
-  readonly traceDeckInputsSizeBytes: number;
 };
 
 /**
@@ -273,9 +275,7 @@ export function buildTraceViewBaseLayoutKey(params: BuildTraceViewBaseLayoutKeyP
  */
 export function buildTraceViewState(params: BuildTraceViewStateParams): TraceViewState {
   const buildStartTime = performance.now();
-  const canReuseBaseLayouts =
-    params.previousState?.baseLayoutKey === params.baseLayoutKey &&
-    params.previousState.baseLayouts.length > 0;
+  const canReuseBaseLayouts = canReuseTraceViewBaseLayouts(params);
   traceLog.probe(0, 'buildTraceViewState start', {
     graphCount: params.traceGraphs.length,
     previousBaseLayoutCount: params.previousState?.baseLayouts.length ?? 0,
@@ -345,12 +345,13 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
   const threadCollapsePruneStartTime = performance.now();
   const threadCollapsePruneRequest = buildTraceViewThreadCollapsePruneRequest({
     traceLayouts: baseLayouts,
-    traceGraphs: params.traceGraphs,
     collapseState: params.collapseState,
     previousRequest: params.previousState?.threadCollapsePruneRequest ?? null
   });
   const threadCollapsePruneDurationMs = performance.now() - threadCollapsePruneStartTime;
-  const previousPreparedScene = params.previousState?.preparedScene ?? null;
+  const previousPreparedScene = canReuseTraceViewPreparedScene(params)
+    ? (params.previousState?.preparedScene ?? null)
+    : null;
   const preparedSceneStartTime = performance.now();
   const preparedScene = buildTracePreparedScene({
     primaryTraceGraph: params.primaryTraceGraph,
@@ -367,18 +368,13 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
     getTraceModelMatrixForGraph: params.getTraceModelMatrixForGraph
   });
   const preparedSceneDurationMs = performance.now() - preparedSceneStartTime;
-  const sizeEstimateStartTime = performance.now();
-  const traceLayoutSizeBytes = estimateTraceLayoutSize(activeLayouts).totalBytes;
-  const traceDeckInputsSizeBytes = estimateTracePreparedSceneSize(preparedScene);
-  const sizeEstimateDurationMs = performance.now() - sizeEstimateStartTime;
   const totalDurationMs = performance.now() - buildStartTime;
   const buildPhaseTimings: TraceViewStateBuildPhaseTimings = {
     totalDurationMs: roundTraceViewStateBuildDuration(totalDurationMs),
     baseLayoutDurationMs: roundTraceViewStateBuildDuration(baseLayoutDurationMs),
     focusedLayoutDurationMs: roundTraceViewStateBuildDuration(focusedLayoutDurationMs),
     threadCollapsePruneDurationMs: roundTraceViewStateBuildDuration(threadCollapsePruneDurationMs),
-    preparedSceneDurationMs: roundTraceViewStateBuildDuration(preparedSceneDurationMs),
-    sizeEstimateDurationMs: roundTraceViewStateBuildDuration(sizeEstimateDurationMs)
+    preparedSceneDurationMs: roundTraceViewStateBuildDuration(preparedSceneDurationMs)
   };
   const slowestBuildPhase = getSlowestTraceViewStateBuildPhase(buildPhaseTimings);
   const nextState: TraceViewState = {
@@ -389,10 +385,7 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
     focusedSelectionSpanRefs: params.focusedSelectionSpanRefs,
     preparedScene,
     threadCollapsePruneRequest,
-    buildPhaseTimings,
-    traceViewStateSizeBytes: traceLayoutSizeBytes + traceDeckInputsSizeBytes,
-    traceLayoutSizeBytes,
-    traceDeckInputsSizeBytes
+    buildPhaseTimings
   };
   if (totalDurationMs >= TRACE_VIEW_STATE_SLOW_BUILD_PROBE_THRESHOLD_MS) {
     traceLog.probe(
@@ -422,7 +415,6 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
     focusedLayoutDurationMs: buildPhaseTimings.focusedLayoutDurationMs,
     threadCollapsePruneDurationMs: buildPhaseTimings.threadCollapsePruneDurationMs,
     preparedSceneDurationMs: buildPhaseTimings.preparedSceneDurationMs,
-    sizeEstimateDurationMs: buildPhaseTimings.sizeEstimateDurationMs,
     slowestBuildPhaseName: slowestBuildPhase.phaseName,
     slowestBuildPhaseDurationMs: slowestBuildPhase.durationMs,
     durationMs: buildPhaseTimings.totalDurationMs,
@@ -431,8 +423,55 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
   return nextState;
 }
 
+/** Estimates retained render-state bytes only when diagnostics explicitly request them. */
+export function estimateTraceViewStateRetainedSize(
+  traceViewState: TraceViewState
+): TraceViewStateRetainedSizeEstimate {
+  const traceLayoutSizeBytes = estimateTraceLayoutSize(traceViewState.activeLayouts).totalBytes;
+  const traceDeckInputsSizeBytes = estimateTracePreparedSceneSize(traceViewState.preparedScene);
+  return {
+    traceViewStateSizeBytes: traceLayoutSizeBytes + traceDeckInputsSizeBytes,
+    traceLayoutSizeBytes,
+    traceDeckInputsSizeBytes
+  };
+}
+
 const EMPTY_TRACE_VIEW_SPAN_REFS: readonly SpanRef[] = [];
 const TRACE_VIEW_STATE_SLOW_BUILD_PROBE_THRESHOLD_MS = 250;
+
+/**
+ * Returns whether previous base layouts still belong to the exact current trace graph instances.
+ */
+function canReuseTraceViewBaseLayouts(
+  params: Pick<BuildTraceViewStateParams, 'previousState' | 'baseLayoutKey' | 'traceGraphs'>
+): boolean {
+  const previousState = params.previousState;
+  return Boolean(
+    previousState &&
+      previousState.baseLayoutKey === params.baseLayoutKey &&
+      previousState.baseLayouts.length > 0 &&
+      previousState.baseLayouts.length === params.traceGraphs.length &&
+      previousState.baseLayouts.every(
+        (traceLayout, graphIndex) => traceLayout.traceGraph === params.traceGraphs[graphIndex]
+      )
+  );
+}
+
+/**
+ * Returns whether previous prepared row inputs still belong to the exact current trace graphs.
+ */
+function canReuseTraceViewPreparedScene(
+  params: Pick<BuildTraceViewStateParams, 'previousState' | 'traceGraphs'>
+): boolean {
+  const previousForegroundScenes = params.previousState?.preparedScene.foreground;
+  return Boolean(
+    previousForegroundScenes &&
+      previousForegroundScenes.length === params.traceGraphs.length &&
+      previousForegroundScenes.every(
+        (scene, graphIndex) => scene.graph === params.traceGraphs[graphIndex]
+      )
+  );
+}
 
 /**
  * Extracts the layout-affecting settings consumed by TraceViewState builders.
@@ -524,8 +563,7 @@ function getSlowestTraceViewStateBuildPhase(phaseTimings: TraceViewStateBuildPha
   for (const [candidatePhaseName, candidateDurationMs] of [
     ['focusedLayoutDurationMs', phaseTimings.focusedLayoutDurationMs],
     ['threadCollapsePruneDurationMs', phaseTimings.threadCollapsePruneDurationMs],
-    ['preparedSceneDurationMs', phaseTimings.preparedSceneDurationMs],
-    ['sizeEstimateDurationMs', phaseTimings.sizeEstimateDurationMs]
+    ['preparedSceneDurationMs', phaseTimings.preparedSceneDurationMs]
   ] as const) {
     if (candidateDurationMs > durationMs) {
       phaseName = candidatePhaseName;
@@ -537,7 +575,6 @@ function getSlowestTraceViewStateBuildPhase(phaseTimings: TraceViewStateBuildPha
 
 function buildTraceViewThreadCollapsePruneRequest(params: {
   traceLayouts: readonly TraceLayout[];
-  traceGraphs: readonly TraceGraph[];
   collapseState: TraceLayoutCollapseState;
   previousRequest: TraceViewThreadCollapsePruneRequest | null;
 }): TraceViewThreadCollapsePruneRequest | null {
@@ -546,8 +583,7 @@ function buildTraceViewThreadCollapsePruneRequest(params: {
   }
 
   const nextRequest = buildTraceLayoutThreadPruneRequest({
-    traceLayouts: params.traceLayouts,
-    traceGraphs: params.traceGraphs
+    traceLayouts: params.traceLayouts
   });
   if (
     params.previousRequest &&

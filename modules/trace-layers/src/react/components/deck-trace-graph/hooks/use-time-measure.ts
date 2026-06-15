@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
+
 import {commandManager} from '@deck.gl-community/panels';
 import {TimeMeasureWidget} from '@deck.gl-community/widgets';
-
 import {buildDeckLayersForTimeMeasure} from '../../../../layers/layers/deck-layers';
 
 import type {TimeMeasureRange, TimeMeasureSelectionState} from '@deck.gl-community/widgets';

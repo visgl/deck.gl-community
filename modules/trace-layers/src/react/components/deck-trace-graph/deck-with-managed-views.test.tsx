@@ -270,10 +270,25 @@ vi.mock('@deck.gl-community/infovis-layers', () => ({
   }))
 }));
 
+vi.mock('../../../layers', () => ({
+  DeckTraceGraphController: mockState.MockTraceGraphController,
+  buildTracevisViewLayout: (args: Record<string, unknown>) => {
+    mockState.synchronizedViewArgs.push(args);
+    return {type: 'mock-tracevis-layout'};
+  },
+  ToastWidget: mockState.MockToastWidget
+}));
+
+vi.mock('@deck.gl-community/panels', () => ({
+  commandManager: {
+    registerCommand: vi.fn(() => () => undefined)
+  }
+}));
+
 vi.mock('@deck.gl-community/widgets', () => ({
   CommandResetViewWidget: class MockCommandResetViewWidget extends mockState.MockWidget {
     constructor(props: MockWidgetProps = {}) {
-      super({id: 'command-reset-view', placement: 'top-right', ...props});
+      super({id: props.id ?? 'command-reset', placement: 'top-right', ...props});
     }
 
     onRenderHTML(rootElement: HTMLElement) {
@@ -292,15 +307,6 @@ vi.mock('@deck.gl-community/widgets', () => ({
       super({id: 'heap-memory', placement: 'top-right', ...props});
     }
   }
-}));
-
-vi.mock('../../../layers/index', () => ({
-  DeckTraceGraphController: mockState.MockTraceGraphController,
-  buildTracevisViewLayout: (args: Record<string, unknown>) => {
-    mockState.synchronizedViewArgs.push(args);
-    return {type: 'mock-tracevis-layout'};
-  },
-  ToastWidget: mockState.MockToastWidget
 }));
 
 class ExternalWidget extends mockState.MockWidget {

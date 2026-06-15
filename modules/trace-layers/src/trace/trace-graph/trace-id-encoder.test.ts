@@ -36,6 +36,7 @@ import {
   getInstantRefChunkIndex,
   getInstantRefIndex,
   getInstantRefRowIndex,
+  getLocalDependencyRefChunkIndex,
   getLocalDependencyRefPayload,
   getLocalDependencyRefProcessIndex,
   getLocalDependencyRefRowIndex,
@@ -248,6 +249,7 @@ describe('trace-id-encoder', () => {
     expect(getSpanRefRowIndex(spanRef)).toBe(17);
     expect(getLocalDependencyRefPayload(localDependencyRef)).toBe(localSpanRef);
     expect(getLocalDependencyRefProcessIndex(localDependencyRef)).toBe(9);
+    expect(getLocalDependencyRefChunkIndex(localDependencyRef)).toBe(9);
     expect(getLocalDependencyRefRowIndex(localDependencyRef)).toBe(17);
     expect(getEventRefIndex(eventRef)).toBe(21);
     expect(getEventRefChunkIndex(eventRef)).toBe(0);

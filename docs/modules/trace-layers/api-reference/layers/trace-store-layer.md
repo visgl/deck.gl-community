@@ -6,8 +6,9 @@
 </p>
 
 `TraceStoreLayer` renders store-backed trace windows. It registers each source window with its
-`TraceChunkStore`, redraws when matching chunks arrive, materializes `TraceGraph` snapshots with
-`getTraceGraphForWindow`, and delegates resolved graphs to `TraceGraphLayer`.
+`TraceChunkStore`, redraws when matching chunks arrive, asks each source-owned materializer for
+immutable `TraceGraphData`, wraps that data in `TraceGraph`, and delegates resolved graphs to
+`TraceGraphLayer`.
 
 ```ts
 import {TraceStoreLayer, type TraceStoreLayerSource} from '@deck.gl-community/trace-layers/layers';
@@ -20,6 +21,8 @@ Each `traceSources` entry provides:
 - `traceChunkStore`
 - `traceWindow`
 - `loadChunk`
+- `materializeTraceGraphData`
+- optional `traceGraphFilterOptions`
 - optional `spanBudget`
 - optional `onProgress`
 - optional `onError`
@@ -30,7 +33,7 @@ Each `traceSources` entry provides:
   layers={[
     new TraceStoreLayer({
       id: 'trace-store',
-      traceSources: [{traceChunkStore, traceWindow, loadChunk}],
+      traceSources: [{traceChunkStore, traceWindow, loadChunk, materializeTraceGraphData}],
       settings
     })
   ]}
@@ -38,9 +41,9 @@ Each `traceSources` entry provides:
 ```
 
 The layer owns registration replacement and finalize cleanup for its active source list. It does not
-own descriptor catalogs, graph materializer configuration, deck views, viewer widgets, tooltips, or
-selection state. Use `TraceGraphLayer` when graphs are already materialized. Use `DeckTraceGraph`
-for the full React viewer.
+own descriptor catalogs, source-specific graph-data materialization, deck views, viewer widgets,
+tooltips, or selection state. Use `TraceGraphLayer` when graphs are already materialized. Use
+`DeckTraceGraph` for the full React viewer.
 
 See [TraceChunkStore](../trace/trace-chunk-store.md) and
 [Rendering traces](../../developer-guide/rendering-traces.md).

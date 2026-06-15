@@ -89,22 +89,6 @@ async function* streamChromeTraceFixture(
   }
 }
 
-/**
- * Splits one Chrome trace fixture inside one multibyte UTF-8 code point.
- */
-async function* streamChromeTraceFixtureAcrossUtf8CodePoint(
-  traceFile: ChromeTraceFileSchema
-): AsyncIterable<ArrayBuffer> {
-  const bytes = new TextEncoder().encode(JSON.stringify(traceFile));
-  const multibyteByteIndex = bytes.findIndex(byte => byte >= 0x80);
-  if (multibyteByteIndex < 0) {
-    throw new Error('Fixture must contain at least one multibyte UTF-8 code point.');
-  }
-
-  yield copyBytesToArrayBuffer(bytes.slice(0, multibyteByteIndex + 1));
-  yield copyBytesToArrayBuffer(bytes.slice(multibyteByteIndex + 1));
-}
-
 describe('Chrome trace Arrow parser', () => {
   it('exports a stable Arrow schema contract', () => {
     expect(chromeTraceEventArrowSchema.fields.map(field => field.name)).toEqual([
@@ -245,23 +229,5 @@ describe('Chrome trace Arrow parser', () => {
 
     const finalBatch = batches[batches.length - 1];
     expect(finalBatch?.schema.metadata.get('chromeTrace.metadataJson')).toBe(metadataJson);
-  });
-
-  it('preserves UTF-8 event text when binary chunks split a code point', async () => {
-    const traceFile = createChromeTraceFixture();
-    traceFile.traceEvents[1]!.name = 'complete-span-snowman-\u2603';
-    const batches: arrow.RecordBatch[] = [];
-
-    for await (const batch of parseChromeTraceToArrowRecordBatches(
-      streamChromeTraceFixtureAcrossUtf8CodePoint(traceFile),
-      {
-        batchSize: 2
-      }
-    )) {
-      batches.push(batch as arrow.RecordBatch);
-    }
-
-    const combinedTable = new arrow.Table(batches[0]!.schema, batches);
-    expect(combinedTable.getChild('name')?.get(1)).toBe('complete-span-snowman-\u2603');
   });
 });

@@ -1,13 +1,13 @@
 import {CompositeLayer, FilterContext, Layer, LayerProps, PickingInfo} from '@deck.gl/core';
 import {LineLayer, PathLayer, TextLayer} from '@deck.gl/layers';
-import {Matrix4} from '@math.gl/core';
 import {BlockLayer, FastTextLayer} from '@deck.gl-community/infovis-layers';
 import {DependencyArrowLayer, PathDirection} from '@deck.gl-community/layers';
-
 import {
+  buildTraceLayoutGeometryDerivationContext,
   DEFAULT_TRACE_FONT_FAMILY,
   fillTraceLayoutSpanGeometry,
   getTraceGraphSpanNameUtf8,
+  getTraceLayoutProcessLayoutByRef,
   shouldShowLocalDependencyByModeFields
 } from '../../trace/index';
 import {getLayoutDensityPreset} from '../../trace/trace-layout/trace-geometry-layout-common';
@@ -43,8 +43,10 @@ import type {
   TraceDeckBinaryBlockData,
   TraceDeckBinaryDependencyLineData,
   TraceDependencyRef,
+  TraceDependencyRenderSource,
   TraceGraphSelectedLocalDependencySource,
   TraceLayout,
+  TraceLayoutGeometryDerivationContext,
   TraceLayoutOverflowLabelDatum,
   TraceLayoutRow,
   TraceLocalDependencySource,
@@ -74,7 +76,7 @@ const COLLAPSED_ACTIVITY_MAX_WIDTH_PX = 0.8;
 const LOCAL_DEPENDENCY_LINE_WIDTH_PX = 1;
 const LOCAL_DEPENDENCY_OPACITY_MULTIPLIER = 0.75;
 const WARNING_DEPENDENCY_MIN_VISIBILITY = 1;
-const PATH_DEPENDENCY_MARKER_SIZE = 6;
+const PATH_DEPENDENCY_MARKER_SIZE = 3;
 const FORWARD_DEPENDENCY_MARKER_PLACEMENTS = [1];
 const BIDIRECTIONAL_DEPENDENCY_MARKER_PLACEMENTS = [1];
 /** Direction a collapsed activity summary grows from the process row activity origin. */
@@ -94,6 +96,8 @@ const HIDDEN_SPAN_LABEL_POSITION = [0, -1_000_000] as [number, number];
 const TRACE_PICKING_WARNING_REPEAT_MS = 1000;
 let lastTracePickingWarningKey: string | null = null;
 let lastTracePickingWarningAtMs = 0;
+let lastTraceSpanLabelWarningKey: string | null = null;
+let lastTraceSpanLabelWarningAtMs = 0;
 
 /** Returns whether collapsed process activity should dim with selection state in this rank. */
 function shouldFadeCollapsedActivity(params: {
@@ -240,10 +244,15 @@ function getTraceRenderSpanRef(span: TraceRankSpanDatum): SpanRef {
 }
 
 /** Resolves one render span geometry by exact span ref. */
-function getTraceRenderSpanGeometry(span: TraceRankSpanDatum, traceLayout: TraceLayout) {
+function getTraceRenderSpanGeometry(
+  span: TraceRankSpanDatum,
+  traceLayout: TraceLayout,
+  context?: TraceLayoutGeometryDerivationContext
+) {
   return getTraceLayoutSpanGeometryBySpanRef({
     traceLayout,
-    spanRef: getTraceRenderSpanRef(span)
+    spanRef: getTraceRenderSpanRef(span),
+    context
   });
 }
 
@@ -311,16 +320,18 @@ function getTraceBinaryBlockSpanLabelGeometry(params: {
   ];
 }
 
-/** Returns label geometry, preferring binary block buffers over layout geometry chunks. */
+/** Returns label geometry, preferring authoritative binary block buffers when available. */
 function getTraceSpanLabelGeometry(params: {
   /** Span being labeled. */
   readonly span: SpanRef;
-  /** Layout containing span-ref geometry chunks for non-binary rows. */
+  /** Layout containing current span timing and lane assignment state for non-binary rows. */
   readonly traceLayout: TraceLayout;
   /** Binary block payload currently used by the row rectangle layer. */
   readonly binaryBlockData: TraceDeckBinaryBlockData | undefined;
   /** Accessor row index supplied by deck.gl for the span label row. */
   readonly objectInfo: {readonly index?: number} | undefined;
+  /** Optional batch-scoped direct geometry lookup state for repeated span resolution. */
+  readonly context?: TraceLayoutGeometryDerivationContext;
 }): TraceSpanLabelGeometry | null {
   if (params.binaryBlockData) {
     return getTraceBinaryBlockSpanLabelGeometry({
@@ -330,10 +341,126 @@ function getTraceSpanLabelGeometry(params: {
     });
   }
 
-  const geometry = getTraceRenderSpanGeometry(params.span, params.traceLayout);
+  const geometry = getTraceRenderSpanGeometry(params.span, params.traceLayout, params.context);
   return isValidTraceSpanLabelGeometry(geometry)
     ? [geometry[0], geometry[1], geometry[2], geometry[3]]
     : null;
+}
+
+/** Warns when expanded binary span-label rows would resolve to hidden text geometry. */
+function debugWarnIfExpandedTraceProcessSpanLabelsHaveInvalidBinaryGeometry(params: {
+  /** Process layer props owning the expanded span-label rows. */
+  readonly props: Readonly<TraceProcessLayerProps>;
+  /** Whether the process row is still collapsed and should hide labels. */
+  readonly effectiveIsCollapsed: boolean;
+}): void {
+  const {binaryBlockData, spans, traceLayout} = params.props;
+  const binaryPositions = binaryBlockData?.data.attributes.getPosition?.value;
+  const binarySizes = binaryBlockData?.data.attributes.getSize?.value;
+  if (
+    params.effectiveIsCollapsed ||
+    binaryBlockData == null ||
+    spans.length === 0 ||
+    !(binaryPositions instanceof Float32Array) ||
+    !(binarySizes instanceof Float32Array)
+  ) {
+    return;
+  }
+
+  const invalidSpanLabelRows: {
+    /** Span-label row index used by deck.gl objectInfo. */
+    readonly spanIndex: number;
+    /** Span ref passed through the label layer data array. */
+    readonly spanRef: SpanRef;
+    /** Span ref carried by the binary rectangle row at the same index. */
+    readonly binarySpanRef: SpanRef | undefined;
+    /** Current display text resolved for the label row. */
+    readonly spanName: string;
+    /** X coordinate read by the binary label position accessor. */
+    readonly x: number | undefined;
+    /** Y coordinate read by the binary label position accessor. */
+    readonly y: number | undefined;
+    /** Width read by the binary label clip accessor. */
+    readonly width: number | undefined;
+    /** Height read by the binary label geometry guard. */
+    readonly height: number | undefined;
+    /** Whether the label data row still matches the binary rectangle row. */
+    readonly binarySpanRefMatches: boolean;
+    /** Whether the label anchor can resolve to a finite trace position. */
+    readonly labelPositionIsFinite: boolean;
+    /** Whether the label clip rect keeps a non-empty content box. */
+    readonly labelClipRectIsNonEmpty: boolean;
+  }[] = [];
+  for (let spanIndex = 0; spanIndex < spans.length; spanIndex += 1) {
+    const spanRef = spans[spanIndex]!;
+    const binarySpanRef = binaryBlockData.spans[spanIndex];
+    const x = binaryPositions[spanIndex * 3];
+    const y = binaryPositions[spanIndex * 3 + 1];
+    const width = binarySizes[spanIndex * 2];
+    const height = binarySizes[spanIndex * 2 + 1];
+    const spanName = traceLayout.traceGraph.getSpanName(spanRef) ?? '';
+    const binarySpanRefMatches = binarySpanRef === spanRef;
+    const labelPositionIsFinite = Number.isFinite(x) && Number.isFinite(y);
+    const labelClipRectIsNonEmpty =
+      Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0;
+    if (
+      binarySpanRefMatches &&
+      labelPositionIsFinite &&
+      labelClipRectIsNonEmpty &&
+      spanName.length > 0
+    ) {
+      continue;
+    }
+    invalidSpanLabelRows.push({
+      spanIndex,
+      spanRef,
+      binarySpanRef,
+      spanName,
+      x,
+      y,
+      width,
+      height,
+      binarySpanRefMatches,
+      labelPositionIsFinite,
+      labelClipRectIsNonEmpty
+    });
+  }
+  if (invalidSpanLabelRows.length === 0) {
+    return;
+  }
+
+  const firstInvalidRow = invalidSpanLabelRows[0]!;
+  const warningKey = [
+    params.props.id,
+    spans.length,
+    binaryBlockData.data.length,
+    firstInvalidRow.spanIndex,
+    firstInvalidRow.spanRef,
+    firstInvalidRow.binarySpanRef ?? 'missing'
+  ].join('|');
+  const nowMs = performance.now();
+  if (
+    warningKey === lastTraceSpanLabelWarningKey &&
+    nowMs - lastTraceSpanLabelWarningAtMs < TRACE_PICKING_WARNING_REPEAT_MS
+  ) {
+    return;
+  }
+  lastTraceSpanLabelWarningKey = warningKey;
+  lastTraceSpanLabelWarningAtMs = nowMs;
+  console.warn('[tracevis] Expanded trace process label input would hide span text', {
+    layerId: params.props.id,
+    processId: params.props.processId,
+    processName: params.props.processName,
+    rankNum: params.props.rankNum,
+    rankIndex: params.props.rankIndex,
+    spanCount: spans.length,
+    binarySpanCount: binaryBlockData.spans.length,
+    binarySpanRowCount: binaryBlockData.data.length,
+    binarySpanRefsAreLabelSpanRefs: binaryBlockData.spans === spans,
+    invalidSpanLabelRowCount: invalidSpanLabelRows.length,
+    invalidSpanLabelRows: invalidSpanLabelRows.slice(0, 16),
+    invalidSpanLabelRowsTruncated: invalidSpanLabelRows.length > 16
+  });
 }
 
 /** Computes combined bounds for render spans by exact span ref. */
@@ -341,8 +468,9 @@ function getTraceRenderSpanBounds(
   spans: Iterable<TraceRankSpanDatum>,
   traceLayout: TraceLayout
 ): [[number, number], [number, number]] | null {
+  const context = buildTraceLayoutGeometryDerivationContext(traceLayout);
   return combineGeometryBounds(
-    Array.from(spans, span => getTraceRenderSpanGeometry(span, traceLayout))
+    Array.from(spans, span => getTraceRenderSpanGeometry(span, traceLayout, context))
   );
 }
 
@@ -354,7 +482,7 @@ function getTraceRenderSpanDisplaySource(
   if (typeof span !== 'number') {
     return span;
   }
-  return traceLayout.traceGraph.getSpanDisplaySource(span);
+  return traceLayout.traceGraph.getSpanRenderSource(span);
 }
 
 /** Resolves the span label text without requiring prebuilt span objects. */
@@ -591,10 +719,12 @@ function getTraceRankDependencyData(params: {
   readonly dependencyOpacityMultiplier: number;
 }): readonly TraceRankDependencyDatum[] {
   const result: TraceRankDependencyDatum[] = [];
+  const geometryContext = buildTraceLayoutGeometryDerivationContext(params.traceLayout);
   for (const dependencyRef of params.dependencies) {
     const path = getTraceLayoutVisibleDependencyGeometry({
       traceLayout: params.traceLayout,
-      dependencyRef
+      dependencyRef,
+      context: geometryContext
     });
     if (!path) {
       continue;
@@ -645,8 +775,7 @@ function getMaxCollapsedActivity(
  * Sublayer identifiers:
  * - `${id}-block-rectangles`: block polygons with hover styling.
  * - `${id}-block-rectangle-hovered`: hovered block highlight.
- * - `${id}-dependency-lines`: dependency lines below spans.
- * - `${id}-dependency-markers`: dependency chevrons above spans.
+ * - `${id}-dependency-lines`: dependency lines + chevrons.
  * - `${id}-block-names`: block labels.
  */
 export type TraceProcessLayerProps = LayerProps & {
@@ -674,7 +803,7 @@ export type TraceProcessLayerProps = LayerProps & {
   /** User-facing process label shown in process tooltips. */
   processName?: string;
   rankNum: number;
-  /** Canonical runtime process ref for the rendered rank when available. */
+  /** Canonical runtime process ref for the rendered rank when supplied by prepared rows. */
   rankProcessRef?: TraceLayoutRow['processRef'];
   stepNum: number;
   updateTrigger?: number;
@@ -691,7 +820,7 @@ export type TraceProcessLayerProps = LayerProps & {
   /** Precomputed overflow and filtered-span labels for this row. */
   overflowLabels?: readonly TraceLayoutOverflowLabelDatum[];
   /** Callback fired when the process row should toggle expansion. */
-  onToggleProcess?: (processId: string, processRef?: TraceLayoutRow['processRef']) => void;
+  onToggleProcess?: (processId: string, processRef: TraceLayoutRow['processRef']) => void;
   /** CSS font stack used by deck text labels in this process row. */
   fontFamily?: string;
 };
@@ -732,28 +861,38 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
 
   override updateState({props, oldProps}: UpdateParameters<this>) {
     const nextState: Partial<TraceProcessLayerState> = {};
-    const geometryShapeTrigger = getTraceProcessLayerGeometryShapeTrigger(
-      props.traceLayout,
-      props.processId,
-      props.rankIndex
-    );
+    const rankProcessRef = getTraceProcessLayerProcessRef(props);
+    const previousRankProcessRef = getTraceProcessLayerProcessRef(oldProps);
+    const geometryShapeTrigger = getTraceProcessLayerGeometryShapeTrigger(props.traceLayout);
     const previousGeometryShapeTrigger = getTraceProcessLayerGeometryShapeTrigger(
-      oldProps.traceLayout,
-      oldProps.processId,
-      oldProps.rankIndex
+      oldProps.traceLayout
     );
     const geometryShapeChanged = geometryShapeTrigger !== previousGeometryShapeTrigger;
 
-    const usesBinaryStraightDependencyLines = shouldUseBinaryStraightDependencyLineData({
+    const shouldBuildVisibleDependencyData = !shouldUseBinaryStraightDependencyLineData({
       settings: props.settings,
       binaryDependencyLineData: props.binaryDependencyLineData
     });
-    const shouldBuildVisibleDependencyData =
-      !usesBinaryStraightDependencyLines || props.settings.showDependencies === true;
-    const rankLayout = props.traceLayout.processLayouts?.[props.rankIndex];
+    const rankLayout =
+      rankProcessRef == null
+        ? undefined
+        : getTraceLayoutProcessLayoutByRef(props.traceLayout, rankProcessRef);
     const effectiveIsCollapsed = rankLayout
       ? rankLayout.isCollapsed === true
       : Boolean(props.isCollapsed);
+    const previousRankLayout =
+      previousRankProcessRef == null || oldProps.traceLayout == null
+        ? undefined
+        : getTraceLayoutProcessLayoutByRef(oldProps.traceLayout, previousRankProcessRef);
+    const previousEffectiveIsCollapsed = previousRankLayout
+      ? previousRankLayout.isCollapsed === true
+      : Boolean(oldProps.isCollapsed);
+    if (previousEffectiveIsCollapsed && !effectiveIsCollapsed) {
+      debugWarnIfExpandedTraceProcessSpanLabelsHaveInvalidBinaryGeometry({
+        props,
+        effectiveIsCollapsed
+      });
+    }
     const previousVisibleDependencyGeometryTrigger = (this.state as Partial<TraceProcessLayerState>)
       .visibleDependencyGeometryTrigger;
     if (
@@ -815,27 +954,21 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       spans,
       traceLayout,
       isCollapsed,
-      collapsedActivityIntervals = EMPTY_TRACE_PROCESS_ACTIVITY_INTERVALS,
-      rankIndex,
-      threads
+      collapsedActivityIntervals = EMPTY_TRACE_PROCESS_ACTIVITY_INTERVALS
     } = this.props;
     const settings = this.props.settings;
-    const aggregationMode = settings.trackAggregationMode;
-    const rankLayout = traceLayout.processLayouts?.[rankIndex];
-    const streamLayouts =
-      aggregationMode !== 'separate-threads'
-        ? (traceLayout.processLayouts?.[rankIndex]?.threadLayouts ?? [])
-        : threads
-            .map(thread => traceLayout.threadLayoutMap[thread.threadId])
-            .filter((layout): layout is NonNullable<typeof layout> => Boolean(layout));
-    const effectiveStreamLayouts =
-      streamLayouts.length > 0 ? streamLayouts : (rankLayout?.threadLayouts ?? []);
+    const rankProcessRef = getTraceProcessLayerProcessRef(this.props);
+    const rankLayout =
+      rankProcessRef == null
+        ? undefined
+        : getTraceLayoutProcessLayoutByRef(traceLayout, rankProcessRef);
+    const streamLayouts = rankLayout?.threadLayouts ?? [];
     const effectiveIsCollapsed = rankLayout
       ? rankLayout.isCollapsed === true
       : Boolean(isCollapsed);
     const baseBounds = combineBounds([
       getTraceRenderSpanBounds(spans, traceLayout),
-      getStreamLayoutBounds(effectiveStreamLayouts),
+      getStreamLayoutBounds(streamLayouts),
       getProcessLayoutBounds(rankLayout)
     ]) as [[number, number], [number, number]];
 
@@ -898,13 +1031,13 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
   override getPickingInfo(
     params: GetPickingInfoParams
   ): PickingInfo<
-    | TraceLocalDependencySource
+    | TraceDependencyRenderSource
     | TraceProcessActivityInterval
     | TraceProcessInfoObject
     | TraceRenderSpan
   > {
     const info = super.getPickingInfo(params) as PickingInfo<
-      | TraceLocalDependencySource
+      | TraceDependencyRenderSource
       | TraceProcessActivityInterval
       | TraceProcessInfoObject
       | TraceRenderSpan
@@ -916,7 +1049,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
     if (sourceLayerId.includes('dependency-lines') && info.object == null && info.index >= 0) {
       const dependencyRef = this.props.binaryDependencyLineData?.dependencyRefs[info.index];
       const source = dependencyRef
-        ? this.props.traceLayout.traceGraph.getVisibleDependencySourceByRef(dependencyRef)
+        ? this.props.traceLayout.traceGraph.getVisibleDependencyRenderSourceByRef(dependencyRef)
         : null;
       if (dependencyRef == null) {
         logTraceProcessPickingDataWarning({
@@ -952,7 +1085,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       sourceLayerId.includes('dependency-lines') &&
       isTraceRankDependencyDatum(info.object)
     ) {
-      const dependency = this.props.traceLayout.traceGraph.getVisibleDependencySourceByRef(
+      const dependency = this.props.traceLayout.traceGraph.getVisibleDependencyRenderSourceByRef(
         info.object.dependencyRef
       );
       if (dependency?.type !== 'trace-local-dependency') {
@@ -975,7 +1108,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       }
       info.object = dependency?.type === 'trace-local-dependency' ? dependency : undefined;
     } else if (sourceLayerId.includes('dependency-lines') && typeof info.object === 'number') {
-      const dependency = this.props.traceLayout.traceGraph.getVisibleDependencySourceByRef(
+      const dependency = this.props.traceLayout.traceGraph.getVisibleDependencyRenderSourceByRef(
         info.object as VisibleLocalDependencyRef
       );
       if (dependency?.type !== 'trace-local-dependency') {
@@ -1073,7 +1206,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       };
     }
     return info as PickingInfo<
-      | TraceLocalDependencySource
+      | TraceDependencyRenderSource
       | TraceProcessActivityInterval
       | TraceProcessInfoObject
       | TraceRenderSpan
@@ -1090,7 +1223,6 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       // streams,
       onSpanClick,
       rankIndex,
-      processId,
       settings,
       traceLayout,
       colorScheme,
@@ -1116,17 +1248,17 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       visibleDependencyData = EMPTY_TRACE_RANK_DEPENDENCY_DATA,
       visibleDependencyGeometryTrigger
     } = this.state as Partial<TraceProcessLayerState>;
-    const rankLayout = traceLayout.processLayouts?.[rankIndex];
+    const rankProcessRef = getTraceProcessLayerProcessRef(this.props);
+    const rankLayout =
+      rankProcessRef == null
+        ? undefined
+        : getTraceLayoutProcessLayoutByRef(traceLayout, rankProcessRef);
 
     const effectiveIsCollapsed = rankLayout
       ? rankLayout.isCollapsed === true
       : Boolean(isCollapsed);
 
-    const geometryShapeTrigger = getTraceProcessLayerGeometryShapeTrigger(
-      traceLayout,
-      processId,
-      rankIndex
-    );
+    const geometryShapeTrigger = getTraceProcessLayerGeometryShapeTrigger(traceLayout);
     const geometryUpdateTriggers = makeGeometryUpdateTriggers(
       settings,
       traceLayout,
@@ -1145,12 +1277,15 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       updateTrigger,
       binaryDependencyLineData ?? visibleDependencyGeometryTrigger ?? geometryShapeTrigger
     );
+    const geometryContext =
+      binaryBlockData == null || visibleHoveredBlock
+        ? buildTraceLayoutGeometryDerivationContext(traceLayout)
+        : undefined;
     const spanLabelGeometryUpdateTriggers = makeGeometryUpdateTriggers(
       settings,
       traceLayout,
       updateTrigger,
-      binaryBlockData ??
-        getTraceProcessLayerSpanLabelGeometryTrigger(traceLayout, processId, rankIndex)
+      binaryBlockData ?? geometryShapeTrigger
     );
     const colorUpdateTriggers = [
       ...makeColorUpdateTriggers(settings, highlightedSpanRefs),
@@ -1181,34 +1316,15 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
     const layoutDensityKey = settings.layoutDensity ?? 'comfortable';
     const {spanLabelFontSize, spanLabelPosition} = getLayoutDensityPreset(layoutDensityKey);
     const isInsideBlockText = spanLabelPosition === 'inside';
-    const currentBinaryGeometryOffset = getTraceProcessLayerBinaryGeometryOffset(
-      traceLayout,
-      processId,
-      rankIndex
-    );
-    const blockBinaryModelMatrix = getTraceProcessLayerBinaryModelMatrix({
-      baseModelMatrix: this.props.modelMatrix,
-      currentGeometryXOffset: currentBinaryGeometryOffset.x,
-      currentGeometryYOffset: currentBinaryGeometryOffset.y,
-      encodedGeometryXOffset: binaryBlockData?.geometryXOffset,
-      encodedGeometryYOffset: binaryBlockData?.geometryYOffset
-    });
-    const dependencyBinaryModelMatrix = getTraceProcessLayerBinaryModelMatrix({
-      baseModelMatrix: this.props.modelMatrix,
-      currentGeometryXOffset: currentBinaryGeometryOffset.x,
-      currentGeometryYOffset: currentBinaryGeometryOffset.y,
-      encodedGeometryXOffset: binaryDependencyLineData?.geometryXOffset,
-      encodedGeometryYOffset: binaryDependencyLineData?.geometryYOffset
-    });
+    const blockBinaryModelMatrix = this.props.modelMatrix;
+    const dependencyBinaryModelMatrix = this.props.modelMatrix;
 
     const showBaseDependencies =
       settings.showDependencies && !visibleHoveredBlock && !effectiveIsCollapsed;
-    const usesBinaryStraightDependencyLines = shouldUseBinaryStraightDependencyLineData({
+    const dependencyLineLayer = !shouldUseBinaryStraightDependencyLineData({
       settings,
       binaryDependencyLineData
-    });
-    const dependencyLayerMode = settings.lineRoutingMode === 'curve' ? 'arc' : 'line';
-    const dependencyLineLayer = !usesBinaryStraightDependencyLines
+    })
       ? new DependencyArrowLayer<TraceRankDependencyDatum, {rankIndex: number}>(
           this.getSubLayerProps({
             id: 'dependency-lines',
@@ -1243,7 +1359,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
             pickable: true,
             autoHighlight: true,
             highlightColor: TRACE_COLOR.DEPENDENCY_HIGHLIGHT as [number, number, number, number],
-            mode: dependencyLayerMode,
+            mode: settings.lineRoutingMode === 'curve' ? 'arc' : 'line',
             getArcTilt: 90,
             getArcHeight: 0.3,
             rankIndex,
@@ -1251,11 +1367,6 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
               blend: false,
               depthWriteEnabled: false,
               depthCompare: 'always'
-            },
-            _subLayerProps: {
-              arrows: {
-                visible: false
-              }
             }
           }
         )
@@ -1296,59 +1407,6 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
           },
           rankIndex
         });
-    const dependencyMarkerLayer = new DependencyArrowLayer<
-      TraceRankDependencyDatum,
-      {rankIndex: number}
-    >(
-      this.getSubLayerProps({
-        id: 'dependency-markers',
-        visible: showBaseDependencies
-      }),
-      {
-        data: visibleDependencyData,
-        modelMatrix: dependencyBinaryModelMatrix,
-        positionFormat: 'XY',
-        updateTriggers: {
-          getPath: dependencyGeometryUpdateTriggers,
-          getColor: colorUpdateTriggers,
-          getMarkerColor: colorUpdateTriggers
-        },
-        ...(settings.transitions
-          ? {
-              transitions: {
-                getPath: TRACE_SPAN_POSITION_TRANSITION
-              }
-            }
-          : {}),
-        getPath: (dependency: TraceRankDependencyDatum) => dependency.path,
-        getColor: (dependency: TraceRankDependencyDatum) => dependency.color,
-        getMarkerColor: (dependency: TraceRankDependencyDatum) => dependency.markerColor,
-        getDirection: (dependency: TraceRankDependencyDatum) => dependency.direction,
-        getMarkerPlacements: (dependency: TraceRankDependencyDatum) => dependency.markerPlacements,
-        getMarkerSize: [2, 1],
-        getWidth: 0,
-        markerSizeScale: LOCAL_DEPENDENCY_LINE_WIDTH_PX * PATH_DEPENDENCY_MARKER_SIZE,
-        widthUnits: 'pixels',
-        pickable: true,
-        mode: dependencyLayerMode,
-        getArcTilt: 90,
-        getArcHeight: 0.3,
-        rankIndex,
-        parameters: {
-          blend: false,
-          depthWriteEnabled: false,
-          depthCompare: 'always'
-        },
-        _subLayerProps: {
-          'links-arc': {
-            visible: false
-          },
-          'links-line': {
-            visible: false
-          }
-        }
-      }
-    );
 
     const blockRectangleLayer = new BlockLayer<SpanRef, {rankIndex: number}>(
       this.getSubLayerProps({
@@ -1361,14 +1419,14 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
         opacity: settings.showPathsOnly ? 0.25 : 1,
         positionFormat: 'XY',
         getPosition: (span: SpanRef) => {
-          const bbox = getTraceRenderSpanGeometry(span, traceLayout);
+          const bbox = getTraceRenderSpanGeometry(span, traceLayout, geometryContext);
           if (!bbox) {
             return [0, 0];
           }
           return [bbox[0], bbox[1]];
         },
         getSize: (span: SpanRef) => {
-          const bbox = getTraceRenderSpanGeometry(span, traceLayout);
+          const bbox = getTraceRenderSpanGeometry(span, traceLayout, geometryContext);
           if (!bbox) {
             return [0, 0];
           }
@@ -1418,14 +1476,14 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
         data: visibleHoveredBlockData,
         positionFormat: 'XY',
         getPosition: (span: TraceRenderSpan) => {
-          const bbox = getTraceRenderSpanGeometry(span, traceLayout);
+          const bbox = getTraceRenderSpanGeometry(span, traceLayout, geometryContext);
           if (!bbox) {
             return [0, 0];
           }
           return [bbox[0], bbox[1]];
         },
         getSize: (span: TraceRenderSpan) => {
-          const bbox = getTraceRenderSpanGeometry(span, traceLayout);
+          const bbox = getTraceRenderSpanGeometry(span, traceLayout, geometryContext);
           if (!bbox) {
             return [0, 0];
           }
@@ -1476,7 +1534,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       modelMatrix: blockBinaryModelMatrix,
       positionFormat: 'XY',
       getPath: (span: SpanRef) => {
-        const bbox = getTraceRenderSpanGeometry(span, traceLayout);
+        const bbox = getTraceRenderSpanGeometry(span, traceLayout, geometryContext);
         if (!bbox || bbox[2] <= bbox[0] || bbox[3] <= bbox[1]) {
           return [];
         }
@@ -1536,7 +1594,8 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
         span,
         traceLayout,
         binaryBlockData,
-        objectInfo
+        objectInfo,
+        context: geometryContext
       });
       if (!bbox) {
         return HIDDEN_SPAN_LABEL_POSITION;
@@ -1552,7 +1611,8 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
         span,
         traceLayout,
         binaryBlockData,
-        objectInfo
+        objectInfo,
+        context: geometryContext
       });
       if (!bbox) {
         return EMPTY_SPAN_LABEL_BOX;
@@ -1569,7 +1629,8 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
         span,
         traceLayout,
         binaryBlockData,
-        objectInfo
+        objectInfo,
+        context: geometryContext
       });
       if (!bbox) {
         return EMPTY_SPAN_LABEL_BOX;
@@ -1628,7 +1689,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
               getPath: blockGeometryUpdateTriggers,
               getText: spanLabelTextUpdateTriggers,
               getPosition: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
-              getClipRect: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
+              getContentBox: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
               getColor: colorUpdateTriggers
             },
             fontFamily,
@@ -1636,7 +1697,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
               ? {
                   transitions: {
                     getPosition: TRACE_SPAN_POSITION_TRANSITION,
-                    getClipRect: TRACE_SPAN_POSITION_TRANSITION
+                    getContentBox: TRACE_SPAN_POSITION_TRANSITION
                   }
                 }
               : {}),
@@ -1667,14 +1728,14 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
         data: mergedOverflowLabelData,
         updateTriggers: {
           getPosition: [...geometryUpdateTriggers, effectiveIsCollapsed],
-          getClipRect: [...geometryUpdateTriggers, effectiveIsCollapsed],
+          getContentBox: [...geometryUpdateTriggers, effectiveIsCollapsed],
           getText: [mergedOverflowLabelData]
         },
         ...(settings.transitions
           ? {
               transitions: {
                 getPosition: TRACE_SPAN_POSITION_TRANSITION,
-                getClipRect: TRACE_SPAN_POSITION_TRANSITION
+                getContentBox: TRACE_SPAN_POSITION_TRANSITION
               }
             }
           : {}),
@@ -1747,7 +1808,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
         },
         onClick: () => {
           if (effectiveIsCollapsed && rankLayout) {
-            onToggleProcess?.(this.props.processId, this.props.rankProcessRef);
+            onToggleProcess?.(this.props.processId, rankLayout.processRef);
           }
         },
         updateTriggers: {
@@ -1766,7 +1827,6 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       blockRectangleLayer,
       blockRectangleBorderLayer,
       blockRectangleHoveredLayer,
-      dependencyMarkerLayer,
       blockNamesLayer,
       overflowLabelLayer
     ]);
@@ -1774,95 +1834,24 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
   }
 }
 
-/** Returns a row-local geometry shape trigger so append-only layout objects do not invalidate old ranks. */
+/** Resolves one process layer row ref from prepared props or legacy direct layer inputs. */
+function getTraceProcessLayerProcessRef(
+  props: Partial<
+    Pick<TraceProcessLayerProps, 'processId' | 'rankIndex' | 'rankProcessRef' | 'traceLayout'>
+  >
+): TraceLayoutRow['processRef'] | undefined {
+  if (props.rankProcessRef != null) {
+    return props.rankProcessRef;
+  }
+  return (
+    props.traceLayout?.renderRows.find(row => row.processId === props.processId)?.processRef ??
+    props.traceLayout?.processLayouts[props.rankIndex ?? -1]?.processRef
+  );
+}
+
+/** Returns stable layout identity used by direct non-binary geometry accessors. */
 function getTraceProcessLayerGeometryShapeTrigger(
-  traceLayout: Readonly<TraceLayout> | undefined,
-  processId: string,
-  rankIndex: number
+  traceLayout: Readonly<TraceLayout> | undefined
 ): unknown {
-  if (!traceLayout) {
-    return '';
-  }
-  const geometryEntry = traceLayout.geometryCache?.processesById[processId];
-  if (!geometryEntry) {
-    return traceLayout;
-  }
-  const processLayout = traceLayout.processLayouts[rankIndex];
-  return [geometryEntry.fastReuseKey ?? geometryEntry.reuseKey, processLayout?.yHeight ?? 0].join(
-    '|'
-  );
-}
-
-/** Returns a fallback span-label geometry trigger for non-binary rows. */
-function getTraceProcessLayerSpanLabelGeometryTrigger(
-  traceLayout: Readonly<TraceLayout>,
-  processId: string,
-  rankIndex: number
-): unknown {
-  const geometryShapeTrigger = getTraceProcessLayerGeometryShapeTrigger(
-    traceLayout,
-    processId,
-    rankIndex
-  );
-  const currentGeometryOffset = getTraceProcessLayerBinaryGeometryOffset(
-    traceLayout,
-    processId,
-    rankIndex
-  );
-  return [geometryShapeTrigger, currentGeometryOffset.x, currentGeometryOffset.y].join('|');
-}
-
-/** Returns the current absolute X/Y offset for binary attributes rendered by one process layer. */
-function getTraceProcessLayerBinaryGeometryOffset(
-  traceLayout: Readonly<TraceLayout>,
-  processId: string,
-  rankIndex: number
-): {x: number; y: number} {
-  const geometryEntry = traceLayout.geometryCache?.processesById[processId];
-  const geometryXOffset = geometryEntry?.geometryXOffset;
-  const geometryYOffset = geometryEntry?.geometryYOffset;
-  const x =
-    typeof geometryXOffset === 'number' && Number.isFinite(geometryXOffset) ? geometryXOffset : 0;
-  if (typeof geometryYOffset === 'number' && Number.isFinite(geometryYOffset)) {
-    return {x, y: geometryYOffset};
-  }
-  const layoutYOffset = traceLayout.processLayouts[rankIndex]?.yOffset;
-  return {
-    x,
-    y: typeof layoutYOffset === 'number' && Number.isFinite(layoutYOffset) ? layoutYOffset : 0
-  };
-}
-
-/** Returns a model matrix that moves reused binary buffers to the row's current X/Y offset. */
-function getTraceProcessLayerBinaryModelMatrix({
-  baseModelMatrix,
-  currentGeometryXOffset,
-  currentGeometryYOffset,
-  encodedGeometryXOffset,
-  encodedGeometryYOffset
-}: {
-  readonly baseModelMatrix?: TraceProcessLayerProps['modelMatrix'];
-  readonly currentGeometryXOffset: number;
-  readonly currentGeometryYOffset: number;
-  readonly encodedGeometryXOffset?: number;
-  readonly encodedGeometryYOffset?: number;
-}): TraceProcessLayerProps['modelMatrix'] {
-  const xDelta =
-    currentGeometryXOffset -
-    (typeof encodedGeometryXOffset === 'number' && Number.isFinite(encodedGeometryXOffset)
-      ? encodedGeometryXOffset
-      : currentGeometryXOffset);
-  const yDelta =
-    currentGeometryYOffset -
-    (typeof encodedGeometryYOffset === 'number' && Number.isFinite(encodedGeometryYOffset)
-      ? encodedGeometryYOffset
-      : currentGeometryYOffset);
-  if (xDelta === 0 && yDelta === 0) {
-    return baseModelMatrix ?? undefined;
-  }
-  const matrix = baseModelMatrix
-    ? new Matrix4(baseModelMatrix as Matrix4)
-    : new Matrix4().identity();
-  matrix.translate([xDelta, yDelta, 0]);
-  return matrix;
+  return traceLayout ?? '';
 }

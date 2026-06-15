@@ -7,7 +7,6 @@
  * @param fetchTrace - Optional function to fetch the trace when a buffer is not provided
  * @param reopenUrl - Optional URL for reopening the trace. If a buffer is provided, an object URL is generated.
  * @returns Promise<void>
- * @todo - Move to a shared trace link helper?
  */
 export async function openChromeTraceInPerfetto({
   runId,

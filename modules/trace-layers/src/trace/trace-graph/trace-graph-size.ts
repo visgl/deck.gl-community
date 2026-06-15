@@ -28,6 +28,20 @@ export type TraceGraphSizeReport = {
   entries: TraceGraphSizeEntry[];
 };
 
+/** Caller-selected retained component measured by {@link estimateTraceGraphComponentSizes}. */
+export type TraceGraphSizeComponent = {
+  /** Stable report path emitted for this retained component. */
+  path: string;
+  /** Retained value to estimate while sharing de-duplication state with sibling components. */
+  value: unknown;
+  /** Optional report kind override for grouped components such as many Arrow tables. */
+  kind?: TraceGraphSizeEntry['kind'];
+  /** Optional aggregate row count surfaced for grouped Arrow-backed components. */
+  rowCount?: number;
+  /** Optional aggregate column count surfaced for grouped Arrow-backed components. */
+  columnCount?: number;
+};
+
 /** Options for {@link estimateTraceGraphSize}. */
 export type TraceGraphSizeOptions = {
   /** Whether to include enumerable private caches currently kept on the TraceGraph instance. */
@@ -60,12 +74,7 @@ export function estimateTraceGraphSize(
     ...getHeapUsageProbeFields()
   })();
 
-  const context: TraceGraphSizeContext = {
-    entries: [],
-    seenObjects: new WeakSet<object>(),
-    seenBuffers: new WeakSet<ArrayBufferLike>(),
-    maxObjectDepth: options.maxObjectDepth ?? 4
-  };
+  const context = createTraceGraphSizeContext(options, true);
 
   const rootEntries = options.includeRuntimeCaches
     ? Object.entries(traceGraph)
@@ -75,16 +84,9 @@ export function estimateTraceGraphSize(
     estimateValueSize(value, key, context, 0);
   }
 
-  const bytesByKind = createEmptyBytesByKind();
-  let totalBytes = 0;
-  for (const entry of context.entries) {
-    totalBytes += entry.bytes;
-    bytesByKind[entry.kind] += entry.bytes;
-  }
-
   const report = {
-    totalBytes,
-    bytesByKind,
+    totalBytes: context.totalBytes,
+    bytesByKind: context.bytesByKind,
     entries: context.entries.sort((left, right) => right.bytes - left.bytes)
   };
 
@@ -104,8 +106,50 @@ export function estimateTraceGraphSize(
   return report;
 }
 
+/**
+ * Estimates caller-selected retained components while emitting only one bounded entry per path.
+ *
+ * This keeps shared object and Arrow-buffer de-duplication from {@link estimateTraceGraphSize}
+ * without retaining one report entry per visited nested value.
+ */
+export function estimateTraceGraphComponentSizes(
+  components: Iterable<TraceGraphSizeComponent>,
+  options: Omit<TraceGraphSizeOptions, 'includeRuntimeCaches'> = {}
+): TraceGraphSizeReport {
+  const context = createTraceGraphSizeContext(options, false);
+  const entriesByPath = new Map<string, TraceGraphSizeEntry>();
+
+  for (const component of components) {
+    const bytesBefore = context.totalBytes;
+    estimateValueSize(component.value, component.path, context, 0);
+    const bytes = context.totalBytes - bytesBefore;
+    if (bytes <= 0) {
+      continue;
+    }
+    mergeTraceGraphSizeEntry(entriesByPath, {
+      path: component.path,
+      bytes,
+      kind: component.kind ?? inferTraceGraphSizeKind(component.value),
+      ...(component.rowCount === undefined ? {} : {rowCount: component.rowCount}),
+      ...(component.columnCount === undefined ? {} : {columnCount: component.columnCount})
+    });
+  }
+
+  return {
+    totalBytes: context.totalBytes,
+    bytesByKind: context.bytesByKind,
+    entries: [...entriesByPath.values()].sort((left, right) => right.bytes - left.bytes)
+  };
+}
+
 type TraceGraphSizeContext = {
   entries: TraceGraphSizeEntry[];
+  /** Whether per-path retained-size entries should be recorded. */
+  collectDetailedEntries: boolean;
+  /** Running retained byte estimate for the visited graph. */
+  totalBytes: number;
+  /** Running retained byte estimate grouped by entry kind. */
+  bytesByKind: Record<TraceGraphSizeEntry['kind'], number>;
   seenObjects: WeakSet<object>;
   seenBuffers: WeakSet<ArrayBufferLike>;
   maxObjectDepth: number;
@@ -120,6 +164,22 @@ type TraceGraphSizeBreakdownGroup = {
   bytesPerRow: number | null;
   entryCount: number;
 };
+
+/** Creates one TraceGraph size-estimation context with optional nested-entry retention. */
+function createTraceGraphSizeContext(
+  options: Pick<TraceGraphSizeOptions, 'maxObjectDepth'>,
+  collectDetailedEntries: boolean
+): TraceGraphSizeContext {
+  return {
+    entries: [],
+    collectDetailedEntries,
+    totalBytes: 0,
+    bytesByKind: createEmptyBytesByKind(),
+    seenObjects: new WeakSet<object>(),
+    seenBuffers: new WeakSet<ArrayBufferLike>(),
+    maxObjectDepth: options.maxObjectDepth ?? 4
+  };
+}
 
 function getKnownTraceGraphEntries(traceGraph: Partial<TraceGraphData>): Array<[string, unknown]> {
   return [
@@ -518,9 +578,67 @@ function addEntry(
   extra: Pick<TraceGraphSizeEntry, 'rowCount' | 'columnCount'> = {}
 ): number {
   if (bytes > 0) {
-    context.entries.push({path, bytes, kind, ...extra});
+    context.totalBytes += bytes;
+    context.bytesByKind[kind] += bytes;
+    if (context.collectDetailedEntries) {
+      context.entries.push({path, bytes, kind, ...extra});
+    }
   }
   return bytes;
+}
+
+/** Merges one bounded component entry into a path-keyed TraceGraph size report accumulator. */
+function mergeTraceGraphSizeEntry(
+  entriesByPath: Map<string, TraceGraphSizeEntry>,
+  entry: TraceGraphSizeEntry
+): void {
+  const existingEntry = entriesByPath.get(entry.path);
+  if (!existingEntry) {
+    entriesByPath.set(entry.path, entry);
+    return;
+  }
+  entriesByPath.set(entry.path, {
+    ...existingEntry,
+    bytes: existingEntry.bytes + entry.bytes,
+    rowCount: sumOptionalTraceGraphSizeEntryCount(existingEntry.rowCount, entry.rowCount),
+    columnCount: sumOptionalTraceGraphSizeEntryCount(existingEntry.columnCount, entry.columnCount)
+  });
+}
+
+/** Infers the broad storage kind used by one bounded TraceGraph component entry. */
+function inferTraceGraphSizeKind(value: unknown): TraceGraphSizeEntry['kind'] {
+  if (typeof value === 'string') {
+    return 'string';
+  }
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return 'primitive';
+  }
+  if (value && typeof value === 'object') {
+    if (isArrowTable(value)) {
+      return 'arrow';
+    }
+    if (ArrayBuffer.isView(value)) {
+      return 'typed-array';
+    }
+    if (value instanceof Map) {
+      return 'map';
+    }
+    if (Array.isArray(value) || value instanceof Set) {
+      return 'array';
+    }
+  }
+  return 'object';
+}
+
+/** Sums optional aggregate TraceGraph size entry counts when either side is present. */
+function sumOptionalTraceGraphSizeEntryCount(
+  left: number | undefined,
+  right: number | undefined
+): number | undefined {
+  if (left === undefined && right === undefined) {
+    return undefined;
+  }
+  return (left ?? 0) + (right ?? 0);
 }
 
 function createEmptyBytesByKind(): Record<TraceGraphSizeEntry['kind'], number> {

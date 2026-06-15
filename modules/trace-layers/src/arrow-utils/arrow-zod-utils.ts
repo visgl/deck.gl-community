@@ -1,3 +1,5 @@
+// src/community/trace-layers/arrow-utils/arrow-zod-utils.ts
+
 import * as arrow from 'apache-arrow';
 import {
   ZodArray,
@@ -37,7 +39,8 @@ export type ArrowZodValidationOptions = {
    * - **Allow** it when this flag is `true` (default),
    * - **Report** it as missing when this flag is `false`.
    *
-   * Keep this `true` when optional fields may not always be materialized in data.
+   * Keep this `true` for forward/backward compatible schemas where optional
+   * fields may not always be materialized in data.
    */
   allowMissingOptionalFields?: boolean;
 

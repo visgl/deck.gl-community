@@ -6,9 +6,13 @@ import {
   buildTraceProcessSpanRefTables,
   toTraceSpanArrowRow
 } from '../ingestion/arrow-trace';
-import {buildJSONTrace, materializeJSONTrace} from '../ingestion/json-trace';
+import {buildJSONTrace} from '../ingestion/json-trace';
 import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
 import {TraceGraph} from '../trace-graph/trace-graph';
+import {
+  getRequiredThreadRef,
+  getRequiredVisibleLocalDependencyRefById
+} from '../trace-graph/trace-graph-test-utils';
 import {
   encodeChunkRef,
   encodeProcessRef,
@@ -20,10 +24,8 @@ import {
   rebuildTraceLayoutGeometry as rebuildRuntimeTraceLayoutGeometry
 } from '../trace-layout/trace-geometry-layout';
 import * as traceGeometryLayoutCommon from '../trace-layout/trace-geometry-layout-common';
+import {buildVisibleTraceGraph} from '../trace-layout/trace-geometry-layout-helpers';
 import {
-  createTraceLayoutGeometryColumn,
-  deserializeTraceGraphCollapseState,
-  fillTraceLayoutCrossDependencyGeometry,
   fillTraceLayoutLocalDependencyGeometry,
   fillTraceLayoutSpanGeometry,
   getTraceLayoutSpanVisibility,
@@ -32,11 +34,10 @@ import {
 } from '../trace-layout/trace-layout';
 
 import type {JSONTrace} from '../ingestion/json-trace';
+import type {ThreadRef} from '../trace-graph/trace-id-encoder';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
 import type {
   SpanRef,
-  TraceCrossProcessDependency,
-  TraceCrossProcessEndpointId,
   TraceDependencyId,
   TraceProcess,
   TraceProcessId,
@@ -45,12 +46,7 @@ import type {
   TraceThread,
   TraceThreadId
 } from '../trace-graph/trace-types';
-import type {
-  ProcessLayout,
-  ThreadLayout,
-  TraceLayout,
-  TraceLayoutCollapseState
-} from '../trace-layout/trace-layout';
+import type {ProcessLayout, ThreadLayout, TraceLayout} from '../trace-layout/trace-layout';
 
 function createTestTraceGraph(
   traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
@@ -76,11 +72,6 @@ function getRequiredProcessRef(traceGraph: TraceGraph, processId: string) {
 
 describe('buildTraceLayouts', () => {
   type TestTraceGraphSource = Parameters<typeof buildRuntimeTraceLayouts>[0]['traceGraphs'][number];
-  type TestCollapseIdInputs = {
-    collapsedProcessIds?: ReadonlySet<string>;
-    expandedThreadIds?: ReadonlySet<TraceThreadId>;
-    collapsedThreadIds?: ReadonlySet<TraceThreadId>;
-  };
 
   function normalizeTraceGraphSource(
     traceGraph: JSONTrace | TestTraceGraphSource
@@ -93,47 +84,14 @@ describe('buildTraceLayouts', () => {
   }
 
   function buildTraceLayouts(
-    params: Omit<Parameters<typeof buildRuntimeTraceLayouts>[0], 'traceGraphs'> &
-      TestCollapseIdInputs & {
-        traceGraphs: ReadonlyArray<JSONTrace | TestTraceGraphSource>;
-      }
-  ) {
-    const {collapsedProcessIds, collapsedThreadIds, expandedThreadIds, traceGraphs, ...options} =
-      params;
-    const normalizedTraceGraphs = traceGraphs.map(normalizeTraceGraphSource);
-    return buildRuntimeTraceLayouts({
-      ...options,
-      collapseState:
-        options.collapseState ??
-        buildTestCollapseState(normalizedTraceGraphs, {
-          collapsedProcessIds,
-          collapsedThreadIds,
-          expandedThreadIds
-        }),
-      traceGraphs: normalizedTraceGraphs
-    });
-  }
-
-  function buildTestCollapseState(
-    traceGraphs: readonly TestTraceGraphSource[],
-    inputs: TestCollapseIdInputs
-  ): TraceLayoutCollapseState | undefined {
-    if (
-      inputs.collapsedProcessIds === undefined &&
-      inputs.collapsedThreadIds === undefined &&
-      inputs.expandedThreadIds === undefined
-    ) {
-      return undefined;
+    params: Omit<Parameters<typeof buildRuntimeTraceLayouts>[0], 'traceGraphs'> & {
+      traceGraphs: ReadonlyArray<JSONTrace | TestTraceGraphSource>;
     }
-    return {
-      graphs: traceGraphs.map(traceGraph =>
-        deserializeTraceGraphCollapseState(createTestTraceGraph(traceGraph), {
-          collapsedProcessIds: [...(inputs.collapsedProcessIds ?? [])],
-          collapsedThreadIds: [...(inputs.collapsedThreadIds ?? [])],
-          expandedThreadIds: [...(inputs.expandedThreadIds ?? [])]
-        })
-      )
-    };
+  ) {
+    return buildRuntimeTraceLayouts({
+      ...params,
+      traceGraphs: params.traceGraphs.map(normalizeTraceGraphSource)
+    });
   }
 
   function rebuildTraceLayoutGeometry(
@@ -162,6 +120,47 @@ describe('buildTraceLayouts', () => {
     return layout.traceGraph!;
   }
 
+  /** Returns one required runtime thread layout by fixture thread id. */
+  function getLayoutThread(layout: TraceLayout, threadId: TraceThreadId): ThreadLayout {
+    const threadRef = getRequiredThreadRef(requireTraceGraph(layout), threadId);
+    const threadLayout = layout.threadLayoutMapByRef.get(threadRef);
+    if (!threadLayout) {
+      throw new Error(`Expected thread layout for ${threadId}`);
+    }
+    return threadLayout;
+  }
+
+  /** Builds exact thread-ref layout lookup for hand-authored layout fixtures. */
+  function buildThreadLayoutMapByRef(
+    traceGraph: TraceGraph,
+    processLayouts: readonly ProcessLayout[]
+  ): ReadonlyMap<ThreadRef, ThreadLayout> {
+    const threadLayoutMapByRef = new Map<ThreadRef, ThreadLayout>();
+    for (const [processIndex, process] of buildVisibleTraceGraph(traceGraph).processes.entries()) {
+      const processLayout = processLayouts[processIndex];
+      if (!processLayout) {
+        continue;
+      }
+      for (const [threadIndex, threadRef] of process.threadRefs.entries()) {
+        const threadLayout =
+          processLayout.threadLayouts.length === 1
+            ? processLayout.threadLayouts[0]
+            : processLayout.threadLayouts[threadIndex];
+        if (threadLayout) {
+          threadLayoutMapByRef.set(threadRef, threadLayout);
+        }
+      }
+    }
+    return threadLayoutMapByRef;
+  }
+
+  /** Builds exact process-ref layout lookup for hand-authored layout fixtures. */
+  function buildProcessLayoutMapByRef(
+    processLayouts: readonly ProcessLayout[]
+  ): ReadonlyMap<ReturnType<typeof getRequiredProcessRef>, ProcessLayout> {
+    return new Map(processLayouts.map(processLayout => [processLayout.processRef, processLayout]));
+  }
+
   function getSpanGeometry(
     layout: TraceLayout,
     spanId: TraceSpanId
@@ -185,30 +184,15 @@ describe('buildTraceLayouts', () => {
     layout: TraceLayout,
     dependencyId: TraceDependencyId
   ): Float32Array | undefined {
-    const dependencyRef = requireTraceGraph(layout).getVisibleLocalDependencyRefById(dependencyId);
+    const dependencyRef = getRequiredVisibleLocalDependencyRefById(
+      requireTraceGraph(layout),
+      dependencyId
+    );
     if (dependencyRef == null) {
       return undefined;
     }
     const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
     return fillTraceLayoutLocalDependencyGeometry({
-      traceLayout: layout,
-      dependencyRef,
-      target: geometry
-    })
-      ? new Float32Array([geometry.x1, geometry.y1, geometry.x2, geometry.y2])
-      : undefined;
-  }
-
-  function getCrossGeometry(
-    layout: TraceLayout,
-    dependencyId: TraceDependencyId
-  ): Float32Array | undefined {
-    const dependencyRef = requireTraceGraph(layout).getVisibleCrossDependencyRefById(dependencyId);
-    if (dependencyRef == null) {
-      return undefined;
-    }
-    const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
-    return fillTraceLayoutCrossDependencyGeometry({
       traceLayout: layout,
       dependencyRef,
       target: geometry
@@ -271,34 +255,6 @@ describe('buildTraceLayouts', () => {
       localDependencies: [],
       remoteDependencies: []
     } satisfies TraceProcess;
-  }
-
-  function createCrossDependency(params: {
-    dependencyId: TraceDependencyId;
-    startSpanId: TraceSpanId;
-    endSpanId: TraceSpanId;
-    startRankNum: number;
-    endRankNum: number;
-    waitMode?: 'end-to-start' | 'end-to-end' | 'start-to-start';
-    topology?: string;
-    keywords?: Set<string>;
-  }): TraceCrossProcessDependency {
-    return {
-      type: 'trace-cross-process-dependency',
-      dependencyId: params.dependencyId,
-      endpointId: `${params.dependencyId}:endpoint` as TraceCrossProcessEndpointId,
-      startRankNum: params.startRankNum,
-      endRankNum: params.endRankNum,
-      startSpanId: params.startSpanId,
-      endSpanId: params.endSpanId,
-      waitMode: params.waitMode ?? 'start-to-start',
-      bidirectional: false,
-      topology: params.topology ?? 'cross',
-      waitTimeMs: 0,
-      waiting: false,
-      waitNotFinished: false,
-      keywords: params.keywords ?? new Set()
-    };
   }
 
   function createGraph(name: string, processIds: string[]): JSONTrace {
@@ -455,240 +411,6 @@ describe('buildTraceLayouts', () => {
     } satisfies TraceProcess;
   }
 
-  type CombinedThreadDefinition = {
-    threadName: string;
-    spans: Array<{
-      idSuffix: string;
-      start: number;
-      end: number;
-      parentId?: string;
-      traceId?: string | bigint;
-    }>;
-  };
-
-  function createDependencyRank(
-    processId: string,
-    streamDefinitions: CombinedThreadDefinition[]
-  ): TraceProcess {
-    const streamSuffixes = streamDefinitions.map(
-      (_, index) => `${processId}-stream-${index}` as TraceThreadId
-    );
-    const threads: TraceThread[] = streamDefinitions.map((definition, index) => ({
-      type: 'trace-thread',
-      name: definition.threadName,
-      threadId: streamSuffixes[index]!,
-      processId
-    }));
-
-    const spans: TraceSpan[] = [];
-    const blockByLogicalId = new Map<string, TraceSpan>();
-    const pendingDependencies: Array<{
-      spanId: TraceSpanId;
-      parentLogicalId: string;
-    }> = [];
-    const localDependencies: TraceProcess['localDependencies'] = [];
-    const spanMap: Record<string, TraceSpan> = {};
-
-    streamDefinitions.forEach((definition, threadIndex) => {
-      const threadId = streamSuffixes[threadIndex];
-      const thread = threads[threadIndex];
-      if (!threadId) {
-        return;
-      }
-
-      definition.spans.forEach(blockConfig => {
-        const spanId = `${processId}-${thread.threadId}-${blockConfig.idSuffix}` as TraceSpanId;
-        const span: TraceSpan = {
-          type: 'trace-span',
-          spanId,
-          threadId: thread.threadId,
-          processName: processId,
-          name: `${thread.name}-${blockConfig.idSuffix}`,
-          keywords: [],
-          primaryTimingKey: 'test',
-          timings: {
-            test: {
-              status: 'finished',
-              startTimeMs: blockConfig.start,
-              endTimeMs: blockConfig.end,
-              durationMs: blockConfig.end - blockConfig.start,
-              durationMsAsString: `${blockConfig.end - blockConfig.start}ms`
-            }
-          },
-          localDependencyIds: [],
-          localDependencies: [],
-          crossProcessEndpointId: null,
-          crossProcessDependencyEndpoints: [],
-          ...(blockConfig.traceId != null ? {userData: {trace_id: blockConfig.traceId}} : {})
-        };
-        spans.push(span);
-        spanMap[spanId] = span;
-        const threadKey = `${definition.threadName}:${blockConfig.idSuffix}`;
-        blockByLogicalId.set(threadKey, span);
-        if (blockConfig.parentId) {
-          pendingDependencies.push({
-            spanId: span.spanId,
-            parentLogicalId: blockConfig.parentId
-          });
-        }
-      });
-    });
-
-    pendingDependencies.forEach(({spanId, parentLogicalId}) => {
-      const childBlock = spans.find(span => span.spanId === spanId);
-      const parentBlock = blockByLogicalId.get(parentLogicalId);
-      if (!childBlock || !parentBlock) {
-        return;
-      }
-
-      const dependencyId = `${spanId}:dep` as TraceDependencyId;
-      const dependency = {
-        type: 'trace-local-dependency',
-        dependencyId,
-        startSpanId: parentBlock.spanId,
-        endSpanId: childBlock.spanId,
-        keywords: new Set<string>(['PARENT']),
-        waitMode: 'start-to-start',
-        bidirectional: false,
-        waitTimeMs: 0
-      } satisfies TraceProcess['localDependencies'][number];
-
-      childBlock.localDependencyIds.push(dependencyId);
-      localDependencies.push(dependency);
-    });
-
-    return {
-      type: 'trace-process',
-      processId,
-      name: processId,
-      rankNum: 0,
-      stepNum: 0,
-      threads,
-      threadMap: Object.fromEntries(threads.map(thread => [thread.threadId, thread])) as Record<
-        string,
-        TraceThread
-      >,
-      spans,
-      spanMap,
-      instants: [],
-      instantMap: {},
-      threadInstantMap: {},
-      counters: [],
-      counterMap: {},
-      threadCounterMap: {},
-      localDependencies,
-      remoteDependencies: []
-    } satisfies TraceProcess;
-  }
-
-  function createNamedRank(
-    processId: string,
-    blockNames: string[],
-    options?: {sources?: readonly string[]; rankNum?: number}
-  ): TraceProcess {
-    const thread: TraceThread = {
-      type: 'trace-thread',
-      name: `${processId}-stream`,
-      threadId: `${processId}-stream` as TraceThreadId,
-      processId
-    };
-
-    const spans: TraceSpan[] = blockNames.map((name, index) => ({
-      type: 'trace-span',
-      spanId: `${processId}-span-${index}` as TraceSpanId,
-      threadId: thread.threadId,
-      processName: processId,
-      name,
-      keywords: [],
-      primaryTimingKey: 'test',
-      timings: {
-        test: {
-          status: 'finished',
-          startTimeMs: index,
-          endTimeMs: index + 1,
-          durationMs: 1,
-          durationMsAsString: '1ms'
-        }
-      },
-      localDependencyIds: [],
-      localDependencies: [],
-      crossProcessEndpointId: null,
-      crossProcessDependencyEndpoints: [],
-      ...(options?.sources?.[index] !== undefined
-        ? {userData: {source: options.sources[index]!}}
-        : {})
-    }));
-
-    return {
-      type: 'trace-process',
-      processId,
-      name: processId,
-      rankNum: options?.rankNum ?? 0,
-      stepNum: 0,
-      threads: [thread],
-      threadMap: {[thread.threadId]: thread},
-      spans,
-      spanMap: Object.fromEntries(spans.map(span => [span.spanId, span])) as Record<
-        string,
-        TraceSpan
-      >,
-      instants: [],
-      instantMap: {},
-      threadInstantMap: {},
-      counters: [],
-      counterMap: {},
-      threadCounterMap: {},
-      localDependencies: [],
-      remoteDependencies: []
-    } satisfies TraceProcess;
-  }
-
-  function addLocalDependency(
-    rank: TraceProcess,
-    params: {
-      dependencyId: TraceDependencyId;
-      startSpanId: TraceSpanId;
-      endSpanId: TraceSpanId;
-      keywords?: Set<string>;
-    }
-  ): TraceProcess {
-    const localDependency = {
-      type: 'trace-local-dependency',
-      dependencyId: params.dependencyId,
-      startSpanId: params.startSpanId,
-      endSpanId: params.endSpanId,
-      keywords: params.keywords ?? new Set<string>(),
-      waitMode: 'start-to-start',
-      bidirectional: false,
-      waitTimeMs: 0
-    } satisfies TraceProcess['localDependencies'][number];
-
-    return {
-      ...rank,
-      localDependencies: [...rank.localDependencies, localDependency],
-      spans: rank.spans.map(span =>
-        span.spanId === localDependency.startSpanId || span.spanId === localDependency.endSpanId
-          ? {
-              ...span,
-              localDependencyIds: [...span.localDependencyIds, localDependency.dependencyId]
-            }
-          : span
-      ),
-      spanMap: Object.fromEntries(
-        rank.spans.map(span => {
-          const nextBlock =
-            span.spanId === localDependency.startSpanId || span.spanId === localDependency.endSpanId
-              ? {
-                  ...span,
-                  localDependencyIds: [...span.localDependencyIds, localDependency.dependencyId]
-                }
-              : span;
-          return [nextBlock.spanId, nextBlock];
-        })
-      ) as Record<string, TraceSpan>
-    } satisfies TraceProcess;
-  }
-
   const baseSettings: Pick<
     TraceVisSettings,
     | 'showCrossProcessDependencies'
@@ -771,16 +493,11 @@ describe('buildTraceLayouts', () => {
     expect(geometry.x2).toBeGreaterThan(geometry.x1);
     expect(geometry.y2).toBeGreaterThan(geometry.y1);
 
-    const conflictingGeometryChunk = createTraceLayoutGeometryColumn(1);
-    conflictingGeometryChunk.values.set([100, 100, 101, 101], 0);
-    const spanGeometryChunks = [...(layout!.spanGeometryChunks ?? [])];
-    spanGeometryChunks[7] = conflictingGeometryChunk;
-    const conflictingLayout = {...layout!, spanGeometryChunks};
     const resolvedGeometry = {x1: 0, y1: 0, x2: 0, y2: 0};
 
     expect(
       fillTraceLayoutSpanGeometry({
-        traceLayout: conflictingLayout,
+        traceLayout: layout!,
         spanRef: storeSpanRef,
         target: resolvedGeometry
       })
@@ -840,7 +557,10 @@ describe('buildTraceLayouts', () => {
 
     expect(traceGraph.getSpanRefByExternalBlockId(parent.spanId)).toBe(encodeSpanRef(0, 1));
     expect(traceGraph.getSpanRefByExternalBlockId(child.spanId)).toBe(encodeSpanRef(0, 0));
-    const dependencyRef = traceGraph.getVisibleLocalDependencyRefById(dependency.dependencyId);
+    const dependencyRef = getRequiredVisibleLocalDependencyRefById(
+      traceGraph,
+      dependency.dependencyId
+    );
 
     expect(dependencyRef).toBeDefined();
     expect(traceGraph.getVisibleDependencyStartBlockId(dependencyRef!)).toBe(parent.spanId);
@@ -907,8 +627,8 @@ describe('buildTraceLayouts', () => {
     });
     const firstGeometry = getSpanGeometry(layout!, firstSpan.spanId)!;
     const secondGeometry = getSpanGeometry(layout!, secondSpan.spanId)!;
-    const firstThreadLayout = layout!.threadLayoutMap[firstThread.threadId]!;
-    const secondThreadLayout = layout!.threadLayoutMap[secondThread.threadId]!;
+    const firstThreadLayout = getLayoutThread(layout!, firstThread.threadId)!;
+    const secondThreadLayout = getLayoutThread(layout!, secondThread.threadId)!;
 
     expect(requireTraceGraph(layout!).spanLayout).toBe('manual');
     expect(layout!.processLayouts[0]?.threadLayouts).toHaveLength(2);
@@ -974,7 +694,7 @@ describe('buildTraceLayouts', () => {
       traceLayout: layout!,
       spanRef: invalidSpanRef
     });
-    const threadLayout = layout!.threadLayoutMap[thread.threadId]!;
+    const threadLayout = getLayoutThread(layout!, thread.threadId)!;
 
     expect(getSpanGeometry(layout!, validSpan.spanId)).toBeDefined();
     expect(getSpanGeometry(layout!, invalidSpan.spanId)).toBeUndefined();
@@ -1017,65 +737,19 @@ describe('buildTraceLayouts', () => {
       collapsedThreadIds: new Set([threadId])
     });
 
-    expect(collapsedLayout!.threadLayoutMap[threadId]?.visible).toBe(true);
-    expect(collapsedLayout!.threadLayoutMap[threadId]?.manualContentHeight).toBe(
-      expandedLayout!.threadLayoutMap[threadId]?.manualContentHeight
+    expect(getLayoutThread(collapsedLayout!, threadId)?.visible).toBe(true);
+    expect(getLayoutThread(collapsedLayout!, threadId)?.manualContentHeight).toBe(
+      getLayoutThread(expandedLayout!, threadId)?.manualContentHeight
     );
   });
 
-  /**
-   * Returns the vertical center of a rendered span's ref-keyed bbox.
-   */
-  function getBlockGeometryCenterY(
-    layout: ReturnType<typeof buildTraceLayouts>[number],
-    spanId: TraceSpanId
-  ): number {
-    const geometry = getSpanGeometry(layout, spanId);
-    if (!geometry) {
-      throw new Error(`Expected geometry for span ${spanId}`);
-    }
-    return (geometry[1]! + geometry[3]!) / 2;
-  }
-
-  /**
-   * Asserts one cross-dependency geometry terminates on the rendered endpoint span boxes.
-   */
-  function expectCrossDependencyGeometryMatchesEndpointSpans(
-    layout: ReturnType<typeof buildTraceLayouts>[number],
-    dependency: Pick<
-      TraceCrossProcessDependency,
-      'dependencyId' | 'startSpanId' | 'endSpanId' | 'waitMode'
-    >
-  ): void {
-    const geometry = getCrossGeometry(layout, dependency.dependencyId);
-    const startGeometry = getSpanGeometry(layout, dependency.startSpanId);
-    const endGeometry = getSpanGeometry(layout, dependency.endSpanId);
-    expect(geometry).toBeDefined();
-    expect(startGeometry).toBeDefined();
-    expect(endGeometry).toBeDefined();
-
-    const expectedStartX =
-      dependency.waitMode === 'start-to-start' ? startGeometry![0]! : startGeometry![2]!;
-    const expectedEndX = dependency.waitMode === 'end-to-end' ? endGeometry![2]! : endGeometry![0]!;
-    expect(geometry![0]).toBeCloseTo(expectedStartX, 6);
-    expect(geometry![1]).toBeCloseTo(getBlockGeometryCenterY(layout, dependency.startSpanId), 6);
-    expect(geometry![2]).toBeCloseTo(expectedEndX, 6);
-    expect(geometry![3]).toBeCloseTo(getBlockGeometryCenterY(layout, dependency.endSpanId), 6);
-  }
-
-  function expectZeroHeightNavigableGeometry(
+  function expectHiddenSpanToHaveNoRenderGeometry(
     layout: ReturnType<typeof buildTraceLayouts>[number],
     spanRef: SpanRef
-  ): Float32Array {
-    const target = {x1: 0, y1: 0, x2: 0, y2: 0};
-    const geometry = fillTraceLayoutSpanGeometry({traceLayout: layout, spanRef, target})
-      ? new Float32Array([target.x1, target.y1, target.x2, target.y2])
-      : undefined;
-    expect(geometry).toBeDefined();
-    expect(Array.from(geometry!).every(value => Number.isFinite(value))).toBe(true);
-    expect(geometry![2]).toBeGreaterThan(geometry![0]!);
-    expect(geometry![3]).toBe(geometry![1]);
-    return geometry!;
+  ): void {
+    const target = {x1: 1, y1: 1, x2: 1, y2: 1};
+    expect(fillTraceLayoutSpanGeometry({traceLayout: layout, spanRef, target})).toBe(false);
+    expect(target).toEqual({x1: 0, y1: 0, x2: 0, y2: 0});
   }
 
   function summarizeLayoutStructure(layout: ReturnType<typeof buildTraceLayouts>[number]) {
@@ -1092,9 +766,9 @@ describe('buildTraceLayouts', () => {
             laneYPositions: threadLayout.lanes?.laneYPositions ?? []
           })) ?? []
       })),
-      threadLayoutMap: Object.fromEntries(
-        Object.entries(layout.threadLayoutMap).map(([threadId, threadLayout]) => [
-          threadId,
+      threadLayoutMapByRef: Object.fromEntries(
+        [...layout.threadLayoutMapByRef].map(([threadRef, threadLayout]) => [
+          threadRef,
           {
             visible: threadLayout.visible,
             yPosition: threadLayout.yPosition,
@@ -1286,10 +960,13 @@ describe('buildTraceLayouts', () => {
     );
 
     for (const processLayout of layout.processLayouts) {
-      const firstThreadY = Math.min(
-        ...processLayout!.threadLayouts.flatMap(
-          threadLayout => threadLayout.lanes?.laneYPositions ?? [threadLayout.yPosition]
-        )
+      const firstThreadY = processLayout!.threadLayouts.reduce(
+        (minThreadY, threadLayout) =>
+          (threadLayout.lanes?.laneYPositions ?? [threadLayout.yPosition]).reduce(
+            (minLaneY, laneYPosition) => Math.min(minLaneY, laneYPosition),
+            minThreadY
+          ),
+        Infinity
       );
       const expectedLabelY = traceGeometryLayoutCommon.getProcessLabelY({
         yOffset: processLayout!.yOffset,
@@ -1304,8 +981,10 @@ describe('buildTraceLayouts', () => {
 
   it('normalizes applied rank deltas so visible process Y offsets remain non-negative', () => {
     const graph = createGraph('normalize-y', ['rank-1', 'rank-2']);
+    const traceGraph = createRuntimeTraceGraph(graph);
     const processLayouts = [
       {
+        processRef: getRequiredProcessRef(traceGraph, 'rank-1'),
         yOffset: 1,
         yHeight: 1,
         labelY: 1.5,
@@ -1326,6 +1005,7 @@ describe('buildTraceLayouts', () => {
         ]
       } satisfies ProcessLayout,
       {
+        processRef: getRequiredProcessRef(traceGraph, 'rank-2'),
         yOffset: 3,
         yHeight: 1,
         labelY: 3.5,
@@ -1347,13 +1027,11 @@ describe('buildTraceLayouts', () => {
       } satisfies ProcessLayout
     ] as const;
     const layout = {
-      traceGraph: graph as unknown as TraceLayout['traceGraph'],
+      traceGraph,
       processLayouts,
+      processLayoutMapByRef: buildProcessLayoutMapByRef(processLayouts),
       renderRows: [],
-      threadLayoutMap: {
-        [graph.processes[0]!.threads[0]!.threadId]: processLayouts[0]!.threadLayouts[0]!,
-        [graph.processes[1]!.threads[0]!.threadId]: processLayouts[1]!.threadLayouts[0]!
-      },
+      threadLayoutMapByRef: buildThreadLayoutMapByRef(traceGraph, processLayouts),
       overflowLabels: [],
       currentBounds: [
         [0, 0],
@@ -1367,7 +1045,7 @@ describe('buildTraceLayouts', () => {
 
     const translatedLayout = traceGeometryLayoutCommon.applyRankDeltas({
       layout,
-      traceGraph: materializeJSONTrace(graph),
+      traceGraph: buildVisibleTraceGraph(traceGraph),
       rankDeltas: [-2, -2],
       trackAggregationMode: 'separate-threads'
     });
@@ -1394,7 +1072,13 @@ describe('buildTraceLayouts', () => {
           targetPosition: [10, index, 0] as [number, number, number]
         }) satisfies ThreadLayout
     );
+    const traceGraph = createRuntimeTraceGraph(
+      buildJSONTrace([rank], [], {
+        name: 'zero-delta-reuse'
+      })
+    );
     const processLayout = {
+      processRef: getRequiredProcessRef(traceGraph, rank.processId),
       yOffset: 0,
       yHeight: threadLayouts.length,
       labelY: 0,
@@ -1408,14 +1092,11 @@ describe('buildTraceLayouts', () => {
       threadLayouts
     } satisfies ProcessLayout;
     const layout = {
-      traceGraph: buildJSONTrace([rank], [], {
-        name: 'zero-delta-reuse'
-      }) as unknown as TraceLayout['traceGraph'],
+      traceGraph,
       processLayouts: [processLayout],
+      processLayoutMapByRef: buildProcessLayoutMapByRef([processLayout]),
       renderRows: [],
-      threadLayoutMap: Object.fromEntries(
-        rank.threads.map((thread, index) => [thread.threadId, threadLayouts[index]!])
-      ) as Record<TraceThreadId, ThreadLayout>,
+      threadLayoutMapByRef: buildThreadLayoutMapByRef(traceGraph, [processLayout]),
       overflowLabels: [],
       currentBounds: [
         [0, 0],
@@ -1429,13 +1110,13 @@ describe('buildTraceLayouts', () => {
 
     const translatedLayout = traceGeometryLayoutCommon.applyRankDeltas({
       layout,
-      traceGraph: layout.traceGraph,
+      traceGraph: buildVisibleTraceGraph(traceGraph),
       rankDeltas: [0],
       trackAggregationMode: 'separate-threads'
     });
 
-    expect(translatedLayout.threadLayoutMap[rank.threads[0]!.threadId]).toBe(threadLayouts[0]);
-    expect(translatedLayout.threadLayoutMap[rank.threads.at(-1)!.threadId]).toBe(
+    expect(getLayoutThread(translatedLayout, rank.threads[0]!.threadId)).toBe(threadLayouts[0]);
+    expect(getLayoutThread(translatedLayout, rank.threads.at(-1)!.threadId)).toBe(
       threadLayouts.at(-1)
     );
     expect(translatedLayout.processLayouts[0]!.threadLayouts[0]).toBe(threadLayouts[0]);
@@ -1445,21 +1126,23 @@ describe('buildTraceLayouts', () => {
   it('preserves shared combine-thread layouts when applying rank deltas', () => {
     const rank = createRankWithStreams(
       'rank-many-combined-delta',
-      Array.from({length: 2_000}, (_, index) => `Thread ${index}`)
+      Array.from({length: 20_000}, (_, index) => `Thread ${index}`)
     );
     const graph = buildJSONTrace([rank], [], {name: 'combined-delta-reuse'});
+    const traceGraph = createRuntimeTraceGraph(graph);
     const combinedLayout = {
       visible: true,
       yPosition: 1,
       startPosition: [0, 1, 0] as [number, number, number],
       targetPosition: [10, 1, 0] as [number, number, number],
       lanes: {
-        laneCount: 2_000,
+        laneCount: 20_000,
         isCollapsed: false,
-        laneYPositions: Array.from({length: 2_000}, (_, index) => index)
+        laneYPositions: Array.from({length: 20_000}, (_, index) => index)
       }
     } satisfies ThreadLayout;
     const processLayout = {
+      processRef: getRequiredProcessRef(traceGraph, rank.processId),
       yOffset: 1,
       yHeight: 10,
       labelY: 1,
@@ -1473,12 +1156,11 @@ describe('buildTraceLayouts', () => {
       threadLayouts: [combinedLayout]
     } satisfies ProcessLayout;
     const layout = {
-      traceGraph: graph as unknown as TraceLayout['traceGraph'],
+      traceGraph,
       processLayouts: [processLayout],
+      processLayoutMapByRef: buildProcessLayoutMapByRef([processLayout]),
       renderRows: [],
-      threadLayoutMap: Object.fromEntries(
-        rank.threads.map(thread => [thread.threadId, combinedLayout])
-      ) as Record<TraceThreadId, ThreadLayout>,
+      threadLayoutMapByRef: buildThreadLayoutMapByRef(traceGraph, [processLayout]),
       overflowLabels: [],
       currentBounds: [
         [0, 0],
@@ -1490,25 +1172,37 @@ describe('buildTraceLayouts', () => {
       ]
     } satisfies TraceLayout;
 
-    const translatedLayout = traceGeometryLayoutCommon.applyRankDeltas({
-      layout,
-      traceGraph: materializeJSONTrace(graph),
-      rankDeltas: [4],
-      trackAggregationMode: 'combine-threads'
-    });
+    let translatedLayout!: TraceLayout;
+    let threadLayoutMapSetCount = 0;
+    const threadLayoutMapSetSpy = vi.spyOn(Map.prototype, 'set');
+    try {
+      translatedLayout = traceGeometryLayoutCommon.applyRankDeltas({
+        layout,
+        traceGraph: buildVisibleTraceGraph(traceGraph),
+        rankDeltas: [4],
+        trackAggregationMode: 'combine-threads'
+      });
+      threadLayoutMapSetCount = threadLayoutMapSetSpy.mock.instances.filter(
+        threadLayoutMap => threadLayoutMap === translatedLayout.threadLayoutMapByRef
+      ).length;
+    } finally {
+      threadLayoutMapSetSpy.mockRestore();
+    }
     const translatedCombinedLayout = translatedLayout.processLayouts[0]!.threadLayouts[0]!;
 
-    expect(new Set(Object.values(translatedLayout.threadLayoutMap))).toHaveLength(1);
-    expect(translatedLayout.threadLayoutMap[rank.threads[0]!.threadId]).toBe(
+    // Clone source refs once, then rewrite each ref once to the translated shared layout.
+    expect(threadLayoutMapSetCount).toBe(rank.threads.length * 2);
+    expect(new Set(translatedLayout.threadLayoutMapByRef.values())).toHaveLength(1);
+    expect(getLayoutThread(translatedLayout, rank.threads[0]!.threadId)).toBe(
       translatedCombinedLayout
     );
-    expect(translatedLayout.threadLayoutMap[rank.threads.at(-1)!.threadId]).toBe(
+    expect(getLayoutThread(translatedLayout, rank.threads.at(-1)!.threadId)).toBe(
       translatedCombinedLayout
     );
     expect(translatedCombinedLayout).not.toBe(combinedLayout);
     expect(translatedCombinedLayout.yPosition).toBe(5);
     expect(translatedCombinedLayout.lanes?.laneYPositions[0]).toBe(4);
-    expect(translatedCombinedLayout.lanes?.laneYPositions.at(-1)).toBe(2_003);
+    expect(translatedCombinedLayout.lanes?.laneYPositions.at(-1)).toBe(20_003);
   });
 
   it('reuses translated lane positions for distinct combine-thread layouts', () => {
@@ -1517,6 +1211,7 @@ describe('buildTraceLayouts', () => {
       Array.from({length: 2_000}, (_, index) => `Thread ${index}`)
     );
     const graph = buildJSONTrace([rank], [], {name: 'combined-lane-reuse'});
+    const traceGraph = createRuntimeTraceGraph(graph);
     const sharedLaneYPositions = Array.from({length: 2_000}, (_, index) => index);
     const createCombinedThreadLayout = (threadId?: TraceThreadId) =>
       ({
@@ -1533,6 +1228,7 @@ describe('buildTraceLayouts', () => {
       }) satisfies ThreadLayout;
     const combinedLayout = createCombinedThreadLayout();
     const processLayout = {
+      processRef: getRequiredProcessRef(traceGraph, rank.processId),
       yOffset: 1,
       yHeight: 10,
       labelY: 1,
@@ -1545,14 +1241,18 @@ describe('buildTraceLayouts', () => {
       label: rank.name,
       threadLayouts: [combinedLayout]
     } satisfies ProcessLayout;
-    const sourceThreadLayoutMap = Object.fromEntries(
-      rank.threads.map(thread => [thread.threadId, createCombinedThreadLayout(thread.threadId)])
-    ) as Record<TraceThreadId, ThreadLayout>;
+    const sourceThreadLayoutMapByRef = new Map(
+      buildVisibleTraceGraph(traceGraph).processes[0]!.threadRefs.map((threadRef, threadIndex) => [
+        threadRef,
+        createCombinedThreadLayout(rank.threads[threadIndex]!.threadId)
+      ])
+    );
     const layout = {
-      traceGraph: graph as unknown as TraceLayout['traceGraph'],
+      traceGraph,
       processLayouts: [processLayout],
+      processLayoutMapByRef: buildProcessLayoutMapByRef([processLayout]),
       renderRows: [],
-      threadLayoutMap: sourceThreadLayoutMap,
+      threadLayoutMapByRef: sourceThreadLayoutMapByRef,
       overflowLabels: [],
       currentBounds: [
         [0, 0],
@@ -1566,7 +1266,7 @@ describe('buildTraceLayouts', () => {
 
     const translatedLayout = traceGeometryLayoutCommon.applyRankDeltas({
       layout,
-      traceGraph: materializeJSONTrace(graph),
+      traceGraph: buildVisibleTraceGraph(traceGraph),
       rankDeltas: [4],
       trackAggregationMode: 'combine-threads'
     });
@@ -1578,7 +1278,7 @@ describe('buildTraceLayouts', () => {
     expect(translatedLaneYPositions.at(-1)).toBe(2_003);
     expect(
       new Set(
-        Object.values(translatedLayout.threadLayoutMap).map(
+        [...translatedLayout.threadLayoutMapByRef.values()].map(
           threadLayout => threadLayout.lanes?.laneYPositions
         )
       )
@@ -1604,10 +1304,10 @@ describe('buildTraceLayouts', () => {
       expandedLayout.processLayouts[0]!.yHeight,
       6
     );
-    expect(collapsedLayout.threadLayoutMap[threadId]!.visible).toBe(false);
-    expect(collapsedLayout.threadLayoutMap[rank.threads[1]!.threadId]!.visible).toBe(true);
+    expect(getLayoutThread(collapsedLayout, threadId)!.visible).toBe(false);
+    expect(getLayoutThread(collapsedLayout, rank.threads[1]!.threadId)!.visible).toBe(true);
     expect(collapsedLayout.processLayouts[0]!.threadLayouts[0]!.visible).toBe(true);
-    expectZeroHeightNavigableGeometry(
+    expectHiddenSpanToHaveNoRenderGeometry(
       collapsedLayout,
       getLayoutSpanRef(collapsedLayout, rank.spans[0]!.spanId)
     );
@@ -1622,7 +1322,7 @@ describe('buildTraceLayouts', () => {
 
     expect(layout).toBeDefined();
     expect(layout.processLayouts).toEqual([]);
-    expect(layout.threadLayoutMap).toEqual({});
+    expect(layout.threadLayoutMapByRef).toEqual(new Map());
     expect(requireTraceGraph(layout).getVisibleProcessRefs()).toEqual([]);
   });
 
@@ -1686,284 +1386,5 @@ describe('buildTraceLayouts', () => {
 
     expect(summarizeLayoutStructure(reusedLayout)).toEqual(summarizeLayoutStructure(freshLayout));
     calculateTraceLayoutSpy.mockRestore();
-  });
-
-  it('reuses appended-layout span and local-dependency geometry for unchanged processes', () => {
-    const rankA = createDependencyRank('rank-a', [
-      {
-        threadName: 'thread-a',
-        spans: [
-          {idSuffix: 'parent', start: 0, end: 1},
-          {idSuffix: 'child', start: 2, end: 3, parentId: 'thread-a:parent'}
-        ]
-      }
-    ]);
-    const rankB = createDependencyRank('rank-b', [
-      {
-        threadName: 'thread-b',
-        spans: [
-          {idSuffix: 'parent', start: 4, end: 5},
-          {idSuffix: 'child', start: 6, end: 7, parentId: 'thread-b:parent'}
-        ]
-      }
-    ]);
-    const graphWithOneRank = buildJSONTrace([rankA], [], {name: 'geometry-cache-one-rank'});
-    const graphWithTwoRanks = buildJSONTrace([rankA, rankB], [], {
-      name: 'geometry-cache-two-ranks'
-    });
-
-    const [previousLayout] = buildTraceLayouts({
-      traceGraphs: [graphWithOneRank],
-      settings: baseSettings
-    });
-    const [appendedLayout] = buildTraceLayouts({
-      traceGraphs: [graphWithTwoRanks],
-      previousLayouts: [previousLayout],
-      settings: baseSettings
-    });
-
-    const spanId = rankA.spans[0]!.spanId;
-    const dependencyId = rankA.localDependencies[0]!.dependencyId;
-    expect(appendedLayout.geometryCache?.processesById[rankA.processId]).toBe(
-      previousLayout.geometryCache?.processesById[rankA.processId]
-    );
-    expect(getSpanGeometry(appendedLayout, spanId)).toEqual(
-      getSpanGeometry(previousLayout, spanId)
-    );
-    expect(getLayoutLocalDependencyGeometry(appendedLayout, dependencyId)).toEqual(
-      getLayoutLocalDependencyGeometry(previousLayout, dependencyId)
-    );
-    expect(appendedLayout.geometryCache?.processesById[rankB.processId]).toBeDefined();
-  });
-
-  it('translates unchanged process geometry when only graph-level Y placement changes', () => {
-    const rank = createDependencyRank('rank-translated', [
-      {
-        threadName: 'thread-a',
-        spans: [
-          {idSuffix: 'parent', start: 0, end: 1},
-          {idSuffix: 'child', start: 2, end: 3, parentId: 'thread-a:parent'}
-        ]
-      }
-    ]);
-    const graph = buildJSONTrace([rank], [], {name: 'geometry-cache-translated-rank'});
-
-    const [previousLayout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: baseSettings,
-      topPadding: 0
-    });
-    const [translatedLayout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      previousLayouts: [previousLayout],
-      settings: baseSettings,
-      topPadding: 10
-    });
-    const [freshTranslatedLayout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: baseSettings,
-      topPadding: 10
-    });
-
-    const spanId = rank.spans[0]!.spanId;
-    const dependencyId = rank.localDependencies[0]!.dependencyId;
-    expect(translatedLayout.geometryCache?.processesById[rank.processId]).not.toBe(
-      previousLayout.geometryCache?.processesById[rank.processId]
-    );
-    const translatedSpanGeometry = getSpanGeometry(translatedLayout, spanId);
-    const freshTranslatedSpanGeometry = getSpanGeometry(freshTranslatedLayout, spanId);
-    expect(translatedSpanGeometry).toHaveLength(freshTranslatedSpanGeometry?.length ?? 0);
-    translatedSpanGeometry?.forEach((coordinate, index) => {
-      expect(coordinate).toBeCloseTo(freshTranslatedSpanGeometry![index]!, 5);
-    });
-    const translatedDependencyGeometry = getLayoutLocalDependencyGeometry(
-      translatedLayout,
-      dependencyId
-    );
-    const freshTranslatedDependencyGeometry = getLayoutLocalDependencyGeometry(
-      freshTranslatedLayout,
-      dependencyId
-    );
-    expect(translatedDependencyGeometry).toHaveLength(
-      freshTranslatedDependencyGeometry?.length ?? 0
-    );
-    translatedDependencyGeometry?.forEach((coordinate, index) => {
-      expect(coordinate).toBeCloseTo(freshTranslatedDependencyGeometry![index]!, 5);
-    });
-  });
-
-  it('translates slow-reused lower process geometry after expanding an upper process', () => {
-    const upperRank = createDependencyRank('rank-filtered-upper', [
-      {
-        threadName: 'visible-upper-a',
-        spans: [
-          {idSuffix: 'parent', start: 0, end: 20},
-          {idSuffix: 'child', start: 2, end: 4, parentId: 'visible-upper-a:parent'}
-        ]
-      },
-      {
-        threadName: 'visible-upper-b',
-        spans: [
-          {idSuffix: 'parent', start: 1, end: 12},
-          {idSuffix: 'child', start: 1.5, end: 3, parentId: 'visible-upper-b:parent'}
-        ]
-      }
-    ]);
-    upperRank.rankNum = 0;
-    const lowerRank = createDependencyRank('rank-filtered-lower', [
-      {
-        threadName: 'visible-lower',
-        spans: [
-          {idSuffix: 'parent', start: 30, end: 31},
-          {idSuffix: 'child', start: 32, end: 33, parentId: 'visible-lower:parent'}
-        ]
-      }
-    ]);
-    lowerRank.rankNum = 1;
-    const crossDependency = createCrossDependency({
-      dependencyId: 'cross:filtered-upper-lower' as TraceDependencyId,
-      startSpanId: upperRank.spans[0]!.spanId,
-      endSpanId: lowerRank.spans[0]!.spanId,
-      startRankNum: upperRank.rankNum,
-      endRankNum: lowerRank.rankNum
-    });
-    const traceGraph = createRuntimeTraceGraph(
-      buildJSONTrace([upperRank, lowerRank], [crossDependency], {
-        name: 'filtered-slow-reuse-process-expansion'
-      }),
-      {spanFilters: ['hidden-filter-sentinel']}
-    );
-    const filteredSettings = {...baseSettings, spanFilter: 'hidden-filter-sentinel'};
-
-    const [collapsedLayout] = buildTraceLayouts({
-      prebuiltTraceGraphs: [traceGraph],
-      traceGraphs: [traceGraph],
-      settings: filteredSettings,
-      collapsedProcessIds: new Set([upperRank.processId])
-    });
-    const [expandedFromPreviousLayout] = buildTraceLayouts({
-      prebuiltTraceGraphs: [traceGraph],
-      traceGraphs: [traceGraph],
-      previousLayouts: [collapsedLayout],
-      settings: filteredSettings
-    });
-    const [freshExpandedLayout] = buildTraceLayouts({
-      prebuiltTraceGraphs: [traceGraph],
-      traceGraphs: [traceGraph],
-      settings: filteredSettings
-    });
-    const lowerRow = expandedFromPreviousLayout.renderRows.find(
-      row => row.processId === lowerRank.processId
-    );
-    expect(lowerRow).toBeDefined();
-    const lowerLayout = expandedFromPreviousLayout.processLayouts[lowerRow!.rankIndex]!;
-
-    expect(expandedFromPreviousLayout.geometryCache?.processesById[lowerRank.processId]).not.toBe(
-      collapsedLayout.geometryCache?.processesById[lowerRank.processId]
-    );
-    expect(
-      expandedFromPreviousLayout.geometryCache?.processesById[lowerRank.processId]?.geometryYOffset
-    ).toBe(lowerLayout.yOffset);
-    expect(lowerLayout.yOffset).toBeGreaterThan(
-      collapsedLayout.processLayouts[lowerRow!.rankIndex]!.yOffset
-    );
-    const reusedSpanGeometry = getSpanGeometry(
-      expandedFromPreviousLayout,
-      lowerRank.spans[0]!.spanId
-    );
-    const freshSpanGeometry = getSpanGeometry(freshExpandedLayout, lowerRank.spans[0]!.spanId);
-    expect(reusedSpanGeometry).toHaveLength(freshSpanGeometry?.length ?? 0);
-    reusedSpanGeometry?.forEach((coordinate, index) => {
-      expect(coordinate).toBeCloseTo(freshSpanGeometry![index]!, 5);
-    });
-    const reusedDependencyGeometry = getLayoutLocalDependencyGeometry(
-      expandedFromPreviousLayout,
-      lowerRank.localDependencies[0]!.dependencyId
-    );
-    const freshDependencyGeometry = getLayoutLocalDependencyGeometry(
-      freshExpandedLayout,
-      lowerRank.localDependencies[0]!.dependencyId
-    );
-    expect(reusedDependencyGeometry).toHaveLength(freshDependencyGeometry?.length ?? 0);
-    reusedDependencyGeometry?.forEach((coordinate, index) => {
-      expect(coordinate).toBeCloseTo(freshDependencyGeometry![index]!, 5);
-    });
-    const reusedCrossGeometry = getCrossGeometry(
-      expandedFromPreviousLayout,
-      crossDependency.dependencyId
-    );
-    const freshCrossGeometry = getCrossGeometry(freshExpandedLayout, crossDependency.dependencyId);
-    expect(reusedCrossGeometry).toHaveLength(freshCrossGeometry?.length ?? 0);
-    reusedCrossGeometry?.forEach((coordinate, index) => {
-      expect(coordinate).toBeCloseTo(freshCrossGeometry![index]!, 5);
-    });
-    expectCrossDependencyGeometryMatchesEndpointSpans(expandedFromPreviousLayout, crossDependency);
-  });
-
-  it('translates unchanged process geometry when graph-level minimum time changes', () => {
-    const rank = createDependencyRank('rank-translated-x', [
-      {
-        threadName: 'thread-a',
-        spans: [
-          {idSuffix: 'parent', start: 10, end: 11},
-          {idSuffix: 'child', start: 12, end: 13, parentId: 'thread-a:parent'}
-        ]
-      }
-    ]);
-    const graph = buildJSONTrace([rank], [], {name: 'geometry-cache-translated-x-rank'});
-
-    const [previousLayout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: baseSettings,
-      minTimeMs: 10
-    });
-    const [translatedLayout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      previousLayouts: [previousLayout],
-      settings: baseSettings,
-      minTimeMs: 8
-    });
-    const [freshTranslatedLayout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: baseSettings,
-      minTimeMs: 8
-    });
-
-    const spanId = rank.spans[0]!.spanId;
-    const dependencyId = rank.localDependencies[0]!.dependencyId;
-    expect(translatedLayout.geometryCache?.processesById[rank.processId]).not.toBe(
-      previousLayout.geometryCache?.processesById[rank.processId]
-    );
-    expect(translatedLayout.geometryCache?.processesById[rank.processId]?.geometryXOffset).toBe(-8);
-    expect(getSpanGeometry(translatedLayout, spanId)).toEqual(
-      getSpanGeometry(freshTranslatedLayout, spanId)
-    );
-    expect(getLayoutLocalDependencyGeometry(translatedLayout, dependencyId)).toEqual(
-      getLayoutLocalDependencyGeometry(freshTranslatedLayout, dependencyId)
-    );
-  });
-
-  it('keeps process geometry reuse keys compact for large processes', () => {
-    let rank = createNamedRank(
-      'rank-large-geometry-reuse-key',
-      Array.from({length: 256}, (_, index) => `span-${index}`)
-    );
-    for (let index = 1; index < rank.spans.length; index += 1) {
-      rank = addLocalDependency(rank, {
-        dependencyId: `dep-${index}` as TraceDependencyId,
-        startSpanId: rank.spans[index - 1]!.spanId,
-        endSpanId: rank.spans[index]!.spanId
-      });
-    }
-
-    const graph = buildJSONTrace([rank], [], {name: 'large-geometry-reuse-key'});
-    const [layout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: baseSettings
-    });
-
-    const processGeometry = layout.geometryCache?.processesById[rank.processId];
-    expect(processGeometry).toBeDefined();
-    expect(processGeometry?.reuseKey.length).toBeLessThan(256);
   });
 });

@@ -437,6 +437,7 @@ export function TraceSpanCard(props: TraceSpanCardProps) {
         configuration.endpointsWithDeps.length > 0 && (
           <TraceSpanCrossDependenciesHorizontal
             endpointsWithDeps={configuration.endpointsWithDeps}
+            endpointCount={configuration.endpointDependencyCount}
             maxRanks={6}
             onRankClick={props.onRankClick}
             onNavigateToBlock={props.onNavigateToBlock}
@@ -656,7 +657,7 @@ function TraceSpanCrossRankSection(props: TraceSpanCrossRankSectionProps): React
         <TraceSpanCommPill
           traceLabels={configuration.traceLabels}
           operation={configuration.operation}
-          processCount={configuration.endpointsWithDeps.length + 1}
+          processCount={configuration.endpointDependencyCount + 1}
           durationMs={configuration.blockTiming.durationMs}
           recvBytes={
             typeof configuration.recvBytes === 'number' && configuration.recvBytes >= 0
@@ -674,10 +675,10 @@ function TraceSpanCrossRankSection(props: TraceSpanCrossRankSectionProps): React
           <Badge variant="outline" className="my-px rounded-xl py-px text-foreground">
             COMM OP &nbsp;<b>{configuration.operation}</b>&nbsp;
           </Badge>
-          {configuration.endpointsWithDeps.length > 0 && (
+          {configuration.endpointDependencyCount > 0 && (
             <Badge variant="outline" className="my-px rounded-xl py-px text-foreground">
               # {configuration.traceLabels.processLabelPlural}:{' '}
-              <b>{configuration.endpointsWithDeps.length + 1}</b>
+              <b>{configuration.endpointDependencyCount + 1}</b>
             </Badge>
           )}
           {configuration.topology && (
@@ -772,6 +773,10 @@ type TraceSpanDependencyTabPropsBuilderParams = {
   configuration: TraceSpanCardConfiguration;
   /** Dependency rows to render for the current visibility mode. */
   dependencies: TraceSpanCardConfiguration['inDependencies'];
+  /** Total directional dependency count before card row capping. */
+  dependencyCount: number;
+  /** Whether directional dependency rows were capped before card render. */
+  dependenciesTruncated: boolean;
   /** Directional peer span rendered by each dependency row. */
   direction: 'incoming' | 'outgoing';
   /** Filtered graph wrapper used by the dependency table. */
@@ -924,10 +929,12 @@ function getTraceSpanDependencyTabProps(
 
   return {
     dependencies: params.dependencies,
+    dependencyCount: params.dependencyCount,
+    dependenciesTruncated: params.dependenciesTruncated,
     direction: params.direction,
     currentSpan: params.configuration.span,
     parentChain: params.parentChain,
-    parentIndexBySpanId: params.configuration.parentIndexBySpanId,
+    parentIndexBySpanRef: params.configuration.parentIndexBySpanRef,
     metricColumns: params.dependencyMetricColumns,
     spanVisibilityControl: params.spanVisibilityControl,
     filterLabel: params.filterLabel,
@@ -995,6 +1002,8 @@ function createTraceSpanTabDefinitions(
   const visibleDependencyTabProps = getTraceSpanDependencyTabProps({
     configuration: params.configuration,
     dependencies: params.configuration.inDependencies,
+    dependencyCount: params.configuration.inDependencyCount,
+    dependenciesTruncated: params.configuration.inDependenciesTruncated,
     direction: 'incoming',
     parentChain: params.configuration.visibleParentChain,
     traceGraph: params.traceGraph,
@@ -1012,6 +1021,8 @@ function createTraceSpanTabDefinitions(
   const fullDependencyTabProps = getTraceSpanDependencyTabProps({
     configuration: params.configuration,
     dependencies: params.configuration.fullInDependencies,
+    dependencyCount: params.configuration.fullInDependencyCount,
+    dependenciesTruncated: params.configuration.fullInDependenciesTruncated,
     direction: 'incoming',
     parentChain: params.configuration.fullParentChain,
     traceGraph: params.traceGraph,
@@ -1029,6 +1040,8 @@ function createTraceSpanTabDefinitions(
   const visibleOutgoingDependencyTabProps = getTraceSpanDependencyTabProps({
     configuration: params.configuration,
     dependencies: params.configuration.outDependencies,
+    dependencyCount: params.configuration.outDependencyCount,
+    dependenciesTruncated: params.configuration.outDependenciesTruncated,
     direction: 'outgoing',
     parentChain: [],
     traceGraph: params.traceGraph,
@@ -1045,6 +1058,8 @@ function createTraceSpanTabDefinitions(
   const fullOutgoingDependencyTabProps = getTraceSpanDependencyTabProps({
     configuration: params.configuration,
     dependencies: params.configuration.fullOutDependencies,
+    dependencyCount: params.configuration.fullOutDependencyCount,
+    dependenciesTruncated: params.configuration.fullOutDependenciesTruncated,
     direction: 'outgoing',
     parentChain: [],
     traceGraph: params.traceGraph,
@@ -1172,6 +1187,7 @@ function createTraceSpanTabDefinitions(
           {params.configuration.endpointsWithDeps.length > 0 ? (
             <TraceSpanCrossDependenciesHorizontal
               endpointsWithDeps={params.configuration.endpointsWithDeps}
+              endpointCount={params.configuration.endpointDependencyCount}
               maxRanks={6}
               onRankClick={params.onRankClick}
               onNavigateToBlock={params.onNavigateToBlock}

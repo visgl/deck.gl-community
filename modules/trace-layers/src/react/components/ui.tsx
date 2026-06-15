@@ -21,7 +21,7 @@ export function Badge({
   );
 }
 
-/** Minimal checkbox primitive with a boolean checked-change callback. */
+/** Minimal checkbox primitive with a boolean change callback shape. */
 export function Checkbox({
   checked,
   onCheckedChange,
@@ -84,7 +84,7 @@ export function AccordionContent(props: HTMLAttributes<HTMLDivElement>) {
   return <div {...props}>{props.children}</div>;
 }
 
-/** Minimal tabs root wrapper with an optional value-change callback. */
+/** Minimal tabs root wrapper with a controlled value callback shape. */
 export function Tabs({
   children,
   value,

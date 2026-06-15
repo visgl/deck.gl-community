@@ -1,9 +1,14 @@
 import {describe, expect, it, vi} from 'vitest';
 
-import {ImperativeDeckController} from './deck-controller';
+import {
+  DeckController,
+  deckController,
+  ImperativeDeckController,
+  imperativeDeckController
+} from './deck-controller';
 
 import type {SpanRef} from '../../trace/index';
-import type {ImperativeDeckControllerTarget} from './deck-controller';
+import type {DeckControllerTarget, ImperativeDeckControllerTarget} from './deck-controller';
 
 /** Creates a controller target stub for delegation tests. */
 function createImperativeDeckControllerTarget(): ImperativeDeckControllerTarget {
@@ -102,5 +107,13 @@ describe('ImperativeDeckController', () => {
 
     expect(firstTarget.expandAllProcesses).not.toHaveBeenCalled();
     expect(secondTarget.expandAllProcesses).toHaveBeenCalledWith(false);
+  });
+
+  it('keeps the old controller exports as compatibility aliases', () => {
+    const compatibilityTarget: DeckControllerTarget = createImperativeDeckControllerTarget();
+
+    expect(DeckController).toBe(ImperativeDeckController);
+    expect(deckController).toBe(imperativeDeckController);
+    expect(compatibilityTarget).toBeTruthy();
   });
 });

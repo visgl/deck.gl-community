@@ -1,7 +1,7 @@
 import * as arrow from 'apache-arrow';
 import {afterEach, describe, expect, expectTypeOf, it, vi} from 'vitest';
 
-import {log} from '../react/utils/log';
+import {log} from '../trace/log';
 import {IndexedArrowTable} from './indexed-arrow-table';
 import {MappedArrowTable} from './mapped-arrow-table';
 

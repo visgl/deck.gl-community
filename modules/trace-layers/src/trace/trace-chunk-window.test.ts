@@ -18,6 +18,7 @@ import {
   searchTraceChunkStoreSpans
 } from './trace-chunk-window';
 import {getTraceGraphSpanDisplaySource} from './trace-graph-accessors';
+import {TraceGraph} from './trace-graph/trace-graph';
 import {TRACE_SPAN_FILTER_MASK_SOURCE} from './trace-graph/trace-graph-types';
 import {
   encodeProcessRef,
@@ -69,19 +70,19 @@ describe('Trace chunks', () => {
       })
     ]);
     const {store, loadChunkCalls} = await createLoadedStore(payload);
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
 
     const storeResults = store.searchSpans({
-      traceGraph: snapshot.traceGraph,
+      traceGraph,
       matchesSearchText: searchText => searchText.includes('target_file.py'),
       limit: 50
     });
     const results = searchHiddenTraceChunkSpans({
       traceChunkStore: store,
-      traceGraph: snapshot.traceGraph,
+      traceGraph,
       matchesQuery: searchText => searchText.includes('target_file.py'),
       limit: 50
     });
@@ -95,12 +96,10 @@ describe('Trace chunks', () => {
         state: 'outside-window'
       })
     });
-    expect(snapshot.traceGraph.getTraceSpanCardModel(storeResults[0]!.spanRef)?.span.name).toBe(
+    expect(traceGraph.getTraceSpanCardModel(storeResults[0]!.spanRef)?.span.name).toBe(
       'hidden-target'
     );
-    expect(
-      snapshot.traceGraph.getTraceSpanFilterNavigation(storeResults[0]!.spanRef)
-    ).toMatchObject({
+    expect(traceGraph.getTraceSpanFilterNavigation(storeResults[0]!.spanRef)).toMatchObject({
       reasonLabel: 'Hidden by: time window'
     });
     expect(results).toHaveLength(1);
@@ -109,9 +108,7 @@ describe('Trace chunks', () => {
       source: 'target_file.py:30',
       reasonLabel: 'Hidden by: time window'
     });
-    expect(
-      snapshot.traceGraph.spanFilterReason(encodeTestSpanRef(results[0]!.rowIndex))
-    ).toMatchObject({
+    expect(traceGraph.spanFilterReason(encodeTestSpanRef(results[0]!.rowIndex))).toMatchObject({
       isFiltered: true,
       state: 'outside-window'
     });
@@ -125,20 +122,20 @@ describe('Trace chunks', () => {
       })
     ]);
     const {store, loadChunkCalls} = await createLoadedStore(payload);
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
     await store.refreshDescriptors([createDescriptor(), createDescriptor('unloaded-chunk')]);
 
     const methodResults = store.searchSpans({
-      traceGraph: snapshot.traceGraph,
+      traceGraph,
       matchesSearchText: searchText => searchText.includes('target'),
       limit: 50
     });
     const helperResults = searchTraceChunkStoreSpans({
       traceChunkStore: store,
-      traceGraph: snapshot.traceGraph,
+      traceGraph,
       matchesSearchText: searchText => searchText.includes('target'),
       limit: 50
     });
@@ -166,8 +163,8 @@ describe('Trace chunks', () => {
 
     expect(store.setSourceSpanFilters(['projects/runtime/runtime-crates'])).toBe(true);
     expect(store.getLoadedChunk('test-chunk')).toBe(loadedChunkBeforeFilter);
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
 
@@ -175,34 +172,32 @@ describe('Trace chunks', () => {
     const outsideSpanRef = encodeTestSpanRef(1);
     const hiddenResults = searchHiddenTraceChunkSpans({
       traceChunkStore: store,
-      traceGraph: snapshot.traceGraph,
+      traceGraph,
       matchesQuery: searchText => searchText.includes('outside-target'),
       limit: 50
     });
 
-    expect(snapshot.traceGraphData.chunks[0]?.spanTable).toBe(payload.spanTable);
-    expect(snapshot.traceGraphData.chunks[0]?.spanSidecarRows).toBe(payload.spanSidecarRows);
-    expect(snapshot.traceGraphData.spanRefs).toEqual([visibleSpanRef]);
+    expect(traceGraph.chunks[0]?.spanTable).toBe(payload.spanTable);
+    expect(traceGraph.chunks[0]?.spanSidecarRows).toBe(payload.spanSidecarRows);
+    expect(traceGraph.spanRefs).toEqual([visibleSpanRef]);
     expect(
       Array.from(
-        snapshot.traceGraphData.processSpanTableMap['test-process' as TraceProcessId]
+        traceGraph.processSpanTableMap['test-process' as TraceProcessId]
           ?.getChild('span_ref')
           ?.toArray() ?? []
       )
     ).toEqual([visibleSpanRef]);
     expect(store.getFilterReason(visibleSpanRef).filterMask).toBe(TRACE_SPAN_FILTER_MASK_SOURCE);
     expect(loadChunkCalls).toBe(1);
-    expect(snapshot.traceGraph.spanFilterReason(visibleSpanRef)).toMatchObject({
+    expect(traceGraph.spanFilterReason(visibleSpanRef)).toMatchObject({
       filterMask: TRACE_SPAN_FILTER_MASK_SOURCE,
       isFiltered: true,
       state: 'filtered'
     });
     expect(
-      snapshot.traceGraph
-        .getVisibleProcessDisplaySources(encodeProcessRef(0))
-        .map(span => span.name)
+      traceGraph.getVisibleProcessDisplaySources(encodeProcessRef(0)).map(span => span.name)
     ).toEqual([]);
-    expect(snapshot.traceGraph.spanFilterReason(outsideSpanRef)).toMatchObject({
+    expect(traceGraph.spanFilterReason(outsideSpanRef)).toMatchObject({
       filterMask: TRACE_SPAN_FILTER_MASK_SOURCE,
       isFiltered: true,
       state: 'outside-window'
@@ -227,13 +222,13 @@ describe('Trace chunks', () => {
       })
     ]);
     const {store} = await createLoadedStore(payload);
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
     const [result] = searchHiddenTraceChunkSpans({
       traceChunkStore: store,
-      traceGraph: snapshot.traceGraph,
+      traceGraph,
       matchesQuery: searchText => searchText.includes('hidden-target'),
       limit: 50
     });
@@ -244,25 +239,23 @@ describe('Trace chunks', () => {
     const navigation = resolveHiddenTraceChunkSpanNavigation({
       result,
       traceChunkStore: store,
-      traceGraph: snapshot.traceGraph
+      traceGraph
     });
-    const genericNavigation = snapshot.traceGraph.getTraceSpanFilterNavigation(
+    const genericNavigation = traceGraph.getTraceSpanFilterNavigation(
       encodeTestSpanRef(result.rowIndex)
     );
     const inspectorModel = buildHiddenTraceChunkSpanInspectorGraph(result);
 
-    expect(readSpanName(snapshot.traceGraph, navigation.visibleAncestorSpanRef)).toBe(
-      'visible-ancestor'
-    );
-    expect(readSpanName(snapshot.traceGraph, navigation.visibleDescendantSpanRef)).toBe(
+    expect(readSpanName(traceGraph, navigation.visibleAncestorSpanRef)).toBe('visible-ancestor');
+    expect(readSpanName(traceGraph, navigation.visibleDescendantSpanRef)).toBe(
       'visible-descendant'
     );
-    expect(
-      readSpanName(snapshot.traceGraph, genericNavigation?.visibleAncestorSpanRef ?? null)
-    ).toBe('visible-ancestor');
-    expect(
-      readSpanName(snapshot.traceGraph, genericNavigation?.visibleDescendantSpanRef ?? null)
-    ).toBe('visible-descendant');
+    expect(readSpanName(traceGraph, genericNavigation?.visibleAncestorSpanRef ?? null)).toBe(
+      'visible-ancestor'
+    );
+    expect(readSpanName(traceGraph, genericNavigation?.visibleDescendantSpanRef ?? null)).toBe(
+      'visible-descendant'
+    );
     expect(
       getTraceGraphSpanDisplaySource(inspectorModel.traceGraph, inspectorModel.spanRef)?.name
     ).toBe('hidden-target');
@@ -279,24 +272,25 @@ describe('Trace chunks', () => {
       }
     );
     const {store} = await createLoadedStore(payload);
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
-    const childSpanRef = snapshot.traceGraph.getSpanRefByExternalBlockId('child' as TraceSpanId);
+    const childSpanRef = traceGraph.getSpanRefByExternalBlockId('child' as TraceSpanId);
     if (childSpanRef == null) {
       throw new Error('Expected child span ref');
     }
 
-    const selection = snapshot.traceGraph.getTraceSpanDependencySelection(childSpanRef, {
+    const selection = traceGraph.getTraceSpanDependencySelection(childSpanRef, {
       keywords: new Set(['PARENT'])
     });
-    const parentChainEntries = snapshot.traceGraph.getTraceSpanParentChainEntries(childSpanRef);
+    const parentChainEntries = traceGraph.getTraceSpanParentChainEntries(childSpanRef);
 
     expect(selection.visibleLocalDependencyRefs).toHaveLength(2);
-    expect(
-      selection.parentSpanRefs.map(spanRef => readSpanName(snapshot.traceGraph, spanRef))
-    ).toEqual(['parent-a', 'parent-b']);
+    expect(selection.parentSpanRefs.map(spanRef => readSpanName(traceGraph, spanRef))).toEqual([
+      'parent-a',
+      'parent-b'
+    ]);
     expect(
       parentChainEntries.map(entry => ({
         chainIndex: entry.chainIndex,
@@ -313,11 +307,10 @@ describe('Trace chunks', () => {
       createDescriptor('early-selected-chunk', {sortStartTimeMs: 0}),
       createDescriptor('late-selected-chunk', {sortStartTimeMs: 1})
     ];
-    const store = new TraceChunkStore<TraceChunk, TestDescriptor, null>({
+    const store = new TraceChunkStore<TraceChunk, TestDescriptor>({
       identityKey: 'chunk-test',
       descriptors,
-      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>(),
-      windowGraphMaterializer: createTestMaterializer()
+      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>()
     });
 
     store.add(
@@ -341,9 +334,9 @@ describe('Trace chunks', () => {
       }
     });
 
-    const snapshot = store.getTraceGraphForWindow('active', null);
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
     expect(
-      snapshot?.traceGraph.getThreadSourcesByProcessRef(encodeProcessRef(0)).map(thread => ({
+      traceGraph?.getThreadSourcesByProcessRef(encodeProcessRef(0)).map(thread => ({
         threadId: thread.threadId,
         name: thread.name
       }))
@@ -352,9 +345,7 @@ describe('Trace chunks', () => {
       {threadId: 'thread-two', name: 'thread-two'}
     ]);
     expect(
-      snapshot?.traceGraph
-        .getVisibleProcessDisplaySources(encodeProcessRef(0))
-        .map(span => span.name)
+      traceGraph?.getVisibleProcessDisplaySources(encodeProcessRef(0)).map(span => span.name)
     ).toEqual(['early-row', 'late-row']);
   });
 
@@ -363,11 +354,10 @@ describe('Trace chunks', () => {
       createDescriptor('same-process-a', {sortStartTimeMs: 0}),
       createDescriptor('same-process-b', {sortStartTimeMs: 1})
     ];
-    const store = new TraceChunkStore<TraceChunk, TestDescriptor, null>({
+    const store = new TraceChunkStore<TraceChunk, TestDescriptor>({
       identityKey: 'chunk-test',
       descriptors,
-      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>(),
-      windowGraphMaterializer: createTestMaterializer()
+      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>()
     });
 
     store.add(
@@ -387,21 +377,19 @@ describe('Trace chunks', () => {
       }
     });
 
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
     const searchResults = store.searchSpans({
-      traceGraph: snapshot.traceGraph,
+      traceGraph,
       matchesSearchText: searchText => searchText.includes('same-process'),
       limit: 10
     });
 
-    expect(snapshot.traceGraphData.spanRefs).toEqual([encodeSpanRef(0, 0), encodeSpanRef(1, 0)]);
+    expect(traceGraph.spanRefs).toEqual([encodeSpanRef(0, 0), encodeSpanRef(1, 0)]);
     expect(
-      snapshot.traceGraph
-        .getVisibleProcessDisplaySources(encodeProcessRef(0))
-        .map(span => span.name)
+      traceGraph.getVisibleProcessDisplaySources(encodeProcessRef(0)).map(span => span.name)
     ).toEqual(['same-process-a', 'same-process-b']);
     expect(searchResults.map(record => record.blockName)).toEqual([
       'same-process-a',
@@ -414,11 +402,10 @@ describe('Trace chunks', () => {
       createDescriptor('registered-late', {sortStartTimeMs: 20}),
       createDescriptor('registered-early', {sortStartTimeMs: 10})
     ];
-    const store = new TraceChunkStore<TraceChunk, TestDescriptor, null>({
+    const store = new TraceChunkStore<TraceChunk, TestDescriptor>({
       identityKey: 'chunk-test',
       descriptors,
-      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>(),
-      windowGraphMaterializer: createTestMaterializer()
+      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>()
     });
 
     store.add(
@@ -438,17 +425,15 @@ describe('Trace chunks', () => {
       }
     });
 
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
 
-    expect(snapshot.traceGraphData.chunks.map(chunk => chunk.chunkIndex)).toEqual([0, 1]);
-    expect(snapshot.traceGraphData.spanRefs).toEqual([encodeSpanRef(0, 0), encodeSpanRef(1, 0)]);
+    expect(traceGraph.chunks.map(chunk => chunk.chunkIndex)).toEqual([0, 1]);
+    expect(traceGraph.spanRefs).toEqual([encodeSpanRef(0, 0), encodeSpanRef(1, 0)]);
     expect(
-      snapshot.traceGraph
-        .getVisibleProcessDisplaySources(encodeProcessRef(0))
-        .map(span => span.name)
+      traceGraph.getVisibleProcessDisplaySources(encodeProcessRef(0)).map(span => span.name)
     ).toEqual(['registered-late', 'registered-early']);
   });
 
@@ -457,11 +442,10 @@ describe('Trace chunks', () => {
       createDescriptor('process-zero-chunk', {sortStartTimeMs: 0}),
       createDescriptor('process-one-chunk', {sortStartTimeMs: 1})
     ];
-    const store = new TraceChunkStore<TraceChunk, TestDescriptor, null>({
+    const store = new TraceChunkStore<TraceChunk, TestDescriptor>({
       identityKey: 'chunk-test',
       descriptors,
-      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>(),
-      windowGraphMaterializer: createTestMaterializer()
+      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>()
     });
 
     store.add(
@@ -493,22 +477,20 @@ describe('Trace chunks', () => {
       }
     });
 
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
 
-    expect(snapshot.traceGraphData.processIdsByIndex).toEqual(['process-zero', 'process-one']);
-    expect(snapshot.traceGraphData.processes.map(process => process.processId)).toEqual([
+    expect(traceGraph.processIdsByIndex).toEqual(['process-zero', 'process-one']);
+    expect(traceGraph.processes.map(process => process.processId)).toEqual([
       'process-zero',
       'process-one'
     ]);
-    expect(snapshot.traceGraphData.spanRefs).toEqual([encodeSpanRef(1, 0)]);
-    expect(snapshot.traceGraph.getVisibleProcessRefs()).toEqual([encodeProcessRef(1)]);
+    expect(traceGraph.spanRefs).toEqual([encodeSpanRef(1, 0)]);
+    expect(traceGraph.getVisibleProcessRefs()).toEqual([encodeProcessRef(1)]);
     expect(
-      snapshot.traceGraph
-        .getVisibleProcessDisplaySources(encodeProcessRef(1))
-        .map(span => span.name)
+      traceGraph.getVisibleProcessDisplaySources(encodeProcessRef(1)).map(span => span.name)
     ).toEqual(['visible-process-one']);
   });
 
@@ -527,36 +509,32 @@ describe('Trace chunks', () => {
 
     const payload = buildTraceChunkDataFromJSONTraceChunkData(jsonChunkData);
     const {store} = await createLoadedStore(payload);
-    const snapshot = store.getTraceGraphForWindow('active', null);
-    if (!snapshot) {
+    const traceGraph = materializeTestTraceGraph(store, 'active', null);
+    if (!traceGraph) {
       throw new Error('Expected active window graph');
     }
 
-    expect(snapshot.traceGraphData.stats.spanCount).toBe(1);
+    expect(traceGraph.stats.spanCount).toBe(1);
     expect(
-      snapshot.traceGraph
-        .getVisibleProcessDisplaySources(encodeProcessRef(0))
-        .map(span => span.name)
+      traceGraph.getVisibleProcessDisplaySources(encodeProcessRef(0)).map(span => span.name)
     ).toEqual(['json-visible']);
-    expect(getTraceGraphSpanDisplaySource(snapshot.traceGraph, encodeTestSpanRef(0))).toMatchObject(
-      {
-        name: 'json-visible',
-        source: 'json-source.py:10'
-      }
-    );
+    expect(getTraceGraphSpanDisplaySource(traceGraph, encodeTestSpanRef(0))).toMatchObject({
+      name: 'json-visible',
+      source: 'json-source.py:10'
+    });
   });
 });
 
 async function createLoadedStore(payload: TraceChunkData): Promise<{
-  readonly store: TraceChunkStore<TraceChunk, TestDescriptor, null>;
+  /** Loaded test chunk store retaining the supplied payload. */
+  readonly store: TraceChunkStore<TraceChunk, TestDescriptor>;
   readonly loadChunkCalls: number;
 }> {
   const descriptor = createDescriptor();
-  const store = new TraceChunkStore<TraceChunk, TestDescriptor, null>({
+  const store = new TraceChunkStore<TraceChunk, TestDescriptor>({
     identityKey: 'chunk-test',
     descriptors: [descriptor],
-    selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>(),
-    windowGraphMaterializer: createTestMaterializer()
+    selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>()
   });
   let loadChunkCalls = 0;
   await store.registerTraceWindows({
@@ -569,22 +547,36 @@ async function createLoadedStore(payload: TraceChunkData): Promise<{
   return {store, loadChunkCalls};
 }
 
-function createTestMaterializer(): TraceChunkWindowGraphMaterializer<
-  TraceChunk,
-  TestDescriptor,
-  null
-> {
-  return {
-    rebuild: ({ownerRefRegistry, readyChunks, window}) => ({
-      state: null,
-      traceGraphData: buildTraceChunkWindowGraphData({
-        name: 'chunk-test',
-        ownerRefRegistry,
-        window,
-        readyChunks
-      })
-    })
-  };
+/** Builds the window materializer shared by TraceChunkWindow tests. */
+function createTestMaterializer(): TraceChunkWindowGraphMaterializer<TraceChunk, TestDescriptor> {
+  return ({ownerRefRegistry, readyChunks, window}) =>
+    buildTraceChunkWindowGraphData({
+      name: 'chunk-test',
+      ownerRefRegistry,
+      window,
+      readyChunks
+    });
+}
+
+/** Materialize one registered test window into the TraceGraph runtime boundary. */
+function materializeTestTraceGraph(
+  store: TraceChunkStore<TraceChunk, TestDescriptor>,
+  windowId: string,
+  spanBudget: number | null
+): TraceGraph | null {
+  const window = store.getTraceWindows().find(candidate => candidate.id === windowId);
+  if (!window) {
+    return null;
+  }
+  const traceGraphData = store.materializeTraceGraphDataForWindow(
+    windowId,
+    store.select({
+      window: {startTimeMs: window.minTimeMs, endTimeMs: window.maxTimeMs},
+      spanBudget
+    }),
+    createTestMaterializer()
+  );
+  return traceGraphData ? new TraceGraph({traceGraphData, traceStore: store}) : null;
 }
 
 function createDescriptor(

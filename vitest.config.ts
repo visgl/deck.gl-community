@@ -65,7 +65,7 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  include: ['apache-arrow', 'protobufjs', 'zod']
+  include: ['apache-arrow', 'protobufjs/dist/light/protobuf.js', 'zod']
 };
 
 const HEADLESS_BROWSER_PROVIDER =

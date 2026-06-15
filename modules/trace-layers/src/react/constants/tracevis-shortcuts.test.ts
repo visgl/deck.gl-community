@@ -1,7 +1,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {imperativeDeckController} from '../../layers/index';
 import {commandManager} from '@deck.gl-community/panels';
+import {imperativeDeckController} from '../../layers/index';
 import {TRACEVIS_SHORTCUTS} from './tracevis-shortcuts';
 
 describe('tracevis shortcuts', () => {

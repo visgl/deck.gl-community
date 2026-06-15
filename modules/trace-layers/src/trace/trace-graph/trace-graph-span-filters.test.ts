@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 
 import {
   buildCompiledTraceSpanFilterPlan,
@@ -36,6 +36,20 @@ describe('trace graph span filters', () => {
         filterPlan
       })
     ).toBe(TRACE_SPAN_FILTER_MASK_NONE);
+  });
+
+  it('keeps slash-prefixed literal paths out of regexp compilation', () => {
+    const regexSpy = vi.spyOn(globalThis, 'RegExp');
+
+    try {
+      const filterPlan = buildCompiledTraceSpanFilterPlan(['/workspace/project/crates']);
+
+      expect(filterPlan.literalPrefixes).toEqual(['/workspace/project/crates']);
+      expect(filterPlan.regexMatchers).toEqual([]);
+      expect(regexSpy).not.toHaveBeenCalled();
+    } finally {
+      regexSpy.mockRestore();
+    }
   });
 
   it('preserves regexp-filter compatibility helpers for source matches', () => {

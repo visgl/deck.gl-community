@@ -30,6 +30,32 @@ export type TraceCrossProcessDependencyCardProps = {
 
 const MAX_CONTRACTED_PARENT_BADGES = 5;
 
+/** Rendered endpoint metadata shown by one cross-process dependency badge. */
+type CrossDependencyCardEndpoint = {
+  /** Span ref rendered by one endpoint badge. */
+  spanRef: SpanRef;
+  /** Filter provenance applied to the rendered endpoint badge. */
+  filterMask: TraceSpanFilterMask;
+  /** Whether the rendered endpoint badge represents a filtered span. */
+  filtered: boolean;
+  /** Badge outline treatment used when the rendered endpoint is filtered. */
+  filteredVariant: 'regexp' | 'topology';
+};
+
+/** Props required to render one cross-process dependency endpoint pair. */
+type CrossDependencyEndpointPairProps = {
+  /** Start endpoint shown by this endpoint pair. */
+  startEndpoint: CrossDependencyCardEndpoint;
+  /** End endpoint shown by this endpoint pair. */
+  endEndpoint: CrossDependencyCardEndpoint;
+  /** Graph that resolves endpoint labels and timings. */
+  traceGraph: Readonly<TraceGraph>;
+  /** Trace color and styling configuration for endpoint badges. */
+  traceStyle: TraceStyle;
+  /** Trace rendering settings used by endpoint badge styling. */
+  traceSettings: TraceVisSettings;
+};
+
 export function TraceCrossProcessDependencyCard({
   crossDep,
   dependencyRef,
@@ -69,24 +95,15 @@ export function TraceCrossProcessDependencyCard({
     fallbackSpanRef: endSpanRef,
     traceGraph
   });
-  const startProcess = traceGraph.getProcessSourceBySpanRef(startEndpoint.spanRef);
-  const endProcess = traceGraph.getProcessSourceBySpanRef(endEndpoint.spanRef);
-  const startThread = traceGraph.getThreadSourceBySpanRef(startEndpoint.spanRef);
-  const endThread = traceGraph.getThreadSourceBySpanRef(endEndpoint.spanRef);
-  const startProcessName = startProcess?.name?.trim() || 'n/a';
-  const endProcessName = endProcess?.name?.trim() || 'n/a';
-  const startThreadName = startThread?.name?.trim() || 'n/a';
-  const endThreadName = endThread?.name?.trim() || 'n/a';
-  const startProcessThreadLabel = `${startProcessName} / ${startThreadName}`;
-  const endProcessThreadLabel = `${endProcessName} / ${endThreadName}`;
-  const startDurationLabel = getSpanDurationLabel(traceGraph, startEndpoint.spanRef);
-  const endDurationLabel = getSpanDurationLabel(traceGraph, endEndpoint.spanRef);
+  const renderedStartEndpoint = getRenderedCrossDependencyCardEndpoint(traceGraph, startSpanRef);
+  const renderedEndEndpoint = getRenderedCrossDependencyCardEndpoint(traceGraph, endSpanRef);
+  const showsFilteredSourceEndpoints =
+    startEndpoint.spanRef !== renderedStartEndpoint.spanRef ||
+    endEndpoint.spanRef !== renderedEndEndpoint.spanRef;
   const keywordList = [...dependencySource.keywords];
   const keywordTitle =
     keywordList.length > 0 ? keywordList.map(keyword => keyword.toUpperCase()).join(', ') : '';
-  const arrow = '➡️';
   const badgeContainerClass = 'flex flex-wrap items-center gap-2 text-xs text-muted-foreground';
-  const endpointMetaClass = 'flex min-w-0 max-w-[220px] items-center gap-1 text-xs';
   const visibleContractedParents = contractedParents.slice(0, MAX_CONTRACTED_PARENT_BADGES);
   const isContractedParentListTruncated = contractedParents.length > MAX_CONTRACTED_PARENT_BADGES;
 
@@ -103,66 +120,28 @@ export function TraceCrossProcessDependencyCard({
         <span>WAITING: {dependencySource.waiting ? 'YES' : 'NO'}</span>
         <span>NOT FINISHED: {dependencySource.waitNotFinished ? 'YES' : 'NO'}</span>
       </div>
-      <div
-        className="grid gap-x-3 gap-y-0.5 items-start text-xs"
-        style={{gridTemplateColumns: 'minmax(0, 1fr) max-content minmax(0, 1fr)'}}
-      >
-        <div className="min-w-0 overflow-hidden">
-          <TraceSpanNameBadge
+      {showsFilteredSourceEndpoints && (
+        <div className="text-xs font-bold text-muted-foreground">SOURCE</div>
+      )}
+      <CrossDependencyEndpointPair
+        startEndpoint={startEndpoint}
+        endEndpoint={endEndpoint}
+        traceGraph={traceGraph}
+        traceStyle={traceStyle}
+        traceSettings={traceSettings}
+      />
+      {showsFilteredSourceEndpoints && (
+        <div className="space-y-1">
+          <div className="text-xs font-bold text-muted-foreground">RENDERED AS</div>
+          <CrossDependencyEndpointPair
+            startEndpoint={renderedStartEndpoint}
+            endEndpoint={renderedEndEndpoint}
             traceGraph={traceGraph}
-            spanRef={startEndpoint.spanRef}
-            colorScheme={traceStyle.colorScheme}
-            filtered={startEndpoint.filtered}
-            filteredVariant={startEndpoint.filteredVariant}
-            filterMask={startEndpoint.filterMask}
-            interactive={false}
-            style={getTraceSpanBadgeStyleForRef(
-              traceGraph,
-              startEndpoint.spanRef,
-              traceSettings,
-              traceStyle.colorScheme
-            )}
+            traceStyle={traceStyle}
+            traceSettings={traceSettings}
           />
         </div>
-        <div className="row-span-2 self-center text-sm leading-none">{arrow}</div>
-        <div className="min-w-0 overflow-hidden">
-          <TraceSpanNameBadge
-            traceGraph={traceGraph}
-            spanRef={endEndpoint.spanRef}
-            colorScheme={traceStyle.colorScheme}
-            filtered={endEndpoint.filtered}
-            filteredVariant={endEndpoint.filteredVariant}
-            filterMask={endEndpoint.filterMask}
-            interactive={false}
-            style={getTraceSpanBadgeStyleForRef(
-              traceGraph,
-              endEndpoint.spanRef,
-              traceSettings,
-              traceStyle.colorScheme
-            )}
-          />
-        </div>
-        <div className={endpointMetaClass} data-cross-dependency-endpoint-meta>
-          <span
-            className="min-w-0 max-w-[170px] truncate text-muted-foreground"
-            title={startProcessThreadLabel}
-            data-cross-dependency-process-thread
-          >
-            {startProcessThreadLabel}
-          </span>
-          <span className="shrink-0 font-medium text-foreground">{startDurationLabel}</span>
-        </div>
-        <div className={endpointMetaClass} data-cross-dependency-endpoint-meta>
-          <span
-            className="min-w-0 max-w-[170px] truncate text-muted-foreground"
-            title={endProcessThreadLabel}
-            data-cross-dependency-process-thread
-          >
-            {endProcessThreadLabel}
-          </span>
-          <span className="shrink-0 font-medium text-foreground">{endDurationLabel}</span>
-        </div>
-      </div>
+      )}
       {contractedParents.length > 0 && (
         <div className="space-y-1">
           <div className="text-xs font-bold text-muted-foreground">
@@ -197,6 +176,103 @@ export function TraceCrossProcessDependencyCard({
 }
 
 /**
+ * Renders one dependency endpoint pair with span badges and process/thread timing metadata.
+ */
+function CrossDependencyEndpointPair({
+  startEndpoint,
+  endEndpoint,
+  traceGraph,
+  traceStyle,
+  traceSettings
+}: CrossDependencyEndpointPairProps) {
+  const startProcessThreadLabel = getCrossDependencyProcessThreadLabel(
+    traceGraph,
+    startEndpoint.spanRef
+  );
+  const endProcessThreadLabel = getCrossDependencyProcessThreadLabel(
+    traceGraph,
+    endEndpoint.spanRef
+  );
+  const startDurationLabel = getSpanDurationLabel(traceGraph, startEndpoint.spanRef);
+  const endDurationLabel = getSpanDurationLabel(traceGraph, endEndpoint.spanRef);
+  const endpointMetaClass = 'flex min-w-0 max-w-[220px] items-center gap-1 text-xs';
+
+  return (
+    <div
+      className="grid gap-x-3 gap-y-0.5 items-start text-xs"
+      style={{gridTemplateColumns: 'minmax(0, 1fr) max-content minmax(0, 1fr)'}}
+    >
+      <div className="min-w-0 overflow-hidden">
+        <TraceSpanNameBadge
+          traceGraph={traceGraph}
+          spanRef={startEndpoint.spanRef}
+          colorScheme={traceStyle.colorScheme}
+          filtered={startEndpoint.filtered}
+          filteredVariant={startEndpoint.filteredVariant}
+          filterMask={startEndpoint.filterMask}
+          interactive={false}
+          style={getTraceSpanBadgeStyleForRef(
+            traceGraph,
+            startEndpoint.spanRef,
+            traceSettings,
+            traceStyle.colorScheme
+          )}
+        />
+      </div>
+      <div className="row-span-2 self-center text-sm leading-none">➡️</div>
+      <div className="min-w-0 overflow-hidden">
+        <TraceSpanNameBadge
+          traceGraph={traceGraph}
+          spanRef={endEndpoint.spanRef}
+          colorScheme={traceStyle.colorScheme}
+          filtered={endEndpoint.filtered}
+          filteredVariant={endEndpoint.filteredVariant}
+          filterMask={endEndpoint.filterMask}
+          interactive={false}
+          style={getTraceSpanBadgeStyleForRef(
+            traceGraph,
+            endEndpoint.spanRef,
+            traceSettings,
+            traceStyle.colorScheme
+          )}
+        />
+      </div>
+      <div className={endpointMetaClass} data-cross-dependency-endpoint-meta>
+        <span
+          className="min-w-0 max-w-[170px] truncate text-muted-foreground"
+          title={startProcessThreadLabel}
+          data-cross-dependency-process-thread
+        >
+          {startProcessThreadLabel}
+        </span>
+        <span className="shrink-0 font-medium text-foreground">{startDurationLabel}</span>
+      </div>
+      <div className={endpointMetaClass} data-cross-dependency-endpoint-meta>
+        <span
+          className="min-w-0 max-w-[170px] truncate text-muted-foreground"
+          title={endProcessThreadLabel}
+          data-cross-dependency-process-thread
+        >
+          {endProcessThreadLabel}
+        </span>
+        <span className="shrink-0 font-medium text-foreground">{endDurationLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Returns the process/thread label shown for one dependency endpoint span.
+ */
+function getCrossDependencyProcessThreadLabel(traceGraph: Readonly<TraceGraph>, spanRef: SpanRef) {
+  const process = traceGraph.getProcessSourceBySpanRef(spanRef);
+  const thread = traceGraph.getThreadSourceBySpanRef(spanRef);
+  const processName = process?.name?.trim() || 'n/a';
+  const threadName = thread?.name?.trim() || 'n/a';
+  return `${processName} / ${threadName}`;
+}
+
+/**
  * Returns the formatted primary duration label for one dependency endpoint span.
  */
 function getSpanDurationLabel(traceGraph: Readonly<TraceGraph>, spanRef: SpanRef): string {
@@ -220,28 +296,13 @@ function getCrossDependencyCardEndpoint(params: {
   fallbackSpanRef: SpanRef;
   /** Graph that owns both source and visible endpoint refs. */
   traceGraph: Readonly<TraceGraph>;
-}): {
-  /** Span ref rendered by the endpoint badge. */
-  spanRef: SpanRef;
-  /** Filter provenance for the rendered span ref. */
-  filterMask: TraceSpanFilterMask;
-  /** Whether the rendered endpoint span is filtered from the visible graph. */
-  filtered: boolean;
-  /** Badge outline treatment for the rendered endpoint span. */
-  filteredVariant: 'regexp' | 'topology';
-} {
+}): CrossDependencyCardEndpoint {
   const sourceSpanRef =
     params.dependencySource.dependencyRef == null
       ? null
       : params.endpoint === 'start'
-        ? params.traceGraph.getDependencySourceStartSpan(
-            params.dependencySource.dependencyRef,
-            params.dependencySource.dependencyId
-          )
-        : params.traceGraph.getDependencySourceEndSpan(
-            params.dependencySource.dependencyRef,
-            params.dependencySource.dependencyId
-          );
+        ? params.traceGraph.getDependencySourceStartSpan(params.dependencySource.dependencyRef)
+        : params.traceGraph.getDependencySourceEndSpan(params.dependencySource.dependencyRef);
   const sourceFilterState =
     sourceSpanRef == null
       ? EMPTY_CROSS_DEPENDENCY_CARD_FILTER_STATE
@@ -282,6 +343,26 @@ function getCrossDependencyCardEndpoint(params: {
     filterMask,
     filtered,
     filteredVariant
+  };
+}
+
+/**
+ * Returns the visible endpoint used by dependency geometry and rendered-line placement.
+ */
+function getRenderedCrossDependencyCardEndpoint(
+  traceGraph: Readonly<TraceGraph>,
+  spanRef: SpanRef
+): CrossDependencyCardEndpoint {
+  const filterState = getCrossDependencyCardFilterState(traceGraph, spanRef);
+  const filterMask = filterState.filterMask;
+  return {
+    spanRef,
+    filterMask,
+    filtered: filterState.filtered,
+    filteredVariant:
+      hasTraceSpanTopologyFilter(filterMask) && !hasTraceSpanRegexpFilter(filterMask)
+        ? 'topology'
+        : 'regexp'
   };
 }
 

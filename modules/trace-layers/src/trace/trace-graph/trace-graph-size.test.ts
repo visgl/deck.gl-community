@@ -1,7 +1,7 @@
 import * as arrow from 'apache-arrow';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {estimateTraceGraphSize} from './trace-graph-size';
+import {estimateTraceGraphComponentSizes, estimateTraceGraphSize} from './trace-graph-size';
 
 describe('estimateTraceGraphSize', () => {
   afterEach(() => {
@@ -67,5 +67,46 @@ describe('estimateTraceGraphSize', () => {
     expect(tableMapEntry?.kind).toBe('object');
     expect(tableEntry?.kind).toBe('arrow');
     expect(report.totalBytes).toBe((tableMapEntry?.bytes ?? 0) + (tableEntry?.bytes ?? 0));
+  });
+
+  it('aggregates selected component paths without retaining nested detail entries', () => {
+    const table = new arrow.Table({
+      value: arrow.vectorFromArray([1, 2, 3], new arrow.Float64())
+    });
+    const sharedPayload = {table};
+
+    const report = estimateTraceGraphComponentSizes([
+      {
+        path: 'traceChunkStore.spanTables',
+        value: table,
+        kind: 'arrow',
+        rowCount: table.numRows
+      },
+      {
+        path: 'traceChunkStore.spanTables',
+        value: table,
+        kind: 'arrow',
+        rowCount: table.numRows
+      },
+      {
+        path: 'traceChunkStore.indexes',
+        value: sharedPayload,
+        kind: 'object'
+      }
+    ]);
+
+    expect(report.entries).toEqual([
+      expect.objectContaining({
+        path: 'traceChunkStore.spanTables',
+        kind: 'arrow',
+        rowCount: table.numRows
+      }),
+      expect.objectContaining({
+        path: 'traceChunkStore.indexes',
+        kind: 'object'
+      })
+    ]);
+    expect(report.entries.every(entry => !entry.path.includes('.table'))).toBe(true);
+    expect(report.bytesByKind.arrow).toBeGreaterThan(0);
   });
 });

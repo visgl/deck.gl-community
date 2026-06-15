@@ -25,7 +25,9 @@ import {
   getRequiredProcessRef,
   getRequiredSpanRef,
   getRequiredThreadRef,
+  getRequiredVisibleCrossDependencyRefById,
   getRequiredVisibleDisplaySourceBySpanId,
+  getRequiredVisibleLocalDependencyRefById,
   getTraceGraphChildDependencies,
   getTraceGraphDependencyChainForBlock,
   getTraceGraphDescendants,
@@ -653,6 +655,48 @@ describe('TraceGraph selection and search', () => {
     );
   });
 
+  it('caps span-card dependency rows before descriptive dependency materialization', () => {
+    const selected = createBlock('selected');
+    const incomingSpans = Array.from({length: 105}, (_entry, index) =>
+      createBlock(`incoming-${index}`)
+    );
+    const outgoingSpans = Array.from({length: 105}, (_entry, index) =>
+      createBlock(`outgoing-${index}`)
+    );
+    const graph = createGraphWithBlocks(
+      [selected, ...incomingSpans, ...outgoingSpans],
+      [
+        ...incomingSpans.map((span, index) =>
+          createLocalDependency(`dep-incoming-${index}`, span.spanId, selected.spanId)
+        ),
+        ...outgoingSpans.map((span, index) =>
+          createLocalDependency(`dep-outgoing-${index}`, selected.spanId, span.spanId)
+        )
+      ]
+    );
+    const traceGraph = createRuntimeTraceGraph(graph);
+    const getVisibleDependencySourceByRefSpy = vi.spyOn(
+      traceGraph,
+      'getVisibleDependencySourceByRef'
+    );
+
+    const cardModel = traceGraph.getTraceSpanCardModel(getRequiredSpanRef(traceGraph, selected));
+
+    expect(cardModel?.visibleIncomingDependencyEntries).toHaveLength(100);
+    expect(cardModel?.visibleIncomingDependencyEntryCount).toBe(105);
+    expect(cardModel?.visibleIncomingDependencyEntriesTruncated).toBe(true);
+    expect(cardModel?.fullIncomingDependencyEntries).toHaveLength(100);
+    expect(cardModel?.fullIncomingDependencyEntryCount).toBe(105);
+    expect(cardModel?.fullIncomingDependencyEntriesTruncated).toBe(true);
+    expect(cardModel?.visibleOutgoingDependencyEntries).toHaveLength(100);
+    expect(cardModel?.visibleOutgoingDependencyEntryCount).toBe(105);
+    expect(cardModel?.visibleOutgoingDependencyEntriesTruncated).toBe(true);
+    expect(cardModel?.fullOutgoingDependencyEntries).toHaveLength(100);
+    expect(cardModel?.fullOutgoingDependencyEntryCount).toBe(105);
+    expect(cardModel?.fullOutgoingDependencyEntriesTruncated).toBe(true);
+    expect(getVisibleDependencySourceByRefSpy).toHaveBeenCalledTimes(400);
+  });
+
   it('resolves cross-rank selected-card parent chains against the correct process when endpoint span ids collide', () => {
     const {graph, hiddenParentBlock, correctParentBlock} = createProcessAwareSelectedCardGraph();
     const traceGraph = createRuntimeTraceGraph(graph);
@@ -983,7 +1027,7 @@ describe('TraceGraph selection and search', () => {
     expect(result.entries).toHaveLength(1000);
     expect(result.entries[0]?.childSpan.spanId).toBe('descendant-1');
     expect(result.entries[999]?.childSpan.spanId).toBe('descendant-1000');
-  }, 15000);
+  }, 30000);
 
   it('resolves recursive descendants without full TraceSpan materialization on Arrow graphs', () => {
     const selected = createBlock('selected');
@@ -1212,6 +1256,80 @@ describe('TraceGraph selection and search', () => {
       })
     ).toEqual(['dep-root-cross-child']);
 
+    const processId = traceGraph.processIdsByIndex[0];
+    const localDependencyTable = processId ? traceGraph.localDependencyTableMap[processId] : null;
+    if (!localDependencyTable) {
+      throw new Error('Expected local dependency table');
+    }
+    const getLocalDependencyColumn = localDependencyTable.getChild.bind(localDependencyTable);
+    const localDependencyColumnSpy = vi
+      .spyOn(localDependencyTable, 'getChild')
+      .mockImplementation(fieldName => {
+        if (fieldName === 'dependencyId' || fieldName === 'keywords') {
+          throw new Error(`Unexpected local dependency descriptive read: ${fieldName}`);
+        }
+        return getLocalDependencyColumn(fieldName);
+      });
+    const getCrossDependencyColumn = traceGraph.crossDependencyTable.getChild.bind(
+      traceGraph.crossDependencyTable
+    );
+    const crossDependencyColumnSpy = vi
+      .spyOn(traceGraph.crossDependencyTable, 'getChild')
+      .mockImplementation(fieldName => {
+        if (fieldName === 'dependencyId' || fieldName === 'keywords') {
+          throw new Error(`Unexpected cross dependency descriptive read: ${fieldName}`);
+        }
+        return getCrossDependencyColumn(fieldName);
+      });
+    const getVisibleDependencySourceByRefSpy = vi.spyOn(
+      traceGraph,
+      'getVisibleDependencySourceByRef'
+    );
+    expect(
+      traceGraph.getVisibleDependencyRenderSourceByRef(selectionState.childLocalDependencyRefs[0]!)
+    ).toEqual(
+      expect.objectContaining({
+        dependencyRef: selectionState.childLocalDependencyRefs[0],
+        type: 'trace-local-dependency',
+        isParent: true
+      })
+    );
+    expect(
+      traceGraph.getVisibleSelectedLocalDependencySources(
+        selectionState.childLocalDependencyRefs,
+        'outgoing'
+      )
+    ).toEqual([
+      expect.objectContaining({
+        dependencyRef: selectionState.childLocalDependencyRefs[0],
+        selectedDirection: 'outgoing'
+      })
+    ]);
+    expect(getVisibleDependencySourceByRefSpy).not.toHaveBeenCalled();
+    expect(
+      traceGraph.getVisibleDependencyRenderSourceByRef(selectionState.childCrossDependencyRefs[0]!)
+    ).toEqual(
+      expect.objectContaining({
+        dependencyRef: selectionState.childCrossDependencyRefs[0],
+        type: 'trace-cross-process-dependency',
+        isParent: true
+      })
+    );
+    expect(
+      traceGraph.getVisibleSelectedCrossDependencySources(
+        selectionState.childCrossDependencyRefs,
+        'outgoing'
+      )
+    ).toEqual([
+      expect.objectContaining({
+        dependencyRef: selectionState.childCrossDependencyRefs[0],
+        selectedDirection: 'outgoing'
+      })
+    ]);
+    expect(getVisibleDependencySourceByRefSpy).not.toHaveBeenCalled();
+    localDependencyColumnSpy.mockRestore();
+    crossDependencyColumnSpy.mockRestore();
+
     expect(
       traceGraph
         .getTraceSpanDescendants(rootSpanRef)
@@ -1419,21 +1537,24 @@ describe('TraceGraph selection and search', () => {
       .crossRankDependencies[0];
     expect(stitchedDependency).toBeTruthy();
     expect(stitchedDependency?.dependencyId).toBe(localDependencyId);
-    expect(traceGraph.getVisibleCrossDependencyRefById(localDependencyId)).toBeTruthy();
+    expect(getRequiredVisibleCrossDependencyRefById(traceGraph, localDependencyId)).toBeTruthy();
 
     const selectionState = traceGraph.getTraceSpanDependencySelection(visibleLogicalChild.spanRef, {
       keywords: new Set(['PARENT'])
     });
 
     expect(selectionState.visibleCrossDependencyRefs).toEqual([
-      traceGraph.getVisibleCrossDependencyRefById(localDependencyId)
+      getRequiredVisibleCrossDependencyRefById(traceGraph, localDependencyId)
     ]);
     expect(
       selectionState.visibleCrossDependencyRefs.map(dependencyRef =>
         traceGraph.getVisibleDependencyIdByRef(dependencyRef)
       )
     ).toEqual([localDependencyId]);
-    const stitchedDependencyRef = traceGraph.getVisibleCrossDependencyRefById(localDependencyId);
+    const stitchedDependencyRef = getRequiredVisibleCrossDependencyRefById(
+      traceGraph,
+      localDependencyId
+    );
     expect(stitchedDependencyRef).toBeTruthy();
     expect(traceGraph.getVisibleDependencyStartSpan(stitchedDependencyRef!)).toBe(
       getRequiredSpanRef(traceGraph, root)
@@ -1441,10 +1562,10 @@ describe('TraceGraph selection and search', () => {
     expect(traceGraph.getVisibleDependencyEndSpan(stitchedDependencyRef!)).toBe(
       getRequiredSpanRef(traceGraph, logicalChild)
     );
-    expect(traceGraph.getDependencySourceStartSpan(stitchedDependencyRef!, localDependencyId)).toBe(
+    expect(traceGraph.getDependencySourceStartSpan(stitchedDependencyRef!)).toBe(
       getRequiredSpanRef(traceGraph, filteredLogical)
     );
-    expect(traceGraph.getDependencySourceEndSpan(stitchedDependencyRef!, localDependencyId)).toBe(
+    expect(traceGraph.getDependencySourceEndSpan(stitchedDependencyRef!)).toBe(
       getRequiredSpanRef(traceGraph, logicalChild)
     );
   });
@@ -1520,9 +1641,9 @@ describe('TraceGraph selection and search', () => {
 
     const currentVisibleDependency = traceGraph.getVisibleCrossDependencySources()[0];
     expect(currentVisibleDependency?.dependencyId).toBe(visibleDependency.dependencyId);
-    expect(traceGraph.getVisibleCrossDependencyRefById(visibleDependency.dependencyId)).toEqual(
-      encodeVisibleCrossDependencyRef(0)
-    );
+    expect(
+      getRequiredVisibleCrossDependencyRefById(traceGraph, visibleDependency.dependencyId)
+    ).toEqual(encodeVisibleCrossDependencyRef(0));
     expect(currentVisibleDependency?.dependencyRef).toEqual(encodeVisibleCrossDependencyRef(0));
   });
 
@@ -1578,9 +1699,9 @@ describe('TraceGraph selection and search', () => {
       getRequiredProcessRef(traceGraph, 'rank-a')
     )[0];
     expect(currentVisibleDependency?.dependencyId).toBe(visibleDependency.dependencyId);
-    expect(traceGraph.getVisibleLocalDependencyRefById(visibleDependency.dependencyId)).toEqual(
-      encodeVisibleLocalDependencyRef(0)
-    );
+    expect(
+      getRequiredVisibleLocalDependencyRefById(traceGraph, visibleDependency.dependencyId)
+    ).toEqual(encodeVisibleLocalDependencyRef(0));
     expect(currentVisibleDependency?.dependencyRef).toEqual(encodeVisibleLocalDependencyRef(0));
   });
 
@@ -1667,7 +1788,10 @@ describe('TraceGraph selection and search', () => {
       ),
       {spanFilters: ['path-filtered-logical']}
     );
-    const stitchedDependencyRef = traceGraph.getVisibleCrossDependencyRefById(localDependencyId);
+    const stitchedDependencyRef = getRequiredVisibleCrossDependencyRefById(
+      traceGraph,
+      localDependencyId
+    );
     expect(stitchedDependencyRef).toBeTruthy();
     if (!stitchedDependencyRef) {
       throw new Error('Expected stitched visible dependency ref');

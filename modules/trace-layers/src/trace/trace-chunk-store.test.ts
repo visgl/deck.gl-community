@@ -8,7 +8,8 @@ import {
 import {
   createChronologicalTraceChunkSpanBudgetPolicy,
   TRACE_EXTERNAL_SPAN_ID_URL_CODEC,
-  TraceChunkStore
+  TraceChunkStore,
+  TraceChunkStoreLoadSkippedError
 } from './trace-chunk-store';
 import {
   buildTraceChunkRowWindowTable,
@@ -26,9 +27,8 @@ import type {TraceChunk} from './trace-chunk';
 import type {TraceChunkData} from './trace-chunk-data';
 import type {
   TraceChunkDescriptor,
-  TraceChunkWindowGraphAppendParams,
   TraceChunkWindowGraphMaterializer,
-  TraceChunkWindowGraphRebuildParams,
+  TraceChunkWindowGraphMaterializerParams,
   TraceSpanUrlCodec
 } from './trace-chunk-store';
 import type {TraceProcessId, TraceSpanId, TraceThreadId} from './trace-graph/trace-types';
@@ -63,6 +63,47 @@ describe('TraceChunkStore', () => {
     expect(store.getSourceSpanFilterRevision()).toBe(1);
     expect(store.setSourceSpanFilters(undefined)).toBe(true);
     expect(store.getSourceSpanFilterRevision()).toBe(2);
+  });
+
+  it('reports cheap TraceChunkStore retained-state diagnostics', async () => {
+    const descriptors = [
+      createDescriptor('chunk-a', 'head', 0, 10, 0, 10, 5),
+      createDescriptor('chunk-b', 'logical', 10, 20, 10, 20, 5)
+    ];
+    const store = createStore(descriptors);
+    const deferred = createDeferred<StoredPayload>();
+    const ensurePromise = store.ensure({
+      descriptors: [descriptors[0]!],
+      loadChunk: async () => deferred.promise
+    });
+
+    expect(store.getDiagnostics()).toMatchObject({
+      descriptorCount: 2,
+      readyChunkCount: 0,
+      pendingChunkCount: 1,
+      failedChunkCount: 0,
+      traceWindowCount: 0,
+      sourceSpanFilterCount: 0,
+      sourceSpanFilterRevision: 0
+    });
+
+    deferred.resolve({value: 'chunk-a'});
+    await ensurePromise;
+    store.setSourceSpanFilters(['projects/runtime/runtime-crates']);
+    await store.registerTraceWindows({
+      windows: [{id: 'chunk-b-window', minTimeMs: 10, maxTimeMs: 20}],
+      loadChunk: async descriptor => ({value: descriptor.label})
+    });
+
+    expect(store.getDiagnostics()).toEqual({
+      descriptorCount: 2,
+      readyChunkCount: 2,
+      pendingChunkCount: 0,
+      failedChunkCount: 0,
+      traceWindowCount: 1,
+      sourceSpanFilterCount: 1,
+      sourceSpanFilterRevision: 1
+    });
   });
 
   it('selects matching descriptors in deterministic chronological order', () => {
@@ -442,6 +483,44 @@ describe('TraceChunkStore', () => {
     expect(store.getLoadedChunk('retry')).toEqual({value: 'retry'});
   });
 
+  it('leaves intentionally skipped loads retryable without failing ensure', async () => {
+    const store = createStore([
+      createDescriptor('ready', 'head', 0, 10, 0, 10, 5),
+      createDescriptor('skipped', 'logical', 5, 15, 5, 15, 5)
+    ]);
+    const descriptors = store.getDescriptors();
+    let shouldSkip = true;
+    const loadChunk = vi.fn(async (descriptor: TestDescriptor): Promise<StoredPayload> => {
+      if (descriptor.chunkKey === 'skipped' && shouldSkip) {
+        shouldSkip = false;
+        throw new TraceChunkStoreLoadSkippedError('skip for now');
+      }
+      return {value: descriptor.label};
+    });
+
+    await expect(store.ensure({descriptors, loadChunk})).resolves.toMatchObject({
+      readyChunks: [{descriptor: expect.objectContaining({chunkKey: 'ready'})}],
+      summary: {
+        requestedChunkCount: 2,
+        reusedReadyChunkCount: 0,
+        reusedPendingChunkCount: 0,
+        fetchedChunkCount: 2
+      }
+    });
+    expect(store.getLoadedChunk('ready')).toEqual({value: 'ready'});
+    expect(store.getLoadedChunk('skipped')).toBeUndefined();
+
+    await expect(store.ensure({descriptors, loadChunk})).resolves.toMatchObject({
+      summary: {
+        requestedChunkCount: 2,
+        reusedReadyChunkCount: 1,
+        reusedPendingChunkCount: 0,
+        fetchedChunkCount: 1
+      }
+    });
+    expect(store.getLoadedChunk('skipped')).toEqual({value: 'skipped'});
+  });
+
   it('registers trace windows and loads the matching stored chunk union', async () => {
     const store = createStore([
       createDescriptor('left', 'head', 0, 10, 0, 10, 5),
@@ -653,19 +732,18 @@ describe('TraceChunkStore', () => {
     }
   });
 
-  it('returns partial registered-window graph snapshots as selected stored chunks become ready', async () => {
+  it('returns partial registered-window graph data as selected stored chunks become ready', async () => {
     vi.useFakeTimers();
     try {
       const firstDeferred = createDeferred<StoredPayload>();
       const secondDeferred = createDeferred<StoredPayload>();
-      const rebuild = vi.fn(createGraphRebuildMaterialization);
+      const materialize = vi.fn(createGraphMaterialization);
       const spanUrlCodec = createTestSpanUrlCodec();
       const store = createGraphStore(
         [
           createDescriptor('first', 'head', 0, 10, 0, 10, 5),
           createDescriptor('second', 'logical', 0, 10, 0, 10, 5)
         ],
-        {rebuild},
         spanUrlCodec
       );
       const ensurePromise = store.registerTraceWindows({
@@ -676,27 +754,21 @@ describe('TraceChunkStore', () => {
           .mockImplementationOnce(async () => secondDeferred.promise)
       });
 
-      expect(store.getTraceGraphForWindow('graph-window', null)).toBeNull();
+      expect(
+        materializeTraceGraphDataForTestWindow(store, materialize, 'graph-window', null)
+      ).toBeNull();
 
       firstDeferred.resolve({value: 'first'});
       await flushTraceChunkStoreMicrotasks();
-      const partialSnapshot = store.getTraceGraphForWindow('graph-window', null);
+      const partialTraceGraphData = materializeTraceGraphDataForTestWindow(
+        store,
+        materialize,
+        'graph-window',
+        null
+      );
 
-      expect(partialSnapshot).toMatchObject({
-        windowId: 'graph-window',
-        version: 1,
-        materializationMode: 'rebuild',
-        readiness: {
-          selectedChunkCount: 2,
-          readySelectedChunkCount: 1,
-          pendingSelectedChunkCount: 1,
-          failedSelectedChunkCount: 0,
-          missingSelectedChunkCount: 0,
-          isComplete: false
-        }
-      });
-      expect(partialSnapshot?.traceGraphData.name).toBe('graph:first');
-      expect(partialSnapshot?.spanUrlCodec).toBe(spanUrlCodec);
+      expect(partialTraceGraphData?.name).toBe('graph:first');
+      expect(store.spanUrlCodec).toBe(spanUrlCodec);
 
       secondDeferred.resolve({value: 'second'});
       await ensurePromise;
@@ -726,20 +798,16 @@ describe('TraceChunkStore', () => {
     ).toEqual([spanRef]);
   });
 
-  it('incrementally appends newly ready chunks when the registered-window selection stays stable', async () => {
+  it('materializes again when newly ready chunks extend the registered-window graph', async () => {
     vi.useFakeTimers();
     try {
       const firstDeferred = createDeferred<StoredPayload>();
       const secondDeferred = createDeferred<StoredPayload>();
-      const rebuild = vi.fn(createGraphRebuildMaterialization);
-      const append = vi.fn(createGraphAppendMaterialization);
-      const store = createGraphStore(
-        [
-          createDescriptor('first', 'head', 0, 10, 0, 10, 5),
-          createDescriptor('second', 'logical', 0, 10, 0, 10, 5)
-        ],
-        {rebuild, append}
-      );
+      const materialize = vi.fn(createGraphMaterialization);
+      const store = createGraphStore([
+        createDescriptor('first', 'head', 0, 10, 0, 10, 5),
+        createDescriptor('second', 'logical', 0, 10, 0, 10, 5)
+      ]);
       const ensurePromise = store.registerTraceWindows({
         windows: [{id: 'graph-window', minTimeMs: 0, maxTimeMs: 10}],
         loadChunk: vi
@@ -750,31 +818,22 @@ describe('TraceChunkStore', () => {
 
       firstDeferred.resolve({value: 'first'});
       await flushTraceChunkStoreMicrotasks();
-      expect(store.getTraceGraphForWindow('graph-window', null)?.traceGraphData.name).toBe(
-        'graph:first'
-      );
+      expect(
+        materializeTraceGraphDataForTestWindow(store, materialize, 'graph-window', null)?.name
+      ).toBe('graph:first');
 
       secondDeferred.resolve({value: 'second'});
       await flushTraceChunkStoreMicrotasks();
-      const completedSnapshot = store.getTraceGraphForWindow('graph-window', null);
+      const completedTraceGraphData = materializeTraceGraphDataForTestWindow(
+        store,
+        materialize,
+        'graph-window',
+        null
+      );
       await ensurePromise;
 
-      expect(rebuild).toHaveBeenCalledTimes(1);
-      expect(append).toHaveBeenCalledTimes(1);
-      expect(completedSnapshot).toMatchObject({
-        windowId: 'graph-window',
-        version: 2,
-        materializationMode: 'append',
-        readiness: {
-          selectedChunkCount: 2,
-          readySelectedChunkCount: 2,
-          pendingSelectedChunkCount: 0,
-          failedSelectedChunkCount: 0,
-          missingSelectedChunkCount: 0,
-          isComplete: true
-        }
-      });
-      expect(completedSnapshot?.traceGraphData.name).toBe('graph:first,second');
+      expect(materialize).toHaveBeenCalledTimes(2);
+      expect(completedTraceGraphData?.name).toBe('graph:first,second');
     } finally {
       vi.useRealTimers();
     }
@@ -787,41 +846,53 @@ describe('TraceChunkStore', () => {
 function createStore(
   descriptors: readonly TestDescriptor[]
 ): TraceChunkStore<StoredPayload, TestDescriptor> {
-  return new TraceChunkStore({
+  return new TraceChunkStore<StoredPayload, TestDescriptor>({
     identityKey: 'trace-test',
     descriptors,
     selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>()
   });
 }
 
-type GraphMaterializationState = {
-  /** Stable ready chunk labels represented by the test graph snapshot. */
-  chunkLabels: readonly string[];
-};
-
 /**
  * Create one chunk store configured with graph-window materialization test hooks.
  */
 function createGraphStore(
   descriptors: readonly TestDescriptor[],
-  materializer: TraceChunkWindowGraphMaterializer<
-    StoredPayload,
-    TestDescriptor,
-    GraphMaterializationState
-  >,
   spanUrlCodec?: TraceSpanUrlCodec
-): TraceChunkStore<StoredPayload, TestDescriptor, GraphMaterializationState> {
-  return new TraceChunkStore({
+): TraceChunkStore<StoredPayload, TestDescriptor> {
+  return new TraceChunkStore<StoredPayload, TestDescriptor>({
     identityKey: 'trace-graph-test',
     descriptors,
     selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestDescriptor>(),
-    windowGraphMaterializer: materializer,
     spanUrlCodec
   });
 }
 
 /**
- * Create a minimal span URL codec used to verify window graph snapshots preserve configuration.
+ * Materialize graph data from one registered test window using caller-owned selection.
+ */
+function materializeTraceGraphDataForTestWindow(
+  store: TraceChunkStore<StoredPayload, TestDescriptor>,
+  materializer: TraceChunkWindowGraphMaterializer<StoredPayload, TestDescriptor>,
+  windowId: string,
+  spanBudget: number | null
+) {
+  const window = store.getTraceWindows().find(candidate => candidate.id === windowId);
+  if (!window) {
+    return null;
+  }
+  return store.materializeTraceGraphDataForWindow(
+    windowId,
+    store.select({
+      window: {startTimeMs: window.minTimeMs, endTimeMs: window.maxTimeMs},
+      spanBudget
+    }),
+    materializer
+  );
+}
+
+/**
+ * Create a minimal span URL codec used to verify stores preserve source configuration.
  */
 function createTestSpanUrlCodec(): TraceSpanUrlCodec {
   return {
@@ -831,40 +902,17 @@ function createTestSpanUrlCodec(): TraceSpanUrlCodec {
 }
 
 /**
- * Rebuild one deterministic empty Arrow graph whose name exposes the ready test chunk labels.
+ * Build one deterministic empty Arrow graph whose name exposes the ready test chunk labels.
  */
-function createGraphRebuildMaterialization(params: {
-  /** Ready stored chunks passed through the generic store graph-rebuild path. */
-  readyChunks: TraceChunkWindowGraphRebuildParams<StoredPayload, TestDescriptor>['readyChunks'];
+function createGraphMaterialization(params: {
+  /** Ready stored chunks passed through the generic store graph-materialization path. */
+  readyChunks: TraceChunkWindowGraphMaterializerParams<
+    StoredPayload,
+    TestDescriptor
+  >['readyChunks'];
 }) {
   const chunkLabels = params.readyChunks.map(chunk => chunk.payload.value);
-  return {
-    state: {chunkLabels},
-    traceGraphData: buildEmptyNamedArrowTrace(chunkLabels)
-  };
-}
-
-/**
- * Append newly ready test chunk labels into one deterministic empty Arrow graph snapshot.
- */
-function createGraphAppendMaterialization(params: {
-  /** Previous caller-owned materialization state kept by the shared chunk store. */
-  previousState: GraphMaterializationState;
-  /** Newly ready stored chunks passed through the generic append path. */
-  addedReadyChunks: TraceChunkWindowGraphAppendParams<
-    StoredPayload,
-    TestDescriptor,
-    GraphMaterializationState
-  >['addedReadyChunks'];
-}) {
-  const chunkLabels = [
-    ...params.previousState.chunkLabels,
-    ...params.addedReadyChunks.map(chunk => chunk.payload.value)
-  ];
-  return {
-    state: {chunkLabels},
-    traceGraphData: buildEmptyNamedArrowTrace(chunkLabels)
-  };
+  return buildEmptyNamedArrowTrace(chunkLabels);
 }
 
 /**

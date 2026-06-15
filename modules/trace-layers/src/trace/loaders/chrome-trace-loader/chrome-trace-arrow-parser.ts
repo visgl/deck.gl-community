@@ -72,7 +72,8 @@ export async function* parseChromeTraceToArrowRecordBatches(
   let rawText = '';
   let tokenizedEventCount = 0;
 
-  for await (const chunkText of decodeChromeTraceSourceChunks(source)) {
+  for await (const chunk of source) {
+    const chunkText = decodeChromeTraceSourceChunk(chunk);
     rawText += chunkText;
 
     const events = appendChromeTraceFileChunk(tokenizer, chunkText);
@@ -312,53 +313,6 @@ function decodeChromeTraceSourceChunk(chunk: string | ArrayBufferLike | ArrayBuf
     );
   }
   return new TextDecoder().decode(new Uint8Array(chunk));
-}
-
-/**
- * Decodes streamed Chrome trace chunks while preserving split UTF-8 code points.
- */
-async function* decodeChromeTraceSourceChunks(
-  source:
-    | AsyncIterable<string | ArrayBufferLike | ArrayBufferView>
-    | Iterable<string | ArrayBufferLike | ArrayBufferView>
-): AsyncIterable<string> {
-  const decoder = new TextDecoder();
-
-  for await (const chunk of source) {
-    if (typeof chunk === 'string') {
-      const pendingText = decoder.decode();
-      if (pendingText) {
-        yield pendingText;
-      }
-      yield chunk;
-      continue;
-    }
-
-    const chunkText = decodeChromeTraceBinaryChunk(chunk, decoder);
-    if (chunkText) {
-      yield chunkText;
-    }
-  }
-
-  const finalText = decoder.decode();
-  if (finalText) {
-    yield finalText;
-  }
-}
-
-/**
- * Decodes one binary Chrome trace source chunk through one streaming decoder.
- */
-function decodeChromeTraceBinaryChunk(
-  chunk: ArrayBufferLike | ArrayBufferView,
-  decoder: TextDecoder
-): string {
-  if (ArrayBuffer.isView(chunk)) {
-    return decoder.decode(new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength), {
-      stream: true
-    });
-  }
-  return decoder.decode(new Uint8Array(chunk), {stream: true});
 }
 
 /**

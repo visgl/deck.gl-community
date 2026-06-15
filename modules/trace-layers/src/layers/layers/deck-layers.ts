@@ -11,10 +11,11 @@ import {
   DEFAULT_COUNTER_COLOR,
   DEFAULT_INSTANT_COLOR,
   DEFAULT_TRACE_FONT_FAMILY,
+  fillTracePreparedSpanBinaryGeometry,
   getMemoizedDerivedTraceData,
-  getTraceLayoutFilteredSpanCountByThreadId,
   getTraceLayoutFilteredSpanCountByThreadRef,
   getTraceLayoutOverflowLabelThreadName,
+  getTraceLayoutProcessLayoutByRef,
   traceLog
 } from '../../trace/index';
 import {
@@ -28,12 +29,10 @@ import {TraceCrossDependencyLayer} from '../layers/trace-cross-dependency-layer'
 import {TracePathLayer} from '../layers/trace-path-layer';
 import {TraceProcessLayer} from '../layers/trace-process-layer';
 import {TimeMeasureLayer} from './time-measure-layer';
-import {
-  getTraceLayoutSelectedLocalDependencyGeometry,
-  getTraceLayoutSpanGeometryBySpanRef
-} from './trace-layout-geometry';
+import {getTraceLayoutSelectedLocalDependencyGeometry} from './trace-layout-geometry';
 import {ViewportHighlightLayer} from './viewport-highlight-layer';
 
+import type {TimeMeasureSelectionState} from '@deck.gl-community/widgets';
 import type {
   SpanRef,
   ThreadRef,
@@ -65,7 +64,6 @@ import type {
 import type {PathStyleExtensionProps} from '@deck.gl/extensions';
 import type {Bounds} from '@deck.gl-community/infovis-layers';
 import type {Tick} from '@deck.gl-community/timeline-layers';
-import type {TimeMeasureSelectionState} from '@deck.gl-community/widgets';
 
 type OverviewEventMarkerDatum = {
   /** Stable marker identifier used by the minimap layer. */
@@ -157,7 +155,6 @@ const MINIMAP_SELECTED_SPAN_INDICATOR_WHISKER_WIDTH_PX = 2;
 const MINIMAP_SELECTED_SPAN_INDICATOR_WHISKER_CAP_HEIGHT_PX = 12;
 const DEFAULT_SPAN_WIDTH_MIN_PIXELS = 2;
 const SELECTED_BLOCK_HIGHLIGHT_LINE_WIDTH_PX = 4;
-const SELECTED_BLOCK_HIGHLIGHT_OUTER_OFFSET = 0.5;
 const SELECTED_BLOCK_HIGHLIGHT_COLOR_IDLE = [0, 0, 0, 255] as [number, number, number, number];
 const SELECTED_BLOCK_HIGHLIGHT_COLOR_PULSE = [255, 0, 0, 255] as [number, number, number, number];
 const SELECTED_BLOCK_HIGHLIGHT_PULSE_DURATION_MS = 1200;
@@ -223,7 +220,7 @@ export type TraceDeckLayerHandlers = {
     event?: {srcEvent?: {shiftKey?: boolean}}
   ) => boolean | void;
   /** Callback fired when a collapsed process activity row should toggle expansion. */
-  readonly onToggleProcess?: (processId: string, processRef?: TraceLayoutRow['processRef']) => void;
+  readonly onToggleProcess?: (processId: string, processRef: TraceLayoutRow['processRef']) => void;
 };
 
 /** Inputs for building deck.gl layers from one prepared graph scene. */
@@ -354,7 +351,7 @@ export function buildDeckBackgroundLayersForTrace({
     data: processRows,
     positionFormat: 'XY',
     getPolygon: row => {
-      const rankLayout = traceLayout.processLayouts?.[row.rankIndex];
+      const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
       return rankLayout?.backgroundPolygonInfinite ?? [];
     },
     getFillColor: (rankBackgroundColor ?? HIDDEN_EVENT_COLOR) as [number, number, number, number],
@@ -380,7 +377,7 @@ export function buildDeckRowSeparatorLayerForTrace({
   const separatorRows = traceLayout.renderRows;
   const terminalRow = [...separatorRows]
     .reverse()
-    .find(row => traceLayout.processLayouts?.[row.rankIndex]);
+    .find(row => getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef));
   const getTraceTimeExtentSeparatorLine = (line: Float32Array | undefined): Float32Array => {
     if (!line || line.length < 4) {
       return EMPTY_ROW_SEPARATOR_LINE;
@@ -421,7 +418,7 @@ export function buildDeckRowSeparatorLayerForTrace({
   };
   const separatorData: RowSeparatorDatum[] = [
     ...separatorRows.map(row => {
-      const rankLayout = traceLayout.processLayouts?.[row.rankIndex];
+      const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
       return {
         row,
         edge: 'top' as const,
@@ -434,7 +431,9 @@ export function buildDeckRowSeparatorLayerForTrace({
             row: terminalRow,
             edge: 'bottom' as const,
             path: getTraceTimeExtentSeparatorLine(
-              getTerminalSeparatorLine(traceLayout.processLayouts?.[terminalRow.rankIndex])
+              getTerminalSeparatorLine(
+                getTraceLayoutProcessLayoutByRef(traceLayout, terminalRow.processRef)
+              )
             )
           }
         ]
@@ -596,56 +595,48 @@ function getSelectedLocalDependencyOverlayData({
 /** Builds the selected-span animated outline overlay without mutating per-rank base layer props. */
 function buildSelectedSpanOverlayLayer({
   selectedSpanRefs,
-  traceLayout,
+  scene,
   layerIdPrefix,
   modelMatrix
 }: {
   /** Canonical selected span refs for this trace scene. */
   selectedSpanRefs: readonly SpanRef[];
-  /** Prepared trace layout used to resolve selected span rectangles. */
-  traceLayout: Readonly<TraceLayout>;
+  /** Prepared graph scene whose row-local binary spans own rectangle coordinates. */
+  scene: Readonly<TracePreparedGraphScene>;
   /** Optional id prefix identifying the graph/view that owns this overlay. */
   layerIdPrefix?: string;
   /** Optional transform applied to the trace scene. */
   modelMatrix?: Matrix4;
 }): Layer {
   const hasSelectedSpans = selectedSpanRefs.length > 0;
-  const geometryUpdateTriggers = hasSelectedSpans ? [traceLayout] : EMPTY_LAYER_UPDATE_TRIGGERS;
-  const getSelectedSpanPath = (spanRef: SpanRef): [number, number][] => {
-    const bbox = getTraceLayoutSpanGeometryBySpanRef({traceLayout, spanRef});
-    if (!bbox || bbox[2] <= bbox[0] || bbox[3] <= bbox[1]) {
-      return [];
-    }
-    return [
-      [bbox[0], bbox[1]],
-      [bbox[2], bbox[1]],
-      [bbox[2], bbox[3]],
-      [bbox[0], bbox[3]],
-      [bbox[0], bbox[1]]
-    ];
-  };
-
-  const outlineLayer = new PathLayer<
-    SpanRef,
-    PathStyleExtensionProps<SpanRef> & {rankIndex: number}
-  >({
+  const geometryUpdateTriggers = hasSelectedSpans ? [scene] : EMPTY_LAYER_UPDATE_TRIGGERS;
+  const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const outlineLayer = new BlockLayer<SpanRef, {rankIndex: number}>({
     id: makeLayerId(layerIdPrefix, 'selected-block-outlines'),
     visible: hasSelectedSpans,
     data: selectedSpanRefs,
     positionFormat: 'XY',
-    getPath: getSelectedSpanPath,
-    getColor: SELECTED_BLOCK_HIGHLIGHT_COLOR_IDLE,
-    getWidth: SELECTED_BLOCK_HIGHLIGHT_LINE_WIDTH_PX,
-    widthUnits: 'pixels',
-    widthMinPixels: SELECTED_BLOCK_HIGHLIGHT_LINE_WIDTH_PX,
-    getOffset: SELECTED_BLOCK_HIGHLIGHT_OUTER_OFFSET,
-    extensions: [new PathStyleExtension({offset: true})],
+    getPosition: spanRef =>
+      fillTracePreparedSpanBinaryGeometry({scene, spanRef, target: geometry})
+        ? [geometry.x1, geometry.y1]
+        : [0, 0],
+    getSize: spanRef =>
+      fillTracePreparedSpanBinaryGeometry({scene, spanRef, target: geometry})
+        ? [Math.max(0, geometry.x2 - geometry.x1), Math.max(0, geometry.y2 - geometry.y1)]
+        : [0, 0],
+    getFillColor: [0, 0, 0, 0],
+    getLineColor: SELECTED_BLOCK_HIGHLIGHT_COLOR_IDLE,
+    getLineWidth: SELECTED_BLOCK_HIGHLIGHT_LINE_WIDTH_PX,
+    lineWidthUnits: 'pixels',
+    widthMinPixels: 0,
+    heightMinPixels: 0,
     opacity: 1,
     pickable: false,
     parameters: SELECTED_BLOCK_HIGHLIGHT_PARAMETERS,
     modelMatrix,
     updateTriggers: {
-      getPath: geometryUpdateTriggers
+      getPosition: geometryUpdateTriggers,
+      getSize: geometryUpdateTriggers
     },
     rankIndex: 0
   });
@@ -664,14 +655,14 @@ function buildSelectedSpanOverlayLayer({
           duration: SELECTED_BLOCK_HIGHLIGHT_PULSE_DURATION_MS,
           easing: easeSelectedBlockHighlightColor,
           props: {
-            getColor: SELECTED_BLOCK_HIGHLIGHT_COLOR_PULSE
+            getLineColor: SELECTED_BLOCK_HIGHLIGHT_COLOR_PULSE
           }
         },
         {
           duration: SELECTED_BLOCK_HIGHLIGHT_PULSE_DURATION_MS,
           easing: easeSelectedBlockHighlightColor,
           props: {
-            getColor: SELECTED_BLOCK_HIGHLIGHT_COLOR_IDLE
+            getLineColor: SELECTED_BLOCK_HIGHLIGHT_COLOR_IDLE
           }
         }
       ]
@@ -682,7 +673,7 @@ function buildSelectedSpanOverlayLayer({
 /** Builds the hovered-span block overlay without changing per-rank base layers. */
 function buildHoveredSpanOverlayLayer({
   hoveredSpan,
-  traceLayout,
+  scene,
   layerIdPrefix,
   modelMatrix,
   onSpanClick,
@@ -690,8 +681,8 @@ function buildHoveredSpanOverlayLayer({
 }: {
   /** Hovered span payload and rank index from the current deck picking state. */
   hoveredSpan?: {rankIndex: number; block?: TraceRenderSpan} | null;
-  /** Prepared trace layout used to resolve the hovered span rectangle. */
-  traceLayout: Readonly<TraceLayout>;
+  /** Prepared graph scene whose row-local binary spans own rectangle coordinates. */
+  scene: Readonly<TracePreparedGraphScene>;
   /** Optional id prefix identifying the graph/view that owns this overlay. */
   layerIdPrefix?: string;
   /** Optional transform applied to the trace scene. */
@@ -704,27 +695,22 @@ function buildHoveredSpanOverlayLayer({
   const hoveredBlock = hoveredSpan?.block;
   const data = hoveredBlock ? [hoveredBlock] : EMPTY_HOVERED_SPAN_OVERLAY_DATA;
   const hasHoveredSpan = data.length > 0;
-  const geometryUpdateTriggers = hasHoveredSpan ? [traceLayout] : EMPTY_LAYER_UPDATE_TRIGGERS;
+  const geometryUpdateTriggers = hasHoveredSpan ? [scene] : EMPTY_LAYER_UPDATE_TRIGGERS;
+  const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
 
   return new BlockLayer<TraceRenderSpan, {rankIndex: number}>({
     id: makeLayerId(layerIdPrefix, 'hovered-block-overlay'),
     visible: hasHoveredSpan,
     data,
     positionFormat: 'XY',
-    getPosition: span => {
-      const bbox = getTraceLayoutSpanGeometryBySpanRef({
-        traceLayout,
-        spanRef: span.spanRef
-      });
-      return bbox ? [bbox[0], bbox[1]] : [0, 0];
-    },
-    getSize: span => {
-      const bbox = getTraceLayoutSpanGeometryBySpanRef({
-        traceLayout,
-        spanRef: span.spanRef
-      });
-      return bbox ? [Math.max(0, bbox[2] - bbox[0]), Math.max(0, bbox[3] - bbox[1])] : [0, 0];
-    },
+    getPosition: span =>
+      fillTracePreparedSpanBinaryGeometry({scene, spanRef: span.spanRef, target: geometry})
+        ? [geometry.x1, geometry.y1]
+        : [0, 0],
+    getSize: span =>
+      fillTracePreparedSpanBinaryGeometry({scene, spanRef: span.spanRef, target: geometry})
+        ? [Math.max(0, geometry.x2 - geometry.x1), Math.max(0, geometry.y2 - geometry.y1)]
+        : [0, 0],
     getFillColor: TRACE_COLOR.SPAN_FINISHED_FILL,
     getLineColor: TRACE_COLOR.SPAN_FINISHED_LINE,
     getLineWidth: HOVERED_BLOCK_HIGHLIGHT_LINE_WIDTH_PX,
@@ -814,11 +800,12 @@ export function buildDeckLayersForTrace({
           overflowLabels
         }) => {
           const {threads, rankIndex, processId, rankNum, isCollapsed} = row;
-          const rankLayout = traceLayout.processLayouts?.[rankIndex];
+          const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
           const effectiveIsCollapsed = rankLayout ? rankLayout.isCollapsed === true : isCollapsed;
           const layerThreads = getTraceLayerThreadsForRow({processId, settings, threads});
           return new TraceProcessLayer({
             id: makeLayerId(layerIdPrefix, `rank-${processId}`),
+            data: binaryBlockData?.data ?? spans,
             threads: layerThreads,
             spans,
             dependencies,
@@ -882,7 +869,7 @@ export function buildDeckLayersForTrace({
   const selectedSpanOverlayLayer = shouldBuildSelectionLayers
     ? buildSelectedSpanOverlayLayer({
         selectedSpanRefs: stableSelectedSpanRefs,
-        traceLayout,
+        scene,
         layerIdPrefix,
         modelMatrix
       })
@@ -890,7 +877,7 @@ export function buildDeckLayersForTrace({
   const hoveredSpanOverlayLayer = shouldBuildSelectionLayers
     ? buildHoveredSpanOverlayLayer({
         hoveredSpan,
-        traceLayout,
+        scene,
         layerIdPrefix,
         modelMatrix,
         onSpanClick,
@@ -1305,11 +1292,11 @@ export function buildDeckLayersForLegend({
   /** Callback fired when a process legend label should toggle expansion. */
   onToggleRank?: (
     processId: string,
-    processInfo?: TraceProcessInfo,
-    processRef?: TraceLayoutRow['processRef']
+    processInfo: TraceProcessInfo | undefined,
+    processRef: TraceLayoutRow['processRef']
   ) => void;
   /** Callback fired when a thread legend label should toggle lane collapse. */
-  onToggleStream?: (threadId: TraceThreadId, stream: TraceThread, threadRef?: ThreadRef) => void;
+  onToggleStream?: (threadId: TraceThreadId, stream: TraceThread, threadRef: ThreadRef) => void;
   traceLayout: Readonly<TraceLayout>;
   settings: TraceVisSettings;
   colorScheme?: TraceColorScheme;
@@ -1320,35 +1307,34 @@ export function buildDeckLayersForLegend({
 }): Layer[] {
   void colorScheme;
   const legendOverflowLabels = getLegendOverflowLabels({processRows, traceLayout});
-  const legendLayers = processRows.flatMap(
-    ({processId, threads, threadRefs, rankIndex, isCollapsed}) => {
-      const rankLayout = traceLayout.processLayouts?.[rankIndex];
-      const effectiveIsCollapsed = rankLayout ? rankLayout.isCollapsed === true : isCollapsed;
-      const legendThreads = getTraceLayerThreadsForRow({processId, settings, threads});
-      return new TraceLegendLayer({
-        id: makeLayerId(layerIdPrefix, `legend-${processId}`),
-        threads: legendThreads,
-        traceLayout,
-        settings,
-        rankLabel: (() => {
-          const rankSuffix = processNamePrefixMap?.[processId] ?? graphName;
-          const row = processRows[rankIndex];
-          const rankLabel = row?.name?.trim() ? row.name : processId;
-          const caret = effectiveIsCollapsed ? '▸' : '▾';
-          const labelText = rankSuffix ? `${rankLabel} - ${rankSuffix}` : rankLabel;
-          return `${labelText} ${caret}`;
-        })(),
-        nodeNameLabel: String(processInfoMap?.[processId]?.node_name ?? ''),
-        // modelMatrix: new Matrix4().translate([0, (maxRank - rankIndex) * rankSpacing, 0]),
-        rankIndex,
-        threadRefs: settings.trackAggregationMode === 'combine-threads' ? undefined : threadRefs,
-        onToggleStream: onToggleStream,
-        modelMatrix,
-        isCollapsed: effectiveIsCollapsed,
-        fontFamily
-      });
-    }
-  );
+  const legendLayers = processRows.flatMap(row => {
+    const {processId, processRef, threads, threadRefs, rankIndex, isCollapsed} = row;
+    const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, processRef);
+    const effectiveIsCollapsed = rankLayout ? rankLayout.isCollapsed === true : isCollapsed;
+    const legendThreads = getTraceLayerThreadsForRow({processId, settings, threads});
+    return new TraceLegendLayer({
+      id: makeLayerId(layerIdPrefix, `legend-${processId}`),
+      threads: legendThreads,
+      traceLayout,
+      settings,
+      rankLabel: (() => {
+        const rankSuffix = processNamePrefixMap?.[processId] ?? graphName;
+        const rankLabel = row.name?.trim() ? row.name : processId;
+        const caret = effectiveIsCollapsed ? '▸' : '▾';
+        const labelText = rankSuffix ? `${rankLabel} - ${rankSuffix}` : rankLabel;
+        return `${labelText} ${caret}`;
+      })(),
+      nodeNameLabel: String(processInfoMap?.[processId]?.node_name ?? ''),
+      // modelMatrix: new Matrix4().translate([0, (maxRank - rankIndex) * rankSpacing, 0]),
+      rankIndex,
+      rankProcessRef: processRef,
+      threadRefs,
+      onToggleStream: onToggleStream,
+      modelMatrix,
+      isCollapsed: effectiveIsCollapsed,
+      fontFamily
+    });
+  });
 
   const hasNodeNameLabels = processRows.some(({processId}) =>
     Boolean(processInfoMap[processId]?.node_name)
@@ -1358,7 +1344,7 @@ export function buildDeckLayersForLegend({
     visible: hasNodeNameLabels,
     data: processRows,
     getPosition: row => {
-      const rankLayout = traceLayout.processLayouts?.[row.rankIndex];
+      const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
       const labelY = getRankLabelRenderY(rankLayout);
       return rankLayout?.startPosition
         ? [rankLayout.startPosition[0], labelY, rankLayout.startPosition[2] ?? 0]
@@ -1405,14 +1391,14 @@ export function buildDeckLayersForLegend({
     id: makeLayerId(layerIdPrefix, `legend-rank-label`),
     data: processRows,
     getPosition: row => {
-      const rankLayout = traceLayout.processLayouts?.[row.rankIndex];
+      const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
       const labelY = getRankLabelRenderY(rankLayout);
       return rankLayout?.startPosition
         ? [rankLayout.startPosition[0], labelY, rankLayout.startPosition[2] ?? 0]
         : [0, labelY, 0];
     },
-    getText: ({name, processId, isCollapsed, rankIndex}) => {
-      const rankLayout = traceLayout.processLayouts?.[rankIndex];
+    getText: ({name, processId, processRef, isCollapsed}) => {
+      const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, processRef);
       const effectiveIsCollapsed = rankLayout ? rankLayout.isCollapsed === true : isCollapsed;
       const rankSuffix = processNamePrefixMap?.[processId] ?? graphName;
       const rankLabel = name?.trim() ? name : processId;
@@ -1544,29 +1530,20 @@ function getLegendOverflowLabels(params: {
   const filteredSpanCountByThreadRef = getTraceLayoutFilteredSpanCountByThreadRef({
     traceLayout: params.traceLayout
   });
-  const filteredSpanCountByThreadId = getTraceLayoutFilteredSpanCountByThreadId({
-    traceLayout: params.traceLayout
-  });
-
   return params.processRows.flatMap(row => {
-    const rankLayout = params.traceLayout.processLayouts?.[row.rankIndex];
+    const rankLayout = getTraceLayoutProcessLayoutByRef(params.traceLayout, row.processRef);
     if (!rankLayout) {
       return [];
     }
 
     const effectiveIsCollapsed = Boolean(rankLayout.isCollapsed || row.isCollapsed);
     const filteredSpanCount =
-      filteredSpanCountByThreadRef != null && (row.threadRefs?.length ?? 0) > 0
-        ? (row.threadRefs ?? []).reduce(
+      filteredSpanCountByThreadRef != null && row.threadRefs.length > 0
+        ? row.threadRefs.reduce(
             (count, threadRef) => count + (filteredSpanCountByThreadRef.get(threadRef) ?? 0),
             0
           )
-        : filteredSpanCountByThreadId != null
-          ? row.threads.reduce(
-              (count, thread) => count + (filteredSpanCountByThreadId[thread.threadId] ?? 0),
-              0
-            )
-          : 0;
+        : 0;
 
     if (effectiveIsCollapsed) {
       if (filteredSpanCount === 0) {

@@ -5,9 +5,10 @@
   <img src="https://img.shields.io/badge/status-work--in--progress-orange.svg?style=flat-square" alt="status Work-in-Progress" />
 </p>
 
-The shortest useful integration is: normalize data, construct a `TraceGraph`, then render
-`DeckTraceGraph`. The host application owns uploaded files, settings persistence, selection state,
-collapse state, and any product-specific panels.
+The shortest useful integration is: normalize data, construct a `TraceGraph`, mount a
+`TraceEngine`, then render `DeckTraceGraph`. The host application owns uploaded files, durable
+settings, durable selected span refs, durable expanded process ids, and any product-specific
+panels.
 
 ## Build a graph
 
@@ -51,45 +52,61 @@ rendering code.
 
 ## Render the graph
 
-`DeckTraceGraph` is controlled. Pass the graph plus the settings, selection, and collapse state your
-application owns:
+`DeckTraceGraph` renders one mounted `TraceEngine`. Sync durable host inputs into the engine, then
+pass the engine plus React-only viewer configuration:
 
 ```tsx
-import {DEFAULT_TRACE_STYLE} from '@deck.gl-community/trace-layers/trace';
+import {useLayoutEffect, useMemo} from 'react';
+import {DEFAULT_TRACE_STYLE, TraceEngine} from '@deck.gl-community/trace-layers/trace';
 import {DeckTraceGraph, TRACEVIS_SHORTCUTS} from '@deck.gl-community/trace-layers/react';
 
-export function TraceViewer({traceGraph, settings, collapseState}) {
+export function TraceViewer({traceGraph, settings, selectedSpanRefs}) {
+  const engine = useMemo(
+    () =>
+      new TraceEngine({
+        traceGraph,
+        traceStyle: DEFAULT_TRACE_STYLE,
+        paths: [],
+        settings,
+        selectedSpanRefs,
+        defaultExpandProcess: true
+      }),
+    [traceGraph]
+  );
+
+  useLayoutEffect(() => {
+    engine.sync({
+      traceGraph,
+      traceStyle: DEFAULT_TRACE_STYLE,
+      paths: [],
+      settings,
+      selectedSpanRefs,
+      defaultExpandProcess: true
+    });
+  }, [engine, selectedSpanRefs, settings, traceGraph]);
+
   return (
     <DeckTraceGraph
-      traceGraph={traceGraph}
-      traceStyle={DEFAULT_TRACE_STYLE}
-      settings={settings}
-      collapseState={collapseState}
-      selectedSpanRefs={[]}
-      paths={[]}
-      keyboardShortcuts={TRACEVIS_SHORTCUTS}
-      onAllProcessesExpansionChange={() => {}}
-      onProcessCollapseToggle={() => {}}
-      onThreadCollapseToggle={() => {}}
-      onThreadCollapsePrune={() => {}}
-      onTimeRangeSelectionChange={() => {}}
+      engine={engine}
+      reactConfig={{keyboardShortcuts: TRACEVIS_SHORTCUTS}}
     />
   );
 }
 ```
 
-Use the collapse runtime helpers when you want the package to manage ref-native process/thread
-collapse transitions for one or two displayed graphs.
+Subscribe to `TraceEngine` updates when the host needs to persist `selectedSpanRefs` or serialized
+expanded process ids after interactions.
 
 ## Add application behavior
 
 Common next steps:
 
-- use `onSelectionChange` to keep selected `SpanRef`s in app state
-- pass `secondaryTraceGraph` for compare mode
-- pass `colorScheme` for source-specific span and process colors
-- pass `renderTraceEventCard` for source-specific graph-global event details
-- pass `externalOmniBoxSearchProvider` when search must include host-owned records
+- subscribe to engine updates to persist selected `SpanRef`s and expanded process ids
+- sync `secondaryTraceGraph` into the engine for compare mode
+- sync `colorScheme` into the engine for source-specific span and process colors
+- pass `renderTraceEventCard` in `reactConfig` for source-specific graph-global event details
+- pass `externalOmniBoxSearchProvider` in `reactConfig` when search must include host-owned records
 
 Read [Rendering traces](./rendering-traces.md) for the render pipeline and
-[DeckTraceGraph](../api-reference/react/deck-trace-graph.md) for the full prop surface.
+[DeckTraceGraph](../api-reference/react/deck-trace-graph.md) plus
+[TraceEngine](../api-reference/trace/trace-engine.md) for the mounted viewer contract.

@@ -20,6 +20,8 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 ### `@deck.gl-community/trace-layers`
 
 - Trace graph data, layout, style, runtime-ref, Chrome trace, Perfetto trace, and Arrow ingestion APIs now ship from normalized `trace`, `layers`, `loaders`, and `react` package subpaths.
+- `TraceEngine` now owns mounted trace selection, collapse, layout, prepared scene, and diagnostics state below React; `DeckTraceGraph` renders an engine instead of receiving the full controlled trace-view state directly.
+- `TraceChunkStore` now exposes source-owned graph-data materialization and retained-state diagnostics for incremental windows, while `TraceStoreLayer` composes that flow as a low-level deck layer.
 - `DeckTraceGraph`, deck controllers/layers, trace loaders, and the Tracevis React surface now consume shared `@deck.gl-community/panels`, `@deck.gl-community/widgets`, and `@deck.gl-community/infovis-layers` APIs instead of vendored upstream copies.
 - Added the website Tracevis example for exercising trace loading, selection, catalog, and Studio visualization settings workflows.
 

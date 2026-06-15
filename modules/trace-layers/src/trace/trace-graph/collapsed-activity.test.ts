@@ -3,9 +3,9 @@ import {describe, expect, it} from 'vitest';
 import {buildTraceGraphDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
 import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
+import {buildTraceLayout} from '../trace-layout/trace-geometry-layout';
 import {buildCollapsedActivityByTraceGraphRows} from './collapsed-activity';
 import {TraceGraph} from './trace-graph';
-import {buildTraceLayoutSpanGeometryChunksForTest} from './trace-graph-test-utils';
 
 import type {TraceLayoutRow} from '../trace-layout/trace-layout';
 import type {TraceColorScheme} from '../trace-style/trace-color-scheme';
@@ -66,17 +66,56 @@ function makeBlock(spanId: string, startTimeMs: number, endTimeMs: number): Trac
 
 /** Builds an Arrow-backed runtime graph from test spans. */
 function makeRuntimeGraph(spans: readonly TraceSpan[]) {
+  const {graph, processes} = makeRuntimeGraphForProcesses([{processId: 'rank1', spans}]);
+  return {
+    graph,
+    stream: processes[0]!.threads[0]!
+  };
+}
+
+/** Builds an Arrow-backed runtime graph from process-local test span lists. */
+function makeRuntimeGraphForProcesses(
+  processSpanSources: readonly {
+    /** Ingestion process id owning the test spans. */
+    readonly processId: string;
+    /** Test spans assigned to the process. */
+    readonly spans: readonly TraceSpan[];
+  }[]
+) {
+  const processes = processSpanSources.map(({processId, spans}, processIndex) =>
+    makeRuntimeProcess(processId, spans, processIndex + 1)
+  );
+  const allSpans = processSpanSources.flatMap(({spans}) => spans);
+  return {
+    graph: createTestTraceGraph(
+      buildTraceGraphDataFromJSONTrace(
+        buildJSONTrace(processes, [], {
+          name: 'test',
+          timeExtents: getTestTimeExtents(allSpans)
+        })
+      )
+    ),
+    processes
+  };
+}
+
+/** Builds one runtime process fixture with spans assigned to its process-local thread. */
+function makeRuntimeProcess(
+  processId: string,
+  spans: readonly TraceSpan[],
+  rankNum: number
+): TraceProcess {
   const stream = {
     type: 'trace-thread',
-    threadId: 'stream:test' as TraceThreadId,
-    processId: 'rank1',
-    name: 'Stream 1'
+    threadId: `stream:${processId}` as TraceThreadId,
+    processId,
+    name: `Stream ${processId}`
   } as TraceThread;
-  const process = {
+  return {
     type: 'trace-process',
-    processId: 'rank1',
-    name: 'rank1',
-    rankNum: 1,
+    processId,
+    name: processId,
+    rankNum,
     stepNum: 0,
     threads: [stream],
     threadMap: {
@@ -85,7 +124,7 @@ function makeRuntimeGraph(spans: readonly TraceSpan[]) {
     spans: spans.map(span => ({
       ...span,
       threadId: stream.threadId,
-      processName: 'rank1'
+      processName: processId
     })),
     spanMap: {},
     instants: [],
@@ -97,17 +136,6 @@ function makeRuntimeGraph(spans: readonly TraceSpan[]) {
     localDependencies: [],
     remoteDependencies: []
   } as unknown as TraceProcess;
-  return {
-    graph: createTestTraceGraph(
-      buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace([process], [], {
-          name: 'test',
-          timeExtents: getTestTimeExtents(spans)
-        })
-      )
-    ),
-    stream
-  };
 }
 
 /** Returns explicit raw span bounds for collapsed-activity fixtures. */
@@ -115,11 +143,16 @@ function getTestTimeExtents(spans: readonly TraceSpan[]) {
   if (spans.length === 0) {
     return {minTimeMs: 0, maxTimeMs: 0};
   }
+  let minTimeMs = Infinity;
+  let maxTimeMs = -Infinity;
+  spans.forEach(span => {
+    const timing = span.timings[span.primaryTimingKey];
+    minTimeMs = Math.min(minTimeMs, timing?.startTimeMs ?? 0);
+    maxTimeMs = Math.max(maxTimeMs, timing?.endTimeMs ?? 0);
+  });
   return {
-    minTimeMs: Math.min(
-      ...spans.map(span => span.timings[span.primaryTimingKey]?.startTimeMs ?? 0)
-    ),
-    maxTimeMs: Math.max(...spans.map(span => span.timings[span.primaryTimingKey]?.endTimeMs ?? 0))
+    minTimeMs,
+    maxTimeMs
   };
 }
 
@@ -132,12 +165,26 @@ function makeRow(graph: TraceGraph, stream: TraceThread): TraceLayoutRow {
   return {
     processId: 'rank1',
     processRef,
+    threadRefs: graph.getThreadRefsByProcessRef(processRef),
     rankIndex: 0,
     name: 'rank1',
     rankNum: 1,
     threads: [stream],
     isCollapsed: true
   };
+}
+
+/** Resolves collapsed activity intervals for one runtime process index. */
+function getCollapsedActivityForProcessIndex(
+  graph: TraceGraph,
+  result: ReturnType<typeof buildCollapsedActivityByTraceGraphRows>,
+  processIndex: number
+) {
+  const processRef = graph.getProcessRefs()[processIndex];
+  if (processRef == null) {
+    throw new Error(`Expected process ref at index ${processIndex}`);
+  }
+  return result.get(processRef) ?? [];
 }
 
 describe('buildCollapsedActivityByTraceGraphRows', () => {
@@ -151,8 +198,28 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
       settings
     });
 
-    expect(result.rank1?.length).toBeGreaterThan(0);
-    expect(result.rank1?.some(interval => interval.height != null)).toBe(false);
+    const intervals = getCollapsedActivityForProcessIndex(graph, result, 0);
+    expect(intervals.length).toBeGreaterThan(0);
+    expect(intervals.some(interval => interval.height != null)).toBe(false);
+  });
+
+  it('leaves density gaps empty when no visible spans cover them', () => {
+    const {graph, stream} = makeRuntimeGraph([
+      makeBlock('early', 0, 10),
+      makeBlock('late', 90, 100)
+    ]);
+
+    const result = buildCollapsedActivityByTraceGraphRows({
+      graph,
+      rows: [makeRow(graph, stream)],
+      colorScheme: defaultColorScheme,
+      settings
+    });
+
+    const intervals = getCollapsedActivityForProcessIndex(graph, result, 0);
+    expect(intervals.some(interval => interval.endX <= 20)).toBe(true);
+    expect(intervals.some(interval => interval.startX >= 80)).toBe(true);
+    expect(intervals.some(interval => interval.startX < 50 && interval.endX > 50)).toBe(false);
   });
 
   it('builds compact icicle intervals from runtime graph geometry bands', () => {
@@ -160,7 +227,6 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
       makeBlock('parent', 0, 100),
       makeBlock('child', 10, 90)
     ]);
-    const spans = graph.getVisibleProcessDisplaySources(graph.getProcessRefs()[0]!);
     const colorScheme = {
       id: 'icicle-test',
       name: 'Icicle Test',
@@ -170,20 +236,14 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
     const result = buildCollapsedActivityByTraceGraphRows({
       graph,
       rows: [makeRow(graph, stream)],
-      geometryLayout: {
-        spanGeometryChunks: buildTraceLayoutSpanGeometryChunksForTest([
-          [spans[0]!.spanRef, new Float32Array([0, 0, 100, 1])],
-          [spans[1]!.spanRef, new Float32Array([10, 10, 90, 11])]
-        ])
-      } as unknown as Parameters<
-        typeof buildCollapsedActivityByTraceGraphRows
-      >[0]['geometryLayout'],
+      geometryLayout: buildTraceLayout({traceGraph: graph, settings}),
       colorScheme,
       settings,
       aggregation: 'icicle'
     });
 
-    expect(result.rank1).toEqual([
+    const intervals = getCollapsedActivityForProcessIndex(graph, result, 0);
+    expect(intervals).toEqual([
       expect.objectContaining({
         startX: 0,
         endX: 100,
@@ -199,37 +259,30 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
         height: expect.any(Number)
       })
     ]);
-    expect(result.rank1?.[1]?.yOffset).toBeGreaterThan(0);
-    expect(result.rank1?.[1]?.yOffset).toBeLessThan(0.3);
+    expect(intervals[1]?.yOffset).toBeGreaterThan(0);
+    expect(intervals[1]?.yOffset).toBeLessThan(0.3);
   });
 
   it('quantizes hundreds of runtime graph icicle lanes into fixed visual bands', () => {
     const {graph, stream} = makeRuntimeGraph(
       Array.from({length: 200}, (_, index) => makeBlock(`span-${index}`, 0, 20))
     );
-    const spans = graph.getVisibleProcessDisplaySources(graph.getProcessRefs()[0]!);
 
     const result = buildCollapsedActivityByTraceGraphRows({
       graph,
       rows: [makeRow(graph, stream)],
-      geometryLayout: {
-        spanGeometryChunks: buildTraceLayoutSpanGeometryChunksForTest(
-          spans.map((span, index) => [span.spanRef, new Float32Array([0, index, 20, index + 0.5])])
-        )
-      } as unknown as Parameters<
-        typeof buildCollapsedActivityByTraceGraphRows
-      >[0]['geometryLayout'],
+      geometryLayout: buildTraceLayout({traceGraph: graph, settings}),
       colorScheme: defaultColorScheme,
       settings,
       aggregation: 'icicle'
     });
 
-    const yOffsets = new Set(result.rank1?.map(interval => interval.yOffset));
+    const yOffsets = new Set(
+      getCollapsedActivityForProcessIndex(graph, result, 0).map(interval => interval.yOffset)
+    );
     expect(yOffsets.size).toBeLessThanOrEqual(6);
     expect(yOffsets.has(0)).toBe(true);
-    expect(
-      Math.max(...[...yOffsets].filter((value): value is number => value != null))
-    ).toBeGreaterThan(0.5);
+    expect([...yOffsets].some(yOffset => typeof yOffset === 'number' && yOffset > 0.5)).toBe(true);
   });
 
   it('coalesces adjacent same-color icicle intervals on compact fallback lanes', () => {
@@ -250,7 +303,7 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
       aggregation: 'icicle'
     });
 
-    expect(result.rank1).toEqual([
+    expect(getCollapsedActivityForProcessIndex(graph, result, 0)).toEqual([
       expect.objectContaining({
         startX: 0,
         endX: 20,
@@ -258,5 +311,39 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
         yOffset: 0
       })
     ]);
+  });
+
+  it('summarizes collapsed activity by exact process ref when row indexes are stale', () => {
+    const {graph, processes} = makeRuntimeGraphForProcesses([
+      {processId: 'rank-full', spans: [makeBlock('full', 0, 100)]},
+      {processId: 'rank-short', spans: [makeBlock('short', 40, 50)]}
+    ]);
+    const shortProcessRef = graph.getProcessRefs()[1];
+    if (shortProcessRef == null) {
+      throw new Error('Expected short process ref');
+    }
+    const shortProcess = processes[1]!;
+    const result = buildCollapsedActivityByTraceGraphRows({
+      graph,
+      rows: [
+        {
+          processId: shortProcess.processId,
+          processRef: shortProcessRef,
+          threadRefs: graph.getThreadRefsByProcessRef(shortProcessRef),
+          rankIndex: 0,
+          name: shortProcess.name,
+          rankNum: shortProcess.rankNum,
+          threads: shortProcess.threads,
+          isCollapsed: true
+        }
+      ],
+      colorScheme: defaultColorScheme,
+      settings
+    });
+    const intervals = result.get(shortProcessRef) ?? [];
+
+    expect(intervals.length).toBeGreaterThan(0);
+    expect(intervals.every(interval => interval.startX > 0)).toBe(true);
+    expect(intervals.every(interval => interval.endX < 100)).toBe(true);
   });
 });

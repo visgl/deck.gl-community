@@ -9,6 +9,7 @@ import {
 import {BlockLayer} from '@deck.gl-community/infovis-layers';
 import {DependencyArrowLayer, PathDirection} from '@deck.gl-community/layers';
 
+import {buildTraceLayoutGeometryDerivationContext} from '../../trace/trace-layout/trace-derived-geometry';
 import {
   createTraceColorResolver,
   DEFAULT_PATH_HIGHLIGHT_TRAIL_LENGTH,
@@ -28,7 +29,11 @@ import {
   getTraceLayoutSpanGeometryBySpanRef
 } from './trace-layout-geometry';
 
-import type {TraceGraphPathBlockSource, TraceGraphPathDependencySource} from '../../trace/index';
+import type {
+  TraceGraphPathBlockSource,
+  TraceGraphPathDependencySource,
+  TraceLayoutGeometryDerivationContext
+} from '../../trace/index';
 import type {SpanRef, TraceVisSettings} from '../../trace/trace-graph/trace-types';
 import type {TraceLayout} from '../../trace/trace-layout/trace-layout';
 import type {TraceColorScheme} from '../../trace/trace-style/trace-colors';
@@ -56,7 +61,7 @@ export type TracePathLayerProps = LayerProps & {
   onSpanClick: (info: PickingInfo) => boolean | void;
   /** Rank index used for deck-specific picking context. */
   rankIndex: number;
-  /** Layout containing the canonical ref-keyed geometry for this path overlay. */
+  /** Layout containing current span timing and lane assignment state for this path overlay. */
   traceLayout: TraceLayout;
   /** Active rendering settings for the path overlay. */
   settings: TraceVisSettings;
@@ -79,13 +84,15 @@ const EMPTY_PATH_HIGHLIGHT_TRAIL: readonly PathHighlightTrailDatum[] = [];
 
 function getPathBlockSourceBounds(
   blockSources: readonly TraceGraphPathBlockSource[],
-  traceLayout: TraceLayout
+  traceLayout: TraceLayout,
+  context: TraceLayoutGeometryDerivationContext
 ): [[number, number], [number, number]] | null {
   return combineBounds(
     blockSources.map(blockSource => {
       const bbox = getTraceLayoutSpanGeometryBySpanRef({
         traceLayout,
-        spanRef: blockSource.spanRef
+        spanRef: blockSource.spanRef,
+        context
       });
       return bbox
         ? [
@@ -99,13 +106,15 @@ function getPathBlockSourceBounds(
 
 function getPathDependencySourceBounds(
   dependencySources: readonly TraceGraphPathDependencySource[],
-  traceLayout: TraceLayout
+  traceLayout: TraceLayout,
+  context: TraceLayoutGeometryDerivationContext
 ): [[number, number], [number, number]] | null {
   return combineBounds(
     dependencySources.map(source => {
       const geometry = getTraceLayoutPathDependencyGeometry({
         traceLayout,
-        source
+        source,
+        context
       });
       if (!geometry || geometry.length < 2) {
         return null;
@@ -146,22 +155,26 @@ function getPathDependencySourceBounds(
 
 function getPathBlockPosition(
   blockSource: TraceGraphPathBlockSource,
-  traceLayout: TraceLayout
+  traceLayout: TraceLayout,
+  context: TraceLayoutGeometryDerivationContext
 ): [number, number] {
   const bbox = getTraceLayoutSpanGeometryBySpanRef({
     traceLayout,
-    spanRef: blockSource.spanRef
+    spanRef: blockSource.spanRef,
+    context
   });
   return bbox ? [bbox[0], bbox[1]] : [0, 0];
 }
 
 function getPathBlockSize(
   blockSource: TraceGraphPathBlockSource,
-  traceLayout: TraceLayout
+  traceLayout: TraceLayout,
+  context: TraceLayoutGeometryDerivationContext
 ): [number, number] {
   const bbox = getTraceLayoutSpanGeometryBySpanRef({
     traceLayout,
-    spanRef: blockSource.spanRef
+    spanRef: blockSource.spanRef,
+    context
   });
   return bbox ? [bbox[2] - bbox[0], bbox[3] - bbox[1]] : [0, 0];
 }
@@ -185,10 +198,11 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
 
   override getBounds() {
     const {traceLayout, blockSources, dependencySources} = this.props;
+    const geometryContext = buildTraceLayoutGeometryDerivationContext(traceLayout);
     return expandBounds(
       combineBounds([
-        getPathBlockSourceBounds(blockSources, traceLayout),
-        getPathDependencySourceBounds(dependencySources, traceLayout)
+        getPathBlockSourceBounds(blockSources, traceLayout, geometryContext),
+        getPathDependencySourceBounds(dependencySources, traceLayout, geometryContext)
       ])
     );
   }
@@ -260,6 +274,7 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
       highlightedSpanRefs
     });
     const minSpanWidthPixels = settings.minSpanWidthPixels ?? DEFAULT_SPAN_WIDTH_MIN_PIXELS;
+    const geometryContext = buildTraceLayoutGeometryDerivationContext(traceLayout);
 
     const hasPathBlocks = blockSources.length > 0;
     const highlightedBlocks: readonly TraceGraphPathBlockSource[] =
@@ -280,7 +295,8 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
             Boolean(
               getTraceLayoutPathDependencyGeometry({
                 traceLayout,
-                source: dependencySource
+                source: dependencySource,
+                context: geometryContext
               })
             )
           )
@@ -317,7 +333,8 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
         getPath: (dependencySource: TraceGraphPathDependencySource) =>
           getTraceLayoutPathDependencyGeometry({
             traceLayout,
-            source: dependencySource
+            source: dependencySource,
+            context: geometryContext
           }) ?? [],
         getColor: TRACE_COLOR.DEPENDENCY_IN_CRITICAL_PATH_LINE,
         // getMarkerColor: TRACE_COLOR.DEPENDENCY_IN_CRITICAL_PATH_LINE,
@@ -387,9 +404,9 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
           depthCompare: 'less-equal'
         },
         getPosition: (blockSource: TraceGraphPathBlockSource) =>
-          getPathBlockPosition(blockSource, traceLayout),
+          getPathBlockPosition(blockSource, traceLayout, geometryContext),
         getSize: (blockSource: TraceGraphPathBlockSource) =>
-          getPathBlockSize(blockSource, traceLayout),
+          getPathBlockSize(blockSource, traceLayout, geometryContext),
         getFillColor: (blockSource: TraceGraphPathBlockSource) => {
           const color = [...colorResolver.getSpanFillColor(blockSource.span, 'path')];
           if (
@@ -456,9 +473,9 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
           depthCompare: 'less-equal'
         },
         getPosition: (blockSource: TraceGraphPathBlockSource) =>
-          getPathBlockPosition(blockSource, traceLayout),
+          getPathBlockPosition(blockSource, traceLayout, geometryContext),
         getSize: (blockSource: TraceGraphPathBlockSource) =>
-          getPathBlockSize(blockSource, traceLayout),
+          getPathBlockSize(blockSource, traceLayout, geometryContext),
         getFillColor: () => TRACE_COLOR.SPAN_IN_CRITICAL_PATH_HIGHLIGHT_FILL,
         getLineColor: () => TRACE_COLOR.SPAN_IN_CRITICAL_PATH_HIGHLIGHT_LINE,
         getLineWidth: 6,
@@ -505,9 +522,9 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
           depthCompare: 'less-equal'
         },
         getPosition: ({blockSource}: PathHighlightTrailDatum) =>
-          getPathBlockPosition(blockSource, traceLayout),
+          getPathBlockPosition(blockSource, traceLayout, geometryContext),
         getSize: ({blockSource}: PathHighlightTrailDatum) =>
-          getPathBlockSize(blockSource, traceLayout),
+          getPathBlockSize(blockSource, traceLayout, geometryContext),
         getFillColor: ({age}: PathHighlightTrailDatum) => {
           const alphaScale = Math.max(0.2, (trailLength - age) / trailLength);
           const color = [...TRACE_COLOR.SPAN_IN_CRITICAL_PATH_HIGHLIGHT_FILL];

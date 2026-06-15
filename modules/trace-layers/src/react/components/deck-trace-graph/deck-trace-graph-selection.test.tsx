@@ -1,4 +1,4 @@
-import {createRef, useEffect, useMemo, useRef, useState} from 'react';
+import {createRef, useEffect, useLayoutEffect, useMemo, useRef} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
@@ -8,55 +8,52 @@ import {
   getTraceLayoutVisibleDependencyGeometry
 } from '../../../layers/layers/trace-layout-geometry';
 import {
-  buildInitialTraceLayoutCollapseState,
   buildJSONTrace,
   buildTraceGraphDataFromJSONTrace,
   DEFAULT_TRACE_STYLE,
-  expandSelectedSpanProcessRefs,
-  getExpandedProcessIdsFromCollapseState,
-  pruneTraceLayoutThreadCollapseStateForLaneRefs,
-  selectTraceLayoutCollapseStateUpdate,
-  setAllTraceProcessesExpanded,
-  toggleTraceProcessCollapse,
-  toggleTraceThreadCollapse,
+  TraceEngine,
   TraceGraph
 } from '../../../trace/index';
 import {createStaticTraceGraphRuntimeSource} from '../../../trace/trace-chunk-store';
 import {
   getRequiredSpanRefBySpanId,
+  getRequiredVisibleCrossDependencyRefById,
   getRequiredVisibleDisplaySourceBySpanId,
-  getTraceGraphSpanDependencies,
-  mergeTraceLayoutSpanGeometryChunksForTest
+  getTraceGraphSpanDependencies
 } from '../../../trace/trace-graph/trace-graph-test-utils';
 import {DeckTraceGraph} from './deck-trace-graph';
 
 import type {
-  ProcessRef,
   SpanRef,
   TraceCrossProcessDependency,
   TraceDependencyId,
+  TraceEngineInputs,
+  TraceEngineUpdate,
   TraceLayout,
-  TraceLayoutCollapseState,
   TraceLayoutRow,
   TraceLocalDependency,
   TracePreparedProcessRow,
   TraceProcess,
   TraceRenderSpan,
+  TraceSelectedDependencyDirection,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId,
-  TraceVisSettings
+  TraceVisSettings,
+  VisibleCrossDependencyRef,
+  VisibleLocalDependencyRef
 } from '../../../trace/index';
 import type {TraceSpanDisplaySource} from '../../../trace/trace-graph-accessors';
 import type {
   DeckTraceGraphExternalOmniBoxSearchProvider,
   DeckTraceGraphHandle,
   DeckTraceGraphPickedObject,
-  DeckTraceGraphPickedObjectResolver
+  DeckTraceGraphPickedObjectResolver,
+  DeckTraceGraphConfig
 } from './deck-trace-graph';
 import type {Widget} from '@deck.gl/core';
-import type {ComponentPropsWithoutRef, Ref} from 'react';
+import type {Ref} from 'react';
 import type {Root} from 'react-dom/client';
 
 function createTestTraceGraph(
@@ -81,7 +78,18 @@ function getRequiredProcessRef(traceGraph: TraceGraph, processId: string) {
   return processRef;
 }
 
+/** Returns the rendered thread layout containing one selected span ref. */
+function getLayoutThreadForSpanRef(
+  traceLayout: TraceLayout | undefined,
+  traceGraph: TraceGraph,
+  spanRef: SpanRef
+) {
+  const threadRef = traceGraph.getThreadRefBySpanRef(spanRef);
+  return threadRef == null ? undefined : traceLayout?.threadLayoutMapByRef.get(threadRef);
+}
+
 const renderedDeckProps = vi.hoisted(() => ({current: null as Record<string, unknown> | null}));
+const renderedTraceEngine = vi.hoisted(() => ({current: null as TraceEngine | null}));
 const buildDeckLayersForTraceSpy = vi.hoisted(() => vi.fn());
 const buildDeckLayerForTraceProcessActivitySummarySpy = vi.hoisted(() => vi.fn());
 const buildDeckLayersForMinimapSpanIndicatorsSpy = vi.hoisted(() => vi.fn());
@@ -167,67 +175,77 @@ vi.mock('./deck-with-managed-views', async () => {
   };
 });
 
-vi.mock('@deck.gl-community/panels', async () => {
-  const actual = await vi.importActual<typeof import('@deck.gl-community/panels')>(
-    '@deck.gl-community/panels'
-  );
-
-  return {
-    ...actual,
-    DocumentationLinksPanel: class {
-      props: Record<string, unknown>;
-      constructor(props: Record<string, unknown>) {
-        this.props = props;
-      }
-    },
-    KeyboardShortcutsPanel: class {
-      props: Record<string, unknown>;
-      constructor(props: Record<string, unknown>) {
-        this.props = props;
-      }
-    },
-    TabbedPanel: class {
-      props: Record<string, unknown>;
-      constructor(props: Record<string, unknown>) {
-        this.props = props;
-      }
-    },
-    URLParametersPanel: class {
-      props: Record<string, unknown>;
-      constructor(props: Record<string, unknown>) {
-        this.props = props;
-      }
-    }
-  };
-});
-
-vi.mock('@deck.gl-community/widgets', async () => {
-  const actual = await vi.importActual<typeof import('@deck.gl-community/widgets')>(
-    '@deck.gl-community/widgets'
-  );
-
-  class MockWidget {
+vi.mock('@deck.gl-community/panels', () => {
+  class MockPanel {
     props: Record<string, unknown>;
-    constructor(props: Record<string, unknown>) {
+
+    constructor(props: Record<string, unknown> = {}) {
       this.props = props;
     }
   }
-  class MockTimeMeasureWidget extends MockWidget {
-    static performAction() {}
-  }
+
+  class KeyboardShortcutsPanel extends MockPanel {}
+  class URLParametersPanel extends MockPanel {}
+  class CommandDocumentationPanel extends MockPanel {}
+  class DocumentationLinksPanel extends MockPanel {}
+  class TabbedPanel extends MockPanel {}
 
   return {
-    ...actual,
-    CommandToggleWidget: MockWidget,
-    createStudioSettingsWidget: (props: Record<string, unknown>) => new MockWidget(props),
-    ModalPanelWidget: MockWidget,
-    OmniBoxWidget: MockWidget,
-    TimeMeasureWidget: MockTimeMeasureWidget,
-    ToastWidget: MockWidget
+    CommandDocumentationPanel,
+    commandManager: {
+      registerCommand: vi.fn(() => () => undefined)
+    },
+    DEFAULT_SHORTCUTS: [
+      {key: '/', commandKey: true, name: 'Show Shortcuts', description: 'Show help'}
+    ],
+    DocumentationLinksPanel,
+    formatShortcutKeyHTML: (shortcut: {commandKey?: boolean; key: string}) =>
+      `${shortcut.commandKey ? 'Ctrl+' : ''}${shortcut.key.toUpperCase()}`,
+    KeyboardShortcutsPanel,
+    TabbedPanel,
+    URLParametersPanel
   };
 });
 
-vi.mock('../../../layers/index', () => ({
+vi.mock('@deck.gl-community/widgets', () => {
+  class MockWidget {
+    props: Record<string, unknown>;
+    commandId: string;
+
+    constructor(props: Record<string, unknown> = {}) {
+      this.props = props;
+      this.commandId =
+        typeof props.commandId === 'string'
+          ? props.commandId
+          : typeof props.id === 'string'
+            ? props.id
+            : 'time-measure';
+    }
+  }
+
+  class CommandToggleWidget extends MockWidget {}
+  class ModalPanelWidget extends MockWidget {
+    constructor(props: Record<string, unknown> = {}) {
+      super({...props, container: props.panel});
+    }
+  }
+  class OmniBoxWidget extends MockWidget {}
+  class TimeMeasureWidget extends MockWidget {
+    static performAction() {}
+  }
+  class ToastWidget extends MockWidget {}
+
+  return {
+    CommandToggleWidget,
+    createStudioSettingsWidget: (props: Record<string, unknown>) => new MockWidget(props),
+    ModalPanelWidget,
+    OmniBoxWidget,
+    TimeMeasureWidget,
+    ToastWidget
+  };
+});
+
+vi.mock('../../../layers', () => ({
   getTraceBounds: () => [
     [0, 0],
     [100, 100]
@@ -257,7 +275,7 @@ vi.mock('../../../layers/index', () => ({
       this.props = props;
     }
   },
-  ModalWidget: class {
+  ModalPanelWidget: class {
     props: Record<string, unknown>;
     constructor(props: Record<string, unknown>) {
       this.props = props;
@@ -270,6 +288,12 @@ vi.mock('../../../layers/index', () => ({
     }
   },
   OmniBoxWidget: class {
+    props: Record<string, unknown>;
+    constructor(props: Record<string, unknown>) {
+      this.props = props;
+    }
+  },
+  SettingsWidget: class {
     props: Record<string, unknown>;
     constructor(props: Record<string, unknown>) {
       this.props = props;
@@ -361,7 +385,7 @@ const defaultTraceVisSettings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  timingAggregationKey: 'latest'
+  traceRunSummaryAggregationKey: 'latest'
 };
 
 function createProcess(processId: string, rankNum: number, spanId: string): TraceProcess {
@@ -752,7 +776,6 @@ function createCombinedThreadSelectionTraceGraph(): {
   selectedBlock: TraceSpanDisplaySource;
   selectedSpanRef: SpanRef;
   unrelatedSpanRef: SpanRef;
-  unrelatedStreamId: TraceThreadId;
 } {
   const process = createProcess('head-rank', 0, 'head-thread-a-base');
   const primaryThread = process.threads[0]!;
@@ -826,8 +849,7 @@ function createCombinedThreadSelectionTraceGraph(): {
     traceGraph,
     selectedBlock: visibleSelectedBlock,
     selectedSpanRef,
-    unrelatedSpanRef,
-    unrelatedStreamId: secondaryThread.threadId
+    unrelatedSpanRef
   };
 }
 
@@ -947,7 +969,7 @@ function createCombinedThreadDependencySelectionTraceGraph(): {
   };
 }
 
-/** Builds a simple root-to-child cross-parent selection graph. */
+/** Builds a simple head-to-logical cross-parent selection graph. */
 function createCrossSelectionTraceGraph(): {
   traceGraph: TraceGraph;
   selectedBlock: TraceSpanDisplaySource;
@@ -1223,13 +1245,55 @@ function wrapTestPickedTraceObject(object: DeckTraceGraphPickedObject): {
   return {pickedObject: object};
 }
 
-type RenderDeckTraceGraphProps = Partial<ComponentPropsWithoutRef<typeof DeckTraceGraph>> & {
-  defaultExpandProcess?: boolean;
-  defaultSelectedSpanRefs?: readonly SpanRef[];
-  defaultExpandedProcessIds?: readonly string[];
-  defaultCollapsedProcessIds?: readonly string[];
-  onExpandedProcessIdsChange?: (processIds: string[]) => void;
-};
+/** DeckTraceGraph prop subset projected by the selection test harness. */
+type RenderDeckTraceGraphProps = Partial<
+  Pick<
+    TraceEngineInputs,
+    | 'traceGraph'
+    | 'secondaryTraceGraph'
+    | 'traceStyle'
+    | 'paths'
+    | 'settings'
+    | 'colorScheme'
+    | 'highlightedSpanRefs'
+    | 'selectedSpanRefs'
+    | 'selectionPolicy'
+    | 'focusSelectedSpanRefs'
+    | 'extendedSelectionMode'
+    | 'showCollapsedActivitySummary'
+    | 'collapsedActivityAggregation'
+    | 'layoutTimingKey'
+    | 'layoutTopPadding'
+  >
+> &
+  Partial<DeckTraceGraphConfig> & {
+    /** Initial process expansion default passed into the test harness. */
+    defaultExpandProcess?: boolean;
+    /** Initial selected span refs passed into the test harness. */
+    defaultSelectedSpanRefs?: readonly SpanRef[];
+    /** Initial expanded process ids passed into the test harness. */
+    defaultExpandedProcessIds?: readonly string[];
+    /** Initial collapsed process ids passed into the test harness. */
+    defaultCollapsedProcessIds?: readonly string[];
+    /** Callback observing serialized expanded process ids. */
+    onExpandedProcessIdsChange?: (processIds: string[]) => void;
+    /** Optional CSS class applied by the test harness. */
+    className?: string;
+    /** Visible local dependency refs rendered as selected overlays. */
+    selectedLocalDependencyRefs?: ReadonlySet<VisibleLocalDependencyRef>;
+    /** Visible cross dependency refs rendered as selected overlays. */
+    selectedCrossDependencyRefs?: ReadonlySet<VisibleCrossDependencyRef>;
+    /** Selected local dependency directions keyed by visible dependency ref. */
+    selectedLocalDependencyDirectionByRef?: ReadonlyMap<
+      VisibleLocalDependencyRef,
+      TraceSelectedDependencyDirection
+    >;
+    /** Selected cross dependency directions keyed by visible dependency ref. */
+    selectedCrossDependencyDirectionByRef?: ReadonlyMap<
+      VisibleCrossDependencyRef,
+      TraceSelectedDependencyDirection
+    >;
+  };
 
 function TestDeckTraceGraphHarness({
   traceGraph,
@@ -1240,7 +1304,8 @@ function TestDeckTraceGraphHarness({
   traceGraph: TraceGraph;
   additionalProps?: RenderDeckTraceGraphProps;
   deckTraceGraphRef: Ref<DeckTraceGraphHandle>;
-  onSelectionChange: (selection: unknown) => void;
+  /** Callback observing TraceEngine selection updates from the harness. */
+  onSelectionChange: (selection: TraceEngineUpdate) => void;
 }) {
   const {
     defaultExpandProcess = true,
@@ -1248,154 +1313,136 @@ function TestDeckTraceGraphHarness({
     defaultExpandedProcessIds,
     defaultCollapsedProcessIds,
     onExpandedProcessIdsChange,
+    traceGraph: traceGraphOverride,
+    secondaryTraceGraph,
+    traceStyle = DEFAULT_TRACE_STYLE,
+    paths = [],
+    settings = defaultTraceVisSettings,
+    colorScheme,
+    highlightedSpanRefs,
+    selectedSpanRefs = defaultSelectedSpanRefs,
+    selectionPolicy,
+    focusSelectedSpanRefs,
+    extendedSelectionMode,
+    showCollapsedActivitySummary,
+    collapsedActivityAggregation,
+    layoutTimingKey,
+    layoutTopPadding,
+    selectedLocalDependencyRefs,
+    selectedCrossDependencyRefs,
+    selectedLocalDependencyDirectionByRef,
+    selectedCrossDependencyDirectionByRef,
+    className,
     resolvePickedTraceObject = resolveTestPickedTraceObject,
-    ...componentProps
+    ...reactConfig
   } = additionalProps ?? {};
-  const settings = componentProps.settings ?? defaultTraceVisSettings;
-  const secondaryTraceGraph = componentProps.secondaryTraceGraph;
-  const traceGraphs = useMemo(
-    () =>
-      secondaryTraceGraph &&
-      (settings.processLayoutMode === 'sequential' || settings.processLayoutMode === 'interleaved')
-        ? [traceGraph, secondaryTraceGraph]
-        : [traceGraph],
-    [secondaryTraceGraph, settings.processLayoutMode, traceGraph]
-  );
-  const selectedSpanRefs = componentProps.selectedSpanRefs ?? defaultSelectedSpanRefs;
-  const selectedDefaultExpandedProcessRefs = useMemo(() => {
-    const refsByGraph = new Map<number, Set<ProcessRef>>();
-    for (const spanRef of selectedSpanRefs) {
-      const processRef = traceGraph.getProcessRefBySpanRef(spanRef);
-      if (processRef != null) {
-        const refs = refsByGraph.get(0) ?? new Set<ProcessRef>();
-        refs.add(processRef);
-        refsByGraph.set(0, refs);
-      }
-    }
-    return refsByGraph;
-  }, [selectedSpanRefs, traceGraph]);
-  const processExpansionOverridesRef = useRef<Map<TraceGraph, Map<ProcessRef, boolean>>>(new Map());
-  const initialCollapseState = useMemo(
-    () =>
-      buildInitialTraceLayoutCollapseState({
-        traceGraphs,
-        defaultExpandProcess,
-        defaultExpandedProcessIds,
-        defaultCollapsedProcessIds,
-        selectedDefaultExpandedProcessRefs,
-        processExpansionOverrides: processExpansionOverridesRef.current
-      }),
+  const activeTraceGraph = traceGraphOverride ?? traceGraph;
+  const resolvedSelectionPolicy =
+    selectionPolicy ??
+    (selectedLocalDependencyRefs || selectedCrossDependencyRefs
+      ? ({type: 'raw'} as const)
+      : ({type: 'raw'} as const));
+  const traceEngineInputs = useMemo(
+    () => ({
+      traceGraph: activeTraceGraph,
+      secondaryTraceGraph,
+      traceStyle,
+      paths,
+      settings,
+      colorScheme,
+      highlightedSpanRefs,
+      selectedSpanRefs,
+      selectionPolicy: resolvedSelectionPolicy,
+      focusSelectedSpanRefs,
+      extendedSelectionMode,
+      defaultExpandProcess,
+      defaultExpandedProcessIds,
+      defaultCollapsedProcessIds,
+      defaultSelectedSpanRefs,
+      showCollapsedActivitySummary,
+      collapsedActivityAggregation,
+      layoutTimingKey,
+      layoutTopPadding
+    }),
     [
+      activeTraceGraph,
+      collapsedActivityAggregation,
+      colorScheme,
       defaultCollapsedProcessIds,
       defaultExpandedProcessIds,
       defaultExpandProcess,
-      selectedDefaultExpandedProcessRefs,
-      traceGraphs
+      defaultSelectedSpanRefs,
+      extendedSelectionMode,
+      focusSelectedSpanRefs,
+      highlightedSpanRefs,
+      layoutTimingKey,
+      layoutTopPadding,
+      paths,
+      resolvedSelectionPolicy,
+      secondaryTraceGraph,
+      selectedSpanRefs,
+      settings,
+      showCollapsedActivitySummary,
+      traceStyle
     ]
   );
-  const [collapseState, setCollapseState] = useState<TraceLayoutCollapseState>(
-    () => initialCollapseState
+  const traceEngineRef = useRef<TraceEngine | null>(null);
+  if (!traceEngineRef.current) {
+    traceEngineRef.current = new TraceEngine(traceEngineInputs);
+  }
+  const traceEngine = traceEngineRef.current;
+  renderedTraceEngine.current = traceEngine;
+  useLayoutEffect(() => {
+    traceEngine.sync(traceEngineInputs);
+  }, [traceEngine, traceEngineInputs]);
+  useLayoutEffect(() => {
+    if (
+      selectedSpanRefs.length === 0 ||
+      (!selectedLocalDependencyRefs && !selectedCrossDependencyRefs)
+    ) {
+      return;
+    }
+    traceEngine.dispatch({
+      type: 'setSelection',
+      selectedSpanRefs,
+      selectedLocalDependencyRefs: [...(selectedLocalDependencyRefs ?? [])],
+      selectedCrossDependencyRefs: [...(selectedCrossDependencyRefs ?? [])],
+      selectedLocalDependencyDirectionByRef,
+      selectedCrossDependencyDirectionByRef,
+      isExtendedSelection: focusSelectedSpanRefs === true
+    });
+  }, [
+    focusSelectedSpanRefs,
+    selectedCrossDependencyRefs,
+    selectedCrossDependencyDirectionByRef,
+    selectedLocalDependencyRefs,
+    selectedLocalDependencyDirectionByRef,
+    selectedSpanRefs,
+    traceEngine
+  ]);
+  useEffect(() => {
+    return traceEngine.subscribe(update => {
+      onSelectionChange(update);
+      if (update.expandedProcessIdsChanged) {
+        onExpandedProcessIdsChange?.([...update.serializedExpandedProcessIds]);
+      }
+    });
+  }, [onExpandedProcessIdsChange, onSelectionChange, traceEngine]);
+  const deckTraceGraphConfig = useMemo(
+    () => ({
+      onTimeRangeSelectionChange: vi.fn(),
+      resolvePickedTraceObject,
+      ...reactConfig
+    }),
+    [reactConfig, resolvePickedTraceObject]
   );
-  useEffect(() => {
-    setCollapseState(initialCollapseState);
-  }, [initialCollapseState]);
-  const selectedExpansionSpanRefsKeyRef = useRef<string | null>(null);
-  useEffect(() => {
-    const spanRefs = [...selectedSpanRefs, ...(componentProps.extendedSelectionSpanRefs ?? [])];
-    const spanRefsKey = spanRefs.join(',');
-    if (spanRefs.length === 0) {
-      selectedExpansionSpanRefsKeyRef.current = null;
-      return;
-    }
-    if (selectedExpansionSpanRefsKeyRef.current === spanRefsKey) {
-      return;
-    }
-    selectedExpansionSpanRefsKeyRef.current = spanRefsKey;
-    setCollapseState(previous =>
-      selectTraceLayoutCollapseStateUpdate(
-        previous,
-        expandSelectedSpanProcessRefs({
-          collapseState: previous,
-          traceGraph,
-          spanRefs,
-          processExpansionOverrides: processExpansionOverridesRef.current
-        })
-      )
-    );
-  }, [componentProps.extendedSelectionSpanRefs, selectedSpanRefs, traceGraph]);
-  useEffect(() => {
-    onExpandedProcessIdsChange?.(
-      getExpandedProcessIdsFromCollapseState({
-        traceGraphs,
-        collapseState
-      })
-    );
-  }, [collapseState, onExpandedProcessIdsChange, traceGraphs]);
 
   return (
     <DeckTraceGraph
       ref={deckTraceGraphRef}
-      traceGraph={traceGraph}
-      traceStyle={DEFAULT_TRACE_STYLE}
-      paths={[]}
-      settings={settings}
-      onTimeRangeSelectionChange={vi.fn()}
-      onSelectionChange={onSelectionChange}
-      resolvePickedTraceObject={resolvePickedTraceObject}
-      {...componentProps}
-      selectedSpanRefs={selectedSpanRefs}
-      collapseState={collapseState}
-      onAllProcessesExpansionChange={expand =>
-        setCollapseState(previous =>
-          selectTraceLayoutCollapseStateUpdate(
-            previous,
-            setAllTraceProcessesExpanded({
-              collapseState: previous,
-              traceGraphs,
-              expand,
-              processExpansionOverrides: processExpansionOverridesRef.current
-            })
-          )
-        )
-      }
-      onProcessCollapseToggle={({graphIndex, processRef}) => {
-        const graph = traceGraphs[graphIndex] ?? traceGraphs[0]!;
-        setCollapseState(previous =>
-          selectTraceLayoutCollapseStateUpdate(
-            previous,
-            toggleTraceProcessCollapse({
-              collapseState: previous,
-              graphIndex,
-              graph,
-              processRef,
-              processExpansionOverrides: processExpansionOverridesRef.current
-            })
-          )
-        );
-      }}
-      onThreadCollapseToggle={({graphIndex, threadRef}) =>
-        setCollapseState(previous =>
-          selectTraceLayoutCollapseStateUpdate(
-            previous,
-            toggleTraceThreadCollapse({
-              collapseState: previous,
-              graphIndex,
-              threadRef
-            })
-          )
-        )
-      }
-      onThreadCollapsePrune={({validThreadRefsByGraph}) =>
-        setCollapseState(previous =>
-          selectTraceLayoutCollapseStateUpdate(
-            previous,
-            pruneTraceLayoutThreadCollapseStateForLaneRefs({
-              collapseState: previous,
-              validThreadRefsByGraph
-            })
-          )
-        )
-      }
+      className={className}
+      engine={traceEngine}
+      reactConfig={deckTraceGraphConfig}
     />
   );
 }
@@ -1423,6 +1470,7 @@ async function renderDeckTraceGraphElement(
 
   return {
     deckTraceGraphRef,
+    engine: renderedTraceEngine.current!,
     onSelectionChange,
     deckProps: renderedDeckProps.current,
     rerender: async (nextAdditionalProps?: RenderDeckTraceGraphProps) => {
@@ -1448,6 +1496,7 @@ afterEach(() => {
   container = null;
   document.body.innerHTML = '';
   renderedDeckProps.current = null;
+  renderedTraceEngine.current = null;
   buildDeckLayersForTraceSpy.mockReset();
   buildDeckLayerForTraceProcessActivitySummarySpy.mockReset();
   buildDeckLayersForMinimapSpanIndicatorsSpy.mockReset();
@@ -1482,6 +1531,28 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     await rerender({showRowSeparators: false});
 
     expect(buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0]?.showRowSeparators).toBe(false);
+  });
+
+  it('keeps the TraceEngine memory report provider stable across engine actions', async () => {
+    const {traceGraph, selectedSpanRef} = createSelectionTraceGraph();
+    const onTraceMemoryReportProviderChange = vi.fn();
+    const {engine} = await renderDeckTraceGraphElement(traceGraph, {
+      onTraceMemoryReportProviderChange
+    });
+    const provider = onTraceMemoryReportProviderChange.mock.calls.at(-1)?.[0];
+    if (typeof provider !== 'function') {
+      throw new Error('Expected TraceEngine memory report provider');
+    }
+    const firstRevision = provider().traceEngineDiagnostics.revision;
+
+    flushSync(() => {
+      engine.dispatch({type: 'selectSpan', spanRef: selectedSpanRef});
+    });
+    await Promise.resolve();
+
+    expect(onTraceMemoryReportProviderChange).toHaveBeenCalledTimes(1);
+    expect(onTraceMemoryReportProviderChange.mock.calls.at(-1)?.[0]).toBe(provider);
+    expect(provider().traceEngineDiagnostics.revision).toBeGreaterThan(firstRevision);
   });
 
   it('positions run event markers 15 pixels above the run-events view center', async () => {
@@ -1546,12 +1617,12 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     });
     const widgets = deckProps?.widgets as Array<{props?: Record<string, unknown>}> | undefined;
     const helpWidget = widgets?.find(widget => widget.props?.id === 'tracevis-help');
-    const panel = helpWidget?.props?.panel as
+    const container = helpWidget?.props?.container as
       | {props?: {panels?: Array<{constructor: {name: string}}>}}
       | undefined;
 
     expect(widgets?.[0]?.props?.id).toBe('tracevis-help');
-    expect(panel?.props?.panels?.map(helpPanel => helpPanel.constructor.name)).toEqual([
+    expect(container?.props?.panels?.map(panel => panel.constructor.name)).toEqual([
       'KeyboardShortcutsPanel',
       'URLParametersPanel',
       'CommandDocumentationPanel',
@@ -1672,7 +1743,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     ).spanRef;
 
     await renderDeckTraceGraphElement(traceGraph, {
-      defaultSelectedSpanRefs: [selectedSpanRef],
+      selectedSpanRefs: [selectedSpanRef],
       settings: {
         ...defaultTraceVisSettings,
         showOverview: true,
@@ -2007,20 +2078,20 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     await Promise.resolve();
 
     const selectionPayload = onSelectionChange.mock.calls.at(-1)?.[0];
-    expect(selectionPayload).toEqual({
-      selectedSpanRefs: [selectedSpanRef],
-      selectedSpans: [
-        {
-          spanRef: selectedSpanRef,
-          span: expect.objectContaining({spanId: 'shared-span', name: 'selected-correct'})
-        }
-      ],
-      selectedLocalDependencyRefs: [],
-      selectedCrossDependencyRefs: [],
-      selectedDependencies: [],
-      selectedCrossDependencies: [],
-      isExtendedSelection: false
-    });
+    expect(selectionPayload).toEqual(
+      expect.objectContaining({
+        selectedSpanRefs: [selectedSpanRef],
+        selectedSpans: [
+          {
+            spanRef: selectedSpanRef,
+            span: expect.objectContaining({spanId: 'shared-span', name: 'selected-correct'})
+          }
+        ],
+        selectedLocalDependencyRefs: [],
+        selectedCrossDependencyRefs: [],
+        isExtendedSelection: false
+      })
+    );
     expect(selectionPayload).not.toHaveProperty('selectedBlocks');
 
     const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
@@ -2092,23 +2163,23 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     await Promise.resolve();
 
     const selectionPayload = onSelectionChange.mock.calls.at(-1)?.[0];
-    expect(selectionPayload).toEqual({
-      selectedSpanRefs: [selectedSpanRef],
-      selectedSpans: [
-        {
-          spanRef: selectedSpanRef,
-          span: expect.objectContaining({
-            spanId: selectedBlock.spanId,
-            name: selectedBlock.name
-          })
-        }
-      ],
-      selectedLocalDependencyRefs: [],
-      selectedCrossDependencyRefs: [],
-      selectedDependencies: [],
-      selectedCrossDependencies: [],
-      isExtendedSelection: false
-    });
+    expect(selectionPayload).toEqual(
+      expect.objectContaining({
+        selectedSpanRefs: [selectedSpanRef],
+        selectedSpans: [
+          {
+            spanRef: selectedSpanRef,
+            span: expect.objectContaining({
+              spanId: selectedBlock.spanId,
+              name: selectedBlock.name
+            })
+          }
+        ],
+        selectedLocalDependencyRefs: [],
+        selectedCrossDependencyRefs: [],
+        isExtendedSelection: false
+      })
+    );
     expect(selectionPayload).not.toHaveProperty('selectedBlocks');
     const selectedLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {
@@ -2149,8 +2220,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       expect.objectContaining({
         selectedSpanRefs: [parentSpanRef],
         selectedLocalDependencyRefs: [],
-        selectedCrossDependencyRefs: [],
-        selectedDependencies: []
+        selectedCrossDependencyRefs: []
       })
     );
     const selectedLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
@@ -2189,23 +2259,23 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     await Promise.resolve();
 
     const selectionPayload = onSelectionChange.mock.calls.at(-1)?.[0];
-    expect(selectionPayload).toEqual({
-      selectedSpanRefs: [selectedSpanRef],
-      selectedSpans: [
-        {
-          spanRef: selectedSpanRef,
-          span: expect.objectContaining({
-            spanId: selectedBlock.spanId,
-            name: selectedBlock.name
-          })
-        }
-      ],
-      selectedLocalDependencyRefs: [],
-      selectedCrossDependencyRefs: [],
-      selectedDependencies: [],
-      selectedCrossDependencies: [],
-      isExtendedSelection: false
-    });
+    expect(selectionPayload).toEqual(
+      expect.objectContaining({
+        selectedSpanRefs: [selectedSpanRef],
+        selectedSpans: [
+          {
+            spanRef: selectedSpanRef,
+            span: expect.objectContaining({
+              spanId: selectedBlock.spanId,
+              name: selectedBlock.name
+            })
+          }
+        ],
+        selectedLocalDependencyRefs: [],
+        selectedCrossDependencyRefs: [],
+        isExtendedSelection: false
+      })
+    );
   });
 
   it('leaves outgoing cross dependency refs externally owned for normal span selection', async () => {
@@ -2226,23 +2296,23 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     await Promise.resolve();
 
     const selectionPayload = onSelectionChange.mock.calls.at(-1)?.[0];
-    expect(selectionPayload).toEqual({
-      selectedSpanRefs: [selectedSpanRef],
-      selectedSpans: [
-        {
-          spanRef: selectedSpanRef,
-          span: expect.objectContaining({
-            spanId: selectedBlock.spanId,
-            name: selectedBlock.name
-          })
-        }
-      ],
-      selectedLocalDependencyRefs: [],
-      selectedCrossDependencyRefs: [],
-      selectedDependencies: [],
-      selectedCrossDependencies: [],
-      isExtendedSelection: false
-    });
+    expect(selectionPayload).toEqual(
+      expect.objectContaining({
+        selectedSpanRefs: [selectedSpanRef],
+        selectedSpans: [
+          {
+            spanRef: selectedSpanRef,
+            span: expect.objectContaining({
+              spanId: selectedBlock.spanId,
+              name: selectedBlock.name
+            })
+          }
+        ],
+        selectedLocalDependencyRefs: [],
+        selectedCrossDependencyRefs: [],
+        isExtendedSelection: false
+      })
+    );
     const selectedLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {
           selectedCrossDependencySources?: Array<{
@@ -2272,7 +2342,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       deckOnClick?.({
         layer: {id: 'primary-legend-rank-label'},
         object: {
-          processId: 'rank-a'
+          processId: 'rank-a',
+          processRef: getRequiredProcessRef(traceGraph, 'rank-a')
         }
       });
     });
@@ -2299,7 +2370,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       deckOnClick?.({
         layer: {id: 'primary-legend-rank-label'},
         object: {
-          processId: 'rank-a'
+          processId: 'rank-a',
+          processRef: getRequiredProcessRef(traceGraph, 'rank-a')
         }
       });
     });
@@ -2308,24 +2380,26 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(onExpandedProcessIdsChange).toHaveBeenLastCalledWith(['rank-b']);
 
     await rerender({defaultExpandProcess: false});
-    await waitForAssertion(() => {
-      const collapsedAfterDefaultCollapse = (
-        buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
-          | {traceLayout: {processLayouts: Array<{isCollapsed: boolean}>}}
-          | undefined
-      )?.traceLayout.processLayouts.map(processLayout => processLayout.isCollapsed);
-      expect(collapsedAfterDefaultCollapse).toEqual([true, true]);
-    });
+    await Promise.resolve();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const collapsedAfterDefaultCollapse = (
+      buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
+        | {traceLayout: {processLayouts: Array<{isCollapsed: boolean}>}}
+        | undefined
+    )?.traceLayout.processLayouts.map(processLayout => processLayout.isCollapsed);
+    expect(collapsedAfterDefaultCollapse).toEqual([true, true]);
 
     await rerender({defaultExpandProcess: true});
-    await waitForAssertion(() => {
-      const collapsedAfterDefaultExpand = (
-        buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
-          | {traceLayout: {processLayouts: Array<{isCollapsed: boolean}>}}
-          | undefined
-      )?.traceLayout.processLayouts.map(processLayout => processLayout.isCollapsed);
-      expect(collapsedAfterDefaultExpand).toEqual([true, false]);
-    });
+    await Promise.resolve();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const collapsedAfterDefaultExpand = (
+      buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
+        | {traceLayout: {processLayouts: Array<{isCollapsed: boolean}>}}
+        | undefined
+    )?.traceLayout.processLayouts.map(processLayout => processLayout.isCollapsed);
+    expect(collapsedAfterDefaultExpand).toEqual([true, false]);
   });
 
   it('keeps duplicate process refs independent across compared graphs', async () => {
@@ -2346,7 +2420,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       deckOnClick?.({
         layer: {id: 'trace-graph-1-legend-rank-label'},
         object: {
-          processId: 'rank-a'
+          processId: 'rank-a',
+          processRef: getRequiredProcessRef(secondaryTraceGraph, 'rank-a')
         }
       });
     });
@@ -2558,7 +2633,11 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
           traceLayout?: TraceLayout;
         }
       | undefined;
-    const threadLayout = nextLayersCall?.traceLayout?.threadLayoutMap[selectedBlock.threadId];
+    const threadLayout = getLayoutThreadForSpanRef(
+      nextLayersCall?.traceLayout,
+      traceGraph,
+      selectedSpanRef
+    );
     const selectedLaneIndex = threadLayout?.spanLaneMap?.get(selectedSpanRef) ?? 0;
     expect(nextLayersCall?.selectedSpanRefs).toEqual([selectedSpanRef]);
     expect(
@@ -2574,8 +2653,6 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
         selectedSpanRefs: [selectedSpanRef],
         selectedLocalDependencyRefs: [],
         selectedCrossDependencyRefs: [],
-        selectedDependencies: [],
-        selectedCrossDependencies: [],
         isExtendedSelection: true
       })
     );
@@ -2598,46 +2675,17 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     const onSpanClick = latestLayersCall?.onSpanClick as
       | ((info: {object?: unknown}, event?: {srcEvent?: {shiftKey?: boolean}}) => boolean)
       | undefined;
-    const threadLayout = latestLayersCall?.traceLayout?.threadLayoutMap[selectedBlock.threadId];
+    const threadLayout = getLayoutThreadForSpanRef(
+      latestLayersCall?.traceLayout,
+      traceGraph,
+      selectedSpanRef
+    );
+    const actualLaneIndex = threadLayout?.spanLaneMap?.get(selectedSpanRef);
 
     expect(typeof onSpanClick).toBe('function');
     expect(threadLayout?.lanes?.laneYPositions.length).toBeGreaterThan(1);
-
-    const actualLaneIndex = threadLayout?.spanLaneMap?.get(selectedSpanRef) ?? 0;
-    const wrongLaneIndex = actualLaneIndex === 0 ? 1 : 0;
-    expect(threadLayout?.lanes?.laneYPositions[wrongLaneIndex]).toBeDefined();
-    if (threadLayout?.spanLaneMap) {
-      const preferredLaneIndex = actualLaneIndex;
-      const geometryLaneIndex = wrongLaneIndex;
-      const laneYPositions = threadLayout.lanes?.laneYPositions ?? [];
-      const selectedGeometry =
-        latestLayersCall?.traceLayout == null
-          ? undefined
-          : getTraceLayoutSpanGeometryBySpanRef({
-              traceLayout: latestLayersCall.traceLayout,
-              spanRef: selectedSpanRef
-            });
-      expect(selectedGeometry).toBeDefined();
-      const geometryHeight = (selectedGeometry?.[3] ?? 0) - (selectedGeometry?.[1] ?? 0);
-      const geometryCenterX = ((selectedGeometry?.[0] ?? 0) + (selectedGeometry?.[2] ?? 0)) / 2;
-      const geometryTargetY = laneYPositions[geometryLaneIndex] ?? selectedGeometry?.[1] ?? 0;
-      const shiftedGeometry: [number, number, number, number] = [
-        (selectedGeometry?.[0] ?? 0) as number,
-        geometryTargetY - geometryHeight / 2,
-        (selectedGeometry?.[2] ?? geometryCenterX) as number,
-        geometryTargetY + geometryHeight / 2
-      ];
-      (threadLayout.spanLaneMap as Map<SpanRef, number>).set(selectedSpanRef, preferredLaneIndex);
-      if (latestLayersCall?.traceLayout) {
-        (
-          latestLayersCall.traceLayout as typeof latestLayersCall.traceLayout & {
-            spanGeometryChunks?: typeof latestLayersCall.traceLayout.spanGeometryChunks;
-          }
-        ).spanGeometryChunks = mergeTraceLayoutSpanGeometryChunksForTest(
-          latestLayersCall.traceLayout.spanGeometryChunks,
-          [[selectedSpanRef, shiftedGeometry]]
-        );
-      }
+    if (actualLaneIndex == null) {
+      throw new Error('Expected selected span lane index');
     }
 
     flushSync(() => {
@@ -2651,7 +2699,11 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     const nextLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {traceLayout?: TraceLayout; selectedSpanRefs?: SpanRef[]}
       | undefined;
-    const nextThreadLayout = nextLayersCall?.traceLayout?.threadLayoutMap[selectedBlock.threadId];
+    const nextThreadLayout = getLayoutThreadForSpanRef(
+      nextLayersCall?.traceLayout,
+      traceGraph,
+      selectedSpanRef
+    );
 
     expect(nextLayersCall?.selectedSpanRefs).toEqual([selectedSpanRef]);
     expect(nextThreadLayout?.lanes?.visibleLaneIndices).toEqual(
@@ -2659,20 +2711,17 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     );
   });
 
-  it('expands the owning process when an extended span ref is provided', async () => {
+  it('expands the owning process when focused engine selection is provided', async () => {
     const {traceGraph, selectedBlock, selectedSpanRef} = createDuplicateBlockIdTraceGraph();
-    const onExpandedProcessIdsChange = vi.fn();
 
-    await renderDeckTraceGraphElement(traceGraph, {
+    const {engine} = await renderDeckTraceGraphElement(traceGraph, {
       defaultExpandProcess: false,
-      extendedSelectionSpanRefs: [selectedSpanRef],
-      onExpandedProcessIdsChange
+      selectedSpanRefs: [selectedSpanRef],
+      focusSelectedSpanRefs: true
     });
 
     expect(selectedBlock.processName).toBe('rank-correct');
-    await waitForAssertion(() => {
-      expect(onExpandedProcessIdsChange).toHaveBeenCalledWith(['rank-correct']);
-    });
+    expect(engine.getSerializedExpandedProcessIds()).toEqual(['rank-correct']);
   });
 
   it('keeps the clicked combined-thread lane visible when shift-clicking a span', async () => {
@@ -2702,7 +2751,11 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     const nextLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {selectedSpanRefs?: SpanRef[]; traceLayout?: TraceLayout}
       | undefined;
-    const threadLayout = nextLayersCall?.traceLayout?.threadLayoutMap[selectedBlock.threadId];
+    const threadLayout = getLayoutThreadForSpanRef(
+      nextLayersCall?.traceLayout,
+      traceGraph,
+      selectedSpanRef
+    );
     const laneIndex = threadLayout?.spanLaneMap?.get(selectedSpanRef) ?? 0;
     expect(handled).toBe(true);
     expect(nextLayersCall?.selectedSpanRefs).toEqual([selectedSpanRef]);
@@ -2712,7 +2765,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
   });
 
   it('hides unrelated combined-thread streams when shift-clicking a head-process span', async () => {
-    const {traceGraph, selectedBlock, selectedSpanRef, unrelatedSpanRef, unrelatedStreamId} =
+    const {traceGraph, selectedBlock, selectedSpanRef, unrelatedSpanRef} =
       createCombinedThreadSelectionTraceGraph();
     await renderDeckTraceGraphElement(traceGraph, {
       settings: {...defaultTraceVisSettings, trackAggregationMode: 'combine-threads'}
@@ -2740,8 +2793,16 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       | {selectedSpanRefs?: SpanRef[]; traceLayout?: TraceLayout}
       | undefined;
     const nextTraceLayout = nextLayersCall?.traceLayout;
-    const selectedThreadLayout = nextTraceLayout?.threadLayoutMap[selectedBlock.threadId];
-    const unrelatedThreadLayout = nextTraceLayout?.threadLayoutMap[unrelatedStreamId];
+    const selectedThreadLayout = getLayoutThreadForSpanRef(
+      nextTraceLayout,
+      traceGraph,
+      selectedSpanRef
+    );
+    const unrelatedThreadLayout = getLayoutThreadForSpanRef(
+      nextTraceLayout,
+      traceGraph,
+      unrelatedSpanRef
+    );
 
     expect(handled).toBe(true);
     expect(nextLayersCall?.selectedSpanRefs).toEqual([selectedSpanRef]);
@@ -2778,7 +2839,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
 
     await rerender({
       selectedSpanRefs: [childSpanRef],
-      extendedSelectionSpanRefs: [parentSpanRef],
+      focusSelectedSpanRefs: true,
+      selectionPolicy: {type: 'dependency-chain', keywords: ['PARENT']},
       extendedSelectionMode: 'fade',
       settings: {...defaultTraceVisSettings, trackAggregationMode: 'combine-threads'}
     });
@@ -2908,8 +2970,10 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     });
     await waitForHoverPopupRender();
 
-    expect(document.body.textContent).toMatch(/(?:Ctrl\+C|⌘C)/);
-    expect(document.body.textContent).toContain('to copy');
+    await waitForAssertion(() => {
+      expect(document.body.textContent).toContain('Ctrl+C');
+      expect(document.body.textContent).toContain('to copy');
+    });
   });
 
   it('keeps span hover cards as unnamed tooltips', async () => {
@@ -3043,26 +3107,20 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(document.querySelector('[data-testid="span-inspector-resize-handle"]')).toBeNull();
   });
 
-  it('publishes an initial empty selection so parent state can clear stale refs', async () => {
+  it('starts with empty engine selection when the host has no durable selected refs', async () => {
     const traceGraph = createSelectionTraceGraph().traceGraph;
-    const {onSelectionChange} = await renderDeckTraceGraphElement(traceGraph);
+    const {engine, onSelectionChange} = await renderDeckTraceGraphElement(traceGraph);
 
-    expect(onSelectionChange).toHaveBeenCalledWith({
-      selectedSpanRefs: [],
-      selectedSpans: [],
-      selectedLocalDependencyRefs: [],
-      selectedCrossDependencyRefs: [],
-      selectedDependencies: [],
-      selectedCrossDependencies: [],
-      isExtendedSelection: false
-    });
+    expect(engine.getSelectedSpanRefs()).toEqual([]);
+    expect(onSelectionChange).not.toHaveBeenCalled();
   });
 
-  it('keeps extended parent span refs out of selected span overlays', async () => {
-    const {traceGraph, parentSpanRef, childSpanRef, childBlockFromGraph} =
-      createParentSelectionTraceGraph();
+  it('keeps dependency-chain parent refs out of selected span overlays', async () => {
+    const {traceGraph, childSpanRef, childBlockFromGraph} = createParentSelectionTraceGraph();
     await renderDeckTraceGraphElement(traceGraph, {
-      extendedSelectionSpanRefs: [parentSpanRef]
+      selectedSpanRefs: [childSpanRef],
+      focusSelectedSpanRefs: true,
+      selectionPolicy: {type: 'dependency-chain', keywords: ['PARENT']}
     });
     const deckOnClick = renderedDeckProps.current?.onClick as
       | ((info: {object?: unknown}, event?: unknown) => void)
@@ -3083,86 +3141,65 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(highlightedSpanRefs).toBeUndefined();
   });
 
-  it('expands the owning process on first render when a default selected span ref is provided', async () => {
+  it('expands the owning process on first render when a durable selected span ref is provided', async () => {
     const {traceGraph, selectedBlock, selectedSpanRef} = createSelectionTraceGraph();
-    const onExpandedProcessIdsChange = vi.fn();
 
-    const {onSelectionChange} = await renderDeckTraceGraphElement(traceGraph, {
+    const {engine} = await renderDeckTraceGraphElement(traceGraph, {
       defaultExpandProcess: false,
-      defaultSelectedSpanRefs: [selectedSpanRef],
-      onExpandedProcessIdsChange
+      selectedSpanRefs: [selectedSpanRef]
     });
 
-    expect(onExpandedProcessIdsChange).toHaveBeenCalledWith([selectedBlock.processName]);
-    expect(onSelectionChange).toHaveBeenCalledWith({
-      selectedSpanRefs: [selectedSpanRef],
-      selectedSpans: [
-        {
-          spanRef: selectedSpanRef,
-          span: expect.objectContaining({
-            spanId: selectedBlock.spanId,
-            name: selectedBlock.name
-          })
-        }
-      ],
-      selectedLocalDependencyRefs: [],
-      selectedCrossDependencyRefs: [],
-      selectedDependencies: [],
-      selectedCrossDependencies: [],
-      isExtendedSelection: false
-    });
+    expect(engine.getSerializedExpandedProcessIds()).toEqual([selectedBlock.processName]);
+    expect(engine.getSelectedSpans()).toEqual([
+      {
+        spanRef: selectedSpanRef,
+        span: expect.objectContaining({
+          spanId: selectedBlock.spanId,
+          name: selectedBlock.name
+        })
+      }
+    ]);
   });
 
-  it('clears a default selected span when clicking empty deck space', async () => {
-    const {traceGraph, selectedBlock, selectedSpanRef} = createSelectionTraceGraph();
-    const {onSelectionChange} = await renderDeckTraceGraphElement(traceGraph, {
-      defaultSelectedSpanRefs: [selectedSpanRef]
+  it('clears mounted selected span refs when clicking empty deck space', async () => {
+    const {traceGraph, selectedSpanRef} = createSelectionTraceGraph();
+    const {engine, onSelectionChange} = await renderDeckTraceGraphElement(traceGraph, {
+      selectedSpanRefs: [selectedSpanRef]
     });
     const deckOnClick = renderedDeckProps.current?.onClick as
       | ((info: {object?: unknown}, event?: unknown) => void)
       | undefined;
 
     expect(typeof deckOnClick).toBe('function');
-    expect(onSelectionChange).toHaveBeenCalledWith({
-      selectedSpanRefs: [selectedSpanRef],
-      selectedSpans: [
-        {
-          spanRef: selectedSpanRef,
-          span: expect.objectContaining({
-            spanId: selectedBlock.spanId,
-            name: selectedBlock.name
-          })
-        }
-      ],
-      selectedLocalDependencyRefs: [],
-      selectedCrossDependencyRefs: [],
-      selectedDependencies: [],
-      selectedCrossDependencies: [],
-      isExtendedSelection: false
-    });
+    expect(engine.getSelectedSpanRefs()).toEqual([selectedSpanRef]);
 
     flushSync(() => {
       deckOnClick?.({object: null});
     });
     await Promise.resolve();
 
-    expect(onSelectionChange).toHaveBeenLastCalledWith({
-      selectedSpanRefs: [],
-      selectedSpans: [],
-      selectedLocalDependencyRefs: [],
-      selectedCrossDependencyRefs: [],
-      selectedDependencies: [],
-      selectedCrossDependencies: [],
-      isExtendedSelection: false
-    });
+    expect(onSelectionChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedSpanRefs: [],
+        selectedSpans: [],
+        selectedLocalDependencyRefs: [],
+        selectedCrossDependencyRefs: [],
+        isExtendedSelection: false
+      })
+    );
   });
 
   it('renders stitched visible cross-parent overlays from visible dependency refs', async () => {
-    const {traceGraph, stitchedDependencyId} = createStitchedCrossDependencySelectionTraceGraph();
-    const stitchedDependencyRef = traceGraph.getVisibleCrossDependencyRefById(stitchedDependencyId);
+    const {traceGraph, stitchedDependencyId, visibleLogicalChild} =
+      createStitchedCrossDependencySelectionTraceGraph();
+    const stitchedDependencyRef = getRequiredVisibleCrossDependencyRefById(
+      traceGraph,
+      stitchedDependencyId
+    );
     expect(stitchedDependencyRef).toBeTruthy();
 
     await renderDeckTraceGraphElement(traceGraph, {
+      selectedSpanRefs: [visibleLogicalChild.spanRef],
       selectedCrossDependencyRefs: new Set([stitchedDependencyRef!]),
       selectedCrossDependencyDirectionByRef: new Map([[stitchedDependencyRef!, 'outgoing']])
     });
@@ -3210,7 +3247,6 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       expect.objectContaining({
         selectedSpanRefs: [visibleLogicalChild.spanRef],
         selectedCrossDependencyRefs: [],
-        selectedCrossDependencies: [],
         isExtendedSelection: true
       })
     );
@@ -3218,23 +3254,16 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(selectedCrossDependencySources).toEqual([]);
   });
 
-  it('keeps the selected and extended spans in the highlighted set when fade mode is active', async () => {
+  it('keeps selected dependency-chain spans in the highlighted set when fade mode is active', async () => {
     const {traceGraph, parentSpanRef, childBlockFromGraph, unrelatedBlockId} =
       createParentSelectionTraceGraphWithUnrelated();
     await renderDeckTraceGraphElement(traceGraph, {
-      extendedSelectionSpanRefs: [parentSpanRef],
+      selectedSpanRefs: [childBlockFromGraph.spanRef!],
+      focusSelectedSpanRefs: true,
+      selectionPolicy: {type: 'dependency-chain', keywords: ['PARENT']},
       extendedSelectionMode: 'fade',
       highlightedSpanRefs: new Set([getRequiredSpanRefBySpanId(traceGraph, unrelatedBlockId)])
     });
-
-    const deckOnClick = renderedDeckProps.current?.onClick as
-      | ((info: {object?: unknown}, event?: unknown) => void)
-      | undefined;
-    expect(typeof deckOnClick).toBe('function');
-    flushSync(() => {
-      deckOnClick?.({object: wrapTestPickedTraceObject(childBlockFromGraph)});
-    });
-    await Promise.resolve();
 
     const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | Record<string, unknown>
@@ -3250,12 +3279,13 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     );
   });
 
-  it('focuses only lanes referenced by shift-click extended span refs', async () => {
+  it('focuses only lanes referenced by focused dependency-chain refs', async () => {
     const {traceGraph, parentSpanRef, childBlockFromGraph, unrelatedBlockId} =
       createParentSelectionTraceGraphWithUnrelated();
     await renderDeckTraceGraphElement(traceGraph, {
       selectedSpanRefs: [childBlockFromGraph.spanRef!],
-      extendedSelectionSpanRefs: [parentSpanRef],
+      focusSelectedSpanRefs: true,
+      selectionPolicy: {type: 'dependency-chain', keywords: ['PARENT']},
       extendedSelectionMode: 'fade'
     });
     await new Promise(resolve => setTimeout(resolve, 0));
@@ -3263,8 +3293,11 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {processRows?: readonly TracePreparedProcessRow[]; traceLayout?: TraceLayout}
       | undefined;
-    const streamLayout =
-      latestLayersCall?.traceLayout?.threadLayoutMap[childBlockFromGraph.threadId];
+    const streamLayout = getLayoutThreadForSpanRef(
+      latestLayersCall?.traceLayout,
+      traceGraph,
+      childBlockFromGraph.spanRef
+    );
     const childLaneIndex = streamLayout?.spanLaneMap?.get(childBlockFromGraph.spanRef);
     const parentLaneIndex = streamLayout?.spanLaneMap?.get(parentSpanRef);
     const unrelatedSpanRef = getRequiredSpanRefBySpanId(traceGraph, unrelatedBlockId);
@@ -3332,16 +3365,18 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       )
     );
     const parentSpanRef = getRequiredSpanRefBySpanId(traceGraph, parentBlock.spanId);
-    const childSpanRef = getRequiredSpanRefBySpanId(traceGraph, childBlock.spanId);
     const remoteSpanRef = getRequiredSpanRefBySpanId(traceGraph, remoteBlock.spanId);
-    const crossDependencyRef = traceGraph.getVisibleCrossDependencyRefById(crossDependencyId);
+    const crossDependencyRef = getRequiredVisibleCrossDependencyRefById(
+      traceGraph,
+      crossDependencyId
+    );
     if (crossDependencyRef == null) {
       throw new Error('Expected visible cross dependency ref for focused endpoint test');
     }
 
     await renderDeckTraceGraphElement(traceGraph, {
       selectedSpanRefs: [parentSpanRef],
-      extendedSelectionSpanRefs: [childSpanRef],
+      focusSelectedSpanRefs: true,
       extendedSelectionMode: 'fade',
       selectedCrossDependencyRefs: new Set([crossDependencyRef])
     });
@@ -3376,7 +3411,6 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
 
     await renderDeckTraceGraphElement(traceGraph, {
       selectedSpanRefs: [childSpanRef],
-      extendedSelectionSpanRefs: selectionState.parentSpanRefs,
       selectedLocalDependencyRefs: new Set(selectionState.visibleLocalDependencyRefs),
       selectedLocalDependencyDirectionByRef: new Map([
         [selectionState.visibleLocalDependencyRefs[0]!, 'outgoing']

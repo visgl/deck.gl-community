@@ -32,27 +32,28 @@ import {
 } from './trace-geometry-layout-common';
 import {buildTraceLayoutForSpanRefsImpl} from './trace-geometry-layout-focused';
 import {
-  buildThreadLayoutLookup,
   buildVisibleTraceGraph,
   buildVisibleTraceGraphForProcess,
   computeTraceLayoutBounds,
   getObjectIdentityId,
   getProcessSpanChunkCacheKey,
-  getVisibleBlocksForProcess,
-  getVisibleLaneBlocksForProcess,
+  getVisibleGeometrySpansForProcess,
   getVisibleLaneLocalDependenciesForProcess,
-  getVisibleLocalDependenciesForProcess,
-  resolveGeometryTimingKey
+  getVisibleLaneSpansForProcess,
+  getVisibleLocalDependenciesForProcess
 } from './trace-geometry-layout-helpers';
-import {populateTraceLayoutGeometry} from './trace-geometry-layout-rebuild';
-import {buildTraceLayoutOverflowLabels, buildTraceLayoutRows} from './trace-layout';
+import {
+  buildTraceLayoutOverflowLabels,
+  buildTraceLayoutProcessLayoutMapByRef,
+  buildTraceLayoutRows,
+  getTraceLayoutProcessLayoutByRef
+} from './trace-layout';
 
 import type {TraceGraphData} from '../ingestion/arrow-trace';
-import type {ThreadRef} from '../trace-graph/trace-id-encoder';
+import type {ProcessRef, ThreadRef} from '../trace-graph/trace-id-encoder';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
 import type {
   SpanRef,
-  TraceSpanId,
   TraceThread,
   TraceThreadId,
   TrackAggregationMode
@@ -91,10 +92,14 @@ type ProcessRelativeLayoutArtifact = {
   readonly rankSpacing: number;
 };
 
+/** Ref-native process and thread collapse overrides resolved for one layout build. */
 type ResolvedTraceGraphCollapseState = {
+  /** Optional process ids rendered as collapsed rows. */
   readonly collapsedProcessIds?: ReadonlySet<string>;
-  readonly expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  readonly collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional thread refs forced open in the rendered layout. */
+  readonly expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional thread refs forced closed in the rendered layout. */
+  readonly collapsedThreadRefs?: ReadonlySet<ThreadRef>;
 };
 
 type ProcessRelativeLayoutEntry = {
@@ -153,7 +158,7 @@ function attachTraceLayoutReuseState(
   return traceLayout;
 }
 
-/** Copies internal reuse state from one TraceLayout to another when rebuilding geometry only. */
+/** Copies internal lane-layout reuse state from one TraceLayout to another. */
 function copyTraceLayoutReuseState(source: TraceLayout, target: TraceLayout): TraceLayout {
   const reuseState = getTraceLayoutReuseState(source);
   if (!reuseState) {
@@ -162,61 +167,15 @@ function copyTraceLayoutReuseState(source: TraceLayout, target: TraceLayout): Tr
   return attachTraceLayoutReuseState(target, reuseState);
 }
 
-/** Attaches ref-keyed thread and geometry indexes to a TraceLayout when a TraceGraph is available. */
+/** Preserves the ref-native TraceLayout contract at final layout assembly. */
 function withTraceLayoutRefIndexes(params: {
   traceGraph?: Readonly<TraceGraph>;
   traceLayout: TraceLayout;
 }): TraceLayout {
-  const {traceGraph, traceLayout} = params;
-  if (!traceGraph) {
-    return traceLayout;
-  }
-
-  const threadLayoutMapByRef = new Map<ThreadRef, ThreadLayout>();
-  for (const row of traceLayout.renderRows) {
-    if (!row || row.processRef == null) {
-      continue;
-    }
-    const processLayout = traceLayout.processLayouts[row.rankIndex];
-    if (processLayout?.threadLayouts.length === 1) {
-      const combinedThreadLayout = processLayout.threadLayouts[0];
-      if (!combinedThreadLayout) {
-        continue;
-      }
-      for (const [threadIndex, threadRef] of (row.threadRefs ?? []).entries()) {
-        const thread = row.threads[threadIndex];
-        const hiddenThreadLayout =
-          thread != null && traceLayout.threadLayoutMap[thread.threadId]?.visible === false
-            ? traceLayout.threadLayoutMap[thread.threadId]
-            : undefined;
-        /*
-         * Combined rows normally share one visible layout for every thread ref. A masked/collapsed
-         * logical thread is the exception: it keeps an invisible per-thread layout so selection and
-         * navigable geometry stay zero-height for that specific ref.
-         */
-        threadLayoutMapByRef.set(threadRef, hiddenThreadLayout ?? combinedThreadLayout);
-      }
-      continue;
-    }
-
-    const {layoutByThreadId, layoutByThreadRef} = buildThreadLayoutLookup(processLayout);
-    for (const [threadIndex, thread] of row.threads.entries()) {
-      const threadRef = row.threadRefs?.[threadIndex];
-      if (threadRef == null) {
-        continue;
-      }
-      const threadLayout =
-        layoutByThreadId.get(thread.threadId) ?? layoutByThreadRef.get(threadRef);
-      if (!threadLayout) {
-        continue;
-      }
-      threadLayoutMapByRef.set(threadRef, threadLayout);
-    }
-  }
-
+  void params.traceGraph;
   return {
-    ...traceLayout,
-    threadLayoutMapByRef
+    ...params.traceLayout,
+    processLayoutMapByRef: buildTraceLayoutProcessLayoutMapByRef(params.traceLayout.processLayouts)
   };
 }
 
@@ -225,55 +184,60 @@ function getVisibleThreadLaneLayoutForProcess(params: {
   traceGraph: Readonly<TraceGraph>;
   process: Readonly<TraceLayoutVisibleProcessMetadata>;
   threadLaneLayoutOverrides?: ThreadLaneLayoutOverrides;
-}): Readonly<Record<TraceThreadId, ThreadLaneMetadata>> {
-  const threadLaneLayoutMap =
-    params.traceGraph.getVisibleLaneLayoutInfo().threadLaneLayoutMap ?? {};
-  return params.process.threads.reduce(
-    (acc, thread) => {
-      const laneMetadata = threadLaneLayoutMap[thread.threadId];
-      const override = params.threadLaneLayoutOverrides?.[thread.threadId];
-      if (laneMetadata || override) {
-        acc[thread.threadId] = laneMetadata
-          ? {...laneMetadata, ...override}
-          : {laneCount: 1, ...override};
-      }
-      return acc;
-    },
-    {} as Record<TraceThreadId, ThreadLaneMetadata>
-  );
+}): ReadonlyMap<ThreadRef, ThreadLaneMetadata> {
+  const threadLaneLayoutMapByRef =
+    params.traceGraph.getVisibleLaneLayoutInfo().threadLaneLayoutMapByRef ?? new Map();
+  const laneMetadataByRef = new Map<ThreadRef, ThreadLaneMetadata>();
+  params.process.threads.forEach((thread, threadIndex) => {
+    const threadRef = params.process.threadRefs[threadIndex];
+    if (threadRef == null) {
+      return;
+    }
+    const laneMetadata = threadLaneLayoutMapByRef.get(threadRef);
+    const override = params.threadLaneLayoutOverrides?.[thread.threadId];
+    if (laneMetadata || override) {
+      laneMetadataByRef.set(
+        threadRef,
+        laneMetadata ? {...laneMetadata, ...override} : {laneCount: 1, ...override}
+      );
+    }
+  });
+  return laneMetadataByRef;
 }
 
-/** Filters explicit per-stream expansion overrides down to one process. */
-function getProcessExpandedStreamIds(params: {
+/** Filters explicit per-thread expansion overrides down to one process. */
+function getProcessExpandedThreadRefs(params: {
   process: Readonly<TraceLayoutVisibleProcessMetadata>;
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-}): ReadonlySet<TraceThreadId> | undefined {
-  if (!params.expandedThreadIds || params.expandedThreadIds.size === 0) {
+  /** Optional global thread refs forced open before process filtering. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+}): ReadonlySet<ThreadRef> | undefined {
+  if (!params.expandedThreadRefs || params.expandedThreadRefs.size === 0) {
     return undefined;
   }
-  const threadIds = new Set(params.process.threads.map(thread => thread.threadId));
-  const filtered = new Set<TraceThreadId>();
-  for (const streamId of params.expandedThreadIds) {
-    if (threadIds.has(streamId)) {
-      filtered.add(streamId);
+  const processThreadRefs = new Set(params.process.threadRefs ?? []);
+  const filtered = new Set<ThreadRef>();
+  for (const threadRef of params.expandedThreadRefs) {
+    if (processThreadRefs.has(threadRef)) {
+      filtered.add(threadRef);
     }
   }
   return filtered.size > 0 ? filtered : undefined;
 }
 
-/** Filters explicit per-stream collapse overrides down to one process. */
-function getProcessCollapsedStreamIds(params: {
+/** Filters explicit per-thread collapse overrides down to one process. */
+function getProcessCollapsedThreadRefs(params: {
   process: Readonly<TraceLayoutVisibleProcessMetadata>;
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
-}): ReadonlySet<TraceThreadId> | undefined {
-  if (!params.collapsedThreadIds || params.collapsedThreadIds.size === 0) {
+  /** Optional global thread refs forced closed before process filtering. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
+}): ReadonlySet<ThreadRef> | undefined {
+  if (!params.collapsedThreadRefs || params.collapsedThreadRefs.size === 0) {
     return undefined;
   }
-  const threadIds = new Set(params.process.threads.map(thread => thread.threadId));
-  const filtered = new Set<TraceThreadId>();
-  for (const streamId of params.collapsedThreadIds) {
-    if (threadIds.has(streamId)) {
-      filtered.add(streamId);
+  const processThreadRefs = new Set(params.process.threadRefs ?? []);
+  const filtered = new Set<ThreadRef>();
+  for (const threadRef of params.collapsedThreadRefs) {
+    if (processThreadRefs.has(threadRef)) {
+      filtered.add(threadRef);
     }
   }
   return filtered.size > 0 ? filtered : undefined;
@@ -288,8 +252,10 @@ function buildProcessRelativeLayoutReuseKey(params: {
   process: Readonly<TraceLayoutVisibleProcessMetadata>;
   settings: TrackAggregationSettings & Pick<TraceVisSettings, 'layoutDensity'>;
   isProcessCollapsed?: boolean;
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional process-local thread refs forced open in the reuse fingerprint. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional process-local thread refs forced closed in the reuse fingerprint. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
   threadLaneLayoutOverrides?: ThreadLaneLayoutOverrides;
 }): string {
   const processDataGeneration = buildProcessDataGenerationKey({
@@ -300,15 +266,15 @@ function buildProcessRelativeLayoutReuseKey(params: {
     params.process,
     params.settings.selectedThreadNames
   );
-  const laneMetadataByThreadId = getVisibleThreadLaneLayoutForProcess({
+  const laneMetadataByThreadRef = getVisibleThreadLaneLayoutForProcess({
     traceGraph: params.visibleTraceGraph.traceGraph,
     process: params.process,
     threadLaneLayoutOverrides: params.threadLaneLayoutOverrides
   });
   const threadSummaryKey = buildProcessThreadSummaryKey(params.process);
-  const expandedStreamKey = [...(params.expandedThreadIds ?? [])].sort().join('|');
-  const collapsedStreamKey = [...(params.collapsedThreadIds ?? [])].sort().join('|');
-  const laneMetadataKey = buildLaneMetadataSummaryKey(laneMetadataByThreadId);
+  const expandedStreamKey = [...(params.expandedThreadRefs ?? [])].sort().join('|');
+  const collapsedStreamKey = [...(params.collapsedThreadRefs ?? [])].sort().join('|');
+  const laneMetadataKey = buildLaneMetadataSummaryKey(laneMetadataByThreadRef);
 
   return [
     `data:${processDataGeneration}`,
@@ -361,27 +327,27 @@ function buildProcessThreadSummaryKey(
     firstThread?.name ?? '',
     lastThread?.threadId ?? '',
     lastThread?.name ?? '',
-    process.threadRefs?.length ?? 0,
-    process.threadRefs?.[0] ?? '',
-    process.threadRefs?.[process.threadRefs.length - 1] ?? ''
+    process.threadRefs.length,
+    process.threadRefs[0] ?? '',
+    process.threadRefs[process.threadRefs.length - 1] ?? ''
   ].join(':');
 }
 
 function buildLaneMetadataSummaryKey(
-  laneMetadataByThreadId: Readonly<Record<TraceThreadId, ThreadLaneMetadata>>
+  laneMetadataByThreadRef: ReadonlyMap<ThreadRef, ThreadLaneMetadata>
 ): string {
   let entryCount = 0;
   let laneCountTotal = 0;
   let collapsedCount = 0;
   let visibleLaneIndexCount = 0;
-  let firstStreamId = '';
-  let lastStreamId = '';
+  let firstThreadRef = '';
+  let lastThreadRef = '';
 
-  for (const [streamId, laneMetadata] of Object.entries(laneMetadataByThreadId)) {
+  for (const [threadRef, laneMetadata] of laneMetadataByThreadRef) {
     if (entryCount === 0) {
-      firstStreamId = streamId;
+      firstThreadRef = String(threadRef);
     }
-    lastStreamId = streamId;
+    lastThreadRef = String(threadRef);
     entryCount += 1;
     laneCountTotal += laneMetadata.laneCount;
     if (laneMetadata.isCollapsed) {
@@ -395,8 +361,8 @@ function buildLaneMetadataSummaryKey(
     laneCountTotal,
     collapsedCount,
     visibleLaneIndexCount,
-    firstStreamId,
-    lastStreamId
+    firstThreadRef,
+    lastThreadRef
   ].join(':');
 }
 
@@ -438,7 +404,7 @@ function buildExpandedProcessRelativeLayoutArtifact(params: {
 }): ProcessRelativeLayoutArtifact {
   const process = params.visibleTraceGraph.processes[0]!;
   const layoutConfiguration = getLayoutDensityPreset(params.settings.layoutDensity);
-  const streamLaneLayoutMap = getVisibleThreadLaneLayoutForProcess({
+  const threadLaneLayoutMapByRef = getVisibleThreadLaneLayoutForProcess({
     traceGraph: params.traceGraph,
     process,
     threadLaneLayoutOverrides: params.threadLaneLayoutOverrides
@@ -458,14 +424,14 @@ function buildExpandedProcessRelativeLayoutArtifact(params: {
         showEmptyProcesses: params.settings.showEmptyProcesses
       },
       layoutConfiguration,
-      streamLaneLayoutMap,
+      threadLaneLayoutMapByRef,
       traceGraph: params.traceGraph as TraceGraph,
       getSpansForProcess: processId =>
-        getVisibleBlocksForProcess(params.visibleTraceGraph, processId),
+        getVisibleGeometrySpansForProcess(params.visibleTraceGraph, processId),
       getLocalDependenciesForProcess: processId =>
         getVisibleLocalDependenciesForProcess(params.visibleTraceGraph, processId),
-      getLaneBlocksForProcess: processId =>
-        getVisibleLaneBlocksForProcess(params.visibleTraceGraph, processId),
+      getLaneSpansForProcess: processId =>
+        getVisibleLaneSpansForProcess(params.visibleTraceGraph, processId),
       getLaneLocalDependenciesForProcess: processId =>
         getVisibleLaneLocalDependenciesForProcess(params.visibleTraceGraph, processId)
     });
@@ -488,7 +454,7 @@ function buildExpandedProcessRelativeLayoutArtifact(params: {
       showEmptyProcesses: params.settings.showEmptyProcesses
     },
     layoutConfiguration,
-    streamLaneLayoutMap,
+    threadLaneLayoutMapByRef,
     traceGraph: params.traceGraph
   });
   return createProcessRelativeLayoutArtifact({
@@ -515,29 +481,31 @@ function buildCollapsedProcessRelativeLayoutArtifact(params: {
   >;
   traceGraph: TraceGraph;
   collapsedProcessIds?: ReadonlySet<string>;
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional process-local thread refs forced open in the relative layout. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional process-local thread refs forced closed in the relative layout. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
   threadLaneLayoutOverrides?: ThreadLaneLayoutOverrides;
 }): ProcessRelativeLayoutArtifact {
   const process = params.visibleTraceGraph.processes[0]!;
   const usesManualSpanLayout = params.traceGraph.spanLayout === 'manual';
-  const processExpandedStreamIds = usesManualSpanLayout
+  const processExpandedThreadRefs = usesManualSpanLayout
     ? undefined
-    : getProcessExpandedStreamIds({
+    : getProcessExpandedThreadRefs({
         process,
-        expandedThreadIds: params.expandedThreadIds
+        expandedThreadRefs: params.expandedThreadRefs
       });
-  const processCollapsedStreamIds = usesManualSpanLayout
+  const processCollapsedThreadRefs = usesManualSpanLayout
     ? undefined
-    : getProcessCollapsedStreamIds({
+    : getProcessCollapsedThreadRefs({
         process,
-        collapsedThreadIds: params.collapsedThreadIds
+        collapsedThreadRefs: params.collapsedThreadRefs
       });
   const isProcessCollapsed = params.collapsedProcessIds?.has(process.processId) ?? false;
   const hasProcessSpecificOverrides =
     isProcessCollapsed ||
-    (processExpandedStreamIds?.size ?? 0) > 0 ||
-    (processCollapsedStreamIds?.size ?? 0) > 0;
+    (processExpandedThreadRefs?.size ?? 0) > 0 ||
+    (processCollapsedThreadRefs?.size ?? 0) > 0;
   if (!hasProcessSpecificOverrides) {
     return {
       ...params.expandedArtifact,
@@ -552,8 +520,8 @@ function buildCollapsedProcessRelativeLayoutArtifact(params: {
     aggregationMode: params.settings.trackAggregationMode,
     settings: params.settings,
     collapsedProcessIds: isProcessCollapsed ? new Set([process.processId]) : undefined,
-    expandedThreadIds: processExpandedStreamIds,
-    collapsedThreadIds: processCollapsedStreamIds,
+    expandedThreadRefs: processExpandedThreadRefs,
+    collapsedThreadRefs: processCollapsedThreadRefs,
     threadLaneLayoutOverrides: params.threadLaneLayoutOverrides
   });
   return createProcessRelativeLayoutArtifact({
@@ -575,7 +543,7 @@ function composeTraceLayoutFromProcessRelativeArtifacts(params: {
 }): {layout: TraceLayout; rankSpacings: number[]} {
   const processLayouts: ProcessLayout[] = [];
   const rankSpacings: number[] = [];
-  const threadLayoutMap: Record<TraceThreadId, ThreadLayout> = {};
+  const threadLayoutMapByRef = new Map<ThreadRef, ThreadLayout>();
   const hasFollowingVisibleArtifact = new Array<boolean>(params.artifacts.length).fill(false);
   let seenFollowingVisibleArtifact = false;
   for (let index = params.artifacts.length - 1; index >= 0; index--) {
@@ -593,8 +561,8 @@ function composeTraceLayoutFromProcessRelativeArtifacts(params: {
     const processGap =
       processLayout && hasFollowingVisibleArtifact[rankIndex] ? params.processSeparation : 0;
     rankSpacings[rankIndex] = artifact.rankSpacing + processGap;
-    for (const [streamId, threadLayout] of Object.entries(artifact.layout.threadLayoutMap)) {
-      threadLayoutMap[streamId as TraceThreadId] = threadLayout;
+    for (const [threadRef, threadLayout] of artifact.layout.threadLayoutMapByRef) {
+      threadLayoutMapByRef.set(threadRef, threadLayout);
     }
   });
 
@@ -603,12 +571,9 @@ function composeTraceLayoutFromProcessRelativeArtifacts(params: {
       layoutConfiguration: params.artifacts[0]?.layout.layoutConfiguration,
       traceGraph: params.traceGraph as TraceGraph,
       processLayouts,
+      processLayoutMapByRef: buildTraceLayoutProcessLayoutMapByRef(processLayouts),
       renderRows: [],
-      threadLayoutMap,
-      spanGeometryChunks: [],
-      spanVisibilityMapBySpanRef: new Map(),
-      localDependencyGeometryChunks: [],
-      crossDependencyGeometryChunks: [],
+      threadLayoutMapByRef,
       overflowLabels: buildTraceLayoutOverflowLabels(processLayouts),
       currentBounds: [
         [0, 0],
@@ -634,18 +599,23 @@ function computeProcessRelativeRankDeltas(rankSpacings: readonly number[]): numb
   return rankDeltas;
 }
 
-/** Resolves ref-native collapse input into the id-keyed internals used by layout builders. */
-function resolveTraceGraphCollapseState(params: {
+/** Resolves public collapse inputs into exact runtime refs used by layout internals. */
+function resolveLegacyTraceGraphCollapseState(params: {
   traceGraph: TraceGraph;
   collapseState?: TraceGraphCollapseState;
+  collapsedProcessIds?: ReadonlySet<string>;
+  expandedThreadIds?: ReadonlySet<TraceThreadId>;
+  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
 }): ResolvedTraceGraphCollapseState {
   if (!params.collapseState) {
-    return {};
+    return {
+      collapsedProcessIds: params.collapsedProcessIds,
+      expandedThreadRefs: getThreadRefsForLegacyIds(params.traceGraph, params.expandedThreadIds),
+      collapsedThreadRefs: getThreadRefsForLegacyIds(params.traceGraph, params.collapsedThreadIds)
+    };
   }
 
   const collapsedProcessIds = new Set<string>();
-  const expandedThreadIds = new Set<TraceThreadId>();
-  const collapsedThreadIds = new Set<TraceThreadId>();
 
   for (const processRef of params.collapseState.collapsedProcessRefs) {
     const processIndex = getProcessRefIndex(processRef);
@@ -654,24 +624,36 @@ function resolveTraceGraphCollapseState(params: {
       collapsedProcessIds.add(processId);
     }
   }
-  for (const threadRef of params.collapseState.expandedThreadRefs) {
-    const streamId = params.traceGraph.getThreadSourceByRef(threadRef)?.threadId;
-    if (streamId) {
-      expandedThreadIds.add(streamId);
-    }
-  }
-  for (const threadRef of params.collapseState.collapsedThreadRefs) {
-    const streamId = params.traceGraph.getThreadSourceByRef(threadRef)?.threadId;
-    if (streamId) {
-      collapsedThreadIds.add(streamId);
-    }
-  }
-
   return {
     collapsedProcessIds: collapsedProcessIds.size > 0 ? collapsedProcessIds : undefined,
-    expandedThreadIds: expandedThreadIds.size > 0 ? expandedThreadIds : undefined,
-    collapsedThreadIds: collapsedThreadIds.size > 0 ? collapsedThreadIds : undefined
+    expandedThreadRefs:
+      params.collapseState.expandedThreadRefs.size > 0
+        ? params.collapseState.expandedThreadRefs
+        : undefined,
+    collapsedThreadRefs:
+      params.collapseState.collapsedThreadRefs.size > 0
+        ? params.collapseState.collapsedThreadRefs
+        : undefined
   };
+}
+
+/** Resolves deprecated thread ids to every exact matching runtime thread ref. */
+function getThreadRefsForLegacyIds(
+  traceGraph: TraceGraph,
+  threadIds: ReadonlySet<TraceThreadId> | undefined
+): ReadonlySet<ThreadRef> | undefined {
+  if (!threadIds || threadIds.size === 0) {
+    return undefined;
+  }
+
+  const threadRefs = new Set<ThreadRef>();
+  for (const threadRef of traceGraph.getThreadRefs()) {
+    const threadId = traceGraph.getThreadSourceByRef(threadRef)?.threadId;
+    if (threadId != null && threadIds.has(threadId)) {
+      threadRefs.add(threadRef);
+    }
+  }
+  return threadRefs.size > 0 ? threadRefs : undefined;
 }
 
 /** Builds or reuses process-local relative layout artifacts for one visible graph. */
@@ -691,8 +673,10 @@ function buildProcessRelativeLayoutArtifacts(params: {
   >;
   traceGraph: TraceGraph;
   collapsedProcessIds?: ReadonlySet<string>;
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional graph-wide thread refs forced open before process filtering. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional graph-wide thread refs forced closed before process filtering. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
   threadLaneLayoutOverrides?: ThreadLaneLayoutOverrides;
 }): BuildProcessRelativeLayoutArtifactsResult {
   const previousEntriesByRankId = getTraceLayoutReuseState(
@@ -757,17 +741,17 @@ function buildProcessRelativeLayoutArtifacts(params: {
 
     const collapseSetResolutionStartTime = performance.now();
     const usesManualSpanLayout = params.traceGraph.spanLayout === 'manual';
-    const processExpandedStreamIds = usesManualSpanLayout
+    const processExpandedThreadRefs = usesManualSpanLayout
       ? undefined
-      : getProcessExpandedStreamIds({
+      : getProcessExpandedThreadRefs({
           process,
-          expandedThreadIds: params.expandedThreadIds
+          expandedThreadRefs: params.expandedThreadRefs
         });
-    const processCollapsedStreamIds = usesManualSpanLayout
+    const processCollapsedThreadRefs = usesManualSpanLayout
       ? undefined
-      : getProcessCollapsedStreamIds({
+      : getProcessCollapsedThreadRefs({
           process,
-          collapsedThreadIds: params.collapsedThreadIds
+          collapsedThreadRefs: params.collapsedThreadRefs
         });
     const isProcessCollapsed = params.collapsedProcessIds?.has(process.processId) ?? false;
     collapseSetResolutionDurationMs += performance.now() - collapseSetResolutionStartTime;
@@ -777,8 +761,8 @@ function buildProcessRelativeLayoutArtifacts(params: {
       process,
       settings: params.settings,
       isProcessCollapsed,
-      expandedThreadIds: processExpandedStreamIds,
-      collapsedThreadIds: processCollapsedStreamIds,
+      expandedThreadRefs: processExpandedThreadRefs,
+      collapsedThreadRefs: processCollapsedThreadRefs,
       threadLaneLayoutOverrides: params.threadLaneLayoutOverrides
     });
     collapsedReuseKeyDurationMs += performance.now() - collapsedReuseKeyStartTime;
@@ -786,7 +770,7 @@ function buildProcessRelativeLayoutArtifacts(params: {
     let processCollapsedArtifactBuildDurationMs = 0;
     if (previousEntry?.collapsed.reuseKey === collapsedReuseKey) {
       collapsedArtifact = previousEntry.collapsed;
-    } else if (!isProcessCollapsed && !processExpandedStreamIds && !processCollapsedStreamIds) {
+    } else if (!isProcessCollapsed && !processExpandedThreadRefs && !processCollapsedThreadRefs) {
       collapsedArtifact = {
         ...expandedArtifact,
         reuseKey: collapsedReuseKey
@@ -800,8 +784,8 @@ function buildProcessRelativeLayoutArtifacts(params: {
         settings: params.settings,
         traceGraph: params.traceGraph,
         collapsedProcessIds: params.collapsedProcessIds,
-        expandedThreadIds: params.expandedThreadIds,
-        collapsedThreadIds: params.collapsedThreadIds,
+        expandedThreadRefs: params.expandedThreadRefs,
+        collapsedThreadRefs: params.collapsedThreadRefs,
         threadLaneLayoutOverrides: params.threadLaneLayoutOverrides
       });
       processCollapsedArtifactBuildDurationMs = performance.now() - collapsedArtifactBuildStartTime;
@@ -842,8 +826,8 @@ function buildProcessRelativeLayoutArtifacts(params: {
         reusedExpanded,
         reusedCollapsed,
         isProcessCollapsed,
-        expandedThreadOverrideCount: processExpandedStreamIds?.size ?? 0,
-        collapsedThreadOverrideCount: processCollapsedStreamIds?.size ?? 0,
+        expandedThreadOverrideCount: processExpandedThreadRefs?.size ?? 0,
+        collapsedThreadOverrideCount: processCollapsedThreadRefs?.size ?? 0,
         expandedArtifactBuildDurationMs: processExpandedArtifactBuildDurationMs,
         collapsedArtifactBuildDurationMs: processCollapsedArtifactBuildDurationMs,
         durationMs: processDurationMs
@@ -881,26 +865,6 @@ function buildProcessRelativeLayoutArtifacts(params: {
     reusedExpandedProcessCount,
     reusedCollapsedProcessCount
   };
-}
-
-function canReuseTraceLayoutGeometry(params: {
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>;
-  timingKey?: string | null;
-  minTimeMs?: number;
-}): boolean {
-  if (!params.timingKey || params.minTimeMs !== undefined) {
-    return false;
-  }
-
-  for (const process of params.visibleTraceGraph.processes) {
-    const blocks = getVisibleBlocksForProcess(params.visibleTraceGraph, process.processId);
-    for (const block of blocks) {
-      if (resolveGeometryTimingKey(block, params.timingKey) !== block.primaryTimingKey) {
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 function attachMinimapLayouts(params: {
@@ -952,17 +916,13 @@ function buildLightweightTraceMinimapLayouts(params: {
       layoutConfiguration: layout.layoutConfiguration,
       traceGraph: layout.traceGraph,
       processLayouts,
+      processLayoutMapByRef: buildTraceLayoutProcessLayoutMapByRef(processLayouts),
       renderRows: layout.renderRows.map(row => ({
         ...row,
         isCollapsed: true
       })),
       globalEventRow: layout.globalEventRow,
-      threadLayoutMap: layout.threadLayoutMap,
       threadLayoutMapByRef: layout.threadLayoutMapByRef,
-      spanGeometryChunks: layout.spanGeometryChunks,
-      spanVisibilityMapBySpanRef: layout.spanVisibilityMapBySpanRef,
-      localDependencyGeometryChunks: [],
-      crossDependencyGeometryChunks: [],
       overflowLabels: [],
       currentBounds: [
         [0, 0],
@@ -1009,12 +969,12 @@ function getEffectiveTrackAggregationMode(
 
 /** Infers the reserved stream-band height for one manual-layout thread. */
 function getManualThreadContentHeight(
-  blocks: readonly TraceSpanGeometrySource[],
+  spans: readonly TraceSpanGeometrySource[],
   minimumHeight: number
 ): number {
   let maxBottomY = 0;
-  for (const block of blocks) {
-    const manualSpanLayout = getManualSpanLayoutGeometry(block);
+  for (const span of spans) {
+    const manualSpanLayout = getManualSpanLayoutGeometry(span);
     if (!manualSpanLayout) {
       continue;
     }
@@ -1044,6 +1004,8 @@ type SeparateThreadTrackObject =
       nodeType: 'stream';
       processId: string;
       rankIndex: number;
+      /** Exact runtime ref for the thread track. */
+      threadRef: ThreadRef;
       threadId: TraceThreadId;
       /** Authored manual thread-band height when spans bypass generated lanes. */
       manualContentHeight?: number;
@@ -1054,6 +1016,8 @@ type SeparateThreadTrackObject =
       processId: string;
       /** Rank index that owns the stacked lane extent. */
       rankIndex: number;
+      /** Exact runtime ref for the thread track. */
+      threadRef: ThreadRef;
       /** Thread id whose non-primary lanes are represented by this compact track. */
       threadId: TraceThreadId;
       /** Number of lanes represented by the compact track. */
@@ -1063,16 +1027,20 @@ type SeparateThreadTrackObject =
 type SeparateThreadTrackDescriptor = HierarchicalTrackDescriptor<SeparateThreadTrackObject>;
 
 type SeparateThreadRankState = {
+  /** Exact graph-local process ref owning this separate-thread rank state. */
+  processRef: ProcessRef;
   processId: string;
   rankIndex: number;
-  orderedStreamIds: TraceThreadId[];
+  /** Ordered visible thread refs retained under this separate-thread rank. */
+  orderedThreadRefs: ThreadRef[];
 };
 
 type SeparateThreadStreamState = {
   processId: string;
   rankIndex: number;
   threadId: TraceThreadId;
-  threadRef?: ThreadRef;
+  /** Exact graph-local thread ref owning this separate-thread stream state. */
+  threadRef: ThreadRef;
   threadName: string;
   visibleInExpandedLayout: boolean;
   /** Whether this stream bypasses lane generation and uses authored manual span geometry. */
@@ -1100,19 +1068,22 @@ type SeparateThreadTrackBuildResult = {
   descriptors: SeparateThreadTrackDescriptor[];
   rootTrackIds: string[];
   rankStates: SeparateThreadRankState[];
-  streamStatesById: Readonly<Record<TraceThreadId, SeparateThreadStreamState>>;
+  /** Separate-thread stream state keyed by canonical runtime thread ref. */
+  streamStatesByRef: ReadonlyMap<ThreadRef, SeparateThreadStreamState>;
 };
 
 function getRankTrackId(processId: string): string {
   return `rank:${processId}`;
 }
 
-function getStreamTrackId(threadId: TraceThreadId): string {
-  return `stream:${threadId}`;
+/** Returns the hierarchical track id for one rendered thread row. */
+function getStreamTrackId(threadRef: ThreadRef): string {
+  return `stream:${threadRef}`;
 }
 
-function getLaneStackTrackId(threadId: TraceThreadId): string {
-  return `lane-stack:${threadId}`;
+/** Returns the hierarchical track id for one rendered thread lane stack. */
+function getLaneStackTrackId(threadRef: ThreadRef): string {
+  return `lane-stack:${threadRef}`;
 }
 
 function getTrackEntryYOffset(
@@ -1127,20 +1098,13 @@ function getTrackEntryYOffset(
   return useExpandedOffsets ? entry.expandedYOffset : entry.currentYOffset;
 }
 
-function buildOrderedThreadIds(threads: readonly Pick<TraceThread, 'threadId'>[]): TraceThreadId[] {
-  const orderedThreadIds = new Array<TraceThreadId>(threads.length);
-  for (let index = 0; index < threads.length; index++) {
-    orderedThreadIds[index] = threads[index]!.threadId;
-  }
-  return orderedThreadIds;
-}
-
 function buildSeparateThreadDescriptorsFromSourceGraph(params: {
   visibleTraceGraph: TraceLayoutVisibleGraph;
   maxTimeMs: number;
   settings: TrackAggregationSettings;
   layoutConfiguration: ReturnType<typeof getLayoutDensityPreset>;
-  streamLaneLayoutMap?: Readonly<Record<TraceThreadId, ThreadLaneMetadata>>;
+  /** Optional lane metadata keyed by canonical runtime thread ref. */
+  threadLaneLayoutMapByRef?: ReadonlyMap<ThreadRef, ThreadLaneMetadata>;
 }): SeparateThreadTrackBuildResult {
   const {visibleTraceGraph, maxTimeMs, settings} = params;
   const usesManualSpanLayout = visibleTraceGraph.traceGraph.spanLayout === 'manual';
@@ -1148,32 +1112,34 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
   const descriptors: SeparateThreadTrackDescriptor[] = [];
   const rootTrackIds: string[] = [];
   const rankStates: SeparateThreadRankState[] = [];
-  const streamStatesById: Record<TraceThreadId, SeparateThreadStreamState> = {};
-  let visibleBlockSourceDurationMs = 0;
-  let blockBucketingDurationMs = 0;
+  const streamStatesByRef = new Map<ThreadRef, SeparateThreadStreamState>();
+  let visibleSpanSourceDurationMs = 0;
+  let spanBucketingDurationMs = 0;
   let laneAssignmentDurationMs = 0;
-  let visibleBlockCount = 0;
+  let visibleSpanCount = 0;
   let laneLayoutCallCount = 0;
-  let laneLayoutBlockCount = 0;
+  let laneLayoutSpanCount = 0;
   let threadOrderingDurationMs = 0;
   let threadLoopDurationMs = 0;
   let descriptorAssemblyDurationMs = 0;
   let slowestProcessDurationMs = 0;
   let slowestProcessId: string | undefined;
   let slowestProcessThreadCount = 0;
-  let slowestProcessVisibleBlockCount = 0;
+  let slowestProcessVisibleSpanCount = 0;
   let slowestProcessLaneAssignmentDurationMs = 0;
 
   for (const [rankIndex, rank] of visibleTraceGraph.processes.entries()) {
     const processStartTime = performance.now();
     const descriptorCountBeforeProcess = descriptors.length;
     const processLaneAssignmentStartDurationMs = laneAssignmentDurationMs;
-    const orderedThreads = settings.sortThreads ? [...rank.threads] : rank.threads;
-    const threadRefById = settings.sortThreads
-      ? new Map(
-          rank.threads.map((thread, index) => [thread.threadId, rank.threadRefs?.[index]] as const)
-        )
-      : undefined;
+    const orderedThreads = [...rank.threads];
+    const threadRefByThread = new Map<TraceThread, ThreadRef>();
+    rank.threads.forEach((thread, threadIndex) => {
+      const threadRef = rank.threadRefs[threadIndex];
+      if (threadRef != null) {
+        threadRefByThread.set(thread, threadRef);
+      }
+    });
     if (settings.sortThreads) {
       const threadOrderingStartTime = performance.now();
       orderedThreads.sort((a, b) => {
@@ -1184,41 +1150,49 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
       threadOrderingDurationMs += performance.now() - threadOrderingStartTime;
     }
 
-    const threadBlocks = new Map<TraceThreadId, TraceSpanGeometrySource[]>();
-    const visibleBlockSourceStartTime = performance.now();
-    const rankBlocks = getVisibleBlocksForProcess(visibleTraceGraph, rank.processId);
-    const rankLaneBlocks = usesManualSpanLayout
+    const threadSpans = new Map<ThreadRef, TraceSpanGeometrySource[]>();
+    const visibleSpanSourceStartTime = performance.now();
+    const rankSpans = getVisibleGeometrySpansForProcess(visibleTraceGraph, rank.processId);
+    const rankLaneSpans = usesManualSpanLayout
       ? []
-      : getVisibleLaneBlocksForProcess(visibleTraceGraph, rank.processId);
+      : getVisibleLaneSpansForProcess(visibleTraceGraph, rank.processId);
     const rankLaneLocalDependencies = usesManualSpanLayout
       ? []
       : getVisibleLaneLocalDependenciesForProcess(visibleTraceGraph, rank.processId);
     const explicitParentByChild = usesManualSpanLayout
-      ? new Map<TraceSpanId, TraceSpanId>()
+      ? new Map<SpanRef, SpanRef>()
       : buildExplicitParentSpanMap({
-          spans: rankLaneBlocks,
+          spans: rankLaneSpans,
           localDependencies: rankLaneLocalDependencies,
           maxTimeMs
         });
-    visibleBlockSourceDurationMs += performance.now() - visibleBlockSourceStartTime;
-    const blockBucketingStartTime = performance.now();
-    visibleBlockCount += rankBlocks.length;
-    for (const block of rankBlocks) {
-      const blocksForThread = threadBlocks.get(block.threadId);
-      if (blocksForThread) {
-        blocksForThread.push(block);
+    visibleSpanSourceDurationMs += performance.now() - visibleSpanSourceStartTime;
+    const spanBucketingStartTime = performance.now();
+    visibleSpanCount += rankSpans.length;
+    for (const span of rankSpans) {
+      const threadRef = visibleTraceGraph.traceGraph.getThreadRefBySpanRef(span.spanRef);
+      if (threadRef == null) {
+        continue;
+      }
+      const spansForThread = threadSpans.get(threadRef);
+      if (spansForThread) {
+        spansForThread.push(span);
       } else {
-        threadBlocks.set(block.threadId, [block]);
+        threadSpans.set(threadRef, [span]);
       }
     }
-    blockBucketingDurationMs += performance.now() - blockBucketingStartTime;
+    spanBucketingDurationMs += performance.now() - spanBucketingStartTime;
 
     const rankTrackId = getRankTrackId(rank.processId);
     rootTrackIds.push(rankTrackId);
     rankStates.push({
+      processRef: rank.processRef,
       processId: rank.processId,
       rankIndex,
-      orderedStreamIds: buildOrderedThreadIds(orderedThreads)
+      orderedThreadRefs: orderedThreads.flatMap(thread => {
+        const threadRef = threadRefByThread.get(thread);
+        return threadRef != null ? [threadRef] : [];
+      })
     });
     const rankDescriptorAssemblyStartTime = performance.now();
     descriptors.push({
@@ -1233,20 +1207,24 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
     });
     descriptorAssemblyDurationMs += performance.now() - rankDescriptorAssemblyStartTime;
 
-    for (const [threadIndex, thread] of orderedThreads.entries()) {
+    for (const thread of orderedThreads) {
       const threadLoopStartTime = performance.now();
-      const blocksForThread = threadBlocks.get(thread.threadId) ?? [];
+      const threadRef = threadRefByThread.get(thread);
+      if (threadRef == null) {
+        continue;
+      }
+      const spansForThread = threadSpans.get(threadRef) ?? [];
       const visibleInExpandedLayout = streamIsVisible(thread, settings);
       if (usesManualSpanLayout) {
         const manualContentHeight = getManualThreadContentHeight(
-          blocksForThread,
+          spansForThread,
           params.layoutConfiguration.laneSeparation
         );
-        streamStatesById[thread.threadId] = {
+        streamStatesByRef.set(threadRef, {
           processId: rank.processId,
           rankIndex,
           threadId: thread.threadId,
-          threadRef: threadRefById?.get(thread.threadId) ?? rank.threadRefs?.[threadIndex],
+          threadRef,
           threadName: thread.name?.trim() || String(thread.threadId),
           visibleInExpandedLayout,
           usesManualSpanLayout: true,
@@ -1255,14 +1233,14 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
           renderedLaneCount: 0,
           overflowSpanCount: 0,
           baseIsCollapsed: false
-        };
+        });
         threadLoopDurationMs += performance.now() - threadLoopStartTime;
         if (!visibleInExpandedLayout) {
           continue;
         }
         const streamDescriptorAssemblyStartTime = performance.now();
         descriptors.push({
-          id: getStreamTrackId(thread.threadId),
+          id: getStreamTrackId(threadRef),
           parentId: rankTrackId,
           kind: 'group',
           type: 'stream',
@@ -1270,6 +1248,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
             nodeType: 'stream',
             processId: rank.processId,
             rankIndex,
+            threadRef,
             threadId: thread.threadId,
             manualContentHeight
           }
@@ -1285,42 +1264,42 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
         maxLane: -1
       };
       if (disableLaneAssignment) {
-        for (const block of blocksForThread) {
-          if (block.spanRef != null) {
-            inferredLaneMap.map.set(block.spanRef, 0);
+        for (const span of spansForThread) {
+          if (span.spanRef != null) {
+            inferredLaneMap.map.set(span.spanRef, 0);
           }
         }
-        inferredLaneMap.maxLane = blocksForThread.length > 0 ? 0 : -1;
+        inferredLaneMap.maxLane = spansForThread.length > 0 ? 0 : -1;
       } else {
         laneLayoutCallCount += 1;
-        laneLayoutBlockCount += blocksForThread.length;
+        laneLayoutSpanCount += spansForThread.length;
         const hasSeparateParentHints = hasParentHintsForSpans(
-          blocksForThread,
+          spansForThread,
           explicitParentByChild
         );
-        const hasSeparateLaneAffinity = hasTraceLaneAffinity(blocksForThread);
+        const hasSeparateLaneAffinity = hasTraceLaneAffinity(spansForThread);
         inferredLaneMap.maxLane = visitKahnLaneAssignments<TraceSpanGeometrySource>(
-          blocksForThread,
+          spansForThread,
           {
             ...(hasSeparateParentHints
               ? {
-                  getParentSpanId: (block: TraceSpanGeometrySource) =>
-                    explicitParentByChild.get(block.spanId)
+                  getParentSpanRef: (span: TraceSpanGeometrySource) =>
+                    explicitParentByChild.get(span.spanRef)
                 }
               : {}),
             ...(hasSeparateLaneAffinity ? {getLaneAffinityKey: getTraceLaneAffinityKey} : {}),
             maxTimeMs
           },
-          (block, lane) => {
-            if (block.spanRef != null) {
-              inferredLaneMap.map.set(block.spanRef, lane);
+          (span, lane) => {
+            if (span.spanRef != null) {
+              inferredLaneMap.map.set(span.spanRef, lane);
             }
           }
         );
       }
       laneAssignmentDurationMs += performance.now() - laneAssignmentStartTime;
       const inferredLaneCount = inferredLaneMap.maxLane >= 0 ? inferredLaneMap.maxLane + 1 : 0;
-      const laneMetadata = params.streamLaneLayoutMap?.[thread.threadId];
+      const laneMetadata = params.threadLaneLayoutMapByRef?.get(threadRef);
       const totalLaneCount = Math.max(1, laneMetadata?.laneCount ?? 1, inferredLaneCount);
       const normalizedLaneCount = normalizeLaneCounts(
         totalLaneCount,
@@ -1349,11 +1328,11 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
         'top-only'
           ? 'top-only'
           : undefined;
-      streamStatesById[thread.threadId] = {
+      streamStatesByRef.set(threadRef, {
         processId: rank.processId,
         rankIndex,
         threadId: thread.threadId,
-        threadRef: threadRefById?.get(thread.threadId) ?? rank.threadRefs?.[threadIndex],
+        threadRef,
         threadName: thread.name?.trim() || String(thread.threadId),
         visibleInExpandedLayout,
         laneCount: effectiveLaneCount,
@@ -1363,7 +1342,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
         visibleLaneIndices,
         collapseMode,
         baseIsCollapsed: false
-      };
+      });
       threadLoopDurationMs += performance.now() - threadLoopStartTime;
 
       if (!visibleInExpandedLayout) {
@@ -1371,7 +1350,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
       }
 
       const streamDescriptorAssemblyStartTime = performance.now();
-      const streamTrackId = getStreamTrackId(thread.threadId);
+      const streamTrackId = getStreamTrackId(threadRef);
       descriptors.push({
         id: streamTrackId,
         parentId: rankTrackId,
@@ -1381,6 +1360,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
           nodeType: 'stream',
           processId: rank.processId,
           rankIndex,
+          threadRef,
           threadId: thread.threadId
         }
       });
@@ -1388,7 +1368,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
       const stackedLaneCount = Math.max(effectiveLaneCount - 1, 0);
       if (stackedLaneCount > 0) {
         descriptors.push({
-          id: getLaneStackTrackId(thread.threadId),
+          id: getLaneStackTrackId(threadRef),
           parentId: streamTrackId,
           kind: 'leaf',
           type: 'laneStack',
@@ -1396,6 +1376,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
             nodeType: 'laneStack',
             processId: rank.processId,
             rankIndex,
+            threadRef,
             threadId: thread.threadId,
             laneCount: stackedLaneCount
           }
@@ -1411,7 +1392,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
       slowestProcessDurationMs = processDurationMs;
       slowestProcessId = rank.processId;
       slowestProcessThreadCount = rank.threads.length;
-      slowestProcessVisibleBlockCount = rankBlocks.length;
+      slowestProcessVisibleSpanCount = rankSpans.length;
       slowestProcessLaneAssignmentDurationMs = processLaneAssignmentDurationMs;
     }
     if (processDurationMs >= TRACE_LAYOUT_SLOW_PROCESS_PROBE_THRESHOLD_MS) {
@@ -1420,7 +1401,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
         processId: rank.processId,
         processName: rank.name,
         threadCount: rank.threads.length,
-        visibleBlockCount: rankBlocks.length,
+        visibleSpanCount: rankSpans.length,
         descriptorCount: descriptors.length - descriptorCountBeforeProcess,
         laneAssignmentDurationMs: processLaneAssignmentDurationMs,
         durationMs: processDurationMs
@@ -1431,13 +1412,13 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
   log.probe(0, 'buildSeparateThreadDescriptorsFromSourceGraph done', {
     graphName: visibleTraceGraph.name,
     processCount: visibleTraceGraph.processes.length,
-    visibleBlockCount,
+    visibleSpanCount,
     descriptorCount: descriptors.length,
-    streamCount: Object.keys(streamStatesById).length,
+    streamCount: streamStatesByRef.size,
     laneLayoutCallCount,
-    laneLayoutBlockCount,
-    visibleBlockSourceDurationMs,
-    blockBucketingDurationMs,
+    laneLayoutSpanCount,
+    visibleSpanSourceDurationMs,
+    spanBucketingDurationMs,
     laneAssignmentDurationMs,
     threadOrderingDurationMs,
     threadLoopDurationMs,
@@ -1445,7 +1426,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
     slowestProcessId,
     slowestProcessDurationMs,
     slowestProcessThreadCount,
-    slowestProcessVisibleBlockCount,
+    slowestProcessVisibleSpanCount,
     slowestProcessLaneAssignmentDurationMs,
     durationMs: performance.now() - startTime,
     ...getHeapUsageProbeFields()
@@ -1455,7 +1436,7 @@ function buildSeparateThreadDescriptorsFromSourceGraph(params: {
     descriptors,
     rootTrackIds,
     rankStates,
-    streamStatesById
+    streamStatesByRef
   };
 }
 
@@ -1466,25 +1447,21 @@ function buildSeparateThreadDescriptorsFromExpandedLayout(params: {
   const descriptors: SeparateThreadTrackDescriptor[] = [];
   const rootTrackIds: string[] = [];
   const rankStates: SeparateThreadRankState[] = [];
-  const streamStatesById: Record<TraceThreadId, SeparateThreadStreamState> = {};
-  const threadIdByLayout = new Map<ThreadLayout, TraceThreadId>();
-
-  for (const [streamId, threadLayout] of Object.entries(params.expandedLayout.threadLayoutMap)) {
-    threadIdByLayout.set(threadLayout, streamId as TraceThreadId);
-  }
+  const streamStatesByRef = new Map<ThreadRef, SeparateThreadStreamState>();
 
   for (const [rankIndex, rank] of params.visibleTraceGraph.processes.entries()) {
-    const processLayout = params.expandedLayout.processLayouts[rankIndex];
-    const orderedStreamIds =
+    const processLayout = getTraceLayoutProcessLayoutByRef(params.expandedLayout, rank.processRef);
+    const orderedThreadRefs =
       processLayout?.threadLayouts
-        .map(threadLayout => threadIdByLayout.get(threadLayout))
-        .filter((streamId): streamId is TraceThreadId => Boolean(streamId)) ?? [];
+        .map(threadLayout => threadLayout.threadRef)
+        .filter((threadRef): threadRef is ThreadRef => threadRef != null) ?? [];
     const rankTrackId = getRankTrackId(rank.processId);
     rootTrackIds.push(rankTrackId);
     rankStates.push({
+      processRef: rank.processRef,
       processId: rank.processId,
       rankIndex,
-      orderedStreamIds
+      orderedThreadRefs
     });
     descriptors.push({
       id: rankTrackId,
@@ -1497,21 +1474,26 @@ function buildSeparateThreadDescriptorsFromExpandedLayout(params: {
       }
     });
 
-    for (const streamId of orderedStreamIds) {
-      const sourceThreadLayout = params.expandedLayout.threadLayoutMap[streamId];
+    for (const threadRef of orderedThreadRefs) {
+      const sourceThreadLayout = params.expandedLayout.threadLayoutMapByRef.get(threadRef);
       if (!sourceThreadLayout) {
         continue;
       }
+      const threadSource = params.visibleTraceGraph.traceGraph.getThreadSourceByRef(threadRef);
+      if (!threadSource) {
+        continue;
+      }
+      const threadId = threadSource.threadId;
       const laneCount = Math.max(
         sourceThreadLayout.lanes?.laneCount ?? (sourceThreadLayout.visible ? 1 : 0),
         sourceThreadLayout.visible ? 1 : 0
       );
-      streamStatesById[streamId] = {
+      streamStatesByRef.set(threadRef, {
         processId: rank.processId,
         rankIndex,
-        threadId: streamId,
-        threadRef: sourceThreadLayout.threadRef,
-        threadName: rank.threadMap[streamId]?.name?.trim() || String(streamId),
+        threadId,
+        threadRef,
+        threadName: threadSource.name?.trim() || String(threadId),
         visibleInExpandedLayout: sourceThreadLayout.visible,
         usesManualSpanLayout: sourceThreadLayout.manualContentHeight != null,
         manualContentHeight: sourceThreadLayout.manualContentHeight,
@@ -1522,13 +1504,13 @@ function buildSeparateThreadDescriptorsFromExpandedLayout(params: {
         visibleLaneIndices: sourceThreadLayout.lanes?.visibleLaneIndices,
         collapseMode: sourceThreadLayout.lanes?.collapseMode,
         baseIsCollapsed: sourceThreadLayout.lanes?.isCollapsed ?? false
-      };
+      });
 
       if (!sourceThreadLayout.visible) {
         continue;
       }
 
-      const streamTrackId = getStreamTrackId(streamId);
+      const streamTrackId = getStreamTrackId(threadRef);
       descriptors.push({
         id: streamTrackId,
         parentId: rankTrackId,
@@ -1538,7 +1520,8 @@ function buildSeparateThreadDescriptorsFromExpandedLayout(params: {
           nodeType: 'stream',
           processId: rank.processId,
           rankIndex,
-          threadId: streamId,
+          threadRef,
+          threadId,
           manualContentHeight: sourceThreadLayout.manualContentHeight
         }
       });
@@ -1550,7 +1533,7 @@ function buildSeparateThreadDescriptorsFromExpandedLayout(params: {
       const stackedLaneCount = Math.max(laneCount - 1, 0);
       if (stackedLaneCount > 0) {
         descriptors.push({
-          id: getLaneStackTrackId(streamId),
+          id: getLaneStackTrackId(threadRef),
           parentId: streamTrackId,
           kind: 'leaf',
           type: 'laneStack',
@@ -1558,7 +1541,8 @@ function buildSeparateThreadDescriptorsFromExpandedLayout(params: {
             nodeType: 'laneStack',
             processId: rank.processId,
             rankIndex,
-            threadId: streamId,
+            threadRef,
+            threadId,
             laneCount: stackedLaneCount
           }
         });
@@ -1570,7 +1554,7 @@ function buildSeparateThreadDescriptorsFromExpandedLayout(params: {
     descriptors,
     rootTrackIds,
     rankStates,
-    streamStatesById
+    streamStatesByRef
   };
 }
 
@@ -1665,7 +1649,8 @@ function materializeSeparateThreadLayout(params: {
   layoutConfiguration: ReturnType<typeof getLayoutDensityPreset>;
   trackLayout: HierarchicalTrackLayoutResult<SeparateThreadTrackObject>;
   rankStates: readonly SeparateThreadRankState[];
-  streamStatesById: Readonly<Record<TraceThreadId, SeparateThreadStreamState>>;
+  /** Separate-thread stream state keyed by canonical runtime thread ref. */
+  streamStatesByRef: ReadonlyMap<ThreadRef, SeparateThreadStreamState>;
   traceGraph: TraceGraph;
   useExpandedOffsets: boolean;
   showEmptyProcesses?: boolean;
@@ -1679,13 +1664,13 @@ function materializeSeparateThreadLayout(params: {
     }) || labelPadding + labelMinGap;
   const processLayouts: ProcessLayout[] = new Array(params.rankStates.length);
   const rankSpacings: number[] = new Array(params.rankStates.length).fill(0);
-  const threadLayoutMap: Record<TraceThreadId, ThreadLayout> = {};
+  const threadLayoutMapByRef = new Map<ThreadRef, ThreadLayout>();
   let nextRankYOffset = 0;
   const showEmptyProcesses = params.showEmptyProcesses ?? false;
   const rankDisplayableScanStartTime = performance.now();
   const rankHasDisplayableSpanContent = params.rankStates.map(rankState =>
-    rankState.orderedStreamIds.some(streamId => {
-      const streamState = params.streamStatesById[streamId];
+    rankState.orderedThreadRefs.some(threadRef => {
+      const streamState = params.streamStatesByRef.get(threadRef);
       return (
         streamState?.visibleInExpandedLayout === true &&
         (streamState.usesManualSpanLayout === true || (streamState.spanLaneMap?.size ?? 0) > 0)
@@ -1734,8 +1719,8 @@ function materializeSeparateThreadLayout(params: {
     const rankDelta = nextRankYOffset - baseRankYOffset;
     const rankStartY = nextRankYOffset + processContentTopInset;
     const threadLayoutBuildStartTime = performance.now();
-    const threadLayouts = rankState.orderedStreamIds.map(streamId => {
-      const streamState = params.streamStatesById[streamId];
+    const threadLayouts = rankState.orderedThreadRefs.map(threadRef => {
+      const streamState = params.streamStatesByRef.get(threadRef);
       if (!streamState) {
         return undefined;
       }
@@ -1744,18 +1729,18 @@ function materializeSeparateThreadLayout(params: {
           maxTimeMs: params.maxTimeMs,
           streamState
         });
-        threadLayoutMap[streamId] = hiddenLayout;
+        threadLayoutMapByRef.set(threadRef, hiddenLayout);
         return hiddenLayout;
       }
 
-      const streamEntry = params.trackLayout.trackLayoutsById[getStreamTrackId(streamId)];
+      const streamEntry = params.trackLayout.trackLayoutsById[getStreamTrackId(threadRef)];
       const baseStreamY = getTrackEntryYOffset(streamEntry, params.useExpandedOffsets);
       if (!streamEntry || baseStreamY == null) {
         const hiddenLayout = buildHiddenSeparateThreadLayout({
           maxTimeMs: params.maxTimeMs,
           streamState
         });
-        threadLayoutMap[streamId] = hiddenLayout;
+        threadLayoutMapByRef.set(threadRef, hiddenLayout);
         return hiddenLayout;
       }
 
@@ -1776,7 +1761,7 @@ function materializeSeparateThreadLayout(params: {
           overflowSpanCount: 0,
           overflowLabel: undefined
         } satisfies ThreadLayout;
-        threadLayoutMap[streamId] = manualLayout;
+        threadLayoutMapByRef.set(threadRef, manualLayout);
         return manualLayout;
       }
 
@@ -1820,15 +1805,15 @@ function materializeSeparateThreadLayout(params: {
           : buildThreadOverflowLabelForThreads({
               threadLayout: visibleLayout,
               overflowSpanCount: streamState.overflowSpanCount,
-              threads: [{name: streamState.threadName, threadId: streamId}],
-              threadRefs: streamState.threadRef != null ? [streamState.threadRef] : undefined,
+              threads: [{name: streamState.threadName, threadId: streamState.threadId}],
+              threadRefs: [streamState.threadRef],
               traceGraph: params.traceGraph,
               labelLaneSeparation: laneSeparation
             })
       } satisfies ThreadLayout;
       overflowLabelDurationMs += performance.now() - overflowLabelStartTime;
 
-      threadLayoutMap[streamId] = withOverflow;
+      threadLayoutMapByRef.set(threadRef, withOverflow);
       return withOverflow;
     });
     threadLayoutBuildDurationMs += performance.now() - threadLayoutBuildStartTime;
@@ -1865,6 +1850,7 @@ function materializeSeparateThreadLayout(params: {
         : 0;
     const rankSpacing = rankContentSpacing + processGap;
     const rankLayout = {
+      processRef: rankState.processRef,
       isCollapsed: rankIsCollapsed,
       yOffset: nextRankYOffset,
       yHeight: rankContentSpacing,
@@ -1914,7 +1900,7 @@ function materializeSeparateThreadLayout(params: {
     if (rankDurationMs > slowestRankDurationMs) {
       slowestRankDurationMs = rankDurationMs;
       slowestRankProcessId = rankState.processId;
-      slowestRankThreadCount = rankState.orderedStreamIds.length;
+      slowestRankThreadCount = rankState.orderedThreadRefs.length;
       slowestRankVisibleThreadCount = visibleThreadLayouts.length;
       slowestRankIsCollapsed = rankIsCollapsed;
     }
@@ -1923,7 +1909,7 @@ function materializeSeparateThreadLayout(params: {
         graphName: params.visibleTraceGraph.name,
         processId: rankState.processId,
         rankIndex: rankState.rankIndex,
-        threadCount: rankState.orderedStreamIds.length,
+        threadCount: rankState.orderedThreadRefs.length,
         visibleThreadCount: visibleThreadLayouts.length,
         rankIsCollapsed,
         useExpandedOffsets: params.useExpandedOffsets,
@@ -1956,15 +1942,16 @@ function materializeSeparateThreadLayout(params: {
 
   return {
     layout: {
-      layoutConfiguration: {laneSeparation: params.layoutConfiguration.laneSeparation},
+      layoutConfiguration: {
+        laneSeparation: params.layoutConfiguration.laneSeparation,
+        spanHeight: params.layoutConfiguration.spanHeight,
+        minTimeMs: params.traceGraph.minTimeMs
+      },
       traceGraph: params.traceGraph,
       processLayouts,
+      processLayoutMapByRef: buildTraceLayoutProcessLayoutMapByRef(processLayouts),
       renderRows: [],
-      threadLayoutMap,
-      spanGeometryChunks: [],
-      spanVisibilityMapBySpanRef: new Map(),
-      localDependencyGeometryChunks: [],
-      crossDependencyGeometryChunks: [],
+      threadLayoutMapByRef,
       overflowLabels: buildTraceLayoutOverflowLabels(processLayouts),
       currentBounds: [
         [0, 0],
@@ -1995,7 +1982,8 @@ function buildSeparateThreadExpandedLayout(params: {
   visibleTraceGraph: TraceLayoutVisibleGraph;
   settings: TrackAggregationSettings;
   layoutConfiguration: ReturnType<typeof getLayoutDensityPreset>;
-  streamLaneLayoutMap?: Readonly<Record<TraceThreadId, ThreadLaneMetadata>>;
+  /** Optional lane metadata keyed by canonical runtime thread ref. */
+  threadLaneLayoutMapByRef?: ReadonlyMap<ThreadRef, ThreadLaneMetadata>;
   traceGraph: TraceGraph;
 }): TraceLayout {
   const startTime = performance.now();
@@ -2004,7 +1992,7 @@ function buildSeparateThreadExpandedLayout(params: {
     maxTimeMs: params.visibleTraceGraph.maxTimeMs,
     settings: params.settings,
     layoutConfiguration: params.layoutConfiguration,
-    streamLaneLayoutMap: params.streamLaneLayoutMap
+    threadLaneLayoutMapByRef: params.threadLaneLayoutMapByRef
   });
   const descriptorDurationMs = performance.now() - startTime;
   const trackLayoutStartTime = performance.now();
@@ -2022,7 +2010,7 @@ function buildSeparateThreadExpandedLayout(params: {
     layoutConfiguration: params.layoutConfiguration,
     trackLayout,
     rankStates: buildState.rankStates,
-    streamStatesById: buildState.streamStatesById,
+    streamStatesByRef: buildState.streamStatesByRef,
     traceGraph: params.traceGraph,
     useExpandedOffsets: true,
     showEmptyProcesses: params.settings.showEmptyProcesses
@@ -2046,8 +2034,10 @@ function applySeparateThreadTrackLayoutCollapseState(params: {
   expandedLayout: TraceLayout;
   layoutDensity: TraceVisSettings['layoutDensity'];
   collapsedProcessIds?: ReadonlySet<string>;
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional thread refs forced open while applying separate-thread collapse state. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional thread refs forced closed while applying separate-thread collapse state. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
   threadLaneLayoutOverrides?: ThreadLaneLayoutOverrides;
 }): {traceLayout: TraceLayout; rankSpacings: number[]} {
   const startTime = performance.now();
@@ -2062,14 +2052,14 @@ function applySeparateThreadTrackLayoutCollapseState(params: {
   for (const rankId of params.collapsedProcessIds ?? []) {
     collapsedTrackIds.add(getRankTrackId(rankId));
   }
-  for (const streamId of params.collapsedThreadIds ?? []) {
+  for (const threadRef of params.collapsedThreadRefs ?? []) {
     if (params.visibleTraceGraph.traceGraph.spanLayout === 'manual') {
       break;
     }
-    if (params.expandedThreadIds?.has(streamId)) {
+    if (params.expandedThreadRefs?.has(threadRef)) {
       continue;
     }
-    collapsedTrackIds.add(getStreamTrackId(streamId));
+    collapsedTrackIds.add(getStreamTrackId(threadRef));
   }
   const collapsedTrackIdDurationMs = performance.now() - collapsedTrackIdStartTime;
   const trackLayoutStartTime = performance.now();
@@ -2088,7 +2078,7 @@ function applySeparateThreadTrackLayoutCollapseState(params: {
     layoutConfiguration: getLayoutDensityPreset(params.layoutDensity),
     trackLayout,
     rankStates: buildState.rankStates,
-    streamStatesById: buildState.streamStatesById,
+    streamStatesByRef: buildState.streamStatesByRef,
     traceGraph: params.expandedLayout.traceGraph,
     useExpandedOffsets: false
   });
@@ -2099,8 +2089,8 @@ function applySeparateThreadTrackLayoutCollapseState(params: {
     descriptorCount: buildState.descriptors.length,
     collapsedTrackCount: collapsedTrackIds.size,
     collapsedProcessCount: params.collapsedProcessIds?.size ?? 0,
-    expandedThreadCount: params.expandedThreadIds?.size ?? 0,
-    collapsedThreadCount: params.collapsedThreadIds?.size ?? 0,
+    expandedThreadCount: params.expandedThreadRefs?.size ?? 0,
+    collapsedThreadCount: params.collapsedThreadRefs?.size ?? 0,
     descriptorDurationMs,
     collapsedTrackIdDurationMs,
     trackLayoutDurationMs,
@@ -2112,7 +2102,8 @@ function applySeparateThreadTrackLayoutCollapseState(params: {
     traceLayout: {
       ...params.expandedLayout,
       processLayouts: layout.processLayouts,
-      threadLayoutMap: layout.threadLayoutMap
+      processLayoutMapByRef: buildTraceLayoutProcessLayoutMapByRef(layout.processLayouts),
+      threadLayoutMapByRef: layout.threadLayoutMapByRef
     },
     rankSpacings
   };
@@ -2124,38 +2115,38 @@ function applySeparateThreadTrackLayoutCollapseState(params: {
 function applyMaskOnlyCombinedThreadStreamCollapseState(params: {
   traceLayout: TraceLayout;
   visibleTraceGraph: TraceLayoutVisibleGraph;
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional thread refs forced open without recomputing combined-thread rows. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional thread refs forced closed without recomputing combined-thread rows. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
 }): TraceLayout {
-  const shouldCollapseStream = (threadId: TraceThreadId, baseIsCollapsed: boolean): boolean => {
-    if (params.expandedThreadIds?.has(threadId)) {
+  const shouldCollapseThread = (threadRef: ThreadRef, baseIsCollapsed: boolean): boolean => {
+    if (params.expandedThreadRefs?.has(threadRef)) {
       return false;
     }
-    if (params.collapsedThreadIds?.has(threadId)) {
+    if (params.collapsedThreadRefs?.has(threadRef)) {
       return true;
     }
     return baseIsCollapsed;
   };
 
-  const threadRefByStreamId = new Map<TraceThreadId, ThreadRef>();
+  const threadLayoutMapByRef = new Map<ThreadRef, ThreadLayout>();
   for (const process of params.visibleTraceGraph.processes) {
     process.threads.forEach((thread, threadIndex) => {
-      const threadRef = process.threadRefs?.[threadIndex];
-      if (threadRef != null) {
-        threadRefByStreamId.set(thread.threadId, threadRef);
+      const threadRef = process.threadRefs[threadIndex];
+      if (threadRef == null) {
+        return;
       }
-    });
-  }
-
-  const threadLayoutMap = Object.entries(params.traceLayout.threadLayoutMap).reduce(
-    (acc, [streamIdKey, threadLayout]) => {
-      const streamId = streamIdKey as TraceThreadId;
-      const isCollapsed = shouldCollapseStream(streamId, threadLayout.lanes?.isCollapsed ?? false);
-      acc[streamId] = isCollapsed
+      const threadLayout = params.traceLayout.threadLayoutMapByRef.get(threadRef);
+      if (!threadLayout) {
+        return;
+      }
+      const isCollapsed = shouldCollapseThread(threadRef, threadLayout.lanes?.isCollapsed ?? false);
+      const nextThreadLayout = isCollapsed
         ? ({
             ...threadLayout,
-            threadId: streamId,
-            threadRef: threadLayout.threadRef ?? threadRefByStreamId.get(streamId),
+            threadRef,
+            threadId: thread.threadId,
             visible: false,
             yPosition: HIDDEN_LAYOUT_Y,
             startPosition: [
@@ -2178,6 +2169,8 @@ function applyMaskOnlyCombinedThreadStreamCollapseState(params: {
           } satisfies ThreadLayout)
         : ({
             ...threadLayout,
+            threadRef,
+            threadId: thread.threadId,
             lanes: threadLayout.lanes
               ? {
                   ...threadLayout.lanes,
@@ -2185,14 +2178,13 @@ function applyMaskOnlyCombinedThreadStreamCollapseState(params: {
                 }
               : undefined
           } satisfies ThreadLayout);
-      return acc;
-    },
-    {} as Record<TraceThreadId, ThreadLayout>
-  );
+      threadLayoutMapByRef.set(threadRef, nextThreadLayout);
+    });
+  }
 
   return {
     ...params.traceLayout,
-    threadLayoutMap
+    threadLayoutMapByRef
   };
 }
 
@@ -2215,13 +2207,15 @@ function applyCombinedThreadProcessCollapseState(params: {
     | 'showEmptyProcesses'
   >;
   collapsedProcessIds?: ReadonlySet<string>;
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional thread refs forced open while applying combined-thread collapse state. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional thread refs forced closed while applying combined-thread collapse state. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
   threadLaneLayoutOverrides?: ThreadLaneLayoutOverrides;
 }): {traceLayout: TraceLayout; rankSpacings: number[]} {
   const hasCollapsedProcesses = (params.collapsedProcessIds?.size ?? 0) > 0;
   const hasStreamVisibilityOverrides =
-    (params.expandedThreadIds?.size ?? 0) > 0 || (params.collapsedThreadIds?.size ?? 0) > 0;
+    (params.expandedThreadRefs?.size ?? 0) > 0 || (params.collapsedThreadRefs?.size ?? 0) > 0;
   const hasStreamLaneLayoutOverrides =
     Object.keys(params.threadLaneLayoutOverrides ?? {}).length > 0;
   if (!hasCollapsedProcesses && !hasStreamLaneLayoutOverrides) {
@@ -2230,8 +2224,8 @@ function applyCombinedThreadProcessCollapseState(params: {
         ? applyMaskOnlyCombinedThreadStreamCollapseState({
             traceLayout: params.expandedLayout,
             visibleTraceGraph: params.visibleTraceGraph,
-            expandedThreadIds: params.expandedThreadIds,
-            collapsedThreadIds: params.collapsedThreadIds
+            expandedThreadRefs: params.expandedThreadRefs,
+            collapsedThreadRefs: params.collapsedThreadRefs
           })
         : params.expandedLayout,
       rankSpacings: [...params.expandedRankSpacings]
@@ -2239,7 +2233,7 @@ function applyCombinedThreadProcessCollapseState(params: {
   }
 
   const layoutConfiguration = getLayoutDensityPreset(params.settings.layoutDensity);
-  const streamLaneLayoutMap = buildStreamLaneLayoutMap(
+  const threadLaneLayoutMapByRef = buildThreadLaneLayoutMapByRef(
     params.visibleTraceGraph,
     params.threadLaneLayoutOverrides
   );
@@ -2257,14 +2251,14 @@ function applyCombinedThreadProcessCollapseState(params: {
     },
     layoutConfiguration,
     collapsedProcessIds: params.collapsedProcessIds,
-    streamLaneLayoutMap,
+    threadLaneLayoutMapByRef,
     traceGraph: params.expandedLayout.traceGraph,
     getSpansForProcess: processId =>
-      getVisibleBlocksForProcess(params.visibleTraceGraph, processId),
+      getVisibleGeometrySpansForProcess(params.visibleTraceGraph, processId),
     getLocalDependenciesForProcess: processId =>
       getVisibleLocalDependenciesForProcess(params.visibleTraceGraph, processId),
-    getLaneBlocksForProcess: processId =>
-      getVisibleLaneBlocksForProcess(params.visibleTraceGraph, processId),
+    getLaneSpansForProcess: processId =>
+      getVisibleLaneSpansForProcess(params.visibleTraceGraph, processId),
     getLaneLocalDependenciesForProcess: processId =>
       getVisibleLaneLocalDependenciesForProcess(params.visibleTraceGraph, processId)
   });
@@ -2275,8 +2269,8 @@ function applyCombinedThreadProcessCollapseState(params: {
       ? applyMaskOnlyCombinedThreadStreamCollapseState({
           traceLayout: collapsedLayout,
           visibleTraceGraph: params.visibleTraceGraph,
-          expandedThreadIds: params.expandedThreadIds,
-          collapsedThreadIds: params.collapsedThreadIds
+          expandedThreadRefs: params.expandedThreadRefs,
+          collapsedThreadRefs: params.collapsedThreadRefs
         })
       : collapsedLayout,
     rankSpacings: collapsedLayoutComputation.rankSpacings
@@ -2300,8 +2294,10 @@ function applyTraceLayoutCollapseState(params: {
     | 'showEmptyProcesses'
   >;
   collapsedProcessIds?: ReadonlySet<string>;
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional thread refs forced open while applying graph collapse state. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional thread refs forced closed while applying graph collapse state. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
   threadLaneLayoutOverrides?: ThreadLaneLayoutOverrides;
 }): {traceLayout: TraceLayout; rankSpacings: number[]} {
   if (params.aggregationMode === 'separate-threads') {
@@ -2310,8 +2306,8 @@ function applyTraceLayoutCollapseState(params: {
       expandedLayout: params.expandedLayout,
       layoutDensity: params.settings.layoutDensity,
       collapsedProcessIds: params.collapsedProcessIds,
-      expandedThreadIds: params.expandedThreadIds,
-      collapsedThreadIds: params.collapsedThreadIds,
+      expandedThreadRefs: params.expandedThreadRefs,
+      collapsedThreadRefs: params.collapsedThreadRefs,
       threadLaneLayoutOverrides: params.threadLaneLayoutOverrides
     });
   }
@@ -2322,35 +2318,41 @@ function applyTraceLayoutCollapseState(params: {
       expandedRankSpacings: params.expandedRankSpacings,
       settings: params.settings,
       collapsedProcessIds: params.collapsedProcessIds,
-      expandedThreadIds: params.expandedThreadIds,
-      collapsedThreadIds: params.collapsedThreadIds,
+      expandedThreadRefs: params.expandedThreadRefs,
+      collapsedThreadRefs: params.collapsedThreadRefs,
       threadLaneLayoutOverrides: params.threadLaneLayoutOverrides
     });
   }
   throw new Error(`Unsupported track aggregation mode: ${String(params.aggregationMode)}`);
 }
 
-function buildStreamLaneLayoutMap(
+/** Builds visible thread lane metadata keyed by canonical runtime thread ref. */
+function buildThreadLaneLayoutMapByRef(
   traceGraph: TraceLayoutVisibleGraph,
   threadLaneLayoutOverrides?: ThreadLaneLayoutOverrides
-): Readonly<Record<TraceThreadId, ThreadLaneMetadata>> | undefined {
-  const threadLaneLayoutMap = traceGraph.traceGraph.getVisibleLaneLayoutInfo().threadLaneLayoutMap;
+): ReadonlyMap<ThreadRef, ThreadLaneMetadata> | undefined {
+  const threadLaneLayoutMapByRef =
+    traceGraph.traceGraph.getVisibleLaneLayoutInfo().threadLaneLayoutMapByRef;
   if (!threadLaneLayoutOverrides) {
-    return threadLaneLayoutMap;
+    return threadLaneLayoutMapByRef;
   }
-  return {
-    ...threadLaneLayoutMap,
-    ...Object.fromEntries(
-      Object.entries(threadLaneLayoutOverrides).map(([streamId, override]) => [
-        streamId,
-        {
-          laneCount: threadLaneLayoutMap?.[streamId as TraceThreadId]?.laneCount ?? 1,
-          ...threadLaneLayoutMap?.[streamId as TraceThreadId],
-          ...override
-        } satisfies ThreadLaneMetadata
-      ])
-    )
-  };
+  const nextThreadLaneLayoutMapByRef = new Map(threadLaneLayoutMapByRef);
+  for (const process of traceGraph.processes) {
+    process.threads.forEach((thread, threadIndex) => {
+      const override = threadLaneLayoutOverrides[thread.threadId];
+      const threadRef = process.threadRefs[threadIndex];
+      if (!override || threadRef == null) {
+        return;
+      }
+      const laneMetadata = nextThreadLaneLayoutMapByRef.get(threadRef);
+      nextThreadLaneLayoutMapByRef.set(threadRef, {
+        laneCount: laneMetadata?.laneCount ?? 1,
+        ...laneMetadata,
+        ...override
+      } satisfies ThreadLaneMetadata);
+    });
+  }
+  return nextThreadLaneLayoutMapByRef;
 }
 
 export function buildTraceLayouts(params: {
@@ -2380,13 +2382,19 @@ export function buildTraceLayouts(params: {
   layoutMode?: TraceLayoutMode;
   /** Ref-native collapse state aligned to the input graph list. */
   collapseState?: TraceLayoutCollapseState;
+  /** @deprecated Use `collapseState.graphs[index].collapsedProcessRefs` instead. */
+  collapsedProcessIds?: ReadonlySet<string>;
+  /** @deprecated Use `collapseState.graphs[index].expandedThreadRefs` instead. */
+  expandedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** @deprecated Use `collapseState.graphs[index].collapsedThreadRefs` instead. */
+  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
   /** Optional per-stream lane focus overrides used by interactive lane hiding. */
   threadLaneLayoutOverrides?: Readonly<
     Record<TraceThreadId, Pick<ThreadLaneMetadata, 'visibleLaneIndices'>>
   >;
-  /** Optional timing key used to rebuild block geometry before returning the final layouts. */
+  /** Optional timing key recorded for later prepared binary geometry derivation. */
   timingKey?: string | null;
-  /** Canonical minimum time paired with timing-key geometry rebuilds. */
+  /** Canonical minimum time paired with timing-key prepared geometry derivation. */
   minTimeMs?: number;
   /** Whether to attach a precomputed collapsed-process minimap layout to each returned layout. */
   buildMinimapLayouts?: boolean;
@@ -2446,9 +2454,12 @@ export function buildTraceLayouts(params: {
       traceGraph,
       params.settings.trackAggregationMode
     );
-    const resolvedCollapseState = resolveTraceGraphCollapseState({
+    const legacyCollapseState = resolveLegacyTraceGraphCollapseState({
       traceGraph,
-      collapseState: params.collapseState?.graphs[index]
+      collapseState: params.collapseState?.graphs[index],
+      collapsedProcessIds: params.collapsedProcessIds,
+      expandedThreadIds: params.expandedThreadIds,
+      collapsedThreadIds: params.collapsedThreadIds
     });
     const processRelativeLayoutStartTime = performance.now();
     log.probe(0, 'buildTraceLayouts process-relative start', {
@@ -2472,9 +2483,9 @@ export function buildTraceLayouts(params: {
         showEmptyProcesses: params.settings.showEmptyProcesses
       },
       traceGraph,
-      collapsedProcessIds: resolvedCollapseState.collapsedProcessIds,
-      expandedThreadIds: resolvedCollapseState.expandedThreadIds,
-      collapsedThreadIds: resolvedCollapseState.collapsedThreadIds,
+      collapsedProcessIds: legacyCollapseState.collapsedProcessIds,
+      expandedThreadRefs: legacyCollapseState.expandedThreadRefs,
+      collapsedThreadRefs: legacyCollapseState.collapsedThreadRefs,
       threadLaneLayoutOverrides: params.threadLaneLayoutOverrides
     });
     processRelativeLayoutDurationMs += performance.now() - processRelativeLayoutStartTime;
@@ -2493,25 +2504,52 @@ export function buildTraceLayouts(params: {
       artifacts: processRelativeLayouts.expandedArtifacts,
       processSeparation
     });
+    log.probe(0, 'buildTraceLayouts expanded composition done', {
+      graphIndex: index,
+      graphName: traceGraph.name,
+      artifactCount: processRelativeLayouts.expandedArtifacts.length,
+      durationMs: performance.now() - layoutCompositionStartTime
+    })();
+    const collapsedLayoutCompositionStartTime = performance.now();
     const collapsedState = composeTraceLayoutFromProcessRelativeArtifacts({
       traceGraph: visibleTraceGraph.traceGraph,
       artifacts: processRelativeLayouts.collapsedArtifacts,
       processSeparation
     });
+    log.probe(0, 'buildTraceLayouts collapsed composition done', {
+      graphIndex: index,
+      graphName: traceGraph.name,
+      artifactCount: processRelativeLayouts.collapsedArtifacts.length,
+      durationMs: performance.now() - collapsedLayoutCompositionStartTime
+    })();
     layoutCompositionDurationMs += performance.now() - layoutCompositionStartTime;
     const withinGraphRankDeltaStartTime = performance.now();
+    const withinGraphExpandedRankDeltaStartTime = performance.now();
     const withinGraphExpandedLayout = applyRankDeltas({
       layout: expandedLayoutComputation.layout,
       traceGraph: visibleTraceGraph,
       rankDeltas: computeProcessRelativeRankDeltas(expandedLayoutComputation.rankSpacings),
       trackAggregationMode: aggregationMode
     });
+    log.probe(0, 'buildTraceLayouts expanded rank deltas done', {
+      graphIndex: index,
+      graphName: traceGraph.name,
+      processCount: visibleTraceGraph.processes.length,
+      durationMs: performance.now() - withinGraphExpandedRankDeltaStartTime
+    })();
+    const withinGraphCollapsedRankDeltaStartTime = performance.now();
     const withinGraphCollapsedLayout = applyRankDeltas({
       layout: collapsedState.layout,
       traceGraph: visibleTraceGraph,
       rankDeltas: computeProcessRelativeRankDeltas(collapsedState.rankSpacings),
       trackAggregationMode: aggregationMode
     });
+    log.probe(0, 'buildTraceLayouts collapsed rank deltas done', {
+      graphIndex: index,
+      graphName: traceGraph.name,
+      processCount: visibleTraceGraph.processes.length,
+      durationMs: performance.now() - withinGraphCollapsedRankDeltaStartTime
+    })();
     const graphRankDeltaDurationMs = performance.now() - withinGraphRankDeltaStartTime;
     withinGraphRankDeltaDurationMs += graphRankDeltaDurationMs;
 
@@ -2591,7 +2629,6 @@ export function buildTraceLayouts(params: {
 
   const updatedLayouts: TraceLayout[] = [];
   let finalRankDeltaDurationMs = 0;
-  let geometryRebuildDurationMs = 0;
   let layoutFinalizeDurationMs = 0;
   for (const [index, computation] of collapsedComputation.entries()) {
     const layoutFinalizeStartTime = performance.now();
@@ -2611,46 +2648,28 @@ export function buildTraceLayouts(params: {
       trackAggregationMode: computation.aggregationMode
     });
     finalRankDeltaDurationMs += performance.now() - finalRankDeltaStartTime;
-    const previousGeometryCache = params.previousLayouts?.[index]?.geometryCache;
-    const geometryInputLayout = previousGeometryCache
-      ? ({
-          ...adjustedLayout,
-          geometryCache: previousGeometryCache
-        } satisfies TraceLayout)
-      : adjustedLayout;
-
-    const geometryRebuildStartTime = performance.now();
-    log.probe(0, 'buildTraceLayouts geometry rebuild start', {
-      graphIndex: index,
-      graphName: computation.traceGraph.name,
-      processCount: computation.visibleTraceGraph.processes.length,
-      spanCount: computation.traceGraph.stats.spanCount,
-      hasPreviousGeometryCache: Boolean(previousGeometryCache)
-    })();
-    const geometryMinTimeMs = getTraceLayoutGeometryMinTimeMs({
-      graphCount: sourceGraphsToLayout.length,
-      traceGraph: computation.traceGraph,
-      minTimeMs: params.minTimeMs
-    });
-    const rebuiltLayout = rebuildTraceLayoutGeometry({
-      traceGraph: computation.traceGraph,
-      prebuiltTraceGraph: computation.traceGraph,
-      visibleTraceGraph: computation.visibleTraceGraph,
-      traceLayout: geometryInputLayout,
-      settings: {
-        localDependencyMode: params.settings.localDependencyMode,
-        layoutDensity: params.settings.layoutDensity
+    const geometryMinTimeMs =
+      getTraceLayoutGeometryMinTimeMs({
+        graphCount: sourceGraphsToLayout.length,
+        traceGraph: computation.traceGraph,
+        minTimeMs: params.minTimeMs
+      }) ?? computation.traceGraph.minTimeMs;
+    const resolvedLayout = {
+      ...adjustedLayout,
+      layoutConfiguration: {
+        laneSeparation:
+          adjustedLayout.layoutConfiguration?.laneSeparation ??
+          getLayoutDensityPreset(params.settings.layoutDensity).laneSeparation,
+        spanHeight: getLayoutDensityPreset(params.settings.layoutDensity).spanHeight,
+        minTimeMs: geometryMinTimeMs,
+        timingKey: params.timingKey
       },
-      timingKey: params.timingKey,
-      minTimeMs: geometryMinTimeMs
-    });
-    geometryRebuildDurationMs += performance.now() - geometryRebuildStartTime;
-    log.probe(0, 'buildTraceLayouts geometry rebuild done', {
-      graphIndex: index,
-      graphName: computation.traceGraph.name,
-      durationMs: performance.now() - geometryRebuildStartTime
-    })();
-
+      currentBounds: computeTraceLayoutBounds({
+        traceLayout: adjustedLayout,
+        minTimeMs: computation.traceGraph.minTimeMs,
+        maxTimeMs: computation.traceGraph.maxTimeMs
+      })
+    } satisfies TraceLayout;
     const expandedBoundsStartTime = performance.now();
     const expandedBounds = computeTraceLayoutBounds({
       traceLayout: adjustedExpandedLayout,
@@ -2662,7 +2681,7 @@ export function buildTraceLayouts(params: {
     const buildRowsStartTime = performance.now();
     const renderRows = buildTraceLayoutRows({
       traceGraph: computation.visibleTraceGraph,
-      processLayouts: rebuiltLayout.processLayouts
+      processLayouts: resolvedLayout.processLayouts
     });
     const buildRowsDurationMs = performance.now() - buildRowsStartTime;
     const refIndexStartTime = performance.now();
@@ -2670,7 +2689,7 @@ export function buildTraceLayouts(params: {
       withTraceLayoutRefIndexes({
         traceGraph: computation.traceGraph,
         traceLayout: {
-          ...rebuiltLayout,
+          ...resolvedLayout,
           renderRows,
           globalEventRow:
             globalEventRowHeight > 0
@@ -2691,7 +2710,7 @@ export function buildTraceLayouts(params: {
     log.probe(0, 'buildTraceLayouts finalize layout done', {
       graphIndex: index,
       graphName: computation.traceGraph.name,
-      processCount: rebuiltLayout.processLayouts.length,
+      processCount: resolvedLayout.processLayouts.length,
       renderRowCount: renderRows.length,
       expandedBoundsDurationMs,
       buildRowsDurationMs,
@@ -2733,7 +2752,6 @@ export function buildTraceLayouts(params: {
     collapsedComputationDurationMs,
     interGraphRankDeltaDurationMs,
     finalRankDeltaDurationMs,
-    geometryRebuildDurationMs,
     layoutFinalizeDurationMs,
     minimapDurationMs,
     durationMs: performance.now() - buildStartTime,
@@ -2750,7 +2768,7 @@ function getTraceLayoutGeometryMinTimeMs(params: {
   graphCount: number;
   /** Runtime graph whose spans are being converted into layout geometry. */
   traceGraph: TraceGraph;
-  /** Optional caller-provided origin for single-graph layout bounds. */
+  /** Optional caller-provided origin for single-graph layout compatibility. */
   minTimeMs?: number;
 }): number | undefined {
   return params.graphCount > 1 ? params.traceGraph.minTimeMs : params.minTimeMs;
@@ -2779,6 +2797,12 @@ export function buildTraceLayout(params: {
   > & {showGlobalEvents?: boolean};
   /** Ref-native collapse state for this single graph layout. */
   collapseState?: TraceLayoutCollapseState;
+  /** @deprecated Use `collapseState.graphs[0].collapsedProcessRefs` instead. */
+  collapsedProcessIds?: ReadonlySet<string>;
+  /** @deprecated Use `collapseState.graphs[0].expandedThreadRefs` instead. */
+  expandedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** @deprecated Use `collapseState.graphs[0].collapsedThreadRefs` instead. */
+  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
   layoutMode?: TraceLayoutMode;
 }): TraceLayout {
   const layouts = buildTraceLayouts({
@@ -2787,6 +2811,9 @@ export function buildTraceLayout(params: {
     topPadding: params.topPadding,
     settings: params.settings,
     collapseState: params.collapseState,
+    collapsedProcessIds: params.collapsedProcessIds,
+    expandedThreadIds: params.expandedThreadIds,
+    collapsedThreadIds: params.collapsedThreadIds,
     layoutMode: params.layoutMode
   });
   return layouts[0]!;
@@ -2802,7 +2829,7 @@ export function buildTraceLayoutForSpanRefs(params: {
   traceLayout: TraceLayout;
   /** Exact span refs whose lanes should remain visible. */
   spanRefs: ReadonlySet<SpanRef> | ReadonlyArray<SpanRef>;
-  /** Layout settings that affect selected-lane relayout and geometry rebuilds. */
+  /** Layout settings that affect selected-lane relayout and prepared geometry derivation. */
   settings: Pick<
     TraceVisSettings,
     | 'localDependencyMode'
@@ -2815,15 +2842,21 @@ export function buildTraceLayoutForSpanRefs(params: {
   >;
   /** Ref-native collapse state to preserve during relayout. */
   collapseState?: TraceLayoutCollapseState;
-  /** Optional timing projection used when rebuilding block geometry. */
+  /** @deprecated Use `collapseState.graphs[0].collapsedProcessRefs` instead. */
+  collapsedProcessIds?: ReadonlySet<string>;
+  /** @deprecated Use `collapseState.graphs[0].expandedThreadRefs` instead. */
+  expandedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** @deprecated Use `collapseState.graphs[0].collapsedThreadRefs` instead. */
+  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Optional timing projection recorded for later prepared geometry derivation. */
   timingKey?: string | null;
-  /** Optional minimum time override used when rebuilding block geometry. */
+  /** Optional minimum time override recorded for later prepared geometry derivation. */
   minTimeMs?: number;
 }): TraceLayout {
   return buildTraceLayoutForSpanRefsImpl({
     ...params,
-    rebuildGeometry: rebuildTraceLayoutGeometry,
-    resolveCollapseState: resolveTraceGraphCollapseState,
+    refreshGeometryInputs: rebuildTraceLayoutGeometry,
+    resolveLegacyCollapseState: resolveLegacyTraceGraphCollapseState,
     withRefIndexes: traceLayout =>
       withTraceLayoutRefIndexes({traceGraph: params.traceGraph, traceLayout})
   });
@@ -2837,49 +2870,38 @@ export function rebuildTraceLayoutGeometry(params: {
   settings: Pick<TraceVisSettings, 'localDependencyMode' | 'layoutDensity'>;
   timingKey?: string | null;
   minTimeMs?: number;
-  /** Optional exact visible block ids to retain when rebuilding focused geometry. */
-  includedBlockIdsByProcessId?: Readonly<Record<string, ReadonlySet<TraceSpanId>>>;
 }): TraceLayout {
   const resolvedTraceGraph =
     params.prebuiltTraceGraph ??
     (params.visibleTraceGraph
-      ? undefined
+      ? params.traceLayout.traceGraph
       : new TraceGraph(
           createStaticTraceGraphRuntimeSource({
             identityKey: `${params.traceGraph.name}:geometry-layout`,
             traceGraphData: params.traceGraph
           })
         ));
-  const sourceTraceGraph: TraceGraphData = resolvedTraceGraph ?? params.traceGraph;
-  const visibleTraceGraph = resolvedTraceGraph
-    ? buildVisibleTraceGraph(resolvedTraceGraph)
-    : params.visibleTraceGraph;
-  if (
-    visibleTraceGraph &&
-    canReuseTraceLayoutGeometry({
-      visibleTraceGraph,
-      timingKey: params.timingKey,
-      minTimeMs: params.minTimeMs
-    })
-  ) {
-    return params.traceLayout;
-  }
-  const rebuiltLayout = populateTraceLayoutGeometry({
-    traceGraph: sourceTraceGraph,
-    visibleTraceGraph,
-    traceLayout: params.traceLayout,
-    settings: {
-      localDependencyMode: params.settings.localDependencyMode
+  const rebuiltLayout = {
+    ...params.traceLayout,
+    traceGraph: resolvedTraceGraph,
+    layoutConfiguration: {
+      laneSeparation:
+        params.traceLayout.layoutConfiguration?.laneSeparation ??
+        getLayoutDensityPreset(params.settings.layoutDensity).laneSeparation,
+      spanHeight: getLayoutDensityPreset(params.settings.layoutDensity).spanHeight,
+      minTimeMs: params.minTimeMs ?? resolvedTraceGraph.minTimeMs,
+      timingKey: params.timingKey
     },
-    timingKey: params.timingKey,
-    minTimeMs: params.minTimeMs,
-    blockHeight: getLayoutDensityPreset(params.settings.layoutDensity).blockHeight,
-    includedBlockIdsByProcessId: params.includedBlockIdsByProcessId
-  });
+    currentBounds: computeTraceLayoutBounds({
+      traceLayout: params.traceLayout,
+      minTimeMs: resolvedTraceGraph.minTimeMs,
+      maxTimeMs: resolvedTraceGraph.maxTimeMs
+    })
+  } satisfies TraceLayout;
   return copyTraceLayoutReuseState(
     params.traceLayout,
     withTraceLayoutRefIndexes({
-      traceGraph: resolvedTraceGraph ?? params.traceLayout.traceGraph,
+      traceGraph: resolvedTraceGraph,
       traceLayout: {
         ...rebuiltLayout,
         minimapLayout: params.traceLayout.minimapLayout,

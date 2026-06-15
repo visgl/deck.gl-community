@@ -18,6 +18,7 @@ import type {
   TraceRenderSpan,
   TraceSpanDisplaySource,
   TraceSpanGeometrySource,
+  TraceSpanRenderSource,
   TraceThreadSource
 } from '../trace-graph-accessors';
 import type {TraceLayoutLaneDependencySource} from '../trace-layout/trace-geometry-layout-common';
@@ -26,7 +27,9 @@ import type {
   LocalDependencyRef,
   ProcessRef,
   ThreadRef,
+  TraceDependencyRef,
   VisibleCrossDependencyRef,
+  VisibleDependencyRef,
   VisibleLocalDependencyRef
 } from './trace-id-encoder';
 import type {
@@ -38,8 +41,7 @@ import type {
   TraceDependencyId,
   TraceProcessId,
   TraceSpan,
-  TraceSpanId,
-  TraceThreadId
+  TraceSpanId
 } from './trace-types';
 
 /** No span filter matched this row. */
@@ -122,6 +124,8 @@ export type TraceGraphSpanFilterStore = {
   searchSpans?: (params: TraceGraphSpanStoreSearchParams) => readonly TraceGraphSpanSearchRecord[];
   /** Resolves display data for a store-backed span missing from the materialized graph. */
   getSpanDisplaySource?: (spanRef: SpanRef) => TraceSpanDisplaySource | null;
+  /** Resolves lightweight render data for a store-backed span missing from the materialized graph. */
+  getSpanRenderSource?: (spanRef: SpanRef) => TraceSpanRenderSource | null;
   /** Resolves visible navigation targets for a store-backed span. */
   getSpanFilterNavigation?: (
     params: TraceGraphSpanStoreNavigationParams
@@ -394,18 +398,16 @@ export type TraceGraphSpanSearchRecord = TraceGraphVisibleSpanSearchRecord & {
   filterReason: TraceGraphSpanFilterReason;
 };
 
-/** Visible dependency and endpoint projections by block id. */
+/** Visible dependency and endpoint projections by exact span ref. */
 export type TraceGraphProjection = {
-  /** Incoming visible dependencies by block id. */
-  inDependenciesBySpanId: Readonly<Record<TraceSpanId, ReadonlyArray<TraceDependency>>>;
-  /** Outgoing visible dependencies by block id. */
-  outDependenciesBySpanId: Readonly<Record<TraceSpanId, ReadonlyArray<TraceDependency>>>;
-  /** Visible endpoint rows with resolved dependencies. */
-  endpointsWithDependenciesBySpanId: Readonly<
-    Record<
-      TraceSpanId,
-      ReadonlyArray<[TraceCrossProcessEndpoint, TraceCrossProcessDependency | null]>
-    >
+  /** Incoming visible dependencies by exact span ref. */
+  inDependenciesBySpanRef: ReadonlyMap<SpanRef, ReadonlyArray<TraceDependency>>;
+  /** Outgoing visible dependencies by exact span ref. */
+  outDependenciesBySpanRef: ReadonlyMap<SpanRef, ReadonlyArray<TraceDependency>>;
+  /** Visible endpoint rows with resolved dependencies by exact span ref. */
+  endpointsWithDependenciesBySpanRef: ReadonlyMap<
+    SpanRef,
+    ReadonlyArray<[TraceCrossProcessEndpoint, TraceCrossProcessDependency | null]>
   >;
 };
 
@@ -421,6 +423,10 @@ export type TraceGraphVisibleIndex = {
   visibleLocalDependencyIdsByProcessId: Readonly<
     Record<TraceProcessId, readonly TraceDependencyId[]>
   >;
+  /** Visible local dependency refs by owning process. */
+  visibleLocalDependencyRefsByProcessId: Readonly<
+    Record<TraceProcessId, readonly VisibleLocalDependencyRef[]>
+  >;
   /** Visible local dependency ids in canonical visible-ref order. */
   visibleLocalDependencyIds: readonly TraceDependencyId[];
   /** Source local dependency refs aligned with visible local dependency ids. */
@@ -429,20 +435,12 @@ export type TraceGraphVisibleIndex = {
   visibleCrossDependencyIds: readonly TraceDependencyId[];
   /** Source cross dependency refs aligned with visible cross dependency ids. */
   visibleCrossDependencySourceRefs: readonly (CrossDependencyRef | null)[];
-  /** Visible local dependency ids to canonical refs. */
-  visibleLocalDependencyRefById: Readonly<
-    Partial<Record<TraceDependencyId, VisibleLocalDependencyRef>>
-  >;
   /** Process-global local dependency refs to canonical visible refs. */
   visibleLocalDependencyRefBySourceRef: ReadonlyMap<LocalDependencyRef, VisibleLocalDependencyRef>;
-  /** Visible cross dependency ids to canonical refs. */
-  visibleCrossDependencyRefById: Readonly<
-    Partial<Record<TraceDependencyId, VisibleCrossDependencyRef>>
-  >;
   /** Global cross dependency refs to canonical visible refs. */
   visibleCrossDependencyRefBySourceRef: ReadonlyMap<CrossDependencyRef, VisibleCrossDependencyRef>;
-  /** Owning process ids for visible local dependencies. */
-  visibleLocalDependencyProcessIdById: Readonly<Partial<Record<TraceDependencyId, TraceProcessId>>>;
+  /** Owning process ids for exact visible local dependency refs. */
+  visibleLocalDependencyProcessIdByRef: ReadonlyMap<VisibleLocalDependencyRef, TraceProcessId>;
   /** Visible dependency refs by touched span ref. */
   visibleDependencyRefsBySpanRef: ReadonlyMap<
     SpanRef,
@@ -452,8 +450,11 @@ export type TraceGraphVisibleIndex = {
   visibleSpanRefSet: ReadonlySet<SpanRef>;
   /** Dependency ids visible after filtering. */
   visibleDependencyIdSet: ReadonlySet<TraceDependencyId>;
-  /** Compact override specs for changed visible dependencies. */
-  dependencyOverrideSpecs: Readonly<Record<TraceDependencyId, TraceGraphVisibleDependencyOverride>>;
+  /** Compact override specs for exact changed visible dependency refs. */
+  dependencyOverrideSpecsByRef: ReadonlyMap<
+    VisibleLocalDependencyRef | VisibleCrossDependencyRef,
+    TraceGraphVisibleDependencyOverride
+  >;
   /** Visible local dependency refs attached to a span. */
   visibleLocalDependencyRefsBySpanRef: ReadonlyMap<SpanRef, readonly VisibleLocalDependencyRef[]>;
   /** Visible cross endpoints attached to a span. */
@@ -538,8 +539,6 @@ export type TraceGraphVisibleDependencyOverride =
 
 /** Visible lane-count metadata inferred from explicit block lane values. */
 export type TraceGraphVisibleLaneLayoutInfo = {
-  /** Stream ids to visible lane counts. */
-  threadLaneLayoutMap?: Readonly<Record<TraceThreadId, {laneCount: number}>>;
   /** Thread refs to visible lane counts. */
   threadLaneLayoutMapByRef?: ReadonlyMap<ThreadRef, {laneCount: number}>;
   /** Count of visible spans with an explicit non-negative lane. */
@@ -552,6 +551,20 @@ export type TraceGraphVisibleLaneLayoutInfo = {
 export type TraceGraphVisibleProcessCacheEntry = {
   /** Raw process id that owns the cached runtime artifacts. */
   processId: TraceProcessId;
+  /** Process SpanRef table identity captured for cached process-local materializations. */
+  spanTable: TraceProcessSpanRefTable | null;
+  /** Process SpanRef row count captured for cached process-local materializations. */
+  spanTableRowCount: number;
+  /** Process SpanRef content generation captured for cached process-local materializations. */
+  spanTableGeneration: number | null;
+  /** Active graph SpanRef array identity captured for cached process-local materializations. */
+  activeSpanRefs: readonly SpanRef[] | null;
+  /** Active graph SpanRef count captured for cached process-local materializations. */
+  activeSpanRefCount: number;
+  /** First active graph SpanRef captured for cached process-local materializations. */
+  firstActiveSpanRef: SpanRef | null;
+  /** Last active graph SpanRef captured for cached process-local materializations. */
+  lastActiveSpanRef: SpanRef | null;
   /** Visible geometry sources in canonical visible order. */
   geometrySources?: readonly TraceSpanGeometrySource[];
   /** Visible display sources in canonical visible order. */
@@ -576,8 +589,11 @@ export type TraceGraphVisibleProcessCacheEntry = {
 export type TraceGraphVisibleRuntimeCache = {
   /** Process-scoped visible runtime materializations by process ref. */
   processEntriesByRef: Map<ProcessRef, TraceGraphVisibleProcessCacheEntry>;
-  /** Visible dependency sources by dependency id. */
-  dependencySourcesById: Map<TraceDependencyId, TraceDependencySource | null>;
+  /** Visible dependency sources by exact runtime dependency ref. */
+  dependencySourcesByRef: Map<
+    TraceDependencyRef | VisibleDependencyRef,
+    TraceDependencySource | null
+  >;
   /** Starting unfiltered visible local dependency index for each process id. */
   unfilteredLocalDependencyStartIndexByProcessId?: ReadonlyMap<TraceProcessId, number>;
   /** Grouped visible cross dependency sources in render order. */

@@ -138,3 +138,12 @@ export class ImperativeDeckController {
 }
 
 export const imperativeDeckController = new ImperativeDeckController();
+
+/** @deprecated Use `ImperativeDeckControllerTarget` instead. */
+export type DeckControllerTarget = ImperativeDeckControllerTarget;
+
+/** @deprecated Use `ImperativeDeckController` instead. */
+export const DeckController = ImperativeDeckController;
+
+/** @deprecated Use `imperativeDeckController` instead. */
+export const deckController = imperativeDeckController;

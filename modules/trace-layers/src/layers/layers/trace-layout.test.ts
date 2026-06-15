@@ -9,25 +9,17 @@ import {
   buildTraceLayouts as buildRuntimeTraceLayouts,
   buildTraceGraphDataFromJSONTrace,
   buildTracePreparedProcessRows,
-  encodeCrossDependencyRef,
-  encodeLocalDependencyRef,
-  encodeLocalSpanRef,
   encodeSpanRef,
   encodeVisibleCrossDependencyRef,
   getMemoizedDerivedTraceData as getRuntimeMemoizedDerivedTraceData,
   getMemoizedTraceLayoutRowEnrichments as getRuntimeMemoizedTraceLayoutRowEnrichments,
-  getTraceLayoutSpanVisibilityMask,
+  getSelectedLocalDependencyLineColor,
   materializeJSONTrace,
   shouldShowLocalDependencyByModeFields,
   TraceGraph
 } from '../../trace/index';
 import {createStaticTraceGraphRuntimeSource} from '../../trace/trace-chunk-store';
-import {
-  buildTraceLayoutCrossDependencyGeometryChunksForTest,
-  buildTraceLayoutLocalDependencyGeometryChunksForTest,
-  buildTraceLayoutSpanGeometryChunksForTest,
-  mergeTraceLayoutSpanGeometryChunksForTest
-} from '../../trace/trace-graph/trace-graph-test-utils';
+import {buildVisibleTraceGraph} from '../../trace/trace-layout/trace-geometry-layout-helpers';
 import {
   buildDeckLayerForTraceProcessActivitySummary,
   buildDeckLayersForGrid,
@@ -42,6 +34,7 @@ import {TraceProcessLayer} from './trace-process-layer';
 import {getViewportHighlightOverlayData, ViewportHighlightLayer} from './viewport-highlight-layer';
 
 import type {
+  CollapsedActivityByProcessRef,
   JSONTrace,
   SpanRef,
   ThreadLayout,
@@ -62,8 +55,7 @@ import type {
   TraceSpanId,
   TraceThread,
   TraceThreadId,
-  TraceVisSettings,
-  VisibleLocalDependencyRef
+  TraceVisSettings
 } from '../../trace/index';
 import type {
   BuildDeckLayersForTraceParams,
@@ -92,6 +84,80 @@ function getRequiredProcessRef(traceGraph: TraceGraph, processId: string) {
     throw new Error(`Expected process ref for ${processId}`);
   }
   return processRef;
+}
+
+/** Returns one required runtime thread ref for a process-local test thread id. */
+function getRequiredThreadRef(
+  traceGraph: TraceGraph,
+  processId: string,
+  threadId: TraceThreadId
+): ThreadRef {
+  const threadRef = traceGraph
+    .getThreadRefsByProcessRef(getRequiredProcessRef(traceGraph, processId))
+    .find(
+      candidateThreadRef =>
+        traceGraph.getThreadSourceByRef(candidateThreadRef)?.threadId === threadId
+    );
+  if (threadRef == null) {
+    throw new Error(`Expected thread ref for ${processId}:${threadId}`);
+  }
+  return threadRef;
+}
+
+/** Returns one required runtime thread ref from a test layout graph. */
+function getLayoutThreadRef(
+  layout: TraceLayout,
+  processId: string,
+  threadId: TraceThreadId
+): ThreadRef {
+  const traceGraph = layout.traceGraph;
+  if (!(traceGraph instanceof TraceGraph)) {
+    throw new Error('Expected runtime TraceGraph');
+  }
+  return getRequiredThreadRef(traceGraph, processId, threadId);
+}
+
+/** Returns one required runtime thread layout for a process-local test thread id. */
+function getLayoutThread(
+  layout: TraceLayout,
+  processId: string,
+  threadId: TraceThreadId
+): ThreadLayout {
+  const threadLayout = layout.threadLayoutMapByRef.get(
+    getLayoutThreadRef(layout, processId, threadId)
+  );
+  if (!threadLayout) {
+    throw new Error(`Expected thread layout for ${processId}:${threadId}`);
+  }
+  return threadLayout;
+}
+
+/** Returns a thread-layout map with one process-local test thread layout replaced. */
+function setLayoutThread(
+  layout: TraceLayout,
+  processId: string,
+  threadId: TraceThreadId,
+  threadLayout: ThreadLayout
+): ReadonlyMap<ThreadRef, ThreadLayout> {
+  return new Map(layout.threadLayoutMapByRef).set(
+    getLayoutThreadRef(layout, processId, threadId),
+    threadLayout
+  );
+}
+
+/** Overrides active filtered-span counts on one test layout runtime graph. */
+function setFilteredSpanCountByThreadRef(
+  layout: TraceLayout,
+  filteredSpanCountByThreadRef: ReadonlyMap<ThreadRef, number>
+): void {
+  const traceGraph = layout.traceGraph;
+  if (!(traceGraph instanceof TraceGraph)) {
+    throw new Error('Expected runtime TraceGraph');
+  }
+  Object.assign(traceGraph, {
+    hasActiveSpanFilter: () => true,
+    getFilteredSpanCountByThreadRef: () => filteredSpanCountByThreadRef
+  });
 }
 
 function isJSONTraceLike(traceGraph: unknown): traceGraph is JSONTrace {
@@ -162,9 +228,12 @@ function normalizeRuntimeTraceGraphSource(
 function normalizeTraceLayoutRowSourceGraph(
   traceGraph: Parameters<typeof buildRuntimeTraceLayoutRows>[0]['traceGraph'] | JSONTrace
 ): Parameters<typeof buildRuntimeTraceLayoutRows>[0]['traceGraph'] {
-  return (
-    isJSONTraceLike(traceGraph) ? normalizeRuntimeTraceGraphSource(traceGraph) : traceGraph
-  ) as Parameters<typeof buildRuntimeTraceLayoutRows>[0]['traceGraph'];
+  if (traceGraph instanceof TraceGraph) {
+    return buildVisibleTraceGraph(traceGraph);
+  }
+  return isJSONTraceLike(traceGraph)
+    ? buildVisibleTraceGraph(normalizeVisibleTraceGraphSource(traceGraph))
+    : traceGraph;
 }
 
 function normalizeVisibleTraceGraphSource(traceGraph: JSONTrace): TraceGraph {
@@ -173,12 +242,12 @@ function normalizeVisibleTraceGraphSource(traceGraph: JSONTrace): TraceGraph {
     if (
       'hasActiveSpanFilter' in traceGraph &&
       typeof traceGraph.hasActiveSpanFilter === 'function' &&
-      'getFilteredSpanCountByThreadId' in traceGraph &&
-      typeof traceGraph.getFilteredSpanCountByThreadId === 'function'
+      'getFilteredSpanCountByThreadRef' in traceGraph &&
+      typeof traceGraph.getFilteredSpanCountByThreadRef === 'function'
     ) {
       Object.assign(cachedVisibleTraceGraph, {
         hasActiveSpanFilter: traceGraph.hasActiveSpanFilter.bind(traceGraph),
-        getFilteredSpanCountByThreadId: traceGraph.getFilteredSpanCountByThreadId.bind(traceGraph)
+        getFilteredSpanCountByThreadRef: traceGraph.getFilteredSpanCountByThreadRef.bind(traceGraph)
       });
     }
     return cachedVisibleTraceGraph;
@@ -191,12 +260,12 @@ function normalizeVisibleTraceGraphSource(traceGraph: JSONTrace): TraceGraph {
   if (
     'hasActiveSpanFilter' in traceGraph &&
     typeof traceGraph.hasActiveSpanFilter === 'function' &&
-    'getFilteredSpanCountByThreadId' in traceGraph &&
-    typeof traceGraph.getFilteredSpanCountByThreadId === 'function'
+    'getFilteredSpanCountByThreadRef' in traceGraph &&
+    typeof traceGraph.getFilteredSpanCountByThreadRef === 'function'
   ) {
     Object.assign(normalizedTraceGraph, {
       hasActiveSpanFilter: traceGraph.hasActiveSpanFilter.bind(traceGraph),
-      getFilteredSpanCountByThreadId: traceGraph.getFilteredSpanCountByThreadId.bind(traceGraph)
+      getFilteredSpanCountByThreadRef: traceGraph.getFilteredSpanCountByThreadRef.bind(traceGraph)
     });
   }
   visibleTraceGraphCache.set(traceGraph, normalizedTraceGraph);
@@ -288,6 +357,13 @@ function buildDeckLayersForTrace(params: LegacyBuildDeckLayersForTraceParams) {
                 {}
               );
   const traceLayout = withRuntimeTraceLayout(params.traceLayout, runtimeGraph);
+  const processRows = buildLegacyPreparedProcessRows({
+    graph: runtimeGraph,
+    layout: traceLayout,
+    processRows: params.processRows,
+    settings: params.settings,
+    colorScheme: params.colorScheme
+  });
   const crossDependencies = (params.traceGraph as {crossDependencies?: unknown}).crossDependencies;
   return buildRuntimeDeckLayersForTrace({
     settings: params.settings,
@@ -299,7 +375,8 @@ function buildDeckLayersForTrace(params: LegacyBuildDeckLayersForTraceParams) {
     scene: {
       graph: runtimeGraph,
       layout: traceLayout,
-      rows: params.processRows,
+      rows: processRows,
+      spanBinaryLocationByRef: buildPreparedSpanBinaryLocationByRef(processRows),
       visibleCrossDependencies: Array.isArray(crossDependencies)
         ? (crossDependencies as BuildDeckLayersForTraceParams['scene']['visibleCrossDependencies'])
         : runtimeGraph.getVisibleCrossDependencySources(),
@@ -322,6 +399,52 @@ function buildDeckLayersForTrace(params: LegacyBuildDeckLayersForTraceParams) {
       onToggleProcess: params.onToggleProcess
     }
   });
+}
+
+/** Builds binary-backed process rows while preserving test-owned row enrichments. */
+function buildLegacyPreparedProcessRows(params: {
+  /** Runtime graph that owns row-local span refs. */
+  graph: TraceGraph;
+  /** Current lane layout used to derive binary span rectangles. */
+  layout: TraceLayout;
+  /** Existing test row enrichments whose activity and overflow labels should be retained. */
+  processRows: BuildDeckLayersForTraceParams['scene']['rows'];
+  /** Render settings used to build row-local binary attributes. */
+  settings: TraceVisSettings;
+  /** Optional color scheme used for binary block colors. */
+  colorScheme?: TraceColorScheme;
+}): BuildDeckLayersForTraceParams['scene']['rows'] {
+  const preparedRowsByProcessRef = new Map(
+    buildTracePreparedProcessRows({
+      graph: params.graph,
+      layout: params.layout,
+      settings: params.settings,
+      colorScheme: params.colorScheme
+    }).map(row => [row.row.processRef, row])
+  );
+  return params.processRows.map(row => {
+    const preparedRow = preparedRowsByProcessRef.get(row.row.processRef);
+    return preparedRow
+      ? {
+          ...preparedRow,
+          collapsedActivityIntervals: row.collapsedActivityIntervals,
+          overflowLabels: row.overflowLabels
+        }
+      : row;
+  });
+}
+
+/** Builds the ref-only lookup used by prepared binary selected-span overlays. */
+function buildPreparedSpanBinaryLocationByRef(
+  rows: BuildDeckLayersForTraceParams['scene']['rows']
+): NonNullable<BuildDeckLayersForTraceParams['scene']['spanBinaryLocationByRef']> {
+  const spanBinaryLocationByRef = new Map<SpanRef, {rowIndex: number; spanIndex: number}>();
+  rows.forEach((row, rowIndex) => {
+    row.binaryBlockData?.spans.forEach((spanRef, spanIndex) => {
+      spanBinaryLocationByRef.set(spanRef, {rowIndex, spanIndex});
+    });
+  });
+  return spanBinaryLocationByRef;
 }
 
 function buildDeckLayersForLegend(params: Parameters<typeof buildRuntimeDeckLayersForLegend>[0]) {
@@ -426,6 +549,31 @@ function createMultiGraph(): JSONTrace {
   });
 }
 
+/** Builds two processes connected by one cross-process dependency. */
+function createCrossDependencyGraph(): JSONTrace {
+  const startRank = createRank('rank-1');
+  const endRank = {...createRank('rank-2'), rankNum: 1} satisfies TraceProcess;
+  const crossDependency = {
+    type: 'trace-cross-process-dependency',
+    dependencyId: 'cross-dep-hidden-base' as TraceCrossProcessDependency['dependencyId'],
+    endpointId: 'cross-dep-hidden-base:endpoint' as TraceCrossProcessDependency['endpointId'],
+    startRankNum: startRank.rankNum,
+    endRankNum: endRank.rankNum,
+    startSpanId: startRank.spans[0]!.spanId,
+    endSpanId: endRank.spans[0]!.spanId,
+    waitMode: 'end-to-start',
+    bidirectional: false,
+    topology: 'cross',
+    waitTimeMs: 2_000,
+    waiting: false,
+    waitNotFinished: false,
+    keywords: new Set<string>()
+  } satisfies TraceCrossProcessDependency;
+  return buildJSONTrace([startRank, endRank], [crossDependency], {
+    name: 'cross-dependency-graph'
+  });
+}
+
 function createDependencyGraph(): JSONTrace {
   const rank = createRank('rank-1');
   const firstBlock = rank.spans[0]!;
@@ -474,19 +622,54 @@ function createDependencyGraph(): JSONTrace {
   );
 }
 
+/** Builds local and cross-process dependencies whose geometry resolves through the runtime graph. */
+function createDependencyAndCrossDependencyGraph(): JSONTrace {
+  const localDependencyGraph = materializeJSONTrace(createDependencyGraph());
+  const startRank = localDependencyGraph.processes[0]!;
+  const endRank = {...createRank('rank-2'), rankNum: 1} satisfies TraceProcess;
+  const crossDependency = {
+    type: 'trace-cross-process-dependency',
+    dependencyId: 'cross-visible-arrow' as TraceCrossProcessDependency['dependencyId'],
+    endpointId: 'cross-visible-arrow:endpoint' as TraceCrossProcessDependency['endpointId'],
+    startRankNum: startRank.rankNum,
+    endRankNum: endRank.rankNum,
+    startSpanId: startRank.spans[0]!.spanId,
+    endSpanId: endRank.spans[0]!.spanId,
+    waitMode: 'end-to-start',
+    bidirectional: false,
+    topology: 'cross',
+    waitTimeMs: 100,
+    waiting: false,
+    waitNotFinished: false,
+    keywords: new Set<string>()
+  } satisfies TraceCrossProcessDependency;
+  return buildJSONTrace([startRank, endRank], [crossDependency], {
+    name: 'dependency-and-cross-graph'
+  });
+}
+
 function createLayout(graph: JSONTrace): TraceLayout {
-  const threadLayoutMap: Record<TraceThreadId, ThreadLayout> = {};
+  const traceGraph = normalizeVisibleTraceGraphSource(graph);
+  const threadLayoutMapByRef = new Map<ThreadRef, ThreadLayout>();
   const processLayouts = graph.processes.map((process, rankIndex) => {
     const yPosition = rankIndex * 2 + 1;
+    const processRef = getRequiredProcessRef(traceGraph, process.processId);
+    const threadRef = getRequiredThreadRef(
+      traceGraph,
+      process.processId,
+      process.threads[0]!.threadId
+    );
     const streamLayout = {
+      threadRef,
       visible: true,
       yPosition,
       startPosition: [0, yPosition, 0] as [number, number, number],
       targetPosition: [0, yPosition, 0] as [number, number, number]
     };
-    threadLayoutMap[process.threads[0]!.threadId] = streamLayout;
+    threadLayoutMapByRef.set(threadRef, streamLayout);
 
     return {
+      processRef,
       yOffset: rankIndex * 2,
       yHeight: 1,
       labelY: rankIndex * 2,
@@ -502,11 +685,14 @@ function createLayout(graph: JSONTrace): TraceLayout {
   });
   return withProcessRenderRows(
     {
-      traceGraph: graph as unknown as TraceLayout['traceGraph'],
+      traceGraph,
       layoutConfiguration: {laneSeparation: 0.7},
       processLayouts,
+      processLayoutMapByRef: new Map(
+        processLayouts.map(processLayout => [processLayout.processRef, processLayout])
+      ),
       renderRows: [],
-      threadLayoutMap,
+      threadLayoutMapByRef,
       overflowLabels: [],
       currentBounds: [
         [0, 0],
@@ -521,11 +707,12 @@ function createLayout(graph: JSONTrace): TraceLayout {
   );
 }
 
-function withProcessRenderRows(layout: TraceLayout, graph: JSONTrace): TraceLayout {
+/** Returns one test layout with render rows derived from the supplied graph. */
+function withProcessRenderRows(layout: TraceLayout, graph: JSONTrace | TraceGraph): TraceLayout {
   return {
     ...layout,
     renderRows: buildTraceLayoutRows({
-      traceGraph: graph,
+      traceGraph: graph instanceof TraceGraph ? buildVisibleTraceGraph(graph) : graph,
       processLayouts: layout.processLayouts
     })
   };
@@ -564,12 +751,31 @@ function withRuntimeTraceGraph(layout: TraceLayout, traceGraph: TraceGraph): Tra
   };
 }
 
+/** Returns one layout with a process row collapsed or expanded consistently. */
+function withProcessCollapsed(
+  layout: TraceLayout,
+  processRef: TraceLayoutRow['processRef'],
+  isCollapsed: boolean
+): TraceLayout {
+  const processLayouts = layout.processLayouts.map(processLayout =>
+    processLayout.processRef === processRef ? {...processLayout, isCollapsed} : processLayout
+  );
+  return {
+    ...layout,
+    processLayouts,
+    processLayoutMapByRef: new Map(
+      processLayouts.map(processLayout => [processLayout.processRef, processLayout])
+    ),
+    renderRows: layout.renderRows.map(row =>
+      row.processRef === processRef ? {...row, isCollapsed} : row
+    )
+  };
+}
+
 function getRowEnrichments(
   layout: TraceLayout,
   graph: JSONTrace,
-  collapsedActivityByProcessId?: Readonly<
-    Record<string, ReadonlyArray<TraceProcessActivityInterval>>
-  >,
+  collapsedActivityByProcessRef?: CollapsedActivityByProcessRef,
   localDependencyMode: TraceVisSettings['localDependencyMode'] = 'all'
 ) {
   const runtimeGraph = normalizeVisibleTraceGraphSource(graph);
@@ -578,7 +784,7 @@ function getRowEnrichments(
       ...layout,
       traceGraph: runtimeGraph
     },
-    collapsedActivityByProcessId
+    collapsedActivityByProcessRef
   }).map(({row, collapsedActivityIntervals, overflowLabels}) => ({
     row,
     spans: runtimeGraph.getVisibleProcessRenderSpanRefs(
@@ -686,7 +892,7 @@ describe('prepared scene memoization', () => {
       name: 'Updated Test',
       getThreadColor: () => [9, 9, 9, 9]
     };
-    const layoutClone = {...layout, threadLayoutMap: {...layout.threadLayoutMap}};
+    const layoutClone = {...layout, threadLayoutMapByRef: new Map(layout.threadLayoutMapByRef)};
     const second = getMemoizedDerivedTraceData({
       traceGraph: graph,
       traceLayout: layoutClone,
@@ -721,51 +927,14 @@ describe('prepared scene memoization', () => {
     expect(second.counters.sparklineData).toHaveLength(0);
   });
 
-  it('keeps hidden collapsed row binary span data reusable after re-expand', () => {
+  it('rebuilds hidden collapsed row binary span data after re-expand', () => {
     const graph = createGraph();
     const runtimeGraph = normalizeVisibleTraceGraphSource(graph);
     const process = graph.processes[0]!;
     const processRef = getRequiredProcessRef(runtimeGraph, process.processId);
-    const spanRefs = runtimeGraph.getVisibleProcessRenderSpanRefs(processRef);
-    const spanGeometryChunks = buildTraceLayoutSpanGeometryChunksForTest(
-      spanRefs.map((spanRef, index) => [spanRef, new Float32Array([index, 0, index + 1, 1])])
-    );
-    const makeGeometryEntry = (reuseKey: string) => ({
-      processId: process.processId,
-      fastReuseKey: reuseKey,
-      reuseKey,
-      geometryXOffset: 0,
-      geometryYOffset: 0,
-      spanGeometryChunks,
-      localDependencyGeometryChunks: []
-    });
-    const makeLayout = (collapsed: boolean, reuseKey: string) =>
-      withRuntimeTraceGraph(
-        {
-          ...createLayout(graph),
-          traceGraph: runtimeGraph,
-          processLayouts: [
-            {
-              ...createLayout(graph).processLayouts[0]!,
-              isCollapsed: collapsed
-            }
-          ],
-          spanGeometryChunks,
-          geometryCache: {
-            processesById: {
-              [process.processId]: makeGeometryEntry(reuseKey)
-            },
-            spanGeometryChunks,
-            localDependencyGeometryChunks: [],
-            crossDependencyGeometryChunks: [],
-            crossDependencyReuseKeyByVisibleRef: new Map()
-          }
-        } satisfies TraceLayout,
-        runtimeGraph
-      );
     const settings = getTraceSettings();
-    const expandedLayout = makeLayout(false, 'expanded-geometry');
-    const collapsedLayout = makeLayout(true, 'collapsed-geometry');
+    const expandedLayout = withRuntimeTraceGraph(createLayout(graph), runtimeGraph);
+    const collapsedLayout = withProcessCollapsed(expandedLayout, processRef, true);
 
     const expandedRows = buildTracePreparedProcessRows({
       graph: runtimeGraph,
@@ -788,10 +957,22 @@ describe('prepared scene memoization', () => {
       previousRows: collapsedRows
     });
 
-    expect(collapsedRows[0]?.binaryBlockData).toBe(expandedRows[0]?.binaryBlockData);
-    expect(reexpandedRows[0]?.binaryBlockData).toBe(expandedRows[0]?.binaryBlockData);
-    expect(collapsedRows[0]?.binaryBlockReuseInfo).toBe(expandedRows[0]?.binaryBlockReuseInfo);
-    expect(reexpandedRows[0]?.binaryBlockReuseInfo).toBe(expandedRows[0]?.binaryBlockReuseInfo);
+    expect(collapsedRows[0]?.binaryBlockData).not.toBe(expandedRows[0]?.binaryBlockData);
+    expect(reexpandedRows[0]?.binaryBlockData).not.toBe(collapsedRows[0]?.binaryBlockData);
+    expect(reexpandedRows[0]?.binaryBlockData?.spans).toBe(reexpandedRows[0]?.spans);
+    const collapsedSizes = collapsedRows[0]?.binaryBlockData?.data.attributes.getSize?.value as
+      | Float32Array
+      | undefined;
+    const reexpandedPositions = reexpandedRows[0]?.binaryBlockData?.data.attributes.getPosition
+      ?.value as Float32Array | undefined;
+    const reexpandedSizes = reexpandedRows[0]?.binaryBlockData?.data.attributes.getSize?.value as
+      | Float32Array
+      | undefined;
+    expect(Array.from(reexpandedPositions ?? []).every(Number.isFinite)).toBe(true);
+    expect(Array.from(reexpandedSizes ?? []).every(Number.isFinite)).toBe(true);
+    expect(collapsedSizes?.[1]).toBe(0);
+    expect(reexpandedSizes?.[0]).toBeGreaterThan(0);
+    expect(reexpandedSizes?.[1]).toBeGreaterThan(0);
   });
 });
 
@@ -1517,9 +1698,11 @@ describe('trace layout collapsed activity enrichment', () => {
     const layout = createLayout(graph);
     const settings = getTraceSettings();
 
-    const processRows = getRowEnrichments(layout, graph, {
-      [graph.processes[0]!.processId]: intervals
-    });
+    const processRows = getRowEnrichments(
+      layout,
+      graph,
+      new Map([[layout.renderRows[0]!.processRef, intervals]])
+    );
     const layers = buildDeckLayersForTrace({
       processRows,
       traceGraph: materializeJSONTrace(graph),
@@ -1537,37 +1720,31 @@ describe('trace layout collapsed activity enrichment', () => {
     expect(processRows[0]?.collapsedActivityIntervals).toEqual(intervals);
   });
 
-  it('keeps collapsed activity visible when a collapsed rank still has span geometry', () => {
+  it('keeps collapsed activity visible when a rank is collapsed', () => {
     const graph = createGraph();
-    const layout = withProcessRenderRows(
-      {
-        ...createLayout(graph),
-        processLayouts: [
-          {
-            ...createLayout(graph).processLayouts[0]!,
-            isCollapsed: true
-          }
-        ],
-        spanGeometryChunks: buildTraceLayoutSpanGeometryChunksForTest([
-          [encodeSpanRef(0, 0), new Float32Array([0, 0.5, 10, 1.5])]
-        ])
-      } satisfies TraceLayout,
-      graph
+    const expandedLayout = createLayout(graph);
+    const layout = withProcessCollapsed(
+      expandedLayout,
+      expandedLayout.renderRows[0]!.processRef,
+      true
     );
     const settings = getTraceSettings();
-    const collapsedActivityByProcessId = {
-      [graph.processes[0]!.processId]: [
-        {
-          startX: 2,
-          endX: 8,
-          activity: 4,
-          color: [4, 5, 6]
-        }
+    const collapsedActivityByProcessRef = new Map([
+      [
+        layout.renderRows[0]!.processRef,
+        [
+          {
+            startX: 2,
+            endX: 8,
+            activity: 4,
+            color: [4, 5, 6]
+          }
+        ]
       ]
-    } satisfies Record<string, TraceProcessActivityInterval[]>;
+    ]) satisfies CollapsedActivityByProcessRef;
 
     const layers = buildDeckLayersForTrace({
-      processRows: getRowEnrichments(layout, graph, collapsedActivityByProcessId),
+      processRows: getRowEnrichments(layout, graph, collapsedActivityByProcessRef),
       traceGraph: materializeJSONTrace(graph),
       stepNum: 0,
       selectedSpanRefs: [],
@@ -1614,15 +1791,22 @@ describe('trace layout collapsed activity enrichment', () => {
     );
 
     const layers = buildDeckLayersForTrace({
-      processRows: getRowEnrichments(layout, graph, {
-        [graph.processes[0]!.processId]: [
-          {
-            startX: 1,
-            endX: 9,
-            activity: 3
-          } satisfies TraceProcessActivityInterval
-        ]
-      }),
+      processRows: getRowEnrichments(
+        layout,
+        graph,
+        new Map([
+          [
+            layout.renderRows[0]!.processRef,
+            [
+              {
+                startX: 1,
+                endX: 9,
+                activity: 3
+              } satisfies TraceProcessActivityInterval
+            ]
+          ]
+        ])
+      ),
       traceGraph: materializeJSONTrace(graph),
       stepNum: 0,
       selectedSpanRefs: [],
@@ -1666,9 +1850,11 @@ describe('trace layout collapsed activity enrichment', () => {
     } satisfies TraceProcessActivityInterval;
 
     const layers = buildDeckLayersForTrace({
-      processRows: getRowEnrichments(layout, graph, {
-        [graph.processes[0]!.processId]: [interval]
-      }),
+      processRows: getRowEnrichments(
+        layout,
+        graph,
+        new Map([[layout.renderRows[0]!.processRef, [interval]]])
+      ),
       traceGraph: materializeJSONTrace(graph),
       stepNum: 0,
       selectedSpanRefs: [],
@@ -1852,6 +2038,7 @@ describe('trace layout collapsed activity enrichment', () => {
   it('renders a filtered-span label below the collapsed activity overview for collapsed processes', () => {
     const graph = createGraph();
     const baseLayout = createLayout(graph);
+    const processId = graph.processes[0]!.processId;
     const threadId = graph.processes[0]!.threads[0]!.threadId;
     const layout = withProcessRenderRows(
       {
@@ -1867,12 +2054,10 @@ describe('trace layout collapsed activity enrichment', () => {
       } satisfies TraceLayout,
       graph
     );
-    Object.assign(graph, {
-      hasActiveSpanFilter: () => true,
-      getFilteredSpanCountByThreadId: () => ({
-        [threadId]: 2
-      })
-    });
+    setFilteredSpanCountByThreadRef(
+      layout,
+      new Map([[getLayoutThreadRef(baseLayout, processId, threadId), 2]])
+    );
 
     const layers = buildDeckLayersForLegend({
       processRows: layout.renderRows,
@@ -1902,13 +2087,12 @@ describe('trace layout collapsed activity enrichment', () => {
   it('renders collapsed filtered labels in the legend when the render row is collapsed without a collapsed rank layout', () => {
     const graph = createGraph();
     const baseLayout = createLayout(graph);
+    const processId = graph.processes[0]!.processId;
     const threadId = graph.processes[0]!.threads[0]!.threadId;
-    Object.assign(graph, {
-      hasActiveSpanFilter: () => true,
-      getFilteredSpanCountByThreadId: () => ({
-        [threadId]: 3
-      })
-    });
+    setFilteredSpanCountByThreadRef(
+      baseLayout,
+      new Map([[getLayoutThreadRef(baseLayout, processId, threadId), 3]])
+    );
     const layout = {
       ...baseLayout,
       renderRows: baseLayout.renderRows.map(row => ({...row, isCollapsed: true}))
@@ -1937,9 +2121,10 @@ describe('trace layout collapsed activity enrichment', () => {
   it('keeps the legend overflow layer mounted when there is no legend overflow notice', () => {
     const graph = createGraph();
     const baseLayout = createLayout(graph);
+    const processId = graph.processes[0]!.processId;
     const threadId = graph.processes[0]!.threads[0]!.threadId;
     const overflowLayout = {
-      ...baseLayout.threadLayoutMap[threadId]!,
+      ...getLayoutThread(baseLayout, processId, threadId),
       overflowSpanCount: 2,
       overflowLabel: {
         text: '2 deeper spans hidden, 1 span filtered in thread rank-1-thread',
@@ -1958,9 +2143,7 @@ describe('trace layout collapsed activity enrichment', () => {
             threadLayouts: [overflowLayout]
           }
         ],
-        threadLayoutMap: {
-          [threadId]: overflowLayout
-        },
+        threadLayoutMapByRef: setLayoutThread(baseLayout, processId, threadId, overflowLayout),
         overflowLabels: [overflowLayout.overflowLabel!]
       } satisfies TraceLayout,
       graph
@@ -1985,7 +2168,15 @@ describe('trace layout collapsed activity enrichment', () => {
     const topLaneBlock = {
       ...baseBlock,
       spanId: 'rank-1-span-top-lane' as TraceSpanId,
-      name: 'rank-1-span-top-lane'
+      name: 'rank-1-span-top-lane',
+      timings: {
+        ...baseBlock.timings,
+        [baseBlock.primaryTimingKey]: {
+          ...baseBlock.timings[baseBlock.primaryTimingKey]!,
+          startTimeMs: 4,
+          endTimeMs: 5
+        }
+      }
     };
     graph.processes[0]!.spans = [baseBlock, topLaneBlock];
     const baseLayout = createLayout(graph);
@@ -1997,19 +2188,20 @@ describe('trace layout collapsed activity enrichment', () => {
     if (baseBlockSpanRef == null || topLaneBlockSpanRef == null) {
       throw new Error('Expected span refs for overflow label anchoring test');
     }
+    const processId = graph.processes[0]!.processId;
     const threadId = graph.processes[0]!.threads[0]!.threadId;
     const overflowLayout = {
-      ...baseLayout.threadLayoutMap[threadId]!,
+      ...getLayoutThread(baseLayout, processId, threadId),
       spanLaneMap: new Map([
         [baseBlockSpanRef, 1],
         [topLaneBlockSpanRef, 0]
       ]),
       overflowSpanCount: 2,
-      targetPosition: [9, baseLayout.threadLayoutMap[threadId]!.targetPosition[1], 0] as [
-        number,
-        number,
-        number
-      ],
+      targetPosition: [
+        9,
+        getLayoutThread(baseLayout, processId, threadId).targetPosition[1],
+        0
+      ] as [number, number, number],
       overflowLabel: {
         text: 'legacy main label',
         x: 0,
@@ -2025,22 +2217,13 @@ describe('trace layout collapsed activity enrichment', () => {
           [0, baseLayout.currentBounds[0]![1]],
           [9, baseLayout.currentBounds[1]![1]]
         ],
-        spanGeometryChunks: mergeTraceLayoutSpanGeometryChunksForTest(
-          baseLayout.spanGeometryChunks,
-          [
-            [baseBlockSpanRef, new Float32Array([0, 0.7, 1, 1.1])],
-            [topLaneBlockSpanRef, new Float32Array([4, 0, 5, 0.4])]
-          ]
-        ),
         processLayouts: [
           {
             ...baseLayout.processLayouts[0]!,
             threadLayouts: [overflowLayout]
           }
         ],
-        threadLayoutMap: {
-          [threadId]: overflowLayout
-        }
+        threadLayoutMapByRef: setLayoutThread(baseLayout, processId, threadId, overflowLayout)
       } satisfies TraceLayout,
       graph
     );
@@ -2087,9 +2270,10 @@ describe('trace layout collapsed activity enrichment', () => {
   it('renders filtered-only overflow notices in the legend', () => {
     const graph = createGraph();
     const baseLayout = createLayout(graph);
+    const processId = graph.processes[0]!.processId;
     const threadId = graph.processes[0]!.threads[0]!.threadId;
     const overflowLayout = {
-      ...baseLayout.threadLayoutMap[threadId]!,
+      ...getLayoutThread(baseLayout, processId, threadId),
       overflowSpanCount: 0,
       overflowLabel: {
         text: '1 span filtered in thread rank-1-thread',
@@ -2108,9 +2292,7 @@ describe('trace layout collapsed activity enrichment', () => {
             threadLayouts: [overflowLayout]
           }
         ],
-        threadLayoutMap: {
-          [threadId]: overflowLayout
-        }
+        threadLayoutMapByRef: setLayoutThread(baseLayout, processId, threadId, overflowLayout)
       } satisfies TraceLayout,
       graph
     );
@@ -2139,9 +2321,10 @@ describe('trace layout collapsed activity enrichment', () => {
   it('renders an all-filtered message in the legend when an expanded process has no visible lanes', () => {
     const graph = createGraph();
     const baseLayout = createLayout(graph);
+    const processId = graph.processes[0]!.processId;
     const threadId = graph.processes[0]!.threads[0]!.threadId;
     const hiddenLayout = {
-      ...baseLayout.threadLayoutMap[threadId]!,
+      ...getLayoutThread(baseLayout, processId, threadId),
       visible: false,
       startPosition: [-1000, -1000, 0] as [number, number, number],
       targetPosition: [-1000, -1000, 0] as [number, number, number]
@@ -2156,18 +2339,14 @@ describe('trace layout collapsed activity enrichment', () => {
             threadLayouts: [hiddenLayout]
           }
         ],
-        threadLayoutMap: {
-          [threadId]: hiddenLayout
-        }
+        threadLayoutMapByRef: setLayoutThread(baseLayout, processId, threadId, hiddenLayout)
       } satisfies TraceLayout,
       graph
     );
-    Object.assign(graph, {
-      hasActiveSpanFilter: () => true,
-      getFilteredSpanCountByThreadId: () => ({
-        [threadId]: 4
-      })
-    });
+    setFilteredSpanCountByThreadRef(
+      layout,
+      new Map([[getLayoutThreadRef(baseLayout, processId, threadId), 4]])
+    );
 
     const layers = buildDeckLayersForLegend({
       processRows: layout.renderRows,
@@ -2195,40 +2374,33 @@ describe('trace layout collapsed activity enrichment', () => {
   });
 
   it('renders selected local dependencies above spans with thicker end-side markers', () => {
-    const graph = createGraph();
-    const span = graph.processes[0]!.spans[0]!;
-    const selectedDependencySourceRef = encodeLocalDependencyRef(encodeLocalSpanRef(0, 0));
-    const bidirectionalSelectedDependencySourceRef = encodeLocalDependencyRef(
-      encodeLocalSpanRef(0, 1)
-    );
+    const graph = createDependencyGraph();
+    const runtimeGraph = normalizeVisibleTraceGraphSource(graph);
+    const processRef = getRequiredProcessRef(runtimeGraph, graph.processes[0]!.processId);
+    const [selectedDependencySourceRef, bidirectionalSelectedDependencySourceRef] =
+      runtimeGraph.getVisibleLocalDependencyRefs(processRef);
+    const selectedDependencySource = selectedDependencySourceRef
+      ? runtimeGraph.getVisibleDependencySourceByRef(selectedDependencySourceRef)
+      : null;
+    const bidirectionalDependencySource = bidirectionalSelectedDependencySourceRef
+      ? runtimeGraph.getVisibleDependencySourceByRef(bidirectionalSelectedDependencySourceRef)
+      : null;
+    if (
+      selectedDependencySource?.type !== 'trace-local-dependency' ||
+      bidirectionalDependencySource?.type !== 'trace-local-dependency'
+    ) {
+      throw new Error('Expected visible local dependency sources');
+    }
     const selectedDependency = {
-      dependencyRef: selectedDependencySourceRef,
-      type: 'trace-local-dependency' as const,
-      dependencyId: 'dep-1' as TraceLocalDependency['dependencyId'],
-      startSpanId: span.spanId,
-      endSpanId: span.spanId,
-      keywords: new Set<string>(),
-      waitMode: 'end-to-start' as const,
-      bidirectional: false,
-      waitTimeMs: 2_000
+      ...selectedDependencySource,
+      selectedDirection: 'incoming' as const
     };
     const bidirectionalSelectedDependency = {
-      ...selectedDependency,
-      dependencyRef: bidirectionalSelectedDependencySourceRef,
-      dependencyId: 'dep-1-bidirectional' as TraceLocalDependency['dependencyId'],
+      ...bidirectionalDependencySource,
       bidirectional: true,
       selectedDirection: 'outgoing' as const
     };
-    const layout = withProcessRenderRows(
-      {
-        ...createLayout(graph),
-        localDependencyGeometryChunks: buildTraceLayoutLocalDependencyGeometryChunksForTest([
-          [selectedDependencySourceRef, new Float32Array([2, 2, 3, 3])],
-          [bidirectionalSelectedDependencySourceRef, new Float32Array([4, 4, 5, 5])]
-        ])
-      } satisfies TraceLayout,
-      graph
-    );
+    const layout = buildLayoutFromGraph(graph);
 
     const layers = buildDeckLayersForTrace({
       processRows: getRowEnrichments(layout, graph),
@@ -2265,7 +2437,9 @@ describe('trace layout collapsed activity enrichment', () => {
             getColor: (
               dependency: typeof selectedDependency | typeof bidirectionalSelectedDependency
             ) => readonly [number, number, number, number];
-            getMarkerPlacements: (dependency: TraceLocalDependency) => readonly number[];
+            getMarkerPlacements: (
+              dependency: typeof selectedDependency | typeof bidirectionalSelectedDependency
+            ) => readonly number[];
             getMarkerColor: (
               dependency: typeof selectedDependency | typeof bidirectionalSelectedDependency
             ) => readonly [number, number, number, number];
@@ -2291,57 +2465,52 @@ describe('trace layout collapsed activity enrichment', () => {
     });
     expect(selectedDependencyLayer?.props.mode).toBe('line');
     expect(selectedDependencyLayer?.props.getMarkerPlacements(selectedDependency)).toEqual([1]);
-    expect(selectedDependencyLayer?.props.getColor(selectedDependency)).toEqual([255, 0, 0, 255]);
-    expect(selectedDependencyLayer?.props.getMarkerColor(selectedDependency)).toEqual([
-      255, 0, 0, 255
-    ]);
-    expect(Array.from(selectedDependencyLayer?.props.getPath(selectedDependency) ?? [])).toEqual([
-      2, 2, 3, 3
-    ]);
+    expect(selectedDependencyLayer?.props.getColor(selectedDependency)).toEqual(
+      getSelectedLocalDependencyLineColor(
+        selectedDependency.waitTimeMs,
+        selectedDependency.selectedDirection
+      )
+    );
+    expect(selectedDependencyLayer?.props.getMarkerColor(selectedDependency)).toEqual(
+      getSelectedLocalDependencyLineColor(
+        selectedDependency.waitTimeMs,
+        selectedDependency.selectedDirection
+      )
+    );
+    expect(
+      Array.from(selectedDependencyLayer?.props.getPath(selectedDependency) ?? [])
+    ).toHaveLength(4);
     expect(
       selectedDependencyLayer?.props.getMarkerPlacements(bidirectionalSelectedDependency)
     ).toEqual([1]);
-    expect(selectedDependencyLayer?.props.getColor(bidirectionalSelectedDependency)).toEqual([
-      162, 28, 175, 255
-    ]);
-    expect(selectedDependencyLayer?.props.getMarkerColor(bidirectionalSelectedDependency)).toEqual([
-      162, 28, 175, 255
-    ]);
+    expect(selectedDependencyLayer?.props.getColor(bidirectionalSelectedDependency)).toEqual(
+      getSelectedLocalDependencyLineColor(
+        bidirectionalSelectedDependency.waitTimeMs,
+        bidirectionalSelectedDependency.selectedDirection
+      )
+    );
+    expect(selectedDependencyLayer?.props.getMarkerColor(bidirectionalSelectedDependency)).toEqual(
+      getSelectedLocalDependencyLineColor(
+        bidirectionalSelectedDependency.waitTimeMs,
+        bidirectionalSelectedDependency.selectedDirection
+      )
+    );
     expect(renderedLayerIds?.some(layerId => layerId?.endsWith('dependency-lines'))).toBe(true);
     expect(layers.map(layer => layer.id)).toContain('selected-local-dependency-overlays');
   });
 
   it('keeps selected cross dependencies visible when base cross dependencies are hidden', () => {
-    const graph = createGraph();
-    const span = graph.processes[0]!.spans[0]!;
-    const selectedCrossDependencySourceRef = encodeCrossDependencyRef(0);
+    const graph = createCrossDependencyGraph();
+    const runtimeGraph = normalizeVisibleTraceGraphSource(graph);
+    const selectedCrossDependencySource = runtimeGraph.getVisibleCrossDependencySources()[0];
+    if (selectedCrossDependencySource?.type !== 'trace-cross-process-dependency') {
+      throw new Error('Expected visible cross dependency source');
+    }
     const selectedCrossDependency = {
-      dependencyRef: encodeVisibleCrossDependencyRef(0),
-      type: 'trace-cross-process-dependency' as const,
-      dependencyId: 'cross-dep-hidden-base' as TraceCrossProcessDependency['dependencyId'],
-      endpointId: 'cross-dep-hidden-base:endpoint' as TraceCrossProcessDependency['endpointId'],
-      startRankNum: 0,
-      endRankNum: 1,
-      startSpanId: span.spanId,
-      endSpanId: span.spanId,
-      waitMode: 'end-to-start' as const,
-      bidirectional: false,
-      topology: 'cross',
-      waitTimeMs: 2_000,
-      waiting: false,
-      waitNotFinished: false,
-      keywords: new Set<string>(),
+      ...selectedCrossDependencySource,
       selectedDirection: 'outgoing' as const
     };
-    const layout = withProcessRenderRows(
-      {
-        ...createLayout(graph),
-        crossDependencyGeometryChunks: buildTraceLayoutCrossDependencyGeometryChunksForTest([
-          [selectedCrossDependencySourceRef, new Float32Array([6, 6, 7, 7])]
-        ])
-      } satisfies TraceLayout,
-      graph
-    );
+    const layout = buildLayoutFromGraph(graph);
 
     const layers = buildDeckLayersForTrace({
       processRows: getRowEnrichments(layout, graph),
@@ -2425,40 +2594,24 @@ describe('trace layout collapsed activity enrichment', () => {
       renderedLayerIds?.findIndex(layerId => layerId?.endsWith('dependency-lines')) ?? -1;
     const blockRectangleLayerIndex =
       renderedLayerIds?.findIndex(layerId => layerId?.endsWith('block-rectangles')) ?? -1;
-    const dependencyMarkerLayerIndex =
-      renderedLayerIds?.findIndex(layerId => layerId?.endsWith('dependency-markers')) ?? -1;
 
     expect(dependencyLineLayerIndex).toBeGreaterThanOrEqual(0);
     expect(blockRectangleLayerIndex).toBeGreaterThanOrEqual(0);
-    expect(dependencyMarkerLayerIndex).toBeGreaterThanOrEqual(0);
     expect(dependencyLineLayerIndex).toBeLessThan(blockRectangleLayerIndex);
-    expect(dependencyMarkerLayerIndex).toBeGreaterThan(blockRectangleLayerIndex);
   });
 
-  it('keeps normal dependency lines and arrowheads visible at low dependency opacity', () => {
-    const graph = createDependencyGraph();
+  it('keeps normal straight dependency lines visible at low dependency opacity', () => {
+    const graph = createDependencyAndCrossDependencyGraph();
+    const materializedGraph = materializeJSONTrace(graph);
     const layout = buildLayoutFromGraph(graph);
-    const runtimeGraph = normalizeVisibleTraceGraphSource(graph);
-    const processRef = getRequiredProcessRef(runtimeGraph, graph.processes[0]!.processId);
-    const [localDependencyRef, submitDependencyRef] =
-      runtimeGraph.getVisibleLocalDependencyRefs(processRef);
-    const localDependency = graph.processes[0]!.localDependencies[0]!;
-    const crossDependency = {
-      type: 'trace-cross-process-dependency' as const,
-      dependencyId: 'cross-visible-arrow' as TraceCrossProcessDependency['dependencyId'],
-      endpointId: 'cross-visible-arrow:endpoint' as TraceCrossProcessDependency['endpointId'],
-      startRankNum: 0,
-      endRankNum: 1,
-      startSpanId: localDependency.startSpanId,
-      endSpanId: localDependency.endSpanId,
-      waitMode: 'end-to-start' as const,
-      bidirectional: false,
-      topology: 'cross',
-      waitTimeMs: 100,
-      waiting: false,
-      waitNotFinished: false,
-      keywords: new Set<string>()
-    };
+    const [localDependency, submitDependency] = graph.processes[0]!.localDependencies;
+    if (!localDependency || !submitDependency) {
+      throw new Error('Expected visible local dependencies');
+    }
+    const crossDependency = materializedGraph.crossDependencies[0];
+    if (!crossDependency) {
+      throw new Error('Expected visible cross dependency');
+    }
     const settings = {
       ...getTraceSettings(),
       showDependencies: true,
@@ -2470,7 +2623,7 @@ describe('trace layout collapsed activity enrichment', () => {
 
     const layers = buildDeckLayersForTrace({
       processRows: getRowEnrichments(layout, graph),
-      traceGraph: {crossDependencies: [crossDependency]},
+      traceGraph: materializedGraph,
       stepNum: 0,
       selectedSpanRefs: [],
       selectedDependencies: [],
@@ -2486,21 +2639,13 @@ describe('trace layout collapsed activity enrichment', () => {
       ?.find(layer => layer?.id.endsWith('dependency-lines')) as
       | {
           props: {
-            data: readonly {
-              dependencyRef: VisibleLocalDependencyRef;
-              color: readonly [number, number, number, number];
-              markerColor: readonly [number, number, number, number];
-              markerPlacements: readonly number[];
-            }[];
-            getColor: (dependency: {
-              color: readonly [number, number, number, number];
-            }) => readonly [number, number, number, number];
-            getMarkerColor: (dependency: {
-              markerColor: readonly [number, number, number, number];
-            }) => readonly [number, number, number, number];
-            getMarkerPlacements: (dependency: {
-              markerPlacements: readonly number[];
-            }) => readonly number[];
+            data: {
+              readonly attributes: {
+                readonly getColor?: {
+                  readonly value?: Uint8Array;
+                };
+              };
+            };
             parameters: Record<string, boolean | string>;
           };
         }
@@ -2525,26 +2670,24 @@ describe('trace layout collapsed activity enrichment', () => {
         }
       | undefined;
 
-    const localDependencyDatum = localDependencyLayer?.props.data.find(
-      dependency => dependency.dependencyRef === localDependencyRef
-    );
-    const submitDependencyDatum = localDependencyLayer?.props.data.find(
-      dependency => dependency.dependencyRef === submitDependencyRef
-    );
-    const localLineColor =
-      localDependencyDatum && localDependencyLayer?.props.getColor(localDependencyDatum);
-    const localMarkerColor =
-      localDependencyDatum && localDependencyLayer?.props.getMarkerColor(localDependencyDatum);
-    const submitLineColor =
-      submitDependencyDatum && localDependencyLayer?.props.getColor(submitDependencyDatum);
+    const dependencyRefs = rankLayer.props.binaryDependencyLineData?.dependencyRefs ?? [];
+    const binaryDependencyColors = localDependencyLayer?.props.data.attributes.getColor?.value;
+    const getBinaryDependencyColor = (dependencyId: TraceLocalDependency['dependencyId']) => {
+      const dependencyIndex = dependencyRefs.findIndex(
+        dependencyRef =>
+          rankLayer.props.traceLayout.traceGraph.getVisibleDependencyIdByRef(dependencyRef) ===
+          dependencyId
+      );
+      return dependencyIndex >= 0 && binaryDependencyColors
+        ? Array.from(binaryDependencyColors.slice(dependencyIndex * 4, dependencyIndex * 4 + 4))
+        : undefined;
+    };
+    const localLineColor = getBinaryDependencyColor(localDependency.dependencyId);
+    const submitLineColor = getBinaryDependencyColor(submitDependency.dependencyId);
     const crossLineColor = crossDependencyLayer?.props.getColor(crossDependency);
     const crossMarkerColor = crossDependencyLayer?.props.getMarkerColor(crossDependency);
 
     expect(localLineColor).toEqual([239, 68, 68, 255]);
-    expect(localMarkerColor).toEqual(localLineColor);
-    expect(
-      localDependencyDatum && localDependencyLayer?.props.getMarkerPlacements(localDependencyDatum)
-    ).toEqual([1]);
     expect(submitLineColor).toEqual([251, 218, 229, 255]);
     expect(crossLineColor).toEqual([208, 238, 251, 255]);
     expect(crossMarkerColor).toEqual(crossLineColor);
@@ -2576,18 +2719,41 @@ describe('trace layout collapsed activity enrichment', () => {
       endSpanRef: encodeSpanRef(0, 1)
     } as unknown as TraceCrossDependencySource;
     const crossDeps = [visibleCrossDep, hiddenCrossDep];
-    const layout = {
-      ...buildLayoutFromGraph(graph),
-      spanVisibilityMapBySpanRef: new Map([
-        [
-          hiddenCrossDep.endSpanRef!,
-          {visible: false, visibilityFlags: getTraceLayoutSpanVisibilityMask([])}
-        ]
+    const baseLayout = buildLayoutFromGraph(graph);
+    const processId = graph.processes[0]!.processId;
+    const threadId = graph.processes[0]!.threads[0]!.threadId;
+    const hiddenEndpointThreadLayout = {
+      ...getLayoutThread(baseLayout, processId, threadId),
+      spanLaneMap: new Map([
+        [hiddenCrossDep.startSpanRef!, 0],
+        [hiddenCrossDep.endSpanRef!, 1]
       ]),
-      crossDependencyGeometryChunks: buildTraceLayoutCrossDependencyGeometryChunksForTest([
-        [encodeCrossDependencyRef(0), new Float32Array([0, 0, 1, 1])],
-        [encodeCrossDependencyRef(1), new Float32Array([1, 1, 2, 2])]
-      ])
+      lanes: {
+        laneCount: 2,
+        renderedLaneCount: 1,
+        visibleLaneIndices: [0],
+        isCollapsed: false,
+        laneYPositions: [getLayoutThread(baseLayout, processId, threadId).yPosition]
+      }
+    } satisfies ThreadLayout;
+    const processLayouts = [
+      {
+        ...baseLayout.processLayouts[0]!,
+        threadLayouts: [hiddenEndpointThreadLayout]
+      }
+    ];
+    const layout = {
+      ...baseLayout,
+      processLayouts,
+      processLayoutMapByRef: new Map(
+        processLayouts.map(processLayout => [processLayout.processRef, processLayout])
+      ),
+      threadLayoutMapByRef: setLayoutThread(
+        baseLayout,
+        processId,
+        threadId,
+        hiddenEndpointThreadLayout
+      )
     } satisfies TraceLayout;
 
     const layers = buildDeckLayersForTrace({

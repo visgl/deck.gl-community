@@ -15849,7 +15849,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "trace-layers-tracevis-example@workspace:examples/trace-layers/tracevis"
   dependencies:
+    "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/trace-layers": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
@@ -15860,6 +15862,8 @@ __metadata:
     "@luma.gl/core": "npm:~9.3.2"
     "@luma.gl/engine": "npm:~9.3.2"
     "@luma.gl/shadertools": "npm:~9.3.2"
+    "@luma.gl/webgl": "npm:~9.3.2"
+    "@luma.gl/webgpu": "npm:~9.3.2"
     "@tanstack/react-table": "npm:8.21.2"
     autoprefixer: "npm:^10.4.20"
     lucide-react: "npm:0.456.0"

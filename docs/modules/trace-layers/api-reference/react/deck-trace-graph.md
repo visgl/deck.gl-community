@@ -5,8 +5,8 @@
   <img src="https://img.shields.io/badge/status-work--in--progress-orange.svg?style=flat-square" alt="status Work-in-Progress" />
 </p>
 
-`DeckTraceGraph` is the main React component for rendering one or two normalized `TraceGraph`
-instances with the shared deck.gl trace renderer.
+`DeckTraceGraph` is the main React component for rendering one mounted `TraceEngine` with the
+shared deck.gl trace renderer.
 
 ```tsx
 import {DeckTraceGraph} from '@deck.gl-community/trace-layers/react';
@@ -16,9 +16,9 @@ import {DeckTraceGraph} from '@deck.gl-community/trace-layers/react';
 
 `DeckTraceGraph`:
 
-- accepts primary and optional secondary `TraceGraph` inputs
-- consumes `TraceVisSettings`, `TraceStyle`, and optional `TraceColorScheme`
-- builds and updates trace layouts
+- accepts one mounted `TraceEngine`
+- reads prepared layouts and scenes from the engine through `useSyncExternalStore`
+- dispatches selection and collapse interactions back into the engine
 - wires deck.gl hover, selection, zoom, minimap, and time-range interactions
 - hosts built-in widgets and host-provided widgets
 - exposes customization hooks for tooltips, picked objects, graph-global event cards, JSON output,
@@ -26,28 +26,19 @@ import {DeckTraceGraph} from '@deck.gl-community/trace-layers/react';
 
 ## Common props
 
-The source type is `DeckTraceGraphProps`. The props most integrations own are:
+The source type is `DeckTraceGraphProps`. The public boundary is intentionally small:
 
 ```ts
 type DeckTraceGraphProps = {
-  traceGraph: TraceGraph;
-  secondaryTraceGraph?: TraceGraph;
-  traceStyle: TraceStyle;
-  settings: TraceVisSettings;
-  collapseState: TraceLayoutCollapseState;
-  selectedSpanRefs: readonly SpanRef[];
-  paths: TracePath[];
-  onSelectionChange?: (selection: TraceSelectionChange) => void;
-  onAllProcessesExpansionChange: (expand: boolean) => void;
-  onProcessCollapseToggle: (request: TraceProcessCollapseToggleRequest) => void;
-  onThreadCollapseToggle: (request: TraceThreadCollapseToggleRequest) => void;
-  onThreadCollapsePrune: (request: TraceThreadCollapsePruneRequest) => void;
-  onTimeRangeSelectionChange: (timeRange: DeckTraceGraphTimeRange | null) => void;
+  engine: TraceEngine;
+  className?: string;
+  reactConfig?: DeckTraceGraphConfig;
 };
 ```
 
-Selections and collapse state are ref-native while the viewer is mounted. Persist source IDs only
-at application boundaries, then resolve them back to refs before rendering.
+Sync durable `TraceGraph`, settings, paths, selected refs, color scheme, and default expanded
+process ids into `TraceEngineInputs`. Persist source IDs only at application boundaries, then
+resolve them back to refs before syncing the engine.
 
 ## Imperative handle
 
@@ -56,13 +47,13 @@ search, breadcrumbs, or deep-link restore flows rather than mutating deck state 
 
 ## Customization points
 
-- `colorScheme`: source-specific span, thread, process, keyword, and dependency colors
-- `renderTraceEventCard`: source-specific graph-global event content
-- `resolvePickedTraceObject`: unwrap host-owned deck picking payloads
-- `getTooltipReact`: replace tooltip content
-- `getJSONForTraceObject`: customize raw-object output
-- `externalOmniBoxSearchProvider`: merge host-owned results into search
-- `widgets` and `showDefaultWidgets`: compose the control surface
+- `reactConfig.renderTraceEventCard`: source-specific graph-global event content
+- `reactConfig.resolvePickedTraceObject`: unwrap host-owned deck picking payloads
+- `reactConfig.getTooltipReact`: replace tooltip content
+- `reactConfig.getJSONForTraceObject`: customize raw-object output
+- `reactConfig.externalOmniBoxSearchProvider`: merge host-owned results into search
+- `reactConfig.widgets` and `reactConfig.showDefaultWidgets`: compose the control surface
 
 See [Getting started](../../developer-guide/getting-started.md) and
-[Rendering traces](../../developer-guide/rendering-traces.md).
+[Rendering traces](../../developer-guide/rendering-traces.md), plus
+[TraceEngine](../trace/trace-engine.md).

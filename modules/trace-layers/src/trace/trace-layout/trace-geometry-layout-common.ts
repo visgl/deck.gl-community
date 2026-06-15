@@ -4,6 +4,7 @@ import {compareNumericSortStrings} from '../utils/numeric-sort';
 import {getSpanExtremalTiming, MAX_LANES_PER_STREAM, visitKahnLaneAssignments} from './lane-layout';
 import {
   buildTraceLayoutOverflowLabels,
+  buildTraceLayoutProcessLayoutMapByRef,
   getTraceLayoutSpanVisibilityMask,
   isTraceLayoutSpanVisible,
   traceLayoutSpanVisibilityFlags
@@ -21,7 +22,6 @@ import type {
   SpanRef,
   TraceDependencyId,
   TraceSpan,
-  TraceSpanId,
   TraceThread,
   TraceThreadId,
   TrackAggregationMode
@@ -34,7 +34,8 @@ import type {
   TraceLayout,
   TraceLayoutSourceProcess,
   TraceLayoutSpanVisibility,
-  TraceLayoutSpanVisibilityFlag
+  TraceLayoutSpanVisibilityFlag,
+  TraceLayoutVisibleProcessMetadata
 } from './trace-layout';
 
 export type TraceLayoutMode = 'step1' | 'sequential' | 'interleaved';
@@ -48,12 +49,18 @@ const DEFAULT_MINIMAL_THREAD_HIDDEN_NAMES = [
 ];
 
 function buildRankIdToLayoutIndexMap<
-  TraceGraphT extends {processes: Readonly<Pick<TraceLayoutSourceProcess, 'processId'>[]>}
+  TraceGraphT extends {
+    /** Visible processes keyed by id/ref for rank layout lookup. */
+    processes: Readonly<Array<Pick<TraceLayoutVisibleProcessMetadata, 'processId' | 'processRef'>>>;
+  }
 >(params: {traceGraph: TraceGraphT; layout: TraceLayout}): Map<string, number> {
   const result = new Map<string, number>();
+  const processByRef = new Map(
+    params.traceGraph.processes.map(process => [process.processRef, process] as const)
+  );
 
-  params.layout.processLayouts.forEach((_, layoutIndex) => {
-    const processId = params.traceGraph.processes[layoutIndex]?.processId;
+  params.layout.processLayouts.forEach((processLayout, layoutIndex) => {
+    const processId = processByRef.get(processLayout.processRef)?.processId;
     if (processId && !result.has(processId)) {
       result.set(processId, layoutIndex);
     }
@@ -62,23 +69,8 @@ function buildRankIdToLayoutIndexMap<
   return result;
 }
 
-export type TraceSpanGeometrySource = Pick<
-  TraceSpan,
-  | 'spanId'
-  | 'threadId'
-  | 'primaryTimingKey'
-  | 'timings'
-  | 'layoutTopY'
-  | 'layoutHeight'
-  | 'userData'
-> & {
-  /** Canonical visible span ref when this geometry source comes from ref-native layout inputs. */
-  spanRef?: SpanRef;
-  /** Canonical process ref for the owning process when available from ref-native layout inputs. */
-  processRef?: ProcessRef;
-  /** Canonical thread ref for the owning thread when available from ref-native layout inputs. */
-  threadRef?: ThreadRef;
-};
+/** Geometry-ready span source consumed by layout builders. */
+export type TraceSpanGeometrySource = TraceSpanLaneSource;
 
 /**
  * Ref-native layout lookup used by geometry builders when stream ids are only process-local.
@@ -86,24 +78,18 @@ export type TraceSpanGeometrySource = Pick<
 export type TraceGeometryLayoutLookup = {
   /** TraceGraph that resolves a visible span ref to its owning process/thread refs. */
   readonly traceGraph: Pick<TraceGraph, 'getProcessRefBySpanRef' | 'getThreadRefBySpanRef'>;
-  /** Thread layouts keyed by exact visible span ref. */
-  readonly threadLayoutsBySpanRef: ReadonlyMap<SpanRef, ThreadLayout>;
-  /** Process layouts keyed by exact visible span ref. */
-  readonly processLayoutsBySpanRef: ReadonlyMap<SpanRef, ProcessLayout>;
   /** Thread layouts keyed by canonical thread ref for the current TraceGraph namespace. */
   readonly threadLayoutsByRef: ReadonlyMap<ThreadRef, ThreadLayout>;
   /** Process layouts keyed by canonical process ref for collapsed-process routing. */
   readonly processLayoutsByRef: ReadonlyMap<ProcessRef, ProcessLayout>;
-  /** Compatibility thread layouts keyed by process-local stream id. */
-  readonly fallbackThreadLayoutMap?: Readonly<Record<TraceThreadId, ThreadLayout>>;
-  /** Compatibility process layouts keyed by process-local stream id. */
-  readonly fallbackStreamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
 };
 
 /** Lightweight span payload used by Arrow-native layout calculations. */
-export type TraceLayoutLaneBlockSource = Pick<
+export type TraceLayoutLaneSpanSource = Pick<
   TraceSpanLaneSource,
   | 'spanRef'
+  | 'processRef'
+  | 'threadRef'
   | 'spanId'
   | 'threadId'
   | 'primaryTimingKey'
@@ -116,7 +102,7 @@ export type TraceLayoutLaneBlockSource = Pick<
 /** Lightweight local dependency payload used by Arrow-native layout calculations. */
 export type TraceLayoutLaneDependencySource = Pick<
   TraceLocalDependencySource,
-  'dependencyId' | 'startSpanId' | 'endSpanId'
+  'dependencyId' | 'startSpanRef' | 'endSpanRef'
 > & {
   /** Whether the dependency is an explicit parent-child edge. */
   readonly hasParentKeyword?: boolean;
@@ -151,11 +137,11 @@ export type TraceLayoutConfiguration = {
   laneSeparation: number;
   /** space between threads */
   threadSeparation: number;
-  /** block/span height */
-  blockHeight: number;
-  /** block label position, inside block or above it */
+  /** span height */
+  spanHeight: number;
+  /** span label position, inside span or above it */
   spanLabelPosition: 'inside' | 'above';
-  /** Block label font size */
+  /** Span label font size */
   spanLabelFontSize: number;
   /** Top inset for collapsed process activity overviews within the process row. */
   overviewTopGap: number;
@@ -171,18 +157,18 @@ type LaneAssignmentModeUserData = {laneAssignmentMode?: string};
 type TraceLayoutLaneSourceProcess = {
   /** Identifies the process whose threads are being laid out. */
   readonly processId: string;
-  /** Canonical runtime process ref when the source graph is ref-native. */
-  readonly processRef?: ProcessRef;
+  /** Canonical runtime process ref that owns this visible process row. */
+  readonly processRef: ProcessRef;
   /** Carries the source threads used to determine visible stream rows. */
   readonly threads: readonly TraceThread[];
-  /** Canonical runtime thread refs aligned to `threads` when the source graph is ref-native. */
-  readonly threadRefs?: readonly ThreadRef[];
+  /** Canonical runtime thread refs aligned to `threads`. */
+  readonly threadRefs: readonly ThreadRef[];
   /** Carries process-level metadata used for lane-assignment settings. */
   readonly userData?: TraceLayoutSourceProcess['userData'];
-  /** Optionally provides eager block payloads for calculators that already have them. */
+  /** Optionally provides eager span payloads for calculators that already have them. */
   readonly spans?: readonly TraceSpan[];
   /** Optionally provides lightweight lane sources for Arrow-native calculators. */
-  readonly laneBlocks?: readonly TraceLayoutLaneBlockSource[];
+  readonly laneSpans?: readonly TraceLayoutLaneSpanSource[];
   /** Optionally provides eager local dependencies for calculators that already have them. */
   readonly localDependencies?: readonly TraceLocalDependencySource[];
   /** Optionally provides lightweight local dependency sources for Arrow-native calculators. */
@@ -408,30 +394,18 @@ export function buildThreadOverflowLabelForThreads(params: {
   threadLayout: ThreadLayout;
   overflowSpanCount: number;
   threads: readonly Pick<TraceThread, 'name' | 'threadId'>[];
-  /** Canonical runtime thread refs aligned to `threads` when the source graph is ref-native. */
-  threadRefs?: readonly ThreadRef[];
+  /** Canonical runtime thread refs aligned to `threads`. */
+  threadRefs: readonly ThreadRef[];
   traceGraph: TraceGraph;
   labelLaneSeparation: number;
 }): ThreadOverflowLabel | undefined {
   const includeFilteredSpanCount = params.traceGraph.hasActiveSpanFilter();
-  const legacyFilteredSpanCountByThreadId = (
-    params.traceGraph as unknown as {
-      getFilteredSpanCountByThreadId?: () => Readonly<Partial<Record<TraceThreadId, number>>>;
-    }
-  )?.getFilteredSpanCountByThreadId?.();
   const filteredSpanCount = includeFilteredSpanCount
-    ? params.threadRefs != null && params.threadRefs.length > 0
-      ? params.threadRefs.reduce(
-          (count, threadRef) =>
-            count + (params.traceGraph.getFilteredSpanCountByThreadRef().get(threadRef) ?? 0),
-          0
-        )
-      : legacyFilteredSpanCountByThreadId != null
-        ? params.threads.reduce(
-            (count, thread) => count + (legacyFilteredSpanCountByThreadId[thread.threadId] ?? 0),
-            0
-          )
-        : 0
+    ? params.threadRefs.reduce(
+        (count, threadRef) =>
+          count + (params.traceGraph.getFilteredSpanCountByThreadRef().get(threadRef) ?? 0),
+        0
+      )
     : undefined;
   if (
     !canBuildThreadOverflowLabel(
@@ -457,7 +431,7 @@ const LAYOUT_DENSITY_PRESETS = {
     laneSeparation: 0.58,
     threadSeparation: 0.75,
     streamLabelFontSize: 12,
-    blockHeight: 0.4,
+    spanHeight: 0.4,
     spanLabelPosition: 'above',
     spanLabelFontSize: 12,
     overviewTopGap: 0.1,
@@ -470,7 +444,7 @@ const LAYOUT_DENSITY_PRESETS = {
     laneSeparation: 0.36,
     threadSeparation: 0.36,
     streamLabelFontSize: 10,
-    blockHeight: 0.22,
+    spanHeight: 0.22,
     spanLabelPosition: 'above',
     spanLabelFontSize: 9,
     overviewTopGap: 0.1,
@@ -483,7 +457,7 @@ const LAYOUT_DENSITY_PRESETS = {
     laneSeparation: 0.36,
     threadSeparation: 0.5,
     streamLabelFontSize: 10,
-    blockHeight: 0.22,
+    spanHeight: 0.22,
     spanLabelPosition: 'above',
     spanLabelFontSize: 9,
     overviewTopGap: 0.1,
@@ -496,7 +470,7 @@ const LAYOUT_DENSITY_PRESETS = {
     laneSeparation: 0.36,
     threadSeparation: 0.36,
     streamLabelFontSize: 10,
-    blockHeight: 0.32,
+    spanHeight: 0.32,
     spanLabelPosition: 'inside',
     spanLabelFontSize: 9,
     overviewTopGap: 0.1,
@@ -509,7 +483,7 @@ const LAYOUT_DENSITY_PRESETS = {
     laneSeparation: 0.36,
     threadSeparation: 0.36,
     streamLabelFontSize: 10,
-    blockHeight: 0.4,
+    spanHeight: 0.4,
     spanLabelPosition: 'inside',
     spanLabelFontSize: 11.5,
     overviewTopGap: 0.1,
@@ -556,10 +530,10 @@ export function getProcessContentStartY(params: {
   if (!Number.isFinite(params.yOffset)) {
     return 0;
   }
-  const {blockHeight, firstThreadTopGap, labelMinGap, labelPadding, overviewTopGap} =
+  const {spanHeight, firstThreadTopGap, labelMinGap, labelPadding, overviewTopGap} =
     params.layoutConfiguration;
   const labelClearance = labelPadding + labelMinGap * 2;
-  const spanTopClearance = overviewTopGap + blockHeight / 2 + labelMinGap * 2;
+  const spanTopClearance = overviewTopGap + spanHeight / 2 + labelMinGap * 2;
   return params.yOffset + Math.max(labelClearance, spanTopClearance) + firstThreadTopGap;
 }
 
@@ -812,7 +786,10 @@ function getRankBackgroundPolygonMaxY(polygon: Float32Array): number {
 }
 
 export function computeSequentialRankDeltas<
-  TraceGraphT extends {processes: Readonly<Pick<TraceLayoutSourceProcess, 'processId'>[]>}
+  TraceGraphT extends {
+    /** Visible processes keyed by id/ref for sequential rank composition. */
+    processes: Readonly<Array<Pick<TraceLayoutVisibleProcessMetadata, 'processId' | 'processRef'>>>;
+  }
 >(computations: LayoutComputation<TraceGraphT>[]): number[][] {
   const result: number[][] = [];
   let currentOffset = 0;
@@ -837,7 +814,10 @@ export function computeSequentialRankDeltas<
 }
 
 export function computeInterleavedRankDeltas<
-  TraceGraphT extends {processes: Readonly<Pick<TraceLayoutSourceProcess, 'processId'>[]>}
+  TraceGraphT extends {
+    /** Visible processes keyed by id/ref for interleaved rank composition. */
+    processes: Readonly<Array<Pick<TraceLayoutVisibleProcessMetadata, 'processId' | 'processRef'>>>;
+  }
 >(computations: LayoutComputation<TraceGraphT>[]): number[][] {
   if (computations.length <= 1) {
     return computeSequentialRankDeltas(computations);
@@ -940,7 +920,10 @@ function getUnmatchedRankIndexForInterleaving<
 
 export function applyRankDeltas<
   TraceGraphT extends {
-    processes: Readonly<Pick<TraceLayoutSourceProcess, 'processId' | 'threads'>[]>;
+    /** Visible processes keyed by id/ref/thread refs for delta application. */
+    processes: Readonly<
+      Array<Pick<TraceLayoutVisibleProcessMetadata, 'processId' | 'processRef' | 'threadRefs'>>
+    >;
   }
 >(params: {
   layout: TraceLayout;
@@ -950,14 +933,14 @@ export function applyRankDeltas<
   /** Minimum y-offset allowed for the first visible rank after additive translation. */
   minimumVisibleRankYOffset?: number;
 }): TraceLayout {
-  const threadLayoutMap: Record<TraceThreadId, ThreadLayout> = {};
-  const threadIdByLayout = new Map<ThreadLayout, TraceThreadId>();
-  for (const [threadId, streamLayout] of Object.entries(params.layout.threadLayoutMap) as [
-    TraceThreadId,
-    ThreadLayout
-  ][]) {
-    threadLayoutMap[threadId] = streamLayout;
-    threadIdByLayout.set(streamLayout, threadId);
+  // Read rank thread layouts from the input snapshot while this pass rewrites output refs.
+  const sourceThreadLayoutMapByRef = params.layout.threadLayoutMapByRef;
+  const threadLayoutMapByRef = new Map(sourceThreadLayoutMapByRef);
+  const threadRefsByLayout = new Map<ThreadLayout, Set<ThreadRef>>();
+  for (const [threadRef, threadLayout] of sourceThreadLayoutMapByRef) {
+    const threadRefs = threadRefsByLayout.get(threadLayout) ?? new Set<ThreadRef>();
+    threadRefs.add(threadRef);
+    threadRefsByLayout.set(threadLayout, threadRefs);
   }
 
   const translatedLaneYPositionsByDelta = new Map<number, WeakMap<readonly number[], number[]>>();
@@ -1034,6 +1017,26 @@ export function applyRankDeltas<
     translatedThreadLayoutBySource.set(threadLayout, translatedThreadLayout);
     return translatedThreadLayout;
   };
+  const setTranslatedThreadLayout = (
+    threadLayout: ThreadLayout,
+    delta: number,
+    threadRefOverride?: ThreadRef
+  ): ThreadLayout => {
+    const translatedThreadLayout = translateSharedThreadLayout(threadLayout, delta);
+    let translatedThreadRefs = threadRefsByLayout.get(translatedThreadLayout);
+    if (!translatedThreadRefs) {
+      translatedThreadRefs = new Set(threadRefsByLayout.get(threadLayout) ?? []);
+      threadRefsByLayout.set(translatedThreadLayout, translatedThreadRefs);
+      for (const threadRef of translatedThreadRefs) {
+        threadLayoutMapByRef.set(threadRef, translatedThreadLayout);
+      }
+    }
+    if (threadRefOverride != null && !translatedThreadRefs.has(threadRefOverride)) {
+      translatedThreadRefs.add(threadRefOverride);
+      threadLayoutMapByRef.set(threadRefOverride, translatedThreadLayout);
+    }
+    return translatedThreadLayout;
+  };
 
   /**
    * Translates one rank and its already-resolved thread layouts by a shared vertical delta.
@@ -1098,8 +1101,8 @@ export function applyRankDeltas<
       : 0;
   };
 
-  const processByRankId = new Map(
-    params.traceGraph.processes.map(process => [process.processId, process] as const)
+  const processByRef = new Map(
+    params.traceGraph.processes.map(process => [process.processRef, process] as const)
   );
 
   const processLayouts = params.layout.processLayouts.map((rankLayout, rankIndex) => {
@@ -1108,35 +1111,34 @@ export function applyRankDeltas<
     const isCombinedMode = params.trackAggregationMode === 'combine-threads';
 
     if (delta !== 0) {
-      const processId = params.traceGraph.processes[rankIndex]?.processId;
-      const rankProcess = processId ? processByRankId.get(processId) : undefined;
+      const rankProcess = processByRef.get(rankLayout.processRef);
       if (rankProcess) {
-        for (const stream of rankProcess.threads) {
-          const streamLayout = threadLayoutMap[stream.threadId];
+        for (const threadRef of rankProcess.threadRefs) {
+          const streamLayout = sourceThreadLayoutMapByRef.get(threadRef);
           if (!streamLayout) {
             continue;
           }
-          threadLayoutMap[stream.threadId] = translateSharedThreadLayout(streamLayout, delta);
+          setTranslatedThreadLayout(streamLayout, delta, threadRef);
         }
       }
     }
 
     const threadLayouts = (processLayout?.threadLayouts ?? [])
-      .map(streamLayout => {
-        const threadId = threadIdByLayout.get(streamLayout);
-        if (threadId) {
-          const translatedStreamLayout = threadLayoutMap[threadId];
-          return translatedStreamLayout;
-        }
-        return translateSharedThreadLayout(streamLayout, delta);
-      })
+      .map(streamLayout => setTranslatedThreadLayout(streamLayout, delta))
       .filter((layout): layout is ThreadLayout => Boolean(layout));
 
-    return translateProcessLayout(
-      rankLayout,
-      isCombinedMode ? threadLayouts.slice(0, 1) : threadLayouts,
-      delta
-    );
+    const translatedThreadLayouts = isCombinedMode ? threadLayouts.slice(0, 1) : threadLayouts;
+    if (
+      delta === 0 &&
+      translatedThreadLayouts.length === rankLayout.threadLayouts.length &&
+      translatedThreadLayouts.every(
+        (threadLayout, threadIndex) => threadLayout === rankLayout.threadLayouts[threadIndex]
+      )
+    ) {
+      return rankLayout;
+    }
+
+    return translateProcessLayout(rankLayout, translatedThreadLayouts, delta);
   });
 
   const normalizationDelta = getMinimumVisibleRankDelta(
@@ -1144,18 +1146,15 @@ export function applyRankDeltas<
     params.minimumVisibleRankYOffset ?? 0
   );
   if (normalizationDelta > 0) {
-    for (const [threadId, streamLayout] of Object.entries(threadLayoutMap) as [
-      TraceThreadId,
-      ThreadLayout
-    ][]) {
-      threadLayoutMap[threadId] = translateSharedThreadLayout(streamLayout, normalizationDelta);
+    for (const [threadRef, threadLayout] of [...threadLayoutMapByRef]) {
+      setTranslatedThreadLayout(threadLayout, normalizationDelta, threadRef);
     }
 
     processLayouts.forEach((rankLayout, rankIndex) => {
       processLayouts[rankIndex] = translateProcessLayout(
         rankLayout,
         rankLayout.threadLayouts.map(threadLayout =>
-          translateSharedThreadLayout(threadLayout, normalizationDelta)
+          setTranslatedThreadLayout(threadLayout, normalizationDelta)
         ),
         normalizationDelta
       );
@@ -1165,7 +1164,8 @@ export function applyRankDeltas<
   return {
     ...params.layout,
     processLayouts,
-    threadLayoutMap: {...threadLayoutMap},
+    processLayoutMapByRef: buildTraceLayoutProcessLayoutMapByRef(processLayouts),
+    threadLayoutMapByRef,
     overflowLabels: buildTraceLayoutOverflowLabels(processLayouts)
   };
 }
@@ -1197,9 +1197,11 @@ export function streamIsVisible(
 
 export function getCombinedRankLaneAssignments(params: {
   rank: Pick<TraceLayoutLaneSourceProcess, 'processId'>;
-  spans: readonly TraceLayoutLaneBlockSource[];
+  /** Visible spans eligible for combined-lane assignment. */
+  spans: readonly TraceLayoutLaneSpanSource[];
   localDependencies: readonly TraceLayoutLaneDependencySource[];
-  visibleThreadIds: Set<TraceThreadId>;
+  /** Visible thread refs eligible for combined-lane assignment. */
+  visibleThreadRefs: ReadonlySet<ThreadRef>;
   maxTimeMs: number;
   maxVisibleLanesPerThread?: number;
   maxVisibleLanesUnlimited?: boolean;
@@ -1209,10 +1211,12 @@ export function getCombinedRankLaneAssignments(params: {
   spanLaneMap: ReadonlyMap<SpanRef, number>;
   overflowSpanCount: number;
 } {
-  const {spans, localDependencies, visibleThreadIds, maxTimeMs} = params;
+  const {spans, localDependencies, visibleThreadRefs, maxTimeMs} = params;
 
-  const visibleBlocks = spans.filter(block => visibleThreadIds.has(block.threadId));
-  if (visibleBlocks.length === 0) {
+  const visibleSpans = spans.filter(
+    span => span.threadRef != null && visibleThreadRefs.has(span.threadRef)
+  );
+  if (visibleSpans.length === 0) {
     return {
       laneCount: 0,
       maxLane: -1,
@@ -1222,28 +1226,28 @@ export function getCombinedRankLaneAssignments(params: {
   }
 
   const explicitParentByChild = buildExplicitParentSpanMap({
-    spans: visibleBlocks,
+    spans: visibleSpans,
     localDependencies,
     maxTimeMs
   });
   const hasCombinedParentHints = explicitParentByChild.size > 0;
-  const hasCombinedLaneAffinity = hasTraceLaneAffinity(visibleBlocks);
+  const hasCombinedLaneAffinity = hasTraceLaneAffinity(visibleSpans);
 
   const spanLaneMap = new Map<SpanRef, number>();
-  const maxLane = visitKahnLaneAssignments<TraceLayoutLaneBlockSource>(
-    visibleBlocks,
+  const maxLane = visitKahnLaneAssignments<TraceLayoutLaneSpanSource>(
+    visibleSpans,
     {
       ...(hasCombinedParentHints
         ? {
-            getParentSpanId: (block: TraceLayoutLaneBlockSource) =>
-              explicitParentByChild.get(block.spanId)
+            getParentSpanRef: (span: TraceLayoutLaneSpanSource) =>
+              explicitParentByChild.get(span.spanRef)
           }
         : {}),
       ...(hasCombinedLaneAffinity ? {getLaneAffinityKey: getTraceLaneAffinityKey} : {}),
       maxTimeMs
     },
-    (block, lane) => {
-      spanLaneMap.set(block.spanRef, lane);
+    (span, lane) => {
+      spanLaneMap.set(span.spanRef, lane);
     }
   );
   const laneCount = Math.max(maxLane + 1, 0);
@@ -1280,9 +1284,14 @@ export function calculateTraceLayout(props: {
   };
   layoutConfiguration: TraceLayoutConfiguration;
   collapsedProcessIds?: ReadonlySet<string>;
+  /** Optional lane metadata keyed by process-local thread id for legacy callers. */
   streamLaneLayoutMap?: Readonly<Record<TraceThreadId, ThreadLaneMetadata>>;
-  expandedStreamIds?: ReadonlySet<TraceThreadId>;
-  collapsedStreamIds?: ReadonlySet<TraceThreadId>;
+  /** Optional lane metadata keyed by canonical runtime thread ref for ref-native callers. */
+  threadLaneLayoutMapByRef?: ReadonlyMap<ThreadRef, ThreadLaneMetadata>;
+  /** Optional explicit thread refs forced open in this layout. */
+  expandedThreadRefs?: ReadonlySet<ThreadRef>;
+  /** Optional explicit thread refs forced closed in this layout. */
+  collapsedThreadRefs?: ReadonlySet<ThreadRef>;
   /** Whether streams without explicit lane metadata should be hidden from this layout. */
   hideStreamsWithoutLaneMetadata?: boolean;
   /** Optional preserved combined lane assignments keyed by rank id. */
@@ -1293,7 +1302,7 @@ export function calculateTraceLayout(props: {
   /** Resolves visible local dependencies for one process without requiring eager process-local copies. */
   getLocalDependenciesForProcess?: (processId: string) => readonly TraceLocalDependencySource[];
   /** Resolves lightweight lane spans for one process without materializing `TraceSpan`. */
-  getLaneBlocksForProcess?: (processId: string) => readonly TraceLayoutLaneBlockSource[];
+  getLaneSpansForProcess?: (processId: string) => readonly TraceLayoutLaneSpanSource[];
   /** Resolves lightweight lane dependencies for one process without materializing `TraceLocalDependency`. */
   getLaneLocalDependenciesForProcess?: (
     processId: string
@@ -1314,13 +1323,13 @@ export function calculateTraceLayout(props: {
   const shouldCombineThreads = aggregationMode === 'combine-threads';
   let totalVisibleThreadCount = 0;
   let laneLayoutCallCount = 0;
-  let laneLayoutBlockCount = 0;
-  let blockBucketingDurationMs = 0;
+  let laneLayoutSpanCount = 0;
+  let spanBucketingDurationMs = 0;
   let combinedLaneAssignmentDurationMs = 0;
   let separateLaneAssignmentDurationMs = 0;
   let rankAssemblyDurationMs = 0;
 
-  const threadLayoutMap: Record<TraceThreadId, ThreadLayout> = {};
+  const threadLayoutMapByRef = new Map<ThreadRef, ThreadLayout>();
   const rankSpacings: number[] = new Array(processes.length).fill(0);
 
   const processLayouts: ProcessLayout[] = new Array(processes.length);
@@ -1331,20 +1340,28 @@ export function calculateTraceLayout(props: {
       return true;
     }
 
-    const rankLaneBlocks = props.getLaneBlocksForProcess?.(rank.processId) ?? rank.laneBlocks ?? [];
-    const displayableThreadIds = new Set(
-      rank.threads
-        .filter(thread => {
-          const laneMetadata = props.streamLaneLayoutMap?.[thread.threadId];
-          return (
-            (!hideStreamsWithoutLaneMetadata || laneMetadata !== undefined) &&
-            streamIsVisible(thread, props.settings)
-          );
-        })
-        .map(thread => thread.threadId)
+    const rankLaneSpans = props.getLaneSpansForProcess?.(rank.processId) ?? rank.laneSpans ?? [];
+    const displayableThreadRefs = new Set(
+      rank.threads.flatMap((thread, threadIndex) => {
+        const threadRef = rank.threadRefs[threadIndex];
+        const laneMetadata = getTraceLayoutThreadLaneMetadata({
+          streamLaneLayoutMap: props.streamLaneLayoutMap,
+          threadLaneLayoutMapByRef: props.threadLaneLayoutMapByRef,
+          threadId: thread.threadId,
+          threadRef
+        });
+        return threadRef != null &&
+          (!hideStreamsWithoutLaneMetadata || laneMetadata !== undefined) &&
+          streamIsVisible(thread, props.settings)
+          ? [threadRef]
+          : [];
+      })
     );
 
-    return rankLaneBlocks.some(block => displayableThreadIds.has(block.threadId));
+    return rankLaneSpans.some(span => {
+      const threadRef = getSpanOwnerThreadRef(props.traceGraph, span.spanRef);
+      return threadRef != null && displayableThreadRefs.has(threadRef);
+    });
   });
 
   ranksInLayoutOrder.forEach(({rank, rankIndex}) => {
@@ -1352,7 +1369,7 @@ export function calculateTraceLayout(props: {
       return;
     }
 
-    const rankLaneBlocks = props.getLaneBlocksForProcess?.(rank.processId) ?? rank.laneBlocks ?? [];
+    const rankLaneSpans = props.getLaneSpansForProcess?.(rank.processId) ?? rank.laneSpans ?? [];
     const rankLaneLocalDependencies =
       props.getLaneLocalDependenciesForProcess?.(rank.processId) ??
       rank.laneLocalDependencies ??
@@ -1360,46 +1377,44 @@ export function calculateTraceLayout(props: {
     const explicitParentByChild = shouldCombineThreads
       ? undefined
       : buildExplicitParentSpanMap({
-          spans: rankLaneBlocks,
+          spans: rankLaneSpans,
           localDependencies: rankLaneLocalDependencies,
           maxTimeMs
         });
     const rankIsCollapsed = props.collapsedProcessIds?.has(rank.processId) ?? false;
-    const threadRefByStreamId = new Map<TraceThreadId, ThreadRef>();
-    if (rank.processRef != null) {
-      for (const threadSource of props.traceGraph.getThreadSourcesByProcessRef(rank.processRef)) {
-        threadRefByStreamId.set(threadSource.threadId, threadSource.threadRef);
+    const threadRefByThread = new Map<TraceThread, ThreadRef>();
+    rank.threads.forEach((thread, threadIndex) => {
+      const threadRef = rank.threadRefs[threadIndex];
+      if (threadRef != null) {
+        threadRefByThread.set(thread, threadRef);
       }
-    } else {
-      rank.threads.forEach((thread, threadIndex) => {
-        const threadRef = rank.threadRefs?.[threadIndex];
-        if (threadRef != null) {
-          threadRefByStreamId.set(thread.threadId, threadRef);
-        }
-      });
-    }
+    });
     const threadLayouts: ThreadLayout[] = [];
     const rankContentStartY = yOffset + processContentTopInset;
     let rankStartPosition = [0, rankContentStartY, 0] as [number, number, number];
     const threadsInLayoutOrder = [...rank.threads];
-    const threadBlocks = shouldCombineThreads
+    const threadSpans = shouldCombineThreads
       ? null
       : (() => {
-          const rankLaneBlocks = (props.getSpansForProcess?.(rank.processId) ??
+          const rankLaneSpans = (props.getSpansForProcess?.(rank.processId) ??
             rank.spans ??
             []) as readonly TraceSpanLaneSource[];
-          const nextThreadBlocks = new Map<TraceThreadId, TraceSpanLaneSource[]>();
-          const blockBucketingStartTime = performance.now();
-          for (const block of rankLaneBlocks) {
-            const spansForThread = nextThreadBlocks.get(block.threadId);
+          const nextThreadSpans = new Map<ThreadRef, TraceSpanLaneSource[]>();
+          const spanBucketingStartTime = performance.now();
+          for (const span of rankLaneSpans) {
+            const threadRef = getSpanOwnerThreadRef(props.traceGraph, span.spanRef);
+            if (threadRef == null) {
+              continue;
+            }
+            const spansForThread = nextThreadSpans.get(threadRef);
             if (spansForThread) {
-              spansForThread.push(block);
+              spansForThread.push(span);
             } else {
-              nextThreadBlocks.set(block.threadId, [block]);
+              nextThreadSpans.set(threadRef, [span]);
             }
           }
-          blockBucketingDurationMs += performance.now() - blockBucketingStartTime;
-          return nextThreadBlocks;
+          spanBucketingDurationMs += performance.now() - spanBucketingStartTime;
+          return nextThreadSpans;
         })();
 
     if (props.settings.sortThreads) {
@@ -1411,7 +1426,12 @@ export function calculateTraceLayout(props: {
     }
 
     const displayableThreads = threadsInLayoutOrder.filter(thread => {
-      const laneMetadata = props.streamLaneLayoutMap?.[thread.threadId];
+      const laneMetadata = getTraceLayoutThreadLaneMetadata({
+        streamLaneLayoutMap: props.streamLaneLayoutMap,
+        threadLaneLayoutMapByRef: props.threadLaneLayoutMapByRef,
+        threadId: thread.threadId,
+        threadRef: threadRefByThread.get(thread)
+      });
       return (
         (!hideStreamsWithoutLaneMetadata || laneMetadata !== undefined) &&
         streamIsVisible(thread, props.settings)
@@ -1427,19 +1447,25 @@ export function calculateTraceLayout(props: {
             return combinedAssignmentOverride;
           }
           const combinedLaneAssignmentStartTime = performance.now();
-          const visibleThreadIds = new Set(visibleThreads.map(thread => thread.threadId));
-          const visibleBlockCount = rankLaneBlocks.filter(block =>
-            visibleThreadIds.has(block.threadId)
-          ).length;
-          if (visibleBlockCount > 0) {
+          const visibleThreadRefs = new Set(
+            visibleThreads.flatMap(thread => {
+              const threadRef = threadRefByThread.get(thread);
+              return threadRef != null ? [threadRef] : [];
+            })
+          );
+          const visibleSpanCount = rankLaneSpans.filter(span => {
+            const threadRef = getSpanOwnerThreadRef(props.traceGraph, span.spanRef);
+            return threadRef != null && visibleThreadRefs.has(threadRef);
+          }).length;
+          if (visibleSpanCount > 0) {
             laneLayoutCallCount += 1;
-            laneLayoutBlockCount += visibleBlockCount;
+            laneLayoutSpanCount += visibleSpanCount;
           }
           const combinedAssignments = getCombinedRankLaneAssignments({
             rank,
-            spans: rankLaneBlocks,
+            spans: rankLaneSpans,
             localDependencies: rankLaneLocalDependencies,
-            visibleThreadIds,
+            visibleThreadRefs,
             maxTimeMs,
             maxVisibleLanesPerThread: props.settings.maxVisibleLanesPerThread,
             maxVisibleLanesUnlimited: props.settings.maxVisibleLanesUnlimited
@@ -1462,8 +1488,12 @@ export function calculateTraceLayout(props: {
       );
       const combinedVisibleLaneIndices = Array.from(
         threadsInLayoutOrder.reduce((laneIndices, thread) => {
-          const visibleLaneIndices =
-            props.streamLaneLayoutMap?.[thread.threadId]?.visibleLaneIndices;
+          const visibleLaneIndices = getTraceLayoutThreadLaneMetadata({
+            streamLaneLayoutMap: props.streamLaneLayoutMap,
+            threadLaneLayoutMapByRef: props.threadLaneLayoutMapByRef,
+            threadId: thread.threadId,
+            threadRef: threadRefByThread.get(thread)
+          })?.visibleLaneIndices;
           visibleLaneIndices?.forEach(laneIndex => {
             if (
               Number.isInteger(laneIndex) &&
@@ -1521,14 +1551,22 @@ export function calculateTraceLayout(props: {
           threadLayout: combinedBaseStreamLayout,
           overflowSpanCount,
           threads: threadsInLayoutOrder,
-          threadRefs: rank.threadRefs,
+          threadRefs: threadsInLayoutOrder.flatMap(thread => {
+            const threadRef = threadRefByThread.get(thread);
+            return threadRef != null ? [threadRef] : [];
+          }),
           traceGraph: props.traceGraph,
           labelLaneSeparation: laneSeparation
         })
       } satisfies ThreadLayout;
 
       for (const thread of threadsInLayoutOrder) {
-        const laneMetadata = props.streamLaneLayoutMap?.[thread.threadId];
+        const laneMetadata = getTraceLayoutThreadLaneMetadata({
+          streamLaneLayoutMap: props.streamLaneLayoutMap,
+          threadLaneLayoutMapByRef: props.threadLaneLayoutMapByRef,
+          threadId: thread.threadId,
+          threadRef: threadRefByThread.get(thread)
+        });
         const isVisible =
           !rankIsCollapsed &&
           (!hideStreamsWithoutLaneMetadata || laneMetadata !== undefined) &&
@@ -1543,20 +1581,23 @@ export function calculateTraceLayout(props: {
           streamVisibleLaneIndices === effectiveCombinedVisibleLaneIndices;
         if (streamMatchesCombinedLayout) {
           /*
-           * In combine-threads mode most logical threads render the exact same rank row. Keep the
-           * per-thread map entries for lookup compatibility, but point them at the canonical
-           * combined layout so downstream rank-delta passes translate one object instead of
-           * cloning one layout per logical thread. Only do this when the rank has no hidden
-           * per-thread rows; collapsed or filtered threads need their own invisible layout so
-           * navigable geometry can remain zero-height for those thread refs.
+           * In combine-threads mode most logical threads render the exact same rank row. Point
+           * their exact thread refs at the canonical combined layout so downstream rank-delta
+           * passes translate one object instead of cloning one layout per logical thread. Only do
+           * this when the rank has no hidden per-thread rows; collapsed or filtered threads need
+           * their own invisible layout so navigable geometry can remain zero-height for those refs.
            */
-          threadLayoutMap[thread.threadId] = combinedStreamLayout;
+          const threadRef = threadRefByThread.get(thread);
+          if (threadRef != null) {
+            threadLayoutMapByRef.set(threadRef, combinedStreamLayout);
+          }
           continue;
         }
         const laneCount = visibleLaneCountForRank || 1;
+        const threadRef = threadRefByThread.get(thread);
         const streamLayout = {
           ...combinedStreamLayout,
-          threadRef: threadRefByStreamId.get(thread.threadId),
+          threadRef,
           threadId: thread.threadId,
           visible: isVisible,
           yPosition: isVisible ? baseYPosition : -1000,
@@ -1582,8 +1623,9 @@ export function calculateTraceLayout(props: {
               : undefined,
           spanLaneMap: isVisible ? combinedSpanLaneMap : undefined
         } satisfies ThreadLayout;
-
-        threadLayoutMap[thread.threadId] = streamLayout;
+        if (threadRef != null) {
+          threadLayoutMapByRef.set(threadRef, streamLayout);
+        }
       }
 
       threadLayouts.push(combinedStreamLayout);
@@ -1595,12 +1637,18 @@ export function calculateTraceLayout(props: {
     } else {
       let currentLaneY = rankContentStartY;
       threadsInLayoutOrder.forEach(thread => {
-        const laneMetadata = props.streamLaneLayoutMap?.[thread.threadId];
+        const laneMetadata = getTraceLayoutThreadLaneMetadata({
+          streamLaneLayoutMap: props.streamLaneLayoutMap,
+          threadLaneLayoutMapByRef: props.threadLaneLayoutMapByRef,
+          threadId: thread.threadId,
+          threadRef: threadRefByThread.get(thread)
+        });
         const isVisible =
           !rankIsCollapsed &&
           (!hideStreamsWithoutLaneMetadata || laneMetadata !== undefined) &&
           streamIsVisible(thread, props.settings);
-        const spansForThread = threadBlocks?.get(thread.threadId) ?? [];
+        const threadRef = threadRefByThread.get(thread);
+        const spansForThread = threadRef == null ? [] : (threadSpans?.get(threadRef) ?? []);
         const disableLaneAssignment = getLaneAssignmentMode(rank.userData) === 'none';
         const separateLaneAssignmentStartTime = performance.now();
         const inferredLaneMap = {
@@ -1608,15 +1656,15 @@ export function calculateTraceLayout(props: {
           maxLane: -1
         };
         if (disableLaneAssignment) {
-          for (const block of spansForThread) {
-            if (block.spanRef != null) {
-              inferredLaneMap.map.set(block.spanRef, 0);
+          for (const span of spansForThread) {
+            if (span.spanRef != null) {
+              inferredLaneMap.map.set(span.spanRef, 0);
             }
           }
           inferredLaneMap.maxLane = spansForThread.length > 0 ? 0 : -1;
         } else {
           laneLayoutCallCount += 1;
-          laneLayoutBlockCount += spansForThread.length;
+          laneLayoutSpanCount += spansForThread.length;
           const hasSeparateParentHints = hasParentHintsForSpans(
             spansForThread,
             explicitParentByChild
@@ -1627,16 +1675,16 @@ export function calculateTraceLayout(props: {
             {
               ...(hasSeparateParentHints
                 ? {
-                    getParentSpanId: (block: TraceSpanLaneSource) =>
-                      explicitParentByChild?.get(block.spanId)
+                    getParentSpanRef: (span: TraceSpanLaneSource) =>
+                      explicitParentByChild?.get(span.spanRef)
                   }
                 : {}),
               ...(hasSeparateLaneAffinity ? {getLaneAffinityKey: getTraceLaneAffinityKey} : {}),
               maxTimeMs
             },
-            (block, lane) => {
-              if (block.spanRef != null) {
-                inferredLaneMap.map.set(block.spanRef, lane);
+            (span, lane) => {
+              if (span.spanRef != null) {
+                inferredLaneMap.map.set(span.spanRef, lane);
               }
             }
           );
@@ -1651,8 +1699,10 @@ export function calculateTraceLayout(props: {
           props.settings.maxVisibleLanesUnlimited
         );
         const defaultCollapsed = false;
-        const isExplicitlyExpanded = props.expandedStreamIds?.has(thread.threadId) ?? false;
-        const isExplicitlyCollapsed = props.collapsedStreamIds?.has(thread.threadId) ?? false;
+        const isExplicitlyExpanded =
+          threadRef != null && (props.expandedThreadRefs?.has(threadRef) ?? false);
+        const isExplicitlyCollapsed =
+          threadRef != null && (props.collapsedThreadRefs?.has(threadRef) ?? false);
         const isCollapsed = isExplicitlyCollapsed
           ? true
           : isExplicitlyExpanded
@@ -1714,7 +1764,7 @@ export function calculateTraceLayout(props: {
         }
 
         const streamLayout = {
-          threadRef: threadRefByStreamId.get(thread.threadId),
+          threadRef,
           threadId: thread.threadId,
           visible: effectiveIsVisible,
           yPosition,
@@ -1739,10 +1789,7 @@ export function calculateTraceLayout(props: {
                 } satisfies ThreadLayout,
                 overflowSpanCount,
                 threads: [thread],
-                threadRefs:
-                  threadRefByStreamId.get(thread.threadId) != null
-                    ? [threadRefByStreamId.get(thread.threadId)!]
-                    : undefined,
+                threadRefs: threadRef != null ? [threadRef] : [],
                 traceGraph: props.traceGraph,
                 labelLaneSeparation: laneSeparation
               })
@@ -1758,8 +1805,9 @@ export function calculateTraceLayout(props: {
           overflowSpanCount,
           spanLaneMap: effectiveSpanLaneMap
         } satisfies ThreadLayout;
-
-        threadLayoutMap[thread.threadId] = streamLayout;
+        if (threadRef != null) {
+          threadLayoutMapByRef.set(threadRef, streamLayout);
+        }
         threadLayouts.push(streamLayout);
 
         if (effectiveIsVisible) {
@@ -1801,6 +1849,7 @@ export function calculateTraceLayout(props: {
           )
         : baseRankYSpacing;
     const rankLayout = {
+      processRef: rank.processRef,
       isCollapsed: rankIsCollapsed,
       yOffset: yOffset,
       yHeight: rankContentSpacing,
@@ -1844,9 +1893,9 @@ export function calculateTraceLayout(props: {
 
   log.probe(
     1,
-    `lane-layout calculateTraceLayout done aggregationMode=${aggregationMode} processes=${processes.length} visibleThreads=${totalVisibleThreadCount} laneLayoutCalls=${laneLayoutCallCount} laneLayoutBlocks=${laneLayoutBlockCount} blockBucketingMs=${blockBucketingDurationMs.toFixed(1)} combinedLaneMs=${combinedLaneAssignmentDurationMs.toFixed(1)} separateLaneMs=${separateLaneAssignmentDurationMs.toFixed(1)} rankAssemblyMs=${rankAssemblyDurationMs.toFixed(1)} totalMs=${(performance.now() - layoutStartTime).toFixed(1)}`,
+    `lane-layout calculateTraceLayout done aggregationMode=${aggregationMode} processes=${processes.length} visibleThreads=${totalVisibleThreadCount} laneLayoutCalls=${laneLayoutCallCount} laneLayoutSpans=${laneLayoutSpanCount} spanBucketingMs=${spanBucketingDurationMs.toFixed(1)} combinedLaneMs=${combinedLaneAssignmentDurationMs.toFixed(1)} separateLaneMs=${separateLaneAssignmentDurationMs.toFixed(1)} rankAssemblyMs=${rankAssemblyDurationMs.toFixed(1)} totalMs=${(performance.now() - layoutStartTime).toFixed(1)}`,
     {
-      blockBucketingDurationMs,
+      spanBucketingDurationMs,
       combinedLaneAssignmentDurationMs,
       separateLaneAssignmentDurationMs,
       rankAssemblyDurationMs,
@@ -1858,15 +1907,16 @@ export function calculateTraceLayout(props: {
   const overflowLabels = buildTraceLayoutOverflowLabels(processLayouts);
   return {
     layout: {
-      layoutConfiguration: {laneSeparation: props.layoutConfiguration.laneSeparation},
+      layoutConfiguration: {
+        laneSeparation: props.layoutConfiguration.laneSeparation,
+        spanHeight: props.layoutConfiguration.spanHeight,
+        minTimeMs: props.traceGraph.minTimeMs
+      },
       traceGraph: props.traceGraph,
       processLayouts,
+      processLayoutMapByRef: buildTraceLayoutProcessLayoutMapByRef(processLayouts),
       renderRows: [],
-      threadLayoutMap,
-      spanGeometryChunks: [],
-      spanVisibilityMapBySpanRef: new Map(),
-      localDependencyGeometryChunks: [],
-      crossDependencyGeometryChunks: [],
+      threadLayoutMapByRef,
       overflowLabels,
       currentBounds: [
         [0, 0],
@@ -1881,58 +1931,94 @@ export function calculateTraceLayout(props: {
   } satisfies {layout: TraceLayout; rankSpacings: number[]};
 }
 
+/** Returns lane metadata for one thread, preferring canonical runtime refs over local ids. */
+function getTraceLayoutThreadLaneMetadata(params: {
+  /** Optional lane metadata keyed by process-local thread id for legacy callers. */
+  readonly streamLaneLayoutMap?: Readonly<Record<TraceThreadId, ThreadLaneMetadata>>;
+  /** Optional lane metadata keyed by canonical runtime thread ref for ref-native callers. */
+  readonly threadLaneLayoutMapByRef?: ReadonlyMap<ThreadRef, ThreadLaneMetadata>;
+  /** Process-local thread id used by legacy lane metadata. */
+  readonly threadId: TraceThreadId;
+  /** Canonical runtime thread ref used by ref-native lane metadata. */
+  readonly threadRef?: ThreadRef;
+}): ThreadLaneMetadata | undefined {
+  return (
+    (params.threadRef != null ? params.threadLaneLayoutMapByRef?.get(params.threadRef) : null) ??
+    params.streamLaneLayoutMap?.[params.threadId]
+  );
+}
+
 /**
  * Builds preferred child-to-parent hints from visible local dependencies and timing extents.
  */
 export function buildExplicitParentSpanMap(params: {
-  spans: readonly TraceLayoutLaneBlockSource[];
+  /** Visible spans eligible for explicit parent lookup. */
+  spans: readonly TraceLayoutLaneSpanSource[];
   localDependencies: readonly TraceLayoutLaneDependencySource[];
   maxTimeMs: number;
-}): Map<TraceSpanId, TraceSpanId> {
-  const blockTimings = new Map<TraceSpanId, {startTimeMs: number; endTimeMs: number}>();
-  for (const block of params.spans) {
-    const timingExtent = getSpanExtremalTiming(block, params.maxTimeMs);
-    blockTimings.set(block.spanId, timingExtent);
+}): Map<SpanRef, SpanRef> {
+  const spanTimings = new Map<
+    SpanRef,
+    {
+      /** Visible span start time used for parent containment scoring. */
+      startTimeMs: number;
+      /** Visible span end time used for parent containment scoring. */
+      endTimeMs: number;
+    }
+  >();
+  for (const span of params.spans) {
+    const timingExtent = getSpanExtremalTiming(span, params.maxTimeMs);
+    spanTimings.set(span.spanRef, timingExtent);
   }
 
   const parentCandidates = new Map<
-    TraceSpanId,
-    Array<{parentId: TraceSpanId; isExplicitParent: boolean}>
+    SpanRef,
+    Array<{
+      /** Candidate parent span ref. */
+      parentRef: SpanRef;
+      /** Whether the candidate came from an explicit parent dependency. */
+      isExplicitParent: boolean;
+    }>
   >();
   for (const dependency of params.localDependencies) {
-    const parentId = dependency.startSpanId;
-    const childId = dependency.endSpanId;
-    if (!blockTimings.has(parentId) || !blockTimings.has(childId)) {
+    const parentRef = dependency.startSpanRef;
+    const childRef = dependency.endSpanRef;
+    if (
+      parentRef == null ||
+      childRef == null ||
+      !spanTimings.has(parentRef) ||
+      !spanTimings.has(childRef)
+    ) {
       continue;
     }
 
-    const existing = parentCandidates.get(childId);
+    const existing = parentCandidates.get(childRef);
     if (existing) {
       existing.push({
-        parentId,
+        parentRef,
         isExplicitParent: dependency.hasParentKeyword === true
       });
     } else {
-      parentCandidates.set(childId, [
+      parentCandidates.set(childRef, [
         {
-          parentId,
+          parentRef,
           isExplicitParent: dependency.hasParentKeyword === true
         }
       ]);
     }
   }
 
-  const explicitParentByChild = new Map<TraceSpanId, TraceSpanId>();
-  for (const [childId, candidates] of parentCandidates) {
-    const childTiming = blockTimings.get(childId);
+  const explicitParentByChild = new Map<SpanRef, SpanRef>();
+  for (const [childRef, candidates] of parentCandidates) {
+    const childTiming = spanTimings.get(childRef);
     if (!childTiming) {
       continue;
     }
 
-    let bestParentId: TraceSpanId | null = null;
+    let bestParentRef: SpanRef | null = null;
     let bestParentSpan = Number.POSITIVE_INFINITY;
     for (const candidate of candidates) {
-      const parentTiming = blockTimings.get(candidate.parentId);
+      const parentTiming = spanTimings.get(candidate.parentRef);
       if (!parentTiming) {
         continue;
       }
@@ -1947,12 +2033,12 @@ export function buildExplicitParentSpanMap(params: {
       const candidateSpan = parentTiming.endTimeMs - parentTiming.startTimeMs;
       if (candidateSpan < bestParentSpan) {
         bestParentSpan = candidateSpan;
-        bestParentId = candidate.parentId;
+        bestParentRef = candidate.parentRef;
       }
     }
 
-    if (bestParentId != null) {
-      explicitParentByChild.set(childId, bestParentId);
+    if (bestParentRef != null) {
+      explicitParentByChild.set(childRef, bestParentRef);
     }
   }
   return explicitParentByChild;
@@ -1960,9 +2046,9 @@ export function buildExplicitParentSpanMap(params: {
 
 /** Returns the conventional span trace id used for soft lane affinity when available. */
 export function getTraceLaneAffinityKey(
-  block: Pick<TraceSpanLaneSource, 'userData'>
+  span: Pick<TraceSpanLaneSource, 'userData'>
 ): string | number | bigint | null {
-  const userData = block.userData;
+  const userData = span.userData;
   const affinityKey = userData?.traceId ?? userData?.trace_id;
   return typeof affinityKey === 'string' ||
     typeof affinityKey === 'number' ||
@@ -1971,32 +2057,31 @@ export function getTraceLaneAffinityKey(
     : null;
 }
 
-/** Returns whether any lane block carries conventional trace-affinity metadata. */
+/** Returns whether any lane span carries conventional trace-affinity metadata. */
 export function hasTraceLaneAffinity(
-  blocks: readonly Pick<TraceSpanLaneSource, 'userData'>[]
+  spans: readonly Pick<TraceSpanLaneSource, 'userData'>[]
 ): boolean {
-  return blocks.some(block => getTraceLaneAffinityKey(block) != null);
+  return spans.some(span => getTraceLaneAffinityKey(span) != null);
 }
 
 /** Returns whether the lane-assignment batch has at least one explicit parent hint. */
 export function hasParentHintsForSpans(
-  spans: readonly Pick<TraceSpanLaneSource, 'spanId'>[],
-  explicitParentByChild: ReadonlyMap<TraceSpanId, TraceSpanId> | undefined
+  spans: readonly Pick<TraceSpanLaneSource, 'spanRef'>[],
+  explicitParentByChild: ReadonlyMap<SpanRef, SpanRef> | undefined
 ): boolean {
   if (!explicitParentByChild || explicitParentByChild.size === 0) {
     return false;
   }
-  return spans.some(span => explicitParentByChild.has(span.spanId));
+  return spans.some(span => explicitParentByChild.has(span.spanRef));
 }
 
 export function buildTraceLocalDependencyGeometries(params: {
   localDependencies: TraceLocalDependencySource[];
-  spanMap: Record<string, TraceSpanGeometrySource>;
+  /** Renderable spans keyed by canonical runtime span ref. */
+  spanByRef: ReadonlyMap<SpanRef, TraceSpanGeometrySource>;
   maxTimeMs: number;
-  threadLayoutMap: Record<string, ThreadLayout>;
-  /** Ref-native layout lookup used before falling back to stream-id layout lookup. */
-  layoutLookup?: TraceGeometryLayoutLookup;
-  streamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
+  /** Ref-native layout lookup used for geometry construction. */
+  layoutLookup: TraceGeometryLayoutLookup;
   minTimeMs: number;
   dependencyGeometryMap: Record<TraceDependencyId, Float32Array>;
   settings: {
@@ -2004,14 +2089,14 @@ export function buildTraceLocalDependencyGeometries(params: {
     dependencyKeywords?: string[];
   };
 }): void {
-  const {localDependencies, spanMap, threadLayoutMap, minTimeMs, dependencyGeometryMap} = params;
+  const {localDependencies, spanByRef, minTimeMs, dependencyGeometryMap} = params;
   const resolvedMaxTimeMs =
     Number.isFinite(params.maxTimeMs) && params.maxTimeMs > 0
       ? params.maxTimeMs
       : Number.MAX_SAFE_INTEGER;
   const {dependencyDisplayMode, dependencyKeywords = []} = params.settings;
-  let skippedStartBlockCount = 0;
-  let skippedEndBlockCount = 0;
+  let skippedStartSpanCount = 0;
+  let skippedEndSpanCount = 0;
 
   for (const localDep of localDependencies) {
     if (dependencyDisplayMode === 'exclude') {
@@ -2020,35 +2105,35 @@ export function buildTraceLocalDependencyGeometries(params: {
       }
     }
 
-    const startBlock = spanMap[localDep.startSpanId];
-    if (!startBlock) {
-      skippedStartBlockCount += 1;
+    const startSpan =
+      localDep.startSpanRef == null ? undefined : spanByRef.get(localDep.startSpanRef);
+    if (!startSpan) {
+      skippedStartSpanCount += 1;
       continue;
     }
 
-    const endBlock = spanMap[localDep.endSpanId];
-    if (!endBlock) {
-      skippedEndBlockCount += 1;
+    const endSpan = localDep.endSpanRef == null ? undefined : spanByRef.get(localDep.endSpanRef);
+    if (!endSpan) {
+      skippedEndSpanCount += 1;
       continue;
     }
 
     dependencyGeometryMap[localDep.dependencyId] = getLocalDependencyPathFlat({
-      startBlock,
-      endBlock,
-      threadLayoutMap,
+      startSpan,
+      endSpan,
       layoutLookup: params.layoutLookup,
-      streamToProcessLayoutMap: params.streamToProcessLayoutMap,
       maxTimeMs: resolvedMaxTimeMs,
       minTimeMs,
       waitMode: localDep.waitMode,
-      bidirectional: localDep.bidirectional
+      bidirectional: localDep.bidirectional,
+      isParentDependency: localDep.keywords.has('PARENT')
     });
   }
 
-  if (skippedStartBlockCount > 0 || skippedEndBlockCount > 0) {
+  if (skippedStartSpanCount > 0 || skippedEndSpanCount > 0) {
     log.probe(1, 'Skipped local dependency geometries with missing endpoint spans', {
-      skippedStartBlockCount,
-      skippedEndBlockCount
+      skippedStartSpanCount,
+      skippedEndSpanCount
     })();
   }
 }
@@ -2057,29 +2142,28 @@ export function buildTraceCrossRankDependencyGeometries(params: {
   crossDependencies: Readonly<TraceCrossDependencySource[]>;
   maxTimeMs: number;
   minTimeMs: number;
-  spanMap: Record<string, TraceSpanGeometrySource>;
-  threadLayoutMap: Record<string, ThreadLayout>;
-  /** Ref-native layout lookup used before falling back to stream-id layout lookup. */
-  layoutLookup?: TraceGeometryLayoutLookup;
-  streamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
+  /** Renderable spans keyed by canonical runtime span ref. */
+  spanByRef: ReadonlyMap<SpanRef, TraceSpanGeometrySource>;
+  /** Ref-native layout lookup used for geometry construction. */
+  layoutLookup: TraceGeometryLayoutLookup;
   dependencyGeometryMap: Record<TraceDependencyId, Float32Array>;
 }): void {
   const geometryStartTime = performance.now();
   const {crossDependencies, dependencyGeometryMap} = params;
   log.probe(1, `deck-trace-layers cross rank geometry start`)();
-  let skippedStartBlockCount = 0;
-  let skippedEndBlockCount = 0;
+  let skippedStartSpanCount = 0;
+  let skippedEndSpanCount = 0;
 
   for (const crossDep of crossDependencies) {
     const result = buildTraceCrossRankDependencyGeometry({...params, crossDependency: crossDep});
     if (result.skippedEndpoint === 'start') {
-      skippedStartBlockCount += 1;
-      log.log('Cross dependency start block not found', crossDep.startSpanId)();
+      skippedStartSpanCount += 1;
+      log.log('Cross dependency start span not found', crossDep.startSpanId)();
       continue;
     }
     if (result.skippedEndpoint === 'end') {
-      skippedEndBlockCount += 1;
-      log.log('Cross dependency end block not found', crossDep.endSpanId)();
+      skippedEndSpanCount += 1;
+      log.log('Cross dependency end span not found', crossDep.endSpanId)();
       continue;
     }
     if (result.geometry) {
@@ -2090,14 +2174,14 @@ export function buildTraceCrossRankDependencyGeometries(params: {
   log.probe(1, 'deck-trace-layers cross rank geometries complete', {
     totalCrossDependencyCount: crossDependencies.length,
     builtCrossGeometryCount: Object.keys(dependencyGeometryMap).length,
-    skippedStartBlockCount,
-    skippedEndBlockCount,
+    skippedStartSpanCount,
+    skippedEndSpanCount,
     durationMs: performance.now() - geometryStartTime
   })();
 }
 
 /**
- * Builds one cross-process dependency geometry from already-resolved layout/block maps.
+ * Builds one cross-process dependency geometry from already-resolved layout/span maps.
  */
 export function buildTraceCrossRankDependencyGeometry(params: {
   /** Cross-process dependency to render. */
@@ -2106,41 +2190,39 @@ export function buildTraceCrossRankDependencyGeometry(params: {
   maxTimeMs: number;
   /** Canonical timeline minimum time. */
   minTimeMs: number;
-  /** Geometry-time block payloads keyed by block id. */
-  spanMap: Record<string, TraceSpanGeometrySource>;
-  /** Current thread layouts keyed by stream id. */
-  threadLayoutMap: Record<string, ThreadLayout>;
-  /** Ref-native layout lookup used before falling back to stream-id layout lookup. */
-  layoutLookup?: TraceGeometryLayoutLookup;
-  /** Current process layouts keyed by stream id. */
-  streamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
+  /** Geometry-time span payloads keyed by exact span ref. */
+  spanByRef: ReadonlyMap<SpanRef, TraceSpanGeometrySource>;
+  /** Ref-native layout lookup used for geometry construction. */
+  layoutLookup: TraceGeometryLayoutLookup;
 }): {geometry: Float32Array | null; skippedEndpoint: 'start' | 'end' | null} {
-  const {crossDependency, spanMap, threadLayoutMap, streamToProcessLayoutMap, minTimeMs} = params;
+  const {crossDependency, spanByRef, minTimeMs} = params;
   const resolvedMaxTimeMs =
     Number.isFinite(params.maxTimeMs) && params.maxTimeMs > 0
       ? params.maxTimeMs
       : Number.MAX_SAFE_INTEGER;
-  const startBlock = crossDependency.startSpanId && spanMap[crossDependency.startSpanId];
-  if (!startBlock) {
+  const startSpan =
+    crossDependency.startSpanRef == null ? undefined : spanByRef.get(crossDependency.startSpanRef);
+  if (!startSpan) {
     return {geometry: null, skippedEndpoint: 'start'};
   }
 
-  const endBlock = crossDependency.endSpanId && spanMap[crossDependency.endSpanId];
-  if (!endBlock) {
+  const endSpan =
+    crossDependency.endSpanRef == null ? undefined : spanByRef.get(crossDependency.endSpanRef);
+  if (!endSpan) {
     return {geometry: null, skippedEndpoint: 'end'};
   }
 
   return {
     geometry: getCrossRankDependencyPathFlat({
-      startBlock,
-      endBlock,
-      threadLayoutMap,
+      startSpan,
+      endSpan,
       layoutLookup: params.layoutLookup,
-      streamToProcessLayoutMap,
       maxTimeMs: resolvedMaxTimeMs,
       minTimeMs,
       waitMode: crossDependency.waitMode,
-      bidirectional: crossDependency.bidirectional
+      bidirectional: crossDependency.bidirectional,
+      isParentDependency:
+        crossDependency.keywords.has('PARENT') || crossDependency.topology === 'parent'
     }),
     skippedEndpoint: null
   };
@@ -2152,101 +2234,67 @@ export type SpanBoundingBox = Float32Array;
 const EMPTY_BBOX: SpanBoundingBox = new Float32Array([0, 0, 0, 0]);
 
 /**
- * Resolves the thread layout that owns a geometry block in the current TraceGraph ref namespace.
+ * Resolves the thread layout that owns a geometry span in the current TraceGraph ref namespace.
  */
-function getThreadLayoutForGeometryBlock(
-  block: TraceSpanGeometrySource,
-  threadLayoutMap: Record<string, ThreadLayout>,
-  layoutLookup?: TraceGeometryLayoutLookup
+function getThreadLayoutForGeometrySpan(
+  span: TraceSpanGeometrySource,
+  layoutLookup: TraceGeometryLayoutLookup
 ): ThreadLayout | undefined {
-  const fallbackLayout =
-    layoutLookup?.fallbackThreadLayoutMap?.[block.threadId] ?? threadLayoutMap[block.threadId];
-  if (
-    fallbackLayout &&
-    !fallbackLayout.visible &&
-    (block.threadRef == null || fallbackLayout.threadRef === block.threadRef)
-  ) {
-    return fallbackLayout;
-  }
-
-  if (layoutLookup && block.threadRef != null) {
-    const refLayout = layoutLookup.threadLayoutsByRef.get(block.threadRef);
+  const threadRef = getSpanOwnerThreadRef(layoutLookup.traceGraph, span.spanRef);
+  if (threadRef != null) {
+    const refLayout = layoutLookup.threadLayoutsByRef.get(threadRef);
     if (refLayout) {
       return refLayout;
     }
   }
-  if (layoutLookup && block.spanRef != null) {
-    const spanLayout = layoutLookup.threadLayoutsBySpanRef.get(block.spanRef);
-    if (spanLayout) {
-      return spanLayout;
-    }
-    const threadRef = layoutLookup.traceGraph.getThreadRefBySpanRef(block.spanRef);
-    if (threadRef != null) {
-      const refLayout = layoutLookup.threadLayoutsByRef.get(threadRef);
-      if (refLayout) {
-        return refLayout;
-      }
-    }
-  }
-
-  return fallbackLayout;
+  return undefined;
 }
 
 /**
- * Resolves the process layout that owns a geometry block in the current TraceGraph ref namespace.
+ * Resolves the process layout that owns a geometry span in the current TraceGraph ref namespace.
  */
-function getProcessLayoutForGeometryBlock(
-  block: TraceSpanGeometrySource,
-  streamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>,
-  layoutLookup?: TraceGeometryLayoutLookup
+function getProcessLayoutForGeometrySpan(
+  span: TraceSpanGeometrySource,
+  layoutLookup: TraceGeometryLayoutLookup
 ): ProcessLayout | undefined {
-  if (layoutLookup && block.processRef != null) {
-    const refLayout = layoutLookup.processLayoutsByRef.get(block.processRef);
+  const processRef = layoutLookup.traceGraph.getProcessRefBySpanRef(span.spanRef);
+  if (processRef != null) {
+    const refLayout = layoutLookup.processLayoutsByRef.get(processRef);
     if (refLayout) {
       return refLayout;
     }
   }
-  if (layoutLookup && block.spanRef != null) {
-    const spanLayout = layoutLookup.processLayoutsBySpanRef.get(block.spanRef);
-    if (spanLayout) {
-      return spanLayout;
-    }
-    const processRef = layoutLookup.traceGraph.getProcessRefBySpanRef(block.spanRef);
-    if (processRef != null) {
-      const refLayout = layoutLookup.processLayoutsByRef.get(processRef);
-      if (refLayout) {
-        return refLayout;
-      }
-    }
-  }
+  return undefined;
+}
 
-  return (
-    layoutLookup?.fallbackStreamToProcessLayoutMap?.[block.threadId] ??
-    streamToProcessLayoutMap?.[block.threadId]
-  );
+/** Resolves one span's exact owning thread ref from the current graph namespace. */
+function getSpanOwnerThreadRef(
+  traceGraph: Pick<TraceGraph, 'getThreadRefBySpanRef'>,
+  spanRef: SpanRef
+): ThreadRef | null {
+  return traceGraph.getThreadRefBySpanRef(spanRef);
 }
 
 export function getSpanBoundingBox(
-  block: TraceSpanGeometrySource,
-  threadLayoutMap: Record<string, ThreadLayout>,
+  span: TraceSpanGeometrySource,
+  layoutLookup: TraceGeometryLayoutLookup,
   maxTimeMs: number,
   minTimeMs: number,
-  blockHeight = 0.3,
-  layoutLookup?: TraceGeometryLayoutLookup
+  spanHeight = 0.3
 ): SpanBoundingBox {
-  const streamLayout = getThreadLayoutForGeometryBlock(block, threadLayoutMap, layoutLookup);
+  const streamLayout = getThreadLayoutForGeometrySpan(span, layoutLookup);
   if (!streamLayout) {
-    log.log(1, 'Stream layout not found for block', block.threadId)();
+    log.log(1, 'Stream layout not found for span', span.threadId)();
     return EMPTY_BBOX;
   }
-  const processLayout = getProcessLayoutForGeometryBlock(block, undefined, layoutLookup);
-  const manualSpanLayout = getManualSpanLayoutGeometry(block);
+  const processLayout = getProcessLayoutForGeometrySpan(span, layoutLookup);
+  const manualSpanLayout = getManualSpanLayoutGeometry(span);
   const isManualThreadLayout = streamLayout.manualContentHeight != null;
   if (isManualThreadLayout) {
     if (!manualSpanLayout) {
       return EMPTY_BBOX;
     }
-    const timing = getSpanExtremalTiming(block, maxTimeMs);
+    const timing = getSpanExtremalTiming(span, maxTimeMs);
     const xs = timing.startTimeMs - minTimeMs;
     const xe = timing.endTimeMs - minTimeMs;
     if (!processLayout?.isCollapsed && streamLayout.visible) {
@@ -2254,7 +2302,7 @@ export function getSpanBoundingBox(
       return buildSpanBoundingBox(xs, ys, xe, ys + manualSpanLayout.height);
     }
 
-    const hiddenYPosition = getHiddenBlockYPosition({
+    const hiddenYPosition = getHiddenSpanYPosition({
       laneIndex: 0,
       processLayout,
       streamLayout
@@ -2264,8 +2312,8 @@ export function getSpanBoundingBox(
       : buildSpanBoundingBox(xs, hiddenYPosition, xe, hiddenYPosition);
   }
 
-  const laneIndex = getSpanLaneIndex(block, streamLayout);
-  const timing = getSpanExtremalTiming(block, maxTimeMs);
+  const laneIndex = getSpanLaneIndex(span, streamLayout);
+  const timing = getSpanExtremalTiming(span, maxTimeMs);
   const xs = timing.startTimeMs - minTimeMs;
   const resolvedEndTimeMs = timing.endTimeMs;
   const xe = resolvedEndTimeMs - minTimeMs;
@@ -2276,10 +2324,10 @@ export function getSpanBoundingBox(
     isLaneVisible(streamLayout, laneIndex)
   ) {
     const yPosition = getLaneYPosition(streamLayout, laneIndex);
-    return buildSpanBoundingBox(xs, yPosition - blockHeight / 2, xe, yPosition + blockHeight / 2);
+    return buildSpanBoundingBox(xs, yPosition - spanHeight / 2, xe, yPosition + spanHeight / 2);
   }
 
-  const hiddenYPosition = getHiddenBlockYPosition({
+  const hiddenYPosition = getHiddenSpanYPosition({
     laneIndex: Math.max(0, laneIndex),
     processLayout,
     streamLayout
@@ -2302,7 +2350,7 @@ function buildSpanBoundingBox(xs: number, ys: number, xe: number, ye: number): S
 }
 
 /** Resolves the deterministic zero-height y anchor for one layout-hidden span. */
-function getHiddenBlockYPosition(params: {
+function getHiddenSpanYPosition(params: {
   laneIndex: number;
   processLayout?: ProcessLayout;
   streamLayout: ThreadLayout;
@@ -2348,27 +2396,15 @@ function getHiddenLaneYPosition(streamLayout: ThreadLayout, laneIndex: number): 
   return getLaneYPosition(streamLayout, Math.min(laneIndex, renderedLaneCount - 1));
 }
 
-/** Returns layout-specific visibility for one block geometry source. */
-export function getTraceLayoutSpanVisibilityForBlock(params: {
-  /** Geometry block whose current layout visibility should be resolved. */
-  block: TraceSpanGeometrySource;
-  /** Thread layouts keyed by process-local stream id. */
-  threadLayoutMap: Record<string, ThreadLayout>;
-  /** Optional process layouts keyed by process-local stream id. */
-  streamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
-  /** Ref-native layout lookup used before falling back to stream-id layout lookup. */
-  layoutLookup?: TraceGeometryLayoutLookup;
+/** Returns layout-specific visibility for one span geometry source. */
+export function getTraceLayoutSpanVisibilityForSpan(params: {
+  /** Geometry span whose current layout visibility should be resolved. */
+  span: TraceSpanGeometrySource;
+  /** Ref-native layout lookup used for visibility resolution. */
+  layoutLookup: TraceGeometryLayoutLookup;
 }): TraceLayoutSpanVisibility {
-  const streamLayout = getThreadLayoutForGeometryBlock(
-    params.block,
-    params.threadLayoutMap,
-    params.layoutLookup
-  );
-  const processLayout = getProcessLayoutForGeometryBlock(
-    params.block,
-    params.streamToProcessLayoutMap,
-    params.layoutLookup
-  );
+  const streamLayout = getThreadLayoutForGeometrySpan(params.span, params.layoutLookup);
+  const processLayout = getProcessLayoutForGeometrySpan(params.span, params.layoutLookup);
   const flags: TraceLayoutSpanVisibilityFlag[] = [];
   if (processLayout?.isCollapsed) {
     flags.push(traceLayoutSpanVisibilityFlags.processCollapsed);
@@ -2378,7 +2414,7 @@ export function getTraceLayoutSpanVisibilityForBlock(params: {
   }
 
   if (streamLayout?.manualContentHeight != null) {
-    if (!getManualSpanLayoutGeometry(params.block)) {
+    if (!getManualSpanLayoutGeometry(params.span)) {
       flags.push(traceLayoutSpanVisibilityFlags.laneHidden);
     }
     const visibilityFlags = getTraceLayoutSpanVisibilityMask(flags);
@@ -2388,7 +2424,7 @@ export function getTraceLayoutSpanVisibilityForBlock(params: {
     };
   }
 
-  const laneIndex = getSpanLaneIndex(params.block, streamLayout);
+  const laneIndex = getSpanLaneIndex(params.span, streamLayout);
   if (laneIndex < 0) {
     flags.push(traceLayoutSpanVisibilityFlags.laneHidden);
   } else if (streamLayout?.lanes) {
@@ -2423,13 +2459,14 @@ export function getTraceLayoutSpanVisibilityForBlock(params: {
   };
 }
 
-function getSpanLaneIndex(block: TraceSpanGeometrySource, streamLayout?: ThreadLayout): number {
+/** Returns the rendered lane index for one geometry span within its thread layout. */
+function getSpanLaneIndex(span: TraceSpanGeometrySource, streamLayout?: ThreadLayout): number {
   if (!streamLayout) {
     return INVALID_LANE_INDEX;
   }
 
-  if (block.spanRef != null && streamLayout.spanLaneMap) {
-    const mappedLane = streamLayout.spanLaneMap.get(block.spanRef);
+  if (span.spanRef != null && streamLayout.spanLaneMap) {
+    const mappedLane = streamLayout.spanLaneMap.get(span.spanRef);
     if (typeof mappedLane === 'number' && Number.isFinite(mappedLane)) {
       const mappedLaneIndex = Math.floor(mappedLane);
       if (Number.isFinite(mappedLaneIndex)) {
@@ -2543,13 +2580,13 @@ export function isLaneVisible(streamLayout: ThreadLayout, laneIndex: number): bo
 }
 
 function getStartAndEndTimeMs(
-  startBlock: TraceSpanGeometrySource,
-  endBlock: TraceSpanGeometrySource,
+  startSpan: TraceSpanGeometrySource,
+  endSpan: TraceSpanGeometrySource,
   waitMode: 'end-to-start' | 'end-to-end' | 'start-to-start',
   maxTimeMs = Number.MAX_SAFE_INTEGER
 ): {startTimeMs: number; endTimeMs: number} {
-  const startTiming = getSpanExtremalTiming(startBlock, maxTimeMs);
-  const endTiming = getSpanExtremalTiming(endBlock, maxTimeMs);
+  const startTiming = getSpanExtremalTiming(startSpan, maxTimeMs);
+  const endTiming = getSpanExtremalTiming(endSpan, maxTimeMs);
   switch (waitMode) {
     case 'end-to-start':
       return {startTimeMs: startTiming.endTimeMs, endTimeMs: endTiming.startTimeMs};
@@ -2563,53 +2600,34 @@ function getStartAndEndTimeMs(
 }
 
 export function getLocalDependencyPathFlat(params: {
-  startBlock: TraceSpanGeometrySource;
-  endBlock: TraceSpanGeometrySource;
-  threadLayoutMap: Record<string, ThreadLayout>;
-  /** Ref-native layout lookup used before falling back to stream-id layout lookup. */
-  layoutLookup?: TraceGeometryLayoutLookup;
-  streamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
+  /** Rendered dependency start span. */
+  startSpan: TraceSpanGeometrySource;
+  /** Rendered dependency end span. */
+  endSpan: TraceSpanGeometrySource;
+  /** Ref-native layout lookup used for path construction. */
+  layoutLookup: TraceGeometryLayoutLookup;
   waitMode: 'end-to-start' | 'end-to-end' | 'start-to-start';
   bidirectional: boolean;
+  /** Whether this dependency represents a parent-to-child span relationship. */
+  isParentDependency?: boolean;
   maxTimeMs: number;
   minTimeMs: number;
 }): Float32Array {
-  const {
-    startBlock,
-    endBlock,
-    threadLayoutMap,
-    layoutLookup,
-    streamToProcessLayoutMap,
-    waitMode,
-    maxTimeMs,
-    minTimeMs
-  } = params;
+  const {startSpan, endSpan, layoutLookup, waitMode, maxTimeMs, minTimeMs} = params;
 
-  const startStreamLayout = getThreadLayoutForGeometryBlock(
-    startBlock,
-    threadLayoutMap,
-    layoutLookup
-  );
-  const endStreamLayout = getThreadLayoutForGeometryBlock(endBlock, threadLayoutMap, layoutLookup);
+  const startStreamLayout = getThreadLayoutForGeometrySpan(startSpan, layoutLookup);
+  const endStreamLayout = getThreadLayoutForGeometrySpan(endSpan, layoutLookup);
   if (!startStreamLayout || !endStreamLayout) {
     return EMPTY_FLOAT_ARRAY;
   }
 
-  const startProcessLayout = getProcessLayoutForGeometryBlock(
-    startBlock,
-    streamToProcessLayoutMap,
-    layoutLookup
-  );
-  const endProcessLayout = getProcessLayoutForGeometryBlock(
-    endBlock,
-    streamToProcessLayoutMap,
-    layoutLookup
-  );
+  const startProcessLayout = getProcessLayoutForGeometrySpan(startSpan, layoutLookup);
+  const endProcessLayout = getProcessLayoutForGeometrySpan(endSpan, layoutLookup);
   const startStreamCollapsed = Boolean(startProcessLayout?.isCollapsed);
   const endStreamCollapsed = Boolean(endProcessLayout?.isCollapsed);
 
-  let startLaneIndex = getSpanLaneIndex(startBlock, startStreamLayout);
-  let endLaneIndex = getSpanLaneIndex(endBlock, endStreamLayout);
+  let startLaneIndex = getSpanLaneIndex(startSpan, startStreamLayout);
+  let endLaneIndex = getSpanLaneIndex(endSpan, endStreamLayout);
   if (startLaneIndex < 0 && startStreamCollapsed) {
     startLaneIndex = 0;
   }
@@ -2620,26 +2638,23 @@ export function getLocalDependencyPathFlat(params: {
     return EMPTY_FLOAT_ARRAY;
   }
 
-  const {startTimeMs, endTimeMs} = getStartAndEndTimeMs(startBlock, endBlock, waitMode, maxTimeMs);
+  const {startTimeMs, endTimeMs} =
+    params.isParentDependency === true
+      ? getParentDependencyStartAndEndTimeMs(startSpan, endSpan, maxTimeMs)
+      : getStartAndEndTimeMs(startSpan, endSpan, waitMode, maxTimeMs);
 
   const xs = startTimeMs - minTimeMs;
   const xe = endTimeMs - minTimeMs;
   const xmid = (xe + xs) / 2;
   const ys = resolveCrossRankDependencyEndpointY({
-    block: startBlock,
-    threadId: startBlock.threadId,
-    threadLayoutMap,
-    streamToProcessLayoutMap,
+    span: startSpan,
     streamLayout: startStreamLayout,
     processLayout: startProcessLayout,
     laneIndex: startLaneIndex,
     isCollapsedDependency: startStreamCollapsed
   });
   const ye = resolveCrossRankDependencyEndpointY({
-    block: endBlock,
-    threadId: endBlock.threadId,
-    threadLayoutMap,
-    streamToProcessLayoutMap,
+    span: endSpan,
     streamLayout: endStreamLayout,
     processLayout: endProcessLayout,
     laneIndex: endLaneIndex,
@@ -2662,19 +2677,18 @@ export function getLocalDependencyPathFlat(params: {
 }
 
 function resolveCrossRankDependencyEndpointY(params: {
-  block?: TraceSpanGeometrySource;
-  threadId: TraceThreadId;
-  threadLayoutMap: Record<string, ThreadLayout>;
-  streamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
-  streamLayout?: ThreadLayout;
+  /** Rendered dependency endpoint span, when materialized. */
+  span?: TraceSpanGeometrySource;
+  /** Thread layout owning the dependency endpoint. */
+  streamLayout: ThreadLayout;
   processLayout?: ProcessLayout;
   laneIndex: number;
   isCollapsedDependency?: boolean;
   peerY?: number;
 }): number | undefined {
-  const streamLayout = params.streamLayout ?? params.threadLayoutMap[params.threadId];
+  const streamLayout = params.streamLayout;
   if (streamLayout?.manualContentHeight != null) {
-    const manualSpanLayout = params.block ? getManualSpanLayoutGeometry(params.block) : null;
+    const manualSpanLayout = params.span ? getManualSpanLayoutGeometry(params.span) : null;
     if (!manualSpanLayout) {
       return undefined;
     }
@@ -2697,9 +2711,7 @@ function resolveCrossRankDependencyEndpointY(params: {
     return undefined;
   }
 
-  const fallbackY =
-    params.processLayout?.collapsedActivityY ??
-    params.streamToProcessLayoutMap?.[params.threadId]?.collapsedActivityY;
+  const fallbackY = params.processLayout?.collapsedActivityY;
   if (typeof fallbackY === 'number' && Number.isFinite(fallbackY)) {
     if (typeof params.peerY === 'number') {
       if (params.peerY < fallbackY) {
@@ -2714,52 +2726,34 @@ function resolveCrossRankDependencyEndpointY(params: {
 }
 
 function getCrossRankDependencyPathFlat(params: {
-  startBlock: TraceSpanGeometrySource;
-  endBlock: TraceSpanGeometrySource;
-  threadLayoutMap: Record<string, ThreadLayout>;
-  layoutLookup?: TraceGeometryLayoutLookup;
-  streamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
+  /** Rendered dependency start span. */
+  startSpan: TraceSpanGeometrySource;
+  /** Rendered dependency end span. */
+  endSpan: TraceSpanGeometrySource;
+  /** Ref-native layout lookup used for path construction. */
+  layoutLookup: TraceGeometryLayoutLookup;
   waitMode: 'end-to-start' | 'end-to-end' | 'start-to-start';
   bidirectional: boolean;
+  /** Whether this dependency represents a parent-to-child span relationship. */
+  isParentDependency?: boolean;
   maxTimeMs: number;
   minTimeMs: number;
 }): Float32Array {
-  const {
-    startBlock,
-    endBlock,
-    threadLayoutMap,
-    layoutLookup,
-    streamToProcessLayoutMap,
-    waitMode,
-    maxTimeMs,
-    minTimeMs
-  } = params;
+  const {startSpan, endSpan, layoutLookup, waitMode, maxTimeMs, minTimeMs} = params;
 
-  const startStreamLayout = getThreadLayoutForGeometryBlock(
-    startBlock,
-    threadLayoutMap,
-    layoutLookup
-  );
-  const endStreamLayout = getThreadLayoutForGeometryBlock(endBlock, threadLayoutMap, layoutLookup);
+  const startStreamLayout = getThreadLayoutForGeometrySpan(startSpan, layoutLookup);
+  const endStreamLayout = getThreadLayoutForGeometrySpan(endSpan, layoutLookup);
   if (!startStreamLayout || !endStreamLayout) {
     return EMPTY_FLOAT_ARRAY;
   }
 
-  const startProcessLayout = getProcessLayoutForGeometryBlock(
-    startBlock,
-    streamToProcessLayoutMap,
-    layoutLookup
-  );
-  const endProcessLayout = getProcessLayoutForGeometryBlock(
-    endBlock,
-    streamToProcessLayoutMap,
-    layoutLookup
-  );
+  const startProcessLayout = getProcessLayoutForGeometrySpan(startSpan, layoutLookup);
+  const endProcessLayout = getProcessLayoutForGeometrySpan(endSpan, layoutLookup);
   const startStreamCollapsed = Boolean(startProcessLayout?.isCollapsed);
   const endStreamCollapsed = Boolean(endProcessLayout?.isCollapsed);
 
-  let startLaneIndex = getSpanLaneIndex(startBlock, startStreamLayout);
-  let endLaneIndex = getSpanLaneIndex(endBlock, endStreamLayout);
+  let startLaneIndex = getSpanLaneIndex(startSpan, startStreamLayout);
+  let endLaneIndex = getSpanLaneIndex(endSpan, endStreamLayout);
   if (startLaneIndex < 0 && startStreamCollapsed) {
     startLaneIndex = 0;
   }
@@ -2772,20 +2766,14 @@ function getCrossRankDependencyPathFlat(params: {
   }
 
   const startLaneY = resolveCrossRankDependencyEndpointY({
-    block: startBlock,
-    threadId: startBlock.threadId,
-    threadLayoutMap,
-    streamToProcessLayoutMap,
+    span: startSpan,
     streamLayout: startStreamLayout,
     processLayout: startProcessLayout,
     laneIndex: startLaneIndex,
     isCollapsedDependency: startProcessLayout?.isCollapsed
   });
   const endLaneY = resolveCrossRankDependencyEndpointY({
-    block: endBlock,
-    threadId: endBlock.threadId,
-    threadLayoutMap,
-    streamToProcessLayoutMap,
+    span: endSpan,
     streamLayout: endStreamLayout,
     processLayout: endProcessLayout,
     laneIndex: endLaneIndex,
@@ -2793,10 +2781,7 @@ function getCrossRankDependencyPathFlat(params: {
   });
 
   const ys = resolveCrossRankDependencyEndpointY({
-    block: startBlock,
-    threadId: startBlock.threadId,
-    threadLayoutMap,
-    streamToProcessLayoutMap,
+    span: startSpan,
     streamLayout: startStreamLayout,
     processLayout: startProcessLayout,
     laneIndex: startLaneIndex,
@@ -2804,10 +2789,7 @@ function getCrossRankDependencyPathFlat(params: {
     peerY: endLaneY
   });
   const ye = resolveCrossRankDependencyEndpointY({
-    block: endBlock,
-    threadId: endBlock.threadId,
-    threadLayoutMap,
-    streamToProcessLayoutMap,
+    span: endSpan,
     streamLayout: endStreamLayout,
     processLayout: endProcessLayout,
     laneIndex: endLaneIndex,
@@ -2819,7 +2801,10 @@ function getCrossRankDependencyPathFlat(params: {
     return EMPTY_FLOAT_ARRAY;
   }
 
-  const {startTimeMs, endTimeMs} = getStartAndEndTimeMs(startBlock, endBlock, waitMode, maxTimeMs);
+  const {startTimeMs, endTimeMs} =
+    params.isParentDependency === true
+      ? getParentDependencyStartAndEndTimeMs(startSpan, endSpan, maxTimeMs)
+      : getStartAndEndTimeMs(startSpan, endSpan, waitMode, maxTimeMs);
   const xs = startTimeMs - minTimeMs;
   const xe = endTimeMs - minTimeMs;
   void params.bidirectional;
@@ -2833,26 +2818,42 @@ function getCrossRankDependencyPathFlat(params: {
   return path;
 }
 
+/** Returns parent-child dependency endpoints from source start to child start. */
+function getParentDependencyStartAndEndTimeMs(
+  parentSpan: TraceSpanGeometrySource,
+  childSpan: TraceSpanGeometrySource,
+  maxTimeMs = Number.MAX_SAFE_INTEGER
+): {
+  /** Parent dependency start time. */
+  startTimeMs: number;
+  /** Parent dependency child-start time. */
+  endTimeMs: number;
+} {
+  const parentTiming = getSpanExtremalTiming(parentSpan, maxTimeMs);
+  const childTiming = getSpanExtremalTiming(childSpan, maxTimeMs);
+  return {startTimeMs: parentTiming.startTimeMs, endTimeMs: childTiming.startTimeMs};
+}
+
 /**
  * Returns validated author-provided manual span geometry, or null when the span should be hidden.
  */
 export function getManualSpanLayoutGeometry(
-  block: Pick<TraceSpanGeometrySource, 'layoutTopY' | 'layoutHeight'>
+  span: Pick<TraceSpanGeometrySource, 'layoutTopY' | 'layoutHeight'>
 ): {readonly topY: number; readonly height: number} | null {
   if (
-    typeof block.layoutTopY !== 'number' ||
-    !Number.isFinite(block.layoutTopY) ||
-    block.layoutTopY < 0 ||
-    typeof block.layoutHeight !== 'number' ||
-    !Number.isFinite(block.layoutHeight) ||
-    block.layoutHeight <= 0
+    typeof span.layoutTopY !== 'number' ||
+    !Number.isFinite(span.layoutTopY) ||
+    span.layoutTopY < 0 ||
+    typeof span.layoutHeight !== 'number' ||
+    !Number.isFinite(span.layoutHeight) ||
+    span.layoutHeight <= 0
   ) {
     return null;
   }
 
   return {
-    topY: block.layoutTopY,
-    height: block.layoutHeight
+    topY: span.layoutTopY,
+    height: span.layoutHeight
   };
 }
 

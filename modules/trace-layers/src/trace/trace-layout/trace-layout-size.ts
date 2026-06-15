@@ -1,10 +1,4 @@
-import type {
-  ProcessLayout,
-  ThreadLayout,
-  TraceLayout,
-  TraceLayoutGeometryColumn,
-  TraceLayoutProcessGeometryCacheEntry
-} from './trace-layout';
+import type {ProcessLayout, ThreadLayout, TraceLayout} from './trace-layout';
 
 /** A byte-size estimate for one TraceLayout component. */
 export type TraceLayoutSizeEntry = {
@@ -30,16 +24,14 @@ export type TraceLayoutSizeReport = {
 
 /** Options for {@link estimateTraceLayoutSize}. */
 export type TraceLayoutSizeOptions = {
-  /** Whether to include reusable geometry caches kept on layout outputs. */
-  includeGeometryCache?: boolean;
   /** Whether to include nested minimap layouts stored by primary layouts. */
   includeMinimapLayouts?: boolean;
 };
 
 /**
  * Estimates chunk storage for one or more TraceLayout outputs without walking source
- * TraceGraphs. Geometry buffers are de-duplicated by backing ArrayBuffer, and large maps are
- * estimated from entry counts so status updates stay cheap on large traces.
+ * TraceGraphs. Typed arrays are de-duplicated by backing ArrayBuffer, and large maps are estimated
+ * from entry counts so status updates stay cheap on large traces.
  */
 export function estimateTraceLayoutSize(
   traceLayouts: Readonly<TraceLayout> | readonly TraceLayout[],
@@ -50,7 +42,6 @@ export function estimateTraceLayoutSize(
     entries: [],
     seenBuffers: new WeakSet<ArrayBufferLike>(),
     seenObjects: new WeakSet<object>(),
-    includeGeometryCache: options.includeGeometryCache ?? true,
     includeMinimapLayouts: options.includeMinimapLayouts ?? true
   };
 
@@ -75,7 +66,6 @@ type TraceLayoutSizeContext = {
   entries: TraceLayoutSizeEntry[];
   seenBuffers: WeakSet<ArrayBufferLike>;
   seenObjects: WeakSet<object>;
-  includeGeometryCache: boolean;
   includeMinimapLayouts: boolean;
 };
 
@@ -89,29 +79,11 @@ function estimateLayout(
     return;
   }
 
-  addObjectEntry(context, path, 20);
+  addObjectEntry(context, path, 21);
   estimateProcessLayouts(layout.processLayouts, `${path}.processLayouts`, context);
+  estimateMapShallow(layout.processLayoutMapByRef, `${path}.processLayoutMapByRef`, context);
   estimateRenderRows(layout.renderRows, `${path}.renderRows`, context);
-  estimateObjectRecordShallow(layout.threadLayoutMap, `${path}.threadLayoutMap`, context);
   estimateMapShallow(layout.threadLayoutMapByRef, `${path}.threadLayoutMapByRef`, context);
-  estimateGeometryColumns(layout.spanGeometryChunks, `${path}.spanGeometryChunks`, context);
-  estimateMapShallow(
-    layout.spanVisibilityMapBySpanRef,
-    `${path}.spanVisibilityMapBySpanRef`,
-    context,
-    48
-  );
-  estimateGeometryColumns(
-    layout.localDependencyGeometryChunks,
-    `${path}.localDependencyGeometryChunks`,
-    context
-  );
-  estimateGeometryColumns(
-    layout.crossDependencyGeometryChunks,
-    `${path}.crossDependencyGeometryChunks`,
-    context
-  );
-  estimateGeometryCache(layout.geometryCache, `${path}.geometryCache`, context);
   addArrayEntry(context, `${path}.overflowLabels`, layout.overflowLabels.length, 64);
   addArrayEntry(context, `${path}.currentBounds`, 2, 32);
   addArrayEntry(context, `${path}.expandedBounds`, 2, 32);
@@ -228,111 +200,8 @@ function estimateRenderRows(
     addObjectEntry(context, rowPath, 8);
     estimateString(row.processId, `${rowPath}.processId`, context);
     estimateString(row.name, `${rowPath}.name`, context);
-    addArrayEntry(context, `${rowPath}.threadRefs`, row.threadRefs?.length ?? 0, 8);
+    addArrayEntry(context, `${rowPath}.threadRefs`, row.threadRefs.length, 8);
   });
-}
-
-/** Adds estimated stored bytes for reusable geometry cache state. */
-function estimateGeometryCache(
-  geometryCache: TraceLayout['geometryCache'],
-  path: string,
-  context: TraceLayoutSizeContext
-): void {
-  if (!context.includeGeometryCache || !geometryCache || !markObjectSeen(geometryCache, context)) {
-    return;
-  }
-
-  addObjectEntry(context, path, 5);
-  estimateObjectRecordShallow(geometryCache.processesById, `${path}.processesById`, context);
-  Object.entries(geometryCache.processesById).forEach(([processId, entry]) =>
-    estimateGeometryCacheEntry(entry, `${path}.processesById.${processId}`, context)
-  );
-  estimateGeometryColumns(geometryCache.spanGeometryChunks, `${path}.spanGeometryChunks`, context);
-  estimateGeometryColumns(
-    geometryCache.localDependencyGeometryChunks,
-    `${path}.localDependencyGeometryChunks`,
-    context
-  );
-  estimateGeometryColumns(
-    geometryCache.crossDependencyGeometryChunks,
-    `${path}.crossDependencyGeometryChunks`,
-    context
-  );
-  estimateMapShallow(
-    geometryCache.crossDependencyReuseKeyByVisibleRef,
-    `${path}.crossDependencyReuseKeyByVisibleRef`,
-    context,
-    32
-  );
-}
-
-/** Adds estimated stored bytes for one process geometry cache entry. */
-function estimateGeometryCacheEntry(
-  entry: TraceLayoutProcessGeometryCacheEntry,
-  path: string,
-  context: TraceLayoutSizeContext
-): void {
-  if (!markObjectSeen(entry, context)) {
-    return;
-  }
-
-  addObjectEntry(context, path, 10);
-  estimateString(entry.processId, `${path}.processId`, context);
-  estimateString(entry.fastReuseKey, `${path}.fastReuseKey`, context);
-  estimateString(entry.reuseKey, `${path}.reuseKey`, context);
-  estimateGeometryColumns(entry.spanGeometryChunks, `${path}.spanGeometryChunks`, context);
-  estimateGeometryColumns(
-    entry.localDependencyGeometryChunks,
-    `${path}.localDependencyGeometryChunks`,
-    context
-  );
-}
-
-/** Adds estimated stored bytes for sparse geometry column chunks. */
-function estimateGeometryColumns(
-  chunks: readonly TraceLayoutGeometryColumn[] | undefined,
-  path: string,
-  context: TraceLayoutSizeContext
-): void {
-  if (!chunks || !markObjectSeen(chunks, context)) {
-    return;
-  }
-
-  addArrayEntry(context, path, chunks.length, 64);
-  chunks.forEach((chunk, index) => estimateGeometryColumn(chunk, `${path}[${index}]`, context));
-}
-
-/** Adds estimated stored bytes for one packed geometry column. */
-function estimateGeometryColumn(
-  column: TraceLayoutGeometryColumn | undefined,
-  path: string,
-  context: TraceLayoutSizeContext
-): void {
-  if (!column || !markObjectSeen(column, context)) {
-    return;
-  }
-
-  addObjectEntry(context, path, 2);
-  estimateTypedArray(column.values, `${path}.values`, context, column.values.length / 4);
-}
-
-/** Adds a shallow size estimate for a plain object record. */
-function estimateObjectRecordShallow(
-  record: object | undefined,
-  path: string,
-  context: TraceLayoutSizeContext,
-  valueBytes = 16
-): void {
-  if (!record || !markObjectSeen(record, context)) {
-    return;
-  }
-  const keys = Object.keys(record);
-  addObjectEntry(
-    context,
-    path,
-    keys.length,
-    keys.reduce((sum, key) => sum + key.length * 2, 0) + keys.length * valueBytes
-  );
 }
 
 /** Adds a shallow size estimate for a map. */

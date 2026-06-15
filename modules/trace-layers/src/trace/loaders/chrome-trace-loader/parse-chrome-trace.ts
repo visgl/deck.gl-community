@@ -78,15 +78,6 @@ function getTimeUnitToMs(displayTimeUnit?: string): number {
   return TIME_UNIT_TO_MS[normalizedUnit] ?? DEFAULT_TIME_UNIT_TO_MS;
 }
 
-function getChromeTraceFlowBindId(...bindIdCandidates: unknown[]): string {
-  for (const bindIdCandidate of bindIdCandidates) {
-    if (bindIdCandidate != null && bindIdCandidate !== '') {
-      return String(bindIdCandidate);
-    }
-  }
-  return '';
-}
-
 type ParseChromeTraceStats = {
   startTimeMs: number;
   processCount: number;
@@ -248,7 +239,7 @@ export function parseChromeTrace(
       case 'f': {
         thread.flows.push({
           id: `${trackId}:${name}:${eventTs}`,
-          bindId: getChromeTraceFlowBindId(args?.bind_id, e.bind_id, e.id),
+          bindId: e.args?.bind_id || '',
           kind: ph === 's' ? 'start' : ph === 't' ? 'step' : 'end',
           eventKey: `${trackId}:${name}`,
           trackId,

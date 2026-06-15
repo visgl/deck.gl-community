@@ -19,7 +19,6 @@ import type {
   TraceDependency,
   TraceSpanCardDependencyEntry,
   TraceSpanCardParentChainEntry,
-  TraceSpanId,
   TraceStyle
 } from '../../../../../trace/index';
 import type {TraceSpanDoubleClickAction} from '../trace-span-name-badge';
@@ -35,6 +34,10 @@ import type {
 export type TraceSpanDependenciesTabProps = {
   /** Directional dependencies to render before parent-chain rows. */
   dependencies: TraceSpanCardDependencyEntry[];
+  /** Total directional dependency count before card row capping. */
+  dependencyCount?: number;
+  /** Whether directional dependency rows were capped before card render. */
+  dependenciesTruncated?: boolean;
   /** Whether dependency rows should show incoming sources or outgoing targets. */
   direction?: 'incoming' | 'outgoing';
   /** Span currently shown in the card. */
@@ -42,7 +45,7 @@ export type TraceSpanDependenciesTabProps = {
   /** Parent-chain rows to append after direct dependency rows. */
   parentChain: readonly TraceSpanCardParentChainEntry[];
   /** One-based lookup for parent positions in the full parent chain. */
-  parentIndexBySpanId: ReadonlyMap<TraceSpanId, number>;
+  parentIndexBySpanRef: ReadonlyMap<SpanRef, number>;
   /** Leading metric columns rendered before process and span details. */
   metricColumns: readonly TraceSpanDependencyMetricColumn[];
   /** Formatter for the leading metric columns across row kinds. */
@@ -88,9 +91,9 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
   const filterSpanRef = useRef(props.currentSpan.spanRef);
 
   const dependencies = useMemo(() => {
-    const parentSpanIdSet = new Set(parentChain.map(entry => entry.span.spanId));
+    const parentSpanRefSet = new Set(parentChain.map(entry => entry.spanRef));
     return direction === 'incoming'
-      ? props.dependencies.filter(entry => !parentSpanIdSet.has(entry.startSpan.spanId))
+      ? props.dependencies.filter(entry => !parentSpanRefSet.has(entry.startSpanRef))
       : props.dependencies;
   }, [direction, parentChain, props.dependencies]);
   const filteredDependencies = props.filterLabel
@@ -102,12 +105,13 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
     ? filterTraceSpanTableRows(parentChain, filterText, chainEntry =>
         getTraceSpanParentFilterValues(
           chainEntry,
-          props.parentIndexBySpanId.get(chainEntry.span.spanId) ?? chainEntry.chainIndex,
+          props.parentIndexBySpanRef.get(chainEntry.spanRef) ?? chainEntry.chainIndex,
           props.getMetricValues
         )
       )
     : parentChain;
   const hasFilter = filterText.trim().length > 0;
+  const dependencyCount = props.dependencyCount ?? dependencies.length;
   const filteredRowCount = filteredDependencies.length + filteredParentChain.length;
   const rowCount = dependencies.length + parentChain.length;
 
@@ -186,7 +190,7 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
       const isTopologyOnlyFilteredParent =
         hasTraceSpanTopologyFilter(chainEntry.span.filterMask) &&
         !hasTraceSpanRegexpFilter(chainEntry.span.filterMask);
-      const parentIndex = props.parentIndexBySpanId.get(chainEntry.span.spanId) ?? index + 1;
+      const parentIndex = props.parentIndexBySpanRef.get(chainEntry.spanRef) ?? index + 1;
       return [
         ...props.getMetricValues({
           span: chainEntry.span,
@@ -221,7 +225,7 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
 
   if (!interactive && parentChainRows.length > 0) {
     const firstVisibleParentIndex =
-      props.parentIndexBySpanId.get(filteredParentChain[0]!.span.spanId) ?? 1;
+      props.parentIndexBySpanRef.get(filteredParentChain[0]!.spanRef) ?? 1;
     const hiddenLeadingParentCount = Math.max(0, firstVisibleParentIndex - 1);
     const hiddenLeadingRow =
       hiddenLeadingParentCount > 0
@@ -247,12 +251,12 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
     }
   }
 
-  if (!interactive && dependencyRows.length > 3) {
+  if (!interactive && dependencyCount > 3 && dependencyRows.length > 0) {
     dependencyRows = [
       dependencyRows[0],
       buildPlaceholderRow(
         props.metricColumns.length,
-        `...omitted ${dependencyRows.length - 2} dependencies`
+        `...omitted ${dependencyCount - 2} dependencies`
       ),
       dependencyRows[dependencyRows.length - 1]
     ];
@@ -281,6 +285,11 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
           filteredRowCount={filteredRowCount}
           rowCount={rowCount}
         />
+      ) : null}
+      {interactive && props.dependenciesTruncated && !hasFilter ? (
+        <div className="pb-1 text-xs text-muted-foreground">
+          Showing {props.dependencies.length} of {dependencyCount} dependencies
+        </div>
       ) : null}
       {!props.filterLabel || !hasFilter || rows.length > 0 ? (
         <div

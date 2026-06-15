@@ -9,11 +9,10 @@ import type {
   TraceDependencyRef,
   VisibleLocalDependencyRef
 } from '../trace-graph/trace-id-encoder';
-import type {SpanRef, TraceThreadId} from '../trace-graph/trace-types';
 import type {
   TraceGeometryLayoutLookup,
-  TraceLayoutLaneBlockSource,
   TraceLayoutLaneDependencySource,
+  TraceLayoutLaneSpanSource,
   TraceSpanGeometrySource
 } from './trace-geometry-layout-common';
 import type {
@@ -21,31 +20,12 @@ import type {
   ThreadLayout,
   TraceLayout,
   TraceLayoutBounds,
-  TraceLayoutSourceProcess,
   TraceLayoutVisibleGraph,
   TraceLayoutVisibleProcessMetadata
 } from './trace-layout';
 
 const objectIdentityIds = new WeakMap<object, number>();
 let nextObjectIdentityId = 1;
-
-/** Builds process-local thread layout lookup maps without repeated linear scans. */
-export function buildThreadLayoutLookup(processLayout: ProcessLayout | undefined): {
-  layoutByThreadId: ReadonlyMap<TraceThreadId, ThreadLayout>;
-  layoutByThreadRef: ReadonlyMap<ThreadRef, ThreadLayout>;
-} {
-  const layoutByThreadId = new Map<TraceThreadId, ThreadLayout>();
-  const layoutByThreadRef = new Map<ThreadRef, ThreadLayout>();
-  for (const threadLayout of processLayout?.threadLayouts ?? []) {
-    if (threadLayout.threadId != null) {
-      layoutByThreadId.set(threadLayout.threadId, threadLayout);
-    }
-    if (threadLayout.threadRef != null) {
-      layoutByThreadRef.set(threadLayout.threadRef, threadLayout);
-    }
-  }
-  return {layoutByThreadId, layoutByThreadRef};
-}
 
 /** Returns all y positions occupied by a thread layout, including expanded lanes. */
 export function getThreadLayoutYPositions(layout: ThreadLayout): number[] {
@@ -90,7 +70,6 @@ export function buildVisibleTraceGraph(traceGraph: Readonly<TraceGraph>): TraceL
       rankNum: processSource.rankNum,
       threads: rawProcess.threads,
       threadRefs: traceGraph.getThreadRefsByProcessRef(processRef),
-      threadMap: rawProcess.threadMap,
       userData: processSource.userData
     });
   }
@@ -137,9 +116,9 @@ export function buildVisibleTraceGraphForProcess(params: {
 }
 
 /**
- * Resolves the visible blocks for one process directly from the filtered source graph.
+ * Resolves the visible geometry spans for one process directly from the filtered source graph.
  */
-export function getVisibleBlocksForProcess(
+export function getVisibleGeometrySpansForProcess(
   visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>,
   processId: string
 ): readonly TraceSpanGeometrySource[] {
@@ -176,14 +155,14 @@ export function getVisibleLocalDependencyRefsForProcess(
     : visibleTraceGraph.traceGraph.getLocalDependencyRefs(processRef);
 }
 
-/** Resolves lightweight visible lane blocks for one process directly from the filtered source graph. */
-export function getVisibleLaneBlocksForProcess(
+/** Resolves lightweight visible lane spans for one process directly from the filtered source graph. */
+export function getVisibleLaneSpansForProcess(
   visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>,
   processId: string
-): readonly TraceLayoutLaneBlockSource[] {
+): readonly TraceLayoutLaneSpanSource[] {
   const processRef = getProcessRefByProcessId(visibleTraceGraph, processId);
   return processRef != null
-    ? visibleTraceGraph.traceGraph.getVisibleProcessLayoutBlocks(processRef)
+    ? visibleTraceGraph.traceGraph.getVisibleProcessGeometrySources(processRef)
     : [];
 }
 
@@ -273,82 +252,19 @@ export function getProcessSpanChunkCacheKey(
   ].join('|');
 }
 
-/** Builds a process-layout lookup keyed by process-local stream id. */
-export function buildStreamToProcessLayoutMap(
-  processes: readonly Pick<TraceLayoutSourceProcess, 'processId' | 'threads'>[],
-  processLayouts: readonly ProcessLayout[]
-): Record<TraceThreadId, ProcessLayout> {
-  return processLayouts.reduce(
-    (acc, processLayout, processIndex) => {
-      const process = processes[processIndex];
-      if (!process) {
-        return acc;
-      }
-
-      for (const thread of process.threads) {
-        acc[thread.threadId] = processLayout;
-      }
-
-      return acc;
-    },
-    {} as Record<TraceThreadId, ProcessLayout>
-  );
-}
-
-/**
- * Builds ref-native layout lookup maps for one visible TraceGraph/layout pair.
- */
+/** Builds ref-native lane layout lookup state for one TraceGraph/layout pair. */
 export function buildTraceGeometryLayoutLookup(params: {
-  visibleTraceGraph: TraceLayoutVisibleGraph;
-  processLayouts: readonly ProcessLayout[];
-  fallbackThreadLayoutMap?: Readonly<Record<TraceThreadId, ThreadLayout>>;
-  fallbackStreamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
+  /** TraceGraph that resolves visible span refs to owner process/thread refs. */
+  traceGraph: Pick<TraceGraph, 'getProcessRefBySpanRef' | 'getThreadRefBySpanRef'>;
+  /** Process layouts keyed by canonical runtime process ref. */
+  processLayoutMapByRef: ReadonlyMap<ProcessRef, ProcessLayout>;
+  /** Thread layouts keyed by canonical runtime thread ref. */
+  threadLayoutMapByRef: ReadonlyMap<ThreadRef, ThreadLayout>;
 }): TraceGeometryLayoutLookup {
-  const threadLayoutsBySpanRef = new Map<SpanRef, ThreadLayout>();
-  const processLayoutsBySpanRef = new Map<SpanRef, ProcessLayout>();
-  const threadLayoutsByRef = new Map<ThreadRef, ThreadLayout>();
-  const processLayoutsByRef = new Map<ProcessRef, ProcessLayout>();
-
-  params.visibleTraceGraph.processes.forEach((process, processIndex) => {
-    const processLayout = params.processLayouts[processIndex];
-    if (!processLayout) {
-      return;
-    }
-    if (process.processRef != null) {
-      processLayoutsByRef.set(process.processRef, processLayout);
-    }
-    if (processLayout.threadLayouts.length === 1) {
-      const combinedThreadLayout = processLayout.threadLayouts[0];
-      if (combinedThreadLayout) {
-        process.threadRefs?.forEach(threadRef => {
-          threadLayoutsByRef.set(threadRef, combinedThreadLayout);
-        });
-      }
-      return;
-    }
-
-    const {layoutByThreadId, layoutByThreadRef} = buildThreadLayoutLookup(processLayout);
-    for (const [threadIndex, thread] of process.threads.entries()) {
-      const threadRef = process.threadRefs?.[threadIndex];
-      if (threadRef == null) {
-        continue;
-      }
-      const threadLayout =
-        layoutByThreadId.get(thread.threadId) ?? layoutByThreadRef.get(threadRef);
-      if (threadLayout) {
-        threadLayoutsByRef.set(threadRef, threadLayout);
-      }
-    }
-  });
-
   return {
-    traceGraph: params.visibleTraceGraph.traceGraph,
-    threadLayoutsBySpanRef,
-    processLayoutsBySpanRef,
-    threadLayoutsByRef,
-    processLayoutsByRef,
-    fallbackThreadLayoutMap: params.fallbackThreadLayoutMap,
-    fallbackStreamToProcessLayoutMap: params.fallbackStreamToProcessLayoutMap
+    traceGraph: params.traceGraph,
+    threadLayoutsByRef: params.threadLayoutMapByRef,
+    processLayoutsByRef: params.processLayoutMapByRef
   };
 }
 
@@ -357,151 +273,80 @@ export function buildTraceGeometryLayoutLookup(params: {
  */
 export function buildProcessGeometryLayoutLookup(params: {
   globalLookup: TraceGeometryLayoutLookup;
-  process: TraceLayoutVisibleProcessMetadata;
   processLayout?: ProcessLayout;
 }): TraceGeometryLayoutLookup {
-  if (!params.processLayout) {
-    return params.globalLookup;
-  }
-
-  const fallbackThreadLayoutMap: Record<TraceThreadId, ThreadLayout> = {};
-  const fallbackStreamToProcessLayoutMap: Record<TraceThreadId, ProcessLayout> = {};
-  const {layoutByThreadId, layoutByThreadRef} = buildThreadLayoutLookup(params.processLayout);
-  params.process.threads.forEach((thread, threadIndex) => {
-    const threadRef = params.process.threadRefs?.[threadIndex];
-    const threadLayout =
-      params.processLayout!.threadLayouts.length === 1
-        ? params.processLayout!.threadLayouts[0]
-        : (layoutByThreadId.get(thread.threadId) ??
-          (threadRef != null ? layoutByThreadRef.get(threadRef) : undefined) ??
-          params.processLayout!.threadLayouts[threadIndex]);
-    if (threadLayout) {
-      const globalFallbackLayout = params.globalLookup.fallbackThreadLayoutMap?.[thread.threadId];
-      fallbackThreadLayoutMap[thread.threadId] =
-        globalFallbackLayout && !globalFallbackLayout.visible ? globalFallbackLayout : threadLayout;
-    }
-    fallbackStreamToProcessLayoutMap[thread.threadId] = params.processLayout!;
-  });
-
-  return {
-    ...params.globalLookup,
-    fallbackThreadLayoutMap,
-    fallbackStreamToProcessLayoutMap
-  };
+  return params.globalLookup;
 }
 
-/**
- * Resolves a block's thread layout from span refs before using compatibility stream ids.
- */
-export function getThreadLayoutForGeometryBlock(params: {
-  block: TraceSpanGeometrySource;
-  fallbackThreadLayoutMap?: Readonly<Record<TraceThreadId, ThreadLayout>>;
+/** Resolves a span's thread layout from its exact current-graph span ref. */
+export function getThreadLayoutForGeometrySpan(params: {
+  /** Span whose owning thread layout should be resolved. */
+  span: TraceSpanGeometrySource;
   layoutLookup: TraceGeometryLayoutLookup;
 }): ThreadLayout | undefined {
-  const fallbackLayout =
-    params.layoutLookup.fallbackThreadLayoutMap?.[params.block.threadId] ??
-    params.fallbackThreadLayoutMap?.[params.block.threadId];
-  if (
-    fallbackLayout &&
-    !fallbackLayout.visible &&
-    (params.block.threadRef == null || fallbackLayout.threadRef === params.block.threadRef)
-  ) {
-    return fallbackLayout;
-  }
-
-  if (params.block.threadRef != null) {
-    const refLayout = params.layoutLookup.threadLayoutsByRef.get(params.block.threadRef);
+  const threadRef = params.layoutLookup.traceGraph.getThreadRefBySpanRef(params.span.spanRef);
+  if (threadRef != null) {
+    const refLayout = params.layoutLookup.threadLayoutsByRef.get(threadRef);
     if (refLayout) {
       return refLayout;
     }
   }
-  if (params.block.spanRef != null) {
-    const spanLayout = params.layoutLookup.threadLayoutsBySpanRef.get(params.block.spanRef);
-    if (spanLayout) {
-      return spanLayout;
-    }
-    const threadRef = params.layoutLookup.traceGraph.getThreadRefBySpanRef(params.block.spanRef);
-    if (threadRef != null) {
-      const refLayout = params.layoutLookup.threadLayoutsByRef.get(threadRef);
-      if (refLayout) {
-        return refLayout;
-      }
-    }
-  }
-
-  return fallbackLayout;
+  return undefined;
 }
 
-/**
- * Resolves a block's process layout from span refs before using compatibility stream ids.
- */
-export function getProcessLayoutForGeometryBlock(params: {
-  block: TraceSpanGeometrySource;
-  fallbackStreamToProcessLayoutMap?: Readonly<Record<TraceThreadId, ProcessLayout>>;
+/** Resolves a span's process layout from its exact current-graph span ref. */
+export function getProcessLayoutForGeometrySpan(params: {
+  /** Span whose owning process layout should be resolved. */
+  span: TraceSpanGeometrySource;
   layoutLookup: TraceGeometryLayoutLookup;
 }): ProcessLayout | undefined {
-  if (params.block.processRef != null) {
-    const refLayout = params.layoutLookup.processLayoutsByRef.get(params.block.processRef);
+  const processRef = params.layoutLookup.traceGraph.getProcessRefBySpanRef(params.span.spanRef);
+  if (processRef != null) {
+    const refLayout = params.layoutLookup.processLayoutsByRef.get(processRef);
     if (refLayout) {
       return refLayout;
     }
   }
-  if (params.block.spanRef != null) {
-    const spanLayout = params.layoutLookup.processLayoutsBySpanRef.get(params.block.spanRef);
-    if (spanLayout) {
-      return spanLayout;
-    }
-    const processRef = params.layoutLookup.traceGraph.getProcessRefBySpanRef(params.block.spanRef);
-    if (processRef != null) {
-      const refLayout = params.layoutLookup.processLayoutsByRef.get(processRef);
-      if (refLayout) {
-        return refLayout;
-      }
-    }
-  }
 
-  return (
-    params.layoutLookup.fallbackStreamToProcessLayoutMap?.[params.block.threadId] ??
-    params.fallbackStreamToProcessLayoutMap?.[params.block.threadId]
-  );
+  return undefined;
 }
 
-/** Resolves the timing projection used by block and dependency geometry. */
-export function resolveGeometryBlock(
-  block: TraceSpanGeometrySource,
+/** Resolves the timing projection used by span and dependency geometry. */
+export function resolveGeometrySpan(
+  span: TraceSpanGeometrySource,
   timingKey?: string | null
 ): TraceSpanGeometrySource {
   if (!timingKey) {
-    return block;
+    return span;
   }
 
-  const resolvedKey = block.timings[timingKey] ? timingKey : block.primaryTimingKey;
-  const resolvedTiming = block.timings[resolvedKey];
+  const resolvedKey = span.timings[timingKey] ? timingKey : span.primaryTimingKey;
+  const resolvedTiming = span.timings[resolvedKey];
   if (!resolvedTiming) {
-    return block;
+    return span;
   }
-  if (resolvedKey === block.primaryTimingKey && Object.keys(block.timings).length === 1) {
-    return block;
+  if (resolvedKey === span.primaryTimingKey && Object.keys(span.timings).length === 1) {
+    return span;
   }
 
   return {
-    ...block,
+    ...span,
     primaryTimingKey: resolvedKey,
     timings: {[resolvedKey]: resolvedTiming}
   } satisfies TraceSpanGeometrySource;
 }
 
 /**
- * Resolve the concrete timing key that geometry generation would use for one block.
+ * Resolve the concrete timing key that geometry generation would use for one span.
  */
 export function resolveGeometryTimingKey(
-  block: TraceSpanGeometrySource,
+  span: TraceSpanGeometrySource,
   timingKey?: string | null
 ): string {
   if (!timingKey) {
-    return block.primaryTimingKey;
+    return span.primaryTimingKey;
   }
-  return block.timings[timingKey] ? timingKey : block.primaryTimingKey;
+  return span.timings[timingKey] ? timingKey : span.primaryTimingKey;
 }
 
 /**

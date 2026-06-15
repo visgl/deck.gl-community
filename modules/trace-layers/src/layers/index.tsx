@@ -1,7 +1,10 @@
 export {
   ImperativeDeckController,
   imperativeDeckController,
-  type ImperativeDeckControllerTarget
+  type ImperativeDeckControllerTarget,
+  DeckController,
+  deckController,
+  type DeckControllerTarget
 } from './controllers/deck-controller';
 export {
   DeckTraceGraphController,
@@ -11,10 +14,7 @@ export {
 export {buildTracevisViewLayout, type TracevisViewLayoutOptions} from './views/views';
 export {type TraceDragInteractionMode} from './views/trace-orthographic-controller';
 export {getTraceBounds, getVerticalBounds} from './views/deck-trace-graph-view-state';
-export {
-  TraceGraphLayer,
-  type TraceGraphLayerProps
-} from './layers/trace-graph-layer';
+export {TraceGraphLayer, type TraceGraphLayerProps} from './layers/trace-graph-layer';
 export {
   TracePreparedStateLayer,
   type TracePreparedStateLayerPathHighlighting,

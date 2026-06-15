@@ -15,11 +15,11 @@ import {
 import type {
   TraceColorScheme,
   TracePathHighlightingResult,
-  TraceViewState,
   TraceVisSettings
 } from '../../trace/index';
 import type {CompositeLayerProps, Layer, LayerProps} from '@deck.gl/core';
 import type {TraceDeckLayerHandlers, TraceDeckLayerSelection} from './deck-layers';
+import type {TraceViewState} from '../../trace/trace-view-state/trace-view-state';
 
 const DEFAULT_TRACE_DECK_LAYER_HANDLERS: TraceDeckLayerHandlers = {
   onSpanClick: () => undefined

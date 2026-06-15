@@ -18,6 +18,7 @@ import {useCopyToClipboard} from './hooks/use-copy-to-clipboard';
 
 import type {
   SpanRef,
+  TraceDependencyRenderSource,
   TraceEvent,
   TraceGraph,
   TraceLabels,
@@ -39,7 +40,7 @@ export type TraceEventCardRenderer = (
 
 export type TraceTooltipProps = {
   /** deck.gl picking info including the Trace object */
-  object: TraceObject | TraceRenderSpan | null;
+  object: TraceDependencyRenderSource | TraceObject | TraceRenderSpan | null;
   /** Filtered wrapper used by block and dependency cards */
   traceGraph: TraceGraph;
   traceLabels: TraceLabels;
@@ -63,28 +64,31 @@ export type TraceTooltipProps = {
 
 /** Renders a tool tip for one object in the trace graph */
 export function TraceTooltip(props: TraceTooltipProps) {
+  const object = props.object;
   const textToCopy = useMemo(
     () =>
-      isTraceRenderSpanObject(props.object)
+      isTraceRenderSpanObject(object)
         ? JSON.stringify(
             {
-              spanRef: props.object.spanRef,
-              spanId: props.object.spanId,
-              name: props.object.name
+              spanRef: object.spanRef,
+              spanId: object.spanId,
+              name: object.name
             },
             null,
             2
           )
-        : getJSONForTraceObject(props.object || undefined, props.getJSON),
-    [props.object, props.getJSON]
+        : isTraceDependencyRenderSourceObject(object)
+          ? JSON.stringify(object, null, 2)
+          : getJSONForTraceObject(object || undefined, props.getJSON),
+    [object, props.getJSON]
   );
 
   useCopyToClipboard(textToCopy);
 
-  if (isTraceRenderSpanObject(props.object)) {
+  if (isTraceRenderSpanObject(object)) {
     return (
       <TraceSpanCard
-        spanRef={props.object.spanRef}
+        spanRef={object.spanRef}
         traceGraph={props.traceGraph}
         tabOptions={props.traceSpanCardOptions}
         paths={props.paths}
@@ -97,9 +101,9 @@ export function TraceTooltip(props: TraceTooltipProps) {
     );
   }
 
-  switch (props.object?.type) {
+  switch (object?.type) {
     case 'trace-thread':
-      const stream = props.object;
+      const stream = object;
       return (
         <TraceThreadCard
           stream={stream}
@@ -109,7 +113,7 @@ export function TraceTooltip(props: TraceTooltipProps) {
       );
 
     case 'trace-span':
-      const block = props.object;
+      const block = object;
       const spanRef = block.spanRef ?? null;
       if (spanRef == null) {
         return null;
@@ -129,7 +133,7 @@ export function TraceTooltip(props: TraceTooltipProps) {
       );
 
     case 'trace-process-info':
-      const rankData = props.object;
+      const rankData = object;
       return (
         <TraceProcessCard
           processId={rankData.processId}
@@ -142,25 +146,25 @@ export function TraceTooltip(props: TraceTooltipProps) {
       );
 
     case 'trace-instant':
-      return <TraceInstantCard instant={props.object} labels={props.traceLabels} />;
+      return <TraceInstantCard instant={object} labels={props.traceLabels} />;
 
     case 'trace-event': {
-      const traceEventCard = props.renderTraceEventCard?.(props.object, props.traceLabels);
+      const traceEventCard = props.renderTraceEventCard?.(object, props.traceLabels);
       return traceEventCard === undefined ? (
-        <TraceEventCard event={props.object} labels={props.traceLabels} />
+        <TraceEventCard event={object} labels={props.traceLabels} />
       ) : (
         traceEventCard
       );
     }
 
     case 'trace-counter':
-      return <TraceCounterCard counter={props.object} labels={props.traceLabels} />;
+      return <TraceCounterCard counter={object} labels={props.traceLabels} />;
 
     case 'trace-local-dependency': {
-      const dependency = props.object;
+      const dependency = object;
       return (
         <TraceLocalDependencyCard
-          dependency={dependency}
+          dependency={'dependencyId' in dependency ? dependency : undefined}
           dependencyRef={
             dependency.dependencyRef != null &&
             isVisibleLocalDependencyRef(dependency.dependencyRef)
@@ -176,10 +180,10 @@ export function TraceTooltip(props: TraceTooltipProps) {
     }
 
     case 'trace-cross-process-dependency':
-      const crossDep = props.object;
+      const crossDep = object;
       return (
         <TraceCrossProcessDependencyCard
-          crossDep={crossDep}
+          crossDep={'dependencyId' in crossDep ? crossDep : undefined}
           dependencyRef={
             crossDep.dependencyRef != null && isVisibleCrossDependencyRef(crossDep.dependencyRef)
               ? crossDep.dependencyRef
@@ -195,4 +199,15 @@ export function TraceTooltip(props: TraceTooltipProps) {
     default:
       return null;
   }
+}
+
+/** Returns whether one tooltip payload is the lightweight dependency render shape. */
+function isTraceDependencyRenderSourceObject(
+  value: TraceTooltipProps['object']
+): value is TraceDependencyRenderSource {
+  return value != null && 'type' in value
+    ? (value.type === 'trace-local-dependency' ||
+        value.type === 'trace-cross-process-dependency') &&
+        !('dependencyId' in value)
+    : false;
 }

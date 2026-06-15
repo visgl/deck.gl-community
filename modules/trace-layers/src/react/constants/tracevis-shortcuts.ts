@@ -1,7 +1,8 @@
-import {imperativeDeckController} from '../../layers/index';
 import {commandManager} from '@deck.gl-community/panels';
+import {imperativeDeckController} from '../../layers/index';
 
-import type {CommandDefinition, KeyboardShortcut} from '@deck.gl-community/panels';
+import type {CommandDefinition} from '@deck.gl-community/panels';
+import type {KeyboardShortcut} from '@deck.gl-community/panels';
 
 const PERFETTO_COMPAT_BADGE = ['perfetto'];
 const HORIZONTAL_PAN_WASD_PAIR = {

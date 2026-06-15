@@ -5,7 +5,6 @@ import {
 
 import type {TraceGraph} from '../trace-graph/trace-graph';
 import type {ProcessRef, ThreadRef} from '../trace-graph/trace-id-encoder';
-import type {TraceThreadId} from '../trace-graph/trace-types';
 import type {TraceProcessExpansionOverrides} from './trace-collapse-state';
 import type {TraceLayout, TraceLayoutCollapseState} from './trace-layout';
 
@@ -56,19 +55,12 @@ export function getTraceLayoutGraphs(params: {
 export function buildTraceLayoutThreadPruneRequest(params: {
   /** Trace layouts whose visible lane controls should be scanned. */
   traceLayouts: readonly TraceLayout[];
-  /** Trace graphs aligned by layout graph index. */
-  traceGraphs: readonly TraceGraph[];
 }): TraceLayoutThreadPruneRequest {
-  const threadRefMapsByStreamId = buildThreadRefMapsByStreamId(params.traceGraphs);
-  const validThreadRefsByGraph = params.traceLayouts.map((layout, graphIndex) => {
+  const validThreadRefsByGraph = params.traceLayouts.map(layout => {
     const validLaneThreadRefs = new Set<ThreadRef>();
-    const threadRefByStreamId = threadRefMapsByStreamId[graphIndex];
-    Object.entries(layout.threadLayoutMap).forEach(([threadId, streamLayout]) => {
+    layout.threadLayoutMapByRef.forEach((streamLayout, threadRef) => {
       if (streamLayout.lanes) {
-        const threadRef = threadRefByStreamId?.get(threadId as TraceThreadId);
-        if (threadRef != null) {
-          validLaneThreadRefs.add(threadRef);
-        }
+        validLaneThreadRefs.add(threadRef);
       }
     });
     return validLaneThreadRefs;
@@ -78,14 +70,14 @@ export function buildTraceLayoutThreadPruneRequest(params: {
   };
 }
 
-/** Resolves a process toggle target from ref-first payloads with id fallback compatibility. */
+/** Resolves a process toggle target from an exact graph-local process ref. */
 export function resolveTraceProcessRefTarget(params: {
   /** Trace graphs to search. */
   traceGraphs: readonly TraceGraph[];
-  /** Serialized process id used only as a fallback identity. */
+  /** Serialized process id used to disambiguate identical packed refs across compared graphs. */
   processId: string;
-  /** Optional graph-local process ref carried by the interaction payload. */
-  processRef?: ProcessRef;
+  /** Exact graph-local process ref carried by the interaction payload. */
+  processRef: ProcessRef;
   /** Optional graph index already known by the caller. */
   graphIndexHint?: number;
 }): TraceProcessRefTarget | null {
@@ -99,25 +91,17 @@ export function resolveTraceProcessRefTarget(params: {
   if (!graph) {
     return null;
   }
-  const processRef = params.processRef ?? findProcessRefForRankId(graph, params.processId);
-  return processRef == null ? null : {graphIndex, processRef};
+  return {graphIndex, processRef: params.processRef};
 }
 
-/** Resolves a thread toggle target from ref-first payloads with stream-id fallback compatibility. */
+/** Resolves a thread toggle target from an exact graph-local thread ref. */
 export function resolveTraceThreadRefTarget(params: {
-  /** Thread-ref maps keyed by stream id and aligned by graph index. */
-  threadRefMapsByStreamId: ReadonlyArray<ReadonlyMap<TraceThreadId, ThreadRef>>;
-  /** Serialized stream id used only as a fallback identity. */
-  threadId: TraceThreadId;
-  /** Optional graph-local thread ref carried by the interaction payload. */
-  threadRef?: ThreadRef;
-  /** Optional graph index already known by the caller. */
-  graphIndexHint?: number;
-}): TraceThreadRefTarget | null {
-  if (params.threadRef != null && params.graphIndexHint != null) {
-    return {graphIndex: params.graphIndexHint, threadRef: params.threadRef};
-  }
-  return findThreadRefForStreamId(params.threadRefMapsByStreamId, params.threadId);
+  /** Exact graph-local thread ref carried by the interaction payload. */
+  threadRef: ThreadRef;
+  /** Graph index already known by the caller. */
+  graphIndex: number;
+}): TraceThreadRefTarget {
+  return {graphIndex: params.graphIndex, threadRef: params.threadRef};
 }
 
 /** Resolves one graph-local process ref to its ingestion process id. */
@@ -202,9 +186,9 @@ export function getExpandedProcessIdsFromCollapseState(params: {
 export function findProcessGraphIndex(params: {
   /** Trace graphs to search. */
   traceGraphs: readonly TraceGraph[];
-  /** Optional graph-local process ref carried by the interaction payload. */
-  processRef?: ProcessRef;
-  /** Serialized process id used as a fallback identity. */
+  /** Exact graph-local process ref carried by the interaction payload. */
+  processRef: ProcessRef;
+  /** Serialized process id used to disambiguate identical packed refs across compared graphs. */
   processId: string;
   /** Optional graph index already known by the caller. */
   fallbackGraphIndex?: number;
@@ -214,53 +198,10 @@ export function findProcessGraphIndex(params: {
   }
   return Math.max(
     0,
-    params.traceGraphs.findIndex(graph => {
-      if (params.processRef == null) {
-        return graph.processes.some(process => process.processId === params.processId);
-      }
-      return getTraceGraphProcessIdForRef(graph, params.processRef) === params.processId;
-    })
+    params.traceGraphs.findIndex(
+      graph => getTraceGraphProcessIdForRef(graph, params.processRef) === params.processId
+    )
   );
-}
-
-/** Finds the graph-local process ref for a rank id when a ref was not carried by the pick. */
-export function findProcessRefForRankId(
-  graph: TraceGraph,
-  processId: string
-): ProcessRef | undefined {
-  return graph
-    .getProcessRefs()
-    .find(processRef => getTraceGraphProcessIdForRef(graph, processRef) === processId);
-}
-
-/** Builds per-graph thread-ref lookup maps keyed by ingestion stream id. */
-export function buildThreadRefMapsByStreamId(
-  traceGraphs: readonly TraceGraph[]
-): ReadonlyArray<ReadonlyMap<TraceThreadId, ThreadRef>> {
-  return traceGraphs.map(graph => {
-    const threadRefByStreamId = new Map<TraceThreadId, ThreadRef>();
-    for (const threadRef of graph.getThreadRefs()) {
-      const threadId = graph.getThreadSourceByRef(threadRef)?.threadId;
-      if (threadId) {
-        threadRefByStreamId.set(threadId, threadRef);
-      }
-    }
-    return threadRefByStreamId;
-  });
-}
-
-/** Returns the first graph/thread-ref pair for a stream id. */
-export function findThreadRefForStreamId(
-  threadRefMapsByStreamId: ReadonlyArray<ReadonlyMap<TraceThreadId, ThreadRef>>,
-  threadId: TraceThreadId
-): {graphIndex: number; threadRef: ThreadRef} | null {
-  for (const [graphIndex, threadRefByStreamId] of threadRefMapsByStreamId.entries()) {
-    const threadRef = threadRefByStreamId.get(threadId);
-    if (threadRef != null) {
-      return {graphIndex, threadRef};
-    }
-  }
-  return null;
 }
 
 /** Expands the provided process ids and collapses all other process rows. */

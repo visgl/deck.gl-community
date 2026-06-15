@@ -20,6 +20,8 @@ import type {QueryStatus} from '../../../query-status';
  */
 export type TraceSpanCrossDependenciesProps = {
   endpointsWithDeps: TraceSpanCardEndpointDependencyEntry[];
+  /** Total cross-rank endpoint count before span-card row capping. */
+  endpointCount?: number;
   maxRanks: number;
   traceLabels?: Parameters<typeof resolveTraceSpanCardLabels>[0];
 };
@@ -44,7 +46,7 @@ export function TraceSpanCrossDependencies(props: TraceSpanCrossDependenciesProp
     ] satisfies ReactNode[];
   });
 
-  const rankCount = props.endpointsWithDeps.length;
+  const rankCount = props.endpointCount ?? props.endpointsWithDeps.length;
   if (rankCount > props.maxRanks) {
     const skippedRankCount = rankCount - props.maxRanks;
     rows.push([
@@ -62,6 +64,8 @@ export function TraceSpanCrossDependencies(props: TraceSpanCrossDependenciesProp
  */
 export type TraceSpanCrossDependenciesHorizontalProps = {
   endpointsWithDeps: TraceSpanCardEndpointDependencyEntry[];
+  /** Total cross-rank endpoint count before span-card row capping. */
+  endpointCount?: number;
   maxRanks: number;
   interactive?: boolean;
   onRankClick?: (rankNum: number) => void;
@@ -78,6 +82,7 @@ export function TraceSpanCrossDependenciesHorizontal(
   props: TraceSpanCrossDependenciesHorizontalProps
 ) {
   const endpointsWithDeps = props.endpointsWithDeps;
+  const endpointCount = props.endpointCount ?? props.endpointsWithDeps.length;
   const traceLabels = resolveTraceSpanCardLabels(props.traceLabels);
   const formatWaitLabel = (waitTimeMs: number) =>
     formatTimeMs(waitTimeMs, {space: false, roundDigits: 3});
@@ -213,6 +218,12 @@ export function TraceSpanCrossDependenciesHorizontal(
   return (
     <div className="max-w-full overflow-x-auto pb-1">
       <PrettyTable headers={headers} rows={[timeRow, statusRow]} />
+      {endpointCount > endpointsWithDeps.length ? (
+        <div className="pt-1 text-xs text-muted-foreground">
+          Showing {endpointsWithDeps.length} of {endpointCount}{' '}
+          {traceLabels.processLabelPlural.toLowerCase()}
+        </div>
+      ) : null}
     </div>
   );
 }

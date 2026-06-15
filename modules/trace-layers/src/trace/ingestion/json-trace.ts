@@ -234,7 +234,7 @@ export function buildCollapsedActivityByProcessRows(params: {
   readonly processRows: ReadonlyArray<TraceCollapsedActivityProcessRow>;
   /** Color scheme used to sample representative block colors. */
   readonly colorScheme: TraceColorScheme;
-  /** Visualization settings that affect block coloring and summary density. */
+  /** Visualization settings that affect span coloring and summary density. */
   readonly settings: TraceVisSettings;
 }): TraceProcessActivityByProcessId {
   return buildCollapsedActivityByProcessIdInternal(
@@ -286,10 +286,10 @@ function buildCollapsedActivityByProcessIdInternal(
       streamDepthMap.set(thread.threadId, index);
     });
 
-    const blockColorMap = new Map<number, [number, number, number]>();
+    const spanColorMap = new Map<number, [number, number, number]>();
     const colorSamplingStartTime = performance.now();
     rank.spans.forEach((block, index) => {
-      blockColorMap.set(
+      spanColorMap.set(
         index,
         toRgb(colorResolver.getSpanFillColor(block, 'any')) ?? [
           ...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB
@@ -359,7 +359,7 @@ function buildCollapsedActivityByProcessIdInternal(
     >();
     const intervalReductionStartTime = performance.now();
     for (const row of rows) {
-      const rowColor = blockColorMap.get(row.id) ?? [...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB];
+      const rowColor = spanColorMap.get(row.id) ?? [...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB];
       const rowWeight = Math.max(0, row.sampleCount);
       const existing = bucketSummary.get(row.bucketIndex);
       if (!existing) {
@@ -749,7 +749,7 @@ function computeTraceGraphTimeExtents(
   processes: Readonly<TraceProcess[]>,
   events: Readonly<ArrowTraceEventTable>
 ): TraceGraphTimeExtents {
-  // Note - we avoid Math.max(...blockTimes) since it can cause stack overflow
+  // Avoid spreading trace-sized timing arrays into Math.max; browsers cap function arguments.
   let minTimeMs = Number.MAX_SAFE_INTEGER;
   let finiteMaxTimeMs = Number.MIN_SAFE_INTEGER;
 

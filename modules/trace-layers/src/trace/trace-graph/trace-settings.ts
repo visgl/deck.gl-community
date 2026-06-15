@@ -66,7 +66,7 @@ export type TraceVisSettings = {
   /** Select from multiple trace color schemes */
   traceColorSchemeId: string;
   /** Optional timing key used by aggregated traces to choose an active timing projection. */
-  timingAggregationKey?: string;
+  traceRunSummaryAggregationKey?: string;
   /** Controls whether layout rows are per thread or combined by process. */
   trackAggregationMode: TrackAggregationMode;
   /** Aggregation algorithm used to summarize collapsed process activity rows. */

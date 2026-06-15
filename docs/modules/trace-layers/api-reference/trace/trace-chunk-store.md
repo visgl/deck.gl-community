@@ -20,7 +20,7 @@ import {TraceChunkStore} from '@deck.gl-community/trace-layers/trace';
 - request deduplication and retry-safe loading
 - selection policies for retained versus visible chunks
 - registered `TraceWindow` subscriptions
-- optional window graph materialization
+- source-owned window graph-data materialization
 - search and navigation across ready loaded rows
 
 It does not parse source formats. Loaders and ingesters must convert raw payloads into
@@ -31,7 +31,9 @@ It does not parse source formats. Loaders and ingesters must convert raw payload
 - `add(...)`: finalize one parser-local chunk immediately
 - `ensure(...)`: load selected descriptors
 - `registerTraceWindows(...)`: retain and update one or more active windows
-- `getTraceWindowGraphSnapshot(...)`: read the latest materialized window graph when configured
+- `select(...)`: choose the visible descriptor subset for one window and span budget
+- `materializeTraceGraphDataForWindow(...)`: ask the caller-owned materializer to build immutable graph data from ready selected chunks
+- `getDiagnostics(...)`: read cheap retained-state counters
 
 ## Related helpers
 

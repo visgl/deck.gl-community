@@ -1,6 +1,7 @@
 import {OrthographicView} from '@deck.gl/core';
-import {Bounds, fitBoundsOrthographic, ViewLayoutItem} from '@deck.gl-community/infovis-layers';
+import {Bounds, fitBoundsOrthographic} from '@deck.gl-community/infovis-layers';
 
+import {ViewLayoutItem} from '@deck.gl-community/infovis-layers';
 import {TraceOrthographicController} from './trace-orthographic-controller';
 
 import type {TraceDragInteractionMode} from './trace-orthographic-controller';

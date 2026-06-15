@@ -2,9 +2,11 @@ import {getHeapUsageProbeFields, log} from '../log';
 import {
   getActiveTraceGraphSpanDisplaySource,
   getActiveTraceGraphSpanGeometrySource,
+  getActiveTraceGraphSpanRenderSource,
   getArrowTraceSpanField,
   getTraceGraphSpanDisplaySource,
   getTraceGraphSpanRefProcessId,
+  getTraceGraphSpanRenderSource,
   getTraceGraphSpanTableRowIndex,
   getUniqueTraceGraphSpanRef,
   iterateTraceGraphProcessSpanRefs
@@ -34,6 +36,7 @@ import {
   getTraceGraphDependencyEndSpan,
   getTraceGraphDependencyHasKeyword,
   getTraceGraphDependencyId,
+  getTraceGraphDependencyIsParent,
   getTraceGraphDependencyKeywords,
   getTraceGraphDependencyStartBlockId,
   getTraceGraphDependencyStartSpan,
@@ -45,6 +48,7 @@ import {
   getTraceGraphVisibleDependencyEndBlockId,
   getTraceGraphVisibleDependencyEndSpan,
   getTraceGraphVisibleDependencyHasKeyword,
+  getTraceGraphVisibleDependencyIsParent,
   getTraceGraphVisibleDependencyKeywords,
   getTraceGraphVisibleDependencyStartBlockId,
   getTraceGraphVisibleDependencyStartSpan,
@@ -61,7 +65,6 @@ import {
   buildVisibleIndex,
   getDirectParentSpanRefMap,
   getUsableTraceGraphPreparedState,
-  getVisibleLocalDependencyLayoutSource,
   isValidSourceSpanRef
 } from './trace-graph-internal-helpers';
 import {
@@ -83,7 +86,6 @@ import {
 } from './trace-graph-search-records';
 import {
   buildTraceSpanDependencySelection,
-  getLocalDependencyLookupByProcessId,
   getProcessScopedSpanRefsByProcessId,
   getSelectedCardSpanRef,
   getTraceSpanChildDependenciesFromTraceGraph,
@@ -94,7 +96,6 @@ import {
   isVisibleSpanRef,
   materializeTraceSpanBySpanRef
 } from './trace-graph-selection-utils';
-import {createTraceGraphSourceAdapter} from './trace-graph-source-adapter';
 import {
   getTraceGraphSpanFilterReason,
   getTraceGraphSpanRefFilterMask
@@ -139,10 +140,14 @@ import type {
 } from '../ingestion/arrow-trace';
 import type {
   TraceCounterSource,
+  TraceCrossDependencyRenderSource,
   TraceCrossDependencySource,
+  TraceDependencyRenderSource,
+  TraceDependencyRenderSourceCommon,
   TraceDependencySource,
   TraceEventSource,
   TraceInstantSource,
+  TraceLocalDependencyRenderSource,
   TraceLocalDependencySource,
   TraceProcessSource,
   TraceRenderSpan,
@@ -150,10 +155,7 @@ import type {
   TraceSpanGeometrySource,
   TraceThreadSource
 } from '../trace-graph-accessors';
-import type {
-  TraceLayoutLaneBlockSource,
-  TraceLayoutLaneDependencySource
-} from '../trace-layout/trace-geometry-layout-common';
+import type {TraceLayoutLaneDependencySource} from '../trace-layout/trace-geometry-layout-common';
 import type {
   TraceCardSpan,
   TraceSpanCardChildDependency,
@@ -170,7 +172,7 @@ import type {
   TraceRuntimeChunk,
   TraceThreadOwnedRef
 } from './trace-chunk-registry';
-import type {TraceGraphSourceInput} from './trace-graph-source-adapter';
+import type {TraceGraphRuntimeSource} from './trace-graph-runtime-source';
 import type {CompiledTraceSpanFilterPlan} from './trace-graph-span-filters';
 import type {TraceGraphStats} from './trace-graph-stats';
 import type {
@@ -305,6 +307,25 @@ export type TraceSpanDirectionalDependencyRefs = {
   readonly crossDependencyRefs: readonly CrossDependencyRef[];
 };
 
+/** Bounded dependency refs plus the uncapped count for one directional span relation. */
+export type TraceDirectionalDependencyRefSlice<
+  TDependencyRef extends TraceDependencyRef | VisibleDependencyRef
+> = {
+  /** Dependency refs retained under the requested cap. */
+  readonly dependencyRefs: readonly TDependencyRef[];
+  /** Total directional dependency ref count before the cap. */
+  readonly totalCount: number;
+  /** Whether the returned refs omit additional directional dependencies. */
+  readonly truncated: boolean;
+};
+
+type TraceSpanDirectionalDependencyRefBuckets = TraceSpanDirectionalDependencyRefs & {
+  /** Total directional dependency ref count before the cap. */
+  readonly totalCount: number;
+  /** Whether the returned refs omit additional directional dependencies. */
+  readonly truncated: boolean;
+};
+
 /**
  * Runtime trace-graph view over graph-owned Arrow tables and indexes.
  */
@@ -321,7 +342,7 @@ export class TraceGraph implements TraceGraphData {
   readonly minTimeMs: number;
   /** Maximum timestamp. */
   readonly maxTimeMs: number;
-  /** Thread metadata keyed by stream id. */
+  /** Raw ingestion thread metadata keyed by stream id. */
   readonly threadMap: Record<TraceThreadId, TraceThread>;
   /** Instant events keyed by owning thread. */
   readonly threadInstantMap: Record<TraceThreadId, TraceInstant[]>;
@@ -361,7 +382,7 @@ export class TraceGraph implements TraceGraphData {
   readonly processIdsByIndex: ReadonlyArray<TraceProcessId>;
   /** Stable map from cross-dependency ids to deterministic packed dependency indexes. */
   readonly crossDependencyIdToIndexMap: Readonly<Record<TraceDependencyId, number>>;
-  /** Dependency metadata keyed by dependency id. */
+  /** Raw ingestion dependency metadata keyed by dependency id. */
   readonly dependencyMap: Readonly<Record<TraceDependencyId, TraceDependency>>;
   /** Aggregated graph-wide counts for the runtime tables. */
   readonly stats: TraceGraphStats;
@@ -393,8 +414,8 @@ export class TraceGraph implements TraceGraphData {
   /** Caches direct lane metadata for unfiltered graph views without building visible indexes. */
   private unfilteredVisibleLaneLayoutInfoCache?: TraceGraphVisibleLaneLayoutInfo;
 
-  /** Builds filtered state from an Arrow-backed source graph input and optional span filters. */
-  constructor(traceGraph: TraceGraphSourceInput, filterOptions: TraceGraphFilterOptions = {}) {
+  /** Builds filtered state from an Arrow-backed runtime source and optional span filters. */
+  constructor(traceGraph: TraceGraphRuntimeSource, filterOptions: TraceGraphFilterOptions = {}) {
     const constructorStartTime = performance.now();
     const spanFilters = normalizeTraceSpanFilters(filterOptions.spanFilters);
     const spanFilterPlan = buildCompiledTraceSpanFilterPlan(spanFilters);
@@ -404,6 +425,7 @@ export class TraceGraph implements TraceGraphData {
     const similarDurationChainSpanFilter = normalizeSimilarDurationChainSpanFilter(
       filterOptions.similarDurationChainSpanFilter
     );
+    const traceGraphData = traceGraph.traceGraphData;
     const traceStore = traceGraph.traceStore;
     const hasActiveSourceSpanFilter = traceStore?.hasActiveSourceSpanFilter() === true;
     const includeGraphSourceSpanFilters = !hasActiveSourceSpanFilter;
@@ -411,9 +433,6 @@ export class TraceGraph implements TraceGraphData {
       spanFilters.length > 0 ||
       overlappingParentSpanFilter != null ||
       similarDurationChainSpanFilter != null;
-    const sourceAdapterStartTime = performance.now();
-    const sourceAdapter = createTraceGraphSourceAdapter(traceGraph);
-    const sourceAdapterDurationMs = performance.now() - sourceAdapterStartTime;
     const stateBuildStartTime = performance.now();
     const preparedState = getUsableTraceGraphPreparedState(
       filterOptions.preparedState,
@@ -438,7 +457,7 @@ export class TraceGraph implements TraceGraphData {
             }
           }
         : buildTraceGraphState(
-            sourceAdapter,
+            traceGraphData,
             spanFilters,
             includeGraphSourceSpanFilters,
             overlappingParentSpanFilter,
@@ -446,42 +465,38 @@ export class TraceGraph implements TraceGraphData {
           ));
     const stateBuildDurationMs = performance.now() - stateBuildStartTime;
 
-    this.runtimeEntityRefs = buildTraceRuntimeEntityRefs(sourceAdapter.traceGraphTables);
-    this.chunkRegistry = buildTraceChunkRegistry(
-      sourceAdapter.traceGraphTables,
-      this.runtimeEntityRefs
-    );
-    this.name = sourceAdapter.traceGraphTables.name;
-    this.spanLayout = sourceAdapter.traceGraphTables.spanLayout === 'manual' ? 'manual' : 'auto';
-    this.processes = sourceAdapter.traceGraphTables.processes;
-    this.crossDependencies = sourceAdapter.traceGraphTables.crossDependencies;
-    this.minTimeMs = sourceAdapter.traceGraphTables.minTimeMs;
-    this.maxTimeMs = sourceAdapter.traceGraphTables.maxTimeMs;
-    this.threadMap = sourceAdapter.traceGraphTables.threadMap;
-    this.threadInstantMap = sourceAdapter.traceGraphTables.threadInstantMap;
-    this.threadCounterMap = sourceAdapter.traceGraphTables.threadCounterMap;
-    this.instantMap = sourceAdapter.traceGraphTables.instantMap;
-    this.counterMap = sourceAdapter.traceGraphTables.counterMap;
-    this.counterExtents = sourceAdapter.traceGraphTables.counterExtents;
-    this.events = sourceAdapter.traceGraphTables.events;
-    this.eventMap = sourceAdapter.traceGraphTables.eventMap;
+    this.runtimeEntityRefs = buildTraceRuntimeEntityRefs(traceGraphData);
+    this.chunkRegistry = buildTraceChunkRegistry(traceGraphData, this.runtimeEntityRefs);
+    this.name = traceGraphData.name;
+    this.spanLayout = traceGraphData.spanLayout === 'manual' ? 'manual' : 'auto';
+    this.processes = traceGraphData.processes;
+    this.crossDependencies = traceGraphData.crossDependencies;
+    this.minTimeMs = traceGraphData.minTimeMs;
+    this.maxTimeMs = traceGraphData.maxTimeMs;
+    this.threadMap = traceGraphData.threadMap;
+    this.threadInstantMap = traceGraphData.threadInstantMap;
+    this.threadCounterMap = traceGraphData.threadCounterMap;
+    this.instantMap = traceGraphData.instantMap;
+    this.counterMap = traceGraphData.counterMap;
+    this.counterExtents = traceGraphData.counterExtents;
+    this.events = traceGraphData.events;
+    this.eventMap = traceGraphData.eventMap;
     this.processSpanTableMap =
-      filteredGraphState.processSpanTableMap ?? sourceAdapter.traceGraphTables.processSpanTableMap;
-    this.localDependencyTableMap = sourceAdapter.traceGraphTables.localDependencyTableMap;
-    this.crossDependencyTable = sourceAdapter.traceGraphTables.crossDependencyTable;
-    this.spanSidecarMap = sourceAdapter.traceGraphTables.spanSidecarMap;
-    this.spanSidecarTableMap = sourceAdapter.traceGraphTables.spanSidecarTableMap;
-    this.crossProcessEndpointsBySpanRef =
-      sourceAdapter.traceGraphTables.crossProcessEndpointsBySpanRef;
-    this.spanCrossDependencyRefMap = sourceAdapter.traceGraphTables.spanCrossDependencyRefMap;
+      filteredGraphState.processSpanTableMap ?? traceGraphData.processSpanTableMap;
+    this.localDependencyTableMap = traceGraphData.localDependencyTableMap;
+    this.crossDependencyTable = traceGraphData.crossDependencyTable;
+    this.spanSidecarMap = traceGraphData.spanSidecarMap;
+    this.spanSidecarTableMap = traceGraphData.spanSidecarTableMap;
+    this.crossProcessEndpointsBySpanRef = traceGraphData.crossProcessEndpointsBySpanRef;
+    this.spanCrossDependencyRefMap = traceGraphData.spanCrossDependencyRefMap;
     this.chunks = this.chunkRegistry.chunks;
-    this.spanRefs = sourceAdapter.traceGraphTables.spanRefs;
+    this.spanRefs = traceGraphData.spanRefs;
     this.crossDependencyIdToIndexMap =
-      sourceAdapter.traceGraphTables.crossDependencyIdToIndexMap ??
+      traceGraphData.crossDependencyIdToIndexMap ??
       ({} as Readonly<Record<TraceDependencyId, number>>);
-    this.processIdsByIndex = sourceAdapter.traceGraphTables.processIdsByIndex;
-    this.dependencyMap = sourceAdapter.traceGraphTables.dependencyMap;
-    this.stats = sourceAdapter.traceGraphTables.stats;
+    this.processIdsByIndex = traceGraphData.processIdsByIndex;
+    this.dependencyMap = traceGraphData.dependencyMap;
+    this.stats = traceGraphData.stats;
     this.filteredSpanRefs = filteredGraphState.filteredSpanRefs;
     this.filteredSpanCountsByFilter = filteredGraphState.filteredSpanCountsByFilter;
     this.graphFilterStateRevision = hasActiveGraphSpanFilter
@@ -499,7 +514,6 @@ export class TraceGraph implements TraceGraphData {
       filterCount: this.spanFilters.length,
       hasOverlappingParentSpanFilter: this.overlappingParentSpanFilter != null,
       hasSimilarDurationChainSpanFilter: this.similarDurationChainSpanFilter != null,
-      adapterDurationMs: sourceAdapterDurationMs,
       stateDurationMs: stateBuildDurationMs,
       usedPreparedState: preparedState !== null,
       totalDurationMs: performance.now() - constructorStartTime,
@@ -612,13 +626,8 @@ export class TraceGraph implements TraceGraphData {
       return this.getParentDependencyChainEntriesBySpanRef(spanRef).map(entry => entry.span);
     }
 
-    const spanId = this.getSpanBlockId(spanRef);
-    if (!spanId) {
-      return [];
-    }
-
     return buildDependencyChainFromSourceAdapter({
-      spanId,
+      spanRef,
       dependencyKey,
       traceGraph: this
     });
@@ -643,13 +652,8 @@ export class TraceGraph implements TraceGraphData {
       }).map(entry => entry.span);
     }
 
-    const spanId = this.getSpanBlockId(spanRef);
-    if (!spanId) {
-      return [];
-    }
-
     return buildVisibleDependencyChainFromProjection({
-      spanId,
+      spanRef,
       dependencyKey,
       traceGraph: this
     });
@@ -865,13 +869,23 @@ export class TraceGraph implements TraceGraphData {
 
   /** Returns decoded user data for one span ref without materializing a TraceSpan. */
   getSpanUserData(spanRef: SpanRef): Record<string, unknown> | undefined {
-    return this.getSpanDisplaySource(spanRef)?.userData;
+    return this.getSpanRenderSource(spanRef)?.userData;
   }
 
   /** Returns the Arrow-backed display source for one span ref without materializing a TraceSpan. */
   getSpanDisplaySource(spanRef: SpanRef): TraceSpanDisplaySource | null {
     return (
       getTraceGraphSpanDisplaySource(this, spanRef) ??
+      this.traceStore?.getSpanDisplaySource?.(spanRef) ??
+      null
+    );
+  }
+
+  /** Returns the Arrow-backed render source for one span ref without expanding dependency ids. */
+  getSpanRenderSource(spanRef: SpanRef): TraceRenderSpan | null {
+    return (
+      getTraceGraphSpanRenderSource(this, spanRef) ??
+      this.traceStore?.getSpanRenderSource?.(spanRef) ??
       this.traceStore?.getSpanDisplaySource?.(spanRef) ??
       null
     );
@@ -932,6 +946,11 @@ export class TraceGraph implements TraceGraphData {
   /** Returns the wait duration in milliseconds for one local or cross dependency ref. */
   getDependencyWaitTimeMs(dependencyRef: LocalDependencyRef | CrossDependencyRef): number | null {
     return getTraceGraphDependencyWaitTimeMs(this, dependencyRef);
+  }
+
+  /** Returns whether one local or cross dependency should route as a parent-child edge. */
+  getDependencyIsParent(dependencyRef: LocalDependencyRef | CrossDependencyRef): boolean {
+    return getTraceGraphDependencyIsParent(this, dependencyRef);
   }
 
   /** Returns dependency keywords for one local or cross dependency ref. */
@@ -1125,15 +1144,11 @@ export class TraceGraph implements TraceGraphData {
     }
 
     const visibleIndex = this.hasActiveSpanFilter() ? this.getVisibleIndex() : null;
-    const renderSpans = this.getVisibleProcessDisplaySources(processRef).map(sourceSpan => {
-      const localDependencyRefs = visibleIndex?.visibleLocalDependencyRefsBySpanRef.get(
-        sourceSpan.spanRef
-      );
-      const localDependencyIds =
-        localDependencyRefs
-          ?.map(dependencyRef => this.getVisibleDependencyIdByRef(dependencyRef))
-          .filter((dependencyId): dependencyId is TraceDependencyId => dependencyId != null) ??
-        sourceSpan.localDependencyIds;
+    const renderSpans = this.getVisibleProcessRenderSpanRefs(processRef).flatMap(spanRef => {
+      const sourceSpan = getActiveTraceGraphSpanRenderSource(this, spanRef);
+      if (!sourceSpan) {
+        return [];
+      }
       const crossProcessDependencyEndpoints =
         visibleIndex?.endpointsBySpanRef.get(sourceSpan.spanRef) ??
         sourceSpan.crossProcessDependencyEndpoints;
@@ -1142,13 +1157,14 @@ export class TraceGraph implements TraceGraphData {
           ? (visibleIndex.primaryEndpointIdBySpanRef.get(sourceSpan.spanRef) ?? null)
           : sourceSpan.crossProcessEndpointId;
 
-      return {
-        ...sourceSpan,
-        keywords: [...sourceSpan.keywords],
-        localDependencyIds: [...localDependencyIds],
-        crossProcessEndpointId,
-        crossProcessDependencyEndpoints: [...crossProcessDependencyEndpoints]
-      } satisfies TraceRenderSpan;
+      return [
+        {
+          ...sourceSpan,
+          keywords: [...sourceSpan.keywords],
+          crossProcessEndpointId,
+          crossProcessDependencyEndpoints: [...crossProcessDependencyEndpoints]
+        } satisfies TraceRenderSpan
+      ];
     });
 
     processEntry.renderSpans = renderSpans;
@@ -1194,20 +1210,11 @@ export class TraceGraph implements TraceGraphData {
       return processEntry.geometrySources;
     }
 
-    const threadRefByStreamId = new Map(
-      this.getThreadSourcesByProcessRef(processRef).map(
-        threadSource => [threadSource.threadId, threadSource.threadRef] as const
-      )
-    );
     const visibleBlocks: TraceSpanGeometrySource[] = [];
     const appendGeometrySource = (spanRef: SpanRef): void => {
       const block = getActiveTraceGraphSpanGeometrySource(this, spanRef);
       if (block) {
-        visibleBlocks.push({
-          ...block,
-          processRef: block.processRef ?? processRef,
-          threadRef: block.threadRef ?? threadRefByStreamId.get(block.threadId)
-        });
+        visibleBlocks.push(block);
       }
     };
     spanRefs.forEach(appendGeometrySource);
@@ -1235,20 +1242,11 @@ export class TraceGraph implements TraceGraphData {
       return processEntry.displaySources;
     }
 
-    const threadRefByStreamId = new Map(
-      this.getThreadSourcesByProcessRef(processRef).map(
-        threadSource => [threadSource.threadId, threadSource.threadRef] as const
-      )
-    );
     const visibleBlocks: TraceSpanDisplaySource[] = [];
     const appendDisplaySource = (spanRef: SpanRef): void => {
       const block = getActiveTraceGraphSpanDisplaySource(this, spanRef);
       if (block) {
-        visibleBlocks.push({
-          ...block,
-          processRef: block.processRef ?? processRef,
-          threadRef: block.threadRef ?? threadRefByStreamId.get(block.threadId)
-        });
+        visibleBlocks.push(block);
       }
     };
     spanRefs.forEach(appendDisplaySource);
@@ -1260,11 +1258,6 @@ export class TraceGraph implements TraceGraphData {
       visibleBlocks.map((block, index) => [block.spanRef, index] as const)
     );
     return processEntry.displaySources;
-  }
-
-  /** Returns lightweight Arrow-native block sources for one visible process. */
-  getVisibleProcessLayoutBlocks(processRef: ProcessRef): ReadonlyArray<TraceLayoutLaneBlockSource> {
-    return this.getVisibleProcessGeometrySources(processRef);
   }
 
   /** Returns one Arrow-native display source by exact span ref from the visible filtered view. */
@@ -1290,7 +1283,7 @@ export class TraceGraph implements TraceGraphData {
   /** Resolves one source display source from an exact canonical span ref. */
   getDisplaySourceBySpanRef(spanRef: SpanRef): TraceSpanDisplaySource | null {
     return isValidSourceSpanRef(this, spanRef)
-      ? this.withRuntimeSpanSourceRefs(getActiveTraceGraphSpanDisplaySource(this, spanRef))
+      ? getActiveTraceGraphSpanDisplaySource(this, spanRef)
       : null;
   }
 
@@ -1319,40 +1312,19 @@ export class TraceGraph implements TraceGraphData {
       return processEntry.localDependencyLayoutSources;
     }
 
-    if (!this.hasActiveSpanFilter()) {
-      const dependencyRefs = this.getLocalDependencyRefs(processRef);
-      const visibleDependencies: TraceLayoutLaneDependencySource[] = [];
-      for (const dependencyRef of dependencyRefs) {
-        const dependencyId = this.getDependencyId(dependencyRef);
-        const startSpanId = this.getDependencyStartBlockId(dependencyRef);
-        const endSpanId = this.getDependencyEndBlockId(dependencyRef);
-        if (!dependencyId || !startSpanId || !endSpanId) {
-          continue;
-        }
-        visibleDependencies.push({
-          dependencyId,
-          startSpanId,
-          endSpanId,
-          hasParentKeyword: this.getDependencyHasKeyword(dependencyRef, 'PARENT')
-        });
-      }
-      processEntry.localDependencyLayoutSources = visibleDependencies;
-      return processEntry.localDependencyLayoutSources;
-    }
-
-    const dependencyIds =
-      this.getVisibleIndex().visibleLocalDependencyIdsByProcessId[processEntry.processId] ?? [];
-    const localDependencyLookup = getLocalDependencyLookupByProcessId(this)[processEntry.processId];
-    const visibleDependencies = dependencyIds.flatMap(dependencyId => {
-      const dependency = getVisibleLocalDependencyLayoutSource({
-        dependencyId,
-        dependencyOverrideSpec:
-          this.getVisibleIndex().dependencyOverrideSpecs[dependencyId] ?? null,
-        localDependencyLookup,
-        traceGraph: this
-      });
-      return dependency ? [dependency] : [];
-    });
+    const visibleDependencies = this.getVisibleLocalDependencySources(processRef).flatMap(
+      dependency =>
+        dependency.startSpanRef != null && dependency.endSpanRef != null
+          ? [
+              {
+                dependencyId: dependency.dependencyId,
+                startSpanRef: dependency.startSpanRef,
+                endSpanRef: dependency.endSpanRef,
+                hasParentKeyword: dependency.keywords.has('PARENT')
+              } satisfies TraceLayoutLaneDependencySource
+            ]
+          : []
+    );
     processEntry.localDependencyLayoutSources = visibleDependencies;
     return processEntry.localDependencyLayoutSources;
   }
@@ -1382,10 +1354,9 @@ export class TraceGraph implements TraceGraphData {
       return processEntry.localDependencySources;
     }
 
-    const dependencyIds =
-      this.getVisibleIndex().visibleLocalDependencyIdsByProcessId[processEntry.processId] ?? [];
-    const visibleDependencies = dependencyIds.flatMap(dependencyId => {
-      const dependency = this.getVisibleDependencySourceById(dependencyId);
+    const dependencyRefs = this.getVisibleLocalDependencyRefs(processRef);
+    const visibleDependencies = dependencyRefs.flatMap(dependencyRef => {
+      const dependency = this.getVisibleDependencySourceByRef(dependencyRef);
       return dependency?.type === 'trace-local-dependency' ? [dependency] : [];
     });
     processEntry.localDependencySources = visibleDependencies;
@@ -1417,20 +1388,13 @@ export class TraceGraph implements TraceGraphData {
       return processEntry.localDependencyRefs;
     }
 
-    const visibleIndex = this.getVisibleIndex();
-    const dependencyIds = visibleIndex.visibleLocalDependencyIdsByProcessId[processEntry.processId];
-    if (!dependencyIds) {
+    const dependencyRefs =
+      this.getVisibleIndex().visibleLocalDependencyRefsByProcessId[processEntry.processId];
+    if (!dependencyRefs) {
       processEntry.localDependencyRefs = [];
       return processEntry.localDependencyRefs;
     }
 
-    const dependencyRefs: VisibleLocalDependencyRef[] = [];
-    for (const dependencyId of dependencyIds) {
-      const dependencyRef = visibleIndex.visibleLocalDependencyRefById[dependencyId];
-      if (dependencyRef != null) {
-        dependencyRefs.push(dependencyRef);
-      }
-    }
     processEntry.localDependencyRefs = dependencyRefs;
     return processEntry.localDependencyRefs;
   }
@@ -1492,12 +1456,10 @@ export class TraceGraph implements TraceGraphData {
       return visibleCrossDependencies;
     }
 
-    const visibleCrossDependencies = this.getVisibleIndex().visibleCrossDependencyIds.flatMap(
-      dependencyId => {
-        const dependency = this.getVisibleDependencySourceById(dependencyId);
-        return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
-      }
-    );
+    const visibleCrossDependencies = this.getVisibleCrossDependencyRefs().flatMap(dependencyRef => {
+      const dependency = this.getVisibleDependencySourceByRef(dependencyRef);
+      return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+    });
     visibleRuntimeCache.crossDependencySources = visibleCrossDependencies;
     log.probe(0, 'TraceGraph visible cross dependencies done', {
       name: this.name,
@@ -1563,27 +1525,9 @@ export class TraceGraph implements TraceGraphData {
 
   /** Returns cached visible lane metadata inferred from explicit block lane values. */
   getVisibleLaneLayoutInfo(): TraceGraphVisibleLaneLayoutInfo {
-    const visibleLaneLayoutInfo = this.hasActiveSpanFilter()
+    return this.hasActiveSpanFilter()
       ? this.getVisibleIndex().visibleLaneLayoutInfo
       : this.getUnfilteredVisibleLaneLayoutInfo();
-    if (visibleLaneLayoutInfo.threadLaneLayoutMapByRef) {
-      return visibleLaneLayoutInfo;
-    }
-
-    const threadLaneLayoutMapByRef = new Map<ThreadRef, {laneCount: number}>();
-    for (const [threadId, laneInfo] of Object.entries(
-      visibleLaneLayoutInfo.threadLaneLayoutMap ?? {}
-    )) {
-      const threadRef = this.runtimeEntityRefs.threadRefById.get(threadId as TraceThreadId) ?? null;
-      if (threadRef != null) {
-        threadLaneLayoutMapByRef.set(threadRef, laneInfo);
-      }
-    }
-
-    return {
-      ...visibleLaneLayoutInfo,
-      threadLaneLayoutMapByRef
-    };
   }
 
   /** Builds or returns direct lane metadata for an unfiltered graph view. */
@@ -1592,7 +1536,7 @@ export class TraceGraph implements TraceGraphData {
       return this.unfilteredVisibleLaneLayoutInfoCache;
     }
 
-    const laneCountsByThreadId = new Map<TraceThreadId, number>();
+    const laneCountsByThreadRef = new Map<ThreadRef, number>();
     let explicitLaneValueCount = 0;
     for (const process of this.processes) {
       const processId = process.processId as TraceProcessId;
@@ -1602,54 +1546,31 @@ export class TraceGraph implements TraceGraphData {
           continue;
         }
 
-        const threadId = this.getSpanStreamId(spanRef);
-        if (!threadId) {
+        const threadRef = this.getThreadRefBySpanRef(spanRef);
+        if (threadRef == null) {
           continue;
         }
 
         explicitLaneValueCount += 1;
-        const currentLaneCount = laneCountsByThreadId.get(threadId) ?? 1;
-        laneCountsByThreadId.set(threadId, Math.max(currentLaneCount, Math.floor(laneValue) + 1));
+        const currentLaneCount = laneCountsByThreadRef.get(threadRef) ?? 1;
+        laneCountsByThreadRef.set(threadRef, Math.max(currentLaneCount, Math.floor(laneValue) + 1));
       }
     }
 
     this.unfilteredVisibleLaneLayoutInfoCache = {
-      threadLaneLayoutMap:
-        laneCountsByThreadId.size > 0
-          ? Object.fromEntries(
-              [...laneCountsByThreadId.entries()].map(([threadId, laneCount]) => [
-                threadId,
+      threadLaneLayoutMapByRef:
+        laneCountsByThreadRef.size > 0
+          ? new Map(
+              [...laneCountsByThreadRef.entries()].map(([threadRef, laneCount]) => [
+                threadRef,
                 {laneCount}
               ])
             )
           : undefined,
       explicitLaneValueCount,
-      threadsWithLaneDataCount: laneCountsByThreadId.size
+      threadsWithLaneDataCount: laneCountsByThreadRef.size
     };
     return this.unfilteredVisibleLaneLayoutInfoCache;
-  }
-
-  /** Returns one ref-native visible dependency source by id from the filtered view. */
-  private getVisibleDependencySourceById(
-    dependencyId: TraceDependencyId
-  ): TraceDependencySource | null {
-    const visibleRuntimeCache = this.getVisibleRuntimeCache();
-    const cachedDependency = visibleRuntimeCache.dependencySourcesById.get(dependencyId);
-    if (cachedDependency !== undefined) {
-      return cachedDependency;
-    }
-
-    const visibleIndex = this.getVisibleIndex();
-    const visibleDependencyRef =
-      visibleIndex.visibleLocalDependencyRefById[dependencyId] ??
-      visibleIndex.visibleCrossDependencyRefById[dependencyId] ??
-      null;
-    const source = visibleDependencyRef
-      ? this.buildVisibleDependencySourceByRef(visibleDependencyRef)
-      : null;
-    const sourceWithRefs = this.withRuntimeDependencySourceRefs(source);
-    visibleRuntimeCache.dependencySourcesById.set(dependencyId, sourceWithRefs);
-    return sourceWithRefs;
   }
 
   /** Builds one visible dependency source from visible indexes and Arrow-backed dependency fields. */
@@ -1672,7 +1593,7 @@ export class TraceGraph implements TraceGraphData {
         });
       }
 
-      const override = visibleIndex.dependencyOverrideSpecs[dependencyId];
+      const override = visibleIndex.dependencyOverrideSpecsByRef.get(dependencyRef);
       const overrideStartSpanRef =
         override?.kind === 'local-rewrite' || override?.kind === 'local-parent'
           ? override.startSpanRef
@@ -1733,7 +1654,7 @@ export class TraceGraph implements TraceGraphData {
       });
     }
 
-    const override = visibleIndex.dependencyOverrideSpecs[dependencyId];
+    const override = visibleIndex.dependencyOverrideSpecsByRef.get(dependencyRef);
     const overrideStartSpanRef = override?.kind === 'cross-parent' ? override.startSpanRef : null;
     const overrideEndSpanRef = override?.kind === 'cross-parent' ? override.endSpanRef : null;
     const overrideUserData = override?.kind === 'cross-parent' ? override.userData : undefined;
@@ -1815,7 +1736,7 @@ export class TraceGraph implements TraceGraphData {
     /** Canonical visible dependency ref assigned by the active visible index. */
     dependencyRef: VisibleLocalDependencyRef;
   }): TraceLocalDependencySource | null {
-    const override = this.getVisibleIndex().dependencyOverrideSpecs[params.dependencyId];
+    const override = this.getVisibleIndex().dependencyOverrideSpecsByRef.get(params.dependencyRef);
     if (override?.kind !== 'local-parent') {
       return null;
     }
@@ -1847,7 +1768,7 @@ export class TraceGraph implements TraceGraphData {
     /** Canonical visible dependency ref assigned by the active visible index. */
     dependencyRef: VisibleCrossDependencyRef;
   }): TraceCrossDependencySource | null {
-    const override = this.getVisibleIndex().dependencyOverrideSpecs[params.dependencyId];
+    const override = this.getVisibleIndex().dependencyOverrideSpecsByRef.get(params.dependencyRef);
     if (override?.kind !== 'cross-parent') {
       return null;
     }
@@ -1906,13 +1827,6 @@ export class TraceGraph implements TraceGraphData {
     });
   }
 
-  /** Resolves one visible local dependency ref from a visible dependency id. */
-  getVisibleLocalDependencyRefById(
-    dependencyId: TraceDependencyId
-  ): VisibleLocalDependencyRef | null {
-    return this.getVisibleIndex().visibleLocalDependencyRefById[dependencyId] ?? null;
-  }
-
   /** Resolves one visible local dependency ref from a raw process-global dependency ref. */
   getVisibleLocalDependencyRefBySourceRef(
     dependencyRef: LocalDependencyRef
@@ -1936,17 +1850,6 @@ export class TraceGraph implements TraceGraphData {
     return this.getVisibleIndex().visibleLocalDependencyRefBySourceRef.get(dependencyRef) ?? null;
   }
 
-  /** Resolves one visible cross dependency ref from a visible dependency id. */
-  getVisibleCrossDependencyRefById(
-    dependencyId: TraceDependencyId
-  ): VisibleCrossDependencyRef | null {
-    if (!this.hasActiveSpanFilter()) {
-      const dependencyIndex = this.crossDependencyIdToIndexMap[dependencyId];
-      return dependencyIndex == null ? null : encodeVisibleCrossDependencyRef(dependencyIndex);
-    }
-    return this.getVisibleIndex().visibleCrossDependencyRefById[dependencyId] ?? null;
-  }
-
   /** Resolves one visible cross dependency ref from a raw global dependency ref. */
   getVisibleCrossDependencyRefBySourceRef(
     dependencyRef: CrossDependencyRef
@@ -1961,6 +1864,9 @@ export class TraceGraph implements TraceGraphData {
   getVisibleDependencyRefForDependency(dependency: TraceDependency): VisibleDependencyRef | null {
     const dependencyRef = dependency.dependencyRef;
     if (dependency.type === 'trace-local-dependency') {
+      if (dependencyRef != null && isVisibleLocalDependencyRef(dependencyRef)) {
+        return dependencyRef;
+      }
       const rawDependencyRef =
         dependencyRef != null && isLocalDependencyRef(dependencyRef)
           ? (dependencyRef as LocalDependencyRef)
@@ -1968,52 +1874,24 @@ export class TraceGraph implements TraceGraphData {
       const rawVisibleDependencyRef = rawDependencyRef
         ? this.getVisibleLocalDependencyRefBySourceRef(rawDependencyRef)
         : null;
-      if (!this.hasActiveSpanFilter() && rawVisibleDependencyRef != null) {
+      if (rawVisibleDependencyRef != null) {
         return rawVisibleDependencyRef;
       }
 
-      const resolvedVisibleDependencyRef = this.getVisibleLocalDependencyRefById(
-        dependency.dependencyId
-      );
-      const currentDependencyId =
-        dependencyRef != null && isVisibleLocalDependencyRef(dependencyRef)
-          ? this.getVisibleDependencyIdByRef(dependencyRef)
-          : null;
-      return (
-        (currentDependencyId === dependency.dependencyId
-          ? (dependencyRef as VisibleLocalDependencyRef)
-          : null) ??
-        rawVisibleDependencyRef ??
-        resolvedVisibleDependencyRef ??
-        (dependencyRef != null && isVisibleLocalDependencyRef(dependencyRef)
-          ? dependencyRef
-          : null) ??
-        null
-      );
+      return null;
     }
 
-    const resolvedVisibleDependencyRef = this.getVisibleCrossDependencyRefById(
-      dependency.dependencyId
-    );
-    const currentDependencyId =
-      dependencyRef != null && isVisibleCrossDependencyRef(dependencyRef)
-        ? this.getVisibleDependencyIdByRef(dependencyRef)
-        : null;
+    if (dependencyRef != null && isVisibleCrossDependencyRef(dependencyRef)) {
+      return dependencyRef;
+    }
     const rawDependencyRef =
       dependencyRef != null && isCrossDependencyRef(dependencyRef)
         ? (dependencyRef as CrossDependencyRef)
         : null;
-    return (
-      (currentDependencyId === dependency.dependencyId
-        ? (dependencyRef as VisibleCrossDependencyRef)
-        : null) ??
-      (rawDependencyRef ? this.getVisibleCrossDependencyRefBySourceRef(rawDependencyRef) : null) ??
-      resolvedVisibleDependencyRef ??
-      (dependencyRef != null && isVisibleCrossDependencyRef(dependencyRef)
-        ? dependencyRef
-        : null) ??
-      null
-    );
+    const rawVisibleDependencyRef = rawDependencyRef
+      ? this.getVisibleCrossDependencyRefBySourceRef(rawDependencyRef)
+      : null;
+    return rawVisibleDependencyRef;
   }
 
   /** Resolves one ref-native visible dependency source from a visible dependency ref. */
@@ -2040,13 +1918,8 @@ export class TraceGraph implements TraceGraphData {
       return null;
     }
 
-    const dependencyId = this.getVisibleDependencyIdByRef(dependencyRef);
-    if (!dependencyId) {
-      return null;
-    }
-
     const visibleRuntimeCache = this.getVisibleRuntimeCache();
-    const cachedDependency = visibleRuntimeCache.dependencySourcesById.get(dependencyId);
+    const cachedDependency = visibleRuntimeCache.dependencySourcesByRef.get(dependencyRef);
     if (cachedDependency !== undefined) {
       return cachedDependency;
     }
@@ -2054,8 +1927,56 @@ export class TraceGraph implements TraceGraphData {
     const sourceWithRefs = this.withRuntimeDependencySourceRefs(
       this.buildVisibleDependencySourceByRef(dependencyRef)
     );
-    visibleRuntimeCache.dependencySourcesById.set(dependencyId, sourceWithRefs);
+    visibleRuntimeCache.dependencySourcesByRef.set(dependencyRef, sourceWithRefs);
     return sourceWithRefs;
+  }
+
+  /** Resolves one lightweight visible dependency source without reading descriptive fields. */
+  getVisibleDependencyRenderSourceByRef(
+    dependencyRef: TraceDependencyRef | VisibleDependencyRef
+  ): TraceDependencyRenderSource | null {
+    const visibleDependencyRef = this.getVisibleDependencyRefByRef(dependencyRef);
+    if (visibleDependencyRef == null) {
+      return null;
+    }
+
+    const startSpanRef = this.getVisibleDependencyStartSpan(visibleDependencyRef);
+    const endSpanRef = this.getVisibleDependencyEndSpan(visibleDependencyRef);
+    const waitMode = this.getVisibleDependencyWaitMode(visibleDependencyRef);
+    if (!waitMode) {
+      return null;
+    }
+
+    const renderSource = {
+      startSpanRef,
+      endSpanRef,
+      waitMode,
+      bidirectional: this.getVisibleDependencyBidirectional(visibleDependencyRef) === true,
+      waitTimeMs: this.getVisibleDependencyWaitTimeMs(visibleDependencyRef) ?? 0,
+      isParent: this.getVisibleDependencyIsParent(visibleDependencyRef)
+    } satisfies TraceDependencyRenderSourceCommon;
+
+    if (isVisibleLocalDependencyRef(visibleDependencyRef)) {
+      const processRef = this.getVisibleLocalDependencyProcessRefByRef(visibleDependencyRef);
+      return processRef == null
+        ? null
+        : ({
+            ...renderSource,
+            type: 'trace-local-dependency',
+            dependencyRef: visibleDependencyRef,
+            processRef
+          } satisfies TraceLocalDependencyRenderSource);
+    }
+
+    const rankNums = this.getVisibleCrossDependencyRankNums(visibleDependencyRef);
+    return rankNums == null
+      ? null
+      : ({
+          ...renderSource,
+          type: 'trace-cross-process-dependency',
+          dependencyRef: visibleDependencyRef,
+          ...rankNums
+        } satisfies TraceCrossDependencyRenderSource);
   }
 
   /** Reads immediate dependency refs attached to one span without building graph projections. */
@@ -2063,23 +1984,129 @@ export class TraceGraph implements TraceGraphData {
     spanRef: SpanRef,
     direction: TraceSpanDependencyDirection
   ): TraceSpanDirectionalDependencyRefs {
+    const dependencyRefs = this.getSpanDirectionalDependencyRefBuckets(
+      spanRef,
+      direction,
+      Number.POSITIVE_INFINITY
+    );
+    return {
+      localDependencyRefs: dependencyRefs.localDependencyRefs,
+      crossDependencyRefs: dependencyRefs.crossDependencyRefs
+    };
+  }
+
+  /** Reads bounded immediate dependency refs attached to one span without materializing edges. */
+  getSpanDirectionalDependencyRefSlice(
+    spanRef: SpanRef,
+    direction: TraceSpanDependencyDirection,
+    limit: number
+  ): TraceDirectionalDependencyRefSlice<TraceDependencyRef> {
+    const dependencyRefs = this.getSpanDirectionalDependencyRefBuckets(spanRef, direction, limit);
+    return {
+      dependencyRefs: [
+        ...dependencyRefs.localDependencyRefs,
+        ...dependencyRefs.crossDependencyRefs
+      ],
+      totalCount: dependencyRefs.totalCount,
+      truncated: dependencyRefs.truncated
+    };
+  }
+
+  /** Reads bounded visible dependency refs touching one span in one rendered direction. */
+  getVisibleDirectionalDependencyRefSlice(
+    spanRef: SpanRef,
+    direction: TraceSpanDependencyDirection,
+    limit: number
+  ): TraceDirectionalDependencyRefSlice<VisibleDependencyRef> {
+    const normalizedLimit = normalizeDependencyRefLimit(limit);
+    if (!this.hasActiveSpanFilter()) {
+      const sourceDependencyRefs = this.getSpanDirectionalDependencyRefSlice(
+        spanRef,
+        direction,
+        normalizedLimit
+      );
+      const dependencyRefs = sourceDependencyRefs.dependencyRefs.flatMap(dependencyRef => {
+        const visibleDependencyRef = this.getVisibleDependencyRefByRef(dependencyRef);
+        return visibleDependencyRef != null ? [visibleDependencyRef] : [];
+      });
+      return {
+        dependencyRefs,
+        totalCount: sourceDependencyRefs.totalCount,
+        truncated: sourceDependencyRefs.truncated
+      };
+    }
+
+    const dependencyRefs: VisibleDependencyRef[] = [];
+    const seenDependencyRefs = new Set<VisibleDependencyRef>();
+    let totalCount = 0;
+    for (const dependencyRef of this.getVisibleDependencyRefsForSpan(spanRef)) {
+      const dependencyStartSpanRef = this.getVisibleDependencyStartSpan(dependencyRef);
+      const dependencyEndSpanRef = this.getVisibleDependencyEndSpan(dependencyRef);
+      if (
+        (direction === 'incoming' && dependencyEndSpanRef !== spanRef) ||
+        (direction === 'outgoing' && dependencyStartSpanRef !== spanRef) ||
+        seenDependencyRefs.has(dependencyRef)
+      ) {
+        continue;
+      }
+      seenDependencyRefs.add(dependencyRef);
+      totalCount += 1;
+      if (dependencyRefs.length < normalizedLimit) {
+        dependencyRefs.push(dependencyRef);
+      }
+    }
+    return {
+      dependencyRefs,
+      totalCount,
+      truncated: totalCount > dependencyRefs.length
+    };
+  }
+
+  /** Reads bounded cross dependency refs attached to one span without reading local refs. */
+  getSpanDirectionalCrossDependencyRefSlice(
+    spanRef: SpanRef,
+    direction: TraceSpanDependencyDirection,
+    limit: number
+  ): TraceDirectionalDependencyRefSlice<CrossDependencyRef> {
+    const dependencyRefs = this.getSpanDirectionalDependencyRefBuckets(
+      spanRef,
+      direction,
+      limit,
+      false
+    );
+    return {
+      dependencyRefs: dependencyRefs.crossDependencyRefs,
+      totalCount: dependencyRefs.totalCount,
+      truncated: dependencyRefs.truncated
+    };
+  }
+
+  /** Resolves bounded directional source refs while preserving local and cross ref buckets. */
+  private getSpanDirectionalDependencyRefBuckets(
+    spanRef: SpanRef,
+    direction: TraceSpanDependencyDirection,
+    limit: number,
+    includeLocalDependencyRefs = true
+  ): TraceSpanDirectionalDependencyRefBuckets {
     const processId = getTraceGraphSpanRefProcessId(this, spanRef);
     if (!processId) {
-      return EMPTY_SPAN_DIRECTIONAL_DEPENDENCY_REFS;
+      return EMPTY_SPAN_DIRECTIONAL_DEPENDENCY_REF_BUCKETS;
     }
 
     const rowIndex = getTraceGraphSpanTableRowIndex(this, spanRef);
     if (rowIndex == null) {
-      return EMPTY_SPAN_DIRECTIONAL_DEPENDENCY_REFS;
+      return EMPTY_SPAN_DIRECTIONAL_DEPENDENCY_REF_BUCKETS;
     }
+    const normalizedLimit = normalizeDependencyRefLimit(limit);
     const sidecarTable = this.spanSidecarTableMap?.[processId];
     const localColumnName =
       direction === 'incoming' ? 'incomingLocalDependencyRefs' : 'outgoingLocalDependencyRefs';
     const crossColumnName =
       direction === 'incoming' ? 'incomingCrossDependencyRefs' : 'outgoingCrossDependencyRefs';
-    const tableLocalDependencyRefs = sidecarTable
-      ? readArrowNumberListColumn(sidecarTable, localColumnName, rowIndex)
-      : null;
+    const tableLocalDependencyRefs =
+      includeLocalDependencyRefs && sidecarTable
+        ? readArrowNumberListColumn(sidecarTable, localColumnName, rowIndex)
+        : null;
     const tableCrossDependencyRefs = sidecarTable
       ? readArrowNumberListColumn(sidecarTable, crossColumnName, rowIndex)
       : null;
@@ -2088,30 +2115,58 @@ export class TraceGraph implements TraceGraphData {
         ? this.spanCrossDependencyRefMap?.incomingCrossDependencyRefsBySpanRef.get(spanRef)
         : this.spanCrossDependencyRefMap?.outgoingCrossDependencyRefsBySpanRef.get(spanRef);
     const sidecarRow = this.spanSidecarMap?.[processId]?.[rowIndex] ?? null;
-    const rowLocalDependencyRefs =
-      direction === 'incoming'
+    const rowLocalDependencyRefs = includeLocalDependencyRefs
+      ? direction === 'incoming'
         ? (sidecarRow?.incomingLocalDependencyRefs ?? sidecarRow?.incomingLocalDependencyRowIndexes)
-        : (sidecarRow?.outgoingLocalDependencyRefs ??
-          sidecarRow?.outgoingLocalDependencyRowIndexes);
+        : (sidecarRow?.outgoingLocalDependencyRefs ?? sidecarRow?.outgoingLocalDependencyRowIndexes)
+      : null;
     const rowCrossDependencyRefs =
       direction === 'incoming'
         ? sidecarRow?.incomingCrossDependencyRefs
         : sidecarRow?.outgoingCrossDependencyRefs;
 
-    const localDependencyRefs = (tableLocalDependencyRefs ?? rowLocalDependencyRefs ?? []).flatMap(
-      dependencyRef => normalizeDirectionalLocalDependencyRef(this, spanRef, dependencyRef)
-    );
+    const rawLocalDependencyRefs = tableLocalDependencyRefs ?? rowLocalDependencyRefs ?? [];
+    const localDependencyRefs = includeLocalDependencyRefs
+      ? getBoundedDirectionalDependencyRefs({
+          dependencyRefs: rawLocalDependencyRefs,
+          limit: normalizedLimit,
+          normalizeDependencyRef: dependencyRef =>
+            normalizeDirectionalLocalDependencyRef(this, spanRef, dependencyRef)
+        })
+      : [];
+    const fallbackLocalDependencyRefs =
+      includeLocalDependencyRefs &&
+      localDependencyRefs.length === 0 &&
+      rawLocalDependencyRefs.length === 0
+        ? getDirectionalLocalDependencyRefsFromTable(this, processId, spanRef, direction)
+        : null;
     const resolvedLocalDependencyRefs =
-      localDependencyRefs.length > 0
-        ? localDependencyRefs
-        : getDirectionalLocalDependencyRefsFromTable(this, processId, spanRef, direction);
-    const crossDependencyRefs = (
+      fallbackLocalDependencyRefs?.slice(0, normalizedLimit) ?? localDependencyRefs;
+    const resolvedLocalDependencyRefCount =
+      fallbackLocalDependencyRefs?.length ?? rawLocalDependencyRefs.length;
+    const remainingDependencyRefLimit = Math.max(
+      normalizedLimit - resolvedLocalDependencyRefs.length,
+      0
+    );
+    const rawCrossDependencyRefs =
       sparseCrossDependencyRefs != null
         ? [...sparseCrossDependencyRefs]
-        : (tableCrossDependencyRefs ?? rowCrossDependencyRefs ?? [])
-    ).flatMap(dependencyRef => normalizeDirectionalCrossDependencyRef(this, dependencyRef));
-
-    return {localDependencyRefs: resolvedLocalDependencyRefs, crossDependencyRefs};
+        : (tableCrossDependencyRefs ?? rowCrossDependencyRefs ?? []);
+    const crossDependencyRefs = getBoundedDirectionalDependencyRefs({
+      dependencyRefs: rawCrossDependencyRefs,
+      limit: includeLocalDependencyRefs ? remainingDependencyRefLimit : normalizedLimit,
+      normalizeDependencyRef: dependencyRef =>
+        normalizeDirectionalCrossDependencyRef(this, dependencyRef)
+    });
+    const totalCount =
+      (includeLocalDependencyRefs ? resolvedLocalDependencyRefCount : 0) +
+      rawCrossDependencyRefs.length;
+    return {
+      localDependencyRefs: resolvedLocalDependencyRefs,
+      crossDependencyRefs,
+      totalCount,
+      truncated: totalCount > resolvedLocalDependencyRefs.length + crossDependencyRefs.length
+    };
   }
 
   /** Materializes immediate dependency sources attached to one span in a single direction. */
@@ -2131,7 +2186,7 @@ export class TraceGraph implements TraceGraphData {
           (direction === 'incoming' && dependencySource.endSpanRef === spanRef) ||
           (direction === 'outgoing' && dependencySource.startSpanRef === spanRef)
         ) {
-          const dependencyKey = `${dependencySource.type}:${dependencySource.dependencyId}`;
+          const dependencyKey = getTraceDependencySourceRuntimeKey(dependencySource);
           if (seenDependencyKeys.has(dependencyKey)) {
             continue;
           }
@@ -2153,7 +2208,7 @@ export class TraceGraph implements TraceGraphData {
       ) {
         return;
       }
-      const dependencyKey = `${dependencySource.type}:${dependencySource.dependencyId}`;
+      const dependencyKey = getTraceDependencySourceRuntimeKey(dependencySource);
       if (seenDependencyKeys.has(dependencyKey)) {
         return;
       }
@@ -2179,23 +2234,23 @@ export class TraceGraph implements TraceGraphData {
 
   /** Returns the canonical source start span ref before visible rewrites. */
   getDependencySourceStartSpan(
-    dependencyRef: TraceDependencyRef | VisibleDependencyRef,
-    dependencyId?: TraceDependencyId
+    dependencyRef: TraceDependencyRef | VisibleDependencyRef
   ): SpanRef | null {
-    return this.getDependencySourceSpan(dependencyRef, 'start', dependencyId);
+    return this.getDependencySourceSpan(dependencyRef, 'start');
   }
 
   /** Returns the canonical source end span ref before visible rewrites. */
   getDependencySourceEndSpan(
-    dependencyRef: TraceDependencyRef | VisibleDependencyRef,
-    dependencyId?: TraceDependencyId
+    dependencyRef: TraceDependencyRef | VisibleDependencyRef
   ): SpanRef | null {
-    return this.getDependencySourceSpan(dependencyRef, 'end', dependencyId);
+    return this.getDependencySourceSpan(dependencyRef, 'end');
   }
 
-  /** Resolves the owning process ref for one visible local dependency id. */
-  getVisibleLocalDependencyProcessRefById(dependencyId: TraceDependencyId): ProcessRef | null {
-    const processId = this.getRawVisibleLocalDependencyProcessIdById(dependencyId);
+  /** Resolves the owning process ref for one exact local dependency ref. */
+  getVisibleLocalDependencyProcessRefByRef(
+    dependencyRef: LocalDependencyRef | VisibleLocalDependencyRef
+  ): ProcessRef | null {
+    const processId = this.getRawLocalDependencyProcessIdByRef(dependencyRef);
     return processId ? (this.runtimeEntityRefs.processRefById.get(processId) ?? null) : null;
   }
 
@@ -2242,15 +2297,9 @@ export class TraceGraph implements TraceGraphData {
       return dependencyRefs;
     }
 
-    const visibleIndex = this.getVisibleIndex();
-    const dependencyRefs: VisibleCrossDependencyRef[] = [];
-    for (const dependencyId of visibleIndex.visibleCrossDependencyIds) {
-      const dependencyRef = visibleIndex.visibleCrossDependencyRefById[dependencyId];
-      if (dependencyRef != null) {
-        dependencyRefs.push(dependencyRef);
-      }
-    }
-    return dependencyRefs;
+    return this.getVisibleIndex().visibleCrossDependencyIds.flatMap((_, dependencyIndex) => [
+      encodeVisibleCrossDependencyRef(dependencyIndex)
+    ]);
   }
 
   /** Returns the visible source block id for one dependency ref without materializing it. */
@@ -2330,6 +2379,16 @@ export class TraceGraph implements TraceGraphData {
     dependencyRef: TraceDependencyRef | VisibleDependencyRef
   ): number | null {
     return getTraceGraphVisibleDependencyWaitTimeMs(
+      this,
+      dependencyRef,
+      this.getVisibleDependencySourceRefByRef,
+      this.getVisibleDependencyOverrideSpec
+    );
+  }
+
+  /** Returns whether one visible dependency should route as a parent-child edge. */
+  getVisibleDependencyIsParent(dependencyRef: TraceDependencyRef | VisibleDependencyRef): boolean {
+    return getTraceGraphVisibleDependencyIsParent(
       this,
       dependencyRef,
       this.getVisibleDependencySourceRefByRef,
@@ -2481,11 +2540,19 @@ export class TraceGraph implements TraceGraphData {
     const entitySourceCache = this.getEntitySourceCache();
     if (!entitySourceCache.counterExtentByThreadRef) {
       const extents = new Map<ThreadRef, {min: number; max: number}>();
-      for (const [threadId, extent] of Object.entries(this.counterExtents)) {
-        const threadRefFromId = this.runtimeEntityRefs.threadRefById.get(threadId as TraceThreadId);
-        if (threadRefFromId != null) {
-          extents.set(threadRefFromId, extent);
+      for (const threadRefFromId of this.getThreadRefs()) {
+        const counterSources = this.getCounterSourcesByThreadRef(threadRefFromId);
+        if (counterSources.length === 0) {
+          continue;
         }
+
+        let min = Number.POSITIVE_INFINITY;
+        let max = Number.NEGATIVE_INFINITY;
+        for (const counterSource of counterSources) {
+          min = Math.min(min, counterSource.totalValue);
+          max = Math.max(max, counterSource.totalValue);
+        }
+        extents.set(threadRefFromId, {min, max});
       }
       entitySourceCache.counterExtentByThreadRef = extents;
     }
@@ -2699,30 +2766,6 @@ export class TraceGraph implements TraceGraphData {
     return this.visibleIndexCache;
   }
 
-  /** Adds canonical process/thread refs to one span source when the graph can resolve them. */
-  private withRuntimeSpanSourceRefs<T extends TraceSpanGeometrySource | TraceSpanDisplaySource>(
-    source: T | null
-  ): T | null {
-    if (!source) {
-      return null;
-    }
-
-    const processRef = source.processRef ?? this.getProcessRefBySpanRef(source.spanRef);
-    const threadRef =
-      source.threadRef ??
-      this.runtimeEntityRefs.threadRefById.get(source.threadId as TraceThreadId) ??
-      null;
-    if (processRef == null && threadRef == null) {
-      return source;
-    }
-
-    return {
-      ...source,
-      processRef: processRef ?? source.processRef,
-      threadRef: threadRef ?? source.threadRef
-    } satisfies T;
-  }
-
   /** Adds canonical process/thread refs to one visible dependency source when resolvable. */
   private withRuntimeDependencySourceRefs<T extends TraceDependencySource>(
     source: T | null
@@ -2732,12 +2775,12 @@ export class TraceGraph implements TraceGraphData {
     }
 
     const processId =
-      source.processRef == null
-        ? this.getRawVisibleLocalDependencyProcessIdById(source.dependencyId)
+      source.processRef == null && source.dependencyRef != null
+        ? this.getRawLocalDependencyProcessIdByRef(source.dependencyRef)
         : null;
     const processRef =
       source.processRef ??
-      (processId ? (this.runtimeEntityRefs.processRefById.get(processId) ?? null) : null);
+      (processId ? this.runtimeEntityRefs.processRefById.get(processId) : undefined);
     const startThreadRef =
       source.startThreadRef ??
       (source.startSpanRef != null
@@ -2765,7 +2808,7 @@ export class TraceGraph implements TraceGraphData {
     if (!this.visibleRuntimeCache) {
       this.visibleRuntimeCache = {
         processEntriesByRef: new Map(),
-        dependencySourcesById: new Map()
+        dependencySourcesByRef: new Map()
       };
     }
 
@@ -2781,17 +2824,67 @@ export class TraceGraph implements TraceGraphData {
       return null;
     }
 
-    const visibleRuntimeCache = this.getVisibleRuntimeCache();
+    let visibleRuntimeCache = this.getVisibleRuntimeCache();
     const cachedEntry = visibleRuntimeCache.processEntriesByRef.get(processRef);
     if (cachedEntry) {
-      return cachedEntry;
+      if (this.canReuseVisibleProcessCacheEntry(cachedEntry, processId)) {
+        return cachedEntry;
+      }
+      this.clearVisibleRuntimeMaterializationCaches();
+      visibleRuntimeCache = this.getVisibleRuntimeCache();
     }
 
-    const entry = {
-      processId
-    } satisfies TraceGraphVisibleProcessCacheEntry;
+    const entry = this.createVisibleProcessCacheEntry(processId);
     visibleRuntimeCache.processEntriesByRef.set(processRef, entry);
     return entry;
+  }
+
+  /** Builds one empty process-scoped visible cache entry from current SpanRef source state. */
+  private createVisibleProcessCacheEntry(
+    processId: TraceProcessId
+  ): TraceGraphVisibleProcessCacheEntry {
+    const spanTable = this.processSpanTableMap[processId] ?? null;
+    const activeSpanRefs = this.spanRefs ?? null;
+    return {
+      processId,
+      spanTable,
+      spanTableRowCount: spanTable?.numRows ?? 0,
+      spanTableGeneration: spanTable?.generation ?? null,
+      activeSpanRefs,
+      activeSpanRefCount: activeSpanRefs?.length ?? 0,
+      firstActiveSpanRef: activeSpanRefs?.[0] ?? null,
+      lastActiveSpanRef: activeSpanRefs?.[activeSpanRefs.length - 1] ?? null
+    };
+  }
+
+  /** Returns whether cached process materializations still match current SpanRef source state. */
+  private canReuseVisibleProcessCacheEntry(
+    processEntry: TraceGraphVisibleProcessCacheEntry,
+    processId: TraceProcessId
+  ): boolean {
+    const spanTable = this.processSpanTableMap[processId] ?? null;
+    const activeSpanRefs = this.spanRefs ?? null;
+    return (
+      processEntry.spanTable === spanTable &&
+      processEntry.spanTableRowCount === (spanTable?.numRows ?? 0) &&
+      processEntry.spanTableGeneration === (spanTable?.generation ?? null) &&
+      processEntry.activeSpanRefs === activeSpanRefs &&
+      processEntry.activeSpanRefCount === (activeSpanRefs?.length ?? 0) &&
+      processEntry.firstActiveSpanRef === (activeSpanRefs?.[0] ?? null) &&
+      processEntry.lastActiveSpanRef === (activeSpanRefs?.[activeSpanRefs.length - 1] ?? null)
+    );
+  }
+
+  /** Clears visible/runtime materializations that retain process-local SpanRef-derived rows. */
+  private clearVisibleRuntimeMaterializationCaches(): void {
+    this.filteredSpanCountByThreadRefCache = undefined;
+    this.sourceTraceGraphProjectionCache = undefined;
+    this.traceGraphProjectionCache = undefined;
+    this.visibleIndexCache = undefined;
+    this.visibleRuntimeCache = undefined;
+    this.visibleBlockSearchRecordsCache = undefined;
+    this.entitySourceCache = undefined;
+    this.unfilteredVisibleLaneLayoutInfoCache = undefined;
   }
 
   /** Returns active process refs in owner-ref order. */
@@ -2834,6 +2927,7 @@ export class TraceGraph implements TraceGraphData {
           processRef,
           name: process.name,
           rankNum: process.rankNum,
+          processOrder: process.processOrder,
           userData: process.userData
         } satisfies TraceProcessSource);
 
@@ -2953,14 +3047,37 @@ export class TraceGraph implements TraceGraphData {
   /** Returns one raw ingestion thread for a canonical runtime thread ref. */
   private getRawThreadByRef(threadRef: ThreadRef): TraceThread | null {
     const threadId = this.runtimeEntityRefs.threadIdByRef.get(threadRef) ?? null;
-    return threadId ? (this.threadMap[threadId] ?? null) : null;
+    const processRef = this.getProcessRefByThreadRef(threadRef);
+    const processId = processRef == null ? null : this.getRawProcessIdByRef(processRef);
+    const process = processId ? this.processes.find(entry => entry.processId === processId) : null;
+    return threadId && process ? (process.threadMap[threadId] ?? null) : null;
   }
 
-  /** Returns one raw owning process id for a visible local dependency id. */
-  private getRawVisibleLocalDependencyProcessIdById(
-    dependencyId: TraceDependencyId
+  /** Returns one raw owning process id for an exact visible local dependency ref. */
+  private getRawVisibleLocalDependencyProcessIdByRef(
+    dependencyRef: VisibleLocalDependencyRef
   ): TraceProcessId | null {
-    return this.getVisibleIndex().visibleLocalDependencyProcessIdById[dependencyId] ?? null;
+    return this.getVisibleIndex().visibleLocalDependencyProcessIdByRef.get(dependencyRef) ?? null;
+  }
+
+  /** Returns one raw owning process id for an exact local dependency ref. */
+  private getRawLocalDependencyProcessIdByRef(
+    dependencyRef: TraceDependencyRef | VisibleDependencyRef
+  ): TraceProcessId | null {
+    if (isLocalDependencyRef(dependencyRef)) {
+      return this.processIdsByIndex[getLocalDependencyRefProcessIndex(dependencyRef)] ?? null;
+    }
+    if (!isVisibleLocalDependencyRef(dependencyRef)) {
+      return null;
+    }
+    if (!this.hasActiveSpanFilter()) {
+      const sourceDependencyRef =
+        this.getUnfilteredVisibleLocalDependencySourceRefByRef(dependencyRef);
+      return sourceDependencyRef == null
+        ? null
+        : (this.processIdsByIndex[getLocalDependencyRefProcessIndex(sourceDependencyRef)] ?? null);
+    }
+    return this.getRawVisibleLocalDependencyProcessIdByRef(dependencyRef);
   }
 
   /** Resolves the source Arrow dependency ref behind one visible dependency ref. */
@@ -2998,16 +3115,49 @@ export class TraceGraph implements TraceGraphData {
     return null;
   }
 
+  /** Resolves one canonical visible dependency ref from a source or visible dependency ref. */
+  private getVisibleDependencyRefByRef(
+    dependencyRef: TraceDependencyRef | VisibleDependencyRef
+  ): VisibleDependencyRef | null {
+    if (isVisibleLocalDependencyRef(dependencyRef) || isVisibleCrossDependencyRef(dependencyRef)) {
+      return dependencyRef;
+    }
+    if (isLocalDependencyRef(dependencyRef)) {
+      return this.getVisibleLocalDependencyRefBySourceRef(dependencyRef);
+    }
+    if (isCrossDependencyRef(dependencyRef)) {
+      return this.getVisibleCrossDependencyRefBySourceRef(dependencyRef);
+    }
+    return null;
+  }
+
+  /** Resolves visible cross-rank numbers without decoding descriptive dependency fields. */
+  private getVisibleCrossDependencyRankNums(
+    dependencyRef: VisibleCrossDependencyRef
+  ): Pick<TraceCrossDependencyRenderSource, 'startRankNum' | 'endRankNum'> | null {
+    const override = this.getVisibleDependencyOverrideSpec(dependencyRef);
+    if (override?.kind === 'cross-parent') {
+      return {
+        startRankNum: override.startRankNum,
+        endRankNum: override.endRankNum
+      };
+    }
+
+    const sourceDependencyRef = this.getVisibleDependencySourceRefByRef(dependencyRef);
+    if (sourceDependencyRef == null || !isCrossDependencyRef(sourceDependencyRef)) {
+      return null;
+    }
+    const startRankNum = this.getCrossDependencyStartRankNum(sourceDependencyRef);
+    const endRankNum = this.getCrossDependencyEndRankNum(sourceDependencyRef);
+    return startRankNum == null || endRankNum == null ? null : {startRankNum, endRankNum};
+  }
+
   /** Returns one original dependency endpoint span ref before visible rewrites. */
   private getDependencySourceSpan(
     dependencyRef: TraceDependencyRef | VisibleDependencyRef,
-    endpoint: 'start' | 'end',
-    dependencyId?: TraceDependencyId
+    endpoint: 'start' | 'end'
   ): SpanRef | null {
-    const override =
-      dependencyId == null
-        ? this.getVisibleDependencyOverrideSpec(dependencyRef)
-        : this.getVisibleDependencyOverrideSpecById(dependencyId);
+    const override = this.getVisibleDependencyOverrideSpec(dependencyRef);
     if (override?.kind === 'cross-parent') {
       const sourceSpanRef =
         endpoint === 'start' ? override.sourceStartSpanRef : override.sourceEndSpanRef;
@@ -3034,19 +3184,7 @@ export class TraceGraph implements TraceGraphData {
       return null;
     }
 
-    const dependencyId = this.getVisibleDependencyIdByRef(dependencyRef);
-    return dependencyId ? this.getVisibleDependencyOverrideSpecById(dependencyId) : null;
-  }
-
-  /** Resolves the visible override for one dependency id. */
-  private getVisibleDependencyOverrideSpecById(
-    dependencyId: TraceDependencyId
-  ): TraceGraphVisibleDependencyOverride | null {
-    if (!this.hasActiveSpanFilter()) {
-      return null;
-    }
-
-    return this.getVisibleIndex().dependencyOverrideSpecs[dependencyId] ?? null;
+    return this.getVisibleIndex().dependencyOverrideSpecsByRef.get(dependencyRef) ?? null;
   }
 
   /** Ensures unfiltered visible local dependency process offsets are available. */
@@ -3094,6 +3232,49 @@ export class TraceGraph implements TraceGraphData {
   ): TraceLocalDependencySource | null {
     return buildTraceGraphUnfilteredLocalDependencySourceByRef(this, dependencyRef);
   }
+}
+
+const EMPTY_SPAN_DIRECTIONAL_DEPENDENCY_REF_BUCKETS = {
+  ...EMPTY_SPAN_DIRECTIONAL_DEPENDENCY_REFS,
+  totalCount: 0,
+  truncated: false
+} satisfies TraceSpanDirectionalDependencyRefBuckets;
+
+/** Caps normalized dependency refs while stopping before unneeded refs are expanded. */
+function getBoundedDirectionalDependencyRefs<TDependencyRef>(params: {
+  /** Raw dependency refs read from sidecar storage. */
+  dependencyRefs: readonly number[];
+  /** Maximum normalized refs to retain. */
+  limit: number;
+  /** Ref normalizer that may drop malformed raw refs. */
+  normalizeDependencyRef: (dependencyRef: number) => readonly TDependencyRef[];
+}): TDependencyRef[] {
+  const dependencyRefs: TDependencyRef[] = [];
+  for (const dependencyRef of params.dependencyRefs) {
+    if (dependencyRefs.length >= params.limit) {
+      break;
+    }
+    for (const normalizedDependencyRef of params.normalizeDependencyRef(dependencyRef)) {
+      if (dependencyRefs.length >= params.limit) {
+        break;
+      }
+      dependencyRefs.push(normalizedDependencyRef);
+    }
+  }
+  return dependencyRefs;
+}
+
+/** Normalizes finite dependency caps while preserving explicit unbounded callers. */
+function normalizeDependencyRefLimit(limit: number): number {
+  return Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : Number.POSITIVE_INFINITY;
+}
+
+/** Builds one collision-safe dedupe key for a runtime dependency source. */
+function getTraceDependencySourceRuntimeKey(dependencySource: TraceDependencySource): string {
+  if (dependencySource.dependencyRef == null) {
+    throw new Error(`Expected ref-native dependency source for ${dependencySource.dependencyId}`);
+  }
+  return `${dependencySource.type}:ref:${String(dependencySource.dependencyRef)}`;
 }
 
 /**

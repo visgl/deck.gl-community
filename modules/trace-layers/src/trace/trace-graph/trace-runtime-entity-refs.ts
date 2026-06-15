@@ -112,18 +112,21 @@ export function buildTraceRuntimeEntityRefs(
     if (processRef == null) {
       return;
     }
+    let processThreadRefById: ReadonlyMap<TraceThreadId, ThreadRef> | undefined;
 
     process.threads.forEach(thread => {
-      const threadRef = findThreadRefForProcess({
-        ownerRefSnapshot,
-        processRef,
-        threadId: thread.threadId
-      });
+      const instants = process.threadInstantMap[thread.threadId] ?? [];
+      const counters = process.threadCounterMap[thread.threadId] ?? [];
+      if (instants.length === 0 && counters.length === 0) {
+        return;
+      }
+      processThreadRefById ??= buildProcessThreadRefById(ownerRefSnapshot, processRef);
+      const threadRef = processThreadRefById.get(thread.threadId) ?? null;
       if (threadRef == null) {
         return;
       }
 
-      for (const instant of traceGraphTables.threadInstantMap[thread.threadId] ?? []) {
+      for (const instant of instants) {
         const instantRef =
           instant.instantRef != null &&
           isInstantRef(instant.instantRef) &&
@@ -143,7 +146,7 @@ export function buildTraceRuntimeEntityRefs(
         processRefByInstantRef.set(instantRef, processRef);
       }
 
-      for (const counter of traceGraphTables.threadCounterMap[thread.threadId] ?? []) {
+      for (const counter of counters) {
         const counterRef =
           counter.counterRef != null &&
           isCounterRef(counter.counterRef) &&
@@ -212,23 +215,20 @@ export function buildTraceRuntimeEntityRefs(
 }
 
 /**
- * Resolve one process-scoped thread ref without assuming ingestion thread ids are graph-global.
+ * Builds one process-scoped thread-ref lookup for runtime entities that need owner refs.
  */
-function findThreadRefForProcess(params: {
-  /** Trace-global owner refs kept for the current graph snapshot. */
-  ownerRefSnapshot: Readonly<TraceOwnerRefSnapshot>;
-  /** Owning process ref for the desired thread. */
-  processRef: ProcessRef;
-  /** Ingestion thread id to match within the process. */
-  threadId: TraceThreadId;
-}): ThreadRef | null {
-  for (const threadRef of params.ownerRefSnapshot.threadRefsByProcessRef.get(params.processRef) ??
-    []) {
-    if (params.ownerRefSnapshot.threadIdByRef.get(threadRef) === params.threadId) {
-      return threadRef;
+function buildProcessThreadRefById(
+  ownerRefSnapshot: Readonly<TraceOwnerRefSnapshot>,
+  processRef: ProcessRef
+): ReadonlyMap<TraceThreadId, ThreadRef> {
+  const threadRefById = new Map<TraceThreadId, ThreadRef>();
+  for (const threadRef of ownerRefSnapshot.threadRefsByProcessRef.get(processRef) ?? []) {
+    const threadId = ownerRefSnapshot.threadIdByRef.get(threadRef);
+    if (threadId != null) {
+      threadRefById.set(threadId, threadRef);
     }
   }
-  return null;
+  return threadRefById;
 }
 
 /**

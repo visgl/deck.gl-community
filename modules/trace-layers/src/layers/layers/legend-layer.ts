@@ -4,6 +4,7 @@ import {TextLayer} from '@deck.gl/layers';
 import {
   DEFAULT_TRACE_FONT_FAMILY,
   getLayoutDensityPreset,
+  getTraceLayoutProcessLayoutByRef,
   TRACE_COLOR,
   TraceLayout
 } from '../../trace/index';
@@ -16,6 +17,7 @@ import {
 } from './layer-bounds-utils';
 
 import type {
+  ProcessRef,
   ThreadLayout,
   ThreadRef,
   TraceThread,
@@ -45,12 +47,14 @@ export type TraceLegendLayerProps = LayerProps & {
   traceLayout: Readonly<TraceLayout>;
   settings: TraceVisSettings;
   rankIndex: number;
+  /** Exact graph-local process ref owning this legend row. */
+  rankProcessRef: ProcessRef;
   rankLabel?: string;
   nodeNameLabel?: string;
-  /** Runtime thread refs aligned with `threads` when available. */
-  threadRefs?: readonly ThreadRef[];
+  /** Exact graph-local thread refs aligned with `threads`. */
+  threadRefs: readonly ThreadRef[];
   /** Callback fired when a stream label should toggle lane collapse. */
-  onToggleStream?: (threadId: TraceThreadId, stream: TraceThread, threadRef?: ThreadRef) => void;
+  onToggleStream?: (threadId: TraceThreadId, stream: TraceThread, threadRef: ThreadRef) => void;
   isCollapsed?: boolean;
   /** CSS font stack used by legend text labels. */
   fontFamily?: string;
@@ -59,8 +63,8 @@ export type TraceLegendLayerProps = LayerProps & {
 type StreamLabelDatum = {
   /** Trace thread represented by this label. */
   stream: TraceThread;
-  /** Runtime thread ref represented by this label when available. */
-  threadRef?: ThreadRef;
+  /** Exact graph-local thread ref represented by this label. */
+  threadRef: ThreadRef;
   /** Display label rendered for the trace thread. */
   label: string;
   /** Trace-space X coordinate for the label. */
@@ -82,19 +86,20 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
     traceLayout: undefined!,
     settings: undefined!,
     rankIndex: undefined!,
+    rankProcessRef: undefined!,
     rankLabel: undefined!,
     nodeNameLabel: undefined!,
-    threadRefs: undefined!,
+    threadRefs: [],
     isCollapsed: false,
     onToggleStream: undefined!,
     fontFamily: DEFAULT_TRACE_FONT_FAMILY
   };
 
   override getBounds() {
-    const {traceLayout, threads, rankIndex, rankLabel, nodeNameLabel} = this.props;
-    const rankLayout = traceLayout.processLayouts?.[rankIndex];
+    const {traceLayout, threads, rankProcessRef, rankLabel, nodeNameLabel} = this.props;
+    const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, rankProcessRef);
     const threadLayouts = threads
-      .map((stream, streamIndex) => this.getStreamLayoutForStream(stream, streamIndex))
+      .map((_, streamIndex) => this.getStreamLayoutForStream(streamIndex))
       .filter((layout): layout is ThreadLayout => Boolean(layout));
     const nodeNameBounds =
       nodeNameLabel && rankLayout?.startPosition
@@ -139,16 +144,15 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
     return info;
   }
 
-  private getStreamLayoutForStream(stream: TraceThread, streamIndex: number): ThreadLayout | null {
-    const {traceLayout, rankIndex} = this.props;
-    const isCombinedSyntheticRow = String(stream.threadId) === 'all_threads';
-    if (isCombinedSyntheticRow) {
-      return traceLayout.processLayouts?.[rankIndex]?.threadLayouts?.[streamIndex] ?? null;
+  private getStreamLayoutForStream(streamIndex: number): ThreadLayout | null {
+    const {traceLayout, rankProcessRef} = this.props;
+    const threadRef = this.props.threadRefs[streamIndex];
+    if (threadRef == null) {
+      return null;
     }
-
     return (
-      traceLayout.threadLayoutMap[stream.threadId] ??
-      traceLayout.processLayouts?.[rankIndex]?.threadLayouts?.[streamIndex] ??
+      traceLayout.threadLayoutMapByRef.get(threadRef) ??
+      getTraceLayoutProcessLayoutByRef(traceLayout, rankProcessRef)?.threadLayouts?.[streamIndex] ??
       null
     );
   }
@@ -156,7 +160,7 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
   private getStreamLabelData(threads: readonly TraceThread[]): StreamLabelDatum[] {
     return threads
       .map((stream, streamIndex) => {
-        const layout = this.getStreamLayoutForStream(stream, streamIndex);
+        const layout = this.getStreamLayoutForStream(streamIndex);
         if (!layout) {
           return null;
         }
@@ -174,10 +178,13 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
             : Number.isFinite(layout.yPosition)
               ? layout.yPosition
               : 0;
-        const threadRef = layout.threadRef ?? this.props.threadRefs?.[streamIndex];
+        const threadRef = layout.threadRef ?? this.props.threadRefs[streamIndex];
+        if (threadRef == null) {
+          return null;
+        }
         return {
           stream,
-          ...(threadRef != null ? {threadRef} : {}),
+          threadRef,
           label,
           x: startX,
           z: startZ,

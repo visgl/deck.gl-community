@@ -247,7 +247,7 @@ export function getSearchParentChildDependencies(params: {
 
   const processRef = params.traceGraph.getProcessRefBySpanRef(params.spanRef);
   const candidates: TraceGraphSearchChildDependency[] = [];
-  for (const dependency of params.projection.outDependenciesBySpanId[spanId] ?? []) {
+  for (const dependency of params.projection.outDependenciesBySpanRef.get(params.spanRef) ?? []) {
     if (dependency.startSpanId !== spanId || !isSearchParentDependency(dependency)) {
       continue;
     }

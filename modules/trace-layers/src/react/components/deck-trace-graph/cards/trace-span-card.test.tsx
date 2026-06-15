@@ -220,6 +220,7 @@ function rerenderTraceSpanCard(params: {
   span: TraceSpan;
   traceGraph: JSONTrace;
   interactive?: boolean;
+  allDependencyTabLabel?: string;
   showChildrenTab?: boolean;
   showCrossProcessDependencies?: boolean;
   /** Caller-selected active tab restored into the interactive card. */
@@ -231,6 +232,7 @@ function rerenderTraceSpanCard(params: {
 }) {
   const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(params.traceGraph), {});
   const tabOptions = {
+    allDependencyLabel: params.allDependencyTabLabel,
     showChildren: params.showChildrenTab,
     showCrossProcessDependencies: params.showCrossProcessDependencies
   };
@@ -353,7 +355,7 @@ function renderTraceSpanCard(params?: {
   onSpanDoubleClick?: (spanRef: SpanRef, action: 'select' | 'select-and-focus') => void;
   traceGraph?: JSONTrace;
   span?: TraceSpan;
-  timingAggregationKey?: string;
+  traceRunSummaryAggregationKey?: string;
   timezone?: string;
   dependencyTabLabel?: string;
   outgoingDependencyTabLabel?: string;
@@ -389,6 +391,7 @@ function renderTraceSpanCard(params?: {
   const tabOptions = {
     dependencyLabel: params?.dependencyTabLabel,
     outgoingDependencyLabel: params?.outgoingDependencyTabLabel,
+    allDependencyLabel: params?.allDependencyTabLabel,
     alwaysShowAll: params?.alwaysShowAllInteractiveTabs,
     showChildren: params?.showChildrenTab,
     showOutgoingDependencies: params?.showOutgoingDependenciesTab,
@@ -412,7 +415,7 @@ function renderTraceSpanCard(params?: {
         traceSettings={
           {
             spanFilter: params?.spanFilter,
-            timingAggregationKey: params?.timingAggregationKey,
+            traceRunSummaryAggregationKey: params?.traceRunSummaryAggregationKey,
             timezone: params?.timezone,
             localDependencyMode: params?.localDependencyMode
           } as TraceVisSettings
@@ -1785,17 +1788,33 @@ describe('TraceSpanCard', () => {
   });
 
   it('renders a truncation notice when recursive child traversal exceeds the limit', () => {
-    const {span, traceGraph} = createGraphWithManyChildren(1001);
-    const rendered = renderTraceSpanCard({
-      interactive: true,
-      span,
-      traceGraph,
-      showChildrenTab: true
-    });
+    const {span, traceGraph} = createGraphWithManyChildren(1);
+    const getTraceSpanDescendants = TraceGraph.prototype.getTraceSpanDescendants;
+    const descendantSpy = vi
+      .spyOn(TraceGraph.prototype, 'getTraceSpanDescendants')
+      .mockImplementation(function (this: TraceGraph, spanRef, options) {
+        return {
+          ...getTraceSpanDescendants.call(this, spanRef, options),
+          isTruncated: true,
+          limit: 1000,
+          truncatedCount: 1,
+          truncationCountIsExact: false
+        };
+      });
+    try {
+      const rendered = renderTraceSpanCard({
+        interactive: true,
+        span,
+        traceGraph,
+        showChildrenTab: true
+      });
 
-    clickButton(rendered, 'Children');
-    expect(rendered.textContent).toContain('Showing first 1000 descendants; 1 more omitted');
-  }, 30000);
+      clickButton(rendered, 'Children');
+      expect(rendered.textContent).toContain('Showing first 1000 descendants; 1 more omitted');
+    } finally {
+      descendantSpy.mockRestore();
+    }
+  });
 
   it('shows the children tab even when no child dependencies are visible', () => {
     const rendered = renderTraceSpanCard({
@@ -1964,7 +1983,7 @@ describe('TraceSpanCard', () => {
       dependencyTabLabel: 'Parents',
       showChildrenTab: true,
       dependencyMetric: 'duration',
-      timingAggregationKey: 'envelope'
+      traceRunSummaryAggregationKey: 'envelope'
     });
 
     expect(getSelectValue(rendered, 'First duration metric')).toBe('envelope');
@@ -2049,7 +2068,7 @@ describe('TraceSpanCard', () => {
       dependencyTabLabel: 'Parents',
       showChildrenTab: true,
       dependencyMetric: 'duration',
-      timingAggregationKey: 'envelope'
+      traceRunSummaryAggregationKey: 'envelope'
     });
 
     clickButton(rendered, 'Children');
@@ -2226,7 +2245,7 @@ describe('TraceSpanCard', () => {
       interactive: true,
       span,
       traceGraph,
-      timingAggregationKey: 'latest',
+      traceRunSummaryAggregationKey: 'latest',
       timezone: 'America/Los_Angeles'
     });
 

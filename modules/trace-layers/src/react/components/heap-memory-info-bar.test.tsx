@@ -23,6 +23,7 @@ vi.mock('../../trace/log', () => ({
 
 describe('HeapMemoryInfoBar', () => {
   afterEach(() => {
+    vi.useRealTimers();
     setBrowserHeapMemoryInfo(null);
     document.body.innerHTML = '';
     vi.clearAllMocks();
@@ -54,11 +55,40 @@ describe('HeapMemoryInfoBar', () => {
     highPressureView.cleanup();
   });
 
-  it('shows compact trace memory totals in the memory popup when provided', () => {
+  it('shows separate TraceChunkStore and visualization window estimates in the memory popup', () => {
     const view = renderElement(
       <HeapMemoryInfoBar
         buildTraceMemoryReport={() => ({
-          traceGraphSizeReport: {
+          traceChunkStoreDiagnostics: createTraceChunkStoreDiagnostics(),
+          traceChunkStoreSizeReport: {
+            totalBytes: 2 * 1024 * 1024 * 1024,
+            bytesByKind: {
+              arrow: 2 * 1024 * 1024 * 1024,
+              map: 0,
+              array: 0,
+              object: 0,
+              string: 0,
+              'typed-array': 0,
+              primitive: 0
+            },
+            entries: [
+              {
+                path: 'traceChunkStore.processMetadataSnapshots',
+                bytes: 1024 * 1024 * 1024,
+                kind: 'array'
+              },
+              {
+                path: 'traceChunkStore.spanSidecarRows',
+                bytes: 512 * 1024 * 1024,
+                kind: 'array'
+              }
+            ]
+          },
+          traceChunkStoreObservedHeapDeltaBytes: 3 * 1024 * 1024 * 1024,
+          traceChunkStoreUnattributedHeapDeltaBytes: 901 * 1024 * 1024,
+          traceChunkStoreReadyChunkCount: 25,
+          traceChunkStoreReadySpanCount: 250_000,
+          traceVisualizationWindowSizeReport: {
             totalBytes: 123 * 1024 * 1024,
             bytesByKind: {
               arrow: 95 * 1024 * 1024,
@@ -79,25 +109,37 @@ describe('HeapMemoryInfoBar', () => {
               }
             ]
           },
-          traceLayoutSizeBytes: 45 * 1024 * 1024,
-          traceViewStateSizeBytes: 112 * 1024 * 1024
+          traceEngineDiagnostics: createTraceEngineDiagnostics()
         })}
       />
     );
     hoverMemoryBar(view.container);
 
-    expect(getTooltipText()).toContain('Tracevis-owned memory');
-    expect(getTooltipText()).toContain('TraceGraph retained123 MB');
-    expect(getTooltipText()).toContain('TraceViewState retained112 MB');
-    expect(getTooltipText()).toContain('TraceLayout retained45 MB');
+    expect(getTooltipText()).toContain('TraceChunkStore');
+    expect(getTooltipText()).toContain('Retained payload estimate2 GB');
+    expect(getTooltipText()).toContain('Descriptors30');
+    expect(getTooltipText()).toContain('Loaded chunks25');
+    expect(getTooltipText()).toContain('Loaded spans250,000');
+    expect(getTooltipText()).toContain('Observed store heap delta3 GB');
+    expect(getTooltipText()).toContain('Unattributed store delta901 MB');
+    expect(getTooltipText()).toContain('Process snapshots1 GB');
+    expect(getTooltipText()).toContain('Span sidecars512 MB');
+    expect(getTooltipText()).toContain('Visualization window');
+    expect(getTooltipText()).toContain('TraceGraph estimate123 MB');
+    expect(getTooltipText()).toContain('TraceEngine');
+    expect(getTooltipText()).toContain('Retained viewer state112 MB');
+    expect(getTooltipText()).toContain('Active TraceLayout45 MB');
+    expect(getTooltipText()).toContain('Prepared deck inputs67 MB');
+    expect(getTooltipText()).toContain('Revision7');
+    expect(getTooltipText()).toContain('Last build12.3 ms');
+    expect(getTooltipText()).toContain('Estimates are bounded retained drivers');
     expect(getTooltipText()).not.toContain('spanTables.0');
     view.cleanup();
   });
 
-  it('builds expensive trace memory diagnostics only when hovered', () => {
+  it('builds trace memory diagnostics only when hovered', () => {
     const buildTraceMemoryReport = vi.fn(() => ({
-      traceLayoutSizeBytes: 45 * 1024 * 1024,
-      traceViewStateSizeBytes: 112 * 1024 * 1024
+      traceEngineDiagnostics: createTraceEngineDiagnostics()
     }));
     const view = renderElement(
       <HeapMemoryInfoBar buildTraceMemoryReport={buildTraceMemoryReport} />
@@ -108,7 +150,71 @@ describe('HeapMemoryInfoBar', () => {
     hoverMemoryBar(view.container);
 
     expect(buildTraceMemoryReport).toHaveBeenCalledTimes(1);
-    expect(getTooltipText()).toContain('TraceViewState retained112 MB');
+    expect(getTooltipText()).toContain('Retained viewer state112 MB');
+    view.cleanup();
+  });
+
+  it('keeps small nonzero TraceEngine estimates visible', () => {
+    const view = renderElement(
+      <HeapMemoryInfoBar
+        buildTraceMemoryReport={() => ({
+          traceEngineDiagnostics: {
+            ...createTraceEngineDiagnostics(),
+            traceEngineRetainedSizeBytes: 2918,
+            traceLayoutSizeBytes: 2294,
+            traceDeckInputsSizeBytes: 624
+          }
+        })}
+      />
+    );
+
+    hoverMemoryBar(view.container);
+
+    expect(getTooltipText()).toContain('Retained viewer state2.8 KB');
+    expect(getTooltipText()).toContain('Active TraceLayout2.2 KB');
+    expect(getTooltipText()).toContain('Prepared deck inputs624 B');
+    view.cleanup();
+  });
+
+  it('logs a watermark report once until heap usage falls below the reset band', () => {
+    vi.useFakeTimers();
+    const buildTraceMemoryReport = vi.fn(() => ({
+      traceEngineDiagnostics: createTraceEngineDiagnostics()
+    }));
+    setBrowserHeapMemoryInfo({
+      jsHeapSizeLimit: 4 * 1024 * 1024 * 1024,
+      totalJSHeapSize: 3.2 * 1024 * 1024 * 1024,
+      usedJSHeapSize: 3 * 1024 * 1024 * 1024
+    });
+    const view = renderElement(
+      <HeapMemoryInfoBar buildTraceMemoryReport={buildTraceMemoryReport} />
+    );
+
+    expect(buildTraceMemoryReport).toHaveBeenCalledTimes(1);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(buildTraceMemoryReport).toHaveBeenCalledTimes(1);
+
+    setBrowserHeapMemoryInfo({
+      jsHeapSizeLimit: 4 * 1024 * 1024 * 1024,
+      totalJSHeapSize: 2.6 * 1024 * 1024 * 1024,
+      usedJSHeapSize: 2.5 * 1024 * 1024 * 1024
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    setBrowserHeapMemoryInfo({
+      jsHeapSizeLimit: 4 * 1024 * 1024 * 1024,
+      totalJSHeapSize: 3.2 * 1024 * 1024 * 1024,
+      usedJSHeapSize: 3 * 1024 * 1024 * 1024
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(buildTraceMemoryReport).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(logProbeMock.mock.calls)).toContain('heap watermark diagnostics');
     view.cleanup();
   });
 
@@ -116,7 +222,26 @@ describe('HeapMemoryInfoBar', () => {
     const view = renderElement(
       <HeapMemoryInfoBar
         buildTraceMemoryReport={() => ({
-          traceGraphSizeReport: {
+          traceChunkStoreSizeReport: {
+            totalBytes: 2 * 1024 * 1024 * 1024,
+            bytesByKind: {
+              arrow: 0,
+              map: 0,
+              array: 2 * 1024 * 1024 * 1024,
+              object: 0,
+              string: 0,
+              'typed-array': 0,
+              primitive: 0
+            },
+            entries: [
+              {
+                path: 'traceChunkStore.processMetadataSnapshots',
+                bytes: 2 * 1024 * 1024 * 1024,
+                kind: 'array'
+              }
+            ]
+          },
+          traceVisualizationWindowSizeReport: {
             totalBytes: 123 * 1024 * 1024,
             bytesByKind: {
               arrow: 95 * 1024 * 1024,
@@ -137,8 +262,7 @@ describe('HeapMemoryInfoBar', () => {
               }
             ]
           },
-          traceViewStateSizeBytes: 112 * 1024 * 1024,
-          traceLayoutSizeBytes: 45 * 1024 * 1024
+          traceEngineDiagnostics: createTraceEngineDiagnostics()
         })}
       />
     );
@@ -146,8 +270,15 @@ describe('HeapMemoryInfoBar', () => {
     hoverMemoryBar(view.container);
 
     expect(logTableMock).toHaveBeenCalled();
-    expect(JSON.stringify(logTableMock.mock.calls)).toContain('TraceViewState retained');
-    expect(JSON.stringify(logTableMock.mock.calls)).toContain('TraceLayout retained');
+    expect(JSON.stringify(logTableMock.mock.calls)).toContain('TraceEngine retained viewer state');
+    expect(JSON.stringify(logTableMock.mock.calls)).toContain('TraceEngine active TraceLayout');
+    expect(JSON.stringify(logTableMock.mock.calls)).toContain(
+      'TraceChunkStore retained payload estimate'
+    );
+    expect(JSON.stringify(logTableMock.mock.calls)).toContain('processMetadataSnapshots');
+    expect(JSON.stringify(logTableMock.mock.calls)).toContain(
+      'Visualization window TraceGraph estimate'
+    );
     expect(JSON.stringify(logTableMock.mock.calls)).toContain('spanTables.0');
     view.cleanup();
   });
@@ -161,6 +292,58 @@ type TestBrowserHeapMemoryInfo = {
   /** JavaScript heap bytes currently used by live objects. */
   usedJSHeapSize: number;
 };
+
+/** Builds cheap TraceChunkStore counters for heap diagnostics tests. */
+function createTraceChunkStoreDiagnostics() {
+  return {
+    descriptorCount: 30,
+    readyChunkCount: 25,
+    pendingChunkCount: 2,
+    failedChunkCount: 1,
+    traceWindowCount: 1,
+    sourceSpanFilterCount: 0,
+    sourceSpanFilterRevision: 0
+  };
+}
+
+/** Builds cheap TraceEngine counters for heap diagnostics tests. */
+function createTraceEngineDiagnostics() {
+  return {
+    revision: 7,
+    lastUpdateReason: 'sync' as const,
+    listenerCount: 2,
+    displayedGraphCount: 1,
+    displayedProcessCount: 4,
+    displayedThreadCount: 8,
+    displayedSpanCount: 250_000,
+    displayedLocalDependencyCount: 320_000,
+    displayedCrossDependencyCount: 12_000,
+    selectedSpanCount: 1,
+    focusedSpanCount: 0,
+    selectedLocalDependencyCount: 0,
+    selectedCrossDependencyCount: 0,
+    activeLayoutCount: 1,
+    baseLayoutCount: 1,
+    focusedLayoutCount: 0,
+    preparedForegroundSceneCount: 1,
+    preparedOverviewSceneCount: 1,
+    preparedForegroundRowCount: 4,
+    preparedForegroundSpanCount: 250_000,
+    preparedOverviewRowCount: 4,
+    preparedOverviewSpanCount: 250_000,
+    buildPhaseTimings: {
+      totalDurationMs: 12.3,
+      baseLayoutDurationMs: 4.1,
+      focusedLayoutDurationMs: 0,
+      threadCollapsePruneDurationMs: 0,
+      preparedSceneDurationMs: 7.2
+    },
+    traceEngineRetainedSizeBytes: 112 * 1024 * 1024,
+    traceLayoutSizeBytes: 45 * 1024 * 1024,
+    traceDeckInputsSizeBytes: 67 * 1024 * 1024,
+    retainedSizeEstimateDurationMs: 1
+  };
+}
 
 /**
  * Stubs Chromium's non-standard performance.memory object for the next component render.

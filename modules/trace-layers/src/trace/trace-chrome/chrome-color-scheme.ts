@@ -5,6 +5,8 @@ export type ChromeTraceColorSchemeOptions = {
   id?: string;
   /** Optional user-facing label for the scheme. */
   name?: string;
+  /** Optional selector subtext explaining how the scheme colors spans. */
+  description?: string;
 };
 
 const CHROME_COLOR_KEYS = ['color', 'streamColor', 'rankColor'] as const;
@@ -44,11 +46,16 @@ export function getColorFromUserData(userData?: Record<string, unknown>): TraceC
 export function createChromeTraceColorScheme(
   options: ChromeTraceColorSchemeOptions = {}
 ): TraceColorScheme {
-  const {id = 'chrome-trace', name = 'Chrome Trace'} = options;
+  const {
+    id = 'chrome-trace',
+    name = 'Chrome Trace',
+    description = 'Color spans with colors embedded in Chrome Trace metadata.'
+  } = options;
 
   return {
     id,
     name,
+    description,
     getSpanFillColor: ({span}) => getColorFromUserData(span.userData),
     getThreadColor: ({thread}) => getColorFromUserData(thread?.userData),
     getProcessBackgroundColor: ({process}) => getColorFromUserData(process?.userData)
