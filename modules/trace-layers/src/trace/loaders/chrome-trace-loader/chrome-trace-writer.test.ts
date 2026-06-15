@@ -10,7 +10,7 @@ import {
   writeChromeTrace
 } from './chrome-trace-writer';
 
-import type {JSONTrace, TraceGraphData} from '../../trace-graph/index';
+import type {JSONTrace, TraceGraphData} from '../../trace-graph';
 import type {
   TraceCounter,
   TraceDependencyId,

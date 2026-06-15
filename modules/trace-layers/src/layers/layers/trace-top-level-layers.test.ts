@@ -13,9 +13,9 @@ import {TraceStoreLayer} from './trace-store-layer';
 
 import type {
   TraceChunkDescriptor,
+  TraceChunkSelection,
   TraceChunkStore,
   TraceChunkStoreEnsureResult,
-  TraceChunkWindowGraphSnapshot,
   TraceDependencyId,
   TraceGraphData,
   TraceLayoutCollapseState,
@@ -53,7 +53,6 @@ const TEST_SETTINGS: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  timingAggregationKey: 'latest',
   showEmptyProcesses: false
 };
 
@@ -176,7 +175,7 @@ describe('TraceStoreLayer', () => {
   it('registers windows, materializes snapshots, redraws on chunk arrivals, and cleans up', async () => {
     const firstFixture = createTestTraceGraph('first');
     const secondFixture = createTestTraceGraph('second');
-    const source = createTraceStoreSource(createTraceSnapshot('window-a', 1, firstFixture));
+    const source = createTraceStoreSource('window-a', firstFixture.traceGraphData);
     const layer = createTraceStoreLayer([source.source]);
 
     updateLayer(layer);
@@ -187,11 +186,15 @@ describe('TraceStoreLayer', () => {
       loadChunk: source.source.loadChunk,
       onProgress: source.source.onProgress
     });
-    expect(source.getTraceGraphForWindow).toHaveBeenCalledWith('window-a', null);
-    expect(layer.state.traceGraphs).toEqual([firstFixture.traceGraph]);
+    expect(source.materializeTraceGraphDataForWindow).toHaveBeenCalledWith(
+      'window-a',
+      source.selection,
+      source.source.materializeTraceGraphData
+    );
+    expect(layer.state.traceGraphs.map(traceGraph => traceGraph.name)).toEqual(['first']);
     expect(layer.renderLayers()).toBeInstanceOf(TraceGraphLayer);
 
-    source.setSnapshot(createTraceSnapshot('window-a', 2, secondFixture));
+    source.setTraceGraphData(secondFixture.traceGraphData);
     source.getRegisteredWindow()?.onChunksArrived?.({
       windowId: 'window-a',
       newReadyChunkKeys: [],
@@ -202,24 +205,19 @@ describe('TraceStoreLayer', () => {
       isComplete: true
     });
 
-    expect(layer.state.traceGraphs).toEqual([secondFixture.traceGraph]);
+    expect(layer.state.traceGraphs.map(traceGraph => traceGraph.name)).toEqual(['second']);
 
     layer.finalizeState({} as never);
     expect(source.removeTraceWindow).toHaveBeenCalledWith('window-a');
   });
 
   it('replaces source registrations and reports async registration errors', async () => {
-    const firstSource = createTraceStoreSource(
-      createTraceSnapshot('window-a', 1, createTestTraceGraph())
-    );
+    const firstSource = createTraceStoreSource('window-a', createTestTraceGraph().traceGraphData);
     const onError = vi.fn();
-    const secondSource = createTraceStoreSource(
-      createTraceSnapshot('window-b', 1, createTestTraceGraph()),
-      {
-        onError,
-        registerTraceWindows: vi.fn(() => Promise.reject(new Error('load failed')))
-      }
-    );
+    const secondSource = createTraceStoreSource('window-b', createTestTraceGraph().traceGraphData, {
+      onError,
+      registerTraceWindows: vi.fn(() => Promise.reject(new Error('load failed')))
+    });
     const layer = createTraceStoreLayer([firstSource.source]);
     updateLayer(layer);
     await flushPromises();
@@ -255,62 +253,73 @@ function createTraceStoreLayer(
 }
 
 function createTraceStoreSource(
-  initialSnapshot: TraceChunkWindowGraphSnapshot,
+  windowId: string,
+  initialTraceGraphData: TraceGraphData,
   overrides: Partial<{
     onError: (error: unknown) => void;
     registerTraceWindows: TestTraceStore['registerTraceWindows'];
   }> = {}
 ) {
-  let snapshot: TraceChunkWindowGraphSnapshot | null = initialSnapshot;
+  let traceGraphData = initialTraceGraphData;
   let registeredWindow: TraceWindow | undefined;
+  const selection = createTraceSelection();
   const registerTraceWindows =
     overrides.registerTraceWindows ??
     vi.fn(({windows}: Parameters<TestTraceStore['registerTraceWindows']>[0]) => {
       registeredWindow = windows[0];
       return Promise.resolve(createEnsureResult());
     });
-  const getTraceGraphForWindow = vi.fn(() => snapshot);
+  const select = vi.fn(() => selection);
+  const getReadyChunks = vi.fn(() => []);
+  const materializeTraceGraphDataForWindow = vi.fn(() => traceGraphData);
   const removeTraceWindow = vi.fn();
   const traceChunkStore = {
     registerTraceWindows,
-    getTraceGraphForWindow,
-    removeTraceWindow
+    select,
+    getReadyChunks,
+    materializeTraceGraphDataForWindow,
+    removeTraceWindow,
+    hasActiveSourceSpanFilter: vi.fn(() => false),
+    isFiltered: vi.fn(() => false),
+    getFilterReason: vi.fn(() => ({
+      filterMask: 0,
+      isFiltered: false,
+      state: 'outside-window'
+    }))
   } as unknown as TestTraceStore;
   const traceWindow: TraceWindow = {
-    id: initialSnapshot.windowId,
+    id: windowId,
     minTimeMs: 0,
     maxTimeMs: 10
   };
+  const materializeTraceGraphData = vi.fn(() => traceGraphData);
 
   return {
     source: {
       traceChunkStore,
       traceWindow,
       loadChunk: vi.fn(async () => ({payload: {}})),
+      materializeTraceGraphData,
       onProgress: vi.fn(),
       onError: overrides.onError
     },
+    selection,
     registerTraceWindows,
-    getTraceGraphForWindow,
+    materializeTraceGraphDataForWindow,
     removeTraceWindow,
     getRegisteredWindow: () => registeredWindow,
-    setSnapshot: (nextSnapshot: TraceChunkWindowGraphSnapshot | null) => {
-      snapshot = nextSnapshot;
+    setTraceGraphData: (nextTraceGraphData: TraceGraphData) => {
+      traceGraphData = nextTraceGraphData;
     }
   };
 }
 
-function createTraceSnapshot(
-  windowId: string,
-  version: number,
-  fixture: TestTraceGraphFixture
-): TraceChunkWindowGraphSnapshot {
+function createTraceSelection(): TraceChunkSelection<TraceChunkDescriptor> {
   return {
-    windowId,
-    version,
-    traceGraphData: fixture.traceGraphData,
-    traceGraph: fixture.traceGraph,
-    selectionSummary: {
+    matchingDescriptors: [],
+    selectedDescriptors: [],
+    omittedDescriptors: [],
+    summary: {
       spanBudget: null,
       matchedSpanCount: 0,
       selectedSpanCount: 0,
@@ -318,16 +327,7 @@ function createTraceSnapshot(
       omittedChunkCount: 0,
       omittedSpanCount: 0,
       isSpanBudgetCapped: false
-    },
-    readiness: {
-      selectedChunkCount: 0,
-      readySelectedChunkCount: 0,
-      pendingSelectedChunkCount: 0,
-      failedSelectedChunkCount: 0,
-      missingSelectedChunkCount: 0,
-      isComplete: true
-    },
-    materializationMode: 'rebuild'
+    }
   };
 }
 
@@ -346,7 +346,7 @@ function createEnsureResult(): TraceChunkStoreEnsureResult<unknown, TraceChunkDe
 function updateLayer<TProps extends object>(
   layer: {
     props: TProps;
-    clone: (props?: Partial<TProps>) => {props: TProps};
+    clone: (props: Partial<TProps>) => {props: TProps};
     updateState: (params: never) => void;
   },
   props: TProps = layer.props

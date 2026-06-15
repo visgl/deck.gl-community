@@ -1,13 +1,27 @@
 import {describe, expect, it, vi} from 'vitest';
 
 import {
+  buildArrowTraceLocalDependencyTable,
+  buildArrowTraceSpanTableFromColumns,
   buildJSONTrace,
+  buildTraceChunkRowWindowTable,
+  buildTraceChunkSourceDependencyTable,
+  buildTraceChunkWindowGraphData,
   buildTraceGraphDataFromJSONTrace,
   buildTraceLayouts,
+  buildTraceProcessSpanRefTables,
+  createChronologicalTraceChunkSpanBudgetPolicy,
   DEFAULT_TRACE_COLOR_SCHEME,
+  TraceChunkStore,
+  TraceChunkStoreLoadSkippedError,
   TraceGraph
 } from '../../../trace/index';
 import {createStaticTraceGraphRuntimeSource} from '../../../trace/trace-chunk-store';
+import {
+  encodeProcessRef,
+  encodeProcessThreadRef,
+  encodeSpanRef
+} from '../../../trace/trace-graph/trace-id-encoder';
 import {
   buildTracePreparedMinimapSpanIndicators,
   buildTracePreparedOverviewGraphScenes,
@@ -19,18 +33,44 @@ import {
 } from './trace-deck-layout-inputs';
 
 import type {
+  CollapsedActivityByProcessRef,
   SpanRef,
+  TraceChunk,
+  TraceChunkData,
+  TraceChunkDescriptor,
+  TraceChunkSpanOverlapRange,
+  TraceChunkWindowGraphMaterializer,
   TraceColorScheme,
   TraceDependencyId,
   TraceLayout,
   TraceLocalDependency,
   TraceProcess,
+  TraceProcessId,
   TraceSpan,
   TraceSpanId,
+  TraceSpanTiming,
   TraceThread,
   TraceThreadId,
   TraceVisSettings
 } from '../../../trace/index';
+
+/** Concrete chunk descriptor used by trace deck layout input tests. */
+type TestTraceChunkDescriptor = TraceChunkDescriptor & {
+  /** Test marker used to make descriptor types concrete. */
+  readonly testKind: 'chunk';
+};
+
+/** Arrow-backed span row used by trace deck layout input tests. */
+type TestTraceChunkRow = {
+  /** Stable external span id stored in the Arrow span table. */
+  readonly externalSpanId: string;
+  /** Span start time stored in the Arrow span table. */
+  readonly startTimeMs: number;
+  /** Span end time stored in the Arrow span table. */
+  readonly endTimeMs: number;
+  /** Window-overlap ranges stored in chunk metadata. */
+  readonly overlapRanges: readonly TraceChunkSpanOverlapRange[];
+};
 
 function createTestTraceGraph(
   traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
@@ -43,6 +83,160 @@ function createTestTraceGraph(
     }),
     options
   );
+}
+
+/** Builds one concrete chunk descriptor for chunk-backed prepared-row tests. */
+function createTestTraceChunkDescriptor(
+  chunkKey: string,
+  sortStartTimeMs: number
+): TestTraceChunkDescriptor {
+  return {
+    chunkKey,
+    familyKey: 'trace-deck-layout-inputs-test-family',
+    startTimeMs: 0,
+    endTimeMs: 30,
+    sortStartTimeMs,
+    sortEndTimeMs: 30,
+    advertisedSpanCount: 1,
+    testKind: 'chunk'
+  };
+}
+
+/** Builds one span row that overlaps the active chunk-backed prepared-row test window. */
+function createTestTraceChunkRow(
+  externalSpanId: string,
+  options: Partial<Omit<TestTraceChunkRow, 'externalSpanId'>> = {}
+): TestTraceChunkRow {
+  return {
+    externalSpanId,
+    startTimeMs: options.startTimeMs ?? 10,
+    endTimeMs: options.endTimeMs ?? 11,
+    overlapRanges: options.overlapRanges ?? [{startTimeMs: 10, endTimeMs: 20}]
+  };
+}
+
+/** Builds parser-local chunk data for one same-process prepared-row test chunk. */
+function createTestTraceChunkData(
+  rows: readonly TestTraceChunkRow[],
+  chunkKey: string,
+  options: {
+    /** Source thread id owned by this parser-local chunk. */
+    readonly threadId?: TraceThreadId;
+    /** Source thread name owned by this parser-local chunk. */
+    readonly threadName?: string;
+  } = {}
+): TraceChunkData {
+  const processId = 'rank-a' as TraceProcessId;
+  const threadId = options.threadId ?? ('rank-a-thread' as TraceThreadId);
+  const thread = {
+    type: 'trace-thread',
+    threadId,
+    processId,
+    name: options.threadName ?? String(threadId)
+  } as const;
+  return {
+    type: 'trace-chunk-data',
+    chunkKey,
+    processes: [
+      {
+        type: 'trace-process',
+        processId,
+        name: 'rank-a',
+        rankNum: 0,
+        stepNum: 0,
+        threads: [thread],
+        threadMap: {[thread.threadId]: thread},
+        instants: [],
+        instantMap: {},
+        threadInstantMap: {},
+        counters: [],
+        counterMap: {},
+        threadCounterMap: {},
+        localDependencies: [],
+        remoteDependencies: []
+      }
+    ],
+    spanTable: buildArrowTraceSpanTableFromColumns({
+      process_ref: rows.map(() => encodeProcessRef(0)),
+      thread_ref: rows.map(() => encodeProcessThreadRef(0, 0)),
+      span_id: rows.map(row => row.externalSpanId as TraceSpanId),
+      external_span_id: rows.map(row => row.externalSpanId),
+      thread_id: rows.map(() => threadId),
+      name: rows.map(row => row.externalSpanId),
+      source: rows.map(() => null),
+      primary_timing_key: rows.map(() => 'measured'),
+      status: rows.map(() => 'finished'),
+      start_time_ms: rows.map(row => row.startTimeMs),
+      end_time_ms: rows.map(row => row.endTimeMs),
+      duration_ms: rows.map(row => row.endTimeMs - row.startTimeMs)
+    }),
+    localDependencyTable: buildArrowTraceLocalDependencyTable([]),
+    spanSidecarRows: rows.map(row => ({
+      timings: createTestTraceChunkTimings(row),
+      userData: {},
+      keywords: [],
+      localDependencyIds: [],
+      incomingLocalDependencyRowIndexes: [],
+      outgoingLocalDependencyRowIndexes: [],
+      crossProcessEndpointId: null,
+      crossProcessDependencyEndpoints: []
+    })),
+    sourceDependencyTable: buildTraceChunkSourceDependencyTable([]),
+    rowWindowTable: buildTraceChunkRowWindowTable(rows.map(row => row.overlapRanges)),
+    diagnostics: {
+      rowCount: rows.length,
+      invalidRecordCount: 0,
+      minTimeMs: rows[0]?.startTimeMs ?? null,
+      maxTimeMs: rows.at(-1)?.endTimeMs ?? null,
+      warningCounters: {}
+    },
+    refState: 'parser-local'
+  };
+}
+
+/** Builds row-aligned measured timing metadata for one chunk-backed prepared-row span. */
+function createTestTraceChunkTimings(row: TestTraceChunkRow): Record<string, TraceSpanTiming> {
+  return {
+    measured: {
+      status: 'finished',
+      startTimeMs: row.startTimeMs,
+      endTimeMs: row.endTimeMs,
+      durationMs: row.endTimeMs - row.startTimeMs,
+      durationMsAsString: `${row.endTimeMs - row.startTimeMs}ms`
+    }
+  };
+}
+
+/** Builds the same chunk-window graph materializer used by incremental trace views. */
+function createTestTraceChunkMaterializer(): TraceChunkWindowGraphMaterializer<
+  TraceChunk,
+  TestTraceChunkDescriptor
+> {
+  return ({ownerRefRegistry, readyChunks, window}) =>
+    buildTraceChunkWindowGraphData({
+      name: 'trace-deck-layout-inputs-chunk-test',
+      ownerRefRegistry,
+      window,
+      readyChunks
+    });
+}
+
+/** Materializes the active chunk-backed prepared-row test window into one TraceGraph. */
+function materializeTestTraceChunkGraph(
+  store: TraceChunkStore<TraceChunk, TestTraceChunkDescriptor>
+): TraceGraph {
+  const traceGraphData = store.materializeTraceGraphDataForWindow(
+    'active',
+    store.select({
+      window: {startTimeMs: 10, endTimeMs: 20},
+      spanBudget: null
+    }),
+    createTestTraceChunkMaterializer()
+  );
+  if (!traceGraphData) {
+    throw new Error('Expected active chunk-backed test graph');
+  }
+  return new TraceGraph({traceGraphData, traceStore: store});
 }
 
 const defaultTraceVisSettings: TraceVisSettings = {
@@ -69,7 +263,7 @@ const defaultTraceVisSettings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  timingAggregationKey: 'latest'
+  traceRunSummaryAggregationKey: 'latest'
 };
 
 describe('trace deck layout inputs', () => {
@@ -303,6 +497,18 @@ describe('trace deck layout inputs', () => {
     const reusedRankFiveRow = appendedPrepared.foreground[0]?.rows.find(
       row => row.row.processId === 'rank-5'
     );
+    const firstRankFourPositions = getRequiredFloat32Attribute(
+      firstRankFourRow?.binaryBlockData?.data.attributes.getPosition?.value
+    );
+    const reusedRankFourPositions = getRequiredFloat32Attribute(
+      reusedRankFourRow?.binaryBlockData?.data.attributes.getPosition?.value
+    );
+    const firstRankFivePositions = getRequiredFloat32Attribute(
+      firstRankFiveRow?.binaryBlockData?.data.attributes.getPosition?.value
+    );
+    const reusedRankFivePositions = getRequiredFloat32Attribute(
+      reusedRankFiveRow?.binaryBlockData?.data.attributes.getPosition?.value
+    );
 
     expect(appendedPrepared.foreground[0]?.rows.map(row => row.row.processId)).toEqual([
       'rank-3',
@@ -311,19 +517,36 @@ describe('trace deck layout inputs', () => {
     ]);
     expect(reusedRankFourRow?.spans).toBe(firstRankFourRow?.spans);
     expect(reusedRankFourRow?.dependencies).toBe(firstRankFourRow?.dependencies);
-    expect(reusedRankFourRow?.binaryBlockData).toBe(firstRankFourRow?.binaryBlockData);
-    expect(reusedRankFourRow?.binaryDependencyLineData).toBe(
+    expect(reusedRankFourRow?.binaryBlockData).not.toBe(firstRankFourRow?.binaryBlockData);
+    expect(reusedRankFourRow?.binaryDependencyLineData).not.toBe(
       firstRankFourRow?.binaryDependencyLineData
     );
+    expect(reusedRankFourRow?.binaryBlockData?.spans).toBe(reusedRankFourRow?.spans);
     expect(reusedRankFiveRow?.spans).toBe(firstRankFiveRow?.spans);
     expect(reusedRankFiveRow?.dependencies).toBe(firstRankFiveRow?.dependencies);
-    expect(reusedRankFiveRow?.binaryBlockData).toBe(firstRankFiveRow?.binaryBlockData);
-    expect(reusedRankFiveRow?.binaryDependencyLineData).toBe(
+    expect(reusedRankFiveRow?.binaryBlockData).not.toBe(firstRankFiveRow?.binaryBlockData);
+    expect(reusedRankFiveRow?.binaryDependencyLineData).not.toBe(
       firstRankFiveRow?.binaryDependencyLineData
     );
+    expect(reusedRankFiveRow?.binaryBlockData?.spans).toBe(reusedRankFiveRow?.spans);
+    expect(reusedRankFourPositions[1]).toBeGreaterThan(firstRankFourPositions[1] ?? 0);
+    expect(reusedRankFivePositions[1]).toBeGreaterThan(firstRankFivePositions[1] ?? 0);
+
+    for (const row of [reusedRankFourRow, reusedRankFiveRow]) {
+      const positions = getRequiredFloat32Attribute(
+        row?.binaryBlockData?.data.attributes.getPosition?.value
+      );
+      const sizes = getRequiredFloat32Attribute(
+        row?.binaryBlockData?.data.attributes.getSize?.value
+      );
+      expect(Array.from(positions).every(Number.isFinite)).toBe(true);
+      expect(Array.from(sizes).every(Number.isFinite)).toBe(true);
+      expect(sizes[0]).toBeGreaterThan(0);
+      expect(sizes[1]).toBeGreaterThan(0);
+    }
   });
 
-  it('reuses previous binary row payloads when only row X/Y positions change', () => {
+  it('rebuilds binary row payloads when row positions change', () => {
     const traceGraph = createDependencyTraceGraph();
     const firstTraceLayouts = buildTestLayouts(traceGraph);
     const settings: TraceVisSettings = {
@@ -344,35 +567,11 @@ describe('trace deck layout inputs', () => {
     });
     const firstRow = firstPrepared.foreground[0]?.rows[0];
     const shiftedTraceLayouts = buildTestLayouts(traceGraph, 'primary', firstTraceLayouts, 10);
-    const shiftedLayout = shiftedTraceLayouts[0];
-    const shiftedGeometryEntry =
-      shiftedLayout?.geometryCache?.processesById[firstRow?.row.processId ?? ''];
-    const shiftedTraceLayoutsWithStableGeometryKey =
-      shiftedLayout && shiftedGeometryEntry && firstRow?.reuseInfo
-        ? [
-            {
-              ...shiftedLayout,
-              geometryCache: {
-                ...shiftedLayout.geometryCache,
-                processesById: {
-                  ...shiftedLayout.geometryCache?.processesById,
-                  [firstRow.row.processId]: {
-                    ...shiftedGeometryEntry,
-                    fastReuseKey: firstRow.reuseInfo.geometryReuseKey,
-                    reuseKey: firstRow.reuseInfo.geometryReuseKey,
-                    geometryXOffset: (firstRow.reuseInfo.geometryXOffset ?? 0) - 20,
-                    geometryYOffset: (firstRow.reuseInfo.geometryYOffset ?? 0) + 10
-                  }
-                }
-              }
-            } satisfies TraceLayout
-          ]
-        : shiftedTraceLayouts;
     const shiftedPrepared = buildTracePreparedScene({
       primaryTraceGraph: traceGraph,
       sourceTraceGraphs: [traceGraph],
       traceGraphs: [traceGraph],
-      traceLayouts: shiftedTraceLayoutsWithStableGeometryKey,
+      traceLayouts: shiftedTraceLayouts,
       paths: [],
       settings,
       colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
@@ -398,18 +597,12 @@ describe('trace deck layout inputs', () => {
 
     expect(shiftedRow?.spans).toBe(firstRow?.spans);
     expect(shiftedRow?.dependencies).toBe(firstRow?.dependencies);
-    expect(shiftedRow?.binaryBlockData).toBe(firstRow?.binaryBlockData);
-    expect(shiftedRow?.binaryDependencyLineData).toBe(firstRow?.binaryDependencyLineData);
+    expect(shiftedRow?.binaryBlockData).not.toBe(firstRow?.binaryBlockData);
+    expect(shiftedRow?.binaryDependencyLineData).not.toBe(firstRow?.binaryDependencyLineData);
     expect(shiftedBlockPositions[0]).toBeCloseTo(firstBlockPositions[0] ?? 0);
-    expect(shiftedBlockPositions[1]).toBeCloseTo(firstBlockPositions[1] ?? 0);
+    expect(shiftedBlockPositions[1]).toBeCloseTo((firstBlockPositions[1] ?? 0) + 10);
     expect(shiftedDependencySources[0]).toBeCloseTo(firstDependencySources[0] ?? 0);
-    expect(shiftedDependencySources[1]).toBeCloseTo(firstDependencySources[1] ?? 0);
-    expect(shiftedRow?.reuseInfo?.geometryXOffset).toBeCloseTo(
-      (firstRow?.reuseInfo?.geometryXOffset ?? 0) - 20
-    );
-    expect(shiftedRow?.reuseInfo?.geometryYOffset).toBeCloseTo(
-      (firstRow?.reuseInfo?.geometryYOffset ?? 0) + 10
-    );
+    expect(shiftedDependencySources[1]).toBeCloseTo((firstDependencySources[1] ?? 0) + 10);
   });
 
   it('rebuilds dependency rows when local dependency mode changes but keeps span binary data', () => {
@@ -460,6 +653,354 @@ describe('trace deck layout inputs', () => {
 
   it('refreshes only geometry buffers when separate-thread rows collapse into combined threads', () => {
     expectAggregationToggleGeometryRefresh('separate-threads', 'combine-threads');
+  });
+
+  it('refreshes row-local geometry buffers without geometry-cache reuse metadata', () => {
+    const traceGraph = createCrossThreadDependencyTraceGraph();
+    const firstLayouts = buildAggregationTestLayouts(traceGraph, 'separate-threads');
+    const settings = {
+      ...defaultTraceVisSettings,
+      localDependencyMode: 'submit',
+      trackAggregationMode: 'separate-threads'
+    } satisfies TraceVisSettings;
+    const firstRows = buildTracePreparedProcessRows({
+      graph: traceGraph,
+      layout: omitTraceLayoutGeometryCache(firstLayouts[0]!),
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME
+    });
+    const nextLayouts = buildAggregationTestLayouts(traceGraph, 'combine-threads', firstLayouts);
+    const stats = createPreparedRowsStats();
+    const nextRows = buildTracePreparedProcessRows({
+      graph: traceGraph,
+      layout: omitTraceLayoutGeometryCache(nextLayouts[0]!),
+      settings: {
+        ...settings,
+        trackAggregationMode: 'combine-threads'
+      },
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
+      previousRows: firstRows,
+      stats
+    });
+
+    expect(nextRows[0]?.binaryBlockData).not.toBe(firstRows[0]?.binaryBlockData);
+    expect(nextRows[0]?.binaryDependencyLineData).not.toBe(firstRows[0]?.binaryDependencyLineData);
+    expect(stats.binaryBlockGeometryRefreshCount).toBe(1);
+    expect(stats.binaryDependencyGeometryRefreshCount).toBe(1);
+  });
+
+  it('refreshes grown process span positions when that collapsed process expands', () => {
+    const loadedProcess = appendSpanToProcess(
+      createProcessWithLocalDependency('rank-a', 0),
+      'later'
+    );
+    const traceGraphData = buildTraceGraphDataFromJSONTrace(
+      buildJSONTrace([loadedProcess], [], {
+        name: 'trace-deck-layout-inputs-growing-process-view-test'
+      })
+    );
+    const fullTraceGraph = createTestTraceGraph(traceGraphData);
+    const processId = fullTraceGraph.processIdsByIndex[0]!;
+    const processRef = fullTraceGraph.getProcessRefs()[0]!;
+    const allSpanRefs = [...fullTraceGraph.getVisibleProcessRenderSpanRefs(processRef)];
+    const laterSpanRef = allSpanRefs[2];
+    if (laterSpanRef == null) {
+      throw new Error('Expected later span ref');
+    }
+    const activeSpanRefs = allSpanRefs.slice(0, 2);
+    const processSpanTableMap = buildTraceProcessSpanRefTables(
+      traceGraphData.chunks,
+      traceGraphData.processes,
+      {
+        processIdsByIndex: traceGraphData.processIdsByIndex,
+        spanRefs: activeSpanRefs
+      }
+    );
+    const traceGraph = createTestTraceGraph({
+      ...traceGraphData,
+      spanRefs: activeSpanRefs,
+      processSpanTableMap
+    });
+    const settings = {
+      ...defaultTraceVisSettings,
+      localDependencyMode: 'submit',
+      trackAggregationMode: 'combine-threads'
+    } satisfies TraceVisSettings;
+    const collapsedProcessIds = new Set([processId]);
+    const firstCollapsedLayouts = buildTraceLayouts({
+      prebuiltTraceGraphs: [traceGraph],
+      traceGraphs: [traceGraph],
+      settings,
+      collapsedProcessIds,
+      collapsedThreadIds: new Set(),
+      threadLaneLayoutOverrides: {},
+      timingKey: 'primary',
+      minTimeMs: traceGraph.minTimeMs,
+      buildMinimapLayouts: true
+    });
+    const firstCollapsedRows = buildTracePreparedProcessRows({
+      graph: traceGraph,
+      layout: firstCollapsedLayouts[0]!,
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME
+    });
+
+    activeSpanRefs.push(laterSpanRef);
+    replaceProcessSpanRefTable({
+      processSpanTableMap,
+      traceGraphData,
+      processId,
+      spanRefs: activeSpanRefs
+    });
+    const loadedCollapsedLayouts = buildTraceLayouts({
+      prebuiltTraceGraphs: [traceGraph],
+      traceGraphs: [traceGraph],
+      previousLayouts: firstCollapsedLayouts,
+      settings,
+      collapsedProcessIds,
+      collapsedThreadIds: new Set(),
+      threadLaneLayoutOverrides: {},
+      timingKey: 'primary',
+      minTimeMs: traceGraph.minTimeMs,
+      buildMinimapLayouts: true
+    });
+    const loadedCollapsedRows = buildTracePreparedProcessRows({
+      graph: traceGraph,
+      layout: loadedCollapsedLayouts[0]!,
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
+      previousRows: firstCollapsedRows
+    });
+    const expandedLayouts = buildTraceLayouts({
+      prebuiltTraceGraphs: [traceGraph],
+      traceGraphs: [traceGraph],
+      previousLayouts: loadedCollapsedLayouts,
+      settings,
+      collapsedProcessIds: new Set(),
+      collapsedThreadIds: new Set(),
+      threadLaneLayoutOverrides: {},
+      timingKey: 'primary',
+      minTimeMs: traceGraph.minTimeMs,
+      buildMinimapLayouts: true
+    });
+    const stats = createPreparedRowsStats();
+    const expandedRows = buildTracePreparedProcessRows({
+      graph: traceGraph,
+      layout: expandedLayouts[0]!,
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
+      previousRows: loadedCollapsedRows,
+      stats
+    });
+
+    expect(loadedCollapsedRows[0]?.spans).toEqual(activeSpanRefs);
+    expect(loadedCollapsedRows[0]?.binaryBlockData?.data.length).toBe(3);
+    expect(getBinarySpanHeight(loadedCollapsedRows[0]?.binaryBlockData, 2)).toBe(0);
+    const laterThreadRef = traceGraph.getThreadRefBySpanRef(laterSpanRef);
+    if (laterThreadRef == null) {
+      throw new Error('Expected later span thread ref');
+    }
+    expect(
+      expandedLayouts[0]!.threadLayoutMapByRef.get(laterThreadRef)?.spanLaneMap?.has(laterSpanRef)
+    ).toBe(true);
+    expect(expandedRows[0]?.binaryBlockData).not.toBe(loadedCollapsedRows[0]?.binaryBlockData);
+    expect(stats.binaryBlockGeometryRefreshCount).toBe(1);
+    expect(getBinarySpanHeight(expandedRows[0]?.binaryBlockData, 2)).toBeGreaterThan(0);
+
+    const expandedLayoutWithStaleCollapsedRenderRow = {
+      ...expandedLayouts[0]!,
+      renderRows: expandedLayouts[0]!.renderRows.map(row =>
+        row.processRef === processRef ? {...row, isCollapsed: true} : row
+      )
+    } satisfies TraceLayout;
+    const staleRenderRowStats = createPreparedRowsStats();
+    const staleRenderRowExpandedRows = buildTracePreparedProcessRows({
+      graph: traceGraph,
+      layout: expandedLayoutWithStaleCollapsedRenderRow,
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
+      previousRows: loadedCollapsedRows,
+      stats: staleRenderRowStats
+    });
+
+    expect(staleRenderRowExpandedRows[0]?.reuseInfo?.isCollapsed).toBe(false);
+    expect(staleRenderRowExpandedRows[0]?.binaryBlockData).not.toBe(
+      loadedCollapsedRows[0]?.binaryBlockData
+    );
+    expect(staleRenderRowStats.binaryBlockGeometryRefreshCount).toBe(1);
+    expect(getBinarySpanHeight(staleRenderRowExpandedRows[0]?.binaryBlockData, 2)).toBeGreaterThan(
+      0
+    );
+
+    expect(loadedCollapsedRows[0]?.binaryBlockReuseInfo?.isCollapsed).toBe(true);
+    const warningSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    buildTracePreparedProcessRows({
+      graph: traceGraph,
+      layout: expandedLayouts[0]!,
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
+      previousRows: loadedCollapsedRows
+    });
+    expect(
+      warningSpy.mock.calls.some(
+        ([message]) =>
+          message ===
+          '%c[tracevis] Expanded trace process row has invalid binary span or label geometry after expansion'
+      )
+    ).toBe(false);
+    warningSpy.mockRestore();
+  });
+
+  it('rebuilds span binary data when later chunks grow one process spanRefs list', async () => {
+    const firstDescriptor = createTestTraceChunkDescriptor('same-process-a', 0);
+    const laterDescriptor = createTestTraceChunkDescriptor('same-process-b', 1);
+    const store = new TraceChunkStore<TraceChunk, TestTraceChunkDescriptor>({
+      identityKey: 'trace-deck-layout-inputs-chunk-test',
+      descriptors: [firstDescriptor, laterDescriptor],
+      selectionPolicy: createChronologicalTraceChunkSpanBudgetPolicy<TestTraceChunkDescriptor>()
+    });
+    store.add(
+      createTestTraceChunkData(
+        [
+          createTestTraceChunkRow('same-process-a', {
+            startTimeMs: 10,
+            endTimeMs: 14
+          })
+        ],
+        firstDescriptor.chunkKey,
+        {
+          threadId: 'rank-a-thread-a' as TraceThreadId,
+          threadName: 'rank-a-thread-a'
+        }
+      )
+    );
+    await store.registerTraceWindows({
+      windows: [{id: 'active', minTimeMs: 10, maxTimeMs: 20}],
+      loadChunk: async descriptor => {
+        if (descriptor.chunkKey === laterDescriptor.chunkKey) {
+          throw new TraceChunkStoreLoadSkippedError('Defer later test chunk');
+        }
+        throw new Error('Expected first test chunk to be loaded before registration');
+      }
+    });
+    const firstTraceGraph = materializeTestTraceChunkGraph(store);
+    const processId = firstTraceGraph.processIdsByIndex[0]!;
+    const processRef = firstTraceGraph.getProcessRefs()[0]!;
+    const firstSpanRef = encodeSpanRef(0, 0);
+    const laterSpanRef = encodeSpanRef(1, 0);
+    expect(firstTraceGraph.getVisibleProcessRenderSpanRefs(processRef)).toEqual([firstSpanRef]);
+    const settings = {
+      ...defaultTraceVisSettings,
+      localDependencyMode: 'submit',
+      trackAggregationMode: 'combine-threads'
+    } satisfies TraceVisSettings;
+    const collapsedProcessIds = new Set([processId]);
+    const firstLayouts = buildTraceLayouts({
+      prebuiltTraceGraphs: [firstTraceGraph],
+      traceGraphs: [firstTraceGraph],
+      settings,
+      collapsedProcessIds,
+      collapsedThreadIds: new Set(),
+      threadLaneLayoutOverrides: {},
+      timingKey: 'primary',
+      minTimeMs: firstTraceGraph.minTimeMs,
+      buildMinimapLayouts: true
+    });
+    const firstRows = buildTracePreparedProcessRows({
+      graph: firstTraceGraph,
+      layout: firstLayouts[0]!,
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME
+    });
+
+    store.add(
+      createTestTraceChunkData(
+        [
+          createTestTraceChunkRow('same-process-b', {
+            startTimeMs: 12,
+            endTimeMs: 18
+          })
+        ],
+        laterDescriptor.chunkKey,
+        {
+          threadId: 'rank-a-thread-b' as TraceThreadId,
+          threadName: 'rank-a-thread-b'
+        }
+      )
+    );
+    const loadedCollapsedTraceGraph = materializeTestTraceChunkGraph(store);
+    const loadedCollapsedProcessRef = loadedCollapsedTraceGraph.getProcessRefs()[0]!;
+    expect(
+      loadedCollapsedTraceGraph.getVisibleProcessRenderSpanRefs(loadedCollapsedProcessRef)
+    ).toEqual([firstSpanRef, laterSpanRef]);
+    const loadedCollapsedLayouts = buildTraceLayouts({
+      prebuiltTraceGraphs: [loadedCollapsedTraceGraph],
+      traceGraphs: [loadedCollapsedTraceGraph],
+      previousLayouts: firstLayouts,
+      settings,
+      collapsedProcessIds,
+      collapsedThreadIds: new Set(),
+      threadLaneLayoutOverrides: {},
+      timingKey: 'primary',
+      minTimeMs: loadedCollapsedTraceGraph.minTimeMs,
+      buildMinimapLayouts: true
+    });
+    const stats = createPreparedRowsStats();
+    const loadedCollapsedRows = buildTracePreparedProcessRows({
+      graph: loadedCollapsedTraceGraph,
+      layout: loadedCollapsedLayouts[0]!,
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
+      previousRows: firstRows,
+      stats
+    });
+    const expandedLayouts = buildTraceLayouts({
+      prebuiltTraceGraphs: [loadedCollapsedTraceGraph],
+      traceGraphs: [loadedCollapsedTraceGraph],
+      previousLayouts: loadedCollapsedLayouts,
+      settings,
+      collapsedProcessIds: new Set(),
+      collapsedThreadIds: new Set(),
+      threadLaneLayoutOverrides: {},
+      timingKey: 'primary',
+      minTimeMs: loadedCollapsedTraceGraph.minTimeMs,
+      buildMinimapLayouts: true
+    });
+    const expandedStats = createPreparedRowsStats();
+    const expandedRows = buildTracePreparedProcessRows({
+      graph: loadedCollapsedTraceGraph,
+      layout: expandedLayouts[0]!,
+      settings,
+      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
+      previousRows: loadedCollapsedRows,
+      stats: expandedStats
+    });
+    const laterSpanIndex = loadedCollapsedRows[0]?.spans.indexOf(laterSpanRef) ?? -1;
+    const laterThreadRef = loadedCollapsedTraceGraph.getThreadRefBySpanRef(laterSpanRef);
+    if (laterSpanIndex < 0 || laterThreadRef == null) {
+      throw new Error('Expected later chunk span in loaded process row');
+    }
+
+    expect(firstRows[0]?.spans).toEqual([firstSpanRef]);
+    expect(firstRows[0]?.binaryBlockData?.data.length).toBe(1);
+    expect(loadedCollapsedRows[0]?.spans).toEqual([firstSpanRef, laterSpanRef]);
+    expect(loadedCollapsedRows[0]?.binaryBlockData?.data.length).toBe(2);
+    expect(loadedCollapsedRows[0]?.binaryBlockData).not.toBe(firstRows[0]?.binaryBlockData);
+    expect(stats.binaryBlockBuildCount).toBe(1);
+    expect(stats.binaryBlockGeometryRefreshCount).toBe(0);
+    expect(getBinarySpanHeight(loadedCollapsedRows[0]?.binaryBlockData, laterSpanIndex)).toBe(0);
+    expect(
+      expandedLayouts[0]!.threadLayoutMapByRef.get(laterThreadRef)?.spanLaneMap?.has(laterSpanRef)
+    ).toBe(true);
+    expect(expandedLayouts[0]!.processLayouts[0]?.threadLayouts).toHaveLength(1);
+    expect(expandedLayouts[0]!.threadLayoutMapByRef.get(laterThreadRef)).toBe(
+      expandedLayouts[0]!.processLayouts[0]?.threadLayouts[0]
+    );
+    expect(expandedRows[0]?.binaryBlockData).not.toBe(loadedCollapsedRows[0]?.binaryBlockData);
+    expect(expandedStats.binaryBlockGeometryRefreshCount).toBe(1);
+    expect(getBinarySpanHeight(expandedRows[0]?.binaryBlockData, laterSpanIndex)).toBeGreaterThan(
+      0
+    );
   });
 
   it('rebuilds span binary colors when the color scheme changes while reusing dependency data', () => {
@@ -650,21 +1191,24 @@ describe('trace deck layout inputs', () => {
     if (!traceLayout) {
       throw new Error('Expected prepared trace layout');
     }
-    const collapsedActivityByProcessId = {
-      'rank-a': [{startX: 3, endX: 4, activity: 1, color: [1, 2, 3] as [number, number, number]}]
-    };
+    const collapsedActivityByProcessRef = new Map([
+      [
+        traceLayout.renderRows[0]!.processRef,
+        [{startX: 3, endX: 4, activity: 1, color: [1, 2, 3] as [number, number, number]}]
+      ]
+    ]) satisfies CollapsedActivityByProcessRef;
 
     const first = buildTracePreparedProcessRows({
       graph: traceGraph,
       layout: traceLayout,
       settings: defaultTraceVisSettings,
-      collapsedActivityByProcessId
+      collapsedActivityByProcessRef
     });
     const second = buildTracePreparedProcessRows({
       graph: traceGraph,
       layout: traceLayout,
       settings: defaultTraceVisSettings,
-      collapsedActivityByProcessId
+      collapsedActivityByProcessRef
     });
 
     expect(second[0]?.collapsedActivityIntervals).toBe(first[0]?.collapsedActivityIntervals);
@@ -1010,6 +1554,8 @@ function buildTestLayouts(
     previousLayouts,
     topPadding,
     settings: defaultTraceVisSettings,
+    collapsedProcessIds: new Set(),
+    collapsedThreadIds: new Set(),
     threadLaneLayoutOverrides: {},
     timingKey,
     minTimeMs: traceGraph.minTimeMs,
@@ -1031,6 +1577,8 @@ function buildAggregationTestLayouts(
       ...defaultTraceVisSettings,
       trackAggregationMode
     },
+    collapsedProcessIds: new Set(),
+    collapsedThreadIds: new Set(),
     threadLaneLayoutOverrides: {},
     timingKey: 'primary',
     minTimeMs: traceGraph.minTimeMs,
@@ -1038,11 +1586,41 @@ function buildAggregationTestLayouts(
   });
 }
 
+/** Returns one layout unchanged now that TraceLayout carries no geometry cache. */
+function omitTraceLayoutGeometryCache(traceLayout: TraceLayout): TraceLayout {
+  return traceLayout;
+}
+
 function getRequiredFloat32Attribute(value: unknown): Float32Array {
   if (!(value instanceof Float32Array)) {
     throw new Error('Expected Float32Array attribute');
   }
   return value;
+}
+
+/** Returns one rendered binary span height or zero when geometry is absent. */
+function getBinarySpanHeight(
+  binaryBlockData:
+    | {
+        /** Binary layer payload containing packed attribute columns. */
+        readonly data: {
+          /** Packed binary attributes keyed by deck.gl attribute name. */
+          readonly attributes: Readonly<
+            Record<
+              string,
+              {
+                /** Packed binary attribute values. */
+                readonly value: Float32Array | Uint8Array | Uint32Array;
+              }
+            >
+          >;
+        };
+      }
+    | undefined,
+  spanIndex: number
+): number {
+  const sizes = binaryBlockData?.data.attributes.getSize?.value;
+  return sizes instanceof Float32Array ? (sizes[spanIndex * 2 + 1] ?? 0) : 0;
 }
 
 function getRequiredTestSpanRef(traceGraph: TraceGraph, spanId: TraceSpanId): SpanRef {
@@ -1199,6 +1777,50 @@ function createProcessWithLocalDependency(processId: string, rankNum: number): T
     localDependencies: [dependency],
     remoteDependencies: []
   };
+}
+
+/** Returns one process copy with an additional span in its existing source thread. */
+function appendSpanToProcess(process: TraceProcess, spanName: string): TraceProcess {
+  const thread = process.threads[0];
+  if (!thread) {
+    throw new Error('Expected source thread');
+  }
+  const span = createBlock(spanName, thread);
+  return {
+    ...process,
+    spans: [...process.spans, span],
+    spanMap: {
+      ...process.spanMap,
+      [span.spanId]: span
+    }
+  };
+}
+
+/** Replaces one process SpanRef table after its active chunk refs grow. */
+function replaceProcessSpanRefTable(params: {
+  /** Process-local span ref tables keyed by process id. */
+  processSpanTableMap: ReturnType<typeof buildTraceProcessSpanRefTables>;
+  /** Mutable trace graph data receiving the replacement table. */
+  traceGraphData: ReturnType<typeof buildTraceGraphDataFromJSONTrace>;
+  /** Process id whose active span ref table should be replaced. */
+  processId: TraceProcessId;
+  /** Next active span refs retained for the process. */
+  spanRefs: SpanRef[];
+}): void {
+  const nextProcessSpanTableMap = buildTraceProcessSpanRefTables(
+    params.traceGraphData.chunks,
+    params.traceGraphData.processes,
+    {
+      processIdsByIndex: params.traceGraphData.processIdsByIndex,
+      spanRefs: params.spanRefs
+    }
+  );
+  (
+    params.processSpanTableMap as Record<
+      TraceProcessId,
+      (typeof params.processSpanTableMap)[TraceProcessId]
+    >
+  )[params.processId] = nextProcessSpanTableMap[params.processId]!;
 }
 
 /** Builds one process whose local dependency spans two distinct source threads. */

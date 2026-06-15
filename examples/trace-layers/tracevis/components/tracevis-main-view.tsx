@@ -1,31 +1,15 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {OrthographicView} from '@deck.gl/core';
 import {DeckGL} from '@deck.gl/react';
 import {DarkTheme, LightTheme, ThemeWidget} from '@deck.gl/widgets';
 import {createPortal} from 'react-dom';
 import {imperativeDeckController} from '@deck.gl-community/trace-layers/layers';
 import {
-  buildJSONTrace,
-  buildTraceChunkDataFromJSONTrace,
-  buildTraceSelectedDependencyDirectionMaps,
-  createStaticTraceGraphRuntimeSource,
-  createTraceCollapseRuntimeState,
-  createTraceColorResolver,
-  DEFAULT_TRACE_STYLE,
-  getImmediateVisibleDependencyRefsForSpan,
-  getTraceLayoutGraphs,
-  materializeJSONTrace,
-  reduceTraceCollapseRuntimeState,
-  TraceGraph
-} from '@deck.gl-community/trace-layers/trace';
-import {
   BreadcrumbNavigator,
-  createStudioSettingsWidget,
   DeckTraceGraph,
   getRankNumForSpanRef,
   getSameNameNavigation,
   getThreadNavigation,
-  SidebarPanelWidget,
   SPAN_INSPECTOR_DEFAULT_WIDTH_PX,
   SpanInspectorHiddenSpanNotice,
   SpanInspectorPopup,
@@ -33,6 +17,17 @@ import {
   TraceSpanCard,
   TRACEVIS_SHORTCUTS
 } from '@deck.gl-community/trace-layers/react';
+import {
+  buildJSONTrace,
+  buildTraceChunkDataFromJSONTrace,
+  createStaticTraceGraphRuntimeSource,
+  createTraceColorResolver,
+  DEFAULT_TRACE_STYLE,
+  materializeJSONTrace,
+  TraceEngine,
+  TraceGraph
+} from '@deck.gl-community/trace-layers/trace';
+import {createStudioSettingsWidget, SidebarPanelWidget} from '@deck.gl-community/widgets';
 
 import {TRACEVIS_EXAMPLE_TRACES} from '../examples/tracevis-examples';
 import {
@@ -47,52 +42,22 @@ import {DismissibleBadge, ErrorMessage, WithTooltip} from './infovis-primitives'
 import type {TraceBreadcrumbEntry} from '../tracevis-store';
 import type {Widget} from '@deck.gl/core';
 import type {DeckWidgetTheme} from '@deck.gl/widgets';
+import type {DeckTraceGraphHandle, ThreadNavigation} from '@deck.gl-community/trace-layers/react';
 import type {
-  ProcessRef,
   SpanRef,
-  ThreadRef,
   TraceCardSpan,
   TraceColorScheme,
+  TraceEngineUpdate,
   TraceObject,
+  TracePath,
   TraceProcessInfo,
-  TraceSelectedDependencyDirection,
   TraceSpanColorSource,
-  TraceVisSettings,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
+  TraceVisSettings
 } from '@deck.gl-community/trace-layers/trace';
-import type {
-  DeckTraceGraphHandle,
-  ThreadNavigation,
-  TraceSelectionChange
-} from '@deck.gl-community/trace-layers/react';
-
-/** Ref-native extended selection payload used by the demo app. */
-type DemoExtendedSelection = {
-  /** Visible selected span refs chunk for extended-selection highlighting. */
-  spanRefs: SpanRef[];
-  /** Visible selected local dependency refs chunk for extended-selection overlays. */
-  visibleLocalDependencyRefs: VisibleLocalDependencyRef[];
-  /** Visible selected cross dependency refs chunk for extended-selection overlays. */
-  visibleCrossDependencyRefs: VisibleCrossDependencyRef[];
-};
-
-/** Empty extended-selection payload shared by demo selection fallbacks. */
-const EMPTY_EXTENDED_SELECTION: DemoExtendedSelection = {
-  spanRefs: [],
-  visibleLocalDependencyRefs: [],
-  visibleCrossDependencyRefs: []
-};
-const EMPTY_LOCAL_DEPENDENCY_DIRECTION_BY_REF: ReadonlyMap<
-  VisibleLocalDependencyRef,
-  TraceSelectedDependencyDirection
-> = new Map();
-const EMPTY_CROSS_DEPENDENCY_DIRECTION_BY_REF: ReadonlyMap<
-  VisibleCrossDependencyRef,
-  TraceSelectedDependencyDirection
-> = new Map();
 
 const EMPTY_SHELL_VIEW = new OrthographicView({id: 'empty-main'});
+const EMPTY_TRACE_PATH_LIST: TracePath[] = [];
+const EMPTY_PROCESS_INFO_MAP: Record<string, TraceProcessInfo> = {};
 const EMPTY_SHELL_VIEW_STATE: {
   target: [number, number, number];
   zoom: number;
@@ -160,22 +125,6 @@ const areScalarArraysEqual = (
   left: readonly (string | number)[],
   right: readonly (string | number)[]
 ) => left.length === right.length && left.every((value, index) => value === right[index]);
-
-/** Returns true when two dependency direction maps contain the same refs and directions. */
-const areDependencyDirectionMapsEqual = <TRef,>(
-  left: ReadonlyMap<TRef, TraceSelectedDependencyDirection>,
-  right: ReadonlyMap<TRef, TraceSelectedDependencyDirection>
-) => {
-  if (left.size !== right.size) {
-    return false;
-  }
-  for (const [dependencyRef, selectedDirection] of left) {
-    if (right.get(dependencyRef) !== selectedDirection) {
-      return false;
-    }
-  }
-  return true;
-};
 
 /**
  * Resolves the persisted widget-theme setting to the concrete deck.gl theme mode.
@@ -317,79 +266,17 @@ export const MainView: React.FC = () => {
 
   const selectedSpanRefs = useRoomStore(state => state.tracevis.selectedSpanRefs ?? []);
   const setSelectedSpanRefs = useRoomStore(state => state.tracevis.setSelectedSpanRefs);
-  const setExtendedSelection = useRoomStore(state => state.tracevis.setExtendedSelection);
   const defaultSelectionState = useRoomStore(state => state.tracevis.defaultSelectionState);
   const expandedProcessIds = useRoomStore(state => state.tracevis.expandedProcessIds ?? []);
   const setExpandedProcessIds = useRoomStore(state => state.tracevis.setExpandedProcessIds);
   const pushBreadcrumb = useRoomStore(state => state.tracevis.pushBreadcrumb);
   const highlightedSpanRefs = useRoomStore(state => state.tracevis.highlightedSpanRefs ?? []);
-  const extendedSelection = useRoomStore(state => state.tracevis.extendedSelection);
-  const extendedSelectionSpanRefs = useMemo<SpanRef[]>(
-    () =>
-      Array.isArray((extendedSelection as {spanRefs?: SpanRef[]}).spanRefs)
-        ? ((extendedSelection as {spanRefs?: SpanRef[]}).spanRefs ?? [])
-        : [],
-    [extendedSelection]
-  );
-  const extendedSelectionLocalDependencyRefs = useMemo<VisibleLocalDependencyRef[]>(
-    () =>
-      Array.isArray(
-        (extendedSelection as {visibleLocalDependencyRefs?: VisibleLocalDependencyRef[]})
-          .visibleLocalDependencyRefs
-      )
-        ? ((extendedSelection as {visibleLocalDependencyRefs?: VisibleLocalDependencyRef[]})
-            .visibleLocalDependencyRefs ?? [])
-        : [],
-    [extendedSelection]
-  );
-  const extendedSelectionCrossDependencyRefs = useMemo<VisibleCrossDependencyRef[]>(
-    () =>
-      Array.isArray(
-        (extendedSelection as {visibleCrossDependencyRefs?: VisibleCrossDependencyRef[]})
-          .visibleCrossDependencyRefs
-      )
-        ? ((extendedSelection as {visibleCrossDependencyRefs?: VisibleCrossDependencyRef[]})
-            .visibleCrossDependencyRefs ?? [])
-        : [],
-    [extendedSelection]
-  );
   const extendedSelectionMode = useRoomStore(state => state.tracevis.extendedSelectionMode);
   const traceGraph = primarySelectedTraceGraph;
   const secondaryTraceGraph = secondarySelectedTraceGraph;
-  const selectedSpanRefSet = useMemo(() => new Set(selectedSpanRefs), [selectedSpanRefs]);
-  const visibleExtendedSelectionSpanRefs = useMemo(
-    () => extendedSelectionSpanRefs.filter(spanRef => !selectedSpanRefSet.has(spanRef)),
-    [extendedSelectionSpanRefs, selectedSpanRefSet]
-  );
   const highlightedSpanRefSet = useMemo(
     () => (highlightedSpanRefs.length > 0 ? new Set(highlightedSpanRefs) : undefined),
     [highlightedSpanRefs]
-  );
-  const extendedSelectionLocalDependencyRefSet = useMemo(
-    () =>
-      extendedSelectionLocalDependencyRefs.length > 0
-        ? new Set<VisibleLocalDependencyRef>(extendedSelectionLocalDependencyRefs)
-        : undefined,
-    [extendedSelectionLocalDependencyRefs]
-  );
-  const extendedSelectionCrossDependencyRefSet = useMemo(
-    () =>
-      extendedSelectionCrossDependencyRefs.length > 0
-        ? new Set<VisibleCrossDependencyRef>(extendedSelectionCrossDependencyRefs)
-        : undefined,
-    [extendedSelectionCrossDependencyRefs]
-  );
-  const [
-    extendedSelectionLocalDependencyDirectionByRef,
-    setExtendedSelectionLocalDependencyDirectionByRef
-  ] = useState<ReadonlyMap<VisibleLocalDependencyRef, TraceSelectedDependencyDirection>>(
-    EMPTY_LOCAL_DEPENDENCY_DIRECTION_BY_REF
-  );
-  const [
-    extendedSelectionCrossDependencyDirectionByRef,
-    setExtendedSelectionCrossDependencyDirectionByRef
-  ] = useState<ReadonlyMap<VisibleCrossDependencyRef, TraceSelectedDependencyDirection>>(
-    EMPTY_CROSS_DEPENDENCY_DIRECTION_BY_REF
   );
 
   const selectedSpan = useMemo<TraceCardSpan | null>(() => {
@@ -421,22 +308,13 @@ export const MainView: React.FC = () => {
       setClosedInspectorSpanRef(null);
     }
   }, [closedInspectorSpanRef, selectedSpanRef]);
-  const parentKeywordSet = useMemo(() => new Set(['PARENT']), []);
-  const dependencyChainCache = useRef(
-    new Map<SpanRef, ReturnType<TraceGraph['getTraceSpanDependencySelection']>>()
-  );
-
-  useEffect(() => {
-    dependencyChainCache.current.clear();
-  }, [traceGraph]);
 
   // TODO - separate the vis settings more clearly
   const settings = useMemo(() => {
     const mode = visSettings.localDependencyMode;
     const showWarningsOnly = mode === 'warnings';
     const showSubmitOnly = mode === 'submit';
-    const useExtendedSelectionFadeOpacity =
-      extendedSelectionMode === 'fade' && selectedSpanRefs.length > 0;
+    const useExtendedSelectionFadeOpacity = extendedSelectionMode === 'fade';
     const settings: TraceVisSettings = {
       traceColorSchemeId: visSettings.traceColorSchemeId ?? 'processes',
       showDependencies: mode !== 'none',
@@ -473,16 +351,10 @@ export const MainView: React.FC = () => {
       enableFastTextLayer: visSettings.enableFastTextLayer
     };
     return settings;
-  }, [extendedSelectionMode, selectedSpanRefs.length, visSettings]);
-
-  const traceGraphs = useMemo(
-    () =>
-      getTraceLayoutGraphs({
-        traceGraph,
-        secondaryTraceGraph,
-        processLayoutMode: settings.processLayoutMode
-      }),
-    [secondaryTraceGraph, settings.processLayoutMode, traceGraph]
+  }, [extendedSelectionMode, visSettings]);
+  const traceSelectionPolicy = useMemo(
+    () => ({type: 'dependency-chain' as const, keywords: ['PARENT']}),
+    []
   );
   const resolvedExpandedProcessIds = useMemo(
     () => [
@@ -490,191 +362,72 @@ export const MainView: React.FC = () => {
     ],
     [defaultSelectionState.expandedProcessIds, expandedProcessIds]
   );
-  const collapseRuntimeInputs = useMemo(
-    () => ({
-      traceGraphs,
-      primaryTraceGraph: traceGraph,
-      defaultExpandProcess: true,
-      defaultExpandedProcessIds: resolvedExpandedProcessIds,
-      selectedSpanRefs,
-      defaultSelectedSpanRefs: defaultSelectionState.selectedSpanRefs ?? [],
-      extendedSelectionSpanRefs: visibleExtendedSelectionSpanRefs
-    }),
+  const traceEngineInputs = useMemo(
+    () =>
+      traceGraph
+        ? {
+            traceGraph,
+            secondaryTraceGraph,
+            traceStyle,
+            paths: EMPTY_TRACE_PATH_LIST,
+            settings,
+            colorScheme,
+            highlightedSpanRefs: highlightedSpanRefSet,
+            selectedSpanRefs,
+            selectionPolicy: traceSelectionPolicy,
+            extendedSelectionMode,
+            defaultExpandProcess: true,
+            defaultExpandedProcessIds: resolvedExpandedProcessIds,
+            defaultSelectedSpanRefs: defaultSelectionState.selectedSpanRefs ?? [],
+            showCollapsedActivitySummary: true
+          }
+        : null,
     [
+      colorScheme,
       defaultSelectionState.selectedSpanRefs,
+      extendedSelectionMode,
+      highlightedSpanRefSet,
       resolvedExpandedProcessIds,
       selectedSpanRefs,
+      secondaryTraceGraph,
+      settings,
       traceGraph,
-      traceGraphs,
-      visibleExtendedSelectionSpanRefs
+      traceSelectionPolicy,
+      traceStyle
     ]
   );
-  const [collapseRuntime, setCollapseRuntime] = useState(() =>
-    createTraceCollapseRuntimeState(collapseRuntimeInputs)
-  );
-  useEffect(() => {
-    setCollapseRuntime(previous =>
-      reduceTraceCollapseRuntimeState(previous, {
-        type: 'syncInputs',
-        inputs: collapseRuntimeInputs
-      })
-    );
-  }, [collapseRuntimeInputs]);
-  const collapseState = collapseRuntime.collapseState;
-  const serializedExpandedProcessIds = collapseRuntime.serializedExpandedProcessIds;
-  useEffect(() => {
-    if (!areScalarArraysEqual(expandedProcessIds, serializedExpandedProcessIds)) {
-      setExpandedProcessIds([...serializedExpandedProcessIds]);
+  const traceEngineRef = useRef<TraceEngine | null>(null);
+  if (!traceEngineInputs) {
+    traceEngineRef.current = null;
+  } else if (!traceEngineRef.current) {
+    traceEngineRef.current = new TraceEngine(traceEngineInputs);
+  }
+  const traceEngine = traceEngineRef.current;
+  useLayoutEffect(() => {
+    if (!traceEngine || !traceEngineInputs) {
+      return;
     }
-  }, [expandedProcessIds, serializedExpandedProcessIds, setExpandedProcessIds]);
-  const handleAllProcessesExpansionChange = useCallback(
-    (expand: boolean) => {
-      setCollapseRuntime(previous =>
-        reduceTraceCollapseRuntimeState(previous, {
-          type: 'setAllProcessesExpanded',
-          traceGraphs,
-          expand
-        })
-      );
-    },
-    [traceGraphs]
-  );
-  const handleProcessCollapseToggle = useCallback(
-    ({graphIndex, processRef}: {graphIndex: number; processRef: ProcessRef}) => {
-      setCollapseRuntime(previous =>
-        reduceTraceCollapseRuntimeState(previous, {
-          type: 'toggleProcess',
-          graphIndex,
-          processRef,
-          traceGraphs
-        })
-      );
-    },
-    [traceGraphs]
-  );
-  const handleThreadCollapseToggle = useCallback(
-    ({graphIndex, threadRef}: {graphIndex: number; threadRef: ThreadRef}) => {
-      setCollapseRuntime(previous =>
-        reduceTraceCollapseRuntimeState(previous, {
-          type: 'toggleThread',
-          graphIndex,
-          threadRef
-        })
-      );
-    },
-    []
-  );
-  const handleThreadCollapsePrune = useCallback(
-    ({validThreadRefsByGraph}: {validThreadRefsByGraph: readonly ReadonlySet<ThreadRef>[]}) => {
-      setCollapseRuntime(previous =>
-        reduceTraceCollapseRuntimeState(previous, {
-          type: 'pruneThreads',
-          validThreadRefsByGraph
-        })
-      );
-    },
-    []
-  );
-
-  const handleSelectionChange = useCallback(
-    (selection: TraceSelectionChange) => {
-      if (!areScalarArraysEqual(selection.selectedSpanRefs, selectedSpanRefs)) {
-        setSelectedSpanRefs(selection.selectedSpanRefs);
-      }
-      const primarySpanRef = selection.selectedSpanRefs[0] ?? null;
-      const primarySpan = selection.selectedSpans[0]?.span ?? null;
-      const hasSelectedDependencyRefs =
-        selection.selectedLocalDependencyRefs.length > 0 ||
-        selection.selectedCrossDependencyRefs.length > 0;
-      const dependencyChain =
-        (selection.isExtendedSelection || hasSelectedDependencyRefs) &&
-        primarySpanRef != null &&
-        traceGraph
-          ? (dependencyChainCache.current.get(primarySpanRef) ??
-            (() => {
-              const chain = traceGraph.getTraceSpanDependencySelection(primarySpanRef, {
-                keywords: parentKeywordSet
-              });
-              dependencyChainCache.current.set(primarySpanRef, chain);
-              return chain;
-            })())
-          : null;
-      const nextExtendedSelection =
-        selection.isExtendedSelection && dependencyChain
-          ? dependencyChain
-          : {
-              ...EMPTY_EXTENDED_SELECTION,
-              visibleLocalDependencyRefs: selection.selectedLocalDependencyRefs,
-              visibleCrossDependencyRefs: selection.selectedCrossDependencyRefs
-            };
-      const dependencyChainHasRefs =
-        (dependencyChain?.visibleLocalDependencyRefs.length ?? 0) > 0 ||
-        (dependencyChain?.visibleCrossDependencyRefs.length ?? 0) > 0;
-      const nextExtendedSelectionDependencyDirections =
-        dependencyChain && dependencyChainHasRefs
-          ? buildTraceSelectedDependencyDirectionMaps({
-              incomingLocalDependencyRefs: dependencyChain.parentLocalDependencyRefs,
-              incomingCrossDependencyRefs: dependencyChain.parentCrossDependencyRefs,
-              outgoingLocalDependencyRefs: dependencyChain.childLocalDependencyRefs,
-              outgoingCrossDependencyRefs: dependencyChain.childCrossDependencyRefs
-            })
-          : hasSelectedDependencyRefs && primarySpanRef != null && traceGraph
-            ? (() => {
-                const immediateDependencyRefs = getImmediateVisibleDependencyRefsForSpan(
-                  traceGraph,
-                  primarySpanRef
-                );
-                return buildTraceSelectedDependencyDirectionMaps({
-                  incomingLocalDependencyRefs: immediateDependencyRefs.incomingLocalDependencyRefs,
-                  incomingCrossDependencyRefs: immediateDependencyRefs.incomingCrossDependencyRefs,
-                  outgoingLocalDependencyRefs: immediateDependencyRefs.outgoingLocalDependencyRefs,
-                  outgoingCrossDependencyRefs: immediateDependencyRefs.outgoingCrossDependencyRefs
-                });
-              })()
-            : buildTraceSelectedDependencyDirectionMaps({
-                incomingLocalDependencyRefs: selection.selectedLocalDependencyRefs,
-                incomingCrossDependencyRefs: selection.selectedCrossDependencyRefs
-              });
-
-      const isSelectionUnchanged =
-        areScalarArraysEqual(extendedSelectionSpanRefs, nextExtendedSelection.spanRefs) &&
-        areScalarArraysEqual(
-          extendedSelectionLocalDependencyRefs,
-          nextExtendedSelection.visibleLocalDependencyRefs
-        ) &&
-        areScalarArraysEqual(
-          extendedSelectionCrossDependencyRefs,
-          nextExtendedSelection.visibleCrossDependencyRefs
-        ) &&
-        areScalarArraysEqual(selection.selectedSpanRefs, selectedSpanRefs);
-
-      if (!isSelectionUnchanged) {
-        setExtendedSelection({
-          spanRefs: nextExtendedSelection.spanRefs,
-          visibleLocalDependencyRefs: nextExtendedSelection.visibleLocalDependencyRefs,
-          visibleCrossDependencyRefs: nextExtendedSelection.visibleCrossDependencyRefs
-        });
+    traceEngine.sync(traceEngineInputs);
+  }, [traceEngine, traceEngineInputs]);
+  const handleTraceEngineUpdate = useCallback(
+    (update: TraceEngineUpdate) => {
+      if (update.reason === 'sync') {
+        return;
       }
       if (
-        !areDependencyDirectionMapsEqual(
-          extendedSelectionLocalDependencyDirectionByRef,
-          nextExtendedSelectionDependencyDirections.localDependencyDirectionByRef
-        )
+        update.expandedProcessIdsChanged &&
+        !areScalarArraysEqual(expandedProcessIds, update.serializedExpandedProcessIds)
       ) {
-        setExtendedSelectionLocalDependencyDirectionByRef(
-          nextExtendedSelectionDependencyDirections.localDependencyDirectionByRef
-        );
+        setExpandedProcessIds([...update.serializedExpandedProcessIds]);
       }
-      if (
-        !areDependencyDirectionMapsEqual(
-          extendedSelectionCrossDependencyDirectionByRef,
-          nextExtendedSelectionDependencyDirections.crossDependencyDirectionByRef
-        )
-      ) {
-        setExtendedSelectionCrossDependencyDirectionByRef(
-          nextExtendedSelectionDependencyDirections.crossDependencyDirectionByRef
-        );
+      if (!update.selectionChanged) {
+        return;
       }
+      if (!areScalarArraysEqual(update.selectedSpanRefs, selectedSpanRefs)) {
+        setSelectedSpanRefs([...update.selectedSpanRefs]);
+      }
+      const primarySpanRef = update.selectedSpanRefs[0] ?? null;
+      const primarySpan = update.selectedSpans[0]?.span ?? null;
       if (primarySpan && primarySpanRef != null) {
         const breadcrumbEntry: TraceBreadcrumbEntry = {
           spanRef: primarySpanRef,
@@ -686,21 +439,21 @@ export const MainView: React.FC = () => {
       }
     },
     [
-      extendedSelectionCrossDependencyDirectionByRef,
-      extendedSelectionCrossDependencyRefs,
-      extendedSelectionLocalDependencyDirectionByRef,
-      extendedSelectionLocalDependencyRefs,
-      extendedSelectionSpanRefs,
       colorScheme,
-      parentKeywordSet,
-      selectedSpanRefs,
-      setExtendedSelection,
-      setSelectedSpanRefs,
+      expandedProcessIds,
       pushBreadcrumb,
-      settings,
-      traceGraph
+      selectedSpanRefs,
+      setExpandedProcessIds,
+      setSelectedSpanRefs,
+      settings
     ]
   );
+  useEffect(() => {
+    if (!traceEngine) {
+      return;
+    }
+    return traceEngine.subscribe(handleTraceEngineUpdate);
+  }, [handleTraceEngineUpdate, traceEngine]);
 
   const deckTraceGraphRef = useRef<DeckTraceGraphHandle>(null);
 
@@ -820,6 +573,42 @@ export const MainView: React.FC = () => {
       })
     });
   }, []);
+  const emptyDeckWidgets = useMemo(
+    () => [traceCatalogWidget, themeWidget, studioSettingsWidget],
+    [studioSettingsWidget, themeWidget, traceCatalogWidget]
+  );
+  const traceDeckWidgets = useMemo(
+    () => [themeWidget, studioSettingsWidget, traceCatalogWidget],
+    [studioSettingsWidget, themeWidget, traceCatalogWidget]
+  );
+  const handleProcessInfoClick = useCallback(
+    (_processId: string, processInfo?: TraceProcessInfo) => {
+      console.log('PROCESS INFO CLICK', processInfo);
+    },
+    []
+  );
+  const deckTraceGraphConfig = useMemo(
+    () => ({
+      processInfoMap: EMPTY_PROCESS_INFO_MAP,
+      getJSONForTraceObject: getTraceObjectJSON,
+      onTimeRangeSelectionChange: setSelectedTimeRange,
+      onProcessInfoClick: handleProcessInfoClick,
+      keyboardShortcuts: TRACEVIS_SHORTCUTS,
+      settingsConfig,
+      deckWidgetTheme,
+      controlWidgetPlacement: 'top-right' as const,
+      showDefaultWidgets: true,
+      widgets: traceDeckWidgets
+    }),
+    [
+      deckWidgetTheme,
+      getTraceObjectJSON,
+      handleProcessInfoClick,
+      setSelectedTimeRange,
+      settingsConfig,
+      traceDeckWidgets
+    ]
+  );
 
   return (
     <div className="w-full h-full flex flex-col gap-2 overflow-y-auto">
@@ -843,48 +632,14 @@ export const MainView: React.FC = () => {
       </div>
       {!traceGraph ? (
         <div className="relative flex items-center justify-center w-full h-full">
-          <TracevisEmptyStateDeck
-            deckWidgetTheme={deckWidgetTheme}
-            widgets={[traceCatalogWidget, themeWidget, studioSettingsWidget]}
-          />
+          <TracevisEmptyStateDeck deckWidgetTheme={deckWidgetTheme} widgets={emptyDeckWidgets} />
         </div>
       ) : (
         <DeckTraceGraph
           ref={deckTraceGraphRef}
           className="w-full bg-white overflow-visible"
-          traceGraph={traceGraph}
-          secondaryTraceGraph={secondaryTraceGraph ?? undefined}
-          traceStyle={traceStyle}
-          showCollapsedActivitySummary
-          selectedSpanRefs={selectedSpanRefs}
-          collapseState={collapseState}
-          onAllProcessesExpansionChange={handleAllProcessesExpansionChange}
-          onProcessCollapseToggle={handleProcessCollapseToggle}
-          onThreadCollapseToggle={handleThreadCollapseToggle}
-          onThreadCollapsePrune={handleThreadCollapsePrune}
-          processInfoMap={{}}
-          paths={[]}
-          settings={settings}
-          colorScheme={colorScheme}
-          highlightedSpanRefs={highlightedSpanRefSet}
-          extendedSelectionSpanRefs={visibleExtendedSelectionSpanRefs}
-          extendedSelectionMode={extendedSelectionMode}
-          selectedLocalDependencyRefs={extendedSelectionLocalDependencyRefSet}
-          selectedCrossDependencyRefs={extendedSelectionCrossDependencyRefSet}
-          selectedLocalDependencyDirectionByRef={extendedSelectionLocalDependencyDirectionByRef}
-          selectedCrossDependencyDirectionByRef={extendedSelectionCrossDependencyDirectionByRef}
-          getJSONForTraceObject={getTraceObjectJSON}
-          onTimeRangeSelectionChange={setSelectedTimeRange}
-          onProcessInfoClick={(_processId: string, processInfo?: TraceProcessInfo) =>
-            console.log('PROCESS INFO CLICK', processInfo)
-          }
-          onSelectionChange={handleSelectionChange}
-          keyboardShortcuts={TRACEVIS_SHORTCUTS}
-          settingsConfig={settingsConfig}
-          deckWidgetTheme={deckWidgetTheme}
-          controlWidgetPlacement="top-right"
-          showDefaultWidgets
-          widgets={[themeWidget, studioSettingsWidget, traceCatalogWidget]}
+          engine={traceEngine!}
+          reactConfig={deckTraceGraphConfig}
         />
       )}
 
@@ -926,7 +681,7 @@ export const MainView: React.FC = () => {
                       traceLabels={traceStyle.labels}
                       traceSettings={settings}
                       interactive
-                      paths={[]}
+                      paths={EMPTY_TRACE_PATH_LIST}
                       rankQueryStatusMap={{}}
                       onRankClick={rankNum => console.log(String(rankNum), true)}
                       onSpanClick={(...args) => {

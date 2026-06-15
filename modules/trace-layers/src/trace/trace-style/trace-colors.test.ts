@@ -502,23 +502,23 @@ describe('trace color styling', () => {
     ).toEqual(rankAColor);
   });
 
-  it('assigns distinct process colors to head and logical processes', () => {
-    const headProcessColor = resolveSpanFillColor(
+  it('assigns distinct process colors to source and target processes', () => {
+    const sourceProcessColor = resolveSpanFillColor(
       makeBlock({
-        processName: 'head-process/2487504/pod/1614d83a-c9e8-406c-ba85-0562cd978805'
+        processName: 'source-process/2487504/pod/1614d83a-c9e8-406c-ba85-0562cd978805'
       }),
       EMPTY_SETTINGS,
       undefined,
       DEFAULT_TRACE_COLOR_SCHEME
     );
-    const logicalProcessColor = resolveSpanFillColor(
-      makeBlock({processName: 'service/worker-group/1'}),
+    const targetProcessColor = resolveSpanFillColor(
+      makeBlock({processName: 'service/worker/1'}),
       EMPTY_SETTINGS,
       undefined,
       DEFAULT_TRACE_COLOR_SCHEME
     );
 
-    expect(logicalProcessColor).not.toEqual(headProcessColor);
+    expect(targetProcessColor).not.toEqual(sourceProcessColor);
   });
 
   it('chooses black text for translucent light text fills on white background', () => {

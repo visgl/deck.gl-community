@@ -23,12 +23,14 @@ class or type you need.
 
 1. Parse or build normalized trace data.
 2. Construct a `TraceGraph`.
-3. Render with `TraceGraphLayer` or `TraceStoreLayer`, or let `DeckTraceGraph` build the full viewer for you.
-4. Keep selection, collapse state, settings, and persistence in the host application.
+3. Mount `TraceEngine` for the full viewer path, or compose low-level layers directly.
+4. Render with `DeckTraceGraph`, `TraceGraphLayer`, or `TraceStoreLayer`.
+5. Keep durable refs, serialized expanded process ids, settings, and persistence in the host application.
 
-`DeckTraceGraph` remains the full React viewer. Custom deck.gl shells use `TraceGraphLayer` for
-normalized graphs, `TraceStoreLayer` for `TraceChunkStore` windows, or `TracePreparedStateLayer`
-for caller-prepared `TraceViewState`.
+`TraceEngine` owns mounted selection, collapse, layout, prepared-scene, and diagnostics state below
+React. `DeckTraceGraph` remains the full React viewer around one mounted engine. Custom deck.gl
+shells use `TraceGraphLayer` for normalized graphs, `TraceStoreLayer` for `TraceChunkStore`
+windows, or `TracePreparedStateLayer` for caller-prepared `TraceViewState`.
 
 The full viewer example lives at
 [`examples/trace-layers/tracevis`](https://github.com/visgl/deck.gl-community/tree/master/examples/trace-layers/tracevis).

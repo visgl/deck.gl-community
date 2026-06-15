@@ -59,16 +59,15 @@ import type {
   TraceSpanId,
   TraceSpanTiming,
   TraceSpanTimingSource,
-  TraceThread,
   TraceThreadId
 } from './trace-graph/trace-types';
 import type * as arrow from 'apache-arrow';
 
-/** Inclusive timing envelope for a block-like entity after fallback timing normalization. */
-export type BlockTimeExtents = {
-  /** Earliest resolved start time across the block envelope. */
+/** Inclusive timing envelope for a span-like entity after fallback timing normalization. */
+export type SpanTimeExtents = {
+  /** Earliest resolved start time across the span envelope. */
   startTimeMs: number;
-  /** Latest resolved end time across the block envelope. */
+  /** Latest resolved end time across the span envelope. */
   endTimeMs: number;
 };
 
@@ -141,10 +140,10 @@ export type TraceGraphSpanStoreRow = {
 export type TraceSpanLaneSource = {
   /** Canonical runtime span ref used for selection, highlight, and geometry. */
   spanRef: SpanRef;
-  /** Canonical owning process ref used by ref-native runtime layout and grouping when available. */
-  processRef?: ProcessRef | undefined;
-  /** Canonical owning thread ref used by ref-native runtime layout and grouping when available. */
-  threadRef?: ThreadRef | undefined;
+  /** Canonical owning process ref used by ref-native runtime layout and grouping. */
+  processRef: ProcessRef;
+  /** Canonical owning thread ref used by ref-native runtime layout and grouping. */
+  threadRef: ThreadRef;
   /** Stable span identifier used for lane maps and selection state. */
   spanId: TraceSpanId;
   /** Owning thread identifier used for per-thread lane assignment. */
@@ -187,9 +186,58 @@ export type TraceSpanDisplaySource = TraceSpanGeometrySource & {
 };
 
 /**
+ * Arrow-native span payload used by render and selection surfaces that do not need dependency ids.
+ */
+export type TraceSpanRenderSource = Omit<TraceSpanDisplaySource, 'localDependencyIds'>;
+
+/**
  * Span-ref keyed payload consumed by deck render layers.
  */
-export type TraceRenderSpan = TraceSpanDisplaySource;
+export type TraceRenderSpan = TraceSpanRenderSource &
+  Partial<Pick<TraceSpanDisplaySource, 'localDependencyIds'>>;
+
+/** Shared runtime metadata kept on any lightweight visible dependency render source. */
+export type TraceDependencyRenderSourceCommon = {
+  /** Exact visible source span ref used for geometry and selection when available. */
+  startSpanRef: SpanRef | null;
+  /** Exact visible destination span ref used for geometry and selection when available. */
+  endSpanRef: SpanRef | null;
+  /** Dependency timing mode needed by deck rendering and lightweight tooltip shells. */
+  waitMode: TraceLocalDependency['waitMode'];
+  /** Whether the dependency should render bidirectional arrows. */
+  bidirectional: boolean;
+  /** Wait duration needed by deck rendering and lightweight tooltip shells. */
+  waitTimeMs: number;
+  /** Whether the dependency should route as a parent-child edge. */
+  isParent: boolean;
+};
+
+/** Lightweight visible local dependency payload used by render, pick, and selection paths. */
+export type TraceLocalDependencyRenderSource = TraceDependencyRenderSourceCommon & {
+  /** Local dependency discriminator kept for runtime branching. */
+  type: 'trace-local-dependency';
+  /** Canonical visible local dependency ref used by cards to resolve descriptive data later. */
+  dependencyRef: VisibleLocalDependencyRef;
+  /** Owning process ref used to route local dependency overlays to one rank layer. */
+  processRef: ProcessRef;
+};
+
+/** Lightweight visible cross dependency payload used by render, pick, and selection paths. */
+export type TraceCrossDependencyRenderSource = TraceDependencyRenderSourceCommon & {
+  /** Cross dependency discriminator kept for runtime branching. */
+  type: 'trace-cross-process-dependency';
+  /** Canonical visible cross dependency ref used by cards to resolve descriptive data later. */
+  dependencyRef: VisibleCrossDependencyRef;
+  /** Visible source rank number needed by cross-rank rendering. */
+  startRankNum: number;
+  /** Visible destination rank number needed by cross-rank rendering. */
+  endRankNum: number;
+};
+
+/** Union describing any lightweight visible dependency payload returned by render APIs. */
+export type TraceDependencyRenderSource =
+  | TraceLocalDependencyRenderSource
+  | TraceCrossDependencyRenderSource;
 
 /**
  * Row-aligned sidecar payload resolved for one concrete span-table row.
@@ -710,14 +758,9 @@ export function getArrowTraceSpanField(
  */
 export function getTraceGraphSpanLaneSource(
   traceGraph: Readonly<TraceGraphData>,
-  span: TraceSpanId | SpanRef
+  spanRef: SpanRef
 ): TraceSpanLaneSource | null {
-  const spanIndex = resolveSpanIndex(traceGraph, span);
-  if (spanIndex == null) {
-    return null;
-  }
-
-  return getTraceGraphSpanLaneSourceByRef(traceGraph, spanIndex, true);
+  return getTraceGraphSpanLaneSourceByRef(traceGraph, spanRef, true);
 }
 
 /**
@@ -764,9 +807,9 @@ function getTraceGraphSpanLaneSourceByRef(
  */
 export function getTraceGraphSpanGeometrySource(
   traceGraph: Readonly<TraceGraphData>,
-  span: TraceSpanId | SpanRef
+  spanRef: SpanRef
 ): TraceSpanGeometrySource | null {
-  return getTraceGraphSpanLaneSource(traceGraph, span);
+  return getTraceGraphSpanLaneSource(traceGraph, spanRef);
 }
 
 /**
@@ -832,14 +875,19 @@ export function getTraceGraphSpanExternalSpanId(
  */
 export function getTraceGraphSpanDisplaySource(
   traceGraph: Readonly<TraceGraphData>,
-  span: TraceSpanId | SpanRef
+  spanRef: SpanRef
 ): TraceSpanDisplaySource | null {
-  const spanIndex = resolveSpanIndex(traceGraph, span);
-  if (spanIndex == null) {
-    return null;
-  }
+  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, true, true);
+}
 
-  return getTraceGraphSpanDisplaySourceByRef(traceGraph, spanIndex, true);
+/**
+ * Resolves one Arrow-native render source without expanding local dependency ids.
+ */
+export function getTraceGraphSpanRenderSource(
+  traceGraph: Readonly<TraceGraphData>,
+  spanRef: SpanRef
+): TraceSpanRenderSource | null {
+  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, true, false);
 }
 
 /**
@@ -849,14 +897,37 @@ export function getActiveTraceGraphSpanDisplaySource(
   traceGraph: Readonly<TraceGraphData>,
   spanRef: SpanRef
 ): TraceSpanDisplaySource | null {
-  return getTraceGraphSpanDisplaySourceByRef(traceGraph, spanRef, false);
+  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, false, true);
 }
 
-function getTraceGraphSpanDisplaySourceByRef(
+/**
+ * Resolves one Arrow-native render source when the caller already owns an active span ref.
+ */
+export function getActiveTraceGraphSpanRenderSource(
+  traceGraph: Readonly<TraceGraphData>,
+  spanRef: SpanRef
+): TraceSpanRenderSource | null {
+  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, false, false);
+}
+
+function getTraceGraphSpanSourceByRef(
   traceGraph: Readonly<TraceGraphData>,
   spanIndex: SpanRef,
-  validateActive: boolean
-): TraceSpanDisplaySource | null {
+  validateActive: boolean,
+  includeLocalDependencyIds: true
+): TraceSpanDisplaySource | null;
+function getTraceGraphSpanSourceByRef(
+  traceGraph: Readonly<TraceGraphData>,
+  spanIndex: SpanRef,
+  validateActive: boolean,
+  includeLocalDependencyIds: false
+): TraceSpanRenderSource | null;
+function getTraceGraphSpanSourceByRef(
+  traceGraph: Readonly<TraceGraphData>,
+  spanIndex: SpanRef,
+  validateActive: boolean,
+  includeLocalDependencyIds: boolean
+): TraceSpanDisplaySource | TraceSpanRenderSource | null {
   const spanRow = getTraceGraphSpanTableRow(traceGraph, spanIndex, validateActive);
   const processId = spanRow?.processId ?? null;
   if (!processId) {
@@ -896,19 +967,12 @@ function getTraceGraphSpanDisplaySourceByRef(
     return null;
   }
 
-  return {
+  const spanSource = {
     ...laneSource,
     processName,
     name,
     source: readColumnValue<string>(blockTable, 'source', rowIndex) ?? null,
     keywords: getTraceGraphSpanKeywords(traceGraph, processId, blockTable, rowIndex, sidecarSource),
-    localDependencyIds: getTraceGraphLocalDependencyIds(
-      traceGraph,
-      processId,
-      blockTable,
-      rowIndex,
-      sidecarSource
-    ),
     crossProcessEndpointId: getTraceGraphCrossProcessEndpointId(
       traceGraph,
       processId,
@@ -924,7 +988,20 @@ function getTraceGraphSpanDisplaySourceByRef(
       spanIndex,
       sidecarSource
     )
-  } satisfies TraceSpanDisplaySource;
+  } satisfies TraceSpanRenderSource;
+
+  return includeLocalDependencyIds
+    ? {
+        ...spanSource,
+        localDependencyIds: getTraceGraphLocalDependencyIds(
+          traceGraph,
+          processId,
+          blockTable,
+          rowIndex,
+          sidecarSource
+        )
+      }
+    : spanSource;
 }
 
 /**
@@ -1046,7 +1123,7 @@ export function getTraceGraphProcessSpanCount(
 /**
  * Resolves one process by id from Arrow-backed graph tables.
  */
-export function getTraceGraphProcessById(
+function findTraceGraphProcessById(
   traceGraph: Readonly<TraceGraphData>,
   processId: TraceProcessId | string
 ): ArrowTraceProcessMetadata | null {
@@ -1054,27 +1131,17 @@ export function getTraceGraphProcessById(
 }
 
 /**
- * Resolves one thread by stream id from Arrow-backed graph tables.
- */
-export function getTraceGraphThreadById(
-  traceGraph: Readonly<TraceGraphData>,
-  threadId: TraceThreadId
-): TraceThread | null {
-  return traceGraph.threadMap[threadId] ?? null;
-}
-
-/**
  * Returns the full timing envelope for a span across all available timing projections.
  */
 export function getSpanExtremalTiming(
-  block: TimedEntity,
+  span: TimedEntity,
   maxTimeMs = NOT_FINISHED_BLOCK_END_TIME_DEFAULT
-): BlockTimeExtents {
+): SpanTimeExtents {
   let startTimeMs = Number.POSITIVE_INFINITY;
   let endTimeMs = Number.NEGATIVE_INFINITY;
 
-  for (const timingKey in block.timings) {
-    const timing = block.timings[timingKey];
+  for (const timingKey in span.timings) {
+    const timing = span.timings[timingKey];
     if (!timing || !Number.isFinite(timing.startTimeMs)) {
       continue;
     }
@@ -1089,7 +1156,7 @@ export function getSpanExtremalTiming(
   }
 
   if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs)) {
-    const primaryTiming = getPrimaryTiming(resolveBlockTimingSource(block));
+    const primaryTiming = getPrimaryTiming(resolveSpanTimingSource(span));
     if (!Number.isFinite(primaryTiming.startTimeMs)) {
       return {startTimeMs: 0, endTimeMs: 0};
     }
@@ -1100,7 +1167,7 @@ export function getSpanExtremalTiming(
   }
 
   if (endTimeMs < startTimeMs) {
-    const primaryTiming = getPrimaryTiming(resolveBlockTimingSource(block));
+    const primaryTiming = getPrimaryTiming(resolveSpanTimingSource(span));
     if (!Number.isFinite(primaryTiming.startTimeMs)) {
       return {startTimeMs: 0, endTimeMs: 0};
     }
@@ -1117,14 +1184,14 @@ export function getSpanExtremalTiming(
  * Returns the time-axis timing envelope for a span across all eligible timing projections.
  */
 export function getSpanExtremalTimingForTimeExtents(
-  block: TimedEntity,
+  span: TimedEntity,
   maxTimeMs = NOT_FINISHED_BLOCK_END_TIME_DEFAULT
-): BlockTimeExtents | null {
+): SpanTimeExtents | null {
   let startTimeMs = Number.POSITIVE_INFINITY;
   let endTimeMs = Number.NEGATIVE_INFINITY;
 
-  for (const timingKey in block.timings) {
-    const timing = block.timings[timingKey];
+  for (const timingKey in span.timings) {
+    const timing = span.timings[timingKey];
     if (!timing || !isTraceSpanTimingEligibleForTimeExtents(timing)) {
       continue;
     }
@@ -1135,7 +1202,7 @@ export function getSpanExtremalTimingForTimeExtents(
   }
 
   if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs) || endTimeMs < startTimeMs) {
-    const primaryTiming = getPrimaryTiming(resolveBlockTimingSource(block));
+    const primaryTiming = getPrimaryTiming(resolveSpanTimingSource(span));
     if (!isTraceSpanTimingEligibleForTimeExtents(primaryTiming)) {
       return null;
     }
@@ -1175,11 +1242,11 @@ function resolveSpanTimingEndTime(
  * maximum horizon. It is intended for canonical graph-wide bounds where the envelope should stay
  * anchored to finite timestamps present in the source data.
  */
-export function getSpanFiniteTimingEnvelope(block: TimedEntity): BlockTimeExtents {
+export function getSpanFiniteTimingEnvelope(span: TimedEntity): SpanTimeExtents {
   let startTimeMs = Number.POSITIVE_INFINITY;
   let endTimeMs = Number.NEGATIVE_INFINITY;
 
-  for (const timing of Object.values(block.timings)) {
+  for (const timing of Object.values(span.timings)) {
     if (Number.isFinite(timing.startTimeMs)) {
       startTimeMs = Math.min(startTimeMs, timing.startTimeMs);
       endTimeMs = Math.max(endTimeMs, timing.startTimeMs);
@@ -1192,15 +1259,17 @@ export function getSpanFiniteTimingEnvelope(block: TimedEntity): BlockTimeExtent
   }
 
   if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs)) {
-    const primary = getPrimaryTiming(resolveBlockTimingSource(block));
+    const primary = getPrimaryTiming(resolveSpanTimingSource(span));
     const primaryPoints = [primary.startTimeMs, primary.endTimeMs].filter(Number.isFinite);
     if (primaryPoints.length === 0) {
       return {startTimeMs: 0, endTimeMs: 0};
     }
+    const primaryStartTimeMs = primaryPoints[0] ?? 0;
+    const primaryEndTimeMs = primaryPoints[1] ?? primaryStartTimeMs;
 
     return {
-      startTimeMs: Math.min(...primaryPoints),
-      endTimeMs: Math.max(...primaryPoints)
+      startTimeMs: Math.min(primaryStartTimeMs, primaryEndTimeMs),
+      endTimeMs: Math.max(primaryStartTimeMs, primaryEndTimeMs)
     };
   }
 
@@ -1211,12 +1280,12 @@ export function getSpanFiniteTimingEnvelope(block: TimedEntity): BlockTimeExtent
  * Returns the finite timing envelope used by graph-wide time-axis bounds.
  */
 export function getSpanFiniteTimingEnvelopeForTimeExtents(
-  block: TimedEntity
-): BlockTimeExtents | null {
+  span: TimedEntity
+): SpanTimeExtents | null {
   let startTimeMs = Number.POSITIVE_INFINITY;
   let endTimeMs = Number.NEGATIVE_INFINITY;
 
-  for (const timing of Object.values(block.timings)) {
+  for (const timing of Object.values(span.timings)) {
     if (!isTraceSpanTimingEligibleForTimeExtents(timing)) {
       continue;
     }
@@ -1231,7 +1300,7 @@ export function getSpanFiniteTimingEnvelopeForTimeExtents(
   }
 
   if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs)) {
-    const primary = getPrimaryTiming(resolveBlockTimingSource(block));
+    const primary = getPrimaryTiming(resolveSpanTimingSource(span));
     if (!isTraceSpanTimingEligibleForTimeExtents(primary)) {
       return null;
     }
@@ -1250,10 +1319,18 @@ export function getSpanFiniteTimingEnvelopeForTimeExtents(
 /**
  * Sorts spans by their earliest visible start, breaking ties by widest envelope first.
  */
-export function sortBlocksByTime<BlockT extends TimedEntity & {spanId: TraceSpanId}>(
-  spans: readonly BlockT[],
-  options: {maxTimeMs?: number} = {}
-): BlockT[] {
+export function sortSpansByTime<
+  SpanT extends TimedEntity & {
+    /** Stable external span id used as the final timing sort tie-breaker. */
+    spanId: TraceSpanId;
+  }
+>(
+  spans: readonly SpanT[],
+  options: {
+    /** Optional finite end time substituted for open spans during sorting. */
+    maxTimeMs?: number;
+  } = {}
+): SpanT[] {
   return [...spans].sort((a, b) => {
     const aTiming = getSpanExtremalTiming(a, options.maxTimeMs);
     const bTiming = getSpanExtremalTiming(b, options.maxTimeMs);
@@ -1309,6 +1386,12 @@ function materializeArrowBlock(
   const localDependencyIds = spanId
     ? getTraceGraphLocalDependencyIds(traceGraph, processId, blockTable, rowIndex, sidecarSource)
     : [];
+  const localDependencyById = new Map(
+    (findTraceGraphProcessById(traceGraph, processId)?.localDependencies ?? []).map(dependency => [
+      dependency.dependencyId,
+      dependency
+    ])
+  );
 
   return {
     type: 'trace-span',
@@ -1322,7 +1405,7 @@ function materializeArrowBlock(
     timings,
     localDependencyIds,
     localDependencies: localDependencyIds.flatMap(dependencyId => {
-      const dependency = traceGraph.dependencyMap[dependencyId];
+      const dependency = localDependencyById.get(dependencyId);
       return dependency?.type === 'trace-local-dependency' ? [dependency] : [];
     }),
     crossProcessEndpointId: getTraceGraphCrossProcessEndpointId(
@@ -2071,11 +2154,14 @@ function buildTraceSpanLaneSource(
   const processRef =
     ownerRefs?.processRef ?? readArrowRefColumn(blockTable, 'process_ref', rowIndex);
   const threadRef = ownerRefs?.threadRef ?? readArrowRefColumn(blockTable, 'thread_ref', rowIndex);
+  if (processRef == null || threadRef == null) {
+    return null;
+  }
 
   return {
     spanRef,
-    processRef: processRef == null ? undefined : (processRef as ProcessRef),
-    threadRef: threadRef == null ? undefined : (threadRef as ThreadRef),
+    processRef: processRef as ProcessRef,
+    threadRef: threadRef as ThreadRef,
     spanId,
     threadId,
     primaryTimingKey,
@@ -2129,11 +2215,11 @@ function getArrowTableRowColumnValues(
 /**
  * Resolves the timing-only view consumed by timing-envelope helpers.
  */
-function resolveBlockTimingSource(block: TimedEntity): TraceSpanTimingSource {
+function resolveSpanTimingSource(span: TimedEntity): TraceSpanTimingSource {
   return {
-    spanId: block.spanId,
-    primaryTimingKey: block.primaryTimingKey,
-    timings: block.timings
+    spanId: span.spanId,
+    primaryTimingKey: span.primaryTimingKey,
+    timings: span.timings
   };
 }
 

@@ -1,5 +1,8 @@
 import {layoutLanes} from '../trace-layout/lane-layout';
-import {fillTraceLayoutSpanGeometry} from '../trace-layout/trace-layout';
+import {
+  buildTraceLayoutGeometryDerivationContext,
+  fillTraceLayoutSpanGeometry
+} from '../trace-layout/trace-derived-geometry';
 import {createTraceColorResolver} from '../trace-style/trace-colors';
 import {getPrimaryTiming} from './trace-types';
 import {
@@ -14,6 +17,7 @@ import {
 import {sliceMipmap} from './utils/slice-mipmap';
 
 import type {TraceRenderSpan} from '../trace-graph-accessors';
+import type {TraceLayoutGeometryDerivationContext} from '../trace-layout/trace-derived-geometry';
 import type {
   TraceLayout,
   TraceLayoutRow,
@@ -21,11 +25,18 @@ import type {
 } from '../trace-layout/trace-layout';
 import type {TraceColorScheme, TraceSpanColorSource} from '../trace-style/trace-color-scheme';
 import type {TraceGraph} from './trace-graph';
+import type {ProcessRef} from './trace-id-encoder';
 import type {TraceThreadId, TraceVisSettings} from './trace-types';
 import type {Slice} from './utils/slice-mipmap';
 
 /** Process activity aggregation used for collapsed process overview summaries. */
 export type TraceProcessActivityAggregation = 'density' | 'icicle';
+
+/** Collapsed process activity intervals keyed by exact graph-local process refs. */
+export type CollapsedActivityByProcessRef = ReadonlyMap<
+  ProcessRef,
+  readonly TraceProcessActivityInterval[]
+>;
 
 export type BuildTraceGraphCollapsedActivityOptions = {
   /** Aggregation algorithm used to build collapsed process activity summaries. */
@@ -39,10 +50,12 @@ export type BuildCollapsedActivityByTraceGraphRowsParams = {
   readonly rows: readonly TraceLayoutRow[];
   /** Color scheme used to sample representative span colors. */
   readonly colorScheme: TraceColorScheme;
-  /** Visualization settings that affect block coloring and summary density. */
+  /** Visualization settings that affect span coloring and summary density. */
   readonly settings: TraceVisSettings;
-  /** Optional layout whose block geometry should drive icicle vertical bands. */
+  /** Optional layout whose span geometry should drive icicle vertical bands. */
   readonly geometryLayout?: TraceLayout;
+  /** Optional batch-scoped direct geometry lookup state for icicle aggregation. */
+  readonly geometryContext?: TraceLayoutGeometryDerivationContext;
   /** Optional aggregation algorithm. Defaults to the legacy density summary. */
   readonly aggregation?: TraceProcessActivityAggregation;
 };
@@ -52,21 +65,25 @@ export type BuildCollapsedActivityByTraceGraphRowsParams = {
  */
 export function buildCollapsedActivityByTraceGraphRows(
   params: BuildCollapsedActivityByTraceGraphRowsParams
-): Readonly<Record<string, readonly TraceProcessActivityInterval[]>> {
+): CollapsedActivityByProcessRef {
   const aggregation = params.aggregation ?? 'density';
-  const intervalsByProcessId: Record<string, TraceProcessActivityInterval[]> = {};
+  const intervalsByProcessRef = new Map<ProcessRef, readonly TraceProcessActivityInterval[]>();
   const defaultWindowEnd = Math.max(0, params.graph.maxTimeMs - params.graph.minTimeMs);
+  const geometryContext =
+    params.geometryContext ??
+    (params.geometryLayout
+      ? buildTraceLayoutGeometryDerivationContext(params.geometryLayout)
+      : undefined);
   const colorResolver = createTraceColorResolver({
     colorScheme: params.colorScheme,
     settings: params.settings
   });
 
   for (const row of params.rows) {
-    const spans =
-      row.processRef == null ? [] : params.graph.getVisibleProcessDisplaySources(row.processRef);
-    const blockColorMap = new Map<number, [number, number, number]>();
+    const spans = params.graph.getVisibleProcessDisplaySources(row.processRef);
+    const spanColorMap = new Map<number, [number, number, number]>();
     spans.forEach((span, index) => {
-      blockColorMap.set(
+      spanColorMap.set(
         index,
         toRgb(colorResolver.getSpanFillColor(span, 'any')) ?? [
           ...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB
@@ -78,22 +95,23 @@ export function buildCollapsedActivityByTraceGraphRows(
       aggregation === 'icicle'
         ? buildIcicleCollapsedActivityForRow({
             spans,
-            blockColorMap,
+            spanColorMap,
             geometryLayout: params.geometryLayout,
+            geometryContext,
             minTimeMs: params.graph.minTimeMs,
             defaultWindowEnd
           })
         : buildDensityCollapsedActivityForRow({
             row,
             spans,
-            blockColorMap,
+            spanColorMap,
             minTimeMs: params.graph.minTimeMs,
             defaultWindowEnd
           });
-    intervalsByProcessId[row.processId] = collapsedActivity.intervals;
+    intervalsByProcessRef.set(row.processRef, collapsedActivity.intervals);
   }
 
-  return intervalsByProcessId;
+  return intervalsByProcessRef;
 }
 
 type CollapsedActivityBuildResult = {
@@ -111,7 +129,8 @@ type CollapsedActivityBuildResult = {
 function buildDensityCollapsedActivityForRow(params: {
   readonly row: TraceLayoutRow;
   readonly spans: readonly TraceRenderSpan[];
-  readonly blockColorMap: ReadonlyMap<number, [number, number, number]>;
+  /** Render colors keyed by visible span ref for dominant bucket color selection. */
+  readonly spanColorMap: ReadonlyMap<number, [number, number, number]>;
   readonly minTimeMs: number;
   readonly defaultWindowEnd: number;
 }): CollapsedActivityBuildResult {
@@ -153,7 +172,7 @@ function buildDensityCollapsedActivityForRow(params: {
     }
   >();
   for (const row of rows) {
-    const rowColor = params.blockColorMap.get(row.id) ?? [...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB];
+    const rowColor = params.spanColorMap.get(row.id) ?? [...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB];
     const rowWeight = Math.max(0, row.sampleCount);
     const existing = bucketSummary.get(row.bucketIndex);
     if (!existing) {
@@ -207,24 +226,32 @@ function buildDensityCollapsedActivityForRow(params: {
  * Builds compact icicle-like collapsed activity rectangles from visible span timing and lanes.
  */
 function buildIcicleCollapsedActivityForRow(params: {
+  /** Visible spans summarized by the current process row. */
   readonly spans: readonly TraceRenderSpan[];
-  readonly blockColorMap: ReadonlyMap<number, [number, number, number]>;
+  /** Render colors keyed by visible span ref for icicle rectangle color selection. */
+  readonly spanColorMap: ReadonlyMap<number, [number, number, number]>;
+  /** Optional layout whose span lane state drives icicle vertical bands. */
   readonly geometryLayout?: TraceLayout;
+  /** Optional batch-scoped direct geometry lookup state for icicle aggregation. */
+  readonly geometryContext?: TraceLayoutGeometryDerivationContext;
+  /** Trace-local minimum time used by activity slicing. */
   readonly minTimeMs: number;
+  /** Trace-local fallback activity window end. */
   readonly defaultWindowEnd: number;
 }): CollapsedActivityBuildResult {
   const bandCount = DEFAULT_COLLAPSED_ACTIVITY_ICICLE_BAND_COUNT;
   const bandHeight = COLLAPSED_ACTIVITY_ICICLE_TOTAL_HEIGHT / bandCount;
-  const blockBandMap = buildIcicleBandMap({
+  const spanBandMap = buildIcicleBandMap({
     spans: params.spans,
     geometryLayout: params.geometryLayout,
+    geometryContext: params.geometryContext,
     bandCount
   });
   const {slices, windowEnd} = buildCollapsedActivitySlices({
     spans: params.spans,
     minTimeMs: params.minTimeMs,
     defaultWindowEnd: params.defaultWindowEnd,
-    getDepth: (_span, index) => blockBandMap.get(index) ?? 0
+    getDepth: (_span, index) => spanBandMap.get(index) ?? 0
   });
   const windowStart = 0;
   if (slices.length === 0 || !(windowEnd > windowStart)) {
@@ -250,7 +277,7 @@ function buildIcicleCollapsedActivityForRow(params: {
         startX,
         endX,
         activity: 1,
-        color: params.blockColorMap.get(slice.id) ?? [...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB],
+        color: params.spanColorMap.get(slice.id) ?? [...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB],
         yOffset: slice.depth * bandHeight,
         height: bandHeight
       } satisfies TraceProcessActivityInterval;
@@ -330,8 +357,13 @@ function buildCollapsedActivitySlices(params: {
  * Resolves a compact visual icicle band for each visible span in a process row.
  */
 function buildIcicleBandMap(params: {
+  /** Visible spans summarized by the current process row. */
   readonly spans: readonly TraceRenderSpan[];
+  /** Optional layout whose span lane state drives icicle vertical bands. */
   readonly geometryLayout?: TraceLayout;
+  /** Optional batch-scoped direct geometry lookup state for icicle aggregation. */
+  readonly geometryContext?: TraceLayoutGeometryDerivationContext;
+  /** Number of compact icicle bands available for the summary. */
   readonly bandCount: number;
 }): ReadonlyMap<number, number> {
   const geometryBandMap = buildGeometryIcicleBandMap(params);
@@ -347,11 +379,16 @@ function buildIcicleBandMap(params: {
 }
 
 /**
- * Resolves compact visual icicle bands from prepared geometry when available.
+ * Resolves compact visual icicle bands from current timing and lane state when available.
  */
 function buildGeometryIcicleBandMap(params: {
+  /** Visible spans summarized by the current process row. */
   readonly spans: readonly TraceRenderSpan[];
+  /** Optional layout whose span lane state drives icicle vertical bands. */
   readonly geometryLayout?: TraceLayout;
+  /** Optional batch-scoped direct geometry lookup state for icicle aggregation. */
+  readonly geometryContext?: TraceLayoutGeometryDerivationContext;
+  /** Number of compact icicle bands available for the summary. */
   readonly bandCount: number;
 }): ReadonlyMap<number, number> | null {
   const geometryLayout = params.geometryLayout;
@@ -366,7 +403,8 @@ function buildGeometryIcicleBandMap(params: {
       !fillTraceLayoutSpanGeometry({
         traceLayout: geometryLayout,
         spanRef: span.spanRef,
-        target: geometryScratch
+        target: geometryScratch,
+        context: params.geometryContext
       })
     ) {
       return;

@@ -4,6 +4,11 @@ import {getHeapUsageProbeFields, log as traceLog} from '../log';
 import {buildCollapsedActivityByTraceGraphRows} from '../trace-graph/collapsed-activity';
 import {shouldShowLocalDependencyByModeFields} from '../trace-layout/local-dependency-filter';
 import {
+  buildTraceLayoutGeometryDerivationContext,
+  fillTraceLayoutLocalDependencyGeometry,
+  fillTraceLayoutSpanGeometry
+} from '../trace-layout/trace-derived-geometry';
+import {
   getLaneIndexFromUserData,
   getLaneYPosition,
   getLayoutDensityPreset,
@@ -11,8 +16,7 @@ import {
 } from '../trace-layout/trace-geometry-layout-common';
 import {
   buildTraceLayoutRowOverflowLabels,
-  fillTraceLayoutLocalDependencyGeometry,
-  fillTraceLayoutSpanGeometry
+  getTraceLayoutProcessLayoutByRef
 } from '../trace-layout/trace-layout';
 import {DEFAULT_TRACE_COLOR_SCHEME} from '../trace-style/trace-color-scheme';
 import {
@@ -33,7 +37,10 @@ import type {
   TraceEventSource,
   TraceInstantSource
 } from '../trace-graph-accessors';
-import type {TraceProcessActivityAggregation} from '../trace-graph/collapsed-activity';
+import type {
+  CollapsedActivityByProcessRef,
+  TraceProcessActivityAggregation
+} from '../trace-graph/collapsed-activity';
 import type {TraceGraph} from '../trace-graph/trace-graph';
 import type {
   TraceGraphPathBlockSource,
@@ -50,9 +57,11 @@ import type {
 } from '../trace-graph/trace-id-encoder';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
 import type {SpanRef, TracePath, TraceProcessId, TraceThread} from '../trace-graph/trace-types';
+import type {TraceLayoutGeometryDerivationContext} from '../trace-layout/trace-derived-geometry';
 import type {
   TraceLayout,
   TraceLayoutBounds,
+  TraceLayoutGeometryTuple,
   TraceLayoutOverflowLabelDatum,
   TraceLayoutRow,
   TraceProcessActivityInterval
@@ -63,6 +72,7 @@ import type {TracePreparedSceneSizeContext} from './trace-prepared-scene-size';
 export const DEFAULT_INSTANT_COLOR: TraceDeckColor = [94, 234, 212, 220];
 export const DEFAULT_COUNTER_COLOR: TraceDeckColor = [251, 191, 36, 220];
 const PROCESS_ACTIVITY_SUMMARY_ROW_MARGIN_FRACTION = 0.12;
+const EMPTY_TRACE_PREPARED_ROW_SPAN_REFS: readonly SpanRef[] = [];
 
 /** deck.gl binary attribute payload shared by row-local binary render data. */
 export type TraceDeckBinaryAttributeData = {
@@ -80,10 +90,6 @@ export type TraceDeckBinaryBlockData = {
   readonly data: TraceDeckBinaryAttributeData;
   /** Span refs keyed by binary row index for picking and debug access. */
   readonly spans: readonly SpanRef[];
-  /** Absolute process X offset encoded in the binary position attributes. */
-  readonly geometryXOffset?: number;
-  /** Absolute process Y offset encoded in the binary position attributes. */
-  readonly geometryYOffset?: number;
 };
 
 /** deck.gl binary payload for process activity summary rectangles. */
@@ -104,10 +110,6 @@ export type TraceDeckBinaryDependencyLineData = {
   readonly data: TraceDeckBinaryAttributeData;
   /** Visible dependency refs keyed by binary row index for picking and debug access. */
   readonly dependencyRefs: readonly (TraceDependencyRef | VisibleLocalDependencyRef)[];
-  /** Absolute process X offset encoded in the binary source and target position attributes. */
-  readonly geometryXOffset?: number;
-  /** Absolute process Y offset encoded in the binary source and target position attributes. */
-  readonly geometryYOffset?: number;
 };
 
 export type CounterSparkline = {
@@ -149,8 +151,10 @@ export type TraceLayoutRowEnrichment = {
 export function buildTraceDeckBinaryBlockData(params: {
   /** Visible span refs to render as block rectangles. */
   readonly spans: readonly SpanRef[];
-  /** Layout containing span geometry and the backing TraceGraph accessors. */
+  /** Layout containing current span timing, lane state, and TraceGraph accessors. */
   readonly traceLayout: Readonly<TraceLayout>;
+  /** Optional batch-scoped direct geometry lookup state for repeated span resolution. */
+  readonly geometryContext?: TraceLayoutGeometryDerivationContext;
   /** Active visualization settings used for span colors. */
   readonly settings: TraceVisSettings;
   /** Active trace color scheme used for span colors. */
@@ -170,13 +174,16 @@ export function buildTraceDeckBinaryBlockData(params: {
   const fillColors = new Uint8Array(params.spans.length * 4);
   const lineColors = new Uint8Array(params.spans.length * 4);
   const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const geometryContext =
+    params.geometryContext ?? buildTraceLayoutGeometryDerivationContext(params.traceLayout);
 
   params.spans.forEach((spanRef, index) => {
     if (
       fillTraceLayoutSpanGeometry({
         traceLayout: params.traceLayout,
         spanRef,
-        target: geometry
+        target: geometry,
+        context: geometryContext
       })
     ) {
       positions[index * 3] = geometry.x1;
@@ -221,19 +228,16 @@ export function buildTraceDeckBinaryProcessActivityData(params: {
   const rowBandByInterval: {readonly y: number; readonly height: number}[] = [];
 
   for (const [processRowIndex, row] of params.rows.entries()) {
-    const rankLayout = params.traceLayout.processLayouts[row.row.rankIndex];
+    const rankLayout = getTraceLayoutProcessLayoutByRef(params.traceLayout, row.row.processRef);
     if (!rankLayout || row.collapsedActivityIntervals.length === 0) {
       continue;
     }
-    const compactRowHeight = Math.max(
-      layoutDensity.laneSeparation,
-      layoutDensity.blockHeight * 1.5
-    );
+    const compactRowHeight = Math.max(layoutDensity.laneSeparation, layoutDensity.spanHeight * 1.5);
     const rowMargin = Math.max(
-      layoutDensity.blockHeight * 0.25,
+      layoutDensity.spanHeight * 0.25,
       compactRowHeight * PROCESS_ACTIVITY_SUMMARY_ROW_MARGIN_FRACTION
     );
-    const height = Math.max(layoutDensity.blockHeight, compactRowHeight - rowMargin * 2);
+    const height = Math.max(layoutDensity.spanHeight, compactRowHeight - rowMargin * 2);
     const originY = rankLayout.yOffset + layoutDensity.overviewTopGap + rowMargin;
     for (const interval of row.collapsedActivityIntervals) {
       intervals.push(interval);
@@ -255,7 +259,7 @@ export function buildTraceDeckBinaryProcessActivityData(params: {
     const x = interval.startX;
     const y = rowBand?.y ?? 0;
     const width = Math.max(0, interval.endX - interval.startX);
-    const height = Math.max(0, rowBand?.height ?? interval.height ?? layoutDensity.blockHeight);
+    const height = Math.max(0, rowBand?.height ?? interval.height ?? layoutDensity.spanHeight);
     const color = interval.color ?? [54, 54, 54];
     positions[index * 3] = x;
     positions[index * 3 + 1] = y;
@@ -291,8 +295,10 @@ export function buildTraceDeckBinaryProcessActivityData(params: {
 export function buildTraceDeckBinaryDependencyLineData(params: {
   /** Local dependency refs to render as straight dependency lines. */
   readonly dependencyRefs: readonly (TraceDependencyRef | VisibleLocalDependencyRef)[];
-  /** Layout containing dependency geometry and the backing TraceGraph accessors. */
+  /** Layout containing current span timing, lane state, and TraceGraph accessors. */
   readonly traceLayout: Readonly<TraceLayout>;
+  /** Optional batch-scoped direct geometry lookup state for repeated dependency resolution. */
+  readonly geometryContext?: TraceLayoutGeometryDerivationContext;
   /** Active visualization settings used for dependency opacity and warning colors. */
   readonly settings: TraceVisSettings;
 }): TraceDeckBinaryDependencyLineData {
@@ -301,13 +307,16 @@ export function buildTraceDeckBinaryDependencyLineData(params: {
   const colors = new Uint8Array(params.dependencyRefs.length * 4);
   const opacityMultiplier = getTraceDependencyOpacityMultiplier(params.settings) * 0.75;
   const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const geometryContext =
+    params.geometryContext ?? buildTraceLayoutGeometryDerivationContext(params.traceLayout);
 
   params.dependencyRefs.forEach((dependencyRef, index) => {
     if (
       fillTraceLayoutLocalDependencyGeometry({
         traceLayout: params.traceLayout,
         dependencyRef,
-        target: geometry
+        target: geometry,
+        context: geometryContext
       })
     ) {
       sourcePositions[index * 3] = geometry.x1;
@@ -352,19 +361,15 @@ type CacheTree = WeakMap<
   WeakMap<Readonly<TraceLayout>, WeakMap<TraceColorScheme, Map<string, DerivedTraceData>>>
 >;
 
-type CollapsedActivityByProcessId = Readonly<
-  Record<string, ReadonlyArray<TraceProcessActivityInterval>>
->;
-
 type ProcessRenderRowCache = WeakMap<
   Readonly<TraceLayout>,
-  WeakMap<CollapsedActivityByProcessId, readonly TraceLayoutRowEnrichment[]>
+  WeakMap<CollapsedActivityByProcessRef, readonly TraceLayoutRowEnrichment[]>
 >;
 
 let derivedTraceDataCache: CacheTree = new WeakMap();
 let processRenderRowCache: ProcessRenderRowCache = new WeakMap();
 
-const EMPTY_COLLAPSED_ACTIVITY_BY_PROCESS_ID = Object.freeze({}) as CollapsedActivityByProcessId;
+const EMPTY_COLLAPSED_ACTIVITY_BY_PROCESS_REF = new Map() as CollapsedActivityByProcessRef;
 const EMPTY_TRACE_PROCESS_ACTIVITY_INTERVALS = Object.freeze(
   []
 ) as readonly TraceProcessActivityInterval[];
@@ -555,7 +560,7 @@ function buildInstantRenderData({
 
   traceGraph.getThreadRefs().forEach(threadRef => {
     const instants = traceGraph.getInstantSourcesByThreadRef(threadRef);
-    const streamLayout = traceLayout.threadLayoutMapByRef?.get(threadRef);
+    const streamLayout = traceLayout.threadLayoutMapByRef.get(threadRef);
     if (!streamLayout?.visible || instants.length === 0) {
       return;
     }
@@ -611,7 +616,7 @@ function buildCounterRenderData({
 
   traceGraph.getThreadRefs().forEach(threadRef => {
     const counters = traceGraph.getCounterSourcesByThreadRef(threadRef);
-    const streamLayout = traceLayout.threadLayoutMapByRef?.get(threadRef);
+    const streamLayout = traceLayout.threadLayoutMapByRef.get(threadRef);
     if (!streamLayout?.visible || counters.length === 0) {
       return;
     }
@@ -774,18 +779,22 @@ export function getMemoizedDerivedTraceData(params: {
 export function buildTraceLayoutRowEnrichments(params: {
   /** Layout whose render rows should be enriched for deck/render inputs. */
   traceLayout: Readonly<TraceLayout>;
-  /** Optional collapsed activity samples keyed by process id. */
-  collapsedActivityByProcessId?: CollapsedActivityByProcessId;
+  /** Optional collapsed activity samples keyed by exact graph-local process refs. */
+  collapsedActivityByProcessRef?: CollapsedActivityByProcessRef;
+  /** Optional batch-scoped direct geometry lookup state for overflow labels. */
+  geometryContext?: TraceLayoutGeometryDerivationContext;
 }): readonly TraceLayoutRowEnrichment[] {
   const {traceLayout} = params;
-  const collapsedActivityByProcessId =
-    params.collapsedActivityByProcessId ?? EMPTY_COLLAPSED_ACTIVITY_BY_PROCESS_ID;
+  const collapsedActivityByProcessRef =
+    params.collapsedActivityByProcessRef ?? EMPTY_COLLAPSED_ACTIVITY_BY_PROCESS_REF;
   const buildStartTime = performance.now();
   let collapsedActivitySortDurationMs = 0;
   let overflowLabelDurationMs = 0;
+  const geometryContext =
+    params.geometryContext ?? buildTraceLayoutGeometryDerivationContext(traceLayout);
   const enrichments = traceLayout.renderRows.map(row => {
     const collapsedActivitySortStartTime = performance.now();
-    const collapsedActivitySource = collapsedActivityByProcessId[row.processId];
+    const collapsedActivitySource = collapsedActivityByProcessRef.get(row.processRef);
     const collapsedActivityIntervals =
       collapsedActivitySource && collapsedActivitySource.length > 0
         ? [...collapsedActivitySource].sort((left, right) => left.startX - right.startX)
@@ -795,7 +804,8 @@ export function buildTraceLayoutRowEnrichments(params: {
     const builtOverflowLabels = buildTraceLayoutRowOverflowLabels({
       traceLayout,
       row,
-      collapsedActivityIntervals
+      collapsedActivityIntervals,
+      geometryContext
     });
     const overflowLabels =
       builtOverflowLabels.length > 0 ? builtOverflowLabels : EMPTY_TRACE_LAYOUT_OVERFLOW_LABELS;
@@ -809,7 +819,7 @@ export function buildTraceLayoutRowEnrichments(params: {
 
   traceLog.probe(1, 'TraceGraph trace layout row enrichments done', {
     rowCount: enrichments.length,
-    collapsedActivityProcessCount: Object.keys(collapsedActivityByProcessId).length,
+    collapsedActivityProcessCount: collapsedActivityByProcessRef.size,
     collapsedActivitySortDurationMs,
     overflowLabelDurationMs,
     durationMs: performance.now() - buildStartTime,
@@ -820,11 +830,14 @@ export function buildTraceLayoutRowEnrichments(params: {
 
 export function getMemoizedTraceLayoutRowEnrichments(params: {
   traceLayout: Readonly<TraceLayout>;
-  collapsedActivityByProcessId?: CollapsedActivityByProcessId;
+  /** Optional collapsed-process activity summaries keyed by process ref. */
+  collapsedActivityByProcessRef?: CollapsedActivityByProcessRef;
+  /** Optional batch-scoped direct geometry lookup state for overflow labels. */
+  geometryContext?: TraceLayoutGeometryDerivationContext;
 }): readonly TraceLayoutRowEnrichment[] {
   const {traceLayout} = params;
-  const collapsedActivityByProcessId =
-    params.collapsedActivityByProcessId ?? EMPTY_COLLAPSED_ACTIVITY_BY_PROCESS_ID;
+  const collapsedActivityByProcessRef =
+    params.collapsedActivityByProcessRef ?? EMPTY_COLLAPSED_ACTIVITY_BY_PROCESS_REF;
 
   let collapsedActivityCache = processRenderRowCache.get(traceLayout);
   if (!collapsedActivityCache) {
@@ -832,16 +845,17 @@ export function getMemoizedTraceLayoutRowEnrichments(params: {
     processRenderRowCache.set(traceLayout, collapsedActivityCache);
   }
 
-  const cached = collapsedActivityCache.get(collapsedActivityByProcessId);
+  const cached = collapsedActivityCache.get(collapsedActivityByProcessRef);
   if (cached) {
     return cached;
   }
 
   const enrichments = buildTraceLayoutRowEnrichments({
     traceLayout,
-    collapsedActivityByProcessId
+    collapsedActivityByProcessRef,
+    geometryContext: params.geometryContext
   });
-  collapsedActivityCache.set(collapsedActivityByProcessId, enrichments);
+  collapsedActivityCache.set(collapsedActivityByProcessRef, enrichments);
   return enrichments;
 }
 
@@ -920,31 +934,37 @@ export type TracePreparedRowReuseInfo = {
   /** TraceGraph object identity that produced the row-local refs. */
   readonly traceGraph: object;
   /** Stable process ref used to match prepared rows across rank appends. */
-  readonly processRef?: ProcessRef;
+  readonly processRef: ProcessRef;
   /** Rank/process id for the prepared row. */
   readonly processId: string;
   /** Process-table index encoded into span and local-dependency refs. */
   readonly processIndex: number | null;
   /** Whether row refs were projected while a span filter was active. */
   readonly hasActiveSpanFilter: boolean;
+  /** Whether the process row was collapsed when this prepared-row metadata was captured. */
+  readonly isCollapsed: boolean;
   /** Span table identity used to decide row-local span ref reuse. */
   readonly spanTable?: object | null;
   /** Span table row count used to validate append-only row ref reuse. */
   readonly spanTableRowCount: number;
   /** Process SpanRef table content generation used to reject stale global refs. */
   readonly spanTableGeneration: number | null;
+  /** Snapshot of visible process SpanRefs used to build row-local span render data. */
+  readonly renderSpanRefs: readonly SpanRef[];
+  /** Number of visible process SpanRefs captured in {@link renderSpanRefs}. */
+  readonly renderSpanRefCount: number;
+  /** First visible process SpanRef captured in {@link renderSpanRefs}. */
+  readonly firstRenderSpanRef: SpanRef | null;
+  /** Last visible process SpanRef captured in {@link renderSpanRefs}. */
+  readonly lastRenderSpanRef: SpanRef | null;
   /** Local dependency table identity used to decide dependency ref reuse. */
   readonly localDependencyTable?: object | null;
   /** Local dependency table row count used to validate append-only dependency ref reuse. */
   readonly localDependencyTableRowCount: number;
-  /** Layout geometry cache entry identity for this process row. */
-  readonly geometryEntry?: object | null;
-  /** Process-local geometry fingerprint used when the geometry object is replaced but unchanged. */
-  readonly geometryReuseKey: string;
-  /** Absolute process X offset used to translate unchanged row-local binary geometry. */
-  readonly geometryXOffset?: number;
-  /** Absolute process Y offset used to translate unchanged row-local binary geometry. */
-  readonly geometryYOffset?: number;
+  /** Current process lane-layout object whose identity owns row-local Y coordinates. */
+  readonly geometrySource: object;
+  /** Small scalar key for timing origin and span height used by binary geometry derivation. */
+  readonly geometryDerivationKey: string;
   /** Local dependency visibility mode used to build dependency refs. */
   readonly localDependencyMode: TraceVisSettings['localDependencyMode'];
   /** Scalar settings key for row-local binary block attributes. */
@@ -965,6 +985,14 @@ export type TracePreparedProcessRow = TracePreparedRowInputBase & {
   readonly binaryDependencyReuseInfo?: TracePreparedRowReuseInfo;
 };
 
+/** Ref-only location of one span inside authoritative row-local binary block attributes. */
+export type TracePreparedSpanBinaryLocation = {
+  /** Prepared process row index containing the span's binary rectangle attributes. */
+  readonly rowIndex: number;
+  /** Binary block row index containing the span's rectangle attributes. */
+  readonly spanIndex: number;
+};
+
 /** Layout-level prepared scene projected from one TraceLayout. */
 export type TracePreparedGraphScene = {
   /** Trace graph associated with this prepared layout input. */
@@ -973,6 +1001,8 @@ export type TracePreparedGraphScene = {
   readonly layout: TraceLayout;
   /** Row-aligned process inputs already projected from TraceGraph and TraceLayout. */
   readonly rows: readonly TracePreparedProcessRow[];
+  /** Optional ref-only index into row-local authoritative binary span rectangle attributes. */
+  readonly spanBinaryLocationByRef?: ReadonlyMap<SpanRef, TracePreparedSpanBinaryLocation>;
   /** Optional binary process activity summary used by lightweight overview renderers. */
   readonly processActivitySummaryData?: TraceDeckBinaryProcessActivityData;
   /** Already-materialized visible cross-process dependencies for this graph. */
@@ -986,6 +1016,68 @@ export type TracePreparedGraphScene = {
   /** Selected and hovered span indicators preprojected into minimap layout coordinates. */
   readonly minimapSpanIndicators: readonly TracePreparedMinimapSpanIndicator[];
 };
+
+/** Copies one prepared binary span rectangle into a caller-owned target. */
+export function fillTracePreparedSpanBinaryGeometry(params: {
+  /** Prepared graph scene containing authoritative row-local binary block attributes. */
+  readonly scene: Readonly<TracePreparedGraphScene>;
+  /** Exact span ref whose prepared binary rectangle should be read. */
+  readonly spanRef: SpanRef;
+  /** Mutable target object that receives rectangle coordinates. */
+  readonly target: TraceLayoutGeometryTuple;
+}): boolean {
+  const location = params.scene.spanBinaryLocationByRef?.get(params.spanRef);
+  const binaryBlockData = location ? params.scene.rows[location.rowIndex]?.binaryBlockData : null;
+  const positions = binaryBlockData?.data.attributes.getPosition?.value;
+  const sizes = binaryBlockData?.data.attributes.getSize?.value;
+  if (
+    !location ||
+    !(positions instanceof Float32Array) ||
+    !(sizes instanceof Float32Array) ||
+    binaryBlockData?.spans[location.spanIndex] !== params.spanRef
+  ) {
+    return fillPreparedSpanBinaryGeometryTuple(undefined, undefined, params.target);
+  }
+  const positionOffset = location.spanIndex * 3;
+  const sizeOffset = location.spanIndex * 2;
+  return fillPreparedSpanBinaryGeometryTuple(
+    [positions[positionOffset], positions[positionOffset + 1]],
+    [sizes[sizeOffset], sizes[sizeOffset + 1]],
+    params.target
+  );
+}
+
+/** Builds the ref-only index into authoritative row-local binary span attributes. */
+function buildTracePreparedSpanBinaryLocationByRef(
+  rows: readonly TracePreparedProcessRow[]
+): ReadonlyMap<SpanRef, TracePreparedSpanBinaryLocation> {
+  const spanBinaryLocationByRef = new Map<SpanRef, TracePreparedSpanBinaryLocation>();
+  rows.forEach((row, rowIndex) => {
+    row.binaryBlockData?.spans.forEach((spanRef, spanIndex) => {
+      spanBinaryLocationByRef.set(spanRef, {rowIndex, spanIndex});
+    });
+  });
+  return spanBinaryLocationByRef;
+}
+
+/** Copies one binary position/size pair into the shared rectangle tuple shape. */
+function fillPreparedSpanBinaryGeometryTuple(
+  position: readonly [number | undefined, number | undefined] | undefined,
+  size: readonly [number | undefined, number | undefined] | undefined,
+  target: TraceLayoutGeometryTuple
+): boolean {
+  const x = position?.[0];
+  const y = position?.[1];
+  const width = size?.[0];
+  const height = size?.[1];
+  target.x1 = Number.isFinite(x) ? x! : 0;
+  target.y1 = Number.isFinite(y) ? y! : 0;
+  target.x2 = Number.isFinite(x) && Number.isFinite(width) ? x! + width! : 0;
+  target.y2 = Number.isFinite(y) && Number.isFinite(height) ? y! + height! : 0;
+  return (
+    Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(width) && Number.isFinite(height)
+  );
+}
 
 /** Path highlight data projected from trace/layout state. */
 export type TracePreparedPathData = {
@@ -1125,14 +1217,14 @@ export type BuildTracePreparedGraphScenesParams = {
 export type BuildTracePreparedProcessRowsParams = {
   /** Trace graph used to project row-local visible spans and dependencies. */
   readonly graph: TraceGraph;
-  /** Trace layout that owns the render rows and geometry. */
+  /** Trace layout that owns render rows, timing origin, and lane state. */
   readonly layout: TraceLayout;
+  /** Optional batch-scoped direct geometry lookup state shared across prepared row builders. */
+  readonly geometryContext?: TraceLayoutGeometryDerivationContext;
   /** Trace visualization settings that affect binary row projection and dependency visibility. */
   readonly settings: TraceVisSettings;
-  /** Optional collapsed-activity samples keyed by process id. */
-  readonly collapsedActivityByProcessId?: Readonly<
-    Record<string, readonly TraceProcessActivityInterval[]>
-  >;
+  /** Optional collapsed-activity samples keyed by exact graph-local process refs. */
+  readonly collapsedActivityByProcessRef?: CollapsedActivityByProcessRef;
   /** Whether visible spans should be projected into each row. */
   readonly includeSpans?: boolean;
   /** Whether visible local dependencies should be projected into each row. */
@@ -1198,7 +1290,7 @@ type TracePreparedProcessRowsStats = {
   binaryDependencyBuildDurationMs: number;
   /** Time spent translating row-local binary block attribute buffers. */
   binaryBlockTranslateDurationMs: number;
-  /** Time spent refreshing row-local binary block geometry while preserving static attributes. */
+  /** Time spent refreshing row-local binary span geometry while preserving static attributes. */
   binaryBlockGeometryRefreshDurationMs: number;
   /** Time spent translating row-local binary dependency attribute buffers. */
   binaryDependencyTranslateDurationMs: number;
@@ -1372,6 +1464,7 @@ export function buildTracePreparedGraphScenes(
   };
   const result = params.traceLayouts.map((layout, graphIndex): TracePreparedGraphScene => {
     const graph = layout.traceGraph;
+    const geometryContext = buildTraceLayoutGeometryDerivationContext(layout);
     const graphBuildStartTime = performance.now();
     traceLog.probe(0, 'buildTracePreparedGraphScenes graph start', {
       graphIndex,
@@ -1385,10 +1478,11 @@ export function buildTracePreparedGraphScenes(
       ...getHeapUsageProbeFields()
     })();
     const collapsedActivityStartTime = performance.now();
-    const collapsedActivityByProcessId = params.showCollapsedActivitySummary
-      ? buildTracePreparedCollapsedActivityByProcessId({
+    const collapsedActivityByProcessRef = params.showCollapsedActivitySummary
+      ? buildTracePreparedCollapsedActivityByProcessRef({
           graph,
           layout,
+          geometryContext,
           colorScheme: params.colorScheme,
           settings: params.settings,
           aggregation: params.collapsedActivityAggregation
@@ -1399,9 +1493,7 @@ export function buildTracePreparedGraphScenes(
       graphIndex,
       graphName: graph.name,
       enabled: params.showCollapsedActivitySummary,
-      processWithActivityCount: collapsedActivityByProcessId
-        ? Object.keys(collapsedActivityByProcessId).length
-        : 0,
+      processWithActivityCount: collapsedActivityByProcessRef?.size ?? 0,
       durationMs: performance.now() - collapsedActivityStartTime,
       ...getHeapUsageProbeFields()
     })();
@@ -1416,8 +1508,9 @@ export function buildTracePreparedGraphScenes(
     const processRows = buildTracePreparedProcessRows({
       graph,
       layout,
+      geometryContext,
       settings: params.settings,
-      collapsedActivityByProcessId,
+      collapsedActivityByProcessRef,
       colorScheme: params.colorScheme,
       previousRows: previousScenes?.[graphIndex]?.rows ?? null,
       stats: preparedRowsStats
@@ -1461,6 +1554,7 @@ export function buildTracePreparedGraphScenes(
       graph,
       layout,
       rows: processRows,
+      spanBinaryLocationByRef: buildTracePreparedSpanBinaryLocationByRef(processRows),
       visibleCrossDependencies,
       layerIdPrefix: getTraceDeckLayerIdPrefix(params.sourceTraceGraphs.length, graphIndex),
       modelMatrix: params.getTraceModelMatrixForGraph(graphIndex),
@@ -1550,6 +1644,11 @@ export function buildTracePreparedProcessRows(
   const includeSpans = params.includeSpans ?? true;
   const includeDependencies = params.includeDependencies ?? true;
   const includeOverflowLabels = params.includeOverflowLabels ?? true;
+  const geometryContext =
+    params.geometryContext ??
+    (includeSpans || includeDependencies || includeOverflowLabels
+      ? buildTraceLayoutGeometryDerivationContext(params.layout)
+      : undefined);
   traceLog.probe(0, 'buildTracePreparedProcessRows start', {
     graphName: params.graph.name,
     renderRowCount: params.layout.renderRows.length,
@@ -1564,28 +1663,31 @@ export function buildTracePreparedProcessRows(
   const rowEnrichments = includeOverflowLabels
     ? getMemoizedTraceLayoutRowEnrichments({
         traceLayout: params.layout,
-        collapsedActivityByProcessId: params.collapsedActivityByProcessId
+        collapsedActivityByProcessRef: params.collapsedActivityByProcessRef,
+        geometryContext
       })
     : params.layout.renderRows.map(row => ({
         row,
         collapsedActivityIntervals: getSortedCollapsedActivityIntervals(
-          params.collapsedActivityByProcessId?.[row.processId]
+          params.collapsedActivityByProcessRef?.get(row.processRef)
         ),
         overflowLabels: EMPTY_TRACE_LAYOUT_OVERFLOW_LABELS
       }));
   const result = rowEnrichments.map(({row, collapsedActivityIntervals, overflowLabels}) => {
+    const rowIsCollapsed = isTracePreparedProcessRowCollapsed(params.layout, row);
     const reuseInfo = buildTracePreparedRowReuseInfo({
       graph: params.graph,
       layout: params.layout,
       row,
       settings: params.settings,
-      colorScheme: params.colorScheme
+      colorScheme: params.colorScheme,
+      includeSpans,
+      rowIsCollapsed
     });
     const previousRow = getPreviousPreparedRowByIdentity(previousRowsByIdentity, reuseInfo);
-    const rowIsCollapsed = isTracePreparedProcessRowCollapsed(params.layout, row);
     let reusedSpans = false;
     let spans: readonly SpanRef[] = [];
-    if (includeSpans && row.processRef != null) {
+    if (includeSpans) {
       if (canReusePreparedRowSpans(previousRow, reuseInfo)) {
         spans = previousRow?.spans ?? [];
         reusedSpans = true;
@@ -1595,8 +1697,7 @@ export function buildTracePreparedProcessRows(
         }
       } else {
         spans = getTracePreparedProcessRowSpans({
-          graph: params.graph,
-          row,
+          reuseInfo,
           stats: params.stats
         });
       }
@@ -1606,7 +1707,7 @@ export function buildTracePreparedProcessRows(
     }
     let reusedDependencies = false;
     let dependencies: readonly (TraceDependencyRef | VisibleLocalDependencyRef)[] = [];
-    if (includeDependencies && row.processRef != null) {
+    if (includeDependencies) {
       if (canReusePreparedRowDependencies(previousRow, reuseInfo)) {
         dependencies = previousRow?.dependencies ?? [];
         reusedDependencies = true;
@@ -1629,37 +1730,20 @@ export function buildTracePreparedProcessRows(
     let reusedBinaryBlockData = false;
     let binaryBlockData: TraceDeckBinaryBlockData | undefined;
     let binaryBlockReuseInfo: TracePreparedRowReuseInfo | undefined;
-    if (includeSpans && row.processRef != null) {
-      if (
-        canReuseCollapsedPreparedRowBinaryBlockData(previousRow, reuseInfo, spans, rowIsCollapsed)
-      ) {
+    if (includeSpans) {
+      if (canReusePreparedRowBinaryBlockData(previousRow, reuseInfo, spans)) {
         binaryBlockData = previousRow?.binaryBlockData;
         binaryBlockReuseInfo = getPreviousPreparedRowBinaryBlockReuseInfo(previousRow);
         reusedBinaryBlockData = true;
         if (params.stats) {
           params.stats.binaryBlockReuseCount += 1;
         }
-      } else if (canReusePreparedRowBinaryBlockData(previousRow, reuseInfo, spans)) {
-        binaryBlockData = previousRow?.binaryBlockData;
-        binaryBlockReuseInfo = getPreviousPreparedRowBinaryBlockReuseInfo(previousRow);
-        reusedBinaryBlockData = true;
-        if (params.stats) {
-          params.stats.binaryBlockReuseCount += 1;
-        }
-      } else if (canTranslatePreparedRowBinaryBlockData(previousRow, reuseInfo, spans)) {
-        binaryBlockData = reuseTranslatedTraceDeckBinaryBlockDataY({
-          previousData: previousRow!.binaryBlockData!,
-          previousInfo: getPreviousPreparedRowBinaryBlockReuseInfo(previousRow)!,
-          stats: params.stats
-        });
-        binaryBlockReuseInfo = reuseInfo;
-        reusedBinaryBlockData = true;
       } else if (canRefreshPreparedRowBinaryBlockGeometry(previousRow, reuseInfo, spans)) {
         binaryBlockData = refreshTraceDeckBinaryBlockGeometry({
           previousData: previousRow!.binaryBlockData!,
           spans,
           traceLayout: params.layout,
-          reuseInfo,
+          geometryContext,
           stats: params.stats
         });
         binaryBlockReuseInfo = reuseInfo;
@@ -1668,51 +1752,36 @@ export function buildTracePreparedProcessRows(
         binaryBlockData = getTracePreparedProcessRowBinaryBlockData({
           spans,
           traceLayout: params.layout,
+          geometryContext,
           settings: params.settings,
           colorScheme: params.colorScheme,
-          reuseInfo,
           stats: params.stats
         });
         binaryBlockReuseInfo = reuseInfo;
       }
     }
+    debugWarnIfExpandedPreparedRowHasInvalidBinarySpanOrLabelGeometry({
+      graph: params.graph,
+      layout: params.layout,
+      row,
+      rowIsCollapsed,
+      previousRow,
+      spans,
+      binaryBlockData,
+      reuseInfo,
+      geometryContext
+    });
     let reusedBinaryDependencyLineData = false;
     let binaryDependencyLineData: TraceDeckBinaryDependencyLineData | undefined;
     let binaryDependencyReuseInfo: TracePreparedRowReuseInfo | undefined;
-    if (includeDependencies && row.processRef != null) {
-      if (
-        canReuseCollapsedPreparedRowBinaryDependencyLineData(
-          previousRow,
-          reuseInfo,
-          dependencies,
-          rowIsCollapsed
-        )
-      ) {
+    if (includeDependencies) {
+      if (canReusePreparedRowBinaryDependencyLineData(previousRow, reuseInfo, dependencies)) {
         binaryDependencyLineData = previousRow?.binaryDependencyLineData;
         binaryDependencyReuseInfo = getPreviousPreparedRowBinaryDependencyReuseInfo(previousRow);
         reusedBinaryDependencyLineData = true;
         if (params.stats) {
           params.stats.binaryDependencyReuseCount += 1;
         }
-      } else if (
-        canReusePreparedRowBinaryDependencyLineData(previousRow, reuseInfo, dependencies)
-      ) {
-        binaryDependencyLineData = previousRow?.binaryDependencyLineData;
-        binaryDependencyReuseInfo = getPreviousPreparedRowBinaryDependencyReuseInfo(previousRow);
-        reusedBinaryDependencyLineData = true;
-        if (params.stats) {
-          params.stats.binaryDependencyReuseCount += 1;
-        }
-      } else if (
-        canTranslatePreparedRowBinaryDependencyLineData(previousRow, reuseInfo, dependencies)
-      ) {
-        binaryDependencyLineData = reuseTranslatedTraceDeckBinaryDependencyLineDataY({
-          previousData: previousRow!.binaryDependencyLineData!,
-          previousInfo: getPreviousPreparedRowBinaryDependencyReuseInfo(previousRow)!,
-          stats: params.stats
-        });
-        binaryDependencyReuseInfo = reuseInfo;
-        reusedBinaryDependencyLineData = true;
       } else if (
         canRefreshPreparedRowBinaryDependencyGeometry(previousRow, reuseInfo, dependencies)
       ) {
@@ -1720,7 +1789,7 @@ export function buildTracePreparedProcessRows(
           previousData: previousRow!.binaryDependencyLineData!,
           dependencyRefs: dependencies,
           traceLayout: params.layout,
-          reuseInfo,
+          geometryContext,
           stats: params.stats
         });
         binaryDependencyReuseInfo = reuseInfo;
@@ -1729,8 +1798,8 @@ export function buildTracePreparedProcessRows(
         binaryDependencyLineData = getTracePreparedProcessRowBinaryDependencyLineData({
           dependencyRefs: dependencies,
           traceLayout: params.layout,
+          geometryContext,
           settings: params.settings,
-          reuseInfo,
           stats: params.stats
         });
         binaryDependencyReuseInfo = reuseInfo;
@@ -1740,7 +1809,7 @@ export function buildTracePreparedProcessRows(
       const reusedRow =
         (includeSpans ? reusedSpans && reusedBinaryBlockData : true) &&
         (includeDependencies ? reusedDependencies && reusedBinaryDependencyLineData : true);
-      if (reusedRow && row.processRef != null) {
+      if (reusedRow) {
         params.stats.preparedRowReuseCount += 1;
       } else {
         params.stats.preparedRowBuildCount += 1;
@@ -1872,11 +1941,13 @@ export function buildTracePreparedOverviewGraphScenes(
     }
     const graph = layout.traceGraph;
     const geometryLayout = params.traceLayouts[graphIndex] ?? params.traceLayouts[0] ?? layout;
+    const geometryContext = buildTraceLayoutGeometryDerivationContext(geometryLayout);
     const collapsedActivityStartTime = performance.now();
-    const collapsedActivityByProcessId = buildTracePreparedCollapsedActivityByProcessId({
+    const collapsedActivityByProcessRef = buildTracePreparedCollapsedActivityByProcessRef({
       graph,
       layout,
       geometryLayout,
+      geometryContext,
       colorScheme: params.colorScheme,
       settings: params.settings,
       aggregation: params.collapsedActivityAggregation
@@ -1887,7 +1958,7 @@ export function buildTracePreparedOverviewGraphScenes(
       graph,
       layout,
       settings: params.settings,
-      collapsedActivityByProcessId,
+      collapsedActivityByProcessRef,
       includeSpans: false,
       includeDependencies: false,
       includeOverflowLabels: false
@@ -1903,6 +1974,7 @@ export function buildTracePreparedOverviewGraphScenes(
       graph,
       layout,
       rows: processRows,
+      spanBinaryLocationByRef: buildTracePreparedSpanBinaryLocationByRef(processRows),
       processActivitySummaryData,
       visibleCrossDependencies: [],
       layerIdPrefix:
@@ -2024,21 +2096,13 @@ function buildPreviousPreparedRowsByIdentity(
   previousRows: readonly TracePreparedProcessRow[] | null | undefined
 ): {
   readonly byProcessRef: ReadonlyMap<ProcessRef, TracePreparedProcessRow>;
-  readonly byProcessId: ReadonlyMap<string, TracePreparedProcessRow>;
 } {
   const rowsByProcessRef = new Map<ProcessRef, TracePreparedProcessRow>();
-  const rowsByProcessId = new Map<string, TracePreparedProcessRow>();
   for (const row of previousRows ?? []) {
     const processRef = row.reuseInfo?.processRef ?? row.row.processRef;
-    if (processRef != null) {
-      rowsByProcessRef.set(processRef, row);
-    }
-    const processId = row.reuseInfo?.processId ?? row.row.processId;
-    if (processId.length > 0) {
-      rowsByProcessId.set(processId, row);
-    }
+    rowsByProcessRef.set(processRef, row);
   }
-  return {byProcessRef: rowsByProcessRef, byProcessId: rowsByProcessId};
+  return {byProcessRef: rowsByProcessRef};
 }
 
 /** Returns the previous prepared row for a process, tolerating rank-order insertions. */
@@ -2046,13 +2110,8 @@ function getPreviousPreparedRowByIdentity(
   previousRows: ReturnType<typeof buildPreviousPreparedRowsByIdentity>,
   reuseInfo: TracePreparedRowReuseInfo
 ): TracePreparedProcessRow | undefined {
-  if (reuseInfo.processRef != null) {
-    const row = previousRows.byProcessRef.get(reuseInfo.processRef);
-    if (row?.reuseInfo?.processId === reuseInfo.processId) {
-      return row;
-    }
-  }
-  return previousRows.byProcessId.get(reuseInfo.processId);
+  const row = previousRows.byProcessRef.get(reuseInfo.processRef);
+  return row?.reuseInfo?.processId === reuseInfo.processId ? row : undefined;
 }
 
 function buildTracePreparedRowReuseInfo(params: {
@@ -2061,32 +2120,51 @@ function buildTracePreparedRowReuseInfo(params: {
   readonly row: TraceLayoutRow;
   readonly settings: TraceVisSettings;
   readonly colorScheme?: TraceColorScheme;
+  /** Whether the prepared row should retain render span refs and binary span geometry. */
+  readonly includeSpans: boolean;
+  /** Whether the current layout keeps this process row collapsed. */
+  readonly rowIsCollapsed: boolean;
 }): TracePreparedRowReuseInfo {
-  const geometryEntry = params.layout.geometryCache?.processesById[params.row.processId] ?? null;
+  const geometrySource = getTraceLayoutProcessLayoutByRef(params.layout, params.row.processRef);
   const processId = params.row.processId as TraceProcessId;
   const spanTable = params.graph.processSpanTableMap[processId] ?? null;
   const localDependencyTable = params.graph.localDependencyTableMap[processId] ?? null;
   const processIndex = params.graph.processIdsByIndex.indexOf(processId);
+  const renderSpanRefs = params.includeSpans
+    ? getTracePreparedRowRenderSpanRefs(params.graph, params.row)
+    : EMPTY_TRACE_PREPARED_ROW_SPAN_REFS;
   return {
     traceGraph: params.graph,
     processRef: params.row.processRef,
     processId: params.row.processId,
     processIndex: processIndex >= 0 ? processIndex : null,
     hasActiveSpanFilter: params.graph.hasActiveSpanFilter(),
+    isCollapsed: params.rowIsCollapsed,
     spanTable,
     spanTableRowCount: spanTable?.numRows ?? 0,
     spanTableGeneration: spanTable?.generation ?? null,
+    renderSpanRefs,
+    renderSpanRefCount: renderSpanRefs.length,
+    firstRenderSpanRef: renderSpanRefs[0] ?? null,
+    lastRenderSpanRef: renderSpanRefs[renderSpanRefs.length - 1] ?? null,
     localDependencyTable,
     localDependencyTableRowCount: localDependencyTable?.numRows ?? 0,
-    geometryEntry,
-    geometryReuseKey: geometryEntry?.fastReuseKey ?? geometryEntry?.reuseKey ?? '',
-    geometryXOffset: geometryEntry?.geometryXOffset,
-    geometryYOffset: geometryEntry?.geometryYOffset,
+    geometrySource: geometrySource ?? params.layout,
+    geometryDerivationKey: buildTracePreparedRowGeometryDerivationKey(params.layout),
     localDependencyMode: params.settings.localDependencyMode,
     blockSettingsKey: buildTraceDeckBinaryBlockSettingsKey(params.settings),
     dependencySettingsKey: buildTraceDeckBinaryDependencySettingsKey(params.settings),
     colorScheme: params.colorScheme
   };
+}
+
+/** Returns row span refs, snapshotting mutable unfiltered process views before binary reuse. */
+function getTracePreparedRowRenderSpanRefs(
+  graph: TraceGraph,
+  row: TraceLayoutRow
+): readonly SpanRef[] {
+  const spanRefs = graph.getVisibleProcessRenderSpanRefs(row.processRef);
+  return graph.hasActiveSpanFilter() ? spanRefs : [...spanRefs];
 }
 
 function canReusePreparedRowSpans(
@@ -2100,6 +2178,19 @@ function canReusePreparedRowSpans(
     !reuseInfo.hasActiveSpanFilter &&
     previousInfo.processId === reuseInfo.processId &&
     canReusePreparedRowEncodedRefs(previousInfo, reuseInfo) &&
+    canReusePreparedRowSpanRefs(previousInfo, reuseInfo)
+  );
+}
+
+/** Returns whether captured visible process SpanRefs still describe the same row membership. */
+function canReusePreparedRowSpanRefs(
+  previousInfo: TracePreparedRowReuseInfo,
+  reuseInfo: TracePreparedRowReuseInfo
+): boolean {
+  return (
+    previousInfo.renderSpanRefCount === reuseInfo.renderSpanRefCount &&
+    previousInfo.firstRenderSpanRef === reuseInfo.firstRenderSpanRef &&
+    previousInfo.lastRenderSpanRef === reuseInfo.lastRenderSpanRef &&
     canReusePreparedRowTable(previousInfo, reuseInfo, 'span')
   );
 }
@@ -2164,6 +2255,7 @@ function canReusePreparedRowBinaryBlockData(
     previousInfo &&
     previousRow?.binaryBlockData &&
     previousRow.spans === spans &&
+    previousInfo.isCollapsed === reuseInfo.isCollapsed &&
     canReusePreparedRowGeometry(previousInfo, reuseInfo) &&
     previousInfo.blockSettingsKey === reuseInfo.blockSettingsKey &&
     previousInfo.colorScheme === reuseInfo.colorScheme
@@ -2174,41 +2266,6 @@ function getPreviousPreparedRowBinaryBlockReuseInfo(
   previousRow: TracePreparedProcessRow | undefined
 ): TracePreparedRowReuseInfo | undefined {
   return previousRow?.binaryBlockReuseInfo ?? previousRow?.reuseInfo;
-}
-
-function canReuseCollapsedPreparedRowBinaryBlockData(
-  previousRow: TracePreparedProcessRow | undefined,
-  reuseInfo: TracePreparedRowReuseInfo,
-  spans: readonly SpanRef[],
-  rowIsCollapsed: boolean
-): boolean {
-  const previousInfo = getPreviousPreparedRowBinaryBlockReuseInfo(previousRow);
-  return !!(
-    rowIsCollapsed &&
-    previousInfo &&
-    previousRow?.binaryBlockData &&
-    previousRow.spans === spans &&
-    previousInfo.processId === reuseInfo.processId &&
-    previousInfo.blockSettingsKey === reuseInfo.blockSettingsKey &&
-    previousInfo.colorScheme === reuseInfo.colorScheme
-  );
-}
-
-/** Returns whether previous binary block data can be reused after translating row X/Y positions. */
-function canTranslatePreparedRowBinaryBlockData(
-  previousRow: TracePreparedProcessRow | undefined,
-  reuseInfo: TracePreparedRowReuseInfo,
-  spans: readonly SpanRef[]
-): boolean {
-  const previousInfo = getPreviousPreparedRowBinaryBlockReuseInfo(previousRow);
-  return !!(
-    previousInfo &&
-    previousRow?.binaryBlockData &&
-    previousRow.spans === spans &&
-    canTranslatePreparedRowGeometry(previousInfo, reuseInfo) &&
-    previousInfo.blockSettingsKey === reuseInfo.blockSettingsKey &&
-    previousInfo.colorScheme === reuseInfo.colorScheme
-  );
 }
 
 /**
@@ -2251,39 +2308,6 @@ function getPreviousPreparedRowBinaryDependencyReuseInfo(
   return previousRow?.binaryDependencyReuseInfo ?? previousRow?.reuseInfo;
 }
 
-function canReuseCollapsedPreparedRowBinaryDependencyLineData(
-  previousRow: TracePreparedProcessRow | undefined,
-  reuseInfo: TracePreparedRowReuseInfo,
-  dependencies: readonly (TraceDependencyRef | VisibleLocalDependencyRef)[],
-  rowIsCollapsed: boolean
-): boolean {
-  const previousInfo = getPreviousPreparedRowBinaryDependencyReuseInfo(previousRow);
-  return !!(
-    rowIsCollapsed &&
-    previousInfo &&
-    previousRow?.binaryDependencyLineData &&
-    previousRow.dependencies === dependencies &&
-    previousInfo.processId === reuseInfo.processId &&
-    previousInfo.dependencySettingsKey === reuseInfo.dependencySettingsKey
-  );
-}
-
-/** Returns whether previous binary dependency data can be reused after translating row X/Y positions. */
-function canTranslatePreparedRowBinaryDependencyLineData(
-  previousRow: TracePreparedProcessRow | undefined,
-  reuseInfo: TracePreparedRowReuseInfo,
-  dependencies: readonly (TraceDependencyRef | VisibleLocalDependencyRef)[]
-): boolean {
-  const previousInfo = getPreviousPreparedRowBinaryDependencyReuseInfo(previousRow);
-  return !!(
-    previousInfo &&
-    previousRow?.binaryDependencyLineData &&
-    previousRow.dependencies === dependencies &&
-    canTranslatePreparedRowGeometry(previousInfo, reuseInfo) &&
-    previousInfo.dependencySettingsKey === reuseInfo.dependencySettingsKey
-  );
-}
-
 /**
  * Returns whether dependency endpoint geometry can be regenerated while reusing static colors.
  */
@@ -2307,43 +2331,250 @@ function canReusePreparedRowGeometry(
   reuseInfo: TracePreparedRowReuseInfo
 ): boolean {
   return (
-    getPreparedRowGeometryYOffset(previousInfo) === getPreparedRowGeometryYOffset(reuseInfo) &&
-    getPreparedRowGeometryXOffset(previousInfo) === getPreparedRowGeometryXOffset(reuseInfo) &&
-    (previousInfo.geometryEntry === reuseInfo.geometryEntry ||
-      (previousInfo.geometryReuseKey.length > 0 &&
-        previousInfo.geometryReuseKey === reuseInfo.geometryReuseKey))
-  );
-}
-
-/** Returns whether previous row geometry has the same shape with a different X/Y offset. */
-function canTranslatePreparedRowGeometry(
-  previousInfo: TracePreparedRowReuseInfo,
-  reuseInfo: TracePreparedRowReuseInfo
-): boolean {
-  return (
-    previousInfo.geometryReuseKey.length > 0 &&
-    previousInfo.geometryReuseKey === reuseInfo.geometryReuseKey &&
-    (getPreparedRowGeometryXOffset(previousInfo) !== getPreparedRowGeometryXOffset(reuseInfo) ||
-      getPreparedRowGeometryYOffset(previousInfo) !== getPreparedRowGeometryYOffset(reuseInfo))
+    previousInfo.geometrySource === reuseInfo.geometrySource &&
+    previousInfo.geometryDerivationKey === reuseInfo.geometryDerivationKey
   );
 }
 
 function isTracePreparedProcessRowCollapsed(layout: TraceLayout, row: TraceLayoutRow): boolean {
-  return Boolean(layout.processLayouts?.[row.rankIndex]?.isCollapsed || row.isCollapsed);
+  const processLayout = getTraceLayoutProcessLayoutByRef(layout, row.processRef);
+  return processLayout ? processLayout.isCollapsed === true : Boolean(row.isCollapsed);
 }
 
-/** Returns the normalized absolute X offset for one prepared row geometry key. */
-function getPreparedRowGeometryXOffset(reuseInfo: TracePreparedRowReuseInfo): number {
-  return typeof reuseInfo.geometryXOffset === 'number' && Number.isFinite(reuseInfo.geometryXOffset)
-    ? reuseInfo.geometryXOffset
-    : 0;
+/** Warns when one process expansion leaves prepared binary span or label inputs invalid. */
+function debugWarnIfExpandedPreparedRowHasInvalidBinarySpanOrLabelGeometry(params: {
+  /** Trace graph owning the expanded process row. */
+  graph: TraceGraph;
+  /** Current expanded trace layout used to read process collapse state. */
+  layout: TraceLayout;
+  /** Current prepared process row metadata. */
+  row: TraceLayoutRow;
+  /** Whether the current row still resolves as collapsed. */
+  rowIsCollapsed: boolean;
+  /** Previously prepared row for the same process before the current rebuild. */
+  previousRow: TracePreparedProcessRow | undefined;
+  /** Span refs passed to both block and label renderer inputs for this row. */
+  spans: readonly SpanRef[];
+  /** Current row-local binary block payload used by rectangle and label geometry accessors. */
+  binaryBlockData: TraceDeckBinaryBlockData | undefined;
+  /** Current prepared-row reuse metadata used to identify the geometry source. */
+  reuseInfo: TracePreparedRowReuseInfo;
+  /** Optional batch-scoped direct geometry lookup state for repeated span resolution. */
+  geometryContext?: TraceLayoutGeometryDerivationContext;
+}): void {
+  const previousRowWasCollapsed = Boolean(
+    params.previousRow?.reuseInfo?.isCollapsed ?? params.previousRow?.row.isCollapsed
+  );
+  const binaryPositions = params.binaryBlockData?.data.attributes.getPosition?.value;
+  const binarySizes = params.binaryBlockData?.data.attributes.getSize?.value;
+  if (params.rowIsCollapsed || !previousRowWasCollapsed || params.spans.length === 0) {
+    return;
+  }
+
+  const hasBinaryPositions = binaryPositions instanceof Float32Array;
+  const hasBinarySizes = binarySizes instanceof Float32Array;
+  const missingSpanThreadLayoutRefs: SpanRef[] = [];
+  const missingSpanLaneAllocationRefs: SpanRef[] = [];
+  const missingCurrentLayoutSpanGeometryRefs: SpanRef[] = [];
+  const zeroHeightCurrentLayoutSpanGeometryRefs: SpanRef[] = [];
+  const staleBinarySpanGeometryRefs: SpanRef[] = [];
+  const zeroHeightSpanRefs: SpanRef[] = [];
+  const invalidSpanLabelRows: {
+    /** Span-label row index used by deck.gl objectInfo. */
+    readonly spanIndex: number;
+    /** Span ref passed through the prepared label data array. */
+    readonly spanRef: SpanRef;
+    /** Span ref carried by the binary rectangle row at the same index. */
+    readonly binarySpanRef: SpanRef | undefined;
+    /** Current display text resolved for the label row. */
+    readonly spanName: string;
+    /** X coordinate read by the binary label position accessor. */
+    readonly x: number | undefined;
+    /** Y coordinate read by the binary label position accessor. */
+    readonly y: number | undefined;
+    /** Width read by the binary label clip accessor. */
+    readonly width: number | undefined;
+    /** Height read by the binary label geometry guard. */
+    readonly height: number | undefined;
+    /** Runtime thread ref resolved from the current span ref. */
+    readonly threadRef: ThreadRef | undefined;
+    /** Whether the current expanded layout has a thread layout for the span. */
+    readonly threadLayoutExists: boolean;
+    /** Whether auto span layout assigned the current span ref into a lane. */
+    readonly spanLaneAllocated: boolean | null;
+    /** Whether current timing plus lane layout derives any span rectangle. */
+    readonly currentLayoutHasSpanGeometry: boolean;
+    /** Height derived directly from current timing plus lane layout. */
+    readonly currentLayoutSpanHeight: number | undefined;
+    /** Whether the prepared label row still matches the binary rectangle row. */
+    readonly binarySpanRefMatches: boolean;
+    /** Whether the label anchor can resolve to a finite trace position. */
+    readonly labelPositionIsFinite: boolean;
+    /** Whether the label clip rect keeps a non-empty content box. */
+    readonly labelClipRectIsNonEmpty: boolean;
+  }[] = [];
+  let positiveHeightSpanCount = 0;
+  let missingHeightSpanCount = 0;
+  let emptySpanLabelTextCount = 0;
+  const geometryContext =
+    params.geometryContext ?? buildTraceLayoutGeometryDerivationContext(params.layout);
+  for (let spanIndex = 0; spanIndex < params.spans.length; spanIndex += 1) {
+    const spanRef = params.spans[spanIndex]!;
+    const binarySpanRef = params.binaryBlockData?.spans[spanIndex];
+    const x = hasBinaryPositions ? binaryPositions[spanIndex * 3] : undefined;
+    const y = hasBinaryPositions ? binaryPositions[spanIndex * 3 + 1] : undefined;
+    const width = hasBinarySizes ? binarySizes[spanIndex * 2] : undefined;
+    const height = hasBinarySizes ? binarySizes[spanIndex * 2 + 1] : undefined;
+    const threadRef = params.graph.getThreadRefBySpanRef(spanRef) ?? undefined;
+    const threadLayout =
+      threadRef == null ? undefined : params.layout.threadLayoutMapByRef.get(threadRef);
+    const spanLaneAllocated =
+      params.graph.spanLayout === 'auto'
+        ? threadLayout?.spanLaneMap == null || threadLayout.spanLaneMap.has(spanRef)
+        : null;
+    const currentLayoutSpanGeometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+    const currentLayoutHasSpanGeometry = fillTraceLayoutSpanGeometry({
+      traceLayout: params.layout,
+      spanRef,
+      target: currentLayoutSpanGeometry,
+      context: geometryContext
+    });
+    const currentLayoutSpanHeight = currentLayoutHasSpanGeometry
+      ? currentLayoutSpanGeometry.y2 - currentLayoutSpanGeometry.y1
+      : undefined;
+    const spanName = params.graph.getSpanName(spanRef) ?? '';
+    const binarySpanRefMatches = binarySpanRef === spanRef;
+    const labelPositionIsFinite = Number.isFinite(x) && Number.isFinite(y);
+    const labelClipRectIsNonEmpty =
+      typeof width === 'number' &&
+      Number.isFinite(width) &&
+      width > 0 &&
+      typeof height === 'number' &&
+      Number.isFinite(height) &&
+      height > 0;
+    if (threadLayout == null) {
+      missingSpanThreadLayoutRefs.push(spanRef);
+    }
+    if (spanLaneAllocated === false) {
+      missingSpanLaneAllocationRefs.push(spanRef);
+    }
+    if (!currentLayoutHasSpanGeometry) {
+      missingCurrentLayoutSpanGeometryRefs.push(spanRef);
+    } else if (
+      typeof currentLayoutSpanHeight !== 'number' ||
+      !Number.isFinite(currentLayoutSpanHeight) ||
+      currentLayoutSpanHeight <= 0
+    ) {
+      zeroHeightCurrentLayoutSpanGeometryRefs.push(spanRef);
+    }
+    if (spanName.length === 0) {
+      emptySpanLabelTextCount += 1;
+    }
+    if (typeof height === 'number' && Number.isFinite(height) && height > 0) {
+      positiveHeightSpanCount += 1;
+    } else {
+      zeroHeightSpanRefs.push(spanRef);
+      if (typeof height !== 'number' || !Number.isFinite(height)) {
+        missingHeightSpanCount += 1;
+      }
+    }
+    if (
+      typeof currentLayoutSpanHeight === 'number' &&
+      Number.isFinite(currentLayoutSpanHeight) &&
+      currentLayoutSpanHeight > 0 &&
+      !(typeof height === 'number' && Number.isFinite(height) && height > 0)
+    ) {
+      staleBinarySpanGeometryRefs.push(spanRef);
+    }
+    if (!binarySpanRefMatches || !labelPositionIsFinite || !labelClipRectIsNonEmpty) {
+      invalidSpanLabelRows.push({
+        spanIndex,
+        spanRef,
+        binarySpanRef,
+        spanName,
+        x,
+        y,
+        width,
+        height,
+        threadRef,
+        threadLayoutExists: threadLayout != null,
+        spanLaneAllocated,
+        currentLayoutHasSpanGeometry,
+        currentLayoutSpanHeight,
+        binarySpanRefMatches,
+        labelPositionIsFinite,
+        labelClipRectIsNonEmpty
+      });
+    }
+  }
+  if (
+    missingSpanThreadLayoutRefs.length === 0 &&
+    missingSpanLaneAllocationRefs.length === 0 &&
+    missingCurrentLayoutSpanGeometryRefs.length === 0 &&
+    zeroHeightCurrentLayoutSpanGeometryRefs.length === 0 &&
+    staleBinarySpanGeometryRefs.length === 0 &&
+    zeroHeightSpanRefs.length === 0 &&
+    invalidSpanLabelRows.length === 0
+  ) {
+    return;
+  }
+
+  const processLayout = getTraceLayoutProcessLayoutByRef(params.layout, params.row.processRef);
+  console.warn(
+    '%c[tracevis] Expanded trace process row has invalid binary span or label geometry after expansion',
+    'color: #dc2626; font-weight: 700;',
+    {
+      graphName: params.graph.name,
+      processId: params.row.processId,
+      processRef: params.row.processRef,
+      spanCount: params.spans.length,
+      binarySpanCount: params.binaryBlockData?.spans.length ?? 0,
+      hasBinaryPositions,
+      hasBinarySizes,
+      missingSpanThreadLayoutCount: missingSpanThreadLayoutRefs.length,
+      missingSpanThreadLayoutRefs: missingSpanThreadLayoutRefs.slice(0, 16),
+      missingSpanThreadLayoutRefsTruncated: missingSpanThreadLayoutRefs.length > 16,
+      missingSpanLaneAllocationCount: missingSpanLaneAllocationRefs.length,
+      missingSpanLaneAllocationRefs: missingSpanLaneAllocationRefs.slice(0, 16),
+      missingSpanLaneAllocationRefsTruncated: missingSpanLaneAllocationRefs.length > 16,
+      missingCurrentLayoutSpanGeometryCount: missingCurrentLayoutSpanGeometryRefs.length,
+      missingCurrentLayoutSpanGeometryRefs: missingCurrentLayoutSpanGeometryRefs.slice(0, 16),
+      missingCurrentLayoutSpanGeometryRefsTruncated:
+        missingCurrentLayoutSpanGeometryRefs.length > 16,
+      zeroHeightCurrentLayoutSpanGeometryCount: zeroHeightCurrentLayoutSpanGeometryRefs.length,
+      zeroHeightCurrentLayoutSpanGeometryRefs: zeroHeightCurrentLayoutSpanGeometryRefs.slice(0, 16),
+      zeroHeightCurrentLayoutSpanGeometryRefsTruncated:
+        zeroHeightCurrentLayoutSpanGeometryRefs.length > 16,
+      staleBinarySpanGeometryCount: staleBinarySpanGeometryRefs.length,
+      staleBinarySpanGeometryRefs: staleBinarySpanGeometryRefs.slice(0, 16),
+      staleBinarySpanGeometryRefsTruncated: staleBinarySpanGeometryRefs.length > 16,
+      zeroHeightSpanCount: zeroHeightSpanRefs.length,
+      positiveHeightSpanCount,
+      missingHeightSpanCount,
+      zeroHeightSpanRefs: zeroHeightSpanRefs.slice(0, 16),
+      zeroHeightSpanRefsTruncated: zeroHeightSpanRefs.length > 16,
+      invalidSpanLabelRowCount: invalidSpanLabelRows.length,
+      invalidSpanLabelRows: invalidSpanLabelRows.slice(0, 16),
+      invalidSpanLabelRowsTruncated: invalidSpanLabelRows.length > 16,
+      emptySpanLabelTextCount,
+      previousRowWasCollapsed,
+      rowIsCollapsed: params.rowIsCollapsed,
+      processLayoutIsCollapsed: processLayout?.isCollapsed ?? null,
+      binaryBlockDataWasReused: params.previousRow?.binaryBlockData === params.binaryBlockData,
+      binarySpanRefsArePreparedSpanRefs: params.binaryBlockData?.spans === params.spans,
+      geometryDerivationKey: params.reuseInfo.geometryDerivationKey
+    }
+  );
 }
 
-/** Returns the normalized absolute Y offset for one prepared row geometry key. */
-function getPreparedRowGeometryYOffset(reuseInfo: TracePreparedRowReuseInfo): number {
-  return typeof reuseInfo.geometryYOffset === 'number' && Number.isFinite(reuseInfo.geometryYOffset)
-    ? reuseInfo.geometryYOffset
-    : 0;
+/** Builds the small scalar inputs that affect derived row-local binary coordinates. */
+function buildTracePreparedRowGeometryDerivationKey(layout: Readonly<TraceLayout>): string {
+  const configuration = layout.layoutConfiguration;
+  return [
+    configuration?.timingKey ?? '',
+    configuration?.minTimeMs ?? layout.traceGraph.minTimeMs,
+    configuration?.spanHeight ?? 0.3
+  ].join('|');
 }
 
 function buildTraceDeckBinaryBlockSettingsKey(settings: TraceVisSettings): string {
@@ -2384,16 +2615,16 @@ function buildTracePreparedMinimapSpanIndicator({
   readonly kind: TracePreparedMinimapSpanIndicator['kind'];
 }): TracePreparedMinimapSpanIndicator | null {
   const span = graph.getTraceSpanCardModel(spanRef)?.span;
-  const processSource = graph.getProcessSourceBySpanRef(spanRef);
-  if (!span || !processSource) {
+  const processRef = graph.getProcessRefBySpanRef(spanRef);
+  if (!span || processRef == null) {
     return null;
   }
 
-  const row = layout.renderRows.find(candidate => candidate.rankNum === processSource.rankNum);
+  const row = layout.renderRows.find(candidate => candidate.processRef === processRef);
   if (!row) {
     return null;
   }
-  const rankLayout = layout.processLayouts[row.rankIndex];
+  const rankLayout = getTraceLayoutProcessLayoutByRef(layout, row.processRef);
   if (!rankLayout) {
     return null;
   }
@@ -2456,7 +2687,10 @@ function getTracePreparedMinimapSpanIndicatorXRange({
     };
   }
 
-  const timing = span.timings[span.primaryTimingKey];
+  const layoutTimingKey = layout.layoutConfiguration?.timingKey;
+  const timingKey =
+    layoutTimingKey && span.timings[layoutTimingKey] ? layoutTimingKey : span.primaryTimingKey;
+  const timing = span.timings[timingKey];
   const startTimeMs = timing?.startTimeMs;
   const endTimeMs = timing?.endTimeMs;
   if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs)) {
@@ -2490,19 +2724,15 @@ function getTracePreparedMinimapSpanIndicatorLineColor(
 
 /** Returns row-local spans for the current graph. */
 function getTracePreparedProcessRowSpans(params: {
-  graph: TraceGraph;
-  row: TraceLayoutRow;
+  /** Row-local reuse metadata resolving the current prepared spans. */
+  reuseInfo: TracePreparedRowReuseInfo;
   stats?: TracePreparedProcessRowsStats;
 }): readonly SpanRef[] {
-  if (params.row.processRef == null) {
-    return [];
-  }
-
   if (params.stats) {
     params.stats.spanBuildCount += 1;
   }
   const buildStartTime = performance.now();
-  const spanRefs = params.graph.getVisibleProcessRenderSpanRefs(params.row.processRef);
+  const spanRefs = params.reuseInfo.renderSpanRefs;
   if (params.stats) {
     params.stats.spanRefBuildDurationMs += performance.now() - buildStartTime;
     params.stats.builtSpanCount += spanRefs.length;
@@ -2517,10 +2747,6 @@ function getTracePreparedProcessRowDependencies(params: {
   localDependencyMode: TraceVisSettings['localDependencyMode'];
   stats?: TracePreparedProcessRowsStats;
 }): readonly (TraceDependencyRef | VisibleLocalDependencyRef)[] {
-  if (params.row.processRef == null) {
-    return [];
-  }
-
   if (params.stats) {
     params.stats.dependencyBuildCount += 1;
   }
@@ -2535,23 +2761,27 @@ function getTracePreparedProcessRowDependencies(params: {
 
 /** Returns row-local binary block attributes. */
 function getTracePreparedProcessRowBinaryBlockData(params: {
+  /** Stable visible span refs represented by the row-local binary payload. */
   spans: readonly SpanRef[];
+  /** Layout containing current span timing, lane state, and TraceGraph accessors. */
   traceLayout: TraceLayout;
+  /** Optional batch-scoped direct geometry lookup state for repeated span resolution. */
+  geometryContext?: TraceLayoutGeometryDerivationContext;
+  /** Active visualization settings used for span colors. */
   settings: TraceVisSettings;
+  /** Active trace color scheme used for span colors. */
   colorScheme?: TraceColorScheme;
-  reuseInfo: TracePreparedRowReuseInfo;
+  /** Optional mutable probe counters filled while preparing row inputs. */
   stats?: TracePreparedProcessRowsStats;
 }): TraceDeckBinaryBlockData {
   const buildStartTime = performance.now();
-  const data = attachTraceDeckBinaryBlockGeometryYOffset(
-    buildTraceDeckBinaryBlockData({
-      spans: params.spans,
-      traceLayout: params.traceLayout,
-      settings: params.settings,
-      colorScheme: params.colorScheme
-    }),
-    params.reuseInfo
-  );
+  const data = buildTraceDeckBinaryBlockData({
+    spans: params.spans,
+    traceLayout: params.traceLayout,
+    geometryContext: params.geometryContext,
+    settings: params.settings,
+    colorScheme: params.colorScheme
+  });
   if (params.stats) {
     params.stats.binaryBlockBuildCount += 1;
     params.stats.binaryBlockBuildDurationMs += performance.now() - buildStartTime;
@@ -2561,62 +2791,29 @@ function getTracePreparedProcessRowBinaryBlockData(params: {
 
 /** Returns row-local binary straight dependency attributes. */
 function getTracePreparedProcessRowBinaryDependencyLineData(params: {
+  /** Stable visible dependency refs represented by the row-local binary payload. */
   dependencyRefs: readonly (TraceDependencyRef | VisibleLocalDependencyRef)[];
+  /** Layout containing current span timing, lane state, and TraceGraph accessors. */
   traceLayout: TraceLayout;
+  /** Optional batch-scoped direct geometry lookup state for repeated dependency resolution. */
+  geometryContext?: TraceLayoutGeometryDerivationContext;
+  /** Active visualization settings used for dependency colors. */
   settings: TraceVisSettings;
-  reuseInfo: TracePreparedRowReuseInfo;
+  /** Optional mutable probe counters filled while preparing row inputs. */
   stats?: TracePreparedProcessRowsStats;
 }): TraceDeckBinaryDependencyLineData {
   const buildStartTime = performance.now();
-  const data = attachTraceDeckBinaryDependencyGeometryYOffset(
-    buildTraceDeckBinaryDependencyLineData({
-      dependencyRefs: params.dependencyRefs,
-      traceLayout: params.traceLayout,
-      settings: params.settings
-    }),
-    params.reuseInfo
-  );
+  const data = buildTraceDeckBinaryDependencyLineData({
+    dependencyRefs: params.dependencyRefs,
+    traceLayout: params.traceLayout,
+    geometryContext: params.geometryContext,
+    settings: params.settings
+  });
   if (params.stats) {
     params.stats.binaryDependencyBuildCount += 1;
     params.stats.binaryDependencyBuildDurationMs += performance.now() - buildStartTime;
   }
   return data;
-}
-
-/** Reuses binary block render data whose row geometry can be translated by a layer transform. */
-function reuseTranslatedTraceDeckBinaryBlockDataY(params: {
-  previousData: TraceDeckBinaryBlockData;
-  previousInfo: TracePreparedRowReuseInfo;
-  stats?: TracePreparedProcessRowsStats;
-}): TraceDeckBinaryBlockData {
-  const buildStartTime = performance.now();
-  const translated = ensureTraceDeckBinaryBlockGeometryYOffset(
-    params.previousData,
-    params.previousInfo
-  );
-  if (params.stats) {
-    params.stats.binaryBlockTranslateCount += 1;
-    params.stats.binaryBlockTranslateDurationMs += performance.now() - buildStartTime;
-  }
-  return translated;
-}
-
-/** Reuses binary dependency render data whose row geometry can be translated by a layer transform. */
-function reuseTranslatedTraceDeckBinaryDependencyLineDataY(params: {
-  previousData: TraceDeckBinaryDependencyLineData;
-  previousInfo: TracePreparedRowReuseInfo;
-  stats?: TracePreparedProcessRowsStats;
-}): TraceDeckBinaryDependencyLineData {
-  const buildStartTime = performance.now();
-  const translated = ensureTraceDeckBinaryDependencyGeometryYOffset(
-    params.previousData,
-    params.previousInfo
-  );
-  if (params.stats) {
-    params.stats.binaryDependencyTranslateCount += 1;
-    params.stats.binaryDependencyTranslateDurationMs += performance.now() - buildStartTime;
-  }
-  return translated;
 }
 
 /**
@@ -2627,10 +2824,10 @@ function refreshTraceDeckBinaryBlockGeometry(params: {
   previousData: TraceDeckBinaryBlockData;
   /** Stable visible span refs represented by the refreshed binary payload. */
   spans: readonly SpanRef[];
-  /** Layout containing the current span geometry after aggregation changes. */
+  /** Layout containing current span timing and lane state after aggregation changes. */
   traceLayout: TraceLayout;
-  /** Current prepared-row reuse metadata used to attach encoded geometry offsets. */
-  reuseInfo: TracePreparedRowReuseInfo;
+  /** Optional batch-scoped direct geometry lookup state for repeated span resolution. */
+  geometryContext?: TraceLayoutGeometryDerivationContext;
   /** Optional mutable probe counters filled while preparing row inputs. */
   stats?: TracePreparedProcessRowsStats;
 }): TraceDeckBinaryBlockData {
@@ -2638,13 +2835,16 @@ function refreshTraceDeckBinaryBlockGeometry(params: {
   const positions = new Float32Array(params.spans.length * 3);
   const sizes = new Float32Array(params.spans.length * 2);
   const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const geometryContext =
+    params.geometryContext ?? buildTraceLayoutGeometryDerivationContext(params.traceLayout);
 
   params.spans.forEach((spanRef, index) => {
     if (
       fillTraceLayoutSpanGeometry({
         traceLayout: params.traceLayout,
         spanRef,
-        target: geometry
+        target: geometry,
+        context: geometryContext
       })
     ) {
       positions[index * 3] = geometry.x1;
@@ -2655,21 +2855,18 @@ function refreshTraceDeckBinaryBlockGeometry(params: {
     }
   });
 
-  const refreshed = attachTraceDeckBinaryBlockGeometryYOffset(
-    {
-      data: {
-        length: params.spans.length,
-        attributes: {
-          getPosition: {value: positions, size: 3},
-          getSize: {value: sizes, size: 2},
-          getFillColor: params.previousData.data.attributes.getFillColor!,
-          getLineColor: params.previousData.data.attributes.getLineColor!
-        }
-      },
-      spans: params.spans
+  const refreshed = {
+    data: {
+      length: params.spans.length,
+      attributes: {
+        getPosition: {value: positions, size: 3},
+        getSize: {value: sizes, size: 2},
+        getFillColor: params.previousData.data.attributes.getFillColor!,
+        getLineColor: params.previousData.data.attributes.getLineColor!
+      }
     },
-    params.reuseInfo
-  );
+    spans: params.spans
+  };
   if (params.stats) {
     params.stats.binaryBlockGeometryRefreshCount += 1;
     params.stats.binaryBlockGeometryRefreshDurationMs += performance.now() - buildStartTime;
@@ -2685,10 +2882,10 @@ function refreshTraceDeckBinaryDependencyGeometry(params: {
   previousData: TraceDeckBinaryDependencyLineData;
   /** Stable visible dependency refs represented by the refreshed binary payload. */
   dependencyRefs: readonly (TraceDependencyRef | VisibleLocalDependencyRef)[];
-  /** Layout containing the current dependency endpoint geometry after aggregation changes. */
+  /** Layout containing current span timing and lane state after aggregation changes. */
   traceLayout: TraceLayout;
-  /** Current prepared-row reuse metadata used to attach encoded geometry offsets. */
-  reuseInfo: TracePreparedRowReuseInfo;
+  /** Optional batch-scoped direct geometry lookup state for repeated dependency resolution. */
+  geometryContext?: TraceLayoutGeometryDerivationContext;
   /** Optional mutable probe counters filled while preparing row inputs. */
   stats?: TracePreparedProcessRowsStats;
 }): TraceDeckBinaryDependencyLineData {
@@ -2696,13 +2893,16 @@ function refreshTraceDeckBinaryDependencyGeometry(params: {
   const sourcePositions = new Float32Array(params.dependencyRefs.length * 3);
   const targetPositions = new Float32Array(params.dependencyRefs.length * 3);
   const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const geometryContext =
+    params.geometryContext ?? buildTraceLayoutGeometryDerivationContext(params.traceLayout);
 
   params.dependencyRefs.forEach((dependencyRef, index) => {
     if (
       fillTraceLayoutLocalDependencyGeometry({
         traceLayout: params.traceLayout,
         dependencyRef,
-        target: geometry
+        target: geometry,
+        context: geometryContext
       })
     ) {
       sourcePositions[index * 3] = geometry.x1;
@@ -2714,81 +2914,22 @@ function refreshTraceDeckBinaryDependencyGeometry(params: {
     }
   });
 
-  const refreshed = attachTraceDeckBinaryDependencyGeometryYOffset(
-    {
-      data: {
-        length: params.dependencyRefs.length,
-        attributes: {
-          getSourcePosition: {value: sourcePositions, size: 3},
-          getTargetPosition: {value: targetPositions, size: 3},
-          getColor: params.previousData.data.attributes.getColor!
-        }
-      },
-      dependencyRefs: params.dependencyRefs
+  const refreshed = {
+    data: {
+      length: params.dependencyRefs.length,
+      attributes: {
+        getSourcePosition: {value: sourcePositions, size: 3},
+        getTargetPosition: {value: targetPositions, size: 3},
+        getColor: params.previousData.data.attributes.getColor!
+      }
     },
-    params.reuseInfo
-  );
+    dependencyRefs: params.dependencyRefs
+  };
   if (params.stats) {
     params.stats.binaryDependencyGeometryRefreshCount += 1;
     params.stats.binaryDependencyGeometryRefreshDurationMs += performance.now() - buildStartTime;
   }
   return refreshed;
-}
-
-/** Attaches the absolute row Y offset encoded into newly built binary block positions. */
-function attachTraceDeckBinaryBlockGeometryYOffset(
-  data: TraceDeckBinaryBlockData,
-  reuseInfo: TracePreparedRowReuseInfo
-): TraceDeckBinaryBlockData {
-  return {
-    ...data,
-    geometryXOffset: getPreparedRowGeometryXOffset(reuseInfo),
-    geometryYOffset: getPreparedRowGeometryYOffset(reuseInfo)
-  };
-}
-
-/** Attaches the absolute row Y offset encoded into newly built binary dependency positions. */
-function attachTraceDeckBinaryDependencyGeometryYOffset(
-  data: TraceDeckBinaryDependencyLineData,
-  reuseInfo: TracePreparedRowReuseInfo
-): TraceDeckBinaryDependencyLineData {
-  return {
-    ...data,
-    geometryXOffset: getPreparedRowGeometryXOffset(reuseInfo),
-    geometryYOffset: getPreparedRowGeometryYOffset(reuseInfo)
-  };
-}
-
-/** Ensures reused binary block data describes the X/Y offsets already encoded in its buffers. */
-function ensureTraceDeckBinaryBlockGeometryYOffset(
-  data: TraceDeckBinaryBlockData,
-  reuseInfo: TracePreparedRowReuseInfo
-): TraceDeckBinaryBlockData {
-  if (
-    typeof data.geometryXOffset === 'number' &&
-    Number.isFinite(data.geometryXOffset) &&
-    typeof data.geometryYOffset === 'number' &&
-    Number.isFinite(data.geometryYOffset)
-  ) {
-    return data;
-  }
-  return attachTraceDeckBinaryBlockGeometryYOffset(data, reuseInfo);
-}
-
-/** Ensures reused binary dependency data describes the X/Y offsets already encoded in its buffers. */
-function ensureTraceDeckBinaryDependencyGeometryYOffset(
-  data: TraceDeckBinaryDependencyLineData,
-  reuseInfo: TracePreparedRowReuseInfo
-): TraceDeckBinaryDependencyLineData {
-  if (
-    typeof data.geometryXOffset === 'number' &&
-    Number.isFinite(data.geometryXOffset) &&
-    typeof data.geometryYOffset === 'number' &&
-    Number.isFinite(data.geometryYOffset)
-  ) {
-    return data;
-  }
-  return attachTraceDeckBinaryDependencyGeometryYOffset(data, reuseInfo);
 }
 
 /** Returns row-local local dependency refs after applying Arrow-field visibility filters. */
@@ -2797,10 +2938,6 @@ function getTracePreparedProcessRowDependencyRefs(params: {
   row: TraceLayoutRow;
   localDependencyMode: TraceVisSettings['localDependencyMode'];
 }): readonly (TraceDependencyRef | VisibleLocalDependencyRef)[] {
-  if (params.row.processRef == null) {
-    return [];
-  }
-
   if (!params.graph.hasActiveSpanFilter()) {
     return getUnfilteredLocalDependencyRefsFromArrowTable(params);
   }
@@ -2831,10 +2968,6 @@ function getUnfilteredLocalDependencyRefsFromArrowTable(params: {
   row: TraceLayoutRow;
   localDependencyMode: TraceVisSettings['localDependencyMode'];
 }): readonly TraceDependencyRef[] {
-  if (params.row.processRef == null) {
-    return [];
-  }
-
   const table = params.graph.localDependencyTableMap[params.row.processId as TraceProcessId];
   const dependencyRefColumn = table?.getChild('dependencyRef');
   if (!table || !dependencyRefColumn) {
@@ -2891,29 +3024,39 @@ function dependencyKeywordListHas(value: unknown, keyword: string): boolean {
   return false;
 }
 
-function buildTracePreparedCollapsedActivityByProcessId(params: {
+/** Builds prepared collapsed activity intervals keyed by exact graph-local process refs. */
+function buildTracePreparedCollapsedActivityByProcessRef(params: {
+  /** Trace graph whose visible process rows should be summarized. */
   readonly graph: TraceGraph;
+  /** Layout whose render rows receive collapsed activity intervals. */
   readonly layout: TraceLayout;
+  /** Optional layout whose span lane state drives icicle vertical bands. */
   readonly geometryLayout?: TraceLayout;
+  /** Optional batch-scoped direct geometry lookup state for icicle aggregation. */
+  readonly geometryContext?: TraceLayoutGeometryDerivationContext;
+  /** Active trace color scheme used for representative span colors. */
   readonly colorScheme: TraceColorScheme;
+  /** Active visualization settings used for representative span colors. */
   readonly settings: TraceVisSettings;
+  /** Optional collapsed activity aggregation mode. */
   readonly aggregation?: TraceProcessActivityAggregation;
-}): Readonly<Record<string, readonly TraceProcessActivityInterval[]>> {
+}): CollapsedActivityByProcessRef {
   const buildStartTime = performance.now();
   const geometryLayout = params.geometryLayout ?? params.layout;
   const result = buildCollapsedActivityByTraceGraphRows({
     graph: params.graph,
     rows: params.layout.renderRows,
     geometryLayout,
+    geometryContext: params.geometryContext,
     colorScheme: params.colorScheme,
     settings: params.settings,
     aggregation: params.aggregation
   });
-  traceLog.probe(0, 'buildTracePreparedCollapsedActivityByProcessId done', {
+  traceLog.probe(0, 'buildTracePreparedCollapsedActivityByProcessRef done', {
     aggregation: params.aggregation ?? 'density',
     rowCount: params.layout.renderRows.length,
     visibleBlockCount: params.graph.getVisibleBlockCount(),
-    intervalCount: Object.values(result).reduce((sum, intervals) => sum + intervals.length, 0),
+    intervalCount: [...result.values()].reduce((sum, intervals) => sum + intervals.length, 0),
     durationMs: performance.now() - buildStartTime,
     ...getHeapUsageProbeFields()
   })();

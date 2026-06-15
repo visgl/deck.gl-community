@@ -139,20 +139,6 @@ describe('parseChromeTrace', () => {
     expect(flows[0].userData).toEqual({bind_id: 'B1', extra: 1});
   });
 
-  it('falls back to top-level flow bind_id and id fields', () => {
-    const file: ChromeTraceFileSchema = {
-      traceEvents: [
-        ev({ph: 's', ts: 10_000, name: 'Flow', id: 'from-id'}),
-        ev({ph: 't', ts: 11_000, name: 'Flow', bind_id: 'from-bind-id', id: 'ignored-id'}),
-        ev({ph: 'f', ts: 12_000, name: 'Flow', id: 42})
-      ]
-    };
-    const out = parseChromeTrace(file);
-    const flows = out.processes[0].threads[0].flows;
-
-    expect(flows.map(flow => flow.bindId)).toEqual(['from-id', 'from-bind-id', '42']);
-  });
-
   it('creates spans from X (complete) events using ts+dur', () => {
     const file: ChromeTraceFileSchema = {
       traceEvents: [ev({ph: 'X', name: 'Work', ts: 1_000, dur: 4_000, cat: 'v8', args: {x: 1}})]

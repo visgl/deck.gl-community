@@ -1,6 +1,5 @@
 import * as arrow from 'apache-arrow';
 
-/** Options used when materializing Apache Arrow table rows as JSON objects. */
 export interface TableToJSONOptions {
   /** If true, don't convert bigint values to number (may lose precision). Default: false */
   preserveBigInts?: boolean;

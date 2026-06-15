@@ -4,10 +4,12 @@ import {buildTraceGraphDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
 import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
 import {TraceGraph} from '../trace-graph/trace-graph';
+import {getRequiredThreadRef} from '../trace-graph/trace-graph-test-utils';
 import {
   buildTraceLayoutForSpanRefs,
   buildTraceLayouts
 } from '../trace-layout/trace-geometry-layout';
+import {fillTraceLayoutSpanGeometry} from '../trace-layout/trace-layout';
 
 import type {ProcessRef} from '../trace-graph/trace-id-encoder';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
@@ -80,8 +82,9 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
     const selectedSpanRef = getLayoutSpanRef(layout, selectedSpan.spanId);
     const selectedProcessRef = getRequiredProcessRef(traceGraph, selectedRank.processId);
     const selectedThreadRef = traceGraph.getThreadRefsByProcessRef(selectedProcessRef)[0];
-    const selectedLaneIndex =
-      layout.threadLayoutMap[selectedSpan.threadId]?.spanLaneMap?.get(selectedSpanRef);
+    const selectedLaneIndex = getLayoutThread(layout, selectedSpan.threadId)?.spanLaneMap?.get(
+      selectedSpanRef
+    );
 
     const focusedLayout = buildFocusedLayout({
       traceGraph,
@@ -101,14 +104,14 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
       rankNum: selectedRank.rankNum
     });
     expect(selectedRow?.threadRefs).toEqual([selectedThreadRef]);
-    expect(focusedLayout.threadLayoutMap[unselectedRank.threads[0]!.threadId]?.visible).not.toBe(
+    expect(getLayoutThread(focusedLayout, unselectedRank.threads[0]!.threadId)?.visible).not.toBe(
       true
     );
-    expect(focusedLayout.threadLayoutMap[selectedSpan.threadId]?.lanes?.visibleLaneIndices).toEqual(
-      [selectedLaneIndex]
-    );
     expect(
-      focusedLayout.threadLayoutMap[selectedSpan.threadId]?.lanes?.laneYPositions
+      getLayoutThread(focusedLayout, selectedSpan.threadId)?.lanes?.visibleLaneIndices
+    ).toEqual([selectedLaneIndex]);
+    expect(
+      getLayoutThread(focusedLayout, selectedSpan.threadId)?.lanes?.laneYPositions
     ).toHaveLength(1);
   });
 
@@ -163,10 +166,62 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
     expect(focusedLayout.renderRows.some(row => row.processId === selectedRank.processId)).toBe(
       true
     );
-    expect(focusedLayout.threadLayoutMap[selectedRank.threads[0]!.threadId]?.visible).toBe(true);
-    expect(focusedLayout.threadLayoutMap[unselectedRank.threads[0]!.threadId]?.visible).not.toBe(
+    expect(getLayoutThread(focusedLayout, selectedRank.threads[0]!.threadId)?.visible).toBe(true);
+    expect(getLayoutThread(focusedLayout, unselectedRank.threads[0]!.threadId)?.visible).not.toBe(
       true
     );
+  });
+
+  it('keeps focused lane geometry on exact thread refs when processes share a thread id', () => {
+    const sharedThreadId = 'shared-thread' as TraceThreadId;
+    const selectedRank = retargetSingleThreadRankThreadId(
+      createRankWithSpans('rank-selected', 0, [
+        {start: 0, end: 20},
+        {start: 1, end: 19}
+      ]),
+      sharedThreadId
+    );
+    const otherRank = retargetSingleThreadRankThreadId(
+      createRankWithSpans('rank-other', 1, [{start: 30, end: 31}]),
+      sharedThreadId
+    );
+    const traceGraph = createRuntimeTraceGraph(
+      buildJSONTrace([selectedRank, otherRank], [], {name: 'focused-thread-ref-exactness'})
+    );
+    const [layout] = buildTraceLayouts({
+      traceGraphs: [traceGraph],
+      settings: baseSettings
+    });
+    const selectedSpan = selectedRank.spans[1]!;
+    const selectedSpanRef = getProcessSpanRef(
+      traceGraph,
+      selectedRank.processId,
+      selectedSpan.spanId
+    );
+    const selectedProcessRef = getRequiredProcessRef(traceGraph, selectedRank.processId);
+    const selectedThreadRef = traceGraph.getThreadRefsByProcessRef(selectedProcessRef)[0];
+    if (selectedThreadRef == null) {
+      throw new Error(`Expected thread ref for ${selectedRank.processId}`);
+    }
+
+    const focusedLayout = buildFocusedLayout({
+      traceGraph,
+      traceLayout: layout,
+      spanRefs: [selectedSpanRef]
+    });
+    const selectedThreadLayout = focusedLayout.threadLayoutMapByRef.get(selectedThreadRef);
+    const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+
+    expect(selectedThreadLayout?.spanLaneMap?.has(selectedSpanRef)).toBe(true);
+    expect(
+      fillTraceLayoutSpanGeometry({
+        traceLayout: focusedLayout,
+        spanRef: selectedSpanRef,
+        target: geometry
+      })
+    ).toBe(true);
+    expect(geometry.x2).toBeGreaterThan(geometry.x1);
+    expect(geometry.y2).toBeGreaterThan(geometry.y1);
   });
 
   function buildFocusedLayout(params: {
@@ -245,12 +300,39 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
     } satisfies TraceProcess;
   }
 
+  /** Rewrites one single-thread process to reuse a process-local thread id across processes. */
+  function retargetSingleThreadRankThreadId(
+    process: TraceProcess,
+    threadId: TraceThreadId
+  ): TraceProcess {
+    const thread = process.threads[0];
+    if (!thread) {
+      throw new Error(`Expected one thread for ${process.processId}`);
+    }
+    const retargetedThread = {...thread, threadId} satisfies TraceThread;
+    const spans = process.spans.map(span => ({...span, threadId})) satisfies TraceSpan[];
+
+    return {
+      ...process,
+      threads: [retargetedThread],
+      threadMap: {[threadId]: retargetedThread},
+      spans,
+      spanMap: Object.fromEntries(spans.map(span => [span.spanId, span]))
+    } satisfies TraceProcess;
+  }
+
   function getLayoutSpanRef(layout: TraceLayout, spanId: TraceSpanId): SpanRef {
     const spanRef = layout.traceGraph.getSpanRefByExternalBlockId(spanId);
     if (spanRef == null) {
       throw new Error(`Expected span ref for span ${spanId}`);
     }
     return spanRef;
+  }
+
+  /** Returns one runtime thread layout by fixture thread id when retained by the layout. */
+  function getLayoutThread(layout: TraceLayout, threadId: TraceThreadId) {
+    const threadRef = getRequiredThreadRef(layout.traceGraph, threadId);
+    return layout.threadLayoutMapByRef.get(threadRef);
   }
 
   function getRequiredProcessRef(traceGraph: TraceGraph, processId: string): ProcessRef {
@@ -271,7 +353,7 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
   ): SpanRef {
     const processRef = getRequiredProcessRef(traceGraph, processId);
     const spanRef = traceGraph
-      .getVisibleProcessLayoutBlocks(processRef)
+      .getVisibleProcessGeometrySources(processRef)
       .find(span => span.spanId === spanId)?.spanRef;
     if (spanRef == null) {
       throw new Error(`Expected span ref for ${processId}:${spanId}`);

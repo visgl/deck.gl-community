@@ -1,4 +1,4 @@
-import * as protobuf from 'protobufjs';
+import protobuf from 'protobufjs/dist/light/protobuf.js';
 
 import PERFETTO_JSON from './perfetto_trace.json';
 

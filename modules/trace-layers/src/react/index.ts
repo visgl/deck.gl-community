@@ -1,7 +1,8 @@
 // utils
 export {log} from './utils/log';
 export {safeJsonParse} from './utils/safe-json-parse';
-export {arrowTableToJSON, validateArrowTableAgainstZod} from '../arrow-utils/index';
+export {arrowTableToJSON} from '../arrow-utils/arrow-utils';
+export {validateArrowTableAgainstZod} from '../arrow-utils/arrow-zod-utils';
 
 // Components
 export {BreadcrumbNavigator} from './components/breadcrumb-navigator';
@@ -48,13 +49,10 @@ export {
   type DeckTraceGraphPickedObject,
   type DeckTraceGraphPickedObjectResolver,
   type DeckTraceGraphProps,
+  type DeckTraceGraphConfig,
   type DeckTraceGraphTimeRange,
   type DeckTraceGraphTraceEventCardRenderer,
-  type TraceProcessCollapseToggleRequest,
-  type TraceSelectedSpan,
-  type TraceSelectionChange,
-  type TraceThreadCollapsePruneRequest,
-  type TraceThreadCollapseToggleRequest
+  type TraceSelectedSpan
 } from './components/deck-trace-graph/deck-trace-graph';
 export {
   createStudioSettingsPanel,

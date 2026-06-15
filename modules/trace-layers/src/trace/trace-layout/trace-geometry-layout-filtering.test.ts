@@ -4,6 +4,7 @@ import {buildTraceGraphDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
 import {TraceGraph} from '../trace-graph/trace-graph';
 import {
+  getRequiredVisibleCrossDependencyRefById,
   getTraceGraphEndpointsWithDependencies,
   getTraceGraphSpanDependencies,
   getTraceGraphVisibleDependencyChainForBlock,
@@ -285,11 +286,7 @@ describe('buildTraceLayouts filtering', () => {
       'filter-source',
       ['executeRpc', 'fetchQuery', 'renderUi'],
       {
-        sources: [
-          'packages/example_tracing/base.py',
-          '/workspace/example/runtime/worker.py',
-          'other/file.py'
-        ]
+        sources: ['packages/tracing/base.py', '/workspace/runtime/rpc_runtime.py', 'other/file.py']
       }
     );
     const graph = buildJSONTrace([rank], [], {name: 'span-filter-source'});
@@ -298,7 +295,7 @@ describe('buildTraceLayouts filtering', () => {
       traceGraphs: [graph],
       settings: {
         ...baseSettings,
-        spanFilter: 'packages/example_tracing/base.py;/workspace/example/runtime/worker.py'
+        spanFilter: 'packages/tracing/base.py;/workspace/runtime/rpc_runtime.py'
       }
     });
 
@@ -592,7 +589,7 @@ describe('buildTraceLayouts filtering', () => {
     const stitchedDependencyRef =
       stitchedDependency?.dependencyId == null
         ? undefined
-        : traceGraph.getVisibleCrossDependencyRefById(stitchedDependency.dependencyId);
+        : getRequiredVisibleCrossDependencyRefById(traceGraph, stitchedDependency.dependencyId);
     const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
     const hasGeometry =
       stitchedDependencyRef != null &&
@@ -605,6 +602,8 @@ describe('buildTraceLayouts filtering', () => {
     if (!hasGeometry) {
       throw new Error('Expected stitched cross dependency geometry');
     }
+    expect(geometry.x1).toBe(rankA.spans[0]!.timings.test.startTimeMs - traceGraph.minTimeMs);
+    expect(geometry.x2).toBe(rankB.spans[1]!.timings.test.startTimeMs - traceGraph.minTimeMs);
     expect([geometry.x1, geometry.y1, geometry.x2, geometry.y2].every(Number.isFinite)).toBe(true);
   });
 

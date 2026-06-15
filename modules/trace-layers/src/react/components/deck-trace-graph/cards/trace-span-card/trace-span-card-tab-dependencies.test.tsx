@@ -146,14 +146,60 @@ describe('TraceSpanDependenciesTab', () => {
     expect(container?.textContent).not.toContain('alpha-parent');
     expect(container?.textContent).toContain('1 / 2');
   });
+
+  it('uses full dependency counts for compact omitted-row summaries', () => {
+    const currentSpan = createSpan(1, 'current');
+    const dependencies = Array.from({length: 3}, (_entry, index) =>
+      createDependencyEntry(createSpan(index + 2, `dependency-${index}`), currentSpan)
+    );
+
+    renderDependenciesTab({
+      currentSpan,
+      dependencies,
+      dependencyCount: 101,
+      interactive: false,
+      parentChain: []
+    });
+
+    expect(container?.textContent).toContain('...omitted 99 dependencies');
+  });
+
+  it('shows bounded interactive dependency counts without expand-all behavior', () => {
+    const currentSpan = createSpan(1, 'current');
+    const dependencies = Array.from({length: 100}, (_entry, index) =>
+      createDependencyEntry(createSpan(index + 2, `dependency-${index}`), currentSpan)
+    );
+
+    renderDependenciesTab({
+      currentSpan,
+      dependencies,
+      dependencyCount: 101,
+      dependenciesTruncated: true,
+      parentChain: []
+    });
+
+    expect(container?.textContent).toContain('Showing 100 of 101 dependencies');
+  });
 });
 
 function renderDependenciesTab(params: {
+  /** Span whose dependency table is rendered. */
   currentSpan: TraceCardSpan;
+  /** Dependency rows already bounded for the rendered table. */
   dependencies: TraceSpanCardDependencyEntry[];
+  /** Full dependency count before row capping. */
+  dependencyCount?: number;
+  /** Whether dependency rows were truncated before rendering. */
+  dependenciesTruncated?: boolean;
+  /** Parent-chain rows shown above the dependency table. */
   parentChain: TraceSpanCardParentChainEntry[];
+  /** Optional filter label shown in interactive tables. */
   filterLabel?: string;
+  /** Whether the rendered dependency table is interactive. */
+  interactive?: boolean;
+  /** Optional span click callback. */
   onSpanClick?: (spanRef: SpanRef) => void;
+  /** Optional span double-click callback. */
   onSpanDoubleClick?: (spanRef: SpanRef, action: TraceSpanDoubleClickAction) => void;
 }): void {
   container = document.createElement('div');
@@ -164,10 +210,12 @@ function renderDependenciesTab(params: {
     root?.render(
       <TraceSpanDependenciesTab
         dependencies={params.dependencies}
+        dependencyCount={params.dependencyCount}
+        dependenciesTruncated={params.dependenciesTruncated}
         currentSpan={params.currentSpan}
         parentChain={params.parentChain}
-        parentIndexBySpanId={
-          new Map(params.parentChain.map((entry, index) => [entry.span.spanId, index + 1]))
+        parentIndexBySpanRef={
+          new Map(params.parentChain.map((entry, index) => [entry.spanRef, index + 1]))
         }
         metricColumns={[createWaitMetricColumn()]}
         getMetricValues={() => ['1ms']}
@@ -176,7 +224,7 @@ function renderDependenciesTab(params: {
           backgroundColor: 'rgb(4, 5, 6)',
           color: 'rgb(1, 2, 3)'
         })}
-        interactive={true}
+        interactive={params.interactive ?? true}
         onSpanClick={params.onSpanClick}
         onSpanDoubleClick={params.onSpanDoubleClick}
         traceLabels={resolveTraceSpanCardLabels({

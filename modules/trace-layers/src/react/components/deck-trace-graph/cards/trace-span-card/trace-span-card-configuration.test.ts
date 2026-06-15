@@ -47,7 +47,7 @@ describe('buildTraceSpanCardConfiguration', () => {
         span
       ),
       traceLabels: DEFAULT_TRACE_STYLE.labels,
-      traceSettings: {timingAggregationKey: 'latest'} as TraceVisSettings,
+      traceSettings: {traceRunSummaryAggregationKey: 'latest'} as TraceVisSettings,
       interactive: true,
       tabOptions: {
         dependencyLabel: 'Parents',
@@ -91,38 +91,40 @@ describe('buildTraceSpanCardConfiguration', () => {
         span
       ),
       traceLabels: traceGraphOptions,
-      traceSettings: {timingAggregationKey: 'latest'} as TraceVisSettings,
+      traceSettings: {traceRunSummaryAggregationKey: 'latest'} as TraceVisSettings,
       interactive: true,
       tabOptions: {
         dependencyLabel: 'Parents',
         showChildren: false
       }
     });
-    const alwaysShowAllConfiguration = buildTraceSpanCardConfiguration({
+    const deprecatedOptionsConfiguration = buildTraceSpanCardConfiguration({
       traceGraph: createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
       spanRef: getRequiredSpanRef(
         createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
         span
       ),
       traceLabels: traceGraphOptions,
-      traceSettings: {timingAggregationKey: 'latest'} as TraceVisSettings,
+      traceSettings: {traceRunSummaryAggregationKey: 'latest'} as TraceVisSettings,
       interactive: true,
       tabOptions: {
         dependencyLabel: 'Parents',
+        allDependencyLabel: 'All Parents',
         alwaysShowAll: true,
         showChildren: false
       }
     });
 
-    expect(alwaysShowAllConfiguration.tabOptions.dependencyLabel).toBe('Parents');
-    expect(alwaysShowAllConfiguration.tabOptions.alwaysShowAll).toBe(true);
+    expect(deprecatedOptionsConfiguration.tabOptions.dependencyLabel).toBe('Parents');
+    expect(deprecatedOptionsConfiguration.tabOptions.allDependencyLabel).toBe('All Parents');
+    expect(deprecatedOptionsConfiguration.tabOptions.alwaysShowAll).toBe(true);
     expect(defaultOptionsConfiguration.availableTabs).toEqual([
       'dependencies',
       'histogram',
       'timings',
       'span-data'
     ]);
-    expect(alwaysShowAllConfiguration.availableTabs).toEqual([
+    expect(deprecatedOptionsConfiguration.availableTabs).toEqual([
       'dependencies',
       'histogram',
       'timings',
@@ -265,7 +267,7 @@ describe('buildTraceSpanCardConfiguration', () => {
         span
       ),
       traceLabels: DEFAULT_TRACE_STYLE.labels,
-      traceSettings: {timingAggregationKey: 'latest'} as TraceVisSettings,
+      traceSettings: {traceRunSummaryAggregationKey: 'latest'} as TraceVisSettings,
       interactive: true
     });
 

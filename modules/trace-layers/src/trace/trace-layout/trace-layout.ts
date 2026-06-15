@@ -1,32 +1,13 @@
-import * as arrow from 'apache-arrow';
-
 import {
-  encodeCrossDependencyRef,
-  encodeLocalDependencyRef,
-  encodeLocalSpanRef,
-  getCrossDependencyRefChunkIndex,
-  getCrossDependencyRefRowIndex,
-  getLocalDependencyRefProcessIndex,
-  getLocalDependencyRefRowIndex,
-  getSpanRefChunkIndex,
-  getSpanRefRowIndex,
-  getTraceRefKind,
-  getVisibleCrossDependencyRefIndex,
-  getVisibleLocalDependencyRefIndex
-} from '../trace-graph/trace-id-encoder';
+  buildTraceLayoutGeometryDerivationContext,
+  fillTraceLayoutSpanGeometry,
+  getTraceLayoutSpanVisibility as resolveTraceLayoutSpanVisibility
+} from './trace-derived-geometry';
 
-import type {ArrowTraceProcessMetadata, TraceGraphData} from '../ingestion/arrow-trace';
+import type {ArrowTraceProcessMetadata} from '../ingestion/arrow-trace';
 import type {TraceCrossDependencySource} from '../trace-graph-accessors';
 import type {TraceGraph} from '../trace-graph/trace-graph';
-import type {
-  CrossDependencyRef,
-  LocalDependencyRef,
-  ProcessRef,
-  ThreadRef,
-  TraceDependencyRef,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
-} from '../trace-graph/trace-id-encoder';
+import type {ProcessRef, ThreadRef} from '../trace-graph/trace-id-encoder';
 import type {
   SpanRef,
   TraceProcess,
@@ -35,6 +16,13 @@ import type {
   TraceThread,
   TraceThreadId
 } from '../trace-graph/trace-types';
+import type {TraceLayoutGeometryDerivationContext} from './trace-derived-geometry';
+
+export {
+  fillTraceLayoutCrossDependencyGeometry,
+  fillTraceLayoutLocalDependencyGeometry,
+  fillTraceLayoutSpanGeometry
+} from './trace-derived-geometry';
 
 export type TraceLayoutBounds = readonly [[number, number], [number, number]];
 
@@ -48,14 +36,14 @@ export type TraceLayoutSourceProcess = Pick<
 
 export type TraceLayoutVisibleProcessMetadata = Pick<
   ArrowTraceProcessMetadata,
-  'processId' | 'name' | 'rankNum' | 'threads' | 'threadMap' | 'userData'
+  'processId' | 'name' | 'rankNum' | 'threads' | 'userData'
 > & {
   /** Optional visual process order; falls back to rankNum when absent. */
   readonly processOrder?: number;
   /** Canonical runtime process ref for the visible process row. */
-  readonly processRef?: ProcessRef;
-  /** Canonical runtime thread refs aligned to `threads` when available. */
-  readonly threadRefs?: readonly ThreadRef[];
+  readonly processRef: ProcessRef;
+  /** Canonical runtime thread refs aligned to `threads`. */
+  readonly threadRefs: readonly ThreadRef[];
 };
 
 export type TraceLayoutVisibleGraph = {
@@ -205,10 +193,10 @@ export function deserializeTraceGraphCollapseState(
 export type TraceLayoutRow = {
   /** Identifies the primary rank represented by this rendered row. */
   readonly processId: string;
-  /** Canonical runtime process ref for the rendered row when available. */
-  readonly processRef?: ProcessRef;
-  /** Canonical runtime thread refs aligned to `threads` when available. */
-  readonly threadRefs?: readonly ThreadRef[];
+  /** Canonical runtime process ref for the rendered row. */
+  readonly processRef: ProcessRef;
+  /** Canonical runtime thread refs aligned to `threads`. */
+  readonly threadRefs: readonly ThreadRef[];
   /** Stores the stable row index within the current rendered layout. */
   readonly rankIndex: number;
   /** Stores the label rendered for this row. */
@@ -280,22 +268,26 @@ export function getTraceLayoutSpanVisibilityMask(
   return flags.reduce((mask, flag) => mask | flag, 0) as TraceLayoutSpanVisibilityMask;
 }
 
-/** Resolves layout-specific visibility for one span ref from the layout sidecar. */
+/** Resolves layout-specific visibility for one span ref from current lane state. */
 export function getTraceLayoutSpanVisibility(params: {
-  /** Layout containing span visibility sidecars. */
+  /** Layout whose lane state should resolve span visibility. */
   traceLayout: Readonly<TraceLayout>;
-  /** Exact visible span ref whose layout visibility should be read. */
+  /** Exact visible span ref whose layout visibility should be resolved. */
   spanRef: SpanRef;
+  /** Optional batch-scoped lane lookup reused across visibility reads. */
+  context?: TraceLayoutGeometryDerivationContext;
 }): TraceLayoutSpanVisibility | undefined {
-  return params.traceLayout.spanVisibilityMapBySpanRef?.get(params.spanRef);
+  return resolveTraceLayoutSpanVisibility(params);
 }
 
-/** Resolves layout-specific visibility flags for one span ref from the layout sidecar. */
+/** Resolves layout-specific visibility flags for one span ref from current lane state. */
 export function getTraceLayoutSpanVisibilityFlags(params: {
-  /** Layout containing span visibility sidecars. */
+  /** Layout containing current lane visibility state. */
   traceLayout: Readonly<TraceLayout>;
   /** Exact visible span ref whose layout visibility flags should be read. */
   spanRef: SpanRef;
+  /** Optional batch-scoped lane lookup reused across visibility reads. */
+  context?: TraceLayoutGeometryDerivationContext;
 }): TraceLayoutSpanVisibilityMask | undefined {
   return getTraceLayoutSpanVisibility(params)?.visibilityFlags;
 }
@@ -313,7 +305,7 @@ export function isTraceLayoutSpanVisible(mask: TraceLayoutSpanVisibilityMask): b
   return mask === traceLayoutSpanVisibilityFlags.none;
 }
 
-/** Number of float coordinates stored for one layout geometry row. */
+/** Number of float coordinates in one derived layout geometry tuple. */
 export const TRACE_LAYOUT_GEOMETRY_WIDTH = 4;
 
 /** Mutable geometry scratch object used by allocation-free layout geometry accessors. */
@@ -328,63 +320,6 @@ export type TraceLayoutGeometryTuple = {
   y2: number;
 };
 
-/** Arrow table containing one fixed-width geometry column. */
-export type TraceLayoutGeometryTable = arrow.Table<{
-  /** Row-aligned `[x1, y1, x2, y2]` geometry. */
-  geometry: arrow.FixedSizeList<arrow.Float32>;
-}>;
-
-/** Mutable layout geometry column backed by one contiguous Float32 buffer. */
-export type TraceLayoutGeometryColumn = {
-  /** Mutable row-major geometry values, four floats per row. */
-  readonly values: Float32Array;
-  /** Fixed-size Arrow list view over `values`. */
-  readonly table: TraceLayoutGeometryTable;
-};
-
-/** Span layout geometry chunk backed by one fixed-width Arrow geometry column. */
-export type TraceLayoutSpanGeometryChunk = TraceLayoutGeometryColumn;
-
-/** Dependency layout geometry chunk backed by one fixed-width Arrow geometry column. */
-export type TraceLayoutDependencyGeometryChunk = TraceLayoutGeometryColumn;
-
-/** Reusable geometry generated for one visible process in a TraceLayout. */
-export type TraceLayoutProcessGeometryCacheEntry = {
-  /** Process id that owns these process-local geometry columns. */
-  readonly processId: string;
-  /** Canonical runtime process ref that owns these process-local geometry columns when available. */
-  readonly processRef?: ProcessRef;
-  /** Absolute X offset used to translate otherwise unchanged process geometry. */
-  readonly geometryXOffset?: number;
-  /** Absolute process Y offset used to translate otherwise unchanged process geometry. */
-  readonly geometryYOffset?: number;
-  /** Cheap no-filter fingerprint for reusing process-local geometry before scanning spans. */
-  readonly fastReuseKey?: string | null;
-  /** Fingerprint for process-local geometry-affecting inputs. */
-  readonly reuseKey: string;
-  /** Span geometry chunks produced while building this process, keyed by encoded span chunk. */
-  readonly spanGeometryChunks?: readonly TraceLayoutSpanGeometryChunk[];
-  /** Local dependency geometry chunks produced while building this process, keyed by process index. */
-  readonly localDependencyGeometryChunks?: readonly TraceLayoutDependencyGeometryChunk[];
-};
-
-/** Reusable TraceLayout geometry cache carried on immutable layout outputs. */
-export type TraceLayoutGeometryCache = {
-  /** Reusable process-local geometry artifacts keyed by process id. */
-  readonly processesById: Readonly<Record<string, TraceLayoutProcessGeometryCacheEntry>>;
-  /** Reusable span geometry chunks keyed by encoded span chunk. */
-  readonly spanGeometryChunks: readonly TraceLayoutSpanGeometryChunk[];
-  /** Reusable local dependency geometry chunks keyed by encoded local-dependency process index. */
-  readonly localDependencyGeometryChunks: readonly TraceLayoutDependencyGeometryChunk[];
-  /** Reusable cross dependency geometry chunks keyed by encoded cross-dependency chunk. */
-  readonly crossDependencyGeometryChunks: readonly TraceLayoutDependencyGeometryChunk[];
-  /** Fingerprints for canonical cross-dependency geometry keyed by visible dependency ref. */
-  readonly crossDependencyReuseKeyByVisibleRef: ReadonlyMap<
-    TraceDependencyRef | VisibleCrossDependencyRef,
-    string
-  >;
-};
-
 export type TraceLayout = {
   /** Filter state for this layout, derived from the immutable source graph. */
   readonly traceGraph: TraceGraph;
@@ -393,26 +328,16 @@ export type TraceLayout = {
 
   /** List of layouts for all processes in the trace graph */
   readonly processLayouts: readonly ProcessLayout[];
+  /** Process layouts keyed by exact graph-local process refs. */
+  readonly processLayoutMapByRef: ReadonlyMap<ProcessRef, ProcessLayout>;
   /** Canonical stable row model used by legend and deck layer builders. */
   readonly renderRows: readonly TraceLayoutRow[];
   /** Optional dedicated row reserved for graph-global events. */
   readonly globalEventRow?: TraceLayoutGlobalEventRow;
   /** Optional precomputed collapsed process overview layout for the minimap. */
   readonly minimapLayout?: TraceMinimapLayout;
-  /** Layout for individual streams */
-  readonly threadLayoutMap: Readonly<Record<TraceThreadId, ThreadLayout>>;
   /** Layout for individual streams keyed by canonical runtime thread ref. */
-  readonly threadLayoutMapByRef?: ReadonlyMap<ThreadRef, ThreadLayout>;
-  /** Span geometry chunks keyed by encoded span chunk. */
-  readonly spanGeometryChunks?: readonly TraceLayoutSpanGeometryChunk[];
-  /** Layout-specific span visibility keyed by exact span refs. */
-  readonly spanVisibilityMapBySpanRef?: ReadonlyMap<SpanRef, TraceLayoutSpanVisibility>;
-  /** Local dependency geometry chunks keyed by encoded local-dependency process index. */
-  readonly localDependencyGeometryChunks?: readonly TraceLayoutDependencyGeometryChunk[];
-  /** Cross dependency geometry chunks keyed by encoded cross-dependency chunk. */
-  readonly crossDependencyGeometryChunks?: readonly TraceLayoutDependencyGeometryChunk[];
-  /** Optional reusable geometry cache used by future layout rebuilds. */
-  readonly geometryCache?: TraceLayoutGeometryCache;
+  readonly threadLayoutMapByRef: ReadonlyMap<ThreadRef, ThreadLayout>;
   /** Precomputed overflow notices for legend/overlay rendering. */
   readonly overflowLabels: readonly ThreadOverflowLabel[];
   /** Bounds for the current layout state, including collapsed ranks/streams */
@@ -421,136 +346,11 @@ export type TraceLayout = {
   readonly expandedBounds: TraceLayoutBounds;
 };
 
-/** Builds a layout geometry column backed by one mutable row-major Float32 buffer. */
-export function buildTraceLayoutGeometryColumn(values: Float32Array): TraceLayoutGeometryColumn {
-  if (values.length % TRACE_LAYOUT_GEOMETRY_WIDTH !== 0) {
-    throw new Error(`Geometry buffer length must be divisible by ${TRACE_LAYOUT_GEOMETRY_WIDTH}`);
-  }
-  const child = arrow.makeData({
-    type: new arrow.Float32(),
-    length: values.length,
-    nullCount: 0,
-    data: values
-  });
-  const vector = arrow.makeVector(
-    arrow.makeData({
-      type: new arrow.FixedSizeList(
-        TRACE_LAYOUT_GEOMETRY_WIDTH,
-        new arrow.Field('item', new arrow.Float32(), false)
-      ),
-      length: values.length / TRACE_LAYOUT_GEOMETRY_WIDTH,
-      nullCount: 0,
-      child
-    })
-  ) as arrow.Vector<arrow.FixedSizeList<arrow.Float32>>;
-
-  return {
-    values,
-    table: new arrow.Table({geometry: vector}) as TraceLayoutGeometryTable
-  };
-}
-
-/** Creates a zero-filled mutable geometry column for the requested row count. */
-export function createTraceLayoutGeometryColumn(rowCount: number): TraceLayoutGeometryColumn {
-  return buildTraceLayoutGeometryColumn(
-    new Float32Array(Math.max(0, rowCount) * TRACE_LAYOUT_GEOMETRY_WIDTH)
-  );
-}
-
-/** Copies one span geometry row into a caller-owned target object. */
-export function fillTraceLayoutSpanGeometry(params: {
-  /** Layout containing geometry chunks. */
-  traceLayout: Readonly<TraceLayout>;
-  /** Runtime span ref to resolve. */
-  spanRef: SpanRef;
-  /** Mutable target object that receives geometry coordinates. */
-  target: TraceLayoutGeometryTuple;
-}): boolean {
-  const chunkIndex = getSpanRefChunkIndex(params.spanRef);
-  const rowIndex = getSpanRefRowIndex(params.spanRef);
-  const column = params.traceLayout.spanGeometryChunks?.[chunkIndex];
-  return fillTraceLayoutGeometryTupleFromColumn(column, rowIndex, params.target);
-}
-
-/** Copies one local dependency geometry row into a caller-owned target object. */
-export function fillTraceLayoutLocalDependencyGeometry(params: {
-  /** Layout containing geometry chunks. */
-  traceLayout: Readonly<TraceLayout>;
-  /** Runtime local dependency ref to resolve. */
-  dependencyRef: TraceDependencyRef | VisibleLocalDependencyRef;
-  /** Mutable target object that receives geometry coordinates. */
-  target: TraceLayoutGeometryTuple;
-}): boolean {
-  const ref =
-    getTraceRefKind(params.dependencyRef) === 'localDependency'
-      ? (params.dependencyRef as LocalDependencyRef)
-      : getTraceLayoutCanonicalLocalDependencyRef(params.traceLayout, params.dependencyRef);
-  if (
-    ref != null &&
-    fillTraceLayoutLocalDependencyGeometryByRef(params.traceLayout, ref, params.target)
-  ) {
-    return true;
-  }
-  const visibleRef =
-    getTraceRefKind(params.dependencyRef) === 'visibleLocalDependency'
-      ? (params.dependencyRef as VisibleLocalDependencyRef)
-      : null;
-  if (
-    visibleRef != null &&
-    fillTraceLayoutSyntheticLocalDependencyGeometryByRef(
-      params.traceLayout,
-      visibleRef,
-      params.target
-    )
-  ) {
-    return true;
-  }
-  return fillTraceLayoutGeometryTupleFromArray(undefined, params.target);
-}
-
-/** Copies one cross dependency geometry row into a caller-owned target object. */
-export function fillTraceLayoutCrossDependencyGeometry(params: {
-  /** Layout containing graph-level cross-dependency geometry. */
-  traceLayout: Readonly<TraceLayout>;
-  /** Runtime cross dependency ref to resolve. */
-  dependencyRef: TraceDependencyRef | VisibleCrossDependencyRef;
-  /** Mutable target object that receives geometry coordinates. */
-  target: TraceLayoutGeometryTuple;
-}): boolean {
-  const ref =
-    getTraceRefKind(params.dependencyRef) === 'crossDependency'
-      ? (params.dependencyRef as CrossDependencyRef)
-      : getTraceLayoutCanonicalCrossDependencyRef(params.traceLayout, params.dependencyRef);
-  if (
-    ref != null &&
-    fillTraceLayoutCrossDependencyGeometryByRef(params.traceLayout, ref, params.target)
-  ) {
-    return true;
-  }
-  const visibleRef =
-    getTraceRefKind(params.dependencyRef) === 'visibleCrossDependency'
-      ? (params.dependencyRef as VisibleCrossDependencyRef)
-      : null;
-  if (
-    visibleRef != null &&
-    fillTraceLayoutSyntheticCrossDependencyGeometryByRef(
-      params.traceLayout,
-      visibleRef,
-      params.target
-    )
-  ) {
-    return true;
-  }
-  return fillTraceLayoutGeometryTupleFromArray(undefined, params.target);
-}
-
 type TraceLayoutFilteredSpanCountSource = {
   /** Returns whether the source graph currently has an active span filter. */
   hasActiveSpanFilter(): boolean;
-  /** Returns filtered span counts keyed by canonical runtime thread refs when available. */
-  getFilteredSpanCountByThreadRef?: () => ReadonlyMap<ThreadRef, number>;
-  /** Returns filtered span counts keyed by ingestion thread ids for legacy test doubles. */
-  getFilteredSpanCountByThreadId?: () => Readonly<Partial<Record<TraceThreadId, number>>>;
+  /** Returns filtered span counts keyed by canonical runtime thread refs. */
+  getFilteredSpanCountByThreadRef(): ReadonlyMap<ThreadRef, number>;
 };
 
 type TraceLayoutVisibleProcessRenderSpansSource = Pick<
@@ -563,137 +363,6 @@ type TraceGraphCollapseStateSource = Pick<
   TraceGraph,
   'processes' | 'getProcessRefs' | 'getThreadRefs' | 'getThreadSourceByRef'
 >;
-
-/** Copies one fixed-width geometry row from a layout column into a mutable target. */
-function fillTraceLayoutGeometryTupleFromColumn(
-  column: TraceLayoutGeometryColumn | undefined,
-  rowIndex: number,
-  target: TraceLayoutGeometryTuple
-): boolean {
-  if (!column || rowIndex < 0 || rowIndex >= column.values.length / TRACE_LAYOUT_GEOMETRY_WIDTH) {
-    return fillTraceLayoutGeometryTupleFromArray(undefined, target);
-  }
-  const offset = rowIndex * TRACE_LAYOUT_GEOMETRY_WIDTH;
-  const x1 = column.values[offset] ?? 0;
-  const y1 = column.values[offset + 1] ?? 0;
-  const x2 = column.values[offset + 2] ?? 0;
-  const y2 = column.values[offset + 3] ?? 0;
-  if (x1 === 0 && y1 === 0 && x2 === 0 && y2 === 0) {
-    return fillTraceLayoutGeometryTupleFromArray(undefined, target);
-  }
-  target.x1 = x1;
-  target.y1 = y1;
-  target.x2 = x2;
-  target.y2 = y2;
-  return true;
-}
-
-function fillTraceLayoutLocalDependencyGeometryByRef(
-  traceLayout: Readonly<TraceLayout>,
-  dependencyRef: LocalDependencyRef,
-  target: TraceLayoutGeometryTuple
-): boolean {
-  const processIndex = getLocalDependencyRefProcessIndex(dependencyRef);
-  const rowIndex = getLocalDependencyRefRowIndex(dependencyRef);
-  const column = traceLayout.localDependencyGeometryChunks?.[processIndex];
-  return fillTraceLayoutGeometryTupleFromColumn(column, rowIndex, target);
-}
-
-function fillTraceLayoutSyntheticLocalDependencyGeometryByRef(
-  traceLayout: Readonly<TraceLayout>,
-  dependencyRef: VisibleLocalDependencyRef,
-  target: TraceLayoutGeometryTuple
-): boolean {
-  const syntheticRef = encodeLocalDependencyRef(
-    encodeLocalSpanRef(0, getVisibleLocalDependencyRefIndex(dependencyRef))
-  );
-  const chunkIndex =
-    getTraceLayoutSyntheticLocalDependencyChunkOffset(traceLayout) +
-    getLocalDependencyRefProcessIndex(syntheticRef);
-  return fillTraceLayoutGeometryTupleFromColumn(
-    traceLayout.localDependencyGeometryChunks?.[chunkIndex],
-    getLocalDependencyRefRowIndex(syntheticRef),
-    target
-  );
-}
-
-/** Returns the first chunk index reserved for visible-only local-dependency geometry. */
-function getTraceLayoutSyntheticLocalDependencyChunkOffset(
-  traceLayout: Readonly<TraceLayout>
-): number {
-  return traceLayout.traceGraph.getProcessRefs?.().length ?? 0;
-}
-
-function fillTraceLayoutCrossDependencyGeometryByRef(
-  traceLayout: Readonly<TraceLayout>,
-  dependencyRef: CrossDependencyRef,
-  target: TraceLayoutGeometryTuple
-): boolean {
-  const chunkIndex = getCrossDependencyRefChunkIndex(dependencyRef);
-  return fillTraceLayoutGeometryTupleFromColumn(
-    traceLayout.crossDependencyGeometryChunks?.[chunkIndex],
-    getCrossDependencyRefRowIndex(dependencyRef),
-    target
-  );
-}
-
-function fillTraceLayoutSyntheticCrossDependencyGeometryByRef(
-  traceLayout: Readonly<TraceLayout>,
-  dependencyRef: VisibleCrossDependencyRef,
-  target: TraceLayoutGeometryTuple
-): boolean {
-  const syntheticRef = encodeCrossDependencyRef(getVisibleCrossDependencyRefIndex(dependencyRef));
-  const chunkIndex =
-    getTraceLayoutSyntheticCrossDependencyChunkOffset(traceLayout) +
-    getCrossDependencyRefChunkIndex(syntheticRef);
-  return fillTraceLayoutGeometryTupleFromColumn(
-    traceLayout.crossDependencyGeometryChunks?.[chunkIndex],
-    getCrossDependencyRefRowIndex(syntheticRef),
-    target
-  );
-}
-
-/** Returns the first chunk index reserved for override-only visible cross-dependency geometry. */
-function getTraceLayoutSyntheticCrossDependencyChunkOffset(
-  traceLayout: Readonly<TraceLayout>
-): number {
-  const sourceRowCount = traceLayout.traceGraph.crossDependencyTable?.numRows ?? 0;
-  return sourceRowCount <= 0
-    ? 0
-    : getCrossDependencyRefChunkIndex(encodeCrossDependencyRef(sourceRowCount - 1)) + 1;
-}
-
-function getTraceLayoutCanonicalLocalDependencyRef(
-  traceLayout: Readonly<TraceLayout>,
-  dependencyRef: TraceDependencyRef | VisibleLocalDependencyRef
-): LocalDependencyRef | null {
-  const sourceRef = traceLayout.traceGraph?.getDependencySourceRefByRef?.(dependencyRef);
-  return sourceRef != null && getTraceRefKind(sourceRef) === 'localDependency'
-    ? (sourceRef as LocalDependencyRef)
-    : null;
-}
-
-function getTraceLayoutCanonicalCrossDependencyRef(
-  traceLayout: Readonly<TraceLayout>,
-  dependencyRef: TraceDependencyRef | VisibleCrossDependencyRef
-): CrossDependencyRef | null {
-  const sourceRef = traceLayout.traceGraph?.getDependencySourceRefByRef?.(dependencyRef);
-  return sourceRef != null && getTraceRefKind(sourceRef) === 'crossDependency'
-    ? (sourceRef as CrossDependencyRef)
-    : null;
-}
-
-/** Copies one array-like geometry tuple into a mutable target, zeroing missing geometry. */
-function fillTraceLayoutGeometryTupleFromArray(
-  geometry: ArrayLike<number> | undefined,
-  target: TraceLayoutGeometryTuple
-): boolean {
-  target.x1 = geometry?.[0] ?? 0;
-  target.y1 = geometry?.[1] ?? 0;
-  target.x2 = geometry?.[2] ?? 0;
-  target.y2 = geometry?.[3] ?? 0;
-  return geometry != null && geometry.length >= TRACE_LAYOUT_GEOMETRY_WIDTH;
-}
 
 /** Resolves one graph-local process ref to its ingestion process id. */
 function getTraceGraphCollapseProcessId(
@@ -746,10 +415,18 @@ export type TraceLayoutOverflowLabelDatum = {
 export type TraceLayoutRenderConfiguration = {
   /** Vertical distance between rendered lane baselines for this layout. */
   readonly laneSeparation: number;
+  /** Rectangle height derived from the active layout density. */
+  readonly spanHeight?: number;
+  /** Timeline origin subtracted from inherent span timing for rendered X coordinates. */
+  readonly minTimeMs?: number;
+  /** Optional timing projection selected for inherent span timing. */
+  readonly timingKey?: string | null;
 };
 
 /** Geometry and row metadata for one rendered process/rank band. */
 export type ProcessLayout = {
+  /** Exact graph-local process ref owning this rendered process/rank band. */
+  readonly processRef: ProcessRef;
   /** Top Y coordinate of the process/rank band in the trace graph. */
   yOffset: number;
   /** Height from `yOffset` to the bottom of the process/rank band. */
@@ -870,31 +547,6 @@ export function getTraceLayoutFilteredSpanCountByThreadRef(params: {
 }
 
 /**
- * Returns per-thread filtered span counts keyed by ingestion thread ids for compatibility callers.
- */
-export function getTraceLayoutFilteredSpanCountByThreadId(params: {
-  /** Layout whose source graph should be consulted first. */
-  traceLayout: TraceLayout;
-}): Readonly<Partial<Record<TraceThreadId, number>>> | undefined {
-  return getLegacyTraceLayoutFilteredSpanCountByThreadId(params);
-}
-
-/**
- * Returns per-thread filtered span counts keyed by ingestion thread ids when only legacy
- * compatibility data is available.
- */
-function getLegacyTraceLayoutFilteredSpanCountByThreadId(params: {
-  /** Layout whose source graph should be consulted first. */
-  traceLayout: TraceLayout;
-}): Readonly<Partial<Record<TraceThreadId, number>>> | undefined {
-  const traceGraph = params.traceLayout.traceGraph as TraceLayoutFilteredSpanCountSource;
-  if (!hasTraceLayoutFilteredSpanCountSource(traceGraph) || !traceGraph.hasActiveSpanFilter()) {
-    return undefined;
-  }
-  return traceGraph.getFilteredSpanCountByThreadId?.();
-}
-
-/**
  * Returns the user-facing thread name used in overflow and filtered-span labels.
  */
 export function getTraceLayoutOverflowLabelThreadName(threads: readonly TraceThread[]): string {
@@ -936,20 +588,22 @@ export function getTraceLayoutCollapsedActivityEndX(
  * Builds row-local overflow and filtered-span labels using the resolved trace layout state.
  */
 export function buildTraceLayoutRowOverflowLabels(params: {
-  /** Trace layout with resolved geometry and optional source graph. */
+  /** Trace layout with resolved lane state and optional source graph. */
   traceLayout: TraceLayout;
   /** Stable rendered row metadata for which labels are being built. */
   row: TraceLayoutRow;
   /** Collapsed activity intervals associated with the row. */
   collapsedActivityIntervals: readonly TraceProcessActivityInterval[];
+  /** Optional batch-scoped direct geometry lookup state for repeated span resolution. */
+  geometryContext?: TraceLayoutGeometryDerivationContext;
 }): readonly TraceLayoutOverflowLabelDatum[] {
   const laneSeparation = params.traceLayout.layoutConfiguration?.laneSeparation ?? 0.7;
-  const rankLayout = params.traceLayout.processLayouts[params.row.rankIndex];
+  const rankLayout = getTraceLayoutProcessLayoutByRef(params.traceLayout, params.row.processRef);
   if (!rankLayout) {
     return [];
   }
 
-  const effectiveIsCollapsed = Boolean(rankLayout.isCollapsed || params.row.isCollapsed);
+  const effectiveIsCollapsed = rankLayout.isCollapsed === true;
   const timelineMaxX = params.traceLayout.currentBounds[1][0];
   const collapsedActivityY = Number.isFinite(rankLayout.collapsedActivityY)
     ? rankLayout.collapsedActivityY
@@ -957,39 +611,25 @@ export function buildTraceLayoutRowOverflowLabels(params: {
   const filteredSpanCountByThreadRef = getTraceLayoutFilteredSpanCountByThreadRef({
     traceLayout: params.traceLayout
   });
-  const legacyFilteredSpanCountByThreadId = getLegacyTraceLayoutFilteredSpanCountByThreadId({
-    traceLayout: params.traceLayout
-  });
   const collapsedFilteredSpanCount = effectiveIsCollapsed
-    ? filteredSpanCountByThreadRef != null && (params.row.threadRefs?.length ?? 0) > 0
-      ? (params.row.threadRefs ?? []).reduce(
+    ? filteredSpanCountByThreadRef != null && params.row.threadRefs.length > 0
+      ? params.row.threadRefs.reduce(
           (count: number, threadRef) => count + (filteredSpanCountByThreadRef.get(threadRef) ?? 0),
           0
         )
-      : legacyFilteredSpanCountByThreadId != null
-        ? params.row.threads.reduce(
-            (count: number, thread) =>
-              count + (legacyFilteredSpanCountByThreadId[thread.threadId] ?? 0),
-            0
-          )
-        : 0
+      : 0
     : 0;
   const expandedFilteredSpanCount = !effectiveIsCollapsed
-    ? filteredSpanCountByThreadRef != null && (params.row.threadRefs?.length ?? 0) > 0
-      ? (params.row.threadRefs ?? []).reduce(
+    ? filteredSpanCountByThreadRef != null && params.row.threadRefs.length > 0
+      ? params.row.threadRefs.reduce(
           (count: number, threadRef) => count + (filteredSpanCountByThreadRef.get(threadRef) ?? 0),
           0
         )
-      : legacyFilteredSpanCountByThreadId != null
-        ? params.row.threads.reduce(
-            (count: number, thread) =>
-              count + (legacyFilteredSpanCountByThreadId[thread.threadId] ?? 0),
-            0
-          )
-        : 0
+      : 0
     : 0;
   const overflowLabelData: TraceLayoutOverflowLabelDatum[] = [];
   if (!effectiveIsCollapsed) {
+    let geometryContext = params.geometryContext;
     let spans: readonly TraceLayoutRowBlockSource[] | null = null;
     let spansByThreadId: Record<string, TraceLayoutRowBlockSource[]> | null = null;
     for (let index = 0; index < rankLayout.threadLayouts.length; index += 1) {
@@ -1019,12 +659,16 @@ export function buildTraceLayoutRowOverflowLabels(params: {
       let fallbackAnchoredX: number | undefined;
       for (const block of candidateBlocks) {
         const spanRef = block.spanRef;
+        if (spanRef != null && geometryContext == null) {
+          geometryContext = buildTraceLayoutGeometryDerivationContext(params.traceLayout);
+        }
         if (
           spanRef == null ||
           !fillTraceLayoutSpanGeometry({
             traceLayout: params.traceLayout,
             spanRef,
-            target: geometry
+            target: geometry,
+            context: geometryContext
           }) ||
           !Number.isFinite(geometry.x1)
         ) {
@@ -1092,10 +736,8 @@ function hasTraceLayoutFilteredSpanCountSource(
     typeof traceGraph === 'object' &&
     'hasActiveSpanFilter' in traceGraph &&
     typeof traceGraph.hasActiveSpanFilter === 'function' &&
-    (('getFilteredSpanCountByThreadRef' in traceGraph &&
-      typeof traceGraph.getFilteredSpanCountByThreadRef === 'function') ||
-      ('getFilteredSpanCountByThreadId' in traceGraph &&
-        typeof traceGraph.getFilteredSpanCountByThreadId === 'function'))
+    'getFilteredSpanCountByThreadRef' in traceGraph &&
+    typeof traceGraph.getFilteredSpanCountByThreadRef === 'function'
   );
 }
 
@@ -1125,7 +767,7 @@ function hasTraceLayoutProcessBlocksListSource(
 }
 
 /**
- * Returns the visible span/block geometry sources associated with a rendered trace-layout row.
+ * Returns the visible span geometry sources associated with a rendered trace-layout row.
  */
 function getTraceLayoutRowBlocks(
   traceLayout: TraceLayout,
@@ -1152,7 +794,7 @@ function getTraceLayoutRowBlocks(
 }
 
 /**
- * Groups row-local visible blocks by thread id only when overflow-label anchoring needs it.
+ * Groups row-local visible spans by thread id only when overflow-label anchoring needs it.
  */
 function buildTraceLayoutRowBlocksByThreadId(
   blocks: readonly TraceLayoutRowBlockSource[]
@@ -1194,7 +836,7 @@ export function getTraceLayoutVerticalBounds(traceLayout: TraceLayout): [number,
   minY = Number.POSITIVE_INFINITY;
   maxY = Number.NEGATIVE_INFINITY;
 
-  for (const threadLayout of Object.values(traceLayout.threadLayoutMap)) {
+  for (const threadLayout of new Set(traceLayout.threadLayoutMapByRef.values())) {
     if (!threadLayout.visible) {
       continue;
     }
@@ -1242,7 +884,8 @@ export function getTraceLayoutBoundsFromStructure(params: {
   ];
 }
 
-type TraceLayoutRowSourceGraph = TraceGraphData | TraceLayoutVisibleGraph;
+/** Visible graph shape consumed while materializing TraceLayout render rows. */
+type TraceLayoutRowSourceGraph = TraceLayoutVisibleGraph;
 
 /** Builds the canonical lightweight row model used by layout-aware UI consumers. */
 export function buildTraceLayoutRows(params: {
@@ -1257,28 +900,53 @@ export function buildTraceLayoutRows(params: {
   }
 
   const rows: TraceLayoutRow[] = [];
+  const processByRef = new Map(
+    traceGraph.processes.map(process => [process.processRef, process] as const)
+  );
   for (let rankIndex = 0; rankIndex < processLayouts.length; rankIndex += 1) {
     const processLayout = processLayouts[rankIndex];
     if (!processLayout) {
       continue;
     }
-    const sourceProcess = traceGraph.processes[rankIndex];
-    const primaryProcess = sourceProcess;
-    const threads = primaryProcess?.threads ?? [];
-    const fallbackRankId = primaryProcess?.processId ?? `rank-${rankIndex}`;
+    const primaryProcess = processByRef.get(processLayout.processRef);
+    if (!primaryProcess) {
+      continue;
+    }
+    const threads = primaryProcess.threads;
+    const fallbackRankId = primaryProcess.processId;
 
     rows.push({
       processId: fallbackRankId,
-      processRef:
-        primaryProcess && 'processRef' in primaryProcess ? primaryProcess.processRef : undefined,
-      threadRefs:
-        primaryProcess && 'threadRefs' in primaryProcess ? primaryProcess.threadRefs : undefined,
+      processRef: processLayout.processRef,
+      threadRefs: primaryProcess.threadRefs,
       rankIndex,
-      name: processLayout.label ?? primaryProcess?.name ?? fallbackRankId,
-      rankNum: primaryProcess?.rankNum ?? rankIndex,
+      name: processLayout.label ?? primaryProcess.name ?? fallbackRankId,
+      rankNum: primaryProcess.rankNum,
       threads,
       isCollapsed: processLayout.isCollapsed ?? false
     });
   }
   return rows;
+}
+
+/** Builds exact process-ref ownership lookup for one rendered process layout list. */
+export function buildTraceLayoutProcessLayoutMapByRef(
+  processLayouts: readonly ProcessLayout[]
+): ReadonlyMap<ProcessRef, ProcessLayout> {
+  const processLayoutMapByRef = new Map<ProcessRef, ProcessLayout>();
+  for (const processLayout of processLayouts) {
+    if (!processLayout) {
+      continue;
+    }
+    processLayoutMapByRef.set(processLayout.processRef, processLayout);
+  }
+  return processLayoutMapByRef;
+}
+
+/** Resolves one rendered process layout by exact ref from the canonical layout row list. */
+export function getTraceLayoutProcessLayoutByRef(
+  traceLayout: Pick<TraceLayout, 'processLayouts'>,
+  processRef: ProcessRef
+): ProcessLayout | undefined {
+  return traceLayout.processLayouts.find(processLayout => processLayout?.processRef === processRef);
 }

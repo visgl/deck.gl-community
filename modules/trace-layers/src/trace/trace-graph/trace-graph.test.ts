@@ -106,6 +106,57 @@ describe('TraceGraph', () => {
     expect(view.layoutGraph.processes).toHaveLength(1);
   });
 
+  it('preserves visual process order in runtime process sources', () => {
+    const lateBlock = createBlockForProcess({
+      spanId: 'late-span',
+      processId: 'rank-late',
+      threadId: 'thread-late',
+      name: 'late-span',
+      startTimeMs: 0,
+      endTimeMs: 1
+    });
+    const earlyBlock = createBlockForProcess({
+      spanId: 'early-span',
+      processId: 'rank-early',
+      threadId: 'thread-early',
+      name: 'early-span',
+      startTimeMs: 2,
+      endTimeMs: 3
+    });
+    const traceGraph = createRuntimeTraceGraph(
+      buildJSONTrace(
+        [
+          {
+            ...createProcess({
+              processId: 'rank-late',
+              rankNum: 0,
+              threadId: 'thread-late',
+              spans: [lateBlock]
+            }),
+            processOrder: 1
+          },
+          {
+            ...createProcess({
+              processId: 'rank-early',
+              rankNum: 1,
+              threadId: 'thread-early',
+              spans: [earlyBlock]
+            }),
+            processOrder: 0
+          }
+        ],
+        [],
+        {name: 'process-order-test'}
+      )
+    );
+    const lateProcessRef = getRequiredProcessRef(traceGraph, 'rank-late');
+
+    expect(traceGraph.getProcessSourceByRef(lateProcessRef)?.processOrder).toBe(1);
+    expect(
+      buildTraceGraphView(traceGraph).layoutGraph.processes.map(process => process.name)
+    ).toEqual(['rank-early', 'rank-late']);
+  });
+
   it('reads span and cross-dependency fields through ref-native accessors', () => {
     const blockA = {
       ...createBlockForProcess({
@@ -312,6 +363,74 @@ describe('TraceGraph', () => {
     );
   });
 
+  it('keeps visible local dependency refs process-scoped when dependency ids repeat', () => {
+    const rootA = createBlockForProcess({
+      spanId: 'root-a',
+      processId: 'rank-a',
+      threadId: 'thread-a'
+    });
+    const childA = createBlockForProcess({
+      spanId: 'child-a',
+      processId: 'rank-a',
+      threadId: 'thread-a'
+    });
+    const rootB = createBlockForProcess({
+      spanId: 'root-b',
+      processId: 'rank-b',
+      threadId: 'thread-b'
+    });
+    const childB = createBlockForProcess({
+      spanId: 'child-b',
+      processId: 'rank-b',
+      threadId: 'thread-b'
+    });
+    const sharedDependencyId = 'shared-dependency-id';
+    const traceGraph = createRuntimeTraceGraph(
+      buildJSONTrace(
+        [
+          createProcess({
+            processId: 'rank-a',
+            rankNum: 0,
+            threadId: 'thread-a',
+            spans: [rootA, childA],
+            localDependencies: [
+              createLocalDependency(sharedDependencyId, rootA.spanId, childA.spanId)
+            ]
+          }),
+          createProcess({
+            processId: 'rank-b',
+            rankNum: 1,
+            threadId: 'thread-b',
+            spans: [rootB, childB],
+            localDependencies: [
+              createLocalDependency(sharedDependencyId, rootB.spanId, childB.spanId)
+            ]
+          })
+        ],
+        [],
+        {name: 'duplicate-local-dependency-id-test'}
+      )
+    );
+    const processRefA = getRequiredProcessRef(traceGraph, 'rank-a');
+    const processRefB = getRequiredProcessRef(traceGraph, 'rank-b');
+    const dependencyRefA = traceGraph.getVisibleLocalDependencyRefs(processRefA)[0];
+    const dependencyRefB = traceGraph.getVisibleLocalDependencyRefs(processRefB)[0];
+
+    expect(dependencyRefA).toBeDefined();
+    expect(dependencyRefB).toBeDefined();
+    expect(dependencyRefB).not.toBe(dependencyRefA);
+    expect(traceGraph.getVisibleLocalDependencyProcessRefByRef(dependencyRefA!)).toBe(processRefA);
+    expect(traceGraph.getVisibleLocalDependencyProcessRefByRef(dependencyRefB!)).toBe(processRefB);
+    expect(traceGraph.getVisibleDependencySourceByRef(dependencyRefA!)).toMatchObject({
+      startSpanId: rootA.spanId,
+      endSpanId: childA.spanId
+    });
+    expect(traceGraph.getVisibleDependencySourceByRef(dependencyRefB!)).toMatchObject({
+      startSpanId: rootB.spanId,
+      endSpanId: childB.spanId
+    });
+  });
+
   it('omits rewritten local dependencies that collapse onto one visible span', () => {
     const root = createBlock('root');
     const filteredParent = createBlock('filtered-parent');
@@ -325,8 +444,15 @@ describe('TraceGraph', () => {
     const traceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
 
     expect(
-      traceGraph.getVisibleLocalDependencyRefById('dep-filtered-root' as TraceDependencyId)
-    ).toBeNull();
+      traceGraph
+        .getVisibleProcessRefs()
+        .flatMap(processRef => traceGraph.getVisibleLocalDependencyRefs(processRef))
+        .filter(
+          dependencyRef =>
+            traceGraph.getVisibleDependencyIdByRef(dependencyRef) ===
+            ('dep-filtered-root' as TraceDependencyId)
+        )
+    ).toEqual([]);
   });
 
   it('uses a zero filter-mask column for no-filter graphs', () => {
@@ -812,10 +938,19 @@ describe('TraceGraph', () => {
     expect(traceGraph.getProcessRefByRef(spanRefA)).toBe(processRefA);
     expect(traceGraph.getProcessRefByRef(spanRefB)).toBe(processRefB);
     const threadRefA = traceGraph.getThreadRefsByProcessRef(processRefA)[0];
+    const threadRefB = traceGraph.getThreadRefsByProcessRef(processRefB)[0];
     expect(traceGraph.getThreadRefByRef(spanRefA)).toBe(threadRefA);
-    expect(traceGraph.getThreadRefByRef(spanRefB)).toBe(
-      traceGraph.getThreadRefsByProcessRef(processRefB)[0]
-    );
+    expect(traceGraph.getThreadRefByRef(spanRefB)).toBe(threadRefB);
+    expect(traceGraph.getThreadSourceByRef(threadRefA)?.processRef).toBe(processRefA);
+    expect(traceGraph.getThreadSourceByRef(threadRefB)?.processRef).toBe(processRefB);
+    expect(
+      traceGraph.getInstantSourcesByThreadRef(threadRefA).map(instant => instant.instantId)
+    ).toEqual([instantA.instantId]);
+    expect(traceGraph.getInstantSourcesByThreadRef(threadRefB)).toEqual([]);
+    expect(
+      traceGraph.getCounterSourcesByThreadRef(threadRefA).map(counter => counter.counterId)
+    ).toEqual([counterA.counterId]);
+    expect(traceGraph.getCounterSourcesByThreadRef(threadRefB)).toEqual([]);
 
     const eventRef = traceGraph.getEventSources()[0]?.eventRef;
     const instantRef = traceGraph.getInstantSources()[0]?.instantRef;

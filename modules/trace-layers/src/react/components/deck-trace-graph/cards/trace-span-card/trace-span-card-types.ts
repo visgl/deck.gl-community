@@ -131,6 +131,12 @@ export type TraceSpanCardTabOptions = {
   /** Whether the outgoing-dependencies tab should be shown. */
   showOutgoingDependencies?: boolean;
   /**
+   * Deprecated alias kept for compatibility.
+   * No longer used by default rendering; retained so callers can pass legacy values.
+   * @deprecated Use the Parents tab span visibility selector instead.
+   */
+  allDependencyLabel?: string | undefined;
+  /**
    * Whether data tabs should remain visible even when their current span has no tab content.
    */
   alwaysShowAll?: boolean;

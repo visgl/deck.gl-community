@@ -5,6 +5,7 @@ import {log} from '../log';
 import {
   getArrowTraceSpanField,
   getTraceGraphSpanDisplaySource,
+  getUniqueTraceGraphSpanRef,
   iterateTraceGraphProcessSpanRefs
 } from '../trace-graph-accessors';
 import {
@@ -48,6 +49,7 @@ import type {
   TraceCrossProcessEndpointId,
   TraceDependency,
   TraceDependencyId,
+  TraceLocalDependency,
   TracePath,
   TraceProcessId,
   TraceSpan,
@@ -85,16 +87,14 @@ type ArrowTraceLocalDependencyTableTypeMap =
 type TraceGraphLocalDependencyLookup = MappedArrowTable<ArrowTraceLocalDependencyTableTypeMap>;
 
 type TraceGraphProjection = {
-  /** Groups incoming visible dependencies by block id. */
-  inDependenciesBySpanId: Readonly<Record<TraceSpanId, ReadonlyArray<TraceDependency>>>;
-  /** Groups outgoing visible dependencies by block id. */
-  outDependenciesBySpanId: Readonly<Record<TraceSpanId, ReadonlyArray<TraceDependency>>>;
-  /** Maps visible endpoint rows to their resolved dependency, if any. */
-  endpointsWithDependenciesBySpanId: Readonly<
-    Record<
-      TraceSpanId,
-      ReadonlyArray<[TraceCrossProcessEndpoint, TraceCrossProcessDependency | null]>
-    >
+  /** Groups incoming visible dependencies by exact span ref. */
+  inDependenciesBySpanRef: ReadonlyMap<SpanRef, ReadonlyArray<TraceDependency>>;
+  /** Groups outgoing visible dependencies by exact span ref. */
+  outDependenciesBySpanRef: ReadonlyMap<SpanRef, ReadonlyArray<TraceDependency>>;
+  /** Maps visible endpoint rows to their resolved dependency by exact span ref. */
+  endpointsWithDependenciesBySpanRef: ReadonlyMap<
+    SpanRef,
+    ReadonlyArray<[TraceCrossProcessEndpoint, TraceCrossProcessDependency | null]>
   >;
 };
 
@@ -235,6 +235,19 @@ function materializeTraceSpanBySpanRef(
     return null;
   }
 
+  const localDependencies = [
+    ...traceGraph.getSpanDirectionalDependencySources(spanRef, 'incoming'),
+    ...traceGraph.getSpanDirectionalDependencySources(spanRef, 'outgoing')
+  ].filter(
+    (dependency): dependency is TraceLocalDependency => dependency.type === 'trace-local-dependency'
+  );
+  const localDependenciesByRef = new Map(
+    localDependencies.map(dependency => [
+      dependency.dependencyRef ?? dependency.dependencyId,
+      dependency
+    ])
+  );
+
   return {
     type: 'trace-span',
     spanRef: displaySource.spanRef,
@@ -246,10 +259,7 @@ function materializeTraceSpanBySpanRef(
     primaryTimingKey: displaySource.primaryTimingKey,
     timings: displaySource.timings,
     localDependencyIds: displaySource.localDependencyIds,
-    localDependencies: displaySource.localDependencyIds.flatMap(dependencyId => {
-      const dependency = traceGraph.dependencyMap[dependencyId];
-      return dependency?.type === 'trace-local-dependency' ? [dependency] : [];
-    }),
+    localDependencies: [...localDependenciesByRef.values()],
     crossProcessEndpointId: displaySource.crossProcessEndpointId,
     crossProcessDependencyEndpoints: displaySource.crossProcessDependencyEndpoints,
     userData: displaySource.userData
@@ -261,19 +271,31 @@ function materializeTraceSpanBySpanRef(
  */
 function getSelectedCardSpanRef(
   traceGraph: Readonly<TraceGraph>,
-  block: Readonly<Pick<TraceSpan, 'spanId' | 'threadId'>>
+  block: Readonly<Pick<TraceSpan, 'spanRef' | 'spanId' | 'threadId'>>
 ): SpanRef | null {
-  const scopedSpanRef = getProcessScopedSpanRef(traceGraph, block.spanId, block.threadId);
-  if (scopedSpanRef != null) {
-    return scopedSpanRef;
+  if (block.spanRef != null && spanRefMatchesBlock(traceGraph, block.spanRef, block)) {
+    return block.spanRef;
   }
 
-  return null;
+  return (
+    getProcessScopedSpanRef(traceGraph, block.spanId, block.threadId) ??
+    getUniqueTraceGraphSpanRef(traceGraph, block.spanId)
+  );
 }
 
-/**
- * Resolves one exact process-scoped span ref from the block id and owning stream id.
- */
+/** Returns whether one runtime span ref still identifies the supplied materialized block. */
+function spanRefMatchesBlock(
+  traceGraph: Readonly<TraceGraph>,
+  spanRef: SpanRef,
+  block: Readonly<Pick<TraceSpan, 'spanId' | 'threadId'>>
+): boolean {
+  return (
+    traceGraph.getSpanBlockId(spanRef) === block.spanId &&
+    traceGraph.getThreadSourceBySpanRef(spanRef)?.threadId === block.threadId
+  );
+}
+
+/** Resolves one exact process-scoped span ref from the block id and owning stream id. */
 function getProcessScopedSpanRef(
   traceGraph: Readonly<TraceGraph>,
   spanId: TraceSpanId,
@@ -774,23 +796,9 @@ function getVisibleSelectedLocalDependencySource(params: {
   /** Direction of the selected dependency relative to the selected origin span. */
   selectedDirection?: TraceSelectedDependencyDirection;
 }): TraceGraphSelectedLocalDependencySource | null {
-  const dependency = params.traceGraph.getVisibleDependencySourceByRef(params.dependencyRef);
-  if (!dependency || dependency.type !== 'trace-local-dependency') {
-    return null;
-  }
-  const dependencyId = params.traceGraph.getVisibleDependencyIdByRef(params.dependencyRef);
-  if (!dependencyId) {
-    return null;
-  }
-  const processRef =
-    (dependency.startSpanRef != null
-      ? params.traceGraph.getProcessRefBySpanRef(dependency.startSpanRef)
-      : null) ??
-    (dependency.endSpanRef != null
-      ? params.traceGraph.getProcessRefBySpanRef(dependency.endSpanRef)
-      : null) ??
-    params.traceGraph.getVisibleLocalDependencyProcessRefById(dependencyId) ??
-    null;
+  const processRef = params.traceGraph.getVisibleLocalDependencyProcessRefByRef(
+    params.dependencyRef
+  );
   if (processRef == null) {
     return null;
   }
@@ -798,8 +806,9 @@ function getVisibleSelectedLocalDependencySource(params: {
     dependencyRef: params.dependencyRef,
     processRef,
     selectedDirection: params.selectedDirection ?? 'incoming',
-    waitTimeMs: typeof dependency.waitTimeMs === 'number' ? dependency.waitTimeMs : 0,
-    bidirectional: dependency.bidirectional === true
+    waitTimeMs: params.traceGraph.getVisibleDependencyWaitTimeMs(params.dependencyRef) ?? 0,
+    bidirectional:
+      params.traceGraph.getVisibleDependencyBidirectional(params.dependencyRef) === true
   };
 }
 
@@ -853,7 +862,9 @@ function getVisibleSelectedCrossDependencySource(params: {
   /** Direction of the selected dependency relative to the selected origin span. */
   selectedDirection?: TraceSelectedDependencyDirection;
 }): TraceGraphSelectedCrossDependencySource | null {
-  const visibleDependency = params.traceGraph.getVisibleDependencySourceByRef(params.dependencyRef);
+  const visibleDependency = params.traceGraph.getVisibleDependencyRenderSourceByRef(
+    params.dependencyRef
+  );
   if (!visibleDependency || visibleDependency.type !== 'trace-cross-process-dependency') {
     return null;
   }
@@ -913,11 +924,7 @@ function getVisiblePathBlockSourceBySpanRef(params: {
   return {
     spanRef: params.spanRef,
     spanId,
-    span: {
-      ...span,
-      processRef: params.traceGraph.getProcessRefBySpanRef(params.spanRef) ?? undefined,
-      threadRef: params.traceGraph.getThreadRefBySpanRef(params.spanRef) ?? undefined
-    }
+    span
   };
 }
 
@@ -1183,6 +1190,16 @@ function buildTraceSpanDescendants(params: {
       ? Number.POSITIVE_INFINITY
       : Math.floor(params.maxTraversalNodes as number);
   const projection = includeHidden ? traceGraph.getSourceProjection() : traceGraph.getProjection();
+  const blockSpanRef = getSelectedCardSpanRef(traceGraph, block);
+  if (blockSpanRef == null) {
+    return {
+      entries: [],
+      isTruncated: false,
+      truncatedCount: 0,
+      truncationCountIsExact: true,
+      limit: normalizedLimit
+    };
+  }
   const traversalStartTimeMs = performance.now();
   const stats = createTraceGraphDescendantTraversalStats();
   const shouldLogTraversal = isTraceChildDependentTraversalProbeEnabled();
@@ -1198,22 +1215,22 @@ function buildTraceSpanDescendants(params: {
     })();
   }
 
-  const visited = new Set<TraceSpanId>([block.spanId]);
-  const discovered = new Set<TraceSpanId>([block.spanId]);
-  const sortKeyCacheBySpanId = new Map<TraceSpanId, TraceGraphDescendantChildSortKey | null>();
+  const visited = new Set<SpanRef>([blockSpanRef]);
+  const discovered = new Set<SpanRef>([blockSpanRef]);
+  const sortKeyCacheBySpanRef = new Map<SpanRef, TraceGraphDescendantChildSortKey | null>();
   let traversalStopReason: 'complete' | 'resultLimit' | 'traversalLimit' = 'complete';
-  const getChildSortKey = (spanId: TraceSpanId): TraceGraphDescendantChildSortKey | null => {
-    const cached = sortKeyCacheBySpanId.get(spanId);
+  const getChildSortKey = (spanRef: SpanRef): TraceGraphDescendantChildSortKey | null => {
+    const cached = sortKeyCacheBySpanRef.get(spanRef);
     if (cached !== undefined) {
       return cached;
     }
 
-    const sortKey = getDescendantChildSortKeys(traceGraph, spanId);
-    sortKeyCacheBySpanId.set(spanId, sortKey);
+    const sortKey = getDescendantChildSortKeys(traceGraph, spanRef);
+    sortKeyCacheBySpanRef.set(spanRef, sortKey);
     return sortKey;
   };
   const initialChildDependencies = getTraceGraphDescendantChildDependencies({
-    spanId: block.spanId,
+    spanRef: blockSpanRef,
     projection,
     keywords,
     getChildSortKey,
@@ -1230,18 +1247,21 @@ function buildTraceSpanDescendants(params: {
   const stack: {
     dependency: TraceDependency;
     childSpanId: TraceSpanId;
+    /** Child span ref queued for descendant traversal. */
+    childSpanRef: SpanRef;
     parentSpanId: TraceSpanId;
     depth: number;
   }[] = [];
   for (let index = initialChildDependencies.length - 1; index >= 0; index -= 1) {
     const childDependency = initialChildDependencies[index];
-    if (!childDependency || discovered.has(childDependency.childSpanId)) {
+    if (!childDependency || discovered.has(childDependency.childSpanRef)) {
       continue;
     }
-    discovered.add(childDependency.childSpanId);
+    discovered.add(childDependency.childSpanRef);
     stack.push({
       dependency: childDependency.dependency,
       childSpanId: childDependency.childSpanId,
+      childSpanRef: childDependency.childSpanRef,
       parentSpanId: block.spanId,
       depth: 1
     });
@@ -1260,24 +1280,23 @@ function buildTraceSpanDescendants(params: {
 
     stats.maxStackDepth = Math.max(stats.maxStackDepth, stack.length + 1);
     const childSpanId = currentEntry.childSpanId;
-    if (visited.has(childSpanId) || childSpanId === block.spanId) {
+    const childSpanRef = currentEntry.childSpanRef;
+    if (visited.has(childSpanRef) || childSpanRef === blockSpanRef) {
       continue;
     }
-    visited.add(childSpanId);
+    visited.add(childSpanRef);
     visitedDescendantCount += 1;
     stats.visitedBlocks += 1;
     stats.maxDepth = Math.max(stats.maxDepth, currentEntry.depth);
 
     let emittedChildBlock: TraceSpan | null = null;
-    const childSpanRef = currentEntry.dependency.endSpanRef ?? null;
     const shouldEmit =
-      includeHidden ||
-      (childSpanRef != null && traceGraph.getVisibleDisplaySourceBySpanRef(childSpanRef) != null);
+      includeHidden || traceGraph.getVisibleDisplaySourceBySpanRef(childSpanRef) != null;
     if (shouldEmit) {
       stats.blockLookupCalls += 1;
       emittedChildBlock = getTraceGraphDescendantDisplayBlock({
         traceGraph,
-        spanId: childSpanId
+        spanRef: childSpanRef
       });
       if (emittedChildBlock) {
         emittedEntryCount += 1;
@@ -1308,7 +1327,7 @@ function buildTraceSpanDescendants(params: {
     }
 
     const childDependencies = getTraceGraphDescendantChildDependencies({
-      spanId: childSpanId,
+      spanRef: childSpanRef,
       keywords,
       projection,
       getChildSortKey,
@@ -1321,13 +1340,14 @@ function buildTraceSpanDescendants(params: {
       if (!childDependency) {
         continue;
       }
-      if (discovered.has(childDependency.childSpanId)) {
+      if (discovered.has(childDependency.childSpanRef)) {
         continue;
       }
-      discovered.add(childDependency.childSpanId);
+      discovered.add(childDependency.childSpanRef);
       stack.push({
         dependency: childDependency.dependency,
         childSpanId: childDependency.childSpanId,
+        childSpanRef: childDependency.childSpanRef,
         parentSpanId: childSpanId,
         depth: currentEntry.depth + 1
       });
@@ -1394,6 +1414,8 @@ type TraceGraphDescendantTraversalDependency = {
   dependency: TraceDependency;
   /** Candidate child block id reached by the dependency. */
   childSpanId: TraceSpanId;
+  /** Exact candidate child span ref reached by the dependency. */
+  childSpanRef: SpanRef;
   /** Sort key for stable sibling ordering. */
   childSortKey: TraceGraphDescendantChildSortKey;
 };
@@ -1410,10 +1432,10 @@ type TraceGraphDescendantChildSortKey = {
  */
 function getDescendantChildSortKeys(
   traceGraph: Readonly<TraceGraph>,
-  spanId: TraceSpanId
+  spanRef: SpanRef
 ): TraceGraphDescendantChildSortKey | null {
-  const startTimeMs = getArrowTraceSpanField(traceGraph, spanId, 'startTimeMs');
-  const endTimeMs = getArrowTraceSpanField(traceGraph, spanId, 'endTimeMs');
+  const startTimeMs = getArrowTraceSpanField(traceGraph, spanRef, 'startTimeMs');
+  const endTimeMs = getArrowTraceSpanField(traceGraph, spanRef, 'endTimeMs');
   if (typeof startTimeMs !== 'number' || typeof endTimeMs !== 'number') {
     return null;
   }
@@ -1450,9 +1472,10 @@ function buildTraceSpanFromDisplaySource(sourceBlock: Readonly<TraceSpanDisplayS
  */
 function getTraceGraphDescendantDisplayBlock(params: {
   traceGraph: Readonly<TraceGraph>;
-  spanId: TraceSpanId;
+  /** Descendant span ref resolved into a lightweight display block. */
+  spanRef: SpanRef;
 }): TraceSpan | null {
-  const sourceBlock = getTraceGraphSpanDisplaySource(params.traceGraph, params.spanId);
+  const sourceBlock = getTraceGraphSpanDisplaySource(params.traceGraph, params.spanRef);
   return sourceBlock ? buildTraceSpanFromDisplaySource(sourceBlock) : null;
 }
 
@@ -1460,14 +1483,14 @@ function getTraceGraphDescendantDisplayBlock(params: {
  * Returns outgoing parent dependencies eligible for descendant traversal.
  */
 function getTraceGraphDescendantChildDependencies(params: {
-  /** Current block id whose outgoing dependencies should be inspected. */
-  spanId: TraceSpanId;
+  /** Exact current span ref whose outgoing dependencies should be inspected. */
+  spanRef: SpanRef;
   /** Dependency projection used for visible or source traversal. */
   projection: TraceGraphProjection;
   /** Dependency keywords accepted by the traversal. */
   keywords: ReadonlySet<string>;
   /** Resolver for stable child sort keys. */
-  getChildSortKey: (spanId: TraceSpanId) => TraceGraphDescendantChildSortKey | null;
+  getChildSortKey: (spanRef: SpanRef) => TraceGraphDescendantChildSortKey | null;
   /** Whether to sort candidate children by time. */
   sort: boolean;
   /** Optional cap on sorted candidates when only the first rows can be emitted. */
@@ -1478,7 +1501,7 @@ function getTraceGraphDescendantChildDependencies(params: {
   if (params.stats) {
     params.stats.outgoingTraversalCalls += 1;
   }
-  const dependencies = params.projection.outDependenciesBySpanId[params.spanId] ?? [];
+  const dependencies = params.projection.outDependenciesBySpanRef.get(params.spanRef) ?? [];
   if (params.stats) {
     params.stats.candidateDependencyCount += dependencies.length;
   }
@@ -1486,21 +1509,27 @@ function getTraceGraphDescendantChildDependencies(params: {
   const filteredDependencies = [] as TraceGraphDescendantTraversalDependency[];
   for (const dependency of dependencies) {
     if (
-      dependency.startSpanId !== params.spanId ||
+      dependency.startSpanRef !== params.spanRef ||
       !dependencyMatchesKeywords(dependency, params.keywords) ||
       !isParentDependency(dependency)
     ) {
       continue;
     }
 
-    const childSortKey = params.getChildSortKey(dependency.endSpanId);
-    if (childSortKey == null) {
+    const childSpanRef = dependency.endSpanRef ?? null;
+    const childSortKey = childSpanRef == null ? null : params.getChildSortKey(childSpanRef);
+    if (childSpanRef == null || childSortKey == null) {
       if (params.stats) {
         params.stats.invalidSortKeys += 1;
       }
       continue;
     }
-    filteredDependencies.push({dependency, childSpanId: dependency.endSpanId, childSortKey});
+    filteredDependencies.push({
+      dependency,
+      childSpanId: dependency.endSpanId,
+      childSpanRef,
+      childSortKey
+    });
   }
 
   if (params.sort && filteredDependencies.length > 1) {
@@ -1671,20 +1700,20 @@ export function getTraceSpanChildDependenciesFromTraceGraph(
   block: Readonly<TraceSpan>,
   traceGraph: Readonly<TraceGraph>
 ): TraceGraphChildDependency[] {
-  const blockSpanRef =
-    block.spanRef ?? getProcessScopedSpanRef(traceGraph, block.spanId, block.threadId);
+  const blockSpanRef = getSelectedCardSpanRef(traceGraph, block);
+  if (blockSpanRef == null) {
+    return [];
+  }
+  const outgoingDependencies =
+    traceGraph.getProjection().outDependenciesBySpanRef.get(blockSpanRef) ?? [];
 
-  return [...(traceGraph.getProjection().outDependenciesBySpanId[block.spanId] ?? [])]
-    .filter(dependency =>
-      blockSpanRef == null
-        ? true
-        : getVisibleDependencyStartSpanRef(traceGraph, dependency) === blockSpanRef
-    )
+  return [...outgoingDependencies]
+    .filter(dependency => getVisibleDependencyStartSpanRef(traceGraph, dependency) === blockSpanRef)
     .filter(isParentDependency)
     .map(dependency => {
       const childBlock = getTraceGraphDescendantDisplayBlock({
         traceGraph,
-        spanId: dependency.endSpanId
+        spanRef: dependency.endSpanRef!
       });
       if (!childBlock || childBlock.spanId === block.spanId) {
         return null;
@@ -1711,5 +1740,5 @@ function getVisibleDependencyStartSpanRef(
     return null;
   }
 
-  return traceGraph.getVisibleDependencySourceByRef(visibleDependencyRef)?.startSpanRef ?? null;
+  return traceGraph.getVisibleDependencyStartSpan(visibleDependencyRef);
 }

@@ -1,5 +1,5 @@
 import * as arrow from 'apache-arrow';
-import * as protobuf from 'protobufjs';
+import protobuf from 'protobufjs/dist/light/protobuf.js';
 
 type ArrowTraceTable = 'tracks' | 'slices' | 'processes' | 'threads';
 

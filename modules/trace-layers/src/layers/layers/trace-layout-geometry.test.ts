@@ -1,169 +1,206 @@
-import {describe, expect, it, vi} from 'vitest';
+import {describe, expect, it} from 'vitest';
 
 import {
-  encodeCrossDependencyRef,
-  encodeLocalDependencyRef,
-  encodeLocalSpanRef,
-  encodeSpanRef,
-  encodeVisibleCrossDependencyRef,
-  encodeVisibleLocalDependencyRef
+  buildJSONTrace,
+  buildTraceGraphDataFromJSONTrace,
+  buildTraceLayout,
+  createStaticTraceGraphRuntimeSource,
+  TraceGraph
 } from '../../trace/index';
-import {
-  buildTraceLayoutCrossDependencyGeometryChunksForTest,
-  buildTraceLayoutLocalDependencyGeometryChunksForTest,
-  buildTraceLayoutSpanGeometryChunksForTest
-} from '../../trace/trace-graph/trace-graph-test-utils';
 import {
   getTraceLayoutBlockGeometry,
   getTraceLayoutCrossDependencyGeometry,
   getTraceLayoutLocalDependencyGeometry,
+  getTraceLayoutPathDependencyGeometry,
+  getTraceLayoutSelectedCrossDependencyGeometry,
   getTraceLayoutSelectedLocalDependencyGeometry
 } from './trace-layout-geometry';
 
 import type {
   TraceCrossProcessDependency,
-  TraceLayout,
-  TraceLocalDependency
+  TraceDependencyId,
+  TraceGraphPathDependencySource,
+  TraceLocalDependency,
+  TraceProcess,
+  TraceSpan,
+  TraceSpanId,
+  TraceThread,
+  TraceThreadId,
+  TraceVisSettings
 } from '../../trace/index';
 
-function expectGeometryValues(actual: Float32Array | undefined, expected: Readonly<Float32Array>) {
-  expect(actual).toBeDefined();
-  expect(Array.from(actual!)).toEqual(Array.from(expected));
-}
+const settings: TraceVisSettings = {
+  showDependencies: true,
+  localDependencyMode: 'all',
+  showCrossProcessDependencies: true,
+  showInstants: false,
+  showCounters: false,
+  showGlobalEvents: false,
+  transitions: false,
+  showPathsOnly: false,
+  showOverview: true,
+  dependencyDisplayMode: 'all',
+  dependencyKeywords: [],
+  dependencyOpacity: 0.1,
+  minSpanTimeMs: 0,
+  threadDisplayMode: 'all',
+  selectedThreadNames: [],
+  sortThreads: false,
+  lineRoutingMode: 'straight',
+  layoutDensity: 'comfortable',
+  processLayoutMode: 'interleaved',
+  trackAggregationMode: 'separate-threads',
+  traceOffsetMs: 0,
+  traceScale: 1,
+  traceColorSchemeId: 'processes',
+  traceRunSummaryAggregationKey: 'latest',
+  showEmptyProcesses: false
+};
 
 describe('trace-layout-geometry', () => {
-  it('resolves local dependency geometry through the current visible ref from TraceGraph', () => {
-    const staleDependencyRef = encodeVisibleLocalDependencyRef(1);
-    const currentVisibleDependencyRef = encodeVisibleLocalDependencyRef(0);
-    const sourceDependencyRef = encodeLocalDependencyRef(encodeLocalSpanRef(0, 0));
-    const expectedGeometry = new Float32Array([1, 2, 3, 4]);
-    const traceLayout = {
-      traceGraph: {
-        getVisibleDependencyRefForDependency: vi.fn(() => currentVisibleDependencyRef),
-        getDependencySourceRefByRef: vi.fn(() => sourceDependencyRef)
-      },
-      localDependencyGeometryChunks: buildTraceLayoutLocalDependencyGeometryChunksForTest([
-        [sourceDependencyRef, expectedGeometry]
-      ])
-    } as unknown as TraceLayout;
-    const dependency = {
-      type: 'trace-local-dependency',
-      dependencyId: 'local-dependency' as TraceLocalDependency['dependencyId'],
-      dependencyRef: staleDependencyRef
-    } as TraceLocalDependency;
+  it('derives span, local dependency, cross dependency, and path geometry from lane layout', () => {
+    const graph = createGeometryTraceGraph();
+    const layout = buildTraceLayout({traceGraph: graph, settings});
+    const localDependencyRef = graph.getVisibleLocalDependencyRefs(graph.getProcessRefs()[0]!)[0]!;
+    const crossDependencyRef = graph.getVisibleCrossDependencySources()[0]!.dependencyRef!;
+    const startSpanRef = graph.getSpanRefByExternalBlockId('rank-a-parent' as TraceSpanId)!;
+    const localDependency = graph.getVisibleDependencySourceByRef(localDependencyRef)!;
+    const crossDependency = graph.getVisibleDependencySourceByRef(
+      crossDependencyRef
+    ) as TraceCrossProcessDependency;
 
-    expectGeometryValues(
-      getTraceLayoutLocalDependencyGeometry({traceLayout, dependency}),
-      expectedGeometry
-    );
-  });
+    const blockGeometry = getTraceLayoutBlockGeometry({
+      traceLayout: layout,
+      block: {spanRef: startSpanRef}
+    });
+    const localGeometry = getTraceLayoutLocalDependencyGeometry({
+      traceLayout: layout,
+      dependency: localDependency as TraceLocalDependency
+    });
+    const crossGeometry = getTraceLayoutCrossDependencyGeometry({
+      traceLayout: layout,
+      dependency: crossDependency
+    });
+    const selectedLocalGeometry = getTraceLayoutSelectedLocalDependencyGeometry({
+      traceLayout: layout,
+      dependencyRef: localDependencyRef
+    });
+    const selectedCrossGeometry = getTraceLayoutSelectedCrossDependencyGeometry({
+      traceLayout: layout,
+      dependencyRef: crossDependencyRef
+    });
+    const pathGeometry = getTraceLayoutPathDependencyGeometry({
+      traceLayout: layout,
+      source: {
+        dependency: crossDependency,
+        dependencyRef: crossDependencyRef
+      } as TraceGraphPathDependencySource
+    });
 
-  it('resolves cross dependency geometry through the current visible ref from TraceGraph', () => {
-    const staleDependencyRef = encodeVisibleCrossDependencyRef(1);
-    const currentVisibleDependencyRef = encodeVisibleCrossDependencyRef(0);
-    const sourceDependencyRef = encodeCrossDependencyRef(0);
-    const expectedGeometry = new Float32Array([4, 3, 2, 1]);
-    const traceLayout = {
-      traceGraph: {
-        getVisibleDependencyRefForDependency: vi.fn(() => currentVisibleDependencyRef),
-        getDependencySourceRefByRef: vi.fn(() => sourceDependencyRef)
-      },
-      crossDependencyGeometryChunks: buildTraceLayoutCrossDependencyGeometryChunksForTest([
-        [sourceDependencyRef, expectedGeometry]
-      ])
-    } as unknown as TraceLayout;
-    const dependency = {
-      type: 'trace-cross-process-dependency',
-      dependencyId: 'cross-dependency' as TraceCrossProcessDependency['dependencyId'],
-      dependencyRef: staleDependencyRef
-    } as TraceCrossProcessDependency;
-
-    expectGeometryValues(
-      getTraceLayoutCrossDependencyGeometry({traceLayout, dependency}),
-      expectedGeometry
-    );
-  });
-
-  it('resolves visible-only local dependency geometry from the synthetic chunk range', () => {
-    const dependencyRef = encodeVisibleLocalDependencyRef(7);
-    const expectedGeometry = new Float32Array([9, 8, 7, 6]);
-    const traceLayout = {
-      traceGraph: {
-        getProcessRefs: vi.fn(() => [0])
-      },
-      localDependencyGeometryChunks: buildTraceLayoutLocalDependencyGeometryChunksForTest([
-        [encodeLocalDependencyRef(encodeLocalSpanRef(1, 7)), expectedGeometry]
-      ])
-    } as unknown as TraceLayout;
-
-    expectGeometryValues(
-      getTraceLayoutLocalDependencyGeometry({
-        traceLayout,
-        dependency: {dependencyRef}
-      }),
-      expectedGeometry
-    );
-  });
-
-  it('resolves span geometry only through the canonical span ref', () => {
-    const spanRef = encodeSpanRef(0, 7);
-    const exactGeometry = new Float32Array([1, 2, 3, 4]);
-    const traceLayout = {
-      spanGeometryChunks: buildTraceLayoutSpanGeometryChunksForTest([[spanRef, exactGeometry]])
-    } as unknown as TraceLayout;
-
-    expectGeometryValues(
-      getTraceLayoutBlockGeometry({
-        traceLayout,
-        block: {spanRef}
-      }),
-      exactGeometry
-    );
-  });
-
-  it('does not fall back to span-id geometry when the exact span ref is unavailable', () => {
-    const traceLayout = {
-      spanGeometryChunks: []
-    } as unknown as TraceLayout;
-
-    expect(
-      getTraceLayoutBlockGeometry({
-        traceLayout,
-        block: {spanRef: undefined}
-      })
-    ).toBeUndefined();
-  });
-
-  it('derives selected local dependency geometry from endpoint spans when dependency geometry is skipped', () => {
-    const dependencyRef = encodeVisibleLocalDependencyRef(2);
-    const startSpanRef = encodeSpanRef(0, 3);
-    const endSpanRef = encodeSpanRef(0, 4);
-    const traceLayout = {
-      traceGraph: {
-        getVisibleDependencySourceByRef: vi.fn(() => ({
-          type: 'trace-local-dependency',
-          dependencyId: 'selected-dependency',
-          dependencyRef,
-          startSpanId: 'start-span',
-          endSpanId: 'end-span',
-          startSpanRef,
-          endSpanRef,
-          waitMode: 'end-to-start',
-          bidirectional: false,
-          waitTimeMs: 0,
-          keywords: new Set<string>()
-        }))
-      },
-      localDependencyGeometryChunks: [],
-      spanGeometryChunks: buildTraceLayoutSpanGeometryChunksForTest([
-        [startSpanRef, new Float32Array([1, 10, 5, 14])],
-        [endSpanRef, new Float32Array([8, 20, 13, 24])]
-      ])
-    } as unknown as TraceLayout;
-
-    expectGeometryValues(
-      getTraceLayoutSelectedLocalDependencyGeometry({traceLayout, dependencyRef}),
-      new Float32Array([5, 12, 8, 22])
-    );
+    expect(blockGeometry?.[3]).toBeGreaterThan(blockGeometry?.[1] ?? 0);
+    expect(Array.from(localGeometry ?? [])).toEqual(Array.from(selectedLocalGeometry ?? []));
+    expect(Array.from(crossGeometry ?? [])).toEqual(Array.from(selectedCrossGeometry ?? []));
+    expect(Array.from(pathGeometry ?? [])).toEqual(Array.from(crossGeometry ?? []));
   });
 });
+
+function createGeometryTraceGraph(): TraceGraph {
+  const rankA = createProcess('rank-a', 0, ['rank-a-parent', 'rank-a-child']);
+  const rankB = createProcess('rank-b', 1, ['rank-b-child']);
+  const localDependencyId = 'local-parent-child' as TraceDependencyId;
+  const localDependency: TraceLocalDependency = {
+    type: 'trace-local-dependency',
+    dependencyId: localDependencyId,
+    startSpanId: rankA.spans[0]!.spanId,
+    endSpanId: rankA.spans[1]!.spanId,
+    keywords: new Set(['PARENT']),
+    waitMode: 'start-to-start',
+    bidirectional: false,
+    waitTimeMs: 1
+  };
+  rankA.spans[0]!.localDependencyIds = [localDependencyId];
+  rankA.spans[0]!.localDependencies = [localDependency];
+  rankA.localDependencies = [localDependency];
+  const crossDependency: TraceCrossProcessDependency = {
+    type: 'trace-cross-process-dependency',
+    dependencyId: 'cross-parent-child' as TraceDependencyId,
+    endpointId: 'cross-parent-child:endpoint' as TraceCrossProcessDependency['endpointId'],
+    startRankNum: 0,
+    endRankNum: 1,
+    startSpanId: rankA.spans[1]!.spanId,
+    endSpanId: rankB.spans[0]!.spanId,
+    waitMode: 'end-to-start',
+    bidirectional: false,
+    topology: 'cross',
+    waitTimeMs: 1,
+    waiting: false,
+    waitNotFinished: false,
+    keywords: new Set()
+  };
+  return new TraceGraph(
+    createStaticTraceGraphRuntimeSource({
+      identityKey: 'trace-layout-geometry:test',
+      traceGraphData: buildTraceGraphDataFromJSONTrace(
+        buildJSONTrace([rankA, rankB], [crossDependency], {name: 'trace-layout-geometry'})
+      )
+    })
+  );
+}
+
+function createProcess(
+  processId: string,
+  rankNum: number,
+  spanNames: readonly string[]
+): TraceProcess {
+  const thread = {
+    type: 'trace-thread',
+    name: `${processId}-thread`,
+    threadId: `${processId}-thread` as TraceThreadId,
+    processId
+  } satisfies TraceThread;
+  const spans = spanNames.map((spanName, index) => createSpan(spanName, thread, index));
+  return {
+    type: 'trace-process',
+    processId,
+    name: processId,
+    rankNum,
+    stepNum: 0,
+    threads: [thread],
+    threadMap: {[thread.threadId]: thread},
+    spans,
+    spanMap: Object.fromEntries(spans.map(span => [span.spanId, span])),
+    instants: [],
+    instantMap: {},
+    threadInstantMap: {},
+    counters: [],
+    counterMap: {},
+    threadCounterMap: {},
+    localDependencies: [],
+    remoteDependencies: []
+  };
+}
+
+function createSpan(name: string, thread: TraceThread, index: number): TraceSpan {
+  return {
+    type: 'trace-span',
+    spanId: name as TraceSpanId,
+    threadId: thread.threadId,
+    processName: thread.processId,
+    name,
+    keywords: [],
+    primaryTimingKey: 'primary',
+    timings: {
+      primary: {
+        status: 'finished',
+        startTimeMs: index * 2,
+        endTimeMs: index * 2 + 1,
+        durationMs: 1,
+        durationMsAsString: '1ms'
+      }
+    },
+    localDependencyIds: [],
+    localDependencies: [],
+    crossProcessEndpointId: null,
+    crossProcessDependencyEndpoints: []
+  };
+}

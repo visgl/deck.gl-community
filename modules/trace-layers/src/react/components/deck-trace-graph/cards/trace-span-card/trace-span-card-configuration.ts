@@ -14,7 +14,6 @@ import type {
   TraceGraph,
   TraceSpanCardModel,
   TraceSpanCardParentChainEntry,
-  TraceSpanId,
   TraceSpanTiming,
   TraceVisSettings
 } from '../../../../../trace/index';
@@ -89,20 +88,40 @@ export type TraceSpanCardConfiguration = {
   defaultDependencyDurationTimingKeys: readonly [string, string];
   /** Incoming dependencies for the current block. */
   inDependencies: TraceSpanCardModel['visibleIncomingDependencyEntries'];
+  /** Total visible incoming dependency count before card row capping. */
+  inDependencyCount: TraceSpanCardModel['visibleIncomingDependencyEntryCount'];
+  /** Whether visible incoming dependency rows were capped. */
+  inDependenciesTruncated: TraceSpanCardModel['visibleIncomingDependencyEntriesTruncated'];
   /** Incoming dependencies for the current block, including filtered spans. */
   fullInDependencies: TraceSpanCardModel['fullIncomingDependencyEntries'];
+  /** Total incoming dependency count including filtered spans before card row capping. */
+  fullInDependencyCount: TraceSpanCardModel['fullIncomingDependencyEntryCount'];
+  /** Whether incoming dependency rows including filtered spans were capped. */
+  fullInDependenciesTruncated: TraceSpanCardModel['fullIncomingDependencyEntriesTruncated'];
   /** Outgoing dependencies for the current block. */
   outDependencies: TraceSpanCardModel['visibleOutgoingDependencyEntries'];
+  /** Total visible outgoing dependency count before card row capping. */
+  outDependencyCount: TraceSpanCardModel['visibleOutgoingDependencyEntryCount'];
+  /** Whether visible outgoing dependency rows were capped. */
+  outDependenciesTruncated: TraceSpanCardModel['visibleOutgoingDependencyEntriesTruncated'];
   /** Outgoing dependencies for the current block, including filtered spans. */
   fullOutDependencies: TraceSpanCardModel['fullOutgoingDependencyEntries'];
+  /** Total outgoing dependency count including filtered spans before card row capping. */
+  fullOutDependencyCount: TraceSpanCardModel['fullOutgoingDependencyEntryCount'];
+  /** Whether outgoing dependency rows including filtered spans were capped. */
+  fullOutDependenciesTruncated: TraceSpanCardModel['fullOutgoingDependencyEntriesTruncated'];
   /** Full parent chain regardless of filtering. */
   fullParentChain: TraceSpanCardParentChainEntry[];
   /** Visible parent chain after filtering. */
   visibleParentChain: TraceSpanCardParentChainEntry[];
   /** One-based parent index lookup for parent-chain rows. */
-  parentIndexBySpanId: ReadonlyMap<TraceSpanId, number>;
+  parentIndexBySpanRef: ReadonlyMap<SpanRef, number>;
   /** Cross-process dependency endpoints for the compact cross-rank summary. */
   endpointsWithDeps: TraceSpanCardModel['endpointsWithDeps'];
+  /** Total cross-rank endpoint count before card row capping. */
+  endpointDependencyCount: TraceSpanCardModel['endpointDependencyEntryCount'];
+  /** Whether cross-rank endpoint rows were capped. */
+  endpointsWithDepsTruncated: TraceSpanCardModel['endpointsWithDepsTruncated'];
   /** Whether the default dependency tab has visible content. */
   hasDependencyTab: boolean;
   /** Whether the outgoing dependency tab has visible content. */
@@ -161,14 +180,24 @@ export function buildTraceSpanCardConfiguration(
   const span = cardModel.span;
   const fullParentChain = cardModel.fullParentChain;
   const visibleParentChain = cardModel.visibleParentChain;
-  const parentIndexBySpanId = new Map<TraceSpanId, number>(
-    fullParentChain.map(parentEntry => [parentEntry.span.spanId, parentEntry.chainIndex])
+  const parentIndexBySpanRef = new Map<SpanRef, number>(
+    fullParentChain.map(parentEntry => [parentEntry.spanRef, parentEntry.chainIndex])
   );
   const inDependencies = cardModel.visibleIncomingDependencyEntries;
+  const inDependencyCount = cardModel.visibleIncomingDependencyEntryCount;
+  const inDependenciesTruncated = cardModel.visibleIncomingDependencyEntriesTruncated;
   const fullInDependencies = cardModel.fullIncomingDependencyEntries;
+  const fullInDependencyCount = cardModel.fullIncomingDependencyEntryCount;
+  const fullInDependenciesTruncated = cardModel.fullIncomingDependencyEntriesTruncated;
   const outDependencies = cardModel.visibleOutgoingDependencyEntries;
+  const outDependencyCount = cardModel.visibleOutgoingDependencyEntryCount;
+  const outDependenciesTruncated = cardModel.visibleOutgoingDependencyEntriesTruncated;
   const fullOutDependencies = cardModel.fullOutgoingDependencyEntries;
+  const fullOutDependencyCount = cardModel.fullOutgoingDependencyEntryCount;
+  const fullOutDependenciesTruncated = cardModel.fullOutgoingDependencyEntriesTruncated;
   const endpointsWithDeps = cardModel.endpointsWithDeps;
+  const endpointDependencyCount = cardModel.endpointDependencyEntryCount;
+  const endpointsWithDepsTruncated = cardModel.endpointsWithDepsTruncated;
   const {commOp, userData} = getTraceSpanUserData({
     span
   });
@@ -226,7 +255,7 @@ export function buildTraceSpanCardConfiguration(
         spanTimings,
         histogramCount: histogramSpecs.length,
         userDataRowCount: spanDataRows.length,
-        crossRankEndpointCount: endpointsWithDeps.length,
+        crossRankEndpointCount: endpointDependencyCount,
         hasCommBytes,
         hasCommOperation: Boolean(operation),
         hasTraversalContent: Boolean(params.hasTraversalContent)
@@ -258,14 +287,24 @@ export function buildTraceSpanCardConfiguration(
     dependencyDurationTimingKeys,
     defaultDependencyDurationTimingKeys,
     inDependencies,
+    inDependencyCount,
+    inDependenciesTruncated,
     fullInDependencies,
+    fullInDependencyCount,
+    fullInDependenciesTruncated,
     outDependencies,
+    outDependencyCount,
+    outDependenciesTruncated,
     fullOutDependencies,
+    fullOutDependencyCount,
+    fullOutDependenciesTruncated,
     fullParentChain,
     visibleParentChain,
 
-    parentIndexBySpanId,
+    parentIndexBySpanRef,
     endpointsWithDeps,
+    endpointDependencyCount,
+    endpointsWithDepsTruncated,
     hasDependencyTab,
     hasOutgoingDependencyTab,
     tabAvailability,
@@ -289,6 +328,7 @@ export function resolveTraceSpanCardOptions(
     dependencyLabel: tabOptions?.dependencyLabel ?? 'Dependencies',
     outgoingDependencyLabel: tabOptions?.outgoingDependencyLabel ?? 'Outgoing',
     showOutgoingDependencies: tabOptions?.showOutgoingDependencies ?? false,
+    allDependencyLabel: tabOptions?.allDependencyLabel ?? '',
     alwaysShowAll: tabOptions?.alwaysShowAll ?? false,
     showChildren: tabOptions?.showChildren ?? false,
     showCrossProcessDependencies: tabOptions?.showCrossProcessDependencies ?? true,
@@ -372,7 +412,9 @@ function getActiveTraceSpanTimingKey(
   span: TraceSpanCardModel['span'],
   traceSettings: TraceVisSettings
 ): string {
-  const aggregationTimingKey = traceSettings.timingAggregationKey;
+  const aggregationTimingKey = (
+    traceSettings as TraceVisSettings & {traceRunSummaryAggregationKey?: string}
+  ).traceRunSummaryAggregationKey;
   if (typeof aggregationTimingKey === 'string' && span.timings[aggregationTimingKey]) {
     return aggregationTimingKey;
   }

@@ -2,11 +2,7 @@ import {Log} from '@probe.gl/log';
 
 export class HeapLog extends Log {
   /** Adds browser heap usage fields to every timing probe emitted by Tracevis. */
-  override probe(
-    logLevel: unknown,
-    message?: unknown,
-    ...args: unknown[]
-  ): ReturnType<Log['probe']> {
+  override probe(logLevel: unknown, message?: unknown, ...args: unknown[]): () => void {
     return super.probe(logLevel, message, ...appendHeapUsageProbeFields(args));
   }
   snapshotHeapUsage() {
@@ -21,12 +17,11 @@ export class HeapLog extends Log {
 }
 
 /** A log object for more sophisticated logging and profiling */
-export const log: HeapLog = new HeapLog({id: 'trace-layers'});
+export const log = new HeapLog({id: 'trace-layers'});
+// Keep library probes opt-in so consumers and tests do not emit console noise by default.
+log.setLevel(-1);
 
-const traceLayersGlobal = globalThis as typeof globalThis & {
-  traceLayers?: {log: HeapLog};
-};
-traceLayersGlobal.traceLayers ||= {log}; // Make it available globally for debugging
+globalThis.traceLayers ||= {log}; // Make it available globally for debugging
 
 /**
  * Returns the current browser heap usage in a probe-friendly shape when supported.

@@ -188,7 +188,98 @@ describe('TraceGraph span store rows', () => {
       Array.from(spanNameUtf8View.data.subarray(spanNameUtf8View.start, spanNameUtf8View.end))
     ).toEqual([114, 97, 110, 107, 45, 98, 45, 108, 97, 98, 101, 108]);
   });
+
+  it('refreshes process span materializations when active SpanRefs grow', () => {
+    const blockA = createBlockForProcess({
+      spanId: 'growing-row-a',
+      processId: 'rank-a',
+      threadId: 'thread-a',
+      name: 'alpha'
+    });
+    const blockB = createBlockForProcess({
+      spanId: 'growing-row-b',
+      processId: 'rank-a',
+      threadId: 'thread-a',
+      name: 'beta'
+    });
+    const graph = buildJSONTrace(
+      [
+        createProcess({
+          processId: 'rank-a',
+          rankNum: 0,
+          threadId: 'thread-a',
+          spans: [blockA, blockB]
+        })
+      ],
+      [],
+      {name: 'growing-process-span-refs-test'}
+    );
+    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const processId = 'rank-a' as TraceProcessId;
+    const processRef = encodeProcessRef(0);
+    const spanRefA = encodeSpanRef(0, 0);
+    const spanRefB = encodeSpanRef(0, 1);
+    const activeSpanRefs = [spanRefA];
+    const processSpanTableMap = buildTraceProcessSpanRefTables(
+      traceGraphData.chunks,
+      traceGraphData.processes,
+      {
+        processIdsByIndex: traceGraphData.processIdsByIndex,
+        spanRefs: activeSpanRefs
+      }
+    );
+    const traceGraph = createTestTraceGraph({
+      ...traceGraphData,
+      spanRefs: activeSpanRefs,
+      processSpanTableMap
+    });
+
+    expect(traceGraph.getVisibleProcessRenderSpanRefs(processRef)).toEqual([spanRefA]);
+    expect(
+      traceGraph.getVisibleProcessGeometrySources(processRef).map(span => span.spanRef)
+    ).toEqual([spanRefA]);
+
+    activeSpanRefs.push(spanRefB);
+    replaceProcessSpanRefTable({
+      processSpanTableMap,
+      traceGraphData,
+      processId,
+      spanRefs: activeSpanRefs
+    });
+
+    expect(traceGraph.getVisibleProcessRenderSpanRefs(processRef)).toEqual([spanRefA, spanRefB]);
+    expect(
+      traceGraph.getVisibleProcessGeometrySources(processRef).map(span => span.spanRef)
+    ).toEqual([spanRefA, spanRefB]);
+  });
 });
+
+/** Replaces one process SpanRef table after its active chunk refs grow. */
+function replaceProcessSpanRefTable(params: {
+  /** Process-local span ref tables keyed by process id. */
+  processSpanTableMap: ReturnType<typeof buildTraceProcessSpanRefTables>;
+  /** Mutable trace graph data receiving the replacement table. */
+  traceGraphData: ReturnType<typeof buildTraceGraphDataFromJSONTrace>;
+  /** Process id whose active span ref table should be replaced. */
+  processId: TraceProcessId;
+  /** Next active span refs retained for the process. */
+  spanRefs: SpanRef[];
+}): void {
+  const nextProcessSpanTableMap = buildTraceProcessSpanRefTables(
+    params.traceGraphData.chunks,
+    params.traceGraphData.processes,
+    {
+      processIdsByIndex: params.traceGraphData.processIdsByIndex,
+      spanRefs: params.spanRefs
+    }
+  );
+  (
+    params.processSpanTableMap as Record<
+      TraceProcessId,
+      (typeof params.processSpanTableMap)[TraceProcessId]
+    >
+  )[params.processId] = nextProcessSpanTableMap[params.processId]!;
+}
 
 function createBlockForProcess(params: {
   spanId: string;

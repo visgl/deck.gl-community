@@ -72,7 +72,7 @@ const defaultTraceVisSettings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  timingAggregationKey: 'latest'
+  traceRunSummaryAggregationKey: 'latest'
 };
 
 let container: HTMLDivElement | null = null;

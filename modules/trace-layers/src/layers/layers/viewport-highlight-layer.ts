@@ -98,7 +98,7 @@ export function getViewportHighlightOverlayData({
 }
 
 export class ViewportHighlightLayer extends CompositeLayer<ViewportHighlightLayerProps> {
-  static layerName = 'ViewportHighlightLayer';
+  static componentName = 'ViewportHighlightLayer';
 
   declare state: {
     viewports: Viewport[];

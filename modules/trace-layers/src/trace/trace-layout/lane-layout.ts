@@ -1,24 +1,25 @@
-import {getSpanExtremalTiming, sortBlocksByTime} from '../trace-graph-accessors';
+import {getSpanExtremalTiming, sortSpansByTime} from '../trace-graph-accessors';
 
-import type {TraceSpan, TraceSpanId} from '../trace-graph/index';
-import type {BlockTimeExtents, TimedEntity} from '../trace-graph-accessors';
+import type {SpanTimeExtents, TimedEntity, TraceSpanLaneSource} from '../trace-graph-accessors';
+import type {SpanRef} from '../trace-graph/trace-types';
 
-export type {BlockTimeExtents, TimedEntity};
-export {getSpanExtremalTiming, sortBlocksByTime};
+export type {SpanTimeExtents, TimedEntity};
+export {getSpanExtremalTiming, sortSpansByTime};
 
-type LaneBlockSource = TimedEntity & {
-  /** Stable block identifier used for parent and assignment lookups. */
-  spanId: TraceSpanId;
+/** Minimal timed span shape accepted by lane assignment helpers. */
+type LaneSpanSource = TimedEntity & {
+  /** Canonical runtime span ref used for parent and assignment lookups. */
+  spanRef?: SpanRef;
 };
 
 /**
  * Optional configuration for lane layout utilities.
  */
-export type LaneLayoutOptions<BlockT extends LaneBlockSource = TraceSpan> = {
-  /** Provides a parent block id to hint nesting when available. */
-  getParentSpanId?: (block: BlockT) => TraceSpanId | null | undefined;
+export type LaneLayoutOptions<SpanT extends LaneSpanSource = TraceSpanLaneSource> = {
+  /** Provides a parent span ref to hint nesting when available. */
+  getParentSpanRef?: (span: SpanT) => SpanRef | null | undefined;
   /** Provides a soft lane affinity key used to keep related spans on nearby legal lanes. */
-  getLaneAffinityKey?: (block: BlockT) => string | number | bigint | null | undefined;
+  getLaneAffinityKey?: (span: SpanT) => string | number | bigint | null | undefined;
   /** Optional maximum end time for open spans. */
   maxTimeMs?: number;
 };
@@ -26,12 +27,12 @@ export type LaneLayoutOptions<BlockT extends LaneBlockSource = TraceSpan> = {
 export const MAX_LANES_PER_STREAM = 30;
 
 /**
- * Result of assigning a lane to a trace block.
+ * Result of assigning a lane to a trace span.
  */
-export interface LaneAssignment<BlockT extends LaneBlockSource = TraceSpan> {
+export interface LaneAssignment<SpanT extends LaneSpanSource = TraceSpanLaneSource> {
   /** Event that was assigned to a lane. */
-  block: BlockT;
-  /** Lane index assigned to the block. */
+  span: SpanT;
+  /** Lane index assigned to the span. */
   lane: number;
 }
 
@@ -47,9 +48,12 @@ type LaneWindowState = {
   lastAppendedSpan: SpanWindow | undefined;
 };
 
-type TimedBlock<BlockT extends LaneBlockSource> = {
-  block: BlockT;
-  timing: BlockTimeExtents;
+/** Span paired with the timing envelope used for lane assignment. */
+type TimedSpan<SpanT extends LaneSpanSource> = {
+  /** Source span assigned into lanes. */
+  span: SpanT;
+  /** Extremal timing envelope used while testing lane overlap. */
+  timing: SpanTimeExtents;
 };
 
 type ActiveLane = {
@@ -74,14 +78,14 @@ type LaneAffinityState = {
   preferredWidth: number;
 };
 
-/** Time-sorted block index reused by the Kahn lane layout pass. */
-type TimeSortedBlockOrder<BlockT extends LaneBlockSource> = {
-  /** Blocks in deterministic start-time order. */
-  blocks: BlockT[];
-  /** Stable time-order index for each block. */
-  indexByBlock: Map<BlockT, number>;
-  /** Cached timing extents for each time-sorted block. */
-  timingByBlock: Map<BlockT, BlockTimeExtents>;
+/** Time-sorted span index reused by the Kahn lane layout pass. */
+type TimeSortedSpanOrder<SpanT extends LaneSpanSource> = {
+  /** Spans in deterministic start-time order. */
+  spans: SpanT[];
+  /** Stable time-order index for each span. */
+  indexBySpan: Map<SpanT, number>;
+  /** Cached timing extents for each time-sorted span. */
+  timingBySpan: Map<SpanT, SpanTimeExtents>;
 };
 
 /** Normalizes zero-width spans so point-like events still occupy visible lane space. */
@@ -263,14 +267,15 @@ function peekActiveLaneHeap(heap: readonly ActiveLane[]): ActiveLane | undefined
   return heap[0];
 }
 
-function sortBlocksByTimeWithExtents<BlockT extends LaneBlockSource>(
-  spans: readonly BlockT[],
+/** Returns spans sorted by start time with one resolved timing extent per span. */
+function sortSpansByTimeWithExtents<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
   options: {maxTimeMs?: number} = {}
-): TimedBlock<BlockT>[] {
+): TimedSpan<SpanT>[] {
   return spans
-    .map(block => ({
-      block,
-      timing: getSpanExtremalTiming(block, options.maxTimeMs)
+    .map(span => ({
+      span,
+      timing: getSpanExtremalTiming(span, options.maxTimeMs)
     }))
     .sort((a, b) => {
       if (a.timing.startTimeMs !== b.timing.startTimeMs) {
@@ -280,43 +285,45 @@ function sortBlocksByTimeWithExtents<BlockT extends LaneBlockSource>(
     });
 }
 
-/** Builds one deterministic time-sorted block lookup bundle for Kahn assignment. */
-function buildTimeSortedBlockOrder<BlockT extends LaneBlockSource>(
-  spans: readonly BlockT[],
+/** Builds one deterministic time-sorted span lookup bundle for Kahn assignment. */
+function buildTimeSortedSpanOrder<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
   options: {maxTimeMs?: number} = {}
-): TimeSortedBlockOrder<BlockT> {
-  const sortedBlocksWithExtents = sortBlocksByTimeWithExtents(spans, options);
-  const blocks: BlockT[] = [];
-  const indexByBlock = new Map<BlockT, number>();
-  const timingByBlock = new Map<BlockT, BlockTimeExtents>();
-  sortedBlocksWithExtents.forEach(({block, timing}, index) => {
-    blocks.push(block);
-    indexByBlock.set(block, index);
-    timingByBlock.set(block, timing);
+): TimeSortedSpanOrder<SpanT> {
+  const sortedSpansWithExtents = sortSpansByTimeWithExtents(spans, options);
+  const sortedSpans: SpanT[] = [];
+  const indexBySpan = new Map<SpanT, number>();
+  const timingBySpan = new Map<SpanT, SpanTimeExtents>();
+  sortedSpansWithExtents.forEach(({span, timing}, index) => {
+    sortedSpans.push(span);
+    indexBySpan.set(span, index);
+    timingBySpan.set(span, timing);
   });
-  return {blocks, indexByBlock, timingByBlock};
+  return {spans: sortedSpans, indexBySpan, timingBySpan};
 }
 
-function layoutSortedBlocksByOverlap<BlockT extends LaneBlockSource>(
-  sortedBlocks: readonly TimedBlock<BlockT>[]
-): LaneAssignment<BlockT>[] {
-  const result: LaneAssignment<BlockT>[] = [];
-  visitSortedBlockLaneAssignmentsByOverlap(sortedBlocks, (block, lane) => {
-    result.push({block, lane});
+/** Assigns overlap-safe lanes to one time-sorted span collection. */
+function layoutSortedSpansByOverlap<SpanT extends LaneSpanSource>(
+  sortedSpans: readonly TimedSpan<SpanT>[]
+): LaneAssignment<SpanT>[] {
+  const result: LaneAssignment<SpanT>[] = [];
+  visitSortedSpanLaneAssignmentsByOverlap(sortedSpans, (span, lane) => {
+    result.push({span, lane});
   });
   return result;
 }
 
-function visitSortedBlockLaneAssignmentsByOverlap<BlockT extends LaneBlockSource>(
-  sortedBlocks: readonly TimedBlock<BlockT>[],
-  visitAssignment: (block: BlockT, lane: number) => void
+/** Visits overlap-safe lane assignments for one time-sorted span collection. */
+function visitSortedSpanLaneAssignmentsByOverlap<SpanT extends LaneSpanSource>(
+  sortedSpans: readonly TimedSpan<SpanT>[],
+  visitAssignment: (span: SpanT, lane: number) => void
 ): number {
   const activeLanes: ActiveLane[] = [];
   const availableLaneIndexes: number[] = [];
   let maxLane = -1;
   let nextLane = 0;
 
-  for (const {block, timing} of sortedBlocks) {
+  for (const {span, timing} of sortedSpans) {
     if (!Number.isFinite(timing.startTimeMs) || !Number.isFinite(timing.endTimeMs)) {
       const availableLane = popNumberHeap(availableLaneIndexes);
       const lane = availableLane ?? nextLane;
@@ -327,7 +334,7 @@ function visitSortedBlockLaneAssignmentsByOverlap<BlockT extends LaneBlockSource
       if (lane > maxLane) {
         maxLane = lane;
       }
-      visitAssignment(block, lane);
+      visitAssignment(span, lane);
       continue;
     }
 
@@ -349,20 +356,32 @@ function visitSortedBlockLaneAssignmentsByOverlap<BlockT extends LaneBlockSource
     if (lane > maxLane) {
       maxLane = lane;
     }
-    visitAssignment(block, lane);
+    visitAssignment(span, lane);
   }
 
   return maxLane;
 }
 
-/** Assigns lanes with parent-chain traversal plus overlap fallback packing. */
-export function layoutLanes<BlockT extends LaneBlockSource>(
-  spans: readonly BlockT[],
-  options: LaneLayoutOptions<BlockT> = {}
-): LaneAssignment<BlockT>[] {
-  const result: LaneAssignment<BlockT>[] = [];
-  visitParentAwareLaneAssignments(spans, options, (block, lane) => {
-    result.push({block, lane});
+/**
+ * Assigns lanes with the historical on-demand parent-chain traversal plus overlap fallback packing.
+ */
+export function layoutLanes<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
+  options: LaneLayoutOptions<SpanT> = {}
+): LaneAssignment<SpanT>[] {
+  return legacyLaneLayout(spans, options);
+}
+
+/**
+ * Assigns lanes with the historical on-demand parent-chain traversal plus overlap fallback packing.
+ */
+export function legacyLaneLayout<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
+  options: LaneLayoutOptions<SpanT> = {}
+): LaneAssignment<SpanT>[] {
+  const result: LaneAssignment<SpanT>[] = [];
+  visitLegacyLaneAssignments(spans, options, (span, lane) => {
+    result.push({span, lane});
   });
   return result;
 }
@@ -370,74 +389,76 @@ export function layoutLanes<BlockT extends LaneBlockSource>(
 /**
  * Assigns lanes after preordering parent-safe batches with Kahn's algorithm.
  */
-export function kahnLaneLayout<BlockT extends LaneBlockSource>(
-  spans: readonly BlockT[],
-  options: LaneLayoutOptions<BlockT> = {}
-): LaneAssignment<BlockT>[] {
-  const result: LaneAssignment<BlockT>[] = [];
-  visitKahnLaneAssignments(spans, options, (block, lane) => {
-    result.push({block, lane});
+export function kahnLaneLayout<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
+  options: LaneLayoutOptions<SpanT> = {}
+): LaneAssignment<SpanT>[] {
+  const result: LaneAssignment<SpanT>[] = [];
+  visitKahnLaneAssignments(spans, options, (span, lane) => {
+    result.push({span, lane});
   });
   return result;
 }
 
 /**
- * Visits assigned lanes without allocating a `LaneAssignment` object for each block.
+ * Visits assigned lanes without allocating a `LaneAssignment` object for each span.
  *
  * @returns The largest assigned lane index, or -1 when no spans were assigned.
  */
-export function visitLaneAssignments<BlockT extends LaneBlockSource>(
-  spans: readonly BlockT[],
-  options: LaneLayoutOptions<BlockT> = {},
-  visitAssignment: (block: BlockT, lane: number) => void
+export function visitLaneAssignments<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
+  options: LaneLayoutOptions<SpanT> = {},
+  visitAssignment: (span: SpanT, lane: number) => void
 ): number {
-  return visitParentAwareLaneAssignments(spans, options, visitAssignment);
+  return visitLegacyLaneAssignments(spans, options, visitAssignment);
 }
 
 /**
- * Visits assigned lanes with on-demand parent-chain traversal.
+ * Visits assigned lanes with the historical on-demand parent-chain traversal.
  *
  * @returns The largest assigned lane index, or -1 when no spans were assigned.
  */
-export function visitParentAwareLaneAssignments<BlockT extends LaneBlockSource>(
-  spans: readonly BlockT[],
-  options: LaneLayoutOptions<BlockT> = {},
-  visitAssignment: (block: BlockT, lane: number) => void
+export function visitLegacyLaneAssignments<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
+  options: LaneLayoutOptions<SpanT> = {},
+  visitAssignment: (span: SpanT, lane: number) => void
 ): number {
-  const sortedBlocksWithExtents = sortBlocksByTimeWithExtents(spans, options);
-  if (!options.getParentSpanId && !options.getLaneAffinityKey) {
-    return visitSortedBlockLaneAssignmentsByOverlap(sortedBlocksWithExtents, visitAssignment);
+  const sortedSpansWithExtents = sortSpansByTimeWithExtents(spans, options);
+  if (!options.getParentSpanRef && !options.getLaneAffinityKey) {
+    return visitSortedSpanLaneAssignmentsByOverlap(sortedSpansWithExtents, visitAssignment);
   }
-  const sortedBlocks = sortedBlocksWithExtents.map(({block}) => block);
+  const sortedSpans = sortedSpansWithExtents.map(({span}) => span);
   const laneStatesByIndex: LaneWindowState[] = [];
-  const laneAssignments = new Map<BlockT, number>();
-  const blockById = new Map<TraceSpanId, BlockT>();
-  const getParentSpanId = options.getParentSpanId;
+  const laneAssignments = new Map<SpanT, number>();
+  const spanByRef = new Map<SpanRef, SpanT>();
+  const getParentSpanRef = options.getParentSpanRef;
   const getLaneAffinityKey = options.getLaneAffinityKey;
   const affinityPreferredWidthByKey = buildLaneAffinityPreferredWidthByKey(
-    sortedBlocksWithExtents,
+    sortedSpansWithExtents,
     getLaneAffinityKey
   );
   const affinityStateByKey = new Map<LaneAffinityKey, LaneAffinityState>();
   const affinityOwnerByLane: Array<LaneAffinityKey | undefined> = [];
   const affinityReservationByLane: Array<LaneAffinityKey | undefined> = [];
 
-  for (const block of sortedBlocks) {
-    blockById.set(block.spanId, block);
+  for (const span of sortedSpans) {
+    if (span.spanRef != null) {
+      spanByRef.set(span.spanRef, span);
+    }
   }
 
-  /** Assigns one block to the first fitting lane at or above the requested minimum lane. */
-  const assignBlockToLane = (
-    block: BlockT,
+  /** Assigns one span to the first fitting lane at or above the requested minimum lane. */
+  const assignSpanToLane = (
+    span: SpanT,
     minimumLane: number,
-    timing = getSpanExtremalTiming(block, options.maxTimeMs)
+    timing = getSpanExtremalTiming(span, options.maxTimeMs)
   ): number => {
-    const existingLane = laneAssignments.get(block);
+    const existingLane = laneAssignments.get(span);
     if (existingLane != null) {
       return existingLane;
     }
 
-    const affinityKey = getLaneAffinityKey?.(block);
+    const affinityKey = getLaneAffinityKey?.(span);
     const affinityState = affinityKey == null ? undefined : affinityStateByKey.get(affinityKey);
     const affinityPreferredWidth =
       affinityKey == null ? undefined : affinityPreferredWidthByKey.get(affinityKey);
@@ -500,7 +521,7 @@ export function visitParentAwareLaneAssignments<BlockT extends LaneBlockSource>(
       affinityReservationByLane.push(undefined);
     }
 
-    laneAssignments.set(block, assignedLane);
+    laneAssignments.set(span, assignedLane);
     const assignedLaneState = laneStatesByIndex[assignedLane];
     if (assignedLaneState) {
       insertSpanIntoLane(assignedLaneState, timing);
@@ -524,81 +545,82 @@ export function visitParentAwareLaneAssignments<BlockT extends LaneBlockSource>(
     return assignedLane;
   };
 
-  /** Assigns one block after iteratively assigning any available parent hint. */
-  const assignBlock = (block: BlockT): number => {
-    const existingLane = laneAssignments.get(block);
+  /** Assigns one span after iteratively assigning any available parent hint. */
+  const assignSpan = (span: SpanT): number => {
+    const existingLane = laneAssignments.get(span);
     if (existingLane != null) {
       return existingLane;
     }
 
-    const visitingBlocks = new Set<BlockT>();
-    const blockStack: Array<{block: BlockT; phase: 'enter' | 'exit'}> = [{block, phase: 'enter'}];
+    const visitingSpans = new Set<SpanT>();
+    const spanStack: Array<{
+      /** Span visited while assigning hinted parents before children. */
+      span: SpanT;
+      /** Traversal phase for the iterative parent-first walk. */
+      phase: 'enter' | 'exit';
+    }> = [{span, phase: 'enter'}];
 
-    while (blockStack.length > 0) {
-      const frame = blockStack.pop()!;
-      const frameBlock = frame.block;
+    while (spanStack.length > 0) {
+      const frame = spanStack.pop()!;
+      const frameSpan = frame.span;
 
       if (frame.phase === 'enter') {
-        if (laneAssignments.has(frameBlock)) {
+        if (laneAssignments.has(frameSpan)) {
           continue;
         }
-        if (visitingBlocks.has(frameBlock)) {
-          assignBlockToLane(frameBlock, 0);
+        if (visitingSpans.has(frameSpan)) {
+          assignSpanToLane(frameSpan, 0);
           continue;
         }
 
-        visitingBlocks.add(frameBlock);
-        blockStack.push({block: frameBlock, phase: 'exit'});
+        visitingSpans.add(frameSpan);
+        spanStack.push({span: frameSpan, phase: 'exit'});
 
-        const parentId = getParentSpanId?.(frameBlock);
-        if (parentId == null) {
+        const parentRef = getParentSpanRef?.(frameSpan);
+        if (parentRef == null) {
           continue;
         }
-        const parent = blockById.get(parentId);
-        if (!parent || parent === frameBlock || laneAssignments.has(parent)) {
+        const parent = spanByRef.get(parentRef);
+        if (!parent || parent === frameSpan || laneAssignments.has(parent)) {
           continue;
         }
-        if (visitingBlocks.has(parent)) {
-          assignBlockToLane(parent, 0);
+        if (visitingSpans.has(parent)) {
+          assignSpanToLane(parent, 0);
           continue;
         }
-        blockStack.push({block: parent, phase: 'enter'});
+        spanStack.push({span: parent, phase: 'enter'});
         continue;
       }
 
-      visitingBlocks.delete(frameBlock);
+      visitingSpans.delete(frameSpan);
       let minimumLane = 0;
-      const parentId = getParentSpanId?.(frameBlock);
-      if (parentId != null) {
-        const parent = blockById.get(parentId);
-        if (parent && parent !== frameBlock) {
+      const parentRef = getParentSpanRef?.(frameSpan);
+      if (parentRef != null) {
+        const parent = spanByRef.get(parentRef);
+        if (parent && parent !== frameSpan) {
           const parentLane = laneAssignments.get(parent);
           if (parentLane != null) {
             minimumLane = parentLane + 1;
           }
         }
       }
-      assignBlockToLane(
-        frameBlock,
-        minimumLane,
-        getSpanExtremalTiming(frameBlock, options.maxTimeMs)
-      );
+      assignSpanToLane(frameSpan, minimumLane, getSpanExtremalTiming(frameSpan, options.maxTimeMs));
     }
 
-    return laneAssignments.get(block) ?? assignBlockToLane(block, 0);
+    return laneAssignments.get(span) ?? assignSpanToLane(span, 0);
   };
 
-  for (const block of sortedBlocks) {
-    assignBlock(block);
+  for (const span of sortedSpans) {
+    assignSpan(span);
   }
 
   let maxLane = -1;
-  for (const block of sortedBlocks) {
-    const lane = laneAssignments.get(block) ?? 0;
+  for (const span of sortedSpans) {
+    const lane = laneAssignments.get(span) ?? 0;
     if (lane > maxLane) {
       maxLane = lane;
     }
-    visitAssignment(block, lane);
+    visitAssignment(span, lane);
   }
   return maxLane;
 }
@@ -608,57 +630,59 @@ export function visitParentAwareLaneAssignments<BlockT extends LaneBlockSource>(
  *
  * @returns The largest assigned lane index, or -1 when no spans were assigned.
  */
-export function visitKahnLaneAssignments<BlockT extends LaneBlockSource>(
-  spans: readonly BlockT[],
-  options: LaneLayoutOptions<BlockT> = {},
-  visitAssignment: (block: BlockT, lane: number) => void
+export function visitKahnLaneAssignments<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
+  options: LaneLayoutOptions<SpanT> = {},
+  visitAssignment: (span: SpanT, lane: number) => void
 ): number {
-  const timeSortedOrder = buildTimeSortedBlockOrder(spans, options);
-  if (!options.getParentSpanId && !options.getLaneAffinityKey) {
-    const sortedBlocksWithExtents = timeSortedOrder.blocks.map(block => ({
-      block,
-      timing: timeSortedOrder.timingByBlock.get(block)!
+  const timeSortedOrder = buildTimeSortedSpanOrder(spans, options);
+  if (!options.getParentSpanRef && !options.getLaneAffinityKey) {
+    const sortedSpansWithExtents = timeSortedOrder.spans.map(span => ({
+      span,
+      timing: timeSortedOrder.timingBySpan.get(span)!
     }));
-    return visitSortedBlockLaneAssignmentsByOverlap(sortedBlocksWithExtents, visitAssignment);
+    return visitSortedSpanLaneAssignmentsByOverlap(sortedSpansWithExtents, visitAssignment);
   }
 
   const laneStatesByIndex: LaneWindowState[] = [];
-  const laneAssignments = new Map<BlockT, number>();
-  const blockById = new Map<TraceSpanId, BlockT>();
-  const getParentSpanId = options.getParentSpanId;
+  const laneAssignments = new Map<SpanT, number>();
+  const spanByRef = new Map<SpanRef, SpanT>();
+  const getParentSpanRef = options.getParentSpanRef;
   const getLaneAffinityKey = options.getLaneAffinityKey;
   const affinityPreferredWidthByKey = buildLaneAffinityPreferredWidthByKey(
-    timeSortedOrder.blocks.map(block => ({
-      block,
+    timeSortedOrder.spans.map(span => ({
+      span,
       timing:
-        timeSortedOrder.timingByBlock.get(block) ?? getSpanExtremalTiming(block, options.maxTimeMs)
+        timeSortedOrder.timingBySpan.get(span) ?? getSpanExtremalTiming(span, options.maxTimeMs)
     })),
     getLaneAffinityKey
   );
   const affinityStateByKey = new Map<LaneAffinityKey, LaneAffinityState>();
   const affinityOwnerByLane: Array<LaneAffinityKey | undefined> = [];
   const affinityReservationByLane: Array<LaneAffinityKey | undefined> = [];
-  timeSortedOrder.blocks.forEach(block => {
-    blockById.set(block.spanId, block);
+  timeSortedOrder.spans.forEach(span => {
+    if (span.spanRef != null) {
+      spanByRef.set(span.spanRef, span);
+    }
   });
 
-  const orderedBlocks = buildKahnParentSafeBlockOrder({
-    blocks: timeSortedOrder.blocks,
-    blockById,
-    getParentSpanId
+  const orderedSpans = buildKahnParentSafeSpanOrder({
+    spans: timeSortedOrder.spans,
+    spanByRef,
+    getParentSpanRef
   });
 
-  const assignBlockToLane = (block: BlockT): number => {
-    const existingLane = laneAssignments.get(block);
+  const assignSpanToLane = (span: SpanT): number => {
+    const existingLane = laneAssignments.get(span);
     if (existingLane != null) {
       return existingLane;
     }
 
     let minimumLane = 0;
-    const parentId = getParentSpanId?.(block);
-    if (parentId != null) {
-      const parent = blockById.get(parentId);
-      if (parent && parent !== block) {
+    const parentRef = getParentSpanRef?.(span);
+    if (parentRef != null) {
+      const parent = spanByRef.get(parentRef);
+      if (parent && parent !== span) {
         const parentLane = laneAssignments.get(parent);
         if (parentLane != null) {
           minimumLane = parentLane + 1;
@@ -667,8 +691,8 @@ export function visitKahnLaneAssignments<BlockT extends LaneBlockSource>(
     }
 
     const timing =
-      timeSortedOrder.timingByBlock.get(block) ?? getSpanExtremalTiming(block, options.maxTimeMs);
-    const affinityKey = getLaneAffinityKey?.(block);
+      timeSortedOrder.timingBySpan.get(span) ?? getSpanExtremalTiming(span, options.maxTimeMs);
+    const affinityKey = getLaneAffinityKey?.(span);
     const affinityState = affinityKey == null ? undefined : affinityStateByKey.get(affinityKey);
     const affinityPreferredWidth =
       affinityKey == null ? undefined : affinityPreferredWidthByKey.get(affinityKey);
@@ -737,7 +761,7 @@ export function visitKahnLaneAssignments<BlockT extends LaneBlockSource>(
       affinityReservationByLane.push(undefined);
     }
 
-    laneAssignments.set(block, assignedLane);
+    laneAssignments.set(span, assignedLane);
     const assignedLaneState = laneStatesByIndex[assignedLane];
     if (assignedLaneState) {
       insertSpanIntoLane(assignedLaneState, timing);
@@ -761,17 +785,17 @@ export function visitKahnLaneAssignments<BlockT extends LaneBlockSource>(
     return assignedLane;
   };
 
-  for (const block of orderedBlocks) {
-    assignBlockToLane(block);
+  for (const span of orderedSpans) {
+    assignSpanToLane(span);
   }
 
   let maxLane = -1;
-  for (const block of timeSortedOrder.blocks) {
-    const lane = laneAssignments.get(block) ?? 0;
+  for (const span of timeSortedOrder.spans) {
+    const lane = laneAssignments.get(span) ?? 0;
     if (lane > maxLane) {
       maxLane = lane;
     }
-    visitAssignment(block, lane);
+    visitAssignment(span, lane);
   }
   return maxLane;
 }
@@ -779,11 +803,11 @@ export function visitKahnLaneAssignments<BlockT extends LaneBlockSource>(
 /**
  * Assigns lanes strictly by interval overlap, ignoring nesting hints.
  */
-export function layoutLanesByOverlap<BlockT extends LaneBlockSource>(
-  spans: readonly BlockT[],
-  options: Pick<LaneLayoutOptions<BlockT>, 'maxTimeMs'> = {}
-): LaneAssignment<BlockT>[] {
-  return layoutSortedBlocksByOverlap(sortBlocksByTimeWithExtents(spans, options));
+export function layoutLanesByOverlap<SpanT extends LaneSpanSource>(
+  spans: readonly SpanT[],
+  options: Pick<LaneLayoutOptions<SpanT>, 'maxTimeMs'> = {}
+): LaneAssignment<SpanT>[] {
+  return layoutSortedSpansByOverlap(sortSpansByTimeWithExtents(spans, options));
 }
 
 /** Maximum local Kahn lane probes kept independent of existing lane count. */
@@ -934,9 +958,9 @@ function extendLaneAffinityState(
 /**
  * Computes a soft contiguous home-band width from each affinity group's observed overlap.
  */
-function buildLaneAffinityPreferredWidthByKey<BlockT extends LaneBlockSource>(
-  sortedBlocks: readonly TimedBlock<BlockT>[],
-  getLaneAffinityKey: LaneLayoutOptions<BlockT>['getLaneAffinityKey']
+function buildLaneAffinityPreferredWidthByKey<SpanT extends LaneSpanSource>(
+  sortedSpans: readonly TimedSpan<SpanT>[],
+  getLaneAffinityKey: LaneLayoutOptions<SpanT>['getLaneAffinityKey']
 ): Map<LaneAffinityKey, number> {
   if (!getLaneAffinityKey) {
     return new Map();
@@ -944,8 +968,8 @@ function buildLaneAffinityPreferredWidthByKey<BlockT extends LaneBlockSource>(
 
   const activeEndTimesByKey = new Map<LaneAffinityKey, number[]>();
   const preferredWidthByKey = new Map<LaneAffinityKey, number>();
-  for (const {block, timing} of sortedBlocks) {
-    const affinityKey = getLaneAffinityKey(block);
+  for (const {span, timing} of sortedSpans) {
+    const affinityKey = getLaneAffinityKey(span);
     if (affinityKey == null) {
       continue;
     }
@@ -996,37 +1020,40 @@ function reserveLaneAffinityHomeBand(params: {
 }
 
 /** Produces a parent-safe topological order while preserving chronological order among ready spans. */
-function buildKahnParentSafeBlockOrder<BlockT extends LaneBlockSource>(params: {
-  blocks: readonly BlockT[];
-  blockById: ReadonlyMap<TraceSpanId, BlockT>;
-  getParentSpanId?: (block: BlockT) => TraceSpanId | null | undefined;
-}): BlockT[] {
-  if (!params.getParentSpanId) {
-    return [...params.blocks];
+function buildKahnParentSafeSpanOrder<SpanT extends LaneSpanSource>(params: {
+  /** Spans already sorted chronologically before parent-safe reordering. */
+  spans: readonly SpanT[];
+  /** Span lookup keyed by canonical runtime span ref. */
+  spanByRef: ReadonlyMap<SpanRef, SpanT>;
+  /** Optional callback resolving each span's parent ref. */
+  getParentSpanRef?: (span: SpanT) => SpanRef | null | undefined;
+}): SpanT[] {
+  if (!params.getParentSpanRef) {
+    return [...params.spans];
   }
 
-  const indegreeByBlock = new Map<BlockT, number>();
-  const childrenByBlock = new Map<BlockT, BlockT[]>();
-  const timeOrderIndexByBlock = new Map<BlockT, number>();
-  params.blocks.forEach((block, index) => {
-    indegreeByBlock.set(block, 0);
-    timeOrderIndexByBlock.set(block, index);
+  const indegreeBySpan = new Map<SpanT, number>();
+  const childrenBySpan = new Map<SpanT, SpanT[]>();
+  const timeOrderIndexBySpan = new Map<SpanT, number>();
+  params.spans.forEach((span, index) => {
+    indegreeBySpan.set(span, 0);
+    timeOrderIndexBySpan.set(span, index);
   });
-  params.blocks.forEach(block => {
-    const parentId = params.getParentSpanId?.(block);
-    if (parentId == null) {
+  params.spans.forEach(span => {
+    const parentRef = params.getParentSpanRef?.(span);
+    if (parentRef == null) {
       return;
     }
-    const parent = params.blockById.get(parentId);
-    if (!parent || parent === block) {
+    const parent = params.spanByRef.get(parentRef);
+    if (!parent || parent === span) {
       return;
     }
-    indegreeByBlock.set(block, (indegreeByBlock.get(block) ?? 0) + 1);
-    const children = childrenByBlock.get(parent);
+    indegreeBySpan.set(span, (indegreeBySpan.get(span) ?? 0) + 1);
+    const children = childrenBySpan.get(parent);
     if (children) {
-      children.push(block);
+      children.push(span);
     } else {
-      childrenByBlock.set(parent, [block]);
+      childrenBySpan.set(parent, [span]);
     }
   });
 
@@ -1035,21 +1062,21 @@ function buildKahnParentSafeBlockOrder<BlockT extends LaneBlockSource>(params: {
    * traces; promoting later-starting spans here can force repeated ordered array splices.
    */
   const readyTimeOrderIndexes: number[] = [];
-  params.blocks.forEach((block, index) => {
-    if ((indegreeByBlock.get(block) ?? 0) === 0) {
+  params.spans.forEach((span, index) => {
+    if ((indegreeBySpan.get(span) ?? 0) === 0) {
       pushNumberHeap(readyTimeOrderIndexes, index);
     }
   });
-  const orderedBlocks: BlockT[] = [];
+  const orderedSpans: SpanT[] = [];
   while (readyTimeOrderIndexes.length > 0) {
     const readyIndex = popNumberHeap(readyTimeOrderIndexes)!;
-    const block = params.blocks[readyIndex]!;
-    orderedBlocks.push(block);
-    for (const child of childrenByBlock.get(block) ?? []) {
-      const nextIndegree = (indegreeByBlock.get(child) ?? 0) - 1;
-      indegreeByBlock.set(child, nextIndegree);
+    const span = params.spans[readyIndex]!;
+    orderedSpans.push(span);
+    for (const child of childrenBySpan.get(span) ?? []) {
+      const nextIndegree = (indegreeBySpan.get(child) ?? 0) - 1;
+      indegreeBySpan.set(child, nextIndegree);
       if (nextIndegree === 0) {
-        const childIndex = timeOrderIndexByBlock.get(child);
+        const childIndex = timeOrderIndexBySpan.get(child);
         if (childIndex != null) {
           pushNumberHeap(readyTimeOrderIndexes, childIndex);
         }
@@ -1057,15 +1084,15 @@ function buildKahnParentSafeBlockOrder<BlockT extends LaneBlockSource>(params: {
     }
   }
 
-  if (orderedBlocks.length === params.blocks.length) {
-    return orderedBlocks;
+  if (orderedSpans.length === params.spans.length) {
+    return orderedSpans;
   }
 
-  const emittedBlocks = new Set(orderedBlocks);
-  for (const block of params.blocks) {
-    if (!emittedBlocks.has(block)) {
-      orderedBlocks.push(block);
+  const emittedSpans = new Set(orderedSpans);
+  for (const span of params.spans) {
+    if (!emittedSpans.has(span)) {
+      orderedSpans.push(span);
     }
   }
-  return orderedBlocks;
+  return orderedSpans;
 }

@@ -139,6 +139,8 @@ export const MAX_COUNTER_REF_CHUNK_INDEX = Math.floor(MAX_COUNTER_REF_INDEX / CH
 export const MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX = Math.floor(
   (PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.localDependency - 1) / LOCAL_DEPENDENCY_ROW_FACTOR
 );
+/** @deprecated Use {@link MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX}. */
+export const MAX_LOCAL_DEPENDENCY_REF_CHUNK_INDEX = MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX;
 /** Maximum process-local thread index that can be packed into a process-aware thread ref. */
 export const MAX_PROCESS_LOCAL_THREAD_REF_INDEX = THREAD_INDEX_FACTOR - 1;
 
@@ -565,6 +567,11 @@ export function getLocalDependencyRefPayload(ref: LocalDependencyRef): number {
 /** Returns the process index encoded in one local dependency ref. */
 export function getLocalDependencyRefProcessIndex(ref: LocalDependencyRef): number {
   return Math.floor(getLocalDependencyRefPayload(ref) / LOCAL_DEPENDENCY_ROW_FACTOR);
+}
+
+/** @deprecated Use {@link getLocalDependencyRefProcessIndex}. */
+export function getLocalDependencyRefChunkIndex(ref: LocalDependencyRef): number {
+  return getLocalDependencyRefProcessIndex(ref);
 }
 
 /** Returns the process-local row index encoded in one local dependency ref. */

@@ -166,11 +166,7 @@ function extractChromeTraceEventsFromTokenizer(
 
   if (tokenizer.objectStartIndex != null) {
     tokenizer.buffer = tokenizer.buffer.slice(tokenizer.objectStartIndex);
-    // The retained buffer starts at the partial object, so rescan it from a clean parser state.
-    tokenizer.insideString = false;
-    tokenizer.escapingCharacter = false;
-    tokenizer.objectDepth = 0;
-    tokenizer.objectStartIndex = null;
+    tokenizer.objectStartIndex = 0;
     return parsedEvents;
   }
 

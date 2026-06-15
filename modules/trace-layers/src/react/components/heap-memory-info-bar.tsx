@@ -1,9 +1,14 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 
 import {log} from '../../trace/log';
 import {WithTooltip} from './with-tooltip';
 
-import type {TraceGraphSizeEntry, TraceGraphSizeReport} from '../../trace/index';
+import type {
+  TraceChunkStoreDiagnostics,
+  TraceEngineDiagnostics,
+  TraceGraphSizeEntry,
+  TraceGraphSizeReport
+} from '../../trace/index';
 
 /** Browser heap-memory counters exposed by Chromium performance.memory. */
 type BrowserHeapMemoryInfo = {
@@ -17,25 +22,40 @@ type BrowserHeapMemoryInfo = {
 
 /** Props for {@link HeapMemoryInfoBar}. */
 export type HeapMemoryInfoBarProps = {
-  /** Builds the expensive Tracevis-owned retained-size report on demand. */
+  /** Builds the Tracevis-owned memory report on demand without walking unbounded trace data. */
   buildTraceMemoryReport?: () => TraceMemoryReport | null;
   /** Optional class name added to the compact memory bar root. */
   className?: string;
 };
 
-/** On-demand Tracevis-owned retained-size report shown in memory diagnostics. */
+/** On-demand trace memory diagnostics shown in the hover popup and watermark dumps. */
 export type TraceMemoryReport = {
-  /** Optional trace graph size report to include in the hover popup. */
+  /** Optional cheap retained-state counters for the active TraceChunkStore. */
+  traceChunkStoreDiagnostics?: TraceChunkStoreDiagnostics | null;
+  /** Optional retained ready-payload estimate for the active TraceChunkStore. */
+  traceChunkStoreSizeReport?: TraceGraphSizeReport | null;
+  /** Optional observed browser heap delta since the active TraceChunkStore baseline. */
+  traceChunkStoreObservedHeapDeltaBytes?: number | null;
+  /** Optional observed heap delta not assigned to payloads or the visible window estimate. */
+  traceChunkStoreUnattributedHeapDeltaBytes?: number | null;
+  /** Optional number of ready chunk payloads retained by the active TraceChunkStore. */
+  traceChunkStoreReadyChunkCount?: number | null;
+  /** Optional number of ready span rows retained by the active TraceChunkStore. */
+  traceChunkStoreReadySpanCount?: number | null;
+  /** Optional memory estimate for the active materialized visualization window. */
+  traceVisualizationWindowSizeReport?: TraceGraphSizeReport | null;
+  /** @deprecated Use `traceVisualizationWindowSizeReport` for visualization-window estimates. */
   traceGraphSizeReport?: TraceGraphSizeReport | null;
-  /** Optional estimated retained TraceViewState byte size to include in memory diagnostics. */
-  traceViewStateSizeBytes?: number | null;
-  /** Optional estimated retained TraceLayout byte size to include in memory diagnostics. */
-  traceLayoutSizeBytes?: number | null;
-  /** Optional estimated retained prepared deck input byte size to include in memory diagnostics. */
-  traceDeckInputsSizeBytes?: number | null;
+  /** Optional cheap retained-state and build diagnostics for the mounted TraceEngine. */
+  traceEngineDiagnostics?: TraceEngineDiagnostics | null;
 };
 
 const DEFAULT_MEMORY_POLL_MS = 2000;
+const HEAP_MEMORY_DIAGNOSTICS_WATERMARK_BYTES = 3 * 1024 * 1024 * 1024;
+const HEAP_MEMORY_DIAGNOSTICS_RESET_BYTES = Math.floor(2.75 * 1024 * 1024 * 1024);
+
+/** Why HeapMemoryInfoBar is collecting and logging one on-demand memory report. */
+type MemoryDiagnosticsTrigger = 'hover' | 'heap-watermark';
 
 /**
  * Shows a compact JavaScript heap-usage bar for tracevis diagnostics with a memory-detail popup.
@@ -46,6 +66,7 @@ export function HeapMemoryInfoBar({
 }: HeapMemoryInfoBarProps = {}) {
   const memoryInfo = useBrowserHeapMemoryInfo(DEFAULT_MEMORY_POLL_MS);
   const [traceMemoryReport, setTraceMemoryReport] = useState<TraceMemoryReport | null>(null);
+  const hasLoggedHeapWatermarkRef = useRef(false);
   const usedRatio = memoryInfo
     ? clampRatio(memoryInfo.usedJSHeapSize / memoryInfo.jsHeapSizeLimit)
     : 0;
@@ -60,27 +81,63 @@ export function HeapMemoryInfoBar({
   ]
     .filter(Boolean)
     .join(' ');
+  const buildAndLogMemoryDiagnostics = useCallback(
+    (trigger: MemoryDiagnosticsTrigger) => {
+      const nextTraceMemoryReport = buildTraceMemoryReport?.() ?? null;
+      setTraceMemoryReport(nextTraceMemoryReport);
+      logMemoryDiagnostics(
+        buildMemoryDiagnosticsParams({
+          trigger,
+          memoryInfo,
+          traceMemoryReport: nextTraceMemoryReport
+        })
+      );
+    },
+    [buildTraceMemoryReport, memoryInfo]
+  );
   const handleMouseEnter = useCallback(() => {
-    const nextTraceMemoryReport = buildTraceMemoryReport?.() ?? null;
-    setTraceMemoryReport(nextTraceMemoryReport);
-    logMemoryDiagnostics({
-      memoryInfo,
-      traceGraphSizeReport: nextTraceMemoryReport?.traceGraphSizeReport ?? null,
-      traceViewStateSizeBytes: nextTraceMemoryReport?.traceViewStateSizeBytes ?? null,
-      traceLayoutSizeBytes: nextTraceMemoryReport?.traceLayoutSizeBytes ?? null,
-      traceDeckInputsSizeBytes: nextTraceMemoryReport?.traceDeckInputsSizeBytes ?? null
-    });
-  }, [buildTraceMemoryReport, memoryInfo]);
+    buildAndLogMemoryDiagnostics('hover');
+  }, [buildAndLogMemoryDiagnostics]);
+
+  useEffect(() => {
+    if (!memoryInfo) {
+      return;
+    }
+    if (memoryInfo.usedJSHeapSize <= HEAP_MEMORY_DIAGNOSTICS_RESET_BYTES) {
+      hasLoggedHeapWatermarkRef.current = false;
+      return;
+    }
+    if (
+      memoryInfo.usedJSHeapSize < HEAP_MEMORY_DIAGNOSTICS_WATERMARK_BYTES ||
+      hasLoggedHeapWatermarkRef.current
+    ) {
+      return;
+    }
+    hasLoggedHeapWatermarkRef.current = true;
+    buildAndLogMemoryDiagnostics('heap-watermark');
+  }, [buildAndLogMemoryDiagnostics, memoryInfo]);
 
   return (
     <WithTooltip
       tooltip={
         <HeapMemoryInfoTooltip
           memoryInfo={memoryInfo}
-          traceGraphSizeReport={traceMemoryReport?.traceGraphSizeReport ?? null}
-          traceViewStateSizeBytes={traceMemoryReport?.traceViewStateSizeBytes ?? null}
-          traceLayoutSizeBytes={traceMemoryReport?.traceLayoutSizeBytes ?? null}
-          traceDeckInputsSizeBytes={traceMemoryReport?.traceDeckInputsSizeBytes ?? null}
+          traceChunkStoreDiagnostics={traceMemoryReport?.traceChunkStoreDiagnostics ?? null}
+          traceChunkStoreSizeReport={traceMemoryReport?.traceChunkStoreSizeReport ?? null}
+          traceChunkStoreObservedHeapDeltaBytes={
+            traceMemoryReport?.traceChunkStoreObservedHeapDeltaBytes ?? null
+          }
+          traceChunkStoreUnattributedHeapDeltaBytes={
+            traceMemoryReport?.traceChunkStoreUnattributedHeapDeltaBytes ?? null
+          }
+          traceChunkStoreReadyChunkCount={traceMemoryReport?.traceChunkStoreReadyChunkCount ?? null}
+          traceChunkStoreReadySpanCount={traceMemoryReport?.traceChunkStoreReadySpanCount ?? null}
+          traceVisualizationWindowSizeReport={
+            traceMemoryReport?.traceVisualizationWindowSizeReport ??
+            traceMemoryReport?.traceGraphSizeReport ??
+            null
+          }
+          traceEngineDiagnostics={traceMemoryReport?.traceEngineDiagnostics ?? null}
         />
       }
     >
@@ -108,93 +165,247 @@ export function HeapMemoryInfoBar({
 function HeapMemoryInfoTooltip(props: {
   /** Browser heap-memory snapshot, or null when unsupported. */
   memoryInfo: BrowserHeapMemoryInfo | null;
-  /** Optional trace graph size report to include in the popup. */
-  traceGraphSizeReport: TraceGraphSizeReport | null;
-  /** Optional estimated retained TraceViewState byte size to include in the popup. */
-  traceViewStateSizeBytes: number | null;
-  /** Optional estimated retained TraceLayout byte size to include in the popup. */
-  traceLayoutSizeBytes: number | null;
-  /** Optional estimated retained prepared deck input byte size to include in the popup. */
-  traceDeckInputsSizeBytes: number | null;
+  /** Optional cheap retained-state counters for the active TraceChunkStore. */
+  traceChunkStoreDiagnostics: TraceChunkStoreDiagnostics | null;
+  /** Optional retained ready-payload estimate for the active TraceChunkStore. */
+  traceChunkStoreSizeReport: TraceGraphSizeReport | null;
+  /** Optional observed browser heap delta since the active TraceChunkStore baseline. */
+  traceChunkStoreObservedHeapDeltaBytes: number | null;
+  /** Optional observed heap delta not assigned to payloads or the visible window estimate. */
+  traceChunkStoreUnattributedHeapDeltaBytes: number | null;
+  /** Optional number of ready chunk payloads retained by the active TraceChunkStore. */
+  traceChunkStoreReadyChunkCount: number | null;
+  /** Optional number of ready span rows retained by the active TraceChunkStore. */
+  traceChunkStoreReadySpanCount: number | null;
+  /** Optional retained-size estimate for the active materialized visualization window. */
+  traceVisualizationWindowSizeReport: TraceGraphSizeReport | null;
+  /** Optional cheap retained-state and build diagnostics for the mounted TraceEngine. */
+  traceEngineDiagnostics: TraceEngineDiagnostics | null;
 }) {
-  const traceGraphSizeReport = props.traceGraphSizeReport;
+  const traceEngineRetainedSizeBytes = props.traceEngineDiagnostics?.traceEngineRetainedSizeBytes;
+  const traceLayoutSizeBytes = props.traceEngineDiagnostics?.traceLayoutSizeBytes;
+  const traceDeckInputsSizeBytes = props.traceEngineDiagnostics?.traceDeckInputsSizeBytes;
+  const hasTraceChunkStoreMemory =
+    props.traceChunkStoreDiagnostics != null ||
+    props.traceChunkStoreSizeReport != null ||
+    typeof props.traceChunkStoreObservedHeapDeltaBytes === 'number' ||
+    typeof props.traceChunkStoreUnattributedHeapDeltaBytes === 'number' ||
+    typeof props.traceChunkStoreReadyChunkCount === 'number' ||
+    typeof props.traceChunkStoreReadySpanCount === 'number';
+  const hasTraceEngineMemory =
+    props.traceEngineDiagnostics != null ||
+    typeof traceEngineRetainedSizeBytes === 'number' ||
+    typeof traceLayoutSizeBytes === 'number' ||
+    typeof traceDeckInputsSizeBytes === 'number';
   const hasTraceMemory =
-    traceGraphSizeReport != null ||
-    (typeof props.traceViewStateSizeBytes === 'number' && props.traceViewStateSizeBytes > 0) ||
-    (typeof props.traceLayoutSizeBytes === 'number' && props.traceLayoutSizeBytes > 0) ||
-    (typeof props.traceDeckInputsSizeBytes === 'number' && props.traceDeckInputsSizeBytes > 0);
+    hasTraceChunkStoreMemory ||
+    props.traceVisualizationWindowSizeReport != null ||
+    hasTraceEngineMemory;
+  const traceChunkStoreReadyChunkCount =
+    props.traceChunkStoreDiagnostics?.readyChunkCount ?? props.traceChunkStoreReadyChunkCount;
 
   return (
-    <div className="w-72 space-y-2 text-xs">
+    <div className="w-80 space-y-2 text-xs">
       <div className="font-medium text-foreground">Memory</div>
       {props.memoryInfo ? (
         <div className="space-y-1">
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">JS heap used</span>
-            <span className="font-medium text-foreground">
-              {formatGigabytesValue(props.memoryInfo.usedJSHeapSize)} GB
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">JS heap allocated</span>
-            <span className="font-medium text-foreground">
-              {formatGigabytesValue(props.memoryInfo.totalJSHeapSize)} GB
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">JS heap limit</span>
-            <span className="font-medium text-foreground">
-              {formatGigabytesValue(props.memoryInfo.jsHeapSizeLimit)} GB
-            </span>
-          </div>
+          <MemoryMetricRow
+            label="JS heap used"
+            value={`${formatGigabytesValue(props.memoryInfo.usedJSHeapSize)} GB`}
+          />
+          <MemoryMetricRow
+            label="JS heap allocated"
+            value={`${formatGigabytesValue(props.memoryInfo.totalJSHeapSize)} GB`}
+          />
+          <MemoryMetricRow
+            label="JS heap limit"
+            value={`${formatGigabytesValue(props.memoryInfo.jsHeapSizeLimit)} GB`}
+          />
         </div>
       ) : (
         <div className="text-muted-foreground">JS heap usage is unavailable in this browser.</div>
       )}
       {hasTraceMemory ? (
-        <div className="space-y-1 border-t border-border pt-2">
-          <div className="font-medium text-foreground">Tracevis-owned memory</div>
-          {traceGraphSizeReport ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">TraceGraph retained</span>
-              <span className="font-medium text-foreground">
-                {formatTraceSizeBytes(traceGraphSizeReport.totalBytes)}
-              </span>
+        <>
+          {hasTraceChunkStoreMemory ? (
+            <div className="space-y-1 border-t border-border pt-2">
+              <div className="font-medium text-foreground">TraceChunkStore</div>
+              {props.traceChunkStoreSizeReport ? (
+                <MemoryMetricRow
+                  label="Retained payload estimate"
+                  value={formatTraceSizeBytes(props.traceChunkStoreSizeReport.totalBytes)}
+                />
+              ) : null}
+              {props.traceChunkStoreDiagnostics ? (
+                <>
+                  <MemoryMetricRow
+                    label="Descriptors"
+                    value={formatTraceCount(props.traceChunkStoreDiagnostics.descriptorCount)}
+                  />
+                  <MemoryMetricRow
+                    label="Loaded chunks"
+                    value={`${formatTraceCount(props.traceChunkStoreDiagnostics.readyChunkCount)} / ${formatTraceCount(props.traceChunkStoreDiagnostics.descriptorCount)}`}
+                  />
+                  <MemoryMetricRow
+                    label="Pending chunks"
+                    value={formatTraceCount(props.traceChunkStoreDiagnostics.pendingChunkCount)}
+                  />
+                  <MemoryMetricRow
+                    label="Failed chunks"
+                    value={formatTraceCount(props.traceChunkStoreDiagnostics.failedChunkCount)}
+                  />
+                  <MemoryMetricRow
+                    label="Active windows"
+                    value={formatTraceCount(props.traceChunkStoreDiagnostics.traceWindowCount)}
+                  />
+                  {props.traceChunkStoreDiagnostics.sourceSpanFilterCount > 0 ? (
+                    <MemoryMetricRow
+                      label="Source filters"
+                      value={`${formatTraceCount(props.traceChunkStoreDiagnostics.sourceSpanFilterCount)} @ ${formatTraceCount(props.traceChunkStoreDiagnostics.sourceSpanFilterRevision)}`}
+                    />
+                  ) : null}
+                </>
+              ) : typeof traceChunkStoreReadyChunkCount === 'number' ? (
+                <MemoryMetricRow
+                  label="Loaded chunks"
+                  value={formatTraceCount(traceChunkStoreReadyChunkCount)}
+                />
+              ) : null}
+              {typeof props.traceChunkStoreReadySpanCount === 'number' ? (
+                <MemoryMetricRow
+                  label="Loaded spans"
+                  value={formatTraceCount(props.traceChunkStoreReadySpanCount)}
+                />
+              ) : null}
+              {typeof props.traceChunkStoreObservedHeapDeltaBytes === 'number' ? (
+                <MemoryMetricRow
+                  label="Observed store heap delta"
+                  value={formatTraceSizeBytes(props.traceChunkStoreObservedHeapDeltaBytes)}
+                />
+              ) : null}
+              {typeof props.traceChunkStoreUnattributedHeapDeltaBytes === 'number' ? (
+                <MemoryMetricRow
+                  label="Unattributed store delta"
+                  value={formatTraceSizeBytes(props.traceChunkStoreUnattributedHeapDeltaBytes)}
+                />
+              ) : null}
+              {props.traceChunkStoreSizeReport
+                ? getTraceSizeDriverRows(props.traceChunkStoreSizeReport).map(entry => (
+                    <MemoryMetricRow
+                      key={entry.path}
+                      label={formatTraceSizePath(entry.path)}
+                      value={formatTraceSizeBytes(entry.bytes)}
+                      className="pl-3 text-[11px]"
+                    />
+                  ))
+                : null}
             </div>
           ) : null}
-          {typeof props.traceViewStateSizeBytes === 'number' &&
-          props.traceViewStateSizeBytes > 0 ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">TraceViewState retained</span>
-              <span className="font-medium text-foreground">
-                {formatTraceSizeBytes(props.traceViewStateSizeBytes)}
-              </span>
+          {props.traceVisualizationWindowSizeReport ? (
+            <div className="space-y-1 border-t border-border pt-2">
+              <div className="font-medium text-foreground">Visualization window</div>
+              <MemoryMetricRow
+                label="TraceGraph estimate"
+                value={formatTraceSizeBytes(props.traceVisualizationWindowSizeReport.totalBytes)}
+              />
             </div>
           ) : null}
-          {typeof props.traceLayoutSizeBytes === 'number' && props.traceLayoutSizeBytes > 0 ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">TraceLayout retained</span>
-              <span className="font-medium text-foreground">
-                {formatTraceSizeBytes(props.traceLayoutSizeBytes)}
-              </span>
+          {hasTraceEngineMemory ? (
+            <div className="space-y-1 border-t border-border pt-2">
+              <div className="font-medium text-foreground">TraceEngine</div>
+              {typeof traceEngineRetainedSizeBytes === 'number' ? (
+                <MemoryMetricRow
+                  label="Retained viewer state"
+                  value={formatTraceSizeBytes(traceEngineRetainedSizeBytes)}
+                />
+              ) : null}
+              {typeof traceLayoutSizeBytes === 'number' ? (
+                <MemoryMetricRow
+                  label="Active TraceLayout"
+                  value={formatTraceSizeBytes(traceLayoutSizeBytes)}
+                />
+              ) : null}
+              {typeof traceDeckInputsSizeBytes === 'number' ? (
+                <MemoryMetricRow
+                  label="Prepared deck inputs"
+                  value={formatTraceSizeBytes(traceDeckInputsSizeBytes)}
+                />
+              ) : null}
+              {props.traceEngineDiagnostics ? (
+                <>
+                  <MemoryMetricRow
+                    label="Revision"
+                    value={formatTraceCount(props.traceEngineDiagnostics.revision)}
+                  />
+                  <MemoryMetricRow
+                    label="Last update"
+                    value={formatTraceEngineReason(props.traceEngineDiagnostics.lastUpdateReason)}
+                  />
+                  <MemoryMetricRow
+                    label="Displayed spans"
+                    value={formatTraceCount(props.traceEngineDiagnostics.displayedSpanCount)}
+                  />
+                  <MemoryMetricRow
+                    label="Displayed deps"
+                    value={formatTraceCount(
+                      props.traceEngineDiagnostics.displayedLocalDependencyCount +
+                        props.traceEngineDiagnostics.displayedCrossDependencyCount
+                    )}
+                  />
+                  <MemoryMetricRow
+                    label="Selection"
+                    value={`${formatTraceCount(props.traceEngineDiagnostics.selectedSpanCount)} selected / ${formatTraceCount(props.traceEngineDiagnostics.focusedSpanCount)} focused`}
+                  />
+                  <MemoryMetricRow
+                    label="Layouts"
+                    value={`${formatTraceCount(props.traceEngineDiagnostics.activeLayoutCount)} active / ${formatTraceCount(props.traceEngineDiagnostics.baseLayoutCount)} base / ${formatTraceCount(props.traceEngineDiagnostics.focusedLayoutCount)} focus`}
+                  />
+                  <MemoryMetricRow
+                    label="Prepared rows"
+                    value={`${formatTraceCount(props.traceEngineDiagnostics.preparedForegroundRowCount)} fg / ${formatTraceCount(props.traceEngineDiagnostics.preparedOverviewRowCount)} overview`}
+                  />
+                  <MemoryMetricRow
+                    label="Last build"
+                    value={formatTraceDurationMs(
+                      props.traceEngineDiagnostics.buildPhaseTimings.totalDurationMs
+                    )}
+                  />
+                  {typeof props.traceEngineDiagnostics.retainedSizeEstimateDurationMs ===
+                  'number' ? (
+                    <MemoryMetricRow
+                      label="Size estimate"
+                      value={formatTraceDurationMs(
+                        props.traceEngineDiagnostics.retainedSizeEstimateDurationMs
+                      )}
+                    />
+                  ) : null}
+                </>
+              ) : null}
             </div>
           ) : null}
-          {typeof props.traceDeckInputsSizeBytes === 'number' &&
-          props.traceDeckInputsSizeBytes > 0 ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">Prepared deck inputs</span>
-              <span className="font-medium text-foreground">
-                {formatTraceSizeBytes(props.traceDeckInputsSizeBytes)}
-              </span>
-            </div>
-          ) : null}
-          {traceGraphSizeReport ? (
-            <div className="text-[11px] text-muted-foreground">
-              Detailed TraceGraph tables are logged to the console on hover.
-            </div>
-          ) : null}
-        </div>
+          <div className="border-t border-border pt-2 text-[11px] text-muted-foreground">
+            Estimates are bounded retained drivers. JS heap can also include transient parse/build
+            garbage and other app allocations.
+          </div>
+        </>
       ) : null}
+    </div>
+  );
+}
+
+/** Renders one compact label/value row in the heap diagnostics popup. */
+function MemoryMetricRow(props: {
+  /** Human-readable metric name. */
+  label: string;
+  /** Formatted metric value. */
+  value: string;
+  /** Optional extra class names applied to the row. */
+  className?: string;
+}) {
+  return (
+    <div className={`flex justify-between gap-4 ${props.className ?? ''}`.trim()}>
+      <span className="text-muted-foreground">{props.label}</span>
+      <span className="font-medium text-foreground">{props.value}</span>
     </div>
   );
 }
@@ -272,33 +483,101 @@ function formatGigabytesValue(bytes: number): string {
   return (bytes / 1024 / 1024 / 1024).toFixed(1);
 }
 
-/** Logs detailed heap and trace retained-size diagnostics as console tables. */
-function logMemoryDiagnostics(params: {
+/** Inputs retained while collecting one heap diagnostics report. */
+type MemoryDiagnosticsParams = {
+  /** Why HeapMemoryInfoBar collected this report. */
+  trigger: MemoryDiagnosticsTrigger;
   /** Browser heap-memory snapshot, or null when unsupported. */
   memoryInfo: BrowserHeapMemoryInfo | null;
-  /** Optional trace graph retained-size report. */
-  traceGraphSizeReport: TraceGraphSizeReport | null;
-  /** Optional estimated retained TraceViewState byte size. */
-  traceViewStateSizeBytes: number | null;
-  /** Optional estimated retained TraceLayout byte size. */
-  traceLayoutSizeBytes: number | null;
-  /** Optional estimated retained prepared deck input byte size. */
-  traceDeckInputsSizeBytes: number | null;
-}): void {
+  /** Optional cheap retained-state counters for the active TraceChunkStore. */
+  traceChunkStoreDiagnostics: TraceChunkStoreDiagnostics | null;
+  /** Optional retained ready-payload estimate for the active TraceChunkStore. */
+  traceChunkStoreSizeReport: TraceGraphSizeReport | null;
+  /** Optional observed browser heap delta since the active TraceChunkStore baseline. */
+  traceChunkStoreObservedHeapDeltaBytes: number | null;
+  /** Optional observed heap delta not assigned to payloads or the visible window estimate. */
+  traceChunkStoreUnattributedHeapDeltaBytes: number | null;
+  /** Optional number of ready chunk payloads retained by the active TraceChunkStore. */
+  traceChunkStoreReadyChunkCount: number | null;
+  /** Optional number of ready span rows retained by the active TraceChunkStore. */
+  traceChunkStoreReadySpanCount: number | null;
+  /** Optional retained-size estimate for the active materialized visualization window. */
+  traceVisualizationWindowSizeReport: TraceGraphSizeReport | null;
+  /** Optional cheap retained-state and build diagnostics for the mounted TraceEngine. */
+  traceEngineDiagnostics: TraceEngineDiagnostics | null;
+};
+
+/** One formatted console-table row emitted by heap diagnostics. */
+type MemorySummaryRow = {
+  /** Human-readable metric name. */
+  metric: string;
+  /** Raw byte count for byte-sized metrics, or null for count/string metrics. */
+  bytes: number | null;
+  /** Compact formatted metric value. */
+  size: string;
+};
+
+/** Builds one normalized diagnostics input from an on-demand trace memory report. */
+function buildMemoryDiagnosticsParams(params: {
+  /** Why HeapMemoryInfoBar collected this report. */
+  trigger: MemoryDiagnosticsTrigger;
+  /** Browser heap-memory snapshot, or null when unsupported. */
+  memoryInfo: BrowserHeapMemoryInfo | null;
+  /** On-demand trace memory report, or null when the host has no trace report. */
+  traceMemoryReport: TraceMemoryReport | null;
+}): MemoryDiagnosticsParams {
+  return {
+    trigger: params.trigger,
+    memoryInfo: params.memoryInfo,
+    traceChunkStoreDiagnostics: params.traceMemoryReport?.traceChunkStoreDiagnostics ?? null,
+    traceChunkStoreSizeReport: params.traceMemoryReport?.traceChunkStoreSizeReport ?? null,
+    traceChunkStoreObservedHeapDeltaBytes:
+      params.traceMemoryReport?.traceChunkStoreObservedHeapDeltaBytes ?? null,
+    traceChunkStoreUnattributedHeapDeltaBytes:
+      params.traceMemoryReport?.traceChunkStoreUnattributedHeapDeltaBytes ?? null,
+    traceChunkStoreReadyChunkCount:
+      params.traceMemoryReport?.traceChunkStoreReadyChunkCount ?? null,
+    traceChunkStoreReadySpanCount: params.traceMemoryReport?.traceChunkStoreReadySpanCount ?? null,
+    traceVisualizationWindowSizeReport:
+      params.traceMemoryReport?.traceVisualizationWindowSizeReport ??
+      params.traceMemoryReport?.traceGraphSizeReport ??
+      null,
+    traceEngineDiagnostics: params.traceMemoryReport?.traceEngineDiagnostics ?? null
+  };
+}
+
+/** Logs detailed heap and trace retained-size diagnostics as console tables. */
+function logMemoryDiagnostics(params: MemoryDiagnosticsParams): void {
   const summaryRows = buildMemorySummaryRows(params);
-  log.probe(0, 'HeapMemoryInfoBar hover diagnostics')();
+  log.probe(0, getMemoryDiagnosticsLogLabel(params.trigger))();
   if (summaryRows.length > 0) {
     log.table(0, summaryRows)();
   }
 
-  const traceGraphSizeReport = params.traceGraphSizeReport;
-  if (!traceGraphSizeReport) {
+  logTraceSizeReportDetails('TraceChunkStore payloads', params.traceChunkStoreSizeReport);
+  logTraceSizeReportDetails(
+    'Visualization window estimate',
+    params.traceVisualizationWindowSizeReport
+  );
+}
+
+/** Returns the console probe label for one heap diagnostics trigger. */
+function getMemoryDiagnosticsLogLabel(trigger: MemoryDiagnosticsTrigger): string {
+  return trigger === 'heap-watermark'
+    ? `HeapMemoryInfoBar heap watermark diagnostics at ${formatTraceSizeBytes(HEAP_MEMORY_DIAGNOSTICS_WATERMARK_BYTES)}`
+    : 'HeapMemoryInfoBar hover diagnostics';
+}
+
+/** Logs one named trace retained-size report as storage-kind and entry tables. */
+function logTraceSizeReportDetails(metric: string, report: TraceGraphSizeReport | null): void {
+  if (!report || report.entries.length === 0) {
     return;
   }
 
   log.table(
     0,
-    getTraceSizeKindRows(traceGraphSizeReport).map(row => ({
+    getTraceSizeKindRows(report).map(row => ({
+      metric,
       kind: formatTraceSizeKind(row.kind),
       bytes: row.bytes,
       size: formatTraceSizeBytes(row.bytes)
@@ -306,9 +585,10 @@ function logMemoryDiagnostics(params: {
   )();
   log.table(
     0,
-    traceGraphSizeReport.entries
+    report.entries
       .filter(entry => entry.bytes > 0)
       .map(entry => ({
+        metric,
         path: entry.path,
         kind: formatTraceSizeKind(entry.kind),
         bytes: entry.bytes,
@@ -319,20 +599,9 @@ function logMemoryDiagnostics(params: {
   )();
 }
 
-/** Builds console-table summary rows for heap, TraceGraph, and TraceLayout memory. */
-function buildMemorySummaryRows(params: {
-  /** Browser heap-memory snapshot, or null when unsupported. */
-  memoryInfo: BrowserHeapMemoryInfo | null;
-  /** Optional trace graph retained-size report. */
-  traceGraphSizeReport: TraceGraphSizeReport | null;
-  /** Optional estimated retained TraceViewState byte size. */
-  traceViewStateSizeBytes: number | null;
-  /** Optional estimated retained TraceLayout byte size. */
-  traceLayoutSizeBytes: number | null;
-  /** Optional estimated retained prepared deck input byte size. */
-  traceDeckInputsSizeBytes: number | null;
-}): Array<{metric: string; bytes: number; size: string}> {
-  const rows: Array<{metric: string; bytes: number; size: string}> = [];
+/** Builds console-table summary rows for heap and trace retained-size estimates. */
+function buildMemorySummaryRows(params: MemoryDiagnosticsParams): MemorySummaryRow[] {
+  const rows: MemorySummaryRow[] = [];
   if (params.memoryInfo) {
     rows.push(
       {
@@ -352,35 +621,139 @@ function buildMemorySummaryRows(params: {
       }
     );
   }
-  if (params.traceGraphSizeReport) {
+  if (params.traceChunkStoreSizeReport) {
     rows.push({
-      metric: 'TraceGraph retained',
-      bytes: params.traceGraphSizeReport.totalBytes,
-      size: formatTraceSizeBytes(params.traceGraphSizeReport.totalBytes)
+      metric: 'TraceChunkStore retained payload estimate',
+      bytes: params.traceChunkStoreSizeReport.totalBytes,
+      size: formatTraceSizeBytes(params.traceChunkStoreSizeReport.totalBytes)
     });
   }
-  if (typeof params.traceViewStateSizeBytes === 'number' && params.traceViewStateSizeBytes > 0) {
+  if (params.traceChunkStoreDiagnostics) {
+    rows.push(
+      buildMemorySummaryValueRow(
+        'TraceChunkStore descriptors',
+        formatTraceCount(params.traceChunkStoreDiagnostics.descriptorCount)
+      ),
+      buildMemorySummaryValueRow(
+        'TraceChunkStore loaded chunks',
+        `${formatTraceCount(params.traceChunkStoreDiagnostics.readyChunkCount)} / ${formatTraceCount(params.traceChunkStoreDiagnostics.descriptorCount)}`
+      ),
+      buildMemorySummaryValueRow(
+        'TraceChunkStore pending chunks',
+        formatTraceCount(params.traceChunkStoreDiagnostics.pendingChunkCount)
+      ),
+      buildMemorySummaryValueRow(
+        'TraceChunkStore failed chunks',
+        formatTraceCount(params.traceChunkStoreDiagnostics.failedChunkCount)
+      ),
+      buildMemorySummaryValueRow(
+        'TraceChunkStore active windows',
+        formatTraceCount(params.traceChunkStoreDiagnostics.traceWindowCount)
+      )
+    );
+  }
+  if (typeof params.traceChunkStoreReadySpanCount === 'number') {
+    rows.push(
+      buildMemorySummaryValueRow(
+        'TraceChunkStore loaded spans',
+        formatTraceCount(params.traceChunkStoreReadySpanCount)
+      )
+    );
+  }
+  if (typeof params.traceChunkStoreObservedHeapDeltaBytes === 'number') {
     rows.push({
-      metric: 'TraceViewState retained',
-      bytes: params.traceViewStateSizeBytes,
-      size: formatTraceSizeBytes(params.traceViewStateSizeBytes)
+      metric: 'Observed store heap delta',
+      bytes: params.traceChunkStoreObservedHeapDeltaBytes,
+      size: formatTraceSizeBytes(params.traceChunkStoreObservedHeapDeltaBytes)
     });
   }
-  if (typeof params.traceLayoutSizeBytes === 'number' && params.traceLayoutSizeBytes > 0) {
+  if (typeof params.traceChunkStoreUnattributedHeapDeltaBytes === 'number') {
     rows.push({
-      metric: 'TraceLayout retained',
-      bytes: params.traceLayoutSizeBytes,
-      size: formatTraceSizeBytes(params.traceLayoutSizeBytes)
+      metric: 'Unattributed store delta',
+      bytes: params.traceChunkStoreUnattributedHeapDeltaBytes,
+      size: formatTraceSizeBytes(params.traceChunkStoreUnattributedHeapDeltaBytes)
     });
   }
-  if (typeof params.traceDeckInputsSizeBytes === 'number' && params.traceDeckInputsSizeBytes > 0) {
+  if (params.traceVisualizationWindowSizeReport) {
     rows.push({
-      metric: 'Prepared deck inputs',
-      bytes: params.traceDeckInputsSizeBytes,
-      size: formatTraceSizeBytes(params.traceDeckInputsSizeBytes)
+      metric: 'Visualization window TraceGraph estimate',
+      bytes: params.traceVisualizationWindowSizeReport.totalBytes,
+      size: formatTraceSizeBytes(params.traceVisualizationWindowSizeReport.totalBytes)
     });
+  }
+  const traceEngineRetainedSizeBytes = params.traceEngineDiagnostics?.traceEngineRetainedSizeBytes;
+  const traceLayoutSizeBytes = params.traceEngineDiagnostics?.traceLayoutSizeBytes;
+  const traceDeckInputsSizeBytes = params.traceEngineDiagnostics?.traceDeckInputsSizeBytes;
+  if (typeof traceEngineRetainedSizeBytes === 'number') {
+    rows.push({
+      metric: 'TraceEngine retained viewer state',
+      bytes: traceEngineRetainedSizeBytes,
+      size: formatTraceSizeBytes(traceEngineRetainedSizeBytes)
+    });
+  }
+  if (typeof traceLayoutSizeBytes === 'number') {
+    rows.push({
+      metric: 'TraceEngine active TraceLayout',
+      bytes: traceLayoutSizeBytes,
+      size: formatTraceSizeBytes(traceLayoutSizeBytes)
+    });
+  }
+  if (typeof traceDeckInputsSizeBytes === 'number') {
+    rows.push({
+      metric: 'TraceEngine prepared deck inputs',
+      bytes: traceDeckInputsSizeBytes,
+      size: formatTraceSizeBytes(traceDeckInputsSizeBytes)
+    });
+  }
+  if (params.traceEngineDiagnostics) {
+    rows.push(
+      buildMemorySummaryValueRow(
+        'TraceEngine revision',
+        formatTraceCount(params.traceEngineDiagnostics.revision)
+      ),
+      buildMemorySummaryValueRow(
+        'TraceEngine last update',
+        formatTraceEngineReason(params.traceEngineDiagnostics.lastUpdateReason)
+      ),
+      buildMemorySummaryValueRow(
+        'TraceEngine displayed spans',
+        formatTraceCount(params.traceEngineDiagnostics.displayedSpanCount)
+      ),
+      buildMemorySummaryValueRow(
+        'TraceEngine displayed deps',
+        formatTraceCount(
+          params.traceEngineDiagnostics.displayedLocalDependencyCount +
+            params.traceEngineDiagnostics.displayedCrossDependencyCount
+        )
+      ),
+      buildMemorySummaryValueRow(
+        'TraceEngine layouts',
+        `${formatTraceCount(params.traceEngineDiagnostics.activeLayoutCount)} active / ${formatTraceCount(params.traceEngineDiagnostics.baseLayoutCount)} base / ${formatTraceCount(params.traceEngineDiagnostics.focusedLayoutCount)} focus`
+      ),
+      buildMemorySummaryValueRow(
+        'TraceEngine prepared rows',
+        `${formatTraceCount(params.traceEngineDiagnostics.preparedForegroundRowCount)} fg / ${formatTraceCount(params.traceEngineDiagnostics.preparedOverviewRowCount)} overview`
+      ),
+      buildMemorySummaryValueRow(
+        'TraceEngine last build',
+        formatTraceDurationMs(params.traceEngineDiagnostics.buildPhaseTimings.totalDurationMs)
+      )
+    );
+    if (typeof params.traceEngineDiagnostics.retainedSizeEstimateDurationMs === 'number') {
+      rows.push(
+        buildMemorySummaryValueRow(
+          'TraceEngine size estimate',
+          formatTraceDurationMs(params.traceEngineDiagnostics.retainedSizeEstimateDurationMs)
+        )
+      );
+    }
   }
   return rows;
+}
+
+/** Builds one non-byte console-table summary row. */
+function buildMemorySummaryValueRow(metric: string, size: string): MemorySummaryRow {
+  return {metric, bytes: null, size};
 }
 
 /** Returns non-empty trace size storage-kind rows sorted by descending retained bytes. */
@@ -395,6 +768,11 @@ function getTraceSizeKindRows(report: TraceGraphSizeReport): Array<{
       bytes > 0 ? [{kind: kind as TraceGraphSizeEntry['kind'], bytes}] : []
     )
     .sort((left, right) => right.bytes - left.bytes);
+}
+
+/** Returns the largest bounded retained-driver rows shown in the hover popup. */
+function getTraceSizeDriverRows(report: TraceGraphSizeReport): TraceGraphSizeEntry[] {
+  return report.entries.filter(entry => entry.bytes > 0).slice(0, 4);
 }
 
 /** Formats trace graph storage-kind labels for human-readable size breakdowns. */
@@ -417,14 +795,84 @@ function formatTraceSizeKind(kind: TraceGraphSizeEntry['kind']): string {
   }
 }
 
+/** Formats bounded retained-driver paths for human-readable popup labels. */
+function formatTraceSizePath(path: string): string {
+  switch (path) {
+    case 'traceChunkStore.processMetadataSnapshots':
+      return 'Process snapshots';
+    case 'traceChunkStore.spanSidecarRows':
+      return 'Span sidecars';
+    case 'traceChunkStore.spanSidecarTables':
+      return 'Sidecar Arrow tables';
+    case 'traceChunkStore.spanTables':
+      return 'Span tables';
+    case 'traceChunkStore.localDependencyTables':
+      return 'Local dependency tables';
+    case 'traceChunkStore.sourceDependencyTables':
+      return 'Source dependencies';
+    case 'traceChunkStore.rowWindowTables':
+      return 'Window ranges';
+    case 'traceChunkStore.lookupIndexes':
+      return 'Lookup indexes';
+    case 'traceChunkStore.processRefs':
+      return 'Process refs';
+    case 'traceChunkStore.chunkDiagnostics':
+      return 'Chunk diagnostics';
+    case 'traceChunkStore.chunkMetadata':
+      return 'Chunk metadata';
+    case 'traceChunkStore.sourceFilterMasks':
+      return 'Source filter masks';
+    default:
+      return path;
+  }
+}
+
+/** Formats integer trace counts for compact memory surfaces. */
+function formatTraceCount(count: number): string {
+  return Number.isFinite(count) ? Math.round(count).toLocaleString('en-US') : '0';
+}
+
+/** Formats one TraceEngine update reason for compact memory surfaces. */
+function formatTraceEngineReason(reason: TraceEngineDiagnostics['lastUpdateReason']): string {
+  return reason.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+/** Formats one TraceEngine build duration for compact memory surfaces. */
+function formatTraceDurationMs(durationMs: number): string {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    return '0 ms';
+  }
+  return `${durationMs.toLocaleString(undefined, {
+    maximumFractionDigits: durationMs < 100 ? 1 : 0
+  })} ms`;
+}
+
 /** Formats retained trace graph size estimates for compact memory surfaces. */
 function formatTraceSizeBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) {
-    return '0 MB';
+    return '0 B';
   }
 
-  const mib = bytes / (1024 * 1024);
-  return `${mib.toLocaleString(undefined, {
-    maximumFractionDigits: mib < 10 ? 1 : 0
-  })} MB`;
+  if (bytes < 1024) {
+    return `${Math.round(bytes).toLocaleString('en-US')} B`;
+  }
+
+  const kib = bytes / 1024;
+  if (kib < 1024) {
+    return `${formatTraceSizeValue(kib)} KB`;
+  }
+
+  const mib = kib / 1024;
+  if (mib >= 1024) {
+    const gib = mib / 1024;
+    return `${formatTraceSizeValue(gib)} GB`;
+  }
+  return `${formatTraceSizeValue(mib)} MB`;
+}
+
+/** Formats one positive trace byte unit value with compact useful precision. */
+function formatTraceSizeValue(value: number): string {
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: value < 10 ? 1 : 0
+  });
 }

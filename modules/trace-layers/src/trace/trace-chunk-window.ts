@@ -12,7 +12,6 @@ import {
   iterateTraceGraphSpanRefs
 } from './trace-graph-accessors';
 import {TraceGraph} from './trace-graph/trace-graph';
-import {createTraceGraphRuntimeSource} from './trace-graph/trace-graph-source-adapter';
 import {getTraceSpanSourceFilterMatchMask} from './trace-graph/trace-graph-span-filters';
 import {
   hasTraceSpanNameFilter,
@@ -156,11 +155,10 @@ export type TraceChunkSpanNavigation = {
  */
 export function searchTraceChunkStoreSpans<
   TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState = unknown
+  TDescriptor extends TraceChunkDescriptor
 >(params: {
   /** Active trace chunk store. */
-  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>;
+  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor>;
   /** Active materialized graph used only for filter/window provenance. */
   readonly traceGraph: TraceGraphSpanSearchContext;
   /** Shared search predicate used to match normalized row text. */
@@ -255,10 +253,9 @@ export function getTraceChunkSourceFilterMask(
  */
 export function getTraceChunkStoreSpanDisplaySource<
   TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState = unknown
+  TDescriptor extends TraceChunkDescriptor
 >(
-  traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>,
+  traceChunkStore: TraceChunkStore<TPayload, TDescriptor>,
   spanRef: SpanRef
 ): TraceSpanDisplaySource | null {
   const matched = findReadyTraceChunkRowBySpanRef(traceChunkStore, spanRef);
@@ -288,11 +285,10 @@ export function getTraceChunkSpanDisplaySource(
  */
 export function getTraceChunkStoreSpanFilterNavigation<
   TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState = unknown
+  TDescriptor extends TraceChunkDescriptor
 >(params: {
   /** Active trace chunk store. */
-  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>;
+  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor>;
   /** Active visible TraceGraph used to resolve visible span refs. */
   readonly traceGraph: TraceGraph;
   /** Store-backed span ref whose visible relatives should be resolved. */
@@ -329,12 +325,9 @@ export function getTraceChunkStoreSpanFilterNavigation<
 /**
  * Search ready trace chunks for loaded spans hidden by the active visible time window.
  */
-export function searchHiddenTraceChunkSpans<
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState = unknown
->(params: {
+export function searchHiddenTraceChunkSpans<TDescriptor extends TraceChunkDescriptor>(params: {
   /** Active trace chunk store. */
-  readonly traceChunkStore: TraceChunkStore<TraceChunk, TDescriptor, TWindowGraphState>;
+  readonly traceChunkStore: TraceChunkStore<TraceChunk, TDescriptor>;
   /** Active visible TraceGraph used to determine loaded row availability. */
   readonly traceGraph: TraceGraph;
   /** Shared search predicate used to match span name and source text. */
@@ -374,13 +367,12 @@ export function searchHiddenTraceChunkSpans<
  */
 export function resolveHiddenTraceChunkSpanNavigation<
   TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState = unknown
+  TDescriptor extends TraceChunkDescriptor
 >(params: {
   /** Hidden span selected from trace-chunk search. */
   readonly result: TraceChunkSpanSearchResult;
   /** Active trace chunk store. */
-  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>;
+  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor>;
   /** Active visible TraceGraph used to resolve visible span refs. */
   readonly traceGraph: TraceGraph;
 }): TraceChunkSpanNavigation {
@@ -447,12 +439,12 @@ export function buildHiddenTraceChunkSpanInspectorGraph(
     remoteDependencies: []
   };
   const traceGraph = new TraceGraph(
-    createTraceGraphRuntimeSource({
+    {
       traceGraphData: buildTraceGraphDataFromJSONTrace(
         buildJSONTrace([process], [], {name: 'Hidden loaded chunk span'})
       ),
       traceStore: HIDDEN_TRACE_CHUNK_SPAN_INSPECTOR_STORE
-    }),
+    },
     {spanFilters: options?.spanFilters}
   );
   const spanRef = traceGraph.getSpanRefByExternalBlockId(spanId);
@@ -560,13 +552,12 @@ function hasCompiledTraceSpanFilterPlanMatchers(
 }
 
 /** Walks chunk parent pointers upward until a visible active-graph ancestor is found. */
-function resolveVisibleAncestorSpanRef<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState
->(params: {
+function resolveVisibleAncestorSpanRef<TPayload, TDescriptor extends TraceChunkDescriptor>(params: {
+  /** Hidden loaded span whose parent chain should be traversed. */
   readonly result: TraceChunkSpanSearchResult;
-  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>;
+  /** Loaded chunk store used to follow normalized parent pointers. */
+  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor>;
+  /** Active graph used to resolve visible ancestor span refs. */
   readonly traceGraph: TraceGraph;
 }): SpanRef | null {
   let parentExternalSpanId = params.result.parentExternalSpanId;
@@ -594,11 +585,13 @@ function resolveVisibleAncestorSpanRef<
 /** Scans chunk parent pointers downward until a visible active-graph descendant is found. */
 function resolveVisibleDescendantSpanRef<
   TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState
+  TDescriptor extends TraceChunkDescriptor
 >(params: {
+  /** Hidden loaded span whose child chain should be traversed. */
   readonly result: TraceChunkSpanSearchResult;
-  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>;
+  /** Loaded chunk store used to follow normalized child pointers. */
+  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor>;
+  /** Active graph used to resolve visible descendant span refs. */
   readonly traceGraph: TraceGraph;
 }): SpanRef | null {
   const queue: string[] = [params.result.externalSpanId];
@@ -656,12 +649,8 @@ function resolveVisibleSpanRefByExternalSpanId(
 }
 
 /** Finds one ready chunk row by its generic external span id. */
-function findReadyTraceChunkRow<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState
->(
-  traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>,
+function findReadyTraceChunkRow<TPayload, TDescriptor extends TraceChunkDescriptor>(
+  traceChunkStore: TraceChunkStore<TPayload, TDescriptor>,
   externalSpanId: string
 ): TraceChunkSpanRowView | null {
   let matchedRow: TraceChunkSpanRowView | null = null;
@@ -675,12 +664,8 @@ function findReadyTraceChunkRow<
 }
 
 /** Finds one ready chunk row by its exact store-backed span ref. */
-function findReadyTraceChunkRowBySpanRef<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState
->(
-  traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>,
+function findReadyTraceChunkRowBySpanRef<TPayload, TDescriptor extends TraceChunkDescriptor>(
+  traceChunkStore: TraceChunkStore<TPayload, TDescriptor>,
   spanRef: SpanRef
 ): {
   readonly row: TraceChunkSpanRowView;
@@ -702,12 +687,8 @@ function findReadyTraceChunkRowBySpanRef<
 }
 
 /** Iterates currently ready chunk rows without triggering additional chunk loads. */
-function visitReadyTraceChunkRows<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState
->(
-  traceChunkStore: TraceChunkStore<TPayload, TDescriptor, TWindowGraphState>,
+function visitReadyTraceChunkRows<TPayload, TDescriptor extends TraceChunkDescriptor>(
+  traceChunkStore: TraceChunkStore<TPayload, TDescriptor>,
   visitRow: (
     row: TraceChunkSpanRowView,
     readyChunk: TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>
@@ -794,11 +775,14 @@ function buildTraceChunkSpanSearchResult<TDescriptor extends TraceChunkDescripto
 function buildTraceChunkSpanDisplaySource(
   row: TraceChunkSpanRowView,
   spanRef: SpanRef
-): TraceSpanDisplaySource {
+): TraceSpanDisplaySource | null {
+  if (row.processRef == null || row.threadRef == null) {
+    return null;
+  }
   return {
     spanRef,
-    processRef: undefined,
-    threadRef: undefined,
+    processRef: row.processRef,
+    threadRef: row.threadRef,
     spanId: row.spanId,
     threadId: row.thread.threadId,
     primaryTimingKey: row.primaryTimingKey,

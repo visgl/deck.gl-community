@@ -117,6 +117,8 @@ export type TraceColorScheme = {
   id: string;
   /** Human-readable scheme name shown in selectors. */
   name: string;
+  /** Optional selector subtext explaining how the scheme colors spans. */
+  description?: string;
   /** Resolve keyword-driven badge/tooltip presentation. */
   getKeywordPresentation?: (params: {
     /** Keywords attached to the span. */
@@ -196,6 +198,7 @@ function withAlpha(color: TraceColor, alpha: number): TraceColor {
 export const PROCESS_TRACE_COLOR_SCHEME: TraceColorScheme = {
   id: 'processes',
   name: 'Process Id',
+  description: 'Color spans by process/rank id.',
   getSpanFillColor: ({span}) => getProcessColor(getProcessColorKey(span)),
   getSpanBorderColor: ({span}) =>
     getReadableSpanBorderColor(getProcessColor(getProcessColorKey(span))),
@@ -210,6 +213,7 @@ export const PROCESS_TRACE_COLOR_SCHEME: TraceColorScheme = {
 export const PERFETTO_TRACE_COLOR_SCHEME: TraceColorScheme = {
   id: 'perfetto',
   name: 'Perfetto (Span Names)',
+  description: 'Color spans with Perfetto-style colors derived from span names.',
   getSpanStyle: ({span}) => {
     const spanColor = getPerfettoSliceColor(span.name || '__unknown_span__');
     return {

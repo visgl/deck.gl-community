@@ -20,6 +20,7 @@ import {
   getTraceGraphSpanCount,
   getTraceGraphSpanDisplaySource,
   getTraceGraphSpanGeometrySource,
+  getTraceGraphSpanRenderSource,
   getTraceGraphSpanUserData,
   iterateMaterializedTraceGraphProcessSpans,
   iterateMaterializedTraceGraphSpans,
@@ -34,7 +35,7 @@ import {
   encodeSpanRef
 } from './trace-graph/trace-id-encoder';
 
-import type {JSONTrace} from './trace-graph/index';
+import type {JSONTrace} from './trace-graph';
 import type {
   TraceLocalDependency,
   TraceProcess,
@@ -117,16 +118,12 @@ describe('trace-graph-accessors', () => {
     resetArrowTraceSpanMaterializationCount();
     const spanIndex = encodeSpanRef(0, 1);
     expect(spanIndex).not.toBeNull();
-    expect(
-      getTraceGraphSpanGeometrySource(traceGraphData, 'rank-1-span-2' as TraceSpanId)
-    ).toMatchObject({
+    expect(getTraceGraphSpanGeometrySource(traceGraphData, spanIndex)).toMatchObject({
       spanId: 'rank-1-span-2',
       threadId: 'rank-1-thread',
       primaryTimingKey: 'primary'
     });
-    expect(
-      getTraceGraphSpanDisplaySource(traceGraphData, 'rank-1-span-2' as TraceSpanId)
-    ).toMatchObject({
+    expect(getTraceGraphSpanDisplaySource(traceGraphData, spanIndex)).toMatchObject({
       spanId: 'rank-1-span-2',
       source: 'worker-trace.json',
       name: 'rank-1-span-2',
@@ -243,10 +240,7 @@ describe('trace-graph-accessors', () => {
     expect(sidecarRow).toBeDefined();
     sidecarRow!.timings = Object.freeze({}) as Record<string, TraceSpanTiming>;
 
-    const geometrySource = getTraceGraphSpanGeometrySource(
-      traceGraphData,
-      'rank-1-span-1' as TraceSpanId
-    );
+    const geometrySource = getTraceGraphSpanGeometrySource(traceGraphData, encodeSpanRef(0, 0));
     expect(geometrySource?.timings.primary).toMatchObject({
       startTimeMs: 0,
       endTimeMs: 5
@@ -430,8 +424,25 @@ describe('trace-graph-accessors', () => {
         .map(entry => entry.dependencyId)
     ).toEqual([dependencyId, incomingDependencyId]);
     expect(
-      getTraceGraphSpanDisplaySource(traceGraphData, middleBlock.spanId)?.localDependencyIds
+      getTraceGraphSpanDisplaySource(traceGraphData, encodeSpanRef(0, 1))?.localDependencyIds
     ).toEqual([dependencyId, incomingDependencyId]);
+    const localDependencyTable = traceGraphData.localDependencyTableMap[processId]!;
+    const originalGetChild = localDependencyTable.getChild.bind(localDependencyTable);
+    const renderSourceGetChildSpy = vi
+      .spyOn(localDependencyTable, 'getChild')
+      .mockImplementation(columnName => {
+        if (columnName === 'dependencyId') {
+          throw new Error('Unexpected dependency id expansion for render source');
+        }
+        return originalGetChild(columnName);
+      });
+    const renderSource = getTraceGraphSpanRenderSource(traceGraphData, encodeSpanRef(0, 1));
+    expect(renderSource).toMatchObject({
+      spanId: middleBlock.spanId,
+      name: middleBlock.name
+    });
+    expect(renderSource).not.toHaveProperty('localDependencyIds');
+    renderSourceGetChildSpy.mockRestore();
     const leaf = materializeTraceGraphSpanByRef(traceGraphData, encodeSpanRef(0, 2));
     expect(leaf?.localDependencies.map(item => item.dependencyId)).toEqual([incomingDependencyId]);
 
@@ -441,8 +452,6 @@ describe('trace-graph-accessors', () => {
     });
     expect(sidecarRows?.[0]?.incomingLocalDependencyRefs?.[0]).toBeUndefined();
     expect(sidecarRows?.[2]?.outgoingLocalDependencyRefs).toEqual([]);
-    const localDependencyTable = traceGraphData.localDependencyTableMap[processId]!;
-    const originalGetChild = localDependencyTable.getChild.bind(localDependencyTable);
     const getChildSpy = vi
       .spyOn(localDependencyTable, 'getChild')
       .mockImplementation(columnName => {

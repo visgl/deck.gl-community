@@ -11,17 +11,16 @@ import {
   encodeVisibleCrossDependencyRef,
   encodeVisibleLocalDependencyRef
 } from './trace-graph/trace-id-encoder';
-import {brand} from './trace-graph/trace-types';
 
 import type {TraceGraphData} from './ingestion/arrow-trace';
 import type {
+  SpanRef,
   TraceCounter,
   TraceCrossProcessDependency,
   TraceEvent,
   TraceInstant,
   TraceLocalDependency,
   TraceProcess,
-  TraceProcessId,
   TraceSpan,
   TraceThread
 } from './trace-graph/trace-types';
@@ -791,26 +790,42 @@ function materializeTraceStreamCrossDependencies(
   state: TraceStreamSessionState,
   processes: readonly TraceProcess[]
 ): TraceCrossProcessDependency[] {
-  const processRankNumById = new Map(
-    processes.map(process => [process.processId, process.rankNum] as const)
-  );
-  const blockLookup = new Map<string, TraceSpan>();
+  const processByRankNum = new Map(processes.map(process => [process.rankNum, process] as const));
+  const spanByRef = new Map<SpanRef, TraceSpan>();
   processes.forEach(process => {
     process.spans.forEach(block => {
-      blockLookup.set(String(block.spanId), block);
+      if (block.spanRef != null) {
+        spanByRef.set(block.spanRef, block);
+      }
     });
   });
+  /** Resolves one streamed cross-dependency endpoint by exact ref or its declared process row. */
+  const getEndpointSpan = (params: {
+    /** Exact streamed endpoint span ref when the dependency already carries one. */
+    spanRef: SpanRef | undefined;
+    /** Declared endpoint process rank used for process-scoped id fallback before refs exist. */
+    rankNum: number;
+    /** Process-scoped endpoint span id used before the dependency carries a span ref. */
+    spanId: TraceSpan['spanId'];
+  }): TraceSpan | null => {
+    if (params.spanRef != null) {
+      return spanByRef.get(params.spanRef) ?? null;
+    }
+    return processByRankNum.get(params.rankNum)?.spanMap[String(params.spanId)] ?? null;
+  };
   return state.crossDependencies.map((dependency, dependencyIndex) => {
     const clonedDependency = cloneTraceCrossDependency(dependency);
     clonedDependency.dependencyRef = encodeVisibleCrossDependencyRef(dependencyIndex);
-    clonedDependency.startSpanRef = blockLookup.get(String(clonedDependency.startSpanId))?.spanRef;
-    clonedDependency.endSpanRef = blockLookup.get(String(clonedDependency.endSpanId))?.spanRef;
-    clonedDependency.startRankNum =
-      processRankNumById.get(findProcessIdForBlock(processes, clonedDependency.startSpanId)) ??
-      clonedDependency.startRankNum;
-    clonedDependency.endRankNum =
-      processRankNumById.get(findProcessIdForBlock(processes, clonedDependency.endSpanId)) ??
-      clonedDependency.endRankNum;
+    clonedDependency.startSpanRef = getEndpointSpan({
+      spanRef: clonedDependency.startSpanRef,
+      rankNum: clonedDependency.startRankNum,
+      spanId: clonedDependency.startSpanId
+    })?.spanRef;
+    clonedDependency.endSpanRef = getEndpointSpan({
+      spanRef: clonedDependency.endSpanRef,
+      rankNum: clonedDependency.endRankNum,
+      spanId: clonedDependency.endSpanId
+    })?.spanRef;
     return clonedDependency;
   });
 }
@@ -1028,17 +1043,6 @@ function buildTraceStreamItemsByThread<
     groupedItems[threadId] = [...(groupedItems[threadId] ?? []), item];
   });
   return groupedItems;
-}
-
-/**
- * Find the owning process id for one block id in a published process list.
- */
-function findProcessIdForBlock(
-  processes: readonly TraceProcess[],
-  spanId: TraceSpan['spanId']
-): TraceProcessId {
-  return (processes.find(process => process.spanMap[String(spanId)] != null)?.processId ??
-    brand<'rank', string>('missing-process')) as TraceProcessId;
 }
 
 /**

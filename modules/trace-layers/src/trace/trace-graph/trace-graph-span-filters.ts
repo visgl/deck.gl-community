@@ -7,6 +7,7 @@ import {
 import type {TraceSpanFilterMask} from './trace-graph-types';
 
 const SPAN_FILTER_SEPARATORS = /[,;\r\n]+/;
+const TRACE_SPAN_FILTER_REGEXP_FLAGS = /^[dgimsuvy]*$/;
 
 /** Stores compiled matchers for one normalized span-filter list. */
 export type CompiledTraceSpanFilterPlan = {
@@ -120,6 +121,10 @@ function parseExplicitTraceSpanFilterRegex(candidate: string): RegExp | null {
 
   const patternSource = candidate.slice(1, closingSlashIndex);
   const flags = candidate.slice(closingSlashIndex + 1);
+  if (!TRACE_SPAN_FILTER_REGEXP_FLAGS.test(flags) || new Set(flags).size !== flags.length) {
+    return null;
+  }
+
   try {
     return new RegExp(patternSource, flags);
   } catch {

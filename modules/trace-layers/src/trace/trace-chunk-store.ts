@@ -16,7 +16,6 @@ import {
   searchTraceChunkStoreSpans
 } from './trace-chunk-window';
 import {TraceGraph} from './trace-graph/trace-graph';
-import {createTraceGraphRuntimeSource} from './trace-graph/trace-graph-source-adapter';
 import {
   areSpanFilterListsEqual,
   buildCompiledTraceSpanFilterPlan,
@@ -45,7 +44,7 @@ import type {
 import type {TraceChunk} from './trace-chunk';
 import type {TraceChunkData} from './trace-chunk-data';
 import type {TraceSpanDisplaySource} from './trace-graph-accessors';
-import type {TraceGraphRuntimeSource} from './trace-graph/trace-graph-source-adapter';
+import type {TraceGraphRuntimeSource} from './trace-graph/trace-graph-runtime-source';
 import type {TraceGraphStats} from './trace-graph/trace-graph-stats';
 import type {
   TraceGraphSpanFilterNavigation,
@@ -78,6 +77,22 @@ export type TraceChunkSelectionWindow = {
 
 /** Default throttling interval for trace-window chunk arrival notifications. */
 export const DEFAULT_TRACE_WINDOW_NOTIFY_INTERVAL_MS = 5_000;
+
+/** Error raised when a caller intentionally leaves one chunk descriptor unloaded. */
+export class TraceChunkStoreLoadSkippedError extends Error {
+  /** Builds one retryable intentional chunk-load skip error. */
+  constructor(message: string) {
+    super(message);
+    this.name = 'TraceChunkStoreLoadSkippedError';
+  }
+}
+
+/** Returns whether one error intentionally leaves a chunk descriptor unloaded and retryable. */
+export function isTraceChunkStoreLoadSkippedError(
+  error: unknown
+): error is TraceChunkStoreLoadSkippedError {
+  return error instanceof Error && error.name === 'TraceChunkStoreLoadSkippedError';
+}
 
 /**
  * Long-lived chunk load subscription for one inclusive UTC millisecond trace window.
@@ -291,66 +306,15 @@ export type TraceChunkStoreRegisterTraceWindowsParams<
   windows: readonly TraceWindow[];
 };
 
-/**
- * Optional refresh-time window graph materializer replacement.
- */
+/** Optional refresh-time trace-window loading inputs. */
 export type TraceChunkStoreDescriptorRefreshParams<
   TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState = unknown
+  TDescriptor extends TraceChunkDescriptor
 > = {
   /** Optional caller-owned async loader used when refreshed descriptors extend trace windows. */
   loadChunk?: (descriptor: TDescriptor) => Promise<TraceChunkStoreLoadResult<TPayload>>;
   /** Optional readiness callback used by app-level progress surfaces. */
   onProgress?: (progress: TraceChunkStoreProgress) => void;
-  /** Replacement graph materializer for refreshed descriptor metadata; null disables graph queries. */
-  windowGraphMaterializer?: TraceChunkWindowGraphMaterializer<
-    TPayload,
-    TDescriptor,
-    TWindowGraphState
-  > | null;
-};
-
-/**
- * Readiness summary for one registered trace window's selected graph subset.
- */
-export type TraceChunkWindowGraphReadinessSummary = {
-  /** Number of policy-selected descriptors for the queried trace window. */
-  selectedChunkCount: number;
-  /** Number of selected descriptors that currently have ready payloads. */
-  readySelectedChunkCount: number;
-  /** Number of selected descriptors that currently share in-flight payload loads. */
-  pendingSelectedChunkCount: number;
-  /** Number of selected descriptors whose latest chunk-load attempt failed. */
-  failedSelectedChunkCount: number;
-  /** Number of selected descriptors that are neither ready, pending, nor failed. */
-  missingSelectedChunkCount: number;
-  /** Whether every currently selected descriptor has a ready stored payload. */
-  isComplete: boolean;
-};
-
-/**
- * Immutable graph snapshot materialized for one registered trace window.
- */
-export type TraceChunkWindowGraphSnapshot = {
-  /** Registered trace-window id used for this materialized graph. */
-  windowId: string;
-  /** Monotonic graph snapshot version scoped to the trace window. */
-  version: number;
-  /** Canonical Arrow ingestion snapshot produced by the caller-owned graph materializer. */
-  traceGraphData: TraceGraphData;
-  /** Immutable runtime graph built from the materialized Arrow snapshot. */
-  traceGraph: TraceGraph;
-  /** Active chunk-selection summary used while materializing this graph snapshot. */
-  selectionSummary: TraceChunkSelectionSummary;
-  /** Current readiness of the graph-selected descriptor subset. */
-  readiness: TraceChunkWindowGraphReadinessSummary;
-  /** Whether the materializer rebuilt from ready chunks or appended newly ready chunks. */
-  materializationMode: 'rebuild' | 'append';
-  /** Optional source-owned diagnostics surfaced with this materialized snapshot. */
-  diagnostics?: Readonly<Record<string, unknown>>;
-  /** URL codec for converting stable span ids to and from runtime refs. */
-  spanUrlCodec?: TraceSpanUrlCodec;
 };
 
 /**
@@ -394,21 +358,9 @@ export const TRACE_EXTERNAL_SPAN_ID_URL_CODEC: TraceSpanUrlCodec = {
 };
 
 /**
- * Immutable result emitted by a caller-owned trace-window graph materializer.
+ * Shared inputs used while materializing one trace-window graph from ready chunks.
  */
-export type TraceChunkWindowGraphMaterialization<TState> = {
-  /** Next caller-owned opaque materialization state stored by the shared chunk store. */
-  state: TState;
-  /** Canonical Arrow ingestion snapshot for the trace window's current ready subset. */
-  traceGraphData: TraceGraphData;
-  /** Optional source-owned diagnostics surfaced with the resulting window graph snapshot. */
-  diagnostics?: Readonly<Record<string, unknown>>;
-};
-
-/**
- * Shared inputs used while rebuilding one trace-window graph from ready chunks.
- */
-export type TraceChunkWindowGraphRebuildParams<
+export type TraceChunkWindowGraphMaterializerParams<
   TPayload,
   TDescriptor extends TraceChunkDescriptor
 > = {
@@ -420,66 +372,48 @@ export type TraceChunkWindowGraphRebuildParams<
   selection: TraceChunkSelection<TDescriptor>;
   /** Ready stored payloads currently available inside the selected descriptor subset. */
   readyChunks: readonly TraceChunkStoreReadyChunk<TPayload, TDescriptor>[];
-  /** Current readiness summary for the selected descriptor subset. */
-  readiness: TraceChunkWindowGraphReadinessSummary;
 };
 
 /**
- * Shared inputs used while incrementally appending newly ready chunks to one window graph state.
- */
-export type TraceChunkWindowGraphAppendParams<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TState
-> = TraceChunkWindowGraphRebuildParams<TPayload, TDescriptor> & {
-  /** Previous opaque caller-owned materialization state for this trace window. */
-  previousState: TState;
-  /** Previous immutable graph snapshot for this trace window. */
-  previousSnapshot: TraceChunkWindowGraphSnapshot;
-  /** Newly ready stored payloads absent from the prior graph state. */
-  addedReadyChunks: readonly TraceChunkStoreReadyChunk<TPayload, TDescriptor>[];
-};
-
-/**
- * Caller-owned adapter that materializes a trace-window subset into graph snapshots.
+ * Source-owned materializer that builds one trace-window subset into `TraceGraphData`.
  */
 export type TraceChunkWindowGraphMaterializer<
   TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TState = unknown
-> = {
-  /** Rebuild one window graph state from the currently ready selected chunk subset. */
-  rebuild: (
-    params: TraceChunkWindowGraphRebuildParams<TPayload, TDescriptor>
-  ) => TraceChunkWindowGraphMaterialization<TState> | null;
-  /** Incrementally append newly ready stored chunks when the selected descriptor set is stable. */
-  append?: (
-    params: TraceChunkWindowGraphAppendParams<TPayload, TDescriptor, TState>
-  ) => TraceChunkWindowGraphMaterialization<TState> | null;
-};
+  TDescriptor extends TraceChunkDescriptor
+> = (
+  params: TraceChunkWindowGraphMaterializerParams<TPayload, TDescriptor>
+) => TraceGraphData | null;
 
 /**
  * Constructor inputs for one active-run trace chunk store.
  */
-export type TraceChunkStoreOptions<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor,
-  TWindowGraphState = unknown
-> = {
+export type TraceChunkStoreOptions<TDescriptor extends TraceChunkDescriptor> = {
   /** Stable active-run identity used for diagnostics and caller-side reset checks. */
   identityKey: string;
   /** Active catalog of fetchable retrieval chunk descriptors. */
   descriptors: readonly TDescriptor[];
   /** Policy used to select a visible subset from the active descriptor catalog. */
   selectionPolicy: TraceChunkSelectionPolicy<TDescriptor>;
-  /** Optional trace-window graph materializer used by `getTraceGraphForWindow`. */
-  windowGraphMaterializer?: TraceChunkWindowGraphMaterializer<
-    TPayload,
-    TDescriptor,
-    TWindowGraphState
-  >;
   /** Source-owned codec for URL span-id serialization, defaulting to `external_span_id` scans. */
   spanUrlCodec?: TraceSpanUrlCodec;
+};
+
+/** Cheap retained-state counters owned by one mounted TraceChunkStore. */
+export type TraceChunkStoreDiagnostics = {
+  /** Number of catalog descriptors registered with the active store. */
+  readonly descriptorCount: number;
+  /** Number of ready stored payloads retained by the active store. */
+  readonly readyChunkCount: number;
+  /** Number of chunk payloads currently sharing in-flight loads. */
+  readonly pendingChunkCount: number;
+  /** Number of chunk keys whose latest load attempt failed and remains retryable. */
+  readonly failedChunkCount: number;
+  /** Number of active trace-window subscriptions registered with the store. */
+  readonly traceWindowCount: number;
+  /** Number of source-column span filters currently applied by the store. */
+  readonly sourceSpanFilterCount: number;
+  /** Monotonic revision incremented whenever source-column span filters change. */
+  readonly sourceSpanFilterRevision: number;
 };
 
 /** Inputs for creating an eager store over one immutable static trace snapshot. */
@@ -545,8 +479,7 @@ export type StaticTraceGraphRuntimeSourceOptions =
  */
 export class TraceChunkStore<
   TPayload,
-  TDescriptor extends TraceChunkDescriptor = TraceChunkDescriptor,
-  TWindowGraphState = unknown
+  TDescriptor extends TraceChunkDescriptor = TraceChunkDescriptor
 > {
   /** Stable active-run identity string supplied by the caller. */
   readonly identityKey: string;
@@ -559,15 +492,6 @@ export class TraceChunkStore<
   private readonly pendingPayloads = new Map<string, Promise<TPayload>>();
   private readonly failedChunkKeys = new Set<string>();
   private readonly traceWindowSubscriptions = new Map<string, TraceWindowSubscription>();
-  private windowGraphMaterializer?: TraceChunkWindowGraphMaterializer<
-    TPayload,
-    TDescriptor,
-    TWindowGraphState
-  >;
-  private readonly traceWindowGraphStates = new Map<
-    string,
-    TraceChunkWindowGraphState<TWindowGraphState>
-  >();
   private readonly ownerRefRegistry = new TraceOwnerRefRegistry();
   private readonly chunkIndexByKey = new Map<string, number>();
   private readonly chunkKeyByIndex = new Map<number, string>();
@@ -579,11 +503,10 @@ export class TraceChunkStore<
   /**
    * Create one stored chunk store scoped to a caller-owned active-run identity.
    */
-  constructor(options: TraceChunkStoreOptions<TPayload, TDescriptor, TWindowGraphState>) {
+  constructor(options: TraceChunkStoreOptions<TDescriptor>) {
     this.identityKey = options.identityKey;
     this.spanUrlCodec = options.spanUrlCodec ?? TRACE_EXTERNAL_SPAN_ID_URL_CODEC;
     this.selectionPolicy = options.selectionPolicy;
-    this.windowGraphMaterializer = options.windowGraphMaterializer;
     this.descriptorMap = buildTraceChunkDescriptorMap(options.descriptors);
     this.assignChunkIndexes(options.descriptors);
   }
@@ -612,18 +535,10 @@ export class TraceChunkStore<
    */
   async refreshDescriptors(
     descriptors: readonly TDescriptor[],
-    traceWindowLoadParams?: TraceChunkStoreDescriptorRefreshParams<
-      TPayload,
-      TDescriptor,
-      TWindowGraphState
-    >
+    traceWindowLoadParams?: TraceChunkStoreDescriptorRefreshParams<TPayload, TDescriptor>
   ): Promise<TraceChunkStoreEnsureResult<TPayload, TDescriptor> | null> {
     this.descriptorMap = buildTraceChunkDescriptorMap(descriptors);
     this.assignChunkIndexes(descriptors);
-    if (traceWindowLoadParams?.windowGraphMaterializer !== undefined) {
-      this.windowGraphMaterializer = traceWindowLoadParams.windowGraphMaterializer ?? undefined;
-    }
-    this.traceWindowGraphStates.clear();
     if (!traceWindowLoadParams?.loadChunk || this.traceWindowSubscriptions.size === 0) {
       return null;
     }
@@ -640,6 +555,19 @@ export class TraceChunkStore<
     return [...this.descriptorMap.values()];
   }
 
+  /** Returns cheap retained-state counters without walking stored payloads. */
+  getDiagnostics(): TraceChunkStoreDiagnostics {
+    return {
+      descriptorCount: this.descriptorMap.size,
+      readyChunkCount: this.readyPayloads.size,
+      pendingChunkCount: this.pendingPayloads.size,
+      failedChunkCount: this.failedChunkKeys.size,
+      traceWindowCount: this.traceWindowSubscriptions.size,
+      sourceSpanFilterCount: this.sourceSpanFilters.length,
+      sourceSpanFilterRevision: this.sourceSpanFilterRevision
+    };
+  }
+
   /**
    * Register or replace trace-window subscriptions, then load their missing chunks.
    */
@@ -652,7 +580,6 @@ export class TraceChunkStore<
         clearTraceWindowNotificationTimer(previousSubscription);
       }
       this.traceWindowSubscriptions.set(window.id, createTraceWindowSubscription(window));
-      this.traceWindowGraphStates.delete(window.id);
     });
     return this.ensureTraceWindows({
       windows: params.windows,
@@ -670,7 +597,6 @@ export class TraceChunkStore<
       return false;
     }
     clearTraceWindowNotificationTimer(subscription);
-    this.traceWindowGraphStates.delete(windowId);
     return this.traceWindowSubscriptions.delete(windowId);
   }
 
@@ -766,7 +692,6 @@ export class TraceChunkStore<
     this.sourceSpanFilters = normalizedSpanFilters;
     this.sourceSpanFilterPlan = buildCompiledTraceSpanFilterPlan(normalizedSpanFilters);
     this.sourceSpanFilterRevision += 1;
-    this.traceWindowGraphStates.clear();
     return true;
   }
 
@@ -873,100 +798,29 @@ export class TraceChunkStore<
   }
 
   /**
-   * Materialize or reuse the latest immutable graph snapshot for one registered trace window.
+   * Materialize immutable graph data for one registered trace window and caller-owned selection.
    */
-  getTraceGraphForWindow(
+  materializeTraceGraphDataForWindow(
     windowId: string,
-    spanBudget: number | null
-  ): TraceChunkWindowGraphSnapshot | null {
-    if (!this.windowGraphMaterializer) {
-      return null;
-    }
+    selection: TraceChunkSelection<TDescriptor>,
+    materializer: TraceChunkWindowGraphMaterializer<TPayload, TDescriptor>
+  ): TraceGraphData | null {
     const subscription = this.traceWindowSubscriptions.get(windowId);
     if (!subscription) {
       return null;
     }
 
-    const selection = this.select({
-      window: traceWindowToTraceChunkSelectionWindow(subscription.window),
-      spanBudget
-    });
     const readyChunks = this.getReadyChunks(selection.selectedDescriptors);
-    const readiness = this.buildTraceChunkWindowGraphReadinessSummary(selection);
     if (readyChunks.length === 0 && selection.selectedDescriptors.length > 0) {
       return null;
     }
 
-    const previousState = this.traceWindowGraphStates.get(windowId);
-    const selectedChunkKeys = selection.selectedDescriptors.map(descriptor => descriptor.chunkKey);
-    const readyChunkKeys = readyChunks.map(chunk => chunk.descriptor.chunkKey);
-    const canAppend =
-      previousState != null &&
-      previousState.spanBudget === spanBudget &&
-      areStringArraysEqual(previousState.selectedChunkKeys, selectedChunkKeys) &&
-      isStringArraySubset(previousState.readyChunkKeys, readyChunkKeys) &&
-      this.windowGraphMaterializer.append != null;
-    const addedReadyChunks = canAppend
-      ? readyChunks.filter(
-          chunk => !previousState.readyChunkKeys.includes(chunk.descriptor.chunkKey)
-        )
-      : [];
-
-    if (canAppend && addedReadyChunks.length === 0) {
-      return {
-        ...previousState.snapshot,
-        selectionSummary: selection.summary,
-        readiness
-      };
-    }
-
-    const materialization =
-      canAppend && previousState
-        ? (this.windowGraphMaterializer.append?.({
-            ownerRefRegistry: this.ownerRefRegistry,
-            window: subscription.window,
-            selection,
-            readyChunks,
-            readiness,
-            previousState: previousState.state,
-            previousSnapshot: previousState.snapshot,
-            addedReadyChunks
-          }) ?? null)
-        : this.windowGraphMaterializer.rebuild({
-            ownerRefRegistry: this.ownerRefRegistry,
-            window: subscription.window,
-            selection,
-            readyChunks,
-            readiness
-          });
-    if (!materialization) {
-      return null;
-    }
-
-    const snapshot: TraceChunkWindowGraphSnapshot = {
-      windowId,
-      version: (previousState?.snapshot.version ?? 0) + 1,
-      traceGraphData: materialization.traceGraphData,
-      traceGraph: new TraceGraph(
-        createTraceGraphRuntimeSource({
-          traceGraphData: materialization.traceGraphData,
-          traceStore: this
-        })
-      ),
-      selectionSummary: selection.summary,
-      readiness,
-      materializationMode: canAppend ? 'append' : 'rebuild',
-      diagnostics: materialization.diagnostics,
-      spanUrlCodec: this.spanUrlCodec
-    };
-    this.traceWindowGraphStates.set(windowId, {
-      spanBudget,
-      selectedChunkKeys,
-      readyChunkKeys,
-      state: materialization.state,
-      snapshot
+    return materializer({
+      ownerRefRegistry: this.ownerRefRegistry,
+      window: subscription.window,
+      selection,
+      readyChunks
     });
-    return snapshot;
   }
 
   /**
@@ -1001,11 +855,11 @@ export class TraceChunkStore<
       const pendingPayload = this.pendingPayloads.get(descriptor.chunkKey);
       if (pendingPayload) {
         reusedPendingChunkCount += 1;
-        const payload = await pendingPayload;
-        reportChunkReady();
-        return {
-          ...this.buildReadyChunk(descriptor, payload)
-        } satisfies TraceChunkStoreReadyChunk<TPayload, TDescriptor>;
+        return await buildReadyChunkWhenAvailable({
+          payloadPromise: pendingPayload,
+          reportChunkReady,
+          buildReadyChunk: payload => this.buildReadyChunk(descriptor, payload)
+        });
       }
 
       fetchedChunkCount += 1;
@@ -1018,7 +872,9 @@ export class TraceChunkStore<
           return payload;
         })
         .catch((error: unknown) => {
-          this.failedChunkKeys.add(descriptor.chunkKey);
+          if (!isTraceChunkStoreLoadSkippedError(error)) {
+            this.failedChunkKeys.add(descriptor.chunkKey);
+          }
           throw error;
         })
         .finally(() => {
@@ -1029,15 +885,15 @@ export class TraceChunkStore<
           return payload;
         });
       this.pendingPayloads.set(descriptor.chunkKey, fetchPromise);
-      const payload = await fetchPromise;
-      reportChunkReady();
-      return {
-        ...this.buildReadyChunk(descriptor, payload)
-      } satisfies TraceChunkStoreReadyChunk<TPayload, TDescriptor>;
+      return await buildReadyChunkWhenAvailable({
+        payloadPromise: fetchPromise,
+        reportChunkReady,
+        buildReadyChunk: payload => this.buildReadyChunk(descriptor, payload)
+      });
     });
 
     reportProgress();
-    const readyChunks = await Promise.all(chunkPromises);
+    const readyChunks = (await Promise.all(chunkPromises)).filter(isReadyChunk);
     return {
       readyChunks,
       summary: {
@@ -1226,46 +1082,6 @@ export class TraceChunkStore<
   }
 
   /**
-   * Build readiness metadata for one selected trace-window graph subset.
-   */
-  private buildTraceChunkWindowGraphReadinessSummary(
-    selection: TraceChunkSelection<TDescriptor>
-  ): TraceChunkWindowGraphReadinessSummary {
-    let readySelectedChunkCount = 0;
-    let pendingSelectedChunkCount = 0;
-    let failedSelectedChunkCount = 0;
-    selection.selectedDescriptors.forEach(descriptor => {
-      if (this.readyPayloads.has(descriptor.chunkKey)) {
-        readySelectedChunkCount += 1;
-        return;
-      }
-      if (this.pendingPayloads.has(descriptor.chunkKey)) {
-        pendingSelectedChunkCount += 1;
-        return;
-      }
-      if (this.failedChunkKeys.has(descriptor.chunkKey)) {
-        failedSelectedChunkCount += 1;
-      }
-    });
-    const selectedChunkCount = selection.selectedDescriptors.length;
-    const missingSelectedChunkCount = Math.max(
-      0,
-      selectedChunkCount -
-        readySelectedChunkCount -
-        pendingSelectedChunkCount -
-        failedSelectedChunkCount
-    );
-    return {
-      selectedChunkCount,
-      readySelectedChunkCount,
-      pendingSelectedChunkCount,
-      failedSelectedChunkCount,
-      missingSelectedChunkCount,
-      isComplete: selectedChunkCount === readySelectedChunkCount
-    };
-  }
-
-  /**
    * Assign append-only chunk storage slots to descriptors in catalog registration order.
    */
   private assignChunkIndexes(descriptors: readonly TDescriptor[]): void {
@@ -1404,11 +1220,11 @@ export function createStaticTraceGraphRuntimeSource(
   options: StaticTraceGraphRuntimeSourceOptions
 ): TraceGraphRuntimeSource {
   const traceStore = createStaticTraceChunkStore(options);
-  return createTraceGraphRuntimeSource({
+  return {
     traceGraphData:
       options.traceGraphData ?? buildStaticTraceGraphDataFromStore(options, traceStore),
     traceStore
-  });
+  };
 }
 
 /**
@@ -2128,19 +1944,6 @@ type TraceWindowSubscription = {
   lastNotificationTimeMs: number | null;
 };
 
-type TraceChunkWindowGraphState<TState> = {
-  /** Span budget used while producing the cached trace-window graph. */
-  spanBudget: number | null;
-  /** Selected descriptor keys used while producing the cached trace-window graph. */
-  selectedChunkKeys: readonly string[];
-  /** Ready selected descriptor keys already represented by the cached trace-window graph. */
-  readyChunkKeys: readonly string[];
-  /** Caller-owned opaque materialization state stored between graph queries. */
-  state: TState;
-  /** Latest immutable trace-window graph snapshot. */
-  snapshot: TraceChunkWindowGraphSnapshot;
-};
-
 /**
  * Create one mutable trace-window subscription state record.
  */
@@ -2229,19 +2032,35 @@ function getSpanRefForChunkSpanTableRow(
   return encodeSpanRef(chunk.chunkIndex, tableRowIndex);
 }
 
-/**
- * Return whether two deterministic string arrays contain the same values in the same order.
- */
-function areStringArraysEqual(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
+/** Builds one ready chunk after awaiting a payload, or leaves an intentional skip retryable. */
+async function buildReadyChunkWhenAvailable<
+  TPayload,
+  TDescriptor extends TraceChunkDescriptor
+>(params: {
+  /** Ready or pending payload promise owned by the chunk store. */
+  payloadPromise: Promise<TPayload>;
+  /** Progress callback invoked only after one descriptor has a ready payload. */
+  reportChunkReady: () => void;
+  /** Builds the typed ready chunk after the payload resolves. */
+  buildReadyChunk: (payload: TPayload) => TraceChunkStoreReadyChunk<TPayload, TDescriptor>;
+}): Promise<TraceChunkStoreReadyChunk<TPayload, TDescriptor> | null> {
+  try {
+    const payload = await params.payloadPromise;
+    params.reportChunkReady();
+    return params.buildReadyChunk(payload);
+  } catch (error) {
+    if (!isTraceChunkStoreLoadSkippedError(error)) {
+      throw error;
+    }
+    return null;
+  }
 }
 
-/**
- * Return whether every stable string key in `subset` also appears in `superset`.
- */
-function isStringArraySubset(subset: readonly string[], superset: readonly string[]): boolean {
-  const supersetValues = new Set(superset);
-  return subset.every(value => supersetValues.has(value));
+/** Returns whether one optional ready-chunk slot contains a concrete ready chunk. */
+function isReadyChunk<TPayload, TDescriptor extends TraceChunkDescriptor>(
+  readyChunk: TraceChunkStoreReadyChunk<TPayload, TDescriptor> | null
+): readyChunk is TraceChunkStoreReadyChunk<TPayload, TDescriptor> {
+  return readyChunk !== null;
 }
 
 /**

@@ -1,6 +1,6 @@
 import * as arrow from 'apache-arrow';
 
-import {log} from '../react/utils/log';
+import {log} from '../trace/log';
 import {
   getIndexedAccessRow,
   getIndexedRelativeAccessRow,
@@ -176,11 +176,8 @@ export class IndexedArrowTable<T extends arrow.TypeMap> {
       return null;
     }
 
-    let temporaryRow = this.temporaryRow;
-    if (!temporaryRow) {
-      temporaryRow = Object.create(null) as IndexedArrowTableRow<T>;
-      this.temporaryRow = temporaryRow;
-    }
+    this.temporaryRow ??= Object.create(null) as IndexedArrowTableRow<T>;
+    const temporaryRow = this.temporaryRow;
     const mutableTemporaryRow = temporaryRow as Record<keyof T & string, unknown>;
 
     for (const field of this.schema.fields) {

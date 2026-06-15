@@ -1,5 +1,6 @@
 import {
   assert,
+  buildTraceLayoutGeometryDerivationContext,
   fillTraceLayoutLocalDependencyGeometry,
   isVisibleLocalDependencyRef
 } from '../../trace/index';
@@ -150,11 +151,13 @@ export function combineBounds(boundsList: Iterable<Bounds | null | undefined>): 
 }
 
 export function getSpanBounds(spans: Iterable<TraceSpan>, traceLayout: TraceLayout): Bounds | null {
+  const context = buildTraceLayoutGeometryDerivationContext(traceLayout);
   return combineGeometryBounds(
     Array.from(spans, block =>
       getTraceLayoutBlockGeometry({
         traceLayout,
-        block
+        block,
+        context
       })
     )
   );
@@ -165,20 +168,23 @@ export function getLocalDependencyBounds(
   traceLayout: TraceLayout
 ): Bounds | null {
   const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const context = buildTraceLayoutGeometryDerivationContext(traceLayout);
   return combineGeometryBounds(
     Array.from(dependencies, dependency => {
       if (typeof dependency === 'number' && isVisibleLocalDependencyRef(dependency)) {
         return fillTraceLayoutLocalDependencyGeometry({
           traceLayout,
           dependencyRef: dependency,
-          target: geometry
+          target: geometry,
+          context
         })
           ? new Float32Array([geometry.x1, geometry.y1, geometry.x2, geometry.y2])
           : undefined;
       }
       return getTraceLayoutLocalDependencyGeometry({
         traceLayout,
-        dependency
+        dependency,
+        context
       });
     })
   );
@@ -188,11 +194,13 @@ export function getCrossDependencyBounds(
   dependencies: Iterable<CrossDependencyWithRef>,
   traceLayout: TraceLayout
 ): Bounds | null {
+  const context = buildTraceLayoutGeometryDerivationContext(traceLayout);
   return combineGeometryBounds(
     Array.from(dependencies, dependency =>
       getTraceLayoutCrossDependencyGeometry({
         traceLayout,
-        dependency
+        dependency,
+        context
       })
     )
   );
@@ -202,16 +210,19 @@ export function getAnyDependencyBounds(
   dependencies: Iterable<TraceDependencySource>,
   traceLayout: TraceLayout
 ): Bounds | null {
+  const context = buildTraceLayoutGeometryDerivationContext(traceLayout);
   return combineGeometryBounds(
     Array.from(dependencies, dependency =>
       dependency.type === 'trace-local-dependency'
         ? getTraceLayoutLocalDependencyGeometry({
             traceLayout,
-            dependency
+            dependency,
+            context
           })
         : getTraceLayoutCrossDependencyGeometry({
             traceLayout,
-            dependency
+            dependency,
+            context
           })
     )
   );

@@ -5,25 +5,29 @@
   <img src="https://img.shields.io/badge/status-work--in--progress-orange.svg?style=flat-square" alt="status Work-in-Progress" />
 </p>
 
-Most applications should render through `DeckTraceGraph`. It remains the full React viewer with
-the shared deck shell, legend, grid, overview, time measurement, widgets, and interaction wiring.
-Use the low-level deck.gl exports only when you are composing a custom deck shell.
+Most applications should render through `TraceEngine` plus `DeckTraceGraph`. `TraceEngine` owns
+mounted interaction, collapse, prepared layout, and prepared scene state below React.
+`DeckTraceGraph` remains the full React viewer with the shared deck shell, legend, grid, overview,
+time measurement, widgets, and interaction wiring. Use the low-level deck.gl exports only when you
+are composing a custom deck shell.
 
 ## Render pipeline
 
-1. Load or build a normalized `TraceGraph`.
-2. Build one or more `TraceLayout` objects from graphs, settings, and collapse state.
-3. Project layout rows, span geometry, dependency geometry, bounds, and optional minimap summaries.
-4. Render synchronized header, legend, main timeline, event strip, and minimap views.
-5. Feed hover, selection, path, collapse, and time-range changes back through controlled callbacks.
+1. Load or build normalized `TraceGraphData` or `TraceChunkData`.
+2. Wrap graph data and its owning store in `TraceGraph`.
+3. Sync durable host inputs into `TraceEngine`.
+4. Let the engine build ref-native layouts and prepared scenes.
+5. Render those prepared scenes through `DeckTraceGraph` or low-level deck layers.
+6. Persist durable refs/process ids from engine updates when interactions change them.
 
 The division of responsibility is:
 
 - `TraceGraph`: normalized runtime data, refs, filtering, search, dependency lookup
+- `TraceEngine`: mounted selection, collapse, layout, prepared scene, and diagnostics state
 - `TraceLayout`: visible rows, geometry, collapse-aware bounds
 - `TracePreparedStateLayer`: main-timeline sublayers from already-prepared `TraceViewState`
 - `TraceGraphLayer`: graph-to-`TraceViewState` preparation plus main-timeline sublayers
-- `TraceStoreLayer`: store-window registration, snapshot materialization, and graph rendering
+- `TraceStoreLayer`: store-window registration, source-owned graph-data materialization, and graph rendering
 - `DeckTraceGraph`: React composition and interaction surface
 
 ## What the viewer renders
@@ -37,12 +41,11 @@ or render-only work.
 
 ## Interaction boundary
 
-Keep mounted viewer state ref-native:
+Keep mounted viewer state ref-native inside `TraceEngine`:
 
-- `selectedSpanRefs` and `onSelectionChange`
-- `collapseState` and process/thread collapse callbacks
+- selected span refs and selected visible dependency refs
+- serialized expanded process ids
 - highlighted span refs, path refs, and extended selection refs
-- `onTimeRangeSelectionChange`
 - settings, color scheme, tooltip renderers, and picked-object adapters
 
 Serialize stable source IDs only when crossing an app boundary such as a URL, saved workspace, or
@@ -54,7 +57,7 @@ Custom deck shells can use:
 
 - `TracePreparedStateLayer` when the shell already owns `TraceViewState`
 - `TraceGraphLayer` when the shell owns normalized `TraceGraph` instances and render state
-- `TraceStoreLayer` when the shell owns `TraceChunkStore` window sources
+- `TraceStoreLayer` when the shell owns `TraceChunkStore` window sources plus a graph-data materializer
 - `buildTracevisViewLayout(...)`
 - `DeckTraceGraphController`
 - `ImperativeDeckController`
@@ -84,6 +87,7 @@ import {TraceGraphLayer} from '@deck.gl-community/trace-layers/layers';
 ```
 
 Read [DeckTraceGraph](../api-reference/react/deck-trace-graph.md) for the React viewer,
+[TraceEngine](../api-reference/trace/trace-engine.md),
 [TracePreparedStateLayer](../api-reference/layers/trace-prepared-state-layer.md),
 [TraceGraphLayer](../api-reference/layers/trace-graph-layer.md),
 [TraceStoreLayer](../api-reference/layers/trace-store-layer.md), and

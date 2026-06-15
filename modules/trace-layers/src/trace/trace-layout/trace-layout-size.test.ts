@@ -1,20 +1,22 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildTraceLayoutGeometryColumn} from './trace-layout';
+import {buildTraceLayoutGeometryDerivationContext} from './trace-derived-geometry';
 import {estimateTraceLayoutSize} from './trace-layout-size';
 
 import type {TraceLayout} from './trace-layout';
 
 describe('estimateTraceLayoutSize', () => {
-  it('counts kept layout geometry buffers once', () => {
-    const spanValues = new Float32Array(8);
-    const dependencyValues = new Float32Array(4);
-    const spanGeometry = buildTraceLayoutGeometryColumn(spanValues);
-    const localDependencyGeometry = buildTraceLayoutGeometryColumn(dependencyValues);
+  it('counts lane and row layout buffers without layout-owned span geometry', () => {
     const layout = {
-      traceGraph: {},
+      traceGraph: {
+        maxTimeMs: 1,
+        minTimeMs: 0,
+        getProcessRefBySpanRef: () => null,
+        getThreadRefBySpanRef: () => null
+      },
       processLayouts: [
         {
+          processRef: 0,
           yOffset: 0,
           yHeight: 10,
           labelY: 5,
@@ -27,18 +29,9 @@ describe('estimateTraceLayoutSize', () => {
           threadLayouts: []
         }
       ],
+      processLayoutMapByRef: new Map(),
       renderRows: [],
-      threadLayoutMap: {},
-      spanGeometryChunks: [spanGeometry],
-      localDependencyGeometryChunks: [localDependencyGeometry],
-      crossDependencyGeometryChunks: [],
-      geometryCache: {
-        processesById: {},
-        spanGeometryChunks: [spanGeometry],
-        localDependencyGeometryChunks: [localDependencyGeometry],
-        crossDependencyGeometryChunks: [],
-        crossDependencyReuseKeyByVisibleRef: new Map()
-      },
+      threadLayoutMapByRef: new Map(),
       overflowLabels: [],
       currentBounds: [
         [0, 0],
@@ -52,13 +45,26 @@ describe('estimateTraceLayoutSize', () => {
 
     const report = estimateTraceLayoutSize([layout]);
 
-    expect(report.totalBytes).toBeGreaterThan(spanValues.byteLength + dependencyValues.byteLength);
-    expect(
-      report.entries.filter(
-        entry =>
-          entry.path.endsWith('.spanGeometryChunks[0].values') ||
-          entry.path.endsWith('.localDependencyGeometryChunks[0].values')
-      )
-    ).toHaveLength(2);
+    expect(report.totalBytes).toBeGreaterThan(0);
+    expect(report.entries.some(entry => entry.path.includes('spanGeometry'))).toBe(false);
+    expect(report.entries.some(entry => entry.path.includes('geometryCache'))).toBe(false);
+  });
+
+  it('builds direct geometry context without duplicate span-indexed layout maps', () => {
+    const layout = {
+      traceGraph: {
+        maxTimeMs: 1,
+        minTimeMs: 0,
+        getProcessRefBySpanRef: () => null,
+        getThreadRefBySpanRef: () => null
+      },
+      processLayoutMapByRef: new Map(),
+      threadLayoutMapByRef: new Map()
+    } as unknown as TraceLayout;
+
+    const context = buildTraceLayoutGeometryDerivationContext(layout);
+
+    expect(context.layoutLookup).not.toHaveProperty('threadLayoutsBySpanRef');
+    expect(context.layoutLookup).not.toHaveProperty('processLayoutsBySpanRef');
   });
 });

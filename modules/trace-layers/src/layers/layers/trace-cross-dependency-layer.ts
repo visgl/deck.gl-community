@@ -2,6 +2,7 @@ import {CompositeLayer, LayerProps} from '@deck.gl/core';
 import {DependencyArrowLayer, PathDirection} from '@deck.gl-community/layers';
 
 import {
+  buildTraceLayoutGeometryDerivationContext,
   getCrossRankDependencyLineColor,
   getSelectedCrossRankDependencyLineColor,
   TRACE_COLOR,
@@ -18,14 +19,15 @@ import {
 } from './trace-layer-utils';
 import {
   getTraceLayoutCrossDependencyGeometry,
-  getTraceLayoutSpanVisibilityBySpanRef,
-  getTraceLayoutVisibleDependencyGeometry
+  getTraceLayoutSelectedCrossDependencyGeometry,
+  getTraceLayoutSpanVisibilityBySpanRef
 } from './trace-layout-geometry';
 
 import type {
   TraceCrossDependencySource,
   TraceGraphSelectedCrossDependencySource,
   TraceLayout,
+  TraceLayoutGeometryDerivationContext,
   TraceVisSettings,
   VisibleCrossDependencyRef
 } from '../../trace/index';
@@ -116,9 +118,10 @@ function getVisibleCrossDependencyRefs(
 function getCrossDependencyBaseLineColor(
   traceLayout: Readonly<TraceLayout>,
   dependency: TraceCrossDependencySource,
-  settings: TraceVisSettings
+  settings: TraceVisSettings,
+  context: TraceLayoutGeometryDerivationContext
 ) {
-  return hasHiddenCrossDependencyEndpoint(traceLayout, dependency)
+  return hasHiddenCrossDependencyEndpoint(traceLayout, dependency, context)
     ? TRACE_COLOR.CROSS_DEPENDENCY_HIDDEN_ENDPOINT_LINE
     : getCrossRankDependencyLineColor(dependency, settings);
 }
@@ -126,20 +129,23 @@ function getCrossDependencyBaseLineColor(
 /** Returns true when either endpoint span is layout-hidden for the current view. */
 function hasHiddenCrossDependencyEndpoint(
   traceLayout: Readonly<TraceLayout>,
-  dependency: TraceCrossDependencySource
+  dependency: TraceCrossDependencySource,
+  context: TraceLayoutGeometryDerivationContext
 ): boolean {
   const startVisibility =
     dependency.startSpanRef != null
       ? getTraceLayoutSpanVisibilityBySpanRef({
           traceLayout,
-          spanRef: dependency.startSpanRef
+          spanRef: dependency.startSpanRef,
+          context
         })
       : undefined;
   const endVisibility =
     dependency.endSpanRef != null
       ? getTraceLayoutSpanVisibilityBySpanRef({
           traceLayout,
-          spanRef: dependency.endSpanRef
+          spanRef: dependency.endSpanRef,
+          context
         })
       : undefined;
   return startVisibility?.visible === false || endVisibility?.visible === false;
@@ -253,6 +259,7 @@ export class TraceCrossDependencyLayer extends CompositeLayer<TraceCrossDependen
         : EMPTY_LAYER_UPDATE_TRIGGERS;
     const dependencyOpacityMultiplier =
       getDependencyOpacityMultiplier(settings) * CROSS_DEPENDENCY_OPACITY_MULTIPLIER;
+    const geometryContext = buildTraceLayoutGeometryDerivationContext(traceLayout);
 
     const crossRankDependencyLineLayer = new DependencyArrowLayer<TraceCrossDependencySource>(
       this.getSubLayerProps({
@@ -265,16 +272,17 @@ export class TraceCrossDependencyLayer extends CompositeLayer<TraceCrossDependen
         getPath: (dependency: TraceCrossDependencySource) =>
           getTraceLayoutCrossDependencyGeometry({
             traceLayout,
-            dependency
+            dependency,
+            context: geometryContext
           }) ?? [],
         getColor: (dependency: TraceCrossDependencySource) =>
           applyDependencyLineOpacity(
-            getCrossDependencyBaseLineColor(traceLayout, dependency, settings),
+            getCrossDependencyBaseLineColor(traceLayout, dependency, settings, geometryContext),
             dependencyOpacityMultiplier
           ),
         getMarkerColor: (dependency: TraceCrossDependencySource) =>
           applyDependencyMarkerOpacity(
-            getCrossDependencyBaseLineColor(traceLayout, dependency, settings),
+            getCrossDependencyBaseLineColor(traceLayout, dependency, settings, geometryContext),
             dependencyOpacityMultiplier
           ),
         getWidth: CROSS_DEPENDENCY_LINE_WIDTH_PX,
@@ -323,9 +331,10 @@ export class TraceCrossDependencyLayer extends CompositeLayer<TraceCrossDependen
           data: visibleSelectedCrossDependencies,
           positionFormat: 'XY',
           getPath: (dependency: TraceSelectedCrossDependencySource) =>
-            getTraceLayoutVisibleDependencyGeometry({
+            getTraceLayoutSelectedCrossDependencyGeometry({
               traceLayout,
-              dependencyRef: dependency.dependencyRef
+              dependencyRef: dependency.dependencyRef,
+              context: geometryContext
             }) ?? [],
           getColor: (dependency: TraceSelectedCrossDependencySource) =>
             getSelectedCrossRankDependencyLineColor(

@@ -1,3 +1,7 @@
+/**
+ * @see https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview?tab=t.0#heading=h.yr4qxyxotyw
+ */
+
 import {z, ZodError} from 'zod';
 
 /**

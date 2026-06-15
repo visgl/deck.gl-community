@@ -1,3 +1,4 @@
+import {DEFAULT_TRACE_SPAN_CARD_DEPENDENCY_LIMIT} from '../trace-graph/build-trace-span-card-data';
 import {
   isVisibleCrossDependencyRef,
   isVisibleLocalDependencyRef
@@ -104,32 +105,6 @@ export type TraceSelectedSpan = {
   span: TraceCardSpan;
 };
 
-/** Selection-change payload emitted by trace views without exposing TraceSpan objects. */
-export type TraceSelectionChange = {
-  /** Canonical selected span refs. */
-  selectedSpanRefs: SpanRef[];
-  /** Resolved selected spans for display-oriented consumers. */
-  selectedSpans: TraceSelectedSpan[];
-  /** Canonical visible local dependency refs selected by the latest gesture. */
-  selectedLocalDependencyRefs: VisibleLocalDependencyRef[];
-  /** Canonical visible cross dependency refs selected by the latest gesture. */
-  selectedCrossDependencyRefs: VisibleCrossDependencyRef[];
-  /** Selected visible local dependency sources resolved from the canonical refs. */
-  selectedDependencies: TraceLocalDependencySource[];
-  /** Selected visible cross dependency sources resolved from the canonical refs. */
-  selectedCrossDependencies: TraceCrossDependencySource[];
-  /** Whether the selection was emitted from an extended-selection gesture such as shift-click. */
-  isExtendedSelection: boolean;
-};
-
-/** Tracks the most recent user selection gesture that should be visible to consumers. */
-export type TraceSelectionInteraction = {
-  /** Monotonic counter used to publish repeated clicks on the same span. */
-  nonce: number;
-  /** Whether the latest selection gesture requested extended selection behavior. */
-  isExtendedSelection: boolean;
-};
-
 /**
  * Resolves the lightweight selected-span payload without building full card dependency data.
  */
@@ -137,7 +112,7 @@ export function getTraceSelectedSpanFromRef(
   traceGraph: Readonly<TraceGraph>,
   spanRef: SpanRef
 ): TraceCardSpan | null {
-  const span = traceGraph.getSpanDisplaySource(spanRef);
+  const span = traceGraph.getSpanRenderSource(spanRef);
   return span ? getTraceSelectedSpanFromRenderSpan(traceGraph, span) : null;
 }
 
@@ -204,30 +179,13 @@ export function getImmediateVisibleDependencyRefsForSpan(
   };
 
   for (const direction of ['incoming', 'outgoing'] as const) {
-    const dependencyRefs = traceGraph.getSpanDirectionalDependencyRefs(spanRef, direction);
-    for (const dependencyRef of dependencyRefs.localDependencyRefs) {
-      const visibleDependencyRef =
-        traceGraph.getVisibleLocalDependencyRefBySourceRef(dependencyRef);
-      if (visibleDependencyRef != null) {
-        addVisibleDependencyRef(visibleDependencyRef, direction);
-      }
-    }
-    for (const dependencyRef of dependencyRefs.crossDependencyRefs) {
-      const visibleDependencyRef =
-        traceGraph.getVisibleCrossDependencyRefBySourceRef(dependencyRef);
-      if (visibleDependencyRef != null) {
-        addVisibleDependencyRef(visibleDependencyRef, direction);
-      }
-    }
-  }
-
-  const cardModel = traceGraph.getTraceSpanCardModel(spanRef);
-  if (cardModel) {
-    for (const entry of cardModel.visibleIncomingDependencyEntries) {
-      addVisibleDependencyRef(entry.visibleDependencyRef, 'incoming');
-    }
-    for (const entry of cardModel.visibleOutgoingDependencyEntries) {
-      addVisibleDependencyRef(entry.visibleDependencyRef, 'outgoing');
+    const dependencyRefs = traceGraph.getVisibleDirectionalDependencyRefSlice(
+      spanRef,
+      direction,
+      DEFAULT_TRACE_SPAN_CARD_DEPENDENCY_LIMIT
+    );
+    for (const dependencyRef of dependencyRefs.dependencyRefs) {
+      addVisibleDependencyRef(dependencyRef, direction);
     }
   }
 

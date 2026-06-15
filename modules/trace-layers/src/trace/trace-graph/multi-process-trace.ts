@@ -51,7 +51,8 @@ import type {
 /**
  * Process/rank payload appended into a mutable multi-process trace.
  *
- * Span and dependency Arrow tables are canonical; object arrays are accepted for non-Arrow callers.
+ * Span and dependency Arrow tables are canonical; object arrays are accepted only as legacy
+ * compatibility inputs for non-Arrow callers.
  */
 export type MultiProcessTraceProcessData = {
   /** App-owned stable key for the storage chunk created from this process data. */

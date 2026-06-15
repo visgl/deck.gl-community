@@ -45,9 +45,11 @@ export {
   DEFAULT_TRACE_WINDOW_NOTIFY_INTERVAL_MS,
   TRACE_EXTERNAL_SPAN_ID_URL_CODEC,
   TraceChunkStore,
+  TraceChunkStoreLoadSkippedError,
   createChronologicalTraceChunkSpanBudgetPolicy,
   createStaticTraceChunkStore,
   createStaticTraceGraphRuntimeSource,
+  isTraceChunkStoreLoadSkippedError,
   traceWindowToTraceChunkSelectionWindow,
   type StaticTraceChunkStoreOptions,
   type StaticTraceGraphRuntimeSourceChunkOptions,
@@ -70,12 +72,8 @@ export {
   type TraceChunkStoreReadyChunk,
   type TraceChunkStoreRegisterTraceWindowsParams,
   type TraceChunkStoreTraceWindowLoadParams,
-  type TraceChunkWindowGraphAppendParams,
-  type TraceChunkWindowGraphMaterialization,
   type TraceChunkWindowGraphMaterializer,
-  type TraceChunkWindowGraphReadinessSummary,
-  type TraceChunkWindowGraphRebuildParams,
-  type TraceChunkWindowGraphSnapshot,
+  type TraceChunkWindowGraphMaterializerParams,
   type TraceSpanUrlCodec,
   type TraceSpanUrlDeserializeParams,
   type TraceSpanUrlSerializeParams,
@@ -83,10 +81,7 @@ export {
   type TraceWindowChunksArrivedEvent,
   type TraceStore
 } from '../trace-chunk-store';
-export {
-  createTraceGraphRuntimeSource,
-  type TraceGraphRuntimeSource
-} from './trace-graph-source-adapter';
+export {type TraceGraphRuntimeSource} from './trace-graph-runtime-source';
 export {
   buildJSONTraceChunkDataFromTraceChunkData,
   buildTraceChunkDataFromJSONTraceChunkData,
@@ -167,6 +162,7 @@ export {
   getInstantRefChunkIndex,
   getInstantRefIndex,
   getInstantRefRowIndex,
+  getLocalDependencyRefChunkIndex,
   getLocalDependencyRefPayload,
   getLocalDependencyRefProcessIndex,
   getLocalDependencyRefRowIndex,
@@ -291,6 +287,7 @@ export {
   type TraceGraphDescendantOptions,
   type TraceGraphDescendantResult,
   type TraceGraphDependencyLookupOptions,
+  type TraceDirectionalDependencyRefSlice,
   type TraceGraphPathBlockSource,
   type TraceGraphPathCrossDependencySource,
   type TraceGraphPathDependencySource,
@@ -312,7 +309,9 @@ export {
   type TraceGraphPreparedState,
   type TraceGraphSimilarDurationChainSpanFilter,
   type TraceSpanFilterMask,
-  type TraceSpanDependencySelection
+  type TraceSpanDependencySelection,
+  type TraceSpanDependencyDirection,
+  type TraceSpanDirectionalDependencyRefs
 } from './trace-graph';
 export {
   type TraceGraphSpanSearchContext,
@@ -336,7 +335,9 @@ export {
   type CompiledTraceSpanFilterPlan
 } from './trace-graph-span-filters';
 export {
+  estimateTraceGraphComponentSizes,
   estimateTraceGraphSize,
+  type TraceGraphSizeComponent,
   type TraceGraphSizeEntry,
   type TraceGraphSizeOptions,
   type TraceGraphSizeReport
@@ -366,11 +367,14 @@ export {
   type TraceStreamThreadUpsert
 } from '../trace-stream-session';
 export {
+  DEFAULT_TRACE_SPAN_CARD_DEPENDENCY_LIMIT,
   type TraceSpanCardChildDependency,
   type TraceSpanCardDependencyEntry,
+  type TraceSpanCardDependencyEntryCollection,
   type TraceSpanCardDescendantEntry,
   type TraceSpanCardDescendantResult,
   type TraceSpanCardEndpointDependencyEntry,
+  type TraceSpanCardEndpointDependencyEntryCollection,
   type TraceSpanCardModel,
   type TraceSpanCardParentChainEntry,
   type TraceCardSpan
@@ -378,15 +382,19 @@ export {
 export {
   type ArrowTraceSpanRow,
   type TraceCounterSource,
+  type TraceCrossDependencyRenderSource,
   type TraceCrossDependencySource,
+  type TraceDependencyRenderSource,
   type TraceDependencySource,
   type TraceEventSource,
   type TraceInstantSource,
+  type TraceLocalDependencyRenderSource,
   type TraceLocalDependencySource,
   type TraceProcessSource,
   type TraceGraphSpanArrowColumnValue,
   type TraceGraphSpanStoreRow,
   type TraceRenderSpan,
+  type TraceSpanRenderSource,
   type TraceThreadSource,
   materializeTraceGraphSpan,
   getArrowTraceSpanField,
@@ -395,10 +403,10 @@ export {
   getTraceGraphSpanCount,
   iterateMaterializedTraceGraphSpans,
   getTraceGraphProcessSpanOrdinal,
-  getTraceGraphProcessById,
   getTraceGraphProcessSpanCount,
   iterateMaterializedTraceGraphProcessSpans,
   getTraceGraphSpanDisplaySource,
+  getTraceGraphSpanRenderSource,
   getTraceGraphSpanExternalSpanId,
   getTraceGraphSpanNameUtf8,
   getTraceGraphSpanRefProcessId,
@@ -407,7 +415,6 @@ export {
   getTraceGraphSpanStoreRow,
   getTraceGraphSpanTableRowIndex,
   getTraceGraphSpanUserData,
-  getTraceGraphThreadById,
   iterateTraceGraphProcessSpanRefs,
   iterateTraceGraphSpanRefs
 } from '../trace-graph-accessors';

@@ -1,9 +1,8 @@
 import {Log} from '@probe.gl/log';
 
 /** A log object for more sophisticated logging and profiling */
-export const log: Log = new Log({id: 'tracevis'});
+export const log = new Log({id: 'tracevis'});
+// Keep library probes opt-in so consumers and tests do not emit console noise by default.
+log.setLevel(-1);
 
-const tracevisGlobal = globalThis as typeof globalThis & {
-  tracevis?: {log: Log};
-};
-tracevisGlobal.tracevis ||= {log}; // Make it available globally for debugging
+globalThis.tracevis ||= {log}; // Make it available globally for debugging

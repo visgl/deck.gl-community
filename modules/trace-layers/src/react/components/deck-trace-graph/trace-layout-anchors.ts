@@ -1,6 +1,6 @@
-import {fillTraceLayoutSpanGeometry} from '../../../trace/index';
+import {fillTraceLayoutSpanGeometry, getTraceLayoutProcessLayoutByRef} from '../../../trace/index';
 
-import type {SpanBoundingBox, SpanRef, TraceLayout, TraceThreadId} from '../../../trace/index';
+import type {SpanBoundingBox, SpanRef, ThreadRef, TraceLayout} from '../../../trace/index';
 
 /** Label anchor resolved from trace layout coordinates. */
 export type TraceLayoutLabelAnchor = {
@@ -19,16 +19,29 @@ export type TraceLayoutSpanAnchor = {
 };
 
 /** Pending label anchor captured before a trace layout update. */
-export type PendingTraceLayoutLabelAnchor = {
-  /** Preserves a toggled rank or stream label position across layout rebuilds. */
-  readonly kind: 'rank' | 'stream';
-  /** Identifies the rank id or stream id whose label should stay visually anchored. */
-  readonly id: string;
-  /** Optional graph index used to disambiguate duplicate rank ids across compared graphs. */
-  readonly graphIndex?: number;
-  /** Captures the pre-layout-rebuild label Y position in trace coordinates. */
-  readonly labelY: number;
-};
+export type PendingTraceLayoutLabelAnchor =
+  | {
+      /** Preserves a toggled rank label position across layout rebuilds. */
+      readonly kind: 'rank';
+      /** Identifies the rank id whose label should stay visually anchored. */
+      readonly id: string;
+      /** Optional graph index used to disambiguate duplicate rank ids across compared graphs. */
+      readonly graphIndex?: number;
+      /** Captures the pre-layout-rebuild label Y position in trace coordinates. */
+      readonly labelY: number;
+    }
+  | {
+      /** Preserves a toggled thread label position across layout rebuilds. */
+      readonly kind: 'stream';
+      /** Identifies the ingestion thread id used by interaction payloads. */
+      readonly id: string;
+      /** Canonical runtime thread ref whose label should stay visually anchored. */
+      readonly threadRef: ThreadRef;
+      /** Optional graph index used to disambiguate compared graphs. */
+      readonly graphIndex?: number;
+      /** Captures the pre-layout-rebuild label Y position in trace coordinates. */
+      readonly labelY: number;
+    };
 
 /** Pending view anchor used to preserve a label or clicked span across layout rebuilds. */
 export type PendingTraceLayoutAnchor = PendingTraceLayoutLabelAnchor | TraceLayoutSpanAnchor;
@@ -55,7 +68,7 @@ export function findTraceLayoutRankLabelAnchor(params: {
     if (!processRow) {
       continue;
     }
-    const labelY = layout.processLayouts?.[processRow.rankIndex]?.labelY ?? 0;
+    const labelY = getTraceLayoutProcessLayoutByRef(layout, processRow.processRef)?.labelY ?? 0;
     return {labelY};
   }
   return null;
@@ -65,20 +78,20 @@ export function findTraceLayoutRankLabelAnchor(params: {
 export function findTraceLayoutThreadLabelAnchor(params: {
   /** Trace layouts to scan by graph index. */
   traceLayouts: readonly TraceLayout[];
-  /** Stream id whose thread label should be located. */
-  threadId: TraceThreadId;
+  /** Canonical runtime thread ref whose label should be located. */
+  threadRef: ThreadRef;
 }): TraceLayoutLabelAnchor | null {
   for (const layout of params.traceLayouts) {
     for (const processRow of layout.renderRows) {
-      const threadIndex = processRow.threads.findIndex(
-        thread => thread.threadId === params.threadId
-      );
+      const threadIndex = processRow.threadRefs.indexOf(params.threadRef);
       if (threadIndex === -1) {
         continue;
       }
       const threadLayout =
-        layout.threadLayoutMap[params.threadId] ??
-        layout.processLayouts?.[processRow.rankIndex]?.threadLayouts?.[threadIndex];
+        layout.threadLayoutMapByRef.get(params.threadRef) ??
+        getTraceLayoutProcessLayoutByRef(layout, processRow.processRef)?.threadLayouts?.[
+          threadIndex
+        ];
       if (!threadLayout) {
         return null;
       }
@@ -195,7 +208,7 @@ export function resolvePendingTraceLayoutAnchor(params: {
   }
   return findTraceLayoutThreadLabelAnchor({
     traceLayouts,
-    threadId: pendingAnchor.id as TraceThreadId
+    threadRef: pendingAnchor.threadRef
   });
 }
 

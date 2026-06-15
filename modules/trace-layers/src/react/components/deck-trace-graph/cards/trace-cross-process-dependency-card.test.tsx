@@ -83,7 +83,7 @@ const defaultTraceVisSettings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  timingAggregationKey: 'latest'
+  traceRunSummaryAggregationKey: 'latest'
 };
 
 let container: HTMLDivElement | null = null;
@@ -236,7 +236,9 @@ describe('TraceCrossProcessDependencyCard', () => {
 
     expect(findBadgeByText('rpc.actor.call_user_python')?.dataset.filtered).toBe('true');
     expect(findBadgeByText('rpc.actor.call_user_python')?.dataset.filteredVariant).toBe('regexp');
-    expect(findBadgeByText('visible-parent-span')).toBeUndefined();
+    expect(container?.textContent).toContain('SOURCE');
+    expect(container?.textContent).toContain('RENDERED AS');
+    expect(findBadgeByText('visible-parent-span')?.dataset.filtered).toBe('false');
   });
 
   it('marks stitched source endpoints filtered when the raw endpoint has no mask', () => {
@@ -268,7 +270,8 @@ describe('TraceCrossProcessDependencyCard', () => {
 
     expect(findBadgeByText('raw-hidden-start')?.dataset.filtered).toBe('true');
     expect(findBadgeByText('raw-hidden-start')?.dataset.filteredVariant).toBe('regexp');
-    expect(findBadgeByText('visible-parent-span')).toBeUndefined();
+    expect(container?.textContent).toContain('RENDERED AS');
+    expect(findBadgeByText('visible-parent-span')?.dataset.filtered).toBe('false');
   });
 
   it('resolves raw hovered cross dependencies through their stitched visible dependency refs', () => {
@@ -305,7 +308,8 @@ describe('TraceCrossProcessDependencyCard', () => {
 
     expect(findBadgeByText('raw-hidden-start')?.dataset.filtered).toBe('true');
     expect(findBadgeByText('raw-hidden-start')?.dataset.filteredVariant).toBe('regexp');
-    expect(findBadgeByText('visible-parent-span')).toBeUndefined();
+    expect(container?.textContent).toContain('RENDERED AS');
+    expect(findBadgeByText('visible-parent-span')?.dataset.filtered).toBe('false');
   });
 
   it('keeps visible endpoints filled when the card shows a filtered parent chain', () => {

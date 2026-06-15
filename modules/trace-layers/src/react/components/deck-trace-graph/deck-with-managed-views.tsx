@@ -24,10 +24,12 @@ import {
   _StatsWidget as StatsWidget,
   ZoomWidget
 } from '@deck.gl/widgets';
-import {buildViewsFromViewLayout, fitBoundsOrthographic} from '@deck.gl-community/infovis-layers';
-import {commandManager} from '@deck.gl-community/panels';
-import {CommandResetViewWidget, HeapMemoryWidget} from '@deck.gl-community/widgets';
+import {fitBoundsOrthographic} from '@deck.gl-community/infovis-layers';
 
+import {buildViewsFromViewLayout} from '@deck.gl-community/infovis-layers';
+import {commandManager} from '@deck.gl-community/panels';
+import {CommandResetViewWidget} from '@deck.gl-community/widgets';
+import {HeapMemoryWidget} from '@deck.gl-community/widgets';
 import {buildTracevisViewLayout, DeckTraceGraphController} from '../../../layers/index';
 import {type SpanBoundingBox} from '../../../trace/index';
 

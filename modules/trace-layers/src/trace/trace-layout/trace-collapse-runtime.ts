@@ -19,7 +19,7 @@ import type {SpanRef} from '../trace-graph/trace-types';
 import type {TraceProcessExpansionOverrides} from './trace-collapse-state';
 import type {TraceLayoutCollapseState} from './trace-layout';
 
-/** Inputs used to resolve the current ref-native collapse runtime. */
+/** Internal inputs used by TraceEngine to resolve ref-native collapse state. */
 export type TraceCollapseRuntimeInputs = {
   /** Trace graphs aligned by layout graph index. */
   readonly traceGraphs: readonly TraceGraph[];
@@ -39,7 +39,7 @@ export type TraceCollapseRuntimeInputs = {
   readonly extendedSelectionSpanRefs?: readonly SpanRef[];
 };
 
-/** Runtime collapse state owned by adapters outside DeckTraceGraph. */
+/** Internal collapse state owned by TraceEngine below DeckTraceGraph. */
 export type TraceCollapseRuntimeState = {
   /** Ref-native layout collapse state consumed by trace layout builders. */
   readonly collapseState: TraceLayoutCollapseState;
@@ -51,7 +51,7 @@ export type TraceCollapseRuntimeState = {
   readonly serializedExpandedProcessIds: readonly string[];
 };
 
-/** Reducer action for the pure collapse runtime. */
+/** Internal reducer action for the pure TraceEngine collapse runtime. */
 export type TraceCollapseRuntimeAction =
   | {
       /** Re-resolves collapse state from current graph/default/selection inputs. */

@@ -1,10 +1,10 @@
-import type {TraceObject, TraceRenderSpan} from '../../../trace/index';
+import type {TraceDependencyRenderSource, TraceObject, TraceRenderSpan} from '../../../trace/index';
 import type {ReactNode} from 'react';
 
 /**
  * Trace payloads that can render through the standard deck trace tooltip surface.
  */
-export type DeckTraceGraphHoverObject = TraceObject | TraceRenderSpan;
+export type DeckTraceGraphHoverObject = TraceDependencyRenderSource | TraceObject | TraceRenderSpan;
 
 /**
  * Normalized hover payload consumed by the shared deck trace tooltip renderer.
@@ -60,7 +60,10 @@ export function resolveDeckTraceGraphHoverPayload(
       typeof nestedObject.type === 'string' &&
       nestedObject.type.startsWith('trace-')
     ) {
-      return {object: nestedObject as unknown as TraceObject, content: null};
+      return {
+        object: nestedObject as unknown as TraceDependencyRenderSource | TraceObject,
+        content: null
+      };
     }
     return {object: null, content: (nestedObject.tooltip as ReactNode | undefined) ?? null};
   }
@@ -68,7 +71,7 @@ export function resolveDeckTraceGraphHoverPayload(
 }
 
 /** Returns true when a deck.gl picking payload is a normalized trace object. */
-function isTraceObject(value: unknown): value is TraceObject {
+function isTraceObject(value: unknown): value is TraceDependencyRenderSource | TraceObject {
   return (
     isObjectLike(value) &&
     'type' in value &&

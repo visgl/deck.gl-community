@@ -64,6 +64,7 @@
             "modules/trace-layers/api-reference/trace/trace-graph-data",
             "modules/trace-layers/api-reference/trace/trace-chunk-data",
             "modules/trace-layers/api-reference/trace/trace-chunk-store",
+            "modules/trace-layers/api-reference/trace/trace-engine",
             "modules/trace-layers/api-reference/trace/trace-stream-session",
             "modules/trace-layers/api-reference/trace/trace-layout",
             "modules/trace-layers/api-reference/trace/trace-vis-settings",

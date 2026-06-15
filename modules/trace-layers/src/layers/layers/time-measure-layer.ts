@@ -2,9 +2,9 @@ import {CompositeLayer} from '@deck.gl/core';
 import {LineLayer} from '@deck.gl/layers';
 import {TimeDeltaLayer} from '@deck.gl-community/infovis-layers';
 
+import type {TimeMeasureSelectionState} from '@deck.gl-community/widgets';
 import type {CompositeLayerProps, Layer, LayerProps} from '@deck.gl/core';
 import type {TimeDeltaLayerProps} from '@deck.gl-community/infovis-layers';
-import type {TimeMeasureSelectionState} from '@deck.gl-community/widgets';
 
 type LineDatum = {sourcePosition: [number, number]; targetPosition: [number, number]};
 

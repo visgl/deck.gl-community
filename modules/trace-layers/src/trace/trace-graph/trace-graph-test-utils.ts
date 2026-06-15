@@ -1,26 +1,11 @@
-import {createTraceLayoutGeometryColumn} from '../trace-layout/trace-layout';
-import {
-  getCrossDependencyRefChunkIndex,
-  getCrossDependencyRefRowIndex,
-  getLocalDependencyRefProcessIndex,
-  getLocalDependencyRefRowIndex,
-  getSpanRefChunkIndex,
-  getSpanRefRowIndex
-} from './trace-id-encoder';
-
 import type {ArrowTraceProcessMetadata} from '../ingestion/arrow-trace';
 import type {TraceSpanDisplaySource} from '../trace-graph-accessors';
-import type {
-  TraceLayoutDependencyGeometryChunk,
-  TraceLayoutGeometryColumn,
-  TraceLayoutSpanGeometryChunk
-} from '../trace-layout/trace-layout';
 import type {TraceGraph} from './trace-graph';
 import type {
-  CrossDependencyRef,
-  LocalDependencyRef,
   ProcessRef,
-  ThreadRef
+  ThreadRef,
+  VisibleCrossDependencyRef,
+  VisibleLocalDependencyRef
 } from './trace-id-encoder';
 import type {
   SpanRef,
@@ -50,128 +35,6 @@ export type TraceGraphBlockDependencySnapshot = {
   >[];
 };
 
-/** Builds span geometry chunks for tests from exact encoded span refs. */
-export function buildTraceLayoutSpanGeometryChunksForTest(
-  entries: readonly (readonly [SpanRef, ArrayLike<number>])[]
-): TraceLayoutSpanGeometryChunk[] {
-  return buildTraceLayoutGeometryChunksForTest(entries, getSpanRefChunkIndex, getSpanRefRowIndex);
-}
-
-/** Merges exact span-ref geometry rows into existing test span geometry chunks. */
-export function mergeTraceLayoutSpanGeometryChunksForTest(
-  baseChunks: readonly TraceLayoutSpanGeometryChunk[] | undefined,
-  entries: readonly (readonly [SpanRef, ArrayLike<number>])[]
-): TraceLayoutSpanGeometryChunk[] {
-  return mergeTraceLayoutGeometryChunksForTest(
-    baseChunks,
-    entries,
-    getSpanRefChunkIndex,
-    getSpanRefRowIndex
-  );
-}
-
-/** Builds local-dependency geometry chunks for tests from exact encoded dependency refs. */
-export function buildTraceLayoutLocalDependencyGeometryChunksForTest(
-  entries: readonly (readonly [LocalDependencyRef, ArrayLike<number>])[]
-): TraceLayoutDependencyGeometryChunk[] {
-  return buildTraceLayoutGeometryChunksForTest(
-    entries,
-    getLocalDependencyRefProcessIndex,
-    getLocalDependencyRefRowIndex
-  );
-}
-
-/** Builds cross-dependency geometry chunks for tests from exact encoded dependency refs. */
-export function buildTraceLayoutCrossDependencyGeometryChunksForTest(
-  entries: readonly (readonly [CrossDependencyRef, ArrayLike<number>])[]
-): TraceLayoutDependencyGeometryChunk[] {
-  return buildTraceLayoutGeometryChunksForTest(
-    entries,
-    getCrossDependencyRefChunkIndex,
-    getCrossDependencyRefRowIndex
-  );
-}
-
-/** Builds sparse geometry chunks by writing each encoded ref into its row-aligned slot. */
-function buildTraceLayoutGeometryChunksForTest<
-  Ref extends number,
-  Chunk extends TraceLayoutGeometryColumn
->(
-  entries: readonly (readonly [Ref, ArrayLike<number>])[],
-  getChunkIndex: (ref: Ref) => number,
-  getRowIndex: (ref: Ref) => number
-): Chunk[] {
-  const chunks: Chunk[] = [];
-  for (const [ref, geometry] of entries) {
-    writeTraceLayoutGeometryRowForTest(
-      getOrCreateTraceLayoutGeometryChunkForTest(chunks, getChunkIndex(ref), getRowIndex(ref) + 1),
-      getRowIndex(ref),
-      geometry
-    );
-  }
-  return chunks;
-}
-
-/** Returns copied base chunks plus additional geometry rows for mutation-free test setup. */
-function mergeTraceLayoutGeometryChunksForTest<
-  Ref extends number,
-  Chunk extends TraceLayoutGeometryColumn
->(
-  baseChunks: readonly Chunk[] | undefined,
-  entries: readonly (readonly [Ref, ArrayLike<number>])[],
-  getChunkIndex: (ref: Ref) => number,
-  getRowIndex: (ref: Ref) => number
-): Chunk[] {
-  const chunks: Chunk[] = [];
-  for (const [chunkIndex, chunk] of (baseChunks ?? []).entries()) {
-    if (!chunk) {
-      continue;
-    }
-    const copy = createTraceLayoutGeometryColumn(chunk.table.numRows) as Chunk;
-    copy.values.set(chunk.values);
-    chunks[chunkIndex] = copy;
-  }
-  for (const [ref, geometry] of entries) {
-    writeTraceLayoutGeometryRowForTest(
-      getOrCreateTraceLayoutGeometryChunkForTest(chunks, getChunkIndex(ref), getRowIndex(ref) + 1),
-      getRowIndex(ref),
-      geometry
-    );
-  }
-  return chunks;
-}
-
-/** Returns a sparse geometry chunk with at least the requested number of rows. */
-function getOrCreateTraceLayoutGeometryChunkForTest<Chunk extends TraceLayoutGeometryColumn>(
-  chunks: Chunk[],
-  chunkIndex: number,
-  rowCount: number
-): Chunk {
-  const existing = chunks[chunkIndex];
-  if (existing && existing.table.numRows >= rowCount) {
-    return existing;
-  }
-  const nextChunk = createTraceLayoutGeometryColumn(rowCount) as Chunk;
-  if (existing) {
-    nextChunk.values.set(existing.values);
-  }
-  chunks[chunkIndex] = nextChunk;
-  return nextChunk;
-}
-
-/** Writes one four-number geometry row into a test geometry chunk. */
-function writeTraceLayoutGeometryRowForTest(
-  chunk: TraceLayoutGeometryColumn,
-  rowIndex: number,
-  geometry: ArrayLike<number>
-): void {
-  const offset = rowIndex * 4;
-  chunk.values[offset] = geometry[0] ?? 0;
-  chunk.values[offset + 1] = geometry[1] ?? 0;
-  chunk.values[offset + 2] = geometry[2] ?? 0;
-  chunk.values[offset + 3] = geometry[3] ?? 0;
-}
-
 /** Returns the exact runtime span ref for a source test block. */
 export function getRequiredSpanRef(traceGraph: TraceGraph, block: TraceGraphBlockLike): SpanRef {
   const processId = traceGraph.threadMap[block.threadId]?.processId;
@@ -182,6 +45,43 @@ export function getRequiredSpanRef(traceGraph: TraceGraph, block: TraceGraphBloc
     throw new Error(`Expected span ref for block ${block.spanId}`);
   }
   return spanRef;
+}
+
+/** Returns the unique visible local dependency ref for a fixture dependency id. */
+export function getRequiredVisibleLocalDependencyRefById(
+  traceGraph: TraceGraph,
+  dependencyId: TraceDependencyId
+): VisibleLocalDependencyRef {
+  const dependencyRefs = traceGraph
+    .getVisibleProcessRefs()
+    .flatMap(processRef => traceGraph.getVisibleLocalDependencyRefs(processRef))
+    .filter(
+      dependencyRef => traceGraph.getVisibleDependencyIdByRef(dependencyRef) === dependencyId
+    );
+  if (dependencyRefs.length !== 1) {
+    throw new Error(
+      `Expected one visible local dependency ref for ${dependencyId}, found ${dependencyRefs.length}`
+    );
+  }
+  return dependencyRefs[0]!;
+}
+
+/** Returns the unique visible cross dependency ref for a fixture dependency id. */
+export function getRequiredVisibleCrossDependencyRefById(
+  traceGraph: TraceGraph,
+  dependencyId: TraceDependencyId
+): VisibleCrossDependencyRef {
+  const dependencyRefs = traceGraph
+    .getVisibleCrossDependencyRefs()
+    .filter(
+      dependencyRef => traceGraph.getVisibleDependencyIdByRef(dependencyRef) === dependencyId
+    );
+  if (dependencyRefs.length !== 1) {
+    throw new Error(
+      `Expected one visible cross dependency ref for ${dependencyId}, found ${dependencyRefs.length}`
+    );
+  }
+  return dependencyRefs[0]!;
 }
 
 /** Returns the exact runtime span ref for a known test block id. */
@@ -281,8 +181,9 @@ export function getTraceGraphSpanDependencies(
   block: TraceGraphBlockLike
 ): TraceGraphBlockDependencySnapshot {
   const projection = traceGraph.getProjection();
-  const inDependencies = projection.inDependenciesBySpanId[block.spanId] ?? [];
-  const outDependencies = projection.outDependenciesBySpanId[block.spanId] ?? [];
+  const spanRef = getRequiredSpanRef(traceGraph, block);
+  const inDependencies = projection.inDependenciesBySpanRef.get(spanRef) ?? [];
+  const outDependencies = projection.outDependenciesBySpanRef.get(spanRef) ?? [];
   const dependencies = dedupeDependenciesById([...inDependencies, ...outDependencies]);
 
   return {

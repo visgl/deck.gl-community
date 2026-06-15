@@ -91,6 +91,8 @@ type TraceGraphVisibleDependencyAccessorSource = TraceGraphDependencyAccessorSou
   ): boolean | null;
   /** Returns the wait duration for one dependency ref. */
   getDependencyWaitTimeMs(dependencyRef: LocalDependencyRef | CrossDependencyRef): number | null;
+  /** Returns whether one dependency ref should route as a parent-child edge. */
+  getDependencyIsParent(dependencyRef: LocalDependencyRef | CrossDependencyRef): boolean;
   /** Returns keywords for one dependency ref. */
   getDependencyKeywords(
     dependencyRef: LocalDependencyRef | CrossDependencyRef
@@ -226,6 +228,20 @@ export function getTraceGraphDependencyWaitTimeMs(
   dependencyRef: LocalDependencyRef | CrossDependencyRef
 ): number | null {
   return getDependencyNumberField(graph, dependencyRef, 'waitTimeMs');
+}
+
+/** Returns whether one local or cross dependency row should route as a parent-child edge. */
+export function getTraceGraphDependencyIsParent(
+  graph: TraceGraphDependencyAccessorSource,
+  dependencyRef: LocalDependencyRef | CrossDependencyRef
+): boolean {
+  const hasParentKeyword = getDependencyBooleanField(graph, dependencyRef, 'hasParentKeyword');
+  if (hasParentKeyword === true) {
+    return true;
+  }
+  return isCrossDependencyRef(dependencyRef)
+    ? getTraceGraphCrossDependencyTopology(graph, dependencyRef) === 'parent'
+    : false;
 }
 
 /** Returns dependency keywords for one local or cross dependency ref. */
@@ -382,7 +398,7 @@ function getDependencyStringField(
 function getDependencyBooleanField(
   graph: TraceGraphDependencyAccessorSource,
   dependencyRef: LocalDependencyRef | CrossDependencyRef,
-  fieldName: 'bidirectional' | 'waiting' | 'waitNotFinished'
+  fieldName: 'bidirectional' | 'hasParentKeyword' | 'waiting' | 'waitNotFinished'
 ): boolean | null {
   if (isLocalDependencyRef(dependencyRef)) {
     if (fieldName === 'waiting' || fieldName === 'waitNotFinished') {
@@ -652,6 +668,20 @@ export function getTraceGraphVisibleDependencyWaitTimeMs(
     getSourceRefByRef,
     getOverrideSpec
   ) as number | null;
+}
+
+/** Returns whether one visible dependency should route as a parent-child edge. */
+export function getTraceGraphVisibleDependencyIsParent(
+  graph: TraceGraphVisibleDependencyAccessorSource,
+  dependencyRef: TraceDependencyRef | VisibleDependencyRef,
+  getSourceRefByRef: GetVisibleDependencySourceRefByRef,
+  getOverrideSpec: GetVisibleDependencyOverrideSpec
+): boolean {
+  const sourceRef = getDirectOrVisibleDependencySourceRef(graph, dependencyRef, getSourceRefByRef);
+  if (sourceRef) {
+    return graph.getDependencyIsParent(sourceRef);
+  }
+  return getVisibleDependencyParentOverride(graph, dependencyRef, getOverrideSpec) != null;
 }
 
 /** Returns keyword labels for one visible dependency ref without materializing it. */

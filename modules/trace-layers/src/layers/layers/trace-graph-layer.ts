@@ -1,14 +1,16 @@
 import {CompositeLayer} from '@deck.gl/core';
 
 import {
-  buildTraceViewRenderInputs,
-  buildTraceViewState,
   cloneTraceLayoutCollapseStateForGraphs,
   createEmptyTraceGraphCollapseState,
   createTraceComparisonModelMatrix,
   DEFAULT_TRACE_COLOR_SCHEME,
   DEFAULT_TRACE_FONT_FAMILY
 } from '../../trace/index';
+import {
+  buildTraceViewRenderInputs,
+  buildTraceViewState
+} from '../../trace/trace-view-state/trace-view-state';
 import {TracePreparedStateLayer} from './trace-prepared-state-layer';
 
 import type {
@@ -19,7 +21,6 @@ import type {
   TraceProcessActivityAggregation,
   TraceGraph,
   TraceThreadId,
-  TraceViewState,
   TraceVisSettings,
   VisibleCrossDependencyRef,
   VisibleLocalDependencyRef
@@ -27,6 +28,7 @@ import type {
 import type {CompositeLayerProps, Layer, LayerProps, UpdateParameters} from '@deck.gl/core';
 import type {Matrix4} from '@math.gl/core';
 import type {ThreadLaneMetadata} from '../../trace/index';
+import type {TraceViewState} from '../../trace/trace-view-state/trace-view-state';
 import type {TraceDeckLayerHandlers, TraceDeckLayerSelection} from './deck-layers';
 import type {TracePreparedStateLayerPathHighlighting} from './trace-prepared-state-layer';
 

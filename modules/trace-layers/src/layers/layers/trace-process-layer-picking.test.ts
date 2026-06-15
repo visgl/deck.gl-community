@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {encodeSpanRef, encodeVisibleLocalDependencyRef} from '../../trace/index';
+import {encodeProcessRef, encodeSpanRef, encodeVisibleLocalDependencyRef} from '../../trace/index';
 import {TraceProcessLayer} from './trace-process-layer';
 
 import type {
@@ -9,6 +9,7 @@ import type {
   TraceDeckBinaryDependencyLineData,
   TraceLayout,
   TraceLocalDependency,
+  TraceLocalDependencyRenderSource,
   TraceSpanId,
   TraceVisSettings,
   VisibleLocalDependencyRef
@@ -31,7 +32,7 @@ describe('TraceProcessLayer picking diagnostics', () => {
     const layer = createProcessLayer({
       id: 'picking-missing-dependency',
       traceLayout: createTraceLayout({
-        getVisibleDependencySourceByRef: () => null,
+        getVisibleDependencyRenderSourceByRef: () => null,
         getVisibleDependencyIdByRef: () =>
           'missing-dependency' as TraceLocalDependency['dependencyId'],
         getVisibleDependencyStartSpan: () => startSpanRef,
@@ -71,7 +72,7 @@ describe('TraceProcessLayer picking diagnostics', () => {
     const layer = createProcessLayer({
       id: 'picking-missing-span',
       traceLayout: createTraceLayout({
-        getSpanDisplaySource: () => null,
+        getSpanRenderSource: () => null,
         getSpanBlockId: () => 'missing-span' as TraceSpanId,
         getSpanName: () => 'missing span'
       }),
@@ -98,6 +99,44 @@ describe('TraceProcessLayer picking diagnostics', () => {
         processId: 'process-1'
       })
     );
+  });
+
+  it('returns lightweight dependency pick payloads without descriptive dependency materialization', () => {
+    const dependencyRef = encodeVisibleLocalDependencyRef(321) as VisibleLocalDependencyRef;
+    const dependency = {
+      type: 'trace-local-dependency',
+      dependencyRef,
+      processRef: encodeProcessRef(1),
+      startSpanRef: encodeSpanRef(1, 2),
+      endSpanRef: encodeSpanRef(1, 3),
+      waitMode: 'end-to-start',
+      bidirectional: false,
+      waitTimeMs: 4,
+      isParent: false
+    } satisfies TraceLocalDependencyRenderSource;
+    const getVisibleDependencySourceByRef = vi.fn(() => {
+      throw new Error('Descriptive dependency materialization should stay out of picking');
+    });
+    const layer = createProcessLayer({
+      id: 'picking-lightweight-dependency',
+      traceLayout: createTraceLayout({
+        getVisibleDependencyRenderSourceByRef: () => dependency,
+        getVisibleDependencySourceByRef
+      }),
+      binaryDependencyLineData: {
+        data: {length: 1, attributes: {}},
+        dependencyRefs: [dependencyRef]
+      } as TraceDeckBinaryDependencyLineData
+    });
+
+    const pickingInfo = layer.getPickingInfo({
+      info: {object: null, index: 0},
+      mode: 'hover',
+      sourceLayer: {id: 'picking-lightweight-dependency-dependency-lines'}
+    } as never);
+
+    expect(pickingInfo.object).toEqual(dependency);
+    expect(getVisibleDependencySourceByRef).not.toHaveBeenCalled();
   });
 });
 
@@ -138,9 +177,11 @@ function createTraceLayout(
 ): TraceLayout {
   const traceGraph: TraceProcessPickingTraceGraph = {
     getSpanDisplaySource: () => null,
+    getSpanRenderSource: () => null,
     getSpanBlockId: () => null,
     getSpanName: () => null,
     getVisibleDependencySourceByRef: () => null,
+    getVisibleDependencyRenderSourceByRef: () => null,
     getVisibleDependencyIdByRef: () => null,
     getVisibleDependencyStartSpan: () => null,
     getVisibleDependencyEndSpan: () => null,
@@ -158,12 +199,16 @@ function createTraceLayout(
 type TraceProcessPickingTraceGraph = {
   /** Resolves a visible span source for tooltip rendering. */
   readonly getSpanDisplaySource: TraceLayout['traceGraph']['getSpanDisplaySource'];
+  /** Resolves a visible span source for render and selection paths. */
+  readonly getSpanRenderSource: TraceLayout['traceGraph']['getSpanRenderSource'];
   /** Resolves a span source id for diagnostics. */
   readonly getSpanBlockId: TraceLayout['traceGraph']['getSpanBlockId'];
   /** Resolves a span name for diagnostics. */
   readonly getSpanName: TraceLayout['traceGraph']['getSpanName'];
   /** Resolves a visible dependency source for tooltip rendering. */
   readonly getVisibleDependencySourceByRef: TraceLayout['traceGraph']['getVisibleDependencySourceByRef'];
+  /** Resolves a visible dependency source for render and selection paths. */
+  readonly getVisibleDependencyRenderSourceByRef: TraceLayout['traceGraph']['getVisibleDependencyRenderSourceByRef'];
   /** Resolves a dependency id for diagnostics. */
   readonly getVisibleDependencyIdByRef: TraceLayout['traceGraph']['getVisibleDependencyIdByRef'];
   /** Resolves a dependency source span ref for diagnostics. */

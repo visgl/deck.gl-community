@@ -1,10 +1,10 @@
 import {getSearchParentChildDependencies} from './trace-graph-runtime-helpers';
 
 import type {ArrowTraceProcessMetadata, TraceProcessSpanRefTable} from '../ingestion/arrow-trace';
-import type {TraceProcessSource} from '../trace-graph-accessors';
+import type {TraceProcessSource, TraceThreadSource} from '../trace-graph-accessors';
 import type {TraceGraph} from './trace-graph';
 import type {TraceGraphVisibleSpanSearchRecord} from './trace-graph-types';
-import type {ProcessRef} from './trace-id-encoder';
+import type {ProcessRef, ThreadRef} from './trace-id-encoder';
 import type {
   SpanRef,
   TraceProcessId,
@@ -21,6 +21,10 @@ type TraceGraphSearchSource = {
   readonly processSpanTableMap: Readonly<Record<TraceProcessId, TraceProcessSpanRefTable>>;
   /** Returns process display metadata for a process ref. */
   getProcessSourceByRef(processRef: ProcessRef): TraceProcessSource | null;
+  /** Returns the exact owning thread ref for one span ref. */
+  getThreadRefBySpanRef(spanRef: SpanRef): ThreadRef | null;
+  /** Returns thread display metadata for one thread ref. */
+  getThreadSourceByRef(threadRef: ThreadRef): TraceThreadSource | null;
   /** Returns the span display name for one span ref. */
   getSpanName(spanRef: SpanRef): string | null;
   /** Returns the external span id for one span ref. */
@@ -130,9 +134,6 @@ export function searchTraceGraphBlockRecordsWithOptions<
 
     const processSource = graph.getProcessSourceByRef(processRef);
     const processName = processSource?.name ?? String(processRef);
-    const rawProcess =
-      graph.processes.find(process => process.processId === typedProcessId) ?? null;
-    const threadMap = rawProcess?.threadMap ?? {};
     const rowIndexes = params.getRowIndexes?.(typedProcessId, spanTable) ?? spanTable.numRows;
 
     const visitRow = (rowIndex: number): boolean => {
@@ -174,7 +175,10 @@ export function searchTraceGraphBlockRecordsWithOptions<
         return true;
       }
 
-      const threadName = threadMap[threadId]?.name ?? String(threadId);
+      const threadRef = graph.getThreadRefBySpanRef(spanRef);
+      const threadName =
+        (threadRef == null ? null : graph.getThreadSourceByRef(threadRef)?.name) ??
+        String(threadId);
       const primaryTiming = {
         status,
         startTimeMs,
