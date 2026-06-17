@@ -23,9 +23,7 @@ import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {
   cartesianCoordinateSystem,
   CartesianCoordinateSystem,
-  EditModeCoordinateSystem,
-  geoCoordinateSystem,
-  GeoCoordinateSystem
+  EditModeCoordinateSystem
 } from './coordinate-system';
 import {polygonEdgesIntersect, polygonWithinPolygon} from './cartesian-utils';
 

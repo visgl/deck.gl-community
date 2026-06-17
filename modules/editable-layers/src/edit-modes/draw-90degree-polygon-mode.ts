@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import destination from '@turf/destination';
-import bearing from '@turf/bearing';
-import lineIntersect from '@turf/line-intersect';
+import turfDestination from '@turf/destination';
+import turfBearing from '@turf/bearing';
+import turfLineIntersect from '@turf/line-intersect';
 import turfDistance from '@turf/distance';
 import {point, lineString as turfLineString} from '@turf/helpers';
 import {
@@ -189,14 +189,14 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
     let pt: Position | null = null;
     if (coordinates.length > 4) {
       const [p1, p2] = [...coordinates];
-      const angle1 = bearing(p1, p2);
+      const angle1 = turfBearing(p1, p2);
       const p3 = coordinates[coordinates.length - 3];
       const p4 = coordinates[coordinates.length - 4];
-      const angle2 = bearing(p3, p4);
+      const angle2 = turfBearing(p3, p4);
 
       const angles = {first: [] as number[], second: [] as number[]};
       // calculate 3 right angle points for first and last points in lineString
-      [1, 2, 3].forEach((factor) => {
+      [1, 2, 3].forEach(factor => {
         const newAngle1 = angle1 + factor * 90;
         // convert angles to 0 to -180 for anti-clock and 0 to 180 for clock wise
         angles.first.push(newAngle1 > 180 ? newAngle1 - 360 : newAngle1);
@@ -207,17 +207,17 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
       const distance = turfDistance(point(p1), point(p3));
       // Draw imaginary right angle lines for both first and last points in lineString
       // If there is intersection point for any 2 lines, will be the 90 degree point.
-      [0, 1, 2].forEach((indexFirst) => {
+      [0, 1, 2].forEach(indexFirst => {
         const line1 = turfLineString([
           p1,
-          destination(p1, distance, angles.first[indexFirst]).geometry.coordinates
+          turfDestination(p1, distance, angles.first[indexFirst]).geometry.coordinates
         ]);
-        [0, 1, 2].forEach((indexSecond) => {
+        [0, 1, 2].forEach(indexSecond => {
           const line2 = turfLineString([
             p3,
-            destination(p3, distance, angles.second[indexSecond]).geometry.coordinates
+            turfDestination(p3, distance, angles.second[indexSecond]).geometry.coordinates
           ]);
-          const fc = lineIntersect(line1, line2);
+          const fc = turfLineIntersect(line1, line2);
           if (fc && fc.features.length) {
             // found the intersect point
             pt = fc.features[0].geometry.coordinates;

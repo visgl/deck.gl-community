@@ -24,7 +24,7 @@ export function mountGeoArrowMultiPolygonExample(container: HTMLElement): () => 
     dataUrl: GEOARROW_POLYGON_DATA,
     initialViewState: INITIAL_VIEW_STATE,
     onClick: handleClick,
-    getLayers: (table) => [
+    getLayers: table => [
       new GeoArrowSolidPolygonLayer({
         id: 'geoarrow-polygons',
         data: table,

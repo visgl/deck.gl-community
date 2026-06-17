@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies, import/named */
 import {describe, expect, test, vi} from 'vitest';
+import {log} from '@deck.gl/core';
 import {BasemapLayer, getBasemapLayers} from '../src/index.ts';
 import {
   BasemapStyleSchema,
@@ -104,7 +105,7 @@ describe('BasemapLayer', () => {
     let resolveParse;
     const parseSpy = vi.spyOn(MapStyleLoader, 'parse').mockImplementation(
       () =>
-        new Promise((resolve) => {
+        new Promise(resolve => {
           resolveParse = resolve;
         })
     );
@@ -211,6 +212,59 @@ describe('resolveBasemapStyle', () => {
     expect(resolved.sources.carto.minzoom).toBe(1);
   });
 
+  test('dereferences legacy ref layers before validating resolved styles', async () => {
+    const style = {
+      version: 8,
+      sources: {
+        carto: {
+          type: 'vector',
+          tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']
+        }
+      },
+      layers: [
+        {
+          id: 'roads',
+          type: 'line',
+          source: 'carto',
+          'source-layer': 'transportation',
+          filter: ['==', 'class', 'major'],
+          layout: {visibility: 'visible'},
+          paint: {'line-color': '#111827'}
+        },
+        {
+          id: 'roads-casing',
+          ref: 'roads',
+          paint: {'line-color': '#f8fafc'}
+        }
+      ]
+    };
+
+    const resolved = await resolveBasemapStyle(style);
+
+    expect(resolved.layers[1]).toEqual(
+      expect.objectContaining({
+        id: 'roads-casing',
+        type: 'line',
+        source: 'carto',
+        'source-layer': 'transportation',
+        filter: ['==', 'class', 'major'],
+        layout: {visibility: 'visible'},
+        paint: {'line-color': '#f8fafc'}
+      })
+    );
+    expect(resolved.layers[1]).not.toHaveProperty('ref');
+  });
+
+  test('rejects layers without a concrete type or legacy ref', () => {
+    expect(() =>
+      BasemapStyleSchema.parse({
+        version: 8,
+        sources: {},
+        layers: [{id: 'invalid-layer'}]
+      })
+    ).toThrow(/Style layers must define either/);
+  });
+
   test('MapStyleLoader parses and resolves a style document', async () => {
     const style = {
       version: 8,
@@ -279,9 +333,9 @@ describe('getBasemapLayers', () => {
       }
     });
 
-    expect(layers.map((layer) => layer.id)).toContain('test-background');
-    expect(layers.map((layer) => layer.id)).toContain('test-carto');
-    expect(layers.map((layer) => layer.id)).toContain('test-background-north-pole');
+    expect(layers.map(layer => layer.id)).toContain('test-background');
+    expect(layers.map(layer => layer.id)).toContain('test-carto');
+    expect(layers.map(layer => layer.id)).toContain('test-background-north-pole');
   });
 
   test('converts style alpha values into deck color alpha values', () => {
@@ -342,7 +396,7 @@ describe('getBasemapLayers', () => {
       }
     });
 
-    const vectorLayer = layers.find((layer) => layer.id === 'zoom-gate-carto');
+    const vectorLayer = layers.find(layer => layer.id === 'zoom-gate-carto');
     const sublayers = vectorLayer.props.renderSubLayers({
       id: 'zoom-gate-carto-tile',
       data: [
@@ -355,6 +409,59 @@ describe('getBasemapLayers', () => {
       tile: {index: {x: 0, y: 0, z: 5}}
     });
 
-    expect(sublayers.map((layer) => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
+    expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
+  });
+
+  test('keeps expected vector style misses behind probe logging', () => {
+    const infoSpy = vi.spyOn(log, 'info');
+    const probeSpy = vi.spyOn(log, 'probe');
+
+    try {
+      const layers = getBasemapLayers({
+        idPrefix: 'style-miss',
+        mode: 'globe',
+        styleDefinition: {
+          version: 8,
+          sources: {
+            carto: {
+              type: 'vector',
+              tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']
+            }
+          },
+          layers: [
+            {
+              id: 'water',
+              type: 'fill',
+              source: 'carto',
+              'source-layer': 'water',
+              paint: {'fill-color': '#224466'}
+            }
+          ]
+        }
+      });
+
+      const vectorLayer = layers.find(layer => layer.id === 'style-miss-carto');
+      vectorLayer.props.renderSubLayers({
+        id: 'style-miss-carto-tile',
+        data: [
+          {
+            type: 'Feature',
+            geometry: {type: 'Polygon', coordinates: []},
+            properties: {layerName: 'landuse'}
+          }
+        ],
+        tile: {index: {x: 0, y: 0, z: 0}}
+      });
+
+      expect(infoSpy).not.toHaveBeenCalled();
+      expect(probeSpy).toHaveBeenCalledWith(
+        1,
+        '[BasemapLayer] Vector tile rendered no matching features',
+        expect.objectContaining({sourceId: 'carto', layerId: 'water'})
+      );
+    } finally {
+      infoSpy.mockRestore();
+      probeSpy.mockRestore();
+    }
   });
 });

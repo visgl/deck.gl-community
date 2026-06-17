@@ -56,8 +56,8 @@ type _SkyboxLayerProps = {
   loadOptions?: TextureCubeLoaderOptions | null;
   /**
    * Declares how the cubemap faces are oriented relative to deck.gl's Z-up
-   * world. Use `y-up` for cubemaps authored for Y-up scenes, such as the
-   * Tycho star map faces from the luma.gl globe showcase.
+   * world. Use `y-up` for cubemaps authored for Y-up scenes where the source
+   * `+Y` face should align with deck.gl's vertical `+Z` axis.
    */
   orientation?: 'default' | 'y-up';
 };
@@ -269,7 +269,7 @@ function getSkyboxModelMatrix(orientation: 'default' | 'y-up' = 'default'): Matr
 function createShaderInputModules(defaultShaderModules: ShaderModule[]): {
   [moduleName: string]: ShaderModule;
 } {
-  return Object.fromEntries([app, ...defaultShaderModules].map((module) => [module.name, module]));
+  return Object.fromEntries([app, ...defaultShaderModules].map(module => [module.name, module]));
 }
 
 const SKYBOX_WGSL = /* wgsl */ `

@@ -16,10 +16,6 @@ export default defineConfig(async () => {
       alias: {
         ...aliases,
         '@deck.gl-community/timeline-layers': join(rootDir, './dev/timeline-layers/src'),
-        '@deck.gl': join(rootDir, './node_modules/@deck.gl'),
-        '@luma.gl': join(rootDir, './node_modules/@luma.gl'),
-        '@math.gl': join(rootDir, './node_modules/@math.gl'),
-        '@loaders.gl': join(rootDir, './node_modules/@loaders.gl'),
         'react': join(rootDir, './node_modules/react'),
         'react-dom': join(rootDir, './node_modules/react-dom'),
       }

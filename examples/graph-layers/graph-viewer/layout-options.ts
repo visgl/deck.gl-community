@@ -157,7 +157,10 @@ const FORCE_MULTI_GRAPH_KEYS = Object.keys(
 
 export const RADIAL_LAYOUT_PROP_DESCRIPTIONS = {
   radius: {type: 'number', title: 'Radius', min: 0}
-} as const satisfies Record<keyof RadialLayoutFormState, NumberPropDescription<RadialLayoutFormState>>;
+} as const satisfies Record<
+  keyof RadialLayoutFormState,
+  NumberPropDescription<RadialLayoutFormState>
+>;
 
 export const HIVE_PLOT_PROP_DESCRIPTIONS = {
   innerRadius: {
@@ -171,7 +174,10 @@ export const HIVE_PLOT_PROP_DESCRIPTIONS = {
     title: 'Outer radius',
     min: (values: HivePlotLayoutFormState) => values.innerRadius
   }
-} as const satisfies Record<keyof HivePlotLayoutFormState, NumberPropDescription<HivePlotLayoutFormState>>;
+} as const satisfies Record<
+  keyof HivePlotLayoutFormState,
+  NumberPropDescription<HivePlotLayoutFormState>
+>;
 
 export type DagNodeRankOption = 'none' | 'rank';
 
@@ -290,8 +296,7 @@ export function mapForceLayoutFormStateToOptions(
 
 export function createForceMultiGraphFormState(
   options?: Record<string, unknown>,
-  defaults: Record<ForceMultiGraphLayoutNumericKey, number> =
-    FORCE_MULTI_GRAPH_DEFAULT_OPTIONS
+  defaults: Record<ForceMultiGraphLayoutNumericKey, number> = FORCE_MULTI_GRAPH_DEFAULT_OPTIONS
 ): ForceMultiGraphLayoutFormState {
   return FORCE_MULTI_GRAPH_KEYS.reduce<ForceMultiGraphLayoutFormState>((state, key) => {
     state[key] = NUMBER_FALLBACK(options?.[key], defaults[key]);
@@ -369,14 +374,14 @@ export function createDagFormState(options?: Record<string, unknown>): DagLayout
     typeof center === 'boolean'
       ? center
       : typeof center === 'object' && center !== null && 'x' in center
-      ? Boolean((center as {x?: boolean}).x)
-      : true;
+        ? Boolean((center as {x?: boolean}).x)
+        : true;
   const centerY =
     typeof center === 'boolean'
       ? center
       : typeof center === 'object' && center !== null && 'y' in center
-      ? Boolean((center as {y?: boolean}).y)
-      : true;
+        ? Boolean((center as {y?: boolean}).y)
+        : true;
 
   const nodeSize = normalizeTuple(merged.nodeSize, DAG_DEFAULT_OPTIONS.nodeSize);
   const gap = normalizeTuple(merged.gap, DAG_DEFAULT_OPTIONS.gap);
@@ -387,18 +392,17 @@ export function createDagFormState(options?: Record<string, unknown>): DagLayout
     layout: (merged.layout ?? DAG_DEFAULT_OPTIONS.layout) as DagLayoutFormState['layout'],
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     layering: (merged.layering ?? DAG_DEFAULT_OPTIONS.layering) as DagLayoutFormState['layering'],
-    nodeRank:
-      typeof merged.nodeRank === 'string' && merged.nodeRank === 'rank'
-        ? 'rank'
-        : 'none',
+    nodeRank: typeof merged.nodeRank === 'string' && merged.nodeRank === 'rank' ? 'rank' : 'none',
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     decross: (merged.decross ?? DAG_DEFAULT_OPTIONS.decross) as DagLayoutFormState['decross'],
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     coord: (merged.coord ?? DAG_DEFAULT_OPTIONS.coord) as DagLayoutFormState['coord'],
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    orientation: (merged.orientation ?? DAG_DEFAULT_OPTIONS.orientation) as DagLayoutFormState['orientation'],
+    orientation: (merged.orientation ??
+      DAG_DEFAULT_OPTIONS.orientation) as DagLayoutFormState['orientation'],
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    dagBuilder: (merged.dagBuilder ?? DAG_DEFAULT_OPTIONS.dagBuilder) as DagLayoutFormState['dagBuilder'],
+    dagBuilder: (merged.dagBuilder ??
+      DAG_DEFAULT_OPTIONS.dagBuilder) as DagLayoutFormState['dagBuilder'],
     centerX,
     centerY,
     nodeWidth: nodeSize[0],

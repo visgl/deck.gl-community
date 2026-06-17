@@ -44,7 +44,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     this._graph = graph;
 
     this._positionsByNodeId = new Map(
-      Array.from(this._graph.getNodes(), (node) => {
+      Array.from(this._graph.getNodes(), node => {
         const id = node.getId();
         return [id, this._positionsByNodeId.get(id)];
       })
@@ -80,14 +80,14 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     delete options.onLayoutError;
 
     this._worker.postMessage({
-      nodes: Array.from(this._graph.getNodes(), (node) => {
+      nodes: Array.from(this._graph.getNodes(), node => {
         const id = node.getId();
         return {
           id,
           ...this._positionsByNodeId.get(id)
         };
       }),
-      edges: Array.from(this._graph.getEdges(), (edge) => ({
+      edges: Array.from(this._graph.getEdges(), edge => ({
         id: edge.getId(),
         source: edge.getSourceNodeId(),
         target: edge.getTargetNodeId()
@@ -95,7 +95,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       options
     });
 
-    this._worker.onmessage = (event) => {
+    this._worker.onmessage = event => {
       log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
       if (event.data.type !== 'end') {
         return;
@@ -192,7 +192,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   protected override _updateBounds(): void {
     const positions = Array.from(
       this._positionsByNodeId.values(),
-      (data) => data?.coordinates as [number, number] | null | undefined
+      data => data?.coordinates as [number, number] | null | undefined
     );
     this._bounds = this._calculateBounds(positions);
   }

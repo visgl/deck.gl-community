@@ -48,7 +48,7 @@ export class SnappableMode extends GeoJsonEditMode {
 
   _getPickedSnapTarget(picks: Pick[]): EditHandleFeature | null | undefined {
     return getPickedEditHandles(picks).find(
-      (handle) => handle.properties.editHandleType === 'snap-target'
+      handle => handle.properties.editHandleType === 'snap-target'
     );
   }
 

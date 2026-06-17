@@ -9,12 +9,8 @@ import {
   EditableGeoJsonLayer,
   SelectionLayer
 } from '@deck.gl-community/editable-layers';
-import {
-  BoxWidget,
-  ColumnPanel,
-  CustomPanel,
-  MarkdownPanel
-} from '@deck.gl-community/widgets';
+import {ColumnPanel, CustomPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
@@ -95,7 +91,7 @@ export function mountSfExample(container: HTMLElement): () => void {
     selectionType: null
   };
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'sf-polygons-info',
     placement: 'top-left',
     widthPx: 320,
@@ -180,7 +176,7 @@ export function mountSfExample(container: HTMLElement): () => void {
         selectedFeatureIndexes: state.selectedFeatureIndexes,
         allowEdit: state.allowEdit,
         selectionType: state.selectionType,
-        onSetSelectionType: (nextSelectionType) => {
+        onSetSelectionType: nextSelectionType => {
           state.selectionType = nextSelectionType;
           syncOverlay();
           syncInfoWidget();
@@ -224,7 +220,7 @@ function buildLayers(
       id: 'selection',
       selectionType: state.selectionType,
       onSelect: ({pickingInfos}) => {
-        onSelect(pickingInfos.map((pickingInfo) => pickingInfo.index));
+        onSelect(pickingInfos.map(pickingInfo => pickingInfo.index));
       },
       layerIds: ['geojson'],
       getTentativeFillColor: () => [255, 0, 255, 100],
@@ -253,8 +249,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'sf-polygons-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -267,20 +263,17 @@ function buildInfoPanel({
           `- Editing: **${allowEdit ? 'enabled' : 'disabled'}**`
         ].join('\n')
       }),
-      actions: new CustomPanel({
+      new CustomPanel({
         id: 'actions',
         title: 'Selection',
-        onRenderHTML: (host) => {
+        onRenderHTML: host => {
           const ownerDocument = host.ownerDocument;
           const buttonGroup = ownerDocument.createElement('div');
 
           applyElementStyle(buttonGroup, BUTTON_GROUP_STYLE);
           buttonGroup.append(
-            createButton(
-              ownerDocument,
-              'Select by Rectangle',
-              selectionType === 'rectangle',
-              () => onSetSelectionType('rectangle')
+            createButton(ownerDocument, 'Select by Rectangle', selectionType === 'rectangle', () =>
+              onSetSelectionType('rectangle')
             ),
             createButton(ownerDocument, 'Select by Polygon', selectionType === 'polygon', () =>
               onSetSelectionType('polygon')
@@ -293,7 +286,7 @@ function buildInfoPanel({
           host.replaceChildren(buttonGroup);
         }
       })
-    }
+    ]
   });
 }
 
@@ -337,5 +330,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

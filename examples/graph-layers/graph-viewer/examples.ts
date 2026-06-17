@@ -71,7 +71,7 @@ const parseWitsMetadata = (value: string | undefined): Record<string, string> =>
 
   return value
     .split('`')
-    .map((entry) => entry.split('~'))
+    .map(entry => entry.split('~'))
     .reduce(
       (acc, [key, raw]) => {
         if (!key || !raw) {
@@ -89,7 +89,7 @@ const parseWitsMetadata = (value: string | undefined): Record<string, string> =>
     );
 };
 
-const WITS_BASE_NODES = (WITS_DATASET.nodes ?? []).map((node) => {
+const WITS_BASE_NODES = (WITS_DATASET.nodes ?? []).map(node => {
   const attributes = parseWitsMetadata(node.others);
   const region = attributes.RegionName ?? 'Other';
 
@@ -129,7 +129,7 @@ const WITS_GRAPH_DATA: ExampleGraphData = {
 
 const WITS_TREE = (WITS_DATASET.tree ?? []) as ReadonlyArray<RawWitsTreeNode>;
 
-const WITS_REGIONS = Array.from(new Set(WITS_BASE_NODES.map((node) => node.region ?? 'Other')));
+const WITS_REGIONS = Array.from(new Set(WITS_BASE_NODES.map(node => node.region ?? 'Other')));
 
 const WITS_REGION_COLORS = [
   '#1d4ed8',
@@ -179,7 +179,7 @@ const WITS_REGION_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: 'rgba(15, 23, 42, 0.2)',
-      strokeWidth: 0.4,
+      strokeWidth: 0.4
     }
   ]
 };
@@ -195,12 +195,12 @@ const GROUP_COLOR_MAP: Record<string, string> = {
 const DEFAULT_EDGE_COLOR = 'rgba(80, 80, 80, 0.3)';
 
 const cloneGraphData = (data: ExampleGraphData): ExampleGraphData => ({
-  nodes: data.nodes.map((node) => ({...node})),
-  edges: data.edges.map((edge) => ({...edge}))
+  nodes: data.nodes.map(node => ({...node})),
+  edges: data.edges.map(edge => ({...edge}))
 });
 
 const cloneTree = <T extends {id: string; children?: readonly string[]}>(tree: readonly T[]): T[] =>
-  tree.map((node) => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
+  tree.map(node => ({...node, children: node.children ? [...node.children] : undefined})) as T[];
 
 const LAYOUT_DESCRIPTIONS: Record<LayoutType, string> = {
   'd3-force-layout':
@@ -272,7 +272,7 @@ const LES_MISERABLES_STYLE: ExampleStyles = {
         default: 1,
         hover: 3,
         selected: 3.5
-      },
+      }
     }
   ]
 };
@@ -292,7 +292,7 @@ const RANDOM_20_40_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#bbf7d0',
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -312,7 +312,7 @@ const RANDOM_100_200_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#fde68a',
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -332,7 +332,7 @@ const RANDOM_1000_2000_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#c7d2fe',
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -352,7 +352,7 @@ const RANDOM_5000_3000_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#fed7aa',
-      strokeWidth: 0.8,
+      strokeWidth: 0.8
     }
   ]
 };
@@ -449,7 +449,7 @@ const LADDER_10_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#fbcfe8',
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -469,7 +469,7 @@ const BALANCED_BIN_TREE_5_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#bae6fd',
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -489,7 +489,7 @@ const BALANCED_BIN_TREE_8_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#a5f3fc',
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -509,7 +509,7 @@ const GRID_10_10_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#fef3c7',
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -529,7 +529,7 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#fecaca',
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -544,12 +544,16 @@ function isDotGraphLoaderResult(value: unknown): value is DotGraphLoaderResult {
     return false;
   }
 
-  return 'graph' in (value as DotGraphLoaderResult) && Boolean((value as DotGraphLoaderResult).graph);
+  return (
+    'graph' in (value as DotGraphLoaderResult) && Boolean((value as DotGraphLoaderResult).graph)
+  );
 }
 
 function isArrowGraphData(value: unknown): value is ArrowGraphData {
   const candidate = value as ArrowGraphData;
-  return Boolean(candidate && typeof candidate === 'object' && candidate.shape === 'arrow-graph-data');
+  return Boolean(
+    candidate && typeof candidate === 'object' && candidate.shape === 'arrow-graph-data'
+  );
 }
 
 const DOT_RESULT_GRAPH_LOADER = ({json}: {json: unknown}) => {
@@ -589,7 +593,7 @@ const DOT_UNDIRECTED_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: '#93c5fd',
-      strokeWidth: 1.2,
+      strokeWidth: 1.2
     }
   ]
 };
@@ -660,7 +664,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
     {
       type: 'edge',
       stroke: DEFAULT_EDGE_COLOR,
-      strokeWidth: 1,
+      strokeWidth: 1
     }
   ]
 };
@@ -715,7 +719,7 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
 };
 
 const dagPipelineDataset = () => {
-  const nodes = DAG_PIPELINE_DATA.map((entry) => ({...entry}));
+  const nodes = DAG_PIPELINE_DATA.map(entry => ({...entry}));
   const edges = [] as {id: string; sourceId: string; targetId: string; directed: boolean}[];
 
   for (const entry of DAG_PIPELINE_DATA) {
@@ -947,7 +951,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
     type: 'radial',
-    getLayoutOptions: (layout) =>
+    getLayoutOptions: layout =>
       layout === 'radial-layout'
         ? {
             radius: 520,
@@ -964,7 +968,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: KNOWLEDGE_GRAPH_STYLE,
     type: 'radial',
-    getLayoutOptions: (layout) =>
+    getLayoutOptions: layout =>
       layout === 'radial-layout'
         ? {
             radius: 380,
@@ -981,7 +985,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: KNOWLEDGE_GRAPH_STYLE,
     type: 'hive',
-    getLayoutOptions: (layout) =>
+    getLayoutOptions: layout =>
       layout === 'hive-plot-layout'
         ? {
             innerRadius: 60,
@@ -999,7 +1003,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
     type: 'hive',
-    getLayoutOptions: (layout) =>
+    getLayoutOptions: layout =>
       layout === 'hive-plot-layout'
         ? {
             innerRadius: 90,
@@ -1017,7 +1021,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: MULTI_GRAPH_STYLE,
     type: 'multi-graph',
-    getLayoutOptions: (layout) =>
+    getLayoutOptions: layout =>
       layout === 'force-multi-graph-layout'
         ? {
             nBodyStrength: -8000,
@@ -1035,7 +1039,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: WITS_REGION_STYLE,
     type: 'multi-graph',
-    getLayoutOptions: (layout) =>
+    getLayoutOptions: layout =>
       layout === 'force-multi-graph-layout'
         ? {
             alpha: 2.5,
@@ -1054,7 +1058,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['d3-dag-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: DAG_PIPELINE_STYLE,
-    getLayoutOptions: (layout) =>
+    getLayoutOptions: layout =>
       layout === 'd3-dag-layout'
         ? {
             layout: 'sugiyama',
@@ -1072,7 +1076,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     layouts: ['d3-dag-layout', 'gpu-force-layout', 'd3-force-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: ML_LINEAGE_STYLE,
-    getLayoutOptions: (layout) =>
+    getLayoutOptions: layout =>
       layout === 'd3-dag-layout'
         ? {
             layout: 'sugiyama',
@@ -1105,7 +1109,7 @@ export function filterExamplesByType(
     return examples;
   }
 
-  return examples.filter((example) => example.type === type);
+  return examples.filter(example => example.type === type);
 }
 
 export function getExamplesByType(type?: GraphExampleType): ExampleDefinition[] {

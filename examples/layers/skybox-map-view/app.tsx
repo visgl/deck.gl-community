@@ -11,9 +11,11 @@ const INITIAL_VIEW_STATE = {
   longitude: -122.4194,
   latitude: 37.7749,
   zoom: 14,
-  pitch: 84,
+  pitch: 89,
   bearing: 20
 };
+
+const MAX_PITCH = 89.9;
 
 type SkyboxMapViewExampleOptions = {
   showInfoOverlay?: boolean;
@@ -30,12 +32,12 @@ export function mountSkyboxMapViewExample(
 
   const deck = new Deck({
     parent: rootElement,
-    views: new MapView({repeat: true, maxPitch: 89}),
+    views: new MapView({repeat: true, maxPitch: MAX_PITCH}),
     initialViewState: INITIAL_VIEW_STATE,
     controller: {
       dragRotate: true,
       touchRotate: true,
-      maxPitch: 89
+      maxPitch: MAX_PITCH
     },
     parameters: {clearColor: [0, 0, 0, 1]},
     layers: [
@@ -85,7 +87,7 @@ function createOverlay(document: Document): HTMLDivElement {
   overlay.innerHTML = [
     '<strong style="display:block;margin-bottom:6px;font-size:13px;">SkyboxLayer MapView</strong>',
     'Tilt a standard <code>MapView</code> over a basemap while rendering the luma.gl sky cubemap behind the scene.',
-    '<br /><br />Use right-drag or two-finger drag to pitch and rotate up to 89°.'
+    '<br /><br />Use right-drag or two-finger drag to pitch and rotate up to 89.9°.'
   ].join('');
   return overlay;
 }

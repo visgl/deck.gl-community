@@ -13,7 +13,6 @@ import {
 } from '../../../src/utils/utils';
 import {nearestPointOnLine} from '../../../src/edit-modes/utils';
 import {Position} from '../../../src/utils/geojson-types';
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {CartesianCoordinateSystem} from '../../../src/edit-modes/coordinate-system';
 
 const Point = {
@@ -207,8 +206,8 @@ describe('nearestPointOnProjectedLine() and related functions', () => {
       }
     };
     const viewport = {
-      project: (x) => x,
-      unproject: (x) => x
+      project: x => x,
+      unproject: x => x
     };
     // @ts-expect-error TODO
     const result = nearestPointOnProjectedLine(line, inPoint, viewport);

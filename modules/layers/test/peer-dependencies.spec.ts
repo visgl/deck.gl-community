@@ -24,11 +24,11 @@ const SINGLETON_PATTERNS = [
 const TILDE_REQUIRED_PATTERNS = [/^@deck\.gl\//, /^@deck\.gl-community\//, /^@luma\.gl\//];
 
 function isSingleton(pkg: string): boolean {
-  return SINGLETON_PATTERNS.some((p) => p.test(pkg));
+  return SINGLETON_PATTERNS.some(p => p.test(pkg));
 }
 
 function requiresTilde(pkg: string): boolean {
-  return TILDE_REQUIRED_PATTERNS.some((p) => p.test(pkg));
+  return TILDE_REQUIRED_PATTERNS.some(p => p.test(pkg));
 }
 
 interface PackageJson {
@@ -39,11 +39,11 @@ interface PackageJson {
 
 function getModulePackageJsons(): {name: string; path: string; pkg: PackageJson}[] {
   return readdirSync(MODULES_DIR)
-    .filter((dir) => {
+    .filter(dir => {
       const pkgPath = join(MODULES_DIR, dir, 'package.json');
       return existsSync(pkgPath) && statSync(join(MODULES_DIR, dir)).isDirectory();
     })
-    .map((dir) => {
+    .map(dir => {
       const pkgPath = join(MODULES_DIR, dir, 'package.json');
       return {
         name: dir,
@@ -57,33 +57,31 @@ function getModulePackageJsons(): {name: string; path: string; pkg: PackageJson}
 describe('peer dependency structure', () => {
   const modules = getModulePackageJsons();
 
-  it.each(modules.map(({name, pkg}) => [name, pkg.dependencies ?? {}]))(
-    '%s should not have singleton vis.gl packages in dependencies',
-    (name, deps) => {
-      const violations = Object.keys(deps).filter(isSingleton);
-      expect(
-        violations,
-        `${name} has singleton packages in dependencies instead of peerDependencies`
-      ).toEqual([]);
-    }
-  );
+  it.each(
+    modules.map(({name, pkg}) => [name, pkg.dependencies ?? {}])
+  )('%s should not have singleton vis.gl packages in dependencies', (name, deps) => {
+    const violations = Object.keys(deps).filter(isSingleton);
+    expect(
+      violations,
+      `${name} has singleton packages in dependencies instead of peerDependencies`
+    ).toEqual([]);
+  });
 });
 
 describe('peer dependency version ranges', () => {
   const modules = getModulePackageJsons();
 
-  it.each(modules.map(({name, pkg}) => [name, pkg.peerDependencies ?? {}]))(
-    '%s should use tilde (~) ranges for @deck.gl and @luma.gl peer deps',
-    (name, peers) => {
-      const violations = Object.entries(peers)
-        .filter(([dep]) => requiresTilde(dep))
-        .filter(([, range]) => range.startsWith('^'));
-      expect(
-        violations.map(([dep, range]) => `${dep}: ${range}`),
-        `${name} uses caret (^) where tilde (~) is required`
-      ).toEqual([]);
-    }
-  );
+  it.each(
+    modules.map(({name, pkg}) => [name, pkg.peerDependencies ?? {}])
+  )('%s should use tilde (~) ranges for @deck.gl and @luma.gl peer deps', (name, peers) => {
+    const violations = Object.entries(peers)
+      .filter(([dep]) => requiresTilde(dep))
+      .filter(([, range]) => range.startsWith('^'));
+    expect(
+      violations.map(([dep, range]) => `${dep}: ${range}`),
+      `${name} uses caret (^) where tilde (~) is required`
+    ).toEqual([]);
+  });
 });
 
 describe('peer dependency version consistency', () => {
@@ -102,14 +100,13 @@ describe('peer dependency version consistency', () => {
 
   const multiVersionDeps = [...versionMap.entries()].filter(([, entries]) => entries.length >= 2);
 
-  it.each(multiVersionDeps)(
-    '%s should have consistent version range across modules',
-    (dep, entries) => {
-      const versions = [...new Set(entries.map((e) => e.version))];
-      if (versions.length > 1) {
-        const detail = entries.map((e) => `  ${e.module}: ${e.version}`).join('\n');
-        expect.fail(`${dep} has inconsistent ranges:\n${detail}`);
-      }
+  it.each(
+    multiVersionDeps
+  )('%s should have consistent version range across modules', (dep, entries) => {
+    const versions = [...new Set(entries.map(e => e.version))];
+    if (versions.length > 1) {
+      const detail = entries.map(e => `  ${e.module}: ${e.version}`).join('\n');
+      expect.fail(`${dep} has inconsistent ranges:\n${detail}`);
     }
-  );
+  });
 });

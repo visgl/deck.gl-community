@@ -4,6 +4,90 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## v9.4
+
+### `@deck.gl-community/panels`
+
+- Breaking change: panel composition APIs no longer expose `Widget*` names from `@deck.gl-community/panels`.
+- Breaking change: composite panel constructors now accept ordered `Panel[]` arrays instead of `PanelRecord` maps.
+- Breaking change: `PanelComponent` is now the root mountable panels API.
+- Breaking change: `Panel` now extends `PanelComponent`; leaf and composite
+  panels inherit from `Panel`.
+- Breaking change: shell containers were renamed to
+  `BoxPanelContainer`, `ModalPanelContainer`, `SidebarPanelContainer`, and
+  `FullScreenPanelContainer`.
+- Breaking change: shell containers accept `panel` only; descriptor-style
+  `container` inputs were removed.
+- Breaking change: `PanelContentContainer`, `PanelContentRenderer`, and `asPanelContainer` were removed.
+- Breaking change: `WidgetHost` was removed. Use `PanelManager` outside deck.gl
+  and `PanelWidget` adapters inside deck.gl.
+- Breaking change: `ToolbarPanelContainer` and `ToastPanelContainer` were
+  renamed to `ToolbarComponent` and `ToastComponent`; they are specialized
+  `PanelComponent` instances, not panel containers.
+- Breaking change: `BoxWidget`, `ModalWidget`, `SidebarWidget`,
+  `createStudioSettingsWidget`, `updateStudioSettingsWidget`, and widget-owned
+  panel aliases were removed.
+- Breaking change: modal and sidebar trigger icons use `triggerIcon`; the
+  legacy `icon` aliases were removed.
+- Migration:
+  - `WidgetPanel` -> `Panel`
+  - `WidgetPanelTheme` -> `PanelTheme`
+  - `WidgetPanelThemeMode` -> `PanelThemeMode`
+  - `AccordeonWidgetContainer` -> `AccordeonPanelContainer`
+  - `TabbedWidgetContainer` -> `TabbedPanelContainer`
+  - `ColumnWidgetContainer` -> `ColumnPanelContainer`
+  - `PanelBox` -> `BoxPanelContainer`
+  - `PanelModal` -> `ModalPanelContainer`
+  - `PanelSidebar` -> `SidebarPanelContainer`
+  - `PanelFullScreen` -> `FullScreenPanelContainer`
+  - `ToolbarPanelContainer` -> `ToolbarComponent`
+  - `ToastPanelContainer` -> `ToastComponent`
+  - `useEffectiveWidgetPanelThemeMode` -> `useEffectivePanelThemeMode`
+- Deck migration: wrap any `PanelComponent` with `new PanelWidget({component})`,
+  or use the thin named adapters `BoxPanelWidget`, `ModalPanelWidget`,
+  `SidebarPanelWidget`, `FullScreenPanelWidget`, `ToolbarWidget`, and
+  `ToastWidget`.
+- Deck migration: import `createStudioSettingsWidget` and
+  `updateStudioSettingsWidget` from `@deck.gl-community/widgets` instead of
+  `@deck.gl-community/panels`.
+- New API: `SplitterPanel` composes the first panel in one resizable pane and the remaining panels in a second pane.
+
+### `@deck.gl-community/trace-layers`
+
+- Breaking change: package subpaths were normalized:
+  - `@deck.gl-community/trace-layers/trace-graph` -> `@deck.gl-community/trace-layers/trace`
+  - `@deck.gl-community/trace-layers/deck-trace-layers` -> `@deck.gl-community/trace-layers/layers`
+  - `@deck.gl-community/trace-layers/trace-loaders` -> `@deck.gl-community/trace-layers/loaders`
+  - `@deck.gl-community/trace-layers/tracevis` -> `@deck.gl-community/trace-layers/react`
+- Breaking change: trace-layers no longer owns vendored community panel/widget
+  helpers or vendored deck fast-text/view-layout helpers.
+- Breaking change: `DeckTraceGraph` now accepts `{engine, className?, reactConfig?}` instead of
+  the previous graph/settings/collapse/selection callback prop set. Mount `TraceEngine`, sync
+  durable inputs into it, and subscribe to `TraceEngineUpdate` when host persistence is needed.
+- Breaking change: `TraceChunkStore` no longer exposes the old store-owned window graph snapshot
+  compatibility flow. Select descriptors, materialize immutable `TraceGraphData` through the
+  source-owned `TraceChunkWindowGraphMaterializer`, and wrap it in `TraceGraph`.
+- Migration:
+  - Import panel definitions, settings managers, commands, keyboard shortcuts,
+    and panel containers from `@deck.gl-community/panels`.
+  - Import deck widget adapters, `OmniBoxWidget`, toast/time/heap widgets, and
+    Studio settings widget helpers from `@deck.gl-community/widgets`.
+  - Import `FastTextLayer`, UTF8 Arrow string-view helpers, and view-layout
+    helpers from `@deck.gl-community/infovis-layers`.
+  - Replace old `DeckTraceGraph` controlled props with `TraceEngineInputs` plus
+    `DeckTraceGraphConfig`.
+  - Replace old `TraceStoreLayer` sources with sources that provide
+    `materializeTraceGraphData`.
+
+### `@deck.gl-community/react`
+
+- Breaking change: `WidgetPanel` was renamed to `Panel`.
+- Migration:
+  - `WidgetPanel` -> `Panel`
+  - `WidgetPanelProps` -> `PanelProps`
+  - `WidgetPanelThemeMode` -> `PanelHostThemeMode`
+- The React `Panel` host now uses `@deck.gl-community/panels` theme variables directly and no longer has an `@deck.gl/widgets` peer dependency.
+
 ## v9.3
 
 ### Dependencies
@@ -12,11 +96,24 @@ Please refer the documentation of each module for detailed upgrade guides.
 - Requires `@luma.gl/*@~9.3.2` or later.
 - Requires `@loaders.gl/*@^4.4.1` or later.
 
+### `@deck.gl-community/panels` / `@deck.gl-community/widgets`
+
+- New package: `@deck.gl-community/panels` now owns panel composition, standalone mounting, panel containers, theming, and related standalone UI.
+- `@deck.gl-community/widgets` is now the deck-facing wrapper layer for panel-based deck.gl widgets.
+- Migration:
+  - Import panel definitions and panel containers from `@deck.gl-community/panels`
+  - Pass those panel definitions into wrapper widgets from `@deck.gl-community/widgets`
+- New preferred widget wrapper names:
+  - `BoxPanelWidget`
+  - `ModalPanelWidget`
+  - `SidebarPanelWidget`
+  - `FullScreenPanelWidget`
+- Compatibility aliases `BoxWidget`, `ModalWidget`, and `SidebarWidget` were
+  removed in v9.4.
+
 ### `@deck.gl-community/editable-layers`
 
 - The `@deck.gl-community/layers` peer dependency has been bumped from `^9.2.0-beta` to `^9.3.0`.
-
-No other breaking changes in this release.
 
 ## v9.2
 
@@ -41,4 +138,3 @@ No other breaking changes in this release.
   `Graph`, or raw `{nodes, edges}`/edge arrays) and supply a `layout` when the layer must build the engine for you.
 - Breaking change: `JSONLoader` only normalizes raw JSON payloads. Pass `Graph` instances directly to `GraphLayer.data` rather than
   routing them through the loader.
-

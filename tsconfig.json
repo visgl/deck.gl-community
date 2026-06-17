@@ -1,9 +1,6 @@
 {
   "ts-node": {
-    "include": [
-      "modules",
-      "test/modules"
-    ],
+    "include": ["modules", "test/modules"],
     // It is faster to skip typechecking. Remove if you want ts-node to do typechecking.
     "transpileOnly": true
   },
@@ -16,7 +13,7 @@
     // "noImplicitAny": false,
     "allowJs": true,
     "checkJs": false,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
@@ -31,12 +28,15 @@
       "@deck.gl-community/leaflet": ["./modules/leaflet/src"],
       "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],
       "@deck.gl-community/experimental": ["./modules/experimental/src"],
+      "@deck.gl-community/panels": ["./modules/panels/src"],
       "@deck.gl-community/widgets": ["./modules/widgets/src"],
       "@deck.gl-community/layers": ["./modules/layers/src"],
       "@deck.gl-community/geo-layers": ["./modules/geo-layers/src"],
       "@deck.gl-community/infovis-layers": ["./modules/infovis-layers/src"],
       "@deck.gl-community/react": ["./modules/react/src"],
       "@deck.gl-community/template": ["./modules/template/src"],
+      "@deck.gl-community/trace-layers": ["./modules/trace-layers/src"],
+      "@deck.gl-community/trace-layers/*": ["./modules/trace-layers/src/*"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
       "@deck.gl-community/three": ["./modules/three/src"],
       "@deck.gl-community/timeline-layers": ["./dev/timeline-layers/src"]
@@ -67,15 +67,6 @@
     "strict": false,
     "noImplicitAny": false
   },
-  "include": [
-    "modules",
-    "dev",
-    "test",
-    "examples",
-    "scripts"
-  ],
-  "exclude": [
-    "**/node_modules",
-    "**/dist"
-  ]
+  "include": ["modules", "dev", "test", "examples", "scripts"],
+  "exclude": ["**/node_modules", "**/dist"]
 }

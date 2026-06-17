@@ -8,18 +8,20 @@ import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl
 import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
   AccordeonPanel,
-  BoxWidget,
-  SidebarWidget,
   CustomPanel,
   MarkdownPanel,
-  PanWidget,
   SettingsPanel,
   TextEditorPanel,
-  ZoomRangeWidget,
+  type Panel,
   type SettingsSchema,
   type SettingDescriptor,
-  type SettingsState,
-  type WidgetPanelRecord
+  type SettingsState
+} from '@deck.gl-community/panels';
+import {
+  BoxPanelWidget,
+  SidebarPanelWidget,
+  PanWidget,
+  ZoomRangeWidget
 } from '@deck.gl-community/widgets';
 import {
   CollapsableD3DagLayout,
@@ -269,10 +271,10 @@ const LAYOUT_FACTORIES: Record<LayoutType, LayoutFactory> = {
   'd3-force-layout': () => new D3ForceLayout(),
   'gpu-force-layout': () => new GPUForceLayout(),
   'simple-layout': () => new SimpleLayout(),
-  'radial-layout': (options) => new RadialLayout(options),
-  'hive-plot-layout': (options) => new HivePlotLayout(options),
-  'force-multi-graph-layout': (options) => new ForceMultiGraphLayout(options),
-  'd3-dag-layout': (options) => new CollapsableD3DagLayout(options)
+  'radial-layout': options => new RadialLayout(options),
+  'hive-plot-layout': options => new HivePlotLayout(options),
+  'force-multi-graph-layout': options => new ForceMultiGraphLayout(options),
+  'd3-dag-layout': options => new CollapsableD3DagLayout(options)
 };
 
 export function mountGraphViewerExample(
@@ -348,7 +350,7 @@ export function mountGraphViewerExample(
       syncWidgets();
     }
   };
-  const sidebarWidget = new SidebarWidget({
+  const sidebarWidget = new SidebarPanelWidget({
     id: 'graph-viewer-sidebar',
     placement: 'top-right',
     side: 'right',
@@ -369,7 +371,7 @@ export function mountGraphViewerExample(
   const boxWidget =
     options.showInfoWidget === false
       ? null
-      : new BoxWidget({
+      : new BoxPanelWidget({
           id: 'graph-viewer-box',
           placement: 'top-left',
           widthPx: 360,
@@ -473,13 +475,7 @@ export function mountGraphViewerExample(
     },
     viewState: toDeckViewState(state.viewState),
     layers: [],
-    widgets: [
-      panWidget,
-      zoomWidget,
-      ...(boxWidget ? [boxWidget] : []),
-      themeWidget,
-      sidebarWidget
-    ]
+    widgets: [panWidget, zoomWidget, ...(boxWidget ? [boxWidget] : []), themeWidget, sidebarWidget]
   });
 
   applyState();
@@ -556,15 +552,16 @@ export function mountGraphViewerExample(
       return;
     }
 
-    const layerManager = (deck as unknown as {layerManager?: {getLayers?: () => unknown[]; layers?: unknown[]}})
-      .layerManager;
+    const layerManager = (
+      deck as unknown as {layerManager?: {getLayers?: () => unknown[]; layers?: unknown[]}}
+    ).layerManager;
     const layers = layerManager?.getLayers?.() ?? layerManager?.layers;
     if (!layers) {
       return;
     }
 
     const graphLayerInstance = layers.find(
-      (layer) => (layer as {id?: string} | null)?.id === GRAPH_LAYER_ID
+      layer => (layer as {id?: string} | null)?.id === GRAPH_LAYER_ID
     ) as {state?: {graphEngine?: GraphEngine}} | undefined;
     const nextEngine = graphLayerInstance?.state?.graphEngine ?? null;
     if (!nextEngine || nextEngine === state.resolvedEngine) {
@@ -584,8 +581,12 @@ export function mountGraphViewerExample(
     }
 
     updateExampleMetadata(runtime.selectedExample, {
-      nodeCount: Array.isArray(runtime.graphData.nodes) ? runtime.graphData.nodes.length : undefined,
-      edgeCount: Array.isArray(runtime.graphData.edges) ? runtime.graphData.edges.length : undefined,
+      nodeCount: Array.isArray(runtime.graphData.nodes)
+        ? runtime.graphData.nodes.length
+        : undefined,
+      edgeCount: Array.isArray(runtime.graphData.edges)
+        ? runtime.graphData.edges.length
+        : undefined,
       sourceType: 'inline'
     });
   }
@@ -780,9 +781,7 @@ export function mountGraphViewerExample(
 
   function buildRuntime(currentState: GraphViewerState): GraphViewerRuntime {
     const selectedExample = getSelectedExample(currentState);
-    const graphData = isInlineExample(selectedExample)
-      ? selectedExample.data()
-      : null;
+    const graphData = isInlineExample(selectedExample) ? selectedExample.data() : null;
     const activeMetadata = currentState.metadataByExample[selectedExample.name];
     const selectedLayout = currentState.selectedLayout;
     const baseOptions = selectedExample.getLayoutOptions?.(selectedLayout, {
@@ -790,7 +789,8 @@ export function mountGraphViewerExample(
       metadata: activeMetadata
     });
     const overrides = currentState.layoutOverrides[selectedLayout];
-    const layoutOptions = baseOptions && overrides ? {...baseOptions, ...overrides} : overrides ?? baseOptions;
+    const layoutOptions =
+      baseOptions && overrides ? {...baseOptions, ...overrides} : (overrides ?? baseOptions);
     const layoutFactory = LAYOUT_FACTORIES[selectedLayout];
     const layout = layoutFactory ? layoutFactory(layoutOptions) : null;
     const dagLayout = layout instanceof CollapsableD3DagLayout ? layout : null;
@@ -802,23 +802,25 @@ export function mountGraphViewerExample(
     }
 
     const manualEngine =
-      graphData && layout ? new GraphEngine({graph: createArrowGraphFromJson(graphData as JsonGraph), layout}) : null;
+      graphData && layout
+        ? new GraphEngine({graph: createArrowGraphFromJson(graphData as JsonGraph), layout})
+        : null;
 
     const graphLayer = buildGraphLayer({
       selectedExample,
       layout,
       manualEngine,
       rankGrid: buildRankGrid(selectedLayout, layoutOptions, dagLayout),
-      onLayoutStart: (detail) => {
+      onLayoutStart: detail => {
         state.loading = {...INITIAL_LOADING_STATE};
         syncLoadingOverlay();
         viewportController.handleLayoutEvent(detail);
       },
-      onLayoutChange: (detail) => {
+      onLayoutChange: detail => {
         viewportController.handleLayoutEvent(detail);
         updateChainSummary();
       },
-      onLayoutDone: (detail) => {
+      onLayoutDone: detail => {
         state.loading = {
           loaded: true,
           rendered: state.loading.rendered,
@@ -828,7 +830,7 @@ export function mountGraphViewerExample(
         viewportController.handleLayoutEvent(detail);
         updateChainSummary();
       },
-      onDataLoad: (data) => {
+      onDataLoad: data => {
         handleDataLoad(selectedExample, data);
       }
     });
@@ -930,8 +932,8 @@ function buildSidebarPanel(
     onStylesheetChange: (nextValue: string) => void;
   }
 ) {
-  const panels: WidgetPanelRecord = {
-    controls: new SettingsPanel({
+  const panels: Panel[] = [
+    new SettingsPanel({
       id: 'graph-selection',
       schema: buildSelectionSchema(runtime.selectedExample, state.examples, state.selectedLayout),
       settings: {
@@ -940,48 +942,58 @@ function buildSidebarPanel(
       },
       onSettingsChange: handlers.onSelectionSettingsChange
     }),
-    layoutOptions: new SettingsPanel({
+    new SettingsPanel({
       id: 'graph-layout-options',
-      schema: buildLayoutOptionsSchema(state.selectedLayout, runtime.layoutDescription, runtime.layoutOptions),
+      schema: buildLayoutOptionsSchema(
+        state.selectedLayout,
+        runtime.layoutDescription,
+        runtime.layoutOptions
+      ),
       settings: buildLayoutOptionSettingsState(state.selectedLayout, runtime.layoutOptions),
       onSettingsChange: handlers.onLayoutOptionsChange
     })
-  };
+  ];
 
   if (runtime.isDagLayout) {
-    panels.collapse = new CustomPanel({
-      id: 'dag-collapse',
-      title: 'Collapsed chains',
-      onRenderHTML: (rootElement) => {
-        renderCollapseControlsPanel(rootElement, state, handlers);
-      }
-    });
+    panels.push(
+      new CustomPanel({
+        id: 'dag-collapse',
+        title: 'Collapsed chains',
+        onRenderHTML: rootElement => {
+          renderCollapseControlsPanel(rootElement, state, handlers);
+        }
+      })
+    );
   }
 
-  panels.metadata = new CustomPanel({
-    id: 'dataset-metadata',
-    title: 'Dataset stats',
-    onRenderHTML: (rootElement) => {
-      renderMetadataPanel(rootElement, runtime.activeMetadata, runtime.metadataLoading);
-    }
-  });
+  panels.push(
+    new CustomPanel({
+      id: 'dataset-metadata',
+      title: 'Dataset stats',
+      onRenderHTML: rootElement => {
+        renderMetadataPanel(rootElement, runtime.activeMetadata, runtime.metadataLoading);
+      }
+    })
+  );
 
-  panels.stylesheet = new TextEditorPanel({
-    id: 'stylesheet-json',
-    title: 'Stylesheet JSON',
-    language: 'json',
-    value: state.stylesheetValue,
-    onValueChange: handlers.onStylesheetChange,
-    readOnly: false,
-    placeholder: DEFAULT_STYLESHEET_MESSAGE,
-    theme: 'invert'
-  });
+  panels.push(
+    new TextEditorPanel({
+      id: 'stylesheet-json',
+      title: 'Stylesheet JSON',
+      language: 'json',
+      value: state.stylesheetValue,
+      onValueChange: handlers.onStylesheetChange,
+      readOnly: false,
+      placeholder: DEFAULT_STYLESHEET_MESSAGE,
+      theme: 'invert'
+    })
+  );
 
   return new AccordeonPanel({
     id: 'graph-viewer-sidebar-panels',
     title: '',
     panels,
-    defaultExpandedPanelIds: Object.values(panels).map((panel) => panel.id)
+    defaultExpandedPanelIds: panels.map(panel => panel.id)
   });
 }
 
@@ -1024,7 +1036,7 @@ function buildSelectionSchema(
             name: 'example',
             label: 'Dataset',
             type: 'select',
-            options: examples.map((example) => ({label: example.name, value: example.name}))
+            options: examples.map(example => ({label: example.name, value: example.name}))
           }
         ]
       },
@@ -1038,7 +1050,7 @@ function buildSelectionSchema(
             name: 'layout',
             label: 'Layout',
             type: 'select',
-            options: selectedExample.layouts.map((layout) => ({
+            options: selectedExample.layouts.map(layout => ({
               label: LAYOUT_LABELS[layout] ?? layout,
               value: layout
             }))
@@ -1147,7 +1159,9 @@ function mapLayoutSettingsToOptions(
   nextSettings: SettingsState
 ): Record<string, unknown> {
   if (layout === 'd3-force-layout' || layout === 'gpu-force-layout') {
-    return mapForceLayoutFormStateToOptions(nextSettings as ReturnType<typeof createForceLayoutFormState>);
+    return mapForceLayoutFormStateToOptions(
+      nextSettings as ReturnType<typeof createForceLayoutFormState>
+    );
   }
   if (layout === 'force-multi-graph-layout') {
     return mapForceMultiGraphFormStateToOptions(
@@ -1155,7 +1169,9 @@ function mapLayoutSettingsToOptions(
     );
   }
   if (layout === 'radial-layout') {
-    return mapRadialLayoutFormStateToOptions(nextSettings as ReturnType<typeof createRadialLayoutFormState>);
+    return mapRadialLayoutFormStateToOptions(
+      nextSettings as ReturnType<typeof createRadialLayoutFormState>
+    );
   }
   if (layout === 'hive-plot-layout') {
     return mapHivePlotLayoutFormStateToOptions(
@@ -1192,7 +1208,7 @@ function mapPropDescriptionsToSettings<TValues extends Record<string, unknown>>(
         label: description.title,
         description: description.description,
         type: 'select',
-        options: description.options.map((option) => ({
+        options: description.options.map(option => ({
           label: option.label,
           value: option.value
         })),
@@ -1323,9 +1339,28 @@ function renderMetadataPanel(
     margin: '0'
   });
 
-  appendMetadataRow(grid, rootElement.ownerDocument, 'Source', metadata.sourceType === 'remote' ? 'Remote (URL)' : metadata.sourceType === 'inline' ? 'Inline sample' : undefined);
-  appendMetadataRow(grid, rootElement.ownerDocument, 'Nodes', typeof metadata.nodeCount === 'number' ? metadata.nodeCount.toLocaleString() : undefined);
-  appendMetadataRow(grid, rootElement.ownerDocument, 'Edges', typeof metadata.edgeCount === 'number' ? metadata.edgeCount.toLocaleString() : undefined);
+  appendMetadataRow(
+    grid,
+    rootElement.ownerDocument,
+    'Source',
+    metadata.sourceType === 'remote'
+      ? 'Remote (URL)'
+      : metadata.sourceType === 'inline'
+        ? 'Inline sample'
+        : undefined
+  );
+  appendMetadataRow(
+    grid,
+    rootElement.ownerDocument,
+    'Nodes',
+    typeof metadata.nodeCount === 'number' ? metadata.nodeCount.toLocaleString() : undefined
+  );
+  appendMetadataRow(
+    grid,
+    rootElement.ownerDocument,
+    'Edges',
+    typeof metadata.edgeCount === 'number' ? metadata.edgeCount.toLocaleString() : undefined
+  );
   appendMetadataRow(grid, rootElement.ownerDocument, 'Graph ID', metadata.graphId);
   appendMetadataRow(
     grid,
@@ -1437,7 +1472,9 @@ function buildRankGrid(
 }
 
 function getSelectedExample(state: GraphViewerState): ExampleDefinition {
-  return findExampleByName(state.examples, state.selectedExampleName) ?? state.examples[0] ?? EXAMPLES[0];
+  return (
+    findExampleByName(state.examples, state.selectedExampleName) ?? state.examples[0] ?? EXAMPLES[0]
+  );
 }
 
 function getExamplesForType(graphType?: GraphExampleType): ExampleDefinition[] {
@@ -1446,7 +1483,7 @@ function getExamplesForType(graphType?: GraphExampleType): ExampleDefinition[] {
 }
 
 function findExampleByName(examples: ExampleDefinition[], exampleName: string) {
-  return examples.find((example) => example.name === exampleName);
+  return examples.find(example => example.name === exampleName);
 }
 
 function isInlineExample(
@@ -1461,10 +1498,7 @@ function isRemoteExample(
   return Boolean(example && typeof (example as {dataUrl?: unknown}).dataUrl === 'string');
 }
 
-function shallowEqualRecords(
-  a?: Record<string, unknown>,
-  b?: Record<string, unknown>
-): boolean {
+function shallowEqualRecords(a?: Record<string, unknown>, b?: Record<string, unknown>): boolean {
   if (a === b) {
     return true;
   }
@@ -1523,7 +1557,7 @@ function mergeMetadata(
       : {})
   };
 
-  return metadataEquals(previous, merged) ? previous ?? merged : merged;
+  return metadataEquals(previous, merged) ? (previous ?? merged) : merged;
 }
 
 function deriveMetadataFromData(data: unknown): ExampleMetadata | null {
@@ -1621,7 +1655,7 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }
 
 function formatMetadataValue(value: unknown): string {
@@ -1629,7 +1663,7 @@ function formatMetadataValue(value: unknown): string {
     return 'null';
   }
   if (Array.isArray(value)) {
-    return value.map((entry) => formatMetadataValue(entry)).join(', ');
+    return value.map(entry => formatMetadataValue(entry)).join(', ');
   }
   if (typeof value === 'object') {
     try {
@@ -1646,7 +1680,7 @@ function isGraphTooltipObject(value: unknown): value is GraphTooltipObject {
 }
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => {
+  return value.replace(/[&<>"']/g, character => {
     switch (character) {
       case '&':
         return '&amp;';
@@ -1656,7 +1690,7 @@ function escapeHtml(value: string): string {
         return '&gt;';
       case '"':
         return '&quot;';
-      case '\'':
+      case "'":
         return '&#39;';
       default:
         return character;
@@ -1669,7 +1703,7 @@ function formatTooltipValue(value: unknown): string {
     return 'null';
   }
   if (Array.isArray(value)) {
-    return value.map((item) => formatTooltipValue(item)).join(', ');
+    return value.map(item => formatTooltipValue(item)).join(', ');
   }
   if (typeof value === 'object') {
     return JSON.stringify(value);

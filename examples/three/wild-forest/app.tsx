@@ -6,14 +6,14 @@ import {Deck, type MapViewState} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/three';
 import type {CropConfig, Season, TreeType} from '@deck.gl-community/three';
 import {
-  BoxWidget,
   ColumnPanel,
   CustomPanel,
   MarkdownPanel,
   SettingsPanel,
   type SettingsSchema,
   type SettingsState
-} from '@deck.gl-community/widgets';
+} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -129,7 +129,7 @@ export function mountWildForestExample(
   const controlsWidget =
     options.showControlsWidget === false
       ? null
-      : new BoxWidget({
+      : new BoxPanelWidget({
           id: 'wild-forest-controls',
           placement: 'top-right',
           widthPx: 320,
@@ -169,15 +169,15 @@ function buildLayers(state: WildForestState) {
     new TreeLayer<TreeDatum>({
       id: 'wild-forest',
       data: FOREST_DATA,
-      getPosition: (datum) => datum.position,
-      getTreeType: (datum) => datum.type,
-      getHeight: (datum) => datum.height,
-      getTrunkRadius: (datum) => datum.trunkRadius,
-      getCanopyRadius: (datum) => datum.canopyRadius,
-      getTrunkHeightFraction: (datum) => datum.trunkHeightFraction,
-      getSeason: (datum) => datum.season,
-      getBranchLevels: (datum) => datum.branchLevels || 3,
-      getCrop: state.settings.render.showCrops ? (datum) => datum.crop : () => null,
+      getPosition: datum => datum.position,
+      getTreeType: datum => datum.type,
+      getHeight: datum => datum.height,
+      getTrunkRadius: datum => datum.trunkRadius,
+      getCanopyRadius: datum => datum.canopyRadius,
+      getTrunkHeightFraction: datum => datum.trunkHeightFraction,
+      getSeason: datum => datum.season,
+      getBranchLevels: datum => datum.branchLevels || 3,
+      getCrop: state.settings.render.showCrops ? datum => datum.crop : () => null,
       sizeScale: state.settings.render.sizeScale,
       pickable: true,
       updateTriggers: {
@@ -195,8 +195,8 @@ function buildControlPanel(
   return new ColumnPanel({
     id: 'wild-forest-panel',
     title: 'Wild Forest + Orchards',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -207,14 +207,14 @@ function buildControlPanel(
           `- Crops: **${state.settings.render.showCrops ? 'visible' : 'hidden'}**`
         ].join('\n')
       }),
-      settings: new SettingsPanel({
+      new SettingsPanel({
         id: 'settings',
         label: 'Controls',
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange
       }),
-      legend: new CustomPanel({
+      new CustomPanel({
         id: 'legend',
         title: 'Forest Zones',
         onRenderHTML(hostElement) {
@@ -257,7 +257,7 @@ function buildControlPanel(
           };
         }
       })
-    }
+    ]
   });
 }
 
@@ -290,7 +290,7 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }
 
 function makeRng(seed: number) {

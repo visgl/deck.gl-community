@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import bearing from '@turf/bearing';
+import turfBearing from '@turf/bearing';
 import {
   generatePointsParallelToLinePoints,
   getPickedEditHandle,
@@ -179,7 +179,7 @@ export class ExtrudeMode extends ModifyMode {
   }
 
   getBearing(p1: any, p2: any) {
-    const angle = bearing(p1, p2);
+    const angle = turfBearing(p1, p2);
     if (angle < 0) {
       return Math.floor(360 + angle);
     }

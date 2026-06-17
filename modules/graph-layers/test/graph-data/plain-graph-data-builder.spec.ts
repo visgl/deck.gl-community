@@ -60,9 +60,9 @@ describe('PlainGraphDataBuilder', () => {
     expect(plain.shape).toBe('plain-graph-data');
     expect(builder.nodeCount).toBe(2);
     expect(builder.edgeCount).toBe(2);
-    expect(plain.nodes?.map((node) => node.id)).toEqual(['a', 'b']);
-    expect(plain.edges?.map((edge) => edge.sourceId)).toEqual(['a', 'b']);
-    expect(plain.nodes?.map((node) => node.attributes?.label)).toEqual(['Node A', 'Node B']);
-    expect(plain.edges?.map((edge) => edge.attributes?.label)).toEqual(['forward', 'reverse']);
+    expect(plain.nodes?.map(node => node.id)).toEqual(['a', 'b']);
+    expect(plain.edges?.map(edge => edge.sourceId)).toEqual(['a', 'b']);
+    expect(plain.nodes?.map(node => node.attributes?.label)).toEqual(['Node A', 'Node B']);
+    expect(plain.edges?.map(edge => edge.attributes?.label)).toEqual(['forward', 'reverse']);
   });
 });

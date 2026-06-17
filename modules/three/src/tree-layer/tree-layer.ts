@@ -534,7 +534,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         id: layerId,
         data,
         mesh,
-        getPosition: (d) => {
+        getPosition: d => {
           const pos = getPosition(d);
           const elevation = getElevation(d) || 0;
           const h = getHeight(d) * sizeScale;
@@ -542,7 +542,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           const canopyH = h * (1 - f);
           return [pos[0], pos[1], elevation + h * f - canopyH * CANOPY_TRUNK_OVERLAP];
         },
-        getScale: (d) => {
+        getScale: d => {
           const pos = getPosition(d);
           const h = getHeight(d) * sizeScale;
           const f = getTrunkHeightFraction(d);
@@ -554,7 +554,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           const sy = 1 + (((seed >>> 16) & 0xffff) / 65535 - 0.5) * 0.6;
           return [r * sx, r * sy, h * (1 - f)];
         },
-        getOrientation: (d) => {
+        getOrientation: d => {
           // Random bearing + slight pitch per tree so spherical canopies show
           // visible lean variety at typical farm viewing angles (30–60° pitch).
           // pitch [0]: ±12°, yaw [1]: full 360°, roll [2]: 0
@@ -564,7 +564,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           const pitch = (((seed ^ (seed >>> 7)) & 0xff) / 255 - 0.5) * 24;
           return [pitch, yaw, 0];
         },
-        getColor: (d) => {
+        getColor: d => {
           const explicit = getCanopyColor(d);
           if (explicit) return explicit;
           const season = getSeason(d) || 'summer';
@@ -604,17 +604,17 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         id: 'trunks',
         data: this.props.data,
         mesh: TRUNK_MESH,
-        getPosition: (d) => {
+        getPosition: d => {
           const pos = getPosition(d);
           return [pos[0], pos[1], getElevation(d) || 0];
         },
-        getScale: (d) => {
+        getScale: d => {
           const h = getHeight(d) * sizeScale;
           const f = getTrunkHeightFraction(d);
           const r = getTrunkRadius(d) * sizeScale;
           return [r, r, h * f];
         },
-        getColor: (d) => {
+        getColor: d => {
           const explicit = getTrunkColor(d);
           if (explicit) return explicit;
           const type = getTreeType(d) || 'pine';
@@ -632,15 +632,15 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     //    Pine: one sub-layer per branch-level count, each using its own mesh,
     //    so trees with 2/3/4 tiers never share a mismatched mesh.
     // -----------------------------------------------------------------------
-    const nonPineCanopies = ALL_TREE_TYPES.filter((t) => t !== 'pine' && grouped[t].length > 0).map(
-      (t) => this._buildCanopyLayer(t, CANOPY_MESHES[t], grouped[t], `canopy-${t}`)
+    const nonPineCanopies = ALL_TREE_TYPES.filter(t => t !== 'pine' && grouped[t].length > 0).map(
+      t => this._buildCanopyLayer(t, CANOPY_MESHES[t], grouped[t], `canopy-${t}`)
     );
 
     const pineCanopies = Object.entries(pineMeshes).flatMap(([levelStr, mesh]) => {
       const levels = Number(levelStr);
       const pineData = grouped.pine.filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (d) => Math.max(1, Math.min(5, Math.round(getBranchLevels(d as any)))) === levels
+        d => Math.max(1, Math.min(5, Math.round(getBranchLevels(d as any)))) === levels
       );
       return pineData.length > 0
         ? [this._buildCanopyLayer('pine', mesh, pineData, `canopy-pine-${levels}`)]

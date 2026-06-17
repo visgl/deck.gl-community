@@ -74,7 +74,7 @@ function guideAccessor(accessor) {
   if (!accessor || typeof accessor !== 'function') {
     return accessor;
   }
-  return (guideMaybeWrapped) => accessor(unwrapGuide(guideMaybeWrapped));
+  return guideMaybeWrapped => accessor(unwrapGuide(guideMaybeWrapped));
 }
 
 // The object handed to us from deck.gl is different depending on the version of deck.gl used, unwrap as necessary
@@ -203,14 +203,14 @@ const defaultProps: DefaultProps<EditableGeoJsonLayerProps<any>> = {
     isSelected ? DEFAULT_SELECTED_LINE_COLOR : DEFAULT_LINE_COLOR,
   getFillColor: (feature, isSelected, mode) =>
     isSelected ? DEFAULT_SELECTED_FILL_COLOR : DEFAULT_FILL_COLOR,
-  getRadius: (f) =>
+  getRadius: f =>
     (f && f.properties && f.properties.radius) || (f && f.properties && f.properties.size) || 1,
-  getLineWidth: (f) => (f && f.properties && f.properties.lineWidth) || 3,
+  getLineWidth: f => (f && f.properties && f.properties.lineWidth) || 3,
 
   // Tentative feature rendering
-  getTentativeLineColor: (f) => DEFAULT_TENTATIVE_LINE_COLOR,
-  getTentativeFillColor: (f) => DEFAULT_TENTATIVE_FILL_COLOR,
-  getTentativeLineWidth: (f) => (f && f.properties && f.properties.lineWidth) || 3,
+  getTentativeLineColor: _f => DEFAULT_TENTATIVE_LINE_COLOR,
+  getTentativeFillColor: _f => DEFAULT_TENTATIVE_FILL_COLOR,
+  getTentativeLineWidth: f => (f && f.properties && f.properties.lineWidth) || 3,
 
   editHandleType: 'point',
 
@@ -230,7 +230,7 @@ const defaultProps: DefaultProps<EditableGeoJsonLayerProps<any>> = {
   editHandleIconMapping: null,
   editHandleIconSizeScale: 1,
   editHandleIconSizeUnits: 'pixels',
-  getEditHandleIcon: (handle) => handle.properties.editHandleType,
+  getEditHandleIcon: handle => handle.properties.editHandleType,
   getEditHandleIconSize: 10,
   getEditHandleIconColor: getEditHandleColor,
   getEditHandleIconAngle: 0,
@@ -426,7 +426,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
     ) {
       // TODO: needs improved testing, i.e. checking for duplicates, NaNs, out of range numbers, ...
       const propsData = props.data;
-      selectedFeatures = props.selectedFeatureIndexes.map((elem) => propsData.features[elem]);
+      selectedFeatures = props.selectedFeatureIndexes.map(elem => propsData.features[elem]);
     }
 
     this.setState({selectedFeatures});
@@ -443,7 +443,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
       // This ensures that when the layer is configured for Cartesian or other
       // non-geographic rendering, edit modes automatically use the correct geometry math.
       coordinateSystem: fromDeckCoordinateSystem(this.props.coordinateSystem),
-      onEdit: (editAction) => {
+      onEdit: editAction => {
         // Force a re-render
         // This supports double-click where we need to ensure that there's a re-render between the two clicks
         // even though the data wasn't changed, just the internal tentative feature.

@@ -20,7 +20,7 @@ export function translateFromCenter(
 
   const movedCenter = coordinateSystem.destination(initialCenter, distance, direction);
 
-  const movedCoordinates = mapCoords(feature.geometry.coordinates, (coordinate) => {
+  const movedCoordinates = mapCoords(feature.geometry.coordinates, coordinate => {
     const dist = coordinateSystem.distance(initialCenter, coordinate);
     const dir = coordinateSystem.bearing(initialCenter, coordinate);
     return coordinateSystem.destination(movedCenter, dist, dir);

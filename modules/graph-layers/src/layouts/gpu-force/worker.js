@@ -109,22 +109,22 @@ onmessage = function (event) {
       output: [sourceNodes.length]
     }
   );
-  const tempNodes = sourceNodes.map((node) => [node.id, node.x, node.y, node.locked ? 1 : 0]);
-  const tempEdges = sourceEdges.map((edge) => [edge.source.id, edge.target.id]);
+  const tempNodes = sourceNodes.map(node => [node.id, node.x, node.y, node.locked ? 1 : 0]);
+  const tempEdges = sourceEdges.map(edge => [edge.source.id, edge.target.id]);
   kernel(tempNodes, tempEdges);
   const newNodes = sourceNodes.map((node, index) => {
-    const updatedNode = tempNodes.find((n) => n[0] === node.id);
+    const updatedNode = tempNodes.find(n => n[0] === node.id);
     return {
       ...node,
       x: updatedNode[1],
       y: updatedNode[2]
     };
   });
-  const newEdges = sourceEdges.map((edge) => {
+  const newEdges = sourceEdges.map(edge => {
     return {
       ...edge,
-      source: newNodes.find((node) => node.id === edge.source.id),
-      target: newNodes.find((node) => node.id === edge.target.id)
+      source: newNodes.find(node => node.id === edge.source.id),
+      target: newNodes.find(node => node.id === edge.target.id)
     };
   });
   postMessage({

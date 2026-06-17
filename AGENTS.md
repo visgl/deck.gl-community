@@ -10,6 +10,15 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 ## Quality gates
 - Run `yarn lint` or `yarn lint-fix` before committing JavaScript/TypeScript changes.
 - Run the relevant Vitest project: `yarn test` (Node), `yarn test-browser`, or `yarn test-headless` as appropriate for your change.
+- When asked to "get ready for merge", do the full merge-readiness pass:
+  - TSDoc the public API surface affected by the change
+  - do a documentation pass, including `docs/whats-new.md` and any relevant upgrade or migration guide content
+  - run `yarn` in the repo root so workspace metadata and `yarn.lock` are up to date, especially after any `package.json` changes
+  - run `yarn build` as the repo-wide type, declaration, and package build gate
+  - build the website from its own workspace context with `cd website; yarn; yarn build`
+  - run the relevant tests for the changed packages, examples, and website/docs wiring
+  - finish with `yarn lint-fix`, then review the resulting diff before preparing the PR
+  - prepare a copyable Markdown pull request description based on the branch diff compared to `master`
 
 ## Documentation and release process
 - Follow the contribution flow in `docs/CONTRIBUTING.md` before landing breaking changes.
@@ -18,9 +27,9 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
 
 ## Code style
 
-Formatting is enforced by Prettier and ESLint via `ocular-lint`.
+Formatting and linting are enforced by Biome via `yarn lint` / `yarn lint-fix`.
 
-**Prettier rules** (`.prettierrc`):
+**Biome formatter rules** (`biome.jsonc`):
 - Print width: 100
 - Semicolons: yes
 - Single quotes: yes
@@ -46,4 +55,3 @@ Formatting is enforced by Prettier and ESLint via `ocular-lint`.
 - vis.gl ecosystem dependencies are acceptable, as long as they respect the layering of those frameworks (a math library should not include luma.gl or deck.gl for instance).
 - For math use math.gl modules. Do not introduce d3-extents or similar to save just a few lines
 - Try to avoid lodash dependencies.
-

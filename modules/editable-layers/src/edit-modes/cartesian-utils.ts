@@ -3,13 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {Feature, Polygon} from 'geojson';
-import {ModeProps} from './types';
-import {Position, FeatureCollection} from '../utils/geojson-types';
-import {
-  cartesianCoordinateSystem,
-  CartesianCoordinateSystem,
-  EditModeCoordinateSystem
-} from './coordinate-system';
+import {Position} from '../utils/geojson-types';
 
 /** Given 3 positions compute cross product of vectors (q-p) and (r-p)
  * @param p start of directed line segment

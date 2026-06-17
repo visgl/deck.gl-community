@@ -133,18 +133,18 @@ export class EdgeArrowLayer extends CompositeLayer {
           data: directedEdges,
           mesh: DEFAULT_ARROW_GEOMETRY,
           getColor,
-          getScale: (edge) => {
+          getScale: edge => {
             const size = resolveSize(getSize(edge));
             return [size, size, size];
           },
-          getOrientation: (edge) => {
+          getOrientation: edge => {
             const layout = getLayoutInfo(edge);
             const size = resolveSize(getSize(edge));
             const offset = getOffset ? getOffset(edge) : null;
             const {angle} = getArrowTransform({layout, size, offset});
             return [0, -angle, 0];
           },
-          getPosition: (edge) => {
+          getPosition: edge => {
             const layout = getLayoutInfo(edge);
             const size = resolveSize(getSize(edge));
             const offset = getOffset ? getOffset(edge) : null;

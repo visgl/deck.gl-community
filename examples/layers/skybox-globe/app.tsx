@@ -6,13 +6,13 @@ import {Deck, _GlobeView, type PickingInfo} from '@deck.gl/core';
 import {ArcLayer, ScatterplotLayer} from '@deck.gl/layers';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {
-  BoxWidget,
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
   type SettingsSchema,
   type SettingsState
-} from '../../../modules/widgets/src';
+} from '../../../modules/panels/src';
+import {BoxPanelWidget} from '../../../modules/widgets/src';
 import {SkyboxLayer} from '../../../modules/layers/src';
 import {TYCHO_CUBEMAP} from '../skybox-assets/cubemap';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
@@ -82,7 +82,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
     } as SettingsState
   };
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'skybox-globe-info',
     placement: 'top-left',
     widthPx: 340,
@@ -121,8 +121,8 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
       panel: new ColumnPanel({
         id: 'skybox-globe-panel',
         title: 'SkyboxLayer GlobeView',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: '',
             markdown: [
@@ -133,18 +133,18 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
               '- Basemap: CARTO vector style rendered through `BasemapLayer`.'
             ].join('\n')
           }),
-          settings: new SettingsPanel({
+          new SettingsPanel({
             id: 'settings',
             label: 'Controls',
             schema: SETTINGS_SCHEMA,
             settings: state.settings,
-            onSettingsChange: (nextSettings) => {
+            onSettingsChange: nextSettings => {
               state.settings = nextSettings;
               syncDeck();
               syncInfoWidget();
             }
           })
-        }
+        ]
       })
     });
   }
@@ -165,8 +165,7 @@ function buildLayers(settings: SettingsState) {
     settings.render?.showSkybox !== false &&
       new SkyboxLayer({
         id: 'skybox',
-        cubemap: TYCHO_CUBEMAP,
-        orientation: 'y-up'
+        cubemap: TYCHO_CUBEMAP
       }),
     new BasemapLayer({
       id: 'earth',
@@ -183,23 +182,23 @@ function buildLayers(settings: SettingsState) {
     new ArcLayer<Flight>({
       id: 'flight-arcs',
       data: FLIGHTS,
-      getSourcePosition: (d) => d.source.position,
-      getTargetPosition: (d) => d.target.position,
-      getSourceColor: (d) => [...d.color, 0],
-      getTargetColor: (d) => [...d.color, 220],
+      getSourcePosition: d => d.source.position,
+      getTargetPosition: d => d.target.position,
+      getSourceColor: d => [...d.color, 0],
+      getTargetColor: d => [...d.color, 220],
       getWidth: 2,
       greatCircle: true,
-      getHeight: (d) => d.height
+      getHeight: d => d.height
     }),
     new ScatterplotLayer<City>({
       id: 'city-markers',
       data: CITIES,
       pickable: true,
-      getPosition: (d) => d.position,
+      getPosition: d => d.position,
       getRadius: 180000,
       radiusUnits: 'meters',
       radiusMinPixels: 3,
-      getFillColor: (d) => [...d.color, 255],
+      getFillColor: d => [...d.color, 255],
       getLineColor: [255, 255, 255, 200],
       lineWidthUnits: 'pixels',
       getLineWidth: 1,

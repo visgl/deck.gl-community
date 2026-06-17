@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {ReactElement, useMemo, useEffect} from 'react';
+import {ReactElement, useMemo, useEffect} from 'react';
 import DeckGL from '@deck.gl/react';
 import {OrthographicView, type OrthographicViewState} from '@deck.gl/core';
 import {TimelineLayer} from '@deck.gl-community/timeline-layers';

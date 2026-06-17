@@ -14,7 +14,7 @@ export type SimpleLayoutProps = GraphLayoutProps & {
 export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
   static defaultProps: Required<SimpleLayoutProps> = {
     ...GraphLayout.defaultProps,
-    nodePositionAccessor: (node) =>
+    nodePositionAccessor: node =>
       [node.getPropertyValue('x'), node.getPropertyValue('y')] as [number, number]
   };
 
@@ -48,16 +48,16 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
   updateGraph(graph: Graph): void {
     this._graph = graph;
     const nodes = Array.from(graph.getNodes());
-    this._nodeMap = new Map(nodes.map((node) => [node.getId(), node]));
+    this._nodeMap = new Map(nodes.map(node => [node.getId(), node]));
     this._nodePositionMap = new Map(
-      nodes.map((node) => [
+      nodes.map(node => [
         node.getId(),
         this._normalizePosition(this.props.nodePositionAccessor(node))
       ])
     );
   }
 
-  setNodePositionAccessor = (accessor) => {
+  setNodePositionAccessor = accessor => {
     (this.props as any).nodePositionAccessor = accessor;
   };
 
@@ -95,7 +95,7 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
   }
 
   protected override _updateBounds(): void {
-    const positions = Array.from(this._nodePositionMap.values(), (position) =>
+    const positions = Array.from(this._nodePositionMap.values(), position =>
       this._normalizePosition(position)
     );
     this._bounds = this._calculateBounds(positions);

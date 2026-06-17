@@ -118,7 +118,7 @@ function HeapMemoryWidgetView({pollIntervalMs}: HeapMemoryWidgetViewProps) {
     borderRadius: 'var(--button-corner-radius)',
     backgroundImage: gradient,
     backgroundColor: 'var(--button-background)',
-    color: 'var(--deck-widget-text-color, #111827)',
+    color: 'var(--button-text, currentColor)',
     border: '1px solid var(--button-stroke)',
     boxShadow: 'var(--button-shadow)',
     overflow: 'hidden',
@@ -148,8 +148,7 @@ function HeapMemoryWidgetView({pollIntervalMs}: HeapMemoryWidgetViewProps) {
         <span
           style={{
             lineHeight: 1.05,
-            fontSize: '10px',
-            textShadow: '0 1px 1px rgba(255, 255, 255, 0.35)'
+            fontSize: '10px'
           }}
         >
           {valueText}
@@ -157,8 +156,7 @@ function HeapMemoryWidgetView({pollIntervalMs}: HeapMemoryWidgetViewProps) {
         <span
           style={{
             lineHeight: 1,
-            fontSize: '9px',
-            textShadow: '0 1px 1px rgba(255, 255, 255, 0.35)'
+            fontSize: '9px'
           }}
         >
           GB

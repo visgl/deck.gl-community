@@ -52,7 +52,7 @@ export class VerticalGridLayer extends CompositeLayer<VerticalGridLayerProps> {
     const tickPositions = getPrettyTicks(startTimeZoomed, endTimeZoomed, tickCount);
 
     // Create vertical grid lines at each tick position
-    const gridLines = tickPositions.map((x) => ({
+    const gridLines = tickPositions.map(x => ({
       sourcePosition: [x, yMin],
       targetPosition: [x, yMax]
     }));
@@ -60,8 +60,8 @@ export class VerticalGridLayer extends CompositeLayer<VerticalGridLayerProps> {
     return new LineLayer({
       id: `${this.props.id}-lines`,
       data: gridLines,
-      getSourcePosition: (d) => d.sourcePosition,
-      getTargetPosition: (d) => d.targetPosition,
+      getSourcePosition: d => d.sourcePosition,
+      getTargetPosition: d => d.targetPosition,
       getColor: color,
       getWidth: 1
     });

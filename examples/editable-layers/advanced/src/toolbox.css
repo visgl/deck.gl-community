@@ -1,0 +1,54 @@
+.editable-layers-toolbox {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: #f0f0f0;
+  padding: 0;
+  width: 230px;
+  height: 100%;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  overflow: auto;
+  z-index: 30;
+}
+
+.editable-layers-toolbox-title {
+  background: rgba(39, 45, 59, 0.8);
+  font-size: 16px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.editable-layers-toolbox-button,
+.editable-layers-toolbox-checkbox {
+  width: 100%;
+  border: none;
+  color: #f0f0f0;
+  background: rgba(23, 28, 41, 0.8);
+  text-align: left;
+  font-size: 16px;
+  outline: none;
+  height: 44px;
+  cursor: pointer;
+}
+
+.editable-layers-toolbox-button {
+  display: block;
+}
+
+.editable-layers-toolbox-checkbox {
+  display: flex;
+  align-items: center;
+  text-transform: capitalize;
+}
+
+.editable-layers-toolbox-item-selected {
+  background: rgba(30, 84, 183, 0.8);
+}
+
+.editable-layers-toolbox-button:hover,
+.editable-layers-toolbox-checkbox:hover {
+  background: #276ef1;
+}

@@ -119,7 +119,7 @@ function buildArrowGraphData(
   for (const node of parsed.nodes.values()) {
     const attributes: DOTAttributeMap = {...node.attributes};
     if (node.subgraphs.size > 0) {
-      attributes.subgraphs = Array.from(node.subgraphs, (id) =>
+      attributes.subgraphs = Array.from(node.subgraphs, id =>
         describeSubgraph(id, subgraphDescriptors)
       );
     }
@@ -129,10 +129,10 @@ function buildArrowGraphData(
     });
   }
 
-  parsed.edges.forEach((edge) => {
+  parsed.edges.forEach(edge => {
     const attributes: DOTAttributeMap = {...edge.attributes};
     if (edge.subgraphs.length > 0) {
-      attributes.subgraphs = edge.subgraphs.map((id) => describeSubgraph(id, subgraphDescriptors));
+      attributes.subgraphs = edge.subgraphs.map(id => describeSubgraph(id, subgraphDescriptors));
     }
     builder.addEdge({
       id: edge.id,
@@ -148,7 +148,7 @@ function buildArrowGraphData(
     directed: parsed.directed,
     strict: parsed.strict,
     attributes: {...parsed.graphAttributes},
-    subgraphs: Array.from(parsed.subgraphs.values(), (subgraph) => ({
+    subgraphs: Array.from(parsed.subgraphs.values(), subgraph => ({
       id: subgraph.id,
       attributes: {...subgraph.attributes},
       parentId: subgraph.parentId
@@ -476,7 +476,7 @@ class DOTParser {
       this.result.nodes.set(id, node);
     }
     if (node) {
-      membership.forEach((subgraphId) => node.subgraphs.add(subgraphId));
+      membership.forEach(subgraphId => node.subgraphs.add(subgraphId));
     }
     return node;
   }

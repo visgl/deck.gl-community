@@ -45,7 +45,7 @@ export class SplitPolygonMode extends GeoJsonEditMode {
       let minDistance = Number.MAX_SAFE_INTEGER;
       let closestPoint: ReturnType<typeof nearestPointOnLine> | null = null;
       // If Multipolygon, then we should find nearest polygon line and stick split to it.
-      lines.forEach((line) => {
+      lines.forEach(line => {
         const snapPoint = nearestPointOnLine(line, firstPoint);
         const distanceFromOrigin = turfDistance(snapPoint, firstPoint);
         if (minDistance > distanceFromOrigin) {
@@ -178,11 +178,11 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     let updatedCoordinates: any[] = []; // TODO
     if (type === 'Polygon') {
       // Update the coordinates as per Multipolygon
-      updatedCoordinates = coordinates.map((c) => [c]);
+      updatedCoordinates = coordinates.map(c => [c]);
     } else {
       // Handle Case when Multipolygon has holes
       updatedCoordinates = coordinates.reduce((agg, prev) => {
-        prev.forEach((p) => {
+        prev.forEach(p => {
           // @ts-expect-error revisit coordinates type here
           agg.push([p]);
         });

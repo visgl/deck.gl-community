@@ -34,13 +34,13 @@ const NODE_TO_EDGE_STATE_MAP: Record<NodeState, EdgeState> = {
 function shouldEdgeBeSelected(edge: EdgeInterface): boolean {
   return edge
     .getConnectedNodes()
-    .some((node) => node.getState() === 'selected' && node.shouldHighlightConnectedEdges());
+    .some(node => node.getState() === 'selected' && node.shouldHighlightConnectedEdges());
 }
 
 function setNodeState(node: NodeInterface, state: NodeState) {
   node.setState(state);
   if (node.shouldHighlightConnectedEdges()) {
-    node.getConnectedEdges().forEach((edge) => {
+    node.getConnectedEdges().forEach(edge => {
       let newEdgeState = NODE_TO_EDGE_STATE_MAP[state];
       if (shouldEdgeBeSelected(edge)) {
         newEdgeState = 'selected';

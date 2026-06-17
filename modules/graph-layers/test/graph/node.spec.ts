@@ -8,7 +8,7 @@ import SAMPLE_NODE from '../data/__fixtures__/edge.json';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
 
-const createEdges = (edges) => edges.map((e) => new Edge(e));
+const createEdges = edges => edges.map(e => new Edge(e));
 
 describe('core/node', () => {
   // TODO: Failing test.

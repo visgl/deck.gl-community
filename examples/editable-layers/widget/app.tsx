@@ -17,13 +17,8 @@ import {
   EditModeTrayWidget,
   type EditModeTrayWidgetModeOption
 } from '@deck.gl-community/editable-layers';
-import {
-  BoxWidget,
-  ColumnPanel,
-  CustomPanel,
-  MarkdownPanel,
-  type WidgetPanel
-} from '@deck.gl-community/widgets';
+import {ColumnPanel, CustomPanel, MarkdownPanel, type Panel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
@@ -68,7 +63,8 @@ const CONTROL_SECTION_STYLE = {
 const CONTROL_BUTTON_GROUP_STYLE = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '8px'
+  gap: '8px',
+  pointerEvents: 'auto'
 } as const;
 
 const CONTROL_BUTTON_STYLE = {
@@ -174,7 +170,7 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
     style: {margin: '16px 0 0 16px'}
   });
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'editable-layers-widget-info',
     placement: 'top-right',
     widthPx: 320,
@@ -259,7 +255,7 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
   function syncInfoWidget() {
     infoWidget.setProps({
       panel: buildInfoPanel(state, {
-        onSetBooleanOperation: (booleanOperation) => {
+        onSetBooleanOperation: booleanOperation => {
           state.booleanOperation = booleanOperation;
           syncOverlay();
           syncInfoWidget();
@@ -316,7 +312,7 @@ function getCursor(state: WidgetExampleState) {
 }
 
 function getModeOption(id: string): EditModeTrayWidgetModeOption | undefined {
-  return MODE_OPTIONS.find((option) => option.id === id);
+  return MODE_OPTIONS.find(option => option.id === id);
 }
 
 function createButton(ownerDocument: Document, label: string, onClick: () => void) {
@@ -335,7 +331,7 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }
 
 function getDefaultGeoJSON(): FeatureCollection {
@@ -389,12 +385,12 @@ function buildInfoPanel(
     onReset: () => void;
     onClear: () => void;
   }
-): WidgetPanel {
+): Panel {
   return new ColumnPanel({
     id: 'editable-layers-widget-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -410,10 +406,10 @@ function buildInfoPanel(
           }**`
         ].join('\n')
       }),
-      booleanOps: new CustomPanel({
+      new CustomPanel({
         id: 'boolean-operations',
         title: 'Boolean operations',
-        onRenderHTML: (host) => {
+        onRenderHTML: host => {
           const ownerDocument = host.ownerDocument;
           const section = ownerDocument.createElement('section');
           const description = ownerDocument.createElement('p');
@@ -445,10 +441,10 @@ function buildInfoPanel(
           host.replaceChildren(section);
         }
       }),
-      dataset: new CustomPanel({
+      new CustomPanel({
         id: 'dataset',
         title: 'Dataset',
-        onRenderHTML: (host) => {
+        onRenderHTML: host => {
           const ownerDocument = host.ownerDocument;
           const section = ownerDocument.createElement('section');
           const status = ownerDocument.createElement('p');
@@ -475,6 +471,6 @@ function buildInfoPanel(
           host.replaceChildren(section);
         }
       })
-    }
+    ]
   });
 }

@@ -38,7 +38,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
     const {getNodeAxis, innerRadius, outerRadius} = this.props;
     this._graph = graph;
     const nodes = Array.from(graph.getNodes());
-    this._nodeMap = new Map(nodes.map((node) => [node.getId(), node]));
+    this._nodeMap = new Map(nodes.map(node => [node.getId(), node]));
 
     // bucket nodes into few axis
 
@@ -150,7 +150,7 @@ export class HivePlotLayout extends GraphLayout<HivePlotLayoutProps> {
   };
 
   protected override _updateBounds(): void {
-    const positions = Array.from(this._nodePositionMap.values(), (position) =>
+    const positions = Array.from(this._nodePositionMap.values(), position =>
       this._normalizePosition(position)
     );
     this._bounds = this._calculateBounds(positions);

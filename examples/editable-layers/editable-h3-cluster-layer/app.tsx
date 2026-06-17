@@ -12,13 +12,8 @@ import {
   EditModeTrayWidget,
   type EditModeTrayWidgetModeOption
 } from '@deck.gl-community/editable-layers';
-import {
-  BoxWidget,
-  ColumnPanel,
-  MarkdownPanel,
-  ToolbarWidget,
-  type ToolbarWidgetItem
-} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel, type ToolbarComponentItem} from '@deck.gl-community/panels';
+import {BoxPanelWidget, ToolbarWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 
 import {hexagonCluster1, hexagonCluster2, hexagonCluster3} from './data';
@@ -97,7 +92,7 @@ export function mountEditableH3ClusterLayerExample(container: HTMLElement): () =
   container.replaceChildren(rootElement);
 
   const state: EditableH3State = {
-    data: INITIAL_DATA.map((cluster) => ({hexIds: [...cluster.hexIds]})),
+    data: INITIAL_DATA.map(cluster => ({hexIds: [...cluster.hexIds]})),
     selectedModeId: 'draw-polygon',
     booleanOperation: 'union',
     selectedIndexes: [0]
@@ -114,7 +109,7 @@ export function mountEditableH3ClusterLayerExample(container: HTMLElement): () =
     style: {margin: '16px 16px 0 0'}
   });
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'editable-h3-info',
     placement: 'bottom-right',
     widthPx: 320,
@@ -193,15 +188,15 @@ export function mountEditableH3ClusterLayerExample(container: HTMLElement): () =
         booleanOperation: state.booleanOperation,
         clusterCount: state.data.length,
         selectedIndexes: state.selectedIndexes,
-        onSetBooleanOperation: (booleanOperation) => {
+        onSetBooleanOperation: booleanOperation => {
           state.booleanOperation = booleanOperation;
           syncOverlay();
           syncToolbarWidget();
           syncInfoWidget();
         },
-        onToggleClusterSelection: (index) => {
+        onToggleClusterSelection: index => {
           state.selectedIndexes = state.selectedIndexes.includes(index)
-            ? state.selectedIndexes.filter((selectedIndex) => selectedIndex !== index)
+            ? state.selectedIndexes.filter(selectedIndex => selectedIndex !== index)
             : [...state.selectedIndexes, index];
           syncOverlay();
           syncToolbarWidget();
@@ -224,14 +219,11 @@ export function mountEditableH3ClusterLayerExample(container: HTMLElement): () =
   }
 }
 
-function buildLayers(
-  state: EditableH3State,
-  onEdit: (updatedData: ClusterDatum[]) => void
-) {
+function buildLayers(state: EditableH3State, onEdit: (updatedData: ClusterDatum[]) => void) {
   return [
     new EditableH3ClusterLayer<ClusterDatum>({
       data: state.data,
-      getHexagons: (cluster) => cluster.hexIds,
+      getHexagons: cluster => cluster.hexIds,
       getEditedCluster: (updatedHexagonIDs, existingCluster) => {
         if (existingCluster) {
           return {
@@ -257,8 +249,8 @@ function buildLayers(
           getFillColor: getTentativeFillColor(state.booleanOperation)
         },
         hexagons: {
-          getFillColor: (cluster) => {
-            if (state.selectedIndexes.some((index) => state.data[index] === cluster)) {
+          getFillColor: cluster => {
+            if (state.selectedIndexes.some(index => state.data[index] === cluster)) {
               return SELECTED_FILL_COLOR;
             }
             return UNSELECTED_FILL_COLOR;
@@ -284,7 +276,7 @@ function buildToolbarItems({
   selectedIndexes: number[];
   onSetBooleanOperation: (booleanOperation: BooleanOperation) => void;
   onToggleClusterSelection: (index: number) => void;
-}): ToolbarWidgetItem[] {
+}): ToolbarComponentItem[] {
   return [
     {
       kind: 'toggle-group',
@@ -297,20 +289,25 @@ function buildToolbarItems({
         {id: 'difference', label: 'Subtract', title: 'Subtract from the selected cluster'},
         {id: 'intersection', label: 'Intersect', title: 'Keep only overlaps'}
       ],
-      onSelect: (optionId) => {
-        onSetBooleanOperation(optionId === 'edit' ? null : (optionId as Exclude<BooleanOperation, null>));
+      onSelect: optionId => {
+        onSetBooleanOperation(
+          optionId === 'edit' ? null : (optionId as Exclude<BooleanOperation, null>)
+        );
       }
     },
-    ...Array.from({length: clusterCount}, (_, index): ToolbarWidgetItem => ({
-      kind: 'action',
-      id: `cluster-${index}`,
-      label: `Cluster ${index + 1}`,
-      title: `Select cluster ${index + 1}`,
-      active: selectedIndexes.includes(index),
-      onClick: () => {
-        onToggleClusterSelection(index);
-      }
-    })),
+    ...Array.from(
+      {length: clusterCount},
+      (_, index): ToolbarComponentItem => ({
+        kind: 'action',
+        id: `cluster-${index}`,
+        label: `Cluster ${index + 1}`,
+        title: `Select cluster ${index + 1}`,
+        active: selectedIndexes.includes(index),
+        onClick: () => {
+          onToggleClusterSelection(index);
+        }
+      })
+    ),
     {
       kind: 'badge',
       id: 'cluster-count',
@@ -333,8 +330,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'editable-h3-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -344,18 +341,18 @@ function buildInfoPanel({
           `- Boolean op: **${booleanOperation ?? 'edit'}**`,
           `- Clusters: **${clusterCount}**`,
           `- Selected: **${
-            selectedIndexes.length > 0 ? selectedIndexes.map((index) => index + 1).join(', ') : 'none'
+            selectedIndexes.length > 0 ? selectedIndexes.map(index => index + 1).join(', ') : 'none'
           }**`
         ].join('\n')
       })
-    }
+    ]
   });
 }
 
 function getCursor(state: EditableH3State) {
   const layer = new EditableH3ClusterLayer<ClusterDatum>({
     data: state.data,
-    getHexagons: (cluster) => cluster.hexIds,
+    getHexagons: cluster => cluster.hexIds,
     selectedIndexes: state.selectedIndexes,
     resolution: 9,
     modeConfig: {
@@ -380,7 +377,7 @@ function getTentativeFillColor(booleanOperation: BooleanOperation) {
 }
 
 function getModeOption(id: string): EditModeTrayWidgetModeOption | undefined {
-  return MODE_OPTIONS.find((option) => option.id === id);
+  return MODE_OPTIONS.find(option => option.id === id);
 }
 
 function applyElementStyle(element: HTMLElement, style: Record<string, string>) {
@@ -390,5 +387,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

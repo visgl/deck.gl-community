@@ -1,10 +1,10 @@
 import React from 'react';
 import DeckGL from '@deck.gl/react';
 import {Map} from 'react-map-gl/maplibre';
-import styled from 'styled-components';
 import {useColorMode} from '@docusaurus/theme-common';
 import {MAPBOX_STYLES} from '../constants/defaults';
 import {gotoLayerSource} from './codepen-automation';
+import styles from './demo-base.module.css';
 
 const INITIAL_VIEW_STATE = {
   longitude: -122.4,
@@ -23,54 +23,6 @@ const TOOLTIP_STYLE = {
   fontSize: '10px',
   zIndex: 9
 };
-
-const DemoPlaceholder = styled.div`
-  height: 50vh;
-  min-height: 200px;
-  position: relative;
-  margin-bottom: 24px;
-
-  @media screen and (max-width: 768px) {
-    height: 60vh;
-  }
-`;
-
-const DemoContainer = styled.div`
-  height: 50vh;
-  min-height: 200px;
-  position: absolute;
-  width: 100%;
-  left: 0;
-  top: 0;
-  overflow: hidden;
-
-  @media screen and (max-width: 768px) {
-    height: 60vh;
-  }
-`;
-
-const DemoSourceLink = styled.div`
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 8px;
-  background: var(--ifm-background-surface-color);
-  margin: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 12px;
-
-  &:hover {
-    color: var(--ifm-color-primary);
-  }
-
-  svg {
-    width: 20px;
-    vertical-align: middle;
-    margin-right: 4px;
-  }
-`;
 
 /* eslint-disable no-eval */
 function evalObject(source, globals, output) {
@@ -117,8 +69,8 @@ export function makeLayerDemo(config) {
     const mapStyleSheet = colorMode === 'dark' ? MAPBOX_STYLES.DARK : MAPBOX_STYLES.LIGHT;
 
     return (
-      <DemoPlaceholder>
-        <DemoContainer>
+      <div className={styles.demoPlaceholder}>
+        <div className={styles.demoContainer}>
           <DeckGL
             pickingRadius={5}
             initialViewState={initialViewState}
@@ -134,8 +86,8 @@ export function makeLayerDemo(config) {
               />
             )}
           </DeckGL>
-        </DemoContainer>
-        <DemoSourceLink onClick={() => gotoLayerSource(config, layer)}>
+        </div>
+        <div className={styles.demoSourceLink} onClick={() => gotoLayerSource(config, layer)}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M0 0h24v24H0V0z" fill="none" />
             <path
@@ -144,8 +96,8 @@ export function makeLayerDemo(config) {
             />
           </svg>
           Edit on Codepen
-        </DemoSourceLink>
-      </DemoPlaceholder>
+        </div>
+      </div>
     );
   }
   return React.memo(Demo);

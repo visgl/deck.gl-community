@@ -11,5 +11,10 @@ export {LongPressButton} from './components/long-press-button';
 export {EditorModal as Modal} from './components/modal';
 export {Button} from './components/modal';
 export {Icon} from './components/icon';
+export {
+  Panel,
+  type PanelHostThemeMode,
+  type PanelProps
+} from './components/panel';
 
 // Overlays migrated to @deck.gl-community/widgets

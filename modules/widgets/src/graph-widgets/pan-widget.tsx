@@ -6,7 +6,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {cloneViewState, hasViewManager} from '../widgets/view-manager-utils';
+import {cloneViewState, hasViewManager} from '../lib/utils/view-manager-utils';
 import {
   Widget,
   type Deck,
@@ -108,7 +108,7 @@ export class PanWidget extends Widget<PanWidgetProps> {
 
     const ui = (
       <div style={NAVIGATION_CONTAINER_STYLE}>
-        {buttons.map((button) => {
+        {buttons.map(button => {
           const buttonStyle: JSX.CSSProperties = {
             ...NAVIGATION_BUTTON_STYLE,
             top: `${button.top}px`,

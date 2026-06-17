@@ -31,7 +31,7 @@ const GRAPH_DECKGL_UPDATE_TRIGGERS: DeckGLUpdateTriggers = {
 
 function formatStylesheetError(error: ZodError) {
   const details = error.issues
-    .map((issue) => {
+    .map(issue => {
       const path = issue.path.length ? issue.path.join('.') : 'root';
       return `  • ${path}: ${issue.message}`;
     })
@@ -94,7 +94,7 @@ function sanitizeStylesheet(
 ): GraphStyleRuleParsed {
   if (issues.length) {
     const details = issues
-      .map((issue) => {
+      .map(issue => {
         const path = issue.path.length ? issue.path.join('.') : 'root';
         return `${path}: ${issue.message}`;
       })
@@ -161,7 +161,7 @@ function sanitizeStylesheet(
 
 function cloneValue<T>(value: T): T {
   if (Array.isArray(value)) {
-    return value.map((item) => cloneValue(item)) as unknown as T;
+    return value.map(item => cloneValue(item)) as unknown as T;
   }
   if (value && typeof value === 'object') {
     if (value instanceof Date) {

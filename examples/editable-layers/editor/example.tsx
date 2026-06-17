@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import {useState, useEffect, useCallback, useMemo} from 'react';
 import {Map} from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
 import {
@@ -22,7 +22,8 @@ import {
   EditorToolbarWidget
 } from '@deck.gl-community/editable-layers';
 import type {BooleanOperation} from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@deck.gl/widgets/stylesheet.css';
@@ -119,8 +120,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'editor-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -134,7 +135,7 @@ function buildInfoPanel({
           }**`
         ].join('\n')
       })
-    }
+    ]
   });
 }
 
@@ -167,7 +168,7 @@ export function Example() {
 
   const infoWidget = useMemo(
     () =>
-      new BoxWidget({
+      new BoxPanelWidget({
         id: 'editor-info',
         placement: 'top-right',
         widthPx: 320,
@@ -197,7 +198,7 @@ export function Example() {
 
   // Sync mode tray widget
   useEffect(() => {
-    const selected = MODE_OPTIONS.find((option) => option.mode === mode)?.id ?? null;
+    const selected = MODE_OPTIONS.find(option => option.mode === mode)?.id ?? null;
     trayWidget.setProps({
       modes: MODE_OPTIONS,
       activeMode: mode,
@@ -219,10 +220,17 @@ export function Example() {
       onClear: handleClear,
       onExport: handleExport
     });
-  }, [modeConfig, geoJson.features.length, handleSetBooleanOp, handleClear, handleExport, toolbarWidget]);
+  }, [
+    modeConfig,
+    geoJson.features.length,
+    handleSetBooleanOp,
+    handleClear,
+    handleExport,
+    toolbarWidget
+  ]);
 
   useEffect(() => {
-    const modeLabel = MODE_OPTIONS.find((option) => option.mode === mode)?.label ?? 'View';
+    const modeLabel = MODE_OPTIONS.find(option => option.mode === mode)?.label ?? 'View';
     infoWidget.setProps({
       panel: buildInfoPanel({
         modeLabel,
@@ -249,27 +257,25 @@ export function Example() {
   });
 
   return (
-    <Map
+    <DeckGL
       initialViewState={initialViewState}
-      mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
       style={{width: '100%', height: '100%'}}
-    >
-      <DeckGL
-        controller={{doubleClickZoom: false}}
-        layers={[layer]}
-        getCursor={layer.getCursor.bind(layer)}
-        onClick={(info) => {
-          if (mode === ViewMode) {
-            const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
-            if (index !== null) {
-              setSelectedFeatureIndexes([index]);
-            } else {
-              setSelectedFeatureIndexes([]);
-            }
+      controller={{doubleClickZoom: false}}
+      layers={[layer]}
+      getCursor={layer.getCursor.bind(layer)}
+      onClick={info => {
+        if (mode === ViewMode) {
+          const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
+          if (index !== null) {
+            setSelectedFeatureIndexes([index]);
+          } else {
+            setSelectedFeatureIndexes([]);
           }
-        }}
-        widgets={widgets}
-      />
-    </Map>
+        }
+      }}
+      widgets={widgets}
+    >
+      <Map mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
+    </DeckGL>
   );
 }

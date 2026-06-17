@@ -33,10 +33,10 @@ const OUTPUT_LIST = resolve(packageRoot, outputDir, 'marker-list.ts');
 const IMAGE_PATTERN = /\.(png|jpg|jpeg|gif|bmp|tiff)$/i;
 
 // Get all images in the input path
-const fileNames = (await readdir(INPUT_DIR)).filter((name) => IMAGE_PATTERN.test(name));
+const fileNames = (await readdir(INPUT_DIR)).filter(name => IMAGE_PATTERN.test(name));
 
 Promise.all(fileNames.map((name: string) => readImage(resolve(INPUT_DIR, name)))).then(
-  async (images) => {
+  async images => {
     // Images are loaded
     const nodes = images.map((pixels: NdArray, index: number) => ({
       name: fileNames[index],
@@ -52,7 +52,7 @@ Promise.all(fileNames.map((name: string) => readImage(resolve(INPUT_DIR, name)))
     // Convert to texture atlas
     const outputJSON = {};
     const outputImage = createImage(result.width, result.height);
-    result.items.forEach((item) => {
+    result.items.forEach(item => {
       outputJSON[item.item.name.replace(IMAGE_PATTERN, '')] = {
         x: item.x,
         y: item.y,
@@ -122,7 +122,7 @@ async function exportJSFile(
 }
 
 async function readImage(filePath: string): Promise<NdArray> {
-  return readFile(filePath).then((buffer) => getPixels(buffer, 'image/png'));
+  return readFile(filePath).then(buffer => getPixels(buffer, 'image/png'));
 }
 
 async function writeImage(

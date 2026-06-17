@@ -30,7 +30,7 @@ function getColor(value) {
         color[3] *= 255;
       }
       return color;
-    } catch (error) {
+    } catch (_error) {
       return [0, 0, 0];
     }
   }
@@ -44,7 +44,7 @@ function getNumber(value) {
   switch (typeof value) {
     case 'string':
       value = Number(value);
-      return isNaN(value) ? null : value;
+      return Number.isNaN(value) ? null : value;
 
     case 'number':
       return value;
@@ -81,7 +81,7 @@ function getOffset(value) {
   return value.map(getNumber);
 }
 
-const IDENTITY = (x) => x;
+const IDENTITY = x => x;
 const PROPERTY_FORMATTERS = {
   opacity: getNumber,
   zIndex: getNumber,
@@ -312,7 +312,7 @@ function getAttributeValue(datum: any, attribute: string) {
 /** Combine Deck.gl update triggers while filtering falsey entries. */
 function mergeUpdateTriggers(...triggers: unknown[]): unknown {
   const filtered = triggers.filter(
-    (trigger) => !(trigger === false || trigger === undefined || trigger === null)
+    trigger => !(trigger === false || trigger === undefined || trigger === null)
   );
   if (!filtered.length) {
     return false;
@@ -374,7 +374,7 @@ function describeStyleValue(value: unknown): string {
     return value.name ? `[Function ${value.name}]` : '[Function]';
   }
   if (Array.isArray(value)) {
-    return `[${value.map((item) => describeStyleValue(item)).join(', ')}]`;
+    return `[${value.map(item => describeStyleValue(item)).join(', ')}]`;
   }
   try {
     return JSON.stringify(value);
@@ -405,7 +405,7 @@ function parseLeafValue(key: string, value: GraphStyleLeafValue | undefined): Le
 
   if (typeof value === 'function') {
     return {
-      value: (datum) => formatter(value(datum)),
+      value: datum => formatter(value(datum)),
       isAccessor: true,
       updateTrigger: value
     };

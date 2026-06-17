@@ -1,6 +1,7 @@
 import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
+import {deferImperativeCleanup} from '../imperative-cleanup';
 import makeExample from './make-example';
 
 const HOST_STYLE = {
@@ -30,7 +31,7 @@ function ImperativeExampleHost({mount, mountLabel, ...mountProps}) {
             return;
           }
           if (isDisposed) {
-            nextCleanup();
+            deferImperativeCleanup(nextCleanup);
             return;
           }
           cleanup = nextCleanup;
@@ -44,7 +45,7 @@ function ImperativeExampleHost({mount, mountLabel, ...mountProps}) {
     return () => {
       isDisposed = true;
       window.cancelAnimationFrame(animationFrame);
-      cleanup?.();
+      deferImperativeCleanup(cleanup);
     };
   }, [mount, mountLabel]);
 

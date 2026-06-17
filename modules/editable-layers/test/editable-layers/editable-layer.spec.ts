@@ -1,5 +1,5 @@
 // test/editable-layers/event-handlers.spec.ts
-import {LayerContext, PickingInfo} from '@deck.gl/core';
+import type {PickingInfo} from '@deck.gl/core';
 import {test, expect, vi, beforeEach} from 'vitest';
 
 import type {
@@ -21,6 +21,7 @@ class TestEditableLayer extends EditableLayer {
 
 const MOCK_EVENT_SCREEN_COORDS: ScreenCoordinates = [50, 100];
 const MOCK_EVENT_MAP_COORDS: Position = [12.34, 56.78];
+const MOCK_TERRAIN_PICK_COORDS: Position = [98.76, 54.32, 300];
 const MOCK_EVENT_PICK: PickingInfo = {
   color: new Uint8Array([255, 0, 0, 255]),
   layer: null,
@@ -56,6 +57,7 @@ function makeMockContext() {
     deck: {
       // use a mock implementation that returns static picks for testing, instead of doing actual picking
       pickMultipleObjects: vi.fn(() => [MOCK_EVENT_PICK]),
+      pickObject: vi.fn(),
       eventManager: {
         on: vi.fn(),
         off: vi.fn()
@@ -66,7 +68,7 @@ function makeMockContext() {
     },
     viewport: {
       // use static map coords for testing, instead of doing actual unprojection
-      unproject: (coords: [number, number]) => MOCK_EVENT_MAP_COORDS
+      unproject: vi.fn((_coords: [number, number]) => MOCK_EVENT_MAP_COORDS)
     }
   };
 }
@@ -122,7 +124,44 @@ test('toBasePointerEvent uses offsetCenter, not clientX/Y', () => {
   const event = makeMockGestureEvent('click');
   const result = layer.toBasePointerEvent(event);
 
-  assertBasePointerEvent(result, event);
+  expect(result).not.toBeNull();
+  assertBasePointerEvent(result!, event);
+});
+
+test('getMapCoords strips Z from terrain pick coordinates', () => {
+  mockContext.layerManager.getLayers.mockReturnValue([
+    {id: 'terrain-source', props: {pickable: '3d'}}
+  ] as any);
+  mockContext.deck.pickObject.mockReturnValue({coordinate: MOCK_TERRAIN_PICK_COORDS});
+
+  const result = layer.getMapCoords(MOCK_EVENT_SCREEN_COORDS);
+
+  expect(result).toEqual([MOCK_TERRAIN_PICK_COORDS[0], MOCK_TERRAIN_PICK_COORDS[1]]);
+  expect(mockContext.deck.pickObject).toHaveBeenCalledWith({
+    x: MOCK_EVENT_SCREEN_COORDS[0],
+    y: MOCK_EVENT_SCREEN_COORDS[1],
+    layerIds: ['terrain-source'],
+    unproject3D: true
+  });
+  expect(mockContext.viewport.unproject).not.toHaveBeenCalled();
+});
+
+test('getMapCoords returns null when terrain pick misses', () => {
+  mockContext.layerManager.getLayers.mockReturnValue([
+    {id: 'terrain-source', props: {pickable: '3d'}}
+  ] as any);
+  mockContext.deck.pickObject.mockReturnValue(null);
+
+  const result = layer.getMapCoords(MOCK_EVENT_SCREEN_COORDS);
+
+  expect(result).toBeNull();
+  expect(mockContext.deck.pickObject).toHaveBeenCalledWith({
+    x: MOCK_EVENT_SCREEN_COORDS[0],
+    y: MOCK_EVENT_SCREEN_COORDS[1],
+    layerIds: ['terrain-source'],
+    unproject3D: true
+  });
+  expect(mockContext.viewport.unproject).not.toHaveBeenCalled();
 });
 
 test('initializeState registers event handlers', () => {
@@ -154,6 +193,19 @@ test('_onclick calls onLayerClick with correct event', () => {
   layer._onclick(mockEvent);
 
   expectBasePointerEvent(onLayerClickSpy, mockEvent);
+});
+
+test('_onclick ignores terrain pick misses', () => {
+  const onLayerClickSpy = vi.spyOn(layer, 'onLayerClick');
+  mockContext.layerManager.getLayers.mockReturnValue([
+    {id: 'terrain-source', props: {pickable: '3d'}}
+  ] as any);
+  mockContext.deck.pickObject.mockReturnValue(null);
+
+  layer._onclick(makeMockGestureEvent('click'));
+
+  expect(onLayerClickSpy).not.toHaveBeenCalled();
+  expect(mockContext.deck.pickMultipleObjects).not.toHaveBeenCalled();
 });
 
 test('_ondblclick calls onLayerDoubleClick with correct event', () => {
@@ -223,6 +275,23 @@ test('_onpanend resets pointerDown state to null', () => {
   layer.state._editableLayerState = {...MOCK_POINTER_DOWN_STATE};
   layer._onpanend(makeMockGestureEvent('panend'));
 
+  const s = layer.state._editableLayerState;
+  expect(s.pointerDownScreenCoords).toBeNull();
+  expect(s.pointerDownMapCoords).toBeNull();
+  expect(s.pointerDownPicks).toBeNull();
+});
+
+test('_onpanend resets pointerDown state when terrain pick misses', () => {
+  const stopDragSpy = vi.spyOn(layer, 'onStopDragging');
+  mockContext.layerManager.getLayers.mockReturnValue([
+    {id: 'terrain-source', props: {pickable: '3d'}}
+  ] as any);
+  mockContext.deck.pickObject.mockReturnValue(null);
+  layer.state._editableLayerState = {...MOCK_POINTER_DOWN_STATE};
+
+  layer._onpanend(makeMockGestureEvent('panend'));
+
+  expect(stopDragSpy).not.toHaveBeenCalled();
   const s = layer.state._editableLayerState;
   expect(s.pointerDownScreenCoords).toBeNull();
   expect(s.pointerDownMapCoords).toBeNull();

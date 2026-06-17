@@ -45,7 +45,7 @@ export function mountSkyboxFirstPersonExample(container: HTMLElement): () => voi
         id: 'floor',
         data: FLOOR,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPolygon: (d) => d,
+        getPolygon: d => d,
         stroked: false,
         filled: true,
         getFillColor: [14, 24, 34, 255]

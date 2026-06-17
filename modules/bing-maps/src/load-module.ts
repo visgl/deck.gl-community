@@ -14,7 +14,7 @@ declare global {
 }
 
 export function loadModule(moduleNames?: string[]) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     // Callback
     window.__loadBingMaps = () => {
       const namespace: any = window.Microsoft.Maps;
@@ -23,7 +23,7 @@ export function loadModule(moduleNames?: string[]) {
 
       if (moduleNames) {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        Promise.all(moduleNames.map((m) => awaitCallback(namespace.loadModule, m))).then(() =>
+        Promise.all(moduleNames.map(m => awaitCallback(namespace.loadModule, m))).then(() =>
           resolve(namespace)
         );
       } else {
@@ -40,7 +40,7 @@ export function loadModule(moduleNames?: string[]) {
 }
 
 function awaitCallback(func: Function, ...args: unknown[]) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     func(...args, resolve);
   });
 }

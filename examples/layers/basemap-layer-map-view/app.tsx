@@ -5,13 +5,13 @@
 import {Deck, MapView, _GlobeView} from '@deck.gl/core';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {
-  BoxWidget,
   ColumnPanel,
   MarkdownPanel,
   SettingsPanel,
   type SettingsSchema,
   type SettingsState
-} from '../../../modules/widgets/src';
+} from '../../../modules/panels/src';
+import {BoxPanelWidget} from '../../../modules/widgets/src';
 import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -197,7 +197,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
     basemapLoaded: false,
     lastError: null
   };
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'basemap-map-view-info',
     placement: 'top-left',
     widthPx: 360,
@@ -229,9 +229,11 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
   };
 
   const trackedFetch: typeof fetch = async (input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+    const url =
+      typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
     const isTileMetadataRequest = url.endsWith('/tiles.json') || url.includes('tilejson');
-    const isTileRequest = /\.mvt(?:$|\?)/.test(url) || /\.(png|jpg|jpeg|webp|avif)(?:$|\?)/.test(url);
+    const isTileRequest =
+      /\.mvt(?:$|\?)/.test(url) || /\.(png|jpg|jpeg|webp|avif)(?:$|\?)/.test(url);
 
     if (isTileMetadataRequest) {
       status.styleMetadataRequests += 1;
@@ -322,8 +324,8 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
       panel: new ColumnPanel({
         id: 'basemap-map-view-panel',
         title: 'BasemapLayer',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: '',
             markdown: [
@@ -340,14 +342,18 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
                 : '- No fetch errors observed.'
             ].join('\n')
           }),
-          settings: new SettingsPanel({
+          new SettingsPanel({
             id: 'settings',
             label: 'Settings',
             schema: SETTINGS_SCHEMA,
             settings: state.settings as unknown as SettingsState,
-            onSettingsChange: (nextSettings) => {
-              const nextMode = nextSettings.view?.mode as ExampleSettings['view']['mode'] | undefined;
-              const nextStyleId = nextSettings.basemap?.style as ExampleStyleOption['id'] | undefined;
+            onSettingsChange: nextSettings => {
+              const nextMode = nextSettings.view?.mode as
+                | ExampleSettings['view']['mode']
+                | undefined;
+              const nextStyleId = nextSettings.basemap?.style as
+                | ExampleStyleOption['id']
+                | undefined;
               if (nextMode) {
                 handleViewModeChange(nextMode);
               }
@@ -356,7 +362,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
               }
             }
           })
-        }
+        ]
       })
     });
   }
@@ -400,11 +406,7 @@ function createBasemapLayer(
   });
 }
 
-function getView(
-  settings: ExampleSettings,
-  flatView: MapView,
-  globeView: _GlobeView
-) {
+function getView(settings: ExampleSettings, flatView: MapView, globeView: _GlobeView) {
   return settings.view.mode === 'globe' ? globeView : flatView;
 }
 
@@ -413,7 +415,10 @@ function getViewState(settings: ExampleSettings) {
 }
 
 function isStableGlobeStyle(styleId: ExampleStyleOption['id']) {
-  return typeof (STYLE_OPTIONS.find(option => option.id === styleId) || STYLE_OPTIONS[0]).style !== 'string';
+  return (
+    typeof (STYLE_OPTIONS.find(option => option.id === styleId) || STYLE_OPTIONS[0]).style !==
+    'string'
+  );
 }
 
 function getStyleDisplayName(styleOption: ExampleStyleOption): string {

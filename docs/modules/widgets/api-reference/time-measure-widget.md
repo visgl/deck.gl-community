@@ -1,12 +1,8 @@
-import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
-
 # TimeMeasureWidget
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
-
-<WidgetLiveExample highlight="time-measure-widget" />
 
 `TimeMeasureWidget` is an interactive measurement widget for selecting a time range directly from a deck trace view.
 

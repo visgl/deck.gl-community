@@ -4,7 +4,7 @@
 
 type PropOption<Value extends string = string> = {value: Value; label: string};
 
-type BasePropDescription<TValues> = {
+type BasePropDescription<_TValues> = {
   title: string;
   description?: string;
   fullWidth?: boolean;

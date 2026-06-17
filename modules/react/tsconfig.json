@@ -7,5 +7,6 @@
     "rootDir": "src",
     "outDir": "dist",
     "noEmit": false
-  }
+  },
+  "references": [{"path": "../panels"}]
 }

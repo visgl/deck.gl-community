@@ -8,7 +8,7 @@ import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
  * Logs a non-error basemap-layer runtime event to deck.gl logging.
  */
 function logBasemapLayerEvent(message: string, details?: unknown): void {
-  log.info(message, details ?? '')();
+  log.probe(1, message, details ?? '')();
 }
 
 /**
@@ -147,7 +147,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
             getMapStyleLoaderOptions(loadOptions)
           )
     )
-      .then((resolvedStyle) => {
+      .then(resolvedStyle => {
         if (this.state.loadToken === loadToken) {
           logBasemapLayerEvent('Resolved basemap style', {
             loadToken,

@@ -62,8 +62,8 @@ describe('PlainGraphDataBuilder', () => {
     expect(result.shape).toBe('plain-graph-data');
     expect(result.nodes).toHaveLength(2);
     expect(result.edges).toHaveLength(2);
-    expect(result.nodes?.map((node) => node?.id)).toEqual(['node-1', 'node-2']);
-    expect(result.edges?.map((edge) => edge?.id)).toEqual(['edge-1', 'edge-2']);
+    expect(result.nodes?.map(node => node?.id)).toEqual(['node-1', 'node-2']);
+    expect(result.edges?.map(edge => edge?.id)).toEqual(['edge-1', 'edge-2']);
 
     expect(result.nodes?.[0]).not.toBe(SAMPLE_GRAPH_DATA.nodes?.[0]);
     expect(result.edges?.[0]).not.toBe(SAMPLE_GRAPH_DATA.edges?.[0]);

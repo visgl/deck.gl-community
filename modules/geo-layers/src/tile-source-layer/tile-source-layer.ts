@@ -145,7 +145,7 @@ function renderSubLayers(
             [west, north]
           ]
         ],
-        getPath: (d) => d,
+        getPath: d => d,
         getColor: borderColor as any,
         widthMinPixels: 4
       })

@@ -4,9 +4,9 @@
 
 /* eslint-disable no-shadow */
 
-import {destination} from '@turf/destination';
-import {bearing} from '@turf/bearing';
-import {pointToLineDistance} from '@turf/point-to-line-distance';
+import turfDestination from '@turf/destination';
+import turfBearing from '@turf/bearing';
+import turfPointToLineDistance from '@turf/point-to-line-distance';
 import {flattenEach} from '@turf/meta';
 import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
@@ -98,8 +98,8 @@ export function generatePointsParallelToLinePoints(
     coordinates: [p1, p2]
   };
   const pt = point(coords);
-  const ddistance = pointToLineDistance(pt, lineString);
-  const lineBearing = bearing(p1, p2);
+  const ddistance = turfPointToLineDistance(pt, lineString);
+  const lineBearing = turfBearing(p1, p2);
 
   // Check if current point is to the left or right of line
   // Line from A=(x1,y1) to B=(x2,y2) a point P=(x,y)
@@ -112,8 +112,8 @@ export function generatePointsParallelToLinePoints(
 
   // Get coordinates for the point p3 and p4 which are perpendicular to the lineString
   // Add the distance as the current position moves away from the lineString
-  const p3 = destination(p2, ddistance, orthogonalBearing);
-  const p4 = destination(p1, ddistance, orthogonalBearing);
+  const p3 = turfDestination(p2, ddistance, orthogonalBearing);
+  const p4 = turfDestination(p1, ddistance, orthogonalBearing);
 
   return [p3.geometry.coordinates, p4.geometry.coordinates] as Position[];
 }
@@ -366,11 +366,11 @@ export function getPickedSnapSourceEditHandle(
   picks: Pick[] | null | undefined
 ): EditHandleFeature | null | undefined {
   const handles = getPickedEditHandles(picks);
-  return handles.find((handle) => handle.properties.editHandleType === 'snap-source');
+  return handles.find(handle => handle.properties.editHandleType === 'snap-source');
 }
 
 export function getNonGuidePicks(picks: Pick[]): Pick[] {
-  return picks && picks.filter((pick) => !pick.isGuide);
+  return picks && picks.filter(pick => !pick.isGuide);
 }
 
 export function getPickedExistingEditHandle(
@@ -395,8 +395,8 @@ export function getPickedEditHandles(picks: Pick[] | null | undefined): EditHand
   const handles =
     (picks &&
       picks
-        .filter((pick) => pick.isGuide && pick.object.properties.guideType === 'editHandle')
-        .map((pick) => pick.object)) ||
+        .filter(pick => pick.isGuide && pick.object.properties.guideType === 'editHandle')
+        .map(pick => pick.object)) ||
     [];
 
   return handles;
@@ -539,21 +539,21 @@ export function mapCoords(
   callback: (coords: Position) => Position
 ): SimpleGeometryCoordinates {
   if (typeof coords[0] === 'number') {
-    if (!isNaN(coords[0]) && isFinite(coords[0])) {
+    if (!Number.isNaN(coords[0]) && isFinite(coords[0])) {
       return callback(coords as Position);
     }
     return coords;
   }
 
   return (coords as Position[])
-    .map((coord) => {
+    .map(coord => {
       return mapCoords(coord, callback) as Position;
     })
     .filter(Boolean);
 }
 
 export function shouldCancelPan(event: StartDraggingEvent) {
-  return event.picks.length && event.picks.find((p) => p.featureType === 'points');
+  return event.picks.length && event.picks.find(p => p.featureType === 'points');
 }
 
 // Dispatch function to call function based on coord system, defaults to geo mode

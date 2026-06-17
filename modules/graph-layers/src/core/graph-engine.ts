@@ -100,7 +100,7 @@ export class GraphEngine {
 
   getNodes = (): NodeInterface[] => {
     this._updateCache('nodes', () =>
-      Array.from(this._graph.getNodes()).filter((node) => {
+      Array.from(this._graph.getNodes()).filter(node => {
         const position = this.getNodePosition(node);
         return position !== null && position !== undefined;
       })
@@ -111,7 +111,7 @@ export class GraphEngine {
 
   getEdges = () => {
     this._updateCache('edges', () =>
-      Array.from(this._graph.getEdges()).filter((edge) => {
+      Array.from(this._graph.getEdges()).filter(edge => {
         const layout = this.getEdgePosition(edge);
         return layout !== null && layout !== undefined;
       })
@@ -256,26 +256,26 @@ export class GraphEngine {
     this._graph.updateProps({
       onTransactionStart: this._onTransactionStart,
       onTransactionEnd: this._onTransactionEnd,
-      onNodeAdded: (node) => {
+      onNodeAdded: node => {
         this._onGraphStructureChanged();
         this._props.onNodeAdded?.(node);
       },
-      onNodeRemoved: (node) => {
+      onNodeRemoved: node => {
         this._onGraphStructureChanged();
         this._props.onNodeRemoved?.(node);
       },
-      onNodeUpdated: (node) => {
+      onNodeUpdated: node => {
         this._props.onNodeUpdated?.(node);
       },
-      onEdgeAdded: (edge) => {
+      onEdgeAdded: edge => {
         this._onGraphStructureChanged();
         this._props.onEdgeAdded?.(edge);
       },
-      onEdgeRemoved: (edge) => {
+      onEdgeRemoved: edge => {
         this._onGraphStructureChanged();
         this._props.onEdgeRemoved?.(edge);
       },
-      onEdgeUpdated: (edge) => {
+      onEdgeUpdated: edge => {
         this._props.onEdgeUpdated?.(edge);
       }
     });

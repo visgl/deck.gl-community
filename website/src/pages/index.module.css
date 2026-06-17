@@ -1,0 +1,66 @@
+.heroImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.featureImage {
+  position: absolute;
+  height: 100%;
+  width: 50%;
+  top: 0;
+  right: 0;
+  z-index: -1;
+  border-top: solid 200px transparent;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: right top;
+}
+
+.textContainer {
+  max-width: 800px;
+  padding: 64px 112px;
+  width: 70%;
+  font-size: 14px;
+}
+
+.textContainer h2 {
+  font: bold 32px/48px;
+  margin: 24px 0 16px;
+  position: relative;
+}
+
+.textContainer h3 {
+  font: bold 16px/24px;
+  margin: 16px 0 0;
+  position: relative;
+}
+
+.textContainer h3 > img {
+  position: absolute;
+  top: -4px;
+  width: 36px;
+  left: -48px;
+}
+
+.textContainer hr {
+  border: none;
+  background: #e1e8f0;
+  margin: 24px 0 0;
+  width: 32px;
+  height: 2px;
+}
+
+@media screen and (max-width: 768px) {
+  .featureImage {
+    display: none;
+  }
+
+  .textContainer {
+    max-width: 100%;
+    width: 100%;
+    padding: 48px 48px 48px 80px;
+  }
+}

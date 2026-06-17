@@ -27,7 +27,7 @@ function randomChoose<T>(s: T[], k: number): T[] {
 
 export function randomGraphGenerator(n: number, m: number, name = 'default') {
   // generate an array of nodes with id form 0 to n;
-  const nodes = Array.from(Array(n).keys()).map((id) => ({id}));
+  const nodes = Array.from(Array(n).keys()).map(id => ({id}));
   const links = randomChoose(genAllPairs(nodes), m);
   const edges = links.map((link, idx) => ({
     id: idx,

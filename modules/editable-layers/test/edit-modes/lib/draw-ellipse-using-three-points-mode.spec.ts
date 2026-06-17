@@ -22,7 +22,7 @@ beforeEach(() => {
   // @ts-expect-error TODO
   featureCollection = createFeatureCollection();
 
-  const makeFlowHappy = featureCollection.features.find((f) => f.geometry.type === 'Polygon');
+  const makeFlowHappy = featureCollection.features.find(f => f.geometry.type === 'Polygon');
   if (!makeFlowHappy) {
     throw new Error('Need a Polygon in my setup');
   }

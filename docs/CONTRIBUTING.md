@@ -42,7 +42,7 @@ Unfortunately, many good PRs are closed. By far the most common reason is that t
 
 Note that CI can usually be fixed in 1-2 minutes as follows:
 
-- `yarn lint fix` - will run `prettier` and `eslint --fix` and fixes 95% of failed CI checks.
+- `yarn lint-fix` - will run Biome formatting and lint fixes, and fixes most failed CI checks.
 - `yarn` - also make sure you run `yarn` to update `yarn.lock` after making changes depdencies in any `package.json` files. For security reasons, GitHub CI will reject your PR if your `yarn.lock` file is out of date with your `package.json` files.
 
 After running these commands just commit and push your PR again and it will likely run green.

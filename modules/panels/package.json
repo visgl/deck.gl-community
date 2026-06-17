@@ -1,0 +1,49 @@
+{
+  "name": "@deck.gl-community/panels",
+  "version": "9.3.7",
+  "description": "Deck-independent panel composition and standalone UI",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "panels",
+    "widgets",
+    "ui",
+    "visualization"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "prepack": "yarn --cwd ../.. build",
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "dependencies": {
+    "@probe.gl/stats": "^4.1.1",
+    "monaco-editor": "^0.53.0",
+    "preact": "^10.17.0"
+  },
+  "peerDependencies": {
+    "apache-arrow": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "apache-arrow": {
+      "optional": true
+    }
+  }
+}

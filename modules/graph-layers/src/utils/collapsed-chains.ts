@@ -95,7 +95,7 @@ export function getRepresentativeNodes(engine: GraphEngine | null | undefined): 
     return [];
   }
 
-  return engine.getNodes().filter((node) => isChainRepresentative(node));
+  return engine.getNodes().filter(node => isChainRepresentative(node));
 }
 
 export type ChainOutlineGetter = (node: NodeInterface) => [number, number][] | null;
@@ -237,15 +237,15 @@ export function buildCollapsedChainLayers(
   const getChainOutlinePolygon = createChainOutlineGetter(engine);
   const outlineUpdateTrigger = [engine.getLayoutLastUpdate(), engine.getLayoutState()].join();
 
-  const collapsedNodes = representativeNodes.filter((node) =>
+  const collapsedNodes = representativeNodes.filter(node =>
     Boolean(node.getPropertyValue('isCollapsedChain'))
   );
-  const collapsedOutlineNodes = collapsedNodes.filter((node) => getChainOutlinePolygon(node));
+  const collapsedOutlineNodes = collapsedNodes.filter(node => getChainOutlinePolygon(node));
 
   const expandedNodes = representativeNodes.filter(
-    (node) => !node.getPropertyValue('isCollapsedChain')
+    node => !node.getPropertyValue('isCollapsedChain')
   );
-  const expandedOutlineNodes = expandedNodes.filter((node) => getChainOutlinePolygon(node));
+  const expandedOutlineNodes = expandedNodes.filter(node => getChainOutlinePolygon(node));
 
   return {
     representativeNodes,

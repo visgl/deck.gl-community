@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/experimental",
-  "version": "9.3.2",
+  "version": "9.3.7",
   "description": "Experimental layers for deck.gl",
   "license": "MIT",
   "publishConfig": {
@@ -47,5 +47,9 @@
     "@loaders.gl/core": "^4.4.1",
     "@luma.gl/core": "~9.3.2",
     "@luma.gl/engine": "~9.3.2"
+  },
+  "devDependencies": {
+    "@loaders.gl/core": "^4.4.1",
+    "@luma.gl/core": "~9.3.2"
   }
 }
