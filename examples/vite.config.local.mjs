@@ -18,13 +18,6 @@ export default defineConfig(async () => {
     resolve: {
       alias: {
         ...aliases,
-        // Subpath exports that the broad @luma.gl alias would break (bypasses exports map)
-        '@luma.gl/webgl/constants': join(rootDir, './node_modules/@luma.gl/webgl/dist/constants/index.js'),
-        // Use root dependencies
-        '@deck.gl': join(rootDir, './node_modules/@deck.gl'),
-        '@luma.gl': join(rootDir, './node_modules/@luma.gl'),
-        '@math.gl': join(rootDir, './node_modules/@math.gl'),
-        '@loaders.gl': join(rootDir, './node_modules/@loaders.gl'),
         // TODO: Example 'editable-layers/editor' fails (loading two copies of react)
         // without these overrides. That's unexpected and should be fixed.
         'react': join(rootDir, './node_modules/react'),

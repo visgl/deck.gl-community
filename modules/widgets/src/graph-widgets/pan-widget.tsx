@@ -6,7 +6,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {cloneViewState, hasViewManager} from '../widgets/view-manager-utils';
+import {cloneViewState, hasViewManager} from '../lib/utils/view-manager-utils';
 import {
   Widget,
   type Deck,

@@ -13,7 +13,7 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 ## Usage
 
 ```ts
-import {PanelBox, PanelManager, StatsPanel} from '@deck.gl-community/panels';
+import {BoxPanelContainer, PanelManager, StatsPanel} from '@deck.gl-community/panels';
 import {Stats} from '@probe.gl/stats';
 
 const stats = new Stats({
@@ -39,7 +39,7 @@ const panelManager = new PanelManager({
 });
 
 panelManager.setProps({
-  components: [new PanelBox({id: 'stats-box', panel})]
+  components: [new BoxPanelContainer({id: 'stats-box', panel})]
 });
 ```
 
@@ -60,7 +60,7 @@ type StatsPanelProps = {
 ## See Also
 
 - [Using Panels](../developer-guide/using-panels.md)
-- [ColumnPanel](./column-panel.md)
+- [ColumnPanel](./composite-panels/column-panel.md)
 - [MarkdownPanel](./markdown-panel.md)
 
 ## Remarks

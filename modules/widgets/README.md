@@ -1,7 +1,7 @@
 # Overview
 
 :::caution
-The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
+The deck.gl-community repository is semi-maintained. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
 
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/widgets.svg)](https://www.npmjs.com/package/@deck.gl-community/widgets)
@@ -9,11 +9,14 @@ The deck.gl-community repository is semi-maintaned. One of its goals is to colle
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
 
-This module packages UI widgets that integrate with [deck.gl](https://deck.gl) view state management. It includes classic navigation widgets such as `PanWidget` and `ZoomRangeWidget`, HTML overlays, and deck-facing panel widgets for composing sidebars, modals, and info cards around a deck.gl canvas.
+This module packages UI widgets that integrate with [deck.gl](https://deck.gl) view state management. It includes classic navigation widgets such as `PanWidget` and `ZoomRangeWidget`, HTML overlays, and `PanelWidget`, the deck adapter for panel-owned UI components.
 
 For renderer lifecycle management, the package also exports `DeviceManager` and `DeviceTabsWidget`. Together they let applications choose WebGPU or WebGL, reuse one cached luma device per backend, and reparent the managed canvas between host elements.
 
-Panel definitions and standalone mounting live in `@deck.gl-community/panels`. Import panels from `panels`, then pass them to the deck-facing widgets in this package.
+Panel definitions, panel containers, specialized toolbar/toast components, and
+standalone mounting live in `@deck.gl-community/panels`. Import components from
+`panels`, then pass them through `PanelWidget` or one of the thin named
+adapters in this package.
 
 ## Installation
 
@@ -59,5 +62,6 @@ For the deck-facing panel widget APIs, see the [Widget Panels example](../../exa
 
 Use `DeviceManager` directly when your application wants custom backend-selection UI or needs to move the managed canvas between containers. Use `DeviceTabsWidget` when you want a ready-made widget for switching between `webgpu` and `webgl2`.
 
-Standalone UI such as `ToolbarWidget`, `ToastWidget`, and `toastManager` is exported from
-`@deck.gl-community/panels`, not from this package.
+Standalone UI such as `ToolbarComponent`, `ToastComponent`, and `toastManager`
+is exported from `@deck.gl-community/panels`. The widgets package exports
+`ToolbarWidget` and `ToastWidget` only as deck adapters for those components.

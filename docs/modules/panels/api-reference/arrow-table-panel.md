@@ -8,13 +8,15 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 <PanelLiveExample highlight="arrow-table-panel" />
 
-`ArrowTablePanel` renders an Apache Arrow table preview in a scrollable grid.
+`ArrowTablePanel` renders an Apache Arrow table preview in a scrollable grid. It
+is deck.gl-independent and accepts Apache Arrow table-like objects or loaders.gl
+`{shape: 'arrow-table', data}` wrappers.
 
 ## Usage
 
 ```ts
 import {tableFromArrays} from 'apache-arrow';
-import {ArrowTablePanel, PanelBox, PanelManager} from '@deck.gl-community/panels';
+import {ArrowTablePanel, BoxPanelContainer, PanelManager} from '@deck.gl-community/panels';
 
 const table = tableFromArrays({
   city: ['Oakland', 'San Jose', 'Fremont'],
@@ -33,7 +35,7 @@ const panelManager = new PanelManager({
 });
 
 panelManager.setProps({
-  components: [new PanelBox({id: 'arrow-table-box', panel})]
+  components: [new BoxPanelContainer({id: 'arrow-table-box', panel})]
 });
 ```
 
@@ -43,8 +45,13 @@ panelManager.setProps({
 type ArrowTablePanelProps = {
   id: string;
   title: string;
-  table?: ArrowTableLike | null;
+  table?: ArrowTableInput;
   maxRows?: number;
+  maxColumns?: number;
+  showRowIndex?: boolean;
+  batchIndex?: number | 'all';
+  maxNestedItems?: number;
+  columnFormatters?: ArrowTableColumnFormatters;
   className?: string;
   theme?: 'inherit' | 'light' | 'dark' | 'invert';
 };
@@ -52,7 +59,45 @@ type ArrowTablePanelProps = {
 
 ## Remarks
 
-- Accepts Apache Arrow JS table-like objects, including Arrow JS v17 and newer.
-- Renders at most `maxRows` rows, defaulting to 1,000.
-- Always shows a bottom summary with the included row count and omitted row count.
-- Complex Arrow cell values that expose `toArray()` are formatted as JSON arrays.
+- Accepts Apache Arrow JS table-like objects, including Arrow JS v17 and newer,
+  and loaders.gl arrow-table wrappers.
+- Renders at most `maxRows` rows and `maxColumns` columns, defaulting to 1,000
+  rows and all columns.
+- `batchIndex` can preview one record batch while preserving absolute row
+  indexes when `showRowIndex` is enabled.
+- Nested struct fields are labeled with dot notation.
+- luma.gl Arrow patterns are displayed compactly, including numeric scalars,
+  fixed-size numeric tuples, matrix vectors annotated with `luma.gl:matrix-*`
+  metadata, temporal columns, dictionary text, and bounded nested list values.
+- `columnFormatters` can override display for a field path or field name.
+
+## luma.gl usage
+
+Use the panel from a luma.gl example by mounting it into any DOM node. This path
+does not import deck.gl or deck.gl widgets.
+
+```ts
+import {ArrowTablePanel, BoxPanelContainer, PanelManager} from '@deck.gl-community/panels';
+
+const panelManager = new PanelManager({
+  parentElement: document.getElementById('inspector') as HTMLElement
+});
+
+panelManager.setProps({
+  components: [
+    new BoxPanelContainer({
+      id: 'arrow-table-box',
+      title: 'Arrow Table',
+      panel: new ArrowTablePanel({
+        id: 'arrow-table',
+        title: 'Arrow Table',
+        table,
+        maxRows: 50,
+        maxColumns: 12,
+        maxNestedItems: 6,
+        showRowIndex: true
+      })
+    })
+  ]
+});
+```

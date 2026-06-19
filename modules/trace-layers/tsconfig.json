@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["src/**/*", "src/**/*.json"],
+  "exclude": ["node_modules", "src/**/*.test.ts", "src/**/*.test.tsx", "src/test/**/*"],
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": false,
+    "types": ["react", "react-dom"],
+    "target": "es2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "moduleDetection": "force",
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "noImplicitOverride": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "references": [
+    {"path": "../infovis-layers"},
+    {"path": "../layers"},
+    {"path": "../panels"},
+    {"path": "../widgets"},
+    {"path": "../../dev/timeline-layers"}
+  ]
+}

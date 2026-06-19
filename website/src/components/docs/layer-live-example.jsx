@@ -2,6 +2,8 @@ import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import '@deck.gl/widgets/stylesheet.css';
 
+import {deferImperativeCleanup} from '../imperative-cleanup';
+
 const WRAPPER_STYLE = {
   position: 'relative',
   width: '100%',
@@ -69,7 +71,7 @@ function LayerLiveExampleHost({highlight, height}) {
       mountLayerDocsExample(hostElement, highlight)
         .then((nextCleanup) => {
           if (isDisposed) {
-            nextCleanup?.();
+            deferImperativeCleanup(nextCleanup);
             return;
           }
           cleanup = nextCleanup;
@@ -83,7 +85,7 @@ function LayerLiveExampleHost({highlight, height}) {
     return () => {
       isDisposed = true;
       window.cancelAnimationFrame(animationFrame);
-      cleanup?.();
+      deferImperativeCleanup(cleanup);
     };
   }, [highlight]);
 
@@ -108,6 +110,13 @@ async function mountLayerDocsExample(container, highlight) {
       );
       return mountSkyboxMapViewExample(container, {showInfoOverlay: false});
     }
+    case 'basemap-layer': {
+      const {mountBasemapLayerMapViewExample} = await import(
+        '../../../../examples/layers/basemap-layer-map-view/app'
+      );
+      return mountBasemapLayerMapViewExample(container);
+    }
+    case 'dependency-arrow-layer':
     case 'path-marker-layer':
     case 'path-outline-layer': {
       const {mountPathOutlineAndMarkersExample} = await import(
@@ -153,6 +162,17 @@ async function mountLayerDocsExample(container, highlight) {
       return mountTimeAxisLayerExample(container);
     case 'vertical-grid-layer':
       return mountVerticalGridLayerExample(container);
+    case 'animation-layer':
+    case 'block-layer':
+    case 'time-delta-layer': {
+      const {mountInfovisLayerPrimitivesExample} = await import(
+        '../../../../examples/infovis-layers/layer-primitives/app'
+      );
+      return mountInfovisLayerPrimitivesExample(container, {
+        highlight,
+        showInfoOverlay: false
+      });
+    }
     default:
       if (GRAPH_LAYER_HIGHLIGHTS.has(highlight)) {
         return mountGraphLayerDocsExample(container, highlight);

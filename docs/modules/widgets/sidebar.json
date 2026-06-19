@@ -50,12 +50,7 @@
         {
           "type": "category",
           "label": "Panel Widgets",
-          "items": [
-            "modules/widgets/api-reference/box-widget",
-            "modules/widgets/api-reference/full-screen-panel-widget",
-            "modules/widgets/api-reference/modal-widget",
-            "modules/widgets/api-reference/sidebar-widget"
-          ]
+          "items": ["modules/widgets/api-reference/panel-widget"]
         }
       ]
     }

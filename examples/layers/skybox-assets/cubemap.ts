@@ -9,6 +9,10 @@ import tychoPosxUrl from './tycho-posx.jpg';
 import tychoPosyUrl from './tycho-posy.jpg';
 import tychoPoszUrl from './tycho-posz.jpg';
 
+// NASA Tycho Star Map converted to WebGL/luma.gl cube faces with ffmpeg's
+// equirectangular-to-cubemap projection (`v360=e:c6x1:out_forder=rludfb`).
+// Source: https://science.nasa.gov/3d-resources/tycho-star-map/
+
 const PAPERMILL_BASE_URL =
   'https://raw.githubusercontent.com/uber-common/deck.gl-data/master/luma.gl/examples/gltf/papermill/specular';
 

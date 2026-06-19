@@ -11,7 +11,7 @@ import {
   type SettingsSchema,
   type SettingsState
 } from '@deck.gl-community/panels';
-import {BoxWidget, SidebarWidget} from '@deck.gl-community/widgets';
+import {BoxPanelWidget, SidebarPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -280,7 +280,7 @@ export function mountHorizonGraphLayerExample(
     onSettingsChange: handleSettingsChange
   });
 
-  const sidebarWidget = new SidebarWidget({
+  const sidebarWidget = new SidebarPanelWidget({
     id: 'horizon-graph-sidebar',
     placement: 'top-right',
     side: 'right',
@@ -296,7 +296,7 @@ export function mountHorizonGraphLayerExample(
 
   if (resolvedConfig.showInfoWidget && resolvedConfig.infoTitle && resolvedConfig.infoMarkdown) {
     widgets.push(
-      new BoxWidget({
+      new BoxPanelWidget({
         id: `${resolvedConfig.layerId}-info`,
         placement: 'top-left',
         widthPx: 360,

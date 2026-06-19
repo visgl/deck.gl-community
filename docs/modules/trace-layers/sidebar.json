@@ -1,0 +1,80 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/trace-layers",
+  "link": {
+    "type": "doc",
+    "id": "modules/trace-layers/README"
+  },
+  "items": [
+    {
+      "type": "doc",
+      "id": "modules/trace-layers/README",
+      "label": "Overview"
+    },
+    {
+      "type": "category",
+      "label": "Developer Guide",
+      "items": [
+        {
+          "type": "doc",
+          "id": "modules/trace-layers/developer-guide/README",
+          "label": "Overview"
+        },
+        "modules/trace-layers/developer-guide/getting-started",
+        "modules/trace-layers/developer-guide/data-model",
+        "modules/trace-layers/developer-guide/loading-traces",
+        "modules/trace-layers/developer-guide/incremental-ingestion",
+        "modules/trace-layers/developer-guide/filtering-traces",
+        "modules/trace-layers/developer-guide/rendering-traces",
+        "modules/trace-layers/developer-guide/chrome-trace"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "modules/trace-layers/api-reference/README",
+          "label": "Overview"
+        },
+        {
+          "type": "category",
+          "label": "React",
+          "items": ["modules/trace-layers/api-reference/react/deck-trace-graph"]
+        },
+        {
+          "type": "category",
+          "label": "Layers",
+          "items": [
+            "modules/trace-layers/api-reference/layers/trace-prepared-state-layer",
+            "modules/trace-layers/api-reference/layers/trace-graph-layer",
+            "modules/trace-layers/api-reference/layers/trace-store-layer",
+            "modules/trace-layers/api-reference/layers/deck-trace-graph-controller",
+            "modules/trace-layers/api-reference/layers/imperative-deck-controller",
+            "modules/trace-layers/api-reference/layers/time-measure-layer"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Trace",
+          "items": [
+            "modules/trace-layers/api-reference/trace/trace-graph",
+            "modules/trace-layers/api-reference/trace/json-trace",
+            "modules/trace-layers/api-reference/trace/trace-graph-data",
+            "modules/trace-layers/api-reference/trace/trace-chunk-data",
+            "modules/trace-layers/api-reference/trace/trace-chunk-store",
+            "modules/trace-layers/api-reference/trace/trace-stream-session",
+            "modules/trace-layers/api-reference/trace/trace-layout",
+            "modules/trace-layers/api-reference/trace/trace-vis-settings",
+            "modules/trace-layers/api-reference/trace/trace-objects",
+            "modules/trace-layers/api-reference/trace/trace-ids",
+            "modules/trace-layers/api-reference/trace/trace-style",
+            "modules/trace-layers/api-reference/trace/chrome-trace",
+            "modules/trace-layers/api-reference/trace/perfetto-trace"
+          ]
+        }
+      ]
+    }
+  ]
+}

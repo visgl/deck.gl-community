@@ -9,7 +9,7 @@ import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
   BasemapSource,
-  BasemapStyleLayer,
+  ResolvedBasemapStyleLayer as BasemapStyleLayer,
   ResolvedBasemapStyle
 } from './style-resolver';
 
@@ -37,7 +37,7 @@ type VectorSourceGroup = {
 };
 
 function logBasemapRuntimeEvent(message: string, details?: unknown): void {
-  log.info(`[BasemapLayer] ${message}`, details ?? '')();
+  log.probe(1, `[BasemapLayer] ${message}`, details ?? '')();
 }
 
 function logBasemapRuntimeError(message: string, error: unknown, details?: unknown): void {

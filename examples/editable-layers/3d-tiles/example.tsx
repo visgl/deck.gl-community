@@ -4,7 +4,7 @@
 
 import {useState, useEffect, useCallback, useMemo} from 'react';
 import DeckGL from '@deck.gl/react';
-import {TerrainController} from '@deck.gl/core';
+import {MapView, TerrainController} from '@deck.gl/core';
 import {Tile3DLayer} from '@deck.gl/geo-layers';
 import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
 import {
@@ -233,11 +233,13 @@ export function Example() {
     <div>
       <DeckGL
         style={{backgroundColor: '#061714'}}
+        views={new MapView({maxPitch: 90})}
         initialViewState={INITIAL_VIEW_STATE}
         controller={{
           type: TerrainController,
+          maxPitch: 90,
           touchRotate: true,
-          inertia: 500,
+          inertia: false,
           doubleClickZoom: false
         }}
         layers={[tile3DLayer, editableLayer]}
@@ -277,8 +279,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'editor-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -293,6 +295,6 @@ function buildInfoPanel({
           }**`
         ].join('\n')
       })
-    }
+    ]
   });
 }

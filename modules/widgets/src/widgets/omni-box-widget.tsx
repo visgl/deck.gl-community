@@ -3,10 +3,14 @@ import {Widget} from '@deck.gl/core';
 import {render} from 'preact';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'preact/hooks';
 
+import {toastManager} from '@deck.gl-community/panels';
+
+import type {CommandManager} from '@deck.gl-community/panels';
 import type {Deck, Viewport, WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {ComponentChildren, JSX} from 'preact';
 
 const OPTION_ROW_HEIGHT_PX = 32;
+const RESULTS_SUMMARY_HEIGHT_PX = 24;
 const MAX_VISIBLE_OPTION_COUNT = 4;
 const BLUR_CLOSE_DELAY_MS = 100;
 const OMNIBOX_MAX_WIDTH_PX = 520;
@@ -22,6 +26,8 @@ const OMNIBOX_OPTION_ACTIVE_CLASS = 'deck-widget-omni-box-option-active';
 const OMNIBOX_SURFACE_BACKGROUND = 'var(--omni-box-surface-background, rgba(255, 255, 255, 0.72))';
 const OMNIBOX_ROW_BACKGROUND = 'var(--omni-box-row-background, rgba(255, 255, 255, 0.22))';
 const DEFAULT_MAX_REMEMBERED_QUERY_COUNT = 8;
+const DEFAULT_COMMAND_SEARCH_PREFIX = '>';
+const COMMAND_OPTION_KIND = 'command';
 
 const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'fixed',
@@ -137,9 +143,22 @@ const DROPDOWN_STYLE: JSX.CSSProperties = {
   boxShadow: 'var(--menu-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   overflowY: 'auto',
-  maxHeight: `${OPTION_ROW_HEIGHT_PX * MAX_VISIBLE_OPTION_COUNT}px`,
+  maxHeight: `${OPTION_ROW_HEIGHT_PX * MAX_VISIBLE_OPTION_COUNT + RESULTS_SUMMARY_HEIGHT_PX}px`,
   padding: '4px 0',
   pointerEvents: 'auto'
+};
+
+const RESULTS_SUMMARY_STYLE: JSX.CSSProperties = {
+  minHeight: `${RESULTS_SUMMARY_HEIGHT_PX}px`,
+  boxSizing: 'border-box',
+  display: 'flex',
+  alignItems: 'center',
+  padding: '4px 12px',
+  borderBottom: '1px solid var(--menu-border-color, rgba(148, 163, 184, 0.28))',
+  color: 'var(--menu-text, rgb(24, 24, 26))',
+  fontSize: '11px',
+  fontFamily: WIDGET_FONT_FAMILY,
+  opacity: 0.68
 };
 
 const DEFAULT_OPTION_CONTENT_STYLE: JSX.CSSProperties = {
@@ -253,6 +272,13 @@ export type OmniBoxOption = {
   data?: unknown;
 };
 
+type CommandOmniBoxOptionData = {
+  /** Distinguishes command options from caller-provided search options. */
+  kind: 'command';
+  /** Registered command id to execute when the option is selected. */
+  commandId: string;
+};
+
 export type OmniBoxOptionProvider =
   | ((query: string) => Promise<ReadonlyArray<OmniBoxOption>>)
   | ((query: string) => ReadonlyArray<OmniBoxOption>);
@@ -262,6 +288,15 @@ export type OmniBoxRenderOptionArgs = {
   index: number;
   isActive: boolean;
   query: string;
+};
+
+export type OmniBoxResultsSummaryArgs = {
+  /** Current trimmed query used to produce the visible dropdown options. */
+  readonly query: string;
+  /** Options currently rendered in the dropdown. */
+  readonly options: ReadonlyArray<OmniBoxOption>;
+  /** Dropdown mode that produced the visible options. */
+  readonly mode: 'search' | 'command' | 'history';
 };
 
 export type OmniBoxWidgetProps = WidgetProps & {
@@ -280,8 +315,14 @@ export type OmniBoxWidgetProps = WidgetProps & {
   /** Whether to render a compact slash button while the omnibox input is closed. */
   showAnchorButton?: boolean;
   topOffsetPx?: number;
+  /** Optional command registry used to expose no-argument commands in command mode. */
+  commandManager?: CommandManager;
+  /** Query prefix that switches the omnibox from search mode into command mode. */
+  commandSearchPrefix?: string;
   getOptions?: OmniBoxOptionProvider;
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
+  /** Optional renderer for a compact row above the current dropdown results. */
+  renderResultsSummary?: (args: OmniBoxResultsSummaryArgs) => ComponentChildren;
   onSelectOption?: (option: OmniBoxOption) => void;
   onActiveOptionChange?: (option: OmniBoxOption | null) => void;
   onNavigateOption?: (option: OmniBoxOption) => void;
@@ -305,10 +346,16 @@ type OmniBoxWidgetViewProps = {
   queryHistoryStorageKey?: string;
   /** Whether to render a compact slash button while the omnibox input is closed. */
   showAnchorButton: boolean;
+  /** Optional command registry used to expose no-argument commands in command mode. */
+  commandManager?: CommandManager;
+  /** Query prefix that switches the omnibox from search mode into command mode. */
+  commandSearchPrefix: string;
   /** Provides suggestion options for the current trimmed query. */
   getOptions: OmniBoxOptionProvider;
   /** Custom renderer for a suggestion row. */
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
+  /** Optional renderer for a compact row above the current dropdown results. */
+  renderResultsSummary?: (args: OmniBoxResultsSummaryArgs) => ComponentChildren;
   /** Called when a suggestion is selected by click or Enter. */
   onSelectOption?: (option: OmniBoxOption) => void;
   /** Called when keyboard navigation changes the active suggestion. */
@@ -318,6 +365,118 @@ type OmniBoxWidgetViewProps = {
   /** Called whenever the input query changes. */
   onQueryChange?: (query: string) => void;
 };
+
+/** Returns whether an omnibox query should use command suggestions. */
+function isCommandQuery(
+  query: string,
+  commandManager: CommandManager | undefined,
+  prefix: string
+): boolean {
+  return Boolean(commandManager && prefix && query.startsWith(prefix));
+}
+
+/** Returns the command search text after the configured command prefix. */
+function getCommandSearchText(query: string, prefix: string): string {
+  return query.slice(prefix.length).trim().toLocaleLowerCase();
+}
+
+/** Returns whether one option is an internally generated command option. */
+function isCommandOption(option: OmniBoxOption): boolean {
+  const data = option.data as Partial<CommandOmniBoxOptionData> | undefined;
+  return data?.kind === COMMAND_OPTION_KIND && typeof data.commandId === 'string';
+}
+
+/** Gets the command id attached to one command option. */
+function getCommandOptionId(option: OmniBoxOption): string | null {
+  const data = option.data as Partial<CommandOmniBoxOptionData> | undefined;
+  return data?.kind === COMMAND_OPTION_KIND && typeof data.commandId === 'string'
+    ? data.commandId
+    : null;
+}
+
+/** Returns the user-facing label for one command option. */
+function getCommandOptionLabel(option: OmniBoxOption): string {
+  return option.label || getCommandOptionId(option) || 'Command';
+}
+
+/** Toasts the final result of an omnibox command execution. */
+async function toastCommandExecution(
+  commandId: string,
+  commandLabel: string,
+  result: unknown
+): Promise<void> {
+  const toastKey = `omnibox-command:${commandId}`;
+  try {
+    const awaitedResult = await result;
+    if (awaitedResult instanceof Error) {
+      toastManager.toast({
+        type: 'error',
+        title: 'Command failed',
+        message: `${commandLabel}: ${awaitedResult.message}`,
+        key: toastKey
+      });
+      console.error(`Failed to execute omnibox command: ${commandId}`, awaitedResult);
+      return;
+    }
+
+    toastManager.toast({
+      type: 'info',
+      title: 'Command succeeded',
+      message: commandLabel,
+      key: toastKey
+    });
+  } catch (error) {
+    const commandError = error instanceof Error ? error : new Error(String(error), {cause: error});
+    toastManager.toast({
+      type: 'error',
+      title: 'Command failed',
+      message: `${commandLabel}: ${commandError.message}`,
+      key: toastKey
+    });
+    console.error(`Failed to execute omnibox command: ${commandId}`, commandError);
+  }
+}
+
+/** Returns whether a command descriptor matches the current command search text. */
+function commandMatchesSearchText(
+  descriptor: {id: string; label?: string; description?: string},
+  searchText: string
+): boolean {
+  if (!searchText) {
+    return true;
+  }
+
+  return [descriptor.id, descriptor.label, descriptor.description].some(value =>
+    value?.toLocaleLowerCase().includes(searchText)
+  );
+}
+
+/** Builds command options for enabled commands that can execute without arguments. */
+function getCommandOptions(
+  commandManager: CommandManager,
+  query: string,
+  prefix: string
+): ReadonlyArray<OmniBoxOption> {
+  const searchText = getCommandSearchText(query, prefix);
+  return commandManager
+    .listCommands({exposure: 'user'})
+    .filter(
+      descriptor =>
+        !descriptor.acceptsArgs &&
+        descriptor.isEnabled &&
+        commandMatchesSearchText(descriptor, searchText)
+    )
+    .map(descriptor => ({
+      id: `command:${descriptor.id}`,
+      label: descriptor.label ?? descriptor.id,
+      value: `${prefix}${descriptor.id}`,
+      description: descriptor.description,
+      data: {
+        kind: COMMAND_OPTION_KIND,
+        commandId: descriptor.id
+      } satisfies CommandOmniBoxOptionData
+    }));
+}
 
 function DefaultOptionContent({option}: {option: OmniBoxOption}) {
   return (
@@ -406,8 +565,11 @@ function OmniBoxWidgetView({
   maxRememberedQueryCount,
   queryHistoryStorageKey,
   showAnchorButton,
+  commandManager,
+  commandSearchPrefix,
   getOptions,
   renderOption,
+  renderResultsSummary,
   onSelectOption,
   onActiveOptionChange,
   onNavigateOption,
@@ -503,7 +665,12 @@ function OmniBoxWidgetView({
     requestVersionRef.current = requestVersion;
     setIsLoading(true);
 
-    Promise.resolve(getOptions(normalizedQuery))
+    const nextOptions =
+      commandManager && isCommandQuery(normalizedQuery, commandManager, commandSearchPrefix)
+        ? getCommandOptions(commandManager, normalizedQuery, commandSearchPrefix)
+        : getOptions(normalizedQuery);
+
+    Promise.resolve(nextOptions)
       .then(nextOptions => {
         if (requestVersionRef.current !== requestVersion) {
           return;
@@ -523,7 +690,7 @@ function OmniBoxWidgetView({
           setIsLoading(false);
         }
       });
-  }, [getOptions, minQueryLength, onQueryChange, query]);
+  }, [commandManager, commandSearchPrefix, getOptions, minQueryLength, onQueryChange, query]);
 
   useEffect(() => {
     if (isQueryHistoryOpen) {
@@ -603,7 +770,10 @@ function OmniBoxWidgetView({
 
   const selectOption = useCallback(
     (option: OmniBoxOption, nextActiveOptionIndex?: number) => {
-      rememberQuery(query);
+      const commandId = getCommandOptionId(option);
+      if (!commandId) {
+        rememberQuery(query);
+      }
       if (closeOnSelect) {
         setQuery(option.value ?? option.label);
         setIsFocused(false);
@@ -619,9 +789,16 @@ function OmniBoxWidgetView({
           inputRef.current?.focus();
         });
       }
+
+      if (commandId && commandManager) {
+        const result = commandManager.executeCommand(commandId);
+        void toastCommandExecution(commandId, getCommandOptionLabel(option), result);
+        return;
+      }
+
       onSelectOption?.(option);
     },
-    [closeOnSelect, onSelectOption, query, rememberQuery]
+    [closeOnSelect, commandManager, onSelectOption, query, rememberQuery]
   );
 
   const selectRememberedQuery = useCallback((option: OmniBoxOption) => {
@@ -647,7 +824,7 @@ function OmniBoxWidgetView({
       }
       setActiveOptionIndex(nextIndex);
       setIsFocused(true);
-      if (navigate && !isShowingQueryHistory) {
+      if (navigate && !isShowingQueryHistory && !isCommandOption(nextOption)) {
         onNavigateOption?.(nextOption);
       }
     },
@@ -697,6 +874,19 @@ function OmniBoxWidgetView({
   const hasMatches = options.length > 0;
   const hasQueryHistory = queryHistoryOptions.length > 0;
   const normalizedQuery = query.trim();
+  const dropdownMode: OmniBoxResultsSummaryArgs['mode'] = isShowingQueryHistory
+    ? 'history'
+    : isCommandQuery(normalizedQuery, commandManager, commandSearchPrefix)
+      ? 'command'
+      : 'search';
+  const resultsSummary =
+    !isLoading && renderResultsSummary
+      ? renderResultsSummary({
+          query: normalizedQuery,
+          options: visibleOptions,
+          mode: dropdownMode
+        })
+      : null;
   const shouldShowDropdown =
     !isHidden &&
     (isShowingQueryHistory ||
@@ -984,19 +1174,26 @@ function OmniBoxWidgetView({
             </div>
           )}
 
+          {!isLoading && resultsSummary != null && resultsSummary !== false && (
+            <div data-omni-box-results-summary="true" style={RESULTS_SUMMARY_STYLE}>
+              {resultsSummary}
+            </div>
+          )}
+
           {!isLoading &&
             visibleOptions.map((option, index) => {
               const isActive = index === activeOptionIndex;
-              const content = isShowingQueryHistory ? (
-                <DefaultOptionContent option={option} />
-              ) : (
-                (renderOption?.({
-                  option,
-                  index,
-                  isActive,
-                  query
-                }) ?? <DefaultOptionContent option={option} />)
-              );
+              const content =
+                isShowingQueryHistory || isCommandOption(option) ? (
+                  <DefaultOptionContent option={option} />
+                ) : (
+                  (renderOption?.({
+                    option,
+                    index,
+                    isActive,
+                    query
+                  }) ?? <DefaultOptionContent option={option} />)
+                );
 
               return (
                 <button
@@ -1062,8 +1259,11 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
     queryHistoryStorageKey: undefined,
     showAnchorButton: false,
     topOffsetPx: undefined,
+    commandManager: undefined,
+    commandSearchPrefix: DEFAULT_COMMAND_SEARCH_PREFIX,
     getOptions: (() => []) as OmniBoxOptionProvider,
     renderOption: undefined,
+    renderResultsSummary: undefined,
     onSelectOption: undefined,
     onActiveOptionChange: undefined,
     onNavigateOption: undefined,
@@ -1121,8 +1321,13 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
         showAnchorButton={
           this.props.showAnchorButton ?? OmniBoxWidget.defaultProps.showAnchorButton
         }
+        commandManager={this.props.commandManager}
+        commandSearchPrefix={
+          this.props.commandSearchPrefix ?? OmniBoxWidget.defaultProps.commandSearchPrefix
+        }
         getOptions={this.props.getOptions ?? OmniBoxWidget.defaultProps.getOptions}
         renderOption={this.props.renderOption}
+        renderResultsSummary={this.props.renderResultsSummary}
         onSelectOption={this.props.onSelectOption}
         onActiveOptionChange={this.props.onActiveOptionChange}
         onNavigateOption={this.props.onNavigateOption}

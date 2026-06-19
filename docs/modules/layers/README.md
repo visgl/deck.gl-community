@@ -32,6 +32,9 @@ Release date: 2023
 
 ## Exports
 
+- `DependencyArrowLayer`
+- `PathMarkerLayer`
+- `PathOutlineLayer`
 - `SkyboxLayer`
 
 <p class="badges">
@@ -41,6 +44,7 @@ Release date: 2023
 
 ## Examples
 
+- [Path outline, marker, and dependency arrow](/examples/layers/path-outline-and-markers)
 - [SkyboxLayer MapView](/examples/layers/skybox-map-view)
 - [SkyboxLayer GlobeView](/examples/layers/skybox-globe)
 - [SkyboxLayer FirstPersonView](/examples/layers/skybox-first-person)

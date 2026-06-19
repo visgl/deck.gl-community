@@ -370,8 +370,8 @@ function buildInfoPanel(
   return new ColumnPanel({
     id: 'shared-tile-2d-layer-panel',
     title: '',
-    panels: {
-      overview: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'shared-tile-2d-layer-overview',
         title: '',
         markdown: [
@@ -380,11 +380,11 @@ function buildInfoPanel(
           `Selected feature: **${selectedId ?? 'none'}**`
         ].join('\n\n')
       }),
-      stats: new AccordeonPanel({
+      new AccordeonPanel({
         id: 'shared-tile-2d-layer-stats-accordion',
         title: '',
-        panels: {
-          stats: new StatsPanel({
+        panels: [
+          new StatsPanel({
             id: 'shared-tile-2d-layer-stats',
             title: 'Stats',
             stats: tileset.stats,
@@ -403,9 +403,9 @@ function buildInfoPanel(
               'Unloaded Tiles': 'Tiles evicted from cache'
             }
           })
-        }
+        ]
       })
-    }
+    ]
   });
 }
 

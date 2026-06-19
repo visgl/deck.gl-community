@@ -20,8 +20,6 @@ import {
   TextEditorPanel,
   type KeyboardShortcut,
   type Panel,
-  type PanelContentContainer,
-  PanelContentRenderer,
   type SettingsSchema,
   type SettingsState
 } from '@deck.gl-community/panels';
@@ -36,10 +34,10 @@ import '@deck.gl/widgets/stylesheet.css';
 
 export type WidgetPanelsExampleHighlight =
   | 'widget-panels'
-  | 'box-widget'
+  | 'box-panel-widget'
   | 'full-screen-panel-widget'
-  | 'modal-widget'
-  | 'sidebar-widget'
+  | 'modal-panel-widget'
+  | 'sidebar-panel-widget'
   | 'settings-panel'
   | 'stats-panel'
   | 'keyboard-shortcuts-panel'
@@ -171,10 +169,10 @@ const INITIAL_SETTINGS: ExampleSettings = {
 
 const HIGHLIGHT_LABELS: Record<WidgetPanelsExampleHighlight, string> = {
   'widget-panels': 'Widget Panels',
-  'box-widget': 'BoxPanelWidget',
+  'box-panel-widget': 'BoxPanelWidget',
   'full-screen-panel-widget': 'FullScreenPanelWidget',
-  'modal-widget': 'ModalPanelWidget',
-  'sidebar-widget': 'SidebarPanelWidget',
+  'modal-panel-widget': 'ModalPanelWidget',
+  'sidebar-panel-widget': 'SidebarPanelWidget',
   'settings-panel': 'SettingsPanel',
   'stats-panel': 'StatsPanel',
   'keyboard-shortcuts-panel': 'KeyboardShortcutsPanel',
@@ -187,14 +185,14 @@ const HIGHLIGHT_LABELS: Record<WidgetPanelsExampleHighlight, string> = {
 };
 
 const MODAL_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
-  'modal-widget',
+  'modal-panel-widget',
   'tabbed-panel',
   'keyboard-shortcuts-panel',
   'text-editor-panel'
 ]);
 
 const SIDEBAR_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
-  'sidebar-widget',
+  'sidebar-panel-widget',
   'settings-panel',
   'accordeon-panel'
 ]);
@@ -743,14 +741,14 @@ function buildSidebarPanel(
   return new AccordeonPanel({
     id: 'sidebar-controls',
     title: 'Sidebar controls',
-    panels: {
+    panels: [
       summary,
       ...SettingsPanel.createSectionPanels({
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange: handlers.setSettings
       })
-    }
+    ]
   });
 }
 
@@ -762,8 +760,8 @@ function buildModalPanel(
   return new TabbedPanel({
     id: 'modal-panels',
     title: 'Modal panels',
-    panels: {
-      overview: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'overview',
         title: 'Overview',
         markdown: [
@@ -776,17 +774,17 @@ function buildModalPanel(
           `Highlighted API: **${HIGHLIGHT_LABELS[highlight]}**`
         ].join('\n')
       }),
-      shortcuts: new KeyboardShortcutsPanel({
+      new KeyboardShortcutsPanel({
         keyboardShortcuts: KEYBOARD_SHORTCUTS
       }),
-      settings: new SettingsPanel({
+      new SettingsPanel({
         id: 'modal-settings',
         label: 'Panel controls',
         schema: SETTINGS_SCHEMA,
         settings: state.settings,
         onSettingsChange: handlers.setSettings
       }),
-      stylesheet: new TextEditorPanel({
+      new TextEditorPanel({
         id: 'modal-stylesheet',
         title: 'Stylesheet',
         language: 'json',
@@ -794,7 +792,7 @@ function buildModalPanel(
         defaultValue: EXAMPLE_STYLESHEET_JSON,
         placeholder: 'Stylesheet JSON preview'
       })
-    }
+    ]
   });
 }
 
@@ -806,10 +804,7 @@ function buildInfoBoxPanel(
   return new ColumnPanel({
     id: 'widget-panels-box',
     title: 'Widget Panels',
-    panels: {
-      summary: buildOverviewMarkdownPanel(highlight),
-      actions: buildActionsPanel(state, handlers)
-    }
+    panels: [buildOverviewMarkdownPanel(highlight), buildActionsPanel(state, handlers)]
   });
 }
 
@@ -818,7 +813,7 @@ function buildOverviewMarkdownPanel(highlight: WidgetPanelsExampleHighlight) {
     id: 'summary',
     title: 'Overview',
     markdown: [
-      'This example pairs a persistent sidebar with a tabbed modal. Both are assembled from the same reusable panel primitives in [@deck.gl-community/widgets](/deck.gl-community/docs/modules/widgets).',
+      'This example pairs a persistent sidebar with a tabbed modal. Both are assembled from the same reusable panel primitives in [@deck.gl-community/panels](/deck.gl-community/docs/modules/panels).',
       '',
       `Highlighted API: **${HIGHLIGHT_LABELS[highlight]}**`,
       '',
@@ -889,10 +884,10 @@ export function mountWidgetPanelsDocsExample(
   if (highlight === 'widget-panels') {
     return mountWidgetPanelsDocsCompositionExample(container, highlight);
   }
-  if (highlight === 'sidebar-widget') {
+  if (highlight === 'sidebar-panel-widget') {
     return mountWidgetPanelsDocsSidebarExample(container, highlight);
   }
-  if (highlight === 'box-widget') {
+  if (highlight === 'box-panel-widget') {
     return mountWidgetPanelsDocsBoxExample(container, highlight);
   }
 
@@ -1188,7 +1183,7 @@ function buildBoxPanelWidgetMarkdownPanel() {
       '',
       'Use it for compact summaries, hints, or small always-visible controls that should not need modal or sidebar chrome.',
       '',
-      `Highlighted API: **${HIGHLIGHT_LABELS['box-widget']}**`
+      `Highlighted API: **${HIGHLIGHT_LABELS['box-panel-widget']}**`
     ].join('\n')
   });
 }
@@ -1215,13 +1210,6 @@ function buildStatsPanel() {
 }
 
 function renderDocsModalPreview(rootElement: HTMLElement, panel: Panel): void {
-  const container: PanelContentContainer = {
-    kind: 'panel',
-    props: {
-      panel
-    }
-  };
-
   render(
     <section style={DOCS_MODAL_PREVIEW_PANEL_STYLE} aria-label="ModalPanelWidget preview">
       <header style={DOCS_MODAL_PREVIEW_HEADER_STYLE}>
@@ -1230,9 +1218,7 @@ function renderDocsModalPreview(rootElement: HTMLElement, panel: Panel): void {
           ×
         </span>
       </header>
-      <div style={DOCS_MODAL_PREVIEW_CONTENT_STYLE}>
-        <PanelContentRenderer container={container} />
-      </div>
+      <div style={DOCS_MODAL_PREVIEW_CONTENT_STYLE}>{panel.content}</div>
     </section>,
     rootElement
   );
@@ -1244,12 +1230,12 @@ function buildHighlightedPanel(
   highlight: WidgetPanelsExampleHighlight
 ): Panel {
   switch (highlight) {
-    case 'modal-widget':
+    case 'modal-panel-widget':
     case 'tabbed-panel':
       return buildModalPanel(state, handlers, highlight);
     case 'full-screen-panel-widget':
       return buildInfoBoxPanel(state, handlers, highlight);
-    case 'sidebar-widget':
+    case 'sidebar-panel-widget':
     case 'accordeon-panel':
     case 'settings-panel':
       return buildSidebarPanel(state, handlers, highlight);
@@ -1272,7 +1258,7 @@ function buildHighlightedPanel(
       return buildActionsPanel(state, handlers);
     case 'markdown-panel':
       return buildOverviewMarkdownPanel(highlight);
-    case 'box-widget':
+    case 'box-panel-widget':
     case 'column-panel':
     case 'widget-panels':
     default:

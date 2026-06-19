@@ -6,10 +6,14 @@ import {beforeAll, expect, it, vi} from 'vitest';
 
 vi.mock('@deck.gl-community/panels', () => {
   return {
-    PanelBox: class PanelBox {},
-    PanelModal: class PanelModal {},
-    PanelSidebar: class PanelSidebar {},
-    PanelFullScreen: class PanelFullScreen {}
+    PanelComponent: class PanelComponent {},
+    BoxPanelContainer: class BoxPanelContainer {},
+    ModalPanelContainer: class ModalPanelContainer {},
+    SidebarPanelContainer: class SidebarPanelContainer {},
+    FullScreenPanelContainer: class FullScreenPanelContainer {},
+    ToolbarComponent: class ToolbarComponent {},
+    ToastComponent: class ToastComponent {},
+    makeTextIcon: vi.fn(() => '')
   };
 });
 
@@ -39,6 +43,10 @@ it('exports BoxPanelWidget', () => {
   expect(Widgets.BoxPanelWidget).toBeDefined();
 });
 
+it('exports PanelWidget', () => {
+  expect(Widgets.PanelWidget).toBeDefined();
+});
+
 it('exports DeviceManager', () => {
   expect(Widgets.DeviceManager).toBeDefined();
 });
@@ -59,14 +67,20 @@ it('exports SidebarPanelWidget', () => {
   expect(Widgets.SidebarPanelWidget).toBeDefined();
 });
 
-it('exports BoxWidget alias', () => {
-  expect(Widgets.BoxWidget).toBe(Widgets.BoxPanelWidget);
+it('exports ToolbarWidget', () => {
+  expect(Widgets.ToolbarWidget).toBeDefined();
 });
 
-it('exports ModalWidget alias', () => {
-  expect(Widgets.ModalWidget).toBe(Widgets.ModalPanelWidget);
+it('exports ToastWidget', () => {
+  expect(Widgets.ToastWidget).toBeDefined();
 });
 
-it('exports SidebarWidget alias', () => {
-  expect(Widgets.SidebarWidget).toBe(Widgets.SidebarPanelWidget);
+it('removes panel compatibility aliases while exporting studio settings helpers', () => {
+  expect(Widgets.BoxWidget).toBeUndefined();
+  expect(Widgets.KeyboardShortcutsWidget).toBeUndefined();
+  expect(Widgets.ModalWidget).toBeUndefined();
+  expect(Widgets.SettingsWidget).toBeUndefined();
+  expect(Widgets.SidebarWidget).toBeUndefined();
+  expect(Widgets.createStudioSettingsWidget).toBeDefined();
+  expect(Widgets.updateStudioSettingsWidget).toBeDefined();
 });

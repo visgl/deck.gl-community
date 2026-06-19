@@ -7,53 +7,65 @@ import {tableFromArrays} from 'apache-arrow';
 import {Stats} from '@probe.gl/stats';
 import {
   AccordeonPanel,
+  ArrowBatchesPanel,
   ArrowSchemaPanel,
   ArrowTablePanel,
   BinaryDataPanel,
   ColumnPanel,
   CustomPanel,
+  DocumentationLinksPanel,
   KeyboardShortcutsPanel,
   MarkdownPanel,
   PANEL_THEME_DARK,
   PANEL_THEME_LIGHT,
-  PanelBox,
-  PanelFullScreen,
+  BoxPanelContainer,
+  FullScreenPanelContainer,
   PanelManager,
-  PanelModal,
-  PanelSidebar,
+  ModalPanelContainer,
+  SidebarPanelContainer,
   SettingsPanel,
   SplitterPanel,
   StatsPanel,
   TabbedPanel,
   TextEditorPanel,
-  ToastPanelContainer,
-  ToolbarPanelContainer,
+  ToastComponent,
+  ToolbarComponent,
+  URLParametersPanel,
   applyPanelTheme,
   toastManager
 } from '../../../modules/panels/src';
 
-import type {KeyboardShortcut, SettingsSchema, SettingsState} from '../../../modules/panels/src';
+import type {
+  ArrowTableLike,
+  KeyboardShortcut,
+  SettingsSchema,
+  SettingsState,
+  URLParameter
+} from '../../../modules/panels/src';
 import type {ArrowSchemaLike} from '../../../modules/panels/src';
 
 export type PanelDocsExampleHighlight =
   | 'panels'
+  | 'arrow-batches-panel'
   | 'markdown-panel'
   | 'arrow-table-panel'
   | 'arrow-schema-panel'
   | 'binary-data-panel'
   | 'custom-panel'
+  | 'documentation-links-panel'
   | 'stats-panel'
   | 'settings-panel'
   | 'keyboard-shortcuts-panel'
   | 'text-editor-panel'
+  | 'url-parameters-panel'
   | 'accordeon-panel'
   | 'tabbed-panel'
   | 'column-panel'
   | 'splitter-panel'
-  | 'panel-box'
-  | 'panel-modal'
-  | 'panel-sidebar'
-  | 'panel-full-screen';
+  | 'box-panel-container'
+  | 'modal-panel-container'
+  | 'sidebar-panel-container'
+  | 'full-screen-panel-container';
 
 export function mountPanelDocsExample(
   container: HTMLElement,
@@ -104,7 +116,7 @@ export function mountPanelDocsExample(
   });
 
   const panelManager = new PanelManager({parentElement: rootElement});
-  const toolbar = new ToolbarPanelContainer({
+  const toolbar = new ToolbarComponent({
     id: 'panel-docs-toolbar',
     placement: 'bottom-left',
     items: [
@@ -122,7 +134,7 @@ export function mountPanelDocsExample(
       }
     ]
   });
-  const toast = new ToastPanelContainer({
+  const toast = new ToastComponent({
     id: 'panel-docs-toast',
     placement: 'bottom-right',
     showBorder: true
@@ -161,23 +173,26 @@ export function mountPanelDocsExample(
 
 const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   panels: 'Using Panels',
+  'arrow-batches-panel': 'ArrowBatchesPanel',
   'markdown-panel': 'MarkdownPanel',
   'arrow-table-panel': 'ArrowTablePanel',
   'arrow-schema-panel': 'ArrowSchemaPanel',
   'binary-data-panel': 'BinaryDataPanel',
   'custom-panel': 'CustomPanel',
+  'documentation-links-panel': 'DocumentationLinksPanel',
   'stats-panel': 'StatsPanel',
   'settings-panel': 'SettingsPanel',
   'keyboard-shortcuts-panel': 'KeyboardShortcutsPanel',
   'text-editor-panel': 'TextEditorPanel',
+  'url-parameters-panel': 'URLParametersPanel',
   'accordeon-panel': 'AccordeonPanel',
   'tabbed-panel': 'TabbedPanel',
   'column-panel': 'ColumnPanel',
   'splitter-panel': 'SplitterPanel',
-  'panel-box': 'PanelBox',
-  'panel-modal': 'PanelModal',
-  'panel-sidebar': 'PanelSidebar',
-  'panel-full-screen': 'PanelFullScreen'
+  'box-panel-container': 'BoxPanelContainer',
+  'modal-panel-container': 'ModalPanelContainer',
+  'sidebar-panel-container': 'SidebarPanelContainer',
+  'full-screen-panel-container': 'FullScreenPanelContainer'
 };
 
 const SETTINGS_SCHEMA: SettingsSchema = {
@@ -218,6 +233,22 @@ const SHORTCUTS: KeyboardShortcut[] = [
   {key: 't', name: 'Theme', description: 'Toggle theme'}
 ];
 
+const URL_PARAMETERS: URLParameter[] = [
+  {
+    name: 'mode',
+    description: 'Active view mode.',
+    legacyNames: ['viewMode'],
+    serialize: () => 'overview',
+    deserialize: () => {}
+  },
+  {
+    name: 'selectedIds',
+    description: 'Identifiers pinned in the current view.',
+    serialize: () => ['station-001', 'station-004'],
+    deserialize: () => {}
+  }
+];
+
 const ARROW_TABLE = tableFromArrays({
   id: ['station-001', 'station-002', 'station-003', 'station-004', 'station-005'],
   city: ['Oakland', 'San Jose', 'Fremont', 'Berkeley', 'Richmond'],
@@ -246,18 +277,29 @@ const ARROW_SCHEMA: ArrowSchemaLike = {
   }))
 };
 
+const ARROW_BATCHED_TABLE: ArrowTableLike = {
+  numRows: ARROW_TABLE.numRows,
+  schema: ARROW_TABLE.schema,
+  batches: [
+    {numRows: 2, numCols: ARROW_TABLE.schema.fields.length, schema: ARROW_TABLE.schema},
+    {numRows: 3, numCols: ARROW_TABLE.schema.fields.length, schema: ARROW_TABLE.schema}
+  ]
+};
+
 function buildHighlightComponents(
   highlight: PanelDocsExampleHighlight,
   panelElement: HTMLElement,
   overlayElement: HTMLElement
-): Array<PanelBox | PanelModal | PanelSidebar | PanelFullScreen> {
+): Array<
+  BoxPanelContainer | ModalPanelContainer | SidebarPanelContainer | FullScreenPanelContainer
+> {
   const panel = buildHighlightPanel(highlight);
   const title = HIGHLIGHT_TITLES[highlight];
 
   switch (highlight) {
-    case 'panel-modal':
+    case 'modal-panel-container':
       return [
-        new PanelModal({
+        new ModalPanelContainer({
           id: 'panel-docs-modal',
           title,
           panel,
@@ -268,9 +310,9 @@ function buildHighlightComponents(
         })
       ];
 
-    case 'panel-sidebar':
+    case 'sidebar-panel-container':
       return [
-        new PanelSidebar({
+        new SidebarPanelContainer({
           id: 'panel-docs-sidebar',
           title,
           panel,
@@ -283,9 +325,9 @@ function buildHighlightComponents(
         })
       ];
 
-    case 'panel-full-screen':
+    case 'full-screen-panel-container':
       return [
-        new PanelFullScreen({
+        new FullScreenPanelContainer({
           id: 'panel-docs-full-screen',
           title,
           panel,
@@ -294,10 +336,10 @@ function buildHighlightComponents(
         })
       ];
 
-    case 'panel-box':
+    case 'box-panel-container':
     default:
       return [
-        new PanelBox({
+        new BoxPanelContainer({
           id: 'panel-docs-box',
           _container: panelElement,
           widthPx: 420,
@@ -345,6 +387,14 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         maxRows: 3
       });
 
+    case 'arrow-batches-panel':
+      return new ArrowBatchesPanel({
+        id: 'arrow-batches',
+        title: 'Arrow Batches',
+        table: ARROW_BATCHED_TABLE,
+        selectedBatchIndex: 1
+      });
+
     case 'arrow-schema-panel':
       return new ArrowSchemaPanel({
         id: 'arrow-schema',
@@ -377,6 +427,30 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
           wrapper.append(title, bar);
           rootElement.replaceChildren(wrapper);
         }
+      });
+
+    case 'documentation-links-panel':
+      return new DocumentationLinksPanel({
+        links: [
+          {
+            id: 'guides',
+            title: 'Guides',
+            href: '/docs/modules/panels',
+            description: 'Open the panels overview.',
+            badge: 'Docs'
+          },
+          {
+            kind: 'spacer',
+            id: 'references'
+          },
+          {
+            id: 'api',
+            title: 'API reference',
+            href: '/docs/modules/panels/api-reference',
+            description: 'Browse panel container and panel references.',
+            badge: 'API'
+          }
+        ]
       });
 
     case 'stats-panel': {
@@ -415,58 +489,63 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         language: 'json'
       });
 
+    case 'url-parameters-panel':
+      return new URLParametersPanel({
+        urlParameters: URL_PARAMETERS
+      });
+
     case 'accordeon-panel':
       return new AccordeonPanel({
         id: 'accordeon',
         title: 'Sections',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: 'Summary',
             markdown: 'Collapsible sections built from child panels.'
           }),
-          details: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'details',
             title: 'Details',
             markdown: 'Each section stays composable and reusable.'
           })
-        }
+        ]
       });
 
     case 'tabbed-panel':
       return new TabbedPanel({
         id: 'tabs',
         title: 'Tabs',
-        panels: {
-          first: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'first',
             title: 'First',
             markdown: 'Tabbed layout keeps one panel active at a time.'
           }),
-          second: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'second',
             title: 'Second',
             markdown: 'Useful when multiple panels share the same footprint.'
           })
-        }
+        ]
       });
 
     case 'column-panel':
       return new ColumnPanel({
         id: 'column',
         title: 'Column',
-        panels: {
-          intro: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'intro',
             title: 'Intro',
             markdown: 'Column layouts keep all child panels visible.'
           }),
-          notes: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
             markdown: 'They work well for grouped summaries and sidebars.'
           })
-        }
+        ]
       });
 
     case 'splitter-panel':
@@ -477,8 +556,8 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         initialSplit: 0.44,
         minSplit: 0.25,
         maxSplit: 0.75,
-        panels: {
-          preview: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'preview',
             title: 'Preview',
             markdown: [
@@ -489,91 +568,92 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
               '- Groups the remaining panels on the other side'
             ].join('\n')
           }),
-          details: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'details',
             title: 'Details',
             markdown: 'The second pane is a column of every remaining child panel.'
           }),
-          settings: new SettingsPanel({
+          new SettingsPanel({
             id: 'splitter-settings',
             title: 'Settings',
             schema: SETTINGS_SCHEMA,
             settings: SETTINGS_STATE
           })
-        }
+        ]
       });
 
-    case 'panel-box':
+    case 'box-panel-container':
       return new ColumnPanel({
-        id: 'panel-box-content',
+        id: 'box-panel-container-content',
         title: 'Details',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: 'Overview',
             markdown: 'A fixed standalone panel container.'
           }),
-          notes: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
-            markdown: 'Use `PanelBox` when content should stay visible.'
+            markdown: 'Use `BoxPanelContainer` when content should stay visible.'
           })
-        }
+        ]
       });
 
-    case 'panel-modal':
+    case 'modal-panel-container':
       return new ColumnPanel({
-        id: 'panel-modal-content',
+        id: 'modal-panel-container-content',
         title: 'Details',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: 'Overview',
             markdown: 'A modal panel container for secondary content.'
           }),
-          notes: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
-            markdown: 'Use `PanelModal` when content should open on demand.'
+            markdown: 'Use `ModalPanelContainer` when content should open on demand.'
           })
-        }
+        ]
       });
 
-    case 'panel-sidebar':
+    case 'sidebar-panel-container':
       return new ColumnPanel({
-        id: 'panel-sidebar-content',
+        id: 'sidebar-panel-container-content',
         title: 'Inspector',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: 'Overview',
             markdown: 'A sidebar panel container for persistent controls.'
           }),
-          notes: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
-            markdown: 'Use `PanelSidebar` to keep content reachable while the scene stays visible.'
+            markdown:
+              'Use `SidebarPanelContainer` to keep content reachable while the scene stays visible.'
           })
-        }
+        ]
       });
 
-    case 'panel-full-screen':
+    case 'full-screen-panel-container':
       return new ColumnPanel({
-        id: 'panel-full-screen-content',
+        id: 'full-screen-panel-container-content',
         title: 'Workspace',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: 'Overview',
             markdown: 'A full-screen panel container for focused workflows.'
           }),
-          notes: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'notes',
             title: 'Notes',
             markdown:
-              'Use `PanelFullScreen` when the panel layout should dominate the available space.'
+              'Use `FullScreenPanelContainer` when the panel layout should dominate the available space.'
           })
-        }
+        ]
       });
 
     case 'panels':
@@ -581,29 +661,29 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
       return new ColumnPanel({
         id: 'overview',
         title: 'Panels',
-        panels: {
-          summary: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'summary',
             title: 'Overview',
             markdown: 'Panels compose into reusable standalone UI without deck.gl.'
           }),
-          tabs: new TabbedPanel({
+          new TabbedPanel({
             id: 'tabs',
             title: 'Composite Panels',
-            panels: {
-              column: new MarkdownPanel({
+            panels: [
+              new MarkdownPanel({
                 id: 'column-tab',
                 title: 'Column',
                 markdown: 'Use `ColumnPanel` to keep multiple panels visible.'
               }),
-              accordeon: new MarkdownPanel({
+              new MarkdownPanel({
                 id: 'accordeon-tab',
                 title: 'Accordeon',
                 markdown: 'Use `AccordeonPanel` for collapsible sections.'
               })
-            }
+            ]
           })
-        }
+        ]
       });
   }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {h, render} from 'preact';
+import {render} from 'preact';
 import {
   PANEL_THEME_DARK,
   PANEL_THEME_LIGHT,
@@ -12,10 +12,8 @@ import {
   MarkdownPanel,
   PanelManager,
   TabbedPanel,
-  ToastPanelContainer,
-  ToolbarPanelContainer,
-  PanelContentRenderer,
-  asPanelContainer,
+  ToastComponent,
+  ToolbarComponent,
   toastManager
 } from '../../../modules/panels/src';
 
@@ -159,19 +157,19 @@ export function mountStandalonePanelContainersExample(container: HTMLElement): (
     focus: 'overview'
   };
 
-  const toolbarPanelContainer = new ToolbarPanelContainer({
+  const toolbarComponent = new ToolbarComponent({
     id: 'standalone-toolbar',
     placement: 'bottom-left',
     items: buildToolbarItems(state, sync)
   });
 
-  const toastPanelContainer = new ToastPanelContainer({
+  const toastComponent = new ToastComponent({
     id: 'standalone-toast',
     placement: 'bottom-right',
     showBorder: true
   });
 
-  host.setProps({components: [toolbarPanelContainer, toastPanelContainer]});
+  host.setProps({components: [toolbarComponent, toastComponent]});
   sync();
 
   return () => {
@@ -193,14 +191,9 @@ export function mountStandalonePanelContainersExample(container: HTMLElement): (
       state.theme === 'dark' ? 'rgba(226, 232, 240, 0.76)' : 'rgba(15, 23, 42, 0.72)';
 
     renderScene(sceneElement, state);
-    render(
-      h(PanelContentRenderer, {
-        container: asPanelContainer(buildDashboardPanel(state, sync))
-      }),
-      panelElement
-    );
+    render(buildDashboardPanel(state, sync).content, panelElement);
 
-    toolbarPanelContainer.setProps({
+    toolbarComponent.setProps({
       items: buildToolbarItems(state, sync)
     });
   }
@@ -257,8 +250,8 @@ function buildDashboardPanel(state: ExampleState, sync: () => void) {
   return new ColumnPanel({
     id: 'standalone-dashboard',
     title: 'Standalone panels',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary-panel',
         title: 'Summary',
         markdown: [
@@ -271,16 +264,16 @@ function buildDashboardPanel(state: ExampleState, sync: () => void) {
           FOCUS_NOTES[state.focus]
         ].join('\n')
       }),
-      palette: new CustomPanel({
+      new CustomPanel({
         id: 'palette-panel',
         title: 'Palette',
         onRenderHTML: rootElement => renderPaletteControls(rootElement, state, sync)
       }),
-      details: new TabbedPanel({
+      new TabbedPanel({
         id: 'details-tabs',
         title: 'Details',
-        panels: {
-          overview: new MarkdownPanel({
+        panels: [
+          new MarkdownPanel({
             id: 'overview-tab',
             title: 'Overview',
             markdown: [
@@ -291,7 +284,7 @@ function buildDashboardPanel(state: ExampleState, sync: () => void) {
               `The panel theme is applied through \`applyPanelTheme(...)\` outside deck.gl.`
             ].join('\n')
           }),
-          structure: new MarkdownPanel({
+          new MarkdownPanel({
             id: 'structure-tab',
             title: 'Composition',
             markdown: [
@@ -301,9 +294,9 @@ function buildDashboardPanel(state: ExampleState, sync: () => void) {
               `- toolbar callbacks update local app state and trigger re-rendering`
             ].join('\n')
           })
-        }
+        ]
       })
-    }
+    ]
   });
 }
 

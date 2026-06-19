@@ -2,6 +2,9 @@
   "type": "category",
   "label": "@deck.gl-community/infovis-layers",
   "items": [
-    "modules/infovis-layers/README"
+    "modules/infovis-layers/README",
+    "modules/infovis-layers/api-reference/animation-layer",
+    "modules/infovis-layers/api-reference/block-layer",
+    "modules/infovis-layers/api-reference/time-delta-layer"
   ]
 }

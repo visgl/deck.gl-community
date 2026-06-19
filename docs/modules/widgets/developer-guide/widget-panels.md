@@ -8,28 +8,24 @@ import WidgetPanelsLiveExample from '@site/src/components/docs/widget-panels-liv
 
 <WidgetPanelsLiveExample highlight="widget-panels" size="tall" />
 
-Panel widgets lets you use panels and components from the
+Panel widgets let you use components from the
 [`@deck.gl-community/panels`](/docs/modules/panels) module in deck.gl applications.
 
-- `@deck.gl-community/panels` provides a generic panel-based UI.
-- `@deck.gl-community/widgets` enables you to use those panel definitions through
-  convenient deck.gl wrapper widgets.
+- `@deck.gl-community/panels` owns `PanelComponent`, panels, containers, toolbar,
+  toast, and their rendering behavior.
+- `@deck.gl-community/widgets` adapts those components to deck.gl's widget
+  lifecycle.
 
 ## Usage
 
-Import panels from [`@deck.gl-community/panels`](/docs/modules/panels).
-Pass those panel definitions to deck.gl widgets from `@deck.gl-community/widgets`.
+Import components from [`@deck.gl-community/panels`](/docs/modules/panels).
+Wrap any component in `PanelWidget`, or use one of the thin named adapters from
+`@deck.gl-community/widgets`.
 
-## Container widgets
+## Adapter API
 
-These are the deck.gl widgets that consume `WidgetPanel` and `WidgetContainer` values:
-
-| Widget                                                                | Purpose                                                        |
-| --------------------------------------------------------------------- | -------------------------------------------------------------- |
-| [BoxPanelWidget](../api-reference/box-widget.md)                      | Static panel content anchored in a deck.gl widget corner.      |
-| [FullScreenPanelWidget](../api-reference/full-screen-panel-widget.md) | A large inset panel layout that occupies most of the viewport. |
-| [ModalPanelWidget](../api-reference/modal-widget.md)                  | On-demand panel content shown in a centered overlay.           |
-| [SidebarPanelWidget](../api-reference/sidebar-widget.md)              | Persistent panel content attached to the left or right edge.   |
+See [PanelWidget](../api-reference/panel-widget.md) for the generic adapter and
+the concise named-adapter list.
 
 ## Panel definitions
 
@@ -37,16 +33,17 @@ Use [`@deck.gl-community/panels`](/docs/modules/panels) for panel composition:
 
 - [Using with deck.gl](/docs/modules/panels/developer-guide/using-with-deck-gl)
 - [Leaf Panels](/docs/modules/panels/api-reference/custom-panel)
-- [Composite Panels](/docs/modules/panels/api-reference/accordeon-panel)
-- [Panel Containers](/docs/modules/panels/api-reference/panel-container)
+- [Composite Panels](/docs/modules/panels/api-reference/composite-panels/accordeon-panel)
+- [Panel Containers](/docs/modules/panels/api-reference/panel-containers/panel-container)
 
 ## Composition patterns
 
-- Use `BoxPanelWidget` for compact summaries or status cards.
-- Use `SidebarPanelWidget` for persistent controls or inspectors.
-- Use `ModalPanelWidget` when panel content should open on demand.
-- Use `FullScreenPanelWidget` when one panel layout should temporarily take over the viewport.
-- Build the panel content itself in `@deck.gl-community/panels`, then reuse the same definitions across multiple widget wrappers.
+- Use `PanelWidget` when the application already has a `PanelComponent`
+  instance.
+- Use named adapters for concise construction of built-in panel containers,
+  toolbar, or toast.
+- Build panel content itself in `@deck.gl-community/panels`, then reuse the same
+  definitions across standalone and deck hosts.
 
 ## Renderer selection
 

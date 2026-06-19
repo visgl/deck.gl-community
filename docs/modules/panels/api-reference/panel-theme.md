@@ -1,8 +1,12 @@
+import PanelLiveExample from '@site/src/components/docs/panel-live-example';
+
 # Panel Themes
 
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
+
+<PanelLiveExample highlight="panels" />
 
 `@deck.gl-community/panels` exports built-in light and dark panel theme variables
 plus a small helper for applying them to a DOM host.
@@ -42,5 +46,5 @@ type PanelThemeVariables = Record<`--${string}`, string>;
 ## Remarks
 
 - These theme variables are intended for standalone `panels` usage.
-- deck.gl widget wrappers should continue to use deck.gl theming from `@deck.gl/widgets`.
+- deck.gl widget adapters should continue to use deck.gl theming from `@deck.gl/widgets`.
 - Panel theme inference continues to work through the themed host element and `PanelManager`.

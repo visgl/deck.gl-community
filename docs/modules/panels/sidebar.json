@@ -8,6 +8,8 @@
       "label": "Developer Guide",
       "items": [
         "modules/panels/developer-guide/using-panels",
+        "modules/panels/developer-guide/using-components",
+        "modules/panels/developer-guide/using-managers",
         "modules/panels/developer-guide/using-stand-alone",
         "modules/panels/developer-guide/using-with-deck-gl"
       ]
@@ -16,17 +18,36 @@
       "type": "category",
       "label": "Panels API",
       "items": [
-        "modules/panels/api-reference/panel-manager",
+        "modules/panels/api-reference/panel",
         "modules/panels/api-reference/panel-theme",
-        "modules/panels/api-reference/toast-manager",
-        "modules/panels/api-reference/keyboard-shortcuts-manager",
-        "modules/panels/api-reference/url-manager"
+        {
+          "type": "category",
+          "label": "Panel Components",
+          "items": [
+            "modules/panels/api-reference/panel-components/panel-component",
+            "modules/panels/api-reference/panel-components/toolbar-component",
+            "modules/panels/api-reference/panel-components/toast-component"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Managers",
+          "items": [
+            "modules/panels/api-reference/managers/panel-manager",
+            "modules/panels/api-reference/managers/toast-manager",
+            "modules/panels/api-reference/managers/settings-manager",
+            "modules/panels/api-reference/managers/command-manager",
+            "modules/panels/api-reference/managers/keyboard-shortcuts-manager",
+            "modules/panels/api-reference/managers/url-manager"
+          ]
+        }
       ]
     },
     {
       "type": "category",
       "label": "Leaf Panels",
       "items": [
+        "modules/panels/api-reference/arrow-batches-panel",
         "modules/panels/api-reference/arrow-schema-panel",
         "modules/panels/api-reference/arrow-table-panel",
         "modules/panels/api-reference/binary-data-panel",
@@ -35,6 +56,7 @@
         "modules/panels/api-reference/markdown-panel",
         "modules/panels/api-reference/stats-panel",
         "modules/panels/api-reference/settings-panel",
+        "modules/panels/api-reference/studio-settings-panel",
         "modules/panels/api-reference/documentation-links-panel",
         "modules/panels/api-reference/text-editor-panel",
         "modules/panels/api-reference/url-parameters-panel"
@@ -44,21 +66,21 @@
       "type": "category",
       "label": "Composite Panels",
       "items": [
-        "modules/panels/api-reference/accordeon-panel",
-        "modules/panels/api-reference/column-panel",
-        "modules/panels/api-reference/splitter-panel",
-        "modules/panels/api-reference/tabbed-panel"
+        "modules/panels/api-reference/composite-panels/accordeon-panel",
+        "modules/panels/api-reference/composite-panels/column-panel",
+        "modules/panels/api-reference/composite-panels/splitter-panel",
+        "modules/panels/api-reference/composite-panels/tabbed-panel"
       ]
     },
     {
       "type": "category",
       "label": "Panel Containers",
       "items": [
-        "modules/panels/api-reference/panel-box",
-        "modules/panels/api-reference/panel-modal",
-        "modules/panels/api-reference/panel-sidebar",
-        "modules/panels/api-reference/panel-full-screen",
-        "modules/panels/api-reference/panel-container"
+        "modules/panels/api-reference/panel-containers/panel-container",
+        "modules/panels/api-reference/panel-containers/box-panel-container",
+        "modules/panels/api-reference/panel-containers/modal-panel-container",
+        "modules/panels/api-reference/panel-containers/sidebar-panel-container",
+        "modules/panels/api-reference/panel-containers/full-screen-panel-container"
       ]
     }
   ]

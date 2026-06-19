@@ -3,7 +3,12 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, type MapViewState, type PickingInfo} from '@deck.gl/core';
-import {PathOutlineLayer, PathMarkerLayer} from '@deck.gl-community/layers';
+import {
+  DependencyArrowLayer,
+  PathDirection,
+  PathOutlineLayer,
+  PathMarkerLayer
+} from '@deck.gl-community/layers';
 import {MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
@@ -116,7 +121,32 @@ const WATERFRONT_SEGMENTS: WaterfrontSegment[] = [
   }
 ];
 
-type LayerDatum = TransitRoute | WaterfrontSegment;
+type DependencyLink = {
+  name: string;
+  path: [number, number][];
+  color: [number, number, number, number];
+};
+
+const DEPENDENCY_LINKS: DependencyLink[] = [
+  {
+    name: 'Ferry handoff',
+    path: [
+      [-122.4209, 37.8118],
+      [-122.4091, 37.8033]
+    ],
+    color: [15, 23, 42, 220]
+  },
+  {
+    name: 'Station transfer',
+    path: [
+      [-122.423, 37.7818],
+      [-122.4262, 37.7648]
+    ],
+    color: [124, 58, 237, 220]
+  }
+];
+
+type LayerDatum = TransitRoute | WaterfrontSegment | DependencyLink;
 
 const INITIAL_VIEW_STATE: MapViewState = {
   longitude: -122.428,
@@ -164,7 +194,7 @@ export function mountPathOutlineAndMarkersExample(
                 id: 'path-outline-and-markers-info-panel',
                 title: '',
                 markdown:
-                  'Demonstrates `PathOutlineLayer` for outlined dashed routes and `PathMarkerLayer` for directional markers along transit lines.\n\nHover a path to inspect each route or trail.'
+                  'Demonstrates `PathOutlineLayer` for outlined dashed routes, `PathMarkerLayer` for directional markers, and `DependencyArrowLayer` for routed handoff links.\n\nHover a path to inspect each route or trail.'
               })
             })
           ],
@@ -196,6 +226,24 @@ export function mountPathOutlineAndMarkersExample(
         getDirection: d => d.direction,
         getMarkerPercentages: (_object, {lineLength}) =>
           lineLength > 800 ? [0.2, 0.5, 0.8] : [0.5],
+        parameters: {depthTest: false}
+      }),
+      new DependencyArrowLayer<DependencyLink>({
+        id: 'route-dependencies',
+        data: DEPENDENCY_LINKS,
+        pickable: true,
+        autoHighlight: true,
+        mode: 'arc',
+        widthUnits: 'pixels',
+        getPath: d => d.path,
+        getColor: d => d.color,
+        getWidth: 3,
+        getDirection: PathDirection.FORWARD,
+        getMarkerPlacements: [0.62],
+        getMarkerSize: [2.4, 1.3],
+        markerSizeScale: 10,
+        getArcHeight: 0.04,
+        getArcTilt: 35,
         parameters: {depthTest: false}
       })
     ],

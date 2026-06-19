@@ -11,22 +11,30 @@ It focuses on panel definitions, container composition, and rendering structure.
 
 - A leaf panel defines one titled unit of content.
 - A composite panel combines other panels into a larger structure.
-- A panel container describes how panels are arranged and rendered.
+- A panel container hosts one panel inside box, modal, sidebar, or full-screen chrome.
+- A `PanelComponent` is any panel-managed UI that can be mounted directly.
+
+Use [Using Components](./using-components.md) for panel-managed UI that is not
+titled panel content, and [Using Managers](./using-managers.md) when one app
+descriptor list should also drive panel help or settings UI.
 
 ## Composite Panels
 
 Panels built from other panels.
 
-- [AccordeonPanel](../api-reference/accordeon-panel.md)
-- [TabbedPanel](../api-reference/tabbed-panel.md)
-- [ColumnPanel](../api-reference/column-panel.md)
-- [SplitterPanel](../api-reference/splitter-panel.md)
+- [AccordeonPanel](../api-reference/composite-panels/accordeon-panel.md)
+- [TabbedPanel](../api-reference/composite-panels/tabbed-panel.md)
+- [ColumnPanel](../api-reference/composite-panels/column-panel.md)
+- [SplitterPanel](../api-reference/composite-panels/splitter-panel.md)
 
 ## Leaf Panels
 
 Panels with no child panels.
 
 - [CustomPanel](../api-reference/custom-panel.md)
+- [ArrowBatchesPanel](../api-reference/arrow-batches-panel.md)
+- [ArrowSchemaPanel](../api-reference/arrow-schema-panel.md)
+- [ArrowTablePanel](../api-reference/arrow-table-panel.md)
 - [BinaryDataPanel](../api-reference/binary-data-panel.md)
 - [MarkdownPanel](../api-reference/markdown-panel.md)
 - [StatsPanel](../api-reference/stats-panel.md)
@@ -43,6 +51,9 @@ Panels with no child panels.
 - Use `ColumnPanel` when all child panels should remain visible in order.
 - Use `SplitterPanel` when the first child panel should resize against the remaining child panels.
 - Use `MarkdownPanel` for small descriptive content without mounting your own renderer.
+- Use `ArrowTablePanel`, `ArrowSchemaPanel`, and `ArrowBatchesPanel` to inspect
+  Arrow tables, schema metadata, and record batch structure without importing
+  deck.gl.
 - Use `BinaryDataPanel` for capped hex and ASCII previews of caller-supplied binary data.
 - Use `StatsPanel` for compact probe.gl stats tables inside an existing panel layout.
 - Use `DocumentationLinksPanel` for generic help and resource links.
@@ -62,7 +73,7 @@ import {
   DocumentationLinksPanel,
   KeyboardShortcutsPanel,
   PanelManager,
-  PanelModal,
+  ModalPanelContainer,
   TabbedPanel,
   URLParametersPanel
 } from '@deck.gl-community/panels';
@@ -70,14 +81,14 @@ import {
 const helpTabs = new TabbedPanel({
   id: 'help-tabs',
   title: 'Help',
-  panels: {
-    shortcuts: new KeyboardShortcutsPanel({keyboardShortcuts}),
-    url: new URLParametersPanel({urlParameters}),
-    docs: new DocumentationLinksPanel({links: documentationLinks})
-  }
+  panels: [
+    new KeyboardShortcutsPanel({keyboardShortcuts}),
+    new URLParametersPanel({urlParameters}),
+    new DocumentationLinksPanel({links: documentationLinks})
+  ]
 });
 
-const helpModal = new PanelModal({
+const helpModal = new ModalPanelContainer({
   id: 'help-modal',
   panel: helpTabs,
   title: 'Help',
@@ -100,4 +111,70 @@ const panelManager = new PanelManager({
 panelManager.setProps({
   components: [helpModal]
 });
+```
+
+## Arrow inspector beside luma.gl
+
+Mount Arrow panels into any DOM host next to a luma.gl canvas. The panels only
+depend on structural Arrow APIs and can inspect CPU Arrow tables produced by
+luma.gl examples or loaders.gl sources.
+
+```ts
+import {
+  ArrowBatchesPanel,
+  ArrowSchemaPanel,
+  ArrowTablePanel,
+  ColumnPanel,
+  BoxPanelContainer,
+  PanelManager
+} from '@deck.gl-community/panels';
+
+import type {ArrowSchemaLike, ArrowTableInput} from '@deck.gl-community/panels';
+
+const panelManager = new PanelManager({
+  parentElement: document.getElementById('inspector') as HTMLElement
+});
+
+let selectedBatchIndex: number | undefined;
+
+function renderArrowInspector(table: ArrowTableInput, schema: ArrowSchemaLike) {
+  panelManager.setProps({
+    components: [
+      new BoxPanelContainer({
+        id: 'arrow-inspector-box',
+        title: 'Arrow Inspector',
+        panel: new ColumnPanel({
+          id: 'arrow-inspector',
+          title: 'Arrow Inspector',
+          panels: [
+            new ArrowBatchesPanel({
+              id: 'arrow-batches',
+              title: 'Batches',
+              table,
+              selectedBatchIndex,
+              onBatchSelect: batchIndex => {
+                selectedBatchIndex = batchIndex;
+                renderArrowInspector(table, schema);
+              }
+            }),
+            new ArrowTablePanel({
+              id: 'arrow-table',
+              title: 'Table',
+              table,
+              batchIndex: selectedBatchIndex ?? 'all',
+              showRowIndex: true,
+              maxRows: 50,
+              maxNestedItems: 6
+            }),
+            new ArrowSchemaPanel({
+              id: 'arrow-schema',
+              title: 'Schema',
+              schema
+            })
+          ]
+        })
+      })
+    ]
+  });
+}
 ```

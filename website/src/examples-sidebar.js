@@ -44,6 +44,11 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/infovis-layers',
+      items: ['infovis-layers/layer-primitives']
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/basemap-layers',
       items: ['layers/basemap-layer-map-view']
     },
@@ -51,6 +56,11 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/timeline-layers',
       items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/trace-layers',
+      items: ['trace-layers/tracevis', 'trace-layers/trace-graph-layer']
     },
     {
       type: 'category',
