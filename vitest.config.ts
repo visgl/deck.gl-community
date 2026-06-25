@@ -28,6 +28,18 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/widgets/src/index.ts', import.meta.url))
   },
   {
+    find: /^@deck\.gl-community\/infovis-layers$/,
+    replacement: fileURLToPath(new URL('./modules/infovis-layers/src/index.ts', import.meta.url))
+  },
+  {
+    find: /^@deck\.gl-community\/layers$/,
+    replacement: fileURLToPath(new URL('./modules/layers/src/index.ts', import.meta.url))
+  },
+  {
+    find: /^@deck\.gl-community\/timeline-layers$/,
+    replacement: fileURLToPath(new URL('./dev/timeline-layers/src/index.ts', import.meta.url))
+  },
+  {
     find: /^@deck\.gl-community\/trace-layers\/(.+)$/,
     replacement: fileURLToPath(new URL('./modules/trace-layers/src/$1', import.meta.url))
   },
