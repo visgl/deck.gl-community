@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import bbox from '@turf/bbox';
+import turfBbox from '@turf/bbox';
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
-import bboxPolygon from '@turf/bbox-polygon';
+import turfBboxPolygon from '@turf/bbox-polygon';
 import {point, featureCollection} from '@turf/helpers';
 import {polygonToLine} from '@turf/polygon-to-line';
 import {coordEach} from '@turf/meta';
@@ -55,7 +55,7 @@ export class ScaleMode extends GeoJsonEditMode {
     const guidePointCount = this._cornerGuidePoints.length;
     const oppositeIndex = (selectedHandleIndex + guidePointCount / 2) % guidePointCount;
     return (
-      this._cornerGuidePoints.find((p) => {
+      this._cornerGuidePoints.find(p => {
         if (!Array.isArray(p.properties.positionIndexes)) {
           return false;
         }
@@ -204,7 +204,7 @@ export class ScaleMode extends GeoJsonEditMode {
       return {type: 'FeatureCollection', features: []};
     }
 
-    const boundingBox = bboxPolygon(bbox(selectedGeometry));
+    const boundingBox = turfBboxPolygon(turfBbox(selectedGeometry));
     boundingBox.properties.mode = 'scale';
     const cornerGuidePoints: EditHandleFeature[] = [];
 

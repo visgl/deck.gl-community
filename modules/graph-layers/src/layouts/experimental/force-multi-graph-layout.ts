@@ -40,7 +40,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     this.updateGraph(graph);
   }
 
-  _strength = (d3Edge) => {
+  _strength = d3Edge => {
     if (d3Edge.isVirtual) {
       return 1 / d3Edge.edgeCount;
     }
@@ -66,7 +66,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
         d3
           .forceLink(g.edges)
           // @ts-ignore TODO id not defined?
-          .id((n) => n.id)
+          .id(n => n.id)
           .strength(this._strength)
       )
       .force(
@@ -104,7 +104,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     // nodes
     const newNodeMap = new Map<string | number, any>();
     const nodes = Array.from(graph.getNodes());
-    const newD3Nodes = nodes.map((node) => {
+    const newD3Nodes = nodes.map(node => {
       const id = node.getId();
       const oldD3Node = this._nodeMap.get(id);
       const newD3Node = oldD3Node ? oldD3Node : {id};
@@ -135,7 +135,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     const newD3Edges: any[] = [];
     const newEdgeMap = new Map<string | number, any>();
 
-    Object.keys(nodePairs).forEach((pairId) => {
+    Object.keys(nodePairs).forEach(pairId => {
       const betweenEdges = nodePairs[pairId];
       const firstEdge = betweenEdges[0];
       if (betweenEdges.length === 1) {
@@ -256,7 +256,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
   };
 
   protected override _updateBounds(): void {
-    const positions = Array.from(this._nodeMap.values(), (node) => this._normalizePosition(node));
+    const positions = Array.from(this._nodeMap.values(), node => this._normalizePosition(node));
     this._bounds = this._calculateBounds(positions);
   }
 }

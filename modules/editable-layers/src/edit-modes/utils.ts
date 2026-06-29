@@ -4,10 +4,9 @@
 
 /* eslint-disable no-shadow */
 
-import {destination} from '@turf/destination';
-import {bearing} from '@turf/bearing';
-import {pointToLineDistance} from '@turf/point-to-line-distance';
-import {flattenEach} from '@turf/meta';
+import turfDestination from '@turf/destination';
+import turfBearing from '@turf/bearing';
+import turfPointToLineDistance from '@turf/point-to-line-distance';
 import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
@@ -94,8 +93,8 @@ export function generatePointsParallelToLinePoints(
     coordinates: [p1, p2]
   };
   const pt = point(coords);
-  const ddistance = pointToLineDistance(pt, lineString);
-  const lineBearing = bearing(p1, p2);
+  const ddistance = turfPointToLineDistance(pt, lineString);
+  const lineBearing = turfBearing(p1, p2);
 
   // Check if current point is to the left or right of line
   // Line from A=(x1,y1) to B=(x2,y2) a point P=(x,y)
@@ -108,8 +107,8 @@ export function generatePointsParallelToLinePoints(
 
   // Get coordinates for the point p3 and p4 which are perpendicular to the lineString
   // Add the distance as the current position moves away from the lineString
-  const p3 = destination(p2, ddistance, orthogonalBearing);
-  const p4 = destination(p1, ddistance, orthogonalBearing);
+  const p3 = turfDestination(p2, ddistance, orthogonalBearing);
+  const p4 = turfDestination(p1, ddistance, orthogonalBearing);
 
   return [p3.geometry.coordinates, p4.geometry.coordinates] as Position[];
 }
@@ -229,126 +228,102 @@ export function nearestPointOnLine(
 ): NearestPointType {
   const wmViewport = viewport ? new WebMercatorViewport(viewport) : undefined;
 
-  let closestPoint: any = point([Infinity, Infinity], {dist: Infinity});
-
-  if (!lines.geometry?.coordinates.length || lines.geometry?.coordinates.length < 2) {
-    return closestPoint;
+  const coords = lines.geometry?.coordinates;
+  if (!coords || coords.length < 2) {
+    return point([Infinity, Infinity], {dist: Infinity, index: undefined});
   }
 
-  // eslint-disable-next-line max-statements, complexity
-  flattenEach(lines, (line: any) => {
-    const coords: any = getCoords(line);
-    const pointCoords: any = getCoords(inPoint);
+  const pointCoords = getCoords(inPoint);
 
-    let minDist: null | undefined | number;
-    let to: null | undefined | number;
-    let from: null | undefined | number;
-    let x: null | undefined | number;
-    let y: null | undefined | number;
-    let segmentIdx: null | undefined | number;
-    let dist: null | undefined | number;
+  let minDist: null | undefined | number;
+  let segmentRatio: null | undefined | number;
+  let x: null | undefined | number;
+  let y: null | undefined | number;
+  let segmentIdx: null | undefined | number;
+  let dist: null | undefined | number;
 
-    if (coords.length > 1 && pointCoords.length) {
-      const pointCoordinate = projectOrUnprojectPoints(
-        pointCoords,
-        coordinateSystem,
-        'PROJECT',
-        wmViewport
-      );
-      const lineCoordinates = coords.map(([px, py, pz = 0]) =>
-        projectOrUnprojectPoints([px, py, pz], coordinateSystem, 'PROJECT', wmViewport)
-      );
+  const pointCoordinate = projectOrUnprojectPoints(
+    pointCoords,
+    coordinateSystem,
+    'PROJECT',
+    wmViewport
+  );
+  const lineCoordinates = coords.map(([px, py, pz = 0]) =>
+    projectOrUnprojectPoints([px, py, pz], coordinateSystem, 'PROJECT', wmViewport)
+  );
 
-      for (let n = 1; n < lineCoordinates.length; n++) {
-        if (lineCoordinates[n][0] !== lineCoordinates[n - 1][0]) {
-          const slope =
-            (lineCoordinates[n][1] - lineCoordinates[n - 1][1]) /
-            (lineCoordinates[n][0] - lineCoordinates[n - 1][0]);
-          const inverseSlope = lineCoordinates[n][1] - slope * lineCoordinates[n][0];
+  for (let n = 1; n < lineCoordinates.length; n++) {
+    if (lineCoordinates[n][0] !== lineCoordinates[n - 1][0]) {
+      const slope =
+        (lineCoordinates[n][1] - lineCoordinates[n - 1][1]) /
+        (lineCoordinates[n][0] - lineCoordinates[n - 1][0]);
+      const intercept = lineCoordinates[n][1] - slope * lineCoordinates[n][0];
 
-          dist =
-            Math.abs(slope * pointCoordinate[0] + inverseSlope - pointCoordinate[1]) /
-            Math.sqrt(slope * slope + 1);
-        } else dist = Math.abs(pointCoordinate[0] - lineCoordinates[n][0]);
+      dist =
+        Math.abs(slope * pointCoordinate[0] + intercept - pointCoordinate[1]) /
+        Math.sqrt(slope * slope + 1);
+    } else dist = Math.abs(pointCoordinate[0] - lineCoordinates[n][0]);
 
-        // length^2 of line segment
-        const rl2 =
-          Math.pow(lineCoordinates[n][1] - lineCoordinates[n - 1][1], 2) +
-          Math.pow(lineCoordinates[n][0] - lineCoordinates[n - 1][0], 2);
+    // length^2 of line segment
+    const rl2 =
+      Math.pow(lineCoordinates[n][1] - lineCoordinates[n - 1][1], 2) +
+      Math.pow(lineCoordinates[n][0] - lineCoordinates[n - 1][0], 2);
 
-        // distance^2 of pt to end line segment
-        const ln2 =
-          Math.pow(lineCoordinates[n][1] - pointCoordinate[1], 2) +
-          Math.pow(lineCoordinates[n][0] - pointCoordinate[0], 2);
+    // distance^2 of pt to end line segment
+    const ln2 =
+      Math.pow(lineCoordinates[n][1] - pointCoordinate[1], 2) +
+      Math.pow(lineCoordinates[n][0] - pointCoordinate[0], 2);
 
-        // distance^2 of pt to begin line segment
-        const lnm12 =
-          Math.pow(lineCoordinates[n - 1][1] - pointCoordinate[1], 2) +
-          Math.pow(lineCoordinates[n - 1][0] - pointCoordinate[0], 2);
+    // distance^2 of pt to begin line segment
+    const lnm12 =
+      Math.pow(lineCoordinates[n - 1][1] - pointCoordinate[1], 2) +
+      Math.pow(lineCoordinates[n - 1][0] - pointCoordinate[0], 2);
 
-        // minimum distance^2 of pt to infinite line
-        const dist2 = Math.pow(dist, 2);
+    // minimum distance^2 of pt to infinite line
+    const dist2 = Math.pow(dist, 2);
 
-        // calculated length^2 of line segment
-        const calcrl2 = ln2 - dist2 + lnm12 - dist2;
+    // calculated length^2 of line segment
+    const calcrl2 = ln2 - dist2 + lnm12 - dist2;
 
-        // redefine minimum distance to line segment (not infinite line) if necessary
-        if (calcrl2 > rl2) {
-          dist = Math.sqrt(Math.min(ln2, lnm12));
-        }
-
-        if (minDist === null || minDist === undefined || minDist > dist) {
-          // eslint-disable-next-line max-depth
-          if (calcrl2 > rl2) {
-            // eslint-disable-next-line max-depth
-            if (lnm12 < ln2) {
-              to = 0; // nearer to previous point
-              from = 1;
-            } else {
-              from = 0; // nearer to current point
-              to = 1;
-            }
-          } else {
-            // perpendicular from point intersects line segment
-            to = Math.sqrt(lnm12 - dist2) / Math.sqrt(rl2);
-            from = Math.sqrt(ln2 - dist2) / Math.sqrt(rl2);
-          }
-          minDist = dist;
-          segmentIdx = n;
-        }
-      }
-
-      const dx = lineCoordinates[segmentIdx - 1][0] - lineCoordinates[segmentIdx][0];
-      const dy = lineCoordinates[segmentIdx - 1][1] - lineCoordinates[segmentIdx][1];
-
-      x = lineCoordinates[segmentIdx - 1][0] - dx * to;
-      y = lineCoordinates[segmentIdx - 1][1] - dy * to;
+    // redefine minimum distance to line segment (not infinite line) if necessary
+    if (calcrl2 > rl2) {
+      dist = Math.sqrt(Math.min(ln2, lnm12));
     }
 
-    // index needs to be -1 because we have to account for the shift from initial backscan
-    let snapPoint = {x, y, idx: segmentIdx - 1, to, from};
+    if (minDist === null || minDist === undefined || minDist > dist) {
+      if (calcrl2 > rl2) {
+        if (lnm12 < ln2) {
+          segmentRatio = 0; // nearer to previous point
+        } else {
+          segmentRatio = 1; // nearer to current point
+        }
+      } else {
+        // perpendicular from point intersects line segment
+        segmentRatio = Math.sqrt(lnm12 - dist2) / Math.sqrt(rl2);
+      }
+      minDist = dist;
+      segmentIdx = n;
+    }
+  }
 
-    const pixelToLatLong = projectOrUnprojectPoints(
-      [snapPoint.x, snapPoint.y],
-      coordinateSystem,
-      'UNPROJECT',
-      wmViewport
-    );
-    snapPoint = {
-      x: pixelToLatLong[0],
-      y: pixelToLatLong[1],
-      idx: segmentIdx - 1,
-      to,
-      from
-    };
+  const dx = lineCoordinates[segmentIdx - 1][0] - lineCoordinates[segmentIdx][0];
+  const dy = lineCoordinates[segmentIdx - 1][1] - lineCoordinates[segmentIdx][1];
 
-    closestPoint = point([snapPoint.x, snapPoint.y], {
-      dist: Math.abs(snapPoint.from - snapPoint.to),
-      index: snapPoint.idx
-    });
+  x = lineCoordinates[segmentIdx - 1][0] - dx * segmentRatio;
+  y = lineCoordinates[segmentIdx - 1][1] - dy * segmentRatio;
+
+  const pixelToLatLong = projectOrUnprojectPoints(
+    [x, y],
+    coordinateSystem,
+    'UNPROJECT',
+    wmViewport
+  );
+
+  // index needs to be -1 because we have to account for the shift from initial backscan
+  return point([pixelToLatLong[0], pixelToLatLong[1]], {
+    dist: minDist,
+    index: segmentIdx - 1
   });
-
-  return closestPoint;
 }
 
 export function getPickedEditHandle(
@@ -362,11 +337,11 @@ export function getPickedSnapSourceEditHandle(
   picks: Pick[] | null | undefined
 ): EditHandleFeature | null | undefined {
   const handles = getPickedEditHandles(picks);
-  return handles.find((handle) => handle.properties.editHandleType === 'snap-source');
+  return handles.find(handle => handle.properties.editHandleType === 'snap-source');
 }
 
 export function getNonGuidePicks(picks: Pick[]): Pick[] {
-  return picks && picks.filter((pick) => !pick.isGuide);
+  return picks && picks.filter(pick => !pick.isGuide);
 }
 
 export function getPickedExistingEditHandle(
@@ -391,8 +366,8 @@ export function getPickedEditHandles(picks: Pick[] | null | undefined): EditHand
   const handles =
     (picks &&
       picks
-        .filter((pick) => pick.isGuide && pick.object.properties.guideType === 'editHandle')
-        .map((pick) => pick.object)) ||
+        .filter(pick => pick.isGuide && pick.object.properties.guideType === 'editHandle')
+        .map(pick => pick.object)) ||
     [];
 
   return handles;
@@ -535,19 +510,19 @@ export function mapCoords(
   callback: (coords: Position) => Position
 ): SimpleGeometryCoordinates {
   if (typeof coords[0] === 'number') {
-    if (!isNaN(coords[0]) && isFinite(coords[0])) {
+    if (!Number.isNaN(coords[0]) && isFinite(coords[0])) {
       return callback(coords as Position);
     }
     return coords;
   }
 
   return (coords as Position[])
-    .map((coord) => {
+    .map(coord => {
       return mapCoords(coord, callback) as Position;
     })
     .filter(Boolean);
 }
 
 export function shouldCancelPan(event: StartDraggingEvent) {
-  return event.picks.length && event.picks.find((p) => p.featureType === 'points');
+  return event.picks.length && event.picks.find(p => p.featureType === 'points');
 }

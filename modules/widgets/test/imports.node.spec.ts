@@ -4,9 +4,18 @@
 
 import {beforeAll, expect, it, vi} from 'vitest';
 
-vi.mock('../src/widget-panels/text-editor-panel', () => ({
-  TextEditorPanel: class TextEditorPanel {}
-}));
+vi.mock('@deck.gl-community/panels', () => {
+  return {
+    PanelComponent: class PanelComponent {},
+    BoxPanelContainer: class BoxPanelContainer {},
+    ModalPanelContainer: class ModalPanelContainer {},
+    SidebarPanelContainer: class SidebarPanelContainer {},
+    FullScreenPanelContainer: class FullScreenPanelContainer {},
+    ToolbarComponent: class ToolbarComponent {},
+    ToastComponent: class ToastComponent {},
+    makeTextIcon: vi.fn(() => '')
+  };
+});
 
 let Widgets: typeof import('../src/index');
 
@@ -30,30 +39,48 @@ it('exports HtmlTooltipWidget', () => {
   expect(Widgets.HtmlTooltipWidget).toBeDefined();
 });
 
-it('exports BoxWidget', () => {
-  expect(Widgets.BoxWidget).toBeDefined();
+it('exports BoxPanelWidget', () => {
+  expect(Widgets.BoxPanelWidget).toBeDefined();
+});
+
+it('exports PanelWidget', () => {
+  expect(Widgets.PanelWidget).toBeDefined();
+});
+
+it('exports DeviceManager', () => {
+  expect(Widgets.DeviceManager).toBeDefined();
+});
+
+it('exports DeviceTabsWidget', () => {
+  expect(Widgets.DeviceTabsWidget).toBeDefined();
 });
 
 it('exports FullScreenPanelWidget', () => {
   expect(Widgets.FullScreenPanelWidget).toBeDefined();
 });
 
-it('exports ModalWidget', () => {
-  expect(Widgets.ModalWidget).toBeDefined();
+it('exports ModalPanelWidget', () => {
+  expect(Widgets.ModalPanelWidget).toBeDefined();
 });
 
-it('exports SidebarWidget', () => {
-  expect(Widgets.SidebarWidget).toBeDefined();
+it('exports SidebarPanelWidget', () => {
+  expect(Widgets.SidebarPanelWidget).toBeDefined();
 });
 
 it('exports ToolbarWidget', () => {
   expect(Widgets.ToolbarWidget).toBeDefined();
 });
 
-it('exports TextEditorPanel', () => {
-  expect(Widgets.TextEditorPanel).toBeDefined();
+it('exports ToastWidget', () => {
+  expect(Widgets.ToastWidget).toBeDefined();
 });
 
-it('exports WidgetContainerRenderer', () => {
-  expect(Widgets.WidgetContainerRenderer).toBeDefined();
+it('removes panel compatibility aliases while exporting studio settings helpers', () => {
+  expect(Widgets.BoxWidget).toBeUndefined();
+  expect(Widgets.KeyboardShortcutsWidget).toBeUndefined();
+  expect(Widgets.ModalWidget).toBeUndefined();
+  expect(Widgets.SettingsWidget).toBeUndefined();
+  expect(Widgets.SidebarWidget).toBeUndefined();
+  expect(Widgets.createStudioSettingsWidget).toBeDefined();
+  expect(Widgets.updateStudioSettingsWidget).toBeDefined();
 });

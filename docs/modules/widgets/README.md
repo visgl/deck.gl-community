@@ -2,12 +2,20 @@
 
 This package bundles widgets that integrate with deck.gl's built-in widget system. Widgets are small UI controls that the `Deck` class can mount in a view to manipulate the current view state.
 
-Alongside classic navigation and overlay widgets, the package also exports generic panel widgets for assembling reusable sidebars, modals, and summary cards around a deck.gl canvas.
+Alongside classic navigation and overlay widgets, the package exports
+`PanelWidget`, the deck adapter for `PanelComponent` instances owned by
+`@deck.gl-community/panels`.
 
-:::danger
-The deck.gl-community repo is specifically set up to collect useful code that no longer has dedicated maintainers. This means that there is often no one who can respond quickly to issues. The vis.gl / Open Visualization team members who try to keep this running can only put a few hours into it every now and then. It is important to understand this limitation. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
+For renderer selection and reusable luma device lifecycle, the package also exports `DeviceManager` and `DeviceTabsWidget`.
+
+Panel definitions, panel containers, specialized toolbar/toast components, and
+standalone mounting live in [`@deck.gl-community/panels`](/docs/modules/panels).
+Import components from `panels`, then pass them through `PanelWidget` or one of
+the thin named adapters in this package.
+
+:::caution
+The deck.gl-community repository is semi-maintained. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
-
 
 ## Installation
 
@@ -44,9 +52,13 @@ The [Pan and Zoom widgets example](/examples/widgets/pan-and-zoom-controls) show
 
 The [Widget Panels example](/examples/widgets/widget-panels) demonstrates the panel composition APIs with a persistent sidebar, a tabbed modal, and a static info box built from shared panel definitions.
 
-See the [Widget Panels developer guide](./developer-guide/widget-panels.md) for the core panel composition concepts.
+For deck-independent mounting, use [`@deck.gl-community/panels`](/docs/modules/panels) and the [Standalone Widgets example](/examples/widgets/standalone-widgets).
 
-The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxWidget`.
+See the [Panels developer guide](/docs/modules/panels/developer-guide/using-panels) for the core panel composition concepts.
+
+Use [`DeviceManager`](./api-reference/device-manager.md) when an application needs one reusable WebGPU or WebGL device that can be shared across UI surfaces and reparented into different DOM hosts. Use [`DeviceTabsWidget`](./api-reference/device-tabs-widget.md) when you want a built-in widget for switching the active backend.
+
+The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxPanelWidget`.
 
 ### HTML overlays
 
@@ -74,7 +86,6 @@ map positions via the widget lifecycle.
 - [ResetViewWidget](./api-reference/reset-view-widget.md)
 - [YZoomWidget](./api-reference/y-zoom-widget.md)
 - [ZoomRangeWidget](./api-reference/zoom-range-widget.md)
-- [ToolbarWidget](./api-reference/toolbar-widget.md)
 
 ## Overlay Widgets
 
@@ -85,39 +96,23 @@ map positions via the widget lifecycle.
 
 ## Advanced UI Widgets
 
+- [DeviceManager](./api-reference/device-manager.md)
+- [DeviceTabsWidget](./api-reference/device-tabs-widget.md)
 - [OmniBoxWidget](./api-reference/omni-box-widget.md)
-- [ToastWidget](./api-reference/toast-widget.md)
 - [TimeMeasureWidget](./api-reference/time-measure-widget.md)
+
+Standalone UI such as `ToolbarComponent`, `ToastComponent`, and `toastManager` lives in
+[`@deck.gl-community/panels`](/docs/modules/panels).
 
 ## Panel Widgets
 
-Widgets that host reusable panel content:
+Widgets that adapt panel-owned components:
 
-- [BoxWidget](./api-reference/box-widget.md)
-- [FullScreenPanelWidget](./api-reference/full-screen-panel-widget.md)
-- [ModalWidget](./api-reference/modal-widget.md)
-- [SidebarWidget](./api-reference/sidebar-widget.md)
+- [PanelWidget](./api-reference/panel-widget.md)
 
-## Panels
+Use panel definitions from [`@deck.gl-community/panels`](/docs/modules/panels):
 
-Reusable panel definitions for panel widgets:
-
-- [CustomPanel](./api-reference/custom-panel.md)
-- [KeyboardShortcutsPanel](./api-reference/keyboard-shortcuts-panel.md)
-- [MarkdownPanel](./api-reference/markdown-panel.md)
-- [StatsPanel](./api-reference/stats-panel.md)
-- [SettingsPanel](./api-reference/settings-panel.md)
-- [TextEditorPanel](./api-reference/text-editor-panel.md)
-
-## Container Panels
-
-- [AccordeonPanel](./api-reference/accordeon-panel.md)
-- [ColumnPanel](./api-reference/column-panel.md)
-- [TabbedPanel](./api-reference/tabbed-panel.md)
-
-## Related helpers
-
-Several widgets wrap helper libraries rather than owning their own state model:
-
-- `KeyboardShortcutsManager`
-- `ToastManager`
+- [Using with deck.gl](/docs/modules/panels/developer-guide/using-with-deck-gl)
+- [Leaf Panels](/docs/modules/panels/api-reference/custom-panel)
+- [Composite Panels](/docs/modules/panels/api-reference/composite-panels/accordeon-panel)
+- [Panel Containers](/docs/modules/panels/api-reference/panel-containers/panel-container)

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import bboxPolygon from '@turf/bbox-polygon';
+import turfBboxPolygon from '@turf/bbox-polygon';
 import turfDistance from '@turf/distance';
 import turfAlong from '@turf/along';
 import {point, lineString as turfLineString} from '@turf/helpers';
@@ -40,7 +40,7 @@ export class DrawSquareFromCenterMode extends TwoClickPolygonMode {
         ? coord1[1] + Math.abs(coord1[1] - corner[1])
         : coord1[1] - Math.abs(coord1[1] - corner[1]);
 
-    const square = bboxPolygon([longitude, latitude, corner[0], corner[1]]);
+    const square = turfBboxPolygon([longitude, latitude, corner[0], corner[1]]);
     square.properties = square.properties || {};
     square.properties.shape = 'Square';
 

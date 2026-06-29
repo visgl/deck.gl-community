@@ -30,7 +30,7 @@ export class PathBasedRoundedRectangleLayer extends CompositeLayer {
         this.getSubLayerProps({
           id: '__polygon-layer',
           data,
-          getPolygon: (node) =>
+          getPolygon: node =>
             generateRoundedRectangle(node, {
               getPosition,
               getWidth: stylesheet.getDeckGLAccessor('getWidth'),

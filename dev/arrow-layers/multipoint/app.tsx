@@ -24,7 +24,7 @@ export function mountGeoArrowMultiPointExample(container: HTMLElement): () => vo
     dataUrl: GEOARROW_MULTIPOINT_DATA,
     initialViewState: INITIAL_VIEW_STATE,
     onClick: handleClick,
-    getLayers: (table) => [
+    getLayers: table => [
       new GeoArrowScatterplotLayer({
         id: 'geoarrow-points',
         data: table,

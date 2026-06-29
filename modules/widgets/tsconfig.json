@@ -9,5 +9,8 @@
     "noEmit": false,
     "jsx": "react-jsx",
     "jsxImportSource": "preact"
-  }
+  },
+  "references": [
+    {"path": "../panels"}
+  ]
 }

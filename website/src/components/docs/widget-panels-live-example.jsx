@@ -2,6 +2,7 @@ import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
 import {mountWidgetPanelsDocsExample} from '../../../../examples/widgets/widget-panels/app';
+import {deferImperativeCleanup} from '../imperative-cleanup';
 
 const WRAPPER_STYLE = {
   position: 'relative',
@@ -33,14 +34,14 @@ function WidgetPanelsLiveExampleHost({highlight, height}) {
     const animationFrame = window.requestAnimationFrame(() => {
       cleanup = mountWidgetPanelsDocsExample(hostElement, {highlight});
       if (isDisposed) {
-        cleanup();
+        deferImperativeCleanup(cleanup);
       }
     });
 
     return () => {
       isDisposed = true;
       window.cancelAnimationFrame(animationFrame);
-      cleanup?.();
+      deferImperativeCleanup(cleanup);
     };
   }, [highlight]);
 

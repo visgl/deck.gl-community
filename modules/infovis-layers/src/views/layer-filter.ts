@@ -32,11 +32,11 @@ export function makeLayerFilter(
   for (const [key, value] of Object.entries(filters)) {
     if ('include' in value) {
       regexpFilters[key] = {
-        include: value.include.map((v) => new RegExp(v))
+        include: value.include.map(v => new RegExp(v))
       };
     } else {
       regexpFilters[key] = {
-        exclude: value.exclude.map((v) => new RegExp(v))
+        exclude: value.exclude.map(v => new RegExp(v))
       };
     }
   }
@@ -47,12 +47,12 @@ export function makeLayerFilter(
     const viewFilters = regexpFilters[viewport.id] || ({} as Record<string, RegExp[]>);
     // Check if the layer matches the filters for this viewport
     if ('include' in viewFilters) {
-      if (!viewFilters.include.some((regexp) => regexp.test(layer.id))) {
+      if (!viewFilters.include.some(regexp => regexp.test(layer.id))) {
         visible = false;
       }
     }
     if ('exclude' in viewFilters) {
-      if (viewFilters.exclude.some((regexp) => regexp.test(layer.id))) {
+      if (viewFilters.exclude.some(regexp => regexp.test(layer.id))) {
         visible = false;
       }
     }

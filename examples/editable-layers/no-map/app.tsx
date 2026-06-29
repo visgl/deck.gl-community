@@ -20,7 +20,8 @@ import {
   type GeoJsonEditModeConstructor,
   type GeoJsonEditModeType
 } from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import type {FeatureCollection} from 'geojson';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -106,7 +107,7 @@ export function mountNoMapExample(container: HTMLElement): () => void {
     style: {margin: '16px 0 0 16px'}
   });
 
-  const infoWidget = new BoxWidget({
+  const infoWidget = new BoxPanelWidget({
     id: 'no-map-info',
     placement: 'top-right',
     widthPx: 320,
@@ -163,7 +164,7 @@ export function mountNoMapExample(container: HTMLElement): () => void {
   }
 
   function syncTrayWidget() {
-    const selected = MODE_OPTIONS.find((option) => option.mode === state.mode)?.id ?? null;
+    const selected = MODE_OPTIONS.find(option => option.mode === state.mode)?.id ?? null;
     trayWidget.setProps({
       modes: MODE_OPTIONS,
       activeMode: state.mode,
@@ -182,7 +183,7 @@ export function mountNoMapExample(container: HTMLElement): () => void {
   }
 
   function syncInfoWidget() {
-    const modeLabel = MODE_OPTIONS.find((option) => option.mode === state.mode)?.label ?? 'View';
+    const modeLabel = MODE_OPTIONS.find(option => option.mode === state.mode)?.label ?? 'View';
     infoWidget.setProps({
       panel: buildInfoPanel({
         modeLabel,
@@ -238,8 +239,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'no-map-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -254,7 +255,7 @@ function buildInfoPanel({
           }**`
         ].join('\n')
       })
-    }
+    ]
   });
 }
 
@@ -308,5 +309,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

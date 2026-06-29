@@ -6,13 +6,12 @@ import {Deck, OrthographicView, type OrthographicViewState} from '@deck.gl/core'
 import {LineLayer, TextLayer} from '@deck.gl/layers';
 import {MultiHorizonGraphLayer} from '@deck.gl-community/timeline-layers';
 import {
-  BoxWidget,
   MarkdownPanel,
   SettingsPanel,
-  SidebarWidget,
   type SettingsSchema,
   type SettingsState
-} from '@deck.gl-community/widgets';
+} from '@deck.gl-community/panels';
+import {BoxPanelWidget, SidebarPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -149,14 +148,14 @@ const SETTINGS_SCHEMA: SettingsSchema = {
           name: 'data.seriesCount',
           label: 'Number of Series',
           type: 'select',
-          options: SERIES_COUNT_OPTIONS.map((value) => ({label: String(value), value})),
+          options: SERIES_COUNT_OPTIONS.map(value => ({label: String(value), value})),
           description: 'Controls how many repeated series rows are drawn.'
         },
         {
           name: 'data.bands',
           label: 'Bands',
           type: 'select',
-          options: BAND_OPTIONS.map((value) => ({label: String(value), value})),
+          options: BAND_OPTIONS.map(value => ({label: String(value), value})),
           description: 'Number of horizon bands per series.'
         },
         {
@@ -281,7 +280,7 @@ export function mountHorizonGraphLayerExample(
     onSettingsChange: handleSettingsChange
   });
 
-  const sidebarWidget = new SidebarWidget({
+  const sidebarWidget = new SidebarPanelWidget({
     id: 'horizon-graph-sidebar',
     placement: 'top-right',
     side: 'right',
@@ -297,7 +296,7 @@ export function mountHorizonGraphLayerExample(
 
   if (resolvedConfig.showInfoWidget && resolvedConfig.infoTitle && resolvedConfig.infoMarkdown) {
     widgets.push(
-      new BoxWidget({
+      new BoxPanelWidget({
         id: `${resolvedConfig.layerId}-info`,
         placement: 'top-left',
         widthPx: 360,
@@ -323,9 +322,9 @@ export function mountHorizonGraphLayerExample(
     controller: true,
     widgets,
     layers: buildLayers(state, resolvedConfig),
-    onHover: (info) => {
+    onHover: info => {
       const nextMousePosition = info.coordinate
-        ? [info.coordinate[0], info.coordinate[1]] as [number, number]
+        ? ([info.coordinate[0], info.coordinate[1]] as [number, number])
         : null;
 
       if (isSameMousePosition(state.mousePosition, nextMousePosition)) {
@@ -395,21 +394,21 @@ function buildLayers(state: ExampleState, config: Required<HorizonExampleConfig>
     new TextLayer<LabelDatum>({
       id: 'series-labels',
       data: derived.textLabels,
-      getText: (datum) => datum.text,
-      getPosition: (datum) => datum.position,
-      getSize: (datum) => datum.size,
-      getColor: (datum) => datum.color,
-      getAngle: (datum) => datum.angle,
-      getTextAnchor: (datum) => datum.textAnchor,
-      getAlignmentBaseline: (datum) => datum.alignmentBaseline,
+      getText: datum => datum.text,
+      getPosition: datum => datum.position,
+      getSize: datum => datum.size,
+      getColor: datum => datum.color,
+      getAngle: datum => datum.angle,
+      getTextAnchor: datum => datum.textAnchor,
+      getAlignmentBaseline: datum => datum.alignmentBaseline,
       fontFamily: 'Arial, sans-serif',
       fontWeight: 'normal'
     }),
     new LineLayer<CrosshairDatum>({
       id: 'vertical-crosshair',
       data: buildVerticalLineData(mousePosition, x, y, width, height),
-      getSourcePosition: (datum) => datum.sourcePosition,
-      getTargetPosition: (datum) => datum.targetPosition,
+      getSourcePosition: datum => datum.sourcePosition,
+      getTargetPosition: datum => datum.targetPosition,
       getColor: [0, 0, 0, 200],
       getWidth: 1,
       widthUnits: 'pixels'
@@ -417,13 +416,13 @@ function buildLayers(state: ExampleState, config: Required<HorizonExampleConfig>
     new TextLayer<LabelDatum>({
       id: 'intersection-values',
       data: buildIntersectionData(state),
-      getText: (datum) => datum.text,
-      getPosition: (datum) => datum.position,
-      getSize: (datum) => datum.size,
-      getColor: (datum) => datum.color,
-      getAngle: (datum) => datum.angle,
-      getTextAnchor: (datum) => datum.textAnchor,
-      getAlignmentBaseline: (datum) => datum.alignmentBaseline,
+      getText: datum => datum.text,
+      getPosition: datum => datum.position,
+      getSize: datum => datum.size,
+      getColor: datum => datum.color,
+      getAngle: datum => datum.angle,
+      getTextAnchor: datum => datum.textAnchor,
+      getAlignmentBaseline: datum => datum.alignmentBaseline,
       fontFamily: 'Arial, sans-serif',
       fontWeight: 'normal'
     })
@@ -433,7 +432,7 @@ function buildLayers(state: ExampleState, config: Required<HorizonExampleConfig>
 function buildDerivedState(settings: HorizonGraphSettings): ExampleDerivedState {
   const height = settings.layout.heightPerSeries * settings.data.seriesCount;
   const seriesTypes = getSeriesTypes(settings);
-  const sampleData = seriesTypes.map((seriesType) => generateSeriesData(seriesType));
+  const sampleData = seriesTypes.map(seriesType => generateSeriesData(seriesType));
   const data = Array.from({length: settings.data.seriesCount}, (_, seriesIndex) => ({
     name: `Series ${seriesIndex + 1}`,
     type: seriesTypes[seriesIndex % MAX_SERIES_VARIANTS],
@@ -579,21 +578,9 @@ function sanitizeSettings(
 
   return {
     data: {
-      seriesCount: readNumber(
-        nextData.seriesCount,
-        previous.data.seriesCount,
-        1,
-        10000,
-        1
-      ),
+      seriesCount: readNumber(nextData.seriesCount, previous.data.seriesCount, 1, 10000, 1),
       bands: readNumber(nextData.bands, previous.data.bands, 1, 6, 1),
-      dividerWidth: readNumber(
-        nextData.dividerWidth,
-        previous.data.dividerWidth,
-        0,
-        10,
-        0.25
-      ),
+      dividerWidth: readNumber(nextData.dividerWidth, previous.data.dividerWidth, 0, 10, 0.25),
       seriesType1: readSeriesType(nextData.seriesType1, previous.data.seriesType1),
       seriesType2: readSeriesType(nextData.seriesType2, previous.data.seriesType2),
       seriesType3: readSeriesType(nextData.seriesType3, previous.data.seriesType3),
@@ -662,7 +649,7 @@ function readNumber(
 }
 
 function readSeriesType(value: unknown, fallback: ExampleDataType): ExampleDataType {
-  return SERIES_TYPE_OPTIONS.some((option) => option.value === value)
+  return SERIES_TYPE_OPTIONS.some(option => option.value === value)
     ? (value as ExampleDataType)
     : fallback;
 }
@@ -695,7 +682,7 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }
 
 function isSameMousePosition(

@@ -95,8 +95,8 @@ export function mountGeoArrowMapExample(
   };
 
   void fetch(config.dataUrl)
-    .then((response) => response.arrayBuffer())
-    .then((buffer) => {
+    .then(response => response.arrayBuffer())
+    .then(buffer => {
       if (isDisposed) {
         return;
       }
@@ -106,7 +106,7 @@ export function mountGeoArrowMapExample(
         animationFrame = window.requestAnimationFrame(tick);
       }
     })
-    .catch((error) => {
+    .catch(error => {
       console.error(error);
     });
 
@@ -128,5 +128,5 @@ function applyElementStyle(element: HTMLElement, style: Record<string, string>) 
 }
 
 function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
 }

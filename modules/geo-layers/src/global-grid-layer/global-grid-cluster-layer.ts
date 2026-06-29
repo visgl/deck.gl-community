@@ -58,7 +58,7 @@ export class GlobalGridClusterLayer<DataT = any, ExtraProps extends {} = {}> ext
           throw new Error(`${globalGrid.name} adapter: cellsToBoundaryMultiPolygon not supported`);
         }
         // TODO - should not need to map the tokens
-        const cellIndexes = cellIds.map((cellId) =>
+        const cellIndexes = cellIds.map(cellId =>
           typeof cellId === 'string' ? globalGrid.tokenToCell?.(cellId) : cellId
         );
         const multiPolygon = globalGrid.cellsToBoundaryMultiPolygon(cellIndexes);
@@ -82,7 +82,7 @@ export class GlobalGridClusterLayer<DataT = any, ExtraProps extends {} = {}> ext
 
     return {
       data: this.state.polygons,
-      getPolygon: (d) => d.polygon,
+      getPolygon: d => d.polygon,
 
       getElevation: this.getSubLayerAccessor(getElevation),
       getFillColor: this.getSubLayerAccessor(getFillColor),

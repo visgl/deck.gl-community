@@ -15,7 +15,7 @@ const LinearRingSchema = z
   .array(PositionSchema)
   .min(4)
   .refine(
-    (ring) => {
+    ring => {
       const first = ring[0];
       const last = ring[ring.length - 1];
       // Compare all coordinate components

@@ -1,3 +1,50 @@
+diff --git a/dist/helpers/build-order.js b/dist/helpers/build-order.js
+index b2f1af9a4062a1a70c572b636ab29d7170b22b07..67639dc597305069bb6f7d64439d0848f97f8f79 100644
+--- a/dist/helpers/build-order.js
++++ b/dist/helpers/build-order.js
+@@ -2,22 +2,27 @@ import fs from 'fs';
+ import path from 'path';
+ const modules = [];
+ const dependencies = {};
+-for (const item of fs.readdirSync('./modules')) {
+-    const itemPath = path.join('./modules', item);
+-    if (fs.statSync(itemPath).isDirectory()) {
+-        const packageFile = path.join(itemPath, 'package.json');
+-        const tsconfigFile = path.join(itemPath, 'tsconfig.json');
+-        if (!fs.existsSync(packageFile)) {
+-            // Not a package
+-            continue;
++for (const modulesRoot of ['./modules', './dev']) {
++    if (!fs.existsSync(modulesRoot)) {
++        continue;
++    }
++    for (const item of fs.readdirSync(modulesRoot)) {
++        const itemPath = path.join(modulesRoot, item);
++        if (fs.statSync(itemPath).isDirectory()) {
++            const packageFile = path.join(itemPath, 'package.json');
++            const tsconfigFile = path.join(itemPath, 'tsconfig.json');
++            if (!fs.existsSync(packageFile)) {
++                // Not a package
++                continue;
++            }
++            modules.push(itemPath);
++            const tsconfigContent = fs.readFileSync(tsconfigFile, 'utf8').replace(/\/\/.*/gm, '');
++            const tsconfig = JSON.parse(tsconfigContent);
++            dependencies[itemPath] = {
++                order: -1,
++                deps: (tsconfig.references || []).map((d) => path.join(itemPath, d.path))
++            };
+         }
+-        modules.push(itemPath);
+-        const tsconfigContent = fs.readFileSync(tsconfigFile, 'utf8').replace(/\/\/.*/gm, '');
+-        const tsconfig = JSON.parse(tsconfigContent);
+-        dependencies[itemPath] = {
+-            order: -1,
+-            deps: (tsconfig.references || []).map((d) => path.join(itemPath, d.path))
+-        };
+     }
+ }
+ for (const key in dependencies) {
 diff --git a/dist/helpers/get-ocular-config.js b/dist/helpers/get-ocular-config.js
 index 33d323580550535b21534612d010a2da6545bcf7..0221abfba41be612ab30a5b6ccc46ee22d8ca72b 100644
 --- a/dist/helpers/get-ocular-config.js

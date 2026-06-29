@@ -26,13 +26,13 @@ function createPlainGraphDataFromSample(): PlainGraphData {
   return {
     shape: 'plain-graph-data',
     version: 1,
-    nodes: SAMPLE_GRAPH1.nodes.map((node) => ({
+    nodes: SAMPLE_GRAPH1.nodes.map(node => ({
       id: node.id,
       selectable: node.id === 'Cosette',
       highlightConnectedEdges: node.id === 'Cosette',
       attributes: {initial: node.id}
     })),
-    edges: SAMPLE_GRAPH1.edges.map((edge) => ({
+    edges: SAMPLE_GRAPH1.edges.map(edge => ({
       id: edge.id,
       sourceId: edge.sourceId,
       targetId: edge.targetId,
@@ -74,11 +74,11 @@ describe('core/graph', () => {
       expect(graph.version).toBeGreaterThanOrEqual(0);
       expect(nodes).toHaveLength(SAMPLE_GRAPH1.nodes.length);
       expect(edges).toHaveLength(SAMPLE_GRAPH1.edges.length);
-      nodes.forEach((node) => {
+      nodes.forEach(node => {
         expect(node.isNode).toBe(true);
         expect(node.getPropertyValue('initial')).toBe(node.getId());
       });
-      edges.forEach((edge) => {
+      edges.forEach(edge => {
         expect(edge.isEdge).toBe(true);
         expect(edge.getPropertyValue('weight')).toBe(Number(edge.getId()));
       });
@@ -91,7 +91,7 @@ describe('core/graph', () => {
       expect(node.shouldHighlightConnectedEdges()).toBe(true);
 
       const connectedEdges = node.getConnectedEdges();
-      expect(connectedEdges.map((e) => e.getId())).toEqual(expect.arrayContaining(['2', '5']));
+      expect(connectedEdges.map(e => e.getId())).toEqual(expect.arrayContaining(['2', '5']));
 
       expect(node.getSiblingIds()).toEqual(expect.arrayContaining(['Thenardier', 'Javert']));
       expect(node.getDegree()).toBe(2);
@@ -125,7 +125,7 @@ describe('core/graph', () => {
     it('should add edges in a batch', () => {
       const graph = createEmptyClassicGraph();
       const glEdges = SAMPLE_GRAPH1.edges.map(
-        (e) =>
+        e =>
           new Edge({
             id: e.id,
             sourceId: e.sourceId,
@@ -142,7 +142,7 @@ describe('core/graph', () => {
 
     it('should add nodes in a batch', () => {
       const graph = createEmptyClassicGraph();
-      const glNodes = SAMPLE_GRAPH1.nodes.map((n) => new Node({id: n.id, data: {}}));
+      const glNodes = SAMPLE_GRAPH1.nodes.map(n => new Node({id: n.id, data: {}}));
       graph.batchAddNodes(glNodes);
       expect(graph.getNodes()).toHaveLength(glNodes.length);
     });
@@ -157,7 +157,7 @@ function findNode(graph: Graph, id: string | number): NodeInterface {
   if (foundNode) {
     return foundNode;
   }
-  const fallback = Array.from(graph.getNodes()).find((node) => node.getId() === id);
+  const fallback = Array.from(graph.getNodes()).find(node => node.getId() === id);
   if (!fallback) {
     throw new Error(`Failed to find node with id ${id}`);
   }
@@ -165,7 +165,7 @@ function findNode(graph: Graph, id: string | number): NodeInterface {
 }
 
 function findEdge(graph: Graph, id: string | number): EdgeInterface {
-  const edge = Array.from(graph.getEdges()).find((candidate) => candidate.getId() === id);
+  const edge = Array.from(graph.getEdges()).find(candidate => candidate.getId() === id);
   if (!edge) {
     throw new Error(`Failed to find edge with id ${id}`);
   }

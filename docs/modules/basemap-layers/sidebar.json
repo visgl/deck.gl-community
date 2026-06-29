@@ -1,0 +1,24 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/basemap-layers",
+  "items": [
+    "modules/basemap-layers/README",
+    "modules/basemap-layers/whats-new",
+    {
+      "type": "category",
+      "label": "Developer Guide",
+      "items": [
+        "modules/basemap-layers/developer-guide/get-started"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference",
+      "items": [
+        "modules/basemap-layers/api-reference/basemap-layer",
+        "modules/basemap-layers/api-reference/map-style",
+        "modules/basemap-layers/api-reference/map-style-loader"
+      ]
+    }
+  ]
+}

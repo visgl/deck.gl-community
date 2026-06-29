@@ -1,4 +1,4 @@
-# @deck.gl-community/three
+# Overview
 
 A collection of deck.gl layers powered by [Three.js](https://threejs.org/), giving access to Three.js geometry primitives and scene graph tooling directly inside deck.gl visualisations.
 

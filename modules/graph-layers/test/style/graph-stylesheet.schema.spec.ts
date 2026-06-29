@@ -50,7 +50,7 @@ describe('GraphStylesheetSchema', () => {
 
     const result = GraphStyleRuleSchema.safeParse(invalidStylesheet);
     expect(result.success).toBe(false);
-    expect(result.success ? [] : result.error.issues.map((issue) => issue.message)).toContain(
+    expect(result.success ? [] : result.error.issues.map(issue => issue.message)).toContain(
       'Unknown style property "foo".'
     );
 
@@ -73,9 +73,9 @@ describe('GraphStylesheetSchema', () => {
 
     const result = GraphStyleRuleSchema.safeParse(invalidSelectorStylesheet);
     expect(result.success).toBe(false);
-    const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
+    const messages = result.success ? [] : result.error.issues.map(issue => issue.message);
     expect(
-      messages.some((message) => /Unrecognized key/.test(message) && message.includes('unknown'))
+      messages.some(message => /Unrecognized key/.test(message) && message.includes('unknown'))
     ).toBe(true);
 
     const warnSpy = mockWarn();
@@ -98,7 +98,7 @@ describe('GraphStylesheetSchema', () => {
 
     const result = GraphStyleRuleSchema.safeParse(invalidAttributeReference);
     expect(result.success).toBe(false);
-    expect(result.success ? [] : result.error.issues.map((issue) => issue.message)).toContain(
+    expect(result.success ? [] : result.error.issues.map(issue => issue.message)).toContain(
       'Attribute name is required.'
     );
 

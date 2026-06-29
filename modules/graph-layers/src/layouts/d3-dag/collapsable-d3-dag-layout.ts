@@ -327,7 +327,7 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
   }
 
   private _createChainId(nodeIds: (string | number)[]): string {
-    return `chain:${nodeIds.map((id) => this._toDagId(id)).join('>')}`;
+    return `chain:${nodeIds.map(id => this._toDagId(id)).join('>')}`;
   }
 
   private _isChainCollapsed(chainId: string): boolean {

@@ -2,38 +2,57 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-type Bounds = [[number, number], [number, number]];
+import type {Bounds} from './bounds-utils';
 
+/**
+ * Fits two-dimensional bounds into an orthographic viewport using one shared zoom value.
+ * @param width - Viewport width in pixels.
+ * @param height - Viewport height in pixels.
+ * @param bounds - World-space bounds to fit.
+ * @param zoomMode - Shared-zoom mode selector.
+ * @returns View target and shared/per-axis zoom values.
+ */
 export function fitBoundsOrthographic(
   width: number,
   height: number,
   bounds: Readonly<Bounds>,
   zoomMode: 'single'
-): {target: [number, number]; zoom: number};
+): {target: [number, number]; zoom: number; zoomX: number; zoomY: number};
 
+/**
+ * Fits two-dimensional bounds into an orthographic viewport using one zoom per axis.
+ * @param width - Viewport width in pixels.
+ * @param height - Viewport height in pixels.
+ * @param bounds - World-space bounds to fit.
+ * @param zoomMode - Per-axis zoom mode selector.
+ * @returns View target and per-axis zoom values.
+ */
 export function fitBoundsOrthographic(
   width: number,
   height: number,
   bounds: Readonly<Bounds>,
   zoomMode: 'per-axis'
-): {target: [number, number]; zoom: [number, number]};
+): {target: [number, number]; zoom: [number, number]; zoomX: number; zoomY: number};
 
 /**
- * Compute center & zoom for an OrthographicViewport so that `bounds` fills the viewport.
- * @param width  viewport width in px
- * @param height viewport height in px
- * @param bounds [[minX,minY],[maxX,maxY]] in the same world units you’re rendering
- * @returns { target: [number, number], zoom: number }
- *   target: center of the viewport in world units
- *   zoom: deck.gl orthographic zoom level (log2(scale))
- *   (deck.gl orthographic zoom is the log2 of the scale factor)
+ * Fits two-dimensional bounds into an orthographic viewport.
+ * @param width - Viewport width in pixels.
+ * @param height - Viewport height in pixels.
+ * @param bounds - World-space bounds to fit.
+ * @param zoomMode - Whether to use one shared zoom or one zoom per axis.
+ * @returns View target plus deck.gl orthographic zoom values.
  */
 export function fitBoundsOrthographic(
   width: number,
   height: number,
   bounds: Readonly<Bounds>,
   zoomMode: 'single' | 'per-axis' = 'per-axis'
-): {target: [number, number]; zoom: number | [number, number]} {
+): {
+  target: [number, number];
+  zoom: number | [number, number];
+  zoomX: number;
+  zoomY: number;
+} {
   const [[minX, minY], [maxX, maxY]] = bounds;
 
   // center of the box
@@ -41,12 +60,12 @@ export function fitBoundsOrthographic(
   const centerY = (minY + maxY) / 2;
 
   // size of the box
-  const boxW = maxX - minX;
-  const boxH = maxY - minY;
+  const boxW = Math.max(0, maxX - minX);
+  const boxH = Math.max(0, maxY - minY);
 
   // scale (world units → screen pixels)
-  const scaleX = width / boxW;
-  const scaleY = height / boxH;
+  const scaleX = boxW ? Math.max(1, width) / boxW : 1;
+  const scaleY = boxH ? Math.max(1, height) / boxH : 1;
 
   // pick the smaller scale so the whole box fits
   const scale = Math.min(scaleX, scaleY);
@@ -58,13 +77,41 @@ export function fitBoundsOrthographic(
   const zoomX = Math.log2(scaleX);
   const zoomY = Math.log2(scaleY);
 
-  if (Number.isNaN(zoom) || Number.isNaN(zoomX) || Number.isNaN(zoom)) {
+  if (Number.isNaN(zoom) || Number.isNaN(zoomX) || Number.isNaN(zoomY)) {
     // eslint-disable-next-line no-console
     console.warn('Invalid zoom values:', {zoom, zoomX, zoomY});
   }
 
   return {
     target: [centerX, centerY],
-    zoom: zoomMode === 'single' ? zoom : [zoomX, zoomY]
+    zoom: zoomMode === 'single' ? zoom : [zoomX, zoomY],
+    zoomX: zoomMode === 'single' ? zoom : zoomX,
+    zoomY: zoomMode === 'single' ? zoom : zoomY
   };
+}
+
+/**
+ * Computes world-space bounds covered by an orthographic viewport.
+ * @param width - Viewport width in pixels.
+ * @param height - Viewport height in pixels.
+ * @param zoom - Deck.gl orthographic zoom level, as one value or `[zoomX, zoomY]`.
+ * @param target - Deck.gl orthographic target `[centerX, centerY]`.
+ * @returns World-space bounds covered by the viewport.
+ */
+export function getBoundsOrthographic(
+  width: number,
+  height: number,
+  zoom: number | [number, number],
+  target: [number, number]
+): Bounds {
+  const [centerX, centerY] = target;
+  const scaleX = Array.isArray(zoom) ? 2 ** zoom[0] : 2 ** zoom;
+  const scaleY = Array.isArray(zoom) ? 2 ** zoom[1] : 2 ** zoom;
+  const worldW = width / scaleX;
+  const worldH = height / scaleY;
+
+  return [
+    [centerX - worldW / 2, centerY - worldH / 2],
+    [centerX + worldW / 2, centerY + worldH / 2]
+  ];
 }

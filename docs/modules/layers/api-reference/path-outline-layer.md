@@ -4,18 +4,18 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 <LayerLiveExample highlight="path-outline-layer" />
 
-`PathOutlineLayer` extends deck.gl's [`PathLayer`](https://deck.gl/docs/api-reference/layers/path-layer)
-to render crisp outlines around line work. The layer renders each path twice:
-first into an offscreen framebuffer that stores depth ordering information and
-then again with inflated widths to draw the halo. This lets you emphasize
-overlapping paths (for example, trails or transit lines) without managing
-multiple layers manually.
+`PathOutlineLayer` wraps deck.gl's [`PathLayer`](https://deck.gl/docs/api-reference/layers/path-layer)
+to render crisp outlines around line work. The layer renders each path with two
+standard deck.gl sublayers: an inflated outline stroke and the normal path stroke
+on top. This keeps the layer on the deck.gl/luma.gl v9 render path while letting
+you emphasize overlapping paths (for example, trails or transit lines) without
+managing multiple layers manually.
 
 Use [`PathMarkerLayer`](./path-marker-layer.md) when you need arrows or other
 markers along a path. The `PathOutlineLayer` is focused purely on the outline
 pass and can be combined with any other overlays.
 
-See the [Path outline and marker example](/examples/layers/path-outline-and-markers)
+See the [path outline, marker, and dependency arrow example](/examples/layers/path-outline-and-markers)
 for a live demonstration.
 
 ## Usage
@@ -30,9 +30,10 @@ const trails = new PathOutlineLayer({
   widthScale: 8,
   getPath: (d) => d.path,
   getColor: (d) => d.color,
+  getOutlineColor: [15, 23, 42, 180],
   getWidth: (d) => d.width,
   getDashArray: (d) => d.dashArray,
-  getZLevel: (d) => d.zLevel
+  outlineWidthScale: 1.24
 });
 ```
 
@@ -50,34 +51,47 @@ behavior.
 
 ### `dashJustified` (`boolean`, optional)
 
-Forwarded to the outline shader to control how dash segments are distributed
-along a path. When `true`, dash lengths are stretched so both the start and end
-of the path line up with a dash segment. Defaults to `false`.
+Forwarded through deck.gl's `PathStyleExtension` to control how dash segments
+are distributed along a path. When `true`, dash lengths are stretched so both the
+start and end of the path line up with a dash segment. Defaults to `false`.
+
+### `getOutlineColor` (`number[] | function`, optional)
+
+Color accessor used by the outline stroke rendered behind the path. Defaults to
+`[15, 23, 42, 180]`.
+
+### `outlineWidthScale` (`number`, optional)
+
+Multiplier applied to `widthScale` for the outline stroke. Defaults to `1.2`.
+For example, with `widthScale: 8`, the outline sublayer uses
+`widthScale: 9.6`.
 
 ### `getZLevel` (`function`, optional)
 
-Accessor that assigns an 8-bit z-order to each path. Higher values render on top
-when outlines overlap. This value is stored in the outline framebuffer so it can
-be evaluated during the second pass. Defaults to `() => 0`.
+Legacy accessor retained for callers that migrated from the nebula.gl-era layer.
+The v9 implementation renders standard deck.gl sublayers in data order, so use
+your data ordering when outlines overlap. Defaults to `() => 0`.
 
 ## Sublayers and rendering
 
-`PathOutlineLayer` reuses the `PathLayer` model and injects the `outline`
-shader module. During `draw` it:
+`PathOutlineLayer` renders two `PathLayer` sublayers:
 
-1. Renders the path with a wider stroke into an offscreen framebuffer to capture
-   relative depth ordering (`outlineShadowmap`).
-2. Renders the regular path width, sampling the framebuffer to composite the
-   halo and base stroke together.
+1. `outline`: rendered first with `getOutlineColor` and
+   `widthScale * outlineWidthScale`.
+2. `path`: rendered second with the original `getColor` and `widthScale`.
 
-The layer disables depth testing during both passes to avoid z-fighting between
-paths rendered at similar heights. Use the `widthScale` and `getZLevel`
-accessors to control which paths should visually sit on top of others.
+When `getDashArray` is supplied, the layer attaches
+`PathStyleExtension({dash: true, highPrecisionDash: true})` unless a caller
+already provided a path-style extension, so `getDashArray` and `dashJustified`
+work on both sublayers. It also disables depth writes and uses
+`depthCompare: 'always'` on both passes to avoid z-fighting between colocated
+path strokes.
 
 ## Tips
 
 - Because the outline pass inflates the width, prefer `widthUnits: 'pixels'` for
   screen-space control.
-- Combine `getZLevel` with translucent colors to keep complex networks legible.
+- Order data from lower-priority to higher-priority paths when overlaps need a
+  consistent visual stacking order.
 - The layer renders on top of any base map. If you see clipping, ensure other
   layers respect the same view state.

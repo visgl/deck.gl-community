@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/widgets",
-  "version": "9.3.1",
+  "version": "9.3.7",
   "description": "UI widgets for deck.gl",
   "license": "MIT",
   "publishConfig": {
@@ -32,10 +32,16 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.3.0",
     "@probe.gl/stats": "^4.1.1",
     "@turf/helpers": "^6.5.0",
     "preact": "^10.17.0",
     "supercluster": "^8.0.1"
+  },
+  "peerDependencies": {
+    "@deck.gl-community/panels": "~9.3.2",
+    "@deck.gl/core": "~9.3.0",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/webgl": "~9.3.2",
+    "@luma.gl/webgpu": "~9.3.2"
   }
 }

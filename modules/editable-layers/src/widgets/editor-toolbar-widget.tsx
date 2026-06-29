@@ -296,7 +296,7 @@ export class EditorToolbarWidget extends Widget<EditorToolbarWidgetProps> {
               title={title}
               aria-pressed={active}
               style={{...BUTTON_STYLE, ...(active ? BUTTON_ACTIVE_STYLE : {})}}
-              onClick={(event) => {
+              onClick={event => {
                 stopEvent(event);
                 this.props.onSetBooleanOperation?.(op);
               }}
@@ -314,7 +314,7 @@ export class EditorToolbarWidget extends Widget<EditorToolbarWidgetProps> {
           type="button"
           title="Clear all features"
           style={BUTTON_STYLE}
-          onClick={(event) => {
+          onClick={event => {
             stopEvent(event);
             this.props.onClear?.();
           }}
@@ -327,7 +327,7 @@ export class EditorToolbarWidget extends Widget<EditorToolbarWidgetProps> {
           type="button"
           title="Download as GeoJSON"
           style={BUTTON_STYLE}
-          onClick={(event) => {
+          onClick={event => {
             stopEvent(event);
             this.props.onExport?.();
           }}

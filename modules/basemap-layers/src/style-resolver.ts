@@ -1,3 +1,4 @@
+import {derefLayers} from '@mapbox/mapbox-gl-style-spec';
 import {BasemapStyleSchema, ResolvedBasemapStyleSchema} from './map-style-schema';
 
 /**
@@ -26,8 +27,10 @@ export type BasemapSource = {
 export type BasemapStyleLayer = {
   /** Unique layer identifier. */
   id: string;
-  /** Style layer type such as `background`, `fill`, `line`, `symbol`, or `raster`. */
-  type: string;
+  /** Optional concrete style layer type such as `background`, `fill`, `line`, or `raster`. */
+  type?: string;
+  /** Legacy style layer id whose structural render properties are inherited. */
+  ref?: string;
   /** Referenced source identifier. */
   source?: string;
   /** Referenced vector source-layer identifier. */
@@ -44,6 +47,12 @@ export type BasemapStyleLayer = {
   layout?: Record<string, unknown>;
   /** Additional layer properties are preserved verbatim. */
   [key: string]: unknown;
+};
+
+/** A style layer after legacy `ref` inheritance has been resolved. */
+export type ResolvedBasemapStyleLayer = BasemapStyleLayer & {
+  /** Concrete style layer type after optional `ref` inheritance. */
+  type: string;
 };
 
 /**
@@ -66,11 +75,11 @@ export type BasemapStyle = {
  * A style document after all sources have been normalized and TileJSON-backed
  * sources have been resolved.
  */
-export type ResolvedBasemapStyle = BasemapStyle & {
+export type ResolvedBasemapStyle = Omit<BasemapStyle, 'sources' | 'layers'> & {
   /** Fully resolved source definitions. */
   sources: Record<string, BasemapSource>;
   /** Style layers copied into a mutable array. */
-  layers: BasemapStyleLayer[];
+  layers: ResolvedBasemapStyleLayer[];
 };
 
 /**
@@ -102,7 +111,7 @@ function normalizeUrl(url: string | undefined, baseUrl?: string) {
 
 /** Resolves all tile templates in a source against the source base URL. */
 function normalizeTiles(tiles: string[] | undefined, baseUrl?: string) {
-  return Array.isArray(tiles) ? tiles.map((tile) => normalizeUrl(tile, baseUrl) || tile) : tiles;
+  return Array.isArray(tiles) ? tiles.map(tile => normalizeUrl(tile, baseUrl) || tile) : tiles;
 }
 
 /** Fetches and parses a JSON resource. */
@@ -168,6 +177,6 @@ export async function resolveBasemapStyle(
   return ResolvedBasemapStyleSchema.parse({
     ...styleDefinition,
     sources: resolvedSources,
-    layers: [...(styleDefinition.layers || [])]
+    layers: derefLayers([...(styleDefinition.layers || [])]) as ResolvedBasemapStyleLayer[]
   });
 }

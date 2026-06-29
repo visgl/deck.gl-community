@@ -1,7 +1,6 @@
 export {default as makeExample} from './example/make-example';
 export {default as makeImperativeExample} from './example/make-imperative-example';
 export {default as ExamplesIndex} from './example/examples-index';
-export {default as GalleryTiles} from './example/gallery-tiles';
 
 export {default as Home} from './home';
 export {default as InfoPanel} from './info-panel';

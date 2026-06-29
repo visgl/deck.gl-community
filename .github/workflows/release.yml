@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Enable Corepack / Yarn 4
         run: |
@@ -81,6 +81,37 @@ jobs:
 
       - name: Login to NPM
         run: npm config set "//registry.npmjs.org/:_authToken=${NPM_ACCESS_TOKEN}"
+
+      - name: Verify NPM token
+        run: |
+          npm ping
+          npm whoami
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const packageDirs = ['modules', 'dev'].flatMap((root) =>
+            fs.existsSync(root)
+              ? fs
+                  .readdirSync(root, {withFileTypes: true})
+                  .filter((entry) => entry.isDirectory())
+                  .map((entry) => path.join(root, entry.name))
+              : []
+          );
+
+          const packages = packageDirs
+            .map((directory) => path.join(directory, 'package.json'))
+            .filter((filename) => fs.existsSync(filename))
+            .map((filename) => JSON.parse(fs.readFileSync(filename, 'utf8')))
+            .filter((pkg) => pkg.name?.startsWith('@deck.gl-community/') && !pkg.private)
+            .map((pkg) => pkg.name)
+            .sort();
+
+          console.log(`NPM token is valid. Publishing ${packages.length} public packages:`);
+          for (const name of packages) {
+            console.log(`- ${name}`);
+          }
+          NODE
 
       - name: Publish to NPM
         run: npx ocular-publish from-git

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import bbox from '@turf/bbox';
+import turfBbox from '@turf/bbox';
 import turfCentroid from '@turf/centroid';
 import turfBearing from '@turf/bearing';
-import bboxPolygon from '@turf/bbox-polygon';
+import turfBboxPolygon from '@turf/bbox-polygon';
 import turfDistance from '@turf/distance';
 import {coordEach} from '@turf/meta';
 import {getGeom} from '@turf/invariant';
@@ -55,7 +55,7 @@ export class RotateMode extends GeoJsonEditMode {
       return featureCollection([turfCentroid(selectedGeometry)]) as GuideFeatureCollection;
     }
 
-    const boundingBox = bboxPolygon(bbox(selectedGeometry));
+    const boundingBox = turfBboxPolygon(turfBbox(selectedGeometry));
 
     let previousCoord: Position | null = null;
     let topEdgeMidpointCoords: Position | null = null;

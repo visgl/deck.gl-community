@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/three",
-  "version": "9.3.1",
+  "version": "9.3.7",
   "description": "Three.js-powered layers for deck.gl",
   "license": "MIT",
   "publishConfig": {
@@ -35,9 +35,11 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.3.0",
-    "@deck.gl/mesh-layers": "~9.3.0",
     "three": "^0.170.0"
+  },
+  "peerDependencies": {
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/mesh-layers": "~9.3.0"
   },
   "devDependencies": {
     "@types/three": "^0.170.0"

@@ -36,7 +36,7 @@ describe('assignClipsToSubtracks', () => {
       {id: 'b', startMs: 500, endMs: 1000}
     ];
     const result = assignClipsToSubtracks(clips);
-    const byId = Object.fromEntries(result.map((c) => [c.id, c.subtrackIndex]));
+    const byId = Object.fromEntries(result.map(c => [c.id, c.subtrackIndex]));
     expect(byId.a).toBe(0);
     expect(byId.b).toBe(0);
   });
@@ -47,7 +47,7 @@ describe('assignClipsToSubtracks', () => {
       {id: 'b', startMs: 500, endMs: 1500}
     ];
     const result = assignClipsToSubtracks(clips);
-    const byId = Object.fromEntries(result.map((c) => [c.id, c.subtrackIndex]));
+    const byId = Object.fromEntries(result.map(c => [c.id, c.subtrackIndex]));
     expect(byId.a).not.toBe(byId.b);
   });
 
@@ -59,7 +59,7 @@ describe('assignClipsToSubtracks', () => {
       {id: 'c', startMs: 600, endMs: 1000}
     ];
     const result = assignClipsToSubtracks(clips);
-    const subtracks = result.map((c) => c.subtrackIndex);
+    const subtracks = result.map(c => c.subtrackIndex);
     const uniqueSubtracks = new Set(subtracks);
     expect(uniqueSubtracks.size).toBe(2);
   });
@@ -71,7 +71,7 @@ describe('assignClipsToSubtracks', () => {
       {id: 'a', startMs: 0, endMs: 500}
     ];
     const result = assignClipsToSubtracks(clips);
-    const byId = Object.fromEntries(result.map((c) => [c.id, c.subtrackIndex]));
+    const byId = Object.fromEntries(result.map(c => [c.id, c.subtrackIndex]));
     // Both fit on subtrack 0 since they don't overlap
     expect(byId.a).toBe(0);
     expect(byId.b).toBe(0);
@@ -286,7 +286,7 @@ describe('generateTimelineTicks', () => {
       tickCount: 3,
       formatter: fmt
     });
-    expect(ticks.map((t) => t.label)).toEqual(['t=0', 't=500', 't=1000']);
+    expect(ticks.map(t => t.label)).toEqual(['t=0', 't=500', 't=1000']);
   });
 });
 

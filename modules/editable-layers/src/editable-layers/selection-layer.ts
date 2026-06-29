@@ -32,7 +32,7 @@ const MODE_CONFIG_MAP = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface SelectionLayerProps<DataT> extends CompositeLayerProps {
+export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
   layerIds: any[];
   onSelect: (info: any) => any;
   selectionType: string | null;
@@ -104,10 +104,10 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
   _selectPolygonObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
-    const mousePoints = coordinates[0].map((c) => this.context.viewport.project(c));
+    const mousePoints = coordinates[0].map(c => this.context.viewport.project(c));
 
-    const allX = mousePoints.map((mousePoint) => mousePoint[0]);
-    const allY = mousePoints.map((mousePoint) => mousePoint[1]);
+    const allX = mousePoints.map(mousePoint => mousePoint[0]);
+    const allY = mousePoints.map(mousePoint => mousePoint[1]);
     const x = Math.min(...allX);
     const y = Math.min(...allY);
     const maxX = Math.max(...allX);
@@ -147,7 +147,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       });
 
       onSelect({
-        pickingInfos: pickingInfos.filter((item) => item.layer.id !== this.props.id)
+        pickingInfos: pickingInfos.filter(item => item.layer.id !== this.props.id)
       });
     }, 250);
   }
@@ -159,7 +159,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     const modeConfig = MODE_CONFIG_MAP[this.props.selectionType];
 
     const inheritedProps = {};
-    PASS_THROUGH_PROPS.forEach((p) => {
+    PASS_THROUGH_PROPS.forEach(p => {
       if (this.props[p] !== undefined) inheritedProps[p] = this.props[p];
     });
 
@@ -198,9 +198,9 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
             stroked: false,
             opacity: 1.0,
             data: [bigPolygon],
-            getLineColor: (obj) => [0, 0, 0, 1],
-            getFillColor: (obj) => [0, 0, 0, 1],
-            getPolygon: (o) => o.geometry.coordinates
+            getLineColor: _obj => [0, 0, 0, 1],
+            getFillColor: _obj => [0, 0, 0, 1],
+            getPolygon: o => o.geometry.coordinates
           })
         )
       );

@@ -50,7 +50,7 @@ export function createDeckInstance(map, overlay, props, Events) {
 
   // Register event listeners
   for (const eventType of mouseEvents) {
-    eventListeners[eventType] = Events.addHandler(map, eventType, (evt) =>
+    eventListeners[eventType] = Events.addHandler(map, eventType, evt =>
       handleMouseEvent(deck, eventType, evt)
     );
   }

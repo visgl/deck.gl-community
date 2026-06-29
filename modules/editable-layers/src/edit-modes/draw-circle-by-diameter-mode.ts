@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import circle from '@turf/circle';
-import distance from '@turf/distance';
-import area from '@turf/area';
+import turfCircle from '@turf/circle';
+import turfDistance from '@turf/distance';
+import turfArea from '@turf/area';
 import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
 import {Position, Polygon, Feature, FeatureCollection} from '../utils/geojson-types';
@@ -28,13 +28,13 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
 
     const centerCoordinates = getIntermediatePosition(coord1, coord2);
     // setting value of radius as distance of center and other point
-    this.radius = Math.max(distance(coord1, centerCoordinates), 0.001);
+    this.radius = Math.max(turfDistance(coord1, centerCoordinates), 0.001);
     // setting value of diameter as distance of points
-    this.diameter = Math.max(distance(coord1, coord2), 0.001);
+    this.diameter = Math.max(turfDistance(coord1, coord2), 0.001);
     // setting position tooltip as center of circle
     this.position = centerCoordinates;
 
-    const geometry = circle(centerCoordinates, this.radius, options);
+    const geometry = turfCircle(centerCoordinates, this.radius, options);
 
     geometry.properties = geometry.properties || {};
     geometry.properties.shape = 'Circle';
@@ -43,7 +43,7 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
     geometry.properties.editProperties.radius = {value: this.radius, unit: 'kilometers'};
     geometry.properties.editProperties.center = centerCoordinates;
     // calculate area of circle with turf function
-    this.areaCircle = area(geometry);
+    this.areaCircle = turfArea(geometry);
 
     return geometry;
   }

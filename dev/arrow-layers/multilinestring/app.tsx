@@ -35,7 +35,7 @@ export function mountGeoArrowMultiLineStringExample(container: HTMLElement): () 
   return mountGeoArrowMapExample(container, {
     dataUrl: GEOARROW_MULTILINESTRING_DATA,
     initialViewState: INITIAL_VIEW_STATE,
-    getLayers: (table) => [
+    getLayers: table => [
       new GeoArrowPathLayer({
         id: 'geoarrow-path',
         data: table,

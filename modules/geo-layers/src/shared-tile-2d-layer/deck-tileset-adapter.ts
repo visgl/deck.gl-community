@@ -27,10 +27,10 @@ export function transformBox(bbox: Bounds, modelMatrix: Matrix4): Bounds {
     modelMatrix.transformAsPoint([bbox[2], bbox[3]])
   ];
   return [
-    Math.min(...transformedCoords.map((i) => i[0])),
-    Math.min(...transformedCoords.map((i) => i[1])),
-    Math.max(...transformedCoords.map((i) => i[0])),
-    Math.max(...transformedCoords.map((i) => i[1]))
+    Math.min(...transformedCoords.map(i => i[0])),
+    Math.min(...transformedCoords.map(i => i[1])),
+    Math.max(...transformedCoords.map(i => i[0])),
+    Math.max(...transformedCoords.map(i => i[1]))
   ];
 }
 
@@ -76,7 +76,7 @@ export function getCullBounds({
   cullRect: {x: number; y: number; width: number; height: number};
 }): [number, number, number, number][] {
   const subViewports = viewport.subViewports || [viewport];
-  return subViewports.map((v) => getCullBoundsInViewport(v, z || 0, cullRect));
+  return subViewports.map(v => getCullBoundsInViewport(v, z || 0, cullRect));
 }
 
 function getCullBoundsInViewport(
@@ -120,9 +120,9 @@ function getIndexingCoords(
   modelMatrixInverse?: Matrix4 | null
 ): Bounds {
   if (modelMatrixInverse) {
-    return transformBox(bbox, modelMatrixInverse).map((i) => (i * scale) / TILE_SIZE) as Bounds;
+    return transformBox(bbox, modelMatrixInverse).map(i => (i * scale) / TILE_SIZE) as Bounds;
   }
-  return bbox.map((i) => (i * scale) / TILE_SIZE) as Bounds;
+  return bbox.map(i => (i * scale) / TILE_SIZE) as Bounds;
 }
 
 function getScale(z: number, tileSize: number): number {

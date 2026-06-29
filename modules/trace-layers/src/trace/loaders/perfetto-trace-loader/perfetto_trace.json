@@ -1,0 +1,22 @@
+{
+  "nested": {
+    "perfetto": {
+      "nested": {
+        "protos": {
+          "nested": {
+            "Trace": {
+              "fields": {
+                "packet": { "rule": "repeated", "type": "TracePacket", "id": 1 }
+              }
+            },
+            "TracePacket": {
+              "fields": {
+                "data": { "type": "bytes", "id": 2 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

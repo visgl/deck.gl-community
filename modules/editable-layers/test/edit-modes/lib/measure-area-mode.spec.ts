@@ -63,7 +63,7 @@ describe('three clicks + pointer move', () => {
   it('can format area', () => {
     const tooltips = mode.getTooltips({
       ...props,
-      modeConfig: {formatTooltip: (area) => String(Math.round(area))}
+      modeConfig: {formatTooltip: area => String(Math.round(area))}
     });
     expect(tooltips[0].text).toEqual('49454872581');
   });

@@ -39,7 +39,6 @@ new SkyboxLayer({
       '-Z': 'back.png'
     }
   },
-  orientation: 'y-up',
   loadOptions: {
     core: {
       baseUrl: 'https://example.com/assets/environment.image-texture-cube.json'
@@ -64,8 +63,8 @@ The layer loads the cubemap once and reuses the GPU texture until the source cha
 Controls how the cubemap faces should be interpreted relative to deck.gl's Z-up scene.
 
 - Use `'default'` for cubemaps already authored in deck.gl's expected orientation.
-- Use `'y-up'` for cubemaps authored for Y-up scenes, such as the NASA Tycho cubemap
-  used by the `SkyboxLayer GlobeView` example.
+- Use `'y-up'` for cubemaps authored for Y-up scenes where the source `+Y` face should
+  align with deck.gl's vertical `+Z` axis.
 
 ### `loadOptions` (TextureCubeLoaderOptions, optional)
 

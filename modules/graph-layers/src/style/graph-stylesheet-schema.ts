@@ -18,7 +18,7 @@ const GraphStylePrimitiveSchema = z.union([
 ]);
 
 const GraphStyleFunctionSchema = z.custom<(...args: unknown[]) => unknown>(
-  (value) => typeof value === 'function',
+  value => typeof value === 'function',
   {
     message: 'Style functions must be callable.'
   }
@@ -112,7 +112,7 @@ const RESERVED_STATE_KEYS = new Set(['attribute', 'fallback', 'scale']);
 export const GraphStyleStateMapSchema = z.record(
   z
     .string()
-    .refine((key) => !RESERVED_STATE_KEYS.has(key), 'State overrides must not use reserved keys.'),
+    .refine(key => !RESERVED_STATE_KEYS.has(key), 'State overrides must not use reserved keys.'),
   GraphStyleLeafValueSchema
 );
 

@@ -2,6 +2,8 @@ import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import '@deck.gl/widgets/stylesheet.css';
 
+import {deferImperativeCleanup} from '../imperative-cleanup';
+
 const WRAPPER_STYLE = {
   position: 'relative',
   width: '100%',
@@ -69,7 +71,7 @@ function LayerLiveExampleHost({highlight, height}) {
       mountLayerDocsExample(hostElement, highlight)
         .then((nextCleanup) => {
           if (isDisposed) {
-            nextCleanup?.();
+            deferImperativeCleanup(nextCleanup);
             return;
           }
           cleanup = nextCleanup;
@@ -83,7 +85,7 @@ function LayerLiveExampleHost({highlight, height}) {
     return () => {
       isDisposed = true;
       window.cancelAnimationFrame(animationFrame);
-      cleanup?.();
+      deferImperativeCleanup(cleanup);
     };
   }, [highlight]);
 
@@ -108,6 +110,13 @@ async function mountLayerDocsExample(container, highlight) {
       );
       return mountSkyboxMapViewExample(container, {showInfoOverlay: false});
     }
+    case 'basemap-layer': {
+      const {mountBasemapLayerMapViewExample} = await import(
+        '../../../../examples/layers/basemap-layer-map-view/app'
+      );
+      return mountBasemapLayerMapViewExample(container);
+    }
+    case 'dependency-arrow-layer':
     case 'path-marker-layer':
     case 'path-outline-layer': {
       const {mountPathOutlineAndMarkersExample} = await import(
@@ -153,6 +162,17 @@ async function mountLayerDocsExample(container, highlight) {
       return mountTimeAxisLayerExample(container);
     case 'vertical-grid-layer':
       return mountVerticalGridLayerExample(container);
+    case 'animation-layer':
+    case 'block-layer':
+    case 'time-delta-layer': {
+      const {mountInfovisLayerPrimitivesExample} = await import(
+        '../../../../examples/infovis-layers/layer-primitives/app'
+      );
+      return mountInfovisLayerPrimitivesExample(container, {
+        highlight,
+        showInfoOverlay: false
+      });
+    }
     default:
       if (GRAPH_LAYER_HIGHLIGHTS.has(highlight)) {
         return mountGraphLayerDocsExample(container, highlight);
@@ -755,7 +775,8 @@ async function mountVerticalGridLayerExample(container) {
 
 async function mountInfoDeck(container, {title, markdown}) {
   const {Deck} = await import('@deck.gl/core');
-  const {BoxWidget, MarkdownPanel} = await import('@deck.gl-community/widgets');
+  const {MarkdownPanel} = await import('@deck.gl-community/panels');
+  const {BoxPanelWidget} = await import('@deck.gl-community/widgets');
   const rootElement = createRoot(container);
   rootElement.style.background = 'linear-gradient(135deg, #f8fafc 0%, #dbeafe 50%, #ecfeff 100%)';
 
@@ -766,7 +787,7 @@ async function mountInfoDeck(container, {title, markdown}) {
     parameters: {clearColor: [0.96, 0.98, 1, 1]},
     layers: [],
     widgets: [
-      new BoxWidget({
+      new BoxPanelWidget({
         id: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-docs-info`,
         placement: 'top-left',
         widthPx: 380,

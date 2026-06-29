@@ -8,13 +8,13 @@ import {lesGraph} from './les-miserable';
 import {generateMlLineageGraph} from './ml-lineage';
 import {randomGraphGenerator} from './random-graph-generator';
 
-const convertNgraphDataset = (ngraph) => {
+const convertNgraphDataset = ngraph => {
   const nodes = [] as unknown[];
   const edges = [] as unknown[];
-  ngraph.forEachNode((n) => {
+  ngraph.forEachNode(n => {
     nodes.push({id: n.id});
   });
-  ngraph.forEachLink((link) => {
+  ngraph.forEachLink(link => {
     edges.push({
       id: link.id,
       sourceId: link.fromId,

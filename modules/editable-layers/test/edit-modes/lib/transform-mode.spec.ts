@@ -36,15 +36,15 @@ test('onUpdateCursor is only set to null once', () => {
 test('Transform mode correctly renders composited guides', () => {
   const props = createFeatureCollectionProps({selectedIndexes: [2]});
   const guides: Array<any> = transformMode.getGuides(props).features;
-  const scaleGuides = guides.filter((guide) => guide.properties.editHandleType === 'scale');
+  const scaleGuides = guides.filter(guide => guide.properties.editHandleType === 'scale');
   expect(scaleGuides.length).toEqual(4);
   expect(scaleGuides).toMatchSnapshot();
 
-  const rotateGuide = guides.filter((guide) => guide.properties.editHandleType === 'rotate');
+  const rotateGuide = guides.filter(guide => guide.properties.editHandleType === 'rotate');
   expect(rotateGuide.length).toEqual(1);
   expect(rotateGuide).toMatchSnapshot();
 
-  const lineGuides = guides.filter((guide) => guide.geometry.type === 'LineString');
+  const lineGuides = guides.filter(guide => guide.geometry.type === 'LineString');
   expect(lineGuides.length).toEqual(2);
 
   // scale bounding box

@@ -6,7 +6,7 @@
 import {render} from 'preact';
 import type {JSX} from 'preact';
 import {LongPressButton} from './long-press-button';
-import {cloneViewState, hasViewManager} from '../widgets/view-manager-utils';
+import {cloneViewState, hasViewManager} from '../lib/utils/view-manager-utils';
 import {
   Widget,
   type Deck,
@@ -152,10 +152,8 @@ export class ZoomRangeWidget extends Widget<ZoomRangeWidgetProps> {
             min={minZoom}
             max={maxZoom}
             step={this.step}
-            onInput={(event) => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
-            onChange={(event) =>
-              this.handleZoomTo(Number((event.target as HTMLInputElement).value))
-            }
+            onInput={event => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
+            onChange={event => this.handleZoomTo(Number((event.target as HTMLInputElement).value))}
             onPointerDown={stopEventPropagation}
             onPointerMove={stopEventPropagation}
             onPointerUp={stopEventPropagation}

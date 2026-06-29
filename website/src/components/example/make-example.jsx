@@ -1,43 +1,10 @@
 import React, {useState, useEffect, useCallback} from 'react';
-import styled from 'styled-components';
 import InfoPanel from '../info-panel';
 import {loadData, joinPath} from '../../utils/data-utils';
 import {normalizeParam} from '../../utils/format-utils';
 import {MAPBOX_STYLES} from '../../constants/defaults';
 import useBaseUrl from '@docusaurus/useBaseUrl';
-
-const DemoContainer = styled.div`
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-
-  .tooltip,
-  .deck-tooltip {
-    position: absolute;
-    padding: 4px 12px;
-    background: rgba(0, 0, 0, 0.8);
-    color: var(--ifm-color-white);
-    max-width: 300px;
-    font-size: 12px;
-    z-index: 9;
-    pointer-events: none;
-    white-space: nowrap;
-  }
-`;
-
-const MapTip = styled.div`
-  position: absolute;
-  right: 12px;
-  bottom: 20px;
-  color: var(--ifm-color-white);
-  mix-blend-mode: difference;
-  font-size: 14px;
-
-  @media screen and (max-width: 480px) {
-    display: none;
-  }
-`;
+import styles from './make-example.module.css';
 
 export default function makeExample(DemoComponent, {addInfoPanel = true, style} = {}) {
   const {parameters = {}, mapStyle} = DemoComponent;
@@ -113,7 +80,7 @@ export default function makeExample(DemoComponent, {addInfoPanel = true, style} 
     };
 
     return (
-      <DemoContainer style={style}>
+      <div className={styles.demoContainer} style={style}>
         <DemoComponent
           {...forwardedProps}
           data={data}
@@ -134,8 +101,8 @@ export default function makeExample(DemoComponent, {addInfoPanel = true, style} 
           </InfoPanel>
         )}
 
-        {addInfoPanel && mapStyle && <MapTip>Hold down shift to rotate</MapTip>}
-      </DemoContainer>
+        {addInfoPanel && mapStyle && <div className={styles.mapTip}>Hold down shift to rotate</div>}
+      </div>
     );
   };
 }

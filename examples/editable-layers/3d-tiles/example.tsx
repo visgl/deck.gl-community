@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import {useState, useEffect, useCallback, useMemo} from 'react';
 import DeckGL from '@deck.gl/react';
-import {TerrainController} from '@deck.gl/core';
+import {MapView, TerrainController} from '@deck.gl/core';
 import {Tile3DLayer} from '@deck.gl/geo-layers';
 import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
 import {
@@ -22,7 +22,8 @@ import {
   EditorToolbarWidget
 } from '@deck.gl-community/editable-layers';
 import type {BooleanOperation} from '@deck.gl-community/editable-layers';
-import {BoxWidget, ColumnPanel, MarkdownPanel} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -91,7 +92,7 @@ export function Example() {
 
   const infoWidget = useMemo(
     () =>
-      new BoxWidget({
+      new BoxPanelWidget({
         id: 'editor-info',
         placement: 'top-right',
         widthPx: 320,
@@ -129,7 +130,7 @@ export function Example() {
 
   // Sync mode tray widget
   useEffect(() => {
-    const selected = MODE_OPTIONS.find((option) => option.mode === mode)?.id ?? null;
+    const selected = MODE_OPTIONS.find(option => option.mode === mode)?.id ?? null;
     trayWidget.setProps({
       modes: MODE_OPTIONS,
       activeMode: mode,
@@ -151,10 +152,17 @@ export function Example() {
       onClear: handleClear,
       onExport: handleExport
     });
-  }, [modeConfig, geoJson.features.length, handleSetBooleanOp, handleClear, handleExport, toolbarWidget]);
+  }, [
+    modeConfig,
+    geoJson.features.length,
+    handleSetBooleanOp,
+    handleClear,
+    handleExport,
+    toolbarWidget
+  ]);
 
   useEffect(() => {
-    const modeLabel = MODE_OPTIONS.find((option) => option.mode === mode)?.label ?? 'View';
+    const modeLabel = MODE_OPTIONS.find(option => option.mode === mode)?.label ?? 'View';
     infoWidget.setProps({
       panel: buildInfoPanel({
         modeLabel,
@@ -172,7 +180,7 @@ export function Example() {
 
   const onTraversalComplete = useCallback((selectedTiles: any[]) => {
     const uniqueCredits = new Set<string>();
-    selectedTiles.forEach((tile) => {
+    selectedTiles.forEach(tile => {
       const {copyright} = tile.content.gltf.asset;
       copyright.split(';').forEach(uniqueCredits.add, uniqueCredits);
     });
@@ -225,11 +233,18 @@ export function Example() {
     <div>
       <DeckGL
         style={{backgroundColor: '#061714'}}
+        views={new MapView({maxPitch: 90})}
         initialViewState={INITIAL_VIEW_STATE}
-        controller={{type: TerrainController, touchRotate: true, inertia: 500, doubleClickZoom: false}}
+        controller={{
+          type: TerrainController,
+          maxPitch: 90,
+          touchRotate: true,
+          inertia: false,
+          doubleClickZoom: false
+        }}
         layers={[tile3DLayer, editableLayer]}
         getCursor={editableLayer.getCursor.bind(editableLayer)}
-        onClick={(info) => {
+        onClick={info => {
           if (mode === ViewMode) {
             const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
             if (index !== null) {
@@ -264,8 +279,8 @@ function buildInfoPanel({
   return new ColumnPanel({
     id: 'editor-info-panel',
     title: '',
-    panels: {
-      summary: new MarkdownPanel({
+    panels: [
+      new MarkdownPanel({
         id: 'summary',
         title: '',
         markdown: [
@@ -280,6 +295,6 @@ function buildInfoPanel({
           }**`
         ].join('\n')
       })
-    }
+    ]
   });
 }

@@ -18,11 +18,6 @@ export default defineConfig(async () => {
     resolve: {
       alias: {
         ...aliases,
-        // Use root dependencies
-        '@deck.gl': join(rootDir, './node_modules/@deck.gl'),
-        '@luma.gl': join(rootDir, './node_modules/@luma.gl'),
-        '@math.gl': join(rootDir, './node_modules/@math.gl'),
-        '@loaders.gl': join(rootDir, './node_modules/@loaders.gl'),
         // TODO: Example 'editable-layers/editor' fails (loading two copies of react)
         // without these overrides. That's unexpected and should be fixed.
         'react': join(rootDir, './node_modules/react'),

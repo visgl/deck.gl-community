@@ -10,6 +10,13 @@ import {
   createKeyboardEvent,
   createPolygonFeature
 } from '../test-utils';
+import {Feature, Polygon, Position} from 'geojson';
+import {
+  pointInPolygon,
+  polygonEdgesIntersect,
+  polygonWithinPolygon,
+  segmentsIntersect
+} from '../../../src/edit-modes/cartesian-utils';
 
 let props;
 let mode;
@@ -262,7 +269,7 @@ describe('allowSelfIntersection configuration', () => {
         ]
       }
     ];
-    problematicCases.forEach((testCase) => {
+    problematicCases.forEach(testCase => {
       // eslint-disable-next-line max-nested-callbacks
       it(`allows creating valid non-intersecting polygons -  ${testCase.id}`, () => {
         mode.handleClick(createClickEvent(testCase.points[0]), props);
@@ -308,6 +315,114 @@ describe('allowSelfIntersection configuration', () => {
         [0, 2],
         [0, 0]
       ]);
+    });
+  });
+});
+
+describe('non-turfjs cartesian geometry functions', () => {
+  const poly = (ring: Position[]): Feature<Polygon> => {
+    return {
+      type: 'Feature',
+      properties: {},
+      geometry: {type: 'Polygon', coordinates: [ring]}
+    };
+  };
+  describe('cartesian polygon contains functions', () => {
+    const pointIn = [10, 10];
+    const pointOut = [14, 14];
+    const outerRing = [
+      [8, 8],
+      [12, 8],
+      [12, 12],
+      [8, 12],
+      [8, 8]
+    ];
+    const innerRing = [
+      [9, 9],
+      [11, 9],
+      [11, 11],
+      [9, 11],
+      [9, 9]
+    ];
+    const intersectingRing = [
+      [7, 7],
+      [13, 13],
+      [12, 12],
+      [7, 12],
+      [7, 7]
+    ];
+    it('returns true for pointInPolygon - point inside', async () => {
+      const result = pointInPolygon(pointIn, outerRing);
+      expect(result).toEqual(true);
+    });
+    it('returns false for pointInPolygon - point outside', async () => {
+      const result = pointInPolygon(pointOut, innerRing);
+      expect(result).toEqual(false);
+    });
+    it('returns true for polygonWithinPolygon - polygon inside', async () => {
+      const result = polygonWithinPolygon(poly(innerRing), poly(outerRing));
+      expect(result).toEqual(true);
+    });
+    it('returns false for polygonWithinPolygon - polygon outside', async () => {
+      const result = polygonWithinPolygon(poly(outerRing), poly(innerRing));
+      expect(result).toEqual(false);
+    });
+    it('returns false for polygonWithinPolygon - intersecting polygon', async () => {
+      const result = polygonWithinPolygon(poly(intersectingRing), poly(outerRing));
+      expect(result).toEqual(false);
+    });
+  });
+
+  describe('cartesian intersection functions', () => {
+    const line1 = [
+      [10, 10],
+      [10, 14]
+    ];
+    const line2 = [
+      [8, 12],
+      [12, 12]
+    ];
+    const line3 = [
+      [12, 12],
+      [12, 14]
+    ];
+    const outerRing = [
+      [8, 8],
+      [12, 8],
+      [12, 12],
+      [8, 12],
+      [8, 8]
+    ];
+    const intersectingRing = [
+      [8, 7],
+      [13, 13],
+      [11, 11],
+      [7, 12],
+      [7, 7]
+    ];
+    const nonIntersectingRing = [
+      [6, 6],
+      [8, 6],
+      [7, 8],
+      [6, 8],
+      [6, 6]
+    ];
+    it('check for intersecting segments - returns true for intersection', async () => {
+      const result = segmentsIntersect(line1[0], line1[1], line2[0], line2[1]);
+      expect(result).toEqual(true);
+    });
+    it('check for intersecting segments - returns false for no intersection', async () => {
+      const result = segmentsIntersect(line1[0], line1[1], line3[0], line3[1]);
+      expect(result).toEqual(false);
+    });
+    // export function polygonEdgesIntersect(ringA: Position[], ringB: Position[]): boolean {
+    it('check for polygon intersection - true for intersection', async () => {
+      const result = polygonEdgesIntersect(poly(intersectingRing), poly(outerRing));
+      expect(result).toEqual(true);
+    });
+    it('check for polygon intersection - false for intersection', async () => {
+      const result = polygonEdgesIntersect(poly(nonIntersectingRing), poly(outerRing));
+      expect(result).toEqual(false);
     });
   });
 });

@@ -55,15 +55,15 @@ function expectSharedTilesetState(
 ): void {
   expect(leftTileIds.size).toBeGreaterThan(0);
   expect(rightTileIds.size).toBeGreaterThan(0);
-  expect([...leftTileIds].some((id) => !rightTileIds.has(id))).toBe(true);
+  expect([...leftTileIds].some(id => !rightTileIds.has(id))).toBe(true);
   expect(sharedTileset.tiles.length).toBeGreaterThanOrEqual(
     leftTileIds.size + rightTileIds.size - 1
   );
   expect(sharedTileset.visibleTiles.length).toBeGreaterThanOrEqual(
     Math.max(leftTileIds.size, rightTileIds.size)
   );
-  expect(sharedTileset.visibleTiles.some((tile) => leftTileIds.has(tile.id))).toBe(true);
-  expect(sharedTileset.visibleTiles.some((tile) => rightTileIds.has(tile.id))).toBe(true);
+  expect(sharedTileset.visibleTiles.some(tile => leftTileIds.has(tile.id))).toBe(true);
+  expect(sharedTileset.visibleTiles.some(tile => rightTileIds.has(tile.id))).toBe(true);
   expect(sharedTileset.stats.get('Visible Tiles').count).toBe(sharedTileset.visibleTiles.length);
   expect(sharedTileset.stats.get('Tiles In Cache').count).toBe(sharedTileset.tiles.length);
   expect(sharedTileset.stats.get('Cache Size').count).toBeGreaterThan(0);
@@ -77,7 +77,7 @@ async function waitFor(condition: () => boolean, message: string): Promise<void>
     if (condition()) {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise(resolve => setTimeout(resolve, 0));
   }
   throw new Error(message);
 }
@@ -93,7 +93,7 @@ describe('SharedTile2DLayer', () => {
     const layer = new SharedTile2DLayer({
       id: 'tile-2d-url-template',
       data: 'https://example.com/{z}/{x}/{y}.json',
-      getTileData: (tile) => {
+      getTileData: tile => {
         requestedUrl = tile.url;
         return null;
       }
@@ -168,8 +168,8 @@ describe('SharedTile2DLayer', () => {
       leftView.update(leftViewport);
       rightView.update(rightViewport);
 
-      const leftTileIds = new Set(leftView.selectedTiles?.map((tile) => tile.id));
-      const rightTileIds = new Set(rightView.selectedTiles?.map((tile) => tile.id));
+      const leftTileIds = new Set(leftView.selectedTiles?.map(tile => tile.id));
+      const rightTileIds = new Set(rightView.selectedTiles?.map(tile => tile.id));
 
       expectSharedTilesetState(sharedTileset, leftTileIds, rightTileIds, statsChangeCount);
 
@@ -206,9 +206,9 @@ describe('SharedTile2DLayer', () => {
     const tile3 = tileset.getTile({x: 0, y: 1, z: 1}, true);
     tileset.updateConsumer(consumerId, [tile3], [tile3]);
 
-    expect(tileset.tiles.map((tile) => tile.id)).toContain('0-0-1');
-    expect(tileset.tiles.map((tile) => tile.id)).toContain('0-1-1');
-    expect(tileset.tiles.map((tile) => tile.id)).not.toContain('1-0-1');
+    expect(tileset.tiles.map(tile => tile.id)).toContain('0-0-1');
+    expect(tileset.tiles.map(tile => tile.id)).toContain('0-1-1');
+    expect(tileset.tiles.map(tile => tile.id)).not.toContain('1-0-1');
     expect(tileset.stats.get('Tiles In Cache').count).toBe(2);
     expect(tileset.stats.get('Unloaded Tiles').count).toBe(1);
 

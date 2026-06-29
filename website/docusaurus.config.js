@@ -7,12 +7,18 @@ const darkCodeTheme = themes.dracula;
 
 const webpack = require('webpack');
 const {resolve} = require('path');
+const autoprefixer = require('autoprefixer');
+const tailwindcss = require('tailwindcss');
+const websiteReact = resolve('node_modules/react');
+const websiteReactDom = resolve('node_modules/react-dom');
+const tracevisExampleNodeModules = resolve('../examples/trace-layers/tracevis/node_modules');
+const tracevisTailwindConfig = resolve('../examples/trace-layers/tracevis/tailwind.config.ts');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'deck.gl-community',
-  tagline: 'Unofficial layers, basemaps and add-ons for deck.gl',
-  url: 'https://deck.gl-community',
+  tagline: 'Experimental layers, basemaps and add-ons for deck.gl',
+  url: 'https://visgl.github.io',
   baseUrl: '/deck.gl-community/', // process.env.STAGING ? '/deck.gl-community/' : '/',
   onBrokenLinks: 'throw',
   markdown: {
@@ -64,6 +70,15 @@ const config = {
   ],
 
   plugins: [
+    function tracevisTailwindPlugin() {
+      return {
+        name: 'tracevis-tailwind',
+        configurePostCss(postCssOptions) {
+          postCssOptions.plugins.push(tailwindcss(tracevisTailwindConfig), autoprefixer);
+          return postCssOptions;
+        }
+      };
+    },
     // Improve build performance by disabling expensive optimizations
     // https://github.com/facebook/docusaurus/discussions/11199
     function disableExpensiveBundlerOptimizationPlugin() {
@@ -83,18 +98,22 @@ const config = {
       {
         debug: true,
         resolve: {
-          modules: [resolve('node_modules'), resolve('../node_modules')],
+          modules: [resolve('node_modules'), resolve('../node_modules'), tracevisExampleNodeModules],
           alias: {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/basemap-layers': resolve('../modules/basemap-layers/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
+            '@deck.gl-community/geo-layers': resolve('../modules/geo-layers/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
             '@deck.gl-community/infovis-layers': resolve('../modules/infovis-layers/src'),
             '@deck.gl-community/timeline-layers': resolve('../dev/timeline-layers/src'),
+            '@deck.gl-community/three': resolve('../modules/three/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
+            '@deck.gl-community/panels': resolve('../modules/panels/src'),
+            '@deck.gl-community/trace-layers': resolve('../modules/trace-layers/src'),
             '@deck.gl-community/widgets': resolve('../modules/widgets/src'),
             '@deck.gl/aggregation-layers': resolve('../node_modules/@deck.gl/aggregation-layers'),
             '@deck.gl/arcgis': resolve('../node_modules/@deck.gl/arcgis'),
@@ -125,9 +144,11 @@ const config = {
             'preact/hooks': resolve('node_modules/preact/hooks'),
             'preact/jsx-runtime': resolve('node_modules/preact/jsx-runtime'),
             'preact/jsx-dev-runtime': resolve('node_modules/preact/jsx-dev-runtime'),
-            react: resolve('node_modules/react'),
-            'react-dom': resolve('node_modules/react-dom'),
-            'styled-react-modal': resolve('node_modules/styled-react-modal')
+            'react/jsx-dev-runtime': resolve('node_modules/react/jsx-dev-runtime'),
+            'react/jsx-runtime': resolve('node_modules/react/jsx-runtime'),
+            'react-dom/client': resolve('node_modules/react-dom/client'),
+            react: websiteReact,
+            'react-dom': websiteReactDom
           }
         },
         plugins: [
@@ -148,10 +169,16 @@ const config = {
                 fullySpecified: false
               }
             },
-            // widgets and editable-layers module JSX must be transpiled as preact
+            // Local TS/TSX sources that need Babel's TypeScript transform with
+            // support for `declare` fields, plus Preact JSX for the Preact-based modules.
             {
               test: /\.[jt]sx?$/,
-              include: [resolve('../modules/widgets/src'), resolve('../modules/editable-layers/src')],
+              include: [
+                resolve('../modules/panels/src'),
+                resolve('../modules/three/src'),
+                resolve('../modules/widgets/src'),
+                resolve('../modules/editable-layers/src')
+              ],
               use: [
                 {
                   loader: require.resolve('babel-loader'),
@@ -173,16 +200,29 @@ const config = {
                   }
                 }
               ]
+            },
+            // Modules using TypeScript `declare` class fields need allowDeclareFields
+            {
+              test: /\.[jt]sx?$/,
+              include: [resolve('../modules/three/src'), resolve('../modules/arrow-layers/src')],
+              use: [
+                {
+                  loader: require.resolve('babel-loader'),
+                  options: {
+                    babelrc: false,
+                    configFile: false,
+                    presets: [
+                      [
+                        require.resolve('@babel/preset-typescript'),
+                        {isTSX: true, allExtensions: true, allowDeclareFields: true}
+                      ]
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }
-      }
-    ],
-    [
-      resolve('./plugins/gallery-static-plugin'),
-      {
-        sourceDir: resolve('../examples/gallery'),
-        routeBase: '/gallery'
       }
     ],
     [
@@ -201,6 +241,13 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      image: 'images/og-preview.jpg',
+      metadata: [
+        {property: 'og:image:width', content: '1200'},
+        {property: 'og:image:height', content: '630'},
+        {property: 'og:image:type', content: 'image/jpeg'},
+        {name: 'twitter:card', content: 'summary_large_image'}
+      ],
       navbar: {
         title: 'deck.gl-community',
         logo: {
@@ -218,21 +265,6 @@ const config = {
             to: '/examples',
             position: 'left',
             label: 'Examples'
-          },
-          {
-            to: '/gallery',
-            position: 'left',
-            label: 'Gallery'
-          },
-          // {
-          //   to: '/showcase',
-          //   position: 'left',
-          //   label: 'Showcase'
-          // },
-          {
-            to: 'https://medium.com/vis-gl',
-            label: 'Blog',
-            position: 'left'
           },
           {
             href: 'https://github.com/visgl/deck.gl-community',

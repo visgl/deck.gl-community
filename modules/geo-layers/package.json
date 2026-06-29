@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/geo-layers",
-  "version": "9.3.1",
+  "version": "9.3.7",
   "description": "Add-0n geospatial layers for deck.gl",
   "license": "MIT",
   "publishConfig": {
@@ -38,21 +38,26 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.3.0",
-    "@deck.gl/geo-layers": "~9.3.0",
-    "@deck.gl/layers": "~9.3.0",
     "@loaders.gl/loader-utils": "^4.4.1",
-    "@luma.gl/core": "~9.3.2",
-    "@luma.gl/engine": "~9.3.2",
     "@luma.gl/shadertools": "~9.3.2",
     "@math.gl/core": "^4.0.0",
     "@probe.gl/stats": "^4.1.1",
     "a5-js": "^0.5.0",
     "h3-js": "^4.2.1"
   },
+  "peerDependencies": {
+    "@deck.gl/core": "~9.3.0",
+    "@deck.gl/geo-layers": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/engine": "~9.3.2"
+  },
   "devDependencies": {
+    "@deck.gl/core": "~9.3.0",
     "@deck.gl/test-utils": "~9.3.0",
+    "@luma.gl/core": "~9.3.2",
+    "@luma.gl/engine": "~9.3.2",
     "@luma.gl/webgpu": "~9.3.2",
-    "@probe.gl/test-utils": "^4.0.4"
+    "@probe.gl/test-utils": "^4.1.1"
   }
 }

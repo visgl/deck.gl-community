@@ -22,8 +22,8 @@ export class StraightLineEdgeLayer extends CompositeLayer {
         this.getSubLayerProps({
           id: '__line-layer',
           data,
-          getSourcePosition: (e) => getLayoutInfo(e).sourcePosition,
-          getTargetPosition: (e) => getLayoutInfo(e).targetPosition,
+          getSourcePosition: e => getLayoutInfo(e).sourcePosition,
+          getTargetPosition: e => getLayoutInfo(e).targetPosition,
           updateTriggers: {
             getColor: colorUpdateTrigger,
             getSourcePosition: positionUpdateTrigger,
