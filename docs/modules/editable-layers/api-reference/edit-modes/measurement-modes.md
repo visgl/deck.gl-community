@@ -2,9 +2,7 @@
 
 A number of modes provide various measurement capabilities
 
-\* Supports snapping when wrapped with `SnappableMode`.
-
-## MeasureDistanceMode *
+## MeasureDistanceMode
 
 User can measure a distance between two points.
 
@@ -32,7 +30,7 @@ The following options can be provided in the `modeConfig` object:
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-distance-mode.ts)
 
-## MeasureAreaMode *
+## MeasureAreaMode
 
 User can measure an area by drawing an arbitrary polygon.
 
@@ -49,7 +47,7 @@ The following options can be provided in the `modeConfig` object:
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-area-mode.ts)
 
-## MeasureAngleMode*
+## MeasureAngleMode
 
 User can measure an angle by drawing two lines.
 
@@ -95,3 +93,11 @@ if (mode === 'elevation') {
 }
 ```
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/elevation-mode.ts)
+
+### Snapping capabilities
+
+The following modes support snapping when wrapped with `SnappableMode`:
+
+- `MeasureDistanceMode`
+- `MeasureAreaMode`
+- `MeasureAngleMode`

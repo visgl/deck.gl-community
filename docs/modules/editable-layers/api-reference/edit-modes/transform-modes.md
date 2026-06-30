@@ -2,9 +2,7 @@
 
 An existing geometry can be modified with a variety of modes.
 
-\* Supports snapping when wrapped with `SnappableMode`.
-
-## ModifyMode *
+## ModifyMode
 
 User can move existing points, add intermediate points along lines, and remove points.
 
@@ -24,7 +22,7 @@ Callbacks:
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/modify-mode.ts)
 
 
-## ExtrudeMode *
+## ExtrudeMode
 
 User can move edge. Click and drag from anywhere between 2 points in edge.
 
@@ -43,7 +41,7 @@ User can rotate a feature about its centroid by clicking and dragging the select
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/rotate-mode.ts)
 
-## TranslateMode *
+## TranslateMode
 
 The user can move a feature by selecting one or more features and dragging anywhere within the screen.
 
@@ -54,7 +52,7 @@ The following options can be provided in the `modeConfig` object for TranslateMo
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/translate-mode.ts)
 
-## TransformMode *
+## TransformMode
 
 A single mode that provides translating, rotating, and scaling capabilities. Translation can be performed by clicking and dragging the selected feature itself. Rotating can be performed by clicking and dragging the top-most edit handle around a centroid pivot. Scaling can be performed by clicking and dragging one of the corner edit handles. Just like the individual modes, this mode supports multiple selections.
 
@@ -105,4 +103,14 @@ Choose the strategy that matches how your mode is used:
 | `SourceSnappingStrategy` | e.g. `TranslateMode` | Snaps while a snap source handle is being dragged | |
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/snappable-mode.ts)
+
+### Snapping capabilities
+
+The following modes support snapping when wrapped with `SnappableMode`:
+
+- `ModifyMode`
+- `ExtrudeMode`
+- `TranslateMode`
+
+`TransformMode` supports snapping natively via `modeConfig.enableSnapping` and does not require `SnappableMode`.
 
