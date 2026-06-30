@@ -17,6 +17,7 @@ Use `SettingsPanel` when a settings form should live inside a panel layout or pa
 ```ts
 import {
   SettingsPanel,
+  type SettingsPanelFontSize,
   type SettingsPanelProps,
   type SettingDescriptor,
   type SettingsSchema,
@@ -41,9 +42,23 @@ type SettingsPanelProps = {
       descriptor?: SettingDescriptor;
     }>
   ) => void;
+  fontSize?: SettingsPanelFontSize;
   theme?: 'inherit' | 'light' | 'dark' | 'invert';
 };
 ```
+
+Settings schema descriptors may include `group` for richer panels,
+`persist: 'local-storage' | 'url' | 'none'` for manager persistence policy, and
+numeric descriptors may include `sliderDebounceMs` to apply a trailing debounce
+to range-slider input events while keeping direct numeric entry immediate.
+Select options may be raw primitive values or `{label, value, description?}`
+objects; `description` renders below the option label in the open menu.
+`multi-select` descriptors render a searchable string selector and preserve
+selected values that are not present in the current option list so callers can
+still clear stale selections.
+Set `fontSize` when labels and text, number, select, or multi-select controls
+need a larger or smaller supported text size; open select menu options use the
+same size.
 
 ## See Also
 
@@ -54,3 +69,5 @@ type SettingsPanelProps = {
 - Reuses the shared schema-driven controls as a panel.
 - Tracks section collapse state while the panel stays mounted.
 - Supports nested dot-path setting names and change descriptors in `onSettingsChange`.
+- Pair with [SettingsManager](./managers/settings-manager.md) when settings snapshots
+  should emit structured change descriptors or persist through local storage.

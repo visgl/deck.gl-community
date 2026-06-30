@@ -2,13 +2,26 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-export {PanelContainer} from './panel-container';
-export type {PanelContainerProps, PanelPlacement} from './panel-container';
-export {PanelManager, type PanelManagerProps} from './panel-manager';
-export {PanelBox, type PanelBoxProps} from './panel-components/panel-box';
-export {PanelModal, type PanelModalProps} from './panel-components/panel-modal';
-export {PanelSidebar, type PanelSidebarProps} from './panel-components/panel-sidebar';
-export {PanelFullScreen, type PanelFullScreenProps} from './panel-components/panel-full-screen';
+export {PanelComponent} from './panels/panel-component';
+export type {PanelComponentProps, PanelPlacement} from './panels/panel-component';
+export {PanelContainer} from './panels/panel-container';
+export type {PanelContainerProps} from './panels/panel-container';
+export {PanelManager, type PanelManagerProps} from './panels/panel-manager';
+export {BoxPanelContainer, type BoxPanelContainerProps} from './panel-mounts/box-panel-container';
+export {
+  ModalPanelContainer,
+  type ModalPanelContainerDialogPlacement,
+  type ModalPanelContainerPresentation,
+  type ModalPanelContainerProps
+} from './panel-mounts/modal-panel-container';
+export {
+  SidebarPanelContainer,
+  type SidebarPanelContainerProps
+} from './panel-mounts/sidebar-panel-container';
+export {
+  FullScreenPanelContainer,
+  type FullScreenPanelContainerProps
+} from './panel-mounts/full-screen-panel-container';
 
 export {
   PANEL_THEME_DARK,
@@ -20,33 +33,59 @@ export {
 export {
   AccordeonPanel,
   AccordeonPanelContainer,
-  ColumnPanelContainer,
+  type AccordeonPanelContainerProps,
+  type AccordeonPanelProps
+} from './composite-panels/accordeon-panel';
+export {
   ColumnPanel,
-  CustomPanel,
-  MarkdownPanel,
+  ColumnPanelContainer,
+  type ColumnPanelContainerProps,
+  type ColumnPanelProps
+} from './composite-panels/column-panel';
+export {
   SplitterPanel,
+  type SplitterPanelOrientation,
+  type SplitterPanelProps
+} from './composite-panels/splitter-panel';
+export {
   TabbedPanel,
   TabbedPanelContainer,
-  useEffectivePanelThemeMode,
-  type AccordeonPanelContainerProps,
-  type AccordeonPanelProps,
-  type ColumnPanelContainerProps,
-  type ColumnPanelProps,
-  type CustomPanelProps,
-  type MarkdownPanelProps,
-  type SplitterPanelOrientation,
-  type SplitterPanelProps,
   type TabbedPanelContainerProps,
-  type TabbedPanelProps,
+  type TabbedPanelProps
+} from './composite-panels/tabbed-panel';
+export {CustomPanel, type CustomPanelProps} from './leaf-panels/custom-panel';
+export {MarkdownPanel, type MarkdownPanelProps} from './leaf-panels/markdown/markdown-panel';
+export {useEffectivePanelThemeMode} from './panels/panel-theme-scope';
+export {
+  Panel,
   type PanelListContainerProps,
-  type Panel,
+  type PanelProps,
   type PanelTheme,
   type PanelThemeMode
-} from './panels/panel-containers';
+} from './panels/panel';
+export {PanelThemeScope} from './panels/panel-theme-scope';
 
-export {SettingsPanel, type SettingsPanelProps} from './panels/settings-panel';
-export {StatsPanel, type StatsPanelProps} from './panels/stats-panel';
-export {BinaryDataPanel, type BinaryDataPanelProps} from './panels/binary-data-panel';
+export {
+  SettingsPanel,
+  type SettingsPanelFontSize,
+  type SettingsPanelProps
+} from './leaf-panels/settings/settings-panel';
+export {
+  StudioSettingsIcon,
+  StudioSettingsPanel,
+  createStudioSettingsPanel,
+  type StudioDependencyShape,
+  type StudioSettingsIconName,
+  type StudioSettingsIconProps,
+  type StudioSettingsPanelProps,
+  type StudioSettingsRowLayout,
+  type StudioSettingsTabId
+} from './leaf-panels/settings/studio-settings-panel';
+export {StatsPanel, type StatsPanelProps} from './leaf-panels/stats/stats-panel';
+export {
+  BinaryDataPanel,
+  type BinaryDataPanelProps
+} from './leaf-panels/binary-data/binary-data-panel';
 export {
   DocumentationLinksPanel,
   DocumentationLinksPanelContent,
@@ -54,57 +93,118 @@ export {
   type DocumentationLinkItem,
   type DocumentationLinksPanelProps,
   type DocumentationLinkSpacer
-} from './panels/documentation-links-panel';
+} from './leaf-panels/documentation-links-panel';
 export {
   ArrowTablePanel,
+  type ArrowCellFormatContext,
+  type ArrowTableColumnFormatters,
   type ArrowTableFieldLike,
+  type ArrowTableInput,
   type ArrowTableLike,
   type ArrowTablePanelProps,
   type ArrowTableSchemaLike,
-  type ArrowTableVectorLike
-} from './panels/arrow-table-panel';
+  type ArrowTableVectorLike,
+  type ArrowTableWrapperLike
+} from './leaf-panels/arrow/arrow-table-panel';
 export {
   ArrowSchemaPanel,
+  type ArrowMetadataEntry,
   type ArrowMetadataLike,
   type ArrowSchemaFieldLike,
   type ArrowSchemaLike,
   type ArrowSchemaPanelProps
-} from './panels/arrow-schema-panel';
+} from './leaf-panels/arrow/arrow-schema-panel';
+export {
+  ArrowBatchesPanel,
+  type ArrowBatchPreview,
+  type ArrowBatchPreviewRow,
+  type ArrowBatchesPanelProps,
+  type ArrowRecordBatchLike
+} from './leaf-panels/arrow/arrow-batches-panel';
+export {
+  CommandDocumentationPanel,
+  type CommandDocumentationPanelProps
+} from './leaf-panels/commands/command-documentation-panel';
 export {
   KeyboardShortcutsPanel,
   KeyboardShortcutsPanelContent,
   type KeyboardShortcutsPanelProps
-} from './panels/keyboard-shortcuts-panel';
-export {TextEditorPanel, type TextEditorPanelProps} from './panels/text-editor-panel';
+} from './leaf-panels/keyboard-shortcuts/keyboard-shortcuts-panel';
+export {
+  TextEditorPanel,
+  type TextEditorPanelProps
+} from './leaf-panels/text-editor/text-editor-panel';
 export {
   URLParametersPanel,
   URLParametersPanelContent,
   type URLParametersPanelProps
-} from './panels/url-parameters-panel';
+} from './leaf-panels/url-parameters/url-parameters-panel';
 
 export {
-  ToolbarPanelContainer,
-  type ToolbarPanelContainerActionItem,
-  type ToolbarPanelContainerBadgeItem,
-  type ToolbarPanelContainerItem,
-  type ToolbarPanelContainerProps,
-  type ToolbarPanelContainerToggleGroupItem,
-  type ToolbarPanelContainerToggleOption
-} from './panels/toolbar-panel-container';
-export {ToastPanelContainer, type ToastPanelContainerProps} from './panels/toast-panel-container';
+  ToolbarComponent,
+  type ToolbarComponentActionItem,
+  type ToolbarComponentBadgeItem,
+  type ToolbarComponentItem,
+  type ToolbarComponentProps,
+  type ToolbarComponentToggleGroupItem,
+  type ToolbarComponentToggleOption
+} from './components/toolbar-component';
+export {ToastComponent, type ToastComponentProps} from './components/toast-component';
 export {
   toastManager,
   type ToastEntry,
   type ToastKind,
   type ToastRequest
-} from './panels/toast-manager';
+} from './lib/toasts/toast-manager';
 
 export {
+  buildInitialCollapsedState,
+  clamp,
+  filterSettingsSchemaByPersistence,
+  getDefaultValue,
+  getInitialCollapsedState,
+  getSectionKey,
+  getSettingDefinitions,
+  getSettingPersistenceTarget,
+  getValueAtPath,
+  mergeCollapsedState,
+  normalizeOption,
+  partitionSettingsSchemaByPersistence,
+  resolveSettingValue,
+  setValueAtPath,
+  type PartitionedSettingsSchema,
   type SettingDescriptor,
+  type SettingDescriptorByName,
+  type SettingOption,
+  type SettingPersistenceTarget,
+  type SettingScalarValue,
+  type SettingType,
+  type SettingValue,
+  type SettingsOption,
   type SettingsSchema,
   type SettingsSectionDescriptor,
   type SettingsState
 } from './lib/settings/settings';
+export {
+  getChangedSetting,
+  SettingsManager,
+  settingsManager,
+  type SettingsChangeDescriptor,
+  type SettingsManagerLocalStorageConfig,
+  type SettingsManagerOnChange
+} from './lib/settings/settings-manager';
+export {
+  CommandManager,
+  commandManager,
+  type CommandArgsSchema,
+  type CommandAutomationSupport,
+  type CommandDefinition,
+  type CommandDescriptor,
+  type CommandState,
+  type ExecuteCommandAsyncOptions,
+  type InstallCommandAutomationOptions,
+  type ListCommandsOptions
+} from './lib/commands/command-manager';
 export {
   type KeyboardShortcutDisplayPair,
   type KeyboardShortcutDisplaySection,
@@ -116,14 +216,15 @@ export {
   isShortcutMatchingKeyEvent,
   findShortcutMatchingKeyEvent,
   DEFAULT_SHORTCUTS,
-  formatKey
-} from './keyboard-shortcuts/keyboard-shortcuts';
+  formatKey,
+  formatShortcutKeyHTML
+} from './lib/keyboard-shortcuts/keyboard-shortcuts';
 export {
   KeyboardShortcutsManager,
   KeyboardShortcutsManagerDocument,
   type KeyboardShortcutEventManager,
   type KeyboardShortcutManagerEvent
-} from './keyboard-shortcuts/keyboard-shortcuts-manager';
+} from './lib/keyboard-shortcuts/keyboard-shortcuts-manager';
 export {
   getRecognizedUrlParameterKeys,
   parseUrlParametersIntoState,
@@ -138,3 +239,18 @@ export {
   URLManager,
   type URLManagerCreateSearchParamsOptions
 } from './lib/url-parameters/url-manager';
+export {IconButton, makeTextIcon} from './preact/icon-button';
+export {
+  PanelMultiSelect,
+  PanelSelect,
+  type PanelMultiSelectOption,
+  type PanelMultiSelectProps,
+  type PanelSelectOption,
+  type PanelSelectProps,
+  type PanelSelectValue
+} from './preact/panel-select';
+export {
+  WidgetTooltip,
+  type WidgetTooltipPlacement,
+  type WidgetTooltipProps
+} from './preact/widget-tooltip';

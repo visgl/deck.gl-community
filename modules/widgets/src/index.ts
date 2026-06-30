@@ -22,46 +22,54 @@ export {
   DeviceManagerController,
   type DeviceManagerState,
   type DeviceType
-} from './device-manager';
+} from './lib/device-manager/device-manager';
 export {
   DeviceTabsWidget,
   type DeviceTabsWidgetDevice,
   type DeviceTabsWidgetProps
-} from './widget-panels/device-tabs-widget';
+} from './widgets/device-tabs-widget';
 export {
   OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
   type OmniBoxRenderOptionArgs,
+  type OmniBoxResultsSummaryArgs,
   type OmniBoxWidgetProps
 } from './widgets/omni-box-widget';
-export {ResetViewWidget, type ResetViewWidgetProps} from './widget-panels/reset-view-widget';
+export {
+  CommandResetViewWidget,
+  type CommandResetViewWidgetProps
+} from './widgets/command-reset-view-widget';
+export {
+  CommandToggleWidget,
+  type CommandToggleWidgetProps
+} from './widgets/command-toggle-widget';
+export {ResetViewWidget, type ResetViewWidgetProps} from './widgets/reset-view-widget';
+export {
+  createStudioSettingsWidget,
+  updateStudioSettingsWidget,
+  type StudioSettingsWidgetProps
+} from './widgets/studio-settings-widget';
 export {
   TimeMeasureWidget,
   type TimeMeasureRange,
+  type TimeMeasureWidgetProps,
   type TimeMeasureSelectionState
-} from './widget-panels/time-measure-widget';
-export {YZoomWidget, type YZoomWidgetProps} from './widget-panels/y-zoom-widget';
+} from './widgets/time-measure-widget';
+export {YZoomWidget, type YZoomWidgetProps} from './widgets/y-zoom-widget';
 export {
+  PanelWidget,
   BoxPanelWidget,
-  BoxWidget,
-  type BoxPanelWidgetProps,
-  type BoxWidgetProps
-} from './widget-panels/box-widget';
-export {
   FullScreenPanelWidget,
-  type FullScreenPanelWidgetProps
-} from './widget-panels/full-screen-panel-widget';
-export {
   ModalPanelWidget,
-  ModalWidget,
-  type ModalPanelWidgetProps,
-  type ModalWidgetProps
-} from './widget-panels/modal-widget';
-export {IconButton, makeTextIcon} from './widget-components/icon-button';
-export {
   SidebarPanelWidget,
-  SidebarWidget,
+  ToastWidget,
+  ToolbarWidget,
+  type PanelWidgetProps,
+  type BoxPanelWidgetProps,
+  type FullScreenPanelWidgetProps,
+  type ModalPanelWidgetProps,
   type SidebarPanelWidgetProps,
-  type SidebarWidgetProps
-} from './widget-panels/sidebar-widget';
+  type ToastWidgetProps,
+  type ToolbarWidgetProps
+} from './panel-widgets/panel-widget';

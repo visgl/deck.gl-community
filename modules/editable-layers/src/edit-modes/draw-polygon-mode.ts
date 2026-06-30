@@ -5,9 +5,8 @@
 import lineIntersect from '@turf/line-intersect';
 import {polygon as turfPolygon} from '@turf/helpers';
 import booleanWithin from '@turf/boolean-within';
-import type {Geometry} from 'geojson';
+import type {Feature, Geometry, Polygon} from 'geojson';
 import kinks from '@turf/kinks';
-
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -21,6 +20,12 @@ import {Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geo
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {
+  cartesianCoordinateSystem,
+  CartesianCoordinateSystem,
+  EditModeCoordinateSystem
+} from './coordinate-system';
+import {polygonEdgesIntersect, polygonWithinPolygon} from './cartesian-utils';
 import {SnappableEditMode} from './snappable-edit-mode';
 import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
@@ -203,7 +208,7 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
     const clickSequence = this.getClickSequence();
     const polygon = [...clickSequence, clickSequence[0]];
 
-    const newPolygon = turfPolygon([polygon]);
+    const newPolygon = getPolygonFeature([polygon], props);
 
     const canAddHole = canAddHoleToPolygon(props);
     const canOverlap = canPolygonOverlap(props);
@@ -246,14 +251,14 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
   }
 
   private tryAddHoleToExistingPolygon(
-    newPolygon: any,
+    newPolygon: Feature<Polygon>,
     polygon: Position[],
     props: ModeProps<SimpleFeatureCollection>
   ): {handled: boolean} {
     for (const [featureIndex, feature] of props.data.features.entries()) {
       if (feature.geometry.type === 'Polygon') {
         const result = this.validateAndCreateHole(
-          feature,
+          feature as Feature<Polygon>,
           featureIndex,
           newPolygon,
           polygon,
@@ -268,21 +273,21 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
     return {handled: false};
   }
 
+  // eslint-disable-next-line max-statements, complexity
   private validateAndCreateHole(
-    feature: any,
+    feature: Feature<Polygon>,
     featureIndex: number,
-    newPolygon: any,
+    newPolygon: Feature<Polygon>,
     polygon: Position[],
     props: ModeProps<SimpleFeatureCollection>
   ): {handled: boolean} {
-    const outer = turfPolygon(feature.geometry.coordinates);
-
+    const outer = getPolygonFeature(feature.geometry.coordinates, props);
     // Check existing holes for conflicts
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
-      const hole = turfPolygon([feature.geometry.coordinates[i]]);
-      const intersection = lineIntersect(hole, newPolygon);
+      const hole = getPolygonFeature([feature.geometry.coordinates[i]], props);
 
-      if (intersection.features.length > 0) {
+      const intersection = isPolygonIntersecting(hole, newPolygon, props.coordinateSystem);
+      if (intersection) {
         props.onEdit({
           updatedData: props.data,
           editType: 'invalidHole',
@@ -291,7 +296,8 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
         return {handled: true};
       }
 
-      if (booleanWithin(hole, newPolygon) || booleanWithin(newPolygon, hole)) {
+      const containsOrContained = isContainingOrContained(hole, newPolygon, props.coordinateSystem);
+      if (containsOrContained) {
         props.onEdit({
           updatedData: props.data,
           editType: 'invalidHole',
@@ -301,9 +307,9 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
       }
     }
 
-    // Check outer polygon conflicts
-    const intersectionWithOuter = lineIntersect(outer, newPolygon);
-    if (intersectionWithOuter.features.length > 0) {
+    // Check outer polygon conflicts after iteration
+    const intersectionWithOuter = isPolygonIntersecting(outer, newPolygon, props.coordinateSystem);
+    if (intersectionWithOuter) {
       props.onEdit({
         updatedData: props.data,
         editType: 'invalidPolygon',
@@ -312,7 +318,8 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
       return {handled: true};
     }
 
-    if (booleanWithin(outer, newPolygon)) {
+    const outerWithin = isPolygonWithin(outer, newPolygon, props.coordinateSystem);
+    if (outerWithin) {
       props.onEdit({
         updatedData: props.data,
         editType: 'invalidPolygon',
@@ -322,7 +329,8 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
     }
 
     // Check if new polygon is within outer polygon (valid hole)
-    if (booleanWithin(newPolygon, outer)) {
+    const newWithinOuter = isPolygonWithin(newPolygon, outer, props.coordinateSystem);
+    if (newWithinOuter) {
       const updatedData = new ImmutableFeatureCollection(props.data)
         .replaceGeometry(featureIndex, {
           ...feature.geometry,
@@ -359,4 +367,58 @@ function canAddHoleToPolygon(props: ModeProps<FeatureCollection>): boolean {
 function canPolygonOverlap(props: ModeProps<FeatureCollection>): boolean {
   // Return the value of allowSelfIntersection (defaults to false for safety)
   return props.modeConfig?.allowSelfIntersection ?? false;
+}
+
+function getPolygonFeature(
+  polygonGeometry: Position[][],
+  props: ModeProps<FeatureCollection>
+): Feature<Polygon> {
+  return props.coordinateSystem instanceof CartesianCoordinateSystem
+    ? {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: polygonGeometry}}
+    : turfPolygon(polygonGeometry);
+}
+
+// Dispatch function to call function based on coord system, defaults to geo mode
+function forCoordSystem<T>(
+  coordSystem: EditModeCoordinateSystem,
+  geoFn: () => T,
+  cartFn: () => T
+): T {
+  return coordSystem === cartesianCoordinateSystem ? cartFn() : geoFn();
+}
+
+function isContainingOrContained(
+  poly1: Feature<Polygon>,
+  poly2: Feature<Polygon>,
+  coordSystem: EditModeCoordinateSystem
+): boolean {
+  return forCoordSystem(
+    coordSystem,
+    () => booleanWithin(poly1, poly2) || booleanWithin(poly2, poly1),
+    () => polygonWithinPolygon(poly1, poly2) || polygonWithinPolygon(poly2, poly1)
+  );
+}
+
+function isPolygonIntersecting(
+  poly1: Feature<Polygon>,
+  poly2: Feature<Polygon>,
+  coordSystem: EditModeCoordinateSystem
+): boolean {
+  return forCoordSystem(
+    coordSystem,
+    () => lineIntersect(poly1, poly2).features.length > 0,
+    () => polygonEdgesIntersect(poly1, poly2)
+  );
+}
+
+function isPolygonWithin(
+  poly1: Feature<Polygon>,
+  poly2: Feature<Polygon>,
+  coordSystem: EditModeCoordinateSystem
+): boolean {
+  return forCoordSystem(
+    coordSystem,
+    () => booleanWithin(poly1, poly2),
+    () => polygonWithinPolygon(poly1, poly2)
+  );
 }

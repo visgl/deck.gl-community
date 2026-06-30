@@ -2,222 +2,157 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {PathLayerProps} from '@deck.gl/layers';
+import {CompositeLayer} from '@deck.gl/core';
+import {PathStyleExtension} from '@deck.gl/extensions';
 import {PathLayer} from '@deck.gl/layers';
-import type {DefaultProps, LayerContext} from '@deck.gl/core';
-import {Framebuffer} from '@luma.gl/core';
-import type {RenderPipelineParameters, Texture} from '@luma.gl/core';
-import {outline} from './outline';
 
-/**
- * Unit literal to shader unit number conversion.
- */
-export const UNIT = {
-  common: 0,
-  meters: 1,
-  pixels: 2
-};
+import type {Accessor, Color, DefaultProps, Layer, LayerExtension} from '@deck.gl/core';
+import type {PathLayerProps} from '@deck.gl/layers';
 
-// TODO - this should be built into assembleShaders
-function injectShaderCode({source, code = ''}) {
-  const INJECT_CODE = /}[^{}]*$/;
-  return source.replace(INJECT_CODE, code.concat('\n}\n'));
-}
+const DEFAULT_OUTLINE_COLOR: Color = [15, 23, 42, 180];
+const DEFAULT_OUTLINE_WIDTH_SCALE = 1.2;
 
-const VS_CODE = `\
-  outline_setUV(gl_Position);
-  outline_setZLevel(instanceZLevel);
-`;
-
-const FS_CODE = `\
-  fragColor = outline_filterColor(fragColor);
-`;
-
-const OUTLINE_SHADOWMAP_PARAMETERS: RenderPipelineParameters = {
-  blend: true,
-  blendColorSrcFactor: 'one',
-  blendColorDstFactor: 'one',
-  blendColorOperation: 'max',
-  blendAlphaSrcFactor: 'one',
-  blendAlphaDstFactor: 'one',
-  blendAlphaOperation: 'max',
-  depthWriteEnabled: false,
-  depthCompare: 'always'
-};
-
-const OUTLINE_RENDER_PARAMETERS: RenderPipelineParameters = {
-  blend: false,
-  depthWriteEnabled: false,
-  depthCompare: 'always'
-};
-
-export type PathOutlineLayerProps<DataT> = PathLayerProps<DataT> & {
+type PathOutlineLayerExtraProps<DataT> = {
+  /** Dash pattern accessor forwarded through `PathStyleExtension`. */
+  getDashArray?: Accessor<DataT, readonly [number, number] | null>;
+  /** Whether dash lengths are stretched to align with path endpoints. */
   dashJustified?: boolean;
-  getDashArray?: [number, number] | ((d: DataT) => [number, number] | null);
-  getZLevel?: (d: DataT, index: number) => number;
+  /** Color accessor used by the outline stroke rendered behind the path. */
+  getOutlineColor?: Accessor<DataT, Color>;
+  /** Multiplier applied to `widthScale` for the outline stroke. */
+  outlineWidthScale?: number;
+  /** Legacy z-order accessor retained for compatibility with older nebula.gl callers. */
+  getZLevel?: Accessor<DataT, number>;
 };
 
-const defaultProps: DefaultProps<PathOutlineLayerProps<any>> = {
-  getZLevel: () => 0
+/** Properties supported by {@link PathOutlineLayer}. */
+export type PathOutlineLayerProps<DataT = unknown> = PathLayerProps<DataT> &
+  PathOutlineLayerExtraProps<DataT>;
+
+const defaultProps: DefaultProps<PathOutlineLayerExtraProps<any>> = {
+  getDashArray: {type: 'accessor', value: null},
+  dashJustified: false,
+  getOutlineColor: {type: 'accessor', value: DEFAULT_OUTLINE_COLOR},
+  outlineWidthScale: {type: 'number', min: 1, value: DEFAULT_OUTLINE_WIDTH_SCALE},
+  getZLevel: {type: 'accessor', value: 0}
 };
 
-export class PathOutlineLayer<DataT = any, ExtraPropsT = Record<string, unknown>> extends PathLayer<
-  DataT,
-  ExtraPropsT & Required<PathOutlineLayerProps<DataT>>
+/** Renders a deck.gl `PathLayer` with a crisp outline stroke behind it. */
+export class PathOutlineLayer<
+  DataT = any,
+  ExtraPropsT = Record<string, unknown>
+> extends CompositeLayer<
+  ExtraPropsT & PathOutlineLayerProps<DataT> & Required<PathOutlineLayerExtraProps<DataT>>
 > {
-  static layerName = 'PathOutlineLayer';
-  static defaultProps = defaultProps;
+  static override layerName = 'PathOutlineLayer';
+  static override defaultProps = defaultProps;
 
-  state: {
-    model?: any;
-    pathTesselator: any;
-    outlineFramebuffer: Framebuffer;
-  } = undefined!;
-
-  // Override getShaders to inject the outline module
-  getShaders() {
-    const shaders = super.getShaders();
-    return Object.assign({}, shaders, {
-      modules: shaders.modules.concat([outline]),
-      vs: injectShaderCode({source: shaders.vs, code: VS_CODE}),
-      fs: injectShaderCode({source: shaders.fs, code: FS_CODE})
-    });
-  }
-
-  // @ts-expect-error PathLayer is missing LayerContext arg
-  initializeState(context: LayerContext) {
-    super.initializeState();
-
-    const attributeManager = this.getAttributeManager();
-
-    if (!attributeManager) {
-      throw new Error('PathOutlineLayer requires an attribute manager during initialization.');
-    }
-
-    // Create an outline "shadow" map
-    // TODO - we should create a single outlineMap for all layers
-    const outlineFramebuffer = context.device.createFramebuffer({
-      colorAttachments: [
-        context.device.createTexture({
-          format: 'rgba8unorm',
-          width: 1,
-          height: 1,
-          mipLevels: 1
-        })
-      ]
-    });
-
-    attributeManager.addInstanced({
-      instanceZLevel: {
-        size: 1,
-        type: 'uint8',
-        accessor: 'getZLevel'
-      }
-    });
-
-    this.setState({
-      outlineFramebuffer,
-      model: this._getModel()
-    });
-  }
-
-  finalizeState(context: LayerContext) {
-    this.state.outlineFramebuffer?.destroy();
-    super.finalizeState(context);
-  }
-
-  // Override draw to add render module
-  draw() {
-    const model = this.state.model;
-    const outlineFramebuffer = this.state.outlineFramebuffer;
-
-    if (!model || !outlineFramebuffer) {
-      return;
-    }
-
-    const viewport = this.context.viewport;
-    const viewportWidth = Math.max(1, Math.ceil(viewport.width));
-    const viewportHeight = Math.max(1, Math.ceil(viewport.height));
-
-    outlineFramebuffer.resize({width: viewportWidth, height: viewportHeight});
-
-    const shadowmapTexture = getFramebufferTexture(outlineFramebuffer);
-
-    if (!shadowmapTexture) {
-      return;
-    }
-
+  override renderLayers(): Layer[] {
     const {
-      jointRounded,
-      capRounded,
-      billboard,
-      miterLimit,
-      widthUnits,
+      extensions,
+      getColor,
+      getOutlineColor,
+      outlineWidthScale,
+      parameters,
+      updateTriggers = {},
       widthScale,
-      widthMinPixels,
-      widthMaxPixels
-    } = this.props;
+      dashJustified,
+      getDashArray,
+      getZLevel: _getZLevel
+    } = this.props as PathOutlineLayerProps<DataT>;
 
-    const basePathProps = {
-      jointType: Number(jointRounded),
-      capType: Number(capRounded),
-      billboard,
-      widthUnits: UNIT[widthUnits],
-      widthScale,
-      miterLimit,
-      widthMinPixels,
-      widthMaxPixels
-    };
+    const pathExtensions = getDashArray
+      ? ensurePathStyleExtension(extensions)
+      : getLayerExtensions(extensions);
+    const pathParameters = getPathRenderParameters(parameters);
+    const baseWidthScale = widthScale ?? 1;
+    const resolvedOutlineWidthScale = outlineWidthScale ?? DEFAULT_OUTLINE_WIDTH_SCALE;
+    const pathDashProps = getDashArray
+      ? {
+          dashJustified,
+          getDashArray: normalizeDashArrayAccessor(getDashArray)
+        }
+      : {};
+    const outlineDashProps = getDashArray
+      ? {
+          dashJustified,
+          getDashArray: normalizeDashArrayAccessor(getDashArray, 1 / resolvedOutlineWidthScale)
+        }
+      : {};
 
-    // Render the outline shadowmap (based on segment z orders)
-    this.setShaderModuleProps({
-      outline: {
-        outlineEnabled: true,
-        outlineRenderShadowmap: true,
-        outlineShadowmap: shadowmapTexture
-      }
-    });
-    model.shaderInputs.setProps({
-      path: {
-        ...basePathProps,
-        jointType: 0,
-        widthScale: widthScale * 1.3
-      }
-    });
-    model.setParameters(OUTLINE_SHADOWMAP_PARAMETERS);
-    const shadowRenderPass = this.context.device.beginRenderPass({
-      id: `${this.props.id}-outline-shadowmap`,
-      framebuffer: outlineFramebuffer,
-      parameters: {viewport: [0, 0, viewportWidth, viewportHeight]},
-      clearColor: [0, 0, 0, 0],
-      clearDepth: 1,
-      clearStencil: 0
-    });
-    model.draw(shadowRenderPass);
-    shadowRenderPass.end();
-
-    // Now use the outline shadowmap to render the lines (with outlines)
-    this.setShaderModuleProps({
-      outline: {
-        outlineEnabled: true,
-        outlineRenderShadowmap: false,
-        outlineShadowmap: shadowmapTexture
-      }
-    });
-    model.shaderInputs.setProps({
-      path: basePathProps
-    });
-    model.setParameters(OUTLINE_RENDER_PARAMETERS);
-    model.draw(this.context.renderPass);
+    return [
+      new PathLayer<DataT>(
+        this.props as unknown as PathLayerProps<DataT>,
+        this.getSubLayerProps({
+          ...outlineDashProps,
+          id: 'outline',
+          extensions: pathExtensions,
+          getColor: getOutlineColor,
+          parameters: pathParameters,
+          updateTriggers: {
+            ...updateTriggers,
+            getColor: updateTriggers['getOutlineColor'],
+            getWidth: updateTriggers['getWidth']
+          },
+          widthScale: baseWidthScale * resolvedOutlineWidthScale
+        })
+      ),
+      new PathLayer<DataT>(
+        this.props as unknown as PathLayerProps<DataT>,
+        this.getSubLayerProps({
+          ...pathDashProps,
+          id: 'path',
+          extensions: pathExtensions,
+          getColor,
+          parameters: pathParameters,
+          updateTriggers,
+          widthScale
+        })
+      )
+    ];
   }
 }
 
-function getFramebufferTexture(framebuffer: Framebuffer): Texture | null {
-  const colorAttachment = framebuffer.colorAttachments[0];
+function ensurePathStyleExtension(extensions: readonly LayerExtension[] = []): LayerExtension[] {
+  const hasPathStyle = extensions.some(
+    extension =>
+      (extension.constructor as typeof PathStyleExtension).extensionName ===
+      PathStyleExtension.extensionName
+  );
 
-  if (!colorAttachment) {
-    return null;
+  return hasPathStyle
+    ? [...extensions]
+    : [...extensions, new PathStyleExtension({dash: true, highPrecisionDash: true})];
+}
+
+function getLayerExtensions(extensions: readonly LayerExtension[] = []): LayerExtension[] {
+  return [...extensions];
+}
+
+function normalizeDashArrayAccessor<DataT>(
+  getDashArray: PathOutlineLayerProps<DataT>['getDashArray'],
+  scale = 1
+) {
+  if (typeof getDashArray === 'function') {
+    return (datum: DataT, info: any) => scaleDashArray(getDashArray(datum, info), scale);
   }
+  return scaleDashArray(getDashArray, scale);
+}
 
-  return 'texture' in colorAttachment ? colorAttachment.texture : colorAttachment;
+function scaleDashArray(
+  dashArray: readonly [number, number] | null | undefined,
+  scale: number
+): [number, number] {
+  const [dashSize, gapSize] = dashArray ?? [0, 0];
+  return [dashSize * scale, gapSize * scale];
+}
+
+function getPathRenderParameters(parameters: PathLayerProps['parameters']) {
+  const {depthTest: _depthTest, ...rest} = (parameters ?? {}) as Record<string, unknown>;
+
+  return {
+    ...rest,
+    depthCompare: 'always' as const,
+    depthWriteEnabled: false
+  };
 }

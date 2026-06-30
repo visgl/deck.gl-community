@@ -61,6 +61,18 @@ main .container {
   position: relative;
 }
 
+.markdown .badges {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.markdown .badges img {
+  display: block;
+  margin: 0;
+}
+
 .markdown .docs-markdown-table {
   margin: 1.75rem 0;
   width: fit-content;

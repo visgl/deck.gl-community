@@ -17,7 +17,8 @@ import {
   OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
-  type OmniBoxRenderOptionArgs
+  type OmniBoxRenderOptionArgs,
+  type OmniBoxResultsSummaryArgs
 } from '@deck.gl-community/widgets';
 ```
 
@@ -42,6 +43,12 @@ export type OmniBoxRenderOptionArgs = {
   isActive: boolean;
   query: string;
 };
+
+export type OmniBoxResultsSummaryArgs = {
+  readonly query: string;
+  readonly options: ReadonlyArray<OmniBoxOption>;
+  readonly mode: 'search' | 'command' | 'history';
+};
 ```
 
 ## Props
@@ -60,6 +67,7 @@ type OmniBoxWidgetProps = WidgetProps & {
   topOffsetPx?: number;
   getOptions?: OmniBoxOptionProvider;
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
+  renderResultsSummary?: (args: OmniBoxResultsSummaryArgs) => ComponentChildren;
   onSelectOption?: (option: OmniBoxOption) => void;
   onActiveOptionChange?: (option: OmniBoxOption | null) => void;
   onNavigateOption?: (option: OmniBoxOption) => void;
@@ -78,6 +86,7 @@ const widget = new OmniBoxWidget({
   queryHistoryStorageKey: 'example-search-history',
   minQueryLength: 1,
   getOptions: (query) => searchItems(query),
+  renderResultsSummary: ({options}) => `${options.length} matches`,
   onSelectOption: (option) => selectItem((option.data as any).id),
   onNavigateOption: (option) => previewItem((option.data as any).id)
 });
@@ -97,4 +106,5 @@ This widget is intentionally generic. Callers provide search options, selection 
 - Can render a compact slash anchor button while closed.
 - Can keep the result list open after selection with `closeOnSelect: false`.
 - Can remember recent selected queries in `localStorage`.
+- Can render a caller-provided summary row above the dropdown results.
 - Closes on blur after a short delay so option clicks can still land.

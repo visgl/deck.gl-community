@@ -46,5 +46,5 @@ type PanelThemeVariables = Record<`--${string}`, string>;
 ## Remarks
 
 - These theme variables are intended for standalone `panels` usage.
-- deck.gl widget wrappers should continue to use deck.gl theming from `@deck.gl/widgets`.
+- deck.gl widget adapters should continue to use deck.gl theming from `@deck.gl/widgets`.
 - Panel theme inference continues to work through the themed host element and `PanelManager`.

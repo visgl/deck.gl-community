@@ -10,9 +10,25 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 - Breaking change: panel composition APIs no longer expose `Widget*` names from `@deck.gl-community/panels`.
 - Breaking change: composite panel constructors now accept ordered `Panel[]` arrays instead of `PanelRecord` maps.
-- Breaking change: shell containers (`PanelBox`, `PanelModal`, `PanelSidebar`, `PanelFullScreen`) accept `panel` only; descriptor-style `container` inputs were removed.
+- Breaking change: `PanelComponent` is now the root mountable panels API.
+- Breaking change: `Panel` now extends `PanelComponent`; leaf and composite
+  panels inherit from `Panel`.
+- Breaking change: shell containers were renamed to
+  `BoxPanelContainer`, `ModalPanelContainer`, `SidebarPanelContainer`, and
+  `FullScreenPanelContainer`.
+- Breaking change: shell containers accept `panel` only; descriptor-style
+  `container` inputs were removed.
 - Breaking change: `PanelContentContainer`, `PanelContentRenderer`, and `asPanelContainer` were removed.
-- Breaking change: `WidgetHost` was removed. Use `PanelManager` outside deck.gl and widget wrapper classes inside deck.gl.
+- Breaking change: `WidgetHost` was removed. Use `PanelManager` outside deck.gl
+  and `PanelWidget` adapters inside deck.gl.
+- Breaking change: `ToolbarPanelContainer` and `ToastPanelContainer` were
+  renamed to `ToolbarComponent` and `ToastComponent`; they are specialized
+  `PanelComponent` instances, not panel containers.
+- Breaking change: `BoxWidget`, `ModalWidget`, `SidebarWidget`,
+  `createStudioSettingsWidget`, `updateStudioSettingsWidget`, and widget-owned
+  panel aliases were removed.
+- Breaking change: modal and sidebar trigger icons use `triggerIcon`; the
+  legacy `icon` aliases were removed.
 - Migration:
   - `WidgetPanel` -> `Panel`
   - `WidgetPanelTheme` -> `PanelTheme`
@@ -20,10 +36,57 @@ Please refer the documentation of each module for detailed upgrade guides.
   - `AccordeonWidgetContainer` -> `AccordeonPanelContainer`
   - `TabbedWidgetContainer` -> `TabbedPanelContainer`
   - `ColumnWidgetContainer` -> `ColumnPanelContainer`
-  - `ToolbarWidget` -> `ToolbarPanelContainer`
-  - `ToastWidget` -> `ToastPanelContainer`
+  - `PanelBox` -> `BoxPanelContainer`
+  - `PanelModal` -> `ModalPanelContainer`
+  - `PanelSidebar` -> `SidebarPanelContainer`
+  - `PanelFullScreen` -> `FullScreenPanelContainer`
+  - `ToolbarPanelContainer` -> `ToolbarComponent`
+  - `ToastPanelContainer` -> `ToastComponent`
   - `useEffectiveWidgetPanelThemeMode` -> `useEffectivePanelThemeMode`
+- Deck migration: wrap any `PanelComponent` with `new PanelWidget({component})`,
+  or use the thin named adapters `BoxPanelWidget`, `ModalPanelWidget`,
+  `SidebarPanelWidget`, `FullScreenPanelWidget`, `ToolbarWidget`, and
+  `ToastWidget`.
+- Deck migration: import `createStudioSettingsWidget` and
+  `updateStudioSettingsWidget` from `@deck.gl-community/widgets` instead of
+  `@deck.gl-community/panels`.
 - New API: `SplitterPanel` composes the first panel in one resizable pane and the remaining panels in a second pane.
+
+### `@deck.gl-community/trace-layers`
+
+- Breaking change: package subpaths were normalized:
+  - `@deck.gl-community/trace-layers/trace-graph` -> `@deck.gl-community/trace-layers/trace`
+  - `@deck.gl-community/trace-layers/deck-trace-layers` -> `@deck.gl-community/trace-layers/layers`
+  - `@deck.gl-community/trace-layers/trace-loaders` -> `@deck.gl-community/trace-layers/loaders`
+  - `@deck.gl-community/trace-layers/tracevis` -> `@deck.gl-community/trace-layers/react`
+- Breaking change: trace-layers no longer owns vendored community panel/widget
+  helpers or vendored deck fast-text/view-layout helpers.
+- Breaking change: `DeckTraceGraph` now accepts `{engine, className?, reactConfig?}` instead of
+  the previous graph/settings/collapse/selection callback prop set. Mount `TraceEngine`, sync
+  durable inputs into it, and subscribe to `TraceEngineUpdate` when host persistence is needed.
+- Breaking change: `TraceChunkStore` no longer exposes the old store-owned window graph snapshot
+  compatibility flow. Select descriptors, materialize immutable `TraceGraphData` through the
+  source-owned `TraceChunkWindowGraphMaterializer`, and wrap it in `TraceGraph`.
+- Migration:
+  - Import panel definitions, settings managers, commands, keyboard shortcuts,
+    and panel containers from `@deck.gl-community/panels`.
+  - Import deck widget adapters, `OmniBoxWidget`, toast/time/heap widgets, and
+    Studio settings widget helpers from `@deck.gl-community/widgets`.
+  - Import `FastTextLayer`, UTF8 Arrow string-view helpers, and view-layout
+    helpers from `@deck.gl-community/infovis-layers`.
+  - Replace old `DeckTraceGraph` controlled props with `TraceEngineInputs` plus
+    `DeckTraceGraphConfig`.
+  - Replace old `TraceStoreLayer` sources with sources that provide
+    `materializeTraceGraphData`.
+
+### `@deck.gl-community/react`
+
+- Breaking change: `WidgetPanel` was renamed to `Panel`.
+- Migration:
+  - `WidgetPanel` -> `Panel`
+  - `WidgetPanelProps` -> `PanelProps`
+  - `WidgetPanelThemeMode` -> `PanelHostThemeMode`
+- The React `Panel` host now uses `@deck.gl-community/panels` theme variables directly and no longer has an `@deck.gl/widgets` peer dependency.
 
 ## v9.3
 
@@ -45,10 +108,8 @@ Please refer the documentation of each module for detailed upgrade guides.
   - `ModalPanelWidget`
   - `SidebarPanelWidget`
   - `FullScreenPanelWidget`
-- Compatibility aliases remain available:
-  - `BoxWidget`
-  - `ModalWidget`
-  - `SidebarWidget`
+- Compatibility aliases `BoxWidget`, `ModalWidget`, and `SidebarWidget` were
+  removed in v9.4.
 
 ### `@deck.gl-community/editable-layers`
 

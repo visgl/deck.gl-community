@@ -3,7 +3,7 @@ import {makeImperativeExample} from '../../components';
 
 export default makeImperativeExample(
   {
-    title: 'Path outline and marker',
+    title: 'Path outline, marker, and dependency arrow',
     code: `${GITHUB_TREE}/examples/layers/path-marker-outline`,
     async mount(container) {
       const {mountPathOutlineAndMarkersExample} = await import(

@@ -5,7 +5,7 @@ import {useContext, useLayoutEffect, useRef, useState} from 'preact/hooks';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 
 import type {ComponentChildren, JSX} from 'preact';
-import type {Panel, PanelTheme, PanelThemeMode} from './panel-types';
+import type {Panel, PanelTheme, PanelThemeMode} from './panel';
 
 const PanelThemeModeContext = createContext<PanelThemeMode | undefined>(undefined);
 

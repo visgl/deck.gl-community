@@ -12,8 +12,8 @@ import {
   MarkdownPanel,
   PanelManager,
   TabbedPanel,
-  ToastPanelContainer,
-  ToolbarPanelContainer,
+  ToastComponent,
+  ToolbarComponent,
   toastManager
 } from '../../../modules/panels/src';
 
@@ -157,19 +157,19 @@ export function mountStandalonePanelContainersExample(container: HTMLElement): (
     focus: 'overview'
   };
 
-  const toolbarPanelContainer = new ToolbarPanelContainer({
+  const toolbarComponent = new ToolbarComponent({
     id: 'standalone-toolbar',
     placement: 'bottom-left',
     items: buildToolbarItems(state, sync)
   });
 
-  const toastPanelContainer = new ToastPanelContainer({
+  const toastComponent = new ToastComponent({
     id: 'standalone-toast',
     placement: 'bottom-right',
     showBorder: true
   });
 
-  host.setProps({components: [toolbarPanelContainer, toastPanelContainer]});
+  host.setProps({components: [toolbarComponent, toastComponent]});
   sync();
 
   return () => {
@@ -193,7 +193,7 @@ export function mountStandalonePanelContainersExample(container: HTMLElement): (
     renderScene(sceneElement, state);
     render(buildDashboardPanel(state, sync).content, panelElement);
 
-    toolbarPanelContainer.setProps({
+    toolbarComponent.setProps({
       items: buildToolbarItems(state, sync)
     });
   }

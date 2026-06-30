@@ -19,7 +19,7 @@ export const SYNCHRONIZED_VIEWS = [
     flipY: false,
     clear: true, // [1, 1, 1, 1],
     x: LEGEND_VIEW_WIDTH,
-    width: `calc(100% - ${LEGEND_VIEW_WIDTH}px`,
+    width: `calc(100% - ${LEGEND_VIEW_WIDTH}px)`,
     y: HEADER_VIEW_HEIGHT,
     height: `calc(100% - ${HEADER_VIEW_HEIGHT}px)`,
     controller: {

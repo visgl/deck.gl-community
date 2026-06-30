@@ -4,19 +4,67 @@
 
 Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
+### `@deck.gl-community/layers`
+
+- `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
+- `PathOutlineLayer` and `PathMarkerLayer` now use deck.gl v9-native sublayers for outlined paths, dashed strokes, and pixel-sized directional markers, restoring the path outline and marker example.
+
+### `@deck.gl-community/infovis-layers`
+
+- Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.
+
+### `@deck.gl-community/timeline-layers`
+
+- `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
+
+### `@deck.gl-community/trace-layers`
+
+- Trace graph data, layout, style, runtime-ref, Chrome trace, Perfetto trace, and Arrow ingestion APIs now ship from normalized `trace`, `layers`, `loaders`, and `react` package subpaths.
+- `TraceEngine` now owns mounted trace selection, collapse, layout, prepared scene, and diagnostics state below React; `DeckTraceGraph` renders an engine instead of receiving the full controlled trace-view state directly.
+- `TraceChunkStore` now exposes source-owned graph-data materialization and retained-state diagnostics for incremental windows, while `TraceStoreLayer` composes that flow as a low-level deck layer.
+- `DeckTraceGraph`, deck controllers/layers, trace loaders, and the Tracevis React surface now consume shared `@deck.gl-community/panels`, `@deck.gl-community/widgets`, and `@deck.gl-community/infovis-layers` APIs instead of vendored upstream copies.
+- Added the website Tracevis example for exercising trace loading, selection, catalog, and Studio visualization settings workflows.
+
+### `@deck.gl-community/react`
+
+- `<Panel />` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.
+
+### `@deck.gl-community/widgets`
+
+- `PanelWidget` - NEW generic deck adapter for any panel-owned `PanelComponent`.
+- Thin named adapters now cover real panel containers plus specialized toolbar
+  and toast components without duplicating panel rendering logic.
+- `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
+- `OmniBoxWidget` now accepts shared command manager search prefixes for command-mode Tracevis integrations.
+- `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
+- `createStudioSettingsWidget` and `updateStudioSettingsWidget` now host the shared Studio settings panel through deck widget chrome.
+
 ### `@deck.gl-community/panels` (NEW module)
 
 A new module for deck-independent panel composition and small application UI.
 
 - `PanelManager` - mount compatible panel-managed UI into a plain `HTMLElement`
+- `PanelComponent` - NEW root lifecycle for mountable panel-owned UI.
+- `Panel` now inherits the shared `PanelComponent` lifecycle, including direct mounting.
 - Panel/container composition APIs extracted into a dedicated package
 - Stand-alone documentation and examples for panel composition outside deck.gl
-- `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
-- `ArrowTablePanel` - NEW reusable panel for bounded Apache Arrow table previews with a row-limit summary.
-- `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema and field metadata with JSON metadata formatting.
+- Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs.
+- `ModalPanelContainer` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
+
 - `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
-- Panel APIs now use panel terminology throughout `@deck.gl-community/panels`; deck.gl widget-facing wrappers remain in `@deck.gl-community/widgets`.
-- Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs, and the redundant descriptor/`WidgetHost` surfaces are removed.
+
+- `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
+- `ArrowTablePanel` - NEW reusable panel for bounded Apache Arrow table previews with row, column, batch, nested-list, matrix, temporal, and loaders.gl wrapper support.
+- `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema, field, child, matrix, and temporal metadata with JSON metadata formatting.
+- `ArrowBatchesPanel` - NEW reusable panel for inspecting Arrow record batches, row counts, cumulative row ranges, and column counts.
+- `StudioSettingsPanel` - NEW schema-driven settings surface with grouped controls, compact navigation, and visual routing-shape controls.
+- `SettingsPanel` now renders `multi-select` descriptors through the shared searchable panel selector.
+- `SettingsPanel` numeric range inputs can apply descriptor-level trailing debounce via `sliderDebounceMs`.
+- `SettingsPanel` and `StudioSettingsPanel` select menus can render option descriptions and grow to fit long labels; `StudioSettingsPanel` also accepts `settingRowLayout: 'fit-labels'` when controls should claim width from short labels.
+- `ModalPanelContainer` and `SidebarPanelContainer` trigger icons can render data/http(s) image URLs as CSS mask icons.
+
+- `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
+- `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.
 
 ## v9.3
 
@@ -37,27 +85,6 @@ Highlights:
 - Examples transitioned from React to "pure JavaScript" examples using deck.gl widget panels.
 - Website and remaining React examples now build against React 19; `@deck.gl-community/react` accepts both React 18 and React 19.
 
-### `@deck.gl-community/basemap-layers` (NEW module)
-
-A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
-
-- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
-- `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
-- `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
-- `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
-- [BasemapLayer MapView](/examples/layers/basemap-layer-map-view) - Interactive flat-map control example with style switching and globe/flat runtime validation.
-
-#### `@deck.gl-community/basemap-layers/map-style`
-
-Utilities for loading and working with map styles available as a separate deck.gl independent sub-export.
-
-- `MapStyleLoader` - loaders.gl-compatible loader wrapper for resolving and validating style documents.
-- `BasemapSourceSchema`, `BasemapStyleLayerSchema`, `BasemapStyleSchema`, `ResolvedBasemapStyleSchema` - Zod schemas for strongly typed style validation.
-- `parseProperties` - Resolve style paint/layout properties for a given zoom level.
-- `filterFeatures` - Apply Mapbox-style feature filters to decoded features.
-- `findFeaturesStyledByLayer` - Inspect which features match a specific style layer.
-- `resolveBasemapStyle` - Resolve style URLs, in-memory style objects, relative TileJSON references, and source URLs into a validated runtime style definition.
-
 ### `@deck.gl-community/layers`
 
 - [`SkyboxLayer`](/docs/modules/layers/api-reference/skybox-layer) - NEW experimental layer for rendering a camera-centered cubemap background in deck.gl.
@@ -70,6 +97,25 @@ Examples:
 - [SkyboxLayer MapView](/examples/layers/skybox-map-view)
 - [SkyboxLayer GlobeView](/examples/layers/skybox-globe)
 - [SkyboxLayer FirstPersonView](/examples/layers/skybox-first-person)
+
+### `@deck.gl-community/basemap-layers` (NEW module)
+
+A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
+
+- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
+- `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
+- `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
+- `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
+- [BasemapLayer MapView](/examples/layers/basemap-layer-map-view) - Interactive flat-map control example with style switching and globe/flat runtime validation.
+
+**`@deck.gl-community/basemap-layers/map-style`** - Utilities for loading and working with map styles available as a separate deck.gl independent sub-export:
+
+- `MapStyleLoader` - loaders.gl-compatible loader wrapper for resolving and validating style documents.
+- `BasemapSourceSchema`, `BasemapStyleLayerSchema`, `BasemapStyleSchema`, `ResolvedBasemapStyleSchema` - Zod schemas for strongly typed style validation.
+- `parseProperties` - Resolve style paint/layout properties for a given zoom level.
+- `filterFeatures` - Apply Mapbox-style feature filters to decoded features.
+- `findFeaturesStyledByLayer` - Inspect which features match a specific style layer.
+- `resolveBasemapStyle` - Resolve style URLs, in-memory style objects, relative TileJSON references, and source URLs into a validated runtime style definition.
 
 ### `@deck.gl-community/three` (NEW module)
 
