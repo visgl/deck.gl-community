@@ -200,6 +200,57 @@ test('Rectangular polygon feature preserves shape', () => {
   expect(props.data.features[0]).not.toEqual(movedFeature);
 });
 
+test('lockRectangles preserves rotated rectangle orientation while dragging a corner', () => {
+  const rotatedRectangleFeature = {
+    type: 'Feature',
+    properties: {shape: 'Rectangle'},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, -2],
+          [2, 0],
+          [0, 2],
+          [-2, 0],
+          [0, -2]
+        ]
+      ]
+    }
+  };
+  const mockOnEdit = vi.fn();
+  const props = createFeatureCollectionProps({
+    data: {
+      type: 'FeatureCollection',
+      features: [rotatedRectangleFeature]
+    } as FeatureCollection,
+    selectedIndexes: [0],
+    modeConfig: {lockRectangles: true},
+    onEdit: mockOnEdit
+  });
+
+  const mode = new ModifyMode();
+  const guides = mode.getGuides(props);
+  const cornerHandle = guides.features[0];
+  const dragStart = cornerHandle.geometry.coordinates as Position;
+  const dragEnd = [0, -4];
+  const picks = [{index: 0, isGuide: true, object: cornerHandle}];
+
+  mode.handleStartDragging(createStartDraggingEvent(dragStart, dragStart, picks), props);
+  mode.handleStopDragging(createStopDraggingEvent(dragEnd, dragStart, picks, picks), props);
+
+  expect(mockOnEdit).toHaveBeenCalledTimes(1);
+
+  const movedCoordinates =
+    mockOnEdit.mock.calls[0][0].updatedData.features[0].geometry.coordinates[0];
+  expect(movedCoordinates[0]).toEqual([0, -4]);
+  expect(movedCoordinates[2]).toEqual([0, 2]);
+  expect(movedCoordinates[1][0]).toBeCloseTo(3);
+  expect(movedCoordinates[1][1]).toBeCloseTo(-1);
+  expect(movedCoordinates[3][0]).toBeCloseTo(-3);
+  expect(movedCoordinates[3][1]).toBeCloseTo(-1);
+  expect(movedCoordinates[4]).toEqual(movedCoordinates[0]);
+});
+
 test('lockRectangles prevents removing rectangle corner on click', () => {
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
