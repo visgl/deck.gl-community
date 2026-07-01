@@ -36,6 +36,10 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/layers/src/index.ts', import.meta.url))
   },
   {
+    find: /^@deck\.gl-community\/json$/,
+    replacement: fileURLToPath(new URL('./modules/json/src/index.ts', import.meta.url))
+  },
+  {
     find: /^@deck\.gl-community\/timeline-layers$/,
     replacement: fileURLToPath(new URL('./dev/timeline-layers/src/index.ts', import.meta.url))
   },
@@ -104,6 +108,8 @@ const CONFIG = defineConfig({
           exclude: [
             'modules/**/dist/**',
             'dev/**/dist/**',
+            'modules/**/node_modules/**',
+            'dev/**/node_modules/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/widgets/src/widget-panels/toolbar-widget.test.ts',

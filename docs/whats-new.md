@@ -13,6 +13,10 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 - Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.
 
+### `@deck.gl-community/json` (NEW module)
+
+- Added shared Zod-backed GeoJSON schemas and inferred TypeScript types for positions, bounding boxes, geometries, features, and feature collections.
+
 ### `@deck.gl-community/timeline-layers`
 
 - `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
