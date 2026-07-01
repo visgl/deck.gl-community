@@ -2,18 +2,26 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {generatePointsParallelToLinePoints} from './utils';
+import {forCoordSystem, generatePointsParallelToLinePoints} from './utils';
 import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {ThreeClickPolygonMode} from './three-click-polygon-mode';
+import {EditModeCoordinateSystem} from './coordinate-system';
+import {generatePointsParallelToLinePointsCartesian} from './cartesian-utils';
 
 export class DrawRectangleUsingThreePointsMode extends ThreeClickPolygonMode {
   getThreeClickPolygon(
     coord1: Position,
     coord2: Position,
     coord3: Position,
-    modeConfig: any
+    modeConfig: any,
+    coordinateSystem: EditModeCoordinateSystem
   ): Feature<Polygon> | null | undefined {
-    const [p3, p4] = generatePointsParallelToLinePoints(coord1, coord2, coord3);
+    // const [p3, p4] = generatePointsParallelToLinePoints(coord1, coord2, coord3);
+    const [p3, p4] = forCoordSystem(
+      coordinateSystem,
+      () => generatePointsParallelToLinePoints(coord1, coord2, coord3),
+      () => generatePointsParallelToLinePointsCartesian(coord1, coord2, coord3)
+    );
 
     return {
       type: 'Feature',
