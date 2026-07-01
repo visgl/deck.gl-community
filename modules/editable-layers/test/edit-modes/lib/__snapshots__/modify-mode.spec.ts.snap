@@ -180,16 +180,16 @@ exports[`Rectangular polygon feature preserves shape 2`] = `
           -100,
         ],
         [
+          110,
           -100,
-          115,
         ],
         [
           110,
           115,
         ],
         [
-          110,
           -100,
+          115,
         ],
         [
           -100,

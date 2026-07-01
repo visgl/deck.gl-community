@@ -489,14 +489,52 @@ export function updateRectanglePosition(
   }
 
   const points = coordinates[0].slice(0, 4);
-  points[editHandleIndex % 4] = coords;
+  const currentIndex = editHandleIndex % 4;
+  const nextIndex = (currentIndex + 1) % 4;
+  const oppositeIndex = (currentIndex + 2) % 4;
+  const previousIndex = (currentIndex + 3) % 4;
 
-  const p0 = points[(editHandleIndex + 2) % 4];
-  const p2 = points[editHandleIndex % 4];
-  points[(editHandleIndex + 1) % 4] = [p2[0], p0[1]];
-  points[(editHandleIndex + 3) % 4] = [p0[0], p2[1]];
+  const oppositePoint = points[oppositeIndex];
+  const nextAxis = normalizeVector([
+    points[nextIndex][0] - oppositePoint[0],
+    points[nextIndex][1] - oppositePoint[1]
+  ]);
+  const previousAxis = normalizeVector([
+    points[previousIndex][0] - oppositePoint[0],
+    points[previousIndex][1] - oppositePoint[1]
+  ]);
+
+  if (!nextAxis || !previousAxis) {
+    return null;
+  }
+
+  const delta = [coords[0] - oppositePoint[0], coords[1] - oppositePoint[1]];
+  const nextDistance = dotProduct(delta, nextAxis);
+  const previousDistance = dotProduct(delta, previousAxis);
+
+  points[currentIndex] = coords;
+  points[nextIndex] = [
+    oppositePoint[0] + nextAxis[0] * nextDistance,
+    oppositePoint[1] + nextAxis[1] * nextDistance
+  ];
+  points[previousIndex] = [
+    oppositePoint[0] + previousAxis[0] * previousDistance,
+    oppositePoint[1] + previousAxis[1] * previousDistance
+  ];
 
   return [[...points, points[0]]];
+}
+
+function normalizeVector(vector: number[]): number[] | null {
+  const length = Math.hypot(vector[0], vector[1]);
+  if (length === 0) {
+    return null;
+  }
+  return [vector[0] / length, vector[1] / length];
+}
+
+function dotProduct(left: number[], right: number[]): number {
+  return left[0] * right[0] + left[1] * right[1];
 }
 
 /** Creates a copy of feature's coordinates.
