@@ -48,7 +48,7 @@ export class SourceSnappingStrategy implements SnappingStrategy {
       return {
         type: 'FeatureCollection',
         features: [
-          ...getSnapTargetHandles(props, props.selectedIndexes),
+          ...getSnapTargetHandles(props, new Set(props.selectedIndexes)),
           this._getUpdatedSnapSourceHandle(snapSourceHandle, props.data)
         ]
       };

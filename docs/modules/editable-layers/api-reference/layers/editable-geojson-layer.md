@@ -83,6 +83,7 @@ Snapping-related `modeConfig` properties (used by `SnappableMode`):
 
 - `enableSnapping` (Boolean, optional) - Enables snapping for modes that support snapping such as `TranslateMode`.
 - `edgeSnapping` (Boolean, optional) - When `true`, snap targets include the nearest point on any edge of a candidate feature, not just its vertices. **Requires `viewport` to be set**.
+- `snapper` (`Snapper`, optional) - Custom snapper implementation. Use this to override the default snapping logic.
 - `additionalSnapTargets` (Object[], optional) - An array of GeoJSON Features that can be snapped to. This property only needs to be specified if you want to snap to features in other deck.gl layers. All features in this `EditableGeoJsonLayer` will be snap targets.
 - `viewport` (Viewport, optional) - The current deck.gl viewport. Required for certain snapping behavior.
 

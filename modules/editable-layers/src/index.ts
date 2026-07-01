@@ -99,6 +99,8 @@ export {SnappableMode} from './edit-modes/snappable-mode';
 export {ClickSnappingStrategy} from './edit-modes/snapping/click-snapping-strategy';
 export {DragSnappingStrategy} from './edit-modes/snapping/drag-snapping-strategy';
 export {SourceSnappingStrategy} from './edit-modes/snapping/source-snapping-strategy';
+export {DefaultSnapper, DEFAULT_SNAPPER} from './edit-modes/snapping/default-snapper';
+export type {Snapper, SnapResult} from './edit-modes/snapping/snapper';
 
 export type {
   ScreenCoordinates,

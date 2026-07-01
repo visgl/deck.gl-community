@@ -805,7 +805,11 @@ export function Example() {
                 selected={mode === modeOption}
                 onClick={() => {
                   setMode(() => modeOption);
-                  setModeConfig(getDefaultModeConfig(modeOption));
+                  setModeConfig(prevModeConfig => ({
+                    ...getDefaultModeConfig(modeOption),
+                    enableSnapping: prevModeConfig?.enableSnapping,
+                    edgeSnapping: prevModeConfig?.edgeSnapping
+                  }));
                   setSelectionTool(undefined);
                 }}
               >

@@ -32,7 +32,7 @@ export class DragSnappingStrategy implements SnappingStrategy {
     }
     const draggedIndex = getDraggedEditHandleFeatureIndex(props);
     const excludedFeatureIndexes = draggedIndex !== undefined ? [draggedIndex] : [];
-    const snapTarget = getClosestSnapTargetHandle(props, excludedFeatureIndexes);
+    const snapTarget = getClosestSnapTargetHandle(props, new Set(excludedFeatureIndexes));
     return {
       type: 'FeatureCollection',
       features: snapTarget ? [snapTarget] : []

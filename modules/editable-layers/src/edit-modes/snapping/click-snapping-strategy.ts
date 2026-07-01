@@ -5,7 +5,6 @@
 import {ClickEvent, GuideFeatureCollection, ModeProps, MovementEvent} from '../types';
 import {FeatureCollection} from '../../utils/geojson-types';
 import {
-  getDraggedEditHandleFeatureIndex,
   snapClickEventToPickedTarget,
   snapMovementEventToPickedTarget,
   getClosestSnapTargetHandle
@@ -26,9 +25,7 @@ export class ClickSnappingStrategy implements SnappingStrategy {
   }
 
   getSnapGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
-    const draggedIndex = getDraggedEditHandleFeatureIndex(props);
-    const excludedFeatureIndexes = draggedIndex !== undefined ? [draggedIndex] : [];
-    const snapTarget = getClosestSnapTargetHandle(props, excludedFeatureIndexes);
+    const snapTarget = getClosestSnapTargetHandle(props, new Set());
     return {
       type: 'FeatureCollection',
       features: snapTarget ? [snapTarget] : []
