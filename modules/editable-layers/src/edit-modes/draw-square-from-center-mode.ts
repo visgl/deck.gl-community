@@ -46,4 +46,8 @@ export class DrawSquareFromCenterMode extends TwoClickPolygonMode {
 
     return square;
   }
+
+  getSnappingStrategy() {
+    return undefined;
+  }
 }

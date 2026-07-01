@@ -26,8 +26,10 @@ import {
   EditModeCoordinateSystem
 } from './coordinate-system';
 import {polygonEdgesIntersect, polygonWithinPolygon} from './cartesian-utils';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class DrawPolygonMode extends GeoJsonEditMode {
+export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   holeSequence: Position[] = [];
   isDrawingHole = false;
 
@@ -195,6 +197,10 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
+  }
+
+  getSnappingStrategy() {
+    return new ClickSnappingStrategy();
   }
 
   // eslint-disable-next-line max-statements, complexity

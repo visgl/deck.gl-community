@@ -5,8 +5,10 @@
 import {ClickEvent, PointerMoveEvent, ModeProps, TentativeFeature} from './types';
 import {FeatureCollection, SimpleFeatureCollection, Point} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
+import {SnappableEditMode} from './snappable-edit-mode';
 
-export class DrawPointMode extends GeoJsonEditMode {
+export class DrawPointMode extends GeoJsonEditMode implements SnappableEditMode {
   createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
     const {lastPointerMoveEvent} = props;
     const lastCoords = lastPointerMoveEvent ? [lastPointerMoveEvent.mapCoords] : [];
@@ -35,5 +37,9 @@ export class DrawPointMode extends GeoJsonEditMode {
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
+  }
+
+  getSnappingStrategy() {
+    return new ClickSnappingStrategy();
   }
 }
