@@ -7,7 +7,7 @@ import turfDistance from '@turf/distance';
 import turfArea from '@turf/area';
 import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
-import {Position, Polygon, Feature, FeatureCollection} from '../utils/geojson-types';
+import {Position, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
 export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
@@ -47,7 +47,7 @@ export class DrawCircleFromCenterMode extends TwoClickPolygonMode {
    * nebula geometry mode type
    * @param props properties of geometry nebula mode
    */
-  getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
+  getTooltips(props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
     return this._getTooltips({
       modeConfig: props?.modeConfig,
       radius: this.radius,

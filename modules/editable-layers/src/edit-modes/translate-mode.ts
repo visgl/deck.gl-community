@@ -4,12 +4,7 @@
 
 import turfClone from '@turf/clone';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
-import {
-  FeatureCollection,
-  Position,
-  SimpleGeometry,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import {Position, SimpleGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -51,7 +46,7 @@ export class TranslateMode extends GeoJsonEditMode {
     event.cancelPan();
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     this._isTranslatable = this.isSelectionPicked(event.pointerDownPicks || event.picks, props);
 
     this.updateCursor(props);
@@ -84,7 +79,7 @@ export class TranslateMode extends GeoJsonEditMode {
     }
   }
 
-  updateCursor(props: ModeProps<FeatureCollection>) {
+  updateCursor(props: ModeProps<SimpleFeatureCollection>) {
     if (this._isTranslatable) {
       props.onUpdateCursor('move');
     } else {

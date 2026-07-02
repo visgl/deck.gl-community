@@ -7,6 +7,7 @@
 
 import {it, expect} from 'vitest';
 import * as EditableLayers from '../src/index';
+import type {GeoJsonEditModeConstructor} from '../src/index';
 
 it('exports ImmutableFeatureCollection', () => {
   expect(EditableLayers.ImmutableFeatureCollection).toBeDefined();
@@ -58,4 +59,26 @@ it('exports composite modes', () => {
   expect(EditableLayers.CompositeMode).toBeDefined();
   expect(EditableLayers.SnappableMode).toBeDefined();
   expect(EditableLayers.ViewMode).toBeDefined();
+});
+
+it('exports mode constructors matching the public edit mode type', () => {
+  const modeConstructors: GeoJsonEditModeConstructor[] = [
+    EditableLayers.ViewMode,
+    EditableLayers.DrawPointMode,
+    EditableLayers.DrawLineStringMode,
+    EditableLayers.DrawPolygonMode,
+    EditableLayers.DrawRectangleMode,
+    EditableLayers.DrawCircleByDiameterMode,
+    EditableLayers.DrawCircleFromCenterMode,
+    EditableLayers.ModifyMode,
+    EditableLayers.TranslateMode,
+    EditableLayers.ScaleMode,
+    EditableLayers.RotateMode,
+    EditableLayers.DeleteMode,
+    EditableLayers.DuplicateMode,
+    EditableLayers.SplitPolygonMode,
+    EditableLayers.TransformMode
+  ];
+
+  expect(modeConstructors).toHaveLength(15);
 });

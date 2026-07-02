@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {FeatureCollection} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -46,7 +46,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
     return text;
   }
 
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>) {
+  handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     const {modeConfig, data, onEdit} = props;
     const {centerTooltipsOnLine = false} = modeConfig || {};
     const coordSys = getEditModeCoordinateSystem(props.coordinateSystem);
@@ -112,7 +112,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
     }
   }
 
-  handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>) {
+  handleKeyUp(event: KeyboardEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (this._isMeasuringSessionFinished) return;
 
     event.stopPropagation();
@@ -139,7 +139,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
     }
   }
 
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 
@@ -185,11 +185,11 @@ export class MeasureDistanceMode extends GeoJsonEditMode {
     return guides;
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     props.onUpdateCursor('cell');
   }
 
-  getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
+  getTooltips(props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
     const {lastPointerMoveEvent, modeConfig} = props;
     const {centerTooltipsOnLine = false} = modeConfig || {};
     const positions = this.getClickSequence();

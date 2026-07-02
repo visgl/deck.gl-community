@@ -1,9 +1,9 @@
-import {FeatureCollection} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ClickEvent, ModeProps} from './types';
 export class DeleteMode extends GeoJsonEditMode {
-  handleClick(_event: ClickEvent, props: ModeProps<FeatureCollection>): void {
+  handleClick(_event: ClickEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const selectedFeatureIndexes = props.lastPointerMoveEvent.picks.map(pick => pick.index);
     if (selectedFeatureIndexes.length > 0) {
       const indexToDelete = selectedFeatureIndexes[0];

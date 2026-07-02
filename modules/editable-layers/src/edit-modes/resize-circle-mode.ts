@@ -14,13 +14,7 @@ import {
   getPickedEditHandle,
   NearestPointType
 } from './utils';
-import {
-  LineString,
-  Point,
-  FeatureCollection,
-  Feature,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import {LineString, Point, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {Viewport} from '../utils/types';
 import {
   ModeProps,
@@ -40,7 +34,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
   _isResizing = false;
 
   // eslint-disable-next-line complexity
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const handles: GuideFeature[] = [];
     const selectedFeatureIndexes = props.selectedIndexes;
 
@@ -170,7 +164,7 @@ export class ResizeCircleMode extends GeoJsonEditMode {
     }
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     if (!this._isResizing) {
       const selectedEditHandle = getPickedEditHandle(event.picks);
       this._selectedEditHandle =
@@ -183,14 +177,14 @@ export class ResizeCircleMode extends GeoJsonEditMode {
     props.onUpdateCursor(cursor);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (this._selectedEditHandle) {
       event.cancelPan();
       this._isResizing = true;
     }
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (this._isResizing) {
       this._selectedEditHandle = null;
       this._isResizing = false;
