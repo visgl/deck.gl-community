@@ -4,12 +4,11 @@
 
 /* eslint-env browser */
 
-import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
+import type {CompositeLayerProps, DefaultProps, Layer, PickingInfo} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {PolygonLayer} from '@deck.gl/layers';
-import {featureCollection, polygon} from '@turf/helpers';
-import turfBuffer from '@turf/buffer';
-import turfDifference from '@turf/difference';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import lineIntersect from '@turf/line-intersect';
+import {lineString, point, polygon} from '@turf/helpers';
 
 import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
@@ -49,9 +48,7 @@ const EMPTY_DATA = {
   features: []
 };
 
-const EXPANSION_KM = 50;
 const LAYER_ID_GEOJSON = 'selection-geojson';
-const LAYER_ID_BLOCKER = 'selection-blocker';
 
 const PASS_THROUGH_PROPS = [
   'lineWidthScale',
@@ -81,12 +78,6 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   static layerName = 'SelectionLayer';
   static defaultProps = defaultProps;
 
-  state: {
-    pendingPolygonSelection: {
-      bigPolygon: ReturnType<typeof turfDifference>;
-    };
-  } = undefined!;
-
   _selectRectangleObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
     const [x1, y1] = this.context.viewport.project(coordinates[0][0]);
@@ -104,57 +95,26 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
   _selectPolygonObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
-    const mousePoints = coordinates[0].map(c => this.context.viewport.project(c));
 
-    const allX = mousePoints.map(mousePoint => mousePoint[0]);
-    const allY = mousePoints.map(mousePoint => mousePoint[1]);
-    const x = Math.min(...allX);
-    const y = Math.min(...allY);
-    const maxX = Math.max(...allX);
-    const maxY = Math.max(...allY);
+    const selectionPolygon = polygon(coordinates);
+    const pickingInfos: SelectionPickingInfo[] = this.context.layerManager
+      .getLayers()
+      .filter(layer => layerIds.includes(layer.id))
+      .flatMap(layer => {
+        const candidates = getSelectionCandidates(layer);
+        return candidates.flatMap(({object, index, data}): SelectionPickingInfo[] => {
+          if (!isObjectInsideSelection(layer, object, index, data, selectionPolygon)) {
+            return [];
+          }
 
-    // Use a polygon to hide the outside, because pickObjects()
-    // does not support polygons
-    const landPointsPoly = polygon(coordinates);
-    const bigBuffer = turfBuffer(landPointsPoly, EXPANSION_KM);
-    let bigPolygon;
-    try {
-      // turfDifference throws an exception if the polygon
-      // intersects with itself (TODO: check if true in all versions)
-      bigPolygon = turfDifference(featureCollection([bigBuffer, landPointsPoly]));
-    } catch (e) {
-      // invalid selection polygon
-      console.log('turfDifference() error', e); // eslint-disable-line
-      return;
-    }
-
-    this.setState({
-      pendingPolygonSelection: {
-        bigPolygon
-      }
-    });
-
-    const blockerId = `${this.props.id}-${LAYER_ID_BLOCKER}`;
-
-    // HACK, find a better way
-    setTimeout(() => {
-      const pickingInfos = this.context.deck.pickObjects({
-        x,
-        y,
-        width: maxX - x,
-        height: maxY - y,
-        layerIds: [blockerId, ...layerIds]
+          return [{object, layer, index}];
+        });
       });
 
-      onSelect({
-        pickingInfos: pickingInfos.filter(item => item.layer.id !== this.props.id)
-      });
-    }, 250);
+    onSelect({pickingInfos});
   }
 
   renderLayers() {
-    const {pendingPolygonSelection} = this.state;
-
     const mode = MODE_MAP[this.props.selectionType] || ViewMode;
     const modeConfig = MODE_CONFIG_MAP[this.props.selectionType];
 
@@ -163,7 +123,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       if (this.props[p] !== undefined) inheritedProps[p] = this.props[p];
     });
 
-    const layers: any[] = [
+    return [
       new EditableGeoJsonLayer(
         this.getSubLayerProps({
           id: LAYER_ID_GEOJSON,
@@ -187,29 +147,187 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
         })
       )
     ];
-
-    if (pendingPolygonSelection) {
-      const {bigPolygon} = pendingPolygonSelection as any;
-      layers.push(
-        new PolygonLayer(
-          this.getSubLayerProps({
-            id: LAYER_ID_BLOCKER,
-            pickable: true,
-            stroked: false,
-            opacity: 1.0,
-            data: [bigPolygon],
-            getLineColor: _obj => [0, 0, 0, 1],
-            getFillColor: _obj => [0, 0, 0, 1],
-            getPolygon: o => o.geometry.coordinates
-          })
-        )
-      );
-    }
-
-    return layers;
   }
 
   shouldUpdateState({changeFlags: {stateChanged, propsOrDataChanged}}: Record<string, any>) {
     return stateChanged || propsOrDataChanged;
   }
+}
+
+type SelectionPickingInfo = Pick<PickingInfo, 'object' | 'layer' | 'index'>;
+type SelectionCandidate = {object: unknown; index: number; data: unknown};
+type Position2D = [number, number];
+type SelectionPolygon = ReturnType<typeof polygon>;
+
+function getSelectionCandidates(layer: Layer): SelectionCandidate[] {
+  const data = layer.props.data;
+  if (Array.isArray(data)) {
+    return data.map((object, index) => ({object, index, data}));
+  }
+
+  if (isFeatureCollection(data)) {
+    return data.features.map((object, index) => ({object, index, data: data.features}));
+  }
+
+  return [];
+}
+
+function isObjectInsideSelection(
+  layer: Layer,
+  object: unknown,
+  index: number,
+  data: unknown,
+  selectionPolygon: SelectionPolygon
+): boolean {
+  const position = extractPosition(layer, object, index, data);
+  if (position !== null) {
+    return booleanPointInPolygon(point(position), selectionPolygon);
+  }
+
+  if (!isFeature(object)) {
+    return false;
+  }
+
+  return isGeometryInsideSelection(object.geometry, selectionPolygon);
+}
+
+function isGeometryInsideSelection(geometry: unknown, selectionPolygon: SelectionPolygon): boolean {
+  if (!isGeometry(geometry)) {
+    return false;
+  }
+
+  if (geometry.type === 'Point') {
+    return isPositionInsideSelection(geometry.coordinates, selectionPolygon);
+  }
+
+  if (geometry.type === 'MultiPoint' || geometry.type === 'LineString') {
+    return positionsContainSelectedPoint(geometry.coordinates, selectionPolygon);
+  }
+
+  if (geometry.type === 'MultiLineString' || geometry.type === 'Polygon') {
+    return geometry.coordinates.some(coordinates =>
+      pathIntersectsSelection(coordinates, selectionPolygon)
+    );
+  }
+
+  if (geometry.type === 'MultiPolygon') {
+    return geometry.coordinates.some(polygonCoordinates =>
+      polygonCoordinates.some(coordinates => pathIntersectsSelection(coordinates, selectionPolygon))
+    );
+  }
+
+  return false;
+}
+
+function pathIntersectsSelection(
+  coordinates: unknown,
+  selectionPolygon: SelectionPolygon
+): boolean {
+  if (!isPositionArray(coordinates)) {
+    return false;
+  }
+
+  if (positionsContainSelectedPoint(coordinates, selectionPolygon)) {
+    return true;
+  }
+
+  const isClosedRing =
+    coordinates.length >= 4 &&
+    coordinates[0][0] === coordinates[coordinates.length - 1][0] &&
+    coordinates[0][1] === coordinates[coordinates.length - 1][1];
+  const selectionRing = selectionPolygon.geometry.coordinates[0];
+  if (
+    isClosedRing &&
+    selectionRing.some(position => booleanPointInPolygon(point(position), polygon([coordinates])))
+  ) {
+    return true;
+  }
+
+  if (coordinates.length < 2) {
+    return false;
+  }
+
+  return lineIntersect(lineString(coordinates), selectionPolygon).features.length > 0;
+}
+
+function extractPosition(
+  layer: Layer,
+  object: unknown,
+  index: number,
+  data: unknown
+): [number, number] | null {
+  const props = layer.props as Record<string, unknown>;
+  const getPosition = props.getPosition;
+
+  if (typeof getPosition === 'function') {
+    const result = getPosition(object, {index, data, target: []});
+    if (isPosition(result)) {
+      return [result[0], result[1]];
+    }
+  }
+
+  if (typeof object === 'object' && object !== null) {
+    if ('position' in object && isPosition(object.position)) {
+      return [object.position[0], object.position[1]];
+    }
+
+    if ('coordinates' in object && isPosition(object.coordinates)) {
+      return [object.coordinates[0], object.coordinates[1]];
+    }
+  }
+
+  return null;
+}
+
+function positionsContainSelectedPoint(
+  coordinates: unknown[],
+  selectionPolygon: SelectionPolygon
+): boolean {
+  return coordinates.some(position => isPositionInsideSelection(position, selectionPolygon));
+}
+
+function isPositionInsideSelection(value: unknown, selectionPolygon: SelectionPolygon): boolean {
+  return isPosition(value) && booleanPointInPolygon(point(value), selectionPolygon);
+}
+
+function isFeatureCollection(value: unknown): value is {
+  type: 'FeatureCollection';
+  features: unknown[];
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    value.type === 'FeatureCollection' &&
+    'features' in value &&
+    Array.isArray(value.features)
+  );
+}
+
+function isFeature(value: unknown): value is {type: 'Feature'; geometry: unknown} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    value.type === 'Feature' &&
+    'geometry' in value
+  );
+}
+
+function isGeometry(value: unknown): value is {type: string; coordinates: any} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    typeof value.type === 'string' &&
+    'coordinates' in value
+  );
+}
+
+function isPosition(value: unknown): value is Position2D {
+  return Array.isArray(value) && typeof value[0] === 'number' && typeof value[1] === 'number';
+}
+
+function isPositionArray(value: unknown): value is Position2D[] {
+  return Array.isArray(value) && value.every(isPosition);
 }
