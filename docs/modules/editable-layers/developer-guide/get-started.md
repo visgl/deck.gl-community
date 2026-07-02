@@ -93,6 +93,29 @@ export function GeometryEditor() {
 
 See the [getting-started example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/getting-started) for a complete runnable version.
 
+## MapLibre and Mapbox Interleaved Editing
+
+When `EditableGeoJsonLayer` is rendered through `MapboxOverlay` with `interleaved: true`,
+MapLibre/Mapbox and deck.gl both listen to pointer gestures on the same canvas. Drag edit
+modes call `event.cancelPan()`, but MapLibre/Mapbox can still receive its own drag event
+before deck.gl stops propagation. Disable map drag gestures while an edit or selection
+gesture is active, then restore the previous map controls when returning to view mode:
+
+```ts
+function syncMapEditInteractions(map: maplibregl.Map, isEditing: boolean) {
+  if (isEditing) {
+    map.dragPan.disable();
+    map.dragRotate.disable();
+  } else {
+    map.dragPan.enable();
+    map.dragRotate.enable();
+  }
+}
+```
+
+The official MapLibre examples use this pattern so drawing, lasso selection, and
+`ModifyMode` handle dragging do not move the base map at the same time.
+
 ## Widgets
 
 `editable-layers` ships deck.gl widgets that provide editing UI without requiring you to build custom React components.

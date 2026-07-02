@@ -22,6 +22,8 @@ import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
+import {syncMapEditInteractions} from '../maplibre-interactions';
+
 import '@deck.gl/widgets/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -196,10 +198,12 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
   map.doubleClickZoom.disable();
   map.addControl(deckOverlay);
 
+  syncMapInteractions();
   syncTrayWidget();
   syncInfoWidget();
 
   return () => {
+    syncMapEditInteractions(map, false);
     map.removeControl(deckOverlay);
     deckOverlay.finalize();
     map.remove();
@@ -231,6 +235,7 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
       onClick: undefined,
       widgets: [trayWidget, infoWidget]
     });
+    syncMapInteractions();
   }
 
   function syncTrayWidget() {
@@ -277,6 +282,10 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
         }
       })
     });
+  }
+
+  function syncMapInteractions() {
+    syncMapEditInteractions(map, state.selectedModeId !== 'view');
   }
 }
 

@@ -15,6 +15,7 @@ import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
 import testPolygons from '../data/sf-polygons';
+import {syncMapEditInteractions} from '../maplibre-interactions';
 
 import '@deck.gl/widgets/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -118,9 +119,11 @@ export function mountSfExample(container: HTMLElement): () => void {
   map.doubleClickZoom.disable();
   map.addControl(deckOverlay);
 
+  syncMapInteractions();
   syncInfoWidget();
 
   return () => {
+    syncMapEditInteractions(map, false);
     map.removeControl(deckOverlay);
     deckOverlay.finalize();
     map.remove();
@@ -167,6 +170,7 @@ export function mountSfExample(container: HTMLElement): () => void {
       widgets: [infoWidget],
       getCursor: getCursor(state)
     });
+    syncMapInteractions();
   }
 
   function syncInfoWidget() {
@@ -188,6 +192,13 @@ export function mountSfExample(container: HTMLElement): () => void {
         }
       })
     });
+  }
+
+  function syncMapInteractions() {
+    syncMapEditInteractions(
+      map,
+      Boolean(state.selectionType) || (state.allowEdit && state.selectedFeatureIndexes.length > 0)
+    );
   }
 }
 
