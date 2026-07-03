@@ -80,6 +80,12 @@ export type PointerMoveEvent = BasePointerEvent & {
   isDragging?: boolean;
 };
 
+export type MovementEvent =
+  | PointerMoveEvent
+  | StartDraggingEvent
+  | StopDraggingEvent
+  | DraggingEvent;
+
 export type Tooltip = {
   position: Position;
   text: string;
@@ -144,6 +150,9 @@ export type ModeProps<TData> = {
 
   // Callback used to update cursor
   onUpdateCursor: (cursor: string | null | undefined) => void;
+
+  // The picking radius used by the layer, in pixels
+  pickingRadius?: number;
 };
 
 export type PointWithIndex = {

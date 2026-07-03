@@ -24,8 +24,10 @@ import {
 } from './types';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class SplitPolygonMode extends GeoJsonEditMode {
+export class SplitPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   calculateMapCoords(
     clickSequence: any,
     mapCoords: any,
@@ -205,5 +207,9 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     };
 
     return editAction;
+  }
+
+  getSnappingStrategy() {
+    return new ClickSnappingStrategy();
   }
 }

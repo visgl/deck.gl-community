@@ -22,4 +22,8 @@ export class DuplicateMode extends TranslateMode {
       props.onUpdateCursor(null);
     }
   }
+
+  getSnappingStrategy() {
+    return undefined;
+  }
 }

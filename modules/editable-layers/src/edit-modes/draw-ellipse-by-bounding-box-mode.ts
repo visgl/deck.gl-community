@@ -41,4 +41,8 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
 
     return geometry;
   }
+
+  getSnappingStrategy() {
+    return undefined;
+  }
 }

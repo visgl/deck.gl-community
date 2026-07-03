@@ -204,3 +204,18 @@ User can split a polygon by drawing a new `LineString` feature on top of the pol
 - If the clicked position is inside the polygon, it will not split the polygon
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/split-polygon-mode.ts)
+
+## Snapping capabilities
+
+The following modes support snapping when wrapped with `SnappableMode`:
+
+- `DrawPointMode`
+- `DrawLineStringMode`
+- `ExtendLineStringMode`
+- `ResizeCircleMode`
+- `DrawPolygonMode`
+- `DrawRectangleMode`
+- `DrawRectangleUsingThreePointsMode`
+- `DrawCircleFromCenterMode`
+- `DrawCircleByDiameterMode`
+- `SplitPolygonMode`

@@ -11,8 +11,10 @@ import {
 import {ClickEvent, PointerMoveEvent, ModeProps, GuideFeatureCollection} from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class ExtendLineStringMode extends GeoJsonEditMode {
+export class ExtendLineStringMode extends GeoJsonEditMode implements SnappableEditMode {
   getSingleSelectedLineString(
     props: ModeProps<SimpleFeatureCollection>
   ): LineString | null | undefined {
@@ -98,5 +100,9 @@ export class ExtendLineStringMode extends GeoJsonEditMode {
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
     props.onUpdateCursor('cell');
+  }
+
+  getSnappingStrategy() {
+    return new ClickSnappingStrategy();
   }
 }

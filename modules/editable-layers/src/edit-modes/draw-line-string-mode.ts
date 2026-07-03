@@ -25,8 +25,10 @@ import {
   GeoCoordinateSystem,
   getEditModeCoordinateSystem
 } from './coordinate-system';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
+import {SnappableEditMode} from './snappable-edit-mode';
 
-export class DrawLineStringMode extends GeoJsonEditMode {
+export class DrawLineStringMode extends GeoJsonEditMode implements SnappableEditMode {
   // declaration of variables for the calculation of the distance of linestring
   dist = 0;
   position: Position = null!;
@@ -186,6 +188,10 @@ export class DrawLineStringMode extends GeoJsonEditMode {
         clickSequence[clickSequence.length - 1]
       );
     }
+  }
+
+  getSnappingStrategy() {
+    return new ClickSnappingStrategy();
   }
 
   /**

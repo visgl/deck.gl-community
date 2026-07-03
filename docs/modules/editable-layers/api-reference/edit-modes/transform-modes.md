@@ -44,7 +44,7 @@ User can rotate a feature about its centroid by clicking and dragging the select
 ## TranslateMode
 
 The user can move a feature by selecting one or more features and dragging anywhere within the screen.
-_Additionally, the user can initiate snapping by clicking and dragging the selected feature's vertex handles. If the vertex handle is close enough to another feature's vertex, the two features will snap together._
+
 The following options can be provided in the `modeConfig` object for TranslateMode:
 
 - `screenSpace` (optional): `<boolean>`
@@ -54,7 +54,9 @@ The following options can be provided in the `modeConfig` object for TranslateMo
 
 ## TransformMode
 
-A single mode that provides translating, rotating, and scaling capabilities. Translation can be performed by clicking and dragging the selected feature itself. Rotating can be performed by clicking and dragging the top-most edit handle around a centroid pivot. Scaling can be performed by clicking and dragging one of the corner edit handles. Just like the individual modes, this mode supports multiple selections and feature snapping.
+A single mode that provides translating, rotating, and scaling capabilities. Translation can be performed by clicking and dragging the selected feature itself. Rotating can be performed by clicking and dragging the top-most edit handle around a centroid pivot. Scaling can be performed by clicking and dragging one of the corner edit handles. Just like the individual modes, this mode supports multiple selections.
+
+Snapping is built into `TransformMode` — it does not need to be wrapped in `SnappableMode`. Enable it with `modeConfig.enableSnapping` and set `modeConfig.viewport` for edge snapping.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/transform-mode.ts)
 
@@ -63,3 +65,52 @@ A single mode that provides translating, rotating, and scaling capabilities. Tra
 User can delete features by clicking on them. Only the most recently added feature will be deleted if multiple features overlap.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/delete-mode.ts)
+
+## SnappableMode
+
+A wrapper mode that adds snapping behaviour to any other `GeoJsonEditMode`. Construct it by passing the mode you want to enhance:
+
+```ts
+import {SnappableMode, TranslateMode} from '@deck.gl-community/editable-layers';
+
+const mode = new SnappableMode(new TranslateMode());
+```
+
+Snapping is activated via `modeConfig.enableSnapping`. See the [`modeConfig` documentation](../layers/editable-geojson-layer.md#modeconfig-object-optional) for all available options.
+
+To add snapping support to a custom mode, implement the `SnappableEditMode` interface and return the appropriate strategy:
+
+```ts
+import {
+  GeoJsonEditMode,
+  SnappableEditMode,
+  ClickSnappingStrategy
+} from '@deck.gl-community/editable-layers';
+
+class MyCustomMode extends GeoJsonEditMode implements SnappableEditMode {
+  getSnappingStrategy() {
+    return new ClickSnappingStrategy();
+  }
+}
+```
+
+Choose the strategy that matches how your mode is used:
+
+| Strategy | Used by | Behaviour | Notes |
+|---|---|---|---|
+| `ClickSnappingStrategy` | Draw modes | Snaps the pointer as it moves and updates click events | Requires `modeConfig.viewport` |
+| `DragSnappingStrategy` | e.g. `ModifyMode` | Snaps while an edit handle is being dragged | Requires `modeConfig.viewport` |
+| `SourceSnappingStrategy` | e.g. `TranslateMode` | Snaps while a snap source handle is being dragged | |
+
+[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/snappable-mode.ts)
+
+### Snapping capabilities
+
+The following modes support snapping when wrapped with `SnappableMode`:
+
+- `ModifyMode`
+- `ExtrudeMode`
+- `TranslateMode`
+
+`TransformMode` supports snapping natively via `modeConfig.enableSnapping` and does not require `SnappableMode`.
+
