@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -74,6 +74,8 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-22.04
+
+    if: ${{ github.repository_owner == 'visgl' }}
 
     environment:
       name: github-pages
