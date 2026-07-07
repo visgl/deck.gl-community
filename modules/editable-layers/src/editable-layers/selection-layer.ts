@@ -4,17 +4,15 @@
 
 /* eslint-env browser */
 
-import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
+import type {CompositeLayerProps, DefaultProps, Layer, PickingInfo} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {PolygonLayer} from '@deck.gl/layers';
-import {featureCollection, polygon} from '@turf/helpers';
-import turfBuffer from '@turf/buffer';
-import turfDifference from '@turf/difference';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import {point, polygon} from '@turf/helpers';
 
-import {EditableGeoJsonLayer} from './editable-geojson-layer';
-import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
 import {DrawPolygonMode} from '../edit-modes/draw-polygon-mode';
+import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
 import {ViewMode} from '../edit-modes/view-mode';
+import {EditableGeoJsonLayer} from './editable-geojson-layer';
 
 export const SELECTION_TYPE = {
   NONE: null,
@@ -49,9 +47,7 @@ const EMPTY_DATA = {
   features: []
 };
 
-const EXPANSION_KM = 50;
 const LAYER_ID_GEOJSON = 'selection-geojson';
-const LAYER_ID_BLOCKER = 'selection-blocker';
 
 const PASS_THROUGH_PROPS = [
   'lineWidthScale',
@@ -75,17 +71,12 @@ const PASS_THROUGH_PROPS = [
   'getTentativeFillColor',
   'getTentativeLineWidth'
 ];
+
 export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   ExtraPropsT & Required<SelectionLayerProps<DataT>>
 > {
   static layerName = 'SelectionLayer';
   static defaultProps = defaultProps;
-
-  state: {
-    pendingPolygonSelection: {
-      bigPolygon: ReturnType<typeof turfDifference>;
-    };
-  } = undefined!;
 
   _selectRectangleObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
@@ -104,57 +95,26 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
   _selectPolygonObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
-    const mousePoints = coordinates[0].map(c => this.context.viewport.project(c));
+    const selectionPolygon = polygon(coordinates);
 
-    const allX = mousePoints.map(mousePoint => mousePoint[0]);
-    const allY = mousePoints.map(mousePoint => mousePoint[1]);
-    const x = Math.min(...allX);
-    const y = Math.min(...allY);
-    const maxX = Math.max(...allX);
-    const maxY = Math.max(...allY);
-
-    // Use a polygon to hide the outside, because pickObjects()
-    // does not support polygons
-    const landPointsPoly = polygon(coordinates);
-    const bigBuffer = turfBuffer(landPointsPoly, EXPANSION_KM);
-    let bigPolygon;
-    try {
-      // turfDifference throws an exception if the polygon
-      // intersects with itself (TODO: check if true in all versions)
-      bigPolygon = turfDifference(featureCollection([bigBuffer, landPointsPoly]));
-    } catch (e) {
-      // invalid selection polygon
-      console.log('turfDifference() error', e); // eslint-disable-line
-      return;
-    }
-
-    this.setState({
-      pendingPolygonSelection: {
-        bigPolygon
-      }
-    });
-
-    const blockerId = `${this.props.id}-${LAYER_ID_BLOCKER}`;
-
-    // HACK, find a better way
-    setTimeout(() => {
-      const pickingInfos = this.context.deck.pickObjects({
-        x,
-        y,
-        width: maxX - x,
-        height: maxY - y,
-        layerIds: [blockerId, ...layerIds]
+    const pickingInfos: SelectionPickingInfo[] = this.context.layerManager
+      .getLayers()
+      .filter(layer => layerIds.includes(layer.id))
+      .flatMap(layer => {
+        const data = layer.props.data;
+        if (!Array.isArray(data)) return [];
+        return data.flatMap((object, index): SelectionPickingInfo[] => {
+          const position = extractPosition(layer, object, index, data);
+          if (position === null) return [];
+          if (!booleanPointInPolygon(point(position), selectionPolygon)) return [];
+          return [{object, layer, index}];
+        });
       });
 
-      onSelect({
-        pickingInfos: pickingInfos.filter(item => item.layer.id !== this.props.id)
-      });
-    }, 250);
+    onSelect({pickingInfos});
   }
 
   renderLayers() {
-    const {pendingPolygonSelection} = this.state;
-
     const mode = MODE_MAP[this.props.selectionType] || ViewMode;
     const modeConfig = MODE_CONFIG_MAP[this.props.selectionType];
 
@@ -163,7 +123,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       if (this.props[p] !== undefined) inheritedProps[p] = this.props[p];
     });
 
-    const layers: any[] = [
+    return [
       new EditableGeoJsonLayer(
         this.getSubLayerProps({
           id: LAYER_ID_GEOJSON,
@@ -187,29 +147,41 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
         })
       )
     ];
-
-    if (pendingPolygonSelection) {
-      const {bigPolygon} = pendingPolygonSelection as any;
-      layers.push(
-        new PolygonLayer(
-          this.getSubLayerProps({
-            id: LAYER_ID_BLOCKER,
-            pickable: true,
-            stroked: false,
-            opacity: 1.0,
-            data: [bigPolygon],
-            getLineColor: _obj => [0, 0, 0, 1],
-            getFillColor: _obj => [0, 0, 0, 1],
-            getPolygon: o => o.geometry.coordinates
-          })
-        )
-      );
-    }
-
-    return layers;
   }
 
   shouldUpdateState({changeFlags: {stateChanged, propsOrDataChanged}}: Record<string, any>) {
     return stateChanged || propsOrDataChanged;
   }
+}
+
+type SelectionPickingInfo = Pick<PickingInfo, 'object' | 'layer' | 'index'>;
+
+function extractPosition(
+  layer: Layer,
+  object: unknown,
+  index: number,
+  data: unknown
+): [number, number] | null {
+  const props = layer.props;
+  if ('getPosition' in props && typeof props.getPosition === 'function') {
+    const result = props.getPosition(object, {index, data, target: []});
+    if (Array.isArray(result) && typeof result[0] === 'number' && typeof result[1] === 'number') {
+      return [result[0], result[1]];
+    }
+  }
+  if (typeof object === 'object' && object !== null) {
+    if ('position' in object) {
+      const p = object.position;
+      if (Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number') {
+        return [p[0], p[1]];
+      }
+    }
+    if ('coordinates' in object) {
+      const c = object.coordinates;
+      if (Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number') {
+        return [c[0], c[1]];
+      }
+    }
+  }
+  return null;
 }
