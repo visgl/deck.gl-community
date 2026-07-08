@@ -103,4 +103,8 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
       });
     }
   }
+
+  getSnappingStrategy() {
+    return undefined;
+  }
 }

@@ -93,3 +93,11 @@ if (mode === 'elevation') {
 }
 ```
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/elevation-mode.ts)
+
+### Snapping capabilities
+
+The following modes support snapping when wrapped with `SnappableMode`:
+
+- `MeasureDistanceMode`
+- `MeasureAreaMode`
+- `MeasureAngleMode`

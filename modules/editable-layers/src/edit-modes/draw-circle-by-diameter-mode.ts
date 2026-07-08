@@ -93,4 +93,8 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
 
     return tooltips;
   });
+
+  getSnappingStrategy() {
+    return undefined;
+  }
 }
