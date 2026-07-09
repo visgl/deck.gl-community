@@ -4,6 +4,12 @@
 
 Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
+### `@deck.gl-community/graph-layers`
+
+- `GraphLayer` now accepts normalized `PlainGraphData` and `ArrowGraphData`
+  loader outputs directly through `data`, without routing them through a custom
+  `graphLoader`.
+
 ### `@deck.gl-community/layers`
 
 - `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
