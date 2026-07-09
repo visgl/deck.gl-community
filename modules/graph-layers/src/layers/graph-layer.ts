@@ -173,6 +173,8 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
+  /** Minimum time between layout-driven layer updates in milliseconds. */
+  layoutUpdateInterval?: number;
   rankGrid?: boolean | RankGridConfig;
   resumeLayoutAfterDragging?: boolean;
 };
@@ -207,6 +209,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onHover: () => {}
     },
     enableDragging: false,
+    layoutUpdateInterval: 0,
     rankGrid: false,
     resumeLayoutAfterDragging: true
   };
@@ -222,6 +225,9 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
   private _suppressNextDeckDataChange = false;
+  private _lastLayoutUpdateTime = 0;
+  private _pendingLayoutSnapshotEngine: GraphEngine | null | undefined;
+  private _layoutUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
   forceUpdate = () => {
     if (!this.state) {
@@ -299,6 +305,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   finalize() {
+    this._clearLayoutUpdateTimer();
     this._removeGraphEngine();
     this._syncInteractionManager(this.props, null);
   }
@@ -632,8 +639,54 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   private _handleLayoutEvent = () => {
-    this._updateLayoutSnapshot();
+    this._scheduleLayoutSnapshotUpdate();
   };
+
+  private _scheduleLayoutSnapshotUpdate(engine?: GraphEngine | null) {
+    const interval = Math.max(0, this.props.layoutUpdateInterval ?? 0);
+
+    if (interval === 0) {
+      this._clearLayoutUpdateTimer();
+      this._lastLayoutUpdateTime = Date.now();
+      this._updateLayoutSnapshot(engine);
+      return;
+    }
+
+    this._pendingLayoutSnapshotEngine = engine;
+
+    if (this._layoutUpdateTimer) {
+      return;
+    }
+
+    const now = Date.now();
+    const elapsed = this._lastLayoutUpdateTime === 0 ? interval : now - this._lastLayoutUpdateTime;
+    const delay = Math.max(0, interval - elapsed);
+
+    if (delay === 0) {
+      this._flushLayoutSnapshotUpdate(now);
+      return;
+    }
+
+    this._layoutUpdateTimer = setTimeout(() => {
+      this._layoutUpdateTimer = null;
+      this._flushLayoutSnapshotUpdate();
+    }, delay);
+  }
+
+  private _flushLayoutSnapshotUpdate(timestamp = Date.now()) {
+    this._lastLayoutUpdateTime = timestamp;
+    const engine = this._pendingLayoutSnapshotEngine;
+    this._pendingLayoutSnapshotEngine = undefined;
+    this._updateLayoutSnapshot(engine);
+  }
+
+  private _clearLayoutUpdateTimer() {
+    if (this._layoutUpdateTimer) {
+      clearTimeout(this._layoutUpdateTimer);
+      this._layoutUpdateTimer = null;
+    }
+    this._pendingLayoutSnapshotEngine = undefined;
+  }
 
   _setGraphEngine(graphEngine: GraphEngine | null) {
     if (graphEngine === this.state.graphEngine) {
@@ -658,6 +711,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   _removeGraphEngine() {
+    this._clearLayoutUpdateTimer();
     const engine = this.state.graphEngine;
     if (engine) {
       engine.setProps({
