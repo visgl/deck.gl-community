@@ -60,7 +60,7 @@ export function parseGraphML(graphml: GraphMLInput): PlainGraphData {
   const keyDefinitions = collectKeyDefinitions(graphmlRoot, graphElement);
   const defaultDirected = parseEdgeDefault(graphElement[`${XML_ATTRIBUTE_PREFIX}edgedefault`]);
 
-  const nodes = normalizeArray(graphElement.node).map((node) => parseNode(node, keyDefinitions));
+  const nodes = normalizeArray(graphElement.node).map(node => parseNode(node, keyDefinitions));
   const edges = normalizeArray(graphElement.edge).map((edge, index) =>
     parseEdge(edge, index, keyDefinitions, defaultDirected)
   );
@@ -97,7 +97,7 @@ function getGraphMLRoot(document: GraphMLObject): GraphMLObject | null {
     return root;
   }
 
-  const namespacedKey = Object.keys(document).find((key) => key.endsWith(':graphml'));
+  const namespacedKey = Object.keys(document).find(key => key.endsWith(':graphml'));
   if (namespacedKey) {
     const namespacedRoot = document[namespacedKey];
     if (isObject(namespacedRoot)) {
@@ -115,7 +115,7 @@ function getGraphElement(graphmlRoot: GraphMLObject): GraphMLObject | null {
   }
 
   if (Array.isArray(graph)) {
-    const firstGraph = graph.find((entry) => isObject(entry));
+    const firstGraph = graph.find(entry => isObject(entry));
     return isObject(firstGraph) ? firstGraph : null;
   }
 
@@ -128,7 +128,10 @@ function collectKeyDefinitions(
 ): Map<string, GraphMLKeyDefinition> {
   const keys = new Map<string, GraphMLKeyDefinition>();
 
-  for (const candidate of [...normalizeArray(graphmlRoot.key), ...normalizeArray(graphElement.key)]) {
+  for (const candidate of [
+    ...normalizeArray(graphmlRoot.key),
+    ...normalizeArray(graphElement.key)
+  ]) {
     if (isObject(candidate)) {
       const id = String(candidate[`${XML_ATTRIBUTE_PREFIX}id`] ?? '').trim();
       if (id) {
@@ -162,7 +165,6 @@ function parseNode(
   const attributes = buildAttributeBag('node', node.data, keyDefinitions);
 
   const graphNode: GraphNodeData = {
-    type: 'graph-node-data',
     id,
     attributes: Object.keys(attributes).length > 0 ? attributes : undefined
   };
@@ -195,13 +197,11 @@ function parseEdge(
   }
 
   const rawId = edge[`${XML_ATTRIBUTE_PREFIX}id`];
-  const id =
-    typeof rawId === 'string' || typeof rawId === 'number' ? rawId : `edge-${index}`;
+  const id = typeof rawId === 'string' || typeof rawId === 'number' ? rawId : `edge-${index}`;
   const directed = parseDirected(edge[`${XML_ATTRIBUTE_PREFIX}directed`], defaultDirected);
   const attributes = buildAttributeBag('edge', edge.data, keyDefinitions);
 
   const graphEdge: GraphEdgeData = {
-    type: 'graph-edge-data',
     id,
     sourceId,
     targetId,
@@ -345,7 +345,13 @@ function normalizeType(value: unknown): GraphMLAttributeType {
   }
 
   const lower = value.toLowerCase();
-  if (lower === 'boolean' || lower === 'int' || lower === 'long' || lower === 'float' || lower === 'double') {
+  if (
+    lower === 'boolean' ||
+    lower === 'int' ||
+    lower === 'long' ||
+    lower === 'float' ||
+    lower === 'double'
+  ) {
     return lower;
   }
   return 'string';
@@ -361,10 +367,20 @@ function parseEdgeDefault(value: unknown): boolean {
 function parseDirected(value: unknown, defaultDirected: boolean): boolean {
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase();
-    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'directed') {
+    if (
+      normalized === 'true' ||
+      normalized === '1' ||
+      normalized === 'yes' ||
+      normalized === 'directed'
+    ) {
       return true;
     }
-    if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'undirected') {
+    if (
+      normalized === 'false' ||
+      normalized === '0' ||
+      normalized === 'no' ||
+      normalized === 'undirected'
+    ) {
       return false;
     }
   }

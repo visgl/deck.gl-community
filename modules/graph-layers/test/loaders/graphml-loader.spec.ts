@@ -19,7 +19,7 @@ describe('loadGraphML', () => {
   });
 
   it('parses node attributes from GraphML text', () => {
-    const nodeIds = Array.from(graph.getNodes(), (node) => node.getId());
+    const nodeIds = Array.from(graph.getNodes(), node => node.getId());
     expect(nodeIds).toEqual(expect.arrayContaining(['n0', 'n1']));
 
     const nodeZero = graph.findNodeById('n0');
@@ -61,12 +61,15 @@ describe('loadGraphML', () => {
   it('accepts ArrayBuffer inputs and applies default values', () => {
     const encoder = new TextEncoder();
     const buffer = encoder.encode(defaultsGraphml);
-    const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    const arrayBuffer = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength
+    );
 
     const bufferedGraph = loadGraphML(arrayBuffer);
     const nodes = Array.from(bufferedGraph.getNodes());
     expect(nodes).toHaveLength(2);
-    expect(nodes.every((node) => node.getPropertyValue('category') === 'general')).toBe(true);
+    expect(nodes.every(node => node.getPropertyValue('category') === 'general')).toBe(true);
 
     const [edge] = Array.from(bufferedGraph.getEdges());
     expect(edge.isDirected()).toBe(false);

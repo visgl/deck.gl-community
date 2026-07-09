@@ -11,9 +11,9 @@ TBD
 
 ## GraphML loader
 
-`@deck.gl-community/graph-layers` ships a utility for loading GraphML documents into the
-`TabularGraph` runtime via `loadGraphML`. The loader is designed for GraphML 1.0 documents and
-supports the following constructs:
+`@deck.gl-community/graph-layers` ships utilities for loading GraphML documents. Use `loadGraphML`
+to create a runtime `Graph`, or `parseGraphML` to convert GraphML text into `PlainGraphData`. The
+loader is designed for GraphML 1.0 documents and supports the following constructs:
 
 - `<graph>` elements with `edgedefault` set to either `directed` or `undirected`.
 - `<node>` and `<edge>` elements with required identifiers and edge endpoints.
