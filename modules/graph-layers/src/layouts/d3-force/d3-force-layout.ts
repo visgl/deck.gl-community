@@ -97,20 +97,14 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
 
     this._worker.onmessage = event => {
       log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
-      if (event.data.type !== 'end') {
-        return;
+      if (event.data.type === 'tick') {
+        this._applyWorkerNodes(event.data.nodes);
+        this._onLayoutChange();
+      } else if (event.data.type === 'end') {
+        this._applyWorkerNodes(event.data.nodes);
+        this._onLayoutChange();
+        this._onLayoutDone();
       }
-
-      event.data.nodes.forEach(({id, ...d3}) =>
-        this._positionsByNodeId.set(id, {
-          ...d3,
-          // precompute so that when we return the node position we do not need to do the conversion
-          coordinates: [d3.x, d3.y]
-        })
-      );
-
-      this._onLayoutChange();
-      this._onLayoutDone();
     };
   }
 
@@ -195,5 +189,25 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       data => data?.coordinates as [number, number] | null | undefined
     );
     this._bounds = this._calculateBounds(positions);
+  }
+
+  private _applyWorkerNodes(nodes: unknown): void {
+    if (!Array.isArray(nodes)) {
+      return;
+    }
+
+    for (const item of nodes) {
+      if (!item || typeof item !== 'object') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const {id, ...d3} = item as {id: string | number; x?: number; y?: number};
+      this._positionsByNodeId.set(id, {
+        ...d3,
+        // Precompute so getNodePosition does not need to convert every lookup.
+        coordinates: [d3.x, d3.y]
+      });
+    }
   }
 }
