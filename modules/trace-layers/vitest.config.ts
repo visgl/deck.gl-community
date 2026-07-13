@@ -33,6 +33,7 @@ export default defineConfig({
     ]
   },
   test: {
-    environment: 'happy-dom'
+    environment: 'happy-dom',
+    setupFiles: ['./vitest.setup.ts']
   }
 });

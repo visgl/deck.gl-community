@@ -17,7 +17,7 @@ import {type TraceChunkData} from '@deck.gl-community/trace-layers/trace';
 - `chunkKey`
 - `processes`
 - `spanTable`
-- `localDependencyTable`
+- `resolvedSameProcessDependencyTable`
 - `diagnostics`
 - `refState: 'parser-local'`
 
@@ -30,12 +30,13 @@ import {type TraceChunkData} from '@deck.gl-community/trace-layers/trace';
 
 ## Lifecycle
 
-`TraceChunkData` belongs to the ingestion boundary. Give it to `TraceChunkStore`, then let the store
-finalize chunk refs, process/thread owner refs, source-id indexes, dependency indexes, and retained
-payload ownership.
+`TraceChunkData` belongs to the ingestion boundary. Give it to `TraceChunkStore`, then let the
+store finalize chunk refs, process/thread owner refs, source-id indexes, dependency indexes, and
+retained payload ownership. Dataset assemblers consume ready finalized chunks later; `TraceChunkData`
+itself is not the runtime graph.
 
 Use stable `external_span_id` values and source dependency rows when hidden search, URL restore, or
 cross-chunk parent navigation must work.
 
 See [Incremental ingestion](../../developer-guide/incremental-ingestion.md) and
-[TraceChunkStore](./trace-chunk-store.md).
+[TraceDataset](./trace-dataset.md) plus [TraceChunkStore](./trace-chunk-store.md).

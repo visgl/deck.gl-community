@@ -2,11 +2,7 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {
-  DEFAULT_TRACE_STYLE,
-  TRACE_SPAN_FILTER_MASK_NONE,
-  TRACE_SPAN_FILTER_MASK_TOPOLOGY
-} from '../../../../../trace/index';
+import {DEFAULT_TRACE_STYLE, TRACE_SPAN_FILTER_MASK_NONE} from '../../../../../trace';
 import {resolveTraceSpanCardLabels} from '../trace-span-card-helpers';
 import {TraceSpanDependenciesTab} from './trace-span-card-tab-dependencies';
 
@@ -14,12 +10,12 @@ import type {
   SpanRef,
   TraceCardSpan,
   TraceDependencyId,
-  TraceLocalDependency,
+  TraceSameProcessDependency,
   TraceSpanCardDependencyEntry,
   TraceSpanCardParentChainEntry,
   TraceSpanId,
   TraceThreadId
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 import type {TraceSpanDoubleClickAction} from '../trace-span-name-badge';
 import type {Root} from 'react-dom/client';
 
@@ -74,6 +70,33 @@ describe('TraceSpanDependenciesTab', () => {
     expect(onSpanDoubleClick).toHaveBeenCalledWith(dependencySpan.spanRef, 'select-and-focus');
   });
 
+  it('renders metrics and process before span without parent detail columns', () => {
+    const currentSpan = createSpan(1, 'current');
+    const dependencySpan = createSpan(2, 'dependency');
+
+    renderDependenciesTab({
+      currentSpan,
+      dependencies: [createDependencyEntry(dependencySpan, currentSpan)],
+      parentChain: []
+    });
+
+    expect(getHeaderTexts()).toEqual(['Wait', 'Process', 'Span']);
+  });
+
+  it('keeps detail columns for outgoing dependencies', () => {
+    const currentSpan = createSpan(1, 'current');
+    const dependencySpan = createSpan(2, 'dependency');
+
+    renderDependenciesTab({
+      currentSpan,
+      dependencies: [createDependencyEntry(currentSpan, dependencySpan)],
+      direction: 'outgoing',
+      parentChain: []
+    });
+
+    expect(getHeaderTexts()).toEqual(['Wait', 'Process', 'Span', 'Mode', 'Dir']);
+  });
+
   it('keeps filtered dependency and parent badges double-clickable without click navigation', () => {
     const currentSpan = createSpan(1, 'current');
     const filteredDependencySpan = createSpan(2, 'filtered-dependency', true);
@@ -97,35 +120,6 @@ describe('TraceSpanDependenciesTab', () => {
     expect(onSpanClick).not.toHaveBeenCalled();
     expect(onSpanDoubleClick).toHaveBeenCalledWith(filteredDependencySpan.spanRef, 'select');
     expect(onSpanDoubleClick).toHaveBeenCalledWith(filteredParentSpan.spanRef, 'select');
-  });
-
-  it('renders topology-only filtered dependency and parent badges with the topology outline', () => {
-    const currentSpan = createSpan(1, 'current');
-    const filteredDependencySpan = createSpan(
-      2,
-      'topology-filtered-dependency',
-      true,
-      TRACE_SPAN_FILTER_MASK_TOPOLOGY
-    );
-    const filteredParentSpan = createSpan(
-      3,
-      'topology-filtered-parent',
-      true,
-      TRACE_SPAN_FILTER_MASK_TOPOLOGY
-    );
-
-    renderDependenciesTab({
-      currentSpan,
-      dependencies: [createDependencyEntry(filteredDependencySpan, currentSpan)],
-      parentChain: [createParentEntry(filteredParentSpan)]
-    });
-
-    const outlinedBadges = Array.from(container?.querySelectorAll('[style*="border-color"]') ?? [])
-      .map(element => element.textContent)
-      .filter(Boolean);
-    expect(outlinedBadges).toEqual(
-      expect.arrayContaining(['topology-filtered-dependency', 'topology-filtered-parent'])
-    );
   });
 
   it('filters parent rows by displayed span text', () => {
@@ -197,6 +191,8 @@ function renderDependenciesTab(params: {
   filterLabel?: string;
   /** Whether the rendered dependency table is interactive. */
   interactive?: boolean;
+  /** Directional dependency surface rendered by the direct test harness. */
+  direction?: 'incoming' | 'outgoing';
   /** Optional span click callback. */
   onSpanClick?: (spanRef: SpanRef) => void;
   /** Optional span double-click callback. */
@@ -212,6 +208,7 @@ function renderDependenciesTab(params: {
         dependencies={params.dependencies}
         dependencyCount={params.dependencyCount}
         dependenciesTruncated={params.dependenciesTruncated}
+        direction={params.direction}
         currentSpan={params.currentSpan}
         parentChain={params.parentChain}
         parentIndexBySpanRef={
@@ -249,6 +246,13 @@ function createWaitMetricColumn() {
     timingPickerAriaLabel: null,
     fallbackToActiveTiming: false
   };
+}
+
+/** Returns rendered dependency-table header labels. */
+function getHeaderTexts(): string[] {
+  return [...(container?.querySelectorAll('thead th') ?? [])].map(
+    header => header.textContent?.trim() ?? ''
+  );
 }
 
 function createSpan(
@@ -305,9 +309,12 @@ function createParentEntry(span: TraceCardSpan): TraceSpanCardParentChainEntry {
   };
 }
 
-function createDependency(startSpanId: TraceSpanId, endSpanId: TraceSpanId): TraceLocalDependency {
+function createDependency(
+  startSpanId: TraceSpanId,
+  endSpanId: TraceSpanId
+): TraceSameProcessDependency {
   return {
-    type: 'trace-local-dependency',
+    type: 'trace-same-process-dependency',
     dependencyId: 'dependency' as TraceDependencyId,
     startSpanId,
     endSpanId,

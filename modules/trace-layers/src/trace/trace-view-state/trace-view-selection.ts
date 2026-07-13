@@ -1,98 +1,94 @@
 import {DEFAULT_TRACE_SPAN_CARD_DEPENDENCY_LIMIT} from '../trace-graph/build-trace-span-card-data';
 import {
-  isVisibleCrossDependencyRef,
-  isVisibleLocalDependencyRef
+  isCrossProcessDependencyRef,
+  isSameProcessDependencyRef
 } from '../trace-graph/trace-id-encoder';
 
-import type {
-  TraceCrossDependencySource,
-  TraceLocalDependencySource,
-  TraceRenderSpan
-} from '../trace-graph-accessors';
+import type {TraceRenderSpan} from '../trace-graph-accessors';
 import type {TraceCardSpan} from '../trace-graph/build-trace-span-card-data';
 import type {TraceGraph} from '../trace-graph/trace-graph';
 import type {
-  TraceGraphSelectedCrossDependencySource,
-  TraceGraphSelectedLocalDependencySource,
+  TraceGraphSelectedCrossProcessDependencySource,
+  TraceGraphSelectedSameProcessDependencySource,
   TraceSelectedDependencyDirection
 } from '../trace-graph/trace-graph-types';
 import type {
-  VisibleCrossDependencyRef,
-  VisibleDependencyRef,
-  VisibleLocalDependencyRef
+  CrossProcessDependencyRef,
+  SameProcessDependencyRef,
+  TraceDependencyRef
 } from '../trace-graph/trace-id-encoder';
 import type {SpanRef} from '../trace-graph/trace-types';
 
 /** Immediate visible dependency refs touching a span. */
-export type TraceVisibleDependencyRefsForSpan = {
-  /** Immediate visible local dependency refs touching the span. */
-  readonly localDependencyRefs: readonly VisibleLocalDependencyRef[];
-  /** Immediate visible cross dependency refs touching the span. */
-  readonly crossDependencyRefs: readonly VisibleCrossDependencyRef[];
-  /** Immediate visible local dependency refs incoming to the span. */
-  readonly incomingLocalDependencyRefs: readonly VisibleLocalDependencyRef[];
-  /** Immediate visible cross dependency refs incoming to the span. */
-  readonly incomingCrossDependencyRefs: readonly VisibleCrossDependencyRef[];
-  /** Immediate visible local dependency refs outgoing from the span. */
-  readonly outgoingLocalDependencyRefs: readonly VisibleLocalDependencyRef[];
-  /** Immediate visible cross dependency refs outgoing from the span. */
-  readonly outgoingCrossDependencyRefs: readonly VisibleCrossDependencyRef[];
+export type TraceDependencyRefsForSpan = {
+  /** Immediate visible same-process dependency refs touching the span. */
+  readonly sameProcessDependencyRefs: readonly SameProcessDependencyRef[];
+  /** Immediate visible cross-process dependency refs touching the span. */
+  readonly crossProcessDependencyRefs: readonly CrossProcessDependencyRef[];
+  /** Immediate visible same-process dependency refs incoming to the span. */
+  readonly incomingSameProcessDependencyRefs: readonly SameProcessDependencyRef[];
+  /** Immediate visible cross-process dependency refs incoming to the span. */
+  readonly incomingCrossProcessDependencyRefs: readonly CrossProcessDependencyRef[];
+  /** Immediate visible same-process dependency refs outgoing from the span. */
+  readonly outgoingSameProcessDependencyRefs: readonly SameProcessDependencyRef[];
+  /** Immediate visible cross-process dependency refs outgoing from the span. */
+  readonly outgoingCrossProcessDependencyRefs: readonly CrossProcessDependencyRef[];
 };
 
-/** Direction maps for selected local and cross dependencies. */
+/** Direction maps for selected same-process and cross-process dependencies. */
 export type TraceSelectedDependencyDirectionMaps = {
-  /** Selected local dependency directions keyed by visible dependency ref. */
-  readonly localDependencyDirectionByRef: ReadonlyMap<
-    VisibleLocalDependencyRef,
+  /** Selected same-process dependency directions keyed by visible dependency ref. */
+  readonly sameProcessDependencyDirectionByRef: ReadonlyMap<
+    SameProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
-  /** Selected cross dependency directions keyed by visible dependency ref. */
-  readonly crossDependencyDirectionByRef: ReadonlyMap<
-    VisibleCrossDependencyRef,
+  /** Selected cross-process dependency directions keyed by visible dependency ref. */
+  readonly crossProcessDependencyDirectionByRef: ReadonlyMap<
+    CrossProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
 };
 
 /** Inputs used to build selected dependency direction maps. */
 export type TraceSelectedDependencyDirectionMapInput = {
-  /** Visible local dependency refs incoming to the selected origin span. */
-  readonly incomingLocalDependencyRefs?: readonly VisibleLocalDependencyRef[];
-  /** Visible cross dependency refs incoming to the selected origin span. */
-  readonly incomingCrossDependencyRefs?: readonly VisibleCrossDependencyRef[];
-  /** Visible local dependency refs outgoing from the selected origin span. */
-  readonly outgoingLocalDependencyRefs?: readonly VisibleLocalDependencyRef[];
-  /** Visible cross dependency refs outgoing from the selected origin span. */
-  readonly outgoingCrossDependencyRefs?: readonly VisibleCrossDependencyRef[];
+  /** Visible same-process dependency refs incoming to the selected origin span. */
+  readonly incomingSameProcessDependencyRefs?: readonly SameProcessDependencyRef[];
+  /** Visible cross-process dependency refs incoming to the selected origin span. */
+  readonly incomingCrossProcessDependencyRefs?: readonly CrossProcessDependencyRef[];
+  /** Visible same-process dependency refs outgoing from the selected origin span. */
+  readonly outgoingSameProcessDependencyRefs?: readonly SameProcessDependencyRef[];
+  /** Visible cross-process dependency refs outgoing from the selected origin span. */
+  readonly outgoingCrossProcessDependencyRefs?: readonly CrossProcessDependencyRef[];
 };
 
 /** Visible dependency refs whose endpoint span refs should be resolved. */
 export type TraceVisibleDependencyEndpointSpanRefInput = {
-  /** Visible local dependency refs to resolve to start and end span refs. */
-  readonly localDependencyRefs?: readonly VisibleLocalDependencyRef[];
+  /** Visible same-process dependency refs to resolve to start and end span refs. */
+  readonly sameProcessDependencyRefs?: readonly SameProcessDependencyRef[];
   /** Visible cross-process dependency refs to resolve to start and end span refs. */
-  readonly crossDependencyRefs?: readonly VisibleCrossDependencyRef[];
+  readonly crossProcessDependencyRefs?: readonly CrossProcessDependencyRef[];
 };
 
 /** Direction maps passed while resolving selected dependency overlay sources. */
 export type TraceSelectedDependencySourceDirectionOptions = {
-  /** Directions for externally selected local dependency refs. */
-  readonly selectedLocalDependencyDirectionByRef?: ReadonlyMap<
-    VisibleLocalDependencyRef,
+  /** Directions for externally selected same-process dependency refs. */
+  readonly selectedSameProcessDependencyDirectionByRef?: ReadonlyMap<
+    SameProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
-  /** Directions for clicked local dependency refs kept before parent state round-trips. */
-  readonly clickedLocalDependencyDirectionByRef?: ReadonlyMap<
-    VisibleLocalDependencyRef,
+  /** Directions for clicked same-process dependency refs kept before parent state round-trips. */
+  readonly clickedSameProcessDependencyDirectionByRef?: ReadonlyMap<
+    SameProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
-  /** Directions for externally selected cross dependency refs. */
-  readonly selectedCrossDependencyDirectionByRef?: ReadonlyMap<
-    VisibleCrossDependencyRef,
+  /** Directions for externally selected cross-process dependency refs. */
+  readonly selectedCrossProcessDependencyDirectionByRef?: ReadonlyMap<
+    CrossProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
-  /** Directions for clicked cross dependency refs kept before parent state round-trips. */
-  readonly clickedCrossDependencyDirectionByRef?: ReadonlyMap<
-    VisibleCrossDependencyRef,
+  /** Directions for clicked cross-process dependency refs kept before parent state round-trips. */
+  readonly clickedCrossProcessDependencyDirectionByRef?: ReadonlyMap<
+    CrossProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
 };
@@ -112,7 +108,7 @@ export function getTraceSelectedSpanFromRef(
   traceGraph: Readonly<TraceGraph>,
   spanRef: SpanRef
 ): TraceCardSpan | null {
-  const span = traceGraph.getSpanRenderSource(spanRef);
+  const span = traceGraph.getSpanDetailSource(spanRef);
   return span ? getTraceSelectedSpanFromRenderSpan(traceGraph, span) : null;
 }
 
@@ -144,36 +140,36 @@ export function getTraceSelectedSpanFromRenderSpan(
 /**
  * Returns immediate visible dependency refs touching the given span.
  */
-export function getImmediateVisibleDependencyRefsForSpan(
+export function getImmediateDependencyRefsForSpan(
   traceGraph: Readonly<TraceGraph>,
   spanRef: SpanRef
-): TraceVisibleDependencyRefsForSpan {
-  const localDependencyRefs = new Set<VisibleLocalDependencyRef>();
-  const crossDependencyRefs = new Set<VisibleCrossDependencyRef>();
-  const incomingLocalDependencyRefs = new Set<VisibleLocalDependencyRef>();
-  const incomingCrossDependencyRefs = new Set<VisibleCrossDependencyRef>();
-  const outgoingLocalDependencyRefs = new Set<VisibleLocalDependencyRef>();
-  const outgoingCrossDependencyRefs = new Set<VisibleCrossDependencyRef>();
-  const addVisibleDependencyRef = (
-    visibleDependencyRef: VisibleDependencyRef | null | undefined,
+): TraceDependencyRefsForSpan {
+  const sameProcessDependencyRefs = new Set<SameProcessDependencyRef>();
+  const crossProcessDependencyRefs = new Set<CrossProcessDependencyRef>();
+  const incomingSameProcessDependencyRefs = new Set<SameProcessDependencyRef>();
+  const incomingCrossProcessDependencyRefs = new Set<CrossProcessDependencyRef>();
+  const outgoingSameProcessDependencyRefs = new Set<SameProcessDependencyRef>();
+  const outgoingCrossProcessDependencyRefs = new Set<CrossProcessDependencyRef>();
+  const addTraceDependencyRef = (
+    visibleDependencyRef: TraceDependencyRef | null | undefined,
     direction?: TraceSelectedDependencyDirection
   ) => {
     if (visibleDependencyRef == null) {
       return;
     }
-    if (isVisibleLocalDependencyRef(visibleDependencyRef)) {
-      localDependencyRefs.add(visibleDependencyRef);
+    if (isSameProcessDependencyRef(visibleDependencyRef)) {
+      sameProcessDependencyRefs.add(visibleDependencyRef);
       if (direction === 'incoming') {
-        incomingLocalDependencyRefs.add(visibleDependencyRef);
+        incomingSameProcessDependencyRefs.add(visibleDependencyRef);
       } else if (direction === 'outgoing') {
-        outgoingLocalDependencyRefs.add(visibleDependencyRef);
+        outgoingSameProcessDependencyRefs.add(visibleDependencyRef);
       }
-    } else if (isVisibleCrossDependencyRef(visibleDependencyRef)) {
-      crossDependencyRefs.add(visibleDependencyRef);
+    } else if (isCrossProcessDependencyRef(visibleDependencyRef)) {
+      crossProcessDependencyRefs.add(visibleDependencyRef);
       if (direction === 'incoming') {
-        incomingCrossDependencyRefs.add(visibleDependencyRef);
+        incomingCrossProcessDependencyRefs.add(visibleDependencyRef);
       } else if (direction === 'outgoing') {
-        outgoingCrossDependencyRefs.add(visibleDependencyRef);
+        outgoingCrossProcessDependencyRefs.add(visibleDependencyRef);
       }
     }
   };
@@ -185,17 +181,17 @@ export function getImmediateVisibleDependencyRefsForSpan(
       DEFAULT_TRACE_SPAN_CARD_DEPENDENCY_LIMIT
     );
     for (const dependencyRef of dependencyRefs.dependencyRefs) {
-      addVisibleDependencyRef(dependencyRef, direction);
+      addTraceDependencyRef(dependencyRef, direction);
     }
   }
 
   return {
-    localDependencyRefs: [...localDependencyRefs],
-    crossDependencyRefs: [...crossDependencyRefs],
-    incomingLocalDependencyRefs: [...incomingLocalDependencyRefs],
-    incomingCrossDependencyRefs: [...incomingCrossDependencyRefs],
-    outgoingLocalDependencyRefs: [...outgoingLocalDependencyRefs],
-    outgoingCrossDependencyRefs: [...outgoingCrossDependencyRefs]
+    sameProcessDependencyRefs: [...sameProcessDependencyRefs],
+    crossProcessDependencyRefs: [...crossProcessDependencyRefs],
+    incomingSameProcessDependencyRefs: [...incomingSameProcessDependencyRefs],
+    incomingCrossProcessDependencyRefs: [...incomingCrossProcessDependencyRefs],
+    outgoingSameProcessDependencyRefs: [...outgoingSameProcessDependencyRefs],
+    outgoingCrossProcessDependencyRefs: [...outgoingCrossProcessDependencyRefs]
   };
 }
 
@@ -205,39 +201,39 @@ export function getImmediateVisibleDependencyRefsForSpan(
 export function buildTraceSelectedDependencyDirectionMaps(
   input: TraceSelectedDependencyDirectionMapInput
 ): TraceSelectedDependencyDirectionMaps {
-  const localDependencyDirectionByRef = new Map<
-    VisibleLocalDependencyRef,
+  const sameProcessDependencyDirectionByRef = new Map<
+    SameProcessDependencyRef,
     TraceSelectedDependencyDirection
   >();
-  const crossDependencyDirectionByRef = new Map<
-    VisibleCrossDependencyRef,
+  const crossProcessDependencyDirectionByRef = new Map<
+    CrossProcessDependencyRef,
     TraceSelectedDependencyDirection
   >();
 
   addDependencyDirections(
-    localDependencyDirectionByRef,
-    input.outgoingLocalDependencyRefs,
+    sameProcessDependencyDirectionByRef,
+    input.outgoingSameProcessDependencyRefs,
     'outgoing'
   );
   addDependencyDirections(
-    crossDependencyDirectionByRef,
-    input.outgoingCrossDependencyRefs,
+    crossProcessDependencyDirectionByRef,
+    input.outgoingCrossProcessDependencyRefs,
     'outgoing'
   );
   addDependencyDirections(
-    localDependencyDirectionByRef,
-    input.incomingLocalDependencyRefs,
+    sameProcessDependencyDirectionByRef,
+    input.incomingSameProcessDependencyRefs,
     'incoming'
   );
   addDependencyDirections(
-    crossDependencyDirectionByRef,
-    input.incomingCrossDependencyRefs,
+    crossProcessDependencyDirectionByRef,
+    input.incomingCrossProcessDependencyRefs,
     'incoming'
   );
 
   return {
-    localDependencyDirectionByRef,
-    crossDependencyDirectionByRef
+    sameProcessDependencyDirectionByRef,
+    crossProcessDependencyDirectionByRef
   };
 }
 
@@ -249,36 +245,38 @@ export function getVisibleDependencyEndpointSpanRefs(
   input: TraceVisibleDependencyEndpointSpanRefInput
 ): SpanRef[] {
   const spanRefs = new Set<SpanRef>();
-  for (const dependencyRef of input.localDependencyRefs ?? []) {
+  for (const dependencyRef of input.sameProcessDependencyRefs ?? []) {
     addVisibleDependencyEndpointSpanRefs(traceGraph, dependencyRef, spanRefs);
   }
-  for (const dependencyRef of input.crossDependencyRefs ?? []) {
+  for (const dependencyRef of input.crossProcessDependencyRefs ?? []) {
     addVisibleDependencyEndpointSpanRefs(traceGraph, dependencyRef, spanRefs);
   }
   return [...spanRefs];
 }
 
 /**
- * Builds selected local-dependency render sources grouped by process id.
+ * Builds selected same-process-dependency render sources grouped by process id.
  */
-export function buildTraceSelectedLocalDependencySourcesByProcessId(
+export function buildTraceSelectedSameProcessDependencySourcesByProcessId(
   traceGraph: Readonly<TraceGraph>,
-  selectedDependencyRefs: ReadonlySet<VisibleLocalDependencyRef> | null | undefined,
-  clickedDependencyRefs: readonly VisibleLocalDependencyRef[],
+  selectedDependencyRefs: ReadonlySet<SameProcessDependencyRef> | null | undefined,
+  clickedDependencyRefs: readonly SameProcessDependencyRef[],
   directionOptions?: Pick<
     TraceSelectedDependencySourceDirectionOptions,
-    'selectedLocalDependencyDirectionByRef' | 'clickedLocalDependencyDirectionByRef'
+    'selectedSameProcessDependencyDirectionByRef' | 'clickedSameProcessDependencyDirectionByRef'
   >
-): TraceSelectedLocalDependencySourcesByProcessId {
+): TraceSelectedSameProcessDependencySourcesByProcessId {
   if ((selectedDependencyRefs?.size ?? 0) === 0 && clickedDependencyRefs.length === 0) {
     return {};
   }
 
   const selectedSourcesByRef = new Map<
-    VisibleLocalDependencyRef,
-    TraceGraphSelectedLocalDependencySource
+    SameProcessDependencyRef,
+    TraceGraphSelectedSameProcessDependencySource
   >();
-  const addLocalDependencySource = (source: TraceGraphSelectedLocalDependencySource | null) => {
+  const addSameProcessDependencySource = (
+    source: TraceGraphSelectedSameProcessDependencySource | null
+  ) => {
     if (!source) {
       return;
     }
@@ -299,18 +297,16 @@ export function buildTraceSelectedLocalDependencySourcesByProcessId(
 
   for (const dependencyRef of selectedDependencyRefs ?? []) {
     const selectedDirection =
-      directionOptions?.selectedLocalDependencyDirectionByRef?.get(dependencyRef);
-    addLocalDependencySource(
-      traceGraph.getVisibleSelectedLocalDependencySources([dependencyRef], selectedDirection)[0] ??
-        null
+      directionOptions?.selectedSameProcessDependencyDirectionByRef?.get(dependencyRef);
+    addSameProcessDependencySource(
+      buildSelectedSameProcessDependencySource(traceGraph, dependencyRef, selectedDirection)
     );
   }
   for (const dependencyRef of clickedDependencyRefs) {
     const selectedDirection =
-      directionOptions?.clickedLocalDependencyDirectionByRef?.get(dependencyRef);
-    addLocalDependencySource(
-      traceGraph.getVisibleSelectedLocalDependencySources([dependencyRef], selectedDirection)[0] ??
-        null
+      directionOptions?.clickedSameProcessDependencyDirectionByRef?.get(dependencyRef);
+    addSameProcessDependencySource(
+      buildSelectedSameProcessDependencySource(traceGraph, dependencyRef, selectedDirection)
     );
   }
 
@@ -319,7 +315,7 @@ export function buildTraceSelectedLocalDependencySourcesByProcessId(
   }
 
   return Array.from(selectedSourcesByRef.values()).reduce<
-    Partial<Record<string, TraceGraphSelectedLocalDependencySource[]>>
+    Partial<Record<string, TraceGraphSelectedSameProcessDependencySource[]>>
   >((groupedSources, source) => {
     const processKey = String(source.processRef);
     if (!groupedSources[processKey]) {
@@ -331,26 +327,28 @@ export function buildTraceSelectedLocalDependencySourcesByProcessId(
 }
 
 /**
- * Builds selected cross-dependency render sources from canonical visible dependency refs.
+ * Builds selected cross-process-dependency render sources from canonical visible dependency refs.
  */
-export function buildTraceSelectedCrossDependencySources(
+export function buildTraceSelectedCrossProcessDependencySources(
   traceGraph: Readonly<TraceGraph>,
-  selectedDependencyRefs: ReadonlySet<VisibleCrossDependencyRef> | null | undefined,
-  clickedDependencyRefs: readonly VisibleCrossDependencyRef[],
+  selectedDependencyRefs: ReadonlySet<CrossProcessDependencyRef> | null | undefined,
+  clickedDependencyRefs: readonly CrossProcessDependencyRef[],
   directionOptions?: Pick<
     TraceSelectedDependencySourceDirectionOptions,
-    'selectedCrossDependencyDirectionByRef' | 'clickedCrossDependencyDirectionByRef'
+    'selectedCrossProcessDependencyDirectionByRef' | 'clickedCrossProcessDependencyDirectionByRef'
   >
-): TraceSelectedCrossDependencySources {
+): TraceSelectedCrossProcessDependencySources {
   if ((selectedDependencyRefs?.size ?? 0) === 0 && clickedDependencyRefs.length === 0) {
     return [];
   }
 
   const selectedSourcesByRef = new Map<
-    VisibleCrossDependencyRef,
-    TraceGraphSelectedCrossDependencySource
+    CrossProcessDependencyRef,
+    TraceGraphSelectedCrossProcessDependencySource
   >();
-  const addCrossDependencySource = (source: TraceGraphSelectedCrossDependencySource | null) => {
+  const addCrossProcessDependencySource = (
+    source: TraceGraphSelectedCrossProcessDependencySource | null
+  ) => {
     if (!source) {
       return;
     }
@@ -371,62 +369,68 @@ export function buildTraceSelectedCrossDependencySources(
 
   for (const dependencyRef of selectedDependencyRefs ?? []) {
     const selectedDirection =
-      directionOptions?.selectedCrossDependencyDirectionByRef?.get(dependencyRef);
-    addCrossDependencySource(
-      traceGraph.getVisibleSelectedCrossDependencySources([dependencyRef], selectedDirection)[0] ??
-        null
+      directionOptions?.selectedCrossProcessDependencyDirectionByRef?.get(dependencyRef);
+    addCrossProcessDependencySource(
+      buildSelectedCrossProcessDependencySource(traceGraph, dependencyRef, selectedDirection)
     );
   }
   for (const dependencyRef of clickedDependencyRefs) {
     const selectedDirection =
-      directionOptions?.clickedCrossDependencyDirectionByRef?.get(dependencyRef);
-    addCrossDependencySource(
-      traceGraph.getVisibleSelectedCrossDependencySources([dependencyRef], selectedDirection)[0] ??
-        null
+      directionOptions?.clickedCrossProcessDependencyDirectionByRef?.get(dependencyRef);
+    addCrossProcessDependencySource(
+      buildSelectedCrossProcessDependencySource(traceGraph, dependencyRef, selectedDirection)
     );
   }
 
   return Array.from(selectedSourcesByRef.values());
 }
 
-/**
- * Resolves exact visible local dependencies from canonical visible dependency refs.
- */
-export function getVisibleLocalDependenciesByRef(
-  traceGraph: Readonly<TraceGraph>,
-  dependencyRefs: readonly VisibleLocalDependencyRef[]
-): TraceLocalDependencySource[] {
-  return dependencyRefs.flatMap(dependencyRef => {
-    const dependency = traceGraph.getVisibleDependencySourceByRef(dependencyRef);
-    return dependency?.type === 'trace-local-dependency' ? [dependency] : [];
-  });
-}
-
-/**
- * Resolves exact visible cross-process dependencies from canonical visible dependency refs.
- */
-export function getVisibleCrossDependenciesByRef(
-  traceGraph: Readonly<TraceGraph>,
-  dependencyRefs: readonly VisibleCrossDependencyRef[]
-): TraceCrossDependencySource[] {
-  return dependencyRefs.flatMap(dependencyRef => {
-    const dependency = traceGraph.getVisibleDependencySourceByRef(dependencyRef);
-    return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
-  });
-}
-
-/** Selected local-dependency sources grouped by process id. */
-export type TraceSelectedLocalDependencySourcesByProcessId = Readonly<
-  Partial<Record<string, readonly TraceGraphSelectedLocalDependencySource[]>>
+/** Selected same-process-dependency sources grouped by process id. */
+export type TraceSelectedSameProcessDependencySourcesByProcessId = Readonly<
+  Partial<Record<string, readonly TraceGraphSelectedSameProcessDependencySource[]>>
 >;
 
-/** Selected cross-dependency sources for ref-native selection rendering. */
-export type TraceSelectedCrossDependencySources =
-  readonly TraceGraphSelectedCrossDependencySource[];
+/** Selected cross-process-dependency sources for ref-native selection rendering. */
+export type TraceSelectedCrossProcessDependencySources =
+  readonly TraceGraphSelectedCrossProcessDependencySource[];
 
-function addDependencyDirections<
-  TRef extends VisibleLocalDependencyRef | VisibleCrossDependencyRef
->(
+/** Projects one visible same-process dependency ref into the selected-overlay scalar payload. */
+function buildSelectedSameProcessDependencySource(
+  traceGraph: Readonly<TraceGraph>,
+  dependencyRef: SameProcessDependencyRef,
+  selectedDirection?: TraceSelectedDependencyDirection
+): TraceGraphSelectedSameProcessDependencySource | null {
+  const processRef = traceGraph.getSameProcessDependencyProcessRefByRef(dependencyRef);
+  if (processRef == null) {
+    return null;
+  }
+  return {
+    dependencyRef,
+    processRef,
+    selectedDirection: selectedDirection ?? 'incoming',
+    waitTimeMs: traceGraph.getDependencyWaitTimeMs(dependencyRef) ?? 0,
+    bidirectional: traceGraph.getDependencyBidirectional(dependencyRef) === true
+  };
+}
+
+/** Projects one visible cross-process dependency ref into the selected-overlay scalar payload. */
+function buildSelectedCrossProcessDependencySource(
+  traceGraph: Readonly<TraceGraph>,
+  dependencyRef: CrossProcessDependencyRef,
+  selectedDirection?: TraceSelectedDependencyDirection
+): TraceGraphSelectedCrossProcessDependencySource | null {
+  if (!traceGraph.isDependencyVisible(dependencyRef)) {
+    return null;
+  }
+  return {
+    dependencyRef,
+    selectedDirection: selectedDirection ?? 'incoming',
+    waitTimeMs: traceGraph.getDependencyWaitTimeMs(dependencyRef) ?? 0,
+    bidirectional: traceGraph.getDependencyBidirectional(dependencyRef) === true
+  };
+}
+
+function addDependencyDirections<TRef extends SameProcessDependencyRef | CrossProcessDependencyRef>(
   directionByRef: Map<TRef, TraceSelectedDependencyDirection>,
   dependencyRefs: readonly TRef[] | null | undefined,
   selectedDirection: TraceSelectedDependencyDirection
@@ -441,14 +445,14 @@ function addDependencyDirections<
 
 function addVisibleDependencyEndpointSpanRefs(
   traceGraph: Readonly<TraceGraph>,
-  dependencyRef: VisibleDependencyRef,
+  dependencyRef: TraceDependencyRef,
   spanRefs: Set<SpanRef>
 ): void {
-  const startSpanRef = traceGraph.getVisibleDependencyStartSpan(dependencyRef);
+  const startSpanRef = traceGraph.getDependencyStartSpan(dependencyRef);
   if (startSpanRef != null) {
     spanRefs.add(startSpanRef);
   }
-  const endSpanRef = traceGraph.getVisibleDependencyEndSpan(dependencyRef);
+  const endSpanRef = traceGraph.getDependencyEndSpan(dependencyRef);
   if (endSpanRef != null) {
     spanRefs.add(endSpanRef);
   }

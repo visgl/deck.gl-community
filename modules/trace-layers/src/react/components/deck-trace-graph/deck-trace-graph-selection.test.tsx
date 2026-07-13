@@ -1,4 +1,12 @@
-import {createRef, useEffect, useLayoutEffect, useMemo, useRef} from 'react';
+import {
+  createRef,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef
+} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
@@ -9,42 +17,43 @@ import {
 } from '../../../layers/layers/trace-layout-geometry';
 import {
   buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
   DEFAULT_TRACE_STYLE,
+  getTraceLayoutSpanLaneIndex,
+  getTraceSpanDependencySelection,
   TraceEngine,
   TraceGraph
-} from '../../../trace/index';
-import {createStaticTraceGraphRuntimeSource} from '../../../trace/trace-chunk-store';
+} from '../../../trace';
+import {createRuntimeTraceGraph} from '../../../trace/trace-graph/trace-graph-test-fixtures';
 import {
+  getRequiredCrossProcessDependencyRefById,
   getRequiredSpanRefBySpanId,
-  getRequiredVisibleCrossDependencyRefById,
-  getRequiredVisibleDisplaySourceBySpanId,
-  getTraceGraphSpanDependencies
+  getRequiredVisibleDisplaySourceBySpanId
 } from '../../../trace/trace-graph/trace-graph-test-utils';
+import {getTraceSpanExactExternalIdQuery} from '../../../trace/trace-graph/trace-span-name-search';
 import {DeckTraceGraph} from './deck-trace-graph';
 
 import type {
+  CrossProcessDependencyRef,
+  SameProcessDependencyRef,
   SpanRef,
+  ThreadRef,
   TraceCrossProcessDependency,
   TraceDependencyId,
   TraceEngineInputs,
   TraceEngineUpdate,
   TraceLayout,
   TraceLayoutRow,
-  TraceLocalDependency,
   TracePreparedProcessRow,
   TraceProcess,
   TraceRenderSpan,
+  TraceSameProcessDependency,
   TraceSelectedDependencyDirection,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId,
-  TraceVisSettings,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
-} from '../../../trace/index';
-import type {TraceSpanDisplaySource} from '../../../trace/trace-graph-accessors';
+  TraceVisSettings
+} from '../../../trace';
 import type {
   DeckTraceGraphExternalOmniBoxSearchProvider,
   DeckTraceGraphHandle,
@@ -57,16 +66,15 @@ import type {Ref} from 'react';
 import type {Root} from 'react-dom/client';
 
 function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  traceGraph: Parameters<typeof createRuntimeTraceGraph>[0],
+  options?: Parameters<typeof createRuntimeTraceGraph>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+  return createRuntimeTraceGraph(traceGraph, options);
+}
+
+/** Materializes one prepared span source only at assertion boundaries. */
+function getPreparedSpanRefs(source: Iterable<SpanRef> | undefined): SpanRef[] | undefined {
+  return source ? Array.from(source) : undefined;
 }
 
 function getRequiredProcessRef(traceGraph: TraceGraph, processId: string) {
@@ -76,6 +84,16 @@ function getRequiredProcessRef(traceGraph: TraceGraph, processId: string) {
     throw new Error(`Expected process ref for ${processId}`);
   }
   return processRef;
+}
+
+/** Resolves visible detail rows only for test fixtures after the production detail helper was removed. */
+function getVisibleSpanDetailsByProcess(
+  traceGraph: TraceGraph,
+  processRef: Parameters<TraceGraph['iterateVisibleSpanRefsByProcess']>[0]
+) {
+  return Array.from(traceGraph.iterateVisibleSpanRefsByProcess(processRef)).flatMap(
+    spanRef => traceGraph.getSpanDetailSource(spanRef) ?? []
+  );
 }
 
 /** Returns the rendered thread layout containing one selected span ref. */
@@ -95,6 +113,8 @@ const buildDeckLayerForTraceProcessActivitySummarySpy = vi.hoisted(() => vi.fn()
 const buildDeckLayersForMinimapSpanIndicatorsSpy = vi.hoisted(() => vi.fn());
 const buildDeckLayersForInstantsAndCounterSpy = vi.hoisted(() => vi.fn());
 const buildDeckLayersForTimeMeasureSpy = vi.hoisted(() => vi.fn());
+const buildDeckLayersForTimeAnchorSpy = vi.hoisted(() => vi.fn());
+const buildDeckLayersForLegendSpy = vi.hoisted(() => vi.fn());
 const buildOverviewLayersSpy = vi.hoisted(() =>
   vi.fn((arg: unknown) => {
     void arg;
@@ -131,119 +151,46 @@ const mockImperativeDeckController = vi.hoisted(() => ({
   areAllProcessesExpanded: vi.fn(() => false)
 }));
 
-vi.mock('./deck-with-managed-views', async () => {
-  const React = await vi.importActual<typeof import('react')>('react');
-  return {
-    DeckWithManagedViews: React.forwardRef((props: Record<string, unknown>, ref) => {
-      const hoverPopupHostRef = React.useRef<HTMLDivElement | null>(null);
+vi.mock('./deck-with-managed-views', () => ({
+  DeckWithManagedViews: forwardRef((props: Record<string, unknown>, ref) => {
+    const hoverPopupHostRef = useRef<HTMLDivElement | null>(null);
 
-      React.useImperativeHandle(ref, () => mockManagedViewsController);
-      renderedDeckProps.current = props;
-      React.useLayoutEffect(() => {
-        const host = hoverPopupHostRef.current;
-        if (!host) {
-          return;
-        }
+    useImperativeHandle(ref, () => mockManagedViewsController);
+    renderedDeckProps.current = props;
+    useLayoutEffect(() => {
+      const host = hoverPopupHostRef.current;
+      if (!host) {
+        return;
+      }
 
-        const widgets = Array.isArray(props.widgets) ? props.widgets : [];
-        const hoverPopupWidget = widgets.find(
-          (
-            widget
-          ): widget is {
-            getContentElement?: () => HTMLDivElement | null;
-          } => typeof widget === 'object' && widget !== null && 'getContentElement' in widget
-        );
-        const contentElement = hoverPopupWidget?.getContentElement?.();
-        if (!contentElement) {
-          return;
-        }
-
-        host.appendChild(contentElement);
-        return () => {
-          if (contentElement.parentElement === host) {
-            host.removeChild(contentElement);
-          }
-        };
-      }, [props.widgets]);
-
-      return (
-        <div data-testid="deck-with-managed-views">
-          <div ref={hoverPopupHostRef} data-testid="deck-hover-popup-host" />
-        </div>
+      const widgets = Array.isArray(props.widgets) ? props.widgets : [];
+      const hoverPopupWidget = widgets.find(
+        (
+          widget
+        ): widget is {
+          getContentElement?: () => HTMLDivElement | null;
+        } => typeof widget === 'object' && widget !== null && 'getContentElement' in widget
       );
-    })
-  };
-});
+      const contentElement = hoverPopupWidget?.getContentElement?.();
+      if (!contentElement) {
+        return;
+      }
 
-vi.mock('@deck.gl-community/panels', () => {
-  class MockPanel {
-    props: Record<string, unknown>;
+      host.appendChild(contentElement);
+      return () => {
+        if (contentElement.parentElement === host) {
+          host.removeChild(contentElement);
+        }
+      };
+    }, [props.widgets]);
 
-    constructor(props: Record<string, unknown> = {}) {
-      this.props = props;
-    }
-  }
-
-  class KeyboardShortcutsPanel extends MockPanel {}
-  class URLParametersPanel extends MockPanel {}
-  class CommandDocumentationPanel extends MockPanel {}
-  class DocumentationLinksPanel extends MockPanel {}
-  class TabbedPanel extends MockPanel {}
-
-  return {
-    CommandDocumentationPanel,
-    commandManager: {
-      registerCommand: vi.fn(() => () => undefined)
-    },
-    DEFAULT_SHORTCUTS: [
-      {key: '/', commandKey: true, name: 'Show Shortcuts', description: 'Show help'}
-    ],
-    DocumentationLinksPanel,
-    formatShortcutKeyHTML: (shortcut: {commandKey?: boolean; key: string}) =>
-      `${shortcut.commandKey ? 'Ctrl+' : ''}${shortcut.key.toUpperCase()}`,
-    KeyboardShortcutsPanel,
-    TabbedPanel,
-    URLParametersPanel
-  };
-});
-
-vi.mock('@deck.gl-community/widgets', () => {
-  class MockWidget {
-    props: Record<string, unknown>;
-    commandId: string;
-
-    constructor(props: Record<string, unknown> = {}) {
-      this.props = props;
-      this.commandId =
-        typeof props.commandId === 'string'
-          ? props.commandId
-          : typeof props.id === 'string'
-            ? props.id
-            : 'time-measure';
-    }
-  }
-
-  class CommandToggleWidget extends MockWidget {}
-  class ModalPanelWidget extends MockWidget {
-    constructor(props: Record<string, unknown> = {}) {
-      super({...props, container: props.panel});
-    }
-  }
-  class OmniBoxWidget extends MockWidget {}
-  class TimeMeasureWidget extends MockWidget {
-    static performAction() {}
-  }
-  class ToastWidget extends MockWidget {}
-
-  return {
-    CommandToggleWidget,
-    createStudioSettingsWidget: (props: Record<string, unknown>) => new MockWidget(props),
-    ModalPanelWidget,
-    OmniBoxWidget,
-    TimeMeasureWidget,
-    ToastWidget
-  };
-});
+    return (
+      <div data-testid="deck-with-managed-views">
+        <div ref={hoverPopupHostRef} data-testid="deck-hover-popup-host" />
+      </div>
+    );
+  })
+}));
 
 vi.mock('../../../layers', () => ({
   getTraceBounds: () => [
@@ -270,12 +217,6 @@ vi.mock('../../../layers', () => ({
     }
   },
   URLParametersPanel: class {
-    props: Record<string, unknown>;
-    constructor(props: Record<string, unknown>) {
-      this.props = props;
-    }
-  },
-  ModalPanelWidget: class {
     props: Record<string, unknown>;
     constructor(props: Record<string, unknown>) {
       this.props = props;
@@ -325,13 +266,20 @@ vi.mock('../../../layers/layers/deck-layers', () => ({
     buildDeckLayersForInstantsAndCounterSpy(...args);
     return [];
   },
-  buildDeckLayersForLegend: () => [],
+  buildDeckLayersForLegend: (args: unknown) => {
+    buildDeckLayersForLegendSpy(args);
+    return [];
+  },
   buildDeckLayersForMinimapSpanIndicators: (...args: any[]) => {
     buildDeckLayersForMinimapSpanIndicatorsSpy(...args);
     return [];
   },
   buildDeckLayersForTimeMeasure: (...args: any[]) => {
     buildDeckLayersForTimeMeasureSpy(...args);
+    return [];
+  },
+  buildDeckLayersForTimeAnchor: (...args: any[]) => {
+    buildDeckLayersForTimeAnchorSpy(...args);
     return [];
   },
   buildDeckLayersForTrace: (...args: any[]) => {
@@ -344,7 +292,7 @@ vi.mock('../../../layers/layers/deck-layers', () => ({
             ...(params.selection ?? {}),
             ...(params.handlers ?? {}),
             processRows: params.scene.rows,
-            traceGraph: params.scene.graph,
+            traceGraph: params.scene.layout.traceGraph,
             traceLayout: params.scene.layout
           }
         : params,
@@ -355,15 +303,41 @@ vi.mock('../../../layers/layers/deck-layers', () => ({
   buildOverviewLayers: (arg: unknown) => buildOverviewLayersSpy(arg)
 }));
 
+vi.mock('@deck.gl-community/widgets', () => {
+  class MockWidget {
+    props: Record<string, unknown>;
+    constructor(props: Record<string, unknown>) {
+      this.props = props;
+    }
+  }
+
+  return {
+    CommandToggleWidget: MockWidget,
+    createStudioSettingsWidget: (props: Record<string, unknown>) => new MockWidget(props),
+    ModalPanelWidget: MockWidget,
+    OmniBoxWidget: MockWidget,
+    TimeMeasureWidget: MockWidget,
+    ToastWidget: MockWidget
+  };
+});
+
 vi.mock('./trace-tooltip', () => ({
-  TraceTooltip: ({object}: {object: TraceSpan | TraceRenderSpan | null}) => (
-    <div data-testid="trace-tooltip">{object?.name ?? 'empty'}</div>
+  TraceTooltip: ({
+    object,
+    traceGraph
+  }: {
+    object: TraceSpan | TraceRenderSpan | null;
+    traceGraph: TraceGraph;
+  }) => (
+    <div data-testid="trace-tooltip" data-trace-graph-name={traceGraph.name}>
+      {object?.name ?? 'empty'}
+    </div>
   )
 }));
 
 const defaultTraceVisSettings: TraceVisSettings = {
   showDependencies: true,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   showCrossProcessDependencies: true,
   showInstants: false,
   showCounters: false,
@@ -385,7 +359,7 @@ const defaultTraceVisSettings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  traceRunSummaryAggregationKey: 'latest'
+  traceTimingKey: 'latest'
 };
 
 function createProcess(processId: string, rankNum: number, spanId: string): TraceProcess {
@@ -412,8 +386,8 @@ function createProcess(processId: string, rankNum: number, spanId: string): Trac
         durationMsAsString: '10ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -434,13 +408,13 @@ function createProcess(processId: string, rankNum: number, spanId: string): Trac
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 }
 
 /** Builds a visible cross-process parent dependency for deck selection regressions. */
-function createCrossDependency(
+function createCrossProcessDependency(
   dependencyId: TraceDependencyId,
   startSpanId: TraceSpanId,
   endSpanId: TraceSpanId,
@@ -485,17 +459,16 @@ function createDuplicateBlockIdTraceGraph() {
   };
 
   const traceGraph = createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([correctProcess, wrongProcess], [], {
-        name: 'deck-trace-graph-duplicate-span-id-test'
-      })
-    )
+    buildJSONTrace([correctProcess, wrongProcess], [], {
+      name: 'deck-trace-graph-duplicate-span-id-test'
+    })
   );
-  const selectedBlock = traceGraph
-    .getVisibleProcessRenderSpans(getRequiredProcessRef(traceGraph, 'rank-correct'))
-    .find(span => {
-      return span.name === 'selected-correct';
-    });
+  const selectedBlock = getVisibleSpanDetailsByProcess(
+    traceGraph,
+    getRequiredProcessRef(traceGraph, 'rank-correct')
+  ).find(span => {
+    return span.name === 'selected-correct';
+  });
   if (!selectedBlock) {
     throw new Error('Expected selected span for duplicate-id regression test');
   }
@@ -504,11 +477,12 @@ function createDuplicateBlockIdTraceGraph() {
     throw new Error('Expected span ref for duplicate-id regression test');
   }
 
-  const wrongBlock = traceGraph
-    .getVisibleProcessRenderSpans(getRequiredProcessRef(traceGraph, 'rank-wrong'))
-    .find(span => {
-      return span.name === 'selected-wrong';
-    });
+  const wrongBlock = getVisibleSpanDetailsByProcess(
+    traceGraph,
+    getRequiredProcessRef(traceGraph, 'rank-wrong')
+  ).find(span => {
+    return span.name === 'selected-wrong';
+  });
   if (!wrongBlock?.spanRef) {
     throw new Error('Expected wrong-process span ref for duplicate-id regression test');
   }
@@ -537,8 +511,8 @@ function createParentSelectionTraceGraph() {
   };
 
   const dependencyId = 'dep-parent' as TraceDependencyId;
-  const dependency: TraceLocalDependency = {
-    type: 'trace-local-dependency',
+  const dependency: TraceSameProcessDependency = {
+    type: 'trace-same-process-dependency',
     dependencyId,
     startSpanId: parentBlock.spanId,
     endSpanId: childBlock.spanId,
@@ -547,22 +521,22 @@ function createParentSelectionTraceGraph() {
     bidirectional: false,
     waitTimeMs: 0
   };
-  parentBlock.localDependencyIds = [dependencyId];
-  process.localDependencies = [dependency];
+  parentBlock.sameProcessDependencyIds = [dependencyId];
+  process.sameProcessDependencies = [dependency];
 
   const traceGraph = createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([process], [], {
-        name: 'deck-trace-graph-extended-parent-selection-test'
-      })
-    )
+    buildJSONTrace([process], [], {
+      name: 'deck-trace-graph-extended-parent-selection-test'
+    })
   );
-  const parentBlockFromGraph = traceGraph
-    .getVisibleProcessRenderSpans(getRequiredProcessRef(traceGraph, 'parent-rank'))
-    .find(span => span.name === 'parent');
-  const childBlockFromGraph = traceGraph
-    .getVisibleProcessRenderSpans(getRequiredProcessRef(traceGraph, 'parent-rank'))
-    .find(span => span.name === 'child');
+  const parentBlockFromGraph = getVisibleSpanDetailsByProcess(
+    traceGraph,
+    getRequiredProcessRef(traceGraph, 'parent-rank')
+  ).find(span => span.name === 'parent');
+  const childBlockFromGraph = getVisibleSpanDetailsByProcess(
+    traceGraph,
+    getRequiredProcessRef(traceGraph, 'parent-rank')
+  ).find(span => span.name === 'child');
   if (!parentBlockFromGraph || !childBlockFromGraph) {
     throw new Error('Expected parent and child spans for extended parent selection test');
   }
@@ -599,8 +573,8 @@ function createParentSelectionTraceGraphWithUnrelated(): {
   };
 
   const parentDependencyId = 'dep-parent' as TraceDependencyId;
-  const dependency: TraceLocalDependency = {
-    type: 'trace-local-dependency',
+  const dependency: TraceSameProcessDependency = {
+    type: 'trace-same-process-dependency',
     dependencyId: parentDependencyId,
     startSpanId: parentBlock.spanId,
     endSpanId: childBlock.spanId,
@@ -609,22 +583,22 @@ function createParentSelectionTraceGraphWithUnrelated(): {
     bidirectional: false,
     waitTimeMs: 0
   };
-  parentBlock.localDependencyIds = [parentDependencyId];
-  process.localDependencies = [dependency];
+  parentBlock.sameProcessDependencyIds = [parentDependencyId];
+  process.sameProcessDependencies = [dependency];
 
   const traceGraph = createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([process], [], {
-        name: 'deck-trace-graph-extended-parent-selection-visible-test'
-      })
-    )
+    buildJSONTrace([process], [], {
+      name: 'deck-trace-graph-extended-parent-selection-visible-test'
+    })
   );
-  const childBlockFromGraph = traceGraph
-    .getVisibleProcessRenderSpans(getRequiredProcessRef(traceGraph, 'parent-rank'))
-    .find(span => span.name === 'child');
-  const parentBlockFromGraph = traceGraph
-    .getVisibleProcessRenderSpans(getRequiredProcessRef(traceGraph, 'parent-rank'))
-    .find(span => span.name === 'parent');
+  const childBlockFromGraph = getVisibleSpanDetailsByProcess(
+    traceGraph,
+    getRequiredProcessRef(traceGraph, 'parent-rank')
+  ).find(span => span.name === 'child');
+  const parentBlockFromGraph = getVisibleSpanDetailsByProcess(
+    traceGraph,
+    getRequiredProcessRef(traceGraph, 'parent-rank')
+  ).find(span => span.name === 'parent');
   if (!childBlockFromGraph || !parentBlockFromGraph) {
     throw new Error('Expected parent and child spans for extended parent visibility test');
   }
@@ -642,7 +616,7 @@ function createParentSelectionTraceGraphWithUnrelated(): {
 
 function createSelectionTraceGraph(): {
   traceGraph: TraceGraph;
-  selectedBlock: TraceSpanDisplaySource;
+  selectedBlock: TraceRenderSpan;
   selectedSpanRef: SpanRef;
   parentSpanRef: SpanRef;
   childSpanRef: SpanRef;
@@ -708,9 +682,9 @@ function createSelectionTraceGraph(): {
       }
     }
   ];
-  const dependencies: TraceLocalDependency[] = [
+  const dependencies: TraceSameProcessDependency[] = [
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-focus-parent' as TraceDependencyId,
       startSpanId: spans[0]!.spanId,
       endSpanId: spans[1]!.spanId,
@@ -720,7 +694,7 @@ function createSelectionTraceGraph(): {
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-focus-child' as TraceDependencyId,
       startSpanId: spans[1]!.spanId,
       endSpanId: spans[2]!.spanId,
@@ -730,21 +704,19 @@ function createSelectionTraceGraph(): {
       waitTimeMs: 0
     }
   ];
-  spans[0]!.localDependencyIds = ['dep-focus-parent' as TraceDependencyId];
-  spans[1]!.localDependencyIds = ['dep-focus-child' as TraceDependencyId];
+  spans[0]!.sameProcessDependencyIds = ['dep-focus-parent' as TraceDependencyId];
+  spans[1]!.sameProcessDependencyIds = ['dep-focus-child' as TraceDependencyId];
   process.spans = spans;
   process.spanMap = Object.fromEntries(spans.map(span => [span.spanId, span])) as Record<
     string,
     TraceSpan
   >;
-  process.localDependencies = dependencies;
+  process.sameProcessDependencies = dependencies;
 
   const traceGraph = createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([process], [], {
-        name: 'deck-trace-graph-selection-test'
-      })
-    )
+    buildJSONTrace([process], [], {
+      name: 'deck-trace-graph-selection-test'
+    })
   );
 
   const selectedBlock = getRequiredVisibleDisplaySourceBySpanId(
@@ -773,7 +745,7 @@ function createSelectionTraceGraph(): {
 /** Builds a combined-thread head-process graph with one selected span and one unrelated span. */
 function createCombinedThreadSelectionTraceGraph(): {
   traceGraph: TraceGraph;
-  selectedBlock: TraceSpanDisplaySource;
+  selectedBlock: TraceRenderSpan;
   selectedSpanRef: SpanRef;
   unrelatedSpanRef: SpanRef;
 } {
@@ -827,11 +799,9 @@ function createCombinedThreadSelectionTraceGraph(): {
   };
 
   const traceGraph = createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([process], [], {
-        name: 'deck-trace-graph-combined-thread-selection-test'
-      })
-    )
+    buildJSONTrace([process], [], {
+      name: 'deck-trace-graph-combined-thread-selection-test'
+    })
   );
 
   const visibleSelectedBlock = getRequiredVisibleDisplaySourceBySpanId(
@@ -856,7 +826,7 @@ function createCombinedThreadSelectionTraceGraph(): {
 /** Builds a combined-thread head-process parent chain with an interior spacer lane. */
 function createCombinedThreadDependencySelectionTraceGraph(): {
   traceGraph: TraceGraph;
-  childBlock: TraceSpanDisplaySource;
+  childBlock: TraceRenderSpan;
   childSpanRef: SpanRef;
   parentSpanRef: SpanRef;
   spacerSpanRef: SpanRef;
@@ -915,8 +885,8 @@ function createCombinedThreadDependencySelectionTraceGraph(): {
     }
   };
   const dependencyId = 'dep-head-parent-child' as TraceDependencyId;
-  const dependency: TraceLocalDependency = {
-    type: 'trace-local-dependency',
+  const dependency: TraceSameProcessDependency = {
+    type: 'trace-same-process-dependency',
     dependencyId,
     startSpanId: parentBlock.spanId,
     endSpanId: childBlock.spanId,
@@ -925,7 +895,7 @@ function createCombinedThreadDependencySelectionTraceGraph(): {
     bidirectional: false,
     waitTimeMs: 0
   };
-  childBlock.localDependencyIds = [dependencyId];
+  childBlock.sameProcessDependencyIds = [dependencyId];
   process.threads = [parentThread, childThread];
   process.threadMap = {
     [parentThread.threadId]: parentThread,
@@ -937,14 +907,12 @@ function createCombinedThreadDependencySelectionTraceGraph(): {
     [spacerBlock.spanId]: spacerBlock,
     [childBlock.spanId]: childBlock
   };
-  process.localDependencies = [dependency];
+  process.sameProcessDependencies = [dependency];
 
   const traceGraph = createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([process], [], {
-        name: 'deck-trace-graph-combined-thread-dependency-selection-test'
-      })
-    )
+    buildJSONTrace([process], [], {
+      name: 'deck-trace-graph-combined-thread-dependency-selection-test'
+    })
   );
   const visibleChildBlock = getRequiredVisibleDisplaySourceBySpanId(traceGraph, childBlock.spanId);
   const visibleParentBlock = getRequiredVisibleDisplaySourceBySpanId(
@@ -972,7 +940,7 @@ function createCombinedThreadDependencySelectionTraceGraph(): {
 /** Builds a simple head-to-logical cross-parent selection graph. */
 function createCrossSelectionTraceGraph(): {
   traceGraph: TraceGraph;
-  selectedBlock: TraceSpanDisplaySource;
+  selectedBlock: TraceRenderSpan;
   selectedSpanRef: SpanRef;
 } {
   const headProcess = createProcess('head-rank', 0, 'head-parent');
@@ -981,22 +949,20 @@ function createCrossSelectionTraceGraph(): {
   const logicalBlock = logicalProcess.spans[0]!;
 
   const traceGraph = createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace(
-        [headProcess, logicalProcess],
-        [
-          createCrossDependency(
-            'dep-head-logical' as TraceDependencyId,
-            headBlock.spanId,
-            logicalBlock.spanId,
-            headProcess.rankNum,
-            logicalProcess.rankNum
-          )
-        ],
-        {
-          name: 'deck-trace-graph-cross-selection-test'
-        }
-      )
+    buildJSONTrace(
+      [headProcess, logicalProcess],
+      [
+        createCrossProcessDependency(
+          'dep-head-logical' as TraceDependencyId,
+          headBlock.spanId,
+          logicalBlock.spanId,
+          headProcess.rankNum,
+          logicalProcess.rankNum
+        )
+      ],
+      {
+        name: 'deck-trace-graph-cross-selection-test'
+      }
     )
   );
   const selectedBlock = getRequiredVisibleDisplaySourceBySpanId(traceGraph, headBlock.spanId);
@@ -1036,22 +1002,12 @@ async function waitForHoverPopupRender(): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 0));
 }
 
-async function waitForAssertion(assertion: () => void): Promise<void> {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      assertion();
-      return;
-    } catch (error) {
-      lastError = error;
-    }
-
-    await Promise.resolve();
-    await new Promise(resolve => setTimeout(resolve, 0));
-  }
-
-  throw lastError;
+/** Waits until one deferred trace layout update has crossed its paint boundary and finished. */
+async function waitForDeferredTraceLayoutUpdate(): Promise<void> {
+  await new Promise<void>(resolve => {
+    window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
+  });
+  await Promise.resolve();
 }
 
 /** Creates a trace graph whose rank list can be expanded across rerenders. */
@@ -1062,9 +1018,7 @@ function createRankAppendTraceGraph(
   const processes = processIds.map((processId, rankNum) =>
     createProcess(processId, rankNum, `${processId}-span`)
   );
-  return createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(buildJSONTrace(processes, [], {name}))
-  );
+  return createTestTraceGraph(buildJSONTrace(processes, [], {name}));
 }
 
 function createSyncSearchTraceGraph(): TraceGraph {
@@ -1100,16 +1054,13 @@ function createSyncSearchTraceGraph(): TraceGraph {
     [invokeSpan.spanId]: invokeSpan
   };
 
-  return createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(buildJSONTrace([process], [], {name: 'sync-search-test'}))
-  );
+  return createTestTraceGraph(buildJSONTrace([process], [], {name: 'sync-search-test'}));
 }
 
-function createStitchedCrossDependencySelectionTraceGraph(): {
+function createFilteredCrossProcessDependencySelectionTraceGraph(): {
   traceGraph: TraceGraph;
-  stitchedDependencyId: TraceDependencyId;
   filteredLogicalSpanRef: SpanRef;
-  visibleLogicalChild: TraceSpanDisplaySource;
+  visibleLogicalChild: TraceRenderSpan;
 } {
   const rankA = createProcess('rank-a', 0, 'head-root');
   const rankB = createProcess('rank-b', 1, 'filtered-logical');
@@ -1125,10 +1076,10 @@ function createStitchedCrossDependencySelectionTraceGraph(): {
     [logicalChild.spanId]: logicalChild
   };
 
-  const localDependencyId = 'rank-b:parent-stitched' as TraceDependencyId;
-  const localDependency: TraceLocalDependency = {
-    type: 'trace-local-dependency',
-    dependencyId: localDependencyId,
+  const sameProcessDependencyId = 'rank-b:parent-stitched' as TraceDependencyId;
+  const sameProcessDependency: TraceSameProcessDependency = {
+    type: 'trace-same-process-dependency',
+    dependencyId: sameProcessDependencyId,
     startSpanId: filteredLogical.spanId,
     endSpanId: logicalChild.spanId,
     keywords: new Set(['PARENT']),
@@ -1136,35 +1087,33 @@ function createStitchedCrossDependencySelectionTraceGraph(): {
     bidirectional: false,
     waitTimeMs: 0
   };
-  filteredLogical.localDependencyIds = [localDependencyId];
-  rankB.localDependencies = [localDependency];
+  filteredLogical.sameProcessDependencyIds = [sameProcessDependencyId];
+  rankB.sameProcessDependencies = [sameProcessDependency];
 
   const traceGraph = createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace(
-        [rankA, rankB],
-        [
-          {
-            type: 'trace-cross-process-dependency',
-            dependencyId: 'cross:parent-visible' as TraceDependencyId,
-            endpointId: 'endpoint:parent-visible' as TraceCrossProcessDependency['endpointId'],
-            startRankNum: 0,
-            endRankNum: 1,
-            startSpanId: rankA.spans[0]!.spanId,
-            endSpanId: filteredLogical.spanId,
-            waitMode: 'start-to-start',
-            bidirectional: false,
-            topology: 'parent',
-            waitTimeMs: 0,
-            waiting: false,
-            waitNotFinished: false,
-            keywords: new Set(['PARENT'])
-          }
-        ],
+    buildJSONTrace(
+      [rankA, rankB],
+      [
         {
-          name: 'deck-trace-graph-stitched-cross-selection-test'
+          type: 'trace-cross-process-dependency',
+          dependencyId: 'cross:parent-visible' as TraceDependencyId,
+          endpointId: 'endpoint:parent-visible' as TraceCrossProcessDependency['endpointId'],
+          startRankNum: 0,
+          endRankNum: 1,
+          startSpanId: rankA.spans[0]!.spanId,
+          endSpanId: filteredLogical.spanId,
+          waitMode: 'start-to-start',
+          bidirectional: false,
+          topology: 'parent',
+          waitTimeMs: 0,
+          waiting: false,
+          waitNotFinished: false,
+          keywords: new Set(['PARENT'])
         }
-      )
+      ],
+      {
+        name: 'deck-trace-graph-stitched-cross-selection-test'
+      }
     ),
     {spanFilters: ['filtered-logical']}
   );
@@ -1174,58 +1123,8 @@ function createStitchedCrossDependencySelectionTraceGraph(): {
     logicalChild.spanId
   );
   const filteredLogicalSpanRef = getRequiredSpanRefBySpanId(traceGraph, filteredLogical.spanId);
-  const stitchedDependencyId = getTraceGraphSpanDependencies(traceGraph, visibleLogicalChild)
-    .crossRankDependencies[0]?.dependencyId;
-  if (!stitchedDependencyId) {
-    throw new Error('Expected stitched visible cross dependency id');
-  }
 
-  return {traceGraph, stitchedDependencyId, filteredLogicalSpanRef, visibleLogicalChild};
-}
-
-/** Creates one topology-filtered search hit for Omnibox result-presentation coverage. */
-function createTopologyFilteredSearchTraceGraph(): TraceGraph {
-  const process = createProcess('rank-a', 0, 'topology-parent');
-  const parent = process.spans[0]!;
-  const topologyFilteredChild: TraceSpan = {
-    ...parent,
-    spanId: 'topology-filtered-child' as TraceSpanId,
-    name: 'topology-filtered-child',
-    timings: {
-      primary: {
-        status: 'finished',
-        startTimeMs: 5,
-        endTimeMs: 5,
-        durationMs: 0,
-        durationMsAsString: '0ms'
-      }
-    }
-  };
-  process.spans = [parent, topologyFilteredChild];
-  process.spanMap = {
-    [parent.spanId]: parent,
-    [topologyFilteredChild.spanId]: topologyFilteredChild
-  };
-  const dependencyId = 'dep-topology-filtered-child' as TraceDependencyId;
-  const dependency: TraceLocalDependency = {
-    type: 'trace-local-dependency',
-    dependencyId,
-    startSpanId: parent.spanId,
-    endSpanId: topologyFilteredChild.spanId,
-    keywords: new Set(['PARENT']),
-    waitMode: 'start-to-start',
-    bidirectional: false,
-    waitTimeMs: 0
-  };
-  parent.localDependencyIds = [dependencyId];
-  process.localDependencies = [dependency];
-
-  return createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([process], [], {name: 'topology-filtered-search-test'})
-    ),
-    {overlappingParentSpanFilter: {maxChildDurationMs: 1}}
-  );
+  return {traceGraph, filteredLogicalSpanRef, visibleLogicalChild};
 }
 
 let container: HTMLDivElement | null = null;
@@ -1279,18 +1178,18 @@ type RenderDeckTraceGraphProps = Partial<
     onExpandedProcessIdsChange?: (processIds: string[]) => void;
     /** Optional CSS class applied by the test harness. */
     className?: string;
-    /** Visible local dependency refs rendered as selected overlays. */
-    selectedLocalDependencyRefs?: ReadonlySet<VisibleLocalDependencyRef>;
-    /** Visible cross dependency refs rendered as selected overlays. */
-    selectedCrossDependencyRefs?: ReadonlySet<VisibleCrossDependencyRef>;
-    /** Selected local dependency directions keyed by visible dependency ref. */
-    selectedLocalDependencyDirectionByRef?: ReadonlyMap<
-      VisibleLocalDependencyRef,
+    /** Visible same-process dependency refs rendered as selected overlays. */
+    selectedSameProcessDependencyRefs?: ReadonlySet<SameProcessDependencyRef>;
+    /** Visible cross-process dependency refs rendered as selected overlays. */
+    selectedCrossProcessDependencyRefs?: ReadonlySet<CrossProcessDependencyRef>;
+    /** Selected same-process dependency directions keyed by visible dependency ref. */
+    selectedSameProcessDependencyDirectionByRef?: ReadonlyMap<
+      SameProcessDependencyRef,
       TraceSelectedDependencyDirection
     >;
-    /** Selected cross dependency directions keyed by visible dependency ref. */
-    selectedCrossDependencyDirectionByRef?: ReadonlyMap<
-      VisibleCrossDependencyRef,
+    /** Selected cross-process dependency directions keyed by visible dependency ref. */
+    selectedCrossProcessDependencyDirectionByRef?: ReadonlyMap<
+      CrossProcessDependencyRef,
       TraceSelectedDependencyDirection
     >;
   };
@@ -1328,10 +1227,10 @@ function TestDeckTraceGraphHarness({
     collapsedActivityAggregation,
     layoutTimingKey,
     layoutTopPadding,
-    selectedLocalDependencyRefs,
-    selectedCrossDependencyRefs,
-    selectedLocalDependencyDirectionByRef,
-    selectedCrossDependencyDirectionByRef,
+    selectedSameProcessDependencyRefs,
+    selectedCrossProcessDependencyRefs,
+    selectedSameProcessDependencyDirectionByRef,
+    selectedCrossProcessDependencyDirectionByRef,
     className,
     resolvePickedTraceObject = resolveTestPickedTraceObject,
     ...reactConfig
@@ -1339,7 +1238,7 @@ function TestDeckTraceGraphHarness({
   const activeTraceGraph = traceGraphOverride ?? traceGraph;
   const resolvedSelectionPolicy =
     selectionPolicy ??
-    (selectedLocalDependencyRefs || selectedCrossDependencyRefs
+    (selectedSameProcessDependencyRefs || selectedCrossProcessDependencyRefs
       ? ({type: 'raw'} as const)
       : ({type: 'raw'} as const));
   const traceEngineInputs = useMemo(
@@ -1398,25 +1297,25 @@ function TestDeckTraceGraphHarness({
   useLayoutEffect(() => {
     if (
       selectedSpanRefs.length === 0 ||
-      (!selectedLocalDependencyRefs && !selectedCrossDependencyRefs)
+      (!selectedSameProcessDependencyRefs && !selectedCrossProcessDependencyRefs)
     ) {
       return;
     }
     traceEngine.dispatch({
       type: 'setSelection',
       selectedSpanRefs,
-      selectedLocalDependencyRefs: [...(selectedLocalDependencyRefs ?? [])],
-      selectedCrossDependencyRefs: [...(selectedCrossDependencyRefs ?? [])],
-      selectedLocalDependencyDirectionByRef,
-      selectedCrossDependencyDirectionByRef,
+      selectedSameProcessDependencyRefs: [...(selectedSameProcessDependencyRefs ?? [])],
+      selectedCrossProcessDependencyRefs: [...(selectedCrossProcessDependencyRefs ?? [])],
+      selectedSameProcessDependencyDirectionByRef,
+      selectedCrossProcessDependencyDirectionByRef,
       isExtendedSelection: focusSelectedSpanRefs === true
     });
   }, [
     focusSelectedSpanRefs,
-    selectedCrossDependencyRefs,
-    selectedCrossDependencyDirectionByRef,
-    selectedLocalDependencyRefs,
-    selectedLocalDependencyDirectionByRef,
+    selectedCrossProcessDependencyRefs,
+    selectedCrossProcessDependencyDirectionByRef,
+    selectedSameProcessDependencyRefs,
+    selectedSameProcessDependencyDirectionByRef,
     selectedSpanRefs,
     traceEngine
   ]);
@@ -1489,6 +1388,14 @@ async function renderDeckTraceGraphElement(
   };
 }
 
+/** Returns the latest shared trace context-menu widget captured by the Deck test double. */
+function getTraceContextMenuWidget(): {props?: Record<string, unknown>} | undefined {
+  const widgets = renderedDeckProps.current?.widgets as
+    | Array<{props?: Record<string, unknown>}>
+    | undefined;
+  return widgets?.find(widget => widget.props?.id === 'tracevis-context-menu');
+}
+
 afterEach(() => {
   root?.unmount();
   root = null;
@@ -1502,6 +1409,8 @@ afterEach(() => {
   buildDeckLayersForMinimapSpanIndicatorsSpy.mockReset();
   buildDeckLayersForInstantsAndCounterSpy.mockReset();
   buildDeckLayersForTimeMeasureSpy.mockReset();
+  buildDeckLayersForTimeAnchorSpy.mockReset();
+  buildDeckLayersForLegendSpy.mockReset();
   buildOverviewLayersSpy.mockClear();
   mockImperativeDeckController.attach.mockReset();
   mockImperativeDeckController.detach.mockReset();
@@ -1517,6 +1426,225 @@ afterEach(() => {
     if (typeof value === 'function') {
       value.mockReset();
     }
+  });
+  vi.restoreAllMocks();
+});
+
+describe('DeckTraceGraph context menu', () => {
+  it('provides the existing span-selection actions on the main canvas', async () => {
+    const {traceGraph, selectedBlock} = createSelectionTraceGraph();
+    await renderDeckTraceGraphElement(traceGraph, {showDefaultWidgets: true});
+    const getMenuItems = getTraceContextMenuWidget()?.props?.getMenuItems as
+      | ((info: {object?: unknown; viewport?: {id?: string}}) => Array<{label: string}> | null)
+      | undefined;
+
+    expect(
+      getMenuItems?.({
+        object: wrapTestPickedTraceObject(selectedBlock),
+        viewport: {id: 'main'}
+      })?.map(item => item.label)
+    ).toEqual(['select span', 'select and filter dependency chain']);
+  });
+
+  it('selects the clicked span from the context menu without extended filtering', async () => {
+    const {traceGraph, selectedBlock, selectedSpanRef} = createSelectionTraceGraph();
+    const {engine, onSelectionChange} = await renderDeckTraceGraphElement(traceGraph, {
+      showDefaultWidgets: true
+    });
+    const getMenuItems = getTraceContextMenuWidget()?.props?.getMenuItems as
+      | ((info: {
+          object?: unknown;
+          viewport?: {id?: string};
+        }) => Array<{onSelect?: () => void}> | null)
+      | undefined;
+    const menuItems = getMenuItems?.({
+      object: wrapTestPickedTraceObject(selectedBlock),
+      viewport: {id: 'main'}
+    });
+
+    flushSync(() => {
+      menuItems?.[0]?.onSelect?.();
+    });
+    await Promise.resolve();
+
+    expect(engine.getSelectedSpanRefs()).toEqual([selectedSpanRef]);
+    expect(onSelectionChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedSpanRefs: [selectedSpanRef],
+        isExtendedSelection: false
+      })
+    );
+  });
+
+  it('applies dependency-chain filtering from the context menu', async () => {
+    const {traceGraph, selectedBlock, selectedSpanRef} = createSelectionTraceGraph();
+    const {engine, onSelectionChange} = await renderDeckTraceGraphElement(traceGraph, {
+      selectionPolicy: {type: 'dependency-chain', keywords: ['PARENT']},
+      showDefaultWidgets: true
+    });
+    const getMenuItems = getTraceContextMenuWidget()?.props?.getMenuItems as
+      | ((info: {
+          object?: unknown;
+          viewport?: {id?: string};
+        }) => Array<{onSelect?: () => void}> | null)
+      | undefined;
+    const menuItems = getMenuItems?.({
+      object: wrapTestPickedTraceObject(selectedBlock),
+      viewport: {id: 'main'}
+    });
+
+    flushSync(() => {
+      menuItems?.[1]?.onSelect?.();
+    });
+    await waitForDeferredTraceLayoutUpdate();
+
+    expect(engine.getSelectedSpanRefs()).toEqual([selectedSpanRef]);
+    expect(onSelectionChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedSpanRefs: [selectedSpanRef],
+        isExtendedSelection: true
+      })
+    );
+  });
+
+  it('does not select a span from secondary-button deck interactions', async () => {
+    const {traceGraph, selectedBlock} = createSelectionTraceGraph();
+    const {onSelectionChange} = await renderDeckTraceGraphElement(traceGraph);
+    const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
+      | {
+          onSpanClick?: (
+            info: {object?: unknown},
+            event?: {rightButton?: boolean; srcEvent?: {button?: number}}
+          ) => boolean;
+        }
+      | undefined;
+    const deckOnClick = renderedDeckProps.current?.onClick as
+      | ((
+          info: {object?: unknown},
+          event?: {rightButton?: boolean; srcEvent?: {button?: number}}
+        ) => void)
+      | undefined;
+    onSelectionChange.mockClear();
+
+    expect(
+      latestLayersCall?.onSpanClick?.(
+        {object: wrapTestPickedTraceObject(selectedBlock)},
+        {rightButton: true, srcEvent: {button: 0}}
+      )
+    ).toBe(false);
+    flushSync(() => {
+      deckOnClick?.(
+        {object: wrapTestPickedTraceObject(selectedBlock)},
+        {rightButton: true, srcEvent: {button: 0}}
+      );
+    });
+    await Promise.resolve();
+
+    expect(onSelectionChange).not.toHaveBeenCalled();
+  });
+
+  it('offers an empty-minimap time action using the pointer coordinate', async () => {
+    const {traceGraph} = createSelectionTraceGraph();
+    const onSelectThirtyMinutes = vi.fn();
+    const onSelectFiveMinutes = vi.fn();
+    const getOverviewTimeContextMenuActions = vi.fn((timeMs: number) => [
+      {
+        value: 'load-30-minutes',
+        label: `Load 30 minutes around ${timeMs}`,
+        onSelect: onSelectThirtyMinutes
+      },
+      {
+        value: 'load-5-minutes',
+        label: `Load 5 minutes around ${timeMs}`,
+        onSelect: onSelectFiveMinutes
+      }
+    ]);
+    await renderDeckTraceGraphElement(traceGraph, {
+      showDefaultWidgets: true,
+      getOverviewTimeContextMenuActions,
+      overviewTimeRange: {
+        startTimeMs: traceGraph.minTimeMs + 100,
+        endTimeMs: traceGraph.minTimeMs + 200
+      }
+    });
+    const getMenuItems = getTraceContextMenuWidget()?.props?.getMenuItems as
+      | ((
+          info: {
+            object?: unknown;
+            viewport?: {id?: string; unproject?: (position: number[]) => number[]};
+            x?: number;
+            y?: number;
+          },
+          widget: {
+            deck?: {
+              getViewports: () => Array<{
+                id: string;
+                x: number;
+                y: number;
+                width: number;
+                height: number;
+                unproject: (position: number[]) => number[];
+              }>;
+            };
+          }
+        ) => Array<{label: string; onSelect?: () => void}> | null)
+      | undefined;
+    const menuItems = getMenuItems?.(
+      {
+        object: null,
+        x: 10,
+        y: 120
+      },
+      {
+        deck: {
+          getViewports: () => [
+            {
+              id: 'minimap',
+              x: 0,
+              y: 100,
+              width: 200,
+              height: 50,
+              unproject: () => [250, 0]
+            }
+          ]
+        }
+      }
+    );
+
+    expect(getOverviewTimeContextMenuActions).toHaveBeenCalledWith(traceGraph.minTimeMs + 200);
+    expect(menuItems?.map(item => item.label)).toEqual([
+      `Load 30 minutes around ${traceGraph.minTimeMs + 200}`,
+      `Load 5 minutes around ${traceGraph.minTimeMs + 200}`
+    ]);
+    menuItems?.[1]?.onSelect?.();
+    expect(onSelectThirtyMinutes).not.toHaveBeenCalled();
+    expect(onSelectFiveMinutes).toHaveBeenCalledTimes(1);
+  });
+
+  it('suppresses empty, rank-metadata, and minimap actions without a callback', async () => {
+    const {traceGraph} = createSelectionTraceGraph();
+    await renderDeckTraceGraphElement(traceGraph, {
+      showDefaultWidgets: true,
+      overviewTimeRange: {startTimeMs: traceGraph.minTimeMs, endTimeMs: traceGraph.maxTimeMs}
+    });
+    const getMenuItems = getTraceContextMenuWidget()?.props?.getMenuItems as
+      | ((info: {
+          coordinate?: number[];
+          layer?: {id?: string};
+          object?: unknown;
+          viewport?: {id?: string};
+        }) => unknown)
+      | undefined;
+
+    expect(getMenuItems?.({object: null, viewport: {id: 'main'}})).toBeNull();
+    expect(
+      getMenuItems?.({
+        layer: {id: 'primary-legend-rank-label'},
+        object: {processId: 'selection-rank'},
+        viewport: {id: 'legend'}
+      })
+    ).toBeNull();
+    expect(getMenuItems?.({viewport: {id: 'minimap'}, coordinate: [10, 0]})).toBeNull();
   });
 });
 
@@ -1555,15 +1683,23 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(provider().traceEngineDiagnostics.revision).toBeGreaterThan(firstRevision);
   });
 
-  it('positions run event markers 15 pixels above the run-events view center', async () => {
+  it('passes snapshot-owned marker projections into deck layer construction', async () => {
     const traceGraph = createSyncSearchTraceGraph();
     await renderDeckTraceGraphElement(traceGraph, {
       settings: {...defaultTraceVisSettings, showGlobalEvents: true}
     });
 
-    expect(buildDeckLayersForInstantsAndCounterSpy.mock.calls.at(-1)?.[0]).toMatchObject({
-      globalEventYPosition: -15
+    const layerParams = buildDeckLayersForInstantsAndCounterSpy.mock.calls.at(-1)?.[0];
+    expect(layerParams).toMatchObject({
+      derivedData: {
+        globalEvents: expect.any(Object),
+        instants: expect.any(Object),
+        counters: expect.any(Object)
+      }
     });
+    expect(layerParams).not.toHaveProperty('traceGraph');
+    expect(layerParams).not.toHaveProperty('traceLayout');
+    expect(layerParams).not.toHaveProperty('globalEventYPosition');
   });
 
   it('does not reset the view when ranks are appended after the initial fit', async () => {
@@ -1594,6 +1730,63 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(mockManagedViewsController.resetView).toHaveBeenCalledTimes(2);
   });
 
+  it('fits the loaded time range once per caller-owned initial viewport key', async () => {
+    const traceGraph = createRankAppendTraceGraph(['rank-a']);
+    const firstLoadedTimeRange = {startTimeMs: 2, endTimeMs: 8};
+    const {deckTraceGraphRef, rerender} = await renderDeckTraceGraphElement(traceGraph, {
+      fitInitialViewportToLoadedTimeRange: true,
+      initialViewportFitKey: 'namespace-a\u0000run-a'
+    });
+    const fullBounds = renderedDeckProps.current?.bounds as
+      | [[number, number], [number, number]]
+      | undefined;
+    if (!fullBounds) {
+      throw new Error('Expected full trace bounds');
+    }
+
+    expect(mockManagedViewsController.resetView).not.toHaveBeenCalled();
+
+    await rerender({overviewLoadedTimeRange: firstLoadedTimeRange});
+
+    expect(mockManagedViewsController.resetView).toHaveBeenCalledTimes(1);
+    expect(mockManagedViewsController.resetView).toHaveBeenLastCalledWith([
+      [firstLoadedTimeRange.startTimeMs - traceGraph.minTimeMs, fullBounds[0][1]],
+      [firstLoadedTimeRange.endTimeMs - traceGraph.minTimeMs, fullBounds[1][1]]
+    ]);
+
+    await rerender({overviewLoadedTimeRange: {startTimeMs: 3, endTimeMs: 9}});
+
+    expect(mockManagedViewsController.resetView).toHaveBeenCalledTimes(1);
+
+    const secondLoadedTimeRange = {startTimeMs: 4, endTimeMs: 10};
+    await rerender({
+      initialViewportFitKey: 'namespace-a\u0000run-b',
+      overviewLoadedTimeRange: secondLoadedTimeRange
+    });
+
+    expect(mockManagedViewsController.resetView).toHaveBeenCalledTimes(2);
+    expect(mockManagedViewsController.resetView).toHaveBeenLastCalledWith([
+      [secondLoadedTimeRange.startTimeMs - traceGraph.minTimeMs, fullBounds[0][1]],
+      [secondLoadedTimeRange.endTimeMs - traceGraph.minTimeMs, fullBounds[1][1]]
+    ]);
+
+    deckTraceGraphRef.current?.resetView();
+
+    expect(mockManagedViewsController.resetView).toHaveBeenCalledTimes(3);
+    expect(mockManagedViewsController.resetView).toHaveBeenLastCalledWith(fullBounds);
+  });
+
+  it('uses full trace bounds for the default automatic initial fit', async () => {
+    const traceGraph = createRankAppendTraceGraph(['rank-a']);
+
+    await renderDeckTraceGraphElement(traceGraph);
+
+    expect(mockManagedViewsController.resetView).toHaveBeenCalledOnce();
+    expect(mockManagedViewsController.resetView).toHaveBeenLastCalledWith(
+      renderedDeckProps.current?.bounds
+    );
+  });
+
   it('shows keyboard, URL deep link, and documentation tabs in the help modal in order', async () => {
     const {deckProps} = await renderDeckTraceGraphElement(createRankAppendTraceGraph(['rank-a']), {
       showDefaultWidgets: true,
@@ -1617,12 +1810,12 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     });
     const widgets = deckProps?.widgets as Array<{props?: Record<string, unknown>}> | undefined;
     const helpWidget = widgets?.find(widget => widget.props?.id === 'tracevis-help');
-    const container = helpWidget?.props?.container as
-      | {props?: {panels?: Array<{constructor: {name: string}}>}}
+    const panel = helpWidget?.props?.panel as
+      | {content?: {props?: {panels?: Array<{constructor: {name: string}}>}}}
       | undefined;
 
     expect(widgets?.[0]?.props?.id).toBe('tracevis-help');
-    expect(container?.props?.panels?.map(panel => panel.constructor.name)).toEqual([
+    expect(panel?.content?.props?.panels?.map(helpPanel => helpPanel.constructor.name)).toEqual([
       'KeyboardShortcutsPanel',
       'URLParametersPanel',
       'CommandDocumentationPanel',
@@ -1703,7 +1896,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     const widgets = deckProps?.widgets as Array<{props?: Record<string, unknown>}> | undefined;
 
     expect(deckProps?.showDefaultWidgets).toBe(true);
-    expect(widgets).toHaveLength(5);
+    expect(widgets).toHaveLength(6);
     expect(widgets).toContain(appWidget);
     expect(
       widgets?.some(
@@ -1830,7 +2023,32 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       })
     ).toBe('Showing 1 of up to 200 loaded span result');
     expect(searchSpansSpy).toHaveBeenCalled();
+    expect(getTraceSpanExactExternalIdQuery(searchSpansSpy.mock.calls[0]![0])).toBe(
+      'grad_sync s63 (4)'
+    );
     expect(searchBlockRecordsSpy).not.toHaveBeenCalled();
+  });
+
+  it('renders omnibox span options without building span card models', async () => {
+    const traceGraph = createSyncSearchTraceGraph();
+    const {deckProps} = await renderDeckTraceGraphElement(traceGraph, {
+      showDefaultWidgets: true
+    });
+    const widgets = deckProps?.widgets as Array<{props?: Record<string, unknown>}> | undefined;
+    const omniBoxWidget = widgets?.find(
+      widget =>
+        widget.props?.placeholder === 'type to search, use /.../ for regex or > for commands'
+    );
+    const getOptions = omniBoxWidget?.props?.getOptions as
+      | ((query: string) => Array<{label: string}>)
+      | undefined;
+    const renderOption = omniBoxWidget?.props?.renderOption as
+      | ((params: {option: unknown}) => unknown)
+      | undefined;
+    const [matchingOption] = getOptions?.('grad_sync s63 (4)') ?? [];
+
+    expect(matchingOption?.label).toBe('GRAD_SYNC s63 (4)');
+    expect(renderOption?.({option: matchingOption})).toBeDefined();
   });
 
   it('matches omnibox regex queries against individual search fields', async () => {
@@ -1916,7 +2134,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
   });
 
   it('selects filtered omnibox spans without focusing a visible fallback', async () => {
-    const {traceGraph, filteredLogicalSpanRef} = createStitchedCrossDependencySelectionTraceGraph();
+    const {traceGraph, filteredLogicalSpanRef} =
+      createFilteredCrossProcessDependencySelectionTraceGraph();
     const {deckProps, onSelectionChange} = await renderDeckTraceGraphElement(traceGraph, {
       showDefaultWidgets: true
     });
@@ -1951,50 +2170,6 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(mockManagedViewsController.centerOnSpan).not.toHaveBeenCalled();
   });
 
-  it('marks topology-filtered omnibox results and keeps their badge outline colored', async () => {
-    const {deckProps} = await renderDeckTraceGraphElement(
-      createTopologyFilteredSearchTraceGraph(),
-      {
-        showDefaultWidgets: true
-      }
-    );
-    const widgets = deckProps?.widgets as Array<{props?: Record<string, unknown>}> | undefined;
-    const omniBoxWidget = widgets?.find(
-      widget =>
-        widget.props?.placeholder === 'type to search, use /.../ for regex or > for commands'
-    );
-    const getOptions = omniBoxWidget?.props?.getOptions as
-      | ((query: string) => Array<{description?: string}>)
-      | undefined;
-    const renderOption = omniBoxWidget?.props?.renderOption as
-      | ((params: {option: unknown}) => {
-          props?: {
-            children?: Array<{
-              props?: {
-                style?: Record<string, string>;
-                title?: string;
-              };
-            }>;
-          };
-        })
-      | undefined;
-    const [topologyFilteredOption] = getOptions?.('topology-filtered-child') ?? [];
-    const renderedOption = renderOption?.({option: topologyFilteredOption});
-    const badgeTitle = renderedOption?.props?.children?.[0]?.props?.title;
-    const badgeStyle = renderedOption?.props?.children?.[0]?.props?.style;
-
-    expect(topologyFilteredOption?.description).toContain('Hidden by: topological filter');
-    expect(badgeTitle).toContain('Hidden by: topological filter');
-    expect(badgeStyle).toEqual(
-      expect.objectContaining({
-        backgroundColor: 'hsl(var(--background))',
-        borderStyle: 'solid',
-        borderWidth: '1px'
-      })
-    );
-    expect(badgeStyle?.borderColor).toMatch(/^rgb\(/);
-  });
-
   it('selects a filtered omnibox leaf without fallback navigation', async () => {
     const process = createProcess('rank-a', 0, 'visible-root');
     const root = process.spans[0]!;
@@ -2009,8 +2184,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       [filteredLeaf.spanId]: filteredLeaf
     };
     const dependencyId = 'dep-root-filtered-leaf' as TraceDependencyId;
-    const parentDependency: TraceLocalDependency = {
-      type: 'trace-local-dependency',
+    const parentDependency: TraceSameProcessDependency = {
+      type: 'trace-same-process-dependency',
       dependencyId,
       startSpanId: root.spanId,
       endSpanId: filteredLeaf.spanId,
@@ -2019,12 +2194,10 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       bidirectional: false,
       waitTimeMs: 0
     };
-    root.localDependencyIds = [dependencyId];
-    process.localDependencies = [parentDependency];
+    root.sameProcessDependencyIds = [dependencyId];
+    process.sameProcessDependencies = [parentDependency];
     const traceGraph = createTestTraceGraph(
-      buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace([process], [], {name: 'filtered-leaf-search'})
-      ),
+      buildJSONTrace([process], [], {name: 'filtered-leaf-search'}),
       {spanFilters: ['filtered-leaf']}
     );
     const filteredLeafSpanRef = getRequiredSpanRefBySpanId(traceGraph, filteredLeaf.spanId);
@@ -2087,8 +2260,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
             span: expect.objectContaining({spanId: 'shared-span', name: 'selected-correct'})
           }
         ],
-        selectedLocalDependencyRefs: [],
-        selectedCrossDependencyRefs: [],
+        selectedSameProcessDependencyRefs: [],
+        selectedCrossProcessDependencyRefs: [],
         isExtendedSelection: false
       })
     );
@@ -2175,8 +2348,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
             })
           }
         ],
-        selectedLocalDependencyRefs: [],
-        selectedCrossDependencyRefs: [],
+        selectedSameProcessDependencyRefs: [],
+        selectedCrossProcessDependencyRefs: [],
         isExtendedSelection: false
       })
     );
@@ -2184,7 +2357,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     const selectedLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {
           selectedSpanRefs?: readonly SpanRef[];
-          selectedLocalDependencySourcesByProcessId?: Record<
+          selectedSameProcessDependencySourcesByProcessId?: Record<
             string,
             Array<{dependencyRef: number; selectedDirection: string}>
           >;
@@ -2192,7 +2365,9 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       | undefined;
     expect(selectedLayersCall?.selectedSpanRefs).toEqual([selectedSpanRef]);
     expect(
-      Object.values(selectedLayersCall?.selectedLocalDependencySourcesByProcessId ?? {}).flat()
+      Object.values(
+        selectedLayersCall?.selectedSameProcessDependencySourcesByProcessId ?? {}
+      ).flat()
     ).toEqual([]);
   });
 
@@ -2219,20 +2394,22 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(selectionPayload).toEqual(
       expect.objectContaining({
         selectedSpanRefs: [parentSpanRef],
-        selectedLocalDependencyRefs: [],
-        selectedCrossDependencyRefs: []
+        selectedSameProcessDependencyRefs: [],
+        selectedCrossProcessDependencyRefs: []
       })
     );
     const selectedLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {
-          selectedLocalDependencySourcesByProcessId?: Record<
+          selectedSameProcessDependencySourcesByProcessId?: Record<
             string,
             Array<{dependencyRef: number; selectedDirection: string}>
           >;
         }
       | undefined;
     expect(
-      Object.values(selectedLayersCall?.selectedLocalDependencySourcesByProcessId ?? {}).flat()
+      Object.values(
+        selectedLayersCall?.selectedSameProcessDependencySourcesByProcessId ?? {}
+      ).flat()
     ).toEqual([]);
   });
 
@@ -2271,14 +2448,14 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
             })
           }
         ],
-        selectedLocalDependencyRefs: [],
-        selectedCrossDependencyRefs: [],
+        selectedSameProcessDependencyRefs: [],
+        selectedCrossProcessDependencyRefs: [],
         isExtendedSelection: false
       })
     );
   });
 
-  it('leaves outgoing cross dependency refs externally owned for normal span selection', async () => {
+  it('leaves outgoing cross-process dependency refs externally owned for normal span selection', async () => {
     const {traceGraph, selectedBlock, selectedSpanRef} = createCrossSelectionTraceGraph();
     const {onSelectionChange} = await renderDeckTraceGraphElement(traceGraph);
     const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
@@ -2308,20 +2485,20 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
             })
           }
         ],
-        selectedLocalDependencyRefs: [],
-        selectedCrossDependencyRefs: [],
+        selectedSameProcessDependencyRefs: [],
+        selectedCrossProcessDependencyRefs: [],
         isExtendedSelection: false
       })
     );
     const selectedLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {
-          selectedCrossDependencySources?: Array<{
+          selectedCrossProcessDependencySources?: Array<{
             dependencyRef: number;
             selectedDirection: string;
           }>;
         }
       | undefined;
-    expect(selectedLayersCall?.selectedCrossDependencySources).toEqual([]);
+    expect(selectedLayersCall?.selectedCrossProcessDependencySources).toEqual([]);
   });
 
   it('toggles a process when the global deck click handler receives a rank label pick', async () => {
@@ -2347,9 +2524,137 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
         }
       });
     });
-    await Promise.resolve();
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).not.toBeNull();
+    expect(onExpandedProcessIdsChange).not.toHaveBeenCalled();
+    await waitForDeferredTraceLayoutUpdate();
 
     expect(onExpandedProcessIdsChange).toHaveBeenLastCalledWith(['rank-a']);
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).toBeNull();
+  });
+
+  it('defers lane expansion and collapse through the busy overlay', async () => {
+    const {traceGraph, selectedSpanRef} = createSelectionTraceGraph();
+    const {engine} = await renderDeckTraceGraphElement(traceGraph);
+    const threadRef = traceGraph.getThreadRefBySpanRef(selectedSpanRef);
+    if (threadRef == null) {
+      throw new Error('Expected selected span thread ref');
+    }
+    const threadSource = traceGraph.getThreadSourceByRef(threadRef);
+    if (!threadSource) {
+      throw new Error('Expected selected span thread source');
+    }
+    const getLatestToggleStream = () =>
+      (
+        buildDeckLayersForLegendSpy.mock.calls.at(-1)?.[0] as
+          | {
+              onToggleStream?: (
+                threadId: TraceThreadId,
+                stream: TraceThread,
+                threadRef: ThreadRef
+              ) => void;
+            }
+          | undefined
+      )?.onToggleStream;
+
+    const collapseStream = getLatestToggleStream();
+    expect(typeof collapseStream).toBe('function');
+    flushSync(() => {
+      collapseStream?.(threadSource.threadId, {} as TraceThread, threadRef);
+    });
+
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).not.toBeNull();
+    expect(engine.getSnapshot().collapseState.graphs[0]?.collapsedThreadRefs.has(threadRef)).toBe(
+      false
+    );
+    await waitForDeferredTraceLayoutUpdate();
+
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).toBeNull();
+    expect(engine.getSnapshot().collapseState.graphs[0]?.collapsedThreadRefs.has(threadRef)).toBe(
+      true
+    );
+
+    const expandStream = getLatestToggleStream();
+    flushSync(() => {
+      expandStream?.(threadSource.threadId, {} as TraceThread, threadRef);
+    });
+
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).not.toBeNull();
+    expect(engine.getSnapshot().collapseState.graphs[0]?.collapsedThreadRefs.has(threadRef)).toBe(
+      true
+    );
+    await waitForDeferredTraceLayoutUpdate();
+
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).toBeNull();
+    expect(engine.getSnapshot().collapseState.graphs[0]?.collapsedThreadRefs.has(threadRef)).toBe(
+      false
+    );
+  });
+
+  it('defers expand-all and collapse-all through the busy overlay', async () => {
+    const traceGraph = createRankAppendTraceGraph(['rank-a', 'rank-b']);
+    const {deckTraceGraphRef, engine} = await renderDeckTraceGraphElement(traceGraph, {
+      defaultExpandProcess: false
+    });
+    const dispatchSpy = vi.spyOn(engine, 'dispatch');
+
+    flushSync(() => {
+      deckTraceGraphRef.current?.expandAllProcesses(true);
+      deckTraceGraphRef.current?.expandAllProcesses(true);
+    });
+
+    const overlay = document.querySelector('[data-testid="trace-layout-busy-overlay"]');
+    expect(overlay?.getAttribute('role')).toBe('status');
+    expect(overlay?.getAttribute('aria-live')).toBe('polite');
+    expect(overlay?.getAttribute('aria-busy')).toBe('true');
+    expect(overlay?.textContent).toContain('Updating trace layout…');
+    const spinner = overlay?.querySelector<HTMLElement>('.animate-spin');
+    expect(spinner).not.toBeNull();
+    expect(spinner?.style.willChange).toBe('transform');
+    expect(spinner?.parentElement?.style.transform).toMatch(/^translateZ\(0(?:px)?\)$/);
+    expect(engine.getSerializedExpandedProcessIds()).toEqual([]);
+    expect(dispatchSpy).not.toHaveBeenCalledWith({
+      type: 'setAllProcessesExpanded',
+      expand: true
+    });
+
+    await waitForDeferredTraceLayoutUpdate();
+
+    expect(engine.getSerializedExpandedProcessIds()).toEqual(['rank-a', 'rank-b']);
+    expect(
+      dispatchSpy.mock.calls.filter(
+        ([action]) => action.type === 'setAllProcessesExpanded' && action.expand === true
+      )
+    ).toHaveLength(1);
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).toBeNull();
+
+    flushSync(() => {
+      deckTraceGraphRef.current?.expandAllProcesses(false);
+    });
+
+    expect(engine.getSerializedExpandedProcessIds()).toEqual(['rank-a', 'rank-b']);
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).not.toBeNull();
+    await waitForDeferredTraceLayoutUpdate();
+
+    expect(engine.getSerializedExpandedProcessIds()).toEqual([]);
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).toBeNull();
+  });
+
+  it('cancels a pending expansion when the trace graph unmounts', async () => {
+    const traceGraph = createRankAppendTraceGraph(['rank-a']);
+    const cancelAnimationFrameSpy = vi.spyOn(window, 'cancelAnimationFrame');
+    const {deckTraceGraphRef} = await renderDeckTraceGraphElement(traceGraph, {
+      defaultExpandProcess: false
+    });
+
+    flushSync(() => {
+      deckTraceGraphRef.current?.expandAllProcesses(true);
+    });
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).not.toBeNull();
+
+    root?.unmount();
+    root = null;
+
+    expect(cancelAnimationFrameSpy).toHaveBeenCalled();
   });
 
   it('preserves explicit process toggles while default expansion mode changes', async () => {
@@ -2375,7 +2680,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
         }
       });
     });
-    await Promise.resolve();
+    await waitForDeferredTraceLayoutUpdate();
 
     expect(onExpandedProcessIdsChange).toHaveBeenLastCalledWith(['rank-b']);
 
@@ -2425,7 +2730,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
         }
       });
     });
-    await Promise.resolve();
+    await waitForDeferredTraceLayoutUpdate();
 
     const collapsedStateByGraph = buildDeckLayersForTraceSpy.mock.calls.slice(-2).map(
       call =>
@@ -2529,6 +2834,60 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(mockManagedViewsController.panTo).toHaveBeenCalledWith([42, 34]);
   });
 
+  it('does not pan the minimap for a secondary mjolnir click', async () => {
+    const traceGraph = createRankAppendTraceGraph(['rank-a']);
+    await renderDeckTraceGraphElement(traceGraph, {
+      settings: {
+        ...defaultTraceVisSettings,
+        showOverview: true
+      }
+    });
+    const deckOnClick = renderedDeckProps.current?.onClick as
+      | ((
+          info: {
+            viewport?: {id?: string};
+            coordinate?: [number, number];
+            object?: unknown;
+          },
+          event?: unknown
+        ) => void)
+      | undefined;
+
+    expect(typeof deckOnClick).toBe('function');
+
+    flushSync(() => {
+      deckOnClick?.(
+        {
+          viewport: {id: 'minimap'},
+          coordinate: [42, 999],
+          object: null
+        },
+        {leftButton: false, rightButton: true, srcEvent: {button: 0}}
+      );
+    });
+
+    expect(mockManagedViewsController.panTo).not.toHaveBeenCalled();
+  });
+
+  it('prevents the browser context menu over the minimap canvas', async () => {
+    const traceGraph = createRankAppendTraceGraph(['rank-a']);
+    await renderDeckTraceGraphElement(traceGraph, {
+      settings: {
+        ...defaultTraceVisSettings,
+        showOverview: true
+      }
+    });
+    const deckElement = container?.querySelector('[data-testid="deck-with-managed-views"]');
+    const contextMenuEvent = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true
+    });
+
+    deckElement?.dispatchEvent(contextMenuEvent);
+
+    expect(contextMenuEvent.defaultPrevented).toBe(true);
+  });
+
   it('only renders process metadata labels in the legend overlay when threads are combined', async () => {
     const traceGraph = createRankAppendTraceGraph(['rank-a']);
     await renderDeckTraceGraphElement(traceGraph, {
@@ -2623,7 +2982,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
           {srcEvent: {shiftKey: true}}
         ) ?? false;
     });
-    await Promise.resolve();
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).not.toBeNull();
+    await waitForDeferredTraceLayoutUpdate();
 
     expect(handled).toBe(true);
     const nextLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
@@ -2638,7 +2998,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       traceGraph,
       selectedSpanRef
     );
-    const selectedLaneIndex = threadLayout?.spanLaneMap?.get(selectedSpanRef) ?? 0;
+    const selectedLaneIndex =
+      getTraceLayoutSpanLaneIndex(nextLayersCall?.traceLayout!, selectedSpanRef) ?? 0;
     expect(nextLayersCall?.selectedSpanRefs).toEqual([selectedSpanRef]);
     expect(
       nextLayersCall?.selectedDependencies?.map(dependency => dependency.dependencyId)
@@ -2651,8 +3012,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(onSelectionChange.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         selectedSpanRefs: [selectedSpanRef],
-        selectedLocalDependencyRefs: [],
-        selectedCrossDependencyRefs: [],
+        selectedSameProcessDependencyRefs: [],
+        selectedCrossProcessDependencyRefs: [],
         isExtendedSelection: true
       })
     );
@@ -2680,7 +3041,10 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       traceGraph,
       selectedSpanRef
     );
-    const actualLaneIndex = threadLayout?.spanLaneMap?.get(selectedSpanRef);
+    const actualLaneIndex = getTraceLayoutSpanLaneIndex(
+      latestLayersCall?.traceLayout!,
+      selectedSpanRef
+    );
 
     expect(typeof onSpanClick).toBe('function');
     expect(threadLayout?.lanes?.laneYPositions.length).toBeGreaterThan(1);
@@ -2694,7 +3058,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
         {srcEvent: {shiftKey: true}}
       );
     });
-    await Promise.resolve();
+    await waitForDeferredTraceLayoutUpdate();
 
     const nextLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {traceLayout?: TraceLayout; selectedSpanRefs?: SpanRef[]}
@@ -2746,7 +3110,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
           {srcEvent: {shiftKey: true}}
         ) ?? false;
     });
-    await Promise.resolve();
+    await waitForDeferredTraceLayoutUpdate();
 
     const nextLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {selectedSpanRefs?: SpanRef[]; traceLayout?: TraceLayout}
@@ -2756,7 +3120,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       traceGraph,
       selectedSpanRef
     );
-    const laneIndex = threadLayout?.spanLaneMap?.get(selectedSpanRef) ?? 0;
+    const laneIndex =
+      getTraceLayoutSpanLaneIndex(nextLayersCall?.traceLayout!, selectedSpanRef) ?? 0;
     expect(handled).toBe(true);
     expect(nextLayersCall?.selectedSpanRefs).toEqual([selectedSpanRef]);
     expect(threadLayout?.visible).toBe(true);
@@ -2787,7 +3152,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
           {srcEvent: {shiftKey: true}}
         ) ?? false;
     });
-    await Promise.resolve();
+    await waitForDeferredTraceLayoutUpdate();
 
     const nextLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {selectedSpanRefs?: SpanRef[]; traceLayout?: TraceLayout}
@@ -2829,10 +3194,14 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     const initialLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {traceLayout?: TraceLayout}
       | undefined;
-    const initialCombinedThreadLayout =
-      initialLayersCall?.traceLayout?.processLayouts[0]?.threadLayouts[0];
-    const parentLaneIndex = initialCombinedThreadLayout?.spanLaneMap?.get(parentSpanRef);
-    const childLaneIndex = initialCombinedThreadLayout?.spanLaneMap?.get(childSpanRef);
+    const parentLaneIndex = getTraceLayoutSpanLaneIndex(
+      initialLayersCall?.traceLayout!,
+      parentSpanRef
+    );
+    const childLaneIndex = getTraceLayoutSpanLaneIndex(
+      initialLayersCall?.traceLayout!,
+      childSpanRef
+    );
 
     expect(parentLaneIndex).toBe(0);
     expect(childLaneIndex).toBeGreaterThan(1);
@@ -2851,7 +3220,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     const nextTraceLayout = nextLayersCall?.traceLayout;
     const focusedCombinedThreadLayout = nextTraceLayout?.processLayouts[0]?.threadLayouts[0];
     const dependencyRef = traceGraph
-      .getLocalDependencyRefs(getRequiredProcessRef(traceGraph, 'head-rank'))
+      .getSameProcessDependencyRefs(getRequiredProcessRef(traceGraph, 'head-rank'))
       .find(candidateRef => traceGraph.getDependencyId(candidateRef) === dependencyId);
     const dependencyGeometry =
       dependencyRef == null
@@ -2867,8 +3236,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       parentLaneIndex,
       childLaneIndex
     ]);
-    expect(focusedCombinedThreadLayout?.spanLaneMap?.get(parentSpanRef)).toBe(parentLaneIndex);
-    expect(focusedCombinedThreadLayout?.spanLaneMap?.get(childSpanRef)).toBe(childLaneIndex);
+    expect(getTraceLayoutSpanLaneIndex(nextTraceLayout!, parentSpanRef)).toBe(parentLaneIndex);
+    expect(getTraceLayoutSpanLaneIndex(nextTraceLayout!, childSpanRef)).toBe(childLaneIndex);
     expect(dependencyGeometry).toBeDefined();
     expect(dependencyGeometry?.[1]).toBeLessThan(
       dependencyGeometry?.[3] ?? Number.NEGATIVE_INFINITY
@@ -2918,8 +3287,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     flushSync(() => {
       onSpanClick?.({object: wrapTestPickedTraceObject(childBlock)}, {srcEvent: {shiftKey: true}});
     });
-    await Promise.resolve();
-    await Promise.resolve();
+    await waitForDeferredTraceLayoutUpdate();
 
     const nextLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {traceLayout?: TraceLayout}
@@ -2970,10 +3338,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     });
     await waitForHoverPopupRender();
 
-    await waitForAssertion(() => {
-      expect(document.body.textContent).toContain('Ctrl+C');
-      expect(document.body.textContent).toContain('to copy');
-    });
+    expect(document.body.textContent).toMatch(/(?:Ctrl\+C|⌘C)/);
+    expect(document.body.textContent).toContain('to copy');
   });
 
   it('keeps span hover cards as unnamed tooltips', async () => {
@@ -3002,8 +3368,44 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(document.querySelector('[data-testid="span-inspector-resize-handle"]')).toBeNull();
   });
 
+  it('resolves compared-graph hover cards against the picked graph', async () => {
+    const primaryTraceGraph = createRankAppendTraceGraph(['rank-a'], 'primary-trace');
+    const secondaryTraceGraph = createRankAppendTraceGraph(['rank-a'], 'secondary-trace');
+    const secondarySpan = getRequiredVisibleDisplaySourceBySpanId(
+      secondaryTraceGraph,
+      'rank-a-span' as TraceSpanId
+    );
+    await renderDeckTraceGraphElement(primaryTraceGraph, {
+      secondaryTraceGraph,
+      showDefaultWidgets: true
+    });
+    const deckOnHover = renderedDeckProps.current?.onHover as
+      | ((
+          info: {layer?: {id?: string}; object?: unknown},
+          event?: {srcEvent?: {clientX?: number; clientY?: number}}
+        ) => void)
+      | undefined;
+
+    expect(typeof deckOnHover).toBe('function');
+
+    flushSync(() => {
+      deckOnHover?.(
+        {
+          ...createHoverPickInfo(secondarySpan, 10, 220),
+          layer: {id: 'trace-graph-1-block-rectangles'}
+        },
+        {
+          srcEvent: {clientX: 10, clientY: 220}
+        }
+      );
+    });
+    await waitForHoverPopupRender();
+
+    expect(getTraceTooltipMock().dataset.traceGraphName).toBe('secondary-trace');
+  });
+
   it('renders a transient minimap indicator for hovered spans', async () => {
-    const {traceGraph, selectedBlock, selectedSpanRef} = createSelectionTraceGraph();
+    const {traceGraph, selectedBlock} = createSelectionTraceGraph();
     await renderDeckTraceGraphElement(traceGraph, {
       settings: {...defaultTraceVisSettings, showOverview: true}
     });
@@ -3022,15 +3424,13 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     await Promise.resolve();
 
     const latestCall = buildDeckLayersForMinimapSpanIndicatorsSpy.mock.calls.at(-1)?.[0] as
-      | {indicators?: Array<{kind: string; spanRef: SpanRef}>}
+      | {indicators?: Array<{kind: string}>}
       | undefined;
-    expect(latestCall?.indicators?.map(({kind, spanRef}) => ({kind, spanRef}))).toEqual([
-      {kind: 'hovered', spanRef: selectedSpanRef}
-    ]);
+    expect(latestCall?.indicators?.map(({kind}) => kind)).toEqual(['hovered']);
   });
 
   it('keeps selected and hovered minimap indicators separate and dedupes matching refs', async () => {
-    const {traceGraph, selectedBlock, selectedSpanRef, childSpanRef} = createSelectionTraceGraph();
+    const {traceGraph, selectedBlock, selectedSpanRef} = createSelectionTraceGraph();
     const childBlock = getRequiredVisibleDisplaySourceBySpanId(
       traceGraph,
       'focus-child' as TraceSpanId
@@ -3054,12 +3454,9 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     await Promise.resolve();
 
     let latestCall = buildDeckLayersForMinimapSpanIndicatorsSpy.mock.calls.at(-1)?.[0] as
-      | {indicators?: Array<{kind: string; spanRef: SpanRef}>}
+      | {indicators?: Array<{kind: string}>}
       | undefined;
-    expect(latestCall?.indicators?.map(({kind, spanRef}) => ({kind, spanRef}))).toEqual([
-      {kind: 'selected', spanRef: selectedSpanRef},
-      {kind: 'hovered', spanRef: childSpanRef}
-    ]);
+    expect(latestCall?.indicators?.map(({kind}) => kind)).toEqual(['selected', 'hovered']);
 
     flushSync(() => {
       deckOnHover?.(createHoverPickInfo(selectedBlock, 10, 220), {
@@ -3069,11 +3466,9 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     await Promise.resolve();
 
     latestCall = buildDeckLayersForMinimapSpanIndicatorsSpy.mock.calls.at(-1)?.[0] as
-      | {indicators?: Array<{kind: string; spanRef: SpanRef}>}
+      | {indicators?: Array<{kind: string}>}
       | undefined;
-    expect(latestCall?.indicators?.map(({kind, spanRef}) => ({kind, spanRef}))).toEqual([
-      {kind: 'selected', spanRef: selectedSpanRef}
-    ]);
+    expect(latestCall?.indicators?.map(({kind}) => kind)).toEqual(['selected']);
   });
 
   it('does not wrap non-span tooltip content in the Span Inspector shell', async () => {
@@ -3182,76 +3577,11 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       expect.objectContaining({
         selectedSpanRefs: [],
         selectedSpans: [],
-        selectedLocalDependencyRefs: [],
-        selectedCrossDependencyRefs: [],
+        selectedSameProcessDependencyRefs: [],
+        selectedCrossProcessDependencyRefs: [],
         isExtendedSelection: false
       })
     );
-  });
-
-  it('renders stitched visible cross-parent overlays from visible dependency refs', async () => {
-    const {traceGraph, stitchedDependencyId, visibleLogicalChild} =
-      createStitchedCrossDependencySelectionTraceGraph();
-    const stitchedDependencyRef = getRequiredVisibleCrossDependencyRefById(
-      traceGraph,
-      stitchedDependencyId
-    );
-    expect(stitchedDependencyRef).toBeTruthy();
-
-    await renderDeckTraceGraphElement(traceGraph, {
-      selectedSpanRefs: [visibleLogicalChild.spanRef],
-      selectedCrossDependencyRefs: new Set([stitchedDependencyRef!]),
-      selectedCrossDependencyDirectionByRef: new Map([[stitchedDependencyRef!, 'outgoing']])
-    });
-
-    const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
-      | Record<string, unknown>
-      | undefined;
-    const selectedCrossDependencySources = latestLayersCall?.selectedCrossDependencySources as
-      | ReadonlyArray<{dependencyRef: number; selectedDirection: string}>
-      | undefined;
-
-    expect(selectedCrossDependencySources).toHaveLength(1);
-    expect(selectedCrossDependencySources?.[0]?.dependencyRef).toBe(stitchedDependencyRef);
-    expect(selectedCrossDependencySources?.[0]?.selectedDirection).toBe('outgoing');
-  });
-
-  it('leaves stitched cross-parent refs externally owned on shift-click before parent refs round-trip', async () => {
-    const {traceGraph, visibleLogicalChild} = createStitchedCrossDependencySelectionTraceGraph();
-    const {onSelectionChange} = await renderDeckTraceGraphElement(traceGraph);
-
-    const deckOnClick = renderedDeckProps.current?.onClick as
-      | ((info: {object?: unknown}, event?: {srcEvent?: {shiftKey?: boolean}}) => void)
-      | undefined;
-    expect(typeof deckOnClick).toBe('function');
-
-    flushSync(() => {
-      deckOnClick?.(
-        {object: wrapTestPickedTraceObject(visibleLogicalChild)},
-        {srcEvent: {shiftKey: true}}
-      );
-    });
-    await Promise.resolve();
-
-    const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
-      | Record<string, unknown>
-      | undefined;
-    const selectedCrossDependencies = latestLayersCall?.selectedCrossDependencies as
-      | ReadonlyArray<{dependencyId: TraceDependencyId}>
-      | undefined;
-    const selectedCrossDependencySources = latestLayersCall?.selectedCrossDependencySources as
-      | ReadonlyArray<{dependencyRef: number}>
-      | undefined;
-
-    expect(onSelectionChange.mock.calls.at(-1)?.[0]).toEqual(
-      expect.objectContaining({
-        selectedSpanRefs: [visibleLogicalChild.spanRef],
-        selectedCrossDependencyRefs: [],
-        isExtendedSelection: true
-      })
-    );
-    expect(selectedCrossDependencies).toEqual([]);
-    expect(selectedCrossDependencySources).toEqual([]);
   });
 
   it('keeps selected dependency-chain spans in the highlighted set when fade mode is active', async () => {
@@ -3298,10 +3628,19 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       traceGraph,
       childBlockFromGraph.spanRef
     );
-    const childLaneIndex = streamLayout?.spanLaneMap?.get(childBlockFromGraph.spanRef);
-    const parentLaneIndex = streamLayout?.spanLaneMap?.get(parentSpanRef);
+    const childLaneIndex = getTraceLayoutSpanLaneIndex(
+      latestLayersCall?.traceLayout!,
+      childBlockFromGraph.spanRef
+    );
+    const parentLaneIndex = getTraceLayoutSpanLaneIndex(
+      latestLayersCall?.traceLayout!,
+      parentSpanRef
+    );
     const unrelatedSpanRef = getRequiredSpanRefBySpanId(traceGraph, unrelatedBlockId);
-    const unrelatedLaneIndex = streamLayout?.spanLaneMap?.get(unrelatedSpanRef);
+    const unrelatedLaneIndex = getTraceLayoutSpanLaneIndex(
+      latestLayersCall?.traceLayout!,
+      unrelatedSpanRef
+    );
 
     expect(typeof parentLaneIndex).toBe('number');
     expect(typeof childLaneIndex).toBe('number');
@@ -3317,8 +3656,10 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     ]);
     const childSpanRef = childBlockFromGraph.spanRef!;
     const expectedRowSpanRefs = [parentSpanRef, childSpanRef, unrelatedSpanRef];
-    expect(latestLayersCall?.processRows?.[0]?.spans).toEqual(expectedRowSpanRefs);
-    expect(latestLayersCall?.processRows?.[0]?.binaryBlockData?.spans).toEqual(expectedRowSpanRefs);
+    expect(latestLayersCall?.processRows?.[0]).not.toHaveProperty('spans');
+    expect(getPreparedSpanRefs(latestLayersCall?.processRows?.[0]?.binaryBlockData?.spans)).toEqual(
+      expectedRowSpanRefs
+    );
     expect(latestLayersCall?.processRows?.[0]?.binaryBlockData?.data.length).toBe(
       expectedRowSpanRefs.length
     );
@@ -3330,7 +3671,7 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(binarySizes?.[expectedRowSpanRefs.indexOf(unrelatedSpanRef) * 2 + 1]).toBe(0);
   });
 
-  it('keeps selected cross dependency endpoints in focused extended-selection layouts', async () => {
+  it('keeps selected cross-process dependency endpoints in focused extended-selection layouts', async () => {
     const parentProcess = createProcess('parent-rank', 0, 'parent');
     const parentBlock = parentProcess.spans[0]!;
     const childBlock: TraceSpan = {
@@ -3354,31 +3695,37 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     };
     const remoteProcess = createProcess('remote-rank', 1, 'remote-child');
     const remoteBlock = remoteProcess.spans[0]!;
-    const crossDependencyId = 'dep-child-remote' as TraceDependencyId;
+    const crossProcessDependencyId = 'dep-child-remote' as TraceDependencyId;
     const traceGraph = createTestTraceGraph(
-      buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace(
-          [parentProcess, remoteProcess],
-          [createCrossDependency(crossDependencyId, childBlock.spanId, remoteBlock.spanId, 0, 1)],
-          {name: 'deck-trace-graph-focused-cross-endpoint-test'}
-        )
+      buildJSONTrace(
+        [parentProcess, remoteProcess],
+        [
+          createCrossProcessDependency(
+            crossProcessDependencyId,
+            childBlock.spanId,
+            remoteBlock.spanId,
+            0,
+            1
+          )
+        ],
+        {name: 'deck-trace-graph-focused-cross-endpoint-test'}
       )
     );
     const parentSpanRef = getRequiredSpanRefBySpanId(traceGraph, parentBlock.spanId);
     const remoteSpanRef = getRequiredSpanRefBySpanId(traceGraph, remoteBlock.spanId);
-    const crossDependencyRef = getRequiredVisibleCrossDependencyRefById(
+    const crossProcessDependencyRef = getRequiredCrossProcessDependencyRefById(
       traceGraph,
-      crossDependencyId
+      crossProcessDependencyId
     );
-    if (crossDependencyRef == null) {
-      throw new Error('Expected visible cross dependency ref for focused endpoint test');
+    if (crossProcessDependencyRef == null) {
+      throw new Error('Expected visible cross-process dependency ref for focused endpoint test');
     }
 
     await renderDeckTraceGraphElement(traceGraph, {
       selectedSpanRefs: [parentSpanRef],
       focusSelectedSpanRefs: true,
       extendedSelectionMode: 'fade',
-      selectedCrossDependencyRefs: new Set([crossDependencyRef])
+      selectedCrossProcessDependencyRefs: new Set([crossProcessDependencyRef])
     });
 
     const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
@@ -3398,38 +3745,40 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(
       getTraceLayoutVisibleDependencyGeometry({
         traceLayout: focusedLayout,
-        dependencyRef: crossDependencyRef
+        dependencyRef: crossProcessDependencyRef
       })
     ).toBeDefined();
   });
 
   it('passes controlled extended dependency refs into local selected overlay sources', async () => {
     const {traceGraph, childSpanRef} = createParentSelectionTraceGraph();
-    const selectionState = traceGraph.getTraceSpanDependencySelection(childSpanRef, {
+    const selectionState = getTraceSpanDependencySelection({
+      traceGraph,
+      spanRef: childSpanRef,
       keywords: new Set(['PARENT'])
     });
 
     await renderDeckTraceGraphElement(traceGraph, {
       selectedSpanRefs: [childSpanRef],
-      selectedLocalDependencyRefs: new Set(selectionState.visibleLocalDependencyRefs),
-      selectedLocalDependencyDirectionByRef: new Map([
-        [selectionState.visibleLocalDependencyRefs[0]!, 'outgoing']
+      selectedSameProcessDependencyRefs: new Set(selectionState.visibleSameProcessDependencyRefs),
+      selectedSameProcessDependencyDirectionByRef: new Map([
+        [selectionState.visibleSameProcessDependencyRefs[0]!, 'outgoing']
       ])
     });
 
     const latestLayersCall = buildDeckLayersForTraceSpy.mock.calls.at(-1)?.[0] as
       | {
-          selectedLocalDependencySourcesByProcessId?: Record<
+          selectedSameProcessDependencySourcesByProcessId?: Record<
             string,
             Array<{dependencyRef: number; selectedDirection: string}>
           >;
         }
       | undefined;
 
-    expect(latestLayersCall?.selectedLocalDependencySourcesByProcessId).toEqual({
+    expect(latestLayersCall?.selectedSameProcessDependencySourcesByProcessId).toEqual({
       [String(getRequiredProcessRef(traceGraph, 'parent-rank'))]: [
         expect.objectContaining({
-          dependencyRef: selectionState.visibleLocalDependencyRefs[0],
+          dependencyRef: selectionState.visibleSameProcessDependencyRefs[0],
           selectedDirection: 'outgoing'
         })
       ]
@@ -3453,7 +3802,6 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       | {
           data?: {
             data?: {length?: number};
-            intervals?: unknown[];
             processRows?: TraceLayoutRow[];
             processRowIndices?: Uint32Array;
           };
@@ -3470,9 +3818,6 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
       | undefined;
 
     expect(overviewLayersCall?.data?.data?.length).toBeGreaterThan(0);
-    expect(overviewLayersCall?.data?.intervals?.length).toBe(
-      overviewLayersCall?.data?.data?.length
-    );
     expect(overviewLayersCall?.data?.processRows?.length).toBe(traceGraph.processes.length);
     expect(overviewLayersCall?.data?.processRowIndices?.length).toBe(
       overviewLayersCall?.data?.data?.length
@@ -3519,7 +3864,8 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
         firstOverviewLayersCall?.onProcessClick?.(processRow);
       }
     });
-    await Promise.resolve();
+    expect(document.querySelector('[data-testid="trace-layout-busy-overlay"]')).not.toBeNull();
+    await waitForDeferredTraceLayoutUpdate();
 
     expect(onExpandedProcessIdsChange).toHaveBeenLastCalledWith(['rank-a']);
     onExpandedProcessIdsChange.mockClear();
@@ -3629,5 +3975,29 @@ describe('DeckTraceGraph duplicate span-id selection', () => {
     expect(secondOverviewBounds).toBe(firstOverviewBounds);
     expect(secondOverviewLayerArgs?.loadedContentBounds).toBe(firstLoadedContentBounds);
     expect(buildOverviewLayersSpy.mock.calls.length).toBe(initialOverviewLayerCallCount);
+  });
+
+  it('builds matching time-anchor layers for the main timeline and minimap', async () => {
+    const traceGraph = createRankAppendTraceGraph(['rank-a']);
+    const timeAnchorMarker = {
+      id: 'anchor',
+      timeMs: 42,
+      tooltip: 'Center time around which spans are loaded.'
+    };
+
+    await renderDeckTraceGraphElement(traceGraph, {
+      timeAnchorMarker,
+      settings: {
+        ...defaultTraceVisSettings,
+        showOverview: true
+      }
+    });
+
+    expect(buildDeckLayersForTimeAnchorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        marker: timeAnchorMarker,
+        originTimeMs: traceGraph.minTimeMs
+      })
+    );
   });
 });

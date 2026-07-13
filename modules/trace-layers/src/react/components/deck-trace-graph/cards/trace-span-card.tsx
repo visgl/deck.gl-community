@@ -1,6 +1,6 @@
 export {
   TraceSpanCard,
-  TraceSpanCrossDependencies,
+  TraceSpanCrossProcessDependencies,
   TraceSpanExternalSpanIdValue,
   getSameNameNavigation,
   getThreadNavigation

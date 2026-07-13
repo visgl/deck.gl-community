@@ -1,6 +1,12 @@
-import {describe, expect, it} from 'vitest';
+import * as arrow from 'apache-arrow';
+import {describe, expect, it, vi} from 'vitest';
 
-import {getArrowRowIndexes, getFilteredArrowRowIndexes} from './arrow-row-index-filters';
+import {
+  filterArrowTableRowIndexes,
+  getArrowRowIndexes,
+  getFilteredArrowRowIndexes
+} from './arrow-row-index-filters';
+import {IndexedArrowTable} from './indexed-arrow-table';
 
 describe('arrow-row-index-filters', () => {
   it('returns all row indexes by default', () => {
@@ -104,6 +110,39 @@ describe('arrow-row-index-filters', () => {
         }
       })
     ).toEqual([0]);
+  });
+
+  it('filters indexed Arrow columns without materializing rows', () => {
+    const table = new IndexedArrowTable(
+      new arrow.Table({
+        name: arrow.vectorFromArray(['alpha', 'beta', 'βeta'], new arrow.Utf8()),
+        score: arrow.vectorFromArray([1, 2, 3], new arrow.Float64())
+      }),
+      [2, 0, 1]
+    );
+    const getSpy = vi.spyOn(table, 'get');
+
+    const rowIndexes = filterArrowTableRowIndexes(table, {
+      filters: [
+        {columnName: 'name', values: ['βeta']},
+        {columnName: 'score', min: 3, max: 3}
+      ]
+    });
+
+    expect(Array.from(rowIndexes)).toEqual([0]);
+    expect(getSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns the same stable top-k rows as a full sort', () => {
+    const table = createMockTable([{score: 5}, {score: 1}, {score: 3}, {score: 1}, {score: 2}]);
+    const compareRows = (currentTable: typeof table, left: number, right: number) =>
+      Number(currentTable.get(left)?.score) - Number(currentTable.get(right)?.score);
+
+    const full = Array.from(filterArrowTableRowIndexes(table, {compareRows})).slice(0, 3);
+    const limited = Array.from(filterArrowTableRowIndexes(table, {compareRows, limit: 3}));
+
+    expect(limited).toEqual(full);
+    expect(limited).toEqual([1, 3, 4]);
   });
 });
 

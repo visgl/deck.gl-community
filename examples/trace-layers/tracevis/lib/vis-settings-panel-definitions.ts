@@ -1,14 +1,18 @@
-import {type SettingsSchema, type SettingsState} from '@deck.gl-community/trace-layers/react';
+import {type SettingsSchema, type SettingsState} from '@deck.gl-community/panels';
 
-import {DEFAULT_VIS_SETTINGS, normalizeLineRoutingMode} from './vis-settings';
+import {
+  DEFAULT_VIS_SETTINGS,
+  normalizeLegacyDependencyModeVisSettings,
+  normalizeLineRoutingMode
+} from './vis-settings';
 
 import type {VisSettings} from './vis-settings';
-import type {TraceColorScheme} from '@deck.gl-community/trace-layers/trace';
 import type {
   SettingDescriptor,
   SettingPersistenceTarget,
   SettingsSectionDescriptor
-} from '@deck.gl-community/trace-layers/react';
+} from '@deck.gl-community/panels';
+import type {TraceColorScheme} from '@deck.gl-community/trace-layers/trace';
 
 const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const TIME_ZONE_OPTIONS = [
@@ -62,8 +66,8 @@ type VisSettingsPanelKey =
   | 'minBlockTimeMs'
   | 'minSpanWidthPixels'
   | 'maxVisibleLanesPerThread'
-  | 'localDependencyMode'
-  | 'crossDependencyMode'
+  | 'sameProcessDependencyMode'
+  | 'crossProcessDependencyMode'
   | 'followCriticalPathAnimationMode'
   | 'lineRoutingMode'
   | 'processLayoutMode'
@@ -79,7 +83,7 @@ type VisSettingsPanelKey =
   | 'selectHidesMinimap'
   | 'enableFastTextLayer'
   | 'traceColorSchemeId'
-  | 'timingAggregationKey';
+  | 'traceTimingKey';
 
 const BOOLEAN_VIS_SETTING_KEYS: VisSettingsPanelKey[] = [
   'showSubmits',
@@ -105,8 +109,8 @@ const NUMBER_VIS_SETTING_KEYS: VisSettingsPanelKey[] = [
 ];
 
 const STRING_VIS_SETTING_KEYS: VisSettingsPanelKey[] = [
-  'localDependencyMode',
-  'crossDependencyMode',
+  'sameProcessDependencyMode',
+  'crossProcessDependencyMode',
   'followCriticalPathAnimationMode',
   'lineRoutingMode',
   'processLayoutMode',
@@ -120,7 +124,7 @@ const STRING_VIS_SETTING_KEYS: VisSettingsPanelKey[] = [
   'popupMode',
   'interactionMode',
   'traceColorSchemeId',
-  'timingAggregationKey'
+  'traceTimingKey'
 ];
 
 /**
@@ -140,8 +144,8 @@ const NUMBER_KEY_SET = new Set<VisSettingsPanelKey>(NUMBER_VIS_SETTING_KEYS);
 const STRING_KEY_SET = new Set<VisSettingsPanelKey>(STRING_VIS_SETTING_KEYS);
 
 const STRING_OPTIONS_BY_KEY: Partial<Record<VisSettingsPanelKey, string[]>> = {
-  localDependencyMode: ['all', 'none', 'warnings', 'submit'],
-  crossDependencyMode: ['all', 'none'],
+  sameProcessDependencyMode: ['all', 'none', 'warnings', 'submit'],
+  crossProcessDependencyMode: ['all', 'none'],
   followCriticalPathAnimationMode: ['none', 'animate', 'follow'],
   lineRoutingMode: ['straight', 'curve'],
   processLayoutMode: ['step1', 'sequential', 'interleaved'],
@@ -161,7 +165,7 @@ const STRING_OPTIONS_BY_KEY: Partial<Record<VisSettingsPanelKey, string[]>> = {
   popupMode: ['tab', 'popup'],
   interactionMode: INTERACTION_MODE_OPTIONS.map(option => option.value),
   traceColorSchemeId: [],
-  timingAggregationKey: []
+  traceTimingKey: []
 };
 
 const NUMBER_LIMITS_BY_KEY: Partial<
@@ -248,7 +252,10 @@ function coerceVisSettingsPanelValue(
  * Converts trace visualization settings into flat settings-panel state.
  */
 export function toVisSettingsState(visSettings: VisSettings): SettingsState {
-  const baseSettings = {...DEFAULT_VIS_SETTINGS, ...visSettings};
+  const baseSettings = {
+    ...DEFAULT_VIS_SETTINGS,
+    ...normalizeLegacyDependencyModeVisSettings(visSettings)
+  };
   const panelState: SettingsState = {};
 
   VIS_SETTINGS_PANEL_KEYS.forEach(key => {
@@ -277,6 +284,7 @@ export function getVisSettingsUpdatesFromPanelState(
   stringOptionsByKey?: Partial<Record<VisSettingsPanelKey, string[]>>
 ): Partial<VisSettings> {
   const updates: Partial<VisSettings> = {};
+  const normalizedPanelState = normalizeLegacyDependencyModePanelState(nextPanelState);
 
   const stringOptions = {
     ...STRING_OPTIONS_BY_KEY,
@@ -284,7 +292,7 @@ export function getVisSettingsUpdatesFromPanelState(
   };
 
   VIS_SETTINGS_PANEL_KEYS.forEach(key => {
-    const coercedValue = coerceVisSettingsPanelValue(key, nextPanelState[key], stringOptions);
+    const coercedValue = coerceVisSettingsPanelValue(key, normalizedPanelState[key], stringOptions);
     if (key === 'maxVisibleLanesPerThread' && typeof coercedValue === 'number') {
       const maxVisibleLanesUnlimited = coercedValue === 0;
       if (coercedValue !== currentSettings.maxVisibleLanesPerThread) {
@@ -302,14 +310,29 @@ export function getVisSettingsUpdatesFromPanelState(
 
     updates[key] = coercedValue as never;
   });
-  if (typeof nextPanelState.showOverview === 'boolean') {
-    const showOverview = nextPanelState.showOverview;
+  if (typeof normalizedPanelState.showOverview === 'boolean') {
+    const showOverview = normalizedPanelState.showOverview;
     if (showOverview !== currentSettings.showOverview) {
       updates.showOverview = showOverview;
     }
   }
 
   return updates;
+}
+
+/** Reads legacy flat panel dependency keys while keeping canonical keys authoritative. */
+function normalizeLegacyDependencyModePanelState(panelState: SettingsState): SettingsState {
+  return {
+    ...panelState,
+    ...(panelState.sameProcessDependencyMode === undefined &&
+    panelState.localDependencyMode !== undefined
+      ? {sameProcessDependencyMode: panelState.localDependencyMode}
+      : {}),
+    ...(panelState.crossProcessDependencyMode === undefined &&
+    panelState.crossDependencyMode !== undefined
+      ? {crossProcessDependencyMode: panelState.crossDependencyMode}
+      : {})
+  };
 }
 
 /**
@@ -322,7 +345,8 @@ export function getVisSettingsSchema(
   const baseSchema = VIS_SETTINGS_PANEL_SCHEMA;
   const traceColorSchemeOptions = traceColorSchemes.map(scheme => ({
     label: scheme.name,
-    value: scheme.id
+    value: scheme.id,
+    ...(scheme.description === undefined ? {} : {description: scheme.description})
   }));
   const options = traceColorSchemeOptions.filter(option => Boolean(option.value));
   const spansSection: SettingsSectionDescriptor = {
@@ -354,6 +378,7 @@ export function getVisSettingsSchema(
           name: 'minSpanWidthPixels',
           type: 'select',
           label: 'Minimum Span Width',
+          advanced: true,
           description: 'Choose the minimum rendered width for visible spans.',
           group: 'Span Rendering',
           options: [...MIN_SPAN_WIDTH_PIXEL_OPTIONS],
@@ -375,6 +400,7 @@ export function getVisSettingsSchema(
           name: 'highlightFadeFactor',
           type: 'number',
           label: 'Highlight Opacity',
+          advanced: true,
           description: 'Opacity multiplier for non-highlighted spans.',
           group: 'Selection Emphasis',
           min: NUMBER_LIMITS_BY_KEY.highlightFadeFactor?.min,
@@ -387,6 +413,7 @@ export function getVisSettingsSchema(
           name: 'extendedSelectionFadeOpacity',
           type: 'number',
           label: 'Selection Opacity',
+          advanced: true,
           description: 'Opacity multiplier used when extended selection fade is active.',
           group: 'Selection Emphasis',
           min: NUMBER_LIMITS_BY_KEY.extendedSelectionFadeOpacity?.min,
@@ -519,22 +546,22 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
       settings: withPersist(
         [
           {
-            name: 'localDependencyMode',
+            name: 'sameProcessDependencyMode',
             type: 'select',
-            label: 'Local',
-            description: 'Choose which local dependencies are rendered.',
+            label: 'Same Process',
+            description: 'Choose which same-process dependencies are rendered.',
             group: 'Visibility',
-            options: [...(STRING_OPTIONS_BY_KEY.localDependencyMode ?? [])],
-            defaultValue: DEFAULT_VIS_SETTINGS.localDependencyMode
+            options: [...(STRING_OPTIONS_BY_KEY.sameProcessDependencyMode ?? [])],
+            defaultValue: DEFAULT_VIS_SETTINGS.sameProcessDependencyMode
           },
           {
-            name: 'crossDependencyMode',
+            name: 'crossProcessDependencyMode',
             type: 'select',
-            label: 'Cross Rank',
-            description: 'Choose whether cross-rank dependencies are shown.',
+            label: 'Cross Process',
+            description: 'Choose whether cross-process dependencies are shown.',
             group: 'Visibility',
-            options: [...(STRING_OPTIONS_BY_KEY.crossDependencyMode ?? [])],
-            defaultValue: DEFAULT_VIS_SETTINGS.crossDependencyMode
+            options: [...(STRING_OPTIONS_BY_KEY.crossProcessDependencyMode ?? [])],
+            defaultValue: DEFAULT_VIS_SETTINGS.crossProcessDependencyMode
           },
           {
             name: 'lineRoutingMode',
@@ -549,6 +576,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'dependencyOpacity',
             type: 'number',
             label: 'Opacity',
+            advanced: true,
             description: 'Opacity applied to dependency lines.',
             group: 'Visibility',
             min: NUMBER_LIMITS_BY_KEY.dependencyOpacity?.min,
@@ -591,6 +619,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'showEmptyProcesses',
             type: 'boolean',
             label: 'Show Empty Processes',
+            advanced: true,
             description: 'Keep process rows visible when they have no remaining visible spans.',
             group: 'Process Layout',
             defaultValue: DEFAULT_VIS_SETTINGS.showEmptyProcesses
@@ -599,6 +628,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'maxVisibleLanesPerThread',
             type: 'number',
             label: 'Lane Limit',
+            advanced: true,
             description: 'Maximum lanes rendered in processes. 0 means no limit.',
             group: 'Lane Limits',
             min: NUMBER_LIMITS_BY_KEY.maxVisibleLanesPerThread?.min,
@@ -638,6 +668,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'traceOffsetMs',
             type: 'number',
             label: 'Trace Offset',
+            advanced: true,
             description: 'Shift the secondary trace horizontally.',
             group: 'Alignment',
             min: NUMBER_LIMITS_BY_KEY.traceOffsetMs?.min,
@@ -650,6 +681,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'traceScale',
             type: 'number',
             label: 'Trace Scale',
+            advanced: true,
             description: 'Scale factor applied to the secondary trace timeline.',
             group: 'Alignment',
             min: NUMBER_LIMITS_BY_KEY.traceScale?.min,
@@ -688,6 +720,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'criticalPathAnimationIntervalMs',
             type: 'number',
             label: 'Animation Speed',
+            advanced: true,
             description: 'Delay between animation steps in milliseconds.',
             group: 'Path Playback',
             min: NUMBER_LIMITS_BY_KEY.criticalPathAnimationIntervalMs?.min,
@@ -700,6 +733,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'criticalPathTrailLength',
             type: 'number',
             label: 'Trail Length',
+            advanced: true,
             description: 'Number of previous spans chunk in the animated trail.',
             group: 'Path Playback',
             min: NUMBER_LIMITS_BY_KEY.criticalPathTrailLength?.min,
@@ -752,6 +786,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'popupMode',
             type: 'select',
             label: 'Open Links',
+            advanced: true,
             description: 'Choose where deep links are opened.',
             group: 'Widget Behavior',
             options: [...(STRING_OPTIONS_BY_KEY.popupMode ?? [])],
@@ -761,6 +796,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'selectHidesMinimap',
             type: 'boolean',
             label: 'Select hides minimap',
+            advanced: true,
             description: 'Hide the overview minimap while a span selection is active.',
             group: 'Widget Behavior',
             defaultValue: DEFAULT_VIS_SETTINGS.selectHidesMinimap
@@ -778,6 +814,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'transitions',
             type: 'boolean',
             label: 'Enable transitions',
+            advanced: true,
             description: 'Enable deck.gl transition animations.',
             group: 'Experimental Features',
             defaultValue: DEFAULT_VIS_SETTINGS.transitions
@@ -795,6 +832,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'showGlobalEvents',
             type: 'boolean',
             label: 'Show Global Events',
+            advanced: true,
             description: 'Render graph-global events in a dedicated top row and in the mini-map.',
             group: 'Experimental Features',
             defaultValue: DEFAULT_VIS_SETTINGS.showGlobalEvents
@@ -812,6 +850,7 @@ export const VIS_SETTINGS_PANEL_SCHEMA: SettingsSchema = {
             name: 'enableFastTextLayer',
             type: 'boolean',
             label: 'Fast Text Layer',
+            advanced: true,
             description: 'Render span labels with the experimental packed FastTextLayer.',
             group: 'Experimental Features',
             defaultValue: DEFAULT_VIS_SETTINGS.enableFastTextLayer

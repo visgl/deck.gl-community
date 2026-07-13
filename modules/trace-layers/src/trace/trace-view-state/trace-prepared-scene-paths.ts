@@ -1,4 +1,4 @@
-import {shouldShowLocalDependencyByMode} from '../trace-layout/local-dependency-filter';
+import {shouldShowSameProcessDependencyByMode} from '../trace-layout/same-process-dependency-filter';
 
 import type {TraceGraph} from '../trace-graph/trace-graph';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
@@ -41,24 +41,24 @@ export function buildTraceOverviewLoadedContentBounds(
   };
 }
 
-/** Builds the prepared path data used by path highlighting and local dependency filtering. */
+/** Builds the prepared path data used by path highlighting and same-process dependency filtering. */
 export function buildTracePreparedPathData(params: {
   /** Primary graph used to resolve visible path blocks and dependencies. */
   readonly primaryTraceGraph: TraceGraph;
   /** Path definitions selected by the caller. */
   readonly paths: readonly TracePath[];
-  /** Settings that decide which local dependencies remain visible. */
-  readonly settings: Pick<TraceVisSettings, 'localDependencyMode'>;
+  /** Settings that decide which same-process dependencies remain visible. */
+  readonly settings: Pick<TraceVisSettings, 'sameProcessDependencyMode'>;
 }): TracePreparedPathData {
   const result = params.primaryTraceGraph.getVisiblePathData(params.paths);
   return {
     pathBlockSources: result.pathBlockSources,
     pathDependencySources: result.pathDependencySources.filter(source =>
-      source.dependency.type === 'trace-local-dependency'
-        ? shouldShowLocalDependencyByMode({
+      source.dependency.type === 'trace-same-process-dependency'
+        ? shouldShowSameProcessDependencyByMode({
             keywords: source.dependency.keywords,
             waitTimeMs: source.dependency.waitTimeMs,
-            mode: params.settings.localDependencyMode
+            mode: params.settings.sameProcessDependencyMode
           })
         : true
     )

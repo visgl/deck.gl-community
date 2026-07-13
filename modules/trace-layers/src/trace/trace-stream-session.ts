@@ -1,26 +1,20 @@
 import {
   buildArrowTraceEventTableFromRows,
-  buildTraceGraphData,
-  buildTraceSpanSidecarsByProcessId,
-  buildTraceSpanTablesByProcessId
+  buildTraceChunkDataFromTraceProcesses
 } from './ingestion/arrow-trace';
 import {createStaticTraceGraphRuntimeSource} from './trace-chunk-store';
 import {TraceGraph} from './trace-graph/trace-graph';
-import {
-  encodeSpanRef,
-  encodeVisibleCrossDependencyRef,
-  encodeVisibleLocalDependencyRef
-} from './trace-graph/trace-id-encoder';
+import {encodeCrossProcessDependencyRef, encodeSpanRef} from './trace-graph/trace-id-encoder';
 
-import type {TraceGraphData} from './ingestion/arrow-trace';
+import type {TraceDataset} from './trace-dataset';
 import type {
   SpanRef,
   TraceCounter,
   TraceCrossProcessDependency,
   TraceEvent,
   TraceInstant,
-  TraceLocalDependency,
   TraceProcess,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceThread
 } from './trace-graph/trace-types';
@@ -64,13 +58,13 @@ export type TraceStreamSpanUpdate = {
 };
 
 /**
- * One streamed local dependency update belonging to an existing or newly created process.
+ * One streamed same-process dependency update belonging to an existing or newly created process.
  */
-export type TraceStreamLocalDependencyUpdate = {
+export type TraceStreamSameProcessDependencyUpdate = {
   /** Owning process identifier. */
   processId: string;
   /** Dependency data preserved in the published snapshot. */
-  dependency: TraceLocalDependency;
+  dependency: TraceSameProcessDependency;
 };
 
 /**
@@ -102,7 +96,7 @@ export type TraceStreamReplaceSnapshot = {
   /** Immutable process list that should replace current mutable state. */
   processes: ReadonlyArray<TraceProcess>;
   /** Immutable cross-process dependency list that should replace current mutable state. */
-  crossDependencies: ReadonlyArray<TraceCrossProcessDependency>;
+  crossProcessDependencies: ReadonlyArray<TraceCrossProcessDependency>;
   /** Optional immutable graph-global events that should replace current mutable state. */
   events?: ReadonlyArray<TraceEvent>;
 };
@@ -123,14 +117,14 @@ export type TraceStreamChunk = {
   appendSpans?: ReadonlyArray<TraceStreamSpanUpdate>;
   /** Span upserts keyed by block id. */
   upsertSpans?: ReadonlyArray<TraceStreamSpanUpdate>;
-  /** Local dependency append operations. Existing ids are ignored when append-only behavior is requested. */
-  appendLocalDependencies?: ReadonlyArray<TraceStreamLocalDependencyUpdate>;
-  /** Local dependency upserts keyed by dependency id. */
-  upsertLocalDependencies?: ReadonlyArray<TraceStreamLocalDependencyUpdate>;
+  /** Same-process dependency append operations. Existing ids are ignored when append-only behavior is requested. */
+  appendSameProcessDependencies?: ReadonlyArray<TraceStreamSameProcessDependencyUpdate>;
+  /** Same-process dependency upserts keyed by dependency id. */
+  upsertSameProcessDependencies?: ReadonlyArray<TraceStreamSameProcessDependencyUpdate>;
   /** Cross-process dependency append operations. Existing ids are ignored when append-only behavior is requested. */
-  appendCrossDependencies?: ReadonlyArray<TraceCrossProcessDependency>;
+  appendCrossProcessDependencies?: ReadonlyArray<TraceCrossProcessDependency>;
   /** Cross-process dependency upserts keyed by dependency id. */
-  upsertCrossDependencies?: ReadonlyArray<TraceCrossProcessDependency>;
+  upsertCrossProcessDependencies?: ReadonlyArray<TraceCrossProcessDependency>;
   /** Instant append operations. Existing ids are ignored when append-only behavior is requested. */
   appendInstants?: ReadonlyArray<TraceStreamInstantUpdate>;
   /** Instant upserts keyed by instant id. */
@@ -151,8 +145,8 @@ export type TraceStreamChunk = {
 export type TraceStreamPublishedSnapshot = {
   /** Monotonic snapshot sequence. */
   sequence: number;
-  /** Canonical TraceGraphData snapshot used by runtime consumers. */
-  traceGraphData: TraceGraphData;
+  /** Canonical immutable Arrow dataset published for dataset-native consumers. */
+  traceDataset: Readonly<TraceDataset>;
   /** Canonical runtime graph built from the published Arrow snapshot. */
   traceGraph: TraceGraph;
 };
@@ -191,7 +185,7 @@ export type TraceStreamSession = {
 };
 
 /**
- * Create one additive live trace session that publishes immutable `TraceGraphData` and `TraceGraph` snapshots.
+ * Create one additive live trace session that publishes immutable `TraceDataset` and `TraceGraph` snapshots.
  */
 export function createTraceStreamSession(
   options: TraceStreamSessionOptions = {}
@@ -252,8 +246,8 @@ type MutableProcessState = {
   process: TraceProcess;
   /** Block row indexes keyed by stable block id. */
   blockIndexById: Map<string, number>;
-  /** Local dependency row indexes keyed by stable dependency id. */
-  localDependencyIndexById: Map<string, number>;
+  /** Same-process dependency row indexes keyed by stable dependency id. */
+  sameProcessDependencyIndexById: Map<string, number>;
   /** Instant row indexes keyed by stable instant id. */
   instantIndexById: Map<string, number>;
   /** Counter row indexes keyed by stable counter id. */
@@ -271,10 +265,10 @@ type TraceStreamSessionState = {
   processesById: Map<string, MutableProcessState>;
   /** Stable process order. */
   processOrder: string[];
-  /** Cross dependency row indexes keyed by stable dependency id. */
-  crossDependencyIndexById: Map<string, number>;
+  /** Cross-process dependency row indexes keyed by stable dependency id. */
+  crossProcessDependencyIndexById: Map<string, number>;
   /** Mutable cross-process dependencies in stable row order. */
-  crossDependencies: TraceCrossProcessDependency[];
+  crossProcessDependencies: TraceCrossProcessDependency[];
   /** Event row indexes keyed by stable event id. */
   eventIndexById: Map<string, number>;
   /** Mutable graph-global events in stable row order. */
@@ -303,8 +297,8 @@ function createTraceStreamSessionState(
     closed: false,
     processesById: new Map(),
     processOrder: [],
-    crossDependencyIndexById: new Map(),
-    crossDependencies: [],
+    crossProcessDependencyIndexById: new Map(),
+    crossProcessDependencies: [],
     eventIndexById: new Map(),
     events: [],
     dirty: false,
@@ -329,17 +323,17 @@ function applyTraceStreamChunk(state: TraceStreamSessionState, chunk: TraceStrea
   chunk.threadUpserts?.forEach(threadUpdate => upsertTraceStreamThread(state, threadUpdate));
   chunk.appendSpans?.forEach(spanUpdate => appendTraceStreamSpan(state, spanUpdate));
   chunk.upsertSpans?.forEach(spanUpdate => upsertTraceStreamSpan(state, spanUpdate));
-  chunk.appendLocalDependencies?.forEach(dependencyUpdate =>
-    appendTraceStreamLocalDependency(state, dependencyUpdate)
+  chunk.appendSameProcessDependencies?.forEach(dependencyUpdate =>
+    appendTraceStreamSameProcessDependency(state, dependencyUpdate)
   );
-  chunk.upsertLocalDependencies?.forEach(dependencyUpdate =>
-    upsertTraceStreamLocalDependency(state, dependencyUpdate)
+  chunk.upsertSameProcessDependencies?.forEach(dependencyUpdate =>
+    upsertTraceStreamSameProcessDependency(state, dependencyUpdate)
   );
-  chunk.appendCrossDependencies?.forEach(dependency =>
-    appendTraceStreamCrossDependency(state, dependency)
+  chunk.appendCrossProcessDependencies?.forEach(dependency =>
+    appendTraceStreamCrossProcessDependency(state, dependency)
   );
-  chunk.upsertCrossDependencies?.forEach(dependency =>
-    upsertTraceStreamCrossDependency(state, dependency)
+  chunk.upsertCrossProcessDependencies?.forEach(dependency =>
+    upsertTraceStreamCrossProcessDependency(state, dependency)
   );
   chunk.appendInstants?.forEach(instantUpdate => appendTraceStreamInstant(state, instantUpdate));
   chunk.upsertInstants?.forEach(instantUpdate => upsertTraceStreamInstant(state, instantUpdate));
@@ -366,7 +360,7 @@ function scheduleTraceStreamPublish(state: TraceStreamSessionState): void {
 }
 
 /**
- * Publish the latest dirty mutable state into immutable `TraceGraphData` and `TraceGraph` snapshots.
+ * Publish the latest dirty mutable state into immutable `TraceDataset` and `TraceGraph` snapshots.
  */
 function publishTraceStreamSnapshot(
   state: TraceStreamSessionState
@@ -378,24 +372,19 @@ function publishTraceStreamSnapshot(
   const processes = state.processOrder
     .map(processId => state.processesById.get(processId))
     .flatMap(processState => (processState ? [materializeTraceStreamProcess(processState)] : []));
-  const crossDependencies = materializeTraceStreamCrossDependencies(state, processes);
-  const traceGraphData = buildTraceGraphData({
+  const crossProcessDependencies = materializeTraceStreamCrossProcessDependencies(state, processes);
+  const traceRuntimeSource = createStaticTraceGraphRuntimeSource({
+    identityKey: `${state.name}:stream:${state.sequence + 1}`,
     name: state.name,
-    processes,
-    crossDependencies,
-    spanTableMap: buildTraceSpanTablesByProcessId(processes),
-    spanSidecarMap: buildTraceSpanSidecarsByProcessId(processes),
+    chunks: buildTraceChunkDataFromTraceProcesses(processes),
+    crossProcessDependencies,
     events: buildTraceStreamEventTable(state.events)
   });
+  const traceDataset = traceRuntimeSource.traceDataset;
   const snapshot: TraceStreamPublishedSnapshot = {
     sequence: state.sequence + 1,
-    traceGraphData,
-    traceGraph: new TraceGraph(
-      createStaticTraceGraphRuntimeSource({
-        identityKey: `${state.name}:stream:${state.sequence + 1}`,
-        traceGraphData
-      })
-    )
+    traceDataset,
+    traceGraph: new TraceGraph(traceRuntimeSource)
   };
 
   state.sequence = snapshot.sequence;
@@ -419,8 +408,8 @@ function replaceTraceStreamState(
   state.name = snapshot.name;
   state.processesById = new Map();
   state.processOrder = [];
-  state.crossDependencyIndexById = new Map();
-  state.crossDependencies = [];
+  state.crossProcessDependencyIndexById = new Map();
+  state.crossProcessDependencies = [];
   state.eventIndexById = new Map();
   state.events = [];
 
@@ -435,9 +424,9 @@ function replaceTraceStreamState(
     state.processOrder.push(processId);
   });
 
-  snapshot.crossDependencies.forEach((dependency, dependencyIndex) => {
-    state.crossDependencyIndexById.set(String(dependency.dependencyId), dependencyIndex);
-    state.crossDependencies.push(cloneTraceCrossDependency(dependency));
+  snapshot.crossProcessDependencies.forEach((dependency, dependencyIndex) => {
+    state.crossProcessDependencyIndexById.set(String(dependency.dependencyId), dependencyIndex);
+    state.crossProcessDependencies.push(cloneTraceCrossProcessDependency(dependency));
   });
 
   (snapshot.events ?? []).forEach((event, eventIndex) => {
@@ -534,82 +523,87 @@ function upsertTraceStreamSpan(
 }
 
 /**
- * Append one local dependency only when its dependency id has not been seen before.
+ * Append one same-process dependency only when its dependency id has not been seen before.
  */
-function appendTraceStreamLocalDependency(
+function appendTraceStreamSameProcessDependency(
   state: TraceStreamSessionState,
-  dependencyUpdate: TraceStreamLocalDependencyUpdate
+  dependencyUpdate: TraceStreamSameProcessDependencyUpdate
 ): void {
   const processState = ensureTraceStreamProcessState(state, dependencyUpdate.processId);
-  if (processState.localDependencyIndexById.has(String(dependencyUpdate.dependency.dependencyId))) {
+  if (
+    processState.sameProcessDependencyIndexById.has(
+      String(dependencyUpdate.dependency.dependencyId)
+    )
+  ) {
     return;
   }
-  const nextDependency = cloneTraceLocalDependency(dependencyUpdate.dependency);
-  const rowIndex = processState.process.localDependencies.length;
-  nextDependency.dependencyRef = encodeVisibleLocalDependencyRef(rowIndex);
-  processState.localDependencyIndexById.set(String(nextDependency.dependencyId), rowIndex);
-  processState.process.localDependencies.push(nextDependency);
+  const nextDependency = cloneTraceSameProcessDependency(dependencyUpdate.dependency);
+  const rowIndex = processState.process.sameProcessDependencies.length;
+  delete nextDependency.dependencyRef;
+  processState.sameProcessDependencyIndexById.set(String(nextDependency.dependencyId), rowIndex);
+  processState.process.sameProcessDependencies.push(nextDependency);
 }
 
 /**
- * Upsert one local dependency keyed by its stable dependency id.
+ * Upsert one same-process dependency keyed by its stable dependency id.
  */
-function upsertTraceStreamLocalDependency(
+function upsertTraceStreamSameProcessDependency(
   state: TraceStreamSessionState,
-  dependencyUpdate: TraceStreamLocalDependencyUpdate
+  dependencyUpdate: TraceStreamSameProcessDependencyUpdate
 ): void {
   const processState = ensureTraceStreamProcessState(state, dependencyUpdate.processId);
-  const existingRowIndex = processState.localDependencyIndexById.get(
+  const existingRowIndex = processState.sameProcessDependencyIndexById.get(
     String(dependencyUpdate.dependency.dependencyId)
   );
-  const nextDependency = cloneTraceLocalDependency(dependencyUpdate.dependency);
+  const nextDependency = cloneTraceSameProcessDependency(dependencyUpdate.dependency);
   if (existingRowIndex == null) {
-    const rowIndex = processState.process.localDependencies.length;
-    nextDependency.dependencyRef = encodeVisibleLocalDependencyRef(rowIndex);
-    processState.localDependencyIndexById.set(String(nextDependency.dependencyId), rowIndex);
-    processState.process.localDependencies.push(nextDependency);
+    const rowIndex = processState.process.sameProcessDependencies.length;
+    delete nextDependency.dependencyRef;
+    processState.sameProcessDependencyIndexById.set(String(nextDependency.dependencyId), rowIndex);
+    processState.process.sameProcessDependencies.push(nextDependency);
     return;
   }
-  nextDependency.dependencyRef =
-    processState.process.localDependencies[existingRowIndex]?.dependencyRef;
-  processState.process.localDependencies[existingRowIndex] = nextDependency;
+  delete nextDependency.dependencyRef;
+  processState.process.sameProcessDependencies[existingRowIndex] = nextDependency;
 }
 
 /**
  * Append one cross-process dependency only when its dependency id has not been seen before.
  */
-function appendTraceStreamCrossDependency(
+function appendTraceStreamCrossProcessDependency(
   state: TraceStreamSessionState,
   dependency: TraceCrossProcessDependency
 ): void {
-  if (state.crossDependencyIndexById.has(String(dependency.dependencyId))) {
+  if (state.crossProcessDependencyIndexById.has(String(dependency.dependencyId))) {
     return;
   }
-  const nextDependency = cloneTraceCrossDependency(dependency);
-  const rowIndex = state.crossDependencies.length;
-  nextDependency.dependencyRef = encodeVisibleCrossDependencyRef(rowIndex);
-  state.crossDependencyIndexById.set(String(nextDependency.dependencyId), rowIndex);
-  state.crossDependencies.push(nextDependency);
+  const nextDependency = cloneTraceCrossProcessDependency(dependency);
+  const rowIndex = state.crossProcessDependencies.length;
+  nextDependency.dependencyRef = encodeCrossProcessDependencyRef(rowIndex);
+  state.crossProcessDependencyIndexById.set(String(nextDependency.dependencyId), rowIndex);
+  state.crossProcessDependencies.push(nextDependency);
 }
 
 /**
  * Upsert one cross-process dependency keyed by its stable dependency id.
  */
-function upsertTraceStreamCrossDependency(
+function upsertTraceStreamCrossProcessDependency(
   state: TraceStreamSessionState,
   dependency: TraceCrossProcessDependency
 ): void {
-  const existingRowIndex = state.crossDependencyIndexById.get(String(dependency.dependencyId));
-  const nextDependency = cloneTraceCrossDependency(dependency);
+  const existingRowIndex = state.crossProcessDependencyIndexById.get(
+    String(dependency.dependencyId)
+  );
+  const nextDependency = cloneTraceCrossProcessDependency(dependency);
   if (existingRowIndex == null) {
-    const rowIndex = state.crossDependencies.length;
-    nextDependency.dependencyRef = encodeVisibleCrossDependencyRef(rowIndex);
-    state.crossDependencyIndexById.set(String(nextDependency.dependencyId), rowIndex);
-    state.crossDependencies.push(nextDependency);
+    const rowIndex = state.crossProcessDependencies.length;
+    nextDependency.dependencyRef = encodeCrossProcessDependencyRef(rowIndex);
+    state.crossProcessDependencyIndexById.set(String(nextDependency.dependencyId), rowIndex);
+    state.crossProcessDependencies.push(nextDependency);
     return;
   }
-  nextDependency.dependencyRef = state.crossDependencies[existingRowIndex]?.dependencyRef;
-  state.crossDependencies[existingRowIndex] = nextDependency;
+  nextDependency.dependencyRef = state.crossProcessDependencies[existingRowIndex]?.dependencyRef;
+  state.crossProcessDependencies[existingRowIndex] = nextDependency;
 }
 
 /**
@@ -749,27 +743,27 @@ function materializeTraceStreamProcess(processState: MutableProcessState): Trace
     ...cloneTraceSpan(block),
     spanRef: encodeSpanRef(processState.rankNum, rowIndex),
     processName: block.processName || process.name,
-    localDependencyIds: [],
-    localDependencies: []
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: []
   }));
   process.spanMap = Object.fromEntries(process.spans.map(block => [String(block.spanId), block]));
-  process.localDependencies = process.localDependencies.map((dependency, dependencyIndex) => {
-    const clonedDependency = cloneTraceLocalDependency(dependency);
-    clonedDependency.dependencyRef = encodeVisibleLocalDependencyRef(dependencyIndex);
+  process.sameProcessDependencies = process.sameProcessDependencies.map(dependency => {
+    const clonedDependency = cloneTraceSameProcessDependency(dependency);
+    delete clonedDependency.dependencyRef;
     clonedDependency.startSpanRef = process.spanMap[String(clonedDependency.startSpanId)]?.spanRef;
     clonedDependency.endSpanRef = process.spanMap[String(clonedDependency.endSpanId)]?.spanRef;
     return clonedDependency;
   });
-  process.localDependencies.forEach(dependency => {
+  process.sameProcessDependencies.forEach(dependency => {
     const startBlock = process.spanMap[String(dependency.startSpanId)];
     const endBlock = process.spanMap[String(dependency.endSpanId)];
     if (startBlock) {
-      startBlock.localDependencyIds.push(dependency.dependencyId);
-      startBlock.localDependencies.push(dependency);
+      startBlock.sameProcessDependencyIds.push(dependency.dependencyId);
+      startBlock.sameProcessDependencies.push(dependency);
     }
     if (endBlock) {
-      endBlock.localDependencyIds.push(dependency.dependencyId);
-      endBlock.localDependencies.push(dependency);
+      endBlock.sameProcessDependencyIds.push(dependency.dependencyId);
+      endBlock.sameProcessDependencies.push(dependency);
     }
   });
   process.instantMap = Object.fromEntries(
@@ -784,9 +778,9 @@ function materializeTraceStreamProcess(processState: MutableProcessState): Trace
 }
 
 /**
- * Convert mutable cross dependencies into immutable published cross dependencies with stable refs.
+ * Convert mutable cross-process dependencies into immutable published cross-process dependencies with stable refs.
  */
-function materializeTraceStreamCrossDependencies(
+function materializeTraceStreamCrossProcessDependencies(
   state: TraceStreamSessionState,
   processes: readonly TraceProcess[]
 ): TraceCrossProcessDependency[] {
@@ -799,7 +793,7 @@ function materializeTraceStreamCrossDependencies(
       }
     });
   });
-  /** Resolves one streamed cross-dependency endpoint by exact ref or its declared process row. */
+  /** Resolves one streamed cross-process-dependency endpoint by exact ref or its declared process row. */
   const getEndpointSpan = (params: {
     /** Exact streamed endpoint span ref when the dependency already carries one. */
     spanRef: SpanRef | undefined;
@@ -813,9 +807,9 @@ function materializeTraceStreamCrossDependencies(
     }
     return processByRankNum.get(params.rankNum)?.spanMap[String(params.spanId)] ?? null;
   };
-  return state.crossDependencies.map((dependency, dependencyIndex) => {
-    const clonedDependency = cloneTraceCrossDependency(dependency);
-    clonedDependency.dependencyRef = encodeVisibleCrossDependencyRef(dependencyIndex);
+  return state.crossProcessDependencies.map((dependency, dependencyIndex) => {
+    const clonedDependency = cloneTraceCrossProcessDependency(dependency);
+    clonedDependency.dependencyRef = encodeCrossProcessDependencyRef(dependencyIndex);
     clonedDependency.startSpanRef = getEndpointSpan({
       spanRef: clonedDependency.startSpanRef,
       rankNum: clonedDependency.startRankNum,
@@ -878,8 +872,8 @@ function createMutableProcessState(
     blockIndexById: new Map(
       process.spans.map((block, index) => [String(block.spanId), index] as const)
     ),
-    localDependencyIndexById: new Map(
-      process.localDependencies.map(
+    sameProcessDependencyIndexById: new Map(
+      process.sameProcessDependencies.map(
         (dependency, index) => [String(dependency.dependencyId), index] as const
       )
     ),
@@ -916,7 +910,7 @@ function createEmptyTraceProcess(
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: [],
     userData: processUpdate.userData
   };
@@ -938,7 +932,7 @@ function cloneTraceProcess(process: TraceProcess): TraceProcess {
     counters: process.counters.map(cloneTraceCounter),
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: process.localDependencies.map(cloneTraceLocalDependency),
+    sameProcessDependencies: process.sameProcessDependencies.map(cloneTraceSameProcessDependency),
     remoteDependencies: process.remoteDependencies.map(dependency => ({...dependency})),
     userData: cloneUserData(process.userData)
   };
@@ -964,8 +958,8 @@ function cloneTraceSpan(block: TraceSpan): TraceSpan {
       Object.entries(block.timings).map(([timingKey, timing]) => [timingKey, {...timing}])
     ),
     keywords: block.keywords ? [...block.keywords] : undefined,
-    localDependencyIds: [...block.localDependencyIds],
-    localDependencies: [...block.localDependencies],
+    sameProcessDependencyIds: [...block.sameProcessDependencyIds],
+    sameProcessDependencies: [...block.sameProcessDependencies],
     crossProcessDependencyEndpoints: block.crossProcessDependencyEndpoints.map(endpoint => ({
       ...endpoint,
       userData: cloneUserData(endpoint.userData)
@@ -975,9 +969,11 @@ function cloneTraceSpan(block: TraceSpan): TraceSpan {
 }
 
 /**
- * Clone one local dependency object.
+ * Clone one same-process dependency object.
  */
-function cloneTraceLocalDependency(dependency: TraceLocalDependency): TraceLocalDependency {
+function cloneTraceSameProcessDependency(
+  dependency: TraceSameProcessDependency
+): TraceSameProcessDependency {
   return {
     ...dependency,
     keywords: new Set([...dependency.keywords]),
@@ -988,7 +984,7 @@ function cloneTraceLocalDependency(dependency: TraceLocalDependency): TraceLocal
 /**
  * Clone one cross-process dependency object.
  */
-function cloneTraceCrossDependency(
+function cloneTraceCrossProcessDependency(
   dependency: TraceCrossProcessDependency
 ): TraceCrossProcessDependency {
   return {

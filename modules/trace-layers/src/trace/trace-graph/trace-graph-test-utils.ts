@@ -1,11 +1,23 @@
+import {
+  getTraceSpanChildDependencies,
+  getTraceSpanDependencyChain,
+  getTraceSpanDescendants,
+  getTraceSpanEndpointsWithDependencies,
+  getTraceSpanIncomingDependencyEntries,
+  getTraceSpanParentChainEntries,
+  getTraceSpanVisibleDependencyChain
+} from './build-trace-span-card-data';
+import {materializeTraceCrossProcessDependencyFromArrowRow} from './trace-cross-process-dependency-table';
+import {getCrossProcessDependencyRefIndex} from './trace-id-encoder';
+
 import type {ArrowTraceProcessMetadata} from '../ingestion/arrow-trace';
-import type {TraceSpanDisplaySource} from '../trace-graph-accessors';
+import type {TraceSpanDetailSource} from '../trace-graph-accessors';
 import type {TraceGraph} from './trace-graph';
 import type {
+  CrossProcessDependencyRef,
   ProcessRef,
-  ThreadRef,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
+  SameProcessDependencyRef,
+  ThreadRef
 } from './trace-id-encoder';
 import type {
   SpanRef,
@@ -26,9 +38,12 @@ export type TraceGraphBlockDependencySnapshot = {
   inDependencies: readonly TraceDependency[];
   /** Visible outgoing dependencies keyed by the source block. */
   outDependencies: readonly TraceDependency[];
-  /** Visible local dependencies touching the block in either direction. */
-  localDependencies: readonly Extract<TraceDependency, {type: 'trace-local-dependency'}>[];
-  /** Visible cross-rank dependencies touching the block in either direction. */
+  /** Visible same-process dependencies touching the block in either direction. */
+  sameProcessDependencies: readonly Extract<
+    TraceDependency,
+    {type: 'trace-same-process-dependency'}
+  >[];
+  /** Visible cross-process dependencies touching the block in either direction. */
   crossRankDependencies: readonly Extract<
     TraceDependency,
     {type: 'trace-cross-process-dependency'}
@@ -47,38 +62,36 @@ export function getRequiredSpanRef(traceGraph: TraceGraph, block: TraceGraphBloc
   return spanRef;
 }
 
-/** Returns the unique visible local dependency ref for a fixture dependency id. */
-export function getRequiredVisibleLocalDependencyRefById(
+/** Returns the unique visible same-process dependency ref for a fixture dependency id. */
+export function getRequiredSameProcessDependencyRefById(
   traceGraph: TraceGraph,
   dependencyId: TraceDependencyId
-): VisibleLocalDependencyRef {
+): SameProcessDependencyRef {
   const dependencyRefs = traceGraph
     .getVisibleProcessRefs()
-    .flatMap(processRef => traceGraph.getVisibleLocalDependencyRefs(processRef))
-    .filter(
-      dependencyRef => traceGraph.getVisibleDependencyIdByRef(dependencyRef) === dependencyId
-    );
+    .flatMap(processRef =>
+      Array.from(traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(processRef))
+    )
+    .filter(dependencyRef => traceGraph.getDependencyId(dependencyRef) === dependencyId);
   if (dependencyRefs.length !== 1) {
     throw new Error(
-      `Expected one visible local dependency ref for ${dependencyId}, found ${dependencyRefs.length}`
+      `Expected one visible same-process dependency ref for ${dependencyId}, found ${dependencyRefs.length}`
     );
   }
   return dependencyRefs[0]!;
 }
 
-/** Returns the unique visible cross dependency ref for a fixture dependency id. */
-export function getRequiredVisibleCrossDependencyRefById(
+/** Returns the unique visible cross-process dependency ref for a fixture dependency id. */
+export function getRequiredCrossProcessDependencyRefById(
   traceGraph: TraceGraph,
   dependencyId: TraceDependencyId
-): VisibleCrossDependencyRef {
-  const dependencyRefs = traceGraph
-    .getVisibleCrossDependencyRefs()
-    .filter(
-      dependencyRef => traceGraph.getVisibleDependencyIdByRef(dependencyRef) === dependencyId
-    );
+): CrossProcessDependencyRef {
+  const dependencyRefs = Array.from(traceGraph.iterateVisibleCrossProcessDependencyRefs()).filter(
+    dependencyRef => traceGraph.getDependencyId(dependencyRef) === dependencyId
+  );
   if (dependencyRefs.length !== 1) {
     throw new Error(
-      `Expected one visible cross dependency ref for ${dependencyId}, found ${dependencyRefs.length}`
+      `Expected one visible cross-process dependency ref for ${dependencyId}, found ${dependencyRefs.length}`
     );
   }
   return dependencyRefs[0]!;
@@ -86,21 +99,20 @@ export function getRequiredVisibleCrossDependencyRefById(
 
 /** Returns the exact runtime span ref for a known test block id. */
 export function getRequiredSpanRefBySpanId(traceGraph: TraceGraph, spanId: TraceSpanId): SpanRef {
-  const spanRef = traceGraph.getSpanRefByExternalBlockId(spanId as never);
+  const spanRef = traceGraph.getSpanRefById(spanId as never);
   if (spanRef == null) {
     throw new Error(`Expected span ref for block ${spanId}`);
   }
   return spanRef;
 }
 
-/** Returns a visible display source by source block id for test assertions. */
+/** Returns a visible render source by source block id for test assertions. */
 export function getRequiredVisibleDisplaySourceBySpanId(
   traceGraph: TraceGraph,
   spanId: TraceSpanId
-): TraceSpanDisplaySource {
-  const block = traceGraph.getVisibleDisplaySourceBySpanRef(
-    getRequiredSpanRefBySpanId(traceGraph, spanId)
-  );
+): TraceSpanDetailSource {
+  const spanRef = getRequiredSpanRefBySpanId(traceGraph, spanId);
+  const block = traceGraph.isSpanVisible(spanRef) ? traceGraph.getSpanDetailSource(spanRef) : null;
   if (!block) {
     throw new Error(`Expected visible display source for block ${spanId}`);
   }
@@ -146,9 +158,9 @@ export function getTraceGraphFilteredParentSpanId(
   const filteredParentRef = traceGraph.getTraceSpanFilteredParentRef(
     getRequiredSpanRef(traceGraph, block)
   );
-  return filteredParentRef == null
+  return filteredParentRef == null || !traceGraph.isSpanVisible(filteredParentRef)
     ? null
-    : (traceGraph.getVisibleSpanId(filteredParentRef) ?? null);
+    : traceGraph.getSpanId(filteredParentRef);
 }
 
 /** Returns the raw dependency chain for one test block using exact span refs. */
@@ -157,7 +169,8 @@ export function getTraceGraphDependencyChainForBlock(
   block: TraceGraphBlockLike,
   dependencyKey: string
 ) {
-  return traceGraph.getDependencyChainBySpanRef(
+  return getTraceSpanDependencyChain(
+    traceGraph,
     getRequiredSpanRef(traceGraph, block),
     dependencyKey
   );
@@ -169,7 +182,8 @@ export function getTraceGraphVisibleDependencyChainForBlock(
   block: TraceGraphBlockLike,
   dependencyKey: string
 ) {
-  return traceGraph.getVisibleDependencyChainBySpanRef(
+  return getTraceSpanVisibleDependencyChain(
+    traceGraph,
     getRequiredSpanRef(traceGraph, block),
     dependencyKey
   );
@@ -180,18 +194,19 @@ export function getTraceGraphSpanDependencies(
   traceGraph: TraceGraph,
   block: TraceGraphBlockLike
 ): TraceGraphBlockDependencySnapshot {
-  const projection = traceGraph.getProjection();
   const spanRef = getRequiredSpanRef(traceGraph, block);
-  const inDependencies = projection.inDependenciesBySpanRef.get(spanRef) ?? [];
-  const outDependencies = projection.outDependenciesBySpanRef.get(spanRef) ?? [];
+  const inDependencies = getVisibleDependenciesForDirection(traceGraph, spanRef, 'incoming');
+  const outDependencies = getVisibleDependenciesForDirection(traceGraph, spanRef, 'outgoing');
   const dependencies = dedupeDependenciesById([...inDependencies, ...outDependencies]);
 
   return {
     inDependencies,
     outDependencies,
-    localDependencies: dependencies.filter(
-      (dependency): dependency is Extract<TraceDependency, {type: 'trace-local-dependency'}> =>
-        dependency.type === 'trace-local-dependency'
+    sameProcessDependencies: dependencies.filter(
+      (
+        dependency
+      ): dependency is Extract<TraceDependency, {type: 'trace-same-process-dependency'}> =>
+        dependency.type === 'trace-same-process-dependency'
     ),
     crossRankDependencies: dependencies.filter(
       (
@@ -202,14 +217,44 @@ export function getTraceGraphSpanDependencies(
   };
 }
 
+/** Materializes only visible dependency rows touching one test span in one direction. */
+function getVisibleDependenciesForDirection(
+  traceGraph: TraceGraph,
+  spanRef: SpanRef,
+  direction: 'incoming' | 'outgoing'
+): readonly TraceDependency[] {
+  return traceGraph
+    .getVisibleDirectionalDependencyRefSlice(spanRef, direction, Number.POSITIVE_INFINITY)
+    .dependencyRefs.flatMap((dependencyRef): TraceDependency[] => {
+      const dependencySource = traceGraph.getDependencySource(dependencyRef);
+      if (dependencySource?.type === 'trace-same-process-dependency') {
+        return [
+          {
+            ...dependencySource,
+            keywords: new Set(dependencySource.keywords)
+          } satisfies TraceDependency
+        ];
+      }
+      if (dependencySource?.type !== 'trace-cross-process-dependency') {
+        return [];
+      }
+      const dependency = materializeTraceCrossProcessDependencyFromArrowRow({
+        crossProcessDependencyTable: traceGraph.crossProcessDependencyTable,
+        rowIndex: getCrossProcessDependencyRefIndex(dependencyRef as CrossProcessDependencyRef)
+      });
+      return [dependency];
+    });
+}
+
 /** Returns visible endpoint/dependency pairs for one test block. */
 export function getTraceGraphEndpointsWithDependencies(
   traceGraph: TraceGraph,
   block: TraceGraphBlockLike
 ): ReadonlyArray<[TraceCrossProcessEndpoint, TraceCrossProcessDependency | null]> {
-  return traceGraph
-    .getTraceSpanEndpointsWithDependencies(getRequiredSpanRef(traceGraph, block))
-    .map(({endpoint, dependency}) => [endpoint, dependency]);
+  return getTraceSpanEndpointsWithDependencies(
+    traceGraph,
+    getRequiredSpanRef(traceGraph, block)
+  ).map(({endpoint, dependency}) => [endpoint, dependency]);
 }
 
 /** Returns selected-card parent-chain rows for one test block. */
@@ -218,7 +263,11 @@ export function getTraceGraphParentChainEntries(
   block: TraceGraphBlockLike,
   options?: {includeHidden?: boolean}
 ) {
-  return traceGraph.getTraceSpanParentChainEntries(getRequiredSpanRef(traceGraph, block), options);
+  return getTraceSpanParentChainEntries({
+    traceGraph,
+    spanRef: getRequiredSpanRef(traceGraph, block),
+    includeHidden: options?.includeHidden ?? false
+  });
 }
 
 /** Returns selected-card incoming dependency rows for one test block. */
@@ -227,24 +276,25 @@ export function getTraceGraphIncomingDependencyEntries(
   block: TraceGraphBlockLike,
   options?: {includeHidden?: boolean}
 ) {
-  return traceGraph.getTraceSpanIncomingDependencyEntries(
-    getRequiredSpanRef(traceGraph, block),
-    options
-  );
+  return getTraceSpanIncomingDependencyEntries({
+    traceGraph,
+    spanRef: getRequiredSpanRef(traceGraph, block),
+    includeHidden: options?.includeHidden ?? false
+  });
 }
 
 /** Returns selected-card child-dependency rows for one test block. */
 export function getTraceGraphChildDependencies(traceGraph: TraceGraph, block: TraceGraphBlockLike) {
-  return traceGraph.getTraceSpanChildDependencies(getRequiredSpanRef(traceGraph, block));
+  return getTraceSpanChildDependencies(traceGraph, getRequiredSpanRef(traceGraph, block));
 }
 
 /** Returns selected-card descendant rows for one test block. */
 export function getTraceGraphDescendants(
   traceGraph: TraceGraph,
   block: TraceGraphBlockLike,
-  options?: Parameters<TraceGraph['getTraceSpanDescendants']>[1]
+  options?: Parameters<typeof getTraceSpanDescendants>[2]
 ) {
-  return traceGraph.getTraceSpanDescendants(getRequiredSpanRef(traceGraph, block), options);
+  return getTraceSpanDescendants(traceGraph, getRequiredSpanRef(traceGraph, block), options);
 }
 
 /** Returns the owning process metadata for one test block. */

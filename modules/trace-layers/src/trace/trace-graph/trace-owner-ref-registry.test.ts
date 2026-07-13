@@ -1,25 +1,23 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildArrowTraceSpanTableFromRows, buildTraceGraphData} from '../ingestion/arrow-trace';
-import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
+import {buildJSONTrace} from '../ingestion/json-trace';
 import {TraceGraph} from './trace-graph';
+import {
+  createDatasetRuntimeTraceGraphForTest,
+  createTraceDatasetFromJSONTraceForTest
+} from './trace-graph-test-fixtures';
 import {TraceOwnerRefRegistry} from './trace-owner-ref-registry';
 import {brand} from './trace-types';
 
 import type {ArrowTraceProcessMetadata} from '../ingestion/arrow-trace';
-import type {TraceProcessId, TraceThreadId} from './trace-types';
+import type {TraceDataset} from '../trace-dataset';
+import type {TraceThreadId} from './trace-types';
 
 function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  traceDataset: TraceDataset,
+  options?: Parameters<typeof createDatasetRuntimeTraceGraphForTest>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+  return createDatasetRuntimeTraceGraphForTest(traceDataset, options);
 }
 
 describe('TraceOwnerRefRegistry', () => {
@@ -80,17 +78,20 @@ describe('TraceOwnerRefRegistry', () => {
         remoteDependencies: []
       })
     );
-    const spanTableMap = Object.fromEntries(
-      ownerProcesses.map(process => [process.processId, buildArrowTraceSpanTableFromRows([])])
-    ) as Readonly<Record<TraceProcessId, ReturnType<typeof buildArrowTraceSpanTableFromRows>>>;
-    const traceGraphData = buildTraceGraphData({
-      name: 'owner-ref-registry-test',
+    const emptyTraceDataset = createTraceDatasetFromJSONTraceForTest(
+      buildJSONTrace([], [], {name: 'owner-ref-registry-test'})
+    );
+    const traceDataset = {
+      ...emptyTraceDataset,
       processes,
-      crossDependencies: [],
-      spanTableMap,
-      ownerRefSnapshot: secondSnapshot
-    });
-    const traceGraph = createTestTraceGraph(traceGraphData);
+      ownerRefSnapshot: secondSnapshot,
+      stats: {
+        ...emptyTraceDataset.stats,
+        processCount: processes.length,
+        threadCount: processes.reduce((count, process) => count + process.threads.length, 0)
+      }
+    } satisfies TraceDataset;
+    const traceGraph = createTestTraceGraph(traceDataset);
 
     expect(firstSnapshot.processRefById.get(processAId)).toBe(processARef);
     expect(firstSnapshot.threadRefById.get(threadAId)).toBe(threadARef);
@@ -100,7 +101,7 @@ describe('TraceOwnerRefRegistry', () => {
     expect(secondSnapshot.threadRefById.get(threadBId)).toBe(threadBRef);
     expect(ownerProcesses.map(process => process.rankNum)).toEqual([0, 1]);
     expect(ownerProcesses.map(process => process.name)).toEqual(['Process A updated', 'Process B']);
-    expect(traceGraphData.processIdsByIndex).toEqual([processAId, processBId]);
+    expect(traceDataset.ownerRefSnapshot.processIdsByIndex).toEqual([processAId, processBId]);
     expect(traceGraph.getProcessRefs()).toEqual(secondSnapshot.processRefs);
     expect(traceGraph.getThreadRefs()).toEqual(secondSnapshot.threadRefs);
   });

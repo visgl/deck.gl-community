@@ -1,4 +1,4 @@
-import type {SpanRef, TraceGraph} from '../../trace/index';
+import type {SpanRef, TraceGraph} from '../../trace';
 
 /**
  * Resolves the owning rank number for a span from filtered trace runtime state.

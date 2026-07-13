@@ -45,8 +45,8 @@ export type TraceCollapseRuntimeState = {
   readonly collapseState: TraceLayoutCollapseState;
   /** Explicit process expansion overrides that survive default-setting changes. */
   readonly processExpansionOverrides: TraceProcessExpansionOverrides;
-  /** Stable key for the selected span refs already applied as expansion overrides. */
-  readonly selectedExpansionSpanRefsKey: string | null;
+  /** Selected span refs already applied as expansion overrides. */
+  readonly appliedExpansionSpanRefs: readonly SpanRef[];
   /** Serialized expanded process ids ready for store or URL persistence. */
   readonly serializedExpandedProcessIds: readonly string[];
 };
@@ -100,7 +100,7 @@ export function createTraceCollapseRuntimeState(
     {
       collapseState: {graphs: []},
       processExpansionOverrides: new Map(),
-      selectedExpansionSpanRefsKey: null,
+      appliedExpansionSpanRefs: [],
       serializedExpandedProcessIds: []
     },
     inputs
@@ -233,16 +233,15 @@ function syncTraceCollapseRuntimeInputs(
     ...(inputs.selectedSpanRefs ?? []),
     ...(inputs.extendedSelectionSpanRefs ?? [])
   ];
-  const selectedExpansionSpanRefsKey = getSpanRefsKey(selectedExpansionSpanRefs);
   const mutableOverrides = cloneTraceProcessExpansionOverrides(prunedOverrides);
-  let nextSelectedExpansionSpanRefsKey = previous.selectedExpansionSpanRefsKey;
+  let nextAppliedExpansionSpanRefs = previous.appliedExpansionSpanRefs;
   if (selectedExpansionSpanRefs.length === 0) {
-    nextSelectedExpansionSpanRefsKey = null;
+    nextAppliedExpansionSpanRefs = [];
   } else if (
     inputs.primaryTraceGraph &&
-    previous.selectedExpansionSpanRefsKey !== selectedExpansionSpanRefsKey
+    !areScalarArraysEqual(previous.appliedExpansionSpanRefs, selectedExpansionSpanRefs)
   ) {
-    nextSelectedExpansionSpanRefsKey = selectedExpansionSpanRefsKey;
+    nextAppliedExpansionSpanRefs = selectedExpansionSpanRefs;
     nextCollapseState = selectTraceLayoutCollapseStateUpdate(
       nextCollapseState,
       expandSelectedSpanProcessRefs({
@@ -263,7 +262,7 @@ function syncTraceCollapseRuntimeInputs(
     traceGraphs: inputs.traceGraphs,
     collapseState: nextCollapseState,
     processExpansionOverrides: nextOverrides,
-    selectedExpansionSpanRefsKey: nextSelectedExpansionSpanRefsKey
+    appliedExpansionSpanRefs: nextAppliedExpansionSpanRefs
   });
 }
 
@@ -272,7 +271,7 @@ function buildTraceCollapseRuntimeStateUpdate(params: {
   traceGraphs: readonly TraceGraph[];
   collapseState: TraceLayoutCollapseState;
   processExpansionOverrides: TraceProcessExpansionOverrides;
-  selectedExpansionSpanRefsKey?: string | null;
+  appliedExpansionSpanRefs?: readonly SpanRef[];
 }): TraceCollapseRuntimeState {
   const serializedExpandedProcessIds =
     params.traceGraphs.length > 0
@@ -283,14 +282,14 @@ function buildTraceCollapseRuntimeStateUpdate(params: {
           })
         )
       : params.previous.serializedExpandedProcessIds;
-  const selectedExpansionSpanRefsKey =
-    params.selectedExpansionSpanRefsKey === undefined
-      ? params.previous.selectedExpansionSpanRefsKey
-      : params.selectedExpansionSpanRefsKey;
+  const appliedExpansionSpanRefs =
+    params.appliedExpansionSpanRefs === undefined
+      ? params.previous.appliedExpansionSpanRefs
+      : params.appliedExpansionSpanRefs;
   if (
     areTraceLayoutCollapseStatesEqual(params.previous.collapseState, params.collapseState) &&
     params.previous.processExpansionOverrides === params.processExpansionOverrides &&
-    params.previous.selectedExpansionSpanRefsKey === selectedExpansionSpanRefsKey &&
+    areScalarArraysEqual(params.previous.appliedExpansionSpanRefs, appliedExpansionSpanRefs) &&
     areScalarArraysEqual(params.previous.serializedExpandedProcessIds, serializedExpandedProcessIds)
   ) {
     return params.previous;
@@ -298,7 +297,7 @@ function buildTraceCollapseRuntimeStateUpdate(params: {
   return {
     collapseState: params.collapseState,
     processExpansionOverrides: params.processExpansionOverrides,
-    selectedExpansionSpanRefsKey,
+    appliedExpansionSpanRefs,
     serializedExpandedProcessIds
   };
 }
@@ -374,10 +373,6 @@ function selectTraceProcessExpansionOverridesUpdate(
     }
   }
   return previous;
-}
-
-function getSpanRefsKey(spanRefs: readonly SpanRef[]): string {
-  return spanRefs.join(',');
 }
 
 function dedupeScalarArray<T extends string | number>(values: readonly T[]): T[] {

@@ -22,7 +22,7 @@ export type TracevisExampleStats = {
   threadCount: number;
   /** Number of spans that render as duration blocks in the example payload. */
   spanCount: number;
-  /** Number of local and cross-process dependencies built from the example payload. */
+  /** Number of same-process and cross-process dependencies built from the example payload. */
   dependencyCount: number;
 };
 
@@ -42,8 +42,8 @@ export type TracevisExampleTrace = {
   traceJson?: ChromeTraceFileSchema;
   /** Prebuilt Tracevis processes used by examples that exercise Tracevis-native features. */
   ranks?: Readonly<TraceProcess[]>;
-  /** Prebuilt Tracevis dependencies paired with the prebuilt processes. */
-  crossDependencies?: Readonly<TraceCrossProcessDependency[]>;
+  /** Prebuilt cross-process dependencies paired with the prebuilt processes. */
+  crossProcessDependencies?: Readonly<TraceCrossProcessDependency[]>;
 };
 
 const SIMPLE_SYNTHETIC_CHROME_TRACE_JSON = {
@@ -204,7 +204,7 @@ const MANUAL_LAYOUT_PROCESSES = [
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   }
 ] satisfies TraceProcess[];
@@ -235,7 +235,7 @@ export const TRACEVIS_EXAMPLE_TRACES: ReadonlyArray<TracevisExampleTrace> = [
       dependencyCount: 0
     },
     ranks: MANUAL_LAYOUT_PROCESSES,
-    crossDependencies: []
+    crossProcessDependencies: []
   }
 ];
 
@@ -276,8 +276,8 @@ function buildManualLayoutSpan({
     },
     layoutTopY,
     layoutHeight,
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: [],
     userData: {

@@ -1,4 +1,8 @@
-import type {TraceColor, TraceColorScheme} from '../trace-style/trace-color-scheme';
+import type {
+  TraceColor,
+  TraceColorScheme,
+  TraceSpanColorRefParams
+} from '../trace-style/trace-color-scheme';
 
 export type ChromeTraceColorSchemeOptions = {
   /** Optional identifier for the scheme instance. */
@@ -29,12 +33,15 @@ function coerceColor(value: unknown): TraceColor | undefined {
 }
 
 export function getColorFromUserData(userData?: Record<string, unknown>): TraceColor | undefined {
-  if (!userData) {
-    return undefined;
-  }
+  return getColorFromUserDataValues(key => userData?.[key]);
+}
 
+/** Resolves an embedded Chrome trace color from scalar user-data field reads. */
+export function getColorFromUserDataValues(
+  getUserDataValue: (key: string) => unknown
+): TraceColor | undefined {
   for (const key of CHROME_COLOR_KEYS) {
-    const parsed = coerceColor(userData[key]);
+    const parsed = coerceColor(getUserDataValue(key));
     if (parsed) {
       return parsed;
     }
@@ -56,8 +63,20 @@ export function createChromeTraceColorScheme(
     id,
     name,
     description,
-    getSpanFillColor: ({span}) => getColorFromUserData(span.userData),
-    getThreadColor: ({thread}) => getColorFromUserData(thread?.userData),
-    getProcessBackgroundColor: ({process}) => getColorFromUserData(process?.userData)
+    requiredSpanAttributePaths: CHROME_COLOR_KEYS.map(key => [key]),
+    getSpanFillColorForRef: params => getSpanColorForRef(params),
+    getSpanStyleForRef: params => {
+      const spanFillColor = getSpanColorForRef(params);
+      return spanFillColor ? {spanFillColor} : undefined;
+    },
+    getThreadColor: ({thread}) => getColorFromUserData(thread?.userData)
   };
+}
+
+/** Resolves an embedded Chrome trace color from one span ref. */
+function getSpanColorForRef({
+  spanRef,
+  traceGraph
+}: TraceSpanColorRefParams): TraceColor | undefined {
+  return getColorFromUserDataValues(key => traceGraph.getSpanAttribute(spanRef, [key]));
 }

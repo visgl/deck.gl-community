@@ -19,10 +19,13 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 ### `@deck.gl-community/trace-layers`
 
-- Trace graph data, layout, style, runtime-ref, Chrome trace, Perfetto trace, and Arrow ingestion APIs now ship from normalized `trace`, `layers`, `loaders`, and `react` package subpaths.
-- `TraceEngine` now owns mounted trace selection, collapse, layout, prepared scene, and diagnostics state below React; `DeckTraceGraph` renders an engine instead of receiving the full controlled trace-view state directly.
-- `TraceChunkStore` now exposes source-owned graph-data materialization and retained-state diagnostics for incremental windows, while `TraceStoreLayer` composes that flow as a low-level deck layer.
-- `DeckTraceGraph`, deck controllers/layers, trace loaders, and the Tracevis React surface now consume shared `@deck.gl-community/panels`, `@deck.gl-community/widgets`, and `@deck.gl-community/infovis-layers` APIs instead of vendored upstream copies.
+- Trace chunk, dataset, layout, style, runtime-ref, Chrome trace, Perfetto trace, and Arrow ingestion APIs now ship from normalized `trace`, `layers`, `loaders`, and `react` package subpaths.
+- `TraceDataset`, `TraceViewSnapshot`, and `TraceRenderSnapshot` now define the columnar runtime path from finalized Arrow chunks to prepared deck inputs.
+- `TraceEngine` now owns mounted trace selection, collapse, layout, render snapshot, and diagnostics state below React; `DeckTraceGraph` renders an engine instead of receiving the full controlled trace-view state directly.
+- `TraceChunkStore` now exposes `loadWindow(...)`, `withReadyChunks(...)`, dataset-native window assembly, retained-state diagnostics, visible-first loaded-row search, and hidden-span navigation, while `TraceStoreLayer` composes that flow as a low-level deck layer.
+- `TraceGraphLayer`, `TracePreparedStateLayer`, and `TraceStoreLayer` remain public OSS low-level layers and now adapt the dataset/view/render runtime.
+- Added initial loaded-window viewport fit, shared context-menu actions, physical span chunks, and streamed cross-process dependency rendering fixes.
+- `DeckTraceGraph`, deck controllers/layers, trace loaders, and the Tracevis React surface now consume shared `@deck.gl-community/panels`, `@deck.gl-community/widgets`, `@deck.gl-community/layers`, `@deck.gl-community/timeline-layers`, and `@deck.gl-community/infovis-layers` APIs instead of package-local helper copies.
 - Added the website Tracevis example for exercising trace loading, selection, catalog, and Studio visualization settings workflows.
 
 ### `@deck.gl-community/react`

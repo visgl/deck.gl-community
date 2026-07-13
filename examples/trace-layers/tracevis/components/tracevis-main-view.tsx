@@ -10,6 +10,7 @@ import {
   getRankNumForSpanRef,
   getSameNameNavigation,
   getThreadNavigation,
+  getTraceSpanBadgeStyleForRef,
   SPAN_INSPECTOR_DEFAULT_WIDTH_PX,
   SpanInspectorHiddenSpanNotice,
   SpanInspectorPopup,
@@ -21,8 +22,8 @@ import {
   buildJSONTrace,
   buildTraceChunkDataFromJSONTrace,
   createStaticTraceGraphRuntimeSource,
-  createTraceColorResolver,
   DEFAULT_TRACE_STYLE,
+  getTraceSelectedSpanFromRef,
   materializeJSONTrace,
   TraceEngine,
   TraceGraph
@@ -51,7 +52,6 @@ import type {
   TraceObject,
   TracePath,
   TraceProcessInfo,
-  TraceSpanColorSource,
   TraceVisSettings
 } from '@deck.gl-community/trace-layers/trace';
 
@@ -96,27 +96,22 @@ function TracevisEmptyStateDeck({
   );
 }
 
-/** Converts a trace RGBA byte tuple into a CSS rgba() color. */
-const toRgbaCss = (color: readonly [number, number, number, number]) => {
-  const alpha = Math.max(0, Math.min(1, color[3] / 255));
-  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
-};
-
 /** Resolves breadcrumb badge colors from the same color resolver used by trace rendering. */
 const getTraceBreadcrumbStyle = (
-  block: TraceSpanColorSource | undefined | null,
+  traceGraph: TraceGraph,
+  spanRef: SpanRef,
   settings: TraceVisSettings,
   colorScheme: TraceColorScheme
 ) => {
-  if (!block) {
-    return {};
-  }
-  const colorResolver = createTraceColorResolver({colorScheme, settings});
-  const blockFillColor = colorResolver.getSpanFillColor(block, 'any');
-  const blockTextColor = colorResolver.getSpanTextColor(block, 'any', 'inside');
+  const {backgroundColor, color} = getTraceSpanBadgeStyleForRef(
+    traceGraph,
+    spanRef,
+    settings,
+    colorScheme
+  );
   return {
-    blockColor: toRgbaCss(blockFillColor),
-    blockTextColor: toRgbaCss(blockTextColor)
+    blockColor: backgroundColor ?? null,
+    blockTextColor: color ?? null
   };
 };
 
@@ -154,6 +149,7 @@ export const MainView: React.FC = () => {
   const uploadedTraces = useRoomStore(s => s.tracevis.uploadedTraces);
   const uploadedTraceMetadatas = useRoomStore(s => s.tracevis.uploadedTraceMetadatas);
   const loadTrace = useRoomStore(s => s.tracevis.loadTrace);
+  const setError = useRoomStore(s => s.tracevis.setError);
   const exampleTraceSelectionMap = useRoomStore(s => s.tracevis.exampleTraceSelectionMap ?? {});
   const uploadedTraceSelectionMap = useRoomStore(s => s.tracevis.uploadedTraceSelectionMap ?? {});
   const selectedDemoTraces = useMemo(() => {
@@ -219,7 +215,7 @@ export const MainView: React.FC = () => {
             graphs.push(null);
             continue;
           }
-          const jsonTrace = buildJSONTrace(traceData.ranks, traceData.crossDependencies, {
+          const jsonTrace = buildJSONTrace(traceData.ranks, traceData.crossProcessDependencies, {
             name: traceSelection.displayName,
             spanLayout: traceData.spanLayout
           });
@@ -230,7 +226,7 @@ export const MainView: React.FC = () => {
               name: traceSelection.displayName,
               spanLayout: materializedTrace.spanLayout,
               chunks: buildTraceChunkDataFromJSONTrace(materializedTrace),
-              crossDependencies: materializedTrace.crossDependencies,
+              crossProcessDependencies: materializedTrace.crossProcessDependencies,
               events: materializedTrace.events,
               timeExtents: {
                 minTimeMs: materializedTrace.minTimeMs,
@@ -241,7 +237,7 @@ export const MainView: React.FC = () => {
           );
           graphs.push(graph);
         } catch (error) {
-          console.error('Failed to load demo trace', traceSelection.traceId, error);
+          setError(traceSelection.traceId, error);
           graphs.push(null);
         }
       }
@@ -257,7 +253,7 @@ export const MainView: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [loadTrace, selectedDemoTraces]);
+  }, [loadTrace, selectedDemoTraces, setError]);
 
   const getTraceObjectJSON = useCallback(
     (object?: TraceObject | null) => object as Record<string, unknown>,
@@ -283,7 +279,7 @@ export const MainView: React.FC = () => {
     if (!traceGraph || selectedSpanRefs[0] == null) {
       return null;
     }
-    return traceGraph.getTraceSpanCardModel(selectedSpanRefs[0])?.span ?? null;
+    return getTraceSelectedSpanFromRef(traceGraph, selectedSpanRefs[0]);
   }, [selectedSpanRefs, traceGraph]);
 
   const selectedBlockRank = useMemo(
@@ -311,15 +307,15 @@ export const MainView: React.FC = () => {
 
   // TODO - separate the vis settings more clearly
   const settings = useMemo(() => {
-    const mode = visSettings.localDependencyMode;
+    const mode = visSettings.sameProcessDependencyMode;
     const showWarningsOnly = mode === 'warnings';
     const showSubmitOnly = mode === 'submit';
     const useExtendedSelectionFadeOpacity = extendedSelectionMode === 'fade';
     const settings: TraceVisSettings = {
       traceColorSchemeId: visSettings.traceColorSchemeId ?? 'processes',
       showDependencies: mode !== 'none',
-      localDependencyMode: showWarningsOnly ? 'warnings' : showSubmitOnly ? 'submit' : 'all',
-      showCrossProcessDependencies: visSettings.crossDependencyMode === 'all',
+      sameProcessDependencyMode: showWarningsOnly ? 'warnings' : showSubmitOnly ? 'submit' : 'all',
+      showCrossProcessDependencies: visSettings.crossProcessDependencyMode === 'all',
       trackAggregationMode: visSettings.trackAggregationMode,
       showInstants: visSettings.showInstants,
       showCounters: visSettings.showCounters,
@@ -428,12 +424,12 @@ export const MainView: React.FC = () => {
       }
       const primarySpanRef = update.selectedSpanRefs[0] ?? null;
       const primarySpan = update.selectedSpans[0]?.span ?? null;
-      if (primarySpan && primarySpanRef != null) {
+      if (traceGraph && primarySpan && primarySpanRef != null) {
         const breadcrumbEntry: TraceBreadcrumbEntry = {
           spanRef: primarySpanRef,
           spanName: primarySpan.name,
           spanKeywords: primarySpan.keywords,
-          ...getTraceBreadcrumbStyle(primarySpan, settings, colorScheme)
+          ...getTraceBreadcrumbStyle(traceGraph, primarySpanRef, settings, colorScheme)
         };
         pushBreadcrumb(breadcrumbEntry);
       }
@@ -445,7 +441,8 @@ export const MainView: React.FC = () => {
       selectedSpanRefs,
       setExpandedProcessIds,
       setSelectedSpanRefs,
-      settings
+      settings,
+      traceGraph
     ]
   );
   useEffect(() => {
@@ -486,7 +483,7 @@ export const MainView: React.FC = () => {
         return;
       }
 
-      const targetSpan = traceGraph.getTraceSpanCardModel(targetSpanRef)?.span ?? null;
+      const targetSpan = getTraceSelectedSpanFromRef(traceGraph, targetSpanRef);
       if (!targetSpan) {
         return;
       }
@@ -495,7 +492,7 @@ export const MainView: React.FC = () => {
         spanRef: targetSpanRef,
         spanName: targetSpan.name,
         spanKeywords: targetSpan.keywords,
-        ...getTraceBreadcrumbStyle(targetSpan, settings, colorScheme)
+        ...getTraceBreadcrumbStyle(traceGraph, targetSpanRef, settings, colorScheme)
       });
       setSelectedSpanRefs([targetSpanRef]);
       deckTraceGraphRef.current?.zoomToSpanRef(targetSpanRef);
@@ -581,18 +578,11 @@ export const MainView: React.FC = () => {
     () => [themeWidget, studioSettingsWidget, traceCatalogWidget],
     [studioSettingsWidget, themeWidget, traceCatalogWidget]
   );
-  const handleProcessInfoClick = useCallback(
-    (_processId: string, processInfo?: TraceProcessInfo) => {
-      console.log('PROCESS INFO CLICK', processInfo);
-    },
-    []
-  );
   const deckTraceGraphConfig = useMemo(
     () => ({
       processInfoMap: EMPTY_PROCESS_INFO_MAP,
       getJSONForTraceObject: getTraceObjectJSON,
       onTimeRangeSelectionChange: setSelectedTimeRange,
-      onProcessInfoClick: handleProcessInfoClick,
       keyboardShortcuts: TRACEVIS_SHORTCUTS,
       settingsConfig,
       deckWidgetTheme,
@@ -600,14 +590,7 @@ export const MainView: React.FC = () => {
       showDefaultWidgets: true,
       widgets: traceDeckWidgets
     }),
-    [
-      deckWidgetTheme,
-      getTraceObjectJSON,
-      handleProcessInfoClick,
-      setSelectedTimeRange,
-      settingsConfig,
-      traceDeckWidgets
-    ]
+    [deckWidgetTheme, getTraceObjectJSON, setSelectedTimeRange, settingsConfig, traceDeckWidgets]
   );
 
   return (
@@ -672,7 +655,6 @@ export const MainView: React.FC = () => {
                         onNavigateToSpanRef={spanRef => navigateToSpanRef(spanRef)}
                       />
                     ) : null}
-                    {/* <Dismissible key={block.spanId}> </Dismissible> */}
                     <TraceSpanCard
                       spanRef={selectedSpanRef}
                       traceGraph={traceGraph}
@@ -683,19 +665,18 @@ export const MainView: React.FC = () => {
                       interactive
                       paths={EMPTY_TRACE_PATH_LIST}
                       rankQueryStatusMap={{}}
-                      onRankClick={rankNum => console.log(String(rankNum), true)}
-                      onSpanClick={(...args) => {
-                        console.log('block click', selectedSpanRef, ...args);
-                      }}
                       onSpanDoubleClick={(clickedSpanRef: SpanRef) => {
-                        console.log('block dbl click', selectedSpanRef);
-                        const clickedSpan =
-                          traceGraph.getTraceSpanCardModel(clickedSpanRef)?.span ?? null;
+                        const clickedSpan = getTraceSelectedSpanFromRef(traceGraph, clickedSpanRef);
                         pushBreadcrumb({
                           spanRef: clickedSpanRef,
                           spanName: clickedSpan?.name ?? selectedSpan.name,
                           spanKeywords: clickedSpan?.keywords,
-                          ...getTraceBreadcrumbStyle(clickedSpan, settings, colorScheme)
+                          ...getTraceBreadcrumbStyle(
+                            traceGraph,
+                            clickedSpanRef,
+                            settings,
+                            colorScheme
+                          )
                         });
                         setSelectedSpanRefs([clickedSpanRef]);
                         deckTraceGraphRef.current?.zoomToSpanRef(clickedSpanRef);
@@ -810,12 +791,6 @@ function useBreadcrumbState(): {
   return {breadcrumb, goToBreadcrumb, activeIndex};
 }
 
-/** Props for the local dismissible content wrapper. */
-type DismissibleProps = {
-  /** Content shown until the wrapper is dismissed. */
-  children: React.ReactNode;
-};
-
 /** Props for the span inspector event isolation boundary. */
 type EventBoundaryProps = {
   /** Optional class name appended to the boundary container. */
@@ -823,28 +798,6 @@ type EventBoundaryProps = {
   /** Popup content protected from deck.gl controller events. */
   children: React.ReactNode;
 };
-
-/** Renders content with a small inline dismiss button. */
-export function Dismissible({children}: DismissibleProps) {
-  const [visible, setVisible] = useState(true);
-
-  if (!visible) return null;
-
-  return (
-    <div className="bg-muted">
-      <div className="relative inline-flex items-center text-sm font-medium bg-muted text-muted-foreground rounded">
-        {children}
-        <button
-          onClick={() => setVisible(false)}
-          className="absolute top-2 right-3 translate-x-1/2 -translate-y-1/2 rounded-full  bg-background shadow-sm hover:bg-muted-foreground/10 focus:outline-none focus:ring-2 focus:ring-ring"
-          aria-label="Dismiss"
-        >
-          ❌
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /** Prevents pointer events from bubbling from popups into the deck.gl controller. */
 function EventBoundary(props: EventBoundaryProps) {

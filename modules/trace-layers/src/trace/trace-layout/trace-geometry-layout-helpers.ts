@@ -1,14 +1,13 @@
 import {TraceGraph} from '../trace-graph/trace-graph';
+import {getTraceGraphProcessLaneAssignmentMode} from '../trace-graph/trace-graph-runtime-helpers';
+import {
+  getVisibleSpanGeometrySourcesByProcess,
+  getVisibleSpanLayoutLaneSourcesByProcess
+} from '../trace-graph/trace-graph-visible-span-sources';
 import {getProcessRefIndex} from '../trace-graph/trace-id-encoder';
 import {getTraceLayoutBoundsFromStructure} from './trace-layout';
 
-import type {TraceLocalDependencySource} from '../trace-graph-accessors';
-import type {
-  ProcessRef,
-  ThreadRef,
-  TraceDependencyRef,
-  VisibleLocalDependencyRef
-} from '../trace-graph/trace-id-encoder';
+import type {ProcessRef, ThreadRef} from '../trace-graph/trace-id-encoder';
 import type {
   TraceGeometryLayoutLookup,
   TraceLayoutLaneDependencySource,
@@ -20,43 +19,18 @@ import type {
   ThreadLayout,
   TraceLayout,
   TraceLayoutBounds,
-  TraceLayoutVisibleGraph,
+  TraceLayoutSpanLaneColumns,
   TraceLayoutVisibleProcessMetadata
 } from './trace-layout';
 
-const objectIdentityIds = new WeakMap<object, number>();
-let nextObjectIdentityId = 1;
-
-/** Returns all y positions occupied by a thread layout, including expanded lanes. */
-export function getThreadLayoutYPositions(layout: ThreadLayout): number[] {
-  if (layout.lanes?.laneYPositions.length) {
-    return layout.lanes.laneYPositions;
-  }
-  return [layout.yPosition];
-}
-
-/** Returns the smallest visible y position occupied by a thread layout. */
-export function getThreadLayoutMinimumYPosition(layout: ThreadLayout): number {
-  const laneYPositions = layout.lanes?.laneYPositions;
-  if (!laneYPositions?.length) {
-    return layout.yPosition;
-  }
-
-  let minimumYPosition = laneYPositions[0] ?? layout.yPosition;
-  for (let index = 1; index < laneYPositions.length; index++) {
-    const laneYPosition = laneYPositions[index]!;
-    if (laneYPosition < minimumYPosition) {
-      minimumYPosition = laneYPosition;
-    }
-  }
-  return minimumYPosition;
-}
-
-/** Builds the visible process/dependency projection used for filtered geometry generation. */
-export function buildVisibleTraceGraph(traceGraph: Readonly<TraceGraph>): TraceLayoutVisibleGraph {
+/** Builds sorted visible process metadata used by filtered geometry generation. */
+export function buildTraceLayoutProcesses(
+  traceGraph: Readonly<TraceGraph>
+): readonly TraceLayoutVisibleProcessMetadata[] {
   const visibleProcesses: TraceLayoutVisibleProcessMetadata[] = [];
-  for (const processRef of traceGraph.getVisibleProcessRefs()) {
-    const processSource = traceGraph.getVisibleProcessSourceByRef(processRef);
+  const visibleProcessRefs = traceGraph.getVisibleProcessRefs();
+  for (const processRef of visibleProcessRefs) {
+    const processSource = traceGraph.getProcessSourceByRef(processRef);
     const processIndex = getProcessRefIndex(processRef);
     const rawProcess = processIndex >= 0 ? traceGraph.processes[processIndex] : null;
     if (!processSource || !rawProcess) {
@@ -74,14 +48,7 @@ export function buildVisibleTraceGraph(traceGraph: Readonly<TraceGraph>): TraceL
     });
   }
 
-  return {
-    name: traceGraph.name,
-    minTimeMs: traceGraph.minTimeMs,
-    maxTimeMs: traceGraph.maxTimeMs,
-    traceGraph,
-    processes: sortVisibleTraceLayoutProcessesByProcessOrder(visibleProcesses),
-    crossDependencies: traceGraph.getVisibleCrossDependencySources()
-  };
+  return sortVisibleTraceLayoutProcessesByProcessOrder(visibleProcesses);
 }
 
 /**
@@ -100,162 +67,45 @@ export function sortVisibleTraceLayoutProcessesByProcessOrder(
     .map(({process}) => process);
 }
 
-/** Builds a single-process visible graph view used for process-local relative layout calculation. */
-export function buildVisibleTraceGraphForProcess(params: {
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>;
-  process: Readonly<TraceLayoutVisibleProcessMetadata>;
-}): TraceLayoutVisibleGraph {
-  return {
-    name: params.visibleTraceGraph.name,
-    minTimeMs: params.visibleTraceGraph.minTimeMs,
-    maxTimeMs: params.visibleTraceGraph.maxTimeMs,
-    traceGraph: params.visibleTraceGraph.traceGraph,
-    processes: [params.process],
-    crossDependencies: []
-  };
-}
-
 /**
  * Resolves the visible geometry spans for one process directly from the filtered source graph.
  */
 export function getVisibleGeometrySpansForProcess(
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>,
-  processId: string
+  traceGraph: Readonly<TraceGraph>,
+  processRef: ProcessRef
 ): readonly TraceSpanGeometrySource[] {
-  const processRef = getProcessRefByProcessId(visibleTraceGraph, processId);
-  return processRef != null
-    ? visibleTraceGraph.traceGraph.getVisibleProcessGeometrySources(processRef)
-    : [];
-}
-
-/**
- * Resolves visible local dependencies for one process directly from the filtered source graph.
- */
-export function getVisibleLocalDependenciesForProcess(
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>,
-  processId: string
-): ReadonlyArray<TraceLocalDependencySource> {
-  const processRef = getProcessRefByProcessId(visibleTraceGraph, processId);
-  return processRef != null
-    ? visibleTraceGraph.traceGraph.getVisibleLocalDependencySources(processRef)
-    : [];
-}
-
-/** Resolves visible local dependency refs for one process directly from the filtered graph. */
-export function getVisibleLocalDependencyRefsForProcess(
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>,
-  processId: string
-): readonly (TraceDependencyRef | VisibleLocalDependencyRef)[] {
-  const processRef = getProcessRefByProcessId(visibleTraceGraph, processId);
-  if (processRef == null) {
-    return [];
-  }
-  return visibleTraceGraph.traceGraph.hasActiveSpanFilter()
-    ? visibleTraceGraph.traceGraph.getVisibleLocalDependencyRefs(processRef)
-    : visibleTraceGraph.traceGraph.getLocalDependencyRefs(processRef);
+  return getVisibleSpanGeometrySourcesByProcess(traceGraph, processRef);
 }
 
 /** Resolves lightweight visible lane spans for one process directly from the filtered source graph. */
 export function getVisibleLaneSpansForProcess(
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>,
-  processId: string
+  traceGraph: Readonly<TraceGraph>,
+  process: Readonly<TraceLayoutVisibleProcessMetadata>
 ): readonly TraceLayoutLaneSpanSource[] {
-  const processRef = getProcessRefByProcessId(visibleTraceGraph, processId);
-  return processRef != null
-    ? visibleTraceGraph.traceGraph.getVisibleProcessGeometrySources(processRef)
-    : [];
+  if (getTraceGraphProcessLaneAssignmentMode(process?.userData) === 'none') {
+    // Lane-disabled layout only consumes span refs/timing, so keep the geometry-only source.
+    return getVisibleSpanGeometrySourcesByProcess(
+      traceGraph,
+      process.processRef
+    ) as readonly TraceLayoutLaneSpanSource[];
+  }
+  return getVisibleSpanLayoutLaneSourcesByProcess(traceGraph, process.processRef);
 }
 
 /** Resolves lightweight visible lane dependencies for one process from the filtered source graph. */
-export function getVisibleLaneLocalDependenciesForProcess(
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>,
-  processId: string
-): readonly TraceLayoutLaneDependencySource[] {
-  const processRef = getProcessRefByProcessId(visibleTraceGraph, processId);
-  return processRef != null
-    ? visibleTraceGraph.traceGraph.getVisibleLocalDependencyLayoutSources(processRef)
-    : [];
-}
-
-/** Resolves one canonical runtime process ref from a visible process rank id when present. */
-export function getProcessRefByProcessId(
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>,
-  processId: string
-): ProcessRef | null {
-  return getProcessRefsByProcessId(visibleTraceGraph).get(processId) ?? null;
-}
-
-const visibleGraphProcessRefByRankIdCache = new WeakMap<
-  Readonly<TraceLayoutVisibleGraph>,
-  ReadonlyMap<string, ProcessRef>
->();
-
-/**
- * Returns a cached visible rank id to process ref index for process-local layout lookups.
- */
-export function getProcessRefsByProcessId(
-  visibleTraceGraph: Readonly<TraceLayoutVisibleGraph>
-): ReadonlyMap<string, ProcessRef> {
-  const cached = visibleGraphProcessRefByRankIdCache.get(visibleTraceGraph);
-  if (cached) {
-    return cached;
-  }
-  const processRefsByRankId = new Map<string, ProcessRef>();
-  for (const process of visibleTraceGraph.processes) {
-    if (process.processRef != null) {
-      processRefsByRankId.set(process.processId, process.processRef);
-    }
-  }
-  visibleGraphProcessRefByRankIdCache.set(visibleTraceGraph, processRefsByRankId);
-  return processRefsByRankId;
-}
-
-/** Returns a stable id for object identity within this JS runtime. */
-export function getObjectIdentityId(value: object): number {
-  const existingId = objectIdentityIds.get(value);
-  if (existingId != null) {
-    return existingId;
-  }
-
-  const nextId = nextObjectIdentityId;
-  nextObjectIdentityId += 1;
-  objectIdentityIds.set(value, nextId);
-  return nextId;
-}
-
-/** Builds a stable cache fragment for chunks containing rows owned by one process ref. */
-export function getProcessSpanChunkCacheKey(
+export function getVisibleLaneSameProcessDependenciesForProcess(
   traceGraph: Readonly<TraceGraph>,
-  processRef: ProcessRef | undefined
-): string | null {
-  if (processRef == null) {
-    return null;
-  }
-  const chunks = traceGraph.chunks.filter(chunk => chunk.processRefs.includes(processRef));
-  if (chunks.length === 0) {
-    return null;
-  }
-  const processId = traceGraph.processIdsByIndex[getProcessRefIndex(processRef)];
-  const spanTable = processId ? traceGraph.processSpanTableMap[processId] : undefined;
-  const spanTableGeneration = processId
-    ? traceGraph.processSpanTableMap[processId]?.generation
-    : undefined;
-  const firstChunk = chunks[0]!;
-  const lastChunk = chunks[chunks.length - 1]!;
-  return [
-    `process=${processId ?? processRef}`,
-    `chunks=${chunks.length}`,
-    `first=${firstChunk.chunkRef}`,
-    `last=${lastChunk.chunkRef}`,
-    `rows=${spanTable?.numRows ?? 0}`,
-    `spanGeneration=${spanTableGeneration ?? 'unknown'}`
-  ].join('|');
+  processRef: ProcessRef
+): readonly TraceLayoutLaneDependencySource[] {
+  return traceGraph.getVisibleSameProcessDependencyLayoutSources(processRef);
 }
 
 /** Builds ref-native lane layout lookup state for one TraceGraph/layout pair. */
 export function buildTraceGeometryLayoutLookup(params: {
   /** TraceGraph that resolves visible span refs to owner process/thread refs. */
   traceGraph: Pick<TraceGraph, 'getProcessRefBySpanRef' | 'getThreadRefBySpanRef'>;
+  /** Generated lane columns aligned with canonical Arrow span-table rows. */
+  spanLaneColumnsByChunkIndex?: TraceLayoutSpanLaneColumns;
   /** Process layouts keyed by canonical runtime process ref. */
   processLayoutMapByRef: ReadonlyMap<ProcessRef, ProcessLayout>;
   /** Thread layouts keyed by canonical runtime thread ref. */
@@ -263,19 +113,10 @@ export function buildTraceGeometryLayoutLookup(params: {
 }): TraceGeometryLayoutLookup {
   return {
     traceGraph: params.traceGraph,
+    spanLaneColumnsByChunkIndex: params.spanLaneColumnsByChunkIndex,
     threadLayoutsByRef: params.threadLayoutMapByRef,
     processLayoutsByRef: params.processLayoutMapByRef
   };
-}
-
-/**
- * Narrows a global geometry lookup with process-local stream-id fallback maps.
- */
-export function buildProcessGeometryLayoutLookup(params: {
-  globalLookup: TraceGeometryLayoutLookup;
-  processLayout?: ProcessLayout;
-}): TraceGeometryLayoutLookup {
-  return params.globalLookup;
 }
 
 /** Resolves a span's thread layout from its exact current-graph span ref. */

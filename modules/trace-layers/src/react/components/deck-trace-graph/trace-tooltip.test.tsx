@@ -2,21 +2,21 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {encodeVisibleCrossDependencyRef} from '../../../trace/index';
+import {encodeCrossProcessDependencyRef} from '../../../trace';
 import {TraceTooltip} from './trace-tooltip';
 
 import type {
+  CrossProcessDependencyRef,
   SpanRef,
-  TraceCrossDependencyRenderSource,
   TraceCrossProcessDependency,
+  TraceCrossProcessDependencyRenderSource,
   TraceCrossProcessEndpointId,
   TraceDependencyId,
   TraceGraph,
   TraceSpanId,
   TraceStyle,
-  TraceVisSettings,
-  VisibleCrossDependencyRef
-} from '../../../trace/index';
+  TraceVisSettings
+} from '../../../trace';
 import type {Root} from 'react-dom/client';
 
 const traceCrossProcessDependencyCardSpy = vi.hoisted(() => vi.fn());
@@ -25,12 +25,12 @@ vi.mock('./cards/trace-cross-process-dependency-card', () => ({
   TraceCrossProcessDependencyCard: (props: {
     /** Optional descriptive dependency passed by existing full hover payloads. */
     crossDep?: TraceCrossProcessDependency;
-    /** Optional visible dependency ref passed by lightweight hover payloads. */
-    dependencyRef?: VisibleCrossDependencyRef;
+    /** Optional canonical dependency ref passed by lightweight hover payloads. */
+    dependencyRef?: CrossProcessDependencyRef;
   }) => {
     traceCrossProcessDependencyCardSpy(props);
     return (
-      <div data-testid="cross-dependency-card">
+      <div data-testid="cross-process-dependency-card">
         {props.crossDep?.dependencyId ?? String(props.dependencyRef)}
       </div>
     );
@@ -54,8 +54,8 @@ describe('TraceTooltip', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders direct cross-dependency hover cards when span cards hide cross-process deps', () => {
-    const dependency = makeCrossDependency();
+  it('renders direct cross-process-dependency hover cards when span cards hide cross-process deps', () => {
+    const dependency = makeCrossProcessDependency();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -73,8 +73,8 @@ describe('TraceTooltip', () => {
       );
     });
 
-    expect(container.querySelector('[data-testid="cross-dependency-card"]')).not.toBeNull();
-    expect(container.textContent).toContain('cross-dependency');
+    expect(container.querySelector('[data-testid="cross-process-dependency-card"]')).not.toBeNull();
+    expect(container.textContent).toContain('cross-process-dependency');
   });
 
   it('renders span hover cards through TraceSpanCard', () => {
@@ -103,8 +103,8 @@ describe('TraceTooltip', () => {
                 durationMsAsString: '1ms'
               }
             },
-            localDependencyIds: [],
-            localDependencies: [],
+            sameProcessDependencyIds: [],
+            sameProcessDependencies: [],
             crossProcessEndpointId: null,
             crossProcessDependencyEndpoints: []
           }}
@@ -122,7 +122,7 @@ describe('TraceTooltip', () => {
   });
 
   it('passes minimal dependency picks to the card for descriptive upgrade', () => {
-    const dependencyRef = encodeVisibleCrossDependencyRef(7) as VisibleCrossDependencyRef;
+    const dependencyRef = encodeCrossProcessDependencyRef(7);
     const dependency = {
       type: 'trace-cross-process-dependency',
       dependencyRef,
@@ -134,7 +134,7 @@ describe('TraceTooltip', () => {
       isParent: false,
       startRankNum: 0,
       endRankNum: 1
-    } satisfies TraceCrossDependencyRenderSource;
+    } satisfies TraceCrossProcessDependencyRenderSource;
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -188,11 +188,11 @@ describe('TraceTooltip', () => {
   });
 });
 
-function makeCrossDependency(): TraceCrossProcessDependency {
+function makeCrossProcessDependency(): TraceCrossProcessDependency {
   return {
     type: 'trace-cross-process-dependency',
-    dependencyId: 'cross-dependency' as TraceDependencyId,
-    endpointId: 'cross-dependency:endpoint' as TraceCrossProcessEndpointId,
+    dependencyId: 'cross-process-dependency' as TraceDependencyId,
+    endpointId: 'cross-process-dependency:endpoint' as TraceCrossProcessEndpointId,
     startRankNum: 0,
     endRankNum: 1,
     startSpanId: 'start-span' as TraceSpanId,

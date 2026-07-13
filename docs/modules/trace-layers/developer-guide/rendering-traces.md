@@ -6,28 +6,32 @@
 </p>
 
 Most applications should render through `TraceEngine` plus `DeckTraceGraph`. `TraceEngine` owns
-mounted interaction, collapse, prepared layout, and prepared scene state below React.
+mounted interaction, collapse, prepared layout, and `TraceRenderSnapshot` state below React.
 `DeckTraceGraph` remains the full React viewer with the shared deck shell, legend, grid, overview,
 time measurement, widgets, and interaction wiring. Use the low-level deck.gl exports only when you
 are composing a custom deck shell.
 
 ## Render pipeline
 
-1. Load or build normalized `TraceGraphData` or `TraceChunkData`.
-2. Wrap graph data and its owning store in `TraceGraph`.
-3. Sync durable host inputs into `TraceEngine`.
-4. Let the engine build ref-native layouts and prepared scenes.
-5. Render those prepared scenes through `DeckTraceGraph` or low-level deck layers.
-6. Persist durable refs/process ids from engine updates when interactions change them.
+1. Load or build parser-local `TraceChunkData`.
+2. Finalize an immutable `TraceDataset`.
+3. Build `TraceViewSnapshot` plus dataset-backed `TraceGraph`.
+4. Sync durable host inputs into `TraceEngine`.
+5. Let the engine build ref-native layouts and `TraceRenderSnapshot`.
+6. Render that snapshot through `DeckTraceGraph` or low-level deck layers.
+7. Persist durable refs/process ids from engine updates when interactions change them.
 
 The division of responsibility is:
 
-- `TraceGraph`: normalized runtime data, refs, filtering, search, dependency lookup
-- `TraceEngine`: mounted selection, collapse, layout, prepared scene, and diagnostics state
+- `TraceDataset`: canonical Arrow-backed row storage
+- `TraceViewSnapshot`: immutable filtered visibility masks
+- `TraceGraph`: dataset-backed refs, filtering, search, dependency lookup
+- `TraceEngine`: mounted selection, collapse, layout, render snapshot, and diagnostics state
 - `TraceLayout`: visible rows, geometry, collapse-aware bounds
-- `TracePreparedStateLayer`: main-timeline sublayers from already-prepared `TraceViewState`
+- `TraceRenderSnapshot`: foreground scenes, overview scenes, path data, and per-graph derived data
+- `TracePreparedStateLayer`: main-timeline sublayers from `TraceViewState.renderSnapshot`
 - `TraceGraphLayer`: graph-to-`TraceViewState` preparation plus main-timeline sublayers
-- `TraceStoreLayer`: store-window registration, source-owned graph-data materialization, and graph rendering
+- `TraceStoreLayer`: `TraceChunkStoreWindow` loading, source-owned dataset materialization, and graph rendering
 - `DeckTraceGraph`: React composition and interaction surface
 
 ## What the viewer renders
@@ -43,7 +47,7 @@ or render-only work.
 
 Keep mounted viewer state ref-native inside `TraceEngine`:
 
-- selected span refs and selected visible dependency refs
+- selected span refs and selected same-process/cross-process dependency refs
 - serialized expanded process ids
 - highlighted span refs, path refs, and extended selection refs
 - settings, color scheme, tooltip renderers, and picked-object adapters
@@ -57,7 +61,7 @@ Custom deck shells can use:
 
 - `TracePreparedStateLayer` when the shell already owns `TraceViewState`
 - `TraceGraphLayer` when the shell owns normalized `TraceGraph` instances and render state
-- `TraceStoreLayer` when the shell owns `TraceChunkStore` window sources plus a graph-data materializer
+- `TraceStoreLayer` when the shell owns `TraceChunkStoreWindow` sources plus a dataset materializer
 - `buildTracevisViewLayout(...)`
 - `DeckTraceGraphController`
 - `ImperativeDeckController`
@@ -65,7 +69,7 @@ Custom deck shells can use:
 
 `TracePreparedStateLayer`, `TraceGraphLayer`, and `TraceStoreLayer` render only the main trace
 content: row backgrounds and separators, spans, dependencies, selection overlays, instants,
-counters, and critical paths. A custom shell still owns views, legend, grid, overview, run-event
+counters, and critical paths. A custom shell still owns views, legend, grid, overview, trace-event
 strip, time measurement, widgets, tooltip UI, and controlled interaction state.
 
 ```tsx

@@ -74,10 +74,6 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
       0,
       `CollapsableD3DagLayout: toggleCollapsedChain(${chainId}) -> ${nextState ? 'collapsed' : 'expanded'}`
     );
-    // eslint-disable-next-line no-console
-    console.log(
-      `CollapsableD3DagLayout: toggleCollapsedChain(${chainId}) -> ${nextState ? 'collapsed' : 'expanded'}`
-    );
     this._collapsedChainState.set(chainId, nextState);
     this._runLayout();
   }
@@ -109,15 +105,9 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
         0,
         'CollapsableD3DagLayout: setCollapsedChains -> changes detected, rerunning layout'
       );
-      // eslint-disable-next-line no-console
-      console.log(
-        'CollapsableD3DagLayout: setCollapsedChains -> changes detected, rerunning layout'
-      );
       this._runLayout();
     } else {
       log.log(1, 'CollapsableD3DagLayout: setCollapsedChains -> no changes');
-      // eslint-disable-next-line no-console
-      console.log('CollapsableD3DagLayout: setCollapsedChains -> no changes');
     }
   }
 
@@ -127,8 +117,6 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
     if (!this._graph) {
       if (previousChainCount > 0) {
         log.log(0, 'CollapsableD3DagLayout: clearing collapsed chains (graph unavailable)');
-        // eslint-disable-next-line no-console
-        console.log('CollapsableD3DagLayout: clearing collapsed chains (graph unavailable)');
       }
       this._chainDescriptors.clear();
       this._nodeToChainId.clear();
@@ -139,10 +127,6 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
 
     log.log(
       0,
-      `CollapsableD3DagLayout: refreshing collapsed chains (previous=${previousChainCount})`
-    );
-    // eslint-disable-next-line no-console
-    console.log(
       `CollapsableD3DagLayout: refreshing collapsed chains (previous=${previousChainCount})`
     );
 

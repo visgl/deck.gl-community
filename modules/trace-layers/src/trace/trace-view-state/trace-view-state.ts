@@ -1,72 +1,59 @@
 import {getHeapUsageProbeFields, log as traceLog} from '../log';
-import {buildTraceLayoutThreadPruneRequest} from '../trace-layout/trace-collapse-resolution';
 import {cloneTraceGraphCollapseState} from '../trace-layout/trace-collapse-state';
 import {
   buildTraceLayoutForSpanRefs,
   buildTraceLayouts
 } from '../trace-layout/trace-geometry-layout';
 import {estimateTraceLayoutSize} from '../trace-layout/trace-layout-size';
-import {buildTracePreparedScene, estimateTracePreparedSceneSize} from './trace-prepared-scene';
+import {
+  buildDerivedTraceData,
+  buildTracePreparedGraphScenes,
+  buildTracePreparedOverviewGraphScenes,
+  estimateTracePreparedRenderDataSize
+} from './trace-prepared-scene';
+import {buildTracePreparedPathData} from './trace-prepared-scene-paths';
+import {estimateDerivedTraceDataSize} from './trace-prepared-scene-size';
 import {getVisibleDependencyEndpointSpanRefs} from './trace-view-selection';
 
 import type {TraceProcessActivityAggregation} from '../trace-graph/collapsed-activity';
 import type {TraceGraph} from '../trace-graph/trace-graph';
 import type {
-  ThreadRef,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
+  CrossProcessDependencyRef,
+  SameProcessDependencyRef
 } from '../trace-graph/trace-id-encoder';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
 import type {SpanRef, TracePath, TraceThreadId} from '../trace-graph/trace-types';
-import type {TraceLayoutThreadPruneRequest} from '../trace-layout/trace-collapse-resolution';
 import type {
   ThreadLaneMetadata,
   TraceLayout,
   TraceLayoutCollapseState
 } from '../trace-layout/trace-layout';
 import type {TraceColorScheme} from '../trace-style/trace-color-scheme';
-import type {TracePreparedScene} from './trace-prepared-scene';
+import type {
+  DerivedTraceData,
+  TracePreparedGraphScene,
+  TracePreparedPathData
+} from './trace-prepared-scene';
 import type {Matrix4} from '@math.gl/core';
 
-/** Layout-affecting trace settings consumed by TraceViewState. */
-export type TraceViewLayoutSettings = Pick<
-  TraceVisSettings,
-  | 'threadDisplayMode'
-  | 'selectedThreadNames'
-  | 'sortThreads'
-  | 'maxVisibleLanesPerThread'
-  | 'maxVisibleLanesUnlimited'
-  | 'showCrossProcessDependencies'
-  | 'localDependencyMode'
-  | 'layoutDensity'
-  | 'processLayoutMode'
-  | 'trackAggregationMode'
-  | 'spanFilter'
-  | 'showEmptyProcesses'
-> & {
-  /** Whether graph-global events should be represented in the layout. */
-  readonly showGlobalEvents?: boolean;
-};
-
-/** Inputs used to build or update TraceViewState. */
+/** Inputs used to build one TraceViewState snapshot. */
 export type BuildTraceViewStateParams = {
-  /** Previous state whose base layouts and prepared scene inputs may be reused. */
-  readonly previousState?: TraceViewState | null;
-  /** Key representing graph, settings, collapse, lane, and timing inputs that require a base layout rebuild. */
-  readonly baseLayoutKey: string;
+  /**
+   * Exact base layouts already owned by the caller for the supplied graph and layout inputs.
+   * When omitted, TraceViewState builds a fresh base layout set.
+   */
+  readonly baseLayouts?: readonly TraceLayout[];
   /** Filtered trace graphs currently displayed by the trace view. */
   readonly traceGraphs: readonly TraceGraph[];
   /** Source trace graphs represented by the view before comparison/layout slicing. */
   readonly sourceTraceGraphs: readonly TraceGraph[];
   /** Primary filtered trace graph used for path highlighting. */
   readonly primaryTraceGraph: TraceGraph;
-  /** Trace paths that should be highlighted in prepared scene inputs. */
+  /** Trace paths that should be highlighted in render inputs. */
   readonly paths: readonly TracePath[];
-  /** Layout-affecting trace settings. */
-  readonly layoutSettings: TraceViewLayoutSettings;
-  /** Full visualization settings used by prepared scene builders. */
+  /** Full visualization settings used by layout and render-data builders. */
   readonly settings: TraceVisSettings;
-  /** Active trace color scheme used by prepared scene builders. */
+  /** Active trace color scheme used by render-data builders. */
   readonly colorScheme: TraceColorScheme;
   /** Ref-native collapse state aligned to traceGraphs. */
   readonly collapseState: TraceLayoutCollapseState;
@@ -88,30 +75,24 @@ export type BuildTraceViewStateParams = {
   readonly showCollapsedActivitySummary: boolean;
   /** Collapsed process activity aggregation algorithm. */
   readonly collapsedActivityAggregation?: TraceProcessActivityAggregation;
-  /** Whether overview/minimap prepared scene inputs should be generated. */
+  /** Whether overview/minimap render inputs should be generated. */
   readonly isOverviewEnabled: boolean;
+  /** Optional fixed trace-space Y position for graph-global event markers. */
+  readonly globalEventYPosition?: number;
   /** Returns the model matrix for a graph index in comparison mode. */
   readonly getTraceModelMatrixForGraph: (graphIndex: number) => Matrix4 | undefined;
-};
-
-/** Thread collapse pruning request emitted by TraceViewState when visible lane controls change. */
-export type TraceViewThreadCollapsePruneRequest = TraceLayoutThreadPruneRequest & {
-  /** Monotonic value that increments only when the graph-aligned visible thread-ref sets change. */
-  readonly revision: number;
 };
 
 /** Phase timings captured while building one TraceViewState. */
 export type TraceViewStateBuildPhaseTimings = {
   /** Total elapsed TraceViewState build time. */
   readonly totalDurationMs: number;
-  /** Time spent building or reusing base layouts. */
+  /** Time spent building or accepting caller-owned base layouts. */
   readonly baseLayoutDurationMs: number;
   /** Time spent building focused-selection layouts. */
   readonly focusedLayoutDurationMs: number;
-  /** Time spent deriving thread-collapse prune requests. */
-  readonly threadCollapsePruneDurationMs: number;
-  /** Time spent building prepared scene inputs. */
-  readonly preparedSceneDurationMs: number;
+  /** Time spent building foreground, overview, path, and marker render inputs. */
+  readonly preparedRenderDataDurationMs: number;
 };
 
 /** On-demand retained-size estimate for one prepared TraceViewState. */
@@ -124,199 +105,132 @@ export type TraceViewStateRetainedSizeEstimate = {
   readonly traceDeckInputsSizeBytes: number;
 };
 
-/** Inputs used to build the TraceViewState base layout reuse key. */
-export type BuildTraceViewBaseLayoutKeyParams = {
-  /** Filtered trace graphs currently displayed by the trace view. */
-  readonly traceGraphs: readonly TraceGraph[];
-  /** Layout-affecting trace settings. */
-  readonly traceLayoutSettings: TraceViewLayoutSettings;
-  /** Ref-native collapse state aligned to traceGraphs. */
-  readonly collapseStateForLayout: TraceLayoutCollapseState;
-  /** Optional per-thread lane visibility overrides used by custom renderers. */
-  readonly threadLaneLayoutOverrides?: Readonly<
-    Record<TraceThreadId, Pick<ThreadLaneMetadata, 'visibleLaneIndices'>>
-  >;
-  /** Vertical inset applied to the first visible process row. */
-  readonly layoutTopPadding: number;
-  /** Optional timing key recorded for prepared binary geometry derivation. */
-  readonly layoutTimingKey?: string | null;
-  /** Canonical minimum time paired with timing-key prepared geometry derivation. */
-  readonly minTimeMs: number;
-  /** Whether minimap layouts should be attached to base layouts. */
-  readonly shouldPrepareOverviewData: boolean;
-  /** Stable key representing initial viewport-fit graph extents. */
-  readonly initialViewportFitKey: string;
-};
-
 /** Inputs used to derive the render-facing trace view state build inputs. */
 export type BuildTraceViewRenderInputsParams = {
   /** Primary filtered graph used to resolve dependency endpoints for focused selection. */
   readonly traceGraph: TraceGraph;
-  /** Filtered trace graphs currently displayed by the trace view. */
-  readonly traceGraphs: readonly TraceGraph[];
-  /** Full visualization settings used by layout and prepared scene builders. */
-  readonly settings: TraceVisSettings;
-  /** Ref-native collapse state aligned to traceGraphs. */
-  readonly collapseStateForLayout: TraceLayoutCollapseState;
-  /** Vertical inset applied to the first visible process row. */
-  readonly layoutTopPadding: number;
-  /** Optional timing key recorded for prepared binary geometry derivation. */
-  readonly layoutTimingKey?: string | null;
-  /** Canonical minimum time paired with timing-key prepared geometry derivation. */
-  readonly minTimeMs: number;
-  /** Whether minimap layouts should be attached to base layouts. */
-  readonly shouldPrepareOverviewData: boolean;
-  /** Stable key representing initial viewport-fit graph extents. */
-  readonly initialViewportFitKey: string;
   /** Exact selected span refs controlled by the current view. */
   readonly selectedSpanRefs: readonly SpanRef[];
   /** Extra selected span refs visible only in focused or extended selection. */
   readonly extendedSelectionSpanRefs: readonly SpanRef[];
-  /** Selected local dependency refs whose endpoints should remain visible. */
-  readonly selectedLocalDependencyRefs?: ReadonlySet<VisibleLocalDependencyRef>;
+  /** Selected same-process dependency refs whose endpoints should remain visible. */
+  readonly selectedSameProcessDependencyRefs?: ReadonlySet<SameProcessDependencyRef>;
   /** Selected cross-process dependency refs whose endpoints should remain visible. */
-  readonly selectedCrossDependencyRefs?: ReadonlySet<VisibleCrossDependencyRef>;
+  readonly selectedCrossProcessDependencyRefs?: ReadonlySet<CrossProcessDependencyRef>;
   /** Whether the latest selection gesture requested focused extended-selection behavior. */
   readonly isExtendedSelection: boolean;
 };
 
 /** Derived inputs consumed by TraceViewState construction. */
 export type TraceViewRenderInputs = {
-  /** Layout-affecting subset of the full visualization settings. */
-  readonly traceLayoutSettings: TraceViewLayoutSettings;
   /** Span refs that should produce a compact focused layout. */
   readonly focusedSelectionSpanRefs: readonly SpanRef[];
-  /** Stable key representing inputs that require full base-layout recomputation. */
-  readonly traceViewBaseLayoutKey: string;
+};
+
+/**
+ * Immutable render-facing output owned by one TraceViewState build.
+ *
+ * Every collection is aligned to the active layout order so renderers can consume one graph
+ * index without rebuilding graph-wide event, instant, or counter projections.
+ */
+export type TraceRenderSnapshot = {
+  /** Foreground graph render snapshots aligned to active layouts. */
+  readonly foregroundScenes: readonly TracePreparedGraphScene[];
+  /** Overview/minimap graph render snapshots aligned to active layouts. */
+  readonly overviewScenes: readonly TracePreparedGraphScene[];
+  /** Critical-path render sources derived from the primary graph. */
+  readonly pathData: TracePreparedPathData;
+  /** Event, instant, and counter render data aligned to active layouts. */
+  readonly derivedDataByGraph: readonly DerivedTraceData[];
 };
 
 /** Pure JS trace view state shared by React and non-React renderers. */
 export type TraceViewState = {
-  /** Key representing the base layout inputs that produced baseLayouts. */
-  readonly baseLayoutKey: string;
-  /** Full trace layouts produced from graph, settings, collapse, lane, and timing inputs. */
+  /** Full trace layouts built here or supplied by the exact current mounted owner. */
   readonly baseLayouts: readonly TraceLayout[];
-  /** Compact focused layouts produced from selected span refs, or null when focus is inactive. */
-  readonly focusedLayouts: readonly TraceLayout[] | null;
   /** Layouts currently consumed by renderers. */
   readonly activeLayouts: readonly TraceLayout[];
-  /** Span refs used to produce focusedLayouts. */
+  /** Span refs used to produce active focused layouts. */
   readonly focusedSelectionSpanRefs: readonly SpanRef[];
-  /** Prepared scene inputs consumed by deck and non-deck renderers. */
-  readonly preparedScene: TracePreparedScene;
-  /** Layout-derived thread collapse pruning request, or null when no thread overrides need pruning. */
-  readonly threadCollapsePruneRequest: TraceViewThreadCollapsePruneRequest | null;
+  /** Exact render-facing output aligned to active layouts. */
+  readonly renderSnapshot: TraceRenderSnapshot;
   /** Last build's phase timings, used only for performance attribution. */
   readonly buildPhaseTimings: TraceViewStateBuildPhaseTimings;
 };
 
-/**
- * Builds the layout settings, focused-selection span refs, and base layout key for TraceViewState.
- */
+/** Builds focused-selection span refs for TraceViewState. */
 export function buildTraceViewRenderInputs(
   params: BuildTraceViewRenderInputsParams
 ): TraceViewRenderInputs {
-  const traceLayoutSettings = buildTraceViewLayoutSettings(params.settings);
   const focusedSelectionSpanRefs = buildFocusedSelectionSpanRefs(params);
-  const traceViewBaseLayoutKey = buildTraceViewBaseLayoutKey({
-    traceGraphs: params.traceGraphs,
-    traceLayoutSettings,
-    collapseStateForLayout: params.collapseStateForLayout,
-    layoutTopPadding: params.layoutTopPadding,
-    layoutTimingKey: params.layoutTimingKey,
-    minTimeMs: params.minTimeMs,
-    shouldPrepareOverviewData: params.shouldPrepareOverviewData,
-    initialViewportFitKey: params.initialViewportFitKey
-  });
 
   return {
-    traceLayoutSettings,
-    focusedSelectionSpanRefs,
-    traceViewBaseLayoutKey
+    focusedSelectionSpanRefs
   };
 }
 
 /**
- * Builds a stable key for inputs that require full base layout recomputation.
+ * Returns whether two settings bundles produce the same base-layout inputs.
+ *
+ * This deliberately compares direct fields instead of constructing a serialized reuse key.
  */
-export function buildTraceViewBaseLayoutKey(params: BuildTraceViewBaseLayoutKeyParams): string {
-  return JSON.stringify({
-    graphRefs: params.traceGraphs.map(graph => ({
-      name: graph.name,
-      processCount: graph.processes.length,
-      spanCount: graph.stats.spanCount,
-      localDependencyCount: graph.stats.localDependencyCount,
-      crossDependencyCount: graph.stats.crossDependencyCount,
-      graphFilterStateRevision: graph.graphFilterStateRevision,
-      sourceSpanFilterRevision: graph.getSourceSpanFilterRevision()
-    })),
-    settings: params.traceLayoutSettings,
-    collapse: params.collapseStateForLayout.graphs.map(graphState => ({
-      processes: [...graphState.collapsedProcessRefs].sort((left, right) => left - right),
-      collapsedThreads: [...graphState.collapsedThreadRefs].sort((left, right) => left - right),
-      expandedThreads: [...graphState.expandedThreadRefs].sort((left, right) => left - right)
-    })),
-    laneOverrides: Object.fromEntries(
-      Object.entries(params.threadLaneLayoutOverrides ?? {}).map(([threadId, override]) => [
-        threadId,
-        [...(override.visibleLaneIndices ?? [])].sort((left, right) => left - right)
-      ])
-    ),
-    layoutTopPadding: params.layoutTopPadding,
-    layoutTimingKey: params.layoutTimingKey ?? '',
-    minTimeMs: params.minTimeMs,
-    shouldPrepareOverviewData: params.shouldPrepareOverviewData,
-    initialViewportFitKey: params.initialViewportFitKey
-  });
+export function areTraceViewLayoutSettingsEqual(
+  left: TraceVisSettings,
+  right: TraceVisSettings
+): boolean {
+  return (
+    left.threadDisplayMode === right.threadDisplayMode &&
+    areScalarArraysEqual(left.selectedThreadNames ?? [], right.selectedThreadNames ?? []) &&
+    left.sortThreads === right.sortThreads &&
+    left.maxVisibleLanesPerThread === right.maxVisibleLanesPerThread &&
+    left.maxVisibleLanesUnlimited === right.maxVisibleLanesUnlimited &&
+    left.showCrossProcessDependencies === right.showCrossProcessDependencies &&
+    left.sameProcessDependencyMode === right.sameProcessDependencyMode &&
+    left.layoutDensity === right.layoutDensity &&
+    left.processLayoutMode === right.processLayoutMode &&
+    left.trackAggregationMode === right.trackAggregationMode &&
+    left.spanFilter === right.spanFilter &&
+    left.showEmptyProcesses === right.showEmptyProcesses &&
+    left.showGlobalEvents === right.showGlobalEvents
+  );
 }
 
-/**
- * Builds immutable TraceViewState while reusing previous base layouts when only focused selection changes.
- */
+/** Builds immutable TraceViewState from fresh or explicitly caller-owned base layouts. */
 export function buildTraceViewState(params: BuildTraceViewStateParams): TraceViewState {
   const buildStartTime = performance.now();
-  const canReuseBaseLayouts = canReuseTraceViewBaseLayouts(params);
-  traceLog.probe(0, 'buildTraceViewState start', {
+  const usesOwnedBaseLayouts = params.baseLayouts != null;
+  traceLog.probe(1, 'buildTraceViewState start', {
     graphCount: params.traceGraphs.length,
-    previousBaseLayoutCount: params.previousState?.baseLayouts.length ?? 0,
-    baseLayoutKeyChanged: params.previousState?.baseLayoutKey !== params.baseLayoutKey,
-    previousBaseLayoutKeyHash: params.previousState
-      ? hashTraceViewStateKey(params.previousState.baseLayoutKey)
-      : null,
-    baseLayoutKeyHash: hashTraceViewStateKey(params.baseLayoutKey),
-    canReuseBaseLayouts,
-    previousFocusedSelectionSpanCount: params.previousState?.focusedSelectionSpanRefs.length ?? 0,
+    usesOwnedBaseLayouts,
     focusedSelectionSpanCount: params.focusedSelectionSpanRefs.length,
     buildMinimapLayouts: params.buildMinimapLayouts,
     traceGraphSpanCount: params.traceGraphs.reduce((sum, graph) => sum + graph.stats.spanCount, 0),
-    traceGraphLocalDependencyCount: params.traceGraphs.reduce(
-      (sum, graph) => sum + graph.stats.localDependencyCount,
+    traceGraphSameProcessDependencyCount: params.traceGraphs.reduce(
+      (sum, graph) => sum + graph.stats.sameProcessDependencyCount,
       0
     ),
-    traceGraphCrossDependencyCount: params.traceGraphs.reduce(
-      (sum, graph) => sum + graph.stats.crossDependencyCount,
+    traceGraphCrossProcessDependencyCount: params.traceGraphs.reduce(
+      (sum, graph) => sum + graph.stats.crossProcessDependencyCount,
       0
     ),
     ...getHeapUsageProbeFields()
   })();
   const baseLayoutStartTime = performance.now();
-  const baseLayouts = canReuseBaseLayouts
-    ? params.previousState!.baseLayouts
-    : buildTraceLayouts({
-        prebuiltTraceGraphs: params.traceGraphs,
-        traceGraphs: params.traceGraphs,
-        previousLayouts: params.previousState?.baseLayouts,
-        topPadding: params.layoutTopPadding,
-        settings: params.layoutSettings,
-        collapseState: params.collapseState,
-        threadLaneLayoutOverrides: params.threadLaneLayoutOverrides,
-        timingKey: params.layoutTimingKey,
-        minTimeMs: params.minTimeMs,
-        buildMinimapLayouts: params.buildMinimapLayouts
-      });
+  const baseLayouts =
+    params.baseLayouts ??
+    buildTraceLayouts({
+      traceGraphs: params.traceGraphs,
+      topPadding: params.layoutTopPadding,
+      settings: params.settings,
+      collapseState: params.collapseState,
+      threadLaneLayoutOverrides: params.threadLaneLayoutOverrides,
+      timingKey: params.layoutTimingKey,
+      minTimeMs: params.minTimeMs,
+      buildMinimapLayouts: params.buildMinimapLayouts
+    });
   const baseLayoutDurationMs = performance.now() - baseLayoutStartTime;
   const focusedLayoutStartTime = performance.now();
-  const focusedLayouts =
+  const activeLayouts =
     params.focusedSelectionSpanRefs.length > 0
       ? baseLayouts.map((layout, graphIndex) =>
           buildTraceLayoutForSpanRefs({
@@ -324,13 +238,13 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
             traceLayout: layout,
             spanRefs: params.focusedSelectionSpanRefs,
             settings: {
-              localDependencyMode: params.layoutSettings.localDependencyMode,
-              layoutDensity: params.layoutSettings.layoutDensity,
-              sortThreads: params.layoutSettings.sortThreads,
-              maxVisibleLanesPerThread: params.layoutSettings.maxVisibleLanesPerThread,
-              maxVisibleLanesUnlimited: params.layoutSettings.maxVisibleLanesUnlimited,
-              trackAggregationMode: params.layoutSettings.trackAggregationMode,
-              showEmptyProcesses: params.layoutSettings.showEmptyProcesses
+              sameProcessDependencyMode: params.settings.sameProcessDependencyMode,
+              layoutDensity: params.settings.layoutDensity,
+              sortThreads: params.settings.sortThreads,
+              maxVisibleLanesPerThread: params.settings.maxVisibleLanesPerThread,
+              maxVisibleLanesUnlimited: params.settings.maxVisibleLanesUnlimited,
+              trackAggregationMode: params.settings.trackAggregationMode,
+              showEmptyProcesses: params.settings.showEmptyProcesses
             },
             collapseState: {
               graphs: [cloneTraceGraphCollapseState(params.collapseState.graphs[graphIndex])]
@@ -339,52 +253,63 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
             minTimeMs: params.minTimeMs
           })
         )
-      : null;
+      : baseLayouts;
   const focusedLayoutDurationMs = performance.now() - focusedLayoutStartTime;
-  const activeLayouts = focusedLayouts ?? baseLayouts;
-  const threadCollapsePruneStartTime = performance.now();
-  const threadCollapsePruneRequest = buildTraceViewThreadCollapsePruneRequest({
-    traceLayouts: baseLayouts,
-    collapseState: params.collapseState,
-    previousRequest: params.previousState?.threadCollapsePruneRequest ?? null
-  });
-  const threadCollapsePruneDurationMs = performance.now() - threadCollapsePruneStartTime;
-  const previousPreparedScene = canReuseTraceViewPreparedScene(params)
-    ? (params.previousState?.preparedScene ?? null)
-    : null;
-  const preparedSceneStartTime = performance.now();
-  const preparedScene = buildTracePreparedScene({
-    primaryTraceGraph: params.primaryTraceGraph,
+  const preparedRenderDataStartTime = performance.now();
+  const foregroundScenes = buildTracePreparedGraphScenes({
     sourceTraceGraphs: params.sourceTraceGraphs,
-    traceGraphs: params.traceGraphs,
     traceLayouts: activeLayouts,
-    paths: params.paths,
     settings: params.settings,
     colorScheme: params.colorScheme,
-    previousPreparedScene,
     showCollapsedActivitySummary: params.showCollapsedActivitySummary,
     collapsedActivityAggregation: params.collapsedActivityAggregation,
-    isOverviewEnabled: params.isOverviewEnabled,
     getTraceModelMatrixForGraph: params.getTraceModelMatrixForGraph
   });
-  const preparedSceneDurationMs = performance.now() - preparedSceneStartTime;
+  const overviewScenes = buildTracePreparedOverviewGraphScenes({
+    isOverviewEnabled: params.isOverviewEnabled,
+    sourceTraceGraphs: params.sourceTraceGraphs,
+    traceLayouts: activeLayouts,
+    settings: params.settings,
+    colorScheme: params.colorScheme,
+    collapsedActivityAggregation: params.collapsedActivityAggregation,
+    getTraceModelMatrixForGraph: params.getTraceModelMatrixForGraph
+  });
+  const pathData = buildTracePreparedPathData({
+    primaryTraceGraph: params.primaryTraceGraph,
+    paths: params.paths,
+    settings: params.settings
+  });
+  const derivedDataByGraph = activeLayouts.map(traceLayout =>
+    buildDerivedTraceData({
+      traceGraph: traceLayout.traceGraph,
+      traceLayout,
+      colorScheme: params.colorScheme,
+      buildGlobalEvents: params.settings.showGlobalEvents,
+      buildInstants: params.settings.showInstants,
+      buildCounters: params.settings.showCounters,
+      globalEventYPosition: params.globalEventYPosition
+    })
+  );
+  const renderSnapshot: TraceRenderSnapshot = {
+    foregroundScenes,
+    overviewScenes,
+    pathData,
+    derivedDataByGraph
+  };
+  const preparedRenderDataDurationMs = performance.now() - preparedRenderDataStartTime;
   const totalDurationMs = performance.now() - buildStartTime;
   const buildPhaseTimings: TraceViewStateBuildPhaseTimings = {
     totalDurationMs: roundTraceViewStateBuildDuration(totalDurationMs),
     baseLayoutDurationMs: roundTraceViewStateBuildDuration(baseLayoutDurationMs),
     focusedLayoutDurationMs: roundTraceViewStateBuildDuration(focusedLayoutDurationMs),
-    threadCollapsePruneDurationMs: roundTraceViewStateBuildDuration(threadCollapsePruneDurationMs),
-    preparedSceneDurationMs: roundTraceViewStateBuildDuration(preparedSceneDurationMs)
+    preparedRenderDataDurationMs: roundTraceViewStateBuildDuration(preparedRenderDataDurationMs)
   };
   const slowestBuildPhase = getSlowestTraceViewStateBuildPhase(buildPhaseTimings);
   const nextState: TraceViewState = {
-    baseLayoutKey: params.baseLayoutKey,
     baseLayouts,
-    focusedLayouts,
     activeLayouts,
     focusedSelectionSpanRefs: params.focusedSelectionSpanRefs,
-    preparedScene,
-    threadCollapsePruneRequest,
+    renderSnapshot,
     buildPhaseTimings
   };
   if (totalDurationMs >= TRACE_VIEW_STATE_SLOW_BUILD_PROBE_THRESHOLD_MS) {
@@ -393,9 +318,7 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
       `buildTraceViewState slow build: ${slowestBuildPhase.phaseName} ${slowestBuildPhase.durationMs}ms`,
       {
         graphCount: params.traceGraphs.length,
-        reusedBaseLayouts: canReuseBaseLayouts,
-        reusedPreparedSceneInputs: previousPreparedScene != null,
-        baseLayoutKeyChanged: params.previousState?.baseLayoutKey !== params.baseLayoutKey,
+        usesOwnedBaseLayouts,
         buildPhaseTimings,
         slowestBuildPhaseName: slowestBuildPhase.phaseName,
         slowestBuildPhaseDurationMs: slowestBuildPhase.durationMs,
@@ -405,16 +328,13 @@ export function buildTraceViewState(params: BuildTraceViewStateParams): TraceVie
   }
   traceLog.probe(0, 'buildTraceViewState done', {
     graphCount: params.traceGraphs.length,
-    reusedBaseLayouts: canReuseBaseLayouts,
-    reusedPreparedSceneInputs: previousPreparedScene != null,
+    usesOwnedBaseLayouts,
     baseLayoutCount: baseLayouts.length,
     activeLayoutCount: activeLayouts.length,
     focusedSelectionSpanCount: params.focusedSelectionSpanRefs.length,
-    hasThreadCollapsePruneRequest: threadCollapsePruneRequest != null,
     baseLayoutDurationMs: buildPhaseTimings.baseLayoutDurationMs,
     focusedLayoutDurationMs: buildPhaseTimings.focusedLayoutDurationMs,
-    threadCollapsePruneDurationMs: buildPhaseTimings.threadCollapsePruneDurationMs,
-    preparedSceneDurationMs: buildPhaseTimings.preparedSceneDurationMs,
+    preparedRenderDataDurationMs: buildPhaseTimings.preparedRenderDataDurationMs,
     slowestBuildPhaseName: slowestBuildPhase.phaseName,
     slowestBuildPhaseDurationMs: slowestBuildPhase.durationMs,
     durationMs: buildPhaseTimings.totalDurationMs,
@@ -428,70 +348,36 @@ export function estimateTraceViewStateRetainedSize(
   traceViewState: TraceViewState
 ): TraceViewStateRetainedSizeEstimate {
   const traceLayoutSizeBytes = estimateTraceLayoutSize(traceViewState.activeLayouts).totalBytes;
-  const traceDeckInputsSizeBytes = estimateTracePreparedSceneSize(traceViewState.preparedScene);
+  const traceDeckInputsSizeBytes = estimateTracePreparedRenderDataSize(
+    traceViewState.renderSnapshot.foregroundScenes,
+    traceViewState.renderSnapshot.overviewScenes,
+    traceViewState.renderSnapshot.pathData
+  );
+  const traceMarkerInputsSizeBytes = estimateDerivedTraceDataSize(
+    traceViewState.renderSnapshot.derivedDataByGraph
+  );
   return {
-    traceViewStateSizeBytes: traceLayoutSizeBytes + traceDeckInputsSizeBytes,
+    traceViewStateSizeBytes:
+      traceLayoutSizeBytes + traceDeckInputsSizeBytes + traceMarkerInputsSizeBytes,
     traceLayoutSizeBytes,
-    traceDeckInputsSizeBytes
+    traceDeckInputsSizeBytes: traceDeckInputsSizeBytes + traceMarkerInputsSizeBytes
   };
 }
 
 const EMPTY_TRACE_VIEW_SPAN_REFS: readonly SpanRef[] = [];
 const TRACE_VIEW_STATE_SLOW_BUILD_PROBE_THRESHOLD_MS = 250;
 
-/**
- * Returns whether previous base layouts still belong to the exact current trace graph instances.
- */
-function canReuseTraceViewBaseLayouts(
-  params: Pick<BuildTraceViewStateParams, 'previousState' | 'baseLayoutKey' | 'traceGraphs'>
+/** Returns whether two scalar arrays contain the same values in source order. */
+function areScalarArraysEqual<T extends string | number>(
+  left: readonly T[],
+  right: readonly T[]
 ): boolean {
-  const previousState = params.previousState;
-  return Boolean(
-    previousState &&
-      previousState.baseLayoutKey === params.baseLayoutKey &&
-      previousState.baseLayouts.length > 0 &&
-      previousState.baseLayouts.length === params.traceGraphs.length &&
-      previousState.baseLayouts.every(
-        (traceLayout, graphIndex) => traceLayout.traceGraph === params.traceGraphs[graphIndex]
-      )
+  if (left === right) {
+    return true;
+  }
+  return (
+    left.length === right.length && left.every((value, valueIndex) => value === right[valueIndex])
   );
-}
-
-/**
- * Returns whether previous prepared row inputs still belong to the exact current trace graphs.
- */
-function canReuseTraceViewPreparedScene(
-  params: Pick<BuildTraceViewStateParams, 'previousState' | 'traceGraphs'>
-): boolean {
-  const previousForegroundScenes = params.previousState?.preparedScene.foreground;
-  return Boolean(
-    previousForegroundScenes &&
-      previousForegroundScenes.length === params.traceGraphs.length &&
-      previousForegroundScenes.every(
-        (scene, graphIndex) => scene.graph === params.traceGraphs[graphIndex]
-      )
-  );
-}
-
-/**
- * Extracts the layout-affecting settings consumed by TraceViewState builders.
- */
-function buildTraceViewLayoutSettings(settings: TraceVisSettings): TraceViewLayoutSettings {
-  return {
-    showCrossProcessDependencies: settings.showCrossProcessDependencies,
-    showGlobalEvents: settings.showGlobalEvents,
-    threadDisplayMode: settings.threadDisplayMode,
-    selectedThreadNames: settings.selectedThreadNames,
-    sortThreads: settings.sortThreads,
-    localDependencyMode: settings.localDependencyMode,
-    trackAggregationMode: settings.trackAggregationMode,
-    processLayoutMode: settings.processLayoutMode,
-    showEmptyProcesses: settings.showEmptyProcesses,
-    layoutDensity: settings.layoutDensity,
-    maxVisibleLanesPerThread: settings.maxVisibleLanesPerThread,
-    maxVisibleLanesUnlimited: settings.maxVisibleLanesUnlimited,
-    spanFilter: settings.spanFilter
-  };
 }
 
 /**
@@ -503,8 +389,8 @@ function buildFocusedSelectionSpanRefs(
     | 'traceGraph'
     | 'selectedSpanRefs'
     | 'extendedSelectionSpanRefs'
-    | 'selectedLocalDependencyRefs'
-    | 'selectedCrossDependencyRefs'
+    | 'selectedSameProcessDependencyRefs'
+    | 'selectedCrossProcessDependencyRefs'
     | 'isExtendedSelection'
   >
 ): readonly SpanRef[] {
@@ -516,11 +402,11 @@ function buildFocusedSelectionSpanRefs(
   }
 
   const dependencyEndpointSpanRefs = getVisibleDependencyEndpointSpanRefs(params.traceGraph, {
-    localDependencyRefs: params.selectedLocalDependencyRefs
-      ? [...params.selectedLocalDependencyRefs]
+    sameProcessDependencyRefs: params.selectedSameProcessDependencyRefs
+      ? [...params.selectedSameProcessDependencyRefs]
       : undefined,
-    crossDependencyRefs: params.selectedCrossDependencyRefs
-      ? [...params.selectedCrossDependencyRefs]
+    crossProcessDependencyRefs: params.selectedCrossProcessDependencyRefs
+      ? [...params.selectedCrossProcessDependencyRefs]
       : undefined
   });
   return [
@@ -530,17 +416,6 @@ function buildFocusedSelectionSpanRefs(
       ...dependencyEndpointSpanRefs
     ])
   ];
-}
-
-/**
- * Builds a compact deterministic hash for logging large TraceViewState input keys.
- */
-function hashTraceViewStateKey(key: string): string {
-  let hash = 5381;
-  for (let index = 0; index < key.length; index += 1) {
-    hash = (hash * 33) ^ key.charCodeAt(index);
-  }
-  return (hash >>> 0).toString(16);
 }
 
 /**
@@ -562,8 +437,7 @@ function getSlowestTraceViewStateBuildPhase(phaseTimings: TraceViewStateBuildPha
   let durationMs = phaseTimings.baseLayoutDurationMs;
   for (const [candidatePhaseName, candidateDurationMs] of [
     ['focusedLayoutDurationMs', phaseTimings.focusedLayoutDurationMs],
-    ['threadCollapsePruneDurationMs', phaseTimings.threadCollapsePruneDurationMs],
-    ['preparedSceneDurationMs', phaseTimings.preparedSceneDurationMs]
+    ['preparedRenderDataDurationMs', phaseTimings.preparedRenderDataDurationMs]
   ] as const) {
     if (candidateDurationMs > durationMs) {
       phaseName = candidatePhaseName;
@@ -571,62 +445,4 @@ function getSlowestTraceViewStateBuildPhase(phaseTimings: TraceViewStateBuildPha
     }
   }
   return {phaseName, durationMs};
-}
-
-function buildTraceViewThreadCollapsePruneRequest(params: {
-  traceLayouts: readonly TraceLayout[];
-  collapseState: TraceLayoutCollapseState;
-  previousRequest: TraceViewThreadCollapsePruneRequest | null;
-}): TraceViewThreadCollapsePruneRequest | null {
-  if (!hasTraceViewThreadCollapseOverrides(params.collapseState)) {
-    return null;
-  }
-
-  const nextRequest = buildTraceLayoutThreadPruneRequest({
-    traceLayouts: params.traceLayouts
-  });
-  if (
-    params.previousRequest &&
-    areTraceLayoutThreadPruneRequestsEqual(params.previousRequest, nextRequest)
-  ) {
-    return params.previousRequest;
-  }
-
-  return {
-    ...nextRequest,
-    revision: (params.previousRequest?.revision ?? 0) + 1
-  };
-}
-
-function hasTraceViewThreadCollapseOverrides(collapseState: TraceLayoutCollapseState): boolean {
-  return collapseState.graphs.some(
-    graphState => graphState.collapsedThreadRefs.size > 0 || graphState.expandedThreadRefs.size > 0
-  );
-}
-
-function areTraceLayoutThreadPruneRequestsEqual(
-  left: TraceLayoutThreadPruneRequest,
-  right: TraceLayoutThreadPruneRequest
-): boolean {
-  if (left.validThreadRefsByGraph.length !== right.validThreadRefsByGraph.length) {
-    return false;
-  }
-  return left.validThreadRefsByGraph.every((leftRefs, graphIndex) =>
-    areThreadRefSetsEqual(leftRefs, right.validThreadRefsByGraph[graphIndex] ?? new Set())
-  );
-}
-
-function areThreadRefSetsEqual(
-  left: ReadonlySet<ThreadRef>,
-  right: ReadonlySet<ThreadRef>
-): boolean {
-  if (left.size !== right.size) {
-    return false;
-  }
-  for (const value of left) {
-    if (!right.has(value)) {
-      return false;
-    }
-  }
-  return true;
 }

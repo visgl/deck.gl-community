@@ -27,8 +27,8 @@ import {
 
 export function buildChromeTraceGraph(traceJson: unknown): TraceGraph {
   const chromeTrace = parseChromeTrace(traceJson);
-  const {ranks, crossDependencies} = buildTraceRanksFromChromeTrace(chromeTrace);
-  const jsonTrace = buildJSONTrace(ranks, crossDependencies, {name: 'Chrome Trace'});
+  const {ranks, crossProcessDependencies} = buildTraceRanksFromChromeTrace(chromeTrace);
+  const jsonTrace = buildJSONTrace(ranks, crossProcessDependencies, {name: 'Chrome Trace'});
   const trace = materializeJSONTrace(jsonTrace);
 
   return new TraceGraph(
@@ -37,7 +37,7 @@ export function buildChromeTraceGraph(traceJson: unknown): TraceGraph {
       name: trace.name,
       spanLayout: trace.spanLayout,
       chunks: buildTraceChunkDataFromJSONTrace(trace),
-      crossDependencies: trace.crossDependencies,
+      crossProcessDependencies: trace.crossProcessDependencies,
       events: trace.events,
       timeExtents: {minTimeMs: trace.minTimeMs, maxTimeMs: trace.maxTimeMs},
       stats: trace.stats
@@ -46,9 +46,10 @@ export function buildChromeTraceGraph(traceJson: unknown): TraceGraph {
 }
 ```
 
-If your source is not Chrome Trace, normalize it into `JSONTrace`, `TraceGraphData`, or
-`TraceChunkData` before constructing the graph. Source-specific payloads should not reach layout or
-rendering code.
+If your source is not Chrome Trace, normalize it into `JSONTrace` or parser-local
+`TraceChunkData`. Static sources use `createStaticTraceGraphRuntimeSource(...)` to finalize chunks
+into a `TraceDataset`; incremental sources assemble a selected `TraceDataset` from ready store
+chunks. Source-specific payloads should not reach layout or rendering code.
 
 ## Render the graph
 
@@ -96,6 +97,20 @@ export function TraceViewer({traceGraph, settings, selectedSpanRefs}) {
 
 Subscribe to `TraceEngine` updates when the host needs to persist `selectedSpanRefs` or serialized
 expanded process ids after interactions.
+
+## Understand the runtime boundary
+
+The graph built above is dataset-backed even though the example starts from JSON. The full path is:
+
+1. `buildJSONTrace(...)` creates a JSON-safe normalized document.
+2. `materializeJSONTrace(...)` rebuilds low-frequency compatibility indexes and stats.
+3. `buildTraceChunkDataFromJSONTrace(...)` creates parser-local columnar chunks.
+4. `createStaticTraceGraphRuntimeSource(...)` finalizes those chunks into `TraceDataset`.
+5. `TraceGraph` borrows that dataset plus an unfiltered `TraceViewSnapshot`.
+6. `TraceEngine` turns the graph into `TraceLayout` and `TraceRenderSnapshot` state for the viewer.
+
+When filter semantics change, build a new `TraceViewSnapshot` and `TraceGraph`; do not rewrite the
+canonical dataset tables.
 
 ## Add application behavior
 

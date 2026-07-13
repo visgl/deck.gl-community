@@ -31,7 +31,7 @@ export {
 } from './components/heap-memory-info-bar';
 
 export {useElapsedTime} from './components/use-elapsed-time';
-export {getTraceSpanBadgeStyle} from './utils/trace-span-badge-style';
+export {getTraceSpanBadgeStyleForRef} from './utils/trace-span-badge-style';
 export {colorToRgbaCss} from './utils/trace-span-badge-style';
 export type {TraceSpanBadgeStyle} from './utils/trace-span-badge-style';
 export {getRankNumForSpanRef} from './utils/trace-graph-utils';
@@ -45,25 +45,21 @@ export {
   type DeckTraceGraphFilterSummaryProvider,
   type DeckTraceGraphHandle,
   type DeckTraceGraphHelpLink,
+  type DeckTraceGraphOverviewContextMenuAction,
   type DeckTraceGraphOverviewMarker,
   type DeckTraceGraphPickedObject,
   type DeckTraceGraphPickedObjectResolver,
   type DeckTraceGraphProps,
   type DeckTraceGraphConfig,
+  type DeckTraceGraphTimeAnchorMarker,
   type DeckTraceGraphTimeRange,
   type DeckTraceGraphTraceEventCardRenderer,
   type TraceSelectedSpan
 } from './components/deck-trace-graph/deck-trace-graph';
 export {
   createStudioSettingsPanel,
-  Panel,
   StudioSettingsIcon,
   StudioSettingsPanel,
-  type SettingDescriptor,
-  type SettingPersistenceTarget,
-  type SettingsSchema,
-  type SettingsSectionDescriptor,
-  type SettingsState,
   type StudioDependencyShape,
   type StudioSettingsIconName,
   type StudioSettingsIconProps,
@@ -73,9 +69,7 @@ export {
 } from '@deck.gl-community/panels';
 export {
   createStudioSettingsWidget,
-  SidebarPanelWidget,
   updateStudioSettingsWidget,
-  type SidebarPanelWidgetProps,
   type StudioSettingsWidgetProps
 } from '@deck.gl-community/widgets';
 export {
@@ -124,9 +118,9 @@ export {
   type TraceCounterCardProps
 } from './components/deck-trace-graph/cards/trace-counter-card';
 export {
-  TraceLocalDependencyCard,
-  type TraceLocalDependencyCardProps
-} from './components/deck-trace-graph/cards/trace-local-dependency-card';
+  TraceSameProcessDependencyCard,
+  type TraceSameProcessDependencyCardProps
+} from './components/deck-trace-graph/cards/trace-same-process-dependency-card';
 export {
   TraceCrossProcessDependencyCard,
   type TraceCrossProcessDependencyCardProps

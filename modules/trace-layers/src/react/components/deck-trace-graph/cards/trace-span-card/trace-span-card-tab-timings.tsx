@@ -1,8 +1,8 @@
-import {compareTraceTimingKeys, formatTimeMs} from '../../../../../trace/index';
+import {compareTraceTimingKeys, formatTimeMs} from '../../../../../trace';
 import {PrettyTable} from '../../components/pretty-table';
 import {formatRelativeTraceTimeLabel} from '../trace-span-card-helpers';
 
-import type {TraceCardSpan} from '../../../../../trace/index';
+import type {TraceCardSpan} from '../../../../../trace';
 import type {TraceSpanTimingsTableData} from './trace-span-card-types';
 
 /**

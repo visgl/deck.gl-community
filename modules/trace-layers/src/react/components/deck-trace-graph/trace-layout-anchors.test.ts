@@ -1,12 +1,7 @@
 import {describe, expect, it} from 'vitest';
 
-import {
-  buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
-  buildTraceLayout,
-  createStaticTraceGraphRuntimeSource,
-  TraceGraph
-} from '../../../trace/index';
+import {buildJSONTrace, buildTraceLayout, TraceGraph} from '../../../trace';
+import {createRuntimeTraceGraph} from '../../../trace/trace-graph/trace-graph-test-fixtures';
 import {findTraceLayoutSpanAnchor, getTraceLayoutSpanAnchorDeltaY} from './trace-layout-anchors';
 
 import type {
@@ -17,11 +12,11 @@ import type {
   TraceThread,
   TraceThreadId,
   TraceVisSettings
-} from '../../../trace/index';
+} from '../../../trace';
 
 const settings: TraceVisSettings = {
   showDependencies: true,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   showCrossProcessDependencies: true,
   showInstants: false,
   showCounters: false,
@@ -43,7 +38,7 @@ const settings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  traceRunSummaryAggregationKey: 'latest',
+  traceTimingKey: 'latest',
   showEmptyProcesses: false
 };
 
@@ -97,7 +92,9 @@ function createAnchorLayouts(): {
   higherLayout: TraceLayout;
 } {
   const traceGraph = createAnchorTraceGraph();
-  const spanRef = traceGraph.getVisibleProcessRenderSpanRefs(traceGraph.getProcessRefs()[0]!)[0]!;
+  const spanRef = Array.from(
+    traceGraph.iterateVisibleSpanRefsByProcess(traceGraph.getProcessRefs()[0]!)
+  ).at(0)!;
   const baseLayout = buildTraceLayout({traceGraph, settings});
   return {
     spanRef,
@@ -153,17 +150,10 @@ function createAnchorTraceGraph(): TraceGraph {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   } satisfies TraceProcess;
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: 'trace-layout-anchors:test',
-      traceGraphData: buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace([process], [], {name: 'trace-layout-anchors'})
-      )
-    })
-  );
+  return createRuntimeTraceGraph(buildJSONTrace([process], [], {name: 'trace-layout-anchors'}));
 }
 
 function createAnchorSpan(thread: TraceThread): TraceSpan {
@@ -184,8 +174,8 @@ function createAnchorSpan(thread: TraceThread): TraceSpan {
         durationMsAsString: '10ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };

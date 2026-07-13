@@ -1,13 +1,14 @@
-import {
-  buildTraceGraphData,
-  buildTraceGraphDataFromJSONTrace,
-  buildTraceSpanTablesByProcessId,
-  toArrowTraceProcessMetadata
-} from '../ingestion/arrow-trace';
+import {buildTraceChunkDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace, materializeJSONTrace} from '../ingestion/json-trace';
 import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
+import {buildTraceDatasetRefSources} from '../trace-dataset-ref-sources';
+import {buildTraceViewSnapshot} from '../trace-view-snapshot';
 import {TraceGraph} from './trace-graph';
+import {encodeSpanRef} from './trace-id-encoder';
 
+import type {TraceDataset} from '../trace-dataset';
+import type {TraceViewSnapshotOptions} from '../trace-view-snapshot';
+import type {TraceGraphSpanLookupStore} from './trace-graph-types';
 import type {
   SpanRef,
   TraceCounter,
@@ -15,9 +16,8 @@ import type {
   TraceCrossProcessEndpointId,
   TraceDependencyId,
   TraceInstant,
-  TraceLocalDependency,
   TraceProcess,
-  TraceProcessId,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceThread,
@@ -44,8 +44,8 @@ export function createBlock(spanId: string): TraceSpan {
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -88,16 +88,16 @@ export function createBlockForProcess(params: {
   };
 }
 
-/** Creates a process-local dependency for test graphs. */
-export function createLocalDependency(
+/** Creates a same-process dependency for test graphs. */
+export function createSameProcessDependency(
   dependencyId: string,
   startSpanId: TraceSpanId,
   endSpanId: TraceSpanId,
   keywords: string[] = []
-): TraceLocalDependency {
+): TraceSameProcessDependency {
   return {
-    type: 'trace-local-dependency',
-    dependencyRef: 0 as TraceLocalDependency['dependencyRef'],
+    type: 'trace-same-process-dependency',
+    dependencyRef: 0 as TraceSameProcessDependency['dependencyRef'],
     startSpanRef: 0 as SpanRef,
     endSpanRef: 0 as SpanRef,
     dependencyId: dependencyId as TraceDependencyId,
@@ -111,7 +111,7 @@ export function createLocalDependency(
 }
 
 /** Creates a cross-process dependency for test graphs. */
-export function createCrossDependency(
+export function createCrossProcessDependency(
   dependencyId: string,
   endpointId: string,
   startSpanId: TraceSpanId,
@@ -142,10 +142,10 @@ export function createCrossDependency(
   };
 }
 
-/** Creates a one-process JSON trace from test spans and local dependencies. */
+/** Creates a one-process JSON trace from test spans and same-process dependencies. */
 export function createGraphWithBlocks(
   spans: TraceSpan[],
-  localDependencies: TraceLocalDependency[]
+  sameProcessDependencies: TraceSameProcessDependency[]
 ): ReturnType<typeof buildJSONTrace> {
   const thread: TraceThread = {
     type: 'trace-thread',
@@ -169,7 +169,7 @@ export function createGraphWithBlocks(
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: []
   };
 
@@ -190,8 +190,8 @@ export function createProcess(params: {
   instants?: TraceInstant[];
   /** Optional counter samples owned by the process thread. */
   counters?: TraceCounter[];
-  /** Optional process-local dependencies. */
-  localDependencies?: TraceLocalDependency[];
+  /** Optional process-same process dependencies. */
+  sameProcessDependencies?: TraceSameProcessDependency[];
 }): TraceProcess {
   const thread: TraceThread = {
     type: 'trace-thread',
@@ -222,44 +222,103 @@ export function createProcess(params: {
     ),
     threadCounterMap:
       (params.counters ?? []).length > 0 ? {[thread.threadId]: params.counters ?? []} : {},
-    localDependencies: params.localDependencies ?? [],
+    sameProcessDependencies: params.sameProcessDependencies ?? [],
     remoteDependencies: []
   };
 }
 
-/** Builds an Arrow graph that keeps only metadata on each process while preserving span tables. */
-export function createArrowGraphWithoutCompatibilityBlocks(
+/**
+ * Builds one canonical dataset from a JSON trace fixture through the real static chunk seam.
+ *
+ * Tests that need to mutate dataset tables should spread this snapshot and pass the result to
+ * {@link createDatasetTraceGraphRuntimeSourceForTest}; ordinary runtime tests should use
+ * {@link createRuntimeTraceGraph}.
+ */
+export function createTraceDatasetFromJSONTraceForTest(
   graph: ReturnType<typeof buildJSONTrace>
-) {
-  const materializedGraph = materializeJSONTrace(graph);
-  return buildTraceGraphData({
-    name: materializedGraph.name,
-    processes: materializedGraph.processes.map(toArrowTraceProcessMetadata),
-    crossDependencies: materializedGraph.crossDependencies,
-    spanTableMap: buildTraceSpanTablesByProcessId(materializedGraph.processes) as Record<
-      TraceProcessId,
-      ReturnType<typeof buildTraceSpanTablesByProcessId>[TraceProcessId]
-    >,
-    timeExtents: {
-      minTimeMs: materializedGraph.minTimeMs,
-      maxTimeMs: materializedGraph.maxTimeMs
-    },
-    stats: materializedGraph.stats
-  });
+): TraceDataset {
+  return createTraceGraphRuntimeSourceFromJSONTraceForTest(graph).traceDataset;
 }
 
 /** Creates a runtime TraceGraph from a JSON trace fixture. */
 export function createRuntimeTraceGraph(
   graph: ReturnType<typeof buildJSONTrace>,
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  options: TraceViewSnapshotOptions = {}
 ) {
-  const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test-fixture`,
-      traceGraphData
-    }),
-    options
+  const runtimeSource = createTraceGraphRuntimeSourceFromJSONTraceForTest(graph);
+  return new TraceGraph(runtimeSource, buildTraceViewSnapshot(runtimeSource.traceDataset, options));
+}
+
+/** Creates a dataset-backed runtime graph while keeping filter options test-local. */
+export function createDatasetRuntimeTraceGraphForTest(
+  traceDataset: TraceDataset,
+  options: TraceViewSnapshotOptions = {}
+): TraceGraph {
+  const runtimeSource = createDatasetTraceGraphRuntimeSourceForTest(traceDataset);
+  return new TraceGraph(runtimeSource, buildTraceViewSnapshot(runtimeSource.traceDataset, options));
+}
+
+/**
+ * Creates a static dataset runtime source from one JSON trace fixture.
+ */
+function createTraceGraphRuntimeSourceFromJSONTraceForTest(
+  graph: ReturnType<typeof buildJSONTrace>
+) {
+  const materializedGraph = materializeJSONTrace(graph);
+  return createStaticTraceGraphRuntimeSource({
+    identityKey: `${materializedGraph.name}:test-fixture`,
+    name: materializedGraph.name,
+    spanLayout: materializedGraph.spanLayout,
+    chunks: buildTraceChunkDataFromJSONTrace(materializedGraph),
+    crossProcessDependencies: materializedGraph.crossProcessDependencies,
+    events: materializedGraph.events,
+    timeExtents: {
+      minTimeMs: materializedGraph.minTimeMs,
+      maxTimeMs: materializedGraph.maxTimeMs
+    },
+    stats: {
+      droppedSpanCount: materializedGraph.stats.droppedSpanCount,
+      droppedDependencyCount: materializedGraph.stats.droppedDependencyCount,
+      droppedCrossProcessDependencyCount: materializedGraph.stats.droppedCrossProcessDependencyCount
+    }
+  });
+}
+
+/**
+ * Creates an explicit dataset-backed runtime source from one structural dataset test fixture.
+ *
+ * It always publishes explicit active refs so manually-mutated structural fixtures cannot opt
+ * into trusted dense dataset paths. Ordinary JSON fixtures should still use
+ * {@link createRuntimeTraceGraph} so they exercise parser-local chunk finalization and trusted
+ * dataset semantics.
+ */
+export function createDatasetTraceGraphRuntimeSourceForTest(
+  traceDataset: TraceDataset,
+  traceStore?: TraceGraphSpanLookupStore
+) {
+  const refSources = buildTraceDatasetRefSources({
+    processIdsByIndex: traceDataset.ownerRefSnapshot.processIdsByIndex,
+    processSpanTableMap: traceDataset.processSpanTableMap,
+    sameProcessDependencyTableMap: traceDataset.sameProcessDependencyTableMap
+  });
+  return {
+    traceDataset: {
+      ...traceDataset,
+      ...refSources,
+      spanRefs: traceDataset.spanRefs ?? buildTestTraceDatasetActiveSpanRefs(traceDataset)
+    } satisfies TraceDataset,
+    ...(traceStore ? {traceStore} : {})
+  };
+}
+
+/**
+ * Lists every fixture chunk row explicitly so structural test datasets stay off trusted dense paths.
+ */
+function buildTestTraceDatasetActiveSpanRefs(traceDataset: TraceDataset): readonly SpanRef[] {
+  return traceDataset.chunks.flatMap(chunk =>
+    Array.from({length: chunk.spanTable.numRows}, (_, rowIndex) =>
+      encodeSpanRef(chunk.chunkIndex, rowIndex)
+    )
   );
 }
 
@@ -333,7 +392,7 @@ export function createProcessAwareSelectedCardGraph(): {
     endTimeMs: 25
   });
 
-  const localParentDependency = createLocalDependency(
+  const localParentDependency = createSameProcessDependency(
     'dep-hidden-selected',
     hiddenParentBlock.spanId,
     selectedBlock.spanId,
@@ -341,7 +400,7 @@ export function createProcessAwareSelectedCardGraph(): {
   );
   localParentDependency.waitTimeMs = 1;
 
-  const crossParentDependency = createCrossDependency(
+  const crossParentDependency = createCrossProcessDependency(
     'dep-cross-parent',
     'endpoint-parent',
     correctParentBlock.spanId,
@@ -353,7 +412,7 @@ export function createProcessAwareSelectedCardGraph(): {
   );
   crossParentDependency.waitTimeMs = 2;
 
-  const crossIncomingDependency = createCrossDependency(
+  const crossIncomingDependency = createCrossProcessDependency(
     'dep-cross-incoming',
     'endpoint-incoming',
     correctSourceBlock.spanId,
@@ -378,7 +437,7 @@ export function createProcessAwareSelectedCardGraph(): {
         rankNum: 1,
         threadId: 'thread-selected',
         spans: [hiddenParentBlock, selectedBlock],
-        localDependencies: [localParentDependency]
+        sameProcessDependencies: [localParentDependency]
       }),
       createProcess({
         processId: 'rank-other',
@@ -426,7 +485,7 @@ export function createDuplicateIdSelectionTraversalGraph() {
     startTimeMs: 6,
     endTimeMs: 8
   });
-  const selectedToParentDependency = createLocalDependency(
+  const selectedToParentDependency = createSameProcessDependency(
     'dep-selected-parent',
     selectedParentBlock.spanId,
     selectedBlock.spanId,
@@ -440,7 +499,7 @@ export function createDuplicateIdSelectionTraversalGraph() {
         rankNum: 0,
         threadId: 'thread-selected',
         spans: [selectedParentBlock, selectedBlock],
-        localDependencies: [selectedToParentDependency]
+        sameProcessDependencies: [selectedToParentDependency]
       }),
       createProcess({
         processId: 'rank-other',
@@ -503,8 +562,8 @@ export function createDuplicateIdChildDependencyGraph() {
         rankNum: 0,
         threadId: 'thread-selected',
         spans: [selectedBlock, correctChildBlock],
-        localDependencies: [
-          createLocalDependency(
+        sameProcessDependencies: [
+          createSameProcessDependency(
             'dep-selected-correct-child',
             selectedBlock.spanId,
             correctChildBlock.spanId,
@@ -517,8 +576,8 @@ export function createDuplicateIdChildDependencyGraph() {
         rankNum: 1,
         threadId: 'thread-other',
         spans: [wrongSelectedBlock, wrongChildBlock],
-        localDependencies: [
-          createLocalDependency(
+        sameProcessDependencies: [
+          createSameProcessDependency(
             'dep-selected-wrong-child',
             wrongSelectedBlock.spanId,
             wrongChildBlock.spanId,
@@ -565,7 +624,7 @@ export function createDuplicateIdParentlessSelectionGraph() {
     startTimeMs: 6,
     endTimeMs: 8
   });
-  const wrongParentDependency = createLocalDependency(
+  const wrongParentDependency = createSameProcessDependency(
     'dep-wrong-parent',
     wrongParentBlock.spanId,
     wrongSelectedBlock.spanId,
@@ -585,7 +644,7 @@ export function createDuplicateIdParentlessSelectionGraph() {
         rankNum: 1,
         threadId: 'thread-other',
         spans: [wrongParentBlock, wrongSelectedBlock],
-        localDependencies: [wrongParentDependency]
+        sameProcessDependencies: [wrongParentDependency]
       })
     ],
     [],
@@ -598,30 +657,6 @@ export function createDuplicateIdParentlessSelectionGraph() {
   };
 }
 
-/** Reads the private visible index shape used by focused TraceGraph assertions. */
-export function getVisibleIndexForTest(traceGraph: TraceGraph): {
-  /** Visible local dependency ids keyed by process id. */
-  visibleLocalDependencyIdsByProcessId: Readonly<
-    Record<TraceProcessId, readonly TraceDependencyId[]>
-  >;
-  /** Visible cross-process dependency ids. */
-  visibleCrossDependencyIds: readonly TraceDependencyId[];
-  /** Visible dependency refs grouped by owning span ref. */
-  visibleDependencyRefsBySpanRef: ReadonlyMap<SpanRef, readonly unknown[]>;
-} {
-  return (
-    traceGraph as unknown as {
-      getVisibleIndex: () => {
-        visibleLocalDependencyIdsByProcessId: Readonly<
-          Record<TraceProcessId, readonly TraceDependencyId[]>
-        >;
-        visibleCrossDependencyIds: readonly TraceDependencyId[];
-        visibleDependencyRefsBySpanRef: ReadonlyMap<SpanRef, readonly unknown[]>;
-      };
-    }
-  ).getVisibleIndex();
-}
-
 /** Summarizes visible process rows for parity assertions without rebuilding process clones. */
 export function getVisibleProcessSnapshot(traceGraph: TraceGraph) {
   return traceGraph.getVisibleProcessRefs().flatMap(processRef => {
@@ -631,12 +666,18 @@ export function getVisibleProcessSnapshot(traceGraph: TraceGraph) {
       ? [
           {
             processId: process.processId,
-            spanIds: traceGraph
-              .getVisibleProcessDisplaySources(processRef)
-              .map(span => span.spanId),
-            dependencyIds: traceGraph
-              .getVisibleLocalDependencySources(processRef)
-              .map(dependency => dependency.dependencyId)
+            spanIds: Array.from(traceGraph.iterateVisibleSpanRefsByProcess(processRef)).flatMap(
+              spanRef => {
+                const spanId = traceGraph.getSpanId(spanRef);
+                return spanId == null ? [] : [spanId];
+              }
+            ),
+            dependencyIds: Array.from(
+              traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(processRef)
+            ).flatMap(dependencyRef => {
+              const dependencyId = traceGraph.getDependencyId(dependencyRef);
+              return dependencyId == null ? [] : [dependencyId];
+            })
           }
         ]
       : [];

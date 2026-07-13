@@ -1,10 +1,6 @@
 import {describe, expect, it} from 'vitest';
 
-import {
-  TRACE_SPAN_FILTER_MASK_REGEXP,
-  TRACE_SPAN_FILTER_MASK_SOURCE,
-  TRACE_SPAN_FILTER_MASK_TOPOLOGY
-} from '../../trace/index';
+import {TRACE_SPAN_FILTER_MASK_REGEXP, TRACE_SPAN_FILTER_MASK_SOURCE} from '../../trace';
 import {
   getTraceSpanFilterReasonLabel,
   getTraceSpanFilterReasonParts
@@ -12,14 +8,14 @@ import {
 
 describe('trace span filter reasons', () => {
   it('returns precise ordered reason parts for combined filters', () => {
-    const filterMask = TRACE_SPAN_FILTER_MASK_SOURCE | TRACE_SPAN_FILTER_MASK_TOPOLOGY;
+    const filterMask = TRACE_SPAN_FILTER_MASK_REGEXP | TRACE_SPAN_FILTER_MASK_SOURCE;
 
     expect(getTraceSpanFilterReasonParts(filterMask)).toEqual([
-      'filename filter',
-      'topological filter'
+      'span-name filter',
+      'filename filter'
     ]);
     expect(getTraceSpanFilterReasonLabel(filterMask)).toBe(
-      'Hidden by: filename filter, topological filter'
+      'Hidden by: span-name filter, filename filter'
     );
   });
 

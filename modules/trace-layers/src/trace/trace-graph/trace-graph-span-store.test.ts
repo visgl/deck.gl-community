@@ -2,14 +2,18 @@ import {describe, expect, it} from 'vitest';
 
 import {
   buildArrowTraceSpanTableFromRows,
-  buildTraceGraphDataFromJSONTrace,
   buildTraceProcessSpanRefTables,
   toTraceSpanArrowRow
 } from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
-import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
 import {getTraceGraphSpanNameUtf8} from '../trace-graph-accessors';
 import {TraceGraph} from './trace-graph';
+import {
+  createDatasetRuntimeTraceGraphForTest,
+  createDatasetTraceGraphRuntimeSourceForTest,
+  createTraceDatasetFromJSONTraceForTest
+} from './trace-graph-test-fixtures';
+import {getVisibleSpanGeometrySourcesByProcess} from './trace-graph-visible-span-sources';
 import {
   encodeChunkRef,
   encodeProcessRef,
@@ -27,16 +31,10 @@ import type {
 } from './trace-types';
 
 function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  traceDataset: Parameters<typeof createDatasetTraceGraphRuntimeSourceForTest>[0],
+  options?: Parameters<typeof createDatasetRuntimeTraceGraphForTest>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+  return createDatasetRuntimeTraceGraphForTest(traceDataset, options);
 }
 
 describe('TraceGraph span store rows', () => {
@@ -65,7 +63,7 @@ describe('TraceGraph span store rows', () => {
       [],
       {name: 'unsorted-chunk-row-name-test'}
     );
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
     const processRef = encodeProcessRef(0);
     const threadRef = encodeProcessThreadRef(0, 0);
     const storeSpanTable = buildArrowTraceSpanTableFromRows([
@@ -81,22 +79,24 @@ describe('TraceGraph span store rows', () => {
       }
     ]);
     const renderOrderChunk = {
+      ...traceDataset.chunks[0]!,
       chunkIndex: 0,
       chunkRef: encodeChunkRef(0),
       chunkKey: 'unsorted-row-chunk',
       processRefs: [processRef],
       processId: null,
       spanTable: storeSpanTable,
-      localDependencyTable: traceGraphData.localDependencyTableMap['rank-a' as TraceProcessId]!
+      resolvedSameProcessDependencyTable:
+        traceDataset.sameProcessDependencyTableMap['rank-a' as TraceProcessId]!
     };
     const traceGraph = createTestTraceGraph({
-      ...traceGraphData,
+      ...traceDataset,
       chunks: [renderOrderChunk],
       processSpanTableMap: buildTraceProcessSpanRefTables(
         [renderOrderChunk],
-        traceGraphData.processes,
+        traceDataset.processes,
         {
-          processIdsByIndex: traceGraphData.processIdsByIndex
+          processIdsByIndex: traceDataset.ownerRefSnapshot.processIdsByIndex
         }
       )
     });
@@ -139,7 +139,7 @@ describe('TraceGraph span store rows', () => {
       [],
       {name: 'process-scoped-owner-test'}
     );
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
     const processRefA = encodeProcessRef(0);
     const processRefB = encodeProcessRef(1);
     const threadRefA = encodeProcessThreadRef(0, 0);
@@ -152,24 +152,26 @@ describe('TraceGraph span store rows', () => {
       }
     ]);
     const processScopedChunk = {
+      ...traceDataset.chunks.find(chunk => chunk.processId === 'rank-b')!,
       chunkIndex: 0,
       chunkRef: encodeChunkRef(0),
       chunkKey: 'rank-b-chunk',
       processRefs: [processRefB],
       processId: 'rank-b' as TraceProcessId,
       spanTable: staleRowOwnerSpanTable,
-      localDependencyTable: traceGraphData.localDependencyTableMap['rank-b' as TraceProcessId]!
+      resolvedSameProcessDependencyTable:
+        traceDataset.sameProcessDependencyTableMap['rank-b' as TraceProcessId]!
     };
     const spanRef = encodeSpanRef(0, 0);
     const traceGraph = createTestTraceGraph({
-      ...traceGraphData,
+      ...traceDataset,
       chunks: [processScopedChunk],
       spanRefs: [spanRef],
       processSpanTableMap: buildTraceProcessSpanRefTables(
         [processScopedChunk],
-        traceGraphData.processes,
+        traceDataset.processes,
         {
-          processIdsByIndex: traceGraphData.processIdsByIndex,
+          processIdsByIndex: traceDataset.ownerRefSnapshot.processIdsByIndex,
           spanRefs: [spanRef]
         }
       )
@@ -178,9 +180,9 @@ describe('TraceGraph span store rows', () => {
     expect(traceGraph.getVisibleProcessRefs()).toEqual([processRefB]);
     expect(traceGraph.getProcessRefBySpanRef(spanRef)).toBe(processRefB);
     expect(traceGraph.getThreadRefBySpanRef(spanRef)).toBe(threadRefB);
-    expect(traceGraph.getSpanDisplaySource(spanRef)?.processRef).toBe(processRefB);
-    expect(traceGraph.getSpanDisplaySource(spanRef)?.threadRef).toBe(threadRefB);
-    expect(traceGraph.getVisibleProcessRenderSpanRefs(processRefB)).toEqual([spanRef]);
+    expect(traceGraph.getSpanDetailSource(spanRef)?.processRef).toBe(processRefB);
+    expect(traceGraph.getSpanDetailSource(spanRef)?.threadRef).toBe(threadRefB);
+    expect(Array.from(traceGraph.iterateVisibleSpanRefsByProcess(processRefB))).toEqual([spanRef]);
 
     const spanNameUtf8View = {data: new Uint8Array(), start: 0, end: 0};
     expect(getTraceGraphSpanNameUtf8(traceGraph, spanRef, spanNameUtf8View)).toBe(true);
@@ -189,7 +191,7 @@ describe('TraceGraph span store rows', () => {
     ).toEqual([114, 97, 110, 107, 45, 98, 45, 108, 97, 98, 101, 108]);
   });
 
-  it('refreshes process span materializations when active SpanRefs grow', () => {
+  it('treats process span materializations as immutable graph-owned snapshots', () => {
     const blockA = createBlockForProcess({
       spanId: 'growing-row-a',
       processId: 'rank-a',
@@ -214,72 +216,59 @@ describe('TraceGraph span store rows', () => {
       [],
       {name: 'growing-process-span-refs-test'}
     );
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const processId = 'rank-a' as TraceProcessId;
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
     const processRef = encodeProcessRef(0);
     const spanRefA = encodeSpanRef(0, 0);
     const spanRefB = encodeSpanRef(0, 1);
-    const activeSpanRefs = [spanRefA];
-    const processSpanTableMap = buildTraceProcessSpanRefTables(
-      traceGraphData.chunks,
-      traceGraphData.processes,
+    const firstActiveSpanRefs = [spanRefA];
+    const firstProcessSpanTableMap = buildTraceProcessSpanRefTables(
+      traceDataset.chunks,
+      traceDataset.processes,
       {
-        processIdsByIndex: traceGraphData.processIdsByIndex,
-        spanRefs: activeSpanRefs
+        processIdsByIndex: traceDataset.ownerRefSnapshot.processIdsByIndex,
+        spanRefs: firstActiveSpanRefs
       }
     );
-    const traceGraph = createTestTraceGraph({
-      ...traceGraphData,
-      spanRefs: activeSpanRefs,
-      processSpanTableMap
+    const firstTraceGraph = createTestTraceGraph({
+      ...traceDataset,
+      spanRefs: firstActiveSpanRefs,
+      processSpanTableMap: firstProcessSpanTableMap
     });
 
-    expect(traceGraph.getVisibleProcessRenderSpanRefs(processRef)).toEqual([spanRefA]);
+    expect(Array.from(firstTraceGraph.iterateVisibleSpanRefsByProcess(processRef))).toEqual([
+      spanRefA
+    ]);
     expect(
-      traceGraph.getVisibleProcessGeometrySources(processRef).map(span => span.spanRef)
+      getVisibleSpanGeometrySourcesByProcess(firstTraceGraph, processRef).map(span => span.spanRef)
     ).toEqual([spanRefA]);
 
-    activeSpanRefs.push(spanRefB);
-    replaceProcessSpanRefTable({
-      processSpanTableMap,
-      traceGraphData,
-      processId,
-      spanRefs: activeSpanRefs
+    const nextActiveSpanRefs = [spanRefA, spanRefB];
+    const nextProcessSpanTableMap = buildTraceProcessSpanRefTables(
+      traceDataset.chunks,
+      traceDataset.processes,
+      {
+        processIdsByIndex: traceDataset.ownerRefSnapshot.processIdsByIndex,
+        spanRefs: nextActiveSpanRefs
+      }
+    );
+    const nextTraceGraph = createTestTraceGraph({
+      ...traceDataset,
+      spanRefs: nextActiveSpanRefs,
+      processSpanTableMap: nextProcessSpanTableMap
     });
 
-    expect(traceGraph.getVisibleProcessRenderSpanRefs(processRef)).toEqual([spanRefA, spanRefB]);
+    expect(Array.from(firstTraceGraph.iterateVisibleSpanRefsByProcess(processRef))).toEqual([
+      spanRefA
+    ]);
+    expect(Array.from(nextTraceGraph.iterateVisibleSpanRefsByProcess(processRef))).toEqual([
+      spanRefA,
+      spanRefB
+    ]);
     expect(
-      traceGraph.getVisibleProcessGeometrySources(processRef).map(span => span.spanRef)
+      getVisibleSpanGeometrySourcesByProcess(nextTraceGraph, processRef).map(span => span.spanRef)
     ).toEqual([spanRefA, spanRefB]);
   });
 });
-
-/** Replaces one process SpanRef table after its active chunk refs grow. */
-function replaceProcessSpanRefTable(params: {
-  /** Process-local span ref tables keyed by process id. */
-  processSpanTableMap: ReturnType<typeof buildTraceProcessSpanRefTables>;
-  /** Mutable trace graph data receiving the replacement table. */
-  traceGraphData: ReturnType<typeof buildTraceGraphDataFromJSONTrace>;
-  /** Process id whose active span ref table should be replaced. */
-  processId: TraceProcessId;
-  /** Next active span refs retained for the process. */
-  spanRefs: SpanRef[];
-}): void {
-  const nextProcessSpanTableMap = buildTraceProcessSpanRefTables(
-    params.traceGraphData.chunks,
-    params.traceGraphData.processes,
-    {
-      processIdsByIndex: params.traceGraphData.processIdsByIndex,
-      spanRefs: params.spanRefs
-    }
-  );
-  (
-    params.processSpanTableMap as Record<
-      TraceProcessId,
-      (typeof params.processSpanTableMap)[TraceProcessId]
-    >
-  )[params.processId] = nextProcessSpanTableMap[params.processId]!;
-}
 
 function createBlockForProcess(params: {
   spanId: string;
@@ -305,8 +294,8 @@ function createBlockForProcess(params: {
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -341,7 +330,7 @@ function createProcess(params: {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 }

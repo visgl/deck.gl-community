@@ -20,14 +20,13 @@ import {TraceEngine} from '@deck.gl-community/trace-layers/trace';
 - `dispatch(action)`: apply semantic selection and collapse interactions
 - `subscribe(listener)`: receive `TraceEngineUpdate` notifications
 - `getSnapshot()`: read the immutable renderer snapshot consumed by `DeckTraceGraph`
-- `getPreparedScene()`: read prepared foreground and overview scenes for low-level composition
 - `getDiagnostics(...)`: read cheap engine diagnostics and optional retained-size estimates
 
 ## Host boundary
 
 Keep durable host state small: `TraceGraph`, settings, paths, selected `SpanRef`s, color scheme,
 and serialized expanded process ids. Let the mounted engine own transient selected dependency refs,
-collapse runtime state, prepared layouts, and prepared scenes.
+collapse runtime state, prepared layouts, and `TraceViewState.renderSnapshot`.
 
 See [DeckTraceGraph](../react/deck-trace-graph.md) and
 [Rendering traces](../../developer-guide/rendering-traces.md).

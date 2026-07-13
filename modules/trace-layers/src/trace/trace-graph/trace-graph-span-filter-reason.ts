@@ -1,9 +1,9 @@
-import {
-  getTraceGraphProcessSpanOrdinal,
-  getTraceGraphSpanRefProcessId
-} from '../trace-graph-accessors';
+import {getTraceViewSpanFilterMask} from '../trace-view-snapshot';
 import {isValidSourceSpanRef} from './trace-graph-internal-helpers';
-import {getTraceSpanNameFilterMatchMask} from './trace-graph-span-filters';
+import {
+  getTraceSpanNameFilterMatchMask,
+  getTraceSpanSourceFilterMatchMask
+} from './trace-graph-span-filters';
 import {TRACE_SPAN_FILTER_MASK_NONE} from './trace-graph-types';
 
 import type {TraceGraph} from './trace-graph';
@@ -11,7 +11,7 @@ import type {CompiledTraceSpanFilterPlan} from './trace-graph-span-filters';
 import type {
   TraceGraphSpanFilterReason,
   TraceGraphSpanFilterReasonInput,
-  TraceGraphSpanFilterStore,
+  TraceGraphSpanLookupStore,
   TraceSpanFilterMask
 } from './trace-graph-types';
 import type {SpanRef} from './trace-types';
@@ -23,8 +23,8 @@ export type TraceGraphSpanFilterReasonParams = {
   readonly spanRef: SpanRef;
   /** Whether this graph has active non-store span filters. */
   readonly hasActiveGraphSpanFilter: boolean;
-  /** Optional store used to resolve rows outside the active graph. */
-  readonly traceStore: TraceGraphSpanFilterStore | null;
+  /** Optional lookup store used to resolve availability outside the active graph. */
+  readonly traceStore: TraceGraphSpanLookupStore | null;
   /** Compiled text filter plan used for missing store-backed rows. */
   readonly filterPlan: CompiledTraceSpanFilterPlan;
   /** Optional row metadata used when the span is missing from the graph. */
@@ -32,31 +32,26 @@ export type TraceGraphSpanFilterReasonParams = {
 };
 
 /**
- * Returns graph-owned filtered state and provenance for one exact span ref.
+ * Returns view-owned filtered state and provenance for one exact span ref.
  */
 export function getTraceGraphSpanFilterReason(
   params: TraceGraphSpanFilterReasonParams
 ): TraceGraphSpanFilterReason {
   if (!isValidSourceSpanRef(params.traceGraph, params.spanRef)) {
-    const storeFilterReason = params.traceStore?.getFilterReason(params.spanRef) ?? null;
+    const filterMask = getMissingSpanFilterMask(params.missingSpanInput, params.filterPlan);
     return {
-      filterMask:
-        getMissingSpanFilterMask(params.missingSpanInput, params.filterPlan) |
-        (storeFilterReason?.filterMask ?? TRACE_SPAN_FILTER_MASK_NONE),
+      filterMask,
       isFiltered: true,
-      state: storeFilterReason?.state ?? 'unknown'
+      state: params.traceStore?.getSpanRefAvailability?.(params.spanRef) ?? 'unknown'
     };
   }
 
-  const storeFilterReason = params.traceStore?.getFilterReason(params.spanRef) ?? null;
-  const filterMask =
-    getTraceGraphSpanRefFilterMask(
-      params.traceGraph,
-      params.spanRef,
-      params.hasActiveGraphSpanFilter
-    ) | (storeFilterReason?.filterMask ?? TRACE_SPAN_FILTER_MASK_NONE);
-  const isFiltered =
-    filterMask !== TRACE_SPAN_FILTER_MASK_NONE || storeFilterReason?.isFiltered === true;
+  const filterMask = getUniqueTraceGraphSpanRefFilterMask(
+    params.traceGraph,
+    params.spanRef,
+    params.hasActiveGraphSpanFilter
+  );
+  const isFiltered = filterMask !== TRACE_SPAN_FILTER_MASK_NONE;
   return {
     filterMask,
     isFiltered,
@@ -67,42 +62,31 @@ export function getTraceGraphSpanFilterReason(
 /**
  * Returns the active per-span graph filter provenance mask for one exact source span ref.
  */
-export function getTraceGraphSpanRefFilterMask(
+export function getUniqueTraceGraphSpanRefFilterMask(
   traceGraph: TraceGraph,
   spanRef: SpanRef,
   hasActiveGraphSpanFilter: boolean
 ): TraceSpanFilterMask {
-  if (!hasActiveGraphSpanFilter) {
-    return TRACE_SPAN_FILTER_MASK_NONE;
-  }
-  const processId = getTraceGraphSpanRefProcessId(traceGraph, spanRef);
-  const spanTable = processId ? traceGraph.processSpanTableMap[processId] : undefined;
-  if (!processId || !spanTable) {
-    return TRACE_SPAN_FILTER_MASK_NONE;
-  }
-
-  const rowIndex = getTraceGraphProcessSpanOrdinal(traceGraph, processId, spanRef);
-  const filterMask =
-    rowIndex == null ? null : getFiniteNumber(spanTable.getChild('filter_mask')?.get(rowIndex));
-  return filterMask == null ? TRACE_SPAN_FILTER_MASK_NONE : (filterMask as TraceSpanFilterMask);
-}
-
-/** Returns one finite numeric Arrow cell as a JavaScript number. */
-function getFiniteNumber(value: unknown): number | null {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return null;
-  }
-  return value;
+  return hasActiveGraphSpanFilter
+    ? getTraceViewSpanFilterMask(traceGraph.traceViewSnapshot, spanRef)
+    : TRACE_SPAN_FILTER_MASK_NONE;
 }
 
 function getMissingSpanFilterMask(
   missingSpanInput: TraceGraphSpanFilterReasonInput | undefined,
   filterPlan: CompiledTraceSpanFilterPlan
 ): TraceSpanFilterMask {
-  return missingSpanInput
-    ? getTraceSpanNameFilterMatchMask({
-        spanName: missingSpanInput.spanName,
-        filterPlan
-      })
-    : TRACE_SPAN_FILTER_MASK_NONE;
+  if (!missingSpanInput) {
+    return TRACE_SPAN_FILTER_MASK_NONE;
+  }
+  return (
+    getTraceSpanNameFilterMatchMask({
+      spanName: missingSpanInput.spanName,
+      filterPlan
+    }) |
+    getTraceSpanSourceFilterMatchMask({
+      source: missingSpanInput.source,
+      filterPlan
+    })
+  );
 }

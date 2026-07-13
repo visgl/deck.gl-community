@@ -1,57 +1,53 @@
 import * as arrow from 'apache-arrow';
 
-import {MappedArrowTable} from '../../arrow-utils/index';
+import {MappedArrowTable} from '../../arrow-utils';
 import {log} from '../log';
 import {
   getArrowTraceSpanField,
-  getTraceGraphSpanDisplaySource,
   getUniqueTraceGraphSpanRef,
   iterateTraceGraphProcessSpanRefs
 } from '../trace-graph-accessors';
+import {materializeTraceCrossProcessDependencyFromArrowRow} from './trace-cross-process-dependency-table';
 import {
-  encodeCrossDependencyRef,
-  encodeLocalDependencyRef,
+  encodeCrossProcessDependencyRef,
   encodeLocalSpanRef,
-  getCrossDependencyRefIndex,
+  encodeSameProcessDependencyRef,
+  getCrossProcessDependencyRefIndex,
   getProcessRefIndex,
-  isCrossDependencyRef,
-  isLocalDependencyRef,
-  isVisibleCrossDependencyRef,
-  isVisibleLocalDependencyRef
+  isCrossProcessDependencyRef,
+  isSameProcessDependencyRef
 } from './trace-id-encoder';
 import {getPrimaryTiming} from './trace-types';
 
-import type {ArrowTraceLocalDependencyTable} from '../ingestion/arrow-trace';
-import type {TraceDependencySource, TraceSpanDisplaySource} from '../trace-graph-accessors';
+import type {ArrowTraceSameProcessDependencyTable} from '../ingestion/arrow-trace';
+import type {
+  TraceCrossProcessDependencyRenderSource,
+  TraceSameProcessDependencySource
+} from '../trace-graph-accessors';
 import type {TraceGraph} from './trace-graph';
 import type {
   TraceGraphChildDependency,
   TraceGraphDescendantEntry,
   TraceGraphDescendantResult,
   TraceGraphPathBlockSource,
-  TraceGraphPathCrossDependencySource,
+  TraceGraphPathCrossProcessDependencySource,
   TraceGraphPathDependencySource,
-  TraceGraphPathLocalDependencySource,
-  TraceGraphSelectedCrossDependencySource,
-  TraceGraphSelectedLocalDependencySource,
+  TraceGraphPathSameProcessDependencySource,
+  TraceGraphSelectedCrossProcessDependencySource,
+  TraceGraphSelectedSameProcessDependencySource,
   TraceSelectedDependencyDirection,
   TraceSpanDependencySelection
 } from './trace-graph-types';
-import type {
-  CrossDependencyRef,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
-} from './trace-id-encoder';
+import type {CrossProcessDependencyRef, SameProcessDependencyRef} from './trace-id-encoder';
 import type {
   SpanRef,
   TraceCrossProcessDependency,
   TraceCrossProcessEndpoint,
   TraceCrossProcessEndpointId,
   TraceDependency,
-  TraceDependencyId,
-  TraceLocalDependency,
   TracePath,
   TraceProcessId,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceThreadId
@@ -59,44 +55,37 @@ import type {
 
 export {
   buildTraceSpanDescendants,
-  buildTraceSpanDependencySelection,
-  endpointMatchesCrossDependency,
-  endpointMatchesCrossDependencyValues,
-  getTaggedCrossDependencyRefRowIndex,
-  getLocalDependencyLookupByProcessId,
+  endpointMatchesCrossProcessDependency,
+  endpointMatchesCrossProcessDependencyValues,
+  getTaggedCrossProcessDependencyRefRowIndex,
+  getSameProcessDependencyLookupByProcessId,
   getOrderedVisiblePathBlockSources,
   getProcessIdByRankNum,
   getProcessScopedSpanRefsByProcessId,
   getSelectedCardSpanRef,
   getVisiblePathBlockSources,
   getVisiblePathDependencySources,
-  getVisibleSelectedCrossDependencySource,
-  getVisibleSelectedCrossDependencySourceByLegacyRowIndex,
-  getVisibleSelectedLocalDependencySource,
-  getVisibleSelectedLocalDependencySourceByLegacyRowIndex,
-  isParentCrossDependency,
+  getVisibleSelectedCrossProcessDependencySource,
+  getVisibleSelectedCrossProcessDependencySourceByLegacyRowIndex,
+  getVisibleSelectedSameProcessDependencySource,
+  getVisibleSelectedSameProcessDependencySourceByLegacyRowIndex,
+  isParentCrossProcessDependency,
   isParentDependency,
-  isParentLocalDependency,
+  isParentSameProcessDependency,
   isUnresolvedCrossEndpoint,
   isVisibleSpanRef,
-  materializeTraceSpanBySpanRef
+  buildTraceSpanBySpanRef
 };
 
-type ArrowTraceLocalDependencyTableTypeMap =
-  ArrowTraceLocalDependencyTable extends arrow.Table<infer TTypeMap> ? TTypeMap : never;
-type TraceGraphLocalDependencyLookup = MappedArrowTable<ArrowTraceLocalDependencyTableTypeMap>;
+type ArrowTraceSameProcessDependencyTableTypeMap =
+  ArrowTraceSameProcessDependencyTable extends arrow.Table<infer TTypeMap> ? TTypeMap : never;
+type TraceGraphSameProcessDependencyLookup =
+  MappedArrowTable<ArrowTraceSameProcessDependencyTableTypeMap>;
 
-type TraceGraphProjection = {
-  /** Groups incoming visible dependencies by exact span ref. */
-  inDependenciesBySpanRef: ReadonlyMap<SpanRef, ReadonlyArray<TraceDependency>>;
-  /** Groups outgoing visible dependencies by exact span ref. */
-  outDependenciesBySpanRef: ReadonlyMap<SpanRef, ReadonlyArray<TraceDependency>>;
-  /** Maps visible endpoint rows to their resolved dependency by exact span ref. */
-  endpointsWithDependenciesBySpanRef: ReadonlyMap<
-    SpanRef,
-    ReadonlyArray<[TraceCrossProcessEndpoint, TraceCrossProcessDependency | null]>
-  >;
-};
+/** Ref-native dependency shape sufficient for dependency-chain traversal. */
+type TraceDependencyTraversalSource =
+  | TraceSameProcessDependencySource
+  | TraceCrossProcessDependencyRenderSource;
 
 const PARENT_KEYWORD = 'PARENT';
 const TRACE_DEPENDENCY_SELECTION_PROBE_QUERY_PARAM = 'traceDependencySelectionProbe';
@@ -104,65 +93,48 @@ const TRACE_CHILD_DEPENDENT_TRAVERSAL_PROBE_QUERY_PARAM = 'traceChildTraversalPr
 let isTraceDependencySelectionProbeEnabledCache: boolean | null = null;
 let isTraceChildDependentTraversalProbeEnabledCache: boolean | null = null;
 
-const localDependencyLookupByProcessIdCache = new WeakMap<
-  Readonly<TraceGraph>,
-  Readonly<Record<TraceProcessId, TraceGraphLocalDependencyLookup>>
->();
-
-/** Caches process-scoped span refs keyed by process id and block id. */
-const processScopedSpanRefsByProcessIdCache = new WeakMap<
-  Readonly<TraceGraph>,
-  Readonly<Record<TraceProcessId, ReadonlyMap<TraceSpanId, SpanRef>>>
->();
-
-/** Caches process ids keyed by rank number for exact cross-process span resolution. */
-const processIdByRankNumCache = new WeakMap<
-  Readonly<TraceGraph>,
-  ReadonlyMap<number, TraceProcessId>
->();
-
-/**
- * Builds one dependency-id keyed mapped Arrow view over a canonical dependency table.
- */
-function buildMappedDependencyLookup<TTypeMap extends arrow.TypeMap & {dependencyId: arrow.Utf8}>(
-  table: Readonly<arrow.Table<TTypeMap>>
-): MappedArrowTable<TTypeMap> {
-  const dependencyIdColumn = table.getChild('dependencyId');
+/** Builds one dependency-id keyed mapped Arrow view over a canonical same-process dependency table. */
+function buildMappedDependencyLookup(
+  traceGraph: Readonly<TraceGraph>,
+  processIndex: number,
+  table: Readonly<ArrowTraceSameProcessDependencyTable>
+): TraceGraphSameProcessDependencyLookup {
   const rowIndexMap = new Map<string, number>();
 
   for (let rowIndex = 0; rowIndex < table.numRows; rowIndex += 1) {
-    const dependencyId =
-      (dependencyIdColumn?.get(rowIndex) as TraceDependencyId | null | undefined) ?? null;
+    const dependencyId = traceGraph.getDependencyId(
+      encodeSameProcessDependencyRef(encodeLocalSpanRef(processIndex, rowIndex))
+    );
     if (dependencyId) {
       rowIndexMap.set(dependencyId, rowIndex);
     }
   }
 
-  return new MappedArrowTable(table as arrow.Table<TTypeMap>, rowIndexMap);
+  return new MappedArrowTable(
+    table as arrow.Table<ArrowTraceSameProcessDependencyTableTypeMap>,
+    rowIndexMap
+  );
 }
 
 /**
- * Returns per-process dependency-id keyed local dependency views for one trace graph.
+ * Returns per-process dependency-id keyed same-process dependency views for one trace graph.
  */
-function getLocalDependencyLookupByProcessId(
+function getSameProcessDependencyLookupByProcessId(
   traceGraph: Readonly<TraceGraph>
-): Readonly<Record<TraceProcessId, TraceGraphLocalDependencyLookup>> {
-  const cachedLookup = localDependencyLookupByProcessIdCache.get(traceGraph);
-  if (cachedLookup) {
-    return cachedLookup;
-  }
-
-  const nextLookup = Object.fromEntries(
-    traceGraph.processes.map(process => {
+): Readonly<Record<TraceProcessId, TraceGraphSameProcessDependencyLookup>> {
+  return Object.fromEntries(
+    traceGraph.processes.map((process, processIndex) => {
       const processId = process.processId as TraceProcessId;
       return [
         processId,
-        buildMappedDependencyLookup(traceGraph.localDependencyTableMap[processId])
+        buildMappedDependencyLookup(
+          traceGraph,
+          processIndex,
+          traceGraph.sameProcessDependencyTableMap[processId]
+        )
       ] as const;
     })
-  ) as Readonly<Record<TraceProcessId, TraceGraphLocalDependencyLookup>>;
-  localDependencyLookupByProcessIdCache.set(traceGraph, nextLookup);
-  return nextLookup;
+  ) as Readonly<Record<TraceProcessId, TraceGraphSameProcessDependencyLookup>>;
 }
 
 /**
@@ -171,12 +143,7 @@ function getLocalDependencyLookupByProcessId(
 function getProcessScopedSpanRefsByProcessId(
   traceGraph: Readonly<TraceGraph>
 ): Readonly<Record<TraceProcessId, ReadonlyMap<TraceSpanId, SpanRef>>> {
-  const cachedProcessScopedSpanRefs = processScopedSpanRefsByProcessIdCache.get(traceGraph);
-  if (cachedProcessScopedSpanRefs) {
-    return cachedProcessScopedSpanRefs;
-  }
-
-  const nextProcessScopedSpanRefs = Object.fromEntries(
+  return Object.fromEntries(
     traceGraph.processes.map((process, processIndex) => {
       const processId = process.processId as TraceProcessId;
       const processRef = traceGraph.getProcessRefs()[processIndex] ?? null;
@@ -198,9 +165,6 @@ function getProcessScopedSpanRefsByProcessId(
       return [processId, processScopedSpanRefs] as const;
     })
   ) as Readonly<Record<TraceProcessId, ReadonlyMap<TraceSpanId, SpanRef>>>;
-
-  processScopedSpanRefsByProcessIdCache.set(traceGraph, nextProcessScopedSpanRefs);
-  return nextProcessScopedSpanRefs;
 }
 
 /**
@@ -209,40 +173,34 @@ function getProcessScopedSpanRefsByProcessId(
 function getProcessIdByRankNum(
   traceGraph: Readonly<TraceGraph>
 ): ReadonlyMap<number, TraceProcessId> {
-  const cachedProcessIdByRankNum = processIdByRankNumCache.get(traceGraph);
-  if (cachedProcessIdByRankNum) {
-    return cachedProcessIdByRankNum;
-  }
-
-  const nextProcessIdByRankNum = new Map(
+  return new Map(
     traceGraph.processes.map(
       process => [process.rankNum, process.processId as TraceProcessId] as const
     )
   );
-  processIdByRankNumCache.set(traceGraph, nextProcessIdByRankNum);
-  return nextProcessIdByRankNum;
 }
 
 /**
- * Materializes one exact block from a process-aware span ref.
+ * Builds one card-compatible block from a process-aware span ref.
  */
-function materializeTraceSpanBySpanRef(
+function buildTraceSpanBySpanRef(
   traceGraph: Readonly<TraceGraph>,
   spanRef: SpanRef
 ): TraceSpan | null {
-  const displaySource = traceGraph.getSpanDisplaySource(spanRef);
-  if (!displaySource) {
+  const spanSource = traceGraph.getSpanDetailSource(spanRef);
+  if (!spanSource) {
     return null;
   }
 
-  const localDependencies = [
+  const sameProcessDependencies = [
     ...traceGraph.getSpanDirectionalDependencySources(spanRef, 'incoming'),
     ...traceGraph.getSpanDirectionalDependencySources(spanRef, 'outgoing')
   ].filter(
-    (dependency): dependency is TraceLocalDependency => dependency.type === 'trace-local-dependency'
+    (dependency): dependency is TraceSameProcessDependency =>
+      dependency.type === 'trace-same-process-dependency'
   );
-  const localDependenciesByRef = new Map(
-    localDependencies.map(dependency => [
+  const sameProcessDependenciesByRef = new Map(
+    sameProcessDependencies.map(dependency => [
       dependency.dependencyRef ?? dependency.dependencyId,
       dependency
     ])
@@ -250,19 +208,21 @@ function materializeTraceSpanBySpanRef(
 
   return {
     type: 'trace-span',
-    spanRef: displaySource.spanRef,
-    spanId: displaySource.spanId,
-    threadId: displaySource.threadId,
-    processName: displaySource.processName,
-    name: displaySource.name,
-    keywords: displaySource.keywords,
-    primaryTimingKey: displaySource.primaryTimingKey,
-    timings: displaySource.timings,
-    localDependencyIds: displaySource.localDependencyIds,
-    localDependencies: [...localDependenciesByRef.values()],
-    crossProcessEndpointId: displaySource.crossProcessEndpointId,
-    crossProcessDependencyEndpoints: displaySource.crossProcessDependencyEndpoints,
-    userData: displaySource.userData
+    spanRef: spanSource.spanRef,
+    spanId: spanSource.spanId,
+    threadId: spanSource.threadId,
+    processName: spanSource.processName,
+    name: spanSource.name,
+    keywords: spanSource.keywords,
+    primaryTimingKey: spanSource.primaryTimingKey,
+    timings: spanSource.timings,
+    sameProcessDependencyIds: [...sameProcessDependenciesByRef.values()].map(
+      dependency => dependency.dependencyId
+    ),
+    sameProcessDependencies: [...sameProcessDependenciesByRef.values()],
+    crossProcessEndpointId: spanSource.crossProcessEndpointId,
+    crossProcessDependencyEndpoints: spanSource.crossProcessDependencyEndpoints,
+    userData: spanSource.userData
   } satisfies TraceSpan;
 }
 
@@ -289,9 +249,11 @@ function spanRefMatchesBlock(
   spanRef: SpanRef,
   block: Readonly<Pick<TraceSpan, 'spanId' | 'threadId'>>
 ): boolean {
+  const threadRef = traceGraph.getSpanOwnerRefs(spanRef)?.threadRef ?? null;
   return (
-    traceGraph.getSpanBlockId(spanRef) === block.spanId &&
-    traceGraph.getThreadSourceBySpanRef(spanRef)?.threadId === block.threadId
+    traceGraph.getSpanId(spanRef) === block.spanId &&
+    threadRef != null &&
+    traceGraph.getThreadSourceByRef(threadRef)?.threadId === block.threadId
   );
 }
 
@@ -327,29 +289,20 @@ function getProcessIdBySpanRef(
  * Returns whether one exact span ref remains visible after filtering.
  */
 function isVisibleSpanRef(traceGraph: Readonly<TraceGraph>, spanRef: SpanRef): boolean {
-  const processId = getProcessIdBySpanRef(traceGraph, spanRef);
-  if (!processId) {
-    return false;
-  }
-  return !isSpanRefFiltered(traceGraph, spanRef);
-}
-
-/**
- * Returns whether the exact span ref is filtered in the current visible graph.
- */
-function isSpanRefFiltered(traceGraph: Readonly<TraceGraph>, spanRef: SpanRef): boolean {
-  return traceGraph.spanIsFiltered(spanRef);
+  return !traceGraph.spanIsFiltered(spanRef);
 }
 
 function hasParentKeyword(keywords: ReadonlySet<string>): boolean {
   return [...keywords].some(keyword => keyword.toUpperCase() === PARENT_KEYWORD);
 }
 
-function isParentLocalDependency(dependency: Readonly<{keywords: ReadonlySet<string>}>): boolean {
+function isParentSameProcessDependency(
+  dependency: Readonly<{keywords: ReadonlySet<string>}>
+): boolean {
   return hasParentKeyword(dependency.keywords);
 }
 
-function isParentCrossDependency(
+function isParentCrossProcessDependency(
   dependency: Readonly<{keywords: ReadonlySet<string>; topology: string}>
 ): boolean {
   return hasParentKeyword(dependency.keywords) || dependency.topology === 'parent';
@@ -357,24 +310,24 @@ function isParentCrossDependency(
 
 function isParentDependency(
   dependency:
-    | Readonly<{type: 'trace-local-dependency'; keywords: ReadonlySet<string>}>
+    | Readonly<{type: 'trace-same-process-dependency'; keywords: ReadonlySet<string>}>
     | Readonly<{
         type: 'trace-cross-process-dependency';
         keywords: ReadonlySet<string>;
         topology: string;
       }>
 ): boolean {
-  return dependency.type === 'trace-local-dependency'
-    ? isParentLocalDependency(dependency)
-    : isParentCrossDependency(dependency);
+  return dependency.type === 'trace-same-process-dependency'
+    ? isParentSameProcessDependency(dependency)
+    : isParentCrossProcessDependency(dependency);
 }
 
-function endpointMatchesCrossDependency(params: {
+function endpointMatchesCrossProcessDependency(params: {
   endpoint: TraceCrossProcessEndpoint;
   dependency: TraceCrossProcessDependency;
 }): boolean {
   const {endpoint, dependency} = params;
-  return endpointMatchesCrossDependencyValues({
+  return endpointMatchesCrossProcessDependencyValues({
     endpoint,
     endpointId: dependency.endpointId,
     startRankNum: dependency.startRankNum,
@@ -385,7 +338,7 @@ function endpointMatchesCrossDependency(params: {
 /**
  * Returns whether one endpoint matches the scalar identity of a cross-process dependency row.
  */
-function endpointMatchesCrossDependencyValues(params: {
+function endpointMatchesCrossProcessDependencyValues(params: {
   endpoint: TraceCrossProcessEndpoint;
   endpointId: TraceCrossProcessEndpointId;
   startRankNum: number;
@@ -408,17 +361,15 @@ function isUnresolvedCrossEndpoint(params: {
   return !dependencies.some(
     dependency =>
       dependency.type === 'trace-cross-process-dependency' &&
-      endpointMatchesCrossDependency({
+      endpointMatchesCrossProcessDependency({
         endpoint,
         dependency
       })
   );
 }
 
-/**
- * Builds the ref-native parent/child dependency traversal used by extended selection.
- */
-function buildTraceSpanDependencySelection(params: {
+/** Builds parent/child dependency traversal over visible dependencies keyed by span refs. */
+export function getTraceSpanDependencySelection(params: {
   /** Origin span ref for the traversal. */
   spanRef: SpanRef;
   /** Visible trace graph used for dependency lookup. */
@@ -431,7 +382,7 @@ function buildTraceSpanDependencySelection(params: {
   downLimit?: number;
 }): TraceSpanDependencySelection {
   const {spanRef, traceGraph, keywords} = params;
-  const originSpanId = traceGraph.getVisibleSpanId(spanRef);
+  const originSpanId = traceGraph.isSpanVisible(spanRef) ? traceGraph.getSpanId(spanRef) : null;
   if (!originSpanId) {
     if (isTraceDependencySelectionProbeEnabled()) {
       log.probe(0, 'TraceGraph dependency selection', {
@@ -451,12 +402,12 @@ function buildTraceSpanDependencySelection(params: {
   const spanRefs: SpanRef[] = [spanRef];
   const parentSpanRefs: SpanRef[] = [];
   const childSpanRefs: SpanRef[] = [];
-  const visibleLocalDependencyRefs = new Set<VisibleLocalDependencyRef>();
-  const visibleCrossDependencyRefs = new Set<VisibleCrossDependencyRef>();
-  const parentLocalDependencyRefs = new Set<VisibleLocalDependencyRef>();
-  const parentCrossDependencyRefs = new Set<VisibleCrossDependencyRef>();
-  const childLocalDependencyRefs = new Set<VisibleLocalDependencyRef>();
-  const childCrossDependencyRefs = new Set<VisibleCrossDependencyRef>();
+  const visibleSameProcessDependencyRefs = new Set<SameProcessDependencyRef>();
+  const visibleCrossProcessDependencyRefs = new Set<CrossProcessDependencyRef>();
+  const parentSameProcessDependencyRefs = new Set<SameProcessDependencyRef>();
+  const parentCrossProcessDependencyRefs = new Set<CrossProcessDependencyRef>();
+  const childSameProcessDependencyRefs = new Set<SameProcessDependencyRef>();
+  const childCrossProcessDependencyRefs = new Set<CrossProcessDependencyRef>();
   type TraceGraphTraversalNode = {
     /** Visible block id for this traversal frontier node. */
     spanId: TraceSpanId;
@@ -502,40 +453,39 @@ function buildTraceSpanDependencySelection(params: {
   let upCount = 0;
   let downCount = 0;
 
-  const recordDependency = (dependency: TraceDependencySource, direction: 'up' | 'down') => {
+  const recordDependency = (
+    dependency: TraceDependencyTraversalSource,
+    direction: 'up' | 'down'
+  ) => {
     if (dependency.type === 'trace-cross-process-dependency') {
-      const rawDependencyRef = dependency.dependencyRef;
-      const dependencyRef =
-        rawDependencyRef != null && isVisibleCrossDependencyRef(rawDependencyRef)
-          ? rawDependencyRef
-          : rawDependencyRef != null && isCrossDependencyRef(rawDependencyRef)
-            ? traceGraph.getVisibleCrossDependencyRefBySourceRef(rawDependencyRef)
-            : null;
-      if (dependencyRef == null) {
+      const dependencyRef = dependency.dependencyRef;
+      if (
+        dependencyRef == null ||
+        !isCrossProcessDependencyRef(dependencyRef) ||
+        !traceGraph.isDependencyVisible(dependencyRef)
+      ) {
         return;
       }
-      visibleCrossDependencyRefs.add(dependencyRef);
+      visibleCrossProcessDependencyRefs.add(dependencyRef);
       if (direction === 'up') {
-        parentCrossDependencyRefs.add(dependencyRef);
+        parentCrossProcessDependencyRefs.add(dependencyRef);
       } else {
-        childCrossDependencyRefs.add(dependencyRef);
+        childCrossProcessDependencyRefs.add(dependencyRef);
       }
     } else {
-      const rawDependencyRef = dependency.dependencyRef;
-      const dependencyRef =
-        rawDependencyRef != null && isVisibleLocalDependencyRef(rawDependencyRef)
-          ? rawDependencyRef
-          : rawDependencyRef != null && isLocalDependencyRef(rawDependencyRef)
-            ? traceGraph.getVisibleLocalDependencyRefBySourceRef(rawDependencyRef)
-            : null;
-      if (dependencyRef == null) {
+      const dependencyRef = dependency.dependencyRef;
+      if (
+        dependencyRef == null ||
+        !isSameProcessDependencyRef(dependencyRef) ||
+        !traceGraph.isDependencyVisible(dependencyRef)
+      ) {
         return;
       }
-      visibleLocalDependencyRefs.add(dependencyRef);
+      visibleSameProcessDependencyRefs.add(dependencyRef);
       if (direction === 'up') {
-        parentLocalDependencyRefs.add(dependencyRef);
+        parentSameProcessDependencyRefs.add(dependencyRef);
       } else {
-        childLocalDependencyRefs.add(dependencyRef);
+        childSameProcessDependencyRefs.add(dependencyRef);
       }
     }
   };
@@ -561,7 +511,7 @@ function buildTraceSpanDependencySelection(params: {
   const getDependenciesForNode = (
     currentNode: TraceGraphTraversalNode,
     direction: 'incoming' | 'outgoing'
-  ): TraceDependencySource[] => {
+  ): TraceDependencyTraversalSource[] => {
     return getVisibleDependencySourcesForSpanDirection({
       traceGraph,
       spanRef: currentNode.spanRef,
@@ -579,12 +529,18 @@ function buildTraceSpanDependencySelection(params: {
     for (const dependency of dependenciesForBlock) {
       if (
         dependency.endSpanRef !== currentNode.spanRef ||
-        !dependencyMatchesSelectionKeywords(dependency, keywords)
+        !dependencyTraversalSourceMatchesSelectionKeywords(traceGraph, dependency, keywords)
       ) {
         continue;
       }
       recordDependency(dependency, 'up');
-      const nextSpanId = dependency.startSpanId;
+      const nextSpanId =
+        dependency.type === 'trace-cross-process-dependency'
+          ? traceGraph.getDependencyStartBlockId(dependency.dependencyRef)
+          : dependency.startSpanId;
+      if (nextSpanId == null) {
+        continue;
+      }
       const nextNode = resolveNextSpanRef({
         spanId: nextSpanId,
         processId:
@@ -611,12 +567,18 @@ function buildTraceSpanDependencySelection(params: {
     for (const dependency of dependenciesForBlock) {
       if (
         dependency.startSpanRef !== currentNode.spanRef ||
-        !dependencyMatchesSelectionKeywords(dependency, keywords)
+        !dependencyTraversalSourceMatchesSelectionKeywords(traceGraph, dependency, keywords)
       ) {
         continue;
       }
       recordDependency(dependency, 'down');
-      const nextSpanId = dependency.endSpanId;
+      const nextSpanId =
+        dependency.type === 'trace-cross-process-dependency'
+          ? traceGraph.getDependencyEndBlockId(dependency.dependencyRef)
+          : dependency.endSpanId;
+      if (nextSpanId == null) {
+        continue;
+      }
       const nextNode = resolveNextSpanRef({
         spanId: nextSpanId,
         processId:
@@ -638,12 +600,12 @@ function buildTraceSpanDependencySelection(params: {
     parentSpanRefs,
     childSpanRefs,
     spanRefs,
-    parentLocalDependencyRefs: Array.from(parentLocalDependencyRefs),
-    parentCrossDependencyRefs: Array.from(parentCrossDependencyRefs),
-    childLocalDependencyRefs: Array.from(childLocalDependencyRefs),
-    childCrossDependencyRefs: Array.from(childCrossDependencyRefs),
-    visibleLocalDependencyRefs: Array.from(visibleLocalDependencyRefs),
-    visibleCrossDependencyRefs: Array.from(visibleCrossDependencyRefs)
+    parentSameProcessDependencyRefs: Array.from(parentSameProcessDependencyRefs),
+    parentCrossProcessDependencyRefs: Array.from(parentCrossProcessDependencyRefs),
+    childSameProcessDependencyRefs: Array.from(childSameProcessDependencyRefs),
+    childCrossProcessDependencyRefs: Array.from(childCrossProcessDependencyRefs),
+    visibleSameProcessDependencyRefs: Array.from(visibleSameProcessDependencyRefs),
+    visibleCrossProcessDependencyRefs: Array.from(visibleCrossProcessDependencyRefs)
   };
   if (isTraceDependencySelectionProbeEnabled()) {
     log.probe(0, 'TraceGraph dependency selection', {
@@ -654,24 +616,28 @@ function buildTraceSpanDependencySelection(params: {
       parentSpanRefCount: parentSpanRefs.length,
       childSpanRefCount: childSpanRefs.length,
       spanRefCount: spanRefs.length,
-      parentLocalDependencyRefCount: parentLocalDependencyRefs.size,
-      parentCrossDependencyRefCount: parentCrossDependencyRefs.size,
-      childLocalDependencyRefCount: childLocalDependencyRefs.size,
-      childCrossDependencyRefCount: childCrossDependencyRefs.size,
-      visibleLocalDependencyRefCount: visibleLocalDependencyRefs.size,
-      visibleCrossDependencyRefCount: visibleCrossDependencyRefs.size,
+      parentSameProcessDependencyRefCount: parentSameProcessDependencyRefs.size,
+      parentCrossProcessDependencyRefCount: parentCrossProcessDependencyRefs.size,
+      childSameProcessDependencyRefCount: childSameProcessDependencyRefs.size,
+      childCrossProcessDependencyRefCount: childCrossProcessDependencyRefs.size,
+      visibleSameProcessDependencyRefCount: visibleSameProcessDependencyRefs.size,
+      visibleCrossProcessDependencyRefCount: visibleCrossProcessDependencyRefs.size,
       parentSpanIds: parentSpanRefs
         .slice(0, 10)
-        .map(parentSpanRef => traceGraph.getVisibleSpanId(parentSpanRef)),
+        .map(parentSpanRef =>
+          traceGraph.isSpanVisible(parentSpanRef) ? traceGraph.getSpanId(parentSpanRef) : null
+        ),
       childSpanIds: childSpanRefs
         .slice(0, 10)
-        .map(childSpanRef => traceGraph.getVisibleSpanId(childSpanRef)),
-      visibleLocalDependencyIds: selection.visibleLocalDependencyRefs
+        .map(childSpanRef =>
+          traceGraph.isSpanVisible(childSpanRef) ? traceGraph.getSpanId(childSpanRef) : null
+        ),
+      visibleSameProcessDependencyIds: selection.visibleSameProcessDependencyRefs
         .slice(0, 10)
-        .map(dependencyRef => traceGraph.getVisibleDependencyIdByRef(dependencyRef)),
-      visibleCrossDependencyIds: selection.visibleCrossDependencyRefs
+        .map(dependencyRef => traceGraph.getDependencyId(dependencyRef)),
+      visibleCrossProcessDependencyIds: selection.visibleCrossProcessDependencyRefs
         .slice(0, 10)
-        .map(dependencyRef => traceGraph.getVisibleDependencyIdByRef(dependencyRef))
+        .map(dependencyRef => traceGraph.getDependencyId(dependencyRef))
     })();
   }
   return selection;
@@ -686,12 +652,12 @@ function createEmptyTraceSpanDependencySelection(spanRef: SpanRef): TraceSpanDep
     parentSpanRefs: [],
     childSpanRefs: [],
     spanRefs: [],
-    parentLocalDependencyRefs: [],
-    parentCrossDependencyRefs: [],
-    childLocalDependencyRefs: [],
-    childCrossDependencyRefs: [],
-    visibleLocalDependencyRefs: [],
-    visibleCrossDependencyRefs: []
+    parentSameProcessDependencyRefs: [],
+    parentCrossProcessDependencyRefs: [],
+    childSameProcessDependencyRefs: [],
+    childCrossProcessDependencyRefs: [],
+    visibleSameProcessDependencyRefs: [],
+    visibleCrossProcessDependencyRefs: []
   };
 }
 
@@ -705,10 +671,24 @@ function getVisibleDependencySourcesForSpanDirection(params: {
   spanRef: SpanRef;
   /** Directional dependency list to read. */
   direction: 'incoming' | 'outgoing';
-}): TraceDependencySource[] {
-  return [
-    ...params.traceGraph.getSpanDirectionalDependencySources(params.spanRef, params.direction)
-  ];
+}): TraceDependencyTraversalSource[] {
+  const dependencies: TraceDependencyTraversalSource[] = [];
+  for (const dependencySource of params.traceGraph.getSpanDirectionalDependencySources(
+    params.spanRef,
+    params.direction
+  )) {
+    if (dependencySource.type === 'trace-same-process-dependency') {
+      if (dependencySource.dependencyRef != null) {
+        dependencies.push(dependencySource);
+      }
+      continue;
+    }
+    if (dependencySource.dependencyRef == null) {
+      continue;
+    }
+    dependencies.push(dependencySource);
+  }
+  return dependencies;
 }
 
 /**
@@ -751,11 +731,44 @@ function isTraceDependencySelectionProbeEnabled(): boolean {
 }
 
 /**
+ * Returns whether one ref-native traversal source carries an accepted selection keyword.
+ */
+function dependencyTraversalSourceMatchesSelectionKeywords(
+  traceGraph: Readonly<TraceGraph>,
+  dependency: TraceDependencyTraversalSource,
+  keywords: ReadonlySet<string>
+): boolean {
+  if (dependency.type === 'trace-same-process-dependency') {
+    return dependencyMatchesSelectionKeywords(dependency, keywords);
+  }
+  if (keywords.size === 0) {
+    return true;
+  }
+  const dependencyKeywords = traceGraph.getDependencyKeywords(dependency.dependencyRef);
+  if (dependencyKeywords == null) {
+    return false;
+  }
+  const topology = traceGraph.getCrossProcessDependencyTopology(dependency.dependencyRef) ?? '';
+  if (
+    hasParentKeyword(keywords) &&
+    isParentCrossProcessDependency({keywords: dependencyKeywords, topology})
+  ) {
+    return true;
+  }
+  for (const keyword of keywords) {
+    if (hasCaseInsensitiveKeyword(dependencyKeywords, keyword)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Returns whether a dependency should participate in a keyword-restricted selection traversal.
  */
 function dependencyMatchesSelectionKeywords(
   dependency:
-    | Readonly<{type: 'trace-local-dependency'; keywords: ReadonlySet<string>}>
+    | Readonly<{type: 'trace-same-process-dependency'; keywords: ReadonlySet<string>}>
     | Readonly<{
         type: 'trace-cross-process-dependency';
         keywords: ReadonlySet<string>;
@@ -786,17 +799,20 @@ function hasCaseInsensitiveKeyword(keywords: ReadonlySet<string>, targetKeyword:
 }
 
 /**
- * Builds the selected-overlay source for one visible local dependency ref.
+ * Builds the selected-overlay source for one visible same-process dependency ref.
  */
-function getVisibleSelectedLocalDependencySource(params: {
+function getVisibleSelectedSameProcessDependencySource(params: {
   /** Trace graph containing visible dependency lookup tables. */
   traceGraph: Readonly<TraceGraph>;
-  /** Visible local dependency ref to resolve. */
-  dependencyRef: VisibleLocalDependencyRef;
+  /** Visible same-process dependency ref to resolve. */
+  dependencyRef: SameProcessDependencyRef;
   /** Direction of the selected dependency relative to the selected origin span. */
   selectedDirection?: TraceSelectedDependencyDirection;
-}): TraceGraphSelectedLocalDependencySource | null {
-  const processRef = params.traceGraph.getVisibleLocalDependencyProcessRefByRef(
+}): TraceGraphSelectedSameProcessDependencySource | null {
+  if (!params.traceGraph.isDependencyVisible(params.dependencyRef)) {
+    return null;
+  }
+  const processRef = params.traceGraph.getSameProcessDependencyProcessRefByRef(
     params.dependencyRef
   );
   if (processRef == null) {
@@ -806,40 +822,37 @@ function getVisibleSelectedLocalDependencySource(params: {
     dependencyRef: params.dependencyRef,
     processRef,
     selectedDirection: params.selectedDirection ?? 'incoming',
-    waitTimeMs: params.traceGraph.getVisibleDependencyWaitTimeMs(params.dependencyRef) ?? 0,
-    bidirectional:
-      params.traceGraph.getVisibleDependencyBidirectional(params.dependencyRef) === true
+    waitTimeMs: params.traceGraph.getDependencyWaitTimeMs(params.dependencyRef) ?? 0,
+    bidirectional: params.traceGraph.getDependencyBidirectional(params.dependencyRef) === true
   };
 }
 
 /**
  * Resolves a locally-scoped dependency id from an unbranded row index.
  */
-function getVisibleSelectedLocalDependencySourceByLegacyRowIndex(params: {
-  /** Trace graph containing process-local local-dependency tables. */
+function getVisibleSelectedSameProcessDependencySourceByLegacyRowIndex(params: {
+  /** Trace graph containing process-local same-process-dependency tables. */
   traceGraph: Readonly<TraceGraph>;
-  /** Unbranded process-local dependency row index. */
+  /** Unbranded same-process dependency row index. */
   dependencyRowIndex: number;
-}): TraceGraphSelectedLocalDependencySource | null {
+}): TraceGraphSelectedSameProcessDependencySource | null {
   if (!Number.isSafeInteger(params.dependencyRowIndex) || params.dependencyRowIndex < 0) {
     return null;
   }
 
   for (const [processIndex, processId] of params.traceGraph.processIdsByIndex.entries()) {
-    const dependencyTable = params.traceGraph.localDependencyTableMap[processId];
+    const dependencyTable = params.traceGraph.sameProcessDependencyTableMap[processId];
     if (!dependencyTable || params.dependencyRowIndex >= dependencyTable.numRows) {
       continue;
     }
 
-    const sourceDependencyRef = encodeLocalDependencyRef(
+    const sourceDependencyRef = encodeSameProcessDependencyRef(
       encodeLocalSpanRef(processIndex, params.dependencyRowIndex)
     );
-    const dependencyRef =
-      params.traceGraph.getVisibleLocalDependencyRefBySourceRef(sourceDependencyRef);
-    const source = dependencyRef
-      ? getVisibleSelectedLocalDependencySource({
+    const source = params.traceGraph.isDependencyVisible(sourceDependencyRef)
+      ? getVisibleSelectedSameProcessDependencySource({
           traceGraph: params.traceGraph,
-          dependencyRef,
+          dependencyRef: sourceDependencyRef,
           selectedDirection: 'incoming'
         })
       : null;
@@ -852,56 +865,51 @@ function getVisibleSelectedLocalDependencySourceByLegacyRowIndex(params: {
 }
 
 /**
- * Builds the selected-overlay source for one visible cross dependency ref.
+ * Builds the selected-overlay source for one visible cross-process dependency ref.
  */
-function getVisibleSelectedCrossDependencySource(params: {
+function getVisibleSelectedCrossProcessDependencySource(params: {
   /** Trace graph containing visible dependency lookup tables. */
   traceGraph: Readonly<TraceGraph>;
-  /** Visible cross dependency ref to resolve. */
-  dependencyRef: VisibleCrossDependencyRef;
+  /** Visible cross-process dependency ref to resolve. */
+  dependencyRef: CrossProcessDependencyRef;
   /** Direction of the selected dependency relative to the selected origin span. */
   selectedDirection?: TraceSelectedDependencyDirection;
-}): TraceGraphSelectedCrossDependencySource | null {
-  const visibleDependency = params.traceGraph.getVisibleDependencyRenderSourceByRef(
-    params.dependencyRef
-  );
-  if (!visibleDependency || visibleDependency.type !== 'trace-cross-process-dependency') {
+}): TraceGraphSelectedCrossProcessDependencySource | null {
+  if (!params.traceGraph.isDependencyVisible(params.dependencyRef)) {
     return null;
   }
 
   return {
     dependencyRef: params.dependencyRef,
     selectedDirection: params.selectedDirection ?? 'incoming',
-    waitTimeMs: typeof visibleDependency.waitTimeMs === 'number' ? visibleDependency.waitTimeMs : 0,
-    bidirectional: visibleDependency.bidirectional === true
+    waitTimeMs: params.traceGraph.getDependencyWaitTimeMs(params.dependencyRef) ?? 0,
+    bidirectional: params.traceGraph.getDependencyBidirectional(params.dependencyRef) === true
   };
 }
 
 /**
- * Resolves a visible cross-dependency source from an unbranded row index.
+ * Resolves a visible cross-process-dependency source from an unbranded row index.
  */
-function getVisibleSelectedCrossDependencySourceByLegacyRowIndex(params: {
-  /** Trace graph containing cross-dependency rows. */
+function getVisibleSelectedCrossProcessDependencySourceByLegacyRowIndex(params: {
+  /** Trace graph containing cross-process-dependency rows. */
   traceGraph: Readonly<TraceGraph>;
-  /** Unbranded cross-dependency table row index. */
+  /** Unbranded cross-process-dependency table row index. */
   dependencyRowIndex: number;
-}): TraceGraphSelectedCrossDependencySource | null {
+}): TraceGraphSelectedCrossProcessDependencySource | null {
   const rowIndex = params.dependencyRowIndex;
   if (
     !Number.isSafeInteger(rowIndex) ||
     rowIndex < 0 ||
-    rowIndex >= params.traceGraph.crossDependencyTable.numRows
+    rowIndex >= params.traceGraph.crossProcessDependencyTable.numRows
   ) {
     return null;
   }
 
-  const sourceDependencyRef = encodeCrossDependencyRef(rowIndex);
-  const dependencyRef =
-    params.traceGraph.getVisibleCrossDependencyRefBySourceRef(sourceDependencyRef);
-  return dependencyRef
-    ? getVisibleSelectedCrossDependencySource({
+  const sourceDependencyRef = encodeCrossProcessDependencyRef(rowIndex);
+  return params.traceGraph.isDependencyVisible(sourceDependencyRef)
+    ? getVisibleSelectedCrossProcessDependencySource({
         traceGraph: params.traceGraph,
-        dependencyRef,
+        dependencyRef: sourceDependencyRef,
         selectedDirection: 'incoming'
       })
     : null;
@@ -916,7 +924,10 @@ function getVisiblePathBlockSourceBySpanRef(params: {
   /** Exact visible span ref to resolve. */
   spanRef: SpanRef;
 }): TraceGraphPathBlockSource | null {
-  const span = getTraceGraphSpanDisplaySource(params.traceGraph, params.spanRef);
+  if (!params.traceGraph.isSpanVisible(params.spanRef)) {
+    return null;
+  }
+  const span = params.traceGraph.getSpanDetailSource(params.spanRef);
   const spanId = span?.spanId ?? null;
   if (!span || !spanId) {
     return null;
@@ -929,16 +940,19 @@ function getVisiblePathBlockSourceBySpanRef(params: {
 }
 
 /**
- * Builds a path dependency source from an exact visible local dependency ref.
+ * Builds a path dependency source from an exact visible same-process dependency ref.
  */
-function getVisiblePathLocalDependencySourceByRef(params: {
+function getVisiblePathSameProcessDependencySourceByRef(params: {
   /** Trace graph containing visible dependency lookup tables. */
   traceGraph: Readonly<TraceGraph>;
-  /** Exact visible local dependency ref to resolve. */
-  dependencyRef: VisibleLocalDependencyRef;
-}): TraceGraphPathLocalDependencySource | null {
-  const dependency = params.traceGraph.getVisibleDependencySourceByRef(params.dependencyRef);
-  if (!dependency || dependency.type !== 'trace-local-dependency') {
+  /** Exact visible same-process dependency ref to resolve. */
+  dependencyRef: SameProcessDependencyRef;
+}): TraceGraphPathSameProcessDependencySource | null {
+  if (!params.traceGraph.isDependencyVisible(params.dependencyRef)) {
+    return null;
+  }
+  const dependency = params.traceGraph.getDependencySource(params.dependencyRef);
+  if (!dependency || dependency.type !== 'trace-same-process-dependency') {
     return null;
   }
   return {
@@ -948,15 +962,18 @@ function getVisiblePathLocalDependencySourceByRef(params: {
 }
 
 /**
- * Builds a path dependency source from an exact visible cross dependency ref.
+ * Builds a path dependency source from an exact visible cross-process dependency ref.
  */
-function getVisiblePathCrossDependencySourceByRef(params: {
+function getVisiblePathCrossProcessDependencySourceByRef(params: {
   /** Trace graph containing visible dependency lookup tables. */
   traceGraph: Readonly<TraceGraph>;
-  /** Exact visible cross dependency ref to resolve. */
-  dependencyRef: VisibleCrossDependencyRef;
-}): TraceGraphPathCrossDependencySource | null {
-  const dependency = params.traceGraph.getVisibleDependencySourceByRef(params.dependencyRef);
+  /** Exact visible cross-process dependency ref to resolve. */
+  dependencyRef: CrossProcessDependencyRef;
+}): TraceGraphPathCrossProcessDependencySource | null {
+  if (!params.traceGraph.isDependencyVisible(params.dependencyRef)) {
+    return null;
+  }
+  const dependency = params.traceGraph.getDependencySource(params.dependencyRef);
   if (!dependency || dependency.type !== 'trace-cross-process-dependency') {
     return null;
   }
@@ -1012,19 +1029,19 @@ function getVisiblePathDependencySources(params: {
   traceGraph: Readonly<TraceGraph>;
 }): TraceGraphPathDependencySource[] {
   if (
-    (params.path.visibleLocalDependencyRefSet?.size ?? 0) > 0 ||
-    (params.path.visibleCrossDependencyRefSet?.size ?? 0) > 0
+    (params.path.visibleSameProcessDependencyRefSet?.size ?? 0) > 0 ||
+    (params.path.visibleCrossProcessDependencyRefSet?.size ?? 0) > 0
   ) {
     return [
-      ...getRuntimePathVisibleLocalDependencyRefs(params.path).flatMap(dependencyRef => {
-        const source = getVisiblePathLocalDependencySourceByRef({
+      ...getRuntimePathVisibleSameProcessDependencyRefs(params.path).flatMap(dependencyRef => {
+        const source = getVisiblePathSameProcessDependencySourceByRef({
           traceGraph: params.traceGraph,
           dependencyRef
         });
         return source ? [source] : [];
       }),
-      ...getRuntimePathVisibleCrossDependencyRefs(params.path).flatMap(dependencyRef => {
-        const source = getVisiblePathCrossDependencySourceByRef({
+      ...getRuntimePathVisibleCrossProcessDependencyRefs(params.path).flatMap(dependencyRef => {
+        const source = getVisiblePathCrossProcessDependencySourceByRef({
           traceGraph: params.traceGraph,
           dependencyRef
         });
@@ -1059,42 +1076,42 @@ function getOrderedRuntimePathSpanRefs(path: Readonly<TracePath>): SpanRef[] {
 }
 
 /**
- * Returns visible local dependency refs for a path, falling back to dependency ids when needed.
+ * Returns visible same-process dependency refs for a path, falling back to dependency ids when needed.
  */
-function getRuntimePathVisibleLocalDependencyRefs(
+function getRuntimePathVisibleSameProcessDependencyRefs(
   path: Readonly<TracePath>
-): VisibleLocalDependencyRef[] {
-  if ((path.visibleLocalDependencyRefSet?.size ?? 0) > 0) {
-    return Array.from(path.visibleLocalDependencyRefSet);
+): SameProcessDependencyRef[] {
+  if ((path.visibleSameProcessDependencyRefSet?.size ?? 0) > 0) {
+    return Array.from(path.visibleSameProcessDependencyRefSet);
   }
   return [];
 }
 
 /**
- * Returns visible cross dependency refs for a path, falling back to dependency ids when needed.
+ * Returns visible cross-process dependency refs for a path, falling back to dependency ids when needed.
  */
-function getRuntimePathVisibleCrossDependencyRefs(
+function getRuntimePathVisibleCrossProcessDependencyRefs(
   path: Readonly<TracePath>
-): VisibleCrossDependencyRef[] {
-  if ((path.visibleCrossDependencyRefSet?.size ?? 0) > 0) {
-    return Array.from(path.visibleCrossDependencyRefSet);
+): CrossProcessDependencyRef[] {
+  if ((path.visibleCrossProcessDependencyRefSet?.size ?? 0) > 0) {
+    return Array.from(path.visibleCrossProcessDependencyRefSet);
   }
   return [];
 }
 
 /**
- * Resolves a tagged cross-dependency reference to a row index.
+ * Resolves a tagged cross-process-dependency reference to a row index.
  */
-function getTaggedCrossDependencyRefRowIndex(
-  dependencyRef: CrossDependencyRef,
+function getTaggedCrossProcessDependencyRefRowIndex(
+  dependencyRef: CrossProcessDependencyRef,
   traceGraph: Readonly<TraceGraph>
 ): number | null {
-  if (!isCrossDependencyRef(dependencyRef)) {
+  if (!isCrossProcessDependencyRef(dependencyRef)) {
     return null;
   }
 
-  const rowIndex = getCrossDependencyRefIndex(dependencyRef);
-  return rowIndex < traceGraph.crossDependencyTable.numRows ? rowIndex : null;
+  const rowIndex = getCrossProcessDependencyRefIndex(dependencyRef);
+  return rowIndex < traceGraph.crossProcessDependencyTable.numRows ? rowIndex : null;
 }
 
 function setTraceChildDependencyTraversalProbe(enabled: boolean): void {
@@ -1166,7 +1183,7 @@ function isTraceChildDependentTraversalProbeEnabled(): boolean {
 function buildTraceSpanDescendants(params: {
   /** Origin block whose descendants should be traversed. */
   block: Readonly<TraceSpan>;
-  /** Trace graph supplying visible/source dependency projections. */
+  /** Trace graph supplying visible/source dependency refs. */
   traceGraph: Readonly<TraceGraph>;
   /** Whether hidden spans should be included in traversal output. */
   includeHidden: boolean;
@@ -1189,7 +1206,6 @@ function buildTraceSpanDescendants(params: {
     (params.maxTraversalNodes as number) <= 0
       ? Number.POSITIVE_INFINITY
       : Math.floor(params.maxTraversalNodes as number);
-  const projection = includeHidden ? traceGraph.getSourceProjection() : traceGraph.getProjection();
   const blockSpanRef = getSelectedCardSpanRef(traceGraph, block);
   if (blockSpanRef == null) {
     return {
@@ -1210,7 +1226,7 @@ function buildTraceSpanDescendants(params: {
       includeHidden,
       limit: normalizedLimit,
       maxTraversalNodes: normalizedMaxTraversalNodes,
-      projection: includeHidden ? 'source' : 'visible',
+      dependencyView: includeHidden ? 'source' : 'visible',
       keywordCount: keywords.size
     })();
   }
@@ -1231,7 +1247,8 @@ function buildTraceSpanDescendants(params: {
   };
   const initialChildDependencies = getTraceGraphDescendantChildDependencies({
     spanRef: blockSpanRef,
-    projection,
+    traceGraph,
+    includeHidden,
     keywords,
     getChildSortKey,
     sort: true,
@@ -1290,11 +1307,10 @@ function buildTraceSpanDescendants(params: {
     stats.maxDepth = Math.max(stats.maxDepth, currentEntry.depth);
 
     let emittedChildBlock: TraceSpan | null = null;
-    const shouldEmit =
-      includeHidden || traceGraph.getVisibleDisplaySourceBySpanRef(childSpanRef) != null;
+    const shouldEmit = includeHidden || traceGraph.isSpanVisible(childSpanRef);
     if (shouldEmit) {
       stats.blockLookupCalls += 1;
-      emittedChildBlock = getTraceGraphDescendantDisplayBlock({
+      emittedChildBlock = getTraceGraphDescendantBlock({
         traceGraph,
         spanRef: childSpanRef
       });
@@ -1328,8 +1344,9 @@ function buildTraceSpanDescendants(params: {
 
     const childDependencies = getTraceGraphDescendantChildDependencies({
       spanRef: childSpanRef,
+      traceGraph,
+      includeHidden,
       keywords,
-      projection,
       getChildSortKey,
       sort: emittedEntryCount < normalizedLimit,
       sortBudget: Math.max(0, normalizedLimit - emittedEntryCount),
@@ -1446,37 +1463,14 @@ function getDescendantChildSortKeys(
 }
 
 /**
- * Builds a lightweight block-shaped row from an Arrow display source for descendant rendering.
+ * Resolves a lightweight descendant block from ref-native graph accessors.
  */
-function buildTraceSpanFromDisplaySource(sourceBlock: Readonly<TraceSpanDisplaySource>): TraceSpan {
-  return {
-    type: 'trace-span',
-    spanRef: sourceBlock.spanRef,
-    spanId: sourceBlock.spanId,
-    threadId: sourceBlock.threadId,
-    processName: sourceBlock.processName,
-    name: sourceBlock.name,
-    keywords: [...sourceBlock.keywords],
-    primaryTimingKey: sourceBlock.primaryTimingKey,
-    timings: sourceBlock.timings,
-    localDependencyIds: [...sourceBlock.localDependencyIds],
-    localDependencies: [],
-    crossProcessEndpointId: sourceBlock.crossProcessEndpointId,
-    crossProcessDependencyEndpoints: [...sourceBlock.crossProcessDependencyEndpoints],
-    userData: sourceBlock.userData
-  } satisfies TraceSpan;
-}
-
-/**
- * Resolves a lightweight descendant block without paying full TraceSpan compatibility cost.
- */
-function getTraceGraphDescendantDisplayBlock(params: {
+function getTraceGraphDescendantBlock(params: {
   traceGraph: Readonly<TraceGraph>;
-  /** Descendant span ref resolved into a lightweight display block. */
+  /** Descendant span ref resolved into a lightweight block. */
   spanRef: SpanRef;
 }): TraceSpan | null {
-  const sourceBlock = getTraceGraphSpanDisplaySource(params.traceGraph, params.spanRef);
-  return sourceBlock ? buildTraceSpanFromDisplaySource(sourceBlock) : null;
+  return buildTraceSpanBySpanRef(params.traceGraph, params.spanRef);
 }
 
 /**
@@ -1485,8 +1479,10 @@ function getTraceGraphDescendantDisplayBlock(params: {
 function getTraceGraphDescendantChildDependencies(params: {
   /** Exact current span ref whose outgoing dependencies should be inspected. */
   spanRef: SpanRef;
-  /** Dependency projection used for visible or source traversal. */
-  projection: TraceGraphProjection;
+  /** Graph whose canonical refs are scanned for hidden-span traversal. */
+  traceGraph: Readonly<TraceGraph>;
+  /** Whether traversal should include filtered source dependencies. */
+  includeHidden: boolean;
   /** Dependency keywords accepted by the traversal. */
   keywords: ReadonlySet<string>;
   /** Resolver for stable child sort keys. */
@@ -1501,7 +1497,12 @@ function getTraceGraphDescendantChildDependencies(params: {
   if (params.stats) {
     params.stats.outgoingTraversalCalls += 1;
   }
-  const dependencies = params.projection.outDependenciesBySpanRef.get(params.spanRef) ?? [];
+  const dependencies = getTouchedTraceGraphDependenciesForSpanDirection({
+    traceGraph: params.traceGraph,
+    spanRef: params.spanRef,
+    direction: 'outgoing',
+    visibleOnly: !params.includeHidden
+  });
   if (params.stats) {
     params.stats.candidateDependencyCount += dependencies.length;
   }
@@ -1578,6 +1579,60 @@ function getTraceGraphDescendantChildDependencies(params: {
     params.stats.validDependencyCount += filteredDependencies.length;
   }
   return filteredDependencies;
+}
+
+/** Materializes only dependency rows touched by one directional traversal step. */
+function getTouchedTraceGraphDependenciesForSpanDirection(params: {
+  /** Graph whose directional dependency refs should be read. */
+  traceGraph: Readonly<TraceGraph>;
+  /** Exact span ref whose incoming or outgoing dependencies should be inspected. */
+  spanRef: SpanRef;
+  /** Direction relative to the selected span. */
+  direction: 'incoming' | 'outgoing';
+  /** Whether only dependencies with visible canonical endpoints should participate. */
+  visibleOnly: boolean;
+}): readonly TraceDependency[] {
+  const {traceGraph, spanRef, direction, visibleOnly} = params;
+  const dependencyRefs = visibleOnly
+    ? traceGraph.getVisibleDirectionalDependencyRefSlice(
+        spanRef,
+        direction,
+        Number.POSITIVE_INFINITY
+      ).dependencyRefs
+    : (() => {
+        const sourceDependencyRefs = traceGraph.getSpanDirectionalDependencyRefs(
+          spanRef,
+          direction
+        );
+        return [
+          ...sourceDependencyRefs.sameProcessDependencyRefs,
+          ...sourceDependencyRefs.crossProcessDependencyRefs
+        ];
+      })();
+  const dependencies: TraceDependency[] = [];
+  for (const dependencyRef of dependencyRefs) {
+    if (isSameProcessDependencyRef(dependencyRef)) {
+      const dependencySource = traceGraph.getDependencySource(dependencyRef);
+      if (dependencySource?.type !== 'trace-same-process-dependency') {
+        continue;
+      }
+      dependencies.push({
+        ...dependencySource,
+        keywords: new Set(dependencySource.keywords)
+      } satisfies TraceSameProcessDependency);
+      continue;
+    }
+
+    if (!isCrossProcessDependencyRef(dependencyRef)) {
+      continue;
+    }
+    const dependency = materializeTraceCrossProcessDependencyFromArrowRow({
+      crossProcessDependencyTable: traceGraph.crossProcessDependencyTable,
+      rowIndex: getCrossProcessDependencyRefIndex(dependencyRef)
+    });
+    dependencies.push(dependency);
+  }
+  return dependencies;
 }
 
 /** Captures descendant traversal metrics for optional trace logging. */
@@ -1704,14 +1759,18 @@ export function getTraceSpanChildDependenciesFromTraceGraph(
   if (blockSpanRef == null) {
     return [];
   }
-  const outgoingDependencies =
-    traceGraph.getProjection().outDependenciesBySpanRef.get(blockSpanRef) ?? [];
+  const outgoingDependencies = getTouchedTraceGraphDependenciesForSpanDirection({
+    traceGraph,
+    spanRef: blockSpanRef,
+    direction: 'outgoing',
+    visibleOnly: true
+  });
 
   return [...outgoingDependencies]
-    .filter(dependency => getVisibleDependencyStartSpanRef(traceGraph, dependency) === blockSpanRef)
+    .filter(dependency => getDependencyStartSpanRef(traceGraph, dependency) === blockSpanRef)
     .filter(isParentDependency)
     .map(dependency => {
-      const childBlock = getTraceGraphDescendantDisplayBlock({
+      const childBlock = getTraceGraphDescendantBlock({
         traceGraph,
         spanRef: dependency.endSpanRef!
       });
@@ -1727,7 +1786,7 @@ export function getTraceSpanChildDependenciesFromTraceGraph(
 /**
  * Resolves the visible source span ref for one dependency after filtered-view rewrites.
  */
-function getVisibleDependencyStartSpanRef(
+function getDependencyStartSpanRef(
   traceGraph: Readonly<TraceGraph>,
   dependency: Readonly<TraceDependency>
 ): SpanRef | null {
@@ -1735,10 +1794,14 @@ function getVisibleDependencyStartSpanRef(
     return dependency.startSpanRef;
   }
 
-  const visibleDependencyRef = traceGraph.getVisibleDependencyRefForDependency(dependency);
-  if (visibleDependencyRef == null) {
+  const dependencyRef = dependency.dependencyRef;
+  if (
+    dependencyRef == null ||
+    (!isSameProcessDependencyRef(dependencyRef) && !isCrossProcessDependencyRef(dependencyRef)) ||
+    !traceGraph.isDependencyVisible(dependencyRef)
+  ) {
     return null;
   }
 
-  return traceGraph.getVisibleDependencyStartSpan(visibleDependencyRef);
+  return traceGraph.getDependencyStartSpan(dependencyRef);
 }

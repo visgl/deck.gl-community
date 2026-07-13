@@ -11,7 +11,7 @@ import type {
   TraceThread,
   TraceThreadId
 } from '../trace-graph/trace-types';
-import type {TraceRunSummary} from './trace-run-summary';
+import type {SyntheticRunSummary} from './run-summary-v2';
 
 function createProcess(params: {
   processId: string;
@@ -46,8 +46,8 @@ function createProcess(params: {
         durationMsAsString: `${params.endTimeMs - params.startTimeMs}ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -68,50 +68,50 @@ function createProcess(params: {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: [],
     userData: params.userData
   };
 }
 
-export function buildJSONTraceFromRunSummary(_summary: TraceRunSummary): JSONTrace {
-  const sourceProcess = createProcess({
-    processId: 'source',
+export function buildJSONTraceFromSyntheticRunSummary(_summary: SyntheticRunSummary): JSONTrace {
+  const headProcess = createProcess({
+    processId: 'head',
     rankNum: 0,
-    name: 'Source',
-    threadName: 'source-thread',
-    blockName: 'source-parent',
+    name: 'Head',
+    threadName: 'head-thread',
+    blockName: 'head-parent',
     startTimeMs: 0,
     endTimeMs: 1_000,
-    userData: {role: 'source'}
+    userData: {role: 'head'}
   });
-  const targetProcess = createProcess({
-    processId: 'target-1',
+  const logicalProcess = createProcess({
+    processId: 'logical-1',
     rankNum: 1,
     name: 'Proc A',
     threadName: 'Thread A',
-    blockName: 'target-child',
+    blockName: 'logical-child',
     startTimeMs: 2_000,
     endTimeMs: 3_000
   });
   const dependency: TraceCrossProcessDependency = {
     type: 'trace-cross-process-dependency',
-    dependencyId: 'source-to-target' as TraceDependencyId,
-    endpointId: 'source-to-target:endpoint' as TraceCrossProcessEndpointId,
-    startRankNum: sourceProcess.rankNum,
-    endRankNum: targetProcess.rankNum,
-    startSpanId: sourceProcess.spans[0]!.spanId,
-    endSpanId: targetProcess.spans[0]!.spanId,
+    dependencyId: 'head-to-logical' as TraceDependencyId,
+    endpointId: 'head-to-logical:endpoint' as TraceCrossProcessEndpointId,
+    startRankNum: headProcess.rankNum,
+    endRankNum: logicalProcess.rankNum,
+    startSpanId: headProcess.spans[0]!.spanId,
+    endSpanId: logicalProcess.spans[0]!.spanId,
     waitMode: 'end-to-start',
     bidirectional: false,
-    topology: 'source-to-target',
+    topology: 'head-to-logical',
     waitTimeMs: 1_000,
     waiting: false,
     waitNotFinished: false,
     keywords: new Set()
   };
 
-  return buildJSONTrace([sourceProcess, targetProcess], [dependency], {
-    name: 'source-to-target-stub'
+  return buildJSONTrace([headProcess, logicalProcess], [dependency], {
+    name: 'head-to-logical-stub'
   });
 }

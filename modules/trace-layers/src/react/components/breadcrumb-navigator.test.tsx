@@ -2,10 +2,10 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {DEFAULT_TRACE_STYLE, TRACE_SPAN_FILTER_MASK_SOURCE} from '../../trace/index';
+import {DEFAULT_TRACE_STYLE, TRACE_SPAN_FILTER_MASK_SOURCE} from '../../trace';
 import {BreadcrumbNavigator} from './breadcrumb-navigator';
 
-import type {SpanRef, TraceGraph} from '../../trace/index';
+import type {SpanRef, TraceGraph} from '../../trace';
 import type {TraceBreadcrumbEntry} from './breadcrumb-navigator';
 import type {Root} from 'react-dom/client';
 

@@ -3,8 +3,8 @@ import {createColorWheel, getPerfettoSliceColor, interpolateColor} from './color
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
 import type {
   SpanRef,
-  TraceProcess,
-  TraceSpan,
+  TraceSpanAttributePath,
+  TraceSpanTiming,
   TraceThread,
   TraceThreadId
 } from '../trace-graph/trace-types';
@@ -14,22 +14,6 @@ export type TraceColor = Readonly<[number, number, number, number]>;
 
 /** RGBA tuple used by deck renderers. */
 export type TraceDeckColor = TraceColor;
-
-/** Minimal span payload required by color-scheme hooks. */
-export type TraceSpanColorSource = Pick<
-  TraceSpan,
-  | 'spanRef'
-  | 'spanId'
-  | 'threadId'
-  | 'processName'
-  | 'name'
-  | 'keywords'
-  | 'primaryTimingKey'
-  | 'timings'
-  | 'crossProcessEndpointId'
-  | 'crossProcessDependencyEndpoints'
-  | 'userData'
->;
 
 /** Optional span-level colors returned by a combined color style hook. */
 export type TraceSpanColorStyle = {
@@ -41,10 +25,8 @@ export type TraceSpanColorStyle = {
   spanTextColor?: TraceColor;
 };
 
-/** Input passed to span color hooks. */
-export type TraceSpanColorParams = {
-  /** Span currently being styled. */
-  span: TraceSpanColorSource;
+/** Shared visualization context passed to ref-native span color hooks. */
+export type TraceSpanColorContext = {
   /** Active visualization settings. */
   settings: TraceVisSettings;
   /** Optional path context used by critical-path highlighting. */
@@ -65,12 +47,14 @@ export type TraceSpanColorAccessorSource = {
   getSpanName(spanRef: SpanRef): string | null;
   /** Returns keyword labels for one span ref. */
   getSpanKeywords(spanRef: SpanRef): readonly string[];
-  /** Returns decoded user data for one span ref. */
-  getSpanUserData(spanRef: SpanRef): Record<string, unknown> | undefined;
+  /** Returns one declared row-aligned user-data attribute for one span ref. */
+  getSpanAttribute(spanRef: SpanRef, path: TraceSpanAttributePath): unknown;
+  /** Returns whether every loaded span table declares one optional attribute path. */
+  hasSpanAttribute?(path: TraceSpanAttributePath): boolean;
   /** Returns the primary timing key for one span ref. */
   getSpanPrimaryTimingKey(spanRef: SpanRef): string | null;
   /** Returns the primary timing status for one span ref. */
-  getSpanStatus(spanRef: SpanRef): TraceSpan['timings'][string]['status'] | null;
+  getSpanStatus(spanRef: SpanRef): TraceSpanTiming['status'] | null;
   /** Returns the primary start time in milliseconds for one span ref. */
   getSpanStartTimeMs(spanRef: SpanRef): number | null;
   /** Returns the primary end time in milliseconds for one span ref. */
@@ -78,7 +62,7 @@ export type TraceSpanColorAccessorSource = {
 };
 
 /** Input passed to ref-native span color hooks. */
-export type TraceSpanColorRefParams = Omit<TraceSpanColorParams, 'span'> & {
+export type TraceSpanColorRefParams = TraceSpanColorContext & {
   /** Span currently being styled. */
   spanRef: SpanRef;
   /** TraceGraph accessor source used to read fields without materializing a span object. */
@@ -101,16 +85,6 @@ export type TraceThreadColorParams = {
   threadId: string;
 };
 
-/** Inputs for process background color hooks. */
-export type TraceProcessColorParams = {
-  /** Zero-based process index in process ordering. */
-  processIndex: number;
-  /** Stable process identifier. */
-  processId: string;
-  /** Full process metadata object. */
-  process: TraceProcess;
-};
-
 /** Contract for a trace color strategy used across trace graph renderers. */
 export type TraceColorScheme = {
   /** Unique scheme identifier. */
@@ -119,23 +93,13 @@ export type TraceColorScheme = {
   name: string;
   /** Optional selector subtext explaining how the scheme colors spans. */
   description?: string;
+  /** User-data leaves required by this scheme's ref-native color hooks. */
+  requiredSpanAttributePaths?: readonly TraceSpanAttributePath[];
   /** Resolve keyword-driven badge/tooltip presentation. */
   getKeywordPresentation?: (params: {
     /** Keywords attached to the span. */
     keywords: readonly string[];
   }) => TraceKeywordPresentation | undefined;
-
-  /** Resolve a fill color override for the given span. */
-  getSpanFillColor?: (params: TraceSpanColorParams) => TraceColor | undefined;
-
-  /** Resolve a border color override for the given span. */
-  getSpanBorderColor?: (params: TraceSpanColorParams) => TraceColor | undefined;
-
-  /** Resolve a combined span style including fill/border/text overrides. */
-  getSpanStyle?: (params: TraceSpanColorParams) => TraceSpanColorStyle | undefined;
-
-  /** Resolve a span text color override. */
-  getSpanTextColor?: (params: TraceSpanColorParams) => TraceColor | undefined;
 
   /** Resolve a fill color override from a span ref without materializing a span object. */
   getSpanFillColorForRef?: (params: TraceSpanColorRefParams) => TraceColor | undefined;
@@ -151,10 +115,45 @@ export type TraceColorScheme = {
 
   /** Resolve thread/lane colors. */
   getThreadColor?: (params: TraceThreadColorParams) => TraceColor | undefined;
-
-  /** Resolve process background colors. */
-  getProcessBackgroundColor?: (params: TraceProcessColorParams) => TraceColor | undefined;
 };
+
+/** Collects stable unique span-attribute paths declared by registered color schemes. */
+export function collectTraceColorSchemeAttributePaths(
+  schemes: readonly TraceColorScheme[]
+): readonly TraceSpanAttributePath[] {
+  const pathsByKey = new Map<string, TraceSpanAttributePath>();
+  for (const scheme of schemes) {
+    for (const path of scheme.requiredSpanAttributePaths ?? []) {
+      pathsByKey.set(JSON.stringify(path), path);
+    }
+  }
+  return [...pathsByKey.values()];
+}
+
+/** Returns whether one color scheme's declared span attributes exist in the loaded graph. */
+export function isTraceColorSchemeAvailable(
+  traceGraph: Pick<TraceSpanColorAccessorSource, 'hasSpanAttribute'>,
+  scheme: TraceColorScheme
+): boolean {
+  return (scheme.requiredSpanAttributePaths ?? []).every(
+    path => traceGraph.hasSpanAttribute?.(path) === true
+  );
+}
+
+/** Reads one declared attribute path from already-materialized user data. */
+export function getTraceSpanAttributeValue(
+  userData: Record<string, unknown> | undefined,
+  path: TraceSpanAttributePath
+): unknown {
+  let value: unknown = userData;
+  for (const key of path) {
+    if (value == null || typeof value !== 'object' || Array.isArray(value) || !(key in value)) {
+      return undefined;
+    }
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+}
 
 /**
  * Derive a visible span border color from a fill color while preserving the fill alpha.
@@ -168,45 +167,35 @@ export function getReadableSpanBorderColor(spanFillColor: TraceColor): TraceColo
   return interpolateColor(spanFillColor, contrastTarget, SPAN_BORDER_CONTRAST_AMOUNT);
 }
 
+/** Resolves the built-in process palette color for one canonical process display name. */
+export function getProcessTraceColor(processName: string): TraceColor {
+  return processColorWheel.getColorByKey(processName || '__unknown_process__');
+}
+
 const SPAN_BORDER_CONTRAST_AMOUNT = 0.24;
 const SPAN_BORDER_LUMINANCE_THRESHOLD = 140;
 const processColorWheel = createColorWheel();
 
-function getProcessColorKey(span: TraceSpanColorSource): string {
-  return typeof span.userData?.processId === 'string' && span.userData.processId.length > 0
-    ? span.userData.processId
-    : span.processName;
+/** Resolves one span's built-in color from its canonical owning process display name. */
+function getProcessColorForRef(params: TraceSpanColorRefParams): TraceColor {
+  return getProcessTraceColor(params.traceGraph.getSpanRankName(params.spanRef) ?? '');
 }
 
-function getProcessColorKeyForRef(params: TraceSpanColorRefParams): string {
-  const userData = params.traceGraph.getSpanUserData(params.spanRef);
-  const processId = userData?.processId;
-  return typeof processId === 'string' && processId.length > 0
-    ? processId
-    : (params.traceGraph.getSpanRankName(params.spanRef) ?? '');
-}
-
-function getProcessColor(processId: string): TraceColor {
-  return processColorWheel.getColorByKey(processId || '__unknown_process__');
-}
-
-function withAlpha(color: TraceColor, alpha: number): TraceColor {
-  return [color[0], color[1], color[2], alpha];
-}
-
-/** Built-in color scheme that assigns a stable wheel color per process id. */
+/** Built-in color scheme that assigns a stable wheel color per canonical process name. */
 export const PROCESS_TRACE_COLOR_SCHEME: TraceColorScheme = {
   id: 'processes',
-  name: 'Process Id',
-  description: 'Color spans by process/rank id.',
-  getSpanFillColor: ({span}) => getProcessColor(getProcessColorKey(span)),
-  getSpanBorderColor: ({span}) =>
-    getReadableSpanBorderColor(getProcessColor(getProcessColorKey(span))),
-  getSpanFillColorForRef: params => getProcessColor(getProcessColorKeyForRef(params)),
-  getSpanBorderColorForRef: params =>
-    getReadableSpanBorderColor(getProcessColor(getProcessColorKeyForRef(params))),
-  getThreadColor: ({thread, threadId}) => getProcessColor(thread?.processId ?? threadId),
-  getProcessBackgroundColor: ({processId}) => withAlpha(getProcessColor(processId), 32)
+  name: 'Process',
+  description: 'Color spans by canonical process name.',
+  getSpanFillColorForRef: params => getProcessColorForRef(params),
+  getSpanBorderColorForRef: params => getReadableSpanBorderColor(getProcessColorForRef(params)),
+  getSpanStyleForRef: params => {
+    const spanFillColor = getProcessColorForRef(params);
+    return {
+      spanFillColor,
+      spanBorderColor: getReadableSpanBorderColor(spanFillColor)
+    };
+  },
+  getThreadColor: ({thread, threadId}) => getProcessTraceColor(thread?.processId ?? threadId)
 };
 
 /** Built-in color scheme that assigns a stable wheel color per span name. */
@@ -214,13 +203,6 @@ export const PERFETTO_TRACE_COLOR_SCHEME: TraceColorScheme = {
   id: 'perfetto',
   name: 'Perfetto (Span Names)',
   description: 'Color spans with Perfetto-style colors derived from span names.',
-  getSpanStyle: ({span}) => {
-    const spanColor = getPerfettoSliceColor(span.name || '__unknown_span__');
-    return {
-      spanFillColor: spanColor,
-      spanBorderColor: getReadableSpanBorderColor(spanColor)
-    };
-  },
   getSpanStyleForRef: ({traceGraph, spanRef}) => {
     const spanColor = getPerfettoSliceColor(traceGraph.getSpanName(spanRef) || '__unknown_span__');
     return {

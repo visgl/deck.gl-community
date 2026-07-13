@@ -1,6 +1,6 @@
-import {fillTraceLayoutSpanGeometry, getTraceLayoutProcessLayoutByRef} from '../../../trace/index';
+import {fillTraceLayoutSpanGeometry, getTraceLayoutProcessLayoutByRef} from '../../../trace';
 
-import type {SpanBoundingBox, SpanRef, ThreadRef, TraceLayout} from '../../../trace/index';
+import type {SpanBoundingBox, SpanRef, ThreadRef, TraceLayout} from '../../../trace';
 
 /** Label anchor resolved from trace layout coordinates. */
 export type TraceLayoutLabelAnchor = {
@@ -99,9 +99,10 @@ export function findTraceLayoutThreadLabelAnchor(params: {
       const labelY =
         laneYPositions && laneYPositions.length > 0
           ? getMinimumLaneYPosition(laneYPositions)
-          : (threadLayout.startPosition?.[1] ??
-            (Number.isFinite(threadLayout.yPosition) ? threadLayout.yPosition : null));
-      if (!Number.isFinite(labelY)) {
+          : Number.isFinite(threadLayout.yPosition)
+            ? threadLayout.yPosition
+            : null;
+      if (labelY == null || !Number.isFinite(labelY)) {
         return null;
       }
       return {labelY};

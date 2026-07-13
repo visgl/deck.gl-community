@@ -1,7 +1,7 @@
-import {TraceLabels} from '../../../../trace/index';
+import {TraceLabels} from '../../../../trace';
 import {PrettyTable} from '../components/pretty-table';
 
-import type {TraceProcessInfo} from '../../../../trace/index';
+import type {TraceProcessInfo} from '../../../../trace';
 
 export type TraceProcessCardProps = {
   /** Stable trace process id for the selected rank/process. */

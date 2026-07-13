@@ -123,7 +123,7 @@ function summarizeChunks(chunks: TraceStreamChunk[]): unknown[] {
     name: chunk.name,
     processCount: chunk.replaceSnapshot?.processes.length,
     processNames: chunk.replaceSnapshot?.processes.map(process => process.name),
-    crossDependencyCount: chunk.replaceSnapshot?.crossDependencies.length
+    crossProcessDependencyCount: chunk.replaceSnapshot?.crossProcessDependencies.length
   }));
 }
 
@@ -149,9 +149,7 @@ describe('chrome-trace-stream', () => {
       publishEveryEvents: 1
     });
 
-    expect(
-      snapshot?.traceGraph.getSpanRefByExternalBlockId('span:1:1:span-2:4:5' as TraceSpanId)
-    ).toBeDefined();
+    expect(snapshot?.traceGraph.getSpanRefById('span:1:1:span-2:4:5' as TraceSpanId)).toBeDefined();
     expect(snapshots.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -175,10 +173,8 @@ describe('chrome-trace-stream', () => {
       publishEveryEvents: 1
     });
 
-    expect(snapshot?.traceGraphData.name).toBe('streamed-file');
-    expect(
-      snapshot?.traceGraph.getSpanRefByExternalBlockId('span:1:1:span-1:1:3' as TraceSpanId)
-    ).toBeDefined();
+    expect(snapshot?.traceDataset.name).toBe('streamed-file');
+    expect(snapshot?.traceGraph.getSpanRefById('span:1:1:span-1:1:3' as TraceSpanId)).toBeDefined();
   });
 
   it('streams Chrome trace files whose metadata events omit timestamps', async () => {
@@ -201,9 +197,7 @@ describe('chrome-trace-stream', () => {
       publishEveryEvents: 1
     });
 
-    expect(
-      snapshot?.traceGraph.getSpanRefByExternalBlockId('span:1:1:span-1:1:3' as TraceSpanId)
-    ).toBeDefined();
+    expect(snapshot?.traceGraph.getSpanRefById('span:1:1:span-1:1:3' as TraceSpanId)).toBeDefined();
   });
 
   it('routes file streaming through the Arrow parser and matches the Arrow chunk path', async () => {
@@ -263,15 +257,15 @@ describe('chrome-trace-stream', () => {
       publishEveryEvents: 1
     });
 
-    expect(arrowSnapshot?.traceGraphData.name).toBe(fileSnapshot?.traceGraphData.name);
+    expect(arrowSnapshot?.traceDataset.name).toBe(fileSnapshot?.traceDataset.name);
     expect(arrowSnapshot?.traceGraph.processes.length).toBe(
       fileSnapshot?.traceGraph.processes.length
     );
     expect(
-      arrowSnapshot?.traceGraph.getSpanRefByExternalBlockId('span:1:1:span-2:4:5' as TraceSpanId)
+      arrowSnapshot?.traceGraph.getSpanRefById('span:1:1:span-2:4:5' as TraceSpanId)
     ).toBeDefined();
     expect(
-      fileSnapshot?.traceGraph.getSpanRefByExternalBlockId('span:1:1:span-2:4:5' as TraceSpanId)
+      fileSnapshot?.traceGraph.getSpanRefById('span:1:1:span-2:4:5' as TraceSpanId)
     ).toBeDefined();
   });
 
@@ -313,8 +307,6 @@ describe('chrome-trace-stream', () => {
       publishEveryEvents: 1
     });
 
-    expect(
-      snapshot?.traceGraph.getSpanRefByExternalBlockId('span:1:1:span-2:4:5' as TraceSpanId)
-    ).toBeDefined();
+    expect(snapshot?.traceGraph.getSpanRefById('span:1:1:span-2:4:5' as TraceSpanId)).toBeDefined();
   });
 });

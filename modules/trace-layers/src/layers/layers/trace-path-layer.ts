@@ -11,7 +11,7 @@ import {DependencyArrowLayer, PathDirection} from '@deck.gl-community/layers';
 
 import {buildTraceLayoutGeometryDerivationContext} from '../../trace/trace-layout/trace-derived-geometry';
 import {
-  createTraceColorResolver,
+  createTraceGraphColorResolver,
   DEFAULT_PATH_HIGHLIGHT_TRAIL_LENGTH,
   DEFAULT_TRACE_COLOR_SCHEME,
   MAX_PATH_HIGHLIGHT_TRAIL_LENGTH,
@@ -33,7 +33,7 @@ import type {
   TraceGraphPathBlockSource,
   TraceGraphPathDependencySource,
   TraceLayoutGeometryDerivationContext
-} from '../../trace/index';
+} from '../../trace';
 import type {SpanRef, TraceVisSettings} from '../../trace/trace-graph/trace-types';
 import type {TraceLayout} from '../../trace/trace-layout/trace-layout';
 import type {TraceColorScheme} from '../../trace/trace-style/trace-colors';
@@ -268,7 +268,8 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
       ...makeColorUpdateTriggers(settings, highlightedSpanRefs),
       colorScheme
     ];
-    const colorResolver = createTraceColorResolver({
+    const colorResolver = createTraceGraphColorResolver({
+      traceGraph: traceLayout.traceGraph,
       colorScheme,
       settings,
       highlightedSpanRefs
@@ -408,7 +409,7 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
         getSize: (blockSource: TraceGraphPathBlockSource) =>
           getPathBlockSize(blockSource, traceLayout, geometryContext),
         getFillColor: (blockSource: TraceGraphPathBlockSource) => {
-          const color = [...colorResolver.getSpanFillColor(blockSource.span, 'path')];
+          const color = [...colorResolver.getSpanFillColor(blockSource.spanRef, 'path')];
           if (
             highlightedPathSpanRefs &&
             highlightedPathSpanRefs.size > 0 &&
@@ -419,7 +420,7 @@ export class TracePathLayer extends CompositeLayer<TracePathLayerProps> {
           return color as [number, number, number, number];
         },
         getLineColor: (blockSource: TraceGraphPathBlockSource) => {
-          const color = [...colorResolver.getSpanBorderColor(blockSource.span, 'path')];
+          const color = [...colorResolver.getSpanBorderColor(blockSource.spanRef, 'path')];
           if (
             highlightedPathSpanRefs &&
             highlightedPathSpanRefs.size > 0 &&

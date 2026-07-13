@@ -177,8 +177,12 @@ export function parseChromeTrace(
       }
       case 'B': {
         // begin: push
-        stacks[key] ??= [];
-        stacks[key].push({
+        let stack = stacks[key];
+        if (!stack) {
+          stack = [];
+          stacks[key] = stack;
+        }
+        stack.push({
           spanId: `${trackId}:${name}:${eventTs}`,
           trackId,
           name,

@@ -2,7 +2,7 @@ import {TriangleAlert} from 'lucide-react';
 
 import {getTraceSpanFilterReasonLabel} from '../../utils/trace-span-filter-reason';
 
-import type {SpanRef, TraceSpanFilterMask} from '../../../trace/index';
+import type {SpanRef, TraceSpanFilterMask} from '../../../trace';
 
 /** Props for the hidden-span notice rendered above an inspector span card. */
 export type SpanInspectorHiddenSpanNoticeProps = {

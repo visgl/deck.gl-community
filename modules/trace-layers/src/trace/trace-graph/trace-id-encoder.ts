@@ -17,59 +17,44 @@ export type InstantRef = BrandedEntityRef<'instant-ref'>;
 export type CounterRef = BrandedEntityRef<'counter-ref'>;
 /** Branded runtime reference for one loaded storage chunk. */
 export type ChunkRef = BrandedEntityRef<'chunk-ref'>;
-/** Branded directional reference for compact local dependency refs. */
-export type LocalDependencyRef = BrandedDependencyRef<'local-dependency-ref'>;
-/** Branded directional reference for compact cross dependency refs. */
-export type CrossDependencyRef = BrandedDependencyRef<'cross-dependency-ref'>;
-/** Branded reference for a filtered stitched parent dependency row. */
-export type StitchedParentDependencyRef = BrandedDependencyRef<'stitched-parent-dependency-ref'>;
-/** Branded reference for compact visible local dependency refs. */
-export type VisibleLocalDependencyRef = BrandedDependencyRef<'visible-local-dependency-ref'>;
-/** Branded reference for compact visible cross dependency refs. */
-export type VisibleCrossDependencyRef = BrandedDependencyRef<'visible-cross-dependency-ref'>;
-/** Branded directional reference for any visible dependency ref. */
-export type VisibleDependencyRef = VisibleLocalDependencyRef | VisibleCrossDependencyRef;
-/** Branded directional reference for compact local or cross dependency refs. */
-export type DependencyRef = LocalDependencyRef | CrossDependencyRef;
+/** Branded runtime reference for one row in a process-owned same-process dependency table. */
+export type SameProcessDependencyRef = BrandedDependencyRef<'same-process-dependency-ref'>;
+/** Branded runtime reference for one row in the graph-global cross-process dependency table. */
+export type CrossProcessDependencyRef = BrandedDependencyRef<'cross-process-dependency-ref'>;
+/** Branded runtime reference for a canonical same-process or cross-process dependency row. */
+export type DependencyRef = SameProcessDependencyRef | CrossProcessDependencyRef;
 /** Canonical runtime dependency ref used by render, selection, and card paths. */
-export type TraceDependencyRef =
-  | LocalDependencyRef
-  | CrossDependencyRef
-  | StitchedParentDependencyRef;
+export type TraceDependencyRef = SameProcessDependencyRef | CrossProcessDependencyRef;
 /** Branded directional reference for any dependency kind in a compact form. */
 export type GlobalDependencyRef = DependencyRef;
 /** Branded runtime reference for any compact non-span entity in a graph-local form. */
 export type TraceEntityRef = ProcessRef | ThreadRef | EventRef | InstantRef | CounterRef;
 
 const SPAN_REF_ROW_FACTOR = 0x1_0000_0000;
-const LOCAL_DEPENDENCY_ROW_FACTOR = 0x1_0000_0000;
+const SAME_PROCESS_DEPENDENCY_ROW_FACTOR = 0x1_0000_0000;
 const THREAD_INDEX_FACTOR = 0x1000_0000;
 const CHUNK_ROW_REF_FACTOR = 0x200_0000;
 const CHUNK_REF_PAYLOAD_FACTOR = 0x1_0000_0000;
 const SAFE_INTEGER_REF_SPACE = Math.pow(2, 53);
 const PREFIX_REF_PAYLOAD_BITS_BY_KIND = {
   span: 52,
-  localDependency: 51,
+  sameProcessDependency: 51,
   event: 50,
-  crossDependency: 49,
+  crossProcessDependency: 49,
   thread: 48,
   process: 47,
   instant: 45,
-  counter: 45,
-  visibleLocalDependency: 45,
-  visibleCrossDependency: 45
+  counter: 45
 } as const;
 const PREFIX_REF_PAYLOAD_FACTOR_BY_KIND = {
   span: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.span),
-  localDependency: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.localDependency),
+  sameProcessDependency: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.sameProcessDependency),
   event: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.event),
-  crossDependency: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.crossDependency),
+  crossProcessDependency: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.crossProcessDependency),
   thread: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.thread),
   process: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.process),
   instant: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.instant),
-  counter: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.counter),
-  visibleLocalDependency: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.visibleLocalDependency),
-  visibleCrossDependency: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.visibleCrossDependency)
+  counter: Math.pow(2, PREFIX_REF_PAYLOAD_BITS_BY_KIND.counter)
 } as const;
 /**
  * Maximum chunk index that can be packed into one safe-integer {@link SpanRef}.
@@ -79,22 +64,16 @@ export const MAX_SPAN_REF_CHUNK_INDEX = 0x0f_ffff;
  * Maximum chunk-local row index that can be packed into one safe-integer {@link SpanRef}.
  */
 export const MAX_SPAN_REF_ROW_INDEX = 0xffff_ffff;
-/** Numeric tag offset for compact local dependency refs. */
-export const LOCAL_DEPENDENCY_REF_OFFSET = PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.span;
+/** Numeric tag offset for compact same-process dependency refs. */
+export const SAME_PROCESS_DEPENDENCY_REF_OFFSET = PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.span;
 /** Numeric tag offset for compact cross-process dependency refs. */
-export const CROSS_DEPENDENCY_REF_OFFSET =
-  LOCAL_DEPENDENCY_REF_OFFSET +
-  PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.localDependency +
+export const CROSS_PROCESS_DEPENDENCY_REF_OFFSET =
+  SAME_PROCESS_DEPENDENCY_REF_OFFSET +
+  PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.sameProcessDependency +
   PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.event;
-/** Numeric tag offset for visible local dependency refs. */
-export const VISIBLE_LOCAL_DEPENDENCY_REF_OFFSET =
-  SAFE_INTEGER_REF_SPACE - PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.visibleLocalDependency * 2;
-/** Numeric tag offset for visible cross-process dependency refs. */
-export const VISIBLE_CROSS_DEPENDENCY_REF_OFFSET =
-  SAFE_INTEGER_REF_SPACE - PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.visibleCrossDependency;
 /** Numeric tag offset for compact graph-global event refs. */
 export const EVENT_REF_OFFSET =
-  LOCAL_DEPENDENCY_REF_OFFSET + PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.localDependency;
+  SAME_PROCESS_DEPENDENCY_REF_OFFSET + PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.sameProcessDependency;
 /** Numeric tag offset for compact instant refs. */
 export const INSTANT_REF_OFFSET =
   SAFE_INTEGER_REF_SPACE - PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.instant * 4;
@@ -103,7 +82,7 @@ export const COUNTER_REF_OFFSET =
   SAFE_INTEGER_REF_SPACE - PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.counter * 3;
 /** Numeric tag offset for compact thread refs. */
 export const THREAD_REF_OFFSET =
-  CROSS_DEPENDENCY_REF_OFFSET + PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.crossDependency;
+  CROSS_PROCESS_DEPENDENCY_REF_OFFSET + PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.crossProcessDependency;
 /** Numeric tag offset for compact process refs. */
 export const PROCESS_REF_OFFSET = THREAD_REF_OFFSET + PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.thread;
 /** Numeric tag offset for loaded storage chunk refs. */
@@ -111,10 +90,8 @@ export const CHUNK_REF_OFFSET = INSTANT_REF_OFFSET - CHUNK_REF_PAYLOAD_FACTOR;
 /** Maximum packed span ref that remains safely representable in JavaScript numbers. */
 export const MAX_SPAN_REF = SPAN_REF_ROW_FACTOR * (MAX_SPAN_REF_CHUNK_INDEX + 1) - 1;
 /** Maximum cross-process dependency index that can be packed into a tagged ref. */
-export const MAX_CROSS_DEPENDENCY_INDEX = PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.crossDependency - 1;
-/** Maximum visible dependency index that can be packed into a tagged visible ref. */
-export const MAX_VISIBLE_DEPENDENCY_INDEX =
-  PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.visibleLocalDependency - 1;
+export const MAX_CROSS_PROCESS_DEPENDENCY_INDEX =
+  PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.crossProcessDependency - 1;
 /** Maximum event index that can be packed into a tagged event ref. */
 export const MAX_EVENT_REF_INDEX = PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.event - 1;
 /** Maximum instant index that can be packed into a tagged instant ref. */
@@ -135,28 +112,27 @@ export const MAX_EVENT_REF_CHUNK_INDEX = Math.floor(MAX_EVENT_REF_INDEX / CHUNK_
 export const MAX_INSTANT_REF_CHUNK_INDEX = Math.floor(MAX_INSTANT_REF_INDEX / CHUNK_ROW_REF_FACTOR);
 /** Maximum counter chunk index that can be packed into a tagged counter ref. */
 export const MAX_COUNTER_REF_CHUNK_INDEX = Math.floor(MAX_COUNTER_REF_INDEX / CHUNK_ROW_REF_FACTOR);
-/** Maximum process index that can be packed with a 32-bit local dependency row index. */
-export const MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX = Math.floor(
-  (PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.localDependency - 1) / LOCAL_DEPENDENCY_ROW_FACTOR
+/** Maximum process index that can be packed with a 32-bit same-process dependency row index. */
+export const MAX_SAME_PROCESS_DEPENDENCY_REF_PROCESS_INDEX = Math.floor(
+  (PREFIX_REF_PAYLOAD_FACTOR_BY_KIND.sameProcessDependency - 1) / SAME_PROCESS_DEPENDENCY_ROW_FACTOR
 );
-/** @deprecated Use {@link MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX}. */
-export const MAX_LOCAL_DEPENDENCY_REF_CHUNK_INDEX = MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX;
+/** @deprecated Use {@link MAX_SAME_PROCESS_DEPENDENCY_REF_PROCESS_INDEX}. */
+export const MAX_SAME_PROCESS_DEPENDENCY_REF_CHUNK_INDEX =
+  MAX_SAME_PROCESS_DEPENDENCY_REF_PROCESS_INDEX;
 /** Maximum process-local thread index that can be packed into a process-aware thread ref. */
 export const MAX_PROCESS_LOCAL_THREAD_REF_INDEX = THREAD_INDEX_FACTOR - 1;
 
 /** Runtime ref families recognized by the shared numeric prefix decoder. */
 export type TraceRefKind =
   | 'span'
-  | 'localDependency'
+  | 'sameProcessDependency'
   | 'event'
-  | 'crossDependency'
+  | 'crossProcessDependency'
   | 'thread'
   | 'process'
   | 'chunk'
   | 'instant'
-  | 'counter'
-  | 'visibleLocalDependency'
-  | 'visibleCrossDependency';
+  | 'counter';
 
 /** Decoded storage address for one numeric runtime ref. */
 export type DecodedTraceRef =
@@ -172,14 +148,14 @@ export type DecodedTraceRef =
     }
   | {
       /** Ref family encoded in the high-order numeric prefix. */
-      readonly kind: 'localDependency';
-      /** Original branded local dependency ref. */
-      readonly ref: LocalDependencyRef;
+      readonly kind: 'sameProcessDependency';
+      /** Original branded same-process dependency ref. */
+      readonly ref: SameProcessDependencyRef;
       /** Process index encoded in the payload. */
       readonly processIndex: number;
       /** Process index encoded in the payload. Retained for compatibility. */
       readonly chunkIndex: number;
-      /** Process-local dependency row index encoded in the payload. */
+      /** Same-process dependency row index encoded in the payload. */
       readonly rowIndex: number;
     }
   | {
@@ -194,12 +170,12 @@ export type DecodedTraceRef =
     }
   | {
       /** Ref family encoded in the high-order numeric prefix. */
-      readonly kind: 'crossDependency';
-      /** Original branded cross dependency ref. */
-      readonly ref: CrossDependencyRef;
+      readonly kind: 'crossProcessDependency';
+      /** Original branded cross-process dependency ref. */
+      readonly ref: CrossProcessDependencyRef;
       /** Chunk index encoded in the payload. */
       readonly chunkIndex: number;
-      /** Chunk-local cross dependency row index encoded in the payload. */
+      /** Chunk-local cross-process dependency row index encoded in the payload. */
       readonly rowIndex: number;
     }
   | {
@@ -253,22 +229,6 @@ export type DecodedTraceRef =
       readonly chunkIndex: number;
       /** Chunk-local counter row index encoded in the payload. */
       readonly rowIndex: number;
-    }
-  | {
-      /** Ref family encoded in the high-order numeric prefix. */
-      readonly kind: 'visibleLocalDependency';
-      /** Original branded visible local dependency ref. */
-      readonly ref: VisibleLocalDependencyRef;
-      /** Visible-index row encoded in the payload. */
-      readonly index: number;
-    }
-  | {
-      /** Ref family encoded in the high-order numeric prefix. */
-      readonly kind: 'visibleCrossDependency';
-      /** Original branded visible cross dependency ref. */
-      readonly ref: VisibleCrossDependencyRef;
-      /** Visible-index row encoded in the payload. */
-      readonly index: number;
     };
 
 /** Mutable decode target for allocation-free generic runtime ref decoding. */
@@ -281,7 +241,7 @@ export type TraceRefDecodeScratch = {
   chunkIndex: number;
   /** Decoded row index for chunk-row and process-local refs, or -1 when not applicable. */
   rowIndex: number;
-  /** Decoded process index for process, thread, and local dependency refs. */
+  /** Decoded process index for process, thread, and same-process dependency refs. */
   processIndex: number;
   /** Decoded process-local thread index for thread refs, or -1 when not applicable. */
   threadIndex: number;
@@ -294,17 +254,17 @@ export function getTraceRefKind(value: number): TraceRefKind | null {
   if (!isValidRuntimeRefValue(value)) {
     return null;
   }
-  if (value < LOCAL_DEPENDENCY_REF_OFFSET) {
+  if (value < SAME_PROCESS_DEPENDENCY_REF_OFFSET) {
     return 'span';
   }
   if (value < EVENT_REF_OFFSET) {
-    return 'localDependency';
+    return 'sameProcessDependency';
   }
-  if (value < CROSS_DEPENDENCY_REF_OFFSET) {
+  if (value < CROSS_PROCESS_DEPENDENCY_REF_OFFSET) {
     return 'event';
   }
   if (value < THREAD_REF_OFFSET) {
-    return 'crossDependency';
+    return 'crossProcessDependency';
   }
   if (value < PROCESS_REF_OFFSET) {
     return 'thread';
@@ -318,13 +278,10 @@ export function getTraceRefKind(value: number): TraceRefKind | null {
   if (value < COUNTER_REF_OFFSET) {
     return 'instant';
   }
-  if (value < VISIBLE_LOCAL_DEPENDENCY_REF_OFFSET) {
+  if (value <= COUNTER_REF_OFFSET + MAX_COUNTER_REF_INDEX) {
     return 'counter';
   }
-  if (value < VISIBLE_CROSS_DEPENDENCY_REF_OFFSET) {
-    return 'visibleLocalDependency';
-  }
-  return 'visibleCrossDependency';
+  return null;
 }
 
 /** Decodes one numeric runtime ref into the provided mutable scratch object. */
@@ -354,20 +311,24 @@ export function decodeTraceRefInto(value: number, scratch: TraceRefDecodeScratch
       scratch.chunkIndex = getSpanRefChunkIndex(value as SpanRef);
       scratch.rowIndex = getSpanRefRowIndex(value as SpanRef);
       break;
-    case 'localDependency':
-      scratch.processIndex = getLocalDependencyRefProcessIndex(value as LocalDependencyRef);
+    case 'sameProcessDependency':
+      scratch.processIndex = getSameProcessDependencyRefProcessIndex(
+        value as SameProcessDependencyRef
+      );
       scratch.chunkIndex = scratch.processIndex;
-      scratch.rowIndex = getLocalDependencyRefRowIndex(value as LocalDependencyRef);
+      scratch.rowIndex = getSameProcessDependencyRefRowIndex(value as SameProcessDependencyRef);
       break;
     case 'event':
       scratch.chunkIndex = getEventRefChunkIndex(value as EventRef);
       scratch.rowIndex = getEventRefRowIndex(value as EventRef);
       scratch.index = getEventRefIndex(value as EventRef);
       break;
-    case 'crossDependency':
-      scratch.chunkIndex = getCrossDependencyRefChunkIndex(value as CrossDependencyRef);
-      scratch.rowIndex = getCrossDependencyRefRowIndex(value as CrossDependencyRef);
-      scratch.index = getCrossDependencyRefIndex(value as CrossDependencyRef);
+    case 'crossProcessDependency':
+      scratch.chunkIndex = getCrossProcessDependencyRefChunkIndex(
+        value as CrossProcessDependencyRef
+      );
+      scratch.rowIndex = getCrossProcessDependencyRefRowIndex(value as CrossProcessDependencyRef);
+      scratch.index = getCrossProcessDependencyRefIndex(value as CrossProcessDependencyRef);
       break;
     case 'thread':
       scratch.processIndex = getThreadRefProcessIndex(value as ThreadRef);
@@ -391,12 +352,6 @@ export function decodeTraceRefInto(value: number, scratch: TraceRefDecodeScratch
       scratch.chunkIndex = getCounterRefChunkIndex(value as CounterRef);
       scratch.rowIndex = getCounterRefRowIndex(value as CounterRef);
       scratch.index = getCounterRefIndex(value as CounterRef);
-      break;
-    case 'visibleLocalDependency':
-      scratch.index = getVisibleLocalDependencyRefIndex(value as VisibleLocalDependencyRef);
-      break;
-    case 'visibleCrossDependency':
-      scratch.index = getVisibleCrossDependencyRefIndex(value as VisibleCrossDependencyRef);
       break;
   }
 
@@ -424,14 +379,16 @@ export function decodeTraceRef(value: number): DecodedTraceRef | null {
         chunkIndex: getSpanRefChunkIndex(value as SpanRef),
         rowIndex: getSpanRefRowIndex(value as SpanRef)
       };
-    case 'localDependency': {
-      const processIndex = getLocalDependencyRefProcessIndex(value as LocalDependencyRef);
+    case 'sameProcessDependency': {
+      const processIndex = getSameProcessDependencyRefProcessIndex(
+        value as SameProcessDependencyRef
+      );
       return {
         kind,
-        ref: value as LocalDependencyRef,
+        ref: value as SameProcessDependencyRef,
         processIndex,
         chunkIndex: processIndex,
-        rowIndex: getLocalDependencyRefRowIndex(value as LocalDependencyRef)
+        rowIndex: getSameProcessDependencyRefRowIndex(value as SameProcessDependencyRef)
       };
     }
     case 'event':
@@ -441,12 +398,12 @@ export function decodeTraceRef(value: number): DecodedTraceRef | null {
         chunkIndex: getEventRefChunkIndex(value as EventRef),
         rowIndex: getEventRefRowIndex(value as EventRef)
       };
-    case 'crossDependency':
+    case 'crossProcessDependency':
       return {
         kind,
-        ref: value as CrossDependencyRef,
-        chunkIndex: getCrossDependencyRefChunkIndex(value as CrossDependencyRef),
-        rowIndex: getCrossDependencyRefRowIndex(value as CrossDependencyRef)
+        ref: value as CrossProcessDependencyRef,
+        chunkIndex: getCrossProcessDependencyRefChunkIndex(value as CrossProcessDependencyRef),
+        rowIndex: getCrossProcessDependencyRefRowIndex(value as CrossProcessDependencyRef)
       };
     case 'thread':
       return {
@@ -484,18 +441,6 @@ export function decodeTraceRef(value: number): DecodedTraceRef | null {
         chunkIndex: getCounterRefChunkIndex(value as CounterRef),
         rowIndex: getCounterRefRowIndex(value as CounterRef)
       };
-    case 'visibleLocalDependency':
-      return {
-        kind,
-        ref: value as VisibleLocalDependencyRef,
-        index: getVisibleLocalDependencyRefIndex(value as VisibleLocalDependencyRef)
-      };
-    case 'visibleCrossDependency':
-      return {
-        kind,
-        ref: value as VisibleCrossDependencyRef,
-        index: getVisibleCrossDependencyRefIndex(value as VisibleCrossDependencyRef)
-      };
   }
 }
 
@@ -531,7 +476,7 @@ export function isChunkRef(value: number): value is ChunkRef {
 
 /** Marks one encoded runtime reference as a packed span reference. */
 export function isSpanRef(value: number): value is SpanRef {
-  return Number.isSafeInteger(value) && value >= 0 && value < LOCAL_DEPENDENCY_REF_OFFSET;
+  return Number.isSafeInteger(value) && value >= 0 && value < SAME_PROCESS_DEPENDENCY_REF_OFFSET;
 }
 
 /** Returns the stable graph-local process index encoded in one process ref. */
@@ -559,24 +504,24 @@ export function getThreadRefThreadIndex(ref: ThreadRef): number {
   return getThreadRefPayload(ref) % THREAD_INDEX_FACTOR;
 }
 
-/** Returns the packed local dependency payload encoded in one local dependency ref. */
-export function getLocalDependencyRefPayload(ref: LocalDependencyRef): number {
-  return ref - LOCAL_DEPENDENCY_REF_OFFSET;
+/** Returns the packed same-process dependency payload encoded in one same-process dependency ref. */
+export function getSameProcessDependencyRefPayload(ref: SameProcessDependencyRef): number {
+  return ref - SAME_PROCESS_DEPENDENCY_REF_OFFSET;
 }
 
-/** Returns the process index encoded in one local dependency ref. */
-export function getLocalDependencyRefProcessIndex(ref: LocalDependencyRef): number {
-  return Math.floor(getLocalDependencyRefPayload(ref) / LOCAL_DEPENDENCY_ROW_FACTOR);
+/** Returns the process index encoded in one same-process dependency ref. */
+export function getSameProcessDependencyRefProcessIndex(ref: SameProcessDependencyRef): number {
+  return Math.floor(getSameProcessDependencyRefPayload(ref) / SAME_PROCESS_DEPENDENCY_ROW_FACTOR);
 }
 
-/** @deprecated Use {@link getLocalDependencyRefProcessIndex}. */
-export function getLocalDependencyRefChunkIndex(ref: LocalDependencyRef): number {
-  return getLocalDependencyRefProcessIndex(ref);
+/** @deprecated Use {@link getSameProcessDependencyRefProcessIndex}. */
+export function getSameProcessDependencyRefChunkIndex(ref: SameProcessDependencyRef): number {
+  return getSameProcessDependencyRefProcessIndex(ref);
 }
 
-/** Returns the process-local row index encoded in one local dependency ref. */
-export function getLocalDependencyRefRowIndex(ref: LocalDependencyRef): number {
-  return getLocalDependencyRefPayload(ref) % LOCAL_DEPENDENCY_ROW_FACTOR;
+/** Returns the process-local row index encoded in one same-process dependency ref. */
+export function getSameProcessDependencyRefRowIndex(ref: SameProcessDependencyRef): number {
+  return getSameProcessDependencyRefPayload(ref) % SAME_PROCESS_DEPENDENCY_ROW_FACTOR;
 }
 
 /** Returns the raw event payload encoded in one event ref. */
@@ -594,19 +539,31 @@ export function getEventRefRowIndex(ref: EventRef): number {
   return getEventRefIndex(ref) % CHUNK_ROW_REF_FACTOR;
 }
 
-/** Returns the raw cross dependency payload encoded in one cross dependency ref. */
-export function getCrossDependencyRefIndex(ref: CrossDependencyRef): number {
-  return ref - CROSS_DEPENDENCY_REF_OFFSET;
+/** Returns the raw cross-process dependency payload encoded in one cross-process dependency ref. */
+export function getCrossProcessDependencyRefIndex(ref: CrossProcessDependencyRef): number {
+  return ref - CROSS_PROCESS_DEPENDENCY_REF_OFFSET;
 }
 
-/** Returns the loaded chunk index encoded in one cross dependency ref. */
-export function getCrossDependencyRefChunkIndex(ref: CrossDependencyRef): number {
-  return Math.floor(getCrossDependencyRefIndex(ref) / CHUNK_ROW_REF_FACTOR);
+/**
+ * Returns the legacy chunk-shaped high payload component of one cross-process dependency ref.
+ *
+ * Canonical cross-process refs address graph-global dependency rows. New table readers should use
+ * {@link getCrossProcessDependencyRefIndex}; this decomposition remains for compatibility with
+ * generic ref diagnostics.
+ */
+export function getCrossProcessDependencyRefChunkIndex(ref: CrossProcessDependencyRef): number {
+  return Math.floor(getCrossProcessDependencyRefIndex(ref) / CHUNK_ROW_REF_FACTOR);
 }
 
-/** Returns the chunk-local row index encoded in one cross dependency ref. */
-export function getCrossDependencyRefRowIndex(ref: CrossDependencyRef): number {
-  return getCrossDependencyRefIndex(ref) % CHUNK_ROW_REF_FACTOR;
+/**
+ * Returns the legacy chunk-shaped low payload component of one cross-process dependency ref.
+ *
+ * Canonical cross-process refs address graph-global dependency rows. New table readers should use
+ * {@link getCrossProcessDependencyRefIndex}; this decomposition remains for compatibility with
+ * generic ref diagnostics.
+ */
+export function getCrossProcessDependencyRefRowIndex(ref: CrossProcessDependencyRef): number {
+  return getCrossProcessDependencyRefIndex(ref) % CHUNK_ROW_REF_FACTOR;
 }
 
 /** Returns the raw instant payload encoded in one instant ref. */
@@ -637,16 +594,6 @@ export function getCounterRefChunkIndex(ref: CounterRef): number {
 /** Returns the chunk-local row index encoded in one counter ref. */
 export function getCounterRefRowIndex(ref: CounterRef): number {
   return getCounterRefIndex(ref) % CHUNK_ROW_REF_FACTOR;
-}
-
-/** Returns the visible dependency row index encoded in one visible local dependency ref. */
-export function getVisibleLocalDependencyRefIndex(ref: VisibleLocalDependencyRef): number {
-  return ref - VISIBLE_LOCAL_DEPENDENCY_REF_OFFSET;
-}
-
-/** Returns the visible dependency row index encoded in one visible cross dependency ref. */
-export function getVisibleCrossDependencyRefIndex(ref: VisibleCrossDependencyRef): number {
-  return ref - VISIBLE_CROSS_DEPENDENCY_REF_OFFSET;
 }
 
 /** Decodes one process ref into its stable graph-local process index. */
@@ -738,123 +685,43 @@ export function encodeChunkRef(index: number): ChunkRef {
 }
 
 /**
- * Marks one local dependency row index as packable in a local dependency ref.
+ * Marks one same-process dependency row index as packable in a same-process dependency ref.
  */
-export function isLocalDependencyRefRowIndex(value: number): boolean {
-  return Number.isInteger(value) && value >= 0 && value < LOCAL_DEPENDENCY_REF_OFFSET;
+export function isSameProcessDependencyRefRowIndex(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value < SAME_PROCESS_DEPENDENCY_REF_OFFSET;
 }
 
 /**
- * Marks one encoded dependency reference as a local dependency row reference.
+ * Marks one encoded dependency reference as a same-process dependency row reference.
  */
-export function isLocalDependencyRef(value: number): value is LocalDependencyRef {
+export function isSameProcessDependencyRef(value: number): value is SameProcessDependencyRef {
   return (
-    Number.isSafeInteger(value) && value >= LOCAL_DEPENDENCY_REF_OFFSET && value < EVENT_REF_OFFSET
+    Number.isSafeInteger(value) &&
+    value >= SAME_PROCESS_DEPENDENCY_REF_OFFSET &&
+    value < EVENT_REF_OFFSET
   );
 }
 
 /**
  * Marks one encoded dependency reference as a cross-process dependency index reference.
  */
-export function isCrossDependencyRef(value: number): value is CrossDependencyRef {
+export function isCrossProcessDependencyRef(value: number): value is CrossProcessDependencyRef {
   return (
-    Number.isSafeInteger(value) && value >= CROSS_DEPENDENCY_REF_OFFSET && value < THREAD_REF_OFFSET
+    Number.isSafeInteger(value) &&
+    value >= CROSS_PROCESS_DEPENDENCY_REF_OFFSET &&
+    value < THREAD_REF_OFFSET
   );
 }
 
 /**
- * Marks one encoded reference as a visible local dependency reference.
+ * Decodes one tagged same-process dependency reference into its packed dependency-row span ref.
  */
-export function isVisibleLocalDependencyRef(value: number): value is VisibleLocalDependencyRef {
-  return isValidVisibleDependencyRef(value) && value < VISIBLE_CROSS_DEPENDENCY_REF_OFFSET;
-}
-
-/**
- * Marks one encoded reference as a visible cross dependency reference.
- */
-export function isVisibleCrossDependencyRef(value: number): value is VisibleCrossDependencyRef {
-  return (
-    isValidVisibleDependencyRef(value) &&
-    value >= VISIBLE_CROSS_DEPENDENCY_REF_OFFSET &&
-    value < VISIBLE_CROSS_DEPENDENCY_REF_OFFSET + MAX_VISIBLE_DEPENDENCY_INDEX + 1
-  );
-}
-
-/**
- * Decodes one tagged visible dependency reference into a local dependency-row index.
- */
-export function decodeVisibleLocalDependencyRef(value: number): number | null {
-  if (!isVisibleLocalDependencyRef(value)) {
+export function decodeSameProcessDependencySpanRef(value: number): LocalSpanRef | null {
+  if (!isSameProcessDependencyRef(value)) {
     return null;
   }
 
-  const dependencyIndex = getVisibleLocalDependencyRefIndex(value);
-  if (!Number.isInteger(dependencyIndex) || dependencyIndex < 0) {
-    return null;
-  }
-  if (dependencyIndex > MAX_VISIBLE_DEPENDENCY_INDEX) {
-    return null;
-  }
-  return dependencyIndex;
-}
-
-/**
- * Decodes one tagged visible dependency reference into a cross dependency-row index.
- */
-export function decodeVisibleCrossDependencyRef(value: number): number | null {
-  if (!isVisibleCrossDependencyRef(value)) {
-    return null;
-  }
-
-  const dependencyIndex = getVisibleCrossDependencyRefIndex(value);
-  if (!Number.isInteger(dependencyIndex) || dependencyIndex < 0) {
-    return null;
-  }
-  if (dependencyIndex > MAX_VISIBLE_DEPENDENCY_INDEX) {
-    return null;
-  }
-  return dependencyIndex;
-}
-
-/**
- * Encodes one visible local dependency row index into a compact reference.
- */
-export function encodeVisibleLocalDependencyRef(index: number): VisibleLocalDependencyRef {
-  if (!Number.isInteger(index) || index < 0) {
-    throw new Error(`Visible local dependency index must be a safe integer: ${index}`);
-  }
-  if (index > MAX_VISIBLE_DEPENDENCY_INDEX) {
-    throw new Error(
-      `Visible local dependency index must not exceed ${MAX_VISIBLE_DEPENDENCY_INDEX}: ${index}`
-    );
-  }
-  return brand<'visible-local-dependency-ref', number>(VISIBLE_LOCAL_DEPENDENCY_REF_OFFSET + index);
-}
-
-/**
- * Encodes one visible cross dependency index into a compact reference.
- */
-export function encodeVisibleCrossDependencyRef(index: number): VisibleCrossDependencyRef {
-  if (!Number.isInteger(index) || index < 0) {
-    throw new Error(`Visible cross dependency index must be a safe integer: ${index}`);
-  }
-  if (index > MAX_VISIBLE_DEPENDENCY_INDEX) {
-    throw new Error(
-      `Visible cross dependency index must not exceed ${MAX_VISIBLE_DEPENDENCY_INDEX}: ${index}`
-    );
-  }
-  return brand<'visible-cross-dependency-ref', number>(VISIBLE_CROSS_DEPENDENCY_REF_OFFSET + index);
-}
-
-/**
- * Decodes one tagged local dependency reference into its packed dependency-row span ref.
- */
-export function decodeLocalDependencySpanRef(value: number): LocalSpanRef | null {
-  if (!isLocalDependencyRef(value)) {
-    return null;
-  }
-
-  const dependencySpanRef = getLocalDependencyRefPayload(value);
+  const dependencySpanRef = getSameProcessDependencyRefPayload(value);
   if (!Number.isInteger(dependencySpanRef) || dependencySpanRef < 0) {
     return null;
   }
@@ -865,79 +732,85 @@ export function decodeLocalDependencySpanRef(value: number): LocalSpanRef | null
 }
 
 /**
- * Decodes one tagged local dependency reference into a local dependency row index.
+ * Decodes one tagged same-process dependency reference into a same-process dependency row index.
  */
-export function decodeTaggedLocalDependencyRef(
+export function decodeTaggedSameProcessDependencyRef(
   value: number,
-  localDependencyCount: number
+  sameProcessDependencyCount: number
 ): number | null {
-  const dependencySpanRef = decodeLocalDependencySpanRef(value);
+  const dependencySpanRef = decodeSameProcessDependencySpanRef(value);
   if (dependencySpanRef == null) {
     return null;
   }
   const dependencyRowIndex = getLocalSpanRefRowIndex(dependencySpanRef);
-  if (!isLocalDependencyRefRowIndex(dependencyRowIndex)) {
+  if (!isSameProcessDependencyRefRowIndex(dependencyRowIndex)) {
     return null;
   }
-  if (dependencyRowIndex >= localDependencyCount) {
+  if (dependencyRowIndex >= sameProcessDependencyCount) {
     return null;
   }
   return dependencyRowIndex;
 }
 
 /**
- * Decodes one tagged cross-dependency reference into a stable cross-dependency index.
+ * Decodes one tagged cross-process-dependency reference into a stable cross-process-dependency index.
  */
-export function decodeCrossDependencyRef(value: number): number | null {
-  if (!isCrossDependencyRef(value)) {
+export function decodeCrossProcessDependencyRef(value: number): number | null {
+  if (!isCrossProcessDependencyRef(value)) {
     return null;
   }
 
-  const stableCrossDependencyIndex = getCrossDependencyRefIndex(value);
-  if (!Number.isInteger(stableCrossDependencyIndex) || stableCrossDependencyIndex < 0) {
+  const stableCrossProcessDependencyIndex = getCrossProcessDependencyRefIndex(value);
+  if (
+    !Number.isInteger(stableCrossProcessDependencyIndex) ||
+    stableCrossProcessDependencyIndex < 0
+  ) {
     return null;
   }
-  if (stableCrossDependencyIndex > MAX_CROSS_DEPENDENCY_INDEX) {
+  if (stableCrossProcessDependencyIndex > MAX_CROSS_PROCESS_DEPENDENCY_INDEX) {
     return null;
   }
-  return stableCrossDependencyIndex;
+  return stableCrossProcessDependencyIndex;
 }
 
 /**
- * Encodes one packed process-local dependency row index into a compact reference.
+ * Encodes one packed same-process dependency row index into a compact reference.
  */
-export function encodeLocalDependencyRef(localSpanRef: LocalSpanRef): LocalDependencyRef {
+export function encodeSameProcessDependencyRef(
+  localSpanRef: LocalSpanRef
+): SameProcessDependencyRef {
   const processIndex = getLocalSpanRefProcessIndex(localSpanRef);
-  if (processIndex > MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX) {
+  if (processIndex > MAX_SAME_PROCESS_DEPENDENCY_REF_PROCESS_INDEX) {
     throw new Error(
-      `Local dependency ref process index must not exceed ${MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX}: ${processIndex}`
+      `Same-process dependency ref process index must not exceed ${MAX_SAME_PROCESS_DEPENDENCY_REF_PROCESS_INDEX}: ${processIndex}`
     );
   }
-  return brand<'local-dependency-ref', number>(LOCAL_DEPENDENCY_REF_OFFSET + localSpanRef);
-}
-
-/**
- * Encodes one stable cross-dependency index into a compact reference.
- */
-export function encodeCrossDependencyRef(stableCrossDependencyIndex: number): CrossDependencyRef {
-  if (!Number.isInteger(stableCrossDependencyIndex) || stableCrossDependencyIndex < 0) {
-    throw new Error(`Cross dependency index must be a safe integer: ${stableCrossDependencyIndex}`);
-  }
-  if (stableCrossDependencyIndex > MAX_CROSS_DEPENDENCY_INDEX) {
-    throw new Error(
-      `Cross dependency index must not exceed ${MAX_CROSS_DEPENDENCY_INDEX}: ${stableCrossDependencyIndex}`
-    );
-  }
-  return brand<'cross-dependency-ref', number>(
-    CROSS_DEPENDENCY_REF_OFFSET + stableCrossDependencyIndex
+  return brand<'same-process-dependency-ref', number>(
+    SAME_PROCESS_DEPENDENCY_REF_OFFSET + localSpanRef
   );
 }
 
-function isValidVisibleDependencyRef(value: number): value is VisibleDependencyRef {
-  return (
-    Number.isSafeInteger(value) &&
-    value >= VISIBLE_LOCAL_DEPENDENCY_REF_OFFSET &&
-    value < SAFE_INTEGER_REF_SPACE
+/**
+ * Encodes one stable cross-process-dependency index into a compact reference.
+ */
+export function encodeCrossProcessDependencyRef(
+  stableCrossProcessDependencyIndex: number
+): CrossProcessDependencyRef {
+  if (
+    !Number.isInteger(stableCrossProcessDependencyIndex) ||
+    stableCrossProcessDependencyIndex < 0
+  ) {
+    throw new Error(
+      `Cross-process dependency index must be a safe integer: ${stableCrossProcessDependencyIndex}`
+    );
+  }
+  if (stableCrossProcessDependencyIndex > MAX_CROSS_PROCESS_DEPENDENCY_INDEX) {
+    throw new Error(
+      `Cross-process dependency index must not exceed ${MAX_CROSS_PROCESS_DEPENDENCY_INDEX}: ${stableCrossProcessDependencyIndex}`
+    );
+  }
+  return brand<'cross-process-dependency-ref', number>(
+    CROSS_PROCESS_DEPENDENCY_REF_OFFSET + stableCrossProcessDependencyIndex
   );
 }
 

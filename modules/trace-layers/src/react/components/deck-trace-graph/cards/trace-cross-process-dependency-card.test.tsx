@@ -1,67 +1,66 @@
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
-import {afterEach, describe, expect, it, vi} from 'vitest';
-
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
   DEFAULT_TRACE_STYLE,
   TRACE_SPAN_FILTER_MASK_NONE,
   TRACE_SPAN_FILTER_MASK_REGEXP,
-  TRACE_SPAN_FILTER_MASK_SOURCE,
-  TRACE_SPAN_FILTER_MASK_TOPOLOGY
-} from '../../../../trace/index';
+  TRACE_SPAN_FILTER_MASK_SOURCE
+} from '../../../../trace';
 import {TraceCrossProcessDependencyCard} from './trace-cross-process-dependency-card';
 
 import type {
   SpanRef,
   TraceCardSpan,
   TraceCrossProcessDependency,
-  TraceDependencyRef,
   TraceGraph,
   TraceProcess,
   TraceThread,
-  TraceVisSettings,
-  VisibleCrossDependencyRef
-} from '../../../../trace/index';
+  TraceVisSettings
+} from '../../../../trace';
 import type {Root} from 'react-dom/client';
+
+const getTraceSpanDependencyChainMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../../trace', () => ({
+  DEFAULT_TRACE_STYLE: {},
+  TRACE_SPAN_FILTER_MASK_NONE: 0x00,
+  TRACE_SPAN_FILTER_MASK_REGEXP: 0x01,
+  TRACE_SPAN_FILTER_MASK_SOURCE: 0x02,
+  formatTimeMs: (timeMs: number) => `${timeMs}ms`,
+  getCrossProcessDependencyRefIndex: (dependencyRef: number) => dependencyRef,
+  getTraceSpanDependencyChain: getTraceSpanDependencyChainMock,
+  isCrossProcessDependencyRef: () => false,
+  materializeTraceCrossProcessDependencyFromArrowRow: () => null
+}));
 
 vi.mock('./trace-span-name-badge', () => ({
   TraceSpanNameBadge: ({
     filtered,
-    filterMask,
     spanRef,
     traceGraph
   }: {
     filtered?: boolean;
-    filterMask?: number;
     spanRef: SpanRef;
-    traceGraph: Pick<TraceGraph, 'getSpanName' | 'getTraceSpanCardModel' | 'spanFilterReason'>;
+    traceGraph: Pick<TraceGraph, 'getSpanName' | 'spanFilterReason'>;
   }) => {
     const filterReason = traceGraph.spanFilterReason(spanRef);
-    const resolvedFilterMask = filterMask ?? filterReason.filterMask;
     const resolvedFiltered = filtered ?? filterReason.isFiltered;
-    const filteredVariant =
-      (resolvedFilterMask & 0x02) !== 0 && (resolvedFilterMask & 0x01) === 0
-        ? 'topology'
-        : 'regexp';
     return (
-      <span
-        data-filtered={resolvedFiltered ? 'true' : 'false'}
-        data-filtered-variant={resolvedFiltered ? filteredVariant : 'none'}
-      >
-        {traceGraph.getSpanName?.(spanRef) ?? traceGraph.getTraceSpanCardModel(spanRef)?.span.name}
+      <span data-filtered={resolvedFiltered ? 'true' : 'false'}>
+        {traceGraph.getSpanName(spanRef)}
       </span>
     );
   }
 }));
 
 vi.mock('../../../utils/trace-span-badge-style', () => ({
-  getTraceSpanBadgeStyle: () => ({}),
   getTraceSpanBadgeStyleForRef: () => ({})
 }));
 
 const defaultTraceVisSettings: TraceVisSettings = {
   showDependencies: true,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   showCrossProcessDependencies: true,
   showInstants: false,
   showCounters: false,
@@ -83,13 +82,25 @@ const defaultTraceVisSettings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  traceRunSummaryAggregationKey: 'latest'
+  traceTimingKey: 'latest'
 };
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
 
 describe('TraceCrossProcessDependencyCard', () => {
+  beforeEach(() => {
+    getTraceSpanDependencyChainMock.mockImplementation(traceGraph => {
+      return (
+        (
+          traceGraph as TraceGraph & {
+            testDependencyChain?: TraceCardSpan[];
+          }
+        ).testDependencyChain ?? []
+      );
+    });
+  });
+
   afterEach(() => {
     flushSync(() => {
       root?.unmount();
@@ -109,7 +120,7 @@ describe('TraceCrossProcessDependencyCard', () => {
     );
 
     renderTraceCrossProcessDependencyCard({
-      crossDep: createCrossDependency(),
+      crossDep: createCrossProcessDependency(),
       traceGraph: createTraceGraph({
         spans: [startSpan, endSpan, ...filteredParents],
         dependencyChain: filteredParents
@@ -136,7 +147,7 @@ describe('TraceCrossProcessDependencyCard', () => {
     );
 
     renderTraceCrossProcessDependencyCard({
-      crossDep: createCrossDependency(),
+      crossDep: createCrossProcessDependency(),
       traceGraph: createTraceGraph({
         spans: [startSpan, endSpan, ...filteredParents],
         dependencyChain: filteredParents
@@ -161,7 +172,7 @@ describe('TraceCrossProcessDependencyCard', () => {
     });
 
     renderTraceCrossProcessDependencyCard({
-      crossDep: createCrossDependency(),
+      crossDep: createCrossProcessDependency(),
       traceGraph: createTraceGraph({
         spans: [startSpan, endSpan],
         dependencyChain: []
@@ -169,10 +180,10 @@ describe('TraceCrossProcessDependencyCard', () => {
     });
 
     const endpointRows = container?.querySelectorAll<HTMLElement>(
-      '[data-cross-dependency-endpoint-meta]'
+      '[data-cross-process-dependency-endpoint-meta]'
     );
     const processThreadLabels = container?.querySelectorAll<HTMLElement>(
-      '[data-cross-dependency-process-thread]'
+      '[data-cross-process-dependency-process-thread]'
     );
 
     expect(endpointRows).toHaveLength(2);
@@ -184,16 +195,16 @@ describe('TraceCrossProcessDependencyCard', () => {
     expect(processThreadLabels?.[0]?.getAttribute('title')).toBe('process-1 / thread-1');
   });
 
-  it('marks hidden top-level endpoint badges with their filtered badge variants', () => {
+  it('marks text-filtered top-level endpoint badges as hidden', () => {
     const startSpan = createSpan(1, 'hidden-start-span', 'hidden-start-span', {
       filterMask: TRACE_SPAN_FILTER_MASK_REGEXP
     });
     const endSpan = createSpan(2, 'hidden-end-span', 'hidden-end-span', {
-      filterMask: TRACE_SPAN_FILTER_MASK_TOPOLOGY
+      filterMask: TRACE_SPAN_FILTER_MASK_SOURCE
     });
 
     renderTraceCrossProcessDependencyCard({
-      crossDep: createCrossDependency(),
+      crossDep: createCrossProcessDependency(),
       traceGraph: createTraceGraph({
         spans: [startSpan, endSpan],
         dependencyChain: []
@@ -201,115 +212,7 @@ describe('TraceCrossProcessDependencyCard', () => {
     });
 
     expect(findBadgeByText('hidden-start-span')?.dataset.filtered).toBe('true');
-    expect(findBadgeByText('hidden-start-span')?.dataset.filteredVariant).toBe('regexp');
     expect(findBadgeByText('hidden-end-span')?.dataset.filtered).toBe('true');
-    expect(findBadgeByText('hidden-end-span')?.dataset.filteredVariant).toBe('topology');
-  });
-
-  it('marks raw filtered source endpoints when visible cross dependencies are stitched', () => {
-    const hiddenStartSpan = createSpan(1, 'rpc.actor.call_user_python', 'hidden-start-span', {
-      filterMask: TRACE_SPAN_FILTER_MASK_SOURCE
-    });
-    const visibleStartSpan = createSpan(2, 'visible-parent-span', 'visible-start-span');
-    const endSpan = createSpan(3, 'end-span', 'end-span');
-    const visibleDependencyRef = 101 as VisibleCrossDependencyRef;
-    const visibleDependency = {
-      ...createCrossDependency(),
-      dependencyRef: visibleDependencyRef,
-      startSpanId: visibleStartSpan.spanId,
-      endSpanId: endSpan.spanId,
-      startSpanRef: visibleStartSpan.spanRef,
-      endSpanRef: endSpan.spanRef
-    } satisfies TraceCrossProcessDependency;
-
-    renderTraceCrossProcessDependencyCard({
-      crossDep: visibleDependency,
-      dependencyRef: visibleDependencyRef,
-      traceGraph: createTraceGraph({
-        spans: [hiddenStartSpan, visibleStartSpan, endSpan],
-        dependencyChain: [],
-        sourceEndSpanRef: endSpan.spanRef,
-        sourceStartSpanRef: hiddenStartSpan.spanRef,
-        visibleDependencySource: visibleDependency
-      })
-    });
-
-    expect(findBadgeByText('rpc.actor.call_user_python')?.dataset.filtered).toBe('true');
-    expect(findBadgeByText('rpc.actor.call_user_python')?.dataset.filteredVariant).toBe('regexp');
-    expect(container?.textContent).toContain('SOURCE');
-    expect(container?.textContent).toContain('RENDERED AS');
-    expect(findBadgeByText('visible-parent-span')?.dataset.filtered).toBe('false');
-  });
-
-  it('marks stitched source endpoints filtered when the raw endpoint has no mask', () => {
-    const hiddenStartSpan = createSpan(1, 'raw-hidden-start', 'hidden-start-span');
-    const visibleStartSpan = createSpan(2, 'visible-parent-span', 'visible-start-span');
-    const endSpan = createSpan(3, 'end-span', 'end-span');
-    const visibleDependencyRef = 101 as VisibleCrossDependencyRef;
-    const visibleDependency = {
-      ...createCrossDependency(),
-      dependencyRef: visibleDependencyRef,
-      startSpanId: visibleStartSpan.spanId,
-      endSpanId: endSpan.spanId,
-      startSpanRef: visibleStartSpan.spanRef,
-      endSpanRef: endSpan.spanRef
-    } satisfies TraceCrossProcessDependency;
-
-    renderTraceCrossProcessDependencyCard({
-      crossDep: visibleDependency,
-      dependencyRef: visibleDependencyRef,
-      traceGraph: createTraceGraph({
-        spans: [hiddenStartSpan, visibleStartSpan, endSpan],
-        dependencyChain: [],
-        hasActiveSpanFilter: true,
-        sourceEndSpanRef: endSpan.spanRef,
-        sourceStartSpanRef: hiddenStartSpan.spanRef,
-        visibleDependencySource: visibleDependency
-      })
-    });
-
-    expect(findBadgeByText('raw-hidden-start')?.dataset.filtered).toBe('true');
-    expect(findBadgeByText('raw-hidden-start')?.dataset.filteredVariant).toBe('regexp');
-    expect(container?.textContent).toContain('RENDERED AS');
-    expect(findBadgeByText('visible-parent-span')?.dataset.filtered).toBe('false');
-  });
-
-  it('resolves raw hovered cross dependencies through their stitched visible dependency refs', () => {
-    const hiddenStartSpan = createSpan(1, 'raw-hidden-start', 'hidden-start-span');
-    const visibleStartSpan = createSpan(2, 'visible-parent-span', 'visible-start-span');
-    const endSpan = createSpan(3, 'end-span', 'end-span');
-    const visibleDependencyRef = 101 as VisibleCrossDependencyRef;
-    const sourceDependencyRef = 202 as TraceDependencyRef;
-    const hoveredDependency = {
-      ...createCrossDependency(),
-      dependencyRef: sourceDependencyRef,
-      startSpanId: visibleStartSpan.spanId,
-      endSpanId: endSpan.spanId,
-      startSpanRef: visibleStartSpan.spanRef,
-      endSpanRef: endSpan.spanRef
-    } satisfies TraceCrossProcessDependency;
-    const visibleDependency = {
-      ...hoveredDependency,
-      dependencyRef: visibleDependencyRef
-    } satisfies TraceCrossProcessDependency;
-
-    renderTraceCrossProcessDependencyCard({
-      crossDep: hoveredDependency,
-      traceGraph: createTraceGraph({
-        spans: [hiddenStartSpan, visibleStartSpan, endSpan],
-        dependencyChain: [],
-        hasActiveSpanFilter: true,
-        sourceEndSpanRef: endSpan.spanRef,
-        sourceStartSpanRef: hiddenStartSpan.spanRef,
-        visibleDependencyRef,
-        visibleDependencySource: visibleDependency
-      })
-    });
-
-    expect(findBadgeByText('raw-hidden-start')?.dataset.filtered).toBe('true');
-    expect(findBadgeByText('raw-hidden-start')?.dataset.filteredVariant).toBe('regexp');
-    expect(container?.textContent).toContain('RENDERED AS');
-    expect(findBadgeByText('visible-parent-span')?.dataset.filtered).toBe('false');
   });
 
   it('keeps visible endpoints filled when the card shows a filtered parent chain', () => {
@@ -320,7 +223,7 @@ describe('TraceCrossProcessDependencyCard', () => {
     });
 
     renderTraceCrossProcessDependencyCard({
-      crossDep: createCrossDependency(),
+      crossDep: createCrossProcessDependency(),
       traceGraph: createTraceGraph({
         spans: [startSpan, endSpan, filteredParent],
         dependencyChain: [filteredParent]
@@ -338,7 +241,6 @@ describe('TraceCrossProcessDependencyCard', () => {
  */
 function renderTraceCrossProcessDependencyCard(params: {
   crossDep: TraceCrossProcessDependency;
-  dependencyRef?: VisibleCrossDependencyRef;
   traceGraph: TraceGraph;
 }): void {
   container = document.createElement('div');
@@ -349,7 +251,6 @@ function renderTraceCrossProcessDependencyCard(params: {
     root?.render(
       <TraceCrossProcessDependencyCard
         crossDep={params.crossDep}
-        dependencyRef={params.dependencyRef}
         traceGraph={params.traceGraph}
         traceStyle={DEFAULT_TRACE_STYLE}
         traceSettings={defaultTraceVisSettings}
@@ -398,9 +299,9 @@ function createSpan(
 }
 
 /**
- * Build one minimal parent-topology cross dependency for the card renderer.
+ * Build one minimal parent-topology cross-process dependency for the card renderer.
  */
-function createCrossDependency(): TraceCrossProcessDependency {
+function createCrossProcessDependency(): TraceCrossProcessDependency {
   return {
     type: 'trace-cross-process-dependency',
     dependencyId: 'dep-1' as never,
@@ -427,10 +328,6 @@ function createCrossDependency(): TraceCrossProcessDependency {
 function createTraceGraph(params: {
   spans: TraceCardSpan[];
   dependencyChain: TraceCardSpan[];
-  sourceEndSpanRef?: SpanRef;
-  sourceStartSpanRef?: SpanRef;
-  visibleDependencyRef?: VisibleCrossDependencyRef;
-  visibleDependencySource?: TraceCrossProcessDependency;
   hasActiveSpanFilter?: boolean;
 }): TraceGraph {
   const spanMap = new Map(params.spans.map(span => [span.spanRef, span]));
@@ -447,26 +344,20 @@ function createTraceGraph(params: {
   } as unknown as TraceThread;
 
   return {
-    getTraceSpanCardModel: (spanRef: SpanRef) => {
-      const span = spanMap.get(spanRef) ?? null;
-      return span ? {span} : null;
-    },
     getSpanName: (spanRef: SpanRef) => spanMap.get(spanRef)?.name ?? null,
-    getProcessSourceBySpanRef: () => ({processRef: 1 as never, name: process.name, rankNum: 0}),
-    getThreadSourceBySpanRef: () => ({
+    getSpanOwnerRefs: () => ({
+      processRef: 1 as never,
+      threadRef: 1 as never
+    }),
+    getProcessSourceByRef: () => ({processRef: 1 as never, name: process.name, rankNum: 0}),
+    getThreadSourceByRef: () => ({
       threadRef: 1 as never,
       processRef: 1 as never,
       name: thread.name
     }),
-    getDependencyEndSpan: () => params.sourceEndSpanRef ?? null,
-    getDependencySourceEndSpan: () => params.sourceEndSpanRef ?? null,
-    getDependencySourceStartSpan: () => params.sourceStartSpanRef ?? null,
-    getDependencyStartSpan: () => params.sourceStartSpanRef ?? null,
     hasActiveSpanFilter: () =>
       params.hasActiveSpanFilter ??
       params.spans.some(span => span.filterMask !== TRACE_SPAN_FILTER_MASK_NONE),
-    getVisibleDependencyRefForDependency: () => params.visibleDependencyRef ?? null,
-    getVisibleDependencySourceByRef: () => params.visibleDependencySource ?? null,
     spanFilterReason: (spanRef: SpanRef) => {
       const filterMask = spanMap.get(spanRef)?.filterMask ?? TRACE_SPAN_FILTER_MASK_NONE;
       return {
@@ -479,7 +370,7 @@ function createTraceGraph(params: {
       spanMap.get(spanRef)?.timings.default?.durationMsAsString ?? null,
     getSpanDurationMs: (spanRef: SpanRef) =>
       spanMap.get(spanRef)?.timings.default?.durationMs ?? null,
-    getDependencyChainBySpanRef: () => params.dependencyChain,
+    testDependencyChain: params.dependencyChain,
     spanIsFiltered: (spanRef: SpanRef) =>
       (spanMap.get(spanRef)?.filterMask ?? TRACE_SPAN_FILTER_MASK_NONE) !==
       TRACE_SPAN_FILTER_MASK_NONE

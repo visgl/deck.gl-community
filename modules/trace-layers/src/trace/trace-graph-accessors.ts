@@ -7,15 +7,15 @@ import {
   getArrowTraceChunkSpanTableRowIndexAt
 } from './ingestion/arrow-trace';
 import {deserializeArrowTraceJson} from './ingestion/arrow-trace-json';
+import {decodeTraceSpanTimingStatusCode} from './ingestion/trace-span-timing-status-code';
 import {
   encodeProcessRef,
   encodeProcessThreadRef,
   encodeSpanRef,
-  getLocalDependencyRefRowIndex,
   getProcessRefIndex,
   getSpanRefChunkIndex,
   getSpanRefRowIndex,
-  isLocalDependencyRef
+  getThreadRefProcessIndex
 } from './trace-graph/trace-id-encoder';
 import {getPrimaryTiming} from './trace-graph/trace-types';
 import {
@@ -27,35 +27,35 @@ import {formatTimeMs} from './utils/time-format-utils';
 import type {Utf8StringView} from '@deck.gl-community/infovis-layers';
 import type {
   ArrowTraceChunk,
-  ArrowTraceLocalDependencyTable,
   ArrowTraceProcessMetadata,
+  ArrowTraceSameProcessDependencyTable,
   ArrowTraceSpanSidecarTable,
+  ArrowTraceSpanSidecarTableMap,
   ArrowTraceSpanTable,
-  TraceGraphData,
-  TraceProcessSpanRefTable,
-  TraceSpanArrowSidecarRow
+  TraceCrossProcessEndpointsBySpanRef,
+  TraceProcessSpanRefTable
 } from './ingestion/arrow-trace';
 import type {
   CounterRef,
+  CrossProcessDependencyRef,
   EventRef,
   InstantRef,
   ProcessRef,
+  SameProcessDependencyRef,
   ThreadRef,
-  TraceDependencyRef,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
+  TraceDependencyRef
 } from './trace-graph/trace-id-encoder';
 import type {
   SpanRef,
   TraceCounter,
-  TraceCrossProcessDependency,
   TraceCrossProcessEndpoint,
   TraceCrossProcessEndpointId,
   TraceEvent,
   TraceInstant,
-  TraceLocalDependency,
   TraceProcessId,
+  TraceSameProcessDependency,
   TraceSpan,
+  TraceSpanAttributePath,
   TraceSpanId,
   TraceSpanTiming,
   TraceSpanTimingSource,
@@ -72,36 +72,30 @@ export type SpanTimeExtents = {
 };
 
 /** Minimal timing-bearing object accepted by trace timing helper functions. */
-export type TimedEntity = Pick<TraceSpan, 'spanId' | 'primaryTimingKey' | 'timings'>;
+export type TimedEntity = Pick<TraceSpan, 'primaryTimingKey' | 'timings'> &
+  Partial<Pick<TraceSpan, 'spanId'>>;
 
 /**
- * Reusable Arrow-backed span row carrier for hot runtime loops.
+ * Minimal Arrow-backed graph surface used by row-level span accessors.
+ *
+ * The accessor layer intentionally depends on canonical chunk/table ownership and low-cardinality
+ * lookup metadata only. It does not require the wider ingestion-oriented graph projection.
  */
-export type ArrowTraceSpanRow = {
-  /** Stable span id. */
-  spanId: TraceSpanId;
-  /** Owning stream id. */
-  threadId: TraceThreadId;
-  /** Display name used by search and labels. */
-  name: string;
-  /** Optional source label used by filters and span inspection surfaces. */
-  source: string | null;
-  /** Owning rank label. */
-  processName: string;
-  /** Primary timing key used by the span row. */
-  primaryTimingKey: string;
-  /** Primary timing status copied from Arrow scalar columns. */
-  status: TraceSpanTiming['status'];
-  /** Primary timing start copied from Arrow scalar columns. */
-  startTimeMs: number;
-  /** Primary timing end copied from Arrow scalar columns. */
-  endTimeMs: number;
-  /** Primary timing duration copied from Arrow scalar columns. */
-  durationMs: number;
-  /** Preformatted primary duration label copied from Arrow scalar columns. */
-  durationMsAsString: string;
-  /** Keywords stored on the span when present. */
-  keywords: readonly string[];
+export type TraceGraphSpanAccessorSource = {
+  /** Loaded row-backed Arrow chunks that own canonical span rows. */
+  readonly chunks: readonly ArrowTraceChunk[];
+  /** Optional active span refs for a row-selected graph view. */
+  readonly spanRefs?: readonly SpanRef[];
+  /** Canonical process ids indexed by packed process index. */
+  readonly processIdsByIndex: ReadonlyArray<TraceProcessId>;
+  /** Metadata-only process records used for process and thread owner fallback. */
+  readonly processes: Readonly<ArrowTraceProcessMetadata[]>;
+  /** Process-local SpanRef/layout index tables keyed by process id. */
+  readonly processSpanTableMap: Readonly<Record<TraceProcessId, TraceProcessSpanRefTable>>;
+  /** Optional row-aligned Arrow detail sidecar tables keyed by process id. */
+  readonly spanSidecarTableMap?: ArrowTraceSpanSidecarTableMap;
+  /** Optional sparse unresolved cross-process endpoints keyed by owning span ref. */
+  readonly crossProcessEndpointsBySpanRef?: TraceCrossProcessEndpointsBySpanRef;
 };
 
 /**
@@ -114,6 +108,16 @@ export type TraceGraphSpanArrowColumnValue = {
   columnName: string;
   /** Raw row value read from the Arrow column. */
   value: unknown;
+};
+
+/**
+ * One canonical span ref paired with its row in a process-local span-ref table.
+ */
+export type TraceGraphProcessSpanRefRow = {
+  /** Exact chunk-backed span ref represented by this process-local row. */
+  readonly spanRef: SpanRef;
+  /** Row index into the owning process-local span-ref table. */
+  readonly processRowIndex: number;
 };
 
 /**
@@ -132,6 +136,28 @@ export type TraceGraphSpanStoreRow = {
   threadRef: ThreadRef | null;
   /** Resolved process id for the span row. */
   processId: TraceProcessId | null;
+};
+
+/**
+ * Arrow span row address resolved without row-level process/thread owner lookup.
+ */
+type TraceGraphSpanTableAddress = {
+  /** Loaded chunk that owns the span ref. */
+  chunk: ArrowTraceChunk;
+  /** Chunk-owned Arrow span table that stores the full span row. */
+  spanTable: ArrowTraceSpanTable;
+  /** Row index inside {@link TraceGraphSpanTableAddress.spanTable}. */
+  rowIndex: number;
+  /** Resolved process id for the span row. */
+  processId: TraceProcessId | null;
+  /** Packed process ref stored on mixed-process chunk rows. */
+  rowProcessRef: number | null;
+  /** Packed thread ref stored on the span row when the Arrow table exposes one. */
+  rowThreadRef: number | null;
+  /** Canonical runtime process ref resolved without reading span display fields. */
+  processRef: ProcessRef | null;
+  /** Canonical runtime thread ref resolved without reading span display fields. */
+  threadRef: ThreadRef | null;
 };
 
 /**
@@ -156,19 +182,37 @@ export type TraceSpanLaneSource = {
   layoutTopY?: number;
   /** Rendered height used when the owning trace opts into manual span layout. */
   layoutHeight?: number;
-  /** Optional span user data used by lane and display helpers. */
+  /** Optional scalar trace id used for generated-lane affinity. */
+  traceAffinityKey?: string | number | bigint;
+  /** Optional span user data reserved for detail-only compatibility consumers. */
   userData?: Record<string, unknown>;
 };
 
 /**
- * Lightweight Arrow-native span payload used for geometry rebuilds.
+ * Narrow Arrow-native span payload consumed by generated trace layout.
+ *
+ * Generated lane assignment needs ownership, timing envelopes, and optional affinity, but it does
+ * not need display ids or authored manual geometry. This object path is reserved for filtered or
+ * richer timing/affinity fallback cases.
  */
-export type TraceSpanGeometrySource = TraceSpanLaneSource;
+export type TraceSpanLayoutLaneSource = Pick<
+  TraceSpanLaneSource,
+  'spanRef' | 'processRef' | 'threadRef' | 'primaryTimingKey' | 'timings' | 'traceAffinityKey'
+>;
 
 /**
- * Arrow-native span payload used by display-oriented runtime surfaces.
+ * Lightweight Arrow-native span payload used for geometry rebuilds.
  */
-export type TraceSpanDisplaySource = TraceSpanGeometrySource & {
+export type TraceSpanGeometrySource = Pick<
+  TraceSpanLaneSource,
+  'spanRef' | 'primaryTimingKey' | 'timings' | 'layoutTopY' | 'layoutHeight'
+> &
+  Partial<Pick<TraceSpanLaneSource, 'processRef' | 'threadRef' | 'spanId' | 'threadId'>>;
+
+/**
+ * Arrow-native span payload used by render, selection, search, and card surfaces.
+ */
+export type TraceSpanDetailSource = TraceSpanLaneSource & {
   /** Human-readable process label attached to the span. */
   processName: string;
   /** Span display name. */
@@ -177,8 +221,6 @@ export type TraceSpanDisplaySource = TraceSpanGeometrySource & {
   source: string | null;
   /** Optional keyword labels shown in cards, search, and filters. */
   keywords: string[];
-  /** Local dependency ids attached to the span. */
-  localDependencyIds: TraceLocalDependency['dependencyId'][];
   /** Optional unresolved cross-rank endpoint id. */
   crossProcessEndpointId: TraceCrossProcessEndpointId | null;
   /** Structured unresolved cross-rank endpoints attached to the span. */
@@ -186,15 +228,10 @@ export type TraceSpanDisplaySource = TraceSpanGeometrySource & {
 };
 
 /**
- * Arrow-native span payload used by render and selection surfaces that do not need dependency ids.
- */
-export type TraceSpanRenderSource = Omit<TraceSpanDisplaySource, 'localDependencyIds'>;
-
-/**
  * Span-ref keyed payload consumed by deck render layers.
  */
-export type TraceRenderSpan = TraceSpanRenderSource &
-  Partial<Pick<TraceSpanDisplaySource, 'localDependencyIds'>>;
+export type TraceRenderSpan = TraceSpanDetailSource &
+  Partial<Pick<TraceSpan, 'sameProcessDependencyIds'>>;
 
 /** Shared runtime metadata kept on any lightweight visible dependency render source. */
 export type TraceDependencyRenderSourceCommon = {
@@ -203,7 +240,7 @@ export type TraceDependencyRenderSourceCommon = {
   /** Exact visible destination span ref used for geometry and selection when available. */
   endSpanRef: SpanRef | null;
   /** Dependency timing mode needed by deck rendering and lightweight tooltip shells. */
-  waitMode: TraceLocalDependency['waitMode'];
+  waitMode: TraceSameProcessDependency['waitMode'];
   /** Whether the dependency should render bidirectional arrows. */
   bidirectional: boolean;
   /** Wait duration needed by deck rendering and lightweight tooltip shells. */
@@ -212,22 +249,22 @@ export type TraceDependencyRenderSourceCommon = {
   isParent: boolean;
 };
 
-/** Lightweight visible local dependency payload used by render, pick, and selection paths. */
-export type TraceLocalDependencyRenderSource = TraceDependencyRenderSourceCommon & {
-  /** Local dependency discriminator kept for runtime branching. */
-  type: 'trace-local-dependency';
-  /** Canonical visible local dependency ref used by cards to resolve descriptive data later. */
-  dependencyRef: VisibleLocalDependencyRef;
-  /** Owning process ref used to route local dependency overlays to one rank layer. */
+/** Lightweight visible same-process dependency payload used by render, pick, and selection paths. */
+export type TraceSameProcessDependencyRenderSource = TraceDependencyRenderSourceCommon & {
+  /** Same-process dependency discriminator kept for runtime branching. */
+  type: 'trace-same-process-dependency';
+  /** Canonical same-process dependency ref used by cards to resolve descriptive data later. */
+  dependencyRef: SameProcessDependencyRef;
+  /** Owning process ref used to route same-process dependency overlays to one rank layer. */
   processRef: ProcessRef;
 };
 
-/** Lightweight visible cross dependency payload used by render, pick, and selection paths. */
-export type TraceCrossDependencyRenderSource = TraceDependencyRenderSourceCommon & {
-  /** Cross dependency discriminator kept for runtime branching. */
+/** Lightweight visible cross-process dependency payload used by render, pick, and selection paths. */
+export type TraceCrossProcessDependencyRenderSource = TraceDependencyRenderSourceCommon & {
+  /** Cross-process dependency discriminator kept for runtime branching. */
   type: 'trace-cross-process-dependency';
-  /** Canonical visible cross dependency ref used by cards to resolve descriptive data later. */
-  dependencyRef: VisibleCrossDependencyRef;
+  /** Canonical cross-process dependency ref used by cards to resolve descriptive data later. */
+  dependencyRef: CrossProcessDependencyRef;
   /** Visible source rank number needed by cross-rank rendering. */
   startRankNum: number;
   /** Visible destination rank number needed by cross-rank rendering. */
@@ -236,19 +273,15 @@ export type TraceCrossDependencyRenderSource = TraceDependencyRenderSourceCommon
 
 /** Union describing any lightweight visible dependency payload returned by render APIs. */
 export type TraceDependencyRenderSource =
-  | TraceLocalDependencyRenderSource
-  | TraceCrossDependencyRenderSource;
+  | TraceSameProcessDependencyRenderSource
+  | TraceCrossProcessDependencyRenderSource;
 
 /**
  * Row-aligned sidecar payload resolved for one concrete span-table row.
  */
 type TraceGraphSpanSidecarSource = {
-  /** JS compatibility sidecar row aligned to the concrete chunk span-table row. */
-  row: TraceSpanArrowSidecarRow | null;
   /** Arrow sidecar table aligned to the concrete chunk span table. */
   table: ArrowTraceSpanSidecarTable | null;
-  /** Whether process-keyed sidecars are row-compatible with this chunk. */
-  useProcessFallback: boolean;
 };
 
 /** Shared runtime metadata kept on any ref-native visible dependency source. */
@@ -256,7 +289,7 @@ export type TraceDependencySourceCommon = {
   /** Canonical owning process ref for the visible dependency when available. */
   processRef?: ProcessRef | undefined;
   /** Stable source dependency identifier. */
-  dependencyId: TraceLocalDependency['dependencyId'];
+  dependencyId: TraceSameProcessDependency['dependencyId'];
   /** Stable source start block identifier kept for legacy routing/debug metadata. */
   startSpanId: TraceSpanId;
   /** Stable source end block identifier kept for legacy routing/debug metadata. */
@@ -270,7 +303,7 @@ export type TraceDependencySourceCommon = {
   /** Exact visible end span ref used for geometry and traversal when available. */
   endSpanRef?: SpanRef | undefined;
   /** Dependency timing mode kept for cards and tooltips. */
-  waitMode: TraceLocalDependency['waitMode'];
+  waitMode: TraceSameProcessDependency['waitMode'];
   /** Whether the dependency should render bidirectional arrows. */
   bidirectional: boolean;
   /** Wait duration kept for coloring and inspection. */
@@ -281,36 +314,18 @@ export type TraceDependencySourceCommon = {
   userData?: Record<string, unknown>;
 };
 
-/** Ref-native visible local dependency payload used by runtime layout and rendering surfaces. */
-export type TraceLocalDependencySource = TraceDependencySourceCommon & {
-  /** Local dependency discriminator kept for runtime branching. */
-  type: 'trace-local-dependency';
+/** Ref-native visible same-process dependency payload used by runtime layout and rendering surfaces. */
+export type TraceSameProcessDependencySource = TraceDependencySourceCommon & {
+  /** Same-process dependency discriminator kept for runtime branching. */
+  type: 'trace-same-process-dependency';
   /** Canonical runtime dependency ref for geometry and selection when available. */
-  dependencyRef?: TraceDependencyRef | VisibleLocalDependencyRef | undefined;
-};
-
-/** Ref-native visible cross dependency payload used by runtime layout and rendering surfaces. */
-export type TraceCrossDependencySource = TraceDependencySourceCommon & {
-  /** Cross dependency discriminator kept for runtime branching. */
-  type: 'trace-cross-process-dependency';
-  /** Canonical runtime dependency ref for geometry and selection when available. */
-  dependencyRef?: TraceDependencyRef | VisibleCrossDependencyRef | undefined;
-  /** Endpoint id kept for unresolved-endpoint correlation. */
-  endpointId: TraceCrossProcessDependency['endpointId'];
-  /** Source rank number kept for cards and navigation. */
-  startRankNum: number;
-  /** Target rank number kept for cards and navigation. */
-  endRankNum: number;
-  /** Cross-rank topology label kept for cards and tooltips. */
-  topology: string;
-  /** Whether the cross dependency is still waiting on the remote endpoint. */
-  waiting: boolean;
-  /** Whether the cross dependency remains unfinished. */
-  waitNotFinished: boolean;
+  dependencyRef?: TraceDependencyRef | undefined;
 };
 
 /** Union describing any ref-native visible dependency payload returned by TraceGraph runtime APIs. */
-export type TraceDependencySource = TraceLocalDependencySource | TraceCrossDependencySource;
+export type TraceDependencySource =
+  | TraceSameProcessDependencySource
+  | TraceCrossProcessDependencyRenderSource;
 
 /** Ref-native process payload used by TraceGraph runtime lookup APIs. */
 export type TraceProcessSource = {
@@ -424,84 +439,67 @@ export type ArrowTraceSpanFieldName =
 const NOT_STARTED_BLOCK_DURATION_MS = 1_000;
 const NOT_FINISHED_BLOCK_END_TIME_DEFAULT = Number.MAX_SAFE_INTEGER;
 
-/** Materializes and yields compatibility `TraceSpan` rows in canonical graph order. */
-export function* iterateMaterializedTraceGraphSpans(
-  traceGraph: Readonly<TraceGraphData>
-): IterableIterator<TraceSpan> {
-  for (const process of traceGraph.processes) {
-    yield* iterateMaterializedTraceGraphProcessSpans(traceGraph, process.processId);
-  }
-}
-
-/** Resolves a span ref by legacy block id without materializing a span-location map. */
-export function getTraceGraphSpanRef(
-  traceGraph: Readonly<TraceGraphData>,
-  spanId: TraceSpanId
-): SpanRef | null {
-  return getUniqueTraceGraphSpanRef(traceGraph, spanId);
-}
-
 /** Resolves a span ref by legacy block id only when that id is unique in the graph. */
 export function getUniqueTraceGraphSpanRef(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanId: TraceSpanId
 ): SpanRef | null {
   const spanRefBySpanId = getUniqueSpanRefBySpanId(traceGraph);
   return spanRefBySpanId.has(spanId) ? spanRefBySpanId.get(spanId)! : null;
 }
 
-/** Resolves the owning process ref stored on one chunk-local span row. */
-export function getTraceGraphSpanRefProcessRef(
-  traceGraph: Readonly<TraceGraphData>,
-  spanRef: SpanRef
-): ProcessRef | null {
-  const spanRow = getTraceGraphSpanStoreRow(traceGraph, spanRef);
-  return spanRow?.processRef ?? null;
-}
-
-/** Resolves the owning thread ref stored on one chunk-local span row. */
-export function getTraceGraphSpanRefThreadRef(
-  traceGraph: Readonly<TraceGraphData>,
-  spanRef: SpanRef
-): ThreadRef | null {
-  const spanRow = getTraceGraphSpanStoreRow(traceGraph, spanRef);
-  return spanRow?.threadRef ?? null;
-}
-
 /** Resolves the owning process id for one chunk-local span row. */
 export function getTraceGraphSpanRefProcessId(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
 ): TraceProcessId | null {
   return getTraceGraphSpanStoreRow(traceGraph, spanRef)?.processId ?? null;
 }
 
+/** Returns whether one span ref belongs to the active graph selection. */
+export function isTraceGraphSpanRefActive(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  spanRef: SpanRef
+): boolean {
+  if (traceGraph.spanRefs == null) {
+    return true;
+  }
+  if (findSortedSpanRefIndex(traceGraph.spanRefs, spanRef) !== -1) {
+    return true;
+  }
+  return traceGraph.spanRefs.includes(spanRef);
+}
+
 /** Resolves the compact Arrow span-table row that backs one stable kept span ref. */
 export function getTraceGraphSpanTableRowIndex(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
 ): number | null {
-  return getTraceGraphSpanStoreRow(traceGraph, spanRef)?.rowIndex ?? null;
+  if (!isTraceGraphSpanRefActive(traceGraph, spanRef)) {
+    return null;
+  }
+  const chunk = resolveChunkBySpanRef(traceGraph, spanRef);
+  return chunk ? getArrowTraceChunkSpanTableRowIndex(chunk, getSpanRefRowIndex(spanRef)) : null;
 }
 
 /**
  * Fills a reusable UTF-8 byte view for one span display name without decoding it to a string.
  */
 export function getTraceGraphSpanNameUtf8(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef,
   out: Utf8StringView
 ): boolean {
   const spanRow = getTraceGraphSpanStoreRow(traceGraph, spanRef);
   const nameColumn = spanRow
-    ? (getCachedColumn<string>(spanRow.spanTable, 'name') as unknown as arrow.Vector<arrow.Utf8>)
+    ? (getArrowColumn<string>(spanRow.spanTable, 'name') as unknown as arrow.Vector<arrow.Utf8>)
     : null;
   return spanRow && nameColumn ? getArrowUtf8RowView(nameColumn, spanRow.rowIndex, out) : false;
 }
 
 /** Iterates every canonical span ref in graph order without materializing `TraceSpan`s. */
 export function* iterateTraceGraphSpanRefs(
-  traceGraph: Readonly<TraceGraphData>
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>
 ): IterableIterator<SpanRef> {
   if (traceGraph.spanRefs) {
     yield* traceGraph.spanRefs;
@@ -519,19 +517,29 @@ export function* iterateTraceGraphSpanRefs(
   }
 }
 
-/** Iterates canonical span refs for one process in process-local row order. */
-export function* iterateTraceGraphProcessSpanRefs(
-  traceGraph: Readonly<TraceGraphData>,
+/**
+ * Iterates canonical span refs with their process-local table rows.
+ *
+ * Modern Arrow-backed graphs already scan the process-local span-ref table to enumerate refs, so
+ * callers that need both values should use this iterator instead of resolving each yielded ref
+ * back to the same row with a binary search. Legacy graphs without a process-local table retain
+ * their existing enumeration order and receive a matching process-local row index.
+ */
+export function* iterateTraceGraphProcessSpanRefRows(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId | string
-): IterableIterator<SpanRef> {
+): IterableIterator<TraceGraphProcessSpanRefRow> {
   const typedProcessId = processId as TraceProcessId;
   const spanRefTable = traceGraph.processSpanTableMap[typedProcessId];
-  const spanRefColumn = spanRefTable ? getCachedColumn<unknown>(spanRefTable, 'span_ref') : null;
+  const spanRefColumn = spanRefTable ? getArrowColumn<unknown>(spanRefTable, 'span_ref') : null;
   if (spanRefTable && spanRefColumn) {
-    for (let rowIndex = 0; rowIndex < spanRefTable.numRows; rowIndex += 1) {
-      const spanRef = normalizeArrowRefNumber(spanRefColumn.get(rowIndex));
+    for (let processRowIndex = 0; processRowIndex < spanRefTable.numRows; processRowIndex += 1) {
+      const spanRef = normalizeArrowRefNumber(spanRefColumn.get(processRowIndex));
       if (spanRef != null) {
-        yield spanRef as SpanRef;
+        yield {
+          spanRef: spanRef as SpanRef,
+          processRowIndex
+        };
       }
     }
     return;
@@ -547,15 +555,18 @@ export function* iterateTraceGraphProcessSpanRefs(
     return;
   }
   if (traceGraph.spanRefs) {
+    let processRowIndex = 0;
     for (const spanRef of traceGraph.spanRefs) {
       const spanRow = getTraceGraphSpanTableRow(traceGraph, spanRef);
       if (spanRow?.processRef === processRef) {
-        yield spanRef;
+        yield {spanRef, processRowIndex};
+        processRowIndex += 1;
       }
     }
     return;
   }
 
+  let processRowIndex = 0;
   for (const chunk of traceGraph.chunks) {
     const spanRowCount = getArrowTraceChunkSpanRowCount(chunk);
     for (let chunkRowOrdinal = 0; chunkRowOrdinal < spanRowCount; chunkRowOrdinal += 1) {
@@ -566,27 +577,41 @@ export function* iterateTraceGraphProcessSpanRefs(
         spanRefRowIndex != null &&
         readArrowRefColumn(chunk.spanTable, 'process_ref', tableRowIndex) === processRef
       ) {
-        yield encodeSpanRef(chunk.chunkIndex, spanRefRowIndex);
+        yield {
+          spanRef: encodeSpanRef(chunk.chunkIndex, spanRefRowIndex),
+          processRowIndex
+        };
+        processRowIndex += 1;
       }
     }
   }
 }
 
+/** Iterates canonical span refs for one process in process-local row order. */
+export function* iterateTraceGraphProcessSpanRefs(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  processId: TraceProcessId | string
+): IterableIterator<SpanRef> {
+  for (const {spanRef} of iterateTraceGraphProcessSpanRefRows(traceGraph, processId)) {
+    yield spanRef;
+  }
+}
+
 /**
- * Resolves the process-local `processSpanTableMap` row ordinal for a source span ref.
+ * Resolves the process-local `processSpanTableMap` row index for a source span ref.
  *
- * `TraceProcessSpanRefTable.span_ref` is built in ascending `SpanRef` order and row-aligns all
- * process-local columns, including `filter_mask`, with that sorted span-ref column. This accessor
- * relies on that invariant to binary-search the process table instead of scanning all process
- * rows for every arbitrary chunk-local `SpanRef` lookup.
+ * `TraceProcessSpanRefTable.span_ref` is built in ascending `SpanRef` order and row-aligns
+ * optional process-local layout columns with that sorted span-ref column. This accessor relies on
+ * that invariant to binary-search the process table instead of scanning all process rows for every
+ * arbitrary chunk-local `SpanRef` lookup.
  */
-export function getTraceGraphProcessSpanOrdinal(
-  traceGraph: Readonly<TraceGraphData>,
+export function getTraceGraphProcessSpanRowIndex(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId | string,
   spanRef: SpanRef
 ): number | null {
   const spanRefTable = traceGraph.processSpanTableMap[processId as TraceProcessId];
-  const spanRefColumn = spanRefTable ? getCachedColumn<unknown>(spanRefTable, 'span_ref') : null;
+  const spanRefColumn = spanRefTable ? getArrowColumn<unknown>(spanRefTable, 'span_ref') : null;
   if (!spanRefTable || !spanRefColumn) {
     return null;
   }
@@ -612,86 +637,10 @@ export function getTraceGraphProcessSpanOrdinal(
 }
 
 /**
- * Resolves one reusable Arrow-backed span row without materializing a full `TraceSpan`.
- */
-export function getArrowTraceSpanRow(
-  traceGraph: Readonly<TraceGraphData>,
-  span: TraceSpanId | SpanRef,
-  reusableRow?: ArrowTraceSpanRow
-): ArrowTraceSpanRow | null {
-  const spanIndex = resolveSpanIndex(traceGraph, span);
-  if (spanIndex == null) {
-    return null;
-  }
-
-  const spanRow = getTraceGraphSpanTableRow(traceGraph, spanIndex);
-  const processId = spanRow?.processId ?? null;
-  if (!processId) {
-    return null;
-  }
-  const rowIndex = spanRow?.rowIndex ?? null;
-  const blockTable = spanRow?.spanTable;
-  if (!blockTable || rowIndex == null) {
-    return null;
-  }
-  const sidecarSource = getTraceGraphSpanSidecarSource(
-    traceGraph,
-    processId,
-    spanRow.chunk,
-    rowIndex
-  );
-
-  const spanId = readColumnValue<TraceSpanId>(blockTable, 'span_id', rowIndex);
-  const threadId = readColumnValue<TraceThreadId>(blockTable, 'thread_id', rowIndex);
-  const name = readColumnValue<string>(blockTable, 'name', rowIndex);
-  const source = readColumnValue<string>(blockTable, 'source', rowIndex) ?? null;
-  const processName = getTraceGraphProcessName(traceGraph, processId);
-  if (!spanId || !threadId || !name || !processName) {
-    return null;
-  }
-
-  const row = reusableRow ?? {
-    spanId,
-    threadId,
-    name,
-    source,
-    processName,
-    primaryTimingKey: 'primary',
-    status: 'finished',
-    startTimeMs: 0,
-    endTimeMs: 0,
-    durationMs: 0,
-    durationMsAsString: '0ms',
-    keywords: []
-  };
-  row.spanId = spanId;
-  row.threadId = threadId;
-  row.name = name;
-  row.source = source;
-  row.processName = processName;
-  row.primaryTimingKey =
-    readColumnValue<string>(blockTable, 'primary_timing_key', rowIndex) ?? 'primary';
-  row.status = (readColumnValue<TraceSpanTiming['status']>(blockTable, 'status', rowIndex) ??
-    'finished') as TraceSpanTiming['status'];
-  row.startTimeMs = readColumnValue<number>(blockTable, 'start_time_ms', rowIndex) ?? 0;
-  row.endTimeMs = readColumnValue<number>(blockTable, 'end_time_ms', rowIndex) ?? 0;
-  row.durationMs = readColumnValue<number>(blockTable, 'duration_ms', rowIndex) ?? 0;
-  row.durationMsAsString = formatPrimaryDurationLabel(row.status, row.durationMs);
-  row.keywords = getTraceGraphSpanKeywords(
-    traceGraph,
-    processId,
-    blockTable,
-    rowIndex,
-    sidecarSource
-  );
-  return row;
-}
-
-/**
  * Reads one cheap Arrow span field without materializing a full `TraceSpan`.
  */
 export function getArrowTraceSpanField(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   span: TraceSpanId | SpanRef,
   fieldName: ArrowTraceSpanFieldName
 ): string | number | readonly string[] | null {
@@ -711,10 +660,12 @@ export function getArrowTraceSpanField(
   const blockTable = chunk.spanTable;
   if (fieldName === 'durationMsAsString') {
     return formatPrimaryDurationLabel(
-      (readColumnValue<TraceSpanTiming['status']>(blockTable, 'status', rowIndex) ??
-        'finished') as TraceSpanTiming['status'],
+      readTraceSpanPrimaryTimingStatus(blockTable, rowIndex) ?? 'finished',
       readColumnValue<number>(blockTable, 'duration_ms', rowIndex) ?? 0
     );
+  }
+  if (fieldName === 'status') {
+    return readTraceSpanPrimaryTimingStatus(blockTable, rowIndex);
   }
 
   if (fieldName !== 'processName' && fieldName !== 'keywords') {
@@ -738,7 +689,7 @@ export function getArrowTraceSpanField(
   }
 
   if (fieldName === 'processName') {
-    return getTraceGraphProcessName(traceGraph, processId);
+    return getTraceGraphProcessName(traceGraph, processId, processRef);
   }
   if (fieldName === 'keywords') {
     return getTraceGraphSpanKeywords(
@@ -757,24 +708,48 @@ export function getArrowTraceSpanField(
  * Resolves one Arrow-native span source used by lane-assignment helpers.
  */
 export function getTraceGraphSpanLaneSource(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
 ): TraceSpanLaneSource | null {
   return getTraceGraphSpanLaneSourceByRef(traceGraph, spanRef, true);
 }
 
 /**
- * Resolves one Arrow-native span source when the caller already owns an active span ref.
+ * Resolves the narrow Arrow-native source used by generated auto-layout.
+ *
+ * This preserves active-row and canonical owner-ref validation plus the complete multi-timing
+ * envelope. Dataset-owned refs are authoritative here, so generated layout intentionally skips
+ * reading display ids, thread ids, and manual geometry fields that it does not consume.
  */
-export function getActiveTraceGraphSpanGeometrySource(
-  traceGraph: Readonly<TraceGraphData>,
+export function getTraceGraphSpanLayoutLaneSource(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
-): TraceSpanGeometrySource | null {
+): TraceSpanLayoutLaneSource | null {
+  return getTraceGraphSpanLayoutLaneSourceByRef(traceGraph, spanRef, true);
+}
+
+/**
+ * Resolves one Arrow-native lane source when the caller already owns an active span ref.
+ */
+export function getActiveTraceGraphSpanLaneSource(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  spanRef: SpanRef
+): TraceSpanLaneSource | null {
   return getTraceGraphSpanLaneSourceByRef(traceGraph, spanRef, false);
 }
 
+/**
+ * Resolves one Arrow-native span source when the caller already owns an active span ref.
+ */
+export function getActiveTraceGraphSpanGeometrySource(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  spanRef: SpanRef
+): TraceSpanGeometrySource | null {
+  return getTraceGraphSpanGeometrySourceByRef(traceGraph, spanRef, false);
+}
+
 function getTraceGraphSpanLaneSourceByRef(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanIndex: SpanRef,
   validateActive: boolean
 ): TraceSpanLaneSource | null {
@@ -802,21 +777,82 @@ function getTraceGraphSpanLaneSourceByRef(
   );
 }
 
+/** Resolves one narrow generated-layout lane source with optional active-ref validation. */
+function getTraceGraphSpanLayoutLaneSourceByRef(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  spanIndex: SpanRef,
+  validateActive: boolean
+): TraceSpanLayoutLaneSource | null {
+  const spanRow = getTraceGraphSpanTableAddress(traceGraph, spanIndex, validateActive);
+  const processId = spanRow?.processId ?? null;
+  const blockTable = spanRow?.spanTable;
+  if (!processId || !blockTable || spanRow.processRef == null || spanRow.threadRef == null) {
+    return null;
+  }
+
+  return buildTraceSpanLayoutLaneSource(
+    traceGraph,
+    processId,
+    blockTable,
+    spanRow.rowIndex,
+    spanIndex,
+    getTraceGraphSpanSidecarSource(traceGraph, processId, spanRow.chunk, spanRow.rowIndex),
+    {
+      processRef: spanRow.processRef,
+      threadRef: spanRow.threadRef
+    }
+  );
+}
+
+/** Resolves one geometry source from a canonical span ref with optional active-ref validation. */
+function getTraceGraphSpanGeometrySourceByRef(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  spanIndex: SpanRef,
+  validateActive: boolean,
+  timingKey?: string | null
+): TraceSpanGeometrySource | null {
+  const spanRow = getTraceGraphSpanTableAddress(traceGraph, spanIndex, validateActive);
+  const processId = spanRow?.processId ?? null;
+  if (!processId) {
+    return null;
+  }
+  const blockTable = spanRow?.spanTable;
+  if (!blockTable) {
+    return null;
+  }
+
+  return buildTraceSpanGeometrySource(
+    traceGraph,
+    processId,
+    blockTable,
+    spanRow.rowIndex,
+    spanIndex,
+    getTraceGraphSpanSidecarSource(traceGraph, processId, spanRow.chunk, spanRow.rowIndex),
+    {
+      processRef: spanRow.processRef,
+      threadRef: spanRow.threadRef
+    },
+    timingKey
+  );
+}
+
 /**
  * Resolves one Arrow-native span source used by geometry rebuilds.
+ * Pass `null` or the primary timing key to avoid decoding full timing sidecars.
  */
 export function getTraceGraphSpanGeometrySource(
-  traceGraph: Readonly<TraceGraphData>,
-  spanRef: SpanRef
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  spanRef: SpanRef,
+  timingKey?: string | null
 ): TraceSpanGeometrySource | null {
-  return getTraceGraphSpanLaneSource(traceGraph, spanRef);
+  return getTraceGraphSpanGeometrySourceByRef(traceGraph, spanRef, true, timingKey);
 }
 
 /**
  * Resolves one span user-data payload using chunk-aware Arrow sidecar lookup.
  */
 export function getTraceGraphSpanUserData(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   span: TraceSpanId | SpanRef
 ): Record<string, unknown> | undefined {
   const spanIndex = resolveSpanIndex(traceGraph, span);
@@ -845,11 +881,48 @@ export function getTraceGraphSpanUserData(
   );
 }
 
+/** Returns whether every loaded span-table schema declares one attribute path. */
+export function hasTraceGraphSpanAttribute(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  path: TraceSpanAttributePath
+): boolean {
+  if (path.length === 0) {
+    return false;
+  }
+  const populatedChunks = traceGraph.chunks.filter(chunk => chunk.spanTable.numRows > 0);
+  return (
+    populatedChunks.length > 0 &&
+    populatedChunks.every(chunk => hasArrowTableAttributePath(chunk.spanTable, path))
+  );
+}
+
+/**
+ * Resolves one declared span attribute directly from optional Arrow span-table columns.
+ */
+export function getTraceGraphSpanAttribute(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  span: TraceSpanId | SpanRef,
+  path: TraceSpanAttributePath
+): unknown {
+  if (path.length === 0) {
+    return undefined;
+  }
+  const spanIndex = resolveSpanIndex(traceGraph, span);
+  if (spanIndex == null) {
+    return undefined;
+  }
+  const spanRow = getTraceGraphSpanTableRow(traceGraph, spanIndex);
+  if (!spanRow) {
+    return undefined;
+  }
+  return readArrowTableAttributeValue(spanRow.spanTable, spanRow.rowIndex, path);
+}
+
 /**
  * Resolves the external source id stored on one span row, when present.
  */
 export function getTraceGraphSpanExternalSpanId(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   span: TraceSpanId | SpanRef
 ): string | null {
   const spanIndex = resolveSpanIndex(traceGraph, span);
@@ -871,63 +944,30 @@ export function getTraceGraphSpanExternalSpanId(
 }
 
 /**
- * Resolves one Arrow-native span source used by cards, search, and tooltips.
+ * Resolves one Arrow-native source without expanding same-process dependency ids.
  */
-export function getTraceGraphSpanDisplaySource(
-  traceGraph: Readonly<TraceGraphData>,
+export function getTraceGraphSpanDetailSource(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
-): TraceSpanDisplaySource | null {
-  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, true, true);
+): TraceSpanDetailSource | null {
+  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, true);
 }
 
 /**
- * Resolves one Arrow-native render source without expanding local dependency ids.
+ * Resolves one Arrow-native source when the caller already owns an active span ref.
  */
-export function getTraceGraphSpanRenderSource(
-  traceGraph: Readonly<TraceGraphData>,
+export function getActiveTraceGraphSpanDetailSource(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
-): TraceSpanRenderSource | null {
-  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, true, false);
-}
-
-/**
- * Resolves one Arrow-native display source when the caller already owns an active span ref.
- */
-export function getActiveTraceGraphSpanDisplaySource(
-  traceGraph: Readonly<TraceGraphData>,
-  spanRef: SpanRef
-): TraceSpanDisplaySource | null {
-  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, false, true);
-}
-
-/**
- * Resolves one Arrow-native render source when the caller already owns an active span ref.
- */
-export function getActiveTraceGraphSpanRenderSource(
-  traceGraph: Readonly<TraceGraphData>,
-  spanRef: SpanRef
-): TraceSpanRenderSource | null {
-  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, false, false);
+): TraceSpanDetailSource | null {
+  return getTraceGraphSpanSourceByRef(traceGraph, spanRef, false);
 }
 
 function getTraceGraphSpanSourceByRef(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanIndex: SpanRef,
-  validateActive: boolean,
-  includeLocalDependencyIds: true
-): TraceSpanDisplaySource | null;
-function getTraceGraphSpanSourceByRef(
-  traceGraph: Readonly<TraceGraphData>,
-  spanIndex: SpanRef,
-  validateActive: boolean,
-  includeLocalDependencyIds: false
-): TraceSpanRenderSource | null;
-function getTraceGraphSpanSourceByRef(
-  traceGraph: Readonly<TraceGraphData>,
-  spanIndex: SpanRef,
-  validateActive: boolean,
-  includeLocalDependencyIds: boolean
-): TraceSpanDisplaySource | TraceSpanRenderSource | null {
+  validateActive: boolean
+): TraceSpanDetailSource | null {
   const spanRow = getTraceGraphSpanTableRow(traceGraph, spanIndex, validateActive);
   const processId = spanRow?.processId ?? null;
   if (!processId) {
@@ -972,6 +1012,13 @@ function getTraceGraphSpanSourceByRef(
     processName,
     name,
     source: readColumnValue<string>(blockTable, 'source', rowIndex) ?? null,
+    userData: readTraceGraphSpanUserData(
+      traceGraph,
+      processId,
+      blockTable,
+      rowIndex,
+      sidecarSource
+    ),
     keywords: getTraceGraphSpanKeywords(traceGraph, processId, blockTable, rowIndex, sidecarSource),
     crossProcessEndpointId: getTraceGraphCrossProcessEndpointId(
       traceGraph,
@@ -988,20 +1035,9 @@ function getTraceGraphSpanSourceByRef(
       spanIndex,
       sidecarSource
     )
-  } satisfies TraceSpanRenderSource;
+  } satisfies TraceSpanDetailSource;
 
-  return includeLocalDependencyIds
-    ? {
-        ...spanSource,
-        localDependencyIds: getTraceGraphLocalDependencyIds(
-          traceGraph,
-          processId,
-          blockTable,
-          rowIndex,
-          sidecarSource
-        )
-      }
-    : spanSource;
+  return spanSource;
 }
 
 /**
@@ -1011,7 +1047,7 @@ function getTraceGraphSpanSourceByRef(
  * table is included when present for the same storage chunk.
  */
 export function getTraceGraphSpanArrowColumnValues(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   span: TraceSpanId | SpanRef
 ): TraceGraphSpanArrowColumnValue[] {
   const spanIndex = resolveSpanIndex(traceGraph, span);
@@ -1031,103 +1067,6 @@ export function getTraceGraphSpanArrowColumnValues(
     ...getArrowTableRowColumnValues(chunk.spanTable, rowIndex, 'spanTable'),
     ...getArrowTableRowColumnValues(chunk.spanSidecarTable ?? null, rowIndex, 'spanSidecarTable')
   ];
-}
-
-let traceGraphSpanMaterializationCount = 0;
-
-/**
- * Returns the number of Arrow-to-TraceSpan compatibility materializations performed so far.
- */
-export function getArrowTraceSpanMaterializationCount(): number {
-  return traceGraphSpanMaterializationCount;
-}
-
-/**
- * Resets the Arrow-to-TraceSpan compatibility materialization counter.
- */
-export function resetArrowTraceSpanMaterializationCount(): void {
-  traceGraphSpanMaterializationCount = 0;
-}
-
-/** Materializes and yields compatibility `TraceSpan` rows for one process in row order. */
-export function* iterateMaterializedTraceGraphProcessSpans(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: string
-): IterableIterator<TraceSpan> {
-  for (const spanRef of iterateTraceGraphProcessSpanRefs(traceGraph, processId)) {
-    const block = materializeTraceGraphSpanByRef(traceGraph, spanRef);
-    if (block) {
-      yield block;
-    }
-  }
-}
-
-/** Materializes one compatibility `TraceSpan` by legacy block id from Arrow-backed graph tables. */
-export function materializeTraceGraphSpan(
-  traceGraph: Readonly<TraceGraphData>,
-  spanId: TraceSpanId
-): TraceSpan | null {
-  const spanIndex = getUniqueTraceGraphSpanRef(traceGraph, spanId);
-  if (spanIndex == null) {
-    return null;
-  }
-  return materializeTraceGraphSpanByRef(traceGraph, spanIndex);
-}
-
-/** Materializes one compatibility `TraceSpan` by canonical span ref. */
-export function materializeTraceGraphSpanByRef(
-  traceGraph: Readonly<TraceGraphData>,
-  spanRef: SpanRef
-): TraceSpan | null {
-  const spanRow = getTraceGraphSpanTableRow(traceGraph, spanRef);
-  if (!spanRow) {
-    return null;
-  }
-  if (!spanRow.processId) {
-    return null;
-  }
-  return materializeArrowBlock(
-    traceGraph as TraceGraphData,
-    spanRow.processId,
-    spanRow.spanTable,
-    spanRow.rowIndex,
-    spanRef,
-    getTraceGraphSpanSidecarSource(traceGraph, spanRow.processId, spanRow.chunk, spanRow.rowIndex)
-  );
-}
-
-/** Returns the total number of spans in a graph without materializing `TraceSpan` objects. */
-export function getTraceGraphSpanCount(traceGraph: Readonly<TraceGraphData>): number {
-  if (traceGraph.spanRefs) {
-    return traceGraph.spanRefs.length;
-  }
-  return traceGraph.chunks.reduce(
-    (total, chunk) => total + getArrowTraceChunkSpanRowCount(chunk),
-    0
-  );
-}
-
-/** Returns the number of spans owned by one process without materializing `TraceSpan` objects. */
-export function getTraceGraphProcessSpanCount(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: string
-): number {
-  let spanCount = 0;
-  for (const spanRef of iterateTraceGraphProcessSpanRefs(traceGraph, processId)) {
-    void spanRef;
-    spanCount += 1;
-  }
-  return spanCount;
-}
-
-/**
- * Resolves one process by id from Arrow-backed graph tables.
- */
-function findTraceGraphProcessById(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: TraceProcessId | string
-): ArrowTraceProcessMetadata | null {
-  return traceGraph.processes.find(process => process.processId === processId) ?? null;
 }
 
 /**
@@ -1219,17 +1158,38 @@ function resolveSpanTimingEndTime(
   timing: TraceSpanTiming,
   maxTimeMs = NOT_FINISHED_BLOCK_END_TIME_DEFAULT
 ): number {
-  let endTimeMs = timing.endTimeMs;
-  if (!Number.isFinite(endTimeMs) || endTimeMs <= timing.startTimeMs) {
-    if (timing.status === 'not-finished') {
+  return resolveTraceSpanTimingEndTimeFields(
+    timing.status,
+    timing.startTimeMs,
+    timing.endTimeMs,
+    maxTimeMs
+  );
+}
+
+/**
+ * Resolves one timing end directly from bound scalar fields without allocating a timing object.
+ *
+ * Arrow-bound generated geometry callers can use this before passing primary timing scalars to
+ * columnar layout writers, preserving unfinished and not-started timing semantics without
+ * constructing a `TraceSpanTiming` object.
+ */
+export function resolveTraceSpanTimingEndTimeFields(
+  status: TraceSpanTiming['status'],
+  startTimeMs: number,
+  sourceEndTimeMs: number,
+  maxTimeMs = NOT_FINISHED_BLOCK_END_TIME_DEFAULT
+): number {
+  let endTimeMs = sourceEndTimeMs;
+  if (!Number.isFinite(endTimeMs) || endTimeMs <= startTimeMs) {
+    if (status === 'not-finished') {
       const unfinishedEnd = Number.isFinite(maxTimeMs)
-        ? Math.max(maxTimeMs, timing.startTimeMs)
+        ? Math.max(maxTimeMs, startTimeMs)
         : NOT_FINISHED_BLOCK_END_TIME_DEFAULT;
-      endTimeMs = Math.max(unfinishedEnd, timing.startTimeMs + 1);
-    } else if (timing.status === 'not-started') {
-      endTimeMs = timing.startTimeMs + NOT_STARTED_BLOCK_DURATION_MS;
+      endTimeMs = Math.max(unfinishedEnd, startTimeMs + 1);
+    } else if (status === 'not-started') {
+      endTimeMs = startTimeMs + NOT_STARTED_BLOCK_DURATION_MS;
     } else {
-      endTimeMs = timing.startTimeMs;
+      endTimeMs = startTimeMs;
     }
   }
   return endTimeMs;
@@ -1341,105 +1301,6 @@ export function sortSpansByTime<
   });
 }
 
-/**
- * Reconstructs a plain block object from a process-local Arrow table row.
- */
-function materializeArrowBlock(
-  traceGraph: TraceGraphData,
-  processId: TraceProcessId,
-  blockTable: ArrowTraceSpanTable,
-  rowIndex: number,
-  spanRef: SpanRef,
-  sidecarSource: TraceGraphSpanSidecarSource
-): TraceSpan | null {
-  traceGraphSpanMaterializationCount += 1;
-  const spanId = readColumnValue<TraceSpanId>(blockTable, 'span_id', rowIndex);
-  const threadId = readColumnValue<TraceThreadId>(blockTable, 'thread_id', rowIndex);
-  const name = readColumnValue<string>(blockTable, 'name', rowIndex);
-  const processName = getTraceGraphProcessName(traceGraph, processId);
-  const primaryTimingKey =
-    readColumnValue<string>(blockTable, 'primary_timing_key', rowIndex) ?? 'primary';
-  if (!spanId || !threadId || !name || !processName) {
-    return null;
-  }
-  const fallbackTiming = {
-    status: (readColumnValue<TraceSpanTiming['status']>(blockTable, 'status', rowIndex) ??
-      'finished') as TraceSpanTiming['status'],
-    startTimeMs: readColumnValue<number>(blockTable, 'start_time_ms', rowIndex) ?? 0,
-    endTimeMs: readColumnValue<number>(blockTable, 'end_time_ms', rowIndex) ?? 0,
-    durationMs: readColumnValue<number>(blockTable, 'duration_ms', rowIndex) ?? 0,
-    durationMsAsString: formatPrimaryDurationLabel(
-      (readColumnValue<TraceSpanTiming['status']>(blockTable, 'status', rowIndex) ??
-        'finished') as TraceSpanTiming['status'],
-      readColumnValue<number>(blockTable, 'duration_ms', rowIndex) ?? 0
-    )
-  } satisfies TraceSpanTiming;
-  const timings = getTraceGraphSpanTimingsWithFallback(
-    traceGraph,
-    processId,
-    blockTable,
-    rowIndex,
-    primaryTimingKey,
-    fallbackTiming,
-    sidecarSource
-  );
-  const localDependencyIds = spanId
-    ? getTraceGraphLocalDependencyIds(traceGraph, processId, blockTable, rowIndex, sidecarSource)
-    : [];
-  const localDependencyById = new Map(
-    (findTraceGraphProcessById(traceGraph, processId)?.localDependencies ?? []).map(dependency => [
-      dependency.dependencyId,
-      dependency
-    ])
-  );
-
-  return {
-    type: 'trace-span',
-    spanRef,
-    spanId,
-    threadId,
-    processName,
-    name,
-    keywords: getTraceGraphSpanKeywords(traceGraph, processId, blockTable, rowIndex, sidecarSource),
-    primaryTimingKey,
-    timings,
-    localDependencyIds,
-    localDependencies: localDependencyIds.flatMap(dependencyId => {
-      const dependency = localDependencyById.get(dependencyId);
-      return dependency?.type === 'trace-local-dependency' ? [dependency] : [];
-    }),
-    crossProcessEndpointId: getTraceGraphCrossProcessEndpointId(
-      traceGraph,
-      processId,
-      blockTable,
-      rowIndex,
-      sidecarSource
-    ),
-    crossProcessDependencyEndpoints: getTraceGraphCrossProcessEndpoints(
-      traceGraph,
-      processId,
-      blockTable,
-      rowIndex,
-      spanRef,
-      sidecarSource
-    ),
-    userData: readTraceGraphSpanUserData(
-      traceGraph,
-      processId,
-      blockTable,
-      rowIndex,
-      sidecarSource
-    ),
-    layoutTopY: readColumnValue<number>(blockTable, 'layout_top_y', rowIndex) ?? undefined,
-    layoutHeight: readColumnValue<number>(blockTable, 'layout_height', rowIndex) ?? undefined
-  } satisfies TraceSpan;
-}
-
-const processNameCache = new WeakMap<
-  Readonly<TraceGraphData>,
-  ReadonlyMap<TraceProcessId, string>
->();
-
 /** Maps public camelCase span field names to canonical Arrow span table columns. */
 function getArrowTraceSpanFieldColumnName(fieldName: ArrowTraceSpanFieldName): string {
   switch (fieldName) {
@@ -1455,6 +1316,8 @@ function getArrowTraceSpanFieldColumnName(fieldName: ArrowTraceSpanFieldName): s
       return 'end_time_ms';
     case 'durationMs':
       return 'duration_ms';
+    case 'status':
+      return 'status_code';
     case 'layoutTopY':
       return 'layout_top_y';
     case 'layoutHeight':
@@ -1468,79 +1331,184 @@ function getArrowTraceSpanFieldColumnName(fieldName: ArrowTraceSpanFieldName): s
  * Resolves the process name used as the display rank label.
  */
 function getTraceGraphProcessName(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: TraceProcessId
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  processId: TraceProcessId,
+  processRef?: number | null
 ): string | null {
-  let nameMap = processNameCache.get(traceGraph);
-  if (!nameMap) {
-    nameMap = new Map(
-      traceGraph.processes.map(
-        process => [process.processId as TraceProcessId, process.name] as const
-      )
-    );
-    processNameCache.set(traceGraph, nameMap);
-  }
-  return nameMap.get(processId) ?? null;
+  const processIndex =
+    processRef == null
+      ? traceGraph.processIdsByIndex.indexOf(processId)
+      : getProcessRefIndex(processRef as ProcessRef);
+  const process = processIndex < 0 ? null : (traceGraph.processes[processIndex] ?? null);
+  return process?.processId === processId
+    ? process.name
+    : (traceGraph.processes.find(candidate => candidate.processId === processId)?.name ?? null);
 }
 
 /**
  * Resolves one row-aligned sidecar payload when available.
  */
-function getTraceGraphSpanSidecarRow(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: TraceProcessId,
-  rowIndex: number,
-  sidecarSource: TraceGraphSpanSidecarSource
-): TraceSpanArrowSidecarRow | null {
-  return (
-    sidecarSource.row ??
-    (sidecarSource.useProcessFallback
-      ? traceGraph.spanSidecarMap?.[processId]?.[rowIndex]
-      : null) ??
-    null
-  );
-}
-
-/**
- * Resolves one Arrow-backed row-aligned span sidecar field when available.
- */
+/** Resolves one Arrow-backed row-aligned span sidecar field when available. */
 function getTraceGraphSpanSidecarTableValue<Value>(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId,
   rowIndex: number,
   fieldName: string,
   sidecarSource: TraceGraphSpanSidecarSource
 ): Value | null {
-  const table =
-    sidecarSource.table ??
-    (sidecarSource.useProcessFallback ? traceGraph.spanSidecarTableMap?.[processId] : null);
+  const table = sidecarSource.table ?? traceGraph.spanSidecarTableMap?.[processId] ?? null;
   return table ? (readColumnValue<Value>(table, fieldName, rowIndex) ?? null) : null;
 }
 
 /**
- * Resolves one span timing map from the sidecar or legacy Arrow payload.
+ * Resolves one Arrow-native non-primary timing projection without materializing sibling timings.
+ */
+function getTraceGraphSpanNativeTiming(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  processId: TraceProcessId,
+  rowIndex: number,
+  timingKey: string,
+  sidecarSource: TraceGraphSpanSidecarSource
+): TraceSpanTiming | null {
+  const table = sidecarSource.table ?? traceGraph.spanSidecarTableMap?.[processId] ?? null;
+  const timingsColumn = table?.getChild('timings') as
+    | arrow.Vector<arrow.Struct<arrow.TypeMap>>
+    | null
+    | undefined;
+  const timingFieldIndex =
+    timingsColumn?.type.children.findIndex(field => field.name === timingKey) ?? -1;
+  const timingColumn =
+    timingFieldIndex >= 0
+      ? (timingsColumn?.getChildAt(timingFieldIndex) as
+          | arrow.Vector<arrow.Struct<arrow.TypeMap>>
+          | null
+          | undefined)
+      : null;
+  if (!timingColumn) {
+    return null;
+  }
+
+  const status = decodeTraceSpanTimingStatusCode(
+    readTraceSpanNativeTimingField<number>(timingColumn, 'status_code', rowIndex)
+  );
+  const startTimeMs = readTraceSpanNativeTimingField<number>(
+    timingColumn,
+    'start_time_ms',
+    rowIndex
+  );
+  const endTimeMs = readTraceSpanNativeTimingField<number>(timingColumn, 'end_time_ms', rowIndex);
+  const durationMs = readTraceSpanNativeTimingField<number>(timingColumn, 'duration_ms', rowIndex);
+  if (
+    !status ||
+    typeof startTimeMs !== 'number' ||
+    typeof endTimeMs !== 'number' ||
+    typeof durationMs !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    status,
+    startTimeMs,
+    endTimeMs,
+    durationMs,
+    durationMsAsString: formatPrimaryDurationLabel(status, durationMs)
+  };
+}
+
+/**
+ * Resolves all Arrow-native non-primary timing projections for detail-only materialization.
+ */
+function getTraceGraphSpanNativeTimings(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  processId: TraceProcessId,
+  rowIndex: number,
+  sidecarSource: TraceGraphSpanSidecarSource
+): Record<string, TraceSpanTiming> | null {
+  const table = sidecarSource.table ?? traceGraph.spanSidecarTableMap?.[processId] ?? null;
+  const timingsColumn = table?.getChild('timings') as
+    | arrow.Vector<arrow.Struct<arrow.TypeMap>>
+    | null
+    | undefined;
+  if (!timingsColumn) {
+    return null;
+  }
+
+  const timings = Object.fromEntries(
+    timingsColumn.type.children.flatMap(field => {
+      const timing = getTraceGraphSpanNativeTiming(
+        traceGraph,
+        processId,
+        rowIndex,
+        field.name,
+        sidecarSource
+      );
+      return timing ? [[field.name, timing] as const] : [];
+    })
+  );
+  return Object.keys(timings).length > 0 ? timings : null;
+}
+
+/**
+ * Resolves one span timing map from Arrow-native sidecars or legacy JSON payloads.
  */
 function getTraceGraphSpanTimings(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId,
   blockTable: ArrowTraceSpanTable,
   rowIndex: number,
   sidecarSource: TraceGraphSpanSidecarSource
 ): Record<string, TraceSpanTiming> | null {
-  return (
-    getTraceGraphSpanSidecarRow(traceGraph, processId, rowIndex, sidecarSource)?.timings ??
+  const nativeTimings = getTraceGraphSpanNativeTimings(
+    traceGraph,
+    processId,
+    rowIndex,
+    sidecarSource
+  );
+  const legacyTimings =
+    deserializeArrowTraceJson<Record<string, TraceSpanTiming>>(
+      getTraceGraphSpanSidecarTableValue<string>(
+        traceGraph,
+        processId,
+        rowIndex,
+        'timingsJson',
+        sidecarSource
+      )
+    ) ??
     deserializeArrowTraceJson<Record<string, TraceSpanTiming>>(
       readColumnValue<string>(blockTable, 'timingsJson', rowIndex)
     ) ??
-    null
-  );
+    null;
+  if (!nativeTimings) {
+    return legacyTimings;
+  }
+  return legacyTimings ? {...legacyTimings, ...nativeTimings} : nativeTimings;
 }
 
-/**
- * Resolves span timings with a primary fallback without mutating shared sidecar timing maps.
- */
+/** Resolves one requested timing while preserving the scalar primary fallback. */
+function getTraceGraphSpanTimingWithFallback(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  processId: TraceProcessId,
+  blockTable: ArrowTraceSpanTable,
+  rowIndex: number,
+  primaryTimingKey: string,
+  fallbackTiming: TraceSpanTiming,
+  sidecarSource: TraceGraphSpanSidecarSource,
+  timingKey: string
+): Record<string, TraceSpanTiming> {
+  const requestedTiming =
+    getTraceGraphSpanNativeTiming(traceGraph, processId, rowIndex, timingKey, sidecarSource) ??
+    getTraceGraphSpanTimings(traceGraph, processId, blockTable, rowIndex, sidecarSource)?.[
+      timingKey
+    ];
+  return requestedTiming
+    ? {[primaryTimingKey]: fallbackTiming, [timingKey]: requestedTiming}
+    : {[primaryTimingKey]: fallbackTiming};
+}
+
+/** Restores the scalar primary timing into a detail-only complete timing map. */
 function getTraceGraphSpanTimingsWithFallback(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId,
   blockTable: ArrowTraceSpanTable,
   rowIndex: number,
@@ -1555,25 +1523,31 @@ function getTraceGraphSpanTimingsWithFallback(
     rowIndex,
     sidecarSource
   );
-  if (!timings) {
-    return {[primaryTimingKey]: fallbackTiming};
+  return timings
+    ? {...timings, [primaryTimingKey]: fallbackTiming}
+    : {[primaryTimingKey]: fallbackTiming};
+}
+
+/** Reads one scalar child vector from a row-aligned native timing projection. */
+function readTraceSpanNativeTimingField<Value>(
+  timingColumn: arrow.Vector<arrow.Struct<arrow.TypeMap>>,
+  fieldName: string,
+  rowIndex: number
+): Value | null {
+  const fieldIndex = timingColumn.type.children.findIndex(field => field.name === fieldName);
+  if (fieldIndex < 0) {
+    return null;
   }
-  if (timings[primaryTimingKey]) {
-    return timings;
-  }
-  return {
-    ...timings,
-    [primaryTimingKey]: fallbackTiming
-  };
+  return (timingColumn.getChildAt(fieldIndex)?.get(rowIndex) as Value | null | undefined) ?? null;
 }
 
 /**
  * Resolves one span user-data payload from the sidecar or legacy Arrow payload.
  */
 function readTraceGraphSpanUserData(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId,
-  blockTable: ArrowTraceSpanTable,
+  _blockTable: ArrowTraceSpanTable,
   rowIndex: number,
   sidecarSource: TraceGraphSpanSidecarSource
 ): Record<string, unknown> | undefined {
@@ -1586,20 +1560,66 @@ function readTraceGraphSpanUserData(
         'userDataJson',
         sidecarSource
       )
-    ) ??
-    getTraceGraphSpanSidecarRow(traceGraph, processId, rowIndex, sidecarSource)?.userData ??
-    deserializeArrowTraceJson<Record<string, unknown>>(
-      readColumnValue<string>(blockTable, 'userDataJson', rowIndex)
-    ) ??
-    undefined
+    ) ?? undefined
   );
+}
+
+/** Returns whether an Arrow table schema exposes one declared tuple path. */
+function hasArrowTableAttributePath(
+  table: Readonly<ArrowTraceSpanTable>,
+  path: TraceSpanAttributePath
+): boolean {
+  const field = table.schema.fields.find(candidate => candidate.name === path[0]);
+  if (!field) {
+    return false;
+  }
+  let currentField = field as {
+    type?: {children?: readonly {name: string; type?: {children?: readonly unknown[]}}[]};
+  };
+  for (let pathIndex = 1; pathIndex < path.length; pathIndex += 1) {
+    const child = currentField.type?.children?.find(
+      candidate => candidate.name === path[pathIndex]
+    );
+    if (!child) {
+      return false;
+    }
+    currentField = child as typeof currentField;
+  }
+  return true;
+}
+
+/** Reads one declared tuple path from an Arrow span row without decoding JSON payloads. */
+function readArrowTableAttributeValue(
+  table: Readonly<ArrowTraceSpanTable>,
+  rowIndex: number,
+  path: TraceSpanAttributePath
+): unknown {
+  const column = (
+    table as unknown as {getChild(name: string): {get(index: number): unknown} | null}
+  ).getChild(path[0]!);
+  if (!column) {
+    return undefined;
+  }
+  let value: unknown = column.get(rowIndex);
+  for (let pathIndex = 1; pathIndex < path.length; pathIndex += 1) {
+    const key = path[pathIndex]!;
+    if (value == null || typeof value !== 'object' || Array.isArray(value) || !(key in value)) {
+      return undefined;
+    }
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value != null &&
+    typeof value === 'object' &&
+    (Symbol.iterator in value || 'toArray' in value)
+    ? toArray(value)
+    : (value ?? undefined);
 }
 
 /**
  * Resolves span keywords from the sidecar or legacy Arrow payload.
  */
 function getTraceGraphSpanKeywords(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId,
   blockTable: ArrowTraceSpanTable,
   rowIndex: number,
@@ -1616,148 +1636,14 @@ function getTraceGraphSpanKeywords(
     return normalizeStringArray(sidecarTableKeywords);
   }
 
-  return (
-    getTraceGraphSpanSidecarRow(traceGraph, processId, rowIndex, sidecarSource)?.keywords ??
-    normalizeStringArray(readColumnValue<unknown>(blockTable, 'keywords', rowIndex))
-  );
-}
-
-/**
- * Resolves span local dependency ids from the sidecar or legacy Arrow payload.
- */
-function getTraceGraphLocalDependencyIds(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: TraceProcessId,
-  blockTable: ArrowTraceSpanTable,
-  rowIndex: number,
-  sidecarSource: TraceGraphSpanSidecarSource
-): TraceLocalDependency['dependencyId'][] {
-  const sidecarTableLocalDependencyRefs = getTraceGraphSpanSidecarLocalDependencyRefs(
-    traceGraph,
-    processId,
-    rowIndex,
-    sidecarSource
-  );
-  if (sidecarTableLocalDependencyRefs != null) {
-    return getTraceGraphLocalDependencyIdsByRefs(
-      traceGraph,
-      processId,
-      sidecarTableLocalDependencyRefs
-    );
-  }
-
-  const sidecarRow = getTraceGraphSpanSidecarRow(traceGraph, processId, rowIndex, sidecarSource);
-  const localDependencyIds = sidecarRow?.localDependencyIds;
-  if (localDependencyIds?.length) {
-    return localDependencyIds as TraceLocalDependency['dependencyId'][];
-  }
-
-  const dependencyRowIndexes = [
-    ...(sidecarRow?.incomingLocalDependencyRefs ?? []),
-    ...(sidecarRow?.outgoingLocalDependencyRefs ?? []),
-    ...(sidecarRow?.incomingLocalDependencyRowIndexes ?? []),
-    ...(sidecarRow?.outgoingLocalDependencyRowIndexes ?? [])
-  ];
-  const localDependencyIdsByRefs = getTraceGraphLocalDependencyIdsByRefs(
-    traceGraph,
-    processId,
-    dependencyRowIndexes
-  );
-  if (localDependencyIdsByRefs.length > 0) {
-    return localDependencyIdsByRefs;
-  }
-
-  return normalizeStringArray(
-    readColumnValue<unknown>(blockTable, 'localDependencyIds', rowIndex)
-  ).map(dependencyId => dependencyId as TraceLocalDependency['dependencyId']);
-}
-
-/**
- * Resolves compact local dependency refs from the row-aligned Arrow span sidecar table.
- */
-function getTraceGraphSpanSidecarLocalDependencyRefs(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: TraceProcessId,
-  rowIndex: number,
-  sidecarSource: TraceGraphSpanSidecarSource
-): number[] | null {
-  const table =
-    sidecarSource.table ??
-    (sidecarSource.useProcessFallback ? traceGraph.spanSidecarTableMap?.[processId] : null);
-  if (!table) {
-    return null;
-  }
-
-  const combinedRefs = readColumnValue<unknown>(table, 'localDependencyRefs', rowIndex);
-  const normalizedCombinedRefs = normalizeNumberArray(combinedRefs);
-  if (normalizedCombinedRefs.length > 0) {
-    return normalizedCombinedRefs;
-  }
-
-  return [
-    ...normalizeNumberArray(
-      readColumnValue<unknown>(table, 'incomingLocalDependencyRefs', rowIndex)
-    ),
-    ...normalizeNumberArray(
-      readColumnValue<unknown>(table, 'outgoingLocalDependencyRefs', rowIndex)
-    )
-  ];
-}
-
-/**
- * Resolves local dependency ids from compact tagged local dependency refs.
- */
-function getTraceGraphLocalDependencyIdsByRefs(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: TraceProcessId,
-  dependencyRefs: readonly number[]
-): TraceLocalDependency['dependencyId'][] {
-  const localDependencyTable = traceGraph.localDependencyTableMap[
-    processId
-  ] as ArrowTraceLocalDependencyTable | null;
-  if (!localDependencyTable || dependencyRefs.length === 0) {
-    return [];
-  }
-
-  const dependencyCount = localDependencyTable.numRows;
-  const dependencyIdColumn = getCachedColumn<TraceLocalDependency['dependencyId']>(
-    localDependencyTable,
-    'dependencyId'
-  );
-  if (!dependencyIdColumn) {
-    return [];
-  }
-
-  const dependencyIds: TraceLocalDependency['dependencyId'][] = [];
-  const seenIndexes = new Set<number>();
-  for (const dependencyRef of dependencyRefs) {
-    const dependencyRowIndex = isLocalDependencyRef(dependencyRef)
-      ? getLocalDependencyRefRowIndex(dependencyRef)
-      : dependencyRef;
-    if (!Number.isSafeInteger(dependencyRowIndex) || dependencyRowIndex < 0) {
-      continue;
-    }
-    if (dependencyRowIndex >= dependencyCount) {
-      continue;
-    }
-    if (seenIndexes.has(dependencyRowIndex)) {
-      continue;
-    }
-    seenIndexes.add(dependencyRowIndex);
-    const dependencyId = dependencyIdColumn.get(dependencyRowIndex);
-    if (typeof dependencyId === 'string') {
-      dependencyIds.push(dependencyId as TraceLocalDependency['dependencyId']);
-    }
-  }
-
-  return dependencyIds;
+  return normalizeStringArray(readColumnValue<unknown>(blockTable, 'keywords', rowIndex));
 }
 
 /**
  * Resolves one unresolved cross-rank endpoint id from the sidecar or legacy Arrow payload.
  */
 function getTraceGraphCrossProcessEndpointId(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId,
   blockTable: ArrowTraceSpanTable,
   rowIndex: number,
@@ -1771,8 +1657,6 @@ function getTraceGraphCrossProcessEndpointId(
       'crossProcessEndpointId',
       sidecarSource
     ) as TraceCrossProcessEndpointId | null) ??
-    getTraceGraphSpanSidecarRow(traceGraph, processId, rowIndex, sidecarSource)
-      ?.crossProcessEndpointId ??
     (readColumnValue<string>(
       blockTable,
       'crossProcessEndpointId',
@@ -1786,38 +1670,18 @@ function getTraceGraphCrossProcessEndpointId(
  * Resolves unresolved cross-rank endpoints from SpanRef-keyed ownership or row-aligned sidecars.
  */
 function getTraceGraphCrossProcessEndpoints(
-  traceGraph: Readonly<TraceGraphData>,
-  processId: TraceProcessId,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  _processId: TraceProcessId,
   blockTable: ArrowTraceSpanTable,
   rowIndex: number,
   spanRef: SpanRef,
-  sidecarSource: TraceGraphSpanSidecarSource
+  _sidecarSource: TraceGraphSpanSidecarSource
 ): TraceCrossProcessEndpoint[] {
   const sparseEndpoints = traceGraph.crossProcessEndpointsBySpanRef?.get(spanRef);
   if (sparseEndpoints) {
     return [...sparseEndpoints];
   }
 
-  const sidecarEndpoints = getTraceGraphSpanSidecarRow(
-    traceGraph,
-    processId,
-    rowIndex,
-    sidecarSource
-  )?.crossProcessDependencyEndpoints;
-  if (sidecarEndpoints) {
-    return sidecarEndpoints.map(endpoint => ({
-      type: 'cross-process-dependency-endpoint',
-      endpointId: endpoint.endpointId,
-      spanId: endpoint.spanId,
-      startRankNum: endpoint.startRankNum,
-      endRankNum: endpoint.endRankNum,
-      islandNum: endpoint.islandNum,
-      waitTimeMs: endpoint.waitTimeMs,
-      waiting: endpoint.waiting,
-      waitNotFinished: endpoint.waitNotFinished,
-      userData: endpoint.userData
-    }));
-  }
   return normalizeCrossProcessEndpoints(
     readColumnValue<unknown>(blockTable, 'crossProcessDependencyEndpoints', rowIndex)
   );
@@ -1841,15 +1705,6 @@ function formatPrimaryDurationLabel(status: TraceSpanTiming['status'], durationM
  */
 function normalizeStringArray(value: unknown): string[] {
   return toArray(value).filter((entry): entry is string => typeof entry === 'string');
-}
-
-/**
- * Normalizes Arrow-backed numeric arrays into plain JS numbers.
- */
-function normalizeNumberArray(value: unknown): number[] {
-  return toArray(value)
-    .map(entry => (typeof entry === 'bigint' ? Number(entry) : entry))
-    .filter((entry): entry is number => typeof entry === 'number' && Number.isSafeInteger(entry));
 }
 
 /**
@@ -1920,7 +1775,7 @@ function toArray(value: unknown): unknown[] {
  * Resolves a span id or span index into a canonical packed Arrow span index.
  */
 function resolveSpanIndex(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   span: TraceSpanId | SpanRef
 ): SpanRef | null {
   if (typeof span === 'string') {
@@ -1933,7 +1788,7 @@ function resolveSpanIndex(
  * Resolves the chunk/store-owned Arrow span row and row-level owners for one span ref.
  */
 export function getTraceGraphSpanStoreRow(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
 ): TraceGraphSpanStoreRow | null {
   if (!isTraceGraphSpanRefActive(traceGraph, spanRef)) {
@@ -1946,16 +1801,63 @@ export function getTraceGraphSpanStoreRow(
  * Resolves the chunk/store-owned Arrow span row when the caller already owns an active span ref.
  */
 export function getActiveTraceGraphSpanStoreRow(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
 ): TraceGraphSpanStoreRow | null {
+  const spanRow = getActiveTraceGraphSpanTableAddress(traceGraph, spanRef);
+  if (!spanRow) {
+    return null;
+  }
+  const processRef = spanRow.processRef;
+  const threadRef =
+    spanRow.threadRef ??
+    getTraceGraphSpanStoreRowThreadRef(
+      traceGraph,
+      spanRow.chunk,
+      spanRow.rowIndex,
+      spanRow.processId,
+      processRef,
+      spanRow.rowThreadRef
+    );
+  return {
+    chunk: spanRow.chunk,
+    spanTable: spanRow.spanTable,
+    rowIndex: spanRow.rowIndex,
+    processRef,
+    threadRef,
+    processId: spanRow.processId
+  };
+}
+
+/**
+ * Resolves one span ref to a chunk-local Arrow row without resolving row owners.
+ */
+function getTraceGraphSpanTableAddress(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  spanRef: SpanRef,
+  validateActive = true
+): TraceGraphSpanTableAddress | null {
+  if (validateActive && !isTraceGraphSpanRefActive(traceGraph, spanRef)) {
+    return null;
+  }
+  return getActiveTraceGraphSpanTableAddress(traceGraph, spanRef);
+}
+
+/**
+ * Resolves one active span ref to a chunk-local Arrow row without resolving row owners.
+ */
+function getActiveTraceGraphSpanTableAddress(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  spanRef: SpanRef
+): TraceGraphSpanTableAddress | null {
   const chunk = resolveChunkBySpanRef(traceGraph, spanRef);
   const spanRefRowIndex = getSpanRefRowIndex(spanRef);
   const rowIndex = chunk ? getArrowTraceChunkSpanTableRowIndex(chunk, spanRefRowIndex) : null;
   if (!chunk || rowIndex == null) {
     return null;
   }
-  const rowProcessRef = readArrowRefColumn(chunk.spanTable, 'process_ref', rowIndex);
+  const rowProcessRef =
+    chunk.processId == null ? readArrowRefColumn(chunk.spanTable, 'process_ref', rowIndex) : null;
   const processId =
     chunk.processId ??
     (rowProcessRef == null
@@ -1967,26 +1869,29 @@ export function getActiveTraceGraphSpanStoreRow(
     processId,
     rowProcessRef
   );
+  const rowThreadRef = readArrowRefColumn(chunk.spanTable, 'thread_ref', rowIndex);
   const threadRef = getTraceGraphSpanStoreRowThreadRef(
     traceGraph,
     chunk,
     rowIndex,
     processId,
     processRef,
-    readArrowRefColumn(chunk.spanTable, 'thread_ref', rowIndex)
+    rowThreadRef
   );
   return {
     chunk,
     spanTable: chunk.spanTable,
     rowIndex,
+    processId,
+    rowProcessRef,
+    rowThreadRef,
     processRef,
-    threadRef,
-    processId
+    threadRef
   };
 }
 
 function getTraceGraphSpanStoreRowProcessRef(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   chunk: ArrowTraceChunk,
   processId: TraceProcessId | null,
   rowProcessRef: number | null
@@ -2003,13 +1908,20 @@ function getTraceGraphSpanStoreRowProcessRef(
 }
 
 function getTraceGraphSpanStoreRowThreadRef(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   chunk: ArrowTraceChunk,
   rowIndex: number,
   processId: TraceProcessId | null,
   processRef: ProcessRef | null,
   rowThreadRef: number | null
 ): ThreadRef | null {
+  if (
+    rowThreadRef != null &&
+    (processRef == null ||
+      getThreadRefProcessIndex(rowThreadRef as ThreadRef) === getProcessRefIndex(processRef))
+  ) {
+    return rowThreadRef as ThreadRef;
+  }
   if (chunk.processId != null && processId != null && processRef != null) {
     const threadId = readColumnValue<TraceThreadId>(chunk.spanTable, 'thread_id', rowIndex);
     const process = traceGraph.processes.find(entry => entry.processId === processId);
@@ -2018,11 +1930,11 @@ function getTraceGraphSpanStoreRowThreadRef(
       return encodeProcessThreadRef(getProcessRefIndex(processRef), threadIndex);
     }
   }
-  return rowThreadRef == null ? null : (rowThreadRef as ThreadRef);
+  return null;
 }
 
 function getTraceGraphSpanTableRow(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef,
   validateActive = true
 ): TraceGraphSpanStoreRow | null {
@@ -2032,36 +1944,27 @@ function getTraceGraphSpanTableRow(
 }
 
 type TraceGraphChunkResolver = {
-  /** Resolve a span ref to its owning Arrow chunk without scanning the chunk list. */
+  /** Resolve a chunk-backed ref to its owning Arrow chunk without scanning the chunk list. */
   getChunkByRef?: (ref: SpanRef) => ArrowTraceChunk | null;
+  /** Resolve a span ref to its owning Arrow chunk without generic ref-kind dispatch. */
+  getSpanChunkByRef?: (ref: SpanRef) => ArrowTraceChunk | null;
 };
 
 /**
  * Resolves one span ref to its owning chunk, preferring the runtime `TraceGraph` registry.
  */
 function resolveChunkBySpanRef(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   spanRef: SpanRef
 ): ArrowTraceChunk | null {
   const runtimeChunkResolver = traceGraph as TraceGraphChunkResolver;
+  if (typeof runtimeChunkResolver.getSpanChunkByRef === 'function') {
+    return runtimeChunkResolver.getSpanChunkByRef.call(traceGraph, spanRef);
+  }
   if (typeof runtimeChunkResolver.getChunkByRef === 'function') {
     return runtimeChunkResolver.getChunkByRef.call(traceGraph, spanRef);
   }
   return findArrowTraceChunkByIndex(traceGraph.chunks, getSpanRefChunkIndex(spanRef));
-}
-
-/** Returns whether one span ref belongs to the active graph selection. */
-function isTraceGraphSpanRefActive(
-  traceGraph: Readonly<TraceGraphData>,
-  spanRef: SpanRef
-): boolean {
-  if (traceGraph.spanRefs == null) {
-    return true;
-  }
-  if (findSortedSpanRefIndex(traceGraph.spanRefs, spanRef) !== -1) {
-    return true;
-  }
-  return traceGraph.spanRefs.includes(spanRef);
 }
 
 /** Finds one numeric span ref in an ascending active-ref list. */
@@ -2087,30 +1990,133 @@ function findSortedSpanRefIndex(spanRefs: readonly SpanRef[], spanRef: SpanRef):
  * Resolves chunk-row sidecars and whether process-keyed sidecars can safely be used as fallback.
  */
 function getTraceGraphSpanSidecarSource(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId,
   chunk: ArrowTraceChunk,
-  rowIndex: number
+  _rowIndex: number
 ): TraceGraphSpanSidecarSource {
-  const useProcessFallback = chunk.processId === processId;
   return {
-    row:
-      chunk.spanSidecarRows?.[rowIndex] ??
-      (useProcessFallback ? traceGraph.spanSidecarMap?.[processId]?.[rowIndex] : null) ??
-      null,
     table:
+      (chunk.processId === processId ? traceGraph.spanSidecarTableMap?.[processId] : null) ??
       chunk.spanSidecarTable ??
-      (useProcessFallback ? traceGraph.spanSidecarTableMap?.[processId] : null) ??
-      null,
-    useProcessFallback
+      null
   };
 }
 
-/**
- * Builds one Arrow-native lane/geometry span source from a process-local row.
- */
+/** Builds one Arrow-native geometry span source from a process-local row. */
+function buildTraceSpanGeometrySource(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  processId: TraceProcessId,
+  blockTable: ArrowTraceSpanTable,
+  rowIndex: number,
+  spanRef: SpanRef,
+  sidecarSource: TraceGraphSpanSidecarSource,
+  ownerRefs?: Readonly<{
+    /** Canonical runtime process ref resolved from chunk ownership. */
+    processRef: ProcessRef | null;
+    /** Canonical runtime thread ref resolved from chunk ownership. */
+    threadRef: ThreadRef | null;
+  }>,
+  timingKey?: string | null
+): TraceSpanGeometrySource {
+  const timingSource = buildTraceSpanTimingSource(
+    traceGraph,
+    processId,
+    blockTable,
+    rowIndex,
+    sidecarSource,
+    timingKey
+  );
+
+  return {
+    spanRef,
+    ...(ownerRefs?.processRef == null ? {} : {processRef: ownerRefs.processRef}),
+    ...(ownerRefs?.threadRef == null ? {} : {threadRef: ownerRefs.threadRef}),
+    ...timingSource,
+    layoutTopY: readColumnValue<number>(blockTable, 'layout_top_y', rowIndex) ?? undefined,
+    layoutHeight: readColumnValue<number>(blockTable, 'layout_height', rowIndex) ?? undefined
+  } satisfies TraceSpanGeometrySource;
+}
+
+/** Builds the timing-only payload shared by geometry and generated-lane accessors. */
+function buildTraceSpanTimingSource(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  processId: TraceProcessId,
+  blockTable: ArrowTraceSpanTable,
+  rowIndex: number,
+  sidecarSource: TraceGraphSpanSidecarSource,
+  timingKey?: string | null
+): Pick<TraceSpanLaneSource, 'primaryTimingKey' | 'timings'> {
+  const primaryTimingKey =
+    readColumnValue<string>(blockTable, 'primary_timing_key', rowIndex) ?? 'primary';
+  const status = readTraceSpanPrimaryTimingStatus(blockTable, rowIndex) ?? 'finished';
+  const fallbackTiming = {
+    status,
+    startTimeMs: readColumnValue<number>(blockTable, 'start_time_ms', rowIndex) ?? 0,
+    endTimeMs: readColumnValue<number>(blockTable, 'end_time_ms', rowIndex) ?? 0,
+    durationMs: readColumnValue<number>(blockTable, 'duration_ms', rowIndex) ?? 0,
+    durationMsAsString: formatPrimaryDurationLabel(
+      status,
+      readColumnValue<number>(blockTable, 'duration_ms', rowIndex) ?? 0
+    )
+  } satisfies TraceSpanTiming;
+  const timings =
+    timingKey === null || timingKey === primaryTimingKey
+      ? {[primaryTimingKey]: fallbackTiming}
+      : timingKey === undefined
+        ? getTraceGraphSpanTimingsWithFallback(
+            traceGraph,
+            processId,
+            blockTable,
+            rowIndex,
+            primaryTimingKey,
+            fallbackTiming,
+            sidecarSource
+          )
+        : getTraceGraphSpanTimingWithFallback(
+            traceGraph,
+            processId,
+            blockTable,
+            rowIndex,
+            primaryTimingKey,
+            fallbackTiming,
+            sidecarSource,
+            timingKey
+          );
+
+  return {
+    primaryTimingKey,
+    timings
+  } satisfies Pick<TraceSpanLaneSource, 'primaryTimingKey' | 'timings'>;
+}
+
+/** Builds one narrow generated-layout lane source from a validated Arrow row. */
+function buildTraceSpanLayoutLaneSource(
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
+  processId: TraceProcessId,
+  blockTable: ArrowTraceSpanTable,
+  rowIndex: number,
+  spanRef: SpanRef,
+  sidecarSource: TraceGraphSpanSidecarSource,
+  ownerRefs: Readonly<{
+    /** Canonical runtime process ref resolved from chunk ownership. */
+    processRef: ProcessRef;
+    /** Canonical runtime thread ref resolved from chunk ownership. */
+    threadRef: ThreadRef;
+  }>
+): TraceSpanLayoutLaneSource {
+  return {
+    spanRef,
+    processRef: ownerRefs.processRef,
+    threadRef: ownerRefs.threadRef,
+    ...buildTraceSpanTimingSource(traceGraph, processId, blockTable, rowIndex, sidecarSource),
+    traceAffinityKey: readTraceSpanAffinityKey(blockTable, rowIndex)
+  } satisfies TraceSpanLayoutLaneSource;
+}
+
+/** Builds one Arrow-native lane span source from a process-local row. */
 function buildTraceSpanLaneSource(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId,
   blockTable: ArrowTraceSpanTable,
   rowIndex: number,
@@ -2125,30 +2131,15 @@ function buildTraceSpanLaneSource(
 ): TraceSpanLaneSource | null {
   const spanId = readColumnValue<TraceSpanId>(blockTable, 'span_id', rowIndex);
   const threadId = readColumnValue<TraceThreadId>(blockTable, 'thread_id', rowIndex);
-  const primaryTimingKey =
-    readColumnValue<string>(blockTable, 'primary_timing_key', rowIndex) ?? 'primary';
   if (!spanId || !threadId) {
     return null;
   }
-  const fallbackTiming = {
-    status: (readColumnValue<TraceSpanTiming['status']>(blockTable, 'status', rowIndex) ??
-      'finished') as TraceSpanTiming['status'],
-    startTimeMs: readColumnValue<number>(blockTable, 'start_time_ms', rowIndex) ?? 0,
-    endTimeMs: readColumnValue<number>(blockTable, 'end_time_ms', rowIndex) ?? 0,
-    durationMs: readColumnValue<number>(blockTable, 'duration_ms', rowIndex) ?? 0,
-    durationMsAsString: formatPrimaryDurationLabel(
-      (readColumnValue<TraceSpanTiming['status']>(blockTable, 'status', rowIndex) ??
-        'finished') as TraceSpanTiming['status'],
-      readColumnValue<number>(blockTable, 'duration_ms', rowIndex) ?? 0
-    )
-  } satisfies TraceSpanTiming;
-  const timings = getTraceGraphSpanTimingsWithFallback(
+  const geometrySource = buildTraceSpanGeometrySource(
     traceGraph,
     processId,
     blockTable,
     rowIndex,
-    primaryTimingKey,
-    fallbackTiming,
+    spanRef,
     sidecarSource
   );
   const processRef =
@@ -2159,17 +2150,28 @@ function buildTraceSpanLaneSource(
   }
 
   return {
-    spanRef,
+    ...geometrySource,
     processRef: processRef as ProcessRef,
     threadRef: threadRef as ThreadRef,
     spanId,
     threadId,
-    primaryTimingKey,
-    timings,
-    layoutTopY: readColumnValue<number>(blockTable, 'layout_top_y', rowIndex) ?? undefined,
-    layoutHeight: readColumnValue<number>(blockTable, 'layout_height', rowIndex) ?? undefined,
-    userData: readTraceGraphSpanUserData(traceGraph, processId, blockTable, rowIndex, sidecarSource)
+    traceAffinityKey: readTraceSpanAffinityKey(blockTable, rowIndex)
   } satisfies TraceSpanLaneSource;
+}
+
+/** Reads the conventional declared trace-id attributes used by generated-lane affinity. */
+function readTraceSpanAffinityKey(
+  blockTable: ArrowTraceSpanTable,
+  rowIndex: number
+): string | number | bigint | undefined {
+  const affinityKey =
+    readArrowTableAttributeValue(blockTable, rowIndex, ['traceId']) ??
+    readArrowTableAttributeValue(blockTable, rowIndex, ['trace_id']);
+  return typeof affinityKey === 'string' ||
+    typeof affinityKey === 'number' ||
+    typeof affinityKey === 'bigint'
+    ? affinityKey
+    : undefined;
 }
 
 /**
@@ -2180,8 +2182,16 @@ function readColumnValue<T>(
   columnName: string,
   rowIndex: number
 ): T | null {
-  const column = table ? getCachedColumn<T>(table, columnName) : null;
+  const column = table ? getArrowColumn<T>(table, columnName) : null;
   return column ? ((column.get(rowIndex) as T | null | undefined) ?? null) : null;
+}
+
+/** Decodes one canonical primary timing status without reading a Utf8 span column. */
+function readTraceSpanPrimaryTimingStatus(
+  table: ArrowTraceSpanTable | null,
+  rowIndex: number
+): TraceSpanTiming['status'] | null {
+  return decodeTraceSpanTimingStatusCode(readColumnValue<number>(table, 'status_code', rowIndex));
 }
 
 /** Reads one cached Arrow ref column and normalizes numeric/bigint Arrow scalar values. */
@@ -2224,18 +2234,11 @@ function resolveSpanTimingSource(span: TimedEntity): TraceSpanTimingSource {
 }
 
 function getTraceGraphProcessIndex(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   processId: TraceProcessId
 ): number | null {
-  let processIndexMap = traceGraphProcessIndexCache.get(traceGraph);
-  if (!processIndexMap) {
-    processIndexMap = new Map(
-      traceGraph.processIdsByIndex.map((candidate, index) => [candidate, index] as const)
-    );
-    traceGraphProcessIndexCache.set(traceGraph, processIndexMap);
-  }
-
-  return processIndexMap.get(processId) ?? null;
+  const processIndex = traceGraph.processIdsByIndex.indexOf(processId);
+  return processIndex === -1 ? null : processIndex;
 }
 
 function traceGraphProcessRef(processIndex: number): ProcessRef {
@@ -2258,72 +2261,43 @@ type ColumnVector<Value> = {
 };
 
 type ArrowReadableTable =
-  | ArrowTraceLocalDependencyTable
+  | ArrowTraceSameProcessDependencyTable
   | ArrowTraceSpanTable
   | ArrowTraceSpanSidecarTable
   | TraceProcessSpanRefTable;
-
-const traceGraphProcessIndexCache = new WeakMap<
-  Readonly<TraceGraphData>,
-  ReadonlyMap<TraceProcessId, number>
->();
-const uniqueSpanRefBySpanIdCache = new WeakMap<
-  Readonly<TraceGraphData>,
-  ReadonlyMap<TraceSpanId, SpanRef | null>
->();
-const traceBlockArrowColumnCache = new WeakMap<
-  ArrowReadableTable,
-  Map<string, ColumnVector<unknown> | null>
->();
 
 /**
  * Builds the duplicate-aware span id lookup used by id boundaries.
  */
 function getUniqueSpanRefBySpanId(
-  traceGraph: Readonly<TraceGraphData>
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>
 ): ReadonlyMap<TraceSpanId, SpanRef | null> {
-  let cachedLookup = uniqueSpanRefBySpanIdCache.get(traceGraph);
-  if (cachedLookup) {
-    return cachedLookup;
-  }
-
   const spanRefBySpanId = new Map<TraceSpanId, SpanRef | null>();
   for (const spanRef of iterateTraceGraphSpanRefs(traceGraph)) {
     const spanRow = getTraceGraphSpanTableRow(traceGraph, spanRef);
     const spanId =
       spanRow == null
         ? null
-        : getCachedColumn<TraceSpanId>(spanRow.spanTable, 'span_id')?.get(spanRow.rowIndex);
+        : getArrowColumn<TraceSpanId>(spanRow.spanTable, 'span_id')?.get(spanRow.rowIndex);
     if (typeof spanId !== 'string') {
       continue;
     }
     spanRefBySpanId.set(spanId, spanRefBySpanId.has(spanId) ? null : spanRef);
   }
 
-  cachedLookup = spanRefBySpanId;
-  uniqueSpanRefBySpanIdCache.set(traceGraph, cachedLookup);
-  return cachedLookup;
+  return spanRefBySpanId;
 }
 
 /**
- * Resolves and caches one Arrow column vector by name.
+ * Resolves one Arrow column vector by name without retaining table-local lookup state.
  */
-function getCachedColumn<Value>(
+function getArrowColumn<Value>(
   table: ArrowReadableTable,
   columnName: string
 ): ColumnVector<Value> | null {
-  let tableCache = traceBlockArrowColumnCache.get(table);
-  if (!tableCache) {
-    tableCache = new Map();
-    traceBlockArrowColumnCache.set(table, tableCache);
-  }
-
-  if (!tableCache.has(columnName)) {
-    const column = (table as unknown as {getChild(name: string): unknown}).getChild(
+  return (
+    ((table as unknown as {getChild(name: string): unknown}).getChild(
       columnName
-    ) as ColumnVector<unknown> | null;
-    tableCache.set(columnName, column ?? null);
-  }
-
-  return (tableCache.get(columnName) as ColumnVector<Value> | null | undefined) ?? null;
+    ) as ColumnVector<Value> | null) ?? null
+  );
 }

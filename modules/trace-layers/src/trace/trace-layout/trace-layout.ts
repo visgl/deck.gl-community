@@ -1,3 +1,8 @@
+import {findArrowTraceChunkByIndex} from '../ingestion/arrow-trace';
+import {iterateTraceGraphProcessSpanRefs} from '../trace-graph-accessors';
+import {TRACE_SPAN_FILTER_MASK_NONE} from '../trace-graph/trace-graph-types';
+import {getSpanRefChunkIndex, getSpanRefRowIndex} from '../trace-graph/trace-id-encoder';
+import {getTraceViewSpanFilterMask} from '../trace-view-snapshot';
 import {
   buildTraceLayoutGeometryDerivationContext,
   fillTraceLayoutSpanGeometry,
@@ -5,30 +10,137 @@ import {
 } from './trace-derived-geometry';
 
 import type {ArrowTraceProcessMetadata} from '../ingestion/arrow-trace';
-import type {TraceCrossDependencySource} from '../trace-graph-accessors';
 import type {TraceGraph} from '../trace-graph/trace-graph';
 import type {ProcessRef, ThreadRef} from '../trace-graph/trace-id-encoder';
 import type {
   SpanRef,
   TraceProcess,
   TraceSpan,
-  TraceSpanId,
   TraceThread,
   TraceThreadId
 } from '../trace-graph/trace-types';
 import type {TraceLayoutGeometryDerivationContext} from './trace-derived-geometry';
 
 export {
-  fillTraceLayoutCrossDependencyGeometry,
-  fillTraceLayoutLocalDependencyGeometry,
+  fillTraceLayoutCrossProcessDependencyGeometry,
+  fillTraceLayoutSameProcessDependencyGeometry,
   fillTraceLayoutSpanGeometry
 } from './trace-derived-geometry';
 
 export type TraceLayoutBounds = readonly [[number, number], [number, number]];
 
+/** Sentinel stored in generated lane columns when one span has no lane in the current layout. */
+export const INVALID_TRACE_LAYOUT_SPAN_LANE_INDEX = -1;
+
+/** One generated lane column aligned with canonical Arrow span-table rows. */
+export type TraceLayoutSpanLaneColumn = {
+  /** Generated lane values aligned by canonical Arrow span-table row. */
+  readonly values: Int32Array;
+};
+
+/** Generated lane columns keyed by canonical Arrow span-table chunk index. */
+export type TraceLayoutSpanLaneColumns = ReadonlyMap<number, TraceLayoutSpanLaneColumn>;
+
+/** One preserved generated-lane assignment used while rebuilding a focused layout. */
+export type TraceLayoutSpanLaneAssignment = {
+  /** Exact runtime span ref whose source lane should be preserved. */
+  readonly spanRef: SpanRef;
+  /** Zero-based generated lane index preserved for that span. */
+  readonly laneIndex: number;
+};
+
+/** Creates empty generated lane-column storage for one auto-layout trace. */
+export function createTraceLayoutSpanLaneColumns(): Map<number, TraceLayoutSpanLaneColumn> {
+  return new Map();
+}
+
+/** Copies one generated lane column for isolated layout/test mutation. */
+export function cloneTraceLayoutSpanLaneColumn(
+  laneColumn: TraceLayoutSpanLaneColumn
+): TraceLayoutSpanLaneColumn {
+  return {
+    values: laneColumn.values.slice()
+  };
+}
+
+/**
+ * Stores one generated lane in the layout-owned column aligned with the span's source table row.
+ *
+ * The first span assigned in a chunk allocates one `Int32Array` for that chunk, so steady-state
+ * per-span writes use the packed `SpanRef` chunk/row pair without a per-span `Map`.
+ */
+export function setTraceLayoutSpanLaneIndex(params: {
+  /** Trace graph whose canonical chunk row count sizes a lazily allocated lane column. */
+  readonly traceGraph: Pick<TraceGraph, 'chunks'>;
+  /** Mutable generated lane columns owned by the layout currently being built. */
+  readonly spanLaneColumnsByChunkIndex: Map<number, TraceLayoutSpanLaneColumn>;
+  /** Exact runtime span ref whose generated lane should be written. */
+  readonly spanRef: SpanRef;
+  /** Zero-based generated lane index assigned to the span. */
+  readonly laneIndex: number;
+}): void {
+  const laneIndex = Math.floor(params.laneIndex);
+  if (!Number.isFinite(laneIndex) || laneIndex < 0) {
+    throw new Error(`TraceLayout lane index must be a finite non-negative integer: ${laneIndex}`);
+  }
+
+  const chunkIndex = getSpanRefChunkIndex(params.spanRef);
+  const rowIndex = getSpanRefRowIndex(params.spanRef);
+  let laneColumn = params.spanLaneColumnsByChunkIndex.get(chunkIndex);
+  if (!laneColumn) {
+    const chunk = findArrowTraceChunkByIndex(params.traceGraph.chunks, chunkIndex);
+    if (!chunk) {
+      throw new Error(`TraceLayout span lane assignment references missing chunk ${chunkIndex}`);
+    }
+    const values = new Int32Array(chunk.spanTable.numRows);
+    values.fill(INVALID_TRACE_LAYOUT_SPAN_LANE_INDEX);
+    laneColumn = {
+      values
+    };
+    params.spanLaneColumnsByChunkIndex.set(chunkIndex, laneColumn);
+  }
+  if (rowIndex < 0 || rowIndex >= laneColumn.values.length) {
+    throw new Error(`TraceLayout span lane assignment references missing row ${rowIndex}`);
+  }
+  laneColumn.values[rowIndex] = laneIndex;
+}
+
+/** Returns one generated lane from layout-owned span-table-aligned columns. */
+export function getTraceLayoutSpanLaneIndexFromColumns(
+  spanLaneColumnsByChunkIndex: TraceLayoutSpanLaneColumns | undefined,
+  spanRef: SpanRef
+): number | undefined {
+  const laneColumn = spanLaneColumnsByChunkIndex?.get(getSpanRefChunkIndex(spanRef));
+  const rowIndex = getSpanRefRowIndex(spanRef);
+  const laneIndex = laneColumn?.values[rowIndex];
+  return laneIndex != null && laneIndex >= 0 ? laneIndex : undefined;
+}
+
+/** Returns one generated lane for a span in the current layout. */
+export function getTraceLayoutSpanLaneIndex(
+  traceLayout: Pick<TraceLayout, 'spanLaneColumnsByChunkIndex'>,
+  spanRef: SpanRef
+): number | undefined {
+  return getTraceLayoutSpanLaneIndexFromColumns(traceLayout.spanLaneColumnsByChunkIndex, spanRef);
+}
+
+/** Returns whether one span has a generated lane in the current layout. */
+export function hasTraceLayoutSpanLaneIndex(
+  traceLayout: Pick<TraceLayout, 'spanLaneColumnsByChunkIndex'>,
+  spanRef: SpanRef
+): boolean {
+  return getTraceLayoutSpanLaneIndex(traceLayout, spanRef) != null;
+}
+
 export type TraceLayoutSourceProcess = Pick<
   TraceProcess,
-  'processId' | 'name' | 'rankNum' | 'threads' | 'threadMap' | 'localDependencies' | 'userData'
+  | 'processId'
+  | 'name'
+  | 'rankNum'
+  | 'threads'
+  | 'threadMap'
+  | 'sameProcessDependencies'
+  | 'userData'
 > & {
   /** Visible spans represented by this layout row source. */
   spans: TraceSpan[];
@@ -44,21 +156,6 @@ export type TraceLayoutVisibleProcessMetadata = Pick<
   readonly processRef: ProcessRef;
   /** Canonical runtime thread refs aligned to `threads`. */
   readonly threadRefs: readonly ThreadRef[];
-};
-
-export type TraceLayoutVisibleGraph = {
-  /** Stores the visible graph label used by layout and diagnostics. */
-  readonly name: string;
-  /** Stores the canonical minimum time used for geometry normalization. */
-  readonly minTimeMs: number;
-  /** Stores the canonical maximum time used for geometry normalization. */
-  readonly maxTimeMs: number;
-  /** Keeps the filtered source graph used for visible block and dependency lookup. */
-  readonly traceGraph: Readonly<TraceGraph>;
-  /** Stores visible per-process rows used by layout and diagnostics. */
-  readonly processes: readonly TraceLayoutVisibleProcessMetadata[];
-  /** Stores visible cross-process dependencies for the current filtered view. */
-  readonly crossDependencies: readonly TraceCrossDependencySource[];
 };
 
 export type TraceProcessActivityInterval = {
@@ -212,8 +309,6 @@ export type TraceLayoutRow = {
 export type TraceLayoutGlobalEventRow = {
   /** Stable Y position used to render graph-global events. */
   readonly yPosition: number;
-  /** Height reserved for the graph-global event row. */
-  readonly height: number;
 };
 
 export type TraceMinimapLayout = {
@@ -325,6 +420,11 @@ export type TraceLayout = {
   readonly traceGraph: TraceGraph;
   /** Layout configuration snapshot kept for render-time derivations. */
   readonly layoutConfiguration?: TraceLayoutRenderConfiguration;
+  /**
+   * Generated lane columns aligned with canonical span-table rows by packed `SpanRef` chunk/row.
+   * Undefined for manual span layouts, whose authored Y coordinates already define row structure.
+   */
+  readonly spanLaneColumnsByChunkIndex?: TraceLayoutSpanLaneColumns;
 
   /** List of layouts for all processes in the trace graph */
   readonly processLayouts: readonly ProcessLayout[];
@@ -338,25 +438,9 @@ export type TraceLayout = {
   readonly minimapLayout?: TraceMinimapLayout;
   /** Layout for individual streams keyed by canonical runtime thread ref. */
   readonly threadLayoutMapByRef: ReadonlyMap<ThreadRef, ThreadLayout>;
-  /** Precomputed overflow notices for legend/overlay rendering. */
-  readonly overflowLabels: readonly ThreadOverflowLabel[];
   /** Bounds for the current layout state, including collapsed ranks/streams */
   readonly currentBounds: TraceLayoutBounds;
-  /** Bounds assuming all ranks/streams are expanded */
-  readonly expandedBounds: TraceLayoutBounds;
 };
-
-type TraceLayoutFilteredSpanCountSource = {
-  /** Returns whether the source graph currently has an active span filter. */
-  hasActiveSpanFilter(): boolean;
-  /** Returns filtered span counts keyed by canonical runtime thread refs. */
-  getFilteredSpanCountByThreadRef(): ReadonlyMap<ThreadRef, number>;
-};
-
-type TraceLayoutVisibleProcessRenderSpansSource = Pick<
-  TraceGraph,
-  'getSpanStreamId' | 'getVisibleProcessRenderSpans'
->;
 
 /** Minimal TraceGraph surface needed to translate collapse refs at serialization boundaries. */
 type TraceGraphCollapseStateSource = Pick<
@@ -376,8 +460,6 @@ function getTraceGraphCollapseProcessId(
 type TraceLayoutRowBlockSource = {
   /** Exact runtime span ref used for geometry lookup. */
   readonly spanRef?: SpanRef;
-  /** Stable span id kept for compatibility block-list sources. */
-  readonly spanId?: TraceSpanId;
   /** Ingestion thread id used to anchor overflow labels to the first visible lane. */
   readonly threadId: TraceThreadId;
 };
@@ -395,12 +477,10 @@ export type ThreadOverflowLabel = {
   x: number;
   /** Timeline Y position for the label baseline. */
   y: number;
-  /** Z position used by deck layers to order the label above row geometry. */
-  z: number;
 };
 
 export type TraceLayoutOverflowLabelDatum = {
-  /** Overflow or filtered-span label text anchored in trace coordinates. */
+  /** Overflow label text anchored in trace coordinates. */
   readonly text: string;
   /** Timeline X origin where the label is anchored. */
   readonly x: number;
@@ -408,8 +488,6 @@ export type TraceLayoutOverflowLabelDatum = {
   readonly y: number;
   /** Rightmost visible X bound available to the label within the timeline row. */
   readonly maxX: number;
-  /** View that should render this label. */
-  readonly view: 'main' | 'legend';
 };
 
 export type TraceLayoutRenderConfiguration = {
@@ -437,17 +515,10 @@ export type ProcessLayout = {
   collapsedActivityY: number;
   /** Whether this rank is currently collapsed. */
   isCollapsed?: boolean;
-  /** Background polygon for the rank band. */
-  backgroundPolygon: Float32Array;
   /** Background polygon that spans an infinite width for the rank band. */
   backgroundPolygonInfinite: Float32Array;
-  /** Horizontal separator line that spans an infinite width at `yOffset`. */
-  separatorLineInfinite: Float32Array;
-  /** Horizontal separator line that spans an infinite width below the rank band. */
-  terminalSeparatorLineInfinite: Float32Array;
-
-  /** Anchor position for the rank row. */
-  startPosition: [number, number, number];
+  /** First content-row Y anchor preserved for filtered-label placement. */
+  contentStartY: number;
   /** Optional label override for the rendered rank row. */
   label?: string;
   /** List of streams in this rank. */
@@ -474,8 +545,8 @@ export type ThreadLaneLayout = {
 export type ThreadLaneMetadata = {
   /** Total number of lanes assigned to the thread row. */
   laneCount: number;
-  /** Optional lane assignments keyed by canonical visible span refs from source metadata. */
-  spanLaneMap?: ReadonlyMap<SpanRef, number>;
+  /** Optional preserved lane assignments copied into layout-owned lane columns during rebuild. */
+  spanLaneAssignments?: readonly TraceLayoutSpanLaneAssignment[];
   /** Optional explicit lane indices to render while hiding all other lanes. */
   visibleLaneIndices?: number[];
   /** Whether this thread row should be rendered collapsed. */
@@ -486,8 +557,6 @@ export type ThreadLaneMetadata = {
 export type ThreadLayout = {
   /** Canonical runtime thread ref for this rendered thread row when available. */
   threadRef?: ThreadRef;
-  /** Process-local stream id represented by this thread layout when it maps to one thread row. */
-  threadId?: TraceThreadId;
   /** Whether the thread row should be rendered. */
   visible: boolean;
   /** Y position of the stream in the trace graph. */
@@ -497,264 +566,118 @@ export type ThreadLayout = {
    * Undefined for generated-lane layouts.
    */
   manualContentHeight?: number;
-  /** Starting anchor position for animated transitions. */
-  startPosition: [number, number, number];
-  /** Target anchor position for animated transitions. */
-  targetPosition: [number, number, number];
-  /**
-   * Optional combined-layout lane assignments keyed by canonical visible span refs.
-   * Used when multiple logical threads are rendered on the same visual thread row.
-   */
-  spanLaneMap?: ReadonlyMap<SpanRef, number>;
+  /** Whether this generated thread row owns at least one span lane assignment. */
+  hasSpanLaneAssignments?: boolean;
   /** Optional lane layout details for span geometry within this thread row. */
   lanes?: ThreadLaneLayout;
   /** Count of hidden spans due to lane depth cap. */
   overflowSpanCount?: number;
+  /**
+   * Optional precomputed main-view X anchor for this row's overflow label.
+   *
+   * Generated primary-lane layouts derive this while they already stream canonical timing and
+   * lane columns. Keeping the low-cardinality anchor on the thread row avoids a second all-span
+   * geometry scan when prepared rows only need to place one label.
+   */
+  overflowLabelAnchorX?: number;
   /** Optional overflow or filtered-span label for this thread row. */
   overflowLabel?: ThreadOverflowLabel;
 };
 
-/** Collects overflow labels from visible thread layouts in render order. */
-export function buildTraceLayoutOverflowLabels(
-  processLayouts: readonly ProcessLayout[]
-): ThreadOverflowLabel[] {
-  const overflowLabels: ThreadOverflowLabel[] = [];
-  for (const rankLayout of processLayouts) {
-    if (!rankLayout) {
-      continue;
-    }
-    for (const threadLayout of rankLayout.threadLayouts) {
-      if (threadLayout.visible && threadLayout.overflowLabel) {
-        overflowLabels.push(threadLayout.overflowLabel);
-      }
-    }
-  }
-  return overflowLabels;
-}
-
-/**
- * Returns per-thread filtered span counts keyed by runtime thread refs when an active filter exists.
- */
-export function getTraceLayoutFilteredSpanCountByThreadRef(params: {
-  /** Layout whose source graph should be consulted first. */
-  traceLayout: TraceLayout;
-}): ReadonlyMap<ThreadRef, number> | undefined {
-  const traceGraph = params.traceLayout.traceGraph;
-  if (!hasTraceLayoutFilteredSpanCountSource(traceGraph) || !traceGraph.hasActiveSpanFilter()) {
-    return undefined;
-  }
-  return traceGraph.getFilteredSpanCountByThreadRef?.();
-}
-
-/**
- * Returns the user-facing thread name used in overflow and filtered-span labels.
- */
-export function getTraceLayoutOverflowLabelThreadName(threads: readonly TraceThread[]): string {
-  if (threads.length === 1) {
-    return threads[0]!.name?.trim() || String(threads[0]!.threadId);
-  }
-  return 'all threads';
-}
-
-/**
- * Returns the earliest visible X position for a collapsed activity overview.
- */
-export function getTraceLayoutCollapsedActivityStartX(
-  collapsedActivityIntervals: readonly TraceProcessActivityInterval[]
-): number | undefined {
-  return collapsedActivityIntervals.reduce<number | undefined>((minX, interval) => {
-    if (!Number.isFinite(interval.startX)) {
-      return minX;
-    }
-    return minX == null ? interval.startX : Math.min(minX, interval.startX);
-  }, undefined);
-}
-
-/**
- * Returns the rightmost visible X position for a collapsed activity overview.
- */
-export function getTraceLayoutCollapsedActivityEndX(
-  collapsedActivityIntervals: readonly TraceProcessActivityInterval[]
-): number | undefined {
-  return collapsedActivityIntervals.reduce<number | undefined>((maxX, interval) => {
-    if (!Number.isFinite(interval.endX)) {
-      return maxX;
-    }
-    return maxX == null ? interval.endX : Math.max(maxX, interval.endX);
-  }, undefined);
-}
-
-/**
- * Builds row-local overflow and filtered-span labels using the resolved trace layout state.
- */
+/** Builds row-local lane-overflow labels using the resolved trace layout state. */
 export function buildTraceLayoutRowOverflowLabels(params: {
   /** Trace layout with resolved lane state and optional source graph. */
   traceLayout: TraceLayout;
   /** Stable rendered row metadata for which labels are being built. */
   row: TraceLayoutRow;
-  /** Collapsed activity intervals associated with the row. */
-  collapsedActivityIntervals: readonly TraceProcessActivityInterval[];
   /** Optional batch-scoped direct geometry lookup state for repeated span resolution. */
   geometryContext?: TraceLayoutGeometryDerivationContext;
 }): readonly TraceLayoutOverflowLabelDatum[] {
-  const laneSeparation = params.traceLayout.layoutConfiguration?.laneSeparation ?? 0.7;
   const rankLayout = getTraceLayoutProcessLayoutByRef(params.traceLayout, params.row.processRef);
-  if (!rankLayout) {
+  if (!rankLayout || rankLayout.isCollapsed === true) {
     return [];
   }
 
-  const effectiveIsCollapsed = rankLayout.isCollapsed === true;
   const timelineMaxX = params.traceLayout.currentBounds[1][0];
-  const collapsedActivityY = Number.isFinite(rankLayout.collapsedActivityY)
-    ? rankLayout.collapsedActivityY
-    : rankLayout.yOffset;
-  const filteredSpanCountByThreadRef = getTraceLayoutFilteredSpanCountByThreadRef({
-    traceLayout: params.traceLayout
-  });
-  const collapsedFilteredSpanCount = effectiveIsCollapsed
-    ? filteredSpanCountByThreadRef != null && params.row.threadRefs.length > 0
-      ? params.row.threadRefs.reduce(
-          (count: number, threadRef) => count + (filteredSpanCountByThreadRef.get(threadRef) ?? 0),
-          0
-        )
-      : 0
-    : 0;
-  const expandedFilteredSpanCount = !effectiveIsCollapsed
-    ? filteredSpanCountByThreadRef != null && params.row.threadRefs.length > 0
-      ? params.row.threadRefs.reduce(
-          (count: number, threadRef) => count + (filteredSpanCountByThreadRef.get(threadRef) ?? 0),
-          0
-        )
-      : 0
-    : 0;
   const overflowLabelData: TraceLayoutOverflowLabelDatum[] = [];
-  if (!effectiveIsCollapsed) {
-    let geometryContext = params.geometryContext;
-    let spans: readonly TraceLayoutRowBlockSource[] | null = null;
-    let spansByThreadId: Record<string, TraceLayoutRowBlockSource[]> | null = null;
-    for (let index = 0; index < rankLayout.threadLayouts.length; index += 1) {
-      const threadLayout = rankLayout.threadLayouts[index]!;
-      const overflowLabel = threadLayout.visible ? threadLayout.overflowLabel : undefined;
-      if (!overflowLabel) {
+  let geometryContext = params.geometryContext;
+  let spans: readonly TraceLayoutRowBlockSource[] | null = null;
+  let spansByThreadId: Record<string, TraceLayoutRowBlockSource[]> | null = null;
+  for (let index = 0; index < rankLayout.threadLayouts.length; index += 1) {
+    const threadLayout = rankLayout.threadLayouts[index]!;
+    const overflowLabel = threadLayout.visible ? threadLayout.overflowLabel : undefined;
+    if (!overflowLabel || !(threadLayout.overflowSpanCount && threadLayout.overflowSpanCount > 0)) {
+      continue;
+    }
+
+    if (
+      params.traceLayout.layoutConfiguration?.timingKey == null &&
+      Number.isFinite(threadLayout.overflowLabelAnchorX)
+    ) {
+      const resolvedX = threadLayout.overflowLabelAnchorX!;
+      overflowLabelData.push({
+        text: overflowLabel.text,
+        x: resolvedX,
+        y: overflowLabel.y,
+        maxX: Math.max(resolvedX, timelineMaxX)
+      });
+      continue;
+    }
+
+    if (spans == null) {
+      spans = getTraceLayoutRowBlocks(params.traceLayout, params.row);
+    }
+    const thread = params.row.threads[index];
+    let candidateBlocks: readonly TraceLayoutRowBlockSource[];
+    if (rankLayout.threadLayouts.length === 1 && params.row.threads.length > 1) {
+      candidateBlocks = spans;
+    } else if (thread) {
+      if (spansByThreadId == null) {
+        spansByThreadId = buildTraceLayoutRowBlocksByThreadId(spans);
+      }
+      candidateBlocks = spansByThreadId[thread.threadId] ?? [];
+    } else {
+      candidateBlocks = [];
+    }
+    const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+    let anchoredX: number | undefined;
+    let fallbackAnchoredX: number | undefined;
+    for (const block of candidateBlocks) {
+      const spanRef = block.spanRef;
+      if (spanRef != null && geometryContext == null) {
+        geometryContext = buildTraceLayoutGeometryDerivationContext(params.traceLayout);
+      }
+      if (
+        spanRef == null ||
+        !fillTraceLayoutSpanGeometry({
+          traceLayout: params.traceLayout,
+          spanRef,
+          target: geometry,
+          context: geometryContext
+        }) ||
+        !Number.isFinite(geometry.x1)
+      ) {
         continue;
       }
 
-      if (spans == null) {
-        spans = getTraceLayoutRowBlocks(params.traceLayout, params.row);
+      fallbackAnchoredX =
+        fallbackAnchoredX == null ? geometry.x1 : Math.min(fallbackAnchoredX, geometry.x1);
+      const laneIndex = getTraceLayoutSpanLaneIndex(params.traceLayout, spanRef) ?? 0;
+      if (laneIndex === 0) {
+        anchoredX = anchoredX == null ? geometry.x1 : Math.min(anchoredX, geometry.x1);
       }
-      const thread = params.row.threads[index];
-      let candidateBlocks: readonly TraceLayoutRowBlockSource[];
-      if (rankLayout.threadLayouts.length === 1 && params.row.threads.length > 1) {
-        candidateBlocks = spans;
-      } else if (thread) {
-        if (spansByThreadId == null) {
-          spansByThreadId = buildTraceLayoutRowBlocksByThreadId(spans);
-        }
-        candidateBlocks = spansByThreadId[thread.threadId] ?? [];
-      } else {
-        candidateBlocks = [];
-      }
-      const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
-      let anchoredX: number | undefined;
-      let fallbackAnchoredX: number | undefined;
-      for (const block of candidateBlocks) {
-        const spanRef = block.spanRef;
-        if (spanRef != null && geometryContext == null) {
-          geometryContext = buildTraceLayoutGeometryDerivationContext(params.traceLayout);
-        }
-        if (
-          spanRef == null ||
-          !fillTraceLayoutSpanGeometry({
-            traceLayout: params.traceLayout,
-            spanRef,
-            target: geometry,
-            context: geometryContext
-          }) ||
-          !Number.isFinite(geometry.x1)
-        ) {
-          continue;
-        }
-
-        fallbackAnchoredX =
-          fallbackAnchoredX == null ? geometry.x1 : Math.min(fallbackAnchoredX, geometry.x1);
-        const laneIndex = threadLayout.spanLaneMap?.get(spanRef) ?? 0;
-        if (laneIndex === 0) {
-          anchoredX = anchoredX == null ? geometry.x1 : Math.min(anchoredX, geometry.x1);
-        }
-      }
-      const resolvedX = anchoredX ?? fallbackAnchoredX ?? overflowLabel.x;
-
-      overflowLabelData.push({
-        text: overflowLabel.text,
-        x: threadLayout.overflowSpanCount && threadLayout.overflowSpanCount > 0 ? resolvedX : 0,
-        y: overflowLabel.y,
-        maxX: Math.max(
-          resolvedX,
-          threadLayout.targetPosition[0] ?? Number.NEGATIVE_INFINITY,
-          timelineMaxX
-        ),
-        view:
-          threadLayout.overflowSpanCount && threadLayout.overflowSpanCount > 0 ? 'main' : 'legend'
-      });
     }
-  }
-  const collapsedActivityStartX =
-    getTraceLayoutCollapsedActivityStartX(params.collapsedActivityIntervals) ?? 0;
-  const collapsedActivityEndX = getTraceLayoutCollapsedActivityEndX(
-    params.collapsedActivityIntervals
-  );
-  if (!effectiveIsCollapsed && overflowLabelData.length === 0 && expandedFilteredSpanCount > 0) {
+    const resolvedX = anchoredX ?? fallbackAnchoredX ?? overflowLabel.x;
+
     overflowLabelData.push({
-      text: `All ${expandedFilteredSpanCount} span${expandedFilteredSpanCount === 1 ? '' : 's'} filtered out in thread ${getTraceLayoutOverflowLabelThreadName(params.row.threads)}`,
-      x: 0,
-      y: rankLayout.startPosition[1] + laneSeparation,
-      maxX: Math.max(0, timelineMaxX),
-      view: 'legend'
-    });
-  }
-  if (effectiveIsCollapsed && collapsedFilteredSpanCount > 0) {
-    overflowLabelData.push({
-      text: `${collapsedFilteredSpanCount} span${collapsedFilteredSpanCount === 1 ? '' : 's'} filtered`,
-      x: 0,
-      y: collapsedActivityY + laneSeparation,
-      maxX: Math.max(collapsedActivityStartX, collapsedActivityEndX ?? 0, timelineMaxX),
-      view: 'legend'
+      text: overflowLabel.text,
+      x: resolvedX,
+      y: overflowLabel.y,
+      maxX: Math.max(resolvedX, timelineMaxX)
     });
   }
 
   return overflowLabelData;
-}
-
-/**
- * Returns whether the provided value supports filtered-span-count lookups.
- */
-function hasTraceLayoutFilteredSpanCountSource(
-  traceGraph: unknown
-): traceGraph is Readonly<TraceLayoutFilteredSpanCountSource> {
-  return (
-    traceGraph != null &&
-    typeof traceGraph === 'object' &&
-    'hasActiveSpanFilter' in traceGraph &&
-    typeof traceGraph.hasActiveSpanFilter === 'function' &&
-    'getFilteredSpanCountByThreadRef' in traceGraph &&
-    typeof traceGraph.getFilteredSpanCountByThreadRef === 'function'
-  );
-}
-
-/**
- * Returns whether the provided value can resolve lightweight visible render spans for a row.
- */
-function hasTraceLayoutVisibleProcessRenderSpansSource(
-  traceGraph: unknown
-): traceGraph is Readonly<TraceLayoutVisibleProcessRenderSpansSource> {
-  return (
-    traceGraph != null &&
-    typeof traceGraph === 'object' &&
-    'getVisibleProcessRenderSpans' in traceGraph &&
-    typeof traceGraph.getVisibleProcessRenderSpans === 'function' &&
-    'getSpanStreamId' in traceGraph &&
-    typeof traceGraph.getSpanStreamId === 'function'
-  );
 }
 
 /**
@@ -774,23 +697,63 @@ function getTraceLayoutRowBlocks(
   row: TraceLayoutRow
 ): readonly TraceLayoutRowBlockSource[] {
   const traceGraph = traceLayout.traceGraph as unknown;
-  if (hasTraceLayoutVisibleProcessRenderSpansSource(traceGraph)) {
-    if (row?.processRef == null) {
-      return [];
-    }
-    const result: TraceLayoutRowBlockSource[] = [];
-    for (const span of traceGraph.getVisibleProcessRenderSpans(row.processRef)) {
-      const threadId = traceGraph.getSpanStreamId(span.spanRef);
-      if (threadId != null) {
-        result.push({spanRef: span.spanRef, threadId});
-      }
-    }
-    return result;
+  const maskNativeBlocks = getTraceLayoutMaskNativeRowBlocks(traceGraph, row);
+  if (maskNativeBlocks) {
+    return maskNativeBlocks;
   }
   if (hasTraceLayoutProcessBlocksListSource(traceGraph)) {
     return traceGraph.processes.find(process => process.processId === row.processId)?.spans ?? [];
   }
   return [];
+}
+
+/**
+ * Reads runtime row blocks from canonical process refs and snapshot masks.
+ *
+ * Overflow-label anchoring only needs span refs and thread ids. Snapshot filters are row-local, so
+ * this path avoids asking the compatibility visible index to restate every visible span. Unfiltered
+ * runtime graphs have null masks and take the same canonical iteration path.
+ */
+function getTraceLayoutMaskNativeRowBlocks(
+  traceGraph: unknown,
+  row: TraceLayoutRow
+): readonly TraceLayoutRowBlockSource[] | null {
+  if (!hasTraceLayoutMaskNativeRowBlockSource(traceGraph)) {
+    return null;
+  }
+
+  const blocks: TraceLayoutRowBlockSource[] = [];
+  for (const spanRef of iterateTraceGraphProcessSpanRefs(traceGraph, row.processId)) {
+    if (
+      getTraceViewSpanFilterMask(traceGraph.traceViewSnapshot, spanRef) !==
+      TRACE_SPAN_FILTER_MASK_NONE
+    ) {
+      continue;
+    }
+    const threadId = traceGraph.getSpanStreamId(spanRef);
+    if (threadId != null) {
+      blocks.push({spanRef, threadId});
+    }
+  }
+  return blocks;
+}
+
+/**
+ * Returns whether one layout graph exposes the canonical fields needed by row-local mask scans.
+ */
+function hasTraceLayoutMaskNativeRowBlockSource(traceGraph: unknown): traceGraph is TraceGraph {
+  return (
+    traceGraph != null &&
+    typeof traceGraph === 'object' &&
+    'traceViewSnapshot' in traceGraph &&
+    'chunks' in traceGraph &&
+    Array.isArray(traceGraph.chunks) &&
+    'processSpanTableMap' in traceGraph &&
+    'processes' in traceGraph &&
+    Array.isArray(traceGraph.processes) &&
+    'getSpanStreamId' in traceGraph &&
+    typeof traceGraph.getSpanStreamId === 'function'
+  );
 }
 
 /**
@@ -884,25 +847,20 @@ export function getTraceLayoutBoundsFromStructure(params: {
   ];
 }
 
-/** Visible graph shape consumed while materializing TraceLayout render rows. */
-type TraceLayoutRowSourceGraph = TraceLayoutVisibleGraph;
-
 /** Builds the canonical lightweight row model used by layout-aware UI consumers. */
 export function buildTraceLayoutRows(params: {
-  /** Source graph whose process metadata is aligned to the supplied rank layouts. */
-  traceGraph: Readonly<TraceLayoutRowSourceGraph>;
+  /** Process metadata aligned to the supplied rank layouts. */
+  processes: readonly TraceLayoutVisibleProcessMetadata[];
   /** Process/rank layouts that define render row order. */
   processLayouts: readonly ProcessLayout[];
 }): readonly TraceLayoutRow[] {
-  const {traceGraph, processLayouts} = params;
+  const {processes, processLayouts} = params;
   if (processLayouts.length === 0) {
     return [];
   }
 
   const rows: TraceLayoutRow[] = [];
-  const processByRef = new Map(
-    traceGraph.processes.map(process => [process.processRef, process] as const)
-  );
+  const processByRef = new Map(processes.map(process => [process.processRef, process] as const));
   for (let rankIndex = 0; rankIndex < processLayouts.length; rankIndex += 1) {
     const processLayout = processLayouts[rankIndex];
     if (!processLayout) {

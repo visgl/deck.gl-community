@@ -1,6 +1,6 @@
-import {formatTS} from '../../../../trace/index';
+import {formatTS} from '../../../../trace';
 
-import type {TraceEvent, TraceLabels} from '../../../../trace/index';
+import type {TraceEvent, TraceLabels} from '../../../../trace';
 
 export type TraceEventCardProps = {
   /** Graph-global trace event to render. */

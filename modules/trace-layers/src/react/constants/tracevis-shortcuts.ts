@@ -1,5 +1,5 @@
 import {commandManager} from '@deck.gl-community/panels';
-import {imperativeDeckController} from '../../layers/index';
+import {imperativeDeckController} from '../../layers';
 
 import type {CommandDefinition} from '@deck.gl-community/panels';
 import type {KeyboardShortcut} from '@deck.gl-community/panels';

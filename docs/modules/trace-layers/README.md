@@ -22,15 +22,20 @@ class or type you need.
 ## Typical flow
 
 1. Parse or build normalized trace data.
-2. Construct a `TraceGraph`.
-3. Mount `TraceEngine` for the full viewer path, or compose low-level layers directly.
-4. Render with `DeckTraceGraph`, `TraceGraphLayer`, or `TraceStoreLayer`.
-5. Keep durable refs, serialized expanded process ids, settings, and persistence in the host application.
+2. Normalize source rows into parser-local `TraceChunkData`.
+3. Finalize those chunks into an immutable `TraceDataset`.
+4. Build a `TraceViewSnapshot` and dataset-backed `TraceGraph`.
+5. Mount `TraceEngine` for the full viewer path, or compose low-level layers directly.
+6. Render with `DeckTraceGraph`, `TraceGraphLayer`, or `TraceStoreLayer`.
+7. Keep durable refs, serialized expanded process ids, settings, and persistence in the host application.
 
-`TraceEngine` owns mounted selection, collapse, layout, prepared-scene, and diagnostics state below
-React. `DeckTraceGraph` remains the full React viewer around one mounted engine. Custom deck.gl
-shells use `TraceGraphLayer` for normalized graphs, `TraceStoreLayer` for `TraceChunkStore`
-windows, or `TracePreparedStateLayer` for caller-prepared `TraceViewState`.
+`TraceDataset` is the row-heavy columnar owner. `TraceViewSnapshot` owns filtered visibility masks.
+`TraceGraph` is the query facade over that dataset/view pair. `TraceEngine` owns mounted selection,
+collapse, layout, `TraceRenderSnapshot`, and diagnostics state below React. `DeckTraceGraph`
+remains the full React viewer around one mounted engine. Custom deck.gl shells use
+`TraceGraphLayer` for dataset-backed graphs, `TraceStoreLayer` for `TraceChunkStoreWindow`
+sources that materialize datasets, or `TracePreparedStateLayer` for caller-prepared
+`TraceViewState`.
 
 The full viewer example lives at
 [`examples/trace-layers/tracevis`](https://github.com/visgl/deck.gl-community/tree/master/examples/trace-layers/tracevis).

@@ -1,7 +1,12 @@
 import {ComponentProps, ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
-import {formatTimeMs, formatTS, getDependencyDurationMs} from '../../../../../trace/index';
-import {getTraceSpanBadgeStyle} from '../../../../utils/trace-span-badge-style';
+import {
+  getTraceSpanDescendants as buildTraceSpanDescendants,
+  formatTimeMs,
+  formatTS,
+  getDependencyDurationMs
+} from '../../../../../trace';
+import {getTraceSpanBadgeStyleForRef} from '../../../../utils/trace-span-badge-style';
 import {Badge, Tabs, TabsList, TabsTrigger} from '../../../ui';
 import {TraceSpanNameBadge} from '../trace-span-name-badge';
 import {TraceSpanCommPill} from './trace-span-card-comm-pill';
@@ -10,8 +15,8 @@ import {
   TraceSpanCardConfiguration
 } from './trace-span-card-configuration';
 import {
-  TraceSpanCrossDependencies,
-  TraceSpanCrossDependenciesHorizontal
+  TraceSpanCrossProcessDependencies,
+  TraceSpanCrossProcessDependenciesHorizontal
 } from './trace-span-card-cross-dependencies';
 import {getSameNameNavigation, getThreadNavigation} from './trace-span-card-stream-navigation';
 import {TraceSpanChildrenTab} from './trace-span-card-tab-children';
@@ -37,7 +42,7 @@ import type {
   TraceSpanId,
   TraceStyle,
   TraceVisSettings
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 import type {QueryStatus} from '../../../query-status';
 import type {TraceSpanDoubleClickAction} from '../trace-span-name-badge';
 import type {SameNameNavigation, ThreadNavigation} from './trace-span-card-stream-navigation';
@@ -51,7 +56,7 @@ import type {
 } from './trace-span-card-types';
 import type {CSSProperties} from 'react';
 
-export {TraceSpanCrossDependencies, getSameNameNavigation, getThreadNavigation};
+export {TraceSpanCrossProcessDependencies, getSameNameNavigation, getThreadNavigation};
 export {TraceSpanExternalSpanIdValue} from './trace-span-card-tab-span-data';
 export type {TraceSpanExternalSpanIdValueProps} from './trace-span-card-tab-span-data';
 export type {SameNameNavigation, ThreadNavigation, TraceSpanDoubleClickAction};
@@ -131,8 +136,18 @@ export function TraceSpanCard(props: TraceSpanCardProps) {
   );
   const badgeStyle = useMemo(
     () =>
-      getTraceSpanBadgeStyle(configuration.span, props.traceSettings, props.traceStyle.colorScheme),
-    [configuration.span, props.traceSettings, props.traceStyle.colorScheme]
+      getTraceSpanBadgeStyleForRef(
+        props.traceGraph,
+        configuration.span.spanRef,
+        props.traceSettings,
+        props.traceStyle.colorScheme
+      ),
+    [
+      configuration.span.spanRef,
+      props.traceGraph,
+      props.traceSettings,
+      props.traceStyle.colorScheme
+    ]
   );
   const [selectedDependencyDurationTimingKeys, setSelectedDependencyDurationTimingKeys] = useState<
     readonly [string, string]
@@ -181,8 +196,13 @@ export function TraceSpanCard(props: TraceSpanCardProps) {
   );
   const getDependencyBadgeStyle = useCallback(
     (targetSpan: TraceCardSpan): CSSProperties =>
-      getTraceSpanBadgeStyle(targetSpan, props.traceSettings, props.traceStyle.colorScheme),
-    [props.traceSettings, props.traceStyle.colorScheme]
+      getTraceSpanBadgeStyleForRef(
+        props.traceGraph,
+        targetSpan.spanRef,
+        props.traceSettings,
+        props.traceStyle.colorScheme
+      ),
+    [props.traceGraph, props.traceSettings, props.traceStyle.colorScheme]
   );
   const getDependencyMetricValues = useCallback(
     (params: TraceSpanDependencyMetricValueParams): string[] =>
@@ -220,7 +240,8 @@ export function TraceSpanCard(props: TraceSpanCardProps) {
   const getTraceSpanDescendants = useCallback<TraceSpanChildrenResultLoader>(
     params => {
       if (!childrenDescendants.current.raw) {
-        childrenDescendants.current.raw = props.traceGraph.getTraceSpanDescendants(
+        childrenDescendants.current.raw = buildTraceSpanDescendants(
+          props.traceGraph,
           configuration.span.spanRef,
           {
             includeHidden: true,
@@ -435,7 +456,7 @@ export function TraceSpanCard(props: TraceSpanCardProps) {
       {!props.interactive &&
         configuration.tabOptions.showCrossProcessDependencies &&
         configuration.endpointsWithDeps.length > 0 && (
-          <TraceSpanCrossDependenciesHorizontal
+          <TraceSpanCrossProcessDependenciesHorizontal
             endpointsWithDeps={configuration.endpointsWithDeps}
             endpointCount={configuration.endpointDependencyCount}
             maxRanks={6}
@@ -715,7 +736,7 @@ function TraceSpanCardTabs(props: TraceSpanCardTabsProps) {
   return (
     <Tabs value={props.selectedTab} onValueChange={value => props.onTabChange(value)}>
       <TabsList
-        className="inline-flex w-full flex-wrap justify-center gap-1 rounded-md border border-white/10 bg-white/5 px-1 py-0.5"
+        className="flex w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-md border border-white/10 bg-white/5 px-1 py-0.5"
         role="tablist"
       >
         {props.tabs.map(tab => {
@@ -726,7 +747,7 @@ function TraceSpanCardTabs(props: TraceSpanCardTabsProps) {
               key={tab.id}
               value={tab.id}
               aria-selected={isSelectedTab}
-              className={`rounded-sm border px-2.5 py-0.5 text-xs font-medium leading-5 transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-sm border px-2.5 py-0.5 text-xs font-medium leading-5 transition-colors ${
                 isSelectedTab
                   ? 'border-border bg-background text-foreground shadow-sm ring-1 ring-border'
                   : 'border-transparent bg-white/5 text-muted-foreground hover:bg-white/7 hover:text-foreground'
@@ -920,7 +941,7 @@ function TraceSpanCardTabBody(props: TraceSpanCardTabBodyProps): ReactNode {
 }
 
 /**
- * Build the local dependency tab props for one of the two parent/dependency surfaces.
+ * Build the same-process dependency tab props for one of the two parent/dependency surfaces.
  */
 function getTraceSpanDependencyTabProps(
   params: TraceSpanDependencyTabPropsBuilderParams
@@ -1185,7 +1206,7 @@ function createTraceSpanTabDefinitions(
         >
           <TraceSpanCrossRankSection configuration={params.configuration} />
           {params.configuration.endpointsWithDeps.length > 0 ? (
-            <TraceSpanCrossDependenciesHorizontal
+            <TraceSpanCrossProcessDependenciesHorizontal
               endpointsWithDeps={params.configuration.endpointsWithDeps}
               endpointCount={params.configuration.endpointDependencyCount}
               maxRanks={6}

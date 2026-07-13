@@ -1,6 +1,14 @@
 import {brand} from './trace-types';
 
+import type {SameProcessDependencyRef} from './trace-id-encoder';
 import type {TraceDependencyId, TraceSpanId} from './trace-types';
+
+/** Encodes one compact compatibility dependency id from a ref-native same-process dependency ref. */
+export function encodeSameProcessDependencyIdFromRef(
+  dependencyRef: SameProcessDependencyRef
+): TraceDependencyId {
+  return brand<'dependency', string>(`same-process-dependency-ref(${dependencyRef})`);
+}
 
 export function encodeGlobalDependencyId(
   spanId1: TraceSpanId,

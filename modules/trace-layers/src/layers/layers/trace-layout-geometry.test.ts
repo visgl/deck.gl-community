@@ -1,37 +1,32 @@
 import {describe, expect, it} from 'vitest';
 
-import {
-  buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
-  buildTraceLayout,
-  createStaticTraceGraphRuntimeSource,
-  TraceGraph
-} from '../../trace/index';
+import {buildJSONTrace, buildTraceLayout, TraceGraph} from '../../trace';
+import {createRuntimeTraceGraph} from '../../trace/trace-graph/trace-graph-test-fixtures';
 import {
   getTraceLayoutBlockGeometry,
-  getTraceLayoutCrossDependencyGeometry,
-  getTraceLayoutLocalDependencyGeometry,
+  getTraceLayoutCrossProcessDependencyGeometry,
   getTraceLayoutPathDependencyGeometry,
-  getTraceLayoutSelectedCrossDependencyGeometry,
-  getTraceLayoutSelectedLocalDependencyGeometry
+  getTraceLayoutSameProcessDependencyGeometry,
+  getTraceLayoutSelectedCrossProcessDependencyGeometry,
+  getTraceLayoutSelectedSameProcessDependencyGeometry
 } from './trace-layout-geometry';
 
 import type {
   TraceCrossProcessDependency,
   TraceDependencyId,
   TraceGraphPathDependencySource,
-  TraceLocalDependency,
   TraceProcess,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId,
   TraceVisSettings
-} from '../../trace/index';
+} from '../../trace';
 
 const settings: TraceVisSettings = {
   showDependencies: true,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   showCrossProcessDependencies: true,
   showInstants: false,
   showCounters: false,
@@ -53,47 +48,55 @@ const settings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  traceRunSummaryAggregationKey: 'latest',
+  traceTimingKey: 'latest',
   showEmptyProcesses: false
 };
 
 describe('trace-layout-geometry', () => {
-  it('derives span, local dependency, cross dependency, and path geometry from lane layout', () => {
+  it('derives span, same-process dependency, cross-process dependency, and path geometry from lane layout', () => {
     const graph = createGeometryTraceGraph();
     const layout = buildTraceLayout({traceGraph: graph, settings});
-    const localDependencyRef = graph.getVisibleLocalDependencyRefs(graph.getProcessRefs()[0]!)[0]!;
-    const crossDependencyRef = graph.getVisibleCrossDependencySources()[0]!.dependencyRef!;
-    const startSpanRef = graph.getSpanRefByExternalBlockId('rank-a-parent' as TraceSpanId)!;
-    const localDependency = graph.getVisibleDependencySourceByRef(localDependencyRef)!;
-    const crossDependency = graph.getVisibleDependencySourceByRef(
-      crossDependencyRef
-    ) as TraceCrossProcessDependency;
+    const sameProcessDependencyRef = Array.from(
+      graph.iterateVisibleSameProcessDependencyRefsByProcess(graph.getProcessRefs()[0]!)
+    ).at(0)!;
+    const crossProcessDependencyRef = Array.from(
+      graph.iterateVisibleCrossProcessDependencyRefs()
+    ).flatMap(dependencyRef => {
+      const dependency = graph.getDependencySource(dependencyRef);
+      return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+    })[0]!.dependencyRef!;
+    const startSpanRef = graph.getSpanRefById('rank-a-parent' as TraceSpanId)!;
+    const sameProcessDependency = graph.getDependencySource(sameProcessDependencyRef)!;
+    const crossProcessDependency = graph.getDependencySource(crossProcessDependencyRef);
+    if (crossProcessDependency?.type !== 'trace-cross-process-dependency') {
+      throw new Error('Expected cross-process dependency render source');
+    }
 
     const blockGeometry = getTraceLayoutBlockGeometry({
       traceLayout: layout,
       block: {spanRef: startSpanRef}
     });
-    const localGeometry = getTraceLayoutLocalDependencyGeometry({
+    const localGeometry = getTraceLayoutSameProcessDependencyGeometry({
       traceLayout: layout,
-      dependency: localDependency as TraceLocalDependency
+      dependency: sameProcessDependency as TraceSameProcessDependency
     });
-    const crossGeometry = getTraceLayoutCrossDependencyGeometry({
+    const crossGeometry = getTraceLayoutCrossProcessDependencyGeometry({
       traceLayout: layout,
-      dependency: crossDependency
+      dependency: crossProcessDependency
     });
-    const selectedLocalGeometry = getTraceLayoutSelectedLocalDependencyGeometry({
+    const selectedLocalGeometry = getTraceLayoutSelectedSameProcessDependencyGeometry({
       traceLayout: layout,
-      dependencyRef: localDependencyRef
+      dependencyRef: sameProcessDependencyRef
     });
-    const selectedCrossGeometry = getTraceLayoutSelectedCrossDependencyGeometry({
+    const selectedCrossGeometry = getTraceLayoutSelectedCrossProcessDependencyGeometry({
       traceLayout: layout,
-      dependencyRef: crossDependencyRef
+      dependencyRef: crossProcessDependencyRef
     });
     const pathGeometry = getTraceLayoutPathDependencyGeometry({
       traceLayout: layout,
       source: {
-        dependency: crossDependency,
-        dependencyRef: crossDependencyRef
+        dependency: crossProcessDependency,
+        dependencyRef: crossProcessDependencyRef
       } as TraceGraphPathDependencySource
     });
 
@@ -107,10 +110,10 @@ describe('trace-layout-geometry', () => {
 function createGeometryTraceGraph(): TraceGraph {
   const rankA = createProcess('rank-a', 0, ['rank-a-parent', 'rank-a-child']);
   const rankB = createProcess('rank-b', 1, ['rank-b-child']);
-  const localDependencyId = 'local-parent-child' as TraceDependencyId;
-  const localDependency: TraceLocalDependency = {
-    type: 'trace-local-dependency',
-    dependencyId: localDependencyId,
+  const sameProcessDependencyId = 'local-parent-child' as TraceDependencyId;
+  const sameProcessDependency: TraceSameProcessDependency = {
+    type: 'trace-same-process-dependency',
+    dependencyId: sameProcessDependencyId,
     startSpanId: rankA.spans[0]!.spanId,
     endSpanId: rankA.spans[1]!.spanId,
     keywords: new Set(['PARENT']),
@@ -118,10 +121,10 @@ function createGeometryTraceGraph(): TraceGraph {
     bidirectional: false,
     waitTimeMs: 1
   };
-  rankA.spans[0]!.localDependencyIds = [localDependencyId];
-  rankA.spans[0]!.localDependencies = [localDependency];
-  rankA.localDependencies = [localDependency];
-  const crossDependency: TraceCrossProcessDependency = {
+  rankA.spans[0]!.sameProcessDependencyIds = [sameProcessDependencyId];
+  rankA.spans[0]!.sameProcessDependencies = [sameProcessDependency];
+  rankA.sameProcessDependencies = [sameProcessDependency];
+  const crossProcessDependency: TraceCrossProcessDependency = {
     type: 'trace-cross-process-dependency',
     dependencyId: 'cross-parent-child' as TraceDependencyId,
     endpointId: 'cross-parent-child:endpoint' as TraceCrossProcessDependency['endpointId'],
@@ -137,13 +140,8 @@ function createGeometryTraceGraph(): TraceGraph {
     waitNotFinished: false,
     keywords: new Set()
   };
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: 'trace-layout-geometry:test',
-      traceGraphData: buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace([rankA, rankB], [crossDependency], {name: 'trace-layout-geometry'})
-      )
-    })
+  return createRuntimeTraceGraph(
+    buildJSONTrace([rankA, rankB], [crossProcessDependency], {name: 'trace-layout-geometry'})
   );
 }
 
@@ -175,7 +173,7 @@ function createProcess(
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 }
@@ -198,8 +196,8 @@ function createSpan(name: string, thread: TraceThread, index: number): TraceSpan
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };

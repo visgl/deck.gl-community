@@ -24,16 +24,16 @@ import {
   _StatsWidget as StatsWidget,
   ZoomWidget
 } from '@deck.gl/widgets';
-import {fitBoundsOrthographic} from '@deck.gl-community/infovis-layers';
+import {buildViewsFromViewLayout, fitBoundsOrthographic} from '@deck.gl-community/infovis-layers';
 
-import {buildViewsFromViewLayout} from '@deck.gl-community/infovis-layers';
 import {commandManager} from '@deck.gl-community/panels';
 import {CommandResetViewWidget} from '@deck.gl-community/widgets';
 import {HeapMemoryWidget} from '@deck.gl-community/widgets';
-import {buildTracevisViewLayout, DeckTraceGraphController} from '../../../layers/index';
-import {type SpanBoundingBox} from '../../../trace/index';
+import {buildTracevisViewLayout, DeckTraceGraphController} from '../../../layers';
+import {type SpanBoundingBox} from '../../../trace';
+import {DECK_TRACE_GRAPH_CONTEXT_MENU_WIDGET_ID} from './deck-trace-graph-context-menu';
 
-import type {TraceDragInteractionMode} from '../../../layers/index';
+import type {TraceDragInteractionMode} from '../../../layers';
 import type {ZoomWidgetProps} from '@deck.gl/widgets';
 import type {Bounds} from '@deck.gl-community/infovis-layers';
 import type {Dispatch, SetStateAction} from 'react';
@@ -1202,6 +1202,7 @@ function DeckWithManagedViewsWithRef(
         widget.props.id === TRACEVIS_TRACE_CATALOG_WIDGET_ID ||
         widget.props.id === TRACEVIS_HOVER_POPUP_WIDGET_ID ||
         widget.props.id === TRACEVIS_OVERVIEW_TOGGLE_WIDGET_ID ||
+        widget.props.id === DECK_TRACE_GRAPH_CONTEXT_MENU_WIDGET_ID ||
         widget.props.id === OVERVIEW_SEPARATOR_WIDGET_ID
       ) {
         widget.props._container = null;

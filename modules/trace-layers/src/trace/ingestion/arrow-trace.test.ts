@@ -1,15 +1,20 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 
 import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
 import {buildTraceEventMap} from '../trace-graph/trace-event-table';
 import {TraceGraph} from '../trace-graph/trace-graph';
 import {
+  createDatasetRuntimeTraceGraphForTest,
+  createDatasetTraceGraphRuntimeSourceForTest,
+  createRuntimeTraceGraph,
+  createTraceDatasetFromJSONTraceForTest
+} from '../trace-graph/trace-graph-test-fixtures';
+import {
   encodeChunkRef,
-  encodeCrossDependencyRef,
+  encodeCrossProcessDependencyRef,
   encodeEventRefFromChunkRow,
-  encodeLocalDependencyRef,
-  encodeLocalSpanRef,
   encodeProcessRef,
+  encodeProcessThreadRef,
   encodeSpanRef,
   getSpanRefProcessId,
   getSpanRefRowIndex
@@ -17,27 +22,26 @@ import {
 import {
   buildArrowFloat64Vector,
   buildArrowTraceEventTableFromRows,
-  buildArrowTraceLocalDependencyTable,
+  buildArrowTraceSameProcessDependencyTable,
   buildArrowTraceSpanSidecarTableFromColumns,
+  buildArrowTraceSpanSidecarTableFromRows,
   buildArrowTraceSpanTableFromColumns,
-  buildArrowUint64ListVector,
-  buildArrowUint64Vector,
   buildArrowUtf8Vector,
-  buildTraceGraphData,
-  buildTraceGraphDataFromJSONTrace,
+  buildTraceChunkDataFromJSONTrace,
+  buildTraceChunkDataFromTraceProcesses,
   buildTraceProcessSpanRefTables,
-  getCombinedBlockTable,
-  toArrowTraceProcessMetadata
+  replaceArrowTraceSpanRefColumns
 } from './arrow-trace';
 import {buildJSONTrace, materializeJSONTrace} from './json-trace';
 
+import type {TraceDataset} from '../trace-dataset';
 import type {
   TraceCrossProcessDependency,
   TraceCrossProcessEndpointId,
   TraceDependencyId,
-  TraceLocalDependency,
   TraceProcess,
   TraceProcessId,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceThread,
@@ -45,34 +49,21 @@ import type {
 } from '../trace-graph/trace-types';
 import type {
   ArrowTraceChunk,
-  ArrowTraceCrossDependencyTable,
-  ArrowTraceLocalDependencyTable,
+  ArrowTraceCrossProcessDependencyTable,
   ArrowTraceProcessMetadata,
-  ArrowTraceSpanSidecarTable,
-  ArrowTraceSpanTable,
-  TraceSpanArrowSidecarMap,
-  TraceSpanArrowSidecarRow
+  ArrowTraceSameProcessDependencyTable
 } from './arrow-trace';
 
-function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+/** Creates a graph only for tests that intentionally mutate structural dataset tables. */
+function createRawTestTraceGraph(
+  traceDataset: Parameters<typeof createDatasetTraceGraphRuntimeSourceForTest>[0],
+  options?: Parameters<typeof createRuntimeTraceGraph>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+  return createDatasetRuntimeTraceGraphForTest(traceDataset, options);
 }
 
 describe('arrow-trace', () => {
   it('builds fast primitive vectors with the same read semantics as Arrow array builders', () => {
-    const uint64Vector = buildArrowUint64Vector(new BigUint64Array([1n, 2n, 3n]));
-    expect(uint64Vector.get(0)).toBe(1n);
-    expect(uint64Vector.get(2)).toBe(3n);
-
     const float64Vector = buildArrowFloat64Vector(new Float64Array([1.5, 2.5, 3.5]));
     expect(float64Vector.get(0)).toBe(1.5);
     expect(float64Vector.get(2)).toBe(3.5);
@@ -80,14 +71,6 @@ describe('arrow-trace', () => {
     const utf8Vector = buildArrowUtf8Vector(['DependencyId(1)', 'end-to-start']);
     expect(utf8Vector.get(0)).toBe('DependencyId(1)');
     expect(utf8Vector.get(1)).toBe('end-to-start');
-  });
-
-  it('builds fast Uint64 list vectors with stable row list semantics', () => {
-    const vector = buildArrowUint64ListVector([[1, 2], [], [3]]);
-
-    expect(Array.from(vector.get(0) as Iterable<bigint>)).toEqual([1n, 2n]);
-    expect(Array.from(vector.get(1) as Iterable<bigint>)).toEqual([]);
-    expect(Array.from(vector.get(2) as Iterable<bigint>)).toEqual([3n]);
   });
 
   it('preserves optional external span ids and sources in span tables', () => {
@@ -110,6 +93,106 @@ describe('arrow-trace', () => {
     expect(spanTable.getChild('external_span_id')?.get(1)).toBeNull();
     expect(spanTable.getChild('source')?.get(0)).toBe('worker-trace.json');
     expect(spanTable.getChild('source')?.get(1)).toBeNull();
+    expect(spanTable.schema.fields.map(field => field.name)).not.toContain('status');
+    expect(Array.from(spanTable.getChild('status_code')?.toArray() ?? [])).toEqual([2, 2]);
+  });
+
+  it('borrows number-native Float64 owner-ref buffers for canonical span tables', () => {
+    const processRefs = new Float64Array([encodeProcessRef(0), encodeProcessRef(1)]);
+    const threadRefs = new Float64Array([
+      encodeProcessThreadRef(0, 0),
+      encodeProcessThreadRef(1, 0)
+    ]);
+    const spanTable = buildArrowTraceSpanTableFromColumns({
+      process_ref: processRefs,
+      thread_ref: threadRefs,
+      span_id: ['span-a', 'span-b'],
+      thread_id: ['thread-a', 'thread-b'],
+      name: ['span a', 'span b'],
+      primary_timing_key: ['primary', 'primary'],
+      status: ['finished', 'finished'],
+      start_time_ms: [0, 1],
+      end_time_ms: [1, 2],
+      duration_ms: [1, 1]
+    });
+
+    expect(spanTable.getChild('process_ref')?.type.toString()).toBe('Float64');
+    expect(spanTable.getChild('thread_ref')?.type.toString()).toBe('Float64');
+    expect(spanTable.getChild('process_ref')?.data[0]?.values).toBe(processRefs);
+    expect(spanTable.getChild('thread_ref')?.data[0]?.values).toBe(threadRefs);
+    expect(spanTable.getChild('process_ref')?.get(1)).toBe(encodeProcessRef(1));
+    expect(spanTable.getChild('thread_ref')?.get(1)).toBe(encodeProcessThreadRef(1, 0));
+  });
+
+  it('rejects non-safe canonical owner refs while building and mutating Float64 columns', () => {
+    const createColumns = () => ({
+      process_ref: [encodeProcessRef(0)],
+      thread_ref: [encodeProcessThreadRef(0, 0)],
+      span_id: ['span-a'],
+      thread_id: ['thread-a'],
+      name: ['span a'],
+      primary_timing_key: ['primary'],
+      status: ['finished' as const],
+      start_time_ms: [0],
+      end_time_ms: [1],
+      duration_ms: [1]
+    });
+
+    expect(() =>
+      buildArrowTraceSpanTableFromColumns({
+        ...createColumns(),
+        process_ref: new Float64Array([1.5])
+      })
+    ).toThrow('process_ref[0]');
+
+    const spanTable = buildArrowTraceSpanTableFromColumns(createColumns());
+    expect(() =>
+      replaceArrowTraceSpanRefColumns({
+        sourceTable: spanTable,
+        processRef: [Number.MAX_SAFE_INTEGER + 1],
+        threadRef: [encodeProcessThreadRef(0, 0)]
+      })
+    ).toThrow('safe integer');
+  });
+
+  it('stores only non-primary timing projections in a native Struct sidecar', () => {
+    const sidecarTable = buildArrowTraceSpanSidecarTableFromRows([
+      {
+        primaryTimingKey: 'envelope',
+        timings: {
+          envelope: {
+            status: 'finished',
+            startTimeMs: 0,
+            endTimeMs: 10,
+            durationMs: 10,
+            durationMsAsString: '10 ms'
+          },
+          latest_start: {
+            status: 'finished',
+            startTimeMs: 2,
+            endTimeMs: 8,
+            durationMs: 6,
+            durationMsAsString: '6 ms'
+          }
+        },
+        keywords: [],
+        sameProcessDependencyIds: [],
+        incomingSameProcessDependencyRowIndexes: [],
+        outgoingSameProcessDependencyRowIndexes: [],
+        crossProcessEndpointId: null,
+        crossProcessDependencyEndpoints: []
+      }
+    ]);
+
+    expect(sidecarTable.getChild('timingsJson')).toBeNull();
+    expect(JSON.parse(JSON.stringify(sidecarTable.getChild('timings')?.get(0)))).toEqual({
+      latest_start: {
+        status_code: 2,
+        start_time_ms: 2,
+        end_time_ms: 8,
+        duration_ms: 6
+      }
+    });
   });
 
   it('builds process-local SpanRef index tables from direct chunk rows', () => {
@@ -141,7 +224,7 @@ describe('arrow-trace', () => {
       chunkKey: 'multi',
       processRefs: [encodeProcessRef(0), encodeProcessRef(1)],
       spanTable,
-      localDependencyTable: buildArrowTraceLocalDependencyTable([])
+      resolvedSameProcessDependencyTable: buildArrowTraceSameProcessDependencyTable([])
     } satisfies ArrowTraceChunk;
 
     const tables = buildTraceProcessSpanRefTables([chunk], [processA, processB], {
@@ -158,9 +241,9 @@ describe('arrow-trace', () => {
     expect(Array.from(tables[processA.processId]!.getChild('layout_top_y')!.toArray())).toEqual([
       1, 3
     ]);
-    expect(Array.from(tables[processA.processId]!.getChild('filter_mask')!.toArray())).toEqual([
-      0, 0
-    ]);
+    expect(
+      tables[processA.processId]!.schema.fields.some(field => field.name === 'filter_mask')
+    ).toBe(false);
     expect(Array.from(tables[processB.processId]!.getChild('span_ref')!.toArray())).toEqual([
       encodeSpanRef(7, 1)
     ]);
@@ -198,7 +281,7 @@ describe('arrow-trace', () => {
       processRefs: [encodeProcessRef(0)],
       processId: processA.processId,
       spanTable,
-      localDependencyTable: buildArrowTraceLocalDependencyTable([])
+      resolvedSameProcessDependencyTable: buildArrowTraceSameProcessDependencyTable([])
     } satisfies ArrowTraceChunk;
 
     const tables = buildTraceProcessSpanRefTables([chunk], [processA, processB], {
@@ -208,7 +291,9 @@ describe('arrow-trace', () => {
     expect(Array.from(tables[processA.processId]!.getChild('span_ref')!.toArray())).toEqual([
       encodeSpanRef(0, 0)
     ]);
-    expect(tables[processA.processId]?.getChild('filter_mask')?.get(0)).toBe(0);
+    expect(
+      tables[processA.processId]?.schema.fields.some(field => field.name === 'filter_mask')
+    ).toBe(false);
     expect(tables[processB.processId]?.numRows).toBe(0);
   });
 
@@ -237,57 +322,64 @@ describe('arrow-trace', () => {
     expect(eventMap['event-legacy' as keyof typeof eventMap]?.eventRef).toBeUndefined();
   });
 
-  it('keeps not-started and zero-start span rows out of computed Arrow time extents', () => {
-    const processId = 'rank-placeholder' as TraceProcessId;
-    const threadId = 'rank-placeholder-stream' as TraceThreadId;
-    const thread = {
-      type: 'trace-thread',
-      name: 'placeholder stream',
-      threadId,
-      processId
-    } satisfies TraceThread;
-    const process = {
-      type: 'trace-process',
-      processId,
-      name: 'rank-placeholder',
-      rankNum: 0,
-      stepNum: 0,
-      threads: [thread],
-      threadMap: {[threadId]: thread},
-      instants: [],
-      instantMap: {},
-      threadInstantMap: {},
-      counters: [],
-      counterMap: {},
-      threadCounterMap: {},
-      localDependencies: [],
-      remoteDependencies: []
-    } satisfies ArrowTraceProcessMetadata;
-    const spanTable = buildArrowTraceSpanTableFromColumns({
-      span_id: ['not-started-span', 'zero-start-span', 'unfinished-span', 'finished-span'],
-      thread_id: [threadId, threadId, threadId, threadId],
-      name: ['not started', 'zero start', 'unfinished', 'finished'],
-      source: [null, null, null, null],
-      primary_timing_key: ['primary', 'primary', 'primary', 'primary'],
-      status: ['not-started', 'finished', 'not-finished', 'finished'],
-      start_time_ms: [0, 0, 25, 40],
-      end_time_ms: [0, 100, 0, 50],
-      duration_ms: [0, 100, 0, 10]
-    });
+  it('stores exact status counts and unfinished timing bounds in chunk diagnostics', () => {
+    const chunks = buildTraceChunkDataFromJSONTrace(
+      createGraph('chunk-diagnostics', [
+        {
+          processId: 'rank-1',
+          spans: [
+            {spanId: 'not-started', status: 'not-started', startTimeMs: 0, endTimeMs: 0},
+            {spanId: 'unfinished', status: 'not-finished', startTimeMs: 25, endTimeMs: 0}
+          ]
+        }
+      ])
+    );
 
-    const traceGraphData = buildTraceGraphData({
-      name: 'placeholder-arrow',
-      processes: [process],
-      crossDependencies: [],
-      spanTableMap: {[processId]: spanTable}
+    expect(chunks[0]?.diagnostics).toMatchObject({
+      rowCount: 2,
+      notStartedSpanCount: 1,
+      unfinishedSpanCount: 1,
+      minTimeMs: 25,
+      maxTimeMs: 26
     });
-
-    expect(traceGraphData.minTimeMs).toBe(25);
-    expect(traceGraphData.maxTimeMs).toBe(50);
-    expect(traceGraphData.stats.spanCount).toBe(4);
   });
 
-  it('round-trips span timings and userData through the Arrow-backed compatibility graph', () => {
+  it('builds process-scoped parser-local chunks directly from normalized processes', () => {
+    const materializedTrace = materializeJSONTrace(
+      createGraph('process-chunks', [
+        {
+          processId: 'rank-1',
+          spans: [{spanId: 'span-1', startTimeMs: 5, endTimeMs: 12}]
+        },
+        {
+          processId: 'rank-2',
+          spans: [{spanId: 'span-2', startTimeMs: 15, endTimeMs: 22}]
+        }
+      ])
+    );
+
+    const chunks = buildTraceChunkDataFromTraceProcesses(materializedTrace.processes);
+
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0]).toMatchObject({
+      type: 'trace-chunk-data',
+      chunkKey: 'rank-1',
+      processId: 'rank-1',
+      refState: 'parser-local',
+      diagnostics: {
+        rowCount: 1,
+        minTimeMs: 5,
+        maxTimeMs: 12
+      }
+    });
+    expect(chunks[0]?.spanTable.getChild('span_id')?.get(0)).toBe('span-1');
+    expect(chunks.map(chunk => chunk.processes.map(process => process.processId))).toEqual([
+      ['rank-1'],
+      ['rank-2']
+    ]);
+  });
+
+  it('round-trips span timings and userData through the dataset-backed runtime graph', () => {
     const graph = createGraph('arrow-round-trip', [
       {
         processId: 'rank-1',
@@ -325,6 +417,13 @@ describe('arrow-trace', () => {
               traceId: 123n,
               nested: {
                 value: 456n
+              },
+              smallValues: [1, 2, 3],
+              largeValues: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+              arbitrary: {
+                deep: {
+                  value: 'detail-only'
+                }
               }
             }
           }
@@ -332,36 +431,96 @@ describe('arrow-trace', () => {
       }
     ]);
 
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
     const materializedGraph = materializeJSONTrace(graph);
-    const combinedBlockTable = getCombinedBlockTable(traceGraphData);
 
-    expect(combinedBlockTable.numRows).toBe(1);
-    expect(combinedBlockTable.getChild('primary_timing_key')?.get(0)).toBe('primary');
-    expect('spanMap' in traceGraphData).toBe(false);
-    expect(traceGraphData.processes.every(process => !('spans' in process))).toBe(true);
-    expect(traceGraphData.processes.every(process => !('spanMap' in process))).toBe(true);
-    expect(traceGraphData.threadMap).toEqual(materializedGraph.threadMap);
-    expect(traceGraphData.threadInstantMap).toEqual(materializedGraph.threadInstantMap);
+    expect('spanMap' in traceDataset).toBe(false);
+    expect(traceDataset.processes.every(process => !('spans' in process))).toBe(true);
+    expect(traceDataset.processes.every(process => !('spanMap' in process))).toBe(true);
 
-    const traceGraph = createTestTraceGraph(traceGraphData, {});
+    const traceGraph = createRuntimeTraceGraph(graph, {});
+    expect(traceGraph.threadMap).toEqual(materializedGraph.threadMap);
+    expect(traceGraph.threadInstantMap).toEqual(materializedGraph.threadInstantMap);
     const spanId = 'span-1' as TraceSpanId;
-    const spanRef = traceGraph.getSpanRefByExternalBlockId(spanId);
+    const spanRef = traceGraph.getSpanRefById(spanId);
+    const spanSidecarTable = traceDataset.spanSidecarTableMap?.['rank-1' as TraceProcessId];
     expect(spanRef).not.toBeNull();
-    expect(traceGraph.getDisplaySourceBySpanRef(spanRef!)).toMatchObject({
+    expect(spanSidecarTable?.getChild('timingsJson')).toBeNull();
+    expect(JSON.parse(JSON.stringify(spanSidecarTable?.getChild('timings')?.get(0)))).toEqual({
+      alternate: {
+        status_code: 2,
+        start_time_ms: 12,
+        end_time_ms: 24,
+        duration_ms: 12
+      }
+    });
+    expect(traceGraph.getSpanDetailSource(spanRef!)).toMatchObject({
       spanId,
       spanRef,
       threadId: materializedGraph.spanMap[spanId]!.threadId,
       name: materializedGraph.spanMap[spanId]!.name,
       processName: materializedGraph.spanMap[spanId]!.processName,
       primaryTimingKey: materializedGraph.spanMap[spanId]!.primaryTimingKey,
-      timings: materializedGraph.spanMap[spanId]!.timings,
-      localDependencyIds: materializedGraph.spanMap[spanId]!.localDependencyIds,
+      timings: {
+        primary: expect.objectContaining({
+          status: 'finished',
+          startTimeMs: 10,
+          endTimeMs: 20,
+          durationMs: 10
+        }),
+        alternate: expect.objectContaining({
+          status: 'finished',
+          startTimeMs: 12,
+          endTimeMs: 24,
+          durationMs: 12
+        })
+      },
       crossProcessEndpointId: materializedGraph.spanMap[spanId]!.crossProcessEndpointId,
       crossProcessDependencyEndpoints:
         materializedGraph.spanMap[spanId]!.crossProcessDependencyEndpoints,
       userData: materializedGraph.spanMap[spanId]!.userData
     });
+
+    const declaredTraceGraph = new TraceGraph(
+      createStaticTraceGraphRuntimeSource({
+        identityKey: `${materializedGraph.name}:declared-attributes`,
+        name: materializedGraph.name,
+        spanLayout: materializedGraph.spanLayout,
+        chunks: buildTraceChunkDataFromJSONTrace(materializedGraph, {
+          declaredSpanAttributePaths: [
+            ['traceId'],
+            ['nested', 'value'],
+            ['smallValues'],
+            ['largeValues']
+          ]
+        }),
+        crossProcessDependencies: materializedGraph.crossProcessDependencies,
+        events: materializedGraph.events,
+        timeExtents: {
+          minTimeMs: materializedGraph.minTimeMs,
+          maxTimeMs: materializedGraph.maxTimeMs
+        },
+        stats: {
+          droppedSpanCount: materializedGraph.stats.droppedSpanCount,
+          droppedDependencyCount: materializedGraph.stats.droppedDependencyCount,
+          droppedCrossProcessDependencyCount:
+            materializedGraph.stats.droppedCrossProcessDependencyCount
+        }
+      })
+    );
+    const declaredSpanRef = declaredTraceGraph.getSpanRefById(spanId)!;
+    const spanUserDataSpy = vi.spyOn(declaredTraceGraph, 'getSpanUserData');
+    const spanDetailSpy = vi.spyOn(declaredTraceGraph, 'getSpanDetailSource');
+
+    expect(declaredTraceGraph.getSpanAttribute(declaredSpanRef, ['traceId'])).toBe(123n);
+    expect(declaredTraceGraph.getSpanAttribute(declaredSpanRef, ['nested', 'value'])).toBe(456n);
+    expect(declaredTraceGraph.getSpanAttribute(declaredSpanRef, ['smallValues'])).toEqual([
+      1, 2, 3
+    ]);
+    expect(declaredTraceGraph.getSpanAttribute(declaredSpanRef, ['largeValues'])).toBeUndefined();
+    expect(declaredTraceGraph.getSpanAttribute(declaredSpanRef, ['arbitrary'])).toBeUndefined();
+    expect(spanUserDataSpy).not.toHaveBeenCalled();
+    expect(spanDetailSpy).not.toHaveBeenCalled();
   });
 
   it('round-trips manual span geometry through Arrow tables and TraceGraph sources', () => {
@@ -385,21 +544,19 @@ describe('arrow-trace', () => {
       'manual'
     );
 
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const traceGraph = createTestTraceGraph(traceGraphData);
-    const spanRef = traceGraph.getSpanRefByExternalBlockId('manual-span' as TraceSpanId);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
+    const traceGraph = createRuntimeTraceGraph(graph);
+    const spanRef = traceGraph.getSpanRefById('manual-span' as TraceSpanId);
 
-    expect(traceGraphData.spanLayout).toBe('manual');
-    expect(getCombinedBlockTable(traceGraphData).getChild('layout_top_y')?.get(0)).toBe(2.5);
-    expect(getCombinedBlockTable(traceGraphData).getChild('layout_height')?.get(0)).toBe(1.25);
+    expect(traceDataset.spanLayout).toBe('manual');
     expect(traceGraph.spanLayout).toBe('manual');
-    expect(traceGraph.getDisplaySourceBySpanRef(spanRef!)).toMatchObject({
+    expect(traceGraph.getSpanDetailSource(spanRef!)).toMatchObject({
       layoutTopY: 2.5,
       layoutHeight: 1.25
     });
   });
 
-  it('builds process-local locators and a derived combined span table', () => {
+  it('builds process-local locators', () => {
     const graph = createGraph('multi-process', [
       {
         processId: 'rank-1',
@@ -414,52 +571,110 @@ describe('arrow-trace', () => {
       }
     ]);
 
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const traceGraph = createTestTraceGraph(traceGraphData, {});
-    const rankOneBlockOneRef = traceGraph.getSpanRefByExternalBlockId(
-      'rank-1-span-1' as TraceSpanId
-    );
-    const rankOneBlockTwoRef = traceGraph.getSpanRefByExternalBlockId(
-      'rank-1-span-2' as TraceSpanId
-    );
-    const rankTwoBlockOneRef = traceGraph.getSpanRefByExternalBlockId(
-      'rank-2-span-1' as TraceSpanId
-    );
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
+    const traceGraph = createRuntimeTraceGraph(graph, {});
+    const rankOneBlockOneRef = traceGraph.getSpanRefById('rank-1-span-1' as TraceSpanId);
+    const rankOneBlockTwoRef = traceGraph.getSpanRefById('rank-1-span-2' as TraceSpanId);
+    const rankTwoBlockOneRef = traceGraph.getSpanRefById('rank-2-span-1' as TraceSpanId);
 
-    expect(traceGraphData.processSpanTableMap['rank-1' as TraceProcessId].numRows).toBe(2);
-    expect(traceGraphData.processSpanTableMap['rank-2' as TraceProcessId].numRows).toBe(1);
-    expect(traceGraphData.processIdsByIndex).toEqual(['rank-1', 'rank-2']);
+    expect(traceDataset.processSpanTableMap['rank-1' as TraceProcessId].numRows).toBe(2);
+    expect(traceDataset.processSpanTableMap['rank-2' as TraceProcessId].numRows).toBe(1);
+    expect(traceDataset.ownerRefSnapshot.processIdsByIndex).toEqual(['rank-1', 'rank-2']);
     expect(typeof rankOneBlockOneRef).toBe('number');
-    expect(getSpanRefProcessId(traceGraphData.processIdsByIndex, rankOneBlockOneRef!)).toBe(
-      'rank-1'
-    );
+    expect(
+      getSpanRefProcessId(traceDataset.ownerRefSnapshot.processIdsByIndex, rankOneBlockOneRef!)
+    ).toBe('rank-1');
     expect(getSpanRefRowIndex(rankOneBlockTwoRef!)).toBe(1);
-    expect(getSpanRefProcessId(traceGraphData.processIdsByIndex, rankTwoBlockOneRef!)).toBe(
-      'rank-2'
-    );
-    expect(getBlockIdsFromTable(getCombinedBlockTable(traceGraphData))).toEqual([
-      'rank-1-span-1',
-      'rank-1-span-2',
-      'rank-2-span-1'
+    expect(
+      getSpanRefProcessId(traceDataset.ownerRefSnapshot.processIdsByIndex, rankTwoBlockOneRef!)
+    ).toBe('rank-2');
+  });
+
+  it('builds one-process span-ref tables without rereading source layout rows', () => {
+    const graph = createGraph('single-process', [
+      {
+        processId: 'rank-1',
+        spans: [
+          {spanId: 'rank-1-span-1', startTimeMs: 0, endTimeMs: 5},
+          {spanId: 'rank-1-span-2', startTimeMs: 6, endTimeMs: 8}
+        ]
+      }
     ]);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
+    const chunk = traceDataset.chunks[0]!;
+    const layoutTopYGet = vi.spyOn(chunk.spanTable.getChild('layout_top_y')!, 'get');
+    const layoutHeightGet = vi.spyOn(chunk.spanTable.getChild('layout_height')!, 'get');
+
+    const processSpanTableMap = buildTraceProcessSpanRefTables([chunk], traceDataset.processes, {
+      processIdsByIndex: traceDataset.ownerRefSnapshot.processIdsByIndex
+    });
+
+    expect(processSpanTableMap['rank-1' as TraceProcessId].numRows).toBe(2);
+    expect(layoutTopYGet).not.toHaveBeenCalled();
+    expect(layoutHeightGet).not.toHaveBeenCalled();
+  });
+
+  it('uses immutable table identity instead of content generations', () => {
+    const process = {
+      processId: 'rank-1' as TraceProcessId
+    } satisfies Pick<ArrowTraceProcessMetadata, 'processId'>;
+    const buildProcessScopedChunk = (layoutTopY: number): ArrowTraceChunk => ({
+      chunkIndex: 0,
+      chunkRef: encodeChunkRef(0),
+      chunkKey: 'single-process',
+      processRefs: [encodeProcessRef(0)],
+      processId: process.processId,
+      spanTable: buildArrowTraceSpanTableFromColumns({
+        process_ref: [encodeProcessRef(0)],
+        thread_ref: [0],
+        span_id: ['rank-1-span-1'],
+        external_span_id: [null],
+        thread_id: ['thread-a'],
+        name: ['span 1'],
+        source: [null],
+        primary_timing_key: ['primary'],
+        status: ['finished'],
+        start_time_ms: [0],
+        end_time_ms: [1],
+        duration_ms: [1],
+        layout_top_y: [layoutTopY],
+        layout_height: [0.5]
+      }),
+      resolvedSameProcessDependencyTable: buildArrowTraceSameProcessDependencyTable([])
+    });
+
+    const originalChunk = buildProcessScopedChunk(1);
+    const updatedChunk = buildProcessScopedChunk(2);
+    const originalTable = buildTraceProcessSpanRefTables([originalChunk], [process], {
+      processIdsByIndex: [process.processId]
+    })[process.processId]!;
+    const updatedTable = buildTraceProcessSpanRefTables([updatedChunk], [process], {
+      processIdsByIndex: [process.processId]
+    })[process.processId]!;
+
+    expect(originalTable).not.toBe(updatedTable);
+    expect(originalTable.getChild('layout_top_y')?.get(0)).toBe(1);
+    expect(updatedTable.getChild('layout_top_y')?.get(0)).toBe(2);
+    expect('generation' in originalTable).toBe(false);
+    expect('generation' in updatedTable).toBe(false);
   });
 
   it('builds additive dependency tables while preserving compatibility dependency surfaces', () => {
-    const localDependencyA = createLocalDependency(
+    const sameProcessDependencyA = createSameProcessDependency(
       'dep-a-b',
       'rank-1-span-a' as TraceSpanId,
       'rank-1-span-b' as TraceSpanId,
       ['parent'],
       5
     );
-    const localDependencyB = createLocalDependency(
+    const sameProcessDependencyB = createSameProcessDependency(
       'dep-b-c',
       'rank-1-span-b' as TraceSpanId,
       'rank-1-span-c' as TraceSpanId,
       ['CHAIN'],
       7
     );
-    const crossDependencyA = createCrossDependency(
+    const crossProcessDependencyA = createCrossProcessDependency(
       'dep-c-remote',
       'endpoint-c-remote',
       'rank-1-span-c' as TraceSpanId,
@@ -470,7 +685,7 @@ describe('arrow-trace', () => {
       ['parent'],
       11
     );
-    const crossDependencyB = createCrossDependency(
+    const crossProcessDependencyB = createCrossProcessDependency(
       'dep-a-remote',
       'endpoint-a-remote',
       'rank-1-span-a' as TraceSpanId,
@@ -491,100 +706,92 @@ describe('arrow-trace', () => {
             {spanId: 'rank-1-span-b', startTimeMs: 6, endTimeMs: 10},
             {spanId: 'rank-1-span-c', startTimeMs: 11, endTimeMs: 15}
           ],
-          localDependencies: [localDependencyA, localDependencyB]
+          sameProcessDependencies: [sameProcessDependencyA, sameProcessDependencyB]
         },
         {
           processId: 'rank-2',
           spans: [{spanId: 'rank-2-span-1', startTimeMs: 1, endTimeMs: 16}]
         }
       ],
-      [crossDependencyA, crossDependencyB]
+      [crossProcessDependencyA, crossProcessDependencyB]
     );
 
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
 
-    const typedLocalDependencyTableMap: Readonly<
-      Record<TraceProcessId, ArrowTraceLocalDependencyTable>
-    > = traceGraphData.localDependencyTableMap;
-    const typedCrossDependencyTable: Readonly<ArrowTraceCrossDependencyTable> =
-      traceGraphData.crossDependencyTable;
+    const typedSameProcessDependencyTableMap: Readonly<
+      Record<TraceProcessId, ArrowTraceSameProcessDependencyTable>
+    > = traceDataset.sameProcessDependencyTableMap;
+    const typedCrossProcessDependencyTable: Readonly<ArrowTraceCrossProcessDependencyTable> =
+      traceDataset.crossProcessDependencyTable;
 
-    const localTable = typedLocalDependencyTableMap['rank-1' as TraceProcessId];
+    const localTable = typedSameProcessDependencyTableMap['rank-1' as TraceProcessId];
     expect(localTable.numRows).toBe(2);
     expect(localTable.getChild('dependencyId')?.toArray()).toEqual([
-      localDependencyA.dependencyId,
-      localDependencyB.dependencyId
+      sameProcessDependencyA.dependencyId,
+      sameProcessDependencyB.dependencyId
     ]);
     expect(localTable.getChild('startSpanId')?.toArray()).toEqual([
-      localDependencyA.startSpanId,
-      localDependencyB.startSpanId
+      sameProcessDependencyA.startSpanId,
+      sameProcessDependencyB.startSpanId
     ]);
     expect(localTable.getChild('endSpanId')?.toArray()).toEqual([
-      localDependencyA.endSpanId,
-      localDependencyB.endSpanId
+      sameProcessDependencyA.endSpanId,
+      sameProcessDependencyB.endSpanId
     ]);
-    expect(localTable.getChild('waitMode')?.toArray()).toEqual([
-      localDependencyA.waitMode,
-      localDependencyB.waitMode
-    ]);
+    expect(localTable.getChild('waitMode')).toBeNull();
+    expect(Array.from(localTable.getChild('waitModeCode')?.toArray() ?? [])).toEqual([2, 2]);
     expect(localTable.getChild('bidirectional')?.toArray()).toEqual([false, false]);
     expect(Array.from(localTable.getChild('waitTimeMs')?.toArray() ?? [])).toEqual([5, 7]);
-    expect(localTable.getChild('hasParentKeyword')?.toArray()).toEqual([true, false]);
-    expect(traceGraphData.localDependencyTableMap['rank-2' as TraceProcessId]?.numRows).toBe(0);
+    expect(localTable.getChild('hasParentKeyword')).toBeNull();
+    expect(Array.from(localTable.getChild('keywordFlags')?.toArray() ?? [])).toEqual([1, 0]);
+    expect(traceDataset.sameProcessDependencyTableMap['rank-2' as TraceProcessId]?.numRows).toBe(0);
 
-    expect(typedCrossDependencyTable.numRows).toBe(2);
-    expect(typedCrossDependencyTable.getChild('dependencyId')?.toArray()).toEqual([
-      crossDependencyA.dependencyId,
-      crossDependencyB.dependencyId
+    expect(typedCrossProcessDependencyTable.numRows).toBe(2);
+    expect(typedCrossProcessDependencyTable.getChild('dependencyId')?.toArray()).toEqual([
+      crossProcessDependencyA.dependencyId,
+      crossProcessDependencyB.dependencyId
     ]);
-    expect(typedCrossDependencyTable.getChild('endpointId')?.toArray()).toEqual([
-      crossDependencyA.endpointId,
-      crossDependencyB.endpointId
+    expect(typedCrossProcessDependencyTable.getChild('endpointId')?.toArray()).toEqual([
+      crossProcessDependencyA.endpointId,
+      crossProcessDependencyB.endpointId
     ]);
-    expect(Array.from(typedCrossDependencyTable.getChild('startRankNum')?.toArray() ?? [])).toEqual(
-      [0, 0]
-    );
-    expect(Array.from(typedCrossDependencyTable.getChild('endRankNum')?.toArray() ?? [])).toEqual([
-      1, 1
+    expect(
+      Array.from(typedCrossProcessDependencyTable.getChild('startRankNum')?.toArray() ?? [])
+    ).toEqual([0, 0]);
+    expect(
+      Array.from(typedCrossProcessDependencyTable.getChild('endRankNum')?.toArray() ?? [])
+    ).toEqual([1, 1]);
+    expect(typedCrossProcessDependencyTable.getChild('startSpanId')?.toArray()).toEqual([
+      crossProcessDependencyA.startSpanId,
+      crossProcessDependencyB.startSpanId
     ]);
-    expect(typedCrossDependencyTable.getChild('startSpanId')?.toArray()).toEqual([
-      crossDependencyA.startSpanId,
-      crossDependencyB.startSpanId
+    expect(typedCrossProcessDependencyTable.getChild('endSpanId')?.toArray()).toEqual([
+      crossProcessDependencyA.endSpanId,
+      crossProcessDependencyB.endSpanId
     ]);
-    expect(typedCrossDependencyTable.getChild('endSpanId')?.toArray()).toEqual([
-      crossDependencyA.endSpanId,
-      crossDependencyB.endSpanId
-    ]);
-    expect(typedCrossDependencyTable.getChild('topology')?.toArray()).toEqual([
+    expect(typedCrossProcessDependencyTable.getChild('topology')?.toArray()).toEqual([
       'rpc',
       'rpc-secondary'
     ]);
-    expect(Array.from(typedCrossDependencyTable.getChild('waitTimeMs')?.toArray() ?? [])).toEqual([
-      11, 13
-    ]);
-    expect(typedCrossDependencyTable.getChild('waiting')?.toArray()).toEqual([false, false]);
-    expect(typedCrossDependencyTable.getChild('waitNotFinished')?.toArray()).toEqual([
+    expect(
+      Array.from(typedCrossProcessDependencyTable.getChild('waitTimeMs')?.toArray() ?? [])
+    ).toEqual([11, 13]);
+    expect(typedCrossProcessDependencyTable.getChild('waiting')?.toArray()).toEqual([false, false]);
+    expect(typedCrossProcessDependencyTable.getChild('waitNotFinished')?.toArray()).toEqual([
       false,
       false
     ]);
-    expect(typedCrossDependencyTable.getChild('hasParentKeyword')?.toArray()).toEqual([
+    expect(typedCrossProcessDependencyTable.getChild('hasParentKeyword')?.toArray()).toEqual([
       true,
       false
     ]);
 
-    const materializedGraph = materializeJSONTrace(graph);
-    expect(traceGraphData.processes[0]?.localDependencies).toEqual(
-      materializedGraph.processes[0]?.localDependencies
-    );
-    expect(traceGraphData.crossDependencies).toEqual(materializedGraph.crossDependencies);
-    expect(Object.keys(traceGraphData.dependencyMap)).toEqual([
-      localDependencyA.dependencyId,
-      localDependencyB.dependencyId,
-      crossDependencyA.dependencyId,
-      crossDependencyB.dependencyId
-    ]);
-    expect(traceGraphData.dependencyMap[localDependencyA.dependencyId]).toEqual(localDependencyA);
-    expect(traceGraphData.dependencyMap[crossDependencyB.dependencyId]).toEqual(crossDependencyB);
+    expect(traceDataset.processes[0]?.sameProcessDependencies).toBeUndefined();
+    expect('crossProcessDependencies' in traceDataset).toBe(false);
+    expect('dependencyMap' in traceDataset).toBe(false);
+    const traceGraph = createRuntimeTraceGraph(graph);
+    expect(traceGraph.processes).toEqual(traceDataset.processes);
+    expect(traceGraph.processes[0]?.sameProcessDependencies).toBeUndefined();
   });
 
   it('derives one storage chunk per process by default', () => {
@@ -599,23 +806,23 @@ describe('arrow-trace', () => {
       }
     ]);
 
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
 
-    expect(traceGraphData.chunks.map(chunk => chunk.chunkKey)).toEqual(['rank-1', 'rank-2']);
-    expect(traceGraphData.chunks.map(chunk => chunk.chunkIndex)).toEqual([0, 1]);
-    expect(traceGraphData.chunks.map(chunk => chunk.chunkRef)).toEqual([
+    expect(traceDataset.chunks.map(chunk => chunk.chunkKey)).toEqual(['rank-1', 'rank-2']);
+    expect(traceDataset.chunks.map(chunk => chunk.chunkIndex)).toEqual([0, 1]);
+    expect(traceDataset.chunks.map(chunk => chunk.chunkRef)).toEqual([
       encodeChunkRef(0),
       encodeChunkRef(1)
     ]);
     expect(
-      traceGraphData.processSpanTableMap['rank-1' as TraceProcessId]?.getChild('span_ref')?.get(0)
+      traceDataset.processSpanTableMap['rank-1' as TraceProcessId]?.getChild('span_ref')?.get(0)
     ).toBe(encodeSpanRef(0, 0));
-    expect(traceGraphData.chunks[1]?.localDependencyTable).toBe(
-      traceGraphData.localDependencyTableMap['rank-2' as TraceProcessId]
+    expect(traceDataset.chunks[1]?.resolvedSameProcessDependencyTable).toBe(
+      traceDataset.sameProcessDependencyTableMap['rank-2' as TraceProcessId]
     );
   });
 
-  it('keeps untouched-process locators stable when another process is removed', () => {
+  it('resolves equivalent span locators after another process is removed', () => {
     const fullGraph = createGraph('full', [
       {
         processId: 'rank-1',
@@ -629,92 +836,30 @@ describe('arrow-trace', () => {
         spans: [{spanId: 'rank-2-span-1', startTimeMs: 1, endTimeMs: 7}]
       }
     ]);
-    const fullArrowGraph = buildTraceGraphDataFromJSONTrace(fullGraph);
-    const remainingProcess = materializeJSONTrace(fullGraph).processes[1]!;
-    const remainingChunk = fullArrowGraph.chunks.find(
-      chunk => chunk.processId === remainingProcess.processId
-    );
-    const reducedArrowGraph = buildTraceGraphData({
-      name: 'reduced',
-      processes: [toArrowTraceProcessMetadata(remainingProcess)],
-      crossDependencies: [],
-      spanTableMap: {
-        [remainingProcess.processId]: remainingChunk!.spanTable
-      } as Record<TraceProcessId, ArrowTraceSpanTable>
-    });
-    const fullTraceGraph = createTestTraceGraph(fullArrowGraph);
-    const reducedTraceGraph = createTestTraceGraph(reducedArrowGraph);
-    const fullSpanRef = fullTraceGraph.getSpanRefByExternalBlockId('rank-2-span-1' as TraceSpanId);
-    const reducedSpanRef = reducedTraceGraph.getSpanRefByExternalBlockId(
-      'rank-2-span-1' as TraceSpanId
-    );
-
-    expect(getSpanRefProcessId(fullArrowGraph.processIdsByIndex, fullSpanRef!)).toBe('rank-2');
-    expect(getSpanRefRowIndex(fullSpanRef!)).toBe(0);
-    expect(getSpanRefProcessId(reducedArrowGraph.processIdsByIndex, reducedSpanRef!)).toBe(
-      'rank-2'
-    );
-    expect(getSpanRefRowIndex(reducedSpanRef!)).toBe(0);
-    expect(
-      findCombinedRowIndex(getCombinedBlockTable(fullArrowGraph), 'rank-2-span-1' as TraceSpanId)
-    ).toBe(2);
-    expect(
-      findCombinedRowIndex(getCombinedBlockTable(reducedArrowGraph), 'rank-2-span-1' as TraceSpanId)
-    ).toBe(0);
-  });
-
-  it('derives local dependency refs without mutating read-only sidecar rows', () => {
-    const processId = 'rank-1' as TraceProcessId;
-    const dependency = createLocalDependency(
-      'dep-a-b',
-      'rank-1-span-a' as TraceSpanId,
-      'rank-1-span-b' as TraceSpanId
-    );
-    const graph = createGraph('frozen-sidecars', [
+    const reducedGraph = createGraph('reduced', [
       {
-        processId: processId,
-        spans: [
-          {spanId: 'rank-1-span-a', startTimeMs: 0, endTimeMs: 5},
-          {spanId: 'rank-1-span-b', startTimeMs: 6, endTimeMs: 10}
-        ],
-        localDependencies: [dependency]
+        processId: 'rank-2',
+        spans: [{spanId: 'rank-2-span-1', startTimeMs: 1, endTimeMs: 7}]
       }
     ]);
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const sidecarRows = traceGraphData.spanSidecarMap?.[processId] ?? [];
-    const frozenSidecarRows = Object.freeze(
-      sidecarRows.map(sidecarRow =>
-        Object.freeze({
-          ...sidecarRow,
-          incomingLocalDependencyRefs: [],
-          outgoingLocalDependencyRefs: []
-        } satisfies TraceSpanArrowSidecarRow)
-      )
-    );
-    const spanSidecarMap = Object.freeze({
-      [processId]: frozenSidecarRows
-    }) as TraceSpanArrowSidecarMap;
+    const fullTraceDataset = createTraceDatasetFromJSONTraceForTest(fullGraph);
+    const reducedTraceDataset = createTraceDatasetFromJSONTraceForTest(reducedGraph);
+    const fullTraceGraph = createRuntimeTraceGraph(fullGraph);
+    const reducedTraceGraph = createRuntimeTraceGraph(reducedGraph);
+    const fullSpanRef = fullTraceGraph.getSpanRefById('rank-2-span-1' as TraceSpanId);
+    const reducedSpanRef = reducedTraceGraph.getSpanRefById('rank-2-span-1' as TraceSpanId);
 
-    const rebuiltGraph = buildTraceGraphData({
-      name: 'rebuilt-frozen-sidecars',
-      processes: traceGraphData.processes,
-      crossDependencies: [],
-      spanTableMap: buildSourceSpanTableMapFromChunks(traceGraphData.chunks),
-      localDependencyTableMap: traceGraphData.localDependencyTableMap,
-      spanSidecarMap
-    });
-
-    expect(rebuiltGraph.spanSidecarMap?.[processId]?.[0]?.outgoingLocalDependencyRefs).toEqual([
-      encodeLocalDependencyRef(encodeLocalSpanRef(0, 0))
-    ]);
-    expect(rebuiltGraph.spanSidecarMap?.[processId]?.[1]?.incomingLocalDependencyRefs).toEqual([
-      encodeLocalDependencyRef(encodeLocalSpanRef(0, 0))
-    ]);
-    expect(frozenSidecarRows[0]?.outgoingLocalDependencyRefs).toEqual([]);
-    expect(frozenSidecarRows[1]?.incomingLocalDependencyRefs).toEqual([]);
+    expect(
+      getSpanRefProcessId(fullTraceDataset.ownerRefSnapshot.processIdsByIndex, fullSpanRef!)
+    ).toBe('rank-2');
+    expect(getSpanRefRowIndex(fullSpanRef!)).toBe(0);
+    expect(
+      getSpanRefProcessId(reducedTraceDataset.ownerRefSnapshot.processIdsByIndex, reducedSpanRef!)
+    ).toBe('rank-2');
+    expect(getSpanRefRowIndex(reducedSpanRef!)).toBe(0);
   });
 
-  it('constructs TraceGraphDatas with row-aligned span sidecar tables', () => {
+  it('retains row-aligned span sidecar tables on structural datasets', () => {
     const processId = 'rank-1' as TraceProcessId;
     const graph = createGraph('arrow-sidecar-table', [
       {
@@ -722,154 +867,35 @@ describe('arrow-trace', () => {
         spans: [{spanId: 'rank-1-span-a', startTimeMs: 0, endTimeMs: 5}]
       }
     ]);
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
     const sidecarTable = buildArrowTraceSpanSidecarTableFromColumns({
-      incomingLocalDependencyRefs: [[]],
-      outgoingLocalDependencyRefs: [[0]],
+      rowCount: 1,
       keywords: [['arrow-keyword']],
       crossProcessEndpointId: ['arrow-endpoint'],
       userDataJson: ['{"source":"arrow"}']
     });
 
-    const rebuiltGraph = buildTraceGraphData({
-      name: 'rebuilt-arrow-sidecar-table',
-      processes: traceGraphData.processes,
-      crossDependencies: [],
-      spanTableMap: buildSourceSpanTableMapFromChunks(traceGraphData.chunks),
-      localDependencyTableMap: traceGraphData.localDependencyTableMap,
+    const datasetWithSidecar: TraceDataset = {
+      ...traceDataset,
       spanSidecarTableMap: {
+        ...traceDataset.spanSidecarTableMap,
         [processId]: sidecarTable
-      } as Record<TraceProcessId, ArrowTraceSpanSidecarTable>
-    });
+      },
+      chunks: traceDataset.chunks.map(chunk =>
+        chunk.processId === processId ? {...chunk, spanSidecarTable: sidecarTable} : chunk
+      )
+    };
 
-    expect(rebuiltGraph.spanSidecarTableMap?.[processId]).toBe(sidecarTable);
-    expect(createTestTraceGraph(rebuiltGraph).spanSidecarTableMap?.[processId]).toBe(sidecarTable);
-  });
-
-  it('prefers Arrow span sidecar table values over JS sidecar rows', () => {
-    const processId = 'rank-1' as TraceProcessId;
-    const dependency = createLocalDependency(
-      'dep-a-b',
-      'rank-1-span-a' as TraceSpanId,
-      'rank-1-span-b' as TraceSpanId
+    expect(datasetWithSidecar.spanSidecarTableMap?.[processId]).toBe(sidecarTable);
+    expect(createRawTestTraceGraph(datasetWithSidecar).spanSidecarTableMap?.[processId]).toBe(
+      sidecarTable
     );
-    const graph = createGraph('arrow-sidecar-precedence', [
-      {
-        processId: processId,
-        spans: [
-          {spanId: 'rank-1-span-a', startTimeMs: 0, endTimeMs: 5},
-          {spanId: 'rank-1-span-b', startTimeMs: 6, endTimeMs: 10}
-        ],
-        localDependencies: [dependency]
-      }
-    ]);
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const dependencyRef = encodeLocalDependencyRef(encodeLocalSpanRef(0, 0));
-    const spanSidecarMap = {
-      [processId]: traceGraphData.spanSidecarMap![processId]!.map(sidecarRow => ({
-        ...sidecarRow,
-        userData: {source: 'js'},
-        keywords: ['js-keyword'],
-        localDependencyIds: ['js-dependency' as TraceDependencyId],
-        crossProcessEndpointId: 'js-endpoint' as TraceCrossProcessEndpointId
-      }))
-    } satisfies TraceSpanArrowSidecarMap;
-    const spanSidecarTableMap = {
-      [processId]: buildArrowTraceSpanSidecarTableFromColumns({
-        incomingLocalDependencyRefs: [[], [dependencyRef]],
-        outgoingLocalDependencyRefs: [[dependencyRef], []],
-        keywords: [['arrow-keyword-a'], ['arrow-keyword-b']],
-        crossProcessEndpointId: ['arrow-endpoint', null],
-        userDataJson: ['{"source":"arrow"}', null]
-      })
-    } as Record<TraceProcessId, ArrowTraceSpanSidecarTable>;
-
-    const rebuiltGraph = buildTraceGraphData({
-      name: 'rebuilt-arrow-sidecar-precedence',
-      processes: traceGraphData.processes,
-      crossDependencies: [],
-      spanTableMap: buildSourceSpanTableMapFromChunks(traceGraphData.chunks),
-      localDependencyTableMap: traceGraphData.localDependencyTableMap,
-      spanSidecarMap,
-      spanSidecarTableMap
-    });
-    const runtimeGraph = createTestTraceGraph(rebuiltGraph);
-    const span = runtimeGraph.getDisplaySourceBySpanRef(
-      runtimeGraph.getSpanRefByExternalBlockId('rank-1-span-a' as TraceSpanId)!
-    );
-
-    expect(span?.userData).toEqual({source: 'arrow'});
-    expect(span?.keywords).toEqual(['arrow-keyword-a']);
-    expect(span?.localDependencyIds).toEqual([dependency.dependencyId]);
-    expect(span?.crossProcessEndpointId).toBe('arrow-endpoint');
   });
 
-  it('preserves JS sidecar-only compatibility traces', () => {
-    const processId = 'rank-1' as TraceProcessId;
-    const graph = createGraph('js-sidecar-fallback', [
-      {
-        processId: processId,
-        spans: [
-          {
-            spanId: 'rank-1-span-a',
-            startTimeMs: 0,
-            endTimeMs: 5,
-            keywords: ['js-keyword'],
-            userData: {source: 'js'}
-          }
-        ]
-      }
-    ]);
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const sidecarRow = traceGraphData.spanSidecarMap![processId]![0]!;
-    const rebuiltGraph = buildTraceGraphData({
-      name: 'rebuilt-js-sidecar-fallback',
-      processes: traceGraphData.processes,
-      crossDependencies: [],
-      spanTableMap: buildSourceSpanTableMapFromChunks(traceGraphData.chunks),
-      localDependencyTableMap: traceGraphData.localDependencyTableMap,
-      spanSidecarMap: {
-        [processId]: [
-          {
-            ...sidecarRow,
-            crossProcessEndpointId: 'js-endpoint' as TraceCrossProcessEndpointId
-          }
-        ]
-      } satisfies TraceSpanArrowSidecarMap
-    });
-    const runtimeGraph = createTestTraceGraph(rebuiltGraph);
-    const span = runtimeGraph.getDisplaySourceBySpanRef(
-      runtimeGraph.getSpanRefByExternalBlockId('rank-1-span-a' as TraceSpanId)!
-    );
-
-    expect(span?.userData).toEqual({source: 'js'});
-    expect(span?.keywords).toEqual(['js-keyword']);
-    expect(span?.crossProcessEndpointId).toBe('js-endpoint');
-  });
-
-  it('builds empty and non-empty List<Uint64> sidecar dependency ref columns', () => {
-    const table = buildArrowTraceSpanSidecarTableFromColumns({
-      incomingLocalDependencyRefs: [[], [0, 42]],
-      outgoingLocalDependencyRefs: [[7], []],
-      localDependencyRefs: [[7], [0, 42]],
-      incomingCrossDependencyRefs: [[9], []],
-      outgoingCrossDependencyRefs: [[], [11]],
-      crossDependencyRefs: [[9], [11]]
-    });
-
-    expect(readArrowUint64ListCell(table, 'incomingLocalDependencyRefs', 0)).toEqual([]);
-    expect(readArrowUint64ListCell(table, 'incomingLocalDependencyRefs', 1)).toEqual([0, 42]);
-    expect(readArrowUint64ListCell(table, 'outgoingLocalDependencyRefs', 0)).toEqual([7]);
-    expect(readArrowUint64ListCell(table, 'localDependencyRefs', 1)).toEqual([0, 42]);
-    expect(readArrowUint64ListCell(table, 'incomingCrossDependencyRefs', 0)).toEqual([9]);
-    expect(readArrowUint64ListCell(table, 'outgoingCrossDependencyRefs', 1)).toEqual([11]);
-    expect(readArrowUint64ListCell(table, 'crossDependencyRefs', 0)).toEqual([9]);
-  });
-
-  it('attaches directional cross dependency refs to source and destination span sidecars', () => {
+  it('reads directional cross-process dependency refs from canonical dependency rows', () => {
     const rootBlockId = 'rank-1-root' as TraceSpanId;
     const childBlockId = 'rank-2-child' as TraceSpanId;
-    const crossDependency = createCrossDependency(
+    const crossProcessDependency = createCrossProcessDependency(
       'cross-root-child',
       'endpoint-root-child',
       rootBlockId,
@@ -891,18 +917,24 @@ describe('arrow-trace', () => {
           spans: [{spanId: childBlockId, startTimeMs: 6, endTimeMs: 10}]
         }
       ],
-      [crossDependency]
+      [crossProcessDependency]
     );
 
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const dependencyRef = encodeCrossDependencyRef(0);
+    const traceGraph = createRuntimeTraceGraph(graph);
+    const dependencyRef = encodeCrossProcessDependencyRef(0);
+    const rootSpanRef = traceGraph.getSpanRefById(rootBlockId);
+    const childSpanRef = traceGraph.getSpanRefById(childBlockId);
 
-    expect(traceGraphData.spanSidecarMap?.['rank-1' as TraceProcessId]?.[0]).toMatchObject({
-      outgoingCrossDependencyRefs: [dependencyRef]
-    });
-    expect(traceGraphData.spanSidecarMap?.['rank-2' as TraceProcessId]?.[0]).toMatchObject({
-      incomingCrossDependencyRefs: [dependencyRef]
-    });
+    expect(rootSpanRef).not.toBeNull();
+    expect(childSpanRef).not.toBeNull();
+    expect(
+      traceGraph.getSpanDirectionalDependencyRefs(rootSpanRef!, 'outgoing')
+        .crossProcessDependencyRefs
+    ).toEqual([dependencyRef]);
+    expect(
+      traceGraph.getSpanDirectionalDependencyRefs(childSpanRef!, 'incoming')
+        .crossProcessDependencyRefs
+    ).toEqual([dependencyRef]);
   });
 });
 
@@ -922,14 +954,14 @@ function createGraph(
       crossProcessDependencyEndpoints?: TraceSpan['crossProcessDependencyEndpoints'];
       userData?: TraceSpan['userData'];
     }>;
-    localDependencies?: TraceLocalDependency[];
+    sameProcessDependencies?: TraceSameProcessDependency[];
   }>,
-  crossDependencies: ReadonlyArray<TraceCrossProcessDependency> = [],
+  crossProcessDependencies: ReadonlyArray<TraceCrossProcessDependency> = [],
   spanLayout?: 'auto' | 'manual'
 ) {
   return buildJSONTrace(
     processSpecs.map((processSpec, index) => createProcess(processSpec, index)),
-    crossDependencies,
+    crossProcessDependencies,
     {name, spanLayout}
   );
 }
@@ -949,7 +981,7 @@ function createProcess(
       crossProcessDependencyEndpoints?: TraceSpan['crossProcessDependencyEndpoints'];
       userData?: TraceSpan['userData'];
     }>;
-    localDependencies?: TraceLocalDependency[];
+    sameProcessDependencies?: TraceSameProcessDependency[];
   },
   index: number
 ): TraceProcess {
@@ -977,20 +1009,20 @@ function createProcess(
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: processSpec.localDependencies ?? [],
+    sameProcessDependencies: processSpec.sameProcessDependencies ?? [],
     remoteDependencies: []
   } satisfies TraceProcess;
 }
 
-function createLocalDependency(
+function createSameProcessDependency(
   dependencyId: string,
   startSpanId: TraceSpanId,
   endSpanId: TraceSpanId,
   keywords: string[] = [],
   waitTimeMs = 0
-): TraceLocalDependency {
+): TraceSameProcessDependency {
   return {
-    type: 'trace-local-dependency',
+    type: 'trace-same-process-dependency',
     dependencyId: dependencyId as TraceDependencyId,
     startSpanId,
     endSpanId,
@@ -1001,7 +1033,7 @@ function createLocalDependency(
   };
 }
 
-function createCrossDependency(
+function createCrossProcessDependency(
   dependencyId: string,
   endpointId: string,
   startSpanId: TraceSpanId,
@@ -1063,56 +1095,12 @@ function createBlock(
       },
       ...(blockSpec.extraTimings ?? {})
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: blockSpec.crossProcessDependencyEndpoints ?? [],
     layoutTopY: blockSpec.layoutTopY,
     layoutHeight: blockSpec.layoutHeight,
     userData: blockSpec.userData
   } satisfies TraceSpan;
-}
-
-function getBlockIdsFromTable(table: ReturnType<typeof getCombinedBlockTable>): string[] {
-  const spanIdColumn = table.getChild('span_id');
-  return Array.from({length: table.numRows}, (_, index) => spanIdColumn?.get(index) as string);
-}
-
-function findCombinedRowIndex(
-  table: ReturnType<typeof getCombinedBlockTable>,
-  spanId: TraceSpanId
-): number {
-  return getBlockIdsFromTable(table).findIndex(entry => entry === spanId);
-}
-
-function buildSourceSpanTableMapFromChunks(
-  chunks: readonly ArrowTraceChunk[]
-): Record<TraceProcessId, ArrowTraceSpanTable> {
-  const spanTableMap = {} as Record<TraceProcessId, ArrowTraceSpanTable>;
-  for (const chunk of chunks) {
-    if (chunk.processId != null) {
-      spanTableMap[chunk.processId] = chunk.spanTable;
-    }
-  }
-  return spanTableMap;
-}
-
-/**
- * Reads one Arrow `List<Uint64>` test cell into plain JS numbers.
- */
-function readArrowUint64ListCell(
-  table: ArrowTraceSpanSidecarTable,
-  columnName:
-    | 'incomingLocalDependencyRefs'
-    | 'outgoingLocalDependencyRefs'
-    | 'localDependencyRefs'
-    | 'incomingCrossDependencyRefs'
-    | 'outgoingCrossDependencyRefs'
-    | 'crossDependencyRefs',
-  rowIndex: number
-): number[] {
-  const value = table.getChild(columnName)?.get(rowIndex);
-  return Array.from((value ?? []) as Iterable<number | bigint>).map(entry =>
-    typeof entry === 'bigint' ? Number(entry) : entry
-  );
 }

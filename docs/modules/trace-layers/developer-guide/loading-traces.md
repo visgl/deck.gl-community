@@ -12,9 +12,9 @@ retrieval and source-specific normalization upstream of layout and rendering.
 
 | Shape | Use it when | Shared contract |
 | --- | --- | --- |
-| Static | One file or response is reasonable to load at once | Build `JSONTrace` or `TraceGraphData`, then create a static runtime source |
+| Static | One file or response is reasonable to load at once | Build `JSONTrace` or `TraceChunkData`, then create a static dataset runtime source |
 | Process-sliced | Retrieval is naturally partitioned by rank, host, worker, or service | Normalize each process slice, then compose the loaded subset |
-| Time-sliced | The full trace is too large and users investigate bounded windows | Retain normalized `TraceChunkData` in `TraceChunkStore` |
+| Time-sliced | The full trace is too large and users investigate bounded windows | Retain normalized `TraceChunkData` in `TraceChunkStore`, then assemble window datasets |
 | Streaming | Data is live or replayed incrementally | Apply `TraceStreamChunk`s and render published snapshots |
 
 ## Static files
@@ -23,9 +23,10 @@ Static ingestion is the default for Chrome Trace JSON and many custom files:
 
 1. parse raw data
 2. normalize to `JSONTrace`
-3. materialize normalized chunks
-4. construct a `TraceGraph`
-5. render it
+3. build parser-local `TraceChunkData`
+4. finalize an immutable `TraceDataset`
+5. construct a dataset-backed `TraceGraph`
+6. render it
 
 This is the path shown in [Getting started](./getting-started.md).
 
@@ -41,8 +42,9 @@ endpoints are loaded.
 ## Time-sliced data
 
 Time slicing works when storage advertises bounded time windows or chunk catalogs. Normalize each
-response into `TraceChunkData`, let `TraceChunkStore` retain ready and in-flight chunks, then
-materialize the active `TraceWindow` into a graph snapshot.
+response into `TraceChunkData`, let `TraceChunkStore` retain ready and in-flight chunks, call
+`loadWindow(...)` for the active `TraceChunkStoreWindow`, select visible descriptors, then assemble
+a `TraceDataset` from `withReadyChunks(...)`.
 
 This keeps raw source paging out of the renderer while still allowing search and navigation across
 already-loaded hidden rows.

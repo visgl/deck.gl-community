@@ -4,6 +4,7 @@ export const TRACE_TIMING_DISPLAY_ORDER = [
   'earliest',
   'p50',
   'p90',
+  'longest',
   'latest_start',
   'latest'
 ] as const;

@@ -18,10 +18,10 @@ export class HeapLog extends Log {
 
 /** A log object for more sophisticated logging and profiling */
 export const log = new HeapLog({id: 'trace-layers'});
-// Keep library probes opt-in so consumers and tests do not emit console noise by default.
-log.setLevel(-1);
 
-globalThis.traceLayers ||= {log}; // Make it available globally for debugging
+type TraceLayersGlobal = typeof globalThis & {traceLayers?: {log: HeapLog}};
+
+(globalThis as TraceLayersGlobal).traceLayers ??= {log}; // Make it available globally for debugging
 
 /**
  * Returns the current browser heap usage in a probe-friendly shape when supported.

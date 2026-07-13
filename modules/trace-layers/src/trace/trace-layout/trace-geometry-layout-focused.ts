@@ -9,32 +9,30 @@ import {
 } from './trace-geometry-layout-common';
 import {sortVisibleTraceLayoutProcessesByProcessOrder} from './trace-geometry-layout-helpers';
 import {
-  buildTraceLayoutProcessLayoutMapByRef,
   buildTraceLayoutRows,
   getTraceLayoutProcessLayoutByRef,
+  getTraceLayoutSpanLaneIndex,
   getTraceLayoutSpanVisibility
 } from './trace-layout';
 
 import type {TraceGraph} from '../trace-graph/trace-graph';
 import type {ProcessRef, ThreadRef} from '../trace-graph/trace-id-encoder';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
-import type {SpanRef, TraceThreadId} from '../trace-graph/trace-types';
+import type {SpanRef} from '../trace-graph/trace-types';
 import type {
   CombinedRankLaneAssignmentOverride,
   TraceLayoutLaneSpanSource
 } from './trace-geometry-layout-common';
 import type {
   ThreadLaneMetadata,
-  ThreadLayout,
   TraceLayout,
-  TraceLayoutCollapseState,
-  TraceLayoutVisibleGraph,
+  TraceLayoutSpanLaneAssignment,
   TraceLayoutVisibleProcessMetadata
 } from './trace-layout';
 
-/** Ref-native collapse state resolved for selected-lane relayout compatibility paths. */
-type LegacyTraceGraphCollapseState = {
-  /** Legacy id-based collapsed process ids. */
+/** Ref-native collapse state resolved by the public layout boundary for selected-lane internals. */
+type ResolvedFocusedTraceGraphCollapseState = {
+  /** Process ids derived from exact collapsed process refs. */
   readonly collapsedProcessIds?: ReadonlySet<string>;
   /** Exact expanded thread refs. */
   readonly expandedThreadRefs?: ReadonlySet<ThreadRef>;
@@ -44,12 +42,17 @@ type LegacyTraceGraphCollapseState = {
 
 /** Selected-lane graph projection assembled before compact layout calculation. */
 type FocusedTraceLayoutProjection = {
-  /** Selected-process visible graph used by the compact focused relayout. */
-  readonly visibleTraceGraph: TraceLayoutVisibleGraph;
+  /** Selected-process metadata used by the compact focused relayout. */
+  readonly processes: readonly TraceLayoutVisibleProcessMetadata[];
   /** Selected lane spans keyed by owning process id. */
   readonly laneSpansByProcessId: Readonly<Record<string, readonly TraceLayoutLaneSpanSource[]>>;
   /** Lane indices that should remain visible keyed by canonical runtime thread ref. */
   readonly visibleLaneIndicesByThreadRef: ReadonlyMap<ThreadRef, ReadonlySet<number>>;
+  /** Preserved source lane assignments keyed by canonical runtime thread ref. */
+  readonly spanLaneAssignmentsByThreadRef: ReadonlyMap<
+    ThreadRef,
+    readonly TraceLayoutSpanLaneAssignment[]
+  >;
   /** Preserved combined-thread lane assignments for selected spans. */
   readonly combinedLaneAssignmentsByRankId?: Readonly<
     Record<string, CombinedRankLaneAssignmentOverride>
@@ -82,20 +85,21 @@ function buildFocusedTraceLayoutProjection(params: {
   const processMetadataById = new Map<string, TraceLayoutVisibleProcessMetadata>();
   const laneSpansByProcessId: Record<string, TraceLayoutLaneSpanSource[]> = {};
   const visibleLaneIndicesByThreadRef = new Map<ThreadRef, Set<number>>();
+  const spanLaneAssignmentsByThreadRef = new Map<ThreadRef, TraceLayoutSpanLaneAssignment[]>();
 
   for (const spanRef of params.includedSpanRefs) {
     const visibility = getTraceLayoutSpanVisibility({
       traceLayout: params.traceLayout,
       spanRef
     });
-    if (
-      (visibility && !visibility.visible) ||
-      params.traceGraph.getVisibleSpanBlockId(spanRef) == null
-    ) {
+    if ((visibility && !visibility.visible) || !params.traceGraph.isSpanVisible(spanRef)) {
       continue;
     }
-    const displaySource = params.traceGraph.getDisplaySourceBySpanRef(spanRef);
-    if (!displaySource) {
+    const geometrySource = params.traceGraph.getSpanGeometrySource(
+      spanRef,
+      params.traceLayout.layoutConfiguration?.timingKey ?? null
+    );
+    if (!geometrySource) {
       continue;
     }
     const processRef = params.traceGraph.getProcessRefBySpanRef(spanRef);
@@ -108,20 +112,34 @@ function buildFocusedTraceLayoutProjection(params: {
     }
     const span = {
       spanRef,
-      processRef: displaySource.processRef,
+      processRef: geometrySource.processRef,
       threadRef,
-      spanId: displaySource.spanId,
-      threadId: displaySource.threadId,
-      primaryTimingKey: displaySource.primaryTimingKey,
-      timings: displaySource.timings,
-      userData: displaySource.userData
+      spanId: geometrySource.spanId,
+      threadId: geometrySource.threadId,
+      primaryTimingKey: geometrySource.primaryTimingKey,
+      timings: geometrySource.timings,
+      traceAffinityKey:
+        (params.traceGraph.getSpanAttribute(spanRef, ['traceId']) as
+          | string
+          | number
+          | bigint
+          | undefined) ??
+        (params.traceGraph.getSpanAttribute(spanRef, ['trace_id']) as
+          | string
+          | number
+          | bigint
+          | undefined)
     } satisfies TraceLayoutLaneSpanSource;
     if (!params.shouldIncludeSpan(span)) {
       continue;
     }
     const processIndex = getProcessRefIndex(processRef);
     const rawProcess = processIndex >= 0 ? params.traceGraph.processes[processIndex] : null;
-    const processSource = params.traceGraph.getProcessSourceBySpanRef(spanRef);
+    const ownerRefs = params.traceGraph.getSpanOwnerRefs(spanRef);
+    const processSource =
+      ownerRefs?.processRef == null
+        ? null
+        : params.traceGraph.getProcessSourceByRef(ownerRefs.processRef);
     if (!rawProcess || !processSource) {
       continue;
     }
@@ -137,42 +155,39 @@ function buildFocusedTraceLayoutProjection(params: {
       userData: processSource.userData
     });
 
-    laneSpansByProcessId[rawProcess.processId] ??= [];
-    laneSpansByProcessId[rawProcess.processId].push(span);
+    const laneSpans = laneSpansByProcessId[rawProcess.processId] ?? [];
+    laneSpansByProcessId[rawProcess.processId] = laneSpans;
+    laneSpans.push(span);
 
     const laneIndices = visibleLaneIndicesByThreadRef.get(threadRef) ?? new Set<number>();
     visibleLaneIndicesByThreadRef.set(threadRef, laneIndices);
-    const existingLaneIndex = getFocusedSourceThreadLayout({
-      traceLayout: params.traceLayout,
-      threadRef
-    })?.spanLaneMap?.get(span.spanRef);
+    const existingLaneIndex = getTraceLayoutSpanLaneIndex(params.traceLayout, span.spanRef);
+    if (existingLaneIndex != null) {
+      const spanLaneAssignments = spanLaneAssignmentsByThreadRef.get(threadRef) ?? [];
+      spanLaneAssignmentsByThreadRef.set(threadRef, spanLaneAssignments);
+      spanLaneAssignments.push({
+        spanRef: span.spanRef,
+        laneIndex: existingLaneIndex
+      });
+    }
     laneIndices.add(
       typeof existingLaneIndex === 'number' && Number.isFinite(existingLaneIndex)
         ? Math.max(0, Math.floor(existingLaneIndex))
-        : getLaneIndexFromUserData(
-            span.userData as
-              | {
-                  /** Optional source-authored lane index. */
-                  lane?: number;
-                }
-              | undefined
-          )
+        : getLaneIndexFromUserData({
+            lane: params.traceGraph.getSpanAttribute(spanRef, ['lane']) as number | undefined
+          })
     );
   }
 
-  const visibleTraceGraph = {
-    name: params.traceGraph.name,
-    minTimeMs: params.traceGraph.minTimeMs,
-    maxTimeMs: params.traceGraph.maxTimeMs,
-    traceGraph: params.traceGraph,
-    processes: sortVisibleTraceLayoutProcessesByProcessOrder([...processMetadataById.values()]),
-    crossDependencies: params.traceGraph.getVisibleCrossDependencySources()
-  } satisfies TraceLayoutVisibleGraph;
+  const processes = sortVisibleTraceLayoutProcessesByProcessOrder([
+    ...processMetadataById.values()
+  ]);
 
   return {
-    visibleTraceGraph,
+    processes,
     laneSpansByProcessId,
     visibleLaneIndicesByThreadRef,
+    spanLaneAssignmentsByThreadRef,
     combinedLaneAssignmentsByRankId: buildFocusedCombinedLaneAssignmentsByRankId({
       laneSpansByProcessId,
       settings: params.settings,
@@ -200,26 +215,26 @@ function buildFocusedCombinedLaneAssignmentsByRankId(params: {
   const overrides: Record<string, CombinedRankLaneAssignmentOverride> = {};
   let overrideCount = 0;
   for (const [processId, spans] of Object.entries(params.laneSpansByProcessId)) {
-    const spanLaneMap = new Map<SpanRef, number>();
+    const spanLaneAssignments: TraceLayoutSpanLaneAssignment[] = [];
     let maxLane = -1;
     for (const span of spans) {
       if (span.threadRef == null) {
         continue;
       }
-      const sourceLaneIndex = getFocusedSourceThreadLayout({
-        traceLayout: params.traceLayout,
-        threadRef: span.threadRef
-      })?.spanLaneMap?.get(span.spanRef);
+      const sourceLaneIndex = getTraceLayoutSpanLaneIndex(params.traceLayout, span.spanRef);
       if (typeof sourceLaneIndex !== 'number' || !Number.isFinite(sourceLaneIndex)) {
         continue;
       }
       const laneIndex = Math.max(0, Math.floor(sourceLaneIndex));
-      spanLaneMap.set(span.spanRef, laneIndex);
+      spanLaneAssignments.push({
+        spanRef: span.spanRef,
+        laneIndex
+      });
       if (laneIndex > maxLane) {
         maxLane = laneIndex;
       }
     }
-    if (spanLaneMap.size === 0) {
+    if (spanLaneAssignments.length === 0) {
       continue;
     }
 
@@ -232,9 +247,9 @@ function buildFocusedCombinedLaneAssignmentsByRankId(params: {
     overrides[processId] = {
       laneCount,
       maxLane,
-      spanLaneMap,
+      spanLaneAssignments,
       overflowSpanCount: countOverflowSpans(
-        spanLaneMap,
+        spanLaneAssignments,
         normalizedLaneCount.renderedLaneCount,
         normalizedLaneCount.hasOverflow
       )
@@ -261,71 +276,20 @@ function findFocusedSourceProcessLayoutYOffset(params: {
 }
 
 /**
- * Keeps full source span-to-lane lookup metadata on focused layouts while the focused
- * `visibleLaneIndices` mask controls which lanes are actually rendered.
+ * Keeps source generated lane columns while focused visible-lane masks choose rendered lanes.
  */
-function preserveFocusedSourceSpanLaneMaps(params: {
+function preserveFocusedSourceSpanLaneColumns(params: {
+  /** Focused layout whose visible-lane masks should be preserved. */
   focusedLayout: TraceLayout;
+  /** Source full layout that owns complete generated lane lookup. */
   sourceLayout: TraceLayout;
 }): TraceLayout {
-  const threadLayoutMapByRef = new Map<ThreadRef, ThreadLayout>();
-  for (const [threadRef, threadLayout] of params.focusedLayout.threadLayoutMapByRef) {
-    threadLayoutMapByRef.set(
-      threadRef,
-      preserveFocusedSourceSpanLaneMap({
-        focusedThreadLayout: threadLayout,
-        sourceLayout: params.sourceLayout
-      })
-    );
-  }
-
-  const processLayouts = params.focusedLayout.processLayouts.map(processLayout => ({
-    ...processLayout,
-    threadLayouts: processLayout.threadLayouts.map(threadLayout =>
-      preserveFocusedSourceSpanLaneMap({
-        focusedThreadLayout: threadLayout,
-        sourceLayout: params.sourceLayout
-      })
-    )
-  }));
-
-  return {
-    ...params.focusedLayout,
-    threadLayoutMapByRef,
-    processLayouts,
-    processLayoutMapByRef: buildTraceLayoutProcessLayoutMapByRef(processLayouts)
-  };
-}
-
-/** Keeps one focused thread layout's source span lane map without crossing thread refs. */
-function preserveFocusedSourceSpanLaneMap(params: {
-  /** Focused thread layout whose selected-lane mask should be preserved. */
-  focusedThreadLayout: ThreadLayout;
-  /** Source full layout that owns the complete span-to-lane map. */
-  sourceLayout: TraceLayout;
-}): ThreadLayout {
-  const threadRef = params.focusedThreadLayout.threadRef;
-  if (threadRef == null) {
-    return params.focusedThreadLayout;
-  }
-  const sourceSpanLaneMap = getFocusedSourceThreadLayout({
-    traceLayout: params.sourceLayout,
-    threadRef
-  })?.spanLaneMap;
-
-  return sourceSpanLaneMap
-    ? {...params.focusedThreadLayout, spanLaneMap: sourceSpanLaneMap}
-    : params.focusedThreadLayout;
-}
-
-/** Resolves one source thread layout from its exact runtime thread ref. */
-function getFocusedSourceThreadLayout(params: {
-  /** Layout that owns the source thread lane map. */
-  traceLayout: TraceLayout;
-  /** Canonical runtime thread ref used by ref-native layouts. */
-  threadRef: ThreadRef;
-}): ThreadLayout | undefined {
-  return params.traceLayout.threadLayoutMapByRef.get(params.threadRef);
+  return params.sourceLayout.spanLaneColumnsByChunkIndex
+    ? {
+        ...params.focusedLayout,
+        spanLaneColumnsByChunkIndex: params.sourceLayout.spanLaneColumnsByChunkIndex
+      }
+    : params.focusedLayout;
 }
 
 /**
@@ -341,7 +305,7 @@ export function buildTraceLayoutForSpanRefsImpl(params: {
   /** Layout settings that affect selected-lane relayout and prepared geometry derivation. */
   settings: Pick<
     TraceVisSettings,
-    | 'localDependencyMode'
+    | 'sameProcessDependencyMode'
     | 'layoutDensity'
     | 'sortThreads'
     | 'maxVisibleLanesPerThread'
@@ -349,43 +313,20 @@ export function buildTraceLayoutForSpanRefsImpl(params: {
     | 'trackAggregationMode'
     | 'showEmptyProcesses'
   >;
-  /** Ref-native collapse state to preserve during relayout. */
-  collapseState?: TraceLayoutCollapseState;
-  /** @deprecated Use `collapseState.graphs[0].collapsedProcessRefs` instead. */
-  collapsedProcessIds?: ReadonlySet<string>;
-  /** @deprecated Use `collapseState.graphs[0].expandedThreadRefs` instead. */
-  expandedThreadIds?: ReadonlySet<TraceThreadId>;
-  /** @deprecated Use `collapseState.graphs[0].collapsedThreadRefs` instead. */
-  collapsedThreadIds?: ReadonlySet<TraceThreadId>;
+  /** Collapse refs already resolved by the public ref-native layout boundary. */
+  collapseState?: ResolvedFocusedTraceGraphCollapseState;
   /** Optional timing projection recorded for later prepared geometry derivation. */
   timingKey?: string | null;
   /** Optional minimum time override recorded for later prepared geometry derivation. */
   minTimeMs?: number;
-  /** Converts legacy id-based collapse state into ref-native state for this graph. */
-  resolveLegacyCollapseState: (params: {
-    /** Graph whose refs should back the legacy collapse state. */
-    traceGraph: TraceGraph;
-    /** Ref-native collapse state for this graph. */
-    collapseState?: TraceLayoutCollapseState['graphs'][number];
-    /** Legacy id-based collapsed process ids. */
-    collapsedProcessIds?: ReadonlySet<string>;
-    /** Legacy id-based expanded thread ids. */
-    expandedThreadIds?: ReadonlySet<TraceThreadId>;
-    /** Legacy id-based collapsed thread ids. */
-    collapsedThreadIds?: ReadonlySet<TraceThreadId>;
-  }) => LegacyTraceGraphCollapseState;
   /** Refreshes focused layout timing and density inputs for later prepared geometry derivation. */
   refreshGeometryInputs: (params: {
-    /** Trace graph data used to resolve source timing. */
+    /** Canonical runtime graph used to resolve source timing. */
     traceGraph: TraceGraph;
-    /** Prebuilt TraceGraph instance for the same graph. */
-    prebuiltTraceGraph: TraceGraph;
-    /** Visible graph projection for the focused process set. */
-    visibleTraceGraph: TraceLayoutVisibleGraph;
     /** Compact layout whose prepared geometry inputs should be refreshed. */
     traceLayout: TraceLayout;
     /** Settings needed for dependency filtering and density-aware prepared geometry. */
-    settings: Pick<TraceVisSettings, 'localDependencyMode' | 'layoutDensity'>;
+    settings: Pick<TraceVisSettings, 'sameProcessDependencyMode' | 'layoutDensity'>;
     /** Optional timing projection recorded for later prepared geometry derivation. */
     timingKey?: string | null;
     /** Optional minimum time override recorded for later prepared geometry derivation. */
@@ -402,18 +343,11 @@ export function buildTraceLayoutForSpanRefsImpl(params: {
   if (selectedSpanRefs.size === 0) {
     return params.traceLayout;
   }
-  const legacyCollapseState = params.resolveLegacyCollapseState({
-    traceGraph: params.traceGraph,
-    collapseState: params.collapseState?.graphs[0],
-    collapsedProcessIds: params.collapsedProcessIds,
-    expandedThreadIds: params.expandedThreadIds,
-    collapsedThreadIds: params.collapsedThreadIds
-  });
   return buildTraceLayoutForSelectedLanes({
     ...params,
-    collapsedProcessIds: legacyCollapseState.collapsedProcessIds,
-    expandedThreadRefs: legacyCollapseState.expandedThreadRefs,
-    collapsedThreadRefs: legacyCollapseState.collapsedThreadRefs,
+    collapsedProcessIds: params.collapseState?.collapsedProcessIds,
+    expandedThreadRefs: params.collapseState?.expandedThreadRefs,
+    collapsedThreadRefs: params.collapseState?.collapsedThreadRefs,
     includedSpanRefs: selectedSpanRefs,
     shouldIncludeSpan: span => selectedSpanRefs.has(span.spanRef)
   });
@@ -428,7 +362,7 @@ function buildTraceLayoutForSelectedLanes(params: {
   /** Layout settings that affect selected-lane relayout and prepared geometry derivation. */
   settings: Pick<
     TraceVisSettings,
-    | 'localDependencyMode'
+    | 'sameProcessDependencyMode'
     | 'layoutDensity'
     | 'sortThreads'
     | 'maxVisibleLanesPerThread'
@@ -436,7 +370,7 @@ function buildTraceLayoutForSelectedLanes(params: {
     | 'trackAggregationMode'
     | 'showEmptyProcesses'
   >;
-  /** Legacy id-based collapsed process ids. */
+  /** Process ids derived from exact collapsed process refs. */
   collapsedProcessIds?: ReadonlySet<string>;
   /** Exact expanded thread refs. */
   expandedThreadRefs?: ReadonlySet<ThreadRef>;
@@ -452,16 +386,12 @@ function buildTraceLayoutForSelectedLanes(params: {
   shouldIncludeSpan: (span: TraceLayoutLaneSpanSource) => boolean;
   /** Refreshes focused layout timing and density inputs for later prepared geometry derivation. */
   refreshGeometryInputs: (params: {
-    /** Trace graph data used to resolve source timing. */
+    /** Canonical runtime graph used to resolve source timing. */
     traceGraph: TraceGraph;
-    /** Prebuilt TraceGraph instance for the same graph. */
-    prebuiltTraceGraph: TraceGraph;
-    /** Visible graph projection for the focused process set. */
-    visibleTraceGraph: TraceLayoutVisibleGraph;
     /** Compact layout whose prepared geometry inputs should be refreshed. */
     traceLayout: TraceLayout;
     /** Settings needed for dependency filtering and density-aware prepared geometry. */
-    settings: Pick<TraceVisSettings, 'localDependencyMode' | 'layoutDensity'>;
+    settings: Pick<TraceVisSettings, 'sameProcessDependencyMode' | 'layoutDensity'>;
     /** Optional timing projection recorded for later prepared geometry derivation. */
     timingKey?: string | null;
     /** Optional minimum time override recorded for later prepared geometry derivation. */
@@ -472,9 +402,10 @@ function buildTraceLayoutForSelectedLanes(params: {
 }): TraceLayout {
   const focusedProjection = buildFocusedTraceLayoutProjection(params);
   const {
-    visibleTraceGraph,
+    processes,
     laneSpansByProcessId,
     visibleLaneIndicesByThreadRef,
+    spanLaneAssignmentsByThreadRef,
     combinedLaneAssignmentsByRankId
   } = focusedProjection;
 
@@ -500,13 +431,14 @@ function buildTraceLayoutForSelectedLanes(params: {
     }
     threadLaneLayoutMapByRef.set(threadRef, {
       laneCount: maxLaneIndex + 1,
+      spanLaneAssignments: spanLaneAssignmentsByThreadRef.get(threadRef),
       visibleLaneIndices
     });
   }
 
   const {layout: compactLayout} = calculateTraceLayout({
-    processes: visibleTraceGraph.processes,
-    maxTimeMs: visibleTraceGraph.maxTimeMs,
+    processes,
+    maxTimeMs: params.traceGraph.maxTimeMs,
     settings: {
       threadDisplayMode: 'all',
       selectedThreadNames: [],
@@ -524,25 +456,22 @@ function buildTraceLayoutForSelectedLanes(params: {
     hideStreamsWithoutLaneMetadata: true,
     combinedLaneAssignmentsByRankId,
     traceGraph: params.traceGraph,
-    getSpansForProcess: processId => laneSpansByProcessId[processId] ?? [],
-    getLocalDependenciesForProcess: () => [],
     getLaneSpansForProcess: processId => laneSpansByProcessId[processId] ?? [],
-    getLaneLocalDependenciesForProcess: () => []
+    getLaneSameProcessDependenciesForProcess: () => []
   });
-  const compactLayoutWithSourceLaneMaps = preserveFocusedSourceSpanLaneMaps({
+  const compactLayoutWithSourceLaneColumns = preserveFocusedSourceSpanLaneColumns({
     focusedLayout: compactLayout,
     sourceLayout: params.traceLayout
   });
-
-  const firstVisibleRankIndex = compactLayoutWithSourceLaneMaps.processLayouts.findIndex(
+  const firstVisibleRankIndex = compactLayoutWithSourceLaneColumns.processLayouts.findIndex(
     rankLayout => rankLayout?.threadLayouts.some(threadLayout => threadLayout.visible)
   );
   if (firstVisibleRankIndex === -1) {
     return params.traceLayout;
   }
 
-  const anchorLayout = compactLayoutWithSourceLaneMaps.processLayouts[firstVisibleRankIndex];
-  const anchorProcess = visibleTraceGraph.processes[firstVisibleRankIndex];
+  const anchorLayout = compactLayoutWithSourceLaneColumns.processLayouts[firstVisibleRankIndex];
+  const anchorProcess = processes[firstVisibleRankIndex];
   const anchorYOffset = anchorProcess
     ? findFocusedSourceProcessLayoutYOffset({
         traceLayout: params.traceLayout,
@@ -551,19 +480,17 @@ function buildTraceLayoutForSelectedLanes(params: {
     : undefined;
   const rankDelta = (anchorYOffset ?? anchorLayout?.yOffset ?? 0) - (anchorLayout?.yOffset ?? 0);
   const alignedLayout = applyRankDeltas({
-    layout: compactLayoutWithSourceLaneMaps,
-    traceGraph: visibleTraceGraph,
-    rankDeltas: compactLayoutWithSourceLaneMaps.processLayouts.map(() => rankDelta),
+    layout: compactLayoutWithSourceLaneColumns,
+    processes,
+    rankDeltas: compactLayoutWithSourceLaneColumns.processLayouts.map(() => rankDelta),
     trackAggregationMode: params.settings.trackAggregationMode
   });
 
   const refreshedLayout = params.refreshGeometryInputs({
     traceGraph: params.traceGraph,
-    prebuiltTraceGraph: params.traceGraph,
-    visibleTraceGraph,
     traceLayout: alignedLayout,
     settings: {
-      localDependencyMode: params.settings.localDependencyMode,
+      sameProcessDependencyMode: params.settings.sameProcessDependencyMode,
       layoutDensity: params.settings.layoutDensity
     },
     timingKey: params.timingKey,
@@ -572,11 +499,10 @@ function buildTraceLayoutForSelectedLanes(params: {
   return params.withRefIndexes({
     ...refreshedLayout,
     renderRows: buildTraceLayoutRows({
-      traceGraph: visibleTraceGraph,
+      processes,
       processLayouts: refreshedLayout.processLayouts
     }),
     globalEventRow: params.traceLayout.globalEventRow,
-    minimapLayout: params.traceLayout.minimapLayout,
-    expandedBounds: params.traceLayout.expandedBounds
+    minimapLayout: params.traceLayout.minimapLayout
   } satisfies TraceLayout);
 }

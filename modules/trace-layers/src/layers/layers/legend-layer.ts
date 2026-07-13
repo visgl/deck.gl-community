@@ -7,7 +7,7 @@ import {
   getTraceLayoutProcessLayoutByRef,
   TRACE_COLOR,
   TraceLayout
-} from '../../trace/index';
+} from '../../trace';
 import {
   combineBounds,
   expandBounds,
@@ -23,7 +23,7 @@ import type {
   TraceThread,
   TraceThreadId,
   TraceVisSettings
-} from '../../trace/index';
+} from '../../trace';
 import type {GetPickingInfoParams, LayerProps, PickingInfo} from '@deck.gl/core';
 
 const MAX_NAME_LENGTH = 40;
@@ -102,9 +102,9 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
       .map((_, streamIndex) => this.getStreamLayoutForStream(streamIndex))
       .filter((layout): layout is ThreadLayout => Boolean(layout));
     const nodeNameBounds =
-      nodeNameLabel && rankLayout?.startPosition
+      nodeNameLabel && rankLayout
         ? getTextLabelBounds({
-            x: rankLayout.startPosition[0],
+            x: 0,
             y: rankLayout.labelY ?? 0,
             text: nodeNameLabel,
             textAnchor: 'end',
@@ -115,9 +115,9 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
           })
         : null;
     const rankLabelBounds =
-      rankLabel && rankLayout?.startPosition
+      rankLabel && rankLayout
         ? getTextLabelBounds({
-            x: rankLayout.startPosition[0],
+            x: 0,
             y: rankLayout.labelY ?? 0,
             text: rankLabel,
             textAnchor: 'start',
@@ -130,7 +130,7 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
 
     return expandBounds(
       combineBounds([
-        getStreamLayoutBounds(threadLayouts),
+        getStreamLayoutBounds(threadLayouts, traceLayout.currentBounds[1][0]),
         getProcessLayoutBounds(rankLayout),
         nodeNameBounds,
         rankLabelBounds
@@ -169,8 +169,6 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
         const label = hasLanes
           ? `${truncateName(stream.name)} ${laneIndicator}`
           : truncateName(stream.name);
-        const startX = layout.startPosition?.[0] ?? 0;
-        const startZ = layout.startPosition?.[2] ?? 0;
         const laneYPositions = layout.lanes?.laneYPositions;
         const yOffset =
           laneYPositions && laneYPositions.length > 0
@@ -186,8 +184,8 @@ export class TraceLegendLayer extends CompositeLayer<TraceLegendLayerProps> {
           stream,
           threadRef,
           label,
-          x: startX,
-          z: startZ,
+          x: 0,
+          z: 0,
           yOffset,
           hasLanes,
           visible: layout.visible

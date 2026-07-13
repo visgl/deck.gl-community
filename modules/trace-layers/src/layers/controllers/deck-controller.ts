@@ -1,4 +1,4 @@
-import type {SpanRef} from '../../trace/index';
+import type {SpanRef} from '../../trace';
 
 /**
  * Commands and queries that a mounted deck-backed trace graph exposes to the global controller.

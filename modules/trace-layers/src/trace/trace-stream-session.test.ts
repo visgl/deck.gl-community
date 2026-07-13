@@ -4,8 +4,8 @@ import {createTraceStreamReplaceChunk, createTraceStreamSession} from './trace-s
 
 import type {
   TraceCrossProcessDependency,
-  TraceLocalDependency,
   TraceProcess,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceThread
 } from './index';
@@ -47,26 +47,26 @@ function createSpan(
         durationMsAsString: '1 ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
 }
 
 /**
- * Create one minimal local dependency for streamed-session tests.
+ * Create one minimal same-process dependency for streamed-session tests.
  */
-function createLocalDependency(
+function createSameProcessDependency(
   startSpanId: string,
   endSpanId: string,
   dependencyId: string
-): TraceLocalDependency {
+): TraceSameProcessDependency {
   return {
-    type: 'trace-local-dependency',
-    dependencyId: dependencyId as TraceLocalDependency['dependencyId'],
-    startSpanId: startSpanId as TraceLocalDependency['startSpanId'],
-    endSpanId: endSpanId as TraceLocalDependency['endSpanId'],
+    type: 'trace-same-process-dependency',
+    dependencyId: dependencyId as TraceSameProcessDependency['dependencyId'],
+    startSpanId: startSpanId as TraceSameProcessDependency['startSpanId'],
+    endSpanId: endSpanId as TraceSameProcessDependency['endSpanId'],
     keywords: new Set(),
     waitMode: 'end-to-start',
     bidirectional: false,
@@ -75,9 +75,9 @@ function createLocalDependency(
 }
 
 /**
- * Create one minimal cross dependency for streamed-session tests.
+ * Create one minimal cross-process dependency for streamed-session tests.
  */
-function createCrossDependency(
+function createCrossProcessDependency(
   startSpanId: string,
   endSpanId: string,
   dependencyId: string
@@ -123,7 +123,7 @@ function createProcess(processId: string, rankNum: number, spans: TraceSpan[]): 
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 }
@@ -149,18 +149,18 @@ describe('createTraceStreamSession', () => {
     });
     const secondSnapshot = session.publishSnapshot();
 
-    expect(firstSnapshot?.traceGraphData.stats.spanCount).toBe(2);
-    expect(
-      secondSnapshot?.traceGraph.getSpanRefByExternalBlockId('span-a' as TraceSpan['spanId'])
-    ).toBe(firstSnapshot?.traceGraph.getSpanRefByExternalBlockId('span-a' as TraceSpan['spanId']));
+    expect(firstSnapshot?.traceDataset.stats.spanCount).toBe(2);
+    expect(firstSnapshot?.traceGraph.traceDataset).toBe(firstSnapshot?.traceDataset);
+    expect(secondSnapshot?.traceGraph.getSpanRefById('span-a' as TraceSpan['spanId'])).toBe(
+      firstSnapshot?.traceGraph.getSpanRefById('span-a' as TraceSpan['spanId'])
+    );
     const updatedSpanRef =
-      secondSnapshot?.traceGraph.getSpanRefByExternalBlockId('span-a' as TraceSpan['spanId']) ??
-      null;
+      secondSnapshot?.traceGraph.getSpanRefById('span-a' as TraceSpan['spanId']) ?? null;
     expect(
       updatedSpanRef == null
         ? null
-        : secondSnapshot?.traceGraph.getVisibleDisplaySourceBySpanRef(updatedSpanRef)?.timings
-            .default.startTimeMs
+        : secondSnapshot?.traceGraph.getSpanDetailSource(updatedSpanRef)?.timings.default
+            .startTimeMs
     ).toBe(10);
   });
 
@@ -174,21 +174,20 @@ describe('createTraceStreamSession', () => {
       createTraceStreamReplaceChunk({
         name: 'replacement',
         processes: [process],
-        crossDependencies: []
+        crossProcessDependencies: []
       })
     );
     const snapshot = session.publishSnapshot();
 
-    expect(snapshot?.traceGraphData.name).toBe('replacement');
-    expect(snapshot?.traceGraphData.stats.spanCount).toBe(1);
-    const spanRef =
-      snapshot?.traceGraph.getSpanRefByExternalBlockId('span-a' as TraceSpan['spanId']) ?? null;
-    expect(
-      spanRef == null ? null : snapshot?.traceGraph.getVisibleDisplaySourceBySpanRef(spanRef)?.name
-    ).toBe('span-a');
+    expect(snapshot?.traceDataset.name).toBe('replacement');
+    expect(snapshot?.traceDataset.stats.spanCount).toBe(1);
+    const spanRef = snapshot?.traceGraph.getSpanRefById('span-a' as TraceSpan['spanId']) ?? null;
+    expect(spanRef == null ? null : snapshot?.traceGraph.getSpanDetailSource(spanRef)?.name).toBe(
+      'span-a'
+    );
   });
 
-  it('publishes local and cross dependencies with listeners', async () => {
+  it('publishes local and cross process dependencies with listeners', async () => {
     const session = createTraceStreamSession({publishIntervalMs: 0});
     const listener = vi.fn();
     const processA = 'rank-a';
@@ -211,20 +210,32 @@ describe('createTraceStreamSession', () => {
         {processId: processA, span: createSpan(processA, streamA, 'span-b', 1)},
         {processId: processB, span: createSpan(processB, streamB, 'span-c', 2)}
       ],
-      appendLocalDependencies: [
+      appendSameProcessDependencies: [
         {
           processId: processA,
-          dependency: createLocalDependency('span-a', 'span-b', 'local-dep')
+          dependency: createSameProcessDependency('span-a', 'span-b', 'local-dep')
         }
       ],
-      appendCrossDependencies: [createCrossDependency('span-b', 'span-c', 'cross-dep')]
+      appendCrossProcessDependencies: [
+        createCrossProcessDependency('span-b', 'span-c', 'cross-dep')
+      ]
     });
 
     const snapshot = session.publishSnapshot();
 
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(snapshot?.traceGraphData.stats.dependencyCount).toBe(2);
-    expect(snapshot?.traceGraph.processes[0]?.localDependencies).toHaveLength(1);
-    expect(snapshot?.traceGraph.getVisibleCrossDependencySources()).toHaveLength(1);
+    expect(snapshot?.traceDataset.stats.dependencyCount).toBe(2);
+    expect(snapshot?.traceGraph.processes[0]?.sameProcessDependencies).toBeUndefined();
+    expect(
+      snapshot?.traceGraph.getSameProcessDependencyRefs(snapshot.traceGraph.getProcessRefs()[0]!)
+    ).toHaveLength(1);
+    expect(
+      Array.from(snapshot?.traceGraph.iterateVisibleCrossProcessDependencyRefs() ?? []).flatMap(
+        dependencyRef => {
+          const dependency = snapshot?.traceGraph.getDependencySource(dependencyRef);
+          return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+        }
+      )
+    ).toHaveLength(1);
   });
 });

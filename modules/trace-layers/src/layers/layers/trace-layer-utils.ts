@@ -1,4 +1,4 @@
-import type {SpanRef, TraceLayout, TraceVisSettings} from '../../trace/index';
+import type {SpanRef, TraceLayout, TraceVisSettings} from '../../trace';
 
 /** Options for applying dependency visibility without framebuffer blending. */
 export type DependencyVisibilityOptions = {

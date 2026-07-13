@@ -8,8 +8,8 @@ export type TraceGraphStats = {
   laneCount: number;
   /** Number of spans represented in the graph. */
   spanCount: number;
-  /** Number of process-local dependencies represented in the graph. */
-  localDependencyCount: number;
+  /** Number of process-same process dependencies represented in the graph. */
+  sameProcessDependencyCount: number;
   /** Number of spans that have not started. */
   notStartedSpanCount: number;
   /** Number of spans that have not finished. */
@@ -21,7 +21,7 @@ export type TraceGraphStats = {
   /** Number of dependencies dropped by ingestion. */
   droppedDependencyCount: number;
   /** Number of cross-process dependencies represented in the graph. */
-  crossDependencyCount: number;
+  crossProcessDependencyCount: number;
   /** Number of cross-process dependencies dropped by ingestion. */
-  droppedCrossDependencyCount: number;
+  droppedCrossProcessDependencyCount: number;
 };

@@ -1,6 +1,12 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {encodeProcessRef, encodeSpanRef, encodeVisibleLocalDependencyRef} from '../../trace/index';
+import {
+  encodeLocalSpanRef,
+  encodeProcessRef,
+  encodeSameProcessDependencyRef,
+  encodeSpanRef
+} from '../../trace';
+import {buildTraceDenseSameProcessDependencyRefSource} from '../../trace/trace-view-state/trace-ref-source';
 import {TraceProcessLayer} from './trace-process-layer';
 
 import type {
@@ -8,16 +14,24 @@ import type {
   TraceDeckBinaryBlockData,
   TraceDeckBinaryDependencyLineData,
   TraceLayout,
-  TraceLocalDependency,
-  TraceLocalDependencyRenderSource,
+  TraceSameProcessDependency,
+  TraceSameProcessDependencyRefSource,
+  TraceSameProcessDependencyRenderSource,
   TraceSpanId,
-  TraceVisSettings,
-  VisibleLocalDependencyRef
-} from '../../trace/index';
+  TraceVisSettings
+} from '../../trace';
 
 const TEST_SETTINGS = {
   lineRoutingMode: 'straight'
 } as TraceVisSettings;
+const EMPTY_BINARY_BLOCK_DATA = {
+  data: {length: 0, attributes: {}},
+  spans: []
+} satisfies TraceDeckBinaryBlockData;
+const EMPTY_BINARY_DEPENDENCY_DATA = {
+  data: {length: 0, attributes: {}},
+  dependencies: []
+} satisfies TraceDeckBinaryDependencyLineData;
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -26,23 +40,22 @@ afterEach(() => {
 describe('TraceProcessLayer picking diagnostics', () => {
   it('warns when a picked binary dependency row cannot resolve source data', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const dependencyRef = encodeVisibleLocalDependencyRef(321) as VisibleLocalDependencyRef;
+    const dependencyRef = encodeSameProcessDependencyRef(encodeLocalSpanRef(0, 321));
     const startSpanRef = encodeSpanRef(1, 2);
     const endSpanRef = encodeSpanRef(1, 3);
     const layer = createProcessLayer({
       id: 'picking-missing-dependency',
       traceLayout: createTraceLayout({
-        getVisibleDependencyRenderSourceByRef: () => null,
-        getVisibleDependencyIdByRef: () =>
-          'missing-dependency' as TraceLocalDependency['dependencyId'],
-        getVisibleDependencyStartSpan: () => startSpanRef,
-        getVisibleDependencyEndSpan: () => endSpanRef,
-        getVisibleDependencyStartBlockId: () => 'start-span' as TraceSpanId,
-        getVisibleDependencyEndBlockId: () => 'end-span' as TraceSpanId
+        getDependencyWaitMode: () => null,
+        getDependencyId: () => 'missing-dependency' as TraceSameProcessDependency['dependencyId'],
+        getDependencyStartSpan: () => startSpanRef,
+        getDependencyEndSpan: () => endSpanRef,
+        getDependencyStartBlockId: () => 'start-span' as TraceSpanId,
+        getDependencyEndBlockId: () => 'end-span' as TraceSpanId
       }),
       binaryDependencyLineData: {
         data: {length: 1, attributes: {}},
-        dependencyRefs: [dependencyRef]
+        dependencies: [dependencyRef]
       } as TraceDeckBinaryDependencyLineData
     });
 
@@ -72,8 +85,8 @@ describe('TraceProcessLayer picking diagnostics', () => {
     const layer = createProcessLayer({
       id: 'picking-missing-span',
       traceLayout: createTraceLayout({
-        getSpanRenderSource: () => null,
-        getSpanBlockId: () => 'missing-span' as TraceSpanId,
+        getSpanDetailSource: () => null,
+        getSpanId: () => 'missing-span' as TraceSpanId,
         getSpanName: () => 'missing span'
       }),
       binaryBlockData: {
@@ -102,9 +115,9 @@ describe('TraceProcessLayer picking diagnostics', () => {
   });
 
   it('returns lightweight dependency pick payloads without descriptive dependency materialization', () => {
-    const dependencyRef = encodeVisibleLocalDependencyRef(321) as VisibleLocalDependencyRef;
+    const dependencyRef = encodeSameProcessDependencyRef(encodeLocalSpanRef(0, 321));
     const dependency = {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyRef,
       processRef: encodeProcessRef(1),
       startSpanRef: encodeSpanRef(1, 2),
@@ -113,19 +126,25 @@ describe('TraceProcessLayer picking diagnostics', () => {
       bidirectional: false,
       waitTimeMs: 4,
       isParent: false
-    } satisfies TraceLocalDependencyRenderSource;
-    const getVisibleDependencySourceByRef = vi.fn(() => {
+    } satisfies TraceSameProcessDependencyRenderSource;
+    const getDependencySource = vi.fn(() => {
       throw new Error('Descriptive dependency materialization should stay out of picking');
     });
     const layer = createProcessLayer({
       id: 'picking-lightweight-dependency',
       traceLayout: createTraceLayout({
-        getVisibleDependencyRenderSourceByRef: () => dependency,
-        getVisibleDependencySourceByRef
+        getDependencyWaitMode: () => dependency.waitMode,
+        getDependencyStartSpan: () => dependency.startSpanRef,
+        getDependencyEndSpan: () => dependency.endSpanRef,
+        getDependencyBidirectional: () => dependency.bidirectional,
+        getDependencyWaitTimeMs: () => dependency.waitTimeMs,
+        getDependencyIsParent: () => dependency.isParent,
+        getSameProcessDependencyProcessRefByRef: () => dependency.processRef,
+        getDependencySource
       }),
       binaryDependencyLineData: {
         data: {length: 1, attributes: {}},
-        dependencyRefs: [dependencyRef]
+        dependencies: [dependencyRef]
       } as TraceDeckBinaryDependencyLineData
     });
 
@@ -136,7 +155,72 @@ describe('TraceProcessLayer picking diagnostics', () => {
     } as never);
 
     expect(pickingInfo.object).toEqual(dependency);
-    expect(getVisibleDependencySourceByRef).not.toHaveBeenCalled();
+    expect(getDependencySource).not.toHaveBeenCalled();
+  });
+
+  it('uses one dense dependency source for binary picking and curve iteration', () => {
+    const denseDependencies = buildTraceDenseSameProcessDependencyRefSource(0, 2);
+    const pickedSourceRef = denseDependencies.at(1);
+    if (pickedSourceRef == null) {
+      throw new Error('Expected the second dense dependency ref.');
+    }
+    const pickedDependencyRef = pickedSourceRef;
+    const pickedDependency = {
+      type: 'trace-same-process-dependency',
+      dependencyRef: pickedDependencyRef,
+      processRef: encodeProcessRef(1),
+      startSpanRef: encodeSpanRef(1, 2),
+      endSpanRef: encodeSpanRef(1, 3),
+      waitMode: 'end-to-start',
+      bidirectional: false,
+      waitTimeMs: 4,
+      isParent: false
+    } satisfies TraceSameProcessDependencyRenderSource;
+    const binaryLayer = createProcessLayer({
+      id: 'picking-dense-dependency-source',
+      traceLayout: createTraceLayout({
+        getDependencyWaitMode: () => pickedDependency.waitMode,
+        getDependencyStartSpan: () => pickedDependency.startSpanRef,
+        getDependencyEndSpan: () => pickedDependency.endSpanRef,
+        getDependencyBidirectional: () => pickedDependency.bidirectional,
+        getDependencyWaitTimeMs: () => pickedDependency.waitTimeMs,
+        getDependencyIsParent: () => pickedDependency.isParent,
+        getSameProcessDependencyProcessRefByRef: () => pickedDependency.processRef
+      }),
+      binaryDependencyLineData: {
+        data: {length: denseDependencies.length, attributes: {}},
+        dependencies: denseDependencies
+      } as TraceDeckBinaryDependencyLineData
+    });
+
+    const pickingInfo = binaryLayer.getPickingInfo({
+      info: {object: null, index: 1},
+      mode: 'hover',
+      sourceLayer: {id: 'picking-dense-dependency-source-dependency-lines'}
+    } as never);
+
+    expect(pickingInfo.object).toEqual(pickedDependency);
+
+    const iteratorSpy = vi.fn(denseDependencies[Symbol.iterator].bind(denseDependencies));
+    const curveDependencies = {
+      ...denseDependencies,
+      [Symbol.iterator]: iteratorSpy
+    } satisfies TraceSameProcessDependencyRefSource;
+    const curveLayer = createProcessLayer({
+      id: 'curve-dense-dependency-source',
+      traceLayout: createTraceLayout({}),
+      binaryDependencyLineData: {
+        data: {length: curveDependencies.length, attributes: {}},
+        dependencies: curveDependencies
+      },
+      settings: {
+        ...TEST_SETTINGS,
+        lineRoutingMode: 'curve'
+      }
+    });
+    curveLayer.renderLayers();
+
+    expect(iteratorSpy).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -150,16 +234,16 @@ function createProcessLayer(params: {
   readonly binaryBlockData?: TraceDeckBinaryBlockData;
   /** Optional binary dependency data used by the dependency picking branch. */
   readonly binaryDependencyLineData?: TraceDeckBinaryDependencyLineData;
+  /** Optional settings override used to exercise curve dependency routing. */
+  readonly settings?: TraceVisSettings;
 }): TraceProcessLayer {
   return new TraceProcessLayer({
     id: params.id,
     threads: [],
-    spans: [],
-    dependencies: [],
     selectedSpanRefs: [],
     selectedDependencies: [],
-    binaryBlockData: params.binaryBlockData,
-    binaryDependencyLineData: params.binaryDependencyLineData,
+    binaryBlockData: params.binaryBlockData ?? EMPTY_BINARY_BLOCK_DATA,
+    binaryDependencyLineData: params.binaryDependencyLineData ?? EMPTY_BINARY_DEPENDENCY_DATA,
     rankIndex: 0,
     processId: 'process-1',
     processName: 'Process 1',
@@ -167,7 +251,7 @@ function createProcessLayer(params: {
     stepNum: 0,
     onSpanClick: () => undefined,
     traceLayout: params.traceLayout,
-    settings: TEST_SETTINGS
+    settings: params.settings ?? TEST_SETTINGS
   });
 }
 
@@ -176,17 +260,22 @@ function createTraceLayout(
   traceGraphOverrides: Partial<TraceProcessPickingTraceGraph>
 ): TraceLayout {
   const traceGraph: TraceProcessPickingTraceGraph = {
-    getSpanDisplaySource: () => null,
-    getSpanRenderSource: () => null,
-    getSpanBlockId: () => null,
+    getSpanDetailSource: () => null,
+    getSpanId: () => null,
     getSpanName: () => null,
-    getVisibleDependencySourceByRef: () => null,
-    getVisibleDependencyRenderSourceByRef: () => null,
-    getVisibleDependencyIdByRef: () => null,
-    getVisibleDependencyStartSpan: () => null,
-    getVisibleDependencyEndSpan: () => null,
-    getVisibleDependencyStartBlockId: () => null,
-    getVisibleDependencyEndBlockId: () => null,
+    getDependencySource: () => null,
+    getDependencyId: () => null,
+    getDependencyStartSpan: () => null,
+    getDependencyEndSpan: () => null,
+    getDependencyStartBlockId: () => null,
+    getDependencyEndBlockId: () => null,
+    getDependencyWaitMode: () => null,
+    getDependencyBidirectional: () => false,
+    getDependencyWaitTimeMs: () => null,
+    getDependencyIsParent: () => false,
+    isDependencyVisible: () => true,
+    getSameProcessDependencyProcessRefByRef: () => null,
+    getRankNumBySpanRef: () => null,
     ...traceGraphOverrides
   };
   return {
@@ -197,26 +286,36 @@ function createTraceLayout(
 }
 
 type TraceProcessPickingTraceGraph = {
-  /** Resolves a visible span source for tooltip rendering. */
-  readonly getSpanDisplaySource: TraceLayout['traceGraph']['getSpanDisplaySource'];
   /** Resolves a visible span source for render and selection paths. */
-  readonly getSpanRenderSource: TraceLayout['traceGraph']['getSpanRenderSource'];
+  readonly getSpanDetailSource: TraceLayout['traceGraph']['getSpanDetailSource'];
   /** Resolves a span source id for diagnostics. */
-  readonly getSpanBlockId: TraceLayout['traceGraph']['getSpanBlockId'];
+  readonly getSpanId: TraceLayout['traceGraph']['getSpanId'];
   /** Resolves a span name for diagnostics. */
   readonly getSpanName: TraceLayout['traceGraph']['getSpanName'];
   /** Resolves a visible dependency source for tooltip rendering. */
-  readonly getVisibleDependencySourceByRef: TraceLayout['traceGraph']['getVisibleDependencySourceByRef'];
-  /** Resolves a visible dependency source for render and selection paths. */
-  readonly getVisibleDependencyRenderSourceByRef: TraceLayout['traceGraph']['getVisibleDependencyRenderSourceByRef'];
+  readonly getDependencySource: TraceLayout['traceGraph']['getDependencySource'];
   /** Resolves a dependency id for diagnostics. */
-  readonly getVisibleDependencyIdByRef: TraceLayout['traceGraph']['getVisibleDependencyIdByRef'];
+  readonly getDependencyId: TraceLayout['traceGraph']['getDependencyId'];
   /** Resolves a dependency source span ref for diagnostics. */
-  readonly getVisibleDependencyStartSpan: TraceLayout['traceGraph']['getVisibleDependencyStartSpan'];
+  readonly getDependencyStartSpan: TraceLayout['traceGraph']['getDependencyStartSpan'];
   /** Resolves a dependency destination span ref for diagnostics. */
-  readonly getVisibleDependencyEndSpan: TraceLayout['traceGraph']['getVisibleDependencyEndSpan'];
+  readonly getDependencyEndSpan: TraceLayout['traceGraph']['getDependencyEndSpan'];
   /** Resolves a dependency source span id for diagnostics. */
-  readonly getVisibleDependencyStartBlockId: TraceLayout['traceGraph']['getVisibleDependencyStartBlockId'];
+  readonly getDependencyStartBlockId: TraceLayout['traceGraph']['getDependencyStartBlockId'];
   /** Resolves a dependency destination span id for diagnostics. */
-  readonly getVisibleDependencyEndBlockId: TraceLayout['traceGraph']['getVisibleDependencyEndBlockId'];
+  readonly getDependencyEndBlockId: TraceLayout['traceGraph']['getDependencyEndBlockId'];
+  /** Resolves the wait mode used by lightweight dependency rendering. */
+  readonly getDependencyWaitMode: TraceLayout['traceGraph']['getDependencyWaitMode'];
+  /** Resolves whether a dependency is bidirectional. */
+  readonly getDependencyBidirectional: TraceLayout['traceGraph']['getDependencyBidirectional'];
+  /** Resolves dependency wait time. */
+  readonly getDependencyWaitTimeMs: TraceLayout['traceGraph']['getDependencyWaitTimeMs'];
+  /** Resolves whether a dependency is a parent edge. */
+  readonly getDependencyIsParent: TraceLayout['traceGraph']['getDependencyIsParent'];
+  /** Returns whether a canonical dependency participates in the active view. */
+  readonly isDependencyVisible: TraceLayout['traceGraph']['isDependencyVisible'];
+  /** Resolves the owning process for one visible same-process dependency. */
+  readonly getSameProcessDependencyProcessRefByRef: TraceLayout['traceGraph']['getSameProcessDependencyProcessRefByRef'];
+  /** Resolves the owning rank for one span ref. */
+  readonly getRankNumBySpanRef: TraceLayout['traceGraph']['getRankNumBySpanRef'];
 };

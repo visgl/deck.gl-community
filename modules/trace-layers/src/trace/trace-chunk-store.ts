@@ -1,65 +1,60 @@
 import {arrowFindUtf8, makeUtf8StringView} from '@deck.gl-community/infovis-layers';
 import {
-  buildArrowTraceSpanTableFromColumns,
-  buildTraceGraphData,
   findArrowTraceChunkByIndex,
-  getArrowTraceChunkSpanTableRowIndex
+  getArrowTraceChunkSpanTableRowIndex,
+  replaceArrowTraceSameProcessDependencyEndpointRefColumns,
+  replaceArrowTraceSpanRefColumns
 } from './ingestion/arrow-trace';
+import {decodeTraceDependencyWaitModeCode} from './ingestion/trace-dependency-arrow-fields';
+import {decodeTraceSpanTimingStatusCode} from './ingestion/trace-span-timing-status-code';
 import {getHeapUsageProbeFields, log} from './log';
 import {finalizeTraceChunkData, isTraceChunk, traceChunkHasSpanRefRow} from './trace-chunk';
 import {isTraceChunkData} from './trace-chunk-data';
+import {buildTraceDatasetFromReadyTraceChunks} from './trace-chunk-graph-assembler';
 import {
-  getTraceChunkSourceFilterMask,
-  getTraceChunkSpanDisplaySource,
-  getTraceChunkStoreSpanDisplaySource,
+  getTraceChunkStoreSpanDetailSource,
   getTraceChunkStoreSpanFilterNavigation,
   searchTraceChunkStoreSpans
 } from './trace-chunk-window';
 import {TraceGraph} from './trace-graph/trace-graph';
 import {
-  areSpanFilterListsEqual,
-  buildCompiledTraceSpanFilterPlan,
-  normalizeTraceSpanFilters
-} from './trace-graph/trace-graph-span-filters';
-import {TRACE_SPAN_FILTER_MASK_NONE} from './trace-graph/trace-graph-types';
-import {
   encodeChunkRef,
+  encodeProcessRef,
   encodeSpanRef,
   getProcessRefIndex,
   getSpanRefChunkIndex,
   getSpanRefRowIndex,
   getThreadRefProcessIndex,
-  getThreadRefThreadIndex
+  getThreadRefThreadIndex,
+  isThreadRef
 } from './trace-graph/trace-id-encoder';
 import {TraceOwnerRefRegistry} from './trace-graph/trace-owner-ref-registry';
 
 import type {
   ArrowTraceChunk,
   ArrowTraceEventTable,
-  ArrowTraceProcessMetadata,
-  ArrowTraceSpanTable,
-  TraceGraphData,
-  TraceSpanArrowColumns
+  ArrowTraceSameProcessDependencyTable,
+  ArrowTraceSpanTable
 } from './ingestion/arrow-trace';
 import type {TraceChunk} from './trace-chunk';
 import type {TraceChunkData} from './trace-chunk-data';
-import type {TraceSpanDisplaySource} from './trace-graph-accessors';
-import type {TraceGraphRuntimeSource} from './trace-graph/trace-graph-runtime-source';
+import type {TraceDataset} from './trace-dataset';
+import type {TraceSpanDetailSource} from './trace-graph-accessors';
+import type {TraceDatasetRuntimeSource} from './trace-graph/trace-graph-runtime-source';
 import type {TraceGraphStats} from './trace-graph/trace-graph-stats';
 import type {
   TraceGraphSpanFilterNavigation,
-  TraceGraphSpanFilterReason,
   TraceGraphSpanSearchRecord,
   TraceGraphSpanStoreAvailability,
   TraceGraphSpanStoreNavigationParams,
-  TraceGraphSpanStoreSearchParams,
-  TraceSpanFilterMask
+  TraceGraphSpanStoreSearchParams
 } from './trace-graph/trace-graph-types';
 import type {ChunkRef, ProcessRef, ThreadRef} from './trace-graph/trace-id-encoder';
 import type {
   SpanRef,
   TraceCrossProcessDependency,
-  TraceDependencyId,
+  TraceCrossProcessEndpoint,
+  TraceCrossProcessEndpointId,
   TraceProcessId,
   TraceSpanLayoutMode,
   TraceThreadId
@@ -94,27 +89,25 @@ export function isTraceChunkStoreLoadSkippedError(
   return error instanceof Error && error.name === 'TraceChunkStoreLoadSkippedError';
 }
 
-/**
- * Long-lived chunk load subscription for one inclusive UTC millisecond trace window.
- */
-export type TraceWindow = {
-  /** Stable subscription id used for replacement and removal. */
-  id: string;
-  /** Inclusive UTC millisecond start of the chunk-load window. */
-  minTimeMs: number;
-  /** Inclusive UTC millisecond end of the chunk-load window. */
-  maxTimeMs: number;
-  /** Optional throttled notification invoked when new overlapping chunks become ready. */
-  onChunksArrived?: (event: TraceWindowChunksArrivedEvent) => void;
-  /** Minimum elapsed milliseconds between non-final chunk arrival notifications. */
-  notifyIntervalMs?: number;
-};
+/** Error raised when a caller unloads one chunk while its load is still pending. */
+export class TraceChunkStoreLoadCancelledError extends Error {
+  /** Builds one retryable intentional chunk-load cancellation error. */
+  constructor(message: string) {
+    super(message);
+    this.name = 'TraceChunkStoreLoadCancelledError';
+  }
+}
 
-/**
- * Summary emitted when a trace window observes newly ready overlapping chunks.
- */
-export type TraceWindowChunksArrivedEvent = {
-  /** Registered trace-window id that observed stored chunk arrivals. */
+/** Returns whether one error marks a cancelled chunk load as unloaded and retryable. */
+export function isTraceChunkStoreLoadCancelledError(
+  error: unknown
+): error is TraceChunkStoreLoadCancelledError {
+  return error instanceof Error && error.name === 'TraceChunkStoreLoadCancelledError';
+}
+
+/** Summary emitted when the active trace window observes newly ready overlapping chunks. */
+export type TraceChunkStoreWindowChunksArrivedEvent = {
+  /** Active trace-window id that observed stored chunk arrivals. */
   windowId: string;
   /** Newly ready chunk keys accumulated since the previous trace-window notification. */
   newReadyChunkKeys: readonly string[];
@@ -128,6 +121,18 @@ export type TraceWindowChunksArrivedEvent = {
   failedChunkCount: number;
   /** Whether every currently matching descriptor has a ready stored payload. */
   isComplete: boolean;
+};
+
+/** One active inclusive UTC millisecond window owned by a chunk store load. */
+export type TraceChunkStoreWindow = {
+  /** Stable window id used to identify callbacks and materialized graph data. */
+  id: string;
+  /** Inclusive UTC millisecond start of the chunk-load window. */
+  minTimeMs: number;
+  /** Inclusive UTC millisecond end of the chunk-load window. */
+  maxTimeMs: number;
+  /** Minimum elapsed milliseconds between non-final chunk arrival notifications. */
+  notifyIntervalMs?: number;
 };
 
 /**
@@ -214,6 +219,12 @@ export type TraceChunkSelectionPolicy<TDescriptor extends TraceChunkDescriptor> 
  */
 export type TraceChunkStoreLoadResult<TPayload> = TPayload | TraceChunkData;
 
+/** Store-owned cancellation signal passed into one caller-owned chunk loader. */
+export type TraceChunkLoadContext = {
+  /** Abort signal fired when the store unloads one still-pending chunk. */
+  readonly signal: AbortSignal;
+};
+
 /** Minimal store contract for consuming parser-local trace chunk data. */
 export type TraceStore = {
   /** Add parser-local trace chunk data and return the store-finalized chunk. */
@@ -230,20 +241,10 @@ export type TraceChunkStoreProgress = {
   loadedChunks: number;
   /** Number of requested chunk descriptors that must be ready before ensure completes. */
   totalChunks: number;
-};
-
-/**
- * Diagnostics emitted after one trace chunk store ensure pass completes.
- */
-export type TraceChunkStoreEnsureSummary = {
-  /** Number of requested chunk descriptors passed into the ensure call. */
-  requestedChunkCount: number;
-  /** Number of requested chunk payloads already ready before ensure started. */
-  reusedReadyChunkCount: number;
-  /** Number of requested chunk payloads already being fetched by another ensure call. */
-  reusedPendingChunkCount: number;
-  /** Number of requested chunk payloads newly fetched by this ensure call. */
-  fetchedChunkCount: number;
+  /** Advertised spans across requested descriptors that are already ready or finished loading. */
+  loadedSpanCount: number;
+  /** Advertised spans across every requested descriptor in this ensure pass. */
+  totalSpanCount: number;
 };
 
 /**
@@ -260,61 +261,33 @@ export type TraceChunkStoreReadyChunk<TPayload, TDescriptor extends TraceChunkDe
   payload: TPayload;
 };
 
-/**
- * Ready descriptor/payload pairs plus retention diagnostics for one ensure pass.
- */
-export type TraceChunkStoreEnsureResult<TPayload, TDescriptor extends TraceChunkDescriptor> = {
-  /** Ready stored chunk payloads in the same descriptor order requested by ensure. */
-  readyChunks: readonly TraceChunkStoreReadyChunk<TPayload, TDescriptor>[];
-  /** Aggregate reuse/fetch metrics for the ensure pass. */
-  summary: TraceChunkStoreEnsureSummary;
-};
-
-/**
- * Inputs accepted by one trace chunk ensure pass.
- */
-export type TraceChunkStoreEnsureParams<TPayload, TDescriptor extends TraceChunkDescriptor> = {
-  /** Registered descriptors that must be ready before ensure completes. */
-  descriptors: readonly TDescriptor[];
+/** Inputs accepted by one active trace-window load. */
+export type TraceChunkStoreLoadWindowParams<TPayload, TDescriptor extends TraceChunkDescriptor> = {
+  /** Active time window that replaces any prior window owned by this store. */
+  window: TraceChunkStoreWindow;
   /** Caller-owned async loader that fetches and lightly normalizes one descriptor payload. */
-  loadChunk: (descriptor: TDescriptor) => Promise<TraceChunkStoreLoadResult<TPayload>>;
+  loadChunk: (
+    descriptor: TDescriptor,
+    context: TraceChunkLoadContext
+  ) => Promise<TraceChunkStoreLoadResult<TPayload>>;
   /** Optional readiness callback used by app-level progress surfaces. */
   onProgress?: (progress: TraceChunkStoreProgress) => void;
+  /** Optional throttled callback used by incremental graph and table surfaces. */
+  onChunksArrived?: (event: TraceChunkStoreWindowChunksArrivedEvent) => void;
 };
 
-/**
- * Inputs accepted while registering or refreshing trace-window subscriptions.
- */
-export type TraceChunkStoreTraceWindowLoadParams<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor
-> = {
-  /** Caller-owned async loader that fetches and lightly normalizes one descriptor payload. */
-  loadChunk: (descriptor: TDescriptor) => Promise<TraceChunkStoreLoadResult<TPayload>>;
-  /** Optional readiness callback used by app-level progress surfaces. */
-  onProgress?: (progress: TraceChunkStoreProgress) => void;
-};
-
-/**
- * Inputs used to register or replace trace-window subscriptions.
- */
-export type TraceChunkStoreRegisterTraceWindowsParams<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor
-> = TraceChunkStoreTraceWindowLoadParams<TPayload, TDescriptor> & {
-  /** Trace windows to register or replace by stable id. */
-  windows: readonly TraceWindow[];
-};
-
-/** Optional refresh-time trace-window loading inputs. */
-export type TraceChunkStoreDescriptorRefreshParams<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor
-> = {
-  /** Optional caller-owned async loader used when refreshed descriptors extend trace windows. */
-  loadChunk?: (descriptor: TDescriptor) => Promise<TraceChunkStoreLoadResult<TPayload>>;
-  /** Optional readiness callback used by app-level progress surfaces. */
-  onProgress?: (progress: TraceChunkStoreProgress) => void;
+/** Counts returned after one active trace-window load finishes. */
+export type TraceChunkStoreLoadWindowResult = {
+  /** Number of descriptors whose envelopes overlap the active window. */
+  matchedChunkCount: number;
+  /** Number of matching chunk payloads ready when this load finishes. */
+  readyChunkCount: number;
+  /** Number of matching payloads already ready before this load started. */
+  reusedReadyChunkCount: number;
+  /** Number of matching payloads already being fetched by a prior load. */
+  reusedPendingChunkCount: number;
+  /** Number of matching payloads newly fetched by this load. */
+  fetchedChunkCount: number;
 };
 
 /**
@@ -328,11 +301,22 @@ export type TraceSpanUrlCodec = {
 };
 
 /**
+ * Narrow Arrow-backed source needed to resolve stable URL span ids.
+ *
+ * URL codecs only inspect canonical retained chunks; they do not need a runtime graph,
+ * compatibility projection, or full dataset snapshot.
+ */
+export type TraceSpanUrlSource = {
+  /** Canonical row-backed chunks containing optional external span-id columns. */
+  readonly chunks: readonly ArrowTraceChunk[];
+};
+
+/**
  * Inputs for serializing one runtime span ref into a stable URL id.
  */
 export type TraceSpanUrlSerializeParams = {
-  /** Active Arrow-backed trace graph containing the span ref. */
-  traceGraph: Readonly<TraceGraphData>;
+  /** Narrow Arrow-backed source containing the span ref. */
+  traceSource: Readonly<TraceSpanUrlSource>;
   /** Runtime span ref to serialize. */
   spanRef: SpanRef;
 };
@@ -341,8 +325,8 @@ export type TraceSpanUrlSerializeParams = {
  * Inputs for resolving stable URL ids into runtime span refs.
  */
 export type TraceSpanUrlDeserializeParams = {
-  /** Active Arrow-backed trace graph used to resolve span refs. */
-  traceGraph: Readonly<TraceGraphData>;
+  /** Narrow Arrow-backed source used to resolve span refs. */
+  traceSource: Readonly<TraceSpanUrlSource>;
   /** Stable URL span ids to resolve. */
   spanIds: readonly string[];
 };
@@ -351,38 +335,26 @@ export type TraceSpanUrlDeserializeParams = {
  * Default URL codec that maps span refs to the optional Arrow `external_span_id` column.
  */
 export const TRACE_EXTERNAL_SPAN_ID_URL_CODEC: TraceSpanUrlCodec = {
-  serializeSpanRef: ({traceGraph, spanRef}) =>
-    serializeExternalSpanIdUrlSpanRef(traceGraph, spanRef),
-  deserializeSpanRefs: ({traceGraph, spanIds}) =>
-    deserializeExternalSpanIdUrlSpanRefs(traceGraph, spanIds)
+  serializeSpanRef: ({traceSource, spanRef}) =>
+    serializeExternalSpanIdUrlSpanRef(traceSource, spanRef),
+  deserializeSpanRefs: ({traceSource, spanIds}) =>
+    deserializeExternalSpanIdUrlSpanRefs(traceSource, spanIds)
 };
 
 /**
- * Shared inputs used while materializing one trace-window graph from ready chunks.
+ * Shared inputs used while materializing one result from ready selected chunks.
  */
-export type TraceChunkWindowGraphMaterializerParams<
+export type TraceChunkReadyMaterializerParams<
   TPayload,
   TDescriptor extends TraceChunkDescriptor
 > = {
   /** Trace-global append-only process/thread owner-ref allocator for this chunk store identity. */
   ownerRefRegistry: TraceOwnerRefRegistry;
-  /** Registered trace window being materialized. */
-  window: TraceWindow;
-  /** Policy selection used to pick descriptors for the graph query. */
+  /** Policy selection used to pick descriptors for the caller-owned result subset. */
   selection: TraceChunkSelection<TDescriptor>;
   /** Ready stored payloads currently available inside the selected descriptor subset. */
   readyChunks: readonly TraceChunkStoreReadyChunk<TPayload, TDescriptor>[];
 };
-
-/**
- * Source-owned materializer that builds one trace-window subset into `TraceGraphData`.
- */
-export type TraceChunkWindowGraphMaterializer<
-  TPayload,
-  TDescriptor extends TraceChunkDescriptor
-> = (
-  params: TraceChunkWindowGraphMaterializerParams<TPayload, TDescriptor>
-) => TraceGraphData | null;
 
 /**
  * Constructor inputs for one active-run trace chunk store.
@@ -410,10 +382,21 @@ export type TraceChunkStoreDiagnostics = {
   readonly failedChunkCount: number;
   /** Number of active trace-window subscriptions registered with the store. */
   readonly traceWindowCount: number;
-  /** Number of source-column span filters currently applied by the store. */
-  readonly sourceSpanFilterCount: number;
-  /** Monotonic revision incremented whenever source-column span filters change. */
-  readonly sourceSpanFilterRevision: number;
+};
+
+/** Current retained or in-flight state for one chunk key. */
+export type TraceChunkLoadState = 'not-loaded' | 'pending' | 'ready' | 'failed';
+
+/** Summary returned after explicitly unloading ready or pending chunk keys. */
+export type TraceChunkStoreUnloadSummary = {
+  /** Number of requested chunk keys passed into the unload call. */
+  readonly requestedChunkCount: number;
+  /** Number of ready stored payloads removed from retention. */
+  readonly unloadedReadyChunkCount: number;
+  /** Number of pending chunk loads cancelled and made retryable. */
+  readonly cancelledPendingChunkCount: number;
+  /** Number of failed chunk markers cleared so later loads can retry. */
+  readonly clearedFailedChunkCount: number;
 };
 
 /** Inputs for creating an eager store over one immutable static trace snapshot. */
@@ -421,23 +404,21 @@ export type StaticTraceChunkStoreOptions = {
   /** Stable identity used to scope the static store instance in diagnostics. */
   readonly identityKey: string;
   /** Parser-local chunks to eagerly finalize into the static store. */
-  readonly chunks?: readonly TraceChunkData[];
-  /** Existing internal graph snapshot used while migrating legacy static callers. */
-  readonly traceGraphData?: TraceGraphData;
+  readonly chunks: readonly TraceChunkData[];
 };
 
-/** Graph metadata accepted when creating a store-backed static runtime source from chunks. */
-export type StaticTraceGraphRuntimeSourceMetadataOptions = {
+/** Inputs for creating a dataset-backed runtime source from parser-local static chunks. */
+export type StaticTraceGraphRuntimeSourceOptions = {
   /** Stable identity used to scope the static store instance in diagnostics. */
   readonly identityKey: string;
+  /** Parser-local chunks to eagerly finalize into the static store. */
+  readonly chunks: readonly TraceChunkData[];
   /** Human-friendly trace name used when materializing the runtime graph snapshot. */
   readonly name?: string;
   /** Whether spans use generated lanes or authored thread-relative vertical geometry. */
   readonly spanLayout?: TraceSpanLayoutMode;
   /** Cross-process dependencies shared across the static graph. */
-  readonly crossDependencies?: readonly TraceCrossProcessDependency[];
-  /** Optional stable cross-dependency id index preserved from ingestion. */
-  readonly crossDependencyIdToIndexMap?: Readonly<Record<TraceDependencyId, number>>;
+  readonly crossProcessDependencies?: readonly TraceCrossProcessDependency[];
   /** Canonical graph-global event table. */
   readonly events?: Readonly<ArrowTraceEventTable>;
   /** Optional canonical graph-wide time bounds to preserve from ingestion. */
@@ -451,28 +432,14 @@ export type StaticTraceGraphRuntimeSourceMetadataOptions = {
   readonly stats?: Partial<TraceGraphStats>;
 };
 
-/** Inputs for creating a store-backed runtime source from parser-local chunks. */
-export type StaticTraceGraphRuntimeSourceChunkOptions =
-  StaticTraceGraphRuntimeSourceMetadataOptions & {
-    /** Parser-local chunks to eagerly finalize into the static store. */
-    readonly chunks: readonly TraceChunkData[];
-    /** Existing graph snapshot is absent when chunks are the ingestion input. */
-    readonly traceGraphData?: never;
-  };
-
-/** Inputs for creating a store-backed runtime source from an existing internal graph snapshot. */
-export type StaticTraceGraphRuntimeSourceGraphDataOptions =
-  StaticTraceGraphRuntimeSourceMetadataOptions & {
-    /** Existing internal graph snapshot used while migrating legacy static callers. */
-    readonly traceGraphData: TraceGraphData;
-    /** Parser-local chunks are derived from the internal graph snapshot. */
-    readonly chunks?: never;
-  };
-
-/** Inputs for creating a store-backed runtime source for one static trace snapshot. */
-export type StaticTraceGraphRuntimeSourceOptions =
-  | StaticTraceGraphRuntimeSourceChunkOptions
-  | StaticTraceGraphRuntimeSourceGraphDataOptions;
+type PendingTraceChunkLoad<TPayload> = {
+  /** Caller-owned payload promise shared across overlapping ensure calls. */
+  readonly promise: Promise<TPayload>;
+  /** Abort controller fired when the store unloads this pending chunk. */
+  readonly abortController: AbortController;
+  /** Monotonic generation used to ignore stale completions after unload or retry. */
+  readonly loadGeneration: number;
+};
 
 /**
  * Generic descriptor-backed chunk store that owns chunk readiness, deduplication, and selection.
@@ -489,16 +456,15 @@ export class TraceChunkStore<
   private readonly selectionPolicy: TraceChunkSelectionPolicy<TDescriptor>;
   private descriptorMap: Map<string, TDescriptor>;
   private readonly readyPayloads = new Map<string, TPayload>();
-  private readonly pendingPayloads = new Map<string, Promise<TPayload>>();
-  private readonly failedChunkKeys = new Set<string>();
-  private readonly traceWindowSubscriptions = new Map<string, TraceWindowSubscription>();
+  private readonly pendingPayloads = new Map<string, PendingTraceChunkLoad<TPayload>>();
+  private readonly failedChunkErrors = new Map<string, unknown>();
+  private activeTraceWindow: TraceWindowSubscription | null = null;
+  /** Monotonic generation used to suppress callbacks from superseded active-window loads. */
+  private activeTraceWindowGeneration = 0;
   private readonly ownerRefRegistry = new TraceOwnerRefRegistry();
   private readonly chunkIndexByKey = new Map<string, number>();
   private readonly chunkKeyByIndex = new Map<number, string>();
-  private sourceSpanFilters: readonly string[] = [];
-  private sourceSpanFilterPlan = buildCompiledTraceSpanFilterPlan([]);
-  /** Monotonic revision incremented whenever source-column span filters change. */
-  private sourceSpanFilterRevision = 0;
+  private readonly chunkLoadGenerationByKey = new Map<string, number>();
 
   /**
    * Create one stored chunk store scoped to a caller-owned active-run identity.
@@ -515,7 +481,7 @@ export class TraceChunkStore<
   add(traceChunkData: TraceChunkData): TraceChunk {
     const chunk = this.buildStoreTraceChunk(traceChunkData);
     this.readyPayloads.set(traceChunkData.chunkKey, chunk as TPayload);
-    this.failedChunkKeys.delete(traceChunkData.chunkKey);
+    this.failedChunkErrors.delete(traceChunkData.chunkKey);
     return chunk;
   }
 
@@ -530,22 +496,13 @@ export class TraceChunkStore<
     return chunks;
   }
 
-  /**
-   * Replace the active descriptor catalog without evicting stored or pending chunk payloads.
-   */
-  async refreshDescriptors(
-    descriptors: readonly TDescriptor[],
-    traceWindowLoadParams?: TraceChunkStoreDescriptorRefreshParams<TPayload, TDescriptor>
-  ): Promise<TraceChunkStoreEnsureResult<TPayload, TDescriptor> | null> {
+  /** Replace the active descriptor catalog without evicting stored payloads. */
+  replaceDescriptors(descriptors: readonly TDescriptor[]): void {
     this.descriptorMap = buildTraceChunkDescriptorMap(descriptors);
     this.assignChunkIndexes(descriptors);
-    if (!traceWindowLoadParams?.loadChunk || this.traceWindowSubscriptions.size === 0) {
-      return null;
+    if (this.activeTraceWindow) {
+      this.resetTraceWindowSubscriptionLoadState(this.activeTraceWindow);
     }
-    return this.ensureRegisteredTraceWindows({
-      loadChunk: traceWindowLoadParams.loadChunk,
-      onProgress: traceWindowLoadParams.onProgress
-    });
   }
 
   /**
@@ -555,56 +512,105 @@ export class TraceChunkStore<
     return [...this.descriptorMap.values()];
   }
 
+  /** Return the stable append-only store slot already assigned to one chunk key. */
+  getChunkIndex(chunkKey: string): number | null {
+    return this.chunkIndexByKey.get(chunkKey) ?? null;
+  }
+
   /** Returns cheap retained-state counters without walking stored payloads. */
   getDiagnostics(): TraceChunkStoreDiagnostics {
     return {
       descriptorCount: this.descriptorMap.size,
       readyChunkCount: this.readyPayloads.size,
       pendingChunkCount: this.pendingPayloads.size,
-      failedChunkCount: this.failedChunkKeys.size,
-      traceWindowCount: this.traceWindowSubscriptions.size,
-      sourceSpanFilterCount: this.sourceSpanFilters.length,
-      sourceSpanFilterRevision: this.sourceSpanFilterRevision
+      failedChunkCount: this.failedChunkErrors.size,
+      traceWindowCount: this.activeTraceWindow ? 1 : 0
     };
   }
 
   /**
-   * Register or replace trace-window subscriptions, then load their missing chunks.
+   * Explicitly unload retained ready chunks and cancel matching pending loads.
    */
-  async registerTraceWindows(
-    params: TraceChunkStoreRegisterTraceWindowsParams<TPayload, TDescriptor>
-  ): Promise<TraceChunkStoreEnsureResult<TPayload, TDescriptor>> {
-    params.windows.forEach(window => {
-      const previousSubscription = this.traceWindowSubscriptions.get(window.id);
-      if (previousSubscription) {
-        clearTraceWindowNotificationTimer(previousSubscription);
+  unloadChunks(chunkKeys: readonly string[]): TraceChunkStoreUnloadSummary {
+    let unloadedReadyChunkCount = 0;
+    let cancelledPendingChunkCount = 0;
+    let clearedFailedChunkCount = 0;
+
+    chunkKeys.forEach(chunkKey => {
+      this.invalidateChunkLoadGeneration(chunkKey);
+      if (this.readyPayloads.delete(chunkKey)) {
+        unloadedReadyChunkCount += 1;
       }
-      this.traceWindowSubscriptions.set(window.id, createTraceWindowSubscription(window));
+      const pendingPayload = this.pendingPayloads.get(chunkKey);
+      if (pendingPayload) {
+        pendingPayload.abortController.abort();
+        this.pendingPayloads.delete(chunkKey);
+        cancelledPendingChunkCount += 1;
+      }
+      if (this.failedChunkErrors.delete(chunkKey)) {
+        clearedFailedChunkCount += 1;
+      }
     });
-    return this.ensureTraceWindows({
-      windows: params.windows,
-      loadChunk: params.loadChunk,
-      onProgress: params.onProgress
-    });
+
+    return {
+      requestedChunkCount: chunkKeys.length,
+      unloadedReadyChunkCount,
+      cancelledPendingChunkCount,
+      clearedFailedChunkCount
+    };
   }
 
   /**
-   * Remove one trace-window subscription and cancel any delayed notification.
+   * Replace the active trace window and load every matching missing descriptor.
+   *
+   * Pending work that no longer overlaps the replacement window is cancelled. Matching pending
+   * work remains shared so repeated loads do not duplicate requests.
    */
-  removeTraceWindow(windowId: string): boolean {
-    const subscription = this.traceWindowSubscriptions.get(windowId);
-    if (!subscription) {
-      return false;
+  async loadWindow(
+    params: TraceChunkStoreLoadWindowParams<TPayload, TDescriptor>
+  ): Promise<TraceChunkStoreLoadWindowResult> {
+    const loadGeneration = this.activeTraceWindowGeneration + 1;
+    this.activeTraceWindowGeneration = loadGeneration;
+    const previousSubscription = this.activeTraceWindow;
+    if (previousSubscription) {
+      clearTraceWindowNotificationTimer(previousSubscription);
     }
-    clearTraceWindowNotificationTimer(subscription);
-    return this.traceWindowSubscriptions.delete(windowId);
+    const subscription = createTraceWindowSubscription(params.window, params.onChunksArrived);
+    this.activeTraceWindow = subscription;
+    this.resetTraceWindowSubscriptionLoadState(subscription);
+    this.cancelPendingChunksOutsideActiveWindow();
+    const result = await this.loadDescriptors({
+      descriptors: this.getMatchingDescriptorsForTraceWindow(params.window),
+      loadChunk: params.loadChunk,
+      onProgress: progress => {
+        if (this.activeTraceWindowGeneration === loadGeneration) {
+          params.onProgress?.(progress);
+        }
+      }
+    });
+    if (this.activeTraceWindowGeneration !== loadGeneration) {
+      throw new TraceChunkStoreLoadCancelledError(
+        `Trace window ${params.window.id} load was superseded.`
+      );
+    }
+    return {
+      matchedChunkCount: result.requestedChunkCount,
+      readyChunkCount: result.readyChunkCount,
+      reusedReadyChunkCount: result.reusedReadyChunkCount,
+      reusedPendingChunkCount: result.reusedPendingChunkCount,
+      fetchedChunkCount: result.fetchedChunkCount
+    };
   }
 
-  /**
-   * Return the active trace-window subscriptions in registration order.
-   */
-  getTraceWindows(): readonly TraceWindow[] {
-    return [...this.traceWindowSubscriptions.values()].map(subscription => subscription.window);
+  /** Clear the active trace window, its callbacks, and obsolete pending work. */
+  clearActiveWindow(): void {
+    if (!this.activeTraceWindow) {
+      return;
+    }
+    clearTraceWindowNotificationTimer(this.activeTraceWindow);
+    this.activeTraceWindow = null;
+    this.activeTraceWindowGeneration += 1;
+    this.cancelPendingChunksOutsideActiveWindow();
   }
 
   /**
@@ -630,23 +636,23 @@ export class TraceChunkStore<
     return this.readyPayloads.get(chunkKey);
   }
 
-  /**
-   * Return one loaded stored chunk payload by exact store-backed span ref.
-   */
-  getLoadedChunkBySpanRef(spanRef: SpanRef): TPayload | undefined {
-    const chunkKey = this.chunkKeyByIndex.get(getSpanRefChunkIndex(spanRef));
-    return chunkKey == null ? undefined : this.getLoadedChunk(chunkKey);
+  /** Return the current retained or in-flight state for one chunk key. */
+  getChunkLoadState(chunkKey: string): TraceChunkLoadState {
+    if (this.readyPayloads.has(chunkKey)) {
+      return 'ready';
+    }
+    if (this.pendingPayloads.has(chunkKey)) {
+      return 'pending';
+    }
+    if (this.failedChunkErrors.has(chunkKey)) {
+      return 'failed';
+    }
+    return 'not-loaded';
   }
 
-  /**
-   * Return one loaded finalized trace chunk by exact store-backed span ref.
-   */
-  getLoadedTraceChunkBySpanRef(spanRef: SpanRef): TraceChunk | null {
-    const payload = this.getLoadedChunkBySpanRef(spanRef);
-    if (!payload || !isTraceChunk(payload)) {
-      return null;
-    }
-    return traceChunkHasSpanRefRow(payload, getSpanRefRowIndex(spanRef)) ? payload : null;
+  /** Return the retained error from the latest failed load attempt, when available. */
+  getChunkLoadError(chunkKey: string): unknown | null {
+    return this.failedChunkErrors.get(chunkKey) ?? null;
   }
 
   /**
@@ -668,64 +674,13 @@ export class TraceChunkStore<
 
     if (
       this.pendingPayloads.has(chunkKey) ||
-      this.failedChunkKeys.has(chunkKey) ||
+      this.failedChunkErrors.has(chunkKey) ||
       this.descriptorMap.has(chunkKey)
     ) {
       return 'not-loaded';
     }
 
     return 'unknown';
-  }
-
-  /**
-   * Update source-column filename filters used by store-backed row lookups.
-   *
-   * This does not trigger descriptor loads or rewrite loaded chunk payloads. Active source-filter
-   * masks are computed when graph, card, and hidden-search surfaces inspect specific rows.
-   */
-  setSourceSpanFilters(spanFilters: readonly string[] | undefined): boolean {
-    const normalizedSpanFilters = normalizeTraceSpanFilters(spanFilters);
-    if (areSpanFilterListsEqual(this.sourceSpanFilters, normalizedSpanFilters)) {
-      return false;
-    }
-
-    this.sourceSpanFilters = normalizedSpanFilters;
-    this.sourceSpanFilterPlan = buildCompiledTraceSpanFilterPlan(normalizedSpanFilters);
-    this.sourceSpanFilterRevision += 1;
-    return true;
-  }
-
-  /**
-   * Return a monotonic revision that changes whenever source-column span filters change.
-   */
-  getSourceSpanFilterRevision(): number {
-    return this.sourceSpanFilterRevision;
-  }
-
-  /**
-   * Return whether this store has active source-column filename filters.
-   */
-  hasActiveSourceSpanFilter(): boolean {
-    return this.sourceSpanFilters.length > 0;
-  }
-
-  /**
-   * Return whether the exact store-backed span ref is removed by store-owned filters.
-   */
-  isFiltered(spanRef: SpanRef): boolean {
-    return this.getFilterReason(spanRef).isFiltered;
-  }
-
-  /**
-   * Return store-owned filtered state and provenance for one exact store-backed span ref.
-   */
-  getFilterReason(spanRef: SpanRef): TraceGraphSpanFilterReason {
-    const filterMask = this.getSpanSourceFilterMask(spanRef);
-    return {
-      filterMask,
-      isFiltered: filterMask !== TRACE_SPAN_FILTER_MASK_NONE,
-      state: this.getSpanRefAvailability(spanRef)
-    };
   }
 
   /**
@@ -741,29 +696,10 @@ export class TraceChunkStore<
   }
 
   /**
-   * Resolve display data for a ready stored chunk row by exact store-backed span ref.
+   * Resolve render data for a ready stored chunk row without expanding same-process dependency ids.
    */
-  getSpanDisplaySource(spanRef: SpanRef): TraceSpanDisplaySource | null {
-    return getTraceChunkStoreSpanDisplaySource(this, spanRef);
-  }
-
-  /**
-   * Resolve display data for a loaded chunk-local row without scanning unrelated loaded chunks.
-   */
-  getLoadedChunkSpanDisplaySource(params: {
-    /** Store-local loaded chunk key owning the requested row. */
-    chunkKey: string;
-    /** Chunk-local span-ref row index encoded into store-owned span refs. */
-    spanRefRowIndex: number;
-  }): TraceSpanDisplaySource | null {
-    const payload = this.getLoadedChunk(params.chunkKey);
-    if (!payload || !isTraceChunk(payload)) {
-      return null;
-    }
-    return getTraceChunkSpanDisplaySource(
-      payload,
-      encodeSpanRef(payload.chunkIndex, params.spanRefRowIndex)
-    );
+  getSpanDetailSource(spanRef: SpanRef): TraceSpanDetailSource | null {
+    return getTraceChunkStoreSpanDetailSource(this, spanRef);
   }
 
   /**
@@ -798,47 +734,90 @@ export class TraceChunkStore<
   }
 
   /**
-   * Materialize immutable graph data for one registered trace window and caller-owned selection.
+   * Return one ready stored chunk by its stable store-local chunk index.
+   *
+   * Exact span-ref lookups use this path to avoid rebuilding every ready chunk record while
+   * resolving one row.
    */
-  materializeTraceGraphDataForWindow(
-    windowId: string,
-    selection: TraceChunkSelection<TDescriptor>,
-    materializer: TraceChunkWindowGraphMaterializer<TPayload, TDescriptor>
-  ): TraceGraphData | null {
-    const subscription = this.traceWindowSubscriptions.get(windowId);
-    if (!subscription) {
+  getReadyChunkByIndex(
+    chunkIndex: number
+  ): TraceChunkStoreReadyChunk<TPayload, TDescriptor> | null {
+    const chunkKey = this.chunkKeyByIndex.get(chunkIndex);
+    if (chunkKey == null) {
       return null;
     }
+    const descriptor = this.descriptorMap.get(chunkKey);
+    const payload = this.readyPayloads.get(chunkKey);
+    if (!descriptor || payload === undefined) {
+      return null;
+    }
+    return this.buildReadyChunk(descriptor, payload);
+  }
 
+  /**
+   * Invoke one caller-owned builder with a selected ready-chunk subset.
+   *
+   * The store keeps readiness semantics result-agnostic: a non-empty selection with no ready
+   * chunks returns `null` before invoking the caller-owned builder, while an empty selection
+   * is passed through so callers can intentionally build an empty result.
+   */
+  withReadyChunks<TResult>(
+    selection: TraceChunkSelection<TDescriptor>,
+    buildResult: (
+      params: TraceChunkReadyMaterializerParams<TPayload, TDescriptor>
+    ) => TResult | null
+  ): TResult | null {
     const readyChunks = this.getReadyChunks(selection.selectedDescriptors);
     if (readyChunks.length === 0 && selection.selectedDescriptors.length > 0) {
       return null;
     }
 
-    return materializer({
+    return buildResult({
       ownerRefRegistry: this.ownerRefRegistry,
-      window: subscription.window,
       selection,
       readyChunks
     });
   }
 
-  /**
-   * Ensure every requested descriptor has a stored payload, reusing ready and pending work.
-   */
-  async ensure(
-    params: TraceChunkStoreEnsureParams<TPayload, TDescriptor>
-  ): Promise<TraceChunkStoreEnsureResult<TPayload, TDescriptor>> {
+  /** Load requested descriptors while reusing ready and pending payloads. */
+  private async loadDescriptors(params: {
+    /** Registered descriptors that must be ready before this load completes. */
+    descriptors: readonly TDescriptor[];
+    /** Caller-owned async loader for one descriptor payload. */
+    loadChunk: (
+      descriptor: TDescriptor,
+      context: TraceChunkLoadContext
+    ) => Promise<TraceChunkStoreLoadResult<TPayload>>;
+    /** Optional readiness callback used by app-level progress surfaces. */
+    onProgress?: (progress: TraceChunkStoreProgress) => void;
+  }): Promise<{
+    /** Number of requested descriptors passed into this load. */
+    requestedChunkCount: number;
+    /** Number of requested descriptors ready when this load finishes. */
+    readyChunkCount: number;
+    /** Number of requested payloads already ready before this load started. */
+    reusedReadyChunkCount: number;
+    /** Number of requested payloads already being fetched by a prior load. */
+    reusedPendingChunkCount: number;
+    /** Number of requested payloads newly fetched by this load. */
+    fetchedChunkCount: number;
+  }> {
     let reusedReadyChunkCount = 0;
     let reusedPendingChunkCount = 0;
     let fetchedChunkCount = 0;
     let loadedChunks = 0;
+    let loadedSpanCount = 0;
     const totalChunks = params.descriptors.length;
+    const totalSpanCount = params.descriptors.reduce(
+      (spanCount, descriptor) => spanCount + descriptor.advertisedSpanCount,
+      0
+    );
     const reportProgress = () => {
-      params.onProgress?.({loadedChunks, totalChunks});
+      params.onProgress?.({loadedChunks, totalChunks, loadedSpanCount, totalSpanCount});
     };
-    const reportChunkReady = () => {
+    const reportChunkReady = (descriptor: TDescriptor) => {
       loadedChunks += 1;
+      loadedSpanCount += descriptor.advertisedSpanCount;
       reportProgress();
     };
 
@@ -847,6 +826,7 @@ export class TraceChunkStore<
         const readyPayload = this.readyPayloads.get(descriptor.chunkKey) as TPayload;
         reusedReadyChunkCount += 1;
         loadedChunks += 1;
+        loadedSpanCount += descriptor.advertisedSpanCount;
         return {
           ...this.buildReadyChunk(descriptor, readyPayload)
         } satisfies TraceChunkStoreReadyChunk<TPayload, TDescriptor>;
@@ -856,38 +836,59 @@ export class TraceChunkStore<
       if (pendingPayload) {
         reusedPendingChunkCount += 1;
         return await buildReadyChunkWhenAvailable({
-          payloadPromise: pendingPayload,
-          reportChunkReady,
+          payloadPromise: pendingPayload.promise,
+          reportChunkReady: () => reportChunkReady(descriptor),
           buildReadyChunk: payload => this.buildReadyChunk(descriptor, payload)
         });
       }
 
       fetchedChunkCount += 1;
+      this.failedChunkErrors.delete(descriptor.chunkKey);
+      const loadGeneration = this.invalidateChunkLoadGeneration(descriptor.chunkKey);
+      const abortController = new AbortController();
       const fetchPromise = params
-        .loadChunk(descriptor)
+        .loadChunk(descriptor, {signal: abortController.signal})
         .then(loadedPayload => {
+          this.assertCurrentChunkLoad(descriptor.chunkKey, loadGeneration);
           const payload = this.prepareLoadedPayload(loadedPayload);
           this.readyPayloads.set(descriptor.chunkKey, payload);
-          this.failedChunkKeys.delete(descriptor.chunkKey);
+          this.failedChunkErrors.delete(descriptor.chunkKey);
           return payload;
         })
         .catch((error: unknown) => {
-          if (!isTraceChunkStoreLoadSkippedError(error)) {
-            this.failedChunkKeys.add(descriptor.chunkKey);
+          const normalizedError = normalizeTraceChunkLoadError({
+            abortController,
+            error,
+            chunkKey: descriptor.chunkKey
+          });
+          if (
+            this.isCurrentChunkLoad(descriptor.chunkKey, loadGeneration) &&
+            !isTraceChunkStoreLoadSkippedError(normalizedError) &&
+            !isTraceChunkStoreLoadCancelledError(normalizedError)
+          ) {
+            this.failedChunkErrors.set(descriptor.chunkKey, normalizedError);
           }
-          throw error;
+          throw normalizedError;
         })
         .finally(() => {
-          this.pendingPayloads.delete(descriptor.chunkKey);
+          if (this.isCurrentChunkLoad(descriptor.chunkKey, loadGeneration)) {
+            this.pendingPayloads.delete(descriptor.chunkKey);
+          }
         })
         .then(payload => {
-          this.reportTraceWindowChunkReady(descriptor);
+          if (this.isCurrentChunkLoad(descriptor.chunkKey, loadGeneration)) {
+            this.reportTraceWindowChunkReady(descriptor);
+          }
           return payload;
         });
-      this.pendingPayloads.set(descriptor.chunkKey, fetchPromise);
+      this.pendingPayloads.set(descriptor.chunkKey, {
+        promise: fetchPromise,
+        abortController,
+        loadGeneration
+      });
       return await buildReadyChunkWhenAvailable({
         payloadPromise: fetchPromise,
-        reportChunkReady,
+        reportChunkReady: () => reportChunkReady(descriptor),
         buildReadyChunk: payload => this.buildReadyChunk(descriptor, payload)
       });
     });
@@ -895,85 +896,41 @@ export class TraceChunkStore<
     reportProgress();
     const readyChunks = (await Promise.all(chunkPromises)).filter(isReadyChunk);
     return {
-      readyChunks,
-      summary: {
-        requestedChunkCount: totalChunks,
-        reusedReadyChunkCount,
-        reusedPendingChunkCount,
-        fetchedChunkCount
-      }
+      requestedChunkCount: totalChunks,
+      readyChunkCount: readyChunks.length,
+      reusedReadyChunkCount,
+      reusedPendingChunkCount,
+      fetchedChunkCount
     };
   }
 
-  /**
-   * Ensure every descriptor overlapping the requested trace windows is ready.
-   */
-  private ensureTraceWindows(
-    params: TraceChunkStoreTraceWindowLoadParams<TPayload, TDescriptor> & {
-      /** Concrete trace windows whose matching descriptors should load now. */
-      windows: readonly TraceWindow[];
-    }
-  ): Promise<TraceChunkStoreEnsureResult<TPayload, TDescriptor>> {
-    return this.ensure({
-      descriptors: this.getMatchingDescriptorsForTraceWindows(params.windows),
-      loadChunk: params.loadChunk,
-      onProgress: params.onProgress
-    });
-  }
-
-  /**
-   * Ensure every descriptor overlapping any currently registered trace window is ready.
-   */
-  private ensureRegisteredTraceWindows(
-    params: TraceChunkStoreTraceWindowLoadParams<TPayload, TDescriptor>
-  ): Promise<TraceChunkStoreEnsureResult<TPayload, TDescriptor>> {
-    return this.ensureTraceWindows({
-      ...params,
-      windows: this.getTraceWindows()
-    });
-  }
-
-  /**
-   * Return the stable descriptor union overlapping one or more trace windows.
-   */
-  private getMatchingDescriptorsForTraceWindows(
-    windows: readonly TraceWindow[]
+  /** Return the stable descriptor list overlapping one active trace window. */
+  private getMatchingDescriptorsForTraceWindow(
+    window: TraceChunkStoreWindow
   ): readonly TDescriptor[] {
-    const matchingDescriptorsByKey = new Map<string, TDescriptor>();
-    windows.forEach(window => {
-      this.select({
-        window: traceWindowToTraceChunkSelectionWindow(window),
-        spanBudget: null
-      }).matchingDescriptors.forEach(descriptor => {
-        matchingDescriptorsByKey.set(descriptor.chunkKey, descriptor);
-      });
-    });
-    return [...matchingDescriptorsByKey.values()].sort(compareTraceChunkDescriptors);
+    return this.select({
+      window: traceWindowToTraceChunkSelectionWindow(window),
+      spanBudget: null
+    }).matchingDescriptors;
   }
 
   /**
    * Record one newly ready stored payload against every overlapping active trace window.
    */
   private reportTraceWindowChunkReady(descriptor: TDescriptor): void {
-    this.traceWindowSubscriptions.forEach(subscription => {
-      if (
-        !doesTraceChunkDescriptorOverlapWindow(
-          descriptor,
-          traceWindowToTraceChunkSelectionWindow(subscription.window)
-        )
-      ) {
-        return;
-      }
-      subscription.pendingReadyChunkKeys.add(descriptor.chunkKey);
-      this.scheduleTraceWindowNotification(subscription);
-    });
+    const subscription = this.activeTraceWindow;
+    if (!subscription || !subscription.matchingChunkKeys.has(descriptor.chunkKey)) {
+      return;
+    }
+    subscription.pendingReadyChunkKeys.add(descriptor.chunkKey);
+    this.scheduleTraceWindowNotification(subscription);
   }
 
   /**
    * Schedule or immediately flush one trace-window readiness notification.
    */
   private scheduleTraceWindowNotification(subscription: TraceWindowSubscription): void {
-    if (!subscription.window.onChunksArrived || subscription.pendingReadyChunkKeys.size === 0) {
+    if (!subscription.onChunksArrived || subscription.pendingReadyChunkKeys.size === 0) {
       return;
     }
 
@@ -1026,7 +983,7 @@ export class TraceChunkStore<
 
     subscription.notificationTimer = setTimeout(() => {
       subscription.notificationTimer = null;
-      if (!subscription.window.onChunksArrived || subscription.pendingReadyChunkKeys.size === 0) {
+      if (!subscription.onChunksArrived || subscription.pendingReadyChunkKeys.size === 0) {
         return;
       }
       this.flushTraceWindowNotification(
@@ -1041,14 +998,14 @@ export class TraceChunkStore<
    */
   private flushTraceWindowNotification(
     subscription: TraceWindowSubscription,
-    event: TraceWindowChunksArrivedEvent
+    event: TraceChunkStoreWindowChunksArrivedEvent
   ): void {
-    if (!subscription.window.onChunksArrived || event.newReadyChunkKeys.length === 0) {
+    if (!subscription.onChunksArrived || event.newReadyChunkKeys.length === 0) {
       return;
     }
     subscription.pendingReadyChunkKeys.clear();
     subscription.lastNotificationTimeMs = Date.now();
-    subscription.window.onChunksArrived(event);
+    subscription.onChunksArrived(event);
   }
 
   /**
@@ -1056,29 +1013,50 @@ export class TraceChunkStore<
    */
   private buildTraceWindowChunksArrivedEvent(
     subscription: TraceWindowSubscription
-  ): TraceWindowChunksArrivedEvent {
+  ): TraceChunkStoreWindowChunksArrivedEvent {
+    const loadStateCounts = countTraceWindowChunkLoadStates(
+      subscription.matchingChunkKeys,
+      chunkKey => this.getChunkLoadState(chunkKey)
+    );
+    return {
+      windowId: subscription.window.id,
+      newReadyChunkKeys: [...subscription.pendingReadyChunkKeys].sort(),
+      matchedChunkCount: subscription.matchedChunkCount,
+      readyChunkCount: loadStateCounts.readyChunkCount,
+      pendingChunkCount: loadStateCounts.pendingChunkCount,
+      failedChunkCount: loadStateCounts.failedChunkCount,
+      isComplete: loadStateCounts.readyChunkCount === subscription.matchedChunkCount
+    };
+  }
+
+  /** Rebuild one window subscription's catalog membership. */
+  private resetTraceWindowSubscriptionLoadState(subscription: TraceWindowSubscription): void {
     const matchingDescriptors = this.select({
       window: traceWindowToTraceChunkSelectionWindow(subscription.window),
       spanBudget: null
     }).matchingDescriptors;
-    const readyChunkCount = matchingDescriptors.filter(descriptor =>
-      this.readyPayloads.has(descriptor.chunkKey)
-    ).length;
-    const pendingChunkCount = matchingDescriptors.filter(descriptor =>
-      this.pendingPayloads.has(descriptor.chunkKey)
-    ).length;
-    const failedChunkCount = matchingDescriptors.filter(descriptor =>
-      this.failedChunkKeys.has(descriptor.chunkKey)
-    ).length;
-    return {
-      windowId: subscription.window.id,
-      newReadyChunkKeys: [...subscription.pendingReadyChunkKeys].sort(),
-      matchedChunkCount: matchingDescriptors.length,
-      readyChunkCount,
-      pendingChunkCount,
-      failedChunkCount,
-      isComplete: readyChunkCount === matchingDescriptors.length
-    };
+    subscription.matchingChunkKeys = new Set(
+      matchingDescriptors.map(descriptor => descriptor.chunkKey)
+    );
+    subscription.pendingReadyChunkKeys = new Set(
+      [...subscription.pendingReadyChunkKeys].filter(chunkKey =>
+        subscription.matchingChunkKeys.has(chunkKey)
+      )
+    );
+    subscription.matchedChunkCount = matchingDescriptors.length;
+  }
+
+  /** Cancel pending payload loads that are no longer needed by the active window. */
+  private cancelPendingChunksOutsideActiveWindow(): void {
+    const matchingChunkKeys = this.activeTraceWindow?.matchingChunkKeys;
+    [...this.pendingPayloads.entries()].forEach(([chunkKey, pendingPayload]) => {
+      if (matchingChunkKeys?.has(chunkKey)) {
+        return;
+      }
+      this.invalidateChunkLoadGeneration(chunkKey);
+      pendingPayload.abortController.abort();
+      this.pendingPayloads.delete(chunkKey);
+    });
   }
 
   /**
@@ -1100,6 +1078,26 @@ export class TraceChunkStore<
     this.chunkIndexByKey.set(chunkKey, chunkIndex);
     this.chunkKeyByIndex.set(chunkIndex, chunkKey);
     return chunkIndex;
+  }
+
+  /** Advance one chunk load generation so stale completions cannot be retained. */
+  private invalidateChunkLoadGeneration(chunkKey: string): number {
+    const nextLoadGeneration = (this.chunkLoadGenerationByKey.get(chunkKey) ?? 0) + 1;
+    this.chunkLoadGenerationByKey.set(chunkKey, nextLoadGeneration);
+    return nextLoadGeneration;
+  }
+
+  /** Return whether one load attempt still owns the latest generation for its chunk key. */
+  private isCurrentChunkLoad(chunkKey: string, loadGeneration: number): boolean {
+    return this.chunkLoadGenerationByKey.get(chunkKey) === loadGeneration;
+  }
+
+  /** Throw when one stale load attempt completes after a newer load or unload won. */
+  private assertCurrentChunkLoad(chunkKey: string, loadGeneration: number): void {
+    if (this.isCurrentChunkLoad(chunkKey, loadGeneration)) {
+      return;
+    }
+    throw new TraceChunkStoreLoadCancelledError(`Trace chunk ${chunkKey} load was cancelled.`);
   }
 
   /**
@@ -1131,19 +1129,57 @@ export class TraceChunkStore<
   /** Finalize parser-local trace chunk data using this store's stable chunk and owner refs. */
   private buildStoreTraceChunk(traceChunkData: TraceChunkData): TraceChunk {
     const chunkIndex = this.ensureChunkIndex(traceChunkData.chunkKey);
-    registerTraceChunkDataProcesses(traceChunkData, this.ownerRefRegistry);
+    const registeredProcessRefs = registerTraceChunkDataProcesses(
+      traceChunkData,
+      this.ownerRefRegistry
+    );
     const spanTable = finalizeTraceChunkSpanTableRefs(traceChunkData, this.ownerRefRegistry);
+    const processRefs = resolveTraceChunkProcessRefs(
+      traceChunkData,
+      spanTable,
+      registeredProcessRefs
+    );
+    const processes = orderTraceChunkProcessesByProcessRefs(
+      traceChunkData.processes,
+      processRefs,
+      this.ownerRefRegistry
+    );
+    const sameProcessDependencyProcessIndex = resolveTraceChunkSameProcessDependencyProcessIndex(
+      traceChunkData,
+      this.ownerRefRegistry,
+      processRefs
+    );
+    const resolvedSameProcessDependencyTable = finalizeTraceChunkSameProcessDependencyTableRefs(
+      traceChunkData.resolvedSameProcessDependencyTable,
+      sameProcessDependencyProcessIndex,
+      chunkIndex
+    );
+    assertTraceChunkDenseDependencyEndpointRows({
+      spanTable,
+      dependencyTable: resolvedSameProcessDependencyTable,
+      chunkIndex,
+      expectedProcessRef:
+        sameProcessDependencyProcessIndex == null
+          ? null
+          : encodeProcessRef(sameProcessDependencyProcessIndex)
+    });
+    const crossProcessEndpointsByEndpointId = finalizeTraceChunkCrossProcessEndpointsByEndpointId(
+      traceChunkData.crossProcessEndpointsByEndpointId,
+      chunkIndex
+    );
     const chunk = finalizeTraceChunkData({
       data: {
         ...traceChunkData,
-        processes: buildTraceChunkStoreProcesses(this.ownerRefRegistry),
-        spanTable
+        processes,
+        spanTable,
+        resolvedSameProcessDependencyTable,
+        crossProcessEndpointsByEndpointId
       },
       chunkIndex,
       chunkRef: encodeChunkRef(chunkIndex),
-      processRefs: readTraceChunkSpanTableProcessRefs(spanTable)
+      processRefs
     });
-    log.probe(0, 'TraceChunkStore finalized TraceChunkData', {
+    log.probe(1, 'TraceChunkStore finalized TraceChunkData', {
       chunkKey: chunk.chunkKey,
       chunkIndex: chunk.chunkIndex,
       diagnosticRowCount: chunk.diagnostics.rowCount,
@@ -1151,7 +1187,7 @@ export class TraceChunkStore<
       rowCount: chunk.metadata.rowCount,
       processRefCount: chunk.processRefs.length,
       processCount: chunk.processes.length,
-      sourceDependencyRowCount: chunk.sourceDependencyTable?.rows.length ?? 0,
+      sourceDependencyRowCount: chunk.sourceDependencyTable?.numRows ?? 0,
       windowRowCount: chunk.rowWindowTable?.overlapRangesByRow.length ?? 0,
       minTimeMs: chunk.diagnostics.minTimeMs,
       maxTimeMs: chunk.diagnostics.maxTimeMs,
@@ -1159,27 +1195,13 @@ export class TraceChunkStore<
     })();
     return chunk;
   }
-
-  /**
-   * Return the source-column filename filter mask for one exact store-backed span ref.
-   */
-  private getSpanSourceFilterMask(spanRef: SpanRef): TraceSpanFilterMask {
-    const payload = this.getLoadedChunkBySpanRef(spanRef);
-    return payload && isTraceChunk(payload) && this.hasActiveSourceSpanFilter()
-      ? getTraceChunkSourceFilterMask(
-          payload,
-          getSpanRefRowIndex(spanRef),
-          this.sourceSpanFilterPlan
-        )
-      : TRACE_SPAN_FILTER_MASK_NONE;
-  }
 }
 
 /**
  * Convert one trace-window subscription into the existing view-selection window shape.
  */
 export function traceWindowToTraceChunkSelectionWindow(
-  traceWindow: TraceWindow
+  traceWindow: TraceChunkStoreWindow
 ): TraceChunkSelectionWindow {
   return {
     startTimeMs: traceWindow.minTimeMs,
@@ -1190,13 +1212,13 @@ export function traceWindowToTraceChunkSelectionWindow(
 /**
  * Create an eager chunk store for a static Arrow trace snapshot.
  *
- * Static stores preserve the snapshot's existing dense Arrow chunk indexes so SpanRefs already
- * encoded in the snapshot continue to resolve through the store.
+ * Static stores assign deterministic dense chunk indexes from parser-local chunk order so the
+ * finalized dataset owns one canonical SpanRef domain.
  */
 export function createStaticTraceChunkStore(
   options: StaticTraceChunkStoreOptions
 ): TraceChunkStore<TraceChunk, TraceChunkDescriptor> {
-  const chunks = resolveStaticTraceChunkData(options);
+  const chunks = options.chunks;
   assertStaticTraceChunkDataKeys(chunks);
   const traceChunkStore = new TraceChunkStore<TraceChunk, TraceChunkDescriptor>({
     identityKey: options.identityKey,
@@ -1211,18 +1233,11 @@ export function createStaticTraceChunkStore(
  * Create a store-backed runtime source for static parser-local chunks and graph metadata.
  */
 export function createStaticTraceGraphRuntimeSource(
-  options: StaticTraceGraphRuntimeSourceChunkOptions
-): TraceGraphRuntimeSource;
-export function createStaticTraceGraphRuntimeSource(
-  options: StaticTraceGraphRuntimeSourceGraphDataOptions
-): TraceGraphRuntimeSource;
-export function createStaticTraceGraphRuntimeSource(
   options: StaticTraceGraphRuntimeSourceOptions
-): TraceGraphRuntimeSource {
+): TraceDatasetRuntimeSource<TraceChunkStore<TraceChunk, TraceChunkDescriptor>> {
   const traceStore = createStaticTraceChunkStore(options);
   return {
-    traceGraphData:
-      options.traceGraphData ?? buildStaticTraceGraphDataFromStore(options, traceStore),
+    traceDataset: buildStaticTraceDatasetFromStore(options, traceStore),
     traceStore
   };
 }
@@ -1346,6 +1361,27 @@ function selectTraceChunksByChronologicalSpanBudget<TDescriptor extends TraceChu
   };
 }
 
+/** Build one uncapped selection that materializes every supplied descriptor. */
+function buildTraceChunkSelectionFromDescriptors<TDescriptor extends TraceChunkDescriptor>(
+  descriptors: readonly TDescriptor[]
+): TraceChunkSelection<TDescriptor> {
+  const selectedSpanCount = sumAdvertisedSpanCounts(descriptors);
+  return {
+    matchingDescriptors: descriptors,
+    selectedDescriptors: descriptors,
+    omittedDescriptors: [],
+    summary: {
+      spanBudget: null,
+      matchedSpanCount: selectedSpanCount,
+      selectedSpanCount,
+      selectedChunkCount: descriptors.length,
+      omittedChunkCount: 0,
+      omittedSpanCount: 0,
+      isSpanBudgetCapped: false
+    }
+  };
+}
+
 /**
  * Build a stable chunk-key descriptor lookup while preserving registration order.
  */
@@ -1360,23 +1396,6 @@ function buildTraceChunkDescriptorMap<TDescriptor extends TraceChunkDescriptor>(
 }
 
 /**
- * Resolve static parser-local chunk data from the primary chunk input or the legacy snapshot bridge.
- */
-function resolveStaticTraceChunkData(
-  options: StaticTraceChunkStoreOptions
-): readonly TraceChunkData[] {
-  if (options.chunks) {
-    return options.chunks;
-  }
-  if (options.traceGraphData) {
-    return getDenseStaticTraceChunks(options.traceGraphData).map(chunk =>
-      buildStaticTraceChunkData(options.traceGraphData as TraceGraphData, chunk)
-    );
-  }
-  throw new Error('Static trace runtime sources require chunks or traceGraphData.');
-}
-
-/**
  * Assert that static parser-local chunk data can be assigned deterministic dense store indexes.
  */
 function assertStaticTraceChunkDataKeys(chunks: readonly TraceChunkData[]): void {
@@ -1387,28 +1406,6 @@ function assertStaticTraceChunkDataKeys(chunks: readonly TraceChunkData[]): void
     }
     seenChunkKeys.add(chunk.chunkKey);
   });
-}
-
-/**
- * Return static graph chunks in the dense store index order required by SpanRefs.
- */
-function getDenseStaticTraceChunks(traceGraphData: TraceGraphData): readonly ArrowTraceChunk[] {
-  const chunks = [...traceGraphData.chunks].sort(
-    (left, right) => left.chunkIndex - right.chunkIndex
-  );
-  const seenChunkKeys = new Set<string>();
-  chunks.forEach((chunk, index) => {
-    if (chunk.chunkIndex !== index) {
-      throw new Error(
-        `Static trace chunks must use dense chunk indexes; expected ${index}, got ${chunk.chunkIndex}.`
-      );
-    }
-    if (seenChunkKeys.has(chunk.chunkKey)) {
-      throw new Error(`Static trace chunks must have unique chunk keys; found ${chunk.chunkKey}.`);
-    }
-    seenChunkKeys.add(chunk.chunkKey);
-  });
-  return chunks;
 }
 
 /**
@@ -1428,174 +1425,31 @@ function buildStaticTraceChunkDescriptor(chunk: TraceChunkData): TraceChunkDescr
 }
 
 /**
- * Materialize the internal graph snapshot consumed by runtime TraceGraph from finalized chunks.
+ * Materialize the canonical dataset consumed by runtime TraceGraph from finalized chunks.
  */
-function buildStaticTraceGraphDataFromStore(
+function buildStaticTraceDatasetFromStore(
   options: StaticTraceGraphRuntimeSourceOptions,
   traceStore: TraceChunkStore<TraceChunk, TraceChunkDescriptor>
-): TraceGraphData {
-  const chunks = traceStore.chunks;
-  const processes = collectStaticTraceChunkProcesses(chunks);
-  const tableMaps = buildStaticTraceGraphTableMaps(chunks, processes);
-  return buildTraceGraphData({
-    name: options.name ?? options.identityKey,
-    spanLayout: options.spanLayout,
-    processes,
-    crossDependencies: options.crossDependencies ?? [],
-    crossDependencyIdToIndexMap: options.crossDependencyIdToIndexMap,
-    events: options.events,
-    spanTableMap: tableMaps.spanTableMap,
-    localDependencyTableMap: tableMaps.localDependencyTableMap,
-    spanSidecarMap: tableMaps.spanSidecarMap,
-    spanSidecarTableMap: tableMaps.spanSidecarTableMap,
-    chunks,
-    timeExtents: options.timeExtents,
-    stats: options.stats
-  });
-}
-
-/**
- * Collect store-finalized process metadata in owner-ref order.
- */
-function collectStaticTraceChunkProcesses(
-  chunks: readonly TraceChunk[]
-): readonly ArrowTraceProcessMetadata[] {
-  const processById = new Map<TraceProcessId, ArrowTraceProcessMetadata>();
-  chunks.forEach(chunk => {
-    chunk.processes.forEach(process => {
-      const processId = process.processId as TraceProcessId;
-      if (!processById.has(processId)) {
-        processById.set(processId, process);
-      }
-    });
-  });
-  return [...processById.values()];
-}
-
-/**
- * Build process-local table maps from process-scoped static chunks.
- */
-function buildStaticTraceGraphTableMaps(
-  chunks: readonly TraceChunk[],
-  processes: readonly ArrowTraceProcessMetadata[]
-): {
-  readonly spanTableMap: Record<TraceProcessId, ArrowTraceSpanTable>;
-  readonly localDependencyTableMap: Record<TraceProcessId, TraceChunk['localDependencyTable']>;
-  readonly spanSidecarMap: Record<TraceProcessId, NonNullable<TraceChunk['spanSidecarRows']>>;
-  readonly spanSidecarTableMap: Record<TraceProcessId, NonNullable<TraceChunk['spanSidecarTable']>>;
-} {
-  const processIdsByIndex = processes.map(process => process.processId as TraceProcessId);
-  const processIds = new Set(processIdsByIndex);
-  const spanTableMap: Record<TraceProcessId, ArrowTraceSpanTable> = {};
-  const localDependencyTableMap: Record<TraceProcessId, TraceChunk['localDependencyTable']> = {};
-  const spanSidecarMap: Record<TraceProcessId, NonNullable<TraceChunk['spanSidecarRows']>> = {};
-  const spanSidecarTableMap: Record<
-    TraceProcessId,
-    NonNullable<TraceChunk['spanSidecarTable']>
-  > = {};
-
-  chunks.forEach(chunk => {
-    const processId = getStaticTraceChunkProcessId(chunk, processIdsByIndex, processIds);
-    if (processId == null) {
-      return;
-    }
-    spanTableMap[processId] = chunk.spanTable;
-    localDependencyTableMap[processId] = chunk.localDependencyTable;
-    if (chunk.spanSidecarRows) {
-      spanSidecarMap[processId] = chunk.spanSidecarRows;
-    }
-    if (chunk.spanSidecarTable) {
-      spanSidecarTableMap[processId] = chunk.spanSidecarTable;
-    }
-  });
-
-  return {
-    spanTableMap,
-    localDependencyTableMap,
-    spanSidecarMap,
-    spanSidecarTableMap
-  };
-}
-
-/**
- * Return the single owning process id for a static process-scoped chunk.
- */
-function getStaticTraceChunkProcessId(
-  chunk: TraceChunk,
-  processIdsByIndex: readonly TraceProcessId[],
-  processIds: ReadonlySet<TraceProcessId>
-): TraceProcessId | null {
-  if (chunk.processRefs.length > 1) {
+): TraceDataset {
+  const selection = buildTraceChunkSelectionFromDescriptors(traceStore.getDescriptors());
+  const traceDataset = traceStore.withReadyChunks(selection, ({ownerRefRegistry, readyChunks}) =>
+    buildTraceDatasetFromReadyTraceChunks({
+      name: options.name ?? options.identityKey,
+      spanLayout: options.spanLayout,
+      ownerRefRegistry,
+      readyChunks,
+      crossProcessDependencies: options.crossProcessDependencies,
+      events: options.events,
+      timeExtents: options.timeExtents,
+      stats: options.stats
+    })
+  );
+  if (!traceDataset) {
     throw new Error(
-      `Static TraceChunkData chunks must be process-scoped; ${chunk.chunkKey} has ${chunk.processRefs.length} process refs.`
+      'Static trace chunk stores require ready chunks before dataset materialization.'
     );
   }
-  const processRef = chunk.processRefs[0];
-  if (processRef != null) {
-    const processId = processIdsByIndex[getProcessRefIndex(processRef)];
-    if (!processId) {
-      throw new Error(`Missing process metadata for static chunk ${chunk.chunkKey}.`);
-    }
-    return processId;
-  }
-  return processIds.has(chunk.chunkKey as TraceProcessId)
-    ? (chunk.chunkKey as TraceProcessId)
-    : null;
-}
-
-/**
- * Wrap one existing Arrow chunk as parser-local data for eager static store finalization.
- */
-function buildStaticTraceChunkData(
-  traceGraphData: TraceGraphData,
-  chunk: ArrowTraceChunk
-): TraceChunkData {
-  const timeRange = getStaticTraceTimeRange(traceGraphData, chunk.spanTable.numRows);
-  return {
-    type: 'trace-chunk-data',
-    chunkKey: chunk.chunkKey,
-    processes: traceGraphData.processes,
-    spanTable: chunk.spanTable,
-    localDependencyTable: chunk.localDependencyTable,
-    spanSidecarRows: chunk.spanSidecarRows,
-    spanSidecarTable: chunk.spanSidecarTable,
-    diagnostics: {
-      rowCount: chunk.spanTable.numRows,
-      invalidRecordCount: 0,
-      minTimeMs: timeRange.minTimeMs,
-      maxTimeMs: timeRange.maxTimeMs,
-      warningCounters: {}
-    },
-    refState: 'parser-local'
-  };
-}
-
-/**
- * Return a finite descriptor envelope and nullable diagnostics bounds for static chunks.
- */
-function getStaticTraceTimeRange(
-  traceGraphData: TraceGraphData,
-  rowCount: number
-): {
-  readonly startTimeMs: number;
-  readonly endTimeMs: number;
-  readonly minTimeMs: number | null;
-  readonly maxTimeMs: number | null;
-} {
-  if (rowCount <= 0) {
-    return {startTimeMs: 0, endTimeMs: 0, minTimeMs: null, maxTimeMs: null};
-  }
-  const startTimeMs = Number.isFinite(traceGraphData.minTimeMs) ? traceGraphData.minTimeMs : 0;
-  const endTimeMs = Math.max(
-    startTimeMs,
-    Number.isFinite(traceGraphData.maxTimeMs) ? traceGraphData.maxTimeMs : startTimeMs
-  );
-  return {
-    startTimeMs,
-    endTimeMs,
-    minTimeMs: startTimeMs,
-    maxTimeMs: endTimeMs
-  };
+  return traceDataset;
 }
 
 /**
@@ -1637,14 +1491,23 @@ function finalizeTraceChunkSpanTableRefs(
     'process_id'
   );
   const threadIdColumn = getTraceChunkSpanTableColumn<TraceThreadId>(data.spanTable, 'thread_id');
+  const processScopedProcess =
+    data.processId == null
+      ? null
+      : (data.processes.find(process => process.processId === data.processId) ?? null);
+  if (data.processId != null && processScopedProcess == null) {
+    throw new Error(`Missing process metadata for process-scoped chunk ${data.chunkKey}.`);
+  }
   for (let rowIndex = 0; rowIndex < data.spanTable.numRows; rowIndex += 1) {
     const localProcessRef = readTraceChunkSpanTableRefValue(localProcessRefColumn, rowIndex);
     const localThreadRef = readTraceChunkSpanTableRefValue(localThreadRefColumn, rowIndex);
-    const process = resolveParserLocalProcessForSpanRow(
-      data,
-      localProcessRef,
-      readTraceChunkSpanTableColumnValue(processIdColumn, rowIndex)
-    );
+    const process =
+      processScopedProcess ??
+      resolveParserLocalProcessForSpanRow(
+        data,
+        localProcessRef,
+        readTraceChunkSpanTableColumnValue(processIdColumn, rowIndex)
+      );
     const thread = resolveParserLocalThreadForSpanRow(
       data,
       localThreadRef,
@@ -1671,60 +1534,235 @@ function finalizeTraceChunkSpanTableRefs(
     return data.spanTable;
   }
 
-  const columns: TraceSpanArrowColumns = {
-    process_ref: processRefs,
-    thread_ref: threadRefs,
-    span_id: readRequiredTraceChunkSpanStringColumn(data.spanTable, 'span_id'),
-    external_span_id: readNullableTraceChunkSpanStringColumn(data.spanTable, 'external_span_id'),
-    thread_id: readRequiredTraceChunkSpanStringColumn(data.spanTable, 'thread_id'),
-    name: readRequiredTraceChunkSpanStringColumn(data.spanTable, 'name'),
-    source: readNullableTraceChunkSpanStringColumn(data.spanTable, 'source'),
-    primary_timing_key: readRequiredTraceChunkSpanStringColumn(
-      data.spanTable,
-      'primary_timing_key'
-    ),
-    status: readRequiredTraceChunkSpanStringColumn(data.spanTable, 'status'),
-    start_time_ms: readRequiredTraceChunkSpanNumberColumn(data.spanTable, 'start_time_ms'),
-    end_time_ms: readRequiredTraceChunkSpanNumberColumn(data.spanTable, 'end_time_ms'),
-    duration_ms: readRequiredTraceChunkSpanNumberColumn(data.spanTable, 'duration_ms')
-  };
-  if (getTraceChunkSpanTableColumn(data.spanTable, 'layout_top_y')) {
-    columns.layout_top_y = readNullableTraceChunkSpanNumberColumn(data.spanTable, 'layout_top_y');
+  return replaceArrowTraceSpanRefColumns({
+    sourceTable: data.spanTable,
+    processRef: processRefs,
+    threadRef: threadRefs
+  });
+}
+
+/** Rebase same-process dependency endpoint span refs to the store-owned chunk slot. */
+function finalizeTraceChunkSameProcessDependencyTableRefs(
+  table: ArrowTraceSameProcessDependencyTable,
+  processIndex: number | null,
+  chunkIndex: number
+): ArrowTraceSameProcessDependencyTable {
+  if (table.numRows === 0) {
+    return table;
   }
-  if (getTraceChunkSpanTableColumn(data.spanTable, 'layout_height')) {
-    columns.layout_height = readNullableTraceChunkSpanNumberColumn(data.spanTable, 'layout_height');
+
+  const sourceStartSpanRefs = readNullableTraceChunkNumberColumn(table, 'startSpanRef');
+  const sourceEndSpanRefs = readNullableTraceChunkNumberColumn(table, 'endSpanRef');
+  requireTraceChunkSameProcessDependencyProcessIndex(processIndex);
+  const startSpanRefs = sourceStartSpanRefs.map(spanRef =>
+    rebaseTraceChunkSpanRef(spanRef, chunkIndex)
+  );
+  const endSpanRefs = sourceEndSpanRefs.map(spanRef =>
+    rebaseTraceChunkSpanRef(spanRef, chunkIndex)
+  );
+  const didChange =
+    startSpanRefs.some((spanRef, rowIndex) => spanRef !== sourceStartSpanRefs[rowIndex]) ||
+    endSpanRefs.some((spanRef, rowIndex) => spanRef !== sourceEndSpanRefs[rowIndex]);
+  if (!didChange) {
+    return table;
   }
-  return buildArrowTraceSpanTableFromColumns(columns);
+
+  return replaceArrowTraceSameProcessDependencyEndpointRefColumns({
+    sourceTable: table,
+    startSpanRef: startSpanRefs,
+    endSpanRef: endSpanRefs
+  });
 }
 
 /**
- * Materialize store-owned process metadata in the same append-only order used by process refs.
+ * Validates one finalized chunk's dense dependency endpoint domain exactly once.
+ *
+ * Store-finalized chunks are the trusted dataset boundary: malformed canonical dependency rows
+ * fail publication here instead of surviving behind a render-time compatibility flag. Only rows
+ * addressed by same-process dependencies are checked; unrelated spans remain on their existing
+ * checked consumers and do not add a second all-span finalization scan.
  */
-function buildTraceChunkStoreProcesses(
-  ownerRefRegistry: TraceOwnerRefRegistry
-): readonly ArrowTraceProcessMetadata[] {
-  return ownerRefRegistry.getOwnerProcessSnapshots().map(process => {
-    const threads = [...process.threads];
-    return {
-      type: process.type,
-      processId: process.processId,
-      name: process.name,
-      tags: process.tags,
-      rankNum: process.rankNum,
-      processOrder: process.processOrder,
-      stepNum: process.stepNum,
-      threads,
-      threadMap: Object.fromEntries(threads.map(thread => [thread.threadId, thread])),
-      instants: [],
-      instantMap: {},
-      threadInstantMap: {},
-      counters: [],
-      counterMap: {},
-      threadCounterMap: {},
-      remoteDependencies: [],
-      userData: process.userData
-    };
-  });
+function assertTraceChunkDenseDependencyEndpointRows(params: {
+  /** Store-finalized span table whose owner refs and timing status are checked. */
+  readonly spanTable: ArrowTraceSpanTable;
+  /** Store-finalized same-process dependency table whose endpoint refs are checked. */
+  readonly dependencyTable: ArrowTraceSameProcessDependencyTable;
+  /** Stable store chunk slot expected inside every local dependency endpoint ref. */
+  readonly chunkIndex: number;
+  /** Canonical owner process ref for this dependency table, or null when not process-scoped. */
+  readonly expectedProcessRef: ProcessRef | null;
+}): void {
+  if (params.dependencyTable.numRows === 0) {
+    return;
+  }
+  if (params.expectedProcessRef == null) {
+    throw new Error('Expected one canonical process owner for same-process dependency rows.');
+  }
+
+  const processRefColumn = getTraceChunkSpanTableColumn<unknown>(params.spanTable, 'process_ref');
+  const threadRefColumn = getTraceChunkSpanTableColumn<unknown>(params.spanTable, 'thread_ref');
+  const statusCodeColumn = getTraceChunkSpanTableColumn<unknown>(params.spanTable, 'status_code');
+  const startTimeMsColumn = getTraceChunkSpanTableColumn<unknown>(
+    params.spanTable,
+    'start_time_ms'
+  );
+  const endTimeMsColumn = getTraceChunkSpanTableColumn<unknown>(params.spanTable, 'end_time_ms');
+  const startSpanRefColumn = getTraceChunkTableColumn(params.dependencyTable, 'startSpanRef');
+  const endSpanRefColumn = getTraceChunkTableColumn(params.dependencyTable, 'endSpanRef');
+  const waitModeCodeColumn = getTraceChunkTableColumn(params.dependencyTable, 'waitModeCode');
+  const waitTimeMsColumn = getTraceChunkTableColumn(params.dependencyTable, 'waitTimeMs');
+  const keywordFlagsColumn = getTraceChunkTableColumn(params.dependencyTable, 'keywordFlags');
+  if (
+    !processRefColumn ||
+    !threadRefColumn ||
+    !statusCodeColumn ||
+    !startTimeMsColumn ||
+    !endTimeMsColumn ||
+    !startSpanRefColumn ||
+    !endSpanRefColumn ||
+    !waitModeCodeColumn ||
+    !waitTimeMsColumn ||
+    !keywordFlagsColumn
+  ) {
+    throw new Error('Expected canonical dense dependency endpoint columns.');
+  }
+
+  for (let rowIndex = 0; rowIndex < params.dependencyTable.numRows; rowIndex += 1) {
+    const startSpanRef = normalizeArrowRefNumber(
+      readTraceChunkTableColumnValue(startSpanRefColumn, rowIndex)
+    );
+    const endSpanRef = normalizeArrowRefNumber(
+      readTraceChunkTableColumnValue(endSpanRefColumn, rowIndex)
+    );
+    const keywordFlags = readTraceChunkTableColumnValue(keywordFlagsColumn, rowIndex);
+    const waitTimeMs = readTraceChunkTableColumnValue(waitTimeMsColumn, rowIndex);
+    if (
+      startSpanRef == null ||
+      endSpanRef == null ||
+      decodeTraceDependencyWaitModeCode(
+        readTraceChunkTableColumnValue(waitModeCodeColumn, rowIndex)
+      ) == null ||
+      typeof keywordFlags !== 'number' ||
+      !Number.isInteger(keywordFlags) ||
+      keywordFlags < 0 ||
+      keywordFlags > 0xff ||
+      typeof waitTimeMs !== 'number' ||
+      !Number.isFinite(waitTimeMs) ||
+      !isTraceChunkValidatedDenseDependencyEndpointRef({
+        spanRef: startSpanRef,
+        chunkIndex: params.chunkIndex,
+        rowCount: params.spanTable.numRows,
+        expectedProcessRef: params.expectedProcessRef,
+        processRefColumn,
+        threadRefColumn,
+        statusCodeColumn,
+        startTimeMsColumn,
+        endTimeMsColumn
+      }) ||
+      !isTraceChunkValidatedDenseDependencyEndpointRef({
+        spanRef: endSpanRef,
+        chunkIndex: params.chunkIndex,
+        rowCount: params.spanTable.numRows,
+        expectedProcessRef: params.expectedProcessRef,
+        processRefColumn,
+        threadRefColumn,
+        statusCodeColumn,
+        startTimeMsColumn,
+        endTimeMsColumn
+      })
+    ) {
+      throw new Error(`Invalid finalized dense dependency row ${rowIndex}.`);
+    }
+  }
+}
+
+/** Returns whether one finalized local dependency endpoint ref is safe, in-bounds, and owned. */
+function isTraceChunkValidatedDenseDependencyEndpointRef(params: {
+  /** Safe-integer endpoint span ref read from the finalized dependency table. */
+  readonly spanRef: number;
+  /** Stable store chunk slot expected inside the endpoint ref. */
+  readonly chunkIndex: number;
+  /** Number of canonical span rows available in the expected chunk. */
+  readonly rowCount: number;
+  /** Canonical process ref that must own the endpoint span row. */
+  readonly expectedProcessRef: ProcessRef;
+  /** Borrowed process-ref span column used only during one-time validation. */
+  readonly processRefColumn: ColumnVector<unknown>;
+  /** Borrowed thread-ref span column used only during one-time validation. */
+  readonly threadRefColumn: ColumnVector<unknown>;
+  /** Borrowed compact timing-status span column used only during one-time validation. */
+  readonly statusCodeColumn: ColumnVector<unknown>;
+  /** Borrowed primary start-time span column used only during one-time validation. */
+  readonly startTimeMsColumn: ColumnVector<unknown>;
+  /** Borrowed primary source-end span column used only during one-time validation. */
+  readonly endTimeMsColumn: ColumnVector<unknown>;
+}): boolean {
+  if (getSpanRefChunkIndex(params.spanRef as SpanRef) !== params.chunkIndex) {
+    return false;
+  }
+  const rowIndex = getSpanRefRowIndex(params.spanRef as SpanRef);
+  if (rowIndex < 0 || rowIndex >= params.rowCount) {
+    return false;
+  }
+  const processRef = readTraceChunkSpanTableRefValue(params.processRefColumn, rowIndex);
+  const threadRef = readTraceChunkSpanTableRefValue(params.threadRefColumn, rowIndex);
+  const startTimeMs = readTraceChunkSpanTableColumnValue(params.startTimeMsColumn, rowIndex);
+  const endTimeMs = readTraceChunkSpanTableColumnValue(params.endTimeMsColumn, rowIndex);
+  return (
+    processRef === params.expectedProcessRef &&
+    threadRef != null &&
+    isThreadRef(threadRef) &&
+    getThreadRefProcessIndex(threadRef) === getProcessRefIndex(params.expectedProcessRef) &&
+    decodeTraceSpanTimingStatusCode(
+      readTraceChunkSpanTableColumnValue(params.statusCodeColumn, rowIndex)
+    ) != null &&
+    typeof startTimeMs === 'number' &&
+    Number.isFinite(startTimeMs) &&
+    typeof endTimeMs === 'number' &&
+    Number.isFinite(endTimeMs)
+  );
+}
+
+/** Rebase parser-local unresolved endpoint span refs to the store-owned chunk slot. */
+function finalizeTraceChunkCrossProcessEndpointsByEndpointId(
+  endpointGroups:
+    | Readonly<Record<TraceCrossProcessEndpointId, readonly TraceCrossProcessEndpoint[]>>
+    | undefined,
+  chunkIndex: number
+): Readonly<Record<TraceCrossProcessEndpointId, readonly TraceCrossProcessEndpoint[]>> | undefined {
+  if (!endpointGroups) {
+    return undefined;
+  }
+
+  let didChange = false;
+  const finalizedEndpointGroups = Object.fromEntries(
+    Object.entries(endpointGroups).map(([endpointId, endpoints]) => [
+      endpointId,
+      endpoints.map(endpoint => {
+        const finalizedEndpoint = finalizeTraceChunkCrossProcessEndpoint(endpoint, chunkIndex);
+        didChange ||= finalizedEndpoint !== endpoint;
+        return finalizedEndpoint;
+      })
+    ])
+  ) as Readonly<Record<TraceCrossProcessEndpointId, readonly TraceCrossProcessEndpoint[]>>;
+  return didChange ? finalizedEndpointGroups : endpointGroups;
+}
+
+/** Rebase one unresolved endpoint span ref to the store-owned chunk slot. */
+function finalizeTraceChunkCrossProcessEndpoint<T extends {readonly spanRef?: SpanRef}>(
+  endpoint: T,
+  chunkIndex: number
+): T {
+  if (endpoint.spanRef === undefined) {
+    return endpoint;
+  }
+  const spanRef = rebaseTraceChunkSpanRef(endpoint.spanRef, chunkIndex);
+  return spanRef === endpoint.spanRef ? endpoint : {...endpoint, spanRef};
+}
+
+/** Rebase one parser-local span ref to the store-owned chunk slot. */
+function rebaseTraceChunkSpanRef(spanRef: number | null, chunkIndex: number): SpanRef | null {
+  return spanRef == null ? null : encodeSpanRef(chunkIndex, getSpanRefRowIndex(spanRef as SpanRef));
 }
 
 /**
@@ -1743,6 +1781,95 @@ function readTraceChunkSpanTableProcessRefs(spanTable: ArrowTraceSpanTable): rea
     seenProcessRefs.add(processRef as ProcessRef);
   }
   return processRefs;
+}
+
+/** Preserve empty process-scoped chunks while preferring refs observed on span rows. */
+function resolveTraceChunkProcessRefs(
+  data: TraceChunkData,
+  spanTable: ArrowTraceSpanTable,
+  registeredProcessRefs: readonly ProcessRef[]
+): readonly ProcessRef[] {
+  if (data.processId != null) {
+    const processIndex = data.processes.findIndex(process => process.processId === data.processId);
+    if (processIndex < 0) {
+      throw new Error(`Missing process metadata for process-scoped chunk ${data.chunkKey}.`);
+    }
+    const processRef = registeredProcessRefs[processIndex];
+    return processRef == null ? [] : [processRef];
+  }
+  const spanTableProcessRefs = readTraceChunkSpanTableProcessRefs(spanTable);
+  return spanTableProcessRefs.length > 0 ? spanTableProcessRefs : registeredProcessRefs;
+}
+
+/**
+ * Keep represented process metadata aligned with finalized `processRefs`.
+ *
+ * Multi-process parser chunks may emit span rows in a different order than their metadata array.
+ * Window/detail readers intentionally use the compact `processRefs` array as their row-owner
+ * lookup, so represented metadata must follow that same order. Metadata for processes with no
+ * rows stays after the represented prefix for compatibility consumers.
+ */
+function orderTraceChunkProcessesByProcessRefs(
+  processes: TraceChunkData['processes'],
+  processRefs: readonly ProcessRef[],
+  ownerRefRegistry: TraceOwnerRefRegistry
+): TraceChunkData['processes'] {
+  if (processRefs.length === 0 || processes.length <= 1) {
+    return processes;
+  }
+  const processByRef = new Map<ProcessRef, TraceChunkData['processes'][number]>();
+  for (const process of processes) {
+    const processRef = ownerRefRegistry.getProcessRef(process.processId as TraceProcessId);
+    if (processRef != null) {
+      processByRef.set(processRef, process);
+    }
+  }
+  const representedProcesses: TraceChunkData['processes'][number][] = [];
+  const representedProcessIds = new Set<TraceProcessId>();
+  for (const processRef of processRefs) {
+    const process = processByRef.get(processRef);
+    if (!process) {
+      continue;
+    }
+    representedProcesses.push(process);
+    representedProcessIds.add(process.processId as TraceProcessId);
+  }
+  if (representedProcesses.length === 0) {
+    return processes;
+  }
+  const unrepresentedProcesses = processes.filter(
+    process => !representedProcessIds.has(process.processId as TraceProcessId)
+  );
+  const orderedProcesses = [...representedProcesses, ...unrepresentedProcesses];
+  return orderedProcesses.every((process, index) => process === processes[index])
+    ? processes
+    : orderedProcesses;
+}
+
+/** Resolve the store-owned process index owning one same-process dependency table. */
+function resolveTraceChunkSameProcessDependencyProcessIndex(
+  data: TraceChunkData,
+  ownerRefRegistry: TraceOwnerRefRegistry,
+  processRefs: readonly ProcessRef[]
+): number | null {
+  if (data.processId != null) {
+    const processRef = ownerRefRegistry.getProcessRef(data.processId);
+    return processRef == null ? null : getProcessRefIndex(processRef);
+  }
+  return getTraceChunkSingleProcessIndex(processRefs);
+}
+
+/** Resolve one unique process-scoped chunk owner when local refs use legacy row indexes. */
+function getTraceChunkSingleProcessIndex(processRefs: readonly ProcessRef[]): number | null {
+  return processRefs.length === 1 ? getProcessRefIndex(processRefs[0]!) : null;
+}
+
+/** Require one store-owned process index before finalizing same-process dependency endpoints. */
+function requireTraceChunkSameProcessDependencyProcessIndex(processIndex: number | null): number {
+  if (processIndex == null) {
+    throw new Error('Expected exactly one owning process for same-process dependency refs');
+  }
+  return processIndex;
 }
 
 /**
@@ -1797,57 +1924,15 @@ function resolveParserLocalThreadForSpanRow(
   );
 }
 
-/**
- * Read a required string column from a TraceChunk span table.
- */
-function readRequiredTraceChunkSpanStringColumn(
-  table: ArrowTraceSpanTable,
-  columnName: string
-): string[] {
-  const column = getTraceChunkSpanTableColumn<string>(table, columnName);
-  return Array.from({length: table.numRows}, (_unused, rowIndex) => {
-    const value = readTraceChunkSpanTableColumnValue(column, rowIndex);
-    return value ?? '';
-  });
-}
-
-/**
- * Read a nullable string column from a TraceChunk span table.
- */
-function readNullableTraceChunkSpanStringColumn(
-  table: ArrowTraceSpanTable,
-  columnName: string
-): Array<string | null> {
-  const column = getTraceChunkSpanTableColumn<string>(table, columnName);
-  return Array.from({length: table.numRows}, (_unused, rowIndex) => {
-    return readTraceChunkSpanTableColumnValue(column, rowIndex) ?? null;
-  });
-}
-
-/**
- * Read a required numeric column from a TraceChunk span table.
- */
-function readRequiredTraceChunkSpanNumberColumn(
-  table: ArrowTraceSpanTable,
-  columnName: string
-): number[] {
-  const column = getTraceChunkSpanTableColumn<number>(table, columnName);
-  return Array.from({length: table.numRows}, (_unused, rowIndex) => {
-    const value = readTraceChunkSpanTableColumnValue(column, rowIndex);
-    return value ?? 0;
-  });
-}
-
-/**
- * Read a nullable numeric column from a TraceChunk span table.
- */
-function readNullableTraceChunkSpanNumberColumn(
-  table: ArrowTraceSpanTable,
+/** Read a nullable numeric column from one TraceChunk-owned Arrow table. */
+function readNullableTraceChunkNumberColumn(
+  table: TraceChunkReadableTable,
   columnName: string
 ): Array<number | null> {
-  const column = getTraceChunkSpanTableColumn<number>(table, columnName);
   return Array.from({length: table.numRows}, (_unused, rowIndex) => {
-    return readTraceChunkSpanTableColumnValue(column, rowIndex) ?? null;
+    return normalizeArrowRefNumber(
+      readTraceChunkTableColumnValue(getTraceChunkTableColumn(table, columnName), rowIndex)
+    );
   });
 }
 
@@ -1855,6 +1940,14 @@ function readNullableTraceChunkSpanNumberColumn(
 type ColumnVector<Value> = {
   /** Returns the value stored at one Arrow row index. */
   get(index: number): Value | null | undefined;
+};
+
+/** Minimal Arrow table surface used by trace chunk table readers. */
+type TraceChunkReadableTable = {
+  /** Number of rows stored in the Arrow table. */
+  readonly numRows: number;
+  /** Resolve one Arrow vector by column name. */
+  getChild(name: string): ColumnVector<unknown> | null | undefined;
 };
 
 /** Resolves one TraceChunk span-table vector by column name. */
@@ -1871,11 +1964,27 @@ function getTraceChunkSpanTableColumn<Value>(
   );
 }
 
+/** Resolves one TraceChunk-owned Arrow table vector by column name. */
+function getTraceChunkTableColumn(
+  table: TraceChunkReadableTable,
+  columnName: string
+): ColumnVector<unknown> | null {
+  return table.getChild(columnName) ?? null;
+}
+
 /** Reads one typed value from an extracted TraceChunk span-table column when it exists. */
 function readTraceChunkSpanTableColumnValue<Value>(
   column: ColumnVector<Value> | null,
   rowIndex: number
 ): Value | null {
+  return column ? (column.get(rowIndex) ?? null) : null;
+}
+
+/** Reads one typed value from an extracted TraceChunk-owned Arrow column when it exists. */
+function readTraceChunkTableColumnValue(
+  column: ColumnVector<unknown> | null,
+  rowIndex: number
+): unknown {
   return column ? (column.get(rowIndex) ?? null) : null;
 }
 
@@ -1888,10 +1997,10 @@ function readTraceChunkSpanTableRefValue(
 }
 
 /**
- * Normalize Arrow ref columns that may be nullish or bigint-backed.
+ * Normalize Arrow ref columns that may be nullish or bigint-backed into safe integers.
  */
 function normalizeArrowRefNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === 'number' && Number.isSafeInteger(value)) {
     return value;
   }
   if (typeof value === 'bigint') {
@@ -1935,7 +2044,13 @@ function registerTraceChunkProcesses(
 
 type TraceWindowSubscription = {
   /** Active trace-window definition. */
-  window: TraceWindow;
+  window: TraceChunkStoreWindow;
+  /** Optional throttled callback for newly ready active-window chunks. */
+  onChunksArrived?: (event: TraceChunkStoreWindowChunksArrivedEvent) => void;
+  /** Catalog chunk keys whose descriptor envelopes overlap the active window. */
+  matchingChunkKeys: Set<string>;
+  /** Number of catalog chunks whose descriptor envelopes overlap the active window. */
+  matchedChunkCount: number;
   /** Ready chunk keys accumulated since the previous callback flush. */
   pendingReadyChunkKeys: Set<string>;
   /** Delayed callback flush scheduled for this trace window, when any. */
@@ -1947,13 +2062,47 @@ type TraceWindowSubscription = {
 /**
  * Create one mutable trace-window subscription state record.
  */
-function createTraceWindowSubscription(window: TraceWindow): TraceWindowSubscription {
+function createTraceWindowSubscription(
+  window: TraceChunkStoreWindow,
+  onChunksArrived?: (event: TraceChunkStoreWindowChunksArrivedEvent) => void
+): TraceWindowSubscription {
   return {
     window,
+    onChunksArrived,
+    matchingChunkKeys: new Set<string>(),
+    matchedChunkCount: 0,
     pendingReadyChunkKeys: new Set<string>(),
     notificationTimer: null,
     lastNotificationTimeMs: null
   };
+}
+
+/** Count active-window chunk states only when a throttled notification is emitted. */
+function countTraceWindowChunkLoadStates(
+  chunkKeys: ReadonlySet<string>,
+  getLoadState: (chunkKey: string) => TraceChunkLoadState
+): {
+  /** Number of matching chunks currently retained as ready payloads. */
+  readyChunkCount: number;
+  /** Number of matching chunks currently sharing in-flight payload fetches. */
+  pendingChunkCount: number;
+  /** Number of matching chunks whose latest load attempt failed. */
+  failedChunkCount: number;
+} {
+  let readyChunkCount = 0;
+  let pendingChunkCount = 0;
+  let failedChunkCount = 0;
+  chunkKeys.forEach(chunkKey => {
+    const loadState = getLoadState(chunkKey);
+    if (loadState === 'ready') {
+      readyChunkCount += 1;
+    } else if (loadState === 'pending') {
+      pendingChunkCount += 1;
+    } else if (loadState === 'failed') {
+      failedChunkCount += 1;
+    }
+  });
+  return {readyChunkCount, pendingChunkCount, failedChunkCount};
 }
 
 /**
@@ -1971,10 +2120,10 @@ function clearTraceWindowNotificationTimer(subscription: TraceWindowSubscription
  * Serializes one span ref from the Arrow `external_span_id` column.
  */
 function serializeExternalSpanIdUrlSpanRef(
-  traceGraph: Readonly<TraceGraphData>,
+  traceSource: Readonly<TraceSpanUrlSource>,
   spanRef: SpanRef
 ): string | undefined {
-  const chunk = findArrowTraceChunkByIndex(traceGraph.chunks, getSpanRefChunkIndex(spanRef));
+  const chunk = findArrowTraceChunkByIndex(traceSource.chunks, getSpanRefChunkIndex(spanRef));
   const rowIndex = chunk
     ? getArrowTraceChunkSpanTableRowIndex(chunk, getSpanRefRowIndex(spanRef))
     : null;
@@ -1989,7 +2138,7 @@ function serializeExternalSpanIdUrlSpanRef(
  * Resolves URL span ids by scanning Arrow `external_span_id` columns in URL-id order.
  */
 function deserializeExternalSpanIdUrlSpanRefs(
-  traceGraph: Readonly<TraceGraphData>,
+  traceSource: Readonly<TraceSpanUrlSource>,
   spanIds: readonly string[]
 ): SpanRef[] {
   const requestedSpanIds = spanIds.filter(spanId => spanId.length > 0);
@@ -2000,7 +2149,7 @@ function deserializeExternalSpanIdUrlSpanRefs(
   const requestedViews = requestedSpanIds.map(makeUtf8StringView);
   const selectedSpanRefs: SpanRef[] = [];
   for (const requestedView of requestedViews) {
-    for (const chunk of traceGraph.chunks) {
+    for (const chunk of traceSource.chunks) {
       const externalSpanIdColumn = chunk.spanTable.getChild('external_span_id');
       if (!externalSpanIdColumn) {
         continue;
@@ -2049,11 +2198,28 @@ async function buildReadyChunkWhenAvailable<
     params.reportChunkReady();
     return params.buildReadyChunk(payload);
   } catch (error) {
-    if (!isTraceChunkStoreLoadSkippedError(error)) {
+    if (!isTraceChunkStoreLoadSkippedError(error) && !isTraceChunkStoreLoadCancelledError(error)) {
       throw error;
     }
     return null;
   }
+}
+
+/** Normalize AbortController failures into the store's retryable cancellation error. */
+function normalizeTraceChunkLoadError(params: {
+  /** Abort controller attached to the load attempt that failed. */
+  abortController: AbortController;
+  /** Error rejected by the caller-owned loader or store finalization. */
+  error: unknown;
+  /** Stable chunk key owned by the failed load attempt. */
+  chunkKey: string;
+}): unknown {
+  if (isTraceChunkStoreLoadCancelledError(params.error) || !params.abortController.signal.aborted) {
+    return params.error;
+  }
+  return new TraceChunkStoreLoadCancelledError(
+    `Trace chunk ${params.chunkKey} load was cancelled.`
+  );
 }
 
 /** Returns whether one optional ready-chunk slot contains a concrete ready chunk. */

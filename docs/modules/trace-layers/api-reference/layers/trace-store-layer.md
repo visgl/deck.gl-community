@@ -5,9 +5,9 @@
   <img src="https://img.shields.io/badge/status-work--in--progress-orange.svg?style=flat-square" alt="status Work-in-Progress" />
 </p>
 
-`TraceStoreLayer` renders store-backed trace windows. It registers each source window with its
-`TraceChunkStore`, redraws when matching chunks arrive, asks each source-owned materializer for
-immutable `TraceGraphData`, wraps that data in `TraceGraph`, and delegates resolved graphs to
+`TraceStoreLayer` renders store-backed trace windows. It calls `loadWindow(...)` for each source
+`TraceChunkStoreWindow`, redraws when matching chunks arrive, asks each source-owned materializer
+for immutable `TraceDataset`, wraps that dataset in `TraceGraph`, and delegates resolved graphs to
 `TraceGraphLayer`.
 
 ```ts
@@ -21,10 +21,11 @@ Each `traceSources` entry provides:
 - `traceChunkStore`
 - `traceWindow`
 - `loadChunk`
-- `materializeTraceGraphData`
-- optional `traceGraphFilterOptions`
+- `materializeTraceDataset`
+- optional `traceViewSnapshotOptions`
 - optional `spanBudget`
 - optional `onProgress`
+- optional `onChunksArrived`
 - optional `onError`
 
 ```tsx
@@ -33,15 +34,15 @@ Each `traceSources` entry provides:
   layers={[
     new TraceStoreLayer({
       id: 'trace-store',
-      traceSources: [{traceChunkStore, traceWindow, loadChunk, materializeTraceGraphData}],
+      traceSources: [{traceChunkStore, traceWindow, loadChunk, materializeTraceDataset}],
       settings
     })
   ]}
 />;
 ```
 
-The layer owns registration replacement and finalize cleanup for its active source list. It does not
-own descriptor catalogs, source-specific graph-data materialization, deck views, viewer widgets,
+The layer owns active-window replacement and finalize cleanup for its active source list. It does
+not own descriptor catalogs, source-specific dataset materialization, deck views, viewer widgets,
 tooltips, or selection state. Use `TraceGraphLayer` when graphs are already materialized. Use
 `DeckTraceGraph` for the full React viewer.
 

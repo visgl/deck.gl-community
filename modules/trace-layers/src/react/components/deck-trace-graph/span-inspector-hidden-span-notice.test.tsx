@@ -2,10 +2,10 @@ import {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {TRACE_SPAN_FILTER_MASK_SOURCE, TRACE_SPAN_FILTER_MASK_TOPOLOGY} from '../../../trace/index';
+import {TRACE_SPAN_FILTER_MASK_REGEXP, TRACE_SPAN_FILTER_MASK_SOURCE} from '../../../trace';
 import {SpanInspectorHiddenSpanNotice} from './span-inspector-hidden-span-notice';
 
-import type {SpanRef} from '../../../trace/index';
+import type {SpanRef} from '../../../trace';
 import type {ReactElement} from 'react';
 
 (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT?: boolean}).IS_REACT_ACT_ENVIRONMENT =
@@ -20,7 +20,7 @@ describe('SpanInspectorHiddenSpanNotice', () => {
     const onNavigateToSpanRef = vi.fn();
     const view = renderElement(
       <SpanInspectorHiddenSpanNotice
-        filterMask={TRACE_SPAN_FILTER_MASK_SOURCE | TRACE_SPAN_FILTER_MASK_TOPOLOGY}
+        filterMask={TRACE_SPAN_FILTER_MASK_REGEXP | TRACE_SPAN_FILTER_MASK_SOURCE}
         visibleAncestorSpanRef={1 as SpanRef}
         visibleDescendantSpanRef={2 as SpanRef}
         onNavigateToSpanRef={onNavigateToSpanRef}
@@ -36,7 +36,7 @@ describe('SpanInspectorHiddenSpanNotice', () => {
       'Ancestor',
       'Descendant'
     ]);
-    expect(view.container.textContent).toContain('Hidden by: filename filter, topological filter');
+    expect(view.container.textContent).toContain('Hidden by: span-name filter, filename filter');
 
     const buttons = Array.from(view.container.querySelectorAll('button'));
     act(() => {

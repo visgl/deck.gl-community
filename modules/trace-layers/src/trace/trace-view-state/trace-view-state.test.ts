@@ -1,12 +1,11 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildTraceGraphDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
-import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
 import {TraceGraph} from '../trace-graph/trace-graph';
+import {createRuntimeTraceGraph} from '../trace-graph/trace-graph-test-fixtures';
 import {DEFAULT_TRACE_COLOR_SCHEME} from '../trace-style/trace-color-scheme';
 import {
-  buildTraceViewBaseLayoutKey,
+  areTraceViewLayoutSettingsEqual,
   buildTraceViewRenderInputs,
   buildTraceViewState
 } from './trace-view-state';
@@ -15,31 +14,23 @@ import type {TraceVisSettings} from '../trace-graph/trace-settings';
 import type {
   SpanRef,
   TraceDependencyId,
-  TraceLocalDependency,
   TraceProcess,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId
 } from '../trace-graph/trace-types';
-import type {TraceLayoutCollapseState} from '../trace-layout/trace-layout';
+import type {TraceLayout, TraceLayoutCollapseState} from '../trace-layout/trace-layout';
 
-function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
-): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+/** Materializes one prepared span source only at assertion boundaries. */
+function getPreparedSpanRefs(source: Iterable<SpanRef> | undefined): SpanRef[] | undefined {
+  return source ? Array.from(source) : undefined;
 }
 
 const defaultTraceVisSettings: TraceVisSettings = {
   showDependencies: true,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   showCrossProcessDependencies: true,
   showInstants: false,
   showCounters: false,
@@ -61,263 +52,82 @@ const defaultTraceVisSettings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  traceRunSummaryAggregationKey: 'latest',
+  traceTimingKey: 'latest',
   showEmptyProcesses: false
 };
 
 describe('TraceViewState', () => {
-  it('builds a stable base layout key for layout-affecting inputs', () => {
-    const traceGraph = createDependencyTraceGraph();
-    const collapseState = createEmptyCollapseState();
-    const firstKey = buildTraceViewBaseLayoutKey({
-      traceGraphs: [traceGraph],
-      traceLayoutSettings: defaultTraceVisSettings,
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: traceGraph.minTimeMs,
-      shouldPrepareOverviewData: true,
-      initialViewportFitKey: 'viewport-a'
-    });
-    const secondKey = buildTraceViewBaseLayoutKey({
-      traceGraphs: [traceGraph],
-      traceLayoutSettings: defaultTraceVisSettings,
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: traceGraph.minTimeMs,
-      shouldPrepareOverviewData: true,
-      initialViewportFitKey: 'viewport-a'
-    });
-    const processRef = traceGraph.getProcessRefs()[0];
-    if (processRef == null) {
-      throw new Error('Expected process ref');
-    }
-    const collapsedState: TraceLayoutCollapseState = {
-      graphs: [
-        {
-          collapsedProcessRefs: new Set([processRef]),
-          collapsedThreadRefs: collapseState.graphs[0]!.collapsedThreadRefs,
-          expandedThreadRefs: collapseState.graphs[0]!.expandedThreadRefs
-        }
-      ]
-    };
-    const collapsedKey = buildTraceViewBaseLayoutKey({
-      traceGraphs: [traceGraph],
-      traceLayoutSettings: defaultTraceVisSettings,
-      collapseStateForLayout: collapsedState,
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: traceGraph.minTimeMs,
-      shouldPrepareOverviewData: true,
-      initialViewportFitKey: 'viewport-a'
-    });
-
-    expect(secondKey).toBe(firstKey);
-    expect(collapsedKey).not.toBe(firstKey);
-  });
-
-  it('changes the base layout key when graph-owned filters change', () => {
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([createProcessWithLocalDependency('rank-a', 0)], [], {
-        name: 'trace-view-state-filter-key-test'
+  it('compares direct layout settings without serialized keys', () => {
+    expect(
+      areTraceViewLayoutSettingsEqual(defaultTraceVisSettings, {
+        ...defaultTraceVisSettings,
+        selectedThreadNames: []
       })
-    );
-    const unfilteredTraceGraph = createTestTraceGraph(traceGraphData);
-    const filteredTraceGraph = createTestTraceGraph(traceGraphData, {
-      overlappingParentSpanFilter: {maxChildDurationMs: 1}
-    });
-    const collapseState = createEmptyCollapseState();
-    const unfilteredKey = buildTraceViewBaseLayoutKey({
-      traceGraphs: [unfilteredTraceGraph],
-      traceLayoutSettings: defaultTraceVisSettings,
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: unfilteredTraceGraph.minTimeMs,
-      shouldPrepareOverviewData: true,
-      initialViewportFitKey: 'viewport-a'
-    });
-    const filteredKey = buildTraceViewBaseLayoutKey({
-      traceGraphs: [filteredTraceGraph],
-      traceLayoutSettings: defaultTraceVisSettings,
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: filteredTraceGraph.minTimeMs,
-      shouldPrepareOverviewData: true,
-      initialViewportFitKey: 'viewport-a'
-    });
-
-    expect(filteredKey).not.toBe(unfilteredKey);
-  });
-
-  it('changes the base layout key when store-owned source filters change', () => {
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([createProcessWithLocalDependency('rank-a', 0)], [], {
-        name: 'trace-view-state-store-filter-key-test'
+    ).toBe(true);
+    expect(
+      areTraceViewLayoutSettingsEqual(defaultTraceVisSettings, {
+        ...defaultTraceVisSettings,
+        layoutDensity: 'compact'
       })
-    );
-    const runtimeSource = createStaticTraceGraphRuntimeSource({
-      identityKey: 'trace-view-state-store-filter-key-test',
-      traceGraphData
-    });
-    const traceGraph = new TraceGraph(runtimeSource);
-    const traceStore = runtimeSource.traceStore as typeof runtimeSource.traceStore & {
-      setSourceSpanFilters: (spanFilters: readonly string[] | undefined) => boolean;
-    };
-    const collapseState = createEmptyCollapseState();
-    const firstKey = buildTraceViewBaseLayoutKey({
-      traceGraphs: [traceGraph],
-      traceLayoutSettings: defaultTraceVisSettings,
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: traceGraph.minTimeMs,
-      shouldPrepareOverviewData: true,
-      initialViewportFitKey: 'viewport-a'
-    });
-
-    expect(traceStore.setSourceSpanFilters(['projects/runtime/runtime-crates'])).toBe(true);
-    const secondKey = buildTraceViewBaseLayoutKey({
-      traceGraphs: [traceGraph],
-      traceLayoutSettings: defaultTraceVisSettings,
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: traceGraph.minTimeMs,
-      shouldPrepareOverviewData: true,
-      initialViewportFitKey: 'viewport-a'
-    });
-
-    expect(secondKey).not.toBe(firstKey);
+    ).toBe(false);
   });
 
   it('derives render inputs for trace view state construction', () => {
     const traceGraph = createDependencyTraceGraph();
-    const collapseState = createEmptyCollapseState();
-    const parentSpanRef = traceGraph.getSpanRefByExternalBlockId('parent' as TraceSpanId);
-    const childSpanRef = traceGraph.getSpanRefByExternalBlockId('child' as TraceSpanId);
+    const parentSpanRef = traceGraph.getSpanRefById('parent' as TraceSpanId);
+    const childSpanRef = traceGraph.getSpanRefById('child' as TraceSpanId);
     if (parentSpanRef == null || childSpanRef == null) {
       throw new Error('Expected parent and child span refs');
     }
 
     const inputs = buildTraceViewRenderInputs({
       traceGraph,
-      traceGraphs: [traceGraph],
-      settings: {
-        ...defaultTraceVisSettings,
-        showGlobalEvents: true,
-        selectedThreadNames: ['worker']
-      },
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: 4,
-      layoutTimingKey: 'primary',
-      minTimeMs: traceGraph.minTimeMs,
-      shouldPrepareOverviewData: true,
-      initialViewportFitKey: 'viewport-a',
       selectedSpanRefs: [parentSpanRef],
       extendedSelectionSpanRefs: [childSpanRef],
       isExtendedSelection: false
     });
 
     expect(inputs.focusedSelectionSpanRefs).toEqual([parentSpanRef, childSpanRef]);
-    expect(inputs.traceLayoutSettings).toMatchObject({
-      showGlobalEvents: true,
-      selectedThreadNames: ['worker'],
-      processLayoutMode: defaultTraceVisSettings.processLayoutMode
-    });
-    expect(inputs.traceViewBaseLayoutKey).toBe(
-      buildTraceViewBaseLayoutKey({
-        traceGraphs: [traceGraph],
-        traceLayoutSettings: inputs.traceLayoutSettings,
-        collapseStateForLayout: collapseState,
-        layoutTopPadding: 4,
-        layoutTimingKey: 'primary',
-        minTimeMs: traceGraph.minTimeMs,
-        shouldPrepareOverviewData: true,
-        initialViewportFitKey: 'viewport-a'
-      })
-    );
   });
 
-  it('reuses base layouts when only focused selection changes', () => {
+  it('accepts caller-owned base layouts for focused selection', () => {
     const traceGraph = createDependencyTraceGraph();
-    const collapseState = createEmptyCollapseState();
-    const first = buildTraceViewState({
-      previousState: null,
-      baseLayoutKey: 'base',
-      traceGraphs: [traceGraph],
-      sourceTraceGraphs: [traceGraph],
-      primaryTraceGraph: traceGraph,
-      paths: [],
-      layoutSettings: defaultTraceVisSettings,
-      settings: defaultTraceVisSettings,
-      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
-      collapseState,
-      threadLaneLayoutOverrides: {},
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: traceGraph.minTimeMs,
-      buildMinimapLayouts: true,
-      focusedSelectionSpanRefs: [],
-      showCollapsedActivitySummary: false,
-      isOverviewEnabled: true,
-      getTraceModelMatrixForGraph: () => undefined
-    });
-    const parentSpanRef = traceGraph.getSpanRefByExternalBlockId('parent' as TraceSpanId);
+    const first = buildTestTraceViewState(traceGraph);
+    const parentSpanRef = traceGraph.getSpanRefById('parent' as TraceSpanId);
 
     if (parentSpanRef == null) {
       throw new Error('Expected parent span ref');
     }
-    const focused = buildTraceViewState({
-      previousState: first,
-      baseLayoutKey: 'base',
-      traceGraphs: [traceGraph],
-      sourceTraceGraphs: [traceGraph],
-      primaryTraceGraph: traceGraph,
-      paths: [],
-      layoutSettings: defaultTraceVisSettings,
-      settings: defaultTraceVisSettings,
-      colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
-      collapseState,
-      threadLaneLayoutOverrides: {},
-      layoutTopPadding: 0,
-      layoutTimingKey: 'primary',
-      minTimeMs: traceGraph.minTimeMs,
-      buildMinimapLayouts: true,
-      focusedSelectionSpanRefs: [parentSpanRef],
-      showCollapsedActivitySummary: false,
-      isOverviewEnabled: true,
-      getTraceModelMatrixForGraph: () => undefined
+    const focused = buildTestTraceViewState(traceGraph, {
+      baseLayouts: first.baseLayouts,
+      focusedSelectionSpanRefs: [parentSpanRef]
     });
 
     expect(focused.baseLayouts).toBe(first.baseLayouts);
-    expect(focused.focusedLayouts).not.toBeNull();
-    expect(focused.activeLayouts).toBe(focused.focusedLayouts);
-    expect(focused.preparedScene.foreground[0]?.rows.length).toBeGreaterThan(0);
+    expect(focused.activeLayouts).not.toBe(focused.baseLayouts);
+    expect(focused.renderSnapshot.foregroundScenes[0]?.rows.length).toBeGreaterThan(0);
   });
 
   it('restores prepared span geometry after focused selection clears', () => {
     const traceGraph = createDependencyTraceGraph();
-    const parentSpanRef = traceGraph.getSpanRefByExternalBlockId('parent' as TraceSpanId);
-    const childSpanRef = traceGraph.getSpanRefByExternalBlockId('child' as TraceSpanId);
+    const parentSpanRef = traceGraph.getSpanRefById('parent' as TraceSpanId);
+    const childSpanRef = traceGraph.getSpanRefById('child' as TraceSpanId);
     if (parentSpanRef == null || childSpanRef == null) {
       throw new Error('Expected parent and child span refs');
     }
-    const expanded = buildTestTraceViewState(traceGraph, 'expanded');
-    const focused = buildTestTraceViewState(
-      traceGraph,
-      'expanded',
-      expanded,
-      createEmptyCollapseState(),
-      defaultTraceVisSettings,
-      [parentSpanRef]
-    );
-    const restored = buildTestTraceViewState(traceGraph, 'expanded', focused);
-    const focusedRow = focused.preparedScene.foreground[0]?.rows[0];
-    const restoredRow = restored.preparedScene.foreground[0]?.rows[0];
-    const childIndex = restoredRow?.spans.indexOf(childSpanRef) ?? -1;
+    const expanded = buildTestTraceViewState(traceGraph);
+    const focused = buildTestTraceViewState(traceGraph, {
+      baseLayouts: expanded.baseLayouts,
+      focusedSelectionSpanRefs: [parentSpanRef]
+    });
+    const restored = buildTestTraceViewState(traceGraph, {
+      baseLayouts: expanded.baseLayouts
+    });
+    const focusedRow = focused.renderSnapshot.foregroundScenes[0]?.rows[0];
+    const restoredRow = restored.renderSnapshot.foregroundScenes[0]?.rows[0];
+    const childIndex = restoredRow
+      ? Array.from(restoredRow.binaryBlockData?.spans ?? []).indexOf(childSpanRef)
+      : -1;
     const focusedSizes = focusedRow?.binaryBlockData?.data.attributes.getSize?.value as
       | Float32Array
       | undefined;
@@ -332,177 +142,130 @@ describe('TraceViewState', () => {
 
   it('keeps prepared expanded row span payloads after focus clears with repeated thread ids', () => {
     const traceGraph = createRepeatedThreadTraceGraph();
-    const selectedSpanRef = traceGraph.getSpanRefByExternalBlockId('rank-a-parent' as TraceSpanId);
+    const selectedSpanRef = traceGraph.getSpanRefById('rank-a-parent' as TraceSpanId);
     if (selectedSpanRef == null) {
       throw new Error('Expected selected span ref');
     }
-    const expanded = buildTestTraceViewState(traceGraph, 'repeated-expanded');
-    const focused = buildTestTraceViewState(
-      traceGraph,
-      'repeated-expanded',
-      expanded,
-      createEmptyCollapseState(),
-      defaultTraceVisSettings,
-      [selectedSpanRef]
-    );
-    const restored = buildTestTraceViewState(traceGraph, 'repeated-expanded', focused);
+    const expanded = buildTestTraceViewState(traceGraph);
+    const focused = buildTestTraceViewState(traceGraph, {
+      baseLayouts: expanded.baseLayouts,
+      focusedSelectionSpanRefs: [selectedSpanRef]
+    });
+    const restored = buildTestTraceViewState(traceGraph, {
+      baseLayouts: expanded.baseLayouts
+    });
 
-    for (const row of restored.preparedScene.foreground[0]?.rows ?? []) {
+    expect(focused.activeLayouts).not.toBe(focused.baseLayouts);
+    for (const row of restored.renderSnapshot.foregroundScenes[0]?.rows ?? []) {
       const sizes = row.binaryBlockData?.data.attributes.getSize?.value as Float32Array | undefined;
-      expect(row.binaryBlockData?.spans).toBe(row.spans);
-      expect(row.spans.length).toBeGreaterThan(0);
+      expect(row.binaryBlockData?.spans.length).toBeGreaterThan(0);
+      expect(row).not.toHaveProperty('spans');
       expect(Array.from(sizes ?? []).some(size => size > 0)).toBe(true);
     }
   });
 
-  it('rebuilds base layouts when the base layout key changes', () => {
+  it('builds fresh base layouts when the caller does not supply owned layouts', () => {
     const traceGraph = createDependencyTraceGraph();
-    const first = buildTestTraceViewState(traceGraph, 'base-a');
-    const second = buildTestTraceViewState(traceGraph, 'base-b', first);
+    const first = buildTestTraceViewState(traceGraph);
+    const second = buildTestTraceViewState(traceGraph);
 
     expect(second.baseLayouts).not.toBe(first.baseLayouts);
-    expect(second.focusedLayouts).toBeNull();
     expect(second.activeLayouts).toBe(second.baseLayouts);
+    expect(second.renderSnapshot.derivedDataByGraph).toHaveLength(second.activeLayouts.length);
   });
 
   it('rebuilds base layouts when current trace graph identity changes', () => {
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([createProcessWithLocalDependency('rank-a', 0)], [], {
-        name: 'trace-view-state-graph-replacement-test'
-      })
-    );
-    const firstTraceGraph = createTestTraceGraph(traceGraphData);
-    const secondTraceGraph = createTestTraceGraph(traceGraphData);
-    const first = buildTestTraceViewState(firstTraceGraph, 'base');
-    const second = buildTestTraceViewState(secondTraceGraph, 'base', first);
+    const trace = buildJSONTrace([createProcessWithSameProcessDependency('rank-a', 0)], [], {
+      name: 'trace-view-state-graph-replacement-test'
+    });
+    const firstTraceGraph = createRuntimeTraceGraph(trace);
+    const secondTraceGraph = createRuntimeTraceGraph(trace);
+    const first = buildTestTraceViewState(firstTraceGraph);
+    const second = buildTestTraceViewState(secondTraceGraph);
 
     expect(second.baseLayouts).not.toBe(first.baseLayouts);
     expect(second.baseLayouts[0]?.traceGraph).toBe(secondTraceGraph);
     expect(second.activeLayouts).toBe(second.baseLayouts);
   });
 
-  it('rebuilds prepared row spans when current trace graph identity changes', () => {
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([createProcessWithLocalDependency('rank-a', 0)], [], {
-        name: 'trace-view-state-prepared-row-replacement-test'
-      })
-    );
-    const firstTraceGraph = createTestTraceGraph(traceGraphData);
-    const secondTraceGraph = createTestTraceGraph(traceGraphData);
-    const first = buildTestTraceViewState(firstTraceGraph, 'base');
-    const second = buildTestTraceViewState(secondTraceGraph, 'base', first);
-    const firstRow = first.preparedScene.foreground[0]?.rows[0];
-    const secondRow = second.preparedScene.foreground[0]?.rows[0];
+  it('reprojects row span refs while rebuilding binary rows for a new graph snapshot', () => {
+    const trace = buildJSONTrace([createProcessWithSameProcessDependency('rank-a', 0)], [], {
+      name: 'trace-view-state-prepared-row-replacement-test'
+    });
+    const firstTraceGraph = createRuntimeTraceGraph(trace);
+    const secondTraceGraph = createRuntimeTraceGraph(trace);
+    const first = buildTestTraceViewState(firstTraceGraph);
+    const second = buildTestTraceViewState(secondTraceGraph);
+    const firstRow = first.renderSnapshot.foregroundScenes[0]?.rows[0];
+    const secondRow = second.renderSnapshot.foregroundScenes[0]?.rows[0];
 
-    expect(second.preparedScene.foreground[0]?.graph).toBe(secondTraceGraph);
-    expect(secondRow?.spans).not.toBe(firstRow?.spans);
+    expect(second.renderSnapshot.foregroundScenes[0]?.layout.traceGraph).toBe(secondTraceGraph);
+    expect(getPreparedSpanRefs(secondRow?.binaryBlockData?.spans)).toEqual(
+      getPreparedSpanRefs(firstRow?.binaryBlockData?.spans)
+    );
     expect(secondRow?.binaryBlockData).not.toBe(firstRow?.binaryBlockData);
-    expect(secondRow?.binaryBlockData?.spans).toBe(secondRow?.spans);
+    expect(secondRow).not.toHaveProperty('spans');
   });
 
   it('keeps filtered row span refs stable across process collapse toggles', () => {
-    const traceGraph = createTestTraceGraph(
-      buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace([createProcessWithLocalDependency('rank-a', 0)], [], {
-          name: 'trace-view-state-filter-collapse-test'
-        })
-      ),
+    const traceGraph = createRuntimeTraceGraph(
+      buildJSONTrace([createProcessWithSameProcessDependency('rank-a', 0)], [], {
+        name: 'trace-view-state-filter-collapse-test'
+      }),
       {spanFilters: ['parent']}
     );
     const processRef = traceGraph.getProcessRefs()[0];
     if (processRef == null) {
       throw new Error('Expected process ref');
     }
-    const expanded = buildTestTraceViewState(traceGraph, 'filtered-expanded');
-    const collapsed = buildTestTraceViewState(traceGraph, 'filtered-collapsed', expanded, {
-      graphs: [
-        {
-          collapsedProcessRefs: new Set([processRef]),
-          collapsedThreadRefs: new Set(),
-          expandedThreadRefs: new Set()
-        }
-      ]
-    });
-    const expandedAgain = buildTestTraceViewState(traceGraph, 'filtered-expanded-again', collapsed);
-
-    const expandedSpans = expanded.preparedScene.foreground[0]?.rows[0]?.spans;
-    const collapsedSpans = collapsed.preparedScene.foreground[0]?.rows[0]?.spans;
-    const expandedAgainSpans = expandedAgain.preparedScene.foreground[0]?.rows[0]?.spans;
-
-    expect(collapsedSpans).toBe(expandedSpans);
-    expect(expandedAgainSpans).toBe(expandedSpans);
-  });
-
-  it('increments thread prune revisions only when visible thread refs change', () => {
-    const traceGraph = createDependencyTraceGraph();
-    const threadRef = traceGraph.getThreadRefs()[0];
-    if (threadRef == null) {
-      throw new Error('Expected thread ref');
-    }
-    const collapseWithThreadOverride: TraceLayoutCollapseState = {
-      graphs: [
-        {
-          collapsedProcessRefs: new Set(),
-          collapsedThreadRefs: new Set([threadRef]),
-          expandedThreadRefs: new Set()
-        }
-      ]
-    };
-    const first = buildTestTraceViewState(
-      traceGraph,
-      'thread-prune-a',
-      null,
-      collapseWithThreadOverride
-    );
-    const second = buildTestTraceViewState(
-      traceGraph,
-      'thread-prune-a',
-      first,
-      collapseWithThreadOverride
-    );
-    const third = buildTestTraceViewState(
-      traceGraph,
-      'thread-prune-b',
-      second,
-      collapseWithThreadOverride,
-      {
-        ...defaultTraceVisSettings,
-        threadDisplayMode: 'selected',
-        selectedThreadNames: ['not-present']
+    const expanded = buildTestTraceViewState(traceGraph);
+    const collapsed = buildTestTraceViewState(traceGraph, {
+      collapseState: {
+        graphs: [
+          {
+            collapsedProcessRefs: new Set([processRef]),
+            collapsedThreadRefs: new Set(),
+            expandedThreadRefs: new Set()
+          }
+        ]
       }
-    );
-    const withoutThreadOverrides = buildTestTraceViewState(
-      traceGraph,
-      'thread-prune-c',
-      third,
-      createEmptyCollapseState()
-    );
+    });
+    const expandedAgain = buildTestTraceViewState(traceGraph);
 
-    expect(first.threadCollapsePruneRequest?.revision).toBe(1);
-    expect(second.threadCollapsePruneRequest).toBe(first.threadCollapsePruneRequest);
-    expect(third.threadCollapsePruneRequest?.revision).toBe(2);
-    expect(third.threadCollapsePruneRequest?.validThreadRefsByGraph[0]?.has(threadRef)).toBe(false);
-    expect(withoutThreadOverrides.threadCollapsePruneRequest).toBeNull();
+    const expandedSpans =
+      expanded.renderSnapshot.foregroundScenes[0]?.rows[0]?.binaryBlockData?.spans;
+    const collapsedSpans =
+      collapsed.renderSnapshot.foregroundScenes[0]?.rows[0]?.binaryBlockData?.spans;
+    const expandedAgainSpans =
+      expandedAgain.renderSnapshot.foregroundScenes[0]?.rows[0]?.binaryBlockData?.spans;
+
+    expect(getPreparedSpanRefs(collapsedSpans)).toEqual(getPreparedSpanRefs(expandedSpans));
+    expect(getPreparedSpanRefs(expandedAgainSpans)).toEqual(getPreparedSpanRefs(expandedSpans));
   });
 });
 
 /** Builds TraceViewState with the shared test fixture settings. */
 function buildTestTraceViewState(
   traceGraph: TraceGraph,
-  baseLayoutKey: string,
-  previousState: Parameters<typeof buildTraceViewState>[0]['previousState'] = null,
-  collapseState: TraceLayoutCollapseState = createEmptyCollapseState(),
-  settings: TraceVisSettings = defaultTraceVisSettings,
-  focusedSelectionSpanRefs: readonly SpanRef[] = []
+  options: {
+    /** Exact base layouts explicitly owned by the test caller. */
+    readonly baseLayouts?: readonly TraceLayout[];
+    /** Ref-native collapse state aligned with the test graph. */
+    readonly collapseState?: TraceLayoutCollapseState;
+    /** Visualization settings used by the test view state. */
+    readonly settings?: TraceVisSettings;
+    /** Span refs that should drive focused layouts. */
+    readonly focusedSelectionSpanRefs?: readonly SpanRef[];
+  } = {}
 ) {
+  const collapseState = options.collapseState ?? createEmptyCollapseState();
+  const settings = options.settings ?? defaultTraceVisSettings;
   return buildTraceViewState({
-    previousState,
-    baseLayoutKey,
+    baseLayouts: options.baseLayouts,
     traceGraphs: [traceGraph],
     sourceTraceGraphs: [traceGraph],
     primaryTraceGraph: traceGraph,
     paths: [],
-    layoutSettings: settings,
     settings,
     colorScheme: DEFAULT_TRACE_COLOR_SCHEME,
     collapseState,
@@ -511,7 +274,7 @@ function buildTestTraceViewState(
     layoutTimingKey: 'primary',
     minTimeMs: traceGraph.minTimeMs,
     buildMinimapLayouts: true,
-    focusedSelectionSpanRefs,
+    focusedSelectionSpanRefs: options.focusedSelectionSpanRefs ?? [],
     showCollapsedActivitySummary: false,
     isOverviewEnabled: true,
     getTraceModelMatrixForGraph: () => undefined
@@ -531,36 +294,35 @@ function createEmptyCollapseState(): TraceLayoutCollapseState {
   };
 }
 
-/** Creates a one-process trace graph with a parent-to-child local dependency. */
+/** Creates a one-process trace graph with a parent-to-child same-process dependency. */
 function createDependencyTraceGraph(): TraceGraph {
-  return createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace([createProcessWithLocalDependency('rank-a', 0)], [], {
-        name: 'trace-view-state-test'
-      })
-    )
+  return createRuntimeTraceGraph(
+    buildJSONTrace([createProcessWithSameProcessDependency('rank-a', 0)], [], {
+      name: 'trace-view-state-test'
+    })
   );
 }
 
 /** Creates a two-process trace graph whose process-local thread ids intentionally repeat. */
 function createRepeatedThreadTraceGraph(): TraceGraph {
   const sharedThreadId = 'shared-thread' as TraceThreadId;
-  return createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace(
-        [
-          retargetProcessThreadId(createProcessWithLocalDependency('rank-a', 0), sharedThreadId),
-          retargetProcessThreadId(createProcessWithLocalDependency('rank-b', 1), sharedThreadId)
-        ],
-        [],
-        {name: 'trace-view-state-repeated-thread-test'}
-      )
+  return createRuntimeTraceGraph(
+    buildJSONTrace(
+      [
+        retargetProcessThreadId(
+          createProcessWithSameProcessDependency('rank-a', 0),
+          sharedThreadId
+        ),
+        retargetProcessThreadId(createProcessWithSameProcessDependency('rank-b', 1), sharedThreadId)
+      ],
+      [],
+      {name: 'trace-view-state-repeated-thread-test'}
     )
   );
 }
 
-/** Creates a process fixture with two spans linked by one local dependency. */
-function createProcessWithLocalDependency(processId: string, rankNum: number): TraceProcess {
+/** Creates a process fixture with two spans linked by one same-process dependency. */
+function createProcessWithSameProcessDependency(processId: string, rankNum: number): TraceProcess {
   const thread: TraceThread = {
     type: 'trace-thread',
     name: `${processId}-thread`,
@@ -570,8 +332,8 @@ function createProcessWithLocalDependency(processId: string, rankNum: number): T
   const parentSpan = createSpan('parent', thread);
   const childSpan = createSpan('child', thread);
   const dependencyId = 'dep-parent-child' as TraceDependencyId;
-  const dependency: TraceLocalDependency = {
-    type: 'trace-local-dependency',
+  const dependency: TraceSameProcessDependency = {
+    type: 'trace-same-process-dependency',
     dependencyId,
     startSpanId: parentSpan.spanId,
     endSpanId: childSpan.spanId,
@@ -580,8 +342,8 @@ function createProcessWithLocalDependency(processId: string, rankNum: number): T
     bidirectional: false,
     waitTimeMs: 1_000
   };
-  parentSpan.localDependencyIds = [dependencyId];
-  parentSpan.localDependencies = [dependency];
+  parentSpan.sameProcessDependencyIds = [dependencyId];
+  parentSpan.sameProcessDependencies = [dependency];
 
   return {
     type: 'trace-process',
@@ -602,7 +364,7 @@ function createProcessWithLocalDependency(processId: string, rankNum: number): T
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [dependency],
+    sameProcessDependencies: [dependency],
     remoteDependencies: []
   };
 }
@@ -614,14 +376,14 @@ function retargetProcessThreadId(process: TraceProcess, threadId: TraceThreadId)
   const spanIdBySourceId = new Map(
     process.spans.map(span => [span.spanId, `${process.processId}-${span.spanId}` as TraceSpanId])
   );
-  const dependencies = process.localDependencies.map(dependency => ({
+  const dependencies = process.sameProcessDependencies.map(dependency => ({
     ...dependency,
     dependencyId: `${process.processId}-${dependency.dependencyId}` as TraceDependencyId,
     startSpanId: spanIdBySourceId.get(dependency.startSpanId) ?? dependency.startSpanId,
     endSpanId: spanIdBySourceId.get(dependency.endSpanId) ?? dependency.endSpanId
-  })) satisfies TraceLocalDependency[];
+  })) satisfies TraceSameProcessDependency[];
   const dependencyBySourceId = new Map(
-    process.localDependencies.map((dependency, index) => [
+    process.sameProcessDependencies.map((dependency, index) => [
       dependency.dependencyId,
       dependencies[index]!
     ])
@@ -631,10 +393,10 @@ function retargetProcessThreadId(process: TraceProcess, threadId: TraceThreadId)
     spanId: spanIdBySourceId.get(span.spanId) ?? span.spanId,
     threadId,
     name: `${process.processId}-${span.name}`,
-    localDependencyIds: span.localDependencyIds.map(
+    sameProcessDependencyIds: span.sameProcessDependencyIds.map(
       dependencyId => dependencyBySourceId.get(dependencyId)?.dependencyId ?? dependencyId
     ),
-    localDependencies: span.localDependencies.map(
+    sameProcessDependencies: span.sameProcessDependencies.map(
       dependency => dependencyBySourceId.get(dependency.dependencyId) ?? dependency
     )
   })) satisfies TraceSpan[];
@@ -647,7 +409,7 @@ function retargetProcessThreadId(process: TraceProcess, threadId: TraceThreadId)
       string,
       TraceSpan
     >,
-    localDependencies: dependencies
+    sameProcessDependencies: dependencies
   } satisfies TraceProcess;
 }
 
@@ -672,8 +434,8 @@ function createSpan(name: string, thread: TraceThread): TraceSpan {
         durationMsAsString: `${endTimeMs - startTimeMs}ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };

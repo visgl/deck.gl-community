@@ -21,15 +21,23 @@ export type TraceInteractionMode = 'drag-to-zoom' | 'drag-to-pan';
 /** Starting expansion preset used when a trace graph initializes process rows. */
 export type StartingProcessesMode = 'all-expanded' | 'group-collapsed' | 'all-collapsed';
 
+/** Legacy dependency setting keys accepted only while reading old persisted settings. */
+export type LegacyDependencyModeVisSettings = {
+  /** @deprecated Read `sameProcessDependencyMode` instead. */
+  localDependencyMode?: VisSettings['sameProcessDependencyMode'];
+  /** @deprecated Read `crossProcessDependencyMode` instead. */
+  crossDependencyMode?: VisSettings['crossProcessDependencyMode'];
+};
+
 /** Settings for visualization */
 export type VisSettings = {
   /** Scheme ID used to select a color scheme for the trace graph. */
   traceColorSchemeId: string;
   /** Timing key used by aggregated traces to choose an active timing projection. */
-  timingAggregationKey: string;
+  traceTimingKey: string;
 
-  /** Mode for displaying local dependencies */
-  localDependencyMode: 'all' | 'none' | 'warnings' | 'submit';
+  /** Mode for displaying same-process dependencies. */
+  sameProcessDependencyMode: 'all' | 'none' | 'warnings' | 'submit';
   /** Whether to show submits in the visualization */
   showSubmits: boolean;
   /** Whether to render instant events */
@@ -46,8 +54,8 @@ export type VisSettings = {
   criticalPathAnimationIntervalMs?: number;
   /** Number of spans to keep visible in the critical path animation trail. */
   criticalPathTrailLength?: number;
-  /** Mode for displaying cross-rank dependencies */
-  crossDependencyMode: 'all' | 'none';
+  /** Mode for displaying cross-process dependencies. */
+  crossProcessDependencyMode: 'all' | 'none';
   /** Whether to show only paths in the visualization */
   showPathsOnly: boolean;
   /** Whether to overlay the interactive overview mini-map */
@@ -119,9 +127,9 @@ export type VisSettings = {
 
 export const DEFAULT_VIS_SETTINGS: VisSettings = {
   traceColorSchemeId: 'processes',
-  timingAggregationKey: 'latest',
-  localDependencyMode: 'warnings',
-  crossDependencyMode: 'none',
+  traceTimingKey: 'latest',
+  sameProcessDependencyMode: 'warnings',
+  crossProcessDependencyMode: 'none',
   showPathsOnly: false,
   showOverview: true,
   dependencyOpacity: 0.05,
@@ -159,3 +167,26 @@ export const DEFAULT_VIS_SETTINGS: VisSettings = {
   enableDeckGpuTimeStats: false,
   enableFastTextLayer: false
 };
+
+/**
+ * Reads legacy dependency mode keys while returning only canonical dependency setting names.
+ *
+ * Canonical keys win when both forms are present, so old persisted settings can be read without
+ * reintroducing the retired names into runtime state.
+ */
+export function normalizeLegacyDependencyModeVisSettings(
+  settings: Readonly<Partial<VisSettings> & LegacyDependencyModeVisSettings>
+): Partial<VisSettings> {
+  const {localDependencyMode, crossDependencyMode, ...canonicalSettings} = settings;
+  return {
+    ...canonicalSettings,
+    ...(canonicalSettings.sameProcessDependencyMode === undefined &&
+    localDependencyMode !== undefined
+      ? {sameProcessDependencyMode: localDependencyMode}
+      : {}),
+    ...(canonicalSettings.crossProcessDependencyMode === undefined &&
+    crossDependencyMode !== undefined
+      ? {crossProcessDependencyMode: crossDependencyMode}
+      : {})
+  };
+}

@@ -28,7 +28,7 @@ type TraceGraphSearchSource = {
   /** Returns the span display name for one span ref. */
   getSpanName(spanRef: SpanRef): string | null;
   /** Returns the external span id for one span ref. */
-  getSpanBlockId(spanRef: SpanRef): TraceSpanId | null;
+  getSpanId(spanRef: SpanRef): TraceSpanId | null;
   /** Returns the thread id for one span ref. */
   getSpanStreamId(spanRef: SpanRef): TraceThreadId | null;
   /** Returns the timing status for one span ref. */
@@ -50,14 +50,12 @@ export function getFirstVisibleSearchDescendantSpanRef(
   graph: Readonly<TraceGraph>,
   spanRef: SpanRef
 ): SpanRef | null {
-  if (!graph.getSpanBlockId(spanRef)) {
+  if (!graph.getSpanId(spanRef)) {
     return null;
   }
 
-  const projection = graph.getSourceProjection();
   const visitedSpanRefs = new Set<SpanRef>([spanRef]);
   const stack = getSearchParentChildDependencies({
-    projection,
     spanRef,
     traceGraph: graph
   }).reverse();
@@ -69,12 +67,11 @@ export function getFirstVisibleSearchDescendantSpanRef(
     }
     visitedSpanRefs.add(nextDependency.childSpanRef);
 
-    if (graph.getVisibleDisplaySourceBySpanRef(nextDependency.childSpanRef) != null) {
+    if (graph.isSpanVisible(nextDependency.childSpanRef)) {
       return nextDependency.childSpanRef;
     }
 
     const childDependencies = getSearchParentChildDependencies({
-      projection,
       spanRef: nextDependency.childSpanRef,
       traceGraph: graph
     });
@@ -89,7 +86,7 @@ export function getFirstVisibleSearchDescendantSpanRef(
   return null;
 }
 
-/** Scans block tables with caller-supplied row visibility and search-record shaping. */
+/** Scans block tables with caller-supplied span visibility and search-record shaping. */
 export function searchTraceGraphBlockRecordsWithOptions<
   TRecord extends TraceGraphVisibleSpanSearchRecord
 >(
@@ -105,11 +102,8 @@ export function searchTraceGraphBlockRecordsWithOptions<
     visitRecord: (record: TRecord) => boolean | void;
     /** Maximum number of records to visit. */
     limit: number;
-    /** Optional row resolver for visible-only scans. */
-    getRowIndexes?: (
-      typedProcessId: TraceProcessId,
-      spanTable: TraceProcessSpanRefTable
-    ) => number | Iterable<number>;
+    /** Optional narrow visibility check run before reading broad span fields. */
+    isSpanVisible?: (spanRef: SpanRef) => boolean;
     /** Converts the shared search metadata into the caller-specific record shape. */
     buildRecord: (record: TraceGraphVisibleSpanSearchRecord) => TRecord;
   }
@@ -134,8 +128,6 @@ export function searchTraceGraphBlockRecordsWithOptions<
 
     const processSource = graph.getProcessSourceByRef(processRef);
     const processName = processSource?.name ?? String(processRef);
-    const rowIndexes = params.getRowIndexes?.(typedProcessId, spanTable) ?? spanTable.numRows;
-
     const visitRow = (rowIndex: number): boolean => {
       const spanRefValue = spanRefColumn.get(rowIndex);
       const spanRef =
@@ -147,6 +139,9 @@ export function searchTraceGraphBlockRecordsWithOptions<
       if (spanRef == null) {
         return true;
       }
+      if (params.isSpanVisible && !params.isSpanVisible(spanRef)) {
+        return true;
+      }
       const blockName = graph.getSpanName(spanRef);
       if (blockName == null) {
         return true;
@@ -156,7 +151,7 @@ export function searchTraceGraphBlockRecordsWithOptions<
         return true;
       }
 
-      const spanId = graph.getSpanBlockId(spanRef);
+      const spanId = graph.getSpanId(spanRef);
       const threadId = graph.getSpanStreamId(spanRef);
       const status = graph.getSpanStatus(spanRef);
       const startTimeMs = graph.getSpanStartTimeMs(spanRef);
@@ -203,17 +198,9 @@ export function searchTraceGraphBlockRecordsWithOptions<
       return shouldContinue && visitedCount < resultLimit;
     };
 
-    if (typeof rowIndexes === 'number') {
-      for (let rowIndex = 0; rowIndex < rowIndexes; rowIndex += 1) {
-        if (!visitRow(rowIndex)) {
-          return visitedCount;
-        }
-      }
-    } else {
-      for (const rowIndex of rowIndexes) {
-        if (!visitRow(rowIndex)) {
-          return visitedCount;
-        }
+    for (let rowIndex = 0; rowIndex < spanTable.numRows; rowIndex += 1) {
+      if (!visitRow(rowIndex)) {
+        return visitedCount;
       }
     }
   }

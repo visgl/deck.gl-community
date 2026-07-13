@@ -2,8 +2,8 @@ import {
   compareTraceTimingKeys,
   getPrimaryTiming,
   getTraceGraphSpanArrowColumnValues,
-  getTraceGraphSpanExternalSpanId
-} from '../../../../../trace/index';
+  getTraceSpanCardModel
+} from '../../../../../trace';
 import {formatUserDataValue, resolveTraceSpanCardLabels} from '../trace-span-card-helpers';
 import {getTraceSpanHistogramSpecs} from './trace-span-card-tab-histogram';
 import {getSpanTimingsTableRows} from './trace-span-card-tab-timings';
@@ -16,7 +16,7 @@ import type {
   TraceSpanCardParentChainEntry,
   TraceSpanTiming,
   TraceVisSettings
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 import type {
   ResolvedTraceLabels,
   TraceSpanCardLabelInput,
@@ -172,7 +172,7 @@ export function buildTraceSpanCardConfiguration(
 ): TraceSpanCardConfiguration {
   const traceLabels = resolveTraceSpanCardLabels(params.traceLabels);
   const tabOptions = resolveTraceSpanCardOptions(params.tabOptions);
-  const cardModel = params.traceGraph.getTraceSpanCardModel(params.spanRef);
+  const cardModel = getTraceSpanCardModel(params.traceGraph, params.spanRef);
   if (!cardModel) {
     throw new Error(`Trace span not found: ${String(params.spanRef)}`);
   }
@@ -222,7 +222,7 @@ export function buildTraceSpanCardConfiguration(
         ReactNode
       ]
   );
-  const externalSpanId = getTraceGraphSpanExternalSpanId(params.traceGraph, params.spanRef);
+  const externalSpanId = params.traceGraph.getSpanExternalSpanId(params.spanRef);
   const spanSource = params.traceGraph.getSpanSource(params.spanRef);
   const userDataRows = Object.entries(userData)
     .filter(([, value]) => value !== undefined)
@@ -412,9 +412,8 @@ function getActiveTraceSpanTimingKey(
   span: TraceSpanCardModel['span'],
   traceSettings: TraceVisSettings
 ): string {
-  const aggregationTimingKey = (
-    traceSettings as TraceVisSettings & {traceRunSummaryAggregationKey?: string}
-  ).traceRunSummaryAggregationKey;
+  const aggregationTimingKey = (traceSettings as TraceVisSettings & {traceTimingKey?: string})
+    .traceTimingKey;
   if (typeof aggregationTimingKey === 'string' && span.timings[aggregationTimingKey]) {
     return aggregationTimingKey;
   }

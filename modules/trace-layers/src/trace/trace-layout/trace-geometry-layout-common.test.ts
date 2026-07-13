@@ -6,9 +6,11 @@ import {
   encodeSpanRef
 } from '../trace-graph/trace-id-encoder';
 import {
+  buildExplicitParentSpanMap,
   buildTraceCrossRankDependencyGeometry,
   computeInterleavedRankDeltas,
-  getLocalDependencyPathFlat
+  fillSameProcessDependencyPathFlat,
+  getSameProcessDependencyPathFlat
 } from './trace-geometry-layout-common';
 
 import type {ProcessRef, ThreadRef} from '../trace-graph/trace-id-encoder';
@@ -61,7 +63,7 @@ function createDependencyPathSpan(
   threadId: TraceThreadId,
   startTimeMs: number,
   endTimeMs: number
-): Parameters<typeof getLocalDependencyPathFlat>[0]['startSpan'] {
+): Parameters<typeof getSameProcessDependencyPathFlat>[0]['startSpan'] {
   const durationMs = endTimeMs - startTimeMs;
   return {
     spanRef,
@@ -85,25 +87,21 @@ function createDependencyPathSpan(
 /** Builds ref-native visible thread lookup state at stable dependency-test y positions. */
 function createDependencyLayoutLookup(params: {
   /** Parent span rendered at the start dependency endpoint. */
-  parentSpan: Parameters<typeof getLocalDependencyPathFlat>[0]['startSpan'];
+  parentSpan: Parameters<typeof getSameProcessDependencyPathFlat>[0]['startSpan'];
   /** Parent thread ref owning the start dependency endpoint. */
   parentThreadRef: ThreadRef;
   /** Child span rendered at the end dependency endpoint. */
-  childSpan: Parameters<typeof getLocalDependencyPathFlat>[0]['endSpan'];
+  childSpan: Parameters<typeof getSameProcessDependencyPathFlat>[0]['endSpan'];
   /** Child thread ref owning the end dependency endpoint. */
   childThreadRef: ThreadRef;
 }): TraceGeometryLayoutLookup {
   const parentThreadLayout = {
     visible: true,
-    yPosition: 1,
-    startPosition: [0, 1, 0],
-    targetPosition: [100, 1, 0]
+    yPosition: 1
   } satisfies ThreadLayout;
   const childThreadLayout = {
     visible: true,
-    yPosition: 2,
-    startPosition: [0, 2, 0],
-    targetPosition: [100, 2, 0]
+    yPosition: 2
   } satisfies ThreadLayout;
   return {
     traceGraph: {
@@ -142,10 +140,10 @@ function createCrossParentDependency(
   };
 }
 
-describe('getLocalDependencyPathFlat', () => {
+describe('getSameProcessDependencyPathFlat', () => {
   it('routes dependency paths from the source span timing to the dependent span timing', () => {
-    /** Parameter shape accepted by local dependency path construction. */
-    type LocalDependencyPathParams = Parameters<typeof getLocalDependencyPathFlat>[0];
+    /** Parameter shape accepted by same-process dependency path construction. */
+    type SameProcessDependencyPathParams = Parameters<typeof getSameProcessDependencyPathFlat>[0];
     const startThreadId = 'source-thread' as TraceThreadId;
     const endThreadId = 'dependent-thread' as TraceThreadId;
     const startThreadRef = encodeProcessThreadRef(0, 0);
@@ -166,7 +164,7 @@ describe('getLocalDependencyPathFlat', () => {
           durationMsAsString: '10ms'
         }
       }
-    } satisfies LocalDependencyPathParams['startSpan'];
+    } satisfies SameProcessDependencyPathParams['startSpan'];
     const endSpan = {
       spanRef: encodeSpanRef(0, 1),
       processRef: encodeProcessRef(0),
@@ -183,7 +181,7 @@ describe('getLocalDependencyPathFlat', () => {
           durationMsAsString: '10ms'
         }
       }
-    } satisfies LocalDependencyPathParams['endSpan'];
+    } satisfies SameProcessDependencyPathParams['endSpan'];
     const layoutLookup = createDependencyLayoutLookup({
       parentSpan: startSpan,
       parentThreadRef: startThreadRef,
@@ -198,22 +196,27 @@ describe('getLocalDependencyPathFlat', () => {
       maxTimeMs: 100,
       minTimeMs: 0,
       bidirectional: false
-    } satisfies Omit<LocalDependencyPathParams, 'waitMode'>;
+    } satisfies Omit<SameProcessDependencyPathParams, 'waitMode'>;
 
     expect(
-      Array.from(getLocalDependencyPathFlat({...commonParams, waitMode: 'end-to-start'}))
+      Array.from(getSameProcessDependencyPathFlat({...commonParams, waitMode: 'end-to-start'}))
     ).toEqual([20, 1, 30, 2]);
     expect(
-      Array.from(getLocalDependencyPathFlat({...commonParams, waitMode: 'end-to-end'}))
+      Array.from(getSameProcessDependencyPathFlat({...commonParams, waitMode: 'end-to-end'}))
     ).toEqual([20, 1, 40, 2]);
     expect(
-      Array.from(getLocalDependencyPathFlat({...commonParams, waitMode: 'start-to-start'}))
+      Array.from(getSameProcessDependencyPathFlat({...commonParams, waitMode: 'start-to-start'}))
     ).toEqual([10, 1, 30, 2]);
+    const target = {x1: -1, y1: -1, x2: -1, y2: -1};
+    expect(
+      fillSameProcessDependencyPathFlat({...commonParams, waitMode: 'end-to-start'}, target)
+    ).toBe(true);
+    expect(target).toEqual({x1: 20, y1: 1, x2: 30, y2: 2});
   });
 
   it('starts parent dependency paths at the parent start', () => {
-    /** Parameter shape accepted by local dependency path construction. */
-    type LocalDependencyPathParams = Parameters<typeof getLocalDependencyPathFlat>[0];
+    /** Parameter shape accepted by same-process dependency path construction. */
+    type SameProcessDependencyPathParams = Parameters<typeof getSameProcessDependencyPathFlat>[0];
     const parentThreadId = 'parent-thread' as TraceThreadId;
     const childThreadId = 'child-thread' as TraceThreadId;
     const parentThreadRef = encodeProcessThreadRef(0, 0);
@@ -245,7 +248,7 @@ describe('getLocalDependencyPathFlat', () => {
 
     expect(
       Array.from(
-        getLocalDependencyPathFlat({
+        getSameProcessDependencyPathFlat({
           startSpan: parentSpan,
           endSpan: childSpan,
           layoutLookup,
@@ -254,7 +257,7 @@ describe('getLocalDependencyPathFlat', () => {
           waitMode: 'end-to-start',
           bidirectional: false,
           isParentDependency: true
-        } satisfies LocalDependencyPathParams)
+        } satisfies SameProcessDependencyPathParams)
       )
     ).toEqual([10, 1, 30, 2]);
   });
@@ -283,10 +286,12 @@ describe('getLocalDependencyPathFlat', () => {
       40
     );
     const dependency = {
-      ...createCrossParentDependency(parentSpan.spanId, childSpan.spanId),
+      ...createCrossParentDependency(parentSpan.spanId!, childSpan.spanId!),
       startSpanRef: parentSpan.spanRef,
       endSpanRef: childSpan.spanRef
-    } satisfies Parameters<typeof buildTraceCrossRankDependencyGeometry>[0]['crossDependency'];
+    } satisfies Parameters<
+      typeof buildTraceCrossRankDependencyGeometry
+    >[0]['crossProcessDependency'];
     const layoutLookup = createDependencyLayoutLookup({
       parentSpan,
       parentThreadRef,
@@ -295,7 +300,7 @@ describe('getLocalDependencyPathFlat', () => {
     });
 
     const result = buildTraceCrossRankDependencyGeometry({
-      crossDependency: dependency,
+      crossProcessDependency: dependency,
       maxTimeMs: 100,
       minTimeMs: 0,
       spanByRef: new Map([
@@ -310,16 +315,126 @@ describe('getLocalDependencyPathFlat', () => {
   });
 });
 
+describe('buildExplicitParentSpanMap', () => {
+  it('keeps only visible source-declared parents and ignores containment-only dependencies', () => {
+    const processRef = encodeProcessRef(0);
+    const threadRef = encodeProcessThreadRef(0, 0);
+    const threadId = 'thread' as TraceThreadId;
+    const child = createDependencyPathSpan(
+      'child',
+      encodeSpanRef(0, 0),
+      processRef,
+      threadRef,
+      threadId,
+      10,
+      20
+    );
+    const containingLarge = createDependencyPathSpan(
+      'containing-large',
+      encodeSpanRef(0, 1),
+      processRef,
+      threadRef,
+      threadId,
+      0,
+      100
+    );
+    const containingSmall = createDependencyPathSpan(
+      'containing-small',
+      encodeSpanRef(0, 2),
+      processRef,
+      threadRef,
+      threadId,
+      5,
+      25
+    );
+    const explicitFirst = createDependencyPathSpan(
+      'explicit-first',
+      encodeSpanRef(0, 3),
+      processRef,
+      threadRef,
+      threadId,
+      30,
+      35
+    );
+    const explicitTie = createDependencyPathSpan(
+      'explicit-tie',
+      encodeSpanRef(0, 4),
+      processRef,
+      threadRef,
+      threadId,
+      40,
+      45
+    );
+    const implicitChild = createDependencyPathSpan(
+      'implicit-child',
+      encodeSpanRef(0, 5),
+      processRef,
+      threadRef,
+      threadId,
+      12,
+      13
+    );
+    const hiddenParent = createDependencyPathSpan(
+      'hidden-parent',
+      encodeSpanRef(0, 6),
+      processRef,
+      threadRef,
+      threadId,
+      8,
+      9
+    );
+
+    const parentByChild = buildExplicitParentSpanMap({
+      spans: [child, containingLarge, containingSmall, explicitFirst, explicitTie, implicitChild],
+      sameProcessDependencies: [
+        {
+          dependencyId: 'large' as TraceDependencyId,
+          startSpanRef: containingLarge.spanRef,
+          endSpanRef: implicitChild.spanRef,
+          hasParentKeyword: false
+        },
+        {
+          dependencyId: 'small' as TraceDependencyId,
+          startSpanRef: containingSmall.spanRef,
+          endSpanRef: child.spanRef,
+          hasParentKeyword: false
+        },
+        {
+          dependencyId: 'hidden-parent' as TraceDependencyId,
+          startSpanRef: hiddenParent.spanRef,
+          endSpanRef: child.spanRef,
+          hasParentKeyword: true
+        },
+        {
+          dependencyId: 'explicit-first' as TraceDependencyId,
+          startSpanRef: explicitFirst.spanRef,
+          endSpanRef: child.spanRef,
+          hasParentKeyword: true
+        },
+        {
+          dependencyId: 'explicit-tie' as TraceDependencyId,
+          startSpanRef: explicitTie.spanRef,
+          endSpanRef: child.spanRef,
+          hasParentKeyword: true
+        }
+      ]
+    });
+
+    expect(parentByChild.get(child.spanRef)).toBe(explicitFirst.spanRef);
+    expect(parentByChild.has(implicitChild.spanRef)).toBe(false);
+  });
+});
+
 describe('computeInterleavedRankDeltas', () => {
   it('falls back to rank position when process ids do not match across graphs', () => {
     const deltas = computeInterleavedRankDeltas([
       {
-        traceGraph: createTestLayoutGraph(['rank-a', 'rank-b']),
+        processes: createTestLayoutGraph(['rank-a', 'rank-b']).processes,
         layout: createTestTraceLayout([0, 10]),
         rankSpacings: [10, 10]
       },
       {
-        traceGraph: createTestLayoutGraph(['other-a', 'other-b']),
+        processes: createTestLayoutGraph(['other-a', 'other-b']).processes,
         layout: createTestTraceLayout([0, 10]),
         rankSpacings: [10, 10]
       }
@@ -334,12 +449,12 @@ describe('computeInterleavedRankDeltas', () => {
   it('prefers exact process id matches over rank-position fallback', () => {
     const deltas = computeInterleavedRankDeltas([
       {
-        traceGraph: createTestLayoutGraph(['rank-a', 'rank-b']),
+        processes: createTestLayoutGraph(['rank-a', 'rank-b']).processes,
         layout: createTestTraceLayout([0, 10]),
         rankSpacings: [10, 10]
       },
       {
-        traceGraph: createTestLayoutGraph(['unmatched-rank', 'rank-a']),
+        processes: createTestLayoutGraph(['unmatched-rank', 'rank-a']).processes,
         layout: createTestTraceLayout([0, 10]),
         rankSpacings: [10, 10]
       }

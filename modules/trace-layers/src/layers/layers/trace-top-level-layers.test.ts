@@ -2,36 +2,40 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {
   buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
+  buildTraceChunkDataFromJSONTrace,
+  buildTraceViewSnapshot,
   createEmptyTraceGraphCollapseState,
   createStaticTraceGraphRuntimeSource,
+  materializeJSONTrace,
   TraceGraph
-} from '../../trace/index';
+} from '../../trace';
 import {TraceGraphLayer} from './trace-graph-layer';
 import {TracePreparedStateLayer} from './trace-prepared-state-layer';
 import {TraceStoreLayer} from './trace-store-layer';
 
 import type {
   TraceChunkDescriptor,
+  TraceChunkReadyMaterializerParams,
   TraceChunkSelection,
   TraceChunkStore,
-  TraceChunkStoreEnsureResult,
+  TraceChunkStoreLoadWindowResult,
+  TraceChunkStoreWindowChunksArrivedEvent,
   TraceDependencyId,
-  TraceGraphData,
+  TraceDataset,
   TraceLayoutCollapseState,
-  TraceLocalDependency,
+  TraceSameProcessDependency,
   TraceProcess,
+  SpanRef,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId,
-  TraceVisSettings,
-  TraceWindow
-} from '../../trace/index';
+  TraceVisSettings
+} from '../../trace';
 
 const TEST_SETTINGS: TraceVisSettings = {
   showDependencies: true,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   showCrossProcessDependencies: true,
   showInstants: false,
   showCounters: false,
@@ -57,7 +61,7 @@ const TEST_SETTINGS: TraceVisSettings = {
 };
 
 type TestTraceGraphFixture = {
-  traceGraphData: TraceGraphData;
+  traceDataset: TraceDataset;
   traceGraph: TraceGraph;
 };
 
@@ -89,15 +93,17 @@ describe('TraceGraphLayer', () => {
 
     updateLayer(layer);
 
-    expect(layer.state.traceViewState?.preparedScene.foreground.map(scene => scene.graph)).toEqual([
-      traceGraph
-    ]);
+    expect(
+      layer.state.traceViewState?.renderSnapshot.foregroundScenes.map(
+        scene => scene.layout.traceGraph
+      )
+    ).toEqual([traceGraph]);
     expect(layer.renderLayers()).toBeInstanceOf(TracePreparedStateLayer);
   });
 
   it('forwards caller-owned selected span refs into prepared selection rendering', () => {
     const traceGraph = createTestTraceGraph().traceGraph;
-    const selectedSpanRef = traceGraph.getSpanRefByExternalBlockId('parent' as TraceSpanId);
+    const selectedSpanRef = traceGraph.getSpanRefById('parent' as TraceSpanId);
     if (selectedSpanRef == null) {
       throw new Error('Expected selected span ref');
     }
@@ -172,30 +178,30 @@ describe('TraceStoreLayer', () => {
     vi.restoreAllMocks();
   });
 
-  it('registers windows, materializes snapshots, redraws on chunk arrivals, and cleans up', async () => {
+  it('loads windows, materializes datasets, redraws on chunk arrivals, and cleans up', async () => {
     const firstFixture = createTestTraceGraph('first');
     const secondFixture = createTestTraceGraph('second');
-    const source = createTraceStoreSource('window-a', firstFixture.traceGraphData);
+    const source = createTraceStoreSource('window-a', firstFixture.traceDataset);
     const layer = createTraceStoreLayer([source.source]);
 
     updateLayer(layer);
     await flushPromises();
 
-    expect(source.registerTraceWindows).toHaveBeenCalledWith({
-      windows: [expect.objectContaining({id: 'window-a'})],
+    expect(source.loadWindow).toHaveBeenCalledWith({
+      window: expect.objectContaining({id: 'window-a'}),
       loadChunk: source.source.loadChunk,
-      onProgress: source.source.onProgress
+      onProgress: source.source.onProgress,
+      onChunksArrived: expect.any(Function)
     });
-    expect(source.materializeTraceGraphDataForWindow).toHaveBeenCalledWith(
-      'window-a',
+    expect(source.withReadyChunks).toHaveBeenCalledWith(
       source.selection,
-      source.source.materializeTraceGraphData
+      source.source.materializeTraceDataset
     );
     expect(layer.state.traceGraphs.map(traceGraph => traceGraph.name)).toEqual(['first']);
     expect(layer.renderLayers()).toBeInstanceOf(TraceGraphLayer);
 
-    source.setTraceGraphData(secondFixture.traceGraphData);
-    source.getRegisteredWindow()?.onChunksArrived?.({
+    source.setTraceDataset(secondFixture.traceDataset);
+    source.getOnChunksArrived()?.({
       windowId: 'window-a',
       newReadyChunkKeys: [],
       matchedChunkCount: 0,
@@ -208,15 +214,15 @@ describe('TraceStoreLayer', () => {
     expect(layer.state.traceGraphs.map(traceGraph => traceGraph.name)).toEqual(['second']);
 
     layer.finalizeState({} as never);
-    expect(source.removeTraceWindow).toHaveBeenCalledWith('window-a');
+    expect(source.clearActiveWindow).toHaveBeenCalled();
   });
 
-  it('replaces source registrations and reports async registration errors', async () => {
-    const firstSource = createTraceStoreSource('window-a', createTestTraceGraph().traceGraphData);
+  it('replaces active windows and reports async load errors', async () => {
+    const firstSource = createTraceStoreSource('window-a', createTestTraceGraph().traceDataset);
     const onError = vi.fn();
-    const secondSource = createTraceStoreSource('window-b', createTestTraceGraph().traceGraphData, {
+    const secondSource = createTraceStoreSource('window-b', createTestTraceGraph().traceDataset, {
       onError,
-      registerTraceWindows: vi.fn(() => Promise.reject(new Error('load failed')))
+      loadWindow: vi.fn(() => Promise.reject(new Error('load failed')))
     });
     const layer = createTraceStoreLayer([firstSource.source]);
     updateLayer(layer);
@@ -228,8 +234,8 @@ describe('TraceStoreLayer', () => {
     });
     await flushPromises();
 
-    expect(firstSource.removeTraceWindow).toHaveBeenCalledWith('window-a');
-    expect(secondSource.registerTraceWindows).toHaveBeenCalled();
+    expect(firstSource.clearActiveWindow).toHaveBeenCalled();
+    expect(secondSource.loadWindow).toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({message: 'load failed'}));
   });
 });
@@ -254,31 +260,46 @@ function createTraceStoreLayer(
 
 function createTraceStoreSource(
   windowId: string,
-  initialTraceGraphData: TraceGraphData,
+  initialTraceDataset: TraceDataset,
   overrides: Partial<{
     onError: (error: unknown) => void;
-    registerTraceWindows: TestTraceStore['registerTraceWindows'];
+    loadWindow: TestTraceStore['loadWindow'];
   }> = {}
 ) {
-  let traceGraphData = initialTraceGraphData;
-  let registeredWindow: TraceWindow | undefined;
+  let traceDataset = initialTraceDataset;
+  let onChunksArrived: ((event: TraceChunkStoreWindowChunksArrivedEvent) => void) | undefined;
   const selection = createTraceSelection();
-  const registerTraceWindows =
-    overrides.registerTraceWindows ??
-    vi.fn(({windows}: Parameters<TestTraceStore['registerTraceWindows']>[0]) => {
-      registeredWindow = windows[0];
-      return Promise.resolve(createEnsureResult());
+  const loadWindow =
+    overrides.loadWindow ??
+    vi.fn(({onChunksArrived: nextOnChunksArrived}: Parameters<TestTraceStore['loadWindow']>[0]) => {
+      onChunksArrived = nextOnChunksArrived;
+      return Promise.resolve(createLoadWindowResult());
     });
   const select = vi.fn(() => selection);
   const getReadyChunks = vi.fn(() => []);
-  const materializeTraceGraphDataForWindow = vi.fn(() => traceGraphData);
-  const removeTraceWindow = vi.fn();
+  const withReadyChunks = vi.fn(
+    (
+      nextSelection: TraceChunkSelection<TraceChunkDescriptor>,
+      materializeTraceDataset: (
+        params: TraceChunkReadyMaterializerParams<unknown, TraceChunkDescriptor>
+      ) => TraceDataset | null
+    ) =>
+      materializeTraceDataset({
+        ownerRefRegistry: {} as TraceChunkReadyMaterializerParams<
+          unknown,
+          TraceChunkDescriptor
+        >['ownerRefRegistry'],
+        selection: nextSelection,
+        readyChunks: []
+      })
+  );
+  const clearActiveWindow = vi.fn();
   const traceChunkStore = {
-    registerTraceWindows,
+    loadWindow,
     select,
     getReadyChunks,
-    materializeTraceGraphDataForWindow,
-    removeTraceWindow,
+    withReadyChunks,
+    clearActiveWindow,
     hasActiveSourceSpanFilter: vi.fn(() => false),
     isFiltered: vi.fn(() => false),
     getFilterReason: vi.fn(() => ({
@@ -287,29 +308,29 @@ function createTraceStoreSource(
       state: 'outside-window'
     }))
   } as unknown as TestTraceStore;
-  const traceWindow: TraceWindow = {
+  const traceWindow = {
     id: windowId,
     minTimeMs: 0,
     maxTimeMs: 10
   };
-  const materializeTraceGraphData = vi.fn(() => traceGraphData);
+  const materializeTraceDataset = vi.fn(() => traceDataset);
 
   return {
     source: {
       traceChunkStore,
       traceWindow,
       loadChunk: vi.fn(async () => ({payload: {}})),
-      materializeTraceGraphData,
+      materializeTraceDataset,
       onProgress: vi.fn(),
       onError: overrides.onError
     },
     selection,
-    registerTraceWindows,
-    materializeTraceGraphDataForWindow,
-    removeTraceWindow,
-    getRegisteredWindow: () => registeredWindow,
-    setTraceGraphData: (nextTraceGraphData: TraceGraphData) => {
-      traceGraphData = nextTraceGraphData;
+    loadWindow,
+    withReadyChunks,
+    clearActiveWindow,
+    getOnChunksArrived: () => onChunksArrived,
+    setTraceDataset: (nextTraceDataset: TraceDataset) => {
+      traceDataset = nextTraceDataset;
     }
   };
 }
@@ -331,15 +352,13 @@ function createTraceSelection(): TraceChunkSelection<TraceChunkDescriptor> {
   };
 }
 
-function createEnsureResult(): TraceChunkStoreEnsureResult<unknown, TraceChunkDescriptor> {
+function createLoadWindowResult(): TraceChunkStoreLoadWindowResult {
   return {
-    readyChunks: [],
-    summary: {
-      requestedChunkCount: 0,
-      reusedReadyChunkCount: 0,
-      reusedPendingChunkCount: 0,
-      fetchedChunkCount: 0
-    }
+    matchedChunkCount: 0,
+    readyChunkCount: 0,
+    reusedReadyChunkCount: 0,
+    reusedPendingChunkCount: 0,
+    fetchedChunkCount: 0
   };
 }
 
@@ -367,21 +386,29 @@ function flushPromises(): Promise<void> {
 }
 
 function createTestTraceGraph(name = 'trace-top-level-layer-test'): TestTraceGraphFixture {
-  const traceGraphData = buildTraceGraphDataFromJSONTrace(
-    buildJSONTrace([createProcessWithLocalDependency('rank-a', 0)], [], {name})
+  const materializedTrace = materializeJSONTrace(
+    buildJSONTrace([createProcessWithSameProcessDependency('rank-a', 0)], [], {name})
   );
+  const runtimeSource = createStaticTraceGraphRuntimeSource({
+    identityKey: `${name}:test`,
+    name: materializedTrace.name,
+    spanLayout: materializedTrace.spanLayout,
+    chunks: buildTraceChunkDataFromJSONTrace(materializedTrace),
+    crossProcessDependencies: materializedTrace.crossProcessDependencies,
+    events: materializedTrace.events,
+    timeExtents: {
+      minTimeMs: materializedTrace.minTimeMs,
+      maxTimeMs: materializedTrace.maxTimeMs
+    },
+    stats: materializedTrace.stats
+  });
   return {
-    traceGraphData,
-    traceGraph: new TraceGraph(
-      createStaticTraceGraphRuntimeSource({
-        identityKey: `${name}:test`,
-        traceGraphData
-      })
-    )
+    traceDataset: runtimeSource.traceDataset,
+    traceGraph: new TraceGraph(runtimeSource, buildTraceViewSnapshot(runtimeSource.traceDataset))
   };
 }
 
-function createProcessWithLocalDependency(processId: string, rankNum: number): TraceProcess {
+function createProcessWithSameProcessDependency(processId: string, rankNum: number): TraceProcess {
   const thread: TraceThread = {
     type: 'trace-thread',
     name: `${processId}-thread`,
@@ -391,8 +418,8 @@ function createProcessWithLocalDependency(processId: string, rankNum: number): T
   const parentSpan = createSpan('parent', thread);
   const childSpan = createSpan('child', thread);
   const dependencyId = 'dep-parent-child' as TraceDependencyId;
-  const dependency: TraceLocalDependency = {
-    type: 'trace-local-dependency',
+  const dependency: TraceSameProcessDependency = {
+    type: 'trace-same-process-dependency',
     dependencyId,
     startSpanId: parentSpan.spanId,
     endSpanId: childSpan.spanId,
@@ -401,8 +428,8 @@ function createProcessWithLocalDependency(processId: string, rankNum: number): T
     bidirectional: false,
     waitTimeMs: 1_000
   };
-  parentSpan.localDependencyIds = [dependencyId];
-  parentSpan.localDependencies = [dependency];
+  parentSpan.sameProcessDependencyIds = [dependencyId];
+  parentSpan.sameProcessDependencies = [dependency];
 
   return {
     type: 'trace-process',
@@ -423,7 +450,7 @@ function createProcessWithLocalDependency(processId: string, rankNum: number): T
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [dependency],
+    sameProcessDependencies: [dependency],
     remoteDependencies: []
   };
 }
@@ -433,6 +460,7 @@ function createSpan(name: string, thread: TraceThread): TraceSpan {
   const endTimeMs = name === 'parent' ? 10 : 9;
   return {
     type: 'trace-span',
+    spanRef: 0 as SpanRef,
     spanId: name as TraceSpanId,
     threadId: thread.threadId,
     processName: thread.processId,
@@ -448,8 +476,8 @@ function createSpan(name: string, thread: TraceThread): TraceSpan {
         durationMsAsString: `${endTimeMs - startTimeMs}ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };

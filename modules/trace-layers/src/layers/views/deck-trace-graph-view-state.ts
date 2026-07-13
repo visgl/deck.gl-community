@@ -1,6 +1,6 @@
-import {getTraceLayoutVerticalBounds} from '../../trace/index';
+import {getTraceLayoutVerticalBounds} from '../../trace';
 
-import type {TraceLayout} from '../../trace/index';
+import type {TraceLayout} from '../../trace';
 import type {Bounds} from '@deck.gl-community/infovis-layers';
 
 const DEFAULT_TRACE_VERTICAL_PADDING = 0;

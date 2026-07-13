@@ -14,7 +14,8 @@ Use `TraceChunkData` when a loader fetches bounded source chunks and the applica
 2. Normalize that payload into `TraceChunkData`.
 3. Give the chunk to `TraceChunkStore.add(...)` or return it from a store `loadChunk` callback.
 4. Let the store finalize it into a store-owned `TraceChunk`.
-5. Materialize a visible `TraceGraphData` / `TraceGraph` snapshot for the active window.
+5. Select ready stored chunks and materialize an immutable `TraceDataset`.
+6. Build `TraceViewSnapshot` plus `TraceGraph` for the active view.
 
 After step 3, treat the parser-local `TraceChunkData` as consumed.
 
@@ -26,7 +27,7 @@ Every normalized chunk needs:
 - `chunkKey`
 - `processes`
 - `spanTable`
-- `localDependencyTable`
+- `resolvedSameProcessDependencyTable`
 - `diagnostics`
 - `refState: 'parser-local'`
 
@@ -37,6 +38,9 @@ display sidecars, cross-chunk source edges, or row-level overlap windows.
 
 Populate `external_span_id` whenever the source has one. Hidden search, URL serialization, parent
 navigation, and cross-chunk source dependency resolution depend on stable source identity.
+Built-in Omnibox search treats the trimmed raw query as a case-sensitive exact external-id lookup
+before fuzzy name/source/keyword matches, so stable external IDs give users a direct loaded-row
+path without loading more chunks.
 
 Parent pointers belong in `sourceDependencyTable`, not in a second parent-only payload:
 
@@ -54,8 +58,8 @@ buildTraceChunkSourceDependencyTable([
 ## Window overlap
 
 Use `rowWindowTable` when one retained source chunk covers more time than the currently visible
-window. The store can keep all ready rows searchable while visible-window materialization selects
-only rows whose overlap range intersects the active `TraceWindow`.
+window. The store can keep all ready rows searchable while visible-window dataset assembly selects
+only rows whose overlap range intersects the active `TraceChunkStoreWindow`.
 
 ## Store usage
 
@@ -63,15 +67,34 @@ only rows whose overlap range intersects the active `TraceWindow`.
 const store = new TraceChunkStore({
   identityKey,
   descriptors,
-  selectionPolicy,
-  windowGraphMaterializer
+  selectionPolicy
 });
 
-await store.registerTraceWindows({
-  windows,
+await store.loadWindow({
+  window,
   loadChunk: async descriptor => ingestSourceChunk(await fetchChunk(descriptor))
 });
+
+const selection = store.select({
+  window: traceWindowToTraceChunkSelectionWindow(window),
+  spanBudget
+});
+const traceDataset = store.withReadyChunks(selection, ({ownerRefRegistry, readyChunks}) =>
+  buildTraceChunkWindowDataset({
+    name,
+    ownerRefRegistry,
+    window,
+    readyChunks
+  })
+);
+const traceGraph =
+  traceDataset &&
+  new TraceGraph(
+    {traceDataset, traceStore: store},
+    buildTraceViewSnapshot(traceDataset, traceViewSnapshotOptions)
+  );
 ```
 
 See [TraceChunkData](../api-reference/trace/trace-chunk-data.md) and
+[TraceDataset](../api-reference/trace/trace-dataset.md) plus
 [TraceChunkStore](../api-reference/trace/trace-chunk-store.md) for the field and method contracts.

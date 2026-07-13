@@ -6,18 +6,18 @@ import {
   DEFAULT_TRACE_STYLE,
   TRACE_SPAN_FILTER_MASK_NONE,
   TRACE_SPAN_FILTER_MASK_REGEXP,
-  TRACE_SPAN_FILTER_MASK_TOPOLOGY
-} from '../../../../trace/index';
-import {TraceLocalDependencyCard} from './trace-local-dependency-card';
+  TRACE_SPAN_FILTER_MASK_SOURCE
+} from '../../../../trace';
+import {TraceSameProcessDependencyCard} from './trace-same-process-dependency-card';
 
 import type {
   SpanRef,
   TraceCardSpan,
   TraceGraph,
-  TraceLocalDependency,
+  TraceSameProcessDependency,
   TraceThread,
   TraceVisSettings
-} from '../../../../trace/index';
+} from '../../../../trace';
 import type {Root} from 'react-dom/client';
 
 vi.mock('./trace-span-name-badge', () => ({
@@ -26,19 +26,12 @@ vi.mock('./trace-span-name-badge', () => ({
     traceGraph
   }: {
     spanRef: SpanRef;
-    traceGraph: Pick<TraceGraph, 'getSpanName' | 'getTraceSpanCardModel' | 'spanFilterReason'>;
+    traceGraph: Pick<TraceGraph, 'getSpanName' | 'spanFilterReason'>;
   }) => {
     const filterReason = traceGraph.spanFilterReason(spanRef);
-    const filteredVariant =
-      (filterReason.filterMask & 0x02) !== 0 && (filterReason.filterMask & 0x01) === 0
-        ? 'topology'
-        : 'regexp';
     return (
-      <span
-        data-filtered={filterReason.isFiltered ? 'true' : 'false'}
-        data-filtered-variant={filterReason.isFiltered ? filteredVariant : 'none'}
-      >
-        {traceGraph.getSpanName?.(spanRef) ?? traceGraph.getTraceSpanCardModel(spanRef)?.span.name}
+      <span data-filtered={filterReason.isFiltered ? 'true' : 'false'}>
+        {traceGraph.getSpanName(spanRef)}
       </span>
     );
   }
@@ -50,7 +43,7 @@ vi.mock('../../../utils/trace-span-badge-style', () => ({
 
 const defaultTraceVisSettings: TraceVisSettings = {
   showDependencies: true,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   showCrossProcessDependencies: true,
   showInstants: false,
   showCounters: false,
@@ -72,13 +65,13 @@ const defaultTraceVisSettings: TraceVisSettings = {
   traceOffsetMs: 0,
   traceScale: 1,
   traceColorSchemeId: 'processes',
-  traceRunSummaryAggregationKey: 'latest'
+  traceTimingKey: 'latest'
 };
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
 
-describe('TraceLocalDependencyCard', () => {
+describe('TraceSameProcessDependencyCard', () => {
   afterEach(() => {
     flushSync(() => {
       root?.unmount();
@@ -88,7 +81,7 @@ describe('TraceLocalDependencyCard', () => {
     container = null;
   });
 
-  it('marks endpoint badges with their filtered badge variants', () => {
+  it('marks text-filtered endpoint badges as hidden', () => {
     const startSpan = createSpan(
       1,
       'hidden-start-span',
@@ -99,28 +92,26 @@ describe('TraceLocalDependencyCard', () => {
       2,
       'hidden-end-span',
       'hidden-end-span',
-      TRACE_SPAN_FILTER_MASK_TOPOLOGY
+      TRACE_SPAN_FILTER_MASK_SOURCE
     );
 
-    renderTraceLocalDependencyCard({
-      dependency: createLocalDependency(),
+    renderTraceSameProcessDependencyCard({
+      dependency: createSameProcessDependency(),
       traceGraph: createTraceGraph({
         spans: [startSpan, endSpan]
       })
     });
 
     expect(findBadgeByText('hidden-start-span')?.dataset.filtered).toBe('true');
-    expect(findBadgeByText('hidden-start-span')?.dataset.filteredVariant).toBe('regexp');
     expect(findBadgeByText('hidden-end-span')?.dataset.filtered).toBe('true');
-    expect(findBadgeByText('hidden-end-span')?.dataset.filteredVariant).toBe('topology');
   });
 });
 
 /**
- * Render one local dependency card into a fresh DOM container for testing.
+ * Render one same-process dependency card into a fresh DOM container for testing.
  */
-function renderTraceLocalDependencyCard(params: {
-  dependency: TraceLocalDependency;
+function renderTraceSameProcessDependencyCard(params: {
+  dependency: TraceSameProcessDependency;
   traceGraph: TraceGraph;
 }): void {
   container = document.createElement('div');
@@ -129,7 +120,7 @@ function renderTraceLocalDependencyCard(params: {
 
   flushSync(() => {
     root?.render(
-      <TraceLocalDependencyCard
+      <TraceSameProcessDependencyCard
         dependency={params.dependency}
         traceGraph={params.traceGraph}
         traceStyle={DEFAULT_TRACE_STYLE}
@@ -174,11 +165,11 @@ function createSpan(
 }
 
 /**
- * Build one minimal local dependency for the card renderer.
+ * Build one minimal same-process dependency for the card renderer.
  */
-function createLocalDependency(): TraceLocalDependency {
+function createSameProcessDependency(): TraceSameProcessDependency {
   return {
-    type: 'trace-local-dependency',
+    type: 'trace-same-process-dependency',
     dependencyId: 'dep-1' as never,
     startSpanId: 'start-span' as never,
     endSpanId: 'end-span' as never,
@@ -204,12 +195,12 @@ function createTraceGraph(params: {spans: TraceCardSpan[]}): TraceGraph {
   } as unknown as TraceThread;
 
   return {
-    getTraceSpanCardModel: (spanRef: SpanRef) => {
-      const span = spanMap.get(spanRef) ?? null;
-      return span ? {span} : null;
-    },
     getSpanName: (spanRef: SpanRef) => spanMap.get(spanRef)?.name ?? null,
-    getThreadSourceBySpanRef: () => ({
+    getSpanOwnerRefs: () => ({
+      processRef: 1 as never,
+      threadRef: 1 as never
+    }),
+    getThreadSourceByRef: () => ({
       threadRef: 1 as never,
       processRef: 1 as never,
       name: thread.name

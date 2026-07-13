@@ -10,7 +10,7 @@ import {
   useState,
   useSyncExternalStore
 } from 'react';
-import {DeckWidgetTheme} from '@deck.gl/widgets';
+import {ContextMenuWidget, DeckWidgetTheme} from '@deck.gl/widgets';
 import {Matrix4} from '@math.gl/core';
 import {h} from 'preact';
 import {boundsAreEqual, formatTimeMs, makeLayerFilter} from '@deck.gl-community/infovis-layers';
@@ -32,7 +32,7 @@ import {
   OmniBoxWidget,
   ToastWidget
 } from '@deck.gl-community/widgets';
-import {getTraceBounds, getVerticalBounds, imperativeDeckController} from '../../../layers/index';
+import {getTraceBounds, getVerticalBounds, imperativeDeckController} from '../../../layers';
 import {
   buildDeckBackgroundLayersForTrace,
   buildDeckLayerForCriticalPath,
@@ -41,21 +41,23 @@ import {
   buildDeckLayersForInstantsAndCounter,
   buildDeckLayersForLegend,
   buildDeckLayersForMinimapSpanIndicators,
+  buildDeckLayersForTimeAnchor,
   buildDeckLayersForTrace,
   buildOverviewLayers
 } from '../../../layers/layers/deck-layers';
 import {
   buildTraceFilterSummary,
   buildTracePreparedOverviewViewModel,
-  buildTraceSelectedCrossDependencySources,
-  buildTraceSelectedLocalDependencySourcesByProcessId,
-  buildTraceSelectionPreparedScene,
+  buildTraceSelectedCrossProcessDependencySources,
+  buildTraceSelectedSameProcessDependencySourcesByProcessId,
+  buildTraceSelectionOverviewScenes,
   computeTracePathHighlighting,
   createTraceComparisonModelMatrix,
-  createTraceSpanNameSearchPredicate,
+  createTraceSpanOmniBoxSearchPredicate,
   formatTS,
   getTraceSelectedSpanFromRef,
   getTraceSelectedSpanFromRenderSpan,
+  getTraceSpanCardModel,
   hasTraceFilteredItems,
   resolveTraceProcessRefTarget,
   resolveTraceThreadRefTarget,
@@ -63,11 +65,16 @@ import {
   TRACE_SPAN_FILTER_MASK_NONE,
   TraceEngine,
   truncateMiddle
-} from '../../../trace/index';
+} from '../../../trace';
 import {getHeapUsageProbeFields, log as traceLog} from '../../../trace/log';
 import {getTraceSpanBadgePresentation} from '../../utils/trace-span-badge-presentation';
-import {getTraceSpanBadgeStyle} from '../../utils/trace-span-badge-style';
+import {getTraceSpanBadgeStyleForRef} from '../../utils/trace-span-badge-style';
 import {CopyShortcutHint} from '../copy-shortcut-hint';
+import {
+  DECK_TRACE_GRAPH_CONTEXT_MENU_WIDGET_ID,
+  resolveDeckTraceGraphOverviewContextTimeMs,
+  resolveDeckTraceGraphOverviewContextViewport
+} from './deck-trace-graph-context-menu';
 import {isTraceRenderSpanObject, resolveDeckTraceGraphHoverPayload} from './deck-trace-graph-hover';
 import {formatRelativeTimeAxisDuration} from './deck-trace-graph-time-format';
 import {DeckWithManagedViews, DeckWithManagedViewsRef} from './deck-with-managed-views';
@@ -80,6 +87,7 @@ import {
   getTraceLayoutSpanAnchorDeltaY,
   resolvePendingTraceLayoutAnchor
 } from './trace-layout-anchors';
+import {TraceLayoutBusyOverlay, useDeferredTraceLayoutUpdate} from './trace-layout-busy-overlay';
 import {TraceTooltip} from './trace-tooltip';
 
 import type {
@@ -91,11 +99,13 @@ import type {SettingsSchema, SettingsState} from '@deck.gl-community/panels';
 import type {SettingsChangeDescriptor} from '@deck.gl-community/panels';
 import type {OmniBoxOption, OmniBoxResultsSummaryArgs} from '@deck.gl-community/widgets';
 import type {
+  CrossProcessDependencyRef,
   ProcessRef,
+  SameProcessDependencyRef,
   SpanRef,
   ThreadRef,
   TraceColorScheme,
-  TraceCrossDependencySource,
+  TraceCrossProcessDependency,
   TraceDependencyRenderSource,
   TraceEngineDiagnostics,
   TraceEvent,
@@ -104,27 +114,23 @@ import type {
   TraceGraphSpanFilterReason,
   TraceLayout,
   TraceLayoutBounds,
-  TraceLocalDependencySource,
   TraceObject,
   TracePreparedGraphScene,
   TracePreparedOverviewViewModel,
-  TracePreparedScene,
   TraceProcessInfo,
   TraceProcessInfoObject,
   TraceRenderSpan,
-  TraceSelectedCrossDependencySources,
-  TraceSelectedLocalDependencySourcesByProcessId,
+  TraceSameProcessDependencySource,
+  TraceSelectedCrossProcessDependencySources,
+  TraceSelectedSameProcessDependencySourcesByProcessId,
   TraceSelectedSpan,
-  TraceSelectionPreparedScene,
   TraceSpan,
   TraceSpanFilterMask,
   TraceSpanId,
   TraceStyle,
   TraceThreadId,
-  TraceVisSettings,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
-} from '../../../trace/index';
+  TraceVisSettings
+} from '../../../trace';
 import type {TraceSpanCardTabOptions} from './cards/trace-span-card';
 import type {DeckWithManagedViewsAnchorTransition} from './deck-with-managed-views';
 import type {PendingTraceLayoutAnchor} from './trace-layout-anchors';
@@ -133,7 +139,7 @@ import type {DeckProps, PickingInfo, Widget} from '@deck.gl/core';
 import type {Bounds, LayerFilter} from '@deck.gl-community/infovis-layers';
 import type {Tick} from '@deck.gl-community/timeline-layers';
 
-export type {TraceSelectedSpan} from '../../../trace/index';
+export type {TraceSelectedSpan} from '../../../trace';
 
 const OMNIBOX_DESCRIPTION_NAME_MAX_LENGTH = 28;
 const OMNIBOX_BADGE_NAME_MAX_LENGTH = 32;
@@ -142,15 +148,15 @@ const OMNIBOX_SEARCH_PLACEHOLDER = 'type to search, use /.../ for regex or > for
 const OMNIBOX_QUERY_HISTORY_STORAGE_KEY = 'tracevis.deck-trace-graph.omnibox.query-history';
 const OMNIBOX_SPAN_SEARCH_LIMIT = 200;
 const OMNIBOX_EXTERNAL_SEARCH_LIMIT = 50;
-const RUN_EVENT_VIEW_Y_POSITION = -15;
 const EMPTY_SELECTED_SPAN_REFS: readonly SpanRef[] = [];
-const EMPTY_SELECTED_LOCAL_DEPENDENCIES: readonly TraceLocalDependencySource[] = [];
-const EMPTY_SELECTED_CROSS_DEPENDENCIES: readonly TraceCrossDependencySource[] = [];
-const EMPTY_SELECTED_LOCAL_DEPENDENCY_REFS: readonly VisibleLocalDependencyRef[] = [];
-const EMPTY_SELECTED_CROSS_DEPENDENCY_REFS: readonly VisibleCrossDependencyRef[] = [];
-const EMPTY_SELECTED_LOCAL_DEPENDENCY_SOURCES_BY_PROCESS_ID: TraceSelectedLocalDependencySourcesByProcessId =
+const EMPTY_SELECTED_SAME_PROCESS_DEPENDENCIES: readonly TraceSameProcessDependencySource[] = [];
+const EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCIES: readonly TraceCrossProcessDependency[] = [];
+const EMPTY_SELECTED_SAME_PROCESS_DEPENDENCY_REFS: readonly SameProcessDependencyRef[] = [];
+const EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCY_REFS: readonly CrossProcessDependencyRef[] = [];
+const EMPTY_SELECTED_SAME_PROCESS_DEPENDENCY_SOURCES_BY_PROCESS_ID: TraceSelectedSameProcessDependencySourcesByProcessId =
   {};
-const EMPTY_SELECTED_CROSS_DEPENDENCY_SOURCES: TraceSelectedCrossDependencySources = [];
+const EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCY_SOURCES: TraceSelectedCrossProcessDependencySources =
+  [];
 /** Emits a level-0 probe for selection interactions in DeckTraceGraph. */
 function logDeckTraceSelectionProbe(
   label: string,
@@ -244,6 +250,8 @@ type DeckTraceRendererProps = {
   criticalPathLayers: DeckProps['layers'];
   /** Overview control/marker layers assembled by the container. */
   overviewLayers: DeckProps['layers'] | null;
+  /** Main and minimap vertical time-anchor overlays assembled by the container. */
+  timeAnchorLayers: DeckProps['layers'];
   /** Layer-filter callback passed directly to deck.gl. */
   layerFilter: DeckProps['layerFilter'];
   /** Optional deck widget theme override. */
@@ -278,14 +286,14 @@ type DeckTraceRendererProps = {
   hoveredSpan: {rankIndex: number; block?: TraceRenderSpan} | null;
   /** Span refs rendered by selected-span overlay foreground layers. */
   selectedSpanRefs: readonly SpanRef[];
-  /** Currently selected local dependencies resolved from direct click or extended selection. */
-  selectedDependencies: readonly TraceLocalDependencySource[];
-  /** Currently selected cross dependencies resolved from direct click or extended selection. */
-  selectedCrossDependencies: readonly TraceCrossDependencySource[];
-  /** Currently selected local-dependency sources grouped by process id. */
-  selectedLocalDependencySourcesByProcessId: TraceSelectedLocalDependencySourcesByProcessId;
-  /** Currently selected cross-dependency sources, when one ref-native selection is active. */
-  selectedCrossDependencySources?: TraceSelectedCrossDependencySources;
+  /** Currently selected same-process dependencies resolved from direct click or extended selection. */
+  selectedDependencies: readonly TraceSameProcessDependencySource[];
+  /** Currently selected cross-process dependencies resolved from direct click or extended selection. */
+  selectedCrossProcessDependencies: readonly TraceCrossProcessDependency[];
+  /** Currently selected same-process-dependency sources grouped by process id. */
+  selectedSameProcessDependencySourcesByProcessId: TraceSelectedSameProcessDependencySourcesByProcessId;
+  /** Currently selected cross-process-dependency sources, when one ref-native selection is active. */
+  selectedCrossProcessDependencySources?: TraceSelectedCrossProcessDependencySources;
   /** Click callback used by trace foreground span/dependency layers. */
   onSpanClick: (info: PickingInfo, event?: {srcEvent?: {shiftKey?: boolean}}) => boolean;
   /** Callback used by trace foreground process-label affordances. */
@@ -306,6 +314,8 @@ type DeckTraceHoverPopupState = {
   readonly viewId: string;
   /** Deck/world coordinates used as the popup anchor. */
   readonly position: [number, number];
+  /** Trace graph that owns the picked trace object rendered by the popup card. */
+  readonly traceGraph: TraceGraph;
   /** Trace object rendered through the shared tooltip surface when present. */
   readonly object: TraceDependencyRenderSource | TraceObject | TraceRenderSpan | null;
   /** Custom React content rendered for non-trace hover targets. */
@@ -330,6 +340,28 @@ export type DeckTraceGraphOverviewMarker = {
   lineColor?: readonly [number, number, number, number];
   /** Optional custom tooltip content shown while hovering the minimap marker. */
   tooltip?: ReactNode | null;
+};
+
+/** Vertical time marker rendered across both the main timeline and minimap. */
+export type DeckTraceGraphTimeAnchorMarker = {
+  /** Stable marker id used for deck.gl diffing. */
+  id: string;
+  /** Absolute center timestamp in milliseconds. */
+  timeMs: number;
+  /** Optional RGBA line color override. */
+  lineColor?: readonly [number, number, number, number];
+  /** Optional custom tooltip content shown while hovering the line. */
+  tooltip?: ReactNode | null;
+};
+
+/** Caller-owned action shown after right-clicking one minimap timestamp. */
+export type DeckTraceGraphOverviewContextMenuAction = {
+  /** Stable action value forwarded to the deck context-menu widget. */
+  readonly value: string;
+  /** Human-readable action label shown in the context menu. */
+  readonly label: string;
+  /** Callback invoked when this action is selected. */
+  readonly onSelect: () => void;
 };
 
 /** Absolute time range used to override minimap context. */
@@ -586,13 +618,26 @@ function isDeckDoubleClick(
 function isPrimarySelectionButton(
   event:
     | {
+        /** Whether mjolnir identified the primary mouse button. */
+        leftButton?: boolean;
+        /** Whether mjolnir identified the middle mouse button. */
+        middleButton?: boolean;
+        /** Whether mjolnir identified the secondary mouse button. */
+        rightButton?: boolean;
         srcEvent?: {
+          /** Native mouse button identifier. */
           button?: number;
         };
       }
     | null
     | undefined
 ): boolean {
+  if (event?.rightButton || event?.middleButton) {
+    return false;
+  }
+  if (event?.leftButton != null) {
+    return event.leftButton;
+  }
   const button = event?.srcEvent?.button;
   return button == null || button === 0;
 }
@@ -716,7 +761,7 @@ export type DeckTraceGraphPickedObjectResolver = (
 /** App-owned renderer for graph-global trace-event tooltip cards. */
 export type DeckTraceGraphTraceEventCardRenderer = TraceEventCardRenderer;
 
-/** Viewer configuration layered around the mounted TraceEngine. */
+/** React-only viewer configuration layered around the mounted TraceEngine. */
 export type DeckTraceGraphConfig = {
   /** Whether to append graph names to rank labels when multiple graphs are rendered. */
   readonly showGraphNames?: boolean;
@@ -772,12 +817,22 @@ export type DeckTraceGraphConfig = {
   readonly deckWidgetTheme?: DeckWidgetTheme;
   /** Optional minimap markers rendered at absolute event timestamps. */
   readonly overviewEventMarkers?: ReadonlyArray<DeckTraceGraphOverviewMarker>;
+  /** Optional vertical time marker rendered across the main timeline and minimap. */
+  readonly timeAnchorMarker?: DeckTraceGraphTimeAnchorMarker | null;
   /** Optional absolute time range used to fit the minimap independently of the main trace. */
   readonly overviewTimeRange?: DeckTraceGraphTimeRange;
   /** Optional absolute time range describing data currently loaded into the minimap. */
   readonly overviewLoadedTimeRange?: DeckTraceGraphTimeRange;
+  /** Whether the automatic initial viewport fit should use the loaded minimap time range. */
+  readonly fitInitialViewportToLoadedTimeRange?: boolean;
+  /** Optional stable caller-owned identity controlling when the automatic viewport fit repeats. */
+  readonly initialViewportFitKey?: string;
   /** Optional callback fired when a minimap marker is double-clicked. */
   readonly onOverviewMarkerDoubleClick?: (marker: DeckTraceGraphOverviewMarker) => void;
+  /** Optional provider for caller-owned actions at one minimap context-menu timestamp. */
+  readonly getOverviewTimeContextMenuActions?: (
+    timeMs: number
+  ) => readonly DeckTraceGraphOverviewContextMenuAction[];
   /** Optional callback fired when a shared trace event is double-clicked. */
   readonly onTraceEventDoubleClick?: (event: TraceEvent) => void;
   /** Optional caller-owned deck widgets rendered in the trace deck. */
@@ -790,11 +845,11 @@ export type DeckTraceGraphConfig = {
 
 /** React adapter props around one mounted TraceEngine. */
 export type DeckTraceGraphProps = {
-  /** Mounted mutable trace engine that owns viewer interaction and prepared scene state. */
+  /** Mounted mutable trace engine that owns viewer interaction and render-data state. */
   readonly engine: TraceEngine;
   /** CSS classnames for the deck component. */
   readonly className?: string;
-  /** Viewer configuration layered around the mounted engine. */
+  /** React-only viewer configuration layered around the mounted engine. */
   readonly reactConfig?: DeckTraceGraphConfig;
 };
 
@@ -863,6 +918,7 @@ function DeckTraceRenderer({
   instantAndCounterLayers,
   criticalPathLayers,
   overviewLayers,
+  timeAnchorLayers,
   layerFilter,
   deckTheme,
   widgets,
@@ -881,9 +937,9 @@ function DeckTraceRenderer({
   hoveredSpan,
   selectedSpanRefs,
   selectedDependencies,
-  selectedCrossDependencies,
-  selectedLocalDependencySourcesByProcessId,
-  selectedCrossDependencySources,
+  selectedCrossProcessDependencies,
+  selectedSameProcessDependencySourcesByProcessId,
+  selectedCrossProcessDependencySources,
   onSpanClick,
   onToggleProcess,
   onExpandProcess,
@@ -909,7 +965,7 @@ function DeckTraceRenderer({
       fontFamily
     })
   );
-  traceLog.probe(0, 'DeckTraceRenderer overviewTraceForegroundLayers done', {
+  traceLog.probe(1, 'DeckTraceRenderer overviewTraceForegroundLayers done', {
     sceneCount: overviewScenes.length,
     layerCount: overviewTraceForegroundLayers.length,
     spanIndicatorLayerCount: overviewSpanIndicatorLayers.length,
@@ -926,11 +982,11 @@ function DeckTraceRenderer({
         selection: {
           hoveredSpan: null,
           selectedSpanRefs: EMPTY_SELECTED_SPAN_REFS,
-          selectedDependencies: EMPTY_SELECTED_LOCAL_DEPENDENCIES,
-          selectedCrossDependencies: EMPTY_SELECTED_CROSS_DEPENDENCIES,
-          selectedLocalDependencySourcesByProcessId:
-            EMPTY_SELECTED_LOCAL_DEPENDENCY_SOURCES_BY_PROCESS_ID,
-          selectedCrossDependencySources: EMPTY_SELECTED_CROSS_DEPENDENCY_SOURCES,
+          selectedDependencies: EMPTY_SELECTED_SAME_PROCESS_DEPENDENCIES,
+          selectedCrossProcessDependencies: EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCIES,
+          selectedSameProcessDependencySourcesByProcessId:
+            EMPTY_SELECTED_SAME_PROCESS_DEPENDENCY_SOURCES_BY_PROCESS_ID,
+          selectedCrossProcessDependencySources: EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCY_SOURCES,
           highlightedSpanRefs
         },
         handlers: {
@@ -944,7 +1000,7 @@ function DeckTraceRenderer({
         layerGroup: 'base'
       })
     );
-    traceLog.probe(0, 'DeckTraceRenderer traceForegroundBaseLayers memo done', {
+    traceLog.probe(1, 'DeckTraceRenderer traceForegroundBaseLayers memo done', {
       sceneCount: foregroundScenes.length,
       layerCount: result.length,
       durationMs: performance.now() - baseBuildStartTime,
@@ -972,9 +1028,9 @@ function DeckTraceRenderer({
         hoveredSpan,
         selectedSpanRefs,
         selectedDependencies,
-        selectedCrossDependencies,
-        selectedLocalDependencySourcesByProcessId,
-        selectedCrossDependencySources,
+        selectedCrossProcessDependencies,
+        selectedSameProcessDependencySourcesByProcessId,
+        selectedCrossProcessDependencySources,
         highlightedSpanRefs
       },
       handlers: {onSpanClick},
@@ -984,23 +1040,23 @@ function DeckTraceRenderer({
       layerGroup: 'selection'
     })
   );
-  traceLog.probe(0, 'DeckTraceRenderer traceForegroundSelectionLayers done', {
+  traceLog.probe(1, 'DeckTraceRenderer traceForegroundSelectionLayers done', {
     sceneCount: foregroundScenes.length,
     layerCount: traceForegroundSelectionLayers.length,
     selectedSpanCount: selectedSpanRefs.length,
-    selectedLocalDependencyCount: selectedDependencies.length,
-    selectedCrossDependencyCount: selectedCrossDependencies.length,
+    selectedSameProcessDependencyCount: selectedDependencies.length,
+    selectedCrossProcessDependencyCount: selectedCrossProcessDependencies.length,
     durationMs: performance.now() - selectionBuildStartTime,
     ...getHeapUsageProbeFields()
   })();
-  traceLog.probe(0, 'DeckTraceRenderer traceForegroundLayers done', {
+  traceLog.probe(1, 'DeckTraceRenderer traceForegroundLayers done', {
     sceneCount: foregroundScenes.length,
     layerCount: traceForegroundBaseLayers.length + traceForegroundSelectionLayers.length,
     baseLayerCount: traceForegroundBaseLayers.length,
     selectionLayerCount: traceForegroundSelectionLayers.length,
     selectedSpanCount: selectedSpanRefs.length,
-    selectedLocalDependencyCount: selectedDependencies.length,
-    selectedCrossDependencyCount: selectedCrossDependencies.length,
+    selectedSameProcessDependencyCount: selectedDependencies.length,
+    selectedCrossProcessDependencyCount: selectedCrossProcessDependencies.length,
     highlightedSpanCount: highlightedSpanRefs?.size ?? 0,
     durationMs: performance.now() - foregroundBuildStartTime,
     ...getHeapUsageProbeFields()
@@ -1017,7 +1073,8 @@ function DeckTraceRenderer({
     instantAndCounterLayers,
     criticalPathLayers,
     traceForegroundSelectionLayers,
-    overviewLayers
+    overviewLayers,
+    timeAnchorLayers
   ];
   const enableDeckAnimation = false;
 
@@ -1222,10 +1279,10 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
     extendedSelectionSpanRefs,
     extendedSelectionMode,
     highlightedSpanRefs,
-    selectedLocalDependencyRefs,
-    selectedCrossDependencyRefs,
-    selectedLocalDependencyDirectionByRef,
-    selectedCrossDependencyDirectionByRef,
+    selectedSameProcessDependencyRefs,
+    selectedCrossProcessDependencyRefs,
+    selectedSameProcessDependencyDirectionByRef,
+    selectedCrossProcessDependencyDirectionByRef,
     collapseState,
     traceGraphs,
     primaryTraceGraph,
@@ -1250,9 +1307,13 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
     controlWidgetPlacement = DEFAULT_CONTROL_WIDGET_PLACEMENT,
     deckWidgetTheme,
     overviewEventMarkers = [],
+    timeAnchorMarker = null,
     overviewTimeRange,
     overviewLoadedTimeRange,
+    fitInitialViewportToLoadedTimeRange = false,
+    initialViewportFitKey: callerInitialViewportFitKey,
     onOverviewMarkerDoubleClick,
+    getOverviewTimeContextMenuActions,
     onTraceEventDoubleClick,
     onTraceMemoryReportProviderChange,
     onTraceFilterSummaryProviderChange,
@@ -1276,39 +1337,44 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
   const renderProbeKey = traceGraphs
     .map(
       graph =>
-        `${graph.name}:${graph.processes.length}:${graph.stats.spanCount}:${graph.stats.localDependencyCount}:${graph.stats.crossDependencyCount}`
+        `${graph.name}:${graph.processes.length}:${graph.stats.spanCount}:${graph.stats.sameProcessDependencyCount}:${graph.stats.crossProcessDependencyCount}`
     )
     .join('|');
   if (renderProbeKeyRef.current !== renderProbeKey) {
     renderProbeKeyRef.current = renderProbeKey;
-    traceLog.probe(0, 'DeckTraceGraph render traceGraphs changed', {
+    traceLog.probe(1, 'DeckTraceGraph render traceGraphs changed', {
       graphCount: traceGraphs.length,
       processCount: traceGraphs.reduce((sum, graph) => sum + graph.processes.length, 0),
       spanCount: traceGraphs.reduce((sum, graph) => sum + graph.stats.spanCount, 0),
-      localDependencyCount: traceGraphs.reduce(
-        (sum, graph) => sum + graph.stats.localDependencyCount,
+      sameProcessDependencyCount: traceGraphs.reduce(
+        (sum, graph) => sum + graph.stats.sameProcessDependencyCount,
         0
       ),
-      crossDependencyCount: traceGraphs.reduce(
-        (sum, graph) => sum + graph.stats.crossDependencyCount,
+      crossProcessDependencyCount: traceGraphs.reduce(
+        (sum, graph) => sum + graph.stats.crossProcessDependencyCount,
         0
       ),
       controlledSelectedSpanCount: selectedSpanRefs.length,
       ...getHeapUsageProbeFields()
     })();
   }
-  const initialViewportFitKey = getInitialViewportFitKey(traceGraphs);
+  const initialViewportFitKey =
+    callerInitialViewportFitKey ?? getInitialViewportFitKey(traceGraphs);
   const shouldAnnotateGraphNames = showGraphNamesProp && traceGraphs.length > 1;
   const validRankCount = traceGraphs.reduce((sum, graph) => sum + graph.processes.length, 0);
   // Stores the label Y position before a collapse/expand so we can keep the
   // corresponding label/caret anchored after the layout recomputes.
   const pendingAnchorRef = useRef<PendingTraceLayoutAnchor | null>(null);
+  const {isLayoutUpdatePending, scheduleLayoutUpdate} = useDeferredTraceLayoutUpdate();
 
   const expandAllProcesses = useCallback(
     (expand: boolean) => {
-      engine.dispatch({type: 'setAllProcessesExpanded', expand});
+      const updateExpansion = () => {
+        engine.dispatch({type: 'setAllProcessesExpanded', expand});
+      };
+      scheduleLayoutUpdate(updateExpansion);
     },
-    [engine]
+    [engine, scheduleLayoutUpdate]
   );
 
   const areAllProcessesExpanded = useCallback(
@@ -1329,6 +1395,8 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
   const renderSelectedSpanRefs =
     selectedSpanRefs.length > 0 ? selectedSpanRefs : EMPTY_SELECTED_SPAN_REFS;
   const traceLayouts = traceViewState.activeLayouts;
+  const renderSnapshot = traceViewState.renderSnapshot;
+  const {derivedDataByGraph} = renderSnapshot;
   // Canvas-originated selection should not move the viewport. Inspector and
   // search navigation pan explicitly through zoomToSpanRef/centerOnSpan, while
   // focused shift-click layouts preserve the clicked span's screen position.
@@ -1370,13 +1438,16 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
           labelY: anchor.labelY
         };
       }
-      engine.dispatch({
-        type: 'toggleThread',
-        graphIndex: targetThread.graphIndex,
-        threadRef: targetThread.threadRef
-      });
+      const toggleThread = () => {
+        engine.dispatch({
+          type: 'toggleThread',
+          graphIndex: targetThread.graphIndex,
+          threadRef: targetThread.threadRef
+        });
+      };
+      scheduleLayoutUpdate(toggleThread);
     },
-    [engine, findThreadLabelAnchor]
+    [engine, findThreadLabelAnchor, scheduleLayoutUpdate]
   );
 
   // Capture the pre-toggle label position so we can pan the view to keep it fixed.
@@ -1407,13 +1478,16 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
         };
       }
 
-      engine.dispatch({
-        type: 'toggleProcess',
-        graphIndex: targetProcess.graphIndex,
-        processRef: targetProcess.processRef
-      });
+      const toggleProcess = () => {
+        engine.dispatch({
+          type: 'toggleProcess',
+          graphIndex: targetProcess.graphIndex,
+          processRef: targetProcess.processRef
+        });
+      };
+      scheduleLayoutUpdate(toggleProcess);
     },
-    [engine, findRankLabelAnchor, traceGraphs]
+    [engine, findRankLabelAnchor, scheduleLayoutUpdate, traceGraphs]
   );
 
   /** Expands one process row when the requested target is currently collapsed. */
@@ -1537,30 +1611,40 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
   }, [extendedSelectionMode, extendedSelectionSpanRefs, highlightedSpanRefs, selectedSpanRefs]);
   const effectiveHighlightedSpanRefs = selectionAwareHighlightedSpanRefs;
 
-  const selectedLocalDependencySourcesByProcessId = useMemo(() => {
-    const selectedSources = buildTraceSelectedLocalDependencySourcesByProcessId(
+  const selectedSameProcessDependencySourcesByProcessId = useMemo(() => {
+    const selectedSources = buildTraceSelectedSameProcessDependencySourcesByProcessId(
       primaryTraceGraph,
-      selectedLocalDependencyRefs,
-      EMPTY_SELECTED_LOCAL_DEPENDENCY_REFS,
+      selectedSameProcessDependencyRefs,
+      EMPTY_SELECTED_SAME_PROCESS_DEPENDENCY_REFS,
       {
-        selectedLocalDependencyDirectionByRef
+        selectedSameProcessDependencyDirectionByRef
       }
     );
     return Object.keys(selectedSources).length > 0
       ? selectedSources
-      : EMPTY_SELECTED_LOCAL_DEPENDENCY_SOURCES_BY_PROCESS_ID;
-  }, [primaryTraceGraph, selectedLocalDependencyDirectionByRef, selectedLocalDependencyRefs]);
-  const selectedCrossDependencySources = useMemo(() => {
-    const selectedSources = buildTraceSelectedCrossDependencySources(
+      : EMPTY_SELECTED_SAME_PROCESS_DEPENDENCY_SOURCES_BY_PROCESS_ID;
+  }, [
+    primaryTraceGraph,
+    selectedSameProcessDependencyDirectionByRef,
+    selectedSameProcessDependencyRefs
+  ]);
+  const selectedCrossProcessDependencySources = useMemo(() => {
+    const selectedSources = buildTraceSelectedCrossProcessDependencySources(
       primaryTraceGraph,
-      selectedCrossDependencyRefs,
-      EMPTY_SELECTED_CROSS_DEPENDENCY_REFS,
+      selectedCrossProcessDependencyRefs,
+      EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCY_REFS,
       {
-        selectedCrossDependencyDirectionByRef
+        selectedCrossProcessDependencyDirectionByRef
       }
     );
-    return selectedSources.length > 0 ? selectedSources : EMPTY_SELECTED_CROSS_DEPENDENCY_SOURCES;
-  }, [primaryTraceGraph, selectedCrossDependencyDirectionByRef, selectedCrossDependencyRefs]);
+    return selectedSources.length > 0
+      ? selectedSources
+      : EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCY_SOURCES;
+  }, [
+    primaryTraceGraph,
+    selectedCrossProcessDependencyDirectionByRef,
+    selectedCrossProcessDependencyRefs
+  ]);
   const [animationStep, setAnimationStep] = useState(0);
 
   const animationIntervalMs = Math.max(
@@ -1667,8 +1751,8 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
         isExtendedSelection,
         computedDependencySelection: false,
         usedImmediateDependencyRefs: false,
-        localDependencyCount: 0,
-        crossDependencyCount: 0,
+        sameProcessDependencyCount: 0,
+        crossProcessDependencyCount: 0,
         durationMs: performance.now() - selectionStartTime
       });
     },
@@ -1687,12 +1771,19 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
         isExtendedSelection?: boolean;
       }
     ) => {
-      setHoveredBlock(null);
-      setHoveredSpanRef(null);
       const isExtendedSelection = options?.isExtendedSelection ?? false;
-      selectPickedTraceSpan(selection, {isExtendedSelection});
+      const applySelection = () => {
+        setHoveredBlock(null);
+        setHoveredSpanRef(null);
+        selectPickedTraceSpan(selection, {isExtendedSelection});
+      };
+      if (isExtendedSelection) {
+        scheduleLayoutUpdate(applySelection);
+        return;
+      }
+      applySelection();
     },
-    [selectPickedTraceSpan]
+    [scheduleLayoutUpdate, selectPickedTraceSpan]
   );
 
   const onSpanClickCallback = useCallback(
@@ -1768,10 +1859,23 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
       primaryMinimapBounds?.[1][1]
     ]
   );
+  const initialViewportFitBounds = useMemo<Bounds | null>(() => {
+    if (!fitInitialViewportToLoadedTimeRange) {
+      return bounds;
+    }
+    const loadedContentBounds = overviewViewModel.loadedContentBounds;
+    if (!loadedContentBounds) {
+      return null;
+    }
+    return [
+      [loadedContentBounds.minX, bounds[0][1]],
+      [loadedContentBounds.maxX, bounds[1][1]]
+    ];
+  }, [bounds, fitInitialViewportToLoadedTimeRange, overviewViewModel.loadedContentBounds]);
 
   const zoomToSpanRef = useCallback(
     (spanRef: SpanRef) => {
-      const span = primaryTraceGraph.getTraceSpanCardModel(spanRef)?.span;
+      const span = getTraceSpanCardModel(primaryTraceGraph, spanRef)?.span;
       if (!span) {
         return false;
       }
@@ -1789,7 +1893,7 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
   /** Selects the exact span and centers it only when that exact span has visible geometry. */
   const selectExactSpanRef = useCallback(
     (spanRef: SpanRef) => {
-      const span = primaryTraceGraph.getTraceSpanCardModel(spanRef)?.span;
+      const span = getTraceSpanCardModel(primaryTraceGraph, spanRef)?.span;
       if (!span) {
         return;
       }
@@ -1806,14 +1910,15 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
   useEffect(() => {
     if (
       appliedInitialViewportFitKeyRef.current === initialViewportFitKey ||
+      !initialViewportFitBounds ||
       traceLayouts.length === 0 ||
       validRankCount === 0
     ) {
       return;
     }
-    deckRef.current?.resetView(bounds);
+    deckRef.current?.resetView(initialViewportFitBounds);
     appliedInitialViewportFitKeyRef.current = initialViewportFitKey;
-  }, [bounds, initialViewportFitKey, traceLayouts.length, validRankCount]);
+  }, [initialViewportFitBounds, initialViewportFitKey, traceLayouts.length, validRankCount]);
 
   /**
    * Pans the current view toward earlier times.
@@ -1956,17 +2061,16 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
           )
         );
       }
-      const span =
-        optionData?.kind === 'span' && optionData.spanRef != null
-          ? primaryTraceGraph.getTraceSpanCardModel(optionData.spanRef)?.span
-          : undefined;
-      const badgeSource = span ? {...span, keywords: span.keywords ?? []} : undefined;
-      const badgeStyle = getTraceSpanBadgeStyle(
-        badgeSource,
-        settings,
-        colorScheme,
-        effectiveHighlightedSpanRefs
-      );
+      const badgeStyle =
+        optionData?.kind === 'span'
+          ? getTraceSpanBadgeStyleForRef(
+              primaryTraceGraph,
+              optionData.spanRef,
+              settings,
+              colorScheme,
+              effectiveHighlightedSpanRefs
+            )
+          : {};
       const badgeColor = badgeStyle.backgroundColor ?? OMNIBOX_FALLBACK_BADGE_COLOR;
       const badgeTextColor = badgeStyle.color ?? '#ffffff';
       const filterPresentation = getTraceSpanBadgePresentation({
@@ -2064,7 +2168,7 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
           return [];
         }
 
-        const matchesQuery = createTraceSpanNameSearchPredicate(normalizedQuery);
+        const matchesQuery = createTraceSpanOmniBoxSearchPredicate(normalizedQuery);
         if (!matchesQuery) {
           return [];
         }
@@ -2224,12 +2328,13 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
       _event: {srcEvent?: {clientX?: number; clientY?: number}} | undefined
     ) => {
       const pickedGraphIndex = getPickedGraphIndex(pickInfo) ?? 0;
+      const pickedTraceGraph = sourceTraceGraphs[pickedGraphIndex] ?? primaryTraceGraph;
       const pickedGraphModelMatrix = getTraceModelMatrixForGraph(pickedGraphIndex);
       if (isRankMetadataLabelPick(pickInfo)) {
         setHoveredSpanRef(null);
         const processId = getPickedRankId(pickInfo.object);
         const rank = processId
-          ? primaryTraceGraph.processes.find(process => process.processId === processId)
+          ? pickedTraceGraph.processes.find(process => process.processId === processId)
           : undefined;
         const processInfo = processId ? processInfoMap?.[processId] : undefined;
         const nodeName = processInfo?.node_name;
@@ -2258,7 +2363,8 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
                   )
                 },
                 content: null,
-                isCopyable: true
+                isCopyable: true,
+                traceGraph: pickedTraceGraph
               }
             : null
         );
@@ -2273,7 +2379,7 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
       );
       const enrichedHoveredObject = isTraceProcessInfoObject(hoveredObject)
         ? (() => {
-            const rank = primaryTraceGraph.processes.find(
+            const rank = pickedTraceGraph.processes.find(
               process => process.processId === hoveredObject.processId
             );
             const processInfo = processInfoMap?.[hoveredObject.processId];
@@ -2310,7 +2416,8 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
               position: anchor.position,
               object: enrichedHoveredObject,
               content: hoveredContent,
-              isCopyable: isTraceTooltipCopyableObject(enrichedHoveredObject)
+              isCopyable: isTraceTooltipCopyableObject(enrichedHoveredObject),
+              traceGraph: pickedTraceGraph
             }
           : null
       );
@@ -2320,11 +2427,72 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
       primaryTraceGraph,
       processInfoMap,
       resolvePickedBlockSelection,
-      resolvePickedTraceObject
+      resolvePickedTraceObject,
+      sourceTraceGraphs
     ]
   );
 
   const hoverPopupObject = hoverPopup?.object ?? null;
+
+  const contextMenuWidget = useMemo(() => {
+    if (!showDefaultWidgets) {
+      return null;
+    }
+    return new ContextMenuWidget({
+      id: DECK_TRACE_GRAPH_CONTEXT_MENU_WIDGET_ID,
+      getMenuItems: (pickInfo: PickingInfo<TraceObject | TraceRenderSpan>, widget) => {
+        const minimapViewport = widget?.deck
+          ?.getViewports()
+          .find(viewport => viewport.id === 'minimap');
+        const overviewContextViewport = resolveDeckTraceGraphOverviewContextViewport({
+          pickInfo,
+          minimapViewport
+        });
+        if (overviewContextViewport) {
+          if (!getOverviewTimeContextMenuActions) {
+            return null;
+          }
+          const timeMs = resolveDeckTraceGraphOverviewContextTimeMs({
+            pickInfo,
+            minimapViewport: overviewContextViewport,
+            originTimeMs: minTimeMs,
+            overviewTimeRange
+          });
+          if (timeMs == null) {
+            return null;
+          }
+          const actions = getOverviewTimeContextMenuActions(timeMs);
+          return actions.length > 0 ? [...actions] : null;
+        }
+        if (isRankMetadataLabelPick(pickInfo)) {
+          return null;
+        }
+        const selection = resolvePickedBlockSelection(pickInfo.object);
+        if (!selection) {
+          return null;
+        }
+        return [
+          {
+            value: 'select-span',
+            label: 'select span',
+            onSelect: () => applySpanSelectionInteraction(selection, {isExtendedSelection: false})
+          },
+          {
+            value: 'select-filter-dependency-chain',
+            label: 'select and filter dependency chain',
+            onSelect: () => applySpanSelectionInteraction(selection, {isExtendedSelection: true})
+          }
+        ];
+      }
+    });
+  }, [
+    applySpanSelectionInteraction,
+    minTimeMs,
+    getOverviewTimeContextMenuActions,
+    overviewTimeRange,
+    resolvePickedBlockSelection,
+    showDefaultWidgets
+  ]);
 
   const handleClick = useCallback(
     (
@@ -2579,7 +2747,6 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
     return result;
   }, [getTraceModelMatrixForGraph, sourceTraceGraphs, traceLayouts]);
 
-  const preparedScene: TracePreparedScene = traceViewState.preparedScene;
   const traceMemoryReportProvider = useCallback(() => {
     const traceEngineDiagnostics = engine.getDiagnostics({includeRetainedSizeEstimates: true});
     return {traceEngineDiagnostics};
@@ -2617,18 +2784,25 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
     },
     []
   );
-  const {pathBlockSources, pathDependencySources} = preparedScene.paths;
-  const selectionPreparedScene: TraceSelectionPreparedScene = useMemo(
+  const {pathBlockSources, pathDependencySources} = renderSnapshot.pathData;
+  const selectionOverviewScenes = useMemo(
     () =>
-      buildTraceSelectionPreparedScene({
-        preparedScene,
+      buildTraceSelectionOverviewScenes({
+        overviewScenes: renderSnapshot.overviewScenes,
         sourceTraceGraphs,
         settings,
         colorScheme,
         selectedSpanRefs,
         hoveredSpanRef
       }),
-    [preparedScene, colorScheme, hoveredSpanRef, selectedSpanRefs, settings, sourceTraceGraphs]
+    [
+      renderSnapshot.overviewScenes,
+      colorScheme,
+      hoveredSpanRef,
+      selectedSpanRefs,
+      settings,
+      sourceTraceGraphs
+    ]
   );
 
   const legendLayers = useMemo(() => {
@@ -2681,26 +2855,27 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
   ]);
 
   const instantAndCounterLayers = useMemo(() => {
-    const result = sourceTraceGraphs.flatMap((graph, graphIndex) => {
+    const result = sourceTraceGraphs.flatMap((_, graphIndex) => {
       const layout = traceLayouts[graphIndex] ?? traceLayouts[0];
       if (!layout) {
         return [];
+      }
+      const derivedData = derivedDataByGraph[graphIndex];
+      if (!derivedData) {
+        throw new Error('Missing render snapshot derived data for graph ' + graphIndex + '.');
       }
       const layerIdPrefix = sourceTraceGraphs.length > 1 ? `trace-graph-${graphIndex}` : undefined;
       const modelMatrix = getTraceModelMatrixForGraph(graphIndex);
 
       return buildDeckLayersForInstantsAndCounter({
         settings,
-        traceGraph: graph,
-        traceLayout: layout,
-        colorScheme,
         layerIdPrefix,
         modelMatrix,
-        globalEventYPosition: RUN_EVENT_VIEW_Y_POSITION
+        derivedData
       });
     });
     return result;
-  }, [settings, colorScheme, getTraceModelMatrixForGraph, sourceTraceGraphs, traceLayouts]);
+  }, [settings, derivedDataByGraph, getTraceModelMatrixForGraph, sourceTraceGraphs, traceLayouts]);
 
   const criticalPathLayers = useMemo(() => {
     const result = sourceTraceGraphs.flatMap((_, graphIndex) => {
@@ -2785,6 +2960,16 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
     projectedOverviewEventMarkers,
     resolvedTraceStyle.fontFamily
   ]);
+  const timeAnchorLayers = useMemo(
+    () =>
+      buildDeckLayersForTimeAnchor({
+        marker: timeAnchorMarker,
+        originTimeMs: minTimeMs,
+        mainBounds: bounds,
+        overviewBounds: overviewViewModel.bounds
+      }),
+    [bounds, minTimeMs, overviewViewModel.bounds, timeAnchorMarker]
+  );
 
   const isRunEventViewEnabled =
     Boolean(settings.showGlobalEvents) && sourceTraceGraphs.some(graph => graph.events.numRows > 0);
@@ -2824,6 +3009,7 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
         const layerId = context.layer?.id ?? '';
         return (
           layerId === 'minimap-model-timeline-events' ||
+          layerId === 'minimap-time-anchor' ||
           layerId.includes('collapsed-activity') ||
           layerId.includes('process-activity-summary')
         );
@@ -2850,7 +3036,7 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
         {hoverPopup.object ? (
           <TraceTooltip
             object={hoverPopup.object}
-            traceGraph={primaryTraceGraph}
+            traceGraph={hoverPopup.traceGraph}
             traceSpanCardOptions={traceSpanCardOptions}
             paths={paths}
             getJSON={getJSONForTraceObject}
@@ -2995,6 +3181,7 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
         timeMeasureWidget,
         omniBoxWidget,
         hoverPopupWidget,
+        contextMenuWidget,
         showDefaultWidgets ? new ToastWidget() : null,
         ...appWidgets
       ].filter(widget => widget !== null) satisfies Widget[],
@@ -3003,6 +3190,7 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
       timeMeasureWidget,
       helpWidget,
       hoverPopupWidget,
+      contextMenuWidget,
       overviewWidget,
       omniBoxWidget,
       showDefaultWidgets,
@@ -3011,7 +3199,10 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
   );
 
   return (
-    <div className={`flex-1 w-full overflow-visible ${className}`}>
+    <div
+      className={`flex-1 w-full overflow-visible ${className}`}
+      onContextMenu={event => event.preventDefault()}
+    >
       <div className="relative h-full w-full">
         <DeckTraceRenderer
           deckRef={deckRef}
@@ -3021,11 +3212,12 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
           gridLayers={gridLayers}
           legendLayers={legendLayers}
           timeMeasureLayers={timeMeasureLayers}
-          overviewScenes={selectionPreparedScene.overview}
-          foregroundScenes={preparedScene.foreground}
+          overviewScenes={selectionOverviewScenes}
+          foregroundScenes={renderSnapshot.foregroundScenes}
           instantAndCounterLayers={instantAndCounterLayers}
           criticalPathLayers={criticalPathLayers}
           overviewLayers={overviewLayers}
+          timeAnchorLayers={timeAnchorLayers}
           layerFilter={layerFilter}
           deckTheme={deckWidgetTheme}
           widgets={widgets}
@@ -3043,10 +3235,12 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
           settings={settings}
           hoveredSpan={hoveredSpan}
           selectedSpanRefs={renderSelectedSpanRefs}
-          selectedDependencies={EMPTY_SELECTED_LOCAL_DEPENDENCIES}
-          selectedCrossDependencies={EMPTY_SELECTED_CROSS_DEPENDENCIES}
-          selectedLocalDependencySourcesByProcessId={selectedLocalDependencySourcesByProcessId}
-          selectedCrossDependencySources={selectedCrossDependencySources}
+          selectedDependencies={EMPTY_SELECTED_SAME_PROCESS_DEPENDENCIES}
+          selectedCrossProcessDependencies={EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCIES}
+          selectedSameProcessDependencySourcesByProcessId={
+            selectedSameProcessDependencySourcesByProcessId
+          }
+          selectedCrossProcessDependencySources={selectedCrossProcessDependencySources}
           onSpanClick={onSpanClickCallback}
           onToggleProcess={handleToggleRank}
           onExpandProcess={handleExpandRank}
@@ -3054,6 +3248,7 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
           fontFamily={resolvedTraceStyle.fontFamily}
           highlightedSpanRefs={effectiveHighlightedSpanRefs}
         />
+        {isLayoutUpdatePending ? <TraceLayoutBusyOverlay /> : null}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
-import {TraceLabels} from '../../../../trace/index';
+import {TraceLabels} from '../../../../trace';
 
-import type {TraceThread} from '../../../../trace/index';
+import type {TraceThread} from '../../../../trace';
 
 export type TraceThreadCardProps = {
   stream: TraceThread;

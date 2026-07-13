@@ -1,35 +1,23 @@
 import {describe, expect, it, vi} from 'vitest';
 
-import {
-  buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
-  TraceGraph
-} from '../../../../../trace/index';
-import {createStaticTraceGraphRuntimeSource} from '../../../../../trace/trace-chunk-store';
+import {buildJSONTrace, TraceGraph} from '../../../../../trace';
+import {createRuntimeTraceGraph} from '../../../../../trace/trace-graph/trace-graph-test-fixtures';
 import {getRequiredSpanRef} from '../../../../../trace/trace-graph/trace-graph-test-utils';
-import {getSameNameNavigation, getThreadNavigation} from './trace-span-card-stream-navigation';
+import {getThreadNavigation} from './trace-span-card-stream-navigation';
 
 import type {
-  TraceDependencyId,
-  TraceLocalDependency,
   TraceProcess,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 
 function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  traceGraph: Parameters<typeof createRuntimeTraceGraph>[0],
+  options?: Parameters<typeof createRuntimeTraceGraph>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+  return createRuntimeTraceGraph(traceGraph, options);
 }
 
 describe('getThreadNavigation', () => {
@@ -77,11 +65,11 @@ describe('getThreadNavigation', () => {
       counters: [],
       counterMap: {},
       threadCounterMap: {},
-      localDependencies: [],
+      sameProcessDependencies: [],
       remoteDependencies: []
     };
     const sourceTraceGraph = buildJSONTrace([process], [], {name: 'stream-navigation'});
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph));
+    const traceGraph = createTestTraceGraph(sourceTraceGraph);
 
     expect(getThreadNavigation(getRequiredSpanRef(traceGraph, spans[2]!), traceGraph)).toEqual({
       previousSpanRef: getRequiredSpanRef(traceGraph, spans[1]!),
@@ -96,7 +84,7 @@ describe('getThreadNavigation', () => {
 
   it('returns the empty state when the span is not in the graph', () => {
     const sourceTraceGraph = buildJSONTrace([], [], {name: 'empty-stream-navigation'});
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph));
+    const traceGraph = createTestTraceGraph(sourceTraceGraph);
     expect(getThreadNavigation(0 as never, traceGraph)).toEqual({
       previousSpanRef: null,
       nextSpanRef: null,
@@ -146,14 +134,14 @@ describe('getThreadNavigation', () => {
       counters: [],
       counterMap: {},
       threadCounterMap: {},
-      localDependencies: [],
+      sameProcessDependencies: [],
       remoteDependencies: []
     };
     const sourceTraceGraph = buildJSONTrace([process], [], {
       name: 'stream-navigation-no-process-spans'
     });
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph));
-    const getProcessDisplaySourcesSpy = vi.spyOn(traceGraph, 'getVisibleProcessDisplaySources');
+    const traceGraph = createTestTraceGraph(sourceTraceGraph);
+    const getProcessSpanRefsSpy = vi.spyOn(traceGraph, 'iterateVisibleSpanRefsByProcess');
 
     expect(
       getThreadNavigation(getRequiredSpanRef(traceGraph, spans[0]!), traceGraph)
@@ -165,90 +153,8 @@ describe('getThreadNavigation', () => {
       positionLabel: '1 / 2'
     });
 
-    expect(getProcessDisplaySourcesSpy).toHaveBeenCalled();
-    getProcessDisplaySourcesSpy.mockRestore();
-  });
-});
-
-describe('getSameNameNavigation', () => {
-  it('walks exact-name matches across visible and hidden spans in trace search order', () => {
-    const threadId = 'stream-1' as TraceThreadId;
-    const thread: TraceThread = {
-      type: 'trace-thread',
-      name: 'main-stream',
-      threadId,
-      processId: 'rank-1'
-    };
-    const parent = {
-      ...createBlock({
-        spanId: 'same-parent' as TraceSpanId,
-        threadId,
-        startTimeMs: 0,
-        endTimeMs: 10
-      }),
-      name: 'same-name'
-    };
-    const hiddenChild = {
-      ...createBlock({
-        spanId: 'same-hidden-child' as TraceSpanId,
-        threadId,
-        startTimeMs: 5,
-        endTimeMs: 5
-      }),
-      name: 'same-name'
-    };
-    const later = {
-      ...createBlock({
-        spanId: 'same-later' as TraceSpanId,
-        threadId,
-        startTimeMs: 20,
-        endTimeMs: 25
-      }),
-      name: 'same-name'
-    };
-    const dependencyId = 'dep-same-hidden-child' as TraceDependencyId;
-    const parentDependency: TraceLocalDependency = {
-      type: 'trace-local-dependency',
-      dependencyId,
-      startSpanId: parent.spanId,
-      endSpanId: hiddenChild.spanId,
-      keywords: new Set(['PARENT']),
-      waitMode: 'start-to-start',
-      bidirectional: false,
-      waitTimeMs: 0
-    };
-    parent.localDependencyIds = [dependencyId];
-    const spans = [parent, hiddenChild, later];
-    const process: TraceProcess = {
-      type: 'trace-process',
-      processId: 'rank-1',
-      name: 'rank-1',
-      rankNum: 3,
-      stepNum: 0,
-      threads: [thread],
-      threadMap: {[threadId]: thread},
-      spans,
-      spanMap: Object.fromEntries(spans.map(span => [span.spanId, span])),
-      instants: [],
-      instantMap: {},
-      threadInstantMap: {},
-      counters: [],
-      counterMap: {},
-      threadCounterMap: {},
-      localDependencies: [parentDependency],
-      remoteDependencies: []
-    };
-    const traceGraph = createTestTraceGraph(
-      buildTraceGraphDataFromJSONTrace(buildJSONTrace([process], [], {name: 'same-name-nav'})),
-      {overlappingParentSpanFilter: {maxChildDurationMs: 1}}
-    );
-
-    expect(getSameNameNavigation(getRequiredSpanRef(traceGraph, hiddenChild), traceGraph)).toEqual({
-      previousSpanRef: getRequiredSpanRef(traceGraph, parent),
-      nextSpanRef: getRequiredSpanRef(traceGraph, later),
-      spanName: 'same-name',
-      positionLabel: '2'
-    });
+    expect(getProcessSpanRefsSpy).toHaveBeenCalled();
+    getProcessSpanRefsSpy.mockRestore();
   });
 });
 
@@ -275,8 +181,8 @@ function createBlock(params: {
         durationMsAsString: `${params.endTimeMs - params.startTimeMs}ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };

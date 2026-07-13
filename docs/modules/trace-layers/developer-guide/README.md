@@ -12,11 +12,12 @@ viewer.
 ## Read in this order
 
 - [Getting started](./getting-started.md): build and render one trace.
-- [Data model](./data-model.md): understand processes, threads, spans, refs, graphs, and layouts.
+- [Data model](./data-model.md): understand chunks, datasets, view snapshots, graphs, refs, and layouts.
 - [Loading traces](./loading-traces.md): choose static, process-sliced, time-sliced, or streaming loading.
 - [Incremental ingestion](./incremental-ingestion.md): feed bounded chunks into `TraceChunkStore`.
 - [Filtering traces](./filtering-traces.md): hide spans without destroying useful topology.
 - [Rendering traces](./rendering-traces.md): understand the React and low-level deck.gl render path.
+- [Architecture notes](./architecture-notes.md): understand the columnar ownership rules behind the new flow.
 - [Working with Chrome Trace](./chrome-trace.md): parse, stream, and write Chrome Trace data.
 
 For exact exported contracts, switch to the [API reference](../api-reference/README.md).

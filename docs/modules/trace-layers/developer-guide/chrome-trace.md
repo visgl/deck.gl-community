@@ -21,8 +21,8 @@ import {
 
 const file = validateChromeTraceFile(JSON.parse(traceText));
 const chromeTrace = parseChromeTrace(file);
-const {ranks, crossDependencies} = buildTraceRanksFromChromeTrace(chromeTrace);
-const jsonTrace = buildJSONTrace(ranks, crossDependencies, {name: 'Chrome Trace'});
+const {ranks, crossProcessDependencies} = buildTraceRanksFromChromeTrace(chromeTrace);
+const jsonTrace = buildJSONTrace(ranks, crossProcessDependencies, {name: 'Chrome Trace'});
 ```
 
 The parser assembles duration spans from `B`/`E` and `X` events, normalizes instants and counters,
@@ -43,7 +43,7 @@ a `TraceStreamSession` and render only published snapshots.
 
 Use `writeChromeTrace(...)` or `ChromeTraceWriter.encode(...)` for normalized JSON traces. Use
 `writeArrowChromeTrace(...)` or `ArrowChromeTraceWriter.encode(...)` when exporting Arrow-backed
-`TraceGraphData`.
+trace chunks or dataset-backed graph sources.
 
 ## Format notes
 

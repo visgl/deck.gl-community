@@ -1,13 +1,11 @@
-import {createTraceColorResolver, createTraceGraphColorResolver} from '../../trace/index';
+import {createTraceGraphColorResolver} from '../../trace';
 
 import type {
   SpanRef,
   TraceColorScheme,
-  TraceGraph,
-  TraceSpan,
-  TraceSpanColorSource,
+  TraceSpanColorAccessorSource,
   TraceVisSettings
-} from '../../trace/index';
+} from '../../trace';
 
 export type TraceSpanBadgeStyle = {
   backgroundColor?: string;
@@ -33,31 +31,11 @@ function lerp(from: number, to: number, ratio: number) {
   return from * ratio + to * (1 - ratio);
 }
 
-export function getTraceSpanBadgeStyle(
-  block: TraceSpanColorSource | TraceSpan | null | undefined,
-  settings: TraceVisSettings,
-  colorScheme: TraceColorScheme,
-  highlightedSpanRefs?: ReadonlySet<SpanRef>
-): TraceSpanBadgeStyle {
-  if (!block) {
-    return {};
-  }
-
-  const colorResolver = createTraceColorResolver({colorScheme, settings, highlightedSpanRefs});
-  const fillColor = colorResolver.getSpanFillColor(block, 'any');
-  const textColor = colorResolver.getSpanTextColor(block, 'any', 'inside');
-
-  return {
-    backgroundColor: colorToRgbaCss(fillColor),
-    color: colorToRgbaCss(textColor)
-  };
-}
-
 /**
  * Returns span badge colors for one span ref using TraceGraph field accessors.
  */
 export function getTraceSpanBadgeStyleForRef(
-  traceGraph: Readonly<TraceGraph>,
+  traceGraph: TraceSpanColorAccessorSource,
   spanRef: SpanRef | null | undefined,
   settings: TraceVisSettings,
   colorScheme: TraceColorScheme,

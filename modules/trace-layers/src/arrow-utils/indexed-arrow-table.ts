@@ -1,5 +1,6 @@
 import * as arrow from 'apache-arrow';
 
+import {getArrowUtf8ColumnSource} from '@deck.gl-community/infovis-layers';
 import {log} from '../trace/log';
 import {
   getIndexedAccessRow,
@@ -7,6 +8,8 @@ import {
   normalizeIndexedArrowIndexes
 } from './indexed-arrow-helpers';
 import {IndexedArrowVector} from './indexed-arrow-vector';
+
+import type {Utf8ColumnSource} from '@deck.gl-community/infovis-layers';
 
 const indexedArrowTableInitSymbol = Symbol('indexed-arrow-table-init');
 
@@ -176,7 +179,9 @@ export class IndexedArrowTable<T extends arrow.TypeMap> {
       return null;
     }
 
-    this.temporaryRow ??= Object.create(null) as IndexedArrowTableRow<T>;
+    if (!this.temporaryRow) {
+      this.temporaryRow = Object.create(null) as IndexedArrowTableRow<T>;
+    }
     const temporaryRow = this.temporaryRow;
     const mutableTemporaryRow = temporaryRow as Record<keyof T & string, unknown>;
 
@@ -220,6 +225,23 @@ export class IndexedArrowTable<T extends arrow.TypeMap> {
 
     const childVector = getCachedRawChildVector(this.table, columnName);
     return childVector ? ((childVector.get(rawIndex) as T[P]['TValue'] | null) ?? null) : null;
+  }
+
+  /**
+   * Resolves one direct-buffer UTF-8 source for a backing string column.
+   *
+   * The returned source uses raw backing-table row indexes. Pair it with getRawIndex when reading
+   * through an indexed view.
+   *
+   * @param columnName - Backing Arrow column name to expose.
+   * @returns Direct UTF-8 source, or null when the column is missing or not UTF-8 backed.
+   */
+  getUtf8ColumnSource(columnName: keyof T & string): Utf8ColumnSource | null {
+    const childVector = getCachedRawChildVector(this.table, columnName);
+    if (!childVector || !(childVector.type instanceof arrow.Utf8)) {
+      return null;
+    }
+    return getArrowUtf8ColumnSource(childVector as arrow.Vector<arrow.Utf8>);
   }
 
   /**

@@ -4,7 +4,7 @@ import {WithTooltip} from '../../../with-tooltip';
 import {TraceSpanNameBadge} from '../trace-span-name-badge';
 import {DEPENDENCY_TABLE_BADGE_MAX_LABEL_LENGTH} from './trace-span-card-types';
 
-import type {SpanRef, TraceCardSpan} from '../../../../../trace/index';
+import type {SpanRef, TraceCardSpan} from '../../../../../trace';
 import type {TraceSpanDoubleClickAction} from '../trace-span-name-badge';
 import type {
   ResolvedTraceLabels,
@@ -165,7 +165,6 @@ export function renderDependencyNameBadge(params: {
   style?: TraceSpanNameBadgeProps['style'];
   interactive?: boolean;
   filtered?: boolean;
-  filteredVariant?: TraceSpanNameBadgeProps['filteredVariant'];
   filterMask?: TraceSpanNameBadgeProps['filterMask'];
   onSpanClick?: (spanRef: SpanRef) => void;
   onSpanDoubleClick?: (spanRef: SpanRef, action: TraceSpanDoubleClickAction) => void;
@@ -179,7 +178,6 @@ export function renderDependencyNameBadge(params: {
       style={params.style}
       interactive={params.interactive}
       filtered={params.filtered}
-      filteredVariant={params.filteredVariant}
       filterMask={params.filterMask}
       onSpanClick={params.onSpanClick}
       onSpanDoubleClick={params.onSpanDoubleClick}

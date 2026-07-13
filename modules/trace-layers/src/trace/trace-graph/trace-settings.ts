@@ -5,9 +5,11 @@ import type {TrackAggregationMode} from './trace-types';
 export type TraceInteractionMode = 'drag-to-zoom' | 'drag-to-pan';
 
 export type TraceVisSettings = {
+  /** Whether to render dependency geometry. */
   showDependencies: boolean;
-  /** Mode for filtering local dependencies when shown */
-  localDependencyMode: 'all' | 'warnings' | 'submit';
+  /** Mode for filtering same-process dependencies when shown. */
+  sameProcessDependencyMode: 'all' | 'warnings' | 'submit';
+  /** Whether to render cross-process dependency geometry. */
   showCrossProcessDependencies: boolean;
   showInstants: boolean;
   showCounters: boolean;
@@ -20,8 +22,11 @@ export type TraceVisSettings = {
   showPathsOnly: boolean;
   /** Whether to render the interactive overview mini-map. */
   showOverview: boolean;
+  /** Whether dependency keyword filtering includes, excludes, or ignores matching dependencies. */
   dependencyDisplayMode: 'all' | 'exclude' | 'include';
+  /** Dependency keywords used by {@link dependencyDisplayMode}. */
   dependencyKeywords: string[];
+  /** Opacity multiplier applied to rendered dependency geometry. */
   dependencyOpacity: number;
   /** Alpha multiplier applied to non-highlighted spans when highlighted span refs are set. */
   highlightFadeFactor?: number;
@@ -66,7 +71,7 @@ export type TraceVisSettings = {
   /** Select from multiple trace color schemes */
   traceColorSchemeId: string;
   /** Optional timing key used by aggregated traces to choose an active timing projection. */
-  traceRunSummaryAggregationKey?: string;
+  traceTimingKey?: string;
   /** Controls whether layout rows are per thread or combined by process. */
   trackAggregationMode: TrackAggregationMode;
   /** Aggregation algorithm used to summarize collapsed process activity rows. */
