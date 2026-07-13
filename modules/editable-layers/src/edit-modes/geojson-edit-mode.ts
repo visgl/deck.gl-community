@@ -3,10 +3,10 @@
 // Copyright (c) vis.gl contributors
 
 import {featureCollection} from '@turf/helpers';
-import turfUnion from '@turf/union';
-import turfDifference from '@turf/difference';
-import turfIntersect from '@turf/intersect';
-import turfRewind from '@turf/rewind';
+import {union as turfUnion} from '@turf/union';
+import {difference as turfDifference} from '@turf/difference';
+import {intersect as turfIntersect} from '@turf/intersect';
+import {rewind as turfRewind} from '@turf/rewind';
 
 import {
   EditAction,

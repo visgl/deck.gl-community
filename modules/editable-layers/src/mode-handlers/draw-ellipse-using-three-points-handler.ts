@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import distance from '@turf/distance';
-import ellipse from '@turf/ellipse';
-import bearing from '@turf/bearing';
+import {distance} from '@turf/distance';
+import {ellipse} from '@turf/ellipse';
+import {bearing} from '@turf/bearing';
 import {point} from '@turf/helpers';
 import {PointerMoveEvent} from '../edit-modes/types';
 import {EditAction, getIntermediatePosition} from './mode-handler';

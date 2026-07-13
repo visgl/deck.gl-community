@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfDestination from '@turf/destination';
-import turfBearing from '@turf/bearing';
-import turfPointToLineDistance from '@turf/point-to-line-distance';
+import {destination as turfDestination} from '@turf/destination';
+import {bearing as turfBearing} from '@turf/bearing';
+import {pointToLineDistance as turfPointToLineDistance} from '@turf/point-to-line-distance';
 import {point} from '@turf/helpers';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {Feature, LineString, Point, Position} from './geojson-types';

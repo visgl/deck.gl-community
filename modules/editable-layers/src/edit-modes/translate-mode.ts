@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfClone from '@turf/clone';
+import {clone as turfClone} from '@turf/clone';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
 import {
   FeatureCollection,

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfNearestPointOnLine from '@turf/nearest-point-on-line';
+import {nearestPointOnLine as turfNearestPointOnLine} from '@turf/nearest-point-on-line';
 import {point, lineString as toLineString} from '@turf/helpers';
-import turfCircle from '@turf/circle';
-import turfDistance from '@turf/distance';
-import turfCenter from '@turf/center';
+import {circle as turfCircle} from '@turf/circle';
+import {distance as turfDistance} from '@turf/distance';
+import {center as turfCenter} from '@turf/center';
 import {
   recursivelyTraverseNestedArrays,
   nearestPointOnProjectedLine,

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBearing from '@turf/bearing';
-import turfDistance from '@turf/distance';
-import turfDestination from '@turf/destination';
-import turfMidpoint from '@turf/midpoint';
+import {bearing as turfBearing} from '@turf/bearing';
+import {distance as turfDistance} from '@turf/distance';
+import {destination as turfDestination} from '@turf/destination';
+import {midpoint as turfMidpoint} from '@turf/midpoint';
 import {point} from '@turf/helpers';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import type {CoordinateSystem} from '@deck.gl/core';

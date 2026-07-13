@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBearing from '@turf/bearing';
-import turfDistance from '@turf/distance';
-import turfTransformTranslate from '@turf/transform-translate';
+import {bearing as turfBearing} from '@turf/bearing';
+import {distance as turfDistance} from '@turf/distance';
+import {transformTranslate as turfTransformTranslate} from '@turf/transform-translate';
 import {point} from '@turf/helpers';
 import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfCircle from '@turf/circle';
-import turfDistance from '@turf/distance';
-import turfArea from '@turf/area';
+import {circle as turfCircle} from '@turf/circle';
+import {distance as turfDistance} from '@turf/distance';
+import {area as turfArea} from '@turf/area';
 import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
 import {Position, Polygon, Feature, FeatureCollection} from '../utils/geojson-types';

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBboxPolygon from '@turf/bbox-polygon';
+import {bboxPolygon as turfBboxPolygon} from '@turf/bbox-polygon';
 import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 

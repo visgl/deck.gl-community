@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import turfDifference from '@turf/difference';
-import turfBuffer from '@turf/buffer';
-import lineIntersect from '@turf/line-intersect';
+import {booleanPointInPolygon} from '@turf/boolean-point-in-polygon';
+import {difference as turfDifference} from '@turf/difference';
+import {buffer as turfBuffer} from '@turf/buffer';
+import {lineIntersect} from '@turf/line-intersect';
 import {feature as turfFeature, featureCollection, lineString} from '@turf/helpers';
-import turfBearing from '@turf/bearing';
-import turfDistance from '@turf/distance';
-import turfDestination from '@turf/destination';
-import turfPolygonToLine from '@turf/polygon-to-line';
-import nearestPointOnLine from '@turf/nearest-point-on-line';
+import {bearing as turfBearing} from '@turf/bearing';
+import {distance as turfDistance} from '@turf/distance';
+import {destination as turfDestination} from '@turf/destination';
+import {polygonToLine as turfPolygonToLine} from '@turf/polygon-to-line';
+import {nearestPointOnLine} from '@turf/nearest-point-on-line';
 import {generatePointsParallelToLinePoints} from '../utils/utils';
 import {EditAction, ModeHandler} from './mode-handler';
 import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';

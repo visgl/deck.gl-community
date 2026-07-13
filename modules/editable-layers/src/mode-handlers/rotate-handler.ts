@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfCentroid from '@turf/centroid';
-import turfBearing from '@turf/bearing';
-import turfTransformRotate from '@turf/transform-rotate';
+import {centroid as turfCentroid} from '@turf/centroid';
+import {bearing as turfBearing} from '@turf/bearing';
+import {transformRotate as turfTransformRotate} from '@turf/transform-rotate';
 import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';

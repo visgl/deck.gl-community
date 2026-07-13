@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBearing from '@turf/bearing';
+import {bearing as turfBearing} from '@turf/bearing';
 import {
   generatePointsParallelToLinePoints,
   getPickedEditHandle,

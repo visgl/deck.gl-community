@@ -4,9 +4,9 @@
 
 /* eslint-disable no-shadow */
 
-import turfDestination from '@turf/destination';
-import turfBearing from '@turf/bearing';
-import turfPointToLineDistance from '@turf/point-to-line-distance';
+import {destination as turfDestination} from '@turf/destination';
+import {bearing as turfBearing} from '@turf/bearing';
+import {pointToLineDistance as turfPointToLineDistance} from '@turf/point-to-line-distance';
 import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfDistance from '@turf/distance';
-import turfEllipse from '@turf/ellipse';
-import turfBearing from '@turf/bearing';
+import {distance as turfDistance} from '@turf/distance';
+import {ellipse as turfEllipse} from '@turf/ellipse';
+import {bearing as turfBearing} from '@turf/bearing';
 import {point} from '@turf/helpers';
 import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';

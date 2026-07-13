@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBboxPolygon from '@turf/bbox-polygon';
-import turfDistance from '@turf/distance';
-import turfAlong from '@turf/along';
+import {bboxPolygon as turfBboxPolygon} from '@turf/bbox-polygon';
+import {distance as turfDistance} from '@turf/distance';
+import {along as turfAlong} from '@turf/along';
 import {point, lineString as turfLineString} from '@turf/helpers';
 import {Position, Polygon, Feature} from '../utils/geojson-types';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';

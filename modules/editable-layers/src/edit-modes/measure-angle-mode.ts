@@ -1,5 +1,5 @@
-import turfBearing from '@turf/bearing';
-import turfCenter from '@turf/center';
+import {bearing as turfBearing} from '@turf/bearing';
+import {center as turfCenter} from '@turf/center';
 import {memoize} from '../utils/memoize';
 
 import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';

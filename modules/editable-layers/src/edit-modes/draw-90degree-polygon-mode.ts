@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfDestination from '@turf/destination';
-import turfBearing from '@turf/bearing';
-import turfLineIntersect from '@turf/line-intersect';
-import turfDistance from '@turf/distance';
+import {destination as turfDestination} from '@turf/destination';
+import {bearing as turfBearing} from '@turf/bearing';
+import {lineIntersect as turfLineIntersect} from '@turf/line-intersect';
+import {distance as turfDistance} from '@turf/distance';
 import {point, lineString as turfLineString} from '@turf/helpers';
 import {
   generatePointsParallelToLinePoints,

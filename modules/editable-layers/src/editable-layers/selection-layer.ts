@@ -8,8 +8,8 @@ import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 import {featureCollection, polygon} from '@turf/helpers';
-import turfBuffer from '@turf/buffer';
-import turfDifference from '@turf/difference';
+import {buffer as turfBuffer} from '@turf/buffer';
+import {difference as turfDifference} from '@turf/difference';
 
 import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';

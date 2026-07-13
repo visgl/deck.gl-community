@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfCentroid from '@turf/centroid';
-import turfDistance from '@turf/distance';
-import turfTransformScale from '@turf/transform-scale';
+import {centroid as turfCentroid} from '@turf/centroid';
+import {distance as turfDistance} from '@turf/distance';
+import {transformScale as turfTransformScale} from '@turf/transform-scale';
 import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';

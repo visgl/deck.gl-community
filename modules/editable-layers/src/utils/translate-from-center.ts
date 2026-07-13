@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfCenter from '@turf/center';
+import {center as turfCenter} from '@turf/center';
 import {mapCoords} from '../edit-modes/utils';
 import {geoCoordinateSystem} from '../edit-modes/coordinate-system';
 import type {EditModeCoordinateSystem} from '../edit-modes/coordinate-system';

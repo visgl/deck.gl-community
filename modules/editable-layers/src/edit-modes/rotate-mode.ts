@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBbox from '@turf/bbox';
-import turfCentroid from '@turf/centroid';
-import turfBearing from '@turf/bearing';
-import turfBboxPolygon from '@turf/bbox-polygon';
-import turfDistance from '@turf/distance';
+import {bbox as turfBbox} from '@turf/bbox';
+import {centroid as turfCentroid} from '@turf/centroid';
+import {bearing as turfBearing} from '@turf/bearing';
+import {bboxPolygon as turfBboxPolygon} from '@turf/bbox-polygon';
+import {distance as turfDistance} from '@turf/distance';
 import {coordEach} from '@turf/meta';
 import {getGeom} from '@turf/invariant';
 import {point, featureCollection, lineString} from '@turf/helpers';
-import turfTransformRotate from '@turf/transform-rotate';
+import {transformRotate as turfTransformRotate} from '@turf/transform-rotate';
 import {polygonToLine} from '@turf/polygon-to-line';
 import {
   PointerMoveEvent,
