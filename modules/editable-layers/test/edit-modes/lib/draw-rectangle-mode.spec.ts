@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {beforeEach, afterEach, describe, test, it, expect} from 'vitest';
-import turfArea from '@turf/area';
+import {area as turfArea} from '@turf/area';
 import {Feature, FeatureCollection} from '../../../src/utils/geojson-types';
 import {DrawRectangleMode} from '../../../src/edit-modes/draw-rectangle-mode';
 import {
