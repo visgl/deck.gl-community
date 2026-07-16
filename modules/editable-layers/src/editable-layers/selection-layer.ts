@@ -8,8 +8,8 @@ import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 import {featureCollection, polygon} from '@turf/helpers';
-import turfBuffer from '@turf/buffer';
-import turfDifference from '@turf/difference';
+import {buffer} from '@turf/buffer';
+import {difference} from '@turf/difference';
 
 import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
@@ -83,7 +83,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
   state: {
     pendingPolygonSelection: {
-      bigPolygon: ReturnType<typeof turfDifference>;
+      bigPolygon: ReturnType<typeof difference>;
     };
   } = undefined!;
 
@@ -116,12 +116,12 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     // Use a polygon to hide the outside, because pickObjects()
     // does not support polygons
     const landPointsPoly = polygon(coordinates);
-    const bigBuffer = turfBuffer(landPointsPoly, EXPANSION_KM);
+    const bigBuffer = buffer(landPointsPoly, EXPANSION_KM);
     let bigPolygon;
     try {
       // turfDifference throws an exception if the polygon
       // intersects with itself (TODO: check if true in all versions)
-      bigPolygon = turfDifference(featureCollection([bigBuffer, landPointsPoly]));
+      bigPolygon = difference(featureCollection([bigBuffer, landPointsPoly]));
     } catch (e) {
       // invalid selection polygon
       console.log('turfDifference() error', e); // eslint-disable-line
