@@ -1,5 +1,5 @@
-import {bearing as turfBearing} from '@turf/bearing';
-import {center as turfCenter} from '@turf/center';
+import {bearing} from '@turf/bearing';
+import {center} from '@turf/center';
 import {memoize} from '../utils/memoize';
 
 import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
@@ -27,8 +27,8 @@ export class MeasureAngleMode extends GeoJsonEditMode {
         const {formatTooltip, measurementCallback} = modeConfig || {};
         const units = 'deg';
 
-        const angle1 = turfBearing(vertex, point1);
-        const angle2 = turfBearing(vertex, point2);
+        const angle1 = bearing(vertex, point1);
+        const angle2 = bearing(vertex, point2);
         let angle = Math.abs(angle1 - angle2);
         if (angle > 180) {
           angle = 360 - angle;
@@ -47,7 +47,7 @@ export class MeasureAngleMode extends GeoJsonEditMode {
           measurementCallback(angle);
         }
 
-        const position = turfCenter({
+        const position = center({
           type: 'FeatureCollection',
           features: [point1, point2].map(p => ({
             type: 'Feature',

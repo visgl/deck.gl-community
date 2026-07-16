@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {beforeEach, afterEach, describe, test, it, expect} from 'vitest';
-import {area as turfArea} from '@turf/area';
+import {area} from '@turf/area';
 import {Feature, FeatureCollection} from '../../../src/utils/geojson-types';
 import {DrawRectangleMode} from '../../../src/edit-modes/draw-rectangle-mode';
 import {
@@ -209,7 +209,7 @@ describe('modeConfig.booleanOperation', () => {
         modeConfig: {booleanOperation: 'union'}
       });
       // @ts-expect-error TODO
-      const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);
+      const areaBefore = area(featureCollection.features[polygonFeatureIndex]);
 
       props.lastPointerMoveEvent = createPointerMoveEvent([0, 0]);
       mode.handleClick(createClickEvent([0, 0]), props);
@@ -219,7 +219,7 @@ describe('modeConfig.booleanOperation', () => {
       expect(props.onEdit).toHaveBeenCalledTimes(1);
       // @ts-expect-error TODO
       const action = props.onEdit.mock.calls[0][0];
-      const areaAfter = turfArea(action.updatedData.features[polygonFeatureIndex]);
+      const areaAfter = area(action.updatedData.features[polygonFeatureIndex]);
 
       expect(areaAfter).toBeGreaterThan(areaBefore);
     });
@@ -234,7 +234,7 @@ describe('modeConfig.booleanOperation', () => {
         modeConfig: {booleanOperation: 'difference'}
       });
       // @ts-expect-error TODO
-      const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);
+      const areaBefore = area(featureCollection.features[polygonFeatureIndex]);
 
       props.lastPointerMoveEvent = createPointerMoveEvent([0, 0]);
       mode.handleClick(createClickEvent([0, 0]), props);
@@ -244,7 +244,7 @@ describe('modeConfig.booleanOperation', () => {
       expect(props.onEdit).toHaveBeenCalledTimes(1);
       // @ts-expect-error TODO
       const action = props.onEdit.mock.calls[0][0];
-      const areaAfter = turfArea(action.updatedData.features[polygonFeatureIndex]);
+      const areaAfter = area(action.updatedData.features[polygonFeatureIndex]);
 
       expect(areaAfter).toBeLessThan(areaBefore);
     });
@@ -259,7 +259,7 @@ describe('modeConfig.booleanOperation', () => {
         modeConfig: {booleanOperation: 'intersection'}
       });
       // @ts-expect-error TODO
-      const areaBefore = turfArea(featureCollection.features[polygonFeatureIndex]);
+      const areaBefore = area(featureCollection.features[polygonFeatureIndex]);
 
       props.lastPointerMoveEvent = createPointerMoveEvent([0, 0]);
       mode.handleClick(createClickEvent([0, 0]), props);
@@ -269,7 +269,7 @@ describe('modeConfig.booleanOperation', () => {
       expect(props.onEdit).toHaveBeenCalledTimes(1);
       // @ts-expect-error TODO
       const action = props.onEdit.mock.calls[0][0];
-      const areaAfter = turfArea(action.updatedData.features[polygonFeatureIndex]);
+      const areaAfter = area(action.updatedData.features[polygonFeatureIndex]);
 
       expect(areaAfter).toBeLessThan(areaBefore);
     });

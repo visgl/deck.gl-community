@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {bbox as turfBbox} from '@turf/bbox';
+import {bbox} from '@turf/bbox';
 import {centroid as turfCentroid} from '@turf/centroid';
-import {bearing as turfBearing} from '@turf/bearing';
-import {bboxPolygon as turfBboxPolygon} from '@turf/bbox-polygon';
-import {distance as turfDistance} from '@turf/distance';
+import {bearing} from '@turf/bearing';
+import {bboxPolygon} from '@turf/bbox-polygon';
+import {distance} from '@turf/distance';
 import {coordEach} from '@turf/meta';
 import {getGeom} from '@turf/invariant';
 import {point, featureCollection, lineString} from '@turf/helpers';
-import {transformRotate as turfTransformRotate} from '@turf/transform-rotate';
+import {transformRotate} from '@turf/transform-rotate';
 import {polygonToLine} from '@turf/polygon-to-line';
 import {
   PointerMoveEvent,
@@ -55,7 +55,7 @@ export class RotateMode extends GeoJsonEditMode {
       return featureCollection([turfCentroid(selectedGeometry)]) as GuideFeatureCollection;
     }
 
-    const boundingBox = turfBboxPolygon(turfBbox(selectedGeometry));
+    const boundingBox = bboxPolygon(bbox(selectedGeometry));
 
     let previousCoord: Position | null = null;
     let topEdgeMidpointCoords: Position | null = null;
@@ -69,7 +69,7 @@ export class RotateMode extends GeoJsonEditMode {
           topEdgeMidpointCoords = edgeMidpoint;
         }
         // Get the length of the longest edge of the enveloping box
-        const edgeDistance = turfDistance(coord, previousCoord);
+        const edgeDistance = distance(coord, previousCoord);
         longestEdgeLength = Math.max(longestEdgeLength, edgeDistance);
       }
       previousCoord = coord;
@@ -172,7 +172,7 @@ export class RotateMode extends GeoJsonEditMode {
     }
     const centroid = turfCentroid(this._geometryBeingRotated);
     const angle = getRotationAngle(centroid.geometry.coordinates, startDragPoint, currentPoint);
-    const rotatedFeatures = turfTransformRotate(this._geometryBeingRotated, angle, {
+    const rotatedFeatures = transformRotate(this._geometryBeingRotated, angle, {
       pivot: centroid
     });
 
@@ -196,7 +196,7 @@ export class RotateMode extends GeoJsonEditMode {
 }
 
 function getRotationAngle(centroid: Position, startDragPoint: Position, currentPoint: Position) {
-  const bearing1 = turfBearing(centroid, startDragPoint);
-  const bearing2 = turfBearing(centroid, currentPoint);
+  const bearing1 = bearing(centroid, startDragPoint);
+  const bearing2 = bearing(centroid, currentPoint);
   return bearing2 - bearing1;
 }

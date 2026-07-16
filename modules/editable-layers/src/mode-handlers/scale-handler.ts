@@ -3,8 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {centroid as turfCentroid} from '@turf/centroid';
-import {distance as turfDistance} from '@turf/distance';
-import {transformScale as turfTransformScale} from '@turf/transform-scale';
+import {distance} from '@turf/distance';
+import {transformScale} from '@turf/transform-scale';
 import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
@@ -68,7 +68,7 @@ export class ScaleHandler extends ModeHandler {
     const startPosition = startDragPoint;
     const centroid = turfCentroid(this._geometryBeingScaled);
     const factor = getScaleFactor(centroid.geometry.coordinates, startPosition, currentPoint);
-    const scaledFeatures = turfTransformScale(this._geometryBeingScaled, factor, {
+    const scaledFeatures = transformScale(this._geometryBeingScaled, factor, {
       origin: centroid
     });
 
@@ -91,7 +91,7 @@ export class ScaleHandler extends ModeHandler {
 }
 
 function getScaleFactor(centroid: Position, startDragPoint: Position, currentPoint: Position) {
-  const startDistance = turfDistance(centroid, startDragPoint);
-  const endDistance = turfDistance(centroid, currentPoint);
+  const startDistance = distance(centroid, startDragPoint);
+  const endDistance = distance(centroid, currentPoint);
   return endDistance / startDistance;
 }

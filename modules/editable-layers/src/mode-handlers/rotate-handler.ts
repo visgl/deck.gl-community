@@ -3,8 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {centroid as turfCentroid} from '@turf/centroid';
-import {bearing as turfBearing} from '@turf/bearing';
-import {transformRotate as turfTransformRotate} from '@turf/transform-rotate';
+import {bearing} from '@turf/bearing';
+import {transformRotate} from '@turf/transform-rotate';
 import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
 import {EditAction, ModeHandler} from './mode-handler';
@@ -69,7 +69,7 @@ export class RotateHandler extends ModeHandler {
     const centroid = turfCentroid(this._geometryBeingRotated);
     const angle = getRotationAngle(centroid.geometry.coordinates, startPosition, currentPoint);
 
-    const rotatedFeatures = turfTransformRotate(this._geometryBeingRotated, angle);
+    const rotatedFeatures = transformRotate(this._geometryBeingRotated, angle);
 
     let updatedData = this.getImmutableFeatureCollection();
 
@@ -90,7 +90,7 @@ export class RotateHandler extends ModeHandler {
 }
 
 function getRotationAngle(centroid: Position, startDragPoint: Position, currentPoint: Position) {
-  const bearing1 = turfBearing(centroid, startDragPoint);
-  const bearing2 = turfBearing(centroid, currentPoint);
+  const bearing1 = bearing(centroid, startDragPoint);
+  const bearing2 = bearing(centroid, currentPoint);
   return bearing2 - bearing1;
 }
