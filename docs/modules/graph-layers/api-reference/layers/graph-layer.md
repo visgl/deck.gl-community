@@ -54,6 +54,8 @@ Unified graph input. Accepts:
 
 - A `GraphEngine` instance to reuse an existing engine.
 - A [`Graph`](../graph.md) instance to have the layer build its own engine.
+- Normalized `GraphData` emitted by bundled loaders such as `PlainGraphData` or
+  `ArrowGraphData`.
 - Raw graph payloads—either arrays of edges or `{nodes, edges}` objects. Strings
   and promises are resolved via Deck.gl's async prop system.
 
@@ -70,8 +72,8 @@ releases will remove this prop.
 
 Custom loader that converts raw `data` into a `Graph`. Defaults to the bundled
 `JSONLoader`, which accepts arrays of edges or `{nodes, edges}` collections and
-automatically synthesizes missing nodes. Graph instances are no longer
-normalized by the loader—pass them directly to `data`.
+automatically synthesizes missing nodes. Graph instances and normalized
+`GraphData` are no longer normalized by the loader—pass them directly to `data`.
 
 #### `engine` (`GraphEngine`, optional)
 
