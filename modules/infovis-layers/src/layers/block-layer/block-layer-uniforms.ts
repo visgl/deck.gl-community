@@ -31,6 +31,7 @@ export type BlockProps = {
 /** Shader module that defines uniforms consumed by {@link BlockLayer}. */
 export const blockUniforms = {
   name: 'block',
+  source: '',
   vs: glslUniformBlock,
   fs: glslUniformBlock,
   uniformTypes: {

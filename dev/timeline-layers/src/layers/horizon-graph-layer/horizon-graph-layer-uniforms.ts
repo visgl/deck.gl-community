@@ -30,6 +30,7 @@ export type HorizonLayerProps = HorizonLayerBindingProps & HorizonLayerUniformPr
 
 export const horizonLayerUniforms = {
   name: 'horizonLayer',
+  source: '',
   vs: uniformBlock,
   fs: uniformBlock,
   uniformTypes: {

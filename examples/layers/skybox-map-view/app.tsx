@@ -5,6 +5,7 @@
 import {Deck, MapView} from '@deck.gl/core';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {SkyboxLayer} from '@deck.gl-community/layers';
+import {DeviceManagerController, DeviceTabsWidget} from '@deck.gl-community/widgets';
 import {SKYBOX_CUBEMAP} from '../skybox-assets/cubemap';
 
 const INITIAL_VIEW_STATE = {
@@ -30,6 +31,8 @@ export function mountSkyboxMapViewExample(
     rootElement.appendChild(createOverlay(rootElement.ownerDocument));
   }
 
+  const deviceManager = new DeviceManagerController();
+  deviceManager.reparentCanvas(rootElement);
   const deck = new Deck({
     parent: rootElement,
     views: new MapView({repeat: true, maxPitch: MAX_PITCH}),
@@ -40,6 +43,14 @@ export function mountSkyboxMapViewExample(
       maxPitch: MAX_PITCH
     },
     parameters: {clearColor: [0, 0, 0, 1]},
+    widgets: [
+      new DeviceTabsWidget({
+        id: 'skybox-map-view-device-tabs',
+        devices: ['webgpu', 'webgl2'],
+        manager: deviceManager,
+        placement: 'top-right'
+      })
+    ],
     layers: [
       new SkyboxLayer({
         id: 'skybox',
@@ -53,9 +64,17 @@ export function mountSkyboxMapViewExample(
       })
     ]
   });
+  const unsubscribeDevice = deviceManager.subscribe(({device}) => {
+    if (device && deck.device !== device) {
+      deck.setProps({device});
+    }
+  });
+  void deviceManager.initialize();
 
   return () => {
+    unsubscribeDevice();
     deck.finalize();
+    deviceManager.reset();
     rootElement.remove();
     container.replaceChildren();
   };
