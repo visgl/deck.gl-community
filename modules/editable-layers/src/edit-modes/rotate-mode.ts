@@ -112,7 +112,7 @@ export class RotateMode extends GeoJsonEditMode {
     event.cancelPan();
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (!this._isRotating) {
       const selectedEditHandle = getPickedEditHandle(event.picks);
       this._selectedEditHandle =
@@ -152,7 +152,7 @@ export class RotateMode extends GeoJsonEditMode {
     }
   }
 
-  updateCursor(props: ModeProps<FeatureCollection>) {
+  updateCursor(props: ModeProps<SimpleFeatureCollection>) {
     if (this._selectedEditHandle) {
       // TODO: look at doing SVG cursors to get a better "rotate" cursor
       props.onUpdateCursor('crosshair');

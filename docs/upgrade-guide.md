@@ -6,6 +6,14 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## v9.4
 
+### `@deck.gl-community/editable-layers`
+
+- TypeScript change: edit mode constructors now use `SimpleFeatureCollection`
+  consistently across the base classes and exported modes. Consumers that typed
+  editable mode data as the broader GeoJSON `FeatureCollection` should migrate
+  those edit-mode generics to `SimpleFeatureCollection` or `SimpleFeature` from
+  `@deck.gl-community/editable-layers`.
+
 ### `@deck.gl-community/panels`
 
 - Breaking change: panel composition APIs no longer expose `Widget*` names from `@deck.gl-community/panels`.

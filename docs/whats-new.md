@@ -22,6 +22,13 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `DependencyArrowLayer` marker geometry now includes a native WGSL shader alongside its existing WebGL2 shader, including directional markers and picking; complete path-mode compatibility remains dependent on upstream `PathLayer` support.
 - `PathOutlineLayer` and `PathMarkerLayer` now use deck.gl v9-native sublayers for outlined paths, dashed strokes, and pixel-sized directional markers, restoring the path outline and marker example.
 
+### `@deck.gl-community/editable-layers`
+
+- Edit mode constructor and base-class types now use the package's editable
+  `SimpleFeatureCollection` contract consistently, so exported edit mode
+  constructors can be assigned to `GeoJsonEditModeConstructor[]` in strict
+  TypeScript projects.
+
 ### `@deck.gl-community/infovis-layers`
 
 - Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.

@@ -51,7 +51,7 @@ import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
 
 import {EditableLayer, EditableLayerProps} from './editable-layer';
 import {EditablePathLayer} from './editable-path-layer';
-import {Feature, FeatureCollection} from '../utils/geojson-types';
+import {Feature, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 
 const DEFAULT_LINE_COLOR: Color = [0x0, 0x0, 0x0, 0x99];
 const DEFAULT_FILL_COLOR: Color = [0x0, 0x0, 0x0, 0x90];
@@ -274,8 +274,8 @@ const modeNameMapping = {
 };
 
 export class EditableGeoJsonLayer extends EditableLayer<
-  FeatureCollection,
-  EditableGeoJsonLayerProps<FeatureCollection>
+  SimpleFeatureCollection,
+  EditableGeoJsonLayerProps<SimpleFeatureCollection>
 > {
   static layerName = 'EditableGeoJsonLayer';
   static defaultProps = defaultProps;

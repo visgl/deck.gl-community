@@ -16,14 +16,7 @@ import {
   NearestPointType,
   shouldCancelPan
 } from './utils';
-import {
-  LineString,
-  Point,
-  Polygon,
-  FeatureCollection,
-  Feature,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import {LineString, Point, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -261,7 +254,7 @@ export class ModifyMode extends GeoJsonEditMode {
     });
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const cursor = this.getCursor(event);
     props.onUpdateCursor(cursor);
   }
