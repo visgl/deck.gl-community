@@ -19,7 +19,7 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/geo-layers',
-      items: ['geo-layers/shared-tile-2d-layer']
+      items: ['geo-layers/shared-tile-2d-layer', 'geo-layers/wind']
     },
     {
       type: 'category',
